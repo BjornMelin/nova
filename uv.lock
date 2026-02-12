@@ -68,9 +68,9 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "boto3", specifier = ">=1.42.47" },
-    { name = "fastapi", specifier = ">=0.128.8" },
+    { name = "fastapi", specifier = ">=0.129.0" },
     { name = "httpx", specifier = ">=0.28.1" },
-    { name = "oidc-jwt-verifier", specifier = ">=0.1.4" },
+    { name = "oidc-jwt-verifier", specifier = ">=0.1.5" },
     { name = "pydantic", specifier = ">=2.12.5" },
     { name = "pydantic-settings", specifier = ">=2.12.0" },
     { name = "redis", specifier = ">=7.1.1" },
@@ -226,7 +226,7 @@ wheels = [
 
 [[package]]
 name = "fastapi"
-version = "0.128.8"
+version = "0.129.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "annotated-doc" },
@@ -235,9 +235,9 @@ dependencies = [
     { name = "typing-extensions" },
     { name = "typing-inspection" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/01/72/0df5c58c954742f31a7054e2dd1143bae0b408b7f36b59b85f928f9b456c/fastapi-0.128.8.tar.gz", hash = "sha256:3171f9f328c4a218f0a8d2ba8310ac3a55d1ee12c28c949650288aee25966007", size = 375523, upload-time = "2026-02-11T15:19:36.69Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/48/47/75f6bea02e797abff1bca968d5997793898032d9923c1935ae2efdece642/fastapi-0.129.0.tar.gz", hash = "sha256:61315cebd2e65df5f97ec298c888f9de30430dd0612d59d6480beafbc10655af", size = 375450, upload-time = "2026-02-12T13:54:52.541Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/9f/37/37b07e276f8923c69a5df266bfcb5bac4ba8b55dfe4a126720f8c48681d1/fastapi-0.128.8-py3-none-any.whl", hash = "sha256:5618f492d0fe973a778f8fec97723f598aa9deee495040a8d51aaf3cf123ecf1", size = 103630, upload-time = "2026-02-11T15:19:35.209Z" },
+    { url = "https://files.pythonhosted.org/packages/9e/dd/d0ee25348ac58245ee9f90b6f3cbb666bf01f69be7e0911f9851bddbda16/fastapi-0.129.0-py3-none-any.whl", hash = "sha256:b4946880e48f462692b31c083be0432275cbfb6e2274566b1be91479cc1a84ec", size = 102950, upload-time = "2026-02-12T13:54:54.528Z" },
 ]
 
 [[package]]
@@ -389,14 +389,14 @@ wheels = [
 
 [[package]]
 name = "oidc-jwt-verifier"
-version = "0.1.4"
+version = "0.1.5"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pyjwt", extra = ["crypto"] },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/73/f2/3b29a8657b3ea7154a084c3d57dd9ab3769781cee4e286c6f67d5892e69e/oidc_jwt_verifier-0.1.4.tar.gz", hash = "sha256:93a789c522e197d52b3d6394a6ff9ae04ca82901438ef8935492686217d69ca5", size = 25726, upload-time = "2026-02-12T07:50:36.137Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/3e/37/7a050ddb6412514cf628145231a32a899bff5f4f997609413b1ac520615d/oidc_jwt_verifier-0.1.5.tar.gz", hash = "sha256:6575304e6b6bfdd20a0a11d0803c841bd7ae0dc8ce3dc98e1abb88ad4a8fe336", size = 37219, upload-time = "2026-02-12T11:05:05.344Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/cd/f8/c1410e966662dab36cc275a1920542f37c80416fd689dc25494a4c949d23/oidc_jwt_verifier-0.1.4-py3-none-any.whl", hash = "sha256:67f84d3e5ab2a273a5f601a798633d904890033ff2f9101cc033140fccf5ce21", size = 18140, upload-time = "2026-02-12T07:50:35.072Z" },
+    { url = "https://files.pythonhosted.org/packages/f8/47/10193fb67854849363c9bb16e7e8cfe085fe78a3cafaad280d44ba02ce30/oidc_jwt_verifier-0.1.5-py3-none-any.whl", hash = "sha256:448fc98c61faa0860b519c620cf011b4557b64d016ca524d1b7fa0dbfe7b30b4", size = 29432, upload-time = "2026-02-12T11:05:03.138Z" },
 ]
 
 [[package]]
