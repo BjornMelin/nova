@@ -98,7 +98,7 @@ Minimum tests MUST include:
 
 ## 9. Traceability
 
-- [FR-0004](../requirements.md#fr-0004-auth-and-authorization-pluggable)
-- [FR-FT-006](../requirements.md#fr-ft-006-auth-and-authorization-behavior)
-- [NFR-0000](../requirements.md#nfr-0000-observability)
-- [NFR-FT-001](../requirements.md#nfr-ft-001-security-baseline)
+- [FR-0005](../requirements.md#fr-0005-authentication-and-authorization)
+- [FR-0003](../requirements.md#fr-0003-key-generation-and-scope-enforcement)
+- [NFR-0000](../requirements.md#nfr-0000-security-baseline)
+- [NFR-0001](../requirements.md#nfr-0001-performance-and-event-loop-safety)

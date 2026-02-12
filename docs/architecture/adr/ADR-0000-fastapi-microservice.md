@@ -61,12 +61,12 @@ Specific decision points:
 
 ## Related Requirements
 
-- [FR-0000](../requirements.md#fr-0000-control-plane-endpoints)
-- [FR-0001](../requirements.md#fr-0001-s3-multipart-correctness)
-- [FR-0002](../requirements.md#fr-0002-key-generation-and-scoping)
-- [FR-0004](../requirements.md#fr-0004-auth-and-authorization-pluggable)
-- [NFR-0000](../requirements.md#nfr-0000-observability)
-- [NFR-0001](../requirements.md#nfr-0001-documentation-automation)
+- [FR-0000](../requirements.md#fr-0000-file-transfer-control-plane-endpoints)
+- [FR-0009](../requirements.md#fr-0009-s3-multipart-correctness-and-acceleration-compatibility)
+- [FR-0003](../requirements.md#fr-0003-key-generation-and-scope-enforcement)
+- [FR-0005](../requirements.md#fr-0005-authentication-and-authorization)
+- [FR-0007](../requirements.md#fr-0007-observability-and-analytics)
+- [FR-0008](../requirements.md#fr-0008-openapi-contract-ownership)
 
 ## Consequences
 

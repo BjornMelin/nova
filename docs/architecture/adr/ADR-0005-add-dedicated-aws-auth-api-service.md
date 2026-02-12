@@ -55,10 +55,10 @@ Implementation commitments:
 
 ## Related Requirements
 
-- [FR-0004](../requirements.md#fr-0004-auth-and-authorization-pluggable)
-- [FR-FT-006](../requirements.md#fr-ft-006-auth-and-authorization-behavior)
-- [NFR-FT-003](../requirements.md#nfr-ft-003-scalability-model)
-- [NFR-0000](../requirements.md#nfr-0000-observability)
+- [FR-0005](../requirements.md#fr-0005-authentication-and-authorization)
+- [IR-0003](../requirements.md#ir-0003-optional-remote-auth-service)
+- [NFR-0002](../requirements.md#nfr-0002-scalability-and-resilience)
+- [NFR-0003](../requirements.md#nfr-0003-operability)
 
 ## Consequences
 

@@ -61,8 +61,8 @@ Known caveat:
 
 ## Related Requirements
 
-- [NFR-0001](../requirements.md#nfr-0001-documentation-automation)
-- [IR-FT-003](../requirements.md#ir-ft-003-openapi-exposure-for-client-generation)
+- [FR-0008](../requirements.md#fr-0008-openapi-contract-ownership)
+- [NFR-0004](../requirements.md#nfr-0004-cicd-and-quality-gates)
 
 ## Consequences
 
