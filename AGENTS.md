@@ -69,6 +69,22 @@ ensure the chosen option scores at least 9.0/10.0. Every line of documentation a
 - Keep dependencies lean and maintained.
 - Never log presigned URLs or query strings.
 - Never run synchronous JWT verification directly in async route/dependency code; use a threadpool boundary.
+- Preserve enqueue correctness:
+  - Never swallow queue publish failures.
+  - `POST /jobs/enqueue` publish failures must surface as `503` with
+    `error.code = "queue_unavailable"`.
+  - Failed enqueue responses must not be idempotency replay cached.
+- Preserve readiness semantics:
+  - `/readyz` pass/fail is based on traffic-critical dependencies only.
+  - Feature flags (for example `JOBS_ENABLED`) must not drive readiness false.
+- Preserve rollup correctness for DynamoDB activity backend:
+  - `active_users_today` increments only on first user/day marker write.
+  - `distinct_event_types` increments only on first event-type/day marker write.
+  - Use conditional writes to keep counters concurrency-safe.
+- Preserve backend startup validation:
+  - `JOBS_QUEUE_BACKEND=sqs` + `JOBS_ENABLED=true` requires
+    `JOBS_SQS_QUEUE_URL`.
+  - `ACTIVITY_STORE_BACKEND=dynamodb` requires `ACTIVITY_ROLLUPS_TABLE`.
 
 ## Required quality gates
 
@@ -83,6 +99,25 @@ ensure the chosen option scores at least 9.0/10.0. Every line of documentation a
 - health endpoint responds within expected time
 - structured logs include request_id
 - OpenAPI schema builds and docs publish pipeline runs
+
+## Documentation Update Rules (Mandatory)
+
+Any behavioral or contract change MUST update all affected docs in the same
+change:
+
+- `README.md` operational behavior/config summary
+- `PRD.md` product-level requirement and success criteria updates
+- `docs/architecture/requirements.md` requirement IDs
+- relevant `docs/architecture/spec/*.md` contracts
+- relevant `docs/architecture/adr/*.md` decision records
+- `docs/plan/PLAN.md` progress + phase checklists
+- impacted `docs/plan/subplans/*.md` checklists
+
+When a review/regression fix changes runtime semantics, include:
+
+- explicit before/after behavior statement
+- new or updated tests listed in plan/progress notes
+- source links to official docs (AWS/FastAPI/RFC) used for decisions
 
 <!-- opensrc:start -->
 

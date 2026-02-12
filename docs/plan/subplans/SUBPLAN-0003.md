@@ -42,6 +42,9 @@ Repositories:
 
 - [ ] Validate and update `FILE_TRANSFER_*` env mapping consistency
 - [ ] Add/tune SQS/Redis/DynamoDB feature toggles
+- [ ] Align new queue retry env mappings:
+  - `JOBS_SQS_RETRY_MODE`
+  - `JOBS_SQS_RETRY_TOTAL_MAX_ATTEMPTS`
 - [ ] Validate sidecar ALB routing for `/api/file-transfer/*`
 - [ ] Tune health-check interval/threshold/start grace for ECS
 

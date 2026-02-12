@@ -2,69 +2,71 @@
 Spec: 0001
 Title: Security Model
 Status: Active
-Version: 1.1
-Date: 2026-02-11
+Version: 1.3
+Date: 2026-02-12
 Related:
-  - "[ADR-0001: ECS/Fargate deployment behind ALB](../adr/ADR-0001-deployment-on-ecs-fargate-behind-alb.md)"
+  - "[ADR-0004: Canonical OIDC verifier adoption](../adr/ADR-0004-canonical-oidc-jwt-verifier-adoption.md)"
+  - "[ADR-0005: Dedicated aws-auth-api track](../adr/ADR-0005-add-dedicated-aws-auth-api-service.md)"
   - "[SPEC-0000: HTTP API contract](./SPEC-0000-http-api-contract.md)"
+  - "[SPEC-0006: JWT/OIDC verification and principal mapping](./SPEC-0006-jwt-oidc-verification-and-principal-mapping.md)"
 References:
   - "[S3 presigned URL overview](https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-presigned-url.html)"
-  - "[AWS presigned URL best practices](https://docs.aws.amazon.com/prescriptive-guidance/latest/presigned-url-best-practices/overview.html)"
+  - "[AWS presigned URL best practices](https://docs.aws.amazon.com/prescriptive-guidance/latest/presigned-url-best-practices/introduction.html)"
+  - "[Starlette thread pool behavior](https://www.starlette.io/threadpool/)"
+  - "[AnyIO threads guidance](https://anyio.readthedocs.io/en/latest/threads.html)"
   - "[RFC 6750 Bearer Token Usage](https://datatracker.ietf.org/doc/html/rfc6750)"
+  - "[RFC 8725 JWT Best Current Practices](https://datatracker.ietf.org/doc/html/rfc8725)"
 ---
 
-## 1. Auth modes
+## 1. Authentication modes
 
-### 1.1 Same-origin sidecar mode (recommended default)
+### 1.1 Same-origin mode
 
-- Upstream application handles user authentication.
-- Browser calls remain same-origin under `/api/file-transfer`.
-- API receives trusted user context through gateway/app integration or session identity.
+Primary deployment model. Upstream application identity is trusted and mapped to
+scope.
 
-### 1.2 JWT/OIDC bearer token mode
+### 1.2 Local JWT/OIDC verification mode
 
-- API validates bearer JWTs.
-- `scope_id` is derived from `sub` or a configured claim.
-- Required permissions SHOULD include `file:upload` and `file:download`.
+Default token mode. Verification uses canonical `oidc-jwt-verifier` policy.
 
-## 2. Authorization rules
+### 1.3 Optional remote auth mode
 
-- Storage keys MUST be server-generated.
-- Every mutation/read operation MUST validate key ownership by `scope_id`.
-- Follow-up multipart operations MUST validate:
-  - key prefix
-  - matching `upload_id`
-  - same caller scope as initiation
+Uses `aws-auth-api` over HTTP. This mode MUST be explicit and fail-closed on
+connectivity or non-success auth responses.
 
-## 3. Key and scope model
+## 2. JWT verification and async safety
 
-Canonical scope format:
+- Enforce issuer, audience, expiry, and not-before checks.
+- Enforce strict algorithm allowlist.
+- Reject dangerous JWT header parameters (`jku`, `x5u`, `crit`).
+- Synchronous verifier calls in async dependencies MUST run via threadpool
+  boundary (`anyio.to_thread.run_sync` or equivalent).
 
-- `{prefix}/{scope_id}/{generated_object_name}`
+## 3. Authorization rules
 
-Allowed prefixes are configured by environment (`uploads/`, `exports/`, `tmp/`).
+- Every key operation MUST enforce caller scope ownership.
+- Prefix checks MUST limit access to approved upload/export/tmp prefixes.
+- Multipart continuation MUST enforce key ownership for the same caller scope.
 
-## 4. Presigned URL safeguards
+## 4. Scope derivation
 
-- Upload/download URLs MUST be short-lived.
-- Full presigned URLs MUST NOT be logged.
-- Query strings and signatures MUST be excluded from structured logs and error payloads.
+Scope derivation priority:
 
-## 5. IAM and infra controls
+1. trusted tenant/org claim
+2. trusted subject claim
+3. session fallback only in non-JWT mode
 
-- Task role MUST follow least privilege to bucket and approved prefixes.
-- Bucket MUST remain private with Block Public Access enabled.
-- Encryption at rest MUST remain enabled through platform-managed settings.
+Client `session_id` MUST NOT override trusted JWT identity.
 
-## 6. Threat-focused requirements
+## 5. Sensitive data protections
 
-- Prevent horizontal access by strict scope-prefix authorization.
-- Prevent key injection by rejecting client-selected arbitrary keys.
-- Reduce replay window via TTL limits and auditable request IDs.
+- Never log bearer tokens or authorization headers.
+- Never log presigned URLs or query signatures.
+- Error payloads must not include sensitive auth or URL material.
 
-## 7. Traceability
+## 6. Traceability
 
-- [FR-0002](../requirements.md#fr-0002-key-generation-and-scoping)
-- [FR-0004](../requirements.md#fr-0004-auth-and-authorization-pluggable)
-- [NFR-FT-001](../requirements.md#nfr-ft-001-security-baseline)
-- [NFR-FT-002](../requirements.md#nfr-ft-002-iam-least-privilege)
+- [FR-0003](../requirements.md#fr-0003-key-generation-and-scope-enforcement)
+- [FR-0005](../requirements.md#fr-0005-authentication-and-authorization)
+- [NFR-0000](../requirements.md#nfr-0000-security-baseline)
+- [NFR-0001](../requirements.md#nfr-0001-performance-and-event-loop-safety)

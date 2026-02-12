@@ -2,7 +2,7 @@
 Spec: 0009
 Title: Caching and Idempotency
 Status: Active
-Version: 1.0
+Version: 1.1
 Date: 2026-02-12
 Related:
   - "[ADR-0007: Two-tier cache and idempotency store](../adr/ADR-0007-two-tier-cache-and-idempotency-store.md)"
@@ -40,6 +40,8 @@ For protected mutation endpoints:
 - Require `Idempotency-Key` when feature is enabled.
 - Bind replay records to route + caller scope + key.
 - Reject key reuse with different payload (`idempotency_conflict`).
+- Enqueue failures (`503` + `error.code = "queue_unavailable"`) MUST NOT be
+  replay-cached as successful responses.
 
 ## 5. Traceability
 

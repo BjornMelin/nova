@@ -44,6 +44,8 @@ Repositories:
 
 - [ ] Validate enqueue -> worker -> completion path
 - [ ] Validate queue pressure and retry behavior
+- [ ] Validate enqueue publish-failure path returns `503 queue_unavailable`
+- [ ] Validate failed enqueue responses are not idempotency replay cached
 - [ ] Validate Redis failure fallback and idempotency replay behavior
 
 ### D. Observability and operations
@@ -51,6 +53,7 @@ Repositories:
 - [ ] Validate dashboard population in non-prod
 - [ ] Validate alarms trigger under controlled fault injection
 - [ ] Validate `/healthz` and `/readyz` operational behavior
+- [ ] Validate readiness remains `ok=true` when optional features are disabled
 
 ### E. Release closure
 

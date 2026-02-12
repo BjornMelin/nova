@@ -68,6 +68,7 @@ Out of scope:
 ### D. Tests and gates
 
 - [x] Add endpoint tests for health/readiness and idempotency behavior
+- [x] Keep readiness checks scoped to critical dependencies (not feature flags)
 - [x] Pass ruff/mypy/pytest quality gates
 
 ## Acceptance Criteria

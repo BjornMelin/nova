@@ -12,7 +12,7 @@
 | [SPEC-0001](./SPEC-0001-security-model.md) | Security Model | Active | 2026-02-12 |
 | [SPEC-0002](./SPEC-0002-s3-integration.md) | S3 Integration | Active | 2026-02-11 |
 | [SPEC-0003](./SPEC-0003-observability.md) | Observability | Active | 2026-02-12 |
-| [SPEC-0004](./SPEC-0004-ci-cd-and-docs.md) | CI/CD and Documentation Automation | Active | 2026-02-11 |
+| [SPEC-0004](./SPEC-0004-ci-cd-and-docs.md) | CI/CD and Documentation Automation | Active | 2026-02-12 |
 | [SPEC-0005](./SPEC-0005-abuse-prevention-and-quotas.md) | Abuse Prevention and Quotas | Active | 2026-02-11 |
 | [SPEC-0006](./SPEC-0006-jwt-oidc-verification-and-principal-mapping.md) | JWT/OIDC Verification and Principal Mapping | Active | 2026-02-12 |
 | [SPEC-0007](./SPEC-0007-auth-api-contract.md) | Auth API Contract | Active | 2026-02-12 |

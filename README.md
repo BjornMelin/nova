@@ -1,31 +1,104 @@
-# aws-file-transfer-api (Docs Bundle)
+# aws-file-transfer-api
 
-This directory contains a **repo-scoped** documentation set for the deployable
-FastAPI-based File Transfer API service.
+![Python](https://img.shields.io/badge/Python-3.11%20%7C%203.12%20%7C%203.13-3776AB?logo=python&logoColor=white) ![FastAPI](https://img.shields.io/badge/FastAPI-0.128%2B-009688?logo=fastapi&logoColor=white) ![OpenAPI](https://img.shields.io/badge/OpenAPI-3.1-6BA539?logo=openapiinitiative&logoColor=white) ![AWS S3](https://img.shields.io/badge/AWS-S3-569A31?logo=amazons3&logoColor=white) ![AWS SQS](https://img.shields.io/badge/AWS-SQS-FF9900?logo=amazonaws&logoColor=white) ![Ruff](https://img.shields.io/badge/lint-ruff-D7FF64?logo=ruff&logoColor=111111) ![Mypy](https://img.shields.io/badge/types-mypy-2A6DB2?logo=python&logoColor=white) ![Pytest](https://img.shields.io/badge/tests-pytest-0A9EDC?logo=pytest&logoColor=white)
 
-The service implements a stable control-plane API for:
+FastAPI control-plane service for direct-to-S3 upload/download orchestration.
+The API returns presigned metadata and async job state. It never proxies file
+bytes.
 
-- presigned single PUT uploads
-- presigned multipart uploads (initiate/sign-parts/complete/abort)
-- presigned downloads
+## Runtime Capabilities
 
-It is designed to be deployed via container-craft as a **sidecar service** per app
-and routed under the same origin at `/api/file-transfer/*`.
+- Transfer endpoints for single-part and multipart uploads.
+- Download presign endpoint.
+- Async job endpoints:
+  - `POST /api/file-transfer/jobs/enqueue`
+  - `GET /api/file-transfer/jobs/{job_id}`
+  - `POST /api/file-transfer/jobs/{job_id}/cancel`
+- Auth modes:
+  - same-origin
+  - local JWT verification (`oidc-jwt-verifier`)
+  - optional remote auth mode (fail-closed)
+- Two-tier cache:
+  - local in-process TTL cache
+  - optional shared Redis cache
+- Idempotency replay support for:
+  - `POST /api/file-transfer/uploads/initiate`
+  - `POST /api/file-transfer/jobs/enqueue`
+- Operational endpoints:
+  - `GET /healthz`
+  - `GET /readyz`
+  - `GET /api/file-transfer/metrics/summary`
 
-**Bundle generated:** 2026-02-11
+## Production Semantics (Implemented)
 
-## Key upstream constraints (AWS)
+### Enqueue reliability contract
 
-- Multipart upload limits: max 10,000 parts; part size 5 MiB–5 GiB; object size bound by part constraints. citeturn4view0
-- Bucket CORS must expose headers (including `ETag`) to browser clients. citeturn6view0
-- Abort incomplete multipart uploads should be managed via lifecycle. citeturn1search1
-- Transfer Acceleration requires DNS-compliant bucket names without periods and uses the accelerate endpoint. citeturn5view0
+- Queue publish failures are surfaced to clients.
+- `POST /api/file-transfer/jobs/enqueue` returns:
+  - `503 Service Unavailable`
+  - `error.code = "queue_unavailable"`
+- When enqueue publish fails after record creation, the job record is
+  transitioned to `failed`.
+- Failed enqueue attempts are not idempotency replay cached.
 
-## Documentation map
+### Readiness contract
 
-- `PRD.md`
-- `docs/architecture/requirements.md`
-- `docs/architecture/adr/`
-- `docs/architecture/spec/`
-- `docs/plan/PLAN.md`
-- `docs/plan/subplans/`
+- `/readyz` reflects only critical traffic-serving dependencies.
+- Feature flags such as `JOBS_ENABLED` do not affect readiness pass/fail.
+- Current readiness checks:
+  - `bucket_configured`
+  - `shared_cache`
+
+### Activity rollup correctness
+
+- DynamoDB rollups track:
+  - `events_total`
+  - `active_users_today`
+  - `distinct_event_types`
+- `active_users_today` and `distinct_event_types` are incremented only when
+  first-seen marker writes succeed (conditional write pattern).
+
+## Required Configuration Rules
+
+Startup fails fast for invalid backend selections:
+
+- `JOBS_QUEUE_BACKEND=sqs` and `JOBS_ENABLED=true` requires
+  `JOBS_SQS_QUEUE_URL`.
+- `ACTIVITY_STORE_BACKEND=dynamodb` requires `ACTIVITY_ROLLUPS_TABLE`.
+
+Primary operational settings:
+
+- `FILE_TRANSFER_BUCKET`
+- `AUTH_MODE`
+- `JOBS_ENABLED`
+- `JOBS_QUEUE_BACKEND`
+- `JOBS_SQS_QUEUE_URL`
+- `JOBS_SQS_RETRY_MODE`
+- `JOBS_SQS_RETRY_TOTAL_MAX_ATTEMPTS`
+- `ACTIVITY_STORE_BACKEND`
+- `ACTIVITY_ROLLUPS_TABLE`
+- `CACHE_SHARED_BACKEND_URL`
+- `IDEMPOTENCY_ENABLED`
+
+## API Base Path
+
+- Primary: `/api/file-transfer`
+
+## Local Development
+
+Run in repository root:
+
+```bash
+source .venv/bin/activate && uv run ruff check . --fix && uv run ruff format .
+source .venv/bin/activate && uv run mypy
+source .venv/bin/activate && uv run pytest -q
+```
+
+## Documentation Map
+
+- Requirements: `docs/architecture/requirements.md`
+- ADR index: `docs/architecture/adr/index.md`
+- SPEC index: `docs/architecture/spec/index.md`
+- Execution plan: `docs/plan/PLAN.md`
+- Subplans: `docs/plan/subplans/`
+- Trigger prompts: `docs/plan/triggers/`

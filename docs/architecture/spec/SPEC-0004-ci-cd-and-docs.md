@@ -2,8 +2,8 @@
 Spec: 0004
 Title: CI/CD and Documentation Automation
 Status: Active
-Version: 1.1
-Date: 2026-02-11
+Version: 1.2
+Date: 2026-02-12
 Related:
   - "[ADR-0002: OpenAPI as contract and SDK generation](../adr/ADR-0002-openapi-as-contract-and-sdk-generation.md)"
   - "[ADR-0003: MkDocs Material + Scalar docs stack](../adr/ADR-0003-api-docs-site-mkdocs-material-plus-scalar.md)"
@@ -19,9 +19,9 @@ References:
 
 Every pull request MUST pass:
 
-- `uv run -- ruff check .`
-- `uv run -- mypy`
-- `uv run -- pytest -q`
+- `source .venv/bin/activate && uv run ruff check . --fix && uv run ruff format .`
+- `source .venv/bin/activate && uv run mypy`
+- `source .venv/bin/activate && uv run pytest -q`
 - container image build validation
 
 ## 2. Build and deploy pipeline
@@ -55,6 +55,13 @@ The docs pipeline MUST fail if:
 - OpenAPI generation fails,
 - docs build fails,
 - broken internal links are detected in ADR/SPEC navigation.
+
+When runtime behavior or error semantics change, the same pull request MUST
+include updates to:
+
+- `README.md`
+- `PRD.md`
+- affected `requirements.md`, `SPEC`, `ADR`, and `PLAN`/`SUBPLAN` docs
 
 ## 4. Client generation workflow
 

@@ -2,7 +2,7 @@
 Spec: 0003
 Title: Observability
 Status: Active
-Version: 1.2
+Version: 1.4
 Date: 2026-02-12
 Related:
   - "[ADR-0009: Observability stack](../adr/ADR-0009-observability-analytics-emf-dynamodb-cloudwatch.md)"
@@ -18,6 +18,13 @@ Service MUST expose:
 
 - `GET /healthz` for liveness
 - `GET /readyz` for readiness checks of critical dependencies
+
+Readiness rules:
+
+- `/readyz` `ok` MUST reflect only traffic-critical dependency checks.
+- Feature flags (for example `jobs_enabled`) MUST NOT drive readiness
+  pass/fail.
+- Optional feature disablement MUST NOT mark service unready.
 
 ## 2. Structured logging requirements
 

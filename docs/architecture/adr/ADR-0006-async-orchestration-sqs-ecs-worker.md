@@ -2,10 +2,11 @@
 ADR: 0006
 Title: Use SQS + ECS worker for initial async orchestration
 Status: Accepted
-Version: 1.0
+Version: 1.1
 Date: 2026-02-12
 Related:
   - "[ADR-0001: Deploy on ECS Fargate behind ALB with same-origin routing](./ADR-0001-deployment-on-ecs-fargate-behind-alb.md)"
+  - "[ADR-0010: Enqueue failure and readiness semantics](./ADR-0010-enqueue-failure-and-readiness-semantics.md)"
   - "[SPEC-0008: Async jobs and worker orchestration](../spec/SPEC-0008-async-jobs-and-worker-orchestration.md)"
 References:
   - "[Amazon SQS Developer Guide](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/welcome.html)"
@@ -46,6 +47,8 @@ Implementation commitments:
 - API exposes enqueue/status/cancel endpoints.
 - Queue backend defaults to SQS in AWS deployments.
 - Worker execution runs on ECS/Fargate.
+- Queue publish failures are surfaced synchronously to clients (`503`,
+  `queue_unavailable`) and are never treated as successful enqueue.
 - Step Functions/Lambda remain out of scope for the initial release.
 
 ## Consequences
@@ -57,3 +60,5 @@ Implementation commitments:
 ## Changelog
 
 - 2026-02-12 (v1.0): Initial acceptance.
+- 2026-02-12 (v1.1): Added enqueue publish-failure behavior alignment with
+  ADR-0010.

@@ -2,7 +2,7 @@
 Spec: 0010
 Title: Observability Analytics and Activity Rollups
 Status: Active
-Version: 1.0
+Version: 1.2
 Date: 2026-02-12
 Related:
   - "[ADR-0009: EMF + DynamoDB + CloudWatch observability stack](../adr/ADR-0009-observability-analytics-emf-dynamodb-cloudwatch.md)"
@@ -34,6 +34,18 @@ Rollups SHOULD aggregate per-day totals for dashboard usage:
 - distinct_event_types
 
 AWS deployments SHOULD use DynamoDB-backed rollups.
+
+When using DynamoDB rollups:
+
+- `events_total` MUST use atomic counters (`UpdateItem` + `ADD`).
+- `active_users_today` MUST be incremented only on first user-day marker
+  creation.
+- `distinct_event_types` MUST be incremented only on first event-type-day marker
+  creation.
+- Marker writes MUST use conditional expressions to keep counts accurate under
+  concurrency.
+- Marker records SHOULD use short TTLs to limit key accumulation while
+  preserving day-level correctness.
 
 ## 3. Dashboard requirements
 

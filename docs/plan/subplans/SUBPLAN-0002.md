@@ -38,8 +38,14 @@ In scope:
   <https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/Application-Signals-Cardinality.html>
 - DynamoDB best practices:
   <https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/best-practices.html>
+- DynamoDB UpdateItem:
+  <https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_UpdateItem.html>
+- DynamoDB atomic counters:
+  <https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/example_dynamodb_Scenario_AtomicCounterOperations_section.html>
 - ElastiCache best practices:
   <https://docs.aws.amazon.com/AmazonElastiCache/latest/dg/BestPractices.html>
+- SQS request error handling:
+  <https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/handling-request-errors.html>
 
 ## Checklist
 
@@ -47,6 +53,10 @@ In scope:
 
 - [x] Add enqueue/status/cancel API handlers
 - [x] Add memory and SQS publisher abstractions
+- [x] Propagate queue publish failures to clients (`503 queue_unavailable`)
+- [x] Mark created jobs `failed` when queue publish fails
+- [x] Ensure failed enqueue responses are not idempotency replay cached
+- [x] Add fail-fast SQS backend configuration validation
 - [ ] Add durable job repository backend (DynamoDB)
 - [ ] Add worker-facing result update contract and tests
 
@@ -61,13 +71,17 @@ In scope:
 - [x] Emit request metrics using EMF-compatible payloads
 - [x] Emit request completion logs with request_id and latency
 - [x] Implement memory and DynamoDB activity rollup backends
+- [x] Ensure readiness excludes feature-flag pass/fail coupling
+- [x] Ensure DynamoDB `distinct_event_types` uses first-seen marker increments
 - [ ] Add queue lag and worker throughput metrics
 
 ### D. Test expansion
 
 - [ ] Add tests for remote auth fail-closed behavior
 - [ ] Add tests for Redis outage fallback
-- [ ] Add tests for activity rollup summary edge cases
+- [x] Add tests for activity rollup summary edge cases
+- [x] Add tests for enqueue publish-failure behavior and idempotency failure path
+- [x] Add tests for readiness behavior with jobs feature disabled
 
 ## Acceptance Criteria
 
