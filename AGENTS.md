@@ -10,6 +10,8 @@
 - $openapi-spec-generation : Design and maintain OpenAPI 3.1 contracts, validation, and spec-first API workflows.
 - $architecture-decision-records : Write clear ADRs for major technical decisions with strong rationale and tradeoffs.
 - $api-design-principles : Apply REST API design best practices for consistent, intuitive, and maintainable endpoints.
+- $python-anti-patterns : Common Python anti-patterns to avoid during implementation and review.
+- $python-packaging : Build and maintain production-ready Python package metadata/layout/versioning.
 - $python-type-safety : Enforce strong typing with type hints, protocols, and strict checker-friendly design.
 - $python-code-style : Keep Python code clean, consistent, linted, formatted, and maintainable.
 - $python-testing-patterns : Build robust pytest suites with solid fixtures, mocking, and test strategy.
@@ -66,6 +68,7 @@ ensure the chosen option scores at least 9.0/10.0. Every line of documentation a
 - Treat OpenAPI as the contract. Add endpoints via SPECs + ADRs first.
 - Keep dependencies lean and maintained.
 - Never log presigned URLs or query strings.
+- Never run synchronous JWT verification directly in async route/dependency code; use a threadpool boundary.
 
 ## Required quality gates
 
