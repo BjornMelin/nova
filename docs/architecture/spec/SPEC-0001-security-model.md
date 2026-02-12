@@ -66,7 +66,7 @@ Client `session_id` MUST NOT override trusted JWT identity.
 
 ## 6. Worker callback authentication
 
-- Internal worker status updates (`POST /api/file-transfer/jobs/{job_id}/result`)
+- Internal worker status updates (`POST /api/jobs/{job_id}/result`)
   MUST use a shared-secret header validation pattern (`X-Worker-Token`) when a
   worker token is configured.
 - Invalid worker token values MUST return `403`.

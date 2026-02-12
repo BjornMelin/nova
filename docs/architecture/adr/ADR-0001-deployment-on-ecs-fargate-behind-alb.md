@@ -15,7 +15,7 @@ References:
 ## Summary
 
 Deploy the API as an ECS/Fargate service behind the existing ALB and route
-`/api/file-transfer/*` to it. Keep browser traffic same-origin with the parent
+`/api/transfers/*` and `/api/jobs/*` to it. Keep browser traffic same-origin with the parent
 application to avoid CORS/auth integration complexity.
 
 ## Context
@@ -50,7 +50,7 @@ Choose option A.
 
 Implementation commitments:
 
-- Route `/api/file-transfer/*` through the shared ALB.
+- Route `/api/transfers/*` and `/api/jobs/*` through the shared ALB.
 - Expose health endpoints compatible with ECS/ALB health-check expectations.
 - Preserve same-origin access patterns for browser clients.
 

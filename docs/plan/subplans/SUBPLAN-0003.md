@@ -21,8 +21,13 @@ routing, SQS/Redis/DynamoDB dependencies, and operational guardrails.
 
 Repositories:
 
+- `apps/aws_file_api_service`
+- `apps/aws_auth_api_service`
+- `packages/aws_file_api`
+- `packages/aws_auth_api`
+- `packages/aws_dash_bridge`
+- `packages/contracts`
 - `~/repos/work/infra-stack/container-craft`
-- `~/repos/work/infra-stack/aws-file-transfer-api`
 - `~/repos/work/pca-analysis-dash/dash-pca` (config validation)
 
 ## Mandatory Research Inputs
@@ -45,7 +50,7 @@ Repositories:
 - [ ] Align new queue retry env mappings:
   - `JOBS_SQS_RETRY_MODE`
   - `JOBS_SQS_RETRY_TOTAL_MAX_ATTEMPTS`
-- [ ] Validate sidecar ALB routing for `/api/file-transfer/*`
+- [ ] Validate sidecar ALB routing for `/api/transfers/*` and `/api/jobs/*`
 - [ ] Tune health-check interval/threshold/start grace for ECS
 
 ### B. Security and IAM

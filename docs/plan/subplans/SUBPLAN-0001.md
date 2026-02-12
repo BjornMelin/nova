@@ -19,7 +19,13 @@ mutations, and baseline tests.
 
 ## Scope
 
-Repository: `~/repos/work/infra-stack/aws-file-transfer-api`
+Repository scope (this monorepo):
+
+- `apps/aws_file_api_service`
+- `apps/aws_auth_api_service`
+- `packages/aws_file_api`
+- `packages/aws_auth_api`
+- `packages/contracts`
 
 In scope:
 
@@ -48,7 +54,7 @@ Out of scope:
 
 ### A. API and contract
 
-- [x] Implement transfer endpoints under `/api/file-transfer/*`
+- [x] Implement transfer endpoints under `/api/transfers/*` and `/api/jobs/*`
 - [x] Implement standard error envelope and request-id propagation
 - [x] Keep OpenAPI generation enabled and contract-aligned
 

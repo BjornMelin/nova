@@ -2,19 +2,23 @@
 
 ## Summary
 
-Implement the full approved 3-repo scope (`aws-file-transfer-api`, `container-craft`, `dash-pca`) using a single master tracker file first, then execute all code/infra/docs/test tasks while continuously updating that tracker with checkboxes, notes, blockers, and evidence.
+Implement the full approved 3-repo scope (runtime monorepo in this repo,
+`container-craft`, `dash-pca`) using a single master tracker file first, then
+execute all code/infra/docs/test tasks while continuously updating that tracker
+with checkboxes, notes, blockers, and evidence.
 
 ## Important Interface/Contract Changes
 
-1. `aws-file-transfer-api` remains canonical jobs control-plane owner.
+1. The runtime monorepo in this repo remains canonical jobs control-plane
+   owner.
 2. `container-craft` adds additive/opt-in async/file-transfer infra and worker wiring.
-3. `dash-pca` consumes canonical `/api/file-transfer/jobs/*` endpoints (no divergent app-local contract).
+3. `dash-pca` consumes canonical `/api/jobs/*` endpoints (no divergent app-local contract).
 4. All new behavior remains opt-in and backward-compatible by default.
 
 ## Step 0 (Required First Action)
 
 1. Create new file:
-   - `docs/plan/subplans/SUBPLAN-0005.md` (in `aws-file-transfer-api`)
+   - `docs/plan/subplans/SUBPLAN-0005.md` (in this runtime monorepo)
 2. Populate it with the **entire exact approved plan text** from the previous response.
 3. Add execution tracking sections at the top of that same file:
    - `Status`
@@ -47,7 +51,7 @@ Implement the full approved 3-repo scope (`aws-file-transfer-api`, `container-cr
 5. Update container-craft docs/spec/ADR/PLAN artifacts.
 6. Check off completed container-craft sections in `SUBPLAN-0005.md`.
 
-## Step 3: aws-file-transfer-api Completion
+## Step 3: Runtime Monorepo Completion
 
 1. Implement durable Dynamo job repository backend.
 2. Implement worker result update endpoint(s) for status transitions.
@@ -62,7 +66,7 @@ Implement the full approved 3-repo scope (`aws-file-transfer-api`, `container-cr
 ## Step 4: dash-pca Full Integration
 
 1. Keep direct-to-S3 integration and sync path behavior.
-2. Route async path to canonical `aws-file-transfer-api` jobs endpoints.
+2. Route async path to canonical runtime jobs endpoints.
 3. Implement worker flow for large-file processing and status updates.
 4. Complete export download via presigned S3 path.
 5. Expand callback/service/settings tests and integration tests.
@@ -114,7 +118,7 @@ Implement the full approved 3-repo scope (`aws-file-transfer-api`, `container-cr
 ## Execution Order (for implementation phase after approval)
 
 1. `container-craft`: infra/templates/renderer/action + tests/docs (foundation first).
-2. `aws-file-transfer-api`: durable repo + worker update endpoints + tests/docs.
+2. Runtime monorepo: durable repo + worker update endpoints + tests/docs.
 3. `dash-pca`: consume canonical jobs API + worker + callback integrations + tests/docs.
 4. Cross-repo consistency pass and final checklist closure.
 
@@ -131,7 +135,7 @@ A. `container-craft`
 2. Renderer/settings/action wiring complete.
 3. Tests passing; docs/ADR/SPEC/PLAN updated.
 
-B. `aws-file-transfer-api`
+B. Runtime monorepo (this repo)
 
 1. Durable Dynamo job repo implemented.
 2. Worker result update contract implemented.
@@ -157,7 +161,8 @@ D. Cross-repo
 2. Backward compatibility is additive/opt-in only.
 3. `SUBPLAN-0005.md` is the persistent execution log and must be updated continuously.
 4. Minimal deployment workflow complexity changes; only required run-mode additions are introduced.
-5. `aws-file-transfer-api` remains canonical owner of jobs control-plane semantics.
+5. This runtime monorepo remains canonical owner of jobs control-plane
+   semantics.
 6. Worker status update flows through API endpoints (not direct shared-table mutation by default) to centralize state semantics.
 
 ---
@@ -172,14 +177,14 @@ D. Cross-repo
 
 ## Current Repo Focus
 
-- aws-file-transfer-api
+- aws-file-transfer-api runtime monorepo
 
 ## Active Checklist
 
 - [x] Create `SUBPLAN-0005.md` and seed full approved plan text
 - [x] Implement container-craft async/file-transfer infra and wiring
-- [x] Implement aws-file-transfer-api durable job backend + worker update contract
-- [x] Close queue-lag and worker-throughput observability gaps in aws-file-transfer-api
+- [x] Implement runtime durable job backend + worker update contract
+- [x] Close queue-lag and worker-throughput observability gaps in runtime
 - [x] Implement dash-side canonical async integration hooks + polling
 - [ ] Implement app-specific worker execution path in `dash-pca` repo
 - [x] Run all required checks and update evidence log
@@ -188,10 +193,10 @@ D. Cross-repo
 
 - Decision: Full 3-repo scope
 - Decision: Additive opt-in compatibility only
-- Decision: Canonical async control plane is `aws-file-transfer-api`
+- Decision: Canonical async control plane is this runtime monorepo
 - Decision: Code-complete acceptance gate (no required live deploy)
 - Note: `dash-pca` app repo path was not present in current `infra-stack`
-  workspace; applied async integration hooks in `aws-dash-s3-file-handler`.
+  workspace; applied async integration hooks in `packages/aws_dash_bridge`.
 
 ## Evidence Log
 
@@ -205,12 +210,12 @@ D. Cross-repo
   - `uv run -- ruff check .`
   - `uv run -- mypy`
   - `uv run -- pytest -q` (48 passed)
-- 2026-02-12: Completed `aws-file-transfer-api` durable job state support:
+- 2026-02-12: Completed runtime durable job state support:
   - added DynamoDB-backed job repository (`JOBS_REPOSITORY_BACKEND=dynamodb`)
-  - added worker/internal result callback endpoint (`POST /api/file-transfer/jobs/{job_id}/result`)
+  - added worker/internal result callback endpoint (`POST /api/jobs/{job_id}/result`)
   - enforced legal state transitions with `409 conflict` on invalid transitions
   - preserved enqueue/reliability/readiness/distinct-event fixes
-- 2026-02-12: `aws-file-transfer-api` validation passed:
+- 2026-02-12: Runtime monorepo validation passed:
   - `source .venv/bin/activate && uv run ruff check . --fix && uv run ruff format .`
   - `source .venv/bin/activate && uv run mypy`
   - `source .venv/bin/activate && uv run pytest -q` (22 passed)
@@ -219,22 +224,22 @@ D. Cross-repo
   - Context7 (FastAPI 0.128.0 header/auth error patterns, boto3 retry config)
   - Exa deep research run `r_01kh8r35yextypwcanhh6p1acc` (completed)
 - 2026-02-12: Implemented optional canonical async job hooks in
-  `aws-dash-s3-file-handler`:
+  `packages/aws_dash_bridge`:
   - `S3FileUploader` async options
   - browser asset enqueue/poll/download-presign flow against
-    `/api/file-transfer/jobs/*`
+    `/api/jobs/*`
   - contract tests + docs/ADR/SPEC/traceability updates
-- 2026-02-12: `aws-dash-s3-file-handler` validation passed:
+- 2026-02-12: `packages/aws_dash_bridge` validation passed:
   - `uv sync --group dev`
   - `uv run ruff format --check .`
   - `uv run ruff check .`
   - `uv run mypy .`
   - `uv run pytest` (44 passed)
-- 2026-02-12: Closed aws-file-transfer-api worker observability gap:
+- 2026-02-12: Closed runtime worker observability gap:
   - added `jobs_queue_lag_ms` on first transition out of `pending`
   - added `jobs_worker_result_updates_total` + per-status throughput counters
   - added regression tests for queue lag and worker update metrics
-- 2026-02-12: Re-ran `aws-file-transfer-api` validation after observability
+- 2026-02-12: Re-ran runtime monorepo validation after observability
   updates:
   - `source .venv/bin/activate && uv run ruff check . --fix && uv run ruff format .`
   - `source .venv/bin/activate && uv run mypy`

@@ -1,197 +1,203 @@
-# Requirements (aws-file-transfer-api)
+# Requirements (aws-file-platform runtime)
 
-**Status:** Canonical and definitive requirements source  
-**Last updated:** 2026-02-11
+Status: Canonical requirements source
+Last updated: 2026-02-12
 
-This file is the single source of truth for requirements. It merges and supersedes
-previous split requirement documents.
+This document is the source of truth for functional and non-functional
+requirements for the first production release.
 
 ## Scope
 
-Defines requirements for provisioning and operating a File Transfer API control plane
-that orchestrates direct-to-S3 uploads/downloads via presigned URLs and multipart
-uploads, deployed on ECS/Fargate behind ALB via container-craft.
+The system is a FastAPI control-plane API for direct-to-S3 transfers. It returns
+presigned URLs and upload/download metadata. It does not proxy file bytes.
 
 Primary consumers:
 
-- Plotly Dash apps (Python)
-- R Shiny apps (HTTP client)
-- Next.js / TypeScript apps (HTTP client + generated SDK)
+- Same-origin sidecar web applications (default)
+- Embedded Python apps through bridge integration
+- Standalone API clients (beta support in initial release)
 
-## Requirement crosswalk
+## Functional Requirements
 
-Core IDs (`FR-000x`, `NFR-000x`) are primary architecture-facing IDs used by ADRs and
-SPECs. Domain IDs (`FR-FT-xxx`, `NFR-FT-xxx`) capture AWS/file-transfer specific detail.
-
-| Core ID | Detailed ID(s) |
-| --- | --- |
-| FR-0000 | FR-FT-001, FR-FT-002, FR-FT-003 |
-| FR-0001 | FR-FT-002 |
-| FR-0002 | FR-FT-004 |
-| FR-0003 | FR-FT-005 |
-| FR-0004 | FR-FT-006 |
-| NFR-0000 | NFR-FT-005 |
-| NFR-0001 | NFR-FT-007 |
-
-## Functional requirements (core)
-
-### FR-0000: Control-plane endpoints
-
-The service MUST implement:
-
-- `POST /api/file-transfer/uploads/initiate`
-- `POST /api/file-transfer/uploads/sign-parts`
-- `POST /api/file-transfer/uploads/complete`
-- `POST /api/file-transfer/uploads/abort`
-- `POST /api/file-transfer/downloads/presign`
-
-The API is control-plane only and MUST NOT proxy upload/download file bytes.
-
-### FR-0001: S3 multipart correctness
-
-The service MUST:
-
-- enforce multipart constraints (max 10,000 parts)
-- support configurable part size and multipart threshold
-- require `ETag` values for multipart completion
-- support multipart abort flows
-- support very large objects via multipart (policy-configurable upper bounds)
-
-### FR-0002: Key generation and scoping
-
-The service MUST:
-
-- generate object keys server-side
-- enforce scope-based key ownership checks on all follow-up operations
-- restrict keys to approved configured prefixes
-
-### FR-0003: Transfer Acceleration support
-
-When enabled by environment and infrastructure, presigned URLs MUST use S3 Transfer
-Acceleration-compatible configuration.
-
-### FR-0004: Auth and authorization (pluggable)
-
-The service MUST support pluggable auth modes and authorization enforcement:
-
-- JWT/OIDC bearer-token mode (recommended)
-- same-origin/session-derived scope mode for app-integrated deployments
-
-The service MUST derive `scope_id` from trusted auth context and enforce scope rules.
-
-## Non-functional requirements (core)
-
-### NFR-0000: Observability
+### FR-0000: File-transfer control-plane endpoints
 
 The service MUST provide:
 
-- health endpoint support (`/healthz`, and compatibility `/` if platform requires)
-- structured logs with request correlation IDs
-- no logging of presigned URL query strings
-- metrics hooks for request count, latency, and error rates
+- `POST /api/transfers/uploads/initiate`
+- `POST /api/transfers/uploads/sign-parts`
+- `POST /api/transfers/uploads/complete`
+- `POST /api/transfers/uploads/abort`
+- `POST /api/transfers/downloads/presign`
 
-### NFR-0001: Documentation automation
+### FR-0001: Async job endpoints and orchestration
 
-The service MUST publish OpenAPI-driven API documentation automatically on changes and
-maintain docs automation as part of CI/CD.
+The service MUST provide:
 
-## Detailed AWS/file-transfer requirements
+- `POST /api/jobs/enqueue`
+- `GET /api/jobs/{job_id}`
+- `POST /api/jobs/{job_id}/cancel`
+- `POST /api/jobs/{job_id}/result` (worker/internal update path)
 
-### FR-FT-001: Presigned single-part uploads
+The default async orchestration path MUST be SQS + ECS worker. Step
+Functions/Lambda are out of scope for the initial release.
 
-The API MUST provide presigned upload URLs for single-part uploads.
+Enqueue failure semantics:
 
-### FR-FT-002: Multipart workflow orchestration
+- Queue publish failure MUST return `503`.
+- Queue publish failure MUST return `error.code = "queue_unavailable"`.
+- Queue publish failure MUST transition created job records to `failed`.
 
-The API MUST support multipart workflow endpoints for:
+Worker result-update semantics:
 
-- initiate multipart upload
-- sign part URLs
-- complete multipart upload
-- abort multipart upload
+- Worker status updates MUST follow legal transitions:
+  - `pending -> pending|running|succeeded|failed|canceled`
+  - `running -> running|succeeded|failed|canceled`
+  - terminal states (`succeeded|failed|canceled`) only allow same-state
+    idempotent updates.
+- Invalid status transitions MUST return `409` with `error.code = "conflict"`.
 
-### FR-FT-003: Presigned download URLs
+### FR-0002: Operational endpoints
 
-The API MUST provide presigned download URLs and support response-header overrides
-(`Content-Disposition` and `Content-Type`) when appropriate.
+The service MUST provide:
 
-### FR-FT-004: Object key safety rules
+- `GET /healthz`
+- `GET /readyz`
+- `GET /metrics/summary`
 
-The API MUST enforce:
+Readiness evaluation MUST include only traffic-critical dependencies.
+Feature flags (for example `JOBS_ENABLED`) MUST NOT drive readiness pass/fail.
 
-- server-generated keys only
-- keys scoped to approved prefixes (`uploads/`, `exports/`, `tmp/`)
+### FR-0003: Key generation and scope enforcement
 
-### FR-FT-005: Transfer Acceleration support
+The service MUST:
 
-When configured, the API MUST support Transfer Acceleration in development and
-production environments.
+- Generate keys server-side only.
+- Enforce prefix and caller scope ownership for all follow-up operations.
+- Reject client attempts to operate outside allowed prefixes.
 
-### FR-FT-006: Auth and authorization behavior
+### FR-0004: Idempotency for mutation entrypoints
 
-The API MUST:
+`uploads/initiate` and `jobs/enqueue` MUST support idempotent retries using the
+`Idempotency-Key` header.
 
-- support JWT/OIDC verification when auth is enabled
-- support same-origin/session-based scope derivation mode where required
-- enforce authorization for upload/download operations by scope and policy
+Failed enqueue responses (`503 queue_unavailable`) MUST NOT be replay-cached as
+successful idempotency entries.
 
-### NFR-FT-001: Security baseline
+### FR-0005: Authentication and authorization
 
-Storage MUST remain private by default; no public bucket/object policy exposure.
+The service MUST support explicit auth modes:
 
-### NFR-FT-002: IAM least privilege
+- Same-origin mode
+- Local JWT/OIDC verification mode (default for token mode)
+- Optional remote auth API mode (fail-closed when enabled)
 
-IAM policies MUST scope S3/KMS access to the required bucket resources and prefixes.
+In JWT modes, trusted principal-derived scope MUST override any client-provided
+session scope.
 
-### NFR-FT-003: Scalability model
+### FR-0006: Two-tier caching
 
-The API MUST handle large-file workflows without becoming a data-plane relay.
+The service MUST support a two-tier cache model:
 
-### NFR-FT-004: Reliability and cleanup
+- Local in-process TTL cache
+- Shared Redis cache (optional, best-effort)
 
-Incomplete multipart uploads MUST be cleaned up via S3 lifecycle configuration.
+### FR-0007: Observability and analytics
 
-### NFR-FT-005: Observability
+The service MUST emit:
 
-Structured logs and request correlation IDs MUST be present for operations and errors.
+- Structured logs with `request_id`
+- CloudWatch EMF-compatible metrics with bounded dimensions
+- Daily activity rollups (memory in local/dev, DynamoDB in AWS)
+- Queue lag metric from worker processing (`jobs_queue_lag_ms`) when jobs first
+  transition out of `pending`
+- Worker result-update throughput counters (`jobs_worker_result_updates_total`
+  and per-status counters)
 
-### NFR-FT-006: Env contract compatibility
+For DynamoDB-backed rollups, `active_users_today` and `distinct_event_types`
+MUST be incremented using first-seen marker logic with conditional writes.
 
-Runtime configuration MUST remain aligned to container-craft injected
-`FILE_TRANSFER_*` environment variables.
+### FR-0008: OpenAPI contract ownership
 
-### NFR-FT-007: Documentation and contract automation
+OpenAPI 3.1 output from the API implementation MUST be the canonical HTTP
+contract source for docs and client generation.
 
-OpenAPI and API documentation publication MUST be automated in CI/CD and updated on
-contract changes.
+### FR-0009: S3 multipart correctness and acceleration compatibility
 
-## Integration requirements
+The service MUST enforce AWS multipart constraints:
 
-### IR-FT-001: container-craft S3 integration
+- part number range: 1 to 10,000
+- part size bounds: 5 MiB to 5 GiB (last part may be smaller)
+- complete payload includes per-part `ETag` values
 
-Use container-craft `infra/file_transfer/s3.yml` bucket provisioning and injected
-`FILE_TRANSFER_*` environment variables.
+When `FILE_TRANSFER_USE_ACCELERATE_ENDPOINT=true`, presigned URLs MUST be
+generated using acceleration-compatible client configuration.
 
-### IR-FT-002: container-craft deployment workflows
+## Non-Functional Requirements
 
-Deploy via container-craft run modes (for example `deploy-ecs-cluster`,
-`deploy-new-service`, and related service rollout workflows).
+### NFR-0000: Security baseline
 
-### IR-FT-003: OpenAPI exposure for client generation
+The service MUST:
 
-Expose OpenAPI schema artifacts for TypeScript code generation and R client generation.
+- Never log presigned URLs, query signatures, or bearer tokens.
+- Enforce strict JWT validation with issuer/audience/alg checks.
+- Use least-privilege IAM for S3/SQS/DynamoDB/Redis integration.
 
-## Explicit non-goals
+### NFR-0001: Performance and event-loop safety
 
-### NG-FT-001: API data-plane streaming
+The service MUST avoid event-loop blocking for synchronous verification code.
+Synchronous JWT verification in async paths MUST run behind a threadpool
+boundary.
 
-Streaming upload/download bytes through this API service is out of scope.
+### NFR-0002: Scalability and resilience
 
-### NG-FT-002: Cross-account multi-tenant federation
+The service MUST remain control-plane only and scale horizontally behind ALB on
+ECS/Fargate.
 
-A shared cross-project multi-tenant API is out of scope unless introduced by a future
-ADR.
+Selected backend misconfiguration MUST fail fast at startup instead of silently
+degrading behavior.
 
-### NG-FT-003: Default CloudFront provisioning
+### NFR-0003: Operability
 
-Default CloudFront distribution provisioning is out of scope (optional future work).
+The service MUST support health/readiness checks, dashboarding, and alarms that
+cover latency, error rate, and queue backlog.
+
+### NFR-0004: CI/CD and quality gates
+
+Every change MUST pass:
+
+- `source .venv/bin/activate && uv run ruff check . --fix && uv run ruff format .`
+- `source .venv/bin/activate && uv run mypy`
+- `source .venv/bin/activate && uv run pytest -q`
+
+## Integration Requirements
+
+### IR-0000: container-craft env contract compatibility
+
+Runtime settings MUST remain compatible with container-craft `FILE_TRANSFER_*`
+environment injection.
+
+### IR-0001: Sidecar routing model
+
+Default deployment MUST use same-origin ALB path routing for
+`/api/transfers/*` and `/api/jobs/*`.
+
+### IR-0002: AWS service dependencies
+
+Initial AWS dependencies include S3, ECS/Fargate, ALB, SQS, ElastiCache Redis,
+DynamoDB, and CloudWatch.
+
+### IR-0003: Optional remote auth service
+
+When enabled, remote auth integration MUST target `aws-auth-api` and fail closed
+on auth service errors.
+
+### IR-0004: Browser compatibility for multipart workflows
+
+S3 CORS policies MUST allow browser upload/download operations and expose
+`ETag` for multipart completion flows.
+
+## Explicit Non-Goals (Initial Release)
+
+- Building a byte-streaming data-plane API.
+- Introducing Step Functions/Lambda orchestration by default.
+- Splitting into microservices beyond file-transfer API + optional auth API.

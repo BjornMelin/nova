@@ -25,7 +25,7 @@ The service provides:
 - optional token introspection for opaque-token use cases
 - health endpoint for deployment/runtime gates
 
-`aws-file-transfer-api` MUST keep local JWT verification as the default behavior.
+`aws-file-api` MUST keep local JWT verification as the default behavior.
 Remote `aws-auth-api` mode is optional and configuration-driven.
 
 ## 2. Endpoint contract
@@ -142,7 +142,7 @@ Recommended error codes:
 
 ## 6. Integration requirements
 
-When `aws-file-transfer-api` remote auth mode is enabled:
+When `aws-file-api` remote auth mode is enabled:
 
 - verification failures or connectivity failures to `aws-auth-api` MUST fail closed
 - auth mode MUST remain explicit and configuration-driven

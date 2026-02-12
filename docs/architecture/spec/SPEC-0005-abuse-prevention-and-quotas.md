@@ -26,7 +26,7 @@ Control-plane endpoints are cheap individually but can be abused to:
 
 Primary control SHOULD be infrastructure-level:
 
-- AWS WAF rate-based rules on `/api/file-transfer/*`.
+- AWS WAF rate-based rules on `/api/transfers/*` and `/api/jobs/*`.
 
 Secondary control MAY be app-level throttling for defense in depth.
 

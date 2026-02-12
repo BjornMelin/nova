@@ -16,7 +16,7 @@ References:
 
 ## Summary
 
-Add a dedicated `aws-auth-api` service track for shared token verification/introspection use cases, while keeping local JWT verification in `aws-file-transfer-api` as the default path.
+Add a dedicated `aws-auth-api` service track for shared token verification/introspection use cases, while keeping local JWT verification in `aws-file-api` as the default path.
 
 ## Context
 
@@ -45,7 +45,7 @@ A balanced architecture is needed:
 
 ## Decision
 
-Choose option C: add `aws-auth-api` as a dedicated service track and keep local verification as default in `aws-file-transfer-api`.
+Choose option C: add `aws-auth-api` as a dedicated service track and keep local verification as default in `aws-file-api`.
 
 Implementation commitments:
 

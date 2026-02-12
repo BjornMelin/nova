@@ -16,10 +16,10 @@ References:
 
 Async jobs are managed through:
 
-- `POST /api/file-transfer/jobs/enqueue`
-- `GET /api/file-transfer/jobs/{job_id}`
-- `POST /api/file-transfer/jobs/{job_id}/cancel`
-- `POST /api/file-transfer/jobs/{job_id}/result` (worker/internal update path)
+- `POST /api/jobs/enqueue`
+- `GET /api/jobs/{job_id}`
+- `POST /api/jobs/{job_id}/cancel`
+- `POST /api/jobs/{job_id}/result` (worker/internal update path)
 
 ## 2. Job state model
 
