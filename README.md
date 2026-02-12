@@ -1,6 +1,6 @@
-# aws-file-transfer-api
+# aws-file-platform runtime
 
-![Python](https://img.shields.io/badge/Python-3.11%20%7C%203.12%20%7C%203.13-3776AB?logo=python&logoColor=white) ![FastAPI](https://img.shields.io/badge/FastAPI-0.128%2B-009688?logo=fastapi&logoColor=white) ![OpenAPI](https://img.shields.io/badge/OpenAPI-3.1-6BA539?logo=openapiinitiative&logoColor=white) ![AWS S3](https://img.shields.io/badge/AWS-S3-569A31?logo=amazons3&logoColor=white) ![AWS SQS](https://img.shields.io/badge/AWS-SQS-FF9900?logo=amazonaws&logoColor=white) ![Ruff](https://img.shields.io/badge/lint-ruff-D7FF64?logo=ruff&logoColor=111111) ![Mypy](https://img.shields.io/badge/types-mypy-2A6DB2?logo=python&logoColor=white) ![Pytest](https://img.shields.io/badge/tests-pytest-0A9EDC?logo=pytest&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3.12%20%7C%203.13-3776AB?logo=python&logoColor=white) ![FastAPI](https://img.shields.io/badge/FastAPI-0.129%2B-009688?logo=fastapi&logoColor=white) ![OpenAPI](https://img.shields.io/badge/OpenAPI-3.1-6BA539?logo=openapiinitiative&logoColor=white) ![AWS S3](https://img.shields.io/badge/AWS-S3-569A31?logo=amazons3&logoColor=white) ![AWS SQS](https://img.shields.io/badge/AWS-SQS-FF9900?logo=amazonaws&logoColor=white) ![Ruff](https://img.shields.io/badge/lint-ruff-D7FF64?logo=ruff&logoColor=111111) ![Mypy](https://img.shields.io/badge/types-mypy-2A6DB2?logo=python&logoColor=white) ![Pytest](https://img.shields.io/badge/tests-pytest-0A9EDC?logo=pytest&logoColor=white)
 
 FastAPI control-plane service for direct-to-S3 upload/download orchestration.
 The API returns presigned metadata and async job state. It never proxies file
@@ -11,10 +11,10 @@ bytes.
 - Transfer endpoints for single-part and multipart uploads.
 - Download presign endpoint.
 - Async job endpoints:
-  - `POST /api/file-transfer/jobs/enqueue`
-  - `GET /api/file-transfer/jobs/{job_id}`
-  - `POST /api/file-transfer/jobs/{job_id}/cancel`
-  - `POST /api/file-transfer/jobs/{job_id}/result` (worker/internal)
+  - `POST /api/jobs/enqueue`
+  - `GET /api/jobs/{job_id}`
+  - `POST /api/jobs/{job_id}/cancel`
+  - `POST /api/jobs/{job_id}/result` (worker/internal)
 - Auth modes:
   - same-origin
   - local JWT verification (`oidc-jwt-verifier`)
@@ -23,19 +23,19 @@ bytes.
   - local in-process TTL cache
   - optional shared Redis cache
 - Idempotency replay support for:
-  - `POST /api/file-transfer/uploads/initiate`
-  - `POST /api/file-transfer/jobs/enqueue`
+  - `POST /api/transfers/uploads/initiate`
+  - `POST /api/jobs/enqueue`
 - Operational endpoints:
   - `GET /healthz`
   - `GET /readyz`
-  - `GET /api/file-transfer/metrics/summary`
+  - `GET /metrics/summary`
 
 ## Production Semantics (Implemented)
 
 ### Enqueue reliability contract
 
 - Queue publish failures are surfaced to clients.
-- `POST /api/file-transfer/jobs/enqueue` returns:
+- `POST /api/jobs/enqueue` returns:
   - `503 Service Unavailable`
   - `error.code = "queue_unavailable"`
 - When enqueue publish fails after record creation, the job record is
@@ -44,7 +44,7 @@ bytes.
 
 ### Worker result-update contract
 
-- `POST /api/file-transfer/jobs/{job_id}/result` is used by trusted worker
+- `POST /api/jobs/{job_id}/result` is used by trusted worker
   paths to publish state updates.
 - Worker updates must follow legal transitions:
   - `pending -> pending|running|succeeded|failed|canceled`
@@ -60,7 +60,7 @@ bytes.
 - Worker result updates increment throughput counters:
   - `jobs_worker_result_updates_total`
   - `jobs_worker_result_updates_<status>`
-- `GET /api/file-transfer/metrics/summary` exposes queue-lag latency and worker
+- `GET /metrics/summary` exposes queue-lag latency and worker
   update counters for dashboards.
 
 ### Readiness contract
@@ -105,9 +105,10 @@ Primary operational settings:
 - `CACHE_SHARED_BACKEND_URL`
 - `IDEMPOTENCY_ENABLED`
 
-## API Base Path
+## API Base Paths
 
-- Primary: `/api/file-transfer`
+- Transfers: `/api/transfers`
+- Jobs: `/api/jobs`
 
 ## Local Development
 

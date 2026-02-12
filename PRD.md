@@ -17,7 +17,8 @@ The service must be usable by:
 
 ## 2. Product Goals
 
-1. Implement and maintain the standard `/api/file-transfer` endpoint contract.
+1. Implement and maintain the split endpoint contract:
+   `/api/transfers/*` and `/api/jobs/*`.
 2. Support uploads from small files to very large objects (multi-GB), including
    multipart workflows with strict S3 constraints.
 3. Support Transfer Acceleration when enabled in infra and runtime settings.
@@ -41,7 +42,7 @@ The service must be usable by:
 - Operational endpoints:
   - `/healthz`
   - `/readyz`
-  - `/api/file-transfer/metrics/summary`
+  - `/metrics/summary`
 - Idempotency on protected mutation entrypoints:
   - `uploads/initiate`
   - `jobs/enqueue`

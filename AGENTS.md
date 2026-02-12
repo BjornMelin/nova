@@ -1,143 +1,245 @@
-# AGENTS.md (aws-file-transfer-api)
+# AGENTS.md (aws-file-platform runtime)
+
+This repository is the canonical runtime monorepo for file-transfer and
+auth API services. Infrastructure and IaC remain in
+`~/repos/work/infra-stack/container-craft`, and consumer migration work
+includes `~/repos/work/pca-analysis-dash/dash-pca`.
+
+## Runtime Topology
+
+- `apps/aws_file_api_service/`: ASGI wrapper for file API runtime.
+- `apps/aws_auth_api_service/`: ASGI wrapper for auth API runtime.
+- `packages/aws_file_api/`: transfer + async jobs control-plane package.
+- `packages/aws_auth_api/`: token verify/introspect service package.
+- `packages/aws_dash_bridge/`: Dash/Flask/FastAPI bridge adapters.
+- `packages/contracts/`: OpenAPI and shared contract artifacts.
+- `docs/architecture/`: requirements, ADRs, and SPECs.
+- `docs/plan/`: execution plans, subplans, and triggers.
 
 ## SKILLS AND TOOLS
 
 ### SKILLS
 
-**SKILLS TO USE WHILE WORKING ON THIS REPOSITORY (ALWAYS LOAD THE RIGHT SKILL)**:
+Use the best-fitting skills for each task. Prioritize this set:
 
-- $fastapi : Build FastAPI APIs with Pydantic v2 and async patterns, including validation, auth, DB integration, and common failure prevention.
-- $openapi-spec-generation : Design and maintain OpenAPI 3.1 contracts, validation, and spec-first API workflows.
-- $architecture-decision-records : Write clear ADRs for major technical decisions with strong rationale and tradeoffs.
-- $api-design-principles : Apply REST API design best practices for consistent, intuitive, and maintainable endpoints.
-- $python-anti-patterns : Common Python anti-patterns to avoid during implementation and review.
-- $python-packaging : Build and maintain production-ready Python package metadata/layout/versioning.
-- $python-type-safety : Enforce strong typing with type hints, protocols, and strict checker-friendly design.
-- $python-code-style : Keep Python code clean, consistent, linted, formatted, and maintainable.
-- $python-testing-patterns : Build robust pytest suites with solid fixtures, mocking, and test strategy.
-- $pytest-dev : Advanced pytest optimization, flake reduction, coverage improvement, and CI test performance.
-- $uv-package-manager : Use uv effectively for env setup, dependency management, and reproducible Python workflows.
+- `$fastapi`
+- `$openapi-spec-generation`
+- `$architecture-decision-records`
+- `$api-design-principles`
+- `$python-anti-patterns`
+- `$python-packaging`
+- `$python-type-safety`
+- `$python-code-style`
+- `$python-testing-patterns`
+- `$pytest-dev`
+- `$uv-package-manager`
 
 ### TOOLS
 
-**TOOLS TO USE WHILE WORKING ON THIS REPOSITORY (ALWAYS LOAD THE RIGHT TOOL)**:
+Use tools intentionally:
 
-### Library docs (Context7)
-
-- context7.resolve-library-id: map a library/package name to a Context7-compatible library ID
-- context7.query-docs: query up-to-date docs/snippets for a specific Context7 library ID
-
-### Real‑world code examples
-
-- gh_grep.searchGitHub — Search GitHub code for literal patterns; use when API usage is unclear or you want production examples.
-
----
-
-### Web research (Exa)
-
-- exa.web_search_advanced_exa: advanced web search with filters (domains/dates/category), summaries/highlights, and content options.
-- exa.deep_researcher_start: Start an AI research agent that searches, reads, and writes a detailed report (returns a task ID).
-  - ALWAYS wait for it to finish and return the research report before continuing with any other work.
-- exa.deep_researcher_check: Check status and retrieve the report for a deep research task.
-
----
-
-### PLANNING & RESOURCES
-
-- functions.update_plan: Maintain a live multi‑step plan.
-
----
-
-### DEEP SOURCE INSPECTION (OPENSRC CLI)
-
-When documentation is ambiguous or you need to understand "under-the-hood" logic:
-
-- Run `opensrc list` to view all of the libraries we have access to and search and explore them at the paths provided in the `opensrc list` output when we
-need to use a library to ensure that we are using their latest advanced capabilities, correct api references and full typing.
-
----
+- Context7:
+  - `context7.resolve-library-id`: map library/package names to doc IDs.
+  - `context7.query-docs`: fetch current API docs and snippets.
+- gh_grep:
+  - `gh_grep.searchGitHub`: find real code usage patterns.
+- Exa:
+  - `exa.web_search_advanced_exa`: targeted web research.
+  - `exa.deep_researcher_start`: run deep research tasks.
+  - `exa.deep_researcher_check`: poll until research is complete.
+- Planning:
+  - `functions.update_plan`: keep execution steps current.
+- Source inspection:
+  - `opensrc list` for installed dependency source paths.
+  - inspect `opensrc/sources.json` for package/version/source location.
 
 ### Operational Mandate
 
-Do not oversimplify or defer features. Use the tools above to converge on the best SOTA solution. If sources conflict, use the decision framework and
-ensure the chosen option scores at least 9.0/10.0. Every line of documentation and code must be production‑ready and reflect a "production-ready", "final-release" standard.
+Do not oversimplify or defer required features. If sources conflict, apply
+the decision framework and use options scoring at least 9.0/10.0.
+All code and docs must remain production-ready.
 
 ## Guardrails
 
-- Work off the PLAN.md file and track the progress of the plan in the PLAN.md file.
-- Treat OpenAPI as the contract. Add endpoints via SPECs + ADRs first.
+- Work from `FINAL-PLAN.md` as the canonical execution source.
+- Keep `docs/plan/PLAN.md` synchronized with current implementation state.
+- Treat OpenAPI as the contract and update SPEC/ADR docs first for
+  contract-level changes.
 - Keep dependencies lean and maintained.
-- Never log presigned URLs or query strings.
-- Never run synchronous JWT verification directly in async route/dependency code; use a threadpool boundary.
-- Preserve enqueue correctness:
+- Never log presigned URLs, JWTs, or signed query values.
+- Never run synchronous JWT verification directly in async route/dependency
+  code; use a threadpool boundary.
+
+### Hard-Cutover Contract Rules (Blocking)
+
+- Use only:
+  - `/api/transfers/*`
+  - `/api/jobs/*`
+  - `/metrics/summary`
+- Do not introduce legacy names or paths:
+  - `/api/file-transfer/*`
+  - `aws_file_transfer_api`
+  - `aws_dash_s3_file_handler`
+- Do not add compatibility alias routes or namespace shims.
+- Fail reviews when legacy patterns are introduced.
+
+Required verification command:
+
+```bash
+source .venv/bin/activate && \
+rg -n "/api/file-transfer|aws_file_transfer_api|aws_dash_s3_file_handler" .
+```
+
+### Runtime Invariants That Must Be Preserved
+
+- Enqueue correctness:
   - Never swallow queue publish failures.
-  - `POST /jobs/enqueue` publish failures must surface as `503` with
+  - `POST /api/jobs/enqueue` publish failures must surface as `503` with
     `error.code = "queue_unavailable"`.
   - Failed enqueue responses must not be idempotency replay cached.
-- Preserve readiness semantics:
+- Readiness semantics:
   - `/readyz` pass/fail is based on traffic-critical dependencies only.
-  - Feature flags (for example `JOBS_ENABLED`) must not drive readiness false.
-- Preserve rollup correctness for DynamoDB activity backend:
+  - feature flags (for example `JOBS_ENABLED`) must not drive readiness
+    false.
+- Rollup correctness for DynamoDB activity backend:
   - `active_users_today` increments only on first user/day marker write.
-  - `distinct_event_types` increments only on first event-type/day marker write.
-  - Use conditional writes to keep counters concurrency-safe.
-- Preserve backend startup validation:
+  - `distinct_event_types` increments only on first event-type/day marker
+    write.
+  - use conditional writes for concurrency-safe counters.
+- Backend startup validation:
   - `JOBS_QUEUE_BACKEND=sqs` + `JOBS_ENABLED=true` requires
     `JOBS_SQS_QUEUE_URL`.
   - `ACTIVITY_STORE_BACKEND=dynamodb` requires `ACTIVITY_ROLLUPS_TABLE`.
 
-## Required quality gates
+## Monorepo Navigation Commands
 
-**ALWAYS** run all commands in the virtual environment prefixed with `source .venv/bin/activate &&`.
+Always run from repository root unless task scope requires otherwise.
 
-- `uv run ruff check . --fix && uv run ruff format .`
-- `uv run mypy`
-- `uv run pytest -q`
+```bash
+rg --files apps packages docs
+find apps packages -maxdepth 3 -type d | sort
+rg -n "/api/transfers|/api/jobs|/metrics/summary" \
+  packages docs
+rg -n "aws_file_api|aws_auth_api|aws_dash_bridge" \
+  apps packages docs
+```
 
-## Deployment gates
+## Required Quality Gates
 
-- health endpoint responds within expected time
-- structured logs include request_id
-- OpenAPI schema builds and docs publish pipeline runs
+Always prefix commands with `source .venv/bin/activate &&`.
+
+```bash
+source .venv/bin/activate && uv run ruff check . --fix && uv run ruff format .
+source .venv/bin/activate && uv run mypy
+source .venv/bin/activate && uv run pytest -q
+```
+
+## Execution Commands by Scope
+
+### Workspace and dependency sync
+
+```bash
+source .venv/bin/activate && uv lock
+```
+
+### Run services locally
+
+```bash
+source .venv/bin/activate && uv run uvicorn aws_file_api_service.main:app \
+  --reload
+source .venv/bin/activate && uv run uvicorn aws_auth_api_service.main:app \
+  --reload
+```
+
+### Targeted tests
+
+```bash
+source .venv/bin/activate && uv run pytest -q packages/aws_file_api/tests
+source .venv/bin/activate && uv run pytest -q packages/aws_auth_api/tests
+```
+
+## Cross-Repo Coordination (Required Before Finalizing)
+
+### container-craft alignment
+
+Path: `~/repos/work/infra-stack/container-craft`
+
+Must align:
+
+- ALB routing for `/api/transfers/*` and `/api/jobs/*`.
+- health-check tuning for sidecar services.
+- env contract for SQS/Redis/DynamoDB settings.
+- IAM least privilege for S3/KMS/SQS/DynamoDB/Redis.
+
+Verification commands:
+
+```bash
+rg -n "/api/transfers|/api/jobs|FILE_TRANSFER_|JOBS_SQS_RETRY_" \
+  ~/repos/work/infra-stack/container-craft
+```
+
+### dash-pca alignment
+
+Path: `~/repos/work/pca-analysis-dash/dash-pca`
+
+Must align:
+
+- imports reference `aws_dash_bridge` and `aws_file_api`.
+- endpoint usage references `/api/transfers/*` and `/api/jobs/*`.
+- async upload + job polling behavior remains contract compliant.
+
+Verification commands:
+
+```bash
+rg -n "/api/transfers|/api/jobs|aws_dash_bridge|aws_file_api" \
+  ~/repos/work/pca-analysis-dash/dash-pca
+```
+
+Before closing work, include cross-repo evidence in summary output.
+
+## Deployment Gates
+
+- health endpoint responds within expected time.
+- structured logs include `request_id`.
+- OpenAPI schema builds and docs publish pipeline runs.
 
 ## Documentation Update Rules (Mandatory)
 
-Any behavioral or contract change MUST update all affected docs in the same
+Any behavioral or contract change must update all affected docs in the same
 change:
 
-- `README.md` operational behavior/config summary
-- `PRD.md` product-level requirement and success criteria updates
-- `docs/architecture/requirements.md` requirement IDs
-- relevant `docs/architecture/spec/*.md` contracts
-- relevant `docs/architecture/adr/*.md` decision records
-- `docs/plan/PLAN.md` progress + phase checklists
-- impacted `docs/plan/subplans/*.md` checklists
+- `README.md` operational behavior/config summary.
+- `PRD.md` product-level requirements and success criteria.
+- `docs/architecture/requirements.md` requirement IDs.
+- relevant `docs/architecture/spec/*.md` contract docs.
+- relevant `docs/architecture/adr/*.md` decision records.
+- `FINAL-PLAN.md` progress and checklist state.
+- `docs/plan/PLAN.md` progress and phase checklists.
+- impacted `docs/plan/subplans/*.md` and `docs/plan/triggers/*.md`.
 
-When a review/regression fix changes runtime semantics, include:
+When review/regression fixes change runtime semantics, include:
 
-- explicit before/after behavior statement
-- new or updated tests listed in plan/progress notes
-- source links to official docs (AWS/FastAPI/RFC) used for decisions
+- explicit before/after behavior statement.
+- new or updated tests listed in plan/progress notes.
+- source links to official docs (AWS/FastAPI/RFC) used for decisions.
 
 <!-- opensrc:start -->
 
 ## Source Code Reference
 
-Source code for dependencies is available in `opensrc/` for deeper understanding of implementation details.
+Dependency source code is available under `opensrc/` for internal behavior
+analysis beyond public interfaces.
 
-See `opensrc/sources.json` for the list of available packages and their versions.
+- Source index: `opensrc/sources.json`
+- Discover local paths: `opensrc list`
 
-Use this source code when you need to understand how a package works internally, not just its types/interface.
-
-### Fetching Additional Source Code
-
-To fetch source code for a package or repository you need to understand, run:
+Fetch additional source when needed:
 
 ```bash
-npx opensrc <package>           # npm package (e.g., npx opensrc zod)
-npx opensrc pypi:<package>      # Python package (e.g., npx opensrc pypi:requests)
-npx opensrc crates:<package>    # Rust crate (e.g., npx opensrc crates:serde)
-npx opensrc <owner>/<repo>      # GitHub repo (e.g., npx opensrc vercel/ai)
+npx opensrc <package>
+npx opensrc pypi:<package>
+npx opensrc crates:<package>
+npx opensrc <owner>/<repo>
 ```
 
 <!-- opensrc:end -->
