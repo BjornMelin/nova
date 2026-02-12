@@ -37,6 +37,7 @@ The service must be usable by:
   - presign download
 - Async jobs endpoints:
   - enqueue/status/cancel
+  - worker/internal result update callback (`/jobs/{job_id}/result`)
 - Operational endpoints:
   - `/healthz`
   - `/readyz`
@@ -52,6 +53,11 @@ The service must be usable by:
   - `error.code = "queue_unavailable"`
 - Enqueue publish failures must not be reported as successful enqueue.
 - Failed enqueue attempts must not be idempotency replay cached.
+- Worker status updates must enforce legal job state transitions and reject
+  invalid transitions with `409 conflict`.
+- Worker processing must emit queue lag and throughput metrics:
+  - `jobs_queue_lag_ms` on first transition out of `pending`
+  - `jobs_worker_result_updates_total` and per-status update counters
 - Readiness must reflect critical traffic-serving dependencies only.
 - Feature flags (for example `JOBS_ENABLED`) must not flip readiness to false.
 - DynamoDB activity rollups must correctly maintain:
@@ -79,6 +85,8 @@ The service must be usable by:
 - Readiness behavior matches deployment intent for optional feature toggles.
 - Rollup metrics for `distinct_event_types` and `active_users_today` are
   accurate under repeated events.
+- Queue lag and worker result-update throughput metrics are visible through
+  metrics summaries/dashboards.
 - OpenAPI schema remains stable and published through CI/CD.
 - Docs and architecture artifacts stay synchronized with implementation.
 

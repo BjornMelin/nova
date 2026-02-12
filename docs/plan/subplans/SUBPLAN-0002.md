@@ -57,8 +57,8 @@ In scope:
 - [x] Mark created jobs `failed` when queue publish fails
 - [x] Ensure failed enqueue responses are not idempotency replay cached
 - [x] Add fail-fast SQS backend configuration validation
-- [ ] Add durable job repository backend (DynamoDB)
-- [ ] Add worker-facing result update contract and tests
+- [x] Add durable job repository backend (DynamoDB)
+- [x] Add worker-facing result update contract and tests
 
 ### B. Cache behavior
 
@@ -73,7 +73,7 @@ In scope:
 - [x] Implement memory and DynamoDB activity rollup backends
 - [x] Ensure readiness excludes feature-flag pass/fail coupling
 - [x] Ensure DynamoDB `distinct_event_types` uses first-seen marker increments
-- [ ] Add queue lag and worker throughput metrics
+- [x] Add queue lag and worker throughput metrics
 
 ### D. Test expansion
 

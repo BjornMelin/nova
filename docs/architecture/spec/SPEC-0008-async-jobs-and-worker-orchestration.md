@@ -2,7 +2,7 @@
 Spec: 0008
 Title: Async Jobs and Worker Orchestration
 Status: Active
-Version: 1.2
+Version: 1.3
 Date: 2026-02-12
 Related:
   - "[ADR-0006: SQS + ECS worker orchestration](../adr/ADR-0006-async-orchestration-sqs-ecs-worker.md)"
@@ -19,6 +19,7 @@ Async jobs are managed through:
 - `POST /api/file-transfer/jobs/enqueue`
 - `GET /api/file-transfer/jobs/{job_id}`
 - `POST /api/file-transfer/jobs/{job_id}/cancel`
+- `POST /api/file-transfer/jobs/{job_id}/result` (worker/internal update path)
 
 ## 2. Job state model
 
@@ -31,6 +32,15 @@ States:
 - `canceled`
 
 Ownership is scope-bound. Status and cancel operations MUST enforce caller scope.
+
+Worker status updates MUST enforce legal transitions:
+
+- `pending -> pending|running|succeeded|failed|canceled`
+- `running -> running|succeeded|failed|canceled`
+- terminal states (`succeeded|failed|canceled`) allow same-state idempotent
+  updates only.
+
+Invalid transitions MUST fail with `409` (`error.code = "conflict"`).
 
 ## 3. Orchestration backends
 
@@ -48,6 +58,10 @@ Ownership is scope-bound. Status and cancel operations MUST enforce caller scope
 - Worker retry policy SHOULD be driven by queue semantics.
 - Non-retryable failures should transition to `failed` with structured error
   details.
+- First worker transition from `pending` MUST record queue lag metric
+  (`jobs_queue_lag_ms`).
+- Worker result-update calls MUST increment throughput counters
+  (`jobs_worker_result_updates_total` and per-status counters).
 
 ## 5. Idempotency
 
@@ -58,11 +72,17 @@ Failed enqueue responses (`queue_unavailable`) MUST NOT be replay-cached.
 ## 6. Backend selection and startup validation
 
 - `JOBS_QUEUE_BACKEND` controls queue backend selection.
+- `JOBS_REPOSITORY_BACKEND` controls job state persistence backend.
 - If `JOBS_QUEUE_BACKEND=sqs` and `JOBS_ENABLED=true`, startup MUST fail when
   `JOBS_SQS_QUEUE_URL` is not configured.
+- If `JOBS_REPOSITORY_BACKEND=dynamodb`, startup MUST fail when
+  `JOBS_DYNAMODB_TABLE` is not configured.
 - SQS publisher retry behavior SHOULD be configurable using:
   - `JOBS_SQS_RETRY_MODE`
   - `JOBS_SQS_RETRY_TOTAL_MAX_ATTEMPTS`
+
+Worker status callbacks SHOULD require `X-Worker-Token` validation when
+`JOBS_WORKER_UPDATE_TOKEN` is configured.
 
 ## 7. Traceability
 

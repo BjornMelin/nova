@@ -9,6 +9,7 @@
 - [FastAPI workers and deployment](https://fastapi.tiangolo.com/deployment/server-workers/)
 - [Starlette threadpool behavior](https://www.starlette.io/threadpool/)
 - [AnyIO thread guidance](https://anyio.readthedocs.io/en/latest/threads.html)
+- [FastAPI error handling](https://fastapi.tiangolo.com/tutorial/handling-errors/)
 
 ## AWS transfer and infrastructure
 
@@ -27,6 +28,9 @@
 - [ElastiCache best practices](https://docs.aws.amazon.com/AmazonElastiCache/latest/dg/BestPractices.html)
 - [Amazon SQS handling request errors](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/handling-request-errors.html)
 - [Amazon SQS error handling and problematic messages](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/best-practices-error-handling.html)
+- [Amazon SQS SendMessage API reference](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/API_SendMessage.html)
+- [Amazon SQS available CloudWatch metrics](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-available-cloudwatch-metrics.html)
+- [AWS SDK retry behavior and modes](https://docs.aws.amazon.com/general/latest/gr/api-retries.html)
 
 ## Auth and standards
 

@@ -2,7 +2,7 @@
 ADR: 0009
 Title: Observability stack: EMF metrics, DynamoDB rollups, CloudWatch dashboards
 Status: Accepted
-Version: 1.1
+Version: 1.2
 Date: 2026-02-12
 Related:
   - "[ADR-0010: Enqueue failure and readiness semantics](./ADR-0010-enqueue-failure-and-readiness-semantics.md)"
@@ -46,6 +46,8 @@ Implementation commitments:
 
 - Emit structured logs with `request_id`.
 - Emit EMF-compatible low-cardinality metrics.
+- Record queue lag from worker processing transitions
+  (`jobs_queue_lag_ms`) and worker update throughput counters.
 - Track daily activity rollups in DynamoDB for dashboard summaries.
 - Keep rollup counters accurate using conditional marker writes for first-seen
   user/day and event-type/day records.
@@ -61,3 +63,5 @@ Implementation commitments:
 
 - 2026-02-12 (v1.0): Initial acceptance.
 - 2026-02-12 (v1.1): Added explicit marker-based rollup correctness commitment.
+- 2026-02-12 (v1.2): Added explicit queue lag and worker throughput metric
+  commitments.

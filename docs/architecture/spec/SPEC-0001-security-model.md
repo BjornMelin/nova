@@ -64,7 +64,16 @@ Client `session_id` MUST NOT override trusted JWT identity.
 - Never log presigned URLs or query signatures.
 - Error payloads must not include sensitive auth or URL material.
 
-## 6. Traceability
+## 6. Worker callback authentication
+
+- Internal worker status updates (`POST /api/file-transfer/jobs/{job_id}/result`)
+  MUST use a shared-secret header validation pattern (`X-Worker-Token`) when a
+  worker token is configured.
+- Invalid worker token values MUST return `403`.
+- Worker tokens MUST be delivered via environment/secret configuration, never
+  hardcoded in source.
+
+## 7. Traceability
 
 - [FR-0003](../requirements.md#fr-0003-key-generation-and-scope-enforcement)
 - [FR-0005](../requirements.md#fr-0005-authentication-and-authorization)

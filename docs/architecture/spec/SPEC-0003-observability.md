@@ -2,7 +2,7 @@
 Spec: 0003
 Title: Observability
 Status: Active
-Version: 1.4
+Version: 1.5
 Date: 2026-02-12
 Related:
   - "[ADR-0009: Observability stack](../adr/ADR-0009-observability-analytics-emf-dynamodb-cloudwatch.md)"
@@ -46,6 +46,10 @@ Metrics MUST include at least:
 - endpoint latency
 - auth failures
 - enqueue latency and queue-oriented counters
+- queue lag observed at first worker transition out of `pending`
+  (`jobs_queue_lag_ms`)
+- worker update throughput counters (`jobs_worker_result_updates_total` and
+  per-status variants)
 
 Metrics dimensions MUST avoid high-cardinality identifiers.
 

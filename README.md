@@ -14,6 +14,7 @@ bytes.
   - `POST /api/file-transfer/jobs/enqueue`
   - `GET /api/file-transfer/jobs/{job_id}`
   - `POST /api/file-transfer/jobs/{job_id}/cancel`
+  - `POST /api/file-transfer/jobs/{job_id}/result` (worker/internal)
 - Auth modes:
   - same-origin
   - local JWT verification (`oidc-jwt-verifier`)
@@ -40,6 +41,27 @@ bytes.
 - When enqueue publish fails after record creation, the job record is
   transitioned to `failed`.
 - Failed enqueue attempts are not idempotency replay cached.
+
+### Worker result-update contract
+
+- `POST /api/file-transfer/jobs/{job_id}/result` is used by trusted worker
+  paths to publish state updates.
+- Worker updates must follow legal transitions:
+  - `pending -> pending|running|succeeded|failed|canceled`
+  - `running -> running|succeeded|failed|canceled`
+  - terminal states (`succeeded|failed|canceled`) only allow idempotent
+    same-state updates.
+- Invalid transitions return `409` with `error.code = "conflict"`.
+
+### Worker observability contract
+
+- First worker transition out of `pending` records queue lag as
+  `jobs_queue_lag_ms`.
+- Worker result updates increment throughput counters:
+  - `jobs_worker_result_updates_total`
+  - `jobs_worker_result_updates_<status>`
+- `GET /api/file-transfer/metrics/summary` exposes queue-lag latency and worker
+  update counters for dashboards.
 
 ### Readiness contract
 
@@ -72,9 +94,12 @@ Primary operational settings:
 - `AUTH_MODE`
 - `JOBS_ENABLED`
 - `JOBS_QUEUE_BACKEND`
+- `JOBS_REPOSITORY_BACKEND`
+- `JOBS_DYNAMODB_TABLE`
 - `JOBS_SQS_QUEUE_URL`
 - `JOBS_SQS_RETRY_MODE`
 - `JOBS_SQS_RETRY_TOTAL_MAX_ATTEMPTS`
+- `JOBS_WORKER_UPDATE_TOKEN`
 - `ACTIVITY_STORE_BACKEND`
 - `ACTIVITY_ROLLUPS_TABLE`
 - `CACHE_SHARED_BACKEND_URL`

@@ -2,7 +2,7 @@
 Spec: 0010
 Title: Observability Analytics and Activity Rollups
 Status: Active
-Version: 1.2
+Version: 1.3
 Date: 2026-02-12
 Related:
   - "[ADR-0009: EMF + DynamoDB + CloudWatch observability stack](../adr/ADR-0009-observability-analytics-emf-dynamodb-cloudwatch.md)"
@@ -55,6 +55,12 @@ Dashboards SHOULD cover:
 - async queue backlog/lag
 - worker throughput and failures
 - activity trend views
+
+Runtime metrics feeding these views SHOULD include:
+
+- `jobs_queue_lag_ms` observed on first worker transition out of `pending`
+- `jobs_worker_result_updates_total`
+- `jobs_worker_result_updates_<status>`
 
 ## 4. Alarm requirements
 
