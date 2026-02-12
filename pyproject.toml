@@ -24,12 +24,25 @@ classifiers = [
 ]
 
 dependencies = [
+    "boto3>=1.42.47",
+    "fastapi>=0.128.8",
+    "httpx>=0.28.1",
+    "oidc-jwt-verifier>=0.1.4",
+    "pydantic>=2.12.5",
+    "pydantic-settings>=2.12.0",
+    "redis>=7.1.1",
+    "structlog>=25.5.0",
 ]
 
 [project.optional-dependencies]
 
 [dependency-groups]
-dev = []
+dev = [
+    "mypy>=1.19.1",
+    "pytest>=9.0.2",
+    "pytest-asyncio>=1.3.0",
+    "ruff>=0.15.0",
+]
 
 [project.urls]
 Repository = "https://github.com/3M-Cloud/aws-file-transfer-api"
@@ -41,6 +54,7 @@ default-groups = ["dev"]
 [tool.pytest.ini_options]
 minversion = "8.0"
 testpaths = ["tests"]
+pythonpath = ["src"]
 addopts = [
   "-ra",
   "--strict-config",
@@ -79,5 +93,8 @@ warn_redundant_casts = true
 warn_return_any = true
 warn_unreachable = true
 pretty = true
-files = ["src", "tests"]
+files = ["src"]
 
+[[tool.mypy.overrides]]
+module = ["boto3", "botocore.*"]
+ignore_missing_imports = true
