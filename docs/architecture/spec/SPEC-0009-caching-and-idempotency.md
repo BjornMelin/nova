@@ -2,14 +2,16 @@
 Spec: 0009
 Title: Caching and Idempotency
 Status: Active
-Version: 1.1
-Date: 2026-02-12
+Version: 1.2
+Date: 2026-02-13
 Related:
   - "[ADR-0007: Two-tier cache and idempotency store](../adr/ADR-0007-two-tier-cache-and-idempotency-store.md)"
   - "[SPEC-0006: JWT/OIDC verification and principal mapping](./SPEC-0006-jwt-oidc-verification-and-principal-mapping.md)"
   - "[SPEC-0000: HTTP API contract](./SPEC-0000-http-api-contract.md)"
 References:
   - "[ElastiCache best practices](https://docs.aws.amazon.com/AmazonElastiCache/latest/dg/BestPractices.html)"
+  - "[redis-py asyncio examples](https://redis.readthedocs.io/en/stable/examples/asyncio_examples.html)"
+  - "[redis-py retry helpers](https://redis.readthedocs.io/en/stable/retry.html)"
 ---
 
 ## 1. Two-tier cache architecture
@@ -20,11 +22,17 @@ References:
 Read path: local first, then shared cache fallback.
 Write path: local + shared cache best effort.
 
+Shared keys are namespaced and schema-versioned (`CACHE_KEY_PREFIX`,
+`CACHE_KEY_SCHEMA_VERSION`) to support safe key evolution and cutover.
+
 ## 2. Primary cache use cases
 
 - JWT verification result caching
 - Auth metadata hot-path caching
 - Idempotency replay entry storage
+
+JWT cache entries MUST use TTL derived from token expiration (`exp`) with
+configured upper bounds.
 
 ## 3. Resilience behavior
 
@@ -40,6 +48,10 @@ For protected mutation endpoints:
 - Require `Idempotency-Key` when feature is enabled.
 - Bind replay records to route + caller scope + key.
 - Reject key reuse with different payload (`idempotency_conflict`).
+- Use explicit record state transitions:
+  - `in_progress` claim before execution
+  - `committed` after success response
+  - claim discard on failure path
 - Enqueue failures (`503` + `error.code = "queue_unavailable"`) MUST NOT be
   replay-cached as successful responses.
 

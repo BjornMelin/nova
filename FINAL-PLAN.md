@@ -361,3 +361,8 @@ Execution and evidence checklist:
   - Result: `1 passed`.
 - 2026-02-12: Added operator runbook for remaining external live gates:
   `docs/plan/release/NONPROD-LIVE-VALIDATION-RUNBOOK.md`.
+- 2026-02-13: Implemented cache/idempotency addendum:
+  async cache call-path completion across auth/API/idempotency, explicit
+  idempotency claim/commit/discard lifecycle for mutation safety, redis env
+  contract normalization to `CACHE_REDIS_*` and `CACHE_KEY_*`, and async
+  readiness shared-cache ping wiring.

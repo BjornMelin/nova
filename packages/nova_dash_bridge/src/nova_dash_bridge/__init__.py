@@ -98,18 +98,18 @@ def __dir__() -> list[str]:
 
 
 __all__ = [
-    "__version__",
     "AuthPolicy",
     "FileTransferAssets",
     "FileTransferEnvConfig",
     "FileTransferService",
-    "S3ClientFactory",
-    "S3FileUploader",
     "UploadPolicy",
-    "policy_from_env",
     "create_fastapi_app",
     "create_fastapi_router",
     "create_file_transfer_blueprint",
+    "policy_from_env",
     "register_file_transfer_assets",
     "register_file_transfer_blueprint",
+    "S3ClientFactory",
+    "S3FileUploader",
+    "__version__",
 ]

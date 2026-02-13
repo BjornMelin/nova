@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
+import pytest
 from nova_file_api.cache import (
     LocalTTLCache,
     SharedRedisCache,
@@ -15,27 +16,54 @@ class _DictRedisClient:
     def __init__(self) -> None:
         self._data: dict[str, str] = {}
 
-    def get(self, key: str) -> str | None:
+    async def get(self, key: str) -> str | None:
         return self._data.get(key)
 
-    def set(self, *, name: str, value: str, ex: int) -> None:
+    async def set(
+        self,
+        *,
+        name: str,
+        value: str,
+        ex: int,
+        nx: bool = False,
+    ) -> bool:
         del ex
+        if nx and name in self._data:
+            return False
         self._data[name] = value
+        return True
 
-    def ping(self) -> bool:
+    async def delete(self, key: str) -> int:
+        if key in self._data:
+            self._data.pop(key, None)
+            return 1
+        return 0
+
+    async def ping(self) -> bool:
         return True
 
 
 class _ErrorRedisClient:
-    def get(self, key: str) -> str | None:
+    async def get(self, key: str) -> str | None:
         del key
         raise RedisError("simulated read outage")
 
-    def set(self, *, name: str, value: str, ex: int) -> None:
-        del name, value, ex
+    async def set(
+        self,
+        *,
+        name: str,
+        value: str,
+        ex: int,
+        nx: bool = False,
+    ) -> bool:
+        del name, value, ex, nx
         raise RedisError("simulated write outage")
 
-    def ping(self) -> bool:
+    async def delete(self, key: str) -> int:
+        del key
+        raise RedisError("simulated delete outage")
+
+    async def ping(self) -> bool:
         return False
 
 
@@ -49,7 +77,8 @@ def _build_shared_cache(*, client: Any) -> SharedRedisCache:
     return shared
 
 
-def test_two_tier_cache_reports_hit_and_miss_counters() -> None:
+@pytest.mark.asyncio
+async def test_two_tier_cache_reports_hit_and_miss_counters() -> None:
     metrics = MetricsCollector(namespace="Tests")
     shared = _build_shared_cache(client=_DictRedisClient())
 
@@ -59,8 +88,8 @@ def test_two_tier_cache_reports_hit_and_miss_counters() -> None:
         shared_ttl_seconds=60,
         metric_incr=metrics.incr,
     )
-    writer_cache.set_json("job:1", {"ok": True})
-    assert writer_cache.get_json("job:1") == {"ok": True}
+    await writer_cache.set_json("job:1", {"ok": True})
+    assert await writer_cache.get_json("job:1") == {"ok": True}
 
     reader_cache = TwoTierCache(
         local=_build_local_cache(),
@@ -68,10 +97,10 @@ def test_two_tier_cache_reports_hit_and_miss_counters() -> None:
         shared_ttl_seconds=60,
         metric_incr=metrics.incr,
     )
-    assert reader_cache.get_json("job:1") == {"ok": True}
+    assert await reader_cache.get_json("job:1") == {"ok": True}
     # Recovery path: shared hit repopulates local cache for next read.
-    assert reader_cache.get_json("job:1") == {"ok": True}
-    assert reader_cache.get_json("job:missing") is None
+    assert await reader_cache.get_json("job:1") == {"ok": True}
+    assert await reader_cache.get_json("job:missing") is None
 
     counters = metrics.counters_snapshot()
     assert counters["cache_local_hit_total"] == 2
@@ -79,7 +108,8 @@ def test_two_tier_cache_reports_hit_and_miss_counters() -> None:
     assert counters["cache_miss_total"] == 1
 
 
-def test_two_tier_cache_reports_shared_fallback_when_redis_errors() -> None:
+@pytest.mark.asyncio
+async def test_two_tier_cache_reports_shared_fallback_when_redis_errors() -> None:
     metrics = MetricsCollector(namespace="Tests")
     shared = _build_shared_cache(client=_ErrorRedisClient())
     cache = TwoTierCache(
@@ -89,8 +119,8 @@ def test_two_tier_cache_reports_shared_fallback_when_redis_errors() -> None:
         metric_incr=metrics.incr,
     )
 
-    assert cache.get_json("jwt:token") is None
-    cache.set_json("jwt:token", {"sub": "subject-1"})
+    assert await cache.get_json("jwt:token") is None
+    await cache.set_json("jwt:token", {"sub": "subject-1"})
 
     counters = metrics.counters_snapshot()
     assert counters["cache_miss_total"] == 1

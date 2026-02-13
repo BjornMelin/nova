@@ -17,5 +17,5 @@
 | [SPEC-0006](./SPEC-0006-jwt-oidc-verification-and-principal-mapping.md) | JWT/OIDC Verification and Principal Mapping | Active | 2026-02-12 |
 | [SPEC-0007](./SPEC-0007-auth-api-contract.md) | Auth API Contract | Active | 2026-02-12 |
 | [SPEC-0008](./SPEC-0008-async-jobs-and-worker-orchestration.md) | Async Jobs and Worker Orchestration | Active | 2026-02-12 |
-| [SPEC-0009](./SPEC-0009-caching-and-idempotency.md) | Caching and Idempotency | Active | 2026-02-12 |
+| [SPEC-0009](./SPEC-0009-caching-and-idempotency.md) | Caching and Idempotency | Active | 2026-02-13 |
 | [SPEC-0010](./SPEC-0010-observability-analytics-and-activity-rollups.md) | Observability Analytics and Activity Rollups | Active | 2026-02-12 |

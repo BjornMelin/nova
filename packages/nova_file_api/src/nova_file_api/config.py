@@ -112,9 +112,58 @@ class Settings(BaseSettings):
         le=10.0,
     )
 
-    cache_shared_backend_url: str | None = Field(
-        default=None,
-        alias="CACHE_SHARED_BACKEND_URL",
+    cache_redis_url: str | None = Field(default=None, alias="CACHE_REDIS_URL")
+    cache_redis_max_connections: int = Field(
+        default=64,
+        alias="CACHE_REDIS_MAX_CONNECTIONS",
+        ge=1,
+        le=10000,
+    )
+    cache_redis_socket_timeout_seconds: float = Field(
+        default=0.5,
+        alias="CACHE_REDIS_SOCKET_TIMEOUT_SECONDS",
+        gt=0.0,
+        le=30.0,
+    )
+    cache_redis_socket_connect_timeout_seconds: float = Field(
+        default=0.5,
+        alias="CACHE_REDIS_SOCKET_CONNECT_TIMEOUT_SECONDS",
+        gt=0.0,
+        le=30.0,
+    )
+    cache_redis_health_check_interval_seconds: int = Field(
+        default=30,
+        alias="CACHE_REDIS_HEALTH_CHECK_INTERVAL_SECONDS",
+        ge=1,
+        le=300,
+    )
+    cache_redis_retry_base_seconds: float = Field(
+        default=0.05,
+        alias="CACHE_REDIS_RETRY_BASE_SECONDS",
+        gt=0.0,
+        le=5.0,
+    )
+    cache_redis_retry_cap_seconds: float = Field(
+        default=0.5,
+        alias="CACHE_REDIS_RETRY_CAP_SECONDS",
+        gt=0.0,
+        le=30.0,
+    )
+    cache_redis_retry_attempts: int = Field(
+        default=2,
+        alias="CACHE_REDIS_RETRY_ATTEMPTS",
+        ge=0,
+        le=10,
+    )
+    cache_redis_decode_responses: bool = Field(
+        default=False,
+        alias="CACHE_REDIS_DECODE_RESPONSES",
+    )
+    cache_redis_protocol: int = Field(
+        default=2,
+        alias="CACHE_REDIS_PROTOCOL",
+        ge=2,
+        le=3,
     )
     cache_local_ttl_seconds: int = Field(
         default=120,
@@ -130,6 +179,18 @@ class Settings(BaseSettings):
         default=300,
         alias="CACHE_SHARED_TTL_SECONDS",
         ge=1,
+    )
+    cache_key_prefix: str = Field(default="nova", alias="CACHE_KEY_PREFIX")
+    cache_key_schema_version: int = Field(
+        default=1,
+        alias="CACHE_KEY_SCHEMA_VERSION",
+        ge=1,
+    )
+    auth_jwt_cache_max_ttl_seconds: int = Field(
+        default=120,
+        alias="AUTH_JWT_CACHE_MAX_TTL_SECONDS",
+        ge=1,
+        le=3600,
     )
 
     idempotency_enabled: bool = Field(

@@ -34,8 +34,7 @@ def test_openapi_contains_split_routes_and_no_legacy_prefix() -> None:
     assert expected_paths.issubset(set(paths))
     allowed_static_paths = {"/healthz", "/readyz", "/metrics/summary"}
     assert all(
-        path.startswith("/api/transfers/")
-        or path.startswith("/api/jobs/")
+        path.startswith(("/api/transfers/", "/api/jobs/"))
         or path in allowed_static_paths
         for path in paths
     )

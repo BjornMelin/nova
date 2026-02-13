@@ -12,7 +12,7 @@ def test_emit_emf_writes_valid_payload_with_bounded_dimensions() -> None:
     metrics = MetricsCollector(namespace="Tests")
     captured: dict[str, Any] = {}
 
-    def _capture(event: str, **kwargs: Any) -> None:
+    def _capture(event: str, **kwargs: object) -> None:
         captured["event"] = event
         captured["kwargs"] = kwargs
 

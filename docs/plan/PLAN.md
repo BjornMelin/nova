@@ -1,7 +1,7 @@
 # Final Production Architecture Plan (Locked, Release Track)
 
 Status: Active execution
-Last updated: 2026-02-12
+Last updated: 2026-02-13
 Owner: nova program
 
 ## Summary
@@ -312,6 +312,23 @@ Required for each implementation slice:
       <https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch_Embedded_Metric_Format_Specification.html>
     - Fetch API request options (`headers`, `credentials`):
       <https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch>
+- 2026-02-13: Cache/idempotency addendum implementation:
+  - Before: async cache primitives existed, but auth/idempotency/API callers
+    still had sync call patterns and readiness did not await shared cache ping.
+  - After: auth and idempotency storage now use awaited cache operations
+    end-to-end; idempotency uses claim/commit/discard lifecycle
+    (`in_progress`/`committed`) with failed mutation claim cleanup; readiness
+    now awaits async shared-cache health checks.
+  - After: redis env contract switched to canonical `CACHE_REDIS_*` +
+    `CACHE_KEY_*` and bounded JWT cache TTL via
+    `AUTH_JWT_CACHE_MAX_TTL_SECONDS`.
+  - Added/updated tests:
+    `packages/nova_file_api/tests/test_cache.py`.
+  - Source references:
+    - redis-py asyncio:
+      <https://redis.readthedocs.io/en/stable/examples/asyncio_examples.html>
+    - redis-py retry:
+      <https://redis.readthedocs.io/en/stable/retry.html>
 
 ## Source References
 

@@ -58,11 +58,28 @@ def create_container(*, settings: Settings) -> AppContainer:
         ttl_seconds=settings.cache_local_ttl_seconds,
         max_entries=settings.cache_local_max_entries,
     )
-    shared_cache = SharedRedisCache(url=settings.cache_shared_backend_url)
+    shared_cache = SharedRedisCache(
+        url=settings.cache_redis_url,
+        max_connections=settings.cache_redis_max_connections,
+        socket_timeout_seconds=settings.cache_redis_socket_timeout_seconds,
+        socket_connect_timeout_seconds=(
+            settings.cache_redis_socket_connect_timeout_seconds
+        ),
+        health_check_interval_seconds=(
+            settings.cache_redis_health_check_interval_seconds
+        ),
+        retry_base_seconds=settings.cache_redis_retry_base_seconds,
+        retry_cap_seconds=settings.cache_redis_retry_cap_seconds,
+        retry_attempts=settings.cache_redis_retry_attempts,
+        decode_responses=settings.cache_redis_decode_responses,
+        protocol=settings.cache_redis_protocol,
+    )
     cache = TwoTierCache(
         local=local_cache,
         shared=shared_cache,
         shared_ttl_seconds=settings.cache_shared_ttl_seconds,
+        key_prefix=settings.cache_key_prefix,
+        key_schema_version=settings.cache_key_schema_version,
         metric_incr=metrics.incr,
     )
     idempotency_store = IdempotencyStore(

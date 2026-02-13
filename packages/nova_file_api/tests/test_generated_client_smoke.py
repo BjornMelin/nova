@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import importlib.util
 import json
 import subprocess
 import sys
 from pathlib import Path
 
+import pytest
 from nova_file_api.app import create_app
 
 
@@ -19,6 +21,9 @@ def test_generated_client_smoke(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     output_path = tmp_path / "generated_client"
+
+    if importlib.util.find_spec("openapi_python_client") is None:
+        pytest.skip("openapi_python_client dependency is not installed")
 
     generate = subprocess.run(
         [

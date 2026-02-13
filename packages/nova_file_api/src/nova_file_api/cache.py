@@ -5,12 +5,16 @@ from __future__ import annotations
 import json
 import time
 from collections import OrderedDict
+from collections.abc import Callable
 from dataclasses import dataclass
 from hashlib import sha256
+from threading import RLock
 from typing import Any
 
-from redis import Redis
+from redis.asyncio import Redis
+from redis.backoff import ExponentialWithJitterBackoff
 from redis.exceptions import RedisError
+from redis.retry import Retry
 
 
 @dataclass(slots=True)
@@ -34,18 +38,20 @@ class LocalTTLCache:
         self._ttl_seconds = ttl_seconds
         self._max_entries = max_entries
         self._data: OrderedDict[str, _Entry] = OrderedDict()
+        self._lock = RLock()
 
     def get(self, key: str) -> str | None:
         """Return cached string value when present and not expired."""
         now = time.monotonic()
-        existing = self._data.get(key)
-        if existing is None:
-            return None
-        if existing.expires_at <= now:
-            self._data.pop(key, None)
-            return None
-        self._data.move_to_end(key)
-        return existing.value
+        with self._lock:
+            existing = self._data.get(key)
+            if existing is None:
+                return None
+            if existing.expires_at <= now:
+                self._data.pop(key, None)
+                return None
+            self._data.move_to_end(key)
+            return existing.value
 
     def set(
         self, key: str, value: str, *, ttl_seconds: int | None = None
@@ -53,9 +59,15 @@ class LocalTTLCache:
         """Store value with optional custom TTL."""
         now = time.monotonic()
         ttl = self._ttl_seconds if ttl_seconds is None else ttl_seconds
-        self._data[key] = _Entry(value=value, expires_at=now + ttl)
-        self._data.move_to_end(key)
-        self._evict_if_needed()
+        with self._lock:
+            self._data[key] = _Entry(value=value, expires_at=now + ttl)
+            self._data.move_to_end(key)
+            self._evict_if_needed()
+
+    def delete(self, key: str) -> None:
+        """Delete a local cache key if it exists."""
+        with self._lock:
+            self._data.pop(key, None)
 
     def _evict_if_needed(self) -> None:
         while len(self._data) > self._max_entries:
@@ -63,69 +75,131 @@ class LocalTTLCache:
 
 
 class SharedRedisCache:
-    """Best-effort Redis cache wrapper."""
+    """Best-effort async Redis cache wrapper."""
 
-    def __init__(self, url: str | None) -> None:
-        """Initialize Redis client when URL is configured.
-
-        Args:
-            url: Redis connection URL, or None to disable Redis.
-        """
+    def __init__(
+        self,
+        *,
+        url: str | None,
+        max_connections: int = 64,
+        socket_timeout_seconds: float = 0.5,
+        socket_connect_timeout_seconds: float = 0.5,
+        health_check_interval_seconds: int = 30,
+        retry_base_seconds: float = 0.05,
+        retry_cap_seconds: float = 0.5,
+        retry_attempts: int = 2,
+        decode_responses: bool = False,
+        protocol: int = 2,
+    ) -> None:
+        """Initialize Redis client when URL is configured."""
         self._client: Redis | None = None
-        if url:
-            self._client = Redis.from_url(url)
+        if not url:
+            return
+
+        retry = Retry(
+            backoff=ExponentialWithJitterBackoff(
+                base=retry_base_seconds,
+                cap=retry_cap_seconds,
+            ),
+            retries=retry_attempts,
+        )
+        self._client = Redis.from_url(
+            url,
+            max_connections=max_connections,
+            socket_timeout=socket_timeout_seconds,
+            socket_connect_timeout=socket_connect_timeout_seconds,
+            health_check_interval=health_check_interval_seconds,
+            retry=retry,
+            decode_responses=decode_responses,
+            protocol=protocol,
+        )
 
     @property
     def available(self) -> bool:
         """Return True when Redis backend is configured."""
         return self._client is not None
 
-    def get(self, key: str) -> str | None:
-        """Get string value from Redis, returning None on errors/miss."""
-        value, _status = self.get_with_status(key)
-        return value
-
-    def get_with_status(self, key: str) -> tuple[str | None, str]:
+    async def get_with_status(self, key: str) -> tuple[str | None, str]:
         """Get value and read status from shared backend.
 
         Returns:
-            tuple[str | None, str]: Tuple of decoded value and one of
+            Tuple of decoded value and one of
             ``disabled``, ``hit``, ``miss``, or ``error``.
         """
         if self._client is None:
             return None, "disabled"
         try:
-            raw = self._client.get(key)
+            raw = await self._client.get(key)
         except RedisError:
             return None, "error"
+
         if raw is None:
             return None, "miss"
         if isinstance(raw, bytes):
-            return raw.decode("utf-8"), "hit"
+            try:
+                return raw.decode("utf-8"), "hit"
+            except UnicodeDecodeError:
+                return None, "error"
         if isinstance(raw, str):
             return raw, "hit"
         return None, "error"
 
-    def set(self, key: str, value: str, *, ttl_seconds: int) -> None:
-        """Store value in Redis with TTL, swallowing backend errors."""
-        self.set_with_status(key, value, ttl_seconds=ttl_seconds)
-
-    def set_with_status(self, key: str, value: str, *, ttl_seconds: int) -> str:
+    async def set_with_status(
+        self,
+        key: str,
+        value: str,
+        *,
+        ttl_seconds: int,
+    ) -> str:
         """Store value with TTL and return backend write status."""
         if self._client is None:
             return "disabled"
         try:
-            self._client.set(name=key, value=value, ex=ttl_seconds)
+            await self._client.set(name=key, value=value, ex=ttl_seconds)
         except RedisError:
             return "error"
         return "ok"
 
-    def ping(self) -> bool:
+    async def set_if_absent_with_status(
+        self,
+        key: str,
+        value: str,
+        *,
+        ttl_seconds: int,
+    ) -> str:
+        """Store value iff absent and return write status."""
+        if self._client is None:
+            return "disabled"
+        try:
+            created = await self._client.set(
+                name=key,
+                value=value,
+                ex=ttl_seconds,
+                nx=True,
+            )
+        except RedisError:
+            return "error"
+        return "created" if bool(created) else "exists"
+
+    async def delete_with_status(self, key: str) -> str:
+        """Delete key and return backend status."""
+        if self._client is None:
+            return "disabled"
+        try:
+            await self._client.delete(key)
+        except RedisError:
+            return "error"
+        return "ok"
+
+    async def ping(self) -> bool:
         """Return backend health when configured."""
         if self._client is None:
             return True
         try:
-            return bool(self._client.ping())
+            ping_result = self._client.ping()
+            if isinstance(ping_result, bool):
+                return ping_result
+            return bool(await ping_result)
         except RedisError:
             return False
 
@@ -139,19 +213,16 @@ class TwoTierCache:
         local: LocalTTLCache,
         shared: SharedRedisCache,
         shared_ttl_seconds: int,
-        metric_incr: Any | None = None,
+        key_prefix: str = "nova",
+        key_schema_version: int = 1,
+        metric_incr: Callable[[str], None] | None = None,
     ) -> None:
-        """Create cache composed of local and shared backends.
-
-        Args:
-            local: In-process local cache implementation.
-            shared: Shared cache backend, typically Redis.
-            shared_ttl_seconds: Default TTL for shared entries.
-            metric_incr: Optional callback used for cache counters.
-        """
+        """Create cache composed of local and shared backends."""
         self._local = local
         self._shared = shared
         self._shared_ttl_seconds = shared_ttl_seconds
+        self._key_prefix = key_prefix
+        self._key_schema_version = key_schema_version
         self._metric_incr = metric_incr
 
     @staticmethod
@@ -160,30 +231,57 @@ class TwoTierCache:
         digest = sha256(raw.encode("utf-8")).hexdigest()
         return f"{namespace}:{digest}"
 
-    def get_json(self, key: str) -> dict[str, Any] | None:
+    def namespaced_key(self, namespace: str, raw: str) -> str:
+        """Build a fully namespaced versioned key for shared cache usage."""
+        digest = sha256(raw.encode("utf-8")).hexdigest()
+        return (
+            f"{self._key_prefix}:{namespace}:"
+            f"v{self._key_schema_version}:{digest}"
+        )
+
+    async def get_json(self, key: str) -> dict[str, Any] | None:
         """Return parsed JSON object if found."""
         local_value = self._local.get(key)
         if local_value is not None:
-            self._incr("cache_local_hit_total")
-            return _parse_json(local_value)
+            parsed, parsed_status = _parse_envelope(raw=local_value)
+            if parsed_status == "ok":
+                self._incr("cache_local_hit_total")
+                return parsed
+            if parsed_status == "expired":
+                self._incr("cache_local_expired_total")
+            else:
+                self._incr("cache_corrupt_payload_total")
+            self._local.delete(key)
 
-        shared_value, status = self._shared.get_with_status(key)
+        shared_value, status = await self._shared.get_with_status(key)
         if status == "hit":
-            self._incr("cache_shared_hit_total")
-        elif status == "miss":
+            if shared_value is None:
+                self._incr("cache_miss_total")
+                return None
+            parsed, parsed_status = _parse_envelope(raw=shared_value)
+            if parsed_status == "ok" and parsed is not None:
+                self._incr("cache_shared_hit_total")
+                self._local.set(key, shared_value)
+                return parsed
+            if parsed_status == "expired":
+                self._incr("cache_shared_expired_total")
+            else:
+                self._incr("cache_corrupt_payload_total")
             self._incr("cache_miss_total")
-        elif status == "error":
+            return None
+        if status == "miss":
+            self._incr("cache_miss_total")
+            return None
+        if status == "error":
             self._incr("cache_miss_total")
             self._incr("cache_shared_fallback_total")
-        elif status == "disabled":
-            self._incr("cache_miss_total")
-        if shared_value is None:
+            self._incr("cache_get_error_total")
             return None
 
-        self._local.set(key, shared_value)
-        return _parse_json(shared_value)
+        self._incr("cache_miss_total")
+        return None
 
-    def set_json(
+    async def set_json(
         self,
         key: str,
         payload: dict[str, Any],
@@ -191,14 +289,61 @@ class TwoTierCache:
         ttl_seconds: int | None = None,
     ) -> None:
         """Serialize and store JSON payload in both tiers."""
-        encoded = json.dumps(payload, separators=(",", ":"), sort_keys=True)
+        ttl = self._shared_ttl_seconds if ttl_seconds is None else ttl_seconds
+        encoded = _encode_envelope(
+            payload=payload,
+            ttl_seconds=ttl,
+            schema_version=self._key_schema_version,
+        )
+
+        self._local.set(key, encoded, ttl_seconds=ttl)
+        status = await self._shared.set_with_status(
+            key,
+            encoded,
+            ttl_seconds=ttl,
+        )
+        if status == "error":
+            self._incr("cache_shared_fallback_total")
+            self._incr("cache_set_error_total")
+
+    async def set_json_if_absent(
+        self,
+        *,
+        key: str,
+        payload: dict[str, Any],
+        ttl_seconds: int,
+    ) -> bool:
+        """Atomically set key if absent; local fallback is best effort."""
+        encoded = _encode_envelope(
+            payload=payload,
+            ttl_seconds=ttl_seconds,
+            schema_version=self._key_schema_version,
+        )
+
+        status = await self._shared.set_if_absent_with_status(
+            key,
+            encoded,
+            ttl_seconds=ttl_seconds,
+        )
+        if status == "created":
+            self._local.set(key, encoded, ttl_seconds=ttl_seconds)
+            return True
+        if status == "exists":
+            return False
+        if status == "error":
+            self._incr("cache_shared_fallback_total")
+            self._incr("cache_set_error_total")
+
+        local_value = self._local.get(key)
+        if local_value is not None:
+            return False
         self._local.set(key, encoded, ttl_seconds=ttl_seconds)
-        shared_ttl = (
-            self._shared_ttl_seconds if ttl_seconds is None else ttl_seconds
-        )
-        status = self._shared.set_with_status(
-            key, encoded, ttl_seconds=shared_ttl
-        )
+        return True
+
+    async def delete(self, key: str) -> None:
+        """Delete cache key from local and shared tiers."""
+        self._local.delete(key)
+        status = await self._shared.delete_with_status(key)
         if status == "error":
             self._incr("cache_shared_fallback_total")
 
@@ -209,12 +354,44 @@ class TwoTierCache:
         callback(key)
 
 
-def _parse_json(raw: str) -> dict[str, Any] | None:
-    """Parse JSON dict payload safely."""
+def _encode_envelope(
+    *,
+    payload: dict[str, Any],
+    ttl_seconds: int,
+    schema_version: int,
+) -> str:
+    now_seconds = int(time.time())
+    envelope = {
+        "schema_version": schema_version,
+        "written_at": now_seconds,
+        "expires_at": now_seconds + ttl_seconds,
+        "payload": payload,
+    }
+    return json.dumps(envelope, separators=(",", ":"), sort_keys=True)
+
+
+def _parse_envelope(raw: str | None) -> tuple[dict[str, Any] | None, str]:
+    """Parse cache envelope safely."""
+    if raw is None:
+        return None, "missing"
+
     try:
         parsed = json.loads(raw)
     except json.JSONDecodeError:
-        return None
+        return None, "invalid"
+
     if not isinstance(parsed, dict):
-        return None
-    return parsed
+        return None, "invalid"
+
+    schema_version = parsed.get("schema_version")
+    expires_at = parsed.get("expires_at")
+    payload = parsed.get("payload")
+    if not isinstance(schema_version, int):
+        return None, "invalid"
+    if not isinstance(expires_at, (int, float)):
+        return None, "invalid"
+    if not isinstance(payload, dict):
+        return None, "invalid"
+    if int(time.time()) >= int(expires_at):
+        return None, "expired"
+    return payload, "ok"

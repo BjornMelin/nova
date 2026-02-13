@@ -44,8 +44,6 @@ class _StubAuthenticator:
 class _StubTransferService:
     """Placeholder transfer service for container wiring tests."""
 
-    pass
-
 
 def _build_container(*, jobs_enabled: bool = True) -> AppContainer:
     """Build an app container with in-memory test doubles."""

@@ -19,7 +19,11 @@ class InitiateUploadRequest(StrictModel):
     filename: str = Field(min_length=1)
     content_type: str | None = None
     size_bytes: int = Field(gt=0)
-    session_id: str = Field(min_length=8)
+    session_id: str = Field(
+        min_length=16,
+        max_length=64,
+        pattern=r"^[0-9a-fA-F-]{16,64}$",
+    )
 
 
 class InitiateUploadResponseSingle(StrictModel):
@@ -50,19 +54,22 @@ class SignPartsRequest(StrictModel):
     key: str = Field(min_length=1)
     upload_id: str = Field(min_length=1)
     part_numbers: list[int] = Field(min_length=1)
-    session_id: str = Field(min_length=8)
+    session_id: str = Field(min_length=8, max_length=256)
 
     @field_validator("part_numbers")
     @classmethod
     def _validate_part_numbers(cls, value: list[int]) -> list[int]:
-        numbers = sorted(set(value))
-        if not numbers:
+        if not value:
             raise ValueError("part_numbers must be non-empty")
-        if numbers[0] < 1:
+        if len(value) > 1000:
+            raise ValueError("part_numbers must not exceed 1000")
+        if len(value) != len(set(value)):
+            raise ValueError("part_numbers must be unique")
+        if any(number < 1 for number in value):
             raise ValueError("part_numbers must be >= 1")
-        if numbers[-1] > 10_000:
+        if any(number > 10_000 for number in value):
             raise ValueError("part_numbers must be <= 10000")
-        return numbers
+        return value
 
 
 class SignPartsResponse(StrictModel):
@@ -85,7 +92,11 @@ class CompleteUploadRequest(StrictModel):
     key: str = Field(min_length=1)
     upload_id: str = Field(min_length=1)
     parts: list[CompletedPart] = Field(min_length=1)
-    session_id: str = Field(min_length=8)
+    session_id: str = Field(
+        min_length=16,
+        max_length=64,
+        pattern=r"^[0-9a-fA-F-]{16,64}$",
+    )
 
 
 class CompleteUploadResponse(StrictModel):
@@ -101,7 +112,11 @@ class AbortUploadRequest(StrictModel):
 
     key: str = Field(min_length=1)
     upload_id: str = Field(min_length=1)
-    session_id: str = Field(min_length=8)
+    session_id: str = Field(
+        min_length=16,
+        max_length=64,
+        pattern=r"^[0-9a-fA-F-]{16,64}$",
+    )
 
 
 class AbortUploadResponse(StrictModel):
@@ -114,7 +129,11 @@ class PresignDownloadRequest(StrictModel):
     """Request payload for generating presigned download URL."""
 
     key: str = Field(min_length=1)
-    session_id: str = Field(min_length=8)
+    session_id: str = Field(
+        min_length=16,
+        max_length=64,
+        pattern=r"^[0-9a-fA-F-]{16,64}$",
+    )
     content_disposition: Literal["inline", "attachment"] = "attachment"
     filename: str | None = None
 

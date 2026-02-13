@@ -9,7 +9,11 @@ from starlette.concurrency import run_in_threadpool
 
 from nova_file_api.container import AppContainer
 from nova_file_api.dependencies import get_container
-from nova_file_api.errors import forbidden, invalid_request
+from nova_file_api.errors import (
+    forbidden,
+    idempotency_conflict,
+    invalid_request,
+)
 from nova_file_api.models import (
     AbortUploadRequest,
     AbortUploadResponse,
@@ -60,8 +64,9 @@ async def initiate_upload(
         idempotency_key=idempotency_key,
     )
     request_payload = payload.model_dump(mode="json")
+    claimed_idempotency = False
     if key is not None:
-        replay = container.idempotency_store.load_response(
+        replay = await container.idempotency_store.load_response(
             route="/api/transfers/uploads/initiate",
             scope_id=principal.scope_id,
             idempotency_key=key,
@@ -70,16 +75,42 @@ async def initiate_upload(
         if replay is not None:
             container.metrics.incr("idempotency_replays_total")
             return InitiateUploadResponse.model_validate(replay)
-
-    with container.metrics.timed("uploads_initiate_ms"):
-        response = await run_in_threadpool(
-            container.transfer_service.initiate_upload,
-            payload,
-            principal,
+        claimed_idempotency = await container.idempotency_store.claim_request(
+            route="/api/transfers/uploads/initiate",
+            scope_id=principal.scope_id,
+            idempotency_key=key,
+            request_payload=request_payload,
         )
+        if not claimed_idempotency:
+            replay = await container.idempotency_store.load_response(
+                route="/api/transfers/uploads/initiate",
+                scope_id=principal.scope_id,
+                idempotency_key=key,
+                request_payload=request_payload,
+            )
+            if replay is not None:
+                container.metrics.incr("idempotency_replays_total")
+                return InitiateUploadResponse.model_validate(replay)
+            raise idempotency_conflict("idempotency request is already in progress")
+
+    try:
+        with container.metrics.timed("uploads_initiate_ms"):
+            response = await run_in_threadpool(
+                container.transfer_service.initiate_upload,
+                payload,
+                principal,
+            )
+    except Exception:
+        if key is not None and claimed_idempotency:
+            await container.idempotency_store.discard_claim(
+                route="/api/transfers/uploads/initiate",
+                scope_id=principal.scope_id,
+                idempotency_key=key,
+            )
+        raise
 
     if key is not None:
-        container.idempotency_store.store_response(
+        await container.idempotency_store.store_response(
             route="/api/transfers/uploads/initiate",
             scope_id=principal.scope_id,
             idempotency_key=key,
@@ -241,8 +272,9 @@ async def enqueue_job(
         idempotency_key=idempotency_key,
     )
     request_payload = payload.model_dump(mode="json")
+    claimed_idempotency = False
     if key is not None:
-        replay = container.idempotency_store.load_response(
+        replay = await container.idempotency_store.load_response(
             route="/api/jobs/enqueue",
             scope_id=principal.scope_id,
             idempotency_key=key,
@@ -251,21 +283,47 @@ async def enqueue_job(
         if replay is not None:
             container.metrics.incr("idempotency_replays_total")
             return EnqueueJobResponse.model_validate(replay)
-
-    with container.metrics.timed("jobs_enqueue_ms"):
-        job = await run_in_threadpool(
-            container.job_service.enqueue,
-            job_type=payload.job_type,
-            payload=payload.payload,
+        claimed_idempotency = await container.idempotency_store.claim_request(
+            route="/api/jobs/enqueue",
             scope_id=principal.scope_id,
+            idempotency_key=key,
+            request_payload=request_payload,
         )
+        if not claimed_idempotency:
+            replay = await container.idempotency_store.load_response(
+                route="/api/jobs/enqueue",
+                scope_id=principal.scope_id,
+                idempotency_key=key,
+                request_payload=request_payload,
+            )
+            if replay is not None:
+                container.metrics.incr("idempotency_replays_total")
+                return EnqueueJobResponse.model_validate(replay)
+            raise idempotency_conflict("idempotency request is already in progress")
+
+    try:
+        with container.metrics.timed("jobs_enqueue_ms"):
+            job = await run_in_threadpool(
+                container.job_service.enqueue,
+                job_type=payload.job_type,
+                payload=payload.payload,
+                scope_id=principal.scope_id,
+            )
+    except Exception:
+        if key is not None and claimed_idempotency:
+            await container.idempotency_store.discard_claim(
+                route="/api/jobs/enqueue",
+                scope_id=principal.scope_id,
+                idempotency_key=key,
+            )
+        raise
 
     container.activity_store.record(
         principal=principal, event_type="jobs_enqueue"
     )
     response = EnqueueJobResponse(job_id=job.job_id, status=job.status)
     if key is not None:
-        container.idempotency_store.store_response(
+        await container.idempotency_store.store_response(
             route="/api/jobs/enqueue",
             scope_id=principal.scope_id,
             idempotency_key=key,
@@ -379,7 +437,7 @@ async def readyz(request: Request) -> ReadinessResponse:
     container = get_container(request)
     checks = {
         "bucket_configured": bool(container.settings.file_transfer_bucket),
-        "shared_cache": container.shared_cache.ping(),
+        "shared_cache": await container.shared_cache.ping(),
     }
     return ReadinessResponse(ok=all(checks.values()), checks=checks)
 

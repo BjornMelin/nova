@@ -54,6 +54,10 @@ The service must be usable by:
   - `error.code = "queue_unavailable"`
 - Enqueue publish failures must not be reported as successful enqueue.
 - Failed enqueue attempts must not be idempotency replay cached.
+- Idempotency handling must use explicit claim/commit/discard lifecycle for
+  mutation safety and retry correctness.
+- JWT verification cache TTL must not exceed token `exp` and configured max TTL
+  bounds.
 - Worker status updates must enforce legal job state transitions and reject
   invalid transitions with `409 conflict`.
 - Worker processing must emit queue lag and throughput metrics:

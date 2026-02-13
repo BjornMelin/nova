@@ -54,7 +54,9 @@ def _error_response(exc: FileTransferError) -> tuple[Any, int]:
 
 def _parse_payload(model: type[Any]) -> Any:
     try:
-        incoming = request.get_json(force=True, silent=False) or {}
+        incoming = request.get_json(force=True, silent=False)
+        if incoming is None:
+            raise validation_error("request body must not be null")
         return model.model_validate(incoming)
     except ValidationError as exc:
         raise validation_error(

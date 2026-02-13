@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+import hashlib
+import logging
 from collections import defaultdict
-from contextlib import suppress
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Protocol
@@ -12,6 +13,8 @@ import boto3
 from botocore.exceptions import BotoCoreError, ClientError
 
 from nova_file_api.models import Principal
+
+logger = logging.getLogger(__name__)
 
 
 class ActivityStore(Protocol):
@@ -93,30 +96,96 @@ class DynamoActivityStore:
             self._increment_counter(
                 key=summary_key, counter_name="events_total"
             )
-        except (ClientError, BotoCoreError):
+        except (ClientError, BotoCoreError) as exc:
+            logger.warning(
+                "activity rollup counter updates failed",
+                extra={
+                    "event_type": event_type,
+                    "day": day,
+                    "table": self._table_name,
+                    "principal_fingerprint": self._principal_fingerprint(
+                        principal=principal
+                    ),
+                    "error_type": exc.__class__.__name__,
+                },
+                exc_info=exc,
+            )
             return
 
         try:
             user_was_new = self._write_marker_if_absent(key=user_marker_key)
-        except (ClientError, BotoCoreError):
+        except (ClientError, BotoCoreError) as exc:
+            logger.warning(
+                "activity user marker write failed; "
+                "skipping user marker accounting",
+                extra={
+                    "day": day,
+                    "table": self._table_name,
+                    "principal_fingerprint": self._principal_fingerprint(
+                        principal=principal
+                    ),
+                    "error_type": exc.__class__.__name__,
+                },
+                exc_info=exc,
+            )
             user_was_new = False
         if user_was_new:
-            with suppress(ClientError, BotoCoreError):
+            try:
                 self._increment_counter(
                     key=summary_key, counter_name="active_users_today"
+                )
+            except (ClientError, BotoCoreError) as exc:
+                logger.warning(
+                    "activity distinct active user increment failed",
+                    extra={
+                        "day": day,
+                        "table": self._table_name,
+                        "principal_fingerprint": self._principal_fingerprint(
+                            principal=principal
+                        ),
+                        "error_type": exc.__class__.__name__,
+                    },
+                    exc_info=exc,
                 )
 
         try:
             event_type_was_new = self._write_marker_if_absent(
                 key=event_type_marker_key
             )
-        except (ClientError, BotoCoreError):
+        except (ClientError, BotoCoreError) as exc:
+            logger.warning(
+                "activity event-type marker write failed; "
+                "skipping event-type accounting",
+                extra={
+                    "day": day,
+                    "table": self._table_name,
+                    "event_type": event_type,
+                    "error_type": exc.__class__.__name__,
+                },
+                exc_info=exc,
+            )
             event_type_was_new = False
         if event_type_was_new:
-            with suppress(ClientError, BotoCoreError):
+            try:
                 self._increment_counter(
                     key=summary_key, counter_name="distinct_event_types"
                 )
+            except (ClientError, BotoCoreError) as exc:
+                logger.warning(
+                    "activity distinct event-type increment failed",
+                    extra={
+                        "day": day,
+                        "table": self._table_name,
+                        "event_type": event_type,
+                        "error_type": exc.__class__.__name__,
+                    },
+                    exc_info=exc,
+                )
+
+    @staticmethod
+    def _principal_fingerprint(*, principal: Principal) -> str:
+        digest = hashlib.sha256(principal.subject.encode("utf-8")).hexdigest()
+        return digest[:16]
 
     def summary(self) -> dict[str, int]:
         """Read current-day aggregate counters from DynamoDB."""

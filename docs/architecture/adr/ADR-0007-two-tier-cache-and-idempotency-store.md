@@ -2,13 +2,14 @@
 ADR: 0007
 Title: Adopt two-tier cache with idempotency replay storage
 Status: Accepted
-Version: 1.0
-Date: 2026-02-12
+Version: 1.1
+Date: 2026-02-13
 Related:
   - "[SPEC-0009: Caching and idempotency](../spec/SPEC-0009-caching-and-idempotency.md)"
   - "[SPEC-0006: JWT/OIDC verification and principal mapping](../spec/SPEC-0006-jwt-oidc-verification-and-principal-mapping.md)"
 References:
   - "[ElastiCache best practices](https://docs.aws.amazon.com/AmazonElastiCache/latest/dg/BestPractices.html)"
+  - "[redis-py asyncio examples](https://redis.readthedocs.io/en/stable/examples/asyncio_examples.html)"
   - "[RFC 7231](https://datatracker.ietf.org/doc/html/rfc7231)"
 ---
 
@@ -46,7 +47,12 @@ Implementation commitments:
 - Local in-memory TTL cache for fastest-path reads.
 - Optional shared Redis cache for cross-instance consistency.
 - Degrade gracefully to local-only mode when Redis is unavailable.
-- Store `Idempotency-Key` replay records with payload hash validation.
+- Store `Idempotency-Key` records with payload hash validation and
+  `in_progress` -> `committed` lifecycle.
+- Discard in-progress idempotency claims on failed mutation execution so
+  clients can retry safely.
+- Derive JWT cache TTL from token `exp` with bounded max TTL.
+- Use namespaced/schema-versioned cache keys for safe key evolution.
 
 ## Consequences
 
@@ -57,3 +63,5 @@ Implementation commitments:
 ## Change Log
 
 - 2026-02-12 (v1.0): Initial acceptance.
+- 2026-02-13 (v1.1): Added async Redis call-path, explicit idempotency claim
+  lifecycle, and JWT `exp`-bounded cache TTL commitments.

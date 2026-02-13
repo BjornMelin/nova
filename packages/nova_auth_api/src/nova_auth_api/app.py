@@ -3,13 +3,15 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import AsyncIterator, MutableMapping
+from collections.abc import AsyncIterator, Awaitable, Callable, MutableMapping
 from contextlib import asynccontextmanager
 from typing import Any
+from uuid import uuid4
 
 import structlog
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+from starlette.responses import Response
 
 from nova_auth_api.config import Settings
 from nova_auth_api.errors import AuthApiError, internal_error
@@ -47,6 +49,7 @@ def create_app(
         version="0.1.0",
         lifespan=lifespan,
     )
+    app.middleware("http")(request_context_middleware)
 
     @app.get("/healthz", response_model=HealthResponse)
     async def healthz() -> HealthResponse:
@@ -119,6 +122,23 @@ def create_app(
     return app
 
 
+async def request_context_middleware(
+    request: Request,
+    call_next: Callable[[Request], Awaitable[Response]],
+) -> Response:
+    request_id = request.headers.get("X-Request-Id") or uuid4().hex
+    request.state.request_id = request_id
+    structlog.contextvars.bind_contextvars(request_id=request_id)
+    response: Response | None = None
+    try:
+        response = await call_next(request)
+        return response
+    finally:
+        if response is not None:
+            response.headers["X-Request-Id"] = request_id
+        structlog.contextvars.unbind_contextvars("request_id")
+
+
 def _service(*, request: Request) -> TokenVerificationService:
     value = getattr(request.app.state, "auth_service", None)
     if isinstance(value, TokenVerificationService):
@@ -127,6 +147,9 @@ def _service(*, request: Request) -> TokenVerificationService:
 
 
 def _request_id(*, request: Request) -> str | None:
+    value = getattr(request.state, "request_id", None)
+    if isinstance(value, str) and value:
+        return value
     value = request.headers.get("X-Request-Id")
     if isinstance(value, str) and value:
         return value

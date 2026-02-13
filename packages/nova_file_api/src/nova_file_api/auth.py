@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 from collections.abc import Sequence
 from typing import Any
 
@@ -86,8 +87,8 @@ class Authenticator:
         return Principal(subject=scope_id, scope_id=scope_id)
 
     async def _verify_local_token(self, *, token: str) -> dict[str, Any]:
-        cache_key = TwoTierCache.stable_key("jwt", token)
-        cached = self._cache.get_json(cache_key)
+        cache_key = self._cache.namespaced_key("jwt", token)
+        cached = await self._cache.get_json(cache_key)
         if cached is not None:
             return cached
 
@@ -103,7 +104,17 @@ class Authenticator:
         except AuthError as exc:
             raise _local_auth_error(exc=exc) from exc
 
-        self._cache.set_json(cache_key, claims, ttl_seconds=120)
+        ttl_seconds = _jwt_cache_ttl_seconds(
+            claims=claims,
+            clock_skew_seconds=self._settings.oidc_clock_skew_seconds,
+            max_ttl_seconds=self._settings.auth_jwt_cache_max_ttl_seconds,
+        )
+        if ttl_seconds > 0:
+            await self._cache.set_json(
+                cache_key,
+                claims,
+                ttl_seconds=ttl_seconds,
+            )
         return claims
 
     async def _verify_remote_principal(self, *, token: str) -> Principal:
@@ -327,3 +338,27 @@ def _principal_from_remote_payload(*, principal: dict[str, Any]) -> Principal:
         scopes=tuple(scopes),
         permissions=tuple(permissions),
     )
+
+
+def _jwt_cache_ttl_seconds(
+    *,
+    claims: dict[str, Any],
+    clock_skew_seconds: int,
+    max_ttl_seconds: int,
+) -> int:
+    """Derive JWT cache TTL from exp claim with bounded maximum."""
+    raw_exp = claims.get("exp")
+    if isinstance(raw_exp, int):
+        exp_epoch = raw_exp
+    elif isinstance(raw_exp, float):
+        exp_epoch = int(raw_exp)
+    elif isinstance(raw_exp, str) and raw_exp.isdigit():
+        exp_epoch = int(raw_exp)
+    else:
+        return max_ttl_seconds
+
+    now_epoch = int(time.time())
+    remaining = exp_epoch - now_epoch - max(clock_skew_seconds, 0)
+    if remaining <= 0:
+        return 0
+    return min(remaining, max_ttl_seconds)

@@ -87,6 +87,12 @@ The service MUST:
 Failed enqueue responses (`503 queue_unavailable`) MUST NOT be replay-cached as
 successful idempotency entries.
 
+The idempotency implementation MUST use an explicit request lifecycle:
+
+- claim (`in_progress`) before mutation execution
+- commit (`committed`) only after successful mutation response
+- discard claims on failed mutation execution to preserve retry behavior
+
 ### FR-0005: Authentication and authorization
 
 The service MUST support explicit auth modes:
@@ -104,6 +110,9 @@ The service MUST support a two-tier cache model:
 
 - Local in-process TTL cache
 - Shared Redis cache (optional, best-effort)
+
+Shared cache keys MUST be namespaced and schema-versioned, and JWT cache TTL
+MUST be bounded by token expiration (`exp`) with configured max TTL caps.
 
 ### FR-0007: Observability and analytics
 
