@@ -67,8 +67,12 @@ include updates to:
 
 - TypeScript types/client: `openapi-typescript` + `openapi-fetch`
 - R client: OpenAPI Generator (`r` generator) when release process requires it
+- Python smoke validation: `openapi-python-client` generation + compile check
+  from runtime OpenAPI output
 
 Client generation SHOULD run as a verification step on contract changes.
+The runtime repository keeps this via
+`packages/nova_file_api/tests/test_generated_client_smoke.py`.
 
 ## 5. Traceability
 

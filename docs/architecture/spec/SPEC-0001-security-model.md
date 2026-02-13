@@ -6,7 +6,7 @@ Version: 1.3
 Date: 2026-02-12
 Related:
   - "[ADR-0004: Canonical OIDC verifier adoption](../adr/ADR-0004-canonical-oidc-jwt-verifier-adoption.md)"
-  - "[ADR-0005: Dedicated aws-auth-api track](../adr/ADR-0005-add-dedicated-aws-auth-api-service.md)"
+  - "[ADR-0005: Dedicated nova-auth-api track](../adr/ADR-0005-add-dedicated-nova-auth-api-service.md)"
   - "[SPEC-0000: HTTP API contract](./SPEC-0000-http-api-contract.md)"
   - "[SPEC-0006: JWT/OIDC verification and principal mapping](./SPEC-0006-jwt-oidc-verification-and-principal-mapping.md)"
 References:
@@ -31,7 +31,7 @@ Default token mode. Verification uses canonical `oidc-jwt-verifier` policy.
 
 ### 1.3 Optional remote auth mode
 
-Uses `aws-auth-api` over HTTP. This mode MUST be explicit and fail-closed on
+Uses `nova-auth-api` over HTTP. This mode MUST be explicit and fail-closed on
 connectivity or non-success auth responses.
 
 ## 2. JWT verification and async safety
