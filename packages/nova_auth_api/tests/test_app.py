@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from fastapi.testclient import TestClient
 from nova_auth_api.app import create_app
 from nova_auth_api.errors import unauthorized
 from nova_auth_api.models import (
@@ -12,7 +13,6 @@ from nova_auth_api.models import (
     TokenVerifyResponse,
 )
 from nova_auth_api.service import TokenVerificationService
-from fastapi.testclient import TestClient
 
 
 class _StubService(TokenVerificationService):
