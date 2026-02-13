@@ -98,15 +98,22 @@
     }
   }
 
-  async function getJson(url) {
+  async function getJson(url, headers) {
     var timeoutMs = 30000;
     var controller = new AbortController();
     var timeoutId = window.setTimeout(function () {
       controller.abort();
     }, timeoutMs);
+    var mergedHeaders = {};
+    if (headers && typeof headers === "object") {
+      Object.keys(headers).forEach(function (key) {
+        mergedHeaders[key] = headers[key];
+      });
+    }
     try {
       var response = await fetch(url, {
         method: "GET",
+        headers: mergedHeaders,
         credentials: "same-origin",
         signal: controller.signal,
       });
@@ -338,11 +345,16 @@
     );
   }
 
-  async function pollAsyncJob(config, jobId) {
+  async function pollAsyncJob(config, jobId, sessionId) {
     var startedMs = Date.now();
+    var pollHeaders = {};
+    if (typeof sessionId === "string" && sessionId) {
+      pollHeaders["X-Session-Id"] = sessionId;
+    }
     while (true) {
       var response = await getJson(
-        config.jobsEndpointBase + "/" + encodeURIComponent(jobId)
+        config.jobsEndpointBase + "/" + encodeURIComponent(jobId),
+        pollHeaders
       );
       var job = response && response.job ? response.job : {};
       var status = job.status || "";
@@ -454,7 +466,11 @@
       100,
       "Processing in background. Waiting for job result…"
     );
-    var job = await pollAsyncJob(config, enqueued.job_id);
+    var job = await pollAsyncJob(
+      config,
+      enqueued.job_id,
+      uploadResult.session_id
+    );
     if (job.status === "failed" || job.status === "canceled") {
       var errorMessage =
         typeof job.error === "string" && job.error
