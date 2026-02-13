@@ -228,14 +228,13 @@ def test_dynamo_activity_record_logs_counter_failures_and_hides_principal(
     ]
     assert len(warning_records) == 1
     warning_data = warning_records[0].__dict__
-    assert (
-        cast(str, warning_data["principal_fingerprint"])
-        == _expected_principal_fingerprint(subject=principal.subject)
-    )
-    assert (
-        "user-1" not in warning_records[0].getMessage()
-        and principal.subject
-        not in cast(str, warning_data["principal_fingerprint"])
+    assert cast(
+        str, warning_data["principal_fingerprint"]
+    ) == _expected_principal_fingerprint(subject=principal.subject)
+    assert "user-1" not in warning_records[
+        0
+    ].getMessage() and principal.subject not in cast(
+        str, warning_data["principal_fingerprint"]
     )
 
 
@@ -264,10 +263,9 @@ def test_dynamo_activity_record_user_marker_error_logs_warning(
     ]
     assert len(warning_records) == 1
     warning_data = warning_records[0].__dict__
-    assert (
-        cast(str, warning_data["principal_fingerprint"])
-        == _expected_principal_fingerprint(subject=principal.subject)
-    )
+    assert cast(
+        str, warning_data["principal_fingerprint"]
+    ) == _expected_principal_fingerprint(subject=principal.subject)
     assert "user-2" not in warning_records[0].getMessage()
 
 

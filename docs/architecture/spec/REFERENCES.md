@@ -3,8 +3,8 @@
 ## FastAPI and Python runtime
 
 - [FastAPI best practices repository](https://github.com/zhanymkanov/fastapi-best-practices)
-- [FastAPI best practices README (raw)](https://raw.githubusercontent.com/zhanymkanov/fastapi-best-practices/master/README.md)
-- [FastAPI best practices AGENTS (raw)](https://raw.githubusercontent.com/zhanymkanov/fastapi-best-practices/master/AGENTS.md)
+- [FastAPI best practices README (raw)](https://raw.githubusercontent.com/zhanymkanov/fastapi-best-practices/8fbaf55763e7a1fb08d974ceece69fb321642e1d/README.md)
+- [FastAPI best practices AGENTS (raw)](https://raw.githubusercontent.com/zhanymkanov/fastapi-best-practices/8fbaf55763e7a1fb08d974ceece69fb321642e1d/AGENTS.md)
 - [FastAPI lifespan events](https://fastapi.tiangolo.com/advanced/events/)
 - [FastAPI workers and deployment](https://fastapi.tiangolo.com/deployment/server-workers/)
 - [Starlette threadpool behavior](https://www.starlette.io/threadpool/)

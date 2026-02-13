@@ -262,17 +262,14 @@ def test_job_service_enqueue_marks_job_failed_when_publish_fails() -> None:
         metrics=metrics,
     )
 
-    try:
+    with pytest.raises(FileTransferError) as exc_info:
         service.enqueue(
             job_type="transform",
             payload={"input": "value"},
             scope_id="scope-1",
         )
-    except FileTransferError as exc:
-        assert exc.code == "queue_unavailable"
-        assert exc.status_code == 503
-    else:
-        raise AssertionError("expected enqueue to raise queue_unavailable")
+    assert exc_info.value.code == "queue_unavailable"
+    assert exc_info.value.status_code == 503
 
     counters = metrics.counters_snapshot()
     assert counters["jobs_publish_failed"] == 1

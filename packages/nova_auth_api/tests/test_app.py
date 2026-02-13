@@ -4,6 +4,7 @@ from typing import Any
 
 from fastapi.testclient import TestClient
 from nova_auth_api.app import create_app
+from nova_auth_api.config import Settings
 from nova_auth_api.errors import unauthorized
 from nova_auth_api.models import (
     Principal,
@@ -17,7 +18,7 @@ from nova_auth_api.service import TokenVerificationService
 
 class _StubService(TokenVerificationService):
     def __init__(self) -> None:  # pragma: no cover - test stub init
-        pass
+        super().__init__(settings=Settings())
 
     async def verify(self, request: TokenVerifyRequest) -> TokenVerifyResponse:
         if request.access_token == "invalid":
@@ -45,7 +46,11 @@ def test_healthz() -> None:
     with TestClient(app) as client:
         response = client.get("/healthz")
     assert response.status_code == 200
-    assert response.json() == {"ok": True}
+    payload = response.json()
+    assert payload["status"] == "ok"
+    assert payload["service"] == "nova-auth-api"
+    assert isinstance(payload["request_id"], str)
+    assert payload["request_id"]
 
 
 def test_verify_endpoint() -> None:

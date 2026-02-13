@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any, Protocol
 
 import boto3
+from botocore.client import BaseClient
 from botocore.config import Config
 
 from nova_dash_bridge.config import FileTransferEnvConfig
@@ -13,7 +14,7 @@ from nova_dash_bridge.config import FileTransferEnvConfig
 class S3ClientFactory:
     """Build S3 clients with optional Transfer Acceleration support."""
 
-    def create(self, env: FileTransferEnvConfig) -> Any:
+    def create(self, env: FileTransferEnvConfig) -> BaseClient:
         """Create an S3 client from transfer env configuration."""
         config = Config(
             s3={"use_accelerate_endpoint": env.use_accelerate_endpoint}
@@ -27,5 +28,5 @@ class S3ClientFactory:
 class SupportsCreateS3Client(Protocol):
     """Structural protocol for S3 client factories used by the service layer."""
 
-    def create(self, env: FileTransferEnvConfig) -> Any:
+    def create(self, env: FileTransferEnvConfig) -> BaseClient:
         """Return an S3-compatible client."""

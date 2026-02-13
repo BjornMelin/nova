@@ -26,6 +26,8 @@ from nova_auth_api.models import (
 )
 from nova_auth_api.service import TokenVerificationService
 
+_AUTH_SERVICE_NOT_INITIALIZED = "auth service not initialized"
+
 
 def create_app(
     *,
@@ -52,9 +54,14 @@ def create_app(
     app.middleware("http")(request_context_middleware)
 
     @app.get("/healthz", response_model=HealthResponse)
-    async def healthz() -> HealthResponse:
+    async def healthz(request: Request) -> HealthResponse:
         """Return liveness status."""
-        return HealthResponse(ok=True)
+        request_id = _request_id(request=request) or uuid4().hex
+        return HealthResponse(
+            status="ok",
+            service="nova-auth-api",
+            request_id=request_id,
+        )
 
     @app.post("/v1/token/verify", response_model=TokenVerifyResponse)
     async def verify_token(
@@ -104,7 +111,11 @@ def create_app(
     ) -> JSONResponse:
         """Convert unexpected exceptions into canonical error envelopes."""
         log = structlog.get_logger("errors")
-        log.exception("unhandled_exception", error_type=type(exc).__name__)
+        log.exception(
+            "unhandled_exception",
+            error_type=type(exc).__name__,
+            request_id=_request_id(request=request),
+        )
         err = internal_error("unexpected internal error")
         payload = ErrorEnvelope(
             error=ErrorBody(
@@ -126,6 +137,7 @@ async def request_context_middleware(
     request: Request,
     call_next: Callable[[Request], Awaitable[Response]],
 ) -> Response:
+    """Inject request ID into context and response headers."""
     request_id = request.headers.get("X-Request-Id") or uuid4().hex
     request.state.request_id = request_id
     structlog.contextvars.bind_contextvars(request_id=request_id)
@@ -143,10 +155,11 @@ def _service(*, request: Request) -> TokenVerificationService:
     value = getattr(request.app.state, "auth_service", None)
     if isinstance(value, TokenVerificationService):
         return value
-    raise RuntimeError("auth service not initialized")
+    raise RuntimeError(_AUTH_SERVICE_NOT_INITIALIZED)
 
 
 def _request_id(*, request: Request) -> str | None:
+    """Extract request ID from request state or headers."""
     value = getattr(request.state, "request_id", None)
     if isinstance(value, str) and value:
         return value
@@ -157,6 +170,7 @@ def _request_id(*, request: Request) -> str | None:
 
 
 def _configure_logging() -> None:
+    """Configure structured logging."""
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     structlog.configure(
         processors=[
@@ -178,11 +192,23 @@ def _redact_sensitive_fields(
     event_dict: MutableMapping[str, Any],
 ) -> MutableMapping[str, Any]:
     """Redact sensitive token fields before emitting structured logs."""
-    output: dict[str, Any] = {}
     hidden_fields = {"token", "authorization", "access_token"}
-    for key, value in event_dict.items():
-        if key.lower() in hidden_fields:
-            output[key] = "[REDACTED]"
-        else:
-            output[key] = value
-    return output
+
+    def _sanitize(value: Any) -> Any:
+        if isinstance(value, dict):
+            return {
+                key: (
+                    "[REDACTED]"
+                    if key.lower() in hidden_fields
+                    else _sanitize(item)
+                )
+                for key, item in value.items()
+            }
+        if isinstance(value, list | tuple):
+            return [_sanitize(item) for item in value]
+        return value
+
+    return {
+        key: "[REDACTED]" if key.lower() in hidden_fields else _sanitize(value)
+        for key, value in event_dict.items()
+    }

@@ -19,7 +19,7 @@ References:
 
 Every pull request MUST pass:
 
-- `source .venv/bin/activate && uv run ruff check . --fix && uv run ruff format .`
+- `source .venv/bin/activate && uv run ruff check . && uv run ruff format .`
 - `source .venv/bin/activate && uv run mypy`
 - `source .venv/bin/activate && uv run pytest -q`
 - container image build validation

@@ -1,4 +1,4 @@
-.adsfh-dropzone {
+.nova-dropzone {
   border: 2px dashed #6b7280;
   border-radius: 12px;
   cursor: pointer;
@@ -7,12 +7,12 @@
   text-align: center;
 }
 
-.adsfh-dropzone-active {
-  background: rgb(30 64 175 / 0.08);
+.nova-dropzone-active {
+  background: rgb(30 64 175 / 8%);
   border-color: #1d4ed8;
 }
 
-.adsfh-caption {
+.nova-caption {
   color: #6b7280;
   font-size: 0.85rem;
   margin-top: 0.5rem;

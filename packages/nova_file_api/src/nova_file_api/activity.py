@@ -31,28 +31,29 @@ class ActivityStore(Protocol):
 class MemoryActivityStore:
     """In-memory activity aggregation."""
 
-    _events_total: dict[str, int]
+    _events_per_day: dict[str, dict[str, int]]
     _subjects_per_day: dict[str, set[str]]
 
     def __init__(self) -> None:
         """Initialize in-memory counters and subject sets."""
-        self._events_total = defaultdict(int)
+        self._events_per_day = defaultdict(lambda: defaultdict(int))
         self._subjects_per_day = defaultdict(set)
 
     def record(self, *, principal: Principal, event_type: str) -> None:
         """Record one event for the principal and current day."""
         day = _day_key()
-        self._events_total[event_type] += 1
+        self._events_per_day[day][event_type] += 1
         self._subjects_per_day[day].add(principal.subject)
 
     def summary(self) -> dict[str, int]:
         """Return aggregate counters for dashboard display."""
         day = _day_key()
-        total_events = sum(self._events_total.values())
+        day_events = self._events_per_day.get(day, {})
+        total_events = sum(day_events.values())
         return {
             "events_total": total_events,
             "active_users_today": len(self._subjects_per_day.get(day, set())),
-            "distinct_event_types": len(self._events_total),
+            "distinct_event_types": len(day_events),
         }
 
 

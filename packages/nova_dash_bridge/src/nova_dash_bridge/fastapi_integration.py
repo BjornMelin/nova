@@ -120,7 +120,7 @@ async def _parse_payload(request: Request, model: type[Any]) -> Any:
     """
     try:
         incoming = await request.json()
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         raise validation_error("request body must be valid JSON") from exc
 
     if incoming is None:

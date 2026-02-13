@@ -117,6 +117,11 @@ def S3FileUploader(
     """
     accepted = _normalize_allowed_extensions(allowed_extensions)
     normalized_job_type = _normalize_async_job_type(async_job_type)
+    max_bytes = _validate_positive(value=max_bytes, field_name="max_bytes")
+    max_concurrency = _validate_positive(
+        value=max_concurrency,
+        field_name="max_concurrency",
+    )
     min_bytes = _validate_non_negative(
         value=async_job_min_bytes,
         field_name="async_job_min_bytes",
@@ -136,19 +141,19 @@ def S3FileUploader(
             dcc.Store(id=f"{component_id}-progress", storage_type="memory"),
             html.Div(
                 id=f"{component_id}-dropzone",
-                className="adsfh-dropzone",
+                className="nova-dropzone",
                 tabIndex=0,
                 children=[
                     html.Div("Drag & drop file here, or click to choose"),
                     html.Div(
                         f"Allowed: {accept_value} | Max: {max_bytes} bytes",
-                        className="adsfh-caption",
+                        className="nova-caption",
                     ),
                 ],
             ),
         ],
         id=component_id,
-        className="adsfh-uploader",
+        className="nova-uploader",
         **cast(
             dict[str, Any],
             {

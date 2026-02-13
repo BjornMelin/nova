@@ -79,6 +79,8 @@ All code and docs must remain production-ready.
   - `/api/transfers/*`
   - `/api/jobs/*`
   - `/metrics/summary`
+  - `/healthz`
+  - `/readyz`
 - Do not introduce deprecated alias routes or retired package/module names.
 - Do not add compatibility alias routes or namespace shims.
 - Fail reviews when legacy patterns are introduced.
@@ -87,7 +89,7 @@ Required verification command:
 
 ```bash
 source .venv/bin/activate && \
-rg -n "/api/transfers|/api/jobs|/metrics/summary" apps packages docs
+rg -n "/api/transfers|/api/jobs|/metrics/summary|/healthz|/readyz" apps packages docs
 ```
 
 ### Runtime Invariants That Must Be Preserved
@@ -118,7 +120,7 @@ Always run from repository root unless task scope requires otherwise.
 ```bash
 rg --files apps packages docs
 find apps packages -maxdepth 3 -type d | sort
-rg -n "/api/transfers|/api/jobs|/metrics/summary" \
+rg -n "/api/transfers|/api/jobs|/metrics/summary|/healthz|/readyz" \
   packages docs
 rg -n "nova_file_api|nova_auth_api|nova_dash_bridge" \
   apps packages docs

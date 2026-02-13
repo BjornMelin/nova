@@ -109,7 +109,9 @@ async def test_two_tier_cache_reports_hit_and_miss_counters() -> None:
 
 
 @pytest.mark.asyncio
-async def test_two_tier_cache_reports_shared_fallback_when_redis_errors() -> None:
+async def test_two_tier_cache_reports_shared_fallback_when_redis_errors() -> (
+    None
+):
     metrics = MetricsCollector(namespace="Tests")
     shared = _build_shared_cache(client=_ErrorRedisClient())
     cache = TwoTierCache(

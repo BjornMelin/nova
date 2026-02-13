@@ -5,7 +5,7 @@
 ## Cross-Repo Release Tracker
 
 Order: 5 of 5
-Parent plan: `docs/plan/PLAN.md`
+Parent plan: `FINAL-PLAN.md`
 Depends on: `SUBPLAN-0001`, `SUBPLAN-0002`, `SUBPLAN-0003`, `SUBPLAN-0004`
 
 ## Persona

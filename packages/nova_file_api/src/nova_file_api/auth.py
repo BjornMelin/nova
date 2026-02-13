@@ -139,7 +139,10 @@ class Authenticator:
         if response.status_code != 200:
             raise _remote_auth_error(response=response)
 
-        decoded = response.json()
+        try:
+            decoded = response.json()
+        except (ValueError, UnicodeDecodeError) as exc:
+            raise unauthorized("remote auth returned invalid response") from exc
         if not isinstance(decoded, dict):
             raise unauthorized("remote auth returned invalid response")
 
@@ -350,9 +353,9 @@ def _jwt_cache_ttl_seconds(
     raw_exp = claims.get("exp")
     if isinstance(raw_exp, int):
         exp_epoch = raw_exp
-    elif isinstance(raw_exp, float):
-        exp_epoch = int(raw_exp)
-    elif isinstance(raw_exp, str) and raw_exp.isdigit():
+    elif isinstance(raw_exp, float) or (
+        isinstance(raw_exp, str) and raw_exp.isdigit()
+    ):
         exp_epoch = int(raw_exp)
     else:
         return max_ttl_seconds

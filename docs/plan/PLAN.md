@@ -232,8 +232,7 @@ Required for each implementation slice:
 - `source .venv/bin/activate && uv run ruff check . --fix && uv run ruff format .`
 - `source .venv/bin/activate && uv run mypy`
 - `source .venv/bin/activate && uv run pytest -q`
-- `source .venv/bin/activate && uv run pytest -q`
-  `packages/nova_file_api/tests/test_generated_client_smoke.py`
+- `source .venv/bin/activate && uv run pytest -q packages/nova_file_api/tests/test_generated_client_smoke.py`
 
 ## Progress Log
 

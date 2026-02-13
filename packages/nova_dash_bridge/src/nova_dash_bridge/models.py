@@ -54,7 +54,11 @@ class SignPartsRequest(StrictModel):
     key: str = Field(min_length=1)
     upload_id: str = Field(min_length=1)
     part_numbers: list[int] = Field(min_length=1)
-    session_id: str = Field(min_length=8, max_length=256)
+    session_id: str = Field(
+        min_length=16,
+        max_length=64,
+        pattern=r"^[0-9a-fA-F-]{16,64}$",
+    )
 
     @field_validator("part_numbers")
     @classmethod

@@ -107,8 +107,8 @@ Create this structure in current repo:
 
 ### PR-0002: HTTP path hard cutover to functional split
 
-- [x] Refactor routers from `/api/transfers/*` to `/api/transfers/*`
-  and /api/jobs/*.
+- [x] Refactor routers from legacy `/api/file-transfer/*` to `/api/transfers/*`
+  and `/api/jobs/*`.
 - [x] Update route constants, OpenAPI tags, operation IDs, and examples.
 - [x] Remove old route mounts (no dual routing).
 - [x] Update all tests to new paths.
@@ -143,6 +143,10 @@ Create this structure in current repo:
 - [x] `/api/transfers/*`
 - [x] `/api/jobs/*`
 - [ ] Keep health check route alignment and tuned intervals/thresholds.
+- [ ] Health check alignment owner assigned (container-craft platform owner)
+  with target date before prod cutover.
+- [ ] Health check alignment sign-off completed via
+  `docs/plan/release/NONPROD-LIVE-VALIDATION-RUNBOOK.md`.
 - [x] Keep/add env mappings for SQS/Redis/DynamoDB backends.
 - [x] Validate retry env contract:
 - [x] `JOBS_SQS_RETRY_MODE`
@@ -184,7 +188,13 @@ In monorepo docs:
 
 - [x] Run quality gates in monorepo and affected external repos.
 - [ ] Validate cross-repo E2E path: browser upload -> enqueue -> worker update -> result/download.
+- [ ] Owner + target date recorded for cross-repo E2E validation.
+- [ ] Sign-off recorded for cross-repo E2E validation via
+  `docs/plan/release/NONPROD-LIVE-VALIDATION-RUNBOOK.md`.
 - [ ] Validate dashboards/alarms and synthetic failure scenarios.
+- [ ] Owner + target date recorded for dashboard/alarm validation.
+- [ ] Sign-off recorded for dashboard/alarm validation via
+  `docs/plan/release/NONPROD-LIVE-VALIDATION-RUNBOOK.md`.
 - [x] Finalize active documentation cleanup for post-cutover steady state.
 - [x] Publish release notes with hard-cutover migration checklist.
 - [x] Publish operator runbook for live AWS validation gates:
@@ -231,9 +241,12 @@ In monorepo docs:
 
    - [x] `container-craft` routes and env mappings align with new API.
    - [x] dash-pca updated and passing against new contracts.
-   - [ ] End-to-end non-prod smoke succeeds before prod release
-     (tracked via
-     `docs/plan/release/NONPROD-LIVE-VALIDATION-RUNBOOK.md`).
+- [ ] End-to-end non-prod smoke succeeds before prod release
+  (tracked via
+  `docs/plan/release/NONPROD-LIVE-VALIDATION-RUNBOOK.md`).
+- [ ] Owner + target date recorded for non-prod smoke.
+- [ ] Sign-off recorded for non-prod smoke via
+  `docs/plan/release/NONPROD-LIVE-VALIDATION-RUNBOOK.md`.
 
 ## Assumptions and Defaults
 

@@ -34,6 +34,19 @@ from nova_file_api.models import (
 )
 from nova_file_api.transfer import TransferService
 
+_MSG_JOBS_DYNAMODB_TABLE_REQUIRED = (
+    "JOBS_DYNAMODB_TABLE must be configured when "
+    "JOBS_REPOSITORY_BACKEND=dynamodb"
+)
+_MSG_JOBS_SQS_QUEUE_URL_REQUIRED = (
+    "JOBS_SQS_QUEUE_URL must be configured when "
+    "JOBS_QUEUE_BACKEND=sqs and JOBS_ENABLED=true"
+)
+_MSG_ACTIVITY_ROLLUPS_TABLE_REQUIRED = (
+    "ACTIVITY_ROLLUPS_TABLE must be configured when "
+    "ACTIVITY_STORE_BACKEND=dynamodb"
+)
+
 
 @dataclass(slots=True)
 class AppContainer:
@@ -94,10 +107,7 @@ def create_container(*, settings: Settings) -> AppContainer:
     job_repository: JobRepository
     if settings.jobs_repository_backend == JobsRepositoryBackend.DYNAMODB:
         if not settings.jobs_dynamodb_table:
-            raise ValueError(
-                "JOBS_DYNAMODB_TABLE must be configured when "
-                "JOBS_REPOSITORY_BACKEND=dynamodb"
-            )
+            raise ValueError(_MSG_JOBS_DYNAMODB_TABLE_REQUIRED)
         job_repository = DynamoJobRepository(
             table_name=settings.jobs_dynamodb_table
         )
@@ -106,10 +116,7 @@ def create_container(*, settings: Settings) -> AppContainer:
     publisher: JobPublisher
     if settings.jobs_queue_backend == JobsQueueBackend.SQS:
         if settings.jobs_enabled and not settings.jobs_sqs_queue_url:
-            raise ValueError(
-                "JOBS_SQS_QUEUE_URL must be configured when "
-                "JOBS_QUEUE_BACKEND=sqs and JOBS_ENABLED=true"
-            )
+            raise ValueError(_MSG_JOBS_SQS_QUEUE_URL_REQUIRED)
         if settings.jobs_sqs_queue_url:
             publisher = SqsJobPublisher(
                 queue_url=settings.jobs_sqs_queue_url,
@@ -129,10 +136,7 @@ def create_container(*, settings: Settings) -> AppContainer:
     activity_store: ActivityStore
     if settings.activity_store_backend == ActivityStoreBackend.DYNAMODB:
         if not settings.activity_rollups_table:
-            raise ValueError(
-                "ACTIVITY_ROLLUPS_TABLE must be configured when "
-                "ACTIVITY_STORE_BACKEND=dynamodb"
-            )
+            raise ValueError(_MSG_ACTIVITY_ROLLUPS_TABLE_REQUIRED)
         activity_store = DynamoActivityStore(
             table_name=settings.activity_rollups_table
         )

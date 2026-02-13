@@ -37,7 +37,7 @@ Scope: `nova` runtime monorepo + cross-repo integration alignment
 
 ## Compatibility and Breaking Changes
 
-- Legacy path prefix `/api/transfers/*` is removed.
+- Legacy path prefix `/api/file-transfer/*` is removed.
 - Canonical runtime package namespace is `nova_file_api`.
 - Bridge package namespace is `nova_dash_bridge`.
 

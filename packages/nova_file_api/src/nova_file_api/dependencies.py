@@ -6,12 +6,16 @@ from fastapi import Request
 
 from nova_file_api.container import AppContainer
 
+_APPLICATION_CONTAINER_NOT_INITIALIZED = (
+    "application container is not initialized"
+)
+
 
 def get_container(request: Request) -> AppContainer:
     """Return dependency container from app state."""
     container = getattr(request.app.state, "container", None)
     if not isinstance(container, AppContainer):
-        raise RuntimeError("application container is not initialized")
+        raise TypeError(_APPLICATION_CONTAINER_NOT_INITIALIZED)
     return container
 
 

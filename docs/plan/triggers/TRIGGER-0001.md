@@ -39,7 +39,7 @@ Tool instructions:
   - AnyIO
   - pydantic-settings
 
-2. Exa:
+2. web.run:
 - Validate official sources for FastAPI lifecycle/deployment and standards.
 - Prefer domains: `fastapi.tiangolo.com`, `docs.pydantic.dev`,
   `datatracker.ietf.org`.
@@ -62,7 +62,11 @@ Execution requirements:
 - Update `docs/plan/PLAN.md` progress as work completes.
 
 Quality gates (required):
-- `source .venv/bin/activate && uv run ruff check . --fix && uv run ruff format .`
-- `source .venv/bin/activate && uv run mypy`
-- `source .venv/bin/activate && uv run pytest -q`
+- `source .venv/bin/activate && \
+  uv run ruff check . --fix && \
+  uv run ruff format .`
+- `source .venv/bin/activate && \
+  uv run mypy`
+- `source .venv/bin/activate && \
+  uv run pytest -q`
 ```

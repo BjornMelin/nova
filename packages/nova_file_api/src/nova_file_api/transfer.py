@@ -177,6 +177,8 @@ class TransferService:
             "Bucket": self.settings.file_transfer_bucket,
             "Key": request.key,
         }
+        # Precedence: explicit disposition, then explicit content type,
+        # then filename fallback.
         if request.content_disposition is not None:
             params["ResponseContentDisposition"] = request.content_disposition
         if request.content_type is not None:

@@ -68,13 +68,17 @@ class IdempotencyStore:
         entry = await self._cache.get_json(cache_key)
         if entry is None:
             return None
+        if not isinstance(entry, dict):
+            raise idempotency_conflict("stored idempotency record is invalid")
 
         expected_hash = _payload_hash(payload=request_payload)
         _assert_entry_request_hash(entry=entry, expected_hash=expected_hash)
 
         state = entry.get("state")
         if state == _IDEMPOTENCY_STATE_IN_PROGRESS:
-            raise idempotency_conflict("idempotency request is already in progress")
+            raise idempotency_conflict(
+                "idempotency request is already in progress"
+            )
         if state != _IDEMPOTENCY_STATE_COMMITTED:
             raise idempotency_conflict("stored idempotency record is invalid")
 
@@ -131,7 +135,9 @@ class IdempotencyStore:
         if state == _IDEMPOTENCY_STATE_COMMITTED:
             return False
         if state == _IDEMPOTENCY_STATE_IN_PROGRESS:
-            raise idempotency_conflict("idempotency request is already in progress")
+            raise idempotency_conflict(
+                "idempotency request is already in progress"
+            )
         raise idempotency_conflict("stored idempotency record is invalid")
 
     async def store_response(
@@ -163,7 +169,10 @@ class IdempotencyStore:
         request_hash = _payload_hash(payload=request_payload)
         existing = await self._cache.get_json(cache_key)
         if existing is not None:
-            _assert_entry_request_hash(entry=existing, expected_hash=request_hash)
+            _assert_entry_request_hash(
+                entry=existing,
+                expected_hash=request_hash,
+            )
 
         await self._cache.set_json(
             key=cache_key,

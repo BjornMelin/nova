@@ -22,8 +22,8 @@ Scope:
 - `packages/nova_auth_api`
 - `packages/nova_dash_bridge`
 - `packages/contracts`
-- `~/repos/work/infra-stack/container-craft`
-- `~/repos/work/pca-analysis-dash/dash-pca`
+- `${REPO_INFRA_PATH:-~/repos/work/infra-stack/container-craft}`
+- `${REPO_DASH_PATH:-~/repos/work/pca-analysis-dash/dash-pca}`
 
 Mandatory SKILLS:
 - `$fastapi`

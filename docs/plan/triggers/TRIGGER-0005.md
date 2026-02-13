@@ -17,7 +17,6 @@ Branch: `feat/subplan-0005-cross-repo-release-tracker`
 
 Scope:
 - `docs/plan/subplans/SUBPLAN-0005.md`
-- `docs/plan/PLAN.md`
 - `FINAL-PLAN.md`
 - `~/repos/work/infra-stack/container-craft`
 - `~/repos/work/pca-analysis-dash/dash-pca`

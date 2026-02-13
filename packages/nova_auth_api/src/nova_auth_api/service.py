@@ -35,11 +35,14 @@ class TokenVerificationService:
     async def verify(self, request: TokenVerifyRequest) -> TokenVerifyResponse:
         """Verify access token and return principal plus claims."""
         scopes = (
-            request.required_scopes or self._settings.default_required_scopes
+            request.required_scopes
+            if request.required_scopes is not None
+            else self._settings.default_required_scopes
         )
         permissions = (
             request.required_permissions
-            or self._settings.default_required_permissions
+            if request.required_permissions is not None
+            else self._settings.default_required_permissions
         )
         principal, claims = await self._verify_claims(
             access_token=request.access_token,
@@ -54,11 +57,14 @@ class TokenVerificationService:
     ) -> TokenIntrospectResponse:
         """Introspect access token and return active principal metadata."""
         scopes = (
-            request.required_scopes or self._settings.default_required_scopes
+            request.required_scopes
+            if request.required_scopes is not None
+            else self._settings.default_required_scopes
         )
         permissions = (
             request.required_permissions
-            or self._settings.default_required_permissions
+            if request.required_permissions is not None
+            else self._settings.default_required_permissions
         )
         principal, claims = await self._verify_claims(
             access_token=request.access_token,

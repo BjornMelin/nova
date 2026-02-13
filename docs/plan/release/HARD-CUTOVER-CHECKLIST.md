@@ -45,6 +45,8 @@ Owner: Release Architecture
 
 - [x] Operator runbook is published:
   `docs/plan/release/NONPROD-LIVE-VALIDATION-RUNBOOK.md`
+- Note: runbook publication is complete; the live gates below remain blocked
+  pending non-prod AWS access and must be completed during staged rollout.
 - [ ] Sidecar ALB route + health behavior validated in non-prod AWS.
 - [ ] Non-prod end-to-end smoke completed.
 - [ ] CloudWatch dashboards/alarms synthetic-failure validation completed.

@@ -222,7 +222,6 @@
     var totalParts = Math.ceil(file.size / partSize);
     var completeParts = [];
     var uploadedBytes = 0;
-    var completionSucceeded = false;
 
     async function uploadSinglePart(partNumber, url) {
       var start = (partNumber - 1) * partSize;
@@ -287,10 +286,9 @@
         parts: completeParts,
         session_id: sessionId,
       });
-      completionSucceeded = true;
       return { key: key, uploadId: uploadId };
     } catch (error) {
-      if (uploadId && !completionSucceeded) {
+      if (uploadId) {
         try {
           await postJson(base + "/uploads/abort", {
             key: key,
@@ -521,6 +519,7 @@
         root.dataset.transfersEndpointBase || "/api/transfers",
       jobsEndpointBase: root.dataset.jobsEndpointBase || "/api/jobs",
       maxConcurrency: root.dataset.maxConcurrency || "4",
+      maxBytes: parseInt(root.dataset.maxBytes || "0", 10),
       resultStoreId: root.dataset.resultStoreId || "",
       progressStoreId: root.dataset.progressStoreId || "",
       asyncJobsEnabled: root.dataset.asyncJobsEnabled === "true",
@@ -547,6 +546,15 @@
 
       for (var idx = 0; idx < filesToUpload.length; idx += 1) {
         var file = filesToUpload[idx];
+        if (config.maxBytes > 0 && file.size > config.maxBytes) {
+          setProgress(
+            config.progressStoreId,
+            0,
+            "Upload failed: file exceeds max size"
+          );
+          setResult(config.resultStoreId, null);
+          return;
+        }
         try {
           results.push(await handleUpload(config, file));
         } catch (error) {
@@ -577,15 +585,15 @@
     });
     dropzone.addEventListener("dragover", function (event) {
       event.preventDefault();
-      dropzone.classList.add("adsfh-dropzone-active");
+      dropzone.classList.add("nova-dropzone-active");
     });
     dropzone.addEventListener("dragleave", function (event) {
       event.preventDefault();
-      dropzone.classList.remove("adsfh-dropzone-active");
+      dropzone.classList.remove("nova-dropzone-active");
     });
     dropzone.addEventListener("drop", function (event) {
       event.preventDefault();
-      dropzone.classList.remove("adsfh-dropzone-active");
+      dropzone.classList.remove("nova-dropzone-active");
       handleFiles(event.dataTransfer ? event.dataTransfer.files : null).catch(
         handleFilesRejection
       );
@@ -600,7 +608,7 @@
   }
 
   function scan() {
-    var nodes = document.querySelectorAll(".adsfh-uploader");
+    var nodes = document.querySelectorAll(".nova-uploader");
     nodes.forEach(attachUploader);
   }
 

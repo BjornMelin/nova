@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -77,7 +77,9 @@ class TokenIntrospectResponse(StrictModel):
 class HealthResponse(StrictModel):
     """Health check response payload."""
 
-    ok: bool
+    status: Literal["ok"]
+    service: Literal["nova-auth-api"]
+    request_id: str
 
 
 class ErrorBody(StrictModel):

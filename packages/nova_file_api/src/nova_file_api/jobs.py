@@ -119,6 +119,7 @@ class MemoryJobPublisher:
         Args:
             job: Job record to publish.
         """
+        del job
         return
 
 

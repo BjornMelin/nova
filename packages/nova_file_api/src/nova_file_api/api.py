@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from hmac import compare_digest
 
+import structlog
 from fastapi import APIRouter, Header, Request
 from starlette.concurrency import run_in_threadpool
 
@@ -40,6 +41,7 @@ from nova_file_api.models import (
 transfer_router = APIRouter(prefix="/api/transfers", tags=["transfers"])
 jobs_router = APIRouter(prefix="/api/jobs", tags=["jobs"])
 ops_router = APIRouter(tags=["ops"])
+_WORKER_TOKEN_NOT_CONFIGURED = "worker update token not configured"
 
 
 @transfer_router.post(
@@ -91,7 +93,9 @@ async def initiate_upload(
             if replay is not None:
                 container.metrics.incr("idempotency_replays_total")
                 return InitiateUploadResponse.model_validate(replay)
-            raise idempotency_conflict("idempotency request is already in progress")
+            raise idempotency_conflict(
+                "idempotency request is already in progress"
+            )
 
     try:
         with container.metrics.timed("uploads_initiate_ms"):
@@ -101,6 +105,15 @@ async def initiate_upload(
                 principal,
             )
     except Exception:
+        container.metrics.incr("uploads_initiate_errors")
+        _emit_request_metric(
+            container=container, route="uploads_initiate", status="error"
+        )
+        await run_in_threadpool(
+            container.activity_store.record,
+            principal=principal,
+            event_type="uploads_initiate_failure",
+        )
         if key is not None and claimed_idempotency:
             await container.idempotency_store.discard_claim(
                 route="/api/transfers/uploads/initiate",
@@ -119,8 +132,10 @@ async def initiate_upload(
         )
 
     container.metrics.incr("uploads_initiate_total")
-    container.activity_store.record(
-        principal=principal, event_type="uploads_initiate"
+    await run_in_threadpool(
+        container.activity_store.record,
+        principal=principal,
+        event_type="uploads_initiate",
     )
     _emit_request_metric(
         container=container, route="uploads_initiate", status="ok"
@@ -148,8 +163,10 @@ async def sign_parts(
         )
 
     container.metrics.incr("uploads_sign_parts_total")
-    container.activity_store.record(
-        principal=principal, event_type="uploads_sign_parts"
+    await run_in_threadpool(
+        container.activity_store.record,
+        principal=principal,
+        event_type="uploads_sign_parts",
     )
     _emit_request_metric(
         container=container, route="uploads_sign_parts", status="ok"
@@ -179,8 +196,10 @@ async def complete_upload(
         )
 
     container.metrics.incr("uploads_complete_total")
-    container.activity_store.record(
-        principal=principal, event_type="uploads_complete"
+    await run_in_threadpool(
+        container.activity_store.record,
+        principal=principal,
+        event_type="uploads_complete",
     )
     _emit_request_metric(
         container=container, route="uploads_complete", status="ok"
@@ -208,8 +227,10 @@ async def abort_upload(
         )
 
     container.metrics.incr("uploads_abort_total")
-    container.activity_store.record(
-        principal=principal, event_type="uploads_abort"
+    await run_in_threadpool(
+        container.activity_store.record,
+        principal=principal,
+        event_type="uploads_abort",
     )
     _emit_request_metric(
         container=container, route="uploads_abort", status="ok"
@@ -239,7 +260,8 @@ async def presign_download(
         )
 
     container.metrics.incr("downloads_presign_total")
-    container.activity_store.record(
+    await run_in_threadpool(
+        container.activity_store.record,
         principal=principal,
         event_type="downloads_presign",
     )
@@ -299,7 +321,9 @@ async def enqueue_job(
             if replay is not None:
                 container.metrics.incr("idempotency_replays_total")
                 return EnqueueJobResponse.model_validate(replay)
-            raise idempotency_conflict("idempotency request is already in progress")
+            raise idempotency_conflict(
+                "idempotency request is already in progress"
+            )
 
     try:
         with container.metrics.timed("jobs_enqueue_ms"):
@@ -318,8 +342,10 @@ async def enqueue_job(
             )
         raise
 
-    container.activity_store.record(
-        principal=principal, event_type="jobs_enqueue"
+    await run_in_threadpool(
+        container.activity_store.record,
+        principal=principal,
+        event_type="jobs_enqueue",
     )
     response = EnqueueJobResponse(job_id=job.job_id, status=job.status)
     if key is not None:
@@ -421,7 +447,7 @@ async def metrics_summary(request: Request) -> MetricsSummaryResponse:
     return MetricsSummaryResponse(
         counters=container.metrics.counters_snapshot(),
         latencies_ms=container.metrics.latency_snapshot(),
-        activity=container.activity_store.summary(),
+        activity=await run_in_threadpool(container.activity_store.summary),
     )
 
 
@@ -477,6 +503,12 @@ def _validate_worker_update_token(
     """Validate worker update token when configured."""
     expected = container.settings.jobs_worker_update_token
     if expected is None or not expected.strip():
+        if container.settings.environment.lower() in {"prod", "production"}:
+            raise forbidden(_WORKER_TOKEN_NOT_CONFIGURED)
+        structlog.get_logger("api").warning(
+            "worker_update_token_validation_skipped",
+            environment=container.settings.environment,
+        )
         return
     provided = worker_token.strip() if worker_token else ""
     if not compare_digest(expected.strip(), provided):
