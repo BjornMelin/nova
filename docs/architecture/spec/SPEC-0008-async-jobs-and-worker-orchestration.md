@@ -2,8 +2,8 @@
 Spec: 0008
 Title: Async Jobs and Worker Orchestration
 Status: Active
-Version: 1.3
-Date: 2026-02-12
+Version: 1.4
+Date: 2026-02-13
 Related:
   - "[ADR-0006: SQS + ECS worker orchestration](../adr/ADR-0006-async-orchestration-sqs-ecs-worker.md)"
   - "[SPEC-0000: HTTP API contract](./SPEC-0000-http-api-contract.md)"
@@ -20,6 +20,11 @@ Async jobs are managed through:
 - `GET /api/jobs/{job_id}`
 - `POST /api/jobs/{job_id}/cancel`
 - `POST /api/jobs/{job_id}/result` (worker/internal update path)
+
+For same-origin deployments, browser polling clients calling body-less
+job-scope routes (`GET /api/jobs/{job_id}`, `POST /api/jobs/{job_id}/cancel`)
+MUST send caller scope context via trusted header (`X-Session-Id` or
+`X-Scope-Id`).
 
 ## 2. Job state model
 

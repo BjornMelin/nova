@@ -59,6 +59,10 @@ The service must be usable by:
 - Worker processing must emit queue lag and throughput metrics:
   - `jobs_queue_lag_ms` on first transition out of `pending`
   - `jobs_worker_result_updates_total` and per-status update counters
+- Same-origin browser polling for body-less async job routes must propagate
+  caller scope via trusted headers (`X-Session-Id` or `X-Scope-Id`).
+- CloudWatch EMF metric logs must keep `_aws` and metric fields at the top
+  level of the structured log event (not JSON-string nested).
 - Readiness must reflect critical traffic-serving dependencies only.
 - Feature flags (for example `JOBS_ENABLED`) must not flip readiness to false.
 - DynamoDB activity rollups must correctly maintain:

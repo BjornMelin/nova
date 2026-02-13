@@ -1,0 +1,209 @@
+"""Activity tracking and rollup backends."""
+
+from __future__ import annotations
+
+from collections import defaultdict
+from contextlib import suppress
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from typing import Protocol
+
+import boto3
+from botocore.exceptions import BotoCoreError, ClientError
+
+from nova_file_api.models import Principal
+
+
+class ActivityStore(Protocol):
+    """Interface for activity rollup storage."""
+
+    def record(self, *, principal: Principal, event_type: str) -> None:
+        """Record activity event for principal."""
+
+    def summary(self) -> dict[str, int]:
+        """Return aggregate summary counters."""
+
+
+@dataclass(slots=True)
+class MemoryActivityStore:
+    """In-memory activity aggregation."""
+
+    _events_total: dict[str, int]
+    _subjects_per_day: dict[str, set[str]]
+
+    def __init__(self) -> None:
+        """Initialize in-memory counters and subject sets."""
+        self._events_total = defaultdict(int)
+        self._subjects_per_day = defaultdict(set)
+
+    def record(self, *, principal: Principal, event_type: str) -> None:
+        """Record one event for the principal and current day."""
+        day = _day_key()
+        self._events_total[event_type] += 1
+        self._subjects_per_day[day].add(principal.subject)
+
+    def summary(self) -> dict[str, int]:
+        """Return aggregate counters for dashboard display."""
+        day = _day_key()
+        total_events = sum(self._events_total.values())
+        return {
+            "events_total": total_events,
+            "active_users_today": len(self._subjects_per_day.get(day, set())),
+            "distinct_event_types": len(self._events_total),
+        }
+
+
+class DynamoActivityStore:
+    """DynamoDB-backed daily rollups for activity dashboards."""
+
+    def __init__(self, *, table_name: str) -> None:
+        """Create a rollup store bound to the configured table.
+
+        Args:
+            table_name: DynamoDB table name for activity rollups.
+        """
+        self._table_name = table_name
+        self._ddb = boto3.client("dynamodb")
+
+    def record(self, *, principal: Principal, event_type: str) -> None:
+        """Update activity counters for one event.
+
+        Args:
+            principal: Authenticated caller principal.
+            event_type: Event name for per-type counters.
+        """
+        day = _day_key()
+        summary_key = {"pk": {"S": f"ROLLUP#{day}"}, "sk": {"S": "SUMMARY"}}
+        user_marker_key = {
+            "pk": {"S": f"USERDAY#{day}"},
+            "sk": {"S": principal.subject},
+        }
+        event_rollup_key = {
+            "pk": {"S": f"ROLLUP#{day}"},
+            "sk": {"S": f"EVENT#{event_type}"},
+        }
+        event_type_marker_key = {
+            "pk": {"S": f"EVENTTYPEDAY#{day}"},
+            "sk": {"S": event_type},
+        }
+        try:
+            self._increment_counter(
+                key=event_rollup_key, counter_name="event_count"
+            )
+            self._increment_counter(
+                key=summary_key, counter_name="events_total"
+            )
+        except (ClientError, BotoCoreError):
+            return
+
+        try:
+            user_was_new = self._write_marker_if_absent(key=user_marker_key)
+        except (ClientError, BotoCoreError):
+            user_was_new = False
+        if user_was_new:
+            with suppress(ClientError, BotoCoreError):
+                self._increment_counter(
+                    key=summary_key, counter_name="active_users_today"
+                )
+
+        try:
+            event_type_was_new = self._write_marker_if_absent(
+                key=event_type_marker_key
+            )
+        except (ClientError, BotoCoreError):
+            event_type_was_new = False
+        if event_type_was_new:
+            with suppress(ClientError, BotoCoreError):
+                self._increment_counter(
+                    key=summary_key, counter_name="distinct_event_types"
+                )
+
+    def summary(self) -> dict[str, int]:
+        """Read current-day aggregate counters from DynamoDB."""
+        day = _day_key()
+        try:
+            response = self._ddb.get_item(
+                TableName=self._table_name,
+                Key={"pk": {"S": f"ROLLUP#{day}"}, "sk": {"S": "SUMMARY"}},
+            )
+        except (ClientError, BotoCoreError):
+            return {
+                "events_total": 0,
+                "active_users_today": 0,
+                "distinct_event_types": 0,
+            }
+        item = response.get("Item")
+        if item is None:
+            return {
+                "events_total": 0,
+                "active_users_today": 0,
+                "distinct_event_types": 0,
+            }
+        return {
+            "events_total": int(item.get("events_total", {"N": "0"})["N"]),
+            "active_users_today": int(
+                item.get("active_users_today", {"N": "0"})["N"]
+            ),
+            "distinct_event_types": int(
+                item.get("distinct_event_types", {"N": "0"})["N"]
+            ),
+        }
+
+    def _increment_counter(
+        self,
+        *,
+        key: dict[str, dict[str, str]],
+        counter_name: str,
+    ) -> None:
+        """Increment one numeric counter on the target item."""
+        self._ddb.update_item(
+            TableName=self._table_name,
+            Key=key,
+            UpdateExpression=(
+                "SET #updated_at = :updated_at ADD #counter :increment"
+            ),
+            ExpressionAttributeNames={
+                "#counter": counter_name,
+                "#updated_at": "updated_at",
+            },
+            ExpressionAttributeValues={
+                ":increment": {"N": "1"},
+                ":updated_at": {"S": _iso_now()},
+            },
+        )
+
+    def _write_marker_if_absent(
+        self,
+        *,
+        key: dict[str, dict[str, str]],
+    ) -> bool:
+        """Write a marker item only if absent, returning True on creation."""
+        try:
+            self._ddb.put_item(
+                TableName=self._table_name,
+                Item={
+                    **key,
+                    "expires_at": {"N": _ttl_for_days(2)},
+                    "created_at": {"S": _iso_now()},
+                },
+                ConditionExpression="attribute_not_exists(pk)",
+            )
+            return True
+        except ClientError as exc:
+            code = exc.response.get("Error", {}).get("Code")
+            if code == "ConditionalCheckFailedException":
+                return False
+            raise
+
+
+def _day_key() -> str:
+    return datetime.now(tz=UTC).strftime("%Y-%m-%d")
+
+
+def _iso_now() -> str:
+    return datetime.now(tz=UTC).isoformat()
+
+
+def _ttl_for_days(days: int) -> str:
+    ttl = int(datetime.now(tz=UTC).timestamp()) + (days * 24 * 60 * 60)
+    return str(ttl)

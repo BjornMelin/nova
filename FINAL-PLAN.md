@@ -211,6 +211,8 @@ In monorepo docs:
    - [x] Queue publish failure returns 503 queue_unavailable.
    - [x] Failed enqueue is not replayed as success via idempotency.
    - [x] Invalid worker transition returns 409 conflict.
+   - [x] Same-origin browser polling propagates caller scope on body-less
+     `GET /api/jobs/{job_id}` requests via `X-Session-Id`.
 
 4. Cache and resilience
 
@@ -221,6 +223,8 @@ In monorepo docs:
 5. Observability/operations
 
    - [x] EMF payloads valid and within dimension limits.
+   - [x] EMF fields are emitted as top-level structured log fields (including
+     `_aws`), not nested JSON strings.
    - [x] `/readyz` excludes feature-flag state from pass/fail logic.
 
 6. Cross-repo integration

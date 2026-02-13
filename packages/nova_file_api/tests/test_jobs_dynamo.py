@@ -1,0 +1,89 @@
+from __future__ import annotations
+
+from datetime import UTC, datetime
+from typing import Any
+
+import pytest
+from nova_file_api.jobs import DynamoJobRepository
+from nova_file_api.models import JobRecord, JobStatus
+
+
+class _FakeTable:
+    def __init__(self) -> None:
+        self._items: dict[str, dict[str, Any]] = {}
+
+    def put_item(self, *, Item: dict[str, Any]) -> dict[str, Any]:
+        self._items[str(Item["job_id"])] = dict(Item)
+        return {}
+
+    def get_item(self, *, Key: dict[str, Any]) -> dict[str, Any]:
+        job_id = str(Key["job_id"])
+        item = self._items.get(job_id)
+        if item is None:
+            return {}
+        return {"Item": dict(item)}
+
+
+class _FakeDynamoResource:
+    def __init__(self, table: _FakeTable) -> None:
+        self._table = table
+
+    def Table(self, table_name: str) -> _FakeTable:
+        del table_name
+        return self._table
+
+
+@pytest.fixture
+def _fake_repo(monkeypatch: pytest.MonkeyPatch) -> DynamoJobRepository:
+    table = _FakeTable()
+
+    def _resource(service_name: str) -> _FakeDynamoResource:
+        assert service_name == "dynamodb"
+        return _FakeDynamoResource(table)
+
+    monkeypatch.setattr("nova_file_api.jobs.boto3.resource", _resource)
+    return DynamoJobRepository(table_name="jobs-table")
+
+
+def test_dynamo_job_repository_create_get_update(
+    _fake_repo: DynamoJobRepository,
+) -> None:
+    now = datetime.now(tz=UTC)
+    record = JobRecord(
+        job_id="job-dynamo-1",
+        job_type="transform",
+        scope_id="scope-1",
+        status=JobStatus.PENDING,
+        payload={"input": "value"},
+        result=None,
+        error=None,
+        created_at=now,
+        updated_at=now,
+    )
+
+    _fake_repo.create(record)
+    loaded = _fake_repo.get("job-dynamo-1")
+
+    assert loaded is not None
+    assert loaded.job_id == "job-dynamo-1"
+    assert loaded.status == JobStatus.PENDING
+
+    updated = loaded.model_copy(
+        update={
+            "status": JobStatus.SUCCEEDED,
+            "result": {"accepted": True},
+            "updated_at": datetime.now(tz=UTC),
+        }
+    )
+    _fake_repo.update(updated)
+
+    loaded_updated = _fake_repo.get("job-dynamo-1")
+    assert loaded_updated is not None
+    assert loaded_updated.status == JobStatus.SUCCEEDED
+    assert loaded_updated.result == {"accepted": True}
+
+
+def test_dynamo_job_repository_get_missing_returns_none(
+    _fake_repo: DynamoJobRepository,
+) -> None:
+    assert _fake_repo.get("missing") is None

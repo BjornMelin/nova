@@ -1,0 +1,19 @@
+.adsfh-dropzone {
+  border: 2px dashed #6b7280;
+  border-radius: 12px;
+  cursor: pointer;
+  min-height: 120px;
+  padding: 1rem;
+  text-align: center;
+}
+
+.adsfh-dropzone-active {
+  background: rgb(30 64 175 / 0.08);
+  border-color: #1d4ed8;
+}
+
+.adsfh-caption {
+  color: #6b7280;
+  font-size: 0.85rem;
+  margin-top: 0.5rem;
+}

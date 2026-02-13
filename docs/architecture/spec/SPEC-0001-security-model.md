@@ -2,8 +2,8 @@
 Spec: 0001
 Title: Security Model
 Status: Active
-Version: 1.3
-Date: 2026-02-12
+Version: 1.4
+Date: 2026-02-13
 Related:
   - "[ADR-0004: Canonical OIDC verifier adoption](../adr/ADR-0004-canonical-oidc-jwt-verifier-adoption.md)"
   - "[ADR-0005: Dedicated nova-auth-api track](../adr/ADR-0005-add-dedicated-nova-auth-api-service.md)"
@@ -24,6 +24,10 @@ References:
 
 Primary deployment model. Upstream application identity is trusted and mapped to
 scope.
+
+For body-less scope-bound routes (for example `GET /api/jobs/{job_id}`), caller
+scope MUST be conveyed using trusted headers (`X-Scope-Id` or
+`X-Session-Id`).
 
 ### 1.2 Local JWT/OIDC verification mode
 

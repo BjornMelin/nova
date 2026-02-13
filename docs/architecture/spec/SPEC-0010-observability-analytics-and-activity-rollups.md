@@ -2,8 +2,8 @@
 Spec: 0010
 Title: Observability Analytics and Activity Rollups
 Status: Active
-Version: 1.3
-Date: 2026-02-12
+Version: 1.4
+Date: 2026-02-13
 Related:
   - "[ADR-0009: EMF + DynamoDB + CloudWatch observability stack](../adr/ADR-0009-observability-analytics-emf-dynamodb-cloudwatch.md)"
   - "[SPEC-0003: Observability](./SPEC-0003-observability.md)"
@@ -21,6 +21,8 @@ EMF payloads MUST include:
 - timestamp
 - bounded dimension sets
 - metric definitions and values
+- top-level `_aws` metadata and metric fields in the structured log object
+  (not nested as JSON strings)
 
 High-cardinality fields (for example `request_id`, `user_id`) MUST NOT be used as
 metric dimensions.

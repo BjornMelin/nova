@@ -58,6 +58,15 @@ Scope: `nova` runtime monorepo + cross-repo integration alignment
   browser upload -> enqueue -> worker result -> download.
 - Validate dashboard population and alarm trigger behavior via synthetic faults.
 
+## Post-Release Fixes (2026-02-13)
+
+- Fixed same-origin async polling scope propagation in bridge uploader:
+  `GET /api/jobs/{job_id}` polling now includes `X-Session-Id`.
+- Fixed EMF log shape to emit `_aws` + metric keys as top-level structured log
+  fields instead of nested JSON strings.
+- Added regression coverage for same-origin status auth semantics, bridge asset
+  poll-header contract, and structured EMF payload assertions.
+
 Execution runbook for remaining live gates:
 
 - `docs/plan/release/NONPROD-LIVE-VALIDATION-RUNBOOK.md`

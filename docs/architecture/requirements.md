@@ -1,7 +1,7 @@
 # Requirements (nova runtime)
 
 Status: Canonical requirements source
-Last updated: 2026-02-12
+Last updated: 2026-02-13
 
 This document is the source of truth for functional and non-functional
 requirements for the first production release.
@@ -40,6 +40,10 @@ The service MUST provide:
 
 The default async orchestration path MUST be SQS + ECS worker. Step
 Functions/Lambda are out of scope for the initial release.
+
+In same-origin mode, browser polling calls to `GET /api/jobs/{job_id}` and other
+body-less scope-bound endpoints MUST include caller scope via trusted header
+(`X-Session-Id` or `X-Scope-Id`).
 
 Enqueue failure semantics:
 
@@ -107,6 +111,8 @@ The service MUST emit:
 
 - Structured logs with `request_id`
 - CloudWatch EMF-compatible metrics with bounded dimensions
+- EMF payload objects emitted as top-level structured log fields (including
+  `_aws`), not nested JSON strings
 - Daily activity rollups (memory in local/dev, DynamoDB in AWS)
 - Queue lag metric from worker processing (`jobs_queue_lag_ms`) when jobs first
   transition out of `pending`

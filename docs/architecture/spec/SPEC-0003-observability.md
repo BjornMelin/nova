@@ -2,8 +2,8 @@
 Spec: 0003
 Title: Observability
 Status: Active
-Version: 1.5
-Date: 2026-02-12
+Version: 1.6
+Date: 2026-02-13
 Related:
   - "[ADR-0009: Observability stack](../adr/ADR-0009-observability-analytics-emf-dynamodb-cloudwatch.md)"
   - "[SPEC-0010: Observability analytics and activity rollups](./SPEC-0010-observability-analytics-and-activity-rollups.md)"
@@ -52,6 +52,9 @@ Metrics MUST include at least:
   per-status variants)
 
 Metrics dimensions MUST avoid high-cardinality identifiers.
+
+EMF payload metadata (`_aws`) and metric fields MUST be emitted as top-level
+structured log members, not nested JSON strings.
 
 ## 4. Analytics rollups
 

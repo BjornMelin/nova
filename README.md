@@ -17,6 +17,8 @@ bytes.
   - `GET /api/jobs/{job_id}`
   - `POST /api/jobs/{job_id}/cancel`
   - `POST /api/jobs/{job_id}/result` (worker/internal)
+  - same-origin polling clients send caller scope on body-less job routes via
+    `X-Session-Id`
 - Auth modes:
   - same-origin
   - local JWT verification (`oidc-jwt-verifier`)
@@ -62,6 +64,8 @@ bytes.
 - Worker result updates increment throughput counters:
   - `jobs_worker_result_updates_total`
   - `jobs_worker_result_updates_<status>`
+- EMF logs are emitted as top-level structured fields (`_aws`, metric name,
+  dimensions), not nested JSON strings.
 - `GET /metrics/summary` exposes queue-lag latency and worker
   update counters for dashboards.
 
