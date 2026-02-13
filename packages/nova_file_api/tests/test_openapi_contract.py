@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from nova_file_api.app import create_app
 from fastapi.testclient import TestClient
+from nova_file_api.app import create_app
 
 
 def test_openapi_contains_split_routes_and_no_legacy_prefix() -> None:

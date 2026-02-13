@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from typing import Any
 
+from botocore.exceptions import ClientError
 from nova_file_api.activity import DynamoActivityStore
 from nova_file_api.models import Principal
-from botocore.exceptions import ClientError
 
 
 def _principal(*, subject: str) -> Principal:

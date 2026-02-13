@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from fastapi.testclient import TestClient
 from nova_file_api.activity import MemoryActivityStore
 from nova_file_api.app import create_app
 from nova_file_api.cache import (
@@ -17,7 +18,6 @@ from nova_file_api.jobs import (
 )
 from nova_file_api.metrics import MetricsCollector
 from nova_file_api.models import Principal
-from fastapi.testclient import TestClient
 from starlette.requests import Request
 
 

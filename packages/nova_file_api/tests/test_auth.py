@@ -135,7 +135,10 @@ async def test_local_verification_uses_thread_boundary(
         call_count["count"] += 1
         return func(token)
 
-    monkeypatch.setattr("nova_file_api.auth.anyio.to_thread.run_sync", _run_sync)
+    monkeypatch.setattr(
+        "nova_file_api.auth.anyio.to_thread.run_sync",
+        _run_sync,
+    )
 
     claims = await auth._verify_local_token(token="token-123")
 

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from typing import Any
 
 from nova_file_api.metrics import MetricsCollector
@@ -29,14 +28,11 @@ def test_emit_emf_writes_valid_payload_with_bounded_dimensions() -> None:
     assert captured["event"] == "emf_metric"
     kwargs = captured["kwargs"]
     assert isinstance(kwargs, dict)
-    raw_emf = kwargs.get("emf")
-    assert isinstance(raw_emf, str)
-
-    payload = json.loads(raw_emf)
-    assert payload["requests_total"] == 1.0
-    assert payload["route"] == "jobs_enqueue"
-    assert payload["status"] == "ok"
-    aws_meta = payload["_aws"]["CloudWatchMetrics"][0]
+    assert "emf" not in kwargs
+    assert kwargs["requests_total"] == 1.0
+    assert kwargs["route"] == "jobs_enqueue"
+    assert kwargs["status"] == "ok"
+    aws_meta = kwargs["_aws"]["CloudWatchMetrics"][0]
     assert aws_meta["Namespace"] == "Tests"
     assert aws_meta["Dimensions"] == [["route", "status"]]
     assert aws_meta["Metrics"] == [{"Name": "requests_total", "Unit": "Count"}]

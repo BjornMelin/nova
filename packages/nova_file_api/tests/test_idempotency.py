@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any
 
+from fastapi.testclient import TestClient
 from nova_file_api.activity import MemoryActivityStore
 from nova_file_api.app import create_app
 from nova_file_api.cache import (
@@ -23,7 +24,6 @@ from nova_file_api.models import (
     Principal,
     UploadStrategy,
 )
-from fastapi.testclient import TestClient
 from starlette.requests import Request
 
 

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import time
 from collections import defaultdict
 from collections.abc import Iterator
@@ -89,7 +88,7 @@ class MetricsCollector:
             metric_name: value,
             **dimensions,
         }
-        self._logger.info("emf_metric", emf=json.dumps(payload))
+        self._logger.info("emf_metric", **payload)
 
     def counters_snapshot(self) -> dict[str, int]:
         """Return immutable snapshot of counters."""

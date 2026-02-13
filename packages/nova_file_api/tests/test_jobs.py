@@ -4,8 +4,11 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import pytest
+from botocore.exceptions import BotoCoreError, ClientError
+from fastapi.testclient import TestClient
 from nova_file_api.activity import MemoryActivityStore
 from nova_file_api.app import create_app
+from nova_file_api.auth import Authenticator
 from nova_file_api.cache import (
     LocalTTLCache,
     SharedRedisCache,
@@ -23,9 +26,12 @@ from nova_file_api.jobs import (
     SqsJobPublisher,
 )
 from nova_file_api.metrics import MetricsCollector
-from nova_file_api.models import JobRecord, JobStatus, Principal
-from botocore.exceptions import BotoCoreError, ClientError
-from fastapi.testclient import TestClient
+from nova_file_api.models import (
+    AuthMode,
+    JobRecord,
+    JobStatus,
+    Principal,
+)
 from starlette.requests import Request
 
 
@@ -94,6 +100,57 @@ class _FlakyJobService:
     def cancel(self, *, job_id: str, scope_id: str) -> JobRecord:
         del job_id, scope_id
         raise RuntimeError("not used by this test")
+
+
+def _build_same_origin_status_container(*, scope_id: str) -> AppContainer:
+    settings = Settings()
+    settings.auth_mode = AuthMode.SAME_ORIGIN
+    settings.jobs_enabled = True
+
+    metrics = MetricsCollector(namespace="Tests")
+    shared = SharedRedisCache(url=None)
+    cache = TwoTierCache(
+        local=LocalTTLCache(ttl_seconds=60, max_entries=128),
+        shared=shared,
+        shared_ttl_seconds=60,
+    )
+    repository = MemoryJobRepository()
+    service = JobService(
+        repository=repository,
+        publisher=MemoryJobPublisher(),
+        metrics=metrics,
+    )
+    now = datetime.now(tz=UTC)
+    repository.create(
+        JobRecord(
+            job_id="job-status-1",
+            job_type="transform",
+            scope_id=scope_id,
+            status=JobStatus.PENDING,
+            payload={"input": "value"},
+            result=None,
+            error=None,
+            created_at=now,
+            updated_at=now,
+        )
+    )
+
+    return AppContainer(
+        settings=settings,
+        metrics=metrics,
+        cache=cache,
+        shared_cache=shared,
+        authenticator=Authenticator(settings=settings, cache=cache),
+        transfer_service=_StubTransferService(),  # type: ignore[arg-type]
+        job_repository=repository,
+        job_service=service,
+        activity_store=MemoryActivityStore(),
+        idempotency_store=IdempotencyStore(
+            cache=cache,
+            enabled=True,
+            ttl_seconds=300,
+        ),
+    )
 
 
 def _job_record(*, job_id: str = "job-1") -> JobRecord:
@@ -507,3 +564,30 @@ def test_update_job_result_requires_valid_worker_token() -> None:
     assert forbidden_response.json()["error"]["code"] == "forbidden"
     assert ok_response.status_code == 200
     assert ok_response.json()["status"] == "succeeded"
+
+
+def test_get_job_status_accepts_scope_header_same_origin() -> None:
+    container = _build_same_origin_status_container(scope_id="scope-header")
+    app = create_app(container_override=container)
+    with TestClient(app) as client:
+        response = client.get(
+            "/api/jobs/job-status-1",
+            headers={"X-Session-Id": "scope-header"},
+        )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["job"]["job_id"] == "job-status-1"
+    assert payload["job"]["scope_id"] == "scope-header"
+
+
+def test_get_job_status_requires_session_scope_in_same_origin_mode() -> None:
+    container = _build_same_origin_status_container(scope_id="scope-header")
+    app = create_app(container_override=container)
+    with TestClient(app) as client:
+        response = client.get("/api/jobs/job-status-1")
+
+    assert response.status_code == 401
+    payload = response.json()
+    assert payload["error"]["code"] == "unauthorized"
+    assert payload["error"]["message"] == "missing session scope"
