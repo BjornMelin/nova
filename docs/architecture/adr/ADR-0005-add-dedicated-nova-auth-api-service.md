@@ -1,6 +1,6 @@
 ---
 ADR: 0005
-Title: Add dedicated aws-auth-api service while keeping local verification default
+Title: Add dedicated nova-auth-api service while keeping local verification default
 Status: Accepted
 Version: 1.0
 Date: 2026-02-12
@@ -16,7 +16,7 @@ References:
 
 ## Summary
 
-Add a dedicated `aws-auth-api` service track for shared token verification/introspection use cases, while keeping local JWT verification in `aws-file-api` as the default path.
+Add a dedicated `nova-auth-api` service track for shared token verification/introspection use cases, while keeping local JWT verification in `nova-file-api` as the default path.
 
 ## Context
 
@@ -45,11 +45,11 @@ A balanced architecture is needed:
 
 ## Decision
 
-Choose option C: add `aws-auth-api` as a dedicated service track and keep local verification as default in `aws-file-api`.
+Choose option C: add `nova-auth-api` as a dedicated service track and keep local verification as default in `nova-file-api`.
 
 Implementation commitments:
 
-- Define `aws-auth-api` contract (`/v1/token/verify`, `/v1/token/introspect`, `/healthz`).
+- Define `nova-auth-api` contract (`/v1/token/verify`, `/v1/token/introspect`, `/healthz`).
 - Preserve local verification path in file-transfer API for fail-safe operations.
 - Support optional remote-auth mode through explicit configuration flags.
 

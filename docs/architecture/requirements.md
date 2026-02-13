@@ -1,4 +1,4 @@
-# Requirements (aws-file-platform runtime)
+# Requirements (nova runtime)
 
 Status: Canonical requirements source
 Last updated: 2026-02-12
@@ -188,7 +188,7 @@ DynamoDB, and CloudWatch.
 
 ### IR-0003: Optional remote auth service
 
-When enabled, remote auth integration MUST target `aws-auth-api` and fail closed
+When enabled, remote auth integration MUST target `nova-auth-api` and fail closed
 on auth service errors.
 
 ### IR-0004: Browser compatibility for multipart workflows

@@ -35,8 +35,8 @@ The package is synchronous. In FastAPI async dependencies, direct sync verificat
 
 ## Alternatives
 
-- A: Keep Auth0-specific verifier in `aws-file-api`.
-- B: Build custom generic OIDC verifier in `aws-file-api`.
+- A: Keep Auth0-specific verifier in `nova-file-api`.
+- B: Build custom generic OIDC verifier in `nova-file-api`.
 - C: Adopt `oidc-jwt-verifier` as canonical verification engine.
 
 ## Decision Framework
@@ -55,7 +55,7 @@ Choose option C: `oidc-jwt-verifier` is the canonical JWT/OIDC verification engi
 
 Implementation commitments:
 
-- `aws-file-api` provides `auth/oidc_verifier.py` as adapter layer.
+- `nova-file-api` provides `auth/oidc_verifier.py` as adapter layer.
 - Auth verification in async dependency path runs through threadpool boundary (`anyio.to_thread.run_sync` or equivalent).
 - Auth0 support remains first-class through OIDC config mapping (`issuer`, `audience`, `jwks_url`) without provider-locked verifier classes.
 

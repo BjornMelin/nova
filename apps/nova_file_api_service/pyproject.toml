@@ -1,0 +1,17 @@
+[build-system]
+requires = ["hatchling>=1.27.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "nova-file-api-service"
+version = "0.1.0"
+description = "ASGI service wrapper for nova-file-api."
+readme = "../../README.md"
+requires-python = ">=3.12,<3.14"
+dependencies = [
+  "nova-file-api",
+  "uvicorn[standard]>=0.38.0",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/nova_file_api_service"]

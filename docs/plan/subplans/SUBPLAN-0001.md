@@ -4,7 +4,7 @@
 
 ## Core Runtime + Contract Hardening
 
-Order: 1 of 4
+Order: 1 of 5
 Parent plan: `docs/plan/PLAN.md`
 
 ## Persona
@@ -21,10 +21,10 @@ mutations, and baseline tests.
 
 Repository scope (this monorepo):
 
-- `apps/aws_file_api_service`
-- `apps/aws_auth_api_service`
-- `packages/aws_file_api`
-- `packages/aws_auth_api`
+- `apps/nova_file_api_service`
+- `apps/nova_auth_api_service`
+- `packages/nova_file_api`
+- `packages/nova_auth_api`
 - `packages/contracts`
 
 In scope:

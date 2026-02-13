@@ -16,11 +16,11 @@ Execute `docs/plan/subplans/SUBPLAN-0004.md` end-to-end.
 Branch: `feat/subplan-0004-e2e-validation-release-closure`
 
 Scope:
-- `apps/aws_file_api_service`
-- `apps/aws_auth_api_service`
-- `packages/aws_file_api`
-- `packages/aws_auth_api`
-- `packages/aws_dash_bridge`
+- `apps/nova_file_api_service`
+- `apps/nova_auth_api_service`
+- `packages/nova_file_api`
+- `packages/nova_auth_api`
+- `packages/nova_dash_bridge`
 - `packages/contracts`
 - `~/repos/work/infra-stack/container-craft`
 - `~/repos/work/pca-analysis-dash/dash-pca`

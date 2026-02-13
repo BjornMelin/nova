@@ -7,7 +7,7 @@ Date: 2026-02-12
 Related:
   - "[SPEC-0006: JWT/OIDC verification and principal mapping](./SPEC-0006-jwt-oidc-verification-and-principal-mapping.md)"
   - "[SPEC-0000: HTTP API contract](./SPEC-0000-http-api-contract.md)"
-  - "[ADR-0005: Add dedicated aws-auth-api service while keeping local verification default](../adr/ADR-0005-add-dedicated-aws-auth-api-service.md)"
+  - "[ADR-0005: Add dedicated nova-auth-api service while keeping local verification default](../adr/ADR-0005-add-dedicated-nova-auth-api-service.md)"
 References:
   - "[RFC 7662 OAuth Token Introspection](https://www.rfc-editor.org/rfc/rfc7662)"
   - "[RFC 6750 Bearer Token Usage](https://datatracker.ietf.org/doc/html/rfc6750)"
@@ -17,7 +17,7 @@ References:
 
 ## 1. Scope
 
-This specification defines the HTTP contract for the dedicated `aws-auth-api` service.
+This specification defines the HTTP contract for the dedicated `nova-auth-api` service.
 
 The service provides:
 
@@ -25,8 +25,8 @@ The service provides:
 - optional token introspection for opaque-token use cases
 - health endpoint for deployment/runtime gates
 
-`aws-file-api` MUST keep local JWT verification as the default behavior.
-Remote `aws-auth-api` mode is optional and configuration-driven.
+`nova-file-api` MUST keep local JWT verification as the default behavior.
+Remote `nova-auth-api` mode is optional and configuration-driven.
 
 ## 2. Endpoint contract
 
@@ -79,7 +79,7 @@ Purpose: liveness/readiness gate for ECS/ALB.
 Response `200` MUST include:
 
 - `status`: `"ok"`
-- `service`: `"aws-auth-api"`
+- `service`: `"nova-auth-api"`
 - `request_id`: string
 
 Health checks SHOULD be lightweight and MUST NOT require external token provider calls.
@@ -142,9 +142,9 @@ Recommended error codes:
 
 ## 6. Integration requirements
 
-When `aws-file-api` remote auth mode is enabled:
+When `nova-file-api` remote auth mode is enabled:
 
-- verification failures or connectivity failures to `aws-auth-api` MUST fail closed
+- verification failures or connectivity failures to `nova-auth-api` MUST fail closed
 - auth mode MUST remain explicit and configuration-driven
 - local verification mode MUST remain fully supported
 

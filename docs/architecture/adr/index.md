@@ -13,7 +13,7 @@
 | [ADR-0002](./ADR-0002-openapi-as-contract-and-sdk-generation.md) | Treat OpenAPI as the contract and generate client SDKs from it | Accepted | 2026-02-11 |
 | [ADR-0003](./ADR-0003-api-docs-site-mkdocs-material-plus-scalar.md) | API documentation site uses MkDocs Material and Scalar API Reference | Accepted | 2026-02-11 |
 | [ADR-0004](./ADR-0004-canonical-oidc-jwt-verifier-adoption.md) | Adopt oidc-jwt-verifier as the canonical JWT/OIDC verification engine | Accepted | 2026-02-12 |
-| [ADR-0005](./ADR-0005-add-dedicated-aws-auth-api-service.md) | Add dedicated aws-auth-api service while keeping local verification default | Accepted | 2026-02-12 |
+| [ADR-0005](./ADR-0005-add-dedicated-nova-auth-api-service.md) | Add dedicated nova-auth-api service while keeping local verification default | Accepted | 2026-02-12 |
 | [ADR-0006](./ADR-0006-async-orchestration-sqs-ecs-worker.md) | Use SQS + ECS worker for initial async orchestration | Accepted | 2026-02-12 |
 | [ADR-0007](./ADR-0007-two-tier-cache-and-idempotency-store.md) | Adopt two-tier cache with idempotency replay storage | Accepted | 2026-02-12 |
 | [ADR-0008](./ADR-0008-runtime-support-levels-sidecar-embedded-standalone.md) | Runtime support levels: sidecar GA, embedded bridge, standalone beta | Accepted | 2026-02-12 |

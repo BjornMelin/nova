@@ -1,4 +1,4 @@
-# aws-file-platform runtime
+# nova runtime
 
 ![Python](https://img.shields.io/badge/Python-3.12%20%7C%203.13-3776AB?logo=python&logoColor=white) ![FastAPI](https://img.shields.io/badge/FastAPI-0.129%2B-009688?logo=fastapi&logoColor=white) ![OpenAPI](https://img.shields.io/badge/OpenAPI-3.1-6BA539?logo=openapiinitiative&logoColor=white) ![AWS S3](https://img.shields.io/badge/AWS-S3-569A31?logo=amazons3&logoColor=white) ![AWS SQS](https://img.shields.io/badge/AWS-SQS-FF9900?logo=amazonaws&logoColor=white) ![Ruff](https://img.shields.io/badge/lint-ruff-D7FF64?logo=ruff&logoColor=111111) ![Mypy](https://img.shields.io/badge/types-mypy-2A6DB2?logo=python&logoColor=white) ![Pytest](https://img.shields.io/badge/tests-pytest-0A9EDC?logo=pytest&logoColor=white)
 
@@ -10,6 +10,8 @@ bytes.
 
 - Transfer endpoints for single-part and multipart uploads.
 - Download presign endpoint.
+- Bridge package (`nova_dash_bridge`) delegates control-plane transfer
+  operations to `nova_file_api` runtime services.
 - Async job endpoints:
   - `POST /api/jobs/enqueue`
   - `GET /api/jobs/{job_id}`
@@ -120,6 +122,19 @@ source .venv/bin/activate && uv run mypy
 source .venv/bin/activate && uv run pytest -q
 ```
 
+## OpenAPI Contract Smoke
+
+Generated-client smoke coverage is enforced with:
+
+```bash
+source .venv/bin/activate && \
+uv run pytest -q \
+  packages/nova_file_api/tests/test_generated_client_smoke.py
+```
+
+The smoke test generates a Python client with `openapi-python-client` from the
+runtime OpenAPI schema and verifies generated code compiles successfully.
+
 ## Documentation Map
 
 - Requirements: `docs/architecture/requirements.md`
@@ -128,3 +143,9 @@ source .venv/bin/activate && uv run pytest -q
 - Execution plan: `docs/plan/PLAN.md`
 - Subplans: `docs/plan/subplans/`
 - Trigger prompts: `docs/plan/triggers/`
+- Release notes: `docs/plan/release/RELEASE-NOTES-2026-02-12.md`
+- Hard-cutover checklist: `docs/plan/release/HARD-CUTOVER-CHECKLIST.md`
+- Non-prod live validation runbook:
+  `docs/plan/release/NONPROD-LIVE-VALIDATION-RUNBOOK.md`
+- Version manifest:
+  `docs/plan/release/RELEASE-VERSION-MANIFEST.md`

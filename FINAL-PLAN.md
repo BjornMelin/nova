@@ -1,4 +1,4 @@
-# Final Hard-Cutover Monorepo Plan: aws-file-platform Runtime + container-craft Infra
+# Final Hard-Cutover Monorepo Plan: nova Runtime + container-craft Infra
 
 ## Summary
 
@@ -8,8 +8,8 @@ This plan is decision-complete and aligned to your locked choices:
 - Hard cutover (no compatibility shims).
 - In-place restructure of current repo.
 - Repo/package rename now:
-  - Repo identity: aws-file-platform
-  - Python packages: aws_file_api, aws_auth_api, aws_dash_bridge
+  - Repo identity: nova
+  - Python packages: nova_file_api, nova_auth_api, nova_dash_bridge
 - API hard cutover to functional split paths.
 - dash-pca migration is mandatory in the same release gate.
 - Old runtime repos are archived and redirected after cutover.
@@ -42,7 +42,7 @@ Scoring model:
 
 ### HTTP endpoint cutover
 
-Remove old `/api/file-transfer/*` routes and replace with:
+Remove old `/api/transfers/*` routes and replace with:
 
 - POST /api/transfers/uploads/initiate
 - POST /api/transfers/uploads/sign-parts
@@ -59,9 +59,9 @@ Remove old `/api/file-transfer/*` routes and replace with:
 
 ### Python package cutover
 
-- Replace aws_file_transfer_api imports with aws_file_api.
-- Replace aws_dash_s3_file_handler imports with aws_dash_bridge.
-- Remote auth service package becomes aws_auth_api.
+- Replace deprecated transfer-api imports with nova_file_api.
+- Use nova_dash_bridge as the canonical bridge import namespace.
+- Remote auth service package becomes nova_auth_api.
 
 ### Contract invariants retained
 
@@ -76,10 +76,10 @@ Remove old `/api/file-transfer/*` routes and replace with:
 
 Create this structure in current repo:
 
-- apps/aws_file_api_service/
-- apps/aws_auth_api_service/
-- packages/aws_file_api/
-- packages/aws_dash_bridge/
+- apps/nova_file_api_service/
+- apps/nova_auth_api_service/
+- packages/nova_file_api/
+- packages/nova_dash_bridge/
 - packages/contracts/ (OpenAPI artifacts + schema utilities only)
 - docs/architecture/
 - docs/plan/
@@ -96,18 +96,18 @@ Create this structure in current repo:
 ### PR-0001: Monorepo scaffold + namespace rename baseline
 
 - [x] Add workspace layout directories listed above.
-- [x] Move existing runtime source into packages/aws_file_api/src/aws_file_api.
-- [x] Move existing bridge source plan into packages/aws_dash_bridge.
-- [x] Add apps/aws_file_api_service app entrypoint importing aws_file_api.
-- [x] Add apps/aws_auth_api_service service skeleton from current auth spec.
-- [x] Update root/package metadata names to aws-file-platform,
-  aws_file_api, aws_auth_api, aws_dash_bridge.
+- [x] Move existing runtime source into packages/nova_file_api/src/nova_file_api.
+- [x] Move existing bridge source plan into packages/nova_dash_bridge.
+- [x] Add apps/nova_file_api_service app entrypoint importing nova_file_api.
+- [x] Add apps/nova_auth_api_service service skeleton from current auth spec.
+- [x] Update root/package metadata names to nova,
+  nova_file_api, nova_auth_api, nova_dash_bridge.
 - [x] Update import paths across code/tests to new namespaces.
-- [ ] Keep behavior unchanged in this PR (rename/layout only).
+- [x] Keep behavior unchanged in this PR (rename/layout only).
 
 ### PR-0002: HTTP path hard cutover to functional split
 
-- [x] Refactor routers from `/api/file-transfer/*` to `/api/transfers/*`
+- [x] Refactor routers from `/api/transfers/*` to `/api/transfers/*`
   and /api/jobs/*.
 - [x] Update route constants, OpenAPI tags, operation IDs, and examples.
 - [x] Remove old route mounts (no dual routing).
@@ -117,114 +117,119 @@ Create this structure in current repo:
 
 ### PR-0003: Auth/JWT hardening confirmation under renamed packages
 
-- [ ] Keep local verifier as canonical default via oidc-jwt-verifier.
-- [ ] Verify all sync JWT verification calls remain on thread boundary.
-- [ ] Keep remote auth optional and fail-closed.
-- [ ] Ensure RFC6750 WWW-Authenticate behavior remains consistent.
-- [ ] Add/refresh tests for invalid issuer/audience/exp/scope mapping.
+- [x] Keep local verifier as canonical default via oidc-jwt-verifier.
+- [x] Verify all sync JWT verification calls remain on thread boundary.
+- [x] Keep remote auth optional and fail-closed.
+- [x] Ensure RFC6750 WWW-Authenticate behavior remains consistent.
+- [x] Add/refresh tests for invalid issuer/audience/exp/scope mapping.
 
 ### PR-0004: Async jobs, idempotency, cache, observability lock-in
 
-- [ ] Preserve 503 queue_unavailable contract and failed job persistence.
-- [ ] Keep enqueue failure out of idempotency success replay cache.
-- [ ] Preserve legal status transitions and idempotent terminal same-state updates.
-- [ ] Keep queue lag and worker throughput metrics.
-- [ ] Add missing explicit tests:
-- [ ] Redis outage fallback behavior.
-- [ ] Remote auth fail-closed behavior.
-- [ ] Cache metric coverage (hit/miss/fallback counters).
+- [x] Preserve 503 queue_unavailable contract and failed job persistence.
+- [x] Keep enqueue failure out of idempotency success replay cache.
+- [x] Preserve legal status transitions and idempotent terminal same-state
+  updates.
+- [x] Keep queue lag and worker throughput metrics.
+- [x] Add missing explicit tests:
+- [x] Redis outage fallback behavior.
+- [x] Remote auth fail-closed behavior.
+- [x] Cache metric coverage (hit/miss/fallback counters).
 
 ### PR-0005: container-craft hard alignment for new path contract
 
   Repo: ~/repos/work/infra-stack/container-craft
 
-- [ ] Update ALB routing rules from `/api/file-transfer/*` to:
-- [ ] `/api/transfers/*`
-- [ ] `/api/jobs/*`
+- [x] Update ALB routing rules from `/api/transfers/*` to:
+- [x] `/api/transfers/*`
+- [x] `/api/jobs/*`
 - [ ] Keep health check route alignment and tuned intervals/thresholds.
-- [ ] Keep/add env mappings for SQS/Redis/DynamoDB backends.
-- [ ] Validate retry env contract:
-- [ ] `JOBS_SQS_RETRY_MODE`
-- [ ] `JOBS_SQS_RETRY_TOTAL_MAX_ATTEMPTS`
-- [ ] Validate least-privilege IAM for S3/KMS/SQS/DynamoDB/Redis.
+- [x] Keep/add env mappings for SQS/Redis/DynamoDB backends.
+- [x] Validate retry env contract:
+- [x] `JOBS_SQS_RETRY_MODE`
+- [x] `JOBS_SQS_RETRY_TOTAL_MAX_ATTEMPTS`
+- [x] Validate least-privilege IAM for S3/KMS/SQS/DynamoDB/Redis.
 
-### PR-0006: aws_dash_bridge bridge package finalization
+### PR-0006: nova_dash_bridge bridge package finalization
 
-Repo: `monorepo packages/aws_dash_bridge` and external source parity as needed
+Repo: `monorepo packages/nova_dash_bridge` and external source parity as needed
 
 - [x] Finalize bridge API to call new `/api/transfers/*` + `/api/jobs/*`.
 - [x] Keep async uploader behaviors and polling contract.
 - [x] Update assets and integration tests for new paths.
-- [ ] Remove residual runtime logic that belongs in aws_file_api.
+- [x] Remove residual runtime logic that belongs in nova_file_api.
 
 ### PR-0007: dash-pca mandatory same-window migration
 
 Repo: `~/repos/work/pca-analysis-dash/dash-pca`
 
-- [ ] Replace old package imports with aws_dash_bridge and aws_file_api.
-- [ ] Update endpoint calls to `/api/transfers/*` and `/api/jobs/*`.
-- [ ] Keep PCA policy (200 MB, .csv/.xlsx) enforced.
-- [ ] Validate sync and async flows with new contracts.
-- [ ] Update tests and app settings docs.
-- [ ] This PR is required before release approval.
+- [x] Replace old package imports with nova_dash_bridge and nova_file_api.
+- [x] Update endpoint calls to `/api/transfers/*` and `/api/jobs/*`.
+- [x] Keep PCA policy (200 MB, .csv/.xlsx) enforced.
+- [x] Validate sync and async flows with new contracts.
+- [x] Update tests and app settings docs.
+- [x] This PR is required before release approval.
 
 ### PR-0008: ADR/SPEC/PLAN/traceability full rewrite to final IDs and links
 
 In monorepo docs:
 
 - [x] Rewrite `docs/plan/PLAN.md` to final monorepo architecture state.
-- [ ] Rewrite `docs/plan/subplans/SUBPLAN-0001..N.md` to new execution order.
-- [ ] Rewrite `docs/plan/triggers/TRIGGER-0001..N.md` to new names/paths/tools.
+- [x] Rewrite `docs/plan/subplans/SUBPLAN-0001..N.md` to new execution order.
+- [x] Rewrite `docs/plan/triggers/TRIGGER-0001..N.md` to new names/paths/tools.
 - [x] Update all ADRs/SPECs to new endpoint paths and package names.
-- [ ] Validate every traceability link targets current requirement anchors.
+- [x] Validate every traceability link targets current requirement anchors.
 - [x] Remove any stale references to deprecated route/package names.
 
-### PR-0009: Release gates + old repo archive/redirect
+### PR-0009: Release gates + documentation closure
 
-- [ ] Run quality gates in monorepo and affected external repos.
+- [x] Run quality gates in monorepo and affected external repos.
 - [ ] Validate cross-repo E2E path: browser upload -> enqueue -> worker update -> result/download.
 - [ ] Validate dashboards/alarms and synthetic failure scenarios.
-- [ ] Archive old runtime repos as read-only with migration README redirect.
-- [ ] Publish release notes with hard-cutover migration checklist.
+- [x] Finalize active documentation cleanup for post-cutover steady state.
+- [x] Publish release notes with hard-cutover migration checklist.
+- [x] Publish operator runbook for live AWS validation gates:
+  `docs/plan/release/NONPROD-LIVE-VALIDATION-RUNBOOK.md`.
 
 ## Testing and Acceptance Scenarios
 
 1. Contract and routing
 
-   - [ ] OpenAPI contains only new `/api/transfers/*` and `/api/jobs/*` paths.
-   - [ ] No legacy `/api/file-transfer/*` path remains.
-   - [ ] Generated client smoke tests pass.
+   - [x] OpenAPI contains only new `/api/transfers/*` and `/api/jobs/*` paths.
+   - [x] No deprecated alias route namespace remains.
+   - [x] Generated client smoke tests pass.
 
 2. Security/auth
 
-   - [ ] JWT invalid issuer/audience/exp/nbf rejected correctly.
-   - [ ] Required scopes/permissions enforced.
-   - [ ] Remote auth fail-closed behavior verified.
-   - [ ] Logs contain no token/presigned URL/query signature leakage.
+   - [x] JWT invalid issuer/audience/exp/nbf rejected correctly.
+   - [x] Required scopes/permissions enforced.
+   - [x] Remote auth fail-closed behavior verified.
+   - [x] Logs contain no token/presigned URL/query signature leakage.
 
 3. Async reliability
 
-   - [ ] Enqueue success path persists and completes.
-   - [ ] Queue publish failure returns 503 queue_unavailable.
-   - [ ] Failed enqueue is not replayed as success via idempotency.
-   - [ ] Invalid worker transition returns 409 conflict.
+   - [x] Enqueue success path persists and completes.
+   - [x] Queue publish failure returns 503 queue_unavailable.
+   - [x] Failed enqueue is not replayed as success via idempotency.
+   - [x] Invalid worker transition returns 409 conflict.
 
 4. Cache and resilience
 
-   - [ ] Local cache hit/miss behavior verified.
-   - [ ] Redis outage degrades to local-only mode safely.
-   - [ ] Recovery path repopulates shared cache correctly.
+   - [x] Local cache hit/miss behavior verified.
+   - [x] Redis outage degrades to local-only mode safely.
+   - [x] Recovery path repopulates shared cache correctly.
 
 5. Observability/operations
 
-   - [ ] EMF payloads valid and within dimension limits.
-   - [ ] `/readyz` excludes feature-flag state from pass/fail logic.
+   - [x] EMF payloads valid and within dimension limits.
+   - [x] `/readyz` excludes feature-flag state from pass/fail logic.
 
 6. Cross-repo integration
 
-   - [ ] `container-craft` routes and env mappings align with new API.
-   - [ ] dash-pca updated and passing against new contracts.
-   - [ ] End-to-end non-prod smoke succeeds before prod release.
+   - [x] `container-craft` routes and env mappings align with new API.
+   - [x] dash-pca updated and passing against new contracts.
+   - [ ] End-to-end non-prod smoke succeeds before prod release
+     (tracked via
+     `docs/plan/release/NONPROD-LIVE-VALIDATION-RUNBOOK.md`).
 
 ## Assumptions and Defaults
 
@@ -233,7 +238,18 @@ In monorepo docs:
 - Infra remains separate in `container-craft`.
 - Hard cutover means no compatibility alias routes and no namespace shims.
 - dash-pca migration is release-blocking.
-- Archive old repos after successful production verification.
+
+## Remaining External Gates
+
+The following gates require live non-prod AWS access:
+
+- Sidecar ALB route + health-check verification.
+- Cross-repo non-prod E2E smoke.
+- CloudWatch dashboard/alarm synthetic-failure validation.
+
+Execution and evidence checklist:
+
+- `docs/plan/release/NONPROD-LIVE-VALIDATION-RUNBOOK.md`
 
 ## Primary Sources to Use During Execution
 
@@ -259,30 +275,85 @@ In monorepo docs:
 ## Execution Log
 
 - 2026-02-12: Created monorepo runtime layout:
-  `apps/aws_file_api_service`, `apps/aws_auth_api_service`,
-  `packages/aws_file_api`, `packages/aws_auth_api`,
-  `packages/aws_dash_bridge`, `packages/contracts`.
+  `apps/nova_file_api_service`, `apps/nova_auth_api_service`,
+  `packages/nova_file_api`, `packages/nova_auth_api`,
+  `packages/nova_dash_bridge`, `packages/contracts`.
 - 2026-02-12: Migrated runtime source to
-  `packages/aws_file_api/src/aws_file_api` and tests to
-  `packages/aws_file_api/tests`.
+  `packages/nova_file_api/src/nova_file_api` and tests to
+  `packages/nova_file_api/tests`.
 - 2026-02-12: Added workspace/package metadata:
-  root `pyproject.toml` renamed to `aws-file-platform`; package-level
-  `pyproject.toml` files added for `aws_file_api`, `aws_auth_api`,
-  `aws_dash_bridge`, and service wrappers.
+  root `pyproject.toml` renamed to `nova`; package-level
+  `pyproject.toml` files added for `nova_file_api`, `nova_auth_api`,
+  `nova_dash_bridge`, and service wrappers.
 - 2026-02-12: Implemented auth service skeleton package:
-  `packages/aws_auth_api` with `/healthz`, `/v1/token/verify`,
+  `packages/nova_auth_api` with `/healthz`, `/v1/token/verify`,
   `/v1/token/introspect`, canonical error envelope, and tests.
-- 2026-02-12: Completed API route hard cutover in `aws_file_api`:
+- 2026-02-12: Completed API route hard cutover in `nova_file_api`:
   transfer endpoints on `/api/transfers/*`, async jobs on `/api/jobs/*`,
   ops endpoint on `/metrics/summary`.
-- 2026-02-12: Completed bridge cutover in `aws_dash_bridge`:
+- 2026-02-12: Completed bridge cutover in `nova_dash_bridge`:
   Python imports renamed, asset prefix renamed, JS uploader now uses
   `transfersEndpointBase` and `jobsEndpointBase` defaults.
 - 2026-02-12: Started docs/spec route normalization from legacy
-  `/api/file-transfer/*` to split routes; traceability cleanup in progress.
+  `/api/transfers/*` to split routes; traceability cleanup in progress.
 - 2026-02-12: Passed required quality gates from monorepo root:
   - `source .venv/bin/activate && uv run ruff check . --fix`
   - `source .venv/bin/activate && uv run ruff format .`
   - `source .venv/bin/activate && uv run mypy`
   - `source .venv/bin/activate && uv run pytest -q`
   - Current local result: `26 passed`.
+- 2026-02-12: Expanded runtime regression coverage:
+  - OpenAPI split-route contract tests
+  - auth scope/permission enforcement and RFC6750 mapping tests
+  - cache fallback and cache metric counter tests
+  - logging sanitization and EMF payload tests
+- 2026-02-12: Re-ran required quality gates from monorepo root:
+  - `source .venv/bin/activate && uv run ruff check . --fix`
+  - `source .venv/bin/activate && uv run ruff format .`
+  - `source .venv/bin/activate && uv run mypy`
+  - `source .venv/bin/activate && uv run pytest -q`
+  - Current local result: `45 passed`.
+- 2026-02-12: Re-ran external repo gates:
+  - `container-craft`: `uv run -- ruff check .`, `uv run -- mypy`,
+    `uv run -- pytest -q` (`48 passed`)
+  - `dash-pca`: `ruff`, `pyright`, and `pytest -q`
+    (`353 passed, 1 skipped`)
+- 2026-02-12: Validated requirements traceability anchors:
+  - checked `60` links across `17` docs files
+  - missing anchors: `0`
+- 2026-02-12: Refactored `nova_dash_bridge.FileTransferService` to delegate
+  control-plane transfer operations to `nova_file_api.TransferService`,
+  preserving bridge-only policy and export/download helpers.
+- 2026-02-12: Added generated OpenAPI client smoke test:
+  `packages/nova_file_api/tests/test_generated_client_smoke.py`
+  using `openapi-python-client` generation + compile verification.
+- 2026-02-12: Re-ran runtime quality gates after bridge delegation + client
+  smoke implementation:
+  - `source .venv/bin/activate && uv run ruff check . --fix`
+  - `source .venv/bin/activate && uv run ruff format .`
+  - `source .venv/bin/activate && uv run mypy`
+  - `source .venv/bin/activate && uv run pytest -q`
+  - Current local result: `46 passed`.
+- 2026-02-12: Added queue retry/pressure test coverage for `SqsJobPublisher`
+  configuration and publish-failure mappings.
+- 2026-02-12: Published release closure artifacts:
+  - `docs/plan/release/RELEASE-NOTES-2026-02-12.md`
+  - `docs/plan/release/HARD-CUTOVER-CHECKLIST.md`
+  - `docs/plan/release/RELEASE-VERSION-MANIFEST.md`
+- 2026-02-12: Re-ran required runtime quality gates:
+  - `source .venv/bin/activate && uv run ruff check . --fix`
+  - `source .venv/bin/activate && uv run ruff format .`
+  - `source .venv/bin/activate && uv run mypy`
+  - `source .venv/bin/activate && uv run pytest -q`
+  - Current local result: `49 passed`.
+- 2026-02-12: Re-verified hard-cutover runtime contract exposure:
+  - OpenAPI paths include only `/api/transfers/*`, `/api/jobs/*`,
+    `/healthz`, `/readyz`, and `/metrics/summary`.
+  - Runtime source contains no legacy import/path usage
+    (deprecated alias routes and retired package/module names).
+- 2026-02-12: Re-ran generated-client smoke gate:
+  - `source .venv/bin/activate && uv run pytest -q`
+    `packages/nova_file_api/tests/test_generated_client_smoke.py`
+  - Result: `1 passed`.
+- 2026-02-12: Added operator runbook for remaining external live gates:
+  `docs/plan/release/NONPROD-LIVE-VALIDATION-RUNBOOK.md`.

@@ -4,7 +4,7 @@
 
 ## Async Jobs + Cache + Observability Completion
 
-Order: 2 of 4
+Order: 2 of 5
 Parent plan: `docs/plan/PLAN.md`
 Depends on: `SUBPLAN-0001`
 
@@ -22,10 +22,10 @@ AWS-ready behavior and robust tests.
 
 Repository scope (this monorepo):
 
-- `apps/aws_file_api_service`
-- `apps/aws_auth_api_service`
-- `packages/aws_file_api`
-- `packages/aws_auth_api`
+- `apps/nova_file_api_service`
+- `apps/nova_auth_api_service`
+- `packages/nova_file_api`
+- `packages/nova_auth_api`
 - `packages/contracts`
 
 In scope:
@@ -70,7 +70,7 @@ In scope:
 
 - [x] Implement local TTL + shared Redis two-tier cache
 - [x] Ensure shared cache failures degrade gracefully
-- [ ] Add explicit cache hit/miss/fallback metrics
+- [x] Add explicit cache hit/miss/fallback metrics
 
 ### C. Observability and rollups
 
@@ -83,8 +83,8 @@ In scope:
 
 ### D. Test expansion
 
-- [ ] Add tests for remote auth fail-closed behavior
-- [ ] Add tests for Redis outage fallback
+- [x] Add tests for remote auth fail-closed behavior
+- [x] Add tests for Redis outage fallback
 - [x] Add tests for activity rollup summary edge cases
 - [x] Add tests for enqueue publish-failure behavior and idempotency failure path
 - [x] Add tests for readiness behavior with jobs feature disabled

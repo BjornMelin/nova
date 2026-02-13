@@ -1,4 +1,4 @@
-# AGENTS.md (aws-file-platform runtime)
+# AGENTS.md (nova runtime)
 
 This repository is the canonical runtime monorepo for file-transfer and
 auth API services. Infrastructure and IaC remain in
@@ -7,14 +7,15 @@ includes `~/repos/work/pca-analysis-dash/dash-pca`.
 
 ## Runtime Topology
 
-- `apps/aws_file_api_service/`: ASGI wrapper for file API runtime.
-- `apps/aws_auth_api_service/`: ASGI wrapper for auth API runtime.
-- `packages/aws_file_api/`: transfer + async jobs control-plane package.
-- `packages/aws_auth_api/`: token verify/introspect service package.
-- `packages/aws_dash_bridge/`: Dash/Flask/FastAPI bridge adapters.
+- `apps/nova_file_api_service/`: ASGI wrapper for file API runtime.
+- `apps/nova_auth_api_service/`: ASGI wrapper for auth API runtime.
+- `packages/nova_file_api/`: transfer + async jobs control-plane package.
+- `packages/nova_auth_api/`: token verify/introspect service package.
+- `packages/nova_dash_bridge/`: Dash/Flask/FastAPI bridge adapters.
 - `packages/contracts/`: OpenAPI and shared contract artifacts.
 - `docs/architecture/`: requirements, ADRs, and SPECs.
 - `docs/plan/`: execution plans, subplans, and triggers.
+- `docs/plan/release/`: release notes, checklists, and runbooks.
 
 ## SKILLS AND TOOLS
 
@@ -65,6 +66,8 @@ All code and docs must remain production-ready.
 - Keep `docs/plan/PLAN.md` synchronized with current implementation state.
 - Treat OpenAPI as the contract and update SPEC/ADR docs first for
   contract-level changes.
+- Keep generated-client smoke coverage working for contract changes
+  (`test_generated_client_smoke.py`).
 - Keep dependencies lean and maintained.
 - Never log presigned URLs, JWTs, or signed query values.
 - Never run synchronous JWT verification directly in async route/dependency
@@ -76,10 +79,7 @@ All code and docs must remain production-ready.
   - `/api/transfers/*`
   - `/api/jobs/*`
   - `/metrics/summary`
-- Do not introduce legacy names or paths:
-  - `/api/file-transfer/*`
-  - `aws_file_transfer_api`
-  - `aws_dash_s3_file_handler`
+- Do not introduce deprecated alias routes or retired package/module names.
 - Do not add compatibility alias routes or namespace shims.
 - Fail reviews when legacy patterns are introduced.
 
@@ -87,7 +87,7 @@ Required verification command:
 
 ```bash
 source .venv/bin/activate && \
-rg -n "/api/file-transfer|aws_file_transfer_api|aws_dash_s3_file_handler" .
+rg -n "/api/transfers|/api/jobs|/metrics/summary" apps packages docs
 ```
 
 ### Runtime Invariants That Must Be Preserved
@@ -120,7 +120,7 @@ rg --files apps packages docs
 find apps packages -maxdepth 3 -type d | sort
 rg -n "/api/transfers|/api/jobs|/metrics/summary" \
   packages docs
-rg -n "aws_file_api|aws_auth_api|aws_dash_bridge" \
+rg -n "nova_file_api|nova_auth_api|nova_dash_bridge" \
   apps packages docs
 ```
 
@@ -132,6 +132,8 @@ Always prefix commands with `source .venv/bin/activate &&`.
 source .venv/bin/activate && uv run ruff check . --fix && uv run ruff format .
 source .venv/bin/activate && uv run mypy
 source .venv/bin/activate && uv run pytest -q
+source .venv/bin/activate && uv run pytest -q \
+  packages/nova_file_api/tests/test_generated_client_smoke.py
 ```
 
 ## Execution Commands by Scope
@@ -145,17 +147,17 @@ source .venv/bin/activate && uv lock
 ### Run services locally
 
 ```bash
-source .venv/bin/activate && uv run uvicorn aws_file_api_service.main:app \
+source .venv/bin/activate && uv run uvicorn nova_file_api_service.main:app \
   --reload
-source .venv/bin/activate && uv run uvicorn aws_auth_api_service.main:app \
+source .venv/bin/activate && uv run uvicorn nova_auth_api_service.main:app \
   --reload
 ```
 
 ### Targeted tests
 
 ```bash
-source .venv/bin/activate && uv run pytest -q packages/aws_file_api/tests
-source .venv/bin/activate && uv run pytest -q packages/aws_auth_api/tests
+source .venv/bin/activate && uv run pytest -q packages/nova_file_api/tests
+source .venv/bin/activate && uv run pytest -q packages/nova_auth_api/tests
 ```
 
 ## Cross-Repo Coordination (Required Before Finalizing)
@@ -184,14 +186,14 @@ Path: `~/repos/work/pca-analysis-dash/dash-pca`
 
 Must align:
 
-- imports reference `aws_dash_bridge` and `aws_file_api`.
+- imports reference `nova_dash_bridge` and `nova_file_api`.
 - endpoint usage references `/api/transfers/*` and `/api/jobs/*`.
 - async upload + job polling behavior remains contract compliant.
 
 Verification commands:
 
 ```bash
-rg -n "/api/transfers|/api/jobs|aws_dash_bridge|aws_file_api" \
+rg -n "/api/transfers|/api/jobs|nova_dash_bridge|nova_file_api" \
   ~/repos/work/pca-analysis-dash/dash-pca
 ```
 
@@ -216,6 +218,9 @@ change:
 - `FINAL-PLAN.md` progress and checklist state.
 - `docs/plan/PLAN.md` progress and phase checklists.
 - impacted `docs/plan/subplans/*.md` and `docs/plan/triggers/*.md`.
+- impacted `docs/plan/release/*.md` release artifacts.
+- `docs/plan/release/NONPROD-LIVE-VALIDATION-RUNBOOK.md` when live AWS
+  gate status changes.
 
 When review/regression fixes change runtime semantics, include:
 
