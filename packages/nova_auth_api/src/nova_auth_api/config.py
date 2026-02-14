@@ -16,8 +16,8 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    app_name: str = Field(default="nova-auth-api")
-    environment: str = Field(default="dev")
+    app_name: str = Field(default="nova-auth-api", alias="APP_NAME")
+    environment: str = Field(default="dev", alias="ENVIRONMENT")
 
     oidc_issuer: str | None = Field(default=None, alias="OIDC_ISSUER")
     oidc_audience: str | None = Field(default=None, alias="OIDC_AUDIENCE")
