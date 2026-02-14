@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from pydantic import Field
+import warnings
+
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from nova_file_api.models import (
@@ -237,7 +239,7 @@ class Settings(BaseSettings):
         ge=1,
         le=10,
     )
-    jobs_worker_update_token: str | None = Field(
+    jobs_worker_update_token: SecretStr | None = Field(
         default=None,
         alias="JOBS_WORKER_UPDATE_TOKEN",
     )
@@ -257,15 +259,15 @@ class Settings(BaseSettings):
     )
 
     @property
-    def required_scopes(self) -> tuple[str, ...]:
-        """Return configured required scopes as a tuple."""
+    def default_required_scopes(self) -> tuple[str, ...]:
+        """Return configured default required scopes as a tuple."""
         if not self.oidc_required_scopes.strip():
             return ()
         return tuple(s for s in self.oidc_required_scopes.split(" ") if s)
 
     @property
-    def required_permissions(self) -> tuple[str, ...]:
-        """Return configured required permissions as a tuple."""
+    def default_required_permissions(self) -> tuple[str, ...]:
+        """Return configured default required permissions as a tuple."""
         if not self.oidc_required_permissions.strip():
             return ()
         return tuple(
@@ -273,3 +275,29 @@ class Settings(BaseSettings):
             for permission in self.oidc_required_permissions.split(" ")
             if permission
         )
+
+    @property
+    def required_scopes(self) -> tuple[str, ...]:
+        """Backward-compatible alias for default_required_scopes."""
+        warnings.warn(
+            (
+                "Settings.required_scopes is deprecated; "
+                "use default_required_scopes"
+            ),
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.default_required_scopes
+
+    @property
+    def required_permissions(self) -> tuple[str, ...]:
+        """Backward-compatible alias for default_required_permissions."""
+        warnings.warn(
+            (
+                "Settings.required_permissions is deprecated; "
+                "use default_required_permissions"
+            ),
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.default_required_permissions

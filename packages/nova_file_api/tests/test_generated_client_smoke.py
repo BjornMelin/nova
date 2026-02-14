@@ -16,6 +16,9 @@ _SUBPROCESS_TIMEOUT_SECONDS = 30
 
 def test_generated_client_smoke(tmp_path: Path) -> None:
     """Generate a Python client from OpenAPI and compile generated files."""
+    if importlib.util.find_spec("openapi_python_client") is None:
+        pytest.skip("openapi_python_client dependency is not installed")
+
     app = create_app()
     schema_path = tmp_path / "openapi.json"
     schema_path.write_text(
@@ -23,9 +26,6 @@ def test_generated_client_smoke(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     output_path = tmp_path / "generated_client"
-
-    if importlib.util.find_spec("openapi_python_client") is None:
-        pytest.skip("openapi_python_client dependency is not installed")
 
     try:
         generate = subprocess.run(

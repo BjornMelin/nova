@@ -134,8 +134,10 @@ class Authenticator:
         url = f"{base_url.rstrip('/')}/v1/token/verify"
         payload = {
             "access_token": token,
-            "required_scopes": list(self._settings.required_scopes),
-            "required_permissions": list(self._settings.required_permissions),
+            "required_scopes": list(self._settings.default_required_scopes),
+            "required_permissions": list(
+                self._settings.default_required_permissions
+            ),
         }
         timeout = self._settings.remote_auth_timeout_seconds
 
@@ -165,13 +167,13 @@ class Authenticator:
         return _principal_from_claims(claims=claims_raw)
 
     def _enforce_required_authorization(self, *, principal: Principal) -> None:
-        required_scopes = set(self._settings.required_scopes)
+        required_scopes = set(self._settings.default_required_scopes)
         if required_scopes and not required_scopes.issubset(
             set(principal.scopes)
         ):
             raise forbidden("missing required scopes")
 
-        required_permissions = set(self._settings.required_permissions)
+        required_permissions = set(self._settings.default_required_permissions)
         if required_permissions and not required_permissions.issubset(
             set(principal.permissions)
         ):
@@ -191,8 +193,8 @@ class Authenticator:
             issuer=settings.oidc_issuer,
             audience=settings.oidc_audience,
             jwks_url=settings.oidc_jwks_url,
-            required_scopes=settings.required_scopes,
-            required_permissions=settings.required_permissions,
+            required_scopes=settings.default_required_scopes,
+            required_permissions=settings.default_required_permissions,
             leeway_s=settings.oidc_clock_skew_seconds,
         )
         return JWTVerifier(config=config)
@@ -258,14 +260,20 @@ def _collect_string_claim(value: object) -> list[str]:
     if value is None:
         return []
     if isinstance(value, str):
-        return [segment for segment in value.split(" ") if segment]
+        return [
+            segment.strip() for segment in value.split(" ") if segment.strip()
+        ]
     if isinstance(value, (list, tuple)):
         output: list[str] = []
         for item in value:
-            if isinstance(item, str) and item:
-                output.append(item)
+            if isinstance(item, str) and item.strip():
+                output.append(item.strip())
         return output
-    return []
+    raise FileTransferError(
+        code="invalid_token",
+        message="token claim type is invalid",
+        status_code=401,
+    )
 
 
 def _local_auth_error(*, exc: AuthError) -> FileTransferError:
@@ -297,7 +305,7 @@ def _www_authenticate_from_auth_error(*, exc: AuthError) -> str | None:
         return None
     try:
         value = method()
-    except Exception:
+    except (ValueError, TypeError, RuntimeError):
         return None
     if isinstance(value, str) and value:
         return value

@@ -19,6 +19,15 @@ from nova_file_api.errors import FileTransferError, internal_error
 from nova_file_api.middleware import request_context_middleware
 from nova_file_api.models import ErrorBody, ErrorEnvelope
 
+_LOGGING_CONFIGURED = False
+_HIDDEN_FIELDS = {
+    "token",
+    "authorization",
+    "url",
+    "presigned_url",
+    "signature",
+}
+
 
 def create_app(*, container_override: AppContainer | None = None) -> FastAPI:
     """Create configured FastAPI application."""
@@ -64,7 +73,7 @@ def create_app(*, container_override: AppContainer | None = None) -> FastAPI:
         return JSONResponse(
             status_code=exc.status_code,
             content=payload.model_dump(),
-            headers=exc.headers or None,
+            headers=exc.headers,
         )
 
     @app.exception_handler(Exception)
@@ -100,6 +109,10 @@ def _request_id(*, request: Request) -> str | None:
 
 
 def _configure_logging() -> None:
+    global _LOGGING_CONFIGURED
+    if _LOGGING_CONFIGURED:
+        return
+
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     structlog.configure(
         processors=[
@@ -113,6 +126,7 @@ def _configure_logging() -> None:
         logger_factory=structlog.stdlib.LoggerFactory(),
         cache_logger_on_first_use=True,
     )
+    _LOGGING_CONFIGURED = True
 
 
 def _redact_sensitive_fields(
@@ -122,15 +136,8 @@ def _redact_sensitive_fields(
 ) -> MutableMapping[str, Any]:
     """Redact sensitive fields before emitting structured logs."""
     output: dict[str, Any] = {}
-    hidden_fields = {
-        "token",
-        "authorization",
-        "url",
-        "presigned_url",
-        "signature",
-    }
     for key, value in event_dict.items():
-        if key.lower() in hidden_fields:
+        if key.lower() in _HIDDEN_FIELDS:
             output[key] = "[REDACTED]"
         else:
             output[key] = _sanitize_log_value(value)
@@ -146,13 +153,7 @@ def _sanitize_log_value(value: object) -> object:
     if isinstance(value, dict):
         nested: dict[str, object] = {}
         for key, item in value.items():
-            if key.lower() in {
-                "token",
-                "authorization",
-                "url",
-                "presigned_url",
-                "signature",
-            }:
+            if key.lower() in _HIDDEN_FIELDS:
                 nested[key] = "[REDACTED]"
             else:
                 nested[key] = _sanitize_log_value(item)

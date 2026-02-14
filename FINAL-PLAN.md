@@ -42,7 +42,7 @@ Scoring model:
 
 ### HTTP endpoint cutover
 
-Remove old `/api/transfers/*` routes and replace with:
+Remove old `/api/file-transfer/*` routes and replace with:
 
 - POST /api/transfers/uploads/initiate
 - POST /api/transfers/uploads/sign-parts
@@ -52,7 +52,7 @@ Remove old `/api/transfers/*` routes and replace with:
 - POST /api/jobs/enqueue
 - GET /api/jobs/{job_id}
 - POST /api/jobs/{job_id}/cancel
-- POST /api/jobs/{job_id}/result (worker/internal)
+- POST /api/jobs/{job_id}/result
 - GET /healthz
 - GET /readyz
 - GET /metrics/summary

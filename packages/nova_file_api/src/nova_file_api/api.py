@@ -445,11 +445,6 @@ async def enqueue_job(
             )
         raise
 
-    await run_in_threadpool(
-        container.activity_store.record,
-        principal=principal,
-        event_type="jobs_enqueue",
-    )
     response = EnqueueJobResponse(job_id=job.job_id, status=job.status)
     if key is not None:
         await container.idempotency_store.store_response(
@@ -459,6 +454,11 @@ async def enqueue_job(
             request_payload=request_payload,
             response_payload=response.model_dump(mode="json"),
         )
+    await run_in_threadpool(
+        container.activity_store.record,
+        principal=principal,
+        event_type="jobs_enqueue",
+    )
     _emit_request_metric(container=container, route="jobs_enqueue", status="ok")
     return response
 
@@ -564,9 +564,18 @@ async def healthz() -> HealthResponse:
 async def readyz(request: Request) -> ReadinessResponse:
     """Return readiness checks for critical dependencies."""
     container = get_container(request)
+    logger = structlog.get_logger("api")
+    try:
+        shared_cache = await container.shared_cache.ping()
+    except Exception:
+        logger.exception(
+            "readyz_shared_cache_ping_failed",
+            route="/readyz",
+        )
+        shared_cache = False
     checks = {
         "bucket_configured": bool(container.settings.file_transfer_bucket),
-        "shared_cache": await container.shared_cache.ping(),
+        "shared_cache": shared_cache,
     }
     return ReadinessResponse(ok=all(checks.values()), checks=checks)
 
@@ -605,7 +614,10 @@ def _validate_worker_update_token(
 ) -> None:
     """Validate worker update token when configured."""
     expected = container.settings.jobs_worker_update_token
-    if expected is None or not expected.strip():
+    expected_token = (
+        expected.get_secret_value() if expected is not None else None
+    )
+    if expected_token is None or not expected_token.strip():
         if container.settings.environment.lower() in {"prod", "production"}:
             raise forbidden(_WORKER_TOKEN_NOT_CONFIGURED)
         structlog.get_logger("api").warning(
@@ -614,5 +626,5 @@ def _validate_worker_update_token(
         )
         return
     provided = worker_token.strip() if worker_token else ""
-    if not compare_digest(expected.strip(), provided):
+    if not compare_digest(expected_token, provided):
         raise forbidden("invalid worker update token")

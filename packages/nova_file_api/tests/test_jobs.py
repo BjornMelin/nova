@@ -32,6 +32,7 @@ from nova_file_api.models import (
     JobStatus,
     Principal,
 )
+from pydantic import SecretStr
 from starlette.requests import Request
 
 
@@ -497,7 +498,7 @@ def test_job_service_update_result_rejects_invalid_transition() -> None:
 def test_update_job_result_requires_valid_worker_token() -> None:
     settings = Settings()
     settings.jobs_enabled = True
-    settings.jobs_worker_update_token = "test-worker-token"
+    settings.jobs_worker_update_token = SecretStr("test-worker-token")
 
     metrics = MetricsCollector(namespace="Tests")
     shared = SharedRedisCache(url=None)

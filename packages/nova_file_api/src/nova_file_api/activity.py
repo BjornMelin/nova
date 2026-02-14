@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import re
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -53,6 +54,17 @@ class MemoryActivityStore:
         details: str | None = None,
     ) -> None:
         """Record one event for the principal and current day."""
+        if details is not None:
+            logger.info(
+                "memory activity record received details",
+                extra=_record_log_context(
+                    principal=principal,
+                    event_type=event_type,
+                    day=_day_key(),
+                    table=None,
+                    details=details,
+                ),
+            )
         day = _day_key()
         self._events_per_day[day][event_type] += 1
         self._subjects_per_day[day].add(principal.subject)
@@ -96,6 +108,13 @@ class DynamoActivityStore:
             details: Optional diagnostic context from failure paths.
         """
         day = _day_key()
+        context = _record_log_context(
+            principal=principal,
+            event_type=event_type,
+            day=day,
+            table=self._table_name,
+            details=details,
+        )
         summary_key = {"pk": {"S": f"ROLLUP#{day}"}, "sk": {"S": "SUMMARY"}}
         user_marker_key = {
             "pk": {"S": f"USERDAY#{day}"},
@@ -119,15 +138,7 @@ class DynamoActivityStore:
         except (ClientError, BotoCoreError) as exc:
             logger.warning(
                 "activity rollup counter updates failed",
-                extra={
-                    "event_type": event_type,
-                    "day": day,
-                    "table": self._table_name,
-                    "principal_fingerprint": self._principal_fingerprint(
-                        principal=principal
-                    ),
-                    "error_type": exc.__class__.__name__,
-                },
+                extra={**context, "error_type": exc.__class__.__name__},
                 exc_info=exc,
             )
             return
@@ -138,14 +149,7 @@ class DynamoActivityStore:
             logger.warning(
                 "activity user marker write failed; "
                 "skipping user marker accounting",
-                extra={
-                    "day": day,
-                    "table": self._table_name,
-                    "principal_fingerprint": self._principal_fingerprint(
-                        principal=principal
-                    ),
-                    "error_type": exc.__class__.__name__,
-                },
+                extra={**context, "error_type": exc.__class__.__name__},
                 exc_info=exc,
             )
             user_was_new = False
@@ -157,14 +161,7 @@ class DynamoActivityStore:
             except (ClientError, BotoCoreError) as exc:
                 logger.warning(
                     "activity distinct active user increment failed",
-                    extra={
-                        "day": day,
-                        "table": self._table_name,
-                        "principal_fingerprint": self._principal_fingerprint(
-                            principal=principal
-                        ),
-                        "error_type": exc.__class__.__name__,
-                    },
+                    extra={**context, "error_type": exc.__class__.__name__},
                     exc_info=exc,
                 )
 
@@ -176,12 +173,7 @@ class DynamoActivityStore:
             logger.warning(
                 "activity event-type marker write failed; "
                 "skipping event-type accounting",
-                extra={
-                    "day": day,
-                    "table": self._table_name,
-                    "event_type": event_type,
-                    "error_type": exc.__class__.__name__,
-                },
+                extra={**context, "error_type": exc.__class__.__name__},
                 exc_info=exc,
             )
             event_type_was_new = False
@@ -193,19 +185,9 @@ class DynamoActivityStore:
             except (ClientError, BotoCoreError) as exc:
                 logger.warning(
                     "activity distinct event-type increment failed",
-                    extra={
-                        "day": day,
-                        "table": self._table_name,
-                        "event_type": event_type,
-                        "error_type": exc.__class__.__name__,
-                    },
+                    extra={**context, "error_type": exc.__class__.__name__},
                     exc_info=exc,
                 )
-
-    @staticmethod
-    def _principal_fingerprint(*, principal: Principal) -> str:
-        digest = hashlib.sha256(principal.subject.encode("utf-8")).hexdigest()
-        return digest[:16]
 
     def summary(self) -> dict[str, int]:
         """Read current-day aggregate counters from DynamoDB."""
@@ -283,6 +265,65 @@ class DynamoActivityStore:
             if code == "ConditionalCheckFailedException":
                 return False
             raise
+
+
+def _record_log_context(
+    *,
+    principal: Principal,
+    event_type: str,
+    day: str,
+    table: str | None,
+    details: str | None,
+) -> dict[str, str | int | None]:
+    context: dict[str, str | int | None] = {
+        "event_type": event_type,
+        "day": day,
+        "principal_fingerprint": _principal_fingerprint(principal=principal),
+    }
+    if table is not None:
+        context["table"] = table
+    sanitized_details = _sanitize_details(details)
+    if sanitized_details is not None:
+        context["details"] = sanitized_details
+    return context
+
+
+def _sanitize_details(details: str | None) -> str | None:
+    if details is None:
+        return None
+    redacted = re.sub(
+        r"\b(?:[A-Za-z0-9_-]{16,}\.){2}[A-Za-z0-9_-]{16,}\b",
+        "[REDACTED_TOKEN]",
+        details,
+    )
+    redacted = re.sub(
+        r"(?i)(authorization\s*[:=]\s*)([^\s;,]+)",
+        r"\1[REDACTED]",
+        redacted,
+    )
+    redacted = re.sub(
+        r"(?i)(bearer\s+)([^\s;,]+)",
+        r"\1[REDACTED]",
+        redacted,
+    )
+    redacted = re.sub(
+        r"(?i)(token\s*[:=]\s*)([^\s;,]+)",
+        r"\1[REDACTED]",
+        redacted,
+    )
+    redacted = re.sub(
+        r"(?i)(secret\s*[:=]\s*)([^\s;,]+)",
+        r"\1[REDACTED]",
+        redacted,
+    )
+    if len(redacted) > 256:
+        return f"{redacted[:128]}...truncated"
+    return redacted
+
+
+def _principal_fingerprint(*, principal: Principal) -> str:
+    digest = hashlib.sha256(principal.subject.encode("utf-8")).hexdigest()
+    return digest[:16]
 
 
 def _day_key() -> str:
