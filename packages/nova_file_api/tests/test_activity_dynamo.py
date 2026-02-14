@@ -231,9 +231,8 @@ def test_dynamo_activity_record_logs_counter_failures_and_hides_principal(
     assert cast(
         str, warning_data["principal_fingerprint"]
     ) == _expected_principal_fingerprint(subject=principal.subject)
-    assert "user-1" not in warning_records[
-        0
-    ].getMessage() and principal.subject not in cast(
+    assert "user-1" not in warning_records[0].getMessage()
+    assert principal.subject not in cast(
         str, warning_data["principal_fingerprint"]
     )
 

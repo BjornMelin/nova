@@ -131,6 +131,7 @@ async def test_local_verification_uses_thread_boundary(
     async def _run_sync(
         func: Callable[[str], dict[str, Any]],
         token: str,
+        **_kwargs: Any,
     ) -> dict[str, Any]:
         call_count["count"] += 1
         return func(token)

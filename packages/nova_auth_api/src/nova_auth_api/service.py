@@ -31,6 +31,7 @@ class TokenVerificationService:
         """Initialize service state."""
         self._settings = settings
         self._verifier = _build_verifier(settings=settings)
+        self._thread_limiter: Any | None = None
 
     async def verify(self, request: TokenVerifyRequest) -> TokenVerifyResponse:
         """Verify access token and return principal plus claims."""
@@ -90,10 +91,17 @@ class TokenVerificationService:
                 "auth verifier unavailable",
                 www_authenticate='Bearer error="invalid_token"',
             )
+        thread_limiter = self._thread_limiter
+        if thread_limiter is None:
+            thread_limiter = _jwt_verifier_thread_limiter()
+            self._thread_limiter = thread_limiter
         try:
+            # Default AnyIO worker pool is token-limited; tune OIDC_VERIFIER_
+            # THREAD_TOKENS via Settings when changing expected verifier load.
             claims = await anyio.to_thread.run_sync(
                 verifier.verify_access_token,
                 access_token,
+                limiter=thread_limiter,
             )
         except AuthError as exc:
             raise from_oidc_auth_error(exc) from exc
@@ -125,6 +133,23 @@ def _build_verifier(*, settings: Settings) -> JWTVerifier | None:
         leeway_s=settings.oidc_clock_skew_seconds,
     )
     return JWTVerifier(config=config)
+
+
+def _jwt_verifier_thread_limiter() -> Any:
+    """Return the default AnyIO token bucket for thread pool execution."""
+    return anyio.to_thread.current_default_thread_limiter()
+
+
+def _set_verifier_thread_tokens(
+    total_tokens: int,
+) -> None:
+    """Set the process-wide default AnyIO thread-limiter token count.
+
+    This is wired at application startup from SETTINGS to document the expected
+    verifier concurrency and make limits tunable per deployment.
+    """
+    limiter = _jwt_verifier_thread_limiter()
+    limiter.total_tokens = total_tokens
 
 
 def _principal_from_claims(*, claims: dict[str, Any]) -> Principal:

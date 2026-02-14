@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Protocol, cast
 
 import pytest
 from nova_file_api.cache import (
@@ -9,6 +9,7 @@ from nova_file_api.cache import (
     TwoTierCache,
 )
 from nova_file_api.metrics import MetricsCollector
+from redis.asyncio import Redis
 from redis.exceptions import RedisError
 
 
@@ -67,13 +68,37 @@ class _ErrorRedisClient:
         return False
 
 
+class AsyncRedisClientProtocol(Protocol):
+    """Protocol for cache clients used by SharedRedisCache tests."""
+
+    async def get(self, key: str) -> str | None: ...
+
+    async def set(
+        self,
+        *,
+        name: str,
+        value: str,
+        ex: int,
+        nx: bool = False,
+    ) -> bool: ...
+
+    async def delete(self, key: str) -> int: ...
+
+    async def ping(self) -> bool: ...
+
+
 def _build_local_cache() -> LocalTTLCache:
     return LocalTTLCache(ttl_seconds=60, max_entries=128)
 
 
-def _build_shared_cache(*, client: Any) -> SharedRedisCache:
+def _build_shared_cache(
+    *,
+    client: AsyncRedisClientProtocol,
+) -> SharedRedisCache:
+    # Testing-only: inject a mock Redis client via SharedRedisCache._client to
+    # bypass async network initialization and keep cache tests deterministic.
     shared = SharedRedisCache(url=None)
-    shared._client = client
+    shared._client = cast(Redis, client)
     return shared
 
 

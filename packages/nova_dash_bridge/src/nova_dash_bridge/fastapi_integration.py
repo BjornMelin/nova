@@ -1,11 +1,10 @@
 """Optional FastAPI adapter for file transfer endpoints."""
 # mypy: disable-error-code="untyped-decorator"
 
-from __future__ import annotations
-
 from functools import wraps
 from typing import TYPE_CHECKING, Any
 
+import anyio
 from pydantic import ValidationError
 
 from nova_dash_bridge.config import (
@@ -135,6 +134,12 @@ async def _parse_payload(request: Request, model: type[Any]) -> Any:
         ) from exc
 
 
+def _configure_thread_limiter(*, total_tokens: int) -> None:
+    """Configure AnyIO thread tokens before request handling starts."""
+    limiter = anyio.to_thread.current_default_thread_limiter()
+    limiter.total_tokens = total_tokens
+
+
 def create_fastapi_router(
     *,
     env_config: FileTransferEnvConfig,
@@ -247,6 +252,12 @@ def create_fastapi_app(
     """
     _, fastapi, _, _ = _fastapi_imports()
     app = fastapi()
+
+    async def _startup() -> None:
+        _configure_thread_limiter(total_tokens=env_config.thread_tokens)
+
+    app.add_event_handler("startup", _startup)
+
     app.include_router(
         create_fastapi_router(
             env_config=env_config,

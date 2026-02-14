@@ -17,12 +17,13 @@ def _normalize_allowed_extensions(allowed_extensions: set[str]) -> set[str]:
         set[str]: Normalized lowercase extensions prefixed with ``.``.
 
     Raises:
-        ValueError: If entries are not strings or contain empty values.
+        TypeError: If entries are not strings.
+        ValueError: If entries are blank or normalize to an empty set.
     """
     normalized: set[str] = set()
     for raw_value in allowed_extensions:
         if not isinstance(raw_value, str):
-            raise ValueError(
+            raise TypeError(
                 "allowed_extensions entries must be non-empty strings"
             )
         raw = raw_value.strip().lower()

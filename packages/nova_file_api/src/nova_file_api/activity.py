@@ -20,7 +20,13 @@ logger = logging.getLogger(__name__)
 class ActivityStore(Protocol):
     """Interface for activity rollup storage."""
 
-    def record(self, *, principal: Principal, event_type: str) -> None:
+    def record(
+        self,
+        *,
+        principal: Principal,
+        event_type: str,
+        details: str | None = None,
+    ) -> None:
         """Record activity event for principal."""
 
     def summary(self) -> dict[str, int]:
@@ -39,7 +45,13 @@ class MemoryActivityStore:
         self._events_per_day = defaultdict(lambda: defaultdict(int))
         self._subjects_per_day = defaultdict(set)
 
-    def record(self, *, principal: Principal, event_type: str) -> None:
+    def record(
+        self,
+        *,
+        principal: Principal,
+        event_type: str,
+        details: str | None = None,
+    ) -> None:
         """Record one event for the principal and current day."""
         day = _day_key()
         self._events_per_day[day][event_type] += 1
@@ -69,12 +81,19 @@ class DynamoActivityStore:
         self._table_name = table_name
         self._ddb = boto3.client("dynamodb")
 
-    def record(self, *, principal: Principal, event_type: str) -> None:
+    def record(
+        self,
+        *,
+        principal: Principal,
+        event_type: str,
+        details: str | None = None,
+    ) -> None:
         """Update activity counters for one event.
 
         Args:
             principal: Authenticated caller principal.
             event_type: Event name for per-type counters.
+            details: Optional diagnostic context from failure paths.
         """
         day = _day_key()
         summary_key = {"pk": {"S": f"ROLLUP#{day}"}, "sk": {"S": "SUMMARY"}}

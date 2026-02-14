@@ -100,6 +100,12 @@ class Settings(BaseSettings):
         ge=0,
         le=120,
     )
+    oidc_verifier_thread_tokens: int = Field(
+        default=40,
+        alias="OIDC_VERIFIER_THREAD_TOKENS",
+        ge=1,
+        le=1000,
+    )
 
     remote_auth_base_url: str | None = Field(
         default=None,

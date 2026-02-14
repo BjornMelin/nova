@@ -13,6 +13,16 @@ class StrictModel(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
+def normalize_str_sequence(value: tuple[str, ...]) -> tuple[str, ...]:
+    """Normalize and deduplicate a tuple of strings preserving order."""
+    output: list[str] = []
+    for entry in value:
+        normalized = entry.strip()
+        if normalized:
+            output.append(normalized)
+    return tuple(dict.fromkeys(output))
+
+
 class Principal(StrictModel):
     """Authorized caller identity resolved from token claims."""
 
@@ -33,12 +43,7 @@ class TokenVerifyRequest(StrictModel):
     @field_validator("required_scopes", "required_permissions")
     @classmethod
     def _normalize_values(cls, value: tuple[str, ...]) -> tuple[str, ...]:
-        output: list[str] = []
-        for entry in value:
-            normalized = entry.strip()
-            if normalized:
-                output.append(normalized)
-        return tuple(dict.fromkeys(output))
+        return normalize_str_sequence(value)
 
 
 class TokenVerifyResponse(StrictModel):
@@ -58,12 +63,7 @@ class TokenIntrospectRequest(StrictModel):
     @field_validator("required_scopes", "required_permissions")
     @classmethod
     def _normalize_values(cls, value: tuple[str, ...]) -> tuple[str, ...]:
-        output: list[str] = []
-        for entry in value:
-            normalized = entry.strip()
-            if normalized:
-                output.append(normalized)
-        return tuple(dict.fromkeys(output))
+        return normalize_str_sequence(value)
 
 
 class TokenIntrospectResponse(StrictModel):

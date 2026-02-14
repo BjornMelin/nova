@@ -78,3 +78,17 @@ def test_error_envelope_for_unauthorized_token() -> None:
     payload: dict[str, Any] = response.json()
     assert payload["error"]["code"] == "unauthorized"
     assert payload["error"]["request_id"] == "req-1"
+
+
+def test_introspect_success_response_shape() -> None:
+    app = create_app(service_override=_StubService())
+    with TestClient(app) as client:
+        response = client.post(
+            "/v1/token/introspect",
+            json={"access_token": "ok"},
+        )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["active"] is True
+    assert payload["principal"]["subject"] == "sub"
+    assert payload["claims"]["sub"] == "sub"

@@ -155,12 +155,33 @@ async def sign_parts(
         session_id=payload.session_id,
     )
 
-    with container.metrics.timed("uploads_sign_parts_ms"):
-        response = await run_in_threadpool(
-            container.transfer_service.sign_parts,
-            payload,
-            principal,
+    try:
+        with container.metrics.timed("uploads_sign_parts_ms"):
+            response = await run_in_threadpool(
+                container.transfer_service.sign_parts,
+                payload,
+                principal,
+            )
+    except Exception as exc:
+        container.metrics.incr("uploads_sign_parts_failure_total")
+        _emit_request_metric(
+            container=container, route="uploads_sign_parts", status="error"
         )
+        log = structlog.get_logger("api")
+        log.exception(
+            "sign_parts_upload_request_failed",
+            route="/api/transfers/uploads/sign-parts",
+            scope_id=principal.scope_id,
+            error=type(exc).__name__,
+            error_detail=str(exc),
+        )
+        await run_in_threadpool(
+            container.activity_store.record,
+            principal=principal,
+            event_type="uploads_sign_parts_failure",
+            details=str(exc),
+        )
+        raise
 
     container.metrics.incr("uploads_sign_parts_total")
     await run_in_threadpool(
@@ -188,12 +209,33 @@ async def complete_upload(
         session_id=payload.session_id,
     )
 
-    with container.metrics.timed("uploads_complete_ms"):
-        response = await run_in_threadpool(
-            container.transfer_service.complete_upload,
-            payload,
-            principal,
+    try:
+        with container.metrics.timed("uploads_complete_ms"):
+            response = await run_in_threadpool(
+                container.transfer_service.complete_upload,
+                payload,
+                principal,
+            )
+    except Exception as exc:
+        container.metrics.incr("uploads_complete_failure_total")
+        _emit_request_metric(
+            container=container, route="uploads_complete", status="error"
         )
+        log = structlog.get_logger("api")
+        log.exception(
+            "complete_upload_request_failed",
+            route="/api/transfers/uploads/complete",
+            scope_id=principal.scope_id,
+            error=type(exc).__name__,
+            error_detail=str(exc),
+        )
+        await run_in_threadpool(
+            container.activity_store.record,
+            principal=principal,
+            event_type="uploads_complete_failure",
+            details=str(exc),
+        )
+        raise
 
     container.metrics.incr("uploads_complete_total")
     await run_in_threadpool(
@@ -219,12 +261,33 @@ async def abort_upload(
         session_id=payload.session_id,
     )
 
-    with container.metrics.timed("uploads_abort_ms"):
-        response = await run_in_threadpool(
-            container.transfer_service.abort_upload,
-            payload,
-            principal,
+    try:
+        with container.metrics.timed("uploads_abort_ms"):
+            response = await run_in_threadpool(
+                container.transfer_service.abort_upload,
+                payload,
+                principal,
+            )
+    except Exception as exc:
+        container.metrics.incr("uploads_abort_failure_total")
+        _emit_request_metric(
+            container=container, route="uploads_abort", status="error"
         )
+        log = structlog.get_logger("api")
+        log.exception(
+            "abort_upload_request_failed",
+            route="/api/transfers/uploads/abort",
+            scope_id=principal.scope_id,
+            error=type(exc).__name__,
+            error_detail=str(exc),
+        )
+        await run_in_threadpool(
+            container.activity_store.record,
+            principal=principal,
+            event_type="uploads_abort_failure",
+            details=str(exc),
+        )
+        raise
 
     container.metrics.incr("uploads_abort_total")
     await run_in_threadpool(
@@ -252,12 +315,33 @@ async def presign_download(
         session_id=payload.session_id,
     )
 
-    with container.metrics.timed("downloads_presign_ms"):
-        response = await run_in_threadpool(
-            container.transfer_service.presign_download,
-            payload,
-            principal,
+    try:
+        with container.metrics.timed("downloads_presign_ms"):
+            response = await run_in_threadpool(
+                container.transfer_service.presign_download,
+                payload,
+                principal,
+            )
+    except Exception as exc:
+        container.metrics.incr("downloads_presign_failure_total")
+        _emit_request_metric(
+            container=container, route="downloads_presign", status="error"
         )
+        log = structlog.get_logger("api")
+        log.exception(
+            "presign_download_request_failed",
+            route="/api/transfers/downloads/presign",
+            scope_id=principal.scope_id,
+            error=type(exc).__name__,
+            error_detail=str(exc),
+        )
+        await run_in_threadpool(
+            container.activity_store.record,
+            principal=principal,
+            event_type="downloads_presign_failure",
+            details=str(exc),
+        )
+        raise
 
     container.metrics.incr("downloads_presign_total")
     await run_in_threadpool(
@@ -333,7 +417,26 @@ async def enqueue_job(
                 payload=payload.payload,
                 scope_id=principal.scope_id,
             )
-    except Exception:
+    except Exception as exc:
+        container.metrics.incr("jobs_enqueue_failure_total")
+        _emit_request_metric(
+            container=container, route="jobs_enqueue", status="error"
+        )
+        log = structlog.get_logger("api")
+        log.exception(
+            "jobs_enqueue_request_failed",
+            route="/api/jobs/enqueue",
+            scope_id=principal.scope_id,
+            idempotency_key=key,
+            error=type(exc).__name__,
+            error_detail=str(exc),
+        )
+        await run_in_threadpool(
+            container.activity_store.record,
+            principal=principal,
+            event_type="jobs_enqueue_failure",
+            details=str(exc),
+        )
         if key is not None and claimed_idempotency:
             await container.idempotency_store.discard_claim(
                 route="/api/jobs/enqueue",

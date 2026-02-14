@@ -62,7 +62,7 @@ def _parse_payload(model: type[Any]) -> Any:
         raise validation_error(
             "invalid request payload", details={"errors": exc.errors()}
         ) from exc
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         raise validation_error("request body must be valid JSON") from exc
 
 

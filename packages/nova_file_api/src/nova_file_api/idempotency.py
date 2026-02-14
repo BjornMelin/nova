@@ -129,6 +129,8 @@ class IdempotencyStore:
                 payload=claim_payload,
                 ttl_seconds=self._ttl_seconds,
             )
+        if not isinstance(existing, dict):
+            raise idempotency_conflict("stored idempotency record is invalid")
 
         _assert_entry_request_hash(entry=existing, expected_hash=request_hash)
         state = existing.get("state")

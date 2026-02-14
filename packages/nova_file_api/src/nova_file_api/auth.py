@@ -34,6 +34,7 @@ class Authenticator:
         self._settings = settings
         self._cache = cache
         self._verifier = self._build_verifier(settings)
+        self._thread_limiter: Any | None = None
 
     async def authenticate(
         self,
@@ -96,10 +97,18 @@ class Authenticator:
         if verifier is None:
             raise unauthorized("local jwt mode is misconfigured")
 
+        thread_limiter = self._thread_limiter
+        if thread_limiter is None:
+            thread_limiter = _jwt_verifier_thread_limiter()
+            self._thread_limiter = thread_limiter
+
         try:
+            # Default AnyIO worker pool is token-limited; tune
+            # OIDC_VERIFIER_THREAD_TOKENS via settings for expected load.
             claims = await anyio.to_thread.run_sync(
                 verifier.verify_access_token,
                 token,
+                limiter=thread_limiter,
             )
         except AuthError as exc:
             raise _local_auth_error(exc=exc) from exc
@@ -228,6 +237,21 @@ def _claim_as_str(*, claims: dict[str, Any], keys: Sequence[str]) -> str | None:
         if isinstance(value, str) and value.strip():
             return value.strip()
     return None
+
+
+def _jwt_verifier_thread_limiter() -> Any:
+    """Return the runtime AnyIO thread limiter used for verifier work."""
+    return anyio.to_thread.current_default_thread_limiter()
+
+
+def _set_verifier_thread_tokens(total_tokens: int) -> None:
+    """Set process-wide verifier thread capacity for sync JWT verification.
+
+    The default AnyIO thread-limiter protects event-loop liveness while running
+    CPU-bound or blocking verification steps in a worker pool.
+    """
+    limiter = _jwt_verifier_thread_limiter()
+    limiter.total_tokens = total_tokens
 
 
 def _collect_string_claim(value: object) -> list[str]:
