@@ -143,8 +143,9 @@ Create this structure in current repo:
   `/api/jobs/*`.
 - [x] Keep explicit ALB routing for transfer endpoints on `/api/transfers/*`.
 - [ ] Keep health check route alignment and tuned intervals/thresholds.
-- [ ] Health check alignment owner assigned (container-craft platform owner)
-  with target date before prod cutover.
+- [x] Health check alignment owner assigned:
+  container-craft platform owner (`@infra-platform`) with target date
+  `2026-02-20` before prod cutover.
 - [ ] Health check alignment sign-off completed via
   `docs/plan/release/NONPROD-LIVE-VALIDATION-RUNBOOK.md`.
 - [x] Keep/add env mappings for SQS/Redis/DynamoDB backends.
