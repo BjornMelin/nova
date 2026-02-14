@@ -34,6 +34,20 @@ AWS-live validations that cannot be proven by local repository checks.
 - `DASHBOARD_NAME` (CloudWatch dashboard for this service).
 - `ALARM_NAMES` (space-separated alarm names to validate).
 
+## 4b. AnyIO Thread-pool Tuning for Operations
+
+Before load tests in non-prod, confirm these env vars are set for expected
+concurrency:
+
+- `OIDC_VERIFIER_THREAD_TOKENS` (default: `40`) for local JWT verification
+  workers.
+- `FILE_TRANSFER_THREAD_TOKENS` (default: `80`) for transfer route thread-pool
+  work (`initiate`, `sign`, `complete`, `abort`, `presign`, enqueue).
+
+Tune upward if you observe queueing under realistic upload/login verification load;
+tune downward if CPU, event-loop lag, or memory usage rise under sustained
+stress.
+
 ## 5. Gate A: ALB Routing and Health
 
 ### A1. Basic route reachability (must not be 404)

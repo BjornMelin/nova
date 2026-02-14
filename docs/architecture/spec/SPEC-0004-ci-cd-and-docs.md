@@ -19,7 +19,8 @@ References:
 
 Every pull request MUST pass:
 
-- `source .venv/bin/activate && uv run ruff check . && uv run ruff format .`
+- `source .venv/bin/activate && uv run ruff check .`
+- `source .venv/bin/activate && uv run ruff check . --select I`
 - `source .venv/bin/activate && uv run mypy`
 - `source .venv/bin/activate && uv run pytest -q`
 - container image build validation
@@ -62,6 +63,10 @@ include updates to:
 - `README.md`
 - `PRD.md`
 - affected `requirements.md`, `SPEC`, `ADR`, and `PLAN`/`SUBPLAN` docs
+
+The PR template must include a completed checklist item referencing this rule (for
+example: `Documentation updated: README.md, PRD.md, affected requirements.md /
+SPEC / ADR / PLAN/SUBPLAN`) whenever behavior changes.
 
 ## 4. Client generation workflow
 

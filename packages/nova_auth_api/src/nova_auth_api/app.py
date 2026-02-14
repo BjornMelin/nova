@@ -24,9 +24,13 @@ from nova_auth_api.models import (
     TokenVerifyRequest,
     TokenVerifyResponse,
 )
-from nova_auth_api.service import TokenVerificationService
+from nova_auth_api.service import (
+    TokenVerificationService,
+    _set_verifier_thread_tokens,
+)
 
 _AUTH_SERVICE_NOT_INITIALIZED = "auth service not initialized"
+_LOGGING_CONFIGURED = False
 
 
 def create_app(
@@ -40,6 +44,7 @@ def create_app(
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         settings = settings_override or Settings()
+        _set_verifier_thread_tokens(settings.oidc_verifier_thread_tokens)
         app.state.settings = settings
         app.state.auth_service = service_override or TokenVerificationService(
             settings=settings
@@ -101,7 +106,7 @@ def create_app(
         return JSONResponse(
             status_code=exc.status_code,
             content=payload.model_dump(),
-            headers=exc.headers or None,
+            headers=exc.headers,
         )
 
     @app.exception_handler(Exception)
@@ -171,6 +176,10 @@ def _request_id(*, request: Request) -> str | None:
 
 def _configure_logging() -> None:
     """Configure structured logging."""
+    global _LOGGING_CONFIGURED
+    if _LOGGING_CONFIGURED:
+        return
+
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     structlog.configure(
         processors=[
@@ -184,6 +193,7 @@ def _configure_logging() -> None:
         logger_factory=structlog.stdlib.LoggerFactory(),
         cache_logger_on_first_use=True,
     )
+    _LOGGING_CONFIGURED = True
 
 
 def _redact_sensitive_fields(

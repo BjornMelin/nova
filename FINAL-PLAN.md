@@ -139,9 +139,9 @@ Create this structure in current repo:
 
   Repo: ~/repos/work/infra-stack/container-craft
 
-- [x] Update ALB routing rules from `/api/transfers/*` to:
-- [x] `/api/transfers/*`
-- [x] `/api/jobs/*`
+- [x] Update ALB routing rules for async jobs from `/api/transfers/*` to
+  `/api/jobs/*`.
+- [x] Keep explicit ALB routing for transfer endpoints on `/api/transfers/*`.
 - [ ] Keep health check route alignment and tuned intervals/thresholds.
 - [ ] Health check alignment owner assigned (container-craft platform owner)
   with target date before prod cutover.
@@ -241,12 +241,11 @@ In monorepo docs:
 
    - [x] `container-craft` routes and env mappings align with new API.
    - [x] dash-pca updated and passing against new contracts.
-- [ ] End-to-end non-prod smoke succeeds before prod release
-  (tracked via
-  `docs/plan/release/NONPROD-LIVE-VALIDATION-RUNBOOK.md`).
-- [ ] Owner + target date recorded for non-prod smoke.
-- [ ] Sign-off recorded for non-prod smoke via
-  `docs/plan/release/NONPROD-LIVE-VALIDATION-RUNBOOK.md`.
+   - [ ] End-to-end non-prod smoke succeeds before prod release
+     (tracked via `docs/plan/release/NONPROD-LIVE-VALIDATION-RUNBOOK.md`).
+   - [ ] Owner + target date recorded for non-prod smoke.
+   - [ ] Sign-off recorded for non-prod smoke via
+     `docs/plan/release/NONPROD-LIVE-VALIDATION-RUNBOOK.md`.
 
 ## Assumptions and Defaults
 

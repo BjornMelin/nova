@@ -43,7 +43,11 @@ Functions/Lambda are out of scope for the initial release.
 
 In same-origin mode, browser polling calls to `GET /api/jobs/{job_id}` and other
 body-less scope-bound endpoints MUST include caller scope via trusted header
-(`X-Session-Id` or `X-Scope-Id`).
+(`X-Session-Id` or `X-Scope-Id`). If both `X-Session-Id` and `X-Scope-Id` are
+provided, `X-Session-Id` MUST take precedence and the server MUST ignore
+`X-Scope-Id` for scope binding on those endpoints. Differing values between
+those two headers MUST NOT be treated as a protocol error; the request MUST be
+evaluated using `X-Session-Id` and return the normal endpoint response.
 
 Enqueue failure semantics:
 

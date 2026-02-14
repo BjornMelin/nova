@@ -116,6 +116,8 @@ Primary operational settings:
 - `CACHE_KEY_SCHEMA_VERSION`
 - `AUTH_JWT_CACHE_MAX_TTL_SECONDS`
 - `IDEMPOTENCY_ENABLED`
+- `OIDC_VERIFIER_THREAD_TOKENS`
+- `FILE_TRANSFER_THREAD_TOKENS`
 
 ## API Base Paths
 
@@ -131,6 +133,17 @@ source .venv/bin/activate && uv run ruff check . --fix && uv run ruff format .
 source .venv/bin/activate && uv run mypy
 source .venv/bin/activate && uv run pytest -q
 ```
+
+## Threading and Async Workload Notes
+
+- Sync JWT verification and FastAPI transfer adapters use AnyIO thread pools.
+- Environment controls:
+  - `OIDC_VERIFIER_THREAD_TOKENS` (default: `40`) for local JWT verification and
+    auth API verifier work.
+  - `FILE_TRANSFER_THREAD_TOKENS` (default: `80`) for synchronous transfer
+    and route adapters.
+- Raise these values for higher parallel verification/upload fan-out; lower them
+  if you need tighter host resource usage after load testing.
 
 ## OpenAPI Contract Smoke
 
