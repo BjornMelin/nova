@@ -118,9 +118,13 @@ Create this structure in current repo:
 ### PR-0003: Auth/JWT hardening confirmation under renamed packages
 
 - [x] Keep local verifier as canonical default via oidc-jwt-verifier.
-- [x] Verify all sync JWT verification calls remain on thread boundary.
+- [x] Catch `oidc-jwt-verifier` `AuthError` in JWT verification flow and map
+  to HTTP 401/403 via `err.status_code`, including
+  `WWW-Authenticate: err.www_authenticate_header()`.
+- [x] Configure AnyIO thread limiter during lifespan init using
+  `OIDC_VERIFIER_THREAD_TOKENS`; if unset, document/default to AnyIO's
+  40-token thread pool behavior for `anyio.to_thread.run_sync`.
 - [x] Keep remote auth optional and fail-closed.
-- [x] Ensure RFC6750 WWW-Authenticate behavior remains consistent.
 - [x] Add/refresh tests for invalid issuer/audience/exp/scope mapping.
 
 ### PR-0004: Async jobs, idempotency, cache, observability lock-in

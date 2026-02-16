@@ -481,18 +481,15 @@ def test_job_service_update_result_rejects_invalid_transition() -> None:
     )
     repository.create(failed)
 
-    try:
+    with pytest.raises(FileTransferError) as excinfo:
         service.update_result(
             job_id="job-update-2",
             status=JobStatus.SUCCEEDED,
             result={"ok": True},
             error=None,
         )
-    except FileTransferError as exc:
-        assert exc.code == "conflict"
-        assert exc.status_code == 409
-    else:
-        raise AssertionError("expected invalid terminal transition to fail")
+    assert excinfo.value.code == "conflict"
+    assert excinfo.value.status_code == 409
 
 
 def test_update_job_result_requires_valid_worker_token() -> None:

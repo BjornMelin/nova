@@ -54,18 +54,18 @@ class MemoryActivityStore:
         details: str | None = None,
     ) -> None:
         """Record one event for the principal and current day."""
+        day = _day_key()
         if details is not None:
             logger.info(
                 "memory activity record received details",
                 extra=_record_log_context(
                     principal=principal,
                     event_type=event_type,
-                    day=_day_key(),
+                    day=day,
                     table=None,
                     details=details,
                 ),
             )
-        day = _day_key()
         self._events_per_day[day][event_type] += 1
         self._subjects_per_day[day].add(principal.subject)
 

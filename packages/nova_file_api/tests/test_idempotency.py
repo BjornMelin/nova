@@ -134,8 +134,8 @@ def _build_container(
     return container, transfer_service, job_service
 
 
-def test_initiate_requires_idempotency_key_when_enabled() -> None:
-    container, _transfer_service, _job_service = _build_container()
+def test_initiate_allows_missing_idempotency_key_when_enabled() -> None:
+    container, transfer_service, _job_service = _build_container()
     app = create_app(container_override=container)
     with TestClient(app) as client:
         response = client.post(
@@ -146,8 +146,8 @@ def test_initiate_requires_idempotency_key_when_enabled() -> None:
                 "content_type": "text/csv",
             },
         )
-    assert response.status_code == 422
-    assert response.json()["error"]["code"] == "invalid_request"
+    assert response.status_code == 200
+    assert transfer_service.calls == 1
 
 
 def test_initiate_replays_response_for_same_idempotency_key() -> None:

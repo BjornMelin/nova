@@ -602,8 +602,10 @@ def _validated_idempotency_key(
     """Validate Idempotency-Key header for protected mutation routes."""
     if not container.settings.idempotency_enabled:
         return None
-    if idempotency_key is None or not idempotency_key.strip():
-        raise invalid_request("missing Idempotency-Key header")
+    if idempotency_key is None:
+        return None
+    if not idempotency_key.strip():
+        raise invalid_request("invalid Idempotency-Key header")
     return idempotency_key.strip()
 
 
