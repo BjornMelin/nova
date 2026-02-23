@@ -471,11 +471,33 @@ async def get_job_status(job_id: str, request: Request) -> JobStatusResponse:
         request=request,
         session_id=None,
     )
-    job = await run_in_threadpool(
-        container.job_service.get,
-        job_id=job_id,
-        scope_id=principal.scope_id,
-    )
+    try:
+        job = await run_in_threadpool(
+            container.job_service.get,
+            job_id=job_id,
+            scope_id=principal.scope_id,
+        )
+    except Exception as exc:
+        container.metrics.incr("jobs_status_failure_total")
+        _emit_request_metric(
+            container=container, route="jobs_status", status="error"
+        )
+        log = structlog.get_logger("api")
+        log.exception(
+            "jobs_status_request_failed",
+            route="/api/jobs/{job_id}",
+            job_id=job_id,
+            scope_id=principal.scope_id,
+            error=type(exc).__name__,
+            error_detail=str(exc),
+        )
+        await run_in_threadpool(
+            container.activity_store.record,
+            principal=principal,
+            event_type="jobs_status_failure",
+            details=str(exc),
+        )
+        raise
     _emit_request_metric(container=container, route="jobs_status", status="ok")
     return JobStatusResponse(job=job)
 
@@ -488,11 +510,33 @@ async def cancel_job(job_id: str, request: Request) -> JobCancelResponse:
         request=request,
         session_id=None,
     )
-    job = await run_in_threadpool(
-        container.job_service.cancel,
-        job_id=job_id,
-        scope_id=principal.scope_id,
-    )
+    try:
+        job = await run_in_threadpool(
+            container.job_service.cancel,
+            job_id=job_id,
+            scope_id=principal.scope_id,
+        )
+    except Exception as exc:
+        container.metrics.incr("jobs_cancel_failure_total")
+        _emit_request_metric(
+            container=container, route="jobs_cancel", status="error"
+        )
+        log = structlog.get_logger("api")
+        log.exception(
+            "jobs_cancel_request_failed",
+            route="/api/jobs/{job_id}/cancel",
+            job_id=job_id,
+            scope_id=principal.scope_id,
+            error=type(exc).__name__,
+            error_detail=str(exc),
+        )
+        await run_in_threadpool(
+            container.activity_store.record,
+            principal=principal,
+            event_type="jobs_cancel_failure",
+            details=str(exc),
+        )
+        raise
     _emit_request_metric(container=container, route="jobs_cancel", status="ok")
     return JobCancelResponse(job_id=job.job_id, status=job.status)
 
@@ -515,13 +559,28 @@ async def update_job_result(
         container=container,
         worker_token=worker_token,
     )
-    job = await run_in_threadpool(
-        container.job_service.update_result,
-        job_id=job_id,
-        status=payload.status,
-        result=payload.result,
-        error=payload.error,
-    )
+    try:
+        job = await run_in_threadpool(
+            container.job_service.update_result,
+            job_id=job_id,
+            status=payload.status,
+            result=payload.result,
+            error=payload.error,
+        )
+    except Exception as exc:
+        container.metrics.incr("jobs_result_update_failure_total")
+        _emit_request_metric(
+            container=container, route="jobs_result_update", status="error"
+        )
+        log = structlog.get_logger("api")
+        log.exception(
+            "jobs_result_update_request_failed",
+            route="/api/jobs/{job_id}/result",
+            job_id=job_id,
+            error=type(exc).__name__,
+            error_detail=str(exc),
+        )
+        raise
     _emit_request_metric(
         container=container, route="jobs_result_update", status="ok"
     )

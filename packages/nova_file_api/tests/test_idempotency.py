@@ -50,7 +50,7 @@ class _StubTransferService:
 
     def initiate_upload(
         self,
-        payload: Any,
+        payload: object,
         principal: Principal,
     ) -> InitiateUploadResponse:
         del payload, principal

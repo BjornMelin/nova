@@ -103,6 +103,37 @@ class _FlakyJobService:
         raise RuntimeError("not used by this test")
 
 
+class _AlwaysFailingJobService:
+    def enqueue(
+        self,
+        *,
+        job_type: str,
+        payload: dict[str, Any],
+        scope_id: str,
+    ) -> JobRecord:
+        del job_type, payload, scope_id
+        raise RuntimeError("not used by this test")
+
+    def get(self, *, job_id: str, scope_id: str) -> JobRecord:
+        del job_id, scope_id
+        raise RuntimeError("simulated job status failure")
+
+    def cancel(self, *, job_id: str, scope_id: str) -> JobRecord:
+        del job_id, scope_id
+        raise RuntimeError("simulated job cancel failure")
+
+    def update_result(
+        self,
+        *,
+        job_id: str,
+        status: JobStatus,
+        result: dict[str, Any] | None,
+        error: str | None,
+    ) -> JobRecord:
+        del job_id, status, result, error
+        raise RuntimeError("simulated worker update failure")
+
+
 def _build_same_origin_status_container(*, scope_id: str) -> AppContainer:
     settings = Settings()
     settings.auth_mode = AuthMode.SAME_ORIGIN
@@ -152,6 +183,40 @@ def _build_same_origin_status_container(*, scope_id: str) -> AppContainer:
             ttl_seconds=300,
         ),
     )
+
+
+def _build_failing_job_container(
+    *,
+    worker_token: SecretStr | None = None,
+) -> tuple[AppContainer, MetricsCollector, MemoryActivityStore]:
+    settings = Settings()
+    settings.jobs_enabled = True
+    settings.jobs_worker_update_token = worker_token
+    metrics = MetricsCollector(namespace="Tests")
+    shared = SharedRedisCache(url=None)
+    cache = TwoTierCache(
+        local=LocalTTLCache(ttl_seconds=60, max_entries=128),
+        shared=shared,
+        shared_ttl_seconds=60,
+    )
+    activity_store = MemoryActivityStore()
+    container = AppContainer(
+        settings=settings,
+        metrics=metrics,
+        cache=cache,
+        shared_cache=shared,
+        authenticator=_StubAuthenticator(),  # type: ignore[arg-type]
+        transfer_service=_StubTransferService(),  # type: ignore[arg-type]
+        job_repository=MemoryJobRepository(),
+        job_service=_AlwaysFailingJobService(),  # type: ignore[arg-type]
+        activity_store=activity_store,
+        idempotency_store=IdempotencyStore(
+            cache=cache,
+            enabled=True,
+            ttl_seconds=300,
+        ),
+    )
+    return container, metrics, activity_store
 
 
 def _job_record(*, job_id: str = "job-1") -> JobRecord:
@@ -559,6 +624,104 @@ def test_update_job_result_requires_valid_worker_token() -> None:
     assert forbidden_response.json()["error"]["code"] == "forbidden"
     assert ok_response.status_code == 200
     assert ok_response.json()["status"] == "succeeded"
+
+
+def test_get_job_status_failure_emits_error_observability(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    container, metrics, activity_store = _build_failing_job_container()
+    emitted_dimensions: list[dict[str, str]] = []
+
+    def _capture_emit_emf(
+        *,
+        metric_name: str,
+        value: float,
+        unit: str,
+        dimensions: dict[str, str],
+    ) -> None:
+        del metric_name, value, unit
+        emitted_dimensions.append(dimensions)
+
+    monkeypatch.setattr(metrics, "emit_emf", _capture_emit_emf)
+    app = create_app(container_override=container)
+    with TestClient(app, raise_server_exceptions=False) as client:
+        response = client.get("/api/jobs/job-status-1")
+
+    assert response.status_code == 500
+    counters = metrics.counters_snapshot()
+    assert counters["jobs_status_failure_total"] == 1
+    assert {"route": "jobs_status", "status": "error"} in emitted_dimensions
+    summary = activity_store.summary()
+    assert summary["events_total"] == 1
+    assert summary["distinct_event_types"] == 1
+    assert summary["active_users_today"] == 1
+
+
+def test_cancel_job_failure_emits_error_observability(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    container, metrics, activity_store = _build_failing_job_container()
+    emitted_dimensions: list[dict[str, str]] = []
+
+    def _capture_emit_emf(
+        *,
+        metric_name: str,
+        value: float,
+        unit: str,
+        dimensions: dict[str, str],
+    ) -> None:
+        del metric_name, value, unit
+        emitted_dimensions.append(dimensions)
+
+    monkeypatch.setattr(metrics, "emit_emf", _capture_emit_emf)
+    app = create_app(container_override=container)
+    with TestClient(app, raise_server_exceptions=False) as client:
+        response = client.post("/api/jobs/job-status-1/cancel")
+
+    assert response.status_code == 500
+    counters = metrics.counters_snapshot()
+    assert counters["jobs_cancel_failure_total"] == 1
+    assert {"route": "jobs_cancel", "status": "error"} in emitted_dimensions
+    summary = activity_store.summary()
+    assert summary["events_total"] == 1
+    assert summary["distinct_event_types"] == 1
+    assert summary["active_users_today"] == 1
+
+
+def test_update_job_result_failure_emits_error_observability(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    container, metrics, _activity_store = _build_failing_job_container(
+        worker_token=SecretStr("test-worker-token")
+    )
+    emitted_dimensions: list[dict[str, str]] = []
+
+    def _capture_emit_emf(
+        *,
+        metric_name: str,
+        value: float,
+        unit: str,
+        dimensions: dict[str, str],
+    ) -> None:
+        del metric_name, value, unit
+        emitted_dimensions.append(dimensions)
+
+    monkeypatch.setattr(metrics, "emit_emf", _capture_emit_emf)
+    app = create_app(container_override=container)
+    with TestClient(app, raise_server_exceptions=False) as client:
+        response = client.post(
+            "/api/jobs/job-update-4/result",
+            headers={"X-Worker-Token": "test-worker-token"},
+            json={"status": "running"},
+        )
+
+    assert response.status_code == 500
+    counters = metrics.counters_snapshot()
+    assert counters["jobs_result_update_failure_total"] == 1
+    assert {
+        "route": "jobs_result_update",
+        "status": "error",
+    } in emitted_dimensions
 
 
 def test_get_job_status_accepts_scope_header_same_origin() -> None:

@@ -259,12 +259,13 @@ class DynamoActivityStore:
                 },
                 ConditionExpression="attribute_not_exists(pk)",
             )
-            return True
         except ClientError as exc:
             code = exc.response.get("Error", {}).get("Code")
             if code == "ConditionalCheckFailedException":
                 return False
             raise
+        else:
+            return True
 
 
 def _record_log_context(
