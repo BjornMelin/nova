@@ -2,8 +2,8 @@
 Spec: 0000
 Title: HTTP API Contract
 Status: Active
-Version: 1.5
-Date: 2026-02-13
+Version: 1.6
+Date: 2026-02-23
 Related:
   - "[ADR-0000: FastAPI service decision](../adr/ADR-0000-fastapi-microservice.md)"
   - "[ADR-0006: Async orchestration with SQS + ECS worker](../adr/ADR-0006-async-orchestration-sqs-ecs-worker.md)"
@@ -48,6 +48,8 @@ related async jobs. The API does not transfer object bytes.
 - Queue publish failure MUST return `503`.
 - Queue publish failure MUST return `error.code = "queue_unavailable"`.
 - Failed enqueue attempts MUST NOT be replay-cached by idempotency storage.
+- In-memory queue mode MUST honor `process_immediately`; when disabled, enqueue
+  returns `pending` and MUST NOT auto-transition to `succeeded`.
 
 `POST /api/jobs/{job_id}/result` transition semantics:
 
@@ -94,6 +96,11 @@ Same-origin expectations:
 - Body-bearing routes may convey caller scope via `session_id` payload field.
 - Body-less scope-bound routes (for example `GET /api/jobs/{job_id}`) must
   convey caller scope via trusted header (`X-Session-Id` or `X-Scope-Id`).
+- When `X-Session-Id` and `X-Scope-Id` are both present, `X-Session-Id` takes
+  precedence for scope binding.
+- When `X-Session-Id` and body `session_id` are both present with differing
+  values, authentication fails with `401` and
+  `error.message = "conflicting session scope"`.
 
 JWT mode expectations:
 

@@ -52,6 +52,10 @@ class JobPublishError(Exception):
 
     details: dict[str, Any]
 
+    def __post_init__(self) -> None:
+        """Provide a stable Exception message for logging surfaces."""
+        Exception.__init__(self, "queue publish failed")
+
 
 @dataclass(slots=True)
 class MemoryJobRepository:
@@ -285,7 +289,10 @@ class JobService:
 
         self.metrics.incr("jobs_enqueued")
 
-        if isinstance(self.publisher, MemoryJobPublisher):
+        if (
+            isinstance(self.publisher, MemoryJobPublisher)
+            and self.publisher.process_immediately
+        ):
             self._simulate_memory_worker(record=record)
 
         return self.repository.get(record.job_id) or record

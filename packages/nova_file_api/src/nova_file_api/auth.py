@@ -77,15 +77,33 @@ class Authenticator:
         request: Request,
         session_id: str | None,
     ) -> Principal:
-        raw_scope = (
-            request.headers.get("X-Scope-Id")
-            or request.headers.get("X-Session-Id")
-            or session_id
+        header_session_id = request.headers.get("X-Session-Id")
+        header_scope_id = request.headers.get("X-Scope-Id")
+        session_scope = (
+            header_session_id.strip()
+            if header_session_id is not None and header_session_id.strip()
+            else None
         )
-        if raw_scope is None or not raw_scope.strip():
+        body_scope = (
+            session_id.strip()
+            if session_id is not None and session_id.strip()
+            else None
+        )
+        legacy_scope = (
+            header_scope_id.strip()
+            if header_scope_id is not None and header_scope_id.strip()
+            else None
+        )
+        if (
+            session_scope is not None
+            and body_scope is not None
+            and session_scope != body_scope
+        ):
+            raise unauthorized("conflicting session scope")
+        raw_scope = session_scope or body_scope or legacy_scope
+        if raw_scope is None:
             raise unauthorized("missing session scope")
-        scope_id = raw_scope.strip()
-        return Principal(subject=scope_id, scope_id=scope_id)
+        return Principal(subject=raw_scope, scope_id=raw_scope)
 
     async def _verify_local_token(self, *, token: str) -> dict[str, Any]:
         cache_key = self._cache.namespaced_key("jwt", token)

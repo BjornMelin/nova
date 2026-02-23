@@ -173,6 +173,53 @@ async def test_jwt_mode_prefers_principal_claim_scope_over_session_id(
 
 
 @pytest.mark.asyncio
+async def test_same_origin_prefers_session_header_precedence() -> None:
+    settings = Settings()
+    settings.auth_mode = AuthMode.SAME_ORIGIN
+    auth = Authenticator(settings=settings, cache=_build_cache())
+
+    principal = await auth.authenticate(
+        request=_build_request(
+            headers={
+                "X-Session-Id": "scope-from-session-header",
+                "X-Scope-Id": "scope-from-legacy-header",
+            }
+        ),
+        session_id="scope-from-session-header",
+    )
+
+    assert principal.scope_id == "scope-from-session-header"
+
+
+@pytest.mark.asyncio
+async def test_same_origin_rejects_conflicting_session_scope() -> None:
+    settings = Settings()
+    settings.auth_mode = AuthMode.SAME_ORIGIN
+    auth = Authenticator(settings=settings, cache=_build_cache())
+
+    with pytest.raises(FileTransferError) as exc:
+        await auth.authenticate(
+            request=_build_request(
+                headers={"X-Session-Id": "scope-from-session-header"}
+            ),
+            session_id="scope-from-body",
+        )
+    assert exc.value.code == "unauthorized"
+    assert exc.value.status_code == 401
+    assert exc.value.message == "conflicting session scope"
+
+
+def test_file_transfer_error_initializes_exception_message() -> None:
+    exc = FileTransferError(
+        code="invalid_request",
+        message="invalid payload",
+        status_code=422,
+    )
+    assert str(exc) == "invalid payload"
+    assert exc.args == ("invalid payload",)
+
+
+@pytest.mark.asyncio
 async def test_required_scope_is_enforced_from_principal_claims(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

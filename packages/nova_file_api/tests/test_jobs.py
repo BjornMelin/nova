@@ -400,6 +400,28 @@ def test_job_service_enqueue_tracks_success_counter() -> None:
     assert "jobs_publish_failed" not in counters
 
 
+def test_job_service_enqueue_respects_memory_toggle() -> None:
+    repository = MemoryJobRepository()
+    metrics = MetricsCollector(namespace="Tests")
+    service = JobService(
+        repository=repository,
+        publisher=MemoryJobPublisher(process_immediately=False),
+        metrics=metrics,
+    )
+
+    record = service.enqueue(
+        job_type="transform",
+        payload={"input": "value"},
+        scope_id="scope-1",
+    )
+
+    assert record.status == JobStatus.PENDING
+    counters = metrics.counters_snapshot()
+    assert counters["jobs_enqueued"] == 1
+    assert "jobs_succeeded" not in counters
+    assert "jobs_publish_failed" not in counters
+
+
 def test_enqueue_failure_is_not_idempotency_cached() -> None:
     settings = Settings()
     settings.jobs_enabled = True

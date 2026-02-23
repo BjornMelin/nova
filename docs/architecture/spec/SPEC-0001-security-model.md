@@ -2,8 +2,8 @@
 Spec: 0001
 Title: Security Model
 Status: Active
-Version: 1.4
-Date: 2026-02-13
+Version: 1.5
+Date: 2026-02-23
 Related:
   - "[ADR-0004: Canonical OIDC verifier adoption](../adr/ADR-0004-canonical-oidc-jwt-verifier-adoption.md)"
   - "[ADR-0005: Dedicated nova-auth-api track](../adr/ADR-0005-add-dedicated-nova-auth-api-service.md)"
@@ -28,6 +28,9 @@ scope.
 For body-less scope-bound routes (for example `GET /api/jobs/{job_id}`), caller
 scope MUST be conveyed using trusted headers (`X-Scope-Id` or
 `X-Session-Id`).
+When both headers are present, `X-Session-Id` MUST win for scope binding.
+When `X-Session-Id` and body `session_id` differ, authentication MUST fail with
+`401` and message `conflicting session scope`.
 
 ### 1.2 Local JWT/OIDC verification mode
 

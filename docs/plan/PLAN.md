@@ -349,6 +349,27 @@ Required for each implementation slice:
       <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3/client/get_object.html>
     - Botocore response/streaming body:
       <https://docs.aws.amazon.com/botocore/latest/reference/response.html>
+- 2026-02-23: Same-origin/job/error regression remediation:
+  - Before: same-origin scope resolution allowed `X-Scope-Id` to win over
+    `X-Session-Id` and body/session conflicts were silently accepted.
+  - After: same-origin scope precedence is `X-Session-Id` -> body `session_id`
+    -> `X-Scope-Id`, and header/body conflicts fail with `401` and
+    `conflicting session scope`.
+  - Before: `FileTransferError` did not initialize base `Exception`, so
+    `str(exc)` and `exc.args` could be empty in observability paths.
+  - After: `FileTransferError` (and `JobPublishError`) initialize base
+    `Exception` message for stable diagnostics.
+  - Before: memory enqueue always simulated worker completion.
+  - After: memory enqueue honors `process_immediately`; disabled mode leaves
+    jobs `pending`.
+  - Added/updated tests:
+    `packages/nova_file_api/tests/test_auth.py`,
+    `packages/nova_file_api/tests/test_jobs.py`.
+  - Source references:
+    - FastAPI header parameters:
+      <https://fastapi.tiangolo.com/tutorial/header-params/>
+    - Python dataclasses post-init behavior:
+      <https://docs.python.org/3/library/dataclasses.html>
 
 ## Source References
 

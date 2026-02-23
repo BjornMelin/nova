@@ -1,7 +1,7 @@
 # Requirements (nova runtime)
 
 Status: Canonical requirements source
-Last updated: 2026-02-13
+Last updated: 2026-02-23
 
 This document is the source of truth for functional and non-functional
 requirements for the first production release.
@@ -48,12 +48,16 @@ provided, `X-Session-Id` MUST take precedence and the server MUST ignore
 `X-Scope-Id` for scope binding on those endpoints. Differing values between
 those two headers MUST NOT be treated as a protocol error; the request MUST be
 evaluated using `X-Session-Id` and return the normal endpoint response.
+If both `X-Session-Id` and body `session_id` are present but do not match, the
+request MUST fail with `401` and `error.message = "conflicting session scope"`.
 
 Enqueue failure semantics:
 
 - Queue publish failure MUST return `503`.
 - Queue publish failure MUST return `error.code = "queue_unavailable"`.
 - Queue publish failure MUST transition created job records to `failed`.
+- In-memory queue mode MUST honor `process_immediately`; when disabled, enqueue
+  returns a `pending` job and MUST NOT auto-transition to `succeeded`.
 
 Worker result-update semantics:
 

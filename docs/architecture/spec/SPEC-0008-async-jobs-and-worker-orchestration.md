@@ -2,8 +2,8 @@
 Spec: 0008
 Title: Async Jobs and Worker Orchestration
 Status: Active
-Version: 1.4
-Date: 2026-02-13
+Version: 1.5
+Date: 2026-02-23
 Related:
   - "[ADR-0006: SQS + ECS worker orchestration](../adr/ADR-0006-async-orchestration-sqs-ecs-worker.md)"
   - "[SPEC-0000: HTTP API contract](./SPEC-0000-http-api-contract.md)"
@@ -25,6 +25,10 @@ For same-origin deployments, browser polling clients calling body-less
 job-scope routes (`GET /api/jobs/{job_id}`, `POST /api/jobs/{job_id}/cancel`)
 MUST send caller scope context via trusted header (`X-Session-Id` or
 `X-Scope-Id`).
+When `X-Session-Id` and `X-Scope-Id` are both present, `X-Session-Id` is the
+canonical scope input. If `X-Session-Id` and body `session_id` are both present
+and differ, authentication MUST fail with `401`
+(`error.message = "conflicting session scope"`).
 
 ## 2. Job state model
 
@@ -50,6 +54,8 @@ Invalid transitions MUST fail with `409` (`error.code = "conflict"`).
 ## 3. Orchestration backends
 
 - Local/dev default: in-memory publisher simulation.
+- `MemoryJobPublisher(process_immediately=False)` MUST preserve `pending`
+  state after enqueue (no auto-complete simulation).
 - AWS default: SQS queue publisher and ECS worker consumers.
 
 ## 4. Failure and retry model

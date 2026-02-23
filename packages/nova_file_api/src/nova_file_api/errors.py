@@ -17,6 +17,10 @@ class FileTransferError(Exception):
     details: dict[str, Any] = field(default_factory=dict)
     headers: dict[str, str] = field(default_factory=dict)
 
+    def __post_init__(self) -> None:
+        """Populate Exception args so str(exc) carries the domain message."""
+        Exception.__init__(self, self.message)
+
 
 def invalid_request(
     message: str,

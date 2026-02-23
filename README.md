@@ -19,6 +19,8 @@ bytes.
   - `POST /api/jobs/{job_id}/result` (worker/internal)
   - same-origin polling clients send caller scope on body-less job routes via
     `X-Session-Id`
+  - same-origin scope precedence is `X-Session-Id` -> body `session_id` ->
+    `X-Scope-Id`; conflicting header/body session scope returns `401`
 - Auth modes:
   - same-origin
   - local JWT verification (`oidc-jwt-verifier`)
@@ -45,6 +47,8 @@ bytes.
 - When enqueue publish fails after record creation, the job record is
   transitioned to `failed`.
 - Failed enqueue attempts are not idempotency replay cached.
+- In-memory queue mode honors `process_immediately`; when disabled, jobs remain
+  `pending` after enqueue.
 
 ### Worker result-update contract
 

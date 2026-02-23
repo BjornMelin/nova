@@ -65,6 +65,11 @@ The service must be usable by:
   - `jobs_worker_result_updates_total` and per-status update counters
 - Same-origin browser polling for body-less async job routes must propagate
   caller scope via trusted headers (`X-Session-Id` or `X-Scope-Id`).
+- Same-origin scope resolution must prioritize `X-Session-Id` over body
+  `session_id` and `X-Scope-Id`; conflicting `X-Session-Id` and body
+  `session_id` values must fail closed with `401`.
+- In-memory queue mode must respect `process_immediately`; disabled mode must
+  keep jobs in `pending` after enqueue.
 - CloudWatch EMF metric logs must keep `_aws` and metric fields at the top
   level of the structured log event (not JSON-string nested).
 - Readiness must reflect critical traffic-serving dependencies only.

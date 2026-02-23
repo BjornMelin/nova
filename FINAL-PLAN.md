@@ -402,3 +402,24 @@ Execution and evidence checklist:
       <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3/client/get_object.html>
     - Botocore `StreamingBody` reference:
       <https://docs.aws.amazon.com/botocore/latest/reference/response.html>
+- 2026-02-23: Same-origin/job/error regression remediation:
+  - Before: same-origin scope could resolve from `X-Scope-Id` before
+    `X-Session-Id`; body/header scope conflicts were not rejected.
+  - After: same-origin precedence is `X-Session-Id` -> body `session_id` ->
+    `X-Scope-Id`, and conflicting header/body session scope now fails with
+    `401` (`conflicting session scope`).
+  - Before: `FileTransferError` did not initialize base `Exception`, causing
+    empty `str(exc)`/`exc.args` in diagnostics.
+  - After: `FileTransferError` and `JobPublishError` initialize base exception
+    messages.
+  - Before: in-memory enqueue always auto-completed.
+  - After: `MemoryJobPublisher(process_immediately=False)` preserves
+    `pending` state.
+  - Added/updated tests:
+    `packages/nova_file_api/tests/test_auth.py`,
+    `packages/nova_file_api/tests/test_jobs.py`.
+  - Source references:
+    - FastAPI header parameters:
+      <https://fastapi.tiangolo.com/tutorial/header-params/>
+    - Python dataclasses:
+      <https://docs.python.org/3/library/dataclasses.html>
