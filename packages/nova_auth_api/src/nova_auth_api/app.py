@@ -144,6 +144,24 @@ def create_app(
             headers=exc.headers,
         )
 
+    @app.exception_handler(RequestValidationError)
+    async def request_validation_error_handler(
+        request: Request,
+        exc: RequestValidationError,
+    ) -> JSONResponse:
+        payload = ErrorEnvelope(
+            error=ErrorBody(
+                code="invalid_request",
+                message="request validation failed",
+                details={"errors": exc.errors()},
+                request_id=_request_id(request=request),
+            )
+        )
+        return JSONResponse(
+            status_code=422,
+            content=payload.model_dump(),
+        )
+
     @app.exception_handler(Exception)
     async def unhandled_error_handler(
         request: Request,

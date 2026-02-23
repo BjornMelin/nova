@@ -115,6 +115,26 @@ def test_introspect_form_payload_requires_token() -> None:
     with TestClient(app) as client:
         response = client.post(
             "/v1/token/introspect",
+            headers={"X-Request-Id": "req-introspect-422"},
             data={"token_type_hint": "access_token"},
         )
     assert response.status_code == 422
+    payload: dict[str, Any] = response.json()
+    assert payload["error"]["code"] == "invalid_request"
+    assert payload["error"]["request_id"] == "req-introspect-422"
+    assert payload["error"]["details"]["errors"]
+
+
+def test_verify_validation_error_uses_canonical_error_envelope() -> None:
+    app = create_app(service_override=_StubService())
+    with TestClient(app) as client:
+        response = client.post(
+            "/v1/token/verify",
+            headers={"X-Request-Id": "req-verify-422"},
+            json={"required_scopes": ["scope:read"]},
+        )
+    assert response.status_code == 422
+    payload: dict[str, Any] = response.json()
+    assert payload["error"]["code"] == "invalid_request"
+    assert payload["error"]["request_id"] == "req-verify-422"
+    assert payload["error"]["details"]["errors"]

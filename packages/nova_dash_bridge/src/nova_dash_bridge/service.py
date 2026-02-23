@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import math
 import re
+from contextlib import closing
 from pathlib import Path
 from typing import Any
 from urllib.parse import quote_from_bytes
@@ -430,56 +431,54 @@ class FileTransferService:
         except (BotoCoreError, ClientError) as exc:
             raise internal_error("failed to download object") from exc
         content_length = response.get("ContentLength")
-        if (
-            max_bytes is not None
-            and isinstance(content_length, int)
-            and content_length > max_bytes
-        ):
-            raise validation_error(
-                "object exceeds maximum download size",
-                details={
-                    "content_length": content_length,
-                    "max_bytes": max_bytes,
-                },
-            )
         body = response.get("Body")
         if body is None:
             raise internal_error("S3 response body is missing")
 
-        if max_bytes is None:
-            return bytes(body.read())
+        with closing(body):
+            if max_bytes is None:
+                return bytes(body.read())
 
-        if isinstance(content_length, int):
-            payload = bytes(body.read())
-            if len(payload) > max_bytes:
+            if isinstance(content_length, int) and content_length > max_bytes:
                 raise validation_error(
                     "object exceeds maximum download size",
                     details={
-                        "content_length": len(payload),
+                        "content_length": content_length,
                         "max_bytes": max_bytes,
                     },
                 )
-            return payload
 
-        chunk_size = min(1024 * 1024, max_bytes + 1)
-        chunks: list[bytes] = []
-        total_read = 0
-        while True:
-            chunk = body.read(chunk_size)
-            if not chunk:
-                break
-            chunk_bytes = bytes(chunk)
-            total_read += len(chunk_bytes)
-            if total_read > max_bytes:
-                raise validation_error(
-                    "object exceeds maximum download size",
-                    details={
-                        "content_length": total_read,
-                        "max_bytes": max_bytes,
-                    },
-                )
-            chunks.append(chunk_bytes)
-        return b"".join(chunks)
+            if isinstance(content_length, int):
+                payload = bytes(body.read())
+                if len(payload) > max_bytes:
+                    raise validation_error(
+                        "object exceeds maximum download size",
+                        details={
+                            "content_length": len(payload),
+                            "max_bytes": max_bytes,
+                        },
+                    )
+                return payload
+
+            chunk_size = min(1024 * 1024, max_bytes + 1)
+            chunks: list[bytes] = []
+            total_read = 0
+            while True:
+                chunk = body.read(chunk_size)
+                if not chunk:
+                    break
+                chunk_bytes = bytes(chunk)
+                total_read += len(chunk_bytes)
+                if total_read > max_bytes:
+                    raise validation_error(
+                        "object exceeds maximum download size",
+                        details={
+                            "content_length": total_read,
+                            "max_bytes": max_bytes,
+                        },
+                    )
+                chunks.append(chunk_bytes)
+            return b"".join(chunks)
 
 
 def _core_settings_from_bridge(

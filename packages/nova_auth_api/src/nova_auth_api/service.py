@@ -36,12 +36,12 @@ class TokenVerificationService:
         """Verify access token and return principal plus claims."""
         scopes = (
             request.required_scopes
-            if request.required_scopes is not None
+            if "required_scopes" in request.model_fields_set
             else self._settings.default_required_scopes
         )
         permissions = (
             request.required_permissions
-            if request.required_permissions is not None
+            if "required_permissions" in request.model_fields_set
             else self._settings.default_required_permissions
         )
         principal, claims = await self._verify_claims(
@@ -58,12 +58,12 @@ class TokenVerificationService:
         """Introspect access token and return active principal metadata."""
         scopes = (
             request.required_scopes
-            if request.required_scopes is not None
+            if "required_scopes" in request.model_fields_set
             else self._settings.default_required_scopes
         )
         permissions = (
             request.required_permissions
-            if request.required_permissions is not None
+            if "required_permissions" in request.model_fields_set
             else self._settings.default_required_permissions
         )
         principal, claims = await self._verify_claims(

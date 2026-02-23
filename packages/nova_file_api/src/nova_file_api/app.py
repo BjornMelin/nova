@@ -9,6 +9,7 @@ from typing import Any
 
 import structlog
 from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 from nova_file_api.api import jobs_router, ops_router, transfer_router
@@ -74,6 +75,25 @@ def create_app(*, container_override: AppContainer | None = None) -> FastAPI:
             status_code=exc.status_code,
             content=payload.model_dump(),
             headers=exc.headers,
+        )
+
+    @app.exception_handler(RequestValidationError)
+    async def request_validation_error_handler(
+        request: Request,
+        exc: RequestValidationError,
+    ) -> JSONResponse:
+        request_id = _request_id(request=request)
+        payload = ErrorEnvelope(
+            error=ErrorBody(
+                code="invalid_request",
+                message="request validation failed",
+                details={"errors": exc.errors()},
+                request_id=request_id,
+            )
+        )
+        return JSONResponse(
+            status_code=422,
+            content=payload.model_dump(),
         )
 
     @app.exception_handler(Exception)

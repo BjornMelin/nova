@@ -5,6 +5,8 @@ from __future__ import annotations
 import hashlib
 import logging
 import re
+import threading
+from _thread import LockType
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -40,11 +42,13 @@ class MemoryActivityStore:
 
     _events_per_day: dict[str, dict[str, int]]
     _subjects_per_day: dict[str, set[str]]
+    _lock: LockType
 
     def __init__(self) -> None:
         """Initialize in-memory counters and subject sets."""
         self._events_per_day = defaultdict(lambda: defaultdict(int))
         self._subjects_per_day = defaultdict(set)
+        self._lock = threading.Lock()
 
     def record(
         self,
@@ -66,17 +70,20 @@ class MemoryActivityStore:
                     details=details,
                 ),
             )
-        self._events_per_day[day][event_type] += 1
-        self._subjects_per_day[day].add(principal.subject)
+        with self._lock:
+            self._events_per_day[day][event_type] += 1
+            self._subjects_per_day[day].add(principal.subject)
 
     def summary(self) -> dict[str, int]:
         """Return aggregate counters for dashboard display."""
         day = _day_key()
-        day_events = self._events_per_day.get(day, {})
+        with self._lock:
+            day_events = dict(self._events_per_day.get(day, {}))
+            active_users_today = len(self._subjects_per_day.get(day, set()))
         total_events = sum(day_events.values())
         return {
             "events_total": total_events,
-            "active_users_today": len(self._subjects_per_day.get(day, set())),
+            "active_users_today": active_users_today,
             "distinct_event_types": len(day_events),
         }
 

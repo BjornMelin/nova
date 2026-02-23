@@ -1,7 +1,7 @@
 # Final Production Architecture Plan (Locked, Release Track)
 
 Status: Active execution
-Last updated: 2026-02-13
+Last updated: 2026-02-23
 Owner: nova program
 
 ## Summary
@@ -328,6 +328,27 @@ Required for each implementation slice:
       <https://redis.readthedocs.io/en/stable/examples/asyncio_examples.html>
     - redis-py retry:
       <https://redis.readthedocs.io/en/stable/retry.html>
+- 2026-02-23: Review remediation hardening:
+  - Before: request validation failures in `nova_file_api` and
+    `nova_auth_api` returned FastAPI default
+    `422 {"detail": ...}` payloads instead of the canonical error envelope.
+  - After: both services map `RequestValidationError` to canonical
+    `ErrorEnvelope` payloads with `error.code/message/details/request_id`.
+  - Before: `nova_dash_bridge.FileTransferService.download_object_bytes`
+    could raise on oversize checks without closing S3 `StreamingBody`.
+  - After: S3 stream closure is guaranteed across all read and oversize
+    early-exit paths.
+  - Added/updated tests:
+    `packages/nova_auth_api/tests/test_app.py`,
+    `packages/nova_file_api/tests/test_app_health.py`,
+    `packages/nova_file_api/tests/test_dash_bridge_download.py`.
+  - Source references:
+    - FastAPI handling errors:
+      <https://fastapi.tiangolo.com/tutorial/handling-errors/>
+    - Boto3 S3 `get_object`:
+      <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3/client/get_object.html>
+    - Botocore response/streaming body:
+      <https://docs.aws.amazon.com/botocore/latest/reference/response.html>
 
 ## Source References
 

@@ -115,3 +115,22 @@ def test_readyz_stays_ok_when_jobs_are_disabled() -> None:
         "bucket_configured": True,
         "shared_cache": True,
     }
+
+
+def test_validation_errors_use_canonical_error_envelope() -> None:
+    """Verify request validation failures return the standard error envelope."""
+    app = create_app(container_override=_build_container())
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/transfers/uploads/initiate",
+            headers={"X-Request-Id": "req-transfer-422"},
+            json={
+                "filename": "sample.csv",
+                "content_type": "text/csv",
+            },
+        )
+    assert response.status_code == 422
+    payload = response.json()
+    assert payload["error"]["code"] == "invalid_request"
+    assert payload["error"]["request_id"] == "req-transfer-422"
+    assert payload["error"]["details"]["errors"]

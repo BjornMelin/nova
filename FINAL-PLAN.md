@@ -383,3 +383,22 @@ Execution and evidence checklist:
   idempotency claim/commit/discard lifecycle for mutation safety, redis env
   contract normalization to `CACHE_REDIS_*` and `CACHE_KEY_*`, and async
   readiness shared-cache ping wiring.
+- 2026-02-23: Review remediation hardening:
+  - Before: request-model validation errors returned FastAPI default
+    `422 {"detail": ...}` in `nova_file_api` and `nova_auth_api`.
+  - After: both services return canonical `ErrorEnvelope` for
+    `RequestValidationError` with `error.code/message/details/request_id`.
+  - Before: `nova_dash_bridge.download_object_bytes` could raise on oversize
+    checks without closing S3 `StreamingBody`.
+  - After: all download paths (including early exits) close the stream.
+  - Added/updated tests:
+    `packages/nova_auth_api/tests/test_app.py`,
+    `packages/nova_file_api/tests/test_app_health.py`,
+    `packages/nova_file_api/tests/test_dash_bridge_download.py`.
+  - Source references:
+    - FastAPI error handling:
+      <https://fastapi.tiangolo.com/tutorial/handling-errors/>
+    - Boto3 `get_object`:
+      <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3/client/get_object.html>
+    - Botocore `StreamingBody` reference:
+      <https://docs.aws.amazon.com/botocore/latest/reference/response.html>
