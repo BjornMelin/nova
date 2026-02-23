@@ -127,8 +127,8 @@ def _build_verifier(*, settings: Settings) -> JWTVerifier | None:
         issuer=issuer,
         audience=audience,
         jwks_url=jwks_url,
-        required_scopes=settings.default_required_scopes,
-        required_permissions=settings.default_required_permissions,
+        required_scopes=(),
+        required_permissions=(),
         leeway_s=settings.oidc_clock_skew_seconds,
     )
     return JWTVerifier(config=config)

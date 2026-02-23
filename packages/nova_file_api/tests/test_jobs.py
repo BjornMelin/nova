@@ -651,6 +651,38 @@ def test_job_service_update_result_conflicts_on_stale_worker_transition() -> (
     assert "jobs_worker_result_updates_failed" not in counters
 
 
+def test_job_service_cancel_does_not_clobber_concurrent_terminal_state() -> (
+    None
+):
+    repository = _ConcurrentWinnerRepository(winner_status=JobStatus.SUCCEEDED)
+    metrics = MetricsCollector(namespace="Tests")
+    service = JobService(
+        repository=repository,
+        publisher=MemoryJobPublisher(),
+        metrics=metrics,
+    )
+    now = datetime.now(tz=UTC)
+    pending = JobRecord(
+        job_id="job-cancel-race-1",
+        job_type="transform",
+        scope_id="scope-1",
+        status=JobStatus.PENDING,
+        payload={"input": "value"},
+        result=None,
+        error=None,
+        created_at=now,
+        updated_at=now,
+    )
+    repository.create(pending)
+
+    returned = service.cancel(job_id="job-cancel-race-1", scope_id="scope-1")
+
+    assert returned.status == JobStatus.SUCCEEDED
+    assert returned.result == {"accepted": True}
+    counters = metrics.counters_snapshot()
+    assert "jobs_canceled" not in counters
+
+
 def test_update_job_result_requires_valid_worker_token() -> None:
     settings = Settings()
     settings.jobs_enabled = True

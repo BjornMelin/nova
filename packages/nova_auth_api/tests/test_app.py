@@ -125,6 +125,24 @@ def test_introspect_form_payload_requires_token() -> None:
     assert payload["error"]["details"]["errors"]
 
 
+def test_introspect_invalid_utf8_json_returns_validation_error() -> None:
+    app = create_app(service_override=_StubService())
+    with TestClient(app) as client:
+        response = client.post(
+            "/v1/token/introspect",
+            headers={
+                "content-type": "application/json",
+                "X-Request-Id": "req-introspect-invalid-utf8",
+            },
+            content=b"\xff",
+        )
+    assert response.status_code == 422
+    payload: dict[str, Any] = response.json()
+    assert payload["error"]["code"] == "invalid_request"
+    assert payload["error"]["request_id"] == "req-introspect-invalid-utf8"
+    assert payload["error"]["details"]["errors"]
+
+
 def test_verify_validation_error_uses_canonical_error_envelope() -> None:
     app = create_app(service_override=_StubService())
     with TestClient(app) as client:

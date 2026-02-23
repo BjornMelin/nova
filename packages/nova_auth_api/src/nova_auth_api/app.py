@@ -237,7 +237,7 @@ async def _parse_introspect_payload(
     else:
         try:
             raw_payload = await request.json()
-        except JSONDecodeError as exc:
+        except (JSONDecodeError, UnicodeDecodeError) as exc:
             raise RequestValidationError(
                 [
                     {

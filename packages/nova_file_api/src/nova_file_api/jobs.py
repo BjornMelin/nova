@@ -308,22 +308,27 @@ class JobService:
 
     def cancel(self, *, job_id: str, scope_id: str) -> JobRecord:
         """Cancel non-terminal job when owned by caller."""
-        record = self.get(job_id=job_id, scope_id=scope_id)
-        if record.status in {
-            JobStatus.SUCCEEDED,
-            JobStatus.FAILED,
-            JobStatus.CANCELED,
-        }:
-            return record
-        updated = record.model_copy(
-            update={
-                "status": JobStatus.CANCELED,
-                "updated_at": _utc_now(),
-            }
-        )
-        self.repository.update(updated)
-        self.metrics.incr("jobs_canceled")
-        return updated
+        while True:
+            record = self.get(job_id=job_id, scope_id=scope_id)
+            if record.status in {
+                JobStatus.SUCCEEDED,
+                JobStatus.FAILED,
+                JobStatus.CANCELED,
+            }:
+                return record
+            updated = record.model_copy(
+                update={
+                    "status": JobStatus.CANCELED,
+                    "updated_at": _utc_now(),
+                }
+            )
+            updated_ok = self.repository.update_if_status(
+                record=updated,
+                expected_status=record.status,
+            )
+            if updated_ok:
+                self.metrics.incr("jobs_canceled")
+                return updated
 
     def update_result(
         self,

@@ -9,7 +9,7 @@ from nova_auth_api.models import (
     TokenIntrospectRequest,
     TokenVerifyRequest,
 )
-from nova_auth_api.service import TokenVerificationService
+from nova_auth_api.service import TokenVerificationService, _build_verifier
 
 
 def _principal() -> Principal:
@@ -86,3 +86,28 @@ async def test_introspect_respects_explicit_empty_overrides(
     assert response.active is True
     assert captured["required_scopes"] == ()
     assert captured["required_permissions"] == ()
+
+
+def test_build_verifier_does_not_embed_default_authorization_requirements(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    settings = Settings()
+    settings.oidc_issuer = "https://issuer.example.com/"
+    settings.oidc_audience = "api://nova"
+    settings.oidc_jwks_url = "https://issuer.example.com/.well-known/jwks.json"
+    settings.oidc_required_scopes = "uploads:write"
+    settings.oidc_required_permissions = "jobs:enqueue"
+    captured: dict[str, Any] = {}
+
+    class _DummyVerifier:
+        def __init__(self, config: Any) -> None:
+            captured["config"] = config
+
+    monkeypatch.setattr("nova_auth_api.service.JWTVerifier", _DummyVerifier)
+
+    verifier = _build_verifier(settings=settings)
+
+    assert verifier is not None
+    config = captured["config"]
+    assert config.required_scopes == ()
+    assert config.required_permissions == ()
