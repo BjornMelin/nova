@@ -5,12 +5,16 @@ from __future__ import annotations
 import logging
 from collections.abc import AsyncIterator, Awaitable, Callable, MutableMapping
 from contextlib import asynccontextmanager
+from json import JSONDecodeError
 from typing import Any
+from urllib.parse import parse_qs
 from uuid import uuid4
 
 import structlog
 from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from pydantic import ValidationError
 from starlette.responses import Response
 
 from nova_auth_api.config import Settings
@@ -31,6 +35,36 @@ from nova_auth_api.service import (
 
 _AUTH_SERVICE_NOT_INITIALIZED = "auth service not initialized"
 _LOGGING_CONFIGURED = False
+_FORM_MEDIA_TYPE = "application/x-www-form-urlencoded"
+_JSON_MEDIA_TYPE = "application/json"
+_INTROSPECT_REQUEST_BODY: dict[str, Any] = {
+    "required": True,
+    "content": {
+        _JSON_MEDIA_TYPE: {
+            "schema": {
+                "$ref": "#/components/schemas/TokenIntrospectRequest",
+            }
+        },
+        _FORM_MEDIA_TYPE: {
+            "schema": {
+                "type": "object",
+                "required": ["token"],
+                "properties": {
+                    "token": {"type": "string", "minLength": 1},
+                    "token_type_hint": {"type": "string"},
+                    "required_scopes": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                    },
+                    "required_permissions": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                    },
+                },
+            }
+        },
+    },
+}
 
 
 def create_app(
@@ -80,12 +114,13 @@ def create_app(
     @app.post(
         "/v1/token/introspect",
         response_model=TokenIntrospectResponse,
+        openapi_extra={"requestBody": _INTROSPECT_REQUEST_BODY},
     )
     async def introspect_token(
-        payload: TokenIntrospectRequest,
         request: Request,
     ) -> TokenIntrospectResponse:
         """Introspect token and return active status plus claim details."""
+        payload = await _parse_introspect_payload(request=request)
         service = _service(request=request)
         return await service.introspect(payload)
 
@@ -172,6 +207,108 @@ def _request_id(*, request: Request) -> str | None:
     if isinstance(value, str) and value:
         return value
     return None
+
+
+async def _parse_introspect_payload(
+    *,
+    request: Request,
+) -> TokenIntrospectRequest:
+    media_type = _request_media_type(request=request)
+    if media_type == _FORM_MEDIA_TYPE:
+        raw_payload = _parse_form_payload(body=await request.body())
+    else:
+        try:
+            raw_payload = await request.json()
+        except JSONDecodeError as exc:
+            raise RequestValidationError(
+                [
+                    {
+                        "type": "json_invalid",
+                        "loc": ("body",),
+                        "msg": "JSON decode error",
+                        "input": None,
+                    }
+                ]
+            ) from exc
+
+    if not isinstance(raw_payload, dict):
+        raise RequestValidationError(
+            [
+                {
+                    "type": "model_attributes_type",
+                    "loc": ("body",),
+                    "msg": "Input should be a valid dictionary",
+                    "input": raw_payload,
+                }
+            ]
+        )
+
+    normalized_payload = _normalize_introspect_payload(raw_payload=raw_payload)
+    try:
+        return TokenIntrospectRequest.model_validate(normalized_payload)
+    except ValidationError as exc:
+        raise RequestValidationError(
+            _with_body_loc(errors=exc.errors())
+        ) from exc
+
+
+def _request_media_type(*, request: Request) -> str:
+    value = request.headers.get("content-type")
+    if not isinstance(value, str):
+        return _JSON_MEDIA_TYPE
+    return value.split(";", 1)[0].strip().lower()
+
+
+def _parse_form_payload(*, body: bytes) -> dict[str, Any]:
+    try:
+        decoded_body = body.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise RequestValidationError(
+            [
+                {
+                    "type": "unicode_decode_error",
+                    "loc": ("body",),
+                    "msg": "request body must be UTF-8 encoded",
+                    "input": None,
+                }
+            ]
+        ) from exc
+
+    parsed = parse_qs(decoded_body, keep_blank_values=True)
+    payload: dict[str, Any] = {}
+    for key, values in parsed.items():
+        if key in {"required_scopes", "required_permissions"}:
+            payload[key] = values
+            continue
+        payload[key] = values[-1] if values else ""
+    return payload
+
+
+def _normalize_introspect_payload(
+    *,
+    raw_payload: dict[str, Any],
+) -> dict[str, Any]:
+    payload = dict(raw_payload)
+    token_value = payload.get("token")
+    if "access_token" not in payload and token_value is not None:
+        payload["access_token"] = token_value
+    payload.pop("token", None)
+    payload.pop("token_type_hint", None)
+    return payload
+
+
+def _with_body_loc(*, errors: list[Any]) -> list[dict[str, Any]]:
+    output: list[dict[str, Any]] = []
+    for error in errors:
+        if not isinstance(error, dict):
+            continue
+        output.append(
+            {
+                **error,
+                "loc": ("body", *list(error.get("loc", ()))),
+            }
+        )
+    return output
 
 
 def _configure_logging() -> None:

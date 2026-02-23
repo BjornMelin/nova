@@ -4,6 +4,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 import pytest
+from botocore.exceptions import ClientError
 from nova_file_api.jobs import DynamoJobRepository
 from nova_file_api.models import JobRecord, JobStatus
 
@@ -12,7 +13,22 @@ class _FakeTable:
     def __init__(self) -> None:
         self._items: dict[str, dict[str, Any]] = {}
 
-    def put_item(self, *, Item: dict[str, Any]) -> dict[str, Any]:
+    def put_item(
+        self, *, Item: dict[str, Any], **kwargs: Any
+    ) -> dict[str, Any]:
+        condition = kwargs.get("ConditionExpression")
+        if condition is not None:
+            expected_values = kwargs.get("ExpressionAttributeValues", {})
+            expected_status = expected_values.get(":expected_status")
+            job_id = str(Item["job_id"])
+            existing = self._items.get(job_id)
+            if existing is None or existing.get("status") != expected_status:
+                raise ClientError(
+                    error_response={
+                        "Error": {"Code": "ConditionalCheckFailedException"}
+                    },
+                    operation_name="PutItem",
+                )
         self._items[str(Item["job_id"])] = dict(Item)
         return {}
 
@@ -87,3 +103,43 @@ def test_dynamo_job_repository_get_missing_returns_none(
     _fake_repo: DynamoJobRepository,
 ) -> None:
     assert _fake_repo.get("missing") is None
+
+
+def test_dynamo_job_repository_update_if_status_enforces_expected_state(
+    _fake_repo: DynamoJobRepository,
+) -> None:
+    now = datetime.now(tz=UTC)
+    pending = JobRecord(
+        job_id="job-dynamo-2",
+        job_type="transform",
+        scope_id="scope-1",
+        status=JobStatus.PENDING,
+        payload={"input": "value"},
+        result=None,
+        error=None,
+        created_at=now,
+        updated_at=now,
+    )
+    _fake_repo.create(pending)
+
+    succeeded = pending.model_copy(
+        update={
+            "status": JobStatus.SUCCEEDED,
+            "result": {"accepted": True},
+            "updated_at": datetime.now(tz=UTC),
+        }
+    )
+    assert (
+        _fake_repo.update_if_status(
+            record=succeeded,
+            expected_status=JobStatus.PENDING,
+        )
+        is True
+    )
+    assert (
+        _fake_repo.update_if_status(
+            record=pending,
+            expected_status=JobStatus.PENDING,
+        )
+        is False
+    )

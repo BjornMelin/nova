@@ -65,6 +65,37 @@ class _FailingPublisher:
         )
 
 
+class _ConcurrentWinnerRepository(MemoryJobRepository):
+    def __init__(self, *, winner_status: JobStatus) -> None:
+        super().__init__()
+        self._winner_status = winner_status
+        self._injected = False
+
+    def update_if_status(
+        self,
+        *,
+        record: JobRecord,
+        expected_status: JobStatus,
+    ) -> bool:
+        if not self._injected:
+            self._injected = True
+            existing = self.get(record.job_id)
+            assert existing is not None
+            winner = existing.model_copy(
+                update={
+                    "status": self._winner_status,
+                    "result": {"accepted": True},
+                    "error": None,
+                    "updated_at": datetime.now(tz=UTC),
+                }
+            )
+            super().update(winner)
+        return super().update_if_status(
+            record=record,
+            expected_status=expected_status,
+        )
+
+
 class _FlakyJobService:
     def __init__(self) -> None:
         self.calls = 0
@@ -555,6 +586,47 @@ def test_job_service_update_result_rejects_invalid_transition() -> None:
         )
     assert excinfo.value.code == "conflict"
     assert excinfo.value.status_code == 409
+
+
+def test_job_service_update_result_conflicts_on_stale_worker_transition() -> (
+    None
+):
+    repository = _ConcurrentWinnerRepository(winner_status=JobStatus.SUCCEEDED)
+    metrics = MetricsCollector(namespace="Tests")
+    service = JobService(
+        repository=repository,
+        publisher=MemoryJobPublisher(),
+        metrics=metrics,
+    )
+    now = datetime.now(tz=UTC)
+    pending = JobRecord(
+        job_id="job-update-race-1",
+        job_type="transform",
+        scope_id="scope-1",
+        status=JobStatus.PENDING,
+        payload={"input": "value"},
+        result=None,
+        error=None,
+        created_at=now,
+        updated_at=now,
+    )
+    repository.create(pending)
+
+    with pytest.raises(FileTransferError) as excinfo:
+        service.update_result(
+            job_id="job-update-race-1",
+            status=JobStatus.FAILED,
+            result=None,
+            error="worker_failed",
+        )
+
+    assert excinfo.value.code == "conflict"
+    latest = repository.get("job-update-race-1")
+    assert latest is not None
+    assert latest.status == JobStatus.SUCCEEDED
+    counters = metrics.counters_snapshot()
+    assert "jobs_failed" not in counters
+    assert "jobs_worker_result_updates_failed" not in counters
 
 
 def test_update_job_result_requires_valid_worker_token() -> None:

@@ -177,16 +177,16 @@ class TransferService:
             "Bucket": self.settings.file_transfer_bucket,
             "Key": request.key,
         }
-        # Precedence: explicit disposition, then explicit content type,
-        # then filename fallback.
+        # Precedence: explicit disposition first, then filename fallback.
+        # Content type is independent.
         if request.content_disposition is not None:
             params["ResponseContentDisposition"] = request.content_disposition
-        if request.content_type is not None:
-            params["ResponseContentType"] = request.content_type
         elif request.filename:
             params["ResponseContentDisposition"] = (
                 f'attachment; filename="{_sanitize_filename(request.filename)}"'
             )
+        if request.content_type is not None:
+            params["ResponseContentType"] = request.content_type
 
         url = self._generate_presigned_url(
             operation="get_object",

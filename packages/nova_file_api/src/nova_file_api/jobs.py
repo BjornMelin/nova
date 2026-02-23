@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from threading import Lock
 from typing import Any, Protocol
 from uuid import uuid4
 
@@ -29,6 +30,14 @@ class JobRepository(Protocol):
     def update(self, record: JobRecord) -> None:
         """Replace a job record."""
 
+    def update_if_status(
+        self,
+        *,
+        record: JobRecord,
+        expected_status: JobStatus,
+    ) -> bool:
+        """Replace record only when current status matches expected value."""
+
 
 class JobPublisher(Protocol):
     """Queue interface for background job dispatch."""
@@ -49,10 +58,12 @@ class MemoryJobRepository:
     """In-memory job record repository."""
 
     _records: dict[str, JobRecord]
+    _lock: Lock = field(init=False, repr=False)
 
     def __init__(self) -> None:
         """Initialize empty in-memory record storage."""
         self._records = {}
+        self._lock = Lock()
 
     def create(self, record: JobRecord) -> None:
         """Persist a new in-memory job record.
@@ -60,7 +71,8 @@ class MemoryJobRepository:
         Args:
             record: Job record to persist.
         """
-        self._records[record.job_id] = record
+        with self._lock:
+            self._records[record.job_id] = record
 
     def get(self, job_id: str) -> JobRecord | None:
         """Return a job record by ID when present.
@@ -68,7 +80,8 @@ class MemoryJobRepository:
         Args:
             job_id: Unique job identifier.
         """
-        return self._records.get(job_id)
+        with self._lock:
+            return self._records.get(job_id)
 
     def update(self, record: JobRecord) -> None:
         """Replace an existing job record.
@@ -76,7 +89,24 @@ class MemoryJobRepository:
         Args:
             record: Updated job record.
         """
-        self._records[record.job_id] = record
+        with self._lock:
+            self._records[record.job_id] = record
+
+    def update_if_status(
+        self,
+        *,
+        record: JobRecord,
+        expected_status: JobStatus,
+    ) -> bool:
+        """Replace record only when current status matches expected value."""
+        with self._lock:
+            current = self._records.get(record.job_id)
+            if current is None:
+                return False
+            if current.status != expected_status:
+                return False
+            self._records[record.job_id] = record
+            return True
 
 
 @dataclass(slots=True)
@@ -105,6 +135,31 @@ class DynamoJobRepository:
     def update(self, record: JobRecord) -> None:
         """Replace an existing job record."""
         self._table.put_item(Item=_record_to_item(record))
+
+    def update_if_status(
+        self,
+        *,
+        record: JobRecord,
+        expected_status: JobStatus,
+    ) -> bool:
+        """Replace record only when current status matches expected value."""
+        try:
+            self._table.put_item(
+                Item=_record_to_item(record),
+                ConditionExpression=(
+                    "attribute_exists(job_id) AND #status = :expected_status"
+                ),
+                ExpressionAttributeNames={"#status": "status"},
+                ExpressionAttributeValues={
+                    ":expected_status": expected_status.value
+                },
+            )
+        except ClientError as exc:
+            error_code = str(exc.response.get("Error", {}).get("Code", ""))
+            if error_code == "ConditionalCheckFailedException":
+                return False
+            raise
+        return True
 
 
 @dataclass(slots=True)
@@ -290,15 +345,9 @@ class JobService:
             "status": status,
             "updated_at": now,
         }
+        queue_lag_ms: float | None = None
         if record.status == JobStatus.PENDING and status != JobStatus.PENDING:
             queue_lag_ms = _queue_lag_ms(created_at=record.created_at, now=now)
-            self.metrics.observe_ms("jobs_queue_lag_ms", queue_lag_ms)
-            self.metrics.emit_emf(
-                metric_name="jobs_queue_lag_ms",
-                value=queue_lag_ms,
-                unit="Milliseconds",
-                dimensions={"source": "worker_result_update"},
-            )
         if result is not None:
             update_payload["result"] = result
         if error is not None:
@@ -310,7 +359,33 @@ class JobService:
             update_payload["error"] = record.error or "worker_failed"
 
         updated = record.model_copy(update=update_payload)
-        self.repository.update(updated)
+        updated_ok = self.repository.update_if_status(
+            record=updated,
+            expected_status=record.status,
+        )
+        if not updated_ok:
+            latest = self.repository.get(job_id)
+            if latest is None:
+                raise not_found("job not found")
+            if latest.status == status:
+                return latest
+            raise conflict(
+                "invalid job state transition",
+                details={
+                    "job_id": job_id,
+                    "current_status": latest.status.value,
+                    "requested_status": status.value,
+                },
+            )
+
+        if queue_lag_ms is not None:
+            self.metrics.observe_ms("jobs_queue_lag_ms", queue_lag_ms)
+            self.metrics.emit_emf(
+                metric_name="jobs_queue_lag_ms",
+                value=queue_lag_ms,
+                unit="Milliseconds",
+                dimensions={"source": "worker_result_update"},
+            )
         self.metrics.incr(f"jobs_{status.value}")
         self.metrics.incr("jobs_worker_result_updates_total")
         self.metrics.incr(f"jobs_worker_result_updates_{status.value}")

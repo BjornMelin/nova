@@ -92,3 +92,29 @@ def test_introspect_success_response_shape() -> None:
     assert payload["active"] is True
     assert payload["principal"]["subject"] == "sub"
     assert payload["claims"]["sub"] == "sub"
+
+
+def test_introspect_accepts_rfc7662_form_payload() -> None:
+    app = create_app(service_override=_StubService())
+    with TestClient(app) as client:
+        response = client.post(
+            "/v1/token/introspect",
+            data={
+                "token": "ok",
+                "token_type_hint": "access_token",
+            },
+        )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["active"] is True
+    assert payload["principal"]["subject"] == "sub"
+
+
+def test_introspect_form_payload_requires_token() -> None:
+    app = create_app(service_override=_StubService())
+    with TestClient(app) as client:
+        response = client.post(
+            "/v1/token/introspect",
+            data={"token_type_hint": "access_token"},
+        )
+    assert response.status_code == 422
