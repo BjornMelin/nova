@@ -120,3 +120,16 @@ Deployment gates:
 - readiness reflects true dependency health and ignores feature toggles
 - structured logs include `request_id`
 - OpenAPI schema and docs pipeline are green
+
+### 7.1 CI/CD release controls
+
+- Hybrid release flow:
+  - GitHub Actions for CI, selective version planning, and signed release commit
+    apply
+  - AWS CodePipeline/CodeBuild/CloudFormation for Dev to Prod promotion
+- Dev and Prod are the only release environments.
+- Manual approval is mandatory before Prod deployment.
+- Release automation commits must be cryptographically signed and GitHub
+  verified.
+- Deployment promotion must reuse immutable artifacts from Dev in Prod.
+- No long-lived AWS keys in GitHub; OIDC role assumption only.

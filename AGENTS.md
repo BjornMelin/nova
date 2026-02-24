@@ -137,6 +137,7 @@ rg -n "nova_file_api|nova_auth_api|nova_dash_bridge" \
 Always prefix commands with `source .venv/bin/activate &&`.
 
 ```bash
+source .venv/bin/activate && uv lock --check
 source .venv/bin/activate && uv run ruff check . --fix && uv run ruff format .
 source .venv/bin/activate && uv run mypy
 source .venv/bin/activate && uv run pytest -q
@@ -208,6 +209,8 @@ Verification commands:
 
 ```bash
 rg -n "/api/transfers|/api/jobs|FILE_TRANSFER_|JOBS_SQS_RETRY_" \
+  ~/repos/work/infra-stack/container-craft
+rg -n "deploy-nova-cicd|nova-ci-cd|nova-codebuild-release|nova-iam-roles" \
   ~/repos/work/infra-stack/container-craft
 ```
 
