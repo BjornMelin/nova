@@ -191,7 +191,8 @@ cover latency, error rate, and queue backlog.
 
 Every change MUST pass:
 
-- `source .venv/bin/activate && uv run ruff check . --fix && uv run ruff format .`
+- `source .venv/bin/activate && uv run ruff check .`
+- `source .venv/bin/activate && uv run ruff check . --select I`
 - `source .venv/bin/activate && uv run mypy`
 - `source .venv/bin/activate && uv run pytest -q`
 

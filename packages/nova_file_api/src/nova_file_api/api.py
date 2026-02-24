@@ -104,15 +104,24 @@ async def initiate_upload(
                 payload,
                 principal,
             )
-    except Exception:
-        container.metrics.incr("uploads_initiate_errors")
+    except Exception as exc:
+        container.metrics.incr("uploads_initiate_failure_total")
         _emit_request_metric(
             container=container, route="uploads_initiate", status="error"
+        )
+        log = structlog.get_logger("api")
+        log.exception(
+            "initiate_upload_request_failed",
+            route="/api/transfers/uploads/initiate",
+            scope_id=principal.scope_id,
+            error=type(exc).__name__,
+            error_detail=str(exc),
         )
         await run_in_threadpool(
             container.activity_store.record,
             principal=principal,
             event_type="uploads_initiate_failure",
+            details=str(exc),
         )
         if key is not None and claimed_idempotency:
             await container.idempotency_store.discard_claim(

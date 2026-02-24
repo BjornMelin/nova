@@ -17,32 +17,8 @@ from nova_file_api.jobs import (
     MemoryJobRepository,
 )
 from nova_file_api.metrics import MetricsCollector
-from nova_file_api.models import Principal
-from starlette.requests import Request
 
-
-class _StubAuthenticator:
-    """Stub authenticator that always returns a fixed principal."""
-
-    async def authenticate(
-        self,
-        *,
-        request: Request,
-        session_id: str | None,
-    ) -> Principal:
-        """Return a deterministic principal for tests."""
-        del request, session_id
-        return Principal(
-            subject="user-1",
-            scope_id="scope-1",
-            tenant_id=None,
-            scopes=(),
-            permissions=("metrics:read",),
-        )
-
-
-class _StubTransferService:
-    """Placeholder transfer service for container wiring tests."""
+from ._test_doubles import StubAuthenticator, StubTransferService
 
 
 def _build_container(
@@ -72,8 +48,8 @@ def _build_container(
         metrics=metrics,
         cache=cache,
         shared_cache=shared,
-        authenticator=_StubAuthenticator(),  # type: ignore[arg-type]
-        transfer_service=_StubTransferService(),  # type: ignore[arg-type]
+        authenticator=StubAuthenticator(),  # type: ignore[arg-type]
+        transfer_service=StubTransferService(),  # type: ignore[arg-type]
         job_repository=repo,
         job_service=jobs,
         activity_store=MemoryActivityStore(),

@@ -365,7 +365,7 @@ def _remote_auth_error(*, response: httpx.Response) -> FileTransferError:
 def _safe_json_dict(*, response: httpx.Response) -> dict[str, Any]:
     try:
         decoded = response.json()
-    except ValueError:
+    except (ValueError, UnicodeDecodeError):
         return {}
     if isinstance(decoded, dict):
         return decoded

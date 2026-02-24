@@ -31,31 +31,10 @@ from nova_file_api.models import (
     AuthMode,
     JobRecord,
     JobStatus,
-    Principal,
 )
 from pydantic import SecretStr
-from starlette.requests import Request
 
-
-class _StubAuthenticator:
-    async def authenticate(
-        self,
-        *,
-        request: Request,
-        session_id: str | None,
-    ) -> Principal:
-        del request, session_id
-        return Principal(
-            subject="user-1",
-            scope_id="scope-1",
-            tenant_id=None,
-            scopes=(),
-            permissions=("metrics:read",),
-        )
-
-
-class _StubTransferService:
-    pass
+from ._test_doubles import StubAuthenticator, StubTransferService
 
 
 class _FailingPublisher:
@@ -226,7 +205,7 @@ def _build_same_origin_status_container(*, scope_id: str) -> AppContainer:
         cache=cache,
         shared_cache=shared,
         authenticator=Authenticator(settings=settings, cache=cache),
-        transfer_service=_StubTransferService(),  # type: ignore[arg-type]
+        transfer_service=StubTransferService(),  # type: ignore[arg-type]
         job_repository=repository,
         job_service=service,
         activity_store=MemoryActivityStore(),
@@ -258,8 +237,8 @@ def _build_failing_job_container(
         metrics=metrics,
         cache=cache,
         shared_cache=shared,
-        authenticator=_StubAuthenticator(),  # type: ignore[arg-type]
-        transfer_service=_StubTransferService(),  # type: ignore[arg-type]
+        authenticator=StubAuthenticator(),  # type: ignore[arg-type]
+        transfer_service=StubTransferService(),  # type: ignore[arg-type]
         job_repository=MemoryJobRepository(),
         job_service=_AlwaysFailingJobService(),  # type: ignore[arg-type]
         activity_store=activity_store,
@@ -486,8 +465,8 @@ def test_enqueue_failure_is_not_idempotency_cached() -> None:
         metrics=metrics,
         cache=cache,
         shared_cache=shared,
-        authenticator=_StubAuthenticator(),  # type: ignore[arg-type]
-        transfer_service=_StubTransferService(),  # type: ignore[arg-type]
+        authenticator=StubAuthenticator(),  # type: ignore[arg-type]
+        transfer_service=StubTransferService(),  # type: ignore[arg-type]
         job_repository=MemoryJobRepository(),
         job_service=job_service,  # type: ignore[arg-type]
         activity_store=MemoryActivityStore(),
@@ -830,8 +809,8 @@ def test_update_job_result_requires_valid_worker_token() -> None:
         metrics=metrics,
         cache=cache,
         shared_cache=shared,
-        authenticator=_StubAuthenticator(),  # type: ignore[arg-type]
-        transfer_service=_StubTransferService(),  # type: ignore[arg-type]
+        authenticator=StubAuthenticator(),  # type: ignore[arg-type]
+        transfer_service=StubTransferService(),  # type: ignore[arg-type]
         job_repository=repository,
         job_service=service,
         activity_store=MemoryActivityStore(),

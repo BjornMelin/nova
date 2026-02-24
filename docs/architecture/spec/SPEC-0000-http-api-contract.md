@@ -99,6 +99,8 @@ Same-origin expectations:
   convey caller scope via trusted header (`X-Session-Id` or `X-Scope-Id`).
 - When `X-Session-Id` and `X-Scope-Id` are both present, `X-Session-Id` takes
   precedence for scope binding.
+- Differing `X-Session-Id` and `X-Scope-Id` values are not a protocol error;
+  the request is evaluated using `X-Session-Id`.
 - When `X-Session-Id` and body `session_id` are both present with differing
   values, authentication fails with `401` and
   `error.message = "conflicting session scope"`.

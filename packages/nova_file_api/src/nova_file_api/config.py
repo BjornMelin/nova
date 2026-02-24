@@ -254,7 +254,7 @@ class Settings(BaseSettings):
     )
 
     metrics_namespace: str = Field(
-        default="AwsFileApi",
+        default="NovaFileApi",
         alias="METRICS_NAMESPACE",
     )
 
