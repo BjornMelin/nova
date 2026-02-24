@@ -384,7 +384,8 @@ Required for each implementation slice:
   - Before: same-origin scope resolution allowed `X-Scope-Id` to win over
     `X-Session-Id` and body/session conflicts were silently accepted.
   - After: same-origin scope precedence is `X-Session-Id` -> body `session_id`
-    -> `X-Scope-Id`, and header/body conflicts fail with `401` and
+    -> `X-Scope-Id`, and `X-Session-Id`/body conflicts fail with `422` while
+    legacy `X-Scope-Id`/body conflicts (without `X-Session-Id`) fail with `401`;
     `conflicting session scope`.
   - Before: `FileTransferError` did not initialize base `Exception`, so
     `str(exc)` and `exc.args` could be empty in observability paths.

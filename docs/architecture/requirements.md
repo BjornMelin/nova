@@ -49,7 +49,10 @@ provided, `X-Session-Id` MUST take precedence and the server MUST ignore
 those two headers MUST NOT be treated as a protocol error; the request MUST be
 evaluated using `X-Session-Id` and return the normal endpoint response.
 If both `X-Session-Id` and body `session_id` are present but do not match, the
-request MUST fail with `401` and `error.message = "conflicting session scope"`.
+request MUST fail with `422` and `error.message = "conflicting session scope"`.
+If `X-Session-Id` is absent and `X-Scope-Id` plus body `session_id` are both
+present but do not match, the request MUST fail with `401` and
+`error.message = "conflicting session scope"`.
 
 Enqueue failure semantics:
 
@@ -63,6 +66,9 @@ Worker result-update semantics:
 
 - Worker status updates MUST follow legal transitions:
   - `pending -> pending|running|succeeded|failed|canceled`
+    (`pending -> succeeded` is allowed for atomic worker completion across
+    backends; in-memory `process_immediately` simulation currently transitions
+    through `running` before `succeeded`)
   - `running -> running|succeeded|failed|canceled`
   - terminal states (`succeeded|failed|canceled`) only allow same-state
     idempotent updates.

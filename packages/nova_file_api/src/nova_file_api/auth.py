@@ -16,6 +16,7 @@ from nova_file_api.config import Settings
 from nova_file_api.errors import (
     FileTransferError,
     forbidden,
+    invalid_request,
     unauthorized,
 )
 from nova_file_api.models import AuthMode, Principal
@@ -98,6 +99,13 @@ class Authenticator:
             session_scope is not None
             and body_scope is not None
             and session_scope != body_scope
+        ):
+            raise invalid_request("conflicting session scope")
+        if (
+            session_scope is None
+            and legacy_scope is not None
+            and body_scope is not None
+            and legacy_scope != body_scope
         ):
             raise unauthorized("conflicting session scope")
         raw_scope = session_scope or body_scope or legacy_scope

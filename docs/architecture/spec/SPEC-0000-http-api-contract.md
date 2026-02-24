@@ -54,6 +54,9 @@ related async jobs. The API does not transfer object bytes.
 `POST /api/jobs/{job_id}/result` transition semantics:
 
 - `pending -> pending|running|succeeded|failed|canceled`
+- `pending -> succeeded` is allowed for atomic worker completion across
+  backends; in-memory `process_immediately` simulation currently transitions via
+  `running` before `succeeded`.
 - `running -> running|succeeded|failed|canceled`
 - terminal states (`succeeded|failed|canceled`) allow same-state idempotent
   updates only.
@@ -102,7 +105,10 @@ Same-origin expectations:
 - Differing `X-Session-Id` and `X-Scope-Id` values are not a protocol error;
   the request is evaluated using `X-Session-Id`.
 - When `X-Session-Id` and body `session_id` are both present with differing
-  values, authentication fails with `401` and
+  values, request validation fails with `422` and
+  `error.message = "conflicting session scope"`.
+- When `X-Session-Id` is absent and `X-Scope-Id` plus body `session_id` are
+  both present with differing values, authentication fails with `401` and
   `error.message = "conflicting session scope"`.
 
 JWT mode expectations:

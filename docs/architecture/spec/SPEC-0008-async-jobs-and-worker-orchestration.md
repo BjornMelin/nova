@@ -27,7 +27,10 @@ MUST send caller scope context via trusted header (`X-Session-Id` or
 `X-Scope-Id`).
 When `X-Session-Id` and `X-Scope-Id` are both present, `X-Session-Id` is the
 canonical scope input. If `X-Session-Id` and body `session_id` are both present
-and differ, authentication MUST fail with `401`
+and differ, request validation MUST fail with `422`
+(`error.message = "conflicting session scope"`). If `X-Session-Id` is absent
+and `X-Scope-Id` plus body `session_id` are both present and differ,
+authentication MUST fail with `401`
 (`error.message = "conflicting session scope"`).
 
 ## 2. Job state model
@@ -45,6 +48,10 @@ Ownership is scope-bound. Status and cancel operations MUST enforce caller scope
 Worker status updates MUST enforce legal transitions:
 
 - `pending -> pending|running|succeeded|failed|canceled`
+  - `pending -> succeeded` is allowed for atomic worker completion across
+    backends.
+  - in-memory `process_immediately` simulation currently transitions through
+    `pending -> running -> succeeded`.
 - `running -> running|succeeded|failed|canceled`
 - terminal states (`succeeded|failed|canceled`) allow same-state idempotent
   updates only.

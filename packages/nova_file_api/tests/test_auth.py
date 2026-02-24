@@ -204,6 +204,24 @@ async def test_same_origin_rejects_conflicting_session_scope() -> None:
             ),
             session_id="scope-from-body",
         )
+    assert exc.value.code == "invalid_request"
+    assert exc.value.status_code == 422
+    assert exc.value.message == "conflicting session scope"
+
+
+@pytest.mark.asyncio
+async def test_same_origin_rejects_legacy_header_body_conflict() -> None:
+    settings = Settings()
+    settings.auth_mode = AuthMode.SAME_ORIGIN
+    auth = Authenticator(settings=settings, cache=_build_cache())
+
+    with pytest.raises(FileTransferError) as exc:
+        await auth.authenticate(
+            request=_build_request(
+                headers={"X-Scope-Id": "scope-from-legacy-header"}
+            ),
+            session_id="scope-from-body",
+        )
     assert exc.value.code == "unauthorized"
     assert exc.value.status_code == 401
     assert exc.value.message == "conflicting session scope"
