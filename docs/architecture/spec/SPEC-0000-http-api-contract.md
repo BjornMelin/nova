@@ -2,134 +2,128 @@
 Spec: 0000
 Title: HTTP API Contract
 Status: Active
-Version: 1.1
-Date: 2026-02-11
+Version: 1.7
+Date: 2026-02-23
 Related:
   - "[ADR-0000: FastAPI service decision](../adr/ADR-0000-fastapi-microservice.md)"
-  - "[ADR-0002: OpenAPI as contract and SDK generation](../adr/ADR-0002-openapi-as-contract-and-sdk-generation.md)"
+  - "[ADR-0006: Async orchestration with SQS + ECS worker](../adr/ADR-0006-async-orchestration-sqs-ecs-worker.md)"
   - "[SPEC-0001: Security model](./SPEC-0001-security-model.md)"
-  - "[SPEC-0002: S3 integration](./SPEC-0002-s3-integration.md)"
+  - "[SPEC-0008: Async jobs and worker orchestration](./SPEC-0008-async-jobs-and-worker-orchestration.md)"
+  - "[SPEC-0009: Caching and idempotency](./SPEC-0009-caching-and-idempotency.md)"
 References:
   - "[OpenAPI Specification](https://spec.openapis.org/oas/latest.html)"
-  - "[FastAPI metadata and OpenAPI docs](https://fastapi.tiangolo.com/tutorial/metadata/)"
+  - "[RFC 6750 Bearer Token Usage](https://datatracker.ietf.org/doc/html/rfc6750)"
 ---
 
 ## 1. Scope
 
-Defines the external control-plane API for upload/download orchestration. This API does
-not transfer file bytes; it returns presigned URLs and coordinates multipart lifecycle.
+Defines the external control-plane API for file-transfer orchestration and
+related async jobs. The API does not transfer object bytes.
 
-## 2. Base path
+## 2. Base paths and media type
 
-- Base path: `/api/file-transfer`
+- Transfer base path: `/api/transfers`
+- Jobs base path: `/api/jobs`
 - Content type: `application/json`
 
 ## 3. Endpoints
 
-### 3.1 POST `/uploads/initiate`
+### 3.1 File-transfer control plane
 
-Purpose: choose upload strategy and return single PUT URL or multipart upload context.
+- `POST /api/transfers/uploads/initiate`
+- `POST /api/transfers/uploads/sign-parts`
+- `POST /api/transfers/uploads/complete`
+- `POST /api/transfers/uploads/abort`
+- `POST /api/transfers/downloads/presign`
 
-Request fields:
+### 3.2 Async jobs
 
-- `filename`: string, required
-- `content_type`: string or `null`
-- `size_bytes`: integer, required
-- `session_id`: string, optional in same-origin mode, required when auth context is absent
+- `POST /api/jobs/enqueue`
+- `GET /api/jobs/{job_id}`
+- `POST /api/jobs/{job_id}/cancel`
+- `POST /api/jobs/{job_id}/result` (worker/internal update)
 
-Response (single strategy):
+`POST /api/jobs/enqueue` failure semantics:
 
-- `strategy`: `"single"`
-- `bucket`: string
-- `key`: string
-- `url`: string (presigned PUT URL)
-- `expires_in_seconds`: integer
+- Queue publish failure MUST return `503`.
+- Queue publish failure MUST return `error.code = "queue_unavailable"`.
+- Failed enqueue attempts MUST NOT be replay-cached by idempotency storage.
+- In-memory queue mode MUST honor `process_immediately`; when disabled, enqueue
+  returns `pending` and MUST NOT auto-transition to `succeeded`.
 
-Response (multipart strategy):
+`POST /api/jobs/{job_id}/result` transition semantics:
 
-- `strategy`: `"multipart"`
-- `bucket`: string
-- `key`: string
-- `upload_id`: string
-- `part_size_bytes`: integer
-- `expires_in_seconds`: integer
+- `pending -> pending|running|succeeded|failed|canceled`
+- `pending -> succeeded` is allowed for atomic worker completion across
+  backends; in-memory `process_immediately` simulation currently transitions via
+  `running` before `succeeded`.
+- `running -> running|succeeded|failed|canceled`
+- terminal states (`succeeded|failed|canceled`) allow same-state idempotent
+  updates only.
+- `status = succeeded` updates MUST clear `error` to `null`.
+- invalid transition MUST return `409` with `error.code = "conflict"`.
 
-### 3.2 POST `/uploads/sign-parts`
+### 3.3 Operational
 
-Purpose: sign one or more multipart part numbers for an existing upload.
+- `GET /healthz`
+- `GET /readyz`
+- `GET /metrics/summary`
 
-Request fields:
+## 4. Idempotency requirements
 
-- `key`: string, required
-- `upload_id`: string, required
-- `part_numbers`: integer array, required
-- `session_id`: string, optional/required by auth mode
+`POST /api/transfers/uploads/initiate` and `POST /api/jobs/enqueue` MUST
+support idempotent
+retries via `Idempotency-Key` header.
 
-Response fields:
+- Repeated request with same key and same payload MUST replay the original
+  response.
+- Reuse of key with a different payload MUST return `409` with
+  `error.code = "idempotency_conflict"`.
 
-- `urls`: object map of `part_number -> presigned_url`
-- `expires_in_seconds`: integer
+## 5. Scope and key rules
 
-### 3.3 POST `/uploads/complete`
+- Keys are server-generated.
+- Follow-up operations MUST validate key ownership and allowed prefix.
+- In JWT mode, trusted principal-derived scope MUST take precedence over
+  client-provided session identifiers.
 
-Purpose: finalize multipart upload.
+## 6. Authentication and authorization semantics
 
-Request fields:
+Supported auth modes:
 
-- `key`: string, required
-- `upload_id`: string, required
-- `parts`: array of `{ part_number, etag }`, required
-- `session_id`: string, optional/required by auth mode
+- same-origin
+- jwt-local
+- jwt-remote (optional, fail-closed)
 
-Response fields:
+Same-origin expectations:
 
-- `bucket`: string
-- `key`: string
-- `etag`: string or `null`
-- `version_id`: string or `null` (when bucket versioning is enabled)
+- Body-bearing routes may convey caller scope via `session_id` payload field.
+- Body-less scope-bound routes (for example `GET /api/jobs/{job_id}`) MUST
+  convey caller scope via trusted header (`X-Session-Id` or `X-Scope-Id`).
+- When `X-Session-Id` and `X-Scope-Id` are both present, `X-Session-Id` MUST take
+  precedence for scope binding.
+- Differing `X-Session-Id` and `X-Scope-Id` values are not a protocol error;
+  the request is evaluated using `X-Session-Id`.
+- When `X-Session-Id` and body `session_id` are both present with differing
+  values, request validation MUST fail with `422` and
+  `error.message = "conflicting session scope"`.
+- When `X-Session-Id` is absent and `X-Scope-Id` plus body `session_id` are
+  both present with differing values, authentication MUST fail with `401` and
+  `error.message = "conflicting session scope"`.
 
-### 3.4 POST `/uploads/abort`
+JWT mode expectations:
 
-Purpose: abort a multipart upload and release incomplete parts.
+- `Authorization: Bearer <token>` is required.
+- `401` for authentication failures, `403` for authorization failures.
+- `401` MUST include RFC 6750-compatible `WWW-Authenticate: Bearer ...` header;
+  header generation failures MUST fail closed (surface auth error or
+  deterministic fallback challenge), per RFC 6750 §3.1.
+- In JWT mode, principal-derived scope MUST take precedence over
+  client-provided `X-Session-Id`, `X-Scope-Id`, or body `session_id` (see §5).
 
-Request fields:
+## 7. Error envelope
 
-- `key`: string, required
-- `upload_id`: string, required
-- `session_id`: string, optional/required by auth mode
-
-Response fields:
-
-- `ok`: boolean
-
-### 3.5 POST `/downloads/presign`
-
-Purpose: issue a presigned GET URL for an existing object.
-
-Request fields:
-
-- `key`: string, required
-- `session_id`: string, optional/required by auth mode
-- `content_disposition`: string, optional
-- `filename`: string, optional
-
-Response fields:
-
-- `bucket`: string
-- `key`: string
-- `url`: string (presigned GET URL)
-- `expires_in_seconds`: integer
-
-## 4. Contract rules
-
-- Keys are server-generated; callers cannot select arbitrary storage keys.
-- `upload_id` and `key` pairs MUST belong to caller scope.
-- Strategy selection (single vs multipart) SHOULD be based on configured multipart
-  threshold and size validations.
-
-## 5. Error model
-
-All errors MUST return:
+All non-2xx responses MUST return:
 
 ```json
 {
@@ -142,19 +136,15 @@ All errors MUST return:
 }
 ```
 
-Recommended domain error codes:
+Queue publication failures for async enqueue use:
 
-- `invalid_request`
-- `unauthorized`
-- `forbidden`
-- `not_found`
-- `conflict`
-- `upstream_s3_error`
-- `internal_error`
+- `status_code = 503`
+- `error.code = "queue_unavailable"`
 
-## 6. Traceability
+## 8. Traceability
 
-- [FR-0000](../requirements.md#fr-0000-control-plane-endpoints)
-- [FR-0001](../requirements.md#fr-0001-s3-multipart-correctness)
-- [FR-0002](../requirements.md#fr-0002-key-generation-and-scoping)
-- [FR-0004](../requirements.md#fr-0004-auth-and-authorization-pluggable)
+- [FR-0000](../requirements.md#fr-0000-file-transfer-control-plane-endpoints)
+- [FR-0001](../requirements.md#fr-0001-async-job-endpoints-and-orchestration)
+- [FR-0002](../requirements.md#fr-0002-operational-endpoints)
+- [FR-0004](../requirements.md#fr-0004-idempotency-for-mutation-entrypoints)
+- [FR-0005](../requirements.md#fr-0005-authentication-and-authorization)

@@ -2,8 +2,8 @@
 Spec: 0004
 Title: CI/CD and Documentation Automation
 Status: Active
-Version: 1.1
-Date: 2026-02-11
+Version: 1.3
+Date: 2026-02-23
 Related:
   - "[ADR-0002: OpenAPI as contract and SDK generation](../adr/ADR-0002-openapi-as-contract-and-sdk-generation.md)"
   - "[ADR-0003: MkDocs Material + Scalar docs stack](../adr/ADR-0003-api-docs-site-mkdocs-material-plus-scalar.md)"
@@ -15,15 +15,14 @@ References:
   - "[OpenAPI Generator](https://openapi-generator.tech/)"
 ---
 
-# SPEC-0004: CI/CD + documentation automation
-
 ## 1. Required quality gates
 
 Every pull request MUST pass:
 
-- `uv run -- ruff check .`
-- `uv run -- mypy`
-- `uv run -- pytest -q`
+- `source .venv/bin/activate && uv run ruff check .`
+- `source .venv/bin/activate && uv run ruff check . --select I`
+- `source .venv/bin/activate && uv run mypy`
+- `source .venv/bin/activate && uv run pytest -q`
 - container image build validation
 
 ## 2. Build and deploy pipeline
@@ -57,15 +56,35 @@ The docs pipeline MUST fail if:
 - OpenAPI generation fails,
 - docs build fails,
 - broken internal links are detected in ADR/SPEC navigation.
+- workspace package metadata is invalid (for example `project.readme` points
+  outside the package/app directory and isolated builds fail).
+
+When runtime behavior or error semantics change, the same pull request MUST
+include updates to:
+
+- `README.md`
+- `PRD.md`
+- affected `requirements.md`, `SPEC`, `ADR`, and `PLAN`/`SUBPLAN` docs
+
+The PR template must include a completed checklist item referencing this rule (for
+example: `Documentation updated: README.md, PRD.md, affected requirements.md /
+SPEC / ADR / PLAN/SUBPLAN`) whenever behavior changes.
 
 ## 4. Client generation workflow
 
 - TypeScript types/client: `openapi-typescript` + `openapi-fetch`
 - R client: OpenAPI Generator (`r` generator) when release process requires it
+- Python smoke validation: `openapi-python-client` generation + compile check
+  from runtime OpenAPI output
 
 Client generation SHOULD run as a verification step on contract changes.
+The runtime repository keeps this via
+`packages/nova_file_api/tests/test_generated_client_smoke.py`.
+
+Workspace package/app build verification SHOULD run after packaging metadata
+changes (for example `uv build` on each workspace package/app).
 
 ## 5. Traceability
 
-- [NFR-0001](../requirements.md#nfr-0001-documentation-automation)
-- [IR-FT-003](../requirements.md#ir-ft-003-openapi-exposure-for-client-generation)
+- [FR-0008](../requirements.md#fr-0008-openapi-contract-ownership)
+- [NFR-0004](../requirements.md#nfr-0004-cicd-and-quality-gates)

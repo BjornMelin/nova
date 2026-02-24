@@ -53,6 +53,6 @@ When `FILE_TRANSFER_USE_ACCELERATE_ENDPOINT=true`:
 
 ## 6. Traceability
 
-- [FR-0001](../requirements.md#fr-0001-s3-multipart-correctness)
-- [FR-0003](../requirements.md#fr-0003-transfer-acceleration-support)
-- [NFR-FT-004](../requirements.md#nfr-ft-004-reliability-and-cleanup)
+- [FR-0009](../requirements.md#fr-0009-s3-multipart-correctness-and-acceleration-compatibility)
+- [IR-0004](../requirements.md#ir-0004-browser-compatibility-for-multipart-workflows)
+- [NFR-0002](../requirements.md#nfr-0002-scalability-and-resilience)

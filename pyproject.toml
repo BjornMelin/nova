@@ -1,13 +1,11 @@
 [project]
-name = "aws-file-transfer-api"
+name = "nova"
 version = "0.1.0"
-description = "Add your description here"
+description = "Monorepo runtime for file transfer and auth API services."
 readme = "README.md"
-requires-python = ">=3.11,<3.14"
+requires-python = ">=3.12,<3.14"
 license = "LicenseRef-Proprietary"
-authors = [
-  { name = "3M Cloud" },
-]
+authors = [{ name = "3M Cloud" }]
 maintainers = [
   { name = "Bjorn Melin", email = "bmelin@mmm.com" },
 ]
@@ -16,31 +14,64 @@ classifiers = [
   "Intended Audience :: Developers",
   "Operating System :: OS Independent",
   "Programming Language :: Python :: 3",
-  "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
   "Topic :: Internet :: WWW/HTTP",
   "Topic :: Software Development :: Libraries :: Python Modules",
 ]
-
 dependencies = [
+  "nova-auth-api",
+  "nova-auth-api-service",
+  "nova-dash-bridge",
+  "nova-file-api",
+  "nova-file-api-service",
 ]
 
-[project.optional-dependencies]
-
 [dependency-groups]
-dev = []
+dev = [
+  "mypy>=1.19.1",
+  "openapi-python-client>=0.26.2",
+  "pytest>=9.0.2",
+  "pytest-asyncio>=1.3.0",
+  "ruff>=0.15.1",
+]
 
 [project.urls]
-Repository = "https://github.com/3M-Cloud/aws-file-transfer-api"
-Documentation = "https://github.com/3M-Cloud/aws-file-transfer-api/tree/main/docs"
+Repository = "https://github.com/3M-Cloud/nova"
+Documentation = "https://github.com/3M-Cloud/nova/tree/main/docs"
 
 [tool.uv]
 default-groups = ["dev"]
 
+[tool.uv.workspace]
+members = [
+  "apps/nova_file_api_service",
+  "apps/nova_auth_api_service",
+  "packages/nova_auth_api",
+  "packages/nova_dash_bridge",
+  "packages/nova_file_api",
+]
+
+[tool.uv.sources]
+nova-auth-api = { workspace = true }
+nova-auth-api-service = { workspace = true }
+nova-dash-bridge = { workspace = true }
+nova-file-api = { workspace = true }
+nova-file-api-service = { workspace = true }
+
 [tool.pytest.ini_options]
 minversion = "8.0"
-testpaths = ["tests"]
+testpaths = [
+  "packages/nova_auth_api/tests",
+  "packages/nova_file_api/tests",
+]
+pythonpath = [
+  "apps/nova_auth_api_service/src",
+  "apps/nova_file_api_service/src",
+  "packages/nova_auth_api/src",
+  "packages/nova_dash_bridge/src",
+  "packages/nova_file_api/src",
+]
 addopts = [
   "-ra",
   "--strict-config",
@@ -49,7 +80,7 @@ addopts = [
 
 [tool.ruff]
 line-length = 80
-target-version = "py311"
+target-version = "py312"
 exclude = [
   ".git",
   ".venv",
@@ -63,7 +94,7 @@ select = ["E", "F", "I", "B", "UP", "SIM", "D"]
 ignore = ["D203", "D213"]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**/*.py" = ["D"]
+"**/tests/**/*.py" = ["D"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
@@ -72,12 +103,19 @@ convention = "google"
 docstring-code-format = true
 
 [tool.mypy]
-python_version = "3.11"
+python_version = "3.12"
 strict = true
 warn_unused_ignores = true
 warn_redundant_casts = true
 warn_return_any = true
 warn_unreachable = true
 pretty = true
-files = ["src", "tests"]
+files = ["apps", "packages"]
 
+[[tool.mypy.overrides]]
+module = ["boto3", "botocore.*", "oidc_jwt_verifier"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["dash", "dash.*", "flask", "flask.*"]
+ignore_missing_imports = true

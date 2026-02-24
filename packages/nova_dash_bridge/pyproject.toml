@@ -1,0 +1,24 @@
+[build-system]
+requires = ["hatchling>=1.27.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "nova-dash-bridge"
+version = "0.1.0"
+description = "Dash and framework adapters for nova APIs."
+readme = "README.md"
+requires-python = ">=3.12,<3.14"
+dependencies = [
+  "nova-file-api>=0.1.0",
+  "boto3>=1.42.47",
+  "pydantic>=2.12.5",
+  "pydantic-settings>=2.12.0",
+]
+
+[project.optional-dependencies]
+dash = ["dash>=3.2.0,<5.0.0"]
+fastapi = ["fastapi>=0.129.0,<0.300.0"]
+flask = ["flask>=3.1.2,<4.0.0"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/nova_dash_bridge"]

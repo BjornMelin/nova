@@ -26,7 +26,7 @@ Control-plane endpoints are cheap individually but can be abused to:
 
 Primary control SHOULD be infrastructure-level:
 
-- AWS WAF rate-based rules on `/api/file-transfer/*`.
+- AWS WAF rate-based rules on `/api/transfers/*` and `/api/jobs/*`.
 
 Secondary control MAY be app-level throttling for defense in depth.
 
@@ -59,6 +59,6 @@ Abuse controls SHOULD emit:
 
 ## 5. Traceability
 
-- [FR-0001](../requirements.md#fr-0001-s3-multipart-correctness)
-- [NFR-0000](../requirements.md#nfr-0000-observability)
-- [NFR-FT-004](../requirements.md#nfr-ft-004-reliability-and-cleanup)
+- [FR-0009](../requirements.md#fr-0009-s3-multipart-correctness-and-acceleration-compatibility)
+- [FR-0007](../requirements.md#fr-0007-observability-and-analytics)
+- [NFR-0002](../requirements.md#nfr-0002-scalability-and-resilience)

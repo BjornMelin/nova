@@ -2,8 +2,8 @@
 ADR: 0002
 Title: Treat OpenAPI as the contract and generate client SDKs from it
 Status: Accepted
-Version: 1.1
-Date: 2026-02-11
+Version: 1.2
+Date: 2026-02-12
 Related:
   - "[ADR-0000: Implement the File Transfer API as a FastAPI service](./ADR-0000-fastapi-microservice.md)"
   - "[ADR-0003: API documentation site uses MkDocs Material and Scalar API Reference](./ADR-0003-api-docs-site-mkdocs-material-plus-scalar.md)"
@@ -58,13 +58,15 @@ Implementation commitments:
 - Generate and publish OpenAPI from service code.
 - Use `openapi-typescript` and `openapi-fetch` for TypeScript consumption.
 - Use OpenAPI Generator for R client generation when R SDK artifacts are required.
+- Keep Python generated-client smoke verification via
+  `openapi-python-client`.
 - Treat schema changes as contract changes requiring review.
 
 ## Related Requirements
 
-- [FR-0000](../requirements.md#fr-0000-control-plane-endpoints)
-- [NFR-0001](../requirements.md#nfr-0001-documentation-automation)
-- [IR-FT-003](../requirements.md#ir-ft-003-openapi-exposure-for-client-generation)
+- [FR-0000](../requirements.md#fr-0000-file-transfer-control-plane-endpoints)
+- [FR-0008](../requirements.md#fr-0008-openapi-contract-ownership)
+- [NFR-0004](../requirements.md#nfr-0004-cicd-and-quality-gates)
 
 ## Consequences
 
@@ -75,6 +77,8 @@ Implementation commitments:
 
 ## Changelog
 
+- 2026-02-12: Added Python generated-client smoke verification commitment
+  (`openapi-python-client`) and updated metadata.
 - 2026-02-11: Expanded ADR with explicit generation commitments and stronger
   multi-language contract rationale.
 - 2026-02-11: Initial ADR accepted.
