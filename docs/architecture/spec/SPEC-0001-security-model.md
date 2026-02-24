@@ -29,8 +29,8 @@ For body-less scope-bound routes (for example `GET /api/jobs/{job_id}`), caller
 scope MUST be conveyed using trusted headers (`X-Scope-Id` or
 `X-Session-Id`).
 When both headers are present, `X-Session-Id` MUST win for scope binding.
-When `X-Session-Id` and body `session_id` differ, authentication MUST fail with
-`422` and message `conflicting session scope`.
+When `X-Session-Id` and body `session_id` differ, request validation MUST fail
+with `422` and message `conflicting session scope`.
 When `X-Session-Id` is absent and `X-Scope-Id` plus body `session_id` differ,
 authentication MUST fail with `401` and message `conflicting session scope`.
 

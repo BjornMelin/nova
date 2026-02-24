@@ -115,7 +115,9 @@ JWT mode expectations:
 
 - `Authorization: Bearer <token>` is required.
 - `401` for authentication failures, `403` for authorization failures.
-- `401` SHOULD include RFC 6750-compatible `WWW-Authenticate` header.
+- `401` MUST include RFC 6750-compatible `WWW-Authenticate: Bearer ...` header;
+  header generation failures MUST fail closed (surface auth error or
+  deterministic fallback challenge), per RFC 6750 §3.1.
 
 ## 7. Error envelope
 
