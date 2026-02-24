@@ -45,10 +45,15 @@ class _StubTransferService:
     """Placeholder transfer service for container wiring tests."""
 
 
-def _build_container(*, jobs_enabled: bool = True) -> AppContainer:
+def _build_container(
+    *,
+    jobs_enabled: bool = True,
+    file_transfer_bucket: str = "test-transfer-bucket",
+) -> AppContainer:
     """Build an app container with in-memory test doubles."""
     settings = Settings()
     settings.jobs_enabled = jobs_enabled
+    settings.file_transfer_bucket = file_transfer_bucket
     metrics = MetricsCollector(namespace="Tests")
     shared = SharedRedisCache(url=None)
     cache = TwoTierCache(
@@ -113,6 +118,22 @@ def test_readyz_stays_ok_when_jobs_are_disabled() -> None:
     assert payload["ok"] is True
     assert payload["checks"] == {
         "bucket_configured": True,
+        "shared_cache": True,
+    }
+
+
+def test_readyz_fails_when_bucket_is_missing() -> None:
+    """Verify readiness fails when FILE_TRANSFER_BUCKET is not configured."""
+    app = create_app(
+        container_override=_build_container(file_transfer_bucket="")
+    )
+    with TestClient(app) as client:
+        response = client.get("/readyz")
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["ok"] is False
+    assert payload["checks"] == {
+        "bucket_configured": False,
         "shared_cache": True,
     }
 

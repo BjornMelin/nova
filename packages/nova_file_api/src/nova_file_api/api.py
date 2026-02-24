@@ -633,7 +633,9 @@ async def readyz(request: Request) -> ReadinessResponse:
         )
         shared_cache = False
     checks = {
-        "bucket_configured": bool(container.settings.file_transfer_bucket),
+        "bucket_configured": bool(
+            container.settings.file_transfer_bucket.strip()
+        ),
         "shared_cache": shared_cache,
     }
     return ReadinessResponse(ok=all(checks.values()), checks=checks)

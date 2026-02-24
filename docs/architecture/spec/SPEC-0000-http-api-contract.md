@@ -2,7 +2,7 @@
 Spec: 0000
 Title: HTTP API Contract
 Status: Active
-Version: 1.6
+Version: 1.7
 Date: 2026-02-23
 Related:
   - "[ADR-0000: FastAPI service decision](../adr/ADR-0000-fastapi-microservice.md)"
@@ -57,6 +57,7 @@ related async jobs. The API does not transfer object bytes.
 - `running -> running|succeeded|failed|canceled`
 - terminal states (`succeeded|failed|canceled`) allow same-state idempotent
   updates only.
+- `status = succeeded` updates MUST clear `error` to `null`.
 - invalid transition MUST return `409` with `error.code = "conflict"`.
 
 ### 3.3 Operational

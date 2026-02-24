@@ -60,6 +60,7 @@ bytes.
   - terminal states (`succeeded|failed|canceled`) only allow idempotent
     same-state updates.
 - Invalid transitions return `409` with `error.code = "conflict"`.
+- `succeeded` updates always normalize `error` to `null`.
 
 ### Worker observability contract
 
@@ -77,6 +78,8 @@ bytes.
 
 - `/readyz` reflects only critical traffic-serving dependencies.
 - Feature flags such as `JOBS_ENABLED` do not affect readiness pass/fail.
+- `bucket_configured` is true only when `FILE_TRANSFER_BUCKET` is non-empty
+  after trimming whitespace.
 - Current readiness checks:
   - `bucket_configured`
   - `shared_cache`
@@ -97,6 +100,7 @@ Startup fails fast for invalid backend selections:
 - `JOBS_QUEUE_BACKEND=sqs` and `JOBS_ENABLED=true` requires
   `JOBS_SQS_QUEUE_URL`.
 - `ACTIVITY_STORE_BACKEND=dynamodb` requires `ACTIVITY_ROLLUPS_TABLE`.
+- Missing/blank `FILE_TRANSFER_BUCKET` keeps `/readyz` in a non-ready state.
 
 Primary operational settings:
 
@@ -136,6 +140,15 @@ Run in repository root:
 source .venv/bin/activate && uv run ruff check . --fix && uv run ruff format .
 source .venv/bin/activate && uv run mypy
 source .venv/bin/activate && uv run pytest -q
+```
+
+For workspace packaging metadata checks, run isolated builds:
+
+```bash
+source .venv/bin/activate && \
+for p in packages/nova_file_api packages/nova_auth_api \
+  packages/nova_dash_bridge apps/nova_file_api_service \
+  apps/nova_auth_api_service; do uv build "$p"; done
 ```
 
 ## Threading and Async Workload Notes

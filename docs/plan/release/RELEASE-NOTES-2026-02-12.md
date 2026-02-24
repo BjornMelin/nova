@@ -67,6 +67,23 @@ Scope: `nova` runtime monorepo + cross-repo integration alignment
 - Added regression coverage for same-origin status auth semantics, bridge asset
   poll-header contract, and structured EMF payload assertions.
 
+## Post-Release Fixes (2026-02-23)
+
+- Fixed workspace packaging metadata to use in-project `README.md` files across
+  all runtime packages/apps, restoring isolated `uv build` support.
+- Fixed worker result normalization so `status=succeeded` always clears
+  `error` state, including updates that provide a result payload.
+- Fixed readiness bucket check semantics:
+  - `FILE_TRANSFER_BUCKET` default is blank
+  - `/readyz` treats blank/whitespace bucket values as unconfigured.
+- Added regression coverage for:
+  - succeeded updates clearing stale error values
+  - readiness failing when bucket configuration is missing.
+- Verification evidence:
+  - runtime tests: `81 passed`
+  - generated-client smoke: `1 passed`
+  - workspace package/app builds: all five `uv build` runs passed.
+
 Execution runbook for remaining live gates:
 
 - `docs/plan/release/NONPROD-LIVE-VALIDATION-RUNBOOK.md`

@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 name = "nova-auth-api-service"
 version = "0.1.0"
 description = "ASGI service wrapper for nova-auth-api."
-readme = "../../README.md"
+readme = "README.md"
 requires-python = ">=3.12,<3.14"
 dependencies = [
   "nova-auth-api",

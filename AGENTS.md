@@ -103,6 +103,12 @@ rg -n "/api/transfers|/api/jobs|/metrics/summary|/healthz|/readyz" apps packages
   - `/readyz` pass/fail is based on traffic-critical dependencies only.
   - feature flags (for example `JOBS_ENABLED`) must not drive readiness
     false.
+  - missing/blank `FILE_TRANSFER_BUCKET` must fail readiness.
+- Worker result-update semantics:
+  - `status=succeeded` updates must normalize `error` to `null`.
+- Workspace packaging metadata:
+  - each package/app `project.readme` path must resolve inside the same
+    package/app directory.
 - Rollup correctness for DynamoDB activity backend:
   - `active_users_today` increments only on first user/day marker write.
   - `distinct_event_types` increments only on first event-type/day marker
@@ -136,6 +142,10 @@ source .venv/bin/activate && uv run mypy
 source .venv/bin/activate && uv run pytest -q
 source .venv/bin/activate && uv run pytest -q \
   packages/nova_file_api/tests/test_generated_client_smoke.py
+source .venv/bin/activate && \
+for p in packages/nova_file_api packages/nova_auth_api \
+  packages/nova_dash_bridge apps/nova_file_api_service \
+  apps/nova_auth_api_service; do uv build "$p"; done
 ```
 
 ## Execution Commands by Scope

@@ -2,8 +2,8 @@
 ADR: 0010
 Title: Fail enqueue on queue publish errors and scope readiness to critical dependencies
 Status: Accepted
-Version: 1.0
-Date: 2026-02-12
+Version: 1.1
+Date: 2026-02-23
 Related:
   - "[SPEC-0000: HTTP API contract](../spec/SPEC-0000-http-api-contract.md)"
   - "[SPEC-0003: Observability](../spec/SPEC-0003-observability.md)"
@@ -61,6 +61,8 @@ Implementation commitments:
 - Job records created before publish are transitioned to `failed` when publish
   fails.
 - `/readyz` excludes feature flags from pass/fail aggregation.
+- `/readyz` treats missing/blank `FILE_TRANSFER_BUCKET` as unconfigured.
+- Worker updates with `status = succeeded` always normalize `error` to `null`.
 - DynamoDB rollups increment `distinct_event_types` only when a first-seen
   event-type marker write succeeds.
 - Backend misconfiguration for selected AWS backends fails fast at startup.
@@ -75,3 +77,5 @@ Implementation commitments:
 ## Changelog
 
 - 2026-02-12 (v1.0): Initial acceptance.
+- 2026-02-23 (v1.1): Clarified readiness bucket-configuration rule and worker
+  succeeded-state error normalization invariants.

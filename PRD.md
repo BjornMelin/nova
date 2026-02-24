@@ -60,6 +60,7 @@ The service must be usable by:
   bounds.
 - Worker status updates must enforce legal job state transitions and reject
   invalid transitions with `409 conflict`.
+- Worker `succeeded` updates must always clear job `error` state.
 - Worker processing must emit queue lag and throughput metrics:
   - `jobs_queue_lag_ms` on first transition out of `pending`
   - `jobs_worker_result_updates_total` and per-status update counters
@@ -74,6 +75,7 @@ The service must be usable by:
   level of the structured log event (not JSON-string nested).
 - Readiness must reflect critical traffic-serving dependencies only.
 - Feature flags (for example `JOBS_ENABLED`) must not flip readiness to false.
+- Missing/blank `FILE_TRANSFER_BUCKET` must keep readiness false.
 - DynamoDB activity rollups must correctly maintain:
   - `events_total`
   - `active_users_today`

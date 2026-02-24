@@ -423,3 +423,26 @@ Execution and evidence checklist:
       <https://fastapi.tiangolo.com/tutorial/header-params/>
     - Python dataclasses:
       <https://docs.python.org/3/library/dataclasses.html>
+- 2026-02-23: Packaging/job/readiness regression remediation:
+  - Before: workspace package/app `pyproject.toml` files used
+    `readme = "../../README.md"`, which fails isolated package builds.
+  - After: all affected app/package manifests now use in-project
+    `readme = "README.md"` with local README files.
+  - Before: succeeded worker updates could retain non-null `error` when result
+    payloads were provided.
+  - After: succeeded updates always normalize `error` to `null`, preserving
+    provided result payloads.
+  - Before: placeholder `FILE_TRANSFER_BUCKET` default could produce
+    false-positive readiness.
+  - After: default bucket is blank and `/readyz` treats blank/whitespace bucket
+    values as unconfigured.
+  - Added/updated tests:
+    `packages/nova_file_api/tests/test_jobs.py`,
+    `packages/nova_file_api/tests/test_app_health.py`.
+  - Source references:
+    - PEP 621 `readme` metadata:
+      <https://peps.python.org/pep-0621/>
+    - Hatch metadata/readme configuration:
+      <https://github.com/pypa/hatch/blob/master/docs/config/metadata.md>
+    - pydantic-settings BaseSettings behavior:
+      <https://github.com/pydantic/pydantic-settings/blob/main/docs/index.md>

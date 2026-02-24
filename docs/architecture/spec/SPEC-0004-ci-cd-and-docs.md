@@ -2,8 +2,8 @@
 Spec: 0004
 Title: CI/CD and Documentation Automation
 Status: Active
-Version: 1.2
-Date: 2026-02-12
+Version: 1.3
+Date: 2026-02-23
 Related:
   - "[ADR-0002: OpenAPI as contract and SDK generation](../adr/ADR-0002-openapi-as-contract-and-sdk-generation.md)"
   - "[ADR-0003: MkDocs Material + Scalar docs stack](../adr/ADR-0003-api-docs-site-mkdocs-material-plus-scalar.md)"
@@ -56,6 +56,8 @@ The docs pipeline MUST fail if:
 - OpenAPI generation fails,
 - docs build fails,
 - broken internal links are detected in ADR/SPEC navigation.
+- workspace package metadata is invalid (for example `project.readme` points
+  outside the package/app directory and isolated builds fail).
 
 When runtime behavior or error semantics change, the same pull request MUST
 include updates to:
@@ -78,6 +80,9 @@ SPEC / ADR / PLAN/SUBPLAN`) whenever behavior changes.
 Client generation SHOULD run as a verification step on contract changes.
 The runtime repository keeps this via
 `packages/nova_file_api/tests/test_generated_client_smoke.py`.
+
+Workspace package/app build verification SHOULD run after packaging metadata
+changes (for example `uv build` on each workspace package/app).
 
 ## 5. Traceability
 

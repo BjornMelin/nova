@@ -33,7 +33,7 @@ class Settings(BaseSettings):
         alias="FILE_TRANSFER_ENABLED",
     )
     file_transfer_bucket: str = Field(
-        default="file-transfer-placeholder-bucket",
+        default="",
         alias="FILE_TRANSFER_BUCKET",
     )
     file_transfer_upload_prefix: str = Field(

@@ -15,7 +15,7 @@ Release Integration Architect (runtime + infra + client cutover governance)
 ## Status
 
 - Active
-- Last updated: 2026-02-12
+- Last updated: 2026-02-23
 
 ## Objective
 
@@ -37,6 +37,7 @@ Track and verify final delivery across:
 - [x] OpenAPI route-regression tests added for split-route contract
 - [x] Bridge runtime delegation moved into `nova_file_api` core transfer service
 - [x] Generated OpenAPI client smoke test added and passing
+- [x] Workspace package/app metadata and isolated build behavior validated
 
 ### B. container-craft Alignment
 
@@ -121,6 +122,21 @@ Track and verify final delivery across:
     (`1` passed)
 - 2026-02-12: Added external live gate operator runbook:
   - `docs/plan/release/NONPROD-LIVE-VALIDATION-RUNBOOK.md`
+- 2026-02-23: Packaging/job/readiness remediation verification:
+  - `source .venv/bin/activate && uv run pytest -q`
+    `packages/nova_file_api/tests/test_jobs.py`
+    `packages/nova_file_api/tests/test_app_health.py` (`25` passed)
+  - `source .venv/bin/activate && uv run pytest -q` (`81` passed)
+  - `source .venv/bin/activate && uv run pytest -q`
+    `packages/nova_file_api/tests/test_generated_client_smoke.py`
+    (`1` passed)
+  - workspace build verification:
+    `uv build` passed for:
+    `packages/nova_file_api`,
+    `packages/nova_auth_api`,
+    `packages/nova_dash_bridge`,
+    `apps/nova_file_api_service`,
+    `apps/nova_auth_api_service`.
 
 ## Open Risks
 

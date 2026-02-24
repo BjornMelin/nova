@@ -66,6 +66,7 @@ Worker result-update semantics:
   - `running -> running|succeeded|failed|canceled`
   - terminal states (`succeeded|failed|canceled`) only allow same-state
     idempotent updates.
+- Worker updates that set `status = succeeded` MUST clear `error` to `null`.
 - Invalid status transitions MUST return `409` with `error.code = "conflict"`.
 
 ### FR-0002: Operational endpoints
@@ -78,6 +79,8 @@ The service MUST provide:
 
 Readiness evaluation MUST include only traffic-critical dependencies.
 Feature flags (for example `JOBS_ENABLED`) MUST NOT drive readiness pass/fail.
+
+- Missing or blank `FILE_TRANSFER_BUCKET` MUST fail readiness.
 
 ### FR-0003: Key generation and scope enforcement
 

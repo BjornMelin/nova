@@ -577,6 +577,40 @@ def test_job_service_update_result_allows_idempotent_terminal_update() -> None:
     assert updated.result == {"ok": True}
 
 
+def test_job_service_update_result_clears_error_on_succeeded() -> None:
+    repository = MemoryJobRepository()
+    metrics = MetricsCollector(namespace="Tests")
+    service = JobService(
+        repository=repository,
+        publisher=MemoryJobPublisher(),
+        metrics=metrics,
+    )
+    now = datetime.now(tz=UTC)
+    running = JobRecord(
+        job_id="job-update-6",
+        job_type="transform",
+        scope_id="scope-1",
+        status=JobStatus.RUNNING,
+        payload={"input": "value"},
+        result={"previous": True},
+        error="worker_failed",
+        created_at=now,
+        updated_at=now,
+    )
+    repository.create(running)
+
+    updated = service.update_result(
+        job_id="job-update-6",
+        status=JobStatus.SUCCEEDED,
+        result={"accepted": True},
+        error="stale_error",
+    )
+
+    assert updated.status == JobStatus.SUCCEEDED
+    assert updated.result == {"accepted": True}
+    assert updated.error is None
+
+
 def test_job_service_update_result_rejects_invalid_transition() -> None:
     repository = MemoryJobRepository()
     metrics = MetricsCollector(namespace="Tests")

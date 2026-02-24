@@ -9,6 +9,8 @@ Owner: Release Architecture
 - [x] No deprecated alias route namespace remains in runtime code.
 - [x] OpenAPI regression test enforces split-route contract.
 - [x] Generated OpenAPI client smoke test passes.
+- [x] Workspace package/app metadata uses in-project `README.md` paths and
+  isolated package builds succeed.
 
 ## 2. Auth and Security
 
@@ -23,6 +25,7 @@ Owner: Release Architecture
 - [x] Enqueue failures return `503` with `queue_unavailable`.
 - [x] Failed enqueue responses are not replay-cached as success.
 - [x] Worker result-update transition guardrails enforced.
+- [x] `status=succeeded` worker updates always clear `error` state.
 - [x] Queue lag + worker throughput metrics emitted.
 - [x] SQS publisher retry configuration and error mappings validated.
 
@@ -32,6 +35,7 @@ Owner: Release Architecture
 - [x] Redis outage fallback behavior validated.
 - [x] Cache hit/miss/fallback counters validated.
 - [x] `/readyz` excludes feature-flag pass/fail coupling.
+- [x] Missing/blank `FILE_TRANSFER_BUCKET` fails readiness.
 
 ## 5. Cross-Repo Compatibility
 

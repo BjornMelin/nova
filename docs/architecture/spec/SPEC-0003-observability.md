@@ -2,8 +2,8 @@
 Spec: 0003
 Title: Observability
 Status: Active
-Version: 1.6
-Date: 2026-02-13
+Version: 1.7
+Date: 2026-02-23
 Related:
   - "[ADR-0009: Observability stack](../adr/ADR-0009-observability-analytics-emf-dynamodb-cloudwatch.md)"
   - "[SPEC-0010: Observability analytics and activity rollups](./SPEC-0010-observability-analytics-and-activity-rollups.md)"
@@ -25,6 +25,7 @@ Readiness rules:
 - Feature flags (for example `jobs_enabled`) MUST NOT drive readiness
   pass/fail.
 - Optional feature disablement MUST NOT mark service unready.
+- Missing/blank `FILE_TRANSFER_BUCKET` MUST fail readiness.
 
 ## 2. Structured logging requirements
 

@@ -2,7 +2,7 @@
 Spec: 0008
 Title: Async Jobs and Worker Orchestration
 Status: Active
-Version: 1.5
+Version: 1.6
 Date: 2026-02-23
 Related:
   - "[ADR-0006: SQS + ECS worker orchestration](../adr/ADR-0006-async-orchestration-sqs-ecs-worker.md)"
@@ -48,6 +48,7 @@ Worker status updates MUST enforce legal transitions:
 - `running -> running|succeeded|failed|canceled`
 - terminal states (`succeeded|failed|canceled`) allow same-state idempotent
   updates only.
+- `status = succeeded` updates MUST clear `error` to `null`.
 
 Invalid transitions MUST fail with `409` (`error.code = "conflict"`).
 

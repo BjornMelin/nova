@@ -364,8 +364,9 @@ class JobService:
             update_payload["result"] = result
         if error is not None:
             update_payload["error"] = error
-        if status == JobStatus.SUCCEEDED and result is None:
-            update_payload["result"] = record.result or {}
+        if status == JobStatus.SUCCEEDED:
+            if result is None:
+                update_payload["result"] = record.result or {}
             update_payload["error"] = None
         if status == JobStatus.FAILED and error is None:
             update_payload["error"] = record.error or "worker_failed"

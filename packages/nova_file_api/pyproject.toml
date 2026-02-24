@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 name = "nova-file-api"
 version = "0.1.0"
 description = "FastAPI control-plane for file transfer and async jobs."
-readme = "../../README.md"
+readme = "README.md"
 requires-python = ">=3.12,<3.14"
 dependencies = [
   "anyio>=4.11.0",
@@ -22,4 +22,3 @@ dependencies = [
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/nova_file_api"]
-

@@ -370,11 +370,40 @@ Required for each implementation slice:
       <https://fastapi.tiangolo.com/tutorial/header-params/>
     - Python dataclasses post-init behavior:
       <https://docs.python.org/3/library/dataclasses.html>
+- 2026-02-23: Packaging/job/readiness regression remediation:
+  - Before: workspace package/app `pyproject.toml` files pointed
+    `project.readme` to `../../README.md`, which fails isolated package builds.
+  - After: each app/package now uses in-project `readme = "README.md"` with
+    local README files, restoring buildability for wheels/sdists.
+  - Before: `JobService.update_result` only cleared `error` for
+    `status=succeeded` when `result` was omitted.
+  - After: succeeded updates always normalize `error` to `null` while
+    preserving caller-provided result payloads.
+  - Before: `FILE_TRANSFER_BUCKET` placeholder default could make `/readyz`
+    report ready when the environment value was missing.
+  - After: bucket default is blank and readiness treats blank/whitespace bucket
+    values as unconfigured (`bucket_configured=false`).
+  - Added/updated tests:
+    `packages/nova_file_api/tests/test_jobs.py`,
+    `packages/nova_file_api/tests/test_app_health.py`.
+  - Source references:
+    - PEP 621 `readme` metadata:
+      <https://peps.python.org/pep-0621/>
+    - Hatch metadata/readme configuration:
+      <https://github.com/pypa/hatch/blob/master/docs/config/metadata.md>
+    - pydantic-settings BaseSettings behavior:
+      <https://github.com/pydantic/pydantic-settings/blob/main/docs/index.md>
 
 ## Source References
 
 - FastAPI best practices:
   <https://github.com/zhanymkanov/fastapi-best-practices>
+- PEP 621 (`pyproject.toml` project metadata):
+  <https://peps.python.org/pep-0621/>
+- Hatch metadata configuration:
+  <https://github.com/pypa/hatch/blob/master/docs/config/metadata.md>
+- pydantic-settings docs:
+  <https://github.com/pydantic/pydantic-settings/blob/main/docs/index.md>
 - FastAPI deployment and lifespan:
   <https://fastapi.tiangolo.com/deployment/server-workers/>
   <https://fastapi.tiangolo.com/advanced/events/>
