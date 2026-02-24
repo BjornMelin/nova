@@ -199,13 +199,11 @@ async def request_context_middleware(
     request_id = request.headers.get("X-Request-Id") or uuid4().hex
     request.state.request_id = request_id
     structlog.contextvars.bind_contextvars(request_id=request_id)
-    response: Response | None = None
     try:
         response = await call_next(request)
+        response.headers["X-Request-Id"] = request_id
         return response
     finally:
-        if response is not None:
-            response.headers["X-Request-Id"] = request_id
         structlog.contextvars.unbind_contextvars("request_id")
 
 

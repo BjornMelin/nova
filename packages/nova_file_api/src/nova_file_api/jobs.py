@@ -45,6 +45,15 @@ class JobPublisher(Protocol):
     def publish(self, *, job: JobRecord) -> None:
         """Publish job record to background queue."""
 
+    def post_publish(
+        self,
+        *,
+        job: JobRecord,
+        repository: JobRepository,
+        metrics: MetricsCollector,
+    ) -> None:
+        """Run optional post-publish handling."""
+
 
 @dataclass(slots=True)
 class JobPublishError(Exception):
@@ -181,6 +190,30 @@ class MemoryJobPublisher:
         del job
         return
 
+    def post_publish(
+        self,
+        *,
+        job: JobRecord,
+        repository: JobRepository,
+        metrics: MetricsCollector,
+    ) -> None:
+        """Simulate immediate worker execution in local-memory mode."""
+        if not self.process_immediately:
+            return
+        running = job.model_copy(
+            update={"status": JobStatus.RUNNING, "updated_at": _utc_now()}
+        )
+        repository.update(running)
+        done = running.model_copy(
+            update={
+                "status": JobStatus.SUCCEEDED,
+                "result": {"accepted": True, "mode": "memory"},
+                "updated_at": _utc_now(),
+            }
+        )
+        repository.update(done)
+        metrics.incr("jobs_succeeded")
+
 
 @dataclass(slots=True)
 class SqsJobPublisher:
@@ -240,6 +273,17 @@ class SqsJobPublisher:
                 }
             ) from exc
 
+    def post_publish(
+        self,
+        *,
+        job: JobRecord,
+        repository: JobRepository,
+        metrics: MetricsCollector,
+    ) -> None:
+        """SQS mode performs work asynchronously; no local follow-up."""
+        del job, repository, metrics
+        return
+
 
 @dataclass(slots=True)
 class JobService:
@@ -288,12 +332,11 @@ class JobService:
             ) from exc
 
         self.metrics.incr("jobs_enqueued")
-
-        if (
-            isinstance(self.publisher, MemoryJobPublisher)
-            and self.publisher.process_immediately
-        ):
-            self._simulate_memory_worker(record=record)
+        self.publisher.post_publish(
+            job=record,
+            repository=self.repository,
+            metrics=self.metrics,
+        )
 
         return self.repository.get(record.job_id) or record
 
@@ -308,7 +351,7 @@ class JobService:
 
     def cancel(self, *, job_id: str, scope_id: str) -> JobRecord:
         """Cancel non-terminal job when owned by caller."""
-        while True:
+        for _ in range(MAX_CANCEL_RETRIES):
             record = self.get(job_id=job_id, scope_id=scope_id)
             if record.status in {
                 JobStatus.SUCCEEDED,
@@ -329,6 +372,14 @@ class JobService:
             if updated_ok:
                 self.metrics.incr("jobs_canceled")
                 return updated
+        raise conflict(
+            "cancel failed after max retries",
+            details={
+                "job_id": job_id,
+                "scope_id": scope_id,
+                "max_retries": MAX_CANCEL_RETRIES,
+            },
+        )
 
     def update_result(
         self,
@@ -410,21 +461,6 @@ class JobService:
         )
         return updated
 
-    def _simulate_memory_worker(self, *, record: JobRecord) -> None:
-        running = record.model_copy(
-            update={"status": JobStatus.RUNNING, "updated_at": _utc_now()}
-        )
-        self.repository.update(running)
-        done = running.model_copy(
-            update={
-                "status": JobStatus.SUCCEEDED,
-                "result": {"accepted": True, "mode": "memory"},
-                "updated_at": _utc_now(),
-            }
-        )
-        self.repository.update(done)
-        self.metrics.incr("jobs_succeeded")
-
 
 def _utc_now() -> datetime:
     return datetime.now(tz=UTC)
@@ -460,6 +496,7 @@ _ALLOWED_TRANSITIONS: dict[JobStatus, set[JobStatus]] = {
     JobStatus.FAILED: {JobStatus.FAILED},
     JobStatus.CANCELED: {JobStatus.CANCELED},
 }
+MAX_CANCEL_RETRIES = 8
 
 
 def _is_valid_transition(*, current: JobStatus, target: JobStatus) -> bool:
@@ -469,9 +506,7 @@ def _is_valid_transition(*, current: JobStatus, target: JobStatus) -> bool:
 
 def _record_to_item(record: JobRecord) -> dict[str, Any]:
     """Serialize JobRecord to DynamoDB-friendly item."""
-    item = record.model_dump(mode="json")
-    item["job_id"] = record.job_id
-    return item
+    return record.model_dump(mode="json")
 
 
 def _item_to_record(item: dict[str, Any]) -> JobRecord:

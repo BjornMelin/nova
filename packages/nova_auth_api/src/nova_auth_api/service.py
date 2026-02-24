@@ -10,6 +10,7 @@ from oidc_jwt_verifier import AuthConfig, AuthError, JWTVerifier
 
 from nova_auth_api.config import Settings
 from nova_auth_api.errors import (
+    AuthApiError,
     forbidden,
     from_oidc_auth_error,
     unauthorized,
@@ -192,10 +193,13 @@ def _collect_string_claim(value: object) -> list[str]:
             if isinstance(item, str) and item.strip():
                 values.append(item.strip())
         return values
-    error = unauthorized(
-        "token claim type is invalid",
-        www_authenticate='Bearer error="invalid_token"',
+    raise _invalid_token_error(message="token claim type is invalid")
+
+
+def _invalid_token_error(*, message: str) -> AuthApiError:
+    return AuthApiError(
+        code="invalid_token",
+        message=message,
+        status_code=401,
+        headers={"WWW-Authenticate": 'Bearer error="invalid_token"'},
     )
-    error.code = "invalid_token"
-    error.status_code = 401
-    raise error

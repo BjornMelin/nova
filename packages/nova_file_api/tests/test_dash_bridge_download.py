@@ -95,3 +95,4 @@ def test_download_closes_stream_on_chunked_oversize_early_exit() -> None:
         )
 
     assert body.closed is True
+    assert body.read_calls == 3

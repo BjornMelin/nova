@@ -287,6 +287,7 @@ def _collect_string_claim(value: object) -> list[str]:
             if isinstance(item, str) and item.strip():
                 output.append(item.strip())
         return output
+    # File API surfaces FileTransferError in its canonical response envelope.
     raise FileTransferError(
         code="invalid_token",
         message="token claim type is invalid",

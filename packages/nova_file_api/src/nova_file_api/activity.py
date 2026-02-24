@@ -305,22 +305,22 @@ def _sanitize_details(details: str | None) -> str | None:
         details,
     )
     redacted = re.sub(
-        r"(?i)(authorization\s*[:=]\s*)([^\s;,]+)",
+        r"(?i)(authorization\s*[:=]\s*)([^\r\n,;]+)",
         r"\1[REDACTED]",
         redacted,
     )
     redacted = re.sub(
-        r"(?i)(bearer\s+)([^\s;,]+)",
+        r"(?i)\bbearer\s+[^\r\n,;]+",
+        "[REDACTED]",
+        redacted,
+    )
+    redacted = re.sub(
+        r"(?i)(token\s*[:=]\s*)([^\r\n,;]+)",
         r"\1[REDACTED]",
         redacted,
     )
     redacted = re.sub(
-        r"(?i)(token\s*[:=]\s*)([^\s;,]+)",
-        r"\1[REDACTED]",
-        redacted,
-    )
-    redacted = re.sub(
-        r"(?i)(secret\s*[:=]\s*)([^\s;,]+)",
+        r"(?i)(secret\s*[:=]\s*)([^\r\n,;]+)",
         r"\1[REDACTED]",
         redacted,
     )

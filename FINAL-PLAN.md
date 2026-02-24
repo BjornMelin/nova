@@ -182,12 +182,18 @@ Repo: `~/repos/work/pca-analysis-dash/dash-pca`
 
 In monorepo docs:
 
+- [x] Update `docs/architecture/requirements.md` for new endpoint paths and package names.
+- [x] Update `README.md` to reflect new API paths, package names, and cutover guidance.
 - [x] Rewrite `docs/plan/PLAN.md` to final monorepo architecture state.
 - [x] Rewrite `docs/plan/subplans/SUBPLAN-0001..N.md` to new execution order.
 - [x] Rewrite `docs/plan/triggers/TRIGGER-0001..N.md` to new names/paths/tools.
-- [x] Update all ADRs/SPECs to new endpoint paths and package names.
-- [x] Validate every traceability link targets current requirement anchors.
+- [x] Update affected ADRs in `docs/architecture/adr/` and SPECs in
+  `docs/architecture/spec/` for any route/package contract change.
+- [x] Validate `docs/architecture/traceability.md` links and requirement anchors
+  against the updated `docs/architecture/requirements.md`.
 - [x] Remove any stale references to deprecated route/package names.
+- [x] Ensure PR description and `docs/plan/PLAN.md` reference public-contract
+  docs updates when routes/packages change.
 
 ### PR-0009: Release gates + documentation closure
 

@@ -20,6 +20,7 @@ from nova_file_api.errors import FileTransferError, queue_unavailable
 from nova_file_api.idempotency import IdempotencyStore
 from nova_file_api.jobs import (
     JobPublishError,
+    JobRepository,
     JobService,
     MemoryJobPublisher,
     MemoryJobRepository,
@@ -64,6 +65,16 @@ class _FailingPublisher:
             details={"error_type": "ClientError", "error_code": "Throttling"}
         )
 
+    def post_publish(
+        self,
+        *,
+        job: JobRecord,
+        repository: JobRepository,
+        metrics: MetricsCollector,
+    ) -> None:
+        del job, repository, metrics
+        return
+
 
 class _ConcurrentWinnerRepository(MemoryJobRepository):
     def __init__(self, *, winner_status: JobStatus) -> None:
@@ -94,6 +105,17 @@ class _ConcurrentWinnerRepository(MemoryJobRepository):
             record=record,
             expected_status=expected_status,
         )
+
+
+class _NeverSettlingRepository(MemoryJobRepository):
+    def update_if_status(
+        self,
+        *,
+        record: JobRecord,
+        expected_status: JobStatus,
+    ) -> bool:
+        del record, expected_status
+        return False
 
 
 class _FlakyJobService:
@@ -263,6 +285,29 @@ def _job_record(*, job_id: str = "job-1") -> JobRecord:
         created_at=now,
         updated_at=now,
     )
+
+
+@pytest.fixture
+def capture_emf(
+    monkeypatch: pytest.MonkeyPatch,
+) -> Any:
+    def _patch(metrics: MetricsCollector) -> list[dict[str, str]]:
+        captured_dimensions: list[dict[str, str]] = []
+
+        def _capture_emit_emf(
+            *,
+            metric_name: str,
+            value: float,
+            unit: str,
+            dimensions: dict[str, str],
+        ) -> None:
+            del metric_name, value, unit
+            captured_dimensions.append(dimensions)
+
+        monkeypatch.setattr(metrics, "emit_emf", _capture_emit_emf)
+        return captured_dimensions
+
+    return _patch
 
 
 def test_sqs_job_publisher_configures_retry_mode_and_attempts(
@@ -717,6 +762,36 @@ def test_job_service_cancel_does_not_clobber_concurrent_terminal_state() -> (
     assert "jobs_canceled" not in counters
 
 
+def test_job_service_cancel_conflicts_after_retry_limit() -> None:
+    repository = _NeverSettlingRepository()
+    metrics = MetricsCollector(namespace="Tests")
+    service = JobService(
+        repository=repository,
+        publisher=MemoryJobPublisher(),
+        metrics=metrics,
+    )
+    now = datetime.now(tz=UTC)
+    repository.create(
+        JobRecord(
+            job_id="job-cancel-never-settles",
+            job_type="transform",
+            scope_id="scope-1",
+            status=JobStatus.PENDING,
+            payload={"input": "value"},
+            result=None,
+            error=None,
+            created_at=now,
+            updated_at=now,
+        )
+    )
+
+    with pytest.raises(FileTransferError) as excinfo:
+        service.cancel(job_id="job-cancel-never-settles", scope_id="scope-1")
+
+    assert excinfo.value.code == "conflict"
+    assert excinfo.value.status_code == 409
+
+
 def test_update_job_result_requires_valid_worker_token() -> None:
     settings = Settings()
     settings.jobs_enabled = True
@@ -787,22 +862,10 @@ def test_update_job_result_requires_valid_worker_token() -> None:
 
 
 def test_get_job_status_failure_emits_error_observability(
-    monkeypatch: pytest.MonkeyPatch,
+    capture_emf: Any,
 ) -> None:
     container, metrics, activity_store = _build_failing_job_container()
-    emitted_dimensions: list[dict[str, str]] = []
-
-    def _capture_emit_emf(
-        *,
-        metric_name: str,
-        value: float,
-        unit: str,
-        dimensions: dict[str, str],
-    ) -> None:
-        del metric_name, value, unit
-        emitted_dimensions.append(dimensions)
-
-    monkeypatch.setattr(metrics, "emit_emf", _capture_emit_emf)
+    emitted_dimensions = capture_emf(metrics)
     app = create_app(container_override=container)
     with TestClient(app, raise_server_exceptions=False) as client:
         response = client.get("/api/jobs/job-status-1")
@@ -818,22 +881,10 @@ def test_get_job_status_failure_emits_error_observability(
 
 
 def test_cancel_job_failure_emits_error_observability(
-    monkeypatch: pytest.MonkeyPatch,
+    capture_emf: Any,
 ) -> None:
     container, metrics, activity_store = _build_failing_job_container()
-    emitted_dimensions: list[dict[str, str]] = []
-
-    def _capture_emit_emf(
-        *,
-        metric_name: str,
-        value: float,
-        unit: str,
-        dimensions: dict[str, str],
-    ) -> None:
-        del metric_name, value, unit
-        emitted_dimensions.append(dimensions)
-
-    monkeypatch.setattr(metrics, "emit_emf", _capture_emit_emf)
+    emitted_dimensions = capture_emf(metrics)
     app = create_app(container_override=container)
     with TestClient(app, raise_server_exceptions=False) as client:
         response = client.post("/api/jobs/job-status-1/cancel")
@@ -849,24 +900,12 @@ def test_cancel_job_failure_emits_error_observability(
 
 
 def test_update_job_result_failure_emits_error_observability(
-    monkeypatch: pytest.MonkeyPatch,
+    capture_emf: Any,
 ) -> None:
     container, metrics, _activity_store = _build_failing_job_container(
         worker_token=SecretStr("test-worker-token")
     )
-    emitted_dimensions: list[dict[str, str]] = []
-
-    def _capture_emit_emf(
-        *,
-        metric_name: str,
-        value: float,
-        unit: str,
-        dimensions: dict[str, str],
-    ) -> None:
-        del metric_name, value, unit
-        emitted_dimensions.append(dimensions)
-
-    monkeypatch.setattr(metrics, "emit_emf", _capture_emit_emf)
+    emitted_dimensions = capture_emf(metrics)
     app = create_app(container_override=container)
     with TestClient(app, raise_server_exceptions=False) as client:
         response = client.post(
