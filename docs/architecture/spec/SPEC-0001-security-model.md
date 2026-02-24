@@ -50,6 +50,9 @@ connectivity or non-success auth responses.
 - Reject dangerous JWT header parameters (`jku`, `x5u`, `crit`).
 - Synchronous verifier calls in async dependencies MUST run via threadpool
   boundary (`anyio.to_thread.run_sync` or equivalent).
+- When verification fails and a `401` is returned, implementations MUST include
+  `WWW-Authenticate` per RFC 6750 and preserve verifier semantics from
+  `AuthError.www_authenticate_header()` (including token error fields).
 
 ## 3. Authorization rules
 

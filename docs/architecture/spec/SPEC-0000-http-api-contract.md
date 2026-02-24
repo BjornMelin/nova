@@ -98,17 +98,17 @@ Supported auth modes:
 Same-origin expectations:
 
 - Body-bearing routes may convey caller scope via `session_id` payload field.
-- Body-less scope-bound routes (for example `GET /api/jobs/{job_id}`) must
+- Body-less scope-bound routes (for example `GET /api/jobs/{job_id}`) MUST
   convey caller scope via trusted header (`X-Session-Id` or `X-Scope-Id`).
-- When `X-Session-Id` and `X-Scope-Id` are both present, `X-Session-Id` takes
+- When `X-Session-Id` and `X-Scope-Id` are both present, `X-Session-Id` MUST take
   precedence for scope binding.
 - Differing `X-Session-Id` and `X-Scope-Id` values are not a protocol error;
   the request is evaluated using `X-Session-Id`.
 - When `X-Session-Id` and body `session_id` are both present with differing
-  values, request validation fails with `422` and
+  values, request validation MUST fail with `422` and
   `error.message = "conflicting session scope"`.
 - When `X-Session-Id` is absent and `X-Scope-Id` plus body `session_id` are
-  both present with differing values, authentication fails with `401` and
+  both present with differing values, authentication MUST fail with `401` and
   `error.message = "conflicting session scope"`.
 
 JWT mode expectations:
@@ -118,6 +118,8 @@ JWT mode expectations:
 - `401` MUST include RFC 6750-compatible `WWW-Authenticate: Bearer ...` header;
   header generation failures MUST fail closed (surface auth error or
   deterministic fallback challenge), per RFC 6750 §3.1.
+- In JWT mode, principal-derived scope MUST take precedence over
+  client-provided `X-Session-Id`, `X-Scope-Id`, or body `session_id` (see §5).
 
 ## 7. Error envelope
 

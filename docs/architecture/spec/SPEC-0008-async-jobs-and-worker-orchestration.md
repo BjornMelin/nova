@@ -7,6 +7,8 @@ Date: 2026-02-23
 Related:
   - "[ADR-0006: SQS + ECS worker orchestration](../adr/ADR-0006-async-orchestration-sqs-ecs-worker.md)"
   - "[SPEC-0000: HTTP API contract](./SPEC-0000-http-api-contract.md)"
+  - "[SPEC-0001: Security model](./SPEC-0001-security-model.md)"
+  - "[SPEC-0009: Caching and idempotency](./SPEC-0009-caching-and-idempotency.md)"
 References:
   - "[Amazon SQS Developer Guide](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/welcome.html)"
   - "[Amazon ECS Developer Guide](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/Welcome.html)"
@@ -68,14 +70,14 @@ Invalid transitions MUST fail with `409` (`error.code = "conflict"`).
 
 ## 4. Failure and retry model
 
-- Enqueue should acknowledge quickly and defer work to workers.
+- Enqueue SHOULD acknowledge quickly and defer work to workers.
 - On queue publish failure:
   - MUST return `503` with `error.code = "queue_unavailable"`.
   - MUST NOT return success responses.
   - MUST mark created job records as `failed`.
   - SHOULD increment a publish-failure metric for operators.
 - Worker retry policy SHOULD be driven by queue semantics.
-- Non-retryable failures should transition to `failed` with structured error
+- Non-retryable failures SHOULD transition to `failed` with structured error
   details.
 - First worker transition from `pending` MUST record queue lag metric
   (`jobs_queue_lag_ms`).
