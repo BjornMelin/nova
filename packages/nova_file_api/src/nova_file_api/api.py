@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
+from functools import partial
 from hmac import compare_digest
+from typing import Any
 
+import anyio
 import structlog
 from fastapi import APIRouter, Header, Request
-from starlette.concurrency import run_in_threadpool
 
 from nova_file_api.container import AppContainer
 from nova_file_api.dependencies import get_container
@@ -42,7 +45,8 @@ from nova_file_api.models import (
 transfer_router = APIRouter(prefix="/api/transfers", tags=["transfers"])
 jobs_router = APIRouter(prefix="/api/jobs", tags=["jobs"])
 ops_router = APIRouter(tags=["ops"])
-_WORKER_TOKEN_NOT_CONFIGURED = "worker update token not configured"
+_WORKER_TOKEN_NOT_CONFIGURED = "worker update token not configured"  # noqa: S105
+_API_THREAD_LIMITER_STATE_KEY = "api_thread_limiter"
 
 
 @transfer_router.post(
@@ -100,7 +104,8 @@ async def initiate_upload(
 
     try:
         with container.metrics.timed("uploads_initiate_ms"):
-            response = await run_in_threadpool(
+            response = await _run_blocking(
+                request,
                 container.transfer_service.initiate_upload,
                 payload,
                 principal,
@@ -118,7 +123,8 @@ async def initiate_upload(
             error=type(exc).__name__,
             error_detail=str(exc),
         )
-        await run_in_threadpool(
+        await _run_blocking(
+            request,
             container.activity_store.record,
             principal=principal,
             event_type="uploads_initiate_failure",
@@ -142,7 +148,8 @@ async def initiate_upload(
         )
 
     container.metrics.incr("uploads_initiate_total")
-    await run_in_threadpool(
+    await _run_blocking(
+        request,
         container.activity_store.record,
         principal=principal,
         event_type="uploads_initiate",
@@ -167,7 +174,8 @@ async def sign_parts(
 
     try:
         with container.metrics.timed("uploads_sign_parts_ms"):
-            response = await run_in_threadpool(
+            response = await _run_blocking(
+                request,
                 container.transfer_service.sign_parts,
                 payload,
                 principal,
@@ -185,7 +193,8 @@ async def sign_parts(
             error=type(exc).__name__,
             error_detail=str(exc),
         )
-        await run_in_threadpool(
+        await _run_blocking(
+            request,
             container.activity_store.record,
             principal=principal,
             event_type="uploads_sign_parts_failure",
@@ -194,7 +203,8 @@ async def sign_parts(
         raise
 
     container.metrics.incr("uploads_sign_parts_total")
-    await run_in_threadpool(
+    await _run_blocking(
+        request,
         container.activity_store.record,
         principal=principal,
         event_type="uploads_sign_parts",
@@ -221,7 +231,8 @@ async def complete_upload(
 
     try:
         with container.metrics.timed("uploads_complete_ms"):
-            response = await run_in_threadpool(
+            response = await _run_blocking(
+                request,
                 container.transfer_service.complete_upload,
                 payload,
                 principal,
@@ -239,7 +250,8 @@ async def complete_upload(
             error=type(exc).__name__,
             error_detail=str(exc),
         )
-        await run_in_threadpool(
+        await _run_blocking(
+            request,
             container.activity_store.record,
             principal=principal,
             event_type="uploads_complete_failure",
@@ -248,7 +260,8 @@ async def complete_upload(
         raise
 
     container.metrics.incr("uploads_complete_total")
-    await run_in_threadpool(
+    await _run_blocking(
+        request,
         container.activity_store.record,
         principal=principal,
         event_type="uploads_complete",
@@ -273,7 +286,8 @@ async def abort_upload(
 
     try:
         with container.metrics.timed("uploads_abort_ms"):
-            response = await run_in_threadpool(
+            response = await _run_blocking(
+                request,
                 container.transfer_service.abort_upload,
                 payload,
                 principal,
@@ -291,7 +305,8 @@ async def abort_upload(
             error=type(exc).__name__,
             error_detail=str(exc),
         )
-        await run_in_threadpool(
+        await _run_blocking(
+            request,
             container.activity_store.record,
             principal=principal,
             event_type="uploads_abort_failure",
@@ -300,7 +315,8 @@ async def abort_upload(
         raise
 
     container.metrics.incr("uploads_abort_total")
-    await run_in_threadpool(
+    await _run_blocking(
+        request,
         container.activity_store.record,
         principal=principal,
         event_type="uploads_abort",
@@ -327,7 +343,8 @@ async def presign_download(
 
     try:
         with container.metrics.timed("downloads_presign_ms"):
-            response = await run_in_threadpool(
+            response = await _run_blocking(
+                request,
                 container.transfer_service.presign_download,
                 payload,
                 principal,
@@ -345,7 +362,8 @@ async def presign_download(
             error=type(exc).__name__,
             error_detail=str(exc),
         )
-        await run_in_threadpool(
+        await _run_blocking(
+            request,
             container.activity_store.record,
             principal=principal,
             event_type="downloads_presign_failure",
@@ -354,7 +372,8 @@ async def presign_download(
         raise
 
     container.metrics.incr("downloads_presign_total")
-    await run_in_threadpool(
+    await _run_blocking(
+        request,
         container.activity_store.record,
         principal=principal,
         event_type="downloads_presign",
@@ -421,7 +440,8 @@ async def enqueue_job(
 
     try:
         with container.metrics.timed("jobs_enqueue_ms"):
-            job = await run_in_threadpool(
+            job = await _run_blocking(
+                request,
                 container.job_service.enqueue,
                 job_type=payload.job_type,
                 payload=payload.payload,
@@ -441,7 +461,8 @@ async def enqueue_job(
             error=type(exc).__name__,
             error_detail=str(exc),
         )
-        await run_in_threadpool(
+        await _run_blocking(
+            request,
             container.activity_store.record,
             principal=principal,
             event_type="jobs_enqueue_failure",
@@ -464,11 +485,13 @@ async def enqueue_job(
             request_payload=request_payload,
             response_payload=response.model_dump(mode="json"),
         )
-    await run_in_threadpool(
+    await _run_blocking(
+        request,
         container.activity_store.record,
         principal=principal,
         event_type="jobs_enqueue",
     )
+    container.metrics.incr("jobs_enqueue_total")
     _emit_request_metric(container=container, route="jobs_enqueue", status="ok")
     return response
 
@@ -482,7 +505,8 @@ async def get_job_status(job_id: str, request: Request) -> JobStatusResponse:
         session_id=None,
     )
     try:
-        job = await run_in_threadpool(
+        job = await _run_blocking(
+            request,
             container.job_service.get,
             job_id=job_id,
             scope_id=principal.scope_id,
@@ -501,13 +525,15 @@ async def get_job_status(job_id: str, request: Request) -> JobStatusResponse:
             error=type(exc).__name__,
             error_detail=str(exc),
         )
-        await run_in_threadpool(
+        await _run_blocking(
+            request,
             container.activity_store.record,
             principal=principal,
             event_type="jobs_status_failure",
             details=str(exc),
         )
         raise
+    container.metrics.incr("jobs_status_total")
     _emit_request_metric(container=container, route="jobs_status", status="ok")
     return JobStatusResponse(job=job)
 
@@ -521,7 +547,8 @@ async def cancel_job(job_id: str, request: Request) -> JobCancelResponse:
         session_id=None,
     )
     try:
-        job = await run_in_threadpool(
+        job = await _run_blocking(
+            request,
             container.job_service.cancel,
             job_id=job_id,
             scope_id=principal.scope_id,
@@ -540,13 +567,22 @@ async def cancel_job(job_id: str, request: Request) -> JobCancelResponse:
             error=type(exc).__name__,
             error_detail=str(exc),
         )
-        await run_in_threadpool(
+        await _run_blocking(
+            request,
             container.activity_store.record,
             principal=principal,
             event_type="jobs_cancel_failure",
             details=str(exc),
         )
         raise
+    await _run_blocking(
+        request,
+        container.activity_store.record,
+        principal=principal,
+        event_type="jobs_cancel_success",
+        details=f"job_id={job.job_id} status={job.status}",
+    )
+    container.metrics.incr("jobs_cancel_total")
     _emit_request_metric(container=container, route="jobs_cancel", status="ok")
     return JobCancelResponse(job_id=job.job_id, status=job.status)
 
@@ -574,7 +610,8 @@ async def update_job_result(
         scope_id="system:jobs-worker",
     )
     try:
-        job = await run_in_threadpool(
+        job = await _run_blocking(
+            request,
             container.job_service.update_result,
             job_id=job_id,
             status=payload.status,
@@ -594,7 +631,8 @@ async def update_job_result(
             error=type(exc).__name__,
             error_detail=str(exc),
         )
-        await run_in_threadpool(
+        await _run_blocking(
+            request,
             container.activity_store.record,
             principal=worker_principal,
             event_type="jobs_result_update_failure",
@@ -604,7 +642,8 @@ async def update_job_result(
             ),
         )
         raise
-    await run_in_threadpool(
+    await _run_blocking(
+        request,
         container.activity_store.record,
         principal=worker_principal,
         event_type="jobs_result_update",
@@ -613,6 +652,7 @@ async def update_job_result(
             f"for job_id={job_id} status={job.status}"
         ),
     )
+    container.metrics.incr("jobs_result_update_total")
     _emit_request_metric(
         container=container, route="jobs_result_update", status="ok"
     )
@@ -641,7 +681,10 @@ async def metrics_summary(request: Request) -> MetricsSummaryResponse:
     return MetricsSummaryResponse(
         counters=container.metrics.counters_snapshot(),
         latencies_ms=container.metrics.latency_snapshot(),
-        activity=await run_in_threadpool(container.activity_store.summary),
+        activity=await _run_blocking(
+            request,
+            container.activity_store.summary,
+        ),
     )
 
 
@@ -685,6 +728,27 @@ def _emit_request_metric(
         unit="Count",
         dimensions={"route": route, "status": status},
     )
+
+
+async def _run_blocking[**P, R](
+    request: Request,
+    fn: Callable[P, R],
+    /,
+    *args: P.args,
+    **kwargs: P.kwargs,
+) -> R:
+    limiter = _api_thread_limiter(request)
+    return await anyio.to_thread.run_sync(
+        partial(fn, *args, **kwargs),
+        limiter=limiter,
+    )
+
+
+def _api_thread_limiter(request: Request) -> Any:
+    limiter = getattr(request.app.state, _API_THREAD_LIMITER_STATE_KEY, None)
+    if limiter is None:
+        return anyio.to_thread.current_default_thread_limiter()
+    return limiter
 
 
 def _validated_idempotency_key(

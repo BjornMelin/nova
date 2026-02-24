@@ -7,6 +7,7 @@ from collections.abc import AsyncIterator, MutableMapping
 from contextlib import asynccontextmanager
 from typing import Any
 
+import anyio
 import structlog
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -39,6 +40,9 @@ def create_app(*, container_override: AppContainer | None = None) -> FastAPI:
         settings = Settings()
         _set_verifier_thread_tokens(settings.oidc_verifier_thread_tokens)
         app.state.settings = settings
+        app.state.api_thread_limiter = anyio.CapacityLimiter(
+            settings.oidc_verifier_thread_tokens
+        )
         app.state.container = (
             container_override
             if container_override is not None

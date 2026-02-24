@@ -167,6 +167,9 @@ The service MUST:
 - Never log presigned URLs, query signatures, or bearer tokens.
 - Enforce strict JWT validation with issuer/audience/alg checks.
 - Use least-privilege IAM for S3/SQS/DynamoDB/Redis integration.
+- Emit `WWW-Authenticate: Bearer ...` on JWT/OIDC `401` responses per RFC
+  6750; header generation failures MUST fail closed by surfacing an auth error
+  or using a deterministic secure fallback challenge.
 
 ### NFR-0001: Performance and event-loop safety
 
