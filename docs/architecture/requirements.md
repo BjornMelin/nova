@@ -173,6 +173,10 @@ The service MUST:
 The service MUST avoid event-loop blocking for synchronous verification code.
 Synchronous JWT verification in async paths MUST run behind a threadpool
 boundary.
+Threadpool offloads for synchronous JWT verification MUST use an explicit
+concurrency limiter (for example, semaphore or AnyIO/Starlette
+`CapacityLimiter`) with a default cap of 40 tokens unless measured resource
+limits require adjustment.
 
 ### NFR-0002: Scalability and resilience
 

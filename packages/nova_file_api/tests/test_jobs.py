@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -35,6 +36,8 @@ from nova_file_api.models import (
 from pydantic import SecretStr
 
 from ._test_doubles import StubAuthenticator, StubTransferService
+
+CaptureEmf = Callable[[MetricsCollector], list[dict[str, str]]]
 
 
 class _FailingPublisher:
@@ -269,7 +272,7 @@ def _job_record(*, job_id: str = "job-1") -> JobRecord:
 @pytest.fixture
 def capture_emf(
     monkeypatch: pytest.MonkeyPatch,
-) -> Any:
+) -> CaptureEmf:
     def _patch(metrics: MetricsCollector) -> list[dict[str, str]]:
         captured_dimensions: list[dict[str, str]] = []
 
@@ -841,7 +844,7 @@ def test_update_job_result_requires_valid_worker_token() -> None:
 
 
 def test_get_job_status_failure_emits_error_observability(
-    capture_emf: Any,
+    capture_emf: CaptureEmf,
 ) -> None:
     container, metrics, activity_store = _build_failing_job_container()
     emitted_dimensions = capture_emf(metrics)
@@ -860,7 +863,7 @@ def test_get_job_status_failure_emits_error_observability(
 
 
 def test_cancel_job_failure_emits_error_observability(
-    capture_emf: Any,
+    capture_emf: CaptureEmf,
 ) -> None:
     container, metrics, activity_store = _build_failing_job_container()
     emitted_dimensions = capture_emf(metrics)
@@ -879,7 +882,7 @@ def test_cancel_job_failure_emits_error_observability(
 
 
 def test_update_job_result_failure_emits_error_observability(
-    capture_emf: Any,
+    capture_emf: CaptureEmf,
 ) -> None:
     container, metrics, _activity_store = _build_failing_job_container(
         worker_token=SecretStr("test-worker-token")

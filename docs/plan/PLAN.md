@@ -79,15 +79,21 @@ Canonical runtime tree includes:
 - `POST /api/jobs/enqueue`
 - `GET /api/jobs/{job_id}`
 - `POST /api/jobs/{job_id}/cancel`
-- `POST /api/jobs/{job_id}/result`
 
-### C. Operational endpoints
+### C. Internal / service-to-service APIs
+
+- `POST /api/jobs/{job_id}/result` (worker-only)
+  - Must include `X-Worker-Token` that matches `JOBS_WORKER_UPDATE_TOKEN`.
+  - This token gate is enforced before state transition processing.
+  - Endpoint is not part of the public client contract.
+
+### D. Operational endpoints
 
 - `GET /healthz`
 - `GET /readyz`
 - `GET /metrics/summary`
 
-### D. Contract requirements
+### E. Contract requirements
 
 - OpenAPI 3.1 is the canonical contract source.
 - Standard error envelope:
@@ -111,6 +117,9 @@ Canonical runtime tree includes:
 - Principal-derived scope overrides client-provided session scope in JWT modes.
 - No logging of presigned URLs, JWTs, or signature query values.
 - Remote auth mode remains explicit and fail-closed.
+- JWT/OIDC `401` responses must set `WWW-Authenticate` from
+  `AuthError.www_authenticate_header()` (RFC 6750 section 3), and must fail
+  closed if header generation cannot complete.
 
 ## Caching Finalization
 
@@ -199,6 +208,9 @@ Canonical runtime tree includes:
 
 ### Phase 4: Cross-repo integration and release closure
 
+Hard-cutover release status is blocked until all non-prod live validation gates
+below are checked.
+
 - [x] Align `container-craft` IaC for Redis/SQS/DynamoDB toggles and env mapping
 - [ ] Validate sidecar ALB routing and health-check tuning in non-prod
 - [x] Validate SQS worker path (enqueue -> execute -> status transition)
@@ -231,6 +243,7 @@ Required for each implementation slice:
 
 - `source .venv/bin/activate && uv run ruff check .`
 - `source .venv/bin/activate && uv run ruff check . --select I`
+- `source .venv/bin/activate && uv run ruff format .`
 - `source .venv/bin/activate && uv run mypy`
 - `source .venv/bin/activate && uv run pytest -q`
 - `source .venv/bin/activate && uv run pytest -q packages/nova_file_api/tests/test_generated_client_smoke.py`

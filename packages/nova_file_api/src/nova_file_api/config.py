@@ -263,7 +263,7 @@ class Settings(BaseSettings):
         """Return configured default required scopes as a tuple."""
         if not self.oidc_required_scopes.strip():
             return ()
-        return tuple(s for s in self.oidc_required_scopes.split(" ") if s)
+        return tuple(s for s in self.oidc_required_scopes.split() if s)
 
     @property
     def default_required_permissions(self) -> tuple[str, ...]:
@@ -272,7 +272,7 @@ class Settings(BaseSettings):
             return ()
         return tuple(
             permission
-            for permission in self.oidc_required_permissions.split(" ")
+            for permission in self.oidc_required_permissions.split()
             if permission
         )
 

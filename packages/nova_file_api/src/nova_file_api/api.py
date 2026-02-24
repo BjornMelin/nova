@@ -697,6 +697,7 @@ def _validate_worker_update_token(
             environment=container.settings.environment,
         )
         return
+    expected_token = expected_token.strip()
     provided = worker_token.strip() if worker_token else ""
     if not compare_digest(expected_token, provided):
         raise forbidden("invalid worker update token")
