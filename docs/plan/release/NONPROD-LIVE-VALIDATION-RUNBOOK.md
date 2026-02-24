@@ -2,55 +2,79 @@
 
 Status: Pending external execution
 Owner: Release Architecture + Platform Operations
-Last updated: 2026-02-12
+Last updated: 2026-02-24
 
 ## 1. Purpose
 
-Provide a single operator runbook for the remaining release-blocking,
-AWS-live validations that cannot be proven by local repository checks.
+Provide one operator runbook for release-blocking, AWS-live validation gates
+that cannot be fully proven by local checks.
 
-## 2. Blocking Gates Covered
+Related setup sequence:
 
+- `documentation-index.md`
+- `deploy-nova-cicd-end-to-end-guide.md`
+- `release-promotion-dev-to-prod-guide.md`
+
+## 2. Blocking gates covered
+
+- CodeConnections activation and source event readiness.
 - Sidecar ALB routing and health-check behavior in non-prod AWS.
 - Cross-repo E2E flow:
   browser upload -> jobs enqueue -> worker result -> download.
 - CloudWatch dashboards and alarm behavior under synthetic failure.
+- Dev to Prod manual gate behavior in CodePipeline.
 
 ## 3. Preconditions
 
 - `nova` runtime build is deployed to non-prod.
-- `container-craft` stack changes for split routes are deployed to non-prod.
+- `container-craft` split-route and CI/CD stack changes are deployed.
 - `dash-pca` non-prod points to split API routes.
 - AWS CLI credentials target the non-prod account/region.
 
-## 4. Required Inputs
+## 4. Required inputs
 
-- `NONPROD_API_BASE_URL` (for example, `https://<host>`).
-- `NONPROD_DASH_URL` (dash-pca non-prod URL).
-- `AWS_REGION`.
-- `ECS_CLUSTER`.
-- `ECS_SERVICE`.
-- `ALB_TARGET_GROUP_ARN`.
-- `DASHBOARD_NAME` (CloudWatch dashboard for this service).
-- `ALARM_NAMES` (space-separated alarm names to validate).
+- `NONPROD_API_BASE_URL`
+- `NONPROD_DASH_URL`
+- `AWS_REGION`
+- `ECS_CLUSTER`
+- `ECS_SERVICE`
+- `ALB_TARGET_GROUP_ARN`
+- `DASHBOARD_NAME`
+- `ALARM_NAMES`
+- `CODEPIPELINE_NAME`
+- `CODECONNECTION_ARN`
 
-## 4b. AnyIO Thread-pool Tuning for Operations
+## 5. Gate A: CodeConnections and source integration
 
-Before load tests in non-prod, confirm these env vars are set for expected
-concurrency:
+### A1. Connection activation status
 
-- `OIDC_VERIFIER_THREAD_TOKENS` (default: `40`) for local JWT verification
-  workers.
-- `FILE_TRANSFER_THREAD_TOKENS` (default: `80`) for transfer route thread-pool
-  work (`initiate`, `sign`, `complete`, `abort`, `presign`, enqueue).
+```bash
+aws codeconnections get-connection \
+  --region "${AWS_REGION}" \
+  --connection-arn "${CODECONNECTION_ARN}" \
+  --query "Connection.ConnectionStatus"
+```
 
-Tune upward if you observe queueing under realistic upload/login verification load;
-tune downward if CPU, event-loop lag, or memory usage rise under sustained
-stress.
+Acceptance:
 
-## 5. Gate A: ALB Routing and Health
+- Status is `AVAILABLE` (not `PENDING`).
 
-### A1. Basic route reachability (must not be 404)
+### A2. Source event reaches pipeline
+
+```bash
+aws codepipeline list-pipeline-executions \
+  --region "${AWS_REGION}" \
+  --pipeline-name "${CODEPIPELINE_NAME}" \
+  --max-results 5
+```
+
+Acceptance:
+
+- Latest signed release commit appears as source revision in execution history.
+
+## 6. Gate B: ALB routing and health
+
+### B1. Basic route reachability
 
 ```bash
 curl -sS -o /dev/null -w "%{http_code}\n" \
@@ -69,10 +93,10 @@ Acceptance:
 
 - `/healthz` is `200`.
 - `/readyz` is `200`.
-- Transfer/job routes return a contract response (`401/403/422/400` allowed),
+- Transfer/job routes return contract responses (`401/403/422/400` allowed),
   but never `404`.
 
-### A2. ECS and target-group health
+### B2. ECS and target-group health
 
 ```bash
 aws ecs describe-services \
@@ -90,27 +114,27 @@ aws elbv2 describe-target-health \
 Acceptance:
 
 - ECS service stabilizes with expected running task count.
-- Target health states converge to `healthy` without repeated flapping.
+- Target states converge to `healthy` without persistent flapping.
 
-## 6. Gate B: Cross-Repo E2E Smoke
+## 7. Gate C: Cross-repo E2E smoke
 
-### B1. Browser upload and async completion
+### C1. Browser upload and async completion
 
 1. Open `NONPROD_DASH_URL`.
-2. Upload a supported file (`.csv` or `.xlsx`) using the async uploader.
-3. Confirm `jobs/enqueue` is called and a `job_id` is returned.
+2. Upload supported file (`.csv` or `.xlsx`) via async uploader.
+3. Confirm `jobs/enqueue` is called and `job_id` is returned.
 4. Confirm polling reaches terminal `succeeded`.
 5. Confirm generated output/download path works.
 
 Acceptance:
 
-- Upload flow completes without manual backend intervention.
+- Flow completes without manual backend intervention.
 - No legacy route usage appears in browser/network traces.
-- Correlated request IDs exist across app logs for the same flow.
+- Correlated request IDs exist across logs for the same flow.
 
-## 7. Gate C: Dashboard and Alarm Validation
+## 8. Gate D: Dashboard and alarm validation
 
-### C1. Dashboard data presence
+### D1. Dashboard data presence
 
 ```bash
 aws cloudwatch get-dashboard \
@@ -124,24 +148,34 @@ Acceptance:
 - Dashboard has no validation errors.
 - Widgets show current datapoints for traffic/error/latency and queue lag.
 
-### C2. Alarm validation under synthetic failure
+### D2. Alarm validation under synthetic failure
 
 Use one controlled method:
 
 1. Metric-driven synthetic failure in non-prod traffic.
 2. CloudWatch `set-alarm-state` dry validation for notification wiring.
 
-Record exact method and evidence for each alarm in `ALARM_NAMES`.
-
 Acceptance:
 
-- Each targeted alarm reaches ALARM state once during validation.
+- Each targeted alarm reaches ALARM once.
 - Expected notification path is observed.
 - Alarms return to OK after synthetic condition is removed.
 
-## 8. Evidence Capture Template
+## 9. Gate E: Promotion control validation
 
-For each gate, capture:
+1. Execute non-prod CodePipeline run through ValidateDev.
+2. Confirm pipeline pauses at ManualApproval.
+3. Confirm unapproved runs cannot proceed to Prod.
+4. Approve manually and confirm Prod stages execute.
+
+Acceptance:
+
+- Manual approval gate is enforced and auditable.
+- Prod runs only after explicit approval.
+
+## 10. Evidence capture template
+
+For each gate capture:
 
 - execution date/time (UTC)
 - operator

@@ -210,6 +210,8 @@ In monorepo docs:
 - [x] Publish modular CI/CD provisioning and secrets guide set in `nova` and
   mirrored operator guide set in `container-craft` with action-first and CLI
   fallback instructions.
+- [x] Add day-0 operator checklists in both repos and complete docs integrity
+  pass (link target + required sections).
 - [x] Publish release notes with hard-cutover migration checklist.
 - [x] Publish operator runbook for live AWS validation gates:
   `docs/plan/release/NONPROD-LIVE-VALIDATION-RUNBOOK.md`.
