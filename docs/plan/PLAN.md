@@ -83,8 +83,19 @@ Canonical runtime tree includes:
 ### C. Internal / service-to-service APIs
 
 - `POST /api/jobs/{job_id}/result` (worker-only)
-  - Must include `X-Worker-Token` that matches `JOBS_WORKER_UPDATE_TOKEN`.
-  - This token gate is enforced before state transition processing.
+  - Primary authentication MUST use ECS/Fargate IAM task-role identity
+    (retrieved via IMDS) for per-task auditability.
+  - IAM authorization MUST be scoped to approved worker tasks/services (for
+    example, using `aws:SourceArn` conditions).
+  - Temporary shared-token fallback (`X-Worker-Token` /
+    `JOBS_WORKER_UPDATE_TOKEN`) is allowed only during migration and MUST use
+    a cryptographically random secret (at least 32 bytes) sourced from AWS
+    Secrets Manager.
+  - Shared-token fallback MUST define automated rotation (at least every 30
+    days), immediate rotation on suspected exposure, and coordinated API +
+    worker rollout.
+  - Migration task: remove shared-token fallback after IAM-based auth is
+    validated in production.
   - Endpoint is not part of the public client contract.
 
 ### D. Operational endpoints
@@ -113,6 +124,12 @@ Canonical runtime tree includes:
 
 - Canonical verifier: `oidc-jwt-verifier`
 - Sync verification stays behind a threadpool boundary in async dependencies.
+- Sync verification offloads MUST also be concurrency-bounded with an
+  `anyio.CapacityLimiter` or `asyncio.Semaphore` guard (recommended default:
+  `MAX_CONCURRENT_VERIFIER_THREADS=32`).
+- All async-path `run_in_threadpool` calls for verifier work MUST acquire the
+  limiter before offload to avoid burst-driven AnyIO token exhaustion and
+  head-of-line latency.
 - Strict JWT rules: alg allowlist, iss/aud/exp/nbf, dangerous-header rejection
 - Principal-derived scope overrides client-provided session scope in JWT modes.
 - No logging of presigned URLs, JWTs, or signature query values.

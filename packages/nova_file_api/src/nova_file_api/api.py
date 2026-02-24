@@ -33,6 +33,7 @@ from nova_file_api.models import (
     MetricsSummaryResponse,
     PresignDownloadRequest,
     PresignDownloadResponse,
+    Principal,
     ReadinessResponse,
     SignPartsRequest,
     SignPartsResponse,
@@ -568,6 +569,10 @@ async def update_job_result(
         container=container,
         worker_token=worker_token,
     )
+    worker_principal = Principal(
+        subject="system:jobs-worker",
+        scope_id="system:jobs-worker",
+    )
     try:
         job = await run_in_threadpool(
             container.job_service.update_result,
@@ -589,7 +594,25 @@ async def update_job_result(
             error=type(exc).__name__,
             error_detail=str(exc),
         )
+        await run_in_threadpool(
+            container.activity_store.record,
+            principal=worker_principal,
+            event_type="jobs_result_update_failure",
+            details=(
+                "worker result update failed "
+                f"for job_id={job_id} status={payload.status}"
+            ),
+        )
         raise
+    await run_in_threadpool(
+        container.activity_store.record,
+        principal=worker_principal,
+        event_type="jobs_result_update",
+        details=(
+            "worker result update accepted "
+            f"for job_id={job_id} status={job.status}"
+        ),
+    )
     _emit_request_metric(
         container=container, route="jobs_result_update", status="ok"
     )

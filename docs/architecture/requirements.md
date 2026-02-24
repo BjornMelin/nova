@@ -53,9 +53,9 @@ request MUST fail with `401` and `error.message = "conflicting session scope"`.
 
 Enqueue failure semantics:
 
-- Queue publish failure MUST return `503`.
-- Queue publish failure MUST return `error.code = "queue_unavailable"`.
-- Queue publish failure MUST transition created job records to `failed`.
+- On queue publish failure:
+  - Return HTTP `503` with `error.code = "queue_unavailable"`.
+  - Transition any created job records to `failed`.
 - In-memory queue mode MUST honor `process_immediately`; when disabled, enqueue
   returns a `pending` job and MUST NOT auto-transition to `succeeded`.
 

@@ -100,6 +100,10 @@ class _NeverSettlingRepository(MemoryJobRepository):
         return False
 
 
+class _TestDoubleError(RuntimeError):
+    """Raised by test doubles to simulate expected control-flow failures."""
+
+
 class _FlakyJobService:
     def __init__(self) -> None:
         self.calls = 0
@@ -115,7 +119,7 @@ class _FlakyJobService:
         if self.calls == 1:
             raise queue_unavailable(
                 "job enqueue failed because queue publish failed"
-            )
+            )  # noqa: TRY003 - explicit message asserted through API error flow
         now = datetime.now(tz=UTC)
         return JobRecord(
             job_id=f"job-{self.calls}",
@@ -131,11 +135,11 @@ class _FlakyJobService:
 
     def get(self, *, job_id: str, scope_id: str) -> JobRecord:
         del job_id, scope_id
-        raise RuntimeError("not used by this test")
+        raise _TestDoubleError
 
     def cancel(self, *, job_id: str, scope_id: str) -> JobRecord:
         del job_id, scope_id
-        raise RuntimeError("not used by this test")
+        raise _TestDoubleError
 
 
 class _AlwaysFailingJobService:
@@ -147,15 +151,15 @@ class _AlwaysFailingJobService:
         scope_id: str,
     ) -> JobRecord:
         del job_type, payload, scope_id
-        raise RuntimeError("not used by this test")
+        raise _TestDoubleError
 
     def get(self, *, job_id: str, scope_id: str) -> JobRecord:
         del job_id, scope_id
-        raise RuntimeError("simulated job status failure")
+        raise _TestDoubleError
 
     def cancel(self, *, job_id: str, scope_id: str) -> JobRecord:
         del job_id, scope_id
-        raise RuntimeError("simulated job cancel failure")
+        raise _TestDoubleError
 
     def update_result(
         self,
@@ -166,7 +170,7 @@ class _AlwaysFailingJobService:
         error: str | None,
     ) -> JobRecord:
         del job_id, status, result, error
-        raise RuntimeError("simulated worker update failure")
+        raise _TestDoubleError
 
 
 def _build_same_origin_status_container(*, scope_id: str) -> AppContainer:
@@ -298,11 +302,11 @@ def test_sqs_job_publisher_configures_retry_mode_and_attempts(
     captured: dict[str, Any] = {}
 
     class _FakeSqsClient:
-        def send_message(self, **kwargs: Any) -> dict[str, str]:
+        def send_message(self, **kwargs: object) -> dict[str, str]:
             captured["send_kwargs"] = kwargs
             return {"MessageId": "1"}
 
-    def _fake_client(service_name: str, **kwargs: Any) -> _FakeSqsClient:
+    def _fake_client(service_name: str, **kwargs: object) -> _FakeSqsClient:
         captured["service_name"] = service_name
         captured["kwargs"] = kwargs
         return _FakeSqsClient()
@@ -327,7 +331,7 @@ def test_sqs_job_publisher_maps_client_error_to_publish_error(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     class _ClientErrorSqsClient:
-        def send_message(self, **kwargs: Any) -> dict[str, str]:
+        def send_message(self, **kwargs: object) -> dict[str, str]:
             del kwargs
             raise ClientError(
                 error_response={
@@ -336,7 +340,9 @@ def test_sqs_job_publisher_maps_client_error_to_publish_error(
                 operation_name="SendMessage",
             )
 
-    def _fake_client(service_name: str, **kwargs: Any) -> _ClientErrorSqsClient:
+    def _fake_client(
+        service_name: str, **kwargs: object
+    ) -> _ClientErrorSqsClient:
         del service_name, kwargs
         return _ClientErrorSqsClient()
 
@@ -355,13 +361,13 @@ def test_sqs_job_publisher_maps_botocore_error_to_publish_error(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     class _BotoCoreErrorSqsClient:
-        def send_message(self, **kwargs: Any) -> dict[str, str]:
+        def send_message(self, **kwargs: object) -> dict[str, str]:
             del kwargs
             raise BotoCoreError()
 
     def _fake_client(
         service_name: str,
-        **kwargs: Any,
+        **kwargs: object,
     ) -> _BotoCoreErrorSqsClient:
         del service_name, kwargs
         return _BotoCoreErrorSqsClient()
@@ -841,6 +847,10 @@ def test_update_job_result_requires_valid_worker_token() -> None:
     assert forbidden_response.json()["error"]["code"] == "forbidden"
     assert ok_response.status_code == 200
     assert ok_response.json()["status"] == "succeeded"
+    summary = container.activity_store.summary()
+    assert summary["events_total"] == 1
+    assert summary["distinct_event_types"] == 1
+    assert summary["active_users_today"] == 1
 
 
 def test_get_job_status_failure_emits_error_observability(
@@ -884,7 +894,7 @@ def test_cancel_job_failure_emits_error_observability(
 def test_update_job_result_failure_emits_error_observability(
     capture_emf: CaptureEmf,
 ) -> None:
-    container, metrics, _activity_store = _build_failing_job_container(
+    container, metrics, activity_store = _build_failing_job_container(
         worker_token=SecretStr("test-worker-token")
     )
     emitted_dimensions = capture_emf(metrics)
@@ -903,6 +913,10 @@ def test_update_job_result_failure_emits_error_observability(
         "route": "jobs_result_update",
         "status": "error",
     } in emitted_dimensions
+    summary = activity_store.summary()
+    assert summary["events_total"] == 1
+    assert summary["distinct_event_types"] == 1
+    assert summary["active_users_today"] == 1
 
 
 def test_get_job_status_accepts_scope_header_same_origin() -> None:
