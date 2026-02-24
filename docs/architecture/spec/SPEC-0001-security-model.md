@@ -72,9 +72,9 @@ Client `session_id` MUST NOT override trusted JWT identity.
 
 ## 5. Sensitive data protections
 
-- Never log bearer tokens or authorization headers.
-- Never log presigned URLs or query signatures.
-- Error payloads must not include sensitive auth or URL material.
+- Bearer tokens and authorization headers MUST NOT be logged.
+- Presigned URLs and query signatures MUST NOT be logged.
+- Error payloads MUST NOT include sensitive authentication or URL material.
 
 ## 6. Worker callback authentication
 
