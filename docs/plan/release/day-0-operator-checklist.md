@@ -30,6 +30,33 @@ operator checklist.
 - `${SIGNER_EMAIL}`
 - `${SECRET_NAME}` default `nova/release/signing-key`
 
+## Single command-pack script (recommended)
+
+Use the operator script for end-to-end execution:
+
+- script path: `scripts/release/day-0-operator-command-pack.sh`
+
+Copy/paste run example:
+
+```bash
+cd ~/repos/work/infra-stack/nova
+
+export AWS_REGION=us-east-1
+export AWS_ACCOUNT_ID=123456789012
+export SIGNER_NAME="Nova Release Bot"
+export SIGNER_EMAIL="nova-release@example.com"
+export GITHUB_OIDC_PROVIDER_ARN="arn:aws:iam::123456789012:oidc-provider/token.actions.githubusercontent.com"
+export NOVA_ARTIFACT_BUCKET_NAME="container-craft-ci-artifacts"
+export NOVA_DEV_SERVICE_BASE_URL="https://dev.example.com"
+export NOVA_PROD_SERVICE_BASE_URL="https://prod.example.com"
+
+./scripts/release/day-0-operator-command-pack.sh
+```
+
+Optional behavior:
+
+- set `TRIGGER_WORKFLOWS=false` to skip dispatching release workflows.
+
 ## Step-by-step commands
 
 1. Generate and store release signing secret.

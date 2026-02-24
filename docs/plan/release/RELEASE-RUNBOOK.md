@@ -15,6 +15,7 @@ Use the modular operator guide set for provisioning and setup details:
 
 - `documentation-index.md`
 - `day-0-operator-checklist.md`
+- `scripts/release/day-0-operator-command-pack.sh`
 - `aws-oidc-and-iam-role-setup-guide.md`
 - `aws-secrets-provisioning-guide.md`
 - `config-values-reference-guide.md`

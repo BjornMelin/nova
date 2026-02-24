@@ -35,6 +35,10 @@ integration, and production promotion for the Nova release system.
 9. [troubleshooting-and-break-glass-guide.md](troubleshooting-and-break-glass-guide.md)
 10. [documentation-maintenance-guide.md](documentation-maintenance-guide.md)
 
+Operator command pack script:
+
+- `scripts/release/day-0-operator-command-pack.sh`
+
 ## Existing release documents
 
 - [release-runbook.md](RELEASE-RUNBOOK.md)

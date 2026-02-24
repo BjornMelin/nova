@@ -467,6 +467,8 @@ Required for each implementation slice:
     rollout:
     - `docs/plan/release/day-0-operator-checklist.md`
     - `container-craft/docs/how-to/day-0-nova-cicd-operator-checklist.md`
+  - Added runnable command-pack script for one-shot operator execution:
+    - `scripts/release/day-0-operator-command-pack.sh`
   - Completed documentation integrity follow-up:
     - local markdown link target validation pass
     - required section conformance pass with missing `## Prerequisites`

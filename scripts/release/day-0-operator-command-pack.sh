@@ -1,0 +1,241 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Day-0 operator command pack for Nova CI/CD bootstrap.
+# This script provisions the release signing secret, deploys the three Nova
+# CI/CD CloudFormation stacks from container-craft, configures GitHub secrets/
+# variables, validates CodeConnections status, and optionally triggers release
+# workflows.
+
+require_cmd() {
+  local cmd="$1"
+  if ! command -v "$cmd" >/dev/null 2>&1; then
+    echo "Missing required command: $cmd" >&2
+    exit 1
+  fi
+}
+
+require_env() {
+  local name="$1"
+  if [ -z "${!name:-}" ]; then
+    echo "Missing required environment variable: $name" >&2
+    exit 1
+  fi
+}
+
+stack_output() {
+  local stack_name="$1"
+  local output_key="$2"
+  aws cloudformation describe-stacks \
+    --region "$AWS_REGION" \
+    --stack-name "$stack_name" \
+    --query "Stacks[0].Outputs[?OutputKey==\`${output_key}\`].OutputValue | [0]" \
+    --output text
+}
+
+require_cmd aws
+require_cmd gh
+require_cmd jq
+require_cmd ssh-keygen
+
+AWS_REGION="${AWS_REGION:-us-east-1}"
+PROJECT="${PROJECT:-container-craft}"
+APPLICATION="${APPLICATION:-ci}"
+GITHUB_OWNER="${GITHUB_OWNER:-BjornMelin}"
+GITHUB_REPO="${GITHUB_REPO:-nova}"
+MAIN_BRANCH="${MAIN_BRANCH:-main}"
+SECRET_NAME="${SECRET_NAME:-nova/release/signing-key}"
+CONTAINER_CRAFT_REPO="${CONTAINER_CRAFT_REPO:-$HOME/repos/work/infra-stack/container-craft}"
+CONNECTION_NAME="${CONNECTION_NAME:-nova-codeconnection}"
+EXISTING_CONNECTION_ARN="${EXISTING_CONNECTION_ARN:-}"
+CODEARTIFACT_DOMAIN_NAME="${CODEARTIFACT_DOMAIN_NAME:-cral}"
+CODEARTIFACT_REPOSITORY_NAME="${CODEARTIFACT_REPOSITORY_NAME:-galaxypy}"
+ECR_REPOSITORY_NAME="${ECR_REPOSITORY_NAME:-nova-file-api}"
+ECR_REPOSITORY_URI="${ECR_REPOSITORY_URI:-${AWS_ACCOUNT_ID:-}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPOSITORY_NAME}}"
+ECR_REPOSITORY_ARN="${ECR_REPOSITORY_ARN:-arn:aws:ecr:${AWS_REGION}:${AWS_ACCOUNT_ID:-000000000000}:repository/${ECR_REPOSITORY_NAME}}"
+NOVA_RELEASE_BUILD_PROJECT_NAME="${NOVA_RELEASE_BUILD_PROJECT_NAME:-${PROJECT}-${APPLICATION}-nova-release-build}"
+NOVA_DEPLOY_VALIDATE_PROJECT_NAME="${NOVA_DEPLOY_VALIDATE_PROJECT_NAME:-${PROJECT}-${APPLICATION}-nova-deploy-validate}"
+NOVA_DEPLOY_SERVICE_NAME="${NOVA_DEPLOY_SERVICE_NAME:-nova-file-api}"
+NOVA_DEPLOY_DEV_STACK_NAME="${NOVA_DEPLOY_DEV_STACK_NAME:-${PROJECT}-${APPLICATION}-nova-dev}"
+NOVA_DEPLOY_PROD_STACK_NAME="${NOVA_DEPLOY_PROD_STACK_NAME:-${PROJECT}-${APPLICATION}-nova-prod}"
+NOVA_MANUAL_APPROVAL_TOPIC_ARN="${NOVA_MANUAL_APPROVAL_TOPIC_ARN:-}"
+NOVA_BUILD_TEMPLATE_PATH_DEV="${NOVA_BUILD_TEMPLATE_PATH_DEV:-BuildOutput::deploy/dev-stack.yml}"
+NOVA_BUILD_TEMPLATE_PATH_PROD="${NOVA_BUILD_TEMPLATE_PATH_PROD:-BuildOutput::deploy/prod-stack.yml}"
+TRIGGER_WORKFLOWS="${TRIGGER_WORKFLOWS:-true}"
+
+require_env AWS_ACCOUNT_ID
+require_env SIGNER_NAME
+require_env SIGNER_EMAIL
+require_env GITHUB_OIDC_PROVIDER_ARN
+require_env NOVA_ARTIFACT_BUCKET_NAME
+require_env NOVA_DEV_SERVICE_BASE_URL
+require_env NOVA_PROD_SERVICE_BASE_URL
+
+if [ ! -d "$CONTAINER_CRAFT_REPO" ]; then
+  echo "container-craft repo not found at: $CONTAINER_CRAFT_REPO" >&2
+  exit 1
+fi
+
+IAM_TEMPLATE="$CONTAINER_CRAFT_REPO/infra/nova/nova-iam-roles.yml"
+CODEBUILD_TEMPLATE="$CONTAINER_CRAFT_REPO/infra/nova/nova-codebuild-release.yml"
+PIPELINE_TEMPLATE="$CONTAINER_CRAFT_REPO/infra/nova/nova-ci-cd.yml"
+
+for template in "$IAM_TEMPLATE" "$CODEBUILD_TEMPLATE" "$PIPELINE_TEMPLATE"; do
+  if [ ! -f "$template" ]; then
+    echo "Missing template file: $template" >&2
+    exit 1
+  fi
+done
+
+TMP_DIR="$(mktemp -d)"
+trap 'rm -rf "$TMP_DIR"' EXIT
+
+KEY_PATH="$TMP_DIR/release_signing_key"
+SECRET_PATH="$TMP_DIR/release_signing_secret.json"
+
+echo "==> Step 1/7: generate signing key and upsert secret"
+ssh-keygen -t ed25519 -C "$SIGNER_EMAIL" -N "" -f "$KEY_PATH" >/dev/null
+jq -n \
+  --arg private_key "$(cat "$KEY_PATH")" \
+  --arg public_key "$(cat "$KEY_PATH.pub")" \
+  --arg signer_name "$SIGNER_NAME" \
+  --arg signer_email "$SIGNER_EMAIL" \
+  '{private_key:$private_key,public_key:$public_key,signer_name:$signer_name,signer_email:$signer_email}' \
+  > "$SECRET_PATH"
+
+if aws secretsmanager describe-secret --region "$AWS_REGION" --secret-id "$SECRET_NAME" >/dev/null 2>&1; then
+  aws secretsmanager put-secret-value \
+    --region "$AWS_REGION" \
+    --secret-id "$SECRET_NAME" \
+    --secret-string "file://$SECRET_PATH" >/dev/null
+else
+  aws secretsmanager create-secret \
+    --region "$AWS_REGION" \
+    --name "$SECRET_NAME" \
+    --description "Nova release SSH signing key" \
+    --secret-string "file://$SECRET_PATH" >/dev/null
+fi
+
+RELEASE_SIGNING_SECRET_ARN="$(aws secretsmanager describe-secret \
+  --region "$AWS_REGION" \
+  --secret-id "$SECRET_NAME" \
+  --query 'ARN' \
+  --output text)"
+
+echo "==> Step 2/7: deploy IAM roles stack"
+aws cloudformation deploy \
+  --region "$AWS_REGION" \
+  --stack-name "${PROJECT}-${APPLICATION}-nova-iam-roles" \
+  --template-file "$IAM_TEMPLATE" \
+  --capabilities CAPABILITY_NAMED_IAM \
+  --parameter-overrides \
+    Project="$PROJECT" \
+    Application="$APPLICATION" \
+    RepositoryOwner="$GITHUB_OWNER" \
+    RepositoryName="$GITHUB_REPO" \
+    MainBranchName="$MAIN_BRANCH" \
+    GitHubOidcProviderArn="$GITHUB_OIDC_PROVIDER_ARN" \
+    ReleaseSigningSecretArn="$RELEASE_SIGNING_SECRET_ARN" \
+    ArtifactBucketName="$NOVA_ARTIFACT_BUCKET_NAME" \
+    CodeArtifactDomainName="$CODEARTIFACT_DOMAIN_NAME" \
+    CodeArtifactRepositoryName="$CODEARTIFACT_REPOSITORY_NAME" \
+    EcrRepositoryArn="$ECR_REPOSITORY_ARN"
+
+echo "==> Step 3/7: deploy CodeBuild stack"
+aws cloudformation deploy \
+  --region "$AWS_REGION" \
+  --stack-name "${PROJECT}-${APPLICATION}-nova-codebuild-release" \
+  --template-file "$CODEBUILD_TEMPLATE" \
+  --parameter-overrides \
+    Project="$PROJECT" \
+    Application="$APPLICATION" \
+    CodeArtifactDomainName="$CODEARTIFACT_DOMAIN_NAME" \
+    CodeArtifactRepositoryName="$CODEARTIFACT_REPOSITORY_NAME" \
+    EcrRepositoryUri="$ECR_REPOSITORY_URI" \
+    EcrRepositoryName="$ECR_REPOSITORY_NAME" \
+    DockerfilePath="apps/nova_file_api_service/Dockerfile" \
+    DockerBuildContext="." \
+    ReleaseBuildspecPath="buildspecs/buildspec-release.yml" \
+    ValidateBuildspecPath="buildspecs/buildspec-deploy-validate.yml"
+
+echo "==> Step 4/7: deploy CodePipeline stack"
+aws cloudformation deploy \
+  --region "$AWS_REGION" \
+  --stack-name "${PROJECT}-${APPLICATION}-nova-ci-cd" \
+  --template-file "$PIPELINE_TEMPLATE" \
+  --capabilities CAPABILITY_NAMED_IAM \
+  --parameter-overrides \
+    Project="$PROJECT" \
+    Application="$APPLICATION" \
+    RepositoryOwner="$GITHUB_OWNER" \
+    RepositoryName="$GITHUB_REPO" \
+    MainBranchName="$MAIN_BRANCH" \
+    ArtifactBucketName="$NOVA_ARTIFACT_BUCKET_NAME" \
+    ConnectionName="$CONNECTION_NAME" \
+    ExistingConnectionArn="$EXISTING_CONNECTION_ARN" \
+    ReleaseBuildProjectName="$NOVA_RELEASE_BUILD_PROJECT_NAME" \
+    DeployValidateProjectName="$NOVA_DEPLOY_VALIDATE_PROJECT_NAME" \
+    DeployServiceName="$NOVA_DEPLOY_SERVICE_NAME" \
+    DeployDevStackName="$NOVA_DEPLOY_DEV_STACK_NAME" \
+    DeployProdStackName="$NOVA_DEPLOY_PROD_STACK_NAME" \
+    DevServiceBaseUrl="$NOVA_DEV_SERVICE_BASE_URL" \
+    ProdServiceBaseUrl="$NOVA_PROD_SERVICE_BASE_URL" \
+    ManualApprovalTopicArn="$NOVA_MANUAL_APPROVAL_TOPIC_ARN" \
+    BuildTemplatePathDev="$NOVA_BUILD_TEMPLATE_PATH_DEV" \
+    BuildTemplatePathProd="$NOVA_BUILD_TEMPLATE_PATH_PROD"
+
+RELEASE_AWS_ROLE_ARN="$(stack_output "${PROJECT}-${APPLICATION}-nova-iam-roles" "GitHubOIDCReleaseRoleArn")"
+CODEPIPELINE_NAME="$(stack_output "${PROJECT}-${APPLICATION}-nova-ci-cd" "PipelineName")"
+CONNECTION_ARN="$(stack_output "${PROJECT}-${APPLICATION}-nova-ci-cd" "ConnectionArn")"
+
+if [ -z "$RELEASE_AWS_ROLE_ARN" ] || [ "$RELEASE_AWS_ROLE_ARN" = "None" ]; then
+  echo "Unable to read GitHubOIDCReleaseRoleArn output" >&2
+  exit 1
+fi
+
+if [ -z "$CODEPIPELINE_NAME" ] || [ "$CODEPIPELINE_NAME" = "None" ]; then
+  echo "Unable to read PipelineName output" >&2
+  exit 1
+fi
+
+if [ -z "$CONNECTION_ARN" ] || [ "$CONNECTION_ARN" = "None" ]; then
+  echo "Unable to read ConnectionArn output" >&2
+  exit 1
+fi
+
+GH_REPO="${GITHUB_OWNER}/${GITHUB_REPO}"
+
+echo "==> Step 5/7: configure GitHub secrets and variable for $GH_REPO"
+gh secret set RELEASE_SIGNING_SECRET_ID --repo "$GH_REPO" --body "$SECRET_NAME"
+gh secret set RELEASE_AWS_ROLE_ARN --repo "$GH_REPO" --body "$RELEASE_AWS_ROLE_ARN"
+gh variable set AWS_REGION --repo "$GH_REPO" --body "$AWS_REGION"
+
+echo "==> Step 6/7: validate CodeConnections status"
+CONNECTION_STATUS="$(aws codeconnections get-connection \
+  --region "$AWS_REGION" \
+  --connection-arn "$CONNECTION_ARN" \
+  --query 'Connection.ConnectionStatus' \
+  --output text)"
+
+echo "Connection status: $CONNECTION_STATUS"
+if [ "$CONNECTION_STATUS" != "AVAILABLE" ]; then
+  echo "Action required: activate connection in AWS Console before expecting source triggers."
+fi
+
+echo "==> Step 7/7: trigger release workflows"
+if [ "$TRIGGER_WORKFLOWS" = "true" ]; then
+  gh workflow run "Nova Release Plan" --repo "$GH_REPO" --ref "$MAIN_BRANCH"
+  gh workflow run "Nova Release Apply" --repo "$GH_REPO" --ref "$MAIN_BRANCH"
+else
+  echo "Skipping workflow dispatch because TRIGGER_WORKFLOWS=$TRIGGER_WORKFLOWS"
+fi
+
+echo
+echo "Done. Operator handoff values:"
+echo "RELEASE_AWS_ROLE_ARN=$RELEASE_AWS_ROLE_ARN"
+echo "CONNECTION_ARN=$CONNECTION_ARN"
+echo "CODEPIPELINE_NAME=$CODEPIPELINE_NAME"
+echo
+echo "Follow-up verification commands:"
+echo "aws codepipeline list-pipeline-executions --region \"$AWS_REGION\" --pipeline-name \"$CODEPIPELINE_NAME\" --max-results 5"
+echo "aws codepipeline get-pipeline-state --region \"$AWS_REGION\" --name \"$CODEPIPELINE_NAME\""
