@@ -173,3 +173,10 @@ cython_debug/
 opensrc/
 .agents/
 .codex/
+
+# Auth0 export snapshots
+infra/auth0/output/
+
+# Track Auth0 overlay templates
+!infra/auth0/env/
+!infra/auth0/env/*.env.example

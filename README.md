@@ -135,6 +135,22 @@ Primary operational settings:
 - Transfers: `/api/transfers`
 - Jobs: `/api/jobs`
 
+## Auth0 Tenant-as-Code (a0deploy)
+
+Canonical Auth0 configuration for this repo lives in `infra/auth0/`.
+
+- Shared resource definition: `infra/auth0/tenant/tenant.yaml`
+- Environment overlays:
+  - `infra/auth0/env/dev.env.example` (active local dev)
+  - `infra/auth0/env/qa.env.example` (scaffold placeholder)
+  - `infra/auth0/env/pr.env.example` (scaffold placeholder)
+- Safety default in all overlays: `AUTH0_ALLOW_DELETE=false`
+
+Current local-dev policy is single-tenant: use only the `dev` overlay now.
+QA/PR overlays remain scaffold-only until explicit cutover.
+
+Runbook: `docs/plan/release/AUTH0-A0DEPLOY-RUNBOOK.md`
+
 ## Local Development
 
 Run in repository root:
