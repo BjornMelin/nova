@@ -1,0 +1,42 @@
+version: 0.2
+
+env:
+  shell: bash
+  exported-variables:
+    - VALIDATION_STATUS
+
+phases:
+  install:
+    runtime-versions:
+      python: "3.12"
+    commands:
+      - pip install --upgrade pip
+      - pip install httpx
+
+  pre_build:
+    commands:
+      - test -n "$SERVICE_BASE_URL"
+
+  build:
+    commands:
+      - |
+        set -euo pipefail
+        python - <<'PY'
+        import os
+        import httpx
+
+        base = os.environ["SERVICE_BASE_URL"].rstrip("/")
+        paths = ["/healthz", "/readyz", "/metrics/summary"]
+        with httpx.Client(timeout=10.0) as client:
+            for path in paths:
+                resp = client.get(base + path)
+                if resp.status_code != 200:
+                    raise SystemExit(
+                        f"Validation failed for {path}: {resp.status_code}"
+                    )
+        PY
+        VALIDATION_STATUS=passed
+
+artifacts:
+  files:
+    - docs/plan/release/RELEASE-VERSION-MANIFEST.md
