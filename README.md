@@ -199,6 +199,9 @@ Hybrid release model:
    - release manifest generation
 3. AWS promotion is Dev -> ManualApproval -> Prod in `container-craft` CI/CD
    stacks, consuming immutable artifacts from the signed release commit.
+   - Deploy marker templates are infra-owned in `container-craft`
+     (`infra/nova/deploy/image-digest-ssm.yml`) via the pipeline infra source.
+     Nova release artifacts do not package `deploy/*.yml` templates.
 4. Release build contract:
    - buildspec: `buildspecs/buildspec-release.yml`
    - changed package publish set is resolved from signed release commit diff
