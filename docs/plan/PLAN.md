@@ -425,6 +425,75 @@ Required for each implementation slice:
       <https://github.com/pypa/hatch/blob/master/docs/config/metadata.md>
     - pydantic-settings BaseSettings behavior:
       <https://github.com/pydantic/pydantic-settings/blob/main/docs/index.md>
+- 2026-02-24: CI/CD release deploy execution update:
+  - Implemented selective release automation in `scripts/release/` and added
+    coverage in `scripts/release/tests/`.
+  - Added release workflow layer:
+    `.github/workflows/ci.yml`,
+    `.github/workflows/release-plan.yml`,
+    `.github/workflows/release-apply.yml`,
+    `.github/workflows/verify-signature.yml`.
+  - Added build/deploy contract artifacts in `buildspecs/` and service
+    Dockerfiles for release image build/push.
+  - Added `container-craft` Nova CI/CD stacks and trigger wiring
+    (`deploy-nova-cicd`) plus CodeArtifact internal package-group origin
+    restrictions.
+  - Updated release docs:
+    `RELEASE-POLICY.md`, `RELEASE-RUNBOOK.md`, and
+    `NONPROD-LIVE-VALIDATION-RUNBOOK.md`.
+  - Detailed checkoff/memory tracker is maintained in
+    `.agents/plans/2026-02-23-nova-aws-cicd-release-deploy-spec.md`.
+  - Remaining external/manual gates:
+    signing secret provisioning, CodeConnections activation, and first
+    promoted Dev->Prod runbook evidence capture.
+- 2026-02-24: CI/CD documentation hardening update:
+  - Added modular, step-by-step release/provisioning guide set under
+    `docs/plan/release/` with explicit command paths, placeholders, and API
+    references:
+    - `documentation-index.md`
+    - `aws-secrets-provisioning-guide.md`
+    - `aws-oidc-and-iam-role-setup-guide.md`
+    - `github-actions-secrets-and-vars-setup-guide.md`
+    - `codeconnections-activation-and-validation-guide.md`
+    - `deploy-nova-cicd-end-to-end-guide.md`
+    - `release-promotion-dev-to-prod-guide.md`
+    - `config-values-reference-guide.md`
+    - `troubleshooting-and-break-glass-guide.md`
+  - Added mirrored operator docs in `container-craft` for action-first and
+    CLI fallback deployment plus config/command references.
+  - Updated release runbook to point to the modular guide index for
+    decision-complete setup flow.
+  - Added day-0 execution checklists in both repos for first-time operator
+    rollout:
+    - `docs/plan/release/day-0-operator-checklist.md`
+    - `container-craft/docs/how-to/day-0-nova-cicd-operator-checklist.md`
+  - Added runnable command-pack script for one-shot operator execution:
+    - `scripts/release/day-0-operator-command-pack.sh`
+  - Completed documentation integrity follow-up:
+    - local Markdown link target validation pass
+    - required section conformance pass with missing `## Prerequisites`
+      backfilled in operational guides
+- 2026-02-24: Release automation correctness remediation:
+  - Before: release build recomputed changed units/version plan from release
+    commit with manifest baseline behavior that could collapse to an empty
+    publish set and skip selective package uploads.
+  - After: release build resolves changed publish units from signed release
+    commit parent diff (`HEAD^..HEAD`), and package publishing iterates
+    `changed-units.json` directly.
+  - Before: package upload target relied on twine default repository selection.
+  - After: release build uses `twine --repository codeartifact` explicitly.
+  - Before: `release-apply` checkout for `workflow_run` was not pinned to the
+    planned SHA; apply could run against a newer default-branch commit.
+  - After: `release-apply` checks out `workflow_run.head_sha` for
+    `workflow_run` events.
+  - Before: manual `release-apply` dispatch could run from non-main refs.
+  - After: `release-apply` execution is restricted to `main` for both
+    `workflow_run` and `workflow_dispatch` paths.
+  - Synced docs:
+    `README.md`,
+    `docs/architecture/spec/SPEC-0004-ci-cd-and-docs.md`,
+    `docs/plan/release/RELEASE-POLICY.md`,
+    `docs/plan/release/RELEASE-RUNBOOK.md`.
 
 ## Source References
 

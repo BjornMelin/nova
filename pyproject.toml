@@ -64,8 +64,10 @@ minversion = "8.0"
 testpaths = [
   "packages/nova_auth_api/tests",
   "packages/nova_file_api/tests",
+  "scripts/release/tests",
 ]
 pythonpath = [
+  ".",
   "apps/nova_auth_api_service/src",
   "apps/nova_file_api_service/src",
   "packages/nova_auth_api/src",

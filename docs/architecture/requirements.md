@@ -1,7 +1,7 @@
 # Requirements (nova runtime)
 
 Status: Canonical requirements source
-Last updated: 2026-02-23
+Last updated: 2026-02-24
 
 This document is the source of truth for functional and non-functional
 requirements for the first production release.
@@ -204,10 +204,14 @@ cover latency, error rate, and queue backlog.
 
 Every change MUST pass:
 
-- `source .venv/bin/activate && uv run ruff check .`
+- `source .venv/bin/activate && uv lock --check`
+- `source .venv/bin/activate && uv run ruff check . --fix`
 - `source .venv/bin/activate && uv run ruff check . --select I`
+- `source .venv/bin/activate && uv run ruff format .`
 - `source .venv/bin/activate && uv run mypy`
 - `source .venv/bin/activate && uv run pytest -q`
+- `source .venv/bin/activate && uv run pytest -q packages/nova_file_api/tests/test_generated_client_smoke.py`
+- workspace package/app build verification (`uv build` per workspace unit)
 
 ## Integration Requirements
 

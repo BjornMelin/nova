@@ -19,6 +19,10 @@ from nova_file_api.models import Principal
 
 logger = logging.getLogger(__name__)
 
+type DynamoAttributeValue = dict[str, str]
+type DynamoItem = dict[str, DynamoAttributeValue]
+type DynamoKey = DynamoItem
+
 
 class ActivityStore(Protocol):
     """Interface for activity rollup storage."""
@@ -34,6 +38,38 @@ class ActivityStore(Protocol):
 
     def summary(self) -> dict[str, int]:
         """Return aggregate summary counters."""
+
+
+class DynamoDbClientProtocol(Protocol):
+    """Subset of DynamoDB client methods used by rollup storage."""
+
+    def update_item(
+        self,
+        *,
+        TableName: str,
+        Key: DynamoKey,
+        UpdateExpression: str,
+        ExpressionAttributeNames: dict[str, str],
+        ExpressionAttributeValues: DynamoItem,
+    ) -> object:
+        """Update a DynamoDB item."""
+
+    def put_item(
+        self,
+        *,
+        TableName: str,
+        Item: DynamoItem,
+        ConditionExpression: str,
+    ) -> object:
+        """Put a DynamoDB item."""
+
+    def get_item(
+        self,
+        *,
+        TableName: str,
+        Key: DynamoKey,
+    ) -> dict[str, DynamoItem]:
+        """Get a DynamoDB item."""
 
 
 @dataclass(slots=True)
@@ -91,14 +127,22 @@ class MemoryActivityStore:
 class DynamoActivityStore:
     """DynamoDB-backed daily rollups for activity dashboards."""
 
-    def __init__(self, *, table_name: str) -> None:
+    def __init__(
+        self,
+        *,
+        table_name: str,
+        ddb_client: DynamoDbClientProtocol | None = None,
+    ) -> None:
         """Create a rollup store bound to the configured table.
 
         Args:
             table_name: DynamoDB table name for activity rollups.
+            ddb_client: Optional injected DynamoDB client for testing.
         """
         self._table_name = table_name
-        self._ddb = boto3.client("dynamodb")
+        if ddb_client is None:
+            ddb_client = boto3.client("dynamodb")
+        self._ddb: DynamoDbClientProtocol = ddb_client
 
     def record(
         self,

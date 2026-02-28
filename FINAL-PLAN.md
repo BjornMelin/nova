@@ -207,6 +207,13 @@ In monorepo docs:
 - [ ] Sign-off recorded for dashboard/alarm validation via
   `docs/plan/release/NONPROD-LIVE-VALIDATION-RUNBOOK.md`.
 - [x] Finalize active documentation cleanup for post-cutover steady state.
+- [x] Publish modular CI/CD provisioning and secrets guide set in `nova` and
+  mirrored operator guide set in `container-craft` with action-first and CLI
+  fallback instructions.
+- [x] Add day-0 operator checklists in both repos and complete docs integrity
+  pass (link target + required sections).
+- [x] Add one-shot operator command pack script for faster day-0 execution:
+  `scripts/release/day-0-operator-command-pack.sh`.
 - [x] Publish release notes with hard-cutover migration checklist.
 - [x] Publish operator runbook for live AWS validation gates:
   `docs/plan/release/NONPROD-LIVE-VALIDATION-RUNBOOK.md`.
@@ -452,3 +459,41 @@ Execution and evidence checklist:
       <https://github.com/pypa/hatch/blob/master/docs/config/metadata.md>
     - pydantic-settings BaseSettings behavior:
       <https://github.com/pydantic/pydantic-settings/blob/main/docs/index.md>
+- 2026-02-24: CI/CD release deploy spec implementation update:
+  - Added selective release tooling under `scripts/release/` with tests:
+    changed-unit detection, deterministic bumping, version apply, and manifest
+    rendering.
+  - Added GitHub workflow layer:
+    `ci.yml`, `release-plan.yml`, `release-apply.yml`,
+    `verify-signature.yml`.
+  - Added release/deploy buildspecs and service Dockerfiles:
+    `buildspec-release.yml` now publishes changed packages to CodeArtifact and
+    pushes immutable ECR image digests; `buildspec-deploy-validate.yml` gates
+    `/healthz`, `/readyz`, and `/metrics/summary`.
+  - Added `container-craft` Nova CI/CD stacks:
+    `infra/nova/nova-iam-roles.yml`,
+    `infra/nova/nova-codebuild-release.yml`,
+    `infra/nova/nova-ci-cd.yml`,
+    including template trigger wiring and CodeArtifact package-group hardening.
+  - Synchronized execution tracking in
+    `.agents/plans/2026-02-23-nova-aws-cicd-release-deploy-spec.md`.
+  - Remaining external gates (manual/non-local):
+    Secrets Manager signing secret provisioning, CodeConnections activation, and
+    first Dev->Prod promotion evidence capture in
+    `docs/plan/release/NONPROD-LIVE-VALIDATION-RUNBOOK.md`.
+- 2026-02-24: Release automation correctness remediation:
+  - `buildspec-release.yml` now resolves changed publish units from signed
+    release commit diff (`HEAD^..HEAD`) and publishes unit paths from
+    `changed-units.json`.
+  - `buildspec-release.yml` twine uploads now explicitly target CodeArtifact via
+    `--repository codeartifact`.
+  - `release-apply.yml` now gates execution to `main` branch paths only:
+    `workflow_run` requires `head_branch == main`; `workflow_dispatch` requires
+    `refs/heads/main`.
+  - `release-apply.yml` checkout is pinned to
+    `github.event.workflow_run.head_sha` for `workflow_run` invocations.
+  - Release docs synchronized:
+    `README.md`,
+    `docs/architecture/spec/SPEC-0004-ci-cd-and-docs.md`,
+    `docs/plan/release/RELEASE-POLICY.md`,
+    `docs/plan/release/RELEASE-RUNBOOK.md`.

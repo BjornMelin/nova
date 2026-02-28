@@ -20,7 +20,10 @@ bytes.
   - same-origin polling clients send caller scope on body-less job routes via
     `X-Session-Id`
   - same-origin scope precedence is `X-Session-Id` -> body `session_id` ->
-    `X-Scope-Id`; conflicting header/body session scope returns `401`
+    `X-Scope-Id`
+  - scope conflict handling:
+    - `X-Session-Id` + body `session_id` mismatch => `422`
+    - `X-Scope-Id` + body `session_id` mismatch (no `X-Session-Id`) => `401`
 - Auth modes:
   - same-origin
   - local JWT verification (`oidc-jwt-verifier`)
@@ -137,6 +140,7 @@ Primary operational settings:
 Run in repository root:
 
 ```bash
+source .venv/bin/activate && uv lock --check
 source .venv/bin/activate && uv run ruff check . --fix && uv run ruff format .
 source .venv/bin/activate && uv run mypy
 source .venv/bin/activate && uv run pytest -q
@@ -175,6 +179,43 @@ uv run pytest -q \
 The smoke test generates a Python client with `openapi-python-client` from the
 runtime OpenAPI schema and verifies generated code compiles successfully.
 
+## Release Automation
+
+Hybrid release model:
+
+1. GitHub Actions handles CI and selective release planning/apply:
+   - `.github/workflows/ci.yml`
+   - `.github/workflows/release-plan.yml`
+   - `.github/workflows/release-apply.yml`
+   - `.github/workflows/verify-signature.yml`
+   - `release-apply.yml` safety controls:
+     - `workflow_run` execution is restricted to successful `main` runs.
+     - checkout is pinned to the planned `workflow_run.head_sha`.
+     - manual `workflow_dispatch` apply runs are restricted to `main`.
+2. Release tooling scripts live under `scripts/release/`:
+   - changed unit detection
+   - deterministic version planning
+   - selective version apply
+   - release manifest generation
+3. AWS promotion is Dev -> ManualApproval -> Prod in `container-craft` CI/CD
+   stacks, consuming immutable artifacts from the signed release commit.
+   - Deploy marker templates are infra-owned in `container-craft`
+     (`infra/nova/deploy/image-digest-ssm.yml`) via the pipeline infra source.
+     Nova release artifacts do not package `deploy/*.yml` templates.
+4. Release build contract:
+   - buildspec: `buildspecs/buildspec-release.yml`
+   - changed package publish set is resolved from signed release commit diff
+     (`HEAD^..HEAD`) to prevent empty selective publish runs.
+   - package uploads are pinned to CodeArtifact (`twine --repository codeartifact`).
+   - default image build target:
+     `apps/nova_file_api_service/Dockerfile`
+   - CodeBuild inputs:
+     `CODEARTIFACT_DOMAIN`, `CODEARTIFACT_REPOSITORY`,
+     and ECR target (`ECR_REPOSITORY_URI` or `ECR_REPOSITORY_NAME`)
+   - exported variables:
+     `IMAGE_DIGEST`, `PUBLISHED_PACKAGES`,
+     `RELEASE_MANIFEST_SHA256`, `CHANGED_UNITS`
+
 ## Documentation Map
 
 - Requirements: `docs/architecture/requirements.md`
@@ -189,3 +230,7 @@ runtime OpenAPI schema and verifies generated code compiles successfully.
   `docs/plan/release/NONPROD-LIVE-VALIDATION-RUNBOOK.md`
 - Version manifest:
   `docs/plan/release/RELEASE-VERSION-MANIFEST.md`
+- Release policy:
+  `docs/plan/release/RELEASE-POLICY.md`
+- Release runbook:
+  `docs/plan/release/RELEASE-RUNBOOK.md`
