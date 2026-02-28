@@ -1,0 +1,46 @@
+name: Verify Release Signature
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  verify-release-commit-signature:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify release commit signature
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const ref = context.sha;
+            const commit = await github.rest.repos.getCommit({
+              owner,
+              repo,
+              ref,
+            });
+
+            const message = commit.data.commit.message || "";
+            const isReleaseCommit = message.startsWith(
+              "chore(release): apply selective versions"
+            );
+
+            if (!isReleaseCommit) {
+              core.info("Not a release automation commit; skipping signature gate.");
+              return;
+            }
+
+            const verification = commit.data.commit.verification || {};
+            if (!verification.verified) {
+              core.setFailed(
+                `Release commit is not verified: ${verification.reason || "unknown"}`
+              );
+              return;
+            }
+
+            core.info("Release commit signature verified by GitHub.");

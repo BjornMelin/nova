@@ -1,0 +1,75 @@
+name: Nova CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality-gates:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Lock and Sync
+        run: |
+          uv lock --check
+          uv sync --frozen
+
+      - name: Ruff Check
+        run: uv run ruff check . --fix
+
+      - name: Ruff Import Check
+        run: uv run ruff check . --select I
+
+      - name: Ruff Format
+        run: uv run ruff format .
+
+      - name: Mypy
+        run: uv run mypy
+
+      - name: Pytest
+        run: uv run pytest -q
+
+      - name: Generated Client Smoke
+        run: |
+          uv run pytest -q \
+            packages/nova_file_api/tests/test_generated_client_smoke.py
+
+      - name: Workspace Build
+        run: |
+          for p in \
+            packages/nova_file_api \
+            packages/nova_auth_api \
+            packages/nova_dash_bridge \
+            apps/nova_file_api_service \
+            apps/nova_auth_api_service; do
+            uv build "$p"
+          done
+
+      - name: Hard-Cutover Route Guard
+        run: |
+          rg -n \
+            "/api/transfers|/api/jobs|/metrics/summary|/healthz|/readyz" \
+            apps packages docs
