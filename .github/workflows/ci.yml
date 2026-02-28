@@ -70,6 +70,9 @@ jobs:
 
       - name: Hard-Cutover Route Guard
         run: |
-          rg -n \
-            "/api/transfers|/api/jobs|/metrics/summary|/healthz|/readyz" \
-            apps packages docs
+          PATTERN="/api/transfers|/api/jobs|/metrics/summary|/healthz|/readyz"
+          if command -v rg >/dev/null 2>&1; then
+            rg -n "$PATTERN" apps packages docs
+          else
+            grep -RInE "$PATTERN" apps packages docs
+          fi
