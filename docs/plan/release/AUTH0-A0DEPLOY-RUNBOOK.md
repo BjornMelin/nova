@@ -85,6 +85,14 @@ Do not use QA/PR overlays until placeholders are replaced and cutover is approve
 - Never commit real `AUTH0_CLIENT_SECRET` values to git.
 - Keep each `infra/auth0/mappings/*.json` file valid JSON.
 
+## Automated contract check
+
+Run this before each import/export:
+
+```bash
+python -m scripts.release.validate_auth0_contract
+```
+
 ## Validation checklist
 
 - `AUTH0_ALLOW_DELETE` equals `false`.

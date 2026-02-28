@@ -150,6 +150,7 @@ Current local-dev policy is single-tenant: use only the `dev` overlay now.
 QA/PR overlays remain scaffold-only until explicit cutover.
 
 Runbook: `docs/plan/release/AUTH0-A0DEPLOY-RUNBOOK.md`
+Contract validator: `python -m scripts.release.validate_auth0_contract`
 
 ## Local Development
 
