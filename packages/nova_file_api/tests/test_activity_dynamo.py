@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 from typing import Any, cast
 
+import pytest
 from _pytest.logging import LogCaptureFixture
 from botocore.exceptions import ClientError
 from nova_file_api.activity import DynamoActivityStore
@@ -163,9 +164,38 @@ def _expected_principal_fingerprint(*, subject: str) -> str:
     return hashlib.sha256(subject.encode("utf-8")).hexdigest()[:16]
 
 
+def test_dynamo_activity_store_uses_injected_client_without_boto3(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def _unexpected_boto3_client(
+        service_name: str, **kwargs: object
+    ) -> _FakeDynamoDbClient:
+        del service_name, kwargs
+        raise AssertionError("boto3.client should not be called")
+
+    monkeypatch.setattr(
+        "nova_file_api.activity.boto3.client",
+        _unexpected_boto3_client,
+    )
+
+    store = DynamoActivityStore(
+        table_name="activity-rollups",
+        ddb_client=_FakeDynamoDbClient(),
+    )
+    store.record(
+        principal=_principal(subject="user-1"),
+        event_type="uploads_initiate",
+    )
+
+    summary = store.summary()
+    assert summary["events_total"] == 1
+
+
 def test_dynamo_activity_summary_counts_repeat_event_once() -> None:
-    store = DynamoActivityStore(table_name="activity-rollups")
-    store._ddb = _FakeDynamoDbClient()
+    store = DynamoActivityStore(
+        table_name="activity-rollups",
+        ddb_client=_FakeDynamoDbClient(),
+    )
 
     store.record(
         principal=_principal(subject="user-1"),
@@ -183,8 +213,10 @@ def test_dynamo_activity_summary_counts_repeat_event_once() -> None:
 
 
 def test_dynamo_activity_summary_counts_new_event_types_and_users() -> None:
-    store = DynamoActivityStore(table_name="activity-rollups")
-    store._ddb = _FakeDynamoDbClient()
+    store = DynamoActivityStore(
+        table_name="activity-rollups",
+        ddb_client=_FakeDynamoDbClient(),
+    )
 
     store.record(
         principal=_principal(subject="user-1"),
@@ -208,13 +240,15 @@ def test_dynamo_activity_summary_counts_new_event_types_and_users() -> None:
 def test_dynamo_activity_record_logs_counter_failures_and_hides_principal(
     caplog: LogCaptureFixture,
 ) -> None:
-    store = DynamoActivityStore(table_name="activity-rollups")
-    store._ddb = _FailingDynamoDbClient(
-        update_failures={
-            1: _client_error(
-                operation_name="UpdateItem",
-            )
-        }
+    store = DynamoActivityStore(
+        table_name="activity-rollups",
+        ddb_client=_FailingDynamoDbClient(
+            update_failures={
+                1: _client_error(
+                    operation_name="UpdateItem",
+                )
+            }
+        ),
     )
     principal = _principal(subject="user-1")
 
@@ -240,14 +274,16 @@ def test_dynamo_activity_record_logs_counter_failures_and_hides_principal(
 def test_dynamo_activity_record_user_marker_error_logs_warning(
     caplog: LogCaptureFixture,
 ) -> None:
-    store = DynamoActivityStore(table_name="activity-rollups")
-    store._ddb = _FailingDynamoDbClient(
-        put_failures={
-            1: _client_error(
-                code="ProvisionedThroughputExceededException",
-                operation_name="PutItem",
-            ),
-        }
+    store = DynamoActivityStore(
+        table_name="activity-rollups",
+        ddb_client=_FailingDynamoDbClient(
+            put_failures={
+                1: _client_error(
+                    code="ProvisionedThroughputExceededException",
+                    operation_name="PutItem",
+                ),
+            }
+        ),
     )
     principal = _principal(subject="user-2")
 
@@ -271,14 +307,16 @@ def test_dynamo_activity_record_user_marker_error_logs_warning(
 def test_dynamo_activity_record_distinct_event_type_increment_failure_logged(
     caplog: LogCaptureFixture,
 ) -> None:
-    store = DynamoActivityStore(table_name="activity-rollups")
-    store._ddb = _FailingDynamoDbClient(
-        update_failures={
-            4: _client_error(
-                code="ProvisionedThroughputExceededException",
-                operation_name="UpdateItem",
-            )
-        }
+    store = DynamoActivityStore(
+        table_name="activity-rollups",
+        ddb_client=_FailingDynamoDbClient(
+            update_failures={
+                4: _client_error(
+                    code="ProvisionedThroughputExceededException",
+                    operation_name="UpdateItem",
+                )
+            }
+        ),
     )
     principal = _principal(subject="user-3")
 
