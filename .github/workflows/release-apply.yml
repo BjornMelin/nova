@@ -86,6 +86,7 @@ jobs:
             > /tmp/release_signing_key.pub
           SIGNER_NAME=$(jq -r '.signer_name' /tmp/release_signing_secret.json)
           SIGNER_EMAIL=$(jq -r '.signer_email' /tmp/release_signing_secret.json)
+          rm -f /tmp/release_signing_secret.json
 
           mkdir -p ~/.ssh
           mv /tmp/release_signing_key ~/.ssh/release_signing_key
@@ -96,7 +97,7 @@ jobs:
           git config user.name "$SIGNER_NAME"
           git config user.email "$SIGNER_EMAIL"
           git config gpg.format ssh
-          git config user.signingkey ~/.ssh/release_signing_key.pub
+          git config user.signingkey ~/.ssh/release_signing_key
           git config commit.gpgsign true
 
       - name: Commit and push release changes
@@ -107,7 +108,6 @@ jobs:
           fi
 
           git add \
-            -u \
             docs/plan/release/RELEASE-VERSION-MANIFEST.md \
             uv.lock \
             pyproject.toml \

@@ -38,7 +38,7 @@ Fallback path:
 - `${APPLICATION}` default `ci`
 - `${CONFIG_FILE}` service YAML used by container-craft
 - `${CONFIG_DIR}` directory containing `${CONFIG_FILE}`
-- `${GITHUB_OWNER}` default `BjornMelin`
+- `${GITHUB_OWNER}` default `3M-Cloud`
 - `${GITHUB_REPO}` default `nova`
 
 ## Step 1: prepare container-craft config values
@@ -66,9 +66,14 @@ Use a GitHub workflow in `container-craft` that calls the composite action with:
 
 Minimal invocation:
 
+Use a pinned release tag or commit SHA for `uses` instead of `@main`.
+The `${...}` tokens below are placeholders for documentation and should be
+replaced with concrete values or `${{ vars.* }}` / `${{ secrets.* }}` in an
+actual workflow.
+
 ```yaml
 - name: Deploy Nova CI/CD stacks
-  uses: 3M-Cloud/container-craft@main
+  uses: 3M-Cloud/container-craft@<pinned-ref>
   with:
     config_dir: ${CONFIG_DIR}
     config_file: ${CONFIG_FILE}

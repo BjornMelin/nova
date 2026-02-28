@@ -7,13 +7,17 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-RUN pip install --no-cache-dir uv
+RUN pip install --no-cache-dir uv==0.10.2 && \
+    useradd --create-home --shell /bin/bash appuser
 
 COPY pyproject.toml uv.lock README.md ./
 COPY apps ./apps
 COPY packages ./packages
 
 RUN uv sync --frozen --no-default-groups --package nova-auth-api-service
+
+RUN chown -R appuser:appuser /app
+USER appuser
 
 EXPOSE 8050
 

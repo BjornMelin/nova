@@ -19,6 +19,8 @@ def _external_versions_from_manifest(
     after = existing_text.split(marker, maxsplit=1)[1]
     values: list[tuple[str, str]] = []
     for line in after.splitlines():
+        if line.startswith("#"):
+            break
         if not line.startswith("- "):
             continue
         payload = line.removeprefix("- ").strip()
@@ -44,6 +46,7 @@ def render_manifest(
     changed_ids = {
         str(item["unit_id"]) for item in changed_report.get("changed_units", [])
     }
+    release_changed_ids = changed_ids | set(planned)
 
     lines: list[str] = []
     lines.append("# Release Version Manifest")
@@ -88,7 +91,7 @@ def render_manifest(
     for unit_id in sorted(units):
         unit = units[unit_id]
         version = planned.get(unit_id, unit.version)
-        changed = "yes" if unit_id in changed_ids else "no"
+        changed = "yes" if unit_id in release_changed_ids else "no"
         lines.append(
             f"| `{unit_id}` | `{unit.project_name}` | `{version}` | {changed} |"
         )

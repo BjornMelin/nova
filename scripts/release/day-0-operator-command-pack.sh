@@ -41,7 +41,7 @@ require_cmd ssh-keygen
 AWS_REGION="${AWS_REGION:-us-east-1}"
 PROJECT="${PROJECT:-container-craft}"
 APPLICATION="${APPLICATION:-ci}"
-GITHUB_OWNER="${GITHUB_OWNER:-BjornMelin}"
+GITHUB_OWNER="${GITHUB_OWNER:-3M-Cloud}"
 GITHUB_REPO="${GITHUB_REPO:-nova}"
 MAIN_BRANCH="${MAIN_BRANCH:-main}"
 NOVA_INFRA_REPO_OWNER="${NOVA_INFRA_REPO_OWNER:-3M-Cloud}"
@@ -64,6 +64,8 @@ NOVA_DEPLOY_DEV_STACK_NAME="${NOVA_DEPLOY_DEV_STACK_NAME:-${PROJECT}-${APPLICATI
 NOVA_DEPLOY_PROD_STACK_NAME="${NOVA_DEPLOY_PROD_STACK_NAME:-${PROJECT}-${APPLICATION}-nova-prod}"
 NOVA_MANUAL_APPROVAL_TOPIC_ARN="${NOVA_MANUAL_APPROVAL_TOPIC_ARN:-}"
 TRIGGER_WORKFLOWS="${TRIGGER_WORKFLOWS:-true}"
+TRIGGER_RELEASE_APPLY_DIRECT="${TRIGGER_RELEASE_APPLY_DIRECT:-false}"
+ROTATE_SIGNING_KEY="${ROTATE_SIGNING_KEY:-false}"
 
 require_env AWS_ACCOUNT_ID
 require_env SIGNER_NAME
@@ -96,26 +98,39 @@ KEY_PATH="$TMP_DIR/release_signing_key"
 SECRET_PATH="$TMP_DIR/release_signing_secret.json"
 
 echo "==> Step 1/7: generate signing key and upsert secret"
-ssh-keygen -t ed25519 -C "$SIGNER_EMAIL" -N "" -f "$KEY_PATH" >/dev/null
-jq -n \
-  --arg private_key "$(cat "$KEY_PATH")" \
-  --arg public_key "$(cat "$KEY_PATH.pub")" \
-  --arg signer_name "$SIGNER_NAME" \
-  --arg signer_email "$SIGNER_EMAIL" \
-  '{private_key:$private_key,public_key:$public_key,signer_name:$signer_name,signer_email:$signer_email}' \
-  > "$SECRET_PATH"
-
-if aws secretsmanager describe-secret --region "$AWS_REGION" --secret-id "$SECRET_NAME" >/dev/null 2>&1; then
-  aws secretsmanager put-secret-value \
+if aws secretsmanager describe-secret --region "$AWS_REGION" --secret-id "$SECRET_NAME" >/dev/null 2>&1 \
+  && [ "$ROTATE_SIGNING_KEY" != "true" ]; then
+  echo "Existing signing secret found; reusing current key (set ROTATE_SIGNING_KEY=true to rotate)."
+  aws secretsmanager get-secret-value \
     --region "$AWS_REGION" \
     --secret-id "$SECRET_NAME" \
-    --secret-string "file://$SECRET_PATH" >/dev/null
+    --query SecretString \
+    --output text > "$SECRET_PATH"
 else
-  aws secretsmanager create-secret \
-    --region "$AWS_REGION" \
-    --name "$SECRET_NAME" \
-    --description "Nova release SSH signing key" \
-    --secret-string "file://$SECRET_PATH" >/dev/null
+  if [ "$ROTATE_SIGNING_KEY" = "true" ]; then
+    echo "ROTATE_SIGNING_KEY=true; generating a new signing key."
+  fi
+  ssh-keygen -t ed25519 -C "$SIGNER_EMAIL" -N "" -f "$KEY_PATH" >/dev/null
+  jq -n \
+    --arg private_key "$(cat "$KEY_PATH")" \
+    --arg public_key "$(cat "$KEY_PATH.pub")" \
+    --arg signer_name "$SIGNER_NAME" \
+    --arg signer_email "$SIGNER_EMAIL" \
+    '{private_key:$private_key,public_key:$public_key,signer_name:$signer_name,signer_email:$signer_email}' \
+    > "$SECRET_PATH"
+
+  if aws secretsmanager describe-secret --region "$AWS_REGION" --secret-id "$SECRET_NAME" >/dev/null 2>&1; then
+    aws secretsmanager put-secret-value \
+      --region "$AWS_REGION" \
+      --secret-id "$SECRET_NAME" \
+      --secret-string "file://$SECRET_PATH" >/dev/null
+  else
+    aws secretsmanager create-secret \
+      --region "$AWS_REGION" \
+      --name "$SECRET_NAME" \
+      --description "Nova release SSH signing key" \
+      --secret-string "file://$SECRET_PATH" >/dev/null
+  fi
 fi
 
 RELEASE_SIGNING_SECRET_ARN="$(aws secretsmanager describe-secret \
@@ -229,7 +244,9 @@ fi
 echo "==> Step 7/7: trigger release workflows"
 if [ "$TRIGGER_WORKFLOWS" = "true" ]; then
   gh workflow run "Nova Release Plan" --repo "$GH_REPO" --ref "$MAIN_BRANCH"
-  gh workflow run "Nova Release Apply" --repo "$GH_REPO" --ref "$MAIN_BRANCH"
+  if [ "$TRIGGER_RELEASE_APPLY_DIRECT" = "true" ]; then
+    gh workflow run "Nova Release Apply" --repo "$GH_REPO" --ref "$MAIN_BRANCH"
+  fi
 else
   echo "Skipping workflow dispatch because TRIGGER_WORKFLOWS=$TRIGGER_WORKFLOWS"
 fi

@@ -7,7 +7,7 @@ import re
 from pathlib import Path
 from typing import Any
 
-from . import common
+from scripts.release import common
 
 
 def _replace_project_version(
@@ -15,8 +15,24 @@ def _replace_project_version(
     old_version: str,
     new_version: str,
 ) -> str:
-    pattern = re.compile(r"^version\s*=\s*\"([^\"]+)\"\s*$", re.MULTILINE)
-    match = pattern.search(pyproject_text)
+    project_header = re.search(r"(?m)^\[project\]\s*$", pyproject_text)
+    if project_header is None:
+        raise ValueError("[project] section not found")
+
+    section_start = project_header.end()
+    next_section = re.search(
+        r"(?m)^\[[^\]]+\]\s*$",
+        pyproject_text[section_start:],
+    )
+    section_end = (
+        section_start + next_section.start()
+        if next_section is not None
+        else len(pyproject_text)
+    )
+
+    section_text = pyproject_text[section_start:section_end]
+    pattern = re.compile(r"(?m)^version\s*=\s*\"([^\"]+)\"\s*$")
+    match = pattern.search(section_text)
     if match is None:
         raise ValueError("project version field not found")
     if match.group(1) != old_version:
@@ -24,10 +40,12 @@ def _replace_project_version(
             "planned old version does not match file: "
             f"expected {old_version}, found {match.group(1)}"
         )
+    version_start = section_start + match.start(1)
+    version_end = section_start + match.end(1)
     return (
-        pyproject_text[: match.start(1)]
+        pyproject_text[:version_start]
         + new_version
-        + pyproject_text[match.end(1) :]
+        + pyproject_text[version_end:]
     )
 
 
@@ -38,7 +56,21 @@ def apply_version_updates(
     units: dict[str, common.WorkspaceUnit],
     dry_run: bool,
 ) -> list[str]:
-    """Apply version plan and return updated file paths."""
+    """Apply version plan and return updated file paths.
+
+    Args:
+        repo_root: Repository root path.
+        version_plan: Parsed version plan payload.
+        units: Workspace units keyed by unit ID.
+        dry_run: If true, report updates without writing files.
+
+    Returns:
+        Relative file paths updated by the version plan.
+
+    Raises:
+        KeyError: If a plan unit_id is missing from workspace units.
+        ValueError: If a target pyproject version does not match the plan.
+    """
     updated: list[str] = []
 
     for item in version_plan.get("units", []):
@@ -59,7 +91,11 @@ def apply_version_updates(
 
 
 def parse_args() -> argparse.Namespace:
-    """Parse command line options."""
+    """Parse command line options.
+
+    Returns:
+        Parsed CLI namespace for apply_versions arguments.
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument("--repo-root", default=".")
     parser.add_argument("--version-plan", default="version-plan.json")
@@ -68,7 +104,11 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> int:
-    """Apply selective versions to workspace units."""
+    """Apply selective versions to workspace units.
+
+    Returns:
+        Process exit code.
+    """
     args = parse_args()
     repo_root = Path(args.repo_root).resolve()
     units = common.load_workspace_units(repo_root)

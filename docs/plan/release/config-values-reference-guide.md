@@ -58,7 +58,8 @@ Optional keys:
 - `nova_deploy_prod_stack_name`
 
 Defaults live in:
-`/home/bjorn/repos/work/infra-stack/container-craft/src/container-craft/settings/service.yml`
+`src/container-craft/settings/service.yml` in the `3M-Cloud/container-craft`
+repository.
 
 ## CloudFormation stack names and outputs
 
@@ -92,7 +93,7 @@ Exported variables:
 - `CHANGED_UNITS`
 
 Reference file:
-`/home/bjorn/repos/work/infra-stack/nova/buildspecs/buildspec-release.yml`
+`buildspecs/buildspec-release.yml`
 
 ## Endpoint and validation contract
 
@@ -108,6 +109,6 @@ Validation URLs:
 ## References
 
 - Release apply workflow:
-  <https://github.com/BjornMelin/nova/blob/main/.github/workflows/release-apply.yml>
+  <https://github.com/3M-Cloud/nova/blob/main/.github/workflows/release-apply.yml>
 - CodeBuild environment variable types:
   <https://docs.aws.amazon.com/AWSCloudFormation/latest/TemplateReference/aws-properties-codebuild-project-environmentvariable.html>

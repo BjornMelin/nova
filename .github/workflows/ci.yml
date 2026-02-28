@@ -38,13 +38,13 @@ jobs:
           uv sync --frozen
 
       - name: Ruff Check
-        run: uv run ruff check . --fix
+        run: uv run ruff check .
 
       - name: Ruff Import Check
         run: uv run ruff check . --select I
 
       - name: Ruff Format
-        run: uv run ruff format .
+        run: uv run ruff format . --check
 
       - name: Mypy
         run: uv run mypy
@@ -70,9 +70,13 @@ jobs:
 
       - name: Hard-Cutover Route Guard
         run: |
+          echo "Verifying required API routes are present in codebase..."
           PATTERN="/api/transfers|/api/jobs|/metrics/summary|/healthz|/readyz"
           if command -v rg >/dev/null 2>&1; then
-            rg -n "$PATTERN" apps packages docs
+            echo "Using rg to validate route references."
+            rg -n "$PATTERN" apps packages docs || { echo "::error::Required routes not found: $PATTERN"; exit 1; }
           else
-            grep -RInE "$PATTERN" apps packages docs
+            echo "Using grep to validate route references."
+            grep -RInE "$PATTERN" apps packages docs || { echo "::error::Required routes not found: $PATTERN"; exit 1; }
           fi
+          echo "Route guard check passed."

@@ -12,7 +12,7 @@ one signed source revision.
 ## Prerequisites
 
 1. `nova-ci-cd` pipeline deployed and source integration active.
-2. Release workflows passing in `BjornMelin/nova` on `main`.
+2. Release workflows passing in `3M-Cloud/nova` on `main`.
 3. Operator permissions to approve CodePipeline manual approval actions.
 4. Access to CloudWatch/CodeBuild logs for evidence capture.
 

@@ -21,7 +21,7 @@ release workflows and AWS pipeline stages.
 - `${AWS_ACCOUNT_ID}` example: `123456789012`
 - `${PROJECT}` default: `container-craft`
 - `${APPLICATION}` default: `ci`
-- `${GITHUB_OWNER}` default: `BjornMelin`
+- `${GITHUB_OWNER}` default: `3M-Cloud`
 - `${GITHUB_REPO}` default: `nova`
 - `${MAIN_BRANCH}` default: `main`
 - `${SIGNING_SECRET_ARN}` from secrets provisioning guide
@@ -78,7 +78,7 @@ In the `service.yml` consumed by `deploy-nova-cicd`, set:
 - `nova_main_branch`
 
 Reference template:
-`/home/bjorn/repos/work/infra-stack/container-craft/infra/nova/nova-iam-roles.yml`
+`infra/nova/nova-iam-roles.yml` in the `3M-Cloud/container-craft` repository.
 
 ## Acceptance checks
 

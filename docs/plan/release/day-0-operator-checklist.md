@@ -56,6 +56,8 @@ export NOVA_PROD_SERVICE_BASE_URL="https://prod.example.com"
 Optional behavior:
 
 - set `TRIGGER_WORKFLOWS=false` to skip dispatching release workflows.
+- set `TRIGGER_RELEASE_APPLY_DIRECT=true` only when explicit manual Apply
+  dispatch is required (default keeps Apply chained from Plan workflow_run).
 
 ## Step-by-step commands
 
@@ -82,6 +84,11 @@ Optional behavior:
       --region "${AWS_REGION}" \
       --secret-id "${SECRET_NAME}" \
       --secret-string file:///tmp/nova-release-signing-secret.json
+
+    # Cleanup local secret material immediately after upload.
+    rm -f /tmp/nova-release-signing \
+      /tmp/nova-release-signing.pub \
+      /tmp/nova-release-signing-secret.json
     ```
 
 2. Deploy Nova CI/CD stacks from `container-craft` using `deploy-nova-cicd`.

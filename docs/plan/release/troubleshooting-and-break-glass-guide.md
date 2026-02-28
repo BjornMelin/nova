@@ -15,6 +15,27 @@ provisioning and release promotion.
 2. CloudFormation, CodePipeline, CodeBuild, and IAM read permissions.
 3. Access to both repository workflow run histories.
 
+### Before running commands
+
+Use these setup guides for variable definitions and sourcing:
+
+- [day-0-operator-checklist.md](day-0-operator-checklist.md)
+- [aws-oidc-and-iam-role-setup-guide.md](aws-oidc-and-iam-role-setup-guide.md)
+- [config-values-reference-guide.md](config-values-reference-guide.md)
+
+Primary variable sources:
+
+- `${PROJECT}` and `${APPLICATION}`: deployment naming defaults from day-0
+  checklist/config guide.
+- `${AWS_REGION}`: operator/runtime environment and GitHub `AWS_REGION` variable.
+- `${CONNECTION_ARN}`: CodePipeline stack output `ConnectionArn`.
+- `${RELEASE_SIGNING_SECRET_ID}`: GitHub secret set from Secrets Manager
+  `${SECRET_NAME}`.
+- `${RELEASE_BUILD_PROJECT_NAME}`: CodeBuild project name from stack outputs or
+  configured overrides.
+- `${DEPLOY_STACK_NAME}`: target CloudFormation deployment stack name from
+  environment-specific config.
+
 ## Quick failure matrix
 
 ### `Nova Release Apply` cannot assume AWS role
@@ -121,7 +142,7 @@ Use equivalent `aws cloudformation deploy` commands for:
 - `nova-ci-cd.yml`
 
 with parameter sets from:
-`/home/bjorn/repos/work/infra-stack/container-craft/templates/3m.yml`
+`templates/3m.yml` in the `3M-Cloud/container-craft` repository.
 
 ## Post-incident recording
 

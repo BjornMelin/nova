@@ -61,4 +61,8 @@ def test_build_changed_units_report_first_release_marks_all_units() -> None:
         first_release=True,
     )
 
-    assert len(report["changed_units"]) == 2
+    changed_ids = {item["unit_id"] for item in report["changed_units"]}
+    assert changed_ids == {
+        "apps/nova_file_api_service",
+        "packages/nova_file_api",
+    }

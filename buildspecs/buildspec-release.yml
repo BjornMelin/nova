@@ -95,7 +95,9 @@ phases:
             Path("changed-units.json").read_text(encoding="utf-8")
         )
         for item in payload.get("changed_units", []):
-            print(item["path"])
+            unit_path = str(item.get("path", ""))
+            if unit_path.startswith("packages/"):
+                print(unit_path)
         PY
         )
         for unit in "${UNITS[@]}"; do

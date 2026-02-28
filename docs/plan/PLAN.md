@@ -470,7 +470,7 @@ Required for each implementation slice:
   - Added runnable command-pack script for one-shot operator execution:
     - `scripts/release/day-0-operator-command-pack.sh`
   - Completed documentation integrity follow-up:
-    - local markdown link target validation pass
+    - local Markdown link target validation pass
     - required section conformance pass with missing `## Prerequisites`
       backfilled in operational guides
 - 2026-02-24: Release automation correctness remediation:

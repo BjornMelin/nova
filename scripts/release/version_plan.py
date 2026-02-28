@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import argparse
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from . import common
 
@@ -32,6 +32,13 @@ def build_version_plan(
             "global_bump": None,
             "units": [],
         }
+
+    unknown_unit_ids = sorted(changed_ids - set(units))
+    if unknown_unit_ids:
+        raise ValueError(
+            "changed-units report references unknown units: "
+            + ", ".join(unknown_unit_ids)
+        )
 
     bump_level = forced_bump or common.determine_bump_level(commit_messages)
 
@@ -115,7 +122,7 @@ def main() -> int:
         units=units,
         changed_report=changed_report,
         commit_messages=commit_messages,
-        forced_bump=args.force_bump,
+        forced_bump=cast(common.BumpLevel | None, args.force_bump),
     )
 
     output_path = Path(args.output)

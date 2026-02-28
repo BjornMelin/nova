@@ -19,7 +19,7 @@ The release workflow expects JSON with these keys:
 - `signer_email`
 
 Reference workflow:
-`/home/bjorn/repos/work/infra-stack/nova/.github/workflows/release-apply.yml`
+`.github/workflows/release-apply.yml`
 
 ## Prerequisites
 
