@@ -1,0 +1,176 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: ECS CFN rendered via Falcon (Drone CI) plugin
+Parameters:
+  Project:
+    Type: String
+    Description: Name of the project
+    MinLength: 2
+  Application:
+    Type: String
+    Description: Name of the application
+    MinLength: 2
+  EcsClusterName:
+    Type: String
+  LoadBalancerId:
+    Type: String
+    Description: Id of the load balancer
+    Default: dash
+  LoadBalancerName:
+    Type: String
+    Description: Name of the load balancer
+  HostedZoneName:
+    Type: String
+  VpcId:
+    Type: String
+  SubnetList:
+    Type: List<AWS::EC2::Subnet::Id>
+  ListenerProtocol:
+    Type: String
+    Default: https
+    AllowedValues: ["https", "http"]
+  LoadBalancerLogBucket:
+    Type: String
+  ImportKmsKeyId:
+    Type: String
+  LoadBalancerDNSName:
+    Type: String
+
+Mappings:
+  PrefixListMap:
+    us-east-1:
+      3MInternal: "pl-0be5bc3c1b95a65a5"
+    us-east-2:
+      3MInternal: "pl-0b1af9961c6c9c4a8"
+    eu-central-1:
+      3MInternal: "pl-00148488660c58f24"
+    eu-west-1:
+      3MInternal: "pl-00eb5219201d20d50"
+
+Resources:
+  ECSCluster:
+    Type: "AWS::ECS::Cluster"
+    Properties:
+      ClusterName: !Ref EcsClusterName
+      ClusterSettings:
+        - Name: containerInsights
+          Value: enabled
+      Configuration:
+        ExecuteCommandConfiguration:
+          KmsKeyId:
+            Fn::ImportValue: !Ref ImportKmsKeyId
+          Logging: DEFAULT
+      CapacityProviders:
+        - FARGATE
+      Tags:
+        - Key: Project
+          Value: !Ref Project
+        - Key: Application
+          Value: !Ref Application
+
+  ALBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: !Sub "security group for load balancer ${Project}-${Application}-${LoadBalancerId}"
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - Description: allowing tcp via ports 443 thru 443
+          IpProtocol: TCP
+          FromPort: 443
+          ToPort: 443
+          SourcePrefixListId:
+            !FindInMap [PrefixListMap, !Ref "AWS::Region", 3MInternal]
+
+  LoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: !Sub "${LoadBalancerName}"
+      Scheme: internal
+      SecurityGroups:
+        - !Ref ALBSecurityGroup
+      Subnets: !Ref SubnetList
+      LoadBalancerAttributes:
+        - Key: access_logs.s3.bucket
+          Value: !Ref LoadBalancerLogBucket
+        - Key: access_logs.s3.enabled
+          Value: "true"
+
+  LoadBalancerDNS:
+    Type: AWS::Route53::RecordSetGroup
+    Properties:
+      HostedZoneName: !Sub ${HostedZoneName}.
+      Comment: Zone apex alias targeted to LoadBalancer LoadBalancer.
+      RecordSets:
+        - Name: !Sub "*.${LoadBalancerDNSName}"
+          Type: A
+          AliasTarget:
+            HostedZoneId: !GetAtt "LoadBalancer.CanonicalHostedZoneID"
+            DNSName: !GetAtt "LoadBalancer.DNSName"
+
+  AcmCertificate:
+    Type: "AWS::CertificateManager::Certificate"
+    Properties:
+      DomainName: !Sub "${LoadBalancerDNSName}"
+      ValidationMethod: DNS
+
+  ALBListenerRedirectHTTP:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - Type: "redirect"
+          RedirectConfig:
+            Protocol: HTTPS
+            Port: 443
+            Host: "#{host}"
+            Path: "/#{path}"
+            Query: "#{query}"
+            StatusCode: "HTTP_301"
+      Port: 80
+      Protocol: HTTP
+      LoadBalancerArn: !Ref "LoadBalancer"
+
+  ALBListenerForwardHTTPS:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      Certificates:
+        - CertificateArn: !Ref AcmCertificate
+      DefaultActions:
+        - Type: fixed-response
+          FixedResponseConfig:
+            ContentType: "text/plain"
+            StatusCode: "404"
+      Port: 443
+      Protocol: HTTPS
+      LoadBalancerArn: !Ref "LoadBalancer"
+      SslPolicy: ELBSecurityPolicy-2016-08
+
+Outputs:
+  ClusterName:
+    Value: !Ref ECSCluster
+    Description: Name of the ECS Cluster
+    Export:
+      Name: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:ecs:${EcsClusterName}:cluster
+  ClusterArn:
+    Value: !GetAtt ECSCluster.Arn
+    Description: ARN of the ECS Cluster
+    Export:
+      Name: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:ecs:${EcsClusterName}:clusterarn
+  ListenerArn:
+    Value: !GetAtt ALBListenerForwardHTTPS.ListenerArn
+    Description: ARN of the Listener
+    Export:
+      Name: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${LoadBalancerId}:${LoadBalancerName}:listenerarn
+  LoadBalancerSg:
+    Value: !Ref ALBSecurityGroup
+    Description: ARN of the Listener
+    Export:
+      Name: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${LoadBalancerId}:${LoadBalancerName}:alb:sg
+  LoadBalancerDnsName:
+    Value: !Join ["://", [!Ref ListenerProtocol, !GetAtt LoadBalancer.DNSName]]
+    Description: DNS of the application load balancer
+    Export:
+      Name: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${LoadBalancerId}:${LoadBalancerName}:alb:dns
+  LoadBalancerFullName:
+    Value: !GetAtt LoadBalancer.LoadBalancerFullName
+    Description: Full name of the application load balancer
+    Export:
+      Name: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${LoadBalancerId}${LoadBalancerName}:alb:name

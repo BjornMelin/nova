@@ -1,0 +1,168 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  Managed Redis cache for file-transfer acceleration with SG-scoped access
+  and a generated connection URL secret.
+
+Parameters:
+  Project:
+    Type: String
+    MinLength: 2
+  Application:
+    Type: String
+    MinLength: 2
+  Service:
+    Type: String
+    MinLength: 2
+  Environment:
+    Type: String
+    MinLength: 2
+
+  VpcId:
+    Type: String
+  SubnetList:
+    Type: List<AWS::EC2::Subnet::Id>
+
+  CacheClusterName:
+    Type: String
+    MinLength: 3
+    MaxLength: 40
+    AllowedPattern: "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+    ConstraintDescription: >-
+      must start with a letter, contain only lowercase letters, numbers, and
+      single hyphens, and not end with a hyphen.
+  CacheNodeType:
+    Type: String
+    Default: cache.t4g.small
+  NumCacheNodes:
+    Type: Number
+    Default: 1
+    MinValue: 1
+    MaxValue: 6
+  CacheEngineVersion:
+    Type: String
+    Default: "7.1"
+  CacheUrlSecretName:
+    Type: String
+    MinLength: 3
+  CacheSecretsKmsKeyArn:
+    Type: String
+    Default: ""
+
+Conditions:
+  EnableAutomaticFailover: !Not [!Equals [!Ref NumCacheNodes, 1]]
+  UseCacheSecretsKmsKey: !Not [!Equals [!Ref CacheSecretsKmsKeyArn, ""]]
+
+Resources:
+  FileTransferCacheSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: !Sub >-
+        Security group for ${Project}-${Application}-${Service} file-transfer
+        cache
+      VpcId: !Ref VpcId
+      Tags:
+        - Key: Project
+          Value: !Ref Project
+        - Key: Application
+          Value: !Ref Application
+        - Key: Service
+          Value: !Ref Service
+        - Key: Environment
+          Value: !Ref Environment
+
+  FileTransferCacheSubnetGroup:
+    Type: AWS::ElastiCache::SubnetGroup
+    Properties:
+      Description: !Sub >-
+        Subnet group for ${Project}-${Application}-${Service} file-transfer
+        cache
+      SubnetIds: !Ref SubnetList
+
+  FileTransferCacheAuthTokenSecret:
+    Type: AWS::SecretsManager::Secret
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      Name: !Sub "${CacheUrlSecretName}/auth-token"
+      Description: !Sub >-
+        Auth token for ${Project}-${Application}-${Service} file-transfer
+        cache (${Environment})
+      GenerateSecretString:
+        ExcludePunctuation: true
+        IncludeSpace: false
+        PasswordLength: 48
+      KmsKeyId: !If
+        - UseCacheSecretsKmsKey
+        - !Ref CacheSecretsKmsKeyArn
+        - !Ref AWS::NoValue
+
+  FileTransferCacheReplicationGroup:
+    Type: AWS::ElastiCache::ReplicationGroup
+    Properties:
+      ReplicationGroupId: !Ref CacheClusterName
+      ReplicationGroupDescription: !Sub >-
+        Redis cache for ${Project}-${Application}-${Service} file-transfer
+        acceleration (${Environment})
+      Engine: redis
+      EngineVersion: !Ref CacheEngineVersion
+      CacheNodeType: !Ref CacheNodeType
+      NumCacheClusters: !Ref NumCacheNodes
+      AutomaticFailoverEnabled: !If [EnableAutomaticFailover, true, false]
+      MultiAZEnabled: !If [EnableAutomaticFailover, true, false]
+      AtRestEncryptionEnabled: true
+      TransitEncryptionEnabled: true
+      AuthToken: !Sub "{{ '{{' }}resolve:secretsmanager:${FileTransferCacheAuthTokenSecret}:SecretString{{ '}}' }}"
+      AutoMinorVersionUpgrade: true
+      SnapshotRetentionLimit: 7
+      PreferredMaintenanceWindow: "sun:03:00-sun:04:00"
+      CacheSubnetGroupName: !Ref FileTransferCacheSubnetGroup
+      SecurityGroupIds:
+        - !Ref FileTransferCacheSecurityGroup
+      Tags:
+        - Key: Project
+          Value: !Ref Project
+        - Key: Application
+          Value: !Ref Application
+        - Key: Service
+          Value: !Ref Service
+        - Key: Environment
+          Value: !Ref Environment
+
+  FileTransferCacheUrlSecret:
+    Type: AWS::SecretsManager::Secret
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      Name: !Ref CacheUrlSecretName
+      Description: !Sub >-
+        Redis URL for ${Project}-${Application}-${Service} file-transfer
+        cache (${Environment})
+      SecretString:
+        Fn::Sub:
+          - '{"url":"rediss://:${Token}@${Endpoint}:${Port}/0"}'
+          - Token: !Sub "{{ '{{' }}resolve:secretsmanager:${FileTransferCacheAuthTokenSecret}:SecretString{{ '}}' }}"
+            Endpoint: !GetAtt FileTransferCacheReplicationGroup.PrimaryEndPoint.Address
+            Port: !GetAtt FileTransferCacheReplicationGroup.PrimaryEndPoint.Port
+      KmsKeyId: !If
+        - UseCacheSecretsKmsKey
+        - !Ref CacheSecretsKmsKeyArn
+        - !Ref AWS::NoValue
+
+Outputs:
+  CacheSecurityGroupId:
+    Value: !Ref FileTransferCacheSecurityGroup
+    Export:
+      Name: !Sub >-
+        ${Project}:${Application}:${Service}:${Environment}:file-transfer-cache:sg-id
+
+  CacheUrlSecretName:
+    Value: !Ref CacheUrlSecretName
+
+  CacheUrlSecretArn:
+    Value: !Ref FileTransferCacheUrlSecret
+
+  CacheEndpointAddress:
+    Value: !GetAtt FileTransferCacheReplicationGroup.PrimaryEndPoint.Address
+
+  CacheEndpointPort:
+    Value: !GetAtt FileTransferCacheReplicationGroup.PrimaryEndPoint.Port

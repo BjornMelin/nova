@@ -1,0 +1,231 @@
+Parameters:
+  Project:
+    Type: String
+    Description: Name of the project
+    MinLength: 2
+    Default: crdl
+  Application:
+    Type: String
+    Description: Name of the application
+    MinLength: 2
+  Service:
+    Type: String
+  EcrRepoName:
+    Type: String
+  EcrKmsAlias:
+    Type: String
+  UsedByEcs:
+    Type: String
+    Default: "false"
+    AllowedValues: ["true", "false"]
+  UsedByLambda:
+    Type: String
+    Default: "false"
+    AllowedValues: ["true", "false"]
+  AllowExecutionRoleSecretsWildcard:
+    Type: String
+    Default: "true"
+    AllowedValues: ["true", "false"]
+    Description: >-
+      If true, the ECS task execution role includes broad Secrets Manager/KMS
+      permissions. If false, prefer least-privilege permissions attached from
+      the ECS service stack (e.g., via container-craft ecs_secret_iam_resources).
+
+Conditions:
+  UseEcs: !Equals [!Ref UsedByEcs, "true"]
+  UseLambda: !Equals [!Ref UsedByLambda, 'true']
+  AllowExecSecretsWildcard: !Equals [!Ref AllowExecutionRoleSecretsWildcard, "true"]
+
+Resources:
+  ECRRepository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: !Ref EcrRepoName
+      LifecyclePolicy:
+        LifecyclePolicyText: |
+          {
+            "rules": [
+            {
+              "rulePriority": 1,
+              "description": "Only keep 2 images",
+              "selection": {
+                "tagStatus": "any",
+                "countType": "imageCountMoreThan",
+                "countNumber": 2
+              },
+              "action": { "type": "expire" }
+            }]
+          }
+      EncryptionConfiguration:
+        EncryptionType: KMS
+        KmsKey: !Sub alias/${EcrKmsAlias}
+      ImageScanningConfiguration:
+        ScanOnPush: true
+      Tags:
+        - Key: Project
+          Value: !Ref Project
+        - Key: Application
+          Value: !Ref Application
+        - Key: Service
+          Value: !Ref Service
+
+      # NOTE: In order to see image scans in Wiz, we are not setting this resource policy. This should be set before deploying trade secret code.
+
+      # References:
+      # https://aws.amazon.com/blogs/security/iam-makes-it-easier-to-manage-permissions-for-aws-services-accessing-resources/
+      # https://docs.aws.amazon.com/AmazonECR/latest/userguide/repository-policy-examples.html#IAM_deny_all
+      # https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_condition-keys.html#condition-keys-viaawsservice
+
+      # NOTES:
+      # - AWS resources like ECS, Lambda, Sagemaker, and Batch should be allowed to pull images from ECR,
+      #   but all other access should be restricted
+      # - ECS is backed by Fargate
+      # - Codebuild should be able to use GetAuthorizationToken to push images to ECR
+      # - GetAuthorizationToken cannot be controlled in an ECR resource policy
+
+      RepositoryPolicyText:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: AllowPush
+            Effect: Allow
+            Principal:
+              AWS:
+              - !Sub "arn:aws:iam::${AWS::AccountId}:root"
+            Action:
+              - "ecr:GetAuthorizationToken"
+              - "ecr:BatchCheckLayerAvailability"
+              - "ecr:PutImage"
+              - "ecr:InitiateLayerUpload"
+              - "ecr:UploadLayerPart"
+              - "ecr:CompleteLayerUpload"
+              - "ecr:DescribeRepositories"
+
+          # Allow lambda and ecs services to pull images from this ECR repo
+          - Sid: AWSResourceRetrieval
+            Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+                - ecs.amazonaws.com
+            Action:
+              - "ecr:BatchGetImage"
+              - "ecr:GetDownloadUrlForLayer"
+
+      #     # Deny all other identiies permission to pull images from this ECR repo
+      #     - Sid: DenyPull
+      #       Effect: Deny
+      #       Principal: "*"
+      #       Action:
+      #         - "ecr:BatchGetImage"
+      #         - "ecr:GetDownloadUrlForLayer"
+      #       Condition: # Make exception for lambda and ECS
+      #         ArnNotLike:
+      #           aws:PrincipalArn:
+      #             # NOTE: ensure that only ECS can use the task execution role
+      #             - !If [UseEcs, !GetAtt EcsTaskExecutionRole.Arn, !Ref AWS::NoValue]
+      #             # - !GetAtt EcsTaskExecutionRole.Arn
+
+      #           aws:sourceArn:
+      #             - !If [UseLambda, !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${Project}-${Application}-*", !Ref AWS::NoValue]
+      #             # - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${Project}-${Application}-*
+
+      #     # # Deny all identities permission to modify this resource policy in the future
+      #     # Requires the "--force" parameter
+      #     # - Sid: DenySetRepositoryPolicy
+      #     #   Effect: Deny
+      #     #   Principal: "*"
+      #     #   Action:
+      #     #     - "ecr:SetRepositoryPolicy"
+      #     #     - "ecr:DeleteRepositoryPolicy"
+
+  # Role that Amazon ECS needs to pull container images and run the task
+  EcsTaskExecutionRole:
+    Condition: UseEcs
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${Project}-${Application}-${Service}-ecs-task-execution-${AWS::Region}"
+      Tags:
+        - Key: Project
+          Value: !Ref Project
+        - Key: Application
+          Value: !Ref Application
+        - Key: Service
+          Value: !Ref Service
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Action:
+              - sts:AssumeRole
+            Principal:
+              Service:
+                - ecs-tasks.amazonaws.com
+      Policies:
+        - PolicyName: !Sub "${Project}-${Application}-${Service}-ecs-task-execution-${AWS::Region}"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                  - ecr:GetAuthorizationToken
+                Resource: "*"
+                Condition:
+                  StringEquals:
+                    aws:RequestedRegion: !Ref "AWS::Region"
+              - Effect: Allow
+                Action:
+                  - ecr:BatchCheckLayerAvailability
+                  - ecr:GetDownloadUrlForLayer
+                  - ecr:BatchGetImage
+                Resource: "*"
+                Condition:
+                  StringEquals:
+                    aws:RequestedRegion: !Ref "AWS::Region"
+              - !If
+                - AllowExecSecretsWildcard
+                - Effect: Allow
+                  Action:
+                    - secretsmanager:GetSecretValue
+                  Resource: "*"
+                  Condition:
+                    StringEquals:
+                      aws:RequestedRegion: !Ref "AWS::Region"
+                - !Ref AWS::NoValue
+              - !If
+                - AllowExecSecretsWildcard
+                - Effect: Allow
+                  Action:
+                    - ssm:GetParameters
+                  Resource: "*"
+                  Condition:
+                    StringEquals:
+                      aws:RequestedRegion: !Ref "AWS::Region"
+                - !Ref AWS::NoValue
+              - !If
+                - AllowExecSecretsWildcard
+                - Effect: Allow
+                  Action:
+                    - kms:Decrypt
+                  Resource: "*"
+                  Condition:
+                    StringEquals:
+                      aws:RequestedRegion: !Ref "AWS::Region"
+                      kms:ViaService:
+                        - !Sub "secretsmanager.${AWS::Region}.amazonaws.com"
+                        - !Sub "ssm.${AWS::Region}.amazonaws.com"
+                - !Ref AWS::NoValue
+
+Outputs:
+  ECRRepositoryName:
+    Value: !Sub ${EcrRepoName}
+    Export:
+      Name: !Sub "${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${Service}:ecr:name"
+  ECRRepositoryUri:
+    Value: !GetAtt ECRRepository.RepositoryUri
+    Export:
+      Name: !Sub "${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${Service}:ecr:uri"
+  ECRRepositoryArn:
+    Value: !GetAtt ECRRepository.Arn
+    Export:
+      Name: !Sub "${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${Service}:ecr:arn"

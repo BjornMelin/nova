@@ -1,0 +1,214 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  File transfer async dependencies (SQS + DynamoDB) for queue-backed
+  processing workflows.
+
+Parameters:
+  Project:
+    Type: String
+    MinLength: 2
+  Application:
+    Type: String
+    MinLength: 2
+  Service:
+    Type: String
+    MinLength: 2
+  Environment:
+    Type: String
+    MinLength: 2
+
+  JobsQueueName:
+    Type: String
+    MinLength: 3
+  JobsDeadLetterQueueName:
+    Type: String
+    MinLength: 3
+  JobsTableName:
+    Type: String
+    MinLength: 3
+  ActivityTableName:
+    Type: String
+    MinLength: 3
+
+  JobsVisibilityTimeoutSeconds:
+    Type: Number
+    Default: 120
+    MinValue: 30
+  JobsMessageRetentionSeconds:
+    Type: Number
+    Default: 345600
+    MinValue: 60
+    # Keep source queue retention below DLQ retention (fixed 14 days).
+    MaxValue: 1209599
+  JobsMaxReceiveCount:
+    Type: Number
+    Default: 5
+    MinValue: 1
+  AlarmNotificationTopicArn:
+    Type: String
+    Default: ""
+
+Conditions:
+  HasAlarmNotificationTopic: !Not [!Equals [!Ref AlarmNotificationTopicArn, ""]]
+
+Resources:
+  JobsDeadLetterQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Ref JobsDeadLetterQueueName
+      MessageRetentionPeriod: 1209600
+      SqsManagedSseEnabled: true
+      Tags:
+        - Key: Project
+          Value: !Ref Project
+        - Key: Application
+          Value: !Ref Application
+        - Key: Service
+          Value: !Ref Service
+        - Key: Environment
+          Value: !Ref Environment
+
+  JobsQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Ref JobsQueueName
+      VisibilityTimeout: !Ref JobsVisibilityTimeoutSeconds
+      MessageRetentionPeriod: !Ref JobsMessageRetentionSeconds
+      ReceiveMessageWaitTimeSeconds: 20
+      SqsManagedSseEnabled: true
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt JobsDeadLetterQueue.Arn
+        maxReceiveCount: !Ref JobsMaxReceiveCount
+      Tags:
+        - Key: Project
+          Value: !Ref Project
+        - Key: Application
+          Value: !Ref Application
+        - Key: Service
+          Value: !Ref Service
+        - Key: Environment
+          Value: !Ref Environment
+
+  JobsTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      TableName: !Ref JobsTableName
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: job_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: job_id
+          KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: expires_at
+        Enabled: true
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      SSESpecification:
+        SSEEnabled: true
+      Tags:
+        - Key: Project
+          Value: !Ref Project
+        - Key: Application
+          Value: !Ref Application
+        - Key: Service
+          Value: !Ref Service
+        - Key: Environment
+          Value: !Ref Environment
+
+  ActivityTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      TableName: !Ref ActivityTableName
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: pk
+          AttributeType: S
+        - AttributeName: sk
+          AttributeType: S
+      KeySchema:
+        - AttributeName: pk
+          KeyType: HASH
+        - AttributeName: sk
+          KeyType: RANGE
+      TimeToLiveSpecification:
+        AttributeName: expires_at
+        Enabled: true
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      SSESpecification:
+        SSEEnabled: true
+      Tags:
+        - Key: Project
+          Value: !Ref Project
+        - Key: Application
+          Value: !Ref Application
+        - Key: Service
+          Value: !Ref Service
+        - Key: Environment
+          Value: !Ref Environment
+
+  JobsQueueDepthAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Approximate visible message count in file-transfer jobs queue
+      Namespace: AWS/SQS
+      MetricName: ApproximateNumberOfMessagesVisible
+      Dimensions:
+        - Name: QueueName
+          Value: !GetAtt JobsQueue.QueueName
+      Statistic: Average
+      Period: 60
+      EvaluationPeriods: 5
+      Threshold: 100
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: !If
+        - HasAlarmNotificationTopic
+        - [!Ref AlarmNotificationTopicArn]
+        - !Ref AWS::NoValue
+
+  JobsQueueAgeAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Age of oldest message in file-transfer jobs queue
+      Namespace: AWS/SQS
+      MetricName: ApproximateAgeOfOldestMessage
+      Dimensions:
+        - Name: QueueName
+          Value: !GetAtt JobsQueue.QueueName
+      Statistic: Maximum
+      Period: 60
+      EvaluationPeriods: 5
+      Threshold: 600
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: !If
+        - HasAlarmNotificationTopic
+        - [!Ref AlarmNotificationTopicArn]
+        - !Ref AWS::NoValue
+
+Outputs:
+  JobsQueueName:
+    Value: !GetAtt JobsQueue.QueueName
+  JobsQueueUrl:
+    Value: !Ref JobsQueue
+  JobsQueueArn:
+    Value: !GetAtt JobsQueue.Arn
+  JobsDeadLetterQueueName:
+    Value: !GetAtt JobsDeadLetterQueue.QueueName
+  JobsDeadLetterQueueArn:
+    Value: !GetAtt JobsDeadLetterQueue.Arn
+  JobsTableName:
+    Value: !Ref JobsTable
+  JobsTableArn:
+    Value: !GetAtt JobsTable.Arn
+  ActivityTableName:
+    Value: !Ref ActivityTable
+  ActivityTableArn:
+    Value: !GetAtt ActivityTable.Arn
