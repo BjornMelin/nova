@@ -39,6 +39,7 @@ def _client_error(
 class _FakeDynamoDbClient:
     def __init__(self) -> None:
         self._items: dict[tuple[str, str], dict[str, dict[str, str]]] = {}
+        self.put_conditions: list[str] = []
 
     def update_item(
         self,
@@ -84,6 +85,7 @@ class _FakeDynamoDbClient:
         ConditionExpression: str,
     ) -> dict[str, Any]:
         del TableName
+        self.put_conditions.append(ConditionExpression)
         key = (Item["pk"]["S"], Item["sk"]["S"])
         if (
             ConditionExpression == "attribute_not_exists(pk)"
@@ -235,6 +237,29 @@ def test_dynamo_activity_summary_counts_new_event_types_and_users() -> None:
     assert summary["events_total"] == 3
     assert summary["active_users_today"] == 2
     assert summary["distinct_event_types"] == 2
+
+
+def test_dynamo_activity_store_uses_conditional_first_seen_markers() -> None:
+    client = _FakeDynamoDbClient()
+    store = DynamoActivityStore(
+        table_name="activity-rollups",
+        ddb_client=client,
+    )
+
+    store.record(
+        principal=_principal(subject="user-1"),
+        event_type="uploads_initiate",
+    )
+    store.record(
+        principal=_principal(subject="user-1"),
+        event_type="uploads_initiate",
+    )
+
+    assert client.put_conditions
+    assert all(
+        condition == "attribute_not_exists(pk)"
+        for condition in client.put_conditions
+    )
 
 
 def test_dynamo_activity_record_logs_counter_failures_and_hides_principal(
