@@ -35,7 +35,7 @@ jobs:
       - name: Lock and Sync
         run: |
           uv lock --check
-          uv sync --frozen
+          uv sync --locked --python 3.12
 
       - name: Runtime/Security/Reliability Gates
         run: |
