@@ -1,0 +1,16 @@
+{
+  "initiate": {
+    "upload_id": "up_123",
+    "key": "user-123/test.csv"
+  },
+  "sign_parts": {
+    "upload_id": "up_123",
+    "parts": [
+      {"part_number": 1, "url": "https://example.s3.amazonaws.com/p1"}
+    ]
+  },
+  "complete": {
+    "upload_id": "up_123",
+    "etag": "etag-1"
+  }
+}

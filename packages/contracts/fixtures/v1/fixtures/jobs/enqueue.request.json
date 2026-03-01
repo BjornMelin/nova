@@ -1,0 +1,7 @@
+{
+  "job_type": "transfer.process",
+  "payload": {
+    "upload_key": "session-abc123/sample.csv"
+  },
+  "session_id": "session-abc123"
+}

@@ -1,0 +1,15 @@
+{
+  "job": {
+    "job_id": "job-0001",
+    "job_type": "transfer.process",
+    "scope_id": "session-abc123",
+    "status": "running",
+    "payload": {
+      "upload_key": "session-abc123/sample.csv"
+    },
+    "result": null,
+    "error": null,
+    "created_at": "2026-02-28T18:40:00Z",
+    "updated_at": "2026-02-28T18:40:05Z"
+  }
+}

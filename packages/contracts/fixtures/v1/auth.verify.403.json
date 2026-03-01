@@ -1,0 +1,8 @@
+{
+  "status": 403,
+  "error": {
+    "code": "forbidden",
+    "message": "insufficient authorization",
+    "request_id": "req_403_fixture"
+  }
+}

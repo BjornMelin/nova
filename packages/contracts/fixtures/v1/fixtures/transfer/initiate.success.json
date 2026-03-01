@@ -1,0 +1,9 @@
+{
+  "strategy": "single",
+  "bucket": "nova-uploads-dev",
+  "key": "session-abc123/sample.csv",
+  "expires_in_seconds": 900,
+  "url": "https://s3.amazonaws.com/nova-uploads-dev/session-abc123/sample.csv?signature=redacted",
+  "upload_id": null,
+  "part_size_bytes": null
+}

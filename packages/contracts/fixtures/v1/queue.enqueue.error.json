@@ -1,0 +1,8 @@
+{
+  "status": 503,
+  "error": {
+    "code": "queue_unavailable",
+    "message": "job queue unavailable",
+    "request_id": "req_queue_fixture"
+  }
+}

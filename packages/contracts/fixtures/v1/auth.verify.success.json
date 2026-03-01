@@ -1,0 +1,9 @@
+{
+  "status": 200,
+  "principal": {
+    "sub": "auth0|user_123",
+    "iss": "https://example.auth0.com/",
+    "aud": "nova-api",
+    "scope": ["files:read", "files:write"]
+  }
+}

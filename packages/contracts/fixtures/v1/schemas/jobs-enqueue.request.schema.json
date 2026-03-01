@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nova/contracts/fixtures/v1/schemas/jobs-enqueue.request.schema.json",
+  "title": "JobsEnqueueRequest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["job_type"],
+  "properties": {
+    "job_type": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "payload": { "type": "object", "default": {} },
+    "session_id": { "type": ["string", "null"], "minLength": 1, "maxLength": 256 }
+  }
+}
