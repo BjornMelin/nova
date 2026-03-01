@@ -13,13 +13,13 @@ release workflows and AWS pipeline stages.
 
 1. AWS CLI configured to target deployment account.
 2. Permission to manage IAM providers and roles.
-3. `container-craft` deployment path available.
+3. `nova` deployment templates available at `infra/nova/**`.
 
 ## Inputs
 
 - `${AWS_REGION}` example: `us-east-1`
 - `${AWS_ACCOUNT_ID}` example: `123456789012`
-- `${PROJECT}` default: `container-craft`
+- `${PROJECT}` default: `nova`
 - `${APPLICATION}` default: `ci`
 - `${GITHUB_OWNER}` default: `3M-Cloud`
 - `${GITHUB_REPO}` default: `nova`
@@ -66,19 +66,16 @@ Expected policy conditions:
 - `token.actions.githubusercontent.com:aud = sts.amazonaws.com`
 - `token.actions.githubusercontent.com:sub = repo:${GITHUB_OWNER}/${GITHUB_REPO}:ref:refs/heads/${MAIN_BRANCH}`
 
-## Container-craft config keys required for role stack
+## Required role-stack parameters
 
-In the `service.yml` consumed by `deploy-nova-cicd`, set:
+Provide these values when deploying `infra/nova/nova-iam-roles.yml` from the `nova` repository:
 
-- `github_oidc_provider_arn`
-- `release_signing_secret_arn`
-- `nova_artifact_bucket_name`
-- `nova_repo_owner`
-- `nova_repo_name`
-- `nova_main_branch`
-
-Reference template:
-`infra/nova/nova-iam-roles.yml` in the `3M-Cloud/container-craft` repository.
+- `GitHubOidcProviderArn`
+- `ReleaseSigningSecretArn`
+- `ArtifactBucketName`
+- `RepositoryOwner`
+- `RepositoryName`
+- `MainBranchName`
 
 ## Acceptance checks
 

@@ -30,7 +30,7 @@ Configure repository secrets and variables required by release automation in
     ```bash
     export GH_REPO="3M-Cloud/nova"
     export RELEASE_SIGNING_SECRET_ID="nova/release/signing-key"
-    export RELEASE_AWS_ROLE_ARN="arn:aws:iam::${AWS_ACCOUNT_ID}:role/container-craft-ci-github-oidc-release-role"
+    export RELEASE_AWS_ROLE_ARN="arn:aws:iam::${AWS_ACCOUNT_ID}:role/nova-ci-github-oidc-release-role"
     export AWS_REGION="us-east-1"
     ```
 

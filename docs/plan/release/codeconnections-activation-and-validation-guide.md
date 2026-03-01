@@ -19,7 +19,7 @@ that signed release commits trigger pipeline executions.
 ## Inputs
 
 - `${AWS_REGION}`
-- `${PIPELINE_STACK_NAME}` default: `container-craft-ci-nova-ci-cd`
+- `${PIPELINE_STACK_NAME}` default: `nova-ci-nova-ci-cd`
 - `${CODEPIPELINE_NAME}` from stack output
 - `${CONNECTION_ARN}` from stack output
 

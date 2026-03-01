@@ -13,16 +13,14 @@ operator checklist.
 
 1. AWS CLI v2 installed and authenticated.
 2. GitHub CLI installed and authenticated.
-3. Access to both repositories:
-   - `3M-Cloud/nova`
-   - `3M-Cloud/container-craft`
+3. Access to `3M-Cloud/nova` repository.
 4. Release stack configuration values prepared.
 
 ## Inputs
 
 - `${AWS_REGION}`
 - `${AWS_ACCOUNT_ID}`
-- `${PROJECT}` default `container-craft`
+- `${PROJECT}` default `nova`
 - `${APPLICATION}` default `ci`
 - `${GITHUB_OWNER}` default `3M-Cloud`
 - `${GITHUB_REPO}` default `nova`
@@ -46,7 +44,7 @@ export AWS_ACCOUNT_ID=123456789012
 export SIGNER_NAME="Nova Release Bot"
 export SIGNER_EMAIL="nova-release@example.com"
 export GITHUB_OIDC_PROVIDER_ARN="arn:aws:iam::123456789012:oidc-provider/token.actions.githubusercontent.com"
-export NOVA_ARTIFACT_BUCKET_NAME="container-craft-ci-artifacts"
+export NOVA_ARTIFACT_BUCKET_NAME="nova-ci-artifacts"
 export NOVA_DEV_SERVICE_BASE_URL="https://dev.example.com"
 export NOVA_PROD_SERVICE_BASE_URL="https://prod.example.com"
 
@@ -91,13 +89,7 @@ Optional behavior:
       /tmp/nova-release-signing-secret.json
     ```
 
-2. Deploy Nova CI/CD stacks from `container-craft` using `deploy-nova-cicd`.
-
-    ```bash
-    # Run via your standard container-craft GitHub workflow with:
-    # run=deploy-nova-cicd
-    # stack_action=update
-    ```
+2. Deploy Nova CI/CD stacks from this repository with `scripts/release/day-0-operator-command-pack.sh` (or direct CloudFormation deploy commands from the break-glass guide).
 
 3. Capture stack outputs.
 

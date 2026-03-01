@@ -3,7 +3,7 @@ set -euo pipefail
 
 # Day-0 operator command pack for Nova CI/CD bootstrap.
 # This script provisions the release signing secret, deploys the three Nova
-# CI/CD CloudFormation stacks from container-craft, configures GitHub secrets/
+# CI/CD CloudFormation stacks from this repository, configures GitHub secrets/
 # variables, validates CodeConnections status, and optionally triggers release
 # workflows.
 
@@ -39,19 +39,15 @@ require_cmd jq
 require_cmd ssh-keygen
 
 AWS_REGION="${AWS_REGION:-us-east-1}"
-PROJECT="${PROJECT:-container-craft}"
+PROJECT="${PROJECT:-nova}"
 APPLICATION="${APPLICATION:-ci}"
 GITHUB_OWNER="${GITHUB_OWNER:-3M-Cloud}"
 GITHUB_REPO="${GITHUB_REPO:-nova}"
 MAIN_BRANCH="${MAIN_BRANCH:-main}"
-NOVA_INFRA_REPO_OWNER="${NOVA_INFRA_REPO_OWNER:-3M-Cloud}"
-NOVA_INFRA_REPO_NAME="${NOVA_INFRA_REPO_NAME:-container-craft}"
-NOVA_INFRA_MAIN_BRANCH="${NOVA_INFRA_MAIN_BRANCH:-main}"
 SECRET_NAME="${SECRET_NAME:-nova/release/signing-key}"
-CONTAINER_CRAFT_REPO="${CONTAINER_CRAFT_REPO:-$HOME/repos/work/infra-stack/container-craft}"
+NOVA_REPO_ROOT="${NOVA_REPO_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
 CONNECTION_NAME="${CONNECTION_NAME:-nova-codeconnection}"
 EXISTING_CONNECTION_ARN="${EXISTING_CONNECTION_ARN:-}"
-NOVA_INFRA_CONNECTION_ARN="${NOVA_INFRA_CONNECTION_ARN:-}"
 CODEARTIFACT_DOMAIN_NAME="${CODEARTIFACT_DOMAIN_NAME:-cral}"
 CODEARTIFACT_REPOSITORY_NAME="${CODEARTIFACT_REPOSITORY_NAME:-galaxypy}"
 ECR_REPOSITORY_NAME="${ECR_REPOSITORY_NAME:-nova-file-api}"
@@ -75,14 +71,14 @@ require_env NOVA_ARTIFACT_BUCKET_NAME
 require_env NOVA_DEV_SERVICE_BASE_URL
 require_env NOVA_PROD_SERVICE_BASE_URL
 
-if [ ! -d "$CONTAINER_CRAFT_REPO" ]; then
-  echo "container-craft repo not found at: $CONTAINER_CRAFT_REPO" >&2
+if [ ! -d "$NOVA_REPO_ROOT" ]; then
+  echo "nova repo root not found at: $NOVA_REPO_ROOT" >&2
   exit 1
 fi
 
-IAM_TEMPLATE="$CONTAINER_CRAFT_REPO/infra/nova/nova-iam-roles.yml"
-CODEBUILD_TEMPLATE="$CONTAINER_CRAFT_REPO/infra/nova/nova-codebuild-release.yml"
-PIPELINE_TEMPLATE="$CONTAINER_CRAFT_REPO/infra/nova/nova-ci-cd.yml"
+IAM_TEMPLATE="$NOVA_REPO_ROOT/infra/nova/nova-iam-roles.yml"
+CODEBUILD_TEMPLATE="$NOVA_REPO_ROOT/infra/nova/nova-codebuild-release.yml"
+PIPELINE_TEMPLATE="$NOVA_REPO_ROOT/infra/nova/nova-ci-cd.yml"
 
 for template in "$IAM_TEMPLATE" "$CODEBUILD_TEMPLATE" "$PIPELINE_TEMPLATE"; do
   if [ ! -f "$template" ]; then
@@ -187,13 +183,9 @@ aws cloudformation deploy \
     RepositoryOwner="$GITHUB_OWNER" \
     RepositoryName="$GITHUB_REPO" \
     MainBranchName="$MAIN_BRANCH" \
-    InfraRepositoryOwner="$NOVA_INFRA_REPO_OWNER" \
-    InfraRepositoryName="$NOVA_INFRA_REPO_NAME" \
-    InfraMainBranchName="$NOVA_INFRA_MAIN_BRANCH" \
     ArtifactBucketName="$NOVA_ARTIFACT_BUCKET_NAME" \
     ConnectionName="$CONNECTION_NAME" \
     ExistingConnectionArn="$EXISTING_CONNECTION_ARN" \
-    InfraConnectionArn="$NOVA_INFRA_CONNECTION_ARN" \
     ReleaseBuildProjectName="$NOVA_RELEASE_BUILD_PROJECT_NAME" \
     DeployValidateProjectName="$NOVA_DEPLOY_VALIDATE_PROJECT_NAME" \
     DeployServiceName="$NOVA_DEPLOY_SERVICE_NAME" \
