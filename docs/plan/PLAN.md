@@ -1,3 +1,19 @@
+# Historical Plan (Superseded)
+
+> Supersession Notice (2026-02-28)
+>
+> This document is retained for historical context and is non-authoritative where it conflicts with the finalized consolidation architecture.
+>
+> Canonical authority:
+> - docs/architecture/adr/ADR-0013-final-state-sdk-topology-generated-core-plus-thin-adapters.md
+> - docs/architecture/adr/ADR-0014-container-craft-capability-absorption-and-repo-retirement.md
+> - docs/architecture/spec/SPEC-0011-multi-language-sdk-architecture-and-package-map.md
+> - docs/architecture/spec/SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md
+> - docs/architecture/spec/SPEC-0013-container-craft-capability-absorption-execution-spec.md
+> - docs/architecture/spec/SPEC-0014-container-craft-capability-inventory-and-absorption-map.md
+>
+> Status: Reference-only for superseded sections.
+
 # Final Production Architecture Plan (Locked, Release Track)
 
 Status: Active execution

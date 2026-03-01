@@ -1,0 +1,31 @@
+tenant:
+  friendly_name: "Nova @@ENVIRONMENT_NAME@@"
+  support_email: "@@SUPPORT_EMAIL@@"
+  default_redirection_uri: "@@DEFAULT_REDIRECT_URI@@"
+
+resourceServers:
+  - name: "Nova API @@ENVIRONMENT_NAME@@"
+    identifier: "@@NOVA_API_AUDIENCE@@"
+    signing_alg: "RS256"
+    allow_offline_access: false
+    token_lifetime: 86400
+    skip_consent_for_verifiable_first_party_clients: true
+
+clients:
+  - name: "nova-web-@@ENVIRONMENT_SLUG@@"
+    app_type: "regular_web"
+    oidc_conformant: true
+    grant_types:
+      - authorization_code
+      - refresh_token
+    callbacks:
+      - "@@WEB_CALLBACK_URL@@"
+    allowed_logout_urls:
+      - "@@WEB_LOGOUT_URL@@"
+    web_origins:
+      - "@@WEB_ORIGIN@@"
+    allowed_origins:
+      - "@@WEB_ORIGIN@@"
+    jwt_configuration:
+      alg: "RS256"
+    custom_login_page_on: false

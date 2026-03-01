@@ -21,3 +21,5 @@
 | [ADR-0010](./ADR-0010-enqueue-failure-and-readiness-semantics.md) | Fail enqueue on queue publish errors and scope readiness to critical dependencies | Accepted | 2026-02-23 |
 | [ADR-0011](./ADR-0011-cicd-hybrid-github-aws-promotion.md) | Hybrid CI/CD with GitHub CI and AWS-native Dev to Prod promotion | Accepted | 2026-02-24 |
 | [ADR-0012](./ADR-0012-no-lambda-runtime-scope.md) | Preserve ECS and SQS runtime scope and exclude Lambda orchestration | Accepted | 2026-02-24 |
+| [ADR-0013](./ADR-0013-final-state-sdk-topology-generated-core-plus-thin-adapters.md) | Final-state SDK topology uses generated contract-core clients plus thin language adapters | Accepted | 2026-02-28 |
+| [ADR-0014](./ADR-0014-container-craft-capability-absorption-and-repo-retirement.md) | Absorb remaining container-craft Nova capabilities into nova and retire container-craft | Accepted | 2026-02-28 |

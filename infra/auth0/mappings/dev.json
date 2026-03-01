@@ -1,0 +1,10 @@
+{
+  "ENVIRONMENT_NAME": "Development",
+  "ENVIRONMENT_SLUG": "dev",
+  "SUPPORT_EMAIL": "platform-dev@nova.local",
+  "DEFAULT_REDIRECT_URI": "http://localhost:8050/callback",
+  "NOVA_API_AUDIENCE": "https://nova-dev/api",
+  "WEB_CALLBACK_URL": "http://localhost:8050/callback",
+  "WEB_LOGOUT_URL": "http://localhost:8050/logout",
+  "WEB_ORIGIN": "http://localhost:8050"
+}

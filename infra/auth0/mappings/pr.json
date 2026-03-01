@@ -1,0 +1,10 @@
+{
+  "ENVIRONMENT_NAME": "PR",
+  "ENVIRONMENT_SLUG": "pr",
+  "SUPPORT_EMAIL": "platform-pr@nova.local",
+  "DEFAULT_REDIRECT_URI": "https://pr.nova.local/callback",
+  "NOVA_API_AUDIENCE": "https://nova-pr/api",
+  "WEB_CALLBACK_URL": "https://pr.nova.local/callback",
+  "WEB_LOGOUT_URL": "https://pr.nova.local/logout",
+  "WEB_ORIGIN": "https://pr.nova.local"
+}

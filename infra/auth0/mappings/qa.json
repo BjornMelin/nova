@@ -1,0 +1,10 @@
+{
+  "ENVIRONMENT_NAME": "QA",
+  "ENVIRONMENT_SLUG": "qa",
+  "SUPPORT_EMAIL": "platform-qa@nova.local",
+  "DEFAULT_REDIRECT_URI": "https://qa.nova.local/callback",
+  "NOVA_API_AUDIENCE": "https://nova-qa/api",
+  "WEB_CALLBACK_URL": "https://qa.nova.local/callback",
+  "WEB_LOGOUT_URL": "https://qa.nova.local/logout",
+  "WEB_ORIGIN": "https://qa.nova.local"
+}
