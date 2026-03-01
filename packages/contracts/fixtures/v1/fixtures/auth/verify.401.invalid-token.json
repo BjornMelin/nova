@@ -1,0 +1,8 @@
+{
+  "error": {
+    "code": "invalid_token",
+    "message": "token validation failed",
+    "details": {},
+    "request_id": "req-auth-401"
+  }
+}

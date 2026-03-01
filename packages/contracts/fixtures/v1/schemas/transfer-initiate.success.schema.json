@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nova/contracts/fixtures/v1/schemas/transfer-initiate.success.schema.json",
+  "title": "TransferInitiateUploadSuccessResponse",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["strategy", "bucket", "key", "expires_in_seconds"],
+  "properties": {
+    "strategy": { "type": "string", "enum": ["single", "multipart"] },
+    "bucket": { "type": "string" },
+    "key": { "type": "string" },
+    "expires_in_seconds": { "type": "integer" },
+    "url": { "type": ["string", "null"] },
+    "upload_id": { "type": ["string", "null"] },
+    "part_size_bytes": { "type": ["integer", "null"] }
+  }
+}

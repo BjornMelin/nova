@@ -1,0 +1,8 @@
+{
+  "status": 401,
+  "error": {
+    "code": "unauthorized",
+    "message": "token validation failed",
+    "request_id": "req_401_fixture"
+  }
+}

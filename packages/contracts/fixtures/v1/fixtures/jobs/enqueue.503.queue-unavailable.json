@@ -1,0 +1,10 @@
+{
+  "error": {
+    "code": "queue_unavailable",
+    "message": "jobs queue unavailable",
+    "details": {
+      "backend": "sqs"
+    },
+    "request_id": "req-jobs-503"
+  }
+}

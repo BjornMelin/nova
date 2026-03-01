@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nova/contracts/fixtures/v1/schemas/jobs-enqueue.success.schema.json",
+  "title": "JobsEnqueueSuccessResponse",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["job_id", "status"],
+  "properties": {
+    "job_id": { "type": "string", "minLength": 1 },
+    "status": {
+      "type": "string",
+      "enum": ["pending", "running", "succeeded", "failed", "canceled"]
+    }
+  }
+}

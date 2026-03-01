@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nova/contracts/fixtures/v1/schemas/transfer-initiate.request.schema.json",
+  "title": "TransferInitiateUploadRequest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["filename", "size_bytes"],
+  "properties": {
+    "filename": { "type": "string", "minLength": 1, "maxLength": 512 },
+    "content_type": { "type": ["string", "null"], "maxLength": 256 },
+    "size_bytes": { "type": "integer", "minimum": 1 },
+    "session_id": { "type": ["string", "null"], "minLength": 1, "maxLength": 256 }
+  }
+}
