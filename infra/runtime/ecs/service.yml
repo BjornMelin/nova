@@ -1,0 +1,1034 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: ECS CFN rendered via Falcon (Drone CI) plugin
+Parameters:
+  Environment:
+    Type: String
+  Project:
+    Type: String
+    Description: Name of the project
+    MinLength: 2
+  Application:
+    Type: String
+    Description: Name of the application
+    MinLength: 2
+  Service:
+    Type: String
+    Description: Name of the ECS service
+  EcsClusterName:
+    Type: String
+  LoadBalancerName:
+    Type: String
+    Description: Name of the load balancer
+  DockerRepoName:
+    Type: String
+  DockerImageTag:
+    Type: String
+    Default: latest
+  DockerContainerPort:
+    Type: String
+    Default: "8050"
+  DockerHostPort:
+    Type: String
+    Default: "8050"
+  VpcId:
+    Type: String
+  SubnetList:
+    Type: List<AWS::EC2::Subnet::Id>
+  ListenerProtocol:
+    Type: String
+    Default: https
+    AllowedValues: ["https", "http"]
+  TargetProtocol:
+    Type: String
+    Default: http
+    AllowedValues: ["https", "http"]
+  TargetType:
+    Type: String
+    Default: ip
+    AllowedValues: ["ip", "lambda"]
+  TaskRole:
+    Type: String
+  TaskCpu:
+    Type: String
+    Default: "2048"
+  TaskMemory:
+    Type: String
+    Default: "8192" # 8GB
+  ListenerRulePriority:
+    Type: String
+  LoadBalancerId:
+    Type: String
+    Default: "dash"
+  # AuthAppType:
+  #   Type: String
+  #   Default: "spa"
+  # UseTaskSecret:
+  #   Type: String
+  #   Default: "false"
+  #   AllowedValues: ["true", "false"]
+  EnvVars:
+    Type: String
+    Default: "{}"
+    Description: 'List of environment variables as a JSON String. Ex: ''{"key1": "value1", "key2": "value2"}'''
+  FileTransferEnabled:
+    Type: String
+    Default: "false"
+    AllowedValues: ["true", "false"]
+    Description: >-
+      If true, attach least-privilege S3/KMS permissions for direct-to-S3 uploads/downloads
+      (presigned URL + multipart) and allow the task role to sign those requests.
+  FileTransferBucketName:
+    Type: String
+    Default: ""
+    Description: Target S3 bucket name used for file transfer (required when FileTransferEnabled is true)
+  FileTransferUploadPrefix:
+    Type: String
+    Default: "uploads/"
+    Description: Object key prefix for user uploads (IAM scoping)
+  FileTransferExportPrefix:
+    Type: String
+    Default: "exports/"
+    Description: Object key prefix for exports/downloads (IAM scoping)
+  FileTransferTmpPrefix:
+    Type: String
+    Default: "tmp/"
+    Description: Object key prefix for temporary objects (IAM scoping)
+  FileTransferKmsAlias:
+    Type: String
+    Default: ""
+    Description: KMS alias used by the file transfer bucket default encryption (alias/<name>)
+  FileTransferAsyncEnabled:
+    Type: String
+    Default: "false"
+    AllowedValues: ["true", "false"]
+    Description: Attach async queue/table least-privilege IAM policy to task role.
+  FileTransferJobsQueueArn:
+    Type: String
+    Default: ""
+    Description: Async jobs queue ARN (required when FileTransferAsyncEnabled is true).
+  FileTransferJobsTableArn:
+    Type: String
+    Default: ""
+    Description: Async jobs table ARN (required when FileTransferAsyncEnabled is true).
+  FileTransferActivityTableArn:
+    Type: String
+    Default: ""
+    Description: Async activity table ARN (required when FileTransferAsyncEnabled is true).
+  FileTransferCacheEnabled:
+    Type: String
+    Default: "false"
+    AllowedValues: ["true", "false"]
+    Description: Allow service SG ingress to managed cache SG on Redis TLS port.
+  FileTransferCacheSecurityGroupExportName:
+    Type: String
+    Default: ""
+    Description: Export name for the managed cache security group ID.
+  UseLegacyEnvDict:
+    Type: String
+    Default: "true"
+    AllowedValues: ["true", "false"]
+    Description: >-
+      If true, inject legacy ENV_DICT/AUTH_APP_SECRET values into the task
+      environment. Prefer ECS-native `Secrets` and explicit `Environment`.
+  UseLegacyTaskRolePolicy:
+    Type: String
+    Default: "true"
+    AllowedValues: ["true", "false"]
+    Description: >-
+      If true, attach the legacy broad ECSTaskPolicy to the task role. Set
+      false for least privilege and manage AWS permissions explicitly.
+  GenerateAppSecretKey:
+    Type: String
+    Default: "false"
+    AllowedValues: ["true", "false"]
+    Description: >-
+      If true, the stack creates a per-service AWS Secrets Manager secret and
+      injects it into the task definition `Secrets` using AppSecretEnvVarName.
+  AppSecretEnvVarName:
+    Type: String
+    Default: "APP_SECRET_KEY"
+    AllowedPattern: "^[A-Za-z_][A-Za-z0-9_]*$"
+    Description: >-
+      Environment variable name used when GenerateAppSecretKey is true.
+  ServiceDNS:
+    Type: String
+  UseServiceDiscovery:
+    Type: String
+    Default: "false"
+    AllowedValues: ["true", "false"]
+    Description: "Whether to create a ServiceDiscoveryService resource."
+  Period:
+    Type: Number
+    Default: 300 # 5 minutes
+    Description: The period over which the specified statistic is applied
+  EvaluationPeriods:
+    Type: Number
+    Default: 1
+    Description: The number of periods over which data is compared to the specified threshold
+  MonitorEcsService:
+    Type: String
+    Default: "true"
+    AllowedValues: ["true", "false"]
+  AlarmArn:
+    Type: String
+    Description: "ARN of the AWS reasource to be triggered by the alarm"
+  Owner:
+    Type: String
+    Description: "A# of owner of the dash application"
+
+Mappings:
+  Protocol:
+    http:
+      Upper: HTTP
+      LoadBalancerPort: 80
+    https:
+      Upper: HTTPS
+      LoadBalancerPort: 443
+
+Rules:
+  FileTransferAsyncParamsProvided:
+    Assertions:
+      - Assert: !Or
+          - !Equals [!Ref FileTransferAsyncEnabled, "false"]
+          - !And
+              - !Not [!Equals [!Ref FileTransferJobsQueueArn, ""]]
+              - !Not [!Equals [!Ref FileTransferJobsTableArn, ""]]
+              - !Not [!Equals [!Ref FileTransferActivityTableArn, ""]]
+        AssertDescription: >-
+          FileTransferJobsQueueArn, FileTransferJobsTableArn, and
+          FileTransferActivityTableArn are required when
+          FileTransferAsyncEnabled is "true".
+  FileTransferCacheParamsProvided:
+    Assertions:
+      - Assert: !Or
+          - !Equals [!Ref FileTransferCacheEnabled, "false"]
+          - !Not
+              - !Equals [!Ref FileTransferCacheSecurityGroupExportName, ""]
+        AssertDescription: >-
+          FileTransferCacheSecurityGroupExportName is required when
+          FileTransferCacheEnabled is "true".
+
+Conditions:
+  UseServiceDiscovery: !Equals [!Ref UseServiceDiscovery, "true"]
+  Monitor: !Equals [!Ref MonitorEcsService, "true"]
+  UseLegacyEnvDict: !Equals [!Ref UseLegacyEnvDict, "true"]
+  UseLegacyTaskRolePolicy: !Equals [!Ref UseLegacyTaskRolePolicy, "true"]
+  CreateAppSecretKey: !Equals [!Ref GenerateAppSecretKey, "true"]
+  EnableFileTransfer: !Equals [!Ref FileTransferEnabled, "true"]
+  EnableFileTransferAsync: !Equals [!Ref FileTransferAsyncEnabled, "true"]
+  EnableFileTransferCache: !Equals [!Ref FileTransferCacheEnabled, "true"]
+
+Resources:
+  ListenerRule:
+    Type: "AWS::ElasticLoadBalancingV2::ListenerRule"
+    Properties:
+      Actions:
+        - Type: forward
+          TargetGroupArn: !Ref "LoadBalancerTargetGroup"
+      Conditions:
+        - Field: host-header
+          HostHeaderConfig:
+            Values:
+              - !Sub ${ServiceDNS}
+      ListenerArn:
+        Fn::ImportValue: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${LoadBalancerId}:${LoadBalancerName}:listenerarn
+      Priority: !Ref ListenerRulePriority
+
+  AcmCertificate:
+    Type: "AWS::CertificateManager::Certificate"
+    Properties:
+      DomainName: !Sub ${ServiceDNS}
+      ValidationMethod: DNS
+
+  ListenerCertList:
+    Type: AWS::ElasticLoadBalancingV2::ListenerCertificate
+    Properties:
+      Certificates:
+        - CertificateArn: !Ref AcmCertificate
+      ListenerArn:
+        Fn::ImportValue: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${LoadBalancerId}:${LoadBalancerName}:listenerarn
+
+  LoadBalancerTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckTimeoutSeconds: 30
+      HealthCheckIntervalSeconds: 60
+      HealthCheckProtocol: !FindInMap [Protocol, !Ref TargetProtocol, Upper]
+      HealthCheckPath: /
+      TargetType: !Ref TargetType
+      Port: !Ref DockerHostPort
+      Protocol: !FindInMap [Protocol, !Ref TargetProtocol, Upper]
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 2
+      TargetGroupAttributes:
+        - Key: deregistration_delay.timeout_seconds
+          Value: "10"
+      VpcId: !Sub ${VpcId}
+      Tags:
+        - Key: Project
+          Value: !Ref Project
+        - Key: Application
+          Value: !Ref Application
+        - Key: Service
+          Value: !Ref Service
+        - Key: Owner
+          Value: !Ref Owner
+
+  # ECS
+  ContainerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: !Sub "security group for ecs service ${Project}-${Application}-${Service}"
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: !Ref DockerContainerPort
+          ToPort: !Ref DockerContainerPort
+          SourceSecurityGroupId:
+            Fn::ImportValue: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${LoadBalancerId}:${LoadBalancerName}:alb:sg
+
+  FileTransferCacheIngressFromService:
+    Condition: EnableFileTransferCache
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      Description: !Sub >-
+        Allow ${Project}-${Application}-${Service} ECS tasks to connect to
+        managed file-transfer cache.
+      GroupId:
+        Fn::ImportValue: !Ref FileTransferCacheSecurityGroupExportName
+      IpProtocol: tcp
+      FromPort: 6379
+      ToPort: 6379
+      SourceSecurityGroupId: !Ref ContainerSecurityGroup
+
+  DefaultLogGroup:
+    Type: AWS::Logs::LogGroup
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Properties:
+      LogGroupName: !Sub "${Project}-${Application}/${Service}/ecs"
+      RetentionInDays: 30
+
+  AppSecretKeySecret:
+    Condition: CreateAppSecretKey
+    Type: AWS::SecretsManager::Secret
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      Name: !Sub "/${Environment}/app/secret/${Environment}-${Project}-${Application}-${Service}"
+      Description: !Sub "Application secret key for ${Project}-${Application}-${Service} (${Environment})"
+      GenerateSecretString:
+        PasswordLength: 64
+        ExcludePunctuation: false
+
+{% if ecs_secret_resolvers %}
+  SecretArnResolverRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${Project}-${Application}-${Service}-secret-arn-resolver-${AWS::Region}"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - sts:AssumeRole
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+      Policies:
+        - PolicyName: !Sub "${Project}-${Application}-${Service}-secret-arn-resolver"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - secretsmanager:DescribeSecret
+                Resource:
+{% for arn in ecs_secret_resolver_iam_resources %}
+                  - "{{ arn }}"
+{% endfor %}
+
+  SecretArnResolverFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${Project}-${Application}-${Service}-secret-arn-resolver-${AWS::Region}"
+      Handler: index.handler
+      Runtime: python3.11
+      Timeout: 30
+      Role: !GetAtt SecretArnResolverRole.Arn
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          import urllib3
+          import logging
+
+          http = urllib3.PoolManager()
+          sm = boto3.client("secretsmanager")
+          logger = logging.getLogger()
+          logger.setLevel(logging.INFO)
+
+          def _send(event, context, status, data, physical_id, reason=None):
+            body = {
+              "Status": status,
+              "Reason": reason or f"See CloudWatch Logs: {context.log_stream_name}",
+              "PhysicalResourceId": physical_id,
+              "StackId": event["StackId"],
+              "RequestId": event["RequestId"],
+              "LogicalResourceId": event["LogicalResourceId"],
+              "Data": data,
+            }
+            encoded = json.dumps(body).encode("utf-8")
+            http.request(
+              "PUT",
+              event["ResponseURL"],
+              body=encoded,
+              headers={"content-type": "", "content-length": str(len(encoded))},
+              timeout=10.0,
+            )
+
+          def handler(event, context):
+            req_type = event.get("RequestType")
+            props = event.get("ResourceProperties") or {}
+            secret_id = props.get("SecretId")
+            physical_id = f"secret-arn:{secret_id}"
+            try:
+              if req_type == "Delete":
+                _send(event, context, "SUCCESS", {}, physical_id)
+                return
+              if not secret_id:
+                raise ValueError("SecretId is required")
+              resp = sm.describe_secret(SecretId=secret_id)
+              arn = resp.get("ARN") or resp.get("Arn")
+              if not arn:
+                raise ValueError("describe_secret did not return ARN")
+              _send(event, context, "SUCCESS", {"Arn": arn}, physical_id)
+            except Exception as exc:
+              logger.exception("Secret ARN resolution failed")
+              _send(event, context, "FAILED", {}, physical_id, reason=str(exc))
+
+{% for r in ecs_secret_resolvers %}
+  {{ r.resolver_id }}:
+    Type: Custom::ResolveSecretsManagerSecretArn
+    Properties:
+      ServiceToken: !GetAtt SecretArnResolverFunction.Arn
+      SecretId: '{{ r.secret_name | replace("'", "''") }}'
+{% endfor %}
+{% endif %}
+
+{% if ecs_secret_iam_resources or ecs_ssm_parameter_iam_resources or generate_app_secret_key == "true" %}
+  EcsTaskExecutionSecretsPolicy:
+{% if generate_app_secret_key == "true" and not ecs_secret_iam_resources and not ecs_ssm_parameter_iam_resources %}
+    Condition: CreateAppSecretKey
+{% endif %}
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: !Sub "${Project}-${Application}-${Service}-ecs-task-execution-secrets-${AWS::Region}"
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+{% if ecs_secret_iam_resources %}
+          - Effect: Allow
+            Action:
+              - secretsmanager:GetSecretValue
+            Resource:
+{% if generate_app_secret_key == "true" %}
+              - !If [CreateAppSecretKey, !Ref AppSecretKeySecret, !Ref AWS::NoValue]
+{% endif %}
+{% for arn in ecs_secret_iam_resources %}
+              - "{{ arn }}"
+{% endfor %}
+{% elif generate_app_secret_key == "true" %}
+          - !If
+            - CreateAppSecretKey
+            - Effect: Allow
+              Action:
+                - secretsmanager:GetSecretValue
+              Resource:
+                - !Ref AppSecretKeySecret
+            - !Ref AWS::NoValue
+{% endif %}
+{% if ecs_ssm_parameter_iam_resources %}
+          - Effect: Allow
+            Action:
+              - ssm:GetParameters
+            Resource:
+{% for arn in ecs_ssm_parameter_iam_resources %}
+              - "{{ arn }}"
+{% endfor %}
+{% endif %}
+{% if ecs_secret_iam_resources or ecs_ssm_parameter_iam_resources or generate_app_secret_key == "true" %}
+          - Effect: Allow
+            Action:
+              - kms:Decrypt
+            # KMS key ARNs are not known at render time; ViaService limits usage to Secrets Manager/SSM.
+            Resource: "*"
+            Condition:
+              StringEquals:
+                kms:ViaService:
+                  - !Sub "secretsmanager.${AWS::Region}.amazonaws.com"
+                  - !Sub "ssm.${AWS::Region}.amazonaws.com"
+{% endif %}
+      Roles:
+        - !Sub "${Project}-${Application}-${Service}-ecs-task-execution-${AWS::Region}"
+{% endif %}
+
+  TaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    DependsOn: ECSTaskRole
+    Properties:
+      Cpu: !Ref TaskCpu
+      Memory: !Ref TaskMemory
+      ExecutionRoleArn: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/${Project}-${Application}-${Service}-ecs-task-execution-${AWS::Region}"
+      TaskRoleArn: !Ref TaskRole
+      # Use TaskRole when interacting with AWS reasources from inside container
+      ContainerDefinitions:
+        - Name: !Ref Service
+          # Cpu: 512
+          # MemoryReservation: 2048
+          Essential: true
+          Environment:
+            - Name: AWS_DEFAULT_REGION
+              Value: !Sub "${AWS::Region}"
+            - Name: ENV
+              Value: !Sub "${Environment}"
+            - !If
+              - UseLegacyEnvDict
+              - Name: AUTH_APP_SECRET
+                Value: !Sub "/${Environment}/auth0/app/${Environment}-${Project}-${Application}-${Service}-spa"
+              - !Ref AWS::NoValue
+            - !If
+              - UseLegacyEnvDict
+              - Name: ENV_DICT
+                Value: !Ref EnvVars
+              - !Ref AWS::NoValue
+{% for item in ecs_environment_items %}
+            - Name: '{{ item.name | replace("'", "''") }}'
+              Value: '{{ item.value | replace("'", "''") }}'
+{% endfor %}
+
+{% if ecs_secrets_items or generate_app_secret_key == "true" %}
+          Secrets:
+            - !If
+              - CreateAppSecretKey
+              - Name: !Ref AppSecretEnvVarName
+                ValueFrom: !Ref AppSecretKeySecret
+              - !Ref AWS::NoValue
+{% for s in ecs_secrets_items %}
+            - Name: '{{ s.name | replace("'", "''") }}'
+{% if s.value_from is defined %}
+              ValueFrom: '{{ s.value_from | replace("'", "''") }}'
+{% else %}
+              ValueFrom: !Sub "{{ '${' }}{{ s.resolver_id }}.Arn{{ '}' }}{{ s.suffix }}"
+{% endif %}
+{% endfor %}
+{% endif %}
+
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref "DefaultLogGroup"
+              awslogs-region: !Sub "${AWS::Region}"
+              awslogs-stream-prefix: !Sub "${Project}-${Application}"
+          Ulimits: []
+          Image: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${DockerRepoName}:${DockerImageTag}
+          PortMappings:
+            - ContainerPort: !Ref DockerHostPort
+              HostPort: !Ref DockerHostPort
+              Protocol: tcp
+          # TODO: https://docs.aws.amazon.com/AmazonECS/latest/developerguide/specifying-sensitive-data.html#security-secrets-management-recommendations-mount-secret-volumes
+          # Secrets:
+          #   - Name: APP_SECRETS
+          #     ValueFrom: !If [UseTaskSecret, !Ref EcsSecretName, !Ref AWS::NoValue]
+          #     ValueFrom: !Sub "/${Environment}/auth0/app/${Environment}-${Project}-${Application}-${Service}-${AuthAppType}"
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+  ServiceDiscoveryService:
+    Condition: UseServiceDiscovery
+    Type: AWS::ServiceDiscovery::Service
+    Properties:
+      Name:  !Sub "${Project}-${Application}-${Service}"
+      DnsConfig:
+        DnsRecords:
+          - Type: A
+            TTL: 60
+        NamespaceId: !ImportValue
+          Fn::Sub: "${AWS::AccountId}:${AWS::Region}:${Project}:${VpcId}:cloudmap:namespace:id"
+      HealthCheckCustomConfig:
+        FailureThreshold: 1
+  ECSService:
+    Type: AWS::ECS::Service
+    Properties:
+      PropagateTags: SERVICE
+      PlatformVersion: LATEST
+      DesiredCount: 1
+      DeploymentController:
+        Type: ECS
+      TaskDefinition: !Ref "TaskDefinition"
+      DeploymentConfiguration:
+        MaximumPercent: 200
+        MinimumHealthyPercent: 100
+        DeploymentCircuitBreaker:
+          Enable: true
+          Rollback: true
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          Subnets: !Ref SubnetList
+          SecurityGroups:
+            - !Ref ContainerSecurityGroup
+      ServiceName: !Sub ${Project}-${Application}-${Service}
+      Cluster: !Ref EcsClusterName
+      LaunchType: FARGATE
+      HealthCheckGracePeriodSeconds: 90
+      LoadBalancers:
+        - ContainerName: !Ref Service
+          ContainerPort: !Ref DockerContainerPort
+          TargetGroupArn: !Ref "LoadBalancerTargetGroup"
+      EnableExecuteCommand: true
+      ServiceRegistries:
+        - !If [UseServiceDiscovery, { RegistryArn: !GetAtt ServiceDiscoveryService.Arn }, !Ref "AWS::NoValue" ]
+      Tags:
+        - Key: Project
+          Value: !Ref Project
+        - Key: Application
+          Value: !Ref Application
+        - Key: Service
+          Value: !Ref Service
+        - Key: ImageUri
+          Value: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${DockerRepoName}:${DockerImageTag}
+
+  ECSTaskRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${Project}-${Application}-${Service}-ecs-task-${AWS::Region}"
+      Tags:
+        - Key: Project
+          Value: !Ref Project
+        - Key: Application
+          Value: !Ref Application
+        - Key: Service
+          Value: !Ref Service
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Action:
+              - sts:AssumeRole
+            Principal:
+              Service:
+                - ecs-tasks.amazonaws.com
+
+  ECSTaskPolicy:
+    Condition: UseLegacyTaskRolePolicy
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: !Sub "${Project}-${Application}-${Service}-ecs-task"
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - secretsmanager:GetSecretValue
+              - kms:Decrypt
+              - dynamodb:*
+              - s3:*
+              - rds-db:connect
+            Resource: "*"
+      Roles:
+        - !Ref ECSTaskRole
+
+  FileTransferTaskPolicy:
+    Condition: EnableFileTransfer
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: !Sub "${Project}-${Application}-${Service}-ecs-task-file-transfer"
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: FileTransferS3Objects
+            Effect: Allow
+            Action:
+              - s3:GetObject
+              - s3:PutObject
+              - s3:AbortMultipartUpload
+              - s3:ListMultipartUploadParts
+              - s3:CreateMultipartUpload
+              - s3:UploadPart
+              - s3:CompleteMultipartUpload
+            Resource:
+              - !Sub "arn:${AWS::Partition}:s3:::${FileTransferBucketName}/${FileTransferUploadPrefix}*"
+              - !Sub "arn:${AWS::Partition}:s3:::${FileTransferBucketName}/${FileTransferExportPrefix}*"
+              - !Sub "arn:${AWS::Partition}:s3:::${FileTransferBucketName}/${FileTransferTmpPrefix}*"
+          - Sid: FileTransferKms
+            Effect: Allow
+            Action:
+              - kms:Encrypt
+              - kms:Decrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+              - kms:DescribeKey
+            # KMS data-plane permissions must target key ARNs (not alias ARNs). If we want alias scoping,
+            # we must do it via conditions (kms:ResourceAliases / kms:RequestAlias).
+            # Ref: https://docs.aws.amazon.com/kms/latest/developerguide/cmks-in-iam-policies.html
+            Resource: !Sub "arn:${AWS::Partition}:kms:${AWS::Region}:${AWS::AccountId}:key/*"
+            Condition:
+              StringEquals:
+                kms:ViaService: !Sub "s3.${AWS::Region}.amazonaws.com"
+                kms:CallerAccount: !Ref AWS::AccountId
+              ForAnyValue:StringLike:
+                kms:ResourceAliases:
+                  - !Sub "alias/${FileTransferKmsAlias}"
+      Roles:
+        - !Ref ECSTaskRole
+
+  FileTransferAsyncTaskPolicy:
+    Condition: EnableFileTransferAsync
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: !Sub "${Project}-${Application}-${Service}-ecs-task-file-transfer-async"
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: FileTransferJobsQueueWrite
+            Effect: Allow
+            Action:
+              - sqs:GetQueueUrl
+              - sqs:GetQueueAttributes
+              - sqs:SendMessage
+            Resource:
+              - !Ref FileTransferJobsQueueArn
+          - Sid: FileTransferAsyncDynamoTables
+            Effect: Allow
+            Action:
+              - dynamodb:ConditionCheckItem
+              - dynamodb:DeleteItem
+              - dynamodb:GetItem
+              - dynamodb:PutItem
+              - dynamodb:Query
+              - dynamodb:UpdateItem
+            Resource:
+              - !Ref FileTransferJobsTableArn
+              - !Sub "${FileTransferJobsTableArn}/index/*"
+              - !Ref FileTransferActivityTableArn
+              - !Sub "${FileTransferActivityTableArn}/index/*"
+      Roles:
+        - !Ref ECSTaskRole
+
+
+  CPUUtilizationAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub ${Project}-${Application}-${Service}-cpu-util
+      AlarmDescription: "Alarm if CPU utilization of the service exceeds the threshold"
+      Namespace: "AWS/ApplicationELB"
+      MetricName: CPUUtilization
+      Dimensions:
+        - Name: "ClusterName"
+          Value: !Ref EcsClusterName
+        - Name: "ServiceName"
+          Value: !Ref Service
+      Statistic: Average
+      Period: !Ref Period
+      EvaluationPeriods: !Ref EvaluationPeriods
+      Threshold: "90"
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      AlarmActions:
+        - !If [Monitor, !Ref AlarmArn, !Ref "AWS::NoValue" ]
+
+  HTTPRequestsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: Monitor
+    Properties:
+      AlarmName: !Sub ${Project}-${Application}-${Service}-http-requests
+      AlarmDescription: !Sub "Alarm if HTTP requests directed by climb-mof-dash to ${Service} ECS service exceed the threshold"
+      Namespace: "AWS/ApplicationELB"
+      MetricName: RequestCount
+      Dimensions:
+        - Name: "LoadBalancer"
+          Value:
+            Fn::ImportValue: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${LoadBalancerId}${LoadBalancerName}:alb:name
+        - Name: "TargetGroup"
+          Value: !GetAtt LoadBalancerTargetGroup.TargetGroupFullName
+      Statistic: Sum
+      Period: !Ref Period
+      EvaluationPeriods: !Ref EvaluationPeriods
+      Threshold: "10"
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      AlarmActions:
+        - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${AlarmArn}
+
+  RequestCountPerTarget:
+    Type: AWS::CloudWatch::Alarm
+    Condition: Monitor
+    Properties:
+      AlarmName: !Sub ${Project}-${Application}-${Service}-RequestCountPerTarget
+      AlarmDescription: !Sub "The number of request per target group for service ${Service}"
+      Namespace: "AWS/ApplicationELB"
+      MetricName: RequestCountPerTarget
+      Dimensions:
+        - Name: "LoadBalancer"
+          Value:
+            Fn::ImportValue: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${LoadBalancerId}${LoadBalancerName}:alb:name
+        - Name: "TargetGroup"
+          Value: !GetAtt LoadBalancerTargetGroup.TargetGroupFullName
+      Statistic: Sum
+      Period: !Ref Period
+      EvaluationPeriods: !Ref EvaluationPeriods
+      Threshold: "2"
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      AlarmActions:
+        - !If [Monitor, !Ref AlarmArn, !Ref "AWS::NoValue" ]
+
+  UnHealthyHostCount:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub ${Project}-${Application}-${Service}-UnHealthyHostCount
+      AlarmDescription: !Sub "The number of unhealthy hosts for service ${Service}"
+      Namespace: "AWS/ApplicationELB"
+      MetricName: UnHealthyHostCount
+      Dimensions:
+        - Name: "LoadBalancer"
+          Value:
+            Fn::ImportValue: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${LoadBalancerId}${LoadBalancerName}:alb:name
+        - Name: "TargetGroup"
+          Value: !GetAtt LoadBalancerTargetGroup.TargetGroupFullName
+      Statistic: Sum
+      Period: !Ref Period
+      EvaluationPeriods: !Ref EvaluationPeriods
+      Threshold: "1"
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      AlarmActions:
+        - !If [Monitor, !Ref AlarmArn, !Ref "AWS::NoValue" ]
+
+  HTTPCodeTarget2XXCount:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub ${Project}-${Application}-${Service}-HTTPCodeTarget2XXCount
+      AlarmDescription: !Sub "The number of 2xx HTTP response codes generated by the target group for service ${Service}"
+      Namespace: "AWS/ApplicationELB"
+      MetricName: HTTPCode_Target_2XX_Count
+      Dimensions:
+        - Name: "LoadBalancer"
+          Value:
+            Fn::ImportValue: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${LoadBalancerId}${LoadBalancerName}:alb:name
+        - Name: "TargetGroup"
+          Value: !GetAtt LoadBalancerTargetGroup.TargetGroupFullName
+      Statistic: Sum
+      Period: !Ref Period
+      EvaluationPeriods: !Ref EvaluationPeriods
+      Threshold: "100"
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      AlarmActions:
+        - !If [Monitor, !Ref AlarmArn, !Ref "AWS::NoValue"]
+
+  HTTPCodeTarget3XXCount:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub ${Project}-${Application}-${Service}-HTTPCodeTarget3XXCount
+      AlarmDescription: !Sub "The number of 3xx HTTP response codes generated by the target group for service ${Service}"
+      Namespace: "AWS/ApplicationELB"
+      MetricName: HTTPCode_Target_3XX_Count
+      Dimensions:
+        - Name: "LoadBalancer"
+          Value:
+            Fn::ImportValue: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${LoadBalancerId}${LoadBalancerName}:alb:name
+        - Name: "TargetGroup"
+          Value: !GetAtt LoadBalancerTargetGroup.TargetGroupFullName
+      Statistic: Sum
+      Period: !Ref Period
+      EvaluationPeriods: !Ref EvaluationPeriods
+      Threshold: "1"
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      AlarmActions:
+        - !If [Monitor, !Ref AlarmArn, !Ref "AWS::NoValue"]
+
+  HTTPCodeTarget4XXCount:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub ${Project}-${Application}-${Service}-HTTPCodeTarget4XXCount
+      AlarmDescription: !Sub "The number of 4xx HTTP response codes generated by the target group for service ${Service}"
+      Namespace: "AWS/ApplicationELB"
+      MetricName: HTTPCode_Target_4XX_Count
+      Dimensions:
+        - Name: "LoadBalancer"
+          Value:
+            Fn::ImportValue: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${LoadBalancerId}${LoadBalancerName}:alb:name
+        - Name: "TargetGroup"
+          Value: !GetAtt LoadBalancerTargetGroup.TargetGroupFullName
+      Statistic: Sum
+      Period: !Ref Period
+      EvaluationPeriods: !Ref EvaluationPeriods
+      Threshold: "1"
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      AlarmActions:
+        - !If [Monitor, !Ref AlarmArn, !Ref "AWS::NoValue"]
+
+  HTTPCodeTarget5XXCount:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub ${Project}-${Application}-${Service}-HTTPCodeTarget5XXCount
+      AlarmDescription: !Sub "The number of 5xx HTTP response codes generated by the target group for service ${Service}"
+      Namespace: "AWS/ApplicationELB"
+      MetricName: HTTPCode_Target_5XX_Count
+      Dimensions:
+        - Name: "LoadBalancer"
+          Value:
+            Fn::ImportValue: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${LoadBalancerId}${LoadBalancerName}:alb:name
+        - Name: "TargetGroup"
+          Value: !GetAtt LoadBalancerTargetGroup.TargetGroupFullName
+      Statistic: Sum
+      Period: !Ref Period
+      EvaluationPeriods: !Ref EvaluationPeriods
+      Threshold: "1"
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      AlarmActions:
+        - !If [Monitor, !Ref AlarmArn, !Ref "AWS::NoValue"]
+
+  TargetConnectionErrorCount:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub ${Project}-${Application}-${Service}-TargetConnectionErrorCount
+      AlarmDescription: !Sub "The number of connections that were not successfully established between the load balancer and target group for service ${Service}"
+      Namespace: "AWS/ApplicationELB"
+      MetricName: TargetConnectionErrorCount
+      Dimensions:
+        - Name: "TargetGroup"
+          Value: !GetAtt LoadBalancerTargetGroup.TargetGroupFullName
+        - Name: "LoadBalancer"
+          Value:
+            Fn::ImportValue: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${LoadBalancerId}${LoadBalancerName}:alb:name
+      Statistic: Sum
+      Period: !Ref Period
+      EvaluationPeriods: !Ref EvaluationPeriods
+      Threshold: "1"
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      AlarmActions:
+        - !If [Monitor, !Ref AlarmArn, !Ref "AWS::NoValue"]
+
+  TargetTLSNegotiationErrorCount:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub ${Project}-${Application}-${Service}-TargetTLSNegotiationErrorCount
+      AlarmDescription: !Sub "The number of connections that were not successfully established between the load balancer and target group for service ${Service}"
+      Namespace: "AWS/ApplicationELB"
+      MetricName: TargetTLSNegotiationErrorCount
+      Dimensions:
+        - Name: "TargetGroup"
+          Value: !GetAtt LoadBalancerTargetGroup.TargetGroupFullName
+        - Name: "LoadBalancer"
+          Value:
+            Fn::ImportValue: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${LoadBalancerId}${LoadBalancerName}:alb:name
+      Statistic: Sum
+      Period: !Ref Period
+      EvaluationPeriods: !Ref EvaluationPeriods
+      Threshold: "1"
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      AlarmActions:
+        - !If [Monitor, !Ref AlarmArn, !Ref "AWS::NoValue"]
+
+
+  # Lambda permissions for each alarm to trigger the Lambda function
+  CPUUtilizationAlarmPermission:
+    Type: AWS::Lambda::Permission
+    Condition: Monitor
+    Properties:
+      FunctionName: !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${AlarmArn}
+      Action: lambda:InvokeFunction
+      Principal: lambda.alarms.cloudwatch.amazonaws.com
+      SourceArn: !Sub "arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:${CPUUtilizationAlarm}"
+
+  HTTPRequestsAlarmPermission:
+    Type: AWS::Lambda::Permission
+    Condition: Monitor
+    Properties:
+      FunctionName: !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${AlarmArn}
+      Action: lambda:InvokeFunction
+      Principal: lambda.alarms.cloudwatch.amazonaws.com
+      SourceArn: !Sub "arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:${HTTPRequestsAlarm}"
+
+  RequestCountPerTargetPermission:
+    Type: AWS::Lambda::Permission
+    Condition: Monitor
+    Properties:
+      FunctionName: !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${AlarmArn}
+      Action: lambda:InvokeFunction
+      Principal: lambda.alarms.cloudwatch.amazonaws.com
+      SourceArn: !Sub "arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:${RequestCountPerTarget}"
+
+  UnHealthyHostCountPermission:
+    Type: AWS::Lambda::Permission
+    Condition: Monitor
+    Properties:
+      FunctionName: !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${AlarmArn}
+      Action: lambda:InvokeFunction
+      Principal: lambda.alarms.cloudwatch.amazonaws.com
+      SourceArn: !Sub "arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:${UnHealthyHostCount}"
+
+  HTTPCodeTarget2XXCountPermission:
+    Type: AWS::Lambda::Permission
+    Condition: Monitor
+    Properties:
+      FunctionName: !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${AlarmArn}
+      Action: lambda:InvokeFunction
+      Principal: lambda.alarms.cloudwatch.amazonaws.com
+      SourceArn: !Sub "arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:${HTTPCodeTarget2XXCount}"
+
+  HTTPCodeTarget3XXCountPermission:
+    Type: AWS::Lambda::Permission
+    Condition: Monitor
+    Properties:
+      FunctionName: !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${AlarmArn}
+      Action: lambda:InvokeFunction
+      Principal: lambda.alarms.cloudwatch.amazonaws.com
+      SourceArn: !Sub "arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:${HTTPCodeTarget3XXCount}"
+
+  HTTPCodeTarget4XXCountPermission:
+    Type: AWS::Lambda::Permission
+    Condition: Monitor
+    Properties:
+      FunctionName: !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${AlarmArn}
+      Action: lambda:InvokeFunction
+      Principal: lambda.alarms.cloudwatch.amazonaws.com
+      SourceArn: !Sub "arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:${HTTPCodeTarget4XXCount}"
+
+  HTTPCodeTarget5XXCountPermission:
+    Type: AWS::Lambda::Permission
+    Condition: Monitor
+    Properties:
+      FunctionName: !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${AlarmArn}
+      Action: lambda:InvokeFunction
+      Principal: lambda.alarms.cloudwatch.amazonaws.com
+      SourceArn: !Sub "arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:${HTTPCodeTarget5XXCount}"
+
+  TargetConnectionErrorCountPermission:
+    Type: AWS::Lambda::Permission
+    Condition: Monitor
+    Properties:
+      FunctionName: !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${AlarmArn}
+      Action: lambda:InvokeFunction
+      Principal: lambda.alarms.cloudwatch.amazonaws.com
+      SourceArn: !Sub "arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:${TargetConnectionErrorCount}"
+
+  TargetTLSNegotiationErrorCountPermission:
+    Type: AWS::Lambda::Permission
+    Condition: Monitor
+    Properties:
+      FunctionName: !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${AlarmArn}
+      Action: lambda:InvokeFunction
+      Principal: lambda.alarms.cloudwatch.amazonaws.com
+      SourceArn: !Sub "arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:${TargetTLSNegotiationErrorCount}"
+      
+
+
+Outputs:
+  EcsDnsName:
+    Value: !Sub "${ListenerProtocol}://${ServiceDNS}"
+    Description: DNS of the ecs service
+    Export:
+      Name: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${Service}:ecs:dns
