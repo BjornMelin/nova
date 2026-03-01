@@ -35,7 +35,7 @@ jobs:
       - name: Lock and Sync
         run: |
           uv lock --check
-          uv sync --frozen
+          uv sync --locked
 
       - name: Ruff Check
         run: uv run ruff check .
