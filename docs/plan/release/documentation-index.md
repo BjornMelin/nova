@@ -33,7 +33,8 @@ integration, and production promotion for the Nova release system.
 7. [deploy-nova-cicd-end-to-end-guide.md](deploy-nova-cicd-end-to-end-guide.md)
 8. [release-promotion-dev-to-prod-guide.md](release-promotion-dev-to-prod-guide.md)
 9. [troubleshooting-and-break-glass-guide.md](troubleshooting-and-break-glass-guide.md)
-10. [documentation-maintenance-guide.md](documentation-maintenance-guide.md)
+10. [branch-protection-required-checks.md](branch-protection-required-checks.md)
+11. [documentation-maintenance-guide.md](documentation-maintenance-guide.md)
 
 Operator command pack script:
 

@@ -33,6 +33,13 @@ Every pull request MUST pass:
 - `source .venv/bin/activate && uv run pytest -q`
 - `source .venv/bin/activate && uv run pytest -q packages/nova_file_api/tests/test_generated_client_smoke.py`
 - workspace package/app build verification (`uv build` per workspace unit)
+- cross-framework conformance gate (`.github/workflows/conformance.yml`):
+  - `dash-conformance`
+  - `shiny-conformance`
+  - `typescript-conformance`
+
+Protected branch wiring details are documented in
+`docs/plan/release/branch-protection-required-checks.md`.
 
 ## 2. Hybrid pipeline model
 

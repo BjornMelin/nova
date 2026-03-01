@@ -1,0 +1,14 @@
+{
+  "name": "@nova/contracts-ts-conformance",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "verify": "tsc -p tsconfig.json && node dist/conformance.js"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.13",
+    "typescript": "^5.9.2"
+  }
+}
