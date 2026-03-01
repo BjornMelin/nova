@@ -25,7 +25,8 @@ Current operating mode:
 - **dev (active):** copy `env/dev.env.example` to untracked `env/dev.env`,
   provide real credentials locally, and use `env/dev.env`.
 - **qa/pr (scaffold):** `*.env.example` templates remain placeholders until
-  cutover is approved; if needed, copy to local untracked `qa.env` / `pr.env`.
+  cutover is approved; if needed, copy to local `env/qa.env` / `env/pr.env`
+  (untracked local overlays under `env/`).
 
 This is intentional to keep a single active tenant path during local modernization while preserving final-state shape for QA/PR rollout.
 
