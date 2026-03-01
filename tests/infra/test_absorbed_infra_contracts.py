@@ -13,7 +13,9 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
 def _read(rel_path: str) -> str:
-    return (REPO_ROOT / rel_path).read_text(encoding="utf-8")
+    path = REPO_ROOT / rel_path
+    assert path.is_file(), f"Expected template file to exist: {path}"
+    return path.read_text(encoding="utf-8")
 
 
 def test_absorbed_template_paths_present() -> None:
@@ -50,21 +52,26 @@ def test_pipeline_single_source_contract() -> None:
     )
 
     expected_stage_order = [
-        "- Name: Source",
-        "- Name: Build",
-        "- Name: DeployDev",
-        "- Name: ValidateDev",
-        "- Name: ManualApproval",
-        "- Name: DeployProd",
-        "- Name: ValidateProd",
+        "Source",
+        "Build",
+        "DeployDev",
+        "ValidateDev",
+        "ManualApproval",
+        "DeployProd",
+        "ValidateProd",
     ]
-    stage_positions = [text.find(stage) for stage in expected_stage_order]
-    assert all(pos >= 0 for pos in stage_positions), (
+    stage_name_pattern = re.compile(
+        r"^\s*-\s+Name:\s*(?P<name>[A-Za-z0-9_]+)\s*$",
+        flags=re.MULTILINE,
+    )
+    stage_names = [
+        match.group("name") for match in stage_name_pattern.finditer(text)
+    ]
+    assert all(name in stage_names for name in expected_stage_order), (
         "Missing expected pipeline stage(s)"
     )
-    assert stage_positions == sorted(stage_positions), (
-        "Pipeline stage order contract drifted"
-    )
+    indices = [stage_names.index(name) for name in expected_stage_order]
+    assert indices == sorted(indices), "Pipeline stage order contract drifted"
 
 
 def test_digest_marker_path_and_env_contracts() -> None:
@@ -89,14 +96,39 @@ def test_iam_scope_constraints_for_release_roles() -> None:
     )
 
     passrole_blocks = re.findall(
-        r"Action:\n\s*- iam:PassRole\n\s*Resource:(?:\n\s*- .*?)+",
+        r"Action:\n"
+        r"\s*- iam:PassRole\n"
+        r"\s*Resource:(?P<resources>(?:\n\s*- .*?)+)\n"
+        r"\s*Condition:\n"
+        r"\s*StringEquals:\n"
+        r"\s*iam:PassedToService:\n"
+        r"\s*- ecs-tasks\.amazonaws\.com",
         text,
         flags=re.MULTILINE,
     )
     assert passrole_blocks, "Expected iam:PassRole policy blocks"
-    assert all(
-        '"*"' not in block and '- "*"' not in block for block in passrole_blocks
+    wildcard_resource_pattern = re.compile(r"^\s*-\s*(?:\*|['\"]\*['\"])\s*$")
+    allowed_passrole_resource_pattern = re.compile(
+        r'^-\s+!Sub\s+"arn:\$\{AWS::Partition\}:iam::\$\{AWS::AccountId\}:role/\$\{Project\}-\$\{Application\}-\*-ecs-task(?:-execution)?-\$\{AWS::Region\}"$'
     )
+    for block in passrole_blocks:
+        resource_lines = [line.strip() for line in block.splitlines()]
+        assert not any(
+            wildcard_resource_pattern.match(line) for line in resource_lines
+        ), "iam:PassRole must not allow wildcard-only resources"
+        resource_lines = [
+            line for line in resource_lines if line.startswith("- !Sub ")
+        ]
+        assert resource_lines, (
+            "iam:PassRole block missing explicit resource ARNs"
+        )
+        assert all(
+            allowed_passrole_resource_pattern.match(line)
+            for line in resource_lines
+        ), (
+            "iam:PassRole resources must be scoped to ECS "
+            "task and execution roles"
+        )
 
     assert "iam:PassedToService:" in text
     assert "ecs-tasks.amazonaws.com" in text
