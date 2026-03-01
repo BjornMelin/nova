@@ -1,0 +1,113 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Nova release and deployment validation CodeBuild projects.
+
+Parameters:
+  Project:
+    Type: String
+  Application:
+    Type: String
+  CodeArtifactDomainName:
+    Type: String
+  CodeArtifactRepositoryName:
+    Type: String
+  EcrRepositoryUri:
+    Type: String
+    MinLength: 1
+    ConstraintDescription: Must be a non-empty ECR repository URI.
+  EcrRepositoryName:
+    Type: String
+    MinLength: 1
+    ConstraintDescription: Must be a non-empty ECR repository name.
+  DockerfilePath:
+    Type: String
+    Default: apps/nova_file_api_service/Dockerfile
+  DockerBuildContext:
+    Type: String
+    Default: .
+  ReleaseBuildspecPath:
+    Type: String
+    Default: buildspecs/buildspec-release.yml
+  ValidateBuildspecPath:
+    Type: String
+    Default: buildspecs/buildspec-deploy-validate.yml
+  ReleaseBuildProjectName:
+    Type: String
+    Default: ""
+  DeployValidateProjectName:
+    Type: String
+    Default: ""
+
+Conditions:
+  HasReleaseBuildProjectName: !Not [!Equals [!Ref ReleaseBuildProjectName, ""]]
+  HasDeployValidateProjectName: !Not [!Equals [!Ref DeployValidateProjectName, ""]]
+
+Resources:
+  NovaReleaseBuildProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: !If
+        - HasReleaseBuildProjectName
+        - !Ref ReleaseBuildProjectName
+        - !Sub ${Project}-${Application}-nova-release-build
+      Description: Builds immutable artifacts and publishes changed units.
+      ServiceRole: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/${Project}-${Application}-nova-codebuild-release-role"
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: !Ref ReleaseBuildspecPath
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_MEDIUM
+        Image: aws/codebuild/standard:7.0
+        PrivilegedMode: true
+        EnvironmentVariables:
+          - Name: CODEARTIFACT_DOMAIN
+            Type: PLAINTEXT
+            Value: !Ref CodeArtifactDomainName
+          - Name: CODEARTIFACT_REPOSITORY
+            Type: PLAINTEXT
+            Value: !Ref CodeArtifactRepositoryName
+          - Name: ECR_REPOSITORY_URI
+            Type: PLAINTEXT
+            Value: !Ref EcrRepositoryUri
+          - Name: ECR_REPOSITORY_NAME
+            Type: PLAINTEXT
+            Value: !Ref EcrRepositoryName
+          - Name: DOCKERFILE_PATH
+            Type: PLAINTEXT
+            Value: !Ref DockerfilePath
+          - Name: DOCKER_BUILD_CONTEXT
+            Type: PLAINTEXT
+            Value: !Ref DockerBuildContext
+      TimeoutInMinutes: 60
+
+  NovaDeployValidateBuildProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: !If
+        - HasDeployValidateProjectName
+        - !Ref DeployValidateProjectName
+        - !Sub ${Project}-${Application}-nova-deploy-validate
+      Description: Validates post-deploy readiness and operational endpoints.
+      ServiceRole: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/${Project}-${Application}-nova-codebuild-release-role"
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: !Ref ValidateBuildspecPath
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:7.0
+      TimeoutInMinutes: 30
+
+Outputs:
+  ReleaseBuildProjectName:
+    Value: !Ref NovaReleaseBuildProject
+  ReleaseBuildProjectArn:
+    Value: !GetAtt NovaReleaseBuildProject.Arn
+  DeployValidateProjectName:
+    Value: !Ref NovaDeployValidateBuildProject
+  DeployValidateProjectArn:
+    Value: !GetAtt NovaDeployValidateBuildProject.Arn
