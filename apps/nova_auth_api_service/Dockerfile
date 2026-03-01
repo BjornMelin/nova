@@ -21,4 +21,4 @@ USER appuser
 
 EXPOSE 8050
 
-CMD ["uv", "run", "uvicorn", "nova_auth_api_service.main:app", "--host", "0.0.0.0", "--port", "8050"]
+CMD ["uv", "run", "uvicorn", "nova_auth_api_service.main:app", "--host", "0.0.0.0", "--port", "8050", "--proxy-headers", "--forwarded-allow-ips=*"]

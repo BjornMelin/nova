@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, cast
 
 import pytest
 from botocore.exceptions import ClientError
@@ -12,12 +12,24 @@ from nova_file_api.models import JobRecord, JobStatus
 class _FakeTable:
     def __init__(self) -> None:
         self._items: dict[str, dict[str, Any]] = {}
+        self.condition_writes: list[dict[str, Any]] = []
 
     def put_item(
         self, *, Item: dict[str, Any], **kwargs: Any
     ) -> dict[str, Any]:
         condition = kwargs.get("ConditionExpression")
         if condition is not None:
+            self.condition_writes.append(
+                {
+                    "ConditionExpression": condition,
+                    "ExpressionAttributeNames": kwargs.get(
+                        "ExpressionAttributeNames", {}
+                    ),
+                    "ExpressionAttributeValues": kwargs.get(
+                        "ExpressionAttributeValues", {}
+                    ),
+                }
+            )
             expected_values = kwargs.get("ExpressionAttributeValues", {})
             expected_status = expected_values.get(":expected_status")
             job_id = str(Item["job_id"])
@@ -136,6 +148,17 @@ def test_dynamo_job_repository_update_if_status_enforces_expected_state(
         )
         is True
     )
+    table = cast(_FakeTable, _fake_repo._table)
+    conditional_write = table.condition_writes[0]
+    assert conditional_write["ConditionExpression"] == (
+        "attribute_exists(job_id) AND #status = :expected_status"
+    )
+    assert conditional_write["ExpressionAttributeNames"] == {
+        "#status": "status"
+    }
+    assert conditional_write["ExpressionAttributeValues"] == {
+        ":expected_status": "pending"
+    }
     assert (
         _fake_repo.update_if_status(
             record=pending,
