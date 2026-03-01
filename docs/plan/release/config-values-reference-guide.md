@@ -11,9 +11,7 @@ Nova CI/CD.
 
 ## Prerequisites
 
-1. Access to both repositories:
-   - `3M-Cloud/nova`
-   - `3M-Cloud/container-craft`
+1. Access to `3M-Cloud/nova` repository.
 2. Ability to inspect deployed CloudFormation stack outputs.
 3. Existing release stack deployment or planned stack parameter set.
 
@@ -31,35 +29,31 @@ Nova CI/CD.
 - `AWS_REGION`
   - default: `us-east-1`
 
-## container-craft service config keys for `deploy-nova-cicd`
+## Nova operator command-pack environment keys
 
 Required keys:
 
-- `github_oidc_provider_arn`
-- `release_signing_secret_arn`
-- `nova_artifact_bucket_name`
-- `nova_dev_service_base_url`
-- `nova_prod_service_base_url`
+- `GITHUB_OIDC_PROVIDER_ARN`
+- `SECRET_NAME` (or resolved `RELEASE_SIGNING_SECRET_ARN`)
+- `NOVA_ARTIFACT_BUCKET_NAME`
+- `NOVA_DEV_SERVICE_BASE_URL`
+- `NOVA_PROD_SERVICE_BASE_URL`
 
-Required ECR targeting (at least one):
+Required ECR targeting:
 
-- `nova_ecr_repository_uri`
-- `nova_ecr_repository_name`
+- `ECR_REPOSITORY_URI`
+- `ECR_REPOSITORY_NAME`
 
 Optional keys:
 
-- `nova_existing_connection_arn`
-- `nova_manual_approval_topic_arn`
-- `nova_connection_name`
-- `nova_release_build_project_name`
-- `nova_deploy_validate_project_name`
-- `nova_deploy_service_name`
-- `nova_deploy_dev_stack_name`
-- `nova_deploy_prod_stack_name`
-
-Defaults live in:
-`src/container-craft/settings/service.yml` in the `3M-Cloud/container-craft`
-repository.
+- `EXISTING_CONNECTION_ARN`
+- `NOVA_MANUAL_APPROVAL_TOPIC_ARN`
+- `CONNECTION_NAME`
+- `NOVA_RELEASE_BUILD_PROJECT_NAME`
+- `NOVA_DEPLOY_VALIDATE_PROJECT_NAME`
+- `NOVA_DEPLOY_SERVICE_NAME`
+- `NOVA_DEPLOY_DEV_STACK_NAME`
+- `NOVA_DEPLOY_PROD_STACK_NAME`
 
 ## CloudFormation stack names and outputs
 

@@ -39,7 +39,7 @@ Owner: Release Architecture
 
 ## 5. Cross-Repo Compatibility
 
-- [x] `container-craft` docs and renderer mappings align with split routes.
+- [x] Nova release docs and CI/CD template mappings are aligned to `infra/nova/**`.
 - [x] `JOBS_SQS_RETRY_MODE` and
   `JOBS_SQS_RETRY_TOTAL_MAX_ATTEMPTS` contract aligned.
 - [x] `dash-pca` migration to `nova_dash_bridge` and split routes complete.

@@ -120,7 +120,7 @@ If GitHub action path is unavailable, deploy stacks directly:
 aws cloudformation deploy \
   --region "${AWS_REGION}" \
   --stack-name "${PROJECT}-${APPLICATION}-nova-iam-roles" \
-  --template-file "${CONTAINER_CRAFT_REPO}/infra/nova/nova-iam-roles.yml" \
+  --template-file "${NOVA_REPO_ROOT}/infra/nova/nova-iam-roles.yml" \
   --capabilities CAPABILITY_NAMED_IAM \
   --parameter-overrides \
     Project="${PROJECT}" \
@@ -142,7 +142,7 @@ Use equivalent `aws cloudformation deploy` commands for:
 - `nova-ci-cd.yml`
 
 with parameter sets from:
-`templates/3m.yml` in the `3M-Cloud/container-craft` repository.
+`infra/nova/*.yml` templates and `scripts/release/day-0-operator-command-pack.sh` in this repository.
 
 ## Post-incident recording
 

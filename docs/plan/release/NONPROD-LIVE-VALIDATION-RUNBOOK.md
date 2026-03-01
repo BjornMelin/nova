@@ -27,7 +27,7 @@ Related setup sequence:
 ## 3. Preconditions
 
 - `nova` runtime build is deployed to non-prod.
-- `container-craft` split-route and CI/CD stack changes are deployed.
+- Nova CI/CD stack changes from `infra/nova/**` are deployed from this repository.
 - `dash-pca` non-prod points to split API routes.
 - AWS CLI credentials target the non-prod account/region.
 

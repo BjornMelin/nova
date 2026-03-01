@@ -11,7 +11,7 @@ execution.
 
 ## Prerequisites
 
-1. `container-craft` repo access and action execution permissions.
+1. `nova` repo access and workflow execution permissions.
 2. AWS credentials configured for stack deployment account.
 3. Release signing secret created in Secrets Manager.
 4. GitHub OIDC provider and trust role setup completed.
@@ -21,7 +21,7 @@ execution.
 
 Primary path:
 
-1. Deploy infrastructure via `container-craft` with `run=deploy-nova-cicd`.
+1. Deploy infrastructure from `nova/infra/nova/**` templates.
 2. Configure `nova` repository secrets/vars.
 3. Activate CodeConnections.
 4. Run release workflows and validate AWS promotion.
@@ -34,53 +34,33 @@ Fallback path:
 ## Inputs checklist
 
 - `${AWS_REGION}`
-- `${PROJECT}` default `container-craft`
+- `${PROJECT}` default `nova`
 - `${APPLICATION}` default `ci`
-- `${CONFIG_FILE}` service YAML used by container-craft
-- `${CONFIG_DIR}` directory containing `${CONFIG_FILE}`
+- `${NOVA_REPO_ROOT}` local checkout path for the `nova` repository
 - `${GITHUB_OWNER}` default `3M-Cloud`
 - `${GITHUB_REPO}` default `nova`
 
-## Step 1: prepare container-craft config values
+## Step 1: set deployment values
 
-Set required keys in service config:
+Export the required values for the Nova operator command pack:
 
-- `github_oidc_provider_arn`
-- `release_signing_secret_arn`
-- `nova_artifact_bucket_name`
-- `nova_ecr_repository_uri` or `nova_ecr_repository_name`
-- `nova_dev_service_base_url`
-- `nova_prod_service_base_url`
-- optional: `nova_existing_connection_arn`
+- `GITHUB_OIDC_PROVIDER_ARN`
+- `SECRET_NAME` / `RELEASE_SIGNING_SECRET_ARN`
+- `NOVA_ARTIFACT_BUCKET_NAME`
+- `ECR_REPOSITORY_URI` and `ECR_REPOSITORY_NAME`
+- `NOVA_DEV_SERVICE_BASE_URL`
+- `NOVA_PROD_SERVICE_BASE_URL`
+- optional: `EXISTING_CONNECTION_ARN`
 
 Reference details:
 [config-values-reference-guide.md](config-values-reference-guide.md)
 
-## Step 2: deploy CI/CD stacks via action
+## Step 2: deploy CI/CD stacks from nova
 
-Use a GitHub workflow in `container-craft` that calls the composite action with:
+Run the operator command pack:
 
-- `run: deploy-nova-cicd`
-- `stack_action: update`
-- `environ: dev` (or your deployment environment)
-
-Minimal invocation:
-
-Use a pinned release tag or commit SHA for `uses` instead of `@main`.
-The `${...}` tokens below are placeholders for documentation and should be
-replaced with concrete values or `${{ vars.* }}` / `${{ secrets.* }}` in an
-actual workflow.
-
-```yaml
-- name: Deploy Nova CI/CD stacks
-  uses: 3M-Cloud/container-craft@<pinned-ref>
-  with:
-    config_dir: ${CONFIG_DIR}
-    config_file: ${CONFIG_FILE}
-    environ: dev
-    aws_region: ${AWS_REGION}
-    run: deploy-nova-cicd
-    stack_action: update
+```bash
+./scripts/release/day-0-operator-command-pack.sh
 ```
 
 ## Step 3: capture stack outputs
