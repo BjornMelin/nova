@@ -251,7 +251,8 @@ Resources:
                 Action:
                   - iam:PassRole
                 Resource:
-                  - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/${Project}-${Application}-*"
+                  - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/${Project}-${Application}-*-ecs-task-${AWS::Region}"
+                  - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/${Project}-${Application}-*-ecs-task-execution-${AWS::Region}"
                 Condition:
                   StringEquals:
                     iam:PassedToService:
@@ -302,7 +303,8 @@ Resources:
                 Action:
                   - iam:PassRole
                 Resource:
-                  - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/${Project}-${Application}-*"
+                  - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/${Project}-${Application}-*-ecs-task-${AWS::Region}"
+                  - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/${Project}-${Application}-*-ecs-task-execution-${AWS::Region}"
                 Condition:
                   StringEquals:
                     iam:PassedToService:
