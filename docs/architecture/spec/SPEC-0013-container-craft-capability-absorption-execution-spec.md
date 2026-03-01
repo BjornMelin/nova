@@ -57,6 +57,8 @@ Mandatory constraints:
 | Generic action `run` modes in `container-craft/action.yml` (`deploy-ecs`, `deploy-ecr`, `deploy-kms`, etc.) | Nova release architecture is already GitHub CI + AWS promotion templates in-repo; generic orchestrator is unnecessary for Nova final state |
 | Renderer compatibility toggles (`use_legacy_env_dict`, `use_legacy_task_role_policy`, wildcard secret fallbacks) | Transitional entropy; not required in final-state Nova-controlled IaC |
 | Non-Nova workflows in container-craft (`deploy-all.yml`, `deploy-service.yml`, `data-craft.yml`) | Not required for Nova production release control plane |
+| Auth0 CFN API/SPA templates (`infra/auth0/auth_api.yml`, `infra/auth0/service_application.yml`) | Nova retained authority uses Deploy CLI tenant-as-code (`infra/auth0/tenant/**`, mappings, env overlays); no retained Nova workflow depends on these stacks |
+| CodeArtifact provisioning templates (`infra/code_artifact/*.yml`, `templates/3m.codeartifact.yml`) | Nova release path consumes pre-provisioned `CodeArtifactDomainName`/`CodeArtifactRepositoryName` parameters and IAM publish/read permissions in `infra/nova/*`; Nova does not retain domain/repo provisioning ownership |
 
 ## 3. Gap-to-build matrix with acceptance tests
 
@@ -68,6 +70,8 @@ Mandatory constraints:
 | GAP-04 | Missing image digest SSM deploy template ownership | `infra/nova/deploy/image-digest-ssm.yml` | Template unit test validates parameter constraints and deterministic SSM parameter path format `/nova/{env}/{service}/image-digest` |
 | GAP-05 | Partial architecture (dual-source pipeline) | `infra/nova/nova-ci-cd.yml` refactor | Regression test validates single-source artifact model and valid `TemplatePath` resolution within `AppSourceOutput` |
 | GAP-06 | Partial retirement governance | `docs/architecture/spec/SPEC-0013…` + release runbooks | Checklist test (docs lint) requires all archive gates present and linked from release docs |
+| GAP-07 | Auth0 retained-scope closure (explicit exclusion) | N/A | Evidence check confirms active Nova Auth0 authority is tenant-as-code (`infra/auth0/tenant/**`, env overlays, mappings) and not container-craft CFN API/SPA stacks |
+| GAP-08 | CodeArtifact retained-scope closure (explicit exclusion) | N/A | Evidence check confirms Nova consumes pre-provisioned CodeArtifact names through release stack parameters and scoped IAM, with no retained need for container-craft provisioning templates |
 
 ## 4. PR-by-PR execution expansion (100% migration coverage)
 
@@ -89,15 +93,19 @@ Mandatory constraints:
    - Update release runbooks and CI/CD docs to reference in-repo Nova IaC only.
    - Remove container-craft as active prerequisite for Nova release path.
 
-6. **PR-06 -- nonprod evidence run**
+6. **PR-06 -- retained-scope closure evidence (Auth0 + CodeArtifact)**
+   - Record evidence-backed exclusion decision for container-craft Auth0/CodeArtifact provisioning templates.
+   - Confirm retained Nova ownership remains: Auth0 tenant-as-code and CodeArtifact publish/read contract parameters + IAM.
+
+7. **PR-07 -- nonprod evidence run**
    - Execute dry-run/validation in dev account with existing operational process.
    - Record artifacts: pipeline execution ID, stage evidence, digest value, endpoint validation.
 
-7. **PR-07 -- prod readiness and gate sign-off**
+8. **PR-08 -- prod readiness and gate sign-off**
    - Confirm manual approval and immutable artifact promotion semantics unchanged.
    - Capture final sign-off evidence and kill criteria checklist.
 
-8. **PR-08 -- archive/delete cutover PR**
+9. **PR-09 -- archive/delete cutover PR**
    - Archive container-craft or remove Nova-specific active references.
    - Update historical docs with retirement timestamp and evidence links.
 
