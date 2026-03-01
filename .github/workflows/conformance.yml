@@ -1,0 +1,97 @@
+name: Cross-Framework Conformance
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+concurrency:
+  group: conformance-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dash-conformance:
+    name: dash-conformance
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Sync workspace
+        run: uv sync --frozen
+
+      - name: Validate Dash lane fixtures
+        run: |
+          uv run python scripts/conformance/validate_lane.py --lane dash
+          uv run pytest -q scripts/release/tests/test_contract_fixtures_v1.py
+
+  shiny-conformance:
+    name: shiny-conformance
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Sync workspace
+        run: uv sync --frozen
+
+      - name: Validate Shiny lane fixtures
+        run: uv run python scripts/conformance/validate_lane.py --lane shiny
+
+  typescript-conformance:
+    name: typescript-conformance
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: packages/contracts/typescript/package-lock.json
+
+      - name: Install TS lane dependencies
+        working-directory: packages/contracts/typescript
+        run: npm install
+
+      - name: TypeScript typecheck
+        working-directory: packages/contracts/typescript
+        run: npm run typecheck
+
+      - name: TypeScript fixture verification
+        working-directory: packages/contracts/typescript
+        run: npm run verify
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validate TS lane fixtures (shared harness)
+        run: python scripts/conformance/validate_lane.py --lane typescript

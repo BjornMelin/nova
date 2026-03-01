@@ -202,6 +202,7 @@ Hybrid release model:
 
 1. GitHub Actions handles CI and selective release planning/apply:
    - `.github/workflows/ci.yml`
+   - `.github/workflows/conformance.yml`
    - `.github/workflows/release-plan.yml`
    - `.github/workflows/release-apply.yml`
    - `.github/workflows/verify-signature.yml`
