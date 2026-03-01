@@ -1,10 +1,10 @@
 {
   "ENVIRONMENT_NAME": "QA",
   "ENVIRONMENT_SLUG": "qa",
-  "SUPPORT_EMAIL": "REPLACE_ME",
-  "DEFAULT_REDIRECT_URI": "REPLACE_ME",
-  "NOVA_API_AUDIENCE": "REPLACE_ME",
-  "WEB_CALLBACK_URL": "REPLACE_ME",
-  "WEB_LOGOUT_URL": "REPLACE_ME",
-  "WEB_ORIGIN": "REPLACE_ME"
+  "SUPPORT_EMAIL": "platform-qa@nova.local",
+  "DEFAULT_REDIRECT_URI": "https://qa.nova.local/callback",
+  "NOVA_API_AUDIENCE": "https://nova-qa/api",
+  "WEB_CALLBACK_URL": "https://qa.nova.local/callback",
+  "WEB_LOGOUT_URL": "https://qa.nova.local/logout",
+  "WEB_ORIGIN": "https://qa.nova.local"
 }

@@ -13,15 +13,41 @@ REQUIRED_ENV_KEYS = {
     "AUTH0_INPUT_FILE",
     "AUTH0_KEYWORD_MAPPINGS_FILE",
 }
+EXPECTED_MAPPING_BY_OVERLAY = {
+    "dev": "infra/auth0/mappings/dev.json",
+    "qa": "infra/auth0/mappings/qa.json",
+    "pr": "infra/auth0/mappings/pr.json",
+}
 
 
 def extract_tokens(tenant_yaml: Path) -> set[str]:
-    """Extract unique Auth0 token placeholders from tenant YAML."""
+    """Extract unique Auth0 token placeholders from tenant YAML.
+
+    Args:
+        tenant_yaml: Path to the Auth0 tenant YAML file.
+
+    Returns:
+        Unique placeholder token names extracted from the file.
+
+    Raises:
+        OSError: If the file cannot be read.
+    """
     return set(TOKEN_PATTERN.findall(tenant_yaml.read_text(encoding="utf-8")))
 
 
 def parse_env_file(path: Path) -> dict[str, str]:
-    """Parse a shell-style env file into key/value pairs."""
+    """Parse a shell-style env file into key/value pairs.
+
+    Args:
+        path: Path to the env overlay file.
+
+    Returns:
+        Parsed key/value mapping from the env file.
+
+    Raises:
+        OSError: If the file cannot be read.
+        ValueError: If a line is malformed or contains an empty key.
+    """
     values: dict[str, str] = {}
     for raw_line in path.read_text(encoding="utf-8").splitlines():
         line = raw_line.strip()
@@ -44,33 +70,71 @@ def validate_overlay(
     expected_input_file: str,
     required_tokens: set[str],
 ) -> list[str]:
-    """Validate one Auth0 overlay and its mapping file."""
+    """Validate one Auth0 overlay and its mapping file.
+
+    Args:
+        repo_root: Repository root path.
+        overlay_path: Path to an overlay env file.
+        expected_input_file: Required AUTH0_INPUT_FILE value.
+        required_tokens: Token names required by tenant.yaml.
+
+    Returns:
+        Validation error messages for this overlay.
+    """
     errors: list[str] = []
-    env_values = parse_env_file(overlay_path)
+    try:
+        env_values = parse_env_file(overlay_path)
+    except (OSError, ValueError) as exc:
+        return [f"{overlay_path}: unable to parse env overlay: {exc}"]
 
     missing_keys = REQUIRED_ENV_KEYS.difference(env_values)
     for key in sorted(missing_keys):
         errors.append(f"{overlay_path}: missing required key {key}")
 
-    allow_delete = env_values.get("AUTH0_ALLOW_DELETE")
-    if allow_delete != "false":
-        errors.append(
-            f"{overlay_path}: AUTH0_ALLOW_DELETE must be 'false', "
-            f"got {allow_delete!r}"
-        )
+    if "AUTH0_ALLOW_DELETE" in env_values:
+        allow_delete = env_values["AUTH0_ALLOW_DELETE"]
+        if allow_delete != "false":
+            errors.append(
+                f"{overlay_path}: AUTH0_ALLOW_DELETE must be 'false', "
+                f"got {allow_delete!r}"
+            )
 
-    input_file = env_values.get("AUTH0_INPUT_FILE")
-    if input_file != expected_input_file:
-        errors.append(
-            f"{overlay_path}: AUTH0_INPUT_FILE must be "
-            f"{expected_input_file!r}, got {input_file!r}"
-        )
+    if "AUTH0_INPUT_FILE" in env_values:
+        input_file = env_values["AUTH0_INPUT_FILE"]
+        if input_file != expected_input_file:
+            errors.append(
+                f"{overlay_path}: AUTH0_INPUT_FILE must be "
+                f"{expected_input_file!r}, got {input_file!r}"
+            )
 
     mapping_file_value = env_values.get("AUTH0_KEYWORD_MAPPINGS_FILE")
     if not mapping_file_value:
         return errors
 
-    mapping_path = repo_root / mapping_file_value
+    overlay_name = overlay_path.name.removesuffix(".env.example")
+    expected_mapping_path = EXPECTED_MAPPING_BY_OVERLAY.get(overlay_name)
+    if expected_mapping_path is None:
+        errors.append(
+            f"{overlay_path}: unknown overlay name {overlay_name!r}; "
+            f"expected one of: {', '.join(sorted(EXPECTED_MAPPING_BY_OVERLAY))}"
+        )
+        return errors
+    if mapping_file_value != expected_mapping_path:
+        errors.append(
+            f"{overlay_path}: AUTH0_KEYWORD_MAPPINGS_FILE must be "
+            f"{expected_mapping_path!r}, got {mapping_file_value!r}"
+        )
+
+    repo_root_resolved = repo_root.resolve()
+    mapping_path = (repo_root / mapping_file_value).resolve()
+    try:
+        mapping_path.relative_to(repo_root_resolved)
+    except ValueError:
+        errors.append(
+            f"{overlay_path}: AUTH0_KEYWORD_MAPPINGS_FILE must stay under "
+            f"repository root, got {mapping_file_value!r}"
+        )
+        return errors
     if not mapping_path.exists():
         errors.append(
             f"{overlay_path}: mapping file does not exist: {mapping_file_value}"
@@ -103,9 +167,19 @@ def validate_overlay(
 
 
 def run_validation(repo_root: Path) -> list[str]:
-    """Run Auth0 contract validation for all overlay files."""
+    """Run Auth0 contract validation for all overlay files.
+
+    Args:
+        repo_root: Repository root path.
+
+    Returns:
+        Aggregated validation errors across all overlays.
+    """
     tenant_path = repo_root / "infra/auth0/tenant/tenant.yaml"
-    required_tokens = extract_tokens(tenant_path)
+    try:
+        required_tokens = extract_tokens(tenant_path)
+    except OSError as exc:
+        return [f"{tenant_path}: unable to read tenant YAML: {exc}"]
 
     overlay_dir = repo_root / "infra/auth0/env"
     overlay_paths = sorted(overlay_dir.glob("*.env.example"))
@@ -126,7 +200,11 @@ def run_validation(repo_root: Path) -> list[str]:
 
 
 def main() -> int:
-    """Run CLI validation and print pass/fail summary."""
+    """Run CLI validation and print pass/fail summary.
+
+    Returns:
+        Zero when validation succeeds, otherwise one.
+    """
     parser = argparse.ArgumentParser(
         description="Validate Auth0 tenant overlays and keyword mappings."
     )

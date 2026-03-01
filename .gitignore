@@ -177,6 +177,7 @@ opensrc/
 # Auth0 export snapshots
 infra/auth0/output/
 
-# Track Auth0 overlay templates
+# Keep local Auth0 secret overlays untracked; commit examples only.
+infra/auth0/env/*
 !infra/auth0/env/
 !infra/auth0/env/*.env.example

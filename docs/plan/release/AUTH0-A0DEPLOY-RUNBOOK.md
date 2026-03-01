@@ -10,19 +10,37 @@ Define the canonical `nova` procedure for Auth0 tenant-as-code operations using 
    - `auth0`
    - `a0deploy`
 2. Confirm you are in repo root.
-3. Use one environment overlay in `infra/auth0/env/*.env.example`.
+3. Create an untracked local overlay from one template in
+   `infra/auth0/env/*.env.example`.
+
+## Create local overlays (required)
+
+Never source tracked `*.env.example` files directly. Copy a template to an
+untracked `*.env` file and put real credentials in that local file.
+
+```bash
+cp infra/auth0/env/dev.env.example infra/auth0/env/dev.env
+```
+
+For scaffold environments:
+
+```bash
+cp infra/auth0/env/qa.env.example infra/auth0/env/qa.env
+cp infra/auth0/env/pr.env.example infra/auth0/env/pr.env
+```
 
 ## Local-dev operating mode (current)
 
-- Use **only** `infra/auth0/env/dev.env.example` for local work.
+- Use **only** `infra/auth0/env/dev.env` for local work.
 - This maps all local development to a single shared dev tenant now.
-- `qa.env` and `pr.env` are scaffold placeholders reserved for later cutover.
+- `qa.env.example` and `pr.env.example` are scaffold placeholders reserved for
+  later cutover.
 
 Cutover mapping plan (when approved):
 
-- `dev.env` -> stable developer integration tenant
-- `qa.env` -> pre-production validation tenant
-- `pr.env` -> ephemeral PR tenant profile
+- `dev.env.example` -> stable developer integration tenant template
+- `qa.env.example` -> pre-production validation tenant template
+- `pr.env.example` -> ephemeral PR tenant template
 
 ## Authenticate with Auth0 CLI
 
@@ -42,7 +60,7 @@ Example: local development overlay.
 
 ```bash
 set -a
-source infra/auth0/env/dev.env.example
+source infra/auth0/env/dev.env
 set +a
 
 export AUTH0_KEYWORD_REPLACE_MAPPINGS="$(cat "$AUTH0_KEYWORD_MAPPINGS_FILE")"
@@ -53,7 +71,7 @@ a0deploy import --input_file "$AUTH0_INPUT_FILE"
 
 ```bash
 set -a
-source infra/auth0/env/dev.env.example
+source infra/auth0/env/dev.env
 set +a
 
 export AUTH0_KEYWORD_REPLACE_MAPPINGS="$(cat "$AUTH0_KEYWORD_MAPPINGS_FILE")"
@@ -62,22 +80,23 @@ a0deploy export --format yaml --output_folder infra/auth0/output/dev
 
 ## Overlay switching
 
-Use the target overlay file exactly as-is:
+Use the target local overlay file:
 
-- `infra/auth0/env/dev.env.example` (active)
-- `infra/auth0/env/qa.env.example` (scaffold)
-- `infra/auth0/env/pr.env.example` (scaffold)
+- `infra/auth0/env/dev.env` (active)
+- `infra/auth0/env/qa.env` (local QA copy from `qa.env.example`)
+- `infra/auth0/env/pr.env` (local PR copy from `pr.env.example`)
 
 ```bash
 set -a
-source infra/auth0/env/qa.env.example
+source infra/auth0/env/qa.env
 set +a
 
 export AUTH0_KEYWORD_REPLACE_MAPPINGS="$(cat "$AUTH0_KEYWORD_MAPPINGS_FILE")"
 a0deploy import --input_file "$AUTH0_INPUT_FILE"
 ```
 
-Do not use QA/PR overlays until placeholders are replaced and cutover is approved.
+Do not use QA/PR overlays until placeholders are replaced and cutover is
+approved.
 
 ## Safety controls
 

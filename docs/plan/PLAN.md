@@ -1,11 +1,10 @@
+# Historical Plan (Superseded)
+
 > Supersession Notice (2026-02-28)
 >
 > This document is retained for historical context and is non-authoritative where it conflicts with the finalized consolidation architecture.
 >
 > Canonical authority:
-> - /home/bjorn/.openclaw/workspace/reports/work-repos-30-day-final-plan.md
-> - /home/bjorn/.openclaw/workspace/reports/master-nova-container-craft-comprehensive-spec-plan.md
-> - /home/bjorn/.openclaw/workspace/reports/pr-by-pr-execution-checklist-nova-consolidation.md
 > - docs/architecture/adr/ADR-0013-final-state-sdk-topology-generated-core-plus-thin-adapters.md
 > - docs/architecture/adr/ADR-0014-container-craft-capability-absorption-and-repo-retirement.md
 > - docs/architecture/spec/SPEC-0011-multi-language-sdk-architecture-and-package-map.md

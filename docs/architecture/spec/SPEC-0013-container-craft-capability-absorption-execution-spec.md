@@ -67,37 +67,37 @@ Mandatory constraints:
 | GAP-03 | Missing CodeBuild project template ownership | `infra/nova/nova-codebuild-release.yml` | Contract tests validate required environment variables and buildspec path defaults; verify required output variables from buildspec contract |
 | GAP-04 | Missing image digest SSM deploy template ownership | `infra/nova/deploy/image-digest-ssm.yml` | Template unit test validates parameter constraints and deterministic SSM parameter path format `/nova/{env}/{service}/image-digest` |
 | GAP-05 | Partial architecture (dual-source pipeline) | `infra/nova/nova-ci-cd.yml` refactor | Regression test validates single-source artifact model and valid `TemplatePath` resolution within `AppSourceOutput` |
-| GAP-06 | Partial retirement governance | `docs/architecture/spec/SPEC-0013...` + release runbooks | Checklist test (docs lint) requires all archive gates present and linked from release docs |
+| GAP-06 | Partial retirement governance | `docs/architecture/spec/SPEC-0013…` + release runbooks | Checklist test (docs lint) requires all archive gates present and linked from release docs |
 
 ## 4. PR-by-PR execution expansion (100% migration coverage)
 
-1. **PR-01 — absorb Nova IaC templates**
+1. **PR-01 -- absorb Nova IaC templates**
    - Copy `container-craft/infra/nova/**` into `nova/infra/nova/**`.
    - Keep semantic parity; no behavior changes in this PR.
 
-2. **PR-02 — single-source pipeline refactor**
+2. **PR-02 -- single-source pipeline refactor**
    - Update `nova/infra/nova/nova-ci-cd.yml` to remove infra-repo source action.
    - Switch deployment `TemplatePath` to `AppSourceOutput::infra/nova/deploy/image-digest-ssm.yml`.
 
-3. **PR-03 — template contract tests**
+3. **PR-03 -- template contract tests**
    - Add tests (e.g., `tests/infra/test_nova_cicd_templates.py`) for stage order, source artifact invariants, role ARN patterns.
 
-4. **PR-04 — IAM hardening assertions**
+4. **PR-04 -- IAM hardening assertions**
    - Add static checks for trust policy constraints and restricted pass-role actions.
 
-5. **PR-05 — docs contract update**
+5. **PR-05 -- docs contract update**
    - Update release runbooks and CI/CD docs to reference in-repo Nova IaC only.
    - Remove container-craft as active prerequisite for Nova release path.
 
-6. **PR-06 — nonprod evidence run**
+6. **PR-06 -- nonprod evidence run**
    - Execute dry-run/validation in dev account with existing operational process.
    - Record artifacts: pipeline execution ID, stage evidence, digest value, endpoint validation.
 
-7. **PR-07 — prod readiness and gate sign-off**
+7. **PR-07 -- prod readiness and gate sign-off**
    - Confirm manual approval and immutable artifact promotion semantics unchanged.
    - Capture final sign-off evidence and kill criteria checklist.
 
-8. **PR-08 — archive/delete cutover PR**
+8. **PR-08 -- archive/delete cutover PR**
    - Archive container-craft or remove Nova-specific active references.
    - Update historical docs with retirement timestamp and evidence links.
 
@@ -123,8 +123,9 @@ Required archival evidence bundle:
 - Deployed digest evidence (`IMAGE_DIGEST` + SSM parameter value path).
 - Updated runbook/documentation references.
 
-## 7. Implementation notes on MCP research sources
+## 7. Evidence sourcing
 
-- `aws_documentation` MCP server was not available in this session.
-- Replacement evidence was sourced from official AWS docs URLs (CodePipeline behavior, CloudFormation deploy action, source change detection) via web search/fetch tooling.
-- `mcporter` tools used during analysis: Exa advanced search (successful), Firecrawl search (successful), Zen analyze/consensus attempts (tool available but session calls timed out/validation-constrained).
+- Architectural and operational claims in this spec must be backed by official
+  AWS documentation and repository-local implementation evidence.
+- Session-specific tooling availability and ad-hoc research notes belong in PR
+  evidence records, not in this normative specification.

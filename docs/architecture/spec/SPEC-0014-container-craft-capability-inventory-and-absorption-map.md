@@ -95,14 +95,9 @@ Scope is **Nova-required capabilities only** (runtime + release + promotion + op
 6. Security checks pass for IAM/KMS/S3/SQS/DynamoDB least privilege and encryption requirements.
 7. Release/day-0/troubleshooting runbooks are updated and operator-validated.
 
-## 7. Primary-source evidence notes
+## 7. Evidence policy
 
-- `aws_documentation` MCP server unavailable in this session; replacement evidence sourced from official AWS documentation pages:
-  - CodePipeline execution semantics (including multi-source behavior).
-  - CodePipeline CloudFormation deploy action reference (`TemplatePath` artifact format and IAM considerations).
-  - Source action change detection for CodeConnections.
-- Additional tool evidence used from `mcporter`:
-  - Exa advanced search (successful).
-  - Firecrawl search (successful).
-  - Zen analyze/consensus calls attempted; blocked by strict multi-step input requirements/timeouts in this session.
-  - Context7 resolved library IDs but did not provide high-fidelity direct AWS CodePipeline user-guide coverage for this question.
+- This inventory remains authoritative only when changes are backed by official
+  AWS documentation and repository-local implementation evidence.
+- Session-specific tooling availability notes are excluded from the normative
+  spec body and should be captured in PR evidence artifacts instead.

@@ -5,9 +5,9 @@ This directory is the canonical Auth0 tenant configuration for `nova`.
 ## Layout
 
 - `tenant/tenant.yaml`: shared Auth0 resource definition using keyword placeholders.
-- `env/dev.env.example`: active local-dev overlay (single shared dev tenant).
-- `env/qa.env.example`: QA scaffold overlay (placeholder values, cutover later).
-- `env/pr.env.example`: PR scaffold overlay (placeholder values, cutover later).
+- `env/dev.env.example`: template for local-dev overlay (single shared dev tenant).
+- `env/qa.env.example`: template for QA scaffold overlay (cutover later).
+- `env/pr.env.example`: template for PR scaffold overlay (cutover later).
 - `mappings/*.json`: canonical keyword replacement payloads per environment.
 
 ## Safety defaults
@@ -22,8 +22,10 @@ This protects against destructive deletes during import unless explicitly change
 
 Current operating mode:
 
-- **dev (active):** used by local development now.
-- **qa/pr (scaffold):** placeholders only until repo/workload cutover is approved.
+- **dev (active):** copy `env/dev.env.example` to untracked `env/dev.env`,
+  provide real credentials locally, and use `env/dev.env`.
+- **qa/pr (scaffold):** `*.env.example` templates remain placeholders until
+  cutover is approved; if needed, copy to local untracked `qa.env` / `pr.env`.
 
 This is intentional to keep a single active tenant path during local modernization while preserving final-state shape for QA/PR rollout.
 
