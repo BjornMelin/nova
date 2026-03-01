@@ -39,3 +39,11 @@ Every operator guide must include:
 
 1. Add `Last reviewed` date to each guide.
 2. Re-review at least every 90 days or after any CI/CD contract change.
+
+
+## Nova-path authority guardrail
+
+1. Active Nova operator instructions must resolve to paths under `nova/docs/**`.
+2. Do not link to retired `container-craft` Nova docs as current operational guidance.
+3. Historical archive references are allowed only under `docs/history/**`.
+4. Infra docs checks enforce this rule for active docs paths.

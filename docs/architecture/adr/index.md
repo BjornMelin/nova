@@ -3,6 +3,7 @@
 - [ADR Template](./ADR-template.md)
 - [Canonical Requirements](../requirements.md)
 - [Architecture Specifications](../spec/index.md)
+- [Operator Runbooks (canonical)](../../runbooks/README.md)
 
 ## ADR Catalog
 

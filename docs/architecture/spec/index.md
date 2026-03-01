@@ -3,6 +3,7 @@
 - [Canonical Requirements](../requirements.md)
 - [ADR Index](../adr/index.md)
 - [Reference Links](./REFERENCES.md)
+- [Operator Runbooks (canonical)](../../runbooks/README.md)
 
 ## SPEC Catalog
 
