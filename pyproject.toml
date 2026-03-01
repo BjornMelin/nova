@@ -65,6 +65,7 @@ testpaths = [
   "packages/nova_auth_api/tests",
   "packages/nova_file_api/tests",
   "scripts/release/tests",
+  "tests/infra",
 ]
 pythonpath = [
   ".",
