@@ -41,6 +41,14 @@ Operator command pack script:
 
 - `scripts/release/day-0-operator-command-pack.sh`
 
+
+## Canonical Nova runbooks authority
+
+- Canonical operator runbook entrypoint: [`docs/runbooks/README.md`](../../runbooks/README.md)
+- Active Nova-path instructions must remain under `nova/docs/**`.
+- Do not use retired `container-craft` Nova docs as operational authority.
+- Historical-only references are allowed under `docs/history/**`.
+
 ## Existing release documents
 
 - [release-runbook.md](RELEASE-RUNBOOK.md)
