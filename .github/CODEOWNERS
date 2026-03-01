@@ -1,0 +1,14 @@
+# Default ownership
+* @BjornMelin
+
+# Governance lock domains (PR-14)
+/docs/architecture/** @BjornMelin
+/infra/** @BjornMelin
+/contracts/** @BjornMelin
+/packages/contracts/** @BjornMelin
+/specs/** @BjornMelin
+/.github/workflows/** @BjornMelin
+
+# Governance docs and lock artifacts
+/docs/plan/release/branch-protection-required-checks.md @BjornMelin
+/docs/plan/release/governance-lock-runbook.md @BjornMelin

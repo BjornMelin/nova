@@ -34,7 +34,8 @@ integration, and production promotion for the Nova release system.
 8. [release-promotion-dev-to-prod-guide.md](release-promotion-dev-to-prod-guide.md)
 9. [troubleshooting-and-break-glass-guide.md](troubleshooting-and-break-glass-guide.md)
 10. [branch-protection-required-checks.md](branch-protection-required-checks.md)
-11. [documentation-maintenance-guide.md](documentation-maintenance-guide.md)
+11. [governance-lock-runbook.md](governance-lock-runbook.md)
+12. [documentation-maintenance-guide.md](documentation-maintenance-guide.md)
 
 Operator command pack script:
 
