@@ -44,8 +44,8 @@ Scope is **Nova-required capabilities only** (runtime + release + promotion + op
 | File-transfer async stack (SQS + DynamoDB + alarms) | `infra/file_transfer/async.yml` | Missing in Nova | `infra/runtime/file_transfer/async.yml` | Required by ADR-0006/SPEC-0008. |
 | File-transfer worker ECS stack | `infra/file_transfer/worker.yml` | Missing in Nova | `infra/runtime/file_transfer/worker.yml` | Required for async worker execution. |
 | Service discovery stack | `infra/networking/service_discovery.yml` | Partially in Nova | `infra/runtime/networking/service_discovery.yml` or explicit non-use decision | Needed only when service discovery mode is enabled. |
-| Auth0 API/SPA infra templates | `infra/auth0/auth_api.yml`, `infra/auth0/service_application.yml` | Partially in Nova | `infra/auth0/*` | Nova has tenant config/mappings; stack templates still external. |
-| CodeArtifact domain/repo stacks | `infra/code_artifact/*.yml`, `templates/3m.codeartifact.yml` | Partially in Nova | `infra/runtime/codeartifact/*.yml` | Required if Nova remains first-class publisher to internal package index. |
+| Auth0 API/SPA infra templates | `infra/auth0/auth_api.yml`, `infra/auth0/service_application.yml` | Obsolete/Not needed | N/A (explicit exclusion) | Final Nova Auth0 authority is Deploy CLI tenant-as-code (`infra/auth0/tenant/**`, mappings, env overlays); these CFN templates are not referenced by active Nova workflows/runbooks and are excluded from retained scope. |
+| CodeArtifact domain/repo stacks | `infra/code_artifact/*.yml`, `templates/3m.codeartifact.yml` | Obsolete/Not needed | N/A (explicit exclusion) | Nova remains a publisher consumer of an existing CodeArtifact domain/repository via pipeline parameters (`CodeArtifactDomainName`, `CodeArtifactRepositoryName`) and IAM in `infra/nova/*`; dedicated domain/repository provisioning stacks are out of Nova retained scope. |
 | Renderer engine | `src/container-craft/container_craft/renderer.py` | Missing in Nova (for absorbed template rendering) | `scripts/infra/render.py` or eliminate via non-templated CFN | Prefer deletion by replacing Jinja indirection with explicit CFN params. |
 | Contract validation helpers | `src/container-craft/container_craft/contract_validation.py` | Missing in Nova | `scripts/infra/contract_validation.py` + tests | Must enforce schema/range/path constraints for absorbed templates. |
 | Run-mode trigger model | `action.yml` + `settings/service.yml` triggers | Obsolete/Not needed | N/A (replaced by explicit Nova workflows) | Replace generic run modes with deterministic Nova workflows. |
@@ -67,8 +67,8 @@ Scope is **Nova-required capabilities only** (runtime + release + promotion + op
 | GAP-08 | File-transfer S3 ownership | `infra/runtime/file_transfer/s3.yml` | CORS/lifecycle/acceleration contract tests aligned with SPEC-0002. |
 | GAP-09 | Async orchestration infra ownership | `infra/runtime/file_transfer/async.yml` | Queue visibility/retry/retention assertions + DynamoDB key schema tests. |
 | GAP-10 | Worker stack ownership | `infra/runtime/file_transfer/worker.yml` | Task role permissions + queue/table/bucket env contract tests. |
-| GAP-11 | Auth0 stack ownership completion | `infra/auth0/auth_api.yml`, `infra/auth0/service_application.yml` | Template lint and variable contract tests against `infra/auth0/env/*.env.example`. |
-| GAP-12 | CodeArtifact stack ownership completion | `infra/runtime/codeartifact/*.yml` | Domain/repo policy and naming contract tests. |
+| GAP-11 | Auth0 retained-scope closure (explicit exclusion) | N/A | Evidence check: active Nova runbooks/workflows reference only Deploy CLI tenant-as-code paths under `infra/auth0/{tenant,mappings,env}`; no retained requirement for CFN API/SPA stacks. |
+| GAP-12 | CodeArtifact retained-scope closure (explicit exclusion) | N/A | Evidence check: release/promotion templates consume pre-provisioned CodeArtifact names through parameters and scoped IAM; no retained requirement for Nova-owned domain/repository CFN provisioning stacks. |
 | GAP-13 | Renderer/contract validation replacement | `scripts/infra/*`, `tests/infra/*` | Deterministic render tests; reject legacy toggles and unsafe defaults. |
 | GAP-14 | Archive readiness governance | `docs/architecture/spec/SPEC-0013.md` + release runbooks | Gate checklist validation in docs CI. |
 
@@ -78,7 +78,7 @@ Scope is **Nova-required capabilities only** (runtime + release + promotion + op
 2. **PR-02: Refactor pipeline to single-source artifact model** (remove infra source action).
 3. **PR-03: Absorb runtime base templates** (`infra/runtime/{ecs,ecr,kms,networking}/**`).
 4. **PR-04: Absorb file-transfer stacks** (`infra/runtime/file_transfer/{s3,cache,async,worker}.yml`).
-5. **PR-05: Absorb auth0 and codeartifact stack templates** (if retained in final Nova operating model).
+5. **PR-05: Close retained-scope decision for Auth0 + CodeArtifact** (explicitly exclude CFN provisioning stacks from Nova retained scope; keep Deploy CLI Auth0 tenant-as-code plus CodeArtifact publish contracts).
 6. **PR-06: Introduce infra contract test suite** (`tests/infra/test_templates_contract.py`, IAM checks).
 7. **PR-07: Remove renderer legacy coupling** (explicit parameters, deterministic contracts, no compatibility toggles).
 8. **PR-08: Update release/runtime docs and runbooks to Nova-only ownership references.**
