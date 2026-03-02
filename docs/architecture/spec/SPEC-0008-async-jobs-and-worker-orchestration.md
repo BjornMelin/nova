@@ -2,8 +2,8 @@
 Spec: 0008
 Title: Async Jobs and Worker Orchestration
 Status: Active
-Version: 1.6
-Date: 2026-02-23
+Version: 1.7
+Date: 2026-03-02
 Related:
   - "[ADR-0006: SQS + ECS worker orchestration](../adr/ADR-0006-async-orchestration-sqs-ecs-worker.md)"
   - "[SPEC-0000: HTTP API contract](./SPEC-0000-http-api-contract.md)"
@@ -18,7 +18,9 @@ References:
 
 Transition note (2026-03-02): This specification remains active for baseline
 `/api/jobs/*` behavior. Planned `/v1/jobs*` target-state capability endpoints
-are tracked in `SPEC-0015` and remain implementation-pending.
+are tracked in `SPEC-0015` and remain implementation-pending. This revision
+clarifies the SQS DLQ redrive policy and documents autoscaling invariants for
+worker services and job queues.
 
 Async jobs are managed through:
 
@@ -81,12 +83,18 @@ Invalid transitions MUST fail with `409` (`error.code = "conflict"`).
   - MUST mark created job records as `failed`.
   - SHOULD increment a publish-failure metric for operators.
 - Worker retry policy SHOULD be driven by queue semantics.
+- Queue topology MUST include a dedicated dead-letter queue (DLQ) and source
+  queue `RedrivePolicy.maxReceiveCount` so terminal poison messages leave the
+  hot queue deterministically.
 - Non-retryable failures SHOULD transition to `failed` with structured error
   details.
 - First worker transition from `pending` MUST record queue lag metric
   (`jobs_queue_lag_ms`).
 - Worker result-update calls MUST increment throughput counters
   (`jobs_worker_result_updates_total` and per-status counters).
+- Worker ECS desired-count autoscaling MUST be target-tracked from queue depth
+  and queue age metrics (`ApproximateNumberOfMessagesVisible`,
+  `ApproximateAgeOfOldestMessage`) to prevent backlog growth under burst load.
 
 ## 5. Idempotency
 
@@ -114,3 +122,7 @@ Worker status callbacks MUST validate `X-Worker-Token` when
 - [FR-0001](../requirements.md#fr-0001-async-job-endpoints-and-orchestration)
 - [FR-0004](../requirements.md#fr-0004-idempotency-for-mutation-entrypoints)
 - [NFR-0002](../requirements.md#nfr-0002-scalability-and-resilience)
+
+## Changelog
+
+- 2026-03-02 (v1.7): Added worker-lane DLQ redrive and autoscaling invariants for async job workers.

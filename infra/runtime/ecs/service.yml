@@ -61,6 +61,7 @@ Parameters:
     Default: "false"
     AllowedValues: ["true", "false"]
     Description: Enable final-state CodeDeploy ECS blue/green deployment authority chain.
+      Defaults to "false" for existing stacks; set true only during a controlled blue/green rollout.
   TestTrafficListenerArn:
     Type: String
     Default: ""
@@ -333,6 +334,10 @@ Resources:
       ListenerArn:
         Fn::ImportValue: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${LoadBalancerId}:${LoadBalancerName}:listenerarn
 
+  # Rollout guardrail: introducing the blue/green target-group topology can be
+  # disruptive on first adoption. For existing stacks, perform the first update
+  # with EnableBlueGreenDeployAuthority=false, then enable blue/green authority
+  # in a subsequent controlled rollout.
   LoadBalancerTargetGroupBlue:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:

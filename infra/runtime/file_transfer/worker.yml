@@ -51,6 +51,9 @@ Parameters:
     Type: String
   JobsQueueUrl:
     Type: String
+    MinLength: 3
+    AllowedPattern: "^https://[^/]+/[0-9]{12}/[A-Za-z0-9_-]+(\\.fifo)?$"
+    ConstraintDescription: Must be a valid SQS queue URL with account ID and queue name.
   JobsRegion:
     Type: String
   FileTransferApiBaseUrl:
@@ -74,6 +77,31 @@ Parameters:
   SyncProcessingMaxBytes:
     Type: String
     Default: "209715200"
+
+  WorkerMinTaskCount:
+    Type: Number
+    Default: 1
+    MinValue: 0
+  WorkerMaxTaskCount:
+    Type: Number
+    Default: 20
+    MinValue: 1
+  WorkerScaleOutQueueDepthTarget:
+    Type: Number
+    Default: 10
+    MinValue: 1
+  WorkerScaleOutQueueAgeSecondsTarget:
+    Type: Number
+    Default: 60
+    MinValue: 1
+  WorkerScaleInCooldownSeconds:
+    Type: Number
+    Default: 120
+    MinValue: 0
+  WorkerScaleOutCooldownSeconds:
+    Type: Number
+    Default: 60
+    MinValue: 0
 
 Conditions:
   HasImportKmsKeyArn: !Not [!Equals [!Ref ImportKmsKeyArn, ""]]
@@ -249,6 +277,51 @@ Resources:
           Value: !Ref Service
         - Key: WorkerService
           Value: !Ref WorkerServiceName
+
+  WorkerScalableTarget:
+    Type: AWS::ApplicationAutoScaling::ScalableTarget
+    DependsOn:
+      - WorkerService
+    Properties:
+      ServiceNamespace: ecs
+      ScalableDimension: ecs:service:DesiredCount
+      ResourceId: !Sub "service/${EcsClusterName}/${Project}-${Application}-${WorkerServiceName}"
+      MinCapacity: !Ref WorkerMinTaskCount
+      MaxCapacity: !Ref WorkerMaxTaskCount
+
+  WorkerQueueDepthTargetTrackingPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Properties:
+      PolicyType: TargetTrackingScaling
+      ScalingTargetId: !Ref WorkerScalableTarget
+      TargetTrackingScalingPolicyConfiguration:
+        TargetValue: !Ref WorkerScaleOutQueueDepthTarget
+        ScaleInCooldown: !Ref WorkerScaleInCooldownSeconds
+        ScaleOutCooldown: !Ref WorkerScaleOutCooldownSeconds
+        CustomizedMetricSpecification:
+          Namespace: AWS/SQS
+          MetricName: ApproximateNumberOfMessagesVisible
+          Statistic: Average
+          Dimensions:
+            - Name: QueueName
+              Value: !Select [4, !Split ["/", !Ref JobsQueueUrl]]
+
+  WorkerQueueAgeTargetTrackingPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Properties:
+      PolicyType: TargetTrackingScaling
+      ScalingTargetId: !Ref WorkerScalableTarget
+      TargetTrackingScalingPolicyConfiguration:
+        TargetValue: !Ref WorkerScaleOutQueueAgeSecondsTarget
+        ScaleInCooldown: !Ref WorkerScaleInCooldownSeconds
+        ScaleOutCooldown: !Ref WorkerScaleOutCooldownSeconds
+        CustomizedMetricSpecification:
+          Namespace: AWS/SQS
+          MetricName: ApproximateAgeOfOldestMessage
+          Statistic: Average
+          Dimensions:
+            - Name: QueueName
+              Value: !Select [4, !Split ["/", !Ref JobsQueueUrl]]
 
 Outputs:
   WorkerServiceName:

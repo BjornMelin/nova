@@ -39,7 +39,19 @@ class GateError(ValueError):
 def _read_manifest_versions(manifest_text: str) -> dict[str, str]:
     versions: dict[str, str] = {}
     for match in MANIFEST_ROW_RE.finditer(manifest_text):
-        versions[match.group("package")] = match.group("version")
+        package = match.group("package")
+        version = match.group("version")
+        if package in versions:
+            existing_version = versions[package]
+            row_text = match.group(0).strip()
+            raise GateError(
+                "duplicate package row in release manifest: "
+                f"package={package!r} "
+                f"existing_version={existing_version!r} "
+                f"duplicate_version={version!r} "
+                f"row={row_text!r}"
+            )
+        versions[package] = version
     return versions
 
 
@@ -89,10 +101,17 @@ def _load_candidates(
     version_plan: dict[str, Any],
     units: dict[str, common.WorkspaceUnit],
 ) -> list[PromotionCandidate]:
+    if not isinstance(version_plan, dict):
+        raise GateError("version plan must be an object")
+
+    raw_units = version_plan.get("units")
+    if not isinstance(raw_units, list):
+        raise GateError("version plan field 'units' must be a list")
+
     candidates: list[PromotionCandidate] = []
-    for item in version_plan.get("units", []):
+    for item in raw_units:
         if not isinstance(item, Mapping):
-            raise GateError("version plan units must be objects")
+            raise GateError("each version plan unit entry must be an object")
         unit_id = str(item.get("unit_id", "")).strip()
         version = str(item.get("new_version", "")).strip()
         if not unit_id or not version:
@@ -169,6 +188,11 @@ def validate_release_gates(
     version_plan = common.read_json(version_plan_path)
     units = common.load_workspace_units(repo_root)
 
+    if not isinstance(changed_units, Mapping):
+        raise GateError("changed_units must contain a changed_units array")
+    if not isinstance(version_plan, dict):
+        raise GateError("version plan must be an object")
+
     changed_items = changed_units.get("changed_units")
     if not isinstance(changed_items, list):
         raise GateError("changed_units must contain a changed_units array")
@@ -240,18 +264,17 @@ def validate_release_gates(
 
 
 def parse_args() -> argparse.Namespace:
-    """Parse command-line arguments for release gate validation.
-
-    Args:
-        None.
+    """Parse CLI args for gate validation artifact generation.
 
     Returns:
-        argparse.Namespace:
-            Parsed CLI arguments used to locate inputs and outputs.
-
-    Raises:
-        SystemExit:
-            When required CLI arguments are missing or malformed.
+        argparse.Namespace with:
+            - repo_root: repository root path
+            - manifest_path: release manifest path
+            - changed_units: changed-units artifact path
+            - version_plan: version-plan artifact path
+            - expected_manifest_sha256: optional manifest SHA256 check value
+            - gate_report_out: output report path
+            - promotion_candidates_out: output candidates path
     """
     parser = argparse.ArgumentParser()
     parser.add_argument("--repo-root", default=".")
@@ -265,20 +288,10 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> int:
-    """Run the release gate validation workflow and persist artifacts.
-
-    Args:
-        None.
+    """Run release gate validation and write JSON output artifacts.
 
     Returns:
-        int:
-            Zero when validation succeeds and artifacts are written.
-
-    Raises:
-        GateError:
-            When release gate checks fail.
-        OSError:
-            When artifact files cannot be written.
+        int: Process exit code (0 on success).
     """
     args = parse_args()
     repo_root = Path(args.repo_root).resolve()
@@ -310,7 +323,6 @@ def main() -> int:
     if not candidates_out.is_absolute():
         candidates_out = repo_root / candidates_out
     common.write_json(candidates_out, gate_report["promotion_candidates"])
-
     print(f"gate report written: {gate_out}")
     print(f"promotion candidates written: {candidates_out}")
     return 0

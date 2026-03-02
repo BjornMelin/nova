@@ -159,6 +159,22 @@ def test_runtime_env_and_parameter_contracts() -> None:
     ]:
         assert f"- Name: {env_name}" in worker_text
 
+    for required in [
+        "JobsDeadLetterQueue:",
+        "RedrivePolicy:",
+        "deadLetterTargetArn: !GetAtt JobsDeadLetterQueue.Arn",
+        "maxReceiveCount: !Ref JobsMaxReceiveCount",
+        "WorkerScalableTarget:",
+        "AWS::ApplicationAutoScaling::ScalableTarget",
+        "WorkerQueueDepthTargetTrackingPolicy:",
+        "MetricName: ApproximateNumberOfMessagesVisible",
+        "WorkerQueueAgeTargetTrackingPolicy:",
+        "MetricName: ApproximateAgeOfOldestMessage",
+        'ResourceId: !Sub "service/${EcsClusterName}/'
+        '${Project}-${Application}-${WorkerServiceName}"',
+    ]:
+        assert required in worker_text or required in async_text
+
     assert "FileTransferAsyncParamsProvided:" in service_text
     assert "FileTransferCacheParamsProvided:" in service_text
     assert (
@@ -167,6 +183,31 @@ def test_runtime_env_and_parameter_contracts() -> None:
     )
     assert (
         "FileTransferCacheSecurityGroupExportName is required" in service_text
+    )
+
+
+def test_worker_autoscaling_parameter_bounds_contract() -> None:
+    """Worker autoscaling defaults must preserve min <= max."""
+    worker_text = _read("infra/runtime/file_transfer/worker.yml")
+
+    min_match = re.search(
+        r"WorkerMinTaskCount:\n(?:\s+.+\n)*?\s+Default:\s+(?P<value>\d+)",
+        worker_text,
+    )
+    max_match = re.search(
+        r"WorkerMaxTaskCount:\n(?:\s+.+\n)*?\s+Default:\s+(?P<value>\d+)",
+        worker_text,
+    )
+
+    assert min_match and max_match, (
+        "Expected WorkerMinTaskCount/WorkerMaxTaskCount defaults "
+        "in worker template"
+    )
+
+    min_count = int(min_match.group("value"))
+    max_count = int(max_match.group("value"))
+    assert min_count <= max_count, (
+        "WorkerMinTaskCount must be less than or equal to WorkerMaxTaskCount"
     )
 
 

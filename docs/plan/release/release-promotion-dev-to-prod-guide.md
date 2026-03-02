@@ -61,7 +61,11 @@ one signed source revision.
 After `DeployDev` and `DeployProd`, verify CodeDeploy deployment-group controls:
 
 ```bash
-aws deploy get-deployment-group   --region "${AWS_REGION}"   --application-name "${CODEDEPLOY_APPLICATION_NAME}"   --deployment-group-name "${CODEDEPLOY_DEPLOYMENT_GROUP_NAME}"   --query "deploymentGroupInfo.{deploymentStyle:deploymentStyle,alarmConfiguration:alarmConfiguration,autoRollback:autoRollbackConfiguration,ready:blueGreenDeploymentConfiguration.deploymentReadyOption}"
+aws deploy get-deployment-group \
+  --region "${AWS_REGION}" \
+  --application-name "${CODEDEPLOY_APPLICATION_NAME}" \
+  --deployment-group-name "${CODEDEPLOY_DEPLOYMENT_GROUP_NAME}" \
+  --query 'deploymentGroupInfo.{deploymentStyle:deploymentStyle,alarmConfiguration:alarmConfiguration,autoRollback:autoRollbackConfiguration,ready:blueGreenDeploymentConfiguration.deploymentReadyOption}'
 ```
 
 Acceptance:

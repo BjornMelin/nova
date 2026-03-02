@@ -127,11 +127,21 @@ Acceptance:
 ### B3. CodeDeploy blue/green authority and readiness gating
 
 ```bash
-aws deploy get-deployment-group   --region "${AWS_REGION}"   --application-name "${CODEDEPLOY_APPLICATION_NAME}"   --deployment-group-name "${CODEDEPLOY_DEPLOYMENT_GROUP_NAME}"   --query "deploymentGroupInfo.{deploymentStyle:deploymentStyle,blueGreen:blueGreenDeploymentConfiguration,alarmConfiguration:alarmConfiguration,autoRollback:autoRollbackConfiguration}"
+aws deploy get-deployment-group \
+  --region "${AWS_REGION}" \
+  --application-name "${CODEDEPLOY_APPLICATION_NAME}" \
+  --deployment-group-name "${CODEDEPLOY_DEPLOYMENT_GROUP_NAME}" \
+  --query "deploymentGroupInfo.{deploymentStyle:deploymentStyle,blueGreen:blueGreenDeploymentConfiguration,alarmConfiguration:alarmConfiguration,autoRollback:autoRollbackConfiguration}"
 
-aws elbv2 describe-target-health   --region "${AWS_REGION}"   --target-group-arn "${ALB_TARGET_GROUP_BLUE_ARN}"   --query "TargetHealthDescriptions[].TargetHealth.State"
+aws elbv2 describe-target-health \
+  --region "${AWS_REGION}" \
+  --target-group-arn "${ALB_TARGET_GROUP_BLUE_ARN}" \
+  --query "TargetHealthDescriptions[].TargetHealth.State"
 
-aws elbv2 describe-target-health   --region "${AWS_REGION}"   --target-group-arn "${ALB_TARGET_GROUP_GREEN_ARN}"   --query "TargetHealthDescriptions[].TargetHealth.State"
+aws elbv2 describe-target-health \
+  --region "${AWS_REGION}" \
+  --target-group-arn "${ALB_TARGET_GROUP_GREEN_ARN}" \
+  --query "TargetHealthDescriptions[].TargetHealth.State"
 ```
 
 Acceptance:

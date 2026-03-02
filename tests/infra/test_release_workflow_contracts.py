@@ -1,7 +1,5 @@
-"""Release workflow contract tests for staged package publication.
-
-And controlled promotion policy.
-"""
+"""Release workflow contract tests for staged package publication and
+controlled promotion policy."""
 
 from __future__ import annotations
 
@@ -15,7 +13,8 @@ def _read(rel: str) -> str:
 
 
 def test_publish_packages_workflow_has_staged_gate_contracts() -> None:
-    """Assert publish workflow contains required gate contract markers."""
+    """Validate staged publish workflow contracts in the publish workflow
+    file."""
     text = _read(".github/workflows/publish-packages.yml")
 
     for required in [
@@ -34,8 +33,8 @@ def test_publish_packages_workflow_has_staged_gate_contracts() -> None:
 def test_promote_prod_workflow_has_controlled_package_promotion_policy() -> (
     None
 ):
-    """Assert prod promotion workflow exposes controlled
-    gate/promotion markers."""
+    """Validate controlled package-promotion contracts in the promote
+    workflow file."""
     text = _read(".github/workflows/promote-prod.yml")
 
     for required in [

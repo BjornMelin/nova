@@ -138,14 +138,25 @@ jobs:
                   '--format', 'pypi',
                   '--package', package,
                   '--versions', version,
+                  '--no-cli-pager',
                   '--output', 'json',
-              ], check=True, capture_output=True, text=True)
-              response = json.loads(result.stdout)
-              failed_versions = response.get('failedVersions', [])
-              if failed_versions:
+              ], check=True, text=True, capture_output=True)
+              payload = json.loads(result.stdout or '{}')
+              failed = payload.get('failedVersions') or {}
+              unexpected = {
+                  ver: meta
+                  for ver, meta in failed.items()
+                  if str(meta.get('errorCode')).upper() != 'ALREADY_EXISTS'
+              }
+              if unexpected:
                   raise SystemExit(
-                      f'Promotion failed for {package}@{version}: '
-                      f'{json.dumps(failed_versions)}'
+                      f'CodeArtifact promotion failed for {package} {version}: '
+                      f'{json.dumps(unexpected)}'
+                  )
+              if failed:
+                  print(
+                      f'Skipping already-existing promotion for {package} {version}: '
+                      f'{json.dumps(failed)}'
                   )
           PY
 
