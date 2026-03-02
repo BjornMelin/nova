@@ -104,20 +104,20 @@ jobs:
 
           mapfile -t DIST_FILES < <(
             uv run python - <<'PY'
-import json
-from pathlib import Path
+          import json
+          from pathlib import Path
 
-plan = json.loads(Path(".artifacts/version-plan.json").read_text(encoding="utf-8"))
-for item in plan.get("units", []):
-    unit = Path(item["unit_id"])
-    dist = unit / "dist"
-    if not dist.exists():
-        continue
-    for path in sorted(dist.glob("*.whl")):
-        print(path)
-    for path in sorted(dist.glob("*.tar.gz")):
-        print(path)
-PY
+          plan = json.loads(Path(".artifacts/version-plan.json").read_text(encoding="utf-8"))
+          for item in plan.get("units", []):
+              unit = Path(item["unit_id"])
+              dist = unit / "dist"
+              if not dist.exists():
+                  continue
+              for path in sorted(dist.glob("*.whl")):
+                  print(path)
+              for path in sorted(dist.glob("*.tar.gz")):
+                  print(path)
+          PY
           )
           if [[ "${#DIST_FILES[@]}" -eq 0 ]]; then
             echo "No package dists found; skipping publish."

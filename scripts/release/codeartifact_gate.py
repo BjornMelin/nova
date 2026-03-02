@@ -39,7 +39,19 @@ class GateError(ValueError):
 def _read_manifest_versions(manifest_text: str) -> dict[str, str]:
     versions: dict[str, str] = {}
     for match in MANIFEST_ROW_RE.finditer(manifest_text):
-        versions[match.group("package")] = match.group("version")
+        package = match.group("package")
+        version = match.group("version")
+        if package in versions:
+            existing_version = versions[package]
+            row_text = match.group(0).strip()
+            raise ValueError(
+                "duplicate package row in release manifest: "
+                f"package={package!r} "
+                f"existing_version={existing_version!r} "
+                f"duplicate_version={version!r} "
+                f"row={row_text!r}"
+            )
+        versions[package] = version
     return versions
 
 
