@@ -2,7 +2,7 @@
 
 Status: Active
 Owner: nova release architecture
-Last reviewed: 2026-02-24
+Last reviewed: 2026-03-02
 
 ## Purpose
 
@@ -49,10 +49,14 @@ one signed source revision.
 
    - `pipeline_name`
    - `manifest_sha256` from `codeartifact-gate-report.json`
+   - `changed_units_json` from staged gate artifact (`changed-units.json`)
+   - `version_plan_json` from staged gate artifact (`version-plan.json`)
    - `promotion_candidates_json` from `codeartifact-promotion-candidates.json`
 
-4. Workflow validates manifest digest + package namespace/version policy and
-   promotes package versions from staging to prod using `copy-package-versions`.
+4. Workflow re-runs `scripts.release.codeartifact_gate` using provided inputs,
+   validates manifest digest + package namespace/version policy, verifies
+   promotion-candidate payload integrity, then promotes package versions from
+   staging to prod using `copy-package-versions`.
 
 5. Confirm `DeployProd` and `ValidateProd` complete successfully.
 

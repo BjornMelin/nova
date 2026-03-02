@@ -67,6 +67,38 @@ Store command outputs and screenshots/links in your release evidence location.
 - [ ] Confirmation strict status checks/up-to-date branch enabled
 - [ ] Reviewer sign-off (operator + repo owner)
 
+
+## Evidence scaffold and export capture
+
+Use a timestamped evidence directory under repo docs. Example:
+
+```bash
+EVIDENCE_DIR="docs/plan/release/evidence/governance/$(date -u +%Y%m%dT%H%M%SZ)"
+mkdir -p "${EVIDENCE_DIR}"
+```
+
+Capture immutable governance snapshots:
+
+```bash
+gh api repos/${OWNER}/${REPO}/contents/.github/CODEOWNERS   --jq '.path' > "${EVIDENCE_DIR}/codeowners-path.txt"
+
+gh api repos/${OWNER}/${REPO}/branches/main/protection   > "${EVIDENCE_DIR}/branch-protection.json"
+
+gh api repos/${OWNER}/${REPO}/branches/main/protection   --jq '.required_status_checks.contexts'   > "${EVIDENCE_DIR}/required-check-contexts.json"
+```
+
+Record SHA256 hashes for evidence payload integrity:
+
+```bash
+sha256sum "${EVIDENCE_DIR}"/* > "${EVIDENCE_DIR}/SHA256SUMS"
+```
+
+Then reference the evidence directory path in:
+
+- `FINAL-PLAN.md`
+- `docs/plan/PLAN.md`
+- `docs/plan/release/NONPROD-LIVE-VALIDATION-RUNBOOK.md`
+
 ## Suggested evidence record template
 
 ```text
