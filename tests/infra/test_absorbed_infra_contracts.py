@@ -189,3 +189,6 @@ def test_observability_security_cost_baseline_contracts() -> None:
     assert "Namespace: AWS/ECS" in text
     assert "Namespace: AWS/Billing" in text
     assert "AWS::ApplicationAutoScaling::ScalableTarget" in text
+    assert "MinValue: 60" in text
+    assert "Condition: IsUsEast1" in text
+    assert "ManageLogGroupRetentionPolicy" in text

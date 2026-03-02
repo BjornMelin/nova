@@ -39,7 +39,11 @@ Log group retention is environment constrained:
 - `dev`: 30 days
 - `prod`: 90 days
 
-Configured by `ServiceLogRetentionPolicy` in `ecs-observability-baseline.yml`.
+Configured by `ServiceLogRetentionPolicy` in `ecs-observability-baseline.yml` when
+`ManageLogGroupRetentionPolicy=true`.
+
+Default is `false` to avoid cross-stack ownership conflicts when the ECS service
+stack already owns the log group.
 
 ## Dashboard baseline
 
@@ -86,6 +90,10 @@ Operational guidance:
 ## Cost hook
 
 `MonthlyEstimatedChargesAlarm` (`AWS/Billing EstimatedCharges`) is the baseline hook.
+
+This alarm is conditionally created only in `us-east-1` (`Condition: IsUsEast1`)
+because AWS Billing metrics are region-scoped to `us-east-1` for standard account
+telemetry.
 
 Use `AlarmActionArn` for SNS/Lambda escalation and connect to org-level budget process.
 

@@ -24,6 +24,13 @@ Parameters:
     Type: String
   LogGroupName:
     Type: String
+  ManageLogGroupRetentionPolicy:
+    Type: String
+    Default: "false"
+    AllowedValues: ["true", "false"]
+    Description: >-
+      If true, this template creates and owns LogGroupName to enforce retention.
+      Keep false when another stack already owns the log group.
   AlarmActionArn:
     Type: String
     Default: ""
@@ -31,7 +38,7 @@ Parameters:
   DashboardPeriodSeconds:
     Type: Number
     Default: 60
-    MinValue: 10
+    MinValue: 60
   ApiLatencyP95ThresholdMs:
     Type: Number
     Default: 1200
@@ -65,10 +72,13 @@ Parameters:
 Conditions:
   IsProd: !Equals [!Ref Environment, prod]
   HasAlarmAction: !Not [!Equals [!Ref AlarmActionArn, ""]]
+  ManageLogGroupRetentionPolicy: !Equals [!Ref ManageLogGroupRetentionPolicy, "true"]
+  IsUsEast1: !Equals [!Ref AWS::Region, "us-east-1"]
 
 Resources:
   ServiceLogRetentionPolicy:
     Type: AWS::Logs::LogGroup
+    Condition: ManageLogGroupRetentionPolicy
     UpdateReplacePolicy: Retain
     DeletionPolicy: Retain
     Properties:
@@ -232,6 +242,7 @@ Resources:
 
   MonthlyEstimatedChargesAlarm:
     Type: AWS::CloudWatch::Alarm
+    Condition: IsUsEast1
     Properties:
       AlarmName: !Sub "${Project}-${Application}-${Service}-${Environment}-estimated-charges-usd"
       AlarmDescription: Baseline monthly estimated charges hook for budget escalation.
