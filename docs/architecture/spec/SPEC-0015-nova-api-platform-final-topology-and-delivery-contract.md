@@ -86,11 +86,12 @@ Workflow artifact contract state:
   - `ci.yml`: lint/type/test/security/contract checks.
   - `publish-packages.yml`: CodeArtifact staged publishing with gate artifacts.
   - `promote-prod.yml`: manifest-locked package promotion + CodePipeline approval.
-- Remaining artifacts required in the next implementation branch:
-  - `build-and-publish-image.yml`: immutable ECR image digest output.
-  - `deploy-dev.yml`: environment deploy and smoke validation.
-  - `post-deploy-validate.yml`: runtime and endpoint conformance checks.
-  - `conformance-clients.yml`: Dash/Shiny/TS contract parity lane.
+- Additional workflows already present in `.github/workflows/` and required to
+  meet this spec contract in the next implementation branch:
+  - `build-and-publish-image.yml`: must produce immutable ECR image digest output and export the locked digest for downstream deploy workflows.
+  - `deploy-dev.yml`: must run deterministic environment deploy for the selected ref/digest and enforce smoke checks before success.
+  - `post-deploy-validate.yml`: must execute runtime and endpoint conformance checks against the target environment.
+  - `conformance-clients.yml`: must run Dash/Shiny/TS contract parity lanes against canonical `/v1/*` endpoints.
 
 ## 6. API platform capability contract (target-state)
 

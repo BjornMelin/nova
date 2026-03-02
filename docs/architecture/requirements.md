@@ -189,15 +189,18 @@ The next feature branch MUST expose:
 
 ### TFR-0101: Target workflow artifact completion set
 
-The next feature branch MUST complete the remaining `SPEC-0015` workflow
-artifact set not yet implemented in-repo:
+The next feature branch MUST bring the remaining `SPEC-0015` workflow artifact
+set to contract-complete behavior:
 
 - `build-and-publish-image.yml`
 - `deploy-dev.yml`
 - `post-deploy-validate.yml`
 - `conformance-clients.yml`
 
-Implemented baseline artifacts already present in `main`:
+These workflows already exist in `.github/workflows/`; required work is to
+close behavior gaps against `SPEC-0015`, not to introduce new filenames.
+
+Implemented baseline artifacts already contract-complete in `main`:
 
 - `publish-packages.yml`
 - `promote-prod.yml`

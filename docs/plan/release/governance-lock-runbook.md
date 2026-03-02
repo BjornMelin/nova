@@ -27,10 +27,15 @@ Reference: `docs/plan/release/branch-protection-required-checks.md`
 
 ## Final lock procedure
 
-### Step 1: Verify CODEOWNERS from default branch
+### Step 1: Set repository scope and verify CODEOWNERS snapshot
 
 ```bash
-gh api repos/${OWNER}/${REPO}/contents/.github/CODEOWNERS --jq '.path'
+OWNER="BjornMelin"
+REPO="nova"
+
+gh api repos/${OWNER}/${REPO}/contents/.github/CODEOWNERS --jq '{path: .path, sha: .sha}'
+gh api repos/${OWNER}/${REPO}/contents/.github/CODEOWNERS --jq '.content | @base64d' \
+  | sha256sum
 ```
 
 ### Step 2: Verify current branch protection state
@@ -80,7 +85,11 @@ mkdir -p "${EVIDENCE_DIR}"
 Capture immutable governance snapshots:
 
 ```bash
-gh api repos/${OWNER}/${REPO}/contents/.github/CODEOWNERS   --jq '.path' > "${EVIDENCE_DIR}/codeowners-path.txt"
+gh api repos/${OWNER}/${REPO}/contents/.github/CODEOWNERS   --jq '{path: .path, sha: .sha}'   > "${EVIDENCE_DIR}/codeowners-snapshot.json"
+
+gh api repos/${OWNER}/${REPO}/contents/.github/CODEOWNERS   --jq '.content | @base64d'   > "${EVIDENCE_DIR}/CODEOWNERS"
+
+sha256sum "${EVIDENCE_DIR}/CODEOWNERS"   > "${EVIDENCE_DIR}/codeowners-content.sha256"
 
 gh api repos/${OWNER}/${REPO}/branches/main/protection   > "${EVIDENCE_DIR}/branch-protection.json"
 
