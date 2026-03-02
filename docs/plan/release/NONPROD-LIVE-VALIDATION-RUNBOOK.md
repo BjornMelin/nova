@@ -250,8 +250,7 @@ Impact:
 
 Required follow-up:
 
-1. Grant/assume an operator role with read access to CodeConnections,
-   CodePipeline, CodeDeploy, ECS, ELBv2, and CloudWatch for non-prod.
+1. Apply `infra/nova/nova-iam-roles.yml` with `BatchBOperatorPrincipalArn` set, then assume output role `BatchBValidationOperatorRoleArn` for Batch B validation reads (CodeConnections/CodePipeline/CodeDeploy/ECS/ELBv2/CloudWatch).
 2. Provide/confirm values for required runbook inputs (API/Dash URL, ECS service,
    target groups, deployment group, dashboard, alarms).
 3. Re-run gates A-E and append pass/fail evidence artifacts in this runbook.
@@ -259,3 +258,6 @@ Required follow-up:
 Reference:
 
 - `docs/plan/release/batch-b-access-unblock-guide.md`
+
+
+Rollback (IAM): set `BatchBOperatorPrincipalArn` to empty string and update the IAM stack to remove `BatchBValidationOperatorRole`.

@@ -1,7 +1,7 @@
 # Batch B Access Unblock Guide
 
-Status: Action-required
-Owner: Platform Operations
+Status: Implemented in IaC (pending stack apply)
+Owner: Platform Engineering + Operations
 Last updated: 2026-03-02
 
 ## Purpose
@@ -11,8 +11,7 @@ close Batch B governance and non-prod live validation gates.
 
 ## 1) AWS IAM read access delta (minimum)
 
-Attach an additional read-only policy (or equivalent permissions) to the role
-used for Batch B execution.
+Use the Nova IaC-defined Batch B validation operator role in `infra/nova/nova-iam-roles.yml` by setting `BatchBOperatorPrincipalArn` on stack apply/update.
 
 Observed denied actions:
 
@@ -30,7 +29,7 @@ Required for full runbook execution (A-E gates):
 - ELBv2: `DescribeTargetHealth`, `DescribeTargetGroups`, `DescribeLoadBalancers`
 - CloudWatch: `GetDashboard`, `DescribeAlarms`, `GetMetricData`, `ListDashboards`
 
-### Suggested policy scaffold
+### IaC-defined policy scaffold (implemented)
 
 ```json
 {
@@ -101,3 +100,28 @@ After access updates:
    - `docs/plan/PLAN.md`
    - `docs/plan/subplans/SUBPLAN-0005.md`
 
+
+
+## 4) Apply / verify / rollback
+
+### Apply
+
+1. Update/apply the `infra/nova/nova-iam-roles.yml` stack with:
+   - `BatchBOperatorPrincipalArn=<trusted-principal-arn>`
+2. Capture stack output `BatchBValidationOperatorRoleArn`.
+3. Assume that role for Batch B gate execution.
+
+### Verify
+
+From an assumed session for `BatchBValidationOperatorRoleArn`, verify at minimum:
+
+- `aws codeconnections get-connection --connection-arn <arn>`
+- `aws codepipeline list-pipelines`
+- `aws codepipeline list-pipeline-executions --pipeline-name <name>`
+- `aws codedeploy list-applications`
+
+### Rollback
+
+- Set `BatchBOperatorPrincipalArn` back to empty string and update stack.
+- Confirm `BatchBValidationOperatorRoleArn` output is absent.
+- Re-run IAM verification to confirm access removed.
