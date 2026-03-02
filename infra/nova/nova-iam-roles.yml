@@ -173,6 +173,7 @@ Resources:
                 Action:
                   - ecr:BatchCheckLayerAvailability
                   - ecr:BatchGetImage
+                  - ecr:DescribeImages
                   - ecr:CompleteLayerUpload
                   - ecr:InitiateLayerUpload
                   - ecr:PutImage
