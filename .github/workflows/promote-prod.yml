@@ -31,6 +31,7 @@ permissions:
 jobs:
   validate-and-promote-packages:
     runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
     env:
       AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
       RELEASE_AWS_ROLE_ARN: ${{ secrets.RELEASE_AWS_ROLE_ARN }}
@@ -84,6 +85,38 @@ jobs:
             --expected-manifest-sha256 "$EXPECTED_MANIFEST_SHA256" \
             --gate-report-out .artifacts/prod-promotion-gate-report.json \
             --promotion-candidates-out .artifacts/validated-promotion-candidates.json
+
+      - name: Verify promotion candidates match gate output
+        run: |
+          set -euo pipefail
+          uv run python - <<'PY'
+          import json
+          from pathlib import Path
+
+          candidates_path = Path('.artifacts/promotion-candidates.json')
+          validated_path = Path('.artifacts/validated-promotion-candidates.json')
+
+          candidates_raw = candidates_path.read_text(encoding='utf-8')
+          validated_raw = validated_path.read_text(encoding='utf-8')
+
+          candidates = json.loads(candidates_raw)
+          validated = json.loads(validated_raw)
+
+          canonical_candidates = json.dumps(
+              candidates, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+          )
+          canonical_validated = json.dumps(
+              validated, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+          )
+
+          if canonical_candidates != canonical_validated:
+              raise SystemExit(
+                  f"Promotion candidates drift detected: "
+                  f"{candidates_path} differs from {validated_path}"
+              )
+
+          print(f"Verified {candidates_path} matches {validated_path}")
+          PY
 
       - name: Promote package versions staging -> prod
         run: |

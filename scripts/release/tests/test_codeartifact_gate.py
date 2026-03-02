@@ -26,6 +26,19 @@ def _write_json(path: Path, payload: object) -> None:
 
 
 def test_validate_release_gates_success(tmp_path: Path) -> None:
+    """Verify valid gate inputs produce a successful gate report.
+
+    Args:
+        tmp_path:
+            Temporary directory used for test manifest and JSON fixtures.
+
+    Returns:
+        None:
+            Test passes when assertions hold and no exceptions are raised.
+
+    Raises:
+        None.
+    """
     repo_root = Path(__file__).resolve().parents[3]
     manifest = tmp_path / "manifest.md"
     manifest.write_text(MANIFEST_TEXT, encoding="utf-8")
@@ -72,6 +85,20 @@ def test_validate_release_gates_success(tmp_path: Path) -> None:
 def test_validate_release_gates_rejects_manifest_mismatch(
     tmp_path: Path,
 ) -> None:
+    """Verify manifest/package mismatches are rejected with a GateError.
+
+    Args:
+        tmp_path:
+            Temporary directory used for manifest and input fixtures.
+
+    Returns:
+        None:
+            Test passes when the expected GateError is raised.
+
+    Raises:
+        codeartifact_gate.GateError:
+            Raised when manifest and plan versions disagree.
+    """
     repo_root = Path(__file__).resolve().parents[3]
     manifest = tmp_path / "manifest.md"
     manifest.write_text(
@@ -111,6 +138,20 @@ def test_validate_release_gates_rejects_manifest_mismatch(
 def test_validate_release_gates_rejects_changed_units_plan_drift(
     tmp_path: Path,
 ) -> None:
+    """Verify drift between changed units and version-plan units is rejected.
+
+    Args:
+        tmp_path:
+            Temporary directory used for manifest and input fixtures.
+
+    Returns:
+        None:
+            Test passes when the expected GateError is raised.
+
+    Raises:
+        codeartifact_gate.GateError:
+            Raised when changed_units and version_plan units differ.
+    """
     repo_root = Path(__file__).resolve().parents[3]
     manifest = tmp_path / "manifest.md"
     manifest.write_text(MANIFEST_TEXT, encoding="utf-8")

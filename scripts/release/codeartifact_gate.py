@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+from collections.abc import Mapping
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -90,6 +91,8 @@ def _load_candidates(
 ) -> list[PromotionCandidate]:
     candidates: list[PromotionCandidate] = []
     for item in version_plan.get("units", []):
+        if not isinstance(item, Mapping):
+            raise GateError("version plan units must be objects")
         unit_id = str(item.get("unit_id", "")).strip()
         version = str(item.get("new_version", "")).strip()
         if not unit_id or not version:
@@ -122,7 +125,35 @@ def validate_release_gates(
     version_plan_path: Path,
     expected_manifest_sha256: str | None,
 ) -> dict[str, Any]:
-    """Validate release gate contracts and return gate report payload."""
+    """Validate release gate contracts and return a gate report payload.
+
+    Args:
+        repo_root:
+            Repository root used to resolve workspace units and relative paths.
+        manifest_path:
+            Path to the release manifest checked against expected hashes and package
+            version rows.
+        changed_units_path:
+            JSON path containing changed unit metadata for the release.
+        version_plan_path:
+            JSON path containing planned unit/version data for the release.
+        expected_manifest_sha256:
+            Optional SHA256 digest expected for the manifest file.
+
+    Returns:
+        dict[str, Any]:
+            Gate report payload with manifest metadata, counts, and promotion
+            candidates.
+
+    Raises:
+        GateError:
+            If any validation rule fails, including manifest drift, malformed
+            input structure, or release mismatch.
+        OSError:
+            If files cannot be read from disk.
+        ValueError:
+            If JSON payloads cannot be decoded.
+    """
     manifest_text = manifest_path.read_text(encoding="utf-8")
     manifest_sha256 = hashlib.sha256(manifest_text.encode("utf-8")).hexdigest()
     if expected_manifest_sha256 and expected_manifest_sha256 != manifest_sha256:
@@ -148,11 +179,13 @@ def validate_release_gates(
     planned_items = version_plan.get("units", [])
     if not isinstance(planned_items, list):
         raise GateError("version_plan.units must be a JSON array")
-    planned_unit_ids = {
-        str(item.get("unit_id", "")).strip()
-        for item in planned_items
-        if isinstance(item, dict)
-    }
+    planned_unit_ids = set[str]()
+    for item in planned_items:
+        if not isinstance(item, Mapping):
+            raise GateError("version plan units must be objects")
+        unit_id = str(item.get("unit_id", "")).strip()
+        if unit_id:
+            planned_unit_ids.add(unit_id)
     planned_unit_ids.discard("")
 
     if planned_unit_ids != changed_unit_ids:
@@ -204,7 +237,19 @@ def validate_release_gates(
 
 
 def parse_args() -> argparse.Namespace:
-    """Parse CLI args for gate validation artifact generation."""
+    """Parse command-line arguments for release gate validation.
+
+    Args:
+        None.
+
+    Returns:
+        argparse.Namespace:
+            Parsed CLI arguments used to locate inputs and outputs.
+
+    Raises:
+        SystemExit:
+            When required CLI arguments are missing or malformed.
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument("--repo-root", default=".")
     parser.add_argument("--manifest-path", default=common.DEFAULT_MANIFEST_PATH)
@@ -217,7 +262,21 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> int:
-    """Run release gate validation and write JSON output artifacts."""
+    """Run the release gate validation workflow and persist artifacts.
+
+    Args:
+        None.
+
+    Returns:
+        int:
+            Zero when validation succeeds and artifacts are written.
+
+    Raises:
+        GateError:
+            When release gate checks fail.
+        OSError:
+            When artifact files cannot be written.
+    """
     args = parse_args()
     repo_root = Path(args.repo_root).resolve()
 

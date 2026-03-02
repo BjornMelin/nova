@@ -963,7 +963,7 @@ Resources:
       Threshold: "10"
       ComparisonOperator: GreaterThanOrEqualToThreshold
       AlarmActions:
-        - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${AlarmArn}
+        - !Ref AlarmArn
 
   HTTPRequestsAlarmGreen:
     Type: AWS::CloudWatch::Alarm
@@ -985,7 +985,7 @@ Resources:
       Threshold: "10"
       ComparisonOperator: GreaterThanOrEqualToThreshold
       AlarmActions:
-        - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${AlarmArn}
+        - !Ref AlarmArn
 
   RequestCountPerTarget:
     Type: AWS::CloudWatch::Alarm
@@ -1423,6 +1423,87 @@ Resources:
       Action: lambda:InvokeFunction
       Principal: lambda.alarms.cloudwatch.amazonaws.com
       SourceArn: !Sub "arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:${TargetTLSNegotiationErrorCount}"
+
+  HTTPRequestsAlarmGreenPermission:
+    Type: AWS::Lambda::Permission
+    Condition: MonitorUseCodeDeployBlueGreen
+    Properties:
+      FunctionName: !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${AlarmArn}
+      Action: lambda:InvokeFunction
+      Principal: lambda.alarms.cloudwatch.amazonaws.com
+      SourceArn: !Sub "arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:${HTTPRequestsAlarmGreen}"
+
+  RequestCountPerTargetGreenPermission:
+    Type: AWS::Lambda::Permission
+    Condition: MonitorUseCodeDeployBlueGreen
+    Properties:
+      FunctionName: !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${AlarmArn}
+      Action: lambda:InvokeFunction
+      Principal: lambda.alarms.cloudwatch.amazonaws.com
+      SourceArn: !Sub "arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:${RequestCountPerTargetGreen}"
+
+  UnHealthyHostCountGreenPermission:
+    Type: AWS::Lambda::Permission
+    Condition: MonitorUseCodeDeployBlueGreen
+    Properties:
+      FunctionName: !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${AlarmArn}
+      Action: lambda:InvokeFunction
+      Principal: lambda.alarms.cloudwatch.amazonaws.com
+      SourceArn: !Sub "arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:${UnHealthyHostCountGreen}"
+
+  HTTPCodeTarget2XXCountGreenPermission:
+    Type: AWS::Lambda::Permission
+    Condition: MonitorUseCodeDeployBlueGreen
+    Properties:
+      FunctionName: !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${AlarmArn}
+      Action: lambda:InvokeFunction
+      Principal: lambda.alarms.cloudwatch.amazonaws.com
+      SourceArn: !Sub "arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:${HTTPCodeTarget2XXCountGreen}"
+
+  HTTPCodeTarget3XXCountGreenPermission:
+    Type: AWS::Lambda::Permission
+    Condition: MonitorUseCodeDeployBlueGreen
+    Properties:
+      FunctionName: !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${AlarmArn}
+      Action: lambda:InvokeFunction
+      Principal: lambda.alarms.cloudwatch.amazonaws.com
+      SourceArn: !Sub "arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:${HTTPCodeTarget3XXCountGreen}"
+
+  HTTPCodeTarget4XXCountGreenPermission:
+    Type: AWS::Lambda::Permission
+    Condition: MonitorUseCodeDeployBlueGreen
+    Properties:
+      FunctionName: !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${AlarmArn}
+      Action: lambda:InvokeFunction
+      Principal: lambda.alarms.cloudwatch.amazonaws.com
+      SourceArn: !Sub "arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:${HTTPCodeTarget4XXCountGreen}"
+
+  HTTPCodeTarget5XXCountGreenPermission:
+    Type: AWS::Lambda::Permission
+    Condition: MonitorUseCodeDeployBlueGreen
+    Properties:
+      FunctionName: !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${AlarmArn}
+      Action: lambda:InvokeFunction
+      Principal: lambda.alarms.cloudwatch.amazonaws.com
+      SourceArn: !Sub "arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:${HTTPCodeTarget5XXCountGreen}"
+
+  TargetConnectionErrorCountGreenPermission:
+    Type: AWS::Lambda::Permission
+    Condition: MonitorUseCodeDeployBlueGreen
+    Properties:
+      FunctionName: !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${AlarmArn}
+      Action: lambda:InvokeFunction
+      Principal: lambda.alarms.cloudwatch.amazonaws.com
+      SourceArn: !Sub "arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:${TargetConnectionErrorCountGreen}"
+
+  TargetTLSNegotiationErrorCountGreenPermission:
+    Type: AWS::Lambda::Permission
+    Condition: MonitorUseCodeDeployBlueGreen
+    Properties:
+      FunctionName: !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${AlarmArn}
+      Action: lambda:InvokeFunction
+      Principal: lambda.alarms.cloudwatch.amazonaws.com
+      SourceArn: !Sub "arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:${TargetTLSNegotiationErrorCountGreen}"
       
 
 
