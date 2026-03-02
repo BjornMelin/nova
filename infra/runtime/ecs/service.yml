@@ -65,6 +65,7 @@ Parameters:
     Default: "false"
     AllowedValues: ["true", "false"]
     Description: Enable final-state CodeDeploy ECS blue/green deployment authority chain.
+      Defaults to "false" for existing stacks; set true only during a controlled blue/green rollout.
   TestTrafficListenerArn:
     Type: String
     Default: ""

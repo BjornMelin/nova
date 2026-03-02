@@ -3,7 +3,7 @@ Spec: 0008
 Title: Async Jobs and Worker Orchestration
 Status: Active
 Version: 1.7
-Date: 2026-02-23
+Date: 2026-03-02
 Related:
   - "[ADR-0006: SQS + ECS worker orchestration](../adr/ADR-0006-async-orchestration-sqs-ecs-worker.md)"
   - "[SPEC-0000: HTTP API contract](./SPEC-0000-http-api-contract.md)"
@@ -126,4 +126,4 @@ Worker status callbacks MUST validate `X-Worker-Token` when
 
 ## Changelog
 
-- 2026-03-02 (v1.7): Added worker-lane invariants for SQS DLQ redrive policy and ECS queue depth/age autoscaling authority.
+- 2026-03-02 (v1.7): Added worker-lane DLQ redrive and autoscaling invariants, plus release-automation controls (`scripts/release/codeartifact_gate.py`, release publish/promotion workflow updates), and ECS blue/green rollout guardrails.

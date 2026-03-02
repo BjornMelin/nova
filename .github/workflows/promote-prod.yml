@@ -110,7 +110,7 @@ jobs:
           for item in candidates:
               package = item['package']
               version = item['version']
-              subprocess.run([
+              result = subprocess.run([
                   'aws', 'codeartifact', 'copy-package-versions',
                   '--domain', '${{ env.CODEARTIFACT_DOMAIN }}',
                   '--source-repository', '${{ env.CODEARTIFACT_STAGING_REPOSITORY }}',
@@ -118,7 +118,25 @@ jobs:
                   '--format', 'pypi',
                   '--package', package,
                   '--versions', version,
-              ], check=True)
+                  '--no-cli-pager',
+              ], check=True, text=True, capture_output=True)
+              payload = json.loads(result.stdout or '{}')
+              failed = payload.get('failedVersions') or {}
+              unexpected = {
+                  ver: meta
+                  for ver, meta in failed.items()
+                  if str(meta.get('errorCode')).upper() != 'ALREADY_EXISTS'
+              }
+              if unexpected:
+                  raise SystemExit(
+                      f'CodeArtifact promotion failed for {package} {version}: '
+                      f'{json.dumps(unexpected)}'
+                  )
+              if failed:
+                  print(
+                      f'Skipping already-existing promotion for {package} {version}: '
+                      f'{json.dumps(failed)}'
+                  )
           PY
 
   approve-prod-pipeline:

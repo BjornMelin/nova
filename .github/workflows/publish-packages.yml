@@ -47,17 +47,18 @@ jobs:
       - name: Sync
         run: uv sync --locked
 
+      - name: Validate required CodeArtifact variables
+        run: |
+          set -euo pipefail
+          [[ -n "${RELEASE_AWS_ROLE_ARN}" ]] || { echo "RELEASE_AWS_ROLE_ARN is required" >&2; exit 1; }
+          [[ -n "${CODEARTIFACT_DOMAIN}" ]] || { echo "CODEARTIFACT_DOMAIN is required" >&2; exit 1; }
+          [[ -n "${CODEARTIFACT_STAGING_REPOSITORY}" ]] || { echo "CODEARTIFACT_STAGING_REPOSITORY is required" >&2; exit 1; }
+
       - name: Configure AWS Credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ env.RELEASE_AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
-
-      - name: Validate required CodeArtifact variables
-        run: |
-          set -euo pipefail
-          [[ -n "${CODEARTIFACT_DOMAIN}" ]] || { echo "CODEARTIFACT_DOMAIN is required" >&2; exit 1; }
-          [[ -n "${CODEARTIFACT_STAGING_REPOSITORY}" ]] || { echo "CODEARTIFACT_STAGING_REPOSITORY is required" >&2; exit 1; }
 
       - name: Compute release artifacts
         run: |
@@ -101,7 +102,23 @@ jobs:
             --repository "$CODEARTIFACT_STAGING_REPOSITORY" \
             --region "$AWS_REGION"
 
-          mapfile -t DIST_FILES < <(find apps packages -path '*/dist/*' -type f \( -name '*.whl' -o -name '*.tar.gz' \) | sort -u)
+          mapfile -t DIST_FILES < <(
+            uv run python - <<'PY'
+import json
+from pathlib import Path
+
+plan = json.loads(Path(".artifacts/version-plan.json").read_text(encoding="utf-8"))
+for item in plan.get("units", []):
+    unit = Path(item["unit_id"])
+    dist = unit / "dist"
+    if not dist.exists():
+        continue
+    for path in sorted(dist.glob("*.whl")):
+        print(path)
+    for path in sorted(dist.glob("*.tar.gz")):
+        print(path)
+PY
+          )
           if [[ "${#DIST_FILES[@]}" -eq 0 ]]; then
             echo "No package dists found; skipping publish."
             exit 0

@@ -51,6 +51,7 @@ def _write_json(path: Path, payload: object) -> None:
 
 
 def test_validate_release_gates_success(tmp_path: Path) -> None:
+    """Validate gate success path for a matching manifest and version plan."""
     repo_root = _create_test_workspace(tmp_path)
     manifest = tmp_path / "manifest.md"
     manifest.write_text(MANIFEST_TEXT, encoding="utf-8")
@@ -97,6 +98,7 @@ def test_validate_release_gates_success(tmp_path: Path) -> None:
 def test_validate_release_gates_rejects_manifest_sha256_mismatch(
     tmp_path: Path,
 ) -> None:
+    """Reject promotion when expected manifest SHA256 does not match."""
     repo_root = _create_test_workspace(tmp_path)
     manifest = tmp_path / "manifest.md"
     manifest.write_text(MANIFEST_TEXT, encoding="utf-8")
@@ -142,6 +144,7 @@ def test_validate_release_gates_rejects_manifest_sha256_mismatch(
 def test_validate_release_gates_rejects_manifest_mismatch(
     tmp_path: Path,
 ) -> None:
+    """Reject promotion when manifest package versions differ from plan."""
     repo_root = _create_test_workspace(tmp_path)
     manifest = tmp_path / "manifest.md"
     manifest.write_text(

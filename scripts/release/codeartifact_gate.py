@@ -9,7 +9,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
-from . import common
+from scripts.release import common
 
 SEMVER_RE = re.compile(r"^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$")
 MANIFEST_ROW_RE = re.compile(
@@ -83,8 +83,17 @@ def _load_candidates(
     version_plan: dict[str, Any],
     units: dict[str, common.WorkspaceUnit],
 ) -> list[PromotionCandidate]:
+    if not isinstance(version_plan, dict):
+        raise GateError("version plan must be an object")
+
+    raw_units = version_plan.get("units")
+    if not isinstance(raw_units, list):
+        raise GateError("version plan field 'units' must be a list")
+
     candidates: list[PromotionCandidate] = []
-    for item in version_plan.get("units", []):
+    for item in raw_units:
+        if not isinstance(item, dict):
+            raise GateError("each version plan unit entry must be an object")
         unit_id = str(item.get("unit_id", "")).strip()
         version = str(item.get("new_version", "")).strip()
         if not unit_id or not version:
@@ -182,7 +191,12 @@ def validate_release_gates(
                 f"manifest={manifest_version} plan={candidate.version}"
             )
 
-    changed_count = len(changed_units.get("changed_units", []))
+    if not isinstance(changed_units, dict):
+        raise GateError("changed-units artifact must be an object")
+    changed_units_list = changed_units.get("changed_units")
+    if not isinstance(changed_units_list, list):
+        raise GateError("changed-units field 'changed_units' must be a list")
+    changed_count = len(changed_units_list)
     try:
         manifest_rel = str(manifest_path.relative_to(repo_root))
     except ValueError:
@@ -222,7 +236,11 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> int:
-    """Run release gate validation and write JSON output artifacts."""
+    """Run release gate validation and write JSON output artifacts.
+
+    Returns:
+        int: Process exit code (0 on success).
+    """
     args = parse_args()
     repo_root = Path(args.repo_root).resolve()
 
