@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import argparse
 import hashlib
-from collections.abc import Mapping
 import re
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -131,8 +131,8 @@ def validate_release_gates(
         repo_root:
             Repository root used to resolve workspace units and relative paths.
         manifest_path:
-            Path to the release manifest checked against expected hashes and package
-            version rows.
+            Path to the release manifest checked against expected hashes.
+            Also validates package version rows in the manifest.
         changed_units_path:
             JSON path containing changed unit metadata for the release.
         version_plan_path:
