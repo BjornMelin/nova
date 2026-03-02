@@ -102,9 +102,9 @@ Validation URLs:
 
 ## References
 
-- Publish packages workflow (plan):
+- Release plan workflow:
   <https://github.com/3M-Cloud/nova/blob/main/.github/workflows/publish-packages.yml>
-- Build and publish image workflow (apply + signing):
+- Apply release plan workflow:
   <https://github.com/3M-Cloud/nova/blob/main/.github/workflows/build-and-publish-image.yml>
 - CodeBuild environment variable types:
   <https://docs.aws.amazon.com/AWSCloudFormation/latest/TemplateReference/aws-properties-codebuild-project-environmentvariable.html>

@@ -98,12 +98,12 @@ Run activation checks from:
 ```bash
 export CODEPIPELINE_NAME="$(aws cloudformation describe-stacks --region "${AWS_REGION}" --stack-name "${PROJECT}-${APPLICATION}-nova-ci-cd" --query "Stacks[0].Outputs[?OutputKey=='PipelineName'].OutputValue | [0]" --output text)"
 
-gh workflow run "Publish Packages" --repo "${GITHUB_OWNER}/${GITHUB_REPO}" --ref main
-PLAN_RUN_ID="$(gh run list --repo "${GITHUB_OWNER}/${GITHUB_REPO}" --workflow "Publish Packages" --branch main --limit 1 --json databaseId --jq '.[0].databaseId')"
+gh workflow run "Release Plan" --repo "${GITHUB_OWNER}/${GITHUB_REPO}" --ref main
+PLAN_RUN_ID="$(gh run list --repo "${GITHUB_OWNER}/${GITHUB_REPO}" --workflow "Release Plan" --branch main --limit 1 --json databaseId --jq '.[0].databaseId')"
 gh run watch "${PLAN_RUN_ID}" --repo "${GITHUB_OWNER}/${GITHUB_REPO}" --exit-status
 
-gh workflow run "Build and Publish Image" --repo "${GITHUB_OWNER}/${GITHUB_REPO}" --ref main
-APPLY_RUN_ID="$(gh run list --repo "${GITHUB_OWNER}/${GITHUB_REPO}" --workflow "Build and Publish Image" --branch main --limit 1 --json databaseId --jq '.[0].databaseId')"
+gh workflow run "Apply Release Plan" --repo "${GITHUB_OWNER}/${GITHUB_REPO}" --ref main
+APPLY_RUN_ID="$(gh run list --repo "${GITHUB_OWNER}/${GITHUB_REPO}" --workflow "Apply Release Plan" --branch main --limit 1 --json databaseId --jq '.[0].databaseId')"
 gh run watch "${APPLY_RUN_ID}" --repo "${GITHUB_OWNER}/${GITHUB_REPO}" --exit-status
 
 gh workflow run "Deploy Dev" --repo "${GITHUB_OWNER}/${GITHUB_REPO}" --ref main -f pipeline_name="${CODEPIPELINE_NAME}"

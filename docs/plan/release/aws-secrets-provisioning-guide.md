@@ -7,7 +7,7 @@ Last reviewed: 2026-02-24
 ## Purpose
 
 Provision and rotate the release signing key in AWS Secrets Manager for the
-`Build and Publish Image` workflow.
+`Apply Release Plan` workflow.
 
 ## Required secret contract
 

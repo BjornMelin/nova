@@ -130,8 +130,8 @@ Optional behavior:
 6. Run release workflows.
 
     ```bash
-    gh workflow run "Publish Packages" --repo "${GH_REPO}" --ref main
-    gh workflow run "Build and Publish Image" --repo "${GH_REPO}" --ref main
+    gh workflow run "Release Plan" --repo "${GH_REPO}" --ref main
+    gh workflow run "Apply Release Plan" --repo "${GH_REPO}" --ref main
     gh workflow run "Deploy Dev" --repo "${GH_REPO}" --ref main -f pipeline_name="${CODEPIPELINE_NAME}"
     ```
 

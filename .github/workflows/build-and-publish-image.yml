@@ -1,8 +1,8 @@
-name: Build and Publish Image
+name: Apply Release Plan
 
 on:
   workflow_run:
-    workflows: ["Publish Packages"]
+    workflows: ["Release Plan"]
     types: [completed]
   workflow_dispatch:
 
