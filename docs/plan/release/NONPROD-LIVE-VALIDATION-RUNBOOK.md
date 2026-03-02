@@ -43,7 +43,10 @@ Related setup sequence:
 - `AWS_REGION`
 - `ECS_CLUSTER`
 - `ECS_SERVICE`
-- `ALB_TARGET_GROUP_ARN`
+- `ALB_TARGET_GROUP_BLUE_ARN`
+- `ALB_TARGET_GROUP_GREEN_ARN`
+- `CODEDEPLOY_APPLICATION_NAME`
+- `CODEDEPLOY_DEPLOYMENT_GROUP_NAME`
 - `DASHBOARD_NAME`
 - `ALARM_NAMES`
 - `CODEPIPELINE_NAME`
@@ -112,7 +115,7 @@ aws ecs describe-services \
 
 aws elbv2 describe-target-health \
   --region "${AWS_REGION}" \
-  --target-group-arn "${ALB_TARGET_GROUP_ARN}" \
+  --target-group-arn "${ALB_TARGET_GROUP_BLUE_ARN}" \
   --query "TargetHealthDescriptions[].TargetHealth.State"
 ```
 
@@ -120,6 +123,23 @@ Acceptance:
 
 - ECS service stabilizes with expected running task count.
 - Target states converge to `healthy` without persistent flapping.
+
+### B3. CodeDeploy blue/green authority and readiness gating
+
+```bash
+aws deploy get-deployment-group   --region "${AWS_REGION}"   --application-name "${CODEDEPLOY_APPLICATION_NAME}"   --deployment-group-name "${CODEDEPLOY_DEPLOYMENT_GROUP_NAME}"   --query "deploymentGroupInfo.{deploymentStyle:deploymentStyle,blueGreen:blueGreenDeploymentConfiguration,alarmConfiguration:alarmConfiguration,autoRollback:autoRollbackConfiguration}"
+
+aws elbv2 describe-target-health   --region "${AWS_REGION}"   --target-group-arn "${ALB_TARGET_GROUP_BLUE_ARN}"   --query "TargetHealthDescriptions[].TargetHealth.State"
+
+aws elbv2 describe-target-health   --region "${AWS_REGION}"   --target-group-arn "${ALB_TARGET_GROUP_GREEN_ARN}"   --query "TargetHealthDescriptions[].TargetHealth.State"
+```
+
+Acceptance:
+
+- Deployment style is blue/green with traffic control.
+- Alarm rollback configuration is enabled with expected alarm names.
+- Auto rollback includes deployment failure + stop-on-alarm + stop-on-request.
+- Green target group reaches healthy state before production traffic shift.
 
 ## 7. Gate C: Cross-repo E2E smoke
 

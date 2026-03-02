@@ -44,13 +44,31 @@ one signed source revision.
       --name "${CODEPIPELINE_NAME}"
     ```
 
-3. Manual approval step.
+3. Execute `Promote Prod` workflow dispatch with:
 
-   - Open CodePipeline execution in console.
-   - Review Build and ValidateDev evidence.
-   - Approve promotion with reason text and ticket reference.
+   - `pipeline_name`
+   - `manifest_sha256` from `codeartifact-gate-report.json`
+   - `promotion_candidates_json` from `codeartifact-promotion-candidates.json`
 
-4. Confirm `DeployProd` and `ValidateProd` complete successfully.
+4. Workflow validates manifest digest + package namespace/version policy and
+   promotes package versions from staging to prod using `copy-package-versions`.
+
+5. Confirm `DeployProd` and `ValidateProd` complete successfully.
+
+## CodeDeploy blue/green promotion verification (Batch B1)
+
+After `DeployDev` and `DeployProd`, verify CodeDeploy deployment-group controls:
+
+```bash
+aws deploy get-deployment-group   --region "${AWS_REGION}"   --application-name "${CODEDEPLOY_APPLICATION_NAME}"   --deployment-group-name "${CODEDEPLOY_DEPLOYMENT_GROUP_NAME}"   --query "deploymentGroupInfo.{deploymentStyle:deploymentStyle,alarmConfiguration:alarmConfiguration,autoRollback:autoRollbackConfiguration,ready:blueGreenDeploymentConfiguration.deploymentReadyOption}"
+```
+
+Acceptance:
+
+- `deploymentStyle.deploymentType` = `BLUE_GREEN`
+- alarm configuration is enabled with rollback alarms bound
+- auto rollback includes `DEPLOYMENT_FAILURE`, `DEPLOYMENT_STOP_ON_ALARM`, and `DEPLOYMENT_STOP_ON_REQUEST`
+- deployment ready option uses timeout action `STOP_DEPLOYMENT` for readiness enforcement
 
 ## Immutable artifact continuity check
 
@@ -76,9 +94,11 @@ Acceptance:
 2. release apply workflow URL
 3. verify signature workflow URL
 4. pipeline execution ID
-5. manual approver and timestamp
-6. digest continuity evidence
-7. validation logs for `/healthz`, `/readyz`, `/metrics/summary`
+5. manifest digest used for package promotion gate
+6. package promotion candidates JSON
+7. manual approver and timestamp
+8. digest continuity evidence
+9. validation logs for `/healthz`, `/readyz`, `/metrics/summary`
 
 Store links in:
 

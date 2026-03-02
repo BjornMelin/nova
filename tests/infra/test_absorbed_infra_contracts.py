@@ -195,3 +195,37 @@ def test_observability_security_cost_baseline_contracts() -> None:
     assert "ServiceLogKmsKeyArn" in text
     assert "UseServiceLogCMK" in text
     assert "KmsKeyId: !If [UseServiceLogCMK" in text
+
+
+def test_ecs_codedeploy_blue_green_authority_contracts() -> None:
+    """Batch B1 contract: ECS template codifies CodeDeploy blue/green."""
+    text = _read("infra/runtime/ecs/service.yml")
+
+    required_tokens = [
+        "EnableBlueGreenDeployAuthority:",
+        "UseCodeDeployBlueGreen:",
+        "CodeDeployBlueGreenParamsProvided:",
+        "CodeDeployEcsApplication:",
+        "Type: AWS::CodeDeploy::Application",
+        "CodeDeployEcsDeploymentGroup:",
+        "Type: AWS::CodeDeploy::DeploymentGroup",
+        "ComputePlatform: ECS",
+        "DeploymentController:",
+        "Type: !If [UseCodeDeployBlueGreen, CODE_DEPLOY, ECS]",
+        "LoadBalancerTargetGroupBlue:",
+        "LoadBalancerTargetGroupGreen:",
+        "TargetGroupPairInfoList:",
+        "ProdTrafficRoute:",
+        "TestTrafficRoute:",
+        "BlueGreenDeploymentConfiguration:",
+        "DeploymentReadyOption:",
+        "ActionOnTimeout: !Ref BlueGreenReadinessActionOnTimeout",
+        "AlarmConfiguration:",
+        "AutoRollbackConfiguration:",
+        "DEPLOYMENT_STOP_ON_ALARM",
+        "DEPLOYMENT_STOP_ON_REQUEST",
+        "ReadinessHealthCheckPath:",
+        "HealthCheckPath: !Ref ReadinessHealthCheckPath",
+    ]
+    for token in required_tokens:
+        assert token in text, f"Missing blue/green contract token: {token}"
