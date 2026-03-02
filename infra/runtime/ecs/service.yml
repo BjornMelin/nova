@@ -67,7 +67,7 @@ Parameters:
     Description: ALB listener ARN for CodeDeploy test-traffic routing; required when EnableBlueGreenDeployAuthority is "true", optional otherwise.
   TestTrafficListenerRulePriority:
     Type: Number
-    Default: 100
+    Default: 9999
     MinValue: 1
     MaxValue: 50000
     Description: Priority for canary host listener rule when blue/green is enabled.
@@ -274,9 +274,13 @@ Rules:
           - !And
               - !Not [!Equals [!Ref CodeDeployServiceRoleArn, ""]]
               - !Not [!Equals [!Ref TestTrafficListenerArn, ""]]
+              - !Or
+                  - !Not [!Equals [!Ref DeploymentRollbackAlarmNamePrimary, ""]]
+                  - !Not [!Equals [!Ref DeploymentRollbackAlarmNameSecondary, ""]]
         AssertDescription: >-
-          CodeDeployServiceRoleArn and TestTrafficListenerArn are required when
-          EnableBlueGreenDeployAuthority is "true".
+          CodeDeployServiceRoleArn, TestTrafficListenerArn, and at least one
+          rollback alarm are required when EnableBlueGreenDeployAuthority is
+          "true".
 
 Conditions:
   UseServiceDiscovery: !Equals [!Ref UseServiceDiscovery, "true"]
