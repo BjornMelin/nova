@@ -1,1 +1,11 @@
-{"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","required":["name","version","environment"],"properties":{"name":{"type":"string"},"version":{"type":"string"},"environment":{"type":"string"}}}
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["name", "version", "environment"],
+  "properties": {
+    "name": {"type": "string"},
+    "version": {"type": "string"},
+    "environment": {"type": "string"}
+  }
+}

@@ -40,13 +40,7 @@ def test_openapi_contains_split_routes_and_no_legacy_prefix() -> None:
         "/v1/health/live",
         "/v1/health/ready",
     }
-    assert expected_paths.issubset(set(paths))
-    allowed_static_paths = {"/healthz", "/readyz", "/metrics/summary"}
-    assert all(
-        path.startswith(("/api/transfers/", "/api/jobs/", "/v1/"))
-        or path in allowed_static_paths
-        for path in paths
-    )
+    assert set(paths) == expected_paths
 
 
 def test_openapi_schema_generation_smoke() -> None:

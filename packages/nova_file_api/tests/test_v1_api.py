@@ -38,14 +38,23 @@ def test_v1_jobs_create_list_get_retry_and_events() -> None:
             item["job_id"] == job_id for item in list_resp.json()["jobs"]
         )
 
-        get_resp = client.get(f"/v1/jobs/{job_id}", headers={"X-Session-Id": "scope-v1"})
+        get_resp = client.get(
+            f"/v1/jobs/{job_id}",
+            headers={"X-Session-Id": "scope-v1"},
+        )
         assert get_resp.status_code == 200
         assert get_resp.json()["job"]["job_id"] == job_id
 
-        retry_resp = client.post(f"/v1/jobs/{job_id}/retry", headers={"X-Session-Id": "scope-v1"})
+        retry_resp = client.post(
+            f"/v1/jobs/{job_id}/retry",
+            headers={"X-Session-Id": "scope-v1"},
+        )
         assert retry_resp.status_code == 409
 
-        events_resp = client.get(f"/v1/jobs/{job_id}/events", headers={"X-Session-Id": "scope-v1"})
+        events_resp = client.get(
+            f"/v1/jobs/{job_id}/events",
+            headers={"X-Session-Id": "scope-v1"},
+        )
         assert events_resp.status_code == 200
         events = events_resp.json()["events"]
         assert len(events) == 1

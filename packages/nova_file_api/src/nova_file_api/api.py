@@ -679,9 +679,26 @@ async def v1_create_job(
     request: Request,
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
 ) -> EnqueueJobResponse:
-    """Create a job through the v1 contract."""
+    """Create a job through the v1 contract.
+
+    Args:
+        payload: Requested job type and payload content.
+        request: FastAPI request context.
+        idempotency_key: Optional caller key for idempotent enqueue semantics.
+
+    Returns:
+        EnqueueJobResponse: Accepted job identity and initial status.
+
+    Raises:
+        HTTPException: If authorization or queue preconditions fail.
+    """
+    v1_idempotency_key = (
+        f"v1:{idempotency_key}" if idempotency_key is not None else None
+    )
     return await enqueue_job(
-        payload=payload, request=request, idempotency_key=idempotency_key
+        payload=payload,
+        request=request,
+        idempotency_key=v1_idempotency_key,
     )
 
 
@@ -690,7 +707,18 @@ async def v1_list_jobs(
     request: Request,
     limit: int = Query(default=50, ge=1, le=200),
 ) -> JobListResponse:
-    """List caller-owned jobs with most recent first."""
+    """List caller-owned jobs with most recent first.
+
+    Args:
+        request: FastAPI request context.
+        limit: Maximum number of jobs to return.
+
+    Returns:
+        JobListResponse: Caller-scoped jobs in newest-first order.
+
+    Raises:
+        HTTPException: If caller authentication fails.
+    """
     container = get_container(request)
     principal = await container.authenticator.authenticate(
         request=request, session_id=None
@@ -706,14 +734,38 @@ async def v1_list_jobs(
 
 @v1_router.get("/jobs/{job_id}", response_model=JobStatusResponse)
 async def v1_get_job(job_id: str, request: Request) -> JobStatusResponse:
-    """Get one caller-owned job."""
+    """Get one caller-owned job.
+
+    Args:
+        job_id: Target job identifier.
+        request: FastAPI request context.
+
+    Returns:
+        JobStatusResponse: Caller-scoped job payload.
+
+    Raises:
+        HTTPException: If the job does not exist or access is forbidden.
+    """
     return await get_job_status(job_id=job_id, request=request)
 
 
 @v1_router.post("/jobs/{job_id}/retry", response_model=EnqueueJobResponse)
 async def v1_retry_job(job_id: str, request: Request) -> EnqueueJobResponse:
-    """Retry a terminal failed/canceled job."""
+    """Retry a terminal failed/canceled job.
+
+    Args:
+        job_id: Target job identifier.
+        request: FastAPI request context.
+
+    Returns:
+        EnqueueJobResponse: Newly queued retry job metadata.
+
+    Raises:
+        HTTPException: If jobs are disabled or caller/job constraints fail.
+    """
     container = get_container(request)
+    if not container.settings.jobs_enabled:
+        raise forbidden("jobs API is disabled")
     principal = await container.authenticator.authenticate(
         request=request, session_id=None
     )
@@ -728,7 +780,18 @@ async def v1_retry_job(job_id: str, request: Request) -> EnqueueJobResponse:
 
 @v1_router.get("/jobs/{job_id}/events", response_model=JobEventsResponse)
 async def v1_job_events(job_id: str, request: Request) -> JobEventsResponse:
-    """Poll-oriented events endpoint with SSE-compatible envelope."""
+    """Return poll events with an SSE-compatible envelope.
+
+    Args:
+        job_id: Target job identifier.
+        request: FastAPI request context.
+
+    Returns:
+        JobEventsResponse: Synthetic event stream for polling consumers.
+
+    Raises:
+        HTTPException: If caller authentication fails or job is inaccessible.
+    """
     container = get_container(request)
     principal = await container.authenticator.authenticate(
         request=request, session_id=None
@@ -755,7 +818,14 @@ async def v1_job_events(job_id: str, request: Request) -> JobEventsResponse:
 
 @v1_router.get("/capabilities", response_model=CapabilitiesResponse)
 async def v1_capabilities(request: Request) -> CapabilitiesResponse:
-    """Expose runtime capability matrix for conformance consumers."""
+    """Expose runtime capability matrix for conformance consumers.
+
+    Args:
+        request: FastAPI request context.
+
+    Returns:
+        CapabilitiesResponse: Runtime capability declarations.
+    """
     container = get_container(request)
     capabilities = [
         CapabilityDescriptor(
@@ -778,7 +848,15 @@ async def v1_resources_plan(
     payload: ResourcePlanRequest,
     request: Request,
 ) -> ResourcePlanResponse:
-    """Plan supportability for requested resource keys."""
+    """Plan supportability for requested resource keys.
+
+    Args:
+        payload: Requested resource key list.
+        request: FastAPI request context.
+
+    Returns:
+        ResourcePlanResponse: Supportability decisions per requested key.
+    """
     container = get_container(request)
     available = {"jobs", "transfers", "downloads", "uploads"}
     plan = [
@@ -803,24 +881,42 @@ async def v1_resources_plan(
 
 @v1_router.get("/releases/info", response_model=ReleaseInfoResponse)
 async def v1_releases_info(request: Request) -> ReleaseInfoResponse:
-    """Return release metadata."""
+    """Return release metadata.
+
+    Args:
+        request: FastAPI request context.
+
+    Returns:
+        ReleaseInfoResponse: Service name, version, and environment data.
+    """
     container = get_container(request)
     return ReleaseInfoResponse(
         name=container.settings.app_name,
-        version="0.1.0",
+        version=container.settings.app_version,
         environment=container.settings.environment,
     )
 
 
 @v1_router.get("/health/live", response_model=HealthResponse)
 async def v1_health_live() -> HealthResponse:
-    """v1 liveness endpoint."""
+    """Return v1 liveness status.
+
+    Returns:
+        HealthResponse: Liveness success payload.
+    """
     return HealthResponse(ok=True)
 
 
 @v1_router.get("/health/ready", response_model=ReadinessResponse)
 async def v1_health_ready(request: Request) -> ReadinessResponse:
-    """v1 readiness endpoint."""
+    """Return v1 readiness status.
+
+    Args:
+        request: FastAPI request context.
+
+    Returns:
+        ReadinessResponse: Dependency readiness checks.
+    """
     return await readyz(request=request)
 
 

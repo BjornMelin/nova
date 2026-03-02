@@ -4,9 +4,15 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import StrEnum
-from typing import Any
+from typing import Annotated, Any
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    StringConstraints,
+    field_validator,
+)
 
 
 class UploadStrategy(StrEnum):
@@ -322,12 +328,18 @@ class CapabilitiesResponse(BaseModel):
     capabilities: list[CapabilityDescriptor]
 
 
+ResourceKey = Annotated[
+    str,
+    StringConstraints(min_length=1, max_length=256),
+]
+
+
 class ResourcePlanRequest(BaseModel):
     """Resource planning request body."""
 
     model_config = ConfigDict(extra="forbid")
 
-    resources: list[str] = Field(min_length=1, max_length=256)
+    resources: list[ResourceKey] = Field(min_length=1, max_length=256)
 
 
 class ResourcePlanItem(BaseModel):

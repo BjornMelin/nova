@@ -188,12 +188,21 @@ class DynamoJobRepository:
 
     def list_for_scope(self, *, scope_id: str, limit: int) -> list[JobRecord]:
         """List caller-scoped jobs newest-first."""
-        response = self._table.scan(
-            FilterExpression="#scope_id = :scope_id",
-            ExpressionAttributeNames={"#scope_id": "scope_id"},
-            ExpressionAttributeValues={":scope_id": scope_id},
-        )
-        items = response.get("Items", [])
+        items: list[dict[str, Any]] = []
+        last_evaluated_key: dict[str, Any] | None = None
+        while True:
+            scan_kwargs: dict[str, Any] = {
+                "FilterExpression": "#scope_id = :scope_id",
+                "ExpressionAttributeNames": {"#scope_id": "scope_id"},
+                "ExpressionAttributeValues": {":scope_id": scope_id},
+            }
+            if last_evaluated_key is not None:
+                scan_kwargs["ExclusiveStartKey"] = last_evaluated_key
+            response = self._table.scan(**scan_kwargs)
+            items.extend(response.get("Items", []))
+            last_evaluated_key = response.get("LastEvaluatedKey")
+            if last_evaluated_key is None:
+                break
         records = [_item_to_record(item) for item in items]
         records.sort(key=lambda r: r.created_at, reverse=True)
         return records[:limit]

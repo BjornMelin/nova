@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib.metadata
 import warnings
 
 from pydantic import Field, SecretStr
@@ -15,6 +16,14 @@ from nova_file_api.models import (
 )
 
 
+def _default_app_version() -> str:
+    """Return installed package version with resilient fallback."""
+    try:
+        return importlib.metadata.version("nova-file-api")
+    except importlib.metadata.PackageNotFoundError:
+        return "0.0.0"
+
+
 class Settings(BaseSettings):
     """Runtime settings loaded from environment variables."""
 
@@ -26,6 +35,10 @@ class Settings(BaseSettings):
     )
 
     app_name: str = Field(default="nova-file-api")
+    app_version: str = Field(
+        default_factory=_default_app_version,
+        alias="APP_VERSION",
+    )
     environment: str = Field(default="dev")
 
     file_transfer_enabled: bool = Field(

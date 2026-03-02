@@ -88,6 +88,11 @@ function main(): void {
   assert(Array.isArray(v1Caps.capabilities), "v1 capabilities list required");
   assert(Array.isArray(v1Plan.plan), "v1 plan list required");
   assert(typeof v1Release.version === "string", "v1 release version required");
+  assert(typeof v1Release.name === "string", "v1 release name required");
+  assert(
+    typeof v1Release.environment === "string",
+    "v1 release environment required",
+  );
 
   console.log("typescript conformance lane passed");
 }
