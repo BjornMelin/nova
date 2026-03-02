@@ -191,13 +191,21 @@ Resources:
               - Effect: Allow
                 Action:
                   - codeartifact:ReadFromRepository
-                  - codeartifact:PublishPackageVersion
-                  - codeartifact:PutPackageMetadata
-                  - codeartifact:PutPackageOriginConfiguration
-                  - codeartifact:DescribePackageVersion
                   - codeartifact:GetRepositoryEndpoint
                 Resource:
                   - !Sub "arn:${AWS::Partition}:codeartifact:${AWS::Region}:${AWS::AccountId}:repository/${CodeArtifactDomainName}/${CodeArtifactRepositoryName}"
+              - Effect: Allow
+                Action:
+                  - codeartifact:PublishPackageVersion
+                  - codeartifact:PutPackageMetadata
+                  - codeartifact:DescribePackageVersion
+                Resource:
+                  - !Sub "arn:${AWS::Partition}:codeartifact:${AWS::Region}:${AWS::AccountId}:package/${CodeArtifactDomainName}/${CodeArtifactRepositoryName}/pypi/*"
+              - Effect: Allow
+                Action:
+                  - codeartifact:PutPackageOriginConfiguration
+                Resource:
+                  - !Sub "arn:${AWS::Partition}:codeartifact:${AWS::Region}:${AWS::AccountId}:package-group/${CodeArtifactDomainName}/${CodeArtifactRepositoryName}/*"
               - Effect: Allow
                 Action:
                   - sts:GetServiceBearerToken
