@@ -154,7 +154,7 @@ phases:
             echo "No build artifacts for $unit"
             exit 1
           fi
-          twine upload --repository codeartifact --non-interactive --skip-existing "${DIST_FILES[@]}"
+          twine upload --repository codeartifact --non-interactive "${DIST_FILES[@]}"
           if [ -n "$PUBLISHED_PACKAGES" ]; then
             PUBLISHED_PACKAGES="$PUBLISHED_PACKAGES,$unit"
           else
