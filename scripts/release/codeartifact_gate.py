@@ -156,7 +156,10 @@ def validate_release_gates(
     """
     manifest_text = manifest_path.read_text(encoding="utf-8")
     manifest_sha256 = hashlib.sha256(manifest_text.encode("utf-8")).hexdigest()
-    if expected_manifest_sha256 and expected_manifest_sha256 != manifest_sha256:
+    if (
+        expected_manifest_sha256 is not None
+        and expected_manifest_sha256 != manifest_sha256
+    ):
         raise GateError(
             "release manifest digest mismatch: "
             f"expected {expected_manifest_sha256}, got {manifest_sha256}"
