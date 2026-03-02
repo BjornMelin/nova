@@ -7,17 +7,33 @@
 > Canonical authority:
 > - docs/architecture/adr/ADR-0013-final-state-sdk-topology-generated-core-plus-thin-adapters.md
 > - docs/architecture/adr/ADR-0014-container-craft-capability-absorption-and-repo-retirement.md
+> - docs/architecture/adr/ADR-0015-nova-api-platform-final-hosting-and-deployment-architecture-2026.md
 > - docs/architecture/spec/SPEC-0011-multi-language-sdk-architecture-and-package-map.md
 > - docs/architecture/spec/SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md
 > - docs/architecture/spec/SPEC-0013-container-craft-capability-absorption-execution-spec.md
 > - docs/architecture/spec/SPEC-0014-container-craft-capability-inventory-and-absorption-map.md
+> - docs/architecture/spec/SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md
 >
 > Status: Reference-only for superseded sections.
 
-# PRD: Deployable File Transfer API (FastAPI) for container-craft apps
+# PRD: Deployable File Transfer API Platform for Nova Clients
 
 **Date:** 2026-02-12
-**Status:** Active release track
+**Status:** Dual-track transition (`/api/*` baseline + `/v1/*` target-state)
+**Last updated:** 2026-03-02
+
+## 0. Architecture State and Transition
+
+This PRD is dual-track until target implementation lands:
+
+- Current implemented baseline contract remains `/api/transfers/*`,
+  `/api/jobs/*`, `/healthz`, `/readyz`, `/metrics/summary`.
+- Target-state contract for the next feature branch is defined by
+  `ADR-0015` + `SPEC-0015` and introduces `/v1/*` capability endpoints and
+  target operational workflow artifacts.
+
+Baseline behavior remains operational authority until target-state code is
+merged.
 
 ## 1. Problem
 
@@ -54,7 +70,7 @@ The service must be usable by:
   - presign download
 - Async jobs endpoints:
   - enqueue/status/cancel
-  - worker/internal result update callback (`/jobs/{job_id}/result`)
+  - worker/internal result update callback (`/api/jobs/{job_id}/result`)
 - Operational endpoints:
   - `/healthz`
   - `/readyz`
@@ -84,7 +100,7 @@ The service must be usable by:
   caller scope via trusted headers (`X-Session-Id` or `X-Scope-Id`).
 - Same-origin scope resolution must prioritize `X-Session-Id` over body
   `session_id` and `X-Scope-Id`; conflicting `X-Session-Id` and body
-  `session_id` values must fail closed with `401`.
+  `session_id` values must fail closed with `422`.
 - In-memory queue mode must respect `process_immediately`; disabled mode must
   keep jobs in `pending` after enqueue.
 - CloudWatch EMF metric logs must keep `_aws` and metric fields at the top
@@ -97,6 +113,29 @@ The service must be usable by:
   - `active_users_today`
   - `distinct_event_types`
 
+### 3.2 Target-state requirements (next feature branch)
+
+The upcoming implementation branch must deliver the target capabilities defined
+in `SPEC-0015`:
+
+- `/v1/jobs`
+- `/v1/jobs/{id}/events`
+- `/v1/capabilities`
+- `/v1/resources/plan`
+- `/v1/releases/info`
+- `/v1/health/live`
+- `/v1/health/ready`
+
+It must also implement the planned workflow artifacts currently locked in
+`SPEC-0015`:
+
+- `build-and-publish-image.yml`
+- `publish-packages.yml`
+- `deploy-dev.yml`
+- `promote-prod.yml`
+- `post-deploy-validate.yml`
+- `conformance-clients.yml`
+
 ## 4. Non-goals (Initial Release)
 
 - No byte-streaming data-plane API through FastAPI.
@@ -107,7 +146,7 @@ The service must be usable by:
 ## 5. Primary Users
 
 - Frontend code in Dash/Shiny/Next.js that needs signed operations.
-- Platform engineers maintaining container-craft deployed stacks.
+- Platform engineers maintaining Nova-owned deployment stacks in `infra/**`.
 - Runtime engineers operating queue/cache/metrics behavior in AWS.
 
 ## 6. Success Metrics

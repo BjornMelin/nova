@@ -2,7 +2,12 @@
 
 Status: Pending external execution
 Owner: Release Architecture + Platform Operations
-Last updated: 2026-02-24
+Last updated: 2026-03-02
+
+Transition note (2026-03-02): Commands in this runbook validate the current
+implemented baseline routes (`/api/*`, `/healthz`, `/readyz`). Target-state
+validation commands for `/v1/*` will be added in the next implementation
+branch when `SPEC-0015` moves from planned to active.
 
 ## 1. Purpose
 

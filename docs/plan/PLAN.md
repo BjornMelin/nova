@@ -7,17 +7,30 @@
 > Canonical authority:
 > - docs/architecture/adr/ADR-0013-final-state-sdk-topology-generated-core-plus-thin-adapters.md
 > - docs/architecture/adr/ADR-0014-container-craft-capability-absorption-and-repo-retirement.md
+> - docs/architecture/adr/ADR-0015-nova-api-platform-final-hosting-and-deployment-architecture-2026.md
 > - docs/architecture/spec/SPEC-0011-multi-language-sdk-architecture-and-package-map.md
 > - docs/architecture/spec/SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md
 > - docs/architecture/spec/SPEC-0013-container-craft-capability-absorption-execution-spec.md
 > - docs/architecture/spec/SPEC-0014-container-craft-capability-inventory-and-absorption-map.md
+> - docs/architecture/spec/SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md
 >
 > Status: Reference-only for superseded sections.
 
+## Migration Addendum (2026-03-02)
+
+- This plan remains the historical execution baseline for current implemented
+  `/api/*` runtime behavior and release evidence.
+- Target-state delivery requirements for the next feature branch are locked in
+  `ADR-0015` + `SPEC-0015`.
+- Until target-state code is merged, current runbooks and baseline route checks
+  remain operational authority.
+- After target-state merge, update this plan to mark `/api/*` route rules as
+  superseded by `/v1/*` capability contract authority.
+
 # Final Production Architecture Plan (Locked, Release Track)
 
-Status: Active execution
-Last updated: 2026-02-23
+Status: Reference baseline + transition addendum
+Last updated: 2026-03-02
 Owner: nova program
 
 ## Summary

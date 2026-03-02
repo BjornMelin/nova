@@ -1,5 +1,9 @@
 # TRIGGER-0001
 
+Transition note (2026-03-02): This trigger executes baseline `/api/*`
+delivery tasks. Target-state implementation must follow `ADR-0015` +
+`SPEC-0015` in a dedicated feature branch.
+
 ## Purpose
 
 Run `docs/plan/subplans/SUBPLAN-0001.md` in a fresh Codex session.

@@ -7,6 +7,9 @@
 
 ## ADR Catalog
 
+Note: `ADR-0015` is accepted as target-state architecture and its delivery is
+tracked as implementation pending via `SPEC-0015`.
+
 | ADR | Title | Status | Date |
 | --- | --- | --- | --- |
 | [ADR-0000](./ADR-0000-fastapi-microservice.md) | Implement the File Transfer API as a FastAPI service | Accepted | 2026-02-11 |
@@ -24,3 +27,4 @@
 | [ADR-0012](./ADR-0012-no-lambda-runtime-scope.md) | Preserve ECS and SQS runtime scope and exclude Lambda orchestration | Accepted | 2026-02-24 |
 | [ADR-0013](./ADR-0013-final-state-sdk-topology-generated-core-plus-thin-adapters.md) | Final-state SDK topology uses generated contract-core clients plus thin language adapters | Accepted | 2026-02-28 |
 | [ADR-0014](./ADR-0014-container-craft-capability-absorption-and-repo-retirement.md) | Absorb remaining container-craft Nova capabilities into nova and retire container-craft | Accepted | 2026-02-28 |
+| [ADR-0015](./ADR-0015-nova-api-platform-final-hosting-and-deployment-architecture-2026.md) | Nova API platform final hosting and deployment architecture (2026) | Accepted | 2026-03-01 |

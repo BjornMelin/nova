@@ -2,6 +2,10 @@
 
 - Branch name: `feat/subplan-0004-e2e-validation-release-closure`
 
+Transition note (2026-03-02): This subplan documents baseline release closure
+checks. Target-state validation requirements must be added in the next feature
+branch under `ADR-0015` + `SPEC-0015`.
+
 ## E2E Validation + Release Closure
 
 Order: 4 of 5

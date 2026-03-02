@@ -6,7 +6,21 @@ FastAPI control-plane service for direct-to-S3 upload/download orchestration.
 The API returns presigned metadata and async job state. It never proxies file
 bytes.
 
-## Runtime Capabilities
+## Architecture State
+
+The repository is intentionally dual-track until the next implementation branch
+lands:
+
+- Current implemented baseline (operational now):
+  - `docs/architecture/spec/SPEC-0000-http-api-contract.md`
+  - `docs/architecture/spec/SPEC-0003-observability.md`
+  - `docs/architecture/spec/SPEC-0004-ci-cd-and-docs.md`
+  - `docs/architecture/spec/SPEC-0008-async-jobs-and-worker-orchestration.md`
+- Target state for upcoming implementation:
+  - `docs/architecture/adr/ADR-0015-nova-api-platform-final-hosting-and-deployment-architecture-2026.md`
+  - `docs/architecture/spec/SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md`
+
+## Runtime Capabilities (Current Implemented Baseline)
 
 - Transfer endpoints for single-part and multipart uploads.
 - Download presign endpoint.
@@ -135,6 +149,21 @@ Primary operational settings:
 - Transfers: `/api/transfers`
 - Jobs: `/api/jobs`
 
+## Target-State API Contract (Planned, Not Yet Implemented)
+
+The next feature branch must implement the PR #22 target API capabilities:
+
+- `/v1/jobs`
+- `/v1/jobs/{id}/events`
+- `/v1/capabilities`
+- `/v1/resources/plan`
+- `/v1/releases/info`
+- `/v1/health/live`
+- `/v1/health/ready`
+
+Until that cutover merges, continue operating with the current `/api/*` and
+`/healthz|/readyz|/metrics/summary` baseline contract above.
+
 ## Auth0 Tenant-as-Code (a0deploy)
 
 Canonical Auth0 configuration for this repo lives in `infra/auth0/`.
@@ -200,7 +229,7 @@ runtime OpenAPI schema and verifies generated code compiles successfully.
 
 Hybrid release model:
 
-1. GitHub Actions handles CI and selective release planning/apply:
+1. GitHub Actions currently handles CI and selective release planning/apply:
    - `.github/workflows/ci.yml`
    - `.github/workflows/conformance.yml`
    - `.github/workflows/release-plan.yml`
@@ -219,7 +248,15 @@ Hybrid release model:
    and templates under `infra/nova/**`, consuming immutable artifacts from the
    signed release commit.
    - Deploy marker template authority is `infra/nova/deploy/image-digest-ssm.yml`.
-4. Release build contract:
+4. Target-state workflow artifacts defined in `SPEC-0015` are locked
+   implementation requirements for the next feature branch:
+   - `build-and-publish-image.yml`
+   - `publish-packages.yml`
+   - `deploy-dev.yml`
+   - `promote-prod.yml`
+   - `post-deploy-validate.yml`
+   - `conformance-clients.yml`
+5. Current release build contract:
    - buildspec: `buildspecs/buildspec-release.yml`
    - changed package publish set is resolved from signed release commit diff
      (`HEAD^..HEAD`) to prevent empty selective publish runs.
@@ -238,6 +275,8 @@ Hybrid release model:
 - Requirements: `docs/architecture/requirements.md`
 - ADR index: `docs/architecture/adr/index.md`
 - SPEC index: `docs/architecture/spec/index.md`
+- Target architecture ADR: `docs/architecture/adr/ADR-0015-nova-api-platform-final-hosting-and-deployment-architecture-2026.md`
+- Target architecture SPEC: `docs/architecture/spec/SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md`
 - Execution plan: `docs/plan/PLAN.md`
 - Subplans: `docs/plan/subplans/`
 - Trigger prompts: `docs/plan/triggers/`

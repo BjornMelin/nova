@@ -2,6 +2,10 @@
 
 - Branch name: `feat/subplan-0003-infra-cross-repo-integration`
 
+Transition note (2026-03-02): This subplan is baseline historical execution
+context. `container-craft` references here are migration evidence, not active
+runtime/deployment authority.
+
 ## Infra + Cross-Repo Integration
 
 Order: 3 of 5

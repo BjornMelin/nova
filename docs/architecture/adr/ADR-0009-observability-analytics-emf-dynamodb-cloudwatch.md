@@ -57,7 +57,8 @@ Implementation commitments:
 
 1. Strong production observability with moderate implementation complexity.
 2. Better cost control than high-cardinality custom metrics strategy.
-3. Requires dashboard/alarm IaC ownership in container-craft.
+3. Requires dashboard/alarm IaC ownership in Nova-managed infrastructure docs
+   and templates.
 
 ## Changelog
 
