@@ -1,5 +1,9 @@
 # TRIGGER-0003
 
+Transition note (2026-03-02): This trigger is retained as baseline migration
+evidence. `container-craft` scope references are historical and not active
+deployment authority for Nova.
+
 ## Purpose
 
 Run `docs/plan/subplans/SUBPLAN-0003.md` in a fresh Codex session.

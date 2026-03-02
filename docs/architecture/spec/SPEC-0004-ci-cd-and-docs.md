@@ -23,6 +23,10 @@ References:
 
 ## 1. Required quality gates
 
+Transition note (2026-03-02): This specification defines the current
+implemented CI/CD baseline. Planned target-state workflow artifacts are defined
+in `SPEC-0015` and become active requirements only when implemented.
+
 Every pull request MUST pass:
 
 - `source .venv/bin/activate && uv lock --check`

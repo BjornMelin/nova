@@ -1,5 +1,9 @@
 # TRIGGER-0004
 
+Transition note (2026-03-02): This trigger documents baseline release closure
+execution. Target-state validation paths must be introduced in the next
+implementation branch aligned with `ADR-0015` + `SPEC-0015`.
+
 ## Purpose
 
 Run `docs/plan/subplans/SUBPLAN-0004.md` in a fresh Codex session.

@@ -2,6 +2,10 @@
 
 - Branch name: `feat/subplan-0005-cross-repo-release-tracker`
 
+Transition note (2026-03-02): This tracker remains baseline historical
+evidence. It does not define active target-state implementation steps for the
+planned `/v1/*` cutover.
+
 ## Cross-Repo Release Tracker
 
 Order: 5 of 5

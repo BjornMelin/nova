@@ -1,9 +1,10 @@
 # AGENTS.md (nova runtime)
 
 This repository is the canonical runtime monorepo for file-transfer and
-auth API services. Infrastructure and IaC remain in
-`~/repos/work/infra-stack/container-craft`, and consumer migration work
-includes `~/repos/work/pca-analysis-dash/dash-pca`.
+auth API services. Active infrastructure and deployment authority is owned in
+this repository under `infra/nova/**` and `infra/runtime/**`. Historical
+cross-repo migration evidence remains in docs for prior cutover phases, and
+consumer migration work includes `~/repos/work/pca-analysis-dash/dash-pca`.
 
 ## Runtime Topology
 
@@ -62,8 +63,14 @@ All code and docs must remain production-ready.
 
 ## Guardrails
 
-- Work from `FINAL-PLAN.md` as the canonical execution source.
+- Use `FINAL-PLAN.md` as baseline historical execution source and
+  `ADR-0015`/`SPEC-0015` as target-state implementation authority.
 - Keep `docs/plan/PLAN.md` synchronized with current implementation state.
+- Treat architecture state as dual-track until next feature branch delivery:
+  - current implemented baseline: `SPEC-0000`, `SPEC-0003`, `SPEC-0004`,
+    `SPEC-0008`
+  - target-state contract for upcoming implementation:
+    `ADR-0015`, `SPEC-0015`
 - Treat OpenAPI as the contract and update SPEC/ADR docs first for
   contract-level changes.
 - Keep generated-client smoke coverage working for contract changes
@@ -73,7 +80,7 @@ All code and docs must remain production-ready.
 - Never run synchronous JWT verification directly in async route/dependency
   code; use a threadpool boundary.
 
-### Hard-Cutover Contract Rules (Blocking)
+### Current Runtime Baseline Rules (Blocking Until Target PR Lands)
 
 - Use only:
   - `/api/transfers/*`
@@ -91,6 +98,22 @@ Required verification command:
 source .venv/bin/activate && \
 rg -n "/api/transfers|/api/jobs|/metrics/summary|/healthz|/readyz" apps packages docs
 ```
+
+### Next PR Target Contract Rules (Locked for Implementation Branch)
+
+- Target API capabilities MUST be implemented under:
+  - `/v1/jobs`
+  - `/v1/jobs/{id}/events`
+  - `/v1/capabilities`
+  - `/v1/resources/plan`
+  - `/v1/releases/info`
+  - `/v1/health/live`
+  - `/v1/health/ready`
+- Do not introduce compatibility alias routes or namespace shims while
+  delivering target-state cutover.
+- Treat `SPEC-0015` as `Planned` authority until implementation merges, then
+  promote it to active runtime contract authority and supersede baseline route
+  rules above.
 
 ### Runtime Invariants That Must Be Preserved
 
@@ -173,48 +196,9 @@ source .venv/bin/activate && uv run pytest -q packages/nova_file_api/tests
 source .venv/bin/activate && uv run pytest -q packages/nova_auth_api/tests
 ```
 
-## Cross-Repo Coordination (Required Before Finalizing)
+## Cross-Repo Coordination (Targeted)
 
-### container-craft alignment
-
-Path: `~/repos/work/infra-stack/container-craft`
-
-Must align:
-
-- ALB routing for `/api/transfers/*` and `/api/jobs/*`.
-- health-check tuning for sidecar services.
-- env contract for SQS/Redis/DynamoDB settings.
-- IAM least privilege for S3/KMS/SQS/DynamoDB/Redis.
-
-Cache env contract keys to preserve:
-
-- `CACHE_REDIS_URL`
-- `CACHE_REDIS_MAX_CONNECTIONS`
-- `CACHE_REDIS_SOCKET_TIMEOUT_SECONDS`
-- `CACHE_REDIS_SOCKET_CONNECT_TIMEOUT_SECONDS`
-- `CACHE_REDIS_HEALTH_CHECK_INTERVAL_SECONDS`
-- `CACHE_REDIS_RETRY_BASE_SECONDS`
-- `CACHE_REDIS_RETRY_CAP_SECONDS`
-- `CACHE_REDIS_RETRY_ATTEMPTS`
-- `CACHE_REDIS_DECODE_RESPONSES`
-- `CACHE_REDIS_PROTOCOL`
-- `CACHE_LOCAL_TTL_SECONDS`
-- `CACHE_LOCAL_MAX_ENTRIES`
-- `CACHE_SHARED_TTL_SECONDS`
-- `CACHE_KEY_PREFIX`
-- `CACHE_KEY_SCHEMA_VERSION`
-- `AUTH_JWT_CACHE_MAX_TTL_SECONDS`
-
-Verification commands:
-
-```bash
-rg -n "/api/transfers|/api/jobs|FILE_TRANSFER_|JOBS_SQS_RETRY_" \
-  ~/repos/work/infra-stack/container-craft
-rg -n "deploy-nova-cicd|nova-ci-cd|nova-codebuild-release|nova-iam-roles" \
-  ~/repos/work/infra-stack/container-craft
-```
-
-### dash-pca alignment
+### dash-pca consumer alignment
 
 Path: `~/repos/work/pca-analysis-dash/dash-pca`
 
@@ -231,7 +215,14 @@ rg -n "/api/transfers|/api/jobs|nova_dash_bridge|nova_file_api" \
   ~/repos/work/pca-analysis-dash/dash-pca
 ```
 
-Before closing work, include cross-repo evidence in summary output.
+### Historical retirement evidence checks (read-only)
+
+Use these to confirm active docs do not restore retired operational authority:
+
+```bash
+rg -n "container-craft" AGENTS.md README.md PRD.md docs/architecture \
+  docs/plan/release | rg -v "docs/history|historical|archive|retired|ADR-0014|SPEC-0013|SPEC-0014|ADR-0001|requirements.md|RELEASE-NOTES-2026-02-12|RELEASE-VERSION-MANIFEST|AGENTS.md:"
+```
 
 ## Deployment Gates
 

@@ -7,12 +7,25 @@
 > Canonical authority:
 > - docs/architecture/adr/ADR-0013-final-state-sdk-topology-generated-core-plus-thin-adapters.md
 > - docs/architecture/adr/ADR-0014-container-craft-capability-absorption-and-repo-retirement.md
+> - docs/architecture/adr/ADR-0015-nova-api-platform-final-hosting-and-deployment-architecture-2026.md
 > - docs/architecture/spec/SPEC-0011-multi-language-sdk-architecture-and-package-map.md
 > - docs/architecture/spec/SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md
 > - docs/architecture/spec/SPEC-0013-container-craft-capability-absorption-execution-spec.md
 > - docs/architecture/spec/SPEC-0014-container-craft-capability-inventory-and-absorption-map.md
+> - docs/architecture/spec/SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md
 >
 > Status: Reference-only for superseded sections.
+
+## Migration Addendum (2026-03-02)
+
+- This file remains a historical baseline for currently implemented `/api/*`
+  runtime behavior and prior cutover execution evidence.
+- Target-state architecture for the next feature branch is locked in
+  `ADR-0015` + `SPEC-0015` and introduces `/v1/*` capability routes and planned
+  workflow artifacts.
+- Supersession trigger: once target-state implementation merges, route and
+  workflow authority in this file is historical-only and replaced by updated
+  active requirements/specification docs.
 
 # Final Hard-Cutover Monorepo Plan: nova Runtime + container-craft Infra
 

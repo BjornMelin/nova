@@ -7,6 +7,9 @@
 
 ## ADR Catalog
 
+Note: `ADR-0015` is accepted as target-state architecture and its delivery is
+tracked as implementation pending via `SPEC-0015`.
+
 | ADR | Title | Status | Date |
 | --- | --- | --- | --- |
 | [ADR-0000](./ADR-0000-fastapi-microservice.md) | Implement the File Transfer API as a FastAPI service | Accepted | 2026-02-11 |

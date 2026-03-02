@@ -2,6 +2,10 @@
 
 - Branch name: `feat/subplan-0001-core-runtime-contract-hardening`
 
+Transition note (2026-03-02): This subplan records current baseline delivery
+(`/api/*` contract era). Target-state implementation planning for `/v1/*`
+must follow `ADR-0015` + `SPEC-0015`.
+
 ## Core Runtime + Contract Hardening
 
 Order: 1 of 5

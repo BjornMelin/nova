@@ -16,6 +16,10 @@ References:
 
 ## 1. API surface
 
+Transition note (2026-03-02): This specification remains active for baseline
+`/api/jobs/*` behavior. Planned `/v1/jobs*` target-state capability endpoints
+are tracked in `SPEC-0015` and remain implementation-pending.
+
 Async jobs are managed through:
 
 - `POST /api/jobs/enqueue`

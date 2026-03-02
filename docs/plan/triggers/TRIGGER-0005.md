@@ -1,5 +1,9 @@
 # TRIGGER-0005
 
+Transition note (2026-03-02): This trigger remains a historical cross-repo
+tracker for baseline delivery. It does not define active target-state `/v1/*`
+implementation sequencing.
+
 ## Purpose
 
 Run `docs/plan/subplans/SUBPLAN-0005.md` in a fresh Codex session.

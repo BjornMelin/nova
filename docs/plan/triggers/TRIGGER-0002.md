@@ -1,5 +1,9 @@
 # TRIGGER-0002
 
+Transition note (2026-03-02): This trigger executes baseline `/api/*`
+hardening flow. Target-state migration and `/v1/*` rollout are tracked by
+`ADR-0015` + `SPEC-0015`.
+
 ## Purpose
 
 Run `docs/plan/subplans/SUBPLAN-0002.md` in a fresh Codex session.

@@ -2,8 +2,8 @@
 ADR: 0015
 Title: Nova API platform final hosting and deployment architecture (2026)
 Status: Accepted
-Version: 1.0
-Date: 2026-03-01
+Version: 1.1
+Date: 2026-03-02
 Related:
   - "[ADR-0011: Hybrid CI/CD with GitHub and AWS promotion](./ADR-0011-cicd-hybrid-github-aws-promotion.md)"
   - "[ADR-0012: Preserve ECS and SQS runtime scope](./ADR-0012-no-lambda-runtime-scope.md)"
@@ -17,7 +17,10 @@ References:
 
 ## Summary
 
-Adopt **standard ECS on Fargate with ALB + CodeDeploy blue/green + CDK + GitHub Actions OIDC** as the Nova API production final-state architecture.
+Adopt **standard ECS on Fargate with ALB + GitHub Actions OIDC and Nova-owned
+deployment stacks** as the Nova API production final-state architecture.
+Implementation is planned for the next feature branch and is not yet fully
+delivered in runtime code.
 
 ## Context
 
@@ -54,7 +57,7 @@ Choose **Option B** as production final-state.
 
 1. ECS/Fargate API service behind ALB.
 2. Separate ECS/Fargate worker services with SQS orchestration.
-3. CodeDeploy blue/green deployments with alarm-driven rollback.
+3. Alarm-driven rollback controls with deployment circuit-breaker semantics.
 4. GitHub Actions with OIDC AWS auth; no long-lived keys.
 5. One-repo IaC authority in `nova` for runtime/deployment path.
 
@@ -80,3 +83,5 @@ Choose **Option B** as production final-state.
 ## Changelog
 
 - 2026-03-01: Accepted final production hosting/deployment architecture after 2026 options re-evaluation.
+- 2026-03-02: Clarified that the decision is accepted but implementation is
+  planned and tracked in `SPEC-0015`.

@@ -2,6 +2,10 @@
 
 - Branch name: `feat/subplan-0002-async-cache-observability-completion`
 
+Transition note (2026-03-02): This subplan captures baseline `/api/*`
+implementation hardening. Target-state cutover work is tracked by
+`ADR-0015` + `SPEC-0015`.
+
 ## Async Jobs + Cache + Observability Completion
 
 Order: 2 of 5

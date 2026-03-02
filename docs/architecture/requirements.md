@@ -1,10 +1,19 @@
 # Requirements (nova runtime)
 
 Status: Canonical requirements source
-Last updated: 2026-02-24
+Last updated: 2026-03-02
 
 This document is the source of truth for functional and non-functional
 requirements for the first production release.
+
+## Architecture State Model
+
+- Current implemented baseline requirements use the `FR-*`, `NFR-*`, and
+  `IR-*` IDs below.
+- Target-state requirements for the next implementation branch use
+  `TFR-*`, `TNFR-*`, and `TIR-*` IDs and are derived from `ADR-0015` and
+  `SPEC-0015`.
+- Until target-state code is merged, baseline IDs remain operational authority.
 
 ## Scope
 
@@ -164,6 +173,38 @@ The service MUST enforce AWS multipart constraints:
 When `FILE_TRANSFER_USE_ACCELERATE_ENDPOINT=true`, presigned URLs MUST be
 generated using acceleration-compatible client configuration.
 
+## Target-State Functional Requirements (Planned)
+
+### TFR-0100: API capability endpoint contract
+
+The next feature branch MUST expose:
+
+- `GET|POST /v1/jobs` capability surface (create/list/get/cancel/retry)
+- `GET /v1/jobs/{id}/events` (poll/SSE-capable event stream surface)
+- `GET /v1/capabilities`
+- `POST /v1/resources/plan`
+- `GET /v1/releases/info`
+- `GET /v1/health/live`
+- `GET /v1/health/ready`
+
+### TFR-0101: Target workflow artifact set
+
+The next feature branch MUST add CI/CD workflow artifacts listed in
+`SPEC-0015`:
+
+- `build-and-publish-image.yml`
+- `publish-packages.yml`
+- `deploy-dev.yml`
+- `promote-prod.yml`
+- `post-deploy-validate.yml`
+- `conformance-clients.yml`
+
+### TFR-0102: No-shim cutover posture
+
+Target-state contract migration MUST not introduce compatibility alias routes,
+retired namespaces, or transitional wrappers unless explicitly approved by a
+new ADR.
+
 ## Non-Functional Requirements
 
 ### NFR-0000: Security baseline
@@ -213,12 +254,27 @@ Every change MUST pass:
 - `source .venv/bin/activate && uv run pytest -q packages/nova_file_api/tests/test_generated_client_smoke.py`
 - workspace package/app build verification (`uv build` per workspace unit)
 
+## Target-State Non-Functional Requirements (Planned)
+
+### TNFR-0100: Target-state contract traceability
+
+Target implementation PRs MUST update `README.md`, `PRD.md`, `AGENTS.md`,
+`docs/architecture/requirements.md`, affected ADR/SPEC docs, and
+`FINAL-PLAN.md`/`docs/plan/PLAN.md` in the same change set.
+
+### TNFR-0101: Baseline operability preservation during transition
+
+Until target-state routes are implemented, current baseline operational docs
+and runbooks MUST remain executable and clearly labeled as baseline behavior.
+
 ## Integration Requirements
 
-### IR-0000: container-craft env contract compatibility
+<a id="ir-0000-container-craft-env-contract-compatibility"></a>
+### IR-0000: Legacy container-craft env contract compatibility (transitional)
 
-Runtime settings MUST remain compatible with container-craft `FILE_TRANSFER_*`
-environment injection.
+Runtime settings MAY retain compatibility with historical
+`container-craft` `FILE_TRANSFER_*` environment injection during migration, but
+active deployment authority is Nova-local (`infra/nova/**`, `infra/runtime/**`).
 
 ### IR-0001: Sidecar routing model
 
@@ -239,6 +295,13 @@ on auth service errors.
 
 S3 CORS policies MUST allow browser upload/download operations and expose
 `ETag` for multipart completion flows.
+
+## Target-State Integration Requirements (Planned)
+
+### TIR-0100: Nova-local IaC authority
+
+Active runtime and release/deploy infrastructure authority MUST remain in this
+repository under `infra/nova/**` and `infra/runtime/**`.
 
 ## Explicit Non-Goals (Initial Release)
 
