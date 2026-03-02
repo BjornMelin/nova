@@ -13,7 +13,8 @@ one signed source revision.
 
 1. `nova-ci-cd` pipeline deployed and source integration active.
 2. Release workflows passing in `3M-Cloud/nova` on `main`.
-3. Operator permissions to approve CodePipeline manual approval actions.
+3. Operator permissions to approve CodePipeline manual approval actions (only when
+   `ManualApprovalTopicArn` is configured in the pipeline).
 4. Access to CloudWatch/CodeBuild logs for evidence capture.
 
 ## Preconditions
@@ -90,7 +91,7 @@ Acceptance:
 
 - `IMAGE_DIGEST` in Build output equals digest used by both Dev and Prod
   CloudFormation actions.
-- No rebuild occurs after manual approval.
+- When manual approval is enabled, no rebuild occurs after manual approval.
 
 ## Evidence to store
 
@@ -100,7 +101,7 @@ Acceptance:
 4. pipeline execution ID
 5. manifest digest used for package promotion gate
 6. package promotion candidates JSON
-7. manual approver and timestamp
+7. when `ManualApprovalTopicArn` is configured: manual approver and timestamp
 8. digest continuity evidence
 9. validation logs for `/healthz`, `/readyz`, `/metrics/summary`
 

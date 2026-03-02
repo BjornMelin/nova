@@ -27,7 +27,7 @@ def test_publish_packages_workflow_has_staged_gate_contracts() -> None:
         "aws codeartifact login",
         "twine upload --repository codeartifact",
     ]:
-        assert required in text
+        assert required in text, f"Missing required contract: {required!r}"
 
 
 def test_promote_prod_workflow_has_controlled_package_promotion_policy() -> (
@@ -39,6 +39,8 @@ def test_promote_prod_workflow_has_controlled_package_promotion_policy() -> (
 
     for required in [
         "manifest_sha256",
+        "changed_units_json",
+        "version_plan_json",
         "promotion_candidates_json",
         "CODEARTIFACT_STAGING_REPOSITORY",
         "CODEARTIFACT_PROD_REPOSITORY",
@@ -46,4 +48,4 @@ def test_promote_prod_workflow_has_controlled_package_promotion_policy() -> (
         "copy-package-versions",
         "approve-prod-pipeline",
     ]:
-        assert required in text
+        assert required in text, f"Missing required contract: {required!r}"

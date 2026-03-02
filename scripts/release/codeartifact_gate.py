@@ -5,13 +5,16 @@ from __future__ import annotations
 import argparse
 import hashlib
 import re
+from collections.abc import Mapping
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
 from scripts.release import common
 
-SEMVER_RE = re.compile(r"^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$")
+SEMVER_RE = re.compile(
+    r"^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$"
+)
 MANIFEST_ROW_RE = re.compile(
     r"\|\s*`(?P<unit>[^`]+)`\s*\|\s*`(?P<package>[^`]+)`\s*\|"
     r"\s*`(?P<version>[^`]+)`\s*\|"
@@ -26,6 +29,7 @@ class PromotionCandidate:
     namespace: str | None
     package: str
     version: str
+    unit_id: str | None = None
 
 
 class GateError(ValueError):
@@ -49,6 +53,7 @@ def _validate_candidate(raw: dict[str, Any]) -> PromotionCandidate:
     namespace = raw.get("namespace")
     namespace_text = str(namespace).strip() if namespace is not None else None
     version = str(raw.get("version", "")).strip()
+    item_unit_id = str(raw.get("unit_id", "")).strip() or None
 
     if not package:
         raise GateError("promotion candidate package must be non-empty")
@@ -76,6 +81,7 @@ def _validate_candidate(raw: dict[str, Any]) -> PromotionCandidate:
         namespace=namespace_text,
         package=package,
         version=version,
+        unit_id=item_unit_id,
     )
 
 
@@ -92,7 +98,7 @@ def _load_candidates(
 
     candidates: list[PromotionCandidate] = []
     for item in raw_units:
-        if not isinstance(item, dict):
+        if not isinstance(item, Mapping):
             raise GateError("each version plan unit entry must be an object")
         unit_id = str(item.get("unit_id", "")).strip()
         version = str(item.get("new_version", "")).strip()
@@ -111,6 +117,7 @@ def _load_candidates(
                     "namespace": "nova",
                     "package": units[unit_id].project_name,
                     "version": version,
+                    "unit_id": unit_id,
                 }
             )
         )
@@ -125,40 +132,41 @@ def validate_release_gates(
     version_plan_path: Path,
     expected_manifest_sha256: str | None,
 ) -> dict[str, Any]:
-    """Validate release gate contracts and return gate report payload.
+    """Validate release gate contracts and return a gate report payload.
 
     Args:
-        repo_root: Repository root path used to resolve workspace and artifact
-            paths.
-        manifest_path: Path to the release manifest file being validated.
-            Expected to include a "Canonical Runtime Monorepo" table and schema
-            marker.
-        changed_units_path: Path to changed-units.json artifact produced by
-            changed_units.py.
-        version_plan_path: Path to version-plan.json artifact produced by
-            version_plan.py.
-        expected_manifest_sha256: Optional manifest SHA256 digest to enforce
-            immutability checks.
+        repo_root:
+            Repository root used to resolve workspace units and relative paths.
+        manifest_path:
+            Path to the release manifest checked against expected hashes
+            and package version rows in the manifest.
+        changed_units_path:
+            JSON path containing changed unit metadata for the release.
+        version_plan_path:
+            JSON path containing planned unit/version data for the release.
+        expected_manifest_sha256:
+            Optional SHA256 digest expected for the manifest file.
 
     Returns:
-        Dictionary containing report fields:
-            - schema_version (str)
-            - manifest_path (str)
-            - manifest_sha256 (str)
-            - changed_units_count (int)
-            - planned_package_count (int)
-            - promotion_candidates (list[dict[str, Any]])
+        dict[str, Any]:
+            Gate report payload with manifest metadata, counts, and promotion
+            candidates.
 
     Raises:
-        GateError: For validation failures, including manifest policy violations
-            and plan/workspace mismatch.
-        FileNotFoundError: If required input files are missing.
-        ValueError: If workspace manifests or plan JSON are structurally
-            invalid.
+        GateError:
+            If any validation rule fails, including manifest drift, malformed
+            input structure, or release mismatch.
+        OSError:
+            If files cannot be read from disk.
+        ValueError:
+            If JSON payloads cannot be decoded.
     """
     manifest_text = manifest_path.read_text(encoding="utf-8")
     manifest_sha256 = hashlib.sha256(manifest_text.encode("utf-8")).hexdigest()
-    if expected_manifest_sha256 and expected_manifest_sha256 != manifest_sha256:
+    if (
+        expected_manifest_sha256 is not None
+        and expected_manifest_sha256 != manifest_sha256
+    ):
         raise GateError(
             "release manifest digest mismatch: "
             f"expected {expected_manifest_sha256}, got {manifest_sha256}"
@@ -167,6 +175,38 @@ def validate_release_gates(
     changed_units = common.read_json(changed_units_path)
     version_plan = common.read_json(version_plan_path)
     units = common.load_workspace_units(repo_root)
+
+    changed_items = changed_units.get("changed_units")
+    if not isinstance(changed_items, list):
+        raise GateError("changed_units must contain a changed_units array")
+    changed_unit_ids: set[str] = set()
+    for item in changed_items:
+        if not isinstance(item, Mapping):
+            raise GateError("changed_units entries must be objects")
+        unit_id = str(item.get("unit_id", "")).strip()
+        if not unit_id:
+            raise GateError("changed_units entries require unit_id")
+        changed_unit_ids.add(unit_id)
+
+    planned_items = version_plan.get("units", [])
+    if not isinstance(planned_items, list):
+        raise GateError("version_plan.units must be a JSON array")
+    planned_unit_ids = set[str]()
+    for item in planned_items:
+        if not isinstance(item, Mapping):
+            raise GateError("version plan units must be objects")
+        unit_id = str(item.get("unit_id", "")).strip()
+        if unit_id:
+            planned_unit_ids.add(unit_id)
+    planned_unit_ids.discard("")
+
+    if planned_unit_ids != changed_unit_ids:
+        planned_sorted = ", ".join(sorted(planned_unit_ids))
+        changed_sorted = ", ".join(sorted(changed_unit_ids))
+        raise GateError(
+            "changed_units and version_plan.units must match exactly: "
+            f"planned=[{planned_sorted}] changed=[{changed_sorted}]"
+        )
 
     if "## Canonical Runtime Monorepo" not in manifest_text:
         raise GateError(
@@ -191,12 +231,7 @@ def validate_release_gates(
                 f"manifest={manifest_version} plan={candidate.version}"
             )
 
-    if not isinstance(changed_units, dict):
-        raise GateError("changed-units artifact must be an object")
-    changed_units_list = changed_units.get("changed_units")
-    if not isinstance(changed_units_list, list):
-        raise GateError("changed-units field 'changed_units' must be a list")
-    changed_count = len(changed_units_list)
+    changed_count = len(changed_unit_ids)
     try:
         manifest_rel = str(manifest_path.relative_to(repo_root))
     except ValueError:

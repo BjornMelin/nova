@@ -9,7 +9,7 @@ import tomllib
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal, cast
 
 BumpLevel = Literal["major", "minor", "patch"]
 DEFAULT_MANIFEST_PATH = "docs/plan/release/RELEASE-VERSION-MANIFEST.md"
@@ -336,7 +336,7 @@ def increment_semver(version: str, bump: BumpLevel) -> str:
     return f"{major}.{minor}.{patch}"
 
 
-def read_json(path: Path) -> dict:
+def read_json(path: Path) -> dict[str, Any]:
     """Read a UTF-8 JSON file.
 
     Args:
@@ -344,16 +344,42 @@ def read_json(path: Path) -> dict:
 
     Returns:
         Parsed JSON object.
+
+    Raises:
+        TypeError:
+            If the JSON root is not an object.
+        json.JSONDecodeError:
+            If `path.read_text()` contains malformed JSON.
+        OSError:
+            If `path.read_text()` cannot be read.
     """
-    return json.loads(path.read_text(encoding="utf-8"))
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise TypeError(
+            f"JSON root must be an object, got {type(payload).__name__}"
+        )
+    return cast(dict[str, Any], payload)
 
 
-def write_json(path: Path, payload: dict) -> None:
+def write_json(
+    path: Path,
+    payload: dict[str, Any] | list[Any] | str | int | bool | float | None,
+) -> None:
     """Write a JSON file with stable formatting.
 
     Args:
         path: Destination JSON file path.
         payload: JSON-serializable object to persist.
+
+    Returns:
+        None:
+            write_json(path, payload) returns None.
+
+    Raises:
+        OSError:
+            If `path.parent.mkdir()` or `path.write_text()` fails.
+        TypeError:
+            If `payload` cannot be encoded as JSON.
     """
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(

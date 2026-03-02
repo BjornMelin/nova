@@ -124,7 +124,7 @@ PY
             exit 0
           fi
 
-          uv run twine upload --repository codeartifact "${DIST_FILES[@]}"
+          uv run twine upload --repository codeartifact --skip-existing "${DIST_FILES[@]}"
 
       - name: Upload package gate artifacts
         uses: actions/upload-artifact@v4
