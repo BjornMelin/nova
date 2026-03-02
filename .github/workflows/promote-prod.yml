@@ -7,10 +7,6 @@ on:
         description: AWS CodePipeline name
         required: true
         type: string
-      token:
-        description: Approval token from get-pipeline-state output
-        required: true
-        type: string
 
 permissions:
   id-token: write
@@ -22,15 +18,29 @@ jobs:
     env:
       AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
       RELEASE_AWS_ROLE_ARN: ${{ secrets.RELEASE_AWS_ROLE_ARN }}
+      PIPELINE_NAME: ${{ inputs.pipeline_name }}
     steps:
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ env.RELEASE_AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
       - run: |
+          set -euo pipefail
+          [[ "$PIPELINE_NAME" =~ ^[A-Za-z0-9._@-]+$ ]] || { echo "Invalid pipeline name" >&2; exit 1; }
+
+          APPROVAL_TOKEN="$(aws codepipeline get-pipeline-state \
+            --name "$PIPELINE_NAME" \
+            --query "stageStates[?stageName==\'ManualApproval\'].actionStates[?actionName==\'ApproveProdPromotion\'].latestExecution.token | [0]" \
+            --output text)"
+
+          if [[ -z "$APPROVAL_TOKEN" || "$APPROVAL_TOKEN" == "None" ]]; then
+            echo "Approval token not found for pipeline $PIPELINE_NAME" >&2
+            exit 1
+          fi
+
           aws codepipeline put-approval-result \
-            --pipeline-name "${{ inputs.pipeline_name }}" \
+            --pipeline-name "$PIPELINE_NAME" \
             --stage-name "ManualApproval" \
             --action-name "ApproveProdPromotion" \
-            --token "${{ inputs.token }}" \
+            --token "$APPROVAL_TOKEN" \
             --result summary="Approved via promote-prod workflow",status=Approved

@@ -38,7 +38,7 @@ Primary variable sources:
 
 ## Quick failure matrix
 
-### `Publish Packages` cannot assume AWS role
+### `Build and Publish Image` cannot assume AWS role
 
 Likely causes:
 

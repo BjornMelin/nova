@@ -2,7 +2,7 @@ name: Build and Publish Image
 
 on:
   workflow_run:
-    workflows: ["Nova Release Plan"]
+    workflows: ["Publish Packages"]
     types: [completed]
   workflow_dispatch:
 
@@ -102,12 +102,7 @@ jobs:
 
       - name: Commit and push release changes
         run: |
-          if git diff --quiet; then
-            echo "No release changes detected."
-            exit 0
-          fi
-
-          git add \
+          git add --all \
             docs/plan/release/RELEASE-VERSION-MANIFEST.md \
             uv.lock \
             pyproject.toml \

@@ -33,19 +33,14 @@ Related:
 #### Already present (partial foundation)
 - Workflows: `ci.yml`, `conformance-clients.yml`, `build-and-publish-image.yml`, `publish-packages.yml`, `verify-signature.yml`.
 - Infra templates exist under `infra/runtime/**` and `infra/nova/**`.
-- OIDC auth is already used in `publish-packages.yml`.
+- OIDC auth is already used in `build-and-publish-image.yml`.
 
 
 #### Missing relative to SPEC-0015 target artifact contract
-- Target workflow names/artifacts not yet present:
-  - `build-and-publish-image.yml`
-  - `publish-packages.yml`
-  - `deploy-dev.yml`
-  - `promote-prod.yml`
-  - `post-deploy-validate.yml`
-  - `conformance-clients.yml` (`conformance-clients.yml`)
+- Target workflow names/artifacts are present in `.github/workflows/` (see section above).
+- Remaining workflow gap is contract hardening and authority alignment, not artifact absence.
 - Explicit CodeDeploy blue/green deployment authority is not yet codified as a complete end-to-end Nova-local target-state package.
-- Target `/v1/*` capability API surface is planned but not yet delivered.
+- Target `/v1/*` capability API surface is in active implementation via Batch A3 PR lane.
 
 ## 2) Options and recommendation
 
