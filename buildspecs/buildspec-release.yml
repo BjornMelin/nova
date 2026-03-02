@@ -24,23 +24,66 @@ phases:
       - set -euo pipefail
       - uv sync --frozen
       - |
-        RELEASE_HEAD_COMMIT="$(git rev-parse HEAD)"
-        if ! git rev-parse --verify HEAD^ >/dev/null 2>&1; then
-          if git remote get-url origin >/dev/null 2>&1; then
-            git fetch --no-tags --depth=2 origin || true
+        if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+          RELEASE_HEAD_COMMIT="$(git rev-parse HEAD)"
+          if ! git rev-parse --verify HEAD^ >/dev/null 2>&1; then
+            if git remote get-url origin >/dev/null 2>&1; then
+              git fetch --no-tags --depth=2 origin || true
+            fi
           fi
+          if git rev-parse --verify HEAD^ >/dev/null 2>&1; then
+            RELEASE_BASE_COMMIT="$(git rev-parse HEAD^)"
+            uv run python -m scripts.release.changed_units \
+              --repo-root . \
+              --base-commit "$RELEASE_BASE_COMMIT" \
+              --head-ref "$RELEASE_HEAD_COMMIT" \
+              --output changed-units.json
+          else
+            echo "Unable to resolve HEAD^; falling back to manifest-driven baseline."
+            uv run python -m scripts.release.changed_units \
+              --repo-root . \
+              --head-ref "$RELEASE_HEAD_COMMIT" \
+              --output changed-units.json
+          fi
+        else
+          RELEASE_HEAD_COMMIT="${CODEBUILD_RESOLVED_SOURCE_VERSION:-CODEPIPELINE_ARTIFACT}"
+          echo "No git metadata in source artifact; generating first-release changed-units fallback."
+          uv run python - <<'PYCODE'
+        import os
+        from pathlib import Path
+
+        from scripts.release import common
+
+        repo_root = Path(".").resolve()
+        units = common.load_workspace_units(repo_root)
+        changed_units = [
+            {
+                "unit_id": unit_id,
+                "project": unit.project_name,
+                "path": unit_id,
+                "version": unit.version,
+            }
+            for unit_id, unit in sorted(units.items())
+        ]
+        payload = {
+            "schema_version": "1.0",
+            "generated_at": common.iso_timestamp(),
+            "base_commit": None,
+            "head_commit": os.environ.get(
+                "CODEBUILD_RESOLVED_SOURCE_VERSION",
+                "CODEPIPELINE_ARTIFACT",
+            ),
+            "first_release": True,
+            "changed_files": [],
+            "changed_units": changed_units,
+        }
+        common.write_json(repo_root / "changed-units.json", payload)
+        print(
+            f"changed-units fallback: first_release=True "
+            f"count={len(changed_units)}"
+        )
+        PYCODE
         fi
-        if ! git rev-parse --verify HEAD^ >/dev/null 2>&1; then
-          echo "Unable to resolve HEAD^ for selective publish baseline."
-          echo "Release build requires parent commit history for HEAD."
-          exit 1
-        fi
-        RELEASE_BASE_COMMIT="$(git rev-parse HEAD^)"
-        uv run python -m scripts.release.changed_units \
-          --repo-root . \
-          --base-commit "$RELEASE_BASE_COMMIT" \
-          --head-ref "$RELEASE_HEAD_COMMIT" \
-          --output changed-units.json
       - uv run python -m scripts.release.version_plan --repo-root . --changed-units changed-units.json --output version-plan.json
       - |
         CHANGED_UNITS="$(python - <<'PY'
