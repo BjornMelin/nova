@@ -1,0 +1,23 @@
+name: Post Deploy Validate
+
+on:
+  workflow_dispatch:
+    inputs:
+      service_base_url:
+        description: Base URL to validate (e.g. https://api.example.com)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  post-deploy-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          set -euo pipefail
+          BASE="${{ inputs.service_base_url }}"
+          curl -fsS "${BASE}/healthz" >/dev/null
+          curl -fsS "${BASE}/readyz" >/dev/null
+          curl -fsS "${BASE}/metrics/summary" >/dev/null

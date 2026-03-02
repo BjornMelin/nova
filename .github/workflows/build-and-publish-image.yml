@@ -1,0 +1,123 @@
+name: Build and Publish Image
+
+on:
+  workflow_run:
+    workflows: ["Nova Release Plan"]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: write
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  apply:
+    if: >-
+      (github.event_name == 'workflow_dispatch' &&
+      github.ref == 'refs/heads/main') ||
+      (github.event_name == 'workflow_run' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main')
+    runs-on: ubuntu-latest
+    env:
+      SIGNING_SECRET_ID: ${{ secrets.RELEASE_SIGNING_SECRET_ID }}
+      AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
+      RELEASE_AWS_ROLE_ARN: ${{ secrets.RELEASE_AWS_ROLE_ARN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Sync
+        run: uv sync --locked
+
+      - name: Configure AWS Credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.RELEASE_AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Recompute release plan
+        run: |
+          uv run python -m scripts.release.changed_units \
+            --repo-root . \
+            --output .artifacts/changed-units.json
+          uv run python -m scripts.release.version_plan \
+            --repo-root . \
+            --changed-units .artifacts/changed-units.json \
+            --output .artifacts/version-plan.json
+
+      - name: Apply versions + manifest
+        run: |
+          uv run python -m scripts.release.apply_versions \
+            --repo-root . \
+            --version-plan .artifacts/version-plan.json
+          uv lock
+          uv run python -m scripts.release.write_manifest \
+            --repo-root . \
+            --changed-units .artifacts/changed-units.json \
+            --version-plan .artifacts/version-plan.json \
+            --manifest-path docs/plan/release/RELEASE-VERSION-MANIFEST.md
+
+      - name: Configure git signing from Secrets Manager
+        run: |
+          aws secretsmanager get-secret-value \
+            --secret-id "$SIGNING_SECRET_ID" \
+            --query SecretString \
+            --output text > /tmp/release_signing_secret.json
+
+          jq -r '.private_key' /tmp/release_signing_secret.json \
+            > /tmp/release_signing_key
+          jq -r '.public_key' /tmp/release_signing_secret.json \
+            > /tmp/release_signing_key.pub
+          SIGNER_NAME=$(jq -r '.signer_name' /tmp/release_signing_secret.json)
+          SIGNER_EMAIL=$(jq -r '.signer_email' /tmp/release_signing_secret.json)
+          rm -f /tmp/release_signing_secret.json
+
+          mkdir -p ~/.ssh
+          mv /tmp/release_signing_key ~/.ssh/release_signing_key
+          mv /tmp/release_signing_key.pub ~/.ssh/release_signing_key.pub
+          chmod 600 ~/.ssh/release_signing_key
+          chmod 644 ~/.ssh/release_signing_key.pub
+
+          git config user.name "$SIGNER_NAME"
+          git config user.email "$SIGNER_EMAIL"
+          git config gpg.format ssh
+          git config user.signingkey ~/.ssh/release_signing_key
+          git config commit.gpgsign true
+
+      - name: Commit and push release changes
+        run: |
+          if git diff --quiet; then
+            echo "No release changes detected."
+            exit 0
+          fi
+
+          git add \
+            docs/plan/release/RELEASE-VERSION-MANIFEST.md \
+            uv.lock \
+            pyproject.toml \
+            apps \
+            packages
+
+          if git diff --cached --quiet; then
+            echo "No staged release changes after add."
+            exit 0
+          fi
+
+          git commit -S -m "chore(release): apply selective versions [skip release]"
+          git push origin HEAD:main

@@ -134,7 +134,7 @@ Resources:
                   [{"name":"SERVICE_BASE_URL",
                   "value":"${DevServiceBaseUrl}","type":"PLAINTEXT"}]
               InputArtifacts:
-                - Name: BuildOutput
+                - Name: AppSourceOutput
               RunOrder: 1
 
         - !If
@@ -189,7 +189,7 @@ Resources:
                   [{"name":"SERVICE_BASE_URL",
                   "value":"${ProdServiceBaseUrl}","type":"PLAINTEXT"}]
               InputArtifacts:
-                - Name: BuildOutput
+                - Name: AppSourceOutput
               RunOrder: 1
 
 Outputs:

@@ -1,0 +1,26 @@
+name: Deploy Dev
+
+on:
+  workflow_dispatch:
+    inputs:
+      pipeline_name:
+        description: AWS CodePipeline name
+        required: true
+        type: string
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy-dev:
+    runs-on: ubuntu-latest
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
+      RELEASE_AWS_ROLE_ARN: ${{ secrets.RELEASE_AWS_ROLE_ARN }}
+    steps:
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.RELEASE_AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      - run: aws codepipeline start-pipeline-execution --name "${{ inputs.pipeline_name }}"
