@@ -29,10 +29,12 @@ Related:
 
 ### 1.3 Current implementation-vs-target gap snapshot
 
+
 #### Already present (partial foundation)
 - Workflows: `ci.yml`, `conformance.yml`, `release-plan.yml`, `release-apply.yml`, `verify-signature.yml`.
 - Infra templates exist under `infra/runtime/**` and `infra/nova/**`.
 - OIDC auth is already used in `release-apply.yml`.
+
 
 #### Missing relative to SPEC-0015 target artifact contract
 - Target workflow names/artifacts not yet present:
@@ -70,7 +72,7 @@ Score: 8.6/10
 
 ## 3) Definitive implementation blueprint
 
-## 3.1 Target production authority
+### 3.1 Target production authority
 
 Primary authority (must be true at completion):
 1. ECS/Fargate services (API + workers) behind ALB.
@@ -82,7 +84,7 @@ ECS Express Mode posture:
 - Allowed only as optional accelerator profile for constrained scenarios.
 - Explicitly non-authoritative for production governance/rollback policy.
 
-## 3.2 Work breakdown structure (WBS)
+### 3.2 Work breakdown structure (WBS)
 
 ### Batch 0 — Contract and skeleton lock (unblocked now)
 - Add missing workflow skeleton files with no-op guarded jobs and required permissions model.
