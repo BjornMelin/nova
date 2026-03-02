@@ -115,7 +115,6 @@ jobs:
                   '--format', 'pypi',
                   '--package', package,
                   '--versions', version,
-                  '--allow-overwrite',
               ], check=True)
           PY
 

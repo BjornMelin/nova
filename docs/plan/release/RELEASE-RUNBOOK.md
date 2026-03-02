@@ -33,7 +33,8 @@ Use the modular operator guide set for provisioning and setup details:
 4. Dev and Prod deployment stack parameters are configured.
 5. Release build project parameters provide CodeArtifact and ECR targets:
    - `CODEARTIFACT_DOMAIN`
-   - `CODEARTIFACT_REPOSITORY`
+   - `CODEARTIFACT_STAGING_REPOSITORY`
+   - `CODEARTIFACT_PROD_REPOSITORY`
    - `ECR_REPOSITORY_URI` (or `ECR_REPOSITORY_NAME`)
 
 ## 3. GitHub release execution
@@ -66,7 +67,8 @@ Use the modular operator guide set for provisioning and setup details:
 2. Confirm `scripts.release.codeartifact_gate` generated:
    - `.artifacts/codeartifact-gate-report.json`
    - `.artifacts/codeartifact-promotion-candidates.json`
-3. Confirm package uploads target `CODEARTIFACT_STAGING_REPOSITORY` only.
+3. Confirm package uploads target `CODEARTIFACT_STAGING_REPOSITORY` only,
+   and promotion targets `CODEARTIFACT_PROD_REPOSITORY`.
 
 ## 4. AWS promotion execution
 

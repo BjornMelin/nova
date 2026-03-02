@@ -117,7 +117,21 @@ def validate_release_gates(
     version_plan_path: Path,
     expected_manifest_sha256: str | None,
 ) -> dict[str, Any]:
-    """Validate release gate contracts and return gate report payload."""
+    """Validate release gate contracts and build the gate report payload.
+
+    Args:
+        repo_root: Repository root used to resolve relative artifact paths.
+        manifest_path: Release manifest path.
+        changed_units_path: JSON file containing changed units.
+        version_plan_path: JSON file containing planned release versions.
+        expected_manifest_sha256: Optional expected SHA256 for the manifest.
+
+    Returns:
+        Structured gate report payload.
+
+    Raises:
+        GateError: If the manifest content or planned versions fail validation.
+    """
     manifest_text = manifest_path.read_text(encoding="utf-8")
     manifest_sha256 = hashlib.sha256(manifest_text.encode("utf-8")).hexdigest()
     if expected_manifest_sha256 and expected_manifest_sha256 != manifest_sha256:
@@ -171,7 +185,14 @@ def validate_release_gates(
 
 
 def parse_args() -> argparse.Namespace:
-    """Parse CLI args for gate validation artifact generation."""
+    """Parse CLI args for gate validation artifact generation.
+
+    Returns:
+        Parsed command-line arguments.
+
+    Raises:
+        SystemExit: If argument parsing fails.
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument("--repo-root", default=".")
     parser.add_argument("--manifest-path", default=common.DEFAULT_MANIFEST_PATH)
@@ -184,7 +205,14 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> int:
-    """Run release gate validation and write JSON output artifacts."""
+    """Run release gate validation and write JSON output artifacts.
+
+    Returns:
+        Exit code for CLI compatibility.
+
+    Raises:
+        GateError: If release-gate validation fails.
+    """
     args = parse_args()
     repo_root = Path(args.repo_root).resolve()
 

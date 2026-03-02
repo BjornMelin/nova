@@ -26,6 +26,12 @@ def _write_json(path: Path, payload: object) -> None:
 
 
 def test_validate_release_gates_success(tmp_path: Path) -> None:
+    """Verify successful release gate validation for matching manifest data.
+
+    Args:
+        tmp_path: Temporary directory for fixture files used by the test.
+    """
+
     repo_root = Path(__file__).resolve().parents[3]
     manifest = tmp_path / "manifest.md"
     manifest.write_text(MANIFEST_TEXT, encoding="utf-8")
@@ -72,6 +78,8 @@ def test_validate_release_gates_success(tmp_path: Path) -> None:
 def test_validate_release_gates_rejects_manifest_mismatch(
     tmp_path: Path,
 ) -> None:
+    """Verify manifest mismatch produces a controlled GateError."""
+
     repo_root = Path(__file__).resolve().parents[3]
     manifest = tmp_path / "manifest.md"
     manifest.write_text(
