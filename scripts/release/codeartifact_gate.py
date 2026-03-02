@@ -4,15 +4,17 @@ from __future__ import annotations
 
 import argparse
 import hashlib
-import json
 import re
-from dataclasses import dataclass
+from collections.abc import Mapping
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
-from . import common
+from scripts.release import common
 
-SEMVER_RE = re.compile(r"^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$")
+SEMVER_RE = re.compile(
+    r"^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$"
+)
 MANIFEST_ROW_RE = re.compile(
     r"\|\s*`(?P<unit>[^`]+)`\s*\|\s*`(?P<package>[^`]+)`\s*\|"
     r"\s*`(?P<version>[^`]+)`\s*\|"
@@ -27,6 +29,7 @@ class PromotionCandidate:
     namespace: str | None
     package: str
     version: str
+    unit_id: str | None = None
 
 
 class GateError(ValueError):
@@ -50,6 +53,7 @@ def _validate_candidate(raw: dict[str, Any]) -> PromotionCandidate:
     namespace = raw.get("namespace")
     namespace_text = str(namespace).strip() if namespace is not None else None
     version = str(raw.get("version", "")).strip()
+    item_unit_id = str(raw.get("unit_id", "")).strip() or None
 
     if not package:
         raise GateError("promotion candidate package must be non-empty")
@@ -77,6 +81,7 @@ def _validate_candidate(raw: dict[str, Any]) -> PromotionCandidate:
         namespace=namespace_text,
         package=package,
         version=version,
+        unit_id=item_unit_id,
     )
 
 
@@ -86,6 +91,8 @@ def _load_candidates(
 ) -> list[PromotionCandidate]:
     candidates: list[PromotionCandidate] = []
     for item in version_plan.get("units", []):
+        if not isinstance(item, Mapping):
+            raise GateError("version plan units must be objects")
         unit_id = str(item.get("unit_id", "")).strip()
         version = str(item.get("new_version", "")).strip()
         if not unit_id or not version:
@@ -103,6 +110,7 @@ def _load_candidates(
                     "namespace": "nova",
                     "package": units[unit_id].project_name,
                     "version": version,
+                    "unit_id": unit_id,
                 }
             )
         )
@@ -117,20 +125,34 @@ def validate_release_gates(
     version_plan_path: Path,
     expected_manifest_sha256: str | None,
 ) -> dict[str, Any]:
-    """Validate release gate contracts and build the gate report payload.
+    """Validate release gate contracts and return a gate report payload.
 
     Args:
-        repo_root: Repository root used to resolve relative artifact paths.
-        manifest_path: Release manifest path.
-        changed_units_path: JSON file containing changed units.
-        version_plan_path: JSON file containing planned release versions.
-        expected_manifest_sha256: Optional expected SHA256 for the manifest.
+        repo_root:
+            Repository root used to resolve workspace units and relative paths.
+        manifest_path:
+            Path to the release manifest checked against expected hashes
+            and package version rows in the manifest.
+        changed_units_path:
+            JSON path containing changed unit metadata for the release.
+        version_plan_path:
+            JSON path containing planned unit/version data for the release.
+        expected_manifest_sha256:
+            Optional SHA256 digest expected for the manifest file.
 
     Returns:
-        Structured gate report payload.
+        dict[str, Any]:
+            Gate report payload with manifest metadata, counts, and promotion
+            candidates.
 
     Raises:
-        GateError: If the manifest content or planned versions fail validation.
+        GateError:
+            If any validation rule fails, including manifest drift, malformed
+            input structure, or release mismatch.
+        OSError:
+            If files cannot be read from disk.
+        ValueError:
+            If JSON payloads cannot be decoded.
     """
     manifest_text = manifest_path.read_text(encoding="utf-8")
     manifest_sha256 = hashlib.sha256(manifest_text.encode("utf-8")).hexdigest()
@@ -143,6 +165,38 @@ def validate_release_gates(
     changed_units = common.read_json(changed_units_path)
     version_plan = common.read_json(version_plan_path)
     units = common.load_workspace_units(repo_root)
+
+    changed_items = changed_units.get("changed_units")
+    if not isinstance(changed_items, list):
+        raise GateError("changed_units must contain a changed_units array")
+    changed_unit_ids: set[str] = set()
+    for item in changed_items:
+        if not isinstance(item, Mapping):
+            raise GateError("changed_units entries must be objects")
+        unit_id = str(item.get("unit_id", "")).strip()
+        if not unit_id:
+            raise GateError("changed_units entries require unit_id")
+        changed_unit_ids.add(unit_id)
+
+    planned_items = version_plan.get("units", [])
+    if not isinstance(planned_items, list):
+        raise GateError("version_plan.units must be a JSON array")
+    planned_unit_ids = set[str]()
+    for item in planned_items:
+        if not isinstance(item, Mapping):
+            raise GateError("version plan units must be objects")
+        unit_id = str(item.get("unit_id", "")).strip()
+        if unit_id:
+            planned_unit_ids.add(unit_id)
+    planned_unit_ids.discard("")
+
+    if planned_unit_ids != changed_unit_ids:
+        planned_sorted = ", ".join(sorted(planned_unit_ids))
+        changed_sorted = ", ".join(sorted(changed_unit_ids))
+        raise GateError(
+            "changed_units and version_plan.units must match exactly: "
+            f"planned=[{planned_sorted}] changed=[{changed_sorted}]"
+        )
 
     if "## Canonical Runtime Monorepo" not in manifest_text:
         raise GateError(
@@ -167,7 +221,7 @@ def validate_release_gates(
                 f"manifest={manifest_version} plan={candidate.version}"
             )
 
-    changed_count = len(changed_units.get("changed_units", []))
+    changed_count = len(changed_unit_ids)
     try:
         manifest_rel = str(manifest_path.relative_to(repo_root))
     except ValueError:
@@ -178,20 +232,23 @@ def validate_release_gates(
         "manifest_sha256": manifest_sha256,
         "changed_units_count": changed_count,
         "planned_package_count": len(candidates),
-        "promotion_candidates": [
-            candidate.__dict__ for candidate in candidates
-        ],
+        "promotion_candidates": [asdict(candidate) for candidate in candidates],
     }
 
 
 def parse_args() -> argparse.Namespace:
-    """Parse CLI args for gate validation artifact generation.
+    """Parse command-line arguments for release gate validation.
+
+    Args:
+        None.
 
     Returns:
-        Parsed command-line arguments.
+        argparse.Namespace:
+            Parsed CLI arguments used to locate inputs and outputs.
 
     Raises:
-        SystemExit: If argument parsing fails.
+        SystemExit:
+            When required CLI arguments are missing or malformed.
     """
     parser = argparse.ArgumentParser()
     parser.add_argument("--repo-root", default=".")
@@ -205,13 +262,20 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> int:
-    """Run release gate validation and write JSON output artifacts.
+    """Run the release gate validation workflow and persist artifacts.
+
+    Args:
+        None.
 
     Returns:
-        Exit code for CLI compatibility.
+        int:
+            Zero when validation succeeds and artifacts are written.
 
     Raises:
-        GateError: If release-gate validation fails.
+        GateError:
+            When release gate checks fail.
+        OSError:
+            When artifact files cannot be written.
     """
     args = parse_args()
     repo_root = Path(args.repo_root).resolve()
@@ -237,19 +301,12 @@ def main() -> int:
     gate_out = Path(args.gate_report_out)
     if not gate_out.is_absolute():
         gate_out = repo_root / gate_out
-    gate_out.parent.mkdir(parents=True, exist_ok=True)
-    gate_out.write_text(
-        json.dumps(gate_report, indent=2) + "\n", encoding="utf-8"
-    )
+    common.write_json(gate_out, gate_report)
 
     candidates_out = Path(args.promotion_candidates_out)
     if not candidates_out.is_absolute():
         candidates_out = repo_root / candidates_out
-    candidates_out.parent.mkdir(parents=True, exist_ok=True)
-    candidates_out.write_text(
-        json.dumps(gate_report["promotion_candidates"], indent=2) + "\n",
-        encoding="utf-8",
-    )
+    common.write_json(candidates_out, gate_report["promotion_candidates"])
 
     print(f"gate report written: {gate_out}")
     print(f"promotion candidates written: {candidates_out}")
