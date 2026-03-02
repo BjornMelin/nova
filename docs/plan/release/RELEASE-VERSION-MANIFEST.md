@@ -1,14 +1,14 @@
 # Release Version Manifest
 
-Date: 2026-03-01T23:21:59+00:00
+Date: 2026-03-02T00:17:15+00:00
 Status: Active
 Schema: 1.0
 
 ## Release Metadata
-- `base_commit`: `4a5f711d22899502d6086ac0d44f7f2934fc33b3`
-- `head_commit`: `bd5277f87036cc809bb534168b2026b922abf3fa`
+- `base_commit`: `bd1102ea7812c488bd45e6fc1b07123ea96baa60`
+- `head_commit`: `1d348aba6dbd9f040aa00febb5abf8553a3e9c4d`
 - `first_release`: `False`
-- `global_bump`: `minor`
+- `global_bump`: `None`
 
 ## changed-units.json Schema
 
@@ -34,11 +34,11 @@ Schema: 1.0
 
 | Unit | Package | Version | Changed |
 | --- | --- | --- | --- |
-| `apps/nova_auth_api_service` | `nova-auth-api-service` | `0.2.0` | yes |
-| `apps/nova_file_api_service` | `nova-file-api-service` | `0.2.0` | yes |
-| `packages/nova_auth_api` | `nova-auth-api` | `0.2.0` | yes |
-| `packages/nova_dash_bridge` | `nova-dash-bridge` | `0.2.0` | yes |
-| `packages/nova_file_api` | `nova-file-api` | `0.2.0` | yes |
+| `apps/nova_auth_api_service` | `nova-auth-api-service` | `0.2.0` | no |
+| `apps/nova_file_api_service` | `nova-file-api-service` | `0.2.0` | no |
+| `packages/nova_auth_api` | `nova-auth-api` | `0.2.0` | no |
+| `packages/nova_dash_bridge` | `nova-dash-bridge` | `0.2.0` | no |
+| `packages/nova_file_api` | `nova-file-api` | `0.2.0` | no |
 
 ## Participating External Repositories
 
