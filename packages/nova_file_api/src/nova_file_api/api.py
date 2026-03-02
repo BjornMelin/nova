@@ -416,6 +416,25 @@ async def enqueue_job(
         container=container,
         idempotency_key=idempotency_key,
     )
+    return await _enqueue_job_core(
+        container=container,
+        request=request,
+        payload=payload,
+        principal=principal,
+        idempotency_key=key,
+    )
+
+
+async def _enqueue_job_core(
+    *,
+    container: AppContainer,
+    request: Request,
+    payload: EnqueueJobRequest,
+    principal: Principal,
+    idempotency_key: str | None,
+) -> EnqueueJobResponse:
+    """Execute enqueue/idempotency workflow for an already-authenticated caller."""
+    key = idempotency_key
     request_payload = payload.model_dump(mode="json")
     claimed_idempotency = False
     if key is not None:
@@ -693,12 +712,6 @@ async def v1_create_job(
         HTTPException: If authorization or queue preconditions fail.
     """
     container = get_container(request)
-    await container.authenticator.authenticate(
-        request=request,
-        session_id=payload.session_id,
-    )
-    if not container.settings.jobs_enabled:
-        raise forbidden("jobs API is disabled")
     validated_key = _validated_idempotency_key(
         container=container,
         idempotency_key=idempotency_key,
@@ -706,9 +719,17 @@ async def v1_create_job(
     v1_idempotency_key = (
         f"v1:{validated_key}" if validated_key is not None else None
     )
-    return await enqueue_job(
+    principal = await container.authenticator.authenticate(
+        request=request,
+        session_id=payload.session_id,
+    )
+    if not container.settings.jobs_enabled:
+        raise forbidden("jobs API is disabled")
+    return await _enqueue_job_core(
+        container=container,
         payload=payload,
         request=request,
+        principal=principal,
         idempotency_key=v1_idempotency_key,
     )
 

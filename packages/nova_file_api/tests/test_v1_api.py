@@ -1,3 +1,5 @@
+"""Tests for v1 FastAPI endpoints using TestClient and create_app."""
+
 from __future__ import annotations
 
 from fastapi.testclient import TestClient
