@@ -51,8 +51,6 @@ Parameters:
     Type: String
   JobsQueueUrl:
     Type: String
-  JobsQueueName:
-    Type: String
     MinLength: 3
   JobsRegion:
     Type: String
@@ -304,7 +302,7 @@ Resources:
           Statistic: Average
           Dimensions:
             - Name: QueueName
-              Value: !Ref JobsQueueName
+              Value: !Select [4, !Split ["/", !Ref JobsQueueUrl]]
 
   WorkerQueueAgeTargetTrackingPolicy:
     Type: AWS::ApplicationAutoScaling::ScalingPolicy
@@ -321,7 +319,7 @@ Resources:
           Statistic: Average
           Dimensions:
             - Name: QueueName
-              Value: !Ref JobsQueueName
+              Value: !Select [4, !Split ["/", !Ref JobsQueueUrl]]
 
 Outputs:
   WorkerServiceName:

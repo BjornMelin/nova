@@ -188,6 +188,11 @@ def validate_release_gates(
     version_plan = common.read_json(version_plan_path)
     units = common.load_workspace_units(repo_root)
 
+    if not isinstance(changed_units, Mapping):
+        raise GateError("changed_units must contain a changed_units array")
+    if not isinstance(version_plan, dict):
+        raise GateError("version plan must be an object")
+
     changed_items = changed_units.get("changed_units")
     if not isinstance(changed_items, list):
         raise GateError("changed_units must contain a changed_units array")
