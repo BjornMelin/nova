@@ -9,7 +9,10 @@
     "transfer_initiate_success_response": "schemas/transfer-initiate.success.schema.json",
     "jobs_enqueue_request": "schemas/jobs-enqueue.request.schema.json",
     "jobs_enqueue_success_response": "schemas/jobs-enqueue.success.schema.json",
-    "jobs_status_success_response": "schemas/jobs-status.success.schema.json"
+    "jobs_status_success_response": "schemas/jobs-status.success.schema.json",
+    "v1_capabilities_success_response": "schemas/v1-capabilities.success.schema.json",
+    "v1_resources_plan_success_response": "schemas/v1-resources-plan.success.schema.json",
+    "v1_releases_info_success_response": "schemas/v1-releases-info.success.schema.json"
   },
   "fixtures": {
     "auth": {
@@ -26,6 +29,11 @@
       "enqueue_success": "fixtures/jobs/enqueue.success.json",
       "status_success": "fixtures/jobs/status.success.json",
       "enqueue_503_queue_unavailable": "fixtures/jobs/enqueue.503.queue-unavailable.json"
+    },
+    "v1api": {
+      "capabilities_success": "fixtures/v1api/capabilities.success.json",
+      "resources_plan_success": "fixtures/v1api/resources.plan.success.json",
+      "releases_info_success": "fixtures/v1api/releases.info.success.json"
     }
   }
 }

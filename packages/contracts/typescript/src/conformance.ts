@@ -20,6 +20,11 @@ interface Manifest {
       status_success: string;
       enqueue_503_queue_unavailable: string;
     };
+    v1api: {
+      capabilities_success: string;
+      resources_plan_success: string;
+      releases_info_success: string;
+    };
   };
 }
 
@@ -76,6 +81,18 @@ function main(): void {
   assertErrorEnvelope(queue503.error, "queue_unavailable");
 
   assert(typeof transferRequest.session_id === "string", "session_id required");
+
+  const v1Caps = asRecord(readJson<unknown>(manifest.fixtures.v1api.capabilities_success));
+  const v1Plan = asRecord(readJson<unknown>(manifest.fixtures.v1api.resources_plan_success));
+  const v1Release = asRecord(readJson<unknown>(manifest.fixtures.v1api.releases_info_success));
+  assert(Array.isArray(v1Caps.capabilities), "v1 capabilities list required");
+  assert(Array.isArray(v1Plan.plan), "v1 plan list required");
+  assert(typeof v1Release.version === "string", "v1 release version required");
+  assert(typeof v1Release.name === "string", "v1 release name required");
+  assert(
+    typeof v1Release.environment === "string",
+    "v1 release environment required",
+  );
 
   console.log("typescript conformance lane passed");
 }

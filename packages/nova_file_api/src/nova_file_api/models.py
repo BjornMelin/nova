@@ -4,9 +4,15 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import StrEnum
-from typing import Any
+from typing import Annotated, Any
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    StringConstraints,
+    field_validator,
+)
 
 
 class UploadStrategy(StrEnum):
@@ -265,6 +271,103 @@ class JobResultUpdateResponse(BaseModel):
     job_id: str
     status: JobStatus
     updated_at: datetime
+
+
+class JobListResponse(BaseModel):
+    """Response payload for job listing endpoint."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    jobs: list[JobRecord]
+
+
+class JobEventType(StrEnum):
+    """Event kinds emitted by the v1 job events contract."""
+
+    SNAPSHOT = "snapshot"
+
+
+class JobEvent(BaseModel):
+    """Single event entry for a job event stream/poll response."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    event_id: str
+    job_id: str
+    status: JobStatus
+    event_type: JobEventType = JobEventType.SNAPSHOT
+    timestamp: datetime
+    data: dict[str, Any] = Field(default_factory=dict)
+
+
+class JobEventsResponse(BaseModel):
+    """Polling/SSE-compatible events response envelope."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    job_id: str
+    events: list[JobEvent]
+    next_cursor: str
+
+
+class CapabilityDescriptor(BaseModel):
+    """Machine-readable capability declaration."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    key: str
+    enabled: bool
+    details: dict[str, Any] = Field(default_factory=dict)
+
+
+class CapabilitiesResponse(BaseModel):
+    """Capabilities endpoint response."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    capabilities: list[CapabilityDescriptor]
+
+
+ResourceKey = Annotated[
+    str,
+    StringConstraints(min_length=1, max_length=256),
+]
+
+
+class ResourcePlanRequest(BaseModel):
+    """Resource planning request body."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    resources: list[ResourceKey] = Field(min_length=1, max_length=256)
+
+
+class ResourcePlanItem(BaseModel):
+    """Resource planning decision per requested resource."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    resource: str
+    supported: bool
+    reason: str | None = None
+
+
+class ResourcePlanResponse(BaseModel):
+    """Resource planning response body."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    plan: list[ResourcePlanItem]
+
+
+class ReleaseInfoResponse(BaseModel):
+    """Release metadata for conformance/debug clients."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str
+    version: str
+    environment: str
 
 
 class ErrorBody(BaseModel):

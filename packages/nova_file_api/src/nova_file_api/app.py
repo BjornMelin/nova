@@ -13,7 +13,12 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
-from nova_file_api.api import jobs_router, ops_router, transfer_router
+from nova_file_api.api import (
+    jobs_router,
+    ops_router,
+    transfer_router,
+    v1_router,
+)
 from nova_file_api.auth import _set_verifier_thread_tokens
 from nova_file_api.config import Settings
 from nova_file_api.container import AppContainer, create_container
@@ -60,6 +65,7 @@ def create_app(*, container_override: AppContainer | None = None) -> FastAPI:
     app.include_router(transfer_router)
     app.include_router(jobs_router)
     app.include_router(ops_router)
+    app.include_router(v1_router)
 
     @app.exception_handler(FileTransferError)
     async def file_transfer_error_handler(
