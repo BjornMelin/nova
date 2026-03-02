@@ -108,3 +108,15 @@ References:
   https://repost.aws/knowledge-center/cloudwatch-estimatedcharges-alarm
 
 If/when account-level `AWS::Budgets::Budget` ownership is standardized in this repo, this alarm remains the mandatory service-level threshold hook.
+
+
+### Batch B1 CodeDeploy binding contract
+
+When `infra/runtime/ecs/service.yml` runs with `EnableBlueGreenDeployAuthority=true`, bind these rollback alarm inputs:
+
+- `DeploymentRollbackAlarmNamePrimary`
+- `DeploymentRollbackAlarmNameSecondary`
+- `BlueGreenReadinessActionOnTimeout=STOP_DEPLOYMENT`
+
+Recommended source of alarm names is `DeploymentRollbackAlarmNamesCsv` from
+`infra/runtime/observability/ecs-observability-baseline.yml` (split into primary/secondary in pipeline/env config).

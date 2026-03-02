@@ -7,13 +7,150 @@ on:
         description: AWS CodePipeline name
         required: true
         type: string
+      manifest_sha256:
+        description: SHA256 for docs/plan/release/RELEASE-VERSION-MANIFEST.md
+        required: true
+        type: string
+      changed_units_json:
+        description: JSON object from staged gate artifact
+        required: true
+        type: string
+      version_plan_json:
+        description: JSON object from staged gate artifact
+        required: true
+        type: string
+      promotion_candidates_json:
+        description: JSON array from codeartifact-promotion-candidates artifact
+        required: true
+        type: string
 
 permissions:
   id-token: write
   contents: read
 
 jobs:
-  promote-prod:
+  validate-and-promote-packages:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
+      RELEASE_AWS_ROLE_ARN: ${{ secrets.RELEASE_AWS_ROLE_ARN }}
+      CODEARTIFACT_DOMAIN: ${{ vars.CODEARTIFACT_DOMAIN }}
+      CODEARTIFACT_STAGING_REPOSITORY: ${{ vars.CODEARTIFACT_STAGING_REPOSITORY }}
+      CODEARTIFACT_PROD_REPOSITORY: ${{ vars.CODEARTIFACT_PROD_REPOSITORY }}
+      CHANGED_UNITS_JSON: ${{ inputs.changed_units_json }}
+      VERSION_PLAN_JSON: ${{ inputs.version_plan_json }}
+      PROMOTION_CANDIDATES_JSON: ${{ inputs.promotion_candidates_json }}
+      EXPECTED_MANIFEST_SHA256: ${{ inputs.manifest_sha256 }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - uses: astral-sh/setup-uv@v4
+
+      - run: uv sync --locked
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.RELEASE_AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Validate promotion input policy
+        run: |
+          set -euo pipefail
+          [[ -n "$CODEARTIFACT_DOMAIN" ]] || { echo "CODEARTIFACT_DOMAIN is required" >&2; exit 1; }
+          [[ -n "$CODEARTIFACT_STAGING_REPOSITORY" ]] || { echo "CODEARTIFACT_STAGING_REPOSITORY is required" >&2; exit 1; }
+          [[ -n "$CODEARTIFACT_PROD_REPOSITORY" ]] || { echo "CODEARTIFACT_PROD_REPOSITORY is required" >&2; exit 1; }
+          [[ -n "$CHANGED_UNITS_JSON" ]] || { echo "changed_units_json is required" >&2; exit 1; }
+          [[ -n "$VERSION_PLAN_JSON" ]] || { echo "version_plan_json is required" >&2; exit 1; }
+          [[ -n "$PROMOTION_CANDIDATES_JSON" ]] || { echo "promotion_candidates_json is required" >&2; exit 1; }
+          [[ "$CODEARTIFACT_STAGING_REPOSITORY" != "$CODEARTIFACT_PROD_REPOSITORY" ]] || {
+            echo "Staging and prod repositories must be distinct" >&2
+            exit 1
+          }
+
+          mkdir -p .artifacts
+          printf '%s' "$PROMOTION_CANDIDATES_JSON" > .artifacts/promotion-candidates.json
+          printf '%s' "$CHANGED_UNITS_JSON" > .artifacts/changed-units.json
+          printf '%s' "$VERSION_PLAN_JSON" > .artifacts/version-plan.json
+
+          uv run python -m scripts.release.codeartifact_gate \
+            --repo-root . \
+            --manifest-path docs/plan/release/RELEASE-VERSION-MANIFEST.md \
+            --changed-units .artifacts/changed-units.json \
+            --version-plan .artifacts/version-plan.json \
+            --expected-manifest-sha256 "$EXPECTED_MANIFEST_SHA256" \
+            --gate-report-out .artifacts/prod-promotion-gate-report.json \
+            --promotion-candidates-out .artifacts/validated-promotion-candidates.json
+
+      - name: Verify promotion candidates match gate output
+        run: |
+          set -euo pipefail
+          uv run python - <<'PY'
+          import json
+          from pathlib import Path
+
+          candidates_path = Path('.artifacts/promotion-candidates.json')
+          validated_path = Path('.artifacts/validated-promotion-candidates.json')
+
+          candidates_raw = candidates_path.read_text(encoding='utf-8')
+          validated_raw = validated_path.read_text(encoding='utf-8')
+
+          candidates = json.loads(candidates_raw)
+          validated = json.loads(validated_raw)
+
+          canonical_candidates = json.dumps(
+              candidates, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+          )
+          canonical_validated = json.dumps(
+              validated, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+          )
+
+          if canonical_candidates != canonical_validated:
+              raise SystemExit(
+                  f"Promotion candidates drift detected: "
+                  f"{candidates_path} differs from {validated_path}"
+              )
+
+          print(f"Verified {candidates_path} matches {validated_path}")
+          PY
+
+      - name: Promote package versions staging -> prod
+        run: |
+          set -euo pipefail
+          uv run python - <<'PY'
+          import json
+          import subprocess
+          from pathlib import Path
+
+          candidates = json.loads(Path('.artifacts/validated-promotion-candidates.json').read_text())
+          for item in candidates:
+              package = item['package']
+              version = item['version']
+              result = subprocess.run([
+                  'aws', 'codeartifact', 'copy-package-versions',
+                  '--domain', '${{ env.CODEARTIFACT_DOMAIN }}',
+                  '--source-repository', '${{ env.CODEARTIFACT_STAGING_REPOSITORY }}',
+                  '--destination-repository', '${{ env.CODEARTIFACT_PROD_REPOSITORY }}',
+                  '--format', 'pypi',
+                  '--package', package,
+                  '--versions', version,
+                  '--output', 'json',
+              ], check=True, capture_output=True, text=True)
+              response = json.loads(result.stdout)
+              failed_versions = response.get('failedVersions', [])
+              if failed_versions:
+                  raise SystemExit(
+                      f'Promotion failed for {package}@{version}: '
+                      f'{json.dumps(failed_versions)}'
+                  )
+          PY
+
+  approve-prod-pipeline:
+    needs: validate-and-promote-packages
     runs-on: ubuntu-latest
     env:
       AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
@@ -43,4 +180,4 @@ jobs:
             --stage-name "ManualApproval" \
             --action-name "ApproveProdPromotion" \
             --token "$APPROVAL_TOKEN" \
-            --result summary="Approved via promote-prod workflow",status=Approved
+            --result summary="Approved via promote-prod workflow after package promotion gates",status=Approved
