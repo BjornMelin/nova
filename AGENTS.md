@@ -221,7 +221,7 @@ Use these to confirm active docs do not restore retired operational authority:
 
 ```bash
 rg -n "container-craft" AGENTS.md README.md PRD.md docs/architecture \
-  docs/plan/release | rg -v "docs/history|historical|archive|retired|ADR-0014|SPEC-0013|SPEC-0014|ADR-0001|requirements.md|RELEASE-NOTES-2026-02-12|RELEASE-VERSION-MANIFEST|AGENTS.md:"
+  docs/plan/release | rg -v "docs/history|historical|archive|retired|ADR-0014|SPEC-0013|SPEC-0014|ADR-0001|requirements.md|RELEASE-NOTES-2026-02-12|RELEASE-VERSION-MANIFEST"
 ```
 
 ## Deployment Gates

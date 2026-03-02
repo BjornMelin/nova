@@ -270,6 +270,7 @@ and runbooks MUST remain executable and clearly labeled as baseline behavior.
 ## Integration Requirements
 
 <a id="ir-0000-container-craft-env-contract-compatibility"></a>
+
 ### IR-0000: Legacy container-craft env contract compatibility (transitional)
 
 Runtime settings MAY retain compatibility with historical

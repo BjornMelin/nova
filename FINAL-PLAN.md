@@ -23,7 +23,7 @@
 - Target-state architecture for the next feature branch is locked in
   `ADR-0015` + `SPEC-0015` and introduces `/v1/*` capability routes and planned
   workflow artifacts.
-- Supersession trigger: once target-state implementation merges, route and
+- Supersession trigger: once target-state implementation merges, route, and
   workflow authority in this file is historical-only and replaced by updated
   active requirements/specification docs.
 

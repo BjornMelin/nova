@@ -76,9 +76,9 @@ Choose **Option B** as production final-state.
 
 ## Explicit non-decisions
 
-- No EKS adoption for Nova runtime scope.
-- No App Runner-only platform authority.
-- No compatibility shims/wrappers for transitional runtime paths.
+- EKS will not be adopted for the Nova runtime scope.
+- We will not designate App Runner as the sole platform authority.
+- Compatibility shims/wrappers for transitional runtime paths will not be provided.
 
 ## Changelog
 
