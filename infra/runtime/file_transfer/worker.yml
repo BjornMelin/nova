@@ -52,6 +52,8 @@ Parameters:
   JobsQueueUrl:
     Type: String
     MinLength: 3
+    AllowedPattern: "^https://[^/]+/[0-9]{12}/[A-Za-z0-9_-]+(\\.fifo)?$"
+    ConstraintDescription: Must be a valid SQS queue URL with account ID and queue name.
   JobsRegion:
     Type: String
   FileTransferApiBaseUrl:
@@ -250,7 +252,7 @@ Resources:
       ServiceName: !Sub "${Project}-${Application}-${WorkerServiceName}"
       Cluster: !Ref EcsClusterName
       LaunchType: FARGATE
-      DesiredCount: !Ref WorkerMinTaskCount
+      DesiredCount: !Ref DesiredCount
       TaskDefinition: !Ref WorkerTaskDefinition
       EnableExecuteCommand: true
       DeploymentConfiguration:

@@ -186,6 +186,31 @@ def test_runtime_env_and_parameter_contracts() -> None:
     )
 
 
+def test_worker_autoscaling_parameter_bounds_contract() -> None:
+    """Worker autoscaling defaults must preserve min <= max."""
+    worker_text = _read("infra/runtime/file_transfer/worker.yml")
+
+    min_match = re.search(
+        r"WorkerMinTaskCount:\n(?:\s+.+\n)*?\s+Default:\s+(?P<value>\d+)",
+        worker_text,
+    )
+    max_match = re.search(
+        r"WorkerMaxTaskCount:\n(?:\s+.+\n)*?\s+Default:\s+(?P<value>\d+)",
+        worker_text,
+    )
+
+    assert min_match and max_match, (
+        "Expected WorkerMinTaskCount/WorkerMaxTaskCount defaults "
+        "in worker template"
+    )
+
+    min_count = int(min_match.group("value"))
+    max_count = int(max_match.group("value"))
+    assert min_count <= max_count, (
+        "WorkerMinTaskCount must be less than or equal to WorkerMaxTaskCount"
+    )
+
+
 def test_observability_security_cost_baseline_contracts() -> None:
     """Batch A4 baseline template must enforce required hardening controls."""
     text = _read("infra/runtime/observability/ecs-observability-baseline.yml")

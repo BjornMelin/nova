@@ -42,6 +42,9 @@ ECS/Fargate workers.
 
 ## Scaling guardrails
 
+- Ensure `WorkerMinTaskCount <= WorkerMaxTaskCount` (validated in CI infra
+  contract checks).
+- `DesiredCount` controls initial ECS desired tasks at deployment time.
 - Keep `WorkerMinTaskCount` >= 1 in environments requiring steady drain.
 - Set `WorkerMaxTaskCount` to known safe account/service quotas.
 - Tune `WorkerScaleOutQueueDepthTarget` and
