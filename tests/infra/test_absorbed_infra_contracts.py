@@ -33,6 +33,7 @@ def test_absorbed_template_paths_present() -> None:
         "infra/runtime/file_transfer/s3.yml",
         "infra/runtime/file_transfer/worker.yml",
         "infra/runtime/kms.yml",
+        "infra/runtime/observability/ecs-observability-baseline.yml",
     ]
 
     missing = [
@@ -167,3 +168,24 @@ def test_runtime_env_and_parameter_contracts() -> None:
     assert (
         "FileTransferCacheSecurityGroupExportName is required" in service_text
     )
+
+
+def test_observability_security_cost_baseline_contracts() -> None:
+    """Batch A4 baseline template must enforce required hardening controls."""
+    text = _read("infra/runtime/observability/ecs-observability-baseline.yml")
+
+    for required in [
+        "ApiLatencyP95RollbackAlarm",
+        "Api5xxErrorRateRollbackAlarm",
+        "ServiceLogRetentionPolicy",
+        "ServiceObservabilityDashboard",
+        "EcsScalableTarget",
+        "MonthlyEstimatedChargesAlarm",
+        "DeploymentRollbackAlarmNamesCsv",
+    ]:
+        assert required in text
+
+    assert "RetentionInDays: !If [IsProd, 90, 30]" in text
+    assert "Namespace: AWS/ECS" in text
+    assert "Namespace: AWS/Billing" in text
+    assert "AWS::ApplicationAutoScaling::ScalableTarget" in text

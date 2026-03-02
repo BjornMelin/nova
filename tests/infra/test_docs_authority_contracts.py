@@ -46,3 +46,20 @@ def test_active_docs_do_not_link_to_retired_container_craft_docs() -> None:
         "Found active Nova docs linking to retired container-craft docs:\n"
         + "\n".join(violations)
     )
+
+
+def test_observability_security_cost_runbook_authority_exists() -> None:
+    """Batch A4 authority runbook must exist and include required constraints."""
+    path = DOCS_ROOT / "runbooks" / "observability-security-cost-baseline.md"
+    assert path.is_file()
+    text = path.read_text(encoding="utf-8")
+
+    for required in [
+        "OIDC trust-policy constraints",
+        "token.actions.githubusercontent.com:aud: sts.amazonaws.com",
+        "repo:${RepositoryOwner}/${RepositoryName}:ref:refs/heads/${MainBranchName}",
+        "MinTaskCount",
+        "MaxTaskCount",
+        "MonthlyEstimatedChargesAlarm",
+    ]:
+        assert required in text
