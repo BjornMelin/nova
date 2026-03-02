@@ -38,7 +38,7 @@ Primary variable sources:
 
 ## Quick failure matrix
 
-### `Nova Release Apply` cannot assume AWS role
+### `Publish Packages` cannot assume AWS role
 
 Likely causes:
 

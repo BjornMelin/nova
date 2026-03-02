@@ -58,7 +58,7 @@ Configure repository secrets and variables required by release automation in
 
 Configured values are consumed by:
 
-- `release-apply.yml`
+- `publish-packages.yml`
   - `SIGNING_SECRET_ID: ${{ secrets.RELEASE_SIGNING_SECRET_ID }}`
   - `RELEASE_AWS_ROLE_ARN: ${{ secrets.RELEASE_AWS_ROLE_ARN }}`
   - `AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}`

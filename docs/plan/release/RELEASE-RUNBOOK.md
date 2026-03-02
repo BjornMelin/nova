@@ -40,14 +40,14 @@ Use the modular operator guide set for provisioning and setup details:
 
 ### A. Plan
 
-1. Trigger `Nova Release Plan` (or wait for `main` push run).
+1. Trigger `Build and Publish Image` (or wait for `main` push run).
 2. Confirm artifacts:
    - `changed-units.json`
    - `version-plan.json`
 
 ### B. Apply
 
-1. Trigger `Nova Release Apply`.
+1. Trigger `Publish Packages`.
 2. Confirm workflow:
    - runs from `main` only (manual dispatch on non-main refs is blocked)
    - for `workflow_run`, checks out `workflow_run.head_sha`

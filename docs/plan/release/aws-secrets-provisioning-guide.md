@@ -7,7 +7,7 @@ Last reviewed: 2026-02-24
 ## Purpose
 
 Provision and rotate the release signing key in AWS Secrets Manager for the
-`Nova Release Apply` workflow.
+`Publish Packages` workflow.
 
 ## Required secret contract
 
@@ -19,7 +19,7 @@ The release workflow expects JSON with these keys:
 - `signer_email`
 
 Reference workflow:
-`.github/workflows/release-apply.yml`
+`.github/workflows/publish-packages.yml`
 
 ## Prerequisites
 

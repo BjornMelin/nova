@@ -93,11 +93,12 @@ Run setup from:
 Run activation checks from:
 [codeconnections-activation-and-validation-guide.md](codeconnections-activation-and-validation-guide.md)
 
-## Step 6: run release plan and apply
+## Step 6: run build/package/deploy workflows
 
 ```bash
-gh workflow run "Nova Release Plan" --repo "${GITHUB_OWNER}/${GITHUB_REPO}" --ref main
-gh workflow run "Nova Release Apply" --repo "${GITHUB_OWNER}/${GITHUB_REPO}" --ref main
+gh workflow run "Build and Publish Image" --repo "${GITHUB_OWNER}/${GITHUB_REPO}" --ref main
+gh workflow run "Publish Packages" --repo "${GITHUB_OWNER}/${GITHUB_REPO}" --ref main
+gh workflow run "Deploy Dev" --repo "${GITHUB_OWNER}/${GITHUB_REPO}" -f pipeline_name="${CODEPIPELINE_NAME}"
 ```
 
 ## Step 7: validate pipeline promotion path

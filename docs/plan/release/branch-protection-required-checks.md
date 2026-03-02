@@ -16,7 +16,7 @@ From workflow `Nova CI` (`.github/workflows/ci.yml`):
 - `runtime-security-reliability-gates`
 - `quality-gates`
 
-From workflow `Cross-Framework Conformance` (`.github/workflows/conformance.yml`):
+From workflow `Cross-Framework Conformance` (`.github/workflows/conformance-clients.yml`):
 
 - `dash-conformance`
 - `shiny-conformance`
