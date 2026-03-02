@@ -54,6 +54,9 @@ Companion modular setup guides:
 4. Internal package namespace controls are enforced with CodeArtifact package
    group origin controls.
 5. Internal package groups must block external upstream ingestion.
+6. Publish to staged channel (`CODEARTIFACT_STAGING_REPOSITORY`) only after manifest, version, and namespace gates pass.
+7. Promotion to prod channel must consume only staged and gate-validated versions via `copy-package-versions`.
+8. Promotion must include and verify `RELEASE_MANIFEST_SHA256` against `docs/plan/release/RELEASE-VERSION-MANIFEST.md`.
 
 ## 6. Required release evidence
 

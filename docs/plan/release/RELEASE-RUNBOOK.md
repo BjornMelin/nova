@@ -60,6 +60,14 @@ Use the modular operator guide set for provisioning and setup details:
 1. Confirm `Verify Release Signature` passes.
 2. For release automation commits, `verified=true` is required.
 
+### D. Package staged publish gate
+
+1. Trigger `Publish Packages` (or wait for `Nova Release Apply` completion trigger).
+2. Confirm `scripts.release.codeartifact_gate` generated:
+   - `.artifacts/codeartifact-gate-report.json`
+   - `.artifacts/codeartifact-promotion-candidates.json`
+3. Confirm package uploads target `CODEARTIFACT_STAGING_REPOSITORY` only.
+
 ## 4. AWS promotion execution
 
 1. Confirm CodePipeline source event ingests signed release commit.
@@ -70,10 +78,13 @@ Use the modular operator guide set for provisioning and setup details:
    - ManualApproval
    - DeployProd
    - ValidateProd
-3. Confirm release build uploads changed packages to CodeArtifact via
-   `twine --repository codeartifact`.
-4. Manual approval must include reviewer identity and timestamp.
-5. Confirm immutable artifact continuity:
+3. Run `Promote Prod` workflow with:
+   - `manifest_sha256` from `codeartifact-gate-report.json`
+   - `promotion_candidates_json` from `codeartifact-promotion-candidates.json`
+4. Confirm package promotion uses `aws codeartifact copy-package-versions` from
+   `CODEARTIFACT_STAGING_REPOSITORY` to `CODEARTIFACT_PROD_REPOSITORY`.
+5. Manual approval must include reviewer identity and timestamp.
+6. Confirm immutable artifact continuity:
    - Prod promotion uses the same `IMAGE_DIGEST` exported from Build/Dev.
    - No rebuild occurs between Dev and Prod stages.
 

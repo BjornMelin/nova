@@ -1,36 +1,45 @@
-name: Release Plan
+name: Publish Packages
 
 on:
-  push:
-    branches:
-      - main
+  workflow_run:
+    workflows: ["Nova Release Apply"]
+    types: [completed]
   workflow_dispatch:
+    inputs:
+      expected_manifest_sha256:
+        description: Optional expected SHA256 of RELEASE-VERSION-MANIFEST.md
+        required: false
+        type: string
 
 permissions:
+  id-token: write
   contents: read
 
-defaults:
-  run:
-    shell: bash
-
 jobs:
-  plan:
+  publish-staging:
     if: >-
-      github.event_name == 'workflow_dispatch' ||
-      !contains(github.event.head_commit.message, '[skip release]')
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'workflow_run' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main')
     runs-on: ubuntu-latest
-    outputs:
-      changed_count: ${{ steps.stats.outputs.changed_count }}
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
+      RELEASE_AWS_ROLE_ARN: ${{ secrets.RELEASE_AWS_ROLE_ARN }}
+      CODEARTIFACT_DOMAIN: ${{ vars.CODEARTIFACT_DOMAIN }}
+      CODEARTIFACT_STAGING_REPOSITORY: ${{ vars.CODEARTIFACT_STAGING_REPOSITORY }}
+      EXPECTED_MANIFEST_SHA256: ${{ inputs.expected_manifest_sha256 }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
 
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: '3.12'
 
       - name: Setup uv
         uses: astral-sh/setup-uv@v4
@@ -38,27 +47,70 @@ jobs:
       - name: Sync
         run: uv sync --locked
 
-      - name: Compute changed units
-        run: |
-          uv run python -m scripts.release.changed_units \
-            --repo-root . \
-            --output .artifacts/changed-units.json
+      - name: Configure AWS Credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.RELEASE_AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
 
-      - name: Compute version plan
+      - name: Validate required CodeArtifact variables
         run: |
-          uv run python -m scripts.release.version_plan \
+          set -euo pipefail
+          [[ -n "${CODEARTIFACT_DOMAIN}" ]] || { echo "CODEARTIFACT_DOMAIN is required" >&2; exit 1; }
+          [[ -n "${CODEARTIFACT_STAGING_REPOSITORY}" ]] || { echo "CODEARTIFACT_STAGING_REPOSITORY is required" >&2; exit 1; }
+
+      - name: Compute release artifacts
+        run: |
+          uv run python -m scripts.release.changed_units --repo-root . --output .artifacts/changed-units.json
+          uv run python -m scripts.release.version_plan --repo-root . --changed-units .artifacts/changed-units.json --output .artifacts/version-plan.json
+
+      - name: Run CodeArtifact release gates
+        run: |
+          uv run python -m scripts.release.codeartifact_gate \
             --repo-root . \
+            --manifest-path docs/plan/release/RELEASE-VERSION-MANIFEST.md \
             --changed-units .artifacts/changed-units.json \
-            --output .artifacts/version-plan.json
+            --version-plan .artifacts/version-plan.json \
+            --expected-manifest-sha256 "${EXPECTED_MANIFEST_SHA256}" \
+            --gate-report-out .artifacts/codeartifact-gate-report.json \
+            --promotion-candidates-out .artifacts/codeartifact-promotion-candidates.json
 
-      - name: Emit stats
-        id: stats
+      - name: Build changed packages
         run: |
-          CHANGED_COUNT=$(jq '.changed_units | length' .artifacts/changed-units.json)
-          echo "changed_count=${CHANGED_COUNT}" >> "$GITHUB_OUTPUT"
+          python - <<'PY'
+          import json
+          import subprocess
+          from pathlib import Path
 
-      - name: Upload plan artifacts
+          data = json.loads(Path('.artifacts/version-plan.json').read_text())
+          units = [item['unit_id'] for item in data.get('units', [])]
+          if not units:
+              print('No package version changes detected; nothing to build.')
+              raise SystemExit(0)
+          for unit in units:
+              subprocess.run(['uv', 'build', unit], check=True)
+          PY
+
+      - name: Publish to CodeArtifact staging repository
+        run: |
+          set -euo pipefail
+          uv run twine --version
+          aws codeartifact login \
+            --tool twine \
+            --domain "$CODEARTIFACT_DOMAIN" \
+            --repository "$CODEARTIFACT_STAGING_REPOSITORY" \
+            --region "$AWS_REGION"
+
+          mapfile -t DIST_FILES < <(find apps packages -path '*/dist/*' -type f \( -name '*.whl' -o -name '*.tar.gz' \) | sort -u)
+          if [[ "${#DIST_FILES[@]}" -eq 0 ]]; then
+            echo "No package dists found; skipping publish."
+            exit 0
+          fi
+
+          uv run twine upload --repository codeartifact "${DIST_FILES[@]}"
+
+      - name: Upload package gate artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: release-plan-artifacts
+          name: codeartifact-release-gate-artifacts
           path: .artifacts/
