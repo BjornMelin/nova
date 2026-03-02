@@ -38,6 +38,9 @@ class JobRepository(Protocol):
     ) -> bool:
         """Replace record only when current status matches expected value."""
 
+    def list_for_scope(self, *, scope_id: str, limit: int) -> list[JobRecord]:
+        """List jobs visible to the provided caller scope."""
+
 
 class JobPublisher(Protocol):
     """Queue interface for background job dispatch."""
@@ -121,6 +124,15 @@ class MemoryJobRepository:
             self._records[record.job_id] = record
             return True
 
+    def list_for_scope(self, *, scope_id: str, limit: int) -> list[JobRecord]:
+        """List caller-scoped jobs newest-first."""
+        with self._lock:
+            records = [
+                r for r in self._records.values() if r.scope_id == scope_id
+            ]
+        records.sort(key=lambda r: r.created_at, reverse=True)
+        return records[:limit]
+
 
 @dataclass(slots=True)
 class DynamoJobRepository:
@@ -173,6 +185,18 @@ class DynamoJobRepository:
                 return False
             raise
         return True
+
+    def list_for_scope(self, *, scope_id: str, limit: int) -> list[JobRecord]:
+        """List caller-scoped jobs newest-first."""
+        response = self._table.scan(
+            FilterExpression="#scope_id = :scope_id",
+            ExpressionAttributeNames={"#scope_id": "scope_id"},
+            ExpressionAttributeValues={":scope_id": scope_id},
+        )
+        items = response.get("Items", [])
+        records = [_item_to_record(item) for item in items]
+        records.sort(key=lambda r: r.created_at, reverse=True)
+        return records[:limit]
 
 
 @dataclass(slots=True)
@@ -379,6 +403,29 @@ class JobService:
                 "scope_id": scope_id,
                 "max_retries": MAX_CANCEL_RETRIES,
             },
+        )
+
+    def list_for_scope(
+        self, *, scope_id: str, limit: int = 50
+    ) -> list[JobRecord]:
+        """List jobs for caller scope, newest first."""
+        return self.repository.list_for_scope(scope_id=scope_id, limit=limit)
+
+    def retry(self, *, job_id: str, scope_id: str) -> JobRecord:
+        """Retry a failed/canceled job by creating a new pending record."""
+        original = self.get(job_id=job_id, scope_id=scope_id)
+        if original.status not in {JobStatus.FAILED, JobStatus.CANCELED}:
+            raise conflict(
+                "job retry is only allowed from failed or canceled states",
+                details={
+                    "job_id": job_id,
+                    "current_status": original.status.value,
+                },
+            )
+        return self.enqueue(
+            job_type=original.job_type,
+            payload=original.payload,
+            scope_id=scope_id,
         )
 
     def update_result(

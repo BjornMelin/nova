@@ -9,7 +9,7 @@ from typing import Any
 
 import anyio
 import structlog
-from fastapi import APIRouter, Header, Request
+from fastapi import APIRouter, Header, Query, Request
 
 from nova_file_api.container import AppContainer
 from nova_file_api.dependencies import get_container
@@ -22,6 +22,8 @@ from nova_file_api.models import (
     AbortUploadRequest,
     AbortUploadResponse,
     AuthMode,
+    CapabilitiesResponse,
+    CapabilityDescriptor,
     CompleteUploadRequest,
     CompleteUploadResponse,
     EnqueueJobRequest,
@@ -30,6 +32,9 @@ from nova_file_api.models import (
     InitiateUploadRequest,
     InitiateUploadResponse,
     JobCancelResponse,
+    JobEvent,
+    JobEventsResponse,
+    JobListResponse,
     JobResultUpdateRequest,
     JobResultUpdateResponse,
     JobStatusResponse,
@@ -38,6 +43,10 @@ from nova_file_api.models import (
     PresignDownloadResponse,
     Principal,
     ReadinessResponse,
+    ReleaseInfoResponse,
+    ResourcePlanItem,
+    ResourcePlanRequest,
+    ResourcePlanResponse,
     SignPartsRequest,
     SignPartsResponse,
 )
@@ -45,6 +54,7 @@ from nova_file_api.models import (
 transfer_router = APIRouter(prefix="/api/transfers", tags=["transfers"])
 jobs_router = APIRouter(prefix="/api/jobs", tags=["jobs"])
 ops_router = APIRouter(tags=["ops"])
+v1_router = APIRouter(prefix="/v1", tags=["v1"])
 _WORKER_TOKEN_NOT_CONFIGURED = "worker update token not configured"  # noqa: S105
 _API_THREAD_LIMITER_STATE_KEY = "api_thread_limiter"
 
@@ -661,6 +671,157 @@ async def update_job_result(
         status=job.status,
         updated_at=job.updated_at,
     )
+
+
+@v1_router.post("/jobs", response_model=EnqueueJobResponse)
+async def v1_create_job(
+    payload: EnqueueJobRequest,
+    request: Request,
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+) -> EnqueueJobResponse:
+    """Create a job through the v1 contract."""
+    return await enqueue_job(
+        payload=payload, request=request, idempotency_key=idempotency_key
+    )
+
+
+@v1_router.get("/jobs", response_model=JobListResponse)
+async def v1_list_jobs(
+    request: Request,
+    limit: int = Query(default=50, ge=1, le=200),
+) -> JobListResponse:
+    """List caller-owned jobs with most recent first."""
+    container = get_container(request)
+    principal = await container.authenticator.authenticate(
+        request=request, session_id=None
+    )
+    jobs = await _run_blocking(
+        request,
+        container.job_service.list_for_scope,
+        scope_id=principal.scope_id,
+        limit=limit,
+    )
+    return JobListResponse(jobs=jobs)
+
+
+@v1_router.get("/jobs/{job_id}", response_model=JobStatusResponse)
+async def v1_get_job(job_id: str, request: Request) -> JobStatusResponse:
+    """Get one caller-owned job."""
+    return await get_job_status(job_id=job_id, request=request)
+
+
+@v1_router.post("/jobs/{job_id}/retry", response_model=EnqueueJobResponse)
+async def v1_retry_job(job_id: str, request: Request) -> EnqueueJobResponse:
+    """Retry a terminal failed/canceled job."""
+    container = get_container(request)
+    principal = await container.authenticator.authenticate(
+        request=request, session_id=None
+    )
+    retried = await _run_blocking(
+        request,
+        container.job_service.retry,
+        job_id=job_id,
+        scope_id=principal.scope_id,
+    )
+    return EnqueueJobResponse(job_id=retried.job_id, status=retried.status)
+
+
+@v1_router.get("/jobs/{job_id}/events", response_model=JobEventsResponse)
+async def v1_job_events(job_id: str, request: Request) -> JobEventsResponse:
+    """Poll-oriented events endpoint with SSE-compatible envelope."""
+    container = get_container(request)
+    principal = await container.authenticator.authenticate(
+        request=request, session_id=None
+    )
+    job = await _run_blocking(
+        request,
+        container.job_service.get,
+        job_id=job_id,
+        scope_id=principal.scope_id,
+    )
+    event = JobEvent(
+        event_id=f"{job.job_id}:{job.updated_at.isoformat()}",
+        job_id=job.job_id,
+        status=job.status,
+        timestamp=job.updated_at,
+        data={"result": job.result, "error": job.error},
+    )
+    return JobEventsResponse(
+        job_id=job.job_id,
+        events=[event],
+        next_cursor=event.event_id,
+    )
+
+
+@v1_router.get("/capabilities", response_model=CapabilitiesResponse)
+async def v1_capabilities(request: Request) -> CapabilitiesResponse:
+    """Expose runtime capability matrix for conformance consumers."""
+    container = get_container(request)
+    capabilities = [
+        CapabilityDescriptor(
+            key="jobs", enabled=container.settings.jobs_enabled
+        ),
+        CapabilityDescriptor(
+            key="jobs.events.poll",
+            enabled=container.settings.jobs_enabled,
+        ),
+        CapabilityDescriptor(
+            key="transfers",
+            enabled=container.settings.file_transfer_enabled,
+        ),
+    ]
+    return CapabilitiesResponse(capabilities=capabilities)
+
+
+@v1_router.post("/resources/plan", response_model=ResourcePlanResponse)
+async def v1_resources_plan(
+    payload: ResourcePlanRequest,
+    request: Request,
+) -> ResourcePlanResponse:
+    """Plan supportability for requested resource keys."""
+    container = get_container(request)
+    available = {"jobs", "transfers", "downloads", "uploads"}
+    plan = [
+        ResourcePlanItem(
+            resource=resource,
+            supported=resource in available,
+            reason=None if resource in available else "unsupported_resource",
+        )
+        for resource in payload.resources
+    ]
+    if container.settings.jobs_enabled is False:
+        plan = [
+            item.model_copy(
+                update={"supported": False, "reason": "jobs_disabled"}
+            )
+            if item.resource == "jobs"
+            else item
+            for item in plan
+        ]
+    return ResourcePlanResponse(plan=plan)
+
+
+@v1_router.get("/releases/info", response_model=ReleaseInfoResponse)
+async def v1_releases_info(request: Request) -> ReleaseInfoResponse:
+    """Return release metadata."""
+    container = get_container(request)
+    return ReleaseInfoResponse(
+        name=container.settings.app_name,
+        version="0.1.0",
+        environment=container.settings.environment,
+    )
+
+
+@v1_router.get("/health/live", response_model=HealthResponse)
+async def v1_health_live() -> HealthResponse:
+    """v1 liveness endpoint."""
+    return HealthResponse(ok=True)
+
+
+@v1_router.get("/health/ready", response_model=ReadinessResponse)
+async def v1_health_ready(request: Request) -> ReadinessResponse:
+    """v1 readiness endpoint."""
+    return await readyz(request=request)
 
 
 @ops_router.get("/metrics/summary", response_model=MetricsSummaryResponse)
