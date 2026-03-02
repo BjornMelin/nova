@@ -1,0 +1,64 @@
+name: Release Plan
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  plan:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      !contains(github.event.head_commit.message, '[skip release]')
+    runs-on: ubuntu-latest
+    outputs:
+      changed_count: ${{ steps.stats.outputs.changed_count }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Sync
+        run: uv sync --locked
+
+      - name: Compute changed units
+        run: |
+          uv run python -m scripts.release.changed_units \
+            --repo-root . \
+            --output .artifacts/changed-units.json
+
+      - name: Compute version plan
+        run: |
+          uv run python -m scripts.release.version_plan \
+            --repo-root . \
+            --changed-units .artifacts/changed-units.json \
+            --output .artifacts/version-plan.json
+
+      - name: Emit stats
+        id: stats
+        run: |
+          CHANGED_COUNT=$(jq '.changed_units | length' .artifacts/changed-units.json)
+          echo "changed_count=${CHANGED_COUNT}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload plan artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-plan-artifacts
+          path: .artifacts/

@@ -130,8 +130,9 @@ Optional behavior:
 6. Run release workflows.
 
     ```bash
-    gh workflow run "Nova Release Plan" --repo "${GH_REPO}" --ref main
-    gh workflow run "Nova Release Apply" --repo "${GH_REPO}" --ref main
+    gh workflow run "Release Plan" --repo "${GH_REPO}" --ref main
+    gh workflow run "Apply Release Plan" --repo "${GH_REPO}" --ref main
+    gh workflow run "Deploy Dev" --repo "${GH_REPO}" --ref main -f pipeline_name="${CODEPIPELINE_NAME}"
     ```
 
 7. Validate pipeline stages and approve production promotion.

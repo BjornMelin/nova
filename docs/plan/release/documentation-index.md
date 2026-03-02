@@ -6,7 +6,7 @@ Last reviewed: 2026-03-02
 
 Transition note (2026-03-02): This index currently maps executable baseline
 release docs. Planned target-state artifacts from `ADR-0015` + `SPEC-0015`
-must be added when implementation begins.
+are active with final-state workflow artifact names in `.github/workflows/*.yml`.
 
 ## Purpose
 

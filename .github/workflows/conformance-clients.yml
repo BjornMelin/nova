@@ -1,4 +1,4 @@
-name: Cross-Framework Conformance
+name: Conformance Clients
 
 on:
   pull_request:
