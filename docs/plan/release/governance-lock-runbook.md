@@ -1,21 +1,20 @@
-# Governance Lock Runbook (PR-14)
+# Governance Lock Runbook (Final-State Minimal)
 
-Status: Finalization artifact for branch protection and CODEOWNERS lock.
+Status: Active  
 Owner: `@BjornMelin`
 
 ## Purpose
 
-Provide an auditable, repeatable runbook for final governance lock on `main`
-after Nova consolidation. This runbook is evidence-oriented and safe by default:
-verification first, manual apply second.
+Apply and verify the final governance lock on `main` with minimal operator steps
+and auditable outputs.
 
 ## Preconditions
 
-1. `main` is green on all required checks.
-2. `.github/CODEOWNERS` is merged and covers architecture/infra/contracts/workflows.
-3. Repository admins are aligned on bypass policy.
+1. `main` is green on required checks.
+2. `.github/CODEOWNERS` is merged.
+3. Operator has `gh` auth to target repo.
 
-## Required checks set (lock target)
+## Required checks
 
 - `runtime-security-reliability-gates`
 - `quality-gates`
@@ -23,101 +22,47 @@ verification first, manual apply second.
 - `shiny-conformance`
 - `typescript-conformance`
 
-Reference: `docs/plan/release/branch-protection-required-checks.md`
+## Operator flow
 
-## Final lock procedure
-
-### Step 1: Set repository scope and verify CODEOWNERS snapshot
+1. Set scope.
 
 ```bash
 OWNER="BjornMelin"
 REPO="nova"
-
-gh api repos/${OWNER}/${REPO}/contents/.github/CODEOWNERS --jq '{path: .path, sha: .sha}'
-gh api repos/${OWNER}/${REPO}/contents/.github/CODEOWNERS --jq '.content | @base64d' \
-  | sha256sum
 ```
 
-### Step 2: Verify current branch protection state
+2. Verify CODEOWNERS snapshot.
+
+```bash
+gh api repos/${OWNER}/${REPO}/contents/.github/CODEOWNERS --jq '{path: .path, sha: .sha}'
+gh api repos/${OWNER}/${REPO}/contents/.github/CODEOWNERS --jq '.content | @base64d' | sha256sum
+```
+
+3. Verify protection + required check contexts.
 
 ```bash
 gh api repos/${OWNER}/${REPO}/branches/main/protection
+gh api repos/${OWNER}/${REPO}/branches/main/protection --jq '.required_status_checks.contexts'
 ```
 
-### Step 3: Compare required check contexts
+4. If drift exists, manually apply the reviewed payload in
+   `branch-protection-required-checks.md`.
 
-```bash
-gh api repos/${OWNER}/${REPO}/branches/main/protection \
-  --jq '.required_status_checks.contexts'
-```
-
-### Step 4: Apply/update protections (manual, reviewed)
-
-Use the payload in:
-`docs/plan/release/branch-protection-required-checks.md`
-
-Do not run this from unattended automation for governance finalization.
-
-### Step 5: Capture audit evidence
-
-Store command outputs and screenshots/links in your release evidence location.
-
-## Audit evidence checklist
-
-- [ ] Link to PR merging `.github/CODEOWNERS`
-- [ ] Branch protection JSON export timestamped
-- [ ] Required checks list captured and matches lock target
-- [ ] Confirmation `require_code_owner_reviews=true`
-- [ ] Confirmation `required_conversation_resolution=true`
-- [ ] Confirmation strict status checks/up-to-date branch enabled
-- [ ] Reviewer sign-off (operator + repo owner)
-
-
-## Evidence scaffold and export capture
-
-Use a timestamped evidence directory under repo docs. Example:
+5. Capture evidence.
 
 ```bash
 EVIDENCE_DIR="docs/plan/release/evidence/governance/$(date -u +%Y%m%dT%H%M%SZ)"
 mkdir -p "${EVIDENCE_DIR}"
-```
 
-Capture immutable governance snapshots:
-
-```bash
-gh api repos/${OWNER}/${REPO}/contents/.github/CODEOWNERS   --jq '{path: .path, sha: .sha}'   > "${EVIDENCE_DIR}/codeowners-snapshot.json"
-
-gh api repos/${OWNER}/${REPO}/contents/.github/CODEOWNERS   --jq '.content | @base64d'   > "${EVIDENCE_DIR}/CODEOWNERS"
-
-sha256sum "${EVIDENCE_DIR}/CODEOWNERS"   > "${EVIDENCE_DIR}/codeowners-content.sha256"
-
-gh api repos/${OWNER}/${REPO}/branches/main/protection   > "${EVIDENCE_DIR}/branch-protection.json"
-
-gh api repos/${OWNER}/${REPO}/branches/main/protection   --jq '.required_status_checks.contexts'   > "${EVIDENCE_DIR}/required-check-contexts.json"
-```
-
-Record SHA256 hashes for evidence payload integrity:
-
-```bash
+gh api repos/${OWNER}/${REPO}/contents/.github/CODEOWNERS --jq '{path: .path, sha: .sha}' > "${EVIDENCE_DIR}/codeowners-snapshot.json"
+gh api repos/${OWNER}/${REPO}/branches/main/protection > "${EVIDENCE_DIR}/branch-protection.json"
+gh api repos/${OWNER}/${REPO}/branches/main/protection --jq '.required_status_checks.contexts' > "${EVIDENCE_DIR}/required-check-contexts.json"
 sha256sum "${EVIDENCE_DIR}"/* > "${EVIDENCE_DIR}/SHA256SUMS"
 ```
 
-Then reference the evidence directory path in:
+## Acceptance
 
-- `FINAL-PLAN.md`
-- `docs/plan/PLAN.md`
-- `docs/plan/release/NONPROD-LIVE-VALIDATION-RUNBOOK.md`
-
-## Suggested evidence record template
-
-```text
-Date/Time (UTC):
-Operator:
-Repo:
-Branch:
-Protection endpoint snapshot:
-Required checks observed:
-CODEOWNERS path verified:
-Deviations/exceptions:
-Final sign-off:
-```
+- Required checks match lock target.
+- `require_code_owner_reviews=true`.
+- `required_conversation_resolution=true`.
+- Evidence directory recorded in release artifacts.

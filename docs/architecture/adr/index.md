@@ -28,3 +28,4 @@ tracked as implementation pending via `SPEC-0015`.
 | [ADR-0013](./ADR-0013-final-state-sdk-topology-generated-core-plus-thin-adapters.md) | Final-state SDK topology uses generated contract-core clients plus thin language adapters | Accepted | 2026-02-28 |
 | [ADR-0014](./ADR-0014-container-craft-capability-absorption-and-repo-retirement.md) | Absorb remaining container-craft Nova capabilities into nova and retire container-craft | Accepted | 2026-02-28 |
 | [ADR-0015](./ADR-0015-nova-api-platform-final-hosting-and-deployment-architecture-2026.md) | Nova API platform final hosting and deployment architecture (2026) | Accepted | 2026-03-01 |
+| [ADR-0016](./ADR-0016-minimal-governance-final-state-operator-path.md) | Minimal governance final-state operator path | Accepted | 2026-03-02 |
