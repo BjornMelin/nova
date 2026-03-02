@@ -39,7 +39,18 @@ class JobRepository(Protocol):
         """Replace record only when current status matches expected value."""
 
     def list_for_scope(self, *, scope_id: str, limit: int) -> list[JobRecord]:
-        """List jobs visible to the provided caller scope."""
+        """List jobs visible to the provided caller scope.
+
+        Args:
+            scope_id: Caller scope identifier used for ownership filtering.
+            limit: Maximum number of records to return, newest first.
+
+        Returns:
+            list[JobRecord]: Caller-owned records sorted by most recent first.
+
+        Raises:
+            ValueError: If ``limit`` is not a positive integer.
+        """
 
 
 class JobPublisher(Protocol):
@@ -125,7 +136,20 @@ class MemoryJobRepository:
             return True
 
     def list_for_scope(self, *, scope_id: str, limit: int) -> list[JobRecord]:
-        """List caller-scoped jobs newest-first."""
+        """List caller-scoped jobs newest-first.
+
+        Args:
+            scope_id: Caller scope identifier used for ownership filtering.
+            limit: Maximum number of records to return, newest first.
+
+        Returns:
+            list[JobRecord]: Caller-owned records sorted by most recent first.
+
+        Raises:
+            ValueError: If ``limit`` is not a positive integer.
+        """
+        if limit <= 0:
+            raise ValueError("limit must be greater than zero")
         with self._lock:
             records = [
                 r for r in self._records.values() if r.scope_id == scope_id
@@ -187,7 +211,57 @@ class DynamoJobRepository:
         return True
 
     def list_for_scope(self, *, scope_id: str, limit: int) -> list[JobRecord]:
-        """List caller-scoped jobs newest-first."""
+        """List caller-scoped jobs newest-first.
+
+        Args:
+            scope_id: Caller scope identifier used for ownership filtering.
+            limit: Maximum number of records to return, newest first.
+
+        Returns:
+            list[JobRecord]: Caller-owned records sorted by most recent first.
+
+        Raises:
+            ValueError: If ``limit`` is not a positive integer.
+        """
+        if limit <= 0:
+            raise ValueError("limit must be greater than zero")
+
+        items: list[dict[str, Any]] = []
+        last_evaluated_key: dict[str, Any] | None = None
+        remaining = limit
+        while True:
+            query_kwargs: dict[str, Any] = {
+                "IndexName": "scope_id-created_at-index",
+                "KeyConditionExpression": "#scope_id = :scope_id",
+                "ExpressionAttributeNames": {"#scope_id": "scope_id"},
+                "ExpressionAttributeValues": {":scope_id": scope_id},
+                "Limit": remaining,
+                "ScanIndexForward": False,
+            }
+            if last_evaluated_key is not None:
+                query_kwargs["ExclusiveStartKey"] = last_evaluated_key
+
+            try:
+                response = self._table.query(**query_kwargs)
+            except ClientError as exc:
+                error_code = str(exc.response.get("Error", {}).get("Code", ""))
+                if error_code not in {
+                    "ValidationException",
+                    "ResourceNotFoundException",
+                }:
+                    raise
+                return self._scan_list_for_scope(scope_id=scope_id, limit=limit)
+            items.extend(response.get("Items", []))
+            last_evaluated_key = response.get("LastEvaluatedKey")
+            remaining = limit - len(items)
+            if last_evaluated_key is None or remaining <= 0:
+                break
+        return [_item_to_record(item) for item in items[:limit]]
+
+    def _scan_list_for_scope(
+        self, *, scope_id: str, limit: int
+    ) -> list[JobRecord]:
+        """Fallback listing for tables without the scope_id-created_at index."""
         items: list[dict[str, Any]] = []
         last_evaluated_key: dict[str, Any] | None = None
         while True:
@@ -417,11 +491,32 @@ class JobService:
     def list_for_scope(
         self, *, scope_id: str, limit: int = 50
     ) -> list[JobRecord]:
-        """List jobs for caller scope, newest first."""
+        """List jobs for caller scope, newest first.
+
+        Args:
+            scope_id: Caller scope identifier used for ownership filtering.
+            limit: Maximum number of records to return, newest first.
+
+        Returns:
+            list[JobRecord]: Caller-owned records sorted by most recent first.
+        """
+        if limit <= 0:
+            return []
         return self.repository.list_for_scope(scope_id=scope_id, limit=limit)
 
     def retry(self, *, job_id: str, scope_id: str) -> JobRecord:
-        """Retry a failed/canceled job by creating a new pending record."""
+        """Retry a failed/canceled job by creating a new pending record.
+
+        Args:
+            job_id: Identifier of the terminal job to retry.
+            scope_id: Caller scope identifier for ownership enforcement.
+
+        Returns:
+            JobRecord: Newly enqueued pending retry job.
+
+        Raises:
+            HTTPException: If the source job is not failed/canceled.
+        """
         original = self.get(job_id=job_id, scope_id=scope_id)
         if original.status not in {JobStatus.FAILED, JobStatus.CANCELED}:
             raise conflict(

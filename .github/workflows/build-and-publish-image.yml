@@ -2,7 +2,7 @@ name: Apply Release Plan
 
 on:
   workflow_run:
-    workflows: ["Release Plan"]
+    workflows: ["Publish Packages"]
     types: [completed]
   workflow_dispatch:
 

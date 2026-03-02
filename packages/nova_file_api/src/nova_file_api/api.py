@@ -692,8 +692,13 @@ async def v1_create_job(
     Raises:
         HTTPException: If authorization or queue preconditions fail.
     """
+    container = get_container(request)
+    validated_key = _validated_idempotency_key(
+        container=container,
+        idempotency_key=idempotency_key,
+    )
     v1_idempotency_key = (
-        f"v1:{idempotency_key}" if idempotency_key is not None else None
+        f"v1:{validated_key}" if validated_key is not None else None
     )
     return await enqueue_job(
         payload=payload,
