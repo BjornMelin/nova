@@ -56,6 +56,60 @@ Parameters:
     Default: "8192" # 8GB
   ListenerRulePriority:
     Type: String
+  EnableBlueGreenDeployAuthority:
+    Type: String
+    Default: "true"
+    AllowedValues: ["true", "false"]
+    Description: Enable final-state CodeDeploy ECS blue/green deployment authority chain.
+  TestTrafficListenerArn:
+    Type: String
+    Default: ""
+    Description: Optional ALB listener ARN for CodeDeploy test-traffic routing.
+  CodeDeployApplicationName:
+    Type: String
+    Default: ""
+    Description: Optional explicit CodeDeploy application name. Defaults to ${Project}-${Application}-${Service}-ecs.
+  CodeDeployDeploymentGroupName:
+    Type: String
+    Default: ""
+    Description: Optional explicit CodeDeploy deployment group name. Defaults to ${Project}-${Application}-${Service}-dg.
+  CodeDeployServiceRoleArn:
+    Type: String
+    Default: ""
+    Description: IAM role ARN assumed by CodeDeploy for ECS blue/green deployments.
+  CodeDeployDeploymentConfigName:
+    Type: String
+    Default: CodeDeployDefault.ECSCanary10Percent5Minutes
+    Description: CodeDeploy deployment config for traffic shifting strategy.
+  BlueGreenDeploymentReadyTimeoutMinutes:
+    Type: Number
+    Default: 15
+    MinValue: 0
+    MaxValue: 2880
+    Description: Minutes CodeDeploy waits for green-task readiness before timeout action.
+  BlueGreenTerminationWaitMinutes:
+    Type: Number
+    Default: 10
+    MinValue: 0
+    MaxValue: 2880
+    Description: Minutes to keep blue tasks after success before termination.
+  BlueGreenReadinessActionOnTimeout:
+    Type: String
+    Default: STOP_DEPLOYMENT
+    AllowedValues: [STOP_DEPLOYMENT, CONTINUE_DEPLOYMENT]
+    Description: Deployment-ready timeout action; STOP_DEPLOYMENT enforces readiness gate.
+  DeploymentRollbackAlarmNamePrimary:
+    Type: String
+    Default: ""
+    Description: Primary rollback alarm name bound to CodeDeploy stop/rollback controls.
+  DeploymentRollbackAlarmNameSecondary:
+    Type: String
+    Default: ""
+    Description: Secondary rollback alarm name bound to CodeDeploy stop/rollback controls.
+  ReadinessHealthCheckPath:
+    Type: String
+    Default: /readyz
+    Description: Readiness path used by blue/green target groups and deployment validation gates.
   LoadBalancerId:
     Type: String
     Default: "dash"
@@ -207,6 +261,16 @@ Rules:
         AssertDescription: >-
           FileTransferCacheSecurityGroupExportName is required when
           FileTransferCacheEnabled is "true".
+  CodeDeployBlueGreenParamsProvided:
+    Assertions:
+      - Assert: !Or
+          - !Equals [!Ref EnableBlueGreenDeployAuthority, "false"]
+          - !And
+              - !Not [!Equals [!Ref CodeDeployServiceRoleArn, ""]]
+              - !Not [!Equals [!Ref TestTrafficListenerArn, ""]]
+        AssertDescription: >-
+          CodeDeployServiceRoleArn and TestTrafficListenerArn are required when
+          EnableBlueGreenDeployAuthority is "true".
 
 Conditions:
   UseServiceDiscovery: !Equals [!Ref UseServiceDiscovery, "true"]
@@ -217,6 +281,14 @@ Conditions:
   EnableFileTransfer: !Equals [!Ref FileTransferEnabled, "true"]
   EnableFileTransferAsync: !Equals [!Ref FileTransferAsyncEnabled, "true"]
   EnableFileTransferCache: !Equals [!Ref FileTransferCacheEnabled, "true"]
+  UseCodeDeployBlueGreen: !Equals [!Ref EnableBlueGreenDeployAuthority, "true"]
+  HasCodeDeployApplicationNameOverride: !Not [!Equals [!Ref CodeDeployApplicationName, ""]]
+  HasCodeDeployDeploymentGroupNameOverride: !Not [!Equals [!Ref CodeDeployDeploymentGroupName, ""]]
+  HasDeploymentRollbackAlarmPrimary: !Not [!Equals [!Ref DeploymentRollbackAlarmNamePrimary, ""]]
+  HasDeploymentRollbackAlarmSecondary: !Not [!Equals [!Ref DeploymentRollbackAlarmNameSecondary, ""]]
+  HasDeploymentRollbackAlarmBinding: !Or
+    - !Condition HasDeploymentRollbackAlarmPrimary
+    - !Condition HasDeploymentRollbackAlarmSecondary
 
 Resources:
   ListenerRule:
@@ -224,7 +296,7 @@ Resources:
     Properties:
       Actions:
         - Type: forward
-          TargetGroupArn: !Ref "LoadBalancerTargetGroup"
+          TargetGroupArn: !Ref "LoadBalancerTargetGroupBlue"
       Conditions:
         - Field: host-header
           HostHeaderConfig:
@@ -248,13 +320,13 @@ Resources:
       ListenerArn:
         Fn::ImportValue: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${LoadBalancerId}:${LoadBalancerName}:listenerarn
 
-  LoadBalancerTargetGroup:
+  LoadBalancerTargetGroupBlue:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
       HealthCheckTimeoutSeconds: 30
       HealthCheckIntervalSeconds: 60
       HealthCheckProtocol: !FindInMap [Protocol, !Ref TargetProtocol, Upper]
-      HealthCheckPath: /
+      HealthCheckPath: !Ref ReadinessHealthCheckPath
       TargetType: !Ref TargetType
       Port: !Ref DockerHostPort
       Protocol: !FindInMap [Protocol, !Ref TargetProtocol, Upper]
@@ -273,6 +345,52 @@ Resources:
           Value: !Ref Service
         - Key: Owner
           Value: !Ref Owner
+        - Key: DeploymentColor
+          Value: blue
+
+  LoadBalancerTargetGroupGreen:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Condition: UseCodeDeployBlueGreen
+    Properties:
+      HealthCheckTimeoutSeconds: 30
+      HealthCheckIntervalSeconds: 60
+      HealthCheckProtocol: !FindInMap [Protocol, !Ref TargetProtocol, Upper]
+      HealthCheckPath: !Ref ReadinessHealthCheckPath
+      TargetType: !Ref TargetType
+      Port: !Ref DockerHostPort
+      Protocol: !FindInMap [Protocol, !Ref TargetProtocol, Upper]
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 2
+      TargetGroupAttributes:
+        - Key: deregistration_delay.timeout_seconds
+          Value: "10"
+      VpcId: !Sub ${VpcId}
+      Tags:
+        - Key: Project
+          Value: !Ref Project
+        - Key: Application
+          Value: !Ref Application
+        - Key: Service
+          Value: !Ref Service
+        - Key: Owner
+          Value: !Ref Owner
+        - Key: DeploymentColor
+          Value: green
+
+  TestTrafficListenerRule:
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+    Condition: UseCodeDeployBlueGreen
+    Properties:
+      Actions:
+        - Type: forward
+          TargetGroupArn: !Ref "LoadBalancerTargetGroupGreen"
+      Conditions:
+        - Field: host-header
+          HostHeaderConfig:
+            Values:
+              - !Sub canary.${ServiceDNS}
+      ListenerArn: !Ref TestTrafficListenerArn
+      Priority: 1
 
   # ECS
   ContainerSecurityGroup:
@@ -570,14 +688,16 @@ Resources:
       PlatformVersion: LATEST
       DesiredCount: 1
       DeploymentController:
-        Type: ECS
+        Type: !If [UseCodeDeployBlueGreen, CODE_DEPLOY, ECS]
       TaskDefinition: !Ref "TaskDefinition"
-      DeploymentConfiguration:
-        MaximumPercent: 200
-        MinimumHealthyPercent: 100
-        DeploymentCircuitBreaker:
-          Enable: true
-          Rollback: true
+      DeploymentConfiguration: !If
+        - UseCodeDeployBlueGreen
+        - !Ref AWS::NoValue
+        - MaximumPercent: 200
+          MinimumHealthyPercent: 100
+          DeploymentCircuitBreaker:
+            Enable: true
+            Rollback: true
       NetworkConfiguration:
         AwsvpcConfiguration:
           Subnets: !Ref SubnetList
@@ -590,7 +710,13 @@ Resources:
       LoadBalancers:
         - ContainerName: !Ref Service
           ContainerPort: !Ref DockerContainerPort
-          TargetGroupArn: !Ref "LoadBalancerTargetGroup"
+          TargetGroupArn: !Ref "LoadBalancerTargetGroupBlue"
+        - !If
+          - UseCodeDeployBlueGreen
+          - ContainerName: !Ref Service
+            ContainerPort: !Ref DockerContainerPort
+            TargetGroupArn: !Ref "LoadBalancerTargetGroupGreen"
+          - !Ref AWS::NoValue
       EnableExecuteCommand: true
       ServiceRegistries:
         - !If [UseServiceDiscovery, { RegistryArn: !GetAtt ServiceDiscoveryService.Arn }, !Ref "AWS::NoValue" ]
@@ -603,6 +729,73 @@ Resources:
           Value: !Ref Service
         - Key: ImageUri
           Value: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${DockerRepoName}:${DockerImageTag}
+
+  CodeDeployEcsApplication:
+    Type: AWS::CodeDeploy::Application
+    Condition: UseCodeDeployBlueGreen
+    Properties:
+      ApplicationName: !If
+        - HasCodeDeployApplicationNameOverride
+        - !Ref CodeDeployApplicationName
+        - !Sub "${Project}-${Application}-${Service}-ecs"
+      ComputePlatform: ECS
+
+  CodeDeployEcsDeploymentGroup:
+    Type: AWS::CodeDeploy::DeploymentGroup
+    Condition: UseCodeDeployBlueGreen
+    DependsOn:
+      - ECSService
+      - CodeDeployEcsApplication
+    Properties:
+      ApplicationName: !Ref CodeDeployEcsApplication
+      DeploymentGroupName: !If
+        - HasCodeDeployDeploymentGroupNameOverride
+        - !Ref CodeDeployDeploymentGroupName
+        - !Sub "${Project}-${Application}-${Service}-dg"
+      ServiceRoleArn: !Ref CodeDeployServiceRoleArn
+      DeploymentConfigName: !Ref CodeDeployDeploymentConfigName
+      DeploymentStyle:
+        DeploymentOption: WITH_TRAFFIC_CONTROL
+        DeploymentType: BLUE_GREEN
+      ECSServices:
+        - ClusterName: !Ref EcsClusterName
+          ServiceName: !GetAtt ECSService.Name
+      LoadBalancerInfo:
+        TargetGroupPairInfoList:
+          - ProdTrafficRoute:
+              ListenerArns:
+                - Fn::ImportValue: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${LoadBalancerId}:${LoadBalancerName}:listenerarn
+            TestTrafficRoute:
+              ListenerArns:
+                - !Ref TestTrafficListenerArn
+            TargetGroups:
+              - Name: !GetAtt LoadBalancerTargetGroupBlue.TargetGroupName
+              - Name: !GetAtt LoadBalancerTargetGroupGreen.TargetGroupName
+      BlueGreenDeploymentConfiguration:
+        DeploymentReadyOption:
+          ActionOnTimeout: !Ref BlueGreenReadinessActionOnTimeout
+          WaitTimeInMinutes: !Ref BlueGreenDeploymentReadyTimeoutMinutes
+        TerminateBlueInstancesOnDeploymentSuccess:
+          Action: TERMINATE
+          TerminationWaitTimeInMinutes: !Ref BlueGreenTerminationWaitMinutes
+      AlarmConfiguration:
+        Enabled: !If [HasDeploymentRollbackAlarmBinding, true, false]
+        IgnorePollAlarmFailure: false
+        Alarms:
+          - !If
+            - HasDeploymentRollbackAlarmPrimary
+            - Name: !Ref DeploymentRollbackAlarmNamePrimary
+            - !Ref AWS::NoValue
+          - !If
+            - HasDeploymentRollbackAlarmSecondary
+            - Name: !Ref DeploymentRollbackAlarmNameSecondary
+            - !Ref AWS::NoValue
+      AutoRollbackConfiguration:
+        Enabled: true
+        Events:
+          - DEPLOYMENT_FAILURE
+          - DEPLOYMENT_STOP_ON_ALARM
+          - DEPLOYMENT_STOP_ON_REQUEST
 
   ECSTaskRole:
     Type: AWS::IAM::Role
@@ -754,7 +947,7 @@ Resources:
           Value:
             Fn::ImportValue: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${LoadBalancerId}${LoadBalancerName}:alb:name
         - Name: "TargetGroup"
-          Value: !GetAtt LoadBalancerTargetGroup.TargetGroupFullName
+          Value: !GetAtt LoadBalancerTargetGroupBlue.TargetGroupFullName
       Statistic: Sum
       Period: !Ref Period
       EvaluationPeriods: !Ref EvaluationPeriods
@@ -776,7 +969,7 @@ Resources:
           Value:
             Fn::ImportValue: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${LoadBalancerId}${LoadBalancerName}:alb:name
         - Name: "TargetGroup"
-          Value: !GetAtt LoadBalancerTargetGroup.TargetGroupFullName
+          Value: !GetAtt LoadBalancerTargetGroupBlue.TargetGroupFullName
       Statistic: Sum
       Period: !Ref Period
       EvaluationPeriods: !Ref EvaluationPeriods
@@ -797,7 +990,7 @@ Resources:
           Value:
             Fn::ImportValue: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${LoadBalancerId}${LoadBalancerName}:alb:name
         - Name: "TargetGroup"
-          Value: !GetAtt LoadBalancerTargetGroup.TargetGroupFullName
+          Value: !GetAtt LoadBalancerTargetGroupBlue.TargetGroupFullName
       Statistic: Sum
       Period: !Ref Period
       EvaluationPeriods: !Ref EvaluationPeriods
@@ -818,7 +1011,7 @@ Resources:
           Value:
             Fn::ImportValue: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${LoadBalancerId}${LoadBalancerName}:alb:name
         - Name: "TargetGroup"
-          Value: !GetAtt LoadBalancerTargetGroup.TargetGroupFullName
+          Value: !GetAtt LoadBalancerTargetGroupBlue.TargetGroupFullName
       Statistic: Sum
       Period: !Ref Period
       EvaluationPeriods: !Ref EvaluationPeriods
@@ -839,7 +1032,7 @@ Resources:
           Value:
             Fn::ImportValue: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${LoadBalancerId}${LoadBalancerName}:alb:name
         - Name: "TargetGroup"
-          Value: !GetAtt LoadBalancerTargetGroup.TargetGroupFullName
+          Value: !GetAtt LoadBalancerTargetGroupBlue.TargetGroupFullName
       Statistic: Sum
       Period: !Ref Period
       EvaluationPeriods: !Ref EvaluationPeriods
@@ -860,7 +1053,7 @@ Resources:
           Value:
             Fn::ImportValue: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${LoadBalancerId}${LoadBalancerName}:alb:name
         - Name: "TargetGroup"
-          Value: !GetAtt LoadBalancerTargetGroup.TargetGroupFullName
+          Value: !GetAtt LoadBalancerTargetGroupBlue.TargetGroupFullName
       Statistic: Sum
       Period: !Ref Period
       EvaluationPeriods: !Ref EvaluationPeriods
@@ -881,7 +1074,7 @@ Resources:
           Value:
             Fn::ImportValue: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${LoadBalancerId}${LoadBalancerName}:alb:name
         - Name: "TargetGroup"
-          Value: !GetAtt LoadBalancerTargetGroup.TargetGroupFullName
+          Value: !GetAtt LoadBalancerTargetGroupBlue.TargetGroupFullName
       Statistic: Sum
       Period: !Ref Period
       EvaluationPeriods: !Ref EvaluationPeriods
@@ -899,7 +1092,7 @@ Resources:
       MetricName: TargetConnectionErrorCount
       Dimensions:
         - Name: "TargetGroup"
-          Value: !GetAtt LoadBalancerTargetGroup.TargetGroupFullName
+          Value: !GetAtt LoadBalancerTargetGroupBlue.TargetGroupFullName
         - Name: "LoadBalancer"
           Value:
             Fn::ImportValue: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${LoadBalancerId}${LoadBalancerName}:alb:name
@@ -920,7 +1113,7 @@ Resources:
       MetricName: TargetTLSNegotiationErrorCount
       Dimensions:
         - Name: "TargetGroup"
-          Value: !GetAtt LoadBalancerTargetGroup.TargetGroupFullName
+          Value: !GetAtt LoadBalancerTargetGroupBlue.TargetGroupFullName
         - Name: "LoadBalancer"
           Value:
             Fn::ImportValue: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${LoadBalancerId}${LoadBalancerName}:alb:name
