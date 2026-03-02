@@ -121,3 +121,30 @@ CODEOWNERS path verified:
 Deviations/exceptions:
 Final sign-off:
 ```
+
+
+## Latest execution record (2026-03-02)
+
+Evidence directories captured:
+
+- `docs/plan/release/evidence/governance/20260302T231154Z`
+- `docs/plan/release/evidence/governance/20260302T231223Z`
+
+Observed constraints:
+
+- `GET /repos/{owner}/{repo}/branches/main/protection` returned `403` with
+  `"Upgrade to GitHub Pro or make this repository public to enable this feature."`
+- `required_status_checks.contexts` could not be exported via REST under current
+  repository plan constraints.
+
+Fallback captured:
+
+- immutable `.github/CODEOWNERS` snapshot + content hash (`SHA256SUMS`)
+- `main` check-runs snapshot (`main-check-runs*.json`) for current required-check
+  evidence candidates
+
+Required manual follow-up:
+
+- capture branch protection and required-check policy evidence via GitHub UI
+  screenshots/export in the same timestamped evidence folder
+- complete reviewer sign-off checklist

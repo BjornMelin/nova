@@ -223,3 +223,35 @@ Store evidence links in:
 - `FINAL-PLAN.md`
 - `docs/plan/PLAN.md`
 - `docs/plan/subplans/SUBPLAN-0005.md`
+
+
+## 11. Latest execution status (2026-03-02)
+
+Evidence directory:
+
+- `docs/plan/release/evidence/nonprod-validation/20260302T231233Z`
+
+Executed from authenticated CLI session:
+
+- `aws sts get-caller-identity` (passed)
+- `aws cloudformation describe-stacks` for `nova-ci-nova-ci-cd` and
+  `nova-ci-nova-dev` (passed; used to confirm pipeline/connection metadata)
+
+Blocked by IAM authorization in current operator role:
+
+- `codeconnections:GetConnection`
+- `codepipeline:ListPipelineExecutions`
+- additional service-level reads required for full Gate B-D verification
+
+Impact:
+
+- Gates A-E cannot be marked complete from this session due to missing read
+  permissions and missing non-prod runtime endpoint inputs.
+
+Required follow-up:
+
+1. Grant/assume an operator role with read access to CodeConnections,
+   CodePipeline, CodeDeploy, ECS, ELBv2, and CloudWatch for non-prod.
+2. Provide/confirm values for required runbook inputs (API/Dash URL, ECS service,
+   target groups, deployment group, dashboard, alarms).
+3. Re-run gates A-E and append pass/fail evidence artifacts in this runbook.

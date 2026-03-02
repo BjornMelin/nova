@@ -312,6 +312,11 @@ The following gates require live non-prod AWS access:
 
 Execution and evidence checklist:
 
+- 2026-03-02 execution evidence captured:
+  - governance: `docs/plan/release/evidence/governance/20260302T231223Z`
+  - non-prod gates: `docs/plan/release/evidence/nonprod-validation/20260302T231233Z`
+- Current blocker: operator role lacks required GitHub/AWS read permissions for full gate closure; see runbooks for exact denied APIs.
+
 - `docs/plan/release/NONPROD-LIVE-VALIDATION-RUNBOOK.md`
 
 ## Primary Sources to Use During Execution

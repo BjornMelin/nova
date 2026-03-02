@@ -1,0 +1,2 @@
+
+An error occurred (AccessDeniedException) when calling the ListPipelineExecutions operation: User: arn:aws:sts::099060980393:assumed-role/openclaw-project-operator-role/botocore-session-1772492955 is not authorized to perform: codepipeline:ListPipelineExecutions on resource: arn:aws:codepipeline:us-east-1:099060980393:nova-ci-nova-release-pipeline because no identity-based policy allows the codepipeline:ListPipelineExecutions action

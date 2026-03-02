@@ -1,0 +1,50 @@
+{
+    "Stacks": [
+        {
+            "StackId": "arn:aws:cloudformation:us-east-1:099060980393:stack/nova-ci-nova-dev/be2f0650-15db-11f1-9cf4-12a525d0c1c7",
+            "StackName": "nova-ci-nova-dev",
+            "Description": "Persist promoted Nova image digest in SSM Parameter Store.",
+            "Parameters": [
+                {
+                    "ParameterKey": "ServiceName",
+                    "ParameterValue": "nova-file-api"
+                },
+                {
+                    "ParameterKey": "ImageDigest",
+                    "ParameterValue": "sha256:5ebfee2614334f7da1b4956d0d2e922559e283bd1ea8acd1d5cf06becad7ee14"
+                },
+                {
+                    "ParameterKey": "Environment",
+                    "ParameterValue": "dev"
+                }
+            ],
+            "CreationTime": "2026-03-02T02:10:48.504000+00:00",
+            "LastUpdatedTime": "2026-03-02T23:11:23.528000+00:00",
+            "RollbackConfiguration": {},
+            "StackStatus": "UPDATE_COMPLETE",
+            "DisableRollback": false,
+            "NotificationARNs": [],
+            "Capabilities": [
+                "CAPABILITY_NAMED_IAM"
+            ],
+            "Outputs": [
+                {
+                    "OutputKey": "ImageDigest",
+                    "OutputValue": "sha256:5ebfee2614334f7da1b4956d0d2e922559e283bd1ea8acd1d5cf06becad7ee14"
+                }
+            ],
+            "RoleARN": "arn:aws:iam::099060980393:role/nova-ci-nova-cfn-dev-role",
+            "Tags": [],
+            "EnableTerminationProtection": false,
+            "DriftInformation": {
+                "StackDriftStatus": "NOT_CHECKED"
+            },
+            "LastOperations": [
+                {
+                    "OperationType": "UPDATE_STACK",
+                    "OperationId": "19304f70-1483-4997-860d-e0c7b183cdb9"
+                }
+            ]
+        }
+    ]
+}

@@ -1,0 +1,16 @@
+[
+  {
+    "name": "apply",
+    "status": "completed",
+    "conclusion": "skipped",
+    "details_url": "https://github.com/BjornMelin/nova/actions/runs/22599949046/job/65479247450",
+    "completed_at": "2026-03-02T23:07:30Z"
+  },
+  {
+    "name": "publish-staging",
+    "status": "completed",
+    "conclusion": "failure",
+    "details_url": "https://github.com/BjornMelin/nova/actions/runs/22599939331/job/65479213168",
+    "completed_at": "2026-03-02T23:07:27Z"
+  }
+]

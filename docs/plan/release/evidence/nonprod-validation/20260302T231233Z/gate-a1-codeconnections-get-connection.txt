@@ -1,0 +1,2 @@
+
+An error occurred (AccessDeniedException) when calling the GetConnection operation: User: arn:aws:sts::099060980393:assumed-role/openclaw-project-operator-role/botocore-session-1772492955 is not authorized to perform: codeconnections:GetConnection on resource: arn:aws:codestar-connections:us-east-1:099060980393:connection/82516b94-9612-4104-a16e-88272f3ecd56 because no identity-based policy allows the codeconnections:GetConnection action

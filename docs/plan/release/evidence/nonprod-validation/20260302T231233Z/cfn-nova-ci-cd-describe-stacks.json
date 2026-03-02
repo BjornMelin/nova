@@ -1,0 +1,110 @@
+{
+    "Stacks": [
+        {
+            "StackId": "arn:aws:cloudformation:us-east-1:099060980393:stack/nova-ci-nova-ci-cd/766f2760-15c6-11f1-8dbe-0e545b98ebd7",
+            "StackName": "nova-ci-nova-ci-cd",
+            "ChangeSetId": "arn:aws:cloudformation:us-east-1:099060980393:changeSet/awscli-cloudformation-package-deploy-1772409419/733f3453-741c-47a4-b72f-1fee59987a69",
+            "Description": "Nova hybrid CI/CD pipeline (Dev -> Manual Approval -> Prod).",
+            "Parameters": [
+                {
+                    "ParameterKey": "DeployServiceName",
+                    "ParameterValue": "nova-file-api"
+                },
+                {
+                    "ParameterKey": "ProdServiceBaseUrl",
+                    "ParameterValue": "https://httpbin.org/anything"
+                },
+                {
+                    "ParameterKey": "ArtifactBucketName",
+                    "ParameterValue": "nova-ci-artifacts-099060980393-us-east-1"
+                },
+                {
+                    "ParameterKey": "DeployProdStackName",
+                    "ParameterValue": "nova-ci-nova-prod"
+                },
+                {
+                    "ParameterKey": "ManualApprovalTopicArn",
+                    "ParameterValue": ""
+                },
+                {
+                    "ParameterKey": "RepositoryName",
+                    "ParameterValue": "nova"
+                },
+                {
+                    "ParameterKey": "ExistingConnectionArn",
+                    "ParameterValue": "arn:aws:codestar-connections:us-east-1:099060980393:connection/82516b94-9612-4104-a16e-88272f3ecd56"
+                },
+                {
+                    "ParameterKey": "ConnectionName",
+                    "ParameterValue": "nova-codestar-connection"
+                },
+                {
+                    "ParameterKey": "DeployValidateProjectName",
+                    "ParameterValue": "nova-ci-nova-deploy-validate"
+                },
+                {
+                    "ParameterKey": "Project",
+                    "ParameterValue": "nova"
+                },
+                {
+                    "ParameterKey": "MainBranchName",
+                    "ParameterValue": "main"
+                },
+                {
+                    "ParameterKey": "DeployDevStackName",
+                    "ParameterValue": "nova-ci-nova-dev"
+                },
+                {
+                    "ParameterKey": "ReleaseBuildProjectName",
+                    "ParameterValue": "nova-ci-nova-release-build"
+                },
+                {
+                    "ParameterKey": "Application",
+                    "ParameterValue": "ci"
+                },
+                {
+                    "ParameterKey": "RepositoryOwner",
+                    "ParameterValue": "BjornMelin"
+                },
+                {
+                    "ParameterKey": "DevServiceBaseUrl",
+                    "ParameterValue": "https://httpbin.org/anything"
+                }
+            ],
+            "CreationTime": "2026-03-01T23:29:16.055000+00:00",
+            "LastUpdatedTime": "2026-03-01T23:57:04.448000+00:00",
+            "RollbackConfiguration": {},
+            "StackStatus": "UPDATE_COMPLETE",
+            "DisableRollback": false,
+            "NotificationARNs": [],
+            "Capabilities": [
+                "CAPABILITY_NAMED_IAM"
+            ],
+            "Outputs": [
+                {
+                    "OutputKey": "PipelineName",
+                    "OutputValue": "nova-ci-nova-release-pipeline"
+                },
+                {
+                    "OutputKey": "ConnectionArn",
+                    "OutputValue": "arn:aws:codestar-connections:us-east-1:099060980393:connection/82516b94-9612-4104-a16e-88272f3ecd56"
+                },
+                {
+                    "OutputKey": "ConnectionActivationNote",
+                    "OutputValue": "If a new connection was created, activate it once in the AWS console (status must transition from PENDING to AVAILABLE)."
+                }
+            ],
+            "Tags": [],
+            "EnableTerminationProtection": false,
+            "DriftInformation": {
+                "StackDriftStatus": "NOT_CHECKED"
+            },
+            "LastOperations": [
+                {
+                    "OperationType": "UPDATE_STACK",
+                    "OperationId": "482f0b80-5773-43f0-a817-df46a7653a58"
+                }
+            ]
+        }
+    ]
+}
