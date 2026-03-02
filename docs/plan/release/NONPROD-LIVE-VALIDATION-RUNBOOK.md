@@ -255,3 +255,7 @@ Required follow-up:
 2. Provide/confirm values for required runbook inputs (API/Dash URL, ECS service,
    target groups, deployment group, dashboard, alarms).
 3. Re-run gates A-E and append pass/fail evidence artifacts in this runbook.
+
+Reference:
+
+- `docs/plan/release/batch-b-access-unblock-guide.md`

@@ -148,3 +148,7 @@ Required manual follow-up:
 - capture branch protection and required-check policy evidence via GitHub UI
   screenshots/export in the same timestamped evidence folder
 - complete reviewer sign-off checklist
+
+Reference:
+
+- `docs/plan/release/batch-b-access-unblock-guide.md`
