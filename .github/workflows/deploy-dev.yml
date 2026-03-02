@@ -18,9 +18,13 @@ jobs:
     env:
       AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
       RELEASE_AWS_ROLE_ARN: ${{ secrets.RELEASE_AWS_ROLE_ARN }}
+      PIPELINE_NAME: ${{ inputs.pipeline_name }}
     steps:
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ env.RELEASE_AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
-      - run: aws codepipeline start-pipeline-execution --name "${{ inputs.pipeline_name }}"
+      - run: |
+          set -euo pipefail
+          [[ "$PIPELINE_NAME" =~ ^[A-Za-z0-9._@-]+$ ]] || { echo "Invalid pipeline name" >&2; exit 1; }
+          aws codepipeline start-pipeline-execution --name "$PIPELINE_NAME"

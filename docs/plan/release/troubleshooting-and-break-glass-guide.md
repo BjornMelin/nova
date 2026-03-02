@@ -38,7 +38,7 @@ Primary variable sources:
 
 ## Quick failure matrix
 
-### `Publish Packages` cannot assume AWS role
+### `Apply Release Plan` cannot assume AWS role
 
 Likely causes:
 
