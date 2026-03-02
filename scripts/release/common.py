@@ -344,6 +344,14 @@ def read_json(path: Path) -> dict[str, Any]:
 
     Returns:
         Parsed JSON object.
+
+    Raises:
+        TypeError:
+            If the JSON root is not an object.
+        json.JSONDecodeError:
+            If `path.read_text()` contains malformed JSON.
+        OSError:
+            If `path.read_text()` cannot be read.
     """
     payload = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(payload, dict):
@@ -362,6 +370,16 @@ def write_json(
     Args:
         path: Destination JSON file path.
         payload: JSON-serializable object to persist.
+
+    Returns:
+        None:
+            write_json(path, payload) returns None.
+
+    Raises:
+        OSError:
+            If `path.parent.mkdir()` or `path.write_text()` fails.
+        TypeError:
+            If `payload` cannot be encoded as JSON.
     """
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
