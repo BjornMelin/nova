@@ -631,7 +631,7 @@ requires-dist = [
 
 [[package]]
 name = "nova-dash-bridge"
-version = "0.2.0"
+version = "0.2.1"
 source = { editable = "packages/nova_dash_bridge" }
 dependencies = [
     { name = "boto3" },
@@ -665,7 +665,7 @@ provides-extras = ["dash", "fastapi", "flask"]
 
 [[package]]
 name = "nova-file-api"
-version = "0.2.0"
+version = "0.3.0"
 source = { editable = "packages/nova_file_api" }
 dependencies = [
     { name = "anyio" },
@@ -694,7 +694,7 @@ requires-dist = [
 
 [[package]]
 name = "nova-file-api-service"
-version = "0.2.1"
+version = "0.2.2"
 source = { editable = "apps/nova_file_api_service" }
 dependencies = [
     { name = "nova-file-api" },
