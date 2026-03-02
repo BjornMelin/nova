@@ -139,6 +139,12 @@ centrally.
 
 ## 10. Operational no-shim posture
 
+## 11. Implementation plan reference
+
+Execution blueprint (planning authority for implementation sequencing):
+- `docs/plan/2026-03-01-adr0015-spec0015-implementation-blueprint.md`
+
+
 No temporary compatibility adapters are allowed in runtime, API contract, or
 deployment workflows unless a new ADR explicitly scores and approves the
 exception.

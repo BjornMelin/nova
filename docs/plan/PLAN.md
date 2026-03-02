@@ -22,6 +22,8 @@
   `/api/*` runtime behavior and release evidence.
 - Target-state delivery requirements for the next feature branch are locked in
   `ADR-0015` + `SPEC-0015`.
+- Definitive execution blueprint for target-state implementation:
+  `docs/plan/2026-03-01-adr0015-spec0015-implementation-blueprint.md`.
 - Until target-state code is merged, current runbooks and baseline route checks
   remain operational authority.
 - After target-state merge, update this plan to mark `/api/*` route rules as
