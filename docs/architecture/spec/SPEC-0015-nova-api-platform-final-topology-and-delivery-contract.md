@@ -2,7 +2,7 @@
 Spec: 0015
 Title: Nova API platform final topology and delivery contract
 Status: Planned
-Version: 1.1
+Version: 1.2
 Date: 2026-03-02
 Related:
   - "[ADR-0015: Nova API platform final hosting and deployment architecture (2026)](../adr/ADR-0015-nova-api-platform-final-hosting-and-deployment-architecture-2026.md)"
@@ -81,14 +81,17 @@ Nova repo must own runtime-deployment IaC for:
 
 ## 5. CI/CD contract (target-state)
 
-Required workflow artifacts to be added in the next feature branch:
-- `ci.yml`: lint/type/test/security/contract checks.
-- `build-and-publish-image.yml`: immutable ECR image digest output.
-- `publish-packages.yml`: CodeArtifact publishing with validation gates.
-- `deploy-dev.yml`: environment deploy and smoke validation.
-- `promote-prod.yml`: manual approval + immutable digest promotion.
-- `post-deploy-validate.yml`: runtime and endpoint conformance checks.
-- `conformance-clients.yml`: Dash/Shiny/TS contract parity lane.
+Workflow artifact contract state:
+- Existing baseline artifacts in `main`:
+  - `ci.yml`: lint/type/test/security/contract checks.
+  - `publish-packages.yml`: CodeArtifact staged publishing with gate artifacts.
+  - `promote-prod.yml`: manifest-locked package promotion + CodePipeline approval.
+- Additional workflows already present in `.github/workflows/` and required to
+  meet this spec contract in the next implementation branch:
+  - `build-and-publish-image.yml`: must produce immutable ECR image digest output and export the locked digest for downstream deploy workflows.
+  - `deploy-dev.yml`: must run deterministic environment deploy for the selected ref/digest and enforce smoke checks before success.
+  - `post-deploy-validate.yml`: must execute runtime and endpoint conformance checks against the target environment.
+  - `conformance-clients.yml`: must run Dash/Shiny/TS contract parity lanes against canonical `/v1/*` endpoints.
 
 ## 6. API platform capability contract (target-state)
 

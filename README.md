@@ -248,14 +248,18 @@ Hybrid release model:
    and templates under `infra/nova/**`, consuming immutable artifacts from the
    signed release commit.
    - Deploy marker template authority is `infra/nova/deploy/image-digest-ssm.yml`.
-4. Target-state workflow artifacts defined in `SPEC-0015` are locked
-   implementation requirements for the next feature branch:
-   - `build-and-publish-image.yml`
-   - `publish-packages.yml`
-   - `deploy-dev.yml`
-   - `promote-prod.yml`
-   - `post-deploy-validate.yml`
-   - `conformance-clients.yml`
+4. Workflow artifact state:
+   - Baseline artifacts contract-complete in current release flow:
+     - `ci.yml`
+     - `publish-packages.yml`
+     - `promote-prod.yml`
+   - Additional target-state artifacts already exist in `.github/workflows/`
+     and are mandatory to bring to `SPEC-0015` contract-complete behavior in
+     the next implementation branch:
+     - `build-and-publish-image.yml`
+     - `deploy-dev.yml`
+     - `post-deploy-validate.yml`
+     - `conformance-clients.yml`
 5. Current release build contract:
    - buildspec: `buildspecs/buildspec-release.yml`
    - changed package publish set is resolved from signed release commit diff

@@ -2,7 +2,7 @@
 
 Status: Active
 Owner: nova release architecture
-Last updated: 2026-02-24
+Last updated: 2026-03-02
 
 ## 1. Purpose
 
@@ -83,6 +83,8 @@ Use the modular operator guide set for provisioning and setup details:
    - ValidateProd
 3. Run `Promote Prod` workflow with:
    - `manifest_sha256` from `codeartifact-gate-report.json`
+   - `changed_units_json` from staged gate artifact (`changed-units.json`)
+   - `version_plan_json` from staged gate artifact (`version-plan.json`)
    - `promotion_candidates_json` from `codeartifact-promotion-candidates.json`
 4. Confirm package promotion uses `aws codeartifact copy-package-versions` from
    `CODEARTIFACT_STAGING_REPOSITORY` to `CODEARTIFACT_PROD_REPOSITORY`.

@@ -187,17 +187,24 @@ The next feature branch MUST expose:
 - `GET /v1/health/live`
 - `GET /v1/health/ready`
 
-### TFR-0101: Target workflow artifact set
+### TFR-0101: Target workflow artifact completion set
 
-The next feature branch MUST add CI/CD workflow artifacts listed in
-`SPEC-0015`:
+The next feature branch MUST bring the remaining `SPEC-0015` workflow artifact
+set to contract-complete behavior:
 
 - `build-and-publish-image.yml`
-- `publish-packages.yml`
 - `deploy-dev.yml`
-- `promote-prod.yml`
 - `post-deploy-validate.yml`
 - `conformance-clients.yml`
+
+These workflows already exist in `.github/workflows/`; required work is to
+close behavior gaps against `SPEC-0015`, not to introduce new filenames.
+
+Implemented baseline artifacts already contract-complete in `main`:
+
+- `ci.yml`
+- `publish-packages.yml`
+- `promote-prod.yml`
 
 ### TFR-0102: No-shim cutover posture
 

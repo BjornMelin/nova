@@ -2,7 +2,7 @@
 
 Status: Active
 Owner: nova release architecture
-Last reviewed: 2026-02-24
+Last reviewed: 2026-03-02
 
 ## Purpose
 
@@ -89,6 +89,19 @@ Exported variables:
 
 Reference file:
 `buildspecs/buildspec-release.yml`
+
+
+## Promote-prod workflow dispatch inputs
+
+`promote-prod.yml` requires these runtime inputs:
+
+- `pipeline_name`
+- `manifest_sha256`
+- `changed_units_json`
+- `version_plan_json`
+- `promotion_candidates_json`
+
+Source all JSON payload inputs from `publish-packages.yml` gate artifacts.
 
 ## Endpoint and validation contract
 
