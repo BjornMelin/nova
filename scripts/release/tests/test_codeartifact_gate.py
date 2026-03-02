@@ -78,7 +78,11 @@ def test_validate_release_gates_success(tmp_path: Path) -> None:
 def test_validate_release_gates_rejects_manifest_mismatch(
     tmp_path: Path,
 ) -> None:
-    """Verify manifest mismatch produces a controlled GateError."""
+    """Verify manifest mismatch produces a controlled GateError.
+
+    Args:
+        tmp_path: Temporary directory for fixture files used by the test.
+    """
 
     repo_root = Path(__file__).resolve().parents[3]
     manifest = tmp_path / "manifest.md"

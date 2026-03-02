@@ -67,8 +67,9 @@ Use the modular operator guide set for provisioning and setup details:
 2. Confirm `scripts.release.codeartifact_gate` generated:
    - `.artifacts/codeartifact-gate-report.json`
    - `.artifacts/codeartifact-promotion-candidates.json`
-3. Confirm package uploads target `CODEARTIFACT_STAGING_REPOSITORY` only,
-   and promotion targets `CODEARTIFACT_PROD_REPOSITORY`.
+3. Confirm package uploads target `CODEARTIFACT_STAGING_REPOSITORY` only.
+4. Confirm promotion copies from `CODEARTIFACT_STAGING_REPOSITORY` to
+   `CODEARTIFACT_PROD_REPOSITORY`.
 
 ## 4. AWS promotion execution
 
