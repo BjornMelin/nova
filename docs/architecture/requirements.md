@@ -202,6 +202,7 @@ close behavior gaps against `SPEC-0015`, not to introduce new filenames.
 
 Implemented baseline artifacts already contract-complete in `main`:
 
+- `ci.yml`
 - `publish-packages.yml`
 - `promote-prod.yml`
 

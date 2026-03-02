@@ -250,6 +250,7 @@ Hybrid release model:
    - Deploy marker template authority is `infra/nova/deploy/image-digest-ssm.yml`.
 4. Workflow artifact state:
    - Baseline artifacts contract-complete in current release flow:
+     - `ci.yml`
      - `publish-packages.yml`
      - `promote-prod.yml`
    - Additional target-state artifacts already exist in `.github/workflows/`
