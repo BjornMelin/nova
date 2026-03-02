@@ -11,6 +11,14 @@ on:
         description: SHA256 for docs/plan/release/RELEASE-VERSION-MANIFEST.md
         required: true
         type: string
+      changed_units_json:
+        description: JSON object from staged gate artifact
+        required: true
+        type: string
+      version_plan_json:
+        description: JSON object from staged gate artifact
+        required: true
+        type: string
       promotion_candidates_json:
         description: JSON array from codeartifact-promotion-candidates artifact
         required: true
@@ -29,6 +37,8 @@ jobs:
       CODEARTIFACT_DOMAIN: ${{ vars.CODEARTIFACT_DOMAIN }}
       CODEARTIFACT_STAGING_REPOSITORY: ${{ vars.CODEARTIFACT_STAGING_REPOSITORY }}
       CODEARTIFACT_PROD_REPOSITORY: ${{ vars.CODEARTIFACT_PROD_REPOSITORY }}
+      CHANGED_UNITS_JSON: ${{ inputs.changed_units_json }}
+      VERSION_PLAN_JSON: ${{ inputs.version_plan_json }}
       PROMOTION_CANDIDATES_JSON: ${{ inputs.promotion_candidates_json }}
       EXPECTED_MANIFEST_SHA256: ${{ inputs.manifest_sha256 }}
     steps:
@@ -53,6 +63,9 @@ jobs:
           [[ -n "$CODEARTIFACT_DOMAIN" ]] || { echo "CODEARTIFACT_DOMAIN is required" >&2; exit 1; }
           [[ -n "$CODEARTIFACT_STAGING_REPOSITORY" ]] || { echo "CODEARTIFACT_STAGING_REPOSITORY is required" >&2; exit 1; }
           [[ -n "$CODEARTIFACT_PROD_REPOSITORY" ]] || { echo "CODEARTIFACT_PROD_REPOSITORY is required" >&2; exit 1; }
+          [[ -n "$CHANGED_UNITS_JSON" ]] || { echo "changed_units_json is required" >&2; exit 1; }
+          [[ -n "$VERSION_PLAN_JSON" ]] || { echo "version_plan_json is required" >&2; exit 1; }
+          [[ -n "$PROMOTION_CANDIDATES_JSON" ]] || { echo "promotion_candidates_json is required" >&2; exit 1; }
           [[ "$CODEARTIFACT_STAGING_REPOSITORY" != "$CODEARTIFACT_PROD_REPOSITORY" ]] || {
             echo "Staging and prod repositories must be distinct" >&2
             exit 1
@@ -60,31 +73,8 @@ jobs:
 
           mkdir -p .artifacts
           printf '%s' "$PROMOTION_CANDIDATES_JSON" > .artifacts/promotion-candidates.json
-          uv run python - <<'PY'
-          import json
-          from pathlib import Path
-
-          candidates = json.loads(Path('.artifacts/promotion-candidates.json').read_text())
-          if not isinstance(candidates, list):
-              raise SystemExit('promotion_candidates_json must be a JSON array')
-          version_plan = {'units': []}
-          changed_units = {'changed_units': []}
-          for item in candidates:
-              package = item['package']
-              version = item['version']
-              if package == 'nova-file-api':
-                  unit_id = 'packages/nova_file_api'
-              elif package == 'nova-auth-api':
-                  unit_id = 'packages/nova_auth_api'
-              elif package == 'nova-dash-bridge':
-                  unit_id = 'packages/nova_dash_bridge'
-              else:
-                  raise SystemExit(f'Unsupported package in promotion candidate list: {package}')
-              version_plan['units'].append({'unit_id': unit_id, 'new_version': version})
-              changed_units['changed_units'].append({'unit_id': unit_id})
-          Path('.artifacts/version-plan.json').write_text(json.dumps(version_plan), encoding='utf-8')
-          Path('.artifacts/changed-units.json').write_text(json.dumps(changed_units), encoding='utf-8')
-          PY
+          printf '%s' "$CHANGED_UNITS_JSON" > .artifacts/changed-units.json
+          printf '%s' "$VERSION_PLAN_JSON" > .artifacts/version-plan.json
 
           uv run python -m scripts.release.codeartifact_gate \
             --repo-root . \
@@ -115,7 +105,6 @@ jobs:
                   '--format', 'pypi',
                   '--package', package,
                   '--versions', version,
-                  '--allow-overwrite',
               ], check=True)
           PY
 

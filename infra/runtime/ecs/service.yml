@@ -58,13 +58,19 @@ Parameters:
     Type: String
   EnableBlueGreenDeployAuthority:
     Type: String
-    Default: "true"
+    Default: "false"
     AllowedValues: ["true", "false"]
     Description: Enable final-state CodeDeploy ECS blue/green deployment authority chain.
   TestTrafficListenerArn:
     Type: String
     Default: ""
-    Description: Optional ALB listener ARN for CodeDeploy test-traffic routing.
+    Description: ALB listener ARN for CodeDeploy test-traffic routing; required when EnableBlueGreenDeployAuthority is "true", optional otherwise.
+  TestTrafficListenerRulePriority:
+    Type: Number
+    Default: 100
+    MinValue: 1
+    MaxValue: 50000
+    Description: Priority for canary host listener rule when blue/green is enabled.
   CodeDeployApplicationName:
     Type: String
     Default: ""
@@ -282,6 +288,9 @@ Conditions:
   EnableFileTransferAsync: !Equals [!Ref FileTransferAsyncEnabled, "true"]
   EnableFileTransferCache: !Equals [!Ref FileTransferCacheEnabled, "true"]
   UseCodeDeployBlueGreen: !Equals [!Ref EnableBlueGreenDeployAuthority, "true"]
+  MonitorUseCodeDeployBlueGreen: !And
+    - !Condition Monitor
+    - !Condition UseCodeDeployBlueGreen
   HasCodeDeployApplicationNameOverride: !Not [!Equals [!Ref CodeDeployApplicationName, ""]]
   HasCodeDeployDeploymentGroupNameOverride: !Not [!Equals [!Ref CodeDeployDeploymentGroupName, ""]]
   HasDeploymentRollbackAlarmPrimary: !Not [!Equals [!Ref DeploymentRollbackAlarmNamePrimary, ""]]
@@ -390,7 +399,7 @@ Resources:
             Values:
               - !Sub canary.${ServiceDNS}
       ListenerArn: !Ref TestTrafficListenerArn
-      Priority: 1
+      Priority: !Ref TestTrafficListenerRulePriority
 
   # ECS
   ContainerSecurityGroup:
@@ -956,6 +965,28 @@ Resources:
       AlarmActions:
         - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${AlarmArn}
 
+  HTTPRequestsAlarmGreen:
+    Type: AWS::CloudWatch::Alarm
+    Condition: MonitorUseCodeDeployBlueGreen
+    Properties:
+      AlarmName: !Sub ${Project}-${Application}-${Service}-http-requests-green
+      AlarmDescription: !Sub "Alarm if HTTP requests directed by climb-mof-dash to ${Service} ECS service exceed the threshold"
+      Namespace: "AWS/ApplicationELB"
+      MetricName: RequestCount
+      Dimensions:
+        - Name: "LoadBalancer"
+          Value:
+            Fn::ImportValue: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${LoadBalancerId}${LoadBalancerName}:alb:name
+        - Name: "TargetGroup"
+          Value: !GetAtt LoadBalancerTargetGroupGreen.TargetGroupFullName
+      Statistic: Sum
+      Period: !Ref Period
+      EvaluationPeriods: !Ref EvaluationPeriods
+      Threshold: "10"
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      AlarmActions:
+        - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${AlarmArn}
+
   RequestCountPerTarget:
     Type: AWS::CloudWatch::Alarm
     Condition: Monitor
@@ -978,6 +1009,28 @@ Resources:
       AlarmActions:
         - !If [Monitor, !Ref AlarmArn, !Ref "AWS::NoValue" ]
 
+  RequestCountPerTargetGreen:
+    Type: AWS::CloudWatch::Alarm
+    Condition: MonitorUseCodeDeployBlueGreen
+    Properties:
+      AlarmName: !Sub ${Project}-${Application}-${Service}-RequestCountPerTarget-green
+      AlarmDescription: !Sub "The number of request per target group for service ${Service}"
+      Namespace: "AWS/ApplicationELB"
+      MetricName: RequestCountPerTarget
+      Dimensions:
+        - Name: "LoadBalancer"
+          Value:
+            Fn::ImportValue: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${LoadBalancerId}${LoadBalancerName}:alb:name
+        - Name: "TargetGroup"
+          Value: !GetAtt LoadBalancerTargetGroupGreen.TargetGroupFullName
+      Statistic: Sum
+      Period: !Ref Period
+      EvaluationPeriods: !Ref EvaluationPeriods
+      Threshold: "2"
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      AlarmActions:
+        - !If [MonitorUseCodeDeployBlueGreen, !Ref AlarmArn, !Ref "AWS::NoValue" ]
+
   UnHealthyHostCount:
     Type: AWS::CloudWatch::Alarm
     Properties:
@@ -998,6 +1051,28 @@ Resources:
       ComparisonOperator: GreaterThanOrEqualToThreshold
       AlarmActions:
         - !If [Monitor, !Ref AlarmArn, !Ref "AWS::NoValue" ]
+
+  UnHealthyHostCountGreen:
+    Type: AWS::CloudWatch::Alarm
+    Condition: MonitorUseCodeDeployBlueGreen
+    Properties:
+      AlarmName: !Sub ${Project}-${Application}-${Service}-UnHealthyHostCount-green
+      AlarmDescription: !Sub "The number of unhealthy hosts for service ${Service}"
+      Namespace: "AWS/ApplicationELB"
+      MetricName: UnHealthyHostCount
+      Dimensions:
+        - Name: "LoadBalancer"
+          Value:
+            Fn::ImportValue: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${LoadBalancerId}${LoadBalancerName}:alb:name
+        - Name: "TargetGroup"
+          Value: !GetAtt LoadBalancerTargetGroupGreen.TargetGroupFullName
+      Statistic: Sum
+      Period: !Ref Period
+      EvaluationPeriods: !Ref EvaluationPeriods
+      Threshold: "1"
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      AlarmActions:
+        - !If [MonitorUseCodeDeployBlueGreen, !Ref AlarmArn, !Ref "AWS::NoValue" ]
 
   HTTPCodeTarget2XXCount:
     Type: AWS::CloudWatch::Alarm
@@ -1020,6 +1095,28 @@ Resources:
       AlarmActions:
         - !If [Monitor, !Ref AlarmArn, !Ref "AWS::NoValue"]
 
+  HTTPCodeTarget2XXCountGreen:
+    Type: AWS::CloudWatch::Alarm
+    Condition: MonitorUseCodeDeployBlueGreen
+    Properties:
+      AlarmName: !Sub ${Project}-${Application}-${Service}-HTTPCodeTarget2XXCount-green
+      AlarmDescription: !Sub "The number of 2xx HTTP response codes generated by the target group for service ${Service}"
+      Namespace: "AWS/ApplicationELB"
+      MetricName: HTTPCode_Target_2XX_Count
+      Dimensions:
+        - Name: "LoadBalancer"
+          Value:
+            Fn::ImportValue: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${LoadBalancerId}${LoadBalancerName}:alb:name
+        - Name: "TargetGroup"
+          Value: !GetAtt LoadBalancerTargetGroupGreen.TargetGroupFullName
+      Statistic: Sum
+      Period: !Ref Period
+      EvaluationPeriods: !Ref EvaluationPeriods
+      Threshold: "100"
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      AlarmActions:
+        - !If [MonitorUseCodeDeployBlueGreen, !Ref AlarmArn, !Ref "AWS::NoValue"]
+
   HTTPCodeTarget3XXCount:
     Type: AWS::CloudWatch::Alarm
     Properties:
@@ -1040,6 +1137,28 @@ Resources:
       ComparisonOperator: GreaterThanOrEqualToThreshold
       AlarmActions:
         - !If [Monitor, !Ref AlarmArn, !Ref "AWS::NoValue"]
+
+  HTTPCodeTarget3XXCountGreen:
+    Type: AWS::CloudWatch::Alarm
+    Condition: MonitorUseCodeDeployBlueGreen
+    Properties:
+      AlarmName: !Sub ${Project}-${Application}-${Service}-HTTPCodeTarget3XXCount-green
+      AlarmDescription: !Sub "The number of 3xx HTTP response codes generated by the target group for service ${Service}"
+      Namespace: "AWS/ApplicationELB"
+      MetricName: HTTPCode_Target_3XX_Count
+      Dimensions:
+        - Name: "LoadBalancer"
+          Value:
+            Fn::ImportValue: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${LoadBalancerId}${LoadBalancerName}:alb:name
+        - Name: "TargetGroup"
+          Value: !GetAtt LoadBalancerTargetGroupGreen.TargetGroupFullName
+      Statistic: Sum
+      Period: !Ref Period
+      EvaluationPeriods: !Ref EvaluationPeriods
+      Threshold: "1"
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      AlarmActions:
+        - !If [MonitorUseCodeDeployBlueGreen, !Ref AlarmArn, !Ref "AWS::NoValue"]
 
   HTTPCodeTarget4XXCount:
     Type: AWS::CloudWatch::Alarm
@@ -1062,6 +1181,28 @@ Resources:
       AlarmActions:
         - !If [Monitor, !Ref AlarmArn, !Ref "AWS::NoValue"]
 
+  HTTPCodeTarget4XXCountGreen:
+    Type: AWS::CloudWatch::Alarm
+    Condition: MonitorUseCodeDeployBlueGreen
+    Properties:
+      AlarmName: !Sub ${Project}-${Application}-${Service}-HTTPCodeTarget4XXCount-green
+      AlarmDescription: !Sub "The number of 4xx HTTP response codes generated by the target group for service ${Service}"
+      Namespace: "AWS/ApplicationELB"
+      MetricName: HTTPCode_Target_4XX_Count
+      Dimensions:
+        - Name: "LoadBalancer"
+          Value:
+            Fn::ImportValue: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${LoadBalancerId}${LoadBalancerName}:alb:name
+        - Name: "TargetGroup"
+          Value: !GetAtt LoadBalancerTargetGroupGreen.TargetGroupFullName
+      Statistic: Sum
+      Period: !Ref Period
+      EvaluationPeriods: !Ref EvaluationPeriods
+      Threshold: "1"
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      AlarmActions:
+        - !If [MonitorUseCodeDeployBlueGreen, !Ref AlarmArn, !Ref "AWS::NoValue"]
+
   HTTPCodeTarget5XXCount:
     Type: AWS::CloudWatch::Alarm
     Properties:
@@ -1082,6 +1223,28 @@ Resources:
       ComparisonOperator: GreaterThanOrEqualToThreshold
       AlarmActions:
         - !If [Monitor, !Ref AlarmArn, !Ref "AWS::NoValue"]
+
+  HTTPCodeTarget5XXCountGreen:
+    Type: AWS::CloudWatch::Alarm
+    Condition: MonitorUseCodeDeployBlueGreen
+    Properties:
+      AlarmName: !Sub ${Project}-${Application}-${Service}-HTTPCodeTarget5XXCount-green
+      AlarmDescription: !Sub "The number of 5xx HTTP response codes generated by the target group for service ${Service}"
+      Namespace: "AWS/ApplicationELB"
+      MetricName: HTTPCode_Target_5XX_Count
+      Dimensions:
+        - Name: "LoadBalancer"
+          Value:
+            Fn::ImportValue: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${LoadBalancerId}${LoadBalancerName}:alb:name
+        - Name: "TargetGroup"
+          Value: !GetAtt LoadBalancerTargetGroupGreen.TargetGroupFullName
+      Statistic: Sum
+      Period: !Ref Period
+      EvaluationPeriods: !Ref EvaluationPeriods
+      Threshold: "1"
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      AlarmActions:
+        - !If [MonitorUseCodeDeployBlueGreen, !Ref AlarmArn, !Ref "AWS::NoValue"]
 
   TargetConnectionErrorCount:
     Type: AWS::CloudWatch::Alarm
@@ -1104,6 +1267,28 @@ Resources:
       AlarmActions:
         - !If [Monitor, !Ref AlarmArn, !Ref "AWS::NoValue"]
 
+  TargetConnectionErrorCountGreen:
+    Type: AWS::CloudWatch::Alarm
+    Condition: MonitorUseCodeDeployBlueGreen
+    Properties:
+      AlarmName: !Sub ${Project}-${Application}-${Service}-TargetConnectionErrorCount-green
+      AlarmDescription: !Sub "The number of connections that were not successfully established between the load balancer and target group for service ${Service}"
+      Namespace: "AWS/ApplicationELB"
+      MetricName: TargetConnectionErrorCount
+      Dimensions:
+        - Name: "TargetGroup"
+          Value: !GetAtt LoadBalancerTargetGroupGreen.TargetGroupFullName
+        - Name: "LoadBalancer"
+          Value:
+            Fn::ImportValue: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${LoadBalancerId}${LoadBalancerName}:alb:name
+      Statistic: Sum
+      Period: !Ref Period
+      EvaluationPeriods: !Ref EvaluationPeriods
+      Threshold: "1"
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      AlarmActions:
+        - !If [MonitorUseCodeDeployBlueGreen, !Ref AlarmArn, !Ref "AWS::NoValue"]
+
   TargetTLSNegotiationErrorCount:
     Type: AWS::CloudWatch::Alarm
     Properties:
@@ -1124,6 +1309,28 @@ Resources:
       ComparisonOperator: GreaterThanOrEqualToThreshold
       AlarmActions:
         - !If [Monitor, !Ref AlarmArn, !Ref "AWS::NoValue"]
+
+  TargetTLSNegotiationErrorCountGreen:
+    Type: AWS::CloudWatch::Alarm
+    Condition: MonitorUseCodeDeployBlueGreen
+    Properties:
+      AlarmName: !Sub ${Project}-${Application}-${Service}-TargetTLSNegotiationErrorCount-green
+      AlarmDescription: !Sub "The number of connections that were not successfully established between the load balancer and target group for service ${Service}"
+      Namespace: "AWS/ApplicationELB"
+      MetricName: TargetTLSNegotiationErrorCount
+      Dimensions:
+        - Name: "TargetGroup"
+          Value: !GetAtt LoadBalancerTargetGroupGreen.TargetGroupFullName
+        - Name: "LoadBalancer"
+          Value:
+            Fn::ImportValue: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${LoadBalancerId}${LoadBalancerName}:alb:name
+      Statistic: Sum
+      Period: !Ref Period
+      EvaluationPeriods: !Ref EvaluationPeriods
+      Threshold: "1"
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      AlarmActions:
+        - !If [MonitorUseCodeDeployBlueGreen, !Ref AlarmArn, !Ref "AWS::NoValue"]
 
 
   # Lambda permissions for each alarm to trigger the Lambda function

@@ -106,3 +106,50 @@ def test_validate_release_gates_rejects_manifest_mismatch(
         assert "manifest/package version mismatch" in str(exc)
     else:
         raise AssertionError("Expected GateError for manifest mismatch")
+
+
+def test_validate_release_gates_rejects_changed_units_plan_drift(
+    tmp_path: Path,
+) -> None:
+    repo_root = Path(__file__).resolve().parents[3]
+    manifest = tmp_path / "manifest.md"
+    manifest.write_text(MANIFEST_TEXT, encoding="utf-8")
+
+    changed_units = tmp_path / "changed-units.json"
+    _write_json(
+        changed_units,
+        {
+            "changed_units": [
+                {"unit_id": "packages/nova_file_api"},
+                {"unit_id": "packages/nova_auth_api"},
+            ]
+        },
+    )
+
+    version_plan = tmp_path / "version-plan.json"
+    _write_json(
+        version_plan,
+        {
+            "units": [
+                {
+                    "unit_id": "packages/nova_file_api",
+                    "new_version": "0.2.0",
+                }
+            ]
+        },
+    )
+
+    try:
+        codeartifact_gate.validate_release_gates(
+            repo_root=repo_root,
+            manifest_path=manifest,
+            changed_units_path=changed_units,
+            version_plan_path=version_plan,
+            expected_manifest_sha256=None,
+        )
+    except codeartifact_gate.GateError as exc:
+        assert "must match exactly" in str(exc)
+    else:
+        raise AssertionError(
+            "Expected GateError for changed_units/version_plan drift"
+        )

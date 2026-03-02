@@ -4,15 +4,16 @@ from __future__ import annotations
 
 import argparse
 import hashlib
-import json
 import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from . import common
+from scripts.release import common
 
-SEMVER_RE = re.compile(r"^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$")
+SEMVER_RE = re.compile(
+    r"^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$"
+)
 MANIFEST_ROW_RE = re.compile(
     r"\|\s*`(?P<unit>[^`]+)`\s*\|\s*`(?P<package>[^`]+)`\s*\|"
     r"\s*`(?P<version>[^`]+)`\s*\|"
@@ -27,6 +28,7 @@ class PromotionCandidate:
     namespace: str | None
     package: str
     version: str
+    unit_id: str | None = None
 
 
 class GateError(ValueError):
@@ -50,6 +52,7 @@ def _validate_candidate(raw: dict[str, Any]) -> PromotionCandidate:
     namespace = raw.get("namespace")
     namespace_text = str(namespace).strip() if namespace is not None else None
     version = str(raw.get("version", "")).strip()
+    item_unit_id = str(raw.get("unit_id", "")).strip() or None
 
     if not package:
         raise GateError("promotion candidate package must be non-empty")
@@ -77,6 +80,7 @@ def _validate_candidate(raw: dict[str, Any]) -> PromotionCandidate:
         namespace=namespace_text,
         package=package,
         version=version,
+        unit_id=item_unit_id,
     )
 
 
@@ -103,6 +107,7 @@ def _load_candidates(
                     "namespace": "nova",
                     "package": units[unit_id].project_name,
                     "version": version,
+                    "unit_id": unit_id,
                 }
             )
         )
@@ -130,6 +135,34 @@ def validate_release_gates(
     version_plan = common.read_json(version_plan_path)
     units = common.load_workspace_units(repo_root)
 
+    changed_items = changed_units.get("changed_units")
+    if not isinstance(changed_items, list):
+        raise GateError("changed_units must contain a changed_units array")
+    changed_unit_ids = {
+        str(item.get("unit_id", "")).strip()
+        for item in changed_items
+        if isinstance(item, dict)
+    }
+    changed_unit_ids.discard("")
+
+    planned_items = version_plan.get("units", [])
+    if not isinstance(planned_items, list):
+        raise GateError("version_plan.units must be a JSON array")
+    planned_unit_ids = {
+        str(item.get("unit_id", "")).strip()
+        for item in planned_items
+        if isinstance(item, dict)
+    }
+    planned_unit_ids.discard("")
+
+    if planned_unit_ids != changed_unit_ids:
+        planned_sorted = ", ".join(sorted(planned_unit_ids))
+        changed_sorted = ", ".join(sorted(changed_unit_ids))
+        raise GateError(
+            "changed_units and version_plan.units must match exactly: "
+            f"planned=[{planned_sorted}] changed=[{changed_sorted}]"
+        )
+
     if "## Canonical Runtime Monorepo" not in manifest_text:
         raise GateError(
             "release manifest missing canonical runtime monorepo section"
@@ -153,7 +186,7 @@ def validate_release_gates(
                 f"manifest={manifest_version} plan={candidate.version}"
             )
 
-    changed_count = len(changed_units.get("changed_units", []))
+    changed_count = len(changed_unit_ids)
     try:
         manifest_rel = str(manifest_path.relative_to(repo_root))
     except ValueError:
@@ -209,19 +242,12 @@ def main() -> int:
     gate_out = Path(args.gate_report_out)
     if not gate_out.is_absolute():
         gate_out = repo_root / gate_out
-    gate_out.parent.mkdir(parents=True, exist_ok=True)
-    gate_out.write_text(
-        json.dumps(gate_report, indent=2) + "\n", encoding="utf-8"
-    )
+    common.write_json(gate_out, gate_report)
 
     candidates_out = Path(args.promotion_candidates_out)
     if not candidates_out.is_absolute():
         candidates_out = repo_root / candidates_out
-    candidates_out.parent.mkdir(parents=True, exist_ok=True)
-    candidates_out.write_text(
-        json.dumps(gate_report["promotion_candidates"], indent=2) + "\n",
-        encoding="utf-8",
-    )
+    common.write_json(candidates_out, gate_report["promotion_candidates"])
 
     print(f"gate report written: {gate_out}")
     print(f"promotion candidates written: {candidates_out}")
