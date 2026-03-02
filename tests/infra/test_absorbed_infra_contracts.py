@@ -192,3 +192,6 @@ def test_observability_security_cost_baseline_contracts() -> None:
     assert "MinValue: 60" in text
     assert "Condition: IsUsEast1" in text
     assert "ManageLogGroupRetentionPolicy" in text
+    assert "ServiceLogKmsKeyArn" in text
+    assert "UseServiceLogCMK" in text
+    assert "KmsKeyId: !If [UseServiceLogCMK" in text

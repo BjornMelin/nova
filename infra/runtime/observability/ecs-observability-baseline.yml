@@ -31,6 +31,12 @@ Parameters:
     Description: >-
       If true, this template creates and owns LogGroupName to enforce retention.
       Keep false when another stack already owns the log group.
+  ServiceLogKmsKeyArn:
+    Type: String
+    Default: ""
+    Description: >-
+      Optional CMK ARN for CloudWatch log-group encryption when
+      ManageLogGroupRetentionPolicy=true.
   AlarmActionArn:
     Type: String
     Default: ""
@@ -73,6 +79,7 @@ Conditions:
   IsProd: !Equals [!Ref Environment, prod]
   HasAlarmAction: !Not [!Equals [!Ref AlarmActionArn, ""]]
   ManageLogGroupRetentionPolicy: !Equals [!Ref ManageLogGroupRetentionPolicy, "true"]
+  UseServiceLogCMK: !Not [!Equals [!Ref ServiceLogKmsKeyArn, ""]]
   IsUsEast1: !Equals [!Ref AWS::Region, "us-east-1"]
 
 Resources:
@@ -83,6 +90,7 @@ Resources:
     DeletionPolicy: Retain
     Properties:
       LogGroupName: !Ref LogGroupName
+      KmsKeyId: !If [UseServiceLogCMK, !Ref ServiceLogKmsKeyArn, !Ref AWS::NoValue]
       RetentionInDays: !If [IsProd, 90, 30]
 
   ApiLatencyP95RollbackAlarm:

@@ -91,10 +91,20 @@ Operational guidance:
 
 `MonthlyEstimatedChargesAlarm` (`AWS/Billing EstimatedCharges`) is the baseline hook.
 
-This alarm is conditionally created only in `us-east-1` (`Condition: IsUsEast1`)
-because AWS Billing metrics are region-scoped to `us-east-1` for standard account
-telemetry.
+Prerequisites before rollout:
 
-Use `AlarmActionArn` for SNS/Lambda escalation and connect to org-level budget process.
+- deploy/evaluate this alarm in `us-east-1` (`Condition: IsUsEast1`)
+- enable account-level CloudWatch billing alerts in Billing Preferences
+- allow approximately 15 minutes after enabling billing alerts for metric publication
+
+`AlarmActionArn` should route to SNS/Lambda escalation targets aligned with org
+budget response policy.
+
+References:
+
+- Enable billing alerts + region requirement:
+  https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/gs_monitor_estimated_charges_with_cloudwatch.html
+- AWS Billing alarm troubleshooting examples:
+  https://repost.aws/knowledge-center/cloudwatch-estimatedcharges-alarm
 
 If/when account-level `AWS::Budgets::Budget` ownership is standardized in this repo, this alarm remains the mandatory service-level threshold hook.
