@@ -178,7 +178,7 @@ phases:
           echo "Unable to resolve pushed image digest."
           exit 1
         fi
-        IMAGE_DIGEST="${ECR_REPOSITORY_URI}@${DIGEST}"
+        IMAGE_DIGEST="${DIGEST}"
         export IMAGE_DIGEST
 
   post_build:
