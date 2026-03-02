@@ -433,7 +433,7 @@ async def _enqueue_job_core(
     principal: Principal,
     idempotency_key: str | None,
 ) -> EnqueueJobResponse:
-    """Execute enqueue/idempotency workflow for an already-authenticated caller."""
+    """Execute enqueue/idempotency workflow for authenticated callers."""
     key = idempotency_key
     request_payload = payload.model_dump(mode="json")
     claimed_idempotency = False
