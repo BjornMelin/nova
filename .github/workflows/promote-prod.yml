@@ -130,7 +130,7 @@ jobs:
           for item in candidates:
               package = item['package']
               version = item['version']
-              subprocess.run([
+              result = subprocess.run([
                   'aws', 'codeartifact', 'copy-package-versions',
                   '--domain', '${{ env.CODEARTIFACT_DOMAIN }}',
                   '--source-repository', '${{ env.CODEARTIFACT_STAGING_REPOSITORY }}',
@@ -138,7 +138,15 @@ jobs:
                   '--format', 'pypi',
                   '--package', package,
                   '--versions', version,
-              ], check=True)
+                  '--output', 'json',
+              ], check=True, capture_output=True, text=True)
+              response = json.loads(result.stdout)
+              failed_versions = response.get('failedVersions', [])
+              if failed_versions:
+                  raise SystemExit(
+                      f'Promotion failed for {package}@{version}: '
+                      f'{json.dumps(failed_versions)}'
+                  )
           PY
 
   approve-prod-pipeline:

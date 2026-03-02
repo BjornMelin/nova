@@ -6,6 +6,8 @@ import hashlib
 import json
 from pathlib import Path
 
+import pytest
+
 from scripts.release import codeartifact_gate
 
 MANIFEST_TEXT = """# Release Version Manifest
@@ -25,6 +27,14 @@ def _write_json(path: Path, payload: object) -> None:
     path.write_text(json.dumps(payload), encoding="utf-8")
 
 
+def _repo_root() -> Path:
+    marker = Path(__file__).resolve()
+    for parent in (marker, *marker.parents):
+        if (parent / ".git").is_dir() and (parent / "pyproject.toml").is_file():
+            return parent
+    raise RuntimeError("Could not resolve repository root for tests")
+
+
 def test_validate_release_gates_success(tmp_path: Path) -> None:
     """Verify valid gate inputs produce a successful gate report.
 
@@ -35,11 +45,8 @@ def test_validate_release_gates_success(tmp_path: Path) -> None:
     Returns:
         None:
             Test passes when assertions hold and no exceptions are raised.
-
-    Raises:
-        None.
     """
-    repo_root = Path(__file__).resolve().parents[3]
+    repo_root = _repo_root()
     manifest = tmp_path / "manifest.md"
     manifest.write_text(MANIFEST_TEXT, encoding="utf-8")
 
@@ -95,11 +102,8 @@ def test_validate_release_gates_rejects_manifest_mismatch(
         None:
             Test passes when the expected GateError is raised.
 
-    Raises:
-        codeartifact_gate.GateError:
-            Raised when manifest and plan versions disagree.
     """
-    repo_root = Path(__file__).resolve().parents[3]
+    repo_root = _repo_root()
     manifest = tmp_path / "manifest.md"
     manifest.write_text(
         MANIFEST_TEXT.replace("0.2.0", "0.3.0"), encoding="utf-8"
@@ -121,7 +125,9 @@ def test_validate_release_gates_rejects_manifest_mismatch(
         },
     )
 
-    try:
+    with pytest.raises(
+        codeartifact_gate.GateError, match="manifest/package version mismatch"
+    ):
         codeartifact_gate.validate_release_gates(
             repo_root=repo_root,
             manifest_path=manifest,
@@ -129,10 +135,6 @@ def test_validate_release_gates_rejects_manifest_mismatch(
             version_plan_path=version_plan,
             expected_manifest_sha256=None,
         )
-    except codeartifact_gate.GateError as exc:
-        assert "manifest/package version mismatch" in str(exc)
-    else:
-        raise AssertionError("Expected GateError for manifest mismatch")
 
 
 def test_validate_release_gates_rejects_changed_units_plan_drift(
@@ -148,11 +150,8 @@ def test_validate_release_gates_rejects_changed_units_plan_drift(
         None:
             Test passes when the expected GateError is raised.
 
-    Raises:
-        codeartifact_gate.GateError:
-            Raised when changed_units and version_plan units differ.
     """
-    repo_root = Path(__file__).resolve().parents[3]
+    repo_root = _repo_root()
     manifest = tmp_path / "manifest.md"
     manifest.write_text(MANIFEST_TEXT, encoding="utf-8")
 
@@ -180,17 +179,11 @@ def test_validate_release_gates_rejects_changed_units_plan_drift(
         },
     )
 
-    try:
+    with pytest.raises(codeartifact_gate.GateError, match="must match exactly"):
         codeartifact_gate.validate_release_gates(
             repo_root=repo_root,
             manifest_path=manifest,
             changed_units_path=changed_units,
             version_plan_path=version_plan,
             expected_manifest_sha256=None,
-        )
-    except codeartifact_gate.GateError as exc:
-        assert "must match exactly" in str(exc)
-    else:
-        raise AssertionError(
-            "Expected GateError for changed_units/version_plan drift"
         )

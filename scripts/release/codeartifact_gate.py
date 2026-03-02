@@ -6,7 +6,7 @@ import argparse
 import hashlib
 import re
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
@@ -131,8 +131,8 @@ def validate_release_gates(
         repo_root:
             Repository root used to resolve workspace units and relative paths.
         manifest_path:
-            Path to the release manifest checked against expected hashes.
-            Also validates package version rows in the manifest.
+            Path to the release manifest checked against expected hashes
+            and package version rows in the manifest.
         changed_units_path:
             JSON path containing changed unit metadata for the release.
         version_plan_path:
@@ -169,12 +169,14 @@ def validate_release_gates(
     changed_items = changed_units.get("changed_units")
     if not isinstance(changed_items, list):
         raise GateError("changed_units must contain a changed_units array")
-    changed_unit_ids = {
-        str(item.get("unit_id", "")).strip()
-        for item in changed_items
-        if isinstance(item, dict)
-    }
-    changed_unit_ids.discard("")
+    changed_unit_ids: set[str] = set()
+    for item in changed_items:
+        if not isinstance(item, Mapping):
+            raise GateError("changed_units entries must be objects")
+        unit_id = str(item.get("unit_id", "")).strip()
+        if not unit_id:
+            raise GateError("changed_units entries require unit_id")
+        changed_unit_ids.add(unit_id)
 
     planned_items = version_plan.get("units", [])
     if not isinstance(planned_items, list):
@@ -230,9 +232,7 @@ def validate_release_gates(
         "manifest_sha256": manifest_sha256,
         "changed_units_count": changed_count,
         "planned_package_count": len(candidates),
-        "promotion_candidates": [
-            candidate.__dict__ for candidate in candidates
-        ],
+        "promotion_candidates": [asdict(candidate) for candidate in candidates],
     }
 
 
