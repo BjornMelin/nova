@@ -694,7 +694,7 @@ requires-dist = [
 
 [[package]]
 name = "nova-file-api-service"
-version = "0.2.0"
+version = "0.2.1"
 source = { editable = "apps/nova_file_api_service" }
 dependencies = [
     { name = "nova-file-api" },
