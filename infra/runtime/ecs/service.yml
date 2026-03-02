@@ -56,15 +56,19 @@ Parameters:
     Default: "8192" # 8GB
   ListenerRulePriority:
     Type: String
+  TestTrafficListenerRulePriority:
+    Type: String
+    Default: "9999"
+    Description: Listener rule priority for the optional blue/green test traffic route.
   EnableBlueGreenDeployAuthority:
     Type: String
-    Default: "true"
+    Default: "false"
     AllowedValues: ["true", "false"]
     Description: Enable final-state CodeDeploy ECS blue/green deployment authority chain.
   TestTrafficListenerArn:
     Type: String
     Default: ""
-    Description: Optional ALB listener ARN for CodeDeploy test-traffic routing.
+    Description: ALB listener ARN for CodeDeploy test-traffic routing. Required when EnableBlueGreenDeployAuthority is "true".
   CodeDeployApplicationName:
     Type: String
     Default: ""
@@ -268,9 +272,13 @@ Rules:
           - !And
               - !Not [!Equals [!Ref CodeDeployServiceRoleArn, ""]]
               - !Not [!Equals [!Ref TestTrafficListenerArn, ""]]
+              - !Or
+                  - !Not [!Equals [!Ref DeploymentRollbackAlarmNamePrimary, ""]]
+                  - !Not [!Equals [!Ref DeploymentRollbackAlarmNameSecondary, ""]]
         AssertDescription: >-
-          CodeDeployServiceRoleArn and TestTrafficListenerArn are required when
-          EnableBlueGreenDeployAuthority is "true".
+          CodeDeployServiceRoleArn, TestTrafficListenerArn, and at least one
+          rollback alarm are required when EnableBlueGreenDeployAuthority is
+          "true".
 
 Conditions:
   UseServiceDiscovery: !Equals [!Ref UseServiceDiscovery, "true"]
@@ -390,7 +398,7 @@ Resources:
             Values:
               - !Sub canary.${ServiceDNS}
       ListenerArn: !Ref TestTrafficListenerArn
-      Priority: 1
+      Priority: !Ref TestTrafficListenerRulePriority
 
   # ECS
   ContainerSecurityGroup:
@@ -947,7 +955,7 @@ Resources:
           Value:
             Fn::ImportValue: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${LoadBalancerId}${LoadBalancerName}:alb:name
         - Name: "TargetGroup"
-          Value: !GetAtt LoadBalancerTargetGroupBlue.TargetGroupFullName
+          Value: !If [UseCodeDeployBlueGreen, !GetAtt LoadBalancerTargetGroupGreen.TargetGroupFullName, !GetAtt LoadBalancerTargetGroupBlue.TargetGroupFullName]
       Statistic: Sum
       Period: !Ref Period
       EvaluationPeriods: !Ref EvaluationPeriods
@@ -969,7 +977,7 @@ Resources:
           Value:
             Fn::ImportValue: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${LoadBalancerId}${LoadBalancerName}:alb:name
         - Name: "TargetGroup"
-          Value: !GetAtt LoadBalancerTargetGroupBlue.TargetGroupFullName
+          Value: !If [UseCodeDeployBlueGreen, !GetAtt LoadBalancerTargetGroupGreen.TargetGroupFullName, !GetAtt LoadBalancerTargetGroupBlue.TargetGroupFullName]
       Statistic: Sum
       Period: !Ref Period
       EvaluationPeriods: !Ref EvaluationPeriods
@@ -990,7 +998,7 @@ Resources:
           Value:
             Fn::ImportValue: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${LoadBalancerId}${LoadBalancerName}:alb:name
         - Name: "TargetGroup"
-          Value: !GetAtt LoadBalancerTargetGroupBlue.TargetGroupFullName
+          Value: !If [UseCodeDeployBlueGreen, !GetAtt LoadBalancerTargetGroupGreen.TargetGroupFullName, !GetAtt LoadBalancerTargetGroupBlue.TargetGroupFullName]
       Statistic: Sum
       Period: !Ref Period
       EvaluationPeriods: !Ref EvaluationPeriods
@@ -1011,7 +1019,7 @@ Resources:
           Value:
             Fn::ImportValue: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${LoadBalancerId}${LoadBalancerName}:alb:name
         - Name: "TargetGroup"
-          Value: !GetAtt LoadBalancerTargetGroupBlue.TargetGroupFullName
+          Value: !If [UseCodeDeployBlueGreen, !GetAtt LoadBalancerTargetGroupGreen.TargetGroupFullName, !GetAtt LoadBalancerTargetGroupBlue.TargetGroupFullName]
       Statistic: Sum
       Period: !Ref Period
       EvaluationPeriods: !Ref EvaluationPeriods
@@ -1032,7 +1040,7 @@ Resources:
           Value:
             Fn::ImportValue: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${LoadBalancerId}${LoadBalancerName}:alb:name
         - Name: "TargetGroup"
-          Value: !GetAtt LoadBalancerTargetGroupBlue.TargetGroupFullName
+          Value: !If [UseCodeDeployBlueGreen, !GetAtt LoadBalancerTargetGroupGreen.TargetGroupFullName, !GetAtt LoadBalancerTargetGroupBlue.TargetGroupFullName]
       Statistic: Sum
       Period: !Ref Period
       EvaluationPeriods: !Ref EvaluationPeriods
@@ -1053,7 +1061,7 @@ Resources:
           Value:
             Fn::ImportValue: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${LoadBalancerId}${LoadBalancerName}:alb:name
         - Name: "TargetGroup"
-          Value: !GetAtt LoadBalancerTargetGroupBlue.TargetGroupFullName
+          Value: !If [UseCodeDeployBlueGreen, !GetAtt LoadBalancerTargetGroupGreen.TargetGroupFullName, !GetAtt LoadBalancerTargetGroupBlue.TargetGroupFullName]
       Statistic: Sum
       Period: !Ref Period
       EvaluationPeriods: !Ref EvaluationPeriods
@@ -1074,7 +1082,7 @@ Resources:
           Value:
             Fn::ImportValue: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${LoadBalancerId}${LoadBalancerName}:alb:name
         - Name: "TargetGroup"
-          Value: !GetAtt LoadBalancerTargetGroupBlue.TargetGroupFullName
+          Value: !If [UseCodeDeployBlueGreen, !GetAtt LoadBalancerTargetGroupGreen.TargetGroupFullName, !GetAtt LoadBalancerTargetGroupBlue.TargetGroupFullName]
       Statistic: Sum
       Period: !Ref Period
       EvaluationPeriods: !Ref EvaluationPeriods
@@ -1092,7 +1100,7 @@ Resources:
       MetricName: TargetConnectionErrorCount
       Dimensions:
         - Name: "TargetGroup"
-          Value: !GetAtt LoadBalancerTargetGroupBlue.TargetGroupFullName
+          Value: !If [UseCodeDeployBlueGreen, !GetAtt LoadBalancerTargetGroupGreen.TargetGroupFullName, !GetAtt LoadBalancerTargetGroupBlue.TargetGroupFullName]
         - Name: "LoadBalancer"
           Value:
             Fn::ImportValue: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${LoadBalancerId}${LoadBalancerName}:alb:name
@@ -1113,7 +1121,7 @@ Resources:
       MetricName: TargetTLSNegotiationErrorCount
       Dimensions:
         - Name: "TargetGroup"
-          Value: !GetAtt LoadBalancerTargetGroupBlue.TargetGroupFullName
+          Value: !If [UseCodeDeployBlueGreen, !GetAtt LoadBalancerTargetGroupGreen.TargetGroupFullName, !GetAtt LoadBalancerTargetGroupBlue.TargetGroupFullName]
         - Name: "LoadBalancer"
           Value:
             Fn::ImportValue: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${LoadBalancerId}${LoadBalancerName}:alb:name
