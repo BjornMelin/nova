@@ -159,6 +159,22 @@ def test_runtime_env_and_parameter_contracts() -> None:
     ]:
         assert f"- Name: {env_name}" in worker_text
 
+    for required in [
+        "JobsDeadLetterQueue:",
+        "RedrivePolicy:",
+        "deadLetterTargetArn: !GetAtt JobsDeadLetterQueue.Arn",
+        "maxReceiveCount: !Ref JobsMaxReceiveCount",
+        "WorkerScalableTarget:",
+        "AWS::ApplicationAutoScaling::ScalableTarget",
+        "WorkerQueueDepthTargetTrackingPolicy:",
+        "MetricName: ApproximateNumberOfMessagesVisible",
+        "WorkerQueueAgeTargetTrackingPolicy:",
+        "MetricName: ApproximateAgeOfOldestMessage",
+        'ResourceId: !Sub "service/${EcsClusterName}/'
+        '${Project}-${Application}-${WorkerServiceName}"',
+    ]:
+        assert required in worker_text or required in async_text
+
     assert "FileTransferAsyncParamsProvided:" in service_text
     assert "FileTransferCacheParamsProvided:" in service_text
     assert (

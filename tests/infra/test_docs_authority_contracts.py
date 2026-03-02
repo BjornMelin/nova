@@ -95,3 +95,23 @@ def test_release_docs_include_codeartifact_staged_promotion_authority() -> None:
         "RELEASE_MANIFEST_SHA256",
     ]:
         assert required in release_policy
+
+
+def test_worker_lane_runbook_authority_exists() -> None:
+    """Worker lane runbook must codify DLQ and queue-driven autoscaling ops."""
+    path = (
+        DOCS_ROOT
+        / "runbooks"
+        / "worker-lane-operations-and-failure-handling.md"
+    )
+    assert path.is_file()
+    content = path.read_text(encoding="utf-8")
+
+    for required in [
+        "JobsDeadLetterQueue",
+        "JobsMaxReceiveCount",
+        "ApproximateNumberOfMessagesVisible",
+        "ApproximateAgeOfOldestMessage",
+        "queue_unavailable",
+    ]:
+        assert required in content
