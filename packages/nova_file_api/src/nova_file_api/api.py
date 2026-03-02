@@ -775,11 +775,11 @@ async def v1_retry_job(job_id: str, request: Request) -> EnqueueJobResponse:
         HTTPException: If jobs are disabled or caller/job constraints fail.
     """
     container = get_container(request)
-    if not container.settings.jobs_enabled:
-        raise forbidden("jobs API is disabled")
     principal = await container.authenticator.authenticate(
         request=request, session_id=None
     )
+    if not container.settings.jobs_enabled:
+        raise forbidden("jobs API is disabled")
     retried = await _run_blocking(
         request,
         container.job_service.retry,

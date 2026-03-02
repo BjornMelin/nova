@@ -99,5 +99,15 @@ def test_v1_jobs_rejects_blank_idempotency_key() -> None:
             },
             json={"job_type": "transform", "payload": {"input": "a"}},
         )
+        whitespace_resp = client.post(
+            "/v1/jobs",
+            headers={
+                "X-Session-Id": "scope-v1",
+                "Idempotency-Key": "   ",
+            },
+            json={"job_type": "transform", "payload": {"input": "a"}},
+        )
     assert resp.status_code == 422
     assert resp.json()["error"]["code"] == "invalid_request"
+    assert whitespace_resp.status_code == 422
+    assert whitespace_resp.json()["error"]["code"] == "invalid_request"
