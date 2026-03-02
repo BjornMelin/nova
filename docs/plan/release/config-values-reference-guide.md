@@ -74,7 +74,8 @@ Critical outputs:
 Release build project requires:
 
 - `CODEARTIFACT_DOMAIN`
-- `CODEARTIFACT_REPOSITORY`
+- `CODEARTIFACT_STAGING_REPOSITORY`
+- `CODEARTIFACT_PROD_REPOSITORY`
 - `ECR_REPOSITORY_URI` or `ECR_REPOSITORY_NAME`
 - `DOCKERFILE_PATH`
 - `DOCKER_BUILD_CONTEXT`
@@ -102,9 +103,11 @@ Validation URLs:
 
 ## References
 
-- Release plan workflow:
+- Publish packages workflow:
   <https://github.com/3M-Cloud/nova/blob/main/.github/workflows/publish-packages.yml>
-- Apply release plan workflow:
+- Build/publish image workflow:
   <https://github.com/3M-Cloud/nova/blob/main/.github/workflows/build-and-publish-image.yml>
+- Promote prod workflow:
+  <https://github.com/3M-Cloud/nova/blob/main/.github/workflows/promote-prod.yml>
 - CodeBuild environment variable types:
   <https://docs.aws.amazon.com/AWSCloudFormation/latest/TemplateReference/aws-properties-codebuild-project-environmentvariable.html>

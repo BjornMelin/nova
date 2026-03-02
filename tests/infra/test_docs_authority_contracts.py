@@ -66,3 +66,32 @@ def test_observability_security_cost_runbook_authority_exists() -> None:
         "MonthlyEstimatedChargesAlarm",
     ]:
         assert required in text
+
+
+def test_release_docs_include_codeartifact_staged_promotion_authority() -> None:
+    """Release docs must include staged publish and controlled promotion
+    policy."""
+    config_values = (
+        DOCS_ROOT / "plan" / "release" / "config-values-reference-guide.md"
+    ).read_text(encoding="utf-8")
+    release_policy = (
+        DOCS_ROOT / "plan" / "release" / "RELEASE-POLICY.md"
+    ).read_text(encoding="utf-8")
+
+    for required in [
+        "CODEARTIFACT_STAGING_REPOSITORY",
+        "CODEARTIFACT_PROD_REPOSITORY",
+        "publish-packages.yml",
+        "promote-prod.yml",
+    ]:
+        assert required in config_values
+
+    for required in [
+        "Publish to staged channel",
+        (
+            "Promotion to prod channel must consume only staged "
+            "and gate-validated versions"
+        ),
+        "RELEASE_MANIFEST_SHA256",
+    ]:
+        assert required in release_policy
