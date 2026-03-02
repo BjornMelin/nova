@@ -5,6 +5,7 @@ from nova_file_api.app import create_app
 
 
 def test_v1_health_and_capabilities() -> None:
+    """Verifies v1 live/ready health and capability keys are exposed."""
     app = create_app()
     with TestClient(app) as client:
         live = client.get("/v1/health/live")
@@ -21,6 +22,7 @@ def test_v1_health_and_capabilities() -> None:
 
 
 def test_v1_jobs_create_list_get_retry_and_events() -> None:
+    """Verifies v1 job create/list/get/retry/event lifecycle behavior."""
     app = create_app()
     with TestClient(app) as client:
         create_resp = client.post(
@@ -62,6 +64,7 @@ def test_v1_jobs_create_list_get_retry_and_events() -> None:
 
 
 def test_v1_resource_plan_and_release_info() -> None:
+    """Verifies v1 resource planning plus release metadata contract."""
     app = create_app()
     with TestClient(app) as client:
         plan = client.post(
@@ -80,9 +83,12 @@ def test_v1_resource_plan_and_release_info() -> None:
     release = info.json()
     assert release["name"]
     assert release["version"]
+    assert isinstance(release["environment"], str)
+    assert release["environment"]
 
 
 def test_v1_jobs_rejects_blank_idempotency_key() -> None:
+    """Verifies v1 jobs reject blank Idempotency-Key header values."""
     app = create_app()
     with TestClient(app) as client:
         resp = client.post(

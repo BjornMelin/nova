@@ -499,9 +499,12 @@ class JobService:
 
         Returns:
             list[JobRecord]: Caller-owned records sorted by most recent first.
+
+        Raises:
+            ValueError: If ``limit`` is not a positive integer.
         """
         if limit <= 0:
-            return []
+            raise ValueError("limit must be greater than zero")
         return self.repository.list_for_scope(scope_id=scope_id, limit=limit)
 
     def retry(self, *, job_id: str, scope_id: str) -> JobRecord:

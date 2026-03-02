@@ -693,6 +693,12 @@ async def v1_create_job(
         HTTPException: If authorization or queue preconditions fail.
     """
     container = get_container(request)
+    await container.authenticator.authenticate(
+        request=request,
+        session_id=payload.session_id,
+    )
+    if not container.settings.jobs_enabled:
+        raise forbidden("jobs API is disabled")
     validated_key = _validated_idempotency_key(
         container=container,
         idempotency_key=idempotency_key,
@@ -878,6 +884,18 @@ async def v1_resources_plan(
                 update={"supported": False, "reason": "jobs_disabled"}
             )
             if item.resource == "jobs"
+            else item
+            for item in plan
+        ]
+    if container.settings.file_transfer_enabled is False:
+        plan = [
+            item.model_copy(
+                update={
+                    "supported": False,
+                    "reason": "file_transfers_disabled",
+                }
+            )
+            if item.resource in {"transfers", "downloads", "uploads"}
             else item
             for item in plan
         ]
