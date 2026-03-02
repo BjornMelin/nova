@@ -1,0 +1,356 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  Nova ECS observability/security/cost baseline for ADR-0015/SPEC-0015.
+  Provides SLO rollback alarms, dashboards, log retention tiers, autoscaling
+  bounds, and billing alarm hooks.
+
+Parameters:
+  Environment:
+    Type: String
+    AllowedValues: [dev, prod]
+  Project:
+    Type: String
+  Application:
+    Type: String
+  Service:
+    Type: String
+  EcsClusterName:
+    Type: String
+  EcsServiceName:
+    Type: String
+  AlbFullName:
+    Type: String
+  TargetGroupFullName:
+    Type: String
+  LogGroupName:
+    Type: String
+  ManageLogGroupRetentionPolicy:
+    Type: String
+    Default: "false"
+    AllowedValues: ["true", "false"]
+    Description: >-
+      If true, this template creates and owns LogGroupName to enforce retention.
+      Keep false when another stack already owns the log group.
+  ServiceLogKmsKeyArn:
+    Type: String
+    Default: ""
+    Description: >-
+      Optional CMK ARN for CloudWatch log-group encryption when
+      ManageLogGroupRetentionPolicy=true.
+  AlarmActionArn:
+    Type: String
+    Default: ""
+    Description: Optional SNS/Lambda action ARN for alarm notifications.
+  DashboardPeriodSeconds:
+    Type: Number
+    Default: 60
+    MinValue: 60
+  ApiLatencyP95ThresholdMs:
+    Type: Number
+    Default: 1200
+  Api5xxRateThresholdPercent:
+    Type: Number
+    Default: 2
+  EcsCpuUtilizationThresholdPercent:
+    Type: Number
+    Default: 75
+  EcsMemoryUtilizationThresholdPercent:
+    Type: Number
+    Default: 80
+  MinTaskCount:
+    Type: Number
+    Default: 2
+    MinValue: 1
+  MaxTaskCount:
+    Type: Number
+    Default: 20
+    MinValue: 1
+  TargetCpuUtilizationPercent:
+    Type: Number
+    Default: 60
+  TargetMemoryUtilizationPercent:
+    Type: Number
+    Default: 70
+  MonthlyEstimatedChargesAlarmThresholdUsd:
+    Type: Number
+    Default: 250
+
+Conditions:
+  IsProd: !Equals [!Ref Environment, prod]
+  HasAlarmAction: !Not [!Equals [!Ref AlarmActionArn, ""]]
+  ManageLogGroupRetentionPolicy: !Equals [!Ref ManageLogGroupRetentionPolicy, "true"]
+  UseServiceLogCMK: !Not [!Equals [!Ref ServiceLogKmsKeyArn, ""]]
+  IsUsEast1: !Equals [!Ref AWS::Region, "us-east-1"]
+
+Resources:
+  ServiceLogRetentionPolicy:
+    Type: AWS::Logs::LogGroup
+    Condition: ManageLogGroupRetentionPolicy
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Properties:
+      LogGroupName: !Ref LogGroupName
+      KmsKeyId: !If [UseServiceLogCMK, !Ref ServiceLogKmsKeyArn, !Ref AWS::NoValue]
+      RetentionInDays: !If [IsProd, 90, 30]
+
+  ApiLatencyP95RollbackAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${Project}-${Application}-${Service}-${Environment}-api-latency-p95-rollback"
+      AlarmDescription: !Sub "Rollback/SLO alarm when ALB target p95 latency exceeds ${ApiLatencyP95ThresholdMs}ms."
+      ComparisonOperator: GreaterThanThreshold
+      EvaluationPeriods: 3
+      DatapointsToAlarm: 2
+      Threshold: !Ref ApiLatencyP95ThresholdMs
+      TreatMissingData: notBreaching
+      Metrics:
+        - Id: latency
+          Label: p95 target response latency (s)
+          ReturnData: false
+          MetricStat:
+            Metric:
+              Namespace: AWS/ApplicationELB
+              MetricName: TargetResponseTime
+              Dimensions:
+                - Name: LoadBalancer
+                  Value: !Ref AlbFullName
+                - Name: TargetGroup
+                  Value: !Ref TargetGroupFullName
+            Period: !Ref DashboardPeriodSeconds
+            Stat: p95
+        - Id: latency_ms
+          Label: p95 target response latency (ms)
+          ReturnData: true
+          Expression: latency * 1000
+      AlarmActions:
+        - !If [HasAlarmAction, !Ref AlarmActionArn, !Ref AWS::NoValue]
+
+  Api5xxErrorRateRollbackAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${Project}-${Application}-${Service}-${Environment}-api-5xx-rate-rollback"
+      AlarmDescription: !Sub "Rollback/SLO alarm when ALB 5xx error rate exceeds ${Api5xxRateThresholdPercent}%."
+      ComparisonOperator: GreaterThanThreshold
+      EvaluationPeriods: 3
+      DatapointsToAlarm: 2
+      Threshold: !Ref Api5xxRateThresholdPercent
+      TreatMissingData: notBreaching
+      Metrics:
+        - Id: five_xx
+          ReturnData: false
+          MetricStat:
+            Metric:
+              Namespace: AWS/ApplicationELB
+              MetricName: HTTPCode_Target_5XX_Count
+              Dimensions:
+                - Name: LoadBalancer
+                  Value: !Ref AlbFullName
+                - Name: TargetGroup
+                  Value: !Ref TargetGroupFullName
+            Period: !Ref DashboardPeriodSeconds
+            Stat: Sum
+        - Id: req
+          ReturnData: false
+          MetricStat:
+            Metric:
+              Namespace: AWS/ApplicationELB
+              MetricName: RequestCount
+              Dimensions:
+                - Name: LoadBalancer
+                  Value: !Ref AlbFullName
+                - Name: TargetGroup
+                  Value: !Ref TargetGroupFullName
+            Period: !Ref DashboardPeriodSeconds
+            Stat: Sum
+        - Id: err_rate
+          Label: target 5xx rate (%)
+          ReturnData: true
+          Expression: IF(req>0, (five_xx/req)*100, 0)
+      AlarmActions:
+        - !If [HasAlarmAction, !Ref AlarmActionArn, !Ref AWS::NoValue]
+
+  EcsCpuUtilizationAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${Project}-${Application}-${Service}-${Environment}-ecs-cpu"
+      AlarmDescription: ECS CPU utilization alarm.
+      Namespace: AWS/ECS
+      MetricName: CPUUtilization
+      Dimensions:
+        - Name: ClusterName
+          Value: !Ref EcsClusterName
+        - Name: ServiceName
+          Value: !Ref EcsServiceName
+      Statistic: Average
+      Period: !Ref DashboardPeriodSeconds
+      EvaluationPeriods: 3
+      DatapointsToAlarm: 2
+      Threshold: !Ref EcsCpuUtilizationThresholdPercent
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !If [HasAlarmAction, !Ref AlarmActionArn, !Ref AWS::NoValue]
+
+  EcsMemoryUtilizationAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${Project}-${Application}-${Service}-${Environment}-ecs-memory"
+      AlarmDescription: ECS memory utilization alarm.
+      Namespace: AWS/ECS
+      MetricName: MemoryUtilization
+      Dimensions:
+        - Name: ClusterName
+          Value: !Ref EcsClusterName
+        - Name: ServiceName
+          Value: !Ref EcsServiceName
+      Statistic: Average
+      Period: !Ref DashboardPeriodSeconds
+      EvaluationPeriods: 3
+      DatapointsToAlarm: 2
+      Threshold: !Ref EcsMemoryUtilizationThresholdPercent
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !If [HasAlarmAction, !Ref AlarmActionArn, !Ref AWS::NoValue]
+
+  EcsScalableTarget:
+    Type: AWS::ApplicationAutoScaling::ScalableTarget
+    Properties:
+      ServiceNamespace: ecs
+      ScalableDimension: ecs:service:DesiredCount
+      ResourceId: !Sub "service/${EcsClusterName}/${EcsServiceName}"
+      MinCapacity: !Ref MinTaskCount
+      MaxCapacity: !Ref MaxTaskCount
+
+  EcsCpuTargetTrackingPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Properties:
+      PolicyName: !Sub "${Project}-${Application}-${Service}-${Environment}-cpu-target-tracking"
+      PolicyType: TargetTrackingScaling
+      ScalingTargetId: !Ref EcsScalableTarget
+      TargetTrackingScalingPolicyConfiguration:
+        TargetValue: !Ref TargetCpuUtilizationPercent
+        PredefinedMetricSpecification:
+          PredefinedMetricType: ECSServiceAverageCPUUtilization
+        ScaleInCooldown: 120
+        ScaleOutCooldown: 60
+
+  EcsMemoryTargetTrackingPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Properties:
+      PolicyName: !Sub "${Project}-${Application}-${Service}-${Environment}-memory-target-tracking"
+      PolicyType: TargetTrackingScaling
+      ScalingTargetId: !Ref EcsScalableTarget
+      TargetTrackingScalingPolicyConfiguration:
+        TargetValue: !Ref TargetMemoryUtilizationPercent
+        PredefinedMetricSpecification:
+          PredefinedMetricType: ECSServiceAverageMemoryUtilization
+        ScaleInCooldown: 120
+        ScaleOutCooldown: 60
+
+  MonthlyEstimatedChargesAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: IsUsEast1
+    Properties:
+      AlarmName: !Sub "${Project}-${Application}-${Service}-${Environment}-estimated-charges-usd"
+      AlarmDescription: Baseline monthly estimated charges hook for budget escalation.
+      Namespace: AWS/Billing
+      MetricName: EstimatedCharges
+      Dimensions:
+        - Name: Currency
+          Value: USD
+      Statistic: Maximum
+      Period: 21600
+      EvaluationPeriods: 1
+      Threshold: !Ref MonthlyEstimatedChargesAlarmThresholdUsd
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !If [HasAlarmAction, !Ref AlarmActionArn, !Ref AWS::NoValue]
+
+  ServiceObservabilityDashboard:
+    Type: AWS::CloudWatch::Dashboard
+    Properties:
+      DashboardName: !Sub "${Project}-${Application}-${Service}-${Environment}-api-slo"
+      DashboardBody: !Sub |
+        {
+          "start": "-PT6H",
+          "periodOverride": "inherit",
+          "widgets": [
+            {
+              "type": "metric",
+              "x": 0,
+              "y": 0,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "title": "ALB TargetResponseTime p95",
+                "view": "timeSeries",
+                "stat": "p95",
+                "period": ${DashboardPeriodSeconds},
+                "region": "${AWS::Region}",
+                "metrics": [["AWS/ApplicationELB", "TargetResponseTime", "LoadBalancer", "${AlbFullName}", "TargetGroup", "${TargetGroupFullName}"]]
+              }
+            },
+            {
+              "type": "metric",
+              "x": 12,
+              "y": 0,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "title": "ALB Target 5XX Count",
+                "view": "timeSeries",
+                "stat": "Sum",
+                "period": ${DashboardPeriodSeconds},
+                "region": "${AWS::Region}",
+                "metrics": [["AWS/ApplicationELB", "HTTPCode_Target_5XX_Count", "LoadBalancer", "${AlbFullName}", "TargetGroup", "${TargetGroupFullName}"]]
+              }
+            },
+            {
+              "type": "metric",
+              "x": 0,
+              "y": 6,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "title": "ECS CPUUtilization",
+                "view": "timeSeries",
+                "stat": "Average",
+                "period": ${DashboardPeriodSeconds},
+                "region": "${AWS::Region}",
+                "metrics": [["AWS/ECS", "CPUUtilization", "ClusterName", "${EcsClusterName}", "ServiceName", "${EcsServiceName}"]]
+              }
+            },
+            {
+              "type": "metric",
+              "x": 12,
+              "y": 6,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "title": "ECS MemoryUtilization",
+                "view": "timeSeries",
+                "stat": "Average",
+                "period": ${DashboardPeriodSeconds},
+                "region": "${AWS::Region}",
+                "metrics": [["AWS/ECS", "MemoryUtilization", "ClusterName", "${EcsClusterName}", "ServiceName", "${EcsServiceName}"]]
+              }
+            }
+          ]
+        }
+
+Outputs:
+  DeploymentRollbackAlarmNamesCsv:
+    Description: Alarm names for ECS/CodeDeploy deployment rollback configuration.
+    Value: !Join
+      - ","
+      - - !Ref ApiLatencyP95RollbackAlarm
+        - !Ref Api5xxErrorRateRollbackAlarm
+
+  DeploymentRollbackAlarmArnsCsv:
+    Description: Alarm ARNs for deployment stop/rollback integrations.
+    Value: !Join
+      - ","
+      - - !GetAtt ApiLatencyP95RollbackAlarm.Arn
+        - !GetAtt Api5xxErrorRateRollbackAlarm.Arn
