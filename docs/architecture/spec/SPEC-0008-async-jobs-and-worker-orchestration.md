@@ -18,7 +18,10 @@ References:
 
 Transition note (2026-03-02): This specification remains active for baseline
 `/api/jobs/*` behavior. Planned `/v1/jobs*` target-state capability endpoints
-are tracked in `SPEC-0015` and remain implementation-pending.
+are tracked in `SPEC-0015` and remain implementation-pending. This revision
+also introduces release-automation controls (`scripts/release/codeartifact_gate.py`
+and deployment workflow updates) and ECS blue/green rollout guardrails to support
+safe package promotion.
 
 Async jobs are managed through:
 

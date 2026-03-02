@@ -4,9 +4,8 @@ from __future__ import annotations
 
 import argparse
 import hashlib
-import json
 import re
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
@@ -117,7 +116,37 @@ def validate_release_gates(
     version_plan_path: Path,
     expected_manifest_sha256: str | None,
 ) -> dict[str, Any]:
-    """Validate release gate contracts and return gate report payload."""
+    """Validate release gate contracts and return gate report payload.
+
+    Args:
+        repo_root: Repository root path used to resolve workspace and artifact
+            paths.
+        manifest_path: Path to the release manifest file being validated.
+            Expected to include a "Canonical Runtime Monorepo" table and schema
+            marker.
+        changed_units_path: Path to changed-units.json artifact produced by
+            changed_units.py.
+        version_plan_path: Path to version-plan.json artifact produced by
+            version_plan.py.
+        expected_manifest_sha256: Optional manifest SHA256 digest to enforce
+            immutability checks.
+
+    Returns:
+        Dictionary containing report fields:
+            - schema_version (str)
+            - manifest_path (str)
+            - manifest_sha256 (str)
+            - changed_units_count (int)
+            - planned_package_count (int)
+            - promotion_candidates (list[dict[str, Any]])
+
+    Raises:
+        GateError: For validation failures, including manifest policy violations
+            and plan/workspace mismatch.
+        FileNotFoundError: If required input files are missing.
+        ValueError: If workspace manifests or plan JSON are structurally
+            invalid.
+    """
     manifest_text = manifest_path.read_text(encoding="utf-8")
     manifest_sha256 = hashlib.sha256(manifest_text.encode("utf-8")).hexdigest()
     if expected_manifest_sha256 and expected_manifest_sha256 != manifest_sha256:
@@ -164,14 +193,23 @@ def validate_release_gates(
         "manifest_sha256": manifest_sha256,
         "changed_units_count": changed_count,
         "planned_package_count": len(candidates),
-        "promotion_candidates": [
-            candidate.__dict__ for candidate in candidates
-        ],
+        "promotion_candidates": [asdict(candidate) for candidate in candidates],
     }
 
 
 def parse_args() -> argparse.Namespace:
-    """Parse CLI args for gate validation artifact generation."""
+    """Parse CLI args for gate validation artifact generation.
+
+    Returns:
+        argparse.Namespace with:
+            - repo_root: repository root path
+            - manifest_path: release manifest path
+            - changed_units: changed-units artifact path
+            - version_plan: version-plan artifact path
+            - expected_manifest_sha256: optional manifest SHA256 check value
+            - gate_report_out: output report path
+            - promotion_candidates_out: output candidates path
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument("--repo-root", default=".")
     parser.add_argument("--manifest-path", default=common.DEFAULT_MANIFEST_PATH)
@@ -210,19 +248,13 @@ def main() -> int:
     if not gate_out.is_absolute():
         gate_out = repo_root / gate_out
     gate_out.parent.mkdir(parents=True, exist_ok=True)
-    gate_out.write_text(
-        json.dumps(gate_report, indent=2) + "\n", encoding="utf-8"
-    )
+    common.write_json(gate_out, gate_report)
 
     candidates_out = Path(args.promotion_candidates_out)
     if not candidates_out.is_absolute():
         candidates_out = repo_root / candidates_out
     candidates_out.parent.mkdir(parents=True, exist_ok=True)
-    candidates_out.write_text(
-        json.dumps(gate_report["promotion_candidates"], indent=2) + "\n",
-        encoding="utf-8",
-    )
-
+    common.write_json(candidates_out, gate_report["promotion_candidates"])
     print(f"gate report written: {gate_out}")
     print(f"promotion candidates written: {candidates_out}")
     return 0

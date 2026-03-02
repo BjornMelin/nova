@@ -63,23 +63,26 @@ jobs:
           uv run python - <<'PY'
           import json
           from pathlib import Path
+          
+          from scripts.release import common
 
           candidates = json.loads(Path('.artifacts/promotion-candidates.json').read_text())
           if not isinstance(candidates, list):
               raise SystemExit('promotion_candidates_json must be a JSON array')
+          units = common.load_workspace_units(Path('.').resolve())
+          package_to_unit = {
+              unit.project_name: unit.unit_id for unit in units.values()
+          }
           version_plan = {'units': []}
           changed_units = {'changed_units': []}
           for item in candidates:
               package = item['package']
               version = item['version']
-              if package == 'nova-file-api':
-                  unit_id = 'packages/nova_file_api'
-              elif package == 'nova-auth-api':
-                  unit_id = 'packages/nova_auth_api'
-              elif package == 'nova-dash-bridge':
-                  unit_id = 'packages/nova_dash_bridge'
-              else:
-                  raise SystemExit(f'Unsupported package in promotion candidate list: {package}')
+              unit_id = package_to_unit.get(package)
+              if unit_id is None:
+                  raise SystemExit(
+                      f'Unsupported package in promotion candidate list: {package}'
+                  )
               version_plan['units'].append({'unit_id': unit_id, 'new_version': version})
               changed_units['changed_units'].append({'unit_id': unit_id})
           Path('.artifacts/version-plan.json').write_text(json.dumps(version_plan), encoding='utf-8')
@@ -115,7 +118,6 @@ jobs:
                   '--format', 'pypi',
                   '--package', package,
                   '--versions', version,
-                  '--allow-overwrite',
               ], check=True)
           PY
 

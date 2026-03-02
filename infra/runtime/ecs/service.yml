@@ -56,15 +56,19 @@ Parameters:
     Default: "8192" # 8GB
   ListenerRulePriority:
     Type: String
+  TestTrafficListenerRulePriority:
+    Type: String
+    Default: "100"
+    Description: Optional host-header listener priority for blue/green test traffic.
   EnableBlueGreenDeployAuthority:
     Type: String
-    Default: "true"
+    Default: "false"
     AllowedValues: ["true", "false"]
     Description: Enable final-state CodeDeploy ECS blue/green deployment authority chain.
   TestTrafficListenerArn:
     Type: String
     Default: ""
-    Description: Optional ALB listener ARN for CodeDeploy test-traffic routing.
+    Description: ALB listener ARN for CodeDeploy test-traffic routing when blue/green is enabled.
   CodeDeployApplicationName:
     Type: String
     Default: ""
@@ -390,7 +394,7 @@ Resources:
             Values:
               - !Sub canary.${ServiceDNS}
       ListenerArn: !Ref TestTrafficListenerArn
-      Priority: 1
+      Priority: !Ref TestTrafficListenerRulePriority
 
   # ECS
   ContainerSecurityGroup:

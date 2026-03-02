@@ -280,10 +280,13 @@ Resources:
 
   WorkerScalableTarget:
     Type: AWS::ApplicationAutoScaling::ScalableTarget
+    DependsOn:
+      - WorkerService
     Properties:
       ServiceNamespace: ecs
       ScalableDimension: ecs:service:DesiredCount
       ResourceId: !Sub "service/${EcsClusterName}/${Project}-${Application}-${WorkerServiceName}"
+      RoleARN: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/aws-service-role/ecs.application-autoscaling.amazonaws.com/AWSServiceRoleForApplicationAutoScaling_ECSService"
       MinCapacity: !Ref WorkerMinTaskCount
       MaxCapacity: !Ref WorkerMaxTaskCount
 
