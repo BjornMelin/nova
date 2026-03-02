@@ -252,7 +252,7 @@ Resources:
       ServiceName: !Sub "${Project}-${Application}-${WorkerServiceName}"
       Cluster: !Ref EcsClusterName
       LaunchType: FARGATE
-      DesiredCount: !Ref DesiredCount
+      DesiredCount: !Ref WorkerMinTaskCount
       TaskDefinition: !Ref WorkerTaskDefinition
       EnableExecuteCommand: true
       DeploymentConfiguration:
@@ -286,7 +286,6 @@ Resources:
       ServiceNamespace: ecs
       ScalableDimension: ecs:service:DesiredCount
       ResourceId: !Sub "service/${EcsClusterName}/${Project}-${Application}-${WorkerServiceName}"
-      RoleARN: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/aws-service-role/ecs.application-autoscaling.amazonaws.com/AWSServiceRoleForApplicationAutoScaling_ECSService"
       MinCapacity: !Ref WorkerMinTaskCount
       MaxCapacity: !Ref WorkerMaxTaskCount
 

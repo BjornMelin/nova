@@ -44,7 +44,7 @@ def _read_manifest_versions(manifest_text: str) -> dict[str, str]:
         if package in versions:
             existing_version = versions[package]
             row_text = match.group(0).strip()
-            raise ValueError(
+            raise GateError(
                 "duplicate package row in release manifest: "
                 f"package={package!r} "
                 f"existing_version={existing_version!r} "
@@ -312,13 +312,11 @@ def main() -> int:
     gate_out = Path(args.gate_report_out)
     if not gate_out.is_absolute():
         gate_out = repo_root / gate_out
-    gate_out.parent.mkdir(parents=True, exist_ok=True)
     common.write_json(gate_out, gate_report)
 
     candidates_out = Path(args.promotion_candidates_out)
     if not candidates_out.is_absolute():
         candidates_out = repo_root / candidates_out
-    candidates_out.parent.mkdir(parents=True, exist_ok=True)
     common.write_json(candidates_out, gate_report["promotion_candidates"])
     print(f"gate report written: {gate_out}")
     print(f"promotion candidates written: {candidates_out}")

@@ -19,9 +19,8 @@ References:
 Transition note (2026-03-02): This specification remains active for baseline
 `/api/jobs/*` behavior. Planned `/v1/jobs*` target-state capability endpoints
 are tracked in `SPEC-0015` and remain implementation-pending. This revision
-also introduces release-automation controls (`scripts/release/codeartifact_gate.py`
-and deployment workflow updates) and ECS blue/green rollout guardrails to support
-safe package promotion.
+clarifies the SQS DLQ redrive policy and documents autoscaling invariants for
+worker services and job queues.
 
 Async jobs are managed through:
 
@@ -126,4 +125,4 @@ Worker status callbacks MUST validate `X-Worker-Token` when
 
 ## Changelog
 
-- 2026-03-02 (v1.7): Added worker-lane DLQ redrive and autoscaling invariants, plus release-automation controls (`scripts/release/codeartifact_gate.py`, release publish/promotion workflow updates), and ECS blue/green rollout guardrails.
+- 2026-03-02 (v1.7): Added worker-lane DLQ redrive and autoscaling invariants for async job workers.
