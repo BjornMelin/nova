@@ -145,7 +145,6 @@ def test_iam_scope_constraints_for_release_roles() -> None:
         assert required_action in text
 
 
-
 def test_runtime_env_and_parameter_contracts() -> None:
     """Runtime templates must preserve env/parameter guardrails."""
     async_text = _read("infra/runtime/file_transfer/async.yml")
