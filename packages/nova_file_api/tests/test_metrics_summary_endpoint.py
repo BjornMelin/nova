@@ -1,21 +1,19 @@
 """Authorization contract tests for the /metrics/summary endpoint."""
 
-# ruff: noqa: I001
-
 from __future__ import annotations
 
 from fastapi.testclient import TestClient
 from nova_file_api.activity import MemoryActivityStore
 from nova_file_api.app import create_app
-from nova_file_api.cache import LocalTTLCache
-from nova_file_api.cache import SharedRedisCache
-from nova_file_api.cache import TwoTierCache
+from nova_file_api.cache import LocalTTLCache, SharedRedisCache, TwoTierCache
 from nova_file_api.config import Settings
 from nova_file_api.container import AppContainer
 from nova_file_api.idempotency import IdempotencyStore
-from nova_file_api.jobs import JobService
-from nova_file_api.jobs import MemoryJobPublisher
-from nova_file_api.jobs import MemoryJobRepository
+from nova_file_api.jobs import (
+    JobService,
+    MemoryJobPublisher,
+    MemoryJobRepository,
+)
 from nova_file_api.metrics import MetricsCollector
 from nova_file_api.models import AuthMode, Principal
 from starlette.requests import Request
