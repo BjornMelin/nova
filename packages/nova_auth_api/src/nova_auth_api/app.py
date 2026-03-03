@@ -37,6 +37,9 @@ _AUTH_SERVICE_NOT_INITIALIZED = "auth service not initialized"
 _LOGGING_CONFIGURED = False
 _FORM_MEDIA_TYPE = "application/x-www-form-urlencoded"
 _JSON_MEDIA_TYPE = "application/json"
+_OPERATION_ID_HEALTH_LIVE = "health_live_v1_health_live_get"
+_OPERATION_ID_VERIFY_TOKEN = "verify_token_v1_token_verify_post"
+_OPERATION_ID_INTROSPECT_TOKEN = "introspect_token_v1_token_introspect_post"
 _INTROSPECT_REQUEST_BODY: dict[str, Any] = {
     "required": True,
     "content": {
@@ -92,7 +95,11 @@ def create_app(
     )
     app.middleware("http")(request_context_middleware)
 
-    @app.get("/v1/health/live", response_model=HealthResponse)
+    @app.get(
+        "/v1/health/live",
+        response_model=HealthResponse,
+        operation_id=_OPERATION_ID_HEALTH_LIVE,
+    )
     async def health_live(request: Request) -> HealthResponse:
         """Return liveness status."""
         request_id = _request_id(request=request) or uuid4().hex
@@ -102,7 +109,11 @@ def create_app(
             request_id=request_id,
         )
 
-    @app.post("/v1/token/verify", response_model=TokenVerifyResponse)
+    @app.post(
+        "/v1/token/verify",
+        response_model=TokenVerifyResponse,
+        operation_id=_OPERATION_ID_VERIFY_TOKEN,
+    )
     async def verify_token(
         payload: TokenVerifyRequest,
         request: Request,
@@ -114,6 +125,7 @@ def create_app(
     @app.post(
         "/v1/token/introspect",
         response_model=TokenIntrospectResponse,
+        operation_id=_OPERATION_ID_INTROSPECT_TOKEN,
         openapi_extra={"requestBody": _INTROSPECT_REQUEST_BODY},
     )
     async def introspect_token(

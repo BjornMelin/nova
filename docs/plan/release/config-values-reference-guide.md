@@ -123,9 +123,9 @@ Validation URLs:
 Route namespace policy:
 
 - Canonical consumer capability namespace is `/v1/*`.
-- Legacy `/api/*`, `/healthz`, and `/readyz` are not valid release
-  validation targets.
-- `/api/v1/*` aliases are not part of release validation inputs.
+- Release validation inputs MUST use canonical `/v1/*` routes and
+  `/metrics/summary` only.
+- Non-canonical route literals MUST NOT appear in validation commands.
 
 ## References
 

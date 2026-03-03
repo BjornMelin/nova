@@ -86,6 +86,6 @@ Choose **Option B** as production final-state.
 
 - 2026-03-01: Accepted final production hosting/deployment architecture after 2026 options re-evaluation.
 - 2026-03-02: Clarified active implementation status and aligned to dual-track
-  `/api/*` + `/v1/*` runtime authority.
+  runtime authority during the transition window.
 - 2026-03-03: Updated route authority to hard-cut canonical `/v1/*` via
   `ADR-0023` and `SPEC-0016`.

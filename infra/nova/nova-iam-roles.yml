@@ -223,6 +223,20 @@ Resources:
                   StringEquals:
                     sts:AWSServiceName: codeartifact.amazonaws.com
 
+  CodeDeployEcsServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub ${Project}-${Application}-codedeploy-ecs-service-role
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codedeploy.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - !Sub arn:${AWS::Partition}:iam::aws:policy/service-role/AWSCodeDeployRoleForECS
+
   CloudFormationExecutionRoleDev:
     Type: AWS::IAM::Role
     Properties:
@@ -274,6 +288,15 @@ Resources:
                   StringEquals:
                     iam:PassedToService:
                       - ecs-tasks.amazonaws.com
+              - Effect: Allow
+                Action:
+                  - iam:PassRole
+                Resource:
+                  - !GetAtt CodeDeployEcsServiceRole.Arn
+                Condition:
+                  StringEquals:
+                    iam:PassedToService:
+                      - codedeploy.amazonaws.com
 
   CloudFormationExecutionRoleProd:
     Type: AWS::IAM::Role
@@ -326,6 +349,15 @@ Resources:
                   StringEquals:
                     iam:PassedToService:
                       - ecs-tasks.amazonaws.com
+              - Effect: Allow
+                Action:
+                  - iam:PassRole
+                Resource:
+                  - !GetAtt CodeDeployEcsServiceRole.Arn
+                Condition:
+                  StringEquals:
+                    iam:PassedToService:
+                      - codedeploy.amazonaws.com
 
 
   BatchBValidationOperatorRole:
@@ -363,6 +395,8 @@ Resources:
                 Effect: Allow
                 Action:
                   - codepipeline:ListPipelineExecutions
+                  - codepipeline:ListActionExecutions
+                  - codepipeline:GetPipeline
                   - codepipeline:GetPipelineState
                   - codepipeline:GetPipelineExecution
                 Resource:
@@ -371,21 +405,30 @@ Resources:
                 Effect: Allow
                 Action:
                   - codedeploy:ListApplications
+                  - codedeploy:ListDeploymentGroups
+                  - codedeploy:ListDeployments
                 Resource: "*"
               - Sid: CodeDeployScopedReads
                 Effect: Allow
                 Action:
+                  - codedeploy:GetApplication
                   - codedeploy:GetDeploymentGroup
                   - codedeploy:GetDeployment
                 Resource:
                   - !Sub "arn:${AWS::Partition}:codedeploy:${AWS::Region}:${AWS::AccountId}:application:${Project}-${Application}-*"
                   - !Sub "arn:${AWS::Partition}:codedeploy:${AWS::Region}:${AWS::AccountId}:deploymentgroup:${Project}-${Application}-*/*"
+                  - !Sub "arn:${AWS::Partition}:codedeploy:${AWS::Region}:${AWS::AccountId}:deployment:*"
               - Sid: ValidationRuntimeReads
                 Effect: Allow
                 Action:
+                  - cloudformation:DescribeStacks
+                  - ecs:DescribeClusters
                   - ecs:DescribeServices
+                  - ecs:DescribeTaskDefinition
                   - ecs:ListClusters
                   - ecs:ListServices
+                  - elasticloadbalancing:DescribeListeners
+                  - elasticloadbalancing:DescribeRules
                   - elasticloadbalancing:DescribeTargetHealth
                   - elasticloadbalancing:DescribeTargetGroups
                   - elasticloadbalancing:DescribeLoadBalancers
@@ -402,6 +445,8 @@ Outputs:
     Value: !GetAtt CodePipelineServiceRole.Arn
   CodeBuildReleaseRoleArn:
     Value: !GetAtt CodeBuildReleaseRole.Arn
+  CodeDeployEcsServiceRoleArn:
+    Value: !GetAtt CodeDeployEcsServiceRole.Arn
   CloudFormationExecutionRoleDevArn:
     Value: !GetAtt CloudFormationExecutionRoleDev.Arn
   CloudFormationExecutionRoleProdArn:

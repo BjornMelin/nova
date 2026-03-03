@@ -11,8 +11,8 @@ requirements for the first production release.
 - Current production-target requirements use the `FR-*`, `NFR-*`, and `IR-*`
   IDs below.
 - Hard-cut route authority is active under `ADR-0023` + `SPEC-0016`.
-- Runtime contract is canonical `/v1/*` plus `/metrics/summary`; legacy
-  `/api/*`, `/healthz`, and `/readyz` are removed.
+- Runtime contract is canonical `/v1/*` plus `/metrics/summary`; non-canonical
+  route families are removed.
 
 ## Scope
 
@@ -192,8 +192,8 @@ generated using acceleration-compatible client configuration.
 
 The hard-cut route policy MUST enforce:
 
-- no runtime reintroduction of `/api/*`, `/healthz`, or `/readyz`
-- no `/api/v1/*` namespace aliases
+- no runtime reintroduction of non-canonical route families
+- no alternate namespace aliases outside canonical `/v1/*`
 - OpenAPI path set constrained to `/v1/*` plus `/metrics/summary`
 - route decorator checks across runtime route-definition modules (including
   router modules mounted via `include_router`) resolving only to allowed

@@ -287,3 +287,93 @@ def test_ecs_codedeploy_blue_green_authority_contracts() -> None:
     ]
     for token in required_tokens:
         assert token in text, f"Missing blue/green contract token: {token}"
+
+    assert (
+        "CodeDeployServiceRoleArn, TestTrafficListenerArn, and both rollback"
+        in text
+    )
+    assert "at least one" not in text
+    assert "Enabled: true" in text
+
+
+def test_ecs_service_target_group_tuning_contracts() -> None:
+    """Service template must expose target-group tuning controls."""
+    text = _read("infra/runtime/ecs/service.yml")
+
+    for token in [
+        "TargetGroupHealthCheckTimeoutSeconds:",
+        "TargetGroupHealthCheckIntervalSeconds:",
+        "TargetGroupHealthyThresholdCount:",
+        "TargetGroupUnhealthyThresholdCount:",
+        "TargetGroupDeregistrationDelaySeconds:",
+        "HealthCheckTimeoutSeconds: !Ref TargetGroupHealthCheckTimeoutSeconds",
+        (
+            "HealthCheckIntervalSeconds: !Ref "
+            "TargetGroupHealthCheckIntervalSeconds"
+        ),
+        "HealthyThresholdCount: !Ref TargetGroupHealthyThresholdCount",
+        "UnhealthyThresholdCount: !Ref TargetGroupUnhealthyThresholdCount",
+        'Value: !Sub "${TargetGroupDeregistrationDelaySeconds}"',
+        "BlueTargetGroupArn:",
+        "BlueTargetGroupName:",
+        "GreenTargetGroupArn:",
+        "GreenTargetGroupName:",
+        "ResolvedCodeDeployApplicationName:",
+        "ResolvedCodeDeployDeploymentGroupName:",
+    ]:
+        assert token in text
+
+
+def test_cluster_tls_and_codedeploy_test_listener_contracts() -> None:
+    """Cluster template must expose TLS policy + optional test listener."""
+    text = _read("infra/runtime/ecs/cluster.yml")
+
+    for token in [
+        "TlsSecurityPolicy:",
+        "EnableCodeDeployTestListener:",
+        "CodeDeployTestListenerPort:",
+        "CreateCodeDeployTestListener:",
+        "ALBListenerForwardHTTPSTest:",
+        "Condition: CreateCodeDeployTestListener",
+        "Port: !Ref CodeDeployTestListenerPort",
+        "SslPolicy: !Ref TlsSecurityPolicy",
+        "TestListenerArn:",
+        ":testlistenerarn",
+    ]:
+        assert token in text
+
+
+def test_nova_ci_cd_validation_env_contracts() -> None:
+    """Validate stages must pass canonical + legacy validation vars."""
+    text = _read("infra/nova/nova-ci-cd.yml")
+
+    for token in [
+        "ValidationCanonicalPaths:",
+        "ValidationLegacy404Paths:",
+        '"name":"VALIDATION_BASE_URL"',
+        '"name":"SERVICE_BASE_URL"',
+        '"name":"VALIDATION_CANONICAL_PATHS"',
+        '"name":"VALIDATION_LEGACY_404_PATHS"',
+    ]:
+        assert token in text
+
+
+def test_nova_iam_codedeploy_role_and_validation_read_contracts() -> None:
+    """IAM template must expose CodeDeploy ECS role and expanded reads."""
+    text = _read("infra/nova/nova-iam-roles.yml")
+
+    for token in [
+        "CodeDeployEcsServiceRole:",
+        "AWSCodeDeployRoleForECS",
+        "CodeDeployEcsServiceRoleArn:",
+        "codepipeline:ListActionExecutions",
+        "codepipeline:GetPipeline",
+        "codedeploy:ListDeploymentGroups",
+        "codedeploy:ListDeployments",
+        "codedeploy:GetApplication",
+        "cloudformation:DescribeStacks",
+        "ecs:DescribeClusters",
+        "elasticloadbalancing:DescribeListeners",
+        "elasticloadbalancing:DescribeRules",
+    ]:
+        assert token in text

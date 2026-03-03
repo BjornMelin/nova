@@ -19,7 +19,8 @@ that prevent reintroduction of legacy route entropy.
 
 1. Public runtime routes MUST use `/v1/*` except `/metrics/summary`.
 2. Internal worker update route MUST use `/v1/internal/*`.
-3. `/api/*`, `/healthz`, `/readyz`, and `/api/v1/*` routes MUST NOT be exposed.
+3. Any route outside canonical `/v1/*` and `/metrics/summary` MUST NOT be
+   exposed.
 
 ## 3. Canonical route set (normative)
 
@@ -53,12 +54,7 @@ Auth service target routes:
 - `POST /v1/token/introspect`
 - `GET /v1/health/live`
 
-Removed routes:
-
-- all `/api/transfers/*`
-- all `/api/jobs/*`
-- `/healthz`
-- `/readyz`
+Non-canonical runtime paths outside this set MUST return `404`.
 
 ## 4. CI guardrail requirements
 
@@ -69,8 +65,7 @@ Removed routes:
    starts with `/v1/`.
 3. Route decorator structural checks in `api.py` and `app.py` so resolved
    runtime paths are only `/v1/*` or `/metrics/summary`.
-4. Failure on runtime source references to `/api/transfers`, `/api/jobs`,
-   `/healthz`, `/readyz`, or `/api/v1/*`.
+4. Failure on runtime source references to non-canonical route literals.
 5. Unique OpenAPI `operationId` values.
 
 ## 5. Contract fixture and conformance requirements
@@ -85,7 +80,7 @@ Removed routes:
 ## 6. Acceptance criteria
 
 1. Runtime exposes only canonical routes in section 3.
-2. Legacy routes in section 3 return `404`.
+2. Non-canonical routes return `404`.
 3. Enqueue failure and readiness invariants are preserved:
    - `queue_unavailable` remains `503` on enqueue publish failures.
    - readiness remains dependency-scoped and bucket-sensitive.

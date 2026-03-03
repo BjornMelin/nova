@@ -18,7 +18,8 @@ Topology and release-delivery authority:
 
 - `docs/architecture/spec/SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md`
 
-Legacy `/api/*`, `/api/v1/*`, `/healthz`, and `/readyz` are removed.
+Only canonical `/v1/*` routes and `/metrics/summary` are valid in active
+contracts and operator runbooks.
 
 ## Runtime Capability Families
 

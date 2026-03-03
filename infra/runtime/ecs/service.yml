@@ -117,6 +117,36 @@ Parameters:
     Type: String
     Default: /v1/health/ready
     Description: Readiness path used by blue/green target groups and deployment validation gates.
+  TargetGroupHealthCheckTimeoutSeconds:
+    Type: Number
+    Default: 30
+    MinValue: 2
+    MaxValue: 120
+    Description: ALB target-group health check timeout in seconds.
+  TargetGroupHealthCheckIntervalSeconds:
+    Type: Number
+    Default: 60
+    MinValue: 5
+    MaxValue: 300
+    Description: ALB target-group health check interval in seconds.
+  TargetGroupHealthyThresholdCount:
+    Type: Number
+    Default: 2
+    MinValue: 2
+    MaxValue: 10
+    Description: Consecutive successful health checks required to mark targets healthy.
+  TargetGroupUnhealthyThresholdCount:
+    Type: Number
+    Default: 2
+    MinValue: 2
+    MaxValue: 10
+    Description: Consecutive failed health checks required to mark targets unhealthy.
+  TargetGroupDeregistrationDelaySeconds:
+    Type: Number
+    Default: 10
+    MinValue: 0
+    MaxValue: 3600
+    Description: Delay (seconds) before deregistered targets stop receiving traffic.
   LoadBalancerId:
     Type: String
     Default: "dash"
@@ -275,13 +305,11 @@ Rules:
           - !And
               - !Not [!Equals [!Ref CodeDeployServiceRoleArn, ""]]
               - !Not [!Equals [!Ref TestTrafficListenerArn, ""]]
-              - !Or
-                  - !Not [!Equals [!Ref DeploymentRollbackAlarmNamePrimary, ""]]
-                  - !Not [!Equals [!Ref DeploymentRollbackAlarmNameSecondary, ""]]
+              - !Not [!Equals [!Ref DeploymentRollbackAlarmNamePrimary, ""]]
+              - !Not [!Equals [!Ref DeploymentRollbackAlarmNameSecondary, ""]]
         AssertDescription: >-
-          CodeDeployServiceRoleArn, TestTrafficListenerArn, and at least one
-          rollback alarm are required when EnableBlueGreenDeployAuthority is
-          "true".
+          CodeDeployServiceRoleArn, TestTrafficListenerArn, and both rollback
+          alarms are required when EnableBlueGreenDeployAuthority is "true".
 
 Conditions:
   UseServiceDiscovery: !Equals [!Ref UseServiceDiscovery, "true"]
@@ -298,11 +326,6 @@ Conditions:
     - !Condition UseCodeDeployBlueGreen
   HasCodeDeployApplicationNameOverride: !Not [!Equals [!Ref CodeDeployApplicationName, ""]]
   HasCodeDeployDeploymentGroupNameOverride: !Not [!Equals [!Ref CodeDeployDeploymentGroupName, ""]]
-  HasDeploymentRollbackAlarmPrimary: !Not [!Equals [!Ref DeploymentRollbackAlarmNamePrimary, ""]]
-  HasDeploymentRollbackAlarmSecondary: !Not [!Equals [!Ref DeploymentRollbackAlarmNameSecondary, ""]]
-  HasDeploymentRollbackAlarmBinding: !Or
-    - !Condition HasDeploymentRollbackAlarmPrimary
-    - !Condition HasDeploymentRollbackAlarmSecondary
 
 Resources:
   ListenerRule:
@@ -341,18 +364,18 @@ Resources:
   LoadBalancerTargetGroupBlue:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
-      HealthCheckTimeoutSeconds: 30
-      HealthCheckIntervalSeconds: 60
+      HealthCheckTimeoutSeconds: !Ref TargetGroupHealthCheckTimeoutSeconds
+      HealthCheckIntervalSeconds: !Ref TargetGroupHealthCheckIntervalSeconds
       HealthCheckProtocol: !FindInMap [Protocol, !Ref TargetProtocol, Upper]
       HealthCheckPath: !Ref ReadinessHealthCheckPath
       TargetType: !Ref TargetType
       Port: !Ref DockerHostPort
       Protocol: !FindInMap [Protocol, !Ref TargetProtocol, Upper]
-      HealthyThresholdCount: 2
-      UnhealthyThresholdCount: 2
+      HealthyThresholdCount: !Ref TargetGroupHealthyThresholdCount
+      UnhealthyThresholdCount: !Ref TargetGroupUnhealthyThresholdCount
       TargetGroupAttributes:
         - Key: deregistration_delay.timeout_seconds
-          Value: "10"
+          Value: !Sub "${TargetGroupDeregistrationDelaySeconds}"
       VpcId: !Sub ${VpcId}
       Tags:
         - Key: Project
@@ -370,18 +393,18 @@ Resources:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Condition: UseCodeDeployBlueGreen
     Properties:
-      HealthCheckTimeoutSeconds: 30
-      HealthCheckIntervalSeconds: 60
+      HealthCheckTimeoutSeconds: !Ref TargetGroupHealthCheckTimeoutSeconds
+      HealthCheckIntervalSeconds: !Ref TargetGroupHealthCheckIntervalSeconds
       HealthCheckProtocol: !FindInMap [Protocol, !Ref TargetProtocol, Upper]
       HealthCheckPath: !Ref ReadinessHealthCheckPath
       TargetType: !Ref TargetType
       Port: !Ref DockerHostPort
       Protocol: !FindInMap [Protocol, !Ref TargetProtocol, Upper]
-      HealthyThresholdCount: 2
-      UnhealthyThresholdCount: 2
+      HealthyThresholdCount: !Ref TargetGroupHealthyThresholdCount
+      UnhealthyThresholdCount: !Ref TargetGroupUnhealthyThresholdCount
       TargetGroupAttributes:
         - Key: deregistration_delay.timeout_seconds
-          Value: "10"
+          Value: !Sub "${TargetGroupDeregistrationDelaySeconds}"
       VpcId: !Sub ${VpcId}
       Tags:
         - Key: Project
@@ -797,17 +820,11 @@ Resources:
           Action: TERMINATE
           TerminationWaitTimeInMinutes: !Ref BlueGreenTerminationWaitMinutes
       AlarmConfiguration:
-        Enabled: !If [HasDeploymentRollbackAlarmBinding, true, false]
+        Enabled: true
         IgnorePollAlarmFailure: false
         Alarms:
-          - !If
-            - HasDeploymentRollbackAlarmPrimary
-            - Name: !Ref DeploymentRollbackAlarmNamePrimary
-            - !Ref AWS::NoValue
-          - !If
-            - HasDeploymentRollbackAlarmSecondary
-            - Name: !Ref DeploymentRollbackAlarmNameSecondary
-            - !Ref AWS::NoValue
+          - Name: !Ref DeploymentRollbackAlarmNamePrimary
+          - Name: !Ref DeploymentRollbackAlarmNameSecondary
       AutoRollbackConfiguration:
         Enabled: true
         Events:
@@ -1522,3 +1539,41 @@ Outputs:
     Description: DNS of the ecs service
     Export:
       Name: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${Service}:ecs:dns
+  BlueTargetGroupArn:
+    Value: !Ref LoadBalancerTargetGroupBlue
+    Description: Blue target-group ARN used by ECS service traffic.
+    Export:
+      Name: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${Service}:ecs:targetgroup:blue:arn
+  BlueTargetGroupName:
+    Value: !GetAtt LoadBalancerTargetGroupBlue.TargetGroupName
+    Description: Blue target-group name resolved for CodeDeploy/ECS wiring.
+    Export:
+      Name: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${Service}:ecs:targetgroup:blue:name
+  GreenTargetGroupArn:
+    Condition: UseCodeDeployBlueGreen
+    Value: !Ref LoadBalancerTargetGroupGreen
+    Description: Green target-group ARN used during blue/green deployments.
+    Export:
+      Name: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${Service}:ecs:targetgroup:green:arn
+  GreenTargetGroupName:
+    Condition: UseCodeDeployBlueGreen
+    Value: !GetAtt LoadBalancerTargetGroupGreen.TargetGroupName
+    Description: Green target-group name resolved for CodeDeploy/ECS wiring.
+    Export:
+      Name: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${Service}:ecs:targetgroup:green:name
+  ResolvedCodeDeployApplicationName:
+    Value: !If
+      - HasCodeDeployApplicationNameOverride
+      - !Ref CodeDeployApplicationName
+      - !Sub "${Project}-${Application}-${Service}-ecs"
+    Description: Resolved CodeDeploy ECS application name used for blue/green.
+    Export:
+      Name: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${Service}:codedeploy:application:name
+  ResolvedCodeDeployDeploymentGroupName:
+    Value: !If
+      - HasCodeDeployDeploymentGroupNameOverride
+      - !Ref CodeDeployDeploymentGroupName
+      - !Sub "${Project}-${Application}-${Service}-dg"
+    Description: Resolved CodeDeploy deployment-group name used for blue/green.
+    Export:
+      Name: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${Service}:codedeploy:deploymentgroup:name

@@ -34,6 +34,14 @@ Parameters:
     Type: String
   ProdServiceBaseUrl:
     Type: String
+  ValidationCanonicalPaths:
+    Type: String
+    Default: /v1/health/live,/v1/health/ready,/metrics/summary,/v1/capabilities,/v1/releases/info
+    Description: Comma-delimited canonical routes validated as live post-deploy.
+  ValidationLegacy404Paths:
+    Type: String
+    Default: /healthz,/readyz,/api/transfers/uploads/initiate,/api/jobs,/api/v1/transfers/uploads/initiate
+    Description: Comma-delimited legacy routes that must return HTTP 404.
   ManualApprovalTopicArn:
     Type: String
     Default: ""
@@ -131,8 +139,14 @@ Resources:
               Configuration:
                 ProjectName: !Ref DeployValidateProjectName
                 EnvironmentVariables: !Sub >-
-                  [{"name":"SERVICE_BASE_URL",
-                  "value":"${DevServiceBaseUrl}","type":"PLAINTEXT"}]
+                  [{"name":"VALIDATION_BASE_URL",
+                  "value":"${DevServiceBaseUrl}","type":"PLAINTEXT"},
+                  {"name":"SERVICE_BASE_URL",
+                  "value":"${DevServiceBaseUrl}","type":"PLAINTEXT"},
+                  {"name":"VALIDATION_CANONICAL_PATHS",
+                  "value":"${ValidationCanonicalPaths}","type":"PLAINTEXT"},
+                  {"name":"VALIDATION_LEGACY_404_PATHS",
+                  "value":"${ValidationLegacy404Paths}","type":"PLAINTEXT"}]
               InputArtifacts:
                 - Name: AppSourceOutput
               RunOrder: 1
@@ -186,8 +200,14 @@ Resources:
               Configuration:
                 ProjectName: !Ref DeployValidateProjectName
                 EnvironmentVariables: !Sub >-
-                  [{"name":"SERVICE_BASE_URL",
-                  "value":"${ProdServiceBaseUrl}","type":"PLAINTEXT"}]
+                  [{"name":"VALIDATION_BASE_URL",
+                  "value":"${ProdServiceBaseUrl}","type":"PLAINTEXT"},
+                  {"name":"SERVICE_BASE_URL",
+                  "value":"${ProdServiceBaseUrl}","type":"PLAINTEXT"},
+                  {"name":"VALIDATION_CANONICAL_PATHS",
+                  "value":"${ValidationCanonicalPaths}","type":"PLAINTEXT"},
+                  {"name":"VALIDATION_LEGACY_404_PATHS",
+                  "value":"${ValidationLegacy404Paths}","type":"PLAINTEXT"}]
               InputArtifacts:
                 - Name: AppSourceOutput
               RunOrder: 1
