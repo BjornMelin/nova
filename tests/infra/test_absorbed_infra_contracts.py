@@ -133,6 +133,17 @@ def test_iam_scope_constraints_for_release_roles() -> None:
 
     assert "iam:PassedToService:" in text
     assert "ecs-tasks.amazonaws.com" in text
+    assert "BatchBOperatorPrincipalArn:" in text
+    assert "BatchBValidationOperatorRole:" in text
+    assert "batch-b-validation-read" in text
+    for required_action in [
+        "codeconnections:GetConnection",
+        "codepipeline:ListPipelines",
+        "codepipeline:ListPipelineExecutions",
+        "codedeploy:ListApplications",
+    ]:
+        assert required_action in text
+
 
 
 def test_runtime_env_and_parameter_contracts() -> None:

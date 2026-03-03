@@ -223,3 +223,11 @@ Store evidence links in:
 - `FINAL-PLAN.md`
 - `docs/plan/PLAN.md`
 - `docs/plan/subplans/SUBPLAN-0005.md`
+
+## 11. Access prerequisites and rollback
+
+Before running gates A-E, ensure Batch B validation read access exists (see:
+`docs/plan/release/batch-b-access-unblock-guide.md`).
+
+Rollback (IAM): set `BatchBOperatorPrincipalArn` to empty string and update the
+IAM stack to remove `BatchBValidationOperatorRole`.

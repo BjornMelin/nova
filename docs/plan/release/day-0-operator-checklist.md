@@ -1,173 +1,60 @@
-# Day-0 Operator Checklist
+# Day-0 Operator Checklist (Minimal Path)
 
 Status: Active
 Owner: nova release architecture
-Last reviewed: 2026-02-24
+Last reviewed: 2026-03-02
 
 ## Purpose
 
-Execute first-time Nova CI/CD provisioning and release promotion in one ordered
-operator checklist.
+Run first-time Nova CI/CD provisioning and release promotion using the shortest
+safe operator path.
 
 ## Prerequisites
 
-1. AWS CLI v2 installed and authenticated.
-2. GitHub CLI installed and authenticated.
-3. Access to `3M-Cloud/nova` repository.
-4. Release stack configuration values prepared.
+1. AWS CLI v2 authenticated.
+2. GitHub CLI authenticated.
+3. Repository admin access to `BjornMelin/nova`.
+4. Required environment values prepared.
 
-## Inputs
+## Minimal execution path
 
-- `${AWS_REGION}`
-- `${AWS_ACCOUNT_ID}`
-- `${PROJECT}` default `nova`
-- `${APPLICATION}` default `ci`
-- `${GITHUB_OWNER}` default `3M-Cloud`
-- `${GITHUB_REPO}` default `nova`
-- `${SIGNER_NAME}`
-- `${SIGNER_EMAIL}`
-- `${SECRET_NAME}` default `nova/release/signing-key`
-
-## Single command-pack script (recommended)
-
-Use the operator script for end-to-end execution:
-
-- script path: `scripts/release/day-0-operator-command-pack.sh`
-
-Copy/paste run example:
+1. From repo root, export required vars and run:
 
 ```bash
-cd ~/repos/work/infra-stack/nova
-
-export AWS_REGION=us-east-1
-export AWS_ACCOUNT_ID=123456789012
-export SIGNER_NAME="Nova Release Bot"
-export SIGNER_EMAIL="nova-release@example.com"
-export GITHUB_OIDC_PROVIDER_ARN="arn:aws:iam::123456789012:oidc-provider/token.actions.githubusercontent.com"
-export NOVA_ARTIFACT_BUCKET_NAME="nova-ci-artifacts"
-export NOVA_DEV_SERVICE_BASE_URL="https://dev.example.com"
-export NOVA_PROD_SERVICE_BASE_URL="https://prod.example.com"
-
 ./scripts/release/day-0-operator-command-pack.sh
 ```
 
-Optional behavior:
+2. Validate stack outputs:
 
-- set `TRIGGER_WORKFLOWS=false` to skip dispatching release workflows.
-- set `TRIGGER_RELEASE_APPLY_DIRECT=true` only when explicit manual Apply
-  dispatch is required (default keeps Apply chained from Plan workflow_run).
+```bash
+aws cloudformation describe-stacks --region "${AWS_REGION}" --stack-name "${PROJECT}-${APPLICATION}-nova-iam-roles" --query 'Stacks[0].Outputs'
+aws cloudformation describe-stacks --region "${AWS_REGION}" --stack-name "${PROJECT}-${APPLICATION}-nova-ci-cd" --query 'Stacks[0].Outputs'
+```
 
-## Step-by-step commands
+3. Verify GitHub secret/variable wiring:
 
-1. Generate and store release signing secret.
+```bash
+gh secret list --repo "${GITHUB_OWNER}/${GITHUB_REPO}"
+gh variable list --repo "${GITHUB_OWNER}/${GITHUB_REPO}"
+```
 
-    ```bash
-    ssh-keygen -t ed25519 -C "${SIGNER_EMAIL}" -N "" -f /tmp/nova-release-signing
+4. Confirm CodeConnections status is `AVAILABLE`:
 
-    cat >/tmp/nova-release-signing-secret.json <<JSON
-    {
-      "private_key": $(jq -Rs . </tmp/nova-release-signing),
-      "public_key": $(jq -Rs . </tmp/nova-release-signing.pub),
-      "signer_name": "${SIGNER_NAME}",
-      "signer_email": "${SIGNER_EMAIL}"
-    }
-    JSON
+```bash
+aws codeconnections get-connection --region "${AWS_REGION}" --connection-arn "${CONNECTION_ARN}" --query 'Connection.ConnectionStatus' --output text
+```
 
-    aws secretsmanager create-secret \
-      --region "${AWS_REGION}" \
-      --name "${SECRET_NAME}" \
-      --description "Nova release SSH signing key" \
-      --secret-string file:///tmp/nova-release-signing-secret.json || \
-    aws secretsmanager put-secret-value \
-      --region "${AWS_REGION}" \
-      --secret-id "${SECRET_NAME}" \
-      --secret-string file:///tmp/nova-release-signing-secret.json
-
-    # Cleanup local secret material immediately after upload.
-    rm -f /tmp/nova-release-signing \
-      /tmp/nova-release-signing.pub \
-      /tmp/nova-release-signing-secret.json
-    ```
-
-2. Deploy Nova CI/CD stacks from this repository with `scripts/release/day-0-operator-command-pack.sh` (or direct CloudFormation deploy commands from the break-glass guide).
-
-3. Capture stack outputs.
-
-    ```bash
-    aws cloudformation describe-stacks \
-      --region "${AWS_REGION}" \
-      --stack-name "${PROJECT}-${APPLICATION}-nova-iam-roles" \
-      --query 'Stacks[0].Outputs'
-
-    aws cloudformation describe-stacks \
-      --region "${AWS_REGION}" \
-      --stack-name "${PROJECT}-${APPLICATION}-nova-ci-cd" \
-      --query 'Stacks[0].Outputs'
-    ```
-
-4. Set GitHub secrets and variable in `3M-Cloud/nova`.
-
-    ```bash
-    export GH_REPO="${GITHUB_OWNER}/${GITHUB_REPO}"
-
-    gh secret set RELEASE_SIGNING_SECRET_ID --repo "${GH_REPO}" --body "${SECRET_NAME}"
-    gh secret set RELEASE_AWS_ROLE_ARN --repo "${GH_REPO}" --body "${RELEASE_AWS_ROLE_ARN}"
-    gh variable set AWS_REGION --repo "${GH_REPO}" --body "${AWS_REGION}"
-    ```
-
-5. Activate CodeConnections if needed.
-
-    ```bash
-    aws codeconnections get-connection \
-      --region "${AWS_REGION}" \
-      --connection-arn "${CONNECTION_ARN}" \
-      --query 'Connection.ConnectionStatus' \
-      --output text
-    ```
-
-    If status is `PENDING`, authorize the connection in AWS Console.
-
-6. Run release workflows.
-
-    ```bash
-    gh workflow run "Release Plan" --repo "${GH_REPO}" --ref main
-    gh workflow run "Apply Release Plan" --repo "${GH_REPO}" --ref main
-    gh workflow run "Deploy Dev" --repo "${GH_REPO}" --ref main -f pipeline_name="${CODEPIPELINE_NAME}"
-    ```
-
-7. Validate pipeline stages and approve production promotion.
-
-    ```bash
-    aws codepipeline list-pipeline-executions \
-      --region "${AWS_REGION}" \
-      --pipeline-name "${CODEPIPELINE_NAME}" \
-      --max-results 5
-
-    aws codepipeline get-pipeline-state \
-      --region "${AWS_REGION}" \
-      --name "${CODEPIPELINE_NAME}"
-    ```
-
-8. Record evidence in runbooks and plans.
-
-   - `docs/plan/release/NONPROD-LIVE-VALIDATION-RUNBOOK.md`
-   - `docs/plan/PLAN.md`
-   - `FINAL-PLAN.md`
+5. Trigger and verify release workflows/pipeline progression.
 
 ## Acceptance checks
 
-1. Release commit signature is verified in GitHub.
-2. CodeConnections status is `AVAILABLE`.
-3. Pipeline completes Dev -> ManualApproval -> Prod in order.
-4. `IMAGE_DIGEST` continuity is preserved from Dev to Prod.
+1. Release signing and workflow auth are valid.
+2. Pipeline completes Dev -> ManualApproval -> Prod in order.
+3. `IMAGE_DIGEST` continuity is preserved Dev to Prod.
+4. Evidence links are added to release docs/plan artifacts.
 
 ## References
 
 - [documentation-index.md](documentation-index.md)
-- [deploy-nova-cicd-end-to-end-guide.md](deploy-nova-cicd-end-to-end-guide.md)
-- [release-promotion-dev-to-prod-guide.md](release-promotion-dev-to-prod-guide.md)
+- [governance-lock-runbook.md](governance-lock-runbook.md)
 - [troubleshooting-and-break-glass-guide.md](troubleshooting-and-break-glass-guide.md)
-- GitHub OIDC docs:
-  <https://docs.github.com/en/actions/how-tos/secure-your-work/security-harden-deployments/oidc-in-aws>
-- CodePipeline approvals docs:
-  <https://docs.aws.amazon.com/codepipeline/latest/userguide/approvals-action-add.html>
