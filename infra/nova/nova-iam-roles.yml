@@ -36,6 +36,8 @@ Parameters:
   BatchBOperatorPrincipalArn:
     Type: String
     Default: ""
+    AllowedPattern: "^$|^arn:(aws|aws-us-gov|aws-cn):iam::[0-9]{12}:(role\\/[A-Za-z0-9+=,.@_\\/-]+|user\\/[A-Za-z0-9+=,.@_\\/-]+|root)$"
+    ConstraintDescription: Must be empty or a valid IAM principal ARN (role, user, or root).
     Description: IAM principal ARN allowed to assume the Batch B validation operator role.
 
 Conditions:
@@ -364,13 +366,20 @@ Resources:
                   - codepipeline:GetPipelineExecution
                 Resource:
                   - !Sub "arn:${AWS::Partition}:codepipeline:${AWS::Region}:${AWS::AccountId}:${Project}-${Application}-*"
-              - Sid: CodeDeployReads
+              - Sid: CodeDeployApplicationsList
                 Effect: Allow
                 Action:
                   - codedeploy:ListApplications
+                Resource: "*"
+              - Sid: CodeDeployScopedReads
+                Effect: Allow
+                Action:
                   - codedeploy:GetDeploymentGroup
                   - codedeploy:GetDeployment
-                Resource: "*"
+                Resource:
+                  - !Sub "arn:${AWS::Partition}:codedeploy:${AWS::Region}:${AWS::AccountId}:application:${Project}-${Application}-*"
+                  - !Sub "arn:${AWS::Partition}:codedeploy:${AWS::Region}:${AWS::AccountId}:deploymentgroup:${Project}-${Application}-*/*"
+                  - !Sub "arn:${AWS::Partition}:codedeploy:${AWS::Region}:${AWS::AccountId}:deployment:${Project}-${Application}-*"
               - Sid: ValidationRuntimeReads
                 Effect: Allow
                 Action:

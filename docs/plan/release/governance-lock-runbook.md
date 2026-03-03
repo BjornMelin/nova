@@ -27,8 +27,8 @@ and auditable outputs.
 1. Set scope.
 
 ```bash
-OWNER="BjornMelin"
-REPO="nova"
+OWNER="${GITHUB_OWNER:?Set GITHUB_OWNER (e.g., BjornMelin)}"
+REPO="${GITHUB_REPO:?Set GITHUB_REPO (e.g., nova)}"
 ```
 
 2. Verify CODEOWNERS snapshot.
@@ -51,7 +51,8 @@ gh api repos/${OWNER}/${REPO}/branches/main/protection --jq '.required_status_ch
 5. Capture evidence.
 
 ```bash
-EVIDENCE_DIR="docs/plan/release/evidence/governance/$(date -u +%Y%m%dT%H%M%SZ)"
+EVIDENCE_DIR="${TMPDIR:-/tmp}/nova-governance-evidence/governance/$(date -u +%Y%m%dT%H%M%SZ)"
+export EVIDENCE_DIR
 mkdir -p "${EVIDENCE_DIR}"
 
 gh api repos/${OWNER}/${REPO}/contents/.github/CODEOWNERS --jq '{path: .path, sha: .sha}' > "${EVIDENCE_DIR}/codeowners-snapshot.json"
@@ -59,6 +60,8 @@ gh api repos/${OWNER}/${REPO}/branches/main/protection > "${EVIDENCE_DIR}/branch
 gh api repos/${OWNER}/${REPO}/branches/main/protection --jq '.required_status_checks.contexts' > "${EVIDENCE_DIR}/required-check-contexts.json"
 sha256sum "${EVIDENCE_DIR}"/* > "${EVIDENCE_DIR}/SHA256SUMS"
 ```
+
+Do not commit `${EVIDENCE_DIR}`; it is intentionally outside the repository path.
 
 ## Acceptance
 

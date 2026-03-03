@@ -1,9 +1,22 @@
-# ADR-0022: Codify Batch B operator validation IAM access in Nova IaC
+---
+ADR: 0022
+Title: Codify Batch B operator validation IAM access in Nova IaC
+Status: Accepted
+Version: 1.0
+Date: 2026-03-02
+Related:
+  - "[ADR-0011: Hybrid CI/CD with GitHub and AWS promotion](./ADR-0011-cicd-hybrid-github-aws-promotion.md)"
+  - "[ADR-0016: Minimal governance final-state operator path](./ADR-0016-minimal-governance-final-state-operator-path.md)"
+References:
+  - "[AWS IAM policies and permissions boundaries](https://docs.aws.amazon.com/IAM/latest/UserGuide/access_policies.html)"
+  - "[AWS CodeDeploy documentation](https://docs.aws.amazon.com/codedeploy/latest/userguide/getting-started.html)"
+---
 
-- Status: Accepted
-- Date: 2026-03-02
-- Owners: Platform Engineering
-- Scope: Non-prod Batch B validation gate unblocking
+## Summary
+
+Adopt a dedicated Batch B validation operator role in Nova IaC using minimally
+scoped read permissions from CodeConnections, CodePipeline, and CodeDeploy, and
+preserve release operators in one auditable path.
 
 ## Context
 
@@ -46,9 +59,9 @@ The first returned perspective aligned with codifying the access in IaC and rein
 
 ## AWS authorization references used
 
-- AWS Service Authorization Reference — CodeConnections
-- AWS Service Authorization Reference — CodePipeline
-- AWS Service Authorization Reference — CodeDeploy
+- AWS Service Authorization Reference -- CodeConnections
+- AWS Service Authorization Reference -- CodePipeline
+- AWS Service Authorization Reference -- CodeDeploy
 
 Key implications used in policy design:
 

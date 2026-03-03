@@ -13,38 +13,100 @@ safe operator path.
 
 1. AWS CLI v2 authenticated.
 2. GitHub CLI authenticated.
-3. Repository admin access to `BjornMelin/nova`.
+3. Repository admin access to `${GITHUB_OWNER}/${GITHUB_REPO}` (default: `3M-Cloud/nova`).
 4. Required environment values prepared.
 
-## Minimal execution path
+## Inputs
 
-1. From repo root, export required vars and run:
+- `${AWS_REGION}`
+- `${AWS_ACCOUNT_ID}`
+- `${PROJECT}` (default `nova`)
+- `${APPLICATION}` (default `ci`)
+- `${GITHUB_OWNER}` (default `3M-Cloud`)
+- `${GITHUB_REPO}` (default `nova`)
+- `${CONNECTION_ARN}`
+- `${NAMESPACE}`
+- `${API_DEPLOYMENT_NAME}` (for rollout status verification)
+- `${APP_LABEL}` (for pod verification)
+
+## Step-by-step commands
+
+### Step 1: Export required values
+
+```bash
+export AWS_REGION="${AWS_REGION:?Set AWS_REGION}"
+export AWS_ACCOUNT_ID="${AWS_ACCOUNT_ID:?Set AWS_ACCOUNT_ID}"
+export PROJECT="${PROJECT:-nova}"
+export APPLICATION="${APPLICATION:-ci}"
+export GITHUB_OWNER="${GITHUB_OWNER:-3M-Cloud}"
+export GITHUB_REPO="${GITHUB_REPO:-nova}"
+export CONNECTION_ARN="${CONNECTION_ARN:?Set CONNECTION_ARN}"
+export NAMESPACE="${NAMESPACE:?Set NAMESPACE}"
+export API_DEPLOYMENT_NAME="${API_DEPLOYMENT_NAME:?Set API_DEPLOYMENT_NAME}"
+export APP_LABEL="${APP_LABEL:?Set APP_LABEL}"
+```
+
+### Step 2: Run command pack
 
 ```bash
 ./scripts/release/day-0-operator-command-pack.sh
 ```
 
-2. Validate stack outputs:
+### Step 3: Validate stack outputs
 
 ```bash
 aws cloudformation describe-stacks --region "${AWS_REGION}" --stack-name "${PROJECT}-${APPLICATION}-nova-iam-roles" --query 'Stacks[0].Outputs'
 aws cloudformation describe-stacks --region "${AWS_REGION}" --stack-name "${PROJECT}-${APPLICATION}-nova-ci-cd" --query 'Stacks[0].Outputs'
 ```
 
-3. Verify GitHub secret/variable wiring:
+### Step 4: Verify GitHub wiring is complete
 
 ```bash
-gh secret list --repo "${GITHUB_OWNER}/${GITHUB_REPO}"
-gh variable list --repo "${GITHUB_OWNER}/${GITHUB_REPO}"
+required_secrets=(AWS_ROLE_TO_ASSUME AWS_REGION)
+required_vars=(PROJECT APPLICATION)
+
+existing_secrets="$(gh secret list --repo "${GITHUB_OWNER}/${GITHUB_REPO}" --json name -q '.[].name')"
+existing_vars="$(gh variable list --repo "${GITHUB_OWNER}/${GITHUB_REPO}" --json name -q '.[].name')"
+
+for key in "${required_secrets[@]}"; do
+  grep -qx "${key}" <<< "${existing_secrets}" || { echo "Missing secret: ${key}"; exit 1; }
+done
+for key in "${required_vars[@]}"; do
+  grep -qx "${key}" <<< "${existing_vars}" || { echo "Missing variable: ${key}"; exit 1; }
+done
+
+echo "All required GitHub secrets/variables are present."
 ```
 
-4. Confirm CodeConnections status is `AVAILABLE`:
+### Step 5: Trigger and verify release workflows/pipeline progression
 
 ```bash
-aws codeconnections get-connection --region "${AWS_REGION}" --connection-arn "${CONNECTION_ARN}" --query 'Connection.ConnectionStatus' --output text
+export CODEPIPELINE_NAME="$(aws cloudformation describe-stacks \
+  --region "${AWS_REGION}" \
+  --stack-name "${PROJECT}-${APPLICATION}-nova-ci-cd" \
+  --query "Stacks[0].Outputs[?OutputKey=='PipelineName'].OutputValue | [0]" \
+  --output text)"
+
+gh workflow run "Release Plan" --repo "${GITHUB_OWNER}/${GITHUB_REPO}" --ref main
+PLAN_RUN_ID="$(gh run list --repo "${GITHUB_OWNER}/${GITHUB_REPO}" --workflow "Release Plan" --branch main --limit 1 --json databaseId --jq '.[0].databaseId')"
+gh run watch "${PLAN_RUN_ID}" --repo "${GITHUB_OWNER}/${GITHUB_REPO}" --exit-status
+
+gh workflow run "Apply Release Plan" --repo "${GITHUB_OWNER}/${GITHUB_REPO}" --ref main
+APPLY_RUN_ID="$(gh run list --repo "${GITHUB_OWNER}/${GITHUB_REPO}" --workflow "Apply Release Plan" --branch main --limit 1 --json databaseId --jq '.[0].databaseId')"
+gh run watch "${APPLY_RUN_ID}" --repo "${GITHUB_OWNER}/${GITHUB_REPO}" --exit-status
+
+gh workflow run "Deploy Dev" --repo "${GITHUB_OWNER}/${GITHUB_REPO}" --ref main -f pipeline_name="${CODEPIPELINE_NAME}"
+DEPLOY_RUN_ID="$(gh run list --repo "${GITHUB_OWNER}/${GITHUB_REPO}" --workflow "Deploy Dev" --branch main --limit 1 --json databaseId --jq '.[0].databaseId')"
+gh run watch "${DEPLOY_RUN_ID}" --repo "${GITHUB_OWNER}/${GITHUB_REPO}" --exit-status
+
+kubectl rollout status "deployment/${API_DEPLOYMENT_NAME}" -n "${NAMESPACE}"
+kubectl get pods -l "app=${APP_LABEL}" -n "${NAMESPACE}"
 ```
 
-5. Trigger and verify release workflows/pipeline progression.
+Runbook: `docs/plan/release/release-promotion-dev-to-prod-guide.md`
+
+Pipeline dashboard:
+`https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/actions/workflows`
 
 ## Acceptance checks
 

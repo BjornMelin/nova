@@ -9,6 +9,17 @@ Last updated: 2026-03-02
 Provide the minimal access changes and fallback evidence procedure required to
 close Batch B governance and non-prod live validation gates.
 
+## Prerequisites
+
+1. Release stack operator role is deployable with `BatchBOperatorPrincipalArn`.
+2. `aws` CLI and `gh` CLI are authenticated.
+3. AWS `codepipeline:GetPipelineState` scope is expected to include the target pipeline pattern `${Project}-${Application}-*`.
+
+## Inputs
+
+- `${PROJECT}` (default `nova`)
+- `${APPLICATION}` (default `ci`)
+
 ## 1) AWS IAM read access delta (minimum)
 
 Use the Nova IaC-defined Batch B validation operator role in `infra/nova/nova-iam-roles.yml` by setting `BatchBOperatorPrincipalArn` on stack apply/update.
@@ -29,7 +40,12 @@ Required for full runbook execution (A-E gates):
 - ELBv2: `DescribeTargetHealth`, `DescribeTargetGroups`, `DescribeLoadBalancers`
 - CloudWatch: `GetDashboard`, `DescribeAlarms`, `GetMetricData`, `ListDashboards`
 
-### IaC-defined policy scaffold (implemented)
+### IaC policy source of truth
+
+Use `infra/nova/nova-iam-roles.yml` as the canonical policy definition for the
+operator role. Do not apply the JSON below as a full production policy.
+
+### Illustrative IAM policy scaffold (approximate summary)
 
 ```json
 {
@@ -63,6 +79,11 @@ Required for full runbook execution (A-E gates):
   ]
 }
 ```
+
+## Step-by-step commands
+
+- Capture stack outputs and ensure role ARN is available.
+- Use the verified role for all Batch B validation checks.
 
 ## 2) GitHub governance evidence fallback (plan-limited repos)
 
