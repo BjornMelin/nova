@@ -125,14 +125,26 @@ jobs:
             "/metrics/summary"
           )
           ROUTE_LITERAL_PATTERN="/v1/jobs/\\{job_id\\}/events"
+          RUNTIME_PATHS=(
+            "apps/nova_file_api_service/src"
+            "apps/nova_auth_api_service/src"
+            "packages/nova_file_api/src"
+            "packages/nova_auth_api/src"
+            "packages/nova_dash_bridge/src"
+          )
+          RG_PATH_EXCLUDES=(
+            --glob '!**/tests/**'
+            --glob '!**/fixtures/**'
+          )
           if command -v rg >/dev/null 2>&1; then
             echo "Using rg to validate route references."
             for literal in "${REQUIRED_LITERALS[@]}"; do
-              rg -n -F "$literal" apps packages || { echo "::error::Required canonical route literal not found: $literal"; exit 1; }
+              rg -n -F "${RG_PATH_EXCLUDES[@]}" "$literal" "${RUNTIME_PATHS[@]}" || { echo "::error::Required canonical route literal not found: $literal"; exit 1; }
             done
-            rg -n "$ROUTE_LITERAL_PATTERN" apps packages || { echo "::error::Required regex route literal not found: $ROUTE_LITERAL_PATTERN"; exit 1; }
+            rg -n "${RG_PATH_EXCLUDES[@]}" "$ROUTE_LITERAL_PATTERN" "${RUNTIME_PATHS[@]}" || { echo "::error::Required regex route literal not found: $ROUTE_LITERAL_PATTERN"; exit 1; }
             if rg -n "/api/|/healthz|/readyz" \
-              apps \
+              apps/nova_file_api_service/src \
+              apps/nova_auth_api_service/src \
               packages/nova_file_api/src \
               packages/nova_auth_api/src \
               packages/nova_dash_bridge/src; then
@@ -142,11 +154,18 @@ jobs:
           else
             echo "Using grep to validate route references."
             for literal in "${REQUIRED_LITERALS[@]}"; do
-              grep -RIn --fixed-strings "$literal" apps packages || { echo "::error::Required canonical route literal not found: $literal"; exit 1; }
+              grep -RIn --fixed-strings \
+                --exclude-dir=tests \
+                --exclude-dir=fixtures \
+                "$literal" "${RUNTIME_PATHS[@]}" || { echo "::error::Required canonical route literal not found: $literal"; exit 1; }
             done
-            grep -RInE "$ROUTE_LITERAL_PATTERN" apps packages || { echo "::error::Required regex route literal not found: $ROUTE_LITERAL_PATTERN"; exit 1; }
+            grep -RInE \
+              --exclude-dir=tests \
+              --exclude-dir=fixtures \
+              "$ROUTE_LITERAL_PATTERN" "${RUNTIME_PATHS[@]}" || { echo "::error::Required regex route literal not found: $ROUTE_LITERAL_PATTERN"; exit 1; }
             if grep -RInE "/api/|/healthz|/readyz" \
-              apps \
+              apps/nova_file_api_service/src \
+              apps/nova_auth_api_service/src \
               packages/nova_file_api/src \
               packages/nova_auth_api/src \
               packages/nova_dash_bridge/src; then
@@ -164,7 +183,16 @@ jobs:
               Path("packages/nova_file_api/src/nova_file_api/api.py"),
               Path("packages/nova_file_api/src/nova_file_api/app.py"),
           ]
-          methods = {"get", "post", "put", "patch", "delete", "options", "head"}
+          methods = {
+              "get",
+              "post",
+              "put",
+              "patch",
+              "delete",
+              "options",
+              "head",
+              "api_route",
+          }
           violations: list[str] = []
 
           for file in files:
@@ -206,16 +234,26 @@ jobs:
                           continue
                       if not isinstance(func.value, ast.Name):
                           continue
-                      if not decorator.args:
-                          continue
-                      first_arg = decorator.args[0]
-                      if not (
-                          isinstance(first_arg, ast.Constant)
-                          and isinstance(first_arg.value, str)
-                      ):
+
+                      route_path: str | None = None
+                      if decorator.args and isinstance(decorator.args[0], ast.Constant):
+                          first_arg = decorator.args[0]
+                          if isinstance(first_arg.value, str):
+                              route_path = first_arg.value
+                      if not route_path:
+                          for keyword in decorator.keywords:
+                              if (
+                                  keyword is not None
+                                  and keyword.arg == "path"
+                                  and isinstance(keyword.value, ast.Constant)
+                                  and isinstance(keyword.value.value, str)
+                              ):
+                                  route_path = keyword.value.value
+                                  break
+
+                      if not route_path:
                           continue
 
-                      route_path = first_arg.value
                       prefix = prefixes.get(func.value.id, "")
                       full_path = f"{prefix}{route_path}" if prefix else route_path
                       if (
@@ -237,43 +275,51 @@ jobs:
           import sys
 
           from nova_file_api.app import create_app
+          from nova_auth_api.app import create_app as create_auth_app
 
-          schema = create_app().openapi()
-          paths = schema.get("paths", {})
-          if not isinstance(paths, dict):
-              print("::error::OpenAPI paths payload is not a mapping.")
-              sys.exit(1)
+          def validate_openapi_paths(schema: dict, app_label: str) -> None:
+              paths = schema.get("paths", {})
+              if not isinstance(paths, dict):
+                  print(
+                      f"::error::{app_label} OpenAPI paths payload is not a mapping."
+                  )
+                  sys.exit(1)
 
-          invalid_paths = [
-              path
-              for path in paths
-              if path != "/metrics/summary" and not path.startswith("/v1/")
-          ]
-          if invalid_paths:
-              print("::error::OpenAPI path policy violation detected:")
-              for path in sorted(invalid_paths):
-                  print(path)
-              sys.exit(1)
+              invalid_paths = [
+                  path
+                  for path in paths
+                  if path != "/metrics/summary" and not path.startswith("/v1/")
+              ]
+              if invalid_paths:
+                  print(
+                      f"::error::{app_label} OpenAPI path policy violation detected:"
+                  )
+                  for path in sorted(invalid_paths):
+                      print(path)
+                  sys.exit(1)
 
-          operation_ids: set[str] = set()
-          duplicates: set[str] = set()
-          for path_methods in paths.values():
-              if not isinstance(path_methods, dict):
-                  continue
-              for operation in path_methods.values():
-                  if not isinstance(operation, dict):
+              operation_ids: set[str] = set()
+              duplicates: set[str] = set()
+              for path_methods in paths.values():
+                  if not isinstance(path_methods, dict):
                       continue
-                  operation_id = operation.get("operationId")
-                  if not isinstance(operation_id, str):
-                      continue
-                  if operation_id in operation_ids:
-                      duplicates.add(operation_id)
-                  operation_ids.add(operation_id)
+                  for operation in path_methods.values():
+                      if not isinstance(operation, dict):
+                          continue
+                      operation_id = operation.get("operationId")
+                      if not isinstance(operation_id, str):
+                          continue
+                      if operation_id in operation_ids:
+                          duplicates.add(operation_id)
+                      operation_ids.add(operation_id)
 
-          if duplicates:
-              print("::error::Duplicate OpenAPI operationId values detected:")
-              for operation_id in sorted(duplicates):
-                  print(operation_id)
-              sys.exit(1)
+              if duplicates:
+                  print(f"::error::{app_label} Duplicate OpenAPI operationId values detected:")
+                  for operation_id in sorted(duplicates):
+                      print(operation_id)
+                  sys.exit(1)
+
+          validate_openapi_paths(create_app().openapi(), "nova_file_api")
+          validate_openapi_paths(create_auth_app().openapi(), "nova_auth_api")
           PY
           echo "Canonical route policy guard check passed."
