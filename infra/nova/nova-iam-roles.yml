@@ -33,10 +33,18 @@ Parameters:
   ManualApprovalTopicArn:
     Type: String
     Default: ""
+  BatchBOperatorPrincipalArn:
+    Type: String
+    Default: ""
+    AllowedPattern: "^$|^arn:(aws|aws-us-gov|aws-cn):iam::[0-9]{12}:(role\\/[A-Za-z0-9+=,.@_\\/-]+|user\\/[A-Za-z0-9+=,.@_\\/-]+|root)$"
+    ConstraintDescription: Must be empty or a valid IAM principal ARN (role, user, or root).
+    Description: IAM principal ARN allowed to assume the Batch B validation operator
+      role. Leave blank to skip creating the role.
 
 Conditions:
   HasExistingConnectionArn: !Not [!Equals [!Ref ExistingConnectionArn, ""]]
   HasManualApprovalTopicArn: !Not [!Equals [!Ref ManualApprovalTopicArn, ""]]
+  HasBatchBOperatorPrincipalArn: !Not [!Equals [!Ref BatchBOperatorPrincipalArn, ""]]
 
 Resources:
   GitHubOIDCReleaseRole:
@@ -319,6 +327,74 @@ Resources:
                     iam:PassedToService:
                       - ecs-tasks.amazonaws.com
 
+
+  BatchBValidationOperatorRole:
+    Type: AWS::IAM::Role
+    Condition: HasBatchBOperatorPrincipalArn
+    Properties:
+      RoleName: !Sub ${Project}-${Application}-batch-b-validation-operator-role
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !Ref BatchBOperatorPrincipalArn
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: batch-b-validation-read
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: CodeConnectionsRead
+                Effect: Allow
+                Action:
+                  - codeconnections:GetConnection
+                Resource: !If
+                  - HasExistingConnectionArn
+                  - !Ref ExistingConnectionArn
+                  - - !Sub "arn:${AWS::Partition}:codeconnections:${AWS::Region}:${AWS::AccountId}:connection/*"
+                    - !Sub "arn:${AWS::Partition}:codestar-connections:${AWS::Region}:${AWS::AccountId}:connection/*"
+              - Sid: CodePipelineGlobalList
+                Effect: Allow
+                Action:
+                  - codepipeline:ListPipelines
+                Resource: "*"
+              - Sid: CodePipelineScopedRead
+                Effect: Allow
+                Action:
+                  - codepipeline:ListPipelineExecutions
+                  - codepipeline:GetPipelineState
+                  - codepipeline:GetPipelineExecution
+                Resource:
+                  - !Sub "arn:${AWS::Partition}:codepipeline:${AWS::Region}:${AWS::AccountId}:${Project}-${Application}-*"
+              - Sid: CodeDeployApplicationsList
+                Effect: Allow
+                Action:
+                  - codedeploy:ListApplications
+                Resource: "*"
+              - Sid: CodeDeployScopedReads
+                Effect: Allow
+                Action:
+                  - codedeploy:GetDeploymentGroup
+                  - codedeploy:GetDeployment
+                Resource:
+                  - !Sub "arn:${AWS::Partition}:codedeploy:${AWS::Region}:${AWS::AccountId}:application:${Project}-${Application}-*"
+                  - !Sub "arn:${AWS::Partition}:codedeploy:${AWS::Region}:${AWS::AccountId}:deploymentgroup:${Project}-${Application}-*/*"
+              - Sid: ValidationRuntimeReads
+                Effect: Allow
+                Action:
+                  - ecs:DescribeServices
+                  - ecs:ListClusters
+                  - ecs:ListServices
+                  - elasticloadbalancing:DescribeTargetHealth
+                  - elasticloadbalancing:DescribeTargetGroups
+                  - elasticloadbalancing:DescribeLoadBalancers
+                  - cloudwatch:GetDashboard
+                  - cloudwatch:DescribeAlarms
+                  - cloudwatch:GetMetricData
+                  - cloudwatch:ListDashboards
+                Resource: "*"
+
 Outputs:
   GitHubOIDCReleaseRoleArn:
     Value: !GetAtt GitHubOIDCReleaseRole.Arn
@@ -330,3 +406,6 @@ Outputs:
     Value: !GetAtt CloudFormationExecutionRoleDev.Arn
   CloudFormationExecutionRoleProdArn:
     Value: !GetAtt CloudFormationExecutionRoleProd.Arn
+  BatchBValidationOperatorRoleArn:
+    Condition: HasBatchBOperatorPrincipalArn
+    Value: !GetAtt BatchBValidationOperatorRole.Arn

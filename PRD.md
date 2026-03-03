@@ -19,21 +19,19 @@
 # PRD: Deployable File Transfer API Platform for Nova Clients
 
 **Date:** 2026-02-12
-**Status:** Dual-track transition (`/api/*` baseline + `/v1/*` target-state)
+**Status:** Dual-track active (`/api/*` baseline + `/v1/*` capability)
 **Last updated:** 2026-03-02
 
 ## 0. Architecture State and Transition
 
-This PRD is dual-track until target implementation lands:
+This PRD is now dual-track in active runtime:
 
 - Current implemented baseline contract remains `/api/transfers/*`,
   `/api/jobs/*`, `/healthz`, `/readyz`, `/metrics/summary`.
-- Target-state contract for the next feature branch is defined by
-  `ADR-0015` + `SPEC-0015` and introduces `/v1/*` capability endpoints and
-  target operational workflow artifacts.
+- Target-state capability contract is defined by `ADR-0015` + `SPEC-0015` and
+  covers `/v1/*` behavior and target operational workflow artifacts.
 
-Baseline behavior remains operational authority until target-state code is
-merged.
+Both baseline and capability contracts are currently operational.
 
 ## 1. Problem
 
@@ -113,10 +111,9 @@ The service must be usable by:
   - `active_users_today`
   - `distinct_event_types`
 
-### 3.2 Target-state requirements (next feature branch)
+### 3.2 Capability-contract requirements
 
-The upcoming implementation branch must deliver the target capabilities defined
-in `SPEC-0015`:
+The runtime currently implements capability requirements defined in `SPEC-0015`:
 
 - `/v1/jobs`
 - `/v1/jobs/{id}/events`
@@ -126,7 +123,7 @@ in `SPEC-0015`:
 - `/v1/health/live`
 - `/v1/health/ready`
 
-It must also implement the planned workflow artifacts currently locked in
+It also requires the workflow artifacts currently defined in
 `SPEC-0015`:
 
 - `build-and-publish-image.yml`

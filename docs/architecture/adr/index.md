@@ -7,8 +7,9 @@
 
 ## ADR Catalog
 
-Note: `ADR-0015` is accepted as target-state architecture and its delivery is
-tracked as implementation pending via `SPEC-0015`.
+Note: `ADR-0015` and `SPEC-0015` are active dual-track authority: baseline
+`/api/*` behavior remains in `SPEC-0000`/`SPEC-0003`/`SPEC-0004`/`SPEC-0008`, and
+`/v1/*` capability endpoints are governed by `SPEC-0015`.
 
 | ADR | Title | Status | Date |
 | --- | --- | --- | --- |
@@ -28,3 +29,5 @@ tracked as implementation pending via `SPEC-0015`.
 | [ADR-0013](./ADR-0013-final-state-sdk-topology-generated-core-plus-thin-adapters.md) | Final-state SDK topology uses generated contract-core clients plus thin language adapters | Accepted | 2026-02-28 |
 | [ADR-0014](./ADR-0014-container-craft-capability-absorption-and-repo-retirement.md) | Absorb remaining container-craft Nova capabilities into nova and retire container-craft | Accepted | 2026-02-28 |
 | [ADR-0015](./ADR-0015-nova-api-platform-final-hosting-and-deployment-architecture-2026.md) | Nova API platform final hosting and deployment architecture (2026) | Accepted | 2026-03-01 |
+| [ADR-0016](./ADR-0016-minimal-governance-final-state-operator-path.md) | Minimal governance final-state operator path | Accepted | 2026-03-02 |
+| [ADR-0022](./ADR-0022-batch-b-operator-iam-iac.md) | Batch B operator IAM role codified in Nova IaC for reproducible validation access | Accepted | 2026-03-02 |

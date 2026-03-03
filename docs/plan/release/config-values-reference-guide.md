@@ -110,9 +110,15 @@ Validation URLs:
 - `${DEV_BASE_URL}/healthz`
 - `${DEV_BASE_URL}/readyz`
 - `${DEV_BASE_URL}/metrics/summary`
+- `${DEV_BASE_URL}/v1/health/live`
+- `${DEV_BASE_URL}/v1/health/ready`
+- `${DEV_BASE_URL}/v1/capabilities`
 - `${PROD_BASE_URL}/healthz`
 - `${PROD_BASE_URL}/readyz`
 - `${PROD_BASE_URL}/metrics/summary`
+- `${PROD_BASE_URL}/v1/health/live`
+- `${PROD_BASE_URL}/v1/health/ready`
+- `${PROD_BASE_URL}/v1/capabilities`
 
 ## References
 

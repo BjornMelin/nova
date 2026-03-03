@@ -21,8 +21,8 @@ Defines the external control-plane API for file-transfer orchestration and
 related async jobs. The API does not transfer object bytes.
 
 Transition note (2026-03-02): This is the current implemented baseline
-contract. Target-state `/v1/*` capability endpoints are planned in `SPEC-0015`
-and do not supersede this document until implementation merges.
+contract. `/v1/*` capability endpoints are active in `SPEC-0015` and coexist in
+dual-track authority with this baseline contract.
 
 ## 2. Base paths and media type
 

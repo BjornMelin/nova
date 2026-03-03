@@ -63,14 +63,13 @@ All code and docs must remain production-ready.
 
 ## Guardrails
 
-- Use `FINAL-PLAN.md` as baseline historical execution source and
-  `ADR-0015`/`SPEC-0015` as target-state implementation authority.
+- Use `FINAL-PLAN.md` as historical reference and
+  `ADR-0015`/`SPEC-0015` as active dual-track authority.
 - Keep `docs/plan/PLAN.md` synchronized with current implementation state.
-- Treat architecture state as dual-track until next feature branch delivery:
-  - current implemented baseline: `SPEC-0000`, `SPEC-0003`, `SPEC-0004`,
-    `SPEC-0008`
-  - target-state contract for upcoming implementation:
-    `ADR-0015`, `SPEC-0015`
+- Treat architecture state as dual-track:
+  - compatibility contracts: `SPEC-0000`, `SPEC-0003`, `SPEC-0004`,
+    `SPEC-0008` (implements `/api/*`, `/healthz`, `/readyz`, `/metrics/summary`)
+  - capability contracts: `ADR-0015`, `SPEC-0015` (implements `/v1/*` family)
 - Treat OpenAPI as the contract and update SPEC/ADR docs first for
   contract-level changes.
 - Keep generated-client smoke coverage working for contract changes
@@ -80,7 +79,7 @@ All code and docs must remain production-ready.
 - Never run synchronous JWT verification directly in async route/dependency
   code; use a threadpool boundary.
 
-### Current Runtime Baseline Rules (Blocking Until Target PR Lands)
+### Current Runtime Rules (Implemented)
 
 - Use only:
   - `/api/transfers/*`
@@ -88,18 +87,25 @@ All code and docs must remain production-ready.
   - `/metrics/summary`
   - `/healthz`
   - `/readyz`
+- Also expose:
+  - `/v1/jobs`
+  - `/v1/jobs/{id}/events`
+  - `/v1/capabilities`
+  - `/v1/resources/plan`
+  - `/v1/releases/info`
+  - `/v1/health/live`
+  - `/v1/health/ready`
 - Do not introduce deprecated alias routes or retired package/module names.
-- Do not add compatibility alias routes or namespace shims.
-- Fail reviews when legacy patterns are introduced.
+- Fail reviews when unresolved legacy patterns are introduced.
 
 Required verification command:
 
 ```bash
 source .venv/bin/activate && \
-rg -n "/api/transfers|/api/jobs|/metrics/summary|/healthz|/readyz" apps packages docs
+rg -n "/api/transfers|/api/jobs|/v1/jobs|/v1/jobs/\\{id\\}/events|/v1/capabilities|/v1/resources/plan|/v1/releases/info|/v1/health/live|/v1/health/ready|/metrics/summary|/healthz|/readyz" apps packages docs
 ```
 
-### Next PR Target Contract Rules (Locked for Implementation Branch)
+### Next PR Target Contract Rules (Active Dual-Track Runtime)
 
 - Target API capabilities MUST be implemented under:
   - `/v1/jobs`
@@ -111,9 +117,9 @@ rg -n "/api/transfers|/api/jobs|/metrics/summary|/healthz|/readyz" apps packages
   - `/v1/health/ready`
 - Do not introduce compatibility alias routes or namespace shims while
   delivering target-state cutover.
-- Treat `SPEC-0015` as `Planned` authority until implementation merges, then
-  promote it to active runtime contract authority and supersede baseline route
-  rules above.
+- Treat `SPEC-0015` as active dual-track contract authority for `v1/*`
+  capability endpoints while `SPEC-0000` remains active for baseline
+  `/api/*` behavior.
 
 ### Runtime Invariants That Must Be Preserved
 
@@ -150,6 +156,8 @@ Always run from repository root unless task scope requires otherwise.
 rg --files apps packages docs
 find apps packages -maxdepth 3 -type d | sort
 rg -n "/api/transfers|/api/jobs|/metrics/summary|/healthz|/readyz" \
+  packages docs
+rg -n "/v1/jobs|/v1/jobs/\\{id\\}/events|/v1/capabilities|/v1/resources/plan|/v1/releases/info|/v1/health/live|/v1/health/ready" \
   packages docs
 rg -n "nova_file_api|nova_auth_api|nova_dash_bridge" \
   apps packages docs

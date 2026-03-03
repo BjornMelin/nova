@@ -17,8 +17,8 @@ References:
 ## 1. API surface
 
 Transition note (2026-03-02): This specification remains active for baseline
-`/api/jobs/*` behavior. Planned `/v1/jobs*` target-state capability endpoints
-are tracked in `SPEC-0015` and remain implementation-pending. This revision
+`/api/jobs/*` behavior. `/v1/jobs*` capability endpoints are active in
+`SPEC-0015` and run as part of the dual-track contract. This revision
 clarifies the SQS DLQ redrive policy and documents autoscaling invariants for
 worker services and job queues.
 

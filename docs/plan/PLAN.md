@@ -20,14 +20,13 @@
 
 - This plan remains the historical execution baseline for current implemented
   `/api/*` runtime behavior and release evidence.
-- Target-state delivery requirements for the next feature branch are locked in
-  `ADR-0015` + `SPEC-0015`.
+- Target-state delivery requirements in `ADR-0015` + `SPEC-0015` are now active in
+  this runtime and implemented as dual-track with baseline contracts.
 - Definitive execution blueprint for target-state implementation:
   `docs/plan/2026-03-01-adr0015-spec0015-implementation-blueprint.md`.
-- Until target-state code is merged, current runbooks and baseline route checks
-  remain operational authority.
-- After target-state merge, update this plan to mark `/api/*` route rules as
-  superseded by `/v1/*` capability contract authority.
+- Current runbooks and baseline route checks remain required for `/api/*`.
+- `/v1/*` capability route checks are now required as active authority and are
+  captured in `SPEC-0015` and `docs/plan/release/HARD-CUTOVER-CHECKLIST.md`.
 
 # Final Production Architecture Plan (Locked, Release Track)
 

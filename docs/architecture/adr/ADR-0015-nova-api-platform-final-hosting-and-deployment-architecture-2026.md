@@ -19,8 +19,8 @@ References:
 
 Adopt **standard ECS on Fargate with ALB + GitHub Actions OIDC and Nova-owned
 deployment stacks** as the Nova API production final-state architecture.
-Implementation is planned for the next feature branch and is not yet fully
-delivered in runtime code.
+This ADR is active and is implemented through the current dual-track runtime
+delivery with both `/api/*` baseline routes and `/v1/*` capability routes.
 
 ## Context
 
@@ -83,5 +83,5 @@ Choose **Option B** as production final-state.
 ## Changelog
 
 - 2026-03-01: Accepted final production hosting/deployment architecture after 2026 options re-evaluation.
-- 2026-03-02: Clarified that the decision is accepted but implementation is
-  planned and tracked in `SPEC-0015`.
+- 2026-03-02: Clarified active implementation status and aligned to dual-track
+  `/api/*` + `/v1/*` runtime authority.

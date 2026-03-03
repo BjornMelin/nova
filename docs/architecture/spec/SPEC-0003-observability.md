@@ -15,9 +15,9 @@ References:
 ## 1. Health and readiness
 
 Transition note (2026-03-02): This specification defines the current
-implemented baseline for `/healthz` and `/readyz`. Planned `/v1/health/live`
-and `/v1/health/ready` targets are tracked in `SPEC-0015` and remain
-implementation-pending.
+implemented baseline for `/healthz` and `/readyz`. `/v1/health/live` and
+`/v1/health/ready` are active in `SPEC-0015` under this dual-track runtime
+model.
 
 Service MUST expose:
 

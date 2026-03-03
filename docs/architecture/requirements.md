@@ -10,10 +10,12 @@ requirements for the first production release.
 
 - Current implemented baseline requirements use the `FR-*`, `NFR-*`, and
   `IR-*` IDs below.
-- Target-state requirements for the next implementation branch use
+- Target-state requirements for active capability contracts use
   `TFR-*`, `TNFR-*`, and `TIR-*` IDs and are derived from `ADR-0015` and
   `SPEC-0015`.
-- Until target-state code is merged, baseline IDs remain operational authority.
+- Dual-track authority is active: baseline `FR-*`/`NFR-*`/`IR-*` IDs for
+  `/api/*` + `/healthz`/`/readyz`/`/metrics/summary` remain authoritative,
+  while `TFR-*`/`TNFR-*`/`TIR-*` define active `/v1/*` capability requirements.
 
 ## Scope
 
@@ -173,11 +175,11 @@ The service MUST enforce AWS multipart constraints:
 When `FILE_TRANSFER_USE_ACCELERATE_ENDPOINT=true`, presigned URLs MUST be
 generated using acceleration-compatible client configuration.
 
-## Target-State Functional Requirements (Planned)
+## Target-State Functional Requirements (Active)
 
 ### TFR-0100: API capability endpoint contract
 
-The next feature branch MUST expose:
+The runtime currently exposes:
 
 - `GET|POST /v1/jobs` capability surface (create/list/get/cancel/retry)
 - `GET /v1/jobs/{id}/events` (poll/SSE-capable event stream surface)
@@ -189,16 +191,16 @@ The next feature branch MUST expose:
 
 ### TFR-0101: Target workflow artifact completion set
 
-The next feature branch MUST bring the remaining `SPEC-0015` workflow artifact
-set to contract-complete behavior:
+The active `/v1/*` implementation requires these workflow artifacts from
+`SPEC-0015`:
 
 - `build-and-publish-image.yml`
 - `deploy-dev.yml`
 - `post-deploy-validate.yml`
 - `conformance-clients.yml`
 
-These workflows already exist in `.github/workflows/`; required work is to
-close behavior gaps against `SPEC-0015`, not to introduce new filenames.
+These workflows exist in `.github/workflows/`; required work is to keep behavior
+aligned with `SPEC-0015`.
 
 Implemented baseline artifacts already contract-complete in `main`:
 
@@ -261,7 +263,7 @@ Every change MUST pass:
 - `source .venv/bin/activate && uv run pytest -q packages/nova_file_api/tests/test_generated_client_smoke.py`
 - workspace package/app build verification (`uv build` per workspace unit)
 
-## Target-State Non-Functional Requirements (Planned)
+## Target-State Non-Functional Requirements (Active)
 
 ### TNFR-0100: Target-state contract traceability
 
@@ -271,8 +273,8 @@ Target implementation PRs MUST update `README.md`, `PRD.md`, `AGENTS.md`,
 
 ### TNFR-0101: Baseline operability preservation during transition
 
-Until target-state routes are implemented, current baseline operational docs
-and runbooks MUST remain executable and clearly labeled as baseline behavior.
+Current baseline operational docs remain required for `/api/*` and legacy-safe
+runbooks, while `/v1/*` runbook/checklist coverage is additionally required.
 
 ## Integration Requirements
 
@@ -304,7 +306,7 @@ on auth service errors.
 S3 CORS policies MUST allow browser upload/download operations and expose
 `ETag` for multipart completion flows.
 
-## Target-State Integration Requirements (Planned)
+## Target-State Integration Requirements (Active)
 
 ### TIR-0100: Nova-local IaC authority
 

@@ -3,10 +3,9 @@
 Status: Finalized
 Owner: Release Architecture
 
-Transition note (2026-03-02): This checklist verifies the current implemented
-baseline (`/api/*` + `/healthz|/readyz|/metrics/summary`). Target-state
-cutover checks for `/v1/*` are planned and must be executed in the next
-implementation branch.
+Transition note (2026-03-02): This checklist verifies both baseline
+(`/api/*` + `/healthz` + `/readyz` + `/metrics/summary`) and active capability
+checks under `SPEC-0015` for `/v1/*`.
 
 ## 1. Runtime Contract Cutover
 
@@ -65,13 +64,14 @@ implementation branch.
 - [x] Final release notes published:
   `docs/plan/release/RELEASE-NOTES-2026-02-12.md`
 
-## 8. Target-State Pre-Implementation Checklist (Planned)
+## 8. Target-State Capability Checklist (Implemented)
 
-- [ ] `/v1/jobs` capability surface implemented and documented.
-- [ ] `/v1/jobs/{id}/events` event contract implemented and documented.
-- [ ] `/v1/capabilities`, `/v1/resources/plan`, `/v1/releases/info` delivered.
-- [ ] `/v1/health/live` and `/v1/health/ready` implemented with lightweight
-  dependency-scoped semantics.
-- [ ] Planned workflow artifacts from `SPEC-0015` added and validated:
+- [x] `/v1/jobs` capability surface implemented and documented.
+- [x] `/v1/jobs/{id}/events` event contract implemented and documented.
+- [x] `/v1/capabilities`, `/v1/resources/plan`, `/v1/releases/info` delivered.
+- [x] `/v1/health/live` and `/v1/health/ready` implemented with
+  lightweight dependency-scoped semantics.
+- [x] `SPEC-0015` workflow artifacts from `.github/workflows/` are present and
+  validated in this release path:
   `build-and-publish-image.yml`, `publish-packages.yml`, `deploy-dev.yml`,
   `promote-prod.yml`, `post-deploy-validate.yml`, `conformance-clients.yml`.

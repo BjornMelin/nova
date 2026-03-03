@@ -24,8 +24,8 @@ References:
 ## 1. Required quality gates
 
 Transition note (2026-03-02): This specification defines the current
-implemented CI/CD baseline. Planned target-state workflow artifacts are defined
-in `SPEC-0015` and become active requirements only when implemented.
+implemented CI/CD baseline. Target-state workflow artifacts in `SPEC-0015` are
+active and required in the same release path.
 
 Every pull request MUST pass:
 

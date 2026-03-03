@@ -8,15 +8,14 @@ bytes.
 
 ## Architecture State
 
-The repository is intentionally dual-track until the next implementation branch
-lands:
+The repository runs active dual-track authority:
 
-- Current implemented baseline (operational now):
+- Baseline (`/api/*`, `/healthz`, `/readyz`, `/metrics/summary`) behavior:
   - `docs/architecture/spec/SPEC-0000-http-api-contract.md`
   - `docs/architecture/spec/SPEC-0003-observability.md`
   - `docs/architecture/spec/SPEC-0004-ci-cd-and-docs.md`
   - `docs/architecture/spec/SPEC-0008-async-jobs-and-worker-orchestration.md`
-- Target state for upcoming implementation:
+- Capability (`/v1/*`) behavior:
   - `docs/architecture/adr/ADR-0015-nova-api-platform-final-hosting-and-deployment-architecture-2026.md`
   - `docs/architecture/spec/SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md`
 
@@ -148,10 +147,11 @@ Primary operational settings:
 
 - Transfers: `/api/transfers`
 - Jobs: `/api/jobs`
+- Capabilities: `/v1`
 
-## Target-State API Contract (Planned, Not Yet Implemented)
+## Capability API Contract (Active)
 
-The next feature branch must implement the PR #22 target API capabilities:
+This repository currently implements the capability contract:
 
 - `/v1/jobs`
 - `/v1/jobs/{id}/events`
@@ -160,9 +160,6 @@ The next feature branch must implement the PR #22 target API capabilities:
 - `/v1/releases/info`
 - `/v1/health/live`
 - `/v1/health/ready`
-
-Until that cutover merges, continue operating with the current `/api/*` and
-`/healthz|/readyz|/metrics/summary` baseline contract above.
 
 ## Auth0 Tenant-as-Code (a0deploy)
 
@@ -253,9 +250,7 @@ Hybrid release model:
      - `ci.yml`
      - `publish-packages.yml`
      - `promote-prod.yml`
-   - Additional target-state artifacts already exist in `.github/workflows/`
-     and are mandatory to bring to `SPEC-0015` contract-complete behavior in
-     the next implementation branch:
+   - Additional `SPEC-0015` artifacts are active and mandatory in this release path:
      - `build-and-publish-image.yml`
      - `deploy-dev.yml`
      - `post-deploy-validate.yml`
