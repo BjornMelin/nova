@@ -901,7 +901,7 @@ async def v1_health_ready(request: Request) -> ReadinessResponse:
     Returns:
         ReadinessResponse: Dependency readiness checks.
     """
-    return await readyz(request=request)
+    return await _health_ready_checks(request=request)
 
 
 @ops_router.get("/metrics/summary", response_model=MetricsSummaryResponse)
@@ -929,7 +929,7 @@ async def metrics_summary(request: Request) -> MetricsSummaryResponse:
     )
 
 
-async def readyz(request: Request) -> ReadinessResponse:
+async def _health_ready_checks(request: Request) -> ReadinessResponse:
     """Return readiness checks for critical dependencies."""
     container = get_container(request)
     logger = structlog.get_logger("api")
@@ -937,7 +937,7 @@ async def readyz(request: Request) -> ReadinessResponse:
         shared_cache = await container.shared_cache.ping()
     except Exception:
         logger.exception(
-            "readyz_shared_cache_ping_failed",
+            "v1_health_ready_shared_cache_ping_failed",
             route="/v1/health/ready",
         )
         shared_cache = False

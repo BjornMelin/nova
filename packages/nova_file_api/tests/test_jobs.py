@@ -873,11 +873,32 @@ def test_get_job_status_failure_emits_error_observability(
 
 
 def test_legacy_cancel_route_is_not_exposed() -> None:
+    """Verify legacy cancel route is not exposed and returns 404."""
     app = create_app()
     with TestClient(app) as client:
         response = client.post("/api/jobs/job-status-1/cancel")
 
     assert response.status_code == 404
+
+
+def test_cancel_job_failure_emits_error_observability(
+    capture_emf: CaptureEmf,
+) -> None:
+    """Verify cancel failures emit metrics and observability dimensions."""
+    container, metrics, activity_store = _build_failing_job_container()
+    emitted_dimensions = capture_emf(metrics)
+    app = create_app(container_override=container)
+    with TestClient(app, raise_server_exceptions=False) as client:
+        response = client.post("/v1/jobs/job-status-1/cancel")
+
+    assert response.status_code == 500
+    counters = metrics.counters_snapshot()
+    assert counters["jobs_cancel_failure_total"] == 1
+    assert {"route": "jobs_cancel", "status": "error"} in emitted_dimensions
+    summary = activity_store.summary()
+    assert summary["events_total"] == 1
+    assert summary["distinct_event_types"] == 1
+    assert summary["active_users_today"] == 1
 
 
 def test_update_job_result_failure_emits_error_observability(

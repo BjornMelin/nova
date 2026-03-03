@@ -4,8 +4,8 @@ Canonical, versioned fixture bundle for cross-framework conformance on:
 
 - Auth verify contract (`POST /v1/token/verify`)
 - Transfer initiate contract (`POST /v1/transfers/uploads/initiate`)
-- Async jobs create/status contracts (`POST /v1/jobs`, `GET /v1/jobs/{id}`)
-- v1 capability surface (`/v1/jobs`, `/v1/jobs/{id}/events`, `/v1/capabilities`, `/v1/resources/plan`, `/v1/releases/info`, `/v1/health/live`, `/v1/health/ready`)
+- Async jobs create/status contracts (`POST /v1/jobs`, `GET /v1/jobs/{job_id}`)
+- v1 capability surface (`/v1/jobs`, `/v1/jobs/{job_id}/events`, `/v1/capabilities`, `/v1/resources/plan`, `/v1/releases/info`, `/v1/health/live`, `/v1/health/ready`)
 - Canonical error envelope (`error.code`, `error.message`, `error.details`, `error.request_id`)
 
 Route namespace policy:

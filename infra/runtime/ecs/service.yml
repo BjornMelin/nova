@@ -115,7 +115,7 @@ Parameters:
     Description: Secondary rollback alarm name bound to CodeDeploy stop/rollback controls.
   ReadinessHealthCheckPath:
     Type: String
-    Default: /readyz
+    Default: /v1/health/ready
     Description: Readiness path used by blue/green target groups and deployment validation gates.
   LoadBalancerId:
     Type: String

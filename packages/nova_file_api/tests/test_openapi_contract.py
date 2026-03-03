@@ -6,7 +6,7 @@ from fastapi.testclient import TestClient
 from nova_file_api.app import create_app
 
 
-def test_openapi_contains_split_routes_and_no_legacy_prefix() -> None:
+def test_openapi_contains_only_canonical_v1_routes() -> None:
     """OpenAPI should expose only canonical v1 and metrics routes."""
     app = create_app()
     with TestClient(app) as client:

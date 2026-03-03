@@ -154,7 +154,7 @@ jobs:
               exit 1
             fi
           fi
-          python - <<'PY'
+          uv run python - <<'PY'
           from __future__ import annotations
           import ast
           import sys
@@ -232,7 +232,7 @@ jobs:
                   print(violation)
               sys.exit(1)
           PY
-          python - <<'PY'
+          uv run python - <<'PY'
           from __future__ import annotations
           import sys
 
@@ -257,10 +257,10 @@ jobs:
 
           operation_ids: set[str] = set()
           duplicates: set[str] = set()
-          for methods in paths.values():
-              if not isinstance(methods, dict):
+          for path_methods in paths.values():
+              if not isinstance(path_methods, dict):
                   continue
-              for operation in methods.values():
+              for operation in path_methods.values():
                   if not isinstance(operation, dict):
                       continue
                   operation_id = operation.get("operationId")
