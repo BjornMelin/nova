@@ -13,7 +13,7 @@ Dev to Prod AWS promotion.
 
 Use the modular operator guide set for provisioning and setup details:
 
-- `documentation-index.md`
+- `../../runbooks/README.md`
 - `day-0-operator-checklist.md`
 - `scripts/release/day-0-operator-command-pack.sh`
 - `aws-oidc-and-iam-role-setup-guide.md`
@@ -118,3 +118,4 @@ For each run capture:
    - `PUBLISHED_PACKAGES`
    - `RELEASE_MANIFEST_SHA256`
 8. Explicit digest continuity evidence (Dev -> Prod `IMAGE_DIGEST` match).
+9. Link entry in `docs/plan/release/evidence-log.md`.

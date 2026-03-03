@@ -2,10 +2,11 @@
 ADR: 0001
 Title: Deploy on ECS Fargate behind ALB with same-origin routing
 Status: Accepted
-Version: 1.1
-Date: 2026-02-11
+Version: 1.2
+Date: 2026-03-03
 Related:
   - "[ADR-0000: Implement the File Transfer API as a FastAPI service](./ADR-0000-fastapi-microservice.md)"
+  - "[ADR-0023: Hard cut to a single canonical /v1 API surface](./ADR-0023-hard-cut-v1-canonical-route-surface.md)"
 References:
   - "[AWS Fargate on ECS](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/AWS_Fargate.html)"
   - "[ECS container health checks](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/healthcheck.html)"
@@ -15,8 +16,13 @@ References:
 ## Summary
 
 Deploy the API as an ECS/Fargate service behind the existing ALB and route
-`/api/transfers/*` and `/api/jobs/*` to it. Keep browser traffic same-origin with the parent
-application to avoid CORS/auth integration complexity.
+canonical `/v1/transfers/*` and `/v1/jobs/*` traffic to it. Keep browser
+traffic same-origin with the parent application to avoid CORS/auth integration
+complexity.
+
+Supersession note (2026-03-03): Route-namespace commitments in this ADR are
+partially superseded by `ADR-0023`, which defines the canonical `/v1/*` surface
+and removal of legacy `/api/*`, `/healthz`, and `/readyz` routes.
 
 ## Context
 
@@ -27,8 +33,8 @@ task roles, and environment injection. This service should follow the same patte
 - shared ingress and TLS posture,
 - minimal frontend integration overhead.
 
-The system must satisfy both health checks and same-origin browser consumption.
-Current platform behavior may require compatibility endpoints (`/` and `/healthz`).
+The system must satisfy both health checks and same-origin browser
+consumption.
 
 ## Alternatives
 
@@ -50,7 +56,7 @@ Choose option A.
 
 Implementation commitments:
 
-- Route `/api/transfers/*` and `/api/jobs/*` through the shared ALB.
+- Route `/v1/transfers/*` and `/v1/jobs/*` through the shared ALB.
 - Expose health endpoints compatible with ECS/ALB health-check expectations.
 - Preserve same-origin access patterns for browser clients.
 
@@ -59,7 +65,7 @@ Implementation commitments:
 - [FR-0000](../requirements.md#fr-0000-file-transfer-control-plane-endpoints)
 - [FR-0005](../requirements.md#fr-0005-authentication-and-authorization)
 - [NFR-0003](../requirements.md#nfr-0003-operability)
-- [IR-0000](../requirements.md#ir-0000-container-craft-env-contract-compatibility)
+- [IR-0000](../requirements.md#ir-0000-nova-local-runtime-and-release-authority)
 - [IR-0001](../requirements.md#ir-0001-sidecar-routing-model)
 
 ## Consequences
@@ -72,6 +78,8 @@ Implementation commitments:
 
 ## Changelog
 
+- 2026-03-03: Aligned route-surface references with `ADR-0023` canonical
+  `/v1/*` namespace.
 - 2026-02-11: Expanded ADR with deployment constraints, health-check compatibility,
   and restored container-craft context.
 - 2026-02-11: Initial ADR accepted.

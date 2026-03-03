@@ -3,10 +3,6 @@
 Status: Finalized
 Owner: Release Architecture
 
-Transition note (2026-03-03): This checklist verifies hard-cut canonical
-runtime routes (`/v1/*` + `/metrics/summary`) and confirms legacy
-`/api/*`, `/healthz`, and `/readyz` are removed.
-
 ## 1. Runtime Contract Cutover
 
 - [x] Canonical consumer capability endpoints use `/v1/*` routes.
@@ -67,7 +63,7 @@ runtime routes (`/v1/*` + `/metrics/summary`) and confirms legacy
 ## 7. Release Artifacts
 
 - [x] Final release notes published:
-  `docs/plan/release/RELEASE-NOTES-2026-02-12.md`
+  `docs/history/2026-02-cutover/release/RELEASE-NOTES-2026-02-12.md`
 
 ## 8. Target-State Capability Checklist (Implemented)
 

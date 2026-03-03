@@ -236,9 +236,11 @@ Every change MUST pass:
 
 ### NFR-0105: Contract traceability
 
-Target implementation PRs MUST update `README.md`, `PRD.md`, `AGENTS.md`,
-`docs/architecture/requirements.md`, affected ADR/SPEC docs, and
-`FINAL-PLAN.md`/`docs/plan/PLAN.md` in the same change set.
+Target implementation PRs MUST update `README.md`, `AGENTS.md`,
+`docs/PRD.md`, `docs/architecture/requirements.md`, affected ADR/SPEC docs,
+and `docs/plan/PLAN.md` in the same change set. Historical pointer files
+(`PRD.md`, `FINAL-PLAN.md`) MUST be updated only when archive location or
+authority links change.
 
 ### NFR-0106: No-shim posture
 
@@ -247,18 +249,15 @@ namespace shims unless ADR-approved with score >=9.0.
 
 ## Integration Requirements
 
-<a id="ir-0000-container-craft-env-contract-compatibility"></a>
+### IR-0000: Nova-local runtime and release authority
 
-### IR-0000: Legacy container-craft env contract compatibility (transitional)
-
-Runtime settings MAY retain compatibility with historical
-`container-craft` `FILE_TRANSFER_*` environment injection during migration, but
-active deployment authority is Nova-local (`infra/nova/**`, `infra/runtime/**`).
+Active runtime and release/deploy infrastructure authority MUST remain in this
+repository under `infra/nova/**` and `infra/runtime/**`.
 
 ### IR-0001: Sidecar routing model
 
-Default deployment MUST use same-origin ALB path routing for canonical
-`/v1/transfers/*` and `/v1/jobs/*` surfaces.
+Default deployment MUST use same-origin ALB path routing for canonical `/v1/*`
+runtime surfaces.
 
 ### IR-0002: AWS service dependencies
 
@@ -275,10 +274,10 @@ on auth service errors.
 S3 CORS policies MUST allow browser upload/download operations and expose
 `ETag` for multipart completion flows.
 
-### IR-0010: Nova-local IaC authority
+### IR-0010: Historical migration scope
 
-Active runtime and release/deploy infrastructure authority MUST remain in this
-repository under `infra/nova/**` and `infra/runtime/**`.
+Historical migration evidence under `docs/history/**` MUST remain non-authoritative
+for current runtime and deployment operations.
 
 ## Explicit Non-Goals (Initial Release)
 

@@ -40,15 +40,12 @@ Every operator guide must include:
 1. Add `Last reviewed` date to each guide.
 2. Re-review at least every 90 days or after any CI/CD contract change.
 
-## Dual-track transition rules
+## Final-state clarity rules
 
-1. During architecture transition windows, active docs must explicitly label:
-   - current implemented baseline behavior
-   - target-state planned behavior
-2. Target-state instructions must reference the owning ADR/SPEC and must not be
-   presented as executable before implementation merges.
-3. Current operational commands must remain runnable until target-state cutover
-   is complete.
+1. Active docs must describe only currently implemented, executable behavior.
+2. Proposed or superseded plans must live under `docs/history/**`.
+3. Active docs must not duplicate authority already owned by ADR/SPEC contract
+   sources; link to authority docs instead.
 
 ## Nova-path authority guardrail
 

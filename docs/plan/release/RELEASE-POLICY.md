@@ -14,7 +14,7 @@ This policy governs runtime releases for `nova` with these fixed constraints:
 
 Companion modular setup guides:
 
-- `documentation-index.md`
+- `../../runbooks/README.md`
 - `aws-secrets-provisioning-guide.md`
 - `aws-oidc-and-iam-role-setup-guide.md`
 
@@ -64,4 +64,5 @@ Each release cycle must retain evidence in:
 
 - `docs/plan/release/RELEASE-VERSION-MANIFEST.md`
 - `docs/plan/release/NONPROD-LIVE-VALIDATION-RUNBOOK.md`
+- `docs/plan/release/evidence-log.md`
 - `docs/plan/release/RELEASE-RUNBOOK.md` execution notes

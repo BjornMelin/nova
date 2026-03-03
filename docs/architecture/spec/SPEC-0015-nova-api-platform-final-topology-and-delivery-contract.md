@@ -28,13 +28,13 @@ Constraints:
 
 ## 2. Route contract authority
 
-Canonical runtime contract is:
+Route-literal authority is owned by:
 
-- public `/v1/*` routes
-- internal `/v1/internal/*` route for worker result updates
-- operational `/metrics/summary`
+- `SPEC-0000` (HTTP contract semantics)
+- `SPEC-0016` (canonical route set and guardrails)
+- `ADR-0023` (hard-cut decision)
 
-Legacy `/api/*`, `/healthz`, and `/readyz` routes are removed.
+This spec does not restate route literals to avoid contract drift.
 
 ## 3. Final topology
 
@@ -89,23 +89,15 @@ Required workflows in `.github/workflows/`:
 - route decorator structure checks in `api.py`/`app.py`
 - unique `operationId`
 
-## 6. Canonical API capabilities
+## 6. Canonical API capability coverage
 
-Nova MUST expose:
+Nova MUST preserve capability families defined in `SPEC-0000` and `SPEC-0016`:
 
-- `/v1/transfers/uploads/initiate`
-- `/v1/transfers/uploads/sign-parts`
-- `/v1/transfers/uploads/complete`
-- `/v1/transfers/uploads/abort`
-- `/v1/transfers/downloads/presign`
-- `/v1/jobs` (create/list/get/cancel/retry)
-- `/v1/jobs/{job_id}/events`
-- `/v1/capabilities`
-- `/v1/resources/plan`
-- `/v1/releases/info`
-- `/v1/health/live`, `/v1/health/ready`
-- `/metrics/summary`
-- `/v1/internal/jobs/{job_id}/result` (internal only)
+- transfer orchestration
+- async job control-plane operations
+- internal worker result update path
+- capability/release discovery
+- health/readiness and operational metrics
 
 ## 7. CodeArtifact release flow
 
@@ -155,4 +147,4 @@ exception.
 
 Execution blueprint:
 
-- `docs/plan/2026-03-01-adr0015-spec0015-implementation-blueprint.md`
+- `docs/history/2026-03-v1-hard-cut/planning/2026-03-01-adr0015-spec0015-implementation-blueprint.md`

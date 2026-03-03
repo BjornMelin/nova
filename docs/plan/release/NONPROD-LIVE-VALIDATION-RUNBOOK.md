@@ -4,10 +4,6 @@ Status: Pending external execution
 Owner: Release Architecture + Platform Operations
 Last updated: 2026-03-03
 
-Transition note (2026-03-03): Commands in this runbook validate hard-cut
-canonical runtime routes (`/v1/*` + `/metrics/summary`) and verify removed
-legacy routes (`/api/*`, `/healthz`, `/readyz`) stay `404`.
-
 ## 1. Purpose
 
 Provide one operator runbook for release-blocking, AWS-live validation gates
@@ -15,9 +11,9 @@ that cannot be fully proven by local checks.
 
 Related setup sequence:
 
-- `documentation-index.md`
-- `deploy-nova-cicd-end-to-end-guide.md`
-- `release-promotion-dev-to-prod-guide.md`
+- [`docs/runbooks/README.md`](../../runbooks/README.md)
+- [`deploy-nova-cicd-end-to-end-guide.md`](deploy-nova-cicd-end-to-end-guide.md)
+- [`release-promotion-dev-to-prod-guide.md`](release-promotion-dev-to-prod-guide.md)
 
 ## 2. Blocking gates covered
 
@@ -235,9 +231,7 @@ For each gate capture:
 
 Store evidence links in:
 
-- `FINAL-PLAN.md`
-- `docs/plan/PLAN.md`
-- `docs/plan/subplans/SUBPLAN-0005.md`
+- `docs/plan/release/evidence-log.md`
 
 ## 11. Access prerequisites and rollback
 

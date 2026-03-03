@@ -128,9 +128,7 @@ After access updates:
 1. Re-run `docs/plan/release/governance-lock-runbook.md` evidence capture.
 2. Re-run `docs/plan/release/NONPROD-LIVE-VALIDATION-RUNBOOK.md` Gates A-E.
 3. Append pass/fail + artifact paths to:
-   - `FINAL-PLAN.md`
-   - `docs/plan/PLAN.md`
-   - `docs/plan/subplans/SUBPLAN-0005.md`
+   - `docs/plan/release/evidence-log.md`
 
 
 

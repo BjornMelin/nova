@@ -2,7 +2,7 @@
 
 Status: Active
 Owner: nova release architecture
-Last reviewed: 2026-03-02
+Last reviewed: 2026-03-03
 
 ## Purpose
 
@@ -107,13 +107,13 @@ Acceptance:
 6. package promotion candidates JSON
 7. when `ManualApprovalTopicArn` is configured: manual approver and timestamp
 8. digest continuity evidence
-9. validation logs for `/healthz`, `/readyz`, `/metrics/summary`
+9. validation logs for `/v1/health/live`, `/v1/health/ready`,
+   `/metrics/summary`
 
 Store links in:
 
 - `docs/plan/release/NONPROD-LIVE-VALIDATION-RUNBOOK.md`
-- `docs/plan/PLAN.md`
-- `FINAL-PLAN.md`
+- `docs/plan/release/evidence-log.md`
 
 ## References
 

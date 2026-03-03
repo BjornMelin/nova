@@ -157,8 +157,7 @@ Always record:
 Store evidence in:
 
 - `docs/plan/release/NONPROD-LIVE-VALIDATION-RUNBOOK.md`
-- `docs/plan/PLAN.md`
-- `FINAL-PLAN.md`
+- `docs/plan/release/evidence-log.md`
 
 ## References
 
