@@ -15,6 +15,8 @@ safe operator path.
 2. GitHub CLI authenticated.
 3. Repository admin access to `${GITHUB_OWNER}/${GITHUB_REPO}` (default: `3M-Cloud/nova`).
 4. Required environment values prepared.
+5. `kubectl` is installed.
+6. Kubernetes context for `${NAMESPACE}` is authenticated and selected.
 
 ## Inputs
 
@@ -27,6 +29,7 @@ safe operator path.
 - `${CONNECTION_ARN}` (required, e.g.,
   `arn:aws:codestar-connections:us-east-1:...:connection/xxxxxxxx`)
 - `${NAMESPACE}` (default `nova`)
+- `${KUBECONFIG}` (optional, defaults to current kubeconfig context)
 - `${API_DEPLOYMENT_NAME}` (required, e.g., `${APPLICATION}-api`)
 - `${APP_LABEL}` (required, e.g., `${APPLICATION}-api`)
 - `${AWS_ROLE_TO_ASSUME}` (required if using GitHub OIDC role chaining)
@@ -45,9 +48,12 @@ export GITHUB_OWNER="${GITHUB_OWNER:-3M-Cloud}"
 export GITHUB_REPO="${GITHUB_REPO:-nova}"
 export CONNECTION_ARN="${CONNECTION_ARN:?Set CONNECTION_ARN}"
 export NAMESPACE="${NAMESPACE:?Set NAMESPACE}"
+export KUBECONFIG="${KUBECONFIG:-$HOME/.kube/config}"
 export API_DEPLOYMENT_NAME="${API_DEPLOYMENT_NAME:?Set API_DEPLOYMENT_NAME}"
 export APP_LABEL="${APP_LABEL:?Set APP_LABEL}"
 export BATCHB_VALIDATION_ROLE_NAME="${PROJECT}-${APPLICATION}-batch-b-validation-operator-role"
+
+kubectl config current-context >/dev/null
 ```
 
 ### Step 2: Run command pack

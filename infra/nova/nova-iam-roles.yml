@@ -380,7 +380,6 @@ Resources:
                 Resource:
                   - !Sub "arn:${AWS::Partition}:codedeploy:${AWS::Region}:${AWS::AccountId}:application:${Project}-${Application}-*"
                   - !Sub "arn:${AWS::Partition}:codedeploy:${AWS::Region}:${AWS::AccountId}:deploymentgroup:${Project}-${Application}-*/*"
-                  - !Sub "arn:${AWS::Partition}:codedeploy:${AWS::Region}:${AWS::AccountId}:deployment:${Project}-${Application}-*"
               - Sid: ValidationRuntimeReads
                 Effect: Allow
                 Action:

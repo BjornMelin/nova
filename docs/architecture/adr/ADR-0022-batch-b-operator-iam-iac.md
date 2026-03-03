@@ -39,8 +39,8 @@ Nova required a reproducible, auditable, least-privilege path in-repo (final-sta
 ## Options considered
 
 1. **Inline Batch B validation policy in `infra/nova/nova-iam-roles.yml` on a dedicated operator role (conditional creation by principal ARN parameter)**
-2. Standalone managed policy + separate role attachment choreography
-3. Continue manual/operator-side IAM updates out-of-band
+1. Standalone managed policy + separate role attachment choreography
+1. Continue manual/operator-side IAM updates out-of-band
 
 ## Scoring
 
