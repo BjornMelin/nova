@@ -122,8 +122,8 @@ The service MUST:
 
 ### FR-0004: Idempotency for mutation entrypoints
 
-`POST /v1/transfers/uploads/initiate` and `POST /v1/jobs` create MUST support
-idempotent retries using the `Idempotency-Key` header.
+`POST /v1/transfers/uploads/initiate` and `POST /v1/jobs` create endpoints MUST
+support idempotent retries using the `Idempotency-Key` header.
 
 Failed enqueue responses (`503 queue_unavailable`) MUST NOT be replay-cached as
 successful idempotency entries.

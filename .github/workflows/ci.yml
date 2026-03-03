@@ -161,11 +161,7 @@ jobs:
             done
             rg -n "${RG_PATH_EXCLUDES[@]}" "($ROUTE_LITERAL_PATTERN|$ROUTE_LITERAL_PATTERN_ALT)" "${RUNTIME_PATHS[@]}" || { echo "::error::Required regex route literal not found: $ROUTE_LITERAL_PATTERN"; exit 1; }
             if rg -n "/api/|/healthz|/readyz" \
-              apps/nova_file_api_service/src \
-              apps/nova_auth_api_service/src \
-              packages/nova_file_api/src \
-              packages/nova_auth_api/src \
-              packages/nova_dash_bridge/src; then
+              "${RUNTIME_PATHS[@]}"; then
               echo "::error::Forbidden legacy runtime route references detected."
               exit 1
             fi
@@ -199,11 +195,7 @@ jobs:
               --exclude-dir=fixtures \
               "($ROUTE_LITERAL_PATTERN|$ROUTE_LITERAL_PATTERN_ALT)" "${RUNTIME_PATHS[@]}" || { echo "::error::Required regex route literal not found: $ROUTE_LITERAL_PATTERN"; exit 1; }
             if grep -RInE "/api/|/healthz|/readyz" \
-              apps/nova_file_api_service/src \
-              apps/nova_auth_api_service/src \
-              packages/nova_file_api/src \
-              packages/nova_auth_api/src \
-              packages/nova_dash_bridge/src; then
+              "${RUNTIME_PATHS[@]}"; then
               echo "::error::Forbidden legacy runtime route references detected."
               exit 1
             fi
