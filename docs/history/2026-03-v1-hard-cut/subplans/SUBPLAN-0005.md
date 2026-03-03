@@ -111,7 +111,7 @@ Track and verify final delivery across:
   - retry mode + attempt configuration assertions
   - publish error mapping for `ClientError` and `BotoCoreError`
 - 2026-02-12: Published release closure artifacts:
-  - `docs/plan/release/RELEASE-NOTES-2026-02-12.md`
+  - `docs/history/2026-02-cutover/release/RELEASE-NOTES-2026-02-12.md`
   - `docs/plan/release/HARD-CUTOVER-CHECKLIST.md`
   - `docs/plan/release/RELEASE-VERSION-MANIFEST.md`
 - 2026-02-12: Runtime quality gates rerun after plan/doc synchronization:

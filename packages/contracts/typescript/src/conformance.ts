@@ -94,7 +94,7 @@ function main(): void {
     "v1 release environment required",
   );
 
-  console.log("typescript conformance lane passed");
+  console.log("typescript v1 conformance lane passed");
 }
 
 main();

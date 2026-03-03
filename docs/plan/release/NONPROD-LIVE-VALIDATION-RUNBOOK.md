@@ -2,11 +2,7 @@
 
 Status: Pending external execution
 Owner: Release Architecture + Platform Operations
-Last updated: 2026-03-02
-
-Transition note (2026-03-02): Commands in this runbook validate both baseline
-routes (`/api/*`, `/healthz`, `/readyz`) and active capability routes
-(`/v1/*`) in the dual-track runtime.
+Last updated: 2026-03-03
 
 ## 1. Purpose
 
@@ -15,9 +11,9 @@ that cannot be fully proven by local checks.
 
 Related setup sequence:
 
-- `documentation-index.md`
-- `deploy-nova-cicd-end-to-end-guide.md`
-- `release-promotion-dev-to-prod-guide.md`
+- [`docs/runbooks/README.md`](../../runbooks/README.md)
+- [`deploy-nova-cicd-end-to-end-guide.md`](deploy-nova-cicd-end-to-end-guide.md)
+- [`release-promotion-dev-to-prod-guide.md`](release-promotion-dev-to-prod-guide.md)
 
 ## 2. Blocking gates covered
 
@@ -32,7 +28,7 @@ Related setup sequence:
 
 - `nova` runtime build is deployed to non-prod.
 - Nova CI/CD stack changes from `infra/nova/**` are deployed from this repository.
-- `dash-pca` non-prod points to split API routes.
+- `dash-pca` non-prod points to canonical `/v1/*` capability routes.
 - AWS CLI credentials target the non-prod account/region.
 
 ## 4. Required inputs
@@ -85,31 +81,39 @@ Acceptance:
 
 ```bash
 curl -sS -o /dev/null -w "%{http_code}\n" \
+  "${NONPROD_API_BASE_URL}/v1/health/live"
+curl -sS -o /dev/null -w "%{http_code}\n" \
+  "${NONPROD_API_BASE_URL}/v1/health/ready"
+curl -sS -o /dev/null -w "%{http_code}\n" \
+  -X POST "${NONPROD_API_BASE_URL}/v1/transfers/uploads/initiate" \
+  -H "Content-Type: application/json" -d '{}'
+curl -sS -o /dev/null -w "%{http_code}\n" \
+  -X POST "${NONPROD_API_BASE_URL}/v1/jobs" \
+  -H "Content-Type: application/json" -d '{}'
+curl -sS -o /dev/null -w "%{http_code}\n" \
+  "${NONPROD_API_BASE_URL}/v1/jobs/nonprod-smoke/events"
+curl -sS -o /dev/null -w "%{http_code}\n" \
+  "${NONPROD_API_BASE_URL}/v1/capabilities"
+curl -sS -o /dev/null -w "%{http_code}\n" \
   "${NONPROD_API_BASE_URL}/healthz"
 curl -sS -o /dev/null -w "%{http_code}\n" \
   "${NONPROD_API_BASE_URL}/readyz"
 curl -sS -o /dev/null -w "%{http_code}\n" \
   -X POST "${NONPROD_API_BASE_URL}/api/transfers/uploads/initiate" \
   -H "Content-Type: application/json" -d '{}'
-curl -sS -o /dev/null -w "%{http_code}\n" \
-  -X POST "${NONPROD_API_BASE_URL}/api/jobs/enqueue" \
-  -H "Content-Type: application/json" -d '{}'
-curl -sS -o /dev/null -w "%{http_code}\n" \
-  "${NONPROD_API_BASE_URL}/v1/health/live"
-curl -sS -o /dev/null -w "%{http_code}\n" \
-  "${NONPROD_API_BASE_URL}/v1/health/ready"
-curl -sS -o /dev/null -w "%{http_code}\n" \
-  "${NONPROD_API_BASE_URL}/v1/capabilities"
 ```
 
 Acceptance:
 
-- `/healthz` is `200`.
-- `/readyz` is `200`.
-- Transfer/job routes return contract responses (`401/403/422/400` allowed),
-  but never `404`.
-- `/v1/health/live`, `/v1/health/ready`, and `/v1/capabilities` return contract
-  responses (non-`404`) during dry-run checks.
+- `/v1/health/live` is `200`.
+- `/v1/health/ready` is `200`.
+- `/v1/transfers/uploads/initiate` returns contract responses (`401/403/422/400`
+  allowed), but never `404`.
+- Canonical `/v1/jobs*`, `/v1/health/live`, `/v1/health/ready`, and
+  `/v1/capabilities` routes return contract responses (non-`404`) during
+  dry-run checks.
+- Legacy `/healthz`, `/readyz`, and `/api/transfers/*` return `404`.
+- No `/api/v1/*` route references appear in operator commands or runbook notes.
 
 ### B2. ECS and target-group health
 
@@ -164,7 +168,7 @@ Acceptance:
 
 1. Open `NONPROD_DASH_URL`.
 2. Upload supported file (`.csv` or `.xlsx`) via async uploader.
-3. Confirm `jobs/enqueue` is called and `job_id` is returned.
+3. Confirm `POST /v1/jobs` is called and `job_id` is returned.
 4. Confirm polling reaches terminal `succeeded`.
 5. Confirm generated output/download path works.
 
@@ -227,9 +231,7 @@ For each gate capture:
 
 Store evidence links in:
 
-- `FINAL-PLAN.md`
-- `docs/plan/PLAN.md`
-- `docs/plan/subplans/SUBPLAN-0005.md`
+- `docs/plan/release/evidence-log.md`
 
 ## 11. Access prerequisites and rollback
 

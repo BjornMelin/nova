@@ -6,7 +6,7 @@ implementation sequencing.
 
 ## Purpose
 
-Run `docs/plan/subplans/SUBPLAN-0005.md` in a fresh Codex session.
+Run `docs/history/2026-03-v1-hard-cut/subplans/SUBPLAN-0005.md` in a fresh Codex session.
 
 ## Branch
 
@@ -15,12 +15,12 @@ Run `docs/plan/subplans/SUBPLAN-0005.md` in a fresh Codex session.
 ## Copy/Paste Prompt
 
 ```markdown
-Execute `docs/plan/subplans/SUBPLAN-0005.md` end-to-end.
+Execute `docs/history/2026-03-v1-hard-cut/subplans/SUBPLAN-0005.md` end-to-end.
 
 Branch: `feat/subplan-0005-cross-repo-release-tracker`
 
 Scope:
-- `docs/plan/subplans/SUBPLAN-0005.md`
+- `docs/history/2026-03-v1-hard-cut/subplans/SUBPLAN-0005.md`
 - `FINAL-PLAN.md`
 - `~/repos/work/infra-stack/container-craft`
 - `~/repos/work/pca-analysis-dash/dash-pca`
@@ -66,7 +66,7 @@ Tool instructions:
 
 Execution requirements:
 - Keep checklists and evidence current in:
-  - `docs/plan/subplans/SUBPLAN-0005.md`
+  - `docs/history/2026-03-v1-hard-cut/subplans/SUBPLAN-0005.md`
   - `FINAL-PLAN.md`
 - Keep max line length at 80 for Python source modules.
 - Enforce Ruff `D` docstring rules in source modules.

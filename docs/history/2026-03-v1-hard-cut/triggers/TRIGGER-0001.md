@@ -6,7 +6,7 @@ delivery tasks. Target-state implementation must follow `ADR-0015` +
 
 ## Purpose
 
-Run `docs/plan/subplans/SUBPLAN-0001.md` in a fresh Codex session.
+Run `docs/history/2026-03-v1-hard-cut/subplans/SUBPLAN-0001.md` in a fresh Codex session.
 
 ## Branch
 
@@ -15,12 +15,12 @@ Run `docs/plan/subplans/SUBPLAN-0001.md` in a fresh Codex session.
 ## Copy/Paste Prompt
 
 ```markdown
-Execute `docs/plan/subplans/SUBPLAN-0001.md` end-to-end.
+Execute `docs/history/2026-03-v1-hard-cut/subplans/SUBPLAN-0001.md` end-to-end.
 
 Branch: `feat/subplan-0001-core-runtime-contract-hardening`
 
 Primary files:
-- `docs/plan/subplans/SUBPLAN-0001.md`
+- `docs/history/2026-03-v1-hard-cut/subplans/SUBPLAN-0001.md`
 - `docs/plan/PLAN.md`
 - `docs/architecture/spec/SPEC-0000-http-api-contract.md`
 

@@ -6,7 +6,7 @@ hardening flow. Target-state migration and `/v1/*` rollout are tracked by
 
 ## Purpose
 
-Run `docs/plan/subplans/SUBPLAN-0002.md` in a fresh Codex session.
+Run `docs/history/2026-03-v1-hard-cut/subplans/SUBPLAN-0002.md` in a fresh Codex session.
 
 ## Branch
 
@@ -15,12 +15,12 @@ Run `docs/plan/subplans/SUBPLAN-0002.md` in a fresh Codex session.
 ## Copy/Paste Prompt
 
 ```markdown
-Execute `docs/plan/subplans/SUBPLAN-0002.md` end-to-end.
+Execute `docs/history/2026-03-v1-hard-cut/subplans/SUBPLAN-0002.md` end-to-end.
 
 Branch: `feat/subplan-0002-async-cache-observability-completion`
 
 Primary files:
-- `docs/plan/subplans/SUBPLAN-0002.md`
+- `docs/history/2026-03-v1-hard-cut/subplans/SUBPLAN-0002.md`
 - `docs/plan/PLAN.md`
 - `docs/architecture/adr/ADR-0010-enqueue-failure-and-readiness-semantics.md`
 - `docs/architecture/spec/SPEC-0008-async-jobs-and-worker-orchestration.md`

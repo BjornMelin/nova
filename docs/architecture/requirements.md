@@ -1,21 +1,18 @@
 # Requirements (nova runtime)
 
 Status: Canonical requirements source
-Last updated: 2026-03-02
+Last updated: 2026-03-03
 
 This document is the source of truth for functional and non-functional
 requirements for the first production release.
 
 ## Architecture State Model
 
-- Current implemented baseline requirements use the `FR-*`, `NFR-*`, and
-  `IR-*` IDs below.
-- Target-state requirements for active capability contracts use
-  `TFR-*`, `TNFR-*`, and `TIR-*` IDs and are derived from `ADR-0015` and
-  `SPEC-0015`.
-- Dual-track authority is active: baseline `FR-*`/`NFR-*`/`IR-*` IDs for
-  `/api/*` + `/healthz`/`/readyz`/`/metrics/summary` remain authoritative,
-  while `TFR-*`/`TNFR-*`/`TIR-*` define active `/v1/*` capability requirements.
+- Current production-target requirements use the `FR-*`, `NFR-*`, and `IR-*`
+  IDs below.
+- Hard-cut route authority is active under `ADR-0023` + `SPEC-0016`.
+- Runtime contract is canonical `/v1/*` plus `/metrics/summary`; legacy
+  `/api/*`, `/healthz`, and `/readyz` are removed.
 
 ## Scope
 
@@ -34,38 +31,54 @@ Primary consumers:
 
 The service MUST provide:
 
-- `POST /api/transfers/uploads/initiate`
-- `POST /api/transfers/uploads/sign-parts`
-- `POST /api/transfers/uploads/complete`
-- `POST /api/transfers/uploads/abort`
-- `POST /api/transfers/downloads/presign`
+- `POST /v1/transfers/uploads/initiate`
+- `POST /v1/transfers/uploads/sign-parts`
+- `POST /v1/transfers/uploads/complete`
+- `POST /v1/transfers/uploads/abort`
+- `POST /v1/transfers/downloads/presign`
 
 ### FR-0001: Async job endpoints and orchestration
 
 The service MUST provide:
 
-- `POST /api/jobs/enqueue`
-- `GET /api/jobs/{job_id}`
-- `POST /api/jobs/{job_id}/cancel`
-- `POST /api/jobs/{job_id}/result` (worker/internal update path)
+- `POST /v1/jobs`
+- `GET /v1/jobs`
+- `GET /v1/jobs/{job_id}`
+- `POST /v1/jobs/{job_id}/cancel`
+- `POST /v1/jobs/{job_id}/retry`
+- `GET /v1/jobs/{job_id}/events`
+- `POST /v1/internal/jobs/{job_id}/result` (worker/internal update path)
 
 The default async orchestration path MUST be SQS + ECS worker. Step
 Functions/Lambda are out of scope for the initial release.
 
-In same-origin mode, browser polling calls to `GET /api/jobs/{job_id}` and other
-body-less scope-bound endpoints MUST include caller scope via trusted header
-(`X-Session-Id` or `X-Scope-Id`). If both `X-Session-Id` and `X-Scope-Id` are
-provided, `X-Session-Id` MUST take precedence and the server MUST ignore
-`X-Scope-Id` for scope binding on those endpoints. Differing values between
-those two headers MUST NOT be treated as a protocol error; the request MUST be
-evaluated using `X-Session-Id` and return the normal endpoint response.
-If both `X-Session-Id` and body `session_id` are present but do not match, the
-request MUST fail with `422` and `error.message = "conflicting session scope"`.
-If `X-Session-Id` is absent and `X-Scope-Id` plus body `session_id` are both
-present but do not match, the request MUST fail with `401` and
-`error.message = "conflicting session scope"`.
+In same-origin mode, all scope binding follows header precedence:
 
-Enqueue failure semantics:
+- `X-Session-Id` has precedence over `X-Scope-Id`.
+- If both headers are present, `X-Scope-Id` is ignored for scope binding.
+
+Body-less scope-bound endpoints (for example polling calls like
+`GET /v1/jobs/{job_id}`) MUST evaluate scope only from headers:
+
+- These endpoints MUST use `X-Session-Id` and may use `X-Scope-Id` only as the fallback
+  when `X-Session-Id` is absent.
+- Header-only scope resolution for these endpoints MUST use:
+  - `session_scope = X-Session-Id` if provided and non-blank;
+  - otherwise `session_scope = X-Scope-Id`.
+- Differing values between `X-Session-Id` and `X-Scope-Id` MUST NOT be treated as
+  an error.
+
+Body-carrying scope-bound endpoints (requests with request body field `session_id`)
+MUST validate body-to-header consistency using the same header names:
+
+- `session_id` in request body MUST be compared to `X-Session-Id` first when both are present.
+- If both `X-Session-Id` and body `session_id` are present but different, the request MUST fail with
+  `422` and `error.message = "conflicting session scope"`.
+- If `X-Session-Id` is absent, but both `X-Scope-Id` and body `session_id` are present
+  but different, the request MUST fail with
+  `401` and `error.message = "conflicting session scope"`.
+
+Enqueue failure semantics for `POST /v1/jobs`:
 
 - On queue publish failure:
   - Return HTTP `503` with `error.code = "queue_unavailable"`.
@@ -90,8 +103,8 @@ Worker result-update semantics:
 
 The service MUST provide:
 
-- `GET /healthz`
-- `GET /readyz`
+- `GET /v1/health/live`
+- `GET /v1/health/ready`
 - `GET /metrics/summary`
 
 Readiness evaluation MUST include only traffic-critical dependencies.
@@ -109,8 +122,8 @@ The service MUST:
 
 ### FR-0004: Idempotency for mutation entrypoints
 
-`uploads/initiate` and `jobs/enqueue` MUST support idempotent retries using the
-`Idempotency-Key` header.
+`POST /v1/transfers/uploads/initiate` and `POST /v1/jobs` create endpoints MUST
+support idempotent retries using the `Idempotency-Key` header.
 
 Failed enqueue responses (`503 queue_unavailable`) MUST NOT be replay-cached as
 successful idempotency entries.
@@ -175,44 +188,16 @@ The service MUST enforce AWS multipart constraints:
 When `FILE_TRANSFER_USE_ACCELERATE_ENDPOINT=true`, presigned URLs MUST be
 generated using acceleration-compatible client configuration.
 
-## Target-State Functional Requirements (Active)
+### FR-0010: Route hard-cut guardrails
 
-### TFR-0100: API capability endpoint contract
+The hard-cut route policy MUST enforce:
 
-The runtime currently exposes:
-
-- `GET|POST /v1/jobs` capability surface (create/list/get/cancel/retry)
-- `GET /v1/jobs/{id}/events` (poll/SSE-capable event stream surface)
-- `GET /v1/capabilities`
-- `POST /v1/resources/plan`
-- `GET /v1/releases/info`
-- `GET /v1/health/live`
-- `GET /v1/health/ready`
-
-### TFR-0101: Target workflow artifact completion set
-
-The active `/v1/*` implementation requires these workflow artifacts from
-`SPEC-0015`:
-
-- `build-and-publish-image.yml`
-- `deploy-dev.yml`
-- `post-deploy-validate.yml`
-- `conformance-clients.yml`
-
-These workflows exist in `.github/workflows/`; required work is to keep behavior
-aligned with `SPEC-0015`.
-
-Implemented baseline artifacts already contract-complete in `main`:
-
-- `ci.yml`
-- `publish-packages.yml`
-- `promote-prod.yml`
-
-### TFR-0102: No-shim cutover posture
-
-Target-state contract migration MUST not introduce compatibility alias routes,
-retired namespaces, or transitional wrappers unless explicitly approved by a
-new ADR.
+- no runtime reintroduction of `/api/*`, `/healthz`, or `/readyz`
+- no `/api/v1/*` namespace aliases
+- OpenAPI path set constrained to `/v1/*` plus `/metrics/summary`
+- route decorator checks across runtime route-definition modules (including
+  router modules mounted via `include_router`) resolving only to allowed
+  runtime paths
 
 ## Non-Functional Requirements
 
@@ -263,33 +248,30 @@ Every change MUST pass:
 - `source .venv/bin/activate && uv run pytest -q packages/nova_file_api/tests/test_generated_client_smoke.py`
 - workspace package/app build verification (`uv build` per workspace unit)
 
-## Target-State Non-Functional Requirements (Active)
+### NFR-0105: Contract traceability
 
-### TNFR-0100: Target-state contract traceability
+Target implementation PRs MUST update `README.md`, `AGENTS.md`,
+`docs/PRD.md`, `docs/architecture/requirements.md`, affected ADR/SPEC docs,
+and `docs/plan/PLAN.md` in the same change set. Historical pointer files
+(`PRD.md`, `FINAL-PLAN.md`) MUST be updated only when archive location or
+authority links change.
 
-Target implementation PRs MUST update `README.md`, `PRD.md`, `AGENTS.md`,
-`docs/architecture/requirements.md`, affected ADR/SPEC docs, and
-`FINAL-PLAN.md`/`docs/plan/PLAN.md` in the same change set.
+### NFR-0106: No-shim posture
 
-### TNFR-0101: Baseline operability preservation during transition
-
-Current baseline operational docs remain required for `/api/*` and legacy-safe
-runbooks, while `/v1/*` runbook/checklist coverage is additionally required.
+Route and contract changes MUST not introduce compatibility aliases or
+namespace shims unless ADR-approved with score >=9.0.
 
 ## Integration Requirements
 
-<a id="ir-0000-container-craft-env-contract-compatibility"></a>
+### IR-0000: Nova-local runtime and release authority
 
-### IR-0000: Legacy container-craft env contract compatibility (transitional)
-
-Runtime settings MAY retain compatibility with historical
-`container-craft` `FILE_TRANSFER_*` environment injection during migration, but
-active deployment authority is Nova-local (`infra/nova/**`, `infra/runtime/**`).
+Active runtime and release/deploy infrastructure authority MUST remain in this
+repository under `infra/nova/**` and `infra/runtime/**`.
 
 ### IR-0001: Sidecar routing model
 
-Default deployment MUST use same-origin ALB path routing for
-`/api/transfers/*` and `/api/jobs/*`.
+Default deployment MUST use same-origin ALB path routing for canonical `/v1/*`
+runtime surfaces.
 
 ### IR-0002: AWS service dependencies
 
@@ -306,12 +288,10 @@ on auth service errors.
 S3 CORS policies MUST allow browser upload/download operations and expose
 `ETag` for multipart completion flows.
 
-## Target-State Integration Requirements (Active)
+### IR-0010: Historical migration scope
 
-### TIR-0100: Nova-local IaC authority
-
-Active runtime and release/deploy infrastructure authority MUST remain in this
-repository under `infra/nova/**` and `infra/runtime/**`.
+Historical migration evidence under `docs/history/**` MUST remain non-authoritative
+for current runtime and deployment operations.
 
 ## Explicit Non-Goals (Initial Release)
 

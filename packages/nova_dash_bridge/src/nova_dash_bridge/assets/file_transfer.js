@@ -323,6 +323,7 @@
   }
 
   async function enqueueAsyncJob(config, uploadResult) {
+    var jobsBase = config.jobsEndpointBase.replace(/\/$/, "");
     var idempotencyKey =
       "job-enqueue:" + uploadResult.session_id + ":" + uploadResult.key;
     var enqueuePayload = {
@@ -337,7 +338,7 @@
       session_id: uploadResult.session_id,
     };
     return postJson(
-      config.jobsEndpointBase + "/enqueue",
+      jobsBase,
       enqueuePayload,
       { "Idempotency-Key": idempotencyKey }
     );
@@ -345,13 +346,14 @@
 
   async function pollAsyncJob(config, jobId, sessionId) {
     var startedMs = Date.now();
+    var jobsBase = config.jobsEndpointBase.replace(/\/$/, "");
     var pollHeaders = {};
     if (typeof sessionId === "string" && sessionId) {
       pollHeaders["X-Session-Id"] = sessionId;
     }
     while (true) {
       var response = await getJson(
-        config.jobsEndpointBase + "/" + encodeURIComponent(jobId),
+        jobsBase + "/" + encodeURIComponent(jobId),
         pollHeaders
       );
       var job = response && response.job ? response.job : {};
@@ -516,8 +518,8 @@
 
     var config = {
       transfersEndpointBase:
-        root.dataset.transfersEndpointBase || "/api/transfers",
-      jobsEndpointBase: root.dataset.jobsEndpointBase || "/api/jobs",
+        root.dataset.transfersEndpointBase || "/v1/transfers",
+      jobsEndpointBase: root.dataset.jobsEndpointBase || "/v1/jobs",
       maxConcurrency: root.dataset.maxConcurrency || "4",
       maxBytes: parseInt(root.dataset.maxBytes || "0", 10),
       resultStoreId: root.dataset.resultStoreId || "",

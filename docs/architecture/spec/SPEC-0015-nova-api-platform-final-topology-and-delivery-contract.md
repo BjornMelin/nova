@@ -2,51 +2,41 @@
 Spec: 0015
 Title: Nova API platform final topology and delivery contract
 Status: Active
-Version: 1.2
-Date: 2026-03-02
+Version: 2.0
+Date: 2026-03-03
 Related:
   - "[ADR-0015: Nova API platform final hosting and deployment architecture (2026)](../adr/ADR-0015-nova-api-platform-final-hosting-and-deployment-architecture-2026.md)"
-  - "[SPEC-0000: HTTP API Contract (current baseline)](./SPEC-0000-http-api-contract.md)"
-  - "[SPEC-0003: Observability (current baseline)](./SPEC-0003-observability.md)"
-  - "[SPEC-0004: CI/CD and documentation automation (current baseline)](./SPEC-0004-ci-cd-and-docs.md)"
-  - "[SPEC-0008: Async jobs and worker orchestration (current baseline)](./SPEC-0008-async-jobs-and-worker-orchestration.md)"
+  - "[ADR-0023: Hard cut to a single canonical /v1 API surface](../adr/ADR-0023-hard-cut-v1-canonical-route-surface.md)"
+  - "[SPEC-0000: HTTP API Contract](./SPEC-0000-http-api-contract.md)"
+  - "[SPEC-0016: Hard-cut v1 route contract and route-literal guardrails](./SPEC-0016-v1-route-namespace-and-literal-guardrails.md)"
+  - "[SPEC-0003: Observability](./SPEC-0003-observability.md)"
+  - "[SPEC-0004: CI/CD and documentation automation](./SPEC-0004-ci-cd-and-docs.md)"
+  - "[SPEC-0008: Async jobs and worker orchestration](./SPEC-0008-async-jobs-and-worker-orchestration.md)"
 ---
 
 ## 1. Scope
 
-Defines Nova runtime topology, IaC ownership, CI/CD artifacts, and API
-capability contract for the active dual-track runtime model.
-
-This specification governs `/v1/*` capability contracts for canonical client
-consumption while baseline `/api/*` behavior remains operational and authoritative
-under `SPEC-0000`, `SPEC-0003`, `SPEC-0004`, and `SPEC-0008`.
+Defines Nova runtime topology, IaC ownership, CI/CD artifacts, and the
+canonical runtime API contract after hard cut.
 
 Constraints:
+
 1. Final-state only.
-2. No shims/back-compat wrappers unless separately ADR-approved >=9.0.
+2. No compatibility shims/back-compat wrappers unless ADR-approved >=9.0.
 3. Production-grade controls are mandatory in dev/prod with
    environment-appropriate sizing.
 
-## 2. State and supersession model
+## 2. Route contract authority
 
-### 2.1 Current implemented baseline (active)
+Route-literal authority is owned by:
 
-Current operational behavior remains defined by:
+- `SPEC-0000` (HTTP contract semantics)
+- `SPEC-0016` (canonical route set and guardrails)
+- `ADR-0023` (hard-cut decision)
 
-- `SPEC-0000` for `/api/transfers/*` + `/api/jobs/*` routes
-- `SPEC-0003` for `/healthz` + `/readyz` semantics and associated monitoring
-- `SPEC-0004` for current release workflow and quality gates
-- `SPEC-0008` for async enqueue/result semantics
+This spec does not restate route literals to avoid contract drift.
 
-### 2.2 Capability contract model
-
-This spec is active in the same repository release and the route authority is:
-
-- `/v1/*` capability routes are canonical for clients and SDK generation.
-- baseline `/api/*` routes remain available for same-origin runtime behavior.
-- workflow artifacts below are required by active SPEC-0015 operational authority.
-
-## 3. Final topology (target-state)
+## 3. Final topology
 
 ### 3.1 Core services
 
@@ -66,12 +56,12 @@ This spec is active in the same repository release and the route authority is:
 
 - Deployment circuit breaker and CloudWatch alarm rollback controls are
   mandatory.
-- Health endpoints (`/v1/health/live`, `/v1/health/ready`) must remain
-  lightweight and dependency-scoped.
+- Health endpoints are `/v1/health/live` and `/v1/health/ready`.
 
 ## 4. IaC ownership map (required)
 
 Nova repo must own runtime-deployment IaC for:
+
 1. ECS services/task definitions (API + workers).
 2. ALB/listeners/target groups/WAF association.
 3. Queue and DLQ resources + scaling policies.
@@ -79,36 +69,41 @@ Nova repo must own runtime-deployment IaC for:
 5. Observability resources (dashboards/alarms/log groups).
 6. Release promotion stack templates.
 
-## 5. CI/CD contract (target-state)
+## 5. CI/CD contract
 
-Workflow artifact contract state:
-- Existing baseline artifacts in `main`:
-  - `ci.yml`: lint/type/test/security/contract checks.
-  - `publish-packages.yml`: CodeArtifact staged publishing with gate artifacts.
-  - `promote-prod.yml`: manifest-locked package promotion + CodePipeline approval.
--- Additional workflows already present in `.github/workflows/` and required to
-  meet this spec contract:
-  - `build-and-publish-image.yml`: must produce immutable ECR image digest output and export the locked digest for downstream deploy workflows.
-  - `deploy-dev.yml`: must run deterministic environment deploy for the selected ref/digest and enforce smoke checks before success.
-  - `post-deploy-validate.yml`: must execute runtime and endpoint conformance checks against the target environment.
-  - `conformance-clients.yml`: must run Dash/Shiny/TS contract parity lanes against canonical `/v1/*` endpoints.
+Required workflows in `.github/workflows/`:
 
-## 6. API platform capability contract (target-state)
+- `ci.yml`
+- `publish-packages.yml`
+- `promote-prod.yml`
+- `build-and-publish-image.yml`
+- `deploy-dev.yml`
+- `post-deploy-validate.yml`
+- `conformance-clients.yml`
 
-Nova must expose abstraction endpoints sufficient for downstream clients:
-- `/v1/jobs` (create/list/get/cancel/retry)
-- `/v1/jobs/{id}/events` (poll/SSE)
-- `/v1/capabilities`
-- `/v1/resources/plan` (dry-run planning)
-- `/v1/releases/info`
-- `/v1/health/live`, `/v1/health/ready`
+`ci.yml` MUST enforce:
 
-These endpoints are canonical for target state; client libraries consume these
-instead of direct AWS primitives.
+- canonical route literals and regex checks
+- OpenAPI path policy (`/v1/*` + `/metrics/summary` only)
+- runtime source bans for legacy route literals
+- route decorator structure checks across runtime route-definition modules
+  (including routers mounted via `include_router`)
+- unique `operationId`
+
+## 6. Canonical API capability coverage
+
+Nova MUST preserve capability families defined in `SPEC-0000` and `SPEC-0016`:
+
+- transfer orchestration
+- async job control-plane operations
+- internal worker result update path
+- capability/release discovery
+- health/readiness and operational metrics
 
 ## 7. CodeArtifact release flow
 
 Release stages:
+
 1. Build/sign/package.
 2. Publish to staged channel.
 3. Validate installability, SBOM, vulnerability policy, provenance.
@@ -116,6 +111,7 @@ Release stages:
 5. Deploy runtime pinned to immutable versions.
 
 Mandatory pre-publish gates:
+
 - Contract tests pass.
 - Security thresholds pass.
 - Versioning policy pass.
@@ -124,6 +120,7 @@ Mandatory pre-publish gates:
 ## 8. DX declaration contract
 
 Client projects declare intent in `nova-project.yaml`:
+
 - runtime profile and concurrency targets,
 - async job/SLA profile,
 - storage and secret requirements,
@@ -139,6 +136,7 @@ centrally.
 3. Dash/Shiny/TS conformance workflow green.
 4. Cost controls exist (budgets/alarms, retention policies, scaling bounds).
 5. No active runtime/deployment authority exists outside Nova repo.
+6. Legacy route families are absent from runtime and OpenAPI.
 
 ## 10. Operational no-shim posture
 
@@ -148,5 +146,6 @@ exception.
 
 ## 11. Implementation plan reference
 
-Execution blueprint (planning authority for implementation sequencing):
-- `docs/plan/2026-03-01-adr0015-spec0015-implementation-blueprint.md`
+Execution blueprint:
+
+- `docs/history/2026-03-v1-hard-cut/planning/2026-03-01-adr0015-spec0015-implementation-blueprint.md`

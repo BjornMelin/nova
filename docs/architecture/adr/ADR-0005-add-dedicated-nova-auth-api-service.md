@@ -2,8 +2,8 @@
 ADR: 0005
 Title: Add dedicated nova-auth-api service while keeping local verification default
 Status: Accepted
-Version: 1.0
-Date: 2026-02-12
+Version: 1.1
+Date: 2026-03-03
 Related:
   - "[ADR-0001: Deploy on ECS Fargate behind ALB with same-origin routing](./ADR-0001-deployment-on-ecs-fargate-behind-alb.md)"
   - "[ADR-0004: Adopt oidc-jwt-verifier as the canonical JWT/OIDC verification engine](./ADR-0004-canonical-oidc-jwt-verifier-adoption.md)"
@@ -49,7 +49,8 @@ Choose option C: add `nova-auth-api` as a dedicated service track and keep local
 
 Implementation commitments:
 
-- Define `nova-auth-api` contract (`/v1/token/verify`, `/v1/token/introspect`, `/healthz`).
+- Define `nova-auth-api` contract (`/v1/token/verify`,
+  `/v1/token/introspect`, `/v1/health/live`).
 - Preserve local verification path in file-transfer API for fail-safe operations.
 - Support optional remote-auth mode through explicit configuration flags.
 
@@ -68,4 +69,6 @@ Implementation commitments:
 
 ## Changelog
 
+- 2026-03-03 (v1.1): Updated auth-service liveness endpoint commitment to
+  `/v1/health/live`.
 - 2026-02-12 (v1.0): Initial acceptance.

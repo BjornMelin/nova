@@ -7,7 +7,7 @@ Related:
 - [ADR-0015](../architecture/adr/ADR-0015-nova-api-platform-final-hosting-and-deployment-architecture-2026.md)
 - [SPEC-0015](../architecture/spec/SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md)
 - [Requirements](../architecture/requirements.md)
-- [Release docs index](./release/documentation-index.md)
+- [Runbooks index](../../../runbooks/README.md)
 
 ## 1) Final-state audit summary (evidence-based)
 
@@ -16,7 +16,7 @@ Related:
 - `ADR-0015` is **Accepted** and explicitly selects **standard ECS/Fargate + ALB + CodeDeploy blue/green + GitHub Actions OIDC** as production target-state authority (weighted score 9.3/10).
 - `SPEC-0015` is **Planned** and explicitly marks implementation as pending in a future branch.
 - `docs/plan/PLAN.md` is explicitly **historical/superseded baseline** with transition notes.
-- `docs/plan/release/documentation-index.md` and `docs/runbooks/README.md` define canonical runbook authority under `nova/docs/**`.
+- `docs/runbooks/README.md` defines canonical runbook authority under `nova/docs/**`.
 
 ### 1.2 Verified recent alignment in git history
 

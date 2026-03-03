@@ -3,10 +3,18 @@
 Canonical, versioned fixture bundle for cross-framework conformance on:
 
 - Auth verify contract (`POST /v1/token/verify`)
-- Transfer initiate contract (`POST /api/transfers/uploads/initiate`)
-- Async jobs enqueue/status contracts (`POST /api/jobs/enqueue`, `GET /api/jobs/{job_id}`)
+- Transfer initiate contract (`POST /v1/transfers/uploads/initiate`)
+- Async jobs create/status contracts (`POST /v1/jobs`, `GET /v1/jobs/{job_id}`)
 - v1 capability surface (`/v1/jobs`, `/v1/jobs/{job_id}/events`, `/v1/capabilities`, `/v1/resources/plan`, `/v1/releases/info`, `/v1/health/live`, `/v1/health/ready`)
 - Canonical error envelope (`error.code`, `error.message`, `error.details`, `error.request_id`)
+
+Route namespace policy:
+
+- Canonical consumer route namespace is `/v1/*`.
+- `/api/v1/*` namespace aliases are not part of the contract and are not
+  accepted in fixtures/conformance references.
+- Legacy `/api/*`, `/healthz`, and `/readyz` routes are removed and are not
+  valid fixture references.
 
 ## Location and ownership
 

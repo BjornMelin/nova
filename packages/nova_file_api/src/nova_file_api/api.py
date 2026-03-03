@@ -1,4 +1,4 @@
-"""FastAPI routers for transfer API and operational endpoints."""
+"""FastAPI routers for canonical v1 API and operational endpoints."""
 
 from __future__ import annotations
 
@@ -51,8 +51,7 @@ from nova_file_api.models import (
     SignPartsResponse,
 )
 
-transfer_router = APIRouter(prefix="/api/transfers", tags=["transfers"])
-jobs_router = APIRouter(prefix="/api/jobs", tags=["jobs"])
+transfer_router = APIRouter(prefix="/v1/transfers", tags=["transfers"])
 ops_router = APIRouter(tags=["ops"])
 v1_router = APIRouter(prefix="/v1", tags=["v1"])
 _WORKER_TOKEN_NOT_CONFIGURED = "worker update token not configured"  # noqa: S105
@@ -84,7 +83,7 @@ async def initiate_upload(
     claimed_idempotency = False
     if key is not None:
         replay = await container.idempotency_store.load_response(
-            route="/api/transfers/uploads/initiate",
+            route="/v1/transfers/uploads/initiate",
             scope_id=principal.scope_id,
             idempotency_key=key,
             request_payload=request_payload,
@@ -93,14 +92,14 @@ async def initiate_upload(
             container.metrics.incr("idempotency_replays_total")
             return InitiateUploadResponse.model_validate(replay)
         claimed_idempotency = await container.idempotency_store.claim_request(
-            route="/api/transfers/uploads/initiate",
+            route="/v1/transfers/uploads/initiate",
             scope_id=principal.scope_id,
             idempotency_key=key,
             request_payload=request_payload,
         )
         if not claimed_idempotency:
             replay = await container.idempotency_store.load_response(
-                route="/api/transfers/uploads/initiate",
+                route="/v1/transfers/uploads/initiate",
                 scope_id=principal.scope_id,
                 idempotency_key=key,
                 request_payload=request_payload,
@@ -128,7 +127,7 @@ async def initiate_upload(
         log = structlog.get_logger("api")
         log.exception(
             "initiate_upload_request_failed",
-            route="/api/transfers/uploads/initiate",
+            route="/v1/transfers/uploads/initiate",
             scope_id=principal.scope_id,
             error=type(exc).__name__,
             error_detail=str(exc),
@@ -142,7 +141,7 @@ async def initiate_upload(
         )
         if key is not None and claimed_idempotency:
             await container.idempotency_store.discard_claim(
-                route="/api/transfers/uploads/initiate",
+                route="/v1/transfers/uploads/initiate",
                 scope_id=principal.scope_id,
                 idempotency_key=key,
             )
@@ -150,7 +149,7 @@ async def initiate_upload(
 
     if key is not None:
         await container.idempotency_store.store_response(
-            route="/api/transfers/uploads/initiate",
+            route="/v1/transfers/uploads/initiate",
             scope_id=principal.scope_id,
             idempotency_key=key,
             request_payload=request_payload,
@@ -198,7 +197,7 @@ async def sign_parts(
         log = structlog.get_logger("api")
         log.exception(
             "sign_parts_upload_request_failed",
-            route="/api/transfers/uploads/sign-parts",
+            route="/v1/transfers/uploads/sign-parts",
             scope_id=principal.scope_id,
             error=type(exc).__name__,
             error_detail=str(exc),
@@ -255,7 +254,7 @@ async def complete_upload(
         log = structlog.get_logger("api")
         log.exception(
             "complete_upload_request_failed",
-            route="/api/transfers/uploads/complete",
+            route="/v1/transfers/uploads/complete",
             scope_id=principal.scope_id,
             error=type(exc).__name__,
             error_detail=str(exc),
@@ -310,7 +309,7 @@ async def abort_upload(
         log = structlog.get_logger("api")
         log.exception(
             "abort_upload_request_failed",
-            route="/api/transfers/uploads/abort",
+            route="/v1/transfers/uploads/abort",
             scope_id=principal.scope_id,
             error=type(exc).__name__,
             error_detail=str(exc),
@@ -367,7 +366,7 @@ async def presign_download(
         log = structlog.get_logger("api")
         log.exception(
             "presign_download_request_failed",
-            route="/api/transfers/downloads/presign",
+            route="/v1/transfers/downloads/presign",
             scope_id=principal.scope_id,
             error=type(exc).__name__,
             error_detail=str(exc),
@@ -394,8 +393,8 @@ async def presign_download(
     return response
 
 
-@jobs_router.post("/enqueue", response_model=EnqueueJobResponse)
-async def enqueue_job(
+@v1_router.post("/jobs", response_model=EnqueueJobResponse)
+async def create_job(
     payload: EnqueueJobRequest,
     request: Request,
     idempotency_key: str | None = Header(
@@ -439,7 +438,7 @@ async def _enqueue_job_core(
     claimed_idempotency = False
     if key is not None:
         replay = await container.idempotency_store.load_response(
-            route="/api/jobs/enqueue",
+            route="/v1/jobs",
             scope_id=principal.scope_id,
             idempotency_key=key,
             request_payload=request_payload,
@@ -448,14 +447,14 @@ async def _enqueue_job_core(
             container.metrics.incr("idempotency_replays_total")
             return EnqueueJobResponse.model_validate(replay)
         claimed_idempotency = await container.idempotency_store.claim_request(
-            route="/api/jobs/enqueue",
+            route="/v1/jobs",
             scope_id=principal.scope_id,
             idempotency_key=key,
             request_payload=request_payload,
         )
         if not claimed_idempotency:
             replay = await container.idempotency_store.load_response(
-                route="/api/jobs/enqueue",
+                route="/v1/jobs",
                 scope_id=principal.scope_id,
                 idempotency_key=key,
                 request_payload=request_payload,
@@ -484,7 +483,7 @@ async def _enqueue_job_core(
         log = structlog.get_logger("api")
         log.exception(
             "jobs_enqueue_request_failed",
-            route="/api/jobs/enqueue",
+            route="/v1/jobs",
             scope_id=principal.scope_id,
             idempotency_key=key,
             error=type(exc).__name__,
@@ -499,7 +498,7 @@ async def _enqueue_job_core(
         )
         if key is not None and claimed_idempotency:
             await container.idempotency_store.discard_claim(
-                route="/api/jobs/enqueue",
+                route="/v1/jobs",
                 scope_id=principal.scope_id,
                 idempotency_key=key,
             )
@@ -508,7 +507,7 @@ async def _enqueue_job_core(
     response = EnqueueJobResponse(job_id=job.job_id, status=job.status)
     if key is not None:
         await container.idempotency_store.store_response(
-            route="/api/jobs/enqueue",
+            route="/v1/jobs",
             scope_id=principal.scope_id,
             idempotency_key=key,
             request_payload=request_payload,
@@ -525,7 +524,7 @@ async def _enqueue_job_core(
     return response
 
 
-@jobs_router.get("/{job_id}", response_model=JobStatusResponse)
+@v1_router.get("/jobs/{job_id}", response_model=JobStatusResponse)
 async def get_job_status(job_id: str, request: Request) -> JobStatusResponse:
     """Return status for caller-owned job."""
     container = get_container(request)
@@ -548,7 +547,7 @@ async def get_job_status(job_id: str, request: Request) -> JobStatusResponse:
         log = structlog.get_logger("api")
         log.exception(
             "jobs_status_request_failed",
-            route="/api/jobs/{job_id}",
+            route="/v1/jobs/{job_id}",
             job_id=job_id,
             scope_id=principal.scope_id,
             error=type(exc).__name__,
@@ -567,7 +566,7 @@ async def get_job_status(job_id: str, request: Request) -> JobStatusResponse:
     return JobStatusResponse(job=job)
 
 
-@jobs_router.post("/{job_id}/cancel", response_model=JobCancelResponse)
+@v1_router.post("/jobs/{job_id}/cancel", response_model=JobCancelResponse)
 async def cancel_job(job_id: str, request: Request) -> JobCancelResponse:
     """Cancel caller-owned non-terminal job."""
     container = get_container(request)
@@ -590,7 +589,7 @@ async def cancel_job(job_id: str, request: Request) -> JobCancelResponse:
         log = structlog.get_logger("api")
         log.exception(
             "jobs_cancel_request_failed",
-            route="/api/jobs/{job_id}/cancel",
+            route="/v1/jobs/{job_id}/cancel",
             job_id=job_id,
             scope_id=principal.scope_id,
             error=type(exc).__name__,
@@ -616,8 +615,8 @@ async def cancel_job(job_id: str, request: Request) -> JobCancelResponse:
     return JobCancelResponse(job_id=job.job_id, status=job.status)
 
 
-@jobs_router.post(
-    "/{job_id}/result",
+@v1_router.post(
+    "/internal/jobs/{job_id}/result",
     response_model=JobResultUpdateResponse,
 )
 async def update_job_result(
@@ -655,7 +654,7 @@ async def update_job_result(
         log = structlog.get_logger("api")
         log.exception(
             "jobs_result_update_request_failed",
-            route="/api/jobs/{job_id}/result",
+            route="/v1/internal/jobs/{job_id}/result",
             job_id=job_id,
             error=type(exc).__name__,
             error_detail=str(exc),
@@ -692,48 +691,6 @@ async def update_job_result(
     )
 
 
-@v1_router.post("/jobs", response_model=EnqueueJobResponse)
-async def v1_create_job(
-    payload: EnqueueJobRequest,
-    request: Request,
-    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
-) -> EnqueueJobResponse:
-    """Create a job through the v1 contract.
-
-    Args:
-        payload: Requested job type and payload content.
-        request: FastAPI request context.
-        idempotency_key: Optional caller key for idempotent enqueue semantics.
-
-    Returns:
-        EnqueueJobResponse: Accepted job identity and initial status.
-
-    Raises:
-        HTTPException: If authorization or queue preconditions fail.
-    """
-    container = get_container(request)
-    validated_key = _validated_idempotency_key(
-        container=container,
-        idempotency_key=idempotency_key,
-    )
-    v1_idempotency_key = (
-        f"v1:{validated_key}" if validated_key is not None else None
-    )
-    principal = await container.authenticator.authenticate(
-        request=request,
-        session_id=payload.session_id,
-    )
-    if not container.settings.jobs_enabled:
-        raise forbidden("jobs API is disabled")
-    return await _enqueue_job_core(
-        container=container,
-        payload=payload,
-        request=request,
-        principal=principal,
-        idempotency_key=v1_idempotency_key,
-    )
-
-
 @v1_router.get("/jobs", response_model=JobListResponse)
 async def v1_list_jobs(
     request: Request,
@@ -762,23 +719,6 @@ async def v1_list_jobs(
         limit=limit,
     )
     return JobListResponse(jobs=jobs)
-
-
-@v1_router.get("/jobs/{job_id}", response_model=JobStatusResponse)
-async def v1_get_job(job_id: str, request: Request) -> JobStatusResponse:
-    """Get one caller-owned job.
-
-    Args:
-        job_id: Target job identifier.
-        request: FastAPI request context.
-
-    Returns:
-        JobStatusResponse: Caller-scoped job payload.
-
-    Raises:
-        HTTPException: If the job does not exist or access is forbidden.
-    """
-    return await get_job_status(job_id=job_id, request=request)
 
 
 @v1_router.post("/jobs/{job_id}/retry", response_model=EnqueueJobResponse)
@@ -961,7 +901,7 @@ async def v1_health_ready(request: Request) -> ReadinessResponse:
     Returns:
         ReadinessResponse: Dependency readiness checks.
     """
-    return await readyz(request=request)
+    return await _health_ready_checks(request=request)
 
 
 @ops_router.get("/metrics/summary", response_model=MetricsSummaryResponse)
@@ -989,14 +929,7 @@ async def metrics_summary(request: Request) -> MetricsSummaryResponse:
     )
 
 
-@ops_router.get("/healthz", response_model=HealthResponse)
-async def healthz() -> HealthResponse:
-    """Return liveness status."""
-    return HealthResponse(ok=True)
-
-
-@ops_router.get("/readyz", response_model=ReadinessResponse)
-async def readyz(request: Request) -> ReadinessResponse:
+async def _health_ready_checks(request: Request) -> ReadinessResponse:
     """Return readiness checks for critical dependencies."""
     container = get_container(request)
     logger = structlog.get_logger("api")
@@ -1004,8 +937,8 @@ async def readyz(request: Request) -> ReadinessResponse:
         shared_cache = await container.shared_cache.ping()
     except Exception:
         logger.exception(
-            "readyz_shared_cache_ping_failed",
-            route="/readyz",
+            "v1_health_ready_shared_cache_ping_failed",
+            route="/v1/health/ready",
         )
         shared_cache = False
     checks = {

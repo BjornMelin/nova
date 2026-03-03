@@ -3,15 +3,16 @@
 Status: Finalized
 Owner: Release Architecture
 
-Transition note (2026-03-02): This checklist verifies both baseline
-(`/api/*` + `/healthz` + `/readyz` + `/metrics/summary`) and active capability
-checks under `SPEC-0015` for `/v1/*`.
-
 ## 1. Runtime Contract Cutover
 
-- [x] All runtime endpoints use `/api/transfers/*` and `/api/jobs/*`.
+- [x] Canonical consumer capability endpoints use `/v1/*` routes.
+- [x] Legacy `/api/transfers/*` and `/api/jobs/*` runtime endpoints are removed.
+- [x] Legacy `/healthz` and `/readyz` routes are removed.
+- [x] `/api/v1/*` namespace aliases are absent from runtime/contracts/docs/workflows.
 - [x] No deprecated alias route namespace remains in runtime code.
-- [x] OpenAPI regression test enforces split-route contract.
+- [x] OpenAPI regression test enforces canonical route contract only.
+- [x] CI route guard includes regex route-literal checks for canonical paths
+  (including `/v1/jobs/{id}/events`).
 - [x] Generated OpenAPI client smoke test passes.
 - [x] Workspace package/app metadata uses in-project `README.md` paths and
   isolated package builds succeed.
@@ -38,7 +39,7 @@ checks under `SPEC-0015` for `/v1/*`.
 - [x] Two-tier cache behavior (local + shared) validated.
 - [x] Redis outage fallback behavior validated.
 - [x] Cache hit/miss/fallback counters validated.
-- [x] `/readyz` excludes feature-flag pass/fail coupling.
+- [x] `/v1/health/ready` excludes feature-flag pass/fail coupling.
 - [x] Missing/blank `FILE_TRANSFER_BUCKET` fails readiness.
 
 ## 5. Cross-Repo Compatibility
@@ -46,7 +47,7 @@ checks under `SPEC-0015` for `/v1/*`.
 - [x] Nova release docs and CI/CD template mappings are aligned to `infra/nova/**`.
 - [x] `JOBS_SQS_RETRY_MODE` and
   `JOBS_SQS_RETRY_TOTAL_MAX_ATTEMPTS` contract aligned.
-- [x] `dash-pca` migration to `nova_dash_bridge` and split routes complete.
+- [x] `dash-pca` migration to `nova_dash_bridge` and canonical routes complete.
 - [x] `dash-pca` async uploader and settings aliases validated.
 
 ## 6. Final Live Gates (External AWS Execution Required)
@@ -62,7 +63,7 @@ checks under `SPEC-0015` for `/v1/*`.
 ## 7. Release Artifacts
 
 - [x] Final release notes published:
-  `docs/plan/release/RELEASE-NOTES-2026-02-12.md`
+  `docs/history/2026-02-cutover/release/RELEASE-NOTES-2026-02-12.md`
 
 ## 8. Target-State Capability Checklist (Implemented)
 

@@ -2,8 +2,8 @@
 Spec: 0004
 Title: CI/CD and Documentation Automation
 Status: Active
-Version: 1.5
-Date: 2026-02-24
+Version: 1.6
+Date: 2026-03-03
 Related:
   - "[ADR-0002: OpenAPI as contract and SDK generation](../adr/ADR-0002-openapi-as-contract-and-sdk-generation.md)"
   - "[ADR-0011: Hybrid CI/CD with GitHub and AWS promotion](../adr/ADR-0011-cicd-hybrid-github-aws-promotion.md)"
@@ -23,10 +23,6 @@ References:
 
 ## 1. Required quality gates
 
-Transition note (2026-03-02): This specification defines the current
-implemented CI/CD baseline. Target-state workflow artifacts in `SPEC-0015` are
-active and required in the same release path.
-
 Every pull request MUST pass:
 
 - `source .venv/bin/activate && uv lock --check`
@@ -37,7 +33,7 @@ Every pull request MUST pass:
 - `source .venv/bin/activate && uv run pytest -q`
 - `source .venv/bin/activate && uv run pytest -q packages/nova_file_api/tests/test_generated_client_smoke.py`
 - workspace package/app build verification (`uv build` per workspace unit)
-- cross-framework conformance gate (`.github/workflows/conformance.yml`):
+- cross-framework conformance gate (`.github/workflows/conformance-clients.yml`):
   - `dash-conformance`
   - `shiny-conformance`
   - `typescript-conformance`
@@ -158,11 +154,12 @@ The same PR MUST update affected operational docs whenever CI/CD or release
 semantics change:
 
 - `README.md`
-- `PRD.md`
+- `docs/PRD.md`
 - `docs/architecture/requirements.md`
 - affected ADR/SPEC docs
 - `docs/plan/PLAN.md`
-- `FINAL-PLAN.md`
+- `PRD.md` and `FINAL-PLAN.md` pointers when archive paths or authority links
+  change
 - `docs/plan/release/*` runbooks and policy docs
 
 ## 9. Traceability

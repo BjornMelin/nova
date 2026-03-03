@@ -127,6 +127,6 @@ Pipeline dashboard:
 
 ## References
 
-- [documentation-index.md](documentation-index.md)
+- [runbooks README](../../runbooks/README.md)
 - [governance-lock-runbook.md](governance-lock-runbook.md)
 - [troubleshooting-and-break-glass-guide.md](troubleshooting-and-break-glass-guide.md)

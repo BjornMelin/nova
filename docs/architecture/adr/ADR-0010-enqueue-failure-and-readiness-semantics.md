@@ -2,8 +2,8 @@
 ADR: 0010
 Title: Fail enqueue on queue publish errors and scope readiness to critical dependencies
 Status: Accepted
-Version: 1.1
-Date: 2026-02-23
+Version: 1.2
+Date: 2026-03-03
 Related:
   - "[SPEC-0000: HTTP API contract](../spec/SPEC-0000-http-api-contract.md)"
   - "[SPEC-0003: Observability](../spec/SPEC-0003-observability.md)"
@@ -56,12 +56,13 @@ Choose option B.
 
 Implementation commitments:
 
-- Queue publish failures for `POST /jobs/enqueue` return `503` and
+- Queue publish failures for `POST /v1/jobs` return `503` and
   `error.code = "queue_unavailable"`.
 - Job records created before publish are transitioned to `failed` when publish
   fails.
-- `/readyz` excludes feature flags from pass/fail aggregation.
-- `/readyz` treats missing/blank `FILE_TRANSFER_BUCKET` as unconfigured.
+- `/v1/health/ready` excludes feature flags from pass/fail aggregation.
+- `/v1/health/ready` treats missing/blank `FILE_TRANSFER_BUCKET` as
+  unconfigured.
 - Worker updates with `status = succeeded` always normalize `error` to `null`.
 - DynamoDB rollups increment `distinct_event_types` only when a first-seen
   event-type marker write succeeds.
@@ -76,6 +77,8 @@ Implementation commitments:
 
 ## Changelog
 
+- 2026-03-03 (v1.2): Canonicalized enqueue and readiness route references to
+  `/v1/*` route surface.
 - 2026-02-12 (v1.0): Initial acceptance.
 - 2026-02-23 (v1.1): Clarified readiness bucket-configuration rule and worker
   succeeded-state error normalization invariants.

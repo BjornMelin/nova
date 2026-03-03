@@ -2,8 +2,8 @@
 Spec: 0005
 Title: Abuse Prevention and Quotas
 Status: Active
-Version: 1.1
-Date: 2026-02-11
+Version: 1.2
+Date: 2026-03-03
 Related:
   - "[SPEC-0000: HTTP API contract](./SPEC-0000-http-api-contract.md)"
   - "[SPEC-0003: Observability](./SPEC-0003-observability.md)"
@@ -26,7 +26,11 @@ Control-plane endpoints are cheap individually but can be abused to:
 
 Primary control SHOULD be infrastructure-level:
 
-- AWS WAF rate-based rules on `/api/transfers/*` and `/api/jobs/*`.
+- AWS WAF rate-based rules on `/v1/transfers/*` and `/v1/jobs/*`.
+- Internal worker callback route family `/v1/internal/jobs/*` is exempt from
+  public WAF rate-limiting scope because it is authenticated with
+  `X-Worker-Token` per SPEC-0001 and is a non-browser worker path documented in
+  SPEC-0000 and SPEC-0008.
 
 Secondary control MAY be app-level throttling for defense in depth.
 

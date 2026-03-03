@@ -72,7 +72,7 @@ def create_file_transfer_blueprint(
     upload_policy: UploadPolicy,
     auth_policy: AuthPolicy | None = None,
     s3_client_factory: SupportsCreateS3Client | None = None,
-    url_prefix: str = "/api/transfers",
+    url_prefix: str = "/v1/transfers",
 ) -> Blueprint:
     """Create a Flask blueprint for file transfer endpoints."""
     service = FileTransferService(
@@ -147,7 +147,7 @@ def register_file_transfer_blueprint(
     upload_policy: UploadPolicy,
     auth_policy: AuthPolicy | None = None,
     s3_client_factory: SupportsCreateS3Client | None = None,
-    url_prefix: str = "/api/transfers",
+    url_prefix: str = "/v1/transfers",
 ) -> Blueprint:
     """Create and register file transfer API blueprint."""
     blueprint = create_file_transfer_blueprint(

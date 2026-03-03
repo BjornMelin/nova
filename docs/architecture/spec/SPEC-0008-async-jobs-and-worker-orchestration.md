@@ -2,8 +2,8 @@
 Spec: 0008
 Title: Async Jobs and Worker Orchestration
 Status: Active
-Version: 1.7
-Date: 2026-03-02
+Version: 1.8
+Date: 2026-03-03
 Related:
   - "[ADR-0006: SQS + ECS worker orchestration](../adr/ADR-0006-async-orchestration-sqs-ecs-worker.md)"
   - "[SPEC-0000: HTTP API contract](./SPEC-0000-http-api-contract.md)"
@@ -16,23 +16,20 @@ References:
 
 ## 1. API surface
 
-Transition note (2026-03-02): This specification remains active for baseline
-`/api/jobs/*` behavior. `/v1/jobs*` capability endpoints are active in
-`SPEC-0015` and run as part of the dual-track contract. This revision
-clarifies the SQS DLQ redrive policy and documents autoscaling invariants for
-worker services and job queues.
-
 Async jobs are managed through:
 
-- `POST /api/jobs/enqueue`
-- `GET /api/jobs/{job_id}`
-- `POST /api/jobs/{job_id}/cancel`
-- `POST /api/jobs/{job_id}/result` (worker/internal update path)
+- `POST /v1/jobs`
+- `GET /v1/jobs`
+- `GET /v1/jobs/{job_id}`
+- `POST /v1/jobs/{job_id}/cancel`
+- `POST /v1/jobs/{job_id}/retry`
+- `GET /v1/jobs/{job_id}/events`
+- `POST /v1/internal/jobs/{job_id}/result` (worker/internal update path)
 
 For same-origin deployments, browser polling clients calling body-less
-job-scope routes (`GET /api/jobs/{job_id}`, `POST /api/jobs/{job_id}/cancel`)
-MUST send caller scope context via trusted header (`X-Session-Id` or
-`X-Scope-Id`).
+job-scope routes (`GET /v1/jobs/{job_id}`, `GET /v1/jobs/{job_id}/events`,
+`POST /v1/jobs/{job_id}/cancel`, `POST /v1/jobs/{job_id}/retry`) MUST send
+caller scope context via trusted header (`X-Session-Id` or `X-Scope-Id`).
 When `X-Session-Id` and `X-Scope-Id` are both present, `X-Session-Id` is the
 canonical scope input. If `X-Session-Id` and body `session_id` are both present
 and differ, request validation MUST fail with `422`
@@ -40,6 +37,25 @@ and differ, request validation MUST fail with `422`
 and `X-Scope-Id` plus body `session_id` are both present and differ,
 authentication MUST fail with `401`
 (`error.message = "conflicting session scope"`).
+
+### 1.1 Endpoint payload contracts
+
+Canonical request/response schemas are owned by SPEC-0000 and the OpenAPI
+contract generated from runtime implementation. For async additions:
+
+- `POST /v1/jobs/{job_id}/retry`
+  - Request body: empty object (`{}`).
+  - Response: `JobStatusResponse` for the updated job record.
+  - Errors: shared error envelope with `401/403/404/409/500` semantics aligned
+    with SPEC-0000.
+- `GET /v1/jobs/{job_id}/events`
+  - Request body: none; optional query params `cursor` and `limit`.
+  - Response: `JobEventsResponse` containing `events[]`, `next_cursor`, and
+    `has_more`.
+  - Event item shape: `JobEvent` with `event_type`, `message`, `details`,
+    `created_at`.
+  - Errors: shared error envelope with `401/403/404/500` semantics aligned with
+    SPEC-0000.
 
 ## 2. Job state model
 
@@ -98,7 +114,7 @@ Invalid transitions MUST fail with `409` (`error.code = "conflict"`).
 
 ## 5. Idempotency
 
-`jobs/enqueue` MUST support `Idempotency-Key` replay behavior.
+`POST /v1/jobs` MUST support `Idempotency-Key` replay behavior.
 
 Failed enqueue responses (`queue_unavailable`) MUST NOT be replay-cached.
 
@@ -125,4 +141,9 @@ Worker status callbacks MUST validate `X-Worker-Token` when
 
 ## Changelog
 
-- 2026-03-02 (v1.7): Added worker-lane DLQ redrive and autoscaling invariants for async job workers.
+- 2026-03-03 (v1.8): Canonicalized job route documentation to `/v1/*`, added
+  `/v1/jobs/{job_id}/retry` and `/v1/jobs/{job_id}/events` endpoint contract
+  details, and updated internal worker callback route to
+  `/v1/internal/jobs/{job_id}/result`.
+- 2026-03-02 (v1.7): Added worker-lane DLQ redrive and autoscaling invariants
+  for async job workers.

@@ -1,10 +1,7 @@
 # AGENTS.md (nova runtime)
 
-This repository is the canonical runtime monorepo for file-transfer and
-auth API services. Active infrastructure and deployment authority is owned in
-this repository under `infra/nova/**` and `infra/runtime/**`. Historical
-cross-repo migration evidence remains in docs for prior cutover phases, and
-consumer migration work includes `~/repos/work/pca-analysis-dash/dash-pca`.
+This repository is the canonical runtime monorepo for the Nova file-transfer
+and auth API services.
 
 ## Runtime Topology
 
@@ -14,158 +11,76 @@ consumer migration work includes `~/repos/work/pca-analysis-dash/dash-pca`.
 - `packages/nova_auth_api/`: token verify/introspect service package.
 - `packages/nova_dash_bridge/`: Dash/Flask/FastAPI bridge adapters.
 - `packages/contracts/`: OpenAPI and shared contract artifacts.
-- `docs/architecture/`: requirements, ADRs, and SPECs.
-- `docs/plan/`: execution plans, subplans, and triggers.
-- `docs/plan/release/`: release notes, checklists, and runbooks.
 
-## SKILLS AND TOOLS
+## Active Authority
 
-### SKILLS
+Use these as the active authority set:
 
-Use the best-fitting skills for each task. Prioritize this set:
+- `docs/PRD.md`
+- `docs/architecture/requirements.md`
+- `docs/architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md`
+- `docs/architecture/spec/SPEC-0000-http-api-contract.md`
+- `docs/architecture/spec/SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md`
+- `docs/architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md`
+- `docs/plan/PLAN.md`
+- `docs/runbooks/README.md`
 
-- `$fastapi`
-- `$openapi-spec-generation`
-- `$architecture-decision-records`
-- `$api-design-principles`
-- `$python-anti-patterns`
-- `$python-packaging`
-- `$python-type-safety`
-- `$python-code-style`
-- `$python-testing-patterns`
-- `$pytest-dev`
-- `$uv-package-manager`
+Historical-only pointers:
 
-### TOOLS
+- `PRD.md`
+- `FINAL-PLAN.md`
+- `docs/plan/HISTORY-INDEX.md`
+- `docs/history/**`
 
-Use tools intentionally:
+## Canonical Route Rules
 
-- Context7:
-  - `context7.resolve-library-id`: map library/package names to doc IDs.
-  - `context7.query-docs`: fetch current API docs and snippets.
-- gh_grep:
-  - `gh_grep.searchGitHub`: find real code usage patterns.
-- Exa:
-  - `exa.web_search_advanced_exa`: targeted web research.
-  - `exa.deep_researcher_start`: run deep research tasks.
-  - `exa.deep_researcher_check`: poll until research is complete.
-- Planning:
-  - `functions.update_plan`: keep execution steps current.
-- Source inspection:
-  - `opensrc list` for installed dependency source paths.
-  - inspect `opensrc/sources.json` for package/version/source location.
+Runtime routes MUST be:
 
-### Operational Mandate
+- `/v1/transfers/*`
+- `/v1/jobs*`
+- `/v1/internal/jobs/{job_id}/result` (internal worker only)
+- `/v1/capabilities`
+- `/v1/resources/plan`
+- `/v1/releases/info`
+- `/v1/health/live`
+- `/v1/health/ready`
+- `/metrics/summary`
 
-Do not oversimplify or defer required features. If sources conflict, apply
-the decision framework and use options scoring at least 9.0/10.0.
-All code and docs must remain production-ready.
+Disallowed runtime route families:
 
-## Guardrails
+- `/api/*`
+- `/api/v1/*`
+- `/healthz`
+- `/readyz`
 
-- Use `FINAL-PLAN.md` as historical reference and
-  `ADR-0015`/`SPEC-0015` as active dual-track authority.
-- Keep `docs/plan/PLAN.md` synchronized with current implementation state.
-- Treat architecture state as dual-track:
-  - compatibility contracts: `SPEC-0000`, `SPEC-0003`, `SPEC-0004`,
-    `SPEC-0008` (implements `/api/*`, `/healthz`, `/readyz`, `/metrics/summary`)
-  - capability contracts: `ADR-0015`, `SPEC-0015` (implements `/v1/*` family)
-- Treat OpenAPI as the contract and update SPEC/ADR docs first for
-  contract-level changes.
-- Keep generated-client smoke coverage working for contract changes
-  (`test_generated_client_smoke.py`).
-- Keep dependencies lean and maintained.
-- Never log presigned URLs, JWTs, or signed query values.
-- Never run synchronous JWT verification directly in async route/dependency
-  code; use a threadpool boundary.
+Do not add compatibility aliases or namespace shims.
 
-### Current Runtime Rules (Implemented)
-
-- Use only:
-  - `/api/transfers/*`
-  - `/api/jobs/*`
-  - `/metrics/summary`
-  - `/healthz`
-  - `/readyz`
-- Also expose:
-  - `/v1/jobs`
-  - `/v1/jobs/{id}/events`
-  - `/v1/capabilities`
-  - `/v1/resources/plan`
-  - `/v1/releases/info`
-  - `/v1/health/live`
-  - `/v1/health/ready`
-- Do not introduce deprecated alias routes or retired package/module names.
-- Fail reviews when unresolved legacy patterns are introduced.
-
-Required verification command:
+Required route verification command:
 
 ```bash
 source .venv/bin/activate && \
-rg -n "/api/transfers|/api/jobs|/v1/jobs|/v1/jobs/\\{id\\}/events|/v1/capabilities|/v1/resources/plan|/v1/releases/info|/v1/health/live|/v1/health/ready|/metrics/summary|/healthz|/readyz" apps packages docs
+rg -n "/v1/transfers|/v1/jobs|/v1/internal/jobs|/v1/capabilities|/v1/resources/plan|/v1/releases/info|/v1/health/live|/v1/health/ready|/metrics/summary" apps packages docs
 ```
 
-### Next PR Target Contract Rules (Active Dual-Track Runtime)
+## Runtime Invariants
 
-- Target API capabilities MUST be implemented under:
-  - `/v1/jobs`
-  - `/v1/jobs/{id}/events`
-  - `/v1/capabilities`
-  - `/v1/resources/plan`
-  - `/v1/releases/info`
-  - `/v1/health/live`
-  - `/v1/health/ready`
-- Do not introduce compatibility alias routes or namespace shims while
-  delivering target-state cutover.
-- Treat `SPEC-0015` as active dual-track contract authority for `v1/*`
-  capability endpoints while `SPEC-0000` remains active for baseline
-  `/api/*` behavior.
-
-### Runtime Invariants That Must Be Preserved
-
-- Enqueue correctness:
-  - Never swallow queue publish failures.
-  - `POST /api/jobs/enqueue` publish failures must surface as `503` with
-    `error.code = "queue_unavailable"`.
-  - Failed enqueue responses must not be idempotency replay cached.
-- Readiness semantics:
-  - `/readyz` pass/fail is based on traffic-critical dependencies only.
-  - feature flags (for example `JOBS_ENABLED`) must not drive readiness
-    false.
-  - missing/blank `FILE_TRANSFER_BUCKET` must fail readiness.
-- Worker result-update semantics:
-  - `status=succeeded` updates must normalize `error` to `null`.
-- Workspace packaging metadata:
-  - each package/app `project.readme` path must resolve inside the same
-    package/app directory.
-- Rollup correctness for DynamoDB activity backend:
-  - `active_users_today` increments only on first user/day marker write.
-  - `distinct_event_types` increments only on first event-type/day marker
-    write.
-  - use conditional writes for concurrency-safe counters.
-- Backend startup validation:
-  - `JOBS_QUEUE_BACKEND=sqs` + `JOBS_ENABLED=true` requires
-    `JOBS_SQS_QUEUE_URL`.
-  - `ACTIVITY_STORE_BACKEND=dynamodb` requires `ACTIVITY_ROLLUPS_TABLE`.
-
-## Monorepo Navigation Commands
-
-Always run from repository root unless task scope requires otherwise.
-
-```bash
-rg --files apps packages docs
-find apps packages -maxdepth 3 -type d | sort
-rg -n "/api/transfers|/api/jobs|/metrics/summary|/healthz|/readyz" \
-  packages docs
-rg -n "/v1/jobs|/v1/jobs/\\{id\\}/events|/v1/capabilities|/v1/resources/plan|/v1/releases/info|/v1/health/live|/v1/health/ready" \
-  packages docs
-rg -n "nova_file_api|nova_auth_api|nova_dash_bridge" \
-  apps packages docs
-```
+- `POST /v1/jobs` queue publish failures MUST return `503` with
+  `error.code = "queue_unavailable"`.
+- Failed enqueue responses MUST NOT be idempotency replay cached.
+- `/v1/health/ready` must evaluate only traffic-critical dependencies.
+- Missing/blank `FILE_TRANSFER_BUCKET` MUST fail readiness.
+- `POST /v1/internal/jobs/{job_id}/result` with `status=succeeded` MUST clear
+  `error` to `null`.
+- Do not log presigned URLs, JWTs, or signed query values.
+- Do not run synchronous JWT verification directly on async event-loop paths;
+  use a threadpool boundary.
+- `JOBS_QUEUE_BACKEND=sqs` with `JOBS_ENABLED=true` requires
+  `JOBS_SQS_QUEUE_URL`.
+- `ACTIVITY_STORE_BACKEND=dynamodb` requires `ACTIVITY_ROLLUPS_TABLE`.
 
 ## Required Quality Gates
 
-Always prefix commands with `source .venv/bin/activate &&`.
+Always run from repository root with `.venv` active.
 
 ```bash
 source .venv/bin/activate && uv lock --check
@@ -180,104 +95,33 @@ for p in packages/nova_file_api packages/nova_auth_api \
   apps/nova_auth_api_service; do uv build "$p"; done
 ```
 
-## Execution Commands by Scope
+## Documentation Update Rules
 
-### Workspace and dependency sync
+Any behavioral or contract change MUST update all affected docs in the same PR:
 
-```bash
-source .venv/bin/activate && uv lock
-```
+- `README.md`
+- `docs/PRD.md`
+- `docs/architecture/requirements.md`
+- affected `docs/architecture/adr/*.md`
+- affected `docs/architecture/spec/*.md`
+- `docs/plan/PLAN.md`
+- affected `docs/plan/release/*.md`
+- `docs/runbooks/README.md` when runbook authority changes
+- `docs/history/**` when archival paths/evidence pointers change
+- `PRD.md` and `FINAL-PLAN.md` only when archive pointers change
 
-### Run services locally
-
-```bash
-source .venv/bin/activate && uv run uvicorn nova_file_api_service.main:app \
-  --reload
-source .venv/bin/activate && uv run uvicorn nova_auth_api_service.main:app \
-  --reload
-```
-
-### Targeted tests
-
-```bash
-source .venv/bin/activate && uv run pytest -q packages/nova_file_api/tests
-source .venv/bin/activate && uv run pytest -q packages/nova_auth_api/tests
-```
-
-## Cross-Repo Coordination (Targeted)
-
-### dash-pca consumer alignment
+## Cross-Repo Check (dash-pca)
 
 Path: `~/repos/work/pca-analysis-dash/dash-pca`
 
-Must align:
-
-- imports reference `nova_dash_bridge` and `nova_file_api`.
-- endpoint usage references `/api/transfers/*` and `/api/jobs/*`.
-- async upload + job polling behavior remains contract compliant.
-
-Verification commands:
-
 ```bash
-rg -n "/api/transfers|/api/jobs|nova_dash_bridge|nova_file_api" \
+rg -n "/v1/transfers|/v1/jobs|nova_dash_bridge|nova_file_api" \
   ~/repos/work/pca-analysis-dash/dash-pca
 ```
 
-### Historical retirement evidence checks (read-only)
-
-Use these to confirm active docs do not restore retired operational authority:
+## Historical Retirement Check
 
 ```bash
-rg -n "container-craft" AGENTS.md README.md PRD.md docs/architecture \
-  docs/plan/release | rg -v "docs/history|historical|archive|retired|ADR-0014|SPEC-0013|SPEC-0014|ADR-0001|requirements.md|RELEASE-NOTES-2026-02-12|RELEASE-VERSION-MANIFEST"
+rg -n "container-craft" AGENTS.md README.md docs/architecture docs/plan docs/runbooks \
+  | rg -v "docs/history|historical|archive|retired|ADR-0014|SPEC-0013|SPEC-0014|requirements.md|RELEASE-VERSION-MANIFEST"
 ```
-
-## Deployment Gates
-
-- health endpoint responds within expected time.
-- structured logs include `request_id`.
-- OpenAPI schema builds and docs publish pipeline runs.
-
-## Documentation Update Rules (Mandatory)
-
-Any behavioral or contract change must update all affected docs in the same
-change:
-
-- `README.md` operational behavior/config summary.
-- `PRD.md` product-level requirements and success criteria.
-- `docs/architecture/requirements.md` requirement IDs.
-- relevant `docs/architecture/spec/*.md` contract docs.
-- relevant `docs/architecture/adr/*.md` decision records.
-- `FINAL-PLAN.md` progress and checklist state.
-- `docs/plan/PLAN.md` progress and phase checklists.
-- impacted `docs/plan/subplans/*.md` and `docs/plan/triggers/*.md`.
-- impacted `docs/plan/release/*.md` release artifacts.
-- `docs/plan/release/NONPROD-LIVE-VALIDATION-RUNBOOK.md` when live AWS
-  gate status changes.
-
-When review/regression fixes change runtime semantics, include:
-
-- explicit before/after behavior statement.
-- new or updated tests listed in plan/progress notes.
-- source links to official docs (AWS/FastAPI/RFC) used for decisions.
-
-<!-- opensrc:start -->
-
-## Source Code Reference
-
-Dependency source code is available under `opensrc/` for internal behavior
-analysis beyond public interfaces.
-
-- Source index: `opensrc/sources.json`
-- Discover local paths: `opensrc list`
-
-Fetch additional source when needed:
-
-```bash
-npx opensrc <package>
-npx opensrc pypi:<package>
-npx opensrc crates:<package>
-npx opensrc <owner>/<repo>
-```
-
-<!-- opensrc:end -->
