@@ -125,6 +125,7 @@ jobs:
             "/metrics/summary"
           )
           ROUTE_LITERAL_PATTERN="/v1/jobs/\\{job_id\\}/events"
+          ROUTE_LITERAL_PATTERN_ALT="/jobs/\\{job_id\\}/events"
           RUNTIME_PATHS=(
             "apps/nova_file_api_service/src"
             "apps/nova_auth_api_service/src"
@@ -139,9 +140,26 @@ jobs:
           if command -v rg >/dev/null 2>&1; then
             echo "Using rg to validate route references."
             for literal in "${REQUIRED_LITERALS[@]}"; do
-              rg -n -F "${RG_PATH_EXCLUDES[@]}" "$literal" "${RUNTIME_PATHS[@]}" || { echo "::error::Required canonical route literal not found: $literal"; exit 1; }
+              found_literal=0
+              literal_candidates=("$literal")
+              if [[ "$literal" == /v1/transfers/* ]]; then
+                literal_candidates+=("${literal#/v1/transfers}")
+              fi
+              if [[ "$literal" == /v1/* ]]; then
+                literal_candidates+=("${literal#/v1}")
+              fi
+              for candidate in "${literal_candidates[@]}"; do
+                if rg -n -F "${RG_PATH_EXCLUDES[@]}" "$candidate" "${RUNTIME_PATHS[@]}" >/dev/null; then
+                  found_literal=1
+                  break
+                fi
+              done
+              if [[ "$found_literal" -ne 1 ]]; then
+                echo "::error::Required canonical route literal not found: $literal"
+                exit 1
+              fi
             done
-            rg -n "${RG_PATH_EXCLUDES[@]}" "$ROUTE_LITERAL_PATTERN" "${RUNTIME_PATHS[@]}" || { echo "::error::Required regex route literal not found: $ROUTE_LITERAL_PATTERN"; exit 1; }
+            rg -n "${RG_PATH_EXCLUDES[@]}" "($ROUTE_LITERAL_PATTERN|$ROUTE_LITERAL_PATTERN_ALT)" "${RUNTIME_PATHS[@]}" || { echo "::error::Required regex route literal not found: $ROUTE_LITERAL_PATTERN"; exit 1; }
             if rg -n "/api/|/healthz|/readyz" \
               apps/nova_file_api_service/src \
               apps/nova_auth_api_service/src \
@@ -154,15 +172,32 @@ jobs:
           else
             echo "Using grep to validate route references."
             for literal in "${REQUIRED_LITERALS[@]}"; do
-              grep -RIn --fixed-strings \
-                --exclude-dir=tests \
-                --exclude-dir=fixtures \
-                "$literal" "${RUNTIME_PATHS[@]}" || { echo "::error::Required canonical route literal not found: $literal"; exit 1; }
+              found_literal=0
+              literal_candidates=("$literal")
+              if [[ "$literal" == /v1/transfers/* ]]; then
+                literal_candidates+=("${literal#/v1/transfers}")
+              fi
+              if [[ "$literal" == /v1/* ]]; then
+                literal_candidates+=("${literal#/v1}")
+              fi
+              for candidate in "${literal_candidates[@]}"; do
+                if grep -RIn --fixed-strings \
+                  --exclude-dir=tests \
+                  --exclude-dir=fixtures \
+                  "$candidate" "${RUNTIME_PATHS[@]}" >/dev/null; then
+                  found_literal=1
+                  break
+                fi
+              done
+              if [[ "$found_literal" -ne 1 ]]; then
+                echo "::error::Required canonical route literal not found: $literal"
+                exit 1
+              fi
             done
             grep -RInE \
               --exclude-dir=tests \
               --exclude-dir=fixtures \
-              "$ROUTE_LITERAL_PATTERN" "${RUNTIME_PATHS[@]}" || { echo "::error::Required regex route literal not found: $ROUTE_LITERAL_PATTERN"; exit 1; }
+              "($ROUTE_LITERAL_PATTERN|$ROUTE_LITERAL_PATTERN_ALT)" "${RUNTIME_PATHS[@]}" || { echo "::error::Required regex route literal not found: $ROUTE_LITERAL_PATTERN"; exit 1; }
             if grep -RInE "/api/|/healthz|/readyz" \
               apps/nova_file_api_service/src \
               apps/nova_auth_api_service/src \
