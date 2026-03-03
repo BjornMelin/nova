@@ -50,15 +50,16 @@ def _parse_paths(value: str) -> list[str]:
     return paths
 
 
-def _fetch_status(url: str) -> int:
+def _fetch_status(url: str) -> tuple[int | None, str | None]:
+    """Fetch status for a URL while preserving transport errors."""
     request = Request(url=url, method="GET")
     try:
         with urlopen(request, timeout=10) as response:
-            return int(response.getcode())
+            return int(response.getcode()), None
     except HTTPError as exc:
-        return int(exc.code)
+        return int(exc.code), None
     except URLError as exc:
-        raise SystemExit(f"Request failed for {url}: {exc}") from exc
+        return None, f"Request failed for {url}: {exc}"
 
 
 def _args() -> argparse.Namespace:
@@ -103,7 +104,14 @@ def _args() -> argparse.Namespace:
 
 
 def main() -> int:
-    """Run route validation and emit JSON report."""
+    """Run route validation and emit JSON report.
+
+    Returns:
+        int: 0 when all expected routes pass validation.
+
+    Raises:
+        SystemExit: If configuration is invalid or validation checks fail.
+    """
     args = _args()
     base = args.base_url.strip().rstrip("/")
     if not base:
@@ -124,34 +132,47 @@ def main() -> int:
     failures: list[str] = []
 
     for path in canonical_paths:
-        status = _fetch_status(base + path)
-        ok = status != 404 and status < 500
+        status, error = _fetch_status(base + path)
+        ok = (
+            error is None
+            and status is not None
+            and status != 404
+            and status < 500
+        )
+        status_code = status if status is not None else 0
         checks.append(
             RouteCheck(
                 kind="canonical",
                 path=path,
                 expected="status != 404 and < 500",
-                status_code=status,
+                status_code=status_code,
                 ok=ok,
             )
         )
         if not ok:
-            failures.append(f"canonical path {path} returned {status}")
+            if error:
+                failures.append(f"canonical path {path} request error: {error}")
+            else:
+                failures.append(f"canonical path {path} returned {status_code}")
 
     for path in legacy_paths:
-        status = _fetch_status(base + path)
-        ok = status == 404
+        status, error = _fetch_status(base + path)
+        ok = error is None and status == 404
+        status_code = status if status is not None else 0
         checks.append(
             RouteCheck(
                 kind="legacy_404",
                 path=path,
                 expected="status == 404",
-                status_code=status,
+                status_code=status_code,
                 ok=ok,
             )
         )
         if not ok:
-            failures.append(f"legacy path {path} returned {status}")
+            if error:
+                failures.append(f"legacy path {path} request error: {error}")
+            else:
+                failures.append(f"legacy path {path} returned {status_code}")
 
     report = {
         "timestamp_utc": datetime.now(UTC).isoformat(),

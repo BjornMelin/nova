@@ -1,21 +1,21 @@
+"""Authorization contract tests for the /metrics/summary endpoint."""
+
+# ruff: noqa: I001
+
 from __future__ import annotations
 
 from fastapi.testclient import TestClient
 from nova_file_api.activity import MemoryActivityStore
 from nova_file_api.app import create_app
-from nova_file_api.cache import (
-    LocalTTLCache,
-    SharedRedisCache,
-    TwoTierCache,
-)
+from nova_file_api.cache import LocalTTLCache
+from nova_file_api.cache import SharedRedisCache
+from nova_file_api.cache import TwoTierCache
 from nova_file_api.config import Settings
 from nova_file_api.container import AppContainer
 from nova_file_api.idempotency import IdempotencyStore
-from nova_file_api.jobs import (
-    JobService,
-    MemoryJobPublisher,
-    MemoryJobRepository,
-)
+from nova_file_api.jobs import JobService
+from nova_file_api.jobs import MemoryJobPublisher
+from nova_file_api.jobs import MemoryJobRepository
 from nova_file_api.metrics import MetricsCollector
 from nova_file_api.models import AuthMode, Principal
 from starlette.requests import Request
@@ -78,7 +78,9 @@ def _build_container(
         metrics=metrics,
         cache=cache,
         shared_cache=shared_cache,
-        authenticator=_StubAuthenticator(permissions=permissions),  # type: ignore[arg-type]
+        authenticator=(
+            _StubAuthenticator(permissions=permissions)  # type: ignore[arg-type]
+        ),
         transfer_service=StubTransferService(),  # type: ignore[arg-type]
         job_repository=job_repository,
         job_service=job_service,
@@ -92,6 +94,7 @@ def _build_container(
 
 
 def test_metrics_summary_same_origin_allows_missing_permission() -> None:
+    """SAME_ORIGIN allows metrics summary access without permissions."""
     app = create_app(
         container_override=_build_container(
             auth_mode=AuthMode.SAME_ORIGIN,
@@ -114,6 +117,7 @@ def test_metrics_summary_same_origin_allows_missing_permission() -> None:
 
 
 def test_metrics_summary_non_same_origin_rejects_missing_permission() -> None:
+    """JWT_LOCAL rejects metrics summary when metrics:read is missing."""
     app = create_app(
         container_override=_build_container(
             auth_mode=AuthMode.JWT_LOCAL,
@@ -129,6 +133,7 @@ def test_metrics_summary_non_same_origin_rejects_missing_permission() -> None:
 
 
 def test_metrics_summary_non_same_origin_allows_metrics_permission() -> None:
+    """JWT_LOCAL allows metrics summary when metrics:read permission exists."""
     app = create_app(
         container_override=_build_container(
             auth_mode=AuthMode.JWT_LOCAL,

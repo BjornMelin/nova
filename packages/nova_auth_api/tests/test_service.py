@@ -1,7 +1,10 @@
+# ruff: noqa: I001
+
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import Any, cast
+from typing import Any
+from typing import cast
 
 import pytest
 from nova_auth_api.config import Settings

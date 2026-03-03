@@ -34,6 +34,7 @@ jobs:
       VALIDATION_CANONICAL_PATHS: ${{ inputs.validation_canonical_paths }}
       VALIDATION_LEGACY_404_PATHS: ${{ inputs.validation_legacy_404_paths }}
     steps:
+      - uses: actions/checkout@v4
       - run: |
           set -euo pipefail
           python3 scripts/release/validate_route_contract.py \
