@@ -182,7 +182,8 @@ The hard-cut route policy MUST enforce:
 - no runtime reintroduction of `/api/*`, `/healthz`, or `/readyz`
 - no `/api/v1/*` namespace aliases
 - OpenAPI path set constrained to `/v1/*` plus `/metrics/summary`
-- route decorator checks in `api.py` and `app.py` resolving only to allowed
+- route decorator checks across runtime route-definition modules (including
+  router modules mounted via `include_router`) resolving only to allowed
   runtime paths
 
 ## Non-Functional Requirements

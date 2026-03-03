@@ -86,7 +86,8 @@ Required workflows in `.github/workflows/`:
 - canonical route literals and regex checks
 - OpenAPI path policy (`/v1/*` + `/metrics/summary` only)
 - runtime source bans for legacy route literals
-- route decorator structure checks in `api.py`/`app.py`
+- route decorator structure checks across runtime route-definition modules
+  (including routers mounted via `include_router`)
 - unique `operationId`
 
 ## 6. Canonical API capability coverage

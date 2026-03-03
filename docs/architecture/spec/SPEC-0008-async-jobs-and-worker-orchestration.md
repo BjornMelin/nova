@@ -38,6 +38,25 @@ and `X-Scope-Id` plus body `session_id` are both present and differ,
 authentication MUST fail with `401`
 (`error.message = "conflicting session scope"`).
 
+### 1.1 Endpoint payload contracts
+
+Canonical request/response schemas are owned by SPEC-0000 and the OpenAPI
+contract generated from runtime implementation. For async additions:
+
+- `POST /v1/jobs/{job_id}/retry`
+  - Request body: empty object (`{}`).
+  - Response: `JobStatusResponse` for the updated job record.
+  - Errors: shared error envelope with `401/403/404/409/500` semantics aligned
+    with SPEC-0000.
+- `GET /v1/jobs/{job_id}/events`
+  - Request body: none; optional query params `cursor` and `limit`.
+  - Response: `JobEventsResponse` containing `events[]`, `next_cursor`, and
+    `has_more`.
+  - Event item shape: `JobEvent` with `event_type`, `message`, `details`,
+    `created_at`.
+  - Errors: shared error envelope with `401/403/404/500` semantics aligned with
+    SPEC-0000.
+
 ## 2. Job state model
 
 States:
@@ -122,7 +141,9 @@ Worker status callbacks MUST validate `X-Worker-Token` when
 
 ## Changelog
 
-- 2026-03-03 (v1.8): Canonicalized job route documentation to `/v1/*` and
-  internal worker callback route to `/v1/internal/jobs/{job_id}/result`.
+- 2026-03-03 (v1.8): Canonicalized job route documentation to `/v1/*`, added
+  `/v1/jobs/{job_id}/retry` and `/v1/jobs/{job_id}/events` endpoint contract
+  details, and updated internal worker callback route to
+  `/v1/internal/jobs/{job_id}/result`.
 - 2026-03-02 (v1.7): Added worker-lane DLQ redrive and autoscaling invariants
   for async job workers.
