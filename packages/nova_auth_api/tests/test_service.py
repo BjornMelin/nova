@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Any
+from collections.abc import Callable
+from typing import Any, cast
 
 import pytest
 from nova_auth_api.config import Settings
@@ -20,6 +21,18 @@ def _principal() -> Principal:
         scopes=("uploads:write",),
         permissions=("jobs:enqueue",),
     )
+
+
+class _VerifierAssertingThreadBoundary:
+    def __init__(self, state: dict[str, bool]) -> None:
+        self._state = state
+        self.calls = 0
+
+    def verify_access_token(self, token: str) -> dict[str, Any]:
+        assert self._state["inside_run_sync"]
+        self.calls += 1
+        del token
+        return {"sub": "subject-1"}
 
 
 @pytest.mark.asyncio
@@ -86,6 +99,42 @@ async def test_introspect_respects_explicit_empty_overrides(
     assert response.active is True
     assert captured["required_scopes"] == ()
     assert captured["required_permissions"] == ()
+
+
+@pytest.mark.asyncio
+async def test_verify_runs_sync_jwt_verification_via_thread_boundary(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    settings = Settings()
+    service = TokenVerificationService(settings=settings)
+    boundary_state = {"inside_run_sync": False}
+    verifier = _VerifierAssertingThreadBoundary(boundary_state)
+    service._verifier = cast(Any, verifier)
+
+    run_sync_calls = 0
+
+    async def _run_sync(
+        func: Callable[[str], dict[str, Any]],
+        access_token: str,
+        **_kwargs: Any,
+    ) -> dict[str, Any]:
+        nonlocal run_sync_calls
+        run_sync_calls += 1
+        boundary_state["inside_run_sync"] = True
+        try:
+            return func(access_token)
+        finally:
+            boundary_state["inside_run_sync"] = False
+
+    monkeypatch.setattr(
+        "nova_auth_api.service.anyio.to_thread.run_sync", _run_sync
+    )
+
+    response = await service.verify(TokenVerifyRequest(access_token="token-1"))
+
+    assert response.principal.subject == "subject-1"
+    assert run_sync_calls == 1
+    assert verifier.calls == 1
 
 
 def test_build_verifier_does_not_embed_default_authorization_requirements(

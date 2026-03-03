@@ -56,10 +56,38 @@ ops_router = APIRouter(tags=["ops"])
 v1_router = APIRouter(prefix="/v1", tags=["v1"])
 _WORKER_TOKEN_NOT_CONFIGURED = "worker update token not configured"  # noqa: S105
 _API_THREAD_LIMITER_STATE_KEY = "api_thread_limiter"
+_OPERATION_ID_INITIATE_UPLOAD = (
+    "initiate_upload_v1_transfers_uploads_initiate_post"
+)
+_OPERATION_ID_SIGN_PARTS = "sign_parts_v1_transfers_uploads_sign_parts_post"
+_OPERATION_ID_COMPLETE_UPLOAD = (
+    "complete_upload_v1_transfers_uploads_complete_post"
+)
+_OPERATION_ID_ABORT_UPLOAD = "abort_upload_v1_transfers_uploads_abort_post"
+_OPERATION_ID_PRESIGN_DOWNLOAD = (
+    "presign_download_v1_transfers_downloads_presign_post"
+)
+_OPERATION_ID_CREATE_JOB = "create_job_v1_jobs_post"
+_OPERATION_ID_GET_JOB_STATUS = "get_job_status_v1_jobs__job_id__get"
+_OPERATION_ID_CANCEL_JOB = "cancel_job_v1_jobs__job_id__cancel_post"
+_OPERATION_ID_UPDATE_JOB_RESULT = (
+    "update_job_result_v1_internal_jobs__job_id__result_post"
+)
+_OPERATION_ID_LIST_JOBS = "v1_list_jobs_v1_jobs_get"
+_OPERATION_ID_RETRY_JOB = "v1_retry_job_v1_jobs__job_id__retry_post"
+_OPERATION_ID_JOB_EVENTS = "v1_job_events_v1_jobs__job_id__events_get"
+_OPERATION_ID_CAPABILITIES = "v1_capabilities_v1_capabilities_get"
+_OPERATION_ID_RESOURCES_PLAN = "v1_resources_plan_v1_resources_plan_post"
+_OPERATION_ID_RELEASES_INFO = "v1_releases_info_v1_releases_info_get"
+_OPERATION_ID_HEALTH_LIVE = "v1_health_live_v1_health_live_get"
+_OPERATION_ID_HEALTH_READY = "v1_health_ready_v1_health_ready_get"
+_OPERATION_ID_METRICS_SUMMARY = "metrics_summary_metrics_summary_get"
 
 
 @transfer_router.post(
-    "/uploads/initiate", response_model=InitiateUploadResponse
+    "/uploads/initiate",
+    response_model=InitiateUploadResponse,
+    operation_id=_OPERATION_ID_INITIATE_UPLOAD,
 )
 async def initiate_upload(
     payload: InitiateUploadRequest,
@@ -169,7 +197,11 @@ async def initiate_upload(
     return response
 
 
-@transfer_router.post("/uploads/sign-parts", response_model=SignPartsResponse)
+@transfer_router.post(
+    "/uploads/sign-parts",
+    response_model=SignPartsResponse,
+    operation_id=_OPERATION_ID_SIGN_PARTS,
+)
 async def sign_parts(
     payload: SignPartsRequest,
     request: Request,
@@ -225,7 +257,9 @@ async def sign_parts(
 
 
 @transfer_router.post(
-    "/uploads/complete", response_model=CompleteUploadResponse
+    "/uploads/complete",
+    response_model=CompleteUploadResponse,
+    operation_id=_OPERATION_ID_COMPLETE_UPLOAD,
 )
 async def complete_upload(
     payload: CompleteUploadRequest,
@@ -281,7 +315,11 @@ async def complete_upload(
     return response
 
 
-@transfer_router.post("/uploads/abort", response_model=AbortUploadResponse)
+@transfer_router.post(
+    "/uploads/abort",
+    response_model=AbortUploadResponse,
+    operation_id=_OPERATION_ID_ABORT_UPLOAD,
+)
 async def abort_upload(
     payload: AbortUploadRequest,
     request: Request,
@@ -337,7 +375,9 @@ async def abort_upload(
 
 
 @transfer_router.post(
-    "/downloads/presign", response_model=PresignDownloadResponse
+    "/downloads/presign",
+    response_model=PresignDownloadResponse,
+    operation_id=_OPERATION_ID_PRESIGN_DOWNLOAD,
 )
 async def presign_download(
     payload: PresignDownloadRequest,
@@ -393,7 +433,11 @@ async def presign_download(
     return response
 
 
-@v1_router.post("/jobs", response_model=EnqueueJobResponse)
+@v1_router.post(
+    "/jobs",
+    response_model=EnqueueJobResponse,
+    operation_id=_OPERATION_ID_CREATE_JOB,
+)
 async def create_job(
     payload: EnqueueJobRequest,
     request: Request,
@@ -524,7 +568,11 @@ async def _enqueue_job_core(
     return response
 
 
-@v1_router.get("/jobs/{job_id}", response_model=JobStatusResponse)
+@v1_router.get(
+    "/jobs/{job_id}",
+    response_model=JobStatusResponse,
+    operation_id=_OPERATION_ID_GET_JOB_STATUS,
+)
 async def get_job_status(job_id: str, request: Request) -> JobStatusResponse:
     """Return status for caller-owned job."""
     container = get_container(request)
@@ -566,7 +614,11 @@ async def get_job_status(job_id: str, request: Request) -> JobStatusResponse:
     return JobStatusResponse(job=job)
 
 
-@v1_router.post("/jobs/{job_id}/cancel", response_model=JobCancelResponse)
+@v1_router.post(
+    "/jobs/{job_id}/cancel",
+    response_model=JobCancelResponse,
+    operation_id=_OPERATION_ID_CANCEL_JOB,
+)
 async def cancel_job(job_id: str, request: Request) -> JobCancelResponse:
     """Cancel caller-owned non-terminal job."""
     container = get_container(request)
@@ -618,6 +670,7 @@ async def cancel_job(job_id: str, request: Request) -> JobCancelResponse:
 @v1_router.post(
     "/internal/jobs/{job_id}/result",
     response_model=JobResultUpdateResponse,
+    operation_id=_OPERATION_ID_UPDATE_JOB_RESULT,
 )
 async def update_job_result(
     job_id: str,
@@ -691,7 +744,11 @@ async def update_job_result(
     )
 
 
-@v1_router.get("/jobs", response_model=JobListResponse)
+@v1_router.get(
+    "/jobs",
+    response_model=JobListResponse,
+    operation_id=_OPERATION_ID_LIST_JOBS,
+)
 async def v1_list_jobs(
     request: Request,
     limit: int = Query(default=50, ge=1, le=200),
@@ -721,7 +778,11 @@ async def v1_list_jobs(
     return JobListResponse(jobs=jobs)
 
 
-@v1_router.post("/jobs/{job_id}/retry", response_model=EnqueueJobResponse)
+@v1_router.post(
+    "/jobs/{job_id}/retry",
+    response_model=EnqueueJobResponse,
+    operation_id=_OPERATION_ID_RETRY_JOB,
+)
 async def v1_retry_job(job_id: str, request: Request) -> EnqueueJobResponse:
     """Retry a terminal failed/canceled job.
 
@@ -750,7 +811,11 @@ async def v1_retry_job(job_id: str, request: Request) -> EnqueueJobResponse:
     return EnqueueJobResponse(job_id=retried.job_id, status=retried.status)
 
 
-@v1_router.get("/jobs/{job_id}/events", response_model=JobEventsResponse)
+@v1_router.get(
+    "/jobs/{job_id}/events",
+    response_model=JobEventsResponse,
+    operation_id=_OPERATION_ID_JOB_EVENTS,
+)
 async def v1_job_events(job_id: str, request: Request) -> JobEventsResponse:
     """Return poll events with an SSE-compatible envelope.
 
@@ -788,7 +853,11 @@ async def v1_job_events(job_id: str, request: Request) -> JobEventsResponse:
     )
 
 
-@v1_router.get("/capabilities", response_model=CapabilitiesResponse)
+@v1_router.get(
+    "/capabilities",
+    response_model=CapabilitiesResponse,
+    operation_id=_OPERATION_ID_CAPABILITIES,
+)
 async def v1_capabilities(request: Request) -> CapabilitiesResponse:
     """Expose runtime capability matrix for conformance consumers.
 
@@ -815,7 +884,11 @@ async def v1_capabilities(request: Request) -> CapabilitiesResponse:
     return CapabilitiesResponse(capabilities=capabilities)
 
 
-@v1_router.post("/resources/plan", response_model=ResourcePlanResponse)
+@v1_router.post(
+    "/resources/plan",
+    response_model=ResourcePlanResponse,
+    operation_id=_OPERATION_ID_RESOURCES_PLAN,
+)
 async def v1_resources_plan(
     payload: ResourcePlanRequest,
     request: Request,
@@ -863,7 +936,11 @@ async def v1_resources_plan(
     return ResourcePlanResponse(plan=plan)
 
 
-@v1_router.get("/releases/info", response_model=ReleaseInfoResponse)
+@v1_router.get(
+    "/releases/info",
+    response_model=ReleaseInfoResponse,
+    operation_id=_OPERATION_ID_RELEASES_INFO,
+)
 async def v1_releases_info(request: Request) -> ReleaseInfoResponse:
     """Return release metadata.
 
@@ -881,7 +958,11 @@ async def v1_releases_info(request: Request) -> ReleaseInfoResponse:
     )
 
 
-@v1_router.get("/health/live", response_model=HealthResponse)
+@v1_router.get(
+    "/health/live",
+    response_model=HealthResponse,
+    operation_id=_OPERATION_ID_HEALTH_LIVE,
+)
 async def v1_health_live() -> HealthResponse:
     """Return v1 liveness status.
 
@@ -891,7 +972,11 @@ async def v1_health_live() -> HealthResponse:
     return HealthResponse(ok=True)
 
 
-@v1_router.get("/health/ready", response_model=ReadinessResponse)
+@v1_router.get(
+    "/health/ready",
+    response_model=ReadinessResponse,
+    operation_id=_OPERATION_ID_HEALTH_READY,
+)
 async def v1_health_ready(request: Request) -> ReadinessResponse:
     """Return v1 readiness status.
 
@@ -904,7 +989,11 @@ async def v1_health_ready(request: Request) -> ReadinessResponse:
     return await _health_ready_checks(request=request)
 
 
-@ops_router.get("/metrics/summary", response_model=MetricsSummaryResponse)
+@ops_router.get(
+    "/metrics/summary",
+    response_model=MetricsSummaryResponse,
+    operation_id=_OPERATION_ID_METRICS_SUMMARY,
+)
 async def metrics_summary(request: Request) -> MetricsSummaryResponse:
     """Return low-cardinality metrics summary for dashboards."""
     container = get_container(request)
