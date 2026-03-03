@@ -52,18 +52,31 @@ The service MUST provide:
 The default async orchestration path MUST be SQS + ECS worker. Step
 Functions/Lambda are out of scope for the initial release.
 
-In same-origin mode, browser polling calls to `GET /v1/jobs/{job_id}` and other
-body-less scope-bound endpoints MUST include caller scope via trusted header
-(`X-Session-Id` or `X-Scope-Id`). If both `X-Session-Id` and `X-Scope-Id` are
-provided, `X-Session-Id` MUST take precedence and the server MUST ignore
-`X-Scope-Id` for scope binding on those endpoints. Differing values between
-those two headers MUST NOT be treated as a protocol error; the request MUST be
-evaluated using `X-Session-Id` and return the normal endpoint response.
-If both `X-Session-Id` and body `session_id` are present but do not match, the
-request MUST fail with `422` and `error.message = "conflicting session scope"`.
-If `X-Session-Id` is absent and `X-Scope-Id` plus body `session_id` are both
-present but do not match, the request MUST fail with `401` and
-`error.message = "conflicting session scope"`.
+In same-origin mode, all scope binding follows header precedence:
+
+- `X-Session-Id` has precedence over `X-Scope-Id`.
+- If both headers are present, `X-Scope-Id` is ignored for scope binding.
+
+Body-less scope-bound endpoints (for example polling calls like
+`GET /v1/jobs/{job_id}`) MUST evaluate scope only from headers:
+
+- These endpoints MUST use `X-Session-Id` and may use `X-Scope-Id` only as the fallback
+  when `X-Session-Id` is absent.
+- Header-only scope resolution for these endpoints MUST use:
+  - `session_scope = X-Session-Id` if provided and non-blank;
+  - otherwise `session_scope = X-Scope-Id`.
+- Differing values between `X-Session-Id` and `X-Scope-Id` MUST NOT be treated as
+  an error.
+
+Body-carrying scope-bound endpoints (requests with request body field `session_id`)
+MUST validate body-to-header consistency using the same header names:
+
+- `session_id` in request body MUST be compared to `X-Session-Id` first when both are present.
+- If both `X-Session-Id` and body `session_id` are present but different, the request MUST fail with
+  `422` and `error.message = "conflicting session scope"`.
+- If `X-Session-Id` is absent, but both `X-Scope-Id` and body `session_id` are present
+  but different, the request MUST fail with
+  `401` and `error.message = "conflicting session scope"`.
 
 Enqueue failure semantics for `POST /v1/jobs`:
 

@@ -128,10 +128,10 @@ jobs:
           if command -v rg >/dev/null 2>&1; then
             echo "Using rg to validate route references."
             for literal in "${REQUIRED_LITERALS[@]}"; do
-              rg -n -F "$literal" apps packages docs || { echo "::error::Required canonical route literal not found: $literal"; exit 1; }
+              rg -n -F "$literal" apps packages || { echo "::error::Required canonical route literal not found: $literal"; exit 1; }
             done
-            rg -n "$ROUTE_LITERAL_PATTERN" apps packages docs || { echo "::error::Required regex route literal not found: $ROUTE_LITERAL_PATTERN"; exit 1; }
-            if rg -n "/api/transfers|/api/jobs|/healthz|/readyz|/api/v1/[A-Za-z0-9]" \
+            rg -n "$ROUTE_LITERAL_PATTERN" apps packages || { echo "::error::Required regex route literal not found: $ROUTE_LITERAL_PATTERN"; exit 1; }
+            if rg -n "/api/|/healthz|/readyz" \
               apps \
               packages/nova_file_api/src \
               packages/nova_auth_api/src \
@@ -142,10 +142,10 @@ jobs:
           else
             echo "Using grep to validate route references."
             for literal in "${REQUIRED_LITERALS[@]}"; do
-              grep -RIn --fixed-strings "$literal" apps packages docs || { echo "::error::Required canonical route literal not found: $literal"; exit 1; }
+              grep -RIn --fixed-strings "$literal" apps packages || { echo "::error::Required canonical route literal not found: $literal"; exit 1; }
             done
-            grep -RInE "$ROUTE_LITERAL_PATTERN" apps packages docs || { echo "::error::Required regex route literal not found: $ROUTE_LITERAL_PATTERN"; exit 1; }
-            if grep -RInE "/api/transfers|/api/jobs|/healthz|/readyz|/api/v1/[A-Za-z0-9]" \
+            grep -RInE "$ROUTE_LITERAL_PATTERN" apps packages || { echo "::error::Required regex route literal not found: $ROUTE_LITERAL_PATTERN"; exit 1; }
+            if grep -RInE "/api/|/healthz|/readyz" \
               apps \
               packages/nova_file_api/src \
               packages/nova_auth_api/src \
