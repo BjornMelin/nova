@@ -323,6 +323,7 @@
   }
 
   async function enqueueAsyncJob(config, uploadResult) {
+    var jobsBase = config.jobsEndpointBase.replace(/\/$/, "");
     var idempotencyKey =
       "job-enqueue:" + uploadResult.session_id + ":" + uploadResult.key;
     var enqueuePayload = {
@@ -337,7 +338,7 @@
       session_id: uploadResult.session_id,
     };
     return postJson(
-      config.jobsEndpointBase + "/enqueue",
+      jobsBase,
       enqueuePayload,
       { "Idempotency-Key": idempotencyKey }
     );
@@ -349,9 +350,10 @@
     if (typeof sessionId === "string" && sessionId) {
       pollHeaders["X-Session-Id"] = sessionId;
     }
+    var jobsBase = config.jobsEndpointBase.replace(/\/$/, "");
     while (true) {
       var response = await getJson(
-        config.jobsEndpointBase + "/" + encodeURIComponent(jobId),
+        jobsBase + "/" + encodeURIComponent(jobId),
         pollHeaders
       );
       var job = response && response.job ? response.job : {};
