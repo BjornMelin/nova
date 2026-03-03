@@ -4,7 +4,7 @@ Status: Finalized
 Owner: Release Architecture
 
 Transition note (2026-03-02): This checklist verifies both baseline
-(`/api/*` + `/healthz|/readyz|` `/metrics/summary`) and active capability
+(`/api/*` + `/healthz` + `/readyz` + `/metrics/summary`) and active capability
 checks under `SPEC-0015` for `/v1/*`.
 
 ## 1. Runtime Contract Cutover

@@ -102,7 +102,7 @@ Required verification command:
 
 ```bash
 source .venv/bin/activate && \
-rg -n "/api/transfers|/api/jobs|/v1/jobs|/v1/capabilities|/v1/resources/plan|/v1/releases/info|/v1/health/live|/v1/health/ready|/metrics/summary|/healthz|/readyz" apps packages docs
+rg -n "/api/transfers|/api/jobs|/v1/jobs|/v1/jobs/\\{id\\}/events|/v1/capabilities|/v1/resources/plan|/v1/releases/info|/v1/health/live|/v1/health/ready|/metrics/summary|/healthz|/readyz" apps packages docs
 ```
 
 ### Next PR Target Contract Rules (Active Dual-Track Runtime)
@@ -157,7 +157,7 @@ rg --files apps packages docs
 find apps packages -maxdepth 3 -type d | sort
 rg -n "/api/transfers|/api/jobs|/metrics/summary|/healthz|/readyz" \
   packages docs
-- rg -n "/v1/jobs|/v1/capabilities|/v1/resources/plan|/v1/releases/info|/v1/health/live|/v1/health/ready" \
+rg -n "/v1/jobs|/v1/jobs/\\{id\\}/events|/v1/capabilities|/v1/resources/plan|/v1/releases/info|/v1/health/live|/v1/health/ready" \
   packages docs
 rg -n "nova_file_api|nova_auth_api|nova_dash_bridge" \
   apps packages docs
