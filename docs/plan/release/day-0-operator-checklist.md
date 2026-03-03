@@ -18,16 +18,19 @@ safe operator path.
 
 ## Inputs
 
-- `${AWS_REGION}`
-- `${AWS_ACCOUNT_ID}`
+- `${AWS_REGION}` (required, e.g., `us-east-1`)
+- `${AWS_ACCOUNT_ID}` (required, e.g., `123456789012`)
 - `${PROJECT}` (default `nova`)
 - `${APPLICATION}` (default `ci`)
 - `${GITHUB_OWNER}` (default `3M-Cloud`)
 - `${GITHUB_REPO}` (default `nova`)
-- `${CONNECTION_ARN}`
-- `${NAMESPACE}`
-- `${API_DEPLOYMENT_NAME}` (for rollout status verification)
-- `${APP_LABEL}` (for pod verification)
+- `${CONNECTION_ARN}` (required, e.g.,
+  `arn:aws:codestar-connections:us-east-1:...:connection/xxxxxxxx`)
+- `${NAMESPACE}` (default `nova`)
+- `${API_DEPLOYMENT_NAME}` (required, e.g., `${APPLICATION}-api`)
+- `${APP_LABEL}` (required, e.g., `${APPLICATION}-api`)
+- `${AWS_ROLE_TO_ASSUME}` (required if using GitHub OIDC role chaining)
+- `${GITHUB_WEBHOOK_SECRET_NAME}` (optional)
 
 ## Step-by-step commands
 
@@ -44,6 +47,7 @@ export CONNECTION_ARN="${CONNECTION_ARN:?Set CONNECTION_ARN}"
 export NAMESPACE="${NAMESPACE:?Set NAMESPACE}"
 export API_DEPLOYMENT_NAME="${API_DEPLOYMENT_NAME:?Set API_DEPLOYMENT_NAME}"
 export APP_LABEL="${APP_LABEL:?Set APP_LABEL}"
+export BATCHB_VALIDATION_ROLE_NAME="${PROJECT}-${APPLICATION}-batch-b-validation-operator-role"
 ```
 
 ### Step 2: Run command pack

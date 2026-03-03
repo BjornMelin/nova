@@ -38,7 +38,8 @@ Parameters:
     Default: ""
     AllowedPattern: "^$|^arn:(aws|aws-us-gov|aws-cn):iam::[0-9]{12}:(role\\/[A-Za-z0-9+=,.@_\\/-]+|user\\/[A-Za-z0-9+=,.@_\\/-]+|root)$"
     ConstraintDescription: Must be empty or a valid IAM principal ARN (role, user, or root).
-    Description: IAM principal ARN allowed to assume the Batch B validation operator role.
+    Description: IAM principal ARN allowed to assume the Batch B validation operator
+      role. Leave blank to skip creating the role.
 
 Conditions:
   HasExistingConnectionArn: !Not [!Equals [!Ref ExistingConnectionArn, ""]]

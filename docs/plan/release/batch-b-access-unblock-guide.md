@@ -19,6 +19,17 @@ close Batch B governance and non-prod live validation gates.
 
 - `${PROJECT}` (default `nova`)
 - `${APPLICATION}` (default `ci`)
+- `${BATCHB_VALIDATION_ROLE_NAME}` (default `${PROJECT}-${APPLICATION}-batch-b-validation-operator-role`)
+
+## Acceptance checks
+
+- Confirm the Batch B validation role exists and can be assumed by the operator
+  principal ARN.
+- Verify the denied read actions from the evidence log are now allowed:
+  `codeconnections:GetConnection`, `codepipeline:ListPipelineExecutions`,
+  `codepipeline:ListPipelines`, and `codedeploy:ListApplications`.
+- Re-run `docs/plan/release/governance-lock-runbook.md` gates and confirm no new
+  failures are introduced.
 
 ## 1) AWS IAM read access delta (minimum)
 
@@ -146,3 +157,9 @@ From an assumed session for `BatchBValidationOperatorRoleArn`, verify at minimum
 - Set `BatchBOperatorPrincipalArn` back to empty string and update stack.
 - Confirm `BatchBValidationOperatorRoleArn` output is absent.
 - Re-run IAM verification to confirm access removed.
+
+## References
+
+- [documentation-maintenance-guide.md](documentation-maintenance-guide.md)
+- [gov lock runbook](governance-lock-runbook.md)
+- [NONPROD live validation runbook](NONPROD-LIVE-VALIDATION-RUNBOOK.md)
