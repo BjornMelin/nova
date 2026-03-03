@@ -489,12 +489,12 @@ def test_enqueue_failure_is_not_idempotency_cached() -> None:
     app = create_app(container_override=container)
     with TestClient(app) as client:
         first = client.post(
-            "/api/jobs/enqueue",
+            "/v1/jobs",
             headers={"Idempotency-Key": "job-failure-key"},
             json={"job_type": "transform", "payload": {"input": "a"}},
         )
         second = client.post(
-            "/api/jobs/enqueue",
+            "/v1/jobs",
             headers={"Idempotency-Key": "job-failure-key"},
             json={"job_type": "transform", "payload": {"input": "a"}},
         )
@@ -833,12 +833,12 @@ def test_update_job_result_requires_valid_worker_token() -> None:
     app = create_app(container_override=container)
     with TestClient(app) as client:
         forbidden_response = client.post(
-            "/api/jobs/job-update-3/result",
+            "/v1/internal/jobs/job-update-3/result",
             headers={"X-Worker-Token": "wrong-token"},
             json={"status": "running"},
         )
         ok_response = client.post(
-            "/api/jobs/job-update-3/result",
+            "/v1/internal/jobs/job-update-3/result",
             headers={"X-Worker-Token": "test-worker-token"},
             json={"status": "succeeded", "result": {"accepted": True}},
         )
@@ -860,7 +860,7 @@ def test_get_job_status_failure_emits_error_observability(
     emitted_dimensions = capture_emf(metrics)
     app = create_app(container_override=container)
     with TestClient(app, raise_server_exceptions=False) as client:
-        response = client.get("/api/jobs/job-status-1")
+        response = client.get("/v1/jobs/job-status-1")
 
     assert response.status_code == 500
     counters = metrics.counters_snapshot()
@@ -872,23 +872,12 @@ def test_get_job_status_failure_emits_error_observability(
     assert summary["active_users_today"] == 1
 
 
-def test_cancel_job_failure_emits_error_observability(
-    capture_emf: CaptureEmf,
-) -> None:
-    container, metrics, activity_store = _build_failing_job_container()
-    emitted_dimensions = capture_emf(metrics)
-    app = create_app(container_override=container)
-    with TestClient(app, raise_server_exceptions=False) as client:
+def test_legacy_cancel_route_is_not_exposed() -> None:
+    app = create_app()
+    with TestClient(app) as client:
         response = client.post("/api/jobs/job-status-1/cancel")
 
-    assert response.status_code == 500
-    counters = metrics.counters_snapshot()
-    assert counters["jobs_cancel_failure_total"] == 1
-    assert {"route": "jobs_cancel", "status": "error"} in emitted_dimensions
-    summary = activity_store.summary()
-    assert summary["events_total"] == 1
-    assert summary["distinct_event_types"] == 1
-    assert summary["active_users_today"] == 1
+    assert response.status_code == 404
 
 
 def test_update_job_result_failure_emits_error_observability(
@@ -901,7 +890,7 @@ def test_update_job_result_failure_emits_error_observability(
     app = create_app(container_override=container)
     with TestClient(app, raise_server_exceptions=False) as client:
         response = client.post(
-            "/api/jobs/job-update-4/result",
+            "/v1/internal/jobs/job-update-4/result",
             headers={"X-Worker-Token": "test-worker-token"},
             json={"status": "running"},
         )
@@ -924,7 +913,7 @@ def test_get_job_status_accepts_scope_header_same_origin() -> None:
     app = create_app(container_override=container)
     with TestClient(app) as client:
         response = client.get(
-            "/api/jobs/job-status-1",
+            "/v1/jobs/job-status-1",
             headers={"X-Session-Id": "scope-header"},
         )
 
@@ -938,7 +927,7 @@ def test_get_job_status_requires_session_scope_in_same_origin_mode() -> None:
     container = _build_same_origin_status_container(scope_id="scope-header")
     app = create_app(container_override=container)
     with TestClient(app) as client:
-        response = client.get("/api/jobs/job-status-1")
+        response = client.get("/v1/jobs/job-status-1")
 
     assert response.status_code == 401
     payload = response.json()

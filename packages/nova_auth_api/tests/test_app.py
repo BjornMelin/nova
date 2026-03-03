@@ -41,10 +41,10 @@ class _StubService(TokenVerificationService):
         )
 
 
-def test_healthz() -> None:
+def test_v1_health_live() -> None:
     app = create_app(service_override=_StubService())
     with TestClient(app) as client:
-        response = client.get("/healthz")
+        response = client.get("/v1/health/live")
     assert response.status_code == 200
     payload = response.json()
     assert payload["status"] == "ok"

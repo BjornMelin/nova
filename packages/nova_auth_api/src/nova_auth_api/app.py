@@ -92,8 +92,8 @@ def create_app(
     )
     app.middleware("http")(request_context_middleware)
 
-    @app.get("/healthz", response_model=HealthResponse)
-    async def healthz(request: Request) -> HealthResponse:
+    @app.get("/v1/health/live", response_model=HealthResponse)
+    async def health_live(request: Request) -> HealthResponse:
         """Return liveness status."""
         request_id = _request_id(request=request) or uuid4().hex
         return HealthResponse(

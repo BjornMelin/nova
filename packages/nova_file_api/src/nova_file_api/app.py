@@ -14,7 +14,6 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 from nova_file_api.api import (
-    jobs_router,
     ops_router,
     transfer_router,
     v1_router,
@@ -62,9 +61,8 @@ def create_app(*, container_override: AppContainer | None = None) -> FastAPI:
     )
 
     app.middleware("http")(request_context_middleware)
-    app.include_router(transfer_router)
-    app.include_router(jobs_router)
     app.include_router(ops_router)
+    app.include_router(transfer_router)
     app.include_router(v1_router)
 
     @app.exception_handler(FileTransferError)

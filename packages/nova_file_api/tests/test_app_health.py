@@ -61,20 +61,20 @@ def _build_container(
     )
 
 
-def test_healthz_returns_ok() -> None:
-    """Verify `/healthz` returns 200 with an ok payload."""
+def test_v1_health_live_returns_ok() -> None:
+    """Verify `/v1/health/live` returns 200 with an ok payload."""
     app = create_app(container_override=_build_container())
     with TestClient(app) as client:
-        response = client.get("/healthz")
+        response = client.get("/v1/health/live")
     assert response.status_code == 200
     assert response.json() == {"ok": True}
 
 
-def test_readyz_returns_expected_checks() -> None:
-    """Verify `/readyz` exposes expected readiness checks."""
+def test_v1_health_ready_returns_expected_checks() -> None:
+    """Verify `/v1/health/ready` exposes expected readiness checks."""
     app = create_app(container_override=_build_container())
     with TestClient(app) as client:
-        response = client.get("/readyz")
+        response = client.get("/v1/health/ready")
     assert response.status_code == 200
     payload = response.json()
     assert payload["ok"] is True
@@ -88,7 +88,7 @@ def test_readyz_stays_ok_when_jobs_are_disabled() -> None:
     """Verify feature flags do not force readiness false."""
     app = create_app(container_override=_build_container(jobs_enabled=False))
     with TestClient(app) as client:
-        response = client.get("/readyz")
+        response = client.get("/v1/health/ready")
     assert response.status_code == 200
     payload = response.json()
     assert payload["ok"] is True
@@ -104,7 +104,7 @@ def test_readyz_fails_when_bucket_is_missing() -> None:
         container_override=_build_container(file_transfer_bucket="")
     )
     with TestClient(app) as client:
-        response = client.get("/readyz")
+        response = client.get("/v1/health/ready")
     assert response.status_code == 200
     payload = response.json()
     assert payload["ok"] is False
@@ -119,11 +119,10 @@ def test_validation_errors_use_canonical_error_envelope() -> None:
     app = create_app(container_override=_build_container())
     with TestClient(app) as client:
         response = client.post(
-            "/api/transfers/uploads/initiate",
+            "/v1/jobs",
             headers={"X-Request-Id": "req-transfer-422"},
             json={
-                "filename": "sample.csv",
-                "content_type": "text/csv",
+                "job_type": "",
             },
         )
     assert response.status_code == 422
