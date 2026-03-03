@@ -15,28 +15,137 @@ phases:
 
   pre_build:
     commands:
-      - test -n "$SERVICE_BASE_URL"
+      - test -n "${VALIDATION_BASE_URL:-${SERVICE_BASE_URL:-}}"
 
   build:
     commands:
       - |
         set -euo pipefail
-        python - <<'PY'
+        if python - <<'PY'
+        import json
         import os
+        from datetime import UTC, datetime
+
         import httpx
 
-        base = os.environ["SERVICE_BASE_URL"].rstrip("/")
-        paths = ["/healthz", "/readyz", "/metrics/summary"]
+        DEFAULT_CANONICAL = ",".join(
+            [
+                "/v1/health/live",
+                "/v1/health/ready",
+                "/metrics/summary",
+                "/v1/capabilities",
+                "/v1/releases/info",
+            ]
+        )
+        DEFAULT_LEGACY_404 = ",".join(
+            [
+                "/healthz",
+                "/readyz",
+                "/api/transfers/uploads/initiate",
+                "/api/jobs",
+                "/api/v1/transfers/uploads/initiate",
+            ]
+        )
+
+        def parse_paths(value: str) -> list[str]:
+            out: list[str] = []
+            for token in value.split(","):
+                path = token.strip()
+                if not path:
+                    continue
+                if not path.startswith("/"):
+                    path = f"/{path}"
+                out.append(path)
+            return out
+
+        base = (
+            os.getenv("VALIDATION_BASE_URL")
+            or os.getenv("SERVICE_BASE_URL")
+            or ""
+        ).strip()
+        if not base:
+            raise SystemExit(
+                "VALIDATION_BASE_URL or SERVICE_BASE_URL must be provided"
+            )
+        if not base.startswith("https://"):
+            raise SystemExit(
+                "validation base URL must use https://"
+            )
+        base = base.rstrip("/")
+
+        canonical_paths = parse_paths(
+            os.getenv("VALIDATION_CANONICAL_PATHS", DEFAULT_CANONICAL)
+        )
+        legacy_paths = parse_paths(
+            os.getenv("VALIDATION_LEGACY_404_PATHS", DEFAULT_LEGACY_404)
+        )
+        if not canonical_paths:
+            raise SystemExit("VALIDATION_CANONICAL_PATHS resolved to empty list")
+        if not legacy_paths:
+            raise SystemExit("VALIDATION_LEGACY_404_PATHS resolved to empty list")
+
+        checks: list[dict[str, object]] = []
+        failures: list[str] = []
         with httpx.Client(timeout=10.0) as client:
-            for path in paths:
-                resp = client.get(base + path)
-                if resp.status_code != 200:
-                    raise SystemExit(
-                        f"Validation failed for {path}: {resp.status_code}"
+            for path in canonical_paths:
+                response = client.get(base + path)
+                ok = response.status_code != 404 and response.status_code < 500
+                checks.append(
+                    {
+                        "kind": "canonical",
+                        "path": path,
+                        "expected": "status != 404 and < 500",
+                        "status_code": response.status_code,
+                        "ok": ok,
+                    }
+                )
+                if not ok:
+                    failures.append(
+                        f"canonical path {path} returned {response.status_code}"
                     )
+
+            for path in legacy_paths:
+                response = client.get(base + path)
+                ok = response.status_code == 404
+                checks.append(
+                    {
+                        "kind": "legacy_404",
+                        "path": path,
+                        "expected": "status == 404",
+                        "status_code": response.status_code,
+                        "ok": ok,
+                    }
+                )
+                if not ok:
+                    failures.append(
+                        f"legacy path {path} returned {response.status_code}"
+                    )
+
+        report = {
+            "timestamp_utc": datetime.now(UTC).isoformat(),
+            "base_url": base,
+            "canonical_paths": canonical_paths,
+            "legacy_404_paths": legacy_paths,
+            "checks": checks,
+            "status": "failed" if failures else "passed",
+            "failures": failures,
+        }
+        report_path = "deploy-validation-report.json"
+        with open(report_path, "w", encoding="utf-8") as handle:
+            json.dump(report, handle, indent=2, sort_keys=True)
+            handle.write("\n")
+
+        if failures:
+            raise SystemExit("Validation failed: " + "; ".join(failures))
         PY
-        export VALIDATION_STATUS=passed
+        then
+          export VALIDATION_STATUS=passed
+        else
+          export VALIDATION_STATUS=failed
+          exit 1
+        fi
 
 artifacts:
   files:
+    - deploy-validation-report.json
     - docs/plan/release/RELEASE-VERSION-MANIFEST.md
