@@ -6,7 +6,7 @@ implementation branch aligned with `ADR-0015` + `SPEC-0015`.
 
 ## Purpose
 
-Run `docs/plan/subplans/SUBPLAN-0004.md` in a fresh Codex session.
+Run `docs/history/2026-03-v1-hard-cut/subplans/SUBPLAN-0004.md` in a fresh Codex session.
 
 ## Branch
 
@@ -15,7 +15,7 @@ Run `docs/plan/subplans/SUBPLAN-0004.md` in a fresh Codex session.
 ## Copy/Paste Prompt
 
 ```markdown
-Execute `docs/plan/subplans/SUBPLAN-0004.md` end-to-end.
+Execute `docs/history/2026-03-v1-hard-cut/subplans/SUBPLAN-0004.md` end-to-end.
 
 Branch: `feat/subplan-0004-e2e-validation-release-closure`
 

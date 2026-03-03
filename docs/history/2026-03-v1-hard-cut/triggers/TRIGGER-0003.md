@@ -6,7 +6,7 @@ deployment authority for Nova.
 
 ## Purpose
 
-Run `docs/plan/subplans/SUBPLAN-0003.md` in a fresh Codex session.
+Run `docs/history/2026-03-v1-hard-cut/subplans/SUBPLAN-0003.md` in a fresh Codex session.
 
 ## Branch
 
@@ -15,7 +15,7 @@ Run `docs/plan/subplans/SUBPLAN-0003.md` in a fresh Codex session.
 ## Copy/Paste Prompt
 
 ```markdown
-Execute `docs/plan/subplans/SUBPLAN-0003.md` end-to-end.
+Execute `docs/history/2026-03-v1-hard-cut/subplans/SUBPLAN-0003.md` end-to-end.
 
 Branch: `feat/subplan-0003-infra-cross-repo-integration`
 

@@ -1,20 +1,25 @@
 # Documentation History
 
-This directory contains historical records that are retained for audit
-context and release traceability.
+This directory contains historical records retained for audit and traceability.
 
-Content under `docs/history/` is non-authoritative and should not be used as
-the primary implementation or operations reference for current runtime work.
+Content under `docs/history/**` is non-authoritative for current
+implementation and operations.
 
-Use active documentation first:
+Use active docs first:
 
 - `README.md`
 - `AGENTS.md`
+- `docs/PRD.md`
 - `docs/architecture/requirements.md`
 - `docs/architecture/adr/index.md`
 - `docs/architecture/spec/index.md`
 - `docs/plan/PLAN.md`
 
-Historical records:
+Historical bundles:
 
-- `docs/history/2026-02-cutover/README.md`
+1. `docs/history/2026-03-v1-hard-cut/`
+   - includes archived PRD/PLAN/FINAL-PLAN, planning blueprint, subplans,
+     and trigger prompts.
+2. `docs/history/2026-02-cutover/`
+   - includes cutover archive redirect docs, archived release notes, and
+     archived migration specs (`SPEC-0013`, `SPEC-0014`).
