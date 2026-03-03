@@ -7,8 +7,9 @@
 
 ## ADR Catalog
 
-Note: `ADR-0015` is accepted as target-state architecture and its delivery is
-tracked as implementation pending via `SPEC-0015`.
+Note: `ADR-0015` and `SPEC-0015` are active dual-track authority: baseline
+`/api/*` behavior remains in `SPEC-0000`/`SPEC-0003`/`SPEC-0004`/`SPEC-0008`, and
+`/v1/*` capability endpoints are governed by `SPEC-0015`.
 
 | ADR | Title | Status | Date |
 | --- | --- | --- | --- |

@@ -24,4 +24,4 @@
 | [SPEC-0012](./SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md) | SDK conformance, versioning, and compatibility governance | Active | 2026-02-28 |
 | [SPEC-0013](./SPEC-0013-container-craft-capability-absorption-execution-spec.md) | Container-craft capability absorption execution spec | Active | 2026-02-28 |
 | [SPEC-0014](./SPEC-0014-container-craft-capability-inventory-and-absorption-map.md) | Container-craft capability inventory and Nova absorption target map | Active | 2026-02-28 |
-| [SPEC-0015](./SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md) | Nova API platform final topology and delivery contract | Planned | 2026-03-02 |
+| [SPEC-0015](./SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md) | Nova API platform final topology and delivery contract | Active | 2026-03-02 |

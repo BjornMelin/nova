@@ -20,12 +20,11 @@
 
 - This file remains a historical baseline for currently implemented `/api/*`
   runtime behavior and prior cutover execution evidence.
-- Target-state architecture for the next feature branch is locked in
-  `ADR-0015` + `SPEC-0015` and introduces `/v1/*` capability routes and planned
-  workflow artifacts.
-- Supersession trigger: once target-state implementation merges, route, and
-  workflow authority in this file is historical-only and replaced by updated
-  active requirements/specification docs.
+- Target-state architecture in `ADR-0015` + `SPEC-0015` is active in this runtime,
+  while this file remains historical execution evidence.
+- Supersession status: baseline and capability authority in this file is now
+  replaced by active updates in `SPEC-0000`, `SPEC-0003`, `SPEC-0004`,
+  `SPEC-0008`, and `SPEC-0015`.
 
 # Final Hard-Cutover Monorepo Plan: nova Runtime + container-craft Infra
 

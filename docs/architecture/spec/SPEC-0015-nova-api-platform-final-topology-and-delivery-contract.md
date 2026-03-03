@@ -1,7 +1,7 @@
 ---
 Spec: 0015
 Title: Nova API platform final topology and delivery contract
-Status: Planned
+Status: Active
 Version: 1.2
 Date: 2026-03-02
 Related:
@@ -14,11 +14,12 @@ Related:
 
 ## 1. Scope
 
-Defines Nova target-state runtime topology, IaC ownership, CI/CD artifacts, and
-API capability contract for the next implementation branch.
+Defines Nova runtime topology, IaC ownership, CI/CD artifacts, and API
+capability contract for the active dual-track runtime model.
 
-This specification is intentionally ahead of current implementation and does not
-replace current baseline operational behavior until target-state code is merged.
+This specification governs `/v1/*` capability contracts for canonical client
+consumption while baseline `/api/*` behavior remains operational and authoritative
+under `SPEC-0000`, `SPEC-0003`, `SPEC-0004`, and `SPEC-0008`.
 
 Constraints:
 1. Final-state only.
@@ -28,23 +29,22 @@ Constraints:
 
 ## 2. State and supersession model
 
-### 2.1 Current implemented baseline (still active)
+### 2.1 Current implemented baseline (active)
 
 Current operational behavior remains defined by:
 
 - `SPEC-0000` for `/api/transfers/*` + `/api/jobs/*` routes
-- `SPEC-0003` for `/healthz` + `/readyz` semantics
+- `SPEC-0003` for `/healthz` + `/readyz` semantics and associated monitoring
 - `SPEC-0004` for current release workflow and quality gates
 - `SPEC-0008` for async enqueue/result semantics
 
-### 2.2 Target-state supersession trigger
+### 2.2 Capability contract model
 
-This spec becomes active contract authority when target-state implementation
-lands and docs are updated in the same PR. At that point:
+This spec is active in the same repository release and the route authority is:
 
-- target `/v1/*` capability routes supersede current baseline routes as contract
-  authority
-- target workflow artifacts below become required operational CI/CD definitions
+- `/v1/*` capability routes are canonical for clients and SDK generation.
+- baseline `/api/*` routes remain available for same-origin runtime behavior.
+- workflow artifacts below are required by active SPEC-0015 operational authority.
 
 ## 3. Final topology (target-state)
 
@@ -86,8 +86,8 @@ Workflow artifact contract state:
   - `ci.yml`: lint/type/test/security/contract checks.
   - `publish-packages.yml`: CodeArtifact staged publishing with gate artifacts.
   - `promote-prod.yml`: manifest-locked package promotion + CodePipeline approval.
-- Additional workflows already present in `.github/workflows/` and required to
-  meet this spec contract in the next implementation branch:
+-- Additional workflows already present in `.github/workflows/` and required to
+  meet this spec contract:
   - `build-and-publish-image.yml`: must produce immutable ECR image digest output and export the locked digest for downstream deploy workflows.
   - `deploy-dev.yml`: must run deterministic environment deploy for the selected ref/digest and enforce smoke checks before success.
   - `post-deploy-validate.yml`: must execute runtime and endpoint conformance checks against the target environment.
