@@ -95,12 +95,7 @@ curl -sS -o /dev/null -w "%{http_code}\n" \
 curl -sS -o /dev/null -w "%{http_code}\n" \
   "${NONPROD_API_BASE_URL}/v1/capabilities"
 curl -sS -o /dev/null -w "%{http_code}\n" \
-  "${NONPROD_API_BASE_URL}/healthz"
-curl -sS -o /dev/null -w "%{http_code}\n" \
-  "${NONPROD_API_BASE_URL}/readyz"
-curl -sS -o /dev/null -w "%{http_code}\n" \
-  -X POST "${NONPROD_API_BASE_URL}/api/transfers/uploads/initiate" \
-  -H "Content-Type: application/json" -d '{}'
+  "${NONPROD_API_BASE_URL}/metrics/summary"
 ```
 
 Acceptance:
@@ -112,8 +107,10 @@ Acceptance:
 - Canonical `/v1/jobs*`, `/v1/health/live`, `/v1/health/ready`, and
   `/v1/capabilities` routes return contract responses (non-`404`) during
   dry-run checks.
-- Legacy `/healthz`, `/readyz`, and `/api/transfers/*` return `404`.
-- No `/api/v1/*` route references appear in operator commands or runbook notes.
+- `/metrics/summary` returns a contract response (non-`404`) during dry-run
+  checks.
+- Commands and runbook notes use only canonical `/v1/*` routes and
+  `/metrics/summary`.
 
 ### B2. ECS and target-group health
 

@@ -6,9 +6,8 @@ Owner: Release Architecture
 ## 1. Runtime Contract Cutover
 
 - [x] Canonical consumer capability endpoints use `/v1/*` routes.
-- [x] Legacy `/api/transfers/*` and `/api/jobs/*` runtime endpoints are removed.
-- [x] Legacy `/healthz` and `/readyz` routes are removed.
-- [x] `/api/v1/*` namespace aliases are absent from runtime/contracts/docs/workflows.
+- [x] Runtime route surface is limited to canonical `/v1/*` plus `/metrics/summary`.
+- [x] Non-canonical route literals are absent from runtime/contracts/docs/workflows.
 - [x] No deprecated alias route namespace remains in runtime code.
 - [x] OpenAPI regression test enforces canonical route contract only.
 - [x] CI route guard includes regex route-literal checks for canonical paths
@@ -56,6 +55,13 @@ Owner: Release Architecture
   `docs/plan/release/NONPROD-LIVE-VALIDATION-RUNBOOK.md`
 - Note: runbook publication is complete; the live gates below remain blocked
   pending non-prod AWS access and must be completed during staged rollout.
+- [x] Gate preflight evidence recorded with current blockers:
+  `docs/plan/release/evidence-log.md` (entry `2026-03-03T08:29:33Z`).
+- [x] Gate rerun evidence recorded under `bjorn-dev`:
+  `docs/plan/release/evidence-log.md` (entry `2026-03-03T09:32:00Z`).
+- Note: remaining blocker is CI/CD stack update authority
+  (`iam:PassRole` denied for `nova-ci-nova-codepipeline-role`) plus missing
+  deployed runtime inventory for ECS/CodeDeploy live gates.
 - [ ] Sidecar ALB route + health behavior validated in non-prod AWS.
 - [ ] Non-prod end-to-end smoke completed.
 - [ ] CloudWatch dashboards/alarms synthetic-failure validation completed.

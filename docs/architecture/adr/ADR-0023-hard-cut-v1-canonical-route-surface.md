@@ -16,19 +16,19 @@ Related:
 ## Summary
 
 Adopt a pre-deployment hard cut to one public API namespace: `/v1/*`.
-Legacy runtime routes (`/api/*`, `/healthz`, `/readyz`) are removed in the same
-execution wave.
+Prior non-canonical runtime route families are removed in the same execution
+wave.
 
 ## Context
 
-The repository had dual-route entropy (`/api/*` and `/v1/*`) that increased
-maintenance cost, contract ambiguity, and regression risk. Breaking changes are
-explicitly allowed for this release wave.
+The repository had multi-namespace route entropy that increased maintenance
+cost, contract ambiguity, and regression risk. Breaking changes are explicitly
+allowed for this release wave.
 
 ## Decision
 
 1. Hard cut now with no sunset window.
-2. Canonical runtime namespace is `/v1/*` (not `/api/v1/*`).
+2. Canonical runtime namespace is `/v1/*` with no alternate namespace aliases.
 3. Worker update endpoint is internal-only at
    `/v1/internal/jobs/{job_id}/result`.
 4. Health/readiness standardize to `/v1/health/live` and
@@ -36,13 +36,12 @@ explicitly allowed for this release wave.
 5. Observability summary remains non-versioned at `/metrics/summary`.
 6. Auth service routes standardize to `/v1/token/verify`,
    `/v1/token/introspect`, and `/v1/health/live`.
-7. Removed routes: all `/api/transfers/*`, all `/api/jobs/*`, `/healthz`,
-   `/readyz`.
+7. Removed routes: all non-canonical pre-cutover route families.
 
-### Why `/v1/*` over `/api/v1/*`
+### Why canonical `/v1/*` namespace
 
 - It creates one clean canonical client surface.
-- It avoids preserving legacy `/api/*` semantics in new integrations.
+- It avoids preserving deprecated namespace semantics in new integrations.
 - It keeps route contracts shorter while retaining explicit versioning.
 - It removes namespace ambiguity in docs, generated SDKs, and conformance
   lanes.
@@ -69,21 +68,21 @@ Only options >=9.0 are accepted.
 
 ### Trade-offs
 
-- Existing `/api/*` callers must migrate immediately.
+- Existing pre-cutover callers must migrate immediately.
 - Historical docs must be explicitly marked superseded where they describe
   dual-route authority.
 
 ## Supersession notes
 
-- Supersedes route authority language that kept `/api/*` operational as a
-  first-class contract surface.
+- Supersedes route authority language that kept non-canonical namespaces
+  operational as a first-class contract surface.
 - `SPEC-0000`, `SPEC-0015`, and `SPEC-0016` are updated to reflect the hard cut
   contract.
 
 ## Explicit non-decisions
 
 - No compatibility alias routes.
-- No `/api/v1/*` namespace introduction.
+- No alternate version namespace introduction.
 - No deprecation/sunset response headers required for this pre-deploy hard cut.
 - No naming migration of `POST /v1/resources/plan` to `/v1/resource-plans` in
   this wave.

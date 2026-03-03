@@ -22,7 +22,7 @@ complexity.
 
 Supersession note (2026-03-03): Route-namespace commitments in this ADR are
 partially superseded by `ADR-0023`, which defines the canonical `/v1/*` surface
-and removal of legacy `/api/*`, `/healthz`, and `/readyz` routes.
+and removal of non-canonical pre-cutover route families.
 
 ## Context
 

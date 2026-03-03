@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -20,9 +21,32 @@ BANNED_DOC_PATTERNS = (
     "infra-stack/container-craft/tree",
 )
 
+ACTIVE_ROUTE_AUTHORITY_PATHS = (
+    REPO_ROOT / "README.md",
+    DOCS_ROOT / "PRD.md",
+    DOCS_ROOT / "architecture" / "requirements.md",
+    *ACTIVE_DOCS_PATHS,
+)
+
+LEGACY_ACTIVE_ROUTE_PATTERNS = (
+    re.compile(r"(?<![A-Za-z0-9_])/api(?:/|\*)"),
+    re.compile(r"(?<![A-Za-z0-9_])/healthz(?:\b|/)"),
+    re.compile(r"(?<![A-Za-z0-9_])/readyz(?:\b|/)"),
+)
+
 
 def _markdown_files(base_path: Path) -> list[Path]:
     return sorted(path for path in base_path.rglob("*.md") if path.is_file())
+
+
+def _markdown_targets(paths: tuple[Path, ...]) -> list[Path]:
+    docs: list[Path] = []
+    for path in paths:
+        if path.is_file():
+            docs.append(path)
+        elif path.is_dir():
+            docs.extend(_markdown_files(path))
+    return sorted(docs)
 
 
 def test_canonical_runbook_entrypoint_exists() -> None:
@@ -45,6 +69,23 @@ def test_active_docs_do_not_link_to_retired_container_craft_docs() -> None:
     assert not violations, (
         "Found active Nova docs linking to retired container-craft docs:\n"
         + "\n".join(violations)
+    )
+
+
+def test_active_docs_do_not_reference_legacy_runtime_route_literals() -> None:
+    """Active route authority docs must remain canonical-only."""
+    violations: set[str] = set()
+
+    for doc in _markdown_targets(ACTIVE_ROUTE_AUTHORITY_PATHS):
+        text = doc.read_text(encoding="utf-8")
+        for pattern in LEGACY_ACTIVE_ROUTE_PATTERNS:
+            for match in pattern.finditer(text):
+                rel_path = doc.relative_to(REPO_ROOT)
+                violations.add(f"{rel_path}: {match.group(0)}")
+
+    assert not violations, (
+        "Found legacy runtime route literals in active docs:\n"
+        + "\n".join(sorted(violations))
     )
 
 

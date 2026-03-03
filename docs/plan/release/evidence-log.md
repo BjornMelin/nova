@@ -21,4 +21,52 @@ For each validation/promotion execution, append:
 
 ## 2026-03
 
-- Pending external non-prod AWS execution evidence for hard-cut live gates.
+- `2026-03-03T08:29:33Z` | operator: `openclaw-project-operator-role` |
+  environment: `non-prod` | gate: `WS4 preflight (A/B/E permissions + role)`
+  | result: `BLOCKED`
+  - artifact/log links:
+    - `.agents/plans/2026-03-03-nova-full-cross-repo-spec-orchestration.md`
+      (`0.1` A5 row + `0.3` WS4 blocker evidence)
+  - remediation notes:
+    - Create Batch-B operator role by applying
+      `infra/nova/nova-iam-roles.yml` with `BatchBOperatorPrincipalArn`
+      populated.
+    - Grant/read path for:
+      `codeconnections:GetConnection`,
+      `codepipeline:ListPipelineExecutions`,
+      `codepipeline:GetPipelineState`,
+      `codedeploy:ListApplications`.
+    - Re-run Gate A-E per
+      `docs/plan/release/NONPROD-LIVE-VALIDATION-RUNBOOK.md`.
+
+- `2026-03-03T09:32:00Z` | operator: `AWSReservedSSO_PowerUserAccess (bjorn-dev)` |
+  environment: `non-prod` | gate: `WS4 rerun + WS4 template apply`
+  | result: `PARTIAL/BLOCKED`
+  - artifact/log links:
+    - `.agents/plans/2026-03-03-nova-full-cross-repo-spec-orchestration.md`
+      (`0.1` A13/A15 rows + `0.3` WS4 rerun/template-apply entries)
+  - remediation notes:
+    - Gate A read checks now pass (`ConnectionStatus=AVAILABLE`, pipeline execution
+      history visible).
+    - `nova-ci-nova-ci-cd` stack update is blocked by denied
+      `iam:PassRole` on `arn:aws:iam::099060980393:role/nova-ci-nova-codepipeline-role`.
+    - Pipeline `ValidateDev` still fails with
+      `YAML_FILE_ERROR` (`buildspecs/buildspec-deploy-validate.yml` not found)
+      because Validate actions still consume `BuildOutput`.
+    - `DevServiceBaseUrl` is currently `https://httpbin.org/anything`; direct
+      probes returned `200` for both canonical and legacy paths, so route-authority
+      behavior cannot be validated from this endpoint.
+    - Runtime deployment inventory is not present (`ecs list-clusters` empty,
+      `deploy list-applications` empty), so Gate B/C/D/E cannot be fully closed.
+
+- `2026-03-03T09:32:00Z` | operator: `AWSReservedSSO_PowerUserAccess (bjorn-dev)` |
+  environment: `cross-repo verification` | gate: `WS6 dash-pca Run2`
+  | result: `PASS`
+  - artifact/log links:
+    - `.agents/plans/2026-03-03-nova-full-cross-repo-spec-orchestration.md`
+      (`0.1` A14/A17 rows + `0.3` WS6 Run2 entries)
+  - remediation notes:
+    - `uv.lock` refreshed against authenticated CodeArtifact index.
+    - non-e2e suite passed (`371 passed, 1 skipped`).
+    - e2e suite passed after fixture fix in `tests/e2e/conftest.py`
+      (`1 passed, 4 skipped`).

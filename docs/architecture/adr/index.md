@@ -8,8 +8,7 @@
 ## ADR Catalog
 
 Note: `ADR-0023` + `SPEC-0016` define the hard-cut canonical route authority:
-runtime routes are `/v1/*` (plus `/metrics/summary`) and legacy `/api/*`,
-`/healthz`, and `/readyz` are removed.
+runtime routes are `/v1/*` (plus `/metrics/summary`) only.
 
 | ADR | Title | Status | Date |
 | --- | --- | --- | --- |

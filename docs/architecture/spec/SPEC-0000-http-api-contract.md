@@ -32,7 +32,8 @@ Hard-cut state (2026-03-03): runtime contract is canonical `/v1/*` plus
 - Operational summary path: `/metrics/summary`
 - Content type: `application/json`
 
-Legacy `/api/*`, `/healthz`, and `/readyz` routes are removed.
+Only canonical `/v1/*` routes and `/metrics/summary` are part of the active
+runtime contract.
 
 ## 3. Endpoints
 
@@ -66,15 +67,9 @@ Legacy `/api/*`, `/healthz`, and `/readyz` routes are removed.
 - `GET /v1/health/ready`
 - `GET /metrics/summary`
 
-## 4. Removed routes (normative)
+## 4. Non-canonical routes (normative)
 
-The following routes are not part of the contract and MUST return `404`:
-
-- all `/api/transfers/*`
-- all `/api/jobs/*`
-- `/healthz`
-- `/readyz`
-- all `/api/v1/*`
+Any route outside section 3 is not part of the contract and MUST return `404`.
 
 ## 5. Job semantics
 
@@ -107,8 +102,8 @@ idempotent retries via `Idempotency-Key` header.
   response.
 - Reuse of key with a different payload MUST return `409` with
   `error.code = "idempotency_conflict"`.
-- Idempotency storage MUST be operation-based and independent from legacy
-  removed route strings.
+- Idempotency storage MUST be operation-based and independent from
+  non-canonical route strings.
 
 ## 7. Scope and key rules
 

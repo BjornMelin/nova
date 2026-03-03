@@ -12,8 +12,8 @@ async jobs with zero route-surface ambiguity.
 ## 2. Desired Outcomes
 
 - One canonical public namespace: `/v1/*` (plus `/metrics/summary`).
-- Zero active references to removed route families (`/api/*`, `/api/v1/*`,
-  `/healthz`, `/readyz`) in runtime and active operator docs.
+- Zero active references to non-canonical route literals in runtime and active
+  operator docs.
 - Stable generated-client and conformance behavior against current OpenAPI.
 - Release promotion evidence is complete for non-prod validation and dev->prod
   promotion controls.
