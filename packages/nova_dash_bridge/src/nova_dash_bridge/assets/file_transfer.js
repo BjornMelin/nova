@@ -346,11 +346,11 @@
 
   async function pollAsyncJob(config, jobId, sessionId) {
     var startedMs = Date.now();
+    var jobsBase = config.jobsEndpointBase.replace(/\/$/, "");
     var pollHeaders = {};
     if (typeof sessionId === "string" && sessionId) {
       pollHeaders["X-Session-Id"] = sessionId;
     }
-    var jobsBase = config.jobsEndpointBase.replace(/\/$/, "");
     while (true) {
       var response = await getJson(
         jobsBase + "/" + encodeURIComponent(jobId),
@@ -518,8 +518,8 @@
 
     var config = {
       transfersEndpointBase:
-        root.dataset.transfersEndpointBase || "/api/transfers",
-      jobsEndpointBase: root.dataset.jobsEndpointBase || "/api/jobs",
+        root.dataset.transfersEndpointBase || "/v1/transfers",
+      jobsEndpointBase: root.dataset.jobsEndpointBase || "/v1/jobs",
       maxConcurrency: root.dataset.maxConcurrency || "4",
       maxBytes: parseInt(root.dataset.maxBytes || "0", 10),
       resultStoreId: root.dataset.resultStoreId || "",

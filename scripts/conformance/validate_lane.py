@@ -95,7 +95,7 @@ def main() -> int:
     args = parser.parse_args()
 
     validate_lane(args.lane)
-    print(f"conformance lane passed: {args.lane}")
+    print(f"v1 conformance lane passed: {args.lane}")
     return 0
 
 

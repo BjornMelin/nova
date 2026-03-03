@@ -265,6 +265,6 @@ def create_fastapi_app(
             auth_policy=auth_policy,
             s3_client_factory=s3_client_factory,
         ),
-        prefix="/api/transfers",
+        prefix="/v1/transfers",
     )
     return app
