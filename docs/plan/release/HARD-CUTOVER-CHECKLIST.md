@@ -7,7 +7,10 @@ Owner: Release Architecture
 
 - [x] Canonical consumer capability endpoints use `/v1/*` routes.
 - [x] Runtime route surface is limited to canonical `/v1/*` plus `/metrics/summary`.
-- [x] Non-canonical route literals are absent from runtime/contracts/docs/workflows.
+- [x] Non-canonical route literals are absent from runtime handlers and public
+  contract/docs authority surfaces.
+- [x] Deploy-validation buildspecs/workflows may include explicit legacy route
+  probes for required `404` checks.
 - [x] No deprecated alias route namespace remains in runtime code.
 - [x] OpenAPI regression test enforces canonical route contract only.
 - [x] CI route guard includes regex route-literal checks for canonical paths

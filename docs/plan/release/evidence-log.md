@@ -22,7 +22,7 @@ For each validation/promotion execution, append:
 ## 2026-03
 
 - `2026-03-03T08:29:33Z` | operator: `openclaw-project-operator-role` |
-  environment: `non-prod` | gate: `WS4 preflight (A/B/E permissions + role)`
+  environment: `dev` | gate: `WS4 preflight (A/B/E permissions + role)`
   | result: `BLOCKED`
   - artifact/log links:
     - `.agents/plans/2026-03-03-nova-full-cross-repo-spec-orchestration.md`
@@ -40,7 +40,7 @@ For each validation/promotion execution, append:
       `docs/plan/release/NONPROD-LIVE-VALIDATION-RUNBOOK.md`.
 
 - `2026-03-03T09:32:00Z` | operator: `AWSReservedSSO_PowerUserAccess (bjorn-dev)` |
-  environment: `non-prod` | gate: `WS4 rerun + WS4 template apply`
+  environment: `dev` | gate: `WS4 rerun + WS4 template apply`
   | result: `PARTIAL/BLOCKED`
   - artifact/log links:
     - `.agents/plans/2026-03-03-nova-full-cross-repo-spec-orchestration.md`
@@ -60,7 +60,7 @@ For each validation/promotion execution, append:
       `deploy list-applications` empty), so Gate B/C/D/E cannot be fully closed.
 
 - `2026-03-03T09:32:00Z` | operator: `AWSReservedSSO_PowerUserAccess (bjorn-dev)` |
-  environment: `cross-repo verification` | gate: `WS6 dash-pca Run2`
+  environment: `dev` | gate: `WS6 dash-pca Run2`
   | result: `PASS`
   - artifact/log links:
     - `.agents/plans/2026-03-03-nova-full-cross-repo-spec-orchestration.md`

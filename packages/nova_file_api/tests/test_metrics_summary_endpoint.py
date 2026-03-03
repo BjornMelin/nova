@@ -20,7 +20,7 @@ from nova_file_api.metrics import MetricsCollector
 from nova_file_api.models import AuthMode, Principal
 from starlette.requests import Request
 
-from ._test_doubles import StubTransferService
+from tests._test_doubles import StubTransferService
 
 
 class _StubAuthenticator:

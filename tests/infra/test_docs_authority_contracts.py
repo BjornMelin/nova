@@ -29,9 +29,9 @@ ACTIVE_ROUTE_AUTHORITY_PATHS = (
 )
 
 LEGACY_ACTIVE_ROUTE_PATTERNS = (
-    re.compile(r"(?<![A-Za-z0-9_])/api(?:/|\*)"),
-    re.compile(r"(?<![A-Za-z0-9_])/healthz(?:\b|/)"),
-    re.compile(r"(?<![A-Za-z0-9_])/readyz(?:\b|/)"),
+    re.compile(r"/api(?:/|\*)"),
+    re.compile(r"/healthz(?:\b|/)"),
+    re.compile(r"/readyz(?:\b|/)"),
 )
 
 

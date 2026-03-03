@@ -105,6 +105,14 @@ async def test_introspect_respects_explicit_empty_overrides(
 async def test_verify_runs_sync_jwt_verification_via_thread_boundary(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """Verify synchronous JWT verification runs via a thread boundary.
+
+    Args:
+        monkeypatch: Fixture used to patch thread-boundary execution.
+
+    Returns:
+        None.
+    """
     settings = Settings()
     service = TokenVerificationService(settings=settings)
     boundary_state = {"inside_run_sync": False}

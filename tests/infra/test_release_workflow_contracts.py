@@ -52,7 +52,11 @@ def test_promote_prod_workflow_has_controlled_package_promotion_policy() -> (
 
 
 def test_post_deploy_validate_workflow_contracts() -> None:
-    """Validate post-deploy workflow routes and artifact contracts."""
+    """Validate post-deploy workflow routes and artifact contracts.
+
+    Returns:
+        None.
+    """
     text = _read(".github/workflows/post-deploy-validate.yml")
 
     for required in [
@@ -63,12 +67,12 @@ def test_post_deploy_validate_workflow_contracts() -> None:
         "VALIDATION_BASE_URL",
         "VALIDATION_CANONICAL_PATHS",
         "VALIDATION_LEGACY_404_PATHS",
+        "scripts/release/validate_route_contract.py",
         "/v1/health/live",
         "/v1/health/ready",
         "/metrics/summary",
         "/healthz",
         "/readyz",
-        "status == 404",
         "post-deploy-validation-report.json",
         "actions/upload-artifact@v4",
     ]:
@@ -76,21 +80,31 @@ def test_post_deploy_validate_workflow_contracts() -> None:
 
 
 def test_deploy_validate_buildspec_enforces_route_contracts() -> None:
-    """Validate CodeBuild deploy validation buildspec contracts."""
+    """Validate CodeBuild deploy validation buildspec contracts.
+
+    Returns:
+        None.
+    """
     text = _read("buildspecs/buildspec-deploy-validate.yml")
+    validator_script = _read("scripts/release/validate_route_contract.py")
 
     for required in [
         "VALIDATION_BASE_URL",
         "SERVICE_BASE_URL",
-        "VALIDATION_CANONICAL_PATHS",
-        "VALIDATION_LEGACY_404_PATHS",
+        "scripts/release/validate_route_contract.py",
+        "deploy-validation-report.json",
+        "VALIDATION_STATUS",
+    ]:
+        assert required in text, f"Missing required contract: {required!r}"
+
+    for required in [
         "/v1/health/live",
         "/v1/health/ready",
         "/metrics/summary",
         "/healthz",
         "/readyz",
         "status == 404",
-        "deploy-validation-report.json",
-        "VALIDATION_STATUS",
     ]:
-        assert required in text, f"Missing required contract: {required!r}"
+        assert required in validator_script, (
+            f"Missing required contract in validator script: {required!r}"
+        )
