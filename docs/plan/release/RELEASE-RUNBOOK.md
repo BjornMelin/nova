@@ -41,14 +41,17 @@ Use the modular operator guide set for provisioning and setup details:
 
 ### A. Plan
 
-1. Trigger `Release Plan` (or wait for `main` push run).
+1. Trigger `Nova Release Plan` (`release-plan.yml`) or wait for a `main` push
+   run.
 2. Confirm artifacts:
    - `changed-units.json`
    - `version-plan.json`
 
 ### B. Apply
 
-1. Trigger `Apply Release Plan`.
+1. Trigger `Nova Release Apply` (`release-apply.yml`, displayed as `Nova
+   Release Apply` in Actions; older docs and CLI snippets may still show
+   `Apply Release Plan`).
 2. Confirm workflow:
    - runs from `main` only (manual dispatch on non-main refs is blocked)
    - for `workflow_run`, checks out `workflow_run.head_sha`

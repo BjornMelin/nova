@@ -4,10 +4,9 @@ Status: Pending external execution
 Owner: Release Architecture + Platform Operations
 Last updated: 2026-03-02
 
-Transition note (2026-03-02): Commands in this runbook validate the current
-implemented baseline routes (`/api/*`, `/healthz`, `/readyz`). Target-state
-validation commands for `/v1/*` will be added in the next implementation
-branch when `SPEC-0015` moves from planned to active.
+Transition note (2026-03-02): Commands in this runbook validate both baseline
+routes (`/api/*`, `/healthz`, `/readyz`) and active capability routes
+(`/v1/*`) in the dual-track runtime.
 
 ## 1. Purpose
 
@@ -95,6 +94,12 @@ curl -sS -o /dev/null -w "%{http_code}\n" \
 curl -sS -o /dev/null -w "%{http_code}\n" \
   -X POST "${NONPROD_API_BASE_URL}/api/jobs/enqueue" \
   -H "Content-Type: application/json" -d '{}'
+curl -sS -o /dev/null -w "%{http_code}\n" \
+  "${NONPROD_API_BASE_URL}/v1/health/live"
+curl -sS -o /dev/null -w "%{http_code}\n" \
+  "${NONPROD_API_BASE_URL}/v1/health/ready"
+curl -sS -o /dev/null -w "%{http_code}\n" \
+  "${NONPROD_API_BASE_URL}/v1/capabilities"
 ```
 
 Acceptance:
@@ -103,6 +108,8 @@ Acceptance:
 - `/readyz` is `200`.
 - Transfer/job routes return contract responses (`401/403/422/400` allowed),
   but never `404`.
+- `/v1/health/live`, `/v1/health/ready`, and `/v1/capabilities` return contract
+  responses (non-`404`) during dry-run checks.
 
 ### B2. ECS and target-group health
 
