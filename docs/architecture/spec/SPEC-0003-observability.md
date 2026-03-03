@@ -2,8 +2,8 @@
 Spec: 0003
 Title: Observability
 Status: Active
-Version: 1.7
-Date: 2026-02-23
+Version: 1.8
+Date: 2026-03-03
 Related:
   - "[ADR-0009: Observability stack](../adr/ADR-0009-observability-analytics-emf-dynamodb-cloudwatch.md)"
   - "[SPEC-0010: Observability analytics and activity rollups](./SPEC-0010-observability-analytics-and-activity-rollups.md)"
@@ -14,19 +14,14 @@ References:
 
 ## 1. Health and readiness
 
-Transition note (2026-03-02): This specification defines the current
-implemented baseline for `/healthz` and `/readyz`. `/v1/health/live` and
-`/v1/health/ready` are active in `SPEC-0015` under this dual-track runtime
-model.
-
 Service MUST expose:
 
-- `GET /healthz` for liveness
-- `GET /readyz` for readiness checks of critical dependencies
+- `GET /v1/health/live` for liveness
+- `GET /v1/health/ready` for readiness checks of critical dependencies
 
 Readiness rules:
 
-- `/readyz` `ok` MUST reflect only traffic-critical dependency checks.
+- `/v1/health/ready` `ok` MUST reflect only traffic-critical dependency checks.
 - Feature flags (for example `jobs_enabled`) MUST NOT drive readiness
   pass/fail.
 - Optional feature disablement MUST NOT mark service unready.

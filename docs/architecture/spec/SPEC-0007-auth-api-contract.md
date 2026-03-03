@@ -2,8 +2,8 @@
 Spec: 0007
 Title: Auth API Contract
 Status: Active
-Version: 1.0
-Date: 2026-02-12
+Version: 1.1
+Date: 2026-03-03
 Related:
   - "[SPEC-0006: JWT/OIDC verification and principal mapping](./SPEC-0006-jwt-oidc-verification-and-principal-mapping.md)"
   - "[SPEC-0000: HTTP API contract](./SPEC-0000-http-api-contract.md)"
@@ -72,7 +72,7 @@ Response requirements:
 When introspection mode is disabled, deployments MAY omit this route.
 Clients MUST treat `404` or `501` as "introspection disabled".
 
-### 2.3 GET `/healthz`
+### 2.3 GET `/v1/health/live`
 
 Purpose: liveness/readiness gate for ECS/ALB.
 
@@ -158,7 +158,7 @@ Minimum coverage:
 - introspection active/inactive behavior (`200` responses)
 - introspection caller-auth failure behavior (`401`)
 - introspection disabled behavior (`404` or `501`)
-- `/healthz` success behavior and response shape
+- `/v1/health/live` success behavior and response shape
 
 ## 8. Traceability
 

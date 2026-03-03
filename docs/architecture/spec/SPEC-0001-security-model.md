@@ -2,8 +2,8 @@
 Spec: 0001
 Title: Security Model
 Status: Active
-Version: 1.5
-Date: 2026-02-23
+Version: 1.6
+Date: 2026-03-03
 Related:
   - "[ADR-0004: Canonical OIDC verifier adoption](../adr/ADR-0004-canonical-oidc-jwt-verifier-adoption.md)"
   - "[ADR-0005: Dedicated nova-auth-api track](../adr/ADR-0005-add-dedicated-nova-auth-api-service.md)"
@@ -25,7 +25,7 @@ References:
 Primary deployment model. Upstream application identity is trusted and mapped to
 scope.
 
-For body-less scope-bound routes (for example `GET /api/jobs/{job_id}`), caller
+For body-less scope-bound routes (for example `GET /v1/jobs/{job_id}`), caller
 scope MUST be conveyed using trusted headers (`X-Scope-Id` or
 `X-Session-Id`).
 When both headers are present, `X-Session-Id` MUST win for scope binding.
@@ -78,7 +78,8 @@ Client `session_id` MUST NOT override trusted JWT identity.
 
 ## 6. Worker callback authentication
 
-- Internal worker status updates (`POST /api/jobs/{job_id}/result`)
+- Internal worker status updates
+  (`POST /v1/internal/jobs/{job_id}/result`)
   MUST use a shared-secret header validation pattern (`X-Worker-Token`) when a
   worker token is configured.
 - Invalid worker token values MUST return `403`.
