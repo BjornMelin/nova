@@ -2,7 +2,7 @@
 
 Status: Active
 Owner: nova release architecture
-Last reviewed: 2026-03-02
+Last reviewed: 2026-03-03
 
 ## Purpose
 
@@ -107,18 +107,25 @@ Source all JSON payload inputs from `publish-packages.yml` gate artifacts.
 
 Validation URLs:
 
-- `${DEV_BASE_URL}/healthz`
-- `${DEV_BASE_URL}/readyz`
+- `${DEV_BASE_URL}/v1/transfers/uploads/initiate`
 - `${DEV_BASE_URL}/metrics/summary`
+- `${DEV_BASE_URL}/v1/jobs`
 - `${DEV_BASE_URL}/v1/health/live`
 - `${DEV_BASE_URL}/v1/health/ready`
 - `${DEV_BASE_URL}/v1/capabilities`
-- `${PROD_BASE_URL}/healthz`
-- `${PROD_BASE_URL}/readyz`
+- `${PROD_BASE_URL}/v1/transfers/uploads/initiate`
 - `${PROD_BASE_URL}/metrics/summary`
+- `${PROD_BASE_URL}/v1/jobs`
 - `${PROD_BASE_URL}/v1/health/live`
 - `${PROD_BASE_URL}/v1/health/ready`
 - `${PROD_BASE_URL}/v1/capabilities`
+
+Route namespace policy:
+
+- Canonical consumer capability namespace is `/v1/*`.
+- Legacy `/api/*`, `/healthz`, and `/readyz` are not valid release
+  validation targets.
+- `/api/v1/*` aliases are not part of release validation inputs.
 
 ## References
 

@@ -8,48 +8,39 @@ bytes.
 
 ## Architecture State
 
-The repository runs active dual-track authority:
+Route authority is hard-cut canonical:
 
-- Baseline (`/api/*`, `/healthz`, `/readyz`, `/metrics/summary`) behavior:
-  - `docs/architecture/spec/SPEC-0000-http-api-contract.md`
-  - `docs/architecture/spec/SPEC-0003-observability.md`
-  - `docs/architecture/spec/SPEC-0004-ci-cd-and-docs.md`
-  - `docs/architecture/spec/SPEC-0008-async-jobs-and-worker-orchestration.md`
-- Capability (`/v1/*`) behavior:
-  - `docs/architecture/adr/ADR-0015-nova-api-platform-final-hosting-and-deployment-architecture-2026.md`
-  - `docs/architecture/spec/SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md`
+- `docs/architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md`
+- `docs/architecture/spec/SPEC-0000-http-api-contract.md`
+- `docs/architecture/spec/SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md`
+- `docs/architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md`
 
-## Runtime Capabilities (Current Implemented Baseline)
+Runtime API surface is `/v1/*` plus `/metrics/summary`. Legacy `/api/*`,
+`/healthz`, and `/readyz` are removed.
 
-- Transfer endpoints for single-part and multipart uploads.
-- Download presign endpoint.
-- Bridge package (`nova_dash_bridge`) delegates control-plane transfer
-  operations to `nova_file_api` runtime services.
+## Runtime Capabilities (Current Implemented)
+
+- Transfer endpoints:
+  - `POST /v1/transfers/uploads/initiate`
+  - `POST /v1/transfers/uploads/sign-parts`
+  - `POST /v1/transfers/uploads/complete`
+  - `POST /v1/transfers/uploads/abort`
+  - `POST /v1/transfers/downloads/presign`
 - Async job endpoints:
-  - `POST /api/jobs/enqueue`
-  - `GET /api/jobs/{job_id}`
-  - `POST /api/jobs/{job_id}/cancel`
-  - `POST /api/jobs/{job_id}/result` (worker/internal)
-  - same-origin polling clients send caller scope on body-less job routes via
-    `X-Session-Id`
-  - same-origin scope precedence is `X-Session-Id` -> body `session_id` ->
-    `X-Scope-Id`
-  - scope conflict handling:
-    - `X-Session-Id` + body `session_id` mismatch => `422`
-    - `X-Scope-Id` + body `session_id` mismatch (no `X-Session-Id`) => `401`
-- Auth modes:
-  - same-origin
-  - local JWT verification (`oidc-jwt-verifier`)
-  - optional remote auth mode (fail-closed)
-- Two-tier cache:
-  - local in-process TTL cache
-  - optional shared Redis cache
-- Idempotency replay support for:
-  - `POST /api/transfers/uploads/initiate`
-  - `POST /api/jobs/enqueue`
+  - `POST /v1/jobs`
+  - `GET /v1/jobs`
+  - `GET /v1/jobs/{job_id}`
+  - `POST /v1/jobs/{job_id}/cancel`
+  - `POST /v1/jobs/{job_id}/retry`
+  - `GET /v1/jobs/{job_id}/events`
+  - `POST /v1/internal/jobs/{job_id}/result` (worker/internal)
+- Capability endpoints:
+  - `GET /v1/capabilities`
+  - `POST /v1/resources/plan`
+  - `GET /v1/releases/info`
 - Operational endpoints:
-  - `GET /healthz`
-  - `GET /readyz`
+  - `GET /v1/health/live`
+  - `GET /v1/health/ready`
   - `GET /metrics/summary`
 
 ## Production Semantics (Implemented)
@@ -57,7 +48,7 @@ The repository runs active dual-track authority:
 ### Enqueue reliability contract
 
 - Queue publish failures are surfaced to clients.
-- `POST /api/jobs/enqueue` returns:
+- `POST /v1/jobs` queue publish failure returns:
   - `503 Service Unavailable`
   - `error.code = "queue_unavailable"`
 - When enqueue publish fails after record creation, the job record is
@@ -68,8 +59,7 @@ The repository runs active dual-track authority:
 
 ### Worker result-update contract
 
-- `POST /api/jobs/{job_id}/result` is used by trusted worker
-  paths to publish state updates.
+- `POST /v1/internal/jobs/{job_id}/result` is used by trusted worker paths.
 - Worker updates must follow legal transitions:
   - `pending -> pending|running|succeeded|failed|canceled`
   - `running -> running|succeeded|failed|canceled`
@@ -78,36 +68,12 @@ The repository runs active dual-track authority:
 - Invalid transitions return `409` with `error.code = "conflict"`.
 - `succeeded` updates always normalize `error` to `null`.
 
-### Worker observability contract
-
-- First worker transition out of `pending` records queue lag as
-  `jobs_queue_lag_ms`.
-- Worker result updates increment throughput counters:
-  - `jobs_worker_result_updates_total`
-  - `jobs_worker_result_updates_<status>`
-- EMF logs are emitted as top-level structured fields (`_aws`, metric name,
-  dimensions), not nested JSON strings.
-- `GET /metrics/summary` exposes queue-lag latency and worker
-  update counters for dashboards.
-
 ### Readiness contract
 
-- `/readyz` reflects only critical traffic-serving dependencies.
+- `/v1/health/ready` reflects only critical traffic-serving dependencies.
 - Feature flags such as `JOBS_ENABLED` do not affect readiness pass/fail.
 - `bucket_configured` is true only when `FILE_TRANSFER_BUCKET` is non-empty
   after trimming whitespace.
-- Current readiness checks:
-  - `bucket_configured`
-  - `shared_cache`
-
-### Activity rollup correctness
-
-- DynamoDB rollups track:
-  - `events_total`
-  - `active_users_today`
-  - `distinct_event_types`
-- `active_users_today` and `distinct_event_types` are incremented only when
-  first-seen marker writes succeed (conditional write pattern).
 
 ## Required Configuration Rules
 
@@ -116,50 +82,7 @@ Startup fails fast for invalid backend selections:
 - `JOBS_QUEUE_BACKEND=sqs` and `JOBS_ENABLED=true` requires
   `JOBS_SQS_QUEUE_URL`.
 - `ACTIVITY_STORE_BACKEND=dynamodb` requires `ACTIVITY_ROLLUPS_TABLE`.
-- Missing/blank `FILE_TRANSFER_BUCKET` keeps `/readyz` in a non-ready state.
-
-Primary operational settings:
-
-- `FILE_TRANSFER_BUCKET`
-- `AUTH_MODE`
-- `JOBS_ENABLED`
-- `JOBS_QUEUE_BACKEND`
-- `JOBS_REPOSITORY_BACKEND`
-- `JOBS_DYNAMODB_TABLE`
-- `JOBS_SQS_QUEUE_URL`
-- `JOBS_SQS_RETRY_MODE`
-- `JOBS_SQS_RETRY_TOTAL_MAX_ATTEMPTS`
-- `JOBS_WORKER_UPDATE_TOKEN`
-- `ACTIVITY_STORE_BACKEND`
-- `ACTIVITY_ROLLUPS_TABLE`
-- `CACHE_REDIS_URL`
-- `CACHE_LOCAL_TTL_SECONDS`
-- `CACHE_LOCAL_MAX_ENTRIES`
-- `CACHE_SHARED_TTL_SECONDS`
-- `CACHE_KEY_PREFIX`
-- `CACHE_KEY_SCHEMA_VERSION`
-- `AUTH_JWT_CACHE_MAX_TTL_SECONDS`
-- `IDEMPOTENCY_ENABLED`
-- `OIDC_VERIFIER_THREAD_TOKENS`
-- `FILE_TRANSFER_THREAD_TOKENS`
-
-## API Base Paths
-
-- Transfers: `/api/transfers`
-- Jobs: `/api/jobs`
-- Capabilities: `/v1`
-
-## Capability API Contract (Active)
-
-This repository currently implements the capability contract:
-
-- `/v1/jobs`
-- `/v1/jobs/{id}/events`
-- `/v1/capabilities`
-- `/v1/resources/plan`
-- `/v1/releases/info`
-- `/v1/health/live`
-- `/v1/health/ready`
+- Missing/blank `FILE_TRANSFER_BUCKET` keeps `/v1/health/ready` non-ready.
 
 ## Auth0 Tenant-as-Code (a0deploy)
 
@@ -275,7 +198,9 @@ Hybrid release model:
 - ADR index: `docs/architecture/adr/index.md`
 - SPEC index: `docs/architecture/spec/index.md`
 - Target architecture ADR: `docs/architecture/adr/ADR-0015-nova-api-platform-final-hosting-and-deployment-architecture-2026.md`
+- Route namespace ADR: `docs/architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md`
 - Target architecture SPEC: `docs/architecture/spec/SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md`
+- Route namespace SPEC: `docs/architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md`
 - Execution plan: `docs/plan/PLAN.md`
 - Subplans: `docs/plan/subplans/`
 - Trigger prompts: `docs/plan/triggers/`

@@ -9,7 +9,7 @@
 
 | SPEC | Title | Status | Date |
 | --- | --- | --- | --- |
-| [SPEC-0000](./SPEC-0000-http-api-contract.md) | HTTP API Contract | Active | 2026-02-23 |
+| [SPEC-0000](./SPEC-0000-http-api-contract.md) | HTTP API Contract | Active | 2026-03-03 |
 | [SPEC-0001](./SPEC-0001-security-model.md) | Security Model | Active | 2026-02-23 |
 | [SPEC-0002](./SPEC-0002-s3-integration.md) | S3 Integration | Active | 2026-02-11 |
 | [SPEC-0003](./SPEC-0003-observability.md) | Observability | Active | 2026-02-23 |
@@ -24,4 +24,5 @@
 | [SPEC-0012](./SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md) | SDK conformance, versioning, and compatibility governance | Active | 2026-02-28 |
 | [SPEC-0013](./SPEC-0013-container-craft-capability-absorption-execution-spec.md) | Container-craft capability absorption execution spec | Active | 2026-02-28 |
 | [SPEC-0014](./SPEC-0014-container-craft-capability-inventory-and-absorption-map.md) | Container-craft capability inventory and Nova absorption target map | Active | 2026-02-28 |
-| [SPEC-0015](./SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md) | Nova API platform final topology and delivery contract | Active | 2026-03-02 |
+| [SPEC-0015](./SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md) | Nova API platform final topology and delivery contract | Active | 2026-03-03 |
+| [SPEC-0016](./SPEC-0016-v1-route-namespace-and-literal-guardrails.md) | Hard-cut v1 route contract and route-literal guardrails | Active | 2026-03-03 |

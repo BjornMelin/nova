@@ -8,23 +8,27 @@
 > - docs/architecture/adr/ADR-0013-final-state-sdk-topology-generated-core-plus-thin-adapters.md
 > - docs/architecture/adr/ADR-0014-container-craft-capability-absorption-and-repo-retirement.md
 > - docs/architecture/adr/ADR-0015-nova-api-platform-final-hosting-and-deployment-architecture-2026.md
+> - docs/architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md
 > - docs/architecture/spec/SPEC-0011-multi-language-sdk-architecture-and-package-map.md
 > - docs/architecture/spec/SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md
 > - docs/architecture/spec/SPEC-0013-container-craft-capability-absorption-execution-spec.md
 > - docs/architecture/spec/SPEC-0014-container-craft-capability-inventory-and-absorption-map.md
 > - docs/architecture/spec/SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md
+> - docs/architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md
 >
 > Status: Reference-only for superseded sections.
 
-## Migration Addendum (2026-03-02)
+## Migration Addendum (2026-03-03)
 
-- This file remains a historical baseline for currently implemented `/api/*`
-  runtime behavior and prior cutover execution evidence.
-- Target-state architecture in `ADR-0015` + `SPEC-0015` is active in this runtime,
-  while this file remains historical execution evidence.
+- This file remains historical execution evidence and is non-authoritative for
+  active route contract behavior.
+- Active route authority is hard-cut canonical `/v1/*` + `/metrics/summary`
+  (`ADR-0023`, `SPEC-0000`, `SPEC-0016`).
 - Supersession status: baseline and capability authority in this file is now
   replaced by active updates in `SPEC-0000`, `SPEC-0003`, `SPEC-0004`,
   `SPEC-0008`, and `SPEC-0015`.
+- Route namespace supersession: `/api/*`, `/healthz`, and `/readyz` are
+  removed from active runtime contract.
 
 # Final Hard-Cutover Monorepo Plan: nova Runtime + container-craft Infra
 

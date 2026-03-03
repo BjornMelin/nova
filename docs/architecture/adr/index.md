@@ -7,9 +7,9 @@
 
 ## ADR Catalog
 
-Note: `ADR-0015` and `SPEC-0015` are active dual-track authority: baseline
-`/api/*` behavior remains in `SPEC-0000`/`SPEC-0003`/`SPEC-0004`/`SPEC-0008`, and
-`/v1/*` capability endpoints are governed by `SPEC-0015`.
+Note: `ADR-0023` + `SPEC-0016` define the hard-cut canonical route authority:
+runtime routes are `/v1/*` (plus `/metrics/summary`) and legacy `/api/*`,
+`/healthz`, and `/readyz` are removed.
 
 | ADR | Title | Status | Date |
 | --- | --- | --- | --- |
@@ -31,3 +31,4 @@ Note: `ADR-0015` and `SPEC-0015` are active dual-track authority: baseline
 | [ADR-0015](./ADR-0015-nova-api-platform-final-hosting-and-deployment-architecture-2026.md) | Nova API platform final hosting and deployment architecture (2026) | Accepted | 2026-03-01 |
 | [ADR-0016](./ADR-0016-minimal-governance-final-state-operator-path.md) | Minimal governance final-state operator path | Accepted | 2026-03-02 |
 | [ADR-0022](./ADR-0022-batch-b-operator-iam-iac.md) | Batch B operator IAM role codified in Nova IaC for reproducible validation access | Accepted | 2026-03-02 |
+| [ADR-0023](./ADR-0023-hard-cut-v1-canonical-route-surface.md) | Hard cut to a single canonical `/v1/*` API surface | Accepted | 2026-03-03 |

@@ -8,25 +8,26 @@
 > - docs/architecture/adr/ADR-0013-final-state-sdk-topology-generated-core-plus-thin-adapters.md
 > - docs/architecture/adr/ADR-0014-container-craft-capability-absorption-and-repo-retirement.md
 > - docs/architecture/adr/ADR-0015-nova-api-platform-final-hosting-and-deployment-architecture-2026.md
+> - docs/architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md
 > - docs/architecture/spec/SPEC-0011-multi-language-sdk-architecture-and-package-map.md
 > - docs/architecture/spec/SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md
 > - docs/architecture/spec/SPEC-0013-container-craft-capability-absorption-execution-spec.md
 > - docs/architecture/spec/SPEC-0014-container-craft-capability-inventory-and-absorption-map.md
 > - docs/architecture/spec/SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md
+> - docs/architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md
 >
 > Status: Reference-only for superseded sections.
 
-## Migration Addendum (2026-03-02)
+## Migration Addendum (2026-03-03)
 
-- This plan remains the historical execution baseline for current implemented
-  `/api/*` runtime behavior and release evidence.
-- Target-state delivery requirements in `ADR-0015` + `SPEC-0015` are now active in
-  this runtime and implemented as dual-track with baseline contracts.
+- This plan remains historical execution evidence and is non-authoritative for
+  current route contract behavior.
+- Active runtime route authority is hard-cut canonical `/v1/*` +
+  `/metrics/summary` (`ADR-0023`, `SPEC-0000`, `SPEC-0016`).
 - Definitive execution blueprint for target-state implementation:
   `docs/plan/2026-03-01-adr0015-spec0015-implementation-blueprint.md`.
-- Current runbooks and baseline route checks remain required for `/api/*`.
-- `/v1/*` capability route checks are now required as active authority and are
-  captured in `SPEC-0015` and `docs/plan/release/HARD-CUTOVER-CHECKLIST.md`.
+- Route namespace authority is explicit: `/api/*`, `/healthz`, and `/readyz`
+  are removed and must not reappear in runtime code.
 
 # Final Production Architecture Plan (Locked, Release Track)
 

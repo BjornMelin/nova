@@ -8,30 +8,29 @@
 > - docs/architecture/adr/ADR-0013-final-state-sdk-topology-generated-core-plus-thin-adapters.md
 > - docs/architecture/adr/ADR-0014-container-craft-capability-absorption-and-repo-retirement.md
 > - docs/architecture/adr/ADR-0015-nova-api-platform-final-hosting-and-deployment-architecture-2026.md
+> - docs/architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md
 > - docs/architecture/spec/SPEC-0011-multi-language-sdk-architecture-and-package-map.md
 > - docs/architecture/spec/SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md
 > - docs/architecture/spec/SPEC-0013-container-craft-capability-absorption-execution-spec.md
 > - docs/architecture/spec/SPEC-0014-container-craft-capability-inventory-and-absorption-map.md
 > - docs/architecture/spec/SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md
+> - docs/architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md
 >
 > Status: Reference-only for superseded sections.
 
 # PRD: Deployable File Transfer API Platform for Nova Clients
 
 **Date:** 2026-02-12
-**Status:** Dual-track active (`/api/*` baseline + `/v1/*` capability)
-**Last updated:** 2026-03-02
+**Status:** Historical reference (hard-cut `/v1/*` authority active)
+**Last updated:** 2026-03-03
 
 ## 0. Architecture State and Transition
 
-This PRD is now dual-track in active runtime:
+Hard-cut route authority is active in runtime:
 
-- Current implemented baseline contract remains `/api/transfers/*`,
-  `/api/jobs/*`, `/healthz`, `/readyz`, `/metrics/summary`.
-- Target-state capability contract is defined by `ADR-0015` + `SPEC-0015` and
-  covers `/v1/*` behavior and target operational workflow artifacts.
-
-Both baseline and capability contracts are currently operational.
+- canonical contract routes are `/v1/*` plus `/metrics/summary`
+- legacy `/api/*`, `/healthz`, and `/readyz` routes are removed
+- namespace and guardrail authority is `ADR-0023` + `SPEC-0016`
 
 ## 1. Problem
 
@@ -47,8 +46,8 @@ The service must be usable by:
 
 ## 2. Product Goals
 
-1. Implement and maintain the split endpoint contract:
-   `/api/transfers/*` and `/api/jobs/*`.
+1. Implement and maintain canonical consumer contract routes under `/v1/*`
+   while preserving baseline transfer compatibility at `/api/transfers/*`.
 2. Support uploads from small files to very large objects (multi-GB), including
    multipart workflows with strict S3 constraints.
 3. Support Transfer Acceleration when enabled in infra and runtime settings.
@@ -67,7 +66,7 @@ The service must be usable by:
   - initiate/sign-parts/complete/abort upload
   - presign download
 - Async jobs endpoints:
-  - enqueue/status/cancel
+  - create/status/cancel/retry/events under `/v1/jobs*`
   - worker/internal result update callback (`/api/jobs/{job_id}/result`)
 - Operational endpoints:
   - `/healthz`
@@ -122,6 +121,11 @@ The runtime currently implements capability requirements defined in `SPEC-0015`:
 - `/v1/releases/info`
 - `/v1/health/live`
 - `/v1/health/ready`
+
+Route namespace policy from `ADR-0023` and `SPEC-0016` is active:
+
+- Canonical client capability routes use `/v1/*`.
+- `/api/v1/*` namespace aliases are disallowed.
 
 It also requires the workflow artifacts currently defined in
 `SPEC-0015`:
