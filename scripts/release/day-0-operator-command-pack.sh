@@ -3,9 +3,9 @@ set -euo pipefail
 
 # Day-0 operator command pack for Nova CI/CD bootstrap.
 # This script provisions the release signing secret, deploys the three Nova
-# CI/CD CloudFormation stacks from this repository, configures GitHub secrets/
-# variables, validates CodeConnections status, and optionally triggers release
-# workflows.
+# CI/CD CloudFormation stacks plus foundation from this repository, configures
+# GitHub secrets/variables, validates CodeConnections status, and optionally
+# triggers release workflows.
 
 require_cmd() {
   local cmd="$1"
@@ -77,10 +77,11 @@ if [ ! -d "$NOVA_REPO_ROOT" ]; then
 fi
 
 IAM_TEMPLATE="$NOVA_REPO_ROOT/infra/nova/nova-iam-roles.yml"
+FOUNDATION_TEMPLATE="$NOVA_REPO_ROOT/infra/nova/nova-foundation.yml"
 CODEBUILD_TEMPLATE="$NOVA_REPO_ROOT/infra/nova/nova-codebuild-release.yml"
 PIPELINE_TEMPLATE="$NOVA_REPO_ROOT/infra/nova/nova-ci-cd.yml"
 
-for template in "$IAM_TEMPLATE" "$CODEBUILD_TEMPLATE" "$PIPELINE_TEMPLATE"; do
+for template in "$FOUNDATION_TEMPLATE" "$IAM_TEMPLATE" "$CODEBUILD_TEMPLATE" "$PIPELINE_TEMPLATE"; do
   if [ ! -f "$template" ]; then
     echo "Missing template file: $template" >&2
     exit 1
@@ -135,59 +136,90 @@ RELEASE_SIGNING_SECRET_ARN="$(aws secretsmanager describe-secret \
   --query 'ARN' \
   --output text)"
 
-echo "==> Step 2/7: deploy IAM roles stack"
+FOUNDATION_STACK_NAME="${PROJECT}-${APPLICATION}-nova-foundation"
+IAM_STACK_NAME="${PROJECT}-${APPLICATION}-nova-iam-roles"
+CODEBUILD_STACK_NAME="${PROJECT}-${APPLICATION}-nova-codebuild-release"
+PIPELINE_STACK_NAME="${PROJECT}-${APPLICATION}-nova-ci-cd"
+
+FOUNDATION_EXISTING_ARTIFACT_BUCKET_NAME="$NOVA_ARTIFACT_BUCKET_NAME"
+FOUNDATION_ARTIFACT_BUCKET_NAME=""
+if aws s3api head-bucket --bucket "$NOVA_ARTIFACT_BUCKET_NAME" >/dev/null 2>&1; then
+  echo "Artifact bucket exists; foundation will import existing bucket."
+else
+  echo "Artifact bucket not found; foundation will create bucket named $NOVA_ARTIFACT_BUCKET_NAME."
+  FOUNDATION_EXISTING_ARTIFACT_BUCKET_NAME=""
+  FOUNDATION_ARTIFACT_BUCKET_NAME="$NOVA_ARTIFACT_BUCKET_NAME"
+fi
+
+echo "==> Step 2/8: deploy foundation stack"
 aws cloudformation deploy \
   --region "$AWS_REGION" \
-  --stack-name "${PROJECT}-${APPLICATION}-nova-iam-roles" \
+  --stack-name "$FOUNDATION_STACK_NAME" \
+  --template-file "$FOUNDATION_TEMPLATE" \
+  --capabilities CAPABILITY_NAMED_IAM \
+  --parameter-overrides \
+    Project="$PROJECT" \
+    Application="$APPLICATION" \
+    ExistingArtifactBucketName="$FOUNDATION_EXISTING_ARTIFACT_BUCKET_NAME" \
+    ArtifactBucketName="$FOUNDATION_ARTIFACT_BUCKET_NAME" \
+    CodeArtifactDomainName="$CODEARTIFACT_DOMAIN_NAME" \
+    CodeArtifactRepositoryName="$CODEARTIFACT_REPOSITORY_NAME" \
+    EcrRepositoryArn="$ECR_REPOSITORY_ARN" \
+    EcrRepositoryName="$ECR_REPOSITORY_NAME" \
+    EcrRepositoryUri="$ECR_REPOSITORY_URI" \
+    ExistingConnectionArn="$EXISTING_CONNECTION_ARN" \
+    ManualApprovalTopicArn="$NOVA_MANUAL_APPROVAL_TOPIC_ARN"
+
+echo "==> Step 3/8: deploy IAM roles stack"
+aws cloudformation deploy \
+  --region "$AWS_REGION" \
+  --stack-name "$IAM_STACK_NAME" \
   --template-file "$IAM_TEMPLATE" \
   --capabilities CAPABILITY_NAMED_IAM \
   --parameter-overrides \
     Project="$PROJECT" \
     Application="$APPLICATION" \
+    FoundationStackName="$FOUNDATION_STACK_NAME" \
     RepositoryOwner="$GITHUB_OWNER" \
     RepositoryName="$GITHUB_REPO" \
     MainBranchName="$MAIN_BRANCH" \
     GitHubOidcProviderArn="$GITHUB_OIDC_PROVIDER_ARN" \
     ReleaseSigningSecretArn="$RELEASE_SIGNING_SECRET_ARN" \
-    ArtifactBucketName="$NOVA_ARTIFACT_BUCKET_NAME" \
-    CodeArtifactDomainName="$CODEARTIFACT_DOMAIN_NAME" \
-    CodeArtifactRepositoryName="$CODEARTIFACT_REPOSITORY_NAME" \
-    EcrRepositoryArn="$ECR_REPOSITORY_ARN"
+    ExistingConnectionArn="$EXISTING_CONNECTION_ARN" \
+    ManualApprovalTopicArn="$NOVA_MANUAL_APPROVAL_TOPIC_ARN"
 
-echo "==> Step 3/7: deploy CodeBuild stack"
+echo "==> Step 4/8: deploy CodeBuild stack"
 aws cloudformation deploy \
   --region "$AWS_REGION" \
-  --stack-name "${PROJECT}-${APPLICATION}-nova-codebuild-release" \
+  --stack-name "$CODEBUILD_STACK_NAME" \
   --template-file "$CODEBUILD_TEMPLATE" \
   --parameter-overrides \
     Project="$PROJECT" \
     Application="$APPLICATION" \
-    CodeArtifactDomainName="$CODEARTIFACT_DOMAIN_NAME" \
-    CodeArtifactRepositoryName="$CODEARTIFACT_REPOSITORY_NAME" \
-    EcrRepositoryUri="$ECR_REPOSITORY_URI" \
-    EcrRepositoryName="$ECR_REPOSITORY_NAME" \
+    FoundationStackName="$FOUNDATION_STACK_NAME" \
+    IamRolesStackName="$IAM_STACK_NAME" \
     DockerfilePath="apps/nova_file_api_service/Dockerfile" \
     DockerBuildContext="." \
     ReleaseBuildspecPath="buildspecs/buildspec-release.yml" \
     ValidateBuildspecPath="buildspecs/buildspec-deploy-validate.yml"
 
-echo "==> Step 4/7: deploy CodePipeline stack"
+echo "==> Step 5/8: deploy CodePipeline stack"
 aws cloudformation deploy \
   --region "$AWS_REGION" \
-  --stack-name "${PROJECT}-${APPLICATION}-nova-ci-cd" \
+  --stack-name "$PIPELINE_STACK_NAME" \
   --template-file "$PIPELINE_TEMPLATE" \
   --capabilities CAPABILITY_NAMED_IAM \
   --parameter-overrides \
     Project="$PROJECT" \
     Application="$APPLICATION" \
+    FoundationStackName="$FOUNDATION_STACK_NAME" \
+    IamRolesStackName="$IAM_STACK_NAME" \
+    CodeBuildStackName="$CODEBUILD_STACK_NAME" \
     RepositoryOwner="$GITHUB_OWNER" \
     RepositoryName="$GITHUB_REPO" \
     MainBranchName="$MAIN_BRANCH" \
-    ArtifactBucketName="$NOVA_ARTIFACT_BUCKET_NAME" \
     ConnectionName="$CONNECTION_NAME" \
     ExistingConnectionArn="$EXISTING_CONNECTION_ARN" \
-    ReleaseBuildProjectName="$NOVA_RELEASE_BUILD_PROJECT_NAME" \
-    DeployValidateProjectName="$NOVA_DEPLOY_VALIDATE_PROJECT_NAME" \
     DeployServiceName="$NOVA_DEPLOY_SERVICE_NAME" \
     DeployDevStackName="$NOVA_DEPLOY_DEV_STACK_NAME" \
     DeployProdStackName="$NOVA_DEPLOY_PROD_STACK_NAME" \
@@ -195,9 +227,9 @@ aws cloudformation deploy \
     ProdServiceBaseUrl="$NOVA_PROD_SERVICE_BASE_URL" \
     ManualApprovalTopicArn="$NOVA_MANUAL_APPROVAL_TOPIC_ARN"
 
-RELEASE_AWS_ROLE_ARN="$(stack_output "${PROJECT}-${APPLICATION}-nova-iam-roles" "GitHubOIDCReleaseRoleArn")"
-CODEPIPELINE_NAME="$(stack_output "${PROJECT}-${APPLICATION}-nova-ci-cd" "PipelineName")"
-CONNECTION_ARN="$(stack_output "${PROJECT}-${APPLICATION}-nova-ci-cd" "ConnectionArn")"
+RELEASE_AWS_ROLE_ARN="$(stack_output "$IAM_STACK_NAME" "GitHubOIDCReleaseRoleArn")"
+CODEPIPELINE_NAME="$(stack_output "$PIPELINE_STACK_NAME" "PipelineName")"
+CONNECTION_ARN="$(stack_output "$PIPELINE_STACK_NAME" "ConnectionArn")"
 
 if [ -z "$RELEASE_AWS_ROLE_ARN" ] || [ "$RELEASE_AWS_ROLE_ARN" = "None" ]; then
   echo "Unable to read GitHubOIDCReleaseRoleArn output" >&2
@@ -216,12 +248,12 @@ fi
 
 GH_REPO="${GITHUB_OWNER}/${GITHUB_REPO}"
 
-echo "==> Step 5/7: configure GitHub secrets and variable for $GH_REPO"
+echo "==> Step 6/8: configure GitHub secrets and variable for $GH_REPO"
 gh secret set RELEASE_SIGNING_SECRET_ID --repo "$GH_REPO" --body "$SECRET_NAME"
 gh secret set RELEASE_AWS_ROLE_ARN --repo "$GH_REPO" --body "$RELEASE_AWS_ROLE_ARN"
 gh variable set AWS_REGION --repo "$GH_REPO" --body "$AWS_REGION"
 
-echo "==> Step 6/7: validate CodeConnections status"
+echo "==> Step 7/8: validate CodeConnections status"
 CONNECTION_STATUS="$(aws codeconnections get-connection \
   --region "$AWS_REGION" \
   --connection-arn "$CONNECTION_ARN" \
@@ -233,7 +265,7 @@ if [ "$CONNECTION_STATUS" != "AVAILABLE" ]; then
   echo "Action required: activate connection in AWS Console before expecting source triggers."
 fi
 
-echo "==> Step 7/7: trigger release workflows"
+echo "==> Step 8/8: trigger release workflows"
 if [ "$TRIGGER_WORKFLOWS" = "true" ]; then
   gh workflow run "Nova Release Plan" --repo "$GH_REPO" --ref "$MAIN_BRANCH"
   if [ "$TRIGGER_RELEASE_APPLY_DIRECT" = "true" ]; then

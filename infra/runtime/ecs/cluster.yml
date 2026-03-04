@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Description: ECS CFN rendered via Falcon (Drone CI) plugin
+Description: ECS cluster and ALB foundation stack for Nova runtime services.
 Parameters:
   Project:
     Type: String
@@ -24,6 +24,24 @@ Parameters:
     Type: String
   SubnetList:
     Type: List<AWS::EC2::Subnet::Id>
+  AlbIngressPrefixListId:
+    Type: String
+    Default: ""
+    AllowedPattern: "^$|^pl-[0-9a-f]+$"
+    ConstraintDescription: Must be empty or a valid EC2 managed prefix list ID.
+    Description: Prefix list allowed to reach the ALB listeners.
+  AlbIngressCidr:
+    Type: String
+    Default: ""
+    AllowedPattern: "^$|^(\\d{1,3}\\.){3}\\d{1,3}\\/\\d{1,2}$"
+    ConstraintDescription: Must be empty or a valid IPv4 CIDR (for example, 10.0.0.0/8).
+    Description: CIDR block allowed to reach the ALB listeners.
+  AlbIngressSourceSecurityGroupId:
+    Type: String
+    Default: ""
+    AllowedPattern: "^$|^sg-[0-9a-f]+$"
+    ConstraintDescription: Must be empty or a valid security group ID.
+    Description: Source security group allowed to reach the ALB listeners.
   ListenerProtocol:
     Type: String
     Default: https
@@ -50,19 +68,38 @@ Parameters:
     MaxValue: 65535
     Description: Port used by the optional CodeDeploy test listener.
 
-Mappings:
-  PrefixListMap:
-    us-east-1:
-      3MInternal: "pl-0be5bc3c1b95a65a5"
-    us-east-2:
-      3MInternal: "pl-0b1af9961c6c9c4a8"
-    eu-central-1:
-      3MInternal: "pl-00148488660c58f24"
-    eu-west-1:
-      3MInternal: "pl-00eb5219201d20d50"
-
 Conditions:
   CreateCodeDeployTestListener: !Equals [!Ref EnableCodeDeployTestListener, "true"]
+  HasAlbIngressPrefixListId: !Not [!Equals [!Ref AlbIngressPrefixListId, ""]]
+  HasAlbIngressCidr: !Not [!Equals [!Ref AlbIngressCidr, ""]]
+  HasAlbIngressSourceSecurityGroupId: !Not [!Equals [!Ref AlbIngressSourceSecurityGroupId, ""]]
+  CreateCodeDeployTestListenerWithPrefixList: !And
+    - !Condition CreateCodeDeployTestListener
+    - !Condition HasAlbIngressPrefixListId
+  CreateCodeDeployTestListenerWithCidr: !And
+    - !Condition CreateCodeDeployTestListener
+    - !Condition HasAlbIngressCidr
+  CreateCodeDeployTestListenerWithSourceSecurityGroup: !And
+    - !Condition CreateCodeDeployTestListener
+    - !Condition HasAlbIngressSourceSecurityGroupId
+
+Rules:
+  RequireExactlyOneAlbIngressSource:
+    Assertions:
+      - Assert: !Or
+          - !And
+              - !Not [!Equals [!Ref AlbIngressPrefixListId, ""]]
+              - !Equals [!Ref AlbIngressCidr, ""]
+              - !Equals [!Ref AlbIngressSourceSecurityGroupId, ""]
+          - !And
+              - !Equals [!Ref AlbIngressPrefixListId, ""]
+              - !Not [!Equals [!Ref AlbIngressCidr, ""]]
+              - !Equals [!Ref AlbIngressSourceSecurityGroupId, ""]
+          - !And
+              - !Equals [!Ref AlbIngressPrefixListId, ""]
+              - !Equals [!Ref AlbIngressCidr, ""]
+              - !Not [!Equals [!Ref AlbIngressSourceSecurityGroupId, ""]]
+        AssertDescription: Provide exactly one ALB ingress source (prefix list, CIDR, or source security group).
 
 Resources:
   ECSCluster:
@@ -90,25 +127,77 @@ Resources:
     Properties:
       GroupDescription: !Sub "security group for load balancer ${Project}-${Application}-${LoadBalancerId}"
       VpcId: !Ref VpcId
-      SecurityGroupIngress:
-        - Description: allowing tcp via ports 443 thru 443
-          IpProtocol: TCP
-          FromPort: 443
-          ToPort: 443
-          SourcePrefixListId:
-            !FindInMap [PrefixListMap, !Ref "AWS::Region", 3MInternal]
+      Tags:
+        - Key: Project
+          Value: !Ref Project
+        - Key: Application
+          Value: !Ref Application
 
-  ALBSecurityGroupIngressCodeDeployTestListener:
+  ALBSecurityGroupIngressHttpsPrefixList:
     Type: AWS::EC2::SecurityGroupIngress
-    Condition: CreateCodeDeployTestListener
+    Condition: HasAlbIngressPrefixListId
+    Properties:
+      GroupId: !Ref ALBSecurityGroup
+      Description: allow HTTPS ingress from managed prefix list
+      IpProtocol: TCP
+      FromPort: 443
+      ToPort: 443
+      SourcePrefixListId: !Ref AlbIngressPrefixListId
+
+  ALBSecurityGroupIngressHttpsCidr:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: HasAlbIngressCidr
+    Properties:
+      GroupId: !Ref ALBSecurityGroup
+      Description: allow HTTPS ingress from CIDR
+      IpProtocol: TCP
+      FromPort: 443
+      ToPort: 443
+      CidrIp: !Ref AlbIngressCidr
+
+  ALBSecurityGroupIngressHttpsSourceSecurityGroup:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: HasAlbIngressSourceSecurityGroupId
+    Properties:
+      GroupId: !Ref ALBSecurityGroup
+      Description: allow HTTPS ingress from source security group
+      IpProtocol: TCP
+      FromPort: 443
+      ToPort: 443
+      SourceSecurityGroupId: !Ref AlbIngressSourceSecurityGroupId
+
+  ALBSecurityGroupIngressCodeDeployTestListenerPrefixList:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: CreateCodeDeployTestListenerWithPrefixList
     Properties:
       GroupId: !Ref ALBSecurityGroup
       Description: allowing tcp for CodeDeploy test listener port
       IpProtocol: TCP
       FromPort: !Ref CodeDeployTestListenerPort
       ToPort: !Ref CodeDeployTestListenerPort
-      SourcePrefixListId:
-        !FindInMap [PrefixListMap, !Ref "AWS::Region", 3MInternal]
+      SourcePrefixListId: !Ref AlbIngressPrefixListId
+
+  ALBSecurityGroupIngressCodeDeployTestListenerCidr:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: CreateCodeDeployTestListenerWithCidr
+    Properties:
+      GroupId: !Ref ALBSecurityGroup
+      Description: allow CodeDeploy test listener ingress from CIDR
+      IpProtocol: TCP
+      FromPort: !Ref CodeDeployTestListenerPort
+      ToPort: !Ref CodeDeployTestListenerPort
+      CidrIp: !Ref AlbIngressCidr
+
+  ALBSecurityGroupIngressCodeDeployTestListenerSourceSecurityGroup:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: CreateCodeDeployTestListenerWithSourceSecurityGroup
+    Properties:
+      GroupId: !Ref ALBSecurityGroup
+      Description: allow CodeDeploy test listener ingress from source security group
+      IpProtocol: TCP
+      FromPort: !Ref CodeDeployTestListenerPort
+      ToPort: !Ref CodeDeployTestListenerPort
+      SourceSecurityGroupId: !Ref AlbIngressSourceSecurityGroupId
 
   LoadBalancer:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer

@@ -111,7 +111,7 @@ Resources:
       MultiAZEnabled: !If [EnableAutomaticFailover, true, false]
       AtRestEncryptionEnabled: true
       TransitEncryptionEnabled: true
-      AuthToken: !Sub "{{ '{{' }}resolve:secretsmanager:${FileTransferCacheAuthTokenSecret}:SecretString{{ '}}' }}"
+      AuthToken: !Sub "{{resolve:secretsmanager:${FileTransferCacheAuthTokenSecret}:SecretString}}"
       AutoMinorVersionUpgrade: true
       SnapshotRetentionLimit: 7
       PreferredMaintenanceWindow: "sun:03:00-sun:04:00"
@@ -140,7 +140,7 @@ Resources:
       SecretString:
         Fn::Sub:
           - '{"url":"rediss://:${Token}@${Endpoint}:${Port}/0"}'
-          - Token: !Sub "{{ '{{' }}resolve:secretsmanager:${FileTransferCacheAuthTokenSecret}:SecretString{{ '}}' }}"
+          - Token: !Sub "{{resolve:secretsmanager:${FileTransferCacheAuthTokenSecret}:SecretString}}"
             Endpoint: !GetAtt FileTransferCacheReplicationGroup.PrimaryEndPoint.Address
             Port: !GetAtt FileTransferCacheReplicationGroup.PrimaryEndPoint.Port
       KmsKeyId: !If

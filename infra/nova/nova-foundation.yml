@@ -1,0 +1,169 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Nova CI/CD foundation stack (artifact bucket, approval topic, optional CodeConnection).
+
+Parameters:
+  Project:
+    Type: String
+  Application:
+    Type: String
+  ExistingArtifactBucketName:
+    Type: String
+    Default: ""
+    Description: Existing artifact bucket name. If set, no bucket resource is created.
+  ArtifactBucketName:
+    Type: String
+    Default: ""
+    Description: New artifact bucket name to create when ExistingArtifactBucketName is empty.
+  CodeArtifactDomainName:
+    Type: String
+    MinLength: 1
+  CodeArtifactRepositoryName:
+    Type: String
+    MinLength: 1
+  EcrRepositoryArn:
+    Type: String
+    AllowedPattern: "^arn:(aws|aws-us-gov|aws-cn):ecr:[a-z0-9-]+:[0-9]{12}:repository\\/[A-Za-z0-9._\\/-]+$"
+    ConstraintDescription: Must be a valid ECR repository ARN.
+  EcrRepositoryName:
+    Type: String
+    MinLength: 1
+  EcrRepositoryUri:
+    Type: String
+    MinLength: 1
+  ConnectionName:
+    Type: String
+    Default: nova-codeconnection
+  ExistingConnectionArn:
+    Type: String
+    Default: ""
+  ManualApprovalTopicArn:
+    Type: String
+    Default: ""
+  ManualApprovalTopicName:
+    Type: String
+    Default: ""
+
+Conditions:
+  HasExistingArtifactBucketName: !Not [!Equals [!Ref ExistingArtifactBucketName, ""]]
+  CreateArtifactBucket: !Not [!Condition HasExistingArtifactBucketName]
+  HasArtifactBucketName: !Not [!Equals [!Ref ArtifactBucketName, ""]]
+  HasExistingConnectionArn: !Not [!Equals [!Ref ExistingConnectionArn, ""]]
+  CreateConnection: !Not [!Condition HasExistingConnectionArn]
+  HasManualApprovalTopicArn: !Not [!Equals [!Ref ManualApprovalTopicArn, ""]]
+  HasManualApprovalTopicName: !Not [!Equals [!Ref ManualApprovalTopicName, ""]]
+  CreateManualApprovalTopic: !Not [!Condition HasManualApprovalTopicArn]
+
+Rules:
+  RequireArtifactBucketInput:
+    Assertions:
+      - Assert: !Or
+          - !Not [!Equals [!Ref ExistingArtifactBucketName, ""]]
+          - !Not [!Equals [!Ref ArtifactBucketName, ""]]
+        AssertDescription: Provide ExistingArtifactBucketName or ArtifactBucketName.
+  RequireArtifactBucketNameWhenCreating:
+    RuleCondition: !Equals [!Ref ExistingArtifactBucketName, ""]
+    Assertions:
+      - Assert: !Not [!Equals [!Ref ArtifactBucketName, ""]]
+        AssertDescription: ArtifactBucketName is required when ExistingArtifactBucketName is empty.
+
+Resources:
+  ArtifactBucket:
+    Type: AWS::S3::Bucket
+    Condition: CreateArtifactBucket
+    Properties:
+      BucketName: !Ref ArtifactBucketName
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      VersioningConfiguration:
+        Status: Enabled
+      Tags:
+        - Key: Project
+          Value: !Ref Project
+        - Key: Application
+          Value: !Ref Application
+
+  CodeConnection:
+    Type: AWS::CodeConnections::Connection
+    Condition: CreateConnection
+    Properties:
+      ConnectionName: !Ref ConnectionName
+      ProviderType: GitHub
+
+  ManualApprovalTopic:
+    Type: AWS::SNS::Topic
+    Condition: CreateManualApprovalTopic
+    Properties:
+      TopicName: !If
+        - HasManualApprovalTopicName
+        - !Ref ManualApprovalTopicName
+        - !Sub ${Project}-${Application}-nova-manual-approval
+
+Outputs:
+  ArtifactBucketName:
+    Value: !If
+      - HasExistingArtifactBucketName
+      - !Ref ExistingArtifactBucketName
+      - !Ref ArtifactBucket
+    Export:
+      Name: !Sub "${AWS::StackName}-ArtifactBucketName"
+
+  CodeArtifactDomainName:
+    Value: !Ref CodeArtifactDomainName
+    Export:
+      Name: !Sub "${AWS::StackName}-CodeArtifactDomainName"
+
+  CodeArtifactRepositoryName:
+    Value: !Ref CodeArtifactRepositoryName
+    Export:
+      Name: !Sub "${AWS::StackName}-CodeArtifactRepositoryName"
+
+  EcrRepositoryArn:
+    Value: !Ref EcrRepositoryArn
+    Export:
+      Name: !Sub "${AWS::StackName}-EcrRepositoryArn"
+
+  EcrRepositoryName:
+    Value: !Ref EcrRepositoryName
+    Export:
+      Name: !Sub "${AWS::StackName}-EcrRepositoryName"
+
+  EcrRepositoryUri:
+    Value: !Ref EcrRepositoryUri
+    Export:
+      Name: !Sub "${AWS::StackName}-EcrRepositoryUri"
+
+  ConnectionName:
+    Value: !Ref ConnectionName
+    Export:
+      Name: !Sub "${AWS::StackName}-ConnectionName"
+
+  ConnectionArn:
+    Value: !If
+      - HasExistingConnectionArn
+      - !Ref ExistingConnectionArn
+      - !GetAtt CodeConnection.ConnectionArn
+    Export:
+      Name: !Sub "${AWS::StackName}-ConnectionArn"
+
+  ExistingConnectionArn:
+    Value: !If
+      - HasExistingConnectionArn
+      - !Ref ExistingConnectionArn
+      - ""
+    Export:
+      Name: !Sub "${AWS::StackName}-ExistingConnectionArn"
+
+  ManualApprovalTopicArn:
+    Value: !If
+      - HasManualApprovalTopicArn
+      - !Ref ManualApprovalTopicArn
+      - !Ref ManualApprovalTopic
+    Export:
+      Name: !Sub "${AWS::StackName}-ManualApprovalTopicArn"
