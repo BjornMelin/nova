@@ -6,8 +6,8 @@ Last reviewed: 2026-03-03
 
 ## Purpose
 
-Provide one reference for all values needed to provision, configure, and operate
-Nova CI/CD.
+Provide one reference for all values needed to provision runtime stacks,
+configure CI/CD stacks, and operate Nova release automation.
 
 ## Prerequisites
 
@@ -38,6 +38,12 @@ Required keys:
 - `NOVA_ARTIFACT_BUCKET_NAME`
 - `NOVA_DEV_SERVICE_BASE_URL`
 - `NOVA_PROD_SERVICE_BASE_URL`
+- `AWS_ACCOUNT_ID`
+- `SIGNER_NAME`
+- `SIGNER_EMAIL`
+- `CODEARTIFACT_DOMAIN_NAME`
+- `CODEARTIFACT_REPOSITORY_NAME`
+- `ECR_REPOSITORY_ARN`
 
 Required ECR targeting:
 
@@ -55,10 +61,39 @@ Optional keys:
 - `NOVA_DEPLOY_DEV_STACK_NAME`
 - `NOVA_DEPLOY_PROD_STACK_NAME`
 
+`NOVA_DEPLOY_DEV_STACK_NAME` / `NOVA_DEPLOY_PROD_STACK_NAME` are digest marker
+stack names used by pipeline deploy actions (`infra/nova/deploy/image-digest-ssm.yml`),
+not the runtime ECS service stack names.
+
+## Runtime stack parameter contract
+
+Capture and manage these runtime values per environment before CI/CD deploy:
+
+- `VPC_ID`
+- `SUBNET_IDS`
+- `ALB_HOSTED_ZONE_NAME`
+- `ALB_DNS_NAME`
+- `ALB_NAME`
+- `ALB_LOG_BUCKET`
+- `ALB_INGRESS_PREFIX_LIST_ID` or `ALB_INGRESS_CIDR` or
+  `ALB_INGRESS_SOURCE_SG_ID` (exactly one)
+- `ECS_CLUSTER_NAME`
+- `SERVICE_NAME`
+- `SERVICE_DNS`
+- `TASK_ROLE_ARN`
+- `DOCKER_REPOSITORY_NAME`
+- `DOCKER_IMAGE_TAG`
+- `OWNER_TAG`
+- `ALARM_ACTION_ARN`
+
+See:
+`deploy-runtime-cloudformation-environments-guide.md`
+
 ## CloudFormation stack names and outputs
 
 Default stack names:
 
+- `${project}-${application}-nova-foundation`
 - `${project}-${application}-nova-iam-roles`
 - `${project}-${application}-nova-codebuild-release`
 - `${project}-${application}-nova-ci-cd`

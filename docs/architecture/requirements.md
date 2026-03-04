@@ -13,6 +13,9 @@ requirements for the first production release.
 - Hard-cut route authority is active under `ADR-0023` + `SPEC-0016`.
 - Runtime contract is canonical `/v1/*` plus `/metrics/summary`; non-canonical
   route families are removed.
+- Architecture authority-pack governance and boundary/validation contracts are
+  active under `ADR-0024` + `ADR-0025` + `ADR-0026` and `SPEC-0017` through
+  `SPEC-0020`.
 
 ## Scope
 

@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://3m-cloud.github.io/nova/docs/contracts/workflow-post-deploy-validate.schema.json",
+  "title": "Reusable Post Deploy Validate workflow_call contract",
+  "description": "Contract for reusable post-deploy route validation workflow inputs and outputs.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "inputs",
+    "outputs"
+  ],
+  "properties": {
+    "inputs": {
+      "type": "object",
+      "description": "Inputs passed into reusable-post-deploy-validate workflow_call.",
+      "additionalProperties": false,
+      "required": [
+        "validation_canonical_paths",
+        "validation_legacy_404_paths",
+        "report_path",
+        "artifact_name"
+      ],
+      "properties": {
+        "validation_base_url": {
+          "type": "string",
+          "description": "Preferred base URL. Must be HTTPS when supplied.",
+          "pattern": "^https://.+$"
+        },
+        "service_base_url": {
+          "type": "string",
+          "description": "Legacy alias for validation_base_url. Must be HTTPS when supplied.",
+          "pattern": "^https://.+$"
+        },
+        "validation_canonical_paths": {
+          "type": "string",
+          "pattern": "^/.+",
+          "description": "Comma-delimited canonical paths."
+        },
+        "validation_legacy_404_paths": {
+          "type": "string",
+          "pattern": "^/.+",
+          "description": "Comma-delimited legacy paths that must return 404."
+        },
+        "report_path": {
+          "type": "string",
+          "pattern": "^[^\\s]+\\.json$",
+          "default": "post-deploy-validation-report.json"
+        },
+        "artifact_name": {
+          "type": "string",
+          "minLength": 1,
+          "default": "post-deploy-validation-report"
+        }
+      },
+      "anyOf": [
+        {
+          "required": [
+            "validation_base_url"
+          ]
+        },
+        {
+          "required": [
+            "service_base_url"
+          ]
+        }
+      ]
+    },
+    "outputs": {
+      "type": "object",
+      "description": "Outputs emitted by reusable-post-deploy-validate workflow_call.",
+      "additionalProperties": false,
+      "required": [
+        "validation_status",
+        "report_path",
+        "artifact_name"
+      ],
+      "properties": {
+        "validation_status": {
+          "type": "string",
+          "enum": [
+            "passed",
+            "failed"
+          ]
+        },
+        "report_path": {
+          "type": "string",
+          "pattern": "^[^\\s]+\\.json$"
+        },
+        "artifact_name": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  },
+  "$defs": {}
+}

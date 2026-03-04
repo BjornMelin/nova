@@ -24,6 +24,10 @@
 | [SPEC-0012](./SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md) | SDK conformance, versioning, and compatibility governance | Active | 2026-02-28 |
 | [SPEC-0015](./SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md) | Nova API platform final topology and delivery contract | Active | 2026-03-03 |
 | [SPEC-0016](./SPEC-0016-v1-route-namespace-and-literal-guardrails.md) | Hard-cut v1 route contract and route-literal guardrails | Active | 2026-03-03 |
+| [SPEC-0017](./SPEC-0017-runtime-component-topology-and-ownership-contract.md) | CloudFormation module contract | Active | 2026-03-03 |
+| [SPEC-0018](./SPEC-0018-runtime-configuration-and-startup-validation-contract.md) | Reusable workflow integration contract | Active | 2026-03-03 |
+| [SPEC-0019](./SPEC-0019-auth-execution-and-threadpool-safety-contract.md) | CI/CD IAM least-privilege matrix | Active | 2026-03-03 |
+| [SPEC-0020](./SPEC-0020-architecture-authority-pack-and-documentation-synchronization-contract.md) | Rollout and validation strategy | Active | 2026-03-03 |
 
 ## Historical Specs
 

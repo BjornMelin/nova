@@ -7,8 +7,12 @@ Date: 2026-03-03
 Related:
   - "[ADR-0002: OpenAPI as contract and SDK generation](../adr/ADR-0002-openapi-as-contract-and-sdk-generation.md)"
   - "[ADR-0011: Hybrid CI/CD with GitHub and AWS promotion](../adr/ADR-0011-cicd-hybrid-github-aws-promotion.md)"
+  - "[ADR-0025: Runtime monorepo component boundaries and ownership](../adr/ADR-0025-runtime-monorepo-component-boundaries-and-ownership.md)"
+  - "[ADR-0026: Fail-fast runtime configuration and safe auth execution](../adr/ADR-0026-fail-fast-runtime-configuration-and-safe-auth-execution.md)"
   - "[ADR-0012: No Lambda runtime scope](../adr/ADR-0012-no-lambda-runtime-scope.md)"
   - "[SPEC-0000: HTTP API contract](./SPEC-0000-http-api-contract.md)"
+  - "[SPEC-0018: Runtime configuration and startup validation contract](./SPEC-0018-runtime-configuration-and-startup-validation-contract.md)"
+  - "[SPEC-0020: Architecture authority pack and documentation synchronization contract](./SPEC-0020-architecture-authority-pack-and-documentation-synchronization-contract.md)"
 References:
   - "[GitHub Actions](https://docs.github.com/actions)"
   - "[GitHub commit signature verification](https://docs.github.com/en/authentication/managing-commit-signature-verification/about-commit-signature-verification)"
@@ -46,12 +50,17 @@ Protected branch wiring details are documented in
 Canonical flow:
 
 1. `ci.yml` validates code and contracts on PR and main.
-2. `release-plan.yml` computes `changed-units.json` and `version-plan.json`.
-3. `release-apply.yml` applies selective versions, writes release manifest,
+2. `release-plan.yml` is the entry wrapper and delegates to
+   `reusable-release-plan.yml` to compute `changed-units.json` and
+   `version-plan.json`.
+3. `release-apply.yml` and `build-and-publish-image.yml` are entry wrappers
+   and delegate to `reusable-release-apply.yml`.
+4. `reusable-release-apply.yml` applies selective versions, writes release
+   manifest,
    updates `uv.lock`, and commits signed release metadata from `main` only.
    For `workflow_run`, checkout is pinned to `workflow_run.head_sha`.
-4. AWS CodePipeline source action consumes signed commit through CodeConnections.
-5. AWS stages run:
+5. AWS CodePipeline source action consumes signed commit through CodeConnections.
+6. AWS stages run:
    - Build release artifacts
    - Deploy Dev
    - Validate Dev
