@@ -1,0 +1,68 @@
+name: Approve CodePipeline Manual Stage
+description: Fetch a manual approval token and submit an approval result.
+inputs:
+  pipeline-name:
+    description: AWS CodePipeline name.
+    required: true
+  aws-region:
+    description: AWS region for the pipeline.
+    required: false
+    default: us-east-1
+  stage-name:
+    description: Manual approval stage name.
+    required: false
+    default: ManualApproval
+  action-name:
+    description: Manual approval action name.
+    required: false
+    default: ApproveProdPromotion
+  summary:
+    description: Approval summary message.
+    required: false
+    default: Approved via promote-prod workflow after package promotion gates
+runs:
+  using: composite
+  steps:
+    - name: Approve pipeline stage
+      shell: bash
+      run: |
+        set -euo pipefail
+        PIPELINE_NAME="${{ inputs.pipeline-name }}"
+        AWS_REGION="${{ inputs.aws-region }}"
+        STAGE_NAME="${{ inputs.stage-name }}"
+        ACTION_NAME="${{ inputs.action-name }}"
+        SUMMARY="${{ inputs.summary }}"
+
+        [[ "$PIPELINE_NAME" =~ ^[A-Za-z0-9._@-]+$ ]] || {
+          echo "Invalid pipeline name" >&2
+          exit 1
+        }
+        [[ "$STAGE_NAME" =~ ^[A-Za-z0-9._@-]+$ ]] || {
+          echo "Invalid stage name" >&2
+          exit 1
+        }
+        [[ "$ACTION_NAME" =~ ^[A-Za-z0-9._@-]+$ ]] || {
+          echo "Invalid action name" >&2
+          exit 1
+        }
+
+        APPROVAL_TOKEN="$(aws codepipeline get-pipeline-state \
+          --name "$PIPELINE_NAME" \
+          --region "$AWS_REGION" \
+          --query "stageStates[?stageName=='$STAGE_NAME'].actionStates[?actionName=='$ACTION_NAME'].latestExecution.token | [0]" \
+          --output text)"
+
+        if [[ -z "$APPROVAL_TOKEN" || "$APPROVAL_TOKEN" == "None" ]]; then
+          echo "Approval token not found for pipeline $PIPELINE_NAME" >&2
+          exit 1
+        fi
+
+        SUMMARY="${SUMMARY//,/;}"
+
+        aws codepipeline put-approval-result \
+          --pipeline-name "$PIPELINE_NAME" \
+          --stage-name "$STAGE_NAME" \
+          --action-name "$ACTION_NAME" \
+          --token "$APPROVAL_TOKEN" \
+          --result summary="$SUMMARY",status=Approved \
+          --region "$AWS_REGION"

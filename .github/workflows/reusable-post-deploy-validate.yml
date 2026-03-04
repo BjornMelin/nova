@@ -1,0 +1,95 @@
+name: Reusable Post Deploy Validate
+
+on:
+  workflow_call:
+    inputs:
+      validation_base_url:
+        description: Canonical base URL to validate (e.g. https://api.example.com).
+        required: false
+        type: string
+      service_base_url:
+        description: Legacy alias for validation_base_url.
+        required: false
+        type: string
+      validation_canonical_paths:
+        description: Comma-delimited canonical paths that must resolve (non-404 and <500).
+        required: false
+        default: /v1/health/live,/v1/health/ready,/metrics/summary,/v1/capabilities,/v1/releases/info
+        type: string
+      validation_legacy_404_paths:
+        description: Comma-delimited legacy paths that must return 404.
+        required: false
+        default: /healthz,/readyz,/api/transfers/uploads/initiate,/api/jobs,/api/v1/transfers/uploads/initiate
+        type: string
+      report_path:
+        description: JSON report output path in the workflow workspace.
+        required: false
+        default: post-deploy-validation-report.json
+        type: string
+      artifact_name:
+        description: Uploaded artifact name for the validation report.
+        required: false
+        default: post-deploy-validation-report
+        type: string
+    outputs:
+      validation_status:
+        description: Validation status from route contract checks (passed|failed).
+        value: ${{ jobs.post-deploy-validate.outputs.validation_status }}
+      report_path:
+        description: Report path used when writing the JSON validation output.
+        value: ${{ jobs.post-deploy-validate.outputs.report_path }}
+      artifact_name:
+        description: Uploaded artifact name containing the validation report.
+        value: ${{ jobs.post-deploy-validate.outputs.artifact_name }}
+
+permissions:
+  contents: read
+
+jobs:
+  post-deploy-validate:
+    runs-on: ubuntu-latest
+    outputs:
+      validation_status: ${{ steps.set-outputs.outputs.validation_status }}
+      report_path: ${{ steps.set-outputs.outputs.report_path }}
+      artifact_name: ${{ steps.set-outputs.outputs.artifact_name }}
+    env:
+      VALIDATION_BASE_URL: ${{ inputs.validation_base_url }}
+      SERVICE_BASE_URL: ${{ inputs.service_base_url }}
+      VALIDATION_CANONICAL_PATHS: ${{ inputs.validation_canonical_paths }}
+      VALIDATION_LEGACY_404_PATHS: ${{ inputs.validation_legacy_404_paths }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: run-validation
+        name: Validate canonical and legacy route contracts
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          python3 scripts/release/validate_route_contract.py \
+            --report-path "${{ inputs.report_path }}"
+
+      - id: set-outputs
+        if: always()
+        env:
+          VALIDATION_STEP_OUTCOME: ${{ steps.run-validation.outcome }}
+        run: |
+          set -euo pipefail
+          if [[ "$VALIDATION_STEP_OUTCOME" == "success" ]]; then
+            echo "validation_status=passed" >> "$GITHUB_OUTPUT"
+          else
+            echo "validation_status=failed" >> "$GITHUB_OUTPUT"
+          fi
+          echo "report_path=${{ inputs.report_path }}" >> "$GITHUB_OUTPUT"
+          echo "artifact_name=${{ inputs.artifact_name }}" >> "$GITHUB_OUTPUT"
+
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.artifact_name }}
+          path: ${{ inputs.report_path }}
+
+      - name: Fail job when route validation fails
+        if: steps.run-validation.outcome != 'success'
+        run: |
+          echo "Post-deploy validation failed." >&2
+          exit 1

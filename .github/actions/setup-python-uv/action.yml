@@ -1,0 +1,23 @@
+name: Setup Python and uv
+description: Configure Python and uv, then sync locked dependencies.
+inputs:
+  python-version:
+    description: Python version to install.
+    required: false
+    default: "3.12"
+  sync-args:
+    description: Arguments passed to uv sync.
+    required: false
+    default: "--locked"
+runs:
+  using: composite
+  steps:
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
+    - name: Setup uv
+      uses: astral-sh/setup-uv@v4
+    - name: Sync dependencies
+      shell: bash
+      run: uv sync ${{ inputs.sync-args }}

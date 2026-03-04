@@ -1,0 +1,108 @@
+name: Reusable Release Apply
+
+on:
+  workflow_call:
+    inputs:
+      checkout_ref:
+        description: Git ref/SHA to checkout before applying release changes.
+        required: true
+        type: string
+      aws_region:
+        description: AWS region for release role and signing secret lookup.
+        required: false
+        default: us-east-1
+        type: string
+      commit_message:
+        description: Release commit message.
+        required: false
+        default: "chore(release): apply selective versions [skip release]"
+        type: string
+    secrets:
+      release_aws_role_arn:
+        description: OIDC-assumable AWS role for release automation.
+        required: true
+      release_signing_secret_id:
+        description: Secrets Manager secret id with SSH signing material.
+        required: true
+
+permissions:
+  id-token: write
+  contents: write
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    env:
+      AWS_REGION: ${{ inputs.aws_region }}
+      RELEASE_AWS_ROLE_ARN: ${{ secrets.release_aws_role_arn }}
+      SIGNING_SECRET_ID: ${{ secrets.release_signing_secret_id }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ inputs.checkout_ref }}
+
+      - name: Setup Python and uv
+        uses: ./.github/actions/setup-python-uv
+
+      - name: Configure AWS Credentials (OIDC)
+        uses: ./.github/actions/configure-aws-oidc
+        with:
+          role-to-assume: ${{ env.RELEASE_AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Recompute release plan
+        run: |
+          uv run python -m scripts.release.changed_units \
+            --repo-root . \
+            --output .artifacts/changed-units.json
+          uv run python -m scripts.release.version_plan \
+            --repo-root . \
+            --changed-units .artifacts/changed-units.json \
+            --output .artifacts/version-plan.json
+
+      - name: Apply versions + manifest
+        run: |
+          uv run python -m scripts.release.apply_versions \
+            --repo-root . \
+            --version-plan .artifacts/version-plan.json
+          uv lock
+          uv run python -m scripts.release.write_manifest \
+            --repo-root . \
+            --changed-units .artifacts/changed-units.json \
+            --version-plan .artifacts/version-plan.json \
+            --manifest-path docs/plan/release/RELEASE-VERSION-MANIFEST.md
+
+      - name: Configure release signing
+        uses: ./.github/actions/configure-release-signing
+        with:
+          signing-secret-id: ${{ env.SIGNING_SECRET_ID }}
+
+      - name: Commit and push release changes
+        run: |
+          set -euo pipefail
+
+          if git diff --quiet; then
+            echo "No release changes detected."
+            exit 0
+          fi
+
+          git add \
+            docs/plan/release/RELEASE-VERSION-MANIFEST.md \
+            uv.lock \
+            pyproject.toml \
+            apps \
+            packages
+
+          if git diff --cached --quiet; then
+            echo "No staged release changes after add."
+            exit 0
+          fi
+
+          git commit -S -m "${{ inputs.commit_message }}"
+          git push origin HEAD:main
