@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://3m-cloud.github.io/nova/docs/contracts/reusable-workflow-outputs-v1.schema.json",
+  "title": "Reusable workflow outputs v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "stack_name",
+    "change_set_name",
+    "pipeline_execution_id",
+    "validation_report_path",
+    "manifest_sha256"
+  ],
+  "properties": {
+    "stack_name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "change_set_name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "pipeline_execution_id": {
+      "type": "string"
+    },
+    "validation_report_path": {
+      "type": "string"
+    },
+    "manifest_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    }
+  }
+}

@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://3m-cloud.github.io/nova/docs/contracts/reusable-workflow-inputs-v1.schema.json",
+  "title": "Reusable workflow inputs v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "app_type",
+    "environment",
+    "stack_name",
+    "template_file"
+  ],
+  "properties": {
+    "app_type": {
+      "type": "string",
+      "enum": ["dash", "rshiny", "react-next"]
+    },
+    "environment": {
+      "type": "string",
+      "minLength": 1
+    },
+    "stack_name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "template_file": {
+      "type": "string",
+      "minLength": 1
+    },
+    "aws_region": {
+      "type": "string",
+      "pattern": "^[a-z]{2}-[a-z]+-\\d$"
+    },
+    "parameter_file": {
+      "type": "string",
+      "default": ""
+    },
+    "image_tag": {
+      "type": "string"
+    },
+    "size_profile": {
+      "type": "string",
+      "enum": ["small", "medium", "large", "custom"]
+    },
+    "enable_worker": {
+      "type": "boolean"
+    },
+    "custom_container_port": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 65535
+    },
+    "custom_task_cpu": {
+      "type": "integer",
+      "minimum": 256,
+      "maximum": 16384
+    },
+    "custom_task_memory": {
+      "type": "integer",
+      "minimum": 512,
+      "maximum": 65536
+    },
+    "custom_desired_count": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100
+    },
+    "approval_environment": {
+      "type": "string"
+    },
+    "capabilities": {
+      "type": "string",
+      "default": "CAPABILITY_NAMED_IAM"
+    },
+    "pipeline_name": {
+      "type": "string",
+      "default": ""
+    }
+  }
+}

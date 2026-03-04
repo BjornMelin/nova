@@ -2,7 +2,7 @@
 
 Status: Active
 Owner: Release Architecture + Platform Operations
-Last updated: 2026-03-03
+Last updated: 2026-03-04
 
 This file is the canonical active location for live validation and release
 promotion evidence links.
@@ -70,3 +70,20 @@ For each validation/promotion execution, append:
     - non-e2e suite passed (`371 passed, 1 skipped`).
     - e2e suite passed after fixture fix in `tests/e2e/conftest.py`
       (`1 passed, 4 skipped`).
+
+- `2026-03-04T02:38:09Z` | operator: `AWSReservedSSO_AdministratorAccess (bjorn-dev)` |
+  environment: `dev/prod planning` | gate: `runtime reproducibility hardening`
+  | result: `PASS`
+  - artifact/log links:
+    - `infra/runtime/ecs/cluster.yml` (portable ALB ingress source contract)
+    - `docs/plan/release/deploy-runtime-cloudformation-environments-guide.md`
+    - `scripts/release/day-0-operator-command-pack.sh` (foundation-first sequence)
+    - `.agents/plans/2026-03-03-nova-native-cfn-infra-product-reusable-gha-deploy-apis.md`
+      (subagent registry + WS11 checklist + verification log)
+  - remediation notes:
+    - Removed hardcoded region/account prefix list mapping; template now requires
+      explicit ingress source selection (`prefix list`, `CIDR`, or `source SG`).
+    - Added canonical runtime stack deployment order and change-set-first pattern
+      for cross-account reproducibility.
+    - Aligned day-0/release runbooks and CLI command-pack variables to the
+      runtime-first deployment model.

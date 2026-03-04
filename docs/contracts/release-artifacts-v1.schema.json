@@ -1,0 +1,379 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://3m-cloud.github.io/nova/docs/contracts/release-artifacts-v1.schema.json",
+  "title": "Release artifact contracts",
+  "description": "Schema for release artifacts emitted by staged publish/promotion and post-deploy validation workflows.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "changed_units",
+    "version_plan",
+    "codeartifact_gate_report",
+    "codeartifact_promotion_candidates",
+    "post_deploy_validation_report"
+  ],
+  "properties": {
+    "changed_units": {
+      "$ref": "#/$defs/changed_units"
+    },
+    "version_plan": {
+      "$ref": "#/$defs/version_plan"
+    },
+    "codeartifact_gate_report": {
+      "$ref": "#/$defs/codeartifact_gate_report"
+    },
+    "codeartifact_promotion_candidates": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/promotion_candidate"
+      }
+    },
+    "post_deploy_validation_report": {
+      "$ref": "#/$defs/post_deploy_validation_report"
+    }
+  },
+  "$defs": {
+    "semver": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?$"
+    },
+    "workspace_unit_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "unit_id",
+        "project",
+        "path"
+      ],
+      "properties": {
+        "unit_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "project": {
+          "type": "string",
+          "minLength": 1
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "changed_units": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "generated_at",
+        "base_commit",
+        "head_commit",
+        "first_release",
+        "changed_files",
+        "changed_units"
+      ],
+      "properties": {
+        "schema_version": {
+          "type": "string",
+          "const": "1.0"
+        },
+        "generated_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "base_commit": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "head_commit": {
+          "type": "string",
+          "minLength": 1
+        },
+        "first_release": {
+          "type": "boolean"
+        },
+        "changed_files": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "changed_units": {
+          "type": "array",
+          "items": {
+            "allOf": [
+              {
+                "$ref": "#/$defs/workspace_unit_ref"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "version"
+                ],
+                "properties": {
+                  "version": {
+                    "$ref": "#/$defs/semver"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    "version_plan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "generated_at",
+        "base_commit",
+        "head_commit",
+        "global_bump",
+        "units"
+      ],
+      "properties": {
+        "schema_version": {
+          "type": "string",
+          "const": "1.0"
+        },
+        "generated_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "base_commit": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "head_commit": {
+          "type": "string",
+          "minLength": 1
+        },
+        "global_bump": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "major",
+            "minor",
+            "patch",
+            null
+          ]
+        },
+        "units": {
+          "type": "array",
+          "items": {
+            "allOf": [
+              {
+                "$ref": "#/$defs/workspace_unit_ref"
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "old_version",
+                  "new_version",
+                  "bump",
+                  "reason"
+                ],
+                "properties": {
+                  "old_version": {
+                    "$ref": "#/$defs/semver"
+                  },
+                  "new_version": {
+                    "$ref": "#/$defs/semver"
+                  },
+                  "bump": {
+                    "type": "string",
+                    "enum": [
+                      "major",
+                      "minor",
+                      "patch"
+                    ]
+                  },
+                  "reason": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    "promotion_candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "format",
+        "namespace",
+        "package",
+        "version",
+        "unit_id"
+      ],
+      "properties": {
+        "format": {
+          "type": "string",
+          "const": "pypi"
+        },
+        "namespace": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "package": {
+          "type": "string",
+          "pattern": "^nova-[a-z0-9][a-z0-9-]*$"
+        },
+        "version": {
+          "$ref": "#/$defs/semver"
+        },
+        "unit_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "codeartifact_gate_report": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "manifest_path",
+        "manifest_sha256",
+        "changed_units_count",
+        "planned_package_count",
+        "promotion_candidates"
+      ],
+      "properties": {
+        "schema_version": {
+          "type": "string",
+          "const": "1.0"
+        },
+        "manifest_path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "manifest_sha256": {
+          "type": "string",
+          "pattern": "^[A-Fa-f0-9]{64}$"
+        },
+        "changed_units_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "planned_package_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "promotion_candidates": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/promotion_candidate"
+          }
+        }
+      }
+    },
+    "route_check": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "path",
+        "expected",
+        "status_code",
+        "ok"
+      ],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "canonical",
+            "legacy_404"
+          ]
+        },
+        "path": {
+          "type": "string",
+          "pattern": "^/[^\\s]*$"
+        },
+        "expected": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status_code": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "ok": {
+          "type": "boolean"
+        }
+      }
+    },
+    "post_deploy_validation_report": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "timestamp_utc",
+        "base_url",
+        "canonical_paths",
+        "legacy_404_paths",
+        "checks",
+        "status",
+        "failures"
+      ],
+      "properties": {
+        "timestamp_utc": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "base_url": {
+          "type": "string",
+          "pattern": "^https://.+$"
+        },
+        "canonical_paths": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^/[^\\s]*$"
+          }
+        },
+        "legacy_404_paths": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^/[^\\s]*$"
+          }
+        },
+        "checks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/route_check"
+          }
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "passed",
+            "failed"
+          ]
+        },
+        "failures": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

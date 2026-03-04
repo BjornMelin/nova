@@ -64,6 +64,9 @@ Configured values are consumed by:
   - `AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}`
 - Deploy/promote workflows
   - `RELEASE_AWS_ROLE_ARN: ${{ secrets.RELEASE_AWS_ROLE_ARN }}`
+- Post-deploy validation workflows
+  - `post-deploy-validate.yml` (manual wrapper)
+  - `reusable-post-deploy-validate.yml` (`workflow_call` API)
 
 ## Branch/signature policy checks
 
@@ -82,3 +85,5 @@ Configured values are consumed by:
   <https://cli.github.com/manual/gh_secret_set>
 - GitHub CLI variable command:
   <https://cli.github.com/manual/gh_variable_set>
+- Downstream integration guide:
+  `../../clients/post-deploy-validation-integration-guide.md`

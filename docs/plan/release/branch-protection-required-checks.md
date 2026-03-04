@@ -22,6 +22,10 @@ From workflow `Conformance Clients` (`.github/workflows/conformance-clients.yml`
 - `shiny-conformance`
 - `typescript-conformance`
 
+From workflow `CFN Contract Validate` (`.github/workflows/cfn-contract-validate.yml`):
+
+- `cfn-and-contracts`
+
 ## Required branch protection rules
 
 Enable all of the following on `main`:
@@ -79,7 +83,8 @@ gh api \
       "quality-gates",
       "dash-conformance",
       "shiny-conformance",
-      "typescript-conformance"
+      "typescript-conformance",
+      "cfn-and-contracts"
     ]
   },
   "enforce_admins": true,

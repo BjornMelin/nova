@@ -73,8 +73,15 @@ Out of scope:
 
 - `docs/architecture/requirements.md`
 - `docs/architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md`
+- `docs/architecture/adr/ADR-0024-layered-architecture-authority-pack.md`
+- `docs/architecture/adr/ADR-0025-runtime-monorepo-component-boundaries-and-ownership.md`
+- `docs/architecture/adr/ADR-0026-fail-fast-runtime-configuration-and-safe-auth-execution.md`
 - `docs/architecture/spec/SPEC-0000-http-api-contract.md`
 - `docs/architecture/spec/SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md`
 - `docs/architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md`
+- `docs/architecture/spec/SPEC-0017-runtime-component-topology-and-ownership-contract.md`
+- `docs/architecture/spec/SPEC-0018-runtime-configuration-and-startup-validation-contract.md`
+- `docs/architecture/spec/SPEC-0019-auth-execution-and-threadpool-safety-contract.md`
+- `docs/architecture/spec/SPEC-0020-architecture-authority-pack-and-documentation-synchronization-contract.md`
 - `docs/plan/PLAN.md`
 - `docs/runbooks/README.md`

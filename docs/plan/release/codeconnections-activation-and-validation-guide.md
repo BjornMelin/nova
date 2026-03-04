@@ -2,7 +2,7 @@
 
 Status: Active
 Owner: nova release architecture
-Last reviewed: 2026-02-24
+Last reviewed: 2026-03-03
 
 ## Purpose
 
@@ -64,6 +64,13 @@ that signed release commits trigger pipeline executions.
 5. Validate latest execution source revision.
 
     ```bash
+    PIPELINE_EXECUTION_ID="$(aws codepipeline list-pipeline-executions \
+      --region "${AWS_REGION}" \
+      --pipeline-name "${CODEPIPELINE_NAME}" \
+      --max-results 1 \
+      --query 'pipelineExecutionSummaries[0].pipelineExecutionId' \
+      --output text)"
+
     aws codepipeline get-pipeline-execution \
       --region "${AWS_REGION}" \
       --pipeline-name "${CODEPIPELINE_NAME}" \

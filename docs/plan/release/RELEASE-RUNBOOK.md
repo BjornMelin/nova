@@ -2,7 +2,7 @@
 
 Status: Active
 Owner: nova release architecture
-Last updated: 2026-03-02
+Last updated: 2026-03-03
 
 ## 1. Purpose
 
@@ -14,6 +14,7 @@ Dev to Prod AWS promotion.
 Use the modular operator guide set for provisioning and setup details:
 
 - `../../runbooks/README.md`
+- `deploy-runtime-cloudformation-environments-guide.md`
 - `day-0-operator-checklist.md`
 - `scripts/release/day-0-operator-command-pack.sh`
 - `aws-oidc-and-iam-role-setup-guide.md`
@@ -30,8 +31,10 @@ Use the modular operator guide set for provisioning and setup details:
 1. `main` is green on CI (`ci.yml`).
 2. Release OIDC role and signing secret are provisioned.
 3. CodeConnections source connection is `AVAILABLE`.
-4. Dev and Prod deployment stack parameters are configured.
-5. Release build project parameters provide CodeArtifact and ECR targets:
+4. Runtime stacks are deployed for `dev` and `prod`, and validation base URLs
+   are captured.
+5. Dev and Prod digest-marker deployment stack parameters are configured.
+6. Release build project parameters provide CodeArtifact and ECR targets:
    - `CODEARTIFACT_DOMAIN`
    - `CODEARTIFACT_STAGING_REPOSITORY`
    - `CODEARTIFACT_PROD_REPOSITORY`
@@ -74,10 +77,23 @@ Use the modular operator guide set for provisioning and setup details:
 4. Confirm promotion copies from `CODEARTIFACT_STAGING_REPOSITORY` to
    `CODEARTIFACT_PROD_REPOSITORY`.
 
+### E. Post-deploy route validation gate
+
+1. Trigger `Post Deploy Validate` (`post-deploy-validate.yml`) after deployment.
+2. Supply `validation_base_url` using deployed HTTPS endpoint.
+3. Confirm wrapper calls reusable API:
+   - `.github/workflows/reusable-post-deploy-validate.yml`
+4. Confirm artifact upload:
+   - `post-deploy-validation-report`
+   - report file: `post-deploy-validation-report.json`
+5. Confirm reusable workflow output:
+   - `validation_status=passed`
+
 ## 4. AWS promotion execution
 
 1. Confirm CodePipeline source event ingests signed release commit.
 2. Confirm stages in order:
+   - Source
    - Build
    - DeployDev
    - ValidateDev
@@ -118,4 +134,5 @@ For each run capture:
    - `PUBLISHED_PACKAGES`
    - `RELEASE_MANIFEST_SHA256`
 8. Explicit digest continuity evidence (Dev -> Prod `IMAGE_DIGEST` match).
-9. Link entry in `docs/plan/release/evidence-log.md`.
+9. Post-deploy route validation artifact link and status output.
+10. Link entry in `docs/plan/release/evidence-log.md`.

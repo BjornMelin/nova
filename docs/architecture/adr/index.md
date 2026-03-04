@@ -10,6 +10,9 @@
 Note: `ADR-0023` + `SPEC-0016` define the hard-cut canonical route authority:
 runtime routes are `/v1/*` (plus `/metrics/summary`) only.
 
+Infrastructure productization and deploy-automation governance decisions are
+codified by `ADR-0024`, `ADR-0025`, and `ADR-0026`.
+
 | ADR | Title | Status | Date |
 | --- | --- | --- | --- |
 | [ADR-0000](./ADR-0000-fastapi-microservice.md) | Implement the File Transfer API as a FastAPI service | Accepted | 2026-02-11 |
@@ -31,3 +34,6 @@ runtime routes are `/v1/*` (plus `/metrics/summary`) only.
 | [ADR-0016](./ADR-0016-minimal-governance-final-state-operator-path.md) | Minimal governance final-state operator path | Accepted | 2026-03-02 |
 | [ADR-0022](./ADR-0022-batch-b-operator-iam-iac.md) | Batch B operator IAM role codified in Nova IaC for reproducible validation access | Accepted | 2026-03-02 |
 | [ADR-0023](./ADR-0023-hard-cut-v1-canonical-route-surface.md) | Hard cut to a single canonical `/v1/*` API surface | Accepted | 2026-03-03 |
+| [ADR-0024](./ADR-0024-layered-architecture-authority-pack.md) | Native-CFN modular stack architecture for Nova infrastructure productization | Accepted | 2026-03-03 |
+| [ADR-0025](./ADR-0025-runtime-monorepo-component-boundaries-and-ownership.md) | Reusable GitHub workflow API and versioning policy for deployment automation | Accepted | 2026-03-03 |
+| [ADR-0026](./ADR-0026-fail-fast-runtime-configuration-and-safe-auth-execution.md) | OIDC and IAM role partitioning for deploy automation | Accepted | 2026-03-03 |

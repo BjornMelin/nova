@@ -2,7 +2,7 @@
 
 Status: Active
 Owner: nova release architecture
-Last reviewed: 2026-02-24
+Last reviewed: 2026-03-03
 
 ## Purpose
 
@@ -19,6 +19,7 @@ provisioning and release promotion.
 
 Use these setup guides for variable definitions and sourcing:
 
+- [deploy-runtime-cloudformation-environments-guide.md](deploy-runtime-cloudformation-environments-guide.md)
 - [day-0-operator-checklist.md](day-0-operator-checklist.md)
 - [aws-oidc-and-iam-role-setup-guide.md](aws-oidc-and-iam-role-setup-guide.md)
 - [config-values-reference-guide.md](config-values-reference-guide.md)
@@ -119,21 +120,34 @@ If GitHub action path is unavailable, deploy stacks directly:
 ```bash
 aws cloudformation deploy \
   --region "${AWS_REGION}" \
+  --stack-name "${PROJECT}-${APPLICATION}-nova-foundation" \
+  --template-file "${NOVA_REPO_ROOT}/infra/nova/nova-foundation.yml" \
+  --capabilities CAPABILITY_NAMED_IAM \
+  --parameter-overrides \
+    Project="${PROJECT}" \
+    Application="${APPLICATION}" \
+    ExistingArtifactBucketName="${NOVA_ARTIFACT_BUCKET_NAME}" \
+    CodeArtifactDomainName="${NOVA_CODEARTIFACT_DOMAIN_NAME}" \
+    CodeArtifactRepositoryName="${NOVA_CODEARTIFACT_REPOSITORY_NAME}" \
+    EcrRepositoryArn="${NOVA_ECR_REPOSITORY_ARN}" \
+    EcrRepositoryName="${NOVA_ECR_REPOSITORY_NAME}" \
+    EcrRepositoryUri="${NOVA_ECR_REPOSITORY_URI}" \
+    ExistingConnectionArn="${CONNECTION_ARN}"
+
+aws cloudformation deploy \
+  --region "${AWS_REGION}" \
   --stack-name "${PROJECT}-${APPLICATION}-nova-iam-roles" \
   --template-file "${NOVA_REPO_ROOT}/infra/nova/nova-iam-roles.yml" \
   --capabilities CAPABILITY_NAMED_IAM \
   --parameter-overrides \
     Project="${PROJECT}" \
     Application="${APPLICATION}" \
+    FoundationStackName="${PROJECT}-${APPLICATION}-nova-foundation" \
     RepositoryOwner="${GITHUB_OWNER}" \
     RepositoryName="${GITHUB_REPO}" \
     MainBranchName="main" \
     GitHubOidcProviderArn="${GITHUB_OIDC_PROVIDER_ARN}" \
-    ReleaseSigningSecretArn="${RELEASE_SIGNING_SECRET_ARN}" \
-    ArtifactBucketName="${NOVA_ARTIFACT_BUCKET_NAME}" \
-    CodeArtifactDomainName="${NOVA_CODEARTIFACT_DOMAIN_NAME}" \
-    CodeArtifactRepositoryName="${NOVA_CODEARTIFACT_REPOSITORY_NAME}" \
-    EcrRepositoryArn="${NOVA_ECR_REPOSITORY_ARN}"
+    ReleaseSigningSecretArn="${RELEASE_SIGNING_SECRET_ARN}"
 ```
 
 Use equivalent `aws cloudformation deploy` commands for:
