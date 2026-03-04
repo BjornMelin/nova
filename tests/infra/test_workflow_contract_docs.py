@@ -1,0 +1,180 @@
+"""Workflow-centric contract docs tests for WS6/WS8 artifacts."""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+from typing import Any
+
+import yaml
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+
+
+def _read(rel: str) -> str:
+    return (REPO_ROOT / rel).read_text(encoding="utf-8")
+
+
+def _read_json(rel: str) -> dict[str, Any]:
+    return json.loads(_read(rel))
+
+
+def _load_workflow_call(rel: str) -> dict[str, Any]:
+    workflow = yaml.safe_load(_read(rel))
+    on_cfg = workflow.get("on")
+    if on_cfg is None:
+        on_cfg = workflow.get(True)
+    assert isinstance(on_cfg, dict)
+    call_cfg = on_cfg.get("workflow_call")
+    assert isinstance(call_cfg, dict)
+    return call_cfg
+
+
+def test_contract_schema_files_exist_and_are_valid_json() -> None:
+    """Contract schema files must exist and parse as JSON objects."""
+    for rel_path in [
+        "docs/contracts/reusable-workflow-inputs-v1.schema.json",
+        "docs/contracts/reusable-workflow-outputs-v1.schema.json",
+        "docs/contracts/deploy-size-profiles-v1.json",
+        "docs/contracts/release-artifacts-v1.schema.json",
+        "docs/contracts/workflow-post-deploy-validate.schema.json",
+    ]:
+        path = REPO_ROOT / rel_path
+        assert path.is_file(), f"Missing contract schema file: {rel_path}"
+        data = _read_json(rel_path)
+        assert isinstance(data, dict)
+        if rel_path.endswith(".schema.json"):
+            assert (
+                data.get("$schema")
+                == "https://json-schema.org/draft/2020-12/schema"
+            )
+            assert "$id" in data
+            assert data.get("type") == "object"
+        else:
+            assert data.get("schema_version") == "1.0"
+
+
+def test_workflow_io_schema_contract_matches_reusable_deploy_runtime_api() -> (
+    None
+):
+    """Workflow schema must codify reusable deploy-runtime API."""
+    input_schema = _read_json(
+        "docs/contracts/reusable-workflow-inputs-v1.schema.json"
+    )
+    output_schema = _read_json(
+        "docs/contracts/reusable-workflow-outputs-v1.schema.json"
+    )
+    workflow_call = _load_workflow_call(
+        ".github/workflows/reusable-deploy-runtime.yml"
+    )
+    workflow_inputs = workflow_call["inputs"]
+    workflow_outputs = workflow_call["outputs"]
+
+    schema_inputs = input_schema["properties"]
+    schema_outputs = output_schema["properties"]
+
+    assert set(workflow_inputs).issubset(set(schema_inputs))
+    assert set(workflow_outputs) == set(schema_outputs)
+
+    for required_input in input_schema["required"]:
+        assert required_input in workflow_inputs
+        assert workflow_inputs[required_input].get("required") is True
+
+    assert (
+        output_schema["properties"]["manifest_sha256"]["pattern"]
+        == "^[a-f0-9]{64}$"
+    )
+
+
+def test_release_artifact_schema_contract_covers_required_gate_payloads() -> (
+    None
+):
+    """Release artifacts schema must include gate and post-deploy payloads."""
+    schema = _read_json("docs/contracts/release-artifacts-v1.schema.json")
+    props = schema["properties"]
+    defs = schema["$defs"]
+
+    for key in [
+        "changed_units",
+        "version_plan",
+        "codeartifact_gate_report",
+        "codeartifact_promotion_candidates",
+        "post_deploy_validation_report",
+    ]:
+        assert key in props
+
+    for required_def in [
+        "changed_units",
+        "version_plan",
+        "codeartifact_gate_report",
+        "promotion_candidate",
+        "post_deploy_validation_report",
+        "route_check",
+    ]:
+        assert required_def in defs
+
+
+def test_size_profiles_schema_contract_covers_dash_rshiny_react_next() -> None:
+    """Size-profile schema must include required downstream consumer lanes."""
+    schema = _read_json("docs/contracts/deploy-size-profiles-v1.json")
+    profile_props = schema["profiles"]
+
+    for lane in ["dash", "rshiny", "react-next"]:
+        assert lane in profile_props
+
+    lane_def = profile_props["dash"]
+    for tier in ["small", "medium", "large"]:
+        assert tier in lane_def
+
+
+def test_downstream_examples_reference_reusable_post_deploy_workflow() -> None:
+    """Downstream examples must call the shared reusable workflow."""
+    workflow_ref = (
+        "uses: 3M-Cloud/nova/.github/workflows/"
+        "reusable-post-deploy-validate.yml@v1"
+    )
+    for rel_path in [
+        "docs/clients/examples/workflows/dash-post-deploy-validate.yml",
+        "docs/clients/examples/workflows/rshiny-post-deploy-validate.yml",
+        "docs/clients/examples/workflows/react-next-post-deploy-validate.yml",
+    ]:
+        text = _read(rel_path)
+        assert workflow_ref in text
+        assert "validation_base_url: ${{ vars.NOVA_API_BASE_URL }}" in text
+        assert "validation_canonical_paths:" in text
+        assert "validation_legacy_404_paths:" in text
+
+
+def test_downstream_minimal_workflow_files_exist_and_pin_v1() -> None:
+    """Minimal downstream workflow examples must exist and pin @v1."""
+    for rel_path in [
+        "docs/clients/dash-minimal-workflow.yml",
+        "docs/clients/rshiny-minimal-workflow.yml",
+        "docs/clients/react-next-minimal-workflow.yml",
+    ]:
+        text = _read(rel_path)
+        assert "reusable-post-deploy-validate.yml@v1" in text
+        assert "validation_base_url: ${{ vars.NOVA_API_BASE_URL }}" in text
+
+
+def test_integration_guide_includes_versioning_policy_references() -> None:
+    """Integration guide must reference release and versioning docs."""
+    text = _read("docs/clients/post-deploy-validation-integration-guide.md")
+
+    for required in [
+        "reusable-post-deploy-validate.yml",
+        "docs/contracts/workflow-post-deploy-validate.schema.json",
+        "docs/contracts/release-artifacts-v1.schema.json",
+        "docs/contracts/reusable-workflow-inputs-v1.schema.json",
+        "docs/contracts/reusable-workflow-outputs-v1.schema.json",
+        "docs/contracts/deploy-size-profiles-v1.json",
+        "docs/plan/release/RELEASE-POLICY.md",
+        (
+            "docs/architecture/spec/"
+            "SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md"
+        ),
+        "@v1",
+        "@v1.x.y",
+        "5-minute setup flow",
+    ]:
+        assert required in text
