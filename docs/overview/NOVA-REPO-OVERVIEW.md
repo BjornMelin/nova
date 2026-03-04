@@ -14,6 +14,34 @@ Nova is the canonical runtime monorepo for file-transfer orchestration and token
 - `packages/contracts`: Contract artifacts, fixtures, and conformance helpers.
 - `infra/nova` and `infra/runtime`: CloudFormation stacks for CI/CD foundation and runtime environments.
 
+```mermaid
+flowchart TB
+    subgraph Apps
+        A1["apps/nova_file_api_service"]
+        A2["apps/nova_auth_api_service"]
+    end
+    subgraph RuntimePackages
+        P1["packages/nova_file_api"]
+        P2["packages/nova_auth_api"]
+        P3["packages/nova_dash_bridge"]
+        P4["packages/contracts"]
+    end
+    subgraph Infra
+        I1["infra/nova"]
+        I2["infra/runtime"]
+    end
+
+    A1 --> P1
+    A2 --> P2
+    P3 --> P1
+    P4 --> P1
+    P4 --> P2
+    I1 --> A1
+    I1 --> A2
+    I2 --> A1
+    I2 --> A2
+```
+
 ## 3) Runtime architecture at a glance
 
 - `nova_file_api` serves canonical `/v1/*` transfer and job endpoints.
@@ -25,6 +53,18 @@ Nova is the canonical runtime monorepo for file-transfer orchestration and token
   - `/v1/health/ready`
   - `/metrics/summary`
 - `nova_auth_api` separately serves token verification/introspection capabilities.
+
+```mermaid
+flowchart LR
+    C["Client"] --> API["nova_file_api /v1 endpoints"]
+    API --> AUTH["Auth and validation boundary"]
+    AUTH --> ORCH["Transfer and jobs orchestration"]
+    ORCH --> SQS["Queue backend"]
+    SQS --> W["Worker"]
+    W --> CB["POST /v1/internal/jobs/{job_id}/result"]
+    CB --> API
+    API --> OBS["/v1/health/live /v1/health/ready /metrics/summary"]
+```
 
 ## 4) Package responsibilities and interactions
 
@@ -40,6 +80,17 @@ Nova is the canonical runtime monorepo for file-transfer orchestration and token
   - Framework adapters that let Dash/Flask/FastAPI apps consume Nova-style transfer flows without redefining server contracts.
 - `contracts` owns:
   - Test fixtures, schemas, and conformance artifacts used by release and integration checks.
+
+```mermaid
+flowchart LR
+    FILE["nova_file_api"] --> CACHE["idempotency and cache logic"]
+    FILE --> ACT["activity and job lifecycle"]
+    FILE --> ROUTES["canonical v1 routes"]
+    AUTH["nova_auth_api"] --> TOK["verify and introspect"]
+    BRIDGE["nova_dash_bridge"] --> FILE
+    CONTRACTS["contracts"] --> FILE
+    CONTRACTS --> AUTH
+```
 
 ## 5) Canonical API surface and route guardrails
 
@@ -75,6 +126,28 @@ No compatibility aliases or namespace shims should be added for disallowed famil
 | `/v1/resources/plan` | Clients / operators | Get resource planning metadata |
 | `/v1/releases/info` | Operators / tooling | Surface runtime release info |
 | Health + metrics endpoints | Platform and operations tooling | Liveness, readiness, and summary metrics |
+
+```mermaid
+flowchart TB
+    subgraph PublicV1
+        T["/v1/transfers/*"]
+        J["/v1/jobs*"]
+        C["/v1/capabilities"]
+        R["/v1/resources/plan"]
+        RI["/v1/releases/info"]
+        HL["/v1/health/live"]
+        HR["/v1/health/ready"]
+    end
+    INT["/v1/internal/jobs/{job_id}/result internal only"]
+    M["/metrics/summary"]
+    BAD["Disallowed: /api/* /api/v1/* /healthz /readyz"]
+
+    T --> J
+    J --> INT
+    HL --> HR
+    HR --> M
+    BAD -. not allowed .- PublicV1
+```
 
 ## 6) Client usage flows
 
@@ -113,6 +186,35 @@ No compatibility aliases or namespace shims should be added for disallowed famil
 - GitHub Actions workflows orchestrate quality gates, release, and environment promotions.
 - AWS CodePipeline/CodeBuild/CodeConnections and artifact controls are represented in the infra stacks and release workflows.
 - Promotion model is artifact-forward (build once, promote across lanes).
+
+```mermaid
+flowchart LR
+    GH["GitHub Actions"] --> BUILD["Build and quality gates"]
+    BUILD --> ART["Artifact and package outputs"]
+    ART --> CD["CodePipeline and CodeBuild promotion"]
+    CD --> ECS["ECS Fargate API and worker services"]
+    ECS --> SQS["SQS and DLQ"]
+    ECS --> S3["S3 transfer resources"]
+    ECS --> DDB["DynamoDB activity and state"]
+    ECS --> REDIS["Redis cache"]
+    ECS --> CW["CloudWatch logs and metrics"]
+    ECS --> KMS["KMS protected data paths"]
+    ALB["ALB and WAF"] --> ECS
+```
+
+```mermaid
+sequenceDiagram
+    participant Dev as Developer
+    participant GH as GitHub Actions
+    participant AWS as AWS Delivery Plane
+    participant RT as Runtime Lane
+
+    Dev->>GH: Push tag or release change
+    GH->>GH: Run lint type test contract gates
+    GH->>AWS: Publish artifact and trigger promotion
+    AWS->>RT: Deploy immutable artifact to target lane
+    RT-->>GH: Report deployment and validation status
+```
 
 ## 8) Security and reliability invariants
 
