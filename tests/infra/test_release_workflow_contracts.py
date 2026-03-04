@@ -35,20 +35,106 @@ def test_promote_prod_workflow_has_controlled_package_promotion_policy() -> (
 ):
     """Validate controlled package-promotion contracts in the promote
     workflow file."""
-    text = _read(".github/workflows/promote-prod.yml")
+    wrapper_text = _read(".github/workflows/promote-prod.yml")
+    reusable_text = _read(".github/workflows/reusable-promote-prod.yml")
 
     for required in [
         "manifest_sha256",
         "changed_units_json",
         "version_plan_json",
         "promotion_candidates_json",
+        "codeartifact_domain",
+        "codeartifact_staging_repository",
+        "codeartifact_prod_repository",
+        "uses: ./.github/workflows/reusable-promote-prod.yml",
+        "github.ref == 'refs/heads/main'",
+    ]:
+        assert required in wrapper_text, (
+            f"Missing required wrapper contract: {required!r}"
+        )
+
+    for required in [
         "CODEARTIFACT_STAGING_REPOSITORY",
         "CODEARTIFACT_PROD_REPOSITORY",
         "scripts.release.codeartifact_gate",
         "copy-package-versions",
         "approve-prod-pipeline",
+        "codepipeline-approve",
     ]:
-        assert required in text, f"Missing required contract: {required!r}"
+        assert required in reusable_text, (
+            f"Missing required reusable contract: {required!r}"
+        )
+
+
+def test_release_apply_workflows_are_thin_wrappers_to_reusable_api() -> None:
+    """Release apply workflows must call shared reusable implementation."""
+    release_apply_text = _read(".github/workflows/release-apply.yml")
+    build_publish_text = _read(".github/workflows/build-and-publish-image.yml")
+
+    for required in [
+        "uses: ./.github/workflows/reusable-release-apply.yml",
+        "checkout_ref:",
+        "release_signing_secret_id",
+        "workflow_dispatch",
+    ]:
+        assert required in release_apply_text, (
+            f"Missing release-apply wrapper contract: {required!r}"
+        )
+        assert required in build_publish_text, (
+            f"Missing build-and-publish-image wrapper contract: {required!r}"
+        )
+
+    assert 'workflows: ["Nova Release Plan"]' in release_apply_text
+    assert 'workflows: ["Publish Packages"]' in build_publish_text
+
+    for forbidden in [
+        "scripts.release.changed_units",
+        "scripts.release.apply_versions",
+        "Configure git signing from Secrets Manager",
+    ]:
+        assert forbidden not in release_apply_text
+        assert forbidden not in build_publish_text
+
+
+def test_release_plan_workflow_is_wrapper_to_reusable_api() -> None:
+    """Release-plan entry workflow must call reusable release-plan API."""
+    release_plan_text = _read(".github/workflows/release-plan.yml")
+    reusable_release_plan_text = _read(
+        ".github/workflows/reusable-release-plan.yml"
+    )
+
+    assert (
+        "uses: ./.github/workflows/reusable-release-plan.yml"
+        in release_plan_text
+    )
+    assert "workflow_dispatch" in release_plan_text
+    assert "workflow_call:" in reusable_release_plan_text
+    for required in [
+        "scripts.release.changed_units",
+        "scripts.release.version_plan",
+        "release-plan-artifacts",
+    ]:
+        assert required in reusable_release_plan_text
+
+
+def test_deploy_dev_workflow_uses_reusable_api() -> None:
+    """Deploy-dev entry workflow must be a thin reusable workflow wrapper."""
+    wrapper_text = _read(".github/workflows/deploy-dev.yml")
+    reusable_text = _read(".github/workflows/reusable-deploy-dev.yml")
+
+    for required in [
+        "uses: ./.github/workflows/reusable-deploy-dev.yml",
+        "pipeline_name",
+        "release_aws_role_arn",
+    ]:
+        assert required in wrapper_text
+
+    for required in [
+        "codepipeline-start",
+        "configure-aws-oidc",
+        "pipeline_name",
+    ]:
+        assert required in reusable_text
 
 
 def test_post_deploy_validate_workflow_contracts() -> None:
@@ -57,16 +143,44 @@ def test_post_deploy_validate_workflow_contracts() -> None:
     Returns:
         None.
     """
-    text = _read(".github/workflows/post-deploy-validate.yml")
+    wrapper_text = _read(".github/workflows/post-deploy-validate.yml")
+    reusable_text = _read(".github/workflows/reusable-post-deploy-validate.yml")
 
     for required in [
+        "uses: ./.github/workflows/reusable-post-deploy-validate.yml",
         "validation_base_url",
         "service_base_url",
         "validation_canonical_paths",
         "validation_legacy_404_paths",
+        "report_path",
+        "artifact_name",
+    ]:
+        assert required in wrapper_text, (
+            f"Missing required wrapper contract: {required!r}"
+        )
+
+    for forbidden in [
+        "scripts/release/validate_route_contract.py",
+        "actions/upload-artifact@v4",
+    ]:
+        assert forbidden not in wrapper_text, (
+            f"Wrapper should stay thin and must not include: {forbidden!r}"
+        )
+
+    for required in [
+        "workflow_call:",
+        "validation_base_url",
+        "service_base_url",
+        "validation_canonical_paths",
+        "validation_legacy_404_paths",
+        "report_path",
+        "artifact_name",
+        "validation_status",
         "VALIDATION_BASE_URL",
         "VALIDATION_CANONICAL_PATHS",
         "VALIDATION_LEGACY_404_PATHS",
+        "steps.run-validation.outcome",
+        "set-outputs",
         "scripts/release/validate_route_contract.py",
         "/v1/health/live",
         "/v1/health/ready",
@@ -76,7 +190,9 @@ def test_post_deploy_validate_workflow_contracts() -> None:
         "post-deploy-validation-report.json",
         "actions/upload-artifact@v4",
     ]:
-        assert required in text, f"Missing required contract: {required!r}"
+        assert required in reusable_text, (
+            f"Missing required reusable contract: {required!r}"
+        )
 
 
 def test_deploy_validate_buildspec_enforces_route_contracts() -> None:
