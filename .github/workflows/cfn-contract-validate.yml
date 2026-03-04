@@ -1,0 +1,46 @@
+name: CFN Contract Validate
+
+on:
+  pull_request:
+    paths:
+      - 'infra/**'
+      - '.github/workflows/**'
+      - '.github/actions/**'
+      - 'tests/infra/**'
+  push:
+    branches: [main]
+    paths:
+      - 'infra/**'
+      - '.github/workflows/**'
+      - '.github/actions/**'
+      - 'tests/infra/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  cfn-and-contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python and uv
+        uses: ./.github/actions/setup-python-uv
+
+      - name: Install cfn-lint
+        run: uv pip install cfn-lint
+
+      - name: Validate CloudFormation syntax and schema
+        run: |
+          set -euo pipefail
+          cfn-lint infra/nova/*.yml infra/runtime/**/*.yml
+
+      - name: Run infra preflight contract tests
+        run: |
+          set -euo pipefail
+          uv run pytest -q \
+            tests/infra/test_absorbed_infra_contracts.py \
+            tests/infra/test_release_workflow_contracts.py \
+            tests/infra/test_workflow_productization_contracts.py \
+            tests/infra/test_workflow_contract_docs.py

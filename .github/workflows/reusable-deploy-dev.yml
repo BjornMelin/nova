@@ -1,0 +1,38 @@
+name: Reusable Deploy Dev
+
+on:
+  workflow_call:
+    inputs:
+      pipeline_name:
+        description: AWS CodePipeline name.
+        required: true
+        type: string
+      aws_region:
+        description: AWS region used for pipeline operations.
+        required: false
+        default: us-east-1
+        type: string
+    secrets:
+      release_aws_role_arn:
+        description: OIDC-assumable AWS role for deployment actions.
+        required: true
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy-dev:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure AWS Credentials (OIDC)
+        uses: ./.github/actions/configure-aws-oidc
+        with:
+          role-to-assume: ${{ secrets.release_aws_role_arn }}
+          aws-region: ${{ inputs.aws_region }}
+
+      - name: Start dev pipeline execution
+        uses: ./.github/actions/codepipeline-start
+        with:
+          pipeline-name: ${{ inputs.pipeline_name }}
+          aws-region: ${{ inputs.aws_region }}

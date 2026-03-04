@@ -1,0 +1,28 @@
+name: Start CodePipeline Execution
+description: Validate a pipeline name and start an execution.
+inputs:
+  pipeline-name:
+    description: AWS CodePipeline name.
+    required: true
+  aws-region:
+    description: AWS region for the pipeline.
+    required: false
+    default: us-east-1
+runs:
+  using: composite
+  steps:
+    - name: Start pipeline execution
+      shell: bash
+      run: |
+        set -euo pipefail
+        PIPELINE_NAME="${{ inputs.pipeline-name }}"
+        AWS_REGION="${{ inputs.aws-region }}"
+
+        [[ "$PIPELINE_NAME" =~ ^[A-Za-z0-9._@-]+$ ]] || {
+          echo "Invalid pipeline name" >&2
+          exit 1
+        }
+
+        aws codepipeline start-pipeline-execution \
+          --name "$PIPELINE_NAME" \
+          --region "$AWS_REGION"
