@@ -29,7 +29,7 @@ Parameters:
     Description: >-
       If true, the ECS task execution role includes broad Secrets Manager/KMS
       permissions. If false, prefer least-privilege permissions attached from
-      the ECS service stack (e.g., via container-craft ecs_secret_iam_resources).
+      the ECS service stack via TaskExecutionSecretArns/TaskExecutionSsmParameterArns.
 
 Conditions:
   UseEcs: !Equals [!Ref UsedByEcs, "true"]

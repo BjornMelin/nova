@@ -13,20 +13,31 @@ Parameters:
   MainBranchName:
     Type: String
     Default: main
+  FoundationStackName:
+    Type: String
+    Default: ""
+    Description: Optional stack name for importing shared CI/CD foundation outputs.
   GitHubOidcProviderArn:
     Type: String
   ReleaseSigningSecretArn:
     Type: String
   ArtifactBucketName:
     Type: String
+    Default: ""
+    Description: Optional explicit artifact bucket. If empty, imported from foundation.
   CodeArtifactDomainName:
     Type: String
+    Default: ""
+    Description: Optional explicit CodeArtifact domain. If empty, imported from foundation.
   CodeArtifactRepositoryName:
     Type: String
+    Default: ""
+    Description: Optional explicit CodeArtifact repository. If empty, imported from foundation.
   EcrRepositoryArn:
     Type: String
-    AllowedPattern: "^arn:(aws|aws-us-gov|aws-cn):ecr:[a-z0-9-]+:[0-9]{12}:repository\\/[A-Za-z0-9._\\/-]+$"
-    ConstraintDescription: Must be a valid ECR repository ARN.
+    Default: ""
+    AllowedPattern: "^$|^arn:(aws|aws-us-gov|aws-cn):ecr:[a-z0-9-]+:[0-9]{12}:repository\\/[A-Za-z0-9._\\/-]+$"
+    ConstraintDescription: Must be empty or a valid ECR repository ARN.
   ExistingConnectionArn:
     Type: String
     Default: ""
@@ -42,9 +53,43 @@ Parameters:
       role. Leave blank to skip creating the role.
 
 Conditions:
+  HasFoundationStackName: !Not [!Equals [!Ref FoundationStackName, ""]]
+  HasArtifactBucketName: !Not [!Equals [!Ref ArtifactBucketName, ""]]
+  HasCodeArtifactDomainName: !Not [!Equals [!Ref CodeArtifactDomainName, ""]]
+  HasCodeArtifactRepositoryName: !Not [!Equals [!Ref CodeArtifactRepositoryName, ""]]
+  HasEcrRepositoryArn: !Not [!Equals [!Ref EcrRepositoryArn, ""]]
   HasExistingConnectionArn: !Not [!Equals [!Ref ExistingConnectionArn, ""]]
   HasManualApprovalTopicArn: !Not [!Equals [!Ref ManualApprovalTopicArn, ""]]
+  HasResolvedManualApprovalTopicArn: !Or
+    - !Condition HasManualApprovalTopicArn
+    - !Condition HasFoundationStackName
   HasBatchBOperatorPrincipalArn: !Not [!Equals [!Ref BatchBOperatorPrincipalArn, ""]]
+
+Rules:
+  RequireArtifactBucketInput:
+    Assertions:
+      - Assert: !Or
+          - !Not [!Equals [!Ref ArtifactBucketName, ""]]
+          - !Not [!Equals [!Ref FoundationStackName, ""]]
+        AssertDescription: Provide ArtifactBucketName or FoundationStackName.
+  RequireCodeArtifactDomainInput:
+    Assertions:
+      - Assert: !Or
+          - !Not [!Equals [!Ref CodeArtifactDomainName, ""]]
+          - !Not [!Equals [!Ref FoundationStackName, ""]]
+        AssertDescription: Provide CodeArtifactDomainName or FoundationStackName.
+  RequireCodeArtifactRepositoryInput:
+    Assertions:
+      - Assert: !Or
+          - !Not [!Equals [!Ref CodeArtifactRepositoryName, ""]]
+          - !Not [!Equals [!Ref FoundationStackName, ""]]
+        AssertDescription: Provide CodeArtifactRepositoryName or FoundationStackName.
+  RequireEcrRepositoryArnInput:
+    Assertions:
+      - Assert: !Or
+          - !Not [!Equals [!Ref EcrRepositoryArn, ""]]
+          - !Not [!Equals [!Ref FoundationStackName, ""]]
+        AssertDescription: Provide EcrRepositoryArn or FoundationStackName.
 
 Resources:
   GitHubOIDCReleaseRole:
@@ -96,12 +141,24 @@ Resources:
                   - s3:GetObjectVersion
                   - s3:PutObject
                 Resource:
-                  - !Sub arn:${AWS::Partition}:s3:::${ArtifactBucketName}/*
+                  - !Sub
+                    - arn:${AWS::Partition}:s3:::${ResolvedArtifactBucketName}/*
+                    - ResolvedArtifactBucketName: !If
+                        - HasArtifactBucketName
+                        - !Ref ArtifactBucketName
+                        - !ImportValue
+                          Fn::Sub: "${FoundationStackName}-ArtifactBucketName"
               - Effect: Allow
                 Action:
                   - s3:ListBucket
                 Resource:
-                  - !Sub arn:${AWS::Partition}:s3:::${ArtifactBucketName}
+                  - !Sub
+                    - arn:${AWS::Partition}:s3:::${ResolvedArtifactBucketName}
+                    - ResolvedArtifactBucketName: !If
+                        - HasArtifactBucketName
+                        - !Ref ArtifactBucketName
+                        - !ImportValue
+                          Fn::Sub: "${FoundationStackName}-ArtifactBucketName"
               - Effect: Allow
                 Action:
                   - codebuild:StartBuild
@@ -120,11 +177,15 @@ Resources:
                 Resource:
                   - !Sub "arn:${AWS::Partition}:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${Project}-${Application}-nova-*"
               - !If
-                - HasManualApprovalTopicArn
+                - HasResolvedManualApprovalTopicArn
                 - Effect: Allow
                   Action:
                     - sns:Publish
-                  Resource: !Ref ManualApprovalTopicArn
+                  Resource: !If
+                    - HasManualApprovalTopicArn
+                    - !Ref ManualApprovalTopicArn
+                    - !ImportValue
+                      Fn::Sub: "${FoundationStackName}-ManualApprovalTopicArn"
                 - !Ref AWS::NoValue
               - Effect: Allow
                 Action:
@@ -171,12 +232,24 @@ Resources:
                   - s3:GetObjectVersion
                   - s3:PutObject
                 Resource:
-                  - !Sub arn:${AWS::Partition}:s3:::${ArtifactBucketName}/*
+                  - !Sub
+                    - arn:${AWS::Partition}:s3:::${ResolvedArtifactBucketName}/*
+                    - ResolvedArtifactBucketName: !If
+                        - HasArtifactBucketName
+                        - !Ref ArtifactBucketName
+                        - !ImportValue
+                          Fn::Sub: "${FoundationStackName}-ArtifactBucketName"
               - Effect: Allow
                 Action:
                   - s3:ListBucket
                 Resource:
-                  - !Sub arn:${AWS::Partition}:s3:::${ArtifactBucketName}
+                  - !Sub
+                    - arn:${AWS::Partition}:s3:::${ResolvedArtifactBucketName}
+                    - ResolvedArtifactBucketName: !If
+                        - HasArtifactBucketName
+                        - !Ref ArtifactBucketName
+                        - !ImportValue
+                          Fn::Sub: "${FoundationStackName}-ArtifactBucketName"
               - Effect: Allow
                 Action:
                   - ecr:BatchCheckLayerAvailability
@@ -187,7 +260,11 @@ Resources:
                   - ecr:PutImage
                   - ecr:UploadLayerPart
                 Resource:
-                  - !Ref EcrRepositoryArn
+                  - !If
+                    - HasEcrRepositoryArn
+                    - !Ref EcrRepositoryArn
+                    - !ImportValue
+                      Fn::Sub: "${FoundationStackName}-EcrRepositoryArn"
               - Effect: Allow
                 Action:
                   - ecr:GetAuthorizationToken
@@ -196,25 +273,64 @@ Resources:
                 Action:
                   - codeartifact:GetAuthorizationToken
                 Resource:
-                  - !Sub "arn:${AWS::Partition}:codeartifact:${AWS::Region}:${AWS::AccountId}:domain/${CodeArtifactDomainName}"
+                  - !Sub
+                    - "arn:${AWS::Partition}:codeartifact:${AWS::Region}:${AWS::AccountId}:domain/${ResolvedCodeArtifactDomainName}"
+                    - ResolvedCodeArtifactDomainName: !If
+                        - HasCodeArtifactDomainName
+                        - !Ref CodeArtifactDomainName
+                        - !ImportValue
+                          Fn::Sub: "${FoundationStackName}-CodeArtifactDomainName"
               - Effect: Allow
                 Action:
                   - codeartifact:ReadFromRepository
                   - codeartifact:GetRepositoryEndpoint
                 Resource:
-                  - !Sub "arn:${AWS::Partition}:codeartifact:${AWS::Region}:${AWS::AccountId}:repository/${CodeArtifactDomainName}/${CodeArtifactRepositoryName}"
+                  - !Sub
+                    - "arn:${AWS::Partition}:codeartifact:${AWS::Region}:${AWS::AccountId}:repository/${ResolvedCodeArtifactDomainName}/${ResolvedCodeArtifactRepositoryName}"
+                    - ResolvedCodeArtifactDomainName: !If
+                        - HasCodeArtifactDomainName
+                        - !Ref CodeArtifactDomainName
+                        - !ImportValue
+                          Fn::Sub: "${FoundationStackName}-CodeArtifactDomainName"
+                      ResolvedCodeArtifactRepositoryName: !If
+                        - HasCodeArtifactRepositoryName
+                        - !Ref CodeArtifactRepositoryName
+                        - !ImportValue
+                          Fn::Sub: "${FoundationStackName}-CodeArtifactRepositoryName"
               - Effect: Allow
                 Action:
                   - codeartifact:PublishPackageVersion
                   - codeartifact:PutPackageMetadata
                   - codeartifact:DescribePackageVersion
                 Resource:
-                  - !Sub "arn:${AWS::Partition}:codeartifact:${AWS::Region}:${AWS::AccountId}:package/${CodeArtifactDomainName}/${CodeArtifactRepositoryName}/pypi/*"
+                  - !Sub
+                    - "arn:${AWS::Partition}:codeartifact:${AWS::Region}:${AWS::AccountId}:package/${ResolvedCodeArtifactDomainName}/${ResolvedCodeArtifactRepositoryName}/pypi/*"
+                    - ResolvedCodeArtifactDomainName: !If
+                        - HasCodeArtifactDomainName
+                        - !Ref CodeArtifactDomainName
+                        - !ImportValue
+                          Fn::Sub: "${FoundationStackName}-CodeArtifactDomainName"
+                      ResolvedCodeArtifactRepositoryName: !If
+                        - HasCodeArtifactRepositoryName
+                        - !Ref CodeArtifactRepositoryName
+                        - !ImportValue
+                          Fn::Sub: "${FoundationStackName}-CodeArtifactRepositoryName"
               - Effect: Allow
                 Action:
                   - codeartifact:PutPackageOriginConfiguration
                 Resource:
-                  - !Sub "arn:${AWS::Partition}:codeartifact:${AWS::Region}:${AWS::AccountId}:package-group/${CodeArtifactDomainName}/${CodeArtifactRepositoryName}/*"
+                  - !Sub
+                    - "arn:${AWS::Partition}:codeartifact:${AWS::Region}:${AWS::AccountId}:package-group/${ResolvedCodeArtifactDomainName}/${ResolvedCodeArtifactRepositoryName}/*"
+                    - ResolvedCodeArtifactDomainName: !If
+                        - HasCodeArtifactDomainName
+                        - !Ref CodeArtifactDomainName
+                        - !ImportValue
+                          Fn::Sub: "${FoundationStackName}-CodeArtifactDomainName"
+                      ResolvedCodeArtifactRepositoryName: !If
+                        - HasCodeArtifactRepositoryName
+                        - !Ref CodeArtifactRepositoryName
+                        - !ImportValue
+                          Fn::Sub: "${FoundationStackName}-CodeArtifactRepositoryName"
               - Effect: Allow
                 Action:
                   - sts:GetServiceBearerToken
@@ -235,7 +351,7 @@ Resources:
               Service: codedeploy.amazonaws.com
             Action: sts:AssumeRole
       ManagedPolicyArns:
-        - !Sub arn:${AWS::Partition}:iam::aws:policy/service-role/AWSCodeDeployRoleForECS
+        - !Sub arn:${AWS::Partition}:iam::aws:policy/AWSCodeDeployRoleForECS
 
   CloudFormationExecutionRoleDev:
     Type: AWS::IAM::Role
@@ -441,16 +557,30 @@ Resources:
 Outputs:
   GitHubOIDCReleaseRoleArn:
     Value: !GetAtt GitHubOIDCReleaseRole.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-GitHubOIDCReleaseRoleArn"
   CodePipelineServiceRoleArn:
     Value: !GetAtt CodePipelineServiceRole.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-CodePipelineServiceRoleArn"
   CodeBuildReleaseRoleArn:
     Value: !GetAtt CodeBuildReleaseRole.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-CodeBuildReleaseRoleArn"
   CodeDeployEcsServiceRoleArn:
     Value: !GetAtt CodeDeployEcsServiceRole.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-CodeDeployEcsServiceRoleArn"
   CloudFormationExecutionRoleDevArn:
     Value: !GetAtt CloudFormationExecutionRoleDev.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-CloudFormationExecutionRoleDevArn"
   CloudFormationExecutionRoleProdArn:
     Value: !GetAtt CloudFormationExecutionRoleProd.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-CloudFormationExecutionRoleProdArn"
   BatchBValidationOperatorRoleArn:
     Condition: HasBatchBOperatorPrincipalArn
     Value: !GetAtt BatchBValidationOperatorRole.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-BatchBValidationOperatorRoleArn"
