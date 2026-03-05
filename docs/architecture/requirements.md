@@ -225,7 +225,9 @@ Import/export mutation paths MUST hard-fail before mutation when
 
 Deploy validation base URLs MUST be sourced from SSM-backed authority values
 using environment-scoped parameter paths and passed into validation workflows as
-HTTPS values.
+HTTPS values. These parameter paths MUST be owned by a single canonical stack
+pair (`${PROJECT}-ci-dev-service-base-url`,
+`${PROJECT}-ci-prod-service-base-url`) with no overlapping stack ownership.
 
 ## Non-Functional Requirements
 

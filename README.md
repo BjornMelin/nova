@@ -79,6 +79,16 @@ Canonical runbook entrypoint:
 
 - `docs/runbooks/README.md`
 
+Release sequencing contract:
+
+- Runtime-first deploy: provision `infra/runtime/**` stacks for `dev` and
+  `prod` before CI/CD stack rollout.
+- Foundation-first control plane: `nova-foundation` is deployed before IAM,
+  CodeBuild, and CodePipeline stacks.
+- Base URL authority: deploy validation URLs are sourced from
+  `/nova/{env}/{service}/base-url` via
+  `infra/nova/deploy/service-base-url-ssm.yml`.
+
 Key active release docs:
 
 - `docs/plan/release/RELEASE-RUNBOOK.md`
