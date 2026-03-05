@@ -20,6 +20,9 @@ execution after runtime environments are provisioned.
    [deploy-runtime-cloudformation-environments-guide.md](deploy-runtime-cloudformation-environments-guide.md)
 7. Canonical base URL SSM parameters exist for both environments:
    `/nova/dev/{service}/base-url` and `/nova/prod/{service}/base-url`.
+8. Canonical base-url marker stacks are reserved for CI control-plane ownership:
+   `${PROJECT}-${APPLICATION}-dev-service-base-url` and
+   `${PROJECT}-${APPLICATION}-prod-service-base-url`.
 
 ## Deployment model
 
@@ -55,6 +58,7 @@ Fallback path:
 - `${ECR_REPOSITORY_ARN}`
 - `${ECR_REPOSITORY_NAME}`
 - `${ECR_REPOSITORY_URI}`
+- `${NOVA_DEPLOY_SERVICE_NAME}` (optional, default `nova-file-api`)
 
 ## Step 1: set deployment values
 
@@ -73,6 +77,10 @@ Reference details:
 [config-values-reference-guide.md](config-values-reference-guide.md)
 
 ### Step 1a: persist canonical service base URLs in SSM
+
+Use the CI control-plane stack names as the only owners of these parameter
+paths. Do not deploy alternate stack names that manage the same
+`/nova/{env}/{service}/base-url` resources.
 
 ```bash
 aws cloudformation deploy \

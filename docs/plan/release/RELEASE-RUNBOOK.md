@@ -2,7 +2,7 @@
 
 Status: Active
 Owner: nova release architecture
-Last updated: 2026-03-03
+Last updated: 2026-03-05
 
 ## 1. Purpose
 
@@ -33,7 +33,9 @@ Use the modular operator guide set for provisioning and setup details:
 2. Release OIDC role and signing secret are provisioned.
 3. CodeConnections source connection is `AVAILABLE`.
 4. Runtime stacks are deployed for `dev` and `prod`, and validation base URLs
-   are captured.
+   are captured from canonical base-url marker stacks:
+   `${PROJECT}-${APPLICATION}-dev-service-base-url` and
+   `${PROJECT}-${APPLICATION}-prod-service-base-url`.
 5. Dev and Prod digest-marker deployment stack parameters are configured.
 6. Release build project parameters provide CodeArtifact and ECR targets:
    - `CODEARTIFACT_DOMAIN`
