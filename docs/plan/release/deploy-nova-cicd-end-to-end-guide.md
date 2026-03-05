@@ -2,7 +2,7 @@
 
 Status: Active
 Owner: nova release architecture
-Last reviewed: 2026-03-03
+Last reviewed: 2026-03-05
 
 ## Purpose
 
@@ -18,8 +18,8 @@ execution after runtime environments are provisioned.
 5. `nova` repository admin rights for secrets/variables configuration.
 6. Runtime stacks are already deployed for `dev` and `prod` per:
    [deploy-runtime-cloudformation-environments-guide.md](deploy-runtime-cloudformation-environments-guide.md)
-7. `NOVA_DEV_SERVICE_BASE_URL` and `NOVA_PROD_SERVICE_BASE_URL` captured from
-   runtime stack outputs.
+7. Canonical base URL SSM parameters exist for both environments:
+   `/nova/dev/{service}/base-url` and `/nova/prod/{service}/base-url`.
 
 ## Deployment model
 
@@ -49,7 +49,9 @@ Fallback path:
 - `${SIGNER_NAME}`
 - `${SIGNER_EMAIL}`
 - `${CODEARTIFACT_DOMAIN_NAME}`
-- `${CODEARTIFACT_REPOSITORY_NAME}`
+- `${CODEARTIFACT_REPOSITORY_NAME}` (optional fallback for staging default)
+- `${CODEARTIFACT_STAGING_REPOSITORY}`
+- `${CODEARTIFACT_PROD_REPOSITORY}` (must differ from staging)
 - `${ECR_REPOSITORY_ARN}`
 - `${ECR_REPOSITORY_NAME}`
 - `${ECR_REPOSITORY_URI}`
@@ -62,13 +64,48 @@ Export the required values for the Nova operator command pack:
 - `SECRET_NAME` / `RELEASE_SIGNING_SECRET_ARN`
 - `NOVA_ARTIFACT_BUCKET_NAME`
 - `ECR_REPOSITORY_URI` and `ECR_REPOSITORY_NAME`
-- `NOVA_DEV_SERVICE_BASE_URL`
-- `NOVA_PROD_SERVICE_BASE_URL`
+- `CODEARTIFACT_STAGING_REPOSITORY` (or `CODEARTIFACT_REPOSITORY_NAME` fallback)
+- `CODEARTIFACT_PROD_REPOSITORY`
 - optional: `EXISTING_CONNECTION_ARN`
 - optional: `NOVA_MANUAL_APPROVAL_TOPIC_ARN`
 
 Reference details:
 [config-values-reference-guide.md](config-values-reference-guide.md)
+
+### Step 1a: persist canonical service base URLs in SSM
+
+```bash
+aws cloudformation deploy \
+  --region "${AWS_REGION}" \
+  --stack-name "${PROJECT}-${APPLICATION}-dev-service-base-url" \
+  --template-file infra/nova/deploy/service-base-url-ssm.yml \
+  --parameter-overrides \
+    Environment=dev \
+    ServiceName="${NOVA_DEPLOY_SERVICE_NAME:-nova-file-api}" \
+    ServiceBaseUrl="${DEV_BASE_URL}"
+
+aws cloudformation deploy \
+  --region "${AWS_REGION}" \
+  --stack-name "${PROJECT}-${APPLICATION}-prod-service-base-url" \
+  --template-file infra/nova/deploy/service-base-url-ssm.yml \
+  --parameter-overrides \
+    Environment=prod \
+    ServiceName="${NOVA_DEPLOY_SERVICE_NAME:-nova-file-api}" \
+    ServiceBaseUrl="${PROD_BASE_URL}"
+```
+
+Set and validate promotion repositories:
+
+```bash
+export CODEARTIFACT_REPOSITORY_NAME="${CODEARTIFACT_REPOSITORY_NAME:-galaxypy}"
+export CODEARTIFACT_STAGING_REPOSITORY="${CODEARTIFACT_STAGING_REPOSITORY:-${CODEARTIFACT_REPOSITORY_NAME}}"
+export CODEARTIFACT_PROD_REPOSITORY="${CODEARTIFACT_PROD_REPOSITORY:?required}"
+
+if [ "${CODEARTIFACT_STAGING_REPOSITORY}" = "${CODEARTIFACT_PROD_REPOSITORY}" ]; then
+  echo "CODEARTIFACT_STAGING_REPOSITORY and CODEARTIFACT_PROD_REPOSITORY must differ." >&2
+  exit 1
+fi
+```
 
 ## Step 2: deploy foundation stack from nova
 
@@ -88,12 +125,17 @@ aws cloudformation deploy \
     ExistingArtifactBucketName="${NOVA_ARTIFACT_BUCKET_NAME}" \
     ArtifactBucketName="" \
     CodeArtifactDomainName="${CODEARTIFACT_DOMAIN_NAME}" \
-    CodeArtifactRepositoryName="${CODEARTIFACT_REPOSITORY_NAME}" \
+    CodeArtifactRepositoryName="${CODEARTIFACT_STAGING_REPOSITORY}" \
     EcrRepositoryArn="${ECR_REPOSITORY_ARN}" \
     EcrRepositoryName="${ECR_REPOSITORY_NAME}" \
     EcrRepositoryUri="${ECR_REPOSITORY_URI}" \
     ExistingConnectionArn="${EXISTING_CONNECTION_ARN:-}"
 ```
+
+`CodeArtifactRepositoryName` maps to staged publish storage; promotion to prod is
+controlled by IAM parameters:
+`CodeArtifactPromotionSourceRepositoryName` and
+`CodeArtifactPromotionDestinationRepositoryName`.
 
 ## Step 3: deploy CI/CD stacks from nova
 

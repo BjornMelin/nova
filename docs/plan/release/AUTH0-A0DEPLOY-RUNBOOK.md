@@ -4,6 +4,12 @@
 
 Define the canonical `nova` procedure for Auth0 tenant-as-code operations using `auth0` CLI for authentication and `a0deploy` for import/export.
 
+Reusable workflow contract authority:
+
+- `docs/architecture/spec/SPEC-0022-auth0-tenant-ops-reusable-workflow-contract.md`
+- `docs/contracts/workflow-auth0-tenant-ops-v1.schema.json`
+- `scripts/release/validate_auth0_contract.py`
+
 ## Preconditions
 
 1. Install CLIs:
@@ -112,10 +118,31 @@ Run this before each import/export:
 python -m scripts.release.validate_auth0_contract
 ```
 
+## GitHub workflow productization
+
+Nova now exposes Auth0 tenant operations as reusable workflow APIs:
+
+- `.github/workflows/reusable-auth0-tenant-deploy.yml` (`workflow_call`)
+- `.github/workflows/auth0-tenant-deploy.yml` (thin `workflow_dispatch` wrapper)
+
+Required repository secrets for workflow execution:
+
+- `AUTH0_DOMAIN`
+- `AUTH0_CLIENT_ID`
+- `AUTH0_CLIENT_SECRET`
+
+Contract schemas:
+
+- `docs/contracts/workflow-auth0-tenant-ops-v1.schema.json`
+- `docs/contracts/workflow-auth0-tenant-deploy.schema.json`
+
 ## Validation checklist
 
-- `AUTH0_ALLOW_DELETE` equals `false`.
-- `AUTH0_INPUT_FILE` points to `infra/auth0/tenant/tenant.yaml`.
-- `AUTH0_KEYWORD_MAPPINGS_FILE` points to the expected environment mapping JSON.
+- Workflow `mode` is one of `validate|import|export`.
+- Workflow `allow_delete` equals `false`.
+- Workflow `input_file` points to `infra/auth0/tenant/tenant.yaml`.
+- Workflow `mapping_file` resolves to the expected environment mapping JSON.
+- Workflow `import`/`export` mutation steps run only when
+  `validate_auth0_contract` succeeds.
 - Mapping keys cover every `@@KEY@@` token in tenant YAML.
 - Domain/client credentials are set from secure local secrets, not committed plaintext.

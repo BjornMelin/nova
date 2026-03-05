@@ -2,7 +2,7 @@
 
 Status: Active
 Owner: nova release architecture
-Last reviewed: 2026-03-03
+Last reviewed: 2026-03-05
 
 ## Purpose
 
@@ -27,17 +27,18 @@ safe operator path.
 - `${APPLICATION}` (default `ci`)
 - `${GITHUB_OWNER}` (default `3M-Cloud`)
 - `${GITHUB_REPO}` (default `nova`)
-- `${CONNECTION_ARN}` (required, e.g.,
+- `${EXISTING_CONNECTION_ARN}` (optional, e.g.,
   `arn:aws:codestar-connections:us-east-1:...:connection/xxxxxxxx`)
 - `${CODEARTIFACT_DOMAIN_NAME}` (required)
-- `${CODEARTIFACT_REPOSITORY_NAME}` (required)
+- `${CODEARTIFACT_REPOSITORY_NAME}` (optional fallback for staging default)
+- `${CODEARTIFACT_STAGING_REPOSITORY}` (required; defaulted from
+  `${CODEARTIFACT_REPOSITORY_NAME}` by command pack when unset)
+- `${CODEARTIFACT_PROD_REPOSITORY}` (required; must differ from staging)
 - `${ECR_REPOSITORY_ARN}` (required)
 - `${ECR_REPOSITORY_NAME}` (required)
 - `${ECR_REPOSITORY_URI}` (required)
 - `${SIGNER_NAME}` (required)
 - `${SIGNER_EMAIL}` (required)
-- `${NOVA_DEV_SERVICE_BASE_URL}` (required)
-- `${NOVA_PROD_SERVICE_BASE_URL}` (required)
 - `${NOVA_ARTIFACT_BUCKET_NAME}` (required)
 
 ## Step-by-step commands
@@ -51,17 +52,30 @@ export PROJECT="${PROJECT:-nova}"
 export APPLICATION="${APPLICATION:-ci}"
 export GITHUB_OWNER="${GITHUB_OWNER:-3M-Cloud}"
 export GITHUB_REPO="${GITHUB_REPO:-nova}"
-export CONNECTION_ARN="${CONNECTION_ARN:?Set CONNECTION_ARN}"
 export CODEARTIFACT_DOMAIN_NAME="${CODEARTIFACT_DOMAIN_NAME:?Set CODEARTIFACT_DOMAIN_NAME}"
-export CODEARTIFACT_REPOSITORY_NAME="${CODEARTIFACT_REPOSITORY_NAME:?Set CODEARTIFACT_REPOSITORY_NAME}"
+export CODEARTIFACT_REPOSITORY_NAME="${CODEARTIFACT_REPOSITORY_NAME:-galaxypy}"
+export CODEARTIFACT_STAGING_REPOSITORY="${CODEARTIFACT_STAGING_REPOSITORY:-${CODEARTIFACT_REPOSITORY_NAME}}"
+export CODEARTIFACT_PROD_REPOSITORY="${CODEARTIFACT_PROD_REPOSITORY:?Set CODEARTIFACT_PROD_REPOSITORY}"
+export EXISTING_CONNECTION_ARN="${EXISTING_CONNECTION_ARN:-}"
 export ECR_REPOSITORY_ARN="${ECR_REPOSITORY_ARN:?Set ECR_REPOSITORY_ARN}"
 export ECR_REPOSITORY_NAME="${ECR_REPOSITORY_NAME:?Set ECR_REPOSITORY_NAME}"
 export ECR_REPOSITORY_URI="${ECR_REPOSITORY_URI:?Set ECR_REPOSITORY_URI}"
 export SIGNER_NAME="${SIGNER_NAME:?Set SIGNER_NAME}"
 export SIGNER_EMAIL="${SIGNER_EMAIL:?Set SIGNER_EMAIL}"
 export NOVA_ARTIFACT_BUCKET_NAME="${NOVA_ARTIFACT_BUCKET_NAME:?Set NOVA_ARTIFACT_BUCKET_NAME}"
-export NOVA_DEV_SERVICE_BASE_URL="${NOVA_DEV_SERVICE_BASE_URL:?Set NOVA_DEV_SERVICE_BASE_URL}"
-export NOVA_PROD_SERVICE_BASE_URL="${NOVA_PROD_SERVICE_BASE_URL:?Set NOVA_PROD_SERVICE_BASE_URL}"
+
+if [ "${CODEARTIFACT_STAGING_REPOSITORY}" = "${CODEARTIFACT_PROD_REPOSITORY}" ]; then
+  echo "CODEARTIFACT_STAGING_REPOSITORY and CODEARTIFACT_PROD_REPOSITORY must differ." >&2
+  exit 1
+fi
+```
+
+Required pre-check before Step 3 (replace `nova-file-api` if overridden via
+`NOVA_DEPLOY_SERVICE_NAME`):
+
+```bash
+aws ssm get-parameter --region "${AWS_REGION}" --name "/nova/dev/nova-file-api/base-url"
+aws ssm get-parameter --region "${AWS_REGION}" --name "/nova/prod/nova-file-api/base-url"
 ```
 
 ### Step 2: Bootstrap foundation stack first
@@ -82,11 +96,11 @@ aws cloudformation deploy \
     ExistingArtifactBucketName="${NOVA_ARTIFACT_BUCKET_NAME}" \
     ArtifactBucketName="" \
     CodeArtifactDomainName="${CODEARTIFACT_DOMAIN_NAME}" \
-    CodeArtifactRepositoryName="${CODEARTIFACT_REPOSITORY_NAME}" \
+    CodeArtifactRepositoryName="${CODEARTIFACT_STAGING_REPOSITORY}" \
     EcrRepositoryArn="${ECR_REPOSITORY_ARN}" \
     EcrRepositoryName="${ECR_REPOSITORY_NAME}" \
     EcrRepositoryUri="${ECR_REPOSITORY_URI}" \
-    ExistingConnectionArn="${CONNECTION_ARN}"
+    ExistingConnectionArn="${EXISTING_CONNECTION_ARN}"
 ```
 
 ### Step 3: Run command pack
@@ -107,7 +121,7 @@ aws cloudformation describe-stacks --region "${AWS_REGION}" --stack-name "${PROJ
 
 ```bash
 required_secrets=(RELEASE_SIGNING_SECRET_ID RELEASE_AWS_ROLE_ARN)
-required_vars=(AWS_REGION)
+required_vars=(AWS_REGION CODEARTIFACT_STAGING_REPOSITORY CODEARTIFACT_PROD_REPOSITORY)
 
 existing_secrets="$(gh secret list --repo "${GITHUB_OWNER}/${GITHUB_REPO}" --json name -q '.[].name')"
 existing_vars="$(gh variable list --repo "${GITHUB_OWNER}/${GITHUB_REPO}" --json name -q '.[].name')"

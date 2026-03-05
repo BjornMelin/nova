@@ -50,7 +50,9 @@ For exact endpoint and payload contract details, use:
 
 ```bash
 source .venv/bin/activate && uv lock --check
-source .venv/bin/activate && uv run ruff check . --fix && uv run ruff format .
+source .venv/bin/activate && uv run ruff check .
+source .venv/bin/activate && uv run ruff check . --select I
+source .venv/bin/activate && uv run ruff format . --check
 source .venv/bin/activate && uv run mypy
 source .venv/bin/activate && uv run pytest -q
 ```
@@ -82,6 +84,8 @@ Key active release docs:
 - `docs/plan/release/RELEASE-RUNBOOK.md`
 - `docs/plan/release/RELEASE-POLICY.md`
 - `docs/plan/release/NONPROD-LIVE-VALIDATION-RUNBOOK.md`
+- `docs/plan/release/AUTH0-A0DEPLOY-RUNBOOK.md`
+- `docs/plan/release/deploy-runtime-cloudformation-environments-guide.md`
 - `docs/plan/release/HARD-CUTOVER-CHECKLIST.md`
 - `docs/plan/release/RELEASE-VERSION-MANIFEST.md`
 
