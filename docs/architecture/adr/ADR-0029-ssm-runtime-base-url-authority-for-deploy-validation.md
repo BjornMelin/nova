@@ -1,0 +1,53 @@
+---
+ADR: 0029
+Title: SSM runtime base URL authority for deploy validation
+Status: Accepted
+Version: 1.0
+Date: 2026-03-04
+Related:
+  - "[ADR-0024: Native-CFN modular stack architecture for Nova infrastructure productization](./ADR-0024-layered-architecture-authority-pack.md)"
+  - "[SPEC-0023: SSM runtime base-url contract for deploy validation](../spec/SPEC-0023-ssm-runtime-base-url-contract-for-deploy-validation.md)"
+  - "[SPEC-0017: CloudFormation module contract](../spec/SPEC-0017-runtime-component-topology-and-ownership-contract.md)"
+---
+
+## Summary
+
+Deploy validation base URLs are governed by an SSM-backed authority contract.
+Operators and automation must source environment base URLs from canonical SSM
+parameter paths and pass those values into deployment validation flows.
+
+## Context
+
+Pipeline validation quality depends on using correct environment URLs. Manual,
+ad-hoc URL entry allows placeholder values and undermines gate evidence quality.
+
+## Decision
+
+1. Runtime validation base URLs are SSM-governed authority values.
+2. Environment base URLs passed to CI/CD and validation workflows must be HTTPS
+   and environment-scoped (`dev`/`prod`).
+3. Release/runbook evidence must include provenance of base URL values used for
+   validation gates.
+4. Template and runbook contracts must stay synchronized for base URL sourcing.
+
+## Consequences
+
+### Positive
+
+- Improves reproducibility and auditability of validation gates.
+- Reduces risk of validating against non-runtime placeholder endpoints.
+- Strengthens release evidence quality for promotion controls.
+
+### Trade-offs
+
+- Adds SSM parameter lifecycle management overhead.
+- Requires additional operator and CI checks for URL provenance.
+
+## Explicit non-decisions
+
+- No plaintext hardcoded endpoint values as authority source in active runbooks.
+- No non-HTTPS base URL acceptance for deploy validation contracts.
+
+## Changelog
+
+- 2026-03-04: Accepted SSM-backed runtime base URL authority decision.

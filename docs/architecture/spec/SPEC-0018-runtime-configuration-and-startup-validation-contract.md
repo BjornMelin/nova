@@ -2,11 +2,15 @@
 Spec: 0018
 Title: Reusable workflow integration contract
 Status: Active
-Version: 1.1
-Date: 2026-03-03
+Version: 1.2
+Date: 2026-03-04
 Related:
   - "[ADR-0025: Reusable GitHub workflow API and versioning policy for deployment automation](../adr/ADR-0025-runtime-monorepo-component-boundaries-and-ownership.md)"
+  - "[ADR-0028: Auth0 tenant ops reusable workflow API contract](../adr/ADR-0028-auth0-tenant-ops-reusable-workflow-api-contract.md)"
   - "[SPEC-0017: CloudFormation module contract](./SPEC-0017-runtime-component-topology-and-ownership-contract.md)"
+  - "[SPEC-0021: Downstream hard-cut integration and consumer validation contract](./SPEC-0021-downstream-hard-cut-integration-and-consumer-validation-contract.md)"
+  - "[SPEC-0022: Auth0 tenant ops reusable workflow contract](./SPEC-0022-auth0-tenant-ops-reusable-workflow-contract.md)"
+  - "[SPEC-0023: SSM runtime base-url contract for deploy validation](./SPEC-0023-ssm-runtime-base-url-contract-for-deploy-validation.md)"
   - "[SPEC-0004: CI/CD and documentation automation](./SPEC-0004-ci-cd-and-docs.md)"
 ---
 
@@ -26,6 +30,7 @@ Required reusable workflows:
 5. `reusable-deploy-dev.yml`
 6. `reusable-promote-prod.yml`
 7. `reusable-post-deploy-validate.yml`
+8. `reusable-auth0-tenant-deploy.yml`
 
 ## 3. Wrapper workflow contract
 
@@ -41,6 +46,7 @@ Required reusable workflows:
    - `docs/contracts/reusable-workflow-inputs-v1.schema.json`
    - `docs/contracts/reusable-workflow-outputs-v1.schema.json`
    - `docs/contracts/workflow-post-deploy-validate.schema.json`
+   - `docs/contracts/workflow-auth0-tenant-deploy.schema.json`
 3. Runtime deploy contract includes size profiles and custom bounds validation.
 
 ## 5. Versioning policy

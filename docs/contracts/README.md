@@ -23,12 +23,23 @@ release and consumer integration gates.
     validation outputs.
 - `workflow-post-deploy-validate.schema.json`
   - Workflow-specific validation schema for the reusable post-deploy contract.
+- `workflow-auth0-tenant-deploy.schema.json`
+  - Workflow-specific validation schema for reusable Auth0 tenant ops API.
+- `browser-live-validation-report.schema.json`
+  - WS5 browser/live validation gate artifact contract for dash-pca + Nova.
+- `workflow-auth0-tenant-ops-v1.schema.json`
+  - Workflow-specific contract schema for Auth0 tenant operation reusable APIs.
+- `ssm-runtime-base-url-v1.schema.json`
+  - SSM parameter path + HTTPS value contract for runtime deploy-validation base URLs.
 
 ## Related references
 
 - `../clients/post-deploy-validation-integration-guide.md`
 - `../plan/release/RELEASE-POLICY.md`
 - `../architecture/spec/SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md`
+- `../architecture/spec/SPEC-0021-downstream-hard-cut-integration-and-consumer-validation-contract.md`
+- `../architecture/spec/SPEC-0022-auth0-tenant-ops-reusable-workflow-contract.md`
+- `../architecture/spec/SPEC-0023-ssm-runtime-base-url-contract-for-deploy-validation.md`
 
 ## Versioning policy
 

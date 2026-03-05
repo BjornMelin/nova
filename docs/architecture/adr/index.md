@@ -13,6 +13,12 @@ runtime routes are `/v1/*` (plus `/metrics/summary`) only.
 Infrastructure productization and deploy-automation governance decisions are
 codified by `ADR-0024`, `ADR-0025`, and `ADR-0026`.
 
+Downstream hard-cut integration, Auth0 reusable workflow contracts, and SSM
+runtime base URL authority are codified by `ADR-0027`, `ADR-0028`, and
+`ADR-0029`.
+Normative spec contracts for these decisions are `SPEC-0021`, `SPEC-0022`, and
+`SPEC-0023`.
+
 | ADR | Title | Status | Date |
 | --- | --- | --- | --- |
 | [ADR-0000](./ADR-0000-fastapi-microservice.md) | Implement the File Transfer API as a FastAPI service | Accepted | 2026-02-11 |
@@ -37,3 +43,6 @@ codified by `ADR-0024`, `ADR-0025`, and `ADR-0026`.
 | [ADR-0024](./ADR-0024-layered-architecture-authority-pack.md) | Native-CFN modular stack architecture for Nova infrastructure productization | Accepted | 2026-03-03 |
 | [ADR-0025](./ADR-0025-runtime-monorepo-component-boundaries-and-ownership.md) | Reusable GitHub workflow API and versioning policy for deployment automation | Accepted | 2026-03-03 |
 | [ADR-0026](./ADR-0026-fail-fast-runtime-configuration-and-safe-auth-execution.md) | OIDC and IAM role partitioning for deploy automation | Accepted | 2026-03-03 |
+| [ADR-0027](./ADR-0027-hard-cut-downstream-integration-and-consumer-contract-enforcement.md) | Hard-cut downstream integration and consumer contract enforcement | Accepted | 2026-03-04 |
+| [ADR-0028](./ADR-0028-auth0-tenant-ops-reusable-workflow-api-contract.md) | Auth0 tenant ops reusable workflow API contract | Accepted | 2026-03-04 |
+| [ADR-0029](./ADR-0029-ssm-runtime-base-url-authority-for-deploy-validation.md) | SSM runtime base URL authority for deploy validation | Accepted | 2026-03-04 |

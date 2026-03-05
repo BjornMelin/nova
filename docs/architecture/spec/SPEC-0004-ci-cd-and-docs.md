@@ -2,8 +2,8 @@
 Spec: 0004
 Title: CI/CD and Documentation Automation
 Status: Active
-Version: 1.6
-Date: 2026-03-03
+Version: 1.7
+Date: 2026-03-05
 Related:
   - "[ADR-0002: OpenAPI as contract and SDK generation](../adr/ADR-0002-openapi-as-contract-and-sdk-generation.md)"
   - "[ADR-0011: Hybrid CI/CD with GitHub and AWS promotion](../adr/ADR-0011-cicd-hybrid-github-aws-promotion.md)"
@@ -30,9 +30,9 @@ References:
 Every pull request MUST pass:
 
 - `source .venv/bin/activate && uv lock --check`
-- `source .venv/bin/activate && uv run ruff check . --fix`
+- `source .venv/bin/activate && uv run ruff check .`
 - `source .venv/bin/activate && uv run ruff check . --select I`
-- `source .venv/bin/activate && uv run ruff format .`
+- `source .venv/bin/activate && uv run ruff format . --check`
 - `source .venv/bin/activate && uv run mypy`
 - `source .venv/bin/activate && uv run pytest -q`
 - `source .venv/bin/activate && uv run pytest -q packages/nova_file_api/tests/test_generated_client_smoke.py`
@@ -156,6 +156,10 @@ CodeArtifact repository policy and package-group controls MUST enforce:
 2. `EXTERNAL_UPSTREAM = BLOCK` for protected internal package groups.
 3. `PUBLISH = ALLOW_SPECIFIC_REPOSITORIES` only for approved repositories.
 4. Public upstream ingress only through approved upstream repo path.
+5. Promotion IAM scopes MUST be explicit and directional:
+   - `codeartifact:ReadFromRepository` on staged source repository only.
+   - `codeartifact:CopyPackageVersions` on prod destination repository and
+     required package resources only.
 
 ## 8. Documentation and traceability gates
 
@@ -167,6 +171,9 @@ semantics change:
 - `docs/architecture/requirements.md`
 - affected ADR/SPEC docs
 - `docs/plan/PLAN.md`
+- affected `docs/contracts/*.json` workflow/artifact schemas
+- affected `docs/clients/*.md` and `docs/clients/**/*.yml` when downstream
+  integration contracts change
 - `PRD.md` and `FINAL-PLAN.md` pointers when archive paths or authority links
   change
 - `docs/plan/release/*` runbooks and policy docs

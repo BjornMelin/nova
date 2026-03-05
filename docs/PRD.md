@@ -1,7 +1,7 @@
 # Product Requirements Document (PRD): Nova Runtime
 
 Status: Active canonical PRD
-Last updated: 2026-03-03
+Last updated: 2026-03-05
 Audience: Product, Engineering, Platform Operations
 
 ## 1. Product Goal
@@ -62,6 +62,12 @@ Out of scope:
 3. Historical artifacts are discoverable only through history indexes and
    archive paths.
 4. Contract and release docs stay synchronized in the same change set.
+5. Downstream integration contracts, Auth0 workflow contracts, and SSM base URL
+   authority contracts remain aligned with active ADR/SPEC and test guardrails.
+6. Auth0 tenant import/export paths are fail-fast and cannot mutate tenants when
+   contract validation fails.
+7. CodeArtifact promotion IAM contracts remain least-privilege and scoped to
+   explicit staged source and prod destination repositories.
 
 ## 7. Risks
 
@@ -76,6 +82,9 @@ Out of scope:
 - `docs/architecture/adr/ADR-0024-layered-architecture-authority-pack.md`
 - `docs/architecture/adr/ADR-0025-runtime-monorepo-component-boundaries-and-ownership.md`
 - `docs/architecture/adr/ADR-0026-fail-fast-runtime-configuration-and-safe-auth-execution.md`
+- `docs/architecture/adr/ADR-0027-hard-cut-downstream-integration-and-consumer-contract-enforcement.md`
+- `docs/architecture/adr/ADR-0028-auth0-tenant-ops-reusable-workflow-api-contract.md`
+- `docs/architecture/adr/ADR-0029-ssm-runtime-base-url-authority-for-deploy-validation.md`
 - `docs/architecture/spec/SPEC-0000-http-api-contract.md`
 - `docs/architecture/spec/SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md`
 - `docs/architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md`
@@ -83,5 +92,8 @@ Out of scope:
 - `docs/architecture/spec/SPEC-0018-runtime-configuration-and-startup-validation-contract.md`
 - `docs/architecture/spec/SPEC-0019-auth-execution-and-threadpool-safety-contract.md`
 - `docs/architecture/spec/SPEC-0020-architecture-authority-pack-and-documentation-synchronization-contract.md`
+- `docs/architecture/spec/SPEC-0021-downstream-hard-cut-integration-and-consumer-validation-contract.md`
+- `docs/architecture/spec/SPEC-0022-auth0-tenant-ops-reusable-workflow-contract.md`
+- `docs/architecture/spec/SPEC-0023-ssm-runtime-base-url-contract-for-deploy-validation.md`
 - `docs/plan/PLAN.md`
 - `docs/runbooks/README.md`

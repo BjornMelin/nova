@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://3m-cloud.github.io/nova/docs/contracts/workflow-auth0-tenant-ops-v1.schema.json",
+  "title": "Auth0 tenant ops reusable workflow contract v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "inputs",
+    "outputs"
+  ],
+  "properties": {
+    "inputs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mode",
+        "environment"
+      ],
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": [
+            "validate",
+            "import",
+            "export"
+          ]
+        },
+        "environment": {
+          "type": "string",
+          "enum": [
+            "dev",
+            "qa",
+            "pr"
+          ]
+        },
+        "input_file": {
+          "type": "string",
+          "pattern": "^infra/auth0/tenant/tenant\\.yaml$",
+          "default": "infra/auth0/tenant/tenant.yaml"
+        },
+        "mapping_file": {
+          "type": "string",
+          "pattern": "^$|^infra/auth0/mappings/[a-z0-9-]+\\.json$"
+        },
+        "allow_delete": {
+          "type": "boolean",
+          "const": false,
+          "default": false
+        },
+        "artifact_name": {
+          "type": "string",
+          "minLength": 1,
+          "default": "auth0-tenant-ops-report"
+        }
+      }
+    },
+    "outputs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "operation_status",
+        "report_path",
+        "artifact_name"
+      ],
+      "properties": {
+        "operation_status": {
+          "type": "string",
+          "enum": [
+            "passed",
+            "failed"
+          ]
+        },
+        "report_path": {
+          "type": "string",
+          "pattern": "^[^\\s]+\\.json$"
+        },
+        "artifact_name": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  }
+}

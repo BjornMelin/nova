@@ -71,6 +71,8 @@ Implementation commitments:
   branch patterns.
 - Release-signing material must be read at runtime from AWS Secrets Manager.
 - Prod promotion must consume the same artifact identifiers validated in Dev.
+- CodeArtifact promotion IAM must use explicit source/destination repository
+  parameters and must not rely on domain-wide wildcard repository permissions.
 
 ## Related Requirements
 
