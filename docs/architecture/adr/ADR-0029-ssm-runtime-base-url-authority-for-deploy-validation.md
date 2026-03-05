@@ -2,8 +2,8 @@
 ADR: 0029
 Title: SSM runtime base URL authority for deploy validation
 Status: Accepted
-Version: 1.0
-Date: 2026-03-04
+Version: 1.1
+Date: 2026-03-05
 Related:
   - "[ADR-0024: Native-CFN modular stack architecture for Nova infrastructure productization](./ADR-0024-layered-architecture-authority-pack.md)"
   - "[SPEC-0023: SSM runtime base-url contract for deploy validation](../spec/SPEC-0023-ssm-runtime-base-url-contract-for-deploy-validation.md)"
@@ -29,6 +29,10 @@ ad-hoc URL entry allows placeholder values and undermines gate evidence quality.
 3. Release/runbook evidence must include provenance of base URL values used for
    validation gates.
 4. Template and runbook contracts must stay synchronized for base URL sourcing.
+5. Base-url parameters are single-owner resources managed only by the canonical
+   CI control-plane marker stacks:
+   `${PROJECT}-ci-dev-service-base-url` and
+   `${PROJECT}-ci-prod-service-base-url`.
 
 ## Consequences
 
@@ -37,11 +41,14 @@ ad-hoc URL entry allows placeholder values and undermines gate evidence quality.
 - Improves reproducibility and auditability of validation gates.
 - Reduces risk of validating against non-runtime placeholder endpoints.
 - Strengthens release evidence quality for promotion controls.
+- Prevents conflicting stack ownership of the same SSM parameter paths.
 
 ### Trade-offs
 
 - Adds SSM parameter lifecycle management overhead.
 - Requires additional operator and CI checks for URL provenance.
+- Requires explicit drift-recovery procedures when parameter resources are
+  deleted outside stack management.
 
 ## Explicit non-decisions
 
@@ -51,3 +58,5 @@ ad-hoc URL entry allows placeholder values and undermines gate evidence quality.
 ## Changelog
 
 - 2026-03-04: Accepted SSM-backed runtime base URL authority decision.
+- 2026-03-05: Added explicit single-owner stack policy and drift-recovery
+  governance note.
