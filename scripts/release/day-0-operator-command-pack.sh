@@ -33,6 +33,48 @@ stack_output() {
     --output text
 }
 
+validate_service_base_url() {
+  local url="$1"
+  local source_ref="$2"
+
+  if [ -z "$url" ]; then
+    echo "Resolved empty service base URL from: $source_ref" >&2
+    exit 1
+  fi
+  if [[ ! "$url" =~ ^https:// ]]; then
+    echo "Service base URL must use https:// ($source_ref -> $url)" >&2
+    exit 1
+  fi
+  if [[ "$url" =~ [[:space:]] ]]; then
+    echo "Service base URL must not contain whitespace ($source_ref)" >&2
+    exit 1
+  fi
+  if [[ "$url" == *httpbin* ]] || [[ "$url" == *placeholder* ]] || [[ "$url" == *example.com* ]] || [[ "$url" == *"<"* ]] || [[ "$url" == *">"* ]]; then
+    echo "Service base URL appears to be a placeholder/test host ($source_ref -> $url)" >&2
+    exit 1
+  fi
+}
+
+resolve_service_base_url() {
+  local environment="$1"
+  local service_name="$2"
+  local parameter_name="/nova/${environment}/${service_name}/base-url"
+  local value=""
+
+  if ! value="$(aws ssm get-parameter \
+    --region "$AWS_REGION" \
+    --name "$parameter_name" \
+    --query 'Parameter.Value' \
+    --output text 2>/dev/null)"; then
+    echo "Missing required SSM parameter: $parameter_name" >&2
+    echo "Populate it by deploying infra/nova/deploy/service-base-url-ssm.yml first." >&2
+    exit 1
+  fi
+
+  validate_service_base_url "$value" "$parameter_name"
+  printf "%s" "$value"
+}
+
 require_cmd aws
 require_cmd gh
 require_cmd jq
@@ -50,6 +92,8 @@ CONNECTION_NAME="${CONNECTION_NAME:-nova-codeconnection}"
 EXISTING_CONNECTION_ARN="${EXISTING_CONNECTION_ARN:-}"
 CODEARTIFACT_DOMAIN_NAME="${CODEARTIFACT_DOMAIN_NAME:-cral}"
 CODEARTIFACT_REPOSITORY_NAME="${CODEARTIFACT_REPOSITORY_NAME:-galaxypy}"
+CODEARTIFACT_STAGING_REPOSITORY="${CODEARTIFACT_STAGING_REPOSITORY:-$CODEARTIFACT_REPOSITORY_NAME}"
+CODEARTIFACT_PROD_REPOSITORY="${CODEARTIFACT_PROD_REPOSITORY:-}"
 ECR_REPOSITORY_NAME="${ECR_REPOSITORY_NAME:-nova-file-api}"
 ECR_REPOSITORY_URI="${ECR_REPOSITORY_URI:-${AWS_ACCOUNT_ID:-}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPOSITORY_NAME}}"
 ECR_REPOSITORY_ARN="${ECR_REPOSITORY_ARN:-arn:aws:ecr:${AWS_REGION}:${AWS_ACCOUNT_ID:-000000000000}:repository/${ECR_REPOSITORY_NAME}}"
@@ -68,8 +112,12 @@ require_env SIGNER_NAME
 require_env SIGNER_EMAIL
 require_env GITHUB_OIDC_PROVIDER_ARN
 require_env NOVA_ARTIFACT_BUCKET_NAME
-require_env NOVA_DEV_SERVICE_BASE_URL
-require_env NOVA_PROD_SERVICE_BASE_URL
+require_env CODEARTIFACT_PROD_REPOSITORY
+
+if [ "$CODEARTIFACT_STAGING_REPOSITORY" = "$CODEARTIFACT_PROD_REPOSITORY" ]; then
+  echo "CODEARTIFACT_STAGING_REPOSITORY and CODEARTIFACT_PROD_REPOSITORY must differ." >&2
+  exit 1
+fi
 
 if [ ! -d "$NOVA_REPO_ROOT" ]; then
   echo "nova repo root not found at: $NOVA_REPO_ROOT" >&2
@@ -87,6 +135,12 @@ for template in "$FOUNDATION_TEMPLATE" "$IAM_TEMPLATE" "$CODEBUILD_TEMPLATE" "$P
     exit 1
   fi
 done
+
+echo "==> Resolve canonical service base URLs from SSM"
+NOVA_DEV_SERVICE_BASE_URL="$(resolve_service_base_url dev "$NOVA_DEPLOY_SERVICE_NAME")"
+NOVA_PROD_SERVICE_BASE_URL="$(resolve_service_base_url prod "$NOVA_DEPLOY_SERVICE_NAME")"
+echo "Resolved dev base URL: $NOVA_DEV_SERVICE_BASE_URL"
+echo "Resolved prod base URL: $NOVA_PROD_SERVICE_BASE_URL"
 
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TMP_DIR"' EXIT
@@ -163,7 +217,7 @@ aws cloudformation deploy \
     ExistingArtifactBucketName="$FOUNDATION_EXISTING_ARTIFACT_BUCKET_NAME" \
     ArtifactBucketName="$FOUNDATION_ARTIFACT_BUCKET_NAME" \
     CodeArtifactDomainName="$CODEARTIFACT_DOMAIN_NAME" \
-    CodeArtifactRepositoryName="$CODEARTIFACT_REPOSITORY_NAME" \
+    CodeArtifactRepositoryName="$CODEARTIFACT_STAGING_REPOSITORY" \
     EcrRepositoryArn="$ECR_REPOSITORY_ARN" \
     EcrRepositoryName="$ECR_REPOSITORY_NAME" \
     EcrRepositoryUri="$ECR_REPOSITORY_URI" \
@@ -185,6 +239,8 @@ aws cloudformation deploy \
     MainBranchName="$MAIN_BRANCH" \
     GitHubOidcProviderArn="$GITHUB_OIDC_PROVIDER_ARN" \
     ReleaseSigningSecretArn="$RELEASE_SIGNING_SECRET_ARN" \
+    CodeArtifactPromotionSourceRepositoryName="$CODEARTIFACT_STAGING_REPOSITORY" \
+    CodeArtifactPromotionDestinationRepositoryName="$CODEARTIFACT_PROD_REPOSITORY" \
     ExistingConnectionArn="$EXISTING_CONNECTION_ARN" \
     ManualApprovalTopicArn="$NOVA_MANUAL_APPROVAL_TOPIC_ARN"
 
@@ -252,6 +308,8 @@ echo "==> Step 6/8: configure GitHub secrets and variable for $GH_REPO"
 gh secret set RELEASE_SIGNING_SECRET_ID --repo "$GH_REPO" --body "$SECRET_NAME"
 gh secret set RELEASE_AWS_ROLE_ARN --repo "$GH_REPO" --body "$RELEASE_AWS_ROLE_ARN"
 gh variable set AWS_REGION --repo "$GH_REPO" --body "$AWS_REGION"
+gh variable set CODEARTIFACT_STAGING_REPOSITORY --repo "$GH_REPO" --body "$CODEARTIFACT_STAGING_REPOSITORY"
+gh variable set CODEARTIFACT_PROD_REPOSITORY --repo "$GH_REPO" --body "$CODEARTIFACT_PROD_REPOSITORY"
 
 echo "==> Step 7/8: validate CodeConnections status"
 CONNECTION_STATUS="$(aws codeconnections get-connection \

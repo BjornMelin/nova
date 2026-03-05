@@ -18,8 +18,17 @@ Parameters:
   LoadBalancerName:
     Type: String
     Description: Name of the load balancer
+  LoadBalancerScheme:
+    Type: String
+    Default: internal
+    AllowedValues: [internal, internet-facing]
+    Description: ALB scheme. Use internet-facing when endpoints must be public.
   HostedZoneName:
     Type: String
+  HostedZoneId:
+    Type: String
+    Default: ""
+    Description: Optional hosted zone ID used for ACM DNS validation automation.
   VpcId:
     Type: String
   SubnetList:
@@ -46,8 +55,14 @@ Parameters:
     Type: String
     Default: https
     AllowedValues: ["https", "http"]
+  EnableLoadBalancerAccessLogs:
+    Type: String
+    Default: "false"
+    AllowedValues: ["true", "false"]
+    Description: Enable ALB access logs to S3 when true.
   LoadBalancerLogBucket:
     Type: String
+    Default: ""
   ImportKmsKeyId:
     Type: String
   LoadBalancerDNSName:
@@ -70,6 +85,9 @@ Parameters:
 
 Conditions:
   CreateCodeDeployTestListener: !Equals [!Ref EnableCodeDeployTestListener, "true"]
+  EnableAlbAccessLogs: !Equals [!Ref EnableLoadBalancerAccessLogs, "true"]
+  HasLoadBalancerLogBucket: !Not [!Equals [!Ref LoadBalancerLogBucket, ""]]
+  HasHostedZoneId: !Not [!Equals [!Ref HostedZoneId, ""]]
   HasAlbIngressPrefixListId: !Not [!Equals [!Ref AlbIngressPrefixListId, ""]]
   HasAlbIngressCidr: !Not [!Equals [!Ref AlbIngressCidr, ""]]
   HasAlbIngressSourceSecurityGroupId: !Not [!Equals [!Ref AlbIngressSourceSecurityGroupId, ""]]
@@ -84,6 +102,11 @@ Conditions:
     - !Condition HasAlbIngressSourceSecurityGroupId
 
 Rules:
+  RequireLoadBalancerLogBucketWhenLogsEnabled:
+    RuleCondition: !Equals [!Ref EnableLoadBalancerAccessLogs, "true"]
+    Assertions:
+      - Assert: !Not [!Equals [!Ref LoadBalancerLogBucket, ""]]
+        AssertDescription: Provide LoadBalancerLogBucket when EnableLoadBalancerAccessLogs=true.
   RequireExactlyOneAlbIngressSource:
     Assertions:
       - Assert: !Or
@@ -203,15 +226,18 @@ Resources:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
     Properties:
       Name: !Sub "${LoadBalancerName}"
-      Scheme: internal
+      Scheme: !Ref LoadBalancerScheme
       SecurityGroups:
         - !Ref ALBSecurityGroup
       Subnets: !Ref SubnetList
       LoadBalancerAttributes:
-        - Key: access_logs.s3.bucket
-          Value: !Ref LoadBalancerLogBucket
         - Key: access_logs.s3.enabled
-          Value: "true"
+          Value: !If [EnableAlbAccessLogs, "true", "false"]
+        - !If
+          - EnableAlbAccessLogs
+          - Key: access_logs.s3.bucket
+            Value: !Ref LoadBalancerLogBucket
+          - !Ref AWS::NoValue
 
   LoadBalancerDNS:
     Type: AWS::Route53::RecordSetGroup
@@ -219,6 +245,11 @@ Resources:
       HostedZoneName: !Sub ${HostedZoneName}.
       Comment: Zone apex alias targeted to LoadBalancer LoadBalancer.
       RecordSets:
+        - Name: !Ref LoadBalancerDNSName
+          Type: A
+          AliasTarget:
+            HostedZoneId: !GetAtt "LoadBalancer.CanonicalHostedZoneID"
+            DNSName: !GetAtt "LoadBalancer.DNSName"
         - Name: !Sub "*.${LoadBalancerDNSName}"
           Type: A
           AliasTarget:
@@ -230,6 +261,11 @@ Resources:
     Properties:
       DomainName: !Sub "${LoadBalancerDNSName}"
       ValidationMethod: DNS
+      DomainValidationOptions: !If
+        - HasHostedZoneId
+        - - DomainName: !Ref LoadBalancerDNSName
+            HostedZoneId: !Ref HostedZoneId
+        - !Ref AWS::NoValue
 
   ALBListenerRedirectHTTP:
     Type: AWS::ElasticLoadBalancingV2::Listener

@@ -34,6 +34,11 @@ Parameters:
     Type: String
   SubnetList:
     Type: List<AWS::EC2::Subnet::Id>
+  AssignPublicIp:
+    Type: String
+    Default: DISABLED
+    AllowedValues: [ENABLED, DISABLED]
+    Description: awsvpc public IP assignment for ECS tasks.
   ListenerProtocol:
     Type: String
     Default: https
@@ -299,6 +304,13 @@ Mappings:
       LoadBalancerPort: 443
 
 Rules:
+  FileTransferBucketProvided:
+    Assertions:
+      - Assert: !Or
+          - !Equals [!Ref FileTransferEnabled, "false"]
+          - !Not [!Equals [!Ref FileTransferBucketName, ""]]
+        AssertDescription: >-
+          FileTransferBucketName is required when FileTransferEnabled is "true".
   FileTransferAsyncParamsProvided:
     Assertions:
       - Assert: !Or
@@ -573,6 +585,16 @@ Resources:
               Value: !Sub "${Environment}"
             - Name: NOVA_RUNTIME_PROFILE
               Value: !Ref RuntimeProfile
+            - Name: FILE_TRANSFER_ENABLED
+              Value: !Ref FileTransferEnabled
+            - Name: FILE_TRANSFER_BUCKET
+              Value: !Ref FileTransferBucketName
+            - Name: FILE_TRANSFER_UPLOAD_PREFIX
+              Value: !Ref FileTransferUploadPrefix
+            - Name: FILE_TRANSFER_EXPORT_PREFIX
+              Value: !Ref FileTransferExportPrefix
+            - Name: FILE_TRANSFER_TMP_PREFIX
+              Value: !Ref FileTransferTmpPrefix
             - !If
               - UseLegacyEnvDict
               - Name: AUTH_APP_SECRET
@@ -642,6 +664,7 @@ Resources:
       NetworkConfiguration:
         AwsvpcConfiguration:
           Subnets: !Ref SubnetList
+          AssignPublicIp: !Ref AssignPublicIp
           SecurityGroups:
             - !Ref ContainerSecurityGroup
       ServiceName: !Sub ${Project}-${Application}-${Service}

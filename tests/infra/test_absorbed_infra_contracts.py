@@ -37,6 +37,7 @@ def test_absorbed_template_paths_present() -> None:
         "infra/nova/nova-codebuild-release.yml",
         "infra/nova/nova-iam-roles.yml",
         "infra/nova/deploy/image-digest-ssm.yml",
+        "infra/nova/deploy/service-base-url-ssm.yml",
         *RUNTIME_DEPLOYABLE_TEMPLATES,
     ]
 
@@ -55,6 +56,9 @@ def test_pipeline_single_source_contract() -> None:
         "TemplatePath: AppSourceOutput::infra/nova/deploy/image-digest-ssm.yml"
         in text
     )
+    assert "DevServiceBaseUrl:" in text
+    assert "ProdServiceBaseUrl:" in text
+    assert "AllowedPattern:" in text and "httpbin" in text
 
     expected_stage_order = [
         "Source",
@@ -121,6 +125,9 @@ def test_foundation_exports_and_stack_wiring_contracts() -> None:
         "${FoundationStackName}-ArtifactBucketName",
         "${FoundationStackName}-CodeArtifactDomainName",
         "${FoundationStackName}-CodeArtifactRepositoryName",
+        "CodeArtifactPromotionSourceRepositoryName:",
+        "CodeArtifactPromotionDestinationRepositoryName:",
+        "RequireDistinctCodeArtifactPromotionRepositories:",
         "${FoundationStackName}-EcrRepositoryArn",
         "${FoundationStackName}-ManualApprovalTopicArn",
         "${AWS::StackName}-CodePipelineServiceRoleArn",
@@ -171,6 +178,22 @@ def test_digest_marker_path_and_env_contracts() -> None:
     assert 'AllowedPattern: "^sha256:[A-Fa-f0-9]{64}$"' in text
 
 
+def test_service_base_url_ssm_path_and_url_constraints() -> None:
+    """Service base URL SSM template must enforce canonical path + URL hygiene.
+
+    Returns:
+        None.
+    """
+    text = _read("infra/nova/deploy/service-base-url-ssm.yml")
+
+    assert 'Name: !Sub "/nova/${Environment}/${ServiceName}/base-url"' in text
+    assert "AllowedValues:" in text and "- dev" in text and "- prod" in text
+    assert "AllowedPattern:" in text
+    assert "httpbin" in text
+    assert "placeholder" in text
+    assert "example\\.com" in text
+
+
 def test_iam_scope_constraints_for_release_roles() -> None:
     """Critical IAM constraints must remain tightly scoped."""
     text = _read("infra/nova/nova-iam-roles.yml")
@@ -218,6 +241,66 @@ def test_iam_scope_constraints_for_release_roles() -> None:
 
     assert "iam:PassedToService:" in text
     assert "ecs-tasks.amazonaws.com" in text
+    assert "cloudformation.amazonaws.com" in text
+    cfn_passrole_block = (
+        "Action:\n"
+        "                  - iam:PassRole\n"
+        "                Resource:\n"
+        "                  - !GetAtt CloudFormationExecutionRoleDev.Arn\n"
+        "                  - !GetAtt CloudFormationExecutionRoleProd.Arn\n"
+        "                Condition:\n"
+        "                  StringEquals:\n"
+        "                    iam:PassedToService:\n"
+        "                      - cloudformation.amazonaws.com"
+    )
+    assert cfn_passrole_block in text, (
+        "CodePipeline iam:PassRole must require "
+        "iam:PassedToService=cloudformation.amazonaws.com"
+    )
+
+    github_role_start = text.find("  GitHubOIDCReleaseRole:")
+    codepipeline_role_start = text.find("  CodePipelineServiceRole:")
+    assert github_role_start != -1, "Missing GitHubOIDCReleaseRole block"
+    assert codepipeline_role_start != -1, (
+        "Missing CodePipelineServiceRole block"
+    )
+    github_role_text = text[github_role_start:codepipeline_role_start]
+    for required_action in [
+        "codepipeline:StartPipelineExecution",
+        "codepipeline:GetPipelineState",
+        "codepipeline:ListPipelineExecutions",
+        "codepipeline:GetPipelineExecution",
+        "codepipeline:PutApprovalResult",
+        "codeartifact:GetAuthorizationToken",
+        "codeartifact:GetRepositoryEndpoint",
+        "codeartifact:PublishPackageVersion",
+        "codeartifact:PutPackageMetadata",
+        "codeartifact:DescribePackageVersion",
+        "codeartifact:ReadFromRepository",
+        "codeartifact:CopyPackageVersions",
+        "sts:GetServiceBearerToken",
+    ]:
+        assert required_action in github_role_text
+    assert (
+        "arn:${AWS::Partition}:codepipeline:${AWS::Region}:${AWS::AccountId}:${Project}-${Application}-*"
+        in github_role_text
+    )
+    assert "${FoundationStackName}-CodeArtifactDomainName" in github_role_text
+    assert (
+        "${FoundationStackName}-CodeArtifactRepositoryName" in github_role_text
+    )
+    assert "CodeArtifactPromotionSourceRepositoryName" in github_role_text
+    assert "CodeArtifactPromotionDestinationRepositoryName" in github_role_text
+    assert (
+        "repository/${ResolvedCodeArtifactDomainName}/${PromotionDestinationRepositoryName}"
+        in github_role_text
+    )
+    assert (
+        "repository/${ResolvedCodeArtifactDomainName}/${PromotionSourceRepositoryName}"
+        in github_role_text
+    )
+    assert "sts:AWSServiceName: codeartifact.amazonaws.com" in github_role_text
+
     assert "BatchBOperatorPrincipalArn:" in text
     assert "batch-b-validation-read" in text
 
@@ -286,6 +369,22 @@ def test_runtime_env_and_parameter_contracts() -> None:
     assert (
         "FileTransferCacheSecurityGroupExportName is required" in service_text
     )
+
+
+def test_pipeline_validation_base_url_parameters_are_constrained() -> None:
+    """Pipeline template must constrain deploy validation base URL inputs."""
+    text = _read("infra/nova/nova-ci-cd.yml")
+
+    for required in [
+        "DevServiceBaseUrl:",
+        "ProdServiceBaseUrl:",
+        'AllowedPattern: "^https://',
+        (
+            "ConstraintDescription: Must be an HTTPS URL and not a "
+            "placeholder/test host."
+        ),
+    ]:
+        assert required in text
 
 
 def test_runtime_templates_do_not_contain_jinja_markers() -> None:
