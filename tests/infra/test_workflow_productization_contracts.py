@@ -21,6 +21,7 @@ def test_reusable_workflow_call_apis_exist_and_are_callable() -> None:
         ".github/workflows/reusable-deploy-dev.yml",
         ".github/workflows/reusable-promote-prod.yml",
         ".github/workflows/reusable-post-deploy-validate.yml",
+        ".github/workflows/reusable-auth0-tenant-deploy.yml",
     ]:
         text = _read(rel_path)
         assert "on:" in text
@@ -124,8 +125,10 @@ def test_cfn_contract_validate_workflow_exists_for_cfn_gates() -> None:
         "workflow_dispatch",
         "cfn-lint",
         "infra/nova/*.yml",
+        "infra/nova/deploy/*.yml",
         "infra/runtime/**/*.yml",
         "test_absorbed_infra_contracts.py",
         "test_workflow_contract_docs.py",
+        "test_docs_authority_contracts.py",
     ]:
         assert required in text

@@ -1,0 +1,62 @@
+name: Auth0 Tenant Ops
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Target Auth0 overlay environment.
+        required: true
+        default: dev
+        type: choice
+        options:
+          - dev
+          - qa
+          - pr
+      mode:
+        description: Auth0 operation mode.
+        required: true
+        default: validate
+        type: choice
+        options:
+          - validate
+          - import
+          - export
+      input_file:
+        description: Tenant YAML path.
+        required: false
+        default: infra/auth0/tenant/tenant.yaml
+        type: string
+      mapping_file:
+        description: Optional mappings JSON path override.
+        required: false
+        default: ""
+        type: string
+      allow_delete:
+        description: Must remain false by policy.
+        required: false
+        default: false
+        type: boolean
+      artifact_name:
+        description: Artifact name prefix.
+        required: false
+        default: auth0-tenant-ops-report
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  auth0-tenant-ops:
+    if: github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/reusable-auth0-tenant-deploy.yml
+    with:
+      environment: ${{ inputs.environment }}
+      mode: ${{ inputs.mode }}
+      input_file: ${{ inputs.input_file }}
+      mapping_file: ${{ inputs.mapping_file }}
+      allow_delete: ${{ inputs.allow_delete }}
+      artifact_name: ${{ inputs.artifact_name }}
+    secrets:
+      auth0_domain: ${{ secrets.AUTH0_DOMAIN }}
+      auth0_client_id: ${{ secrets.AUTH0_CLIENT_ID }}
+      auth0_client_secret: ${{ secrets.AUTH0_CLIENT_SECRET }}

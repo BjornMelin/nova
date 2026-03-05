@@ -33,6 +33,14 @@ Parameters:
     Type: String
     Default: ""
     Description: Optional explicit CodeArtifact repository. If empty, imported from foundation.
+  CodeArtifactPromotionSourceRepositoryName:
+    Type: String
+    MinLength: 1
+    Description: CodeArtifact source repository for staged package promotion.
+  CodeArtifactPromotionDestinationRepositoryName:
+    Type: String
+    MinLength: 1
+    Description: CodeArtifact destination repository for prod package promotion.
   EcrRepositoryArn:
     Type: String
     Default: ""
@@ -84,6 +92,13 @@ Rules:
           - !Not [!Equals [!Ref CodeArtifactRepositoryName, ""]]
           - !Not [!Equals [!Ref FoundationStackName, ""]]
         AssertDescription: Provide CodeArtifactRepositoryName or FoundationStackName.
+  RequireDistinctCodeArtifactPromotionRepositories:
+    Assertions:
+      - Assert: !Not
+          - !Equals
+              - !Ref CodeArtifactPromotionSourceRepositoryName
+              - !Ref CodeArtifactPromotionDestinationRepositoryName
+        AssertDescription: Promotion source and destination repositories must differ.
   RequireEcrRepositoryArnInput:
     Assertions:
       - Assert: !Or
@@ -118,6 +133,107 @@ Resources:
                 Action:
                   - secretsmanager:GetSecretValue
                 Resource: !Ref ReleaseSigningSecretArn
+              - Effect: Allow
+                Action:
+                  - codepipeline:StartPipelineExecution
+                  - codepipeline:GetPipelineState
+                  - codepipeline:ListPipelineExecutions
+                  - codepipeline:GetPipelineExecution
+                  - codepipeline:PutApprovalResult
+                Resource:
+                  - !Sub "arn:${AWS::Partition}:codepipeline:${AWS::Region}:${AWS::AccountId}:${Project}-${Application}-*"
+              - Effect: Allow
+                Action:
+                  - codeartifact:GetAuthorizationToken
+                Resource:
+                  - !Sub
+                    - "arn:${AWS::Partition}:codeartifact:${AWS::Region}:${AWS::AccountId}:domain/${ResolvedCodeArtifactDomainName}"
+                    - ResolvedCodeArtifactDomainName: !If
+                        - HasCodeArtifactDomainName
+                        - !Ref CodeArtifactDomainName
+                        - !ImportValue
+                          Fn::Sub: "${FoundationStackName}-CodeArtifactDomainName"
+              - Effect: Allow
+                Action:
+                  - codeartifact:GetRepositoryEndpoint
+                Resource:
+                  - !Sub
+                    - "arn:${AWS::Partition}:codeartifact:${AWS::Region}:${AWS::AccountId}:repository/${ResolvedCodeArtifactDomainName}/${ResolvedCodeArtifactRepositoryName}"
+                    - ResolvedCodeArtifactDomainName: !If
+                        - HasCodeArtifactDomainName
+                        - !Ref CodeArtifactDomainName
+                        - !ImportValue
+                          Fn::Sub: "${FoundationStackName}-CodeArtifactDomainName"
+                      ResolvedCodeArtifactRepositoryName: !If
+                        - HasCodeArtifactRepositoryName
+                        - !Ref CodeArtifactRepositoryName
+                        - !ImportValue
+                          Fn::Sub: "${FoundationStackName}-CodeArtifactRepositoryName"
+              - Effect: Allow
+                Action:
+                  - codeartifact:PublishPackageVersion
+                  - codeartifact:PutPackageMetadata
+                  - codeartifact:DescribePackageVersion
+                Resource:
+                  - !Sub
+                    - "arn:${AWS::Partition}:codeartifact:${AWS::Region}:${AWS::AccountId}:package/${ResolvedCodeArtifactDomainName}/${ResolvedCodeArtifactRepositoryName}/pypi/*"
+                    - ResolvedCodeArtifactDomainName: !If
+                        - HasCodeArtifactDomainName
+                        - !Ref CodeArtifactDomainName
+                        - !ImportValue
+                          Fn::Sub: "${FoundationStackName}-CodeArtifactDomainName"
+                      ResolvedCodeArtifactRepositoryName: !If
+                        - HasCodeArtifactRepositoryName
+                        - !Ref CodeArtifactRepositoryName
+                        - !ImportValue
+                          Fn::Sub: "${FoundationStackName}-CodeArtifactRepositoryName"
+              - Effect: Allow
+                Action:
+                  - codeartifact:ReadFromRepository
+                Resource:
+                  - !Sub
+                    - "arn:${AWS::Partition}:codeartifact:${AWS::Region}:${AWS::AccountId}:repository/${ResolvedCodeArtifactDomainName}/${PromotionSourceRepositoryName}"
+                    - ResolvedCodeArtifactDomainName: !If
+                        - HasCodeArtifactDomainName
+                        - !Ref CodeArtifactDomainName
+                        - !ImportValue
+                          Fn::Sub: "${FoundationStackName}-CodeArtifactDomainName"
+                      PromotionSourceRepositoryName: !Ref CodeArtifactPromotionSourceRepositoryName
+              - Effect: Allow
+                Action:
+                  - codeartifact:CopyPackageVersions
+                Resource:
+                  - !Sub
+                    - "arn:${AWS::Partition}:codeartifact:${AWS::Region}:${AWS::AccountId}:repository/${ResolvedCodeArtifactDomainName}/${PromotionDestinationRepositoryName}"
+                    - ResolvedCodeArtifactDomainName: !If
+                        - HasCodeArtifactDomainName
+                        - !Ref CodeArtifactDomainName
+                        - !ImportValue
+                          Fn::Sub: "${FoundationStackName}-CodeArtifactDomainName"
+                      PromotionDestinationRepositoryName: !Ref CodeArtifactPromotionDestinationRepositoryName
+                  - !Sub
+                    - "arn:${AWS::Partition}:codeartifact:${AWS::Region}:${AWS::AccountId}:package/${ResolvedCodeArtifactDomainName}/${PromotionSourceRepositoryName}/pypi/*"
+                    - ResolvedCodeArtifactDomainName: !If
+                        - HasCodeArtifactDomainName
+                        - !Ref CodeArtifactDomainName
+                        - !ImportValue
+                          Fn::Sub: "${FoundationStackName}-CodeArtifactDomainName"
+                      PromotionSourceRepositoryName: !Ref CodeArtifactPromotionSourceRepositoryName
+                  - !Sub
+                    - "arn:${AWS::Partition}:codeartifact:${AWS::Region}:${AWS::AccountId}:package/${ResolvedCodeArtifactDomainName}/${PromotionDestinationRepositoryName}/pypi/*"
+                    - ResolvedCodeArtifactDomainName: !If
+                        - HasCodeArtifactDomainName
+                        - !Ref CodeArtifactDomainName
+                        - !ImportValue
+                          Fn::Sub: "${FoundationStackName}-CodeArtifactDomainName"
+                      PromotionDestinationRepositoryName: !Ref CodeArtifactPromotionDestinationRepositoryName
+              - Effect: Allow
+                Action:
+                  - sts:GetServiceBearerToken
+                Resource: "*"
+                Condition:
+                  StringEquals:
+                    sts:AWSServiceName: codeartifact.amazonaws.com
 
   CodePipelineServiceRole:
     Type: AWS::IAM::Role
@@ -193,6 +309,10 @@ Resources:
                 Resource:
                   - !GetAtt CloudFormationExecutionRoleDev.Arn
                   - !GetAtt CloudFormationExecutionRoleProd.Arn
+                Condition:
+                  StringEquals:
+                    iam:PassedToService:
+                      - cloudformation.amazonaws.com
               - Effect: Allow
                 Action:
                   - codestar-connections:UseConnection

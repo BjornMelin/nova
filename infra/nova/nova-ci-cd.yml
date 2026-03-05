@@ -62,8 +62,12 @@ Parameters:
     Type: String
   DevServiceBaseUrl:
     Type: String
+    AllowedPattern: "^https://(?![^\\s]*httpbin)(?![^\\s]*placeholder)(?![^\\s]*example\\.com)(?![^\\s]*<)(?![^\\s]*>)[^\\s]+$"
+    ConstraintDescription: Must be an HTTPS URL and not a placeholder/test host.
   ProdServiceBaseUrl:
     Type: String
+    AllowedPattern: "^https://(?![^\\s]*httpbin)(?![^\\s]*placeholder)(?![^\\s]*example\\.com)(?![^\\s]*<)(?![^\\s]*>)[^\\s]+$"
+    ConstraintDescription: Must be an HTTPS URL and not a placeholder/test host.
   ValidationCanonicalPaths:
     Type: String
     Default: /v1/health/live,/v1/health/ready,/metrics/summary,/v1/capabilities,/v1/releases/info

@@ -195,6 +195,86 @@ def test_post_deploy_validate_workflow_contracts() -> None:
         )
 
 
+def test_auth0_tenant_deploy_workflow_contracts() -> None:
+    """Validate Auth0 tenant deploy wrapper/reusable workflow contracts."""
+    wrapper_text = _read(".github/workflows/auth0-tenant-deploy.yml")
+    reusable_text = _read(".github/workflows/reusable-auth0-tenant-deploy.yml")
+
+    for required in [
+        "uses: ./.github/workflows/reusable-auth0-tenant-deploy.yml",
+        "environment",
+        "mode",
+        "allow_delete",
+        "input_file",
+        "mapping_file",
+        "artifact_name",
+        "AUTH0_DOMAIN",
+        "AUTH0_CLIENT_ID",
+        "AUTH0_CLIENT_SECRET",
+    ]:
+        assert required in wrapper_text, (
+            f"Missing required wrapper contract: {required!r}"
+        )
+
+    for forbidden in [
+        "a0deploy import --input_file",
+        "python -m scripts.release.validate_auth0_contract",
+    ]:
+        assert forbidden not in wrapper_text, (
+            f"Wrapper should stay thin and must not include: {forbidden!r}"
+        )
+
+    for required in [
+        "workflow_call:",
+        "environment:",
+        "mode:",
+        "input_file:",
+        "mapping_file:",
+        "allow_delete:",
+        "operation_status:",
+        "report_path:",
+        "artifact_name:",
+        "scripts.release.validate_auth0_contract",
+        (
+            "if: inputs.mode != 'validate' && "
+            "steps.validate-contract.outcome == 'success'"
+        ),
+        (
+            "if: inputs.mode == 'import' && "
+            "steps.validate-contract.outcome == 'success'"
+        ),
+        (
+            "if: inputs.mode == 'export' && "
+            "steps.validate-contract.outcome == 'success'"
+        ),
+        "a0deploy import --input_file",
+        "a0deploy export --format yaml",
+        "auth0-tenant-ops-report.json",
+        "actions/upload-artifact@v4",
+    ]:
+        assert required in reusable_text, (
+            f"Missing required reusable contract: {required!r}"
+        )
+
+    for forbidden in [
+        "id: validate-contract\n        continue-on-error: true",
+        (
+            "id: run-import\n"
+            "        if: inputs.mode == 'import'\n"
+            "        continue-on-error: true"
+        ),
+        (
+            "id: run-export\n"
+            "        if: inputs.mode == 'export'\n"
+            "        continue-on-error: true"
+        ),
+    ]:
+        assert forbidden not in reusable_text, (
+            "Reusable workflow should fail fast and must not include: "
+            f"{forbidden!r}"
+        )
+
+
 def test_deploy_validate_buildspec_enforces_route_contracts() -> None:
     """Validate CodeBuild deploy validation buildspec contracts.
 
