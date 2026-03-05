@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://3m-cloud.github.io/nova/docs/contracts/ssm-runtime-base-url-v1.schema.json",
+  "title": "SSM runtime base-url contract v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "service_name",
+    "dev",
+    "prod"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1.0"
+    },
+    "service_name": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9](?:[A-Za-z0-9_.-]{0,61}[A-Za-z0-9])?$"
+    },
+    "dev": {
+      "$ref": "#/$defs/base_url_binding"
+    },
+    "prod": {
+      "$ref": "#/$defs/base_url_binding"
+    }
+  },
+  "$defs": {
+    "base_url_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "environment",
+        "parameter_path",
+        "base_url"
+      ],
+      "properties": {
+        "environment": {
+          "type": "string",
+          "enum": [
+            "dev",
+            "prod"
+          ]
+        },
+        "parameter_path": {
+          "type": "string",
+          "pattern": "^/nova/(dev|prod)/[A-Za-z0-9_.-]+/base-url$"
+        },
+        "base_url": {
+          "type": "string",
+          "pattern": "^https://(?![^\\s]*httpbin)(?![^\\s]*placeholder)(?![^\\s]*example\\.com)(?![^\\s]*<)(?![^\\s]*>)[^\\s]+$"
+        }
+      }
+    }
+  }
+}

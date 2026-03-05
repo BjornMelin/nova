@@ -7,6 +7,9 @@
 
 ## Active SPEC Catalog
 
+WS6 authority linkage: decisions `ADR-0027`, `ADR-0028`, and `ADR-0029` are
+implemented by `SPEC-0021`, `SPEC-0022`, and `SPEC-0023`.
+
 | SPEC | Title | Status | Date |
 | --- | --- | --- | --- |
 | [SPEC-0000](./SPEC-0000-http-api-contract.md) | HTTP API Contract | Active | 2026-03-03 |
@@ -28,6 +31,9 @@
 | [SPEC-0018](./SPEC-0018-runtime-configuration-and-startup-validation-contract.md) | Reusable workflow integration contract | Active | 2026-03-03 |
 | [SPEC-0019](./SPEC-0019-auth-execution-and-threadpool-safety-contract.md) | CI/CD IAM least-privilege matrix | Active | 2026-03-03 |
 | [SPEC-0020](./SPEC-0020-architecture-authority-pack-and-documentation-synchronization-contract.md) | Rollout and validation strategy | Active | 2026-03-03 |
+| [SPEC-0021](./SPEC-0021-downstream-hard-cut-integration-and-consumer-validation-contract.md) | Downstream hard-cut integration and consumer validation contract | Active | 2026-03-04 |
+| [SPEC-0022](./SPEC-0022-auth0-tenant-ops-reusable-workflow-contract.md) | Auth0 tenant ops reusable workflow contract | Active | 2026-03-04 |
+| [SPEC-0023](./SPEC-0023-ssm-runtime-base-url-contract-for-deploy-validation.md) | SSM runtime base-url contract for deploy validation | Active | 2026-03-04 |
 
 ## Historical Specs
 

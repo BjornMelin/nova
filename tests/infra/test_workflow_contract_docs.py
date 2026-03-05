@@ -38,6 +38,10 @@ def test_contract_schema_files_exist_and_are_valid_json() -> None:
         "docs/contracts/deploy-size-profiles-v1.json",
         "docs/contracts/release-artifacts-v1.schema.json",
         "docs/contracts/workflow-post-deploy-validate.schema.json",
+        "docs/contracts/workflow-auth0-tenant-deploy.schema.json",
+        "docs/contracts/workflow-auth0-tenant-ops-v1.schema.json",
+        "docs/contracts/ssm-runtime-base-url-v1.schema.json",
+        "docs/contracts/browser-live-validation-report.schema.json",
     ]:
         path = REPO_ROOT / rel_path
         assert path.is_file(), f"Missing contract schema file: {rel_path}"
@@ -52,6 +56,31 @@ def test_contract_schema_files_exist_and_are_valid_json() -> None:
             assert data.get("type") == "object"
         else:
             assert data.get("schema_version") == "1.0"
+
+
+def test_auth0_and_ssm_contract_schemas_include_required_keys() -> None:
+    """Auth0 and SSM contract schemas must expose required authority fields."""
+    auth0_schema = _read_json(
+        "docs/contracts/workflow-auth0-tenant-ops-v1.schema.json"
+    )
+    ssm_schema = _read_json(
+        "docs/contracts/ssm-runtime-base-url-v1.schema.json"
+    )
+
+    assert set(auth0_schema["required"]) == {"inputs", "outputs"}
+    auth0_inputs = auth0_schema["properties"]["inputs"]["properties"]
+    assert auth0_inputs["mode"]["enum"] == ["validate", "import", "export"]
+    assert auth0_inputs["allow_delete"]["const"] is False
+
+    assert {"schema_version", "service_name", "dev", "prod"} == set(
+        ssm_schema["required"]
+    )
+    assert (
+        ssm_schema["$defs"]["base_url_binding"]["properties"]["parameter_path"][
+            "pattern"
+        ]
+        == "^/nova/(dev|prod)/[A-Za-z0-9_.-]+/base-url$"
+    )
 
 
 def test_workflow_io_schema_contract_matches_reusable_deploy_runtime_api() -> (
@@ -100,6 +129,7 @@ def test_release_artifact_schema_contract_covers_required_gate_payloads() -> (
         "codeartifact_gate_report",
         "codeartifact_promotion_candidates",
         "post_deploy_validation_report",
+        "browser_live_validation_report",
     ]:
         assert key in props
 
@@ -110,6 +140,7 @@ def test_release_artifact_schema_contract_covers_required_gate_payloads() -> (
         "promotion_candidate",
         "post_deploy_validation_report",
         "route_check",
+        "browser_live_validation_report",
     ]:
         assert required_def in defs
 
@@ -164,6 +195,8 @@ def test_integration_guide_includes_versioning_policy_references() -> None:
     for required in [
         "reusable-post-deploy-validate.yml",
         "docs/contracts/workflow-post-deploy-validate.schema.json",
+        "docs/contracts/workflow-auth0-tenant-deploy.schema.json",
+        "docs/contracts/browser-live-validation-report.schema.json",
         "docs/contracts/release-artifacts-v1.schema.json",
         "docs/contracts/reusable-workflow-inputs-v1.schema.json",
         "docs/contracts/reusable-workflow-outputs-v1.schema.json",
@@ -178,3 +211,24 @@ def test_integration_guide_includes_versioning_policy_references() -> None:
         "5-minute setup flow",
     ]:
         assert required in text
+
+
+def test_auth0_workflow_schema_matches_reusable_auth0_api() -> None:
+    """Auth0 workflow schema must align with reusable workflow_call contract."""
+    schema = _read_json(
+        "docs/contracts/workflow-auth0-tenant-deploy.schema.json"
+    )
+    workflow_call = _load_workflow_call(
+        ".github/workflows/reusable-auth0-tenant-deploy.yml"
+    )
+
+    workflow_inputs = workflow_call["inputs"]
+    workflow_outputs = workflow_call["outputs"]
+    schema_inputs = schema["properties"]["inputs"]["properties"]
+    schema_outputs = schema["properties"]["outputs"]["properties"]
+
+    assert set(workflow_inputs).issubset(set(schema_inputs))
+    assert set(workflow_outputs).issubset(set(schema_outputs))
+
+    for required_input in schema["properties"]["inputs"]["required"]:
+        assert required_input in workflow_inputs

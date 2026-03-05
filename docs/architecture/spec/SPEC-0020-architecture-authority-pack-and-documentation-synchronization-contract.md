@@ -2,14 +2,16 @@
 Spec: 0020
 Title: Rollout and validation strategy
 Status: Active
-Version: 1.1
-Date: 2026-03-03
+Version: 1.2
+Date: 2026-03-05
 Related:
   - "[ADR-0024: Native-CFN modular stack architecture for Nova infrastructure productization](../adr/ADR-0024-layered-architecture-authority-pack.md)"
   - "[ADR-0026: OIDC and IAM role partitioning for deploy automation](../adr/ADR-0026-fail-fast-runtime-configuration-and-safe-auth-execution.md)"
+  - "[ADR-0029: SSM runtime base URL authority for deploy validation](../adr/ADR-0029-ssm-runtime-base-url-authority-for-deploy-validation.md)"
   - "[SPEC-0017: CloudFormation module contract](./SPEC-0017-runtime-component-topology-and-ownership-contract.md)"
   - "[SPEC-0018: Reusable workflow integration contract](./SPEC-0018-runtime-configuration-and-startup-validation-contract.md)"
   - "[SPEC-0019: CI/CD IAM least-privilege matrix](./SPEC-0019-auth-execution-and-threadpool-safety-contract.md)"
+  - "[SPEC-0023: SSM runtime base-url contract for deploy validation](./SPEC-0023-ssm-runtime-base-url-contract-for-deploy-validation.md)"
 ---
 
 ## 1. Scope
@@ -40,7 +42,7 @@ Stacks and control-plane components must be applied in this order:
 | A | Identity and account readiness | `sts get-caller-identity`, stack read access |
 | B | Control-plane readiness | CI/CD stack healthy, pipeline contract matches template |
 | C | Runtime inventory | ECS/CodeDeploy/alarms inventory present as expected |
-| D | Route and behavior validation | Post-deploy route checks and canonical/legacy assertions |
+| D | Route and behavior validation | Post-deploy route checks, canonical/legacy assertions, and SSM base-url provenance evidence |
 | E | Release acceptance | Artifacts, approvals, and runbook checklist closure |
 
 ## 5. Failure and recovery requirements
@@ -55,12 +57,15 @@ Stacks and control-plane components must be applied in this order:
    execution ledger for status, subagents, and verification evidence.
 2. Checklist state must reflect implemented + verified vs blocked items.
 3. All blockers require explicit action/resource evidence and remediation steps.
+4. Deploy validation evidence must include SSM authority paths and resolved
+   dev/prod base URLs used by validation gates.
 
 ## 7. Acceptance criteria
 
 1. Rollout order is executed successfully end-to-end.
 2. Gates A-E are satisfied with evidence captured in release docs/ledger.
 3. Reusable workflow contracts and infra tests pass in CI.
+4. SSM-backed base URL provenance is recorded for each validation run.
 
 ## 8. Traceability
 
