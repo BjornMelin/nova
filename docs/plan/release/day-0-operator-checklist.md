@@ -78,6 +78,13 @@ aws ssm get-parameter --region "${AWS_REGION}" --name "/nova/dev/nova-file-api/b
 aws ssm get-parameter --region "${AWS_REGION}" --name "/nova/prod/nova-file-api/base-url"
 ```
 
+Ownership guardrail:
+
+- Base-url parameters are owned by the canonical stack pair
+  `${PROJECT}-${APPLICATION}-dev-service-base-url` and
+  `${PROJECT}-${APPLICATION}-prod-service-base-url`.
+- Do not create alternate stack names that manage the same SSM parameter paths.
+
 ### Step 2: Bootstrap foundation stack first
 
 If `${NOVA_ARTIFACT_BUCKET_NAME}` already exists, pass it as

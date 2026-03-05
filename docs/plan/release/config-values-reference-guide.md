@@ -130,6 +130,16 @@ Default stack names:
 - `${project}-${application}-nova-iam-roles`
 - `${project}-${application}-nova-codebuild-release`
 - `${project}-${application}-nova-ci-cd`
+- `${project}-ci-dev-service-base-url`
+- `${project}-ci-prod-service-base-url`
+
+Canonical SSM base-url marker ownership:
+
+- `/nova/dev/{service}/base-url` is managed only by
+  `${project}-ci-dev-service-base-url`.
+- `/nova/prod/{service}/base-url` is managed only by
+  `${project}-ci-prod-service-base-url`.
+- Do not provision additional stacks that manage these same parameter paths.
 
 Critical outputs:
 

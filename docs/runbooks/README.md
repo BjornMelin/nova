@@ -2,7 +2,7 @@
 
 Status: Active
 Owner: nova release architecture
-Last reviewed: 2026-03-03
+Last reviewed: 2026-03-05
 
 ## Purpose
 
@@ -21,7 +21,8 @@ All active release and delivery runbooks must live under `nova/docs/**`.
 8. [Troubleshooting and break-glass guide](../plan/release/troubleshooting-and-break-glass-guide.md)
 9. [Auth0 CLI + a0deploy runbook](../plan/release/AUTH0-A0DEPLOY-RUNBOOK.md)
 10. [Governance lock runbook](../plan/release/governance-lock-runbook.md)
-11. [Worker lane operations and failure handling](./worker-lane-operations-and-failure-handling.md)
+11. [Browser live validation checklist](../plan/release/BROWSER-LIVE-VALIDATION-CHECKLIST.md)
+12. [Worker lane operations and failure handling](./worker-lane-operations-and-failure-handling.md)
 
 ## Authority Guardrail
 

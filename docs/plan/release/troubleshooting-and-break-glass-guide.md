@@ -2,7 +2,7 @@
 
 Status: Active
 Owner: nova release architecture
-Last reviewed: 2026-03-03
+Last reviewed: 2026-03-05
 
 ## Purpose
 
@@ -111,6 +111,61 @@ Commands:
 aws cloudformation describe-stack-events \
   --region "${AWS_REGION}" \
   --stack-name "${DEPLOY_STACK_NAME}"
+```
+
+### Base-url SSM marker stacks drift or rollback fails
+
+Likely causes:
+
+- `/nova/{env}/{service}/base-url` parameter was deleted or modified outside
+  CloudFormation ownership.
+- stack update reached `UPDATE_ROLLBACK_FAILED` due
+  `AWS::SSM::Parameter ... was not found`.
+
+Commands:
+
+```bash
+aws cloudformation describe-stacks \
+  --region "${AWS_REGION}" \
+  --stack-name "${PROJECT}-${APPLICATION}-dev-service-base-url" \
+  --query "Stacks[0].StackStatus"
+
+aws cloudformation detect-stack-drift \
+  --region "${AWS_REGION}" \
+  --stack-name "${PROJECT}-${APPLICATION}-dev-service-base-url"
+
+aws cloudformation describe-stack-resource-drifts \
+  --region "${AWS_REGION}" \
+  --stack-name "${PROJECT}-${APPLICATION}-dev-service-base-url"
+```
+
+Canonical recovery path (repeat for `dev` and `prod`):
+
+```bash
+aws cloudformation delete-stack \
+  --region "${AWS_REGION}" \
+  --stack-name "${PROJECT}-${APPLICATION}-dev-service-base-url"
+
+aws cloudformation wait stack-delete-complete \
+  --region "${AWS_REGION}" \
+  --stack-name "${PROJECT}-${APPLICATION}-dev-service-base-url"
+
+aws cloudformation deploy \
+  --region "${AWS_REGION}" \
+  --stack-name "${PROJECT}-${APPLICATION}-dev-service-base-url" \
+  --template-file "${NOVA_REPO_ROOT}/infra/nova/deploy/service-base-url-ssm.yml" \
+  --parameter-overrides \
+    Environment=dev \
+    ServiceName="${NOVA_DEPLOY_SERVICE_NAME:-nova-file-api}" \
+    ServiceBaseUrl="${DEV_BASE_URL}"
+```
+
+Post-recovery verify:
+
+```bash
+aws ssm get-parameter \
+  --region "${AWS_REGION}" \
+  --name "/nova/dev/${NOVA_DEPLOY_SERVICE_NAME:-nova-file-api}/base-url"
 ```
 
 ## Break-glass CLI deployment sequence

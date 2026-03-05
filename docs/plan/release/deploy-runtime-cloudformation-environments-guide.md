@@ -33,10 +33,12 @@ Export these values before running commands:
 - `AWS_ACCOUNT_ID`
 - `PROJECT` (default `nova`)
 - `APPLICATION` (service family, for example `file-api`)
+- `CONTROL_PLANE_PROJECT` (default `nova`, used for base-url SSM marker stacks)
+- `CONTROL_PLANE_APPLICATION` (default `ci`, used for base-url SSM marker stacks)
 - `ENVIRONMENT` (`dev` or `prod`)
 - `NOVA_REPO_ROOT`
 - `VPC_ID`
-- `SUBNET_IDS` (comma-delimited private subnet IDs)
+- `SUBNET_IDS` (comma-delimited subnet IDs used by ECS task ENIs)
 - `ALB_HOSTED_ZONE_NAME` (example `internal.example.com`)
 - `ALB_HOSTED_ZONE_ID` (optional Route53 hosted zone ID for cert DNS validation automation)
 - `ALB_DNS_NAME` (example `api-dev.internal.example.com`)
@@ -55,6 +57,13 @@ Export these values before running commands:
 - `OWNER_TAG`
 - `ALARM_ACTION_ARN`
 - `ASSIGN_PUBLIC_IP` (`ENABLED` or `DISABLED`, default `DISABLED`)
+
+Network model requirements:
+
+- `ASSIGN_PUBLIC_IP=DISABLED`: use private subnets with NAT or required VPC
+  interface endpoints (for ECR/API dependencies).
+- `ASSIGN_PUBLIC_IP=ENABLED`: use subnet/routing that supports direct outbound
+  internet egress for task bootstrap.
 
 ## Reproducible Deployment Sequence
 
@@ -207,10 +216,15 @@ echo "PROD_BASE_URL=${PROD_BASE_URL}"
 
 Persist these values to SSM for CI/CD authority:
 
+Canonical stack ownership rule:
+
+- Use only the CI control-plane stack pair to manage base-url parameters.
+- Do not create additional stack names that manage the same parameter paths.
+
 ```bash
 aws cloudformation deploy \
   --region "${AWS_REGION}" \
-  --stack-name "${PROJECT}-${APPLICATION}-dev-service-base-url" \
+  --stack-name "${CONTROL_PLANE_PROJECT:-nova}-${CONTROL_PLANE_APPLICATION:-ci}-dev-service-base-url" \
   --template-file "${NOVA_REPO_ROOT}/infra/nova/deploy/service-base-url-ssm.yml" \
   --parameter-overrides \
     Environment="dev" \
@@ -219,7 +233,7 @@ aws cloudformation deploy \
 
 aws cloudformation deploy \
   --region "${AWS_REGION}" \
-  --stack-name "${PROJECT}-${APPLICATION}-prod-service-base-url" \
+  --stack-name "${CONTROL_PLANE_PROJECT:-nova}-${CONTROL_PLANE_APPLICATION:-ci}-prod-service-base-url" \
   --template-file "${NOVA_REPO_ROOT}/infra/nova/deploy/service-base-url-ssm.yml" \
   --parameter-overrides \
     Environment="prod" \
