@@ -2,7 +2,7 @@
 
 Status: Active
 Owner: nova release architecture
-Last reviewed: 2026-03-03
+Last reviewed: 2026-03-05
 
 ## Purpose
 
@@ -28,6 +28,10 @@ configure CI/CD stacks, and operate Nova release automation.
 
 - `AWS_REGION`
   - default: `us-east-1`
+- `CODEARTIFACT_STAGING_REPOSITORY`
+  - value: staged publish repository used by package build and promotion source
+- `CODEARTIFACT_PROD_REPOSITORY`
+  - value: prod promotion destination repository
 
 ## Nova operator command-pack environment keys
 
@@ -36,13 +40,13 @@ Required keys:
 - `GITHUB_OIDC_PROVIDER_ARN`
 - `SECRET_NAME` (or resolved `RELEASE_SIGNING_SECRET_ARN`)
 - `NOVA_ARTIFACT_BUCKET_NAME`
-- `NOVA_DEV_SERVICE_BASE_URL`
-- `NOVA_PROD_SERVICE_BASE_URL`
 - `AWS_ACCOUNT_ID`
 - `SIGNER_NAME`
 - `SIGNER_EMAIL`
 - `CODEARTIFACT_DOMAIN_NAME`
-- `CODEARTIFACT_REPOSITORY_NAME`
+- `CODEARTIFACT_REPOSITORY_NAME` (fallback default source for staging repo)
+- `CODEARTIFACT_STAGING_REPOSITORY`
+- `CODEARTIFACT_PROD_REPOSITORY`
 - `ECR_REPOSITORY_ARN`
 
 Required ECR targeting:
@@ -65,6 +69,31 @@ Optional keys:
 stack names used by pipeline deploy actions (`infra/nova/deploy/image-digest-ssm.yml`),
 not the runtime ECS service stack names.
 
+### Operator contract table
+
+| Key | Required | Default | Consumer |
+| --- | --- | --- | --- |
+| `CODEARTIFACT_REPOSITORY_NAME` | no | `galaxypy` | fallback only (`CODEARTIFACT_STAGING_REPOSITORY`) |
+| `CODEARTIFACT_STAGING_REPOSITORY` | yes | from `CODEARTIFACT_REPOSITORY_NAME` when unset | foundation publish repo + promotion source |
+| `CODEARTIFACT_PROD_REPOSITORY` | yes | none | promotion destination |
+| `EXISTING_CONNECTION_ARN` | no | empty | foundation/codepipeline connection wiring |
+| `NOVA_DEPLOY_SERVICE_NAME` | no | `nova-file-api` | SSM base-url lookup path |
+
+Promotion repository contract:
+
+- `CODEARTIFACT_STAGING_REPOSITORY` and `CODEARTIFACT_PROD_REPOSITORY` MUST be
+  different values.
+- `CodeArtifactPromotionSourceRepositoryName` is sourced from staging.
+- `CodeArtifactPromotionDestinationRepositoryName` is sourced from prod.
+
+Service base URLs are resolved by the operator command pack from SSM parameters:
+
+- `/nova/dev/${NOVA_DEPLOY_SERVICE_NAME:-nova-file-api}/base-url`
+- `/nova/prod/${NOVA_DEPLOY_SERVICE_NAME:-nova-file-api}/base-url`
+
+Populate these via `infra/nova/deploy/service-base-url-ssm.yml` before running
+`scripts/release/day-0-operator-command-pack.sh`.
+
 ## Runtime stack parameter contract
 
 Capture and manage these runtime values per environment before CI/CD deploy:
@@ -72,9 +101,12 @@ Capture and manage these runtime values per environment before CI/CD deploy:
 - `VPC_ID`
 - `SUBNET_IDS`
 - `ALB_HOSTED_ZONE_NAME`
+- `ALB_HOSTED_ZONE_ID` (optional)
 - `ALB_DNS_NAME`
 - `ALB_NAME`
-- `ALB_LOG_BUCKET`
+- `ALB_SCHEME` (`internal` or `internet-facing`)
+- `ENABLE_ALB_ACCESS_LOGS` (`true` or `false`)
+- `ALB_LOG_BUCKET` (required only when access logs are enabled)
 - `ALB_INGRESS_PREFIX_LIST_ID` or `ALB_INGRESS_CIDR` or
   `ALB_INGRESS_SOURCE_SG_ID` (exactly one)
 - `ECS_CLUSTER_NAME`
@@ -85,6 +117,7 @@ Capture and manage these runtime values per environment before CI/CD deploy:
 - `DOCKER_IMAGE_TAG`
 - `OWNER_TAG`
 - `ALARM_ACTION_ARN`
+- `ASSIGN_PUBLIC_IP` (`ENABLED` or `DISABLED`)
 
 See:
 `deploy-runtime-cloudformation-environments-guide.md`
@@ -109,11 +142,15 @@ Critical outputs:
 Release build project requires:
 
 - `CODEARTIFACT_DOMAIN`
-- `CODEARTIFACT_STAGING_REPOSITORY`
-- `CODEARTIFACT_PROD_REPOSITORY`
+- `CODEARTIFACT_REPOSITORY` (release build publish target)
 - `ECR_REPOSITORY_URI` or `ECR_REPOSITORY_NAME`
 - `DOCKERFILE_PATH`
 - `DOCKER_BUILD_CONTEXT`
+
+Publish/promote workflow contracts additionally require:
+
+- `CODEARTIFACT_STAGING_REPOSITORY`
+- `CODEARTIFACT_PROD_REPOSITORY`
 
 Exported variables:
 
@@ -158,9 +195,10 @@ Validation URLs:
 Route namespace policy:
 
 - Canonical consumer capability namespace is `/v1/*`.
-- Release validation inputs MUST use canonical `/v1/*` routes and
-  `/metrics/summary` only.
-- Non-canonical route literals MUST NOT appear in validation commands.
+- Release validation inputs MUST include canonical `/v1/*` + `/metrics/summary`
+  checks and required legacy-route `404` assertions.
+- Legacy route literals are allowed only in dedicated validation `404` checks
+  (`validation_legacy_404_paths`), not as active runtime routes.
 
 ## References
 

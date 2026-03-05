@@ -2,7 +2,7 @@
 
 Status: Active
 Owner: nova release architecture
-Last reviewed: 2026-03-03
+Last reviewed: 2026-03-05
 
 ## Purpose
 
@@ -38,9 +38,12 @@ Export these values before running commands:
 - `VPC_ID`
 - `SUBNET_IDS` (comma-delimited private subnet IDs)
 - `ALB_HOSTED_ZONE_NAME` (example `internal.example.com`)
+- `ALB_HOSTED_ZONE_ID` (optional Route53 hosted zone ID for cert DNS validation automation)
 - `ALB_DNS_NAME` (example `api-dev.internal.example.com`)
 - `ALB_NAME`
-- `ALB_LOG_BUCKET`
+- `ALB_SCHEME` (`internal` or `internet-facing`, default `internal`)
+- `ENABLE_ALB_ACCESS_LOGS` (`true` or `false`, default `false`)
+- `ALB_LOG_BUCKET` (required only when `ENABLE_ALB_ACCESS_LOGS=true`)
 - `ALB_INGRESS_PREFIX_LIST_ID` or `ALB_INGRESS_CIDR` or
   `ALB_INGRESS_SOURCE_SG_ID` (exactly one is required)
 - `ECS_CLUSTER_NAME`
@@ -51,6 +54,7 @@ Export these values before running commands:
 - `TASK_ROLE_ARN`
 - `OWNER_TAG`
 - `ALARM_ACTION_ARN`
+- `ASSIGN_PUBLIC_IP` (`ENABLED` or `DISABLED`, default `DISABLED`)
 
 ## Reproducible Deployment Sequence
 
@@ -114,6 +118,13 @@ aws cloudformation wait stack-create-complete \
 - `AlbIngressCidr`
 - `AlbIngressSourceSecurityGroupId`
 
+Additional cluster controls:
+
+- `LoadBalancerScheme` supports `internal` or `internet-facing`.
+- `HostedZoneId` is optional; when provided, ACM validation records can be
+  provisioned automatically.
+- `EnableLoadBalancerAccessLogs=true` requires `LoadBalancerLogBucket`.
+
 Example using CIDR:
 
 ```bash
@@ -128,8 +139,11 @@ aws cloudformation deploy \
     EcsClusterName="${ECS_CLUSTER_NAME}" \
     LoadBalancerId="dash" \
     LoadBalancerName="${ALB_NAME}" \
+    LoadBalancerScheme="${ALB_SCHEME}" \
     HostedZoneName="${ALB_HOSTED_ZONE_NAME}" \
+    HostedZoneId="${ALB_HOSTED_ZONE_ID}" \
     LoadBalancerDNSName="${ALB_DNS_NAME}" \
+    EnableLoadBalancerAccessLogs="${ENABLE_ALB_ACCESS_LOGS:-false}" \
     VpcId="${VPC_ID}" \
     SubnetList="${SUBNET_IDS}" \
     AlbIngressCidr="${ALB_INGRESS_CIDR}" \
@@ -138,6 +152,12 @@ aws cloudformation deploy \
 ```
 
 ## Service Stack Example
+
+`infra/runtime/ecs/service.yml` contract notes:
+
+- `AssignPublicIp` defaults to `DISABLED`; use `ENABLED` only when required by
+  subnet/network architecture.
+- If `FileTransferEnabled=true`, `FileTransferBucketName` must be provided.
 
 ```bash
 aws cloudformation deploy \
@@ -156,6 +176,7 @@ aws cloudformation deploy \
     DockerImageTag="${DOCKER_IMAGE_TAG}" \
     VpcId="${VPC_ID}" \
     SubnetList="${SUBNET_IDS}" \
+    AssignPublicIp="${ASSIGN_PUBLIC_IP:-DISABLED}" \
     TaskRole="${TASK_ROLE_ARN}" \
     ServiceDNS="${SERVICE_DNS}" \
     ListenerRulePriority="100" \
@@ -184,8 +205,30 @@ echo "DEV_BASE_URL=${DEV_BASE_URL}"
 echo "PROD_BASE_URL=${PROD_BASE_URL}"
 ```
 
-Use these values as `NOVA_DEV_SERVICE_BASE_URL` and
-`NOVA_PROD_SERVICE_BASE_URL` when deploying CI/CD stacks.
+Persist these values to SSM for CI/CD authority:
+
+```bash
+aws cloudformation deploy \
+  --region "${AWS_REGION}" \
+  --stack-name "${PROJECT}-${APPLICATION}-dev-service-base-url" \
+  --template-file "${NOVA_REPO_ROOT}/infra/nova/deploy/service-base-url-ssm.yml" \
+  --parameter-overrides \
+    Environment="dev" \
+    ServiceName="${SERVICE_NAME}" \
+    ServiceBaseUrl="${DEV_BASE_URL}"
+
+aws cloudformation deploy \
+  --region "${AWS_REGION}" \
+  --stack-name "${PROJECT}-${APPLICATION}-prod-service-base-url" \
+  --template-file "${NOVA_REPO_ROOT}/infra/nova/deploy/service-base-url-ssm.yml" \
+  --parameter-overrides \
+    Environment="prod" \
+    ServiceName="${SERVICE_NAME}" \
+    ServiceBaseUrl="${PROD_BASE_URL}"
+```
+
+`scripts/release/day-0-operator-command-pack.sh` resolves these parameters from
+`/nova/{env}/${SERVICE_NAME}/base-url` and fails fast on missing/invalid values.
 
 ## Verification
 

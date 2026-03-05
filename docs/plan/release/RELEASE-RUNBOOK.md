@@ -25,6 +25,7 @@ Use the modular operator guide set for provisioning and setup details:
 - `deploy-nova-cicd-end-to-end-guide.md`
 - `release-promotion-dev-to-prod-guide.md`
 - `troubleshooting-and-break-glass-guide.md`
+- `BROWSER-LIVE-VALIDATION-CHECKLIST.md`
 
 ## 2. Preconditions
 
@@ -39,6 +40,9 @@ Use the modular operator guide set for provisioning and setup details:
    - `CODEARTIFACT_STAGING_REPOSITORY`
    - `CODEARTIFACT_PROD_REPOSITORY`
    - `ECR_REPOSITORY_URI` (or `ECR_REPOSITORY_NAME`)
+7. IAM roles stack is deployed with promotion repository parameters:
+   - `CodeArtifactPromotionSourceRepositoryName`
+   - `CodeArtifactPromotionDestinationRepositoryName`
 
 ## 3. GitHub release execution
 

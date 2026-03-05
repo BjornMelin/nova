@@ -2,7 +2,7 @@
 
 Status: Active
 Owner: nova release architecture
-Last reviewed: 2026-03-03
+Last reviewed: 2026-03-05
 
 ## Purpose
 
@@ -26,6 +26,14 @@ release workflows and AWS pipeline stages.
 - `${MAIN_BRANCH}` default: `main`
 - `${SIGNING_SECRET_ARN}` from secrets provisioning guide
 - `${FOUNDATION_STACK_NAME}` default: `${PROJECT}-${APPLICATION}-nova-foundation`
+- `${CODEARTIFACT_STAGING_REPOSITORY}` example: `galaxypy-staging`
+- `${CODEARTIFACT_PROD_REPOSITORY}` example: `galaxypy-prod`
+
+Repository directionality contract:
+
+- Staging repo is the promotion source.
+- Prod repo is the promotion destination.
+- Source and destination repositories must not be identical.
 
 ## Step-by-step commands
 
@@ -71,7 +79,9 @@ release workflows and AWS pipeline stages.
         RepositoryName="${GITHUB_REPO}" \
         MainBranchName="${MAIN_BRANCH}" \
         GitHubOidcProviderArn="${GITHUB_OIDC_PROVIDER_ARN}" \
-        ReleaseSigningSecretArn="${SIGNING_SECRET_ARN}"
+        ReleaseSigningSecretArn="${SIGNING_SECRET_ARN}" \
+        CodeArtifactPromotionSourceRepositoryName="${CODEARTIFACT_STAGING_REPOSITORY}" \
+        CodeArtifactPromotionDestinationRepositoryName="${CODEARTIFACT_PROD_REPOSITORY}"
     ```
 
 5. Validate OIDC trust on deployed release role (post stack deploy).
@@ -97,6 +107,8 @@ Provide these values when deploying `infra/nova/nova-iam-roles.yml`:
 - `RepositoryOwner`
 - `RepositoryName`
 - `MainBranchName`
+- `CodeArtifactPromotionSourceRepositoryName`
+- `CodeArtifactPromotionDestinationRepositoryName`
 
 ## Acceptance checks
 
@@ -111,6 +123,10 @@ Provide these values when deploying `infra/nova/nova-iam-roles.yml`:
    ```
 2. Assume-role policy includes scoped `aud` and `sub` constraints.
 3. Role has only required access to signing secret and no static keys.
+4. Promotion permissions are directional:
+   - `codeartifact:ReadFromRepository` scoped to staging source repository.
+   - `codeartifact:CopyPackageVersions` scoped to prod destination repository
+     plus required package ARNs.
 
 ## References
 

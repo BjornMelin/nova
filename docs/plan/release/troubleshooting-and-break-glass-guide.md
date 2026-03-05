@@ -39,7 +39,7 @@ Primary variable sources:
 
 ## Quick failure matrix
 
-### `Apply Release Plan` cannot assume AWS role
+### `Nova Release Apply` cannot assume AWS role
 
 Likely causes:
 
@@ -128,7 +128,7 @@ aws cloudformation deploy \
     Application="${APPLICATION}" \
     ExistingArtifactBucketName="${NOVA_ARTIFACT_BUCKET_NAME}" \
     CodeArtifactDomainName="${NOVA_CODEARTIFACT_DOMAIN_NAME}" \
-    CodeArtifactRepositoryName="${NOVA_CODEARTIFACT_REPOSITORY_NAME}" \
+    CodeArtifactRepositoryName="${NOVA_CODEARTIFACT_STAGING_REPOSITORY_NAME}" \
     EcrRepositoryArn="${NOVA_ECR_REPOSITORY_ARN}" \
     EcrRepositoryName="${NOVA_ECR_REPOSITORY_NAME}" \
     EcrRepositoryUri="${NOVA_ECR_REPOSITORY_URI}" \
@@ -147,7 +147,9 @@ aws cloudformation deploy \
     RepositoryName="${GITHUB_REPO}" \
     MainBranchName="main" \
     GitHubOidcProviderArn="${GITHUB_OIDC_PROVIDER_ARN}" \
-    ReleaseSigningSecretArn="${RELEASE_SIGNING_SECRET_ARN}"
+    ReleaseSigningSecretArn="${RELEASE_SIGNING_SECRET_ARN}" \
+    CodeArtifactPromotionSourceRepositoryName="${NOVA_CODEARTIFACT_STAGING_REPOSITORY_NAME}" \
+    CodeArtifactPromotionDestinationRepositoryName="${NOVA_CODEARTIFACT_PROD_REPOSITORY_NAME}"
 ```
 
 Use equivalent `aws cloudformation deploy` commands for:

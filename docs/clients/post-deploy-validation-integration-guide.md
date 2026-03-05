@@ -43,6 +43,8 @@ This guide is designed as a 5-minute setup flow for downstream repos.
 - Shared reusable deployment API contracts remain aligned with
   `docs/contracts/reusable-workflow-inputs-v1.schema.json` and
   `docs/contracts/reusable-workflow-outputs-v1.schema.json`.
+- Browser live-gate artifacts (WS5) follow
+  `docs/contracts/browser-live-validation-report.schema.json`.
 
 ## Versioning policy references
 
@@ -56,5 +58,7 @@ This guide is designed as a 5-minute setup flow for downstream repos.
 
 - `docs/contracts/README.md`
 - `docs/contracts/deploy-size-profiles-v1.json`
+- `docs/contracts/workflow-auth0-tenant-deploy.schema.json`
+- `docs/contracts/browser-live-validation-report.schema.json`
 - GitHub reusable workflow docs:
   <https://docs.github.com/en/actions/using-workflows/reusing-workflows>
