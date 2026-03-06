@@ -170,7 +170,13 @@ Queue publication failures for async enqueue use:
 
 - OpenAPI 3.1 output from runtime code is the canonical machine contract.
 - Paths MUST match section 3.
-- `operationId` values MUST be unique across operations.
+- `operationId` values MUST be unique across operations, stable across
+  regeneration, lowercase snake_case, and not derived from path/method/version
+  literals.
+- SDK-facing tags MUST be semantic route-group tags only:
+  `transfers`, `jobs`, `platform`, `ops`, `token`, and `health`.
+- Custom request-body `$ref` values introduced via OpenAPI overrides MUST
+  resolve to named schemas under `components.schemas`.
 
 ## 11. Traceability
 

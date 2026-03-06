@@ -1,0 +1,1775 @@
+{
+  "components": {
+    "schemas": {
+      "AbortUploadRequest": {
+        "additionalProperties": false,
+        "description": "Multipart abort request.",
+        "properties": {
+          "key": {
+            "maxLength": 2048,
+            "minLength": 1,
+            "title": "Key",
+            "type": "string"
+          },
+          "session_id": {
+            "anyOf": [
+              {
+                "maxLength": 256,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Id"
+          },
+          "upload_id": {
+            "maxLength": 1024,
+            "minLength": 1,
+            "title": "Upload Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "upload_id"
+        ],
+        "title": "AbortUploadRequest",
+        "type": "object"
+      },
+      "AbortUploadResponse": {
+        "additionalProperties": false,
+        "description": "Multipart abort response.",
+        "properties": {
+          "ok": {
+            "default": true,
+            "title": "Ok",
+            "type": "boolean"
+          }
+        },
+        "title": "AbortUploadResponse",
+        "type": "object"
+      },
+      "CapabilitiesResponse": {
+        "additionalProperties": false,
+        "description": "Capabilities endpoint response.",
+        "properties": {
+          "capabilities": {
+            "items": {
+              "$ref": "#/components/schemas/CapabilityDescriptor"
+            },
+            "title": "Capabilities",
+            "type": "array"
+          }
+        },
+        "required": [
+          "capabilities"
+        ],
+        "title": "CapabilitiesResponse",
+        "type": "object"
+      },
+      "CapabilityDescriptor": {
+        "additionalProperties": false,
+        "description": "Machine-readable capability declaration.",
+        "properties": {
+          "details": {
+            "additionalProperties": true,
+            "title": "Details",
+            "type": "object"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "enabled"
+        ],
+        "title": "CapabilityDescriptor",
+        "type": "object"
+      },
+      "CompleteUploadRequest": {
+        "additionalProperties": false,
+        "description": "Multipart completion request.",
+        "properties": {
+          "key": {
+            "maxLength": 2048,
+            "minLength": 1,
+            "title": "Key",
+            "type": "string"
+          },
+          "parts": {
+            "items": {
+              "$ref": "#/components/schemas/CompletedPart"
+            },
+            "maxItems": 10000,
+            "minItems": 1,
+            "title": "Parts",
+            "type": "array"
+          },
+          "session_id": {
+            "anyOf": [
+              {
+                "maxLength": 256,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Id"
+          },
+          "upload_id": {
+            "maxLength": 1024,
+            "minLength": 1,
+            "title": "Upload Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "upload_id",
+          "parts"
+        ],
+        "title": "CompleteUploadRequest",
+        "type": "object"
+      },
+      "CompleteUploadResponse": {
+        "additionalProperties": false,
+        "description": "Multipart completion response.",
+        "properties": {
+          "bucket": {
+            "title": "Bucket",
+            "type": "string"
+          },
+          "etag": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Etag"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "version_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version Id"
+          }
+        },
+        "required": [
+          "bucket",
+          "key"
+        ],
+        "title": "CompleteUploadResponse",
+        "type": "object"
+      },
+      "CompletedPart": {
+        "additionalProperties": false,
+        "description": "Part metadata needed for multipart completion.",
+        "properties": {
+          "etag": {
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Etag",
+            "type": "string"
+          },
+          "part_number": {
+            "maximum": 10000.0,
+            "minimum": 1.0,
+            "title": "Part Number",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "part_number",
+          "etag"
+        ],
+        "title": "CompletedPart",
+        "type": "object"
+      },
+      "EnqueueJobRequest": {
+        "additionalProperties": false,
+        "description": "Request payload for job enqueue endpoint.",
+        "properties": {
+          "job_type": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Job Type",
+            "type": "string"
+          },
+          "payload": {
+            "additionalProperties": true,
+            "title": "Payload",
+            "type": "object"
+          },
+          "session_id": {
+            "anyOf": [
+              {
+                "maxLength": 256,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Id"
+          }
+        },
+        "required": [
+          "job_type"
+        ],
+        "title": "EnqueueJobRequest",
+        "type": "object"
+      },
+      "EnqueueJobResponse": {
+        "additionalProperties": false,
+        "description": "Response payload for enqueue endpoint.",
+        "properties": {
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/JobStatus"
+          }
+        },
+        "required": [
+          "job_id",
+          "status"
+        ],
+        "title": "EnqueueJobResponse",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "HealthResponse": {
+        "additionalProperties": false,
+        "description": "Health endpoint response body.",
+        "properties": {
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ok"
+        ],
+        "title": "HealthResponse",
+        "type": "object"
+      },
+      "InitiateUploadRequest": {
+        "additionalProperties": false,
+        "description": "Initiate-upload request model.",
+        "properties": {
+          "content_type": {
+            "anyOf": [
+              {
+                "maxLength": 256,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content Type"
+          },
+          "filename": {
+            "maxLength": 512,
+            "minLength": 1,
+            "title": "Filename",
+            "type": "string"
+          },
+          "session_id": {
+            "anyOf": [
+              {
+                "maxLength": 256,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Id"
+          },
+          "size_bytes": {
+            "exclusiveMinimum": 0.0,
+            "title": "Size Bytes",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "filename",
+          "size_bytes"
+        ],
+        "title": "InitiateUploadRequest",
+        "type": "object"
+      },
+      "InitiateUploadResponse": {
+        "additionalProperties": false,
+        "description": "Initiate-upload response model.",
+        "properties": {
+          "bucket": {
+            "title": "Bucket",
+            "type": "string"
+          },
+          "expires_in_seconds": {
+            "title": "Expires In Seconds",
+            "type": "integer"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "part_size_bytes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Part Size Bytes"
+          },
+          "strategy": {
+            "$ref": "#/components/schemas/UploadStrategy"
+          },
+          "upload_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Upload Id"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          }
+        },
+        "required": [
+          "strategy",
+          "bucket",
+          "key",
+          "expires_in_seconds"
+        ],
+        "title": "InitiateUploadResponse",
+        "type": "object"
+      },
+      "JobCancelResponse": {
+        "additionalProperties": false,
+        "description": "Response payload for cancel endpoint.",
+        "properties": {
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/JobStatus"
+          }
+        },
+        "required": [
+          "job_id",
+          "status"
+        ],
+        "title": "JobCancelResponse",
+        "type": "object"
+      },
+      "JobEvent": {
+        "additionalProperties": false,
+        "description": "Single event entry for a job event stream/poll response.",
+        "properties": {
+          "data": {
+            "additionalProperties": true,
+            "title": "Data",
+            "type": "object"
+          },
+          "event_id": {
+            "title": "Event Id",
+            "type": "string"
+          },
+          "event_type": {
+            "$ref": "#/components/schemas/JobEventType",
+            "default": "snapshot"
+          },
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/JobStatus"
+          },
+          "timestamp": {
+            "format": "date-time",
+            "title": "Timestamp",
+            "type": "string"
+          }
+        },
+        "required": [
+          "event_id",
+          "job_id",
+          "status",
+          "timestamp"
+        ],
+        "title": "JobEvent",
+        "type": "object"
+      },
+      "JobEventType": {
+        "description": "Event kinds emitted by the v1 job events contract.",
+        "enum": [
+          "snapshot"
+        ],
+        "title": "JobEventType",
+        "type": "string"
+      },
+      "JobEventsResponse": {
+        "additionalProperties": false,
+        "description": "Polling/SSE-compatible events response envelope.",
+        "properties": {
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/JobEvent"
+            },
+            "title": "Events",
+            "type": "array"
+          },
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          },
+          "next_cursor": {
+            "title": "Next Cursor",
+            "type": "string"
+          }
+        },
+        "required": [
+          "job_id",
+          "events",
+          "next_cursor"
+        ],
+        "title": "JobEventsResponse",
+        "type": "object"
+      },
+      "JobListResponse": {
+        "additionalProperties": false,
+        "description": "Response payload for job listing endpoint.",
+        "properties": {
+          "jobs": {
+            "items": {
+              "$ref": "#/components/schemas/JobRecord"
+            },
+            "title": "Jobs",
+            "type": "array"
+          }
+        },
+        "required": [
+          "jobs"
+        ],
+        "title": "JobListResponse",
+        "type": "object"
+      },
+      "JobRecord": {
+        "additionalProperties": false,
+        "description": "Persistent job representation.",
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          },
+          "job_type": {
+            "title": "Job Type",
+            "type": "string"
+          },
+          "payload": {
+            "additionalProperties": true,
+            "title": "Payload",
+            "type": "object"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Result"
+          },
+          "scope_id": {
+            "title": "Scope Id",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/JobStatus"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "job_id",
+          "job_type",
+          "scope_id",
+          "status",
+          "payload",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "JobRecord",
+        "type": "object"
+      },
+      "JobResultUpdateRequest": {
+        "additionalProperties": false,
+        "description": "Worker/internal request payload for job result updates.",
+        "properties": {
+          "error": {
+            "anyOf": [
+              {
+                "maxLength": 4096,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Result"
+          },
+          "status": {
+            "$ref": "#/components/schemas/JobStatus"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "JobResultUpdateRequest",
+        "type": "object"
+      },
+      "JobResultUpdateResponse": {
+        "additionalProperties": false,
+        "description": "Response payload for internal job result updates.",
+        "properties": {
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/JobStatus"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "job_id",
+          "status",
+          "updated_at"
+        ],
+        "title": "JobResultUpdateResponse",
+        "type": "object"
+      },
+      "JobStatus": {
+        "description": "Lifecycle status of an async job.",
+        "enum": [
+          "pending",
+          "running",
+          "succeeded",
+          "failed",
+          "canceled"
+        ],
+        "title": "JobStatus",
+        "type": "string"
+      },
+      "JobStatusResponse": {
+        "additionalProperties": false,
+        "description": "Response payload for status endpoint.",
+        "properties": {
+          "job": {
+            "$ref": "#/components/schemas/JobRecord"
+          }
+        },
+        "required": [
+          "job"
+        ],
+        "title": "JobStatusResponse",
+        "type": "object"
+      },
+      "MetricsSummaryResponse": {
+        "additionalProperties": false,
+        "description": "Metrics summary endpoint response body.",
+        "properties": {
+          "activity": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Activity",
+            "type": "object"
+          },
+          "counters": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Counters",
+            "type": "object"
+          },
+          "latencies_ms": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "Latencies Ms",
+            "type": "object"
+          }
+        },
+        "required": [
+          "counters",
+          "latencies_ms",
+          "activity"
+        ],
+        "title": "MetricsSummaryResponse",
+        "type": "object"
+      },
+      "PresignDownloadRequest": {
+        "additionalProperties": false,
+        "description": "Presign download request.",
+        "properties": {
+          "content_disposition": {
+            "anyOf": [
+              {
+                "maxLength": 512,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content Disposition"
+          },
+          "content_type": {
+            "anyOf": [
+              {
+                "maxLength": 256,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content Type"
+          },
+          "filename": {
+            "anyOf": [
+              {
+                "maxLength": 512,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Filename"
+          },
+          "key": {
+            "maxLength": 2048,
+            "minLength": 1,
+            "title": "Key",
+            "type": "string"
+          },
+          "session_id": {
+            "anyOf": [
+              {
+                "maxLength": 256,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Id"
+          }
+        },
+        "required": [
+          "key"
+        ],
+        "title": "PresignDownloadRequest",
+        "type": "object"
+      },
+      "PresignDownloadResponse": {
+        "additionalProperties": false,
+        "description": "Presign download response.",
+        "properties": {
+          "bucket": {
+            "title": "Bucket",
+            "type": "string"
+          },
+          "expires_in_seconds": {
+            "title": "Expires In Seconds",
+            "type": "integer"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "bucket",
+          "key",
+          "url",
+          "expires_in_seconds"
+        ],
+        "title": "PresignDownloadResponse",
+        "type": "object"
+      },
+      "ReadinessResponse": {
+        "additionalProperties": false,
+        "description": "Readiness endpoint response body.",
+        "properties": {
+          "checks": {
+            "additionalProperties": {
+              "type": "boolean"
+            },
+            "title": "Checks",
+            "type": "object"
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ok",
+          "checks"
+        ],
+        "title": "ReadinessResponse",
+        "type": "object"
+      },
+      "ReleaseInfoResponse": {
+        "additionalProperties": false,
+        "description": "Release metadata for conformance/debug clients.",
+        "properties": {
+          "environment": {
+            "title": "Environment",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "version",
+          "environment"
+        ],
+        "title": "ReleaseInfoResponse",
+        "type": "object"
+      },
+      "ResourcePlanItem": {
+        "additionalProperties": false,
+        "description": "Resource planning decision per requested resource.",
+        "properties": {
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "resource": {
+            "title": "Resource",
+            "type": "string"
+          },
+          "supported": {
+            "title": "Supported",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "resource",
+          "supported"
+        ],
+        "title": "ResourcePlanItem",
+        "type": "object"
+      },
+      "ResourcePlanRequest": {
+        "additionalProperties": false,
+        "description": "Resource planning request body.",
+        "properties": {
+          "resources": {
+            "items": {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 256,
+            "minItems": 1,
+            "title": "Resources",
+            "type": "array"
+          }
+        },
+        "required": [
+          "resources"
+        ],
+        "title": "ResourcePlanRequest",
+        "type": "object"
+      },
+      "ResourcePlanResponse": {
+        "additionalProperties": false,
+        "description": "Resource planning response body.",
+        "properties": {
+          "plan": {
+            "items": {
+              "$ref": "#/components/schemas/ResourcePlanItem"
+            },
+            "title": "Plan",
+            "type": "array"
+          }
+        },
+        "required": [
+          "plan"
+        ],
+        "title": "ResourcePlanResponse",
+        "type": "object"
+      },
+      "SignPartsRequest": {
+        "additionalProperties": false,
+        "description": "Multipart sign-parts request.",
+        "properties": {
+          "key": {
+            "maxLength": 2048,
+            "minLength": 1,
+            "title": "Key",
+            "type": "string"
+          },
+          "part_numbers": {
+            "items": {
+              "type": "integer"
+            },
+            "maxItems": 1000,
+            "minItems": 1,
+            "title": "Part Numbers",
+            "type": "array"
+          },
+          "session_id": {
+            "anyOf": [
+              {
+                "maxLength": 256,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Id"
+          },
+          "upload_id": {
+            "maxLength": 1024,
+            "minLength": 1,
+            "title": "Upload Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "upload_id",
+          "part_numbers"
+        ],
+        "title": "SignPartsRequest",
+        "type": "object"
+      },
+      "SignPartsResponse": {
+        "additionalProperties": false,
+        "description": "Multipart sign-parts response.",
+        "properties": {
+          "expires_in_seconds": {
+            "title": "Expires In Seconds",
+            "type": "integer"
+          },
+          "urls": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Urls",
+            "type": "object"
+          }
+        },
+        "required": [
+          "expires_in_seconds",
+          "urls"
+        ],
+        "title": "SignPartsResponse",
+        "type": "object"
+      },
+      "UploadStrategy": {
+        "description": "Upload strategy options returned by initiate endpoint.",
+        "enum": [
+          "single",
+          "multipart"
+        ],
+        "title": "UploadStrategy",
+        "type": "string"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "title": "nova-file-api",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/metrics/summary": {
+      "get": {
+        "description": "Return low-cardinality metrics summary for dashboards.",
+        "operationId": "metrics_summary",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MetricsSummaryResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Metrics Summary",
+        "tags": [
+          "ops"
+        ]
+      }
+    },
+    "/v1/capabilities": {
+      "get": {
+        "description": "Expose runtime capability declarations.",
+        "operationId": "get_capabilities",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CapabilitiesResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Capabilities",
+        "tags": [
+          "platform"
+        ]
+      }
+    },
+    "/v1/health/live": {
+      "get": {
+        "description": "Return liveness status.",
+        "operationId": "health_live",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Health Live",
+        "tags": [
+          "ops"
+        ]
+      }
+    },
+    "/v1/health/ready": {
+      "get": {
+        "description": "Return readiness checks for traffic-critical dependencies.",
+        "operationId": "health_ready",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadinessResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Health Ready",
+        "tags": [
+          "ops"
+        ]
+      }
+    },
+    "/v1/internal/jobs/{job_id}/result": {
+      "post": {
+        "description": "Update job status/result from trusted worker-side processing.",
+        "operationId": "update_job_result",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Worker-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Worker-Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JobResultUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobResultUpdateResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Job Result",
+        "tags": [
+          "jobs"
+        ]
+      }
+    },
+    "/v1/jobs": {
+      "get": {
+        "description": "List caller-owned jobs with most recent first.",
+        "operationId": "list_jobs",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Jobs",
+        "tags": [
+          "jobs"
+        ]
+      },
+      "post": {
+        "description": "Enqueue async processing job and return job id.",
+        "operationId": "create_job",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EnqueueJobRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnqueueJobResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Job",
+        "tags": [
+          "jobs"
+        ]
+      }
+    },
+    "/v1/jobs/{job_id}": {
+      "get": {
+        "description": "Return status for the caller-owned job.",
+        "operationId": "get_job_status",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobStatusResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Job Status",
+        "tags": [
+          "jobs"
+        ]
+      }
+    },
+    "/v1/jobs/{job_id}/cancel": {
+      "post": {
+        "description": "Cancel a caller-owned non-terminal job.",
+        "operationId": "cancel_job",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobCancelResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Cancel Job",
+        "tags": [
+          "jobs"
+        ]
+      }
+    },
+    "/v1/jobs/{job_id}/events": {
+      "get": {
+        "description": "Return poll events with an SSE-compatible envelope.",
+        "operationId": "list_job_events",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobEventsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Job Events",
+        "tags": [
+          "jobs"
+        ]
+      }
+    },
+    "/v1/jobs/{job_id}/retry": {
+      "post": {
+        "description": "Retry a terminal failed or canceled job.",
+        "operationId": "retry_job",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnqueueJobResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Retry Job",
+        "tags": [
+          "jobs"
+        ]
+      }
+    },
+    "/v1/releases/info": {
+      "get": {
+        "description": "Return service release metadata.",
+        "operationId": "get_release_info",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReleaseInfoResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Release Info",
+        "tags": [
+          "platform"
+        ]
+      }
+    },
+    "/v1/resources/plan": {
+      "post": {
+        "description": "Plan supportability for requested resource keys.",
+        "operationId": "plan_resources",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResourcePlanRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResourcePlanResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Plan Resources",
+        "tags": [
+          "platform"
+        ]
+      }
+    },
+    "/v1/transfers/downloads/presign": {
+      "post": {
+        "description": "Issue presigned GET URL for caller-scoped key.",
+        "operationId": "presign_download",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PresignDownloadRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PresignDownloadResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Presign Download",
+        "tags": [
+          "transfers"
+        ]
+      }
+    },
+    "/v1/transfers/uploads/abort": {
+      "post": {
+        "description": "Abort multipart upload.",
+        "operationId": "abort_upload",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AbortUploadRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AbortUploadResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Abort Upload",
+        "tags": [
+          "transfers"
+        ]
+      }
+    },
+    "/v1/transfers/uploads/complete": {
+      "post": {
+        "description": "Complete multipart upload.",
+        "operationId": "complete_upload",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompleteUploadRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompleteUploadResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Complete Upload",
+        "tags": [
+          "transfers"
+        ]
+      }
+    },
+    "/v1/transfers/uploads/initiate": {
+      "post": {
+        "description": "Choose upload strategy and return presigned metadata.",
+        "operationId": "initiate_upload",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InitiateUploadRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InitiateUploadResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Initiate Upload",
+        "tags": [
+          "transfers"
+        ]
+      }
+    },
+    "/v1/transfers/uploads/sign-parts": {
+      "post": {
+        "description": "Return presigned multipart part URLs.",
+        "operationId": "sign_upload_parts",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignPartsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignPartsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Sign Upload Parts",
+        "tags": [
+          "transfers"
+        ]
+      }
+    }
+  }
+}

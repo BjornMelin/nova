@@ -1,0 +1,3 @@
+export(new_nova_file_client)
+export(nova_file_operation_catalog)
+export(nova_file_request_descriptor)

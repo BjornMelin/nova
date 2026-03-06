@@ -56,10 +56,14 @@ Choose option A.
 Implementation commitments:
 
 - Generate and publish OpenAPI from service code.
+- Keep SDK-facing `operationId` values stable, unique snake_case names and use
+  semantic tags so generated client groupings remain ergonomic.
 - Use `openapi-typescript` and `openapi-fetch` for TypeScript consumption.
 - Use OpenAPI Generator for R client generation when R SDK artifacts are required.
 - Keep Python generated-client smoke verification via
   `openapi-python-client`.
+- Keep custom request-body `$ref` entries resolvable within emitted component
+  schemas so all generators receive a self-consistent contract.
 - Treat schema changes as contract changes requiring review.
 
 ## Related Requirements
@@ -77,6 +81,8 @@ Implementation commitments:
 
 ## Changelog
 
+- 2026-03-05: Added stable SDK-facing `operationId`/tag rules and explicit
+  component-schema requirements for custom request bodies.
 - 2026-02-12: Added Python generated-client smoke verification commitment
   (`openapi-python-client`) and updated metadata.
 - 2026-02-11: Expanded ADR with explicit generation commitments and stronger

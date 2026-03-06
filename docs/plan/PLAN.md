@@ -25,6 +25,15 @@ Last updated: 2026-03-05
 - `docs/architecture/spec/SPEC-0022-auth0-tenant-ops-reusable-workflow-contract.md`
 - `docs/architecture/spec/SPEC-0023-ssm-runtime-base-url-contract-for-deploy-validation.md`
 
+## Adjacent deploy-governance authority
+
+- `docs/architecture/adr/ADR-0030-native-cfn-modular-stack-architecture-for-nova-infrastructure-productization.md`
+- `docs/architecture/adr/ADR-0031-reusable-github-workflow-api-and-versioning-policy-for-deployment-automation.md`
+- `docs/architecture/adr/ADR-0032-oidc-and-iam-role-partitioning-for-deploy-automation.md`
+- `docs/architecture/spec/SPEC-0024-cloudformation-module-contract.md`
+- `docs/architecture/spec/SPEC-0025-reusable-workflow-integration-contract.md`
+- `docs/architecture/spec/SPEC-0026-ci-cd-iam-least-privilege-matrix.md`
+
 ## Active release execution artifacts
 
 - `docs/plan/release/HARD-CUTOVER-CHECKLIST.md`
@@ -36,13 +45,22 @@ Last updated: 2026-03-05
 
 ## Recent contract updates
 
+- Active runtime authority IDs (`ADR-0024` through `ADR-0026`,
+  `SPEC-0017` through `SPEC-0019`) were restored to runtime subjects.
 - Auth0 reusable tenant workflow now requires successful contract validation
   before any import/export mutation step.
 - Release IAM promotion controls now require explicit staged source and prod
   destination repository parameters for `CopyPackageVersions`.
+- Public release-grade SDK posture is Python-only for this wave; TypeScript and
+  R remain internal/generated catalogs.
+- SDK-facing OpenAPI metadata now requires stable snake_case `operationId`
+  values, semantic tags, and deterministic regeneration of committed Python
+  SDK trees.
 
 ## Historical planning artifacts
 
 - `docs/plan/HISTORY-INDEX.md`
+- `docs/architecture/adr/superseded/`
+- `docs/architecture/spec/superseded/`
 - `docs/history/2026-03-v1-hard-cut/`
 - `docs/history/2026-02-cutover/`

@@ -12,15 +12,16 @@ import structlog
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from fastapi.routing import APIRoute
 
 from nova_file_api.api import (
     ops_router,
     transfer_router,
     v1_router,
 )
-from nova_file_api.auth import _set_verifier_thread_tokens
 from nova_file_api.config import Settings
 from nova_file_api.container import AppContainer, create_container
+from nova_file_api.dependencies import BLOCKING_IO_LIMITER_STATE_KEY
 from nova_file_api.errors import FileTransferError, internal_error
 from nova_file_api.middleware import request_context_middleware
 from nova_file_api.models import ErrorBody, ErrorEnvelope
@@ -35,17 +36,27 @@ _HIDDEN_FIELDS = {
 }
 
 
+def _operation_id_from_route(route: APIRoute) -> str:
+    """Use the canonical route name as the stable OpenAPI operationId."""
+    return route.name
+
+
 def create_app(*, container_override: AppContainer | None = None) -> FastAPI:
     """Create configured FastAPI application."""
     _configure_logging()
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-        settings = Settings()
-        _set_verifier_thread_tokens(settings.oidc_verifier_thread_tokens)
+        settings = (
+            container_override.settings
+            if container_override is not None
+            else Settings()
+        )
         app.state.settings = settings
-        app.state.api_thread_limiter = anyio.CapacityLimiter(
-            settings.oidc_verifier_thread_tokens
+        setattr(
+            app.state,
+            BLOCKING_IO_LIMITER_STATE_KEY,
+            anyio.CapacityLimiter(settings.blocking_io_thread_tokens),
         )
         app.state.container = (
             container_override
@@ -57,6 +68,7 @@ def create_app(*, container_override: AppContainer | None = None) -> FastAPI:
     app = FastAPI(
         title="nova-file-api",
         version="0.1.0",
+        generate_unique_id_function=_operation_id_from_route,
         lifespan=lifespan,
     )
 
