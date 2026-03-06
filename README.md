@@ -6,6 +6,10 @@ FastAPI control-plane runtime for direct-to-S3 uploads/downloads and async job
 orchestration. The service returns presigned metadata and job state; it does not
 proxy file bytes.
 
+The canonical async worker lane executes `transfer.process` jobs by
+server-side copying a scoped upload object into the export prefix and returning
+`export_key` plus `download_filename`.
+
 ## Canonical Contract
 
 Active route authority is hard-cut canonical `/v1/*` plus `/metrics/summary`:
@@ -84,6 +88,10 @@ For exact endpoint and payload contract details, use:
   `OIDC_JWKS_URL` configuration fails the `auth_dependency` readiness check.
 - `POST /v1/internal/jobs/{job_id}/result` with `status=succeeded` normalizes
   `error` to `null`.
+- SQS-backed worker messages are work requests only:
+  `job_id`, `job_type`, `scope_id`, `payload`, and `created_at`.
+- `transfer.process` is the canonical async job type; successful worker
+  completion returns `export_key` and `download_filename`.
 - Malformed worker queue messages are retried and drain to DLQ through SQS
   redrive policy; they are not acknowledged immediately.
 
@@ -130,8 +138,11 @@ Release sequencing contract:
   blue/green deployment strategy, CloudWatch deployment alarms, and WAF on the
   public ALB path.
 - Worker deployment contract uses the packaged `nova-file-worker` command plus
-  `JobsApiBaseUrl` and `JobsWorkerUpdateTokenSecretArn` inputs for the
-  canonical `JOBS_*` runtime.
+  `JobsApiBaseUrl` and mandatory `JobsWorkerUpdateTokenSecretArn` inputs for
+  the canonical `JOBS_*` runtime, including scale-from-zero worker services.
+- Worker autoscaling uses explicit queue-depth step scaling
+  (bootstrap/backlog/surge plus empty-queue scale-in) and keeps
+  `ApproximateAgeOfOldestMessage` as an operator alarm.
 - Base URL authority: deploy validation URLs are sourced from
   `/nova/{env}/{service}/base-url` via
   `infra/nova/deploy/service-base-url-ssm.yml`.

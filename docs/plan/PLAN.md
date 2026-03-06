@@ -54,6 +54,9 @@ Last updated: 2026-03-05
 - Worker poison-message handling now leaves malformed SQS messages on the queue
   for retry/DLQ processing, while transient callback failures no longer delete
   the source message prematurely.
+- Worker lane now executes canonical `transfer.process` jobs end-to-end, and
+  the worker stack requires `JobsWorkerUpdateTokenSecretArn` plus queue-depth
+  step scaling even when deployed for scale-from-zero.
 - Remote auth execution now reuses a lifespan-managed async HTTP client and the
   published Python packages ship `py.typed` markers as part of the supported
   type-safety contract.

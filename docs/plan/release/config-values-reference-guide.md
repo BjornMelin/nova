@@ -2,7 +2,7 @@
 
 Status: Active
 Owner: nova release architecture
-Last reviewed: 2026-03-05
+Last reviewed: 2026-03-06
 
 ## Purpose
 
@@ -206,7 +206,8 @@ Worker contract notes:
 - `JOBS_API_BASE_URL` must target the canonical `/v1/*` runtime and is passed
   to the task as `JOBS_API_BASE_URL`.
 - `JOBS_WORKER_UPDATE_TOKEN_SECRET_ARN` must resolve to the secret used for
-  `JOBS_WORKER_UPDATE_TOKEN`; worker capacity cannot be enabled without it.
+  `JOBS_WORKER_UPDATE_TOKEN`; the worker stack always requires it, including
+  scale-from-zero deployments.
 - `JOBS_SQS_VISIBILITY_TIMEOUT_SECONDS` must be sized to cover worker
   processing plus the internal result callback path.
 - Worker tasks intentionally run with `IDEMPOTENCY_ENABLED=false` and
@@ -214,6 +215,12 @@ Worker contract notes:
   into `infra/runtime/file_transfer/worker.yml`.
 - The packaged worker command is `nova-file-worker`; there is no active
   `src/worker.py` operator contract.
+- `WORKER_SCALE_OUT_QUEUE_DEPTH_TARGET` is the sustained-backlog scale-out
+  threshold for queue-depth alarms; the canonical default is `100`.
+- Queue-depth bootstrap scale-out uses a fixed `>= 1` visible-message
+  threshold, and surge scale-out uses a fixed `>= 500` threshold.
+- `WORKER_SCALE_OUT_QUEUE_AGE_SECONDS_TARGET` is the queue-age operator alarm
+  threshold; it is not a direct autoscaling target.
 
 ## CloudFormation stack names and outputs
 

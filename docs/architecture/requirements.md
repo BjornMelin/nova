@@ -1,7 +1,7 @@
 # Requirements (nova runtime)
 
 Status: Canonical requirements source
-Last updated: 2026-03-05
+Last updated: 2026-03-06
 
 This document is the source of truth for functional and non-functional
 requirements for the first production release.
@@ -62,6 +62,11 @@ The service MUST provide:
 The default async orchestration path MUST be SQS + ECS worker. Step
 Functions/Lambda are out of scope for the initial release.
 
+The canonical worker job type is `transfer.process`. For that job type, the
+worker MUST validate caller scope against the upload prefix, perform a
+server-side S3 copy from the scoped upload object into the export prefix, and
+report `export_key` plus `download_filename` on success.
+
 In same-origin mode, all scope binding follows header precedence:
 
 - `X-Session-Id` has precedence over `X-Scope-Id`.
@@ -95,6 +100,10 @@ Enqueue failure semantics for `POST /v1/jobs`:
   - Transition any created job records to `failed`.
 - In-memory queue mode MUST honor `process_immediately`; when disabled, enqueue
   returns a `pending` job and MUST NOT auto-transition to `succeeded`.
+- SQS work messages are request envelopes only and MUST carry
+  `job_id`, `job_type`, `scope_id`, `payload`, and `created_at`. Terminal job
+  status updates MUST be sent only through
+  `POST /v1/internal/jobs/{job_id}/result`.
 
 Worker result-update semantics:
 
@@ -284,6 +293,10 @@ ECS/Fargate.
 
 Selected backend misconfiguration MUST fail fast at startup instead of silently
 degrading behavior.
+
+Worker autoscaling MUST support scale-from-zero with explicit queue-depth step
+scaling and empty-queue scale-in. Queue-age metrics remain operator alarms, not
+direct autoscaling targets.
 
 ### NFR-0003: Operability
 

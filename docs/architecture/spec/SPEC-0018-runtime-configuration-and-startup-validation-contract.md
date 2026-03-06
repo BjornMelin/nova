@@ -2,7 +2,7 @@
 Spec: 0018
 Title: Runtime configuration and startup validation contract
 Status: Active
-Version: 2.1
+Version: 2.2
 Date: 2026-03-06
 Related:
   - "[ADR-0026: Fail-fast runtime configuration and safe auth execution](../adr/ADR-0026-fail-fast-runtime-configuration-and-safe-auth-execution.md)"
@@ -45,6 +45,11 @@ Required startup validation:
    - `JOBS_SQS_QUEUE_URL`
    - `JOBS_API_BASE_URL`
    - `JOBS_WORKER_UPDATE_TOKEN`
+   - deployment wiring that always injects `JOBS_WORKER_UPDATE_TOKEN`,
+     including scale-from-zero ECS worker services
+   - worker deployments MUST inject `JOBS_WORKER_UPDATE_TOKEN` from a
+     secret-backed deployment input even when the ECS service is configured to
+     start at zero tasks
 5. `ACTIVITY_STORE_BACKEND=dynamodb` requires `ACTIVITY_ROLLUPS_TABLE`.
 6. `IDEMPOTENCY_ENABLED=true` with `IDEMPOTENCY_MODE=shared_required` requires
    `CACHE_REDIS_URL`.

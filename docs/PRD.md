@@ -1,7 +1,7 @@
 # Product Requirements Document (PRD): Nova Runtime
 
 Status: Active canonical PRD
-Last updated: 2026-03-05
+Last updated: 2026-03-06
 Audience: Product, Engineering, Platform Operations
 
 ## 1. Product Goal
@@ -16,6 +16,8 @@ async jobs with zero route-surface ambiguity.
   operator docs.
 - One truthful active runtime authority pack for topology, startup validation,
   and auth execution.
+- One truthful async worker lane that executes canonical `transfer.process`
+  work instead of synthetic completion.
 - Superseded ADR/SPEC material is quarantined outside the active authority set.
 - Stable generated-client and conformance behavior against current OpenAPI.
 - Ergonomic SDK-facing OpenAPI identifiers and semantic generator groupings
@@ -29,7 +31,9 @@ async jobs with zero route-surface ambiguity.
    control plane, capability/release discovery, health/readiness, and metrics.
 2. Runtime semantics preserve queue failure behavior (`503 queue_unavailable`),
    readiness dependency-scoping, strict distributed idempotency behavior for
-   AWS-backed prod, and worker update normalization.
+   AWS-backed prod, worker update normalization, real async execution for
+   canonical `transfer.process` jobs, and scale-from-zero-safe worker secret
+   plus autoscaling contracts.
 3. OpenAPI 3.1 output remains the contract source for SDK/client generation and
    policy checks, including stable snake_case `operationId` values, semantic
    SDK grouping tags, and resolvable named component schemas for custom request
@@ -42,7 +46,8 @@ async jobs with zero route-surface ambiguity.
    remain internal/generated catalogs until a dedicated promotion wave.
 7. Deployment target-state uses ECS/Fargate behind ALB with ECS-native
    blue/green rollout, CloudWatch alarms, WAF on public ingress, and manifest
-   hash evidence tied to the release manifest itself.
+   hash evidence tied to the release manifest itself. Worker scaling must be
+   scale-from-zero-safe and secret-backed.
 
 ## 4. Scope and Non-Goals
 

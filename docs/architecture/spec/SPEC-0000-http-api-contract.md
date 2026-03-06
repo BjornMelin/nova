@@ -2,8 +2,8 @@
 Spec: 0000
 Title: HTTP API Contract
 Status: Active
-Version: 2.0
-Date: 2026-03-03
+Version: 2.1
+Date: 2026-03-06
 Related:
   - "[ADR-0000: FastAPI service decision](../adr/ADR-0000-fastapi-microservice.md)"
   - "[ADR-0006: Async orchestration with SQS + ECS worker](../adr/ADR-0006-async-orchestration-sqs-ecs-worker.md)"
@@ -80,6 +80,11 @@ Any route outside section 3 is not part of the contract and MUST return `404`.
 - Failed enqueue attempts MUST NOT be replay-cached by idempotency storage.
 - In-memory queue mode MUST honor `process_immediately`; when disabled,
   enqueue returns `pending` and MUST NOT auto-transition to `succeeded`.
+- Canonical SQS work messages are request envelopes only and MUST carry
+  `job_id`, `job_type`, `scope_id`, `payload`, and `created_at`.
+- Canonical worker execution for `job_type = "transfer.process"` MUST copy the
+  caller-scoped upload object into the export prefix and report
+  `result.export_key` plus `result.download_filename` on success.
 
 `POST /v1/internal/jobs/{job_id}/result` transition semantics:
 

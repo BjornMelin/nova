@@ -2,7 +2,7 @@
 Spec: 0008
 Title: Async Jobs and Worker Orchestration
 Status: Active
-Version: 1.11
+Version: 1.12
 Date: 2026-03-06
 Related:
   - "[ADR-0006: SQS + ECS worker orchestration](../adr/ADR-0006-async-orchestration-sqs-ecs-worker.md)"
@@ -89,8 +89,18 @@ Invalid transitions MUST fail with `409` (`error.code = "conflict"`).
 - `MemoryJobPublisher(process_immediately=False)` MUST preserve `pending`
   state after enqueue (no auto-complete simulation).
 - AWS default: SQS queue publisher and ECS worker consumers.
+- SQS-backed worker messages are request envelopes only and MUST contain:
+  `job_id`, `job_type`, `scope_id`, `payload`, and `created_at`.
+- SQS worker messages MUST NOT embed terminal `status`, `result`, or `error`
+  fields; those belong only to the internal worker update route.
 - Worker process execution MUST use the packaged command `nova-file-worker`
   (direct `src/worker.py` invocation is non-canonical).
+- `transfer.process` is the canonical async worker job type.
+- `transfer.process` execution MUST:
+  - validate the configured transfer bucket
+  - validate the scoped upload key under the upload prefix
+  - perform a server-side copy into the export prefix
+  - report `export_key` and `download_filename` on success
 
 ## 4. Failure and retry model
 
@@ -116,9 +126,14 @@ Invalid transitions MUST fail with `409` (`error.code = "conflict"`).
   (`jobs_queue_lag_ms`).
 - Worker result-update calls MUST increment throughput counters
   (`jobs_worker_result_updates_total` and per-status counters).
-- Worker ECS desired-count autoscaling MUST be target-tracked from queue depth
-  and queue age metrics (`ApproximateNumberOfMessagesVisible`,
-  `ApproximateAgeOfOldestMessage`) to prevent backlog growth under burst load.
+- Worker ECS desired-count autoscaling MUST use explicit queue-depth step
+  scaling for bootstrap/backlog/surge conditions plus empty-queue scale-in:
+  - visible messages `>= 1` scale out `+1`
+  - visible messages `>= WorkerScaleOutQueueDepthTarget` scale out `+1`
+  - visible messages `>= 500` scale out `+5`
+  - visible messages `= 0` for a sustained window scale in `-1`
+- `ApproximateAgeOfOldestMessage` MUST remain an operator alarm for drain
+  health and rollback visibility, not a direct autoscaling target.
 
 ## 5. Idempotency
 
@@ -147,6 +162,8 @@ enqueue with `503` (`error.code = "idempotency_unavailable"`).
   - `JOBS_SQS_QUEUE_URL` configured
   - `JOBS_API_BASE_URL` configured
   - `JOBS_WORKER_UPDATE_TOKEN` configured and passed as `X-Worker-Token`
+- Worker deployment wiring MUST always supply the secret/parameter source for
+  `JOBS_WORKER_UPDATE_TOKEN`, including scale-from-zero ECS worker services.
 - SQS publisher retry behavior SHOULD be configurable using:
   - `JOBS_SQS_RETRY_MODE`
   - `JOBS_SQS_RETRY_TOTAL_MAX_ATTEMPTS`
@@ -159,6 +176,9 @@ enqueue with `503` (`error.code = "idempotency_unavailable"`).
 
 ## Changelog
 
+- 2026-03-06 (v1.12): Canonicalized SQS work-message shape, documented
+  `transfer.process` execution semantics, and replaced queue-age target
+  tracking with queue-depth step scaling plus queue-age alarm posture.
 - 2026-03-06 (v1.11): Documented DynamoDB jobs-table GSI requirement and
   retryable worker result-update retry semantics.
 - 2026-03-05 (v1.9): Added canonical worker runtime `JOBS_*` startup contract

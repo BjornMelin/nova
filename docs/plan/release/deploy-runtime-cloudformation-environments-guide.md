@@ -60,6 +60,12 @@ Additional hard guardrails:
   WebACL path from `infra/runtime/ecs/cluster.yml`.
 - Worker tasks intentionally remain `IDEMPOTENCY_MODE=local_only`; do not wire
   shared-cache idempotency into the worker definition.
+- Worker stack deployment always requires
+  `JOBS_WORKER_UPDATE_TOKEN_SECRET_ARN`, even when `WORKER_DESIRED_COUNT=0`
+  and `WORKER_MIN_TASK_COUNT=0`.
+- Worker autoscaling uses queue-depth step scaling to bootstrap from zero,
+  react to sustained backlog, handle surge load, and scale in on sustained
+  emptiness. Queue age is retained as an operator alarm.
 
 ## Prerequisites
 
@@ -116,6 +122,8 @@ Commonly overridden optional inputs:
 - `WORKER_DESIRED_COUNT`
 - `WORKER_MIN_TASK_COUNT`
 - `WORKER_MAX_TASK_COUNT`
+- `WORKER_SCALE_OUT_QUEUE_DEPTH_TARGET`
+- `WORKER_SCALE_OUT_QUEUE_AGE_SECONDS_TARGET`
 - `OBSERVABILITY_MIN_TASK_COUNT`
 - `OBSERVABILITY_MAX_TASK_COUNT`
 
