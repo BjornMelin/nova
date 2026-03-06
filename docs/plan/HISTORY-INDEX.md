@@ -1,7 +1,7 @@
 # Plan History Index
 
 Status: Active historical index
-Last updated: 2026-03-03
+Last updated: 2026-03-05
 
 This page is the only active pointer for archived planning artifacts.
 Use active authority docs for implementation and operations:
@@ -18,6 +18,7 @@ Use active authority docs for implementation and operations:
    - `PLAN.md`
    - `FINAL-PLAN.md`
    - `PRD.md`
+   - `release/evidence-log-2026-03-03-pre-ecs.md`
    - `planning/2026-03-01-adr0015-spec0015-implementation-blueprint.md`
    - `subplans/`
    - `triggers/`

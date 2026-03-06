@@ -59,12 +59,14 @@ Owner: Release Architecture
 - Note: runbook publication is complete; the live gates below remain blocked
   pending non-prod AWS access and must be completed during staged rollout.
 - [x] Gate preflight evidence recorded with current blockers:
-  `docs/plan/release/evidence-log.md` (entry `2026-03-03T08:29:33Z`).
+  `docs/history/2026-03-v1-hard-cut/release/evidence-log-2026-03-03-pre-ecs.md`
+  (entry `2026-03-03T08:29:33Z`).
 - [x] Gate rerun evidence recorded under `bjorn-dev`:
-  `docs/plan/release/evidence-log.md` (entry `2026-03-03T09:32:00Z`).
+  `docs/history/2026-03-v1-hard-cut/release/evidence-log-2026-03-03-pre-ecs.md`
+  (entry `2026-03-03T09:32:00Z`).
 - Note: remaining blocker is CI/CD stack update authority
   (`iam:PassRole` denied for `nova-ci-nova-codepipeline-role`) plus missing
-  deployed runtime inventory for ECS/CodeDeploy live gates.
+  deployed runtime inventory for ECS/WAF/deployment-alarm live gates.
 - [ ] Sidecar ALB route + health behavior validated in non-prod AWS.
 - [ ] Non-prod end-to-end smoke completed.
 - [ ] CloudWatch dashboards/alarms synthetic-failure validation completed.

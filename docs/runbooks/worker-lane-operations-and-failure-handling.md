@@ -1,8 +1,8 @@
 # Worker Lane Operations and Failure Handling
 
-Status: Active  
-Owner: nova release architecture  
-Last reviewed: 2026-03-02
+Status: Active
+Owner: nova release architecture
+Last reviewed: 2026-03-05
 
 ## Scope
 
@@ -13,6 +13,13 @@ ECS/Fargate workers.
 
 - Source queue (`JobsQueue`) MUST define `RedrivePolicy` to `JobsDeadLetterQueue`.
 - `JobsMaxReceiveCount` controls retry-to-DLQ cutoff for poison messages.
+- Worker task execution MUST use packaged `nova-file-worker`.
+- Worker result callbacks MUST use canonical `JOBS_API_BASE_URL` and present
+  secret-backed `JOBS_WORKER_UPDATE_TOKEN`.
+- Worker poison messages must remain on the source queue until SQS redrive moves
+  them to DLQ; the worker must not delete malformed messages immediately.
+- If `JOBS_REPOSITORY_BACKEND=dynamodb`, the jobs table MUST expose
+  `scope_id-created_at-index`; scoped list APIs do not use `Scan` fallback.
 - Worker ECS service MUST run with autoscaling target tracking on:
   - `AWS/SQS :: ApproximateNumberOfMessagesVisible`
   - `AWS/SQS :: ApproximateAgeOfOldestMessage`
@@ -39,6 +46,7 @@ ECS/Fargate workers.
   - `running -> running|succeeded|failed|canceled`
   - terminal states are idempotent same-state only.
 - `succeeded` always clears error payload.
+- SQS visibility timeout must cover worker processing plus result-callback time.
 
 ## Scaling guardrails
 
@@ -54,7 +62,13 @@ ECS/Fargate workers.
 ## Recovery checklist
 
 1. Confirm ECS service healthy and task definition current.
-2. Confirm queue URL/ARN/name wiring in worker task env and IAM policy.
-3. Confirm DLQ redrive policy still references active DLQ ARN.
-4. Confirm both queue-depth and queue-age scaling policies are present.
-5. Reprocess failed jobs only after upstream dependency stability is verified.
+2. Confirm the task definition still runs `nova-file-worker`.
+3. Confirm queue URL/ARN/name wiring in worker task env and IAM policy.
+4. Confirm `JOBS_API_BASE_URL` targets the active canonical runtime base URL.
+5. Confirm `JOBS_WORKER_UPDATE_TOKEN` resolves from the expected secret and the
+   internal callback path accepts the token.
+6. Confirm DLQ redrive policy still references active DLQ ARN.
+7. Confirm DynamoDB jobs-table deployments include
+   `scope_id-created_at-index` when scoped listing runs against DynamoDB.
+8. Confirm both queue-depth and queue-age scaling policies are present.
+9. Reprocess failed jobs only after upstream dependency stability is verified.

@@ -47,6 +47,16 @@ Last updated: 2026-03-05
 
 - Active runtime authority IDs (`ADR-0024` through `ADR-0026`,
   `SPEC-0017` through `SPEC-0019`) were restored to runtime subjects.
+- Distributed idempotency now has explicit runtime modes: local development may
+  use `local_only`, while AWS-backed production requires
+  `IDEMPOTENCY_MODE=shared_required` with `CACHE_REDIS_URL`; readiness treats
+  the shared cache as critical only in that strict mode.
+- Worker poison-message handling now leaves malformed SQS messages on the queue
+  for retry/DLQ processing, while transient callback failures no longer delete
+  the source message prematurely.
+- Remote auth execution now reuses a lifespan-managed async HTTP client and the
+  published Python packages ship `py.typed` markers as part of the supported
+  type-safety contract.
 - Auth0 reusable tenant workflow now requires successful contract validation
   before any import/export mutation step.
 - Release IAM promotion controls now require explicit staged source and prod

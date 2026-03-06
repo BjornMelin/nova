@@ -33,16 +33,23 @@ Use the modular operator guide set for provisioning and setup details:
 2. Release OIDC role and signing secret are provisioned.
 3. CodeConnections source connection is `AVAILABLE`.
 4. Runtime stacks are deployed for `dev` and `prod`, and validation base URLs
-   are captured from canonical base-url marker stacks:
-   `${PROJECT}-${APPLICATION}-dev-service-base-url` and
-   `${PROJECT}-${APPLICATION}-prod-service-base-url`.
-5. Dev and Prod digest-marker deployment stack parameters are configured.
-6. Release build project parameters provide CodeArtifact and ECR targets:
+   are captured from canonical SSM base-url markers for both services:
+   `/nova/dev/nova-file-api/base-url`, `/nova/prod/nova-file-api/base-url`,
+   `/nova/dev/nova-auth-api/base-url`, and `/nova/prod/nova-auth-api/base-url`.
+5. Runtime service stacks are configured for ECS-native blue/green with:
+   - `EcsInfrastructureRoleArn`
+   - `DeploymentRollbackAlarmNamePrimary`
+   - `DeploymentRollbackAlarmNameSecondary`
+6. Public ALB deployments expose `PublicAlbWebAclArn` from the runtime cluster
+   stack.
+7. Dev and Prod digest-marker deployment stack parameters are configured for
+   both file and auth services.
+8. Release build project parameters provide CodeArtifact and ECR targets:
    - `CODEARTIFACT_DOMAIN`
    - `CODEARTIFACT_STAGING_REPOSITORY`
    - `CODEARTIFACT_PROD_REPOSITORY`
    - `ECR_REPOSITORY_URI` (or `ECR_REPOSITORY_NAME`)
-7. IAM roles stack is deployed with promotion repository parameters:
+9. IAM roles stack is deployed with promotion repository parameters:
    - `CodeArtifactPromotionSourceRepositoryName`
    - `CodeArtifactPromotionDestinationRepositoryName`
 
@@ -86,7 +93,8 @@ Use the modular operator guide set for provisioning and setup details:
 ### E. Post-deploy route validation gate
 
 1. Trigger `Post Deploy Validate` (`post-deploy-validate.yml`) after deployment.
-2. Supply `validation_base_url` using deployed HTTPS endpoint.
+2. Supply `validation_base_url` and `auth_validation_base_url` using deployed
+   HTTPS endpoints.
 3. Confirm wrapper calls reusable API:
    - `.github/workflows/reusable-post-deploy-validate.yml`
 4. Confirm artifact upload:
@@ -94,6 +102,7 @@ Use the modular operator guide set for provisioning and setup details:
    - report file: `post-deploy-validation-report.json`
 5. Confirm reusable workflow output:
    - `validation_status=passed`
+6. Confirm report contains both `file_target` and `auth_target` route evidence.
 
 ## 4. AWS promotion execution
 
@@ -107,7 +116,9 @@ Use the modular operator guide set for provisioning and setup details:
    - DeployProd
    - ValidateProd
 3. Run `Promote Prod` workflow with:
-   - `manifest_sha256` from `codeartifact-gate-report.json`
+   - `manifest_sha256` equal to `RELEASE_MANIFEST_SHA256`
+     (`SHA256(docs/plan/release/RELEASE-VERSION-MANIFEST.md)`); a gate report
+     may carry the value, but the manifest is the authority
    - `changed_units_json` from staged gate artifact (`changed-units.json`)
    - `version_plan_json` from staged gate artifact (`version-plan.json`)
    - `promotion_candidates_json` from `codeartifact-promotion-candidates.json`
@@ -115,7 +126,8 @@ Use the modular operator guide set for provisioning and setup details:
    `CODEARTIFACT_STAGING_REPOSITORY` to `CODEARTIFACT_PROD_REPOSITORY`.
 5. Manual approval must include reviewer identity and timestamp.
 6. Confirm immutable artifact continuity:
-   - Prod promotion uses the same `IMAGE_DIGEST` exported from Build/Dev.
+   - Prod promotion uses the same `FILE_IMAGE_DIGEST` exported from Build/Dev.
+   - Prod promotion uses the same `AUTH_IMAGE_DIGEST` exported from Build/Dev.
    - No rebuild occurs between Dev and Prod stages.
 
 ## 5. Rollback guidance
@@ -136,9 +148,16 @@ For each run capture:
 5. Manual approval actor and timestamp.
 6. Dev and Prod validation evidence links.
 7. Build exported variables:
-   - `IMAGE_DIGEST`
+   - `FILE_IMAGE_DIGEST`
+   - `AUTH_IMAGE_DIGEST`
    - `PUBLISHED_PACKAGES`
    - `RELEASE_MANIFEST_SHA256`
-8. Explicit digest continuity evidence (Dev -> Prod `IMAGE_DIGEST` match).
-9. Post-deploy route validation artifact link and status output.
+8. Explicit digest continuity evidence (Dev -> Prod file/auth digest match).
+9. Post-deploy route validation artifact link and status output for both
+   services.
 10. Link entry in `docs/plan/release/evidence-log.md`.
+11. Runtime WAF evidence for any internet-facing ALB (`PublicAlbWebAclArn` or
+    equivalent stack output).
+12. Immutable release-plan artifact continuity evidence:
+    `changed-units.json` and `version-plan.json` consumed by release-apply and
+    publish-packages from upstream workflow artifacts, not recomputed locally.

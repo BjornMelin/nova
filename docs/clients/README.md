@@ -49,6 +49,9 @@ productization:
 
 All of these remain subordinate to the committed Nova OpenAPI contracts. Only
 the Python packages above are public release-grade SDK authority in this wave.
+Installed-package typing metadata shipped by runtime distributions
+`nova_file_api` and `nova_auth_api` is separate from the generated SDK trees
+documented here.
 
 Generator-facing OpenAPI rules that downstream consumers can rely on:
 

@@ -204,7 +204,8 @@ aws cloudformation deploy \
     GitHubOidcProviderArn="${GITHUB_OIDC_PROVIDER_ARN}" \
     ReleaseSigningSecretArn="${RELEASE_SIGNING_SECRET_ARN}" \
     CodeArtifactPromotionSourceRepositoryName="${NOVA_CODEARTIFACT_STAGING_REPOSITORY_NAME}" \
-    CodeArtifactPromotionDestinationRepositoryName="${NOVA_CODEARTIFACT_PROD_REPOSITORY_NAME}"
+    CodeArtifactPromotionDestinationRepositoryName="${NOVA_CODEARTIFACT_PROD_REPOSITORY_NAME}" \
+    ReleaseValidationTrustedPrincipalArn="${RELEASE_VALIDATION_TRUSTED_PRINCIPAL_ARN:-}"
 ```
 
 Use equivalent `aws cloudformation deploy` commands for:

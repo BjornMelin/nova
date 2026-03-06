@@ -54,6 +54,14 @@ Required ECR targeting:
 - `ECR_REPOSITORY_URI`
 - `ECR_REPOSITORY_NAME`
 
+Artifact bucket authority:
+
+- `NOVA_ARTIFACT_BUCKET_NAME` is CI/CD storage for signed release artifacts,
+  manifests, and pipeline handoff data.
+- It is not the runtime upload/download bucket.
+- Do not reuse `NOVA_ARTIFACT_BUCKET_NAME` as the file-transfer bucket for
+  `infra/runtime/file_transfer/s3.yml`.
+
 Optional keys:
 
 - `EXISTING_CONNECTION_ARN`
@@ -64,10 +72,19 @@ Optional keys:
 - `NOVA_DEPLOY_SERVICE_NAME`
 - `NOVA_DEPLOY_DEV_STACK_NAME`
 - `NOVA_DEPLOY_PROD_STACK_NAME`
+- `NOVA_AUTH_DEPLOY_SERVICE_NAME`
+- `NOVA_AUTH_DEPLOY_DEV_STACK_NAME`
+- `NOVA_AUTH_DEPLOY_PROD_STACK_NAME`
+- `RELEASE_VALIDATION_TRUSTED_PRINCIPAL_ARN`
+- `ECS_INFRASTRUCTURE_ROLE_ARN`
+- `DEPLOYMENT_ROLLBACK_ALARM_NAME_PRIMARY`
+- `DEPLOYMENT_ROLLBACK_ALARM_NAME_SECONDARY`
 
 `NOVA_DEPLOY_DEV_STACK_NAME` / `NOVA_DEPLOY_PROD_STACK_NAME` are digest marker
 stack names used by pipeline deploy actions (`infra/nova/deploy/image-digest-ssm.yml`),
 not the runtime ECS service stack names.
+`NOVA_AUTH_DEPLOY_DEV_STACK_NAME` / `NOVA_AUTH_DEPLOY_PROD_STACK_NAME` follow
+the same contract for the auth API image-digest markers.
 
 ### Operator contract table
 
@@ -78,6 +95,11 @@ not the runtime ECS service stack names.
 | `CODEARTIFACT_PROD_REPOSITORY` | yes | none | promotion destination |
 | `EXISTING_CONNECTION_ARN` | no | empty | foundation/codepipeline connection wiring |
 | `NOVA_DEPLOY_SERVICE_NAME` | no | `nova-file-api` | SSM base-url lookup path |
+| `NOVA_AUTH_DEPLOY_SERVICE_NAME` | no | `nova-auth-api` | auth SSM base-url lookup path |
+| `RELEASE_VALIDATION_TRUSTED_PRINCIPAL_ARN` | no | empty | `infra/nova/nova-iam-roles.yml` `ReleaseValidationTrustedPrincipalArn` |
+| `ECS_INFRASTRUCTURE_ROLE_ARN` | yes for ECS native blue/green | none | `infra/runtime/ecs/service.yml` `EcsInfrastructureRoleArn` |
+| `DEPLOYMENT_ROLLBACK_ALARM_NAME_PRIMARY` | yes for ECS native blue/green | none | primary CloudWatch rollback alarm for `AWS::ECS::Service` |
+| `DEPLOYMENT_ROLLBACK_ALARM_NAME_SECONDARY` | yes for ECS native blue/green | none | secondary CloudWatch rollback alarm for `AWS::ECS::Service` |
 
 Promotion repository contract:
 
@@ -90,6 +112,8 @@ Service base URLs are resolved by the operator command pack from SSM parameters:
 
 - `/nova/dev/${NOVA_DEPLOY_SERVICE_NAME:-nova-file-api}/base-url`
 - `/nova/prod/${NOVA_DEPLOY_SERVICE_NAME:-nova-file-api}/base-url`
+- `/nova/dev/${NOVA_AUTH_DEPLOY_SERVICE_NAME:-nova-auth-api}/base-url`
+- `/nova/prod/${NOVA_AUTH_DEPLOY_SERVICE_NAME:-nova-auth-api}/base-url`
 
 Populate these via `infra/nova/deploy/service-base-url-ssm.yml` before running
 `scripts/release/day-0-operator-command-pack.sh`.
@@ -113,14 +137,83 @@ Capture and manage these runtime values per environment before CI/CD deploy:
 - `SERVICE_NAME`
 - `SERVICE_DNS`
 - `TASK_ROLE_ARN`
+- `ECS_INFRASTRUCTURE_ROLE_ARN`
 - `DOCKER_REPOSITORY_NAME`
 - `DOCKER_IMAGE_TAG`
 - `OWNER_TAG`
 - `ALARM_ACTION_ARN`
-- `ASSIGN_PUBLIC_IP` (`ENABLED` or `DISABLED`)
+- `DEPLOYMENT_ROLLBACK_ALARM_NAME_PRIMARY`
+- `DEPLOYMENT_ROLLBACK_ALARM_NAME_SECONDARY`
+- `ASSIGN_PUBLIC_IP` (`DISABLED` only for Nova dev/prod release environments)
+- `IDEMPOTENCY_MODE` (`shared_required` for AWS prod, `local_only` only for
+  explicit local/single-process operation)
+- `FILE_TRANSFER_CACHE_ENABLED` (`true` when
+  `IDEMPOTENCY_MODE=shared_required`)
+- `FILE_TRANSFER_CACHE_SECURITY_GROUP_EXPORT_NAME` (required when
+  `FILE_TRANSFER_CACHE_ENABLED=true`)
+- `FILE_TRANSFER_CACHE_URL_SECRET_ARN` (required when
+  `IDEMPOTENCY_MODE=shared_required`; injects runtime `CACHE_REDIS_URL` from
+  the secret JSON key `url`)
+- `FILE_TRANSFER_BUCKET_BASE_NAME` (required by the canonical runtime
+  deployment script; the actual bucket name is derived from the S3 stack output)
+
+Runtime container note:
+
+- `CACHE_REDIS_URL` remains the runtime environment requirement when
+  `IDEMPOTENCY_MODE=shared_required`; the ECS service stack satisfies it by
+  injecting the value from `FILE_TRANSFER_CACHE_URL_SECRET_ARN`.
+- The canonical runtime deployment path is
+  `scripts/release/deploy-runtime-cloudformation-environment.sh`, which
+  hard-codes the final-release posture:
+  `AssignPublicIp=DISABLED`, `IdempotencyMode=shared_required`, and
+  `FileTransferCacheEnabled=true`.
+
+For public ALB deployments, record the runtime cluster output:
+
+- `PublicAlbWebAclArn`
 
 See:
 `deploy-runtime-cloudformation-environments-guide.md`
+
+### Worker stack parameter contract
+
+Capture these worker-specific values before deploying
+`infra/runtime/file_transfer/worker.yml`:
+
+- `WORKER_SERVICE_NAME`
+- `JOBS_QUEUE_ARN`
+- `JOBS_QUEUE_URL`
+- `JOBS_REGION`
+- `JOBS_API_BASE_URL`
+- `JOBS_WORKER_UPDATE_TOKEN_SECRET_ARN`
+- `FILE_TRANSFER_BUCKET_NAME`
+- `KMS_ALIAS`
+- `IMPORT_KMS_KEY_ARN` (optional; required when the environment imports the
+  shared runtime KMS key)
+- `WORKER_DESIRED_COUNT`
+- `WORKER_MIN_TASK_COUNT`
+- `WORKER_MAX_TASK_COUNT`
+- `WORKER_SCALE_OUT_QUEUE_DEPTH_TARGET`
+- `WORKER_SCALE_OUT_QUEUE_AGE_SECONDS_TARGET`
+- `WORKER_SCALE_IN_COOLDOWN_SECONDS`
+- `WORKER_SCALE_OUT_COOLDOWN_SECONDS`
+- `JOBS_SQS_MAX_NUMBER_OF_MESSAGES`
+- `JOBS_SQS_WAIT_TIME_SECONDS`
+- `JOBS_SQS_VISIBILITY_TIMEOUT_SECONDS`
+
+Worker contract notes:
+
+- `JOBS_API_BASE_URL` must target the canonical `/v1/*` runtime and is passed
+  to the task as `JOBS_API_BASE_URL`.
+- `JOBS_WORKER_UPDATE_TOKEN_SECRET_ARN` must resolve to the secret used for
+  `JOBS_WORKER_UPDATE_TOKEN`; worker capacity cannot be enabled without it.
+- `JOBS_SQS_VISIBILITY_TIMEOUT_SECONDS` must be sized to cover worker
+  processing plus the internal result callback path.
+- Worker tasks intentionally run with `IDEMPOTENCY_ENABLED=false` and
+  `IDEMPOTENCY_MODE=local_only`; do not wire shared-cache idempotency secrets
+  into `infra/runtime/file_transfer/worker.yml`.
+- The packaged worker command is `nova-file-worker`; there is no active
+  `src/worker.py` operator contract.
 
 ## CloudFormation stack names and outputs
 
@@ -132,6 +225,8 @@ Default stack names:
 - `${project}-${application}-nova-ci-cd`
 - `${project}-ci-dev-service-base-url`
 - `${project}-ci-prod-service-base-url`
+- `${project}-${application}-nova-auth-dev`
+- `${project}-${application}-nova-auth-prod`
 
 Canonical SSM base-url marker ownership:
 
@@ -146,6 +241,10 @@ Critical outputs:
 - `GitHubOIDCReleaseRoleArn`
 - `PipelineName`
 - `ConnectionArn`
+- `EcsInfrastructureRoleForLoadBalancersArn`
+- `ReleaseValidationReadRoleArn` (when `RELEASE_VALIDATION_TRUSTED_PRINCIPAL_ARN`
+  is configured)
+- `PublicAlbWebAclArn` (runtime cluster stack when ALB is internet-facing)
 
 ## CodeBuild environment contract
 
@@ -154,7 +253,8 @@ Release build project requires:
 - `CODEARTIFACT_DOMAIN`
 - `CODEARTIFACT_REPOSITORY` (release build publish target)
 - `ECR_REPOSITORY_URI` or `ECR_REPOSITORY_NAME`
-- `DOCKERFILE_PATH`
+- `FILE_DOCKERFILE_PATH`
+- `AUTH_DOCKERFILE_PATH`
 - `DOCKER_BUILD_CONTEXT`
 
 Publish/promote workflow contracts additionally require:
@@ -164,14 +264,17 @@ Publish/promote workflow contracts additionally require:
 
 Exported variables:
 
-- `IMAGE_DIGEST`
+- `FILE_IMAGE_DIGEST`
+- `AUTH_IMAGE_DIGEST`
 - `PUBLISHED_PACKAGES`
 - `RELEASE_MANIFEST_SHA256`
 - `CHANGED_UNITS`
 
+`RELEASE_MANIFEST_SHA256` and workflow `manifest_sha256` must represent the
+actual SHA256 of `docs/plan/release/RELEASE-VERSION-MANIFEST.md`.
+
 Reference file:
 `buildspecs/buildspec-release.yml`
-
 
 ## Promote-prod workflow dispatch inputs
 
@@ -184,6 +287,10 @@ Reference file:
 - `promotion_candidates_json`
 
 Source all JSON payload inputs from `publish-packages.yml` gate artifacts.
+`manifest_sha256` must equal `RELEASE_MANIFEST_SHA256`, the SHA256 of
+`docs/plan/release/RELEASE-VERSION-MANIFEST.md`. If the value is read from
+`codeartifact-gate-report.json`, treat that report as a carrier of the
+canonical manifest digest rather than the authority itself.
 
 ## Endpoint and validation contract
 
@@ -201,12 +308,21 @@ Validation URLs:
 - `${PROD_BASE_URL}/v1/health/live`
 - `${PROD_BASE_URL}/v1/health/ready`
 - `${PROD_BASE_URL}/v1/capabilities`
+- `${DEV_AUTH_BASE_URL}/v1/health/live`
+- `${DEV_AUTH_BASE_URL}/v1/health/ready`
+- `${DEV_AUTH_BASE_URL}/v1/token/verify`
+- `${DEV_AUTH_BASE_URL}/v1/token/introspect`
+- `${PROD_AUTH_BASE_URL}/v1/health/live`
+- `${PROD_AUTH_BASE_URL}/v1/health/ready`
+- `${PROD_AUTH_BASE_URL}/v1/token/verify`
+- `${PROD_AUTH_BASE_URL}/v1/token/introspect`
 
 Route namespace policy:
 
 - Canonical consumer capability namespace is `/v1/*`.
-- Release validation inputs MUST include canonical `/v1/*` + `/metrics/summary`
-  checks and required legacy-route `404` assertions.
+- Release validation inputs MUST include canonical file-service `/v1/*` +
+  `/metrics/summary` checks, auth-service `/v1/token/*` checks, and required
+  legacy-route `404` assertions.
 - Legacy route literals are allowed only in dedicated validation `404` checks
   (`validation_legacy_404_paths`), not as active runtime routes.
 

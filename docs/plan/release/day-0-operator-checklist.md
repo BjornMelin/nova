@@ -15,8 +15,9 @@ safe operator path.
 2. GitHub CLI authenticated.
 3. Repository admin access to `${GITHUB_OWNER}/${GITHUB_REPO}` (default: `3M-Cloud/nova`).
 4. Required environment values prepared.
-5. Runtime stacks already deployed for `dev` and `prod`:
-   `deploy-runtime-cloudformation-environments-guide.md`.
+5. Runtime stacks already deployed for `dev` and `prod` with:
+   `./scripts/release/deploy-runtime-cloudformation-environment.sh`
+   as documented in `deploy-runtime-cloudformation-environments-guide.md`.
 6. `jq` and `ssh-keygen` are installed.
 
 ## Inputs
@@ -40,6 +41,14 @@ safe operator path.
 - `${SIGNER_NAME}` (required)
 - `${SIGNER_EMAIL}` (required)
 - `${NOVA_ARTIFACT_BUCKET_NAME}` (required)
+- `${NOVA_DEPLOY_SERVICE_NAME}` (optional, default `nova-file-api`)
+- `${NOVA_AUTH_DEPLOY_SERVICE_NAME}` (optional, default `nova-auth-api`)
+- `${NOVA_DEPLOY_DEV_STACK_NAME}` (optional digest marker stack override)
+- `${NOVA_DEPLOY_PROD_STACK_NAME}` (optional digest marker stack override)
+- `${NOVA_AUTH_DEPLOY_DEV_STACK_NAME}` (optional auth digest marker stack override)
+- `${NOVA_AUTH_DEPLOY_PROD_STACK_NAME}` (optional auth digest marker stack override)
+- `${RELEASE_VALIDATION_TRUSTED_PRINCIPAL_ARN}` (optional trusted principal ARN
+  for the release validation read role)
 
 ## Step-by-step commands
 
@@ -76,6 +85,8 @@ Required pre-check before Step 3 (replace `nova-file-api` if overridden via
 ```bash
 aws ssm get-parameter --region "${AWS_REGION}" --name "/nova/dev/nova-file-api/base-url"
 aws ssm get-parameter --region "${AWS_REGION}" --name "/nova/prod/nova-file-api/base-url"
+aws ssm get-parameter --region "${AWS_REGION}" --name "/nova/dev/nova-auth-api/base-url"
+aws ssm get-parameter --region "${AWS_REGION}" --name "/nova/prod/nova-auth-api/base-url"
 ```
 
 Ownership guardrail:
@@ -84,6 +95,22 @@ Ownership guardrail:
   `${PROJECT}-${APPLICATION}-dev-service-base-url` and
   `${PROJECT}-${APPLICATION}-prod-service-base-url`.
 - Do not create alternate stack names that manage the same SSM parameter paths.
+
+### Step 1a: Converge runtime environments first
+
+Run the canonical runtime deployment script once for `dev`, then once for
+`prod`, before foundation/CI bootstrap:
+
+```bash
+./scripts/release/deploy-runtime-cloudformation-environment.sh
+```
+
+Guardrails:
+
+- Do not reuse `NOVA_ARTIFACT_BUCKET_NAME` as the runtime transfer bucket.
+- Do not deploy Nova dev/prod runtime services with `AssignPublicIp=ENABLED`.
+- Do not deploy AWS multi-instance runtime environments with
+  `IDEMPOTENCY_MODE=local_only`.
 
 ### Step 2: Bootstrap foundation stack first
 
@@ -176,8 +203,13 @@ Pipeline dashboard:
 
 1. Release signing and workflow auth are valid.
 2. Pipeline completes Dev -> ManualApproval -> Prod in order.
-3. `IMAGE_DIGEST` continuity is preserved Dev to Prod.
-4. Evidence links are added to release docs/plan artifacts.
+3. `FILE_IMAGE_DIGEST` and `AUTH_IMAGE_DIGEST` continuity are preserved
+   Dev to Prod.
+4. Evidence links are added to release docs/plan artifacts for file and auth
+   validation.
+5. ECS native blue/green wiring is present via
+   `EcsInfrastructureRoleForLoadBalancersArn`, and public ALB deployments have
+   `PublicAlbWebAclArn` recorded.
 
 ## References
 

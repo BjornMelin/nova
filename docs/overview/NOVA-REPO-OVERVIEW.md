@@ -1,10 +1,10 @@
 # Nova Runtime Repository Overview
 
-## 1) What Nova is
+## 1. What Nova is
 
 Nova is the canonical runtime monorepo for file-transfer orchestration and token verification services. It provides a control plane for transfer and async job workflows, plus an auth API for token verify/introspect operations. Nova is not a byte-streaming proxy for file payloads; file movement is delegated through planned resources and storage integrations.
 
-## 2) Monorepo map
+## 2. Monorepo map
 
 - `apps/nova_file_api_service`: ASGI service wrapper that boots the file API runtime package.
 - `apps/nova_auth_api_service`: ASGI service wrapper that boots the auth API runtime package.
@@ -33,6 +33,8 @@ OpenAPI and SDK generation authority for this topology:
 - `scripts/contracts/export_openapi.py` refreshes and checks the committed OpenAPI artifacts.
 - `scripts/release/generate_clients.py` refreshes and checks the internal TypeScript and R catalogs.
 - `scripts/release/generate_python_clients.py` refreshes and checks the committed Python SDK trees.
+- Published runtime Python distributions `nova_file_api` and `nova_auth_api`
+  include `py.typed` markers for installed-package type checking.
 
 ```mermaid
 flowchart TB
@@ -62,7 +64,7 @@ flowchart TB
     I2 --> A2
 ```
 
-## 3) Runtime architecture at a glance
+## 3. Runtime architecture at a glance
 
 - `nova_file_api` serves canonical `/v1/*` transfer and job endpoints.
 - Requests pass through auth, validation, idempotency, and service-layer orchestration.
@@ -89,7 +91,7 @@ flowchart LR
     API --> OBS["/v1/health/live /v1/health/ready /metrics/summary"]
 ```
 
-## 4) Package responsibilities and interactions
+## 4. Package responsibilities and interactions
 
 - `nova_file_api` owns:
   - Transfer orchestration endpoints and request/response models.
@@ -118,7 +120,7 @@ flowchart LR
     CONTRACTS --> AUTH
 ```
 
-## 5) Canonical API surface and route guardrails
+## 5. Canonical API surface and route guardrails
 
 ### Allowed runtime route families
 
@@ -144,7 +146,7 @@ No compatibility aliases or namespace shims should be added for disallowed famil
 ### High-level endpoint intent map
 
 | Path family | Primary consumer | Intent |
-|---|---|---|
+| --- | --- | --- |
 | `/v1/transfers/*` | External clients and app integrations | Plan and orchestrate file-transfer operations |
 | `/v1/jobs*` | External clients and integrations | Submit and track async jobs |
 | `/v1/internal/jobs/{job_id}/result` | Internal worker | Record job completion result |
@@ -175,7 +177,7 @@ flowchart TB
     BAD -. not allowed .- PublicV1
 ```
 
-## 6) Client usage flows
+## 6. Client usage flows
 
 ### Transfer flow (typical)
 
@@ -196,7 +198,7 @@ flowchart TB
 1. Client or service calls auth API verify/introspect endpoints for token checks.
 2. Runtime services enforce auth decisions at request boundaries.
 
-## 7) AWS and deployment topology
+## 7. AWS and deployment topology
 
 ### Runtime plane (high level)
 
@@ -249,7 +251,7 @@ sequenceDiagram
     RT-->>GH: Report deployment and validation status
 ```
 
-## 8) Security and reliability invariants
+## 8. Security and reliability invariants
 
 - Queue publish failures for `POST /v1/jobs` must return `503` with `error.code = "queue_unavailable"`.
 - Failed enqueue responses must not be replay-cached by idempotency mechanisms.
@@ -260,34 +262,41 @@ sequenceDiagram
 - Synchronous JWT verification must not run directly on async event-loop paths; threadpool boundaries are required.
 - Config coupling constraints are enforced for backend selections (for example queue/activity backends requiring corresponding resource settings).
 
-## 9) How to explain Nova in 10 minutes (talk track)
+## 9. How to explain Nova in 10 minutes (talk track)
 
 ### Minute-by-minute script
 
 1. Minute 1: Purpose and scope
+
 - “Nova is our transfer/job control plane and auth verification runtime in one monorepo.”
 - “It standardizes canonical `/v1/*` API behavior and operational guardrails.”
 
-2. Minute 2: Monorepo layout
+1. Minute 2: Monorepo layout
+
 - Walk apps vs packages.
 - Emphasize that `apps/*` are wrappers and `packages/*` hold core logic.
 
-3. Minutes 3-4: Architecture flow
+1. Minutes 3-4: Architecture flow
+
 - Explain request path into `nova_file_api`.
 - Explain queue-based async job lifecycle and internal worker callback.
 
-4. Minute 5: API surface rules
+1. Minute 5: API surface rules
+
 - Show allowed route families and strict no-legacy aliases rule.
 
-5. Minutes 6-7: Client integration story
+1. Minutes 6-7: Client integration story
+
 - Capabilities -> transfer plan -> transfer execution.
 - Job submit -> worker completion -> status/result reads.
 
-6. Minutes 8-9: AWS topology and delivery
+1. Minutes 8-9: AWS topology and delivery
+
 - Map services to ECS, SQS, S3, DynamoDB, Redis, ALB/WAF, CloudWatch, KMS.
 - Explain release/promotion posture at high level.
 
-7. Minute 10: Reliability and security guarantees
+1. Minute 10: Reliability and security guarantees
+
 - Cover queue-unavailable semantics, readiness strictness, sensitive logging guardrails, and auth threadpool boundary.
 
 ### Quick FAQ responses
@@ -301,7 +310,7 @@ sequenceDiagram
 - “What is the async completion boundary?”
   - Worker posts to `/v1/internal/jobs/{job_id}/result`; clients read via `/v1/jobs*`.
 
-## 10) Glossary and source-of-truth references
+## 10. Glossary and source-of-truth references
 
 ### Glossary
 

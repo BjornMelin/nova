@@ -18,6 +18,7 @@ execution after runtime environments are provisioned.
 5. `nova` repository admin rights for secrets/variables configuration.
 6. Runtime stacks are already deployed for `dev` and `prod` per:
    [deploy-runtime-cloudformation-environments-guide.md](deploy-runtime-cloudformation-environments-guide.md)
+   using `./scripts/release/deploy-runtime-cloudformation-environment.sh`.
 7. Canonical base URL SSM parameters exist for both environments:
    `/nova/dev/{service}/base-url` and `/nova/prod/{service}/base-url`.
 8. Canonical base-url marker stacks are reserved for CI control-plane ownership:
@@ -72,9 +73,17 @@ Export the required values for the Nova operator command pack:
 - `CODEARTIFACT_PROD_REPOSITORY`
 - optional: `EXISTING_CONNECTION_ARN`
 - optional: `NOVA_MANUAL_APPROVAL_TOPIC_ARN`
+- optional: `RELEASE_VALIDATION_TRUSTED_PRINCIPAL_ARN`
 
 Reference details:
 [config-values-reference-guide.md](config-values-reference-guide.md)
+
+Artifact storage guardrail:
+
+- `NOVA_ARTIFACT_BUCKET_NAME` is CI/CD artifact storage only.
+- Do not reuse it as the runtime file-transfer bucket; that bucket is created
+  by `infra/runtime/file_transfer/s3.yml` through the canonical runtime
+  deployment script.
 
 ### Step 1a: persist canonical service base URLs in SSM
 
@@ -185,6 +194,11 @@ Record:
 - `PipelineName`
 - `ConnectionArn`
 - `ManualApprovalTopicArn`
+- `EcsInfrastructureRoleForLoadBalancersArn`
+- `ReleaseValidationReadRoleArn` (when
+  `RELEASE_VALIDATION_TRUSTED_PRINCIPAL_ARN` is provided)
+- `PublicAlbWebAclArn` from the runtime cluster stack when ALB is
+  internet-facing
 
 ## Step 5: configure GitHub repo secrets and vars
 
@@ -196,7 +210,7 @@ Run setup from:
 Run activation checks from:
 [codeconnections-activation-and-validation-guide.md](codeconnections-activation-and-validation-guide.md)
 
-## Step 7: run build/package/deploy workflows
+## Step 7: run release workflows and verify automated dev deployment
 
 ```bash
 export CODEPIPELINE_NAME="$(aws cloudformation describe-stacks --region "${AWS_REGION}" --stack-name "${PROJECT}-${APPLICATION}-nova-ci-cd" --query "Stacks[0].Outputs[?OutputKey=='PipelineName'].OutputValue | [0]" --output text)"
@@ -209,7 +223,10 @@ gh workflow run "Nova Release Apply" --repo "${GITHUB_OWNER}/${GITHUB_REPO}" --r
 APPLY_RUN_ID="$(gh run list --repo "${GITHUB_OWNER}/${GITHUB_REPO}" --workflow "Nova Release Apply" --branch main --limit 1 --json databaseId --jq '.[0].databaseId')"
 gh run watch "${APPLY_RUN_ID}" --repo "${GITHUB_OWNER}/${GITHUB_REPO}" --exit-status
 
-gh workflow run "Deploy Dev" --repo "${GITHUB_OWNER}/${GITHUB_REPO}" --ref main -f pipeline_name="${CODEPIPELINE_NAME}"
+PUBLISH_RUN_ID="$(gh run list --repo "${GITHUB_OWNER}/${GITHUB_REPO}" --workflow "Publish Packages" --branch main --limit 1 --json databaseId --jq '.[0].databaseId')"
+gh run watch "${PUBLISH_RUN_ID}" --repo "${GITHUB_OWNER}/${GITHUB_REPO}" --exit-status
+
+# Deploy Dev starts automatically after successful Publish Packages.
 DEPLOY_RUN_ID="$(gh run list --repo "${GITHUB_OWNER}/${GITHUB_REPO}" --workflow "Deploy Dev" --branch main --limit 1 --json databaseId --jq '.[0].databaseId')"
 gh run watch "${DEPLOY_RUN_ID}" --repo "${GITHUB_OWNER}/${GITHUB_REPO}" --exit-status
 ```
@@ -233,6 +250,14 @@ aws codepipeline get-pipeline-state \
   --region "${AWS_REGION}" \
   --name "${CODEPIPELINE_NAME}"
 ```
+
+Target-state checks:
+
+- runtime service stacks use `DeploymentController.Type=ECS`
+- runtime service stacks use `DeploymentConfiguration.Strategy=BLUE_GREEN`
+- runtime service stacks run with `AssignPublicIp=DISABLED`
+- runtime stack outputs include `PublicAlbWebAclArn` when ALB is
+  internet-facing
 
 ## References
 

@@ -41,12 +41,12 @@ Related setup sequence:
 - `ECS_SERVICE`
 - `ALB_TARGET_GROUP_BLUE_ARN`
 - `ALB_TARGET_GROUP_GREEN_ARN`
-- `CODEDEPLOY_APPLICATION_NAME`
-- `CODEDEPLOY_DEPLOYMENT_GROUP_NAME`
 - `DASHBOARD_NAME`
 - `ALARM_NAMES`
 - `CODEPIPELINE_NAME`
 - `CODECONNECTION_ARN`
+- `PUBLIC_ALB_WEB_ACL_ARN` (for internet-facing ALB only)
+- `ALB_RESOURCE_ARN` (for internet-facing ALB only)
 
 ## 5. Gate A: CodeConnections and source integration
 
@@ -133,14 +133,14 @@ Acceptance:
 - ECS service stabilizes with expected running task count.
 - Target states converge to `healthy` without persistent flapping.
 
-### B3. CodeDeploy blue/green authority and readiness gating
+### B3. ECS-native blue/green authority and readiness gating
 
 ```bash
-aws deploy get-deployment-group \
+aws ecs describe-services \
   --region "${AWS_REGION}" \
-  --application-name "${CODEDEPLOY_APPLICATION_NAME}" \
-  --deployment-group-name "${CODEDEPLOY_DEPLOYMENT_GROUP_NAME}" \
-  --query "deploymentGroupInfo.{deploymentStyle:deploymentStyle,blueGreen:blueGreenDeploymentConfiguration,alarmConfiguration:alarmConfiguration,autoRollback:autoRollbackConfiguration}"
+  --cluster "${ECS_CLUSTER}" \
+  --services "${ECS_SERVICE}" \
+  --query "services[0].{deploymentController:deploymentController,deploymentConfiguration:deploymentConfiguration,loadBalancers:loadBalancers}"
 
 aws elbv2 describe-target-health \
   --region "${AWS_REGION}" \
@@ -155,10 +155,23 @@ aws elbv2 describe-target-health \
 
 Acceptance:
 
-- Deployment style is blue/green with traffic control.
+- Deployment controller is ECS-native.
+- Deployment strategy is blue/green with traffic control.
 - Alarm rollback configuration is enabled with expected alarm names.
-- Auto rollback includes deployment failure + stop-on-alarm + stop-on-request.
 - Green target group reaches healthy state before production traffic shift.
+
+When `PUBLIC_ALB_WEB_ACL_ARN` is provided:
+
+```bash
+aws wafv2 get-web-acl-for-resource \
+  --region "${AWS_REGION}" \
+  --resource-arn "${ALB_RESOURCE_ARN}"
+```
+
+Acceptance:
+
+- public ALB is associated with the expected regional WAFv2 WebACL
+  (`PUBLIC_ALB_WEB_ACL_ARN`).
 
 ## 7. Gate C: Cross-repo E2E smoke
 
@@ -237,8 +250,8 @@ Store evidence links in:
 
 ## 11. Access prerequisites and rollback
 
-Before running gates A-E, ensure Batch B validation read access exists (see:
-`docs/plan/release/batch-b-access-unblock-guide.md`).
+Before running gates A-E, ensure release validation read access exists (see:
+`docs/plan/release/release-validation-access-guide.md`).
 
-Rollback (IAM): set `BatchBOperatorPrincipalArn` to empty string and update the
-IAM stack to remove `BatchBValidationOperatorRole`.
+Rollback (IAM): set `ReleaseValidationTrustedPrincipalArn` to empty string and
+update the IAM stack to remove `ReleaseValidationReadRole`.

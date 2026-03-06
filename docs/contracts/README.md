@@ -65,6 +65,15 @@ Canonical committed OpenAPI artifacts live under `packages/contracts/openapi/`:
 - Post-deploy validation workflow contracts support dual-service validation
   inputs and artifact reports for both file and auth targets.
 
+## Release tooling safety notes
+
+- `scripts/release/generate_clients.py` must fail when fallback
+  `operationId` synthesis would create duplicate SDK-facing names.
+- `scripts/release/validate_route_contract.py` validates routes with
+  method-aware allowed status sets instead of broad non-`404` matching.
+- `scripts/release/download_run_artifact.py` streams bounded downloads and
+  rejects unsafe archive paths during extraction.
+
 ## Canonical SDK/contract verification flow
 
 Run from repository root with `.venv` active:
