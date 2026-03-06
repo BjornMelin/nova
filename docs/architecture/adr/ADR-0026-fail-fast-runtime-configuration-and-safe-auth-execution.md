@@ -1,25 +1,41 @@
 ---
 ADR: 0026
-Title: OIDC and IAM role partitioning for deploy automation
+Title: Fail-fast runtime configuration and safe auth execution
 Status: Accepted
-Version: 1.1
-Date: 2026-03-03
+Version: 2.1
+Date: 2026-03-05
 Related:
-  - "[ADR-0011: Hybrid CI/CD with GitHub CI and AWS-native Dev to Prod promotion](./ADR-0011-cicd-hybrid-github-aws-promotion.md)"
-  - "[SPEC-0019: CI/CD IAM least-privilege matrix](../spec/SPEC-0019-auth-execution-and-threadpool-safety-contract.md)"
-  - "[SPEC-0020: Rollout and validation strategy](../spec/SPEC-0020-architecture-authority-pack-and-documentation-synchronization-contract.md)"
+  - "[ADR-0024: Layered runtime authority pack for the Nova monorepo](./ADR-0024-layered-architecture-authority-pack.md)"
+  - "[ADR-0025: Runtime monorepo component boundaries and ownership](./ADR-0025-runtime-monorepo-component-boundaries-and-ownership.md)"
+  - "[SPEC-0018: Runtime configuration and startup validation contract](../spec/SPEC-0018-runtime-configuration-and-startup-validation-contract.md)"
+  - "[SPEC-0019: Auth execution and threadpool safety contract](../spec/SPEC-0019-auth-execution-and-threadpool-safety-contract.md)"
+  - "[ADR-0032: OIDC and IAM role partitioning for deploy automation](./ADR-0032-oidc-and-iam-role-partitioning-for-deploy-automation.md)"
 ---
 
 ## Summary
 
-Deploy automation uses partitioned IAM roles with GitHub OIDC as the entry
-boundary, scoped pass-role controls, and environment-specific execution roles.
+Nova runtime fails fast on invalid configuration, keeps readiness scoped to
+traffic-critical dependencies, and executes synchronous token verification only
+behind explicit threadpool boundaries. Runtime safety is not delegated to
+deploy-automation IAM docs.
 
 ## Context
 
-Live stack updates and promotion flows require role assumption and controlled
-pass-role capabilities. Shared broad permissions increased rollback risk and
-made incident recovery harder to reason about.
+Nova exposes configuration-heavy runtime behavior:
+
+- queue backend selection
+- activity-store backend selection
+- same-origin, local OIDC, and remote auth modes
+- worker callback/update-token behavior
+- readiness and health semantics
+
+Drift created two failure modes:
+
+1. invalid backend combinations surviving until first request, and
+2. synchronous JWT verification sharing ambient AnyIO limits with unrelated
+   blocking work.
+
+The active runtime safety ADR must define the target-state rules directly.
 
 ## Alternatives and scored decision
 
@@ -34,11 +50,11 @@ made incident recovery harder to reason about.
 
 | Option | Weighted score (/10) |
 | --- | ---: |
-| A. Single broad deploy role for all automation | 7.0 |
-| B. Partition OIDC caller, CFN execution, and pipeline roles with scoped pass-role conditions | **9.4** |
-| C. Use long-lived IAM user credentials in CI | 3.2 |
+| A. Allow lazy runtime misconfiguration discovery and rely on default process-wide threadpool behavior | 5.8 |
+| B. Enforce typed fail-fast settings, startup validation, traffic-critical readiness, and explicit auth threadpool boundaries | **9.7** |
+| C. Move all auth verification to a required remote service and keep runtime config permissive | 7.1 |
 
-Threshold policy: only options >=9.0 are accepted.
+Threshold policy: only options `>= 9.0` are accepted.
 
 ## Decision
 
@@ -46,32 +62,46 @@ Choose **Option B**.
 
 ### Required characteristics
 
-1. GitHub workflows assume a dedicated deploy role through OIDC.
-2. CloudFormation execution roles are separate from caller role and environment
-   scoped.
-3. `iam:PassRole` is constrained to approved role ARNs and
-   `iam:PassedToService` conditions.
-4. Pipeline/service roles are separate from workflow caller roles.
-5. IAM policy contracts are testable and enforced by infra guardrails.
+1. Runtime settings are typed and environment-driven.
+2. Backend couplings fail at startup, not during live request handling.
+3. `/v1/health/ready` reflects traffic-critical dependencies only.
+4. Cache and activity-store degradation remain observable but do not own
+   readiness failure unless they are the chosen traffic-critical dependency.
+5. Local synchronous OIDC/JWT verification never runs directly on async
+   event-loop paths.
+6. `OIDC_VERIFIER_THREAD_TOKENS` is verifier-only authority; generic blocking
+   I/O uses a separate limiter contract.
+7. Remote auth remains optional, fail-closed when enabled, and reuses a
+   process-scoped async HTTP client with explicit shutdown cleanup.
+8. When distributed idempotency is configured as traffic-critical, startup and
+   readiness must fail if the shared cache cannot guarantee correctness.
 
 ## Consequences
 
 ### Positive
 
-- Stronger least-privilege posture and clearer blast-radius boundaries.
-- Better auditability of who can mutate each CI/CD control-plane role.
-- Safer recovery path during stack rollback or drift remediation.
+- Runtime failures surface during boot or readiness instead of mid-request.
+- Auth safety rules stay close to the code paths they govern.
+- Operational docs can distinguish critical readiness gates from observability
+  signals.
 
 ### Trade-offs
 
-- Additional role/policy contract maintenance overhead.
-- Recovery operations can block if account-level IAM grants are incomplete.
+- Startup becomes stricter and rejects more partial configurations.
+- Thread-limiter settings become explicit operational inputs instead of hidden
+  defaults.
 
 ## Explicit non-decisions
 
-- No reliance on static AWS keys in GitHub workflows.
-- No wildcard pass-role permissions for deployment automation.
+- No ambient mutation of the process-wide AnyIO limiter as a general runtime
+  concurrency strategy.
+- No readiness model driven by optional feature flags or non-critical observers.
+- No deploy-automation IAM document as substitute authority for runtime auth
+  execution rules.
 
 ## Changelog
 
-- 2026-03-03: Updated ADR scope to OIDC/IAM role partitioning for deploy automation.
+- 2026-03-05: Restored `ADR-0026` to runtime configuration and auth-safety
+  governance and moved CI/CD IAM partitioning to `ADR-0032`.
+- 2026-03-05: Added strict distributed-idempotency readiness rules and
+  process-scoped remote-auth client lifecycle requirements.

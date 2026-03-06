@@ -1,20 +1,25 @@
 ---
 ADR: 0014
 Title: Absorb remaining container-craft Nova capabilities into nova and retire container-craft
-Status: Accepted
+Status: Superseded
 Version: 1.0
 Date: 2026-02-28
 Related:
-  - "[ADR-0011: Hybrid CI/CD with GitHub and AWS promotion](./ADR-0011-cicd-hybrid-github-aws-promotion.md)"
-  - "[ADR-0012: No Lambda runtime scope](./ADR-0012-no-lambda-runtime-scope.md)"
-  - "[SPEC-0004: CI/CD and documentation automation](../spec/SPEC-0004-ci-cd-and-docs.md)"
-  - "[SPEC-0013: Container-craft capability absorption execution spec (archived)](../../history/2026-02-cutover/architecture/spec/SPEC-0013-container-craft-capability-absorption-execution-spec.md)"
-  - "[SPEC-0014: Container-craft capability inventory and Nova absorption target map (archived)](../../history/2026-02-cutover/architecture/spec/SPEC-0014-container-craft-capability-inventory-and-absorption-map.md)"
+  - "[ADR-0011: Hybrid CI/CD with GitHub and AWS promotion](../ADR-0011-cicd-hybrid-github-aws-promotion.md)"
+  - "[ADR-0012: No Lambda runtime scope](../ADR-0012-no-lambda-runtime-scope.md)"
+  - "[SPEC-0004: CI/CD and documentation automation](../../spec/SPEC-0004-ci-cd-and-docs.md)"
+  - "[SPEC-0013: Container-craft capability absorption execution spec (archived)](../../../history/2026-02-cutover/architecture/spec/SPEC-0013-container-craft-capability-absorption-execution-spec.md)"
+  - "[SPEC-0014: Container-craft capability inventory and Nova absorption target map (archived)](../../../history/2026-02-cutover/architecture/spec/SPEC-0014-container-craft-capability-inventory-and-absorption-map.md)"
 References:
   - "[AWS CodePipeline: how executions work (multiple source actions behavior)](https://docs.aws.amazon.com/codepipeline/latest/userguide/concepts-how-it-works.html)"
   - "[AWS CodePipeline CloudFormation action reference](https://docs.aws.amazon.com/codepipeline/latest/userguide/action-reference-CloudFormation.html)"
   - "[AWS CodePipeline source actions and change detection](https://docs.aws.amazon.com/codepipeline/latest/userguide/change-detection-methods.html)"
 ---
+
+Supersession note (2026-03-05): this migration decision is fully absorbed into
+the live Nova monorepo state. Current runtime and deploy authority now lives in
+`ADR-0015`, `ADR-0023`, `ADR-0024` through `ADR-0026`, and `ADR-0030` through
+`ADR-0032`.
 
 ## Summary
 

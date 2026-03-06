@@ -1,9 +1,9 @@
 ---
 ADR: 0001
 Title: Deploy on ECS Fargate behind ALB with same-origin routing
-Status: Accepted
-Version: 1.2
-Date: 2026-03-03
+Status: Accepted (partially superseded by ADR-0015, ADR-0023, and ADR-0030)
+Version: 1.3
+Date: 2026-03-05
 Related:
   - "[ADR-0000: Implement the File Transfer API as a FastAPI service](./ADR-0000-fastapi-microservice.md)"
   - "[ADR-0023: Hard cut to a single canonical /v1 API surface](./ADR-0023-hard-cut-v1-canonical-route-surface.md)"
@@ -20,14 +20,14 @@ canonical `/v1/transfers/*` and `/v1/jobs/*` traffic to it. Keep browser
 traffic same-origin with the parent application to avoid CORS/auth integration
 complexity.
 
-Supersession note (2026-03-03): Route-namespace commitments in this ADR are
-partially superseded by `ADR-0023`, which defines the canonical `/v1/*` surface
-and removal of non-canonical pre-cutover route families.
+Supersession note (2026-03-05): this ADR remains the background decision for
+same-origin ALB routing, but deployment platform authority is now centered on
+`ADR-0015`, `ADR-0023`, and `ADR-0030`.
 
 ## Context
 
-container-craft already standardizes ECS/Fargate service deployment, ALB path routing,
-task roles, and environment injection. This service should follow the same pattern for:
+Nova standardizes ECS/Fargate service deployment, ALB path routing, task roles,
+and environment injection. This service should follow the same pattern for:
 
 - predictable operations across environments,
 - shared ingress and TLS posture,

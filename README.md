@@ -49,6 +49,8 @@ SDK-facing OpenAPI rules are hard requirements:
   `packages/contracts/openapi/*.openapi.json` via
   `scripts/release/generate_clients.py` and
   `scripts/release/generate_python_clients.py`.
+- Published runtime Python distributions `nova_file_api` and `nova_auth_api`
+  include `py.typed` markers for installed-package type checking.
 
 ## Runtime Capability Families
 
@@ -69,13 +71,21 @@ For exact endpoint and payload contract details, use:
 
 - `POST /v1/jobs` publish failures return `503` with
   `error.code = "queue_unavailable"`.
+- Strict shared-idempotency claim-store outages return `503` with
+  `error.code = "idempotency_unavailable"` for idempotent mutation entrypoints.
+- `IDEMPOTENCY_MODE=shared_required` requires `CACHE_REDIS_URL`; production
+  deployments must not run idempotent mutation endpoints in `local_only` mode.
 - Failed enqueue responses are not idempotency replay cached.
 - `/v1/health/ready` is dependency-scoped and fails on blank
   `FILE_TRANSFER_BUCKET`.
+- `/v1/health/ready` also fails on shared-cache health when shared-cache-backed
+  idempotency is the configured traffic-critical mode.
 - `AUTH_MODE=jwt_local` with incomplete `OIDC_ISSUER`, `OIDC_AUDIENCE`, or
   `OIDC_JWKS_URL` configuration fails the `auth_dependency` readiness check.
 - `POST /v1/internal/jobs/{job_id}/result` with `status=succeeded` normalizes
   `error` to `null`.
+- Malformed worker queue messages are retried and drain to DLQ through SQS
+  redrive policy; they are not acknowledged immediately.
 
 ## Local Development
 

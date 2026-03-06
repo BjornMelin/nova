@@ -28,7 +28,8 @@ async jobs with zero route-surface ambiguity.
 1. Runtime capabilities remain available for transfer orchestration, async job
    control plane, capability/release discovery, health/readiness, and metrics.
 2. Runtime semantics preserve queue failure behavior (`503 queue_unavailable`),
-   readiness dependency-scoping, and worker update normalization.
+   readiness dependency-scoping, strict distributed idempotency behavior for
+   AWS-backed prod, and worker update normalization.
 3. OpenAPI 3.1 output remains the contract source for SDK/client generation and
    policy checks, including stable snake_case `operationId` values, semantic
    SDK grouping tags, and resolvable named component schemas for custom request
