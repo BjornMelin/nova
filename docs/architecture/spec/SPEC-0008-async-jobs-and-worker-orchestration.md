@@ -2,8 +2,8 @@
 Spec: 0008
 Title: Async Jobs and Worker Orchestration
 Status: Active
-Version: 1.8
-Date: 2026-03-03
+Version: 1.11
+Date: 2026-03-06
 Related:
   - "[ADR-0006: SQS + ECS worker orchestration](../adr/ADR-0006-async-orchestration-sqs-ecs-worker.md)"
   - "[SPEC-0000: HTTP API contract](./SPEC-0000-http-api-contract.md)"
@@ -89,6 +89,8 @@ Invalid transitions MUST fail with `409` (`error.code = "conflict"`).
 - `MemoryJobPublisher(process_immediately=False)` MUST preserve `pending`
   state after enqueue (no auto-complete simulation).
 - AWS default: SQS queue publisher and ECS worker consumers.
+- Worker process execution MUST use the packaged command `nova-file-worker`
+  (direct `src/worker.py` invocation is non-canonical).
 
 ## 4. Failure and retry model
 
@@ -99,9 +101,15 @@ Invalid transitions MUST fail with `409` (`error.code = "conflict"`).
   - MUST mark created job records as `failed`.
   - SHOULD increment a publish-failure metric for operators.
 - Worker retry policy SHOULD be driven by queue semantics.
+- Malformed or unparseable worker messages MUST remain unacked so queue retry
+  and DLQ policy handle poison messages deterministically.
+- Retryable worker result-update failures MUST also leave the source message
+  unacked so SQS retry can replay the completion callback path.
 - Queue topology MUST include a dedicated dead-letter queue (DLQ) and source
   queue `RedrivePolicy.maxReceiveCount` so terminal poison messages leave the
   hot queue deterministically.
+- Queue visibility timeout MUST be sized to cover worker processing and result
+  callback time, not just receive-loop latency.
 - Non-retryable failures SHOULD transition to `failed` with structured error
   details.
 - First worker transition from `pending` MUST record queue lag metric
@@ -117,21 +125,31 @@ Invalid transitions MUST fail with `409` (`error.code = "conflict"`).
 `POST /v1/jobs` MUST support `Idempotency-Key` replay behavior.
 
 Failed enqueue responses (`queue_unavailable`) MUST NOT be replay-cached.
+When distributed idempotency is configured, claim-store outages MUST fail
+enqueue with `503` (`error.code = "idempotency_unavailable"`).
 
 ## 6. Backend selection and startup validation
 
+- `JOBS_RUNTIME_MODE` controls runtime role selection (`api|worker`).
 - `JOBS_QUEUE_BACKEND` controls queue backend selection.
 - `JOBS_REPOSITORY_BACKEND` controls job state persistence backend.
 - If `JOBS_QUEUE_BACKEND=sqs` and `JOBS_ENABLED=true`, startup MUST fail when
   `JOBS_SQS_QUEUE_URL` is not configured.
 - If `JOBS_REPOSITORY_BACKEND=dynamodb`, startup MUST fail when
   `JOBS_DYNAMODB_TABLE` is not configured.
+- If `JOBS_REPOSITORY_BACKEND=dynamodb`, the jobs table MUST expose the GSI
+  `scope_id-created_at-index` for scope-ordered listing; scoped list calls must
+  not fall back to `Scan`.
+- Worker runtime (`JOBS_RUNTIME_MODE=worker`) MUST enforce canonical
+  `JOBS_*` contract at startup:
+  - `JOBS_ENABLED=true`
+  - `JOBS_QUEUE_BACKEND=sqs`
+  - `JOBS_SQS_QUEUE_URL` configured
+  - `JOBS_API_BASE_URL` configured
+  - `JOBS_WORKER_UPDATE_TOKEN` configured and passed as `X-Worker-Token`
 - SQS publisher retry behavior SHOULD be configurable using:
   - `JOBS_SQS_RETRY_MODE`
   - `JOBS_SQS_RETRY_TOTAL_MAX_ATTEMPTS`
-
-Worker status callbacks MUST validate `X-Worker-Token` when
-`JOBS_WORKER_UPDATE_TOKEN` is configured, per SPEC-0001 §6.
 
 ## 7. Traceability
 
@@ -141,6 +159,14 @@ Worker status callbacks MUST validate `X-Worker-Token` when
 
 ## Changelog
 
+- 2026-03-06 (v1.11): Documented DynamoDB jobs-table GSI requirement and
+  retryable worker result-update retry semantics.
+- 2026-03-05 (v1.9): Added canonical worker runtime `JOBS_*` startup contract
+  requirements for `JOBS_RUNTIME_MODE=worker` and documented packaged worker
+  executable `nova-file-worker`.
+- 2026-03-05 (v1.10): Documented poison-message retry/DLQ handling, visibility
+  timeout sizing, and `idempotency_unavailable` enqueue behavior for
+  distributed idempotency mode.
 - 2026-03-03 (v1.8): Canonicalized job route documentation to `/v1/*`, added
   `/v1/jobs/{job_id}/retry` and `/v1/jobs/{job_id}/events` endpoint contract
   details, and updated internal worker callback route to

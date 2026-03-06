@@ -9,16 +9,22 @@ Related:
   - "[ADR-0023: Hard cut to a single canonical /v1 API surface](../adr/ADR-0023-hard-cut-v1-canonical-route-surface.md)"
   - "[SPEC-0000: HTTP API Contract](./SPEC-0000-http-api-contract.md)"
   - "[SPEC-0016: Hard-cut v1 route contract and route-literal guardrails](./SPEC-0016-v1-route-namespace-and-literal-guardrails.md)"
-  - "[ADR-0024: Native-CFN modular stack architecture for Nova infrastructure productization](../adr/ADR-0024-layered-architecture-authority-pack.md)"
-  - "[ADR-0025: Reusable GitHub workflow API and versioning policy for deployment automation](../adr/ADR-0025-runtime-monorepo-component-boundaries-and-ownership.md)"
-  - "[ADR-0026: OIDC and IAM role partitioning for deploy automation](../adr/ADR-0026-fail-fast-runtime-configuration-and-safe-auth-execution.md)"
-  - "[SPEC-0017: CloudFormation module contract](./SPEC-0017-runtime-component-topology-and-ownership-contract.md)"
-  - "[SPEC-0018: Reusable workflow integration contract](./SPEC-0018-runtime-configuration-and-startup-validation-contract.md)"
-  - "[SPEC-0019: CI/CD IAM least-privilege matrix](./SPEC-0019-auth-execution-and-threadpool-safety-contract.md)"
-  - "[SPEC-0020: Rollout and validation strategy](./SPEC-0020-architecture-authority-pack-and-documentation-synchronization-contract.md)"
+  - "[ADR-0024: Layered runtime authority pack for the Nova monorepo](../adr/ADR-0024-layered-architecture-authority-pack.md)"
+  - "[ADR-0025: Runtime monorepo component boundaries and ownership](../adr/ADR-0025-runtime-monorepo-component-boundaries-and-ownership.md)"
+  - "[ADR-0026: Fail-fast runtime configuration and safe auth execution](../adr/ADR-0026-fail-fast-runtime-configuration-and-safe-auth-execution.md)"
+  - "[ADR-0030: Native-CFN modular stack architecture for Nova infrastructure productization](../adr/ADR-0030-native-cfn-modular-stack-architecture-for-nova-infrastructure-productization.md)"
+  - "[ADR-0031: Reusable GitHub workflow API and versioning policy for deployment automation](../adr/ADR-0031-reusable-github-workflow-api-and-versioning-policy-for-deployment-automation.md)"
+  - "[ADR-0032: OIDC and IAM role partitioning for deploy automation](../adr/ADR-0032-oidc-and-iam-role-partitioning-for-deploy-automation.md)"
+  - "[SPEC-0017: Runtime component topology and ownership contract](./SPEC-0017-runtime-component-topology-and-ownership-contract.md)"
+  - "[SPEC-0018: Runtime configuration and startup validation contract](./SPEC-0018-runtime-configuration-and-startup-validation-contract.md)"
+  - "[SPEC-0019: Auth execution and threadpool safety contract](./SPEC-0019-auth-execution-and-threadpool-safety-contract.md)"
+  - "[SPEC-0020: Architecture authority pack and documentation synchronization contract](./SPEC-0020-architecture-authority-pack-and-documentation-synchronization-contract.md)"
   - "[SPEC-0021: Downstream hard-cut integration and consumer validation contract](./SPEC-0021-downstream-hard-cut-integration-and-consumer-validation-contract.md)"
   - "[SPEC-0022: Auth0 tenant ops reusable workflow contract](./SPEC-0022-auth0-tenant-ops-reusable-workflow-contract.md)"
   - "[SPEC-0023: SSM runtime base-url contract for deploy validation](./SPEC-0023-ssm-runtime-base-url-contract-for-deploy-validation.md)"
+  - "[SPEC-0024: CloudFormation module contract](./SPEC-0024-cloudformation-module-contract.md)"
+  - "[SPEC-0025: Reusable workflow integration contract](./SPEC-0025-reusable-workflow-integration-contract.md)"
+  - "[SPEC-0026: CI/CD IAM least-privilege matrix](./SPEC-0026-ci-cd-iam-least-privilege-matrix.md)"
   - "[SPEC-0003: Observability](./SPEC-0003-observability.md)"
   - "[SPEC-0004: CI/CD and documentation automation](./SPEC-0004-ci-cd-and-docs.md)"
   - "[SPEC-0008: Async jobs and worker orchestration](./SPEC-0008-async-jobs-and-worker-orchestration.md)"
@@ -64,8 +70,14 @@ This spec does not restate route literals to avoid contract drift.
 
 ### 3.3 Reliability/rollback
 
-- Deployment circuit breaker and CloudWatch alarm rollback controls are
-  mandatory.
+- Deployment controller is ECS-native blue/green.
+- `DeploymentConfiguration.Strategy=BLUE_GREEN` is mandatory for the public API
+  service.
+- CloudWatch deployment alarms, bake time, and deployment circuit breaker
+  controls are mandatory.
+- Blue and green target groups are required, with ECS advanced load-balancer
+  configuration referencing the alternate target group, production listener
+  rule, and ECS infrastructure role.
 - Health endpoints are `/v1/health/live` and `/v1/health/ready`.
 
 ## 4. IaC ownership map (required)
@@ -73,11 +85,12 @@ This spec does not restate route literals to avoid contract drift.
 Nova repo must own runtime-deployment IaC for:
 
 1. ECS services/task definitions (API + workers).
-2. ALB/listeners/target groups/WAF association.
+2. ALB/listeners/dual target groups/WAF association.
 3. Queue and DLQ resources + scaling policies.
 4. Secrets/KMS policy modules.
 5. Observability resources (dashboards/alarms/log groups).
 6. Release promotion stack templates.
+7. ECS infrastructure role wiring for native blue/green load-balancer changes.
 
 ## 5. CI/CD contract
 
@@ -156,10 +169,12 @@ centrally.
 
 1. Dev and prod both deploy through immutable artifact path.
 2. Rollback drill evidence exists for current release train.
-3. Dash/Shiny/TS conformance workflow green.
+3. Python public SDK smoke is green and internal TS/R catalog drift lanes are
+   green.
 4. Cost controls exist (budgets/alarms, retention policies, scaling bounds).
 5. No active runtime/deployment authority exists outside Nova repo.
 6. Legacy route families are absent from runtime and OpenAPI.
+7. Public ALB deployments have an associated regional WAFv2 WebACL.
 
 ## 10. Operational no-shim posture
 

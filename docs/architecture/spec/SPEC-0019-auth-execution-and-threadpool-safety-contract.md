@@ -1,61 +1,64 @@
 ---
 Spec: 0019
-Title: CI/CD IAM least-privilege matrix
+Title: Auth execution and threadpool safety contract
 Status: Active
-Version: 1.1
-Date: 2026-03-03
+Version: 2.1
+Date: 2026-03-05
 Related:
-  - "[ADR-0026: OIDC and IAM role partitioning for deploy automation](../adr/ADR-0026-fail-fast-runtime-configuration-and-safe-auth-execution.md)"
-  - "[SPEC-0017: CloudFormation module contract](./SPEC-0017-runtime-component-topology-and-ownership-contract.md)"
-  - "[SPEC-0001: Security model](./SPEC-0001-security-model.md)"
+  - "[ADR-0026: Fail-fast runtime configuration and safe auth execution](../adr/ADR-0026-fail-fast-runtime-configuration-and-safe-auth-execution.md)"
+  - "[ADR-0004: Adopt oidc-jwt-verifier as the canonical JWT/OIDC verification engine](../adr/ADR-0004-canonical-oidc-jwt-verifier-adoption.md)"
+  - "[SPEC-0006: JWT/OIDC verification and principal mapping](./SPEC-0006-jwt-oidc-verification-and-principal-mapping.md)"
+  - "[SPEC-0018: Runtime configuration and startup validation contract](./SPEC-0018-runtime-configuration-and-startup-validation-contract.md)"
 ---
 
 ## 1. Scope
 
-Defines least-privilege IAM boundaries for GitHub OIDC deploy automation,
-CloudFormation execution, and CI/CD service roles.
+Defines how Nova executes local and remote auth paths safely in async runtime
+code.
 
-## 2. Principal partitioning
+## 2. Canonical auth execution rules
 
-| Principal | Trust source | Responsibility |
-| --- | --- | --- |
-| GitHub deploy role | GitHub OIDC | Calls deploy workflows and CloudFormation APIs |
-| CloudFormation execution roles (dev/prod) | CloudFormation service | Mutates stack resources for target environment |
-| CodePipeline role | CodePipeline service | Executes pipeline stages and invokes build/deploy actions |
-| CodeBuild project roles | CodeBuild service | Build, validate, and deployment validation tasks |
+1. Local synchronous JWT verification must run behind a threadpool boundary.
+2. Remote auth remains optional; when enabled it fails closed.
+3. Remote auth HTTP calls must reuse a process-scoped async client rather than
+   creating a new client per request-path invocation.
+4. Process-scoped remote auth clients must be closed during application
+   shutdown.
+5. Auth failure responses preserve the canonical Nova/Auth API contract,
+   including RFC 6750 challenge behavior on `401` responses.
+6. Presigned URLs, bearer tokens, and signed query values must never be logged.
 
-## 3. Required policy controls
+## 3. Threadpool and limiter contract
 
-1. `iam:PassRole` is scope-limited to approved role ARNs.
-2. `iam:PassRole` policies include `iam:PassedToService` conditions.
-3. No wildcard `*` resource grants for role-passing operations.
-4. Workflow callers only receive actions required for stack change-set lifecycle
-   and evidence collection.
+1. `OIDC_VERIFIER_THREAD_TOKENS` governs verifier concurrency only.
+2. Generic blocking I/O offloads must use a separate limiter contract and must
+   not silently share verifier-specific capacity decisions.
+3. Runtime code must not rely on unbounded synchronous work in async request
+   handlers.
+4. Process-wide limiter mutation is not the general-purpose concurrency control
+   strategy for the runtime.
 
-## 4. CI/CD least-privilege matrix
+## 4. Package-specific contract
 
-| Operation family | Allowed principal(s) | Required constraints |
-| --- | --- | --- |
-| `cloudformation:CreateChangeSet`, `ExecuteChangeSet`, `Describe*` | GitHub deploy role | Stack-name scope, region scope |
-| `iam:PassRole` for CFN/pipeline roles | GitHub deploy role | ARN allowlist + `iam:PassedToService` |
-| `codepipeline:StartPipelineExecution`, `GetPipelineState` | GitHub deploy role / pipeline operators | Named pipeline scope |
-| `codepipeline:PutApprovalResult` | Approved promotion actor | Manual approval stage/action scope |
-| Resource mutation during deploy | CFN execution roles | Environment stack scope only |
+1. `nova_auth_api` owns principal mapping and token verify/introspect semantics.
+2. `nova_file_api` may call local verification or remote auth, but it must use
+   the same canonical auth semantics and safe thread boundaries.
+3. `nova_dash_bridge` may forward auth context and call canonical Nova
+   contracts, but it must not create divergent verification behavior.
 
-## 5. Test and enforcement contract
+## 5. Acceptance criteria
 
-1. IAM invariants are enforced by infra tests.
-2. Policy changes that widen pass-role scope require explicit review and tests.
-3. Live rollback/recovery playbooks must document required IAM operations.
+1. Active runtime docs identify auth execution safety as runtime authority, not
+   CI/CD IAM authority.
+2. Readiness and startup docs do not weaken fail-closed auth behavior.
+3. Runtime safety docs explicitly distinguish verifier concurrency from other
+   blocking work.
+4. Remote auth lifecycle docs require a single scoped async client plus
+   explicit shutdown cleanup.
 
-## 6. Acceptance criteria
+## 6. Traceability
 
-1. IAM contract tests detect wildcard escalation and pass-role drift.
-2. Deploy workflows can complete with scoped permissions only.
-3. Access-denied failures produce actionable role/action/resource evidence.
-
-## 7. Traceability
-
+- [FR-0005](../requirements.md#fr-0005-authentication-and-authorization)
 - [NFR-0000](../requirements.md#nfr-0000-security-baseline)
-- [NFR-0105](../requirements.md#nfr-0105-contract-traceability)
-- [IR-0000](../requirements.md#ir-0000-nova-local-runtime-and-release-authority)
+- [NFR-0001](../requirements.md#nfr-0001-performance-and-event-loop-safety)
+- [IR-0003](../requirements.md#ir-0003-optional-remote-auth-service)

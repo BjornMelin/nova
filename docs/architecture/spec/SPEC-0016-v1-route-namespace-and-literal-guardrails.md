@@ -53,6 +53,7 @@ Auth service target routes:
 - `POST /v1/token/verify`
 - `POST /v1/token/introspect`
 - `GET /v1/health/live`
+- `GET /v1/health/ready`
 
 Non-canonical runtime paths outside this set MUST return `404`.
 
@@ -72,8 +73,8 @@ Non-canonical runtime paths outside this set MUST return `404`.
 
 1. `packages/contracts/fixtures/v1/README.md` MUST reference canonical
    `/v1/*` routes only.
-2. Dash/Shiny/TypeScript conformance lane checks MUST align to v1 route
-   literals and schema fixtures.
+2. Dash plus internal Shiny/TypeScript catalog conformance lane checks MUST
+   align to v1 route literals and schema fixtures.
 3. Generated-client smoke tests MUST remain green against the canonical route
    set.
 

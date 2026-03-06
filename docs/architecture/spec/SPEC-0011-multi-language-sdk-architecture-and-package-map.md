@@ -2,8 +2,8 @@
 Spec: 0011
 Title: Python-first SDK architecture and deferred TS/R package map
 Status: Active
-Version: 2.0
-Date: 2026-03-05
+Version: 2.1
+Date: 2026-03-06
 Related:
   - "[ADR-0013: Python-first SDK topology uses generated contract-core clients and defers TS/R productization](../adr/ADR-0013-final-state-sdk-topology-generated-core-plus-thin-adapters.md)"
   - "[ADR-0002: OpenAPI as contract and SDK generation](../adr/ADR-0002-openapi-as-contract-and-sdk-generation.md)"
@@ -21,6 +21,11 @@ References:
 Defines the current-wave Nova SDK package map. Python is the only release-grade
 public SDK surface. TypeScript and R packages remain internal/generated catalogs
 until a later promotion wave.
+
+This spec governs generated SDK trees and thin adapter surfaces. Runtime
+implementation distributions such as `nova_file_api` and `nova_auth_api` are
+outside this SDK map even when they publish installed-package typing metadata
+(`py.typed`).
 
 ## 2. Canonical topology
 
