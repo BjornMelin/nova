@@ -2,8 +2,8 @@
 Spec: 0007
 Title: Auth API Contract
 Status: Active
-Version: 1.1
-Date: 2026-03-03
+Version: 1.2
+Date: 2026-03-06
 Related:
   - "[SPEC-0006: JWT/OIDC verification and principal mapping](./SPEC-0006-jwt-oidc-verification-and-principal-mapping.md)"
   - "[SPEC-0000: HTTP API contract](./SPEC-0000-http-api-contract.md)"
@@ -22,7 +22,7 @@ This specification defines the HTTP contract for the dedicated `nova-auth-api` s
 The service provides:
 
 - token verification for signed JWT/OIDC access tokens
-- optional token introspection for opaque-token use cases
+- token introspection over the same verifier/principal-mapping path
 - health endpoint for deployment/runtime gates
 
 `nova-file-api` MUST keep local JWT verification as the default behavior.
@@ -32,7 +32,7 @@ Remote `nova-auth-api` mode is optional and configuration-driven.
 
 ### 2.1 POST `/v1/token/verify`
 
-Purpose: verify an access token and return a normalized principal.
+Purpose: verify an access token and return a normalized principal plus claims.
 
 Request body (`application/json`):
 
@@ -42,9 +42,8 @@ Request body (`application/json`):
 
 Response `200`:
 
-- `active`: boolean (`true` for successful verification)
-- `principal`: normalized identity object
-- `token`: sanitized token metadata (`iss`, `aud`, `sub`, `exp`, `iat`, `nbf`, `jti` when present)
+- `principal`: normalized identity object derived from verified claims
+- `claims`: verified claim set returned by the local verifier
 
 Failure behavior:
 
@@ -52,29 +51,42 @@ Failure behavior:
 - `403` for authorization failures (insufficient scope/permissions)
 - `401` responses SHOULD include RFC 6750-compatible `WWW-Authenticate`
 
-### 2.2 POST `/v1/token/introspect` (optional mode)
+### 2.2 POST `/v1/token/introspect`
 
-Purpose: return RFC 7662-style token activity and metadata, primarily for opaque tokens.
+Purpose: return token activity, normalized principal metadata, and claims while
+retaining compatibility with RFC 7662-style form callers.
 
 Request requirements:
 
+- MUST accept `application/json`
+- JSON request body MUST support:
+  - `access_token` (required)
+  - `required_scopes` (optional)
+  - `required_permissions` (optional)
 - MUST accept `application/x-www-form-urlencoded`
-- MUST support:
-  - `token` (required)
-  - `token_type_hint` (optional)
+- form payload MUST support:
+  - `token` (required compatibility alias for `access_token`)
+  - `token_type_hint` (optional compatibility hint; accepted and ignored)
+  - repeated `required_scopes` values (optional)
+  - repeated `required_permissions` values (optional)
 
 Response requirements:
 
-- On valid and active token query: `200` with `{"active": true, ...}`
-- On properly authorized query for inactive/unknown token: `200` with `{"active": false}`
-- Caller auth failure to introspection endpoint: `401` per RFC 7662
+- On valid token query: `200` with:
+  - `active: true`
+  - `principal`
+  - `claims`
+- Invalid/expired token queries return `401` with the canonical error
+  envelope.
+- Insufficient scope/permission checks return `403` with the canonical error
+  envelope.
 
-When introspection mode is disabled, deployments MAY omit this route.
-Clients MUST treat `404` or `501` as "introspection disabled".
+Clients MUST NOT rely on inactive `{"active": false}` responses or route
+omission in the current implementation.
 
 ### 2.3 GET `/v1/health/live`
 
-Purpose: liveness/readiness gate for ECS/ALB.
+Purpose: process liveness only.
 
 Response `200` MUST include:
 
@@ -83,6 +95,21 @@ Response `200` MUST include:
 - `request_id`: string
 
 Health checks SHOULD be lightweight and MUST NOT require external token provider calls.
+
+### 2.4 GET `/v1/health/ready`
+
+Purpose: readiness gate for ECS/ALB and downstream runtime dependencies.
+
+Response `200` MUST include:
+
+- `status`: `"ok"`
+- `service`: `"nova-auth-api"`
+- `request_id`: string
+
+Failure behavior:
+
+- `503` with the canonical error envelope when verifier/config state is unavailable
+- readiness MUST remain lightweight and MUST NOT require external token provider calls
 
 ## 3. Principal normalization contract
 
@@ -116,21 +143,18 @@ All non-2xx responses MUST use:
 }
 ```
 
-Recommended error codes:
+Common error codes in the current runtime:
 
 - `invalid_request`
-- `missing_token`
+- `unauthorized`
+- `forbidden`
 - `invalid_token`
-- `token_expired`
-- `token_not_yet_valid`
-- `invalid_issuer`
-- `invalid_audience`
-- `insufficient_scope`
-- `insufficient_permissions`
-- `introspection_disabled`
-- `upstream_timeout`
-- `upstream_unavailable`
+- `service_unavailable`
 - `internal_error`
+
+Verifier-specific token-validation codes such as `token_expired`,
+`token_not_yet_valid`, `invalid_issuer`, or `invalid_audience` MAY be surfaced
+when provided by the OIDC verifier dependency.
 
 ## 5. Security and operations requirements
 
@@ -155,10 +179,12 @@ Minimum coverage:
 - verify success path with normalized principal output
 - `401` and `403` mappings with stable error codes
 - RFC 6750 `WWW-Authenticate` header behavior for `401`
-- introspection active/inactive behavior (`200` responses)
-- introspection caller-auth failure behavior (`401`)
-- introspection disabled behavior (`404` or `501`)
+- introspection JSON success behavior (`200`)
+- introspection RFC 7662 form compatibility behavior (`200`)
+- introspection invalid-token behavior (`401`)
+- introspection scope/permission failure behavior (`403`)
 - `/v1/health/live` success behavior and response shape
+- `/v1/health/ready` success and `503` behavior
 
 ## 8. Traceability
 

@@ -18,9 +18,14 @@ and auditable outputs.
 
 - `runtime-security-reliability-gates`
 - `quality-gates`
-- `dash-conformance`
-- `shiny-conformance`
-- `typescript-conformance`
+- `generated-clients`
+- `typescript-clients`
+- `r-clients`
+
+Python is the only release-grade public SDK surface in this wave.
+`generated-clients` enforces canonical OpenAPI and committed SDK artifact drift.
+`typescript-clients` and `r-clients` remain required internal generated-SDK
+validation lanes.
 
 ## Operator flow
 

@@ -18,9 +18,16 @@ From workflow `Nova CI` (`.github/workflows/ci.yml`):
 
 From workflow `Conformance Clients` (`.github/workflows/conformance-clients.yml`):
 
-- `dash-conformance`
-- `shiny-conformance`
-- `typescript-conformance`
+- `generated-clients`
+- `typescript-clients`
+- `r-clients`
+
+Release-grade/public SDK note:
+
+- `generated-clients` covers generated TS/R catalog drift and committed Python
+  SDK artifact drift against the canonical OpenAPI export.
+- `typescript-clients` and `r-clients` remain required internal generated-SDK
+  validation lanes in this wave.
 
 From workflow `CFN Contract Validate` (`.github/workflows/cfn-contract-validate.yml`):
 
@@ -81,9 +88,9 @@ gh api \
     "contexts": [
       "runtime-security-reliability-gates",
       "quality-gates",
-      "dash-conformance",
-      "shiny-conformance",
-      "typescript-conformance",
+      "generated-clients",
+      "typescript-clients",
+      "r-clients",
       "cfn-and-contracts"
     ]
   },
@@ -108,10 +115,11 @@ JSON
 
 ## Scope guardrails
 
-TypeScript conformance lane scope remains intentionally minimal:
+The `Conformance Clients` workflow is limited to generated-contract validation:
 
-- contract fixture typing
-- SDK/client envelope verification
-- auth verify + queue/transfer contract parity
+- `generated-clients`: OpenAPI export drift, TS/R catalog drift, and committed
+  Python SDK drift
+- `typescript-clients`: typecheck of generated/internal TypeScript packages
+- `r-clients`: source/load validation of generated R packages
 
-No broad app feature tests are part of this required check set.
+No broad application feature-test lane is part of this required check set.

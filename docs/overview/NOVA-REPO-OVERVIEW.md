@@ -12,7 +12,27 @@ Nova is the canonical runtime monorepo for file-transfer orchestration and token
 - `packages/nova_auth_api`: Token verify/introspect API implementation.
 - `packages/nova_dash_bridge`: Integration bridge adapters for Dash/Flask/FastAPI clients.
 - `packages/contracts`: Contract artifacts, fixtures, and conformance helpers.
+- `packages/nova_sdk_py_file`: Committed generated Python SDK for the file API.
+- `packages/nova_sdk_py_auth`: Committed generated Python SDK for the auth API.
+- `packages/nova_sdk_file_core`: Internal generated TypeScript operation catalog for the file API.
+- `packages/nova_sdk_auth_core`: Internal generated TypeScript operation catalog for the auth API.
+- `packages/nova_sdk_fetch`: Shared internal TypeScript transport/runtime helpers for generated catalogs.
+- `packages/nova_sdk_r_file`: Internal generated R operation catalog for the file API.
+- `packages/nova_sdk_r_auth`: Internal generated R operation catalog for the auth API.
 - `infra/nova` and `infra/runtime`: CloudFormation stacks for CI/CD foundation and runtime environments.
+
+SDK release posture for this wave:
+
+- Python packages are the only release-grade public SDK surface.
+- TypeScript and R packages remain internal/generated catalogs until a later
+  promotion wave.
+
+OpenAPI and SDK generation authority for this topology:
+
+- Canonical service contracts are committed under `packages/contracts/openapi/`.
+- `scripts/contracts/export_openapi.py` refreshes and checks the committed OpenAPI artifacts.
+- `scripts/release/generate_clients.py` refreshes and checks the internal TypeScript and R catalogs.
+- `scripts/release/generate_python_clients.py` refreshes and checks the committed Python SDK trees.
 
 ```mermaid
 flowchart TB
@@ -48,6 +68,9 @@ flowchart TB
 - Requests pass through auth, validation, idempotency, and service-layer orchestration.
 - Async workloads are published to queue backends and completed by workers.
 - Workers report completion to the internal callback endpoint (`/v1/internal/jobs/{job_id}/result`).
+- Worker runtime is launched via packaged command `nova-file-worker` and
+  canonical `JOBS_*` env contract (`JOBS_RUNTIME_MODE=worker`,
+  `JOBS_API_BASE_URL`, `JOBS_SQS_QUEUE_URL`, `JOBS_WORKER_UPDATE_TOKEN`).
 - Health and observability surfaces are exposed via:
   - `/v1/health/live`
   - `/v1/health/ready`
@@ -80,6 +103,9 @@ flowchart LR
   - Framework adapters that let Dash/Flask/FastAPI apps consume Nova-style transfer flows without redefining server contracts.
 - `contracts` owns:
   - Test fixtures, schemas, and conformance artifacts used by release and integration checks.
+- generated SDK packages own:
+  - committed Python SDK distributions for the public file/auth client surface.
+  - internal TypeScript and R catalogs derived from the canonical OpenAPI artifacts.
 
 ```mermaid
 flowchart LR
@@ -186,6 +212,13 @@ flowchart TB
 - GitHub Actions workflows orchestrate quality gates, release, and environment promotions.
 - AWS CodePipeline/CodeBuild/CodeConnections and artifact controls are represented in the infra stacks and release workflows.
 - Promotion model is artifact-forward (build once, promote across lanes).
+- Runtime service deployment is ECS-native blue/green on `AWS::ECS::Service`
+  with ALB target groups, CloudWatch deployment alarms, lifecycle hooks, and
+  WAF on the public ALB path.
+- Runtime stack deploy stages are change-set first (create/update then execute)
+  with rollback-on-failure behavior delegated to CloudFormation/ECS deploy controls.
+- Release/deploy workflows declare explicit concurrency groups to serialize
+  lane-specific operations.
 
 ```mermaid
 flowchart LR
@@ -199,7 +232,7 @@ flowchart LR
     ECS --> REDIS["Redis cache"]
     ECS --> CW["CloudWatch logs and metrics"]
     ECS --> KMS["KMS protected data paths"]
-    ALB["ALB and WAF"] --> ECS
+    ALB["ALB, WAF, and ECS blue/green listeners"] --> ECS
 ```
 
 ```mermaid

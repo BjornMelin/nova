@@ -16,6 +16,8 @@ ACTIVE_DOCS_PATHS = (
     DOCS_ROOT / "architecture" / "spec",
 )
 
+SUPERSEDED_PARTS = {"superseded"}
+
 BANNED_DOC_PATTERNS = (
     "container-craft/docs/",
     "infra-stack/container-craft/blob",
@@ -35,9 +37,19 @@ LEGACY_ACTIVE_ROUTE_PATTERNS = (
     re.compile(r"/readyz(?:\b|/)"),
 )
 
+RETIRED_CONFORMANCE_CHECK_NAMES = (
+    "dash-conformance",
+    "shiny-conformance",
+    "typescript-conformance",
+)
+
 
 def _markdown_files(base_path: Path) -> list[Path]:
-    return sorted(path for path in base_path.rglob("*.md") if path.is_file())
+    return sorted(
+        path
+        for path in base_path.rglob("*.md")
+        if path.is_file() and not (set(path.parts) & SUPERSEDED_PARTS)
+    )
 
 
 def _markdown_targets(paths: tuple[Path, ...]) -> list[Path]:
@@ -199,26 +211,121 @@ def test_agents_active_authority_pack_includes_ws6_contracts() -> None:
     ]:
         assert required in text
 
+    for required in [
+        "docs/architecture/adr/superseded/**",
+        "docs/architecture/spec/superseded/**",
+    ]:
+        assert required in text
+
 
 def test_ws6_authority_docs_reference_new_contracts() -> None:
     """Authority indexes and runbooks must reference WS6 contract additions."""
-    for rel_path in [
-        "docs/architecture/adr/index.md",
-        "docs/architecture/spec/index.md",
-        "docs/plan/PLAN.md",
-        "docs/runbooks/README.md",
-        "docs/PRD.md",
-    ]:
-        text = _read(rel_path)
-        for required in [
+    required_by_file = {
+        "docs/architecture/adr/index.md": [
+            "ADR-0027",
+            "ADR-0028",
+            "ADR-0029",
+        ],
+        "docs/architecture/spec/index.md": [
+            "SPEC-0021",
+            "SPEC-0022",
+            "SPEC-0023",
+        ],
+        "docs/plan/PLAN.md": [
             "ADR-0027",
             "ADR-0028",
             "ADR-0029",
             "SPEC-0021",
             "SPEC-0022",
             "SPEC-0023",
-        ]:
+        ],
+        "docs/runbooks/README.md": [
+            "ADR-0027",
+            "ADR-0028",
+            "ADR-0029",
+            "SPEC-0021",
+            "SPEC-0022",
+            "SPEC-0023",
+        ],
+        "docs/PRD.md": [
+            "ADR-0027",
+            "ADR-0028",
+            "ADR-0029",
+            "SPEC-0021",
+            "SPEC-0022",
+            "SPEC-0023",
+        ],
+    }
+
+    for rel_path, required_tokens in required_by_file.items():
+        text = _read(rel_path)
+        for required in required_tokens:
             assert required in text, f"{rel_path} missing {required}"
+
+
+def test_active_authority_docs_reference_correct_spec_0020_identity() -> None:
+    """Top-level docs must reference the repaired SPEC-0020 identity."""
+    active_authority_docs = [
+        "AGENTS.md",
+        "docs/PRD.md",
+        "docs/plan/PLAN.md",
+        "docs/runbooks/README.md",
+    ]
+
+    for rel_path in active_authority_docs:
+        text = _read(rel_path)
+        assert (
+            "SPEC-0020-architecture-authority-pack-and-documentation-synchronization-contract.md"
+            in text
+        )
+        assert "Rollout and validation strategy" not in text
+
+
+def test_spec_indexes_and_active_authority_specs_use_superseded_sections() -> (
+    None
+):
+    """ADR/SPEC indexes must separate superseded authority from active docs."""
+    adr_index = _read("docs/architecture/adr/index.md")
+    spec_index = _read("docs/architecture/spec/index.md")
+    spec_0020 = _read(
+        "docs/architecture/spec/SPEC-0020-architecture-authority-pack-and-documentation-synchronization-contract.md"
+    )
+
+    for required in [
+        "## Superseded",
+        "./superseded/ADR-0014-container-craft-capability-absorption-and-repo-retirement.md",
+        "./superseded/ADR-0016-minimal-governance-final-state-operator-path.md",
+    ]:
+        assert required in adr_index
+
+    for required in [
+        "## Superseded",
+        "./superseded/SPEC-0020-rollout-and-validation-strategy.md",
+        (
+            "Architecture authority pack and documentation "
+            "synchronization contract"
+        ),
+    ]:
+        assert required in spec_index
+
+    assert "shared execution ledger" not in spec_0020
+    assert "Rollout and validation strategy" not in spec_0020
+
+
+def test_ci_cd_doc_contract_uses_dual_image_digests() -> None:
+    """Active CI/CD spec must use the live dual-image digest contract."""
+    text = _read("docs/architecture/spec/SPEC-0004-ci-cd-and-docs.md")
+
+    for required in [
+        "FILE_IMAGE_DIGEST",
+        "AUTH_IMAGE_DIGEST",
+        "RELEASE_MANIFEST_SHA256",
+    ]:
+        assert required in text
+
+    assert "`IMAGE_DIGEST`" not in text
+    assert "cross-framework conformance gate" not in text
+    assert "generated-client conformance gate" in text
 
 
 def test_release_docs_align_validation_path_policy_contract() -> None:
@@ -265,3 +372,55 @@ def test_auth0_and_ssm_contract_docs_reference_schema_authority() -> None:
         "/nova/prod/{service}/base-url",
     ]:
         assert required in ssm_spec
+
+
+def test_active_release_docs_do_not_reference_retired_conformance_lane_names() -> (
+    None
+):
+    """Active release docs must use the current conformance workflow names."""
+    active_release_docs = [
+        "docs/plan/release/branch-protection-required-checks.md",
+        "docs/plan/release/governance-lock-runbook.md",
+    ]
+
+    for rel_path in active_release_docs:
+        text = _read(rel_path)
+        for retired_name in RETIRED_CONFORMANCE_CHECK_NAMES:
+            assert retired_name not in text, (
+                f"{rel_path} still references retired lane {retired_name}"
+            )
+
+        for required in [
+            "generated-clients",
+            "typescript-clients",
+            "r-clients",
+        ]:
+            assert required in text, f"{rel_path} missing {required}"
+
+
+def test_auth_api_contract_doc_matches_current_verify_and_introspect_shape() -> (
+    None
+):
+    """Auth API spec must describe the live verify/introspect contract."""
+    text = _read("docs/architecture/spec/SPEC-0007-auth-api-contract.md")
+
+    for forbidden in [
+        "sanitized token metadata",
+        "Clients MUST treat `404` or `501` as `introspection disabled`",
+        "When introspection mode is disabled",
+        "optional mode",
+    ]:
+        assert forbidden not in text
+
+    for required in [
+        "normalized principal plus claims",
+        "`principal`: normalized identity object derived from verified claims",
+        "`claims`: verified claim set returned by the local verifier",
+        "`access_token` (required)",
+        "`token` (required compatibility alias for `access_token`)",
+        "`token_type_hint` (optional compatibility hint; accepted and ignored)",
+        "On valid token query: `200` with:",
+        "Invalid/expired token queries return `401`",
+        "Insufficient scope/permission checks return `403`",
+    ]:
+        assert required in text, f"SPEC-0007 missing {required}"

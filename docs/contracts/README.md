@@ -2,18 +2,24 @@
 
 Status: Active
 Owner: nova release architecture
-Last reviewed: 2026-03-03
+Last reviewed: 2026-03-06
 
 ## Purpose
 
 Provide machine-readable JSON schema contracts for reusable post-deploy
-workflow APIs, downstream size profiles, and release artifacts used by WS6/WS8
-release and consumer integration gates.
+workflow APIs, downstream size profiles, release artifacts, and committed
+OpenAPI documents used by release and consumer integration gates.
 
 ## Schema Set
 
+Canonical committed OpenAPI artifacts live under `packages/contracts/openapi/`:
+
+- `../../packages/contracts/openapi/nova-file-api.openapi.json`
+- `../../packages/contracts/openapi/nova-auth-api.openapi.json`
+
 - `reusable-workflow-inputs-v1.schema.json`
-  - Defines typed v1 workflow input contracts for reusable deployment APIs.
+  - Defines typed v1 reusable workflow input contracts for runtime deploy and
+    prod promotion APIs.
 - `reusable-workflow-outputs-v1.schema.json`
   - Defines typed v1 workflow output contracts for reusable deployment APIs.
 - `deploy-size-profiles-v1.json`
@@ -31,6 +37,49 @@ release and consumer integration gates.
   - Workflow-specific contract schema for Auth0 tenant operation reusable APIs.
 - `ssm-runtime-base-url-v1.schema.json`
   - SSM parameter path + HTTPS value contract for runtime deploy-validation base URLs.
+
+## Workflow contract updates (2026-03-06)
+
+- Worker runtime contract is canonicalized on `JOBS_*` environment settings
+  with explicit `JOBS_RUNTIME_MODE=worker` and `JOBS_WORKER_UPDATE_TOKEN`.
+- Worker executable contract is the packaged command `nova-file-worker`.
+- Reusable deploy input contract requires explicit `approval_environment` for
+  environment-gated deployments.
+- Canonical file/auth OpenAPI artifacts are committed under
+  `packages/contracts/openapi/` and are CI drift-gated.
+- Canonical OpenAPI export drift is checked with
+  `scripts/contracts/export_openapi.py --check`.
+- Internal TypeScript/R generated catalog drift is checked with
+  `scripts/release/generate_clients.py --check`.
+- Committed Python SDK package drift is checked with
+  `scripts/release/generate_python_clients.py --check`.
+- Promotion input contract supports path-based payload sources
+  (`*_path`) in addition to inline JSON payload fields.
+- Promotion input contract requires SHA256 digests for
+  `changed_units`, `version_plan`, and `promotion_candidates`.
+- Reusable deploy-runtime output `manifest_sha256` is the canonical SHA256 of
+  `docs/plan/release/RELEASE-VERSION-MANIFEST.md`, not deploy-evidence output.
+- Deploy and release workflow contracts are concurrency-scoped and deploy via
+  change-set create/update + pre-execution validation (`describe-events`,
+  `OperationEvents`) + execute lifecycle with rollback-on-failure behavior.
+- Post-deploy validation workflow contracts support dual-service validation
+  inputs and artifact reports for both file and auth targets.
+
+## Canonical SDK/contract verification flow
+
+Run from repository root with `.venv` active:
+
+```bash
+source .venv/bin/activate && uv run python scripts/contracts/export_openapi.py --check
+source .venv/bin/activate && uv run python scripts/release/generate_clients.py --check
+source .venv/bin/activate && uv run python scripts/release/generate_python_clients.py --check
+source .venv/bin/activate && uv run pytest -q packages/nova_file_api/tests/test_generated_client_smoke.py
+```
+
+The generated-client smoke suite covers both
+`nova-file-api.openapi.json` and `nova-auth-api.openapi.json`.
+Committed Python SDK trees are part of the drift-gated contract surface, not
+an optional post-processing artifact.
 
 ## Related references
 
