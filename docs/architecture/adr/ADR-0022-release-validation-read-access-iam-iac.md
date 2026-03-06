@@ -1,33 +1,35 @@
 ---
 ADR: 0022
-Title: Codify Batch B operator validation IAM access in Nova IaC
+Title: Codify release validation read access in Nova IaC
 Status: Accepted
 Version: 1.0
 Date: 2026-03-02
 Related:
   - "[ADR-0011: Hybrid CI/CD with GitHub and AWS promotion](./ADR-0011-cicd-hybrid-github-aws-promotion.md)"
-  - "[ADR-0016: Minimal governance final-state operator path](./ADR-0016-minimal-governance-final-state-operator-path.md)"
+  - "[ADR-0032: OIDC and IAM role partitioning for deploy automation](./ADR-0032-oidc-and-iam-role-partitioning-for-deploy-automation.md)"
 References:
   - "[AWS IAM policies and permissions boundaries](https://docs.aws.amazon.com/IAM/latest/UserGuide/access_policies.html)"
-  - "[AWS CodeDeploy documentation](https://docs.aws.amazon.com/codedeploy/latest/userguide/getting-started.html)"
+  - "[Amazon ECS infrastructure IAM role for load balancers](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/AmazonECSInfrastructureRolePolicyForLoadBalancers.html)"
 ---
 
 ## Summary
 
-Adopt a dedicated Batch B validation operator role in Nova IaC using minimally
-scoped read permissions from CodeConnections, CodePipeline, and CodeDeploy, and
-preserve release operators in one auditable path.
+Adopt a dedicated release validation read role in Nova IaC using minimally scoped
+read permissions from CodeConnections, CodePipeline, ECS/ELB/WAF, and runtime
+infrastructure IAM surfaces.
 
 ## Context
 
-Batch B validation runs were blocked by denied IAM actions from the current operator context:
+Validation runs were blocked by denied IAM actions from the current operator
+context. The target-state read surface now centers on:
 
 - `codeconnections:GetConnection`
 - `codepipeline:ListPipelineExecutions`
 - `codepipeline:ListPipelines`
-- `codedeploy:ListApplications`
+- `wafv2:GetWebACLForResource`
 
-Nova required a reproducible, auditable, least-privilege path in-repo (final-state) instead of ad-hoc/manual grants.
+Nova required a reproducible, auditable, least-privilege path in-repo
+(final-state) instead of ad-hoc/manual grants.
 
 ## Decision drivers (weighted)
 
@@ -38,14 +40,14 @@ Nova required a reproducible, auditable, least-privilege path in-repo (final-sta
 
 ## Options considered
 
-1. **Inline Batch B validation policy in `infra/nova/nova-iam-roles.yml` on a dedicated operator role (conditional creation by principal ARN parameter)**
+1. **Inline release validation read policy in `infra/nova/nova-iam-roles.yml` on a dedicated role (conditional creation by trusted principal ARN parameter)**
 1. Standalone managed policy + separate role attachment choreography
 1. Continue manual/operator-side IAM updates out-of-band
 
 ## Scoring
 
 | Option | Repro (0.40) | Least Priv (0.30) | Simplicity (0.20) | Audit (0.10) | Weighted score |
-|---|---:|---:|---:|---:|---:|
+| --- | --- | --- | --- | --- | --- |
 | 1 | 9.7 | 9.2 | 9.3 | 9.6 | **9.44** |
 | 2 | 9.0 | 9.0 | 8.4 | 9.4 | 8.92 |
 | 3 | 3.0 | 4.0 | 6.0 | 2.0 | 3.90 |
@@ -61,18 +63,20 @@ The first returned perspective aligned with codifying the access in IaC and rein
 
 - AWS Service Authorization Reference -- CodeConnections
 - AWS Service Authorization Reference -- CodePipeline
-- AWS Service Authorization Reference -- CodeDeploy
+- AWS Service Authorization Reference -- AWS WAFV2
+- AWS Service Authorization Reference -- IAM
 
 Key implications used in policy design:
 
 - `codeconnections:GetConnection` supports connection ARN scoping.
 - `codepipeline:ListPipelineExecutions` supports pipeline ARN scoping.
 - `codepipeline:ListPipelines` is list-level and requires `Resource: "*"`.
-- `codedeploy:ListApplications` is list-level and requires `Resource: "*"`.
+- `wafv2:ListWebACLs` is list-level and requires `Resource: "*"`.
+- `iam:GetRole` scopes to the explicit ECS infrastructure role ARN.
 
 ## Decision
 
-Adopt **Option 1**: codify a dedicated Batch B validation operator role in `infra/nova/nova-iam-roles.yml`, created when `BatchBOperatorPrincipalArn` is provided.
+Adopt **Option 1**: codify a dedicated release validation read role in `infra/nova/nova-iam-roles.yml`, created when `ReleaseValidationTrustedPrincipalArn` is provided.
 
 Policy stance:
 
@@ -85,17 +89,17 @@ Policy stance:
 Positive:
 
 - Deterministic and reviewable in PRs.
-- Removes manual IAM drift for Batch B gate execution.
+- Removes manual IAM drift for release gate execution.
 - Keeps implementation focused and minimal.
 
 Tradeoffs:
 
-- Requires setting `BatchBOperatorPrincipalArn` at stack deploy/update time.
+- Requires setting `ReleaseValidationTrustedPrincipalArn` at stack deploy/update time.
 - Some actions remain `*` scoped due AWS service authorization constraints.
 
 ## Implementation summary
 
-- Added `BatchBOperatorPrincipalArn` parameter.
-- Added `BatchBValidationOperatorRole` with inline read-only Batch B validation policy.
-- Added conditional output `BatchBValidationOperatorRoleArn`.
+- Added `ReleaseValidationTrustedPrincipalArn` parameter.
+- Added `ReleaseValidationReadRole` with inline read-only release validation policy.
+- Added conditional output `ReleaseValidationReadRoleArn`.
 - Updated runbooks with apply/verify/rollback and evidence expectations.

@@ -117,7 +117,15 @@ rg -n "/v1/transfers|/v1/jobs|/v1/internal/jobs|/v1/capabilities|/v1/resources/p
 
 - `POST /v1/jobs` queue publish failures MUST return `503` with
   `error.code = "queue_unavailable"`.
+- Mutation entrypoints running with distributed idempotency MAY return `503`
+  with `error.code = "idempotency_unavailable"` when the shared claim store
+  cannot guarantee correctness.
 - Failed enqueue responses MUST NOT be idempotency replay cached.
+- `IDEMPOTENCY_ENABLED=true` with `IDEMPOTENCY_MODE=shared_required` requires
+  `CACHE_REDIS_URL`.
+- Multi-instance production posture for idempotent mutation entrypoints MUST use
+  `IDEMPOTENCY_MODE=shared_required`; do not treat `local_only` as a production
+  default.
 - `/v1/health/ready` must evaluate only traffic-critical dependencies.
 - Missing/blank `FILE_TRANSFER_BUCKET` MUST fail readiness.
 - `AUTH_MODE=jwt_local` with incomplete `OIDC_ISSUER`, `OIDC_AUDIENCE`, or
@@ -130,9 +138,15 @@ rg -n "/v1/transfers|/v1/jobs|/v1/internal/jobs|/v1/capabilities|/v1/resources/p
   use a threadpool boundary.
 - `JOBS_QUEUE_BACKEND=sqs` with `JOBS_ENABLED=true` requires
   `JOBS_SQS_QUEUE_URL`.
+- `JOBS_REPOSITORY_BACKEND=dynamodb` requires `JOBS_DYNAMODB_TABLE`.
+- DynamoDB-backed job listing requires the jobs table GSI
+  `scope_id-created_at-index`; the runtime does not fall back to `Scan` for
+  scoped listing.
 - `JOBS_RUNTIME_MODE=worker` requires `JOBS_ENABLED=true`,
   `JOBS_QUEUE_BACKEND=sqs`, `JOBS_SQS_QUEUE_URL`, `JOBS_API_BASE_URL`, and
   `JOBS_WORKER_UPDATE_TOKEN`.
+- Malformed worker queue messages MUST remain unacked so SQS retry/DLQ policy
+  handles poison messages; the worker must not delete them immediately.
 - `ACTIVITY_STORE_BACKEND=dynamodb` requires `ACTIVITY_ROLLUPS_TABLE`.
 
 ## Required Quality Gates

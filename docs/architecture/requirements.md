@@ -145,6 +145,13 @@ The idempotency implementation MUST use an explicit request lifecycle:
 - claim (`in_progress`) before mutation execution
 - commit (`committed`) only after successful mutation response
 - discard claims on failed mutation execution to preserve retry behavior
+- `IDEMPOTENCY_MODE=shared_required` is the canonical production mode for
+  AWS-backed multi-instance deployments and requires shared Redis.
+- In `shared_required` mode, mutations MUST fail with `503`
+  (`error.code = "idempotency_unavailable"`) when the distributed claim store
+  cannot guarantee correctness.
+- `IDEMPOTENCY_MODE=local_only` is limited to explicit local/single-process
+  operation and must not be treated as the production default.
 
 ### FR-0005: Authentication and authorization
 
@@ -162,7 +169,8 @@ session scope.
 The service MUST support a two-tier cache model:
 
 - Local in-process TTL cache
-- Shared Redis cache (optional, best-effort)
+- Shared Redis cache used as the distributed cache authority when
+  `IDEMPOTENCY_MODE=shared_required`
 
 Shared cache keys MUST be namespaced and schema-versioned, and JWT cache TTL
 MUST be bounded by token expiration (`exp`) with configured max TTL caps.
