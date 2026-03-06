@@ -20,5 +20,8 @@ dependencies = [
   "structlog>=25.5.0",
 ]
 
+[project.scripts]
+nova-file-worker = "nova_file_api.worker:main"
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/nova_file_api"]
