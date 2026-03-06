@@ -20,6 +20,7 @@ Archived records in this bundle:
 - `PRD.md`
 - `FINAL-PLAN.md`
 - `PLAN.md`
+- `release/evidence-log-2026-03-03-pre-ecs.md`
 - `planning/2026-03-01-adr0015-spec0015-implementation-blueprint.md`
 - `subplans/SUBPLAN-0001.md` … `subplans/SUBPLAN-0005.md`
 - `triggers/TRIGGER-0001.md` … `triggers/TRIGGER-0005.md`
