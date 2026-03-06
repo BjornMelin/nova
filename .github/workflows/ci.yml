@@ -349,4 +349,5 @@ jobs:
           validate_openapi_paths(create_app().openapi(), "nova_file_api")
           validate_openapi_paths(create_auth_app().openapi(), "nova_auth_api")
           PY
+          uv run python scripts/contracts/export_openapi.py --check
           echo "Canonical route policy guard check passed."
