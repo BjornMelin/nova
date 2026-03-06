@@ -8,7 +8,9 @@ proxy file bytes.
 
 The canonical async worker lane executes `transfer.process` jobs by
 server-side copying a scoped upload object into the export prefix and returning
-`export_key` plus `download_filename`.
+`export_key` plus `download_filename`. For async worker retries, the same
+`job_id` reuses the same export key so SQS replay does not mint duplicate
+export objects.
 
 ## Canonical Contract
 
@@ -94,6 +96,9 @@ For exact endpoint and payload contract details, use:
   completion returns `export_key` and `download_filename`.
 - Malformed worker queue messages are retried and drain to DLQ through SQS
   redrive policy; they are not acknowledged immediately.
+- Worker result callbacks must be durably accepted before a message is deleted;
+  transient callback rejection leaves the source message on the queue for
+  retry/DLQ handling.
 
 ## Local Development
 

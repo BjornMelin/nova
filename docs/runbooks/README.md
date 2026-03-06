@@ -2,7 +2,7 @@
 
 Status: Active
 Owner: nova release architecture
-Last reviewed: 2026-03-05
+Last reviewed: 2026-03-06
 
 ## Purpose
 

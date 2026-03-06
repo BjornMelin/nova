@@ -57,6 +57,11 @@ Last updated: 2026-03-05
 - Worker lane now executes canonical `transfer.process` jobs end-to-end, and
   the worker stack requires `JobsWorkerUpdateTokenSecretArn` plus queue-depth
   step scaling even when deployed for scale-from-zero.
+- Worker callback retries now require durable `running` acceptance before copy
+  execution and reuse a stable per-job export key so redelivery does not mint
+  duplicate export artifacts.
+- Release artifact downloaders now query GitHub Actions artifacts by name with
+  `per_page=100` pagination fallback and fail fast on ambiguous live matches.
 - Remote auth execution now reuses a lifespan-managed async HTTP client and the
   published Python packages ship `py.typed` markers as part of the supported
   type-safety contract.

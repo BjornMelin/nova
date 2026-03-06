@@ -147,6 +147,13 @@ rg -n "/v1/transfers|/v1/jobs|/v1/internal/jobs|/v1/capabilities|/v1/resources/p
   `JOBS_WORKER_UPDATE_TOKEN`.
 - Malformed worker queue messages MUST remain unacked so SQS retry/DLQ policy
   handles poison messages; the worker must not delete them immediately.
+- `transfer.process` worker retries for the same `job_id` MUST reuse the same
+  `result.export_key`.
+- The worker MUST not start transfer execution until the `running` callback is
+  durably accepted by `POST /v1/internal/jobs/{job_id}/result`.
+- Worker callback transport failures plus HTTP `404`, `409`, and `5xx`
+  responses MUST leave the SQS message unacked so queue redelivery can replay
+  the same job safely.
 - `ACTIVITY_STORE_BACKEND=dynamodb` requires `ACTIVITY_ROLLUPS_TABLE`.
 
 ## Required Quality Gates

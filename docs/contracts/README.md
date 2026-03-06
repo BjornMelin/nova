@@ -73,6 +73,10 @@ Canonical committed OpenAPI artifacts live under `packages/contracts/openapi/`:
   method-aware allowed status sets instead of broad non-`404` matching.
 - `scripts/release/download_run_artifact.py` streams bounded downloads and
   rejects unsafe archive paths during extraction.
+- `scripts/release/download_run_artifact.py` resolves GitHub Actions artifacts
+  by exact `name`, paginates listing lookup with `per_page=100`, and fails
+  closed when multiple active artifacts share the requested name for the same
+  workflow run.
 
 ## Canonical SDK/contract verification flow
 

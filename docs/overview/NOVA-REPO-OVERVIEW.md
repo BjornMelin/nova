@@ -70,6 +70,11 @@ flowchart TB
 - Requests pass through auth, validation, idempotency, and service-layer orchestration.
 - Async workloads are published to queue backends and completed by workers.
 - Workers report completion to the internal callback endpoint (`/v1/internal/jobs/{job_id}/result`).
+- Worker replay semantics are at-least-once safe: retry/redelivery for the
+  same `transfer.process` `job_id` reuses the same export key.
+- Worker transfer execution does not begin until the `running` callback is
+  durably accepted, and retryable callback failures leave the SQS message
+  unacked for queue redelivery.
 - Worker runtime is launched via packaged command `nova-file-worker` and
   canonical `JOBS_*` env contract (`JOBS_RUNTIME_MODE=worker`,
   `JOBS_API_BASE_URL`, `JOBS_SQS_QUEUE_URL`, `JOBS_WORKER_UPDATE_TOKEN`).

@@ -65,7 +65,8 @@ Functions/Lambda are out of scope for the initial release.
 The canonical worker job type is `transfer.process`. For that job type, the
 worker MUST validate caller scope against the upload prefix, perform a
 server-side S3 copy from the scoped upload object into the export prefix, and
-report `export_key` plus `download_filename` on success.
+report `export_key` plus `download_filename` on success. Retries for the same
+`job_id` MUST reuse the same `export_key`.
 
 In same-origin mode, all scope binding follows header precedence:
 
@@ -117,6 +118,11 @@ Worker result-update semantics:
     idempotent updates.
 - Worker updates that set `status = succeeded` MUST clear `error` to `null`.
 - Invalid status transitions MUST return `409` with `error.code = "conflict"`.
+- The `running` callback MUST be durably accepted before worker-side transfer
+  execution begins.
+- Worker callback transport failures plus HTTP `404`, `409`, and `5xx`
+  responses MUST leave the SQS message unacked so queue retry can replay the
+  same job result path safely.
 
 ### FR-0002: Operational endpoints
 

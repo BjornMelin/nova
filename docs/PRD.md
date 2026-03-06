@@ -18,6 +18,8 @@ async jobs with zero route-surface ambiguity.
   and auth execution.
 - One truthful async worker lane that executes canonical `transfer.process`
   work instead of synthetic completion.
+- One replay-safe async worker lane where callback retries do not create
+  duplicate export objects for the same job.
 - Superseded ADR/SPEC material is quarantined outside the active authority set.
 - Stable generated-client and conformance behavior against current OpenAPI.
 - Ergonomic SDK-facing OpenAPI identifiers and semantic generator groupings
@@ -32,7 +34,8 @@ async jobs with zero route-surface ambiguity.
 2. Runtime semantics preserve queue failure behavior (`503 queue_unavailable`),
    readiness dependency-scoping, strict distributed idempotency behavior for
    AWS-backed prod, worker update normalization, real async execution for
-   canonical `transfer.process` jobs, and scale-from-zero-safe worker secret
+   canonical `transfer.process` jobs, replay-safe per-job export-key
+   persistence under worker redelivery, and scale-from-zero-safe worker secret
    plus autoscaling contracts.
 3. OpenAPI 3.1 output remains the contract source for SDK/client generation and
    policy checks, including stable snake_case `operationId` values, semantic

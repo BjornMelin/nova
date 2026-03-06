@@ -85,6 +85,7 @@ Any route outside section 3 is not part of the contract and MUST return `404`.
 - Canonical worker execution for `job_type = "transfer.process"` MUST copy the
   caller-scoped upload object into the export prefix and report
   `result.export_key` plus `result.download_filename` on success.
+- Retries for the same `job_id` MUST reuse the same `result.export_key`.
 
 `POST /v1/internal/jobs/{job_id}/result` transition semantics:
 
@@ -97,6 +98,10 @@ Any route outside section 3 is not part of the contract and MUST return `404`.
   updates only.
 - `status = succeeded` updates MUST clear `error` to `null`.
 - invalid transition MUST return `409` with `error.code = "conflict"`.
+- Worker-side transfer execution MUST NOT begin until the `running` callback is
+  durably accepted.
+- Worker callback transport failures plus HTTP `404`, `409`, and `5xx`
+  responses MUST leave the SQS message unacked for retry/DLQ handling.
 
 ## 6. Idempotency requirements
 

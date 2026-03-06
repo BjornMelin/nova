@@ -101,6 +101,7 @@ Invalid transitions MUST fail with `409` (`error.code = "conflict"`).
   - validate the scoped upload key under the upload prefix
   - perform a server-side copy into the export prefix
   - report `export_key` and `download_filename` on success
+  - reuse the same `export_key` for retries of the same `job_id`
 
 ## 4. Failure and retry model
 
@@ -113,8 +114,13 @@ Invalid transitions MUST fail with `409` (`error.code = "conflict"`).
 - Worker retry policy SHOULD be driven by queue semantics.
 - Malformed or unparseable worker messages MUST remain unacked so queue retry
   and DLQ policy handle poison messages deterministically.
+- The `running` callback MUST be durably accepted before transfer work starts.
+- Worker callback attempts SHOULD retry in-process with bounded backoff before
+  falling back to queue redelivery.
 - Retryable worker result-update failures MUST also leave the source message
   unacked so SQS retry can replay the completion callback path.
+- Worker callback transport failures plus HTTP `404`, `409`, and `5xx`
+  responses are retryable from the worker perspective.
 - Queue topology MUST include a dedicated dead-letter queue (DLQ) and source
   queue `RedrivePolicy.maxReceiveCount` so terminal poison messages leave the
   hot queue deterministically.

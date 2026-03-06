@@ -62,6 +62,9 @@ Rules:
    upstream immutable artifacts and must not recompute release scope locally.
 3. Release commits and release manifests are authored from the signed release
    path only.
+4. GitHub Actions artifact downloads MUST resolve upstream artifacts by exact
+   artifact `name`, paginate listing lookup until exhaustion, and fail closed
+   when multiple active artifacts share the requested name for the same run.
 
 ## 4. Build export contract
 

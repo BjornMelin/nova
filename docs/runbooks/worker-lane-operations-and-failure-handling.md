@@ -22,6 +22,8 @@ ECS/Fargate workers.
   `job_type`, `scope_id`, `payload`, and `created_at`.
 - `transfer.process` is the canonical worker job type and completes by copying
   a scoped upload object into the export prefix.
+- Retries for the same async `job_id` MUST reuse the same export key so replay
+  cannot create duplicate export objects.
 - Worker poison messages must remain on the source queue until SQS redrive moves
   them to DLQ; the worker must not delete malformed messages immediately.
 - If `JOBS_REPOSITORY_BACKEND=dynamodb`, the jobs table MUST expose
@@ -53,6 +55,11 @@ ECS/Fargate workers.
 
 - Publish failure at enqueue path returns `503 queue_unavailable` and job state
   transitions to `failed`.
+- Worker must not start transfer execution until the `running` callback has
+  been durably accepted by the internal result endpoint.
+- Callback transport failures plus HTTP `404`, `409`, and `5xx` are retryable
+  worker-side callback failures and must leave the SQS message unacked if the
+  bounded in-process retries do not converge.
 - Worker transitions allowed:
   - `pending -> pending|running|succeeded|failed|canceled`
   - `running -> running|succeeded|failed|canceled`
