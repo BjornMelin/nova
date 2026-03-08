@@ -34,9 +34,12 @@ Parameters:
     Type: String
     Default: ""
     Description: Optional explicit ECR repository name. If empty, imported from foundation.
-  DockerfilePath:
+  FileDockerfilePath:
     Type: String
     Default: apps/nova_file_api_service/Dockerfile
+  AuthDockerfilePath:
+    Type: String
+    Default: apps/nova_auth_api_service/Dockerfile
   DockerBuildContext:
     Type: String
     Default: .
@@ -151,9 +154,12 @@ Resources:
               - !Ref EcrRepositoryName
               - !ImportValue
                 Fn::Sub: "${FoundationStackName}-EcrRepositoryName"
-          - Name: DOCKERFILE_PATH
+          - Name: FILE_DOCKERFILE_PATH
             Type: PLAINTEXT
-            Value: !Ref DockerfilePath
+            Value: !Ref FileDockerfilePath
+          - Name: AUTH_DOCKERFILE_PATH
+            Type: PLAINTEXT
+            Value: !Ref AuthDockerfilePath
           - Name: DOCKER_BUILD_CONTEXT
             Type: PLAINTEXT
             Value: !Ref DockerBuildContext
