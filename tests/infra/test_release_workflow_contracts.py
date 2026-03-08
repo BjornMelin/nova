@@ -17,13 +17,32 @@ def test_publish_packages_workflow_has_staged_gate_contracts() -> None:
         "name: Publish Packages",
         "Nova Release Apply",
         "scripts.release.codeartifact_gate",
+        "scripts.release.npm_publish",
+        "scripts.release.download_run_artifact",
         "codeartifact-gate-report.json",
         "codeartifact-promotion-candidates.json",
+        "npm-publish-report.json",
+        "release-apply-artifacts",
+        "release_apply_run_id",
         "CODEARTIFACT_STAGING_REPOSITORY",
+        "Setup Node",
+        "aws codeartifact get-repository-endpoint",
         "aws codeartifact login",
         "twine upload --repository codeartifact",
+        "npm publish --no-progress",
+        "Smoke test npm packages from CodeArtifact staging",
     ]:
         assert required in text, f"Missing required contract: {required!r}"
+
+    for forbidden in [
+        "python -m scripts.release.changed_units",
+        "python -m scripts.release.version_plan",
+        "Compute release artifacts",
+    ]:
+        assert forbidden not in text, (
+            "Publish workflow must consume immutable artifacts, not "
+            f"recompute: {forbidden!r}"
+        )
 
 
 def test_promote_prod_workflow_has_controlled_package_promotion_policy() -> (
@@ -54,6 +73,8 @@ def test_promote_prod_workflow_has_controlled_package_promotion_policy() -> (
         "CODEARTIFACT_PROD_REPOSITORY",
         "scripts.release.codeartifact_gate",
         "copy-package-versions",
+        "package_format",
+        "--namespace",
         "approve-prod-pipeline",
         "codepipeline-approve",
     ]:
@@ -62,26 +83,22 @@ def test_promote_prod_workflow_has_controlled_package_promotion_policy() -> (
         )
 
 
-def test_release_apply_workflows_are_thin_wrappers_to_reusable_api() -> None:
-    """Release apply workflows must call shared reusable implementation."""
+def test_release_apply_workflow_is_thin_wrapper_to_reusable_api() -> None:
+    """Release apply workflow must call shared reusable implementation."""
     release_apply_text = _read(".github/workflows/release-apply.yml")
-    build_publish_text = _read(".github/workflows/build-and-publish-image.yml")
 
     for required in [
         "uses: ./.github/workflows/reusable-release-apply.yml",
         "checkout_ref:",
+        "plan_run_id:",
         "release_signing_secret_id",
         "workflow_dispatch",
     ]:
         assert required in release_apply_text, (
             f"Missing release-apply wrapper contract: {required!r}"
         )
-        assert required in build_publish_text, (
-            f"Missing build-and-publish-image wrapper contract: {required!r}"
-        )
 
     assert 'workflows: ["Nova Release Plan"]' in release_apply_text
-    assert 'workflows: ["Publish Packages"]' in build_publish_text
 
     for forbidden in [
         "scripts.release.changed_units",
@@ -89,7 +106,47 @@ def test_release_apply_workflows_are_thin_wrappers_to_reusable_api() -> None:
         "Configure git signing from Secrets Manager",
     ]:
         assert forbidden not in release_apply_text
-        assert forbidden not in build_publish_text
+
+
+def test_reusable_release_apply_consumes_plan_artifacts() -> None:
+    """Reusable release-apply must consume immutable plan artifacts."""
+    text = _read(".github/workflows/reusable-release-apply.yml")
+
+    for required in [
+        "plan_run_id:",
+        "scripts.release.download_run_artifact",
+        "release-plan-artifacts",
+        "release-apply-artifacts",
+        "release-apply-metadata.json",
+        "changed-units.json",
+        "version-plan.json",
+    ]:
+        assert required in text
+
+    assert "Recompute release plan" not in text
+    assert "scripts.release.changed_units" not in text
+    assert "scripts.release.version_plan" not in text
+
+
+def test_build_and_publish_image_workflow_contract() -> None:
+    """Image workflow must build/push image and emit digest evidence."""
+    text = _read(".github/workflows/build-and-publish-image.yml")
+
+    for required in [
+        "name: Build and Publish Image",
+        "workflow_dispatch:",
+        "configure-aws-oidc",
+        "RELEASE_AWS_ROLE_ARN",
+        "aws ecr get-login-password",
+        "docker build",
+        "docker push",
+        "aws ecr describe-images",
+        ".artifacts/image-build-report.json",
+        "actions/upload-artifact@v4",
+    ]:
+        assert required in text, (
+            f"Missing build-and-publish-image contract: {required!r}"
+        )
 
 
 def test_release_plan_workflow_is_wrapper_to_reusable_api() -> None:
@@ -148,6 +205,9 @@ def test_post_deploy_validate_workflow_contracts() -> None:
         "service_base_url",
         "validation_canonical_paths",
         "validation_legacy_404_paths",
+        "auth_validation_base_url",
+        "auth_service_base_url",
+        "auth_validation_canonical_paths",
         "report_path",
         "artifact_name",
     ]:
@@ -169,18 +229,27 @@ def test_post_deploy_validate_workflow_contracts() -> None:
         "service_base_url",
         "validation_canonical_paths",
         "validation_legacy_404_paths",
+        "auth_validation_base_url",
+        "auth_service_base_url",
+        "auth_validation_canonical_paths",
         "report_path",
         "artifact_name",
         "validation_status",
         "VALIDATION_BASE_URL",
         "VALIDATION_CANONICAL_PATHS",
         "VALIDATION_LEGACY_404_PATHS",
+        "AUTH_VALIDATION_BASE_URL",
+        "AUTH_SERVICE_BASE_URL",
+        "AUTH_VALIDATION_CANONICAL_PATHS",
         "steps.run-validation.outcome",
         "set-outputs",
         "scripts/release/validate_route_contract.py",
         "/v1/health/live",
         "/v1/health/ready",
         "/metrics/summary",
+        "GET:/v1/health/ready",
+        "/v1/token/verify",
+        "/v1/token/introspect",
         "/healthz",
         "/readyz",
         "post-deploy-validation-report.json",

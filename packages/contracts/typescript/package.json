@@ -7,6 +7,9 @@
     "typecheck": "tsc -p tsconfig.typecheck.json --noEmit",
     "verify": "tsc -p tsconfig.json && node dist/conformance.js"
   },
+  "novaRelease": {
+    "managed": false
+  },
   "devDependencies": {
     "@types/node": "^22.19.13",
     "typescript": "^5.9.2"

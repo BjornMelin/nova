@@ -24,6 +24,22 @@ RUNTIME_DEPLOYABLE_TEMPLATES = (
 )
 
 
+def _section(text: str, start_marker: str, end_marker: str) -> str:
+    start = text.find(start_marker)
+    assert start != -1, f"Missing section marker: {start_marker}"
+    end = text.find(end_marker, start)
+    assert end != -1, f"Missing section terminator: {end_marker}"
+    return text[start:end]
+
+
+def _default_number_from_block(block: str) -> int:
+    for line in block.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("Default:"):
+            return int(stripped.removeprefix("Default:").strip().strip('"'))
+    raise AssertionError("Expected Default entry in parameter block")
+
+
 def test_absorbed_template_paths_present() -> None:
     """Absorbed infra templates must exist under Nova-owned paths."""
     required_templates = [
@@ -102,6 +118,11 @@ def test_foundation_exports_and_stack_wiring_contracts() -> None:
         "CreateConnection:",
         "ManualApprovalTopic:",
         "CreateManualApprovalTopic:",
+        "CodeArtifactInternalNpmScope:",
+        "InternalNpmPackageGroup:",
+        "AWS::CodeArtifact::PackageGroup",
+        "Pattern: !Sub /npm/${CodeArtifactInternalNpmScope}/*",
+        "RestrictionMode: BLOCK",
         "ManualApprovalTopicArn:",
         "${AWS::StackName}-ArtifactBucketName",
         "${AWS::StackName}-CodeArtifactDomainName",
@@ -293,25 +314,49 @@ def test_iam_scope_constraints_for_release_roles() -> None:
     )
     assert repo_dest_pattern in github_role_text
     assert repo_src_pattern in github_role_text
+    assert (
+        "package/${ResolvedCodeArtifactDomainName}/"
+        "${ResolvedCodeArtifactRepositoryName}/npm/nova/*"
+        in github_role_text
+    )
+    assert (
+        "package/${ResolvedCodeArtifactDomainName}/"
+        "${PromotionSourceRepositoryName}/npm/nova/*"
+        in github_role_text
+    )
+    assert (
+        "package/${ResolvedCodeArtifactDomainName}/"
+        "${PromotionDestinationRepositoryName}/npm/nova/*"
+        in github_role_text
+    )
+    assert "codeartifact:CreatePackageGroup" in github_role_text
+    assert "codeartifact:DescribePackageGroup" in github_role_text
+    assert "codeartifact:UpdatePackageGroup" in github_role_text
+    assert "codeartifact:UpdatePackageGroupOriginConfiguration" in github_role_text
+    assert "package-group/${ResolvedCodeArtifactDomainName}/*" in github_role_text
     assert "sts:AWSServiceName: codeartifact.amazonaws.com" in github_role_text
 
-    assert "BatchBOperatorPrincipalArn:" in text
-    assert "batch-b-validation-read" in text
+    assert "ReleaseValidationTrustedPrincipalArn:" in text
+    assert "release-validation-read" in text
+    assert "BatchB" not in text
 
-    batch_b_role_block = re.search(
-        r"(?ms)^  BatchBValidationOperatorRole:\n(?:^    .*\n)+",
+    validation_policy_block = re.search(
+        r"(?ms)^  ReleaseValidationReadManagedPolicy:\n(?:^    .*\n)+",
         text,
     )
-    assert batch_b_role_block, "Missing BatchBValidationOperatorRole block"
-    batch_b_text = batch_b_role_block.group(0)
+    assert validation_policy_block, (
+        "Missing ReleaseValidationReadManagedPolicy block"
+    )
+    validation_policy_text = validation_policy_block.group(0)
 
     for required_action in [
         "codeconnections:GetConnection",
         "codepipeline:ListPipelines",
         "codepipeline:ListPipelineExecutions",
-        "codedeploy:ListApplications",
+        "wafv2:GetWebACLForResource",
+        "iam:GetRole",
     ]:
-        assert required_action in batch_b_text
+        assert required_action in validation_policy_text
 
 
 def test_runtime_env_and_parameter_contracts() -> None:
@@ -443,22 +488,18 @@ def test_worker_autoscaling_parameter_bounds_contract() -> None:
     """Worker autoscaling defaults must preserve min <= max."""
     worker_text = _read("infra/runtime/file_transfer/worker.yml")
 
-    min_match = re.search(
-        r"WorkerMinTaskCount:\n(?:\s+.+\n)*?\s+Default:\s+(?P<value>\d+)",
+    min_block = _section(
         worker_text,
+        "  WorkerMinTaskCount:\n",
+        "  WorkerMaxTaskCount:\n",
     )
-    max_match = re.search(
-        r"WorkerMaxTaskCount:\n(?:\s+.+\n)*?\s+Default:\s+(?P<value>\d+)",
+    max_block = _section(
         worker_text,
+        "  WorkerMaxTaskCount:\n",
+        "  WorkerScaleOutQueueDepthTarget:\n",
     )
-
-    assert min_match and max_match, (
-        "Expected WorkerMinTaskCount/WorkerMaxTaskCount defaults "
-        "in worker template"
-    )
-
-    min_count = int(min_match.group("value"))
-    max_count = int(max_match.group("value"))
+    min_count = _default_number_from_block(min_block)
+    max_count = _default_number_from_block(max_block)
     assert min_count <= max_count, (
         "WorkerMinTaskCount must be less than or equal to WorkerMaxTaskCount"
     )

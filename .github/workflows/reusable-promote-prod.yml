@@ -12,15 +12,45 @@ on:
         required: true
         type: string
       changed_units_json:
-        description: JSON object from staged gate artifact.
+        description: Optional JSON object from staged gate artifact.
+        required: false
+        default: ""
+        type: string
+      changed_units_path:
+        description: Optional file path for changed_units JSON; preferred over changed_units_json when provided.
+        required: false
+        default: ""
+        type: string
+      changed_units_sha256:
+        description: SHA256 of canonical changed_units payload.
         required: true
         type: string
       version_plan_json:
-        description: JSON object from staged gate artifact.
+        description: Optional JSON object from staged gate artifact.
+        required: false
+        default: ""
+        type: string
+      version_plan_path:
+        description: Optional file path for version_plan JSON; preferred over version_plan_json when provided.
+        required: false
+        default: ""
+        type: string
+      version_plan_sha256:
+        description: SHA256 of canonical version_plan payload.
         required: true
         type: string
       promotion_candidates_json:
-        description: JSON array from codeartifact-promotion-candidates artifact.
+        description: Optional JSON array from codeartifact-promotion-candidates artifact.
+        required: false
+        default: ""
+        type: string
+      promotion_candidates_path:
+        description: Optional file path for promotion_candidates JSON; preferred over promotion_candidates_json when provided.
+        required: false
+        default: ""
+        type: string
+      promotion_candidates_sha256:
+        description: SHA256 of canonical promotion_candidates payload.
         required: true
         type: string
       codeartifact_domain:
@@ -49,18 +79,29 @@ permissions:
   id-token: write
   contents: read
 
+concurrency:
+  group: reusable-promote-prod-${{ inputs.pipeline_name }}-${{ inputs.aws_region }}
+  cancel-in-progress: false
+
 jobs:
   validate-and-promote-packages:
     runs-on: ubuntu-latest
     env:
+      PIPELINE_NAME: ${{ inputs.pipeline_name }}
       AWS_REGION: ${{ inputs.aws_region }}
       RELEASE_AWS_ROLE_ARN: ${{ secrets.release_aws_role_arn }}
       CODEARTIFACT_DOMAIN: ${{ inputs.codeartifact_domain }}
       CODEARTIFACT_STAGING_REPOSITORY: ${{ inputs.codeartifact_staging_repository }}
       CODEARTIFACT_PROD_REPOSITORY: ${{ inputs.codeartifact_prod_repository }}
-      CHANGED_UNITS_JSON: ${{ inputs.changed_units_json }}
-      VERSION_PLAN_JSON: ${{ inputs.version_plan_json }}
-      PROMOTION_CANDIDATES_JSON: ${{ inputs.promotion_candidates_json }}
+      INPUT_CHANGED_UNITS_JSON: ${{ inputs.changed_units_json }}
+      INPUT_CHANGED_UNITS_PATH: ${{ inputs.changed_units_path }}
+      INPUT_VERSION_PLAN_JSON: ${{ inputs.version_plan_json }}
+      INPUT_VERSION_PLAN_PATH: ${{ inputs.version_plan_path }}
+      INPUT_PROMOTION_CANDIDATES_JSON: ${{ inputs.promotion_candidates_json }}
+      INPUT_PROMOTION_CANDIDATES_PATH: ${{ inputs.promotion_candidates_path }}
+      EXPECTED_CHANGED_UNITS_SHA256: ${{ inputs.changed_units_sha256 }}
+      EXPECTED_VERSION_PLAN_SHA256: ${{ inputs.version_plan_sha256 }}
+      EXPECTED_PROMOTION_CANDIDATES_SHA256: ${{ inputs.promotion_candidates_sha256 }}
       EXPECTED_MANIFEST_SHA256: ${{ inputs.manifest_sha256 }}
     steps:
       - uses: actions/checkout@v4
@@ -77,21 +118,136 @@ jobs:
       - name: Validate promotion input policy
         run: |
           set -euo pipefail
-          [[ -n "$CODEARTIFACT_DOMAIN" ]] || { echo "CODEARTIFACT_DOMAIN is required" >&2; exit 1; }
-          [[ -n "$CODEARTIFACT_STAGING_REPOSITORY" ]] || { echo "CODEARTIFACT_STAGING_REPOSITORY is required" >&2; exit 1; }
-          [[ -n "$CODEARTIFACT_PROD_REPOSITORY" ]] || { echo "CODEARTIFACT_PROD_REPOSITORY is required" >&2; exit 1; }
-          [[ -n "$CHANGED_UNITS_JSON" ]] || { echo "changed_units_json is required" >&2; exit 1; }
-          [[ -n "$VERSION_PLAN_JSON" ]] || { echo "version_plan_json is required" >&2; exit 1; }
-          [[ -n "$PROMOTION_CANDIDATES_JSON" ]] || { echo "promotion_candidates_json is required" >&2; exit 1; }
+
+          require_nonempty() {
+            local name="$1"
+            local value="$2"
+            [[ -n "$value" ]] || { echo "$name is required" >&2; exit 1; }
+          }
+
+          require_sha256() {
+            local name="$1"
+            local value="$2"
+            [[ "$value" =~ ^[A-Fa-f0-9]{64}$ ]] || {
+              echo "$name must be a 64-character hex SHA256 digest" >&2
+              exit 1
+            }
+          }
+
+          validate_json_source() {
+            local label="$1"
+            local json_value="$2"
+            local path_value="$3"
+
+            if [[ -z "$json_value" && -z "$path_value" ]]; then
+              echo "${label}: provide ${label}_json or ${label}_path" >&2
+              exit 1
+            fi
+
+            if [[ -n "$path_value" ]]; then
+              [[ "$path_value" = /* ]] && {
+                echo "${label}: absolute path is not allowed (${path_value})" >&2
+                exit 1
+              }
+              [[ -f "$path_value" ]] || {
+                echo "${label}: file not found (${path_value})" >&2
+                exit 1
+              }
+            fi
+          }
+
+          require_nonempty "pipeline_name" "$PIPELINE_NAME"
+          require_nonempty "CODEARTIFACT_DOMAIN" "$CODEARTIFACT_DOMAIN"
+          require_nonempty "CODEARTIFACT_STAGING_REPOSITORY" "$CODEARTIFACT_STAGING_REPOSITORY"
+          require_nonempty "CODEARTIFACT_PROD_REPOSITORY" "$CODEARTIFACT_PROD_REPOSITORY"
+          require_sha256 "manifest_sha256" "$EXPECTED_MANIFEST_SHA256"
+          require_sha256 "changed_units_sha256" "$EXPECTED_CHANGED_UNITS_SHA256"
+          require_sha256 "version_plan_sha256" "$EXPECTED_VERSION_PLAN_SHA256"
+          require_sha256 "promotion_candidates_sha256" "$EXPECTED_PROMOTION_CANDIDATES_SHA256"
+
+          validate_json_source "changed_units" "$INPUT_CHANGED_UNITS_JSON" "$INPUT_CHANGED_UNITS_PATH"
+          validate_json_source "version_plan" "$INPUT_VERSION_PLAN_JSON" "$INPUT_VERSION_PLAN_PATH"
+          validate_json_source "promotion_candidates" "$INPUT_PROMOTION_CANDIDATES_JSON" "$INPUT_PROMOTION_CANDIDATES_PATH"
+
           [[ "$CODEARTIFACT_STAGING_REPOSITORY" != "$CODEARTIFACT_PROD_REPOSITORY" ]] || {
             echo "Staging and prod repositories must be distinct" >&2
             exit 1
           }
 
           mkdir -p .artifacts
-          printf '%s' "$PROMOTION_CANDIDATES_JSON" > .artifacts/promotion-candidates.json
-          printf '%s' "$CHANGED_UNITS_JSON" > .artifacts/changed-units.json
-          printf '%s' "$VERSION_PLAN_JSON" > .artifacts/version-plan.json
+          uv run python - <<'PY'
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+
+          def load_payload(label: str, json_text: str, path: str) -> object:
+              if path:
+                  return json.loads(Path(path).read_text(encoding="utf-8"))
+              return json.loads(json_text)
+
+          def canonical_sha256(payload: object) -> str:
+              canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+              return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+          payloads = [
+              {
+                  "label": "changed_units",
+                  "payload": load_payload(
+                      "changed_units",
+                      os.environ.get("INPUT_CHANGED_UNITS_JSON", ""),
+                      os.environ.get("INPUT_CHANGED_UNITS_PATH", ""),
+                  ),
+                  "expected_type": dict,
+                  "expected_sha": os.environ["EXPECTED_CHANGED_UNITS_SHA256"].lower(),
+                  "output_path": Path(".artifacts/changed-units.json"),
+              },
+              {
+                  "label": "version_plan",
+                  "payload": load_payload(
+                      "version_plan",
+                      os.environ.get("INPUT_VERSION_PLAN_JSON", ""),
+                      os.environ.get("INPUT_VERSION_PLAN_PATH", ""),
+                  ),
+                  "expected_type": dict,
+                  "expected_sha": os.environ["EXPECTED_VERSION_PLAN_SHA256"].lower(),
+                  "output_path": Path(".artifacts/version-plan.json"),
+              },
+              {
+                  "label": "promotion_candidates",
+                  "payload": load_payload(
+                      "promotion_candidates",
+                      os.environ.get("INPUT_PROMOTION_CANDIDATES_JSON", ""),
+                      os.environ.get("INPUT_PROMOTION_CANDIDATES_PATH", ""),
+                  ),
+                  "expected_type": list,
+                  "expected_sha": os.environ["EXPECTED_PROMOTION_CANDIDATES_SHA256"].lower(),
+                  "output_path": Path(".artifacts/promotion-candidates.json"),
+              },
+          ]
+
+          for entry in payloads:
+              payload = entry["payload"]
+              label = str(entry["label"])
+              expected_type = entry["expected_type"]
+              expected_sha = str(entry["expected_sha"])
+              output_path = entry["output_path"]
+
+              if not isinstance(payload, expected_type):
+                  expected_json_type = "object" if expected_type is dict else "array"
+                  raise SystemExit(f"{label}: expected top-level JSON {expected_json_type}")
+
+              digest = canonical_sha256(payload)
+              if digest != expected_sha:
+                  raise SystemExit(
+                      f"{label}: sha256 mismatch (expected {expected_sha}, actual {digest})"
+                  )
+
+              output_path.write_text(
+                  json.dumps(payload, indent=2, sort_keys=True) + "\n",
+                  encoding="utf-8",
+              )
+          PY
 
           uv run python -m scripts.release.codeartifact_gate \
             --repo-root . \
@@ -137,47 +293,46 @@ jobs:
       - name: Promote package versions staging -> prod
         run: |
           set -euo pipefail
-          export CODEARTIFACT_DOMAIN="${{ env.CODEARTIFACT_DOMAIN }}"
-          export CODEARTIFACT_STAGING_REPOSITORY="${{ env.CODEARTIFACT_STAGING_REPOSITORY }}"
-          export CODEARTIFACT_PROD_REPOSITORY="${{ env.CODEARTIFACT_PROD_REPOSITORY }}"
           uv run python - <<'PY'
           import json
-          import os
           import subprocess
           from pathlib import Path
 
-          domain = os.environ["CODEARTIFACT_DOMAIN"]
-          staging_repository = os.environ["CODEARTIFACT_STAGING_REPOSITORY"]
-          prod_repository = os.environ["CODEARTIFACT_PROD_REPOSITORY"]
           candidates = json.loads(Path('.artifacts/validated-promotion-candidates.json').read_text())
           for item in candidates:
               package = item['package']
+              package_format = item.get('format', 'pypi')
+              namespace = item.get('namespace')
+              package_name = package
+              if package_format == 'npm' and namespace:
+                  scoped_prefix = f'@{namespace}/'
+                  if not package.startswith(scoped_prefix):
+                      raise SystemExit(
+                          f'Promotion candidate package {package} does not match namespace {namespace}'
+                      )
+                  package_name = package.removeprefix(scoped_prefix)
               version = item['version']
-              cmd = [
+              command = [
                   'aws', 'codeartifact', 'copy-package-versions',
-                  '--domain', domain,
-                  '--source-repository', staging_repository,
-                  '--destination-repository', prod_repository,
-                  '--format', 'pypi',
-                  '--package', package,
+                  '--domain', '${{ env.CODEARTIFACT_DOMAIN }}',
+                  '--source-repository', '${{ env.CODEARTIFACT_STAGING_REPOSITORY }}',
+                  '--destination-repository', '${{ env.CODEARTIFACT_PROD_REPOSITORY }}',
+                  '--format', package_format,
+              ]
+              if package_format == 'npm' and namespace:
+                  command.extend(['--namespace', namespace])
+              command.extend([
+                  '--package', package_name,
                   '--versions', version,
                   '--no-cli-pager',
                   '--output', 'json',
-              ]
-              try:
-                  result = subprocess.run(
-                      cmd,
-                      check=True,
-                      text=True,
-                      capture_output=True,
-                  )
-              except subprocess.CalledProcessError as exc:
-                  stderr = (exc.stderr or '').strip()
-                  stdout = (exc.stdout or '').strip()
-                  details = stderr or stdout or 'no stderr/stdout captured'
-                  raise SystemExit(
-                      f'AWS CodeArtifact copy failed for {package} {version}: {details}'
-                  ) from exc
+              ])
+              result = subprocess.run(
+                  command,
+                  check=True,
+                  text=True,
+                  capture_output=True,
+              )
               payload = json.loads(result.stdout or '{}')
               failed = payload.get('failedVersions') or {}
               unexpected = {
@@ -201,9 +356,6 @@ jobs:
     needs: validate-and-promote-packages
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
       - name: Configure AWS Credentials (OIDC)
         uses: ./.github/actions/configure-aws-oidc
         with:

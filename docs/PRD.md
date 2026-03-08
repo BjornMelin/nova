@@ -79,8 +79,9 @@ Out of scope:
    authority contracts remain aligned with active ADR/SPEC and test guardrails.
 6. Auth0 tenant import/export paths are fail-fast and cannot mutate tenants when
    contract validation fails.
-7. CodeArtifact promotion IAM contracts remain least-privilege and scoped to
-   explicit staged source and prod destination repositories.
+7. CodeArtifact promotion IAM contracts remain least-privilege, scoped to
+   explicit staged source and prod destination repositories, and cover Python
+   plus private npm publication controls.
 8. Active runtime authority IDs (`ADR-0024`, `ADR-0027` through `ADR-0029`,
    and `SPEC-0017` through `SPEC-0019`) describe runtime subjects only.
 9. Superseded ADR/SPEC content is excluded from active authority lists and

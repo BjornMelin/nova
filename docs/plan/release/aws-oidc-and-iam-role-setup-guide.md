@@ -126,7 +126,13 @@ Provide these values when deploying `infra/nova/nova-iam-roles.yml`:
 4. Promotion permissions are directional:
    - `codeartifact:ReadFromRepository` scoped to staging source repository.
    - `codeartifact:CopyPackageVersions` scoped to prod destination repository
-     plus required package ARNs.
+     plus required Python and private npm package ARNs.
+5. Release/build roles include package-group governance for
+   `package-group/${CodeArtifactDomainName}/*` so `/npm/nova/*` blocks
+   upstream ingestion while still allowing direct publish.
+6. When `ReleaseValidationTrustedPrincipalArn` is provided, output
+   `ReleaseValidationReadRoleArn` exists and is assumable by the trusted
+   principal.
 
 ## References
 

@@ -145,6 +145,13 @@ def test_release_artifact_schema_contract_covers_required_gate_payloads() -> (
     ]:
         assert required_def in defs
 
+    workspace_unit_props = defs["workspace_unit_ref"]["properties"]
+    assert workspace_unit_props["format"]["enum"] == ["pypi", "npm"]
+    assert defs["promotion_candidate"]["properties"]["format"]["enum"] == [
+        "pypi",
+        "npm",
+    ]
+
 
 def test_size_profiles_schema_contract_covers_dash_rshiny_react_next() -> None:
     """Size-profile schema must include required downstream consumer lanes."""

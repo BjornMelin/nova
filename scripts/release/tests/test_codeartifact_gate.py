@@ -46,6 +46,34 @@ def _create_test_workspace(root: Path) -> Path:
     return repo_root
 
 
+def _create_test_workspace_with_npm(root: Path) -> Path:
+    repo_root = root / "repo"
+    repo_root.mkdir()
+
+    (repo_root / "pyproject.toml").write_text(
+        "[tool.uv]\n\n[tool.uv.workspace]\nmembers = []\n",
+        encoding="utf-8",
+    )
+    (repo_root / "package.json").write_text(
+        "{\n"
+        '  "private": true,\n'
+        '  "workspaces": ["packages/nova_sdk_fetch"]\n'
+        "}\n",
+        encoding="utf-8",
+    )
+    unit_dir = repo_root / "packages" / "nova_sdk_fetch"
+    unit_dir.mkdir(parents=True)
+    unit_dir.joinpath("package.json").write_text(
+        "{\n"
+        '  "name": "@nova/sdk-fetch",\n'
+        '  "version": "0.2.0",\n'
+        '  "novaRelease": {"managed": true, "namespace": "nova"}\n'
+        "}\n",
+        encoding="utf-8",
+    )
+    return repo_root
+
+
 def _write_json(path: Path, payload: object) -> None:
     path.write_text(json.dumps(payload), encoding="utf-8")
 
@@ -230,3 +258,67 @@ def test_validate_release_gates_rejects_changed_units_plan_drift(
             version_plan_path=version_plan,
             expected_manifest_sha256=None,
         )
+
+
+def test_validate_release_gates_supports_npm_candidates(
+    tmp_path: Path,
+) -> None:
+    repo_root = _create_test_workspace_with_npm(tmp_path)
+    manifest_text = """# Release Version Manifest
+
+Status: Active
+Schema: 1.0
+
+## Canonical Runtime Monorepo
+
+| Unit | Package | Version | Changed |
+| --- | --- | --- | --- |
+| `packages/nova_sdk_fetch` | `@nova/sdk-fetch` | `0.2.0` | yes |
+"""
+    manifest = tmp_path / "manifest.md"
+    manifest.write_text(manifest_text, encoding="utf-8")
+
+    changed_units = tmp_path / "changed-units.json"
+    _write_json(
+        changed_units,
+        {
+            "changed_units": [{"unit_id": "packages/nova_sdk_fetch"}],
+            "base_commit": "abc",
+            "head_commit": "def",
+            "first_release": False,
+        },
+    )
+
+    version_plan = tmp_path / "version-plan.json"
+    _write_json(
+        version_plan,
+        {
+            "global_bump": "patch",
+            "units": [
+                {
+                    "unit_id": "packages/nova_sdk_fetch",
+                    "format": "npm",
+                    "namespace": "nova",
+                    "new_version": "0.2.0",
+                }
+            ],
+        },
+    )
+
+    report = codeartifact_gate.validate_release_gates(
+        repo_root=repo_root,
+        manifest_path=manifest,
+        changed_units_path=changed_units,
+        version_plan_path=version_plan,
+        expected_manifest_sha256=None,
+    )
+
+    assert report["promotion_candidates"] == [
+        {
+            "format": "npm",
+            "namespace": "nova",
+            "package": "@nova/sdk-fetch",
+            "version": "0.2.0",
+            "unit_id": "packages/nova_sdk_fetch",
+        }
+    ]

@@ -12,21 +12,55 @@ on:
         required: true
         type: string
       changed_units_json:
-        description: JSON object from staged gate artifact
+        description: Optional JSON object from staged gate artifact
+        required: false
+        default: ""
+        type: string
+      changed_units_path:
+        description: Optional file path for changed_units JSON; preferred when provided
+        required: false
+        default: ""
+        type: string
+      changed_units_sha256:
+        description: SHA256 of canonical changed_units payload
         required: true
         type: string
       version_plan_json:
-        description: JSON object from staged gate artifact
+        description: Optional JSON object from staged gate artifact
+        required: false
+        default: ""
+        type: string
+      version_plan_path:
+        description: Optional file path for version_plan JSON; preferred when provided
+        required: false
+        default: ""
+        type: string
+      version_plan_sha256:
+        description: SHA256 of canonical version_plan payload
         required: true
         type: string
       promotion_candidates_json:
-        description: JSON array from codeartifact-promotion-candidates artifact
+        description: Optional JSON array from codeartifact-promotion-candidates artifact
+        required: false
+        default: ""
+        type: string
+      promotion_candidates_path:
+        description: Optional file path for promotion candidates JSON; preferred when provided
+        required: false
+        default: ""
+        type: string
+      promotion_candidates_sha256:
+        description: SHA256 of canonical promotion_candidates payload
         required: true
         type: string
 
 permissions:
   id-token: write
   contents: read
+
+concurrency:
+  group: promote-prod-${{ github.ref }}-${{ inputs.pipeline_name }}
+  cancel-in-progress: false
 
 jobs:
   promote-prod:
@@ -36,8 +70,14 @@ jobs:
       pipeline_name: ${{ inputs.pipeline_name }}
       manifest_sha256: ${{ inputs.manifest_sha256 }}
       changed_units_json: ${{ inputs.changed_units_json }}
+      changed_units_path: ${{ inputs.changed_units_path }}
+      changed_units_sha256: ${{ inputs.changed_units_sha256 }}
       version_plan_json: ${{ inputs.version_plan_json }}
+      version_plan_path: ${{ inputs.version_plan_path }}
+      version_plan_sha256: ${{ inputs.version_plan_sha256 }}
       promotion_candidates_json: ${{ inputs.promotion_candidates_json }}
+      promotion_candidates_path: ${{ inputs.promotion_candidates_path }}
+      promotion_candidates_sha256: ${{ inputs.promotion_candidates_sha256 }}
       codeartifact_domain: ${{ vars.CODEARTIFACT_DOMAIN }}
       codeartifact_staging_repository: ${{ vars.CODEARTIFACT_STAGING_REPOSITORY }}
       codeartifact_prod_repository: ${{ vars.CODEARTIFACT_PROD_REPOSITORY }}

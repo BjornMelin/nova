@@ -73,6 +73,8 @@ one signed source revision.
    validates manifest digest + package namespace/version policy, verifies
    promotion-candidate payload integrity, then promotes package versions from
    staging to prod using `copy-package-versions`.
+   Scoped npm candidates carry their namespace explicitly and are promoted with
+   `--namespace` plus the unscoped package component.
 
 5. Confirm `DeployProd` and `ValidateProd` complete successfully.
 
