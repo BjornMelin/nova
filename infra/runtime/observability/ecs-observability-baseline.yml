@@ -342,7 +342,7 @@ Resources:
 
 Outputs:
   DeploymentRollbackAlarmNamesCsv:
-    Description: Alarm names for ECS/CodeDeploy deployment rollback configuration.
+    Description: Alarm names for native ECS deployment rollback configuration.
     Value: !Join
       - ","
       - - !Ref ApiLatencyP95RollbackAlarm
