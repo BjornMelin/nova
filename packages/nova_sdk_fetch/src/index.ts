@@ -2,6 +2,7 @@ export interface OperationDescriptor {
   readonly operationId: string;
   readonly method: string;
   readonly path: string;
+  readonly summary?: string;
 }
 
 export type QueryValue = string | number | boolean | null | undefined;
@@ -29,17 +30,17 @@ export interface JsonFetchResponse<TData> {
   readonly data: TData | null;
 }
 
-function normalizeBaseUrl(baseUrl: string): string {
+export function normalizeBaseUrl(baseUrl: string): string {
   return baseUrl.replace(/\/+$/, "");
 }
 
-function buildUrl(
+export function buildOperationUrl(
   baseUrl: string,
-  operation: OperationDescriptor,
-  pathParams: PathParams,
-  query: QueryParams,
+  pathTemplate: string,
+  pathParams: PathParams = {},
+  query: QueryParams = {},
 ): string {
-  let resolvedPath = operation.path;
+  let resolvedPath = pathTemplate;
   for (const [key, value] of Object.entries(pathParams)) {
     resolvedPath = resolvedPath.replaceAll(
       `{${key}}`,
@@ -55,6 +56,15 @@ function buildUrl(
     url.searchParams.set(key, String(value));
   }
   return url.toString();
+}
+
+export function buildOperationDescriptorUrl(
+  baseUrl: string,
+  operation: OperationDescriptor,
+  pathParams: PathParams = {},
+  query: QueryParams = {},
+): string {
+  return buildOperationUrl(baseUrl, operation.path, pathParams, query);
 }
 
 async function decodeJsonBody<TData>(response: Response): Promise<TData | null> {
@@ -76,7 +86,7 @@ export function createJsonFetchClient(options: JsonFetchClientOptions) {
       request: JsonFetchRequestOptions = {},
     ): Promise<JsonFetchResponse<TData>> {
       const response = await fetchImpl(
-        buildUrl(
+        buildOperationDescriptorUrl(
           baseUrl,
           operation,
           request.pathParams ?? {},

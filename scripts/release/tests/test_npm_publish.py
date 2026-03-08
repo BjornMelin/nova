@@ -1,0 +1,126 @@
+"""Tests for npm publish artifact preparation."""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+import pytest
+
+from scripts.release import common, npm_publish
+
+
+def _write_text(path: Path, text: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text, encoding="utf-8")
+
+
+def _write_managed_package(
+    path: Path,
+    *,
+    name: str,
+    version: str,
+    dependencies: dict[str, str] | None = None,
+) -> None:
+    dependency_block = json.dumps(dependencies or {}, indent=2)
+    _write_text(
+        path / "package.json",
+        "{\n"
+        f'  "name": "{name}",\n'
+        '  "private": true,\n'
+        f'  "version": "{version}",\n'
+        '  "novaRelease": {"managed": true, "namespace": "nova"},\n'
+        f'  "dependencies": {dependency_block},\n'
+        '  "files": ["dist"],\n'
+        '  "exports": {".": {"default": "./dist/index.js"}}\n'
+        "}\n",
+    )
+    _write_text(path / "dist/index.js", "export const ready = true;\n")
+
+
+def test_prepare_npm_publish_artifacts_rewrites_internal_versions(
+    tmp_path: Path,
+) -> None:
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    _write_text(
+        repo_root / "pyproject.toml",
+        "[tool.uv]\n\n[tool.uv.workspace]\nmembers = []\n",
+    )
+    _write_text(
+        repo_root / "package.json",
+        "{\n"
+        '  "private": true,\n'
+        '  "workspaces": [\n'
+        '    "packages/nova_sdk_fetch",\n'
+        '    "packages/nova_sdk_file_core"\n'
+        "  ]\n"
+        "}\n",
+    )
+    _write_managed_package(
+        repo_root / "packages/nova_sdk_fetch",
+        name="@nova/sdk-fetch",
+        version="0.1.0",
+    )
+    _write_managed_package(
+        repo_root / "packages/nova_sdk_file_core",
+        name="@nova/sdk-file-core",
+        version="0.1.0",
+        dependencies={"@nova/sdk-fetch": "file:../nova_sdk_fetch"},
+    )
+
+    units = common.load_workspace_units(repo_root)
+    version_plan = {
+        "units": [
+            {
+                "unit_id": "packages/nova_sdk_fetch",
+                "new_version": "0.2.0",
+            },
+            {
+                "unit_id": "packages/nova_sdk_file_core",
+                "new_version": "0.2.0",
+            },
+        ]
+    }
+
+    report = npm_publish.prepare_npm_publish_artifacts(
+        repo_root=repo_root,
+        version_plan=version_plan,
+        units=units,
+        registry_url=(
+            "https://cral-099060980393.d.codeartifact.us-east-1.amazonaws.com/npm/"
+            "galaxypy-staging"
+        ),
+        output_dir=repo_root / ".artifacts/npm-publish",
+    )
+
+    assert [item["package"] for item in report["packages"]] == [
+        "@nova/sdk-fetch",
+        "@nova/sdk-file-core",
+    ]
+    prepared_core_path = (
+        repo_root / ".artifacts/npm-publish/nova_sdk_file_core/package.json"
+    )
+    prepared_core = json.loads(prepared_core_path.read_text(encoding="utf-8"))
+    assert prepared_core["version"] == "0.2.0"
+    assert prepared_core["dependencies"]["@nova/sdk-fetch"] == "0.2.0"
+    assert prepared_core["publishConfig"]["registry"].endswith("/")
+    assert "private" not in prepared_core
+    assert "novaRelease" not in prepared_core
+
+
+def test_validate_prepared_npm_package_rejects_workspace_specs(
+    tmp_path: Path,
+) -> None:
+    package_json = tmp_path / "package.json"
+    package_json.write_text(
+        "{\n"
+        '  "name": "@nova/sdk-file-core",\n'
+        '  "version": "0.1.0",\n'
+        '  "dependencies": {"@nova/sdk-fetch": "file:../nova_sdk_fetch"}\n'
+        "}\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="local-only specifier"):
+        npm_publish.validate_prepared_npm_package(package_json)

@@ -46,8 +46,10 @@ Companion modular setup guides:
 ## 5. Package policy
 
 1. Selective per-unit versioning is required.
-2. Release build uploads must target CodeArtifact via
-   `twine --repository codeartifact`.
+2. Release build uploads must target CodeArtifact via:
+   - `twine --repository codeartifact` for Python distributions
+   - `npm publish` against the staged npm endpoint for release-prepared npm
+     artifacts
 3. Selective publish package paths are resolved from signed release commit diff
    (`HEAD^..HEAD`) to avoid empty publish sets on manifest-touching release
    commits.
@@ -56,9 +58,17 @@ Companion modular setup guides:
 5. Internal package groups must block external upstream ingestion.
 6. Publish to staged channel (`CODEARTIFACT_STAGING_REPOSITORY`) only after manifest, version, and namespace gates pass.
 7. Promotion to prod channel must consume only staged and gate-validated versions via `copy-package-versions`.
-8. Promotion must include and verify `RELEASE_MANIFEST_SHA256`, where the value
+8. Source npm manifests may use repo-local dependency specifiers (for example
+   `file:../nova_sdk_fetch`) for local development, but staged publish
+   artifacts must rewrite internal npm dependencies to concrete semver versions
+   and remove publish-blocking `private: true`.
+9. Staged npm validation must install from CodeArtifact with `npm --no-progress`
+   and verify the retained TypeScript helper contracts before prod promotion.
+10. Internal npm package-group policy for `/npm/nova/*` must allow direct
+   publish while blocking both external and internal upstream ingestion.
+11. Promotion must include and verify `RELEASE_MANIFEST_SHA256`, where the value
    is the actual SHA256 of `docs/plan/release/RELEASE-VERSION-MANIFEST.md`.
-9. Public Python SDK releases must classify OpenAPI tag or `operationId`
+12. Public Python SDK releases must classify OpenAPI tag or `operationId`
    renames as MAJOR changes because they rename generated endpoint modules or
    functions.
 

@@ -152,6 +152,10 @@ Mandatory pre-publish gates:
 - Security thresholds pass.
 - Versioning policy pass.
 - Reproducible build metadata present.
+- Private npm artifacts must not retain `workspace:`, `file:`, or other
+  source-only dependency specifiers after staged publish preparation.
+- Staged validation must prove both Python and npm artifacts install cleanly
+  from CodeArtifact before prod promotion.
 
 ## 8. DX declaration contract
 
@@ -169,8 +173,8 @@ centrally.
 
 1. Dev and prod both deploy through immutable artifact path.
 2. Rollback drill evidence exists for current release train.
-3. Python public SDK smoke is green and internal TS/R catalog drift lanes are
-   green.
+3. Python public SDK smoke is green, retained TS/R scaffold drift lanes are
+   green, and client SDK generation excludes internal-only operations.
 4. Cost controls exist (budgets/alarms, retention policies, scaling bounds).
 5. No active runtime/deployment authority exists outside Nova repo.
 6. Legacy route families are absent from runtime and OpenAPI.

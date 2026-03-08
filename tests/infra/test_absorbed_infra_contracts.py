@@ -29,6 +29,22 @@ def _read(rel_path: str) -> str:
     return path.read_text(encoding="utf-8")
 
 
+def _section(text: str, start_marker: str, end_marker: str) -> str:
+    start = text.find(start_marker)
+    assert start != -1, f"Missing section marker: {start_marker}"
+    end = text.find(end_marker, start)
+    assert end != -1, f"Missing section terminator: {end_marker}"
+    return text[start:end]
+
+
+def _default_number_from_block(block: str) -> int:
+    for line in block.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("Default:"):
+            return int(stripped.removeprefix("Default:").strip().strip('"'))
+    raise AssertionError("Expected Default entry in parameter block")
+
+
 def test_absorbed_template_paths_present() -> None:
     """Absorbed infra templates must exist under Nova-owned paths."""
     required_templates = [
@@ -47,6 +63,24 @@ def test_absorbed_template_paths_present() -> None:
     assert not missing, f"Missing absorbed templates: {missing}"
 
 
+def test_runtime_ecr_template_enforces_greenfield_least_privilege_posture() -> (
+    None
+):
+    """ECR template must not retain stale defaults or wildcard secret modes."""
+    text = _read("infra/runtime/ecr.yml")
+
+    assert "Default: crdl" not in text
+    assert "AllowExecutionRoleSecretsWildcard" not in text
+    assert "AllowExecSecretsWildcard" not in text
+    assert "UsedByLambda" not in text
+    assert "UseLambda" not in text
+    assert "secretsmanager:GetSecretValue" not in text
+    assert "ssm:GetParameters" not in text
+    assert "kms:Decrypt" not in text
+    assert "DenyPull" not in text
+    assert "DenySetRepositoryPolicy" not in text
+
+
 def test_pipeline_single_source_contract() -> None:
     """Pipeline must use AppSourceOutput only."""
     text = _read("infra/nova/nova-ci-cd.yml")
@@ -58,6 +92,10 @@ def test_pipeline_single_source_contract() -> None:
     )
     assert "DevServiceBaseUrl:" in text
     assert "ProdServiceBaseUrl:" in text
+    assert "AuthDeployServiceName:" in text
+    assert "DevAuthServiceBaseUrl:" in text
+    assert "ProdAuthServiceBaseUrl:" in text
+    assert "AuthValidationCanonicalPaths:" in text
     assert "AllowedPattern:" in text and "httpbin" in text
 
     expected_stage_order = [
@@ -107,6 +145,11 @@ def test_foundation_exports_and_stack_wiring_contracts() -> None:
         "CreateConnection:",
         "ManualApprovalTopic:",
         "CreateManualApprovalTopic:",
+        "CodeArtifactInternalNpmScope:",
+        "InternalNpmPackageGroup:",
+        "AWS::CodeArtifact::PackageGroup",
+        "Pattern: !Sub /npm/${CodeArtifactInternalNpmScope}/*",
+        "RestrictionMode: BLOCK",
         "ManualApprovalTopicArn:",
         "${AWS::StackName}-ArtifactBucketName",
         "${AWS::StackName}-CodeArtifactDomainName",
@@ -140,6 +183,8 @@ def test_foundation_exports_and_stack_wiring_contracts() -> None:
     for token in [
         "FoundationStackName:",
         "IamRolesStackName:",
+        "FileDockerfilePath:",
+        "AuthDockerfilePath:",
         "${FoundationStackName}-CodeArtifactDomainName",
         "${FoundationStackName}-CodeArtifactRepositoryName",
         "${FoundationStackName}-EcrRepositoryUri",
@@ -158,6 +203,12 @@ def test_foundation_exports_and_stack_wiring_contracts() -> None:
         "${FoundationStackName}-ConnectionName",
         "${FoundationStackName}-ConnectionArn",
         "${FoundationStackName}-ManualApprovalTopicArn",
+        "AuthDeployServiceName:",
+        "AuthDeployDevStackName:",
+        "AuthDeployProdStackName:",
+        "DevAuthServiceBaseUrl:",
+        "ProdAuthServiceBaseUrl:",
+        "AuthValidationCanonicalPaths:",
         "${CodeBuildStackName}-ReleaseBuildProjectName",
         "${CodeBuildStackName}-DeployValidateProjectName",
         "${IamRolesStackName}-CodePipelineServiceRoleArn",
@@ -241,19 +292,21 @@ def test_iam_scope_constraints_for_release_roles() -> None:
 
     assert "iam:PassedToService:" in text
     assert "ecs-tasks.amazonaws.com" in text
+    assert "ecs.amazonaws.com" in text
     assert "cloudformation.amazonaws.com" in text
-    cfn_passrole_block = (
-        "Action:\n"
-        "                  - iam:PassRole\n"
-        "                Resource:\n"
-        "                  - !GetAtt CloudFormationExecutionRoleDev.Arn\n"
-        "                  - !GetAtt CloudFormationExecutionRoleProd.Arn\n"
-        "                Condition:\n"
-        "                  StringEquals:\n"
-        "                    iam:PassedToService:\n"
-        "                      - cloudformation.amazonaws.com"
+    cfn_passrole_pattern = re.compile(
+        r"Action:\n"
+        r"\s*- iam:PassRole\n"
+        r"\s*Resource:\n"
+        r"\s*- !GetAtt CloudFormationExecutionRoleDev\.Arn\n"
+        r"\s*- !GetAtt CloudFormationExecutionRoleProd\.Arn\n"
+        r"\s*Condition:\n"
+        r"\s*StringEquals:\n"
+        r"\s*iam:PassedToService:\n"
+        r"\s*- cloudformation\.amazonaws\.com",
+        flags=re.MULTILINE,
     )
-    assert cfn_passrole_block in text, (
+    assert cfn_passrole_pattern.search(text), (
         "CodePipeline iam:PassRole must require "
         "iam:PassedToService=cloudformation.amazonaws.com"
     )
@@ -299,25 +352,47 @@ def test_iam_scope_constraints_for_release_roles() -> None:
         "repository/${ResolvedCodeArtifactDomainName}/${PromotionSourceRepositoryName}"
         in github_role_text
     )
+    assert (
+        "package/${ResolvedCodeArtifactDomainName}/${ResolvedCodeArtifactRepositoryName}/npm/nova/*"
+        in github_role_text
+    )
+    assert (
+        "package/${ResolvedCodeArtifactDomainName}/${PromotionSourceRepositoryName}/npm/nova/*"
+        in github_role_text
+    )
+    assert (
+        "package/${ResolvedCodeArtifactDomainName}/${PromotionDestinationRepositoryName}/npm/nova/*"
+        in github_role_text
+    )
     assert "sts:AWSServiceName: codeartifact.amazonaws.com" in github_role_text
 
-    assert "BatchBOperatorPrincipalArn:" in text
-    assert "batch-b-validation-read" in text
+    assert "ReleaseValidationTrustedPrincipalArn:" in text
+    assert "release-validation-read" in text
+    assert "BatchB" not in text
 
-    batch_b_role_block = re.search(
-        r"(?ms)^  BatchBValidationOperatorRole:\n(?:^    .*\n)+",
+    validation_policy_block = re.search(
+        r"(?ms)^  ReleaseValidationReadManagedPolicy:\n(?:^    .*\n)+",
         text,
     )
-    assert batch_b_role_block, "Missing BatchBValidationOperatorRole block"
-    batch_b_text = batch_b_role_block.group(0)
+    assert validation_policy_block, (
+        "Missing ReleaseValidationReadManagedPolicy block"
+    )
+    validation_policy_text = validation_policy_block.group(0)
 
     for required_action in [
         "codeconnections:GetConnection",
         "codepipeline:ListPipelines",
         "codepipeline:ListPipelineExecutions",
-        "codedeploy:ListApplications",
+        "wafv2:GetWebACLForResource",
+        "iam:GetRole",
     ]:
-        assert required_action in batch_b_text
+        assert required_action in validation_policy_text
+
+    assert "codeartifact:CreatePackageGroup" in text
+    assert "codeartifact:DescribePackageGroup" in text
+    assert "codeartifact:UpdatePackageGroup" in text
+    assert "codeartifact:UpdatePackageGroupOriginConfiguration" in text
+    assert "package-group/${ResolvedCodeArtifactDomainName}/*" in text
 
 
 def test_runtime_env_and_parameter_contracts() -> None:
@@ -332,10 +407,22 @@ def test_runtime_env_and_parameter_contracts() -> None:
     assert "MaxValue: 1209599" in async_text
     assert "SqsManagedSseEnabled: true" in async_text
     assert "PointInTimeRecoveryEnabled: true" in async_text
+    assert "scope_id-created_at-index" in async_text
+    assert "GlobalSecondaryIndexes:" in async_text
+    assert "AttributeName: scope_id" in async_text
+    assert "AttributeName: created_at" in async_text
 
     for env_name in [
-        "FILE_TRANSFER_JOBS_QUEUE_URL",
-        "FILE_TRANSFER_JOBS_REGION",
+        "JOBS_RUNTIME_MODE",
+        "JOBS_API_BASE_URL",
+        "JOBS_ENABLED",
+        "JOBS_QUEUE_BACKEND",
+        "JOBS_SQS_QUEUE_URL",
+        "JOBS_SQS_MAX_NUMBER_OF_MESSAGES",
+        "JOBS_SQS_WAIT_TIME_SECONDS",
+        "JOBS_SQS_VISIBILITY_TIMEOUT_SECONDS",
+        "IDEMPOTENCY_ENABLED",
+        "IDEMPOTENCY_MODE",
         "FILE_TRANSFER_BUCKET",
         "FILE_TRANSFER_UPLOAD_PREFIX",
         "FILE_TRANSFER_EXPORT_PREFIX",
@@ -344,6 +431,31 @@ def test_runtime_env_and_parameter_contracts() -> None:
     ]:
         assert f"- Name: {env_name}" in worker_text
 
+    assert "FileTransferApiBaseUrl:" not in worker_text
+    assert "- Name: FILE_TRANSFER_API_BASE_URL" not in worker_text
+    assert "JobsApiBaseUrl:" in worker_text
+    token_secret_split = worker_text.split(
+        "  JobsWorkerUpdateTokenSecretArn:\n", 1
+    )
+    assert len(token_secret_split) == 2
+    token_secret_text = token_secret_split[1].split("  JobsApiBaseUrl:\n", 1)[0]
+    assert 'AllowedPattern: "^arn:[^\\\\s]+$"' in token_secret_text
+    assert 'Default: ""' not in token_secret_text
+    assert "WorkerUpdateTokenRequiredWhenWorkerEnabled" not in worker_text
+    assert "WorkerTaskExecutionRoleSecretsPolicy:" in worker_text
+    assert "secretsmanager:GetSecretValue" in worker_text
+    assert "ssm:GetParameters" in worker_text
+    assert "kms:Decrypt" in worker_text
+    assert "Resource: !Ref JobsWorkerUpdateTokenSecretArn" in worker_text
+    assert "Condition: HasJobsWorkerUpdateTokenSecretArn" not in worker_text
+    assert "HasJobsWorkerUpdateTokenSecretArn" not in worker_text
+    assert (
+        "Secrets:\n"
+        "            - Name: JOBS_WORKER_UPDATE_TOKEN\n"
+        "              ValueFrom: !Ref JobsWorkerUpdateTokenSecretArn"
+        in worker_text
+    )
+
     for required in [
         "JobsDeadLetterQueue:",
         "RedrivePolicy:",
@@ -351,14 +463,24 @@ def test_runtime_env_and_parameter_contracts() -> None:
         "maxReceiveCount: !Ref JobsMaxReceiveCount",
         "WorkerScalableTarget:",
         "AWS::ApplicationAutoScaling::ScalableTarget",
-        "WorkerQueueDepthTargetTrackingPolicy:",
+        "WorkerQueueBootstrapScaleOutPolicy:",
+        "WorkerQueueBurstScaleOutPolicy:",
+        "WorkerQueueSurgeScaleOutPolicy:",
+        "WorkerQueueScaleInPolicy:",
+        "WorkerQueueBootstrapDepthAlarm:",
+        "WorkerQueueBurstDepthAlarm:",
+        "WorkerQueueSurgeDepthAlarm:",
+        "WorkerQueueScaleInAlarm:",
+        "WorkerQueueAgeAlarm:",
+        "PolicyType: StepScaling",
         "MetricName: ApproximateNumberOfMessagesVisible",
-        "WorkerQueueAgeTargetTrackingPolicy:",
         "MetricName: ApproximateAgeOfOldestMessage",
+        "TreatMissingData: notBreaching",
         'ResourceId: !Sub "service/${EcsClusterName}/'
         '${Project}-${Application}-${WorkerServiceName}"',
     ]:
         assert required in worker_text or required in async_text
+    assert "TargetTrackingScaling" not in worker_text
 
     assert "FileTransferAsyncParamsProvided:" in service_text
     assert "FileTransferCacheParamsProvided:" in service_text
@@ -369,6 +491,19 @@ def test_runtime_env_and_parameter_contracts() -> None:
     assert (
         "FileTransferCacheSecurityGroupExportName is required" in service_text
     )
+    assert "FileTransferCacheUrlSecretArn:" in service_text
+    assert "IdempotencyMode:" in service_text
+    assert "SharedIdempotencyRequiresManagedCache:" in service_text
+    assert (
+        'ValueFrom: !Sub "${FileTransferCacheUrlSecretArn}:url::"'
+        in service_text
+    )
+    assert "- Name: CACHE_REDIS_URL" in service_text
+    assert "HasFileTransferCacheUrlSecretArn" in service_text
+    assert "UseLegacyEnvDict:" not in service_text
+    assert "UseLegacyTaskRolePolicy:" not in service_text
+    assert "GenerateAppSecretKey:" not in service_text
+    assert "FromPort: 80" not in worker_text
 
 
 def test_pipeline_validation_base_url_parameters_are_constrained() -> None:
@@ -437,25 +572,37 @@ def test_worker_autoscaling_parameter_bounds_contract() -> None:
     """Worker autoscaling defaults must preserve min <= max."""
     worker_text = _read("infra/runtime/file_transfer/worker.yml")
 
-    min_match = re.search(
-        r"WorkerMinTaskCount:\n(?:\s+.+\n)*?\s+Default:\s+(?P<value>\d+)",
+    min_block = _section(
         worker_text,
+        "  WorkerMinTaskCount:\n",
+        "  WorkerMaxTaskCount:\n",
     )
-    max_match = re.search(
-        r"WorkerMaxTaskCount:\n(?:\s+.+\n)*?\s+Default:\s+(?P<value>\d+)",
+    max_block = _section(
         worker_text,
+        "  WorkerMaxTaskCount:\n",
+        "  WorkerScaleOutQueueDepthTarget:\n",
     )
-
-    assert min_match and max_match, (
-        "Expected WorkerMinTaskCount/WorkerMaxTaskCount defaults "
-        "in worker template"
-    )
-
-    min_count = int(min_match.group("value"))
-    max_count = int(max_match.group("value"))
+    min_count = _default_number_from_block(min_block)
+    max_count = _default_number_from_block(max_block)
     assert min_count <= max_count, (
         "WorkerMinTaskCount must be less than or equal to WorkerMaxTaskCount"
     )
+    assert "WorkerScaleOutQueueDepthTarget" in worker_text
+    assert "WorkerScaleOutQueueAgeSecondsTarget" in worker_text
+    assert "WorkerBurstQueueDepthThreshold" not in worker_text
+    assert "WorkerSurgeQueueDepthThreshold" not in worker_text
+    assert "WorkerQueueAgeAlarmThresholdSeconds" not in worker_text
+    assert "Threshold: !Ref WorkerScaleOutQueueDepthTarget" in worker_text, (
+        "Burst scale-out alarm must use WorkerScaleOutQueueDepthTarget"
+    )
+    assert "Threshold: 500" in worker_text, (
+        "Surge scale-out alarm must keep the fixed 500-message threshold"
+    )
+    assert (
+        "Threshold: !Ref WorkerScaleOutQueueAgeSecondsTarget" in worker_text
+    ), "Queue-age alarm must use WorkerScaleOutQueueAgeSecondsTarget"
+    assert "Threshold: 0" in worker_text
+    assert "Threshold: 1" in worker_text
 
 
 def test_observability_security_cost_baseline_contracts() -> None:
@@ -485,33 +632,28 @@ def test_observability_security_cost_baseline_contracts() -> None:
     assert "KmsKeyId: !If [UseServiceLogCMK" in text
 
 
-def test_ecs_codedeploy_blue_green_authority_contracts() -> None:
-    """Batch B1 contract: ECS template codifies CodeDeploy blue/green."""
+def test_ecs_native_blue_green_authority_contracts() -> None:
+    """Release validation contract for ECS-native blue/green."""
     text = _read("infra/runtime/ecs/service.yml")
 
     required_tokens = [
-        "EnableBlueGreenDeployAuthority:",
-        "UseCodeDeployBlueGreen:",
-        "CodeDeployBlueGreenParamsProvided:",
-        "CodeDeployEcsApplication:",
-        "Type: AWS::CodeDeploy::Application",
-        "CodeDeployEcsDeploymentGroup:",
-        "Type: AWS::CodeDeploy::DeploymentGroup",
-        "ComputePlatform: ECS",
+        "EcsInfrastructureRoleArn:",
+        "BlueGreenDeploymentParamsProvided:",
         "DeploymentController:",
-        "Type: !If [UseCodeDeployBlueGreen, CODE_DEPLOY, ECS]",
+        "Type: ECS",
+        "Strategy: BLUE_GREEN",
+        "BakeTimeInMinutes: !Ref BlueGreenTerminationWaitMinutes",
+        "Alarms:",
+        "AlarmNames:",
         "LoadBalancerTargetGroupBlue:",
         "LoadBalancerTargetGroupGreen:",
-        "TargetGroupPairInfoList:",
-        "ProdTrafficRoute:",
-        "TestTrafficRoute:",
-        "BlueGreenDeploymentConfiguration:",
-        "DeploymentReadyOption:",
-        "ActionOnTimeout: !Ref BlueGreenReadinessActionOnTimeout",
-        "AlarmConfiguration:",
-        "AutoRollbackConfiguration:",
-        "DEPLOYMENT_STOP_ON_ALARM",
-        "DEPLOYMENT_STOP_ON_REQUEST",
+        "ForwardConfig:",
+        "Weight: 1",
+        "Weight: 0",
+        "AdvancedConfiguration:",
+        "AlternateTargetGroupArn: !Ref LoadBalancerTargetGroupGreen",
+        "ProductionListenerRule: !Ref ListenerRule",
+        "RoleArn: !Ref EcsInfrastructureRoleArn",
         "ReadinessHealthCheckPath:",
         "HealthCheckPath: !Ref ReadinessHealthCheckPath",
     ]
@@ -519,11 +661,13 @@ def test_ecs_codedeploy_blue_green_authority_contracts() -> None:
         assert token in text, f"Missing blue/green contract token: {token}"
 
     assert (
-        "CodeDeployServiceRoleArn, TestTrafficListenerArn, and both rollback"
-        in text
+        "EcsInfrastructureRoleArn and both rollback alarms are required" in text
     )
-    assert "at least one" not in text
-    assert "Enabled: true" in text
+    assert "AWS::CodeDeploy::Application" not in text
+    assert "AWS::CodeDeploy::DeploymentGroup" not in text
+    assert "TestTrafficRoute:" not in text
+    assert "Enable: true" in text
+    assert "Rollback: true" in text
 
 
 def test_ecs_service_target_group_tuning_contracts() -> None:
@@ -548,27 +692,31 @@ def test_ecs_service_target_group_tuning_contracts() -> None:
         "BlueTargetGroupName:",
         "GreenTargetGroupArn:",
         "GreenTargetGroupName:",
-        "ResolvedCodeDeployApplicationName:",
-        "ResolvedCodeDeployDeploymentGroupName:",
+        "ProductionListenerRule: !Ref ListenerRule",
     ]:
         assert token in text
 
 
-def test_cluster_tls_and_codedeploy_test_listener_contracts() -> None:
-    """Cluster template must expose TLS policy + optional test listener."""
+def test_cluster_tls_and_public_waf_contracts() -> None:
+    """Cluster template must expose TLS policy and public ALB WAF controls."""
     text = _read("infra/runtime/ecs/cluster.yml")
 
     for token in [
         "TlsSecurityPolicy:",
-        "EnableCodeDeployTestListener:",
-        "CodeDeployTestListenerPort:",
-        "CreateCodeDeployTestListener:",
-        "ALBListenerForwardHTTPSTest:",
-        "Condition: CreateCodeDeployTestListener",
-        "Port: !Ref CodeDeployTestListenerPort",
+        "PublicAlbTransfersRateLimit:",
+        "PublicAlbJobsRateLimit:",
+        "IsInternetFacingLoadBalancer:",
+        "PublicAlbWebAcl:",
+        "Type: AWS::WAFv2::WebACL",
+        "PublicAlbWebAclAssociation:",
+        "Type: AWS::WAFv2::WebACLAssociation",
+        "AWSManagedRulesCommonRuleSet",
+        "SearchString: /v1/transfers",
+        "SearchString: /v1/jobs",
+        "ResourceArn: !Ref LoadBalancer",
+        "WebACLArn: !GetAtt PublicAlbWebAcl.Arn",
         "SslPolicy: !Ref TlsSecurityPolicy",
-        "TestListenerArn:",
-        ":testlistenerarn",
+        "PublicAlbWebAclArn:",
         "AlbIngressPrefixListId:",
         "AlbIngressCidr:",
         "AlbIngressSourceSecurityGroupId:",
@@ -582,6 +730,8 @@ def test_cluster_tls_and_codedeploy_test_listener_contracts() -> None:
     ]:
         assert token in text
 
+    assert "CreateCodeDeployTestListener" not in text
+    assert "ALBListenerForwardHTTPSTest" not in text
     assert "PrefixListMap:" not in text
     assert "3MInternal" not in text
 
@@ -613,22 +763,28 @@ def test_nova_ci_cd_validation_env_contracts() -> None:
         assert "BuildOutput" not in stage_body
 
 
-def test_nova_iam_codedeploy_role_and_validation_read_contracts() -> None:
-    """IAM template must expose CodeDeploy ECS role and expanded reads."""
+def test_nova_iam_native_blue_green_and_validation_read_contracts() -> None:
+    """IAM template must expose ECS infra role and expanded validation reads."""
     text = _read("infra/nova/nova-iam-roles.yml")
 
     for token in [
-        "CodeDeployEcsServiceRole:",
-        "AWSCodeDeployRoleForECS",
-        "CodeDeployEcsServiceRoleArn:",
+        "EcsInfrastructureRoleForLoadBalancers:",
+        "AmazonECSInfrastructureRolePolicyForLoadBalancers",
+        "EcsInfrastructureRoleForLoadBalancersArn:",
         "codepipeline:ListActionExecutions",
         "codepipeline:GetPipeline",
-        "codedeploy:ListDeploymentGroups",
-        "codedeploy:ListDeployments",
-        "codedeploy:GetApplication",
         "cloudformation:DescribeStacks",
+        "stack/${Project}-*/*",
         "ecs:DescribeClusters",
         "elasticloadbalancing:DescribeListeners",
         "elasticloadbalancing:DescribeRules",
+        "wafv2:GetWebACLForResource",
+        "iam:GetRole",
+        "ReleaseValidationTrustedPrincipalArn:",
+        "ReleaseValidationReadRoleArn:",
+        "release-validation-read",
     ]:
         assert token in text
+
+    assert "AWSCodeDeployRoleForECS" not in text
+    assert "BatchB" not in text

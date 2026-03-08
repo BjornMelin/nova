@@ -69,24 +69,34 @@ def _validate_candidate(raw: dict[str, Any]) -> PromotionCandidate:
 
     if not package:
         raise GateError("promotion candidate package must be non-empty")
-    if fmt != "pypi":
+    if fmt not in {"pypi", "npm"}:
         raise GateError(f"unsupported package format: {fmt}")
     if not SEMVER_RE.match(version):
         raise GateError(f"invalid semver version for {package}: {version}")
-    if not _normalize_pypi_name(package).startswith("nova-"):
-        raise GateError(
-            "package "
-            f"{package} violates internal namespace policy "
-            "(must start with 'nova-')"
-        )
-    if namespace_text and namespace_text.lower() not in {
-        "nova",
-        "internal",
-        "3m-cloud",
-    }:
-        raise GateError(
-            f"namespace {namespace_text} is not allowed for package {package}"
-        )
+    if fmt == "pypi":
+        if not _normalize_pypi_name(package).startswith("nova-"):
+            raise GateError(
+                "package "
+                f"{package} violates internal namespace policy "
+                "(must start with 'nova-')"
+            )
+        if namespace_text and namespace_text.lower() not in {
+            "nova",
+            "internal",
+            "3m-cloud",
+        }:
+            raise GateError(
+                "namespace "
+                f"{namespace_text} is not allowed for package {package}"
+            )
+    else:
+        if not namespace_text:
+            raise GateError(f"npm package {package} requires a namespace")
+        expected_prefix = f"@{namespace_text}/"
+        if not package.startswith(expected_prefix):
+            raise GateError(
+                f"npm package {package} must use scope {expected_prefix}"
+            )
 
     return PromotionCandidate(
         format=fmt,
@@ -122,12 +132,13 @@ def _load_candidates(
             raise GateError(
                 f"version plan unit not found in workspace: {unit_id}"
             )
+        unit = units[unit_id]
         candidates.append(
             _validate_candidate(
                 {
-                    "format": "pypi",
-                    "namespace": "nova",
-                    "package": units[unit_id].project_name,
+                    "format": item.get("format", unit.package_format),
+                    "namespace": item.get("namespace", unit.namespace),
+                    "package": unit.project_name,
                     "version": version,
                     "unit_id": unit_id,
                 }

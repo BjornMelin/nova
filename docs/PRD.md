@@ -1,7 +1,7 @@
 # Product Requirements Document (PRD): Nova Runtime
 
 Status: Active canonical PRD
-Last updated: 2026-03-06
+Last updated: 2026-03-07
 Audience: Product, Engineering, Platform Operations
 
 ## 1. Product Goal
@@ -45,8 +45,10 @@ async jobs with zero route-surface ambiguity.
    approval before prod.
 5. Documentation authority remains singular and unambiguous across README,
    PRD, requirements, ADR/SPEC, plan, and runbooks.
-6. Public SDK productization for this wave is Python-only; TypeScript and R
-   remain internal/generated catalogs until a dedicated promotion wave.
+6. Nova owns complete public SDKs for Python, TypeScript, and R as the target
+   product contract. Current committed Python SDKs and retained TypeScript/R
+   scaffolding remain subordinate to canonical OpenAPI until full publish-ready
+   parity is completed.
 7. Deployment target-state uses ECS/Fargate behind ALB with ECS-native
    blue/green rollout, CloudWatch alarms, WAF on public ingress, and manifest
    hash evidence tied to the release manifest itself. Worker scaling must be
@@ -87,8 +89,9 @@ Out of scope:
    authority contracts remain aligned with active ADR/SPEC and test guardrails.
 6. Auth0 tenant import/export paths are fail-fast and cannot mutate tenants when
    contract validation fails.
-7. CodeArtifact promotion IAM contracts remain least-privilege and scoped to
-   explicit staged source and prod destination repositories.
+7. CodeArtifact promotion IAM contracts remain least-privilege, scoped to
+   explicit staged source/prod destination repositories, and cover both Python
+   and private npm package publication plus internal package-group controls.
 8. Active runtime authority IDs (`ADR-0024` through `ADR-0026`,
    `SPEC-0017` through `SPEC-0019`) describe runtime subjects only.
 9. Superseded ADR/SPEC content is excluded from active authority lists and

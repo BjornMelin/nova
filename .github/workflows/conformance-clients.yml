@@ -37,12 +37,73 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-      - name: Install package-local dependencies
+      - name: Install workspace dependencies
+        run: npm install --no-package-lock
+      - name: Verify package-local install from workspace member
         run: npm install --no-package-lock
         working-directory: ${{ matrix.package_path }}
       - name: Typecheck client package
-        run: npm run typecheck
-        working-directory: ${{ matrix.package_path }}
+        run: npm run typecheck --workspace ${{ matrix.package_path }}
+      - name: Verify TypeScript conformance lane
+        if: matrix.package_path == 'packages/contracts/typescript'
+        run: npm run verify --workspace packages/contracts/typescript
+
+  typescript-sdk-smoke:
+    runs-on: ubuntu-latest
+    needs: generated-clients
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install workspace dependencies
+        run: npm install --no-package-lock
+      - name: Build TypeScript SDK packages
+        run: |
+          npm run build --workspace packages/nova_sdk_fetch
+          npm run build --workspace packages/nova_sdk_file_core
+          npm run build --workspace packages/nova_sdk_auth_core
+      - name: Smoke test TypeScript SDK exports
+        run: |
+          node --input-type=module <<'EOF'
+          import { buildOperationUrl as buildAuthUrl, operations as authOperations } from "@nova/sdk-auth-core";
+          import { buildOperationUrl as buildFileUrl, operations as fileOperations } from "@nova/sdk-file-core";
+          import { buildOperationDescriptorUrl } from "@nova/sdk-fetch";
+
+          const legacyFileUrl = buildFileUrl(
+            "https://nova.example/",
+            "/v1/jobs/{job_id}",
+            { job_id: "job-123" },
+            { include: "events" },
+          );
+          if (
+            legacyFileUrl
+            !== "https://nova.example/v1/jobs/job-123?include=events"
+          ) {
+            throw new Error(`unexpected legacy file URL: ${legacyFileUrl}`);
+          }
+
+          const legacyAuthUrl = buildAuthUrl(
+            "https://nova.example/",
+            authOperations.verify_token.path,
+          );
+          if (legacyAuthUrl !== "https://nova.example/v1/token/verify") {
+            throw new Error(`unexpected legacy auth URL: ${legacyAuthUrl}`);
+          }
+
+          const descriptorUrl = buildOperationDescriptorUrl(
+            "https://nova.example/",
+            fileOperations.get_job_status,
+            { job_id: "job-123" },
+            { include: "events" },
+          );
+          if (
+            descriptorUrl
+            !== "https://nova.example/v1/jobs/job-123?include=events"
+          ) {
+            throw new Error(`unexpected descriptor URL: ${descriptorUrl}`);
+          }
+          EOF
 
   r-clients:
     runs-on: ubuntu-latest

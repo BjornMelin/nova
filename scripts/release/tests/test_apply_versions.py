@@ -67,3 +67,46 @@ def test_apply_version_updates_changes_only_planned_units(
     assert updated == ["packages/nova_file_api/pyproject.toml"]
     assert 'version = "0.1.1"' in file_api.read_text(encoding="utf-8")
     assert 'version = "0.1.0"' in dash.read_text(encoding="utf-8")
+
+
+def test_apply_version_updates_changes_npm_package_json(
+    tmp_path: Path,
+) -> None:
+    repo_root = tmp_path
+    package_json = repo_root / "packages/nova_sdk_fetch/package.json"
+    package_json.parent.mkdir(parents=True, exist_ok=True)
+    package_json.write_text(
+        '{\n  "name": "@nova/sdk-fetch",\n  "version": "0.1.0"\n}\n',
+        encoding="utf-8",
+    )
+
+    units = {
+        "packages/nova_sdk_fetch": common.WorkspaceUnit(
+            unit_id="packages/nova_sdk_fetch",
+            path=package_json.parent,
+            project_name="@nova/sdk-fetch",
+            version="0.1.0",
+            dependencies=(),
+            package_format="npm",
+            namespace="nova",
+        )
+    }
+    plan = {
+        "units": [
+            {
+                "unit_id": "packages/nova_sdk_fetch",
+                "old_version": "0.1.0",
+                "new_version": "0.1.1",
+            }
+        ]
+    }
+
+    updated = apply_versions.apply_version_updates(
+        repo_root=repo_root,
+        version_plan=plan,
+        units=units,
+        dry_run=False,
+    )
+
+    assert updated == ["packages/nova_sdk_fetch/package.json"]
+    assert '"version": "0.1.1"' in package_json.read_text(encoding="utf-8")

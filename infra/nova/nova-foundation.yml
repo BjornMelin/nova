@@ -20,6 +20,10 @@ Parameters:
   CodeArtifactRepositoryName:
     Type: String
     MinLength: 1
+  CodeArtifactInternalNpmScope:
+    Type: String
+    Default: nova
+    MinLength: 1
   EcrRepositoryArn:
     Type: String
     AllowedPattern: "^arn:(aws|aws-us-gov|aws-cn):ecr:[a-z0-9-]+:[0-9]{12}:repository\\/[A-Za-z0-9._\\/-]+$"
@@ -104,6 +108,26 @@ Resources:
         - HasManualApprovalTopicName
         - !Ref ManualApprovalTopicName
         - !Sub ${Project}-${Application}-nova-manual-approval
+
+  InternalNpmPackageGroup:
+    Type: AWS::CodeArtifact::PackageGroup
+    Properties:
+      Description: Internal Nova npm namespace origin controls
+      DomainName: !Ref CodeArtifactDomainName
+      Pattern: !Sub /npm/${CodeArtifactInternalNpmScope}/*
+      OriginConfiguration:
+        Restrictions:
+          Publish:
+            RestrictionMode: ALLOW
+          ExternalUpstream:
+            RestrictionMode: BLOCK
+          InternalUpstream:
+            RestrictionMode: BLOCK
+      Tags:
+        - Key: Project
+          Value: !Ref Project
+        - Key: Application
+          Value: !Ref Application
 
 Outputs:
   ArtifactBucketName:

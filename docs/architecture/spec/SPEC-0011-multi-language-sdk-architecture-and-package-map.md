@@ -1,11 +1,11 @@
 ---
 Spec: 0011
-Title: Python-first SDK architecture and deferred TS/R package map
+Title: Multi-language SDK architecture and package map
 Status: Active
-Version: 2.1
-Date: 2026-03-06
+Version: 3.0
+Date: 2026-03-07
 Related:
-  - "[ADR-0013: Python-first SDK topology uses generated contract-core clients and defers TS/R productization](../adr/ADR-0013-final-state-sdk-topology-generated-core-plus-thin-adapters.md)"
+  - "[ADR-0013: Multi-language SDK topology uses generated contract-core clients with retained TS/R foundations](../adr/ADR-0013-final-state-sdk-topology-generated-core-plus-thin-adapters.md)"
   - "[ADR-0002: OpenAPI as contract and SDK generation](../adr/ADR-0002-openapi-as-contract-and-sdk-generation.md)"
   - "[SPEC-0000: HTTP API contract](./SPEC-0000-http-api-contract.md)"
   - "[SPEC-0007: Auth API contract](./SPEC-0007-auth-api-contract.md)"
@@ -18,9 +18,10 @@ References:
 
 ## 1. Scope
 
-Defines the current-wave Nova SDK package map. Python is the only release-grade
-public SDK surface. TypeScript and R packages remain internal/generated catalogs
-until a later promotion wave.
+Defines the Nova SDK package map and target public-SDK posture. Nova must
+provide complete public SDKs for Python, TypeScript, and R. Current Python SDK
+trees and retained TypeScript/R scaffolding remain generated from the same
+canonical OpenAPI artifacts.
 
 This spec governs generated SDK trees and thin adapter surfaces. Runtime
 implementation distributions such as `nova_file_api` and `nova_auth_api` are
@@ -61,7 +62,7 @@ Prohibited in adapters:
 
 These are the only generation inputs.
 
-### 3.2 Public release-grade Python surfaces
+### 3.2 Python SDK surfaces
 
 - `nova_sdk_py_file` (generated): file-transfer API client and models.
 - `nova_sdk_py_auth` (generated): auth API verify/introspect client and models.
@@ -73,11 +74,11 @@ Consumer mapping:
 - `dash-pca` consumes generated Python SDK packages plus thin bridge utilities.
 - No handwritten Python verify client remains authoritative in consumer repos.
 
-### 3.3 Internal/generated TypeScript catalogs
+### 3.3 TypeScript SDK foundations
 
 - `@nova/sdk-file-core` (generated types and operation signatures from OpenAPI)
 - `@nova/sdk-auth-core` (generated auth operation types/signatures)
-- `@nova/sdk-fetch` (generator-owned runtime helper over `openapi-fetch`)
+- `@nova/sdk-fetch` (generator-owned runtime helper over the fetch runtime)
 
 Repository package paths:
 
@@ -87,11 +88,17 @@ Repository package paths:
 
 Current status:
 
-- internal/generated catalog only
-- not a release-grade public SDK surface
-- not yet covered by public package publishing/support guarantees
+- retained in-repo foundation for the target public TypeScript SDK surface
+- shared runtime/helpers remain generator-owned
+- source installs must work through the repo npm workspace while staged/private
+  publication to CodeArtifact emits concrete semver dependencies
+- `@nova/sdk-file-core` and `@nova/sdk-auth-core` preserve the public helper
+  contract `buildOperationUrl(baseUrl, pathTemplate, pathParams?, queryParams?)`
+- descriptor-based URL construction stays in `@nova/sdk-fetch` under a distinct
+  helper surface (`buildOperationDescriptorUrl`)
+- must stay deterministic and must not be deleted
 
-### 3.4 Internal/generated R catalogs
+### 3.4 R SDK foundations
 
 - `nova.sdk.r.file` (generated client bindings/models)
 - `nova.sdk.r.auth` (generated auth bindings/models)
@@ -103,13 +110,13 @@ Repository package paths:
 
 Current status:
 
-- internal/generated catalog only
-- not a release-grade public SDK surface
-- not yet covered by public package publishing/support guarantees
+- retained in-repo foundation for the target public R SDK surface
+- generator-owned wrapper/runtime output remains authoritative
+- must stay deterministic and must not be deleted
 
 ## 4. Required SDK surface behaviors
 
-Public Python SDK packages must support:
+Public client SDK packages must support:
 
 - explicit base URL configuration
 - configurable timeout
@@ -118,8 +125,8 @@ Public Python SDK packages must support:
   `error.request_id`)
 - typed request/response payload models
 
-Internal TS/R catalogs must remain deterministic from the same OpenAPI inputs
-but are not public compatibility authority in this wave.
+Retained TypeScript/R foundations must remain deterministic from the same
+OpenAPI inputs while Nova completes publish-ready parity.
 
 ## 5. Auth contract surface
 
@@ -135,6 +142,7 @@ Failure handling must preserve upstream status classes:
 - `403` authorization failures
 - deterministic fail-closed mapping for transport timeouts or unavailable
   upstreams
+- canonical error-envelope decoding
 
 ## 6. Repository ownership and release boundaries
 
@@ -142,8 +150,8 @@ Nova owns:
 
 - OpenAPI contract source
 - generated SDK definitions
-- Python public package governance
-- TS/R internal catalog generation determinism
+- public package governance for Python, TypeScript, and R
+- shared generation determinism across all three languages
 
 Consumer repos own:
 
@@ -154,13 +162,13 @@ Consumer repos own:
 ## 7. Delivery and artifact publishing requirements
 
 - Canonical OpenAPI artifacts are exported and committed before SDK generation.
-- Python SDK packages are versioned and published from Nova CI.
+- Python SDK packages are versioned and published from Nova CI today.
 - `scripts/release/generate_clients.py` is the deterministic generator entry
-  point for internal TypeScript and R operation catalogs.
+  point for retained TypeScript and R package foundations.
 - `scripts/release/generate_python_clients.py` is the deterministic generator
   entry point for committed Python SDK package trees.
-- TS/R generated artifacts must stay deterministic in CI, but public
-  publishing/promotion is deferred to a later wave.
+- Internal-only operations marked `x-nova-sdk-visibility: internal` remain in
+  canonical OpenAPI but are excluded from client SDK generation.
 
 ## 8. Traceability
 

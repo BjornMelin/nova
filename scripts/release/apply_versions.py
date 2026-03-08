@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import re
 from pathlib import Path
 from typing import Any
@@ -49,6 +50,22 @@ def _replace_project_version(
     )
 
 
+def _replace_package_version(
+    package_text: str,
+    old_version: str,
+    new_version: str,
+) -> str:
+    package_data = json.loads(package_text)
+    current_version = str(package_data.get("version", "")).strip()
+    if current_version != old_version:
+        raise ValueError(
+            "planned old version does not match file: "
+            f"expected {old_version}, found {current_version}"
+        )
+    package_data["version"] = new_version
+    return json.dumps(package_data, indent=2) + "\n"
+
+
 def apply_version_updates(
     *,
     repo_root: Path,
@@ -78,14 +95,19 @@ def apply_version_updates(
         old_version = str(item["old_version"])
         new_version = str(item["new_version"])
         unit = units[unit_id]
-        pyproject_path = unit.path / "pyproject.toml"
+        if unit.package_format == "npm":
+            manifest_path = unit.path / "package.json"
+            text = manifest_path.read_text(encoding="utf-8")
+            replaced = _replace_package_version(text, old_version, new_version)
+        else:
+            manifest_path = unit.path / "pyproject.toml"
+            text = manifest_path.read_text(encoding="utf-8")
+            replaced = _replace_project_version(text, old_version, new_version)
 
-        text = pyproject_path.read_text(encoding="utf-8")
-        replaced = _replace_project_version(text, old_version, new_version)
         if replaced != text:
-            updated.append(str(pyproject_path.relative_to(repo_root)))
+            updated.append(str(manifest_path.relative_to(repo_root)))
             if not dry_run:
-                pyproject_path.write_text(replaced, encoding="utf-8")
+                manifest_path.write_text(replaced, encoding="utf-8")
 
     return updated
 

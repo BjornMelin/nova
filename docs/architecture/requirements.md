@@ -1,7 +1,7 @@
 # Requirements (nova runtime)
 
 Status: Canonical requirements source
-Last updated: 2026-03-06
+Last updated: 2026-03-07
 
 This document is the source of truth for functional and non-functional
 requirements for the first production release.
@@ -21,8 +21,10 @@ requirements for the first production release.
 - Superseded ADR/SPEC material is archived only under
   `docs/architecture/adr/superseded/**` and
   `docs/architecture/spec/superseded/**`.
-- Public SDK policy for this release wave is Python-only; TypeScript and R
-  remain internal/generated catalogs.
+- Nova owns complete public SDKs for Python, TypeScript, and R as the target
+  client contract. Current Python SDK trees and retained TypeScript/R
+  scaffolding remain generated from canonical OpenAPI, install cleanly through
+  the repo workspace/tooling, and must stay aligned.
 
 ## Scope
 
