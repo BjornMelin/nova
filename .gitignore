@@ -178,6 +178,7 @@ node_modules/
 opensrc/
 .agents/
 .codex/
+.artifacts/
 
 # Auth0 export snapshots
 infra/auth0/output/
