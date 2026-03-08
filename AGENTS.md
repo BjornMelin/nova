@@ -12,11 +12,14 @@ and auth API services.
 - `packages/nova_dash_bridge/`: Dash/Flask/FastAPI bridge adapters.
 - `packages/contracts/`: OpenAPI and shared contract artifacts.
 
-Release-grade public SDK posture for this wave:
+Target public SDK posture:
 
-- Python packages are the only release-grade public SDK surface.
-- TypeScript and R packages remain internal/generated catalogs until a later
-  promotion wave.
+- Nova must provide complete public SDKs for Python, TypeScript, and R.
+- The repository currently commits Python SDK trees and retains valid
+  TypeScript/R scaffolding plus generator/runtime layers as the required path to
+  full parity; do not delete that scaffolding.
+- Internal-only operations remain excluded from client SDKs and belong to a
+  separate internal/admin generation mode.
 
 ## Active Authority
 
@@ -108,11 +111,26 @@ rg -n "/v1/transfers|/v1/jobs|/v1/internal/jobs|/v1/capabilities|/v1/resources/p
   per document, and not derived from path/method/version literals.
 - SDK-facing tags MUST be semantic router groups only:
   `transfers`, `jobs`, `platform`, `ops`, `token`, and `health`.
+- Internal-only operations MUST be marked with
+  `x-nova-sdk-visibility: internal` and excluded from public client SDK
+  generation.
 - Custom request-body `$ref` entries added through `openapi_extra` MUST resolve
   to named component schemas in the emitted OpenAPI document.
 - Regenerate internal TS/R catalogs with
   `scripts/release/generate_clients.py` and committed Python SDK trees with
   `scripts/release/generate_python_clients.py`.
+
+## npm / CodeArtifact Local Rule
+
+- Keep npm registry config repo-local. Use the committed repo-root `.npmrc`;
+  never put Nova CodeArtifact npm settings in global `~/.npmrc`.
+- For local npm access, run from the repository root:
+  `eval "$(npm run -s codeartifact:npm:env)"`
+- If you switch AWS accounts or CodeArtifact targets, set `AWS_REGION`,
+  `CODEARTIFACT_DOMAIN`, and/or `CODEARTIFACT_STAGING_REPOSITORY` before
+  running the helper.
+- Do not run `aws codeartifact login --tool npm` on a developer workstation.
+  It rewrites global npm config. CI may use it on ephemeral runners.
 
 ## Runtime Invariants
 

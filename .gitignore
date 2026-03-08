@@ -171,6 +171,7 @@ cython_debug/
 # Node / TypeScript local workspace artifacts
 node_modules/
 *.tsbuildinfo
+.npmrc.codeartifact
 
 
 # opensrc - source code for packages

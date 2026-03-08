@@ -86,8 +86,13 @@ Use the modular operator guide set for provisioning and setup details:
 2. Confirm `scripts.release.codeartifact_gate` generated:
    - `.artifacts/codeartifact-gate-report.json`
    - `.artifacts/codeartifact-promotion-candidates.json`
-3. Confirm package uploads target `CODEARTIFACT_STAGING_REPOSITORY` only.
-4. Confirm promotion copies from `CODEARTIFACT_STAGING_REPOSITORY` to
+   - `.artifacts/npm-publish-report.json` when npm packages participate
+3. Confirm Python package uploads use `twine` and npm package uploads use
+   `aws codeartifact login --tool npm` plus `npm publish --no-progress`.
+4. Confirm staged npm smoke installs succeed from
+   `CODEARTIFACT_STAGING_REPOSITORY` before prod promotion.
+5. Confirm package uploads target `CODEARTIFACT_STAGING_REPOSITORY` only.
+6. Confirm promotion copies from `CODEARTIFACT_STAGING_REPOSITORY` to
    `CODEARTIFACT_PROD_REPOSITORY`.
 
 ### E. Post-deploy route validation gate
@@ -124,6 +129,8 @@ Use the modular operator guide set for provisioning and setup details:
    - `promotion_candidates_json` from `codeartifact-promotion-candidates.json`
 4. Confirm package promotion uses `aws codeartifact copy-package-versions` from
    `CODEARTIFACT_STAGING_REPOSITORY` to `CODEARTIFACT_PROD_REPOSITORY`.
+   Scoped npm packages must provide `--namespace` and the unscoped package
+   component when copied.
 5. Manual approval must include reviewer identity and timestamp.
 6. Confirm immutable artifact continuity:
    - Prod promotion uses the same `FILE_IMAGE_DIGEST` exported from Build/Dev.
@@ -161,3 +168,23 @@ For each run capture:
 12. Immutable release-plan artifact continuity evidence:
     `changed-units.json` and `version-plan.json` consumed by release-apply and
     publish-packages from upstream workflow artifacts, not recomputed locally.
+13. For npm releases, retain the staged npm smoke output proving installability
+    and legacy `buildOperationUrl(...)` compatibility from CodeArtifact.
+
+## 7. Local npm operator rule
+
+For local developer shells, keep CodeArtifact npm configuration repo-scoped:
+
+```bash
+cd /home/bjorn/repos/work/infra-stack/nova
+eval "$(npm run -s codeartifact:npm:env)"
+npm install --no-package-lock
+```
+
+Use the committed `.npmrc` plus the generated repo-local
+`.npmrc.codeartifact`.
+If you need a different account/domain/repository, set `AWS_REGION`,
+`CODEARTIFACT_DOMAIN`, and/or `CODEARTIFACT_STAGING_REPOSITORY` before running
+the helper. Do not run `aws codeartifact login --tool npm` on a workstation
+unless you explicitly intend to rewrite global `~/.npmrc`. CI may still use
+`aws codeartifact login --tool npm` because runners are ephemeral.

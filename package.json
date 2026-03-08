@@ -1,0 +1,15 @@
+{
+  "name": "nova-typescript-workspace",
+  "private": true,
+  "scripts": {
+    "codeartifact:npm:endpoint": "python scripts/release/codeartifact_npm.py endpoint",
+    "codeartifact:npm:env": "python scripts/release/codeartifact_npm.py env",
+    "codeartifact:npm:token": "python scripts/release/codeartifact_npm.py token"
+  },
+  "workspaces": [
+    "packages/contracts/typescript",
+    "packages/nova_sdk_auth_core",
+    "packages/nova_sdk_fetch",
+    "packages/nova_sdk_file_core"
+  ]
+}

@@ -56,6 +56,21 @@ Adjacent deploy-control-plane authority:
 5. [SPEC-0025](../architecture/spec/SPEC-0025-reusable-workflow-integration-contract.md)
 6. [SPEC-0026](../architecture/spec/SPEC-0026-ci-cd-iam-least-privilege-matrix.md)
 
+Release runbooks define the canonical mixed-package publish path:
+
+- Python distributions publish to CodeArtifact with `twine`
+- TypeScript foundations publish to CodeArtifact npm after workspace-local
+  source-dependency rewrite and staged install smoke validation
+
+Local developer npm auth for Nova must stay repo-scoped:
+
+- use the repository helper `eval "$(npm run -s codeartifact:npm:env)"`
+- this generates repo-local `.npmrc.codeartifact` and sets
+  `NPM_CONFIG_USERCONFIG`
+- do not run `aws codeartifact login --tool npm` on a workstation because it
+  rewrites global `~/.npmrc` and affects unrelated repos
+- see `../plan/release/RELEASE-RUNBOOK.md` for the canonical local flow
+
 ## Related History
 
 - `docs/plan/HISTORY-INDEX.md`
