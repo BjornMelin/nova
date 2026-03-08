@@ -10,6 +10,7 @@ members = [
     "nova-dash-bridge",
     "nova-file-api",
     "nova-file-api-service",
+    "nova-runtime-support",
     "nova-sdk-py-auth",
     "nova-sdk-py-file",
 ]
@@ -564,6 +565,7 @@ dependencies = [
     { name = "nova-dash-bridge" },
     { name = "nova-file-api" },
     { name = "nova-file-api-service" },
+    { name = "nova-runtime-support" },
 ]
 
 [package.dev-dependencies]
@@ -583,6 +585,7 @@ requires-dist = [
     { name = "nova-dash-bridge", editable = "packages/nova_dash_bridge" },
     { name = "nova-file-api", editable = "packages/nova_file_api" },
     { name = "nova-file-api-service", editable = "apps/nova_file_api_service" },
+    { name = "nova-runtime-support", editable = "packages/nova_runtime_support" },
 ]
 
 [package.metadata.requires-dev]
@@ -602,6 +605,7 @@ source = { editable = "packages/nova_auth_api" }
 dependencies = [
     { name = "anyio" },
     { name = "fastapi" },
+    { name = "nova-runtime-support" },
     { name = "oidc-jwt-verifier" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
@@ -612,6 +616,7 @@ dependencies = [
 requires-dist = [
     { name = "anyio", specifier = ">=4.11.0" },
     { name = "fastapi", specifier = ">=0.129.0" },
+    { name = "nova-runtime-support", editable = "packages/nova_runtime_support" },
     { name = "oidc-jwt-verifier", specifier = ">=0.1.5" },
     { name = "pydantic", specifier = ">=2.12.5" },
     { name = "pydantic-settings", specifier = ">=2.12.0" },
@@ -640,6 +645,7 @@ source = { editable = "packages/nova_dash_bridge" }
 dependencies = [
     { name = "boto3" },
     { name = "nova-file-api" },
+    { name = "nova-runtime-support" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
 ]
@@ -662,6 +668,7 @@ requires-dist = [
     { name = "fastapi", marker = "extra == 'fastapi'", specifier = ">=0.129.0,<0.300.0" },
     { name = "flask", marker = "extra == 'flask'", specifier = ">=3.1.2,<4.0.0" },
     { name = "nova-file-api", editable = "packages/nova_file_api" },
+    { name = "nova-runtime-support", editable = "packages/nova_runtime_support" },
     { name = "pydantic", specifier = ">=2.12.5" },
     { name = "pydantic-settings", specifier = ">=2.12.0" },
 ]
@@ -676,6 +683,7 @@ dependencies = [
     { name = "boto3" },
     { name = "fastapi" },
     { name = "httpx" },
+    { name = "nova-runtime-support" },
     { name = "oidc-jwt-verifier" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
@@ -689,6 +697,7 @@ requires-dist = [
     { name = "boto3", specifier = ">=1.42.47" },
     { name = "fastapi", specifier = ">=0.129.0" },
     { name = "httpx", specifier = ">=0.28.1" },
+    { name = "nova-runtime-support", editable = "packages/nova_runtime_support" },
     { name = "oidc-jwt-verifier", specifier = ">=0.1.5" },
     { name = "pydantic", specifier = ">=2.12.5" },
     { name = "pydantic-settings", specifier = ">=2.12.0" },
@@ -709,6 +718,23 @@ dependencies = [
 requires-dist = [
     { name = "nova-file-api", editable = "packages/nova_file_api" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.38.0" },
+]
+
+[[package]]
+name = "nova-runtime-support"
+version = "0.1.0"
+source = { editable = "packages/nova_runtime_support" }
+dependencies = [
+    { name = "fastapi" },
+    { name = "oidc-jwt-verifier" },
+    { name = "structlog" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "fastapi", specifier = ">=0.129.0" },
+    { name = "oidc-jwt-verifier", specifier = ">=0.1.5" },
+    { name = "structlog", specifier = ">=25.5.0" },
 ]
 
 [[package]]

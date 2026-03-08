@@ -25,6 +25,7 @@ dependencies = [
   "nova-dash-bridge",
   "nova-file-api",
   "nova-file-api-service",
+  "nova-runtime-support",
 ]
 
 [dependency-groups]
@@ -53,6 +54,7 @@ members = [
   "packages/nova_auth_api",
   "packages/nova_dash_bridge",
   "packages/nova_file_api",
+  "packages/nova_runtime_support",
 ]
 
 [tool.uv.sources]
@@ -61,6 +63,7 @@ nova-auth-api-service = { workspace = true }
 nova-dash-bridge = { workspace = true }
 nova-file-api = { workspace = true }
 nova-file-api-service = { workspace = true }
+nova-runtime-support = { workspace = true }
 
 [tool.pytest.ini_options]
 minversion = "8.0"
@@ -79,6 +82,7 @@ pythonpath = [
   "packages/nova_auth_api/src",
   "packages/nova_dash_bridge/src",
   "packages/nova_file_api/src",
+  "packages/nova_runtime_support/src",
 ]
 addopts = [
   "-ra",
