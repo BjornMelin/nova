@@ -10,6 +10,7 @@ Nova is the canonical runtime monorepo for file-transfer orchestration and token
 - `apps/nova_auth_api_service`: ASGI service wrapper that boots the auth API runtime package.
 - `packages/nova_file_api`: Main transfer + jobs control-plane implementation.
 - `packages/nova_auth_api`: Token verify/introspect API implementation.
+- `packages/nova_runtime_support`: Internal shared runtime helpers for auth claim normalization, request IDs, OpenAPI response shaping, and log redaction.
 - `packages/nova_dash_bridge`: Integration bridge adapters for Dash/Flask/FastAPI clients.
 - `packages/contracts`: Contract artifacts, fixtures, and conformance helpers.
 - `packages/nova_sdk_py_file`: Committed generated Python SDK for the file API.
@@ -21,11 +22,14 @@ Nova is the canonical runtime monorepo for file-transfer orchestration and token
 - `packages/nova_sdk_r_auth`: Internal generated R operation catalog for the auth API.
 - `infra/nova` and `infra/runtime`: CloudFormation stacks for CI/CD foundation and runtime environments.
 
-SDK release posture for this wave:
+SDK target posture:
 
-- Python packages are the only release-grade public SDK surface.
-- TypeScript and R packages remain internal/generated catalogs until a later
-  promotion wave.
+- Nova owns complete public SDKs for Python, TypeScript, and R.
+- Python SDK trees are committed and drift-gated today.
+- TypeScript and R scaffolding remains in-repo as the required foundation for
+  full publish-ready parity and must not be deleted.
+- Internal-only operations remain documented in canonical OpenAPI but excluded
+  from client SDK generation.
 
 OpenAPI and SDK generation authority for this topology:
 
@@ -33,6 +37,8 @@ OpenAPI and SDK generation authority for this topology:
 - `scripts/contracts/export_openapi.py` refreshes and checks the committed OpenAPI artifacts.
 - `scripts/release/generate_clients.py` refreshes and checks the internal TypeScript and R catalogs.
 - `scripts/release/generate_python_clients.py` refreshes and checks the committed Python SDK trees.
+- Public SDK generation excludes operations marked
+  `x-nova-sdk-visibility: internal`.
 - Published runtime Python distributions `nova_file_api` and `nova_auth_api`
   include `py.typed` markers for installed-package type checking.
 
@@ -45,8 +51,9 @@ flowchart TB
     subgraph RuntimePackages
         P1["packages/nova_file_api"]
         P2["packages/nova_auth_api"]
-        P3["packages/nova_dash_bridge"]
-        P4["packages/contracts"]
+        P3["packages/nova_runtime_support"]
+        P4["packages/nova_dash_bridge"]
+        P5["packages/contracts"]
     end
     subgraph Infra
         I1["infra/nova"]
@@ -56,8 +63,10 @@ flowchart TB
     A1 --> P1
     A2 --> P2
     P3 --> P1
+    P3 --> P2
     P4 --> P1
-    P4 --> P2
+    P5 --> P1
+    P5 --> P2
     I1 --> A1
     I1 --> A2
     I2 --> A1
@@ -106,13 +115,17 @@ flowchart LR
 - `nova_auth_api` owns:
   - Auth token verification and introspection routes.
   - Standardized auth error envelope behavior.
+- `nova_runtime_support` owns:
+  - Internal-only shared helpers for request-id handling, canonical OpenAPI
+    error responses, log redaction, and auth claim normalization.
 - `nova_dash_bridge` owns:
   - Framework adapters that let Dash/Flask/FastAPI apps consume Nova-style transfer flows without redefining server contracts.
 - `contracts` owns:
   - Test fixtures, schemas, and conformance artifacts used by release and integration checks.
 - generated SDK packages own:
   - committed Python SDK distributions for the public file/auth client surface.
-  - internal TypeScript and R catalogs derived from the canonical OpenAPI artifacts.
+  - retained TypeScript and R foundations for the target public client surface.
+  - exclusion of internal-only operations from client SDK generation.
 
 ```mermaid
 flowchart LR

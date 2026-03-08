@@ -49,7 +49,7 @@ Canonical committed OpenAPI artifacts live under `packages/contracts/openapi/`:
   `packages/contracts/openapi/` and are CI drift-gated.
 - Canonical OpenAPI export drift is checked with
   `scripts/contracts/export_openapi.py --check`.
-- Internal TypeScript/R generated catalog drift is checked with
+- Retained TypeScript/R generated scaffolding drift is checked with
   `scripts/release/generate_clients.py --check`.
 - Committed Python SDK package drift is checked with
   `scripts/release/generate_python_clients.py --check`.
@@ -91,8 +91,11 @@ source .venv/bin/activate && uv run pytest -q packages/nova_file_api/tests/test_
 
 The generated-client smoke suite covers both
 `nova-file-api.openapi.json` and `nova-auth-api.openapi.json`.
-Committed Python SDK trees are part of the drift-gated contract surface, not
-an optional post-processing artifact.
+Committed Python SDK trees are part of the drift-gated contract surface, not an
+optional post-processing artifact. Retained TypeScript/R scaffolding is also a
+contract surface because Nova targets complete public SDK parity across all
+three languages. Internal-only operations remain present in canonical OpenAPI
+but are excluded from client SDK generation.
 
 ## Related references
 

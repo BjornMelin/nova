@@ -5,8 +5,8 @@ Status: Active
 Version: 2.0
 Date: 2026-03-05
 Related:
-  - "[ADR-0013: Python-first SDK topology uses generated contract-core clients and defers TS/R productization](../adr/ADR-0013-final-state-sdk-topology-generated-core-plus-thin-adapters.md)"
-  - "[SPEC-0011: Python-first SDK architecture and deferred TS/R package map](./SPEC-0011-multi-language-sdk-architecture-and-package-map.md)"
+  - "[ADR-0013: Multi-language SDK topology uses generated contract-core clients with retained TS/R foundations](../adr/ADR-0013-final-state-sdk-topology-generated-core-plus-thin-adapters.md)"
+  - "[SPEC-0011: Multi-language SDK architecture and package map](./SPEC-0011-multi-language-sdk-architecture-and-package-map.md)"
   - "[SPEC-0004: CI/CD and docs](./SPEC-0004-ci-cd-and-docs.md)"
   - "[Hard Cutover Checklist](../../plan/release/HARD-CUTOVER-CHECKLIST.md)"
 References:
@@ -114,8 +114,9 @@ public support or publishing contract.
 
 - Python public methods scheduled for removal must emit warnings-based
   deprecation.
-- TS/R catalog evolution is internal until those languages are promoted to
-  public SDK status.
+- TypeScript and R foundations must evolve toward the same publish-ready
+  deprecation/versioning posture; until that promotion lands, their in-repo
+  artifacts remain deterministic contract surfaces.
 
 ## 5. API/contract governance and compatibility policy
 
@@ -135,10 +136,11 @@ A pull request modifying OpenAPI contracts must pass:
 - explicit change classification
 - regenerated Python SDK diffs
 - Python generated-client smoke
-- internal TS/R generated catalog drift gate via
+- retained TS/R generated scaffold drift gate via
   `scripts/release/generate_clients.py --check`
 - committed Python SDK drift gate via
   `scripts/release/generate_python_clients.py --check`
+- exclusion of internal-only operations from client SDK generation
 
 ### 5.3 Blocking conditions
 

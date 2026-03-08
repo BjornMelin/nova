@@ -110,11 +110,10 @@ archive paths or authority links change.
 
 ## 7. Public SDK governance note
 
-Python is the only release-grade public SDK surface in this wave. TypeScript
-and R conformance lanes remain required internal generated-catalog drift gates,
-not public release guarantees. The generated-client conformance workflow MUST
-verify canonical OpenAPI export drift, internal TS/R generated catalogs, and
-committed Python SDK package trees.
+Nova targets complete public SDK parity for Python, TypeScript, and R. The
+generated-client conformance workflow MUST verify canonical OpenAPI export
+drift, retained TS/R generated scaffolding, committed Python SDK package trees,
+and exclusion of internal-only operations from client SDK generation.
 
 ## 8. Acceptance criteria
 

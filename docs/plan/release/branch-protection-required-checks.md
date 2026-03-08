@@ -24,10 +24,10 @@ From workflow `Conformance Clients` (`.github/workflows/conformance-clients.yml`
 
 Release-grade/public SDK note:
 
-- `generated-clients` covers generated TS/R catalog drift and committed Python
-  SDK artifact drift against the canonical OpenAPI export.
-- `typescript-clients` and `r-clients` remain required internal generated-SDK
-  validation lanes in this wave.
+- `generated-clients` covers canonical OpenAPI drift, committed Python SDK
+  artifact drift, and retained TS/R scaffold drift against the canonical export.
+- `typescript-clients` and `r-clients` remain required validation lanes for the
+  TypeScript/R foundations Nova retains for future public parity.
 
 From workflow `CFN Contract Validate` (`.github/workflows/cfn-contract-validate.yml`):
 

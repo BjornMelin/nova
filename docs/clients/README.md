@@ -2,7 +2,7 @@
 
 Status: Active
 Owner: nova release architecture
-Last reviewed: 2026-03-05
+Last reviewed: 2026-03-07
 
 ## Purpose
 
@@ -32,14 +32,13 @@ SDK release authority.
 
 ## SDK package status
 
-Public release-grade SDK packages for this wave:
+Committed public client SDK trees in-repo today:
 
 - `../../packages/nova_sdk_py_file/`
 - `../../packages/nova_sdk_py_auth/`
 - `../../packages/nova_dash_bridge/`
 
-Internal/generated catalogs retained in-repo for drift checks and deferred
-productization:
+Retained TypeScript/R scaffolding and shared generator/runtime layers:
 
 - `../../packages/nova_sdk_file_core/`
 - `../../packages/nova_sdk_auth_core/`
@@ -47,11 +46,13 @@ productization:
 - `../../packages/nova_sdk_r_file/`
 - `../../packages/nova_sdk_r_auth/`
 
-All of these remain subordinate to the committed Nova OpenAPI contracts. Only
-the Python packages above are public release-grade SDK authority in this wave.
-Installed-package typing metadata shipped by runtime distributions
-`nova_file_api` and `nova_auth_api` is separate from the generated SDK trees
-documented here.
+All of these remain subordinate to the committed Nova OpenAPI contracts. Nova's
+target contract is complete publish-ready SDK parity across Python, TypeScript,
+and R. The TypeScript/R packages above remain valid future foundations and must
+not be deleted before that parity work lands. Internal-only operations stay in
+canonical OpenAPI but are excluded from client SDK generation. Installed-package
+typing metadata shipped by runtime distributions `nova_file_api` and
+`nova_auth_api` is separate from the generated SDK trees documented here.
 
 Generator-facing OpenAPI rules that downstream consumers can rely on:
 

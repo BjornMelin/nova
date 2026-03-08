@@ -2,8 +2,8 @@
 Spec: 0017
 Title: Runtime component topology and ownership contract
 Status: Active
-Version: 2.0
-Date: 2026-03-05
+Version: 2.1
+Date: 2026-03-07
 Related:
   - "[ADR-0024: Layered runtime authority pack for the Nova monorepo](../adr/ADR-0024-layered-architecture-authority-pack.md)"
   - "[ADR-0025: Runtime monorepo component boundaries and ownership](../adr/ADR-0025-runtime-monorepo-component-boundaries-and-ownership.md)"
@@ -32,6 +32,7 @@ cross-package boundaries for the Nova monorepo.
 | --- | --- |
 | `packages/nova_file_api/` | File-transfer routes, job routes, internal worker result route, capability/release endpoints, health/readiness, metrics summary, transfer/jobs/cache/idempotency/activity orchestration |
 | `packages/nova_auth_api/` | Token verify/introspect routes, verifier lifecycle, principal normalization, auth API envelopes |
+| `packages/nova_runtime_support/` | Internal shared helpers for request IDs, canonical error-envelope OpenAPI shaping, log redaction, and shared auth claim normalization |
 | `packages/nova_dash_bridge/` | Dash/Flask/FastAPI integration helpers over canonical Nova contracts |
 | `packages/contracts/` | OpenAPI artifacts, fixtures, and generated-client contract inputs |
 
@@ -60,12 +61,15 @@ cross-package boundaries for the Nova monorepo.
 
 ## 5. SDK and bridge relationship
 
-1. Release-grade public SDK ownership for this wave is Python-only.
+1. Nova owns complete public SDKs for Python, TypeScript, and R as the target
+   client contract.
 2. `nova_dash_bridge` remains a Python integration surface and must track the
-   canonical Python contract surface.
-3. TypeScript and R generated catalogs may exist in-repo, but they do not own
-   runtime semantics and are not part of the release-grade public runtime
-   surface in this wave.
+   canonical Python contract surface without introducing alternate mount
+   prefixes.
+3. TypeScript and R retained scaffolding may exist in-repo, but they do not
+   own runtime semantics; canonical OpenAPI remains the only SDK authority.
+4. Internal-only operations remain documented in canonical OpenAPI and are
+   excluded from client SDK generation.
 
 ## 6. Acceptance criteria
 

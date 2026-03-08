@@ -40,7 +40,7 @@ rather than acting as the primary top-level runtime authority identifiers.
 | [SPEC-0008](./SPEC-0008-async-jobs-and-worker-orchestration.md) | Async jobs and worker orchestration | Active | 2026-03-03 |
 | [SPEC-0009](./SPEC-0009-caching-and-idempotency.md) | Caching and idempotency | Active | 2026-02-13 |
 | [SPEC-0010](./SPEC-0010-observability-analytics-and-activity-rollups.md) | Observability analytics and activity rollups | Active | 2026-02-13 |
-| [SPEC-0011](./SPEC-0011-multi-language-sdk-architecture-and-package-map.md) | Python-first SDK architecture and deferred TS/R package map | Active | 2026-03-05 |
+| [SPEC-0011](./SPEC-0011-multi-language-sdk-architecture-and-package-map.md) | Multi-language SDK architecture and package map | Active | 2026-03-07 |
 | [SPEC-0012](./SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md) | SDK governance for Python release-grade and deferred TS/R catalogs | Active | 2026-03-05 |
 | [SPEC-0024](./SPEC-0024-cloudformation-module-contract.md) | CloudFormation module contract | Active | 2026-03-05 |
 | [SPEC-0025](./SPEC-0025-reusable-workflow-integration-contract.md) | Reusable workflow integration contract | Active | 2026-03-05 |
