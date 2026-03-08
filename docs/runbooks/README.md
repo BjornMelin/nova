@@ -48,6 +48,21 @@ Active authority alignment for runbooks is governed by:
 13. [SPEC-0022](../architecture/spec/SPEC-0022-auth0-tenant-ops-reusable-workflow-contract.md)
 14. [SPEC-0023](../architecture/spec/SPEC-0023-ssm-runtime-base-url-contract-for-deploy-validation.md)
 
+Release runbooks define the canonical mixed-package publish path:
+
+- Python distributions publish to CodeArtifact with `twine`
+- TypeScript foundations publish to CodeArtifact npm after workspace-local
+  source-dependency rewrite and staged install smoke validation
+
+Local developer npm auth for Nova must stay repo-scoped:
+
+- use the repository helper `eval "$(npm run -s codeartifact:npm:env)"`
+- this generates repo-local `.npmrc.codeartifact` and sets
+  `NPM_CONFIG_USERCONFIG`
+- do not run `aws codeartifact login --tool npm` on a workstation because it
+  rewrites global `~/.npmrc` and affects unrelated repos
+- see `../plan/release/RELEASE-RUNBOOK.md` for the canonical local flow
+
 ## Related History
 
 - `docs/plan/HISTORY-INDEX.md`

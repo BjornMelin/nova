@@ -169,6 +169,28 @@ Publish/promote workflow contracts additionally require:
 - `CODEARTIFACT_STAGING_REPOSITORY`
 - `CODEARTIFACT_PROD_REPOSITORY`
 
+## Repo-local npm auth helper
+
+For local developer shells, Nova npm auth is repo-scoped rather than global:
+
+```bash
+cd /home/bjorn/repos/work/infra-stack/nova
+eval "$(npm run -s codeartifact:npm:env)"
+npm install --no-package-lock
+```
+
+The helper derives the CodeArtifact npm endpoint and auth token from current
+AWS credentials, writes repo-local `.npmrc.codeartifact`, and sets
+`NPM_CONFIG_USERCONFIG` to that file. It honors these variables when set:
+
+- `AWS_REGION`
+- `CODEARTIFACT_DOMAIN`
+- `CODEARTIFACT_STAGING_REPOSITORY`
+
+Do not use `aws codeartifact login --tool npm` for local Nova development on a
+workstation because it rewrites global `~/.npmrc` and can break unrelated
+repositories. CI workflows may still use it because runners are ephemeral.
+
 Exported variables:
 
 - `IMAGE_DIGEST`
@@ -191,6 +213,13 @@ Reference file:
 - `promotion_candidates_json`
 
 Source all JSON payload inputs from `publish-packages.yml` gate artifacts.
+`manifest_sha256` must equal `RELEASE_MANIFEST_SHA256`, the SHA256 of
+`docs/plan/release/RELEASE-VERSION-MANIFEST.md`. If the value is read from
+`codeartifact-gate-report.json`, treat that report as a carrier of the
+canonical manifest digest rather than the authority itself.
+`promotion_candidates_json` may now include both PyPI and npm candidates; npm
+entries keep the package scope in `package` and the bare scope name in
+`namespace`.
 
 ## Endpoint and validation contract
 

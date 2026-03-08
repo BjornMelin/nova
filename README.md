@@ -35,9 +35,21 @@ contracts and operator runbooks.
 
 ## SDK Governance
 
-This release wave exposes one public, release-grade SDK surface: Python.
-TypeScript and R packages remain generator-owned in-repo catalogs and are not
-yet productized/published as first-class public SDKs.
+Nova owns complete client SDKs for Python, TypeScript, and R as the target
+public contract surface.
+
+Current repository posture:
+
+- committed Python SDK trees remain the public, drift-gated client artifacts
+  used today
+- TypeScript and R package scaffolding stays in-repo as the required foundation
+  for future publish-ready parity and must not be deleted
+- the TypeScript foundation packages install through the repo npm workspace in
+  source/CI mode and publish as private CodeArtifact npm packages with concrete
+  semver dependencies during staged release promotion
+- internal-only operations such as
+  `/v1/internal/jobs/{job_id}/result` are intentionally excluded from client
+  SDK generation
 
 SDK-facing OpenAPI rules are hard requirements:
 
@@ -49,6 +61,8 @@ SDK-facing OpenAPI rules are hard requirements:
   `packages/contracts/openapi/*.openapi.json` via
   `scripts/release/generate_clients.py` and
   `scripts/release/generate_python_clients.py`.
+- Public SDK generation strips internal-only operations marked with
+  `x-nova-sdk-visibility: internal`.
 - Published runtime Python distributions `nova_file_api` and `nova_auth_api`
   include `py.typed` markers for installed-package type checking.
 
@@ -113,6 +127,25 @@ for p in packages/nova_file_api packages/nova_auth_api \
   packages/nova_dash_bridge apps/nova_file_api_service \
   apps/nova_auth_api_service; do uv build "$p"; done
 ```
+
+TypeScript/CodeArtifact local auth stays repo-scoped:
+
+```bash
+cd /home/bjorn/repos/work/infra-stack/nova
+eval "$(npm run -s codeartifact:npm:env)"
+npm install --no-package-lock
+```
+
+The committed `.npmrc`
+leaves the default registry on `registry.npmjs.org`. The helper above writes a
+repo-local `.npmrc.codeartifact`
+from the current AWS credentials and points npm at it through
+`NPM_CONFIG_USERCONFIG`, so other repos stay untouched. To target a different
+AWS account/domain/repository, set `AWS_REGION`, `CODEARTIFACT_DOMAIN`, and/or
+`CODEARTIFACT_STAGING_REPOSITORY` before running the helper. Do not use
+`aws codeartifact login --tool npm` for local developer shells because it
+rewrites global `~/.npmrc`; that command remains acceptable in CI where the
+runner is ephemeral.
 
 ## Release and Operations
 
