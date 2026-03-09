@@ -86,7 +86,6 @@ Parameters:
 Conditions:
   CreateCodeDeployTestListener: !Equals [!Ref EnableCodeDeployTestListener, "true"]
   EnableAlbAccessLogs: !Equals [!Ref EnableLoadBalancerAccessLogs, "true"]
-  HasLoadBalancerLogBucket: !Not [!Equals [!Ref LoadBalancerLogBucket, ""]]
   HasHostedZoneId: !Not [!Equals [!Ref HostedZoneId, ""]]
   HasAlbIngressPrefixListId: !Not [!Equals [!Ref AlbIngressPrefixListId, ""]]
   HasAlbIngressCidr: !Not [!Equals [!Ref AlbIngressCidr, ""]]

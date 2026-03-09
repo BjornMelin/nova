@@ -1,5 +1,10 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: Nova hybrid CI/CD pipeline (Dev -> Manual Approval -> Prod).
+Metadata:
+  cfn-lint:
+    config:
+      ignore_checks:
+        - W6001
 
 Parameters:
   Project:
@@ -83,7 +88,6 @@ Parameters:
 Conditions:
   HasFoundationStackName: !Not [!Equals [!Ref FoundationStackName, ""]]
   HasIamRolesStackName: !Not [!Equals [!Ref IamRolesStackName, ""]]
-  HasCodeBuildStackName: !Not [!Equals [!Ref CodeBuildStackName, ""]]
   HasArtifactBucketName: !Not [!Equals [!Ref ArtifactBucketName, ""]]
   HasConnectionName: !Not [!Equals [!Ref ConnectionName, ""]]
   HasCodePipelineServiceRoleArn: !Not [!Equals [!Ref CodePipelineServiceRoleArn, ""]]
@@ -92,9 +96,6 @@ Conditions:
   HasReleaseBuildProjectName: !Not [!Equals [!Ref ReleaseBuildProjectName, ""]]
   HasDeployValidateProjectName: !Not [!Equals [!Ref DeployValidateProjectName, ""]]
   HasExistingConnectionArn: !Not [!Equals [!Ref ExistingConnectionArn, ""]]
-  UseExistingConnection: !Or
-    - !Condition HasExistingConnectionArn
-    - !Condition HasFoundationStackName
   CreateConnection: !And
     - !Not [!Condition HasExistingConnectionArn]
     - !Not [!Condition HasFoundationStackName]

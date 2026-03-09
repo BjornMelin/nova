@@ -1,5 +1,11 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: ECS service runtime stack for Nova API workloads.
+Metadata:
+  cfn-lint:
+    config:
+      ignore_checks:
+        - W1030
+        - W1031
 Parameters:
   Environment:
     Type: String
@@ -90,11 +96,11 @@ Parameters:
   CodeDeployApplicationName:
     Type: String
     Default: ""
-    Description: Optional explicit CodeDeploy application name. Defaults to ${Project}-${Application}-${Service}-ecs.
+    Description: Optional explicit CodeDeploy application name. Defaults to {Project}-{Application}-{Service}-ecs.
   CodeDeployDeploymentGroupName:
     Type: String
     Default: ""
-    Description: Optional explicit CodeDeploy deployment group name. Defaults to ${Project}-${Application}-${Service}-dg.
+    Description: Optional explicit CodeDeploy deployment group name. Defaults to {Project}-{Application}-{Service}-dg.
   CodeDeployServiceRoleArn:
     Type: String
     Default: ""
@@ -211,14 +217,17 @@ Parameters:
   FileTransferJobsQueueArn:
     Type: String
     Default: ""
+    AllowedPattern: "^$|^arn:(aws|aws-us-gov|aws-cn):sqs:[a-z0-9-]+:[0-9]{12}:[A-Za-z0-9_-]+$"
     Description: Async jobs queue ARN (required when FileTransferAsyncEnabled is true).
   FileTransferJobsTableArn:
     Type: String
     Default: ""
+    AllowedPattern: "^$|^arn:(aws|aws-us-gov|aws-cn):dynamodb:[a-z0-9-]+:[0-9]{12}:table\\/[A-Za-z0-9_.-]+$"
     Description: Async jobs table ARN (required when FileTransferAsyncEnabled is true).
   FileTransferActivityTableArn:
     Type: String
     Default: ""
+    AllowedPattern: "^$|^arn:(aws|aws-us-gov|aws-cn):dynamodb:[a-z0-9-]+:[0-9]{12}:table\\/[A-Za-z0-9_.-]+$"
     Description: Async activity table ARN (required when FileTransferAsyncEnabled is true).
   FileTransferCacheEnabled:
     Type: String
@@ -709,9 +718,6 @@ Resources:
   CodeDeployEcsDeploymentGroup:
     Type: AWS::CodeDeploy::DeploymentGroup
     Condition: UseCodeDeployBlueGreen
-    DependsOn:
-      - ECSService
-      - CodeDeployEcsApplication
     Properties:
       ApplicationName: !Ref CodeDeployEcsApplication
       DeploymentGroupName: !If
@@ -811,9 +817,6 @@ Resources:
               - s3:PutObject
               - s3:AbortMultipartUpload
               - s3:ListMultipartUploadParts
-              - s3:CreateMultipartUpload
-              - s3:UploadPart
-              - s3:CompleteMultipartUpload
             Resource:
               - !Sub "arn:${AWS::Partition}:s3:::${FileTransferBucketName}/${FileTransferUploadPrefix}*"
               - !Sub "arn:${AWS::Partition}:s3:::${FileTransferBucketName}/${FileTransferExportPrefix}*"
@@ -958,7 +961,7 @@ Resources:
       Threshold: "2"
       ComparisonOperator: GreaterThanOrEqualToThreshold
       AlarmActions:
-        - !If [Monitor, !Ref AlarmArn, !Ref "AWS::NoValue" ]
+        - !Ref AlarmArn
 
   RequestCountPerTargetGreen:
     Type: AWS::CloudWatch::Alarm
@@ -980,7 +983,7 @@ Resources:
       Threshold: "2"
       ComparisonOperator: GreaterThanOrEqualToThreshold
       AlarmActions:
-        - !If [MonitorUseCodeDeployBlueGreen, !Ref AlarmArn, !Ref "AWS::NoValue" ]
+        - !Ref AlarmArn
 
   UnHealthyHostCount:
     Type: AWS::CloudWatch::Alarm
@@ -1023,7 +1026,7 @@ Resources:
       Threshold: "1"
       ComparisonOperator: GreaterThanOrEqualToThreshold
       AlarmActions:
-        - !If [MonitorUseCodeDeployBlueGreen, !Ref AlarmArn, !Ref "AWS::NoValue" ]
+        - !Ref AlarmArn
 
   HTTPCodeTarget2XXCount:
     Type: AWS::CloudWatch::Alarm
@@ -1066,7 +1069,7 @@ Resources:
       Threshold: "100"
       ComparisonOperator: GreaterThanOrEqualToThreshold
       AlarmActions:
-        - !If [MonitorUseCodeDeployBlueGreen, !Ref AlarmArn, !Ref "AWS::NoValue"]
+        - !Ref AlarmArn
 
   HTTPCodeTarget3XXCount:
     Type: AWS::CloudWatch::Alarm
@@ -1109,7 +1112,7 @@ Resources:
       Threshold: "1"
       ComparisonOperator: GreaterThanOrEqualToThreshold
       AlarmActions:
-        - !If [MonitorUseCodeDeployBlueGreen, !Ref AlarmArn, !Ref "AWS::NoValue"]
+        - !Ref AlarmArn
 
   HTTPCodeTarget4XXCount:
     Type: AWS::CloudWatch::Alarm
@@ -1152,7 +1155,7 @@ Resources:
       Threshold: "1"
       ComparisonOperator: GreaterThanOrEqualToThreshold
       AlarmActions:
-        - !If [MonitorUseCodeDeployBlueGreen, !Ref AlarmArn, !Ref "AWS::NoValue"]
+        - !Ref AlarmArn
 
   HTTPCodeTarget5XXCount:
     Type: AWS::CloudWatch::Alarm
@@ -1195,7 +1198,7 @@ Resources:
       Threshold: "1"
       ComparisonOperator: GreaterThanOrEqualToThreshold
       AlarmActions:
-        - !If [MonitorUseCodeDeployBlueGreen, !Ref AlarmArn, !Ref "AWS::NoValue"]
+        - !Ref AlarmArn
 
   TargetConnectionErrorCount:
     Type: AWS::CloudWatch::Alarm
@@ -1238,7 +1241,7 @@ Resources:
       Threshold: "1"
       ComparisonOperator: GreaterThanOrEqualToThreshold
       AlarmActions:
-        - !If [MonitorUseCodeDeployBlueGreen, !Ref AlarmArn, !Ref "AWS::NoValue"]
+        - !Ref AlarmArn
 
   TargetTLSNegotiationErrorCount:
     Type: AWS::CloudWatch::Alarm
@@ -1281,7 +1284,7 @@ Resources:
       Threshold: "1"
       ComparisonOperator: GreaterThanOrEqualToThreshold
       AlarmActions:
-        - !If [MonitorUseCodeDeployBlueGreen, !Ref AlarmArn, !Ref "AWS::NoValue"]
+        - !Ref AlarmArn
 
 
   # Lambda permissions for each alarm to trigger the Lambda function

@@ -13,6 +13,7 @@ Parameters:
   ArtifactBucketName:
     Type: String
     Default: ""
+    AllowedPattern: "^$|^[a-z0-9][a-z0-9.-]*[a-z0-9]$"
     Description: New artifact bucket name to create when ExistingArtifactBucketName is empty.
   CodeArtifactDomainName:
     Type: String
@@ -45,7 +46,9 @@ Parameters:
 
 Conditions:
   HasExistingArtifactBucketName: !Not [!Equals [!Ref ExistingArtifactBucketName, ""]]
-  CreateArtifactBucket: !Not [!Condition HasExistingArtifactBucketName]
+  CreateArtifactBucket: !And
+    - !Not [!Condition HasExistingArtifactBucketName]
+    - !Condition HasArtifactBucketName
   HasArtifactBucketName: !Not [!Equals [!Ref ArtifactBucketName, ""]]
   HasExistingConnectionArn: !Not [!Equals [!Ref ExistingConnectionArn, ""]]
   CreateConnection: !Not [!Condition HasExistingConnectionArn]
