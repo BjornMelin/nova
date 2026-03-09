@@ -58,8 +58,8 @@ cross-package boundaries for the Nova monorepo.
    artifacts.
 2. `nova_dash_bridge` depends on canonical runtime contracts or generated
    Python SDK packages, not on handwritten contract forks.
-3. Route literals remain governed by `SPEC-0000` and `SPEC-0016`; this spec
-   governs where those routes are implemented and owned.
+3. Route literals remain governed by the canonical route-authority specs; this
+   spec governs where those routes are implemented and owned.
 
 ## 5. SDK and bridge relationship
 
