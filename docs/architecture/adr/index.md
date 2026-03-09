@@ -10,6 +10,9 @@
 Runtime authority and adjacent deploy-governance authority are anchored by the
 current decision set below.
 
+Normative spec contracts for the downstream/Auth0/SSM authority set are
+`SPEC-0021`, `SPEC-0022`, and `SPEC-0023`.
+
 | ADR | Title | Status | Date |
 | --- | --- | --- | --- |
 | [ADR-0015](./ADR-0015-nova-api-platform-final-hosting-and-deployment-architecture-2026.md) | Nova API platform final hosting and deployment architecture (2026) | Accepted | 2026-03-03 |
@@ -53,5 +56,5 @@ These ADRs are retained for traceability only and are not active authority.
 
 | ADR | Title | Status | Date |
 | --- | --- | --- | --- |
-| [ADR-0014](./superseded/ADR-0014-container-craft-capability-absorption-and-repo-retirement.md) | Absorb remaining container-craft Nova capabilities into nova and retire container-craft | Superseded | 2026-02-28 |
+| [ADR-0014](./superseded/ADR-0014-container-craft-capability-absorption-and-repo-retirement.md) | Absorb remaining container-craft Nova capabilities into nova and retire container-craft (historical) | Superseded | 2026-02-28 |
 | [ADR-0016](./superseded/ADR-0016-minimal-governance-final-state-operator-path.md) | Minimal governance final-state operator path | Superseded | 2026-03-02 |

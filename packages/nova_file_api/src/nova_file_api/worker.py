@@ -457,8 +457,8 @@ def _parse_iso8601(value: str) -> datetime:
 def _result_update_retry_delay_seconds(*, attempt: int) -> float:
     delay_seconds = float(
         min(
-        _RESULT_UPDATE_BASE_DELAY_SECONDS * (2 ** (attempt - 1)),
-        _RESULT_UPDATE_MAX_DELAY_SECONDS,
+            _RESULT_UPDATE_BASE_DELAY_SECONDS * (2 ** (attempt - 1)),
+            _RESULT_UPDATE_MAX_DELAY_SECONDS,
         )
     )
     jitter = random.uniform(0.75, 1.25)

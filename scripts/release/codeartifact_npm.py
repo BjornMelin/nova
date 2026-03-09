@@ -7,7 +7,6 @@ import os
 import subprocess
 from pathlib import Path
 
-
 DEFAULT_REGION = "us-east-1"
 DEFAULT_DOMAIN = "cral"
 DEFAULT_REPOSITORY = "galaxypy-staging"
@@ -52,6 +51,7 @@ def _run_aws(*args: str) -> str:
 
 
 def get_repository_endpoint() -> str:
+    """Return the repo-scoped npm endpoint for the staging repository."""
     endpoint = _run_aws(
         "codeartifact",
         "get-repository-endpoint",
@@ -72,6 +72,7 @@ def get_repository_endpoint() -> str:
 
 
 def get_authorization_token() -> str:
+    """Return a CodeArtifact authorization token for npm commands."""
     return _run_aws(
         "codeartifact",
         "get-authorization-token",
@@ -87,6 +88,7 @@ def get_authorization_token() -> str:
 
 
 def write_repo_local_npmrc() -> Path:
+    """Write a repo-local npmrc that scopes `@nova` to CodeArtifact."""
     repo_root = _repo_root()
     endpoint = get_repository_endpoint()
     token = get_authorization_token()
@@ -107,12 +109,14 @@ def write_repo_local_npmrc() -> Path:
 
 
 def parse_args() -> argparse.Namespace:
+    """Parse the CLI command selector."""
     parser = argparse.ArgumentParser()
     parser.add_argument("command", choices=("endpoint", "env", "token"))
     return parser.parse_args()
 
 
 def main() -> int:
+    """Run the requested helper command and print shell-safe output."""
     args = parse_args()
     if args.command == "endpoint":
         print(get_repository_endpoint())

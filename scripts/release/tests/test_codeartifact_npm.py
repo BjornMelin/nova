@@ -2,14 +2,15 @@
 
 from __future__ import annotations
 
-import subprocess
 from pathlib import Path
+
+import pytest
 
 from scripts.release import codeartifact_npm
 
 
 def test_endpoint_and_repo_local_npmrc_use_env_overrides(
-    monkeypatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     """Helper should honor AWS env overrides and write a repo-local npmrc."""
     monkeypatch.setenv("AWS_REGION", "us-west-2")
@@ -17,29 +18,20 @@ def test_endpoint_and_repo_local_npmrc_use_env_overrides(
     monkeypatch.setenv("CODEARTIFACT_STAGING_REPOSITORY", "alt-repo")
     monkeypatch.setattr(codeartifact_npm, "_repo_root", lambda: tmp_path)
 
-    calls: list[list[str]] = []
+    calls: list[tuple[str, ...]] = []
 
-    def fake_run(
-        args: list[str], *, check: bool, text: bool, capture_output: bool
-    ) -> subprocess.CompletedProcess[str]:
+    def fake_run_aws(*args: str) -> str:
         calls.append(args)
         if "get-repository-endpoint" in args:
-            return subprocess.CompletedProcess(
-                args=args,
-                returncode=0,
-                stdout="https://alt-domain-111122223333.d.codeartifact.us-west-2.amazonaws.com/npm/alt-repo/\n",
-                stderr="",
+            return (
+                "https://alt-domain-111122223333.d.codeartifact.us-west-2."
+                "amazonaws.com/npm/alt-repo/"
             )
         if "get-authorization-token" in args:
-            return subprocess.CompletedProcess(
-                args=args,
-                returncode=0,
-                stdout="token-123\n",
-                stderr="",
-            )
+            return "token-123"
         raise AssertionError(f"unexpected aws invocation: {args!r}")
 
-    monkeypatch.setattr(codeartifact_npm.subprocess, "run", fake_run)
+    monkeypatch.setattr(codeartifact_npm, "_run_aws", fake_run_aws)
 
     endpoint = codeartifact_npm.get_repository_endpoint()
     npmrc_path = codeartifact_npm.write_repo_local_npmrc()
@@ -54,8 +46,7 @@ def test_endpoint_and_repo_local_npmrc_use_env_overrides(
         "@nova:registry=https://alt-domain-111122223333.d.codeartifact.us-west-2.amazonaws.com/npm/alt-repo/\n"
         "//alt-domain-111122223333.d.codeartifact.us-west-2.amazonaws.com/npm/alt-repo/:_authToken=token-123\n"
     )
-    assert calls[0] == [
-        "aws",
+    assert calls[0] == (
         "codeartifact",
         "get-repository-endpoint",
         "--domain",
@@ -70,9 +61,8 @@ def test_endpoint_and_repo_local_npmrc_use_env_overrides(
         "repositoryEndpoint",
         "--output",
         "text",
-    ]
-    assert calls[1] == [
-        "aws",
+    )
+    assert calls[1] == (
         "codeartifact",
         "get-repository-endpoint",
         "--domain",
@@ -87,9 +77,8 @@ def test_endpoint_and_repo_local_npmrc_use_env_overrides(
         "repositoryEndpoint",
         "--output",
         "text",
-    ]
-    assert calls[2] == [
-        "aws",
+    )
+    assert calls[2] == (
         "codeartifact",
         "get-authorization-token",
         "--domain",
@@ -100,4 +89,4 @@ def test_endpoint_and_repo_local_npmrc_use_env_overrides(
         "authorizationToken",
         "--output",
         "text",
-    ]
+    )

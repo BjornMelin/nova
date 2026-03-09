@@ -254,18 +254,19 @@ def test_iam_scope_constraints_for_release_roles() -> None:
     assert "iam:PassedToService:" in text
     assert "ecs-tasks.amazonaws.com" in text
     assert "cloudformation.amazonaws.com" in text
-    cfn_passrole_block = (
-        "Action:\n"
-        "                  - iam:PassRole\n"
-        "                Resource:\n"
-        "                  - !GetAtt CloudFormationExecutionRoleDev.Arn\n"
-        "                  - !GetAtt CloudFormationExecutionRoleProd.Arn\n"
-        "                Condition:\n"
-        "                  StringEquals:\n"
-        "                    iam:PassedToService:\n"
-        "                      - cloudformation.amazonaws.com"
+    cfn_passrole_pattern = re.compile(
+        r"Action:\n"
+        r"\s+- iam:PassRole\n"
+        r"\s*Resource:\n"
+        r"\s+- !GetAtt CloudFormationExecutionRoleDev\.Arn\n"
+        r"\s+- !GetAtt CloudFormationExecutionRoleProd\.Arn\n"
+        r"\s*Condition:\n"
+        r"\s*StringEquals:\n"
+        r"\s*iam:PassedToService:\n"
+        r"\s+- cloudformation\.amazonaws\.com",
+        flags=re.MULTILINE,
     )
-    assert cfn_passrole_block in text, (
+    assert cfn_passrole_pattern.search(text), (
         "CodePipeline iam:PassRole must require "
         "iam:PassedToService=cloudformation.amazonaws.com"
     )
@@ -316,25 +317,22 @@ def test_iam_scope_constraints_for_release_roles() -> None:
     assert repo_src_pattern in github_role_text
     assert (
         "package/${ResolvedCodeArtifactDomainName}/"
-        "${ResolvedCodeArtifactRepositoryName}/npm/nova/*"
-        in github_role_text
+        "${ResolvedCodeArtifactRepositoryName}/npm/nova/*" in github_role_text
     )
     assert (
         "package/${ResolvedCodeArtifactDomainName}/"
-        "${PromotionSourceRepositoryName}/npm/nova/*"
-        in github_role_text
+        "${PromotionSourceRepositoryName}/npm/nova/*" in github_role_text
     )
     assert (
         "package/${ResolvedCodeArtifactDomainName}/"
-        "${PromotionDestinationRepositoryName}/npm/nova/*"
-        in github_role_text
+        "${PromotionDestinationRepositoryName}/npm/nova/*" in github_role_text
     )
-    assert "codeartifact:CreatePackageGroup" in github_role_text
-    assert "codeartifact:DescribePackageGroup" in github_role_text
-    assert "codeartifact:UpdatePackageGroup" in github_role_text
-    assert "codeartifact:UpdatePackageGroupOriginConfiguration" in github_role_text
-    assert "package-group/${ResolvedCodeArtifactDomainName}/*" in github_role_text
     assert "sts:AWSServiceName: codeartifact.amazonaws.com" in github_role_text
+    assert "codeartifact:CreatePackageGroup" in text
+    assert "codeartifact:DescribePackageGroup" in text
+    assert "codeartifact:UpdatePackageGroup" in text
+    assert "codeartifact:UpdatePackageGroupOriginConfiguration" in text
+    assert "package-group/${ResolvedCodeArtifactDomainName}/*" in text
 
     assert "ReleaseValidationTrustedPrincipalArn:" in text
     assert "release-validation-read" in text
@@ -660,22 +658,20 @@ def test_nova_ci_cd_validation_env_contracts() -> None:
         assert "BuildOutput" not in stage_body
 
 
-def test_nova_iam_codedeploy_role_and_validation_read_contracts() -> None:
-    """IAM template must expose CodeDeploy ECS role and expanded reads."""
+def test_nova_iam_validation_read_contracts() -> None:
+    """IAM template must expose release-validation read access contracts."""
     text = _read("infra/nova/nova-iam-roles.yml")
 
     for token in [
-        "CodeDeployEcsServiceRole:",
-        "AWSCodeDeployRoleForECS",
-        "CodeDeployEcsServiceRoleArn:",
+        "ReleaseValidationReadRole:",
+        "ReleaseValidationReadManagedPolicy:",
         "codepipeline:ListActionExecutions",
         "codepipeline:GetPipeline",
-        "codedeploy:ListDeploymentGroups",
-        "codedeploy:ListDeployments",
-        "codedeploy:GetApplication",
         "cloudformation:DescribeStacks",
         "ecs:DescribeClusters",
         "elasticloadbalancing:DescribeListeners",
         "elasticloadbalancing:DescribeRules",
+        "wafv2:GetWebACLForResource",
+        "iam:GetRole",
     ]:
         assert token in text

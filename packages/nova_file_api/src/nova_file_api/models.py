@@ -206,6 +206,9 @@ class EnqueueJobRequest(BaseModel):
     session_id: str | None = Field(default=None, min_length=1, max_length=256)
 
 
+TRANSFER_PROCESS_JOB_TYPE = "transfer.process"
+
+
 class JobStatus(StrEnum):
     """Lifecycle status of an async job."""
 
