@@ -27,9 +27,10 @@ Parameters:
     Description: Name of the load balancer
   DockerRepoName:
     Type: String
-  DockerImageTag:
+  ImageDigest:
     Type: String
-    Default: latest
+    Description: OCI image digest for the deployed workload image.
+    AllowedPattern: "^sha256:[A-Fa-f0-9]{64}$"
   DockerContainerPort:
     Type: String
     Default: "8050"
@@ -77,63 +78,33 @@ Parameters:
     Description: Runtime profile label propagated to ECS service tags and task environment.
   ListenerRulePriority:
     Type: String
-  EnableBlueGreenDeployAuthority:
+  EcsInfrastructureRoleArn:
     Type: String
-    Default: "false"
-    AllowedValues: ["true", "false"]
-    Description: Enable final-state CodeDeploy ECS blue/green deployment authority chain.
-      Defaults to "false" for existing stacks; set true only during a controlled blue/green rollout.
+    Description: IAM role ARN used by ECS to manage ALB traffic shifting for blue/green deployments.
   TestTrafficListenerArn:
     Type: String
     Default: ""
-    Description: ALB listener ARN for CodeDeploy test-traffic routing; required when EnableBlueGreenDeployAuthority is "true", optional otherwise.
+    Description: Optional ALB listener ARN used for blue/green test traffic routing.
   TestTrafficListenerRulePriority:
     Type: Number
     Default: 9999
     MinValue: 1
     MaxValue: 50000
-    Description: Priority for canary host listener rule when blue/green is enabled.
-  CodeDeployApplicationName:
-    Type: String
-    Default: ""
-    Description: Optional explicit CodeDeploy application name. Defaults to {Project}-{Application}-{Service}-ecs.
-  CodeDeployDeploymentGroupName:
-    Type: String
-    Default: ""
-    Description: Optional explicit CodeDeploy deployment group name. Defaults to {Project}-{Application}-{Service}-dg.
-  CodeDeployServiceRoleArn:
-    Type: String
-    Default: ""
-    Description: IAM role ARN assumed by CodeDeploy for ECS blue/green deployments.
-  CodeDeployDeploymentConfigName:
-    Type: String
-    Default: CodeDeployDefault.ECSCanary10Percent5Minutes
-    Description: CodeDeploy deployment config for traffic shifting strategy.
-  BlueGreenDeploymentReadyTimeoutMinutes:
-    Type: Number
-    Default: 15
-    MinValue: 0
-    MaxValue: 2880
-    Description: Minutes CodeDeploy waits for green-task readiness before timeout action.
-  BlueGreenTerminationWaitMinutes:
+    Description: Priority for canary host listener rule when the optional test listener is enabled.
+  BlueGreenBakeTimeInMinutes:
     Type: Number
     Default: 10
     MinValue: 0
-    MaxValue: 2880
-    Description: Minutes to keep blue tasks after success before termination.
-  BlueGreenReadinessActionOnTimeout:
-    Type: String
-    Default: STOP_DEPLOYMENT
-    AllowedValues: [STOP_DEPLOYMENT, CONTINUE_DEPLOYMENT]
-    Description: Deployment-ready timeout action; STOP_DEPLOYMENT enforces readiness gate.
+    MaxValue: 1440
+    Description: Minutes to keep blue and green revisions running after production traffic shifts.
   DeploymentRollbackAlarmNamePrimary:
     Type: String
     Default: ""
-    Description: Primary rollback alarm name bound to CodeDeploy stop/rollback controls.
+    Description: Optional primary rollback alarm name bound to ECS deployment alarms.
   DeploymentRollbackAlarmNameSecondary:
     Type: String
     Default: ""
-    Description: Secondary rollback alarm name bound to CodeDeploy stop/rollback controls.
+    Description: Optional secondary rollback alarm name bound to ECS deployment alarms.
   ReadinessHealthCheckPath:
     Type: String
     Default: /v1/health/ready
@@ -343,18 +314,11 @@ Rules:
         AssertDescription: >-
           FileTransferCacheSecurityGroupExportName is required when
           FileTransferCacheEnabled is "true".
-  CodeDeployBlueGreenParamsProvided:
+  BlueGreenTrafficControlParamsProvided:
     Assertions:
-      - Assert: !Or
-          - !Equals [!Ref EnableBlueGreenDeployAuthority, "false"]
-          - !And
-              - !Not [!Equals [!Ref CodeDeployServiceRoleArn, ""]]
-              - !Not [!Equals [!Ref TestTrafficListenerArn, ""]]
-              - !Not [!Equals [!Ref DeploymentRollbackAlarmNamePrimary, ""]]
-              - !Not [!Equals [!Ref DeploymentRollbackAlarmNameSecondary, ""]]
+      - Assert: !Not [!Equals [!Ref EcsInfrastructureRoleArn, ""]]
         AssertDescription: >-
-          CodeDeployServiceRoleArn, TestTrafficListenerArn, and both rollback
-          alarms are required when EnableBlueGreenDeployAuthority is "true".
+          EcsInfrastructureRoleArn is required for ECS-native blue/green deployments.
 
 Conditions:
   UseServiceDiscovery: !Equals [!Ref UseServiceDiscovery, "true"]
@@ -369,12 +333,15 @@ Conditions:
     - !Condition HasFileTransferBucketName
   EnableFileTransferAsync: !Equals [!Ref FileTransferAsyncEnabled, "true"]
   EnableFileTransferCache: !Equals [!Ref FileTransferCacheEnabled, "true"]
-  UseCodeDeployBlueGreen: !Equals [!Ref EnableBlueGreenDeployAuthority, "true"]
-  MonitorUseCodeDeployBlueGreen: !And
-    - !Condition Monitor
-    - !Condition UseCodeDeployBlueGreen
-  HasCodeDeployApplicationNameOverride: !Not [!Equals [!Ref CodeDeployApplicationName, ""]]
-  HasCodeDeployDeploymentGroupNameOverride: !Not [!Equals [!Ref CodeDeployDeploymentGroupName, ""]]
+  HasTestTrafficListenerArn: !Not [!Equals [!Ref TestTrafficListenerArn, ""]]
+  MonitorAlternateTargetGroup: !Equals [!Ref MonitorEcsService, "true"]
+  HasDeploymentRollbackAlarmNamePrimary: !Not
+    - !Equals [!Ref DeploymentRollbackAlarmNamePrimary, ""]
+  HasDeploymentRollbackAlarmNameSecondary: !Not
+    - !Equals [!Ref DeploymentRollbackAlarmNameSecondary, ""]
+  HasAnyDeploymentRollbackAlarm: !Or
+    - !Condition HasDeploymentRollbackAlarmNamePrimary
+    - !Condition HasDeploymentRollbackAlarmNameSecondary
   HasTaskExecutionSecretArns: !Not [!Equals [!Join ["", !Ref TaskExecutionSecretArns], ""]]
   HasTaskExecutionSsmParameterArns: !Not [!Equals [!Join ["", !Ref TaskExecutionSsmParameterArns], ""]]
   CreateTaskExecutionSecretsPolicy: !Or
@@ -388,7 +355,12 @@ Resources:
     Properties:
       Actions:
         - Type: forward
-          TargetGroupArn: !Ref "LoadBalancerTargetGroupBlue"
+          ForwardConfig:
+            TargetGroups:
+              - TargetGroupArn: !Ref LoadBalancerTargetGroupBlue
+                Weight: 1
+              - TargetGroupArn: !Ref LoadBalancerTargetGroupGreen
+                Weight: 0
       Conditions:
         - Field: host-header
           HostHeaderConfig:
@@ -412,10 +384,6 @@ Resources:
       ListenerArn:
         Fn::ImportValue: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${LoadBalancerId}:${LoadBalancerName}:listenerarn
 
-  # Rollout guardrail: introducing the blue/green target-group topology can be
-  # disruptive on first adoption. For existing stacks, perform the first update
-  # with EnableBlueGreenDeployAuthority=false, then enable blue/green authority
-  # in a subsequent controlled rollout.
   LoadBalancerTargetGroupBlue:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
@@ -446,7 +414,6 @@ Resources:
 
   LoadBalancerTargetGroupGreen:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
-    Condition: UseCodeDeployBlueGreen
     Properties:
       HealthCheckTimeoutSeconds: !Ref TargetGroupHealthCheckTimeoutSeconds
       HealthCheckIntervalSeconds: !Ref TargetGroupHealthCheckIntervalSeconds
@@ -475,11 +442,16 @@ Resources:
 
   TestTrafficListenerRule:
     Type: AWS::ElasticLoadBalancingV2::ListenerRule
-    Condition: UseCodeDeployBlueGreen
+    Condition: HasTestTrafficListenerArn
     Properties:
       Actions:
         - Type: forward
-          TargetGroupArn: !Ref "LoadBalancerTargetGroupGreen"
+          ForwardConfig:
+            TargetGroups:
+              - TargetGroupArn: !Ref LoadBalancerTargetGroupBlue
+                Weight: 0
+              - TargetGroupArn: !Ref LoadBalancerTargetGroupGreen
+                Weight: 1
       Conditions:
         - Field: host-header
           HostHeaderConfig:
@@ -645,7 +617,7 @@ Resources:
               awslogs-region: !Sub "${AWS::Region}"
               awslogs-stream-prefix: !Sub "${Project}-${Application}"
           Ulimits: []
-          Image: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${DockerRepoName}:${DockerImageTag}
+          Image: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${DockerRepoName}@${ImageDigest}
           PortMappings:
             - ContainerPort: !Ref DockerHostPort
               HostPort: !Ref DockerHostPort
@@ -678,16 +650,25 @@ Resources:
       PlatformVersion: LATEST
       DesiredCount: !Ref DesiredCount
       DeploymentController:
-        Type: !If [UseCodeDeployBlueGreen, CODE_DEPLOY, ECS]
+        Type: ECS
       TaskDefinition: !Ref "TaskDefinition"
-      DeploymentConfiguration: !If
-        - UseCodeDeployBlueGreen
-        - !Ref AWS::NoValue
-        - MaximumPercent: 200
-          MinimumHealthyPercent: 100
-          DeploymentCircuitBreaker:
+      DeploymentConfiguration:
+        Strategy: BLUE_GREEN
+        BakeTimeInMinutes: !Ref BlueGreenBakeTimeInMinutes
+        Alarms: !If
+          - HasAnyDeploymentRollbackAlarm
+          - AlarmNames:
+              - !If
+                - HasDeploymentRollbackAlarmNamePrimary
+                - !Ref DeploymentRollbackAlarmNamePrimary
+                - !Ref AWS::NoValue
+              - !If
+                - HasDeploymentRollbackAlarmNameSecondary
+                - !Ref DeploymentRollbackAlarmNameSecondary
+                - !Ref AWS::NoValue
             Enable: true
             Rollback: true
+          - !Ref AWS::NoValue
       NetworkConfiguration:
         AwsvpcConfiguration:
           Subnets: !Ref SubnetList
@@ -702,12 +683,14 @@ Resources:
         - ContainerName: !Ref Service
           ContainerPort: !Ref DockerContainerPort
           TargetGroupArn: !Ref "LoadBalancerTargetGroupBlue"
-        - !If
-          - UseCodeDeployBlueGreen
-          - ContainerName: !Ref Service
-            ContainerPort: !Ref DockerContainerPort
-            TargetGroupArn: !Ref "LoadBalancerTargetGroupGreen"
-          - !Ref AWS::NoValue
+          AdvancedConfiguration:
+            AlternateTargetGroupArn: !Ref LoadBalancerTargetGroupGreen
+            ProductionListenerRule: !Ref ListenerRule
+            TestListenerRule: !If
+              - HasTestTrafficListenerArn
+              - !Ref TestTrafficListenerRule
+              - !Ref AWS::NoValue
+            RoleArn: !Ref EcsInfrastructureRoleArn
       EnableExecuteCommand: true
       ServiceRegistries:
         - !If [UseServiceDiscovery, { RegistryArn: !GetAtt ServiceDiscoveryService.Arn }, !Ref "AWS::NoValue" ]
@@ -721,65 +704,7 @@ Resources:
         - Key: RuntimeProfile
           Value: !Ref RuntimeProfile
         - Key: ImageUri
-          Value: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${DockerRepoName}:${DockerImageTag}
-
-  CodeDeployEcsApplication:
-    Type: AWS::CodeDeploy::Application
-    Condition: UseCodeDeployBlueGreen
-    Properties:
-      ApplicationName: !If
-        - HasCodeDeployApplicationNameOverride
-        - !Ref CodeDeployApplicationName
-        - !Sub "${Project}-${Application}-${Service}-ecs"
-      ComputePlatform: ECS
-
-  CodeDeployEcsDeploymentGroup:
-    Type: AWS::CodeDeploy::DeploymentGroup
-    Condition: UseCodeDeployBlueGreen
-    Properties:
-      ApplicationName: !Ref CodeDeployEcsApplication
-      DeploymentGroupName: !If
-        - HasCodeDeployDeploymentGroupNameOverride
-        - !Ref CodeDeployDeploymentGroupName
-        - !Sub "${Project}-${Application}-${Service}-dg"
-      ServiceRoleArn: !Ref CodeDeployServiceRoleArn
-      DeploymentConfigName: !Ref CodeDeployDeploymentConfigName
-      DeploymentStyle:
-        DeploymentOption: WITH_TRAFFIC_CONTROL
-        DeploymentType: BLUE_GREEN
-      ECSServices:
-        - ClusterName: !Ref EcsClusterName
-          ServiceName: !GetAtt ECSService.Name
-      LoadBalancerInfo:
-        TargetGroupPairInfoList:
-          - ProdTrafficRoute:
-              ListenerArns:
-                - Fn::ImportValue: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${LoadBalancerId}:${LoadBalancerName}:listenerarn
-            TestTrafficRoute:
-              ListenerArns:
-                - !Ref TestTrafficListenerArn
-            TargetGroups:
-              - Name: !GetAtt LoadBalancerTargetGroupBlue.TargetGroupName
-              - Name: !GetAtt LoadBalancerTargetGroupGreen.TargetGroupName
-      BlueGreenDeploymentConfiguration:
-        DeploymentReadyOption:
-          ActionOnTimeout: !Ref BlueGreenReadinessActionOnTimeout
-          WaitTimeInMinutes: !Ref BlueGreenDeploymentReadyTimeoutMinutes
-        TerminateBlueInstancesOnDeploymentSuccess:
-          Action: TERMINATE
-          TerminationWaitTimeInMinutes: !Ref BlueGreenTerminationWaitMinutes
-      AlarmConfiguration:
-        Enabled: true
-        IgnorePollAlarmFailure: false
-        Alarms:
-          - Name: !Ref DeploymentRollbackAlarmNamePrimary
-          - Name: !Ref DeploymentRollbackAlarmNameSecondary
-      AutoRollbackConfiguration:
-        Enabled: true
-        Events:
-          - DEPLOYMENT_FAILURE
-          - DEPLOYMENT_STOP_ON_ALARM
-          - DEPLOYMENT_STOP_ON_REQUEST
+          Value: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${DockerRepoName}@${ImageDigest}
 
   ECSTaskRole:
     Type: AWS::IAM::Role
@@ -939,7 +864,7 @@ Resources:
 
   HTTPRequestsAlarmGreen:
     Type: AWS::CloudWatch::Alarm
-    Condition: MonitorUseCodeDeployBlueGreen
+    Condition: MonitorAlternateTargetGroup
     Properties:
       AlarmName: !Sub ${Project}-${Application}-${Service}-http-requests-green
       AlarmDescription: !Sub "Alarm if HTTP requests directed by climb-mof-dash to ${Service} ECS service exceed the threshold"
@@ -983,7 +908,7 @@ Resources:
 
   RequestCountPerTargetGreen:
     Type: AWS::CloudWatch::Alarm
-    Condition: MonitorUseCodeDeployBlueGreen
+    Condition: MonitorAlternateTargetGroup
     Properties:
       AlarmName: !Sub ${Project}-${Application}-${Service}-RequestCountPerTarget-green
       AlarmDescription: !Sub "The number of request per target group for service ${Service}"
@@ -1026,7 +951,7 @@ Resources:
 
   UnHealthyHostCountGreen:
     Type: AWS::CloudWatch::Alarm
-    Condition: MonitorUseCodeDeployBlueGreen
+    Condition: MonitorAlternateTargetGroup
     Properties:
       AlarmName: !Sub ${Project}-${Application}-${Service}-UnHealthyHostCount-green
       AlarmDescription: !Sub "The number of unhealthy hosts for service ${Service}"
@@ -1069,7 +994,7 @@ Resources:
 
   HTTPCodeTarget2XXCountGreen:
     Type: AWS::CloudWatch::Alarm
-    Condition: MonitorUseCodeDeployBlueGreen
+    Condition: MonitorAlternateTargetGroup
     Properties:
       AlarmName: !Sub ${Project}-${Application}-${Service}-HTTPCodeTarget2XXCount-green
       AlarmDescription: !Sub "The number of 2xx HTTP response codes generated by the target group for service ${Service}"
@@ -1112,7 +1037,7 @@ Resources:
 
   HTTPCodeTarget3XXCountGreen:
     Type: AWS::CloudWatch::Alarm
-    Condition: MonitorUseCodeDeployBlueGreen
+    Condition: MonitorAlternateTargetGroup
     Properties:
       AlarmName: !Sub ${Project}-${Application}-${Service}-HTTPCodeTarget3XXCount-green
       AlarmDescription: !Sub "The number of 3xx HTTP response codes generated by the target group for service ${Service}"
@@ -1155,7 +1080,7 @@ Resources:
 
   HTTPCodeTarget4XXCountGreen:
     Type: AWS::CloudWatch::Alarm
-    Condition: MonitorUseCodeDeployBlueGreen
+    Condition: MonitorAlternateTargetGroup
     Properties:
       AlarmName: !Sub ${Project}-${Application}-${Service}-HTTPCodeTarget4XXCount-green
       AlarmDescription: !Sub "The number of 4xx HTTP response codes generated by the target group for service ${Service}"
@@ -1198,7 +1123,7 @@ Resources:
 
   HTTPCodeTarget5XXCountGreen:
     Type: AWS::CloudWatch::Alarm
-    Condition: MonitorUseCodeDeployBlueGreen
+    Condition: MonitorAlternateTargetGroup
     Properties:
       AlarmName: !Sub ${Project}-${Application}-${Service}-HTTPCodeTarget5XXCount-green
       AlarmDescription: !Sub "The number of 5xx HTTP response codes generated by the target group for service ${Service}"
@@ -1241,7 +1166,7 @@ Resources:
 
   TargetConnectionErrorCountGreen:
     Type: AWS::CloudWatch::Alarm
-    Condition: MonitorUseCodeDeployBlueGreen
+    Condition: MonitorAlternateTargetGroup
     Properties:
       AlarmName: !Sub ${Project}-${Application}-${Service}-TargetConnectionErrorCount-green
       AlarmDescription: !Sub "The number of connections that were not successfully established between the load balancer and target group for service ${Service}"
@@ -1284,7 +1209,7 @@ Resources:
 
   TargetTLSNegotiationErrorCountGreen:
     Type: AWS::CloudWatch::Alarm
-    Condition: MonitorUseCodeDeployBlueGreen
+    Condition: MonitorAlternateTargetGroup
     Properties:
       AlarmName: !Sub ${Project}-${Application}-${Service}-TargetTLSNegotiationErrorCount-green
       AlarmDescription: !Sub "The number of connections that were not successfully established between the load balancer and target group for service ${Service}"
@@ -1398,7 +1323,7 @@ Resources:
 
   HTTPRequestsAlarmGreenPermission:
     Type: AWS::Lambda::Permission
-    Condition: MonitorUseCodeDeployBlueGreen
+    Condition: MonitorAlternateTargetGroup
     Properties:
       FunctionName: !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${AlarmArn}
       Action: lambda:InvokeFunction
@@ -1407,7 +1332,7 @@ Resources:
 
   RequestCountPerTargetGreenPermission:
     Type: AWS::Lambda::Permission
-    Condition: MonitorUseCodeDeployBlueGreen
+    Condition: MonitorAlternateTargetGroup
     Properties:
       FunctionName: !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${AlarmArn}
       Action: lambda:InvokeFunction
@@ -1416,7 +1341,7 @@ Resources:
 
   UnHealthyHostCountGreenPermission:
     Type: AWS::Lambda::Permission
-    Condition: MonitorUseCodeDeployBlueGreen
+    Condition: MonitorAlternateTargetGroup
     Properties:
       FunctionName: !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${AlarmArn}
       Action: lambda:InvokeFunction
@@ -1425,7 +1350,7 @@ Resources:
 
   HTTPCodeTarget2XXCountGreenPermission:
     Type: AWS::Lambda::Permission
-    Condition: MonitorUseCodeDeployBlueGreen
+    Condition: MonitorAlternateTargetGroup
     Properties:
       FunctionName: !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${AlarmArn}
       Action: lambda:InvokeFunction
@@ -1434,7 +1359,7 @@ Resources:
 
   HTTPCodeTarget3XXCountGreenPermission:
     Type: AWS::Lambda::Permission
-    Condition: MonitorUseCodeDeployBlueGreen
+    Condition: MonitorAlternateTargetGroup
     Properties:
       FunctionName: !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${AlarmArn}
       Action: lambda:InvokeFunction
@@ -1443,7 +1368,7 @@ Resources:
 
   HTTPCodeTarget4XXCountGreenPermission:
     Type: AWS::Lambda::Permission
-    Condition: MonitorUseCodeDeployBlueGreen
+    Condition: MonitorAlternateTargetGroup
     Properties:
       FunctionName: !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${AlarmArn}
       Action: lambda:InvokeFunction
@@ -1452,7 +1377,7 @@ Resources:
 
   HTTPCodeTarget5XXCountGreenPermission:
     Type: AWS::Lambda::Permission
-    Condition: MonitorUseCodeDeployBlueGreen
+    Condition: MonitorAlternateTargetGroup
     Properties:
       FunctionName: !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${AlarmArn}
       Action: lambda:InvokeFunction
@@ -1461,7 +1386,7 @@ Resources:
 
   TargetConnectionErrorCountGreenPermission:
     Type: AWS::Lambda::Permission
-    Condition: MonitorUseCodeDeployBlueGreen
+    Condition: MonitorAlternateTargetGroup
     Properties:
       FunctionName: !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${AlarmArn}
       Action: lambda:InvokeFunction
@@ -1470,7 +1395,7 @@ Resources:
 
   TargetTLSNegotiationErrorCountGreenPermission:
     Type: AWS::Lambda::Permission
-    Condition: MonitorUseCodeDeployBlueGreen
+    Condition: MonitorAlternateTargetGroup
     Properties:
       FunctionName: !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${AlarmArn}
       Action: lambda:InvokeFunction
@@ -1492,34 +1417,16 @@ Outputs:
       Name: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${Service}:ecs:targetgroup:blue:arn
   BlueTargetGroupName:
     Value: !GetAtt LoadBalancerTargetGroupBlue.TargetGroupName
-    Description: Blue target-group name resolved for CodeDeploy/ECS wiring.
+    Description: Blue target-group name resolved for ECS-native blue/green wiring.
     Export:
       Name: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${Service}:ecs:targetgroup:blue:name
   GreenTargetGroupArn:
-    Condition: UseCodeDeployBlueGreen
     Value: !Ref LoadBalancerTargetGroupGreen
     Description: Green target-group ARN used during blue/green deployments.
     Export:
       Name: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${Service}:ecs:targetgroup:green:arn
   GreenTargetGroupName:
-    Condition: UseCodeDeployBlueGreen
     Value: !GetAtt LoadBalancerTargetGroupGreen.TargetGroupName
-    Description: Green target-group name resolved for CodeDeploy/ECS wiring.
+    Description: Green target-group name resolved for ECS-native blue/green wiring.
     Export:
       Name: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${Service}:ecs:targetgroup:green:name
-  ResolvedCodeDeployApplicationName:
-    Value: !If
-      - HasCodeDeployApplicationNameOverride
-      - !Ref CodeDeployApplicationName
-      - !Sub "${Project}-${Application}-${Service}-ecs"
-    Description: Resolved CodeDeploy ECS application name used for blue/green.
-    Export:
-      Name: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${Service}:codedeploy:application:name
-  ResolvedCodeDeployDeploymentGroupName:
-    Value: !If
-      - HasCodeDeployDeploymentGroupNameOverride
-      - !Ref CodeDeployDeploymentGroupName
-      - !Sub "${Project}-${Application}-${Service}-dg"
-    Description: Resolved CodeDeploy deployment-group name used for blue/green.
-    Export:
-      Name: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${Service}:codedeploy:deploymentgroup:name

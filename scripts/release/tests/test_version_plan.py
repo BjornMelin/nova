@@ -63,6 +63,7 @@ def test_build_version_plan_deterministic_and_dependency_propagation() -> None:
 
     payload = {item["unit_id"]: item for item in plan["units"]}
     assert payload["packages/nova_file_api"]["new_version"] == "1.0.0"
+    assert payload["packages/nova_file_api"]["format"] == "pypi"
     assert payload["packages/nova_dash_bridge"]["reason"] == (
         "dependency_interface_change"
     )

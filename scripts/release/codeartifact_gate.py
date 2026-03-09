@@ -19,6 +19,7 @@ MANIFEST_ROW_RE = re.compile(
     r"\|\s*`(?P<unit>[^`]+)`\s*\|\s*`(?P<package>[^`]+)`\s*\|"
     r"\s*`(?P<version>[^`]+)`\s*\|"
 )
+SHA256_RE = re.compile(r"^[A-Fa-f0-9]{64}$")
 
 
 @dataclass(frozen=True)
@@ -69,24 +70,34 @@ def _validate_candidate(raw: dict[str, Any]) -> PromotionCandidate:
 
     if not package:
         raise GateError("promotion candidate package must be non-empty")
-    if fmt != "pypi":
+    if fmt not in {"pypi", "npm"}:
         raise GateError(f"unsupported package format: {fmt}")
     if not SEMVER_RE.match(version):
         raise GateError(f"invalid semver version for {package}: {version}")
-    if not _normalize_pypi_name(package).startswith("nova-"):
-        raise GateError(
-            "package "
-            f"{package} violates internal namespace policy "
-            "(must start with 'nova-')"
-        )
-    if namespace_text and namespace_text.lower() not in {
-        "nova",
-        "internal",
-        "3m-cloud",
-    }:
-        raise GateError(
-            f"namespace {namespace_text} is not allowed for package {package}"
-        )
+    if fmt == "pypi":
+        if not _normalize_pypi_name(package).startswith("nova-"):
+            raise GateError(
+                "package "
+                f"{package} violates internal namespace policy "
+                "(must start with 'nova-')"
+            )
+        if namespace_text and namespace_text.lower() not in {
+            "nova",
+            "internal",
+            "3m-cloud",
+        }:
+            raise GateError(
+                "namespace "
+                f"{namespace_text} is not allowed for package {package}"
+            )
+    else:
+        if not namespace_text:
+            raise GateError(f"npm package {package} requires a namespace")
+        expected_prefix = f"@{namespace_text}/"
+        if not package.startswith(expected_prefix):
+            raise GateError(
+                f"npm package {package} must use scope {expected_prefix}"
+            )
 
     return PromotionCandidate(
         format=fmt,
@@ -122,12 +133,27 @@ def _load_candidates(
             raise GateError(
                 f"version plan unit not found in workspace: {unit_id}"
             )
+        unit = units[unit_id]
+        item_format = item.get("format")
+        if item_format is not None and item_format != unit.package_format:
+            raise GateError(
+                "version plan format mismatch for unit "
+                f"{unit_id}: plan={item_format!r} "
+                f"workspace={unit.package_format!r}"
+            )
+        item_namespace = item.get("namespace")
+        if item_namespace is not None and item_namespace != unit.namespace:
+            raise GateError(
+                "version plan namespace mismatch for unit "
+                f"{unit_id}: plan={item_namespace!r} "
+                f"workspace={unit.namespace!r}"
+            )
         candidates.append(
             _validate_candidate(
                 {
-                    "format": "pypi",
-                    "namespace": "nova",
-                    "package": units[unit_id].project_name,
+                    "format": unit.package_format,
+                    "namespace": unit.namespace,
+                    "package": unit.project_name,
                     "version": version,
                     "unit_id": unit_id,
                 }
@@ -175,6 +201,12 @@ def validate_release_gates(
     """
     manifest_text = manifest_path.read_text(encoding="utf-8")
     manifest_sha256 = hashlib.sha256(manifest_text.encode("utf-8")).hexdigest()
+    if expected_manifest_sha256 is not None and not SHA256_RE.match(
+        expected_manifest_sha256
+    ):
+        raise GateError(
+            "expected manifest sha256 must be a 64-character hex digest"
+        )
     if (
         expected_manifest_sha256 is not None
         and expected_manifest_sha256 != manifest_sha256
@@ -203,6 +235,8 @@ def validate_release_gates(
         unit_id = str(item.get("unit_id", "")).strip()
         if not unit_id:
             raise GateError("changed_units entries require unit_id")
+        if unit_id in changed_unit_ids:
+            raise GateError(f"duplicate changed_units unit_id: {unit_id}")
         changed_unit_ids.add(unit_id)
 
     planned_items = version_plan.get("units", [])
@@ -214,8 +248,9 @@ def validate_release_gates(
             raise GateError("version plan units must be objects")
         unit_id = str(item.get("unit_id", "")).strip()
         if unit_id:
+            if unit_id in planned_unit_ids:
+                raise GateError(f"duplicate version plan unit_id: {unit_id}")
             planned_unit_ids.add(unit_id)
-    planned_unit_ids.discard("")
 
     if planned_unit_ids != changed_unit_ids:
         planned_sorted = ", ".join(sorted(planned_unit_ids))

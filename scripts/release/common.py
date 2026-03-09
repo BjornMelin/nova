@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any, Literal, cast
 
 BumpLevel = Literal["major", "minor", "patch"]
+PackageFormat = Literal["pypi", "npm"]
 DEFAULT_MANIFEST_PATH = "docs/plan/release/RELEASE-VERSION-MANIFEST.md"
 
 
@@ -24,6 +25,8 @@ class WorkspaceUnit:
     project_name: str
     version: str
     dependencies: tuple[str, ...]
+    package_format: PackageFormat = "pypi"
+    namespace: str | None = None
 
 
 def iso_timestamp() -> str:
@@ -62,7 +65,7 @@ def run_git(repo_root: Path, args: list[str]) -> str:
 
 
 def load_workspace_units(repo_root: Path) -> dict[str, WorkspaceUnit]:
-    """Load workspace units and metadata from pyproject.toml files.
+    """Load release-managed workspace units and metadata.
 
     Args:
         repo_root: Repository root containing workspace configuration.
@@ -74,6 +77,21 @@ def load_workspace_units(repo_root: Path) -> dict[str, WorkspaceUnit]:
         ValueError: If workspace metadata is malformed or
             required values are missing.
     """
+    units = _load_python_workspace_units(repo_root)
+    npm_units = _load_npm_workspace_units(repo_root)
+
+    duplicate_unit_ids = sorted(set(units).intersection(npm_units))
+    if duplicate_unit_ids:
+        raise ValueError(
+            "workspace unit IDs overlap across package managers: "
+            + ", ".join(duplicate_unit_ids)
+        )
+    units.update(npm_units)
+    return units
+
+
+def _load_python_workspace_units(repo_root: Path) -> dict[str, WorkspaceUnit]:
+    """Load uv workspace units and metadata from pyproject.toml files."""
     root_pyproject = repo_root / "pyproject.toml"
     root_data = tomllib.loads(root_pyproject.read_text(encoding="utf-8"))
     members = (
@@ -108,8 +126,108 @@ def load_workspace_units(repo_root: Path) -> dict[str, WorkspaceUnit]:
             project_name=name,
             version=version,
             dependencies=tuple(str(dep) for dep in dependencies),
+            package_format="pypi",
         )
     return units
+
+
+def _load_npm_workspace_units(repo_root: Path) -> dict[str, WorkspaceUnit]:
+    """Load release-managed npm workspace units from package.json workspaces."""
+    root_package = repo_root / "package.json"
+    if not root_package.exists():
+        return {}
+
+    root_data = json.loads(root_package.read_text(encoding="utf-8"))
+    raw_workspaces = root_data.get("workspaces", [])
+    if isinstance(raw_workspaces, dict):
+        raw_workspaces = raw_workspaces.get("packages", [])
+    if not isinstance(raw_workspaces, list):
+        raise ValueError("package.json workspaces must be a list")
+
+    units: dict[str, WorkspaceUnit] = {}
+    for member in raw_workspaces:
+        if not isinstance(member, str):
+            raise ValueError("package.json workspace entries must be strings")
+        member_path = repo_root / member
+        package_data = json.loads(
+            (member_path / "package.json").read_text(encoding="utf-8")
+        )
+        release_data = package_data.get("novaRelease", {})
+        if not isinstance(release_data, dict):
+            raise ValueError(f"novaRelease in {member} must be an object")
+        managed_raw = release_data.get("managed", False)
+        if not isinstance(managed_raw, bool):
+            raise ValueError(
+                f"novaRelease.managed in {member} must be a boolean"
+            )
+        if not managed_raw:
+            continue
+
+        name = str(package_data.get("name", "")).strip()
+        version = str(package_data.get("version", "")).strip()
+        if not name:
+            raise ValueError(f"package.json name in {member} must be non-empty")
+        if not version:
+            raise ValueError(
+                f"package.json version in {member} must be non-empty"
+            )
+
+        inferred_namespace = _npm_namespace_from_name(name)
+        configured_namespace = release_data.get("namespace")
+        if configured_namespace is not None:
+            configured_namespace = str(configured_namespace).strip() or None
+        if inferred_namespace is None and configured_namespace is None:
+            raise ValueError(
+                f"novaRelease.managed in {member} requires a scoped package"
+            )
+        if inferred_namespace and configured_namespace not in {
+            None,
+            inferred_namespace,
+        }:
+            raise ValueError(
+                f"novaRelease.namespace in {member} must match npm scope"
+            )
+        if configured_namespace and not inferred_namespace:
+            raise ValueError(
+                f"novaRelease.namespace in {member} requires a scoped package"
+            )
+
+        units[member] = WorkspaceUnit(
+            unit_id=member,
+            path=member_path,
+            project_name=name,
+            version=version,
+            dependencies=_collect_npm_dependency_names(package_data),
+            package_format="npm",
+            namespace=inferred_namespace or configured_namespace,
+        )
+    return units
+
+
+def _collect_npm_dependency_names(
+    package_data: dict[str, Any],
+) -> tuple[str, ...]:
+    """Return sorted dependency names from npm dependency maps."""
+    dependency_names: set[str] = set()
+    for field in (
+        "dependencies",
+        "optionalDependencies",
+        "peerDependencies",
+    ):
+        raw_dependencies = package_data.get(field, {})
+        if not isinstance(raw_dependencies, dict):
+            raise ValueError(f"package.json field {field} must be an object")
+        for name in raw_dependencies:
+            dependency_names.add(str(name))
+    return tuple(sorted(dependency_names))
+
+
+def _npm_namespace_from_name(name: str) -> str | None:
+    """Return the npm namespace without @, if the package is scoped."""
+    if not name.startswith("@") or "/" not in name:
+        return None
+    namespace, _separator, _package = name[1:].partition("/")
+    return namespace or None
 
 
 def find_manifest_base_commit(
@@ -305,6 +423,78 @@ def find_dependents(
         if dep_names.intersection(normalized_changed):
             dependents.add(unit_id)
     return dependents
+
+
+def order_units_for_release(
+    units: dict[str, WorkspaceUnit],
+    unit_ids: set[str] | list[str] | tuple[str, ...],
+) -> list[str]:
+    """Return release units in dependency order.
+
+    Args:
+        units: Workspace units keyed by unit ID.
+        unit_ids: Unit IDs that should be ordered for build/publish work.
+
+    Returns:
+        Stable topological order where dependencies appear before dependents.
+
+    Raises:
+        KeyError: If any requested unit is missing from ``units``.
+        ValueError: If dependency cycles are detected.
+    """
+    requested_ids = sorted(set(unit_ids))
+    missing = sorted(set(requested_ids) - set(units))
+    if missing:
+        raise KeyError(
+            "release ordering references unknown units: " + ", ".join(missing)
+        )
+
+    package_to_unit = {
+        _normalize_package_name(units[unit_id].project_name): unit_id
+        for unit_id in requested_ids
+    }
+    dependency_graph: dict[str, set[str]] = {
+        unit_id: set() for unit_id in requested_ids
+    }
+    reverse_graph: dict[str, set[str]] = {
+        unit_id: set() for unit_id in requested_ids
+    }
+    indegree = {unit_id: 0 for unit_id in requested_ids}
+
+    for unit_id in requested_ids:
+        internal_dependencies = {
+            package_to_unit[dependency_name]
+            for dep in units[unit_id].dependencies
+            if (dependency_name := parse_dependency_name(dep))
+            in package_to_unit
+            and package_to_unit[dependency_name] != unit_id
+        }
+        dependency_graph[unit_id] = internal_dependencies
+        indegree[unit_id] = len(internal_dependencies)
+        for dependency_id in internal_dependencies:
+            reverse_graph[dependency_id].add(unit_id)
+
+    ready = sorted(
+        unit_id
+        for unit_id, dependency_count in indegree.items()
+        if dependency_count == 0
+    )
+    ordered: list[str] = []
+    while ready:
+        current = ready.pop(0)
+        ordered.append(current)
+        for dependent in sorted(reverse_graph[current]):
+            indegree[dependent] -= 1
+            if indegree[dependent] == 0:
+                ready.append(dependent)
+        ready.sort()
+
+    if len(ordered) != len(requested_ids):
+        raise ValueError(
+            "release unit dependency graph contains a cycle: "
+            + ", ".join(requested_ids)
+        )
+    return ordered
 
 
 def increment_semver(version: str, bump: BumpLevel) -> str:

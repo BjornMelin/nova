@@ -34,18 +34,34 @@ Parameters:
     Type: String
     Default: ""
     Description: Optional explicit ECR repository name. If empty, imported from foundation.
-  DockerfilePath:
+  FileDockerfilePath:
     Type: String
     Default: apps/nova_file_api_service/Dockerfile
+    Description: Relative POSIX path to the file API Dockerfile.
+    AllowedPattern: "^(?!/)(?!.*\\.\\.)[A-Za-z0-9._/-]+$"
+    ConstraintDescription: Must be a relative path without parent traversal.
+  AuthDockerfilePath:
+    Type: String
+    Default: apps/nova_auth_api_service/Dockerfile
+    Description: Relative POSIX path to the auth API Dockerfile.
+    AllowedPattern: "^(?!/)(?!.*\\.\\.)[A-Za-z0-9._/-]+$"
+    ConstraintDescription: Must be a relative path without parent traversal.
   DockerBuildContext:
     Type: String
     Default: .
+    Description: Relative POSIX path to the Docker build context.
+    AllowedPattern: "^(?!/)(?!.*\\.\\.)[A-Za-z0-9._/-]+$"
+    ConstraintDescription: Must be a relative path without parent traversal.
   ReleaseBuildspecPath:
     Type: String
     Default: buildspecs/buildspec-release.yml
+    AllowedPattern: "^(?!/)(?!.*\\.\\.)[A-Za-z0-9._/-]+$"
+    ConstraintDescription: Must be a relative path without parent traversal.
   ValidateBuildspecPath:
     Type: String
     Default: buildspecs/buildspec-deploy-validate.yml
+    AllowedPattern: "^(?!/)(?!.*\\.\\.)[A-Za-z0-9._/-]+$"
+    ConstraintDescription: Must be a relative path without parent traversal.
   ReleaseBuildProjectName:
     Type: String
     Default: ""
@@ -151,9 +167,15 @@ Resources:
               - !Ref EcrRepositoryName
               - !ImportValue
                 Fn::Sub: "${FoundationStackName}-EcrRepositoryName"
+          - Name: FILE_DOCKERFILE_PATH
+            Type: PLAINTEXT
+            Value: !Ref FileDockerfilePath
           - Name: DOCKERFILE_PATH
             Type: PLAINTEXT
-            Value: !Ref DockerfilePath
+            Value: !Ref FileDockerfilePath
+          - Name: AUTH_DOCKERFILE_PATH
+            Type: PLAINTEXT
+            Value: !Ref AuthDockerfilePath
           - Name: DOCKER_BUILD_CONTEXT
             Type: PLAINTEXT
             Value: !Ref DockerBuildContext

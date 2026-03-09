@@ -14,8 +14,8 @@ async jobs with zero route-surface ambiguity.
 - One canonical public namespace: `/v1/*` (plus `/metrics/summary`).
 - Zero active references to non-canonical route literals in runtime and active
   operator docs.
-- One truthful active runtime authority pack for topology, startup validation,
-  and auth execution.
+- One truthful active operator authority graph across runtime API, SDK, and
+  deploy-validation governance.
 - Superseded ADR/SPEC material is quarantined outside the active authority set.
 - Stable generated-client and conformance behavior against current OpenAPI.
 - Ergonomic SDK-facing OpenAPI identifiers and semantic generator groupings
@@ -28,7 +28,8 @@ async jobs with zero route-surface ambiguity.
 1. Runtime capabilities remain available for transfer orchestration, async job
    control plane, capability/release discovery, health/readiness, and metrics.
 2. Runtime semantics preserve queue failure behavior (`503 queue_unavailable`),
-   readiness dependency-scoping, and worker update normalization.
+   readiness dependency-scoping, strict distributed idempotency behavior for
+   AWS-backed prod, and worker update normalization.
 3. OpenAPI 3.1 output remains the contract source for SDK/client generation and
    policy checks, including stable snake_case `operationId` values, semantic
    SDK grouping tags, and resolvable named component schemas for custom request
@@ -37,8 +38,9 @@ async jobs with zero route-surface ambiguity.
    approval before prod.
 5. Documentation authority remains singular and unambiguous across README,
    PRD, requirements, ADR/SPEC, plan, and runbooks.
-6. Public SDK productization for this wave is Python-only; TypeScript and R
-   remain internal/generated catalogs until a dedicated promotion wave.
+6. Public SDK productization for this wave includes Python. TypeScript remains
+   a generated/private-distribution contract surface and R remains an
+   internal/generated catalog until dedicated promotion waves.
 7. Deployment target-state uses ECS/Fargate behind ALB with ECS-native
    blue/green rollout, CloudWatch alarms, WAF on public ingress, and manifest
    hash evidence tied to the release manifest itself.
@@ -78,10 +80,12 @@ Out of scope:
    authority contracts remain aligned with active ADR/SPEC and test guardrails.
 6. Auth0 tenant import/export paths are fail-fast and cannot mutate tenants when
    contract validation fails.
-7. CodeArtifact promotion IAM contracts remain least-privilege and scoped to
-   explicit staged source and prod destination repositories.
-8. Active runtime authority IDs (`ADR-0024`, `ADR-0027` through `ADR-0029`,
-   and `SPEC-0017` through `SPEC-0019`) describe runtime subjects only.
+7. CodeArtifact promotion IAM contracts remain least-privilege, scoped to
+   explicit staged source and prod destination repositories, and cover Python
+   plus private npm publication controls.
+8. Active operator authority IDs and paths are truthful, resolvable, and
+   synchronized across README, AGENTS, plan, PRD, runbooks, and architecture
+   indexes.
 9. Superseded ADR/SPEC content is excluded from active authority lists and
    active index sections.
 
@@ -96,6 +100,8 @@ Out of scope:
 - `docs/architecture/requirements.md`
 - `docs/architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md`
 - `docs/architecture/adr/ADR-0024-layered-architecture-authority-pack.md`
+- `docs/architecture/adr/ADR-0025-runtime-monorepo-component-boundaries-and-ownership.md`
+- `docs/architecture/adr/ADR-0026-fail-fast-runtime-configuration-and-safe-auth-execution.md`
 - `docs/architecture/adr/ADR-0027-hard-cut-downstream-integration-and-consumer-contract-enforcement.md`
 - `docs/architecture/adr/ADR-0028-auth0-tenant-ops-reusable-workflow-api-contract.md`
 - `docs/architecture/adr/ADR-0029-ssm-runtime-base-url-authority-for-deploy-validation.md`
@@ -109,5 +115,6 @@ Out of scope:
 - `docs/architecture/spec/SPEC-0021-downstream-hard-cut-integration-and-consumer-validation-contract.md`
 - `docs/architecture/spec/SPEC-0022-auth0-tenant-ops-reusable-workflow-contract.md`
 - `docs/architecture/spec/SPEC-0023-ssm-runtime-base-url-contract-for-deploy-validation.md`
+- `docs/standards/README.md`
 - `docs/plan/PLAN.md`
 - `docs/runbooks/README.md`

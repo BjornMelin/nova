@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, cast
 from uuid import uuid4
@@ -29,17 +30,35 @@ from nova_file_api.models import (
 )
 
 
+@dataclass(slots=True, frozen=True)
+class ExportCopyResult:
+    """Result returned after copying an upload object to the export prefix."""
+
+    export_key: str
+    download_filename: str
+
+
 class TransferService:
     """Control-plane transfer service backed by boto3 presign calls."""
 
-    def __init__(self, *, settings: Settings) -> None:
+    def __init__(
+        self,
+        *,
+        settings: Settings,
+        s3_client: Any | None = None,
+    ) -> None:
         """Initialize transfer service and S3 client.
 
         Args:
             settings: Runtime settings for transfer behavior.
+            s3_client: Optional prebuilt S3 client override.
         """
         self.settings = settings
-        self._s3 = _build_s3_client(settings=self.settings)
+        self._s3 = (
+            cast(BaseClient, s3_client)
+            if s3_client is not None
+            else _build_s3_client(settings=self.settings)
+        )
         self._upload_prefix = _normalize_prefix(
             self.settings.file_transfer_upload_prefix
         )
@@ -203,6 +222,77 @@ class TransferService:
             ),
         )
 
+    def copy_upload_to_export(
+        self,
+        *,
+        source_bucket: str,
+        source_key: str,
+        scope_id: str,
+        job_id: str,
+        filename: str,
+    ) -> ExportCopyResult:
+        """Copy a caller-scoped upload object into the export prefix.
+
+        Args:
+            source_bucket: Bucket containing the upload object to export.
+            source_key: Caller-scoped upload object key to copy.
+            scope_id: Caller scope identifier used for ownership validation.
+            job_id: Job identifier used to namespace the export object key.
+            filename: Download filename to preserve in the export result.
+
+        Returns:
+            ExportCopyResult: Metadata describing the copied export object.
+
+        Raises:
+            FileTransferError: ``invalid_request`` when caller validation or
+                source object absence/TOCTOU checks fail.
+            FileTransferError: ``upstream_s3_error`` for retryable S3
+                infra failures.
+        """
+        if source_bucket != self.settings.file_transfer_bucket:
+            raise invalid_request(
+                "bucket does not match configured transfer bucket",
+                details={
+                    "bucket": source_bucket,
+                    "expected_bucket": self.settings.file_transfer_bucket,
+                },
+            )
+        self._assert_upload_scope(key=source_key, scope_id=scope_id)
+        self._assert_upload_object_exists(key=source_key)
+        download_filename = _sanitize_filename(
+            filename or Path(source_key).name
+        )
+        export_key = self._new_export_key(
+            scope_id=scope_id,
+            job_id=job_id,
+            filename=download_filename,
+        )
+        try:
+            self._s3.copy_object(
+                Bucket=self.settings.file_transfer_bucket,
+                CopySource={
+                    "Bucket": self.settings.file_transfer_bucket,
+                    "Key": source_key,
+                },
+                Key=export_key,
+                MetadataDirective="COPY",
+            )
+        except ClientError as exc:
+            error_code = str(exc.response.get("Error", {}).get("Code", ""))
+            if error_code in {"404", "NoSuchKey", "NotFound"}:
+                raise invalid_request("source upload object not found") from exc
+            raise upstream_s3_error(
+                "failed to copy upload object to export key"
+            ) from exc
+        except BotoCoreError as exc:
+            raise upstream_s3_error(
+                "failed to copy upload object to export key"
+            ) from exc
+        return ExportCopyResult(
+            export_key=export_key,
+            download_filename=download_filename,
+        )
+
     def _single_upload_response(
         self,
         *,
@@ -287,6 +377,23 @@ class TransferService:
         safe = _sanitize_filename(filename)
         return f"{self._upload_prefix}{scope_id}/{uuid4().hex}/{safe}"
 
+    def _new_export_key(
+        self,
+        *,
+        scope_id: str,
+        job_id: str,
+        filename: str,
+    ) -> str:
+        """Build an export object key for a pre-sanitized download filename."""
+        stable_job_id = "".join(
+            character
+            for character in job_id.strip()
+            if character.isalnum() or character in {"-", "_"}
+        )
+        if not stable_job_id:
+            stable_job_id = uuid4().hex
+        return f"{self._export_prefix}{scope_id}/{stable_job_id}/{filename}"
+
     def _assert_upload_scope(self, *, key: str, scope_id: str) -> None:
         expected_prefix = f"{self._upload_prefix}{scope_id}/"
         if not key.startswith(expected_prefix):
@@ -300,6 +407,24 @@ class TransferService:
         )
         if not any(key.startswith(prefix) for prefix in expected_prefixes):
             raise invalid_request("key is outside caller read scope")
+
+    def _assert_upload_object_exists(self, *, key: str) -> None:
+        try:
+            self._s3.head_object(
+                Bucket=self.settings.file_transfer_bucket,
+                Key=key,
+            )
+        except ClientError as exc:
+            error_code = str(exc.response.get("Error", {}).get("Code", ""))
+            if error_code in {"404", "NoSuchKey", "NotFound"}:
+                raise invalid_request("source upload object not found") from exc
+            raise upstream_s3_error(
+                "failed to inspect source upload object"
+            ) from exc
+        except BotoCoreError as exc:
+            raise upstream_s3_error(
+                "failed to inspect source upload object"
+            ) from exc
 
 
 def _build_s3_client(*, settings: Settings) -> BaseClient:

@@ -22,7 +22,7 @@ It must be executed before CI/CD stack deployment guidance in:
 2. `jq` installed.
 3. Repository checkout at `${NOVA_REPO_ROOT}`.
 4. Permissions for CloudFormation create/update/execute + IAM pass role for
-   ECS/CodeDeploy roles + service permissions for ECS/ELB/S3/SQS/DynamoDB/KMS.
+   ECS/CloudFormation roles + service permissions for ECS/ELB/S3/SQS/DynamoDB/KMS.
 5. Hosted zone ownership or delegated DNS update authority when using ALB DNS.
 
 ## Required Inputs
@@ -52,8 +52,9 @@ Export these values before running commands:
 - `SERVICE_NAME`
 - `SERVICE_DNS` (example `${SERVICE_NAME}.${ALB_HOSTED_ZONE_NAME}`)
 - `DOCKER_REPOSITORY_NAME`
-- `DOCKER_IMAGE_TAG` (immutable tag or digest label)
+- `IMAGE_DIGEST` (OCI digest, `sha256:...`)
 - `TASK_ROLE_ARN`
+- `ECS_INFRASTRUCTURE_ROLE_ARN`
 - `OWNER_TAG`
 - `ALARM_ACTION_ARN`
 - `ASSIGN_PUBLIC_IP` (`ENABLED` or `DISABLED`, default `DISABLED`)
@@ -182,11 +183,12 @@ aws cloudformation deploy \
     EcsClusterName="${ECS_CLUSTER_NAME}" \
     LoadBalancerName="${ALB_NAME}" \
     DockerRepoName="${DOCKER_REPOSITORY_NAME}" \
-    DockerImageTag="${DOCKER_IMAGE_TAG}" \
+    ImageDigest="${IMAGE_DIGEST}" \
     VpcId="${VPC_ID}" \
     SubnetList="${SUBNET_IDS}" \
     AssignPublicIp="${ASSIGN_PUBLIC_IP:-DISABLED}" \
     TaskRole="${TASK_ROLE_ARN}" \
+    EcsInfrastructureRoleArn="${ECS_INFRASTRUCTURE_ROLE_ARN}" \
     ServiceDNS="${SERVICE_DNS}" \
     ListenerRulePriority="100" \
     AlarmArn="${ALARM_ACTION_ARN}" \
@@ -273,5 +275,5 @@ aws cloudformation list-stacks --region "${AWS_REGION}" \
   <https://docs.aws.amazon.com/AWSCloudFormation/latest/TemplateReference/intrinsic-function-reference-importvalue.html>
 - CloudFormation best practices:
   <https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/best-practices.html>
-- CodeDeploy ECS service role:
-  <https://docs.aws.amazon.com/AmazonECS/latest/developerguide/codedeploy_IAM_role.html>
+- ECS infrastructure IAM role for load balancers:
+  <https://docs.aws.amazon.com/AmazonECS/latest/developerguide/AmazonECSInfrastructureRolePolicyForLoadBalancers.html>

@@ -18,24 +18,83 @@ Topology and release-delivery authority:
 
 - `docs/architecture/spec/SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md`
 - `docs/architecture/adr/ADR-0024-layered-architecture-authority-pack.md`
+- `docs/architecture/adr/ADR-0025-runtime-monorepo-component-boundaries-and-ownership.md`
+- `docs/architecture/adr/ADR-0026-fail-fast-runtime-configuration-and-safe-auth-execution.md`
+- `docs/architecture/spec/SPEC-0017-runtime-component-topology-and-ownership-contract.md`
+- `docs/architecture/spec/SPEC-0018-runtime-configuration-and-startup-validation-contract.md`
+- `docs/architecture/spec/SPEC-0019-auth-execution-and-threadpool-safety-contract.md`
+- `docs/architecture/spec/SPEC-0020-architecture-authority-pack-and-documentation-synchronization-contract.md`
+
+Engineering/operator deep references:
+
+- `AGENTS.md`
+- `docs/overview/NOVA-REPO-OVERVIEW.md`
+- `docs/standards/README.md`
+- `docs/runbooks/README.md`
+
+Downstream/deploy-validation authority:
+
+- `docs/architecture/adr/ADR-0027-hard-cut-downstream-integration-and-consumer-contract-enforcement.md`
+- `docs/architecture/adr/ADR-0028-auth0-tenant-ops-reusable-workflow-api-contract.md`
+- `docs/architecture/adr/ADR-0029-ssm-runtime-base-url-authority-for-deploy-validation.md`
+- `docs/architecture/spec/SPEC-0021-downstream-hard-cut-integration-and-consumer-validation-contract.md`
+- `docs/architecture/spec/SPEC-0022-auth0-tenant-ops-reusable-workflow-contract.md`
+- `docs/architecture/spec/SPEC-0023-ssm-runtime-base-url-contract-for-deploy-validation.md`
+
+Adjacent deployment-control-plane authority:
+
+- `docs/architecture/adr/ADR-0030-native-cfn-modular-stack-architecture-for-nova-infrastructure-productization.md`
+- `docs/architecture/adr/ADR-0031-reusable-github-workflow-api-and-versioning-policy-for-deployment-automation.md`
+- `docs/architecture/adr/ADR-0032-oidc-and-iam-role-partitioning-for-deploy-automation.md`
 
 Only canonical `/v1/*` routes and `/metrics/summary` are valid in active
 contracts and operator runbooks.
 
 ## SDK Governance
 
-This release wave exposes one public, release-grade SDK surface: Python.
-TypeScript and R packages remain generator-owned in-repo catalogs and are not
-yet productized/published as first-class public SDKs.
+Nova owns the client SDK contract surface, with Python as the current
+release-grade public SDK, TypeScript retained as generated/private-distribution
+contract surface, and R retained in-repo for parity scaffolding.
 
-Current OpenAPI generation behavior:
+Current repository posture:
 
-- `operationId` values are stable lowercase snake_case names and are currently
-  route/method-derived.
-- File API operation tags are currently router-owned and include
-  implementation tags such as `transfers`, `ops`, and `v1`.
-- OpenAPI artifacts are produced from runtime FastAPI schemas (`/openapi.json`)
-  for contract checks and client smoke validation.
+- committed Python SDK trees remain public, drift-gated client artifacts
+- committed TypeScript SDK package trees remain private-distribution,
+  drift-gated npm artifacts in the workspace and release pipeline
+- committed TypeScript SDK packages `@nova/sdk-auth` and `@nova/sdk-file`
+  are generated, OpenAPI-derived, transport-focused, and intentionally private
+  in this wave
+- the TypeScript `types` surfaces are curated from public operations and
+  reachable public schemas only; raw whole-spec aliases are not part of the
+  supported SDK contract
+- TypeScript runtime validation is intentionally not bundled; consuming apps or
+  BFF layers own their own validation boundary when needed
+- R package scaffolding stays in-repo as the required foundation for parity and
+  must not be deleted
+- the TypeScript SDK packages install through the repo npm workspace in
+  source/CI mode and publish as private CodeArtifact npm packages with concrete
+  semver dependencies during staged release promotion
+- internal-only operations such as
+  `/v1/internal/jobs/{job_id}/result` are intentionally excluded from client
+  SDK generation
+
+SDK-facing OpenAPI rules are hard requirements:
+
+- `operationId` values are stable lowercase snake_case names, not FastAPI
+  path/method-derived identifiers.
+- Tags are semantic SDK groupings only: `transfers`, `jobs`, `platform`,
+  `ops`, `token`, and `health`.
+- Committed SDK artifacts regenerate from
+  `packages/contracts/openapi/*.openapi.json` via
+  `scripts/release/generate_clients.py` and
+  `scripts/release/generate_python_clients.py`.
+- Public SDK generation strips internal-only operations marked with
+  `x-nova-sdk-visibility: internal`.
+- TypeScript SDK generation also strips internal-only schema aliases and
+  requires explicit generated `contentType` selection when an operation
+  exposes multiple request media types.
+- Published runtime Python distributions `nova_file_api` and `nova_auth_api`
+  include `py.typed` markers for installed-package type checking.
 
 ## Runtime Capability Families
 
@@ -56,14 +115,24 @@ For exact endpoint and payload contract details, use:
 
 - `POST /v1/jobs` publish failures return `503` with
   `error.code = "queue_unavailable"`.
+- Strict shared-idempotency claim-store outages return `503` with
+  `error.code = "idempotency_unavailable"` for idempotent mutation entrypoints.
+- `IDEMPOTENCY_MODE=shared_required` requires `CACHE_REDIS_URL`; production
+  deployments must not run idempotent mutation endpoints in `local_only` mode.
 - Failed enqueue responses are not idempotency replay cached.
 - `/v1/health/ready` is dependency-scoped and fails on blank
   `FILE_TRANSFER_BUCKET`.
-- `AUTH_MODE=jwt_local` with incomplete `OIDC_ISSUER`, `OIDC_AUDIENCE`, or
-  `OIDC_JWKS_URL` configuration is not currently represented as a dedicated
-  `/v1/health/ready` `auth_dependency` check.
+- `/v1/health/ready` also fails on shared-cache health when shared-cache-backed
+  idempotency is the configured traffic-critical mode.
+- In non-`same-origin` auth modes, `/v1/health/ready` includes the
+  `auth_dependency` check.
+- In `AUTH_MODE=jwt_local`, incomplete `OIDC_ISSUER`, `OIDC_AUDIENCE`, or
+  `OIDC_JWKS_URL` configuration leaves the local verifier unavailable, which
+  makes `auth_dependency` report not-ready.
 - `POST /v1/internal/jobs/{job_id}/result` with `status=succeeded` normalizes
   `error` to `null`.
+- Malformed worker queue messages are retried and drain to DLQ through SQS
+  redrive policy; they are not acknowledged immediately.
 
 ## Local Development
 
@@ -92,6 +161,26 @@ for p in packages/nova_file_api packages/nova_auth_api \
   apps/nova_auth_api_service; do uv build "$p"; done
 ```
 
+TypeScript/CodeArtifact local auth stays repo-scoped:
+
+```bash
+cd <NOVA_REPO_ROOT>
+eval "$(npm run -s codeartifact:npm:env)"
+npm install --no-package-lock
+```
+
+The committed `.npmrc`
+leaves the default registry on `registry.npmjs.org`. The helper above writes a
+repo-local `.npmrc.codeartifact`
+from the current AWS credentials and points npm at it through
+`NPM_CONFIG_USERCONFIG`, so other repos stay untouched. To target a different
+AWS account/domain/repository, set `AWS_REGION`, `CODEARTIFACT_DOMAIN`, and/or
+`CODEARTIFACT_STAGING_REPOSITORY` before running the helper. Do not use
+`aws codeartifact login --tool npm` for local developer shells because it
+rewrites global `~/.npmrc`; that command remains acceptable in CI where the
+runner is ephemeral. When CI or another ephemeral shell uses that command with
+npm 10.x, AWS CLI v2.9.5 or newer is required.
+
 ## Release and Operations
 
 Canonical runbook entrypoint:
@@ -104,8 +193,9 @@ Release sequencing contract:
   `prod` before CI/CD stack rollout.
 - Foundation-first control plane: `nova-foundation` is deployed before IAM,
   CodeBuild, and CodePipeline stacks.
-- Runtime deployment target is ECS/Fargate behind ALB with CodeDeploy-based
-  ECS blue/green deployment controls and CloudWatch deployment alarms.
+- Runtime deployment target is ECS/Fargate behind ALB with ECS-native
+  blue/green deployment strategy, CloudWatch deployment alarms, and WAF on the
+  public ALB path.
 - Worker deployment contract uses the packaged `nova-file-worker` command plus
   `JobsApiBaseUrl` and `JobsWorkerUpdateTokenSecretArn` inputs for the
   canonical `JOBS_*` runtime.

@@ -10,10 +10,19 @@ on:
         description: Optional expected SHA256 of RELEASE-VERSION-MANIFEST.md
         required: false
         type: string
+      release_apply_run_id:
+        description: Workflow run id that uploaded release-apply-artifacts.
+        required: false
+        type: string
 
 permissions:
   id-token: write
   contents: read
+  actions: read
+
+concurrency:
+  group: publish-packages-${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_branch || github.ref }}
+  cancel-in-progress: false
 
 jobs:
   publish-staging:
@@ -29,12 +38,75 @@ jobs:
       CODEARTIFACT_DOMAIN: ${{ vars.CODEARTIFACT_DOMAIN }}
       CODEARTIFACT_STAGING_REPOSITORY: ${{ vars.CODEARTIFACT_STAGING_REPOSITORY }}
       EXPECTED_MANIFEST_SHA256: ${{ inputs.expected_manifest_sha256 }}
+      RELEASE_APPLY_RUN_ID: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.id || inputs.release_apply_run_id }}
     steps:
+      - name: Validate release-apply workflow run id
+        uses: actions/github-script@v7
+        env:
+          EXPECTED_RELEASE_APPLY_WORKFLOW_NAME: Nova Release Apply
+          EXPECTED_RELEASE_BRANCH: main
+        with:
+          github-token: ${{ github.token }}
+          script: |
+            const runIdRaw = process.env.RELEASE_APPLY_RUN_ID;
+            if (!runIdRaw || !/^\d+$/.test(runIdRaw.trim())) {
+              core.setFailed(
+                `RELEASE_APPLY_RUN_ID must be a numeric workflow run id, got: ${runIdRaw ?? "<empty>"}`,
+              );
+              return;
+            }
+
+            const runId = Number.parseInt(runIdRaw.trim(), 10);
+            const expectedWorkflowName = process.env.EXPECTED_RELEASE_APPLY_WORKFLOW_NAME;
+            const expectedBranch = process.env.EXPECTED_RELEASE_BRANCH;
+            const [owner, repo] = process.env.GITHUB_REPOSITORY.split("/");
+
+            const runResponse = await github.rest.actions.getWorkflowRun({
+              owner,
+              repo,
+              run_id: runId,
+            });
+            const run = runResponse.data;
+
+            const workflowResponse = await github.rest.actions.getWorkflow({
+              owner,
+              repo,
+              workflow_id: run.workflow_id,
+            });
+            const workflow = workflowResponse.data;
+
+            const errors = [];
+            if (workflow.name !== expectedWorkflowName) {
+              errors.push(
+                `workflow name mismatch: expected "${expectedWorkflowName}", got "${workflow.name}"`,
+              );
+            }
+            if (run.conclusion !== "success") {
+              errors.push(`run conclusion must be "success", got "${run.conclusion}"`);
+            }
+            if (run.head_branch !== expectedBranch) {
+              errors.push(
+                `run head_branch mismatch: expected "${expectedBranch}", got "${run.head_branch}"`,
+              );
+            }
+
+            if (errors.length > 0) {
+              core.setFailed(
+                `Invalid RELEASE_APPLY_RUN_ID ${runId}: ${errors.join("; ")}`,
+              );
+              return;
+            }
+
+            core.info(
+              `Validated release apply run ${run.id} for workflow "${workflow.name}" on branch "${run.head_branch}".`,
+            );
+            core.exportVariable("RELEASE_APPLY_RUN_ID", String(run.id));
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+          ref: main
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -44,8 +116,10 @@ jobs:
       - name: Setup uv
         uses: astral-sh/setup-uv@v4
 
-      - name: Sync
-        run: uv sync --locked
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
 
       - name: Validate required CodeArtifact variables
         run: |
@@ -53,17 +127,47 @@ jobs:
           [[ -n "${RELEASE_AWS_ROLE_ARN}" ]] || { echo "RELEASE_AWS_ROLE_ARN is required" >&2; exit 1; }
           [[ -n "${CODEARTIFACT_DOMAIN}" ]] || { echo "CODEARTIFACT_DOMAIN is required" >&2; exit 1; }
           [[ -n "${CODEARTIFACT_STAGING_REPOSITORY}" ]] || { echo "CODEARTIFACT_STAGING_REPOSITORY is required" >&2; exit 1; }
+          [[ -n "${RELEASE_APPLY_RUN_ID}" ]] || { echo "RELEASE_APPLY_RUN_ID is required" >&2; exit 1; }
+
+      - name: Download immutable release-apply artifacts
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          python -m scripts.release.download_run_artifact \
+            --repo "${{ github.repository }}" \
+            --run-id "${RELEASE_APPLY_RUN_ID}" \
+            --artifact-name release-apply-artifacts \
+            --output-dir .artifacts
+
+      - name: Checkout immutable release commit
+        run: |
+          set -euo pipefail
+          RELEASE_COMMIT_SHA="$(python - <<'PY'
+          import json
+          from pathlib import Path
+
+          payload = json.loads(
+              Path(".artifacts/release-apply-metadata.json").read_text(
+                  encoding="utf-8"
+              )
+          )
+          print(payload["release_commit_sha"])
+          PY
+          )"
+          git fetch --depth=1 origin "${RELEASE_COMMIT_SHA}"
+          git checkout "${RELEASE_COMMIT_SHA}"
+
+      - name: Sync
+        run: uv sync --locked
+
+      - name: Install npm workspace dependencies
+        run: npm ci
 
       - name: Configure AWS Credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ env.RELEASE_AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
-
-      - name: Compute release artifacts
-        run: |
-          uv run python -m scripts.release.changed_units --repo-root . --output .artifacts/changed-units.json
-          uv run python -m scripts.release.version_plan --repo-root . --changed-units .artifacts/changed-units.json --output .artifacts/version-plan.json
 
       - name: Run CodeArtifact release gates
         run: |
@@ -76,7 +180,7 @@ jobs:
             --gate-report-out .artifacts/codeartifact-gate-report.json \
             --promotion-candidates-out .artifacts/codeartifact-promotion-candidates.json
 
-      - name: Build changed packages
+      - name: Build changed Python packages
         run: |
           uv run python - <<'PY'
           import json
@@ -84,13 +188,92 @@ jobs:
           from pathlib import Path
 
           data = json.loads(Path('.artifacts/version-plan.json').read_text())
-          units = [item['unit_id'] for item in data.get('units', [])]
+          units = [
+              item['unit_id']
+              for item in data.get('units', [])
+              if item.get('format', 'pypi') == 'pypi'
+          ]
           if not units:
-              print('No package version changes detected; nothing to build.')
+              print('No Python package version changes detected; nothing to build.')
               raise SystemExit(0)
           for unit in units:
               subprocess.run(['uv', 'build', unit], check=True)
           PY
+
+      - name: Verify AWS CLI version for npm CodeArtifact support
+        run: |
+          python - <<'PY'
+          import re
+          import subprocess
+
+          result = subprocess.run(
+              ["aws", "--version"],
+              check=True,
+              text=True,
+              capture_output=True,
+          )
+          version_output = " ".join(
+              part.strip() for part in (result.stderr, result.stdout) if part.strip()
+          )
+          match = re.search(r"aws-cli/(\d+)\.(\d+)\.(\d+)", version_output)
+          if match is None:
+              raise SystemExit(f"Could not parse AWS CLI version: {version_output}")
+          version = tuple(int(part) for part in match.groups())
+          if version < (2, 9, 5):
+              raise SystemExit(
+                  "AWS CLI >= 2.9.5 is required for npm 10 CodeArtifact login, "
+                  f"found {version_output}"
+              )
+          print(f"Using {version_output}")
+          PY
+
+      - name: Build changed npm packages
+        run: |
+          uv run python - <<'PY'
+          import json
+          import subprocess
+          from pathlib import Path
+
+          from scripts.release import common
+
+          version_plan = json.loads(
+              Path('.artifacts/version-plan.json').read_text(encoding='utf-8')
+          )
+          units = common.load_workspace_units(Path('.').resolve())
+          npm_units = common.order_units_for_release(
+              units,
+              {
+                  item['unit_id']
+                  for item in version_plan.get('units', [])
+                  if item.get('format') == 'npm'
+              },
+          )
+          if not npm_units:
+              print('No npm package version changes detected; nothing to build.')
+              raise SystemExit(0)
+          for unit in npm_units:
+              subprocess.run(
+                  ['npm', 'run', 'build', '--workspace', unit],
+                  check=True,
+              )
+          PY
+
+      - name: Prepare npm publish artifacts
+        run: |
+          set -euo pipefail
+          NPM_REGISTRY_URL="$(aws codeartifact get-repository-endpoint \
+            --domain "$CODEARTIFACT_DOMAIN" \
+            --repository "$CODEARTIFACT_STAGING_REPOSITORY" \
+            --format npm \
+            --region "$AWS_REGION" \
+            --query repositoryEndpoint \
+            --output text)"
+          uv run python -m scripts.release.npm_publish \
+            --repo-root . \
+            --version-plan .artifacts/version-plan.json \
+            --registry-url "$NPM_REGISTRY_URL" \
+            --output-dir .artifacts/npm-publish \
+            --report-out .artifacts/npm-publish-report.json
 
       - name: Publish to CodeArtifact staging repository
         run: |
@@ -125,6 +308,253 @@ jobs:
           fi
 
           uv run twine upload --repository codeartifact --skip-existing "${DIST_FILES[@]}"
+
+      - name: Publish npm packages to CodeArtifact staging repository
+        run: |
+          set -euo pipefail
+          PACKAGE_COUNT="$(uv run python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(
+              Path('.artifacts/npm-publish-report.json').read_text(encoding='utf-8')
+          )
+          print(len(report.get('packages', [])))
+          PY
+          )"
+          if [[ "$PACKAGE_COUNT" == "0" ]]; then
+            echo "No npm packages prepared; skipping npm publish."
+            exit 0
+          fi
+
+          NPM_REGISTRY_URL="$(aws codeartifact get-repository-endpoint \
+            --domain "$CODEARTIFACT_DOMAIN" \
+            --repository "$CODEARTIFACT_STAGING_REPOSITORY" \
+            --format npm \
+            --region "$AWS_REGION" \
+            --query repositoryEndpoint \
+            --output text)"
+
+          aws codeartifact login \
+            --tool npm \
+            --domain "$CODEARTIFACT_DOMAIN" \
+            --repository "$CODEARTIFACT_STAGING_REPOSITORY" \
+            --region "$AWS_REGION"
+
+          mapfile -t NPM_PUBLISH_DIRS < <(
+            uv run python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(
+              Path(".artifacts/npm-publish-report.json").read_text(encoding="utf-8")
+          )
+          for item in report.get("packages", []):
+              print(item["publish_dir"])
+          PY
+          )
+          for publish_dir in "${NPM_PUBLISH_DIRS[@]}"; do
+            package_name="$(uv run python - <<'PY' "$publish_dir"
+          import json
+          import sys
+          from pathlib import Path
+
+          package_json = Path(sys.argv[1]) / "package.json"
+          payload = json.loads(package_json.read_text(encoding="utf-8"))
+          print(payload["name"])
+          PY
+            )"
+            package_version="$(uv run python - <<'PY' "$publish_dir"
+          import json
+          import sys
+          from pathlib import Path
+
+          package_json = Path(sys.argv[1]) / "package.json"
+          payload = json.loads(package_json.read_text(encoding="utf-8"))
+          print(payload["version"])
+          PY
+            )"
+            if npm view "${package_name}@${package_version}" version --registry "$NPM_REGISTRY_URL" >/dev/null 2>&1; then
+              echo "Package ${package_name}@${package_version} already exists in staging; skipping publish."
+              continue
+            fi
+            (
+              cd "$publish_dir"
+              npm publish --no-progress --registry "$NPM_REGISTRY_URL"
+            )
+          done
+
+      - name: Smoke test npm packages from CodeArtifact staging
+        run: |
+          set -euo pipefail
+          mapfile -t NPM_INSTALL_SPECS < <(
+            uv run python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(
+              Path(".artifacts/npm-publish-report.json").read_text(encoding="utf-8")
+          )
+          for item in report.get("packages", []):
+              print(f"{item['package']}@{item['version']}")
+          PY
+          )
+          if [[ "${#NPM_INSTALL_SPECS[@]}" -eq 0 ]]; then
+            echo "No npm packages published; skipping staging smoke test."
+            exit 0
+          fi
+
+          tmp_dir="$(mktemp -d)"
+          trap 'rm -rf "${tmp_dir}"' EXIT
+          cd "${tmp_dir}"
+          cat > package.json <<'EOF'
+          {
+            "name": "nova-codeartifact-smoke",
+            "private": true,
+            "type": "module"
+          }
+          EOF
+          npm install --no-progress "${NPM_INSTALL_SPECS[@]}"
+          export NOVA_EXPECTED_NPM_PACKAGES="$(uv run python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(
+              Path(".artifacts/npm-publish-report.json").read_text(encoding="utf-8")
+          )
+          print(
+              json.dumps(
+                  sorted(
+                      package["package"]
+                      for package in report.get("packages", [])
+                      if isinstance(package, dict) and package.get("package")
+                  )
+              )
+          )
+          PY
+          )"
+          cat > smoke.mjs <<'EOF'
+          const expectedPackages = new Set(
+            JSON.parse(process.env.NOVA_EXPECTED_NPM_PACKAGES ?? "[]"),
+          );
+          let buildDescriptorUrl = null;
+          let fileOperations = null;
+          let authOperations = null;
+          let createFileClient = null;
+          let createAuthClient = null;
+
+          try {
+            ({ buildOperationDescriptorUrl: buildDescriptorUrl } = await import("@nova/sdk-fetch/url"));
+          } catch (error) {
+            if (expectedPackages.has("@nova/sdk-fetch")) {
+              throw error;
+            }
+          }
+          try {
+            ({ operations: fileOperations } = await import("@nova/sdk-file/operations"));
+            ({ createNovaFileClient: createFileClient } = await import("@nova/sdk-file/client"));
+          } catch (error) {
+            if (expectedPackages.has("@nova/sdk-file")) {
+              throw error;
+            }
+          }
+          try {
+            ({ operations: authOperations } = await import("@nova/sdk-auth/operations"));
+            ({ createNovaAuthClient: createAuthClient } = await import("@nova/sdk-auth/client"));
+          } catch (error) {
+            if (expectedPackages.has("@nova/sdk-auth")) {
+              throw error;
+            }
+          }
+
+          if (expectedPackages.has("@nova/sdk-fetch") && !buildDescriptorUrl) {
+            throw new Error("@nova/sdk-fetch smoke import did not load buildOperationDescriptorUrl");
+          }
+          if (expectedPackages.has("@nova/sdk-file") && (!fileOperations || !createFileClient)) {
+            throw new Error("@nova/sdk-file smoke import did not load expected entrypoints");
+          }
+          if (expectedPackages.has("@nova/sdk-auth") && (!authOperations || !createAuthClient)) {
+            throw new Error("@nova/sdk-auth smoke import did not load expected entrypoints");
+          }
+
+          if (buildDescriptorUrl && fileOperations) {
+            const descriptorUrl = buildDescriptorUrl(
+              "https://nova.example/",
+              fileOperations.get_job_status,
+              { job_id: "job-123" },
+              { include: "events" },
+            );
+            if (descriptorUrl !== "https://nova.example/v1/jobs/job-123?include=events") {
+              throw new Error(`unexpected descriptor URL: ${descriptorUrl}`);
+            }
+          }
+
+          if ("update_job_result" in (fileOperations ?? {})) {
+            throw new Error("internal file operation leaked into published SDK");
+          }
+
+          if (createFileClient) {
+            const fileClient = createFileClient({
+              baseUrl: "https://nova.example/",
+              fetchImpl: async (input) => {
+                const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+                if (url !== "https://nova.example/v1/jobs/job-123") {
+                  throw new Error(`unexpected file client URL: ${url}`);
+                }
+                return new Response(JSON.stringify({
+                  job: {
+                    job_id: "job-123",
+                    status: "queued",
+                    created_at: "2026-03-09T00:00:00Z",
+                    updated_at: "2026-03-09T00:00:00Z",
+                    events: [],
+                  },
+                }), {
+                  status: 200,
+                  headers: { "content-type": "application/json" },
+                });
+              },
+            });
+            const fileResponse = await fileClient.get_job_status({
+              pathParams: { job_id: "job-123" },
+            });
+            if (!fileResponse.ok || fileResponse.data?.job?.job_id !== "job-123") {
+              throw new Error("unexpected published file client response");
+            }
+          }
+
+          if (createAuthClient && authOperations) {
+            const authClient = createAuthClient({
+              baseUrl: "https://nova.example/",
+              fetchImpl: async (input) => {
+                const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+                if (url !== "https://nova.example/v1/token/verify") {
+                  throw new Error(`unexpected auth client URL: ${url}`);
+                }
+                return new Response(JSON.stringify({
+                  claims: {},
+                  principal: {
+                    permissions: [],
+                    scope_id: "scope",
+                    scopes: [],
+                    subject: "subject",
+                    tenant_id: null,
+                  },
+                }), {
+                  status: 200,
+                  headers: { "content-type": "application/json" },
+                });
+              },
+            });
+            const authResponse = await authClient.verify_token({
+              body: { access_token: "token", required_permissions: [], required_scopes: [] },
+            });
+            if (!authResponse.ok || authResponse.data?.principal.subject !== "subject") {
+              throw new Error("unexpected published auth client response");
+            }
+          }
+          EOF
+          node smoke.mjs
 
       - name: Upload package gate artifacts
         uses: actions/upload-artifact@v4

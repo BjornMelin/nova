@@ -3,6 +3,7 @@ from __future__ import annotations
 from fastapi.testclient import TestClient
 from nova_file_api.activity import MemoryActivityStore
 from nova_file_api.app import create_app
+from nova_file_api.auth import Authenticator
 from nova_file_api.cache import (
     LocalTTLCache,
     SharedRedisCache,
@@ -17,6 +18,7 @@ from nova_file_api.jobs import (
     MemoryJobRepository,
 )
 from nova_file_api.metrics import MetricsCollector
+from nova_file_api.models import AuthMode
 
 from ._test_doubles import StubAuthenticator, StubTransferService
 
@@ -120,6 +122,34 @@ def test_readyz_fails_when_bucket_is_missing() -> None:
         "job_queue": True,
         "activity_store": True,
         "auth_dependency": True,
+    }
+
+
+def test_readyz_fails_when_jwt_local_oidc_settings_are_incomplete() -> None:
+    """Verify jwt_local readiness fails closed without full OIDC config."""
+    container = _build_container()
+    container.settings.auth_mode = AuthMode.JWT_LOCAL
+    container.settings.oidc_issuer = "https://issuer.example/"
+    container.settings.oidc_audience = None
+    container.settings.oidc_jwks_url = None
+    container.authenticator = Authenticator(
+        settings=container.settings,
+        cache=container.cache,
+    )
+    app = create_app(container_override=container)
+
+    with TestClient(app) as client:
+        response = client.get("/v1/health/ready")
+
+    assert response.status_code == 503
+    payload = response.json()
+    assert payload["ok"] is False
+    assert payload["checks"] == {
+        "bucket_configured": True,
+        "shared_cache": True,
+        "job_queue": True,
+        "activity_store": True,
+        "auth_dependency": False,
     }
 
 

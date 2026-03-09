@@ -36,11 +36,21 @@ Parameters:
   CodeArtifactPromotionSourceRepositoryName:
     Type: String
     MinLength: 1
+    AllowedPattern: "^[a-zA-Z0-9][a-zA-Z0-9._-]{0,99}$"
+    ConstraintDescription: Must be a valid CodeArtifact repository name.
     Description: CodeArtifact source repository for staged package promotion.
   CodeArtifactPromotionDestinationRepositoryName:
     Type: String
     MinLength: 1
+    AllowedPattern: "^[a-zA-Z0-9][a-zA-Z0-9._-]{0,99}$"
+    ConstraintDescription: Must be a valid CodeArtifact repository name.
     Description: CodeArtifact destination repository for prod package promotion.
+  CodeArtifactInternalNpmScope:
+    Type: String
+    Default: nova
+    MinLength: 1
+    AllowedPattern: "^[A-Za-z0-9._-]+$"
+    ConstraintDescription: Use letters, numbers, dots, underscores, and hyphens only.
   EcrRepositoryArn:
     Type: String
     Default: ""
@@ -52,13 +62,13 @@ Parameters:
   ManualApprovalTopicArn:
     Type: String
     Default: ""
-  BatchBOperatorPrincipalArn:
+  ReleaseValidationTrustedPrincipalArn:
     Type: String
     Default: ""
     AllowedPattern: "^$|^arn:(aws|aws-us-gov|aws-cn):iam::[0-9]{12}:(role\\/[A-Za-z0-9+=,.@_\\/-]+|user\\/[A-Za-z0-9+=,.@_\\/-]+|root)$"
     ConstraintDescription: Must be empty or a valid IAM principal ARN (role, user, or root).
-    Description: IAM principal ARN allowed to assume the Batch B validation operator
-      role. Leave blank to skip creating the role.
+    Description: IAM principal ARN allowed to assume the release validation
+      read role. Leave blank to skip creating the role.
 
 Conditions:
   HasFoundationStackName: !Not [!Equals [!Ref FoundationStackName, ""]]
@@ -71,7 +81,7 @@ Conditions:
   HasResolvedManualApprovalTopicArn: !Or
     - !Condition HasManualApprovalTopicArn
     - !Condition HasFoundationStackName
-  HasBatchBOperatorPrincipalArn: !Not [!Equals [!Ref BatchBOperatorPrincipalArn, ""]]
+  HasReleaseValidationTrustedPrincipalArn: !Not [!Equals [!Ref ReleaseValidationTrustedPrincipalArn, ""]]
 
 Rules:
   RequireArtifactBucketInput:
@@ -124,116 +134,149 @@ Resources:
               StringLike:
                 token.actions.githubusercontent.com:sub:
                   - !Sub "repo:${RepositoryOwner}/${RepositoryName}:ref:refs/heads/${MainBranchName}"
-      Policies:
-        - PolicyName: release-signing-secret
-          PolicyDocument:
-            Version: "2012-10-17"
-            Statement:
-              - Effect: Allow
-                Action:
-                  - secretsmanager:GetSecretValue
-                Resource: !Ref ReleaseSigningSecretArn
-              - Effect: Allow
-                Action:
-                  - codepipeline:StartPipelineExecution
-                  - codepipeline:GetPipelineState
-                  - codepipeline:ListPipelineExecutions
-                  - codepipeline:GetPipelineExecution
-                  - codepipeline:PutApprovalResult
-                Resource:
-                  - !Sub "arn:${AWS::Partition}:codepipeline:${AWS::Region}:${AWS::AccountId}:${Project}-${Application}-*"
-              - Effect: Allow
-                Action:
-                  - codeartifact:GetAuthorizationToken
-                Resource:
-                  - !Sub
-                    - "arn:${AWS::Partition}:codeartifact:${AWS::Region}:${AWS::AccountId}:domain/${ResolvedCodeArtifactDomainName}"
-                    - ResolvedCodeArtifactDomainName: !If
-                        - HasCodeArtifactDomainName
-                        - !Ref CodeArtifactDomainName
-                        - !ImportValue
-                          Fn::Sub: "${FoundationStackName}-CodeArtifactDomainName"
-              - Effect: Allow
-                Action:
-                  - codeartifact:GetRepositoryEndpoint
-                Resource:
-                  - !Sub
-                    - "arn:${AWS::Partition}:codeartifact:${AWS::Region}:${AWS::AccountId}:repository/${ResolvedCodeArtifactDomainName}/${ResolvedCodeArtifactRepositoryName}"
-                    - ResolvedCodeArtifactDomainName: !If
-                        - HasCodeArtifactDomainName
-                        - !Ref CodeArtifactDomainName
-                        - !ImportValue
-                          Fn::Sub: "${FoundationStackName}-CodeArtifactDomainName"
-                      ResolvedCodeArtifactRepositoryName: !If
-                        - HasCodeArtifactRepositoryName
-                        - !Ref CodeArtifactRepositoryName
-                        - !ImportValue
-                          Fn::Sub: "${FoundationStackName}-CodeArtifactRepositoryName"
-              - Effect: Allow
-                Action:
-                  - codeartifact:PublishPackageVersion
-                  - codeartifact:PutPackageMetadata
-                  - codeartifact:DescribePackageVersion
-                Resource:
-                  - !Sub
-                    - "arn:${AWS::Partition}:codeartifact:${AWS::Region}:${AWS::AccountId}:package/${ResolvedCodeArtifactDomainName}/${ResolvedCodeArtifactRepositoryName}/pypi/*"
-                    - ResolvedCodeArtifactDomainName: !If
-                        - HasCodeArtifactDomainName
-                        - !Ref CodeArtifactDomainName
-                        - !ImportValue
-                          Fn::Sub: "${FoundationStackName}-CodeArtifactDomainName"
-                      ResolvedCodeArtifactRepositoryName: !If
-                        - HasCodeArtifactRepositoryName
-                        - !Ref CodeArtifactRepositoryName
-                        - !ImportValue
-                          Fn::Sub: "${FoundationStackName}-CodeArtifactRepositoryName"
-              - Effect: Allow
-                Action:
-                  - codeartifact:ReadFromRepository
-                Resource:
-                  - !Sub
-                    - "arn:${AWS::Partition}:codeartifact:${AWS::Region}:${AWS::AccountId}:repository/${ResolvedCodeArtifactDomainName}/${PromotionSourceRepositoryName}"
-                    - ResolvedCodeArtifactDomainName: !If
-                        - HasCodeArtifactDomainName
-                        - !Ref CodeArtifactDomainName
-                        - !ImportValue
-                          Fn::Sub: "${FoundationStackName}-CodeArtifactDomainName"
-                      PromotionSourceRepositoryName: !Ref CodeArtifactPromotionSourceRepositoryName
-              - Effect: Allow
-                Action:
-                  - codeartifact:CopyPackageVersions
-                Resource:
-                  - !Sub
-                    - "arn:${AWS::Partition}:codeartifact:${AWS::Region}:${AWS::AccountId}:repository/${ResolvedCodeArtifactDomainName}/${PromotionDestinationRepositoryName}"
-                    - ResolvedCodeArtifactDomainName: !If
-                        - HasCodeArtifactDomainName
-                        - !Ref CodeArtifactDomainName
-                        - !ImportValue
-                          Fn::Sub: "${FoundationStackName}-CodeArtifactDomainName"
-                      PromotionDestinationRepositoryName: !Ref CodeArtifactPromotionDestinationRepositoryName
-                  - !Sub
-                    - "arn:${AWS::Partition}:codeartifact:${AWS::Region}:${AWS::AccountId}:package/${ResolvedCodeArtifactDomainName}/${PromotionSourceRepositoryName}/pypi/*"
-                    - ResolvedCodeArtifactDomainName: !If
-                        - HasCodeArtifactDomainName
-                        - !Ref CodeArtifactDomainName
-                        - !ImportValue
-                          Fn::Sub: "${FoundationStackName}-CodeArtifactDomainName"
-                      PromotionSourceRepositoryName: !Ref CodeArtifactPromotionSourceRepositoryName
-                  - !Sub
-                    - "arn:${AWS::Partition}:codeartifact:${AWS::Region}:${AWS::AccountId}:package/${ResolvedCodeArtifactDomainName}/${PromotionDestinationRepositoryName}/pypi/*"
-                    - ResolvedCodeArtifactDomainName: !If
-                        - HasCodeArtifactDomainName
-                        - !Ref CodeArtifactDomainName
-                        - !ImportValue
-                          Fn::Sub: "${FoundationStackName}-CodeArtifactDomainName"
-                      PromotionDestinationRepositoryName: !Ref CodeArtifactPromotionDestinationRepositoryName
-              - Effect: Allow
-                Action:
-                  - sts:GetServiceBearerToken
-                Resource: "*"
-                Condition:
-                  StringEquals:
-                    sts:AWSServiceName: codeartifact.amazonaws.com
+      ManagedPolicyArns:
+        - !Ref GitHubOIDCReleaseManagedPolicy
+
+  GitHubOIDCReleaseManagedPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: !Sub ${Project}-${Application}-github-oidc-release-policy
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - secretsmanager:GetSecretValue
+            Resource: !Ref ReleaseSigningSecretArn
+          - Effect: Allow
+            Action:
+              - codepipeline:StartPipelineExecution
+              - codepipeline:GetPipelineState
+              - codepipeline:ListPipelineExecutions
+              - codepipeline:GetPipelineExecution
+              - codepipeline:PutApprovalResult
+            Resource:
+              - !Sub "arn:${AWS::Partition}:codepipeline:${AWS::Region}:${AWS::AccountId}:${Project}-${Application}-*"
+          - Effect: Allow
+            Action:
+              - codeartifact:GetAuthorizationToken
+            Resource:
+              - !Sub
+                - "arn:${AWS::Partition}:codeartifact:${AWS::Region}:${AWS::AccountId}:domain/${ResolvedCodeArtifactDomainName}"
+                - ResolvedCodeArtifactDomainName: !If
+                    - HasCodeArtifactDomainName
+                    - !Ref CodeArtifactDomainName
+                    - !ImportValue
+                      Fn::Sub: "${FoundationStackName}-CodeArtifactDomainName"
+          - Effect: Allow
+            Action:
+              - codeartifact:GetRepositoryEndpoint
+            Resource:
+              - !Sub
+                - "arn:${AWS::Partition}:codeartifact:${AWS::Region}:${AWS::AccountId}:repository/${ResolvedCodeArtifactDomainName}/${ResolvedCodeArtifactRepositoryName}"
+                - ResolvedCodeArtifactDomainName: !If
+                    - HasCodeArtifactDomainName
+                    - !Ref CodeArtifactDomainName
+                    - !ImportValue
+                      Fn::Sub: "${FoundationStackName}-CodeArtifactDomainName"
+                  ResolvedCodeArtifactRepositoryName: !If
+                    - HasCodeArtifactRepositoryName
+                    - !Ref CodeArtifactRepositoryName
+                    - !ImportValue
+                      Fn::Sub: "${FoundationStackName}-CodeArtifactRepositoryName"
+          - Effect: Allow
+            Action:
+              - codeartifact:PublishPackageVersion
+              - codeartifact:PutPackageMetadata
+              - codeartifact:DescribePackageVersion
+            Resource:
+              - !Sub
+                - "arn:${AWS::Partition}:codeartifact:${AWS::Region}:${AWS::AccountId}:package/${ResolvedCodeArtifactDomainName}/${ResolvedCodeArtifactRepositoryName}/pypi/*"
+                - ResolvedCodeArtifactDomainName: !If
+                    - HasCodeArtifactDomainName
+                    - !Ref CodeArtifactDomainName
+                    - !ImportValue
+                      Fn::Sub: "${FoundationStackName}-CodeArtifactDomainName"
+                  ResolvedCodeArtifactRepositoryName: !If
+                    - HasCodeArtifactRepositoryName
+                    - !Ref CodeArtifactRepositoryName
+                    - !ImportValue
+                      Fn::Sub: "${FoundationStackName}-CodeArtifactRepositoryName"
+              - !Sub
+                - "arn:${AWS::Partition}:codeartifact:${AWS::Region}:${AWS::AccountId}:package/${ResolvedCodeArtifactDomainName}/${ResolvedCodeArtifactRepositoryName}/npm/${CodeArtifactInternalNpmScope}/*"
+                - ResolvedCodeArtifactDomainName: !If
+                    - HasCodeArtifactDomainName
+                    - !Ref CodeArtifactDomainName
+                    - !ImportValue
+                      Fn::Sub: "${FoundationStackName}-CodeArtifactDomainName"
+                  ResolvedCodeArtifactRepositoryName: !If
+                    - HasCodeArtifactRepositoryName
+                    - !Ref CodeArtifactRepositoryName
+                    - !ImportValue
+                      Fn::Sub: "${FoundationStackName}-CodeArtifactRepositoryName"
+          - Effect: Allow
+            Action:
+              - codeartifact:ReadFromRepository
+            Resource:
+              - !Sub
+                - "arn:${AWS::Partition}:codeartifact:${AWS::Region}:${AWS::AccountId}:repository/${ResolvedCodeArtifactDomainName}/${PromotionSourceRepositoryName}"
+                - ResolvedCodeArtifactDomainName: !If
+                    - HasCodeArtifactDomainName
+                    - !Ref CodeArtifactDomainName
+                    - !ImportValue
+                      Fn::Sub: "${FoundationStackName}-CodeArtifactDomainName"
+                  PromotionSourceRepositoryName: !Ref CodeArtifactPromotionSourceRepositoryName
+          - Effect: Allow
+            Action:
+              - codeartifact:CopyPackageVersions
+            Resource:
+              - !Sub
+                - "arn:${AWS::Partition}:codeartifact:${AWS::Region}:${AWS::AccountId}:repository/${ResolvedCodeArtifactDomainName}/${PromotionDestinationRepositoryName}"
+                - ResolvedCodeArtifactDomainName: !If
+                    - HasCodeArtifactDomainName
+                    - !Ref CodeArtifactDomainName
+                    - !ImportValue
+                      Fn::Sub: "${FoundationStackName}-CodeArtifactDomainName"
+                  PromotionDestinationRepositoryName: !Ref CodeArtifactPromotionDestinationRepositoryName
+              - !Sub
+                - "arn:${AWS::Partition}:codeartifact:${AWS::Region}:${AWS::AccountId}:package/${ResolvedCodeArtifactDomainName}/${PromotionSourceRepositoryName}/pypi/*"
+                - ResolvedCodeArtifactDomainName: !If
+                    - HasCodeArtifactDomainName
+                    - !Ref CodeArtifactDomainName
+                    - !ImportValue
+                      Fn::Sub: "${FoundationStackName}-CodeArtifactDomainName"
+                  PromotionSourceRepositoryName: !Ref CodeArtifactPromotionSourceRepositoryName
+              - !Sub
+                - "arn:${AWS::Partition}:codeartifact:${AWS::Region}:${AWS::AccountId}:package/${ResolvedCodeArtifactDomainName}/${PromotionSourceRepositoryName}/npm/${CodeArtifactInternalNpmScope}/*"
+                - ResolvedCodeArtifactDomainName: !If
+                    - HasCodeArtifactDomainName
+                    - !Ref CodeArtifactDomainName
+                    - !ImportValue
+                      Fn::Sub: "${FoundationStackName}-CodeArtifactDomainName"
+                  PromotionSourceRepositoryName: !Ref CodeArtifactPromotionSourceRepositoryName
+              - !Sub
+                - "arn:${AWS::Partition}:codeartifact:${AWS::Region}:${AWS::AccountId}:package/${ResolvedCodeArtifactDomainName}/${PromotionDestinationRepositoryName}/pypi/*"
+                - ResolvedCodeArtifactDomainName: !If
+                    - HasCodeArtifactDomainName
+                    - !Ref CodeArtifactDomainName
+                    - !ImportValue
+                      Fn::Sub: "${FoundationStackName}-CodeArtifactDomainName"
+                  PromotionDestinationRepositoryName: !Ref CodeArtifactPromotionDestinationRepositoryName
+              - !Sub
+                - "arn:${AWS::Partition}:codeartifact:${AWS::Region}:${AWS::AccountId}:package/${ResolvedCodeArtifactDomainName}/${PromotionDestinationRepositoryName}/npm/${CodeArtifactInternalNpmScope}/*"
+                - ResolvedCodeArtifactDomainName: !If
+                    - HasCodeArtifactDomainName
+                    - !Ref CodeArtifactDomainName
+                    - !ImportValue
+                      Fn::Sub: "${FoundationStackName}-CodeArtifactDomainName"
+                  PromotionDestinationRepositoryName: !Ref CodeArtifactPromotionDestinationRepositoryName
+          - Effect: Allow
+            Action:
+              - sts:GetServiceBearerToken
+            Resource: "*"
+            Condition:
+              StringEquals:
+                sts:AWSServiceName: codeartifact.amazonaws.com
 
   CodePipelineServiceRole:
     Type: AWS::IAM::Role
@@ -246,82 +289,87 @@ Resources:
             Principal:
               Service: codepipeline.amazonaws.com
             Action: sts:AssumeRole
-      Policies:
-        - PolicyName: pipeline-execution
-          PolicyDocument:
-            Version: "2012-10-17"
-            Statement:
-              - Effect: Allow
-                Action:
-                  - s3:GetObject
-                  - s3:GetObjectVersion
-                  - s3:PutObject
-                Resource:
-                  - !Sub
-                    - arn:${AWS::Partition}:s3:::${ResolvedArtifactBucketName}/*
-                    - ResolvedArtifactBucketName: !If
-                        - HasArtifactBucketName
-                        - !Ref ArtifactBucketName
-                        - !ImportValue
-                          Fn::Sub: "${FoundationStackName}-ArtifactBucketName"
-              - Effect: Allow
-                Action:
-                  - s3:ListBucket
-                Resource:
-                  - !Sub
-                    - arn:${AWS::Partition}:s3:::${ResolvedArtifactBucketName}
-                    - ResolvedArtifactBucketName: !If
-                        - HasArtifactBucketName
-                        - !Ref ArtifactBucketName
-                        - !ImportValue
-                          Fn::Sub: "${FoundationStackName}-ArtifactBucketName"
-              - Effect: Allow
-                Action:
-                  - codebuild:StartBuild
-                  - codebuild:BatchGetBuilds
-                Resource:
-                  - !Sub "arn:${AWS::Partition}:codebuild:${AWS::Region}:${AWS::AccountId}:project/${Project}-${Application}-*"
-              - Effect: Allow
-                Action:
-                  - cloudformation:CreateStack
-                  - cloudformation:CreateChangeSet
-                  - cloudformation:UpdateStack
-                  - cloudformation:DeleteChangeSet
-                  - cloudformation:DescribeChangeSet
-                  - cloudformation:DescribeStacks
-                  - cloudformation:ExecuteChangeSet
-                Resource:
-                  - !Sub "arn:${AWS::Partition}:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${Project}-${Application}-nova-*"
-              - !If
-                - HasResolvedManualApprovalTopicArn
-                - Effect: Allow
-                  Action:
-                    - sns:Publish
-                  Resource: !If
-                    - HasManualApprovalTopicArn
-                    - !Ref ManualApprovalTopicArn
+      ManagedPolicyArns:
+        - !Ref CodePipelineServiceManagedPolicy
+
+  CodePipelineServiceManagedPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: !Sub ${Project}-${Application}-nova-codepipeline-policy
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - s3:GetObject
+              - s3:GetObjectVersion
+              - s3:PutObject
+            Resource:
+              - !Sub
+                - arn:${AWS::Partition}:s3:::${ResolvedArtifactBucketName}/*
+                - ResolvedArtifactBucketName: !If
+                    - HasArtifactBucketName
+                    - !Ref ArtifactBucketName
                     - !ImportValue
-                      Fn::Sub: "${FoundationStackName}-ManualApprovalTopicArn"
-                - !Ref AWS::NoValue
-              - Effect: Allow
-                Action:
-                  - iam:PassRole
-                Resource:
-                  - !GetAtt CloudFormationExecutionRoleDev.Arn
-                  - !GetAtt CloudFormationExecutionRoleProd.Arn
-                Condition:
-                  StringEquals:
-                    iam:PassedToService:
-                      - cloudformation.amazonaws.com
-              - Effect: Allow
-                Action:
-                  - codestar-connections:UseConnection
-                  - codeconnections:UseConnection
-                Resource: !If
-                  - HasExistingConnectionArn
-                  - !Ref ExistingConnectionArn
-                  - - !Sub "arn:${AWS::Partition}:codestar-connections:${AWS::Region}:${AWS::AccountId}:connection/*"
-                    - !Sub "arn:${AWS::Partition}:codeconnections:${AWS::Region}:${AWS::AccountId}:connection/*"
+                      Fn::Sub: "${FoundationStackName}-ArtifactBucketName"
+          - Effect: Allow
+            Action:
+              - s3:ListBucket
+            Resource:
+              - !Sub
+                - arn:${AWS::Partition}:s3:::${ResolvedArtifactBucketName}
+                - ResolvedArtifactBucketName: !If
+                    - HasArtifactBucketName
+                    - !Ref ArtifactBucketName
+                    - !ImportValue
+                      Fn::Sub: "${FoundationStackName}-ArtifactBucketName"
+          - Effect: Allow
+            Action:
+              - codebuild:StartBuild
+              - codebuild:BatchGetBuilds
+            Resource:
+              - !Sub "arn:${AWS::Partition}:codebuild:${AWS::Region}:${AWS::AccountId}:project/${Project}-${Application}-*"
+          - Effect: Allow
+            Action:
+              - cloudformation:CreateStack
+              - cloudformation:CreateChangeSet
+              - cloudformation:UpdateStack
+              - cloudformation:DeleteChangeSet
+              - cloudformation:DescribeChangeSet
+              - cloudformation:DescribeStacks
+              - cloudformation:ExecuteChangeSet
+            Resource:
+              - !Sub "arn:${AWS::Partition}:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${Project}-${Application}-nova-*"
+          - !If
+            - HasResolvedManualApprovalTopicArn
+            - Effect: Allow
+              Action:
+                - sns:Publish
+              Resource: !If
+                - HasManualApprovalTopicArn
+                - !Ref ManualApprovalTopicArn
+                - !ImportValue
+                  Fn::Sub: "${FoundationStackName}-ManualApprovalTopicArn"
+            - !Ref AWS::NoValue
+          - Effect: Allow
+            Action:
+              - iam:PassRole
+            Resource:
+              - !GetAtt CloudFormationExecutionRoleDev.Arn
+              - !GetAtt CloudFormationExecutionRoleProd.Arn
+            Condition:
+              StringEquals:
+                iam:PassedToService:
+                  - cloudformation.amazonaws.com
+          - Effect: Allow
+            Action:
+              - codestar-connections:UseConnection
+              - codeconnections:UseConnection
+            Resource: !If
+              - HasExistingConnectionArn
+              - !Ref ExistingConnectionArn
+              - - !Sub "arn:${AWS::Partition}:codestar-connections:${AWS::Region}:${AWS::AccountId}:connection/*"
+                - !Sub "arn:${AWS::Partition}:codeconnections:${AWS::Region}:${AWS::AccountId}:connection/*"
 
   CodeBuildReleaseRole:
     Type: AWS::IAM::Role
@@ -334,144 +382,159 @@ Resources:
             Principal:
               Service: codebuild.amazonaws.com
             Action: sts:AssumeRole
-      Policies:
-        - PolicyName: release-build
-          PolicyDocument:
-            Version: "2012-10-17"
-            Statement:
-              - Effect: Allow
-                Action:
-                  - logs:CreateLogGroup
-                  - logs:CreateLogStream
-                  - logs:PutLogEvents
-                Resource:
-                  - !Sub "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/*"
-              - Effect: Allow
-                Action:
-                  - s3:GetObject
-                  - s3:GetObjectVersion
-                  - s3:PutObject
-                Resource:
-                  - !Sub
-                    - arn:${AWS::Partition}:s3:::${ResolvedArtifactBucketName}/*
-                    - ResolvedArtifactBucketName: !If
-                        - HasArtifactBucketName
-                        - !Ref ArtifactBucketName
-                        - !ImportValue
-                          Fn::Sub: "${FoundationStackName}-ArtifactBucketName"
-              - Effect: Allow
-                Action:
-                  - s3:ListBucket
-                Resource:
-                  - !Sub
-                    - arn:${AWS::Partition}:s3:::${ResolvedArtifactBucketName}
-                    - ResolvedArtifactBucketName: !If
-                        - HasArtifactBucketName
-                        - !Ref ArtifactBucketName
-                        - !ImportValue
-                          Fn::Sub: "${FoundationStackName}-ArtifactBucketName"
-              - Effect: Allow
-                Action:
-                  - ecr:BatchCheckLayerAvailability
-                  - ecr:BatchGetImage
-                  - ecr:DescribeImages
-                  - ecr:CompleteLayerUpload
-                  - ecr:InitiateLayerUpload
-                  - ecr:PutImage
-                  - ecr:UploadLayerPart
-                Resource:
-                  - !If
-                    - HasEcrRepositoryArn
-                    - !Ref EcrRepositoryArn
-                    - !ImportValue
-                      Fn::Sub: "${FoundationStackName}-EcrRepositoryArn"
-              - Effect: Allow
-                Action:
-                  - ecr:GetAuthorizationToken
-                Resource: "*"
-              - Effect: Allow
-                Action:
-                  - codeartifact:GetAuthorizationToken
-                Resource:
-                  - !Sub
-                    - "arn:${AWS::Partition}:codeartifact:${AWS::Region}:${AWS::AccountId}:domain/${ResolvedCodeArtifactDomainName}"
-                    - ResolvedCodeArtifactDomainName: !If
-                        - HasCodeArtifactDomainName
-                        - !Ref CodeArtifactDomainName
-                        - !ImportValue
-                          Fn::Sub: "${FoundationStackName}-CodeArtifactDomainName"
-              - Effect: Allow
-                Action:
-                  - codeartifact:ReadFromRepository
-                  - codeartifact:GetRepositoryEndpoint
-                Resource:
-                  - !Sub
-                    - "arn:${AWS::Partition}:codeartifact:${AWS::Region}:${AWS::AccountId}:repository/${ResolvedCodeArtifactDomainName}/${ResolvedCodeArtifactRepositoryName}"
-                    - ResolvedCodeArtifactDomainName: !If
-                        - HasCodeArtifactDomainName
-                        - !Ref CodeArtifactDomainName
-                        - !ImportValue
-                          Fn::Sub: "${FoundationStackName}-CodeArtifactDomainName"
-                      ResolvedCodeArtifactRepositoryName: !If
-                        - HasCodeArtifactRepositoryName
-                        - !Ref CodeArtifactRepositoryName
-                        - !ImportValue
-                          Fn::Sub: "${FoundationStackName}-CodeArtifactRepositoryName"
-              - Effect: Allow
-                Action:
-                  - codeartifact:PublishPackageVersion
-                  - codeartifact:PutPackageMetadata
-                  - codeartifact:DescribePackageVersion
-                Resource:
-                  - !Sub
-                    - "arn:${AWS::Partition}:codeartifact:${AWS::Region}:${AWS::AccountId}:package/${ResolvedCodeArtifactDomainName}/${ResolvedCodeArtifactRepositoryName}/pypi/*"
-                    - ResolvedCodeArtifactDomainName: !If
-                        - HasCodeArtifactDomainName
-                        - !Ref CodeArtifactDomainName
-                        - !ImportValue
-                          Fn::Sub: "${FoundationStackName}-CodeArtifactDomainName"
-                      ResolvedCodeArtifactRepositoryName: !If
-                        - HasCodeArtifactRepositoryName
-                        - !Ref CodeArtifactRepositoryName
-                        - !ImportValue
-                          Fn::Sub: "${FoundationStackName}-CodeArtifactRepositoryName"
-              - Effect: Allow
-                Action:
-                  - codeartifact:PutPackageOriginConfiguration
-                Resource:
-                  - !Sub
-                    - "arn:${AWS::Partition}:codeartifact:${AWS::Region}:${AWS::AccountId}:package-group/${ResolvedCodeArtifactDomainName}/${ResolvedCodeArtifactRepositoryName}/*"
-                    - ResolvedCodeArtifactDomainName: !If
-                        - HasCodeArtifactDomainName
-                        - !Ref CodeArtifactDomainName
-                        - !ImportValue
-                          Fn::Sub: "${FoundationStackName}-CodeArtifactDomainName"
-                      ResolvedCodeArtifactRepositoryName: !If
-                        - HasCodeArtifactRepositoryName
-                        - !Ref CodeArtifactRepositoryName
-                        - !ImportValue
-                          Fn::Sub: "${FoundationStackName}-CodeArtifactRepositoryName"
-              - Effect: Allow
-                Action:
-                  - sts:GetServiceBearerToken
-                Resource: "*"
-                Condition:
-                  StringEquals:
-                    sts:AWSServiceName: codeartifact.amazonaws.com
+      ManagedPolicyArns:
+        - !Ref CodeBuildReleaseManagedPolicy
 
-  CodeDeployEcsServiceRole:
+  CodeBuildReleaseManagedPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: !Sub ${Project}-${Application}-nova-codebuild-release-policy
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Resource:
+              - !Sub "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/*"
+          - Effect: Allow
+            Action:
+              - s3:GetObject
+              - s3:GetObjectVersion
+              - s3:PutObject
+            Resource:
+              - !Sub
+                - arn:${AWS::Partition}:s3:::${ResolvedArtifactBucketName}/*
+                - ResolvedArtifactBucketName: !If
+                    - HasArtifactBucketName
+                    - !Ref ArtifactBucketName
+                    - !ImportValue
+                      Fn::Sub: "${FoundationStackName}-ArtifactBucketName"
+          - Effect: Allow
+            Action:
+              - s3:ListBucket
+            Resource:
+              - !Sub
+                - arn:${AWS::Partition}:s3:::${ResolvedArtifactBucketName}
+                - ResolvedArtifactBucketName: !If
+                    - HasArtifactBucketName
+                    - !Ref ArtifactBucketName
+                    - !ImportValue
+                      Fn::Sub: "${FoundationStackName}-ArtifactBucketName"
+          - Effect: Allow
+            Action:
+              - ecr:BatchCheckLayerAvailability
+              - ecr:BatchGetImage
+              - ecr:DescribeImages
+              - ecr:CompleteLayerUpload
+              - ecr:InitiateLayerUpload
+              - ecr:PutImage
+              - ecr:UploadLayerPart
+            Resource:
+              - !If
+                - HasEcrRepositoryArn
+                - !Ref EcrRepositoryArn
+                - !ImportValue
+                  Fn::Sub: "${FoundationStackName}-EcrRepositoryArn"
+          - Effect: Allow
+            Action:
+              - ecr:GetAuthorizationToken
+            Resource: "*"
+          - Effect: Allow
+            Action:
+              - codeartifact:GetAuthorizationToken
+            Resource:
+              - !Sub
+                - "arn:${AWS::Partition}:codeartifact:${AWS::Region}:${AWS::AccountId}:domain/${ResolvedCodeArtifactDomainName}"
+                - ResolvedCodeArtifactDomainName: !If
+                    - HasCodeArtifactDomainName
+                    - !Ref CodeArtifactDomainName
+                    - !ImportValue
+                      Fn::Sub: "${FoundationStackName}-CodeArtifactDomainName"
+          - Effect: Allow
+            Action:
+              - codeartifact:ReadFromRepository
+              - codeartifact:GetRepositoryEndpoint
+            Resource:
+              - !Sub
+                - "arn:${AWS::Partition}:codeartifact:${AWS::Region}:${AWS::AccountId}:repository/${ResolvedCodeArtifactDomainName}/${ResolvedCodeArtifactRepositoryName}"
+                - ResolvedCodeArtifactDomainName: !If
+                    - HasCodeArtifactDomainName
+                    - !Ref CodeArtifactDomainName
+                    - !ImportValue
+                      Fn::Sub: "${FoundationStackName}-CodeArtifactDomainName"
+                  ResolvedCodeArtifactRepositoryName: !If
+                    - HasCodeArtifactRepositoryName
+                    - !Ref CodeArtifactRepositoryName
+                    - !ImportValue
+                      Fn::Sub: "${FoundationStackName}-CodeArtifactRepositoryName"
+          - Effect: Allow
+            Action:
+              - codeartifact:PublishPackageVersion
+              - codeartifact:PutPackageMetadata
+              - codeartifact:DescribePackageVersion
+            Resource:
+              - !Sub
+                - "arn:${AWS::Partition}:codeartifact:${AWS::Region}:${AWS::AccountId}:package/${ResolvedCodeArtifactDomainName}/${ResolvedCodeArtifactRepositoryName}/pypi/*"
+                - ResolvedCodeArtifactDomainName: !If
+                    - HasCodeArtifactDomainName
+                    - !Ref CodeArtifactDomainName
+                    - !ImportValue
+                      Fn::Sub: "${FoundationStackName}-CodeArtifactDomainName"
+                  ResolvedCodeArtifactRepositoryName: !If
+                    - HasCodeArtifactRepositoryName
+                    - !Ref CodeArtifactRepositoryName
+                    - !ImportValue
+                      Fn::Sub: "${FoundationStackName}-CodeArtifactRepositoryName"
+              - !Sub
+                - "arn:${AWS::Partition}:codeartifact:${AWS::Region}:${AWS::AccountId}:package/${ResolvedCodeArtifactDomainName}/${ResolvedCodeArtifactRepositoryName}/npm/${CodeArtifactInternalNpmScope}/*"
+                - ResolvedCodeArtifactDomainName: !If
+                    - HasCodeArtifactDomainName
+                    - !Ref CodeArtifactDomainName
+                    - !ImportValue
+                      Fn::Sub: "${FoundationStackName}-CodeArtifactDomainName"
+                  ResolvedCodeArtifactRepositoryName: !If
+                    - HasCodeArtifactRepositoryName
+                    - !Ref CodeArtifactRepositoryName
+                    - !ImportValue
+                      Fn::Sub: "${FoundationStackName}-CodeArtifactRepositoryName"
+          - Effect: Allow
+            Action:
+              - codeartifact:CreatePackageGroup
+              - codeartifact:DescribePackageGroup
+              - codeartifact:UpdatePackageGroup
+              - codeartifact:UpdatePackageGroupOriginConfiguration
+            Resource:
+              - !Sub
+                - "arn:${AWS::Partition}:codeartifact:${AWS::Region}:${AWS::AccountId}:package-group/${ResolvedCodeArtifactDomainName}/*"
+                - ResolvedCodeArtifactDomainName: !If
+                    - HasCodeArtifactDomainName
+                    - !Ref CodeArtifactDomainName
+                    - !ImportValue
+                      Fn::Sub: "${FoundationStackName}-CodeArtifactDomainName"
+          - Effect: Allow
+            Action:
+              - sts:GetServiceBearerToken
+            Resource: "*"
+            Condition:
+              StringEquals:
+                sts:AWSServiceName: codeartifact.amazonaws.com
+
+  EcsInfrastructureRoleForLoadBalancers:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: !Sub ${Project}-${Application}-codedeploy-ecs-service-role
+      RoleName: !Sub ${Project}-${Application}-ecs-lb-infra-role
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
           - Effect: Allow
             Principal:
-              Service: codedeploy.amazonaws.com
+              Service: ecs.amazonaws.com
             Action: sts:AssumeRole
       ManagedPolicyArns:
-        - !Sub arn:${AWS::Partition}:iam::aws:policy/AWSCodeDeployRoleForECS
+        - !Sub arn:${AWS::Partition}:iam::aws:policy/AmazonECSInfrastructureRolePolicyForLoadBalancers
 
   CloudFormationExecutionRoleDev:
     Type: AWS::IAM::Role
@@ -484,55 +547,65 @@ Resources:
             Principal:
               Service: cloudformation.amazonaws.com
             Action: sts:AssumeRole
-      Policies:
-        - PolicyName: cloudformation-dev-deploy
-          PolicyDocument:
-            Version: "2012-10-17"
-            Statement:
-              - Effect: Allow
-                Action:
-                  - ecs:DescribeServices
-                  - ecs:DescribeTaskDefinition
-                Resource: "*"
-              - Effect: Allow
-                Action:
-                  - ecs:RegisterTaskDefinition
-                  - ecs:TagResource
-                  - ecs:UntagResource
-                Resource:
-                  - !Sub "arn:${AWS::Partition}:ecs:${AWS::Region}:${AWS::AccountId}:task-definition/*"
-              - Effect: Allow
-                Action:
-                  - ecs:UpdateService
-                Resource:
-                  - !Sub "arn:${AWS::Partition}:ecs:${AWS::Region}:${AWS::AccountId}:service/*"
-              - Effect: Allow
-                Action:
-                  - ssm:PutParameter
-                  - ssm:DeleteParameter
-                  - ssm:AddTagsToResource
-                  - ssm:RemoveTagsFromResource
-                Resource:
-                  - !Sub "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/nova/dev/*/image-digest"
-              - Effect: Allow
-                Action:
-                  - iam:PassRole
-                Resource:
-                  - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/${Project}-${Application}-*-ecs-task-${AWS::Region}"
-                  - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/${Project}-${Application}-*-ecs-task-execution-${AWS::Region}"
-                Condition:
-                  StringEquals:
-                    iam:PassedToService:
-                      - ecs-tasks.amazonaws.com
-              - Effect: Allow
-                Action:
-                  - iam:PassRole
-                Resource:
-                  - !GetAtt CodeDeployEcsServiceRole.Arn
-                Condition:
-                  StringEquals:
-                    iam:PassedToService:
-                      - codedeploy.amazonaws.com
+      ManagedPolicyArns:
+        - !Ref CloudFormationExecutionRoleDevManagedPolicy
+
+  CloudFormationExecutionRoleDevManagedPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: !Sub ${Project}-${Application}-nova-cfn-dev-policy
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - ecs:DescribeServices
+            Resource:
+              - !Sub "arn:${AWS::Partition}:ecs:${AWS::Region}:${AWS::AccountId}:service/*"
+          - Effect: Allow
+            Action:
+              - ecs:DescribeTaskDefinition
+            Resource:
+              - !Sub "arn:${AWS::Partition}:ecs:${AWS::Region}:${AWS::AccountId}:task-definition/*"
+          - Effect: Allow
+            Action:
+              - ecs:RegisterTaskDefinition
+              - ecs:TagResource
+              - ecs:UntagResource
+            Resource:
+              - !Sub "arn:${AWS::Partition}:ecs:${AWS::Region}:${AWS::AccountId}:task-definition/*"
+          - Effect: Allow
+            Action:
+              - ecs:UpdateService
+            Resource:
+              - !Sub "arn:${AWS::Partition}:ecs:${AWS::Region}:${AWS::AccountId}:service/*"
+          - Effect: Allow
+            Action:
+              - ssm:PutParameter
+              - ssm:DeleteParameter
+              - ssm:AddTagsToResource
+              - ssm:RemoveTagsFromResource
+            Resource:
+              - !Sub "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/nova/dev/*/image-digest"
+          - Effect: Allow
+            Action:
+              - iam:PassRole
+            Resource:
+              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/${Project}-${Application}-*-ecs-task-${AWS::Region}"
+              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/${Project}-${Application}-*-ecs-task-execution-${AWS::Region}"
+            Condition:
+              StringEquals:
+                iam:PassedToService:
+                  - ecs-tasks.amazonaws.com
+          - Effect: Allow
+            Action:
+              - iam:PassRole
+            Resource:
+              - !GetAtt EcsInfrastructureRoleForLoadBalancers.Arn
+            Condition:
+              StringEquals:
+                iam:PassedToService:
+                  - ecs.amazonaws.com
 
   CloudFormationExecutionRoleProd:
     Type: AWS::IAM::Role
@@ -545,134 +618,180 @@ Resources:
             Principal:
               Service: cloudformation.amazonaws.com
             Action: sts:AssumeRole
-      Policies:
-        - PolicyName: cloudformation-prod-deploy
-          PolicyDocument:
-            Version: "2012-10-17"
-            Statement:
-              - Effect: Allow
-                Action:
-                  - ecs:DescribeServices
-                  - ecs:DescribeTaskDefinition
-                Resource: "*"
-              - Effect: Allow
-                Action:
-                  - ecs:RegisterTaskDefinition
-                  - ecs:TagResource
-                  - ecs:UntagResource
-                Resource:
-                  - !Sub "arn:${AWS::Partition}:ecs:${AWS::Region}:${AWS::AccountId}:task-definition/*"
-              - Effect: Allow
-                Action:
-                  - ecs:UpdateService
-                Resource:
-                  - !Sub "arn:${AWS::Partition}:ecs:${AWS::Region}:${AWS::AccountId}:service/*"
-              - Effect: Allow
-                Action:
-                  - ssm:PutParameter
-                  - ssm:DeleteParameter
-                  - ssm:AddTagsToResource
-                  - ssm:RemoveTagsFromResource
-                Resource:
-                  - !Sub "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/nova/prod/*/image-digest"
-              - Effect: Allow
-                Action:
-                  - iam:PassRole
-                Resource:
-                  - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/${Project}-${Application}-*-ecs-task-${AWS::Region}"
-                  - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/${Project}-${Application}-*-ecs-task-execution-${AWS::Region}"
-                Condition:
-                  StringEquals:
-                    iam:PassedToService:
-                      - ecs-tasks.amazonaws.com
-              - Effect: Allow
-                Action:
-                  - iam:PassRole
-                Resource:
-                  - !GetAtt CodeDeployEcsServiceRole.Arn
-                Condition:
-                  StringEquals:
-                    iam:PassedToService:
-                      - codedeploy.amazonaws.com
+      ManagedPolicyArns:
+        - !Ref CloudFormationExecutionRoleProdManagedPolicy
 
-
-  BatchBValidationOperatorRole:
-    Type: AWS::IAM::Role
-    Condition: HasBatchBOperatorPrincipalArn
+  CloudFormationExecutionRoleProdManagedPolicy:
+    Type: AWS::IAM::ManagedPolicy
     Properties:
-      RoleName: !Sub ${Project}-${Application}-batch-b-validation-operator-role
+      ManagedPolicyName: !Sub ${Project}-${Application}-nova-cfn-prod-policy
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - ecs:DescribeServices
+            Resource:
+              - !Sub "arn:${AWS::Partition}:ecs:${AWS::Region}:${AWS::AccountId}:service/*"
+          - Effect: Allow
+            Action:
+              - ecs:DescribeTaskDefinition
+            Resource:
+              - !Sub "arn:${AWS::Partition}:ecs:${AWS::Region}:${AWS::AccountId}:task-definition/*"
+          - Effect: Allow
+            Action:
+              - ecs:RegisterTaskDefinition
+              - ecs:TagResource
+              - ecs:UntagResource
+            Resource:
+              - !Sub "arn:${AWS::Partition}:ecs:${AWS::Region}:${AWS::AccountId}:task-definition/*"
+          - Effect: Allow
+            Action:
+              - ecs:UpdateService
+            Resource:
+              - !Sub "arn:${AWS::Partition}:ecs:${AWS::Region}:${AWS::AccountId}:service/*"
+          - Effect: Allow
+            Action:
+              - ssm:PutParameter
+              - ssm:DeleteParameter
+              - ssm:AddTagsToResource
+              - ssm:RemoveTagsFromResource
+            Resource:
+              - !Sub "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/nova/prod/*/image-digest"
+          - Effect: Allow
+            Action:
+              - iam:PassRole
+            Resource:
+              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/${Project}-${Application}-*-ecs-task-${AWS::Region}"
+              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/${Project}-${Application}-*-ecs-task-execution-${AWS::Region}"
+            Condition:
+              StringEquals:
+                iam:PassedToService:
+                  - ecs-tasks.amazonaws.com
+          - Effect: Allow
+            Action:
+              - iam:PassRole
+            Resource:
+              - !GetAtt EcsInfrastructureRoleForLoadBalancers.Arn
+            Condition:
+              StringEquals:
+                iam:PassedToService:
+                  - ecs.amazonaws.com
+
+
+  ReleaseValidationReadRole:
+    Type: AWS::IAM::Role
+    Condition: HasReleaseValidationTrustedPrincipalArn
+    Properties:
+      RoleName: !Sub ${Project}-${Application}-release-validation-read-role
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
           - Effect: Allow
             Principal:
-              AWS: !Ref BatchBOperatorPrincipalArn
+              AWS: !Ref ReleaseValidationTrustedPrincipalArn
             Action: sts:AssumeRole
-      Policies:
-        - PolicyName: batch-b-validation-read
-          PolicyDocument:
-            Version: "2012-10-17"
-            Statement:
-              - Sid: CodeConnectionsRead
-                Effect: Allow
-                Action:
-                  - codeconnections:GetConnection
-                Resource: !If
-                  - HasExistingConnectionArn
-                  - !Ref ExistingConnectionArn
-                  - - !Sub "arn:${AWS::Partition}:codeconnections:${AWS::Region}:${AWS::AccountId}:connection/*"
-                    - !Sub "arn:${AWS::Partition}:codestar-connections:${AWS::Region}:${AWS::AccountId}:connection/*"
-              - Sid: CodePipelineGlobalList
-                Effect: Allow
-                Action:
-                  - codepipeline:ListPipelines
-                Resource: "*"
-              - Sid: CodePipelineScopedRead
-                Effect: Allow
-                Action:
-                  - codepipeline:ListPipelineExecutions
-                  - codepipeline:ListActionExecutions
-                  - codepipeline:GetPipeline
-                  - codepipeline:GetPipelineState
-                  - codepipeline:GetPipelineExecution
-                Resource:
-                  - !Sub "arn:${AWS::Partition}:codepipeline:${AWS::Region}:${AWS::AccountId}:${Project}-${Application}-*"
-              - Sid: CodeDeployApplicationsList
-                Effect: Allow
-                Action:
-                  - codedeploy:ListApplications
-                  - codedeploy:ListDeploymentGroups
-                  - codedeploy:ListDeployments
-                Resource: "*"
-              - Sid: CodeDeployScopedReads
-                Effect: Allow
-                Action:
-                  - codedeploy:GetApplication
-                  - codedeploy:GetDeploymentGroup
-                  - codedeploy:GetDeployment
-                Resource:
-                  - !Sub "arn:${AWS::Partition}:codedeploy:${AWS::Region}:${AWS::AccountId}:application:${Project}-${Application}-*"
-                  - !Sub "arn:${AWS::Partition}:codedeploy:${AWS::Region}:${AWS::AccountId}:deploymentgroup:${Project}-${Application}-*/*"
-                  - !Sub "arn:${AWS::Partition}:codedeploy:${AWS::Region}:${AWS::AccountId}:deployment:*"
-              - Sid: ValidationRuntimeReads
-                Effect: Allow
-                Action:
-                  - cloudformation:DescribeStacks
-                  - ecs:DescribeClusters
-                  - ecs:DescribeServices
-                  - ecs:DescribeTaskDefinition
-                  - ecs:ListClusters
-                  - ecs:ListServices
-                  - elasticloadbalancing:DescribeListeners
-                  - elasticloadbalancing:DescribeRules
-                  - elasticloadbalancing:DescribeTargetHealth
-                  - elasticloadbalancing:DescribeTargetGroups
-                  - elasticloadbalancing:DescribeLoadBalancers
-                  - cloudwatch:GetDashboard
-                  - cloudwatch:DescribeAlarms
-                  - cloudwatch:GetMetricData
-                  - cloudwatch:ListDashboards
-                Resource: "*"
+
+  ReleaseValidationReadManagedPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Condition: HasReleaseValidationTrustedPrincipalArn
+    Properties:
+      ManagedPolicyName: !Sub ${Project}-${Application}-release-validation-read
+      Roles:
+        - !Ref ReleaseValidationReadRole
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: CodeConnectionsRead
+            Effect: Allow
+            Action:
+              - codestar-connections:GetConnection
+              - codeconnections:GetConnection
+            Resource: !If
+              - HasExistingConnectionArn
+              - !Ref ExistingConnectionArn
+              - - !Sub "arn:${AWS::Partition}:codeconnections:${AWS::Region}:${AWS::AccountId}:connection/*"
+                - !Sub "arn:${AWS::Partition}:codestar-connections:${AWS::Region}:${AWS::AccountId}:connection/*"
+          - Sid: ValidationCodeArtifactRead
+            Effect: Allow
+            Action:
+              - codeartifact:GetRepositoryEndpoint
+              - codeartifact:ReadFromRepository
+              - codeartifact:GetPackageVersionReadme
+              - codeartifact:DescribeDomain
+              - codeartifact:DescribePackage
+              - codeartifact:DescribePackageVersion
+              - codeartifact:DescribeRepository
+              - codeartifact:ListPackageVersions
+              - codeartifact:ListPackages
+              - codeartifact:ListRepositoriesInDomain
+            Resource: "*"
+          - Sid: CodePipelineGlobalList
+            Effect: Allow
+            Action:
+              - codepipeline:ListPipelines
+            Resource: "*"
+          - Sid: CodePipelineScopedRead
+            Effect: Allow
+            Action:
+              - codepipeline:ListPipelineExecutions
+              - codepipeline:ListActionExecutions
+              - codepipeline:GetPipeline
+              - codepipeline:GetPipelineState
+              - codepipeline:GetPipelineExecution
+            Resource:
+              - !Sub "arn:${AWS::Partition}:codepipeline:${AWS::Region}:${AWS::AccountId}:${Project}-${Application}-*"
+          - Sid: ValidationRuntimeStackRead
+            Effect: Allow
+            Action:
+              - cloudformation:DescribeStacks
+            Resource:
+              - !Sub "arn:${AWS::Partition}:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${Project}-*/*"
+          - Sid: ValidationRuntimeEcsListRead
+            Effect: Allow
+            Action:
+              - ecs:DescribeClusters
+              - ecs:ListClusters
+              - ecs:ListServices
+            Resource: "*"
+          - Sid: ValidationRuntimeServiceRead
+            Effect: Allow
+            Action:
+              - ecs:DescribeServices
+            Resource:
+              - !Sub "arn:${AWS::Partition}:ecs:${AWS::Region}:${AWS::AccountId}:service/*"
+          - Sid: ValidationRuntimeTaskDefinitionRead
+            Effect: Allow
+            Action:
+              - ecs:DescribeTaskDefinition
+            Resource:
+              - !Sub "arn:${AWS::Partition}:ecs:${AWS::Region}:${AWS::AccountId}:task-definition/*"
+          - Sid: ValidationRuntimeObservabilityRead
+            Effect: Allow
+            Action:
+              - elasticloadbalancing:DescribeListeners
+              - elasticloadbalancing:DescribeRules
+              - elasticloadbalancing:DescribeTargetHealth
+              - elasticloadbalancing:DescribeTargetGroups
+              - elasticloadbalancing:DescribeLoadBalancers
+              - cloudwatch:GetDashboard
+              - cloudwatch:DescribeAlarms
+              - cloudwatch:GetMetricData
+              - cloudwatch:ListDashboards
+            Resource: "*"
+          - Sid: ValidationRuntimeWafRead
+            Effect: Allow
+            Action:
+              - wafv2:GetWebACL
+              - wafv2:GetWebACLForResource
+              - wafv2:ListWebACLs
+            Resource: "*"
+          - Sid: ValidationRuntimeInfrastructureRoleRead
+            Effect: Allow
+            Action:
+              - iam:GetRole
+            Resource:
+              - !GetAtt EcsInfrastructureRoleForLoadBalancers.Arn
 
 Outputs:
   GitHubOIDCReleaseRoleArn:
@@ -687,10 +806,10 @@ Outputs:
     Value: !GetAtt CodeBuildReleaseRole.Arn
     Export:
       Name: !Sub "${AWS::StackName}-CodeBuildReleaseRoleArn"
-  CodeDeployEcsServiceRoleArn:
-    Value: !GetAtt CodeDeployEcsServiceRole.Arn
+  EcsInfrastructureRoleForLoadBalancersArn:
+    Value: !GetAtt EcsInfrastructureRoleForLoadBalancers.Arn
     Export:
-      Name: !Sub "${AWS::StackName}-CodeDeployEcsServiceRoleArn"
+      Name: !Sub "${AWS::StackName}-EcsInfrastructureRoleForLoadBalancersArn"
   CloudFormationExecutionRoleDevArn:
     Value: !GetAtt CloudFormationExecutionRoleDev.Arn
     Export:
@@ -699,8 +818,8 @@ Outputs:
     Value: !GetAtt CloudFormationExecutionRoleProd.Arn
     Export:
       Name: !Sub "${AWS::StackName}-CloudFormationExecutionRoleProdArn"
-  BatchBValidationOperatorRoleArn:
-    Condition: HasBatchBOperatorPrincipalArn
-    Value: !GetAtt BatchBValidationOperatorRole.Arn
+  ReleaseValidationReadRoleArn:
+    Condition: HasReleaseValidationTrustedPrincipalArn
+    Value: !GetAtt ReleaseValidationReadRole.Arn
     Export:
-      Name: !Sub "${AWS::StackName}-BatchBValidationOperatorRoleArn"
+      Name: !Sub "${AWS::StackName}-ReleaseValidationReadRoleArn"

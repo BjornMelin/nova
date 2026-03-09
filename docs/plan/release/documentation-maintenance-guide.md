@@ -6,7 +6,10 @@ Last reviewed: 2026-03-02
 
 ## Purpose
 
-Define documentation quality rules for release/provisioning docs.
+Define documentation quality rules for release/provisioning docs. Repo-wide
+engineering/operator documentation standards live in
+`../../standards/repository-engineering-standards.md`; this guide remains the
+release-doc-specific profile.
 
 ## Naming rules
 

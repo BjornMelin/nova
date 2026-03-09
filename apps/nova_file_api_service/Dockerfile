@@ -20,5 +20,8 @@ RUN chown -R appuser:appuser /app
 USER appuser
 
 EXPOSE 8050
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD python -c "import sys,urllib.request;urllib.request.urlopen('http://127.0.0.1:8050/v1/health/live', timeout=3);sys.exit(0)"
 
-CMD ["uv", "run", "uvicorn", "nova_file_api_service.main:app", "--host", "0.0.0.0", "--port", "8050", "--proxy-headers", "--forwarded-allow-ips=*"]
+ENTRYPOINT ["uv", "run"]
+CMD ["uvicorn", "nova_file_api_service.main:app", "--host", "0.0.0.0", "--port", "8050", "--proxy-headers", "--forwarded-allow-ips=*"]

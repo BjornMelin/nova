@@ -42,13 +42,15 @@ def build_version_plan(
 
     bump_level = forced_bump or common.determine_bump_level(commit_messages)
 
-    plan_by_unit: dict[str, dict[str, str]] = {}
+    plan_by_unit: dict[str, dict[str, str | None]] = {}
     for unit_id in sorted(changed_ids):
         unit = units[unit_id]
         plan_by_unit[unit_id] = {
             "unit_id": unit_id,
             "project": unit.project_name,
             "path": unit_id,
+            "format": unit.package_format,
+            "namespace": unit.namespace,
             "old_version": unit.version,
             "new_version": common.increment_semver(unit.version, bump_level),
             "bump": bump_level,
@@ -68,6 +70,8 @@ def build_version_plan(
                 "unit_id": dependent_unit,
                 "project": unit.project_name,
                 "path": dependent_unit,
+                "format": unit.package_format,
+                "namespace": unit.namespace,
                 "old_version": unit.version,
                 "new_version": common.increment_semver(
                     unit.version,

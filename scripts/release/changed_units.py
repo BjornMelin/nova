@@ -31,6 +31,8 @@ def build_changed_units_report(
             "project": units[unit_id].project_name,
             "path": unit_id,
             "version": units[unit_id].version,
+            "format": units[unit_id].package_format,
+            "namespace": units[unit_id].namespace,
         }
         for unit_id in changed_ids
     ]

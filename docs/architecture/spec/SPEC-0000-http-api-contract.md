@@ -30,7 +30,11 @@ Hard-cut state (2026-03-03): runtime contract is canonical `/v1/*` plus
 
 - API base path: `/v1`
 - Operational summary path: `/metrics/summary`
-- Content type: `application/json`
+- File API request and response bodies use `application/json`.
+- Auth API media types are route-specific:
+  - `POST /v1/token/verify` uses `application/json`.
+  - `POST /v1/token/introspect` accepts `application/json` and
+    `application/x-www-form-urlencoded`.
 
 Only canonical `/v1/*` routes and `/metrics/summary` are part of the active
 runtime contract.

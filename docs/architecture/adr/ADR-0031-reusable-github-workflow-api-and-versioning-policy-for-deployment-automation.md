@@ -7,9 +7,9 @@ Date: 2026-03-09
 Supersedes:
   - "ADR-0025"
 Related:
-  - "[ADR-0025: Reusable GitHub workflow API and versioning policy for deployment automation (superseded)](./ADR-0025-reusable-workflow-api-and-versioning-policy.md)"
+  - "[ADR-0025: Reusable GitHub workflow API and versioning policy for deployment automation (superseded)](./superseded/ADR-0025-reusable-workflow-api-and-versioning-policy.md)"
   - "[ADR-0011: Hybrid CI/CD with GitHub CI and AWS-native Dev to Prod promotion](./ADR-0011-cicd-hybrid-github-aws-promotion.md)"
-  - "[SPEC-0018: Reusable workflow integration contract](../spec/SPEC-0018-runtime-configuration-and-startup-validation-contract.md)"
+  - "[SPEC-0025: Reusable workflow integration contract](../spec/SPEC-0025-reusable-workflow-integration-contract.md)"
 ---
 
 ## Summary

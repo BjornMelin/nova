@@ -64,7 +64,7 @@ Owner: Release Architecture
   `docs/plan/release/evidence-log.md` (entry `2026-03-03T09:32:00Z`).
 - Note: remaining blocker is CI/CD stack update authority
   (`iam:PassRole` denied for `nova-ci-nova-codepipeline-role`) plus missing
-  deployed runtime inventory for ECS/CodeDeploy live gates.
+  deployed runtime inventory for ECS-native blue/green live gates.
 - [ ] Sidecar ALB route + health behavior validated in non-prod AWS.
 - [ ] Non-prod end-to-end smoke completed.
 - [ ] CloudWatch dashboards/alarms synthetic-failure validation completed.

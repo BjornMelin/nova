@@ -1,84 +1,96 @@
 ---
 Spec: 0018
-Title: Reusable workflow integration contract
+Title: Runtime configuration and startup validation contract
 Status: Active
-Version: 1.2
-Date: 2026-03-04
+Version: 2.2
+Date: 2026-03-06
 Related:
-  - "[ADR-0023: Canonical V1 route surface hard-cut](../adr/ADR-0023-hard-cut-v1-canonical-route-surface.md)"
-  - "[ADR-0031: Reusable GitHub workflow API and versioning policy for deployment automation](../adr/ADR-0031-reusable-github-workflow-api-and-versioning-policy-for-deployment-automation.md)"
-  - "[requirements.md](../requirements.md)"
-  - "[ADR-0028: Auth0 tenant ops reusable workflow API contract](../adr/ADR-0028-auth0-tenant-ops-reusable-workflow-api-contract.md)"
-  - "[SPEC-0000: Canonical API contract](./SPEC-0000-http-api-contract.md)"
-  - "[SPEC-0017: CloudFormation module contract](./SPEC-0017-runtime-component-topology-and-ownership-contract.md)"
-  - "[SPEC-0016: V1 route namespace and literal guardrails](./SPEC-0016-v1-route-namespace-and-literal-guardrails.md)"
-  - "[SPEC-0021: Downstream hard-cut integration and consumer validation contract](./SPEC-0021-downstream-hard-cut-integration-and-consumer-validation-contract.md)"
-  - "[SPEC-0022: Auth0 tenant ops reusable workflow contract](./SPEC-0022-auth0-tenant-ops-reusable-workflow-contract.md)"
-  - "[SPEC-0023: SSM runtime base-url contract for deploy validation](./SPEC-0023-ssm-runtime-base-url-contract-for-deploy-validation.md)"
-  - "[SPEC-0004: CI/CD and documentation automation](./SPEC-0004-ci-cd-and-docs.md)"
+  - "[ADR-0026: Fail-fast runtime configuration and safe auth execution](../adr/ADR-0026-fail-fast-runtime-configuration-and-safe-auth-execution.md)"
+  - "[SPEC-0017: Runtime component topology and ownership contract](./SPEC-0017-runtime-component-topology-and-ownership-contract.md)"
+  - "[SPEC-0001: Security model](./SPEC-0001-security-model.md)"
+  - "[SPEC-0008: Async jobs and worker orchestration](./SPEC-0008-async-jobs-and-worker-orchestration.md)"
 ---
 
 ## 1. Scope
 
-Defines reusable GitHub workflow APIs, typed input/output contracts, and
-integration guarantees for Nova and downstream repos.
+Defines the runtime configuration source of truth, startup validation rules, and
+readiness semantics for Nova runtime packages.
 
-## 2. Reusable workflow API surface
+## 2. Configuration authority
 
-Required reusable workflows:
+1. `packages/nova_file_api/src/nova_file_api/config.py` is the typed
+   environment contract for the file API runtime.
+2. `packages/nova_auth_api/src/nova_auth_api/config.py` is the typed
+   environment contract for the auth API runtime.
+3. `packages/nova_dash_bridge/src/nova_dash_bridge/config.py` may define
+   adapter-local environment settings only.
+4. Bridge code must not mutate `nova_file_api.Settings()` or recreate runtime
+   authority through ambient settings rewriting.
 
-1. `reusable-release-plan.yml`
-2. `reusable-release-apply.yml`
-3. `reusable-bootstrap-foundation.yml`
-4. `reusable-deploy-runtime.yml`
-5. `reusable-deploy-dev.yml`
-6. `reusable-promote-prod.yml`
-7. `reusable-post-deploy-validate.yml`
-8. `reusable-auth0-tenant-deploy.yml`
+## 3. Fail-fast startup rules
 
-## 3. Wrapper workflow contract
+The process must fail before serving traffic when required backend couplings are
+invalid.
 
-1. Entry workflows are wrapper-only and delegate execution to reusable
-   workflows.
-2. Wrapper workflows must not reimplement deployment business logic.
-3. Shared logic belongs to composite actions under `.github/actions/**`.
+Required startup validation:
 
-## 4. Typed input/output contract
+1. `JOBS_QUEUE_BACKEND=sqs` with `JOBS_ENABLED=true` requires
+   `JOBS_SQS_QUEUE_URL`.
+2. `JOBS_REPOSITORY_BACKEND=dynamodb` requires `JOBS_DYNAMODB_TABLE`.
+3. DynamoDB-backed scoped job listing requires the jobs table GSI
+   `scope_id-created_at-index`; the runtime does not fall back to `Scan`.
+4. `JOBS_RUNTIME_MODE=worker` requires:
+   - `JOBS_ENABLED=true`
+   - `JOBS_QUEUE_BACKEND=sqs`
+   - `JOBS_SQS_QUEUE_URL`
+   - `JOBS_API_BASE_URL`
+   - `JOBS_WORKER_UPDATE_TOKEN`
+   - deployment wiring that always injects `JOBS_WORKER_UPDATE_TOKEN`,
+     including scale-from-zero ECS worker services
+   - worker deployments MUST inject `JOBS_WORKER_UPDATE_TOKEN` from a
+     secret-backed deployment input even when the ECS service is configured to
+     start at zero tasks
+5. `ACTIVITY_STORE_BACKEND=dynamodb` requires `ACTIVITY_ROLLUPS_TABLE`.
+6. `IDEMPOTENCY_ENABLED=true` with `IDEMPOTENCY_MODE=shared_required` requires
+   `CACHE_REDIS_URL`.
+7. Production environments (`ENVIRONMENT=prod|production`) with idempotent
+   mutation entrypoints must use `IDEMPOTENCY_MODE=shared_required`.
+8. Runtime configuration aliases that duplicate canonical settings are
+   deprecated and must be removed instead of carried forward.
 
-1. Reusable workflows must declare typed `workflow_call` inputs/outputs.
-2. Contract schemas are source-of-truth artifacts in:
-   - `docs/contracts/reusable-workflow-inputs-v1.schema.json`
-   - `docs/contracts/reusable-workflow-outputs-v1.schema.json#/$defs/deploy_runtime_output`
-   - `docs/contracts/reusable-workflow-outputs-v1.schema.json#/$defs/cloudformation_change_set_output`
-   - `docs/contracts/reusable-workflow-outputs-v1.schema.json#/$defs/codepipeline_execution_output`
-   - `docs/contracts/reusable-workflow-outputs-v1.schema.json#/$defs/validation_report_output`
-   - `docs/contracts/reusable-workflow-outputs-v1.schema.json#/$defs/manifest_output`
-   - `docs/contracts/workflow-post-deploy-validate.schema.json`
-   - `docs/contracts/workflow-auth0-tenant-deploy.schema.json`
-3. Runtime deploy contract includes size profiles and custom bounds validation.
+## 4. Readiness contract
 
-## 5. Versioning policy
+1. `/v1/health/live` is process liveness only.
+2. `/v1/health/ready` evaluates traffic-critical dependencies only.
+3. Missing or blank `FILE_TRANSFER_BUCKET` fails readiness.
+4. `AUTH_MODE=jwt_local` with incomplete local verifier configuration
+   (`OIDC_ISSUER`, `OIDC_AUDIENCE`, or `OIDC_JWKS_URL` missing) fails the
+   `auth_dependency` readiness check.
+5. Shared cache health fails readiness when
+   `IDEMPOTENCY_MODE=shared_required`; otherwise it remains an observable check
+   only.
+6. Optional observers such as activity-store health remain visible in
+   diagnostics, but they do not fail readiness unless they are the configured
+   traffic-critical dependency for the active runtime path.
+7. Feature flags do not determine readiness by themselves.
 
-1. `@v1` is the stable compatibility channel.
-2. `@v1.x.y` tags are immutable and required for production pinning.
-3. Breaking contract changes require a new major channel (`v2`, etc.).
+## 5. Environment and startup ownership
 
-## 6. Consumer integration contract
+1. Lifespan/startup bootstraps settings once per process and wires the runtime
+   container from those validated settings.
+2. Configuration errors must be explicit and actionable at startup.
+3. Runtime docs and tests must treat startup validation as a contract, not as
+   implementation detail.
 
-1. Downstream examples under `docs/clients/**` must compile and reference
-   reusable workflows.
-2. Validation workflows require `NOVA_API_BASE_URL` and must produce
-   contract-compliant artifacts.
-3. Integration guides must document both stable and immutable pin strategies.
+## 6. Acceptance criteria
 
-## 7. Acceptance criteria
+1. Runtime docs reference this spec for backend-coupling rules.
+2. Active docs state that readiness is traffic-critical, not observer-wide.
+3. Bridge and adapter docs do not claim separate runtime startup contracts.
 
-1. Workflow/productization contract tests pass.
-2. Contract docs tests assert schema/workflow parity.
-3. Actionlint passes for all workflow files.
+## 7. Traceability
 
-## 8. Traceability
-
-- [NFR-0105](../requirements.md#nfr-0105-contract-traceability)
+- [FR-0002](../requirements.md#fr-0002-operational-endpoints)
+- [FR-0005](../requirements.md#fr-0005-authentication-and-authorization)
+- [NFR-0002](../requirements.md#nfr-0002-scalability-and-resilience)
 - [NFR-0106](../requirements.md#nfr-0106-no-shim-posture)
-- [IR-0000](../requirements.md#ir-0000-nova-local-runtime-and-release-authority)

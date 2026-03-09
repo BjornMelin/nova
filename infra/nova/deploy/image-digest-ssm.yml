@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Description: Persist promoted Nova image digest in SSM Parameter Store.
+Description: Persist a promoted Nova workload image digest in SSM Parameter Store.
 
 Parameters:
   ServiceName:
@@ -15,7 +15,7 @@ Parameters:
     MinLength: 71
     MaxLength: 71
     AllowedPattern: "^sha256:[A-Fa-f0-9]{64}$"
-    ConstraintDescription: Must be a valid OCI digest (sha256:...).
+    ConstraintDescription: Must be a valid OCI workload image digest (sha256:...).
   Environment:
     Type: String
     AllowedValues:

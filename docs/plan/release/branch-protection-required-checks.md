@@ -20,7 +20,7 @@ From workflow `Conformance Clients` (`.github/workflows/conformance-clients.yml`
 
 - `dash-conformance`
 - `shiny-conformance`
-- `typescript-conformance`
+- `typescript-conformance` (generated/internal TypeScript SDK conformance)
 
 From workflow `CFN Contract Validate` (`.github/workflows/cfn-contract-validate.yml`):
 

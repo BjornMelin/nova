@@ -90,6 +90,24 @@ def test_v1_health_ready_returns_503_when_verifier_missing() -> None:
     assert payload["error"]["request_id"] == "req-auth-ready-503"
 
 
+def test_v1_health_ready_returns_503_when_oidc_settings_are_incomplete() -> (
+    None
+):
+    """Verify readiness fails closed when required OIDC settings are missing."""
+    app = create_app(
+        settings_override=Settings.model_validate(
+            {"OIDC_ISSUER": "https://issuer.example/"}
+        )
+    )
+    with TestClient(app) as client:
+        response = client.get("/v1/health/ready")
+
+    assert response.status_code == 503
+    payload: dict[str, Any] = response.json()
+    assert payload["error"]["code"] == "service_unavailable"
+    assert payload["error"]["message"] == "auth verifier unavailable"
+
+
 def test_verify_endpoint() -> None:
     """Verify token endpoint returns principal and claims on success."""
     app = create_app(service_override=_StubService())

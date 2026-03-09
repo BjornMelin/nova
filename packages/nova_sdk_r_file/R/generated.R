@@ -26,12 +26,6 @@ nova_file_operation_catalog <- function() {
       path = "/v1/health/ready",
       summary = "Health Ready"
     ),
-    "update_job_result" = list(
-      operation_id = "update_job_result",
-      method = "POST",
-      path = "/v1/internal/jobs/{job_id}/result",
-      summary = "Update Job Result"
-    ),
     "list_jobs" = list(
       operation_id = "list_jobs",
       method = "GET",

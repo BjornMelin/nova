@@ -41,8 +41,6 @@ Related setup sequence:
 - `ECS_SERVICE`
 - `ALB_TARGET_GROUP_BLUE_ARN`
 - `ALB_TARGET_GROUP_GREEN_ARN`
-- `CODEDEPLOY_APPLICATION_NAME`
-- `CODEDEPLOY_DEPLOYMENT_GROUP_NAME`
 - `DASHBOARD_NAME`
 - `ALARM_NAMES`
 - `CODEPIPELINE_NAME`
@@ -133,14 +131,14 @@ Acceptance:
 - ECS service stabilizes with expected running task count.
 - Target states converge to `healthy` without persistent flapping.
 
-### B3. CodeDeploy blue/green authority and readiness gating
+### B3. ECS-native blue/green authority and readiness gating
 
 ```bash
-aws deploy get-deployment-group \
+aws ecs describe-services \
   --region "${AWS_REGION}" \
-  --application-name "${CODEDEPLOY_APPLICATION_NAME}" \
-  --deployment-group-name "${CODEDEPLOY_DEPLOYMENT_GROUP_NAME}" \
-  --query "deploymentGroupInfo.{deploymentStyle:deploymentStyle,blueGreen:blueGreenDeploymentConfiguration,alarmConfiguration:alarmConfiguration,autoRollback:autoRollbackConfiguration}"
+  --cluster "${ECS_CLUSTER}" \
+  --services "${ECS_SERVICE}" \
+  --query "services[0].{deployments:deployments,alarms:deploymentConfiguration.alarms}"
 
 aws elbv2 describe-target-health \
   --region "${AWS_REGION}" \
@@ -155,9 +153,9 @@ aws elbv2 describe-target-health \
 
 Acceptance:
 
-- Deployment style is blue/green with traffic control.
-- Alarm rollback configuration is enabled with expected alarm names.
-- Auto rollback includes deployment failure + stop-on-alarm + stop-on-request.
+- ECS service uses blue/green traffic shifting with the expected active and
+  alternate target groups.
+- Deployment alarms are enabled with expected alarm names.
 - Green target group reaches healthy state before production traffic shift.
 
 ## 7. Gate C: Cross-repo E2E smoke

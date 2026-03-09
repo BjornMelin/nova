@@ -24,8 +24,8 @@ on:
         required: false
         default: ""
         type: string
-      image_tag:
-        description: Optional image tag override.
+      image_digest:
+        description: Optional image digest override.
         required: false
         default: ""
         type: string
@@ -140,7 +140,7 @@ jobs:
         env:
           PARAMETER_FILE: ${{ inputs.parameter_file }}
           ENVIRONMENT: ${{ inputs.environment }}
-          IMAGE_TAG: ${{ inputs.image_tag }}
+          IMAGE_DIGEST: ${{ inputs.image_digest }}
           ENABLE_WORKER: ${{ inputs.enable_worker }}
           CONTAINER_PORT: ${{ steps.profile.outputs.container-port }}
           TASK_CPU: ${{ steps.profile.outputs.task-cpu }}
@@ -177,9 +177,9 @@ jobs:
           payload["DesiredCount"] = os.environ["DESIRED_COUNT"]
           payload["EnableWorker"] = "true" if os.environ["ENABLE_WORKER"].lower() == "true" else "false"
 
-          image_tag = os.environ.get("IMAGE_TAG", "").strip()
-          if image_tag:
-            payload["DockerImageTag"] = image_tag
+          image_digest = os.environ.get("IMAGE_DIGEST", "").strip()
+          if image_digest:
+            payload["ImageDigest"] = image_digest
 
           rows = [
             {"ParameterKey": key, "ParameterValue": value}

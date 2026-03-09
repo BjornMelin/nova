@@ -39,6 +39,8 @@ def test_build_changed_units_report_uses_path_mapping() -> None:
 
     changed_ids = {item["unit_id"] for item in report["changed_units"]}
     assert changed_ids == {"packages/nova_file_api"}
+    assert report["changed_units"][0]["format"] == "pypi"
+    assert report["changed_units"][0]["namespace"] is None
 
 
 def test_build_changed_units_report_first_release_marks_all_units() -> None:

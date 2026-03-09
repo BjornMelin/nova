@@ -106,6 +106,8 @@ def test_workflow_io_schema_contract_matches_reusable_deploy_runtime_api() -> (
     assert set(deploy_runtime_output_schema["required"]) == set(
         workflow_outputs
     )
+    assert "image_digest" in schema_inputs
+    assert "image_tag" not in schema_inputs
 
     for required_input in input_schema["required"]:
         assert required_input in workflow_inputs
@@ -129,6 +131,7 @@ def test_release_artifact_schema_contract_covers_required_gate_payloads() -> (
         "version_plan",
         "codeartifact_gate_report",
         "codeartifact_promotion_candidates",
+        "promotion_input_digests",
         "post_deploy_validation_report",
         "browser_live_validation_report",
     ]:
@@ -144,6 +147,45 @@ def test_release_artifact_schema_contract_covers_required_gate_payloads() -> (
         "browser_live_validation_report",
     ]:
         assert required_def in defs
+
+    workspace_unit_props = defs["workspace_unit_ref"]["properties"]
+    assert workspace_unit_props["format"]["enum"] == ["pypi", "npm"]
+    changed_units_items = defs["changed_units"]["properties"]["changed_units"][
+        "items"
+    ]
+    changed_unit_item_props = changed_units_items["properties"]
+    version_plan_item_props = defs["version_plan"]["properties"]["units"][
+        "items"
+    ]["properties"]
+    assert changed_unit_item_props["format"]["enum"] == ["pypi", "npm"]
+    assert changed_unit_item_props["namespace"]["type"] == ["string", "null"]
+    assert version_plan_item_props["format"]["enum"] == ["pypi", "npm"]
+    assert version_plan_item_props["namespace"]["type"] == ["string", "null"]
+    promotion_candidate_def = defs["promotion_candidate"]
+    assert promotion_candidate_def["properties"]["format"]["enum"] == [
+        "pypi",
+        "npm",
+    ]
+    assert promotion_candidate_def["properties"]["namespace"]["pattern"] == (
+        "^[a-z0-9][a-z0-9-]*$"
+    )
+    assert promotion_candidate_def["properties"]["unit_id"]["type"] == "string"
+    assert promotion_candidate_def["properties"]["unit_id"]["minLength"] == 1
+    assert (
+        schema["properties"]["codeartifact_promotion_candidates"]["uniqueItems"]
+        is True
+    )
+    npm_condition = next(
+        entry["then"]["properties"]
+        for entry in promotion_candidate_def["allOf"]
+        if entry.get("if", {})
+        .get("properties", {})
+        .get("format", {})
+        .get("const")
+        == "npm"
+    )
+    assert npm_condition["namespace"]["const"] == "nova"
+    assert npm_condition["package"]["pattern"] == "^@nova/[a-z0-9][a-z0-9-]*$"
 
 
 def test_size_profiles_schema_contract_covers_dash_rshiny_react_next() -> None:

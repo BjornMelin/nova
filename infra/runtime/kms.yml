@@ -12,6 +12,7 @@ Resources:
     Type: AWS::KMS::Key
     Properties:
       Description: !Sub "KMS Key for stack ${AWS::StackName}"
+      EnableKeyRotation: true
       Tags:
         - Key: Project
           Value: !Ref Project

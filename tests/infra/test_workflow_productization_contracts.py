@@ -118,7 +118,7 @@ def test_reusable_deploy_runtime_contract_includes_typed_inputs_outputs() -> (
 
     for required in [
         "template_file",
-        "image_tag",
+        "image_digest",
         "custom_container_port",
         "custom_task_cpu",
         "custom_task_memory",
@@ -149,6 +149,8 @@ def test_reusable_deploy_runtime_contract_includes_typed_inputs_outputs() -> (
         "collect-deploy-evidence",
     ):
         assert required in workflow_text
+
+    assert "image_tag" not in inputs
 
 
 def test_cfn_contract_validate_workflow_exists_for_cfn_gates() -> None:

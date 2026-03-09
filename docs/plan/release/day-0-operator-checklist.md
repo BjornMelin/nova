@@ -188,7 +188,7 @@ Pipeline dashboard:
 
 1. Release signing and workflow auth are valid.
 2. Pipeline completes Dev -> ManualApproval -> Prod in order.
-3. `IMAGE_DIGEST` continuity is preserved Dev to Prod.
+3. `FILE_IMAGE_DIGEST` and `AUTH_IMAGE_DIGEST` continuity is preserved Dev to Prod.
 4. Evidence links are added to release docs/plan artifacts.
 
 ## References

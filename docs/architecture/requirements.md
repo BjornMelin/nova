@@ -13,15 +13,20 @@ requirements for the first production release.
 - Hard-cut route authority is active under `ADR-0023` + `SPEC-0016`.
 - Runtime contract is canonical `/v1/*` plus `/metrics/summary`; non-canonical
   route families are removed.
-- Runtime authority-pack governance and boundary/validation contracts are
-  active under `ADR-0024` and `SPEC-0017` through `SPEC-0023`.
-- Deployment-control-plane governance is codified separately under
-  `ADR-0024`, `ADR-0031`, and `ADR-0032` and `SPEC-0024` through `SPEC-0026`.
+- Runtime API, runtime package ownership, runtime safety, and downstream
+  validation authority are synchronized under `ADR-0024`, with runtime
+  component/safety governance codified in `ADR-0025`, `ADR-0026`,
+  `SPEC-0017`, `SPEC-0018`, and `SPEC-0019`, and downstream validation
+  contracts codified in `ADR-0027` through `ADR-0029` and `SPEC-0021` through
+  `SPEC-0023`.
+- Adjacent deploy-governance authority is isolated under `ADR-0030` through
+  `ADR-0032` and `SPEC-0024` through `SPEC-0026`.
 - Superseded ADR/SPEC material is archived only under
   `docs/architecture/adr/superseded/**` and
   `docs/architecture/spec/superseded/**`.
-- Public SDK policy for this release wave is Python-only; TypeScript and R
-  remain internal/generated catalogs.
+- Public SDK policy for this release wave is Python only. TypeScript remains a
+  generated/private-distribution contract surface and R remains an
+  internal/generated catalog pending later promotion waves.
 
 ## Scope
 
@@ -121,8 +126,8 @@ Feature flags (for example `JOBS_ENABLED`) MUST NOT drive readiness pass/fail.
 
 - Missing or blank `FILE_TRANSFER_BUCKET` MUST fail readiness.
 - `AUTH_MODE=jwt_local` with missing `OIDC_ISSUER`, `OIDC_AUDIENCE`, or
-  `OIDC_JWKS_URL` is not currently represented as a dedicated
-  `auth_dependency` readiness check in `/v1/health/ready`.
+  `OIDC_JWKS_URL` MUST fail the dedicated `auth_dependency` readiness check on
+  `/v1/health/ready`.
 
 ### FR-0003: Key generation and scope enforcement
 
@@ -145,6 +150,13 @@ The idempotency implementation MUST use an explicit request lifecycle:
 - claim (`in_progress`) before mutation execution
 - commit (`committed`) only after successful mutation response
 - discard claims on failed mutation execution to preserve retry behavior
+- `IDEMPOTENCY_MODE=shared_required` is the canonical production mode for
+  AWS-backed multi-instance deployments and requires a shared Redis instance.
+- In `shared_required` mode, mutations MUST fail with `503`
+  (`error.code = "idempotency_unavailable"`) when the distributed claim store
+  cannot guarantee correctness.
+- `IDEMPOTENCY_MODE=local_only` is limited to explicit local/single-process
+  operation and MUST not be treated as the production default.
 
 ### FR-0005: Authentication and authorization
 
@@ -162,7 +174,8 @@ session scope.
 The service MUST support a two-tier cache model:
 
 - Local in-process TTL cache
-- Shared Redis cache (optional, best-effort)
+- Shared Redis cache used as the distributed cache authority when
+  `IDEMPOTENCY_MODE=shared_required`
 
 Shared cache keys MUST be namespaced and schema-versioned, and JWT cache TTL
 MUST be bounded by token expiration (`exp`) with configured max TTL caps.

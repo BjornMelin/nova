@@ -124,6 +124,8 @@ class TokenVerificationService:
 
 
 def _build_verifier(*, settings: Settings) -> JWTVerifier | None:
+    if not settings.local_oidc_verifier_configured:
+        return None
     return build_jwt_verifier(
         issuer=settings.oidc_issuer,
         audience=settings.oidc_audience,

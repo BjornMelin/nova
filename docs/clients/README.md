@@ -11,6 +11,12 @@ React/Next consumers that call Nova reusable deployment and post-deploy
 validation contracts. These docs are workflow/integration authority, not public
 SDK release authority.
 
+For SDK governance and repo engineering standards, use:
+
+- `../standards/README.md`
+- `../architecture/spec/SPEC-0011-multi-language-sdk-architecture-and-package-map.md`
+- `../architecture/spec/SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md`
+
 ## Contents
 
 - `post-deploy-validation-integration-guide.md`
@@ -52,27 +58,30 @@ directory, then verify downstream consumers against
 
 ## SDK package status
 
-Public release-grade SDK packages for this wave:
+Release-grade public SDK packages for this wave:
 
 - `../../packages/nova_sdk_py_file/`
 - `../../packages/nova_sdk_py_auth/`
 - `../../packages/nova_dash_bridge/`
 
-Internal/generated catalogs retained in-repo for drift checks and deferred
-productization:
+Generated/private-distribution SDK packages retained in-repo for conformance,
+private CodeArtifact publication, and future promotion work:
 
-- `../../packages/nova_sdk_file_core/`
-- `../../packages/nova_sdk_auth_core/`
+- `../../packages/nova_sdk_file/`
+- `../../packages/nova_sdk_auth/`
 - `../../packages/nova_sdk_fetch/`
 - `../../packages/nova_sdk_r_file/`
 - `../../packages/nova_sdk_r_auth/`
 
-All of these remain subordinate to the committed Nova OpenAPI contracts. Only
-the Python packages above are public release-grade SDK authority in this wave.
+All of these remain subordinate to the committed Nova OpenAPI contracts.
+Generated/private TypeScript SDK packages are transport-focused and do not ship
+bundled runtime validation.
 
 Generator-facing OpenAPI rules that downstream consumers can rely on:
 
 - stable snake_case `operationId` values for generated function names
 - semantic tags for generated package/module grouping
-- committed Python SDK trees regenerated from
+- committed Python SDK artifacts and generated/private TypeScript SDK artifacts regenerated from
   `../../packages/contracts/openapi/*.openapi.json`
+- generated/private TypeScript SDK `types` subpaths expose curated public
+  operation helpers and reachable public schema aliases only

@@ -17,13 +17,32 @@ def test_publish_packages_workflow_has_staged_gate_contracts() -> None:
         "name: Publish Packages",
         "Nova Release Apply",
         "scripts.release.codeartifact_gate",
+        "scripts.release.npm_publish",
+        "scripts.release.download_run_artifact",
         "codeartifact-gate-report.json",
         "codeartifact-promotion-candidates.json",
+        "npm-publish-report.json",
+        "release-apply-artifacts",
+        "release_apply_run_id",
         "CODEARTIFACT_STAGING_REPOSITORY",
+        "Setup Node",
+        "aws codeartifact get-repository-endpoint",
         "aws codeartifact login",
         "twine upload --repository codeartifact",
+        "npm publish --no-progress",
+        "Smoke test npm packages from CodeArtifact staging",
     ]:
         assert required in text, f"Missing required contract: {required!r}"
+
+    for forbidden in [
+        "python -m scripts.release.changed_units",
+        "python -m scripts.release.version_plan",
+        "Compute release artifacts",
+    ]:
+        assert forbidden not in text, (
+            "Publish workflow must consume immutable artifacts, not "
+            f"recompute: {forbidden!r}"
+        )
 
 
 def test_promote_prod_workflow_has_controlled_package_promotion_policy() -> (
@@ -37,8 +56,14 @@ def test_promote_prod_workflow_has_controlled_package_promotion_policy() -> (
     for required in [
         "manifest_sha256",
         "changed_units_json",
+        "changed_units_path",
+        "changed_units_sha256",
         "version_plan_json",
+        "version_plan_path",
+        "version_plan_sha256",
         "promotion_candidates_json",
+        "promotion_candidates_path",
+        "promotion_candidates_sha256",
         "codeartifact_domain",
         "codeartifact_staging_repository",
         "codeartifact_prod_repository",
@@ -53,12 +78,30 @@ def test_promote_prod_workflow_has_controlled_package_promotion_policy() -> (
         "CODEARTIFACT_STAGING_REPOSITORY",
         "CODEARTIFACT_PROD_REPOSITORY",
         "scripts.release.codeartifact_gate",
+        "EXPECTED_CHANGED_UNITS_SHA256",
+        "EXPECTED_VERSION_PLAN_SHA256",
+        "EXPECTED_PROMOTION_CANDIDATES_SHA256",
         "copy-package-versions",
+        "package_format",
+        "--namespace",
         "approve-prod-pipeline",
         "codepipeline-approve",
     ]:
         assert required in reusable_text, (
             f"Missing required reusable contract: {required!r}"
+        )
+
+    for required in [
+        "require_sha256",
+        "validate_json_source",
+        "absolute path is not allowed",
+        "sha256 mismatch",
+        "expected top-level JSON",
+        ".artifacts/validated-promotion-candidates.json",
+    ]:
+        assert required in reusable_text, (
+            "Reusable promote workflow must enforce strict, immutable "
+            f"promotion input validation: {required!r}"
         )
 
 

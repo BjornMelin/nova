@@ -25,7 +25,8 @@ Alarm set:
 Design intent:
 
 - alarms are tuned to SLO breach conditions, not only hard infrastructure failures
-- alarms are consumable by ECS deployment alarms and CodeDeploy stop/rollback settings
+- alarms are consumable by ECS deployment alarms and ECS-native blue/green
+  rollback settings
 
 AWS references:
 
@@ -110,13 +111,13 @@ References:
 If/when account-level `AWS::Budgets::Budget` ownership is standardized in this repo, this alarm remains the mandatory service-level threshold hook.
 
 
-### Batch B1 CodeDeploy binding contract
+### Batch B1 ECS-native deployment binding contract
 
-When `infra/runtime/ecs/service.yml` runs with `EnableBlueGreenDeployAuthority=true`, bind these rollback alarm inputs:
+When `infra/runtime/ecs/service.yml` runs with ECS-native blue/green enabled,
+bind these rollback alarm inputs:
 
 - `DeploymentRollbackAlarmNamePrimary`
 - `DeploymentRollbackAlarmNameSecondary`
-- `BlueGreenReadinessActionOnTimeout=STOP_DEPLOYMENT`
 
 Recommended source of alarm names is `DeploymentRollbackAlarmNamesCsv` from
 `infra/runtime/observability/ecs-observability-baseline.yml` (split into primary/secondary in pipeline/env config).

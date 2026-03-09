@@ -1,12 +1,12 @@
 ---
 Spec: 0012
-Title: SDK governance for Python release-grade and deferred TS/R catalogs
+Title: SDK governance for Python public plus generated/private TypeScript and deferred R catalogs
 Status: Active
 Version: 2.0
 Date: 2026-03-05
 Related:
-  - "[ADR-0013: Python-first SDK topology uses generated contract-core clients and defers TS/R productization](../adr/ADR-0013-final-state-sdk-topology-generated-core-plus-thin-adapters.md)"
-  - "[SPEC-0011: Python-first SDK architecture and deferred TS/R package map](./SPEC-0011-multi-language-sdk-architecture-and-package-map.md)"
+  - "[ADR-0013: Public Python SDK topology uses generated contract-core clients while TypeScript remains generated/private and R stays deferred](../adr/ADR-0013-final-state-sdk-topology-generated-core-plus-thin-adapters.md)"
+  - "[SPEC-0011: Public Python SDK architecture with generated/private TypeScript and deferred R package map](./SPEC-0011-multi-language-sdk-architecture-and-package-map.md)"
   - "[SPEC-0004: CI/CD and docs](./SPEC-0004-ci-cd-and-docs.md)"
   - "[Hard Cutover Checklist](../../plan/release/HARD-CUTOVER-CHECKLIST.md)"
 References:
@@ -21,7 +21,8 @@ Defines conformance, release/versioning policy, deprecation policy, and API
 compatibility governance for the current Nova SDK posture:
 
 - Python public release-grade SDK packages
-- internal/generated TypeScript and R catalogs
+- TypeScript generated/private-distribution SDK packages
+- internal/generated R catalogs
 
 ## 2. Conformance fixture strategy
 
@@ -44,8 +45,9 @@ Required CI posture:
 
 - Python: release-grade conformance gate covering model/operation compile,
   fixture decode/encode, generated-client smoke, and auth error mapping
-- TypeScript: internal catalog gate covering fixture typing and generated
-  catalog drift only
+- TypeScript: generated/private conformance gate covering generated-client
+  smoke, fixture-backed client execution, generated artifact drift, and
+  subpath/export boundary enforcement
 - R: internal catalog gate covering generated artifact drift and fixture
   roundtrip only
 
@@ -64,41 +66,44 @@ Minimum shared scenarios:
 2. `verify_token` `401` with RFC6750-compatible challenge pass-through where
    available
 3. `verify_token` `403` insufficient authorization
-4. file transfer initiate/sign/complete roundtrip payload conformance
-5. queue enqueue error envelope (`queue_unavailable`) shape stability
+4. `introspect_token` media-type conformance for every declared public request
+   content type
+5. file transfer initiate/sign/complete roundtrip payload conformance
+6. queue enqueue error envelope (`queue_unavailable`) shape stability
 
 ## 3. Versioning and release policy
 
 ### 3.1 Public SemVer requirements
 
-Public Python SDK packages follow Semantic Versioning 2.0.0:
+Public Python SDK packages and generated/private TypeScript SDK packages follow
+Semantic Versioning 2.0.0:
 
 - MAJOR for backward-incompatible public API or contract changes
 - MINOR for backward-compatible API additions
 - PATCH for backward-compatible fixes only
 
-Breaking examples for public Python SDK packages include:
+Breaking examples for public Python and generated/private TypeScript SDK
+packages include:
 
 - OpenAPI tag changes that move generated endpoint modules/packages
 - `operationId` renames that change generated function names
 - contract removals or incompatible schema changes
 
-### 3.2 Internal catalog version posture
+### 3.2 Deferred catalog version posture
 
-TypeScript and R catalogs are not public compatibility authority in this wave.
-They must remain deterministic from OpenAPI inputs, but they do not imply a
-public support or publishing contract.
+R catalogs are not public compatibility authority in this wave. They must
+remain deterministic from OpenAPI inputs, but they do not imply a public
+support or publishing contract.
 
 ### 3.3 Release cadence and promotion
 
-- Python releases are produced by Nova CI only after public conformance suites
-  pass.
+- Python and TypeScript releases are produced by Nova CI only after the
+  required conformance suites pass.
 - Release notes must include explicit breaking/additive/fix classification for
-  public Python packages.
-- Generated Python artifacts are immutable after release.
-- TS/R productization is deferred and must be completed in a future dedicated
-  wave using `.agents/prompts/deferred-ts-r-sdk-finalization-gpt54-xhigh.md`
-  as the implementation handoff prompt.
+  public Python packages and generated/private TypeScript packages.
+- Generated Python and TypeScript artifacts are immutable after release.
+- R productization remains deferred and must be completed in a future
+  dedicated wave.
 
 ## 4. Deprecation policy
 
@@ -107,15 +112,17 @@ public support or publishing contract.
 - Deprecated operations/fields must be marked in OpenAPI with deprecation
   metadata and changelog note.
 - Deprecation notice window: minimum one MINOR release before removal in next
-  MAJOR for public Python surfaces.
+  MAJOR for public Python and generated/private TypeScript surfaces.
 - Runtime behavior during deprecation must remain contract-compatible.
 
 ### 4.2 SDK deprecation baseline
 
 - Python public methods scheduled for removal must emit warnings-based
   deprecation.
-- TS/R catalog evolution is internal until those languages are promoted to
-  public SDK status.
+- TypeScript generated package APIs must preserve subpath contracts or take a
+  MAJOR bump when removing them.
+- R catalog evolution is internal until that language is promoted to public SDK
+  status.
 
 ## 5. API/contract governance and compatibility policy
 
@@ -133,9 +140,9 @@ A pull request modifying OpenAPI contracts must pass:
 
 - schema validity checks
 - explicit change classification
-- regenerated Python SDK diffs
-- Python generated-client smoke
-- internal TS/R generated-catalog drift gate via
+- regenerated Python and TypeScript SDK diffs
+- Python and TypeScript generated-client smoke
+- internal R generated-catalog drift gate via
   `scripts/release/generate_clients.py --check`
 - committed Python SDK drift gate via
   `scripts/release/generate_python_clients.py --check`
@@ -148,6 +155,12 @@ Merge must be blocked if any of the following occur:
 - error envelope shape drift (`error.code/message/request_id`) in a non-major
   public release
 - adapter introduces contract fork or local authority logic
+- a generated/private TypeScript SDK export leaks internal-only operations or
+  their
+  schema aliases
+- a generated/private TypeScript SDK request path serializes a multi-media
+  request body
+  without an explicit OpenAPI-aligned media-type selection rule
 
 ## 6. Governance ownership
 

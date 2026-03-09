@@ -58,10 +58,16 @@ Purpose: return RFC 7662-style token activity and metadata, primarily for opaque
 
 Request requirements:
 
+- MUST accept `application/json`
 - MUST accept `application/x-www-form-urlencoded`
-- MUST support:
+- JSON requests use the Nova introspection request schema:
+  - `access_token` (required)
+  - `token_type_hint` (optional)
+- Form requests follow RFC 7662 field naming:
   - `token` (required)
   - `token_type_hint` (optional)
+- Both request forms target the same introspection semantics and canonical
+  response envelope.
 
 Response requirements:
 
@@ -156,6 +162,8 @@ Minimum coverage:
 - `401` and `403` mappings with stable error codes
 - RFC 6750 `WWW-Authenticate` header behavior for `401`
 - introspection active/inactive behavior (`200` responses)
+- introspection JSON request behavior
+- introspection RFC 7662 form request behavior
 - introspection caller-auth failure behavior (`401`)
 - introspection disabled behavior (`404` or `501`)
 - `/v1/health/live` success behavior and response shape

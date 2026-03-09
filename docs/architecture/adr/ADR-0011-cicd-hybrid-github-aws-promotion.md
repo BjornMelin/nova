@@ -1,14 +1,17 @@
 ---
 ADR: 0011
 Title: Hybrid CI/CD with GitHub CI and AWS-native Dev to Prod promotion
-Status: Accepted
-Version: 1.1
-Date: 2026-02-24
+Status: Accepted (umbrella decision; detailed authority delegated to ADR-0030 through ADR-0032)
+Version: 1.2
+Date: 2026-03-05
 Related:
   - "[ADR-0001: Deployment on ECS Fargate behind ALB](./ADR-0001-deployment-on-ecs-fargate-behind-alb.md)"
   - "[ADR-0002: OpenAPI as contract and SDK generation](./ADR-0002-openapi-as-contract-and-sdk-generation.md)"
   - "[ADR-0012: No Lambda runtime scope for release orchestration](./ADR-0012-no-lambda-runtime-scope.md)"
   - "[SPEC-0004: CI/CD and documentation automation](../spec/SPEC-0004-ci-cd-and-docs.md)"
+  - "[ADR-0030: Native-CFN modular stack architecture for Nova infrastructure productization](./ADR-0030-native-cfn-modular-stack-architecture-for-nova-infrastructure-productization.md)"
+  - "[ADR-0031: Reusable GitHub workflow API and versioning policy for deployment automation](./ADR-0031-reusable-github-workflow-api-and-versioning-policy-for-deployment-automation.md)"
+  - "[ADR-0032: OIDC and IAM role partitioning for deploy automation](./ADR-0032-oidc-and-iam-role-partitioning-for-deploy-automation.md)"
 References:
   - "[GitHub OIDC in AWS](https://docs.github.com/en/actions/how-tos/secure-your-work/security-harden-deployments/oidc-in-aws)"
   - "[AWS shared OIDC provider controls](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_oidc_secure-by-default.html)"
@@ -96,6 +99,9 @@ Implementation commitments:
 
 ## Changelog
 
+- 2026-03-05: Reclassified as the umbrella hybrid-pipeline decision with
+  detailed deploy-governance authority delegated to `ADR-0030` through
+  `ADR-0032`.
 - 2026-02-24: Initial ADR acceptance and implementation.
 - 2026-02-24: Expanded to full template structure with explicit scoring and
   requirements traceability.

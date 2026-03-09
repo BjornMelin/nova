@@ -188,7 +188,6 @@ infra/auth0/env/*
 !infra/auth0/env/*.env.example
 
 # Local npm token/config artifacts
-/.npmrc.codeartifact
 /.npmrc
 .npmrc*
 !/.npmrc.template

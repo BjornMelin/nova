@@ -17,12 +17,155 @@ jobs:
       - uses: ./.github/actions/setup-python-uv
         with:
           python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Enforce TypeScript module policy
+        run: uv run python scripts/conformance/check_typescript_module_policy.py
       - name: Verify generated TS/R client catalogs
         run: uv run python scripts/release/generate_clients.py --check
       - name: Verify generated OpenAPI artifacts
         run: uv run python scripts/contracts/export_openapi.py --check
       - name: Verify generated Python SDK artifacts
         run: uv run python scripts/release/generate_python_clients.py --check
+
+  typescript-core-packages:
+    runs-on: ubuntu-latest
+    needs: generated-clients
+    strategy:
+      matrix:
+        package_name:
+          - "@nova/sdk-fetch"
+          - "@nova/sdk-file"
+          - "@nova/sdk-auth"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - name: Install package dependencies
+        run: npm ci
+      - name: Build TypeScript SDK dependency graph
+        run: npm run build:typescript:sdk-graph
+      - name: Typecheck package
+        run: npm run -w ${{ matrix.package_name }} typecheck
+
+  typescript-sdk-smoke:
+    runs-on: ubuntu-latest
+    needs: generated-clients
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - name: Build TypeScript SDK packages
+        run: |
+          set -euo pipefail
+          npm ci
+          npm run build:typescript:sdk-graph
+      - name: Smoke test TypeScript SDK exports
+        run: |
+          set -euo pipefail
+          tmp_dir="$(mktemp -d)"
+          trap 'rm -rf "${tmp_dir}"' EXIT
+          cd "${tmp_dir}"
+          cat > package.json <<'EOF'
+          {
+            "name": "nova-typescript-sdk-smoke",
+            "private": true,
+            "type": "module"
+          }
+          EOF
+          npm install --no-package-lock \
+            "${GITHUB_WORKSPACE}/packages/nova_sdk_fetch" \
+            "${GITHUB_WORKSPACE}/packages/nova_sdk_file" \
+            "${GITHUB_WORKSPACE}/packages/nova_sdk_auth"
+          node --input-type=module <<'EOF'
+          import { createNovaAuthClient } from "@nova/sdk-auth/client";
+          import { operations as authOperations } from "@nova/sdk-auth/operations";
+          import { createNovaFileClient } from "@nova/sdk-file/client";
+          import { operations as fileOperations } from "@nova/sdk-file/operations";
+          import { buildOperationDescriptorUrl, buildOperationUrl } from "@nova/sdk-fetch/url";
+
+          const fileUrl = buildOperationUrl(
+            "https://nova.example/",
+            "/v1/jobs/{job_id}",
+            { job_id: "job-123" },
+            { include: "events" },
+          );
+          if (fileUrl !== "https://nova.example/v1/jobs/job-123?include=events") {
+            throw new Error(`unexpected file URL: ${fileUrl}`);
+          }
+
+          const authUrl = buildOperationUrl(
+            "https://nova.example/",
+            authOperations.verify_token.path,
+          );
+          if (authUrl !== "https://nova.example/v1/token/verify") {
+            throw new Error(`unexpected auth URL: ${authUrl}`);
+          }
+
+          const descriptorUrl = buildOperationDescriptorUrl(
+            "https://nova.example/",
+            fileOperations.get_job_status,
+            { job_id: "job-123" },
+            { include: "events" },
+          );
+          if (descriptorUrl !== "https://nova.example/v1/jobs/job-123?include=events") {
+            throw new Error(`unexpected descriptor URL: ${descriptorUrl}`);
+          }
+
+          if ("update_job_result" in fileOperations) {
+            throw new Error("internal file operation leaked into public SDK");
+          }
+
+          const authClient = createNovaAuthClient({
+            baseUrl: "https://nova.example/",
+            fetchImpl: async () =>
+              new Response(JSON.stringify({ claims: {}, principal: { permissions: [], scope_id: "scope", scopes: [], subject: "subject", tenant_id: null } }), {
+                status: 200,
+                headers: { "content-type": "application/json" },
+              }),
+          });
+          const authResponse = await authClient.verify_token({
+            body: { access_token: "token", required_permissions: [], required_scopes: [] },
+          });
+          if (!authResponse.ok || authResponse.data?.principal.subject !== "subject") {
+            throw new Error("unexpected auth client response");
+          }
+
+          const fileClient = createNovaFileClient({
+            baseUrl: "https://nova.example/",
+            fetchImpl: async (input) => {
+              const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+              if (url !== "https://nova.example/v1/jobs/job-123") {
+                throw new Error(`unexpected file client URL: ${url}`);
+              }
+              return new Response(JSON.stringify({
+                job: {
+                  job_id: "job-123",
+                  status: "queued",
+                  created_at: "2026-03-09T00:00:00Z",
+                  updated_at: "2026-03-09T00:00:00Z",
+                  events: [],
+                },
+              }), {
+                status: 200,
+                headers: { "content-type": "application/json" },
+              });
+            },
+          });
+          const fileResponse = await fileClient.get_job_status({
+            pathParams: { job_id: "job-123" },
+          });
+          if (!fileResponse.ok || fileResponse.data?.job?.job_id !== "job-123") {
+            throw new Error("unexpected file client response");
+          }
+          EOF
 
   dash-conformance:
     runs-on: ubuntu-latest
@@ -64,16 +207,15 @@ jobs:
         with:
           node-version: "22"
           cache: npm
-          cache-dependency-path: packages/contracts/typescript/package-lock.json
+          cache-dependency-path: package-lock.json
       - name: Install TypeScript conformance dependencies
         run: npm ci
-        working-directory: packages/contracts/typescript
       - name: Typecheck TypeScript conformance and generated catalogs
-        run: npm run typecheck
-        working-directory: packages/contracts/typescript
+        run: npm run -w @nova/contracts-ts-conformance typecheck
+      - name: Build TypeScript SDK dependency graph
+        run: npm run build:typescript:sdk-graph
       - name: Verify TypeScript fixture conformance
-        run: npm run verify
-        working-directory: packages/contracts/typescript
+        run: npm run -w @nova/contracts-ts-conformance verify
       - uses: ./.github/actions/setup-python-uv
         with:
           python-version: "3.12"
