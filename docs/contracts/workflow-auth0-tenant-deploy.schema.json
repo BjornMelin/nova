@@ -41,6 +41,7 @@
         },
         "mapping_file": {
           "type": "string",
+          "pattern": "^$|^infra/auth0/mappings/[a-z0-9-]+\\.json$",
           "description": "Optional mappings file override. Empty string resolves to infra/auth0/mappings/{environment}.json."
         },
         "allow_delete": {
