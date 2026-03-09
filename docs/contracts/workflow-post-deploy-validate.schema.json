@@ -15,6 +15,7 @@
       "description": "Inputs passed into reusable-post-deploy-validate workflow_call.",
       "additionalProperties": false,
       "required": [
+        "validation_base_url",
         "validation_canonical_paths",
         "validation_legacy_404_paths",
         "report_path",
@@ -23,18 +24,23 @@
       "properties": {
         "validation_base_url": {
           "type": "string",
-          "description": "Preferred base URL. Must be HTTPS when supplied.",
+          "description": "Canonical file API base URL. Must be HTTPS when supplied.",
           "pattern": "^https://.+$"
         },
-        "service_base_url": {
+        "auth_validation_base_url": {
           "type": "string",
-          "description": "Legacy alias for validation_base_url. Must be HTTPS when supplied.",
+          "description": "Optional auth API base URL. Must be HTTPS when supplied.",
           "pattern": "^https://.+$"
         },
         "validation_canonical_paths": {
           "type": "string",
           "pattern": "^/.+",
           "description": "Comma-delimited canonical paths."
+        },
+        "auth_validation_canonical_paths": {
+          "type": "string",
+          "pattern": "^(?:[A-Z]+:)?/.+",
+          "description": "Comma-delimited auth canonical paths."
         },
         "validation_legacy_404_paths": {
           "type": "string",
@@ -51,19 +57,7 @@
           "minLength": 1,
           "default": "post-deploy-validation-report"
         }
-      },
-      "anyOf": [
-        {
-          "required": [
-            "validation_base_url"
-          ]
-        },
-        {
-          "required": [
-            "service_base_url"
-          ]
-        }
-      ]
+      }
     },
     "outputs": {
       "type": "object",

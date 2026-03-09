@@ -7,14 +7,19 @@ on:
         description: Canonical base URL to validate (e.g. https://api.example.com)
         required: false
         type: string
-      service_base_url:
-        description: Legacy alias for validation_base_url
+      auth_validation_base_url:
+        description: Optional auth API base URL to validate
         required: false
         type: string
       validation_canonical_paths:
         description: Comma-delimited canonical paths that must resolve (non-404).
         required: false
         default: /v1/health/live,/v1/health/ready,/metrics/summary,/v1/capabilities,/v1/releases/info
+        type: string
+      auth_validation_canonical_paths:
+        description: Comma-delimited auth canonical paths. METHOD:/path is supported.
+        required: false
+        default: GET:/v1/health/live,GET:/v1/health/ready,POST:/v1/token/verify,POST:/v1/token/introspect
         type: string
       validation_legacy_404_paths:
         description: Comma-delimited legacy paths that must return 404.
@@ -35,13 +40,18 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: post-deploy-validate-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   post-deploy-validate:
     uses: ./.github/workflows/reusable-post-deploy-validate.yml
     with:
       validation_base_url: ${{ inputs.validation_base_url }}
-      service_base_url: ${{ inputs.service_base_url }}
+      auth_validation_base_url: ${{ inputs.auth_validation_base_url }}
       validation_canonical_paths: ${{ inputs.validation_canonical_paths }}
+      auth_validation_canonical_paths: ${{ inputs.auth_validation_canonical_paths }}
       validation_legacy_404_paths: ${{ inputs.validation_legacy_404_paths }}
       report_path: ${{ inputs.report_path }}
       artifact_name: ${{ inputs.artifact_name }}

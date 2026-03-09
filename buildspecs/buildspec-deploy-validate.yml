@@ -14,7 +14,7 @@ phases:
 
   pre_build:
     commands:
-      - test -n "${VALIDATION_BASE_URL:-${SERVICE_BASE_URL:-}}"
+      - test -n "${VALIDATION_BASE_URL:-}"
 
   build:
     commands:
