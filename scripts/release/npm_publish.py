@@ -56,6 +56,8 @@ def _validated_planned_versions(version_plan: dict[str, Any]) -> dict[str, str]:
             raise ValueError(
                 f"version plan unit {unit_id} has invalid semver: {new_version}"
             )
+        if unit_id in versions:
+            raise ValueError(f"duplicate unit_id in version plan: {unit_id}")
         versions[unit_id] = new_version
     return versions
 
@@ -172,7 +174,7 @@ def prepare_npm_publish_artifacts(
                 f"{unit.project_name} is missing a built dist/ directory"
             )
 
-        target_dir = output_dir / unit.path.name
+        target_dir = output_dir / Path(unit_id)
         if target_dir.exists():
             shutil.rmtree(target_dir)
         shutil.copytree(

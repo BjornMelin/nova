@@ -7,26 +7,83 @@ import { NovaSdkTransportError } from "./errors.js";
 import { operations } from "./operations.js";
 import type { MetricsSummaryRequestOptions, MetricsSummaryResult, GetCapabilitiesRequestOptions, GetCapabilitiesResult, HealthLiveRequestOptions, HealthLiveResult, HealthReadyRequestOptions, HealthReadyResult, ListJobsRequestOptions, ListJobsResult, CreateJobRequestOptions, CreateJobResult, GetJobStatusRequestOptions, GetJobStatusResult, CancelJobRequestOptions, CancelJobResult, ListJobEventsRequestOptions, ListJobEventsResult, RetryJobRequestOptions, RetryJobResult, GetReleaseInfoRequestOptions, GetReleaseInfoResult, PlanResourcesRequestOptions, PlanResourcesResult, PresignDownloadRequestOptions, PresignDownloadResult, AbortUploadRequestOptions, AbortUploadResult, CompleteUploadRequestOptions, CompleteUploadResult, InitiateUploadRequestOptions, InitiateUploadResult, SignUploadPartsRequestOptions, SignUploadPartsResult } from "./types.js";
 
+/**
+ * Options for configuring the generated @nova/sdk-file client.
+ */
 export interface NovaFileClientOptions extends FetchClientOptions {}
 
+/**
+ * Generated client surface for the @nova/sdk-file API.
+ */
 export interface NovaFileClient {
   readonly baseUrl: string;
+  /**
+   * Invoke the `metrics_summary` operation.
+   */
   metrics_summary(request?: MetricsSummaryRequestOptions): Promise<MetricsSummaryResult>;
+  /**
+   * Invoke the `get_capabilities` operation.
+   */
   get_capabilities(request?: GetCapabilitiesRequestOptions): Promise<GetCapabilitiesResult>;
+  /**
+   * Invoke the `health_live` operation.
+   */
   health_live(request?: HealthLiveRequestOptions): Promise<HealthLiveResult>;
+  /**
+   * Invoke the `health_ready` operation.
+   */
   health_ready(request?: HealthReadyRequestOptions): Promise<HealthReadyResult>;
+  /**
+   * Invoke the `list_jobs` operation.
+   */
   list_jobs(request?: ListJobsRequestOptions): Promise<ListJobsResult>;
+  /**
+   * Invoke the `create_job` operation.
+   */
   create_job(request: CreateJobRequestOptions): Promise<CreateJobResult>;
-  get_job_status(request?: GetJobStatusRequestOptions): Promise<GetJobStatusResult>;
-  cancel_job(request?: CancelJobRequestOptions): Promise<CancelJobResult>;
-  list_job_events(request?: ListJobEventsRequestOptions): Promise<ListJobEventsResult>;
-  retry_job(request?: RetryJobRequestOptions): Promise<RetryJobResult>;
+  /**
+   * Invoke the `get_job_status` operation.
+   */
+  get_job_status(request: GetJobStatusRequestOptions): Promise<GetJobStatusResult>;
+  /**
+   * Invoke the `cancel_job` operation.
+   */
+  cancel_job(request: CancelJobRequestOptions): Promise<CancelJobResult>;
+  /**
+   * Invoke the `list_job_events` operation.
+   */
+  list_job_events(request: ListJobEventsRequestOptions): Promise<ListJobEventsResult>;
+  /**
+   * Invoke the `retry_job` operation.
+   */
+  retry_job(request: RetryJobRequestOptions): Promise<RetryJobResult>;
+  /**
+   * Invoke the `get_release_info` operation.
+   */
   get_release_info(request?: GetReleaseInfoRequestOptions): Promise<GetReleaseInfoResult>;
+  /**
+   * Invoke the `plan_resources` operation.
+   */
   plan_resources(request: PlanResourcesRequestOptions): Promise<PlanResourcesResult>;
+  /**
+   * Invoke the `presign_download` operation.
+   */
   presign_download(request: PresignDownloadRequestOptions): Promise<PresignDownloadResult>;
+  /**
+   * Invoke the `abort_upload` operation.
+   */
   abort_upload(request: AbortUploadRequestOptions): Promise<AbortUploadResult>;
+  /**
+   * Invoke the `complete_upload` operation.
+   */
   complete_upload(request: CompleteUploadRequestOptions): Promise<CompleteUploadResult>;
+  /**
+   * Invoke the `initiate_upload` operation.
+   */
   initiate_upload(request: InitiateUploadRequestOptions): Promise<InitiateUploadResult>;
+  /**
+   * Invoke the `sign_upload_parts` operation.
+   */
   sign_upload_parts(request: SignUploadPartsRequestOptions): Promise<SignUploadPartsResult>;
 }
 
@@ -59,6 +116,12 @@ async function executeOperation<TResult>(
   }
 }
 
+/**
+ * Create a generated client for the @nova/sdk-file API.
+ *
+ * @param options - Transport and base URL options for the client.
+ * @returns A configured NovaFileClient instance.
+ */
 export function createNovaFileClient(
   options: NovaFileClientOptions,
 ): NovaFileClient {
@@ -67,6 +130,9 @@ export function createNovaFileClient(
 
   return {
     baseUrl,
+    /**
+     * Invoke the `metrics_summary` operation.
+     */
     async metrics_summary(request?: MetricsSummaryRequestOptions): Promise<MetricsSummaryResult> {
       return executeOperation<MetricsSummaryResult>(
         fetchClient,
@@ -75,6 +141,9 @@ export function createNovaFileClient(
         undefined,
       );
     },
+    /**
+     * Invoke the `get_capabilities` operation.
+     */
     async get_capabilities(request?: GetCapabilitiesRequestOptions): Promise<GetCapabilitiesResult> {
       return executeOperation<GetCapabilitiesResult>(
         fetchClient,
@@ -83,6 +152,9 @@ export function createNovaFileClient(
         undefined,
       );
     },
+    /**
+     * Invoke the `health_live` operation.
+     */
     async health_live(request?: HealthLiveRequestOptions): Promise<HealthLiveResult> {
       return executeOperation<HealthLiveResult>(
         fetchClient,
@@ -91,6 +163,9 @@ export function createNovaFileClient(
         undefined,
       );
     },
+    /**
+     * Invoke the `health_ready` operation.
+     */
     async health_ready(request?: HealthReadyRequestOptions): Promise<HealthReadyResult> {
       return executeOperation<HealthReadyResult>(
         fetchClient,
@@ -99,6 +174,9 @@ export function createNovaFileClient(
         undefined,
       );
     },
+    /**
+     * Invoke the `list_jobs` operation.
+     */
     async list_jobs(request?: ListJobsRequestOptions): Promise<ListJobsResult> {
       return executeOperation<ListJobsResult>(
         fetchClient,
@@ -107,6 +185,9 @@ export function createNovaFileClient(
         undefined,
       );
     },
+    /**
+     * Invoke the `create_job` operation.
+     */
     async create_job(request: CreateJobRequestOptions): Promise<CreateJobResult> {
       return executeOperation<CreateJobResult>(
         fetchClient,
@@ -115,38 +196,53 @@ export function createNovaFileClient(
         "application/json",
       );
     },
-    async get_job_status(request?: GetJobStatusRequestOptions): Promise<GetJobStatusResult> {
+    /**
+     * Invoke the `get_job_status` operation.
+     */
+    async get_job_status(request: GetJobStatusRequestOptions): Promise<GetJobStatusResult> {
       return executeOperation<GetJobStatusResult>(
         fetchClient,
         operations.get_job_status,
-        request ?? {} as OperationRequest,
+        request as OperationRequest,
         undefined,
       );
     },
-    async cancel_job(request?: CancelJobRequestOptions): Promise<CancelJobResult> {
+    /**
+     * Invoke the `cancel_job` operation.
+     */
+    async cancel_job(request: CancelJobRequestOptions): Promise<CancelJobResult> {
       return executeOperation<CancelJobResult>(
         fetchClient,
         operations.cancel_job,
-        request ?? {} as OperationRequest,
+        request as OperationRequest,
         undefined,
       );
     },
-    async list_job_events(request?: ListJobEventsRequestOptions): Promise<ListJobEventsResult> {
+    /**
+     * Invoke the `list_job_events` operation.
+     */
+    async list_job_events(request: ListJobEventsRequestOptions): Promise<ListJobEventsResult> {
       return executeOperation<ListJobEventsResult>(
         fetchClient,
         operations.list_job_events,
-        request ?? {} as OperationRequest,
+        request as OperationRequest,
         undefined,
       );
     },
-    async retry_job(request?: RetryJobRequestOptions): Promise<RetryJobResult> {
+    /**
+     * Invoke the `retry_job` operation.
+     */
+    async retry_job(request: RetryJobRequestOptions): Promise<RetryJobResult> {
       return executeOperation<RetryJobResult>(
         fetchClient,
         operations.retry_job,
-        request ?? {} as OperationRequest,
+        request as OperationRequest,
         undefined,
       );
     },
+    /**
+     * Invoke the `get_release_info` operation.
+     */
     async get_release_info(request?: GetReleaseInfoRequestOptions): Promise<GetReleaseInfoResult> {
       return executeOperation<GetReleaseInfoResult>(
         fetchClient,
@@ -155,6 +251,9 @@ export function createNovaFileClient(
         undefined,
       );
     },
+    /**
+     * Invoke the `plan_resources` operation.
+     */
     async plan_resources(request: PlanResourcesRequestOptions): Promise<PlanResourcesResult> {
       return executeOperation<PlanResourcesResult>(
         fetchClient,
@@ -163,6 +262,9 @@ export function createNovaFileClient(
         "application/json",
       );
     },
+    /**
+     * Invoke the `presign_download` operation.
+     */
     async presign_download(request: PresignDownloadRequestOptions): Promise<PresignDownloadResult> {
       return executeOperation<PresignDownloadResult>(
         fetchClient,
@@ -171,6 +273,9 @@ export function createNovaFileClient(
         "application/json",
       );
     },
+    /**
+     * Invoke the `abort_upload` operation.
+     */
     async abort_upload(request: AbortUploadRequestOptions): Promise<AbortUploadResult> {
       return executeOperation<AbortUploadResult>(
         fetchClient,
@@ -179,6 +284,9 @@ export function createNovaFileClient(
         "application/json",
       );
     },
+    /**
+     * Invoke the `complete_upload` operation.
+     */
     async complete_upload(request: CompleteUploadRequestOptions): Promise<CompleteUploadResult> {
       return executeOperation<CompleteUploadResult>(
         fetchClient,
@@ -187,6 +295,9 @@ export function createNovaFileClient(
         "application/json",
       );
     },
+    /**
+     * Invoke the `initiate_upload` operation.
+     */
     async initiate_upload(request: InitiateUploadRequestOptions): Promise<InitiateUploadResult> {
       return executeOperation<InitiateUploadResult>(
         fetchClient,
@@ -195,6 +306,9 @@ export function createNovaFileClient(
         "application/json",
       );
     },
+    /**
+     * Invoke the `sign_upload_parts` operation.
+     */
     async sign_upload_parts(request: SignUploadPartsRequestOptions): Promise<SignUploadPartsResult> {
       return executeOperation<SignUploadPartsResult>(
         fetchClient,

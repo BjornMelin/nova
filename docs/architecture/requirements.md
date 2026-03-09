@@ -156,7 +156,7 @@ The idempotency implementation MUST use an explicit request lifecycle:
   (`error.code = "idempotency_unavailable"`) when the distributed claim store
   cannot guarantee correctness.
 - `IDEMPOTENCY_MODE=local_only` is limited to explicit local/single-process
-  operation and must not be treated as the production default.
+  operation and MUST not be treated as the production default.
 
 ### FR-0005: Authentication and authorization
 

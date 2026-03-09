@@ -157,6 +157,7 @@ def test_v1_jobs_rejects_blank_idempotency_key() -> None:
 
 
 def test_v1_jobs_list_scoped_config_error_returns_internal_error() -> None:
+    """Verify a scoped jobs listing config error returns an internal error."""
     settings = Settings.model_validate(
         {
             "AUTH_MODE": AuthMode.SAME_ORIGIN.value,

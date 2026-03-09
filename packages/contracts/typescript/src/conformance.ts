@@ -381,6 +381,10 @@ async function main(): Promise<void> {
         status: 200,
         body: introspectSuccessFixture,
         assertRequest: ({ init }) => {
+          assert(
+            init?.method === "POST",
+            "introspectSuccessFixture JSON request must use POST",
+          );
           const headers = new Headers(init?.headers);
           assert(
             headers.get("content-type") === "application/json",
@@ -501,10 +505,16 @@ async function main(): Promise<void> {
       [capabilitiesUrl]: {
         status: 200,
         body: capabilitiesFixture,
+        assertRequest: ({ init }) => {
+          assert(init?.method === "GET", "get_capabilities must use GET");
+        },
       },
       [releaseInfoUrl]: {
         status: 200,
         body: releaseFixture,
+        assertRequest: ({ init }) => {
+          assert(init?.method === "GET", "get_release_info must use GET");
+        },
       },
     }),
   });

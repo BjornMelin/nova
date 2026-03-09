@@ -7,13 +7,31 @@ import { NovaSdkTransportError } from "./errors.js";
 import { operations } from "./operations.js";
 import type { HealthLiveRequestOptions, HealthLiveResult, HealthReadyRequestOptions, HealthReadyResult, IntrospectTokenRequestOptions, IntrospectTokenResult, VerifyTokenRequestOptions, VerifyTokenResult } from "./types.js";
 
+/**
+ * Options for configuring the generated @nova/sdk-auth client.
+ */
 export interface NovaAuthClientOptions extends FetchClientOptions {}
 
+/**
+ * Generated client surface for the @nova/sdk-auth API.
+ */
 export interface NovaAuthClient {
   readonly baseUrl: string;
+  /**
+   * Invoke the `health_live` operation.
+   */
   health_live(request?: HealthLiveRequestOptions): Promise<HealthLiveResult>;
+  /**
+   * Invoke the `health_ready` operation.
+   */
   health_ready(request?: HealthReadyRequestOptions): Promise<HealthReadyResult>;
+  /**
+   * Invoke the `introspect_token` operation.
+   */
   introspect_token(request: IntrospectTokenRequestOptions): Promise<IntrospectTokenResult>;
+  /**
+   * Invoke the `verify_token` operation.
+   */
   verify_token(request: VerifyTokenRequestOptions): Promise<VerifyTokenResult>;
 }
 
@@ -46,6 +64,12 @@ async function executeOperation<TResult>(
   }
 }
 
+/**
+ * Create a generated client for the @nova/sdk-auth API.
+ *
+ * @param options - Transport and base URL options for the client.
+ * @returns A configured NovaAuthClient instance.
+ */
 export function createNovaAuthClient(
   options: NovaAuthClientOptions,
 ): NovaAuthClient {
@@ -54,6 +78,9 @@ export function createNovaAuthClient(
 
   return {
     baseUrl,
+    /**
+     * Invoke the `health_live` operation.
+     */
     async health_live(request?: HealthLiveRequestOptions): Promise<HealthLiveResult> {
       return executeOperation<HealthLiveResult>(
         fetchClient,
@@ -62,6 +89,9 @@ export function createNovaAuthClient(
         undefined,
       );
     },
+    /**
+     * Invoke the `health_ready` operation.
+     */
     async health_ready(request?: HealthReadyRequestOptions): Promise<HealthReadyResult> {
       return executeOperation<HealthReadyResult>(
         fetchClient,
@@ -70,6 +100,9 @@ export function createNovaAuthClient(
         undefined,
       );
     },
+    /**
+     * Invoke the `introspect_token` operation.
+     */
     async introspect_token(request: IntrospectTokenRequestOptions): Promise<IntrospectTokenResult> {
       return executeOperation<IntrospectTokenResult>(
         fetchClient,
@@ -78,6 +111,9 @@ export function createNovaAuthClient(
         undefined,
       );
     },
+    /**
+     * Invoke the `verify_token` operation.
+     */
     async verify_token(request: VerifyTokenRequestOptions): Promise<VerifyTokenResult> {
       return executeOperation<VerifyTokenResult>(
         fetchClient,

@@ -57,8 +57,8 @@ class Operation:
     @property
     def requires_request(self) -> bool:
         """Return whether the generated client method must take a request object."""
-        return self.has_request_body and (
-            self.has_required_request_body
+        return (
+            (self.has_request_body and self.has_required_request_body)
             or self.has_path_params
             or self.has_required_query_params
             or self.has_required_header_params
@@ -848,8 +848,14 @@ def _render_typescript_client(
         'import { operations } from "./operations.js";',
         f'import type {{ {request_imports} }} from "./types.js";',
         "",
+        "/**",
+        f" * Options for configuring the generated {target.package_name} client.",
+        " */",
         f"export interface {target.client_options_name} extends FetchClientOptions {{}}",
         "",
+        "/**",
+        f" * Generated client surface for the {target.package_name} API.",
+        " */",
         f"export interface {target.client_interface_name} {{",
         "  readonly baseUrl: string;",
     ]
@@ -859,12 +865,22 @@ def _render_typescript_client(
         request_type = operation.request_type_name
         result_type = f"{base_name}Result"
         if operation.requires_request:
-            lines.append(
-                f"  {operation.operation_id}(request: {request_type}): Promise<{result_type}>;"
+            lines.extend(
+                [
+                    "  /**",
+                    f"   * Invoke the `{operation.operation_id}` operation.",
+                    "   */",
+                    f"  {operation.operation_id}(request: {request_type}): Promise<{result_type}>;",
+                ]
             )
         else:
-            lines.append(
-                f"  {operation.operation_id}(request?: {request_type}): Promise<{result_type}>;"
+            lines.extend(
+                [
+                    "  /**",
+                    f"   * Invoke the `{operation.operation_id}` operation.",
+                    "   */",
+                    f"  {operation.operation_id}(request?: {request_type}): Promise<{result_type}>;",
+                ]
             )
     lines.extend(
         [
@@ -899,6 +915,12 @@ def _render_typescript_client(
             "  }",
             "}",
             "",
+            "/**",
+            f" * Create a generated client for the {target.package_name} API.",
+            " *",
+            " * @param options - Transport and base URL options for the client.",
+            f" * @returns A configured {target.client_interface_name} instance.",
+            " */",
             f"export function {target.client_factory_name}(",
             f"  options: {target.client_options_name},",
             f"): {target.client_interface_name} {{",
@@ -922,6 +944,9 @@ def _render_typescript_client(
             request_expr = "request ?? {}"
         lines.extend(
             [
+                "    /**",
+                f"     * Invoke the `{operation.operation_id}` operation.",
+                "     */",
                 f"    async {signature}: Promise<{result_type}> {{",
                 f"      return executeOperation<{result_type}>(",
                 "        fetchClient,",

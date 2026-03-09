@@ -180,7 +180,15 @@ def test_dynamo_job_repository_list_for_scope_requires_gsi(
 ) -> None:
     table = cast(_FakeTable, _fake_repo._table)
     table.query_error = ClientError(
-        error_response={"Error": {"Code": "ValidationException"}},
+        error_response={
+            "Error": {
+                "Code": "ValidationException",
+                "Message": (
+                    "The table does not have the specified index: "
+                    "scope_id-created_at-index"
+                ),
+            }
+        },
         operation_name="Query",
     )
 
@@ -188,6 +196,24 @@ def test_dynamo_job_repository_list_for_scope_requires_gsi(
         RuntimeError,
         match="scope_id-created_at-index global secondary index",
     ):
+        _fake_repo.list_for_scope(scope_id="scope-1", limit=10)
+
+
+def test_dynamo_job_repository_list_for_scope_reraises_other_validation_errors(
+    _fake_repo: DynamoJobRepository,
+) -> None:
+    table = cast(_FakeTable, _fake_repo._table)
+    table.query_error = ClientError(
+        error_response={
+            "Error": {
+                "Code": "ValidationException",
+                "Message": "Query key condition not supported",
+            }
+        },
+        operation_name="Query",
+    )
+
+    with pytest.raises(ClientError, match="Query key condition not supported"):
         _fake_repo.list_for_scope(scope_id="scope-1", limit=10)
 
 

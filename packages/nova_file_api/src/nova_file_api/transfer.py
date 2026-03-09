@@ -233,6 +233,16 @@ class TransferService:
     ) -> ExportCopyResult:
         """Copy a caller-scoped upload object into the export prefix.
 
+        Args:
+            source_bucket: Bucket containing the upload object to export.
+            source_key: Caller-scoped upload object key to copy.
+            scope_id: Caller scope identifier used for ownership validation.
+            job_id: Job identifier used to namespace the export object key.
+            filename: Download filename to preserve in the export result.
+
+        Returns:
+            ExportCopyResult: Metadata describing the copied export object.
+
         Raises:
             FileTransferError: ``invalid_request`` when caller validation or
                 source object absence/TOCTOU checks fail.

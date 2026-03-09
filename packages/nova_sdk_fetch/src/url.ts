@@ -29,6 +29,7 @@ function assertNoUnresolvedPathTokens(pathTemplate: string, resolvedPath: string
  * @param pathParams - Replacement values keyed by path token name.
  * @param query - Query-string values keyed by parameter name.
  * @returns Fully qualified operation URL string.
+ * @throws {Error} When pathTemplate still contains unresolved path tokens after replacement.
  */
 export function buildOperationUrl(
   baseUrl: string,

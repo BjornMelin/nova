@@ -107,6 +107,19 @@ def _worker_message_body(
     )
 
 
+def _worker_settings() -> Settings:
+    return Settings.model_validate(
+        {
+            "JOBS_ENABLED": True,
+            "JOBS_RUNTIME_MODE": "worker",
+            "JOBS_QUEUE_BACKEND": JobsQueueBackend.SQS,
+            "JOBS_SQS_QUEUE_URL": "https://example.local/queue",
+            "JOBS_API_BASE_URL": "https://api.example.local",
+            "JOBS_WORKER_UPDATE_TOKEN": SecretStr("worker-token"),
+        }
+    )
+
+
 def test_worker_receive_message_uses_configured_sqs_polling_settings(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -228,13 +241,7 @@ def test_worker_posts_failed_status_for_unsupported_job_type(
         lambda **kwargs: fake_http,
     )
 
-    settings = Settings()
-    settings.jobs_enabled = True
-    settings.jobs_runtime_mode = "worker"
-    settings.jobs_queue_backend = JobsQueueBackend.SQS
-    settings.jobs_sqs_queue_url = "https://example.local/queue"
-    settings.jobs_api_base_url = "https://api.example.local"
-    settings.jobs_worker_update_token = SecretStr("worker-token")
+    settings = _worker_settings()
 
     worker = JobsWorker(
         settings=settings,
@@ -296,13 +303,7 @@ def test_worker_executes_transfer_process_and_posts_running_then_succeeded(
         lambda **kwargs: fake_http,
     )
 
-    settings = Settings()
-    settings.jobs_enabled = True
-    settings.jobs_runtime_mode = "worker"
-    settings.jobs_queue_backend = JobsQueueBackend.SQS
-    settings.jobs_sqs_queue_url = "https://example.local/queue"
-    settings.jobs_api_base_url = "https://api.example.local"
-    settings.jobs_worker_update_token = SecretStr("worker-token")
+    settings = _worker_settings()
 
     worker = JobsWorker(
         settings=settings,
@@ -385,13 +386,7 @@ def test_worker_non_retryable_execution_failure_reduces_to_terminal_failure(
         lambda **kwargs: fake_http,
     )
 
-    settings = Settings()
-    settings.jobs_enabled = True
-    settings.jobs_runtime_mode = "worker"
-    settings.jobs_queue_backend = JobsQueueBackend.SQS
-    settings.jobs_sqs_queue_url = "https://example.local/queue"
-    settings.jobs_api_base_url = "https://api.example.local"
-    settings.jobs_worker_update_token = SecretStr("worker-token")
+    settings = _worker_settings()
 
     worker = JobsWorker(
         settings=settings,
@@ -552,13 +547,7 @@ def test_worker_retryable_execution_failure_leaves_message_unacked(
         lambda **kwargs: fake_http,
     )
 
-    settings = Settings()
-    settings.jobs_enabled = True
-    settings.jobs_runtime_mode = "worker"
-    settings.jobs_queue_backend = JobsQueueBackend.SQS
-    settings.jobs_sqs_queue_url = "https://example.local/queue"
-    settings.jobs_api_base_url = "https://api.example.local"
-    settings.jobs_worker_update_token = SecretStr("worker-token")
+    settings = _worker_settings()
 
     worker = JobsWorker(
         settings=settings,
@@ -633,13 +622,7 @@ def test_worker_leaves_message_unacked_when_running_update_retries_exhausted(
         lambda _lower, _upper: 1.0,
     )
 
-    settings = Settings()
-    settings.jobs_enabled = True
-    settings.jobs_runtime_mode = "worker"
-    settings.jobs_queue_backend = JobsQueueBackend.SQS
-    settings.jobs_sqs_queue_url = "https://example.local/queue"
-    settings.jobs_api_base_url = "https://api.example.local"
-    settings.jobs_worker_update_token = SecretStr("worker-token")
+    settings = _worker_settings()
 
     worker = JobsWorker(
         settings=settings,
@@ -720,13 +703,7 @@ def test_worker_retries_running_update_until_accepted(
         lambda _lower, _upper: 1.0,
     )
 
-    settings = Settings()
-    settings.jobs_enabled = True
-    settings.jobs_runtime_mode = "worker"
-    settings.jobs_queue_backend = JobsQueueBackend.SQS
-    settings.jobs_sqs_queue_url = "https://example.local/queue"
-    settings.jobs_api_base_url = "https://api.example.local"
-    settings.jobs_worker_update_token = SecretStr("worker-token")
+    settings = _worker_settings()
 
     worker = JobsWorker(
         settings=settings,
@@ -808,13 +785,7 @@ def test_worker_leaves_message_unacked_when_terminal_update_is_rejected(
         lambda _lower, _upper: 1.0,
     )
 
-    settings = Settings()
-    settings.jobs_enabled = True
-    settings.jobs_runtime_mode = "worker"
-    settings.jobs_queue_backend = JobsQueueBackend.SQS
-    settings.jobs_sqs_queue_url = "https://example.local/queue"
-    settings.jobs_api_base_url = "https://api.example.local"
-    settings.jobs_worker_update_token = SecretStr("worker-token")
+    settings = _worker_settings()
 
     worker = JobsWorker(
         settings=settings,
