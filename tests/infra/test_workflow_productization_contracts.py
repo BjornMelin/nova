@@ -2,16 +2,9 @@
 
 from __future__ import annotations
 
-from pathlib import Path
+import yaml
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
-
-
-def _read(rel_path: str) -> str:
-    """Read a repository-relative file path."""
-    path = REPO_ROOT / rel_path
-    assert path.is_file(), f"Expected file to exist: {path}"
-    return path.read_text(encoding="utf-8")
+from tests.infra.helpers import read_repo_file as _read
 
 
 def test_reusable_workflow_call_apis_exist_and_are_callable() -> None:
@@ -26,9 +19,20 @@ def test_reusable_workflow_call_apis_exist_and_are_callable() -> None:
         ".github/workflows/reusable-post-deploy-validate.yml",
         ".github/workflows/reusable-auth0-tenant-deploy.yml",
     ]:
-        text = _read(rel_path)
-        assert "on:" in text
-        assert "workflow_call:" in text
+        workflow = yaml.safe_load(_read(rel_path))
+        assert isinstance(workflow, dict), (
+            f"Expected mapping workflow for: {rel_path}"
+        )
+        on_contract = workflow.get("on")
+        if on_contract is None:
+            on_contract = workflow.get(True)
+        assert isinstance(on_contract, dict), (
+            f"Expected workflow on mapping for: {rel_path}"
+        )
+        workflow_call = on_contract.get("workflow_call")
+        assert isinstance(workflow_call, dict), (
+            f"Expected workflow_call mapping for: {rel_path}"
+        )
 
 
 def test_composite_actions_provide_shared_release_primitives() -> None:
@@ -97,27 +101,54 @@ def test_reusable_deploy_runtime_contract_includes_typed_inputs_outputs() -> (
     None
 ):
     """Reusable deploy-runtime workflow must expose v1 typed contract keys."""
-    text = _read(".github/workflows/reusable-deploy-runtime.yml")
+    workflow_text = _read(".github/workflows/reusable-deploy-runtime.yml")
+    workflow = yaml.safe_load(workflow_text)
+    assert isinstance(workflow, dict)
+    on_contract = workflow.get("on")
+    if on_contract is None:
+        on_contract = workflow.get(True)
+    assert isinstance(on_contract, dict)
+    workflow_call = on_contract.get("workflow_call")
+    assert isinstance(workflow_call, dict)
+
+    inputs = workflow_call.get("inputs", {})
+    outputs = workflow_call.get("outputs", {})
+    assert isinstance(inputs, dict)
+    assert isinstance(outputs, dict)
 
     for required in [
-        "workflow_call:",
-        "app_type:",
-        "environment:",
-        "aws_region:",
-        "parameter_file:",
-        "size_profile:",
-        "enable_worker:",
-        "approval_environment:",
-        "stack_name:",
-        "change_set_name:",
-        "pipeline_execution_id:",
-        "validation_report_path:",
-        "manifest_sha256:",
+        "template_file",
+        "image_tag",
+        "custom_container_port",
+        "custom_task_cpu",
+        "custom_task_memory",
+        "custom_desired_count",
+        "app_type",
+        "environment",
+        "aws_region",
+        "parameter_file",
+        "size_profile",
+        "enable_worker",
+        "approval_environment",
+        "stack_name",
+    ]:
+        assert required in inputs
+
+    for required in [
+        "stack_name",
+        "change_set_name",
+        "pipeline_execution_id",
+        "validation_report_path",
+        "manifest_sha256",
+    ]:
+        assert required in outputs
+
+    for required in (
         "resolve-size-profile",
         "cfn-change-set-lifecycle",
         "collect-deploy-evidence",
-    ]:
-        assert required in text
+    ):
+        assert required in workflow_text
 
 
 def test_cfn_contract_validate_workflow_exists_for_cfn_gates() -> None:
@@ -130,6 +161,6 @@ def test_cfn_contract_validate_workflow_exists_for_cfn_gates() -> None:
         "infra/nova/*.yml",
         "infra/nova/deploy/*.yml",
         "infra/runtime/**/*.yml",
-        "uv run pytest -q tests/infra",
+        "uv run --with pytest pytest -q tests/infra",
     ]:
         assert required in text

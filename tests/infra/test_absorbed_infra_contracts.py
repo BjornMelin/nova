@@ -7,17 +7,9 @@ SPEC-0013/SPEC-0014.
 from __future__ import annotations
 
 import re
-from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
-
-
-def _read(rel_path: str) -> str:
-    """Read a repository-relative file path."""
-    path = REPO_ROOT / rel_path
-    assert path.is_file(), f"Expected file to exist: {path}"
-    return path.read_text(encoding="utf-8")
-
+from tests.infra.helpers import REPO_ROOT
+from tests.infra.helpers import read_repo_file as _read
 
 RUNTIME_DEPLOYABLE_TEMPLATES = (
     "infra/runtime/ecr.yml",
@@ -280,24 +272,27 @@ def test_iam_scope_constraints_for_release_roles() -> None:
         "sts:GetServiceBearerToken",
     ]:
         assert required_action in github_role_text
-    assert (
-        "arn:${AWS::Partition}:codepipeline:${AWS::Region}:${AWS::AccountId}:${Project}-${Application}-*"
-        in github_role_text
+    github_role_arn_pattern = (
+        "arn:${AWS::Partition}:codepipeline:${AWS::Region}"
+        ":${AWS::AccountId}:${Project}-${Application}-*"
     )
+    assert github_role_arn_pattern in github_role_text
     assert "${FoundationStackName}-CodeArtifactDomainName" in github_role_text
     assert (
         "${FoundationStackName}-CodeArtifactRepositoryName" in github_role_text
     )
     assert "CodeArtifactPromotionSourceRepositoryName" in github_role_text
     assert "CodeArtifactPromotionDestinationRepositoryName" in github_role_text
-    assert (
-        "repository/${ResolvedCodeArtifactDomainName}/${PromotionDestinationRepositoryName}"
-        in github_role_text
+    repo_dest_pattern = (
+        "repository/${ResolvedCodeArtifactDomainName}/"
+        "${PromotionDestinationRepositoryName}"
     )
-    assert (
-        "repository/${ResolvedCodeArtifactDomainName}/${PromotionSourceRepositoryName}"
-        in github_role_text
+    repo_src_pattern = (
+        "repository/${ResolvedCodeArtifactDomainName}/"
+        "${PromotionSourceRepositoryName}"
     )
+    assert repo_dest_pattern in github_role_text
+    assert repo_src_pattern in github_role_text
     assert "sts:AWSServiceName: codeartifact.amazonaws.com" in github_role_text
 
     assert "BatchBOperatorPrincipalArn:" in text

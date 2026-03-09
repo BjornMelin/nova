@@ -3,16 +3,9 @@ controlled promotion policy."""
 
 from __future__ import annotations
 
-from pathlib import Path
+import yaml
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
-
-
-def _read(rel_path: str) -> str:
-    """Read a repository-relative file path."""
-    path = REPO_ROOT / rel_path
-    assert path.is_file(), f"Expected file to exist: {path}"
-    return path.read_text(encoding="utf-8")
+from tests.infra.helpers import read_repo_file as _read
 
 
 def test_publish_packages_workflow_has_staged_gate_contracts() -> None:
@@ -203,6 +196,26 @@ def test_auth0_tenant_deploy_workflow_contracts() -> None:
     wrapper_text = _read(".github/workflows/auth0-tenant-deploy.yml")
     reusable_text = _read(".github/workflows/reusable-auth0-tenant-deploy.yml")
 
+    wrapper_workflow = yaml.safe_load(wrapper_text)
+    assert isinstance(wrapper_workflow, dict)
+    wrapper_jobs = wrapper_workflow.get("jobs")
+    assert isinstance(wrapper_jobs, dict), "Expected jobs mapping in wrapper"
+
+    auth0_reusable_workflow_path = (
+        "./.github/workflows/reusable-auth0-tenant-deploy.yml"
+    )
+
+    auth0_jobs = [
+        value
+        for value in wrapper_jobs.values()
+        if isinstance(value, dict)
+        and value.get("uses") == auth0_reusable_workflow_path
+    ]
+    assert len(auth0_jobs) == 1, (
+        "Expected exactly one wrapper job using reusable-auth0-tenant-deploy"
+    )
+    auth0_job = auth0_jobs[0]
+
     for required in [
         "uses: ./.github/workflows/reusable-auth0-tenant-deploy.yml",
         "environment",
@@ -211,13 +224,26 @@ def test_auth0_tenant_deploy_workflow_contracts() -> None:
         "input_file",
         "mapping_file",
         "artifact_name",
-        "AUTH0_DOMAIN",
-        "AUTH0_CLIENT_ID",
-        "AUTH0_CLIENT_SECRET",
     ]:
         assert required in wrapper_text, (
             f"Missing required wrapper contract: {required!r}"
         )
+
+    auth0_secrets = auth0_job.get("secrets", {})
+    if auth0_secrets != "inherit":
+        assert isinstance(auth0_secrets, dict), (
+            "Wrapper secrets must be either inherit or a mapping"
+        )
+
+        for required_secret in [
+            "AUTH0_DOMAIN",
+            "AUTH0_CLIENT_ID",
+            "AUTH0_CLIENT_SECRET",
+        ]:
+            assert any(
+                required_secret in str(secret_reference)
+                for secret_reference in auth0_secrets.values()
+            ), f"Missing required wrapper secret reference: {required_secret}"
 
     for forbidden in [
         "a0deploy import --input_file",
