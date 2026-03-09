@@ -40,6 +40,9 @@ class _StubService(TokenVerificationService):
             claims={"sub": "sub"},
         )
 
+    def is_ready(self) -> bool:
+        return True
+
 
 def test_v1_health_live() -> None:
     app = create_app(service_override=_StubService())
@@ -51,6 +54,32 @@ def test_v1_health_live() -> None:
     assert payload["service"] == "nova-auth-api"
     assert isinstance(payload["request_id"], str)
     assert payload["request_id"]
+
+
+def test_v1_health_ready() -> None:
+    app = create_app(service_override=_StubService())
+    with TestClient(app) as client:
+        response = client.get("/v1/health/ready")
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "ok"
+    assert payload["service"] == "nova-auth-api"
+    assert isinstance(payload["request_id"], str)
+    assert payload["request_id"]
+
+
+def test_v1_health_ready_returns_503_when_verifier_missing() -> None:
+    app = create_app()
+    with TestClient(app) as client:
+        response = client.get(
+            "/v1/health/ready",
+            headers={"X-Request-Id": "req-auth-ready-503"},
+        )
+    assert response.status_code == 503
+    payload: dict[str, Any] = response.json()
+    assert payload["error"]["code"] == "service_unavailable"
+    assert payload["error"]["message"] == "auth verifier unavailable"
+    assert payload["error"]["request_id"] == "req-auth-ready-503"
 
 
 def test_verify_endpoint() -> None:

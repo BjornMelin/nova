@@ -17,9 +17,38 @@ Active route authority is hard-cut canonical `/v1/*` plus `/metrics/summary`:
 Topology and release-delivery authority:
 
 - `docs/architecture/spec/SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md`
+- `docs/architecture/adr/ADR-0024-layered-architecture-authority-pack.md`
+- `docs/architecture/adr/ADR-0025-runtime-monorepo-component-boundaries-and-ownership.md`
+- `docs/architecture/adr/ADR-0026-fail-fast-runtime-configuration-and-safe-auth-execution.md`
+
+Adjacent deployment-control-plane authority:
+
+- `docs/architecture/adr/ADR-0030-native-cfn-modular-stack-architecture-for-nova-infrastructure-productization.md`
+- `docs/architecture/adr/ADR-0031-reusable-github-workflow-api-and-versioning-policy-for-deployment-automation.md`
+- `docs/architecture/adr/ADR-0032-oidc-and-iam-role-partitioning-for-deploy-automation.md`
+- `docs/architecture/spec/SPEC-0024-cloudformation-module-contract.md`
+- `docs/architecture/spec/SPEC-0025-reusable-workflow-integration-contract.md`
+- `docs/architecture/spec/SPEC-0026-ci-cd-iam-least-privilege-matrix.md`
 
 Only canonical `/v1/*` routes and `/metrics/summary` are valid in active
 contracts and operator runbooks.
+
+## SDK Governance
+
+This release wave exposes one public, release-grade SDK surface: Python.
+TypeScript and R packages remain generator-owned in-repo catalogs and are not
+yet productized/published as first-class public SDKs.
+
+SDK-facing OpenAPI rules are hard requirements:
+
+- `operationId` values are stable lowercase snake_case names, not FastAPI
+  path/method-derived identifiers.
+- Tags are semantic SDK groupings only: `transfers`, `jobs`, `platform`,
+  `ops`, `token`, and `health`.
+- Committed SDK artifacts regenerate from
+  `packages/contracts/openapi/*.openapi.json` via
+  `scripts/release/generate_clients.py` and
+  `scripts/release/generate_python_clients.py`.
 
 ## Runtime Capability Families
 
@@ -43,6 +72,8 @@ For exact endpoint and payload contract details, use:
 - Failed enqueue responses are not idempotency replay cached.
 - `/v1/health/ready` is dependency-scoped and fails on blank
   `FILE_TRANSFER_BUCKET`.
+- `AUTH_MODE=jwt_local` with incomplete `OIDC_ISSUER`, `OIDC_AUDIENCE`, or
+  `OIDC_JWKS_URL` configuration fails the `auth_dependency` readiness check.
 - `POST /v1/internal/jobs/{job_id}/result` with `status=succeeded` normalizes
   `error` to `null`.
 
@@ -85,9 +116,17 @@ Release sequencing contract:
   `prod` before CI/CD stack rollout.
 - Foundation-first control plane: `nova-foundation` is deployed before IAM,
   CodeBuild, and CodePipeline stacks.
+- Runtime deployment target is ECS/Fargate behind ALB with ECS-native
+  blue/green deployment strategy, CloudWatch deployment alarms, and WAF on the
+  public ALB path.
+- Worker deployment contract uses the packaged `nova-file-worker` command plus
+  `JobsApiBaseUrl` and `JobsWorkerUpdateTokenSecretArn` inputs for the
+  canonical `JOBS_*` runtime.
 - Base URL authority: deploy validation URLs are sourced from
   `/nova/{env}/{service}/base-url` via
   `infra/nova/deploy/service-base-url-ssm.yml`.
+- Release manifest hashing must describe the actual
+  `docs/plan/release/RELEASE-VERSION-MANIFEST.md` content promoted across lanes.
 
 Key active release docs:
 

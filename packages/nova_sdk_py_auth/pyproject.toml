@@ -1,0 +1,18 @@
+[build-system]
+requires = ["hatchling>=1.27.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "nova-sdk-py-auth"
+version = "0.1.0"
+description = "Generated Python core SDK for the Nova auth API."
+readme = "README.md"
+requires-python = ">=3.12,<3.14"
+dependencies = [
+  "attrs>=25.4.0",
+  "httpx>=0.28.1",
+  "python-dateutil>=2.9.0",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/nova_sdk_py_auth"]

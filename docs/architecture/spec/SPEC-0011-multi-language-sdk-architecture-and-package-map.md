@@ -1,11 +1,11 @@
 ---
 Spec: 0011
-Title: Multi-language SDK architecture and package map
+Title: Python-first SDK architecture and deferred TS/R package map
 Status: Active
-Version: 1.0
-Date: 2026-02-28
+Version: 2.0
+Date: 2026-03-05
 Related:
-  - "[ADR-0013: Final-state SDK topology uses generated contract-core clients plus thin language adapters](../adr/ADR-0013-final-state-sdk-topology-generated-core-plus-thin-adapters.md)"
+  - "[ADR-0013: Python-first SDK topology uses generated contract-core clients and defers TS/R productization](../adr/ADR-0013-final-state-sdk-topology-generated-core-plus-thin-adapters.md)"
   - "[ADR-0002: OpenAPI as contract and SDK generation](../adr/ADR-0002-openapi-as-contract-and-sdk-generation.md)"
   - "[SPEC-0000: HTTP API contract](./SPEC-0000-http-api-contract.md)"
   - "[SPEC-0007: Auth API contract](./SPEC-0007-auth-api-contract.md)"
@@ -18,17 +18,27 @@ References:
 
 ## 1. Scope
 
-This spec defines the final-state SDK topology and package boundaries for Nova consumers in Python (Dash), TypeScript (Next), and R (Shiny). It covers package ownership, API surfaces, adapter constraints, and integration contracts.
+Defines the current-wave Nova SDK package map. Python is the only release-grade
+public SDK surface. TypeScript and R packages remain internal/generated catalogs
+until a later promotion wave.
 
 ## 2. Canonical topology
 
 ### 2.1 Core rule
 
-All language core SDKs MUST be generated from canonical OpenAPI artifacts owned by Nova.
+All generated SDK artifacts must originate from canonical OpenAPI artifacts
+owned by Nova.
+
+Canonical OpenAPI artifacts must expose stable SDK-facing metadata:
+
+- snake_case `operationId` values that are unique and not path/method-derived
+- semantic tags used as generated client/module group boundaries
+- named component schemas for custom request bodies referenced from operations
 
 ### 2.2 Adapter rule
 
-Thin adapters MAY exist for language/framework ergonomics, but MUST NOT introduce protocol or contract authority.
+Thin adapters may exist for language or framework ergonomics, but they must not
+introduce protocol or contract authority.
 
 Prohibited in adapters:
 
@@ -44,69 +54,82 @@ Prohibited in adapters:
 - `packages/contracts/openapi/nova-file-api.openapi.json`
 - `packages/contracts/openapi/nova-auth-api.openapi.json`
 
-These are the only contract generation inputs.
+These are the only generation inputs.
 
-### 3.2 Python surfaces
+### 3.2 Public release-grade Python surfaces
 
 - `nova_sdk_py_file` (generated): file-transfer API client and models.
 - `nova_sdk_py_auth` (generated): auth API verify/introspect client and models.
-- `nova_dash_bridge` (thin adapter): Dash/Flask request extraction, authorization-header forwarding, request-id propagation, framework glue only.
+- `nova_dash_bridge` (thin adapter): Dash/Flask/FastAPI request extraction,
+  authorization-header forwarding, request-id propagation, framework glue only.
 
 Consumer mapping:
 
-- `dash-pca` consumes generated `nova_sdk_py_auth` + `nova_sdk_py_file` through thin bridge utilities.
-- No standalone handwritten verify client remains authoritative in consumer repo.
+- `dash-pca` consumes generated Python SDK packages plus thin bridge utilities.
+- No handwritten Python verify client remains authoritative in consumer repos.
 
-### 3.3 TypeScript surfaces
+### 3.3 Internal/generated TypeScript catalogs
 
-- `@nova/sdk-file-core` (generated types + generated operation signatures from OpenAPI).
-- `@nova/sdk-auth-core` (generated auth operation types/signatures).
-- `@nova/sdk-fetch` (thin runtime adapter): wraps `openapi-fetch` client configuration (base URL, headers, retries policy hooks, telemetry hooks).
+- `@nova/sdk-file-core` (generated types and operation signatures from OpenAPI)
+- `@nova/sdk-auth-core` (generated auth operation types/signatures)
+- `@nova/sdk-fetch` (generator-owned runtime helper over `openapi-fetch`)
 
-Consumer mapping:
+Repository package paths:
 
-- `next-analysis-bolt` and `next-analytics` converge on `@nova/sdk-*` packages.
-- App-local API clients are wrappers over these packages only.
+- `packages/nova_sdk_file_core/`
+- `packages/nova_sdk_auth_core/`
+- `packages/nova_sdk_fetch/`
 
-### 3.4 R surfaces
+Current status:
 
-- `nova.sdk.r.file` (generated client bindings/models).
-- `nova.sdk.r.auth` (generated auth bindings/models).
-- `shiny-auth-mmm` (thin adapter): session token extraction + reactive integration; delegates HTTP contract behavior to generated client.
+- internal/generated catalog only
+- not a release-grade public SDK surface
+- not yet covered by public package publishing/support guarantees
 
-Consumer mapping:
+### 3.4 Internal/generated R catalogs
 
-- `ShinyAbsorberApp` and `UVAbsorbers` consume `shiny-auth-mmm` thin adapter + generated R SDK packages.
+- `nova.sdk.r.file` (generated client bindings/models)
+- `nova.sdk.r.auth` (generated auth bindings/models)
+
+Repository package paths:
+
+- `packages/nova_sdk_r_file/`
+- `packages/nova_sdk_r_auth/`
+
+Current status:
+
+- internal/generated catalog only
+- not a release-grade public SDK surface
+- not yet covered by public package publishing/support guarantees
 
 ## 4. Required SDK surface behaviors
 
-All generated language cores MUST support:
+Public Python SDK packages must support:
 
 - explicit base URL configuration
 - configurable timeout
 - optional request-id header forwarding
-- structured error envelope decoding (`error.code`, `error.message`, `error.request_id`)
+- structured error envelope decoding (`error.code`, `error.message`,
+  `error.request_id`)
 - typed request/response payload models
 
-All thin adapters MUST support:
-
-- host-framework auth token extraction
-- host-framework request context propagation
-- no endpoint/schema forks
+Internal TS/R catalogs must remain deterministic from the same OpenAPI inputs
+but are not public compatibility authority in this wave.
 
 ## 5. Auth contract surface
 
-The auth SDKs MUST expose `POST /v1/token/verify` as first-class operation with:
+The canonical SDK auth operation remains `POST /v1/token/verify` with:
 
 - `access_token` (required)
 - `required_scopes` (optional)
 - `required_permissions` (optional)
 
-Failure handling MUST preserve upstream status classes:
+Failure handling must preserve upstream status classes:
 
-- 401 authentication failures
-- 403 authorization failures
-- deterministic fail-closed mapping for transport timeouts/unavailable upstream
+- `401` authentication failures
+- `403` authorization failures
+- deterministic fail-closed mapping for transport timeouts or unavailable
+  upstreams
 
 ## 6. Repository ownership and release boundaries
 
@@ -114,7 +137,8 @@ Nova owns:
 
 - OpenAPI contract source
 - generated SDK definitions
-- versioning policy and compatibility gates
+- Python public package governance
+- TS/R internal catalog generation determinism
 
 Consumer repos own:
 
@@ -124,9 +148,14 @@ Consumer repos own:
 
 ## 7. Delivery and artifact publishing requirements
 
-- SDK artifacts for Python, TypeScript, and R are versioned and published from Nova CI.
-- Each release includes machine-readable changelog entries by package.
-- Generated artifacts are deterministic from OpenAPI inputs plus pinned generator versions.
+- Canonical OpenAPI artifacts are exported and committed before SDK generation.
+- Python SDK packages are versioned and published from Nova CI.
+- `scripts/release/generate_clients.py` is the deterministic generator entry
+  point for internal TypeScript and R operation catalogs.
+- `scripts/release/generate_python_clients.py` is the deterministic generator
+  entry point for committed Python SDK package trees.
+- TS/R generated artifacts must stay deterministic in CI, but public
+  publishing/promotion is deferred to a later wave.
 
 ## 8. Traceability
 

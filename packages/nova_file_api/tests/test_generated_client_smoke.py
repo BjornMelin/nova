@@ -3,29 +3,22 @@
 from __future__ import annotations
 
 import importlib.util
-import json
 import subprocess
 import sys
 from pathlib import Path
 
 import pytest
-from nova_file_api.app import create_app
 
 _SUBPROCESS_TIMEOUT_SECONDS = 30
+_REPO_ROOT = Path(__file__).resolve().parents[3]
+_OPENAPI_ROOT = _REPO_ROOT / "packages" / "contracts" / "openapi"
 
 
-def test_generated_client_smoke(tmp_path: Path) -> None:
-    """Generate a Python client from OpenAPI and compile generated files."""
+def _generate_client_smoke(*, schema_path: Path, tmp_path: Path) -> None:
     if importlib.util.find_spec("openapi_python_client") is None:
         pytest.skip("openapi_python_client dependency is not installed")
 
-    app = create_app()
-    schema_path = tmp_path / "openapi.json"
-    schema_path.write_text(
-        json.dumps(app.openapi(), indent=2),
-        encoding="utf-8",
-    )
-    output_path = tmp_path / "generated_client"
+    output_path = tmp_path / schema_path.stem
 
     try:
         generate = subprocess.run(
@@ -78,4 +71,20 @@ def test_generated_client_smoke(tmp_path: Path) -> None:
         "generated client compile smoke failed:\n"
         f"stdout:\n{compile_result.stdout}\n"
         f"stderr:\n{compile_result.stderr}"
+    )
+
+
+def test_file_openapi_generated_client_smoke(tmp_path: Path) -> None:
+    """Generate a Python client from the canonical file API OpenAPI artifact."""
+    _generate_client_smoke(
+        schema_path=_OPENAPI_ROOT / "nova-file-api.openapi.json",
+        tmp_path=tmp_path,
+    )
+
+
+def test_auth_openapi_generated_client_smoke(tmp_path: Path) -> None:
+    """Generate a Python client from the canonical auth API OpenAPI artifact."""
+    _generate_client_smoke(
+        schema_path=_OPENAPI_ROOT / "nova-auth-api.openapi.json",
+        tmp_path=tmp_path,
     )

@@ -6,19 +6,29 @@ import logging
 from collections.abc import AsyncIterator, Awaitable, Callable, MutableMapping
 from contextlib import asynccontextmanager
 from json import JSONDecodeError
-from typing import Any
+from typing import Annotated, Any
 from urllib.parse import parse_qs
 from uuid import uuid4
 
+import anyio
 import structlog
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from fastapi.routing import APIRoute
 from pydantic import ValidationError
 from starlette.responses import Response
 
 from nova_auth_api.config import Settings
-from nova_auth_api.errors import AuthApiError, internal_error
+from nova_auth_api.dependencies import (
+    BLOCKING_IO_LIMITER_STATE_KEY,
+    TokenVerificationServiceDep,
+)
+from nova_auth_api.errors import (
+    AuthApiError,
+    internal_error,
+    service_unavailable,
+)
 from nova_auth_api.models import (
     ErrorBody,
     ErrorEnvelope,
@@ -28,46 +38,61 @@ from nova_auth_api.models import (
     TokenVerifyRequest,
     TokenVerifyResponse,
 )
-from nova_auth_api.service import (
-    TokenVerificationService,
-    _set_verifier_thread_tokens,
-)
+from nova_auth_api.service import TokenVerificationService
 
-_AUTH_SERVICE_NOT_INITIALIZED = "auth service not initialized"
 _LOGGING_CONFIGURED = False
 _FORM_MEDIA_TYPE = "application/x-www-form-urlencoded"
 _JSON_MEDIA_TYPE = "application/json"
-_OPERATION_ID_HEALTH_LIVE = "health_live_v1_health_live_get"
-_OPERATION_ID_VERIFY_TOKEN = "verify_token_v1_token_verify_post"
-_OPERATION_ID_INTROSPECT_TOKEN = "introspect_token_v1_token_introspect_post"
+_TOKEN_INTROSPECT_JSON_REQUEST_SCHEMA_REF = {
+    "$ref": "#/components/schemas/TokenIntrospectRequest"
+}
+_TOKEN_INTROSPECT_FORM_REQUEST_SCHEMA_REF = {
+    "$ref": "#/components/schemas/TokenIntrospectFormRequest"
+}
 _INTROSPECT_REQUEST_BODY: dict[str, Any] = {
     "required": True,
     "content": {
-        _JSON_MEDIA_TYPE: {
-            "schema": {
-                "$ref": "#/components/schemas/TokenIntrospectRequest",
-            }
-        },
-        _FORM_MEDIA_TYPE: {
-            "schema": {
-                "type": "object",
-                "required": ["token"],
-                "properties": {
-                    "token": {"type": "string", "minLength": 1},
-                    "token_type_hint": {"type": "string"},
-                    "required_scopes": {
-                        "type": "array",
-                        "items": {"type": "string"},
-                    },
-                    "required_permissions": {
-                        "type": "array",
-                        "items": {"type": "string"},
-                    },
-                },
-            }
-        },
+        _JSON_MEDIA_TYPE: {"schema": _TOKEN_INTROSPECT_JSON_REQUEST_SCHEMA_REF},
+        _FORM_MEDIA_TYPE: {"schema": _TOKEN_INTROSPECT_FORM_REQUEST_SCHEMA_REF},
     },
 }
+_TOKEN_INTROSPECT_REQUEST_SCHEMA = TokenIntrospectRequest.model_json_schema(
+    ref_template="#/components/schemas/{model}"
+)
+_TOKEN_INTROSPECT_FORM_REQUEST_SCHEMA = {
+    **_TOKEN_INTROSPECT_REQUEST_SCHEMA,
+    "title": "TokenIntrospectFormRequest",
+}
+
+
+def _operation_id_from_route(route: APIRoute) -> str:
+    """Use the canonical route name as the stable OpenAPI operationId."""
+    return route.name
+
+
+def _install_openapi_overrides(app: FastAPI) -> None:
+    """Inject schema components required by custom OpenAPI request bodies."""
+    original_openapi = app.openapi
+
+    def custom_openapi() -> dict[str, Any]:
+        if app.openapi_schema is not None:
+            return app.openapi_schema
+
+        schema = original_openapi()
+        components = schema.setdefault("components", {})
+        schemas = components.setdefault("schemas", {})
+        schemas.setdefault(
+            "TokenIntrospectRequest",
+            _TOKEN_INTROSPECT_REQUEST_SCHEMA,
+        )
+        schemas.setdefault(
+            "TokenIntrospectFormRequest",
+            _TOKEN_INTROSPECT_FORM_REQUEST_SCHEMA,
+        )
+        app.openapi_schema = schema
+        return schema
+
+    app.__dict__["openapi"] = custom_openapi
 
 
 def create_app(
@@ -81,8 +106,12 @@ def create_app(
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         settings = settings_override or Settings()
-        _set_verifier_thread_tokens(settings.oidc_verifier_thread_tokens)
         app.state.settings = settings
+        setattr(
+            app.state,
+            BLOCKING_IO_LIMITER_STATE_KEY,
+            anyio.CapacityLimiter(settings.blocking_io_thread_tokens),
+        )
         app.state.auth_service = service_override or TokenVerificationService(
             settings=settings
         )
@@ -91,14 +120,16 @@ def create_app(
     app = FastAPI(
         title="nova-auth-api",
         version="0.1.0",
+        generate_unique_id_function=_operation_id_from_route,
         lifespan=lifespan,
     )
+    _install_openapi_overrides(app)
     app.middleware("http")(request_context_middleware)
 
     @app.get(
         "/v1/health/live",
         response_model=HealthResponse,
-        operation_id=_OPERATION_ID_HEALTH_LIVE,
+        tags=["health"],
     )
     async def health_live(request: Request) -> HealthResponse:
         """Return liveness status."""
@@ -109,31 +140,50 @@ def create_app(
             request_id=request_id,
         )
 
+    @app.get(
+        "/v1/health/ready",
+        response_model=HealthResponse,
+        tags=["health"],
+    )
+    async def health_ready(
+        request: Request,
+        service: TokenVerificationServiceDep,
+    ) -> HealthResponse:
+        """Return readiness status for token verification."""
+        request_id = _request_id(request=request) or uuid4().hex
+        if not service.is_ready():
+            raise service_unavailable("auth verifier unavailable")
+        return HealthResponse(
+            status="ok",
+            service="nova-auth-api",
+            request_id=request_id,
+        )
+
     @app.post(
         "/v1/token/verify",
         response_model=TokenVerifyResponse,
-        operation_id=_OPERATION_ID_VERIFY_TOKEN,
+        tags=["token"],
     )
     async def verify_token(
         payload: TokenVerifyRequest,
-        request: Request,
+        service: TokenVerificationServiceDep,
     ) -> TokenVerifyResponse:
         """Verify access token and return principal plus claims."""
-        service = _service(request=request)
         return await service.verify(payload)
 
     @app.post(
         "/v1/token/introspect",
         response_model=TokenIntrospectResponse,
-        operation_id=_OPERATION_ID_INTROSPECT_TOKEN,
+        tags=["token"],
         openapi_extra={"requestBody": _INTROSPECT_REQUEST_BODY},
     )
     async def introspect_token(
-        request: Request,
+        payload: Annotated[
+            TokenIntrospectRequest, Depends(_parse_introspect_request)
+        ],
+        service: TokenVerificationServiceDep,
     ) -> TokenIntrospectResponse:
         """Introspect token and return active status plus claim details."""
-        payload = await _parse_introspect_payload(request=request)
-        service = _service(request=request)
         return await service.introspect(payload)
 
     @app.exception_handler(AuthApiError)
@@ -219,13 +269,6 @@ async def request_context_middleware(
         structlog.contextvars.unbind_contextvars("request_id")
 
 
-def _service(*, request: Request) -> TokenVerificationService:
-    value = getattr(request.app.state, "auth_service", None)
-    if isinstance(value, TokenVerificationService):
-        return value
-    raise RuntimeError(_AUTH_SERVICE_NOT_INITIALIZED)
-
-
 def _request_id(*, request: Request) -> str | None:
     """Extract request ID from request state or headers."""
     value = getattr(request.state, "request_id", None)
@@ -237,8 +280,7 @@ def _request_id(*, request: Request) -> str | None:
     return None
 
 
-async def _parse_introspect_payload(
-    *,
+async def _parse_introspect_request(
     request: Request,
 ) -> TokenIntrospectRequest:
     media_type = _request_media_type(request=request)
