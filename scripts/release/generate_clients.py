@@ -45,7 +45,7 @@ TARGETS = (
         / "packages"
         / "nova_sdk_file_core"
         / "src"
-        / "generated.ts",
+        / "operations.ts",
         r_output_path=REPO_ROOT
         / "packages"
         / "nova_sdk_r_file"
@@ -65,7 +65,7 @@ TARGETS = (
         / "packages"
         / "nova_sdk_auth_core"
         / "src"
-        / "generated.ts",
+        / "operations.ts",
         r_output_path=REPO_ROOT
         / "packages"
         / "nova_sdk_r_auth"
@@ -171,20 +171,7 @@ def _render_typescript(operations: list[Operation]) -> str:
             "DO NOT EDIT."
         ),
         "",
-        "/** Descriptor for a single API operation. */",
-        "export interface OperationDescriptor {",
-        "  /** Stable operation identifier. */",
-        "  readonly operationId: string;",
-        "  /** HTTP method literal for the operation. */",
-        (
-            '  readonly method: "GET" | "POST" | "PUT" | "PATCH" | '
-            '"DELETE" | "OPTIONS" | "HEAD";'
-        ),
-        "  /** Canonical route path literal. */",
-        "  readonly path: string;",
-        "  /** Optional operation summary from OpenAPI. */",
-        "  readonly summary?: string;",
-        "}",
+        'import type { OperationDescriptor } from "@nova/sdk-fetch/contracts";',
         "",
         "/** Catalog of generated operations keyed by operationId. */",
         "export const operations = {",

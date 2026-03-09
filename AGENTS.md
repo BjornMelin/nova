@@ -115,6 +115,10 @@ rg -n "/v1/transfers|/v1/jobs|/v1/internal/jobs|/v1/capabilities|/v1/resources/p
   to named component schemas in the emitted OpenAPI document.
 - Generated-client compatibility is validated through
   `packages/nova_file_api/tests/test_generated_client_smoke.py`.
+- TypeScript module policy is strict: do not create or retain `index.ts` barrel
+  files, do not use `export ... from` re-export barrels, and always import from
+  explicit module subpaths (for example `@nova/sdk-fetch/url`,
+  `@nova/sdk-fetch/client`, `@nova/sdk-*-core/operations`).
 
 ## npm / CodeArtifact Local Rule
 

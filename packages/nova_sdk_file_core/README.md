@@ -1,8 +1,8 @@
 # `@nova/sdk-file-core`
 
-Generated file-service operation catalog and URL helpers derived from the
-committed Nova file API OpenAPI contract.
+Generated file-service operation catalog derived from the committed Nova file
+API OpenAPI contract.
 
-Public helper contract:
+Subpath exports (no package-root barrel):
 
-- `buildOperationUrl(baseUrl, pathTemplate, pathParams?, queryParams?)`
+- `@nova/sdk-file-core/operations`

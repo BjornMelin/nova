@@ -1,8 +1,8 @@
 # `@nova/sdk-auth-core`
 
-Generated auth-service operation catalog and URL helpers derived from the
-committed Nova auth API OpenAPI contract.
+Generated auth-service operation catalog derived from the committed Nova auth
+API OpenAPI contract.
 
-Public helper contract:
+Subpath exports (no package-root barrel):
 
-- `buildOperationUrl(baseUrl, pathTemplate, pathParams?, queryParams?)`
+- `@nova/sdk-auth-core/operations`

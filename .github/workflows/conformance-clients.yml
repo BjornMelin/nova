@@ -17,6 +17,8 @@ jobs:
       - uses: ./.github/actions/setup-python-uv
         with:
           python-version: "3.12"
+      - name: Enforce TypeScript module policy
+        run: uv run python scripts/conformance/check_typescript_module_policy.py
       - name: Verify generated TS/R client catalogs
         run: uv run python scripts/release/generate_clients.py --check
       - name: Verify generated OpenAPI artifacts
@@ -87,29 +89,29 @@ jobs:
             "${GITHUB_WORKSPACE}/packages/nova_sdk_file_core" \
             "${GITHUB_WORKSPACE}/packages/nova_sdk_auth_core"
           node --input-type=module <<'EOF'
-          import { buildOperationUrl as buildAuthUrl, operations as authOperations } from "@nova/sdk-auth-core";
-          import { buildOperationUrl as buildFileUrl, operations as fileOperations } from "@nova/sdk-file-core";
-          import { buildOperationDescriptorUrl } from "@nova/sdk-fetch";
+          import { operations as authOperations } from "@nova/sdk-auth-core/operations";
+          import { operations as fileOperations } from "@nova/sdk-file-core/operations";
+          import { buildOperationDescriptorUrl, buildOperationUrl } from "@nova/sdk-fetch/url";
 
-          const legacyFileUrl = buildFileUrl(
+          const fileUrl = buildOperationUrl(
             "https://nova.example/",
             "/v1/jobs/{job_id}",
             { job_id: "job-123" },
             { include: "events" },
           );
           if (
-            legacyFileUrl
+            fileUrl
             !== "https://nova.example/v1/jobs/job-123?include=events"
           ) {
-            throw new Error(`unexpected legacy file URL: ${legacyFileUrl}`);
+            throw new Error(`unexpected file URL: ${fileUrl}`);
           }
 
-          const legacyAuthUrl = buildAuthUrl(
+          const authUrl = buildOperationUrl(
             "https://nova.example/",
             authOperations.verify_token.path,
           );
-          if (legacyAuthUrl !== "https://nova.example/v1/token/verify") {
-            throw new Error(`unexpected legacy auth URL: ${legacyAuthUrl}`);
+          if (authUrl !== "https://nova.example/v1/token/verify") {
+            throw new Error(`unexpected auth URL: ${authUrl}`);
           }
 
           const descriptorUrl = buildOperationDescriptorUrl(
