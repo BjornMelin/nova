@@ -28,16 +28,14 @@ This release wave exposes one public, release-grade SDK surface: Python.
 TypeScript and R packages remain generator-owned in-repo catalogs and are not
 yet productized/published as first-class public SDKs.
 
-SDK-facing OpenAPI rules are hard requirements:
+Current OpenAPI generation behavior:
 
-- `operationId` values are stable lowercase snake_case names, not FastAPI
-  path/method-derived identifiers.
-- Tags are semantic SDK groupings only: `transfers`, `jobs`, `platform`,
-  `ops`, `token`, and `health`.
-- Committed SDK artifacts regenerate from
-  `packages/contracts/openapi/*.openapi.json` via
-  `scripts/release/generate_clients.py` and
-  `scripts/release/generate_python_clients.py`.
+- `operationId` values are stable lowercase snake_case names and are currently
+  route/method-derived.
+- File API operation tags are currently router-owned and include
+  implementation tags such as `transfers`, `ops`, and `v1`.
+- OpenAPI artifacts are produced from runtime FastAPI schemas (`/openapi.json`)
+  for contract checks and client smoke validation.
 
 ## Runtime Capability Families
 
@@ -62,7 +60,8 @@ For exact endpoint and payload contract details, use:
 - `/v1/health/ready` is dependency-scoped and fails on blank
   `FILE_TRANSFER_BUCKET`.
 - `AUTH_MODE=jwt_local` with incomplete `OIDC_ISSUER`, `OIDC_AUDIENCE`, or
-  `OIDC_JWKS_URL` configuration fails the `auth_dependency` readiness check.
+  `OIDC_JWKS_URL` configuration is not currently represented as a dedicated
+  `/v1/health/ready` `auth_dependency` check.
 - `POST /v1/internal/jobs/{job_id}/result` with `status=succeeded` normalizes
   `error` to `null`.
 
@@ -105,9 +104,8 @@ Release sequencing contract:
   `prod` before CI/CD stack rollout.
 - Foundation-first control plane: `nova-foundation` is deployed before IAM,
   CodeBuild, and CodePipeline stacks.
-- Runtime deployment target is ECS/Fargate behind ALB with ECS-native
-  blue/green deployment strategy, CloudWatch deployment alarms, and WAF on the
-  public ALB path.
+- Runtime deployment target is ECS/Fargate behind ALB with CodeDeploy-based
+  ECS blue/green deployment controls and CloudWatch deployment alarms.
 - Worker deployment contract uses the packaged `nova-file-worker` command plus
   `JobsApiBaseUrl` and `JobsWorkerUpdateTokenSecretArn` inputs for the
   canonical `JOBS_*` runtime.

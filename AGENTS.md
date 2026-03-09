@@ -26,8 +26,6 @@ Use these as the active authority set:
 - `docs/architecture/requirements.md`
 - `docs/architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md`
 - `docs/architecture/adr/ADR-0024-layered-architecture-authority-pack.md`
-- `docs/architecture/adr/ADR-0025-reusable-workflow-api-and-versioning-policy.md`
-- `docs/architecture/adr/ADR-0026-oidc-iam-role-partitioning-for-deploy-automation.md`
 - `docs/architecture/adr/ADR-0027-hard-cut-downstream-integration-and-consumer-contract-enforcement.md`
 - `docs/architecture/adr/ADR-0028-auth0-tenant-ops-reusable-workflow-api-contract.md`
 - `docs/architecture/adr/ADR-0029-ssm-runtime-base-url-authority-for-deploy-validation.md`
@@ -45,7 +43,9 @@ Use these as the active authority set:
 - `docs/runbooks/README.md`
 
 Adjacent deploy-governance authority (canonical, but not part of the active
-runtime pack):
+runtime pack; these documents govern deployment, operational controls, and
+CI/CD/IAM policy boundaries related to the product without defining the runtime
+code or packaging surface):
 
 - `docs/architecture/adr/ADR-0030-native-cfn-modular-stack-architecture-for-nova-infrastructure-productization.md`
 - `docs/architecture/adr/ADR-0031-reusable-github-workflow-api-and-versioning-policy-for-deployment-automation.md`
@@ -102,17 +102,16 @@ rg -n "/v1/transfers|/v1/jobs|/v1/internal/jobs|/v1/capabilities|/v1/resources/p
 
 ## SDK/OpenAPI Generation Rules
 
-- OpenAPI 3.1 artifacts in `packages/contracts/openapi/` are the only SDK
-  generation inputs.
-- SDK-facing `operationId` values MUST be stable lowercase snake_case, unique
-  per document, and not derived from path/method/version literals.
-- SDK-facing tags MUST be semantic router groups only:
-  `transfers`, `jobs`, `platform`, `ops`, `token`, and `health`.
+- OpenAPI 3.1 artifacts are emitted from runtime application schemas
+  (`/openapi.json`) and validated through runtime OpenAPI contract tests.
+- Runtime OpenAPI `operationId` values are currently stable lowercase
+  snake_case values derived from route and method literals.
+- Runtime OpenAPI tags are currently implementation-owned and include router
+  tags such as `transfers`, `ops`, and `v1` for file API surfaces.
 - Custom request-body `$ref` entries added through `openapi_extra` MUST resolve
   to named component schemas in the emitted OpenAPI document.
-- Regenerate internal TS/R catalogs with
-  `scripts/release/generate_clients.py` and committed Python SDK trees with
-  `scripts/release/generate_python_clients.py`.
+- Generated-client compatibility is validated through
+  `packages/nova_file_api/tests/test_generated_client_smoke.py`.
 
 ## Runtime Invariants
 
@@ -122,7 +121,8 @@ rg -n "/v1/transfers|/v1/jobs|/v1/internal/jobs|/v1/capabilities|/v1/resources/p
 - `/v1/health/ready` must evaluate only traffic-critical dependencies.
 - Missing/blank `FILE_TRANSFER_BUCKET` MUST fail readiness.
 - `AUTH_MODE=jwt_local` with incomplete `OIDC_ISSUER`, `OIDC_AUDIENCE`, or
-  `OIDC_JWKS_URL` MUST fail the `auth_dependency` readiness check.
+  `OIDC_JWKS_URL` is not currently enforced through a dedicated
+  `auth_dependency` readiness check on `/v1/health/ready`.
 - `POST /v1/internal/jobs/{job_id}/result` with `status=succeeded` MUST clear
   `error` to `null`.
 - Do not log presigned URLs, JWTs, or signed query values.

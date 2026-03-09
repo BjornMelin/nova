@@ -64,9 +64,10 @@ Companion modular setup guides:
 
 ## 5A. Runtime deployment policy
 
-1. Runtime service deployment uses ECS-native blue/green on `AWS::ECS::Service`.
-2. Public ALB deployments must keep a regional WAFv2 WebACL associated during
-   release validation and promotion.
+1. Runtime service deployment uses ECS blue/green controls implemented via
+   AWS CodeDeploy for `AWS::ECS::Service` resources.
+2. Public ALB WebACL/WAF association is environment-template specific and must
+   be validated against the deployed runtime stack definitions for each lane.
 
 ## 6. Required release evidence
 

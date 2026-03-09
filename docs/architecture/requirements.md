@@ -14,10 +14,9 @@ requirements for the first production release.
 - Runtime contract is canonical `/v1/*` plus `/metrics/summary`; non-canonical
   route families are removed.
 - Runtime authority-pack governance and boundary/validation contracts are
-  active under `ADR-0024` + `ADR-0025` + `ADR-0026` and `SPEC-0017` through
-  `SPEC-0023`.
+  active under `ADR-0024` and `SPEC-0017` through `SPEC-0023`.
 - Deployment-control-plane governance is codified separately under
-  `ADR-0030` + `ADR-0031` + `ADR-0032` and `SPEC-0024` through `SPEC-0026`.
+  `ADR-0030` and `SPEC-0024` through `SPEC-0026`.
 - Superseded ADR/SPEC material is archived only under
   `docs/architecture/adr/superseded/**` and
   `docs/architecture/spec/superseded/**`.
@@ -122,7 +121,8 @@ Feature flags (for example `JOBS_ENABLED`) MUST NOT drive readiness pass/fail.
 
 - Missing or blank `FILE_TRANSFER_BUCKET` MUST fail readiness.
 - `AUTH_MODE=jwt_local` with missing `OIDC_ISSUER`, `OIDC_AUDIENCE`, or
-  `OIDC_JWKS_URL` MUST fail the `auth_dependency` readiness check.
+  `OIDC_JWKS_URL` is not currently represented as a dedicated
+  `auth_dependency` readiness check in `/v1/health/ready`.
 
 ### FR-0003: Key generation and scope enforcement
 
@@ -189,14 +189,15 @@ MUST be incremented using first-seen marker logic with conditional writes.
 OpenAPI 3.1 output from the API implementation MUST be the canonical HTTP
 contract source for docs and client generation.
 
-SDK-facing OpenAPI metadata MUST also satisfy these rules:
+Runtime OpenAPI metadata currently follows these rules:
 
-- `operationId` values are unique, stable, lowercase snake_case, and not
-  path/method/version-derived.
-- operation tags are semantic client-grouping tags only:
-  `transfers`, `jobs`, `platform`, `ops`, `token`, and `health`.
-- custom request-body schema references emitted via OpenAPI overrides resolve to
-  named component schemas in the same document.
+- `operationId` values are unique, stable, snake_case, and currently
+  route/method-derived.
+- file API operation tags are router-defined and currently include
+  implementation tags (for example `v1`) in addition to semantic group tags.
+- custom request-body schema references emitted via OpenAPI overrides MUST
+  resolve to named component schemas in the same document and remain contract-
+  test verifiable from runtime OpenAPI output.
 
 ### FR-0009: S3 multipart correctness and acceleration compatibility
 
