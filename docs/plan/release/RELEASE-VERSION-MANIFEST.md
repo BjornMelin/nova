@@ -1,12 +1,12 @@
 # Release Version Manifest
 
-Date: 2026-03-09T05:50:04+00:00
+Date: 2026-03-09T10:27:27+00:00
 Status: Active
 Schema: 1.0
 
 ## Release Metadata
-- `base_commit`: `95036b82141fe4c0a7b43039f8bf55a22fb1d56a`
-- `head_commit`: `95036b82141fe4c0a7b43039f8bf55a22fb1d56a`
+- `base_commit`: `0704b452c80513b38c2a08e46c6d8605fe55705d`
+- `head_commit`: `0704b452c80513b38c2a08e46c6d8605fe55705d`
 - `first_release`: `False`
 - `global_bump`: `None`
 
@@ -39,6 +39,9 @@ Schema: 1.0
 | `packages/nova_auth_api` | `nova-auth-api` | `0.4.0` | no |
 | `packages/nova_dash_bridge` | `nova-dash-bridge` | `0.3.1` | no |
 | `packages/nova_file_api` | `nova-file-api` | `0.5.0` | no |
+| `packages/nova_runtime_support` | `nova-runtime-support` | `0.1.0` | no |
+| `packages/nova_sdk_py_auth` | `nova-sdk-py-auth` | `0.1.0` | no |
+| `packages/nova_sdk_py_file` | `nova-sdk-py-file` | `0.1.0` | no |
 
 ## Participating External Repositories
 
