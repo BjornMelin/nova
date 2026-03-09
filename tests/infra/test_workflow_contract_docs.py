@@ -106,6 +106,8 @@ def test_workflow_io_schema_contract_matches_reusable_deploy_runtime_api() -> (
     assert set(deploy_runtime_output_schema["required"]) == set(
         workflow_outputs
     )
+    assert "image_digest" in schema_inputs
+    assert "image_tag" not in schema_inputs
 
     for required_input in input_schema["required"]:
         assert required_input in workflow_inputs

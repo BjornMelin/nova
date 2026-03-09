@@ -36,8 +36,10 @@
       "type": "string",
       "default": ""
     },
-    "image_tag": {
-      "type": "string"
+    "image_digest": {
+      "type": "string",
+      "description": "Optional OCI image digest override for the runtime workload image.",
+      "pattern": "^$|^sha256:[A-Fa-f0-9]{64}$"
     },
     "size_profile": {
       "type": "string",

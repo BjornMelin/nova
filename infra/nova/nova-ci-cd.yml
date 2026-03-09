@@ -61,6 +61,13 @@ Parameters:
     Default: ""
   DeployServiceName:
     Type: String
+  DeployImageDigestVariable:
+    Type: String
+    Default: FILE_IMAGE_DIGEST
+    AllowedValues:
+      - FILE_IMAGE_DIGEST
+      - AUTH_IMAGE_DIGEST
+    Description: ReleaseBuild output variable used to persist the promoted workload image digest.
   DeployDevStackName:
     Type: String
   DeployProdStackName:
@@ -96,6 +103,7 @@ Conditions:
   HasReleaseBuildProjectName: !Not [!Equals [!Ref ReleaseBuildProjectName, ""]]
   HasDeployValidateProjectName: !Not [!Equals [!Ref DeployValidateProjectName, ""]]
   HasExistingConnectionArn: !Not [!Equals [!Ref ExistingConnectionArn, ""]]
+  UseAuthImageDigestVariable: !Equals [!Ref DeployImageDigestVariable, AUTH_IMAGE_DIGEST]
   CreateConnection: !And
     - !Not [!Condition HasExistingConnectionArn]
     - !Not [!Condition HasFoundationStackName]
@@ -247,10 +255,16 @@ Resources:
                     - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/${Project}-${Application}-nova-cfn-dev-role"
                 StackName: !Ref DeployDevStackName
                 TemplatePath: AppSourceOutput::infra/nova/deploy/image-digest-ssm.yml
-                ParameterOverrides: !Sub >-
-                  {"ServiceName":"${DeployServiceName}",
-                  "Environment":"dev",
-                  "ImageDigest":"#{ReleaseBuild.IMAGE_DIGEST}"}
+                ParameterOverrides: !If
+                  - UseAuthImageDigestVariable
+                  - !Sub >-
+                      {"ServiceName":"${DeployServiceName}",
+                      "Environment":"dev",
+                      "ImageDigest":"#{ReleaseBuild.AUTH_IMAGE_DIGEST}"}
+                  - !Sub >-
+                      {"ServiceName":"${DeployServiceName}",
+                      "Environment":"dev",
+                      "ImageDigest":"#{ReleaseBuild.FILE_IMAGE_DIGEST}"}
               InputArtifacts:
                 - Name: AppSourceOutput
               RunOrder: 1
@@ -323,10 +337,16 @@ Resources:
                     - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/${Project}-${Application}-nova-cfn-prod-role"
                 StackName: !Ref DeployProdStackName
                 TemplatePath: AppSourceOutput::infra/nova/deploy/image-digest-ssm.yml
-                ParameterOverrides: !Sub >-
-                  {"ServiceName":"${DeployServiceName}",
-                  "Environment":"prod",
-                  "ImageDigest":"#{ReleaseBuild.IMAGE_DIGEST}"}
+                ParameterOverrides: !If
+                  - UseAuthImageDigestVariable
+                  - !Sub >-
+                      {"ServiceName":"${DeployServiceName}",
+                      "Environment":"prod",
+                      "ImageDigest":"#{ReleaseBuild.AUTH_IMAGE_DIGEST}"}
+                  - !Sub >-
+                      {"ServiceName":"${DeployServiceName}",
+                      "Environment":"prod",
+                      "ImageDigest":"#{ReleaseBuild.FILE_IMAGE_DIGEST}"}
               InputArtifacts:
                 - Name: AppSourceOutput
               RunOrder: 1

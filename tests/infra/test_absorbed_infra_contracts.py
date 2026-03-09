@@ -409,6 +409,12 @@ def test_runtime_env_and_parameter_contracts() -> None:
     ]:
         assert required in worker_text or required in async_text
 
+    assert "ImageDigest:" in worker_text
+    assert "DockerImageTag:" not in worker_text
+    assert "@" in worker_text and "Image: !Sub" in worker_text
+    assert "ImageDigest:" in service_text
+    assert "DockerImageTag:" not in service_text
+
     assert "FileTransferAsyncParamsProvided:" in service_text
     assert "FileTransferCacheParamsProvided:" in service_text
     assert (
@@ -542,45 +548,40 @@ def test_observability_security_cost_baseline_contracts() -> None:
     assert "KmsKeyId: !If [UseServiceLogCMK" in text
 
 
-def test_ecs_codedeploy_blue_green_authority_contracts() -> None:
-    """Batch B1 contract: ECS template codifies CodeDeploy blue/green."""
+def test_ecs_native_blue_green_authority_contracts() -> None:
+    """Batch B1 contract: ECS template codifies ECS-native blue/green."""
     text = _read("infra/runtime/ecs/service.yml")
 
     required_tokens = [
-        "EnableBlueGreenDeployAuthority:",
-        "UseCodeDeployBlueGreen:",
-        "CodeDeployBlueGreenParamsProvided:",
-        "CodeDeployEcsApplication:",
-        "Type: AWS::CodeDeploy::Application",
-        "CodeDeployEcsDeploymentGroup:",
-        "Type: AWS::CodeDeploy::DeploymentGroup",
-        "ComputePlatform: ECS",
+        "EcsInfrastructureRoleArn:",
+        "BlueGreenTrafficControlParamsProvided:",
         "DeploymentController:",
-        "Type: !If [UseCodeDeployBlueGreen, CODE_DEPLOY, ECS]",
+        "Type: ECS",
+        "Strategy: BLUE_GREEN",
+        "BakeTimeInMinutes: !Ref BlueGreenBakeTimeInMinutes",
         "LoadBalancerTargetGroupBlue:",
         "LoadBalancerTargetGroupGreen:",
-        "TargetGroupPairInfoList:",
-        "ProdTrafficRoute:",
-        "TestTrafficRoute:",
-        "BlueGreenDeploymentConfiguration:",
-        "DeploymentReadyOption:",
-        "ActionOnTimeout: !Ref BlueGreenReadinessActionOnTimeout",
-        "AlarmConfiguration:",
-        "AutoRollbackConfiguration:",
-        "DEPLOYMENT_STOP_ON_ALARM",
-        "DEPLOYMENT_STOP_ON_REQUEST",
+        "AdvancedConfiguration:",
+        "AlternateTargetGroupArn: !Ref LoadBalancerTargetGroupGreen",
+        "ProductionListenerRule: !Ref ListenerRule",
+        "RoleArn: !Ref EcsInfrastructureRoleArn",
+        "HasTestTrafficListenerArn:",
+        "Condition: HasTestTrafficListenerArn",
+        "TestListenerRule: !If",
+        "AlarmNames:",
+        "Rollback: true",
         "ReadinessHealthCheckPath:",
         "HealthCheckPath: !Ref ReadinessHealthCheckPath",
+        "ForwardConfig:",
+        "Weight: 1",
+        "Weight: 0",
     ]
     for token in required_tokens:
         assert token in text, f"Missing blue/green contract token: {token}"
 
-    assert (
-        "CodeDeployServiceRoleArn, TestTrafficListenerArn, and both rollback"
-        in text
-    )
-    assert "at least one" not in text
-    assert "Enabled: true" in text
+    assert "AWS::CodeDeploy::Application" not in text
+    assert "AWS::CodeDeploy::DeploymentGroup" not in text
+    assert "CodeDeploy" not in text
 
 
 def test_ecs_service_target_group_tuning_contracts() -> None:
@@ -601,28 +602,29 @@ def test_ecs_service_target_group_tuning_contracts() -> None:
         "HealthyThresholdCount: !Ref TargetGroupHealthyThresholdCount",
         "UnhealthyThresholdCount: !Ref TargetGroupUnhealthyThresholdCount",
         'Value: !Sub "${TargetGroupDeregistrationDelaySeconds}"',
+        "BlueGreenBakeTimeInMinutes:",
         "BlueTargetGroupArn:",
         "BlueTargetGroupName:",
         "GreenTargetGroupArn:",
         "GreenTargetGroupName:",
-        "ResolvedCodeDeployApplicationName:",
-        "ResolvedCodeDeployDeploymentGroupName:",
+        "ImageUri",
+        "LoadBalancerTargetGroupGreen.TargetGroupFullName",
     ]:
         assert token in text
 
 
-def test_cluster_tls_and_codedeploy_test_listener_contracts() -> None:
+def test_cluster_tls_and_blue_green_test_listener_contracts() -> None:
     """Cluster template must expose TLS policy + optional test listener."""
     text = _read("infra/runtime/ecs/cluster.yml")
 
     for token in [
         "TlsSecurityPolicy:",
-        "EnableCodeDeployTestListener:",
-        "CodeDeployTestListenerPort:",
-        "CreateCodeDeployTestListener:",
+        "EnableBlueGreenTestListener:",
+        "BlueGreenTestListenerPort:",
+        "CreateBlueGreenTestListener:",
         "ALBListenerForwardHTTPSTest:",
-        "Condition: CreateCodeDeployTestListener",
-        "Port: !Ref CodeDeployTestListenerPort",
+        "Condition: CreateBlueGreenTestListener",
+        "Port: !Ref BlueGreenTestListenerPort",
         "SslPolicy: !Ref TlsSecurityPolicy",
         "TestListenerArn:",
         ":testlistenerarn",
@@ -641,6 +643,59 @@ def test_cluster_tls_and_codedeploy_test_listener_contracts() -> None:
 
     assert "PrefixListMap:" not in text
     assert "3MInternal" not in text
+    assert "CodeDeploy" not in text
+
+
+def test_release_buildspec_dual_digest_contracts() -> None:
+    """Release buildspec must publish both workload images and digests."""
+    text = _read("buildspecs/buildspec-release.yml")
+
+    for token in [
+        "FILE_IMAGE_DIGEST",
+        "AUTH_IMAGE_DIGEST",
+        "FILE_DOCKERFILE_PATH",
+        "AUTH_DOCKERFILE_PATH",
+        'FILE_IMAGE_TAG="file-${IMAGE_TAG}"',
+        'AUTH_IMAGE_TAG="auth-${IMAGE_TAG}"',
+        "docker build \\",
+        'docker push "${ECR_REPOSITORY_URI}:${FILE_IMAGE_TAG}"',
+        'docker push "${ECR_REPOSITORY_URI}:${AUTH_IMAGE_TAG}"',
+        'FILE_IMAGE_DIGEST="${FILE_DIGEST}"',
+        'AUTH_IMAGE_DIGEST="${AUTH_DIGEST}"',
+    ]:
+        assert token in text
+
+    assert "\n    - IMAGE_DIGEST\n" not in text
+
+
+def test_pipeline_dual_digest_promotion_contract() -> None:
+    """Pipeline must support selecting the promoted workload digest variable."""
+    text = _read("infra/nova/nova-ci-cd.yml")
+
+    for token in [
+        "DeployImageDigestVariable:",
+        "FILE_IMAGE_DIGEST",
+        "AUTH_IMAGE_DIGEST",
+        "UseAuthImageDigestVariable:",
+        "#{ReleaseBuild.FILE_IMAGE_DIGEST}",
+        "#{ReleaseBuild.AUTH_IMAGE_DIGEST}",
+    ]:
+        assert token in text
+
+
+def test_reusable_runtime_workflow_digest_contract() -> None:
+    """Reusable runtime workflow must accept image digests, not image tags."""
+    text = _read(".github/workflows/reusable-deploy-runtime.yml")
+
+    for token in [
+        "image_digest:",
+        "IMAGE_DIGEST:",
+        'payload["ImageDigest"] = image_digest',
+    ]:
+        assert token in text
+
+    assert "image_tag:" not in text
+    assert 'payload["DockerImageTag"]' not in text
 
 
 def test_nova_ci_cd_validation_env_contracts() -> None:

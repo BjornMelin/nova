@@ -71,33 +71,33 @@ Parameters:
     Type: String
     Default: ELBSecurityPolicy-TLS13-1-2-2021-06
     Description: TLS security policy for HTTPS listeners.
-  EnableCodeDeployTestListener:
+  EnableBlueGreenTestListener:
     Type: String
     Default: "false"
     AllowedValues: ["true", "false"]
-    Description: Create a dedicated HTTPS listener for CodeDeploy test traffic.
-  CodeDeployTestListenerPort:
+    Description: Create a dedicated HTTPS listener for blue/green test traffic.
+  BlueGreenTestListenerPort:
     Type: Number
     Default: 8443
     MinValue: 1
     MaxValue: 65535
-    Description: Port used by the optional CodeDeploy test listener.
+    Description: Port used by the optional blue/green test listener.
 
 Conditions:
-  CreateCodeDeployTestListener: !Equals [!Ref EnableCodeDeployTestListener, "true"]
+  CreateBlueGreenTestListener: !Equals [!Ref EnableBlueGreenTestListener, "true"]
   EnableAlbAccessLogs: !Equals [!Ref EnableLoadBalancerAccessLogs, "true"]
   HasHostedZoneId: !Not [!Equals [!Ref HostedZoneId, ""]]
   HasAlbIngressPrefixListId: !Not [!Equals [!Ref AlbIngressPrefixListId, ""]]
   HasAlbIngressCidr: !Not [!Equals [!Ref AlbIngressCidr, ""]]
   HasAlbIngressSourceSecurityGroupId: !Not [!Equals [!Ref AlbIngressSourceSecurityGroupId, ""]]
-  CreateCodeDeployTestListenerWithPrefixList: !And
-    - !Condition CreateCodeDeployTestListener
+  CreateBlueGreenTestListenerWithPrefixList: !And
+    - !Condition CreateBlueGreenTestListener
     - !Condition HasAlbIngressPrefixListId
-  CreateCodeDeployTestListenerWithCidr: !And
-    - !Condition CreateCodeDeployTestListener
+  CreateBlueGreenTestListenerWithCidr: !And
+    - !Condition CreateBlueGreenTestListener
     - !Condition HasAlbIngressCidr
-  CreateCodeDeployTestListenerWithSourceSecurityGroup: !And
-    - !Condition CreateCodeDeployTestListener
+  CreateBlueGreenTestListenerWithSourceSecurityGroup: !And
+    - !Condition CreateBlueGreenTestListener
     - !Condition HasAlbIngressSourceSecurityGroupId
 
 Rules:
@@ -221,37 +221,37 @@ Resources:
       ToPort: 80
       SourceSecurityGroupId: !Ref AlbIngressSourceSecurityGroupId
 
-  ALBSecurityGroupIngressCodeDeployTestListenerPrefixList:
+  ALBSecurityGroupIngressBlueGreenTestListenerPrefixList:
     Type: AWS::EC2::SecurityGroupIngress
-    Condition: CreateCodeDeployTestListenerWithPrefixList
+    Condition: CreateBlueGreenTestListenerWithPrefixList
     Properties:
       GroupId: !Ref ALBSecurityGroup
-      Description: allowing tcp for CodeDeploy test listener port
+      Description: allow ingress for the blue/green test listener port
       IpProtocol: TCP
-      FromPort: !Ref CodeDeployTestListenerPort
-      ToPort: !Ref CodeDeployTestListenerPort
+      FromPort: !Ref BlueGreenTestListenerPort
+      ToPort: !Ref BlueGreenTestListenerPort
       SourcePrefixListId: !Ref AlbIngressPrefixListId
 
-  ALBSecurityGroupIngressCodeDeployTestListenerCidr:
+  ALBSecurityGroupIngressBlueGreenTestListenerCidr:
     Type: AWS::EC2::SecurityGroupIngress
-    Condition: CreateCodeDeployTestListenerWithCidr
+    Condition: CreateBlueGreenTestListenerWithCidr
     Properties:
       GroupId: !Ref ALBSecurityGroup
-      Description: allow CodeDeploy test listener ingress from CIDR
+      Description: allow blue/green test listener ingress from CIDR
       IpProtocol: TCP
-      FromPort: !Ref CodeDeployTestListenerPort
-      ToPort: !Ref CodeDeployTestListenerPort
+      FromPort: !Ref BlueGreenTestListenerPort
+      ToPort: !Ref BlueGreenTestListenerPort
       CidrIp: !Ref AlbIngressCidr
 
-  ALBSecurityGroupIngressCodeDeployTestListenerSourceSecurityGroup:
+  ALBSecurityGroupIngressBlueGreenTestListenerSourceSecurityGroup:
     Type: AWS::EC2::SecurityGroupIngress
-    Condition: CreateCodeDeployTestListenerWithSourceSecurityGroup
+    Condition: CreateBlueGreenTestListenerWithSourceSecurityGroup
     Properties:
       GroupId: !Ref ALBSecurityGroup
-      Description: allow CodeDeploy test listener ingress from source security group
+      Description: allow blue/green test listener ingress from source security group
       IpProtocol: TCP
-      FromPort: !Ref CodeDeployTestListenerPort
-      ToPort: !Ref CodeDeployTestListenerPort
+      FromPort: !Ref BlueGreenTestListenerPort
+      ToPort: !Ref BlueGreenTestListenerPort
       SourceSecurityGroupId: !Ref AlbIngressSourceSecurityGroupId
 
   LoadBalancer:
@@ -334,7 +334,7 @@ Resources:
 
   ALBListenerForwardHTTPSTest:
     Type: AWS::ElasticLoadBalancingV2::Listener
-    Condition: CreateCodeDeployTestListener
+    Condition: CreateBlueGreenTestListener
     Properties:
       Certificates:
         - CertificateArn: !Ref AcmCertificate
@@ -343,7 +343,7 @@ Resources:
           FixedResponseConfig:
             ContentType: "text/plain"
             StatusCode: "404"
-      Port: !Ref CodeDeployTestListenerPort
+      Port: !Ref BlueGreenTestListenerPort
       Protocol: HTTPS
       LoadBalancerArn: !Ref "LoadBalancer"
       SslPolicy: !Ref TlsSecurityPolicy
@@ -365,9 +365,9 @@ Outputs:
     Export:
       Name: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${LoadBalancerId}:${LoadBalancerName}:listenerarn
   TestListenerArn:
-    Condition: CreateCodeDeployTestListener
+    Condition: CreateBlueGreenTestListener
     Value: !GetAtt ALBListenerForwardHTTPSTest.ListenerArn
-    Description: ARN of the optional CodeDeploy test listener
+    Description: ARN of the optional blue/green test listener
     Export:
       Name: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${LoadBalancerId}:${LoadBalancerName}:testlistenerarn
   LoadBalancerSg:

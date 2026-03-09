@@ -23,9 +23,10 @@ Parameters:
     Type: String
   DockerRepoName:
     Type: String
-  DockerImageTag:
+  ImageDigest:
     Type: String
-    Default: latest
+    AllowedPattern: "^sha256:[A-Fa-f0-9]{64}$"
+    Description: OCI image digest for the worker workload image.
 
   VpcId:
     Type: String
@@ -213,7 +214,7 @@ Resources:
       ContainerDefinitions:
         - Name: !Ref WorkerServiceName
           Essential: true
-          Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${DockerRepoName}:${DockerImageTag}"
+          Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${DockerRepoName}@${ImageDigest}"
           Command: !Ref WorkerCommand
           Environment:
             - Name: ENV
