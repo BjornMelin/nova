@@ -15,9 +15,10 @@ and auth API services.
 Target public SDK posture:
 
 - Nova must provide complete public SDKs for Python, TypeScript, and R.
-- The repository currently commits Python SDK trees and retains valid
-  TypeScript/R scaffolding plus generator/runtime layers as the required path to
-  full parity; do not delete that scaffolding.
+- The repository currently ships release-grade public SDKs for Python and
+  TypeScript.
+- The repository retains R scaffolding plus generator/runtime layers as the
+  required path to full parity; do not delete that scaffolding.
 - Internal-only operations remain excluded from client SDKs and belong to a
   separate internal/admin generation mode.
 
@@ -115,10 +116,17 @@ rg -n "/v1/transfers|/v1/jobs|/v1/internal/jobs|/v1/capabilities|/v1/resources/p
   to named component schemas in the emitted OpenAPI document.
 - Generated-client compatibility is validated through
   `packages/nova_file_api/tests/test_generated_client_smoke.py`.
+- Public TypeScript SDKs must expose curated public operation/schema helpers
+  only; raw whole-spec aliases and internal worker-only models are not public
+  contract.
+- Public TypeScript SDKs must honor the request media types declared in OpenAPI.
+  Multi-media request bodies use explicit generated `contentType` selection.
 - TypeScript module policy is strict: do not create or retain `index.ts` barrel
   files, do not use `export ... from` re-export barrels, and always import from
   explicit module subpaths (for example `@nova/sdk-fetch/url`,
-  `@nova/sdk-fetch/client`, `@nova/sdk-*-core/operations`).
+  `@nova/sdk-fetch/client`, `@nova/sdk-auth/client`,
+  `@nova/sdk-auth/operations`, `@nova/sdk-file/client`, and
+  `@nova/sdk-file/types`).
 
 ## npm / CodeArtifact Local Rule
 

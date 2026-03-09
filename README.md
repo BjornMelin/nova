@@ -35,17 +35,24 @@ contracts and operator runbooks.
 
 ## SDK Governance
 
-Nova owns the client SDK contract surface, with Python as the current
-release-grade public SDK and TypeScript/R scaffolding retained in-repo for
-future publish-ready parity.
+Nova owns the client SDK contract surface, with Python and TypeScript as the
+current release-grade public SDKs and R retained in-repo for parity.
 
 Current repository posture:
 
-- committed Python SDK trees remain the public, drift-gated client artifacts
-  used today
-- TypeScript and R package scaffolding stays in-repo as the required foundation
-  for future publish-ready parity and must not be deleted
-- the TypeScript foundation packages install through the repo npm workspace in
+- committed Python SDK trees remain public, drift-gated client artifacts
+- committed TypeScript SDK package trees remain public, drift-gated npm
+  artifacts in the workspace and release pipeline
+- committed TypeScript SDK packages `@nova/sdk-auth` and `@nova/sdk-file`
+  are public, OpenAPI-derived, and transport-focused
+- the TypeScript public `types` surfaces are curated from public operations and
+  reachable public schemas only; raw whole-spec aliases are not part of the
+  supported SDK contract
+- TypeScript runtime validation is intentionally not bundled; consuming apps or
+  BFF layers own their own validation boundary when needed
+- R package scaffolding stays in-repo as the required foundation for parity and
+  must not be deleted
+- the TypeScript SDK packages install through the repo npm workspace in
   source/CI mode and publish as private CodeArtifact npm packages with concrete
   semver dependencies during staged release promotion
 - internal-only operations such as
@@ -64,6 +71,9 @@ SDK-facing OpenAPI rules are hard requirements:
   `scripts/release/generate_python_clients.py`.
 - Public SDK generation strips internal-only operations marked with
   `x-nova-sdk-visibility: internal`.
+- Public TypeScript SDK generation also strips internal-only schema aliases and
+  requires explicit generated `contentType` selection when an operation
+  exposes multiple request media types.
 - Published runtime Python distributions `nova_file_api` and `nova_auth_api`
   include `py.typed` markers for installed-package type checking.
 
@@ -95,8 +105,11 @@ For exact endpoint and payload contract details, use:
   `FILE_TRANSFER_BUCKET`.
 - `/v1/health/ready` also fails on shared-cache health when shared-cache-backed
   idempotency is the configured traffic-critical mode.
-- `AUTH_MODE=jwt_local` with incomplete `OIDC_ISSUER`, `OIDC_AUDIENCE`, or
-  `OIDC_JWKS_URL` configuration fails the `auth_dependency` readiness check.
+- In non-`same-origin` auth modes, `/v1/health/ready` includes the
+  `auth_dependency` check.
+- In `AUTH_MODE=jwt_local`, incomplete `OIDC_ISSUER`, `OIDC_AUDIENCE`, or
+  `OIDC_JWKS_URL` configuration leaves the local verifier unavailable, which
+  makes `auth_dependency` report not-ready.
 - `POST /v1/internal/jobs/{job_id}/result` with `status=succeeded` normalizes
   `error` to `null`.
 - Malformed worker queue messages are retried and drain to DLQ through SQS
