@@ -4,6 +4,8 @@ Title: Reusable GitHub workflow API and versioning policy for deployment automat
 Status: Accepted
 Version: 1.2
 Date: 2026-03-09
+Supersedes:
+  - "ADR-0025"
 Related:
   - "[ADR-0025: Reusable GitHub workflow API and versioning policy for deployment automation (superseded)](./ADR-0025-reusable-workflow-api-and-versioning-policy.md)"
   - "[ADR-0011: Hybrid CI/CD with GitHub CI and AWS-native Dev to Prod promotion](./ADR-0011-cicd-hybrid-github-aws-promotion.md)"

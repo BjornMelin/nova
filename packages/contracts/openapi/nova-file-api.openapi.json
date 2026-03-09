@@ -53,15 +53,15 @@
       }
     },
     "securitySchemes": {
-      "BearerAuth": {
-        "bearerFormat": "JWT",
-        "scheme": "bearer",
-        "type": "http"
-      },
-      "WorkerTokenAuth": {
+      "ApiKeyAuth": {
         "in": "header",
         "name": "X-Worker-Token",
         "type": "apiKey"
+      },
+      "bearerAuth": {
+        "bearerFormat": "JWT",
+        "scheme": "bearer",
+        "type": "http"
       }
     },
     "schemas": {
@@ -1138,7 +1138,7 @@
         },
         "security": [
           {
-            "BearerAuth": []
+            "bearerAuth": []
           }
         ],
         "summary": "Metrics Summary",
@@ -1274,7 +1274,7 @@
         },
         "security": [
           {
-            "WorkerTokenAuth": []
+            "ApiKeyAuth": []
           }
         ],
         "summary": "Update Job Result",
@@ -1325,7 +1325,7 @@
         },
         "security": [
           {
-            "BearerAuth": []
+            "bearerAuth": []
           }
         ],
         "summary": "List Jobs",
@@ -1390,7 +1390,7 @@
         },
         "security": [
           {
-            "BearerAuth": []
+            "bearerAuth": []
           }
         ],
         "summary": "Create Job",
@@ -1437,7 +1437,7 @@
         },
         "security": [
           {
-            "BearerAuth": []
+            "bearerAuth": []
           }
         ],
         "summary": "Get Job Status",
@@ -1484,7 +1484,7 @@
         },
         "security": [
           {
-            "BearerAuth": []
+            "bearerAuth": []
           }
         ],
         "summary": "Cancel Job",
@@ -1531,7 +1531,7 @@
         },
         "security": [
           {
-            "BearerAuth": []
+            "bearerAuth": []
           }
         ],
         "summary": "List Job Events",
@@ -1578,7 +1578,7 @@
         },
         "security": [
           {
-            "BearerAuth": []
+            "bearerAuth": []
           }
         ],
         "summary": "Retry Job",
@@ -1681,7 +1681,7 @@
         },
         "security": [
           {
-            "BearerAuth": []
+            "bearerAuth": []
           }
         ],
         "summary": "Presign Download",
@@ -1727,7 +1727,7 @@
         },
         "security": [
           {
-            "BearerAuth": []
+            "bearerAuth": []
           }
         ],
         "summary": "Abort Upload",
@@ -1773,7 +1773,7 @@
         },
         "security": [
           {
-            "BearerAuth": []
+            "bearerAuth": []
           }
         ],
         "summary": "Complete Upload",
@@ -1840,7 +1840,7 @@
         },
         "security": [
           {
-            "BearerAuth": []
+            "bearerAuth": []
           }
         ],
         "summary": "Initiate Upload",
@@ -1886,7 +1886,7 @@
         },
         "security": [
           {
-            "BearerAuth": []
+            "bearerAuth": []
           }
         ],
         "summary": "Sign Upload Parts",
