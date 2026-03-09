@@ -6,7 +6,7 @@ from typing import Any, TypeVar, cast
 
 from attrs import define as _attrs_define
 
-from ..types import UNSET, Unset
+from nova_sdk_py_auth.types import UNSET, Unset
 
 T = TypeVar("T", bound="TokenIntrospectFormRequest")
 

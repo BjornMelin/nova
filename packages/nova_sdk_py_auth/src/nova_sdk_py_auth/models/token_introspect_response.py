@@ -1,5 +1,3 @@
-"""Model definitions for token introspection responses."""
-
 # ruff: noqa
 from __future__ import annotations
 
@@ -8,7 +6,7 @@ from typing import TYPE_CHECKING, Any, TypeVar
 
 from attrs import define as _attrs_define
 
-from ..types import UNSET, Unset
+from nova_sdk_py_auth.types import UNSET, Unset
 
 if TYPE_CHECKING:
     from ..models.principal import Principal

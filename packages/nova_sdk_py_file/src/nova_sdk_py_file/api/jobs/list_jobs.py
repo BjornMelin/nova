@@ -5,13 +5,10 @@ from typing import Any
 import httpx
 
 from nova_sdk_py_file import errors
-from nova_sdk_py_file.client import AuthenticatedClient
-from nova_sdk_py_file.client import Client
-from ...models.error_envelope import ErrorEnvelope
-from nova_sdk_py_file.models.job_list_response import (
-    JobListResponse,
-)
-from ...types import UNSET, Response, Unset, Unset
+from nova_sdk_py_file.client import AuthenticatedClient, Client
+from nova_sdk_py_file.models.error_envelope import ErrorEnvelope
+from nova_sdk_py_file.models.job_list_response import JobListResponse
+from nova_sdk_py_file.types import UNSET, Response, Unset
 
 
 def _get_kwargs(
@@ -78,7 +75,7 @@ def _build_response(
 
 def sync_detailed(
     *,
-    client: AuthenticatedClient | Client,
+    client: AuthenticatedClient,
     limit: int | Unset = 50,
 ) -> Response[ErrorEnvelope | JobListResponse]:
     """List Jobs
@@ -109,7 +106,7 @@ def sync_detailed(
 
 def sync(
     *,
-    client: AuthenticatedClient | Client,
+    client: AuthenticatedClient,
     limit: int | Unset = 50,
 ) -> ErrorEnvelope | JobListResponse | None:
     """List Jobs
@@ -135,7 +132,7 @@ def sync(
 
 async def asyncio_detailed(
     *,
-    client: AuthenticatedClient | Client,
+    client: AuthenticatedClient,
     limit: int | Unset = 50,
 ) -> Response[ErrorEnvelope | JobListResponse]:
     """List Jobs
@@ -164,7 +161,7 @@ async def asyncio_detailed(
 
 async def asyncio(
     *,
-    client: AuthenticatedClient | Client,
+    client: AuthenticatedClient,
     limit: int | Unset = 50,
 ) -> ErrorEnvelope | JobListResponse | None:
     """List Jobs

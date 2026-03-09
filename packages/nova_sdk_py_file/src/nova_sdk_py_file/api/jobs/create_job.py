@@ -4,12 +4,12 @@ from typing import Any
 
 import httpx
 
-from ... import errors
-from ...client import AuthenticatedClient, Client
-from ...models.enqueue_job_request import EnqueueJobRequest
-from ...models.enqueue_job_response import EnqueueJobResponse
-from ...models.error_envelope import ErrorEnvelope
-from ...types import UNSET, Response, Unset, Unset
+from nova_sdk_py_file import errors
+from nova_sdk_py_file.client import AuthenticatedClient, Client
+from nova_sdk_py_file.models.enqueue_job_request import EnqueueJobRequest
+from nova_sdk_py_file.models.enqueue_job_response import EnqueueJobResponse
+from nova_sdk_py_file.models.error_envelope import ErrorEnvelope
+from nova_sdk_py_file.types import UNSET, Response, Unset
 
 
 def _get_kwargs(
@@ -81,7 +81,7 @@ def _build_response(
 
 def sync_detailed(
     *,
-    client: AuthenticatedClient | Client,
+    client: AuthenticatedClient,
     body: EnqueueJobRequest,
     idempotency_key: None | str | Unset = UNSET,
 ) -> Response[EnqueueJobResponse | ErrorEnvelope]:
@@ -115,7 +115,7 @@ def sync_detailed(
 
 def sync(
     *,
-    client: AuthenticatedClient | Client,
+    client: AuthenticatedClient,
     body: EnqueueJobRequest,
     idempotency_key: None | str | Unset = UNSET,
 ) -> EnqueueJobResponse | ErrorEnvelope | None:
@@ -144,7 +144,7 @@ def sync(
 
 async def asyncio_detailed(
     *,
-    client: AuthenticatedClient | Client,
+    client: AuthenticatedClient,
     body: EnqueueJobRequest,
     idempotency_key: None | str | Unset = UNSET,
 ) -> Response[EnqueueJobResponse | ErrorEnvelope]:
@@ -176,7 +176,7 @@ async def asyncio_detailed(
 
 async def asyncio(
     *,
-    client: AuthenticatedClient | Client,
+    client: AuthenticatedClient,
     body: EnqueueJobRequest,
     idempotency_key: None | str | Unset = UNSET,
 ) -> EnqueueJobResponse | ErrorEnvelope | None:

@@ -12,11 +12,7 @@ T = TypeVar("T", bound="ReadinessResponseChecks")
 
 @_attrs_define
 class ReadinessResponseChecks:
-    """Readiness response checks for `/v1/health/ready`.
-
-    A mapping of dependency names to booleans indicating whether each required
-    readiness check passed for the associated service.
-    """
+    """Readiness dependency check status map."""
 
     additional_properties: dict[str, bool] = _attrs_field(
         init=False, factory=dict

@@ -4,12 +4,12 @@ from typing import Any
 
 import httpx
 
-from ... import errors
-from ...client import AuthenticatedClient, Client
-from ...models.abort_upload_request import AbortUploadRequest
-from ...models.abort_upload_response import AbortUploadResponse
-from ...models.error_envelope import ErrorEnvelope
-from ...types import Response
+from nova_sdk_py_file import errors
+from nova_sdk_py_file.client import AuthenticatedClient, Client
+from nova_sdk_py_file.models.abort_upload_request import AbortUploadRequest
+from nova_sdk_py_file.models.abort_upload_response import AbortUploadResponse
+from nova_sdk_py_file.models.error_envelope import ErrorEnvelope
+from nova_sdk_py_file.types import Response
 
 
 def _get_kwargs(
@@ -73,7 +73,7 @@ def _build_response(
 
 def sync_detailed(
     *,
-    client: AuthenticatedClient | Client,
+    client: AuthenticatedClient,
     body: AbortUploadRequest,
 ) -> Response[AbortUploadResponse | ErrorEnvelope]:
     """Abort Upload
@@ -104,7 +104,7 @@ def sync_detailed(
 
 def sync(
     *,
-    client: AuthenticatedClient | Client,
+    client: AuthenticatedClient,
     body: AbortUploadRequest,
 ) -> AbortUploadResponse | ErrorEnvelope | None:
     """Abort Upload
@@ -130,7 +130,7 @@ def sync(
 
 async def asyncio_detailed(
     *,
-    client: AuthenticatedClient | Client,
+    client: AuthenticatedClient,
     body: AbortUploadRequest,
 ) -> Response[AbortUploadResponse | ErrorEnvelope]:
     """Abort Upload
@@ -159,7 +159,7 @@ async def asyncio_detailed(
 
 async def asyncio(
     *,
-    client: AuthenticatedClient | Client,
+    client: AuthenticatedClient,
     body: AbortUploadRequest,
 ) -> AbortUploadResponse | ErrorEnvelope | None:
     """Abort Upload

@@ -1,5 +1,3 @@
-"""Models dynamic claims returned by token verification responses."""
-
 # ruff: noqa
 from __future__ import annotations
 
@@ -21,14 +19,6 @@ class TokenVerifyResponseClaims:
     )
 
     def to_dict(self) -> dict[str, Any]:
-        """Serialize this model to a JSON-compatible mapping.
-
-        Returns:
-            A dictionary containing all dynamic claim key/value pairs.
-
-        Raises:
-            None.
-        """
 
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
@@ -37,17 +27,6 @@ class TokenVerifyResponseClaims:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        """Build this model from a JSON-compatible mapping.
-
-        Args:
-            src_dict: Source mapping containing claim key/value pairs.
-
-        Returns:
-            A ``TokenVerifyResponseClaims`` instance populated from ``src_dict``.
-
-        Raises:
-            None.
-        """
         d = dict(src_dict)
         token_verify_response_claims = cls()
 
@@ -56,14 +35,6 @@ class TokenVerifyResponseClaims:
 
     @property
     def additional_keys(self) -> list[str]:
-        """Return dynamic claim keys captured on this model.
-
-        Returns:
-            A list of keys currently stored in ``additional_properties``.
-
-        Raises:
-            None.
-        """
         return list(self.additional_properties.keys())
 
     def __getitem__(self, key: str) -> Any:

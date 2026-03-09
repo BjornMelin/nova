@@ -59,6 +59,15 @@ def _write_outputs(output_dir: Path, *, check: bool) -> int:
         else:
             print(f"unchanged {destination}")
 
+    if check:
+        expected_files = {output_dir / name for name in rendered}
+        existing_files = {
+            path for path in output_dir.glob("*.json") if path.is_file()
+        }
+        for extra in sorted(existing_files - expected_files):
+            print(f"OpenAPI artifact drift detected: unexpected file {extra}")
+            status = 1
+
     return status
 
 

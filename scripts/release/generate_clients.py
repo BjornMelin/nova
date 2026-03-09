@@ -263,6 +263,16 @@ def _render_r_client(target: GenerationTarget) -> str:
         ),
         '    stop("base_url must be a non-empty string", call. = FALSE)',
         "  }",
+        (
+            "  if (is.null(timeout_seconds) || !is.numeric(timeout_seconds) || "
+            "length(timeout_seconds) != 1L || is.na(timeout_seconds) || "
+            "!is.finite(timeout_seconds) || timeout_seconds <= 0) {"
+        ),
+        (
+            '    stop("timeout_seconds must be a finite positive number", '
+            "call. = FALSE)"
+        ),
+        "  }",
         "  structure(",
         "    list(",
         '      base_url = sub("/+$", "", base_url),',
@@ -368,7 +378,11 @@ def _generate_target(target: GenerationTarget, *, check: bool) -> list[str]:
 
 
 def parse_args() -> argparse.Namespace:
-    """Parse CLI arguments for generated client catalog management."""
+    """Parse CLI arguments for generated client catalog management.
+
+    Returns:
+        argparse.Namespace: Parsed CLI arguments.
+    """
     parser = argparse.ArgumentParser(
         description="Generate lightweight TS/R SDK catalogs from OpenAPI.",
     )
@@ -381,7 +395,11 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> int:
-    """Generate client catalogs or fail when committed artifacts drift."""
+    """Generate client catalogs or fail when committed artifacts drift.
+
+    Returns:
+        int: Process exit code (0 on success, 1 when artifacts drift).
+    """
     args = parse_args()
     issues: list[str] = []
     for target in TARGETS:

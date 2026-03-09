@@ -6,8 +6,8 @@ from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 from attrs import define as _attrs_define
 
-from ..models.job_status import JobStatus
-from ..types import UNSET, Unset
+from nova_sdk_py_file.models.job_status import JobStatus
+from nova_sdk_py_file.types import UNSET, Unset
 
 if TYPE_CHECKING:
     from ..models.job_result_update_request_result_type_0 import (

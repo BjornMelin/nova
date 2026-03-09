@@ -6,7 +6,7 @@ from typing import Any, TypeVar, cast
 
 from attrs import define as _attrs_define
 
-from ..types import UNSET, Unset
+from nova_sdk_py_auth.types import UNSET, Unset
 
 T = TypeVar("T", bound="TokenIntrospectRequest")
 
@@ -30,11 +30,11 @@ class TokenIntrospectRequest:
 
         required_permissions: list[str] | Unset = UNSET
         if not isinstance(self.required_permissions, Unset):
-            required_permissions = self.required_permissions
+            required_permissions = list(self.required_permissions)
 
         required_scopes: list[str] | Unset = UNSET
         if not isinstance(self.required_scopes, Unset):
-            required_scopes = self.required_scopes
+            required_scopes = list(self.required_scopes)
 
         field_dict: dict[str, Any] = {}
 

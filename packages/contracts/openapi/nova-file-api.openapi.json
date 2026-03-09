@@ -52,18 +52,6 @@
         "description": "Canonical unauthorized request response."
       }
     },
-    "securitySchemes": {
-      "ApiKeyAuth": {
-        "in": "header",
-        "name": "X-Worker-Token",
-        "type": "apiKey"
-      },
-      "bearerAuth": {
-        "bearerFormat": "JWT",
-        "scheme": "bearer",
-        "type": "http"
-      }
-    },
     "schemas": {
       "AbortUploadRequest": {
         "additionalProperties": false,
@@ -427,82 +415,64 @@
       "InitiateUploadResponse": {
         "additionalProperties": false,
         "description": "Initiate-upload response model.",
-        "oneOf": [
-          {
-            "additionalProperties": false,
-            "properties": {
-              "bucket": {
-                "title": "Bucket",
-                "type": "string"
-              },
-              "expires_in_seconds": {
-                "title": "Expires In Seconds",
-                "type": "integer"
-              },
-              "key": {
-                "title": "Key",
-                "type": "string"
-              },
-              "strategy": {
-                "const": "single",
-                "title": "Strategy",
-                "type": "string"
-              },
-              "url": {
-                "title": "Url",
-                "type": "string"
-              }
-            },
-            "required": [
-              "strategy",
-              "bucket",
-              "key",
-              "expires_in_seconds",
-              "url"
-            ],
-            "type": "object"
+        "properties": {
+          "bucket": {
+            "title": "Bucket",
+            "type": "string"
           },
-          {
-            "additionalProperties": false,
-            "properties": {
-              "bucket": {
-                "title": "Bucket",
-                "type": "string"
-              },
-              "expires_in_seconds": {
-                "title": "Expires In Seconds",
+          "expires_in_seconds": {
+            "title": "Expires In Seconds",
+            "type": "integer"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "part_size_bytes": {
+            "anyOf": [
+              {
                 "type": "integer"
               },
-              "key": {
-                "title": "Key",
-                "type": "string"
-              },
-              "part_size_bytes": {
-                "title": "Part Size Bytes",
-                "type": "integer"
-              },
-              "strategy": {
-                "const": "multipart",
-                "title": "Strategy",
-                "type": "string"
-              },
-              "upload_id": {
-                "title": "Upload Id",
-                "type": "string"
+              {
+                "type": "null"
               }
-            },
-            "required": [
-              "strategy",
-              "bucket",
-              "key",
-              "expires_in_seconds",
-              "upload_id",
-              "part_size_bytes"
             ],
-            "type": "object"
+            "title": "Part Size Bytes"
+          },
+          "strategy": {
+            "$ref": "#/components/schemas/UploadStrategy"
+          },
+          "upload_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Upload Id"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
           }
+        },
+        "required": [
+          "strategy",
+          "bucket",
+          "key",
+          "expires_in_seconds"
         ],
-        "title": "InitiateUploadResponse"
+        "title": "InitiateUploadResponse",
+        "type": "object"
       },
       "JobCancelResponse": {
         "additionalProperties": false,
@@ -1036,15 +1006,12 @@
           },
           "part_numbers": {
             "items": {
-              "maximum": 10000,
-              "minimum": 1,
               "type": "integer"
             },
             "maxItems": 1000,
             "minItems": 1,
             "title": "Part Numbers",
-            "type": "array",
-            "uniqueItems": true
+            "type": "array"
           },
           "session_id": {
             "anyOf": [
@@ -1105,6 +1072,46 @@
         ],
         "title": "UploadStrategy",
         "type": "string"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
       }
     }
   },
@@ -1136,11 +1143,6 @@
             "$ref": "#/components/responses/FileForbiddenResponse"
           }
         },
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
         "summary": "Metrics Summary",
         "tags": [
           "ops"
@@ -1272,11 +1274,6 @@
             "$ref": "#/components/responses/FileInvalidRequestResponse"
           }
         },
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ],
         "summary": "Update Job Result",
         "tags": [
           "jobs"
@@ -1323,11 +1320,6 @@
             "$ref": "#/components/responses/FileInvalidRequestResponse"
           }
         },
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
         "summary": "List Jobs",
         "tags": [
           "jobs"
@@ -1388,11 +1380,6 @@
             "$ref": "#/components/responses/FileQueueUnavailableResponse"
           }
         },
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
         "summary": "Create Job",
         "tags": [
           "jobs"
@@ -1435,11 +1422,6 @@
             "$ref": "#/components/responses/FileInvalidRequestResponse"
           }
         },
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
         "summary": "Get Job Status",
         "tags": [
           "jobs"
@@ -1482,11 +1464,6 @@
             "$ref": "#/components/responses/FileInvalidRequestResponse"
           }
         },
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
         "summary": "Cancel Job",
         "tags": [
           "jobs"
@@ -1529,11 +1506,6 @@
             "$ref": "#/components/responses/FileInvalidRequestResponse"
           }
         },
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
         "summary": "List Job Events",
         "tags": [
           "jobs"
@@ -1576,11 +1548,6 @@
             "$ref": "#/components/responses/FileInvalidRequestResponse"
           }
         },
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
         "summary": "Retry Job",
         "tags": [
           "jobs"
@@ -1679,11 +1646,6 @@
             "$ref": "#/components/responses/FileInvalidRequestResponse"
           }
         },
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
         "summary": "Presign Download",
         "tags": [
           "transfers"
@@ -1725,11 +1687,6 @@
             "$ref": "#/components/responses/FileInvalidRequestResponse"
           }
         },
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
         "summary": "Abort Upload",
         "tags": [
           "transfers"
@@ -1771,11 +1728,6 @@
             "$ref": "#/components/responses/FileInvalidRequestResponse"
           }
         },
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
         "summary": "Complete Upload",
         "tags": [
           "transfers"
@@ -1838,11 +1790,6 @@
             "$ref": "#/components/responses/FileIdempotencyUnavailableResponse"
           }
         },
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
         "summary": "Initiate Upload",
         "tags": [
           "transfers"
@@ -1884,11 +1831,6 @@
             "$ref": "#/components/responses/FileInvalidRequestResponse"
           }
         },
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
         "summary": "Sign Upload Parts",
         "tags": [
           "transfers"

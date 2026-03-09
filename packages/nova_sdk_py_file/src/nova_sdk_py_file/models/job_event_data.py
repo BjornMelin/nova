@@ -1,5 +1,3 @@
-"""Model definitions for dynamic asynchronous job event payloads."""
-
 # ruff: noqa
 from __future__ import annotations
 
@@ -39,7 +37,6 @@ class JobEventData:
 
     @property
     def additional_keys(self) -> list[str]:
-        """Return dynamic payload keys captured on this model."""
         return list(self.additional_properties.keys())
 
     def __getitem__(self, key: str) -> Any:

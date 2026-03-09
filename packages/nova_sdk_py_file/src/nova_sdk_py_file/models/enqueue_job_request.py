@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 from attrs import define as _attrs_define
 
-from ..types import UNSET, Unset
+from nova_sdk_py_file.types import UNSET, Unset
 
 if TYPE_CHECKING:
     from ..models.enqueue_job_request_payload import EnqueueJobRequestPayload

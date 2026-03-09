@@ -1,5 +1,3 @@
-"""Model definitions for multipart upload completion requests."""
-
 # ruff: noqa
 from __future__ import annotations
 
@@ -8,7 +6,7 @@ from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 from attrs import define as _attrs_define
 
-from ..types import UNSET, Unset
+from nova_sdk_py_file.types import UNSET, Unset
 
 if TYPE_CHECKING:
     from ..models.completed_part import CompletedPart
@@ -34,7 +32,6 @@ class CompleteUploadRequest:
     session_id: None | str | Unset = UNSET
 
     def to_dict(self) -> dict[str, Any]:
-        """Serialize this model to a JSON-compatible mapping."""
         key = self.key
 
         parts = []
@@ -66,7 +63,6 @@ class CompleteUploadRequest:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        """Build this model from a JSON-compatible mapping."""
         from ..models.completed_part import CompletedPart
 
         d = dict(src_dict)

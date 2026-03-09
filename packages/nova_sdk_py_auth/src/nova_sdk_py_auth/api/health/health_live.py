@@ -4,10 +4,10 @@ from typing import Any
 
 import httpx
 
-from ... import errors
-from ...client import AuthenticatedClient, Client
-from ...models.health_response import HealthResponse
-from ...types import Response
+from nova_sdk_py_auth import errors
+from nova_sdk_py_auth.client import AuthenticatedClient, Client
+from nova_sdk_py_auth.models.health_response import HealthResponse
+from nova_sdk_py_auth.types import Response
 
 
 def _get_kwargs() -> dict[str, Any]:

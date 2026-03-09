@@ -6,7 +6,7 @@ from typing import Any, TypeVar
 
 from attrs import define as _attrs_define
 
-from ..models.job_status import JobStatus
+from nova_sdk_py_file.models.job_status import JobStatus
 
 T = TypeVar("T", bound="EnqueueJobResponse")
 

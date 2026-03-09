@@ -4,12 +4,12 @@ from typing import Any
 
 import httpx
 
-from ... import errors
-from ...client import AuthenticatedClient, Client
-from ...models.error_envelope import ErrorEnvelope
-from ...models.sign_parts_request import SignPartsRequest
-from ...models.sign_parts_response import SignPartsResponse
-from ...types import Response
+from nova_sdk_py_file import errors
+from nova_sdk_py_file.client import AuthenticatedClient, Client
+from nova_sdk_py_file.models.error_envelope import ErrorEnvelope
+from nova_sdk_py_file.models.sign_parts_request import SignPartsRequest
+from nova_sdk_py_file.models.sign_parts_response import SignPartsResponse
+from nova_sdk_py_file.types import Response
 
 
 def _get_kwargs(
@@ -73,7 +73,7 @@ def _build_response(
 
 def sync_detailed(
     *,
-    client: AuthenticatedClient | Client,
+    client: AuthenticatedClient,
     body: SignPartsRequest,
 ) -> Response[ErrorEnvelope | SignPartsResponse]:
     """Sign Upload Parts
@@ -104,7 +104,7 @@ def sync_detailed(
 
 def sync(
     *,
-    client: AuthenticatedClient | Client,
+    client: AuthenticatedClient,
     body: SignPartsRequest,
 ) -> ErrorEnvelope | SignPartsResponse | None:
     """Sign Upload Parts
@@ -130,7 +130,7 @@ def sync(
 
 async def asyncio_detailed(
     *,
-    client: AuthenticatedClient | Client,
+    client: AuthenticatedClient,
     body: SignPartsRequest,
 ) -> Response[ErrorEnvelope | SignPartsResponse]:
     """Sign Upload Parts
@@ -159,7 +159,7 @@ async def asyncio_detailed(
 
 async def asyncio(
     *,
-    client: AuthenticatedClient | Client,
+    client: AuthenticatedClient,
     body: SignPartsRequest,
 ) -> ErrorEnvelope | SignPartsResponse | None:
     """Sign Upload Parts

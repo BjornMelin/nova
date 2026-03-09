@@ -7,6 +7,7 @@ from __future__ import annotations
 import argparse
 import copy
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -27,6 +28,9 @@ _IGNORED_PARTS = {"__pycache__"}
 _IGNORED_PREFIXES = (".",)
 _GENERATOR_TIMEOUT_SECONDS = 60
 _FORMATTER_TIMEOUT_SECONDS = 60
+_RELATIVE_IMPORT_RE = re.compile(
+    r"^from (?P<dots>\.+)(?P<module>[a-zA-Z0-9_\.]*) import (?P<names>.+)$"
+)
 _HTTP_METHODS = frozenset(
     {"get", "post", "put", "patch", "delete", "options", "head", "trace"}
 )
@@ -212,12 +216,54 @@ def _repair_missing_unset_imports(root: Path) -> None:
         content = path.read_text(encoding="utf-8")
         if "Unset" not in content:
             continue
-        updated = content.replace(
-            "types import UNSET, Response",
-            "types import UNSET, Response, Unset",
+        updated = content
+        updated = updated.replace(
+            "types import UNSET, Response\n",
+            "types import UNSET, Response, Unset\n",
+        )
+        updated = updated.replace(
+            "types import UNSET, Response, Unset, Unset\n",
+            "types import UNSET, Response, Unset\n",
+        )
+        updated = updated.replace(
+            "types import UNSET, Unset, Unset\n",
+            "types import UNSET, Unset\n",
         )
         if updated != content:
             path.write_text(updated, encoding="utf-8")
+
+
+def _rewrite_relative_imports_to_absolute(root: Path) -> None:
+    package_name = root.name
+    for path in root.rglob("*.py"):
+        rel_path = path.relative_to(root)
+        depth = len(rel_path.parent.parts)
+        lines = path.read_text(encoding="utf-8").splitlines()
+        changed = False
+        rewritten: list[str] = []
+        for line in lines:
+            match = _RELATIVE_IMPORT_RE.match(line)
+            if match is None:
+                rewritten.append(line)
+                continue
+            dot_count = len(match.group("dots"))
+            if dot_count > depth + 1:
+                rewritten.append(line)
+                continue
+            suffix = match.group("module")
+            parent_parts = list(
+                rel_path.parent.parts[: depth - (dot_count - 1)]
+            )
+            absolute_parts = [package_name, *parent_parts]
+            if suffix:
+                absolute_parts.extend(suffix.split("."))
+            absolute_target = ".".join(part for part in absolute_parts if part)
+            rewritten.append(
+                f"from {absolute_target} import {match.group('names')}"
+            )
+            changed = True
+        if changed:
+            path.write_text("\n".join(rewritten) + "\n", encoding="utf-8")
 
 
 def _add_generated_ruff_noqa(root: Path) -> None:
@@ -567,6 +613,22 @@ def _patch_auth_sdk(root: Path) -> None:
         root,
         "models/token_introspect_form_request.py",
         patch_introspect_form_request,
+    )
+
+    def patch_token_introspect_request(content: str) -> str:
+        content = content.replace(
+            "            required_permissions = self.required_permissions\n",
+            "            required_permissions = list(self.required_permissions)\n",
+        )
+        return content.replace(
+            "            required_scopes = self.required_scopes\n",
+            "            required_scopes = list(self.required_scopes)\n",
+        )
+
+    _rewrite_file(
+        root,
+        "models/token_introspect_request.py",
+        patch_token_introspect_request,
     )
 
     for rel_path, doc in (
@@ -927,6 +989,7 @@ def _apply_repo_python_sdk_patches(root: Path) -> None:
 
 def _normalize_generated_tree(root: Path) -> None:
     _repair_missing_unset_imports(root)
+    _rewrite_relative_imports_to_absolute(root)
     _apply_repo_python_sdk_patches(root)
     _add_generated_ruff_noqa(root)
     _run_ruff(args=["check", "--select", "I", "--fix"], root=root)

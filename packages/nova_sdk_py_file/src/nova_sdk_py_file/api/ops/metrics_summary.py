@@ -4,11 +4,13 @@ from typing import Any
 
 import httpx
 
-from ... import errors
-from ...client import AuthenticatedClient, Client
-from ...models.error_envelope import ErrorEnvelope
-from ...models.metrics_summary_response import MetricsSummaryResponse
-from ...types import Response
+from nova_sdk_py_file import errors
+from nova_sdk_py_file.client import AuthenticatedClient, Client
+from nova_sdk_py_file.models.error_envelope import ErrorEnvelope
+from nova_sdk_py_file.models.metrics_summary_response import (
+    MetricsSummaryResponse,
+)
+from nova_sdk_py_file.types import Response
 
 
 def _get_kwargs() -> dict[str, Any]:
@@ -58,7 +60,7 @@ def _build_response(
 
 def sync_detailed(
     *,
-    client: AuthenticatedClient | Client,
+    client: AuthenticatedClient,
 ) -> Response[ErrorEnvelope | MetricsSummaryResponse]:
     """Metrics Summary
 
@@ -83,7 +85,7 @@ def sync_detailed(
 
 def sync(
     *,
-    client: AuthenticatedClient | Client,
+    client: AuthenticatedClient,
 ) -> ErrorEnvelope | MetricsSummaryResponse | None:
     """Metrics Summary
 
@@ -104,7 +106,7 @@ def sync(
 
 async def asyncio_detailed(
     *,
-    client: AuthenticatedClient | Client,
+    client: AuthenticatedClient,
 ) -> Response[ErrorEnvelope | MetricsSummaryResponse]:
     """Metrics Summary
 
@@ -127,7 +129,7 @@ async def asyncio_detailed(
 
 async def asyncio(
     *,
-    client: AuthenticatedClient | Client,
+    client: AuthenticatedClient,
 ) -> ErrorEnvelope | MetricsSummaryResponse | None:
     """Metrics Summary
 

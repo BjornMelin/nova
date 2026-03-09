@@ -4,12 +4,12 @@ from typing import Any
 
 import httpx
 
-from ... import errors
-from ...client import AuthenticatedClient, Client
-from ...models.error_envelope import ErrorEnvelope
-from ...models.token_verify_request import TokenVerifyRequest
-from ...models.token_verify_response import TokenVerifyResponse
-from ...types import Response
+from nova_sdk_py_auth import errors
+from nova_sdk_py_auth.client import AuthenticatedClient, Client
+from nova_sdk_py_auth.models.error_envelope import ErrorEnvelope
+from nova_sdk_py_auth.models.token_verify_request import TokenVerifyRequest
+from nova_sdk_py_auth.models.token_verify_response import TokenVerifyResponse
+from nova_sdk_py_auth.types import Response
 
 
 def _get_kwargs(

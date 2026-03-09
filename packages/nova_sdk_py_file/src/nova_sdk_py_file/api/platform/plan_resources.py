@@ -4,12 +4,12 @@ from typing import Any
 
 import httpx
 
-from ... import errors
-from ...client import AuthenticatedClient, Client
-from ...models.error_envelope import ErrorEnvelope
-from ...models.resource_plan_request import ResourcePlanRequest
-from ...models.resource_plan_response import ResourcePlanResponse
-from ...types import Response
+from nova_sdk_py_file import errors
+from nova_sdk_py_file.client import AuthenticatedClient, Client
+from nova_sdk_py_file.models.error_envelope import ErrorEnvelope
+from nova_sdk_py_file.models.resource_plan_request import ResourcePlanRequest
+from nova_sdk_py_file.models.resource_plan_response import ResourcePlanResponse
+from nova_sdk_py_file.types import Response
 
 
 def _get_kwargs(

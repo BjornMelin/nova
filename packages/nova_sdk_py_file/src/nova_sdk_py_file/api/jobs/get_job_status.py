@@ -5,11 +5,11 @@ from urllib.parse import quote
 
 import httpx
 
-from ... import errors
-from ...client import AuthenticatedClient, Client
-from ...models.error_envelope import ErrorEnvelope
-from ...models.job_status_response import JobStatusResponse
-from ...types import Response
+from nova_sdk_py_file import errors
+from nova_sdk_py_file.client import AuthenticatedClient, Client
+from nova_sdk_py_file.models.error_envelope import ErrorEnvelope
+from nova_sdk_py_file.models.job_status_response import JobStatusResponse
+from nova_sdk_py_file.types import Response
 
 
 def _get_kwargs(
@@ -69,7 +69,7 @@ def _build_response(
 def sync_detailed(
     job_id: str,
     *,
-    client: AuthenticatedClient | Client,
+    client: AuthenticatedClient,
 ) -> Response[ErrorEnvelope | JobStatusResponse]:
     """Get Job Status
 
@@ -100,7 +100,7 @@ def sync_detailed(
 def sync(
     job_id: str,
     *,
-    client: AuthenticatedClient | Client,
+    client: AuthenticatedClient,
 ) -> ErrorEnvelope | JobStatusResponse | None:
     """Get Job Status
 
@@ -126,7 +126,7 @@ def sync(
 async def asyncio_detailed(
     job_id: str,
     *,
-    client: AuthenticatedClient | Client,
+    client: AuthenticatedClient,
 ) -> Response[ErrorEnvelope | JobStatusResponse]:
     """Get Job Status
 
@@ -155,7 +155,7 @@ async def asyncio_detailed(
 async def asyncio(
     job_id: str,
     *,
-    client: AuthenticatedClient | Client,
+    client: AuthenticatedClient,
 ) -> ErrorEnvelope | JobStatusResponse | None:
     """Get Job Status
 

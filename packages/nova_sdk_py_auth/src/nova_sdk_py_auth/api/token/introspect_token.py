@@ -4,13 +4,19 @@ from typing import Any
 
 import httpx
 
-from ... import errors
-from ...client import AuthenticatedClient, Client
-from ...models.error_envelope import ErrorEnvelope
-from ...models.token_introspect_form_request import TokenIntrospectFormRequest
-from ...models.token_introspect_request import TokenIntrospectRequest
-from ...models.token_introspect_response import TokenIntrospectResponse
-from ...types import UNSET, Response, Unset
+from nova_sdk_py_auth import errors
+from nova_sdk_py_auth.client import AuthenticatedClient, Client
+from nova_sdk_py_auth.models.error_envelope import ErrorEnvelope
+from nova_sdk_py_auth.models.token_introspect_form_request import (
+    TokenIntrospectFormRequest,
+)
+from nova_sdk_py_auth.models.token_introspect_request import (
+    TokenIntrospectRequest,
+)
+from nova_sdk_py_auth.models.token_introspect_response import (
+    TokenIntrospectResponse,
+)
+from nova_sdk_py_auth.types import UNSET, Response, Unset
 
 
 def _get_kwargs(
