@@ -70,7 +70,7 @@ def _build_response(
 def sync_detailed(
     job_id: str,
     *,
-    client: AuthenticatedClient | Client,
+    client: AuthenticatedClient,
 ) -> Response[ErrorEnvelope | JobCancelResponse]:
     """Cancel Job
 
@@ -101,7 +101,7 @@ def sync_detailed(
 def sync(
     job_id: str,
     *,
-    client: AuthenticatedClient | Client,
+    client: AuthenticatedClient,
 ) -> ErrorEnvelope | JobCancelResponse | None:
     """Cancel Job
 
@@ -127,7 +127,7 @@ def sync(
 async def asyncio_detailed(
     job_id: str,
     *,
-    client: AuthenticatedClient | Client,
+    client: AuthenticatedClient,
 ) -> Response[ErrorEnvelope | JobCancelResponse]:
     """Cancel Job
 
@@ -156,7 +156,7 @@ async def asyncio_detailed(
 async def asyncio(
     job_id: str,
     *,
-    client: AuthenticatedClient | Client,
+    client: AuthenticatedClient,
 ) -> ErrorEnvelope | JobCancelResponse | None:
     """Cancel Job
 

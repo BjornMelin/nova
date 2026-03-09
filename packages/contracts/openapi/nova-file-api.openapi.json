@@ -1029,12 +1029,15 @@
           },
           "part_numbers": {
             "items": {
+              "maximum": 10000.0,
+              "minimum": 1.0,
               "type": "integer"
             },
             "maxItems": 1000,
             "minItems": 1,
             "title": "Part Numbers",
-            "type": "array"
+            "type": "array",
+            "uniqueItems": true
           },
           "session_id": {
             "anyOf": [
@@ -1138,6 +1141,12 @@
       }
     },
     "securitySchemes": {
+      "X-Worker-Token": {
+        "description": "Worker token header for trusted job-worker calls.",
+        "in": "header",
+        "name": "X-Worker-Token",
+        "type": "apiKey"
+      },
       "sessionAuth": {
         "description": "Session identifier header for caller context.",
         "in": "header",
@@ -1174,6 +1183,11 @@
             "$ref": "#/components/responses/FileForbiddenResponse"
           }
         },
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ],
         "summary": "Metrics Summary",
         "tags": [
           "ops"
@@ -1238,6 +1252,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadinessResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable - Readiness failed"
           }
         },
         "summary": "Health Ready",
@@ -1305,6 +1329,11 @@
             "$ref": "#/components/responses/FileInvalidRequestResponse"
           }
         },
+        "security": [
+          {
+            "X-Worker-Token": []
+          }
+        ],
         "summary": "Update Job Result",
         "tags": [
           "jobs"
@@ -1351,6 +1380,11 @@
             "$ref": "#/components/responses/FileInvalidRequestResponse"
           }
         },
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ],
         "summary": "List Jobs",
         "tags": [
           "jobs"
@@ -1411,6 +1445,11 @@
             "$ref": "#/components/responses/FileQueueUnavailableResponse"
           }
         },
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ],
         "summary": "Create Job",
         "tags": [
           "jobs"
@@ -1453,6 +1492,11 @@
             "$ref": "#/components/responses/FileInvalidRequestResponse"
           }
         },
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ],
         "summary": "Get Job Status",
         "tags": [
           "jobs"
@@ -1495,6 +1539,11 @@
             "$ref": "#/components/responses/FileInvalidRequestResponse"
           }
         },
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ],
         "summary": "Cancel Job",
         "tags": [
           "jobs"
@@ -1537,6 +1586,11 @@
             "$ref": "#/components/responses/FileInvalidRequestResponse"
           }
         },
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ],
         "summary": "List Job Events",
         "tags": [
           "jobs"
@@ -1579,6 +1633,11 @@
             "$ref": "#/components/responses/FileInvalidRequestResponse"
           }
         },
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ],
         "summary": "Retry Job",
         "tags": [
           "jobs"
@@ -1677,6 +1736,11 @@
             "$ref": "#/components/responses/FileInvalidRequestResponse"
           }
         },
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ],
         "summary": "Presign Download",
         "tags": [
           "transfers"
@@ -1718,6 +1782,11 @@
             "$ref": "#/components/responses/FileInvalidRequestResponse"
           }
         },
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ],
         "summary": "Abort Upload",
         "tags": [
           "transfers"
@@ -1759,6 +1828,11 @@
             "$ref": "#/components/responses/FileInvalidRequestResponse"
           }
         },
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ],
         "summary": "Complete Upload",
         "tags": [
           "transfers"
@@ -1821,6 +1895,11 @@
             "$ref": "#/components/responses/FileIdempotencyUnavailableResponse"
           }
         },
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ],
         "summary": "Initiate Upload",
         "tags": [
           "transfers"
@@ -1862,6 +1941,11 @@
             "$ref": "#/components/responses/FileInvalidRequestResponse"
           }
         },
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ],
         "summary": "Sign Upload Parts",
         "tags": [
           "transfers"

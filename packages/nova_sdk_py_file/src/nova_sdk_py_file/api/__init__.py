@@ -1,1 +1,1 @@
-"""Contains methods for accessing the API"""
+"""Nova File API client methods."""

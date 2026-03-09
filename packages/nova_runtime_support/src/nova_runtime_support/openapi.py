@@ -22,7 +22,21 @@ def install_openapi_customizer(
     *,
     customizer: OpenApiSchemaCustomizer,
 ) -> None:
-    """Wrap a FastAPI app's OpenAPI factory with schema customization."""
+    """Install a schema customizer on a FastAPI application.
+
+    Args:
+        app: FastAPI application whose generated OpenAPI document should be
+            customized.
+        customizer: Callable that mutates the generated OpenAPI schema in place.
+
+    Returns:
+        None. This mutates ``app.openapi`` so ``app.openapi()`` returns the
+        customized schema on subsequent calls.
+
+    Raises:
+        TypeError: If ``app`` is not a ``FastAPI`` instance or
+            ``customizer`` is not callable.
+    """
     original_openapi = app.openapi
 
     def custom_openapi() -> dict[str, Any]:
@@ -44,7 +58,20 @@ def ensure_error_response_component(
     description: str,
     error_schema_name: str = "ErrorEnvelope",
 ) -> None:
-    """Ensure a reusable canonical error response component is present."""
+    """Ensure a reusable canonical error response component is present.
+
+    Args:
+        schema: OpenAPI document to mutate.
+        name: Response component name to create or overwrite.
+        description: Description text for the response component.
+        error_schema_name: Target schema name for the error payload body.
+
+    Returns:
+        None. Adds or updates ``components.responses[name]``.
+
+    Raises:
+        TypeError: If ``schema`` is not a mapping type.
+    """
     components = schema.setdefault("components", {})
     responses = components.setdefault("responses", {})
     responses[name] = {
@@ -62,7 +89,18 @@ def ensure_error_envelope_schema(
     *,
     name: str = "ErrorEnvelope",
 ) -> None:
-    """Ensure the canonical error envelope schema is present."""
+    """Ensure the canonical error envelope schema is present.
+
+    Args:
+        schema: OpenAPI document to mutate.
+        name: Schema component name to create or overwrite.
+
+    Returns:
+        None. Adds or updates ``components.schemas[name]``.
+
+    Raises:
+        TypeError: If ``schema`` is not a mapping type.
+    """
     components = schema.setdefault("components", {})
     schemas = components.setdefault("schemas", {})
     schemas.setdefault(
@@ -96,7 +134,20 @@ def replace_validation_error_responses(
     *,
     response_component_name: str,
 ) -> None:
-    """Replace FastAPI default 422 validation responses with canonical refs."""
+    """Replace FastAPI default 422 validation responses with canonical refs.
+
+    Args:
+        schema: OpenAPI document to mutate.
+        response_component_name: Component key under
+            ``components.responses`` that should be used for 422 responses.
+
+    Returns:
+        None. For each operation with a 422 response, the response entry is
+        replaced with ``#/components/responses/{response_component_name}``.
+
+    Raises:
+        TypeError: If ``schema`` is not a mapping type.
+    """
     response_ref = {"$ref": f"#/components/responses/{response_component_name}"}
     paths = schema.get("paths", {})
     if not isinstance(paths, dict):
@@ -122,7 +173,20 @@ def mark_operation_sdk_visibility(
     method: str,
     visibility: str,
 ) -> None:
-    """Mark one operation with an SDK visibility extension."""
+    """Mark one operation with an SDK visibility extension.
+
+    Args:
+        schema: OpenAPI document to mutate.
+        path: Path key that contains the target operation.
+        method: HTTP method for the target operation, case-insensitive.
+        visibility: Visibility value written to ``x-nova-sdk-visibility``.
+
+    Returns:
+        None. When the operation exists, writes the visibility marker on it.
+
+    Raises:
+        TypeError: If ``schema`` is not a mapping type.
+    """
     paths = schema.get("paths", {})
     if not isinstance(paths, dict):
         return
@@ -135,7 +199,18 @@ def mark_operation_sdk_visibility(
 
 
 def prune_validation_error_schemas(schema: dict[str, Any]) -> None:
-    """Remove unused FastAPI validation schema components from the document."""
+    """Remove unused FastAPI validation schema components.
+
+    Args:
+        schema: OpenAPI document to mutate.
+
+    Returns:
+        None. Removes ``HTTPValidationError`` and ``ValidationError`` from
+        ``components.schemas`` when they are no longer referenced.
+
+    Raises:
+        TypeError: If ``schema`` is not a mapping type.
+    """
     components = schema.get("components")
     if not isinstance(components, dict):
         return

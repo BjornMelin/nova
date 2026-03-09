@@ -1,4 +1,6 @@
 # ruff: noqa
+"""Client helpers for the `/v1/health/live` auth endpoint."""
+
 from typing import Any
 
 import httpx
@@ -52,9 +54,14 @@ def sync_detailed(
 
      Return liveness status.
 
+    Args:
+        client (AuthenticatedClient | Client): Configured API client.
+
     Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
+        errors.UnexpectedStatus: If the server returns an undocumented status
+            code and Client.raise_on_unexpected_status is True.
+        httpx.TimeoutException: If the request takes longer than
+            Client.timeout.
 
     Returns:
         Response[HealthResponse]
@@ -77,9 +84,14 @@ def sync(
 
      Return liveness status.
 
+    Args:
+        client (AuthenticatedClient | Client): Configured API client.
+
     Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
+        errors.UnexpectedStatus: If the server returns an undocumented status
+            code and Client.raise_on_unexpected_status is True.
+        httpx.TimeoutException: If the request takes longer than
+            Client.timeout.
 
     Returns:
         HealthResponse | None
@@ -98,9 +110,14 @@ async def asyncio_detailed(
 
      Return liveness status.
 
+    Args:
+        client (AuthenticatedClient | Client): Configured API client.
+
     Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
+        errors.UnexpectedStatus: If the server returns an undocumented status
+            code and Client.raise_on_unexpected_status is True.
+        httpx.TimeoutException: If the request takes longer than
+            Client.timeout.
 
     Returns:
         Response[HealthResponse]
@@ -121,9 +138,14 @@ async def asyncio(
 
      Return liveness status.
 
+    Args:
+        client (AuthenticatedClient | Client): Configured API client.
+
     Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
+        errors.UnexpectedStatus: If the server returns an undocumented status
+            code and Client.raise_on_unexpected_status is True.
+        httpx.TimeoutException: If the request takes longer than
+            Client.timeout.
 
     Returns:
         HealthResponse | None

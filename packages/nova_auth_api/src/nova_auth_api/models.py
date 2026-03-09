@@ -37,8 +37,8 @@ class TokenVerifyRequest(StrictModel):
     """Request payload for access token verification."""
 
     access_token: str = Field(min_length=1)
-    required_scopes: tuple[str, ...] = ()
-    required_permissions: tuple[str, ...] = ()
+    required_scopes: tuple[str, ...] = Field(default=(), max_length=256)
+    required_permissions: tuple[str, ...] = Field(default=(), max_length=256)
 
     @field_validator("required_scopes", "required_permissions")
     @classmethod
@@ -57,8 +57,8 @@ class TokenIntrospectRequest(StrictModel):
     """Request payload for token introspection."""
 
     access_token: str = Field(min_length=1)
-    required_scopes: tuple[str, ...] = ()
-    required_permissions: tuple[str, ...] = ()
+    required_scopes: tuple[str, ...] = Field(default=(), max_length=256)
+    required_permissions: tuple[str, ...] = Field(default=(), max_length=256)
 
     @field_validator("required_scopes", "required_permissions")
     @classmethod

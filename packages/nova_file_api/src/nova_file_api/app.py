@@ -144,6 +144,15 @@ _OPENAPI_OPERATION_RESPONSES = {
         }
     },
 }
+_HTTP_METHODS = {
+    "delete",
+    "get",
+    "head",
+    "options",
+    "patch",
+    "post",
+    "trace",
+}
 
 
 def _operation_id_from_route(route: APIRoute) -> str:
@@ -167,6 +176,17 @@ def _install_openapi_overrides(app: FastAPI) -> None:
                 "description": "Session identifier header for caller context.",
             },
         )
+        security_schemes.setdefault(
+            "X-Worker-Token",
+            {
+                "type": "apiKey",
+                "in": "header",
+                "name": "X-Worker-Token",
+                "description": (
+                    "Worker token header for trusted job-worker calls."
+                ),
+            },
+        )
         for (
             component_name,
             description,
@@ -180,10 +200,52 @@ def _install_openapi_overrides(app: FastAPI) -> None:
             schema,
             response_component_names=_OPENAPI_OPERATION_RESPONSES,
         )
+        paths = schema.get("paths", {})
+        if isinstance(paths, dict):
+            health_ready = paths.get("/v1/health/ready", {})
+            if isinstance(health_ready, dict):
+                health_ready_get = health_ready.get("get")
+                if isinstance(health_ready_get, dict):
+                    responses = health_ready_get.setdefault("responses", {})
+                    if isinstance(responses, dict):
+                        responses["503"] = {
+                            "description": (
+                                "Service Unavailable - Readiness failed"
+                            ),
+                            "content": {
+                                "application/json": {
+                                    "schema": {
+                                        "$ref": "#/components/schemas/"
+                                        "ReadinessResponse"
+                                    }
+                                }
+                            },
+                        }
         replace_validation_error_responses(
             schema,
             response_component_name="FileInvalidRequestResponse",
         )
+        if isinstance(paths, dict):
+            for path, path_item in paths.items():
+                if not isinstance(path_item, dict):
+                    continue
+                for method, operation in path_item.items():
+                    if method not in _HTTP_METHODS or not isinstance(
+                        operation, dict
+                    ):
+                        continue
+                    responses = operation.get("responses")
+                    if not isinstance(responses, dict):
+                        continue
+                    if "401" not in responses and "403" not in responses:
+                        continue
+                    if (
+                        path == "/v1/internal/jobs/{job_id}/result"
+                        and method == "post"
+                    ):
+                        operation["security"] = [{"X-Worker-Token": []}]
+                    else:
+                        operation["security"] = [{"sessionAuth": []}]
         mark_operation_sdk_visibility(
             schema,
             path="/v1/internal/jobs/{job_id}/result",

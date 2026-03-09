@@ -168,6 +168,7 @@
             "items": {
               "type": "string"
             },
+            "maxItems": 256,
             "title": "Required Permissions",
             "type": "array"
           },
@@ -176,6 +177,7 @@
             "items": {
               "type": "string"
             },
+            "maxItems": 256,
             "title": "Required Scopes",
             "type": "array"
           }
@@ -200,6 +202,7 @@
             "items": {
               "type": "string"
             },
+            "maxItems": 256,
             "title": "Required Permissions",
             "type": "array"
           },
@@ -208,6 +211,7 @@
             "items": {
               "type": "string"
             },
+            "maxItems": 256,
             "title": "Required Scopes",
             "type": "array"
           }
@@ -262,6 +266,7 @@
             "items": {
               "type": "string"
             },
+            "maxItems": 256,
             "title": "Required Permissions",
             "type": "array"
           },
@@ -270,6 +275,7 @@
             "items": {
               "type": "string"
             },
+            "maxItems": 256,
             "title": "Required Scopes",
             "type": "array"
           }
@@ -448,7 +454,8 @@
         "summary": "Introspect Token",
         "tags": [
           "token"
-        ]
+        ],
+        "x-auth-not-required": "Auth-validation endpoint; bearerAuth is intentionally not required."
       }
     },
     "/v1/token/verify": {
@@ -492,7 +499,8 @@
         "summary": "Verify Token",
         "tags": [
           "token"
-        ]
+        ],
+        "x-auth-not-required": "Auth-validation endpoint; bearerAuth is intentionally not required."
       }
     }
   }

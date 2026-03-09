@@ -56,7 +56,7 @@ def _parse_response(
 
 def _build_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> Response[ErrorEnvelope | JobStatusResponse]:
+) -> Response[ErrorEnvelope | JobStatusResponse | None]:
     return Response(
         status_code=response.status_code,
         content=response.content,
@@ -68,8 +68,8 @@ def _build_response(
 def sync_detailed(
     job_id: str,
     *,
-    client: AuthenticatedClient | Client,
-) -> Response[ErrorEnvelope | JobStatusResponse]:
+    client: AuthenticatedClient,
+) -> Response[ErrorEnvelope | JobStatusResponse | None]:
     """Get Job Status
 
      Return status for the caller-owned job.
@@ -99,7 +99,7 @@ def sync_detailed(
 def sync(
     job_id: str,
     *,
-    client: AuthenticatedClient | Client,
+    client: AuthenticatedClient,
 ) -> ErrorEnvelope | JobStatusResponse | None:
     """Get Job Status
 
@@ -125,8 +125,8 @@ def sync(
 async def asyncio_detailed(
     job_id: str,
     *,
-    client: AuthenticatedClient | Client,
-) -> Response[ErrorEnvelope | JobStatusResponse]:
+    client: AuthenticatedClient,
+) -> Response[ErrorEnvelope | JobStatusResponse | None]:
     """Get Job Status
 
      Return status for the caller-owned job.
@@ -154,7 +154,7 @@ async def asyncio_detailed(
 async def asyncio(
     job_id: str,
     *,
-    client: AuthenticatedClient | Client,
+    client: AuthenticatedClient,
 ) -> ErrorEnvelope | JobStatusResponse | None:
     """Get Job Status
 

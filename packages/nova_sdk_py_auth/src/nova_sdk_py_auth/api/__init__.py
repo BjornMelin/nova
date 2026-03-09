@@ -1,1 +1,1 @@
-"""Contains methods for accessing the API"""
+"""Nova Authentication API client methods."""

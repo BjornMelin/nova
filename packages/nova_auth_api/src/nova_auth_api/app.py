@@ -71,6 +71,7 @@ _TOKEN_INTROSPECT_FORM_REQUEST_SCHEMA = {
     **_TOKEN_INTROSPECT_REQUEST_SCHEMA,
     "title": "TokenIntrospectFormRequest",
 }
+_INTROSPECTION_AUTH_OPERATIONS = {"/v1/token/verify", "/v1/token/introspect"}
 _OPENAPI_RESPONSE_DESCRIPTIONS = {
     "AuthInvalidRequestResponse": "Canonical invalid-request response.",
     "AuthUnauthorizedResponse": "Canonical unauthorized token response.",
@@ -142,6 +143,15 @@ def _install_openapi_overrides(app: FastAPI) -> None:
             schema,
             response_component_name="AuthInvalidRequestResponse",
         )
+        paths = schema.get("paths", {})
+        if isinstance(paths, dict):
+            for path in _INTROSPECTION_AUTH_OPERATIONS:
+                operation = paths.get(path, {}).get("post")
+                if isinstance(operation, dict):
+                    operation["x-auth-not-required"] = (
+                        "Auth-validation endpoint; "
+                        "bearerAuth is intentionally not required."
+                    )
         prune_validation_error_schemas(schema)
 
     install_openapi_customizer(app, customizer=customize_openapi)

@@ -96,7 +96,11 @@ class SignPartsRequest(BaseModel):
 
     key: str = Field(min_length=1, max_length=2048)
     upload_id: str = Field(min_length=1, max_length=1024)
-    part_numbers: list[int] = Field(min_length=1, max_length=1000)
+    part_numbers: list[Annotated[int, Field(ge=1, le=10_000)]] = Field(
+        min_length=1,
+        max_length=1000,
+        json_schema_extra={"uniqueItems": True},
+    )
     session_id: str | None = Field(default=None, min_length=1, max_length=256)
 
     @field_validator("part_numbers")

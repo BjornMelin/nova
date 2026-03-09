@@ -943,8 +943,53 @@ def _patch_auth_sdk(root: Path) -> None:
     )
     _rewrite_file(
         root,
+        "api/health/health_live.py",
+        lambda content: (
+            _ensure_module_docstring(
+                content,
+                doc="Client helpers for the `/v1/health/live` auth endpoint.",
+            )
+            .replace(
+                "    Raises:\n"
+                "        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.\n"
+                "        httpx.TimeoutException: If the request takes longer than Client.timeout.\n",
+                "    Args:\n"
+                "        client (AuthenticatedClient | Client): Configured API client.\n"
+                "\n"
+                "    Raises:\n"
+                "        errors.UnexpectedStatus: If the server returns an undocumented status\n"
+                "            code and Client.raise_on_unexpected_status is True.\n"
+                "        httpx.TimeoutException: If the request takes longer than\n"
+                "            Client.timeout.\n",
+            )
+            .replace(
+                "    Returns:\n        HealthResponse | None",
+                "    Returns:\n        HealthResponse | None",
+            )
+        ),
+    )
+    _rewrite_file(
+        root,
         "api/token/__init__.py",
         lambda content: content.removeprefix("# ruff: noqa\n"),
+    )
+    _rewrite_file(
+        root,
+        "api/__init__.py",
+        lambda content: (
+            _ensure_module_docstring(
+                content,
+                doc="Nova Authentication API client methods.",
+            )
+            .replace(
+                '"""Nova Authentication API client methods."""\n\n"""Contains methods for accessing the API"""\n',
+                '"""Nova Authentication API client methods."""\n',
+            )
+            .replace(
+                '"""Contains methods for accessing the API"""',
+                '"""Nova Authentication API client methods."""',
+            )
+        ),
     )
     _rewrite_file(
         root,
@@ -1103,6 +1148,15 @@ def _patch_auth_sdk(root: Path) -> None:
         "models/token_verify_request.py",
         lambda content: (
             content.replace(
+                "from attrs import define as _attrs_define\n",
+                "from attrs import define as _attrs_define\n"
+                "from attrs import field as _attrs_field\n",
+            )
+            .replace(
+                "    access_token: str\n",
+                "    access_token: str = _attrs_field(repr=False)\n",
+            )
+            .replace(
                 "            required_permissions = self.required_permissions\n",
                 "            required_permissions = list(self.required_permissions)\n",
             )
@@ -1391,7 +1445,20 @@ def _patch_file_sdk(root: Path) -> None:
     _rewrite_file(
         root,
         "api/__init__.py",
-        lambda content: content.removeprefix("# ruff: noqa\n"),
+        lambda content: (
+            _ensure_module_docstring(
+                content.removeprefix("# ruff: noqa\n"),
+                doc="Nova File API client methods.",
+            )
+            .replace(
+                '"""Nova File API client methods."""\n\n"""Contains methods for accessing the API"""\n',
+                '"""Nova File API client methods."""\n',
+            )
+            .replace(
+                '"""Contains methods for accessing the API"""',
+                '"""Nova File API client methods."""',
+            )
+        ),
     )
 
     for path in (root / "api").rglob("*.py"):
@@ -1410,6 +1477,9 @@ def _patch_file_sdk(root: Path) -> None:
         lambda content: content.replace(
             "    Returns:\n        ErrorEnvelope | JobStatusResponse\n",
             "    Returns:\n        ErrorEnvelope | JobStatusResponse | None\n",
+        ).replace(
+            ") -> Response[ErrorEnvelope | JobStatusResponse]:",
+            ") -> Response[ErrorEnvelope | JobStatusResponse | None]:",
         ),
     )
     _rewrite_file(
@@ -1423,17 +1493,74 @@ def _patch_file_sdk(root: Path) -> None:
     _rewrite_file(
         root,
         "api/platform/get_release_info.py",
-        lambda content: content.replace(
-            "    Returns:\n        ReleaseInfoResponse\n",
-            "    Returns:\n        ReleaseInfoResponse | None\n",
+        lambda content: (
+            _ensure_module_docstring(
+                content,
+                doc=(
+                    "Client helpers for the `/v1/releases/info` endpoint.\n\n"
+                    "Functions in this module use AuthenticatedClient/Client and\n"
+                    "raise ``errors.UnexpectedStatus`` for undocumented responses."
+                ),
+            )
+            .replace(
+                "    Raises:\n"
+                "        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.\n"
+                "        httpx.TimeoutException: If the request takes longer than Client.timeout.\n",
+                "    Args:\n"
+                "        client (AuthenticatedClient | Client): Configured API client.\n"
+                "\n"
+                "    Raises:\n"
+                "        errors.UnexpectedStatus: If the server returns an undocumented\n"
+                "            status code and Client.raise_on_unexpected_status is True.\n"
+                "        httpx.TimeoutException: If the request takes longer than\n"
+                "            Client.timeout.\n",
+            )
+            .replace(
+                "    Returns:\n        ReleaseInfoResponse\n",
+                "    Returns:\n        ReleaseInfoResponse | None\n",
+            )
+            .replace(
+                '    Returns:\n        Response[ReleaseInfoResponse]"""',
+                '    Returns:\n        Response[ReleaseInfoResponse]\n    """',
+            )
         ),
     )
     _rewrite_file(
         root,
         "api/transfers/complete_upload.py",
-        lambda content: content.replace(
-            "    Returns:\n        CompleteUploadResponse | ErrorEnvelope\n",
-            "    Returns:\n        CompleteUploadResponse | ErrorEnvelope | None\n",
+        lambda content: (
+            _ensure_module_docstring(
+                content,
+                doc=(
+                    "Client helpers for the upload completion endpoint and "
+                    "response envelope."
+                ),
+            )
+            .replace(
+                "from nova_sdk_py_file.client import AuthenticatedClient, Client\n",
+                "from nova_sdk_py_file.client import AuthenticatedClient\n"
+                "from nova_sdk_py_file.client import Client\n",
+            )
+            .replace(
+                "    Args:\n        body (CompleteUploadRequest): Multipart completion request.\n",
+                "    Args:\n"
+                "        body (CompleteUploadRequest): Multipart completion request.\n"
+                "        client (AuthenticatedClient | Client): Configured API client.\n",
+            )
+            .replace(
+                "    Raises:\n"
+                "        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.\n"
+                "        httpx.TimeoutException: If the request takes longer than Client.timeout.\n",
+                "    Raises:\n"
+                "        errors.UnexpectedStatus: If the server returns an undocumented\n"
+                "            status code and Client.raise_on_unexpected_status is True.\n"
+                "        httpx.TimeoutException: If the request takes longer than\n"
+                "            Client.timeout.\n",
+            )
+            .replace(
+                "    Returns:\n        CompleteUploadResponse | ErrorEnvelope\n",
+                "    Returns:\n        CompleteUploadResponse | ErrorEnvelope | None\n",
+            )
         ),
     )
     _rewrite_file(
@@ -1453,6 +1580,9 @@ def _patch_file_sdk(root: Path) -> None:
         lambda content: _ensure_module_docstring(
             content,
             doc="Client helpers for the `/v1/health/live` endpoint.",
+        ).replace(
+            "    Returns:\n        HealthResponse\n",
+            "    Returns:\n        HealthResponse | None\n",
         ),
     )
     _rewrite_file(
@@ -1856,23 +1986,60 @@ def _patch_file_sdk(root: Path) -> None:
         root,
         "models/job_events_response.py",
         lambda content: (
-            content.replace(
-                "# ruff: noqa\nfrom __future__ import annotations\n",
-                "# ruff: noqa\n"
-                '"""Job events envelope model for polling/SSE style responses."""\n\n'
-                "from __future__ import annotations\n",
+            _ensure_module_docstring(
+                content,
+                doc=(
+                    "Polling/SSE job events envelope used by client model "
+                    "code generation."
+                ),
+            )
+            .replace(
+                '    """Polling/SSE-compatible events response envelope.\n\n    Attributes:\n        events (list[JobEvent]):\n        job_id (str):\n        next_cursor (str):\n    """\n',
+                '    """Polling/SSE-compatible events envelope.\n\n'
+                "    Attributes:\n"
+                "        events (list[JobEvent]): Job event records in stream order.\n"
+                "        job_id (str): Job identifier for the event stream.\n"
+                "        next_cursor (str): Cursor used to fetch subsequent events.\n"
+                '    """\n',
+            )
+            .replace(
+                "if TYPE_CHECKING:\n    from ..models.job_event import JobEvent\n",
+                "if TYPE_CHECKING:\n"
+                "    from nova_sdk_py_file.models.job_event import JobEvent\n",
+            )
+            .replace(
+                "from ..models.job_event import JobEvent\n",
+                "from nova_sdk_py_file.models.job_event import JobEvent\n",
             )
             .replace(
                 "    def to_dict(self) -> dict[str, Any]:\n",
                 "    def to_dict(self) -> dict[str, Any]:\n"
-                '        """Serialize this model to a JSON-compatible dict."""\n',
+                '        """Serialize this model to a JSON-compatible dict.\n'
+                "\n"
+                "        Args:\n"
+                "            None.\n"
+                "\n"
+                "        Returns:\n"
+                "            dict[str, Any]: Serialized event envelope.\n"
+                '        """\n',
             )
             .replace(
                 "    @classmethod\n"
                 "    def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:\n",
                 "    @classmethod\n"
                 "    def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:\n"
-                '        """Build this model from a JSON-compatible mapping."""\n',
+                '        """Build this model from a JSON-compatible mapping.\n'
+                "\n"
+                "        Args:\n"
+                "            src_dict (Mapping[str, Any]): Source mapping used to create\n"
+                "                the model.\n"
+                "\n"
+                "        Returns:\n"
+                "            JobEventsResponse: Parsed model instance.\n"
+                "\n"
+                "        Raises:\n"
+                "            TypeError: If src_dict is missing required fields.\n"
+                '        """\n',
             )
         ),
     )
@@ -1922,11 +2089,81 @@ def _patch_file_sdk(root: Path) -> None:
     _rewrite_file(
         root,
         "models/readiness_response_checks.py",
-        lambda content: content.replace(
-            "        readiness_response_checks.additional_properties = d\n",
-            "        readiness_response_checks.additional_properties = {\n"
-            "            key: bool(value) for key, value in d.items()\n"
-            "        }\n",
+        lambda content: (
+            _ensure_module_docstring(
+                content,
+                doc="Readiness dependency check status map model.",
+            )
+            .replace(
+                '    """Readiness dependency check status map."""\n',
+                '    """Readiness dependency check status map.\n\n'
+                "    Attributes:\n"
+                "        additional_properties (dict[str, bool]): Mapping of component names\n"
+                "            to readiness booleans.\n"
+                '    """\n',
+            )
+            .replace(
+                "    def to_dict(self) -> dict[str, Any]:\n\n",
+                "    def to_dict(self) -> dict[str, Any]:\n"
+                '        """Serialize this model to a JSON-compatible dict.\n'
+                "\n"
+                "        Args:\n"
+                "            None.\n"
+                "\n"
+                "        Returns:\n"
+                "            dict[str, Any]: Serialized readiness status map.\n"
+                '        """\n\n',
+            )
+            .replace(
+                "    @classmethod\n"
+                "    def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:\n",
+                "    @classmethod\n"
+                "    def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:\n"
+                '        """Build this model from a JSON-compatible mapping.\n'
+                "\n"
+                "        Args:\n"
+                "            src_dict (Mapping[str, Any]): Source mapping.\n"
+                "\n"
+                "        Returns:\n"
+                "            ReadinessResponseChecks: Parsed model instance.\n"
+                "\n"
+                "        Raises:\n"
+                "            TypeError: If src_dict is not a mapping or values are invalid.\n"
+                "                For example, if a key does not map to bool-like data.\n"
+                '        """\n',
+            )
+            .replace(
+                "    @property\n    def additional_keys(self) -> list[str]:\n",
+                "    @property\n    def additional_keys(self) -> list[str]:\n"
+                '        """List keys present in ``additional_properties``.\n'
+                "\n"
+                "        Args:\n"
+                "            None.\n"
+                "\n"
+                "        Returns:\n"
+                "            list[str]: Keys present in ``additional_properties``.\n"
+                '        """\n',
+            )
+            .replace(
+                "    def additional_keys(self) -> list[str]:\n"
+                "        return list(self.additional_properties.keys())\n",
+                "    def additional_keys(self) -> list[str]:\n"
+                '        """List keys present in ``additional_properties``.\n'
+                "\n"
+                "        Args:\n"
+                "            None.\n"
+                "\n"
+                "        Returns:\n"
+                "            list[str]: Keys present in ``additional_properties``.\n"
+                '        """\n\n'
+                "        return list(self.additional_properties.keys())\n",
+            )
+            .replace(
+                "        readiness_response_checks.additional_properties = d\n",
+                "        readiness_response_checks.additional_properties = {\n"
+                "            key: bool(value) for key, value in d.items()\n"
+                "        }\n",
+            )
         ),
     )
     _rewrite_file(
