@@ -7,9 +7,8 @@ SPEC-0013/SPEC-0014.
 from __future__ import annotations
 
 import re
-from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
+from .helpers import REPO_ROOT, _read
 RUNTIME_DEPLOYABLE_TEMPLATES = (
     "infra/runtime/ecr.yml",
     "infra/runtime/ecs/cluster.yml",
@@ -21,12 +20,6 @@ RUNTIME_DEPLOYABLE_TEMPLATES = (
     "infra/runtime/kms.yml",
     "infra/runtime/observability/ecs-observability-baseline.yml",
 )
-
-
-def _read(rel_path: str) -> str:
-    path = REPO_ROOT / rel_path
-    assert path.is_file(), f"Expected template file to exist: {path}"
-    return path.read_text(encoding="utf-8")
 
 
 def test_absorbed_template_paths_present() -> None:
@@ -179,11 +172,7 @@ def test_digest_marker_path_and_env_contracts() -> None:
 
 
 def test_service_base_url_ssm_path_and_url_constraints() -> None:
-    """Service base URL SSM template must enforce canonical path + URL hygiene.
-
-    Returns:
-        None.
-    """
+    """Verify service base URL SSM template enforces canonical path and URL hygiene."""
     text = _read("infra/nova/deploy/service-base-url-ssm.yml")
 
     assert 'Name: !Sub "/nova/${Environment}/${ServiceName}/base-url"' in text

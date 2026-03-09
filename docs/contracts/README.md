@@ -41,10 +41,14 @@ release and consumer integration gates.
 
 - `../clients/post-deploy-validation-integration-guide.md`
 - `../plan/release/RELEASE-POLICY.md`
+- `../architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md`
 - `../architecture/spec/SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md`
+- `../architecture/spec/SPEC-0000-http-api-contract.md`
+- `../architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md`
 - `../architecture/spec/SPEC-0021-downstream-hard-cut-integration-and-consumer-validation-contract.md`
 - `../architecture/spec/SPEC-0022-auth0-tenant-ops-reusable-workflow-contract.md`
 - `../architecture/spec/SPEC-0023-ssm-runtime-base-url-contract-for-deploy-validation.md`
+- `../requirements.md`
 
 ## Versioning policy
 

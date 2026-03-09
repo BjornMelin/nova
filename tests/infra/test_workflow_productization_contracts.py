@@ -2,13 +2,7 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-
-REPO_ROOT = Path(__file__).resolve().parents[2]
-
-
-def _read(rel: str) -> str:
-    return (REPO_ROOT / rel).read_text(encoding="utf-8")
+from .helpers import _read
 
 
 def test_reusable_workflow_call_apis_exist_and_are_callable() -> None:

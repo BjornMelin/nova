@@ -3,16 +3,11 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 from typing import Any
 
 import yaml
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
-
-
-def _read(rel: str) -> str:
-    return (REPO_ROOT / rel).read_text(encoding="utf-8")
+from .helpers import _read
 
 
 def _read_json(rel: str) -> dict[str, Any]:

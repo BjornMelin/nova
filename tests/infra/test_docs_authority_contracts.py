@@ -5,7 +5,8 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
+from .helpers import REPO_ROOT, _read
+
 DOCS_ROOT = REPO_ROOT / "docs"
 AGENTS_PATH = REPO_ROOT / "AGENTS.md"
 
@@ -48,10 +49,6 @@ def _markdown_targets(paths: tuple[Path, ...]) -> list[Path]:
         elif path.is_dir():
             docs.extend(_markdown_files(path))
     return sorted(docs)
-
-
-def _read(rel: str) -> str:
-    return (REPO_ROOT / rel).read_text(encoding="utf-8")
 
 
 def test_canonical_runbook_entrypoint_exists() -> None:
