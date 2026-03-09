@@ -64,9 +64,7 @@ def test_assert_unique_operation_ids_fails_on_collision() -> None:
         )
 
 
-def test_public_schema_collection_excludes_internal_only_job_result_shapes() -> (
-    None
-):
+def test_public_schema_excludes_internal_job_result_shapes() -> None:
     """Public schema aliases exclude internal worker-only models."""
     spec_path = (
         Path(__file__).resolve().parents[3]
