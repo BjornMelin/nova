@@ -1,19 +1,19 @@
 """Internal shared runtime helpers for Nova services."""
 
-from .auth_claims import (
+from nova_runtime_support.auth_claims import (
     NormalizedPrincipalClaims,
     build_jwt_verifier,
     normalized_principal_claims,
 )
-from .http import (
+from nova_runtime_support.http import (
     bind_request_id,
     canonical_error_content,
     finalize_request_id,
     request_id_from_request,
     unbind_request_id,
 )
-from .logging import configure_structlog
-from .openapi import (
+from nova_runtime_support.logging import configure_structlog
+from nova_runtime_support.openapi import (
     SDK_VISIBILITY_EXTENSION,
     SDK_VISIBILITY_INTERNAL,
     apply_operation_response_refs,

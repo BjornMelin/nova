@@ -11,7 +11,7 @@ T = TypeVar("T", bound="TokenVerifyResponseClaims")
 
 @_attrs_define
 class TokenVerifyResponseClaims:
-    """ """
+    """Dynamic token-verification claim payload container."""
 
     additional_properties: dict[str, Any] = _attrs_field(
         init=False, factory=dict

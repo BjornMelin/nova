@@ -30,7 +30,12 @@ def configure_structlog(
     hidden_fields: Iterable[str] = (),
     redacted_substrings: Iterable[str] = (),
 ) -> None:
-    """Configure structlog once with Nova-safe redaction defaults."""
+    """Configure structlog once with Nova-safe redaction defaults.
+
+    Args:
+        hidden_fields: Extra field names to redact in structured payloads.
+        redacted_substrings: Extra substrings that trigger value redaction.
+    """
     global _LOGGING_CONFIGURED
     if _LOGGING_CONFIGURED:
         return

@@ -111,6 +111,7 @@
             "items": {
               "$ref": "#/components/schemas/CapabilityDescriptor"
             },
+            "maxItems": 256,
             "title": "Capabilities",
             "type": "array"
           }

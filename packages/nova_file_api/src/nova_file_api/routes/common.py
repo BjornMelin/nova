@@ -18,7 +18,13 @@ def emit_request_metric(
     route: str,
     status: str,
 ) -> None:
-    """Emit a low-cardinality request counter."""
+    """Emit a low-cardinality request counter.
+
+    Args:
+        container: Application dependency container.
+        route: Route name used for metric dimensions.
+        status: Request outcome label.
+    """
     container.metrics.emit_emf(
         metric_name="requests_total",
         value=1,

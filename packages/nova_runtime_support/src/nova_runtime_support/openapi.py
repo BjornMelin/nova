@@ -117,7 +117,16 @@ def apply_operation_response_refs(
     *,
     response_component_names: Mapping[str, Mapping[str, Mapping[str, str]]],
 ) -> None:
-    """Apply reusable response-component refs to concrete operations."""
+    """Apply reusable response-component refs to concrete operations.
+
+    Args:
+        schema: OpenAPI root document to mutate in place.
+        response_component_names: Mapping of
+            path -> method -> status -> component.
+
+    Returns:
+        None.
+    """
     paths = schema.get("paths", {})
     if not isinstance(paths, dict):
         return

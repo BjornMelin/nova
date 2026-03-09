@@ -325,7 +325,7 @@ class CapabilitiesResponse(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    capabilities: list[CapabilityDescriptor]
+    capabilities: list[CapabilityDescriptor] = Field(max_length=256)
 
 
 ResourceKey = Annotated[

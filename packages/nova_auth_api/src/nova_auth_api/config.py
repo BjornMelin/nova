@@ -53,13 +53,6 @@ class Settings(BaseSettings):
         ge=1,
         le=1000,
     )
-    blocking_io_thread_tokens: int = Field(
-        default=40,
-        alias="BLOCKING_IO_THREAD_TOKENS",
-        ge=1,
-        le=1000,
-    )
-
     @property
     def default_required_scopes(self) -> tuple[str, ...]:
         """Return configured default required scopes."""
