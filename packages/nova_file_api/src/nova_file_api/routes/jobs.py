@@ -135,7 +135,7 @@ async def cancel_job(
             details=f"job_id={job.job_id} status={job.status}",
         )
     except Exception:
-        container.logger.exception(
+        structlog.get_logger("api").exception(
             "jobs_cancel_activity_record_failed",
             job_id=job.job_id,
             status=job.status,
@@ -206,7 +206,7 @@ async def update_job_result(
             ),
         )
     except Exception:
-        container.logger.exception(
+        structlog.get_logger("api").exception(
             "jobs_result_update_activity_record_failed",
             job_id=job_id,
             status=job.status,
