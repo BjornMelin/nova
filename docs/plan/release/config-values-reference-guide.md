@@ -30,6 +30,7 @@ configure CI/CD stacks, and operate Nova release automation.
   - default: `us-east-1`
 - `CODEARTIFACT_STAGING_REPOSITORY`
   - value: staged publish repository used by package build and promotion source
+  - required: yes, default: from `CODEARTIFACT_REPOSITORY_NAME` when unset
 - `CODEARTIFACT_PROD_REPOSITORY`
   - value: prod promotion destination repository
 
@@ -96,6 +97,8 @@ Populate these via `infra/nova/deploy/service-base-url-ssm.yml` before running
 
 ## Runtime stack parameter contract
 
+Documentation authority: [ADR-0023](../../architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md) -> [SPEC-0000](../../architecture/spec/SPEC-0000-http-api-contract.md) -> [SPEC-0016](../../architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md) -> [requirements.md](../../requirements.md)
+
 Capture and manage these runtime values per environment before CI/CD deploy:
 
 - `VPC_ID`
@@ -132,6 +135,10 @@ Default stack names:
 - `${project}-${application}-nova-ci-cd`
 - `${project}-ci-dev-service-base-url`
 - `${project}-ci-prod-service-base-url`
+
+Placeholder note:
+`${project}` is your project identifier (for example, your org or repo slug),
+and `${application}` is the application or service name managed by these stacks.
 
 Canonical SSM base-url marker ownership:
 
@@ -201,6 +208,8 @@ Validation URLs:
 - `${PROD_BASE_URL}/v1/health/live`
 - `${PROD_BASE_URL}/v1/health/ready`
 - `${PROD_BASE_URL}/v1/capabilities`
+
+Documentation authority: [ADR-0023](../../architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md) -> [SPEC-0000](../../architecture/spec/SPEC-0000-http-api-contract.md) -> [SPEC-0016](../../architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md) -> [requirements.md](../../requirements.md)
 
 Route namespace policy:
 

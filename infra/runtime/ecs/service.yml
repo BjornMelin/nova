@@ -1,5 +1,11 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: ECS service runtime stack for Nova API workloads.
+Metadata:
+  cfn-lint:
+    config:
+      ignore_checks:
+        - W1030
+        - W1031
 Parameters:
   Environment:
     Type: String
@@ -90,11 +96,11 @@ Parameters:
   CodeDeployApplicationName:
     Type: String
     Default: ""
-    Description: Optional explicit CodeDeploy application name. Defaults to ${Project}-${Application}-${Service}-ecs.
+    Description: Optional explicit CodeDeploy application name. Defaults to {Project}-{Application}-{Service}-ecs.
   CodeDeployDeploymentGroupName:
     Type: String
     Default: ""
-    Description: Optional explicit CodeDeploy deployment group name. Defaults to ${Project}-${Application}-${Service}-dg.
+    Description: Optional explicit CodeDeploy deployment group name. Defaults to {Project}-{Application}-{Service}-dg.
   CodeDeployServiceRoleArn:
     Type: String
     Default: ""
@@ -211,14 +217,17 @@ Parameters:
   FileTransferJobsQueueArn:
     Type: String
     Default: ""
+    AllowedPattern: "^$|^arn:(aws|aws-us-gov|aws-cn):sqs:[a-z0-9-]+:[0-9]{12}:[A-Za-z0-9_.-]+(\\.fifo)?$"
     Description: Async jobs queue ARN (required when FileTransferAsyncEnabled is true).
   FileTransferJobsTableArn:
     Type: String
     Default: ""
+    AllowedPattern: "^$|^arn:(aws|aws-us-gov|aws-cn):dynamodb:[a-z0-9-]+:[0-9]{12}:table\\/[A-Za-z0-9_.-]+$"
     Description: Async jobs table ARN (required when FileTransferAsyncEnabled is true).
   FileTransferActivityTableArn:
     Type: String
     Default: ""
+    AllowedPattern: "^$|^arn:(aws|aws-us-gov|aws-cn):dynamodb:[a-z0-9-]+:[0-9]{12}:table\\/[A-Za-z0-9_.-]+$"
     Description: Async activity table ARN (required when FileTransferAsyncEnabled is true).
   FileTransferCacheEnabled:
     Type: String
@@ -259,9 +268,11 @@ Parameters:
   TaskExecutionSecretArns:
     Type: CommaDelimitedList
     Default: ""
+    AllowedPattern: "^$|^arn:aws[-a-z0-9]*:secretsmanager:[^:]+:[0-9]+:secret:[^/]+$"
+    ConstraintDescription: TaskExecutionSecretArns must be Secrets Manager ARNs.
     Description: >-
-      Comma-delimited Secrets Manager ARNs (or names) the ECS task execution
-      role can read for container secret injection.
+      Comma-delimited Secrets Manager ARNs only the ECS task execution role can
+      read for container secret injection.
   TaskExecutionSsmParameterArns:
     Type: CommaDelimitedList
     Default: ""
@@ -352,6 +363,10 @@ Conditions:
   UseLegacyTaskRolePolicy: !Equals [!Ref UseLegacyTaskRolePolicy, "true"]
   CreateAppSecretKey: !Equals [!Ref GenerateAppSecretKey, "true"]
   EnableFileTransfer: !Equals [!Ref FileTransferEnabled, "true"]
+  HasFileTransferBucketName: !Not [!Equals [!Ref FileTransferBucketName, ""]]
+  EnableFileTransferWithBucket: !And
+    - !Condition EnableFileTransfer
+    - !Condition HasFileTransferBucketName
   EnableFileTransferAsync: !Equals [!Ref FileTransferAsyncEnabled, "true"]
   EnableFileTransferCache: !Equals [!Ref FileTransferCacheEnabled, "true"]
   UseCodeDeployBlueGreen: !Equals [!Ref EnableBlueGreenDeployAuthority, "true"]
@@ -587,14 +602,26 @@ Resources:
               Value: !Ref RuntimeProfile
             - Name: FILE_TRANSFER_ENABLED
               Value: !Ref FileTransferEnabled
-            - Name: FILE_TRANSFER_BUCKET
-              Value: !Ref FileTransferBucketName
-            - Name: FILE_TRANSFER_UPLOAD_PREFIX
-              Value: !Ref FileTransferUploadPrefix
-            - Name: FILE_TRANSFER_EXPORT_PREFIX
-              Value: !Ref FileTransferExportPrefix
-            - Name: FILE_TRANSFER_TMP_PREFIX
-              Value: !Ref FileTransferTmpPrefix
+            - !If
+              - EnableFileTransferWithBucket
+              - Name: FILE_TRANSFER_BUCKET
+                Value: !Ref FileTransferBucketName
+              - !Ref AWS::NoValue
+            - !If
+              - EnableFileTransferWithBucket
+              - Name: FILE_TRANSFER_UPLOAD_PREFIX
+                Value: !Ref FileTransferUploadPrefix
+              - !Ref AWS::NoValue
+            - !If
+              - EnableFileTransferWithBucket
+              - Name: FILE_TRANSFER_EXPORT_PREFIX
+                Value: !Ref FileTransferExportPrefix
+              - !Ref AWS::NoValue
+            - !If
+              - EnableFileTransferWithBucket
+              - Name: FILE_TRANSFER_TMP_PREFIX
+                Value: !Ref FileTransferTmpPrefix
+              - !Ref AWS::NoValue
             - !If
               - UseLegacyEnvDict
               - Name: AUTH_APP_SECRET
@@ -709,9 +736,6 @@ Resources:
   CodeDeployEcsDeploymentGroup:
     Type: AWS::CodeDeploy::DeploymentGroup
     Condition: UseCodeDeployBlueGreen
-    DependsOn:
-      - ECSService
-      - CodeDeployEcsApplication
     Properties:
       ApplicationName: !Ref CodeDeployEcsApplication
       DeploymentGroupName: !If
@@ -811,9 +835,6 @@ Resources:
               - s3:PutObject
               - s3:AbortMultipartUpload
               - s3:ListMultipartUploadParts
-              - s3:CreateMultipartUpload
-              - s3:UploadPart
-              - s3:CompleteMultipartUpload
             Resource:
               - !Sub "arn:${AWS::Partition}:s3:::${FileTransferBucketName}/${FileTransferUploadPrefix}*"
               - !Sub "arn:${AWS::Partition}:s3:::${FileTransferBucketName}/${FileTransferExportPrefix}*"
@@ -958,7 +979,7 @@ Resources:
       Threshold: "2"
       ComparisonOperator: GreaterThanOrEqualToThreshold
       AlarmActions:
-        - !If [Monitor, !Ref AlarmArn, !Ref "AWS::NoValue" ]
+        - !Ref AlarmArn
 
   RequestCountPerTargetGreen:
     Type: AWS::CloudWatch::Alarm
@@ -980,7 +1001,7 @@ Resources:
       Threshold: "2"
       ComparisonOperator: GreaterThanOrEqualToThreshold
       AlarmActions:
-        - !If [MonitorUseCodeDeployBlueGreen, !Ref AlarmArn, !Ref "AWS::NoValue" ]
+        - !Ref AlarmArn
 
   UnHealthyHostCount:
     Type: AWS::CloudWatch::Alarm
@@ -1023,7 +1044,7 @@ Resources:
       Threshold: "1"
       ComparisonOperator: GreaterThanOrEqualToThreshold
       AlarmActions:
-        - !If [MonitorUseCodeDeployBlueGreen, !Ref AlarmArn, !Ref "AWS::NoValue" ]
+        - !Ref AlarmArn
 
   HTTPCodeTarget2XXCount:
     Type: AWS::CloudWatch::Alarm
@@ -1066,7 +1087,7 @@ Resources:
       Threshold: "100"
       ComparisonOperator: GreaterThanOrEqualToThreshold
       AlarmActions:
-        - !If [MonitorUseCodeDeployBlueGreen, !Ref AlarmArn, !Ref "AWS::NoValue"]
+        - !Ref AlarmArn
 
   HTTPCodeTarget3XXCount:
     Type: AWS::CloudWatch::Alarm
@@ -1109,7 +1130,7 @@ Resources:
       Threshold: "1"
       ComparisonOperator: GreaterThanOrEqualToThreshold
       AlarmActions:
-        - !If [MonitorUseCodeDeployBlueGreen, !Ref AlarmArn, !Ref "AWS::NoValue"]
+        - !Ref AlarmArn
 
   HTTPCodeTarget4XXCount:
     Type: AWS::CloudWatch::Alarm
@@ -1152,7 +1173,7 @@ Resources:
       Threshold: "1"
       ComparisonOperator: GreaterThanOrEqualToThreshold
       AlarmActions:
-        - !If [MonitorUseCodeDeployBlueGreen, !Ref AlarmArn, !Ref "AWS::NoValue"]
+        - !Ref AlarmArn
 
   HTTPCodeTarget5XXCount:
     Type: AWS::CloudWatch::Alarm
@@ -1195,7 +1216,7 @@ Resources:
       Threshold: "1"
       ComparisonOperator: GreaterThanOrEqualToThreshold
       AlarmActions:
-        - !If [MonitorUseCodeDeployBlueGreen, !Ref AlarmArn, !Ref "AWS::NoValue"]
+        - !Ref AlarmArn
 
   TargetConnectionErrorCount:
     Type: AWS::CloudWatch::Alarm
@@ -1238,7 +1259,7 @@ Resources:
       Threshold: "1"
       ComparisonOperator: GreaterThanOrEqualToThreshold
       AlarmActions:
-        - !If [MonitorUseCodeDeployBlueGreen, !Ref AlarmArn, !Ref "AWS::NoValue"]
+        - !Ref AlarmArn
 
   TargetTLSNegotiationErrorCount:
     Type: AWS::CloudWatch::Alarm
@@ -1281,7 +1302,7 @@ Resources:
       Threshold: "1"
       ComparisonOperator: GreaterThanOrEqualToThreshold
       AlarmActions:
-        - !If [MonitorUseCodeDeployBlueGreen, !Ref AlarmArn, !Ref "AWS::NoValue"]
+        - !Ref AlarmArn
 
 
   # Lambda permissions for each alarm to trigger the Lambda function

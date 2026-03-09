@@ -5,6 +5,10 @@ Status: Accepted
 Version: 1.1
 Date: 2026-03-05
 Related:
+  - "[ADR-0023: Hard-cut V1 canonical route surface](./ADR-0023-hard-cut-v1-canonical-route-surface.md)"
+  - "[SPEC-0000: Canonical HTTP API contract](../spec/SPEC-0000-http-api-contract.md)"
+  - "[SPEC-0016: V1 route namespace and literal guardrails](../spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md)"
+  - "[requirements.md](../requirements.md)"
   - "[ADR-0024: Native-CFN modular stack architecture for Nova infrastructure productization](./ADR-0024-layered-architecture-authority-pack.md)"
   - "[SPEC-0023: SSM runtime base-url contract for deploy validation](../spec/SPEC-0023-ssm-runtime-base-url-contract-for-deploy-validation.md)"
   - "[SPEC-0017: CloudFormation module contract](../spec/SPEC-0017-runtime-component-topology-and-ownership-contract.md)"
@@ -33,6 +37,8 @@ ad-hoc URL entry allows placeholder values and undermines gate evidence quality.
    CI control-plane marker stacks:
    `${PROJECT}-ci-dev-service-base-url` and
    `${PROJECT}-ci-prod-service-base-url`.
+6. Release/runbook references for marker stack names must use this exact
+   `${PROJECT}-ci-{dev,prod}-service-base-url` convention.
 
 ## Consequences
 

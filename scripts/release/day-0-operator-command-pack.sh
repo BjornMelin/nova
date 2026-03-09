@@ -41,7 +41,7 @@ validate_service_base_url() {
     echo "Resolved empty service base URL from: $source_ref" >&2
     exit 1
   fi
-  if [[ ! "$url" =~ ^https:// ]]; then
+  if [[ ! "$url" =~ ^https://[^/[:space:]]+(/.*)?$ ]]; then
     echo "Service base URL must use https:// ($source_ref -> $url)" >&2
     exit 1
   fi
@@ -60,17 +60,23 @@ resolve_service_base_url() {
   local service_name="$2"
   local parameter_name="/nova/${environment}/${service_name}/base-url"
   local value=""
+  local output=""
 
-  if ! value="$(aws ssm get-parameter \
+  if ! output="$(aws ssm get-parameter \
     --region "$AWS_REGION" \
     --name "$parameter_name" \
     --query 'Parameter.Value' \
-    --output text 2>/dev/null)"; then
-    echo "Missing required SSM parameter: $parameter_name" >&2
-    echo "Populate it by deploying infra/nova/deploy/service-base-url-ssm.yml first." >&2
+    --output text 2>&1)"; then
+    if [[ "$output" == *ParameterNotFound* ]]; then
+      echo "Missing required SSM parameter: $parameter_name" >&2
+      echo "Populate it by deploying infra/nova/deploy/service-base-url-ssm.yml first." >&2
+      exit 1
+    fi
+    echo "$output" >&2
     exit 1
   fi
 
+  value="$output"
   validate_service_base_url "$value" "$parameter_name"
   printf "%s" "$value"
 }
@@ -197,12 +203,18 @@ PIPELINE_STACK_NAME="${PROJECT}-${APPLICATION}-nova-ci-cd"
 
 FOUNDATION_EXISTING_ARTIFACT_BUCKET_NAME="$NOVA_ARTIFACT_BUCKET_NAME"
 FOUNDATION_ARTIFACT_BUCKET_NAME=""
-if aws s3api head-bucket --bucket "$NOVA_ARTIFACT_BUCKET_NAME" >/dev/null 2>&1; then
+head_bucket_output=""
+if head_bucket_output="$(aws s3api head-bucket --bucket "$NOVA_ARTIFACT_BUCKET_NAME" 2>&1)"; then
   echo "Artifact bucket exists; foundation will import existing bucket."
 else
-  echo "Artifact bucket not found; foundation will create bucket named $NOVA_ARTIFACT_BUCKET_NAME."
-  FOUNDATION_EXISTING_ARTIFACT_BUCKET_NAME=""
-  FOUNDATION_ARTIFACT_BUCKET_NAME="$NOVA_ARTIFACT_BUCKET_NAME"
+  if [[ "$head_bucket_output" == *NotFound* ]] || [[ "$head_bucket_output" == *"Not Found"* ]] || [[ "$head_bucket_output" == *NoSuchBucket* ]]; then
+    echo "Artifact bucket not found; foundation will create bucket named $NOVA_ARTIFACT_BUCKET_NAME."
+    FOUNDATION_EXISTING_ARTIFACT_BUCKET_NAME=""
+    FOUNDATION_ARTIFACT_BUCKET_NAME="$NOVA_ARTIFACT_BUCKET_NAME"
+  else
+    echo "$head_bucket_output" >&2
+    exit 1
+  fi
 fi
 
 echo "==> Step 2/8: deploy foundation stack"

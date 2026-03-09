@@ -7,7 +7,15 @@ Last reviewed: 2026-03-05
 ## Purpose
 
 Provide a complete deploy sequence for Nova CI/CD resources and first release
-execution after runtime environments are provisioned.
+execution after runtime environments are provisioned, with the governing
+authority chain cited for operators.
+
+## References
+
+- `ADR-0023`
+- `SPEC-0000`
+- `SPEC-0016`
+- `requirements.md`
 
 ## Prerequisites
 
@@ -58,12 +66,21 @@ Fallback path:
 - `${ECR_REPOSITORY_ARN}`
 - `${ECR_REPOSITORY_NAME}`
 - `${ECR_REPOSITORY_URI}`
+- `${NOVA_ARTIFACT_BUCKET_NAME}`
 - `${NOVA_DEPLOY_SERVICE_NAME}` (optional, default `nova-file-api`)
+- `${GITHUB_OIDC_PROVIDER_ARN}`
+- `${SECRET_NAME}` or `${RELEASE_SIGNING_SECRET_ARN}`
+- `${DEV_BASE_URL}` example `https://nova-file-api.dev.example.com`
+- `${PROD_BASE_URL}` example `https://nova-file-api.example.com`
+- `${EXISTING_CONNECTION_ARN}` (optional)
+- `${NOVA_MANUAL_APPROVAL_TOPIC_ARN}` (optional)
 
 ## Step 1: set deployment values
 
 Export the required values for the Nova operator command pack:
 
+- `AWS_REGION`, `PROJECT`, `APPLICATION`, and `NOVA_DEPLOY_SERVICE_NAME`
+- `DEV_BASE_URL` and `PROD_BASE_URL`
 - `GITHUB_OIDC_PROVIDER_ARN`
 - `SECRET_NAME` / `RELEASE_SIGNING_SECRET_ARN`
 - `NOVA_ARTIFACT_BUCKET_NAME`
@@ -72,6 +89,17 @@ Export the required values for the Nova operator command pack:
 - `CODEARTIFACT_PROD_REPOSITORY`
 - optional: `EXISTING_CONNECTION_ARN`
 - optional: `NOVA_MANUAL_APPROVAL_TOPIC_ARN`
+
+Example exports:
+
+```bash
+export AWS_REGION="${AWS_REGION:-us-west-2}"
+export PROJECT="${PROJECT:-nova}"
+export APPLICATION="${APPLICATION:-ci}"
+export NOVA_DEPLOY_SERVICE_NAME="${NOVA_DEPLOY_SERVICE_NAME:-nova-file-api}"
+export DEV_BASE_URL="${DEV_BASE_URL:?set to the dev runtime base URL, for example https://nova-file-api.dev.example.com}"
+export PROD_BASE_URL="${PROD_BASE_URL:?set to the prod runtime base URL, for example https://nova-file-api.example.com}"
+```
 
 Reference details:
 [config-values-reference-guide.md](config-values-reference-guide.md)
@@ -115,11 +143,22 @@ if [ "${CODEARTIFACT_STAGING_REPOSITORY}" = "${CODEARTIFACT_PROD_REPOSITORY}" ];
 fi
 ```
 
-## Step 2: deploy foundation stack from nova
+## Step 2: deploy foundation stack from nova (manual option)
+
+Choose one of the two flows below:
+
+- Option A: run Step 2 manually to deploy `${PROJECT}-${APPLICATION}-nova-foundation`, then continue to Step 3.
+- Option B: skip manual Step 2 and rely on Step 3; the command pack deploy will create `${PROJECT}-${APPLICATION}-nova-foundation` as its first action.
+
+If you run Step 2 manually, the later command pack in Step 3 will still re-apply
+`${PROJECT}-${APPLICATION}-nova-foundation` using the same parameter values; ensure
+the values match for idempotent behavior.
 
 If `${NOVA_ARTIFACT_BUCKET_NAME}` already exists, pass it as
 `ExistingArtifactBucketName`. If it does not exist yet, set
 `ExistingArtifactBucketName=""` and pass it as `ArtifactBucketName`.
+
+If the artifact bucket already exists:
 
 ```bash
 aws cloudformation deploy \
@@ -131,7 +170,27 @@ aws cloudformation deploy \
     Project="${PROJECT}" \
     Application="${APPLICATION}" \
     ExistingArtifactBucketName="${NOVA_ARTIFACT_BUCKET_NAME}" \
-    ArtifactBucketName="" \
+    CodeArtifactDomainName="${CODEARTIFACT_DOMAIN_NAME}" \
+    CodeArtifactRepositoryName="${CODEARTIFACT_STAGING_REPOSITORY}" \
+    EcrRepositoryArn="${ECR_REPOSITORY_ARN}" \
+    EcrRepositoryName="${ECR_REPOSITORY_NAME}" \
+    EcrRepositoryUri="${ECR_REPOSITORY_URI}" \
+    ExistingConnectionArn="${EXISTING_CONNECTION_ARN:-}"
+```
+
+If the artifact bucket does not yet exist:
+
+```bash
+aws cloudformation deploy \
+  --region "${AWS_REGION}" \
+  --stack-name "${PROJECT}-${APPLICATION}-nova-foundation" \
+  --template-file infra/nova/nova-foundation.yml \
+  --capabilities CAPABILITY_NAMED_IAM \
+  --parameter-overrides \
+    Project="${PROJECT}" \
+    Application="${APPLICATION}" \
+    ExistingArtifactBucketName="" \
+    ArtifactBucketName="${NOVA_ARTIFACT_BUCKET_NAME}" \
     CodeArtifactDomainName="${CODEARTIFACT_DOMAIN_NAME}" \
     CodeArtifactRepositoryName="${CODEARTIFACT_STAGING_REPOSITORY}" \
     EcrRepositoryArn="${ECR_REPOSITORY_ARN}" \
@@ -152,6 +211,11 @@ Run the operator command pack:
 ```bash
 ./scripts/release/day-0-operator-command-pack.sh
 ```
+
+If you ran Step 2 manually, this is an intentional re-apply for idempotency:
+
+- `${PROJECT}-${APPLICATION}-nova-foundation` is re-deployed first with the same
+  parameter values passed in Step 2.
 
 The command pack deploys stacks in this order:
 

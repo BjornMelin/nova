@@ -18,17 +18,6 @@ Topology and release-delivery authority:
 
 - `docs/architecture/spec/SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md`
 - `docs/architecture/adr/ADR-0024-layered-architecture-authority-pack.md`
-- `docs/architecture/adr/ADR-0025-runtime-monorepo-component-boundaries-and-ownership.md`
-- `docs/architecture/adr/ADR-0026-fail-fast-runtime-configuration-and-safe-auth-execution.md`
-
-Adjacent deployment-control-plane authority:
-
-- `docs/architecture/adr/ADR-0030-native-cfn-modular-stack-architecture-for-nova-infrastructure-productization.md`
-- `docs/architecture/adr/ADR-0031-reusable-github-workflow-api-and-versioning-policy-for-deployment-automation.md`
-- `docs/architecture/adr/ADR-0032-oidc-and-iam-role-partitioning-for-deploy-automation.md`
-- `docs/architecture/spec/SPEC-0024-cloudformation-module-contract.md`
-- `docs/architecture/spec/SPEC-0025-reusable-workflow-integration-contract.md`
-- `docs/architecture/spec/SPEC-0026-ci-cd-iam-least-privilege-matrix.md`
 
 Only canonical `/v1/*` routes and `/metrics/summary` are valid in active
 contracts and operator runbooks.

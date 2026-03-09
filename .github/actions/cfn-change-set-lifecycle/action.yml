@@ -23,6 +23,14 @@ inputs:
     description: Optional CloudFormation service role ARN.
     required: false
     default: ""
+  stack-waiter-delay:
+    description: Delay in seconds between stack completion waiter checks.
+    required: false
+    default: "30"
+  stack-waiter-max-attempts:
+    description: Maximum attempts for stack completion waiters.
+    required: false
+    default: "120"
   no-fail-on-empty-changeset:
     description: Continue successfully when there are no changes.
     required: false
@@ -49,6 +57,8 @@ runs:
         CAPABILITIES: ${{ inputs.capabilities }}
         AWS_REGION: ${{ inputs.aws-region }}
         EXECUTION_ROLE_ARN: ${{ inputs.execution-role-arn }}
+        STACK_WAITER_DELAY: ${{ inputs.stack-waiter-delay }}
+        STACK_WAITER_MAX_ATTEMPTS: ${{ inputs.stack-waiter-max-attempts }}
         NO_FAIL_ON_EMPTY: ${{ inputs.no-fail-on-empty-changeset }}
       run: |
         set -euo pipefail
@@ -116,9 +126,17 @@ runs:
           --region "$AWS_REGION"
 
         if [[ "$CHANGE_SET_TYPE" == "CREATE" ]]; then
-          aws cloudformation wait stack-create-complete --stack-name "$STACK_NAME" --region "$AWS_REGION"
+          aws cloudformation wait stack-create-complete \
+            --stack-name "$STACK_NAME" \
+            --region "$AWS_REGION" \
+            --waiter-delay "$STACK_WAITER_DELAY" \
+            --waiter-max-attempts "$STACK_WAITER_MAX_ATTEMPTS"
         else
-          aws cloudformation wait stack-update-complete --stack-name "$STACK_NAME" --region "$AWS_REGION"
+          aws cloudformation wait stack-update-complete \
+            --stack-name "$STACK_NAME" \
+            --region "$AWS_REGION" \
+            --waiter-delay "$STACK_WAITER_DELAY" \
+            --waiter-max-attempts "$STACK_WAITER_MAX_ATTEMPTS"
         fi
 
         {

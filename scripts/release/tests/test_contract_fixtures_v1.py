@@ -28,9 +28,11 @@ FIXTURE_ROOT = Path("packages/contracts/fixtures/v1")
 
 
 def _read_json(relative_path: str) -> dict[str, Any]:
-    return json.loads(
+    payload = json.loads(
         (FIXTURE_ROOT / relative_path).read_text(encoding="utf-8")
     )
+    assert isinstance(payload, dict)
+    return payload
 
 
 def test_manifest_paths_exist() -> None:

@@ -68,6 +68,9 @@ class JobPublisher(Protocol):
     ) -> None:
         """Run optional post-publish handling."""
 
+    def healthcheck(self) -> bool:
+        """Return readiness of the backing queue dependency."""
+
 
 @dataclass(slots=True)
 class JobPublishError(Exception):
@@ -321,6 +324,10 @@ class MemoryJobPublisher:
         repository.update(done)
         metrics.incr("jobs_succeeded")
 
+    def healthcheck(self) -> bool:
+        """Return readiness for the memory-backed publisher."""
+        return True
+
 
 @dataclass(slots=True)
 class SqsJobPublisher:
@@ -390,6 +397,17 @@ class SqsJobPublisher:
         """SQS mode performs work asynchronously; no local follow-up."""
         del job, repository, metrics
         return
+
+    def healthcheck(self) -> bool:
+        """Return whether queue metadata can be fetched successfully."""
+        try:
+            self._sqs.get_queue_attributes(
+                QueueUrl=self.queue_url,
+                AttributeNames=["QueueArn"],
+            )
+        except (ClientError, BotoCoreError):
+            return False
+        return True
 
 
 @dataclass(slots=True)

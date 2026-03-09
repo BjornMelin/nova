@@ -57,6 +57,9 @@ class _FailingPublisher:
         del job, repository, metrics
         return
 
+    def healthcheck(self) -> bool:
+        return False
+
 
 class _ConcurrentWinnerRepository(MemoryJobRepository):
     def __init__(self, *, winner_status: JobStatus) -> None:

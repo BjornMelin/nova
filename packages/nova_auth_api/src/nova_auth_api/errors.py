@@ -68,6 +68,15 @@ def internal_error(message: str) -> AuthApiError:
     )
 
 
+def service_unavailable(message: str) -> AuthApiError:
+    """Return a canonical service unavailable error."""
+    return AuthApiError(
+        code="service_unavailable",
+        message=message,
+        status_code=HTTPStatus.SERVICE_UNAVAILABLE,
+    )
+
+
 def from_oidc_auth_error(exc: AuthError) -> AuthApiError:
     """Convert ``oidc_jwt_verifier.AuthError`` into ``AuthApiError``."""
     code_value = getattr(exc, "code", "invalid_token")

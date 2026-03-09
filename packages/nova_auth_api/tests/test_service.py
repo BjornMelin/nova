@@ -157,10 +157,30 @@ def test_build_verifier_does_not_embed_default_authorization_requirements(
     captured: dict[str, Any] = {}
 
     class _DummyVerifier:
-        def __init__(self, config: Any) -> None:
-            captured["config"] = config
+        pass
 
-    monkeypatch.setattr("nova_auth_api.service.JWTVerifier", _DummyVerifier)
+    def _build_stub_verifier(
+        *,
+        issuer: str | None,
+        audience: str | None,
+        jwks_url: str | None,
+        clock_skew_seconds: int,
+    ) -> _DummyVerifier | None:
+        del issuer, audience, jwks_url, clock_skew_seconds
+        captured["config"] = type(
+            "_Config",
+            (),
+            {
+                "required_scopes": (),
+                "required_permissions": (),
+            },
+        )()
+        return _DummyVerifier()
+
+    monkeypatch.setattr(
+        "nova_auth_api.service.build_jwt_verifier",
+        _build_stub_verifier,
+    )
 
     verifier = _build_verifier(settings=settings)
 

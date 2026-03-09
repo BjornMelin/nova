@@ -185,3 +185,40 @@ def test_verify_validation_error_uses_canonical_error_envelope() -> None:
     assert payload["error"]["code"] == "invalid_request"
     assert payload["error"]["request_id"] == "req-verify-422"
     assert payload["error"]["details"]["errors"]
+
+
+def test_verify_validation_error_redacts_access_token_input() -> None:
+    app = create_app(service_override=_StubService())
+    with TestClient(app) as client:
+        response = client.post(
+            "/v1/token/verify",
+            headers={"X-Request-Id": "req-verify-redact"},
+            json={"access_token": ["secret-token"]},
+        )
+    assert response.status_code == 422
+    payload: dict[str, Any] = response.json()
+    errors = payload["error"]["details"]["errors"]
+    assert errors
+    assert errors[0]["input"] == "[REDACTED]"
+
+
+def test_introspect_validation_error_omits_access_token_input() -> None:
+    app = create_app(service_override=_StubService())
+    with TestClient(app) as client:
+        response = client.post(
+            "/v1/token/introspect",
+            headers={"X-Request-Id": "req-introspect-redact"},
+            json={"access_token": ["secret-token"]},
+        )
+    assert response.status_code == 422
+    payload: dict[str, Any] = response.json()
+    errors = payload["error"]["details"]["errors"]
+    assert errors
+    assert "input" not in errors[0]
+
+
+def test_service_uses_configured_verifier_thread_tokens() -> None:
+    service = TokenVerificationService(
+        settings=Settings(OIDC_VERIFIER_THREAD_TOKENS=7)
+    )
+    assert service._thread_limiter.total_tokens == 7

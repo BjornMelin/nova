@@ -37,12 +37,12 @@ This guide is designed as a 5-minute setup flow for downstream repos.
   `3M-Cloud/nova/.github/workflows/reusable-post-deploy-validate.yml`.
 - Output `validation_status` is `passed`.
 - Report JSON follows
-  `docs/contracts/release-artifacts-v1.schema.json#/\$defs/post_deploy_validation_report`.
+  `docs/contracts/release-artifacts-v1.schema.json#/$defs/post_deploy_validation_report`.
 - Workflow input/output shape matches
   `docs/contracts/workflow-post-deploy-validate.schema.json`.
 - Shared reusable deployment API contracts remain aligned with
   `docs/contracts/reusable-workflow-inputs-v1.schema.json` and
-  `docs/contracts/reusable-workflow-outputs-v1.schema.json`.
+  `docs/contracts/reusable-workflow-outputs-v1.schema.json#/$defs/validation_report_output`.
 - Browser live-gate artifacts (WS5) follow
   `docs/contracts/browser-live-validation-report.schema.json`.
 
@@ -53,6 +53,10 @@ This guide is designed as a 5-minute setup flow for downstream repos.
 - `docs/architecture/spec/SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md`
   (SemVer and compatibility governance)
 - `docs/plan/release/RELEASE-VERSION-MANIFEST.md` (release artifact evidence)
+- `docs/architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md` (route canonicalization authority)
+- `docs/architecture/spec/SPEC-0000-http-api-contract.md` (baseline API authority)
+- `docs/architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md` (v1 route namespace contract)
+- `docs/architecture/requirements.md` (runtime and operational requirements baseline)
 
 ## References
 

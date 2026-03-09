@@ -198,17 +198,19 @@ aws cloudformation deploy \
 After successful service deployment, record base URLs for pipeline validation:
 
 ```bash
-DEV_BASE_URL="$(aws cloudformation describe-stacks \
+DEV_LOAD_BALANCER_DNS="$(aws cloudformation describe-stacks \
   --region "${AWS_REGION}" \
   --stack-name "${PROJECT}-${APPLICATION}-dev-runtime-cluster" \
   --query "Stacks[0].Outputs[?OutputKey=='LoadBalancerDnsName'].OutputValue | [0]" \
   --output text)"
+DEV_BASE_URL="https://${DEV_LOAD_BALANCER_DNS}"
 
-PROD_BASE_URL="$(aws cloudformation describe-stacks \
+PROD_LOAD_BALANCER_DNS="$(aws cloudformation describe-stacks \
   --region "${AWS_REGION}" \
   --stack-name "${PROJECT}-${APPLICATION}-prod-runtime-cluster" \
   --query "Stacks[0].Outputs[?OutputKey=='LoadBalancerDnsName'].OutputValue | [0]" \
   --output text)"
+PROD_BASE_URL="https://${PROD_LOAD_BALANCER_DNS}"
 
 echo "DEV_BASE_URL=${DEV_BASE_URL}"
 echo "PROD_BASE_URL=${PROD_BASE_URL}"
@@ -257,6 +259,14 @@ aws cloudformation list-stacks --region "${AWS_REGION}" \
 
 ## References
 
+- Requirements baseline (`requirements.md`):
+  [../../architecture/requirements.md](../../architecture/requirements.md)
+- ADR-0023 hard-cut canonical route surface:
+  [../../architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md](../../architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md)
+- SPEC-0000 HTTP API contract:
+  [../../architecture/spec/SPEC-0000-http-api-contract.md](../../architecture/spec/SPEC-0000-http-api-contract.md)
+- SPEC-0016 v1 route namespace and literal guardrails:
+  [../../architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md](../../architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md)
 - CloudFormation Parameters:
   <https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/parameters-section-structure.html>
 - CloudFormation Fn::ImportValue restrictions:

@@ -2,26 +2,35 @@
 
 from __future__ import annotations
 
-import logging
-from collections.abc import AsyncIterator, Awaitable, Callable, MutableMapping
+from collections.abc import AsyncIterator, Awaitable, Callable, Sequence
 from contextlib import asynccontextmanager
 from json import JSONDecodeError
 from typing import Annotated, Any
 from urllib.parse import parse_qs
-from uuid import uuid4
 
-import anyio
 import structlog
 from fastapi import Depends, FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.routing import APIRoute
+from nova_runtime_support import (
+    apply_operation_response_refs,
+    bind_request_id,
+    canonical_error_content,
+    configure_structlog,
+    ensure_error_response_component,
+    finalize_request_id,
+    install_openapi_customizer,
+    prune_validation_error_schemas,
+    replace_validation_error_responses,
+    request_id_from_request,
+    unbind_request_id,
+)
 from pydantic import ValidationError
 from starlette.responses import Response
 
 from nova_auth_api.config import Settings
 from nova_auth_api.dependencies import (
-    BLOCKING_IO_LIMITER_STATE_KEY,
     TokenVerificationServiceDep,
 )
 from nova_auth_api.errors import (
@@ -30,8 +39,6 @@ from nova_auth_api.errors import (
     service_unavailable,
 )
 from nova_auth_api.models import (
-    ErrorBody,
-    ErrorEnvelope,
     HealthResponse,
     TokenIntrospectRequest,
     TokenIntrospectResponse,
@@ -40,9 +47,9 @@ from nova_auth_api.models import (
 )
 from nova_auth_api.service import TokenVerificationService
 
-_LOGGING_CONFIGURED = False
 _FORM_MEDIA_TYPE = "application/x-www-form-urlencoded"
 _JSON_MEDIA_TYPE = "application/json"
+_SENSITIVE_VALIDATION_FIELDS = {"access_token", "authorization", "token"}
 _TOKEN_INTROSPECT_JSON_REQUEST_SCHEMA_REF = {
     "$ref": "#/components/schemas/TokenIntrospectRequest"
 }
@@ -63,6 +70,31 @@ _TOKEN_INTROSPECT_FORM_REQUEST_SCHEMA = {
     **_TOKEN_INTROSPECT_REQUEST_SCHEMA,
     "title": "TokenIntrospectFormRequest",
 }
+_OPENAPI_RESPONSE_DESCRIPTIONS = {
+    "AuthInvalidRequestResponse": "Canonical invalid-request response.",
+    "AuthUnauthorizedResponse": "Canonical unauthorized token response.",
+    "AuthForbiddenResponse": "Canonical insufficient-scope response.",
+    "AuthServiceUnavailableResponse": "Canonical service unavailable response.",
+}
+_OPENAPI_OPERATION_RESPONSES = {
+    "/v1/health/ready": {
+        "get": {"503": "AuthServiceUnavailableResponse"},
+    },
+    "/v1/token/verify": {
+        "post": {
+            "401": "AuthUnauthorizedResponse",
+            "403": "AuthForbiddenResponse",
+            "422": "AuthInvalidRequestResponse",
+        }
+    },
+    "/v1/token/introspect": {
+        "post": {
+            "401": "AuthUnauthorizedResponse",
+            "403": "AuthForbiddenResponse",
+            "422": "AuthInvalidRequestResponse",
+        }
+    },
+}
 
 
 def _operation_id_from_route(route: APIRoute) -> str:
@@ -72,13 +104,8 @@ def _operation_id_from_route(route: APIRoute) -> str:
 
 def _install_openapi_overrides(app: FastAPI) -> None:
     """Inject schema components required by custom OpenAPI request bodies."""
-    original_openapi = app.openapi
 
-    def custom_openapi() -> dict[str, Any]:
-        if app.openapi_schema is not None:
-            return app.openapi_schema
-
-        schema = original_openapi()
+    def customize_openapi(schema: dict[str, Any]) -> None:
         components = schema.setdefault("components", {})
         schemas = components.setdefault("schemas", {})
         schemas.setdefault(
@@ -89,10 +116,26 @@ def _install_openapi_overrides(app: FastAPI) -> None:
             "TokenIntrospectFormRequest",
             _TOKEN_INTROSPECT_FORM_REQUEST_SCHEMA,
         )
-        app.openapi_schema = schema
-        return schema
+        for (
+            component_name,
+            description,
+        ) in _OPENAPI_RESPONSE_DESCRIPTIONS.items():
+            ensure_error_response_component(
+                schema,
+                name=component_name,
+                description=description,
+            )
+        apply_operation_response_refs(
+            schema,
+            response_component_names=_OPENAPI_OPERATION_RESPONSES,
+        )
+        replace_validation_error_responses(
+            schema,
+            response_component_name="AuthInvalidRequestResponse",
+        )
+        prune_validation_error_schemas(schema)
 
-    app.__dict__["openapi"] = custom_openapi
+    install_openapi_customizer(app, customizer=customize_openapi)
 
 
 def create_app(
@@ -101,17 +144,12 @@ def create_app(
     service_override: TokenVerificationService | None = None,
 ) -> FastAPI:
     """Create configured FastAPI application."""
-    _configure_logging()
+    configure_structlog()
+    settings = settings_override or Settings()
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-        settings = settings_override or Settings()
         app.state.settings = settings
-        setattr(
-            app.state,
-            BLOCKING_IO_LIMITER_STATE_KEY,
-            anyio.CapacityLimiter(settings.blocking_io_thread_tokens),
-        )
         app.state.auth_service = service_override or TokenVerificationService(
             settings=settings
         )
@@ -119,7 +157,7 @@ def create_app(
 
     app = FastAPI(
         title="nova-auth-api",
-        version="0.1.0",
+        version=settings.app_version,
         generate_unique_id_function=_operation_id_from_route,
         lifespan=lifespan,
     )
@@ -133,7 +171,7 @@ def create_app(
     )
     async def health_live(request: Request) -> HealthResponse:
         """Return liveness status."""
-        request_id = _request_id(request=request) or uuid4().hex
+        request_id = _request_id(request=request) or bind_request_id(request)
         return HealthResponse(
             status="ok",
             service="nova-auth-api",
@@ -150,7 +188,7 @@ def create_app(
         service: TokenVerificationServiceDep,
     ) -> HealthResponse:
         """Return readiness status for token verification."""
-        request_id = _request_id(request=request) or uuid4().hex
+        request_id = _request_id(request=request) or bind_request_id(request)
         if not service.is_ready():
             raise service_unavailable("auth verifier unavailable")
         return HealthResponse(
@@ -192,17 +230,14 @@ def create_app(
         exc: AuthApiError,
     ) -> JSONResponse:
         """Convert domain auth errors into canonical HTTP responses."""
-        payload = ErrorEnvelope(
-            error=ErrorBody(
+        return JSONResponse(
+            status_code=exc.status_code,
+            content=canonical_error_content(
                 code=exc.code,
                 message=exc.message,
                 details=exc.details,
                 request_id=_request_id(request=request),
-            )
-        )
-        return JSONResponse(
-            status_code=exc.status_code,
-            content=payload.model_dump(),
+            ),
             headers=exc.headers,
         )
 
@@ -211,17 +246,16 @@ def create_app(
         request: Request,
         exc: RequestValidationError,
     ) -> JSONResponse:
-        payload = ErrorEnvelope(
-            error=ErrorBody(
-                code="invalid_request",
-                message="request validation failed",
-                details={"errors": exc.errors()},
-                request_id=_request_id(request=request),
-            )
-        )
         return JSONResponse(
             status_code=422,
-            content=payload.model_dump(),
+            content=canonical_error_content(
+                code="invalid_request",
+                message="request validation failed",
+                details={
+                    "errors": _sanitize_validation_errors(errors=exc.errors())
+                },
+                request_id=_request_id(request=request),
+            ),
         )
 
     @app.exception_handler(Exception)
@@ -237,17 +271,14 @@ def create_app(
             request_id=_request_id(request=request),
         )
         err = internal_error("unexpected internal error")
-        payload = ErrorEnvelope(
-            error=ErrorBody(
+        return JSONResponse(
+            status_code=err.status_code,
+            content=canonical_error_content(
                 code=err.code,
                 message=err.message,
                 details=err.details,
                 request_id=_request_id(request=request),
-            )
-        )
-        return JSONResponse(
-            status_code=err.status_code,
-            content=payload.model_dump(),
+            ),
         )
 
     return app
@@ -258,26 +289,17 @@ async def request_context_middleware(
     call_next: Callable[[Request], Awaitable[Response]],
 ) -> Response:
     """Inject request ID into context and response headers."""
-    request_id = request.headers.get("X-Request-Id") or uuid4().hex
-    request.state.request_id = request_id
-    structlog.contextvars.bind_contextvars(request_id=request_id)
+    request_id = bind_request_id(request)
     try:
         response = await call_next(request)
-        response.headers["X-Request-Id"] = request_id
-        return response
+        return finalize_request_id(response, request_id=request_id)
     finally:
-        structlog.contextvars.unbind_contextvars("request_id")
+        unbind_request_id()
 
 
 def _request_id(*, request: Request) -> str | None:
     """Extract request ID from request state or headers."""
-    value = getattr(request.state, "request_id", None)
-    if isinstance(value, str) and value:
-        return value
-    value = request.headers.get("X-Request-Id")
-    if isinstance(value, str) and value:
-        return value
-    return None
+    return request_id_from_request(request=request)
 
 
 async def _parse_introspect_request(
@@ -318,7 +340,7 @@ async def _parse_introspect_request(
         return TokenIntrospectRequest.model_validate(normalized_payload)
     except ValidationError as exc:
         raise RequestValidationError(
-            _with_body_loc(errors=exc.errors())
+            _with_body_loc(errors=exc.errors(include_input=False))
         ) from exc
 
 
@@ -381,51 +403,29 @@ def _with_body_loc(*, errors: list[Any]) -> list[dict[str, Any]]:
     return output
 
 
-def _configure_logging() -> None:
-    """Configure structured logging."""
-    global _LOGGING_CONFIGURED
-    if _LOGGING_CONFIGURED:
-        return
-
-    logging.basicConfig(level=logging.INFO, format="%(message)s")
-    structlog.configure(
-        processors=[
-            structlog.contextvars.merge_contextvars,
-            _redact_sensitive_fields,
-            structlog.processors.add_log_level,
-            structlog.processors.TimeStamper(fmt="iso", utc=True),
-            structlog.processors.format_exc_info,
-            structlog.processors.JSONRenderer(),
-        ],
-        logger_factory=structlog.stdlib.LoggerFactory(),
-        cache_logger_on_first_use=True,
-    )
-    _LOGGING_CONFIGURED = True
+def _sanitize_validation_errors(
+    *,
+    errors: Sequence[Any],
+) -> list[dict[str, Any]]:
+    output: list[dict[str, Any]] = []
+    for error in errors:
+        if not isinstance(error, dict):
+            continue
+        sanitized = dict(error)
+        location = sanitized.get("loc", ())
+        if _validation_loc_is_sensitive(loc=location) and "input" in sanitized:
+            sanitized["input"] = "[REDACTED]"
+        output.append(sanitized)
+    return output
 
 
-def _redact_sensitive_fields(
-    _logger: Any,
-    _method_name: str,
-    event_dict: MutableMapping[str, Any],
-) -> MutableMapping[str, Any]:
-    """Redact sensitive token fields before emitting structured logs."""
-    hidden_fields = {"token", "authorization", "access_token"}
-
-    def _sanitize(value: Any) -> Any:
-        if isinstance(value, dict):
-            return {
-                key: (
-                    "[REDACTED]"
-                    if key.lower() in hidden_fields
-                    else _sanitize(item)
-                )
-                for key, item in value.items()
-            }
-        if isinstance(value, list | tuple):
-            return [_sanitize(item) for item in value]
-        return value
-
-    return {
-        key: "[REDACTED]" if key.lower() in hidden_fields else _sanitize(value)
-        for key, value in event_dict.items()
-    }
+def _validation_loc_is_sensitive(*, loc: object) -> bool:
+    if not isinstance(loc, (tuple, list)):
+        return False
+    for value in loc:
+        if (
+            isinstance(value, str)
+            and value.lower() in _SENSITIVE_VALIDATION_FIELDS
+        ):
+            return True
+    return False

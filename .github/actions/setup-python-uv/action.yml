@@ -5,10 +5,14 @@ inputs:
     description: Python version to install.
     required: false
     default: "3.12"
-  sync-args:
-    description: Arguments passed to uv sync.
+  sync-locked:
+    description: Whether to pass --locked to uv sync (true/false).
     required: false
-    default: "--locked"
+    default: "true"
+  sync-offline:
+    description: Whether to pass --offline to uv sync (true/false).
+    required: false
+    default: "false"
 runs:
   using: composite
   steps:
@@ -20,4 +24,41 @@ runs:
       uses: astral-sh/setup-uv@v4
     - name: Sync dependencies
       shell: bash
-      run: uv sync ${{ inputs.sync-args }}
+      env:
+        PYTHON_VERSION: ${{ inputs.python-version }}
+        SYNC_LOCKED: ${{ inputs.sync-locked }}
+        SYNC_OFFLINE: ${{ inputs.sync-offline }}
+      run: |
+        set -euo pipefail
+
+        if [[ -z "$PYTHON_VERSION" ]]; then
+          echo "python-version input must not be empty" >&2
+          exit 1
+        fi
+
+        case "$SYNC_LOCKED" in
+          true|false) ;;
+          *)
+            echo "Invalid sync-locked value: $SYNC_LOCKED (expected true or false)" >&2
+            exit 1
+            ;;
+        esac
+
+        case "$SYNC_OFFLINE" in
+          true|false) ;;
+          *)
+            echo "Invalid sync-offline value: $SYNC_OFFLINE (expected true or false)" >&2
+            exit 1
+            ;;
+        esac
+
+        SYNC_ARGS=()
+        if [[ "$SYNC_LOCKED" == "true" ]]; then
+          SYNC_ARGS+=(--locked)
+        fi
+        if [[ "$SYNC_OFFLINE" == "true" ]]; then
+          SYNC_ARGS+=(--offline)
+        fi
+
+        SYNC_ARGS+=(--python "$PYTHON_VERSION")
+        uv sync "${SYNC_ARGS[@]}"

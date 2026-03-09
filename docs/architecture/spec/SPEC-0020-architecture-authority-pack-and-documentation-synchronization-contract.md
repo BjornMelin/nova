@@ -5,12 +5,16 @@ Status: Active
 Version: 1.2
 Date: 2026-03-05
 Related:
+  - "[ADR-0023: Hard cut to a single canonical /v1 API surface](../adr/ADR-0023-hard-cut-v1-canonical-route-surface.md)"
+  - "[SPEC-0000: HTTP API Contract](./SPEC-0000-http-api-contract.md)"
+  - "[SPEC-0016: Hard-cut v1 route contract and route-literal guardrails](./SPEC-0016-v1-route-namespace-and-literal-guardrails.md)"
+  - "[requirements.md](../requirements.md)"
   - "[ADR-0024: Native-CFN modular stack architecture for Nova infrastructure productization](../adr/ADR-0024-layered-architecture-authority-pack.md)"
-  - "[ADR-0026: OIDC and IAM role partitioning for deploy automation](../adr/ADR-0026-fail-fast-runtime-configuration-and-safe-auth-execution.md)"
+  - "[ADR-0026: OIDC and IAM role partitioning for deploy automation](../adr/ADR-0026-oidc-iam-role-partitioning-for-deploy-automation.md)"
   - "[ADR-0029: SSM runtime base URL authority for deploy validation](../adr/ADR-0029-ssm-runtime-base-url-authority-for-deploy-validation.md)"
   - "[SPEC-0017: CloudFormation module contract](./SPEC-0017-runtime-component-topology-and-ownership-contract.md)"
   - "[SPEC-0018: Reusable workflow integration contract](./SPEC-0018-runtime-configuration-and-startup-validation-contract.md)"
-  - "[SPEC-0019: CI/CD IAM least-privilege matrix](./SPEC-0019-auth-execution-and-threadpool-safety-contract.md)"
+  - "[SPEC-0019: CI/CD IAM least-privilege and role-boundary contract](./SPEC-0019-auth-execution-and-threadpool-safety-contract.md)"
   - "[SPEC-0023: SSM runtime base-url contract for deploy validation](./SPEC-0023-ssm-runtime-base-url-contract-for-deploy-validation.md)"
 ---
 
@@ -69,6 +73,10 @@ Stacks and control-plane components must be applied in this order:
 
 ## 8. Traceability
 
+- [ADR-0023: Hard cut to a single canonical /v1 API surface](../adr/ADR-0023-hard-cut-v1-canonical-route-surface.md)
+- [SPEC-0000: HTTP API Contract](./SPEC-0000-http-api-contract.md)
+- [SPEC-0016: Hard-cut v1 route contract and route-literal guardrails](./SPEC-0016-v1-route-namespace-and-literal-guardrails.md)
+- [requirements.md](../requirements.md)
 - [NFR-0105](../requirements.md#nfr-0105-contract-traceability)
 - [NFR-0106](../requirements.md#nfr-0106-no-shim-posture)
 - [IR-0000](../requirements.md#ir-0000-nova-local-runtime-and-release-authority)

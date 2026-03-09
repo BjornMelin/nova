@@ -4,6 +4,13 @@ Status: Active
 Owner: Release Architecture + Platform Operations
 Last updated: 2026-03-04
 
+## Authority / Related Documents
+
+Authority: [ADR-0023](../../architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md),
+[SPEC-0000](../../architecture/spec/SPEC-0000-http-api-contract.md),
+[SPEC-0016](../../architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md),
+[requirements.md](../../architecture/requirements.md)
+
 ## Purpose
 
 Define deterministic browser/live validation gates for deployed `dash-pca` +
@@ -25,6 +32,8 @@ Playwright pytest e2e by certifying environment-integrated behavior.
 ## Execution (non-mutating)
 
 ```bash
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+cd "$REPO_ROOT"
 set -euo pipefail
 RUN_ID="$(date -u +%Y%m%dT%H%M%SZ)"
 OUT=".artifacts/browser-live-validation/${RUN_ID}"
@@ -63,19 +72,51 @@ Pass:
 
 ```bash
 if [ "${AUTH_ENABLED:-false}" = "true" ]; then
-  agent-browser auth save dash-sso --url "$AUTH_LOGIN_URL" --username "$AUTH_USERNAME" --password "$AUTH_PASSWORD"
+  printf '%s' "$AUTH_PASSWORD" | agent-browser auth save dash-sso --url "$AUTH_LOGIN_URL" --username "$AUTH_USERNAME" --password-stdin
   agent-browser auth login dash-sso
   agent-browser open "${DASH_BASE_URL}/pca-discrete"
   agent-browser wait --load networkidle
 fi
 ```
 
+When `AUTH_ENABLED=true`, `agent-browser auth save` and `agent-browser auth login`
+mutate the local browser session/cookie context used for validation, but they do
+not create tenant-visible runtime data.
+
 Pass:
 
 - Auth-enabled env: user reaches app page post-login.
-- Session storage/cookie context remains valid through upload/process steps.
+- Session storage/cookie context remains valid through auth flow.
 
-### C04: Upload and process flow
+### C04: Network/console evidence
+
+```bash
+agent-browser network requests > "$OUT/network.json"
+agent-browser console > "$OUT/console.log" || true
+agent-browser errors > "$OUT/errors.log" || true
+agent-browser trace stop
+```
+
+Pass:
+
+- Requests include canonical `/v1/transfers` and `/v1/jobs`.
+- No active legacy namespace route usage.
+- No critical unhandled exceptions affecting user flow.
+
+## Execution (controlled mutating tests: upload & processing)
+
+⚠️ **Side effects:** The following steps create/modify tenant-visible artifacts and may trigger async processing. Run only against isolated environment data and unique test scope.
+
+- Required environment scoping:
+  - `ENVIRONMENT=dev` (or approved staging sandbox).
+  - Optional isolation prefix: `BROWSER_LIVE_SCOPE` (defaults to `$RUN_ID`).
+  - If your tenant supports it, pass the scope through `E2E_UPLOAD_FILE` metadata or URL query args so created jobs/data are discoverable and removable.
+
+```bash
+export BROWSER_LIVE_SCOPE="${BROWSER_LIVE_SCOPE:-$RUN_ID}"
+```
+
+### C05: Upload and process flow
 
 ```bash
 agent-browser upload "#upload-data input[type=file]" "$E2E_UPLOAD_FILE"
@@ -94,7 +135,7 @@ Pass:
 - Upload insights show file metadata.
 - Processing completes and PCA plots render.
 
-### C05: Download controls
+### C06: Download controls
 
 ```bash
 agent-browser is enabled "#download-all-pngs-btn"
@@ -109,20 +150,32 @@ Pass:
 - All download actions enabled.
 - Excel artifact downloaded and non-empty.
 
-### C06: Network/console evidence
+### C07: Required post-run cleanup
 
 ```bash
-agent-browser network requests > "$OUT/network.json"
-agent-browser console > "$OUT/console.log" || true
-agent-browser errors > "$OUT/errors.log" || true
-agent-browser trace stop
+# Record run scope for ticketing/cleanup.
+echo "RUN_ID=${RUN_ID}" >> "$OUT/run-metadata.txt"
+echo "BROWSER_LIVE_SCOPE=${BROWSER_LIVE_SCOPE}" >> "$OUT/run-metadata.txt"
+
+# Best-effort cleanup: if tenant-specific cleanup endpoint is configured,
+# remove run-scoped job artifacts before leaving the env.
+if [ -n "${BROWSER_LIVE_CLEANUP_URL:-}" ]; then
+  curl -fsS -X POST "${BROWSER_LIVE_CLEANUP_URL}" \
+    -H "Content-Type: application/json" \
+    -d "{\"scope\":\"${BROWSER_LIVE_SCOPE}\"}" || true
+fi
 ```
 
 Pass:
 
-- Requests include canonical `/v1/transfers` and `/v1/jobs`.
-- No active legacy namespace route usage.
-- No critical unhandled exceptions affecting user flow.
+- Cleanup command is executed when `BROWSER_LIVE_CLEANUP_URL` is configured.
+- Run scope is recorded for traceability and support.
+- Evidence artifacts remain in `$OUT` for release ledger attachment.
+
+### C08: Optional manual cleanup verification
+
+If your environment cannot isolate by scope, run a manual tenant cleanup before the next release validation window and document deletion confirmation in the artifact summary.
+
 
 ## CI Gating Policy
 

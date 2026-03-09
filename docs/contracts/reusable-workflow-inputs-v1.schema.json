@@ -29,7 +29,8 @@
     },
     "aws_region": {
       "type": "string",
-      "pattern": "^[a-z]{2}-[a-z]+-\\d$"
+      "description": "AWS region code (for example: us-east-1, us-gov-west-1)",
+      "minLength": 1
     },
     "parameter_file": {
       "type": "string",
@@ -58,7 +59,7 @@
     "custom_task_memory": {
       "type": "integer",
       "minimum": 512,
-      "maximum": 65536
+      "maximum": 122880
     },
     "custom_desired_count": {
       "type": "integer",

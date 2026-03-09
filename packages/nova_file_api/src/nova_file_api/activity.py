@@ -39,6 +39,9 @@ class ActivityStore(Protocol):
     def summary(self) -> dict[str, int]:
         """Return aggregate summary counters."""
 
+    def healthcheck(self) -> bool:
+        """Return readiness of the activity store backend."""
+
 
 class DynamoDbClientProtocol(Protocol):
     """Subset of DynamoDB client methods used by rollup storage."""
@@ -122,6 +125,10 @@ class MemoryActivityStore:
             "active_users_today": active_users_today,
             "distinct_event_types": len(day_events),
         }
+
+    def healthcheck(self) -> bool:
+        """In-memory rollups are always ready."""
+        return True
 
 
 class DynamoActivityStore:
@@ -270,6 +277,17 @@ class DynamoActivityStore:
                 item.get("distinct_event_types", {"N": "0"})["N"]
             ),
         }
+
+    def healthcheck(self) -> bool:
+        """Return True when the configured rollup table can be queried."""
+        try:
+            self._ddb.get_item(
+                TableName=self._table_name,
+                Key={"pk": {"S": "ROLLUP#health"}, "sk": {"S": "SUMMARY"}},
+            )
+        except (ClientError, BotoCoreError):
+            return False
+        return True
 
     def _increment_counter(
         self,

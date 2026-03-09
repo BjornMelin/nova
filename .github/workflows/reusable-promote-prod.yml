@@ -137,26 +137,47 @@ jobs:
       - name: Promote package versions staging -> prod
         run: |
           set -euo pipefail
+          export CODEARTIFACT_DOMAIN="${{ env.CODEARTIFACT_DOMAIN }}"
+          export CODEARTIFACT_STAGING_REPOSITORY="${{ env.CODEARTIFACT_STAGING_REPOSITORY }}"
+          export CODEARTIFACT_PROD_REPOSITORY="${{ env.CODEARTIFACT_PROD_REPOSITORY }}"
           uv run python - <<'PY'
           import json
+          import os
           import subprocess
           from pathlib import Path
 
+          domain = os.environ["CODEARTIFACT_DOMAIN"]
+          staging_repository = os.environ["CODEARTIFACT_STAGING_REPOSITORY"]
+          prod_repository = os.environ["CODEARTIFACT_PROD_REPOSITORY"]
           candidates = json.loads(Path('.artifacts/validated-promotion-candidates.json').read_text())
           for item in candidates:
               package = item['package']
               version = item['version']
-              result = subprocess.run([
+              cmd = [
                   'aws', 'codeartifact', 'copy-package-versions',
-                  '--domain', '${{ env.CODEARTIFACT_DOMAIN }}',
-                  '--source-repository', '${{ env.CODEARTIFACT_STAGING_REPOSITORY }}',
-                  '--destination-repository', '${{ env.CODEARTIFACT_PROD_REPOSITORY }}',
+                  '--domain', domain,
+                  '--source-repository', staging_repository,
+                  '--destination-repository', prod_repository,
                   '--format', 'pypi',
                   '--package', package,
                   '--versions', version,
                   '--no-cli-pager',
                   '--output', 'json',
-              ], check=True, text=True, capture_output=True)
+              ]
+              try:
+                  result = subprocess.run(
+                      cmd,
+                      check=True,
+                      text=True,
+                      capture_output=True,
+                  )
+              except subprocess.CalledProcessError as exc:
+                  stderr = (exc.stderr or '').strip()
+                  stdout = (exc.stdout or '').strip()
+                  details = stderr or stdout or 'no stderr/stdout captured'
+                  raise SystemExit(
+                      f'AWS CodeArtifact copy failed for {package} {version}: {details}'
+                  ) from exc
               payload = json.loads(result.stdout or '{}')
               failed = payload.get('failedVersions') or {}
               unexpected = {
@@ -180,6 +201,9 @@ jobs:
     needs: validate-and-promote-packages
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Configure AWS Credentials (OIDC)
         uses: ./.github/actions/configure-aws-oidc
         with:

@@ -81,6 +81,9 @@ def test_v1_health_ready_returns_expected_checks() -> None:
     assert payload["checks"] == {
         "bucket_configured": True,
         "shared_cache": True,
+        "job_queue": True,
+        "activity_store": True,
+        "auth_dependency": True,
     }
 
 
@@ -95,6 +98,9 @@ def test_readyz_stays_ok_when_jobs_are_disabled() -> None:
     assert payload["checks"] == {
         "bucket_configured": True,
         "shared_cache": True,
+        "job_queue": True,
+        "activity_store": True,
+        "auth_dependency": True,
     }
 
 
@@ -111,6 +117,9 @@ def test_readyz_fails_when_bucket_is_missing() -> None:
     assert payload["checks"] == {
         "bucket_configured": False,
         "shared_cache": True,
+        "job_queue": True,
+        "activity_store": True,
+        "auth_dependency": True,
     }
 
 

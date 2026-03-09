@@ -3,16 +3,12 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 from typing import Any
 
 import yaml
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
-
-
-def _read(rel: str) -> str:
-    return (REPO_ROOT / rel).read_text(encoding="utf-8")
+from .helpers import REPO_ROOT
+from .helpers import read_repo_file as _read
 
 
 def _read_json(rel: str) -> dict[str, Any]:
@@ -100,18 +96,23 @@ def test_workflow_io_schema_contract_matches_reusable_deploy_runtime_api() -> (
     workflow_outputs = workflow_call["outputs"]
 
     schema_inputs = input_schema["properties"]
-    schema_outputs = output_schema["properties"]
+    deploy_runtime_output_schema = output_schema["$defs"][
+        "deploy_runtime_output"
+    ]
+    schema_outputs = deploy_runtime_output_schema["properties"]
 
     assert set(workflow_inputs).issubset(set(schema_inputs))
     assert set(workflow_outputs) == set(schema_outputs)
+    assert set(deploy_runtime_output_schema["required"]) == set(
+        workflow_outputs
+    )
 
     for required_input in input_schema["required"]:
         assert required_input in workflow_inputs
         assert workflow_inputs[required_input].get("required") is True
 
     assert (
-        output_schema["properties"]["manifest_sha256"]["pattern"]
-        == "^[a-f0-9]{64}$"
+        output_schema["$defs"]["manifest_sha256"]["pattern"] == "^[a-f0-9]{64}$"
     )
 
 
@@ -162,7 +163,7 @@ def test_downstream_examples_reference_reusable_post_deploy_workflow() -> None:
     """Downstream examples must call the shared reusable workflow."""
     workflow_ref = (
         "uses: 3M-Cloud/nova/.github/workflows/"
-        "reusable-post-deploy-validate.yml@v1"
+        "reusable-post-deploy-validate.yml@"
     )
     for rel_path in [
         "docs/clients/examples/workflows/dash-post-deploy-validate.yml",
@@ -199,7 +200,10 @@ def test_integration_guide_includes_versioning_policy_references() -> None:
         "docs/contracts/browser-live-validation-report.schema.json",
         "docs/contracts/release-artifacts-v1.schema.json",
         "docs/contracts/reusable-workflow-inputs-v1.schema.json",
-        "docs/contracts/reusable-workflow-outputs-v1.schema.json",
+        (
+            "docs/contracts/reusable-workflow-outputs-v1.schema.json"
+            "#/$defs/validation_report_output"
+        ),
         "docs/contracts/deploy-size-profiles-v1.json",
         "docs/plan/release/RELEASE-POLICY.md",
         (

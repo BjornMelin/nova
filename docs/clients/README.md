@@ -21,6 +21,26 @@ SDK release authority.
 - `examples/workflows/rshiny-post-deploy-validate.yml`
 - `examples/workflows/react-next-post-deploy-validate.yml`
 
+## Production-safe pinning
+
+The example workflows above currently show mutable refs (for example `@v1`) in places.
+For release pipelines, prefer immutable refs so downstream deploy validation always
+runs the reviewed workflow version. Use a full commit SHA (preferred) or a fully
+qualified immutable tag.
+
+- `dash-minimal-workflow.yml`: `uses: 3M-Cloud/nova/.github/workflows/reusable-post-deploy-validate.yml@655ccab0d071c828045de4a4d3bb441d4349194e`
+- `rshiny-minimal-workflow.yml`: `uses: 3M-Cloud/nova/.github/workflows/reusable-post-deploy-validate.yml@655ccab0d071c828045de4a4d3bb441d4349194e`
+- `react-next-minimal-workflow.yml`: `uses: 3M-Cloud/nova/.github/workflows/reusable-post-deploy-validate.yml@655ccab0d071c828045de4a4d3bb441d4349194e`
+- `examples/workflows/dash-post-deploy-validate.yml`: `uses: 3M-Cloud/nova/.github/workflows/reusable-post-deploy-validate.yml@655ccab0d071c828045de4a4d3bb441d4349194e`
+- `examples/workflows/rshiny-post-deploy-validate.yml`: `uses: 3M-Cloud/nova/.github/workflows/reusable-post-deploy-validate.yml@655ccab0d071c828045de4a4d3bb441d4349194e`
+- `examples/workflows/react-next-post-deploy-validate.yml`: `uses: 3M-Cloud/nova/.github/workflows/reusable-post-deploy-validate.yml@655ccab0d071c828045de4a4d3bb441d4349194e`
+
+When migrating a pinned reference, validate compatibility with
+`reusable-workflow-inputs-v1.schema.json` and
+`reusable-workflow-outputs-v1.schema.json` in this repository’s `contracts`
+directory, then verify downstream consumers against
+`release-artifacts-v1.schema.json` and `deploy-size-profiles-v1.json`.
+
 ## Contract sources
 
 - `../contracts/reusable-workflow-inputs-v1.schema.json`

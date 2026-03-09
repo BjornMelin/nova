@@ -47,6 +47,17 @@ jobs:
           fetch-depth: 0
           ref: ${{ inputs.checkout_ref }}
 
+      - name: Guard checkout ref resolves to origin/main
+        run: |
+          set -euo pipefail
+          git fetch origin main --no-tags --depth=1
+          main_commit="$(git rev-parse --verify origin/main)"
+          head_commit="$(git rev-parse --verify HEAD)"
+          if [[ "$head_commit" != "$main_commit" ]]; then
+            echo "Ref mismatch: checkout_ref resolved to ${head_commit}, but origin/main is ${main_commit}. Release apply must run on origin/main." >&2
+            exit 1
+          fi
+
       - name: Setup Python and uv
         uses: ./.github/actions/setup-python-uv
 
@@ -87,20 +98,18 @@ jobs:
         run: |
           set -euo pipefail
 
-          if git diff --quiet; then
-            echo "No release changes detected."
-            exit 0
-          fi
+          add_paths=(
+            docs/plan/release/RELEASE-VERSION-MANIFEST.md
+            uv.lock
+            pyproject.toml
+          )
+          [[ -e apps ]] && add_paths+=(apps)
+          [[ -e packages ]] && add_paths+=(packages)
 
-          git add \
-            docs/plan/release/RELEASE-VERSION-MANIFEST.md \
-            uv.lock \
-            pyproject.toml \
-            apps \
-            packages
+          git add "${add_paths[@]}"
 
           if git diff --cached --quiet; then
-            echo "No staged release changes after add."
+            echo "No release changes detected."
             exit 0
           fi
 

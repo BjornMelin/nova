@@ -8,11 +8,17 @@ inputs:
     description: AWS region for the pipeline.
     required: false
     default: us-east-1
+  client_request_token:
+    description: Idempotency token for start-pipeline-execution.
+    required: false
+    default: ${{ github.run_id }}-${{ github.run_attempt }}
 runs:
   using: composite
   steps:
     - name: Start pipeline execution
       shell: bash
+      env:
+        CLIENT_REQUEST_TOKEN: ${{ inputs.client_request_token }}
       run: |
         set -euo pipefail
         PIPELINE_NAME="${{ inputs.pipeline-name }}"
@@ -25,4 +31,5 @@ runs:
 
         aws codepipeline start-pipeline-execution \
           --name "$PIPELINE_NAME" \
+          --client-request-token "$CLIENT_REQUEST_TOKEN" \
           --region "$AWS_REGION"

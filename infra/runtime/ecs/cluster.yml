@@ -86,7 +86,6 @@ Parameters:
 Conditions:
   CreateCodeDeployTestListener: !Equals [!Ref EnableCodeDeployTestListener, "true"]
   EnableAlbAccessLogs: !Equals [!Ref EnableLoadBalancerAccessLogs, "true"]
-  HasLoadBalancerLogBucket: !Not [!Equals [!Ref LoadBalancerLogBucket, ""]]
   HasHostedZoneId: !Not [!Equals [!Ref HostedZoneId, ""]]
   HasAlbIngressPrefixListId: !Not [!Equals [!Ref AlbIngressPrefixListId, ""]]
   HasAlbIngressCidr: !Not [!Equals [!Ref AlbIngressCidr, ""]]
@@ -189,6 +188,39 @@ Resources:
       ToPort: 443
       SourceSecurityGroupId: !Ref AlbIngressSourceSecurityGroupId
 
+  ALBSecurityGroupIngressHttpPrefixList:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: HasAlbIngressPrefixListId
+    Properties:
+      GroupId: !Ref ALBSecurityGroup
+      Description: allow HTTP ingress from managed prefix list
+      IpProtocol: TCP
+      FromPort: 80
+      ToPort: 80
+      SourcePrefixListId: !Ref AlbIngressPrefixListId
+
+  ALBSecurityGroupIngressHttpCidr:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: HasAlbIngressCidr
+    Properties:
+      GroupId: !Ref ALBSecurityGroup
+      Description: allow HTTP ingress from CIDR
+      IpProtocol: TCP
+      FromPort: 80
+      ToPort: 80
+      CidrIp: !Ref AlbIngressCidr
+
+  ALBSecurityGroupIngressHttpSourceSecurityGroup:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: HasAlbIngressSourceSecurityGroupId
+    Properties:
+      GroupId: !Ref ALBSecurityGroup
+      Description: allow HTTP ingress from source security group
+      IpProtocol: TCP
+      FromPort: 80
+      ToPort: 80
+      SourceSecurityGroupId: !Ref AlbIngressSourceSecurityGroupId
+
   ALBSecurityGroupIngressCodeDeployTestListenerPrefixList:
     Type: AWS::EC2::SecurityGroupIngress
     Condition: CreateCodeDeployTestListenerWithPrefixList
@@ -233,6 +265,8 @@ Resources:
       LoadBalancerAttributes:
         - Key: access_logs.s3.enabled
           Value: !If [EnableAlbAccessLogs, "true", "false"]
+        - Key: routing.http.drop_invalid_header_fields
+          Value: "true"
         - !If
           - EnableAlbAccessLogs
           - Key: access_logs.s3.bucket

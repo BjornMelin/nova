@@ -7,9 +7,10 @@ SPEC-0013/SPEC-0014.
 from __future__ import annotations
 
 import re
-from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
+from .helpers import REPO_ROOT
+from .helpers import read_repo_file as _read
+
 RUNTIME_DEPLOYABLE_TEMPLATES = (
     "infra/runtime/ecr.yml",
     "infra/runtime/ecs/cluster.yml",
@@ -21,12 +22,6 @@ RUNTIME_DEPLOYABLE_TEMPLATES = (
     "infra/runtime/kms.yml",
     "infra/runtime/observability/ecs-observability-baseline.yml",
 )
-
-
-def _read(rel_path: str) -> str:
-    path = REPO_ROOT / rel_path
-    assert path.is_file(), f"Expected template file to exist: {path}"
-    return path.read_text(encoding="utf-8")
 
 
 def test_absorbed_template_paths_present() -> None:
@@ -155,7 +150,6 @@ def test_foundation_exports_and_stack_wiring_contracts() -> None:
         "IamRolesStackName:",
         "CodeBuildStackName:",
         "${FoundationStackName}-ArtifactBucketName",
-        "${FoundationStackName}-ConnectionName",
         "${FoundationStackName}-ConnectionArn",
         "${FoundationStackName}-ManualApprovalTopicArn",
         "${CodeBuildStackName}-ReleaseBuildProjectName",
@@ -179,11 +173,8 @@ def test_digest_marker_path_and_env_contracts() -> None:
 
 
 def test_service_base_url_ssm_path_and_url_constraints() -> None:
-    """Service base URL SSM template must enforce canonical path + URL hygiene.
-
-    Returns:
-        None.
-    """
+    """Verify service base URL SSM template enforces canonical path and URL
+    hygiene."""
     text = _read("infra/nova/deploy/service-base-url-ssm.yml")
 
     assert 'Name: !Sub "/nova/${Environment}/${ServiceName}/base-url"' in text
@@ -281,24 +272,27 @@ def test_iam_scope_constraints_for_release_roles() -> None:
         "sts:GetServiceBearerToken",
     ]:
         assert required_action in github_role_text
-    assert (
-        "arn:${AWS::Partition}:codepipeline:${AWS::Region}:${AWS::AccountId}:${Project}-${Application}-*"
-        in github_role_text
+    github_role_arn_pattern = (
+        "arn:${AWS::Partition}:codepipeline:${AWS::Region}"
+        ":${AWS::AccountId}:${Project}-${Application}-*"
     )
+    assert github_role_arn_pattern in github_role_text
     assert "${FoundationStackName}-CodeArtifactDomainName" in github_role_text
     assert (
         "${FoundationStackName}-CodeArtifactRepositoryName" in github_role_text
     )
     assert "CodeArtifactPromotionSourceRepositoryName" in github_role_text
     assert "CodeArtifactPromotionDestinationRepositoryName" in github_role_text
-    assert (
-        "repository/${ResolvedCodeArtifactDomainName}/${PromotionDestinationRepositoryName}"
-        in github_role_text
+    repo_dest_pattern = (
+        "repository/${ResolvedCodeArtifactDomainName}/"
+        "${PromotionDestinationRepositoryName}"
     )
-    assert (
-        "repository/${ResolvedCodeArtifactDomainName}/${PromotionSourceRepositoryName}"
-        in github_role_text
+    repo_src_pattern = (
+        "repository/${ResolvedCodeArtifactDomainName}/"
+        "${PromotionSourceRepositoryName}"
     )
+    assert repo_dest_pattern in github_role_text
+    assert repo_src_pattern in github_role_text
     assert "sts:AWSServiceName: codeartifact.amazonaws.com" in github_role_text
 
     assert "BatchBOperatorPrincipalArn:" in text
@@ -374,17 +368,29 @@ def test_runtime_env_and_parameter_contracts() -> None:
 def test_pipeline_validation_base_url_parameters_are_constrained() -> None:
     """Pipeline template must constrain deploy validation base URL inputs."""
     text = _read("infra/nova/nova-ci-cd.yml")
+    required_constraint_description = (
+        "ConstraintDescription: Must be an HTTPS URL and not a "
+        "placeholder/test host."
+    )
+    required_allowed_pattern = 'AllowedPattern: "^https://'
 
-    for required in [
-        "DevServiceBaseUrl:",
-        "ProdServiceBaseUrl:",
-        'AllowedPattern: "^https://',
-        (
-            "ConstraintDescription: Must be an HTTPS URL and not a "
-            "placeholder/test host."
-        ),
-    ]:
-        assert required in text
+    for parameter_name in ["DevServiceBaseUrl", "ProdServiceBaseUrl"]:
+        parameter_block_pattern = (
+            rf"(?ms)^  {re.escape(parameter_name)}:\n"
+            r"(?:    .*\n)*?(?=^  \S|\Z)"
+        )
+        match = re.search(
+            parameter_block_pattern,
+            text,
+        )
+        assert match is not None, f"missing {parameter_name} block in template"
+        block = match.group(0)
+        assert required_allowed_pattern in block, (
+            f"missing HTTPS constraint for {parameter_name} block"
+        )
+        assert required_constraint_description in block, (
+            f"missing constraint description for {parameter_name} block"
+        )
 
 
 def test_runtime_templates_do_not_contain_jinja_markers() -> None:

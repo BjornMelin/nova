@@ -18,10 +18,6 @@ Parameters:
     Type: String
     Default: "false"
     AllowedValues: ["true", "false"]
-  UsedByLambda:
-    Type: String
-    Default: "false"
-    AllowedValues: ["true", "false"]
   AllowExecutionRoleSecretsWildcard:
     Type: String
     Default: "true"
@@ -33,7 +29,6 @@ Parameters:
 
 Conditions:
   UseEcs: !Equals [!Ref UsedByEcs, "true"]
-  UseLambda: !Equals [!Ref UsedByLambda, 'true']
   AllowExecSecretsWildcard: !Equals [!Ref AllowExecutionRoleSecretsWildcard, "true"]
 
 Resources:

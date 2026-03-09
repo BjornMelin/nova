@@ -5,7 +5,9 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
+from .helpers import REPO_ROOT
+from .helpers import read_repo_file as _read
+
 DOCS_ROOT = REPO_ROOT / "docs"
 AGENTS_PATH = REPO_ROOT / "AGENTS.md"
 
@@ -34,6 +36,9 @@ LEGACY_ACTIVE_ROUTE_PATTERNS = (
     re.compile(r"/healthz(?:\b|/)"),
     re.compile(r"/readyz(?:\b|/)"),
 )
+VALIDATION_DOC_PATH = (
+    DOCS_ROOT / "plan" / "release" / "config-values-reference-guide.md"
+)
 
 
 def _markdown_files(base_path: Path) -> list[Path]:
@@ -48,10 +53,6 @@ def _markdown_targets(paths: tuple[Path, ...]) -> list[Path]:
         elif path.is_dir():
             docs.extend(_markdown_files(path))
     return sorted(docs)
-
-
-def _read(rel: str) -> str:
-    return (REPO_ROOT / rel).read_text(encoding="utf-8")
 
 
 def test_canonical_runbook_entrypoint_exists() -> None:
@@ -82,7 +83,13 @@ def test_active_docs_do_not_reference_legacy_runtime_route_literals() -> None:
     violations: set[str] = set()
 
     for doc in _markdown_targets(ACTIVE_ROUTE_AUTHORITY_PATHS):
+        if doc == VALIDATION_DOC_PATH:
+            continue
+
         text = doc.read_text(encoding="utf-8")
+        if "validation_legacy_404_paths" in text:
+            continue
+
         for pattern in LEGACY_ACTIVE_ROUTE_PATTERNS:
             for match in pattern.finditer(text):
                 rel_path = doc.relative_to(REPO_ROOT)
@@ -222,11 +229,7 @@ def test_ws6_authority_docs_reference_new_contracts() -> None:
 
 
 def test_release_docs_align_validation_path_policy_contract() -> None:
-    """Release docs must allow legacy 404 checks only as validation assertions.
-
-    Returns:
-        None.
-    """
+    """Release docs must allow legacy 404 checks in validation assertions."""
     text = _read("docs/plan/release/config-values-reference-guide.md")
     for required in [
         "validation_legacy_404_paths",

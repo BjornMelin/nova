@@ -60,6 +60,7 @@ export EXISTING_CONNECTION_ARN="${EXISTING_CONNECTION_ARN:-}"
 export ECR_REPOSITORY_ARN="${ECR_REPOSITORY_ARN:?Set ECR_REPOSITORY_ARN}"
 export ECR_REPOSITORY_NAME="${ECR_REPOSITORY_NAME:?Set ECR_REPOSITORY_NAME}"
 export ECR_REPOSITORY_URI="${ECR_REPOSITORY_URI:?Set ECR_REPOSITORY_URI}"
+export NOVA_DEPLOY_SERVICE_NAME="${NOVA_DEPLOY_SERVICE_NAME:-nova-file-api}"
 export SIGNER_NAME="${SIGNER_NAME:?Set SIGNER_NAME}"
 export SIGNER_EMAIL="${SIGNER_EMAIL:?Set SIGNER_EMAIL}"
 export NOVA_ARTIFACT_BUCKET_NAME="${NOVA_ARTIFACT_BUCKET_NAME:?Set NOVA_ARTIFACT_BUCKET_NAME}"
@@ -74,8 +75,8 @@ Required pre-check before Step 3 (replace `nova-file-api` if overridden via
 `NOVA_DEPLOY_SERVICE_NAME`):
 
 ```bash
-aws ssm get-parameter --region "${AWS_REGION}" --name "/nova/dev/nova-file-api/base-url"
-aws ssm get-parameter --region "${AWS_REGION}" --name "/nova/prod/nova-file-api/base-url"
+aws ssm get-parameter --region "${AWS_REGION}" --name "/${PROJECT}/dev/${NOVA_DEPLOY_SERVICE_NAME}/base-url"
+aws ssm get-parameter --region "${AWS_REGION}" --name "/${PROJECT}/prod/${NOVA_DEPLOY_SERVICE_NAME}/base-url"
 ```
 
 Ownership guardrail:
@@ -92,6 +93,18 @@ If `${NOVA_ARTIFACT_BUCKET_NAME}` already exists, pass it as
 `ExistingArtifactBucketName=""` and pass it as `ArtifactBucketName`.
 
 ```bash
+if aws s3api head-bucket --bucket "${NOVA_ARTIFACT_BUCKET_NAME}" >/dev/null 2>&1; then
+  FOUNDATION_BUCKET_ARGS=(
+    ExistingArtifactBucketName="${NOVA_ARTIFACT_BUCKET_NAME}"
+    ArtifactBucketName=""
+  )
+else
+  FOUNDATION_BUCKET_ARGS=(
+    ExistingArtifactBucketName=""
+    ArtifactBucketName="${NOVA_ARTIFACT_BUCKET_NAME}"
+  )
+fi
+
 aws cloudformation deploy \
   --region "${AWS_REGION}" \
   --stack-name "${PROJECT}-${APPLICATION}-nova-foundation" \
@@ -100,8 +113,7 @@ aws cloudformation deploy \
   --parameter-overrides \
     Project="${PROJECT}" \
     Application="${APPLICATION}" \
-    ExistingArtifactBucketName="${NOVA_ARTIFACT_BUCKET_NAME}" \
-    ArtifactBucketName="" \
+    "${FOUNDATION_BUCKET_ARGS[@]}" \
     CodeArtifactDomainName="${CODEARTIFACT_DOMAIN_NAME}" \
     CodeArtifactRepositoryName="${CODEARTIFACT_STAGING_REPOSITORY}" \
     EcrRepositoryArn="${ECR_REPOSITORY_ARN}" \

@@ -13,6 +13,7 @@ Parameters:
   ArtifactBucketName:
     Type: String
     Default: ""
+    AllowedPattern: "^$|^[a-z0-9][a-z0-9.-]*[a-z0-9]$"
     Description: New artifact bucket name to create when ExistingArtifactBucketName is empty.
   CodeArtifactDomainName:
     Type: String
@@ -42,12 +43,19 @@ Parameters:
   ManualApprovalTopicName:
     Type: String
     Default: ""
+  ManualApprovalKmsKeyArn:
+    Type: String
+    Default: alias/aws/sns
+    Description: KMS key ARN or alias used for SNS server-side encryption.
 
 Conditions:
   HasExistingArtifactBucketName: !Not [!Equals [!Ref ExistingArtifactBucketName, ""]]
-  CreateArtifactBucket: !Not [!Condition HasExistingArtifactBucketName]
+  CreateArtifactBucket: !And
+    - !Not [!Condition HasExistingArtifactBucketName]
+    - !Condition HasArtifactBucketName
   HasArtifactBucketName: !Not [!Equals [!Ref ArtifactBucketName, ""]]
   HasExistingConnectionArn: !Not [!Equals [!Ref ExistingConnectionArn, ""]]
+  ShouldExportConnectionName: !Not [!Condition HasExistingConnectionArn]
   CreateConnection: !Not [!Condition HasExistingConnectionArn]
   HasManualApprovalTopicArn: !Not [!Equals [!Ref ManualApprovalTopicArn, ""]]
   HasManualApprovalTopicName: !Not [!Equals [!Ref ManualApprovalTopicName, ""]]
@@ -60,6 +68,11 @@ Rules:
           - !Not [!Equals [!Ref ExistingArtifactBucketName, ""]]
           - !Not [!Equals [!Ref ArtifactBucketName, ""]]
         AssertDescription: Provide ExistingArtifactBucketName or ArtifactBucketName.
+      - Assert: !Not
+          - !And
+            - !Not [!Equals [!Ref ExistingArtifactBucketName, ""]]
+            - !Not [!Equals [!Ref ArtifactBucketName, ""]]
+        AssertDescription: Provide only one of ExistingArtifactBucketName or ArtifactBucketName.
   RequireArtifactBucketNameWhenCreating:
     RuleCondition: !Equals [!Ref ExistingArtifactBucketName, ""]
     Assertions:
@@ -70,6 +83,8 @@ Resources:
   ArtifactBucket:
     Type: AWS::S3::Bucket
     Condition: CreateArtifactBucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Properties:
       BucketName: !Ref ArtifactBucketName
       PublicAccessBlockConfiguration:
@@ -104,6 +119,7 @@ Resources:
         - HasManualApprovalTopicName
         - !Ref ManualApprovalTopicName
         - !Sub ${Project}-${Application}-nova-manual-approval
+      KmsMasterKeyId: !Ref ManualApprovalKmsKeyArn
 
 Outputs:
   ArtifactBucketName:
@@ -140,7 +156,10 @@ Outputs:
       Name: !Sub "${AWS::StackName}-EcrRepositoryUri"
 
   ConnectionName:
-    Value: !Ref ConnectionName
+    Value: !If
+      - ShouldExportConnectionName
+      - !Ref ConnectionName
+      - ""
     Export:
       Name: !Sub "${AWS::StackName}-ConnectionName"
 
