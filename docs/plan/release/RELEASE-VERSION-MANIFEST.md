@@ -1,15 +1,14 @@
 # Release Version Manifest
 
-Date: 2026-03-03T20:16:13+00:00
+Date: 2026-03-09T05:50:04+00:00
 Status: Active
 Schema: 1.0
 
 ## Release Metadata
-
-- `base_commit`: `249ff2b6b0f9278f4866a063808860863cc3e903`
-- `head_commit`: `02f050b42bcfca2e1a41bc2eef6263a514985593`
+- `base_commit`: `95036b82141fe4c0a7b43039f8bf55a22fb1d56a`
+- `head_commit`: `95036b82141fe4c0a7b43039f8bf55a22fb1d56a`
 - `first_release`: `False`
-- `global_bump`: `none`
+- `global_bump`: `None`
 
 ## changed-units.json Schema
 
@@ -40,9 +39,6 @@ Schema: 1.0
 | `packages/nova_auth_api` | `nova-auth-api` | `0.4.0` | no |
 | `packages/nova_dash_bridge` | `nova-dash-bridge` | `0.3.1` | no |
 | `packages/nova_file_api` | `nova-file-api` | `0.5.0` | no |
-
-This manifest reflects a docs-only release-management change set; no canonical
-runtime monorepo units changed in this slice.
 
 ## Participating External Repositories
 
