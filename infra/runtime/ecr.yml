@@ -3,7 +3,6 @@ Parameters:
     Type: String
     Description: Name of the project
     MinLength: 2
-    Default: crdl
   Application:
     Type: String
     Description: Name of the application
@@ -18,23 +17,9 @@ Parameters:
     Type: String
     Default: "false"
     AllowedValues: ["true", "false"]
-  UsedByLambda:
-    Type: String
-    Default: "false"
-    AllowedValues: ["true", "false"]
-  AllowExecutionRoleSecretsWildcard:
-    Type: String
-    Default: "true"
-    AllowedValues: ["true", "false"]
-    Description: >-
-      If true, the ECS task execution role includes broad Secrets Manager/KMS
-      permissions. If false, prefer least-privilege permissions attached from
-      the ECS service stack via TaskExecutionSecretArns/TaskExecutionSsmParameterArns.
 
 Conditions:
   UseEcs: !Equals [!Ref UsedByEcs, "true"]
-  UseLambda: !Equals [!Ref UsedByLambda, 'true']
-  AllowExecSecretsWildcard: !Equals [!Ref AllowExecutionRoleSecretsWildcard, "true"]
 
 Resources:
   ECRRepository:
@@ -69,20 +54,6 @@ Resources:
         - Key: Service
           Value: !Ref Service
 
-      # NOTE: In order to see image scans in Wiz, we are not setting this resource policy. This should be set before deploying trade secret code.
-
-      # References:
-      # https://aws.amazon.com/blogs/security/iam-makes-it-easier-to-manage-permissions-for-aws-services-accessing-resources/
-      # https://docs.aws.amazon.com/AmazonECR/latest/userguide/repository-policy-examples.html#IAM_deny_all
-      # https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_condition-keys.html#condition-keys-viaawsservice
-
-      # NOTES:
-      # - AWS resources like ECS, Lambda, Sagemaker, and Batch should be allowed to pull images from ECR,
-      #   but all other access should be restricted
-      # - ECS is backed by Fargate
-      # - Codebuild should be able to use GetAuthorizationToken to push images to ECR
-      # - GetAuthorizationToken cannot be controlled in an ECR resource policy
-
       RepositoryPolicyText:
         Version: "2012-10-17"
         Statement:
@@ -110,33 +81,6 @@ Resources:
             Action:
               - "ecr:BatchGetImage"
               - "ecr:GetDownloadUrlForLayer"
-
-      #     # Deny all other identiies permission to pull images from this ECR repo
-      #     - Sid: DenyPull
-      #       Effect: Deny
-      #       Principal: "*"
-      #       Action:
-      #         - "ecr:BatchGetImage"
-      #         - "ecr:GetDownloadUrlForLayer"
-      #       Condition: # Make exception for lambda and ECS
-      #         ArnNotLike:
-      #           aws:PrincipalArn:
-      #             # NOTE: ensure that only ECS can use the task execution role
-      #             - !If [UseEcs, !GetAtt EcsTaskExecutionRole.Arn, !Ref AWS::NoValue]
-      #             # - !GetAtt EcsTaskExecutionRole.Arn
-
-      #           aws:sourceArn:
-      #             - !If [UseLambda, !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${Project}-${Application}-*", !Ref AWS::NoValue]
-      #             # - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${Project}-${Application}-*
-
-      #     # # Deny all identities permission to modify this resource policy in the future
-      #     # Requires the "--force" parameter
-      #     # - Sid: DenySetRepositoryPolicy
-      #     #   Effect: Deny
-      #     #   Principal: "*"
-      #     #   Action:
-      #     #     - "ecr:SetRepositoryPolicy"
-      #     #     - "ecr:DeleteRepositoryPolicy"
 
   # Role that Amazon ECS needs to pull container images and run the task
   EcsTaskExecutionRole:
@@ -182,39 +126,6 @@ Resources:
                 Condition:
                   StringEquals:
                     aws:RequestedRegion: !Ref "AWS::Region"
-              - !If
-                - AllowExecSecretsWildcard
-                - Effect: Allow
-                  Action:
-                    - secretsmanager:GetSecretValue
-                  Resource: "*"
-                  Condition:
-                    StringEquals:
-                      aws:RequestedRegion: !Ref "AWS::Region"
-                - !Ref AWS::NoValue
-              - !If
-                - AllowExecSecretsWildcard
-                - Effect: Allow
-                  Action:
-                    - ssm:GetParameters
-                  Resource: "*"
-                  Condition:
-                    StringEquals:
-                      aws:RequestedRegion: !Ref "AWS::Region"
-                - !Ref AWS::NoValue
-              - !If
-                - AllowExecSecretsWildcard
-                - Effect: Allow
-                  Action:
-                    - kms:Decrypt
-                  Resource: "*"
-                  Condition:
-                    StringEquals:
-                      aws:RequestedRegion: !Ref "AWS::Region"
-                      kms:ViaService:
-                        - !Sub "secretsmanager.${AWS::Region}.amazonaws.com"
-                        - !Sub "ssm.${AWS::Region}.amazonaws.com"
-                - !Ref AWS::NoValue
 
 Outputs:
   ECRRepositoryName:
