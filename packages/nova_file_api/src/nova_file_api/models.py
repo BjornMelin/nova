@@ -306,7 +306,7 @@ class JobEventsResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     job_id: str
-    events: list[JobEvent]
+    events: list[JobEvent] = Field(max_length=1000)
     next_cursor: str
 
 

@@ -507,7 +507,7 @@ def _patch_auth_sdk(root: Path) -> None:
             ),
             path="client.py",
         )
-        return _replace_text(
+        content = _replace_text(
             content,
             old=(
                 '    def with_timeout(self, timeout: httpx.Timeout) -> "AuthenticatedClient":\n'
@@ -524,6 +524,54 @@ def _patch_auth_sdk(root: Path) -> None:
                 "        return evolve(self, timeout=timeout)\n"
             ),
             path="client.py",
+        )
+        content = _replace_text(
+            content,
+            old=(
+                "            self._headers[self.auth_header_name] = (\n"
+                '                f"{self.prefix} {self.token}" if self.prefix else self.token\n'
+                "            )\n"
+                "            self._client = httpx.Client(\n"
+                "                base_url=self._base_url,\n"
+                "                cookies=self._cookies,\n"
+                "                headers=self._headers,\n"
+            ),
+            new=(
+                "            headers = {**self._headers}\n"
+                "            headers[self.auth_header_name] = (\n"
+                '                f"{self.prefix} {self.token}" if self.prefix else self.token\n'
+                "            )\n"
+                "            self._client = httpx.Client(\n"
+                "                base_url=self._base_url,\n"
+                "                cookies=self._cookies,\n"
+                "                headers=headers,\n"
+            ),
+            path="client.py",
+            required=False,
+        )
+        return _replace_text(
+            content,
+            old=(
+                "            self._headers[self.auth_header_name] = (\n"
+                '                f"{self.prefix} {self.token}" if self.prefix else self.token\n'
+                "            )\n"
+                "            self._async_client = httpx.AsyncClient(\n"
+                "                base_url=self._base_url,\n"
+                "                cookies=self._cookies,\n"
+                "                headers=self._headers,\n"
+            ),
+            new=(
+                "            headers = {**self._headers}\n"
+                "            headers[self.auth_header_name] = (\n"
+                '                f"{self.prefix} {self.token}" if self.prefix else self.token\n'
+                "            )\n"
+                "            self._async_client = httpx.AsyncClient(\n"
+                "                base_url=self._base_url,\n"
+                "                cookies=self._cookies,\n"
+                "                headers=headers,\n"
+            ),
+            path="client.py",
+            required=False,
         )
 
     _rewrite_file(root, "client.py", patch_client)
@@ -789,6 +837,67 @@ def _patch_file_sdk(root: Path) -> None:
         )
 
     _rewrite_file(root, "types.py", patch_types)
+
+    def patch_client(content: str) -> str:
+        content = _replace_text(
+            content,
+            old=(
+                '    def with_headers(self, headers: dict[str, str]) -> "Client":\n'
+                '        """Get a new client matching this one with additional headers"""\n'
+                "        if self._client is not None:\n"
+                "            self._client.headers.update(headers)\n"
+                "        if self._async_client is not None:\n"
+                "            self._async_client.headers.update(headers)\n"
+                "        return evolve(self, headers={**self._headers, **headers})\n"
+            ),
+            new=(
+                '    def with_headers(self, headers: dict[str, str]) -> "Client":\n'
+                '        """Get a new client matching this one with additional headers"""\n'
+                "        return evolve(self, headers={**self._headers, **headers})\n"
+            ),
+            path="client.py",
+            required=False,
+        )
+        content = _replace_text(
+            content,
+            old=(
+                '    def with_cookies(self, cookies: dict[str, str]) -> "Client":\n'
+                '        """Get a new client matching this one with additional cookies"""\n'
+                "        if self._client is not None:\n"
+                "            self._client.cookies.update(cookies)\n"
+                "        if self._async_client is not None:\n"
+                "            self._async_client.cookies.update(cookies)\n"
+                "        return evolve(self, cookies={**self._cookies, **cookies})\n"
+            ),
+            new=(
+                '    def with_cookies(self, cookies: dict[str, str]) -> "Client":\n'
+                '        """Get a new client matching this one with additional cookies"""\n'
+                "        return evolve(self, cookies={**self._cookies, **cookies})\n"
+            ),
+            path="client.py",
+            required=False,
+        )
+        return _replace_text(
+            content,
+            old=(
+                '    def with_timeout(self, timeout: httpx.Timeout) -> "Client":\n'
+                '        """Get a new client matching this one with a new timeout configuration"""\n'
+                "        if self._client is not None:\n"
+                "            self._client.timeout = timeout\n"
+                "        if self._async_client is not None:\n"
+                "            self._async_client.timeout = timeout\n"
+                "        return evolve(self, timeout=timeout)\n"
+            ),
+            new=(
+                '    def with_timeout(self, timeout: httpx.Timeout) -> "Client":\n'
+                '        """Get a new client matching this one with a new timeout configuration"""\n'
+                "        return evolve(self, timeout=timeout)\n"
+            ),
+            path="client.py",
+            required=False,
+        )
+
+    _rewrite_file(root, "client.py", patch_client)
 
     for path in (root / "api").rglob("*.py"):
         rel_path = path.relative_to(root).as_posix()

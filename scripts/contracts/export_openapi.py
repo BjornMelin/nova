@@ -23,6 +23,7 @@ DEFAULT_OUTPUT_DIR = REPO_ROOT / "packages" / "contracts" / "openapi"
 
 
 def _render_openapi() -> dict[str, str]:
+    """Render each runtime application's OpenAPI document as JSON text."""
     rendered: dict[str, str] = {}
     for name, app_factory in OPENAPI_OUTPUTS.items():
         schema = app_factory().openapi()
@@ -31,6 +32,7 @@ def _render_openapi() -> dict[str, str]:
 
 
 def _write_outputs(output_dir: Path, *, check: bool) -> int:
+    """Write or verify canonical OpenAPI artifacts in the target directory."""
     rendered = _render_openapi()
     status = 0
     if not check:
@@ -62,7 +64,7 @@ def _write_outputs(output_dir: Path, *, check: bool) -> int:
     if check:
         expected_files = {output_dir / name for name in rendered}
         existing_files = {
-            path for path in output_dir.glob("*.json") if path.is_file()
+            path for path in output_dir.glob("*.openapi.json") if path.is_file()
         }
         for extra in sorted(existing_files - expected_files):
             print(f"OpenAPI artifact drift detected: unexpected file {extra}")
