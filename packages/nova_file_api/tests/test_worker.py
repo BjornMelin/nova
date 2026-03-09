@@ -478,7 +478,7 @@ def test_worker_run_deletes_message_when_non_retryable_error(
         transfer_service=transfer_service,  # type: ignore[arg-type]
     )
 
-    message = {
+    message: dict[str, object] = {
         "MessageId": "msg-3",
         "ReceiptHandle": "receipt-3",
         "Body": _worker_message_body(job_id="job-2"),
