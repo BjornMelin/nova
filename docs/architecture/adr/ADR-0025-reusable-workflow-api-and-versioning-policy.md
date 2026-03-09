@@ -1,9 +1,9 @@
 ---
 ADR: 0025
 Title: Reusable GitHub workflow API and versioning policy for deployment automation
-Status: Accepted
-Version: 1.1
-Date: 2026-03-03
+Status: Superseded
+Version: 1.2
+Date: 2026-03-09
 Related:
   - "[requirements.md](../requirements.md)"
   - "[ADR-0023: Hard-cut v1 canonical route surface](./ADR-0023-hard-cut-v1-canonical-route-surface.md)"
@@ -12,6 +12,7 @@ Related:
   - "[ADR-0011: Hybrid CI/CD with GitHub CI and AWS-native Dev to Prod promotion](./ADR-0011-cicd-hybrid-github-aws-promotion.md)"
   - "[SPEC-0018: Reusable workflow integration contract](../spec/SPEC-0018-runtime-configuration-and-startup-validation-contract.md)"
   - "[SPEC-0004: CI/CD and documentation automation](../spec/SPEC-0004-ci-cd-and-docs.md)"
+  - "[ADR-0031: Reusable GitHub workflow API and versioning policy for deployment automation](./ADR-0031-reusable-github-workflow-api-and-versioning-policy-for-deployment-automation.md)"
 ---
 
 ## Summary
@@ -82,3 +83,4 @@ Choose **Option B**.
 ## Changelog
 
 - 2026-03-03: Updated ADR scope to reusable workflow API and versioning policy.
+- 2026-03-09: Marked as superseded by ADR-0031.

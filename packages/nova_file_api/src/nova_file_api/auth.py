@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import time
 from typing import Any
 
@@ -41,6 +42,7 @@ class Authenticator:
             settings.oidc_verifier_thread_tokens
         )
         self._remote_client: httpx.AsyncClient | None = None
+        self._remote_client_lock = asyncio.Lock()
 
     async def authenticate(
         self,
@@ -90,7 +92,8 @@ class Authenticator:
 
         url = f"{base_url.rstrip('/')}/v1/health/ready"
         try:
-            response = await self._get_remote_client().get(url)
+            client = await self._get_remote_client()
+            response = await client.get(url)
         except httpx.HTTPError:
             return False
         return response.status_code == 200
@@ -190,7 +193,11 @@ class Authenticator:
             ),
         }
         try:
-            response = await self._get_remote_client().post(url, json=payload)
+            client = await self._get_remote_client()
+            response = await client.post(
+                url,
+                json=payload,
+            )
         except httpx.HTTPError as exc:
             raise queue_unavailable(
                 "remote auth verification unavailable"
@@ -241,15 +248,19 @@ class Authenticator:
             required_permissions=settings.default_required_permissions,
         )
 
-    def _get_remote_client(self) -> httpx.AsyncClient:
+    async def _get_remote_client(self) -> httpx.AsyncClient:
         client = self._remote_client
         if client is not None:
             return client
-        client = httpx.AsyncClient(
-            timeout=self._settings.remote_auth_timeout_seconds
-        )
-        self._remote_client = client
-        return client
+        async with self._remote_client_lock:
+            client = self._remote_client
+            if client is not None:
+                return client
+            client = httpx.AsyncClient(
+                timeout=self._settings.remote_auth_timeout_seconds
+            )
+            self._remote_client = client
+            return client
 
 
 def _extract_bearer_token(*, request: Request) -> str | None:

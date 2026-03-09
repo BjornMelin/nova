@@ -135,9 +135,7 @@ def _build_verifier(*, settings: Settings) -> JWTVerifier | None:
 def _principal_from_claims(*, claims: dict[str, Any]) -> Principal:
     normalized = normalized_principal_claims(
         claims=claims,
-        invalid_token_error=lambda message: _invalid_token_error(
-            message=message
-        ),
+        invalid_token_error=_invalid_token_error,
     )
     return Principal(
         subject=normalized.subject,
@@ -148,7 +146,7 @@ def _principal_from_claims(*, claims: dict[str, Any]) -> Principal:
     )
 
 
-def _invalid_token_error(*, message: str) -> AuthApiError:
+def _invalid_token_error(message: str) -> AuthApiError:
     return AuthApiError(
         code="invalid_token",
         message=message,
