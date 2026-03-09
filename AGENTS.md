@@ -104,17 +104,16 @@ rg -n "/v1/transfers|/v1/jobs|/v1/internal/jobs|/v1/capabilities|/v1/resources/p
 
 ## SDK/OpenAPI Generation Rules
 
-- OpenAPI 3.1 artifacts in `packages/contracts/openapi/` are the only SDK
-  generation inputs.
+- OpenAPI 3.1 artifacts are emitted from runtime application schemas
+  (`/openapi.json`) and validated through runtime OpenAPI contract tests.
 - Runtime OpenAPI `operationId` values are currently stable lowercase
   snake_case values derived from route and method literals.
 - Runtime OpenAPI tags are currently implementation-owned and include router
   tags such as `transfers`, `ops`, and `v1` for file API surfaces.
 - Custom request-body `$ref` entries added through `openapi_extra` MUST resolve
   to named component schemas in the emitted OpenAPI document.
-- Regenerate internal TS/R catalogs with
-  `scripts/release/generate_clients.py` and committed Python SDK trees with
-  `scripts/release/generate_python_clients.py`.
+- Generated-client compatibility is validated through
+  `packages/nova_file_api/tests/test_generated_client_smoke.py`.
 
 ## Runtime Invariants
 

@@ -196,8 +196,9 @@ Runtime OpenAPI metadata currently follows these rules:
   route/method-derived.
 - file API operation tags are router-defined and currently include
   implementation tags (for example `v1`) in addition to semantic group tags.
-- custom request-body schema references emitted via OpenAPI overrides resolve to
-  named component schemas in the same document.
+- custom request-body schema references emitted via OpenAPI overrides MUST
+  resolve to named component schemas in the same document and remain contract-
+  test verifiable from runtime OpenAPI output.
 
 ### FR-0009: S3 multipart correctness and acceleration compatibility
 
