@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from scripts.release import apply_versions, common
 
 
@@ -72,6 +74,7 @@ def test_apply_version_updates_changes_only_planned_units(
 def test_apply_version_updates_changes_npm_package_json(
     tmp_path: Path,
 ) -> None:
+    """Validate npm package.json versions are updated by the release plan."""
     repo_root = tmp_path
     package_json = repo_root / "packages/nova_sdk_fetch/package.json"
     package_json.parent.mkdir(parents=True, exist_ok=True)
@@ -110,3 +113,67 @@ def test_apply_version_updates_changes_npm_package_json(
 
     assert updated == ["packages/nova_sdk_fetch/package.json"]
     assert '"version": "0.1.1"' in package_json.read_text(encoding="utf-8")
+
+
+def test_apply_version_updates_rejects_unknown_unit_id(tmp_path: Path) -> None:
+    repo_root = tmp_path
+    file_api = repo_root / "packages/nova_file_api/pyproject.toml"
+    _write_pyproject(file_api, "nova-file-api", "0.1.0")
+    units = {
+        "packages/nova_file_api": common.WorkspaceUnit(
+            unit_id="packages/nova_file_api",
+            path=file_api.parent,
+            project_name="nova-file-api",
+            version="0.1.0",
+            dependencies=(),
+        )
+    }
+
+    with pytest.raises(ValueError, match="not found in workspace"):
+        apply_versions.apply_version_updates(
+            repo_root=repo_root,
+            version_plan={
+                "units": [
+                    {
+                        "unit_id": "packages/unknown",
+                        "old_version": "0.1.0",
+                        "new_version": "0.1.1",
+                    }
+                ]
+            },
+            units=units,
+            dry_run=True,
+        )
+
+
+def test_apply_version_updates_rejects_invalid_version_format(
+    tmp_path: Path,
+) -> None:
+    repo_root = tmp_path
+    file_api = repo_root / "packages/nova_file_api/pyproject.toml"
+    _write_pyproject(file_api, "nova-file-api", "0.1.0")
+    units = {
+        "packages/nova_file_api": common.WorkspaceUnit(
+            unit_id="packages/nova_file_api",
+            path=file_api.parent,
+            project_name="nova-file-api",
+            version="0.1.0",
+            dependencies=(),
+        )
+    }
+
+    with pytest.raises(ValueError, match="new_version is invalid"):
+        apply_versions.apply_version_updates(
+            repo_root=repo_root,
+            version_plan={
+                "units": [
+                    {
+                        "unit_id": "packages/nova_file_api",
+                        "old_version": "0.1.0",
+                        "new_version": "latest",
+                    }
+                ]
+            },
+            units=units,
+            dry_run=True,
+        )

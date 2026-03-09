@@ -99,7 +99,7 @@ jobs:
         run: uv sync --locked
 
       - name: Install npm workspace dependencies
-        run: npm install --no-package-lock
+        run: npm ci
 
       - name: Configure AWS Credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
@@ -262,6 +262,14 @@ jobs:
             exit 0
           fi
 
+          NPM_REGISTRY_URL="$(aws codeartifact get-repository-endpoint \
+            --domain "$CODEARTIFACT_DOMAIN" \
+            --repository "$CODEARTIFACT_STAGING_REPOSITORY" \
+            --format npm \
+            --region "$AWS_REGION" \
+            --query repositoryEndpoint \
+            --output text)"
+
           aws codeartifact login \
             --tool npm \
             --domain "$CODEARTIFACT_DOMAIN" \
@@ -281,9 +289,33 @@ jobs:
           PY
           )
           for publish_dir in "${NPM_PUBLISH_DIRS[@]}"; do
+            package_name="$(uv run python - <<'PY' "$publish_dir"
+          import json
+          import sys
+          from pathlib import Path
+
+          package_json = Path(sys.argv[1]) / "package.json"
+          payload = json.loads(package_json.read_text(encoding="utf-8"))
+          print(payload["name"])
+          PY
+            )"
+            package_version="$(uv run python - <<'PY' "$publish_dir"
+          import json
+          import sys
+          from pathlib import Path
+
+          package_json = Path(sys.argv[1]) / "package.json"
+          payload = json.loads(package_json.read_text(encoding="utf-8"))
+          print(payload["version"])
+          PY
+            )"
+            if npm view "${package_name}@${package_version}" version --registry "$NPM_REGISTRY_URL" >/dev/null 2>&1; then
+              echo "Package ${package_name}@${package_version} already exists in staging; skipping publish."
+              continue
+            fi
             (
               cd "$publish_dir"
-              npm publish --no-progress
+              npm publish --no-progress --registry "$NPM_REGISTRY_URL"
             )
           done
 

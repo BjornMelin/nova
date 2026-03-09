@@ -22,10 +22,10 @@ References:
 ## Summary
 
 Adopt **standard ECS on Fargate with ALB + GitHub Actions OIDC and Nova-owned
-deployment stacks** as the Nova API production final-state architecture.
 deployment stacks using the ECS-native blue/green deployment strategy on
-`AWS::ECS::Service`. Route-surface authority is hard-cut canonical `/v1/*`
-(plus `/metrics/summary`) as governed by `ADR-0023` and `SPEC-0016`.
+`AWS::ECS::Service`** as the Nova API production final-state architecture.
+Route-surface authority is hard-cut canonical `/v1/*` (plus
+`/metrics/summary`).
 
 ## Context
 

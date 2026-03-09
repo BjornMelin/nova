@@ -6,6 +6,7 @@ import argparse
 import json
 import os
 import shutil
+import stat
 import sys
 import tempfile
 import urllib.error
@@ -90,6 +91,11 @@ def _safe_archive_members(
         member_path = Path(member.filename)
         if member_path.is_absolute() or ".." in member_path.parts:
             raise RuntimeError("Artifact archive contains unsafe path entry")
+        if not member.filename.strip():
+            raise RuntimeError("Artifact archive contains an empty path entry")
+        unix_mode = member.external_attr >> 16
+        if stat.S_ISLNK(unix_mode):
+            raise RuntimeError("Artifact archive contains symlink entry")
         if member.is_dir():
             members.append(member)
             continue
@@ -115,6 +121,15 @@ def _extract_archive(*, archive_path: Path, output_dir: Path) -> None:
                 destination.open("wb") as target,
             ):
                 shutil.copyfileobj(source, target, length=_COPY_CHUNK_SIZE)
+
+
+def _clear_directory_contents(path: Path) -> None:
+    """Remove all children under an existing directory."""
+    for child in path.iterdir():
+        if child.is_dir() and not child.is_symlink():
+            shutil.rmtree(child)
+        else:
+            child.unlink(missing_ok=True)
 
 
 def _artifact_listing_url(
@@ -227,9 +242,12 @@ def download_run_artifact(
         )
 
     archive_path = _download_archive_to_tempfile(url=archive_url, token=token)
-    if output_dir.exists():
-        shutil.rmtree(output_dir)
+    if output_dir.exists() and not output_dir.is_dir():
+        raise RuntimeError(
+            f"output directory exists and is not a directory: {output_dir}"
+        )
     output_dir.mkdir(parents=True, exist_ok=True)
+    _clear_directory_contents(output_dir)
     try:
         _extract_archive(archive_path=archive_path, output_dir=output_dir)
     finally:

@@ -29,21 +29,23 @@ jobs:
     needs: generated-clients
     strategy:
       matrix:
-        package_path:
-          - packages/nova_sdk_fetch
-          - packages/nova_sdk_file_core
-          - packages/nova_sdk_auth_core
+        package_name:
+          - "@nova/sdk-fetch"
+          - "@nova/sdk-file-core"
+          - "@nova/sdk-auth-core"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
+          cache: npm
+          cache-dependency-path: package-lock.json
       - name: Install package dependencies
-        run: npm install --no-package-lock
-        working-directory: ${{ matrix.package_path }}
+        run: npm ci
+      - name: Build sdk-fetch dependency graph
+        run: npm run -w @nova/sdk-fetch build
       - name: Typecheck package
-        run: npm run typecheck
-        working-directory: ${{ matrix.package_path }}
+        run: npm run -w ${{ matrix.package_name }} typecheck
 
   typescript-sdk-smoke:
     runs-on: ubuntu-latest
@@ -164,16 +166,13 @@ jobs:
         with:
           node-version: "22"
           cache: npm
-          cache-dependency-path: packages/contracts/typescript/package-lock.json
+          cache-dependency-path: package-lock.json
       - name: Install TypeScript conformance dependencies
         run: npm ci
-        working-directory: packages/contracts/typescript
       - name: Typecheck TypeScript conformance and generated catalogs
-        run: npm run typecheck
-        working-directory: packages/contracts/typescript
+        run: npm run -w @nova/contracts-ts-conformance typecheck
       - name: Verify TypeScript fixture conformance
-        run: npm run verify
-        working-directory: packages/contracts/typescript
+        run: npm run -w @nova/contracts-ts-conformance verify
       - uses: ./.github/actions/setup-python-uv
         with:
           python-version: "3.12"

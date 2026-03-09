@@ -155,7 +155,12 @@ def _load_npm_workspace_units(repo_root: Path) -> dict[str, WorkspaceUnit]:
         release_data = package_data.get("novaRelease", {})
         if not isinstance(release_data, dict):
             raise ValueError(f"novaRelease in {member} must be an object")
-        if not bool(release_data.get("managed", False)):
+        managed_raw = release_data.get("managed", False)
+        if not isinstance(managed_raw, bool):
+            raise ValueError(
+                f"novaRelease.managed in {member} must be a boolean"
+            )
+        if not managed_raw:
             continue
 
         name = str(package_data.get("name", "")).strip()

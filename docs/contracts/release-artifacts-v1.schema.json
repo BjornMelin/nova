@@ -10,6 +10,7 @@
     "version_plan",
     "codeartifact_gate_report",
     "codeartifact_promotion_candidates",
+    "promotion_input_digests",
     "post_deploy_validation_report"
   ],
   "properties": {
@@ -24,6 +25,7 @@
     },
     "codeartifact_promotion_candidates": {
       "type": "array",
+      "uniqueItems": true,
       "items": {
         "$ref": "#/$defs/promotion_candidate"
       }
@@ -154,7 +156,9 @@
               "unit_id",
               "project",
               "path",
-              "version"
+              "version",
+              "format",
+              "namespace"
             ],
             "properties": {
               "unit_id": {
@@ -171,6 +175,19 @@
               },
               "version": {
                 "$ref": "#/$defs/semver"
+              },
+              "format": {
+                "type": "string",
+                "enum": [
+                  "pypi",
+                  "npm"
+                ]
+              },
+              "namespace": {
+                "type": [
+                  "string",
+                  "null"
+                ]
               }
             }
           }
@@ -228,6 +245,8 @@
               "unit_id",
               "project",
               "path",
+              "format",
+              "namespace",
               "old_version",
               "new_version",
               "bump",
@@ -245,6 +264,19 @@
               "path": {
                 "type": "string",
                 "minLength": 1
+              },
+              "format": {
+                "type": "string",
+                "enum": [
+                  "pypi",
+                  "npm"
+                ]
+              },
+              "namespace": {
+                "type": [
+                  "string",
+                  "null"
+                ]
               },
               "old_version": {
                 "$ref": "#/$defs/semver"
@@ -291,7 +323,8 @@
           "type": [
             "string",
             "null"
-          ]
+          ],
+          "pattern": "^[a-z0-9][a-z0-9-]*$"
         },
         "package": {
           "type": "string",
@@ -301,12 +334,51 @@
           "$ref": "#/$defs/semver"
         },
         "unit_id": {
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": "string",
+          "minLength": 1
         }
-      }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "format": {
+                "const": "pypi"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "namespace": {
+                "type": "null"
+              },
+              "package": {
+                "pattern": "^nova-[a-z0-9][a-z0-9-]*$"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "format": {
+                "const": "npm"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "namespace": {
+                "type": "string",
+                "const": "nova"
+              },
+              "package": {
+                "pattern": "^@nova/[a-z0-9][a-z0-9-]*$"
+              }
+            }
+          }
+        }
+      ]
     },
     "codeartifact_gate_report": {
       "type": "object",

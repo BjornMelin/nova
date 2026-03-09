@@ -56,8 +56,14 @@ def test_promote_prod_workflow_has_controlled_package_promotion_policy() -> (
     for required in [
         "manifest_sha256",
         "changed_units_json",
+        "changed_units_path",
+        "changed_units_sha256",
         "version_plan_json",
+        "version_plan_path",
+        "version_plan_sha256",
         "promotion_candidates_json",
+        "promotion_candidates_path",
+        "promotion_candidates_sha256",
         "codeartifact_domain",
         "codeartifact_staging_repository",
         "codeartifact_prod_repository",
@@ -72,6 +78,9 @@ def test_promote_prod_workflow_has_controlled_package_promotion_policy() -> (
         "CODEARTIFACT_STAGING_REPOSITORY",
         "CODEARTIFACT_PROD_REPOSITORY",
         "scripts.release.codeartifact_gate",
+        "EXPECTED_CHANGED_UNITS_SHA256",
+        "EXPECTED_VERSION_PLAN_SHA256",
+        "EXPECTED_PROMOTION_CANDIDATES_SHA256",
         "copy-package-versions",
         "package_format",
         "--namespace",
@@ -80,6 +89,19 @@ def test_promote_prod_workflow_has_controlled_package_promotion_policy() -> (
     ]:
         assert required in reusable_text, (
             f"Missing required reusable contract: {required!r}"
+        )
+
+    for required in [
+        "require_sha256",
+        "validate_json_source",
+        "absolute path is not allowed",
+        "sha256 mismatch",
+        "expected top-level JSON",
+        ".artifacts/validated-promotion-candidates.json",
+    ]:
+        assert required in reusable_text, (
+            "Reusable promote workflow must enforce strict, immutable "
+            f"promotion input validation: {required!r}"
         )
 
 

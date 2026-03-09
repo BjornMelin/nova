@@ -118,10 +118,14 @@ rg -n "/v1/transfers|/v1/jobs|/v1/internal/jobs|/v1/capabilities|/v1/resources/p
 
 ## npm / CodeArtifact Local Rule
 
-- Keep npm registry config repo-local. Use the committed repo-root `.npmrc`;
-  never put Nova CodeArtifact npm settings in global `~/.npmrc`.
+- Keep npm registry config repo-local. Use the committed repo-root `.npmrc`
+  for checked-in defaults, and use the generated `.npmrc.codeartifact` for
+  CodeArtifact auth; never put Nova CodeArtifact npm settings in global
+  `~/.npmrc`.
 - For local npm access, run from the repository root:
   `eval "$(npm run -s codeartifact:npm:env)"`
+- `scripts/release/codeartifact_npm.py` writes `.npmrc.codeartifact` and the
+  helper exports `NPM_CONFIG_USERCONFIG` to that path.
 - If you switch AWS accounts or CodeArtifact targets, set `AWS_REGION`,
   `CODEARTIFACT_DOMAIN`, and/or `CODEARTIFACT_STAGING_REPOSITORY` before
   running the helper.

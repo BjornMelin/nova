@@ -77,9 +77,6 @@ Implementation commitments:
 - CodeArtifact promotion IAM must use explicit source/destination repository
   parameters and must not rely on domain-wide wildcard repository permissions.
 
-Detailed workflow API, CloudFormation module, and IAM partitioning authority is
-owned by `ADR-0030`, `ADR-0031`, and `ADR-0032`.
-
 ## Related Requirements
 
 - [ADR-0023: Canonical V1 route surface hard-cut](./ADR-0023-hard-cut-v1-canonical-route-surface.md)

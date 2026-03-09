@@ -119,6 +119,7 @@ def test_foundation_exports_and_stack_wiring_contracts() -> None:
         "ManualApprovalTopic:",
         "CreateManualApprovalTopic:",
         "CodeArtifactInternalNpmScope:",
+        "ConstraintDescription: Must be a valid lowercase npm scope without @.",
         "InternalNpmPackageGroup:",
         "AWS::CodeArtifact::PackageGroup",
         "Pattern: !Sub /npm/${CodeArtifactInternalNpmScope}/*",
@@ -143,6 +144,7 @@ def test_foundation_exports_and_stack_wiring_contracts() -> None:
         "${FoundationStackName}-CodeArtifactRepositoryName",
         "CodeArtifactPromotionSourceRepositoryName:",
         "CodeArtifactPromotionDestinationRepositoryName:",
+        "ConstraintDescription: Must be a valid CodeArtifact repository name.",
         "RequireDistinctCodeArtifactPromotionRepositories:",
         "${FoundationStackName}-EcrRepositoryArn",
         "${FoundationStackName}-ManualApprovalTopicArn",
@@ -161,6 +163,12 @@ def test_foundation_exports_and_stack_wiring_contracts() -> None:
         "${FoundationStackName}-EcrRepositoryUri",
         "${FoundationStackName}-EcrRepositoryName",
         "${IamRolesStackName}-CodeBuildReleaseRoleArn",
+        "ReleaseBuildspecPath:",
+        "ValidateBuildspecPath:",
+        (
+            "ConstraintDescription: Must be a relative path without parent "
+            "traversal."
+        ),
         "${AWS::StackName}-ReleaseBuildProjectName",
         "${AWS::StackName}-DeployValidateProjectName",
     ]:
@@ -315,17 +323,18 @@ def test_iam_scope_constraints_for_release_roles() -> None:
     )
     assert repo_dest_pattern in github_role_text
     assert repo_src_pattern in github_role_text
+    assert "${CodeArtifactInternalNpmScope}" in github_role_text
     assert (
         "package/${ResolvedCodeArtifactDomainName}/"
-        "${ResolvedCodeArtifactRepositoryName}/npm/nova/*" in github_role_text
+        "${ResolvedCodeArtifactRepositoryName}/npm/" in github_role_text
     )
     assert (
         "package/${ResolvedCodeArtifactDomainName}/"
-        "${PromotionSourceRepositoryName}/npm/nova/*" in github_role_text
+        "${PromotionSourceRepositoryName}/npm/" in github_role_text
     )
     assert (
         "package/${ResolvedCodeArtifactDomainName}/"
-        "${PromotionDestinationRepositoryName}/npm/nova/*" in github_role_text
+        "${PromotionDestinationRepositoryName}/npm/" in github_role_text
     )
     assert "sts:AWSServiceName: codeartifact.amazonaws.com" in github_role_text
     assert "codeartifact:CreatePackageGroup" in text
@@ -339,7 +348,7 @@ def test_iam_scope_constraints_for_release_roles() -> None:
     assert "BatchB" not in text
 
     validation_policy_block = re.search(
-        r"(?ms)^  ReleaseValidationReadManagedPolicy:\n(?:^    .*\n)+",
+        r"(?ms)^  ReleaseValidationReadManagedPolicy:\n.*?(?=^Outputs:)",
         text,
     )
     assert validation_policy_block, (
@@ -348,7 +357,10 @@ def test_iam_scope_constraints_for_release_roles() -> None:
     validation_policy_text = validation_policy_block.group(0)
 
     for required_action in [
+        "codestar-connections:GetConnection",
         "codeconnections:GetConnection",
+        "codeartifact:GetRepositoryEndpoint",
+        "codeartifact:ReadFromRepository",
         "codepipeline:ListPipelines",
         "codepipeline:ListPipelineExecutions",
         "wafv2:GetWebACLForResource",

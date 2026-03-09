@@ -28,7 +28,7 @@ audit traceability only and is non-authoritative for current operations.
     - Re-run Gate A-E per
       `docs/plan/release/NONPROD-LIVE-VALIDATION-RUNBOOK.md`.
 
-- `2026-03-03T09:32:00Z` | operator: `AWSReservedSSO_PowerUserAccess (bjorn-dev)` |
+- `2026-03-03T09:32:00Z` | operator: `AWSReservedSSO_PowerUserAccess ([REDACTED])` |
   environment: `dev` | gate: `WS4 rerun + WS4 template apply`
   | result: `PARTIAL/BLOCKED`
   - artifact/log links:
@@ -48,7 +48,7 @@ audit traceability only and is non-authoritative for current operations.
     - Runtime deployment inventory is not present (`ecs list-clusters` empty,
       `deploy list-applications` empty), so Gate B/C/D/E cannot be fully closed.
 
-- `2026-03-03T09:32:00Z` | operator: `AWSReservedSSO_PowerUserAccess (bjorn-dev)` |
+- `2026-03-03T09:32:00Z` | operator: `AWSReservedSSO_PowerUserAccess ([REDACTED])` |
   environment: `dev` | gate: `WS6 dash-pca Run2`
   | result: `PASS`
   - artifact/log links:

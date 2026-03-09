@@ -7,6 +7,14 @@ Date: 2026-02-28
 Related:
   - "[ADR-0011: Hybrid CI/CD with GitHub and AWS promotion](../ADR-0011-cicd-hybrid-github-aws-promotion.md)"
   - "[ADR-0012: No Lambda runtime scope](../ADR-0012-no-lambda-runtime-scope.md)"
+  - "[ADR-0015: Nova API platform final hosting and deployment architecture (2026)](../ADR-0015-nova-api-platform-final-hosting-and-deployment-architecture-2026.md)"
+  - "[ADR-0023: Hard cut to a single canonical /v1 API surface](../ADR-0023-hard-cut-v1-canonical-route-surface.md)"
+  - "[ADR-0024: Layered runtime authority pack for the Nova monorepo](../ADR-0024-layered-architecture-authority-pack.md)"
+  - "[ADR-0025: Runtime monorepo component boundaries and ownership](../ADR-0025-runtime-monorepo-component-boundaries-and-ownership.md)"
+  - "[ADR-0026: Fail-fast runtime configuration and safe auth execution](../ADR-0026-fail-fast-runtime-configuration-and-safe-auth-execution.md)"
+  - "[ADR-0030: Native-CFN modular stack architecture for Nova infrastructure productization](../ADR-0030-native-cfn-modular-stack-architecture-for-nova-infrastructure-productization.md)"
+  - "[ADR-0031: Reusable GitHub workflow API and versioning policy for deployment automation](../ADR-0031-reusable-github-workflow-api-and-versioning-policy-for-deployment-automation.md)"
+  - "[ADR-0032: OIDC and IAM role partitioning for deploy automation](../ADR-0032-oidc-and-iam-role-partitioning-for-deploy-automation.md)"
   - "[SPEC-0004: CI/CD and documentation automation](../../spec/SPEC-0004-ci-cd-and-docs.md)"
   - "[SPEC-0013: Container-craft capability absorption execution spec (archived)](../../../history/2026-02-cutover/architecture/spec/SPEC-0013-container-craft-capability-absorption-execution-spec.md)"
   - "[SPEC-0014: Container-craft capability inventory and Nova absorption target map (archived)](../../../history/2026-02-cutover/architecture/spec/SPEC-0014-container-craft-capability-inventory-and-absorption-map.md)"
@@ -16,10 +24,7 @@ References:
   - "[AWS CodePipeline source actions and change detection](https://docs.aws.amazon.com/codepipeline/latest/userguide/change-detection-methods.html)"
 ---
 
-Supersession note (2026-03-05): this migration decision is fully absorbed into
-the live Nova monorepo state. Current runtime and deploy authority now lives in
-`ADR-0015`, `ADR-0023`, `ADR-0024` through `ADR-0026`, and `ADR-0030` through
-`ADR-0032`.
+This ADR is superseded and retained for historical traceability only.
 
 ## Summary
 

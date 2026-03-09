@@ -19,6 +19,7 @@ MANIFEST_ROW_RE = re.compile(
     r"\|\s*`(?P<unit>[^`]+)`\s*\|\s*`(?P<package>[^`]+)`\s*\|"
     r"\s*`(?P<version>[^`]+)`\s*\|"
 )
+SHA256_RE = re.compile(r"^[A-Fa-f0-9]{64}$")
 
 
 @dataclass(frozen=True)
@@ -136,8 +137,8 @@ def _load_candidates(
         candidates.append(
             _validate_candidate(
                 {
-                    "format": item.get("format", unit.package_format),
-                    "namespace": item.get("namespace", unit.namespace),
+                    "format": unit.package_format,
+                    "namespace": unit.namespace,
                     "package": unit.project_name,
                     "version": version,
                     "unit_id": unit_id,
@@ -186,6 +187,12 @@ def validate_release_gates(
     """
     manifest_text = manifest_path.read_text(encoding="utf-8")
     manifest_sha256 = hashlib.sha256(manifest_text.encode("utf-8")).hexdigest()
+    if expected_manifest_sha256 is not None and not SHA256_RE.match(
+        expected_manifest_sha256
+    ):
+        raise GateError(
+            "expected manifest sha256 must be a 64-character hex digest"
+        )
     if (
         expected_manifest_sha256 is not None
         and expected_manifest_sha256 != manifest_sha256
@@ -214,6 +221,8 @@ def validate_release_gates(
         unit_id = str(item.get("unit_id", "")).strip()
         if not unit_id:
             raise GateError("changed_units entries require unit_id")
+        if unit_id in changed_unit_ids:
+            raise GateError(f"duplicate changed_units unit_id: {unit_id}")
         changed_unit_ids.add(unit_id)
 
     planned_items = version_plan.get("units", [])
@@ -225,6 +234,8 @@ def validate_release_gates(
             raise GateError("version plan units must be objects")
         unit_id = str(item.get("unit_id", "")).strip()
         if unit_id:
+            if unit_id in planned_unit_ids:
+                raise GateError(f"duplicate version plan unit_id: {unit_id}")
             planned_unit_ids.add(unit_id)
     planned_unit_ids.discard("")
 

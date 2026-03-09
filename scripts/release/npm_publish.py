@@ -40,12 +40,18 @@ def collect_npm_unit_ids(
     units: dict[str, common.WorkspaceUnit],
 ) -> list[str]:
     """Return planned npm unit IDs in dependency order."""
-    npm_unit_ids = {
-        str(item.get("unit_id", "")).strip()
-        for item in version_plan.get("units", [])
-        if str(item.get("unit_id", "")).strip()
-        and units[str(item.get("unit_id", "")).strip()].package_format == "npm"
-    }
+    npm_unit_ids: set[str] = set()
+    for item in version_plan.get("units", []):
+        unit_id = str(item.get("unit_id", "")).strip()
+        if not unit_id:
+            continue
+        unit = units.get(unit_id)
+        if unit is None:
+            raise ValueError(
+                f"version plan unit not found in workspace: {unit_id}"
+            )
+        if unit.package_format == "npm":
+            npm_unit_ids.add(unit_id)
     return common.order_units_for_release(units, npm_unit_ids)
 
 

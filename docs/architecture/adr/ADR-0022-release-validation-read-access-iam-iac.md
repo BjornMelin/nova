@@ -40,8 +40,8 @@ Nova required a reproducible, auditable, least-privilege path in-repo
 
 ## Options considered
 
-1. **Inline release validation read policy in `infra/nova/nova-iam-roles.yml` on a dedicated role (conditional creation by trusted principal ARN parameter)**
-1. Standalone managed policy + separate role attachment choreography
+1. **Dedicated release validation read role in `infra/nova/nova-iam-roles.yml` with attached managed policy (conditional creation by trusted principal ARN parameter)**
+1. Inline role policy instead of a separately managed policy resource
 1. Continue manual/operator-side IAM updates out-of-band
 
 ## Scoring
@@ -82,7 +82,8 @@ Policy stance:
 
 - Scope to explicit ARNs where service supports it (`codeconnections:GetConnection`, pipeline-scoped reads).
 - Use `Resource: "*"` only where service authorization model requires it (`ListPipelines`, `ListApplications`, selected runtime read APIs).
-- Keep conceptual/config surface minimal: single role + single inline policy + one principal parameter.
+- Keep conceptual/config surface minimal: single role + single managed policy
+  attachment + one principal parameter.
 
 ## Consequences
 
@@ -100,6 +101,7 @@ Tradeoffs:
 ## Implementation summary
 
 - Added `ReleaseValidationTrustedPrincipalArn` parameter.
-- Added `ReleaseValidationReadRole` with inline read-only release validation policy.
+- Added `ReleaseValidationReadRole` and attached
+  `ReleaseValidationReadManagedPolicy` for read-only release validation access.
 - Added conditional output `ReleaseValidationReadRoleArn`.
 - Updated runbooks with apply/verify/rollback and evidence expectations.

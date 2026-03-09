@@ -128,8 +128,9 @@ Provide these values when deploying `infra/nova/nova-iam-roles.yml`:
    - `codeartifact:CopyPackageVersions` scoped to prod destination repository
      plus required Python and private npm package ARNs.
 5. Release/build roles include package-group governance for
-   `package-group/${CodeArtifactDomainName}/*` so `/npm/nova/*` blocks
-   upstream ingestion while still allowing direct publish.
+   `package-group/${CodeArtifactDomainName}/*` so
+   `/npm/${CodeArtifactInternalNpmScope}/*` blocks upstream ingestion while
+   still allowing direct publish.
 6. When `ReleaseValidationTrustedPrincipalArn` is provided, output
    `ReleaseValidationReadRoleArn` exists and is assumable by the trusted
    principal.

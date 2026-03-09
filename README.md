@@ -35,8 +35,9 @@ contracts and operator runbooks.
 
 ## SDK Governance
 
-Nova owns complete client SDKs for Python, TypeScript, and R as the target
-public contract surface.
+Nova owns the client SDK contract surface, with Python as the current
+release-grade public SDK and TypeScript/R scaffolding retained in-repo for
+future publish-ready parity.
 
 Current repository posture:
 
@@ -131,7 +132,7 @@ for p in packages/nova_file_api packages/nova_auth_api \
 TypeScript/CodeArtifact local auth stays repo-scoped:
 
 ```bash
-cd /home/bjorn/repos/work/infra-stack/nova
+cd <NOVA_REPO_ROOT>
 eval "$(npm run -s codeartifact:npm:env)"
 npm install --no-package-lock
 ```

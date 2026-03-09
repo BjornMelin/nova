@@ -115,18 +115,21 @@ def test_worker_receive_message_uses_configured_sqs_polling_settings(
     monkeypatch.setattr("nova_file_api.worker.boto3.client", _fake_boto3_client)
     monkeypatch.setattr("nova_file_api.worker.httpx.Client", _fake_http_client)
 
-    settings = Settings()
-    settings.jobs_enabled = True
-    settings.jobs_runtime_mode = "worker"
-    settings.jobs_queue_backend = JobsQueueBackend.SQS
-    settings.jobs_sqs_queue_url = (
-        "https://sqs.us-west-2.amazonaws.com/123456789012/nova-jobs"
+    settings = Settings.model_validate(
+        {
+            "JOBS_ENABLED": True,
+            "JOBS_RUNTIME_MODE": "worker",
+            "JOBS_QUEUE_BACKEND": JobsQueueBackend.SQS,
+            "JOBS_SQS_QUEUE_URL": (
+                "https://sqs.us-west-2.amazonaws.com/123456789012/nova-jobs"
+            ),
+            "JOBS_API_BASE_URL": "https://api.example.local",
+            "JOBS_WORKER_UPDATE_TOKEN": SecretStr("worker-token"),
+            "JOBS_SQS_MAX_NUMBER_OF_MESSAGES": 5,
+            "JOBS_SQS_WAIT_TIME_SECONDS": 7,
+            "JOBS_SQS_VISIBILITY_TIMEOUT_SECONDS": 180,
+        }
     )
-    settings.jobs_api_base_url = "https://api.example.local"
-    settings.jobs_worker_update_token = SecretStr("worker-token")
-    settings.jobs_sqs_max_number_of_messages = 5
-    settings.jobs_sqs_wait_time_seconds = 7
-    settings.jobs_sqs_visibility_timeout_seconds = 180
 
     worker = JobsWorker(
         settings=settings,
@@ -162,13 +165,16 @@ def test_worker_invalid_message_is_not_deleted(
         lambda **kwargs: fake_http,
     )
 
-    settings = Settings()
-    settings.jobs_enabled = True
-    settings.jobs_runtime_mode = "worker"
-    settings.jobs_queue_backend = JobsQueueBackend.SQS
-    settings.jobs_sqs_queue_url = "https://example.local/queue"
-    settings.jobs_api_base_url = "https://api.example.local"
-    settings.jobs_worker_update_token = SecretStr("worker-token")
+    settings = Settings.model_validate(
+        {
+            "JOBS_ENABLED": True,
+            "JOBS_RUNTIME_MODE": "worker",
+            "JOBS_QUEUE_BACKEND": JobsQueueBackend.SQS,
+            "JOBS_SQS_QUEUE_URL": "https://example.local/queue",
+            "JOBS_API_BASE_URL": "https://api.example.local",
+            "JOBS_WORKER_UPDATE_TOKEN": SecretStr("worker-token"),
+        }
+    )
 
     worker = JobsWorker(settings=settings)
     should_delete = worker._handle_message(

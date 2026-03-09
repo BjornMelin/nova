@@ -46,9 +46,13 @@ Parameters:
   ReleaseBuildspecPath:
     Type: String
     Default: buildspecs/buildspec-release.yml
+    AllowedPattern: "^(?!/)(?!.*\\.\\.)[A-Za-z0-9._/-]+$"
+    ConstraintDescription: Must be a relative path without parent traversal.
   ValidateBuildspecPath:
     Type: String
     Default: buildspecs/buildspec-deploy-validate.yml
+    AllowedPattern: "^(?!/)(?!.*\\.\\.)[A-Za-z0-9._/-]+$"
+    ConstraintDescription: Must be a relative path without parent traversal.
   ReleaseBuildProjectName:
     Type: String
     Default: ""
@@ -155,6 +159,9 @@ Resources:
               - !ImportValue
                 Fn::Sub: "${FoundationStackName}-EcrRepositoryName"
           - Name: FILE_DOCKERFILE_PATH
+            Type: PLAINTEXT
+            Value: !Ref FileDockerfilePath
+          - Name: DOCKERFILE_PATH
             Type: PLAINTEXT
             Value: !Ref FileDockerfilePath
           - Name: AUTH_DOCKERFILE_PATH

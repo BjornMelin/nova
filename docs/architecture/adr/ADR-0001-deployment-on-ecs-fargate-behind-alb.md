@@ -6,7 +6,9 @@ Version: 1.3
 Date: 2026-03-05
 Related:
   - "[ADR-0000: Implement the File Transfer API as a FastAPI service](./ADR-0000-fastapi-microservice.md)"
+  - "[ADR-0015: Nova API platform final hosting and deployment architecture (2026)](./ADR-0015-nova-api-platform-final-hosting-and-deployment-architecture-2026.md)"
   - "[ADR-0023: Hard cut to a single canonical /v1 API surface](./ADR-0023-hard-cut-v1-canonical-route-surface.md)"
+  - "[ADR-0030: Native-CFN modular stack architecture for Nova infrastructure productization](./ADR-0030-native-cfn-modular-stack-architecture-for-nova-infrastructure-productization.md)"
 References:
   - "[AWS Fargate on ECS](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/AWS_Fargate.html)"
   - "[ECS container health checks](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/healthcheck.html)"
@@ -19,10 +21,6 @@ Deploy the API as an ECS/Fargate service behind the existing ALB and route
 canonical `/v1/transfers/*` and `/v1/jobs/*` traffic to it. Keep browser
 traffic same-origin with the parent application to avoid CORS/auth integration
 complexity.
-
-Supersession note (2026-03-05): this ADR remains the background decision for
-same-origin ALB routing, but deployment platform authority is now centered on
-`ADR-0015`, `ADR-0023`, and `ADR-0030`.
 
 ## Context
 

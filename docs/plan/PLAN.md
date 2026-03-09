@@ -9,8 +9,6 @@ Last updated: 2026-03-05
 - `docs/architecture/requirements.md`
 - `docs/architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md`
 - `docs/architecture/adr/ADR-0024-layered-architecture-authority-pack.md`
-- `docs/architecture/adr/ADR-0031-reusable-github-workflow-api-and-versioning-policy-for-deployment-automation.md`
-- `docs/architecture/adr/ADR-0032-oidc-and-iam-role-partitioning-for-deploy-automation.md`
 - `docs/architecture/adr/ADR-0027-hard-cut-downstream-integration-and-consumer-contract-enforcement.md`
 - `docs/architecture/adr/ADR-0028-auth0-tenant-ops-reusable-workflow-api-contract.md`
 - `docs/architecture/adr/ADR-0029-ssm-runtime-base-url-authority-for-deploy-validation.md`
@@ -27,6 +25,7 @@ Last updated: 2026-03-05
 
 ## Adjacent deploy-governance authority
 
+- `docs/architecture/adr/ADR-0030-native-cfn-modular-stack-architecture-for-nova-infrastructure-productization.md`
 - `docs/architecture/adr/ADR-0031-reusable-github-workflow-api-and-versioning-policy-for-deployment-automation.md`
 - `docs/architecture/adr/ADR-0032-oidc-and-iam-role-partitioning-for-deploy-automation.md`
 - `docs/architecture/spec/SPEC-0024-cloudformation-module-contract.md`
@@ -44,14 +43,16 @@ Last updated: 2026-03-05
 
 ## Recent contract updates
 
-- Active runtime authority IDs (`ADR-0024`, `ADR-0031`, and `ADR-0032`) and `SPEC-0017` through `SPEC-0019` were restored to runtime subjects.
+- Active runtime authority IDs (`ADR-0023`, `ADR-0024`, and `ADR-0027` through
+  `ADR-0029`) and `SPEC-0017` through `SPEC-0023` are aligned as the active
+  runtime subject set.
 - Auth0 reusable tenant workflow now requires successful contract validation
   before any import/export mutation step.
 - Release IAM promotion controls now require explicit staged source and prod
   destination repository parameters for `CopyPackageVersions`.
-- Nova owns complete public SDKs for Python, TypeScript, and R as the target
-  client contract. Current Python SDK trees remain committed and drift-gated;
-  TypeScript/R scaffolding remains in-repo as the completion path and must not
+- Nova owns the public SDK contract across Python, TypeScript, and R.
+- Python remains the release-grade public SDK today; committed TypeScript and R
+  trees are retained in-repo as scaffolding on the completion path and must not
   be deleted.
 - SDK-facing OpenAPI metadata now requires stable snake_case `operationId`
   values, semantic tags, and deterministic regeneration of committed Python

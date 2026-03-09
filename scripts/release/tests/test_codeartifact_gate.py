@@ -165,7 +165,42 @@ def test_validate_release_gates_rejects_manifest_sha256_mismatch(
             manifest_path=manifest,
             changed_units_path=changed_units,
             version_plan_path=version_plan,
-            expected_manifest_sha256="badsum",
+            expected_manifest_sha256="a" * 64,
+        )
+
+
+def test_validate_release_gates_rejects_invalid_expected_sha_format(
+    tmp_path: Path,
+) -> None:
+    repo_root = _create_test_workspace(tmp_path)
+    manifest = tmp_path / "manifest.md"
+    manifest.write_text(MANIFEST_TEXT, encoding="utf-8")
+
+    changed_units = tmp_path / "changed-units.json"
+    _write_json(
+        changed_units,
+        {"changed_units": [{"unit_id": "packages/nova_file_api"}]},
+    )
+    version_plan = tmp_path / "version-plan.json"
+    _write_json(
+        version_plan,
+        {
+            "units": [
+                {"unit_id": "packages/nova_file_api", "new_version": "0.2.0"}
+            ]
+        },
+    )
+
+    with pytest.raises(
+        codeartifact_gate.GateError,
+        match="expected manifest sha256 must be a 64-character hex digest",
+    ):
+        codeartifact_gate.validate_release_gates(
+            repo_root=repo_root,
+            manifest_path=manifest,
+            changed_units_path=changed_units,
+            version_plan_path=version_plan,
+            expected_manifest_sha256="not-a-sha",
         )
 
 
@@ -260,9 +295,48 @@ def test_validate_release_gates_rejects_changed_units_plan_drift(
         )
 
 
+def test_validate_release_gates_rejects_duplicate_changed_units_entries(
+    tmp_path: Path,
+) -> None:
+    repo_root = _create_test_workspace(tmp_path)
+    manifest = tmp_path / "manifest.md"
+    manifest.write_text(MANIFEST_TEXT, encoding="utf-8")
+    changed_units = tmp_path / "changed-units.json"
+    _write_json(
+        changed_units,
+        {
+            "changed_units": [
+                {"unit_id": "packages/nova_file_api"},
+                {"unit_id": "packages/nova_file_api"},
+            ]
+        },
+    )
+    version_plan = tmp_path / "version-plan.json"
+    _write_json(
+        version_plan,
+        {
+            "units": [
+                {"unit_id": "packages/nova_file_api", "new_version": "0.2.0"}
+            ]
+        },
+    )
+    with pytest.raises(
+        codeartifact_gate.GateError,
+        match="duplicate changed_units unit_id",
+    ):
+        codeartifact_gate.validate_release_gates(
+            repo_root=repo_root,
+            manifest_path=manifest,
+            changed_units_path=changed_units,
+            version_plan_path=version_plan,
+            expected_manifest_sha256=None,
+        )
+
+
 def test_validate_release_gates_supports_npm_candidates(
     tmp_path: Path,
 ) -> None:
+    """Validate gate output supports npm promotion candidates."""
     repo_root = _create_test_workspace_with_npm(tmp_path)
     manifest_text = """# Release Version Manifest
 

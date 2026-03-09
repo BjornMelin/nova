@@ -5,6 +5,12 @@ Status: Accepted
 Version: 2.0
 Date: 2026-03-05
 Related:
+  - "[AGENTS.md runtime authority](../../../AGENTS.md)"
+  - "[README.md runtime authority summary](../../../README.md)"
+  - "[PRD authority baseline](../../PRD.md)"
+  - "[Architecture requirements baseline](../requirements.md)"
+  - "[Plan index authority set](../../plan/PLAN.md)"
+  - "[Runbooks authority index](../../runbooks/README.md)"
   - "[ADR-0023: Hard cut to a single canonical /v1 API surface](./ADR-0023-hard-cut-v1-canonical-route-surface.md)"
   - "[ADR-0025: Runtime monorepo component boundaries and ownership](./ADR-0025-runtime-monorepo-component-boundaries-and-ownership.md)"
   - "[ADR-0026: Fail-fast runtime configuration and safe auth execution](./ADR-0026-fail-fast-runtime-configuration-and-safe-auth-execution.md)"
@@ -23,13 +29,6 @@ execution safety. Deployment-control-plane, reusable workflow, and CI/CD IAM
 subjects are governed separately and must not occupy runtime authority IDs.
 
 ## Context
-
-The active authority list in `AGENTS.md`, `README.md`, `docs/PRD.md`,
-`docs/architecture/requirements.md`, `docs/plan/PLAN.md`, and
-`docs/runbooks/README.md` points to `ADR-0024`, `ADR-0025`, `ADR-0026`,
-`SPEC-0017`, `SPEC-0018`, and `SPEC-0019` as runtime authority. Those files had
-drifted into infrastructure productization, reusable workflow, and CI/CD IAM
-subjects, which made the active authority pack internally false.
 
 Nova is greenfield and hard-cut by default. We do not preserve parallel
 authority chains or tolerate mixed runtime/deploy topics inside the same active
@@ -61,13 +60,14 @@ Choose **Option B**.
 ### Required characteristics
 
 1. The active runtime authority pack is:
-   - `ADR-0023` through `ADR-0029`
-   - `SPEC-0000`
-   - `SPEC-0015` through `SPEC-0023`
-2. `ADR-0024`, `ADR-0025`, and `ADR-0026` govern runtime authority-pack
-   boundaries, runtime ownership, and runtime safety rules.
-3. `SPEC-0017`, `SPEC-0018`, and `SPEC-0019` govern runtime topology,
-   configuration/startup validation, and auth/threadpool safety.
+   - `ADR-0023`, `ADR-0024`, and `ADR-0027` through `ADR-0029`
+   - `SPEC-0000`, `SPEC-0015`, `SPEC-0016`, and `SPEC-0017` through `SPEC-0023`
+2. `ADR-0024` governs layered authority-pack boundaries for runtime
+   documentation subjects.
+3. `SPEC-0017` through `SPEC-0023` govern runtime topology,
+   configuration/startup validation, auth/threadpool safety, downstream
+   integration contracts, Auth0 reusable workflow contracts, and SSM base-url
+   authority.
 4. Infrastructure productization, reusable workflow API governance, and CI/CD
    IAM least-privilege move to `ADR-0030` through `ADR-0032` and
    `SPEC-0024` through `SPEC-0026`.

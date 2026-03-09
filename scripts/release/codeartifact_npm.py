@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import shlex
 import subprocess
 from pathlib import Path
 
@@ -105,6 +106,7 @@ def write_repo_local_npmrc() -> Path:
         ),
         encoding="utf-8",
     )
+    npmrc_path.chmod(0o600)
     return npmrc_path
 
 
@@ -126,7 +128,7 @@ def main() -> int:
         return 0
 
     npmrc_path = write_repo_local_npmrc()
-    print(f"export NPM_CONFIG_USERCONFIG='{npmrc_path}'")
+    print(f"export NPM_CONFIG_USERCONFIG={shlex.quote(str(npmrc_path))}")
     return 0
 
 

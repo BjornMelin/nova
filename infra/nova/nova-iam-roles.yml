@@ -36,11 +36,21 @@ Parameters:
   CodeArtifactPromotionSourceRepositoryName:
     Type: String
     MinLength: 1
+    AllowedPattern: "^[a-zA-Z0-9][a-zA-Z0-9._-]{0,99}$"
+    ConstraintDescription: Must be a valid CodeArtifact repository name.
     Description: CodeArtifact source repository for staged package promotion.
   CodeArtifactPromotionDestinationRepositoryName:
     Type: String
     MinLength: 1
+    AllowedPattern: "^[a-zA-Z0-9][a-zA-Z0-9._-]{0,99}$"
+    ConstraintDescription: Must be a valid CodeArtifact repository name.
     Description: CodeArtifact destination repository for prod package promotion.
+  CodeArtifactInternalNpmScope:
+    Type: String
+    Default: nova
+    MinLength: 1
+    AllowedPattern: "^[A-Za-z0-9._-]+$"
+    ConstraintDescription: Use letters, numbers, dots, underscores, and hyphens only.
   EcrRepositoryArn:
     Type: String
     Default: ""
@@ -193,7 +203,7 @@ Resources:
                     - !ImportValue
                       Fn::Sub: "${FoundationStackName}-CodeArtifactRepositoryName"
               - !Sub
-                - "arn:${AWS::Partition}:codeartifact:${AWS::Region}:${AWS::AccountId}:package/${ResolvedCodeArtifactDomainName}/${ResolvedCodeArtifactRepositoryName}/npm/nova/*"
+                - "arn:${AWS::Partition}:codeartifact:${AWS::Region}:${AWS::AccountId}:package/${ResolvedCodeArtifactDomainName}/${ResolvedCodeArtifactRepositoryName}/npm/${CodeArtifactInternalNpmScope}/*"
                 - ResolvedCodeArtifactDomainName: !If
                     - HasCodeArtifactDomainName
                     - !Ref CodeArtifactDomainName
@@ -237,7 +247,7 @@ Resources:
                       Fn::Sub: "${FoundationStackName}-CodeArtifactDomainName"
                   PromotionSourceRepositoryName: !Ref CodeArtifactPromotionSourceRepositoryName
               - !Sub
-                - "arn:${AWS::Partition}:codeartifact:${AWS::Region}:${AWS::AccountId}:package/${ResolvedCodeArtifactDomainName}/${PromotionSourceRepositoryName}/npm/nova/*"
+                - "arn:${AWS::Partition}:codeartifact:${AWS::Region}:${AWS::AccountId}:package/${ResolvedCodeArtifactDomainName}/${PromotionSourceRepositoryName}/npm/${CodeArtifactInternalNpmScope}/*"
                 - ResolvedCodeArtifactDomainName: !If
                     - HasCodeArtifactDomainName
                     - !Ref CodeArtifactDomainName
@@ -253,7 +263,7 @@ Resources:
                       Fn::Sub: "${FoundationStackName}-CodeArtifactDomainName"
                   PromotionDestinationRepositoryName: !Ref CodeArtifactPromotionDestinationRepositoryName
               - !Sub
-                - "arn:${AWS::Partition}:codeartifact:${AWS::Region}:${AWS::AccountId}:package/${ResolvedCodeArtifactDomainName}/${PromotionDestinationRepositoryName}/npm/nova/*"
+                - "arn:${AWS::Partition}:codeartifact:${AWS::Region}:${AWS::AccountId}:package/${ResolvedCodeArtifactDomainName}/${PromotionDestinationRepositoryName}/npm/${CodeArtifactInternalNpmScope}/*"
                 - ResolvedCodeArtifactDomainName: !If
                     - HasCodeArtifactDomainName
                     - !Ref CodeArtifactDomainName
@@ -479,7 +489,7 @@ Resources:
                     - !ImportValue
                       Fn::Sub: "${FoundationStackName}-CodeArtifactRepositoryName"
               - !Sub
-                - "arn:${AWS::Partition}:codeartifact:${AWS::Region}:${AWS::AccountId}:package/${ResolvedCodeArtifactDomainName}/${ResolvedCodeArtifactRepositoryName}/npm/nova/*"
+                - "arn:${AWS::Partition}:codeartifact:${AWS::Region}:${AWS::AccountId}:package/${ResolvedCodeArtifactDomainName}/${ResolvedCodeArtifactRepositoryName}/npm/${CodeArtifactInternalNpmScope}/*"
                 - ResolvedCodeArtifactDomainName: !If
                     - HasCodeArtifactDomainName
                     - !Ref CodeArtifactDomainName
@@ -695,12 +705,27 @@ Resources:
           - Sid: CodeConnectionsRead
             Effect: Allow
             Action:
+              - codestar-connections:GetConnection
               - codeconnections:GetConnection
             Resource: !If
               - HasExistingConnectionArn
               - !Ref ExistingConnectionArn
               - - !Sub "arn:${AWS::Partition}:codeconnections:${AWS::Region}:${AWS::AccountId}:connection/*"
                 - !Sub "arn:${AWS::Partition}:codestar-connections:${AWS::Region}:${AWS::AccountId}:connection/*"
+          - Sid: ValidationCodeArtifactRead
+            Effect: Allow
+            Action:
+              - codeartifact:GetRepositoryEndpoint
+              - codeartifact:ReadFromRepository
+              - codeartifact:GetPackageVersionReadme
+              - codeartifact:DescribeDomain
+              - codeartifact:DescribePackage
+              - codeartifact:DescribePackageVersion
+              - codeartifact:DescribeRepository
+              - codeartifact:ListPackageVersions
+              - codeartifact:ListPackages
+              - codeartifact:ListRepositoriesInDomain
+            Resource: "*"
           - Sid: CodePipelineGlobalList
             Effect: Allow
             Action:

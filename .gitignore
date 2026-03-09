@@ -171,7 +171,6 @@ cython_debug/
 # Node / TypeScript local workspace artifacts
 node_modules/
 *.tsbuildinfo
-.npmrc.codeartifact
 
 
 # opensrc - source code for packages
@@ -189,7 +188,6 @@ infra/auth0/env/*
 !infra/auth0/env/*.env.example
 
 # Local npm token/config artifacts
-/.npmrc.codeartifact
 /.npmrc
 .npmrc*
 !/.npmrc.template

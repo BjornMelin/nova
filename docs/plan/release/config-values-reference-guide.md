@@ -174,7 +174,7 @@ Publish/promote workflow contracts additionally require:
 For local developer shells, Nova npm auth is repo-scoped rather than global:
 
 ```bash
-cd /home/bjorn/repos/work/infra-stack/nova
+cd <NOVA_REPO_ROOT>
 eval "$(npm run -s codeartifact:npm:env)"
 npm install --no-package-lock
 ```

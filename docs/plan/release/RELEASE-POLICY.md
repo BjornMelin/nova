@@ -62,9 +62,9 @@ Companion modular setup guides:
    `file:../nova_sdk_fetch`) for local development, but staged publish
    artifacts must rewrite internal npm dependencies to concrete semver versions
    and remove publish-blocking `private: true`.
-9. Staged npm validation must install from CodeArtifact with `npm --no-progress`
+9. Staged npm validation must install from CodeArtifact with `npm install --no-progress`
    and verify the retained TypeScript helper contracts before prod promotion.
-10. Internal npm package-group policy for `/npm/nova/*` must allow direct
+10. Internal npm package-group policy for `/npm/${CodeArtifactInternalNpmScope}/*` must allow direct
    publish while blocking both external and internal upstream ingestion.
 11. Promotion must include and verify `RELEASE_MANIFEST_SHA256`, where the value
    is the actual SHA256 of `docs/plan/release/RELEASE-VERSION-MANIFEST.md`.
@@ -74,8 +74,10 @@ Companion modular setup guides:
 
 ## 5A. Runtime deployment policy
 
-1. Runtime service deployment uses ECS blue/green controls implemented via
-   AWS CodeDeploy for `AWS::ECS::Service` resources.
+1. Runtime service deployment uses ECS-native blue/green controls on
+   `AWS::ECS::Service` resources with:
+   - `DeploymentController.Type=ECS`
+   - `DeploymentConfiguration.Strategy=BLUE_GREEN`
 2. Public ALB WebACL/WAF association is environment-template specific and must
    be validated against the deployed runtime stack definitions for each lane.
 
