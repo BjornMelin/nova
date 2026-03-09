@@ -1,7 +1,13 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
-    "rootDir": "../.."
+    "rootDir": "../..",
+    "baseUrl": ".",
+    "paths": {
+      "@nova/sdk-auth/*": ["../../nova_sdk_auth/src/*"],
+      "@nova/sdk-fetch/*": ["../../nova_sdk_fetch/src/*"],
+      "@nova/sdk-file/*": ["../../nova_sdk_file/src/*"]
+    }
   },
   "files": [
     "src/conformance.ts",
