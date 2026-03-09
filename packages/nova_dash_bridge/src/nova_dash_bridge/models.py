@@ -2,9 +2,18 @@
 
 from __future__ import annotations
 
-from typing import Any, Literal
+from typing import Literal
 
+from nova_file_api.models import (
+    ErrorBody as CoreErrorBody,
+)
+from nova_file_api.models import (
+    ErrorEnvelope as CoreErrorEnvelope,
+)
 from pydantic import BaseModel, Field, field_validator
+
+ErrorBody = CoreErrorBody
+ErrorEnvelope = CoreErrorEnvelope
 
 
 class StrictModel(BaseModel):
@@ -109,6 +118,7 @@ class CompleteUploadResponse(StrictModel):
     bucket: str
     key: str
     etag: str | None = None
+    version_id: str | None = None
 
 
 class AbortUploadRequest(StrictModel):
@@ -149,18 +159,3 @@ class PresignDownloadResponse(StrictModel):
     key: str
     url: str
     expires_in_seconds: int
-
-
-class ErrorBody(StrictModel):
-    """Error payload body."""
-
-    code: str
-    message: str
-    details: dict[str, Any] = Field(default_factory=dict)
-    request_id: str | None = None
-
-
-class ErrorEnvelope(StrictModel):
-    """Error envelope returned by endpoints."""
-
-    error: ErrorBody
