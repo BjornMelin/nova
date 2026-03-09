@@ -1,4 +1,6 @@
 # ruff: noqa
+"""Client helpers for the `/v1/transfers/uploads/initiate` endpoint."""
+
 from typing import Any
 
 import httpx
@@ -54,6 +56,11 @@ def _parse_response(
         response_403 = ErrorEnvelope.from_dict(response.json())
 
         return response_403
+
+    if response.status_code == 409:
+        response_409 = ErrorEnvelope.from_dict(response.json())
+
+        return response_409
 
     if response.status_code == 422:
         response_422 = ErrorEnvelope.from_dict(response.json())
@@ -135,7 +142,7 @@ def sync(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        ErrorEnvelope | InitiateUploadResponse
+        ErrorEnvelope | InitiateUploadResponse | None
     """
 
     return sync_detailed(
@@ -196,7 +203,7 @@ async def asyncio(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        ErrorEnvelope | InitiateUploadResponse
+        ErrorEnvelope | InitiateUploadResponse | None
     """
 
     return (

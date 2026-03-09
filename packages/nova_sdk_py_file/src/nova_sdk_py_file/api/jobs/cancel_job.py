@@ -1,4 +1,6 @@
 # ruff: noqa
+"""Client helpers for the `/v1/jobs/{job_id}/cancel` endpoint."""
+
 from typing import Any
 from urllib.parse import quote
 
@@ -113,7 +115,7 @@ def sync(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        ErrorEnvelope | JobCancelResponse
+        ErrorEnvelope | JobCancelResponse | None
     """
 
     return sync_detailed(
@@ -168,7 +170,7 @@ async def asyncio(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        ErrorEnvelope | JobCancelResponse
+        ErrorEnvelope | JobCancelResponse | None
     """
 
     return (

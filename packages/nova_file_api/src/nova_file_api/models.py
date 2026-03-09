@@ -12,6 +12,7 @@ from pydantic import (
     Field,
     StringConstraints,
     field_validator,
+    model_validator,
 )
 
 
@@ -256,11 +257,31 @@ class JobCancelResponse(BaseModel):
 class JobResultUpdateRequest(BaseModel):
     """Worker/internal request payload for job result updates."""
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(
+        extra="forbid",
+        json_schema_extra={
+            "allOf": [
+                {
+                    "if": {
+                        "properties": {"status": {"const": "succeeded"}},
+                        "required": ["status"],
+                    },
+                    "then": {"properties": {"error": {"type": "null"}}},
+                }
+            ]
+        },
+    )
 
     status: JobStatus
     result: dict[str, Any] | None = None
     error: str | None = Field(default=None, max_length=4096)
+
+    @model_validator(mode="after")
+    def validate_success_error_contract(self) -> JobResultUpdateRequest:
+        """Enforce response contract for succeeded job updates."""
+        if self.status is JobStatus.SUCCEEDED and self.error is not None:
+            raise ValueError("error must be null when status is succeeded")
+        return self
 
 
 class JobResultUpdateResponse(BaseModel):
@@ -278,7 +299,7 @@ class JobListResponse(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    jobs: list[JobRecord]
+    jobs: list[JobRecord] = Field(max_length=200)
 
 
 class JobEventType(StrEnum):

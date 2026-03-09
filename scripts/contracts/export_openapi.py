@@ -23,7 +23,11 @@ DEFAULT_OUTPUT_DIR = REPO_ROOT / "packages" / "contracts" / "openapi"
 
 
 def _render_openapi() -> dict[str, str]:
-    """Render each runtime application's OpenAPI document as JSON text."""
+    """Render each runtime application's OpenAPI document as JSON text.
+
+    Returns:
+        dict[str, str]: Mapping of artifact filename to serialized JSON payload.
+    """
     rendered: dict[str, str] = {}
     for name, app_factory in OPENAPI_OUTPUTS.items():
         schema = app_factory().openapi()
@@ -32,7 +36,15 @@ def _render_openapi() -> dict[str, str]:
 
 
 def _write_outputs(output_dir: Path, *, check: bool) -> int:
-    """Write or verify canonical OpenAPI artifacts in the target directory."""
+    """Write or verify canonical OpenAPI artifacts in the target directory.
+
+    Args:
+        output_dir: Destination directory for generated OpenAPI artifacts.
+        check: Whether to verify drift only instead of writing files.
+
+    Returns:
+        int: Process status code (0 on success, 1 on drift).
+    """
     rendered = _render_openapi()
     status = 0
     if not check:
@@ -74,7 +86,11 @@ def _write_outputs(output_dir: Path, *, check: bool) -> int:
 
 
 def _args() -> argparse.Namespace:
-    """Parse command-line options for OpenAPI export/check workflows."""
+    """Parse command-line options for OpenAPI export/check workflows.
+
+    Returns:
+        argparse.Namespace: Parsed CLI arguments.
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--output-dir",

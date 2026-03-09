@@ -1,4 +1,6 @@
 # ruff: noqa
+"""Client helpers for the `/v1/transfers/uploads/abort` endpoint."""
+
 from typing import Any
 
 import httpx

@@ -1,4 +1,6 @@
 # ruff: noqa
+"""Client helpers for the `/v1/transfers/uploads/sign-parts` endpoint."""
+
 from typing import Any
 
 import httpx
@@ -118,7 +120,7 @@ def sync(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        ErrorEnvelope | SignPartsResponse
+        ErrorEnvelope | SignPartsResponse | None
     """
 
     return sync_detailed(
@@ -173,7 +175,7 @@ async def asyncio(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        ErrorEnvelope | SignPartsResponse
+        ErrorEnvelope | SignPartsResponse | None
     """
 
     return (

@@ -1,5 +1,6 @@
 # ruff: noqa
-from http import HTTPStatus
+"""Client helpers for the `/v1/token/verify` endpoint."""
+
 from typing import Any
 
 import httpx
@@ -69,7 +70,7 @@ def _build_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
 ) -> Response[ErrorEnvelope | TokenVerifyResponse]:
     return Response(
-        status_code=HTTPStatus(response.status_code),
+        status_code=response.status_code,
         content=response.content,
         headers=response.headers,
         parsed=_parse_response(client=client, response=response),

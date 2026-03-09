@@ -43,15 +43,6 @@ from nova_sdk_py_file.models.job_record_payload import JobRecordPayload
 from nova_sdk_py_file.models.job_record_result_type_0 import (
     JobRecordResultType0,
 )
-from nova_sdk_py_file.models.job_result_update_request import (
-    JobResultUpdateRequest,
-)
-from nova_sdk_py_file.models.job_result_update_request_result_type_0 import (
-    JobResultUpdateRequestResultType0,
-)
-from nova_sdk_py_file.models.job_result_update_response import (
-    JobResultUpdateResponse,
-)
 from nova_sdk_py_file.models.job_status import JobStatus
 from nova_sdk_py_file.models.job_status_response import JobStatusResponse
 from nova_sdk_py_file.models.metrics_summary_response import (
@@ -86,10 +77,6 @@ from nova_sdk_py_file.models.sign_parts_response_urls import (
     SignPartsResponseUrls,
 )
 from nova_sdk_py_file.models.upload_strategy import UploadStrategy
-from nova_sdk_py_file.models.validation_error import ValidationError
-from nova_sdk_py_file.models.validation_error_context import (
-    ValidationErrorContext,
-)
 
 __all__ = (
     "AbortUploadRequest",
@@ -118,9 +105,6 @@ __all__ = (
     "JobRecord",
     "JobRecordPayload",
     "JobRecordResultType0",
-    "JobResultUpdateRequest",
-    "JobResultUpdateRequestResultType0",
-    "JobResultUpdateResponse",
     "JobStatus",
     "JobStatusResponse",
     "MetricsSummaryResponse",
@@ -139,6 +123,4 @@ __all__ = (
     "SignPartsResponse",
     "SignPartsResponseUrls",
     "UploadStrategy",
-    "ValidationError",
-    "ValidationErrorContext",
 )

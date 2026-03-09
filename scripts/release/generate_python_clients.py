@@ -31,6 +31,9 @@ _FORMATTER_TIMEOUT_SECONDS = 60
 _RELATIVE_IMPORT_RE = re.compile(
     r"^from (?P<dots>\.+)(?P<module>[a-zA-Z0-9_\.]*) import (?P<names>.+)$"
 )
+_COMPONENT_REF_RE = re.compile(
+    r"^#/components/(?P<section>[^/]+)/(?P<name>.+)$"
+)
 _HTTP_METHODS = frozenset(
     {"get", "post", "put", "patch", "delete", "options", "head", "trace"}
 )
@@ -134,6 +137,96 @@ def _filter_internal_operations_for_public_sdk(
     return filtered
 
 
+def _collect_component_refs(node: object) -> set[tuple[str, str]]:
+    refs: set[tuple[str, str]] = set()
+    if isinstance(node, dict):
+        ref = node.get("$ref")
+        if isinstance(ref, str):
+            match = _COMPONENT_REF_RE.match(ref)
+            if match is not None:
+                refs.add((match.group("section"), match.group("name")))
+        for value in node.values():
+            refs.update(_collect_component_refs(value))
+    elif isinstance(node, list):
+        for item in node:
+            refs.update(_collect_component_refs(item))
+    return refs
+
+
+def _collect_security_scheme_refs(spec: dict[str, Any]) -> set[tuple[str, str]]:
+    refs: set[tuple[str, str]] = set()
+
+    def _collect_from_security(value: object) -> None:
+        if not isinstance(value, list):
+            return
+        for requirement in value:
+            if not isinstance(requirement, dict):
+                continue
+            for scheme_name in requirement:
+                refs.add(("securitySchemes", scheme_name))
+
+    _collect_from_security(spec.get("security"))
+    for path_item in (spec.get("paths") or {}).values():
+        if not isinstance(path_item, dict):
+            continue
+        _collect_from_security(path_item.get("security"))
+        for method, operation in path_item.items():
+            if method not in _HTTP_METHODS or not isinstance(operation, dict):
+                continue
+            _collect_from_security(operation.get("security"))
+    return refs
+
+
+def _prune_unreferenced_components(spec: dict[str, Any]) -> dict[str, Any]:
+    components = spec.get("components")
+    if not isinstance(components, dict):
+        return spec
+
+    without_components = copy.deepcopy(spec)
+    without_components.pop("components", None)
+    pending = list(_collect_component_refs(without_components))
+    pending.extend(_collect_security_scheme_refs(spec))
+    referenced: set[tuple[str, str]] = set()
+
+    while pending:
+        section, name = pending.pop()
+        ref = (section, name)
+        if ref in referenced:
+            continue
+        referenced.add(ref)
+        section_values = components.get(section)
+        if not isinstance(section_values, dict):
+            continue
+        component_value = section_values.get(name)
+        if component_value is None:
+            continue
+        pending.extend(_collect_component_refs(component_value))
+
+    pruned = copy.deepcopy(spec)
+    pruned_components = pruned.get("components")
+    if not isinstance(pruned_components, dict):
+        return pruned
+
+    for section, section_values in list(pruned_components.items()):
+        if not isinstance(section_values, dict):
+            continue
+        if section == "securitySchemes":
+            continue
+        kept = {
+            name: value
+            for name, value in section_values.items()
+            if (section, name) in referenced
+        }
+        if kept:
+            pruned_components[section] = kept
+        else:
+            del pruned_components[section]
+
+    if not pruned_components:
+        pruned.pop("components", None)
+    return pruned
+
+
 def _write_temp_spec(*, spec: dict[str, Any], destination: Path) -> Path:
     destination.write_text(
         json.dumps(spec, indent=2, sort_keys=True) + "\n",
@@ -144,10 +237,13 @@ def _write_temp_spec(*, spec: dict[str, Any], destination: Path) -> Path:
 
 def _generate_target(target: GenerationTarget, temp_root: Path) -> Path:
     destination = temp_root / target.package_name
-    spec_path = _write_temp_spec(
-        spec=_filter_internal_operations_for_public_sdk(
+    filtered_spec = _prune_unreferenced_components(
+        _filter_internal_operations_for_public_sdk(
             _load_spec_json(target.spec_path)
-        ),
+        )
+    )
+    spec_path = _write_temp_spec(
+        spec=filtered_spec,
         destination=temp_root / f"{target.package_name}.openapi.json",
     )
     command = [
@@ -311,9 +407,47 @@ def _replace_empty_docstring(content: str, *, doc: str) -> str:
     return content.replace('    """ """', f'    """{doc}"""')
 
 
+def _ensure_module_docstring(content: str, *, doc: str) -> str:
+    doc_block = f'"""{doc}"""\n\n'
+    if content.startswith("# ruff: noqa\n"):
+        if content.startswith(f"# ruff: noqa\n{doc_block}"):
+            return content
+        return content.replace(
+            "# ruff: noqa\n",
+            f"# ruff: noqa\n{doc_block}",
+            1,
+        )
+    if content.startswith(doc_block):
+        return content
+    return f"{doc_block}{content}"
+
+
 def _docstring_transformer(doc: str) -> Callable[[str], str]:
     def transform(content: str) -> str:
         return _replace_empty_docstring(content, doc=doc)
+
+    return transform
+
+
+def _module_doc_and_nullable_returns_transformer(
+    doc: str,
+) -> Callable[[str], str]:
+    def transform(content: str) -> str:
+        return (
+            _ensure_module_docstring(content, doc=doc)
+            .replace(
+                "    Returns:\n        ErrorEnvelope | EnqueueJobResponse\n",
+                "    Returns:\n        ErrorEnvelope | EnqueueJobResponse | None\n",
+            )
+            .replace(
+                "    Returns:\n        ErrorEnvelope | AbortUploadResponse\n",
+                "    Returns:\n        ErrorEnvelope | AbortUploadResponse | None\n",
+            )
+            .replace(
+                "    Returns:\n        ErrorEnvelope | SignPartsResponse\n",
+                "    Returns:\n        ErrorEnvelope | SignPartsResponse | None\n",
+            )
+        )
 
     return transform
 
@@ -720,6 +854,16 @@ def _patch_auth_sdk(root: Path) -> None:
         )
 
     _rewrite_file(root, "types.py", patch_types)
+    for path in (root / "api").rglob("*.py"):
+        rel_path = path.relative_to(root).as_posix()
+        _rewrite_file(
+            root,
+            rel_path,
+            lambda content: content.replace(
+                "status_code=HTTPStatus(response.status_code),\n",
+                "status_code=response.status_code,\n",
+            ).replace("from http import HTTPStatus\n", ""),
+        )
 
     def patch_token_introspect_request_repr(content: str) -> str:
         if "_attrs_field" not in content:
@@ -738,8 +882,28 @@ def _patch_auth_sdk(root: Path) -> None:
         "models/token_introspect_request.py",
         patch_token_introspect_request_repr,
     )
+    _rewrite_file(
+        root,
+        "models/token_introspect_form_request.py",
+        lambda content: content.replace(
+            "from attrs import define as _attrs_define\n",
+            "from attrs import define as _attrs_define\n"
+            "from attrs import field as _attrs_field\n",
+        ).replace(
+            "    access_token: str\n",
+            "    access_token: str = _attrs_field(repr=False)\n",
+        ),
+    )
 
     _rewrite_generated_empty_docstrings(root)
+    _rewrite_file(
+        root,
+        "api/token/verify_token.py",
+        lambda content: _ensure_module_docstring(
+            content,
+            doc="Client helpers for the `/v1/token/verify` endpoint.",
+        ),
+    )
     _rewrite_file(
         root,
         "models/token_introspect_response_claims.py",
@@ -786,11 +950,9 @@ def _patch_auth_sdk(root: Path) -> None:
         root,
         "models/error_envelope.py",
         lambda content: (
-            content.replace(
-                "# ruff: noqa\nfrom __future__ import annotations\n",
-                "# ruff: noqa\n"
-                '"""Error envelope model used by auth API responses."""\n\n'
-                "from __future__ import annotations\n",
+            _ensure_module_docstring(
+                content,
+                doc="Error envelope model used by auth API responses.",
             )
             .replace(
                 'class ErrorEnvelope:\n    """\n',
@@ -813,6 +975,34 @@ def _patch_auth_sdk(root: Path) -> None:
     )
     _rewrite_file(
         root,
+        "models/validation_error_context.py",
+        lambda content: (
+            _ensure_module_docstring(
+                content,
+                doc="Validation error context map for structured error payloads.",
+            )
+            .replace(
+                "    def to_dict(self) -> dict[str, Any]:\n\n",
+                "    def to_dict(self) -> dict[str, Any]:\n"
+                '        """Serialize this model to a JSON-compatible dict."""\n\n',
+            )
+            .replace(
+                "    @classmethod\n"
+                "    def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:\n",
+                "    @classmethod\n"
+                "    def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:\n"
+                '        """Build this model from a JSON-compatible mapping."""\n',
+            )
+            .replace(
+                "    @property\n    def additional_keys(self) -> list[str]:\n",
+                "    @property\n"
+                "    def additional_keys(self) -> list[str]:\n"
+                '        """List extra keys included in this context payload."""\n',
+            )
+        ),
+    )
+    _rewrite_file(
+        root,
         "models/token_introspect_form_request.py",
         lambda content: (
             content.replace(
@@ -830,6 +1020,38 @@ def _patch_auth_sdk(root: Path) -> None:
                 "        def _parse_required_permissions(\n"
                 "            data: object,\n"
                 "        ) -> list[str] | Unset:\n"
+                "            if isinstance(data, Unset):\n"
+                "                return data\n"
+                "            if not isinstance(data, list):\n"
+                "                raise TypeError(\n"
+                '                    "required_permissions must be a list when set"\n'
+                "                )\n"
+                "            return cast(list[str], data)\n\n"
+                "        required_permissions = _parse_required_permissions(\n"
+                '            d.pop("required_permissions", UNSET)\n'
+                "        )\n\n",
+            )
+            .replace(
+                "        required_permissions = cast(\n"
+                '            list[str], d.pop("required_permissions", UNSET)\n'
+                "        )\n\n",
+                "        def _parse_required_permissions(\n"
+                "            data: object,\n"
+                "        ) -> list[str] | Unset:\n"
+                "            if isinstance(data, Unset):\n"
+                "                return data\n"
+                "            if not isinstance(data, list):\n"
+                "                raise TypeError(\n"
+                '                    "required_permissions must be a list when set"\n'
+                "                )\n"
+                "            return cast(list[str], data)\n\n"
+                "        required_permissions = _parse_required_permissions(\n"
+                '            d.pop("required_permissions", UNSET)\n'
+                "        )\n\n",
+            )
+            .replace(
+                '        required_permissions = cast(list[str], d.pop("required_permissions", UNSET))\n\n',
+                "        def _parse_required_permissions(data: object) -> list[str] | Unset:\n"
                 "            if isinstance(data, Unset):\n"
                 "                return data\n"
                 "            if not isinstance(data, list):\n"
@@ -1040,7 +1262,7 @@ def _patch_file_sdk(root: Path) -> None:
             path="client.py",
             required=False,
         )
-        return _replace_text(
+        content = _replace_text(
             content,
             old=(
                 '    def with_timeout(self, timeout: httpx.Timeout) -> "Client":\n'
@@ -1055,6 +1277,111 @@ def _patch_file_sdk(root: Path) -> None:
                 '    def with_timeout(self, timeout: httpx.Timeout) -> "Client":\n'
                 '        """Get a new client matching this one with a new timeout configuration"""\n'
                 "        return evolve(self, timeout=timeout)\n"
+            ),
+            path="client.py",
+            required=False,
+        )
+        content = _replace_text(
+            content,
+            old=(
+                '    def with_headers(self, headers: dict[str, str]) -> "AuthenticatedClient":\n'
+                '        """Get a new client matching this one with additional headers"""\n'
+                "        if self._client is not None:\n"
+                "            self._client.headers.update(headers)\n"
+                "        if self._async_client is not None:\n"
+                "            self._async_client.headers.update(headers)\n"
+                "        return evolve(self, headers={**self._headers, **headers})\n"
+            ),
+            new=(
+                '    def with_headers(self, headers: dict[str, str]) -> "AuthenticatedClient":\n'
+                '        """Get a new client matching this one with additional headers"""\n'
+                "        return evolve(self, headers={**self._headers, **headers})\n"
+            ),
+            path="client.py",
+            required=False,
+        )
+        content = _replace_text(
+            content,
+            old=(
+                '    def with_cookies(self, cookies: dict[str, str]) -> "AuthenticatedClient":\n'
+                '        """Get a new client matching this one with additional cookies"""\n'
+                "        if self._client is not None:\n"
+                "            self._client.cookies.update(cookies)\n"
+                "        if self._async_client is not None:\n"
+                "            self._async_client.cookies.update(cookies)\n"
+                "        return evolve(self, cookies={**self._cookies, **cookies})\n"
+            ),
+            new=(
+                '    def with_cookies(self, cookies: dict[str, str]) -> "AuthenticatedClient":\n'
+                '        """Get a new client matching this one with additional cookies"""\n'
+                "        return evolve(self, cookies={**self._cookies, **cookies})\n"
+            ),
+            path="client.py",
+            required=False,
+        )
+        content = _replace_text(
+            content,
+            old=(
+                '    def with_timeout(self, timeout: httpx.Timeout) -> "AuthenticatedClient":\n'
+                '        """Get a new client matching this one with a new timeout configuration"""\n'
+                "        if self._client is not None:\n"
+                "            self._client.timeout = timeout\n"
+                "        if self._async_client is not None:\n"
+                "            self._async_client.timeout = timeout\n"
+                "        return evolve(self, timeout=timeout)\n"
+            ),
+            new=(
+                '    def with_timeout(self, timeout: httpx.Timeout) -> "AuthenticatedClient":\n'
+                '        """Get a new client matching this one with a new timeout configuration"""\n'
+                "        return evolve(self, timeout=timeout)\n"
+            ),
+            path="client.py",
+            required=False,
+        )
+        content = _replace_text(
+            content,
+            old=(
+                "            self._headers[self.auth_header_name] = (\n"
+                '                f"{self.prefix} {self.token}" if self.prefix else self.token\n'
+                "            )\n"
+                "            self._client = httpx.Client(\n"
+                "                base_url=self._base_url,\n"
+                "                cookies=self._cookies,\n"
+                "                headers=self._headers,\n"
+            ),
+            new=(
+                "            headers = {**self._headers}\n"
+                "            headers[self.auth_header_name] = (\n"
+                '                f"{self.prefix} {self.token}" if self.prefix else self.token\n'
+                "            )\n"
+                "            self._client = httpx.Client(\n"
+                "                base_url=self._base_url,\n"
+                "                cookies=self._cookies,\n"
+                "                headers=headers,\n"
+            ),
+            path="client.py",
+            required=False,
+        )
+        return _replace_text(
+            content,
+            old=(
+                "            self._headers[self.auth_header_name] = (\n"
+                '                f"{self.prefix} {self.token}" if self.prefix else self.token\n'
+                "            )\n"
+                "            self._async_client = httpx.AsyncClient(\n"
+                "                base_url=self._base_url,\n"
+                "                cookies=self._cookies,\n"
+                "                headers=self._headers,\n"
+            ),
+            new=(
+                "            headers = {**self._headers}\n"
+                "            headers[self.auth_header_name] = (\n"
+                '                f"{self.prefix} {self.token}" if self.prefix else self.token\n'
+                "            )\n"
+                "            self._async_client = httpx.AsyncClient(\n"
+                "                base_url=self._base_url,\n"
+                "                cookies=self._cookies,\n"
+                "                headers=headers,\n"
             ),
             path="client.py",
             required=False,
@@ -1112,36 +1439,88 @@ def _patch_file_sdk(root: Path) -> None:
     _rewrite_file(
         root,
         "api/ops/metrics_summary.py",
-        lambda content: (
-            content.replace(
-                "from typing import Any\n\nimport httpx\n",
-                '"""Client helpers for the `/metrics/summary` endpoint."""\n\n'
-                "from typing import Any\n\nimport httpx\n",
-            )
-            .replace(
-                "# ruff: noqa\nfrom typing import Any\n\nimport httpx\n",
-                "# ruff: noqa\n"
-                '"""Client helpers for the `/metrics/summary` endpoint."""\n\n'
-                "from typing import Any\n\nimport httpx\n",
-            )
-            .replace(
-                "    Returns:\n        ErrorEnvelope | MetricsSummaryResponse\n",
-                "    Returns:\n        ErrorEnvelope | MetricsSummaryResponse | None\n",
-            )
+        lambda content: _ensure_module_docstring(
+            content,
+            doc="Client helpers for the `/metrics/summary` endpoint.",
+        ).replace(
+            "    Returns:\n        ErrorEnvelope | MetricsSummaryResponse\n",
+            "    Returns:\n        ErrorEnvelope | MetricsSummaryResponse | None\n",
         ),
     )
     _rewrite_file(
         root,
         "api/ops/health_live.py",
-        lambda content: content.replace(
-            "from typing import Any\n",
-            '"""Client helpers for the `/v1/health/live` endpoint."""\n\n'
-            "from typing import Any\n",
+        lambda content: _ensure_module_docstring(
+            content,
+            doc="Client helpers for the `/v1/health/live` endpoint.",
+        ),
+    )
+    _rewrite_file(
+        root,
+        "api/jobs/list_jobs.py",
+        lambda content: _ensure_module_docstring(
+            content,
+            doc="Client helpers for the `/v1/jobs` listing endpoint.",
         ).replace(
-            "# ruff: noqa\nfrom typing import Any\n",
-            "# ruff: noqa\n"
-            '"""Client helpers for the `/v1/health/live` endpoint."""\n\n'
-            "from typing import Any\n",
+            "    Returns:\n        ErrorEnvelope | JobListResponse\n",
+            "    Returns:\n        ErrorEnvelope | JobListResponse | None\n",
+        ),
+    )
+    _rewrite_file(
+        root,
+        "api/jobs/cancel_job.py",
+        lambda content: _ensure_module_docstring(
+            content,
+            doc="Client helpers for the `/v1/jobs/{job_id}/cancel` endpoint.",
+        ).replace(
+            "    Returns:\n        ErrorEnvelope | JobCancelResponse\n",
+            "    Returns:\n        ErrorEnvelope | JobCancelResponse | None\n",
+        ),
+    )
+    for rel_path, module_doc in (
+        (
+            "api/jobs/retry_job.py",
+            "Client helpers for the `/v1/jobs/{job_id}/retry` endpoint.",
+        ),
+        (
+            "api/transfers/abort_upload.py",
+            "Client helpers for the `/v1/transfers/uploads/abort` endpoint.",
+        ),
+        (
+            "api/transfers/sign_upload_parts.py",
+            "Client helpers for the `/v1/transfers/uploads/sign-parts` endpoint.",
+        ),
+    ):
+        _rewrite_file(
+            root,
+            rel_path,
+            _module_doc_and_nullable_returns_transformer(module_doc),
+        )
+    _rewrite_file(
+        root,
+        "api/transfers/initiate_upload.py",
+        lambda content: (
+            _ensure_module_docstring(
+                content,
+                doc="Client helpers for the `/v1/transfers/uploads/initiate` endpoint.",
+            )
+            .replace(
+                "    if response.status_code == 422:\n"
+                "        response_422 = ErrorEnvelope.from_dict(response.json())\n\n"
+                "        return response_422\n\n"
+                "    if response.status_code == 503:\n",
+                "    if response.status_code == 409:\n"
+                "        response_409 = ErrorEnvelope.from_dict(response.json())\n\n"
+                "        return response_409\n\n"
+                "    if response.status_code == 422:\n"
+                "        response_422 = ErrorEnvelope.from_dict(response.json())\n\n"
+                "        return response_422\n\n"
+                "    if response.status_code == 503:\n",
+            )
+            .replace(
+                "    Returns:\n        ErrorEnvelope | InitiateUploadResponse\n",
+                "    Returns:\n        ErrorEnvelope | InitiateUploadResponse | None\n",
+            )
         ),
     )
 
@@ -1173,6 +1552,18 @@ def _patch_file_sdk(root: Path) -> None:
         root,
         "models/presign_download_response.py",
         patch_presign_download_response,
+    )
+    _rewrite_file(
+        root,
+        "models/initiate_upload_response.py",
+        lambda content: content.replace(
+            "from attrs import define as _attrs_define\n",
+            "from attrs import define as _attrs_define\n"
+            "from attrs import field as _attrs_field\n",
+        ).replace(
+            "    url: None | str | Unset = UNSET\n",
+            "    url: None | str | Unset = _attrs_field(default=UNSET, repr=False)\n",
+        ),
     )
 
     def patch_metrics_summary_response(content: str) -> str:
@@ -1584,9 +1975,35 @@ def _patch_file_sdk(root: Path) -> None:
     _rewrite_file(
         root,
         "types.py",
-        lambda content: content.replace(
-            '"""Contains some shared types for properties"""\n',
-            '"""Shared type helpers used by generated SDK client modules."""\n',
+        lambda content: (
+            content.replace(
+                '"""Contains some shared types for properties"""\n',
+                '"""Shared type helpers used by generated SDK client modules."""\n',
+            )
+            .replace(
+                "class Unset:\n",
+                'class Unset:\n    """Sentinel type representing an omitted field value."""\n',
+            )
+            .replace(
+                "    def __bool__(self) -> Literal[False]:\n",
+                "    def __bool__(self) -> Literal[False]:\n"
+                '        """Always evaluate UNSET as False in conditional checks."""\n',
+            )
+            .replace(
+                'class File:\n    """Contains information for file uploads"""\n',
+                'class File:\n    """Container for multipart file upload metadata."""\n',
+            )
+            .replace(
+                "    def to_tuple(self) -> FileTypes:\n"
+                '        """Return a tuple representation that httpx will accept for multipart/form-data"""\n',
+                "    def to_tuple(self) -> FileTypes:\n"
+                '        """Build the tuple representation accepted by `httpx` multipart uploads."""\n',
+            )
+            .replace(
+                'class Response(Generic[T]):\n    """A response from an endpoint"""\n',
+                "class Response(Generic[T]):\n"
+                '    """Standard parsed HTTP response wrapper returned by generated helpers."""\n',
+            )
         ),
     )
 

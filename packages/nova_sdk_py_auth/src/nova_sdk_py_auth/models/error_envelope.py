@@ -1,4 +1,6 @@
 # ruff: noqa
+"""Error envelope model used by auth API responses."""
+
 from __future__ import annotations
 
 from collections.abc import Mapping

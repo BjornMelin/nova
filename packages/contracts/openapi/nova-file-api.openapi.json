@@ -577,6 +577,7 @@
             "items": {
               "$ref": "#/components/schemas/JobRecord"
             },
+            "maxItems": 200,
             "title": "Jobs",
             "type": "array"
           }
@@ -659,6 +660,27 @@
       },
       "JobResultUpdateRequest": {
         "additionalProperties": false,
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "status": {
+                  "const": "succeeded"
+                }
+              },
+              "required": [
+                "status"
+              ]
+            },
+            "then": {
+              "properties": {
+                "error": {
+                  "type": "null"
+                }
+              }
+            }
+          }
+        ],
         "description": "Worker/internal request payload for job result updates.",
         "properties": {
           "error": {

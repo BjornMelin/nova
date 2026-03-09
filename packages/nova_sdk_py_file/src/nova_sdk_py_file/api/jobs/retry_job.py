@@ -1,4 +1,6 @@
 # ruff: noqa
+"""Client helpers for the `/v1/jobs/{job_id}/retry` endpoint."""
+
 from typing import Any
 from urllib.parse import quote
 

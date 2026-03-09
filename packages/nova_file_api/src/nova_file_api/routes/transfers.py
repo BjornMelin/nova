@@ -60,7 +60,13 @@ async def initiate_upload(
             request_payload=request_payload,
         )
         if replay is not None:
-            container.metrics.incr("idempotency_replays_total")
+            _increment_metric_best_effort(
+                container=container,
+                principal=principal,
+                metric_name="idempotency_replays_total",
+                route_path="/v1/transfers/uploads/initiate",
+                event_name="uploads_initiate_metric_increment_failed",
+            )
             return InitiateUploadResponse.model_validate(replay)
 
         claimed_idempotency = await container.idempotency_store.claim_request(
@@ -77,7 +83,13 @@ async def initiate_upload(
                 request_payload=request_payload,
             )
             if replay is not None:
-                container.metrics.incr("idempotency_replays_total")
+                _increment_metric_best_effort(
+                    container=container,
+                    principal=principal,
+                    metric_name="idempotency_replays_total",
+                    route_path="/v1/transfers/uploads/initiate",
+                    event_name="uploads_initiate_metric_increment_failed",
+                )
                 return InitiateUploadResponse.model_validate(replay)
             raise idempotency_conflict(
                 "idempotency request is already in progress"
@@ -132,7 +144,13 @@ async def initiate_upload(
             )
             raise
 
-    container.metrics.incr("uploads_initiate_total")
+    _increment_metric_best_effort(
+        container=container,
+        principal=principal,
+        metric_name="uploads_initiate_total",
+        route_path="/v1/transfers/uploads/initiate",
+        event_name="uploads_initiate_metric_increment_failed",
+    )
     try:
         await context.run_blocking(
             container.activity_store.record,
@@ -192,7 +210,13 @@ async def sign_upload_parts(
         )
         raise
 
-    container.metrics.incr("uploads_sign_parts_total")
+    _increment_metric_best_effort(
+        container=container,
+        principal=principal,
+        metric_name="uploads_sign_parts_total",
+        route_path="/v1/transfers/uploads/sign-parts",
+        event_name="uploads_sign_parts_metric_increment_failed",
+    )
     try:
         await context.run_blocking(
             container.activity_store.record,
@@ -248,7 +272,13 @@ async def complete_upload(
         )
         raise
 
-    container.metrics.incr("uploads_complete_total")
+    _increment_metric_best_effort(
+        container=container,
+        principal=principal,
+        metric_name="uploads_complete_total",
+        route_path="/v1/transfers/uploads/complete",
+        event_name="uploads_complete_metric_increment_failed",
+    )
     try:
         await context.run_blocking(
             container.activity_store.record,
@@ -304,7 +334,13 @@ async def abort_upload(
         )
         raise
 
-    container.metrics.incr("uploads_abort_total")
+    _increment_metric_best_effort(
+        container=container,
+        principal=principal,
+        metric_name="uploads_abort_total",
+        route_path="/v1/transfers/uploads/abort",
+        event_name="uploads_abort_metric_increment_failed",
+    )
     try:
         await context.run_blocking(
             container.activity_store.record,
@@ -360,7 +396,13 @@ async def presign_download(
         )
         raise
 
-    container.metrics.incr("downloads_presign_total")
+    _increment_metric_best_effort(
+        container=container,
+        principal=principal,
+        metric_name="downloads_presign_total",
+        route_path="/v1/transfers/downloads/presign",
+        event_name="downloads_presign_metric_increment_failed",
+    )
     try:
         await context.run_blocking(
             container.activity_store.record,
@@ -455,4 +497,24 @@ def _emit_request_metric_best_effort(
             scope_id=principal.scope_id,
             status=status,
             counter_metric=counter_metric,
+        )
+
+
+def _increment_metric_best_effort(
+    *,
+    container: Any,
+    principal: Principal,
+    metric_name: str,
+    route_path: str,
+    event_name: str,
+) -> None:
+    """Increment counters without failing completed request handlers."""
+    try:
+        container.metrics.incr(metric_name)
+    except Exception:
+        structlog.get_logger("api").exception(
+            event_name,
+            route=route_path,
+            scope_id=principal.scope_id,
+            metric_name=metric_name,
         )
