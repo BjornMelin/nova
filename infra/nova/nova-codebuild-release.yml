@@ -49,6 +49,9 @@ Parameters:
   DockerBuildContext:
     Type: String
     Default: .
+    Description: Relative POSIX path to the Docker build context.
+    AllowedPattern: "^(?!/)(?!.*\\.\\.)[A-Za-z0-9._/-]+$"
+    ConstraintDescription: Must be a relative path without parent traversal.
   ReleaseBuildspecPath:
     Type: String
     Default: buildspecs/buildspec-release.yml
