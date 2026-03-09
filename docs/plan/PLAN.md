@@ -9,8 +9,8 @@ Last updated: 2026-03-05
 - `docs/architecture/requirements.md`
 - `docs/architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md`
 - `docs/architecture/adr/ADR-0024-layered-architecture-authority-pack.md`
-- `docs/architecture/adr/ADR-0025-runtime-monorepo-component-boundaries-and-ownership.md`
-- `docs/architecture/adr/ADR-0026-fail-fast-runtime-configuration-and-safe-auth-execution.md`
+- `docs/architecture/adr/ADR-0025-reusable-workflow-api-and-versioning-policy.md`
+- `docs/architecture/adr/ADR-0026-oidc-iam-role-partitioning-for-deploy-automation.md`
 - `docs/architecture/adr/ADR-0027-hard-cut-downstream-integration-and-consumer-contract-enforcement.md`
 - `docs/architecture/adr/ADR-0028-auth0-tenant-ops-reusable-workflow-api-contract.md`
 - `docs/architecture/adr/ADR-0029-ssm-runtime-base-url-authority-for-deploy-validation.md`

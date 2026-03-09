@@ -33,8 +33,8 @@ Historical references are allowed only under `docs/history/**`.
 Active authority alignment for runbooks is governed by:
 
 1. [ADR-0024](../architecture/adr/ADR-0024-layered-architecture-authority-pack.md)
-2. [ADR-0025](../architecture/adr/ADR-0025-runtime-monorepo-component-boundaries-and-ownership.md)
-3. [ADR-0026](../architecture/adr/ADR-0026-fail-fast-runtime-configuration-and-safe-auth-execution.md)
+2. [ADR-0025](../architecture/adr/ADR-0025-reusable-workflow-api-and-versioning-policy.md)
+3. [ADR-0026](../architecture/adr/ADR-0026-oidc-iam-role-partitioning-for-deploy-automation.md)
 4. [ADR-0027](../architecture/adr/ADR-0027-hard-cut-downstream-integration-and-consumer-contract-enforcement.md)
 5. [ADR-0028](../architecture/adr/ADR-0028-auth0-tenant-ops-reusable-workflow-api-contract.md)
 6. [ADR-0029](../architecture/adr/ADR-0029-ssm-runtime-base-url-authority-for-deploy-validation.md)

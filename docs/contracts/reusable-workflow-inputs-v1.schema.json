@@ -29,7 +29,7 @@
     },
     "aws_region": {
       "type": "string",
-      "pattern": "^[a-z]{2}-[a-z]+-\\d$"
+      "pattern": "^[a-z]{2}-[a-z]+-\\d+$"
     },
     "parameter_file": {
       "type": "string",

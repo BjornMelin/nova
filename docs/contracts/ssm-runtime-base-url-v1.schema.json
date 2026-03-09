@@ -20,10 +20,10 @@
       "pattern": "^[A-Za-z0-9](?:[A-Za-z0-9_.-]{0,61}[A-Za-z0-9])?$"
     },
     "dev": {
-      "$ref": "#/$defs/base_url_binding"
+      "$ref": "#/$defs/dev_binding"
     },
     "prod": {
-      "$ref": "#/$defs/base_url_binding"
+      "$ref": "#/$defs/prod_binding"
     }
   },
   "$defs": {
@@ -52,6 +52,36 @@
           "pattern": "^https://(?![^\\s]*httpbin)(?![^\\s]*placeholder)(?![^\\s]*example\\.com)(?![^\\s]*<)(?![^\\s]*>)[^\\s]+$"
         }
       }
+    },
+    "dev_binding": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/base_url_binding"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "environment": {
+              "const": "dev"
+            }
+          }
+        }
+      ]
+    },
+    "prod_binding": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/base_url_binding"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "environment": {
+              "const": "prod"
+            }
+          }
+        }
+      ]
     }
   }
 }

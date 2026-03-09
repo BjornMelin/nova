@@ -71,6 +71,11 @@ that signed release commits trigger pipeline executions.
       --query 'pipelineExecutionSummaries[0].pipelineExecutionId' \
       --output text)"
 
+    if [[ -z "${PIPELINE_EXECUTION_ID}" || "${PIPELINE_EXECUTION_ID}" == "None" ]]; then
+      echo "No pipeline executions found for ${CODEPIPELINE_NAME}. Trigger a source change and retry." >&2
+      exit 1
+    fi
+
     aws codepipeline get-pipeline-execution \
       --region "${AWS_REGION}" \
       --pipeline-name "${CODEPIPELINE_NAME}" \

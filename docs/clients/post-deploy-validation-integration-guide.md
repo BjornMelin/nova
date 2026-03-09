@@ -42,7 +42,7 @@ This guide is designed as a 5-minute setup flow for downstream repos.
   `docs/contracts/workflow-post-deploy-validate.schema.json`.
 - Shared reusable deployment API contracts remain aligned with
   `docs/contracts/reusable-workflow-inputs-v1.schema.json` and
-  `docs/contracts/reusable-workflow-outputs-v1.schema.json`.
+  `docs/contracts/reusable-workflow-outputs-v1.schema.json#/$defs/validation_report_output`.
 - Browser live-gate artifacts (WS5) follow
   `docs/contracts/browser-live-validation-report.schema.json`.
 

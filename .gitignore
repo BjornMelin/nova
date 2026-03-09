@@ -177,7 +177,7 @@ node_modules/
 opensrc/
 .agents/
 .codex/
-.artifacts/
+/.artifacts/
 
 # Auth0 export snapshots
 infra/auth0/output/
@@ -188,4 +188,11 @@ infra/auth0/env/*
 !infra/auth0/env/*.env.example
 
 # Local npm token/config artifacts
-.npmrc.codeartifact
+/.npmrc.codeartifact
+/.npmrc
+.npmrc*
+!/.npmrc.template
+/.yarnrc.yml
+.yarnrc
+.yarnrc.*
+!/.yarnrc.yml.template

@@ -15,7 +15,12 @@ release and consumer integration gates.
 - `reusable-workflow-inputs-v1.schema.json`
   - Defines typed v1 workflow input contracts for reusable deployment APIs.
 - `reusable-workflow-outputs-v1.schema.json`
-  - Defines typed v1 workflow output contracts for reusable deployment APIs.
+  - Defines workflow-specific output variants:
+    - `#/$defs/cloudformation_change_set_output`
+    - `#/$defs/codepipeline_execution_output`
+    - `#/$defs/validation_report_output`
+    - `#/$defs/manifest_output`
+    - `#/$defs/deploy_runtime_output`
 - `deploy-size-profiles-v1.json`
   - Canonical profile presets and default ports for dash/rshiny/react-next.
 - `release-artifacts-v1.schema.json`

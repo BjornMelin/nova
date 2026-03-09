@@ -5,7 +5,7 @@ Status: Accepted
 Version: 1.0
 Date: 2026-03-04
 Related:
-  - "[ADR-0025: Reusable GitHub workflow API and versioning policy for deployment automation](./ADR-0025-runtime-monorepo-component-boundaries-and-ownership.md)"
+  - "[ADR-0025: Reusable GitHub workflow API and versioning policy for deployment automation](./ADR-0025-reusable-workflow-api-and-versioning-policy.md)"
   - "[SPEC-0022: Auth0 tenant ops reusable workflow contract](../spec/SPEC-0022-auth0-tenant-ops-reusable-workflow-contract.md)"
   - "[docs/plan/release/AUTH0-A0DEPLOY-RUNBOOK.md](../../plan/release/AUTH0-A0DEPLOY-RUNBOOK.md)"
 ---

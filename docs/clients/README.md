@@ -23,6 +23,6 @@ validation contracts.
 ## Contract sources
 
 - `../contracts/reusable-workflow-inputs-v1.schema.json`
-- `../contracts/reusable-workflow-outputs-v1.schema.json`
+- `../contracts/reusable-workflow-outputs-v1.schema.json#/$defs/validation_report_output`
 - `../contracts/deploy-size-profiles-v1.json`
 - `../contracts/release-artifacts-v1.schema.json`
