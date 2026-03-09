@@ -108,7 +108,11 @@ NOVA_DEPLOY_VALIDATE_PROJECT_NAME="${NOVA_DEPLOY_VALIDATE_PROJECT_NAME:-${PROJEC
 NOVA_DEPLOY_SERVICE_NAME="${NOVA_DEPLOY_SERVICE_NAME:-nova-file-api}"
 NOVA_DEPLOY_DEV_STACK_NAME="${NOVA_DEPLOY_DEV_STACK_NAME:-${PROJECT}-${APPLICATION}-nova-dev}"
 NOVA_DEPLOY_PROD_STACK_NAME="${NOVA_DEPLOY_PROD_STACK_NAME:-${PROJECT}-${APPLICATION}-nova-prod}"
+NOVA_AUTH_DEPLOY_SERVICE_NAME="${NOVA_AUTH_DEPLOY_SERVICE_NAME:-nova-auth-api}"
+NOVA_AUTH_DEPLOY_DEV_STACK_NAME="${NOVA_AUTH_DEPLOY_DEV_STACK_NAME:-${PROJECT}-${APPLICATION}-nova-auth-dev}"
+NOVA_AUTH_DEPLOY_PROD_STACK_NAME="${NOVA_AUTH_DEPLOY_PROD_STACK_NAME:-${PROJECT}-${APPLICATION}-nova-auth-prod}"
 NOVA_MANUAL_APPROVAL_TOPIC_ARN="${NOVA_MANUAL_APPROVAL_TOPIC_ARN:-}"
+RELEASE_VALIDATION_TRUSTED_PRINCIPAL_ARN="${RELEASE_VALIDATION_TRUSTED_PRINCIPAL_ARN:-}"
 TRIGGER_WORKFLOWS="${TRIGGER_WORKFLOWS:-true}"
 TRIGGER_RELEASE_APPLY_DIRECT="${TRIGGER_RELEASE_APPLY_DIRECT:-false}"
 ROTATE_SIGNING_KEY="${ROTATE_SIGNING_KEY:-false}"
@@ -145,8 +149,12 @@ done
 echo "==> Resolve canonical service base URLs from SSM"
 NOVA_DEV_SERVICE_BASE_URL="$(resolve_service_base_url dev "$NOVA_DEPLOY_SERVICE_NAME")"
 NOVA_PROD_SERVICE_BASE_URL="$(resolve_service_base_url prod "$NOVA_DEPLOY_SERVICE_NAME")"
+NOVA_DEV_AUTH_SERVICE_BASE_URL="$(resolve_service_base_url dev "$NOVA_AUTH_DEPLOY_SERVICE_NAME")"
+NOVA_PROD_AUTH_SERVICE_BASE_URL="$(resolve_service_base_url prod "$NOVA_AUTH_DEPLOY_SERVICE_NAME")"
 echo "Resolved dev base URL: $NOVA_DEV_SERVICE_BASE_URL"
 echo "Resolved prod base URL: $NOVA_PROD_SERVICE_BASE_URL"
+echo "Resolved auth dev base URL: $NOVA_DEV_AUTH_SERVICE_BASE_URL"
+echo "Resolved auth prod base URL: $NOVA_PROD_AUTH_SERVICE_BASE_URL"
 
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TMP_DIR"' EXIT
@@ -253,6 +261,7 @@ aws cloudformation deploy \
     ReleaseSigningSecretArn="$RELEASE_SIGNING_SECRET_ARN" \
     CodeArtifactPromotionSourceRepositoryName="$CODEARTIFACT_STAGING_REPOSITORY" \
     CodeArtifactPromotionDestinationRepositoryName="$CODEARTIFACT_PROD_REPOSITORY" \
+    ReleaseValidationTrustedPrincipalArn="$RELEASE_VALIDATION_TRUSTED_PRINCIPAL_ARN" \
     ExistingConnectionArn="$EXISTING_CONNECTION_ARN" \
     ManualApprovalTopicArn="$NOVA_MANUAL_APPROVAL_TOPIC_ARN"
 
@@ -266,7 +275,8 @@ aws cloudformation deploy \
     Application="$APPLICATION" \
     FoundationStackName="$FOUNDATION_STACK_NAME" \
     IamRolesStackName="$IAM_STACK_NAME" \
-    DockerfilePath="apps/nova_file_api_service/Dockerfile" \
+    FileDockerfilePath="apps/nova_file_api_service/Dockerfile" \
+    AuthDockerfilePath="apps/nova_auth_api_service/Dockerfile" \
     DockerBuildContext="." \
     ReleaseBuildspecPath="buildspecs/buildspec-release.yml" \
     ValidateBuildspecPath="buildspecs/buildspec-deploy-validate.yml"
@@ -290,6 +300,12 @@ aws cloudformation deploy \
     ExistingConnectionArn="$EXISTING_CONNECTION_ARN" \
     DeployServiceName="$NOVA_DEPLOY_SERVICE_NAME" \
     DeployDevStackName="$NOVA_DEPLOY_DEV_STACK_NAME" \
+    AuthDeployServiceName="$NOVA_AUTH_DEPLOY_SERVICE_NAME" \
+    AuthDeployDevStackName="$NOVA_AUTH_DEPLOY_DEV_STACK_NAME" \
+    AuthDeployProdStackName="$NOVA_AUTH_DEPLOY_PROD_STACK_NAME" \
+    DevAuthServiceBaseUrl="$NOVA_DEV_AUTH_SERVICE_BASE_URL" \
+    ProdAuthServiceBaseUrl="$NOVA_PROD_AUTH_SERVICE_BASE_URL" \
+    AuthValidationCanonicalPaths="GET:/v1/health/live,POST:/v1/token/verify,POST:/v1/token/introspect" \
     DeployProdStackName="$NOVA_DEPLOY_PROD_STACK_NAME" \
     DevServiceBaseUrl="$NOVA_DEV_SERVICE_BASE_URL" \
     ProdServiceBaseUrl="$NOVA_PROD_SERVICE_BASE_URL" \

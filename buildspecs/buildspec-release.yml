@@ -3,12 +3,14 @@ version: 0.2
 env:
   shell: bash
   exported-variables:
-    - IMAGE_DIGEST
+    - FILE_IMAGE_DIGEST
+    - AUTH_IMAGE_DIGEST
     - PUBLISHED_PACKAGES
     - RELEASE_MANIFEST_SHA256
     - CHANGED_UNITS
   variables:
-    DOCKERFILE_PATH: apps/nova_file_api_service/Dockerfile
+    FILE_DOCKERFILE_PATH: apps/nova_file_api_service/Dockerfile
+    AUTH_DOCKERFILE_PATH: apps/nova_auth_api_service/Dockerfile
     DOCKER_BUILD_CONTEXT: .
 
 phases:
@@ -163,23 +165,35 @@ phases:
         done
         export PUBLISHED_PACKAGES
       - |
-        IMAGE_TAG="${IMAGE_TAG:-${CODEBUILD_RESOLVED_SOURCE_VERSION:-manual}}"
-        docker build \
-          -f "${DOCKERFILE_PATH}" \
-          -t "${ECR_REPOSITORY_URI}:${IMAGE_TAG}" \
-          "${DOCKER_BUILD_CONTEXT}"
-        docker push "${ECR_REPOSITORY_URI}:${IMAGE_TAG}"
-        DIGEST="$(aws ecr describe-images \
-          --repository-name "${ECR_REPOSITORY_NAME}" \
-          --image-ids imageTag="${IMAGE_TAG}" \
-          --query 'imageDetails[0].imageDigest' \
-          --output text)"
-        if [ -z "$DIGEST" ] || [ "$DIGEST" = "None" ]; then
-          echo "Unable to resolve pushed image digest."
+        IMAGE_TAG_BASE="${IMAGE_TAG:-${CODEBUILD_RESOLVED_SOURCE_VERSION:-manual}}"
+
+        build_and_resolve_digest() {
+          local dockerfile_path="$1"
+          local image_tag="$2"
+          docker build \
+            -f "${dockerfile_path}" \
+            -t "${ECR_REPOSITORY_URI}:${image_tag}" \
+            "${DOCKER_BUILD_CONTEXT}"
+          docker push "${ECR_REPOSITORY_URI}:${image_tag}"
+          aws ecr describe-images \
+            --repository-name "${ECR_REPOSITORY_NAME}" \
+            --image-ids imageTag="${image_tag}" \
+            --query 'imageDetails[0].imageDigest' \
+            --output text
+        }
+
+        FILE_IMAGE_DIGEST="$(build_and_resolve_digest "${FILE_DOCKERFILE_PATH}" "${IMAGE_TAG_BASE}-file")"
+        AUTH_IMAGE_DIGEST="$(build_and_resolve_digest "${AUTH_DOCKERFILE_PATH}" "${IMAGE_TAG_BASE}-auth")"
+
+        if [ -z "$FILE_IMAGE_DIGEST" ] || [ "$FILE_IMAGE_DIGEST" = "None" ]; then
+          echo "Unable to resolve pushed file API image digest."
           exit 1
         fi
-        IMAGE_DIGEST="${DIGEST}"
-        export IMAGE_DIGEST
+        if [ -z "$AUTH_IMAGE_DIGEST" ] || [ "$AUTH_IMAGE_DIGEST" = "None" ]; then
+          echo "Unable to resolve pushed auth API image digest."
+          exit 1
+        fi
+        export FILE_IMAGE_DIGEST AUTH_IMAGE_DIGEST
 
   post_build:
     commands:

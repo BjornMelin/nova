@@ -1,27 +1,158 @@
-name: Apply Release Plan
+name: Build and Publish Image
 
 on:
-  workflow_run:
-    workflows: ["Publish Packages"]
-    types: [completed]
   workflow_dispatch:
+    inputs:
+      image_tag:
+        description: Optional image tag override.
+        required: false
+        default: ""
+        type: string
+      dockerfile_path:
+        description: Dockerfile path.
+        required: false
+        default: apps/nova_file_api_service/Dockerfile
+        type: string
+      build_context:
+        description: Docker build context path.
+        required: false
+        default: .
+        type: string
+      ecr_repository_uri:
+        description: Optional full ECR repository URI override.
+        required: false
+        default: ""
+        type: string
+      aws_region:
+        description: AWS region.
+        required: false
+        default: us-east-1
+        type: string
 
 permissions:
   id-token: write
-  contents: write
+  contents: read
+
+concurrency:
+  group: build-and-publish-image-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
-  apply:
-    if: >-
-      (github.event_name == 'workflow_dispatch' &&
-      github.ref == 'refs/heads/main') ||
-      (github.event_name == 'workflow_run' &&
-      github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.head_branch == 'main')
-    uses: ./.github/workflows/reusable-release-apply.yml
-    with:
-      checkout_ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
-      aws_region: ${{ vars.AWS_REGION || 'us-east-1' }}
-    secrets:
-      release_aws_role_arn: ${{ secrets.RELEASE_AWS_ROLE_ARN }}
-      release_signing_secret_id: ${{ secrets.RELEASE_SIGNING_SECRET_ID }}
+  build-publish-image:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    env:
+      AWS_REGION: ${{ inputs.aws_region || vars.AWS_REGION || 'us-east-1' }}
+      INPUT_IMAGE_TAG: ${{ inputs.image_tag }}
+      INPUT_DOCKERFILE_PATH: ${{ inputs.dockerfile_path }}
+      INPUT_BUILD_CONTEXT: ${{ inputs.build_context }}
+      INPUT_ECR_REPOSITORY_URI: ${{ inputs.ecr_repository_uri }}
+      DEFAULT_ECR_REPOSITORY_URI: ${{ vars.ECR_REPOSITORY_URI }}
+      DEFAULT_ECR_REPOSITORY_NAME: ${{ vars.ECR_REPOSITORY_NAME }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials (OIDC)
+        uses: ./.github/actions/configure-aws-oidc
+        with:
+          role-to-assume: ${{ secrets.RELEASE_AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Resolve image build inputs
+        id: resolve
+        run: |
+          set -euo pipefail
+
+          IMAGE_TAG="${INPUT_IMAGE_TAG}"
+          if [[ -z "$IMAGE_TAG" ]]; then
+            IMAGE_TAG="sha-${GITHUB_SHA::12}"
+          fi
+
+          ECR_REPOSITORY_URI="${INPUT_ECR_REPOSITORY_URI}"
+          if [[ -z "$ECR_REPOSITORY_URI" ]]; then
+            ECR_REPOSITORY_URI="${DEFAULT_ECR_REPOSITORY_URI}"
+          fi
+
+          ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
+          ECR_REGISTRY="${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+
+          if [[ -z "$ECR_REPOSITORY_URI" && -n "${DEFAULT_ECR_REPOSITORY_NAME}" ]]; then
+            ECR_REPOSITORY_URI="${ECR_REGISTRY}/${DEFAULT_ECR_REPOSITORY_NAME}"
+          fi
+          if [[ -z "$ECR_REPOSITORY_URI" ]]; then
+            echo "ECR repository URI is required (input ecr_repository_uri or vars.ECR_REPOSITORY_URI)." >&2
+            exit 1
+          fi
+
+          ECR_REPOSITORY_NAME="${ECR_REPOSITORY_URI#*/}"
+
+          {
+            echo "image_tag=$IMAGE_TAG"
+            echo "ecr_registry=$ECR_REGISTRY"
+            echo "ecr_repository_uri=$ECR_REPOSITORY_URI"
+            echo "ecr_repository_name=$ECR_REPOSITORY_NAME"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Login to ECR
+        run: |
+          set -euo pipefail
+          aws ecr get-login-password --region "${AWS_REGION}" | \
+            docker login --username AWS --password-stdin "${{ steps.resolve.outputs.ecr_registry }}"
+
+      - name: Build and push image
+        id: publish
+        run: |
+          set -euo pipefail
+          IMAGE_URI="${{ steps.resolve.outputs.ecr_repository_uri }}:${{ steps.resolve.outputs.image_tag }}"
+
+          docker build \
+            -f "${INPUT_DOCKERFILE_PATH}" \
+            -t "${IMAGE_URI}" \
+            "${INPUT_BUILD_CONTEXT}"
+          docker push "${IMAGE_URI}"
+
+          IMAGE_DIGEST="$(aws ecr describe-images \
+            --repository-name "${{ steps.resolve.outputs.ecr_repository_name }}" \
+            --image-ids imageTag="${{ steps.resolve.outputs.image_tag }}" \
+            --query 'imageDetails[0].imageDigest' \
+            --output text)"
+
+          if [[ -z "$IMAGE_DIGEST" || "$IMAGE_DIGEST" == "None" ]]; then
+            echo "Unable to resolve pushed image digest." >&2
+            exit 1
+          fi
+
+          echo "image_uri=${IMAGE_URI}" >> "$GITHUB_OUTPUT"
+          echo "image_digest=${IMAGE_DIGEST}" >> "$GITHUB_OUTPUT"
+
+      - name: Write image publish report
+        run: |
+          set -euo pipefail
+          mkdir -p .artifacts
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = {
+              "schema_version": "1.0",
+              "git_sha": "${{ github.sha }}",
+              "aws_region": "${{ env.AWS_REGION }}",
+              "repository_uri": "${{ steps.resolve.outputs.ecr_repository_uri }}",
+              "image_tag": "${{ steps.resolve.outputs.image_tag }}",
+              "image_uri": "${{ steps.publish.outputs.image_uri }}",
+              "image_digest": "${{ steps.publish.outputs.image_digest }}",
+              "dockerfile_path": "${{ env.INPUT_DOCKERFILE_PATH }}",
+              "build_context": "${{ env.INPUT_BUILD_CONTEXT }}",
+          }
+          Path(".artifacts/image-build-report.json").write_text(
+              json.dumps(report, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          PY
+
+      - name: Upload image build report
+        uses: actions/upload-artifact@v4
+        with:
+          name: image-build-report
+          path: .artifacts/image-build-report.json

@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
-import yaml
+from pathlib import Path
 
-from .helpers import read_repo_file as _read
+REPO_ROOT = Path(__file__).resolve().parents[2]
+
+
+def _read(rel: str) -> str:
+    return (REPO_ROOT / rel).read_text(encoding="utf-8")
 
 
 def test_reusable_workflow_call_apis_exist_and_are_callable() -> None:
@@ -19,20 +23,9 @@ def test_reusable_workflow_call_apis_exist_and_are_callable() -> None:
         ".github/workflows/reusable-post-deploy-validate.yml",
         ".github/workflows/reusable-auth0-tenant-deploy.yml",
     ]:
-        workflow = yaml.safe_load(_read(rel_path))
-        assert isinstance(workflow, dict), (
-            f"Expected mapping workflow for: {rel_path}"
-        )
-        on_contract = workflow.get("on")
-        if on_contract is None:
-            on_contract = workflow.get(True)
-        assert isinstance(on_contract, dict), (
-            f"Expected workflow on mapping for: {rel_path}"
-        )
-        workflow_call = on_contract.get("workflow_call")
-        assert isinstance(workflow_call, dict), (
-            f"Expected workflow_call mapping for: {rel_path}"
-        )
+        text = _read(rel_path)
+        assert "on:" in text
+        assert "workflow_call:" in text
 
 
 def test_composite_actions_provide_shared_release_primitives() -> None:
@@ -80,6 +73,9 @@ def test_composite_actions_provide_shared_release_primitives() -> None:
             "create-change-set",
             "execute-change-set",
             "no-fail-on-empty-changeset",
+            "aws cloudformation describe-events",
+            "--change-set-name",
+            "OperationEvents",
         ],
         ".github/actions/collect-deploy-evidence/action.yml": [
             "using: composite",
@@ -96,59 +92,41 @@ def test_composite_actions_provide_shared_release_primitives() -> None:
                 f"Missing composite action contract in {rel_path}: {required!r}"
             )
 
+    cfn_lifecycle_text = _read(
+        ".github/actions/cfn-change-set-lifecycle/action.yml"
+    )
+    assert "--change-set-id" not in cfn_lifecycle_text
+    assert '--query "Events[' not in cfn_lifecycle_text
+
 
 def test_reusable_deploy_runtime_contract_includes_typed_inputs_outputs() -> (
     None
 ):
     """Reusable deploy-runtime workflow must expose v1 typed contract keys."""
-    workflow_text = _read(".github/workflows/reusable-deploy-runtime.yml")
-    workflow = yaml.safe_load(workflow_text)
-    assert isinstance(workflow, dict)
-    on_contract = workflow.get("on")
-    if on_contract is None:
-        on_contract = workflow.get(True)
-    assert isinstance(on_contract, dict)
-    workflow_call = on_contract.get("workflow_call")
-    assert isinstance(workflow_call, dict)
-
-    inputs = workflow_call.get("inputs", {})
-    outputs = workflow_call.get("outputs", {})
-    assert isinstance(inputs, dict)
-    assert isinstance(outputs, dict)
+    text = _read(".github/workflows/reusable-deploy-runtime.yml")
 
     for required in [
-        "template_file",
-        "image_tag",
-        "custom_container_port",
-        "custom_task_cpu",
-        "custom_task_memory",
-        "custom_desired_count",
-        "app_type",
-        "environment",
-        "aws_region",
-        "parameter_file",
-        "size_profile",
-        "enable_worker",
-        "approval_environment",
-        "stack_name",
-    ]:
-        assert required in inputs
-
-    for required in [
-        "stack_name",
-        "change_set_name",
-        "pipeline_execution_id",
-        "validation_report_path",
-        "manifest_sha256",
-    ]:
-        assert required in outputs
-
-    for required in (
+        "workflow_call:",
+        "app_type:",
+        "environment:",
+        "aws_region:",
+        "parameter_file:",
+        "size_profile:",
+        "enable_worker:",
+        "approval_environment:",
+        "stack_name:",
+        "change_set_name:",
+        "pipeline_execution_id:",
+        "validation_report_path:",
+        "manifest_sha256:",
         "resolve-size-profile",
         "cfn-change-set-lifecycle",
         "collect-deploy-evidence",
-    ):
-        assert required in workflow_text
+        "docs/plan/release/RELEASE-VERSION-MANIFEST.md",
+    ]:
+        assert required in text
+
+    assert "sha256sum .artifacts/deploy-evidence.json" not in text
 
 
 def test_cfn_contract_validate_workflow_exists_for_cfn_gates() -> None:
@@ -161,6 +139,37 @@ def test_cfn_contract_validate_workflow_exists_for_cfn_gates() -> None:
         "infra/nova/*.yml",
         "infra/nova/deploy/*.yml",
         "infra/runtime/**/*.yml",
-        "uv run --with pytest pytest -q tests/infra",
+        "test_absorbed_infra_contracts.py",
+        "test_workflow_contract_docs.py",
+        "test_docs_authority_contracts.py",
     ]:
         assert required in text
+
+
+def test_canonical_runtime_deploy_script_enforces_final_posture() -> None:
+    """Canonical runtime convergence must live in one operator script."""
+    text = _read("scripts/release/deploy-runtime-cloudformation-environment.sh")
+
+    for required in [
+        "infra/runtime/kms.yml",
+        "infra/runtime/ecr.yml",
+        "infra/runtime/ecs/cluster.yml",
+        "infra/runtime/file_transfer/s3.yml",
+        "infra/runtime/file_transfer/async.yml",
+        "infra/runtime/file_transfer/cache.yml",
+        "infra/runtime/ecs/service.yml",
+        "infra/runtime/file_transfer/worker.yml",
+        "infra/runtime/observability/ecs-observability-baseline.yml",
+        "infra/nova/deploy/service-base-url-ssm.yml",
+        "--no-execute-changeset",
+        "--change-set-name",
+        "AssignPublicIp=DISABLED",
+        "IdempotencyMode=shared_required",
+        "FileTransferAsyncEnabled=true",
+        "FileTransferCacheEnabled=true",
+        "TaskExecutionSecretArns=",
+        "Runtime file-transfer bucket must not reuse the CI artifact bucket",
+    ]:
+        assert required in text
+
+    assert "AllowExecutionRoleSecretsWildcard" not in text

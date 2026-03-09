@@ -45,7 +45,7 @@ Parameters:
 
   WorkerCommand:
     Type: CommaDelimitedList
-    Default: "python,src/worker.py"
+    Default: "nova-file-worker"
 
   JobsQueueArn:
     Type: String
@@ -56,7 +56,13 @@ Parameters:
     ConstraintDescription: Must be a valid SQS queue URL with account ID and queue name.
   JobsRegion:
     Type: String
-  FileTransferApiBaseUrl:
+  JobsWorkerUpdateTokenSecretArn:
+    Type: String
+    AllowedPattern: "^arn:[^\\s]+$"
+    Description: >-
+      Secrets Manager ARN or SSM parameter ARN containing JOBS_WORKER_UPDATE_TOKEN.
+    ConstraintDescription: Must be an ARN for a Secrets Manager secret or SSM parameter.
+  JobsApiBaseUrl:
     Type: String
   FileTransferBucketName:
     Type: String
@@ -77,6 +83,21 @@ Parameters:
   SyncProcessingMaxBytes:
     Type: String
     Default: "209715200"
+  JobsSqsMaxNumberOfMessages:
+    Type: Number
+    Default: 1
+    MinValue: 1
+    MaxValue: 10
+  JobsSqsWaitTimeSeconds:
+    Type: Number
+    Default: 20
+    MinValue: 0
+    MaxValue: 20
+  JobsSqsVisibilityTimeoutSeconds:
+    Type: Number
+    Default: 120
+    MinValue: 0
+    MaxValue: 43200
 
   WorkerMinTaskCount:
     Type: Number
@@ -88,8 +109,8 @@ Parameters:
     MinValue: 1
   WorkerScaleOutQueueDepthTarget:
     Type: Number
-    Default: 10
-    MinValue: 1
+    Default: 100
+    MinValue: 2
   WorkerScaleOutQueueAgeSecondsTarget:
     Type: Number
     Default: 60
@@ -124,6 +145,12 @@ Resources:
     Properties:
       GroupDescription: !Sub "security group for ${Project}-${Application}-${WorkerServiceName}"
       VpcId: !Ref VpcId
+      SecurityGroupEgress:
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          Description: HTTPS egress for AWS APIs and configured upstream runtime endpoints.
+          CidrIp: 0.0.0.0/0
 
   WorkerTaskExecutionRole:
     Type: AWS::IAM::Role
@@ -139,6 +166,34 @@ Resources:
               - sts:AssumeRole
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+
+  WorkerTaskExecutionRoleSecretsPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: !Sub "${Project}-${Application}-${WorkerServiceName}-ecs-execution-secrets"
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: ReadWorkerUpdateTokenSecret
+            Effect: Allow
+            Action:
+              - secretsmanager:GetSecretValue
+              - ssm:GetParameters
+            Resource: !Ref JobsWorkerUpdateTokenSecretArn
+          - Sid: DecryptWorkerUpdateTokenSecret
+            Effect: Allow
+            Action:
+              - kms:Decrypt
+            Resource: "*"
+            Condition:
+              StringEquals:
+                kms:CallerAccount: !Ref AWS::AccountId
+              ForAnyValue:StringEquals:
+                kms:ViaService:
+                  - !Sub "secretsmanager.${AWS::Region}.amazonaws.com"
+                  - !Sub "ssm.${AWS::Region}.amazonaws.com"
+      Roles:
+        - !Ref WorkerTaskExecutionRole
 
   WorkerTaskRole:
     Type: AWS::IAM::Role
@@ -167,7 +222,6 @@ Resources:
               - sqs:DeleteMessage
               - sqs:ChangeMessageVisibility
               - sqs:GetQueueAttributes
-              - sqs:GetQueueUrl
             Resource:
               - !Ref JobsQueueArn
           - Sid: FileTransferS3Objects
@@ -194,6 +248,11 @@ Resources:
               StringEquals:
                 kms:ViaService: !Sub "s3.${AWS::Region}.amazonaws.com"
                 kms:CallerAccount: !Ref AWS::AccountId
+              StringLike:
+                kms:EncryptionContext:aws:s3:arn:
+                  - !Sub "arn:${AWS::Partition}:s3:::${FileTransferBucketName}/${FileTransferUploadPrefix}*"
+                  - !Sub "arn:${AWS::Partition}:s3:::${FileTransferBucketName}/${FileTransferExportPrefix}*"
+                  - !Sub "arn:${AWS::Partition}:s3:::${FileTransferBucketName}/${FileTransferTmpPrefix}*"
               ForAnyValue:StringLike:
                 kms:ResourceAliases:
                   - !Sub "alias/${FileTransferKmsAlias}"
@@ -220,12 +279,26 @@ Resources:
               Value: !Ref Environment
             - Name: AWS_DEFAULT_REGION
               Value: !Ref JobsRegion
-            - Name: FILE_TRANSFER_API_BASE_URL
-              Value: !Ref FileTransferApiBaseUrl
-            - Name: FILE_TRANSFER_JOBS_QUEUE_URL
+            - Name: JOBS_RUNTIME_MODE
+              Value: worker
+            - Name: JOBS_API_BASE_URL
+              Value: !Ref JobsApiBaseUrl
+            - Name: JOBS_ENABLED
+              Value: "true"
+            - Name: JOBS_QUEUE_BACKEND
+              Value: sqs
+            - Name: JOBS_SQS_QUEUE_URL
               Value: !Ref JobsQueueUrl
-            - Name: FILE_TRANSFER_JOBS_REGION
-              Value: !Ref JobsRegion
+            - Name: JOBS_SQS_MAX_NUMBER_OF_MESSAGES
+              Value: !Ref JobsSqsMaxNumberOfMessages
+            - Name: JOBS_SQS_WAIT_TIME_SECONDS
+              Value: !Ref JobsSqsWaitTimeSeconds
+            - Name: JOBS_SQS_VISIBILITY_TIMEOUT_SECONDS
+              Value: !Ref JobsSqsVisibilityTimeoutSeconds
+            - Name: IDEMPOTENCY_ENABLED
+              Value: "false"
+            - Name: IDEMPOTENCY_MODE
+              Value: local_only
             - Name: FILE_TRANSFER_BUCKET
               Value: !Ref FileTransferBucketName
             - Name: FILE_TRANSFER_UPLOAD_PREFIX
@@ -236,6 +309,9 @@ Resources:
               Value: !Ref FileTransferTmpPrefix
             - Name: APP_SYNC_PROCESSING_MAX_BYTES
               Value: !Ref SyncProcessingMaxBytes
+          Secrets:
+            - Name: JOBS_WORKER_UPDATE_TOKEN
+              ValueFrom: !Ref JobsWorkerUpdateTokenSecretArn
           LogConfiguration:
             LogDriver: awslogs
             Options:
@@ -286,41 +362,154 @@ Resources:
       MinCapacity: !Ref WorkerMinTaskCount
       MaxCapacity: !Ref WorkerMaxTaskCount
 
-  WorkerQueueDepthTargetTrackingPolicy:
+  WorkerQueueBootstrapScaleOutPolicy:
     Type: AWS::ApplicationAutoScaling::ScalingPolicy
     Properties:
-      PolicyName: !Sub "${Project}-${Application}-${WorkerServiceName}-queue-depth-target"
-      PolicyType: TargetTrackingScaling
+      PolicyName: !Sub "${Project}-${Application}-${WorkerServiceName}-queue-bootstrap"
+      PolicyType: StepScaling
       ScalingTargetId: !Ref WorkerScalableTarget
-      TargetTrackingScalingPolicyConfiguration:
-        TargetValue: !Ref WorkerScaleOutQueueDepthTarget
-        ScaleInCooldown: !Ref WorkerScaleInCooldownSeconds
-        ScaleOutCooldown: !Ref WorkerScaleOutCooldownSeconds
-        CustomizedMetricSpecification:
-          Namespace: AWS/SQS
-          MetricName: ApproximateNumberOfMessagesVisible
-          Statistic: Average
-          Dimensions:
-            - Name: QueueName
-              Value: !Select [4, !Split ["/", !Ref JobsQueueUrl]]
+      StepScalingPolicyConfiguration:
+        AdjustmentType: ChangeInCapacity
+        Cooldown: !Ref WorkerScaleOutCooldownSeconds
+        MetricAggregationType: Maximum
+        StepAdjustments:
+          - MetricIntervalLowerBound: 0
+            ScalingAdjustment: 1
 
-  WorkerQueueAgeTargetTrackingPolicy:
+  WorkerQueueBurstScaleOutPolicy:
     Type: AWS::ApplicationAutoScaling::ScalingPolicy
     Properties:
-      PolicyName: !Sub "${Project}-${Application}-${WorkerServiceName}-queue-age-target"
-      PolicyType: TargetTrackingScaling
+      PolicyName: !Sub "${Project}-${Application}-${WorkerServiceName}-queue-burst"
+      PolicyType: StepScaling
       ScalingTargetId: !Ref WorkerScalableTarget
-      TargetTrackingScalingPolicyConfiguration:
-        TargetValue: !Ref WorkerScaleOutQueueAgeSecondsTarget
-        ScaleInCooldown: !Ref WorkerScaleInCooldownSeconds
-        ScaleOutCooldown: !Ref WorkerScaleOutCooldownSeconds
-        CustomizedMetricSpecification:
-          Namespace: AWS/SQS
-          MetricName: ApproximateAgeOfOldestMessage
-          Statistic: Average
-          Dimensions:
-            - Name: QueueName
-              Value: !Select [4, !Split ["/", !Ref JobsQueueUrl]]
+      StepScalingPolicyConfiguration:
+        AdjustmentType: ChangeInCapacity
+        Cooldown: !Ref WorkerScaleOutCooldownSeconds
+        MetricAggregationType: Maximum
+        StepAdjustments:
+          - MetricIntervalLowerBound: 0
+            ScalingAdjustment: 1
+
+  WorkerQueueSurgeScaleOutPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Properties:
+      PolicyName: !Sub "${Project}-${Application}-${WorkerServiceName}-queue-surge"
+      PolicyType: StepScaling
+      ScalingTargetId: !Ref WorkerScalableTarget
+      StepScalingPolicyConfiguration:
+        AdjustmentType: ChangeInCapacity
+        Cooldown: !Ref WorkerScaleOutCooldownSeconds
+        MetricAggregationType: Maximum
+        StepAdjustments:
+          - MetricIntervalLowerBound: 0
+            ScalingAdjustment: 5
+
+  WorkerQueueScaleInPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Properties:
+      PolicyName: !Sub "${Project}-${Application}-${WorkerServiceName}-queue-empty"
+      PolicyType: StepScaling
+      ScalingTargetId: !Ref WorkerScalableTarget
+      StepScalingPolicyConfiguration:
+        AdjustmentType: ChangeInCapacity
+        Cooldown: !Ref WorkerScaleInCooldownSeconds
+        MetricAggregationType: Maximum
+        StepAdjustments:
+          - MetricIntervalUpperBound: 0
+            ScalingAdjustment: -1
+
+  WorkerQueueBootstrapDepthAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: !Sub "Scale ${WorkerServiceName} from zero when queue depth is non-zero."
+      Namespace: AWS/SQS
+      MetricName: ApproximateNumberOfMessagesVisible
+      Dimensions:
+        - Name: QueueName
+          Value: !Select [4, !Split ["/", !Ref JobsQueueUrl]]
+      Statistic: Maximum
+      Period: 60
+      EvaluationPeriods: 1
+      DatapointsToAlarm: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref WorkerQueueBootstrapScaleOutPolicy
+
+  WorkerQueueBurstDepthAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: !Sub "Scale ${WorkerServiceName} out when backlog reaches the burst queue-depth threshold."
+      Namespace: AWS/SQS
+      MetricName: ApproximateNumberOfMessagesVisible
+      Dimensions:
+        - Name: QueueName
+          Value: !Select [4, !Split ["/", !Ref JobsQueueUrl]]
+      Statistic: Maximum
+      Period: 60
+      EvaluationPeriods: 1
+      DatapointsToAlarm: 1
+      Threshold: !Ref WorkerScaleOutQueueDepthTarget
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref WorkerQueueBurstScaleOutPolicy
+
+  WorkerQueueSurgeDepthAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: !Sub "Scale ${WorkerServiceName} aggressively when queue depth indicates surge load."
+      Namespace: AWS/SQS
+      MetricName: ApproximateNumberOfMessagesVisible
+      Dimensions:
+        - Name: QueueName
+          Value: !Select [4, !Split ["/", !Ref JobsQueueUrl]]
+      Statistic: Maximum
+      Period: 60
+      EvaluationPeriods: 1
+      DatapointsToAlarm: 1
+      Threshold: 500
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref WorkerQueueSurgeScaleOutPolicy
+
+  WorkerQueueScaleInAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: !Sub "Scale ${WorkerServiceName} in after the queue has remained empty for the sustained scale-in window."
+      Namespace: AWS/SQS
+      MetricName: ApproximateNumberOfMessagesVisible
+      Dimensions:
+        - Name: QueueName
+          Value: !Select [4, !Split ["/", !Ref JobsQueueUrl]]
+      Statistic: Maximum
+      Period: 60
+      EvaluationPeriods: 5
+      DatapointsToAlarm: 5
+      Threshold: 0
+      ComparisonOperator: LessThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref WorkerQueueScaleInPolicy
+
+  WorkerQueueAgeAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: !Sub "Alert when ${WorkerServiceName} oldest queue message age exceeds the configured threshold."
+      Namespace: AWS/SQS
+      MetricName: ApproximateAgeOfOldestMessage
+      Dimensions:
+        - Name: QueueName
+          Value: !Select [4, !Split ["/", !Ref JobsQueueUrl]]
+      Statistic: Maximum
+      Period: 60
+      EvaluationPeriods: 3
+      DatapointsToAlarm: 3
+      Threshold: !Ref WorkerScaleOutQueueAgeSecondsTarget
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
 
 Outputs:
   WorkerServiceName:
