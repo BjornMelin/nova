@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import structlog
 from fastapi import APIRouter, Header
 
@@ -203,9 +205,12 @@ async def sign_upload_parts(
             route="/v1/transfers/uploads/sign-parts",
             scope_id=principal.scope_id,
         )
-    emit_request_metric(
+    _emit_request_metric_best_effort(
         container=container,
-        route="uploads_sign_parts",
+        principal=principal,
+        route_metric="uploads_sign_parts",
+        route_path="/v1/transfers/uploads/sign-parts",
+        event_name="uploads_sign_parts_metric_emit_failed",
         status="ok",
     )
     return response
@@ -256,9 +261,12 @@ async def complete_upload(
             route="/v1/transfers/uploads/complete",
             scope_id=principal.scope_id,
         )
-    emit_request_metric(
+    _emit_request_metric_best_effort(
         container=container,
-        route="uploads_complete",
+        principal=principal,
+        route_metric="uploads_complete",
+        route_path="/v1/transfers/uploads/complete",
+        event_name="uploads_complete_metric_emit_failed",
         status="ok",
     )
     return response
@@ -309,9 +317,12 @@ async def abort_upload(
             route="/v1/transfers/uploads/abort",
             scope_id=principal.scope_id,
         )
-    emit_request_metric(
+    _emit_request_metric_best_effort(
         container=container,
-        route="uploads_abort",
+        principal=principal,
+        route_metric="uploads_abort",
+        route_path="/v1/transfers/uploads/abort",
+        event_name="uploads_abort_metric_emit_failed",
         status="ok",
     )
     return response
@@ -362,9 +373,12 @@ async def presign_download(
             route="/v1/transfers/downloads/presign",
             scope_id=principal.scope_id,
         )
-    emit_request_metric(
+    _emit_request_metric_best_effort(
         container=container,
-        route="downloads_presign",
+        principal=principal,
+        route_metric="downloads_presign",
+        route_path="/v1/transfers/downloads/presign",
+        event_name="downloads_presign_metric_emit_failed",
         status="ok",
     )
     return response
@@ -383,21 +397,28 @@ async def _record_transfer_failure(
 ) -> None:
     """Record canonical metrics, logs, and activity for transfer failures."""
     container = context.container
-    container.metrics.incr(metric_name)
-    emit_request_metric(container=container, route=route_metric, status="error")
+    _emit_request_metric_best_effort(
+        container=container,
+        principal=principal,
+        route_metric=route_metric,
+        route_path=route_path,
+        event_name="transfer_failure_metric_emit_failed",
+        status="error",
+        counter_metric=metric_name,
+    )
     structlog.get_logger("api").exception(
         log_event,
         route=route_path,
         scope_id=principal.scope_id,
         error=type(exc).__name__,
-        error_detail=str(exc),
+        error_code="transfer_failure",
     )
     try:
         await context.run_blocking(
             container.activity_store.record,
             principal=principal,
             event_type=activity_event_type,
-            details=str(exc),
+            details=type(exc).__name__,
         )
     except Exception:
         structlog.get_logger("api").exception(
@@ -405,4 +426,33 @@ async def _record_transfer_failure(
             route=route_path,
             scope_id=principal.scope_id,
             event_type=activity_event_type,
+        )
+
+
+def _emit_request_metric_best_effort(
+    *,
+    container: Any,
+    principal: Principal,
+    route_metric: str,
+    route_path: str,
+    event_name: str,
+    status: str,
+    counter_metric: str | None = None,
+) -> None:
+    """Emit request metrics without failing completed request handlers."""
+    try:
+        if counter_metric is not None:
+            container.metrics.incr(counter_metric)
+        emit_request_metric(
+            container=container,
+            route=route_metric,
+            status=status,
+        )
+    except Exception:
+        structlog.get_logger("api").exception(
+            event_name,
+            route=route_path,
+            scope_id=principal.scope_id,
+            status=status,
+            counter_metric=counter_metric,
         )

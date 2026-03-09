@@ -12,7 +12,7 @@ T = TypeVar("T", bound="TokenIntrospectResponseClaims")
 
 @_attrs_define
 class TokenIntrospectResponseClaims:
-    """Container for arbitrary token introspection claims."""
+    """Generated API client symbol."""
 
     additional_properties: dict[str, Any] = _attrs_field(
         init=False, factory=dict

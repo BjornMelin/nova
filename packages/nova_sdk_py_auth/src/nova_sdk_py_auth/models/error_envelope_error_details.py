@@ -12,7 +12,7 @@ T = TypeVar("T", bound="ErrorEnvelopeErrorDetails")
 
 @_attrs_define
 class ErrorEnvelopeErrorDetails:
-    """ """
+    """Generated API client symbol."""
 
     additional_properties: dict[str, Any] = _attrs_field(
         init=False, factory=dict

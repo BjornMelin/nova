@@ -138,15 +138,6 @@ def _install_openapi_overrides(app: FastAPI) -> None:
             schema,
             response_component_names=_OPENAPI_OPERATION_RESPONSES,
         )
-        paths = schema.get("paths", {})
-        if isinstance(paths, dict):
-            for path in ("/v1/token/verify", "/v1/token/introspect"):
-                path_item = paths.get(path)
-                if not isinstance(path_item, dict):
-                    continue
-                operation = path_item.get("post")
-                if isinstance(operation, dict):
-                    operation["security"] = [{"bearerAuth": []}]
         replace_validation_error_responses(
             schema,
             response_component_name="AuthInvalidRequestResponse",

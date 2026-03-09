@@ -318,6 +318,38 @@ def _docstring_transformer(doc: str) -> Callable[[str], str]:
     return transform
 
 
+def _rewrite_generated_empty_docstrings(root: Path) -> None:
+    for path in root.rglob("*.py"):
+        rel_path = path.relative_to(root).as_posix()
+        _rewrite_file(
+            root,
+            rel_path,
+            _docstring_transformer("Generated API client symbol."),
+        )
+
+
+def _sanitize_unexpected_status_message(content: str) -> str:
+    content = _replace_text(
+        content,
+        old=(
+            "        super().__init__(\n"
+            "            f\"Unexpected status code: {status_code}\\n\\nResponse content:\\n{content.decode(errors='ignore')}\"\n"
+            "        )\n"
+        ),
+        new='        super().__init__(f"Unexpected status code: {status_code}")\n',
+        path="errors.py",
+        required=False,
+    )
+    return content.replace(
+        "        super().__init__(\n"
+        '            "Unexpected status code: "\n'
+        '            f"{status_code}\\n\\nResponse content:\\n"\n'
+        "            f\"{content.decode(errors='ignore')}\"\n"
+        "        )\n",
+        '        super().__init__(f"Unexpected status code: {status_code}")\n',
+    )
+
+
 def _patch_auth_sdk(root: Path) -> None:
     if not (root / "models" / "token_introspect_response.py").exists():
         return
@@ -374,8 +406,8 @@ def _patch_auth_sdk(root: Path) -> None:
                 "        response_200 = HealthResponse.from_dict(response.json())\n\n"
                 "        return response_200\n\n"
                 "    if response.status_code == 503:\n"
-                "        response_503 = HealthResponse.from_dict(response.json())\n\n"
-                "        return response_503\n\n"
+                "        response_503_error = ErrorEnvelope.from_dict(response.json())\n\n"
+                "        return response_503_error\n\n"
                 "    if client.raise_on_unexpected_status:\n"
             ),
             path="api/health/health_ready.py",
@@ -661,21 +693,22 @@ def _patch_auth_sdk(root: Path) -> None:
         patch_token_introspect_request_repr,
     )
 
-    for rel_path, doc in (
-        (
-            "models/token_introspect_response_claims.py",
-            "Container for arbitrary token introspection claims.",
+    _rewrite_generated_empty_docstrings(root)
+    _rewrite_file(
+        root,
+        "models/token_introspect_response_claims.py",
+        _docstring_transformer(
+            "Container for arbitrary token introspection claims."
         ),
-        (
-            "models/token_verify_response_claims.py",
-            "Container for arbitrary token verification claims.",
+    )
+    _rewrite_file(
+        root,
+        "models/token_verify_response_claims.py",
+        _docstring_transformer(
+            "Container for arbitrary token verification claims."
         ),
-    ):
-        _rewrite_file(
-            root,
-            rel_path,
-            _docstring_transformer(doc),
-        )
+    )
+    _rewrite_file(root, "errors.py", _sanitize_unexpected_status_message)
 
 
 def _patch_file_sdk(root: Path) -> None:
@@ -717,29 +750,45 @@ def _patch_file_sdk(root: Path) -> None:
 
     _rewrite_file(root, "api/jobs/list_jobs.py", patch_list_jobs)
 
-    def patch_errors(content: str) -> str:
-        content = _replace_text(
+    _rewrite_file(root, "errors.py", _sanitize_unexpected_status_message)
+
+    def patch_retry_job(content: str) -> str:
+        if "if response.status_code == 503:" in content:
+            return content
+        return _replace_text(
             content,
             old=(
-                "        super().__init__(\n"
-                "            f\"Unexpected status code: {status_code}\\n\\nResponse content:\\n{content.decode(errors='ignore')}\"\n"
-                "        )\n"
+                "    if response.status_code == 422:\n"
+                "        response_422 = ErrorEnvelope.from_dict(response.json())\n\n"
+                "        return response_422\n\n"
+                "    if client.raise_on_unexpected_status:\n"
             ),
             new=(
-                '        super().__init__(f"Unexpected status code: {status_code}")\n'
+                "    if response.status_code == 422:\n"
+                "        response_422 = ErrorEnvelope.from_dict(response.json())\n\n"
+                "        return response_422\n\n"
+                "    if response.status_code == 503:\n"
+                "        response_503 = ErrorEnvelope.from_dict(response.json())\n\n"
+                "        return response_503\n\n"
+                "    if client.raise_on_unexpected_status:\n"
             ),
-            path="errors.py",
-        )
-        return content.replace(
-            "        super().__init__(\n"
-            '            "Unexpected status code: "\n'
-            '            f"{status_code}\\n\\nResponse content:\\n"\n'
-            "            f\"{content.decode(errors='ignore')}\"\n"
-            "        )\n",
-            '        super().__init__(f"Unexpected status code: {status_code}")\n',
+            path="api/jobs/retry_job.py",
+            required=False,
         )
 
-    _rewrite_file(root, "errors.py", patch_errors)
+    _rewrite_file(root, "api/jobs/retry_job.py", patch_retry_job)
+
+    def patch_types(content: str) -> str:
+        content = content.replace(
+            "from http import HTTPStatus\n",
+            "",
+        )
+        return content.replace(
+            "    status_code: HTTPStatus\n",
+            "    status_code: int\n",
+        )
+
+    _rewrite_file(root, "types.py", patch_types)
 
     def patch_sign_parts_request(content: str) -> str:
         return _replace_text(

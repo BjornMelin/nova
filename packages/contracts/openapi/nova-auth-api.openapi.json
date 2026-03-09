@@ -443,11 +443,6 @@
             "$ref": "#/components/responses/AuthServiceUnavailableResponse"
           }
         },
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
         "summary": "Introspect Token",
         "tags": [
           "token"
@@ -492,11 +487,6 @@
             "$ref": "#/components/responses/AuthServiceUnavailableResponse"
           }
         },
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
         "summary": "Verify Token",
         "tags": [
           "token"

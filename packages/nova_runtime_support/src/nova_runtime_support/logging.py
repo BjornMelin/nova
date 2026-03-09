@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from collections.abc import Iterable, MutableMapping
 from typing import Any
 
@@ -21,6 +22,12 @@ _DEFAULT_HIDDEN_FIELDS = frozenset(
 _DEFAULT_REDACTED_SUBSTRINGS = (
     "X-Amz-Credential=",
     "X-Amz-Signature=",
+    "Bearer ",
+    "Authorization:",
+    "access_token=",
+)
+_JWT_PATTERN = re.compile(
+    r"\b[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\b"
 )
 _LOGGING_CONFIGURED = False
 
@@ -102,6 +109,8 @@ def _sanitize_log_value(
         return "[REDACTED]"
     if isinstance(value, str):
         if any(marker in value for marker in redacted_substrings):
+            return "[REDACTED]"
+        if _JWT_PATTERN.search(value):
             return "[REDACTED]"
         return value
     if isinstance(value, dict):
