@@ -40,6 +40,68 @@ jobs:
       EXPECTED_MANIFEST_SHA256: ${{ inputs.expected_manifest_sha256 }}
       RELEASE_APPLY_RUN_ID: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.id || inputs.release_apply_run_id }}
     steps:
+      - name: Validate release-apply workflow run id
+        uses: actions/github-script@v7
+        env:
+          EXPECTED_RELEASE_APPLY_WORKFLOW_NAME: Nova Release Apply
+          EXPECTED_RELEASE_BRANCH: main
+        with:
+          github-token: ${{ github.token }}
+          script: |
+            const runIdRaw = process.env.RELEASE_APPLY_RUN_ID;
+            if (!runIdRaw || !/^\d+$/.test(runIdRaw.trim())) {
+              core.setFailed(
+                `RELEASE_APPLY_RUN_ID must be a numeric workflow run id, got: ${runIdRaw ?? "<empty>"}`,
+              );
+              return;
+            }
+
+            const runId = Number.parseInt(runIdRaw.trim(), 10);
+            const expectedWorkflowName = process.env.EXPECTED_RELEASE_APPLY_WORKFLOW_NAME;
+            const expectedBranch = process.env.EXPECTED_RELEASE_BRANCH;
+            const [owner, repo] = process.env.GITHUB_REPOSITORY.split("/");
+
+            const runResponse = await github.rest.actions.getWorkflowRun({
+              owner,
+              repo,
+              run_id: runId,
+            });
+            const run = runResponse.data;
+
+            const workflowResponse = await github.rest.actions.getWorkflow({
+              owner,
+              repo,
+              workflow_id: run.workflow_id,
+            });
+            const workflow = workflowResponse.data;
+
+            const errors = [];
+            if (workflow.name !== expectedWorkflowName) {
+              errors.push(
+                `workflow name mismatch: expected "${expectedWorkflowName}", got "${workflow.name}"`,
+              );
+            }
+            if (run.conclusion !== "success") {
+              errors.push(`run conclusion must be "success", got "${run.conclusion}"`);
+            }
+            if (run.head_branch !== expectedBranch) {
+              errors.push(
+                `run head_branch mismatch: expected "${expectedBranch}", got "${run.head_branch}"`,
+              );
+            }
+
+            if (errors.length > 0) {
+              core.setFailed(
+                `Invalid RELEASE_APPLY_RUN_ID ${runId}: ${errors.join("; ")}`,
+              );
+              return;
+            }
+
+            core.info(
+              `Validated release apply run ${run.id} for workflow "${workflow.name}" on branch "${run.head_branch}".`,
+            );
+            core.exportVariable("RELEASE_APPLY_RUN_ID", String(run.id));
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
@@ -144,12 +206,15 @@ jobs:
           import re
           import subprocess
 
-          version_output = subprocess.run(
+          result = subprocess.run(
               ["aws", "--version"],
               check=True,
               text=True,
               capture_output=True,
-          ).stdout.strip()
+          )
+          version_output = " ".join(
+              part.strip() for part in (result.stderr, result.stdout) if part.strip()
+          )
           match = re.search(r"aws-cli/(\d+)\.(\d+)\.(\d+)", version_output)
           if match is None:
               raise SystemExit(f"Could not parse AWS CLI version: {version_output}")

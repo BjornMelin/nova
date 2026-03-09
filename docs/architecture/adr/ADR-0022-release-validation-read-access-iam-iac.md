@@ -10,13 +10,14 @@ Related:
 References:
   - "[AWS IAM policies and permissions boundaries](https://docs.aws.amazon.com/IAM/latest/UserGuide/access_policies.html)"
   - "[Amazon ECS infrastructure IAM role for load balancers](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/AmazonECSInfrastructureRolePolicyForLoadBalancers.html)"
+  - "`infra/nova/nova-iam-roles.yml` (`ReleaseValidationReadManagedPolicy` statements `CodeConnectionsRead`, `ValidationCodeArtifactRead`, `CodePipelineGlobalList`, `CodePipelineScopedRead`, `ValidationRuntime*`)"
 ---
 
 ## Summary
 
 Adopt a dedicated release validation read role in Nova IaC using minimally scoped
-read permissions from CodeConnections, CodePipeline, ECS/ELB/WAF, and runtime
-infrastructure IAM surfaces.
+read permissions from CodeConnections, CodeArtifact, CodePipeline, ECS/ELB/WAF,
+CloudFormation, CloudWatch, and runtime infrastructure IAM surfaces.
 
 ## Context
 
@@ -69,7 +70,12 @@ The first returned perspective aligned with codifying the access in IaC and rein
 Key implications used in policy design:
 
 - `codeconnections:GetConnection` supports connection ARN scoping.
-- `codepipeline:ListPipelineExecutions` supports pipeline ARN scoping.
+- `codeartifact:GetRepositoryEndpoint` and `codeartifact:ReadFromRepository` are
+  required for package fetch/read checks during release validation.
+- `codeartifact:Describe*` and `codeartifact:List*` read actions are required
+  for package/repository/domain metadata validation.
+- `codepipeline:ListPipelineExecutions` and other pipeline read APIs support
+  pipeline ARN scoping.
 - `codepipeline:ListPipelines` is list-level and requires `Resource: "*"`.
 - `wafv2:ListWebACLs` is list-level and requires `Resource: "*"`.
 - `iam:GetRole` scopes to the explicit ECS infrastructure role ARN.
@@ -80,10 +86,39 @@ Adopt **Option 1**: codify a dedicated release validation read role in `infra/no
 
 Policy stance:
 
-- Scope to explicit ARNs where service supports it (`codeconnections:GetConnection`, pipeline-scoped reads).
-- Use `Resource: "*"` only where service authorization model requires it (`ListPipelines`, `ListApplications`, selected runtime read APIs).
+- Scope to explicit ARNs where service supports it (`codeconnections:GetConnection`,
+  pipeline-scoped reads, infrastructure role read).
+- Use `Resource: "*"` only where service authorization model requires it
+  (`codeartifact:Describe*`/`List*` read APIs and selected runtime list/read APIs).
 - Keep conceptual/config surface minimal: single role + single managed policy
   attachment + one principal parameter.
+
+Actions codified in `ReleaseValidationReadManagedPolicy`:
+
+- CodeConnections read: `codestar-connections:GetConnection`,
+  `codeconnections:GetConnection`.
+- CodeArtifact read: `codeartifact:GetRepositoryEndpoint`,
+  `codeartifact:ReadFromRepository`, `codeartifact:GetPackageVersionReadme`,
+  `codeartifact:DescribeDomain`, `codeartifact:DescribePackage`,
+  `codeartifact:DescribePackageVersion`, `codeartifact:DescribeRepository`,
+  `codeartifact:ListPackageVersions`, `codeartifact:ListPackages`,
+  `codeartifact:ListRepositoriesInDomain`.
+- CodePipeline list/read: `codepipeline:ListPipelines`,
+  `codepipeline:ListPipelineExecutions`, `codepipeline:ListActionExecutions`,
+  `codepipeline:GetPipeline`, `codepipeline:GetPipelineState`,
+  `codepipeline:GetPipelineExecution`.
+- Runtime/infrastructure read: `cloudformation:DescribeStacks`,
+  `ecs:DescribeClusters`, `ecs:ListClusters`, `ecs:ListServices`,
+  `ecs:DescribeServices`, `ecs:DescribeTaskDefinition`,
+  `elasticloadbalancing:DescribeListeners`,
+  `elasticloadbalancing:DescribeRules`,
+  `elasticloadbalancing:DescribeTargetHealth`,
+  `elasticloadbalancing:DescribeTargetGroups`,
+  `elasticloadbalancing:DescribeLoadBalancers`,
+  `cloudwatch:GetDashboard`, `cloudwatch:DescribeAlarms`,
+  `cloudwatch:GetMetricData`, `cloudwatch:ListDashboards`,
+  `wafv2:GetWebACL`, `wafv2:GetWebACLForResource`, `wafv2:ListWebACLs`,
+  `iam:GetRole`.
 
 ## Consequences
 

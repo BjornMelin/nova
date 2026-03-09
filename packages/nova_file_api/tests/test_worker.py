@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from typing import Any
 
 import httpx
@@ -81,19 +82,27 @@ def _worker_message_body(
     job_id: str = "job-1",
     job_type: str = "transfer.process",
     scope_id: str = "scope-1",
-    payload: str = (
-        '"bucket":"nova-bucket","key":"uploads/scope-1/source.csv",'
-        '"filename":"source.csv","size_bytes":42,"content_type":"text/csv"'
-    ),
+    payload: str | dict[str, Any] | None = None,
 ) -> str:
-    return (
-        "{"
-        f'"job_id":"{job_id}",'
-        f'"job_type":"{job_type}",'
-        f'"scope_id":"{scope_id}",'
-        f'"created_at":"2026-03-06T16:00:00Z",'
-        f'"payload":{{{payload}}}'
-        "}"
+    parsed_payload = (
+        {
+            "bucket": "nova-bucket",
+            "key": "uploads/scope-1/source.csv",
+            "filename": "source.csv",
+            "size_bytes": 42,
+            "content_type": "text/csv",
+        }
+        if payload is None
+        else (json.loads(payload) if isinstance(payload, str) else payload)
+    )
+    return json.dumps(
+        {
+            "job_id": job_id,
+            "job_type": job_type,
+            "scope_id": scope_id,
+            "created_at": "2026-03-06T16:00:00Z",
+            "payload": parsed_payload,
+        }
     )
 
 

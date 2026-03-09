@@ -44,8 +44,9 @@ Last updated: 2026-03-05
 ## Recent contract updates
 
 - Active runtime authority IDs (`ADR-0023`, `ADR-0024`, and `ADR-0027` through
-  `ADR-0029`) and `SPEC-0017` through `SPEC-0023` are aligned as the active
-  runtime subject set.
+  `ADR-0029`) constitute the active runtime subject set.
+- Workflow/deploy-validation authority specs (`SPEC-0017` through `SPEC-0023`)
+  are tracked as the active spec contract set for release/deploy validation.
 - Auth0 reusable tenant workflow now requires successful contract validation
   before any import/export mutation step.
 - Release IAM promotion controls now require explicit staged source and prod

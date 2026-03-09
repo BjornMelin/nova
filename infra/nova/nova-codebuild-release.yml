@@ -37,9 +37,15 @@ Parameters:
   FileDockerfilePath:
     Type: String
     Default: apps/nova_file_api_service/Dockerfile
+    Description: Relative POSIX path to the file API Dockerfile.
+    AllowedPattern: "^(?!/)(?!.*\\.\\.)[A-Za-z0-9._/-]+$"
+    ConstraintDescription: Must be a relative path without parent traversal.
   AuthDockerfilePath:
     Type: String
     Default: apps/nova_auth_api_service/Dockerfile
+    Description: Relative POSIX path to the auth API Dockerfile.
+    AllowedPattern: "^(?!/)(?!.*\\.\\.)[A-Za-z0-9._/-]+$"
+    ConstraintDescription: Must be a relative path without parent traversal.
   DockerBuildContext:
     Type: String
     Default: .

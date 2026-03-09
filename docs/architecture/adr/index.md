@@ -7,12 +7,11 @@
 
 ## Active runtime authority pack
 
-Normative spec contracts for the downstream/Auth0/SSM authority set are
-`SPEC-0021`, `SPEC-0022`, and `SPEC-0023`.
+Normative runtime spec contracts for the active runtime authority pack are
+`SPEC-0017`, `SPEC-0018`, and `SPEC-0019`.
 
 | ADR | Title | Status | Date |
 | --- | --- | --- | --- |
-| [ADR-0023](./ADR-0023-hard-cut-v1-canonical-route-surface.md) | Hard cut to a single canonical `/v1/*` API surface | Accepted | 2026-03-03 |
 | [ADR-0024](./ADR-0024-layered-architecture-authority-pack.md) | Layered runtime authority pack for the Nova monorepo | Accepted | 2026-03-05 |
 | [ADR-0027](./ADR-0027-hard-cut-downstream-integration-and-consumer-contract-enforcement.md) | Hard-cut downstream integration and consumer contract enforcement | Accepted | 2026-03-04 |
 | [ADR-0028](./ADR-0028-auth0-tenant-ops-reusable-workflow-api-contract.md) | Auth0 tenant ops reusable workflow API contract | Accepted | 2026-03-04 |
