@@ -5,11 +5,13 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
+from _pytest.monkeypatch import MonkeyPatch
+
 from scripts.release import codeartifact_npm
 
 
 def test_endpoint_and_repo_local_npmrc_use_env_overrides(
-    monkeypatch, tmp_path: Path
+    monkeypatch: MonkeyPatch, tmp_path: Path
 ) -> None:
     """Helper should honor AWS env overrides and write a repo-local npmrc."""
     monkeypatch.setenv("AWS_REGION", "us-west-2")
@@ -39,7 +41,7 @@ def test_endpoint_and_repo_local_npmrc_use_env_overrides(
             )
         raise AssertionError(f"unexpected aws invocation: {args!r}")
 
-    monkeypatch.setattr(codeartifact_npm.subprocess, "run", fake_run)
+    monkeypatch.setattr(subprocess, "run", fake_run)
 
     endpoint = codeartifact_npm.get_repository_endpoint()
     npmrc_path = codeartifact_npm.write_repo_local_npmrc()

@@ -47,9 +47,7 @@ def _commit_file(
 
 
 def test_workflow_api_changed_matches_public_surface_paths() -> None:
-    assert workflow_api_changed(
-        ["docs/clients/dash-minimal-workflow.yml"]
-    )
+    assert workflow_api_changed(["docs/clients/dash-minimal-workflow.yml"])
     assert workflow_api_changed(
         [".github/workflows/reusable-post-deploy-validate.yml"]
     )
@@ -129,8 +127,7 @@ def test_publish_workflow_api_tags_creates_patch_release_and_major_tags(
     assert payload["release_tag"] == "v1.2.4"
     assert payload["major_tag"] == "v1"
     assert (
-        _run(repo_root, "rev-parse", "refs/tags/v1.2.4^{commit}")
-        == head_commit
+        _run(repo_root, "rev-parse", "refs/tags/v1.2.4^{commit}") == head_commit
     )
     assert _run(repo_root, "rev-parse", "refs/tags/v1^{commit}") == head_commit
 
@@ -209,7 +206,6 @@ def test_publish_workflow_api_tags_can_start_new_major_channel(
     assert payload["release_tag"] == "v2.0.0"
     assert payload["major_tag"] == "v2"
     assert (
-        _run(repo_root, "rev-parse", "refs/tags/v2.0.0^{commit}")
-        == head_commit
+        _run(repo_root, "rev-parse", "refs/tags/v2.0.0^{commit}") == head_commit
     )
     assert _run(repo_root, "rev-parse", "refs/tags/v2^{commit}") == head_commit

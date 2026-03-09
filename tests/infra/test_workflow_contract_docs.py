@@ -187,8 +187,7 @@ def test_downstream_examples_reference_reusable_post_deploy_workflow() -> None:
 
 
 def test_downstream_minimal_workflow_files_exist_and_pin_release_tag() -> None:
-    """Minimal downstream workflow examples must pin an immutable release tag.
-    """
+    """Minimal downstream workflow examples must pin immutable release tags."""
     for rel_path in [
         "docs/clients/dash-minimal-workflow.yml",
         "docs/clients/rshiny-minimal-workflow.yml",
