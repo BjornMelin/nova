@@ -65,7 +65,8 @@ runs:
           exit 1
         fi
 
-        # Replace commas because the --result syntax uses commas as separators.
+        # Replace commas because --result parses commas between summary= and
+        # status= fields; raw commas in the summary would break CLI parsing.
         SUMMARY="${SUMMARY//,/;}"
 
         aws codepipeline put-approval-result \
