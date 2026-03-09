@@ -30,6 +30,14 @@ from nova_file_api.models import (
 )
 
 
+@dataclass(slots=True, frozen=True)
+class ExportCopyResult:
+    """Result returned after copying an upload object to the export prefix."""
+
+    export_key: str
+    download_filename: str
+
+
 class TransferService:
     """Control-plane transfer service backed by boto3 presign calls."""
 
@@ -393,14 +401,6 @@ class TransferService:
             raise upstream_s3_error(
                 "failed to inspect source upload object"
             ) from exc
-
-
-@dataclass(slots=True, frozen=True)
-class ExportCopyResult:
-    """Result returned after copying an upload object to the export prefix."""
-
-    export_key: str
-    download_filename: str
 
 
 def _build_s3_client(*, settings: Settings) -> BaseClient:

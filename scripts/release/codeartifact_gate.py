@@ -134,6 +134,20 @@ def _load_candidates(
                 f"version plan unit not found in workspace: {unit_id}"
             )
         unit = units[unit_id]
+        item_format = item.get("format")
+        if item_format is not None and item_format != unit.package_format:
+            raise GateError(
+                "version plan format mismatch for unit "
+                f"{unit_id}: plan={item_format!r} "
+                f"workspace={unit.package_format!r}"
+            )
+        item_namespace = item.get("namespace")
+        if item_namespace is not None and item_namespace != unit.namespace:
+            raise GateError(
+                "version plan namespace mismatch for unit "
+                f"{unit_id}: plan={item_namespace!r} "
+                f"workspace={unit.namespace!r}"
+            )
         candidates.append(
             _validate_candidate(
                 {

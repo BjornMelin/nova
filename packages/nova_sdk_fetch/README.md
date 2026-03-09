@@ -7,6 +7,16 @@ Runtime helper contracts:
 
 - `buildOperationUrl(baseUrl, pathTemplate, pathParams?, queryParams?)`
 - `buildOperationDescriptorUrl(baseUrl, operation, pathParams?, queryParams?)`
+- `createJsonFetchClient({ baseUrl, defaultHeaders?, fetchImpl? })`
+
+Client factory:
+
+- `createJsonFetchClient(options)` returns a JSON fetch client instance with
+  `request(operation, requestOptions?)`.
+- `requestOptions` supports `body`, `query`, `pathParams`, `headers`, and
+  `signal`.
+- The client resolves operation URLs via `buildOperationDescriptorUrl` and
+  decodes JSON responses when content type is `application/json` or `*+json`.
 
 Behavior notes:
 

@@ -132,6 +132,16 @@ def _clear_directory_contents(path: Path) -> None:
             child.unlink(missing_ok=True)
 
 
+def _copy_directory_contents(*, source_dir: Path, target_dir: Path) -> None:
+    """Copy all files/directories from source_dir into target_dir."""
+    for item in source_dir.iterdir():
+        destination = target_dir / item.name
+        if item.is_dir():
+            shutil.copytree(item, destination)
+        else:
+            shutil.copy2(item, destination)
+
+
 def _artifact_listing_url(
     *,
     repo: str,
@@ -246,10 +256,18 @@ def download_run_artifact(
         raise RuntimeError(
             f"output directory exists and is not a directory: {output_dir}"
         )
-    output_dir.mkdir(parents=True, exist_ok=True)
-    _clear_directory_contents(output_dir)
     try:
-        _extract_archive(archive_path=archive_path, output_dir=output_dir)
+        with tempfile.TemporaryDirectory(
+            prefix="nova-release-artifact-extract-"
+        ) as staging:
+            staging_dir = Path(staging)
+            _extract_archive(archive_path=archive_path, output_dir=staging_dir)
+            output_dir.mkdir(parents=True, exist_ok=True)
+            _clear_directory_contents(output_dir)
+            _copy_directory_contents(
+                source_dir=staging_dir,
+                target_dir=output_dir,
+            )
     finally:
         archive_path.unlink(missing_ok=True)
 
