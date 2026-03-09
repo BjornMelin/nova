@@ -343,6 +343,18 @@ class Settings(BaseSettings):
         )
 
     @property
+    def local_oidc_verifier_configured(self) -> bool:
+        """Return whether jwt_local mode has the required OIDC settings."""
+        return all(
+            value is not None and value.strip()
+            for value in (
+                self.oidc_issuer,
+                self.oidc_audience,
+                self.oidc_jwks_url,
+            )
+        )
+
+    @property
     def required_scopes(self) -> tuple[str, ...]:
         """Backward-compatible alias for default_required_scopes."""
         warnings.warn(

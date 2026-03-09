@@ -60,20 +60,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
+          cache: npm
+          cache-dependency-path: package-lock.json
       - name: Build TypeScript SDK packages
         run: |
           set -euo pipefail
-          for pkg in \
-            packages/nova_sdk_fetch \
-            packages/nova_sdk_file \
-            packages/nova_sdk_auth
-          do
-            (
-              cd "$pkg"
-              npm install --no-package-lock
-              npm run build
-            )
-          done
+          npm ci
+          npm run build:typescript:sdk-graph
       - name: Smoke test TypeScript SDK exports
         run: |
           set -euo pipefail
@@ -219,6 +212,8 @@ jobs:
         run: npm ci
       - name: Typecheck TypeScript conformance and generated catalogs
         run: npm run -w @nova/contracts-ts-conformance typecheck
+      - name: Build TypeScript SDK dependency graph
+        run: npm run build:typescript:sdk-graph
       - name: Verify TypeScript fixture conformance
         run: npm run -w @nova/contracts-ts-conformance verify
       - uses: ./.github/actions/setup-python-uv

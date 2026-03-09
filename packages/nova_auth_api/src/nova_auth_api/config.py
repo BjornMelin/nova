@@ -71,3 +71,15 @@ class Settings(BaseSettings):
             for value in self.oidc_required_permissions.split(" ")
             if value
         )
+
+    @property
+    def local_oidc_verifier_configured(self) -> bool:
+        """Return whether the auth service has the required OIDC settings."""
+        return all(
+            value is not None and value.strip()
+            for value in (
+                self.oidc_issuer,
+                self.oidc_audience,
+                self.oidc_jwks_url,
+            )
+        )

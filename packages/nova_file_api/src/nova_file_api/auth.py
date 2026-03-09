@@ -84,7 +84,10 @@ class Authenticator:
         if self._settings.auth_mode == AuthMode.SAME_ORIGIN:
             return True
         if self._settings.auth_mode == AuthMode.JWT_LOCAL:
-            return self._verifier is not None
+            return (
+                self._settings.local_oidc_verifier_configured
+                and self._verifier is not None
+            )
 
         base_url = self._settings.remote_auth_base_url
         if base_url is None:
@@ -238,6 +241,8 @@ class Authenticator:
     @staticmethod
     def _build_verifier(settings: Settings) -> JWTVerifier | None:
         if settings.auth_mode != AuthMode.JWT_LOCAL:
+            return None
+        if not settings.local_oidc_verifier_configured:
             return None
         return build_jwt_verifier(
             issuer=settings.oidc_issuer,

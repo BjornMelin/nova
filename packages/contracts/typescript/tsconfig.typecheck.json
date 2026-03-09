@@ -11,6 +11,9 @@
   },
   "files": [
     "src/conformance.ts",
+    "../../nova_sdk_fetch/src/client.ts",
+    "../../nova_sdk_fetch/src/contracts.ts",
+    "../../nova_sdk_fetch/src/url.ts",
     "../../nova_sdk_auth/src/client.ts",
     "../../nova_sdk_auth/src/errors.ts",
     "../../nova_sdk_auth/src/generated/openapi.ts",
