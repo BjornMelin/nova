@@ -156,6 +156,17 @@ def _install_openapi_overrides(app: FastAPI) -> None:
 
     def customize_openapi(schema: dict[str, Any]) -> None:
         ensure_error_envelope_schema(schema)
+        components = schema.setdefault("components", {})
+        security_schemes = components.setdefault("securitySchemes", {})
+        security_schemes.setdefault(
+            "sessionAuth",
+            {
+                "type": "apiKey",
+                "in": "header",
+                "name": "X-Session-Id",
+                "description": "Session identifier header for caller context.",
+            },
+        )
         for (
             component_name,
             description,

@@ -28,6 +28,7 @@ class JobEventsResponse:
     next_cursor: str
 
     def to_dict(self) -> dict[str, Any]:
+        """Serialize this model to a JSON-compatible dict."""
         events = []
         for events_item_data in self.events:
             events_item = events_item_data.to_dict()
@@ -51,6 +52,7 @@ class JobEventsResponse:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
+        """Build this model from a JSON-compatible mapping."""
         from ..models.job_event import JobEvent
 
         d = dict(src_dict)

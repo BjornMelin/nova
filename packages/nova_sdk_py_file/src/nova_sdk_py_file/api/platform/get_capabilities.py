@@ -82,7 +82,7 @@ def sync(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        CapabilitiesResponse
+        CapabilitiesResponse | None
     """
 
     return sync_detailed(
@@ -126,7 +126,7 @@ async def asyncio(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        CapabilitiesResponse
+        CapabilitiesResponse | None
     """
 
     return (

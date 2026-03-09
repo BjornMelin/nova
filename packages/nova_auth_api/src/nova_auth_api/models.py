@@ -29,8 +29,8 @@ class Principal(StrictModel):
     subject: str
     scope_id: str
     tenant_id: str | None = None
-    scopes: tuple[str, ...] = ()
-    permissions: tuple[str, ...] = ()
+    scopes: tuple[str, ...] = Field(default=(), max_length=256)
+    permissions: tuple[str, ...] = Field(default=(), max_length=256)
 
 
 class TokenVerifyRequest(StrictModel):

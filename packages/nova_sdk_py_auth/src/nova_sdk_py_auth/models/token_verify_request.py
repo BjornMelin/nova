@@ -30,11 +30,11 @@ class TokenVerifyRequest:
 
         required_permissions: list[str] | Unset = UNSET
         if not isinstance(self.required_permissions, Unset):
-            required_permissions = self.required_permissions
+            required_permissions = list(self.required_permissions)
 
         required_scopes: list[str] | Unset = UNSET
         if not isinstance(self.required_scopes, Unset):
-            required_scopes = self.required_scopes
+            required_scopes = list(self.required_scopes)
 
         field_dict: dict[str, Any] = {}
 
@@ -59,7 +59,16 @@ class TokenVerifyRequest:
             list[str], d.pop("required_permissions", UNSET)
         )
 
-        required_scopes = cast(list[str], d.pop("required_scopes", UNSET))
+        def _parse_required_scopes(data: object) -> list[str] | Unset:
+            if isinstance(data, Unset):
+                return data
+            if not isinstance(data, list):
+                raise TypeError("required_scopes must be a list when set")
+            return cast(list[str], data)
+
+        required_scopes = _parse_required_scopes(
+            d.pop("required_scopes", UNSET)
+        )
 
         token_verify_request = cls(
             access_token=access_token,

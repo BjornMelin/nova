@@ -18,10 +18,15 @@ def _read_json(relative_path: str) -> dict[str, Any]:
     fixture_path = FIXTURE_ROOT / relative_path
     try:
         fixture_text = fixture_path.read_text(encoding="utf-8")
-        payload = json.loads(fixture_text)
-    except (OSError, json.JSONDecodeError, TypeError) as exc:
+    except OSError as exc:
         raise ConformanceError(
-            f"fixture must decode to an object: {fixture_path} - {exc}"
+            f"fixture could not be read: {fixture_path} - {exc}"
+        ) from exc
+    try:
+        payload = json.loads(fixture_text)
+    except (json.JSONDecodeError, TypeError) as exc:
+        raise ConformanceError(
+            f"fixture must be valid JSON: {fixture_path} - {exc}"
         ) from exc
     if not isinstance(payload, dict):
         raise ConformanceError(

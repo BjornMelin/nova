@@ -122,7 +122,7 @@ def sync(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        CompleteUploadResponse | ErrorEnvelope
+        CompleteUploadResponse | ErrorEnvelope | None
     """
 
     return sync_detailed(
@@ -177,7 +177,7 @@ async def asyncio(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        CompleteUploadResponse | ErrorEnvelope
+        CompleteUploadResponse | ErrorEnvelope | None
     """
 
     return (

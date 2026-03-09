@@ -114,6 +114,7 @@
             "items": {
               "type": "string"
             },
+            "maxItems": 256,
             "title": "Permissions",
             "type": "array"
           },
@@ -126,6 +127,7 @@
             "items": {
               "type": "string"
             },
+            "maxItems": 256,
             "title": "Scopes",
             "type": "array"
           },

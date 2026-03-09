@@ -69,7 +69,7 @@ def ensure_error_envelope_schema(
         name,
         {
             "type": "object",
-            "title": "ErrorEnvelope",
+            "title": name,
             "required": ["error"],
             "properties": {
                 "error": {

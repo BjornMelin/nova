@@ -758,6 +758,157 @@ def _patch_auth_sdk(root: Path) -> None:
     )
     _rewrite_file(root, "errors.py", _sanitize_unexpected_status_message)
 
+    _rewrite_file(
+        root,
+        "errors.py",
+        lambda content: content.replace(
+            "class UnexpectedStatus(Exception):\n"
+            '    """Raised by api functions when the response status an undocumented status and Client.raise_on_unexpected_status is True"""\n',
+            "class UnexpectedStatus(Exception):\n"
+            '    """Raised when the response status is undocumented.\n\n'
+            "    This exception is raised by API functions when\n"
+            "    Client.raise_on_unexpected_status is True.\n"
+            '    """\n',
+        ),
+    )
+    _rewrite_file(
+        root,
+        "api/health/health_live.py",
+        lambda content: content.replace(
+            "    Returns:\n        HealthResponse\n",
+            "    Returns:\n        HealthResponse | None\n",
+        ),
+    )
+    _rewrite_file(
+        root,
+        "api/token/__init__.py",
+        lambda content: content.removeprefix("# ruff: noqa\n"),
+    )
+    _rewrite_file(
+        root,
+        "models/error_envelope.py",
+        lambda content: content.replace(
+            "    def to_dict(self) -> dict[str, Any]:\n",
+            "    def to_dict(self) -> dict[str, Any]:\n"
+            '        """Serialize this model to a JSON-compatible dict."""\n',
+        ).replace(
+            "    @classmethod\n"
+            "    def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:\n",
+            "    @classmethod\n"
+            "    def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:\n"
+            '        """Build this model from a JSON-compatible mapping."""\n',
+        ),
+    )
+    _rewrite_file(
+        root,
+        "models/token_introspect_form_request.py",
+        lambda content: (
+            content.replace(
+                "            required_permissions = self.required_permissions\n",
+                "            required_permissions = list(self.required_permissions)\n",
+            )
+            .replace(
+                "            required_scopes = self.required_scopes\n",
+                "            required_scopes = list(self.required_scopes)\n",
+            )
+            .replace(
+                "        required_permissions = cast(\n"
+                '            list[str], d.pop("required_permissions", UNSET)\n'
+                "        )\n\n",
+                "        def _parse_required_permissions(\n"
+                "            data: object,\n"
+                "        ) -> list[str] | Unset:\n"
+                "            if isinstance(data, Unset):\n"
+                "                return data\n"
+                "            if not isinstance(data, list):\n"
+                "                raise TypeError(\n"
+                '                    "required_permissions must be a list when set"\n'
+                "                )\n"
+                "            return cast(list[str], data)\n\n"
+                "        required_permissions = _parse_required_permissions(\n"
+                '            d.pop("required_permissions", UNSET)\n'
+                "        )\n\n",
+            )
+        ),
+    )
+    _rewrite_file(
+        root,
+        "models/token_introspect_request.py",
+        lambda content: content.replace(
+            "        required_permissions = cast(\n"
+            '            list[str], d.pop("required_permissions", UNSET)\n'
+            "        )\n\n",
+            "        def _parse_required_permissions(\n"
+            "            data: object,\n"
+            "        ) -> list[str] | Unset:\n"
+            "            if isinstance(data, Unset):\n"
+            "                return data\n"
+            "            if not isinstance(data, list):\n"
+            "                raise TypeError(\n"
+            '                    "required_permissions must be a list when set"\n'
+            "                )\n"
+            "            return cast(list[str], data)\n\n"
+            "        required_permissions = _parse_required_permissions(\n"
+            '            d.pop("required_permissions", UNSET)\n'
+            "        )\n\n",
+        ).replace(
+            '        required_scopes = cast(list[str], d.pop("required_scopes", UNSET))\n',
+            "        def _parse_required_scopes(data: object) -> list[str] | Unset:\n"
+            "            if isinstance(data, Unset):\n"
+            "                return data\n"
+            "            if not isinstance(data, list):\n"
+            '                raise TypeError("required_scopes must be a list when set")\n'
+            "            return cast(list[str], data)\n\n"
+            "        required_scopes = _parse_required_scopes(\n"
+            '            d.pop("required_scopes", UNSET)\n'
+            "        )\n",
+        ),
+    )
+    _rewrite_file(
+        root,
+        "models/token_verify_request.py",
+        lambda content: (
+            content.replace(
+                "            required_permissions = self.required_permissions\n",
+                "            required_permissions = list(self.required_permissions)\n",
+            )
+            .replace(
+                "            required_scopes = self.required_scopes\n",
+                "            required_scopes = list(self.required_scopes)\n",
+            )
+            .replace(
+                "        required_permissions = cast(\n"
+                '            list[str], d.pop("required_permissions", UNSET)\n'
+                "        )\n\n",
+                "        def _parse_required_permissions(\n"
+                "            data: object,\n"
+                "        ) -> list[str] | Unset:\n"
+                "            if isinstance(data, Unset):\n"
+                "                return data\n"
+                "            if not isinstance(data, list):\n"
+                "                raise TypeError(\n"
+                '                    "required_permissions must be a list when set"\n'
+                "                )\n"
+                "            return cast(list[str], data)\n\n"
+                "        required_permissions = _parse_required_permissions(\n"
+                '            d.pop("required_permissions", UNSET)\n'
+                "        )\n\n",
+            )
+            .replace(
+                '        required_scopes = cast(list[str], d.pop("required_scopes", UNSET))\n',
+                "        def _parse_required_scopes(data: object) -> list[str] | Unset:\n"
+                "            if isinstance(data, Unset):\n"
+                "                return data\n"
+                "            if not isinstance(data, list):\n"
+                '                raise TypeError("required_scopes must be a list when set")\n'
+                "            return cast(list[str], data)\n\n"
+                "        required_scopes = _parse_required_scopes(\n"
+                '            d.pop("required_scopes", UNSET)\n'
+                "        )\n",
+            )
+        ),
+    )
+
 
 def _patch_file_sdk(root: Path) -> None:
     if not (root / "models" / "sign_parts_request.py").exists():
@@ -898,6 +1049,11 @@ def _patch_file_sdk(root: Path) -> None:
         )
 
     _rewrite_file(root, "client.py", patch_client)
+    _rewrite_file(
+        root,
+        "api/__init__.py",
+        lambda content: content.removeprefix("# ruff: noqa\n"),
+    )
 
     for path in (root / "api").rglob("*.py"):
         rel_path = path.relative_to(root).as_posix()
@@ -909,6 +1065,61 @@ def _patch_file_sdk(root: Path) -> None:
                 "status_code=response.status_code,\n",
             ).replace("from http import HTTPStatus\n", ""),
         )
+    _rewrite_file(
+        root,
+        "api/jobs/get_job_status.py",
+        lambda content: content.replace(
+            "    Returns:\n        ErrorEnvelope | JobStatusResponse\n",
+            "    Returns:\n        ErrorEnvelope | JobStatusResponse | None\n",
+        ),
+    )
+    _rewrite_file(
+        root,
+        "api/platform/get_capabilities.py",
+        lambda content: content.replace(
+            "    Returns:\n        CapabilitiesResponse\n",
+            "    Returns:\n        CapabilitiesResponse | None\n",
+        ),
+    )
+    _rewrite_file(
+        root,
+        "api/platform/get_release_info.py",
+        lambda content: content.replace(
+            "    Returns:\n        ReleaseInfoResponse\n",
+            "    Returns:\n        ReleaseInfoResponse | None\n",
+        ),
+    )
+    _rewrite_file(
+        root,
+        "api/transfers/complete_upload.py",
+        lambda content: content.replace(
+            "    Returns:\n        CompleteUploadResponse | ErrorEnvelope\n",
+            "    Returns:\n        CompleteUploadResponse | ErrorEnvelope | None\n",
+        ),
+    )
+    _rewrite_file(
+        root,
+        "api/ops/metrics_summary.py",
+        lambda content: content.replace(
+            "# ruff: noqa\nfrom typing import Any\n\nimport httpx\n",
+            "# ruff: noqa\n"
+            '"""Client helpers for the `/metrics/summary` endpoint."""\n\n'
+            "from typing import Any\n\nimport httpx\n",
+        ).replace(
+            "    Returns:\n        ErrorEnvelope | MetricsSummaryResponse\n",
+            "    Returns:\n        ErrorEnvelope | MetricsSummaryResponse | None\n",
+        ),
+    )
+    _rewrite_file(
+        root,
+        "api/ops/health_live.py",
+        lambda content: content.replace(
+            "# ruff: noqa\nfrom typing import Any\n",
+            "# ruff: noqa\n"
+            '"""Client helpers for the `/v1/health/live` endpoint."""\n\n'
+            "from typing import Any\n",
+        ),
+    )
 
     def patch_sign_parts_request(content: str) -> str:
         return _replace_text(
@@ -1183,6 +1394,133 @@ def _patch_file_sdk(root: Path) -> None:
             "        }\n",
         ),
     )
+    _rewrite_file(
+        root,
+        "models/job_record.py",
+        lambda content: content.replace(
+            "    def to_dict(self) -> dict[str, Any]:\n"
+            "        from ..models.job_record_result_type_0 import JobRecordResultType0\n",
+            "    def to_dict(self) -> dict[str, Any]:\n"
+            '        """Serialize this model to a JSON-compatible dict."""\n'
+            "        from ..models.job_record_result_type_0 import JobRecordResultType0\n",
+        ).replace(
+            "    @classmethod\n"
+            "    def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:\n"
+            "        from ..models.job_record_payload import JobRecordPayload\n",
+            "    @classmethod\n"
+            "    def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:\n"
+            '        """Build this model from a JSON-compatible mapping."""\n'
+            "        from ..models.job_record_payload import JobRecordPayload\n",
+        ),
+    )
+    _rewrite_file(
+        root,
+        "models/error_envelope_error.py",
+        lambda content: content.replace(
+            "    def to_dict(self) -> dict[str, Any]:\n",
+            "    def to_dict(self) -> dict[str, Any]:\n"
+            '        """Serialize this model to a JSON-compatible dict."""\n',
+        ).replace(
+            "    @classmethod\n"
+            "    def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:\n",
+            "    @classmethod\n"
+            "    def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:\n"
+            '        """Build this model from a JSON-compatible mapping."""\n',
+        ),
+    )
+    _rewrite_file(
+        root,
+        "models/job_events_response.py",
+        lambda content: content.replace(
+            "    def to_dict(self) -> dict[str, Any]:\n",
+            "    def to_dict(self) -> dict[str, Any]:\n"
+            '        """Serialize this model to a JSON-compatible dict."""\n',
+        ).replace(
+            "    @classmethod\n"
+            "    def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:\n",
+            "    @classmethod\n"
+            "    def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:\n"
+            '        """Build this model from a JSON-compatible mapping."""\n',
+        ),
+    )
+    _rewrite_file(
+        root,
+        "models/job_result_update_request.py",
+        lambda content: content.replace(
+            "            try:\n"
+            "                if not isinstance(data, dict):\n"
+            "                    raise TypeError()\n"
+            "                result_type_0 = JobResultUpdateRequestResultType0.from_dict(\n"
+            "                    data\n"
+            "                )\n\n"
+            "                return result_type_0\n"
+            "            except (TypeError, ValueError, AttributeError, KeyError):\n"
+            "                pass\n"
+            "            return cast(JobResultUpdateRequestResultType0 | None | Unset, data)\n",
+            "            if not isinstance(data, dict):\n"
+            "                raise TypeError(\n"
+            '                    "result must be a mapping when provided"\n'
+            "                )\n"
+            "            return JobResultUpdateRequestResultType0.from_dict(data)\n",
+        ),
+    )
+    _rewrite_file(
+        root,
+        "models/metrics_summary_response_counters.py",
+        lambda content: content.replace(
+            '    """ """\n',
+            '    """Low-cardinality counter metrics map."""\n',
+        ).replace(
+            "        metrics_summary_response_counters.additional_properties = d\n",
+            "        metrics_summary_response_counters.additional_properties = {\n"
+            "            key: int(value) for key, value in d.items()\n"
+            "        }\n",
+        ),
+    )
+    _rewrite_file(
+        root,
+        "models/readiness_response_checks.py",
+        lambda content: content.replace(
+            "        readiness_response_checks.additional_properties = d\n",
+            "        readiness_response_checks.additional_properties = {\n"
+            "            key: bool(value) for key, value in d.items()\n"
+            "        }\n",
+        ),
+    )
+    _rewrite_file(
+        root,
+        "models/sign_parts_response_urls.py",
+        lambda content: content.replace(
+            '    """ """\n',
+            '    """Signed part URL map keyed by part number."""\n',
+        ).replace(
+            "        sign_parts_response_urls.additional_properties = d\n",
+            "        sign_parts_response_urls.additional_properties = {\n"
+            "            key: str(value) for key, value in d.items()\n"
+            "        }\n",
+        ),
+    )
+    _rewrite_file(
+        root,
+        "models/upload_strategy.py",
+        lambda content: content.replace(
+            "# ruff: noqa\nfrom enum import Enum\n\n\nclass UploadStrategy",
+            "# ruff: noqa\n"
+            '"""Upload strategy enum for transfer initiation."""\n\n'
+            "from enum import Enum\n\n\nclass UploadStrategy",
+        ).replace(
+            "class UploadStrategy(str, Enum):\n",
+            'class UploadStrategy(str, Enum):\n    """Allowed transfer upload strategies."""\n',
+        ),
+    )
+    _rewrite_file(
+        root,
+        "types.py",
+        lambda content: content.replace(
+            '"""Contains some shared types for properties"""\n',
+            '"""Shared type helpers used by generated SDK client modules."""\n',
+        ),
+    )
 
 
 def _apply_repo_python_sdk_patches(root: Path) -> None:
@@ -1190,11 +1528,21 @@ def _apply_repo_python_sdk_patches(root: Path) -> None:
     _patch_file_sdk(root)
 
 
+def _strip_selected_ruff_noqa(root: Path) -> None:
+    for rel_path in ("api/__init__.py", "api/token/__init__.py"):
+        _rewrite_file(
+            root,
+            rel_path,
+            lambda content: content.removeprefix("# ruff: noqa\n"),
+        )
+
+
 def _normalize_generated_tree(root: Path) -> None:
     _repair_missing_unset_imports(root)
     _rewrite_relative_imports_to_absolute(root)
     _apply_repo_python_sdk_patches(root)
     _add_generated_ruff_noqa(root)
+    _strip_selected_ruff_noqa(root)
     _run_ruff(args=["check", "--select", "I", "--fix"], root=root)
     _run_ruff(args=["format"], root=root)
 

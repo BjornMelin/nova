@@ -30,7 +30,9 @@ class ReadinessResponseChecks:
         d = dict(src_dict)
         readiness_response_checks = cls()
 
-        readiness_response_checks.additional_properties = d
+        readiness_response_checks.additional_properties = {
+            key: bool(value) for key, value in d.items()
+        }
         return readiness_response_checks
 
     @property

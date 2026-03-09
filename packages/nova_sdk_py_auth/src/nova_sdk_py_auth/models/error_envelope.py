@@ -23,6 +23,7 @@ class ErrorEnvelope:
     error: ErrorEnvelopeError
 
     def to_dict(self) -> dict[str, Any]:
+        """Serialize this model to a JSON-compatible dict."""
         error = self.error.to_dict()
 
         field_dict: dict[str, Any] = {}
@@ -37,6 +38,7 @@ class ErrorEnvelope:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
+        """Build this model from a JSON-compatible mapping."""
         from ..models.error_envelope_error import ErrorEnvelopeError
 
         d = dict(src_dict)

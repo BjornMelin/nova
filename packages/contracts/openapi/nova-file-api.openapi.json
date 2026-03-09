@@ -1114,6 +1114,14 @@
         "title": "ValidationError",
         "type": "object"
       }
+    },
+    "securitySchemes": {
+      "sessionAuth": {
+        "description": "Session identifier header for caller context.",
+        "in": "header",
+        "name": "X-Session-Id",
+        "type": "apiKey"
+      }
     }
   },
   "info": {

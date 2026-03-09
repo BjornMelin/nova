@@ -1,5 +1,5 @@
 # ruff: noqa
-"""Contains some shared types for properties"""
+"""Shared type helpers used by generated SDK client modules."""
 
 from collections.abc import Mapping, MutableMapping
 from typing import IO, BinaryIO, Generic, Literal, TypeVar

@@ -46,6 +46,7 @@ class JobRecord:
     result: JobRecordResultType0 | None | Unset = UNSET
 
     def to_dict(self) -> dict[str, Any]:
+        """Serialize this model to a JSON-compatible dict."""
         from ..models.job_record_result_type_0 import JobRecordResultType0
 
         created_at = self.created_at.isoformat()
@@ -98,6 +99,7 @@ class JobRecord:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
+        """Build this model from a JSON-compatible mapping."""
         from ..models.job_record_payload import JobRecordPayload
         from ..models.job_record_result_type_0 import JobRecordResultType0
 

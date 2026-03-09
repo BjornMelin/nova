@@ -342,7 +342,7 @@ def _remote_auth_error(*, response: httpx.Response) -> FileTransferError:
     if status_code == 403 and code == "unauthorized":
         code = "forbidden"
     if status_code >= 500:
-        code = "queue_unavailable"
+        code = "auth_unavailable"
         status_code = 503
         message = "remote auth verification unavailable"
     elif status_code not in {401, 403}:

@@ -12,7 +12,7 @@ T = TypeVar("T", bound="MetricsSummaryResponseCounters")
 
 @_attrs_define
 class MetricsSummaryResponseCounters:
-    """ """
+    """Low-cardinality counter metrics map."""
 
     additional_properties: dict[str, int] = _attrs_field(
         init=False, factory=dict
@@ -30,7 +30,9 @@ class MetricsSummaryResponseCounters:
         d = dict(src_dict)
         metrics_summary_response_counters = cls()
 
-        metrics_summary_response_counters.additional_properties = d
+        metrics_summary_response_counters.additional_properties = {
+            key: int(value) for key, value in d.items()
+        }
         return metrics_summary_response_counters
 
     @property
