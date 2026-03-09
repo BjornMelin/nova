@@ -63,7 +63,7 @@ def test_public_sdk_types_omit_raw_model_aliases() -> None:
 
 
 def test_public_sdk_types_exclude_internal_job_result_aliases() -> None:
-    """Public file SDK types must not expose internal worker-only job result aliases."""
+    """Public file SDK types must exclude worker-only job result aliases."""
     source = _load_source_text("nova_sdk_file", "types.ts")
     assert "export type JobResultUpdateRequest" not in source
     assert "export type JobResultUpdateResponse" not in source

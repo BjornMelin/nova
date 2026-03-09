@@ -8,8 +8,8 @@ import pytest
 
 from scripts.release.generate_clients import (
     Operation,
-    _collect_public_schema_names,
     _assert_unique_operation_ids,
+    _collect_public_schema_names,
     _default_operation_id,
     _load_operations,
 )
@@ -67,7 +67,7 @@ def test_assert_unique_operation_ids_fails_on_collision() -> None:
 def test_public_schema_collection_excludes_internal_only_job_result_shapes() -> (
     None
 ):
-    """Reachable public schema aliases must exclude internal worker-only models."""
+    """Public schema aliases exclude internal worker-only models."""
     spec_path = (
         Path(__file__).resolve().parents[3]
         / "packages"
@@ -85,7 +85,7 @@ def test_public_schema_collection_excludes_internal_only_job_result_shapes() -> 
 
 
 def test_auth_introspection_collects_all_request_media_types() -> None:
-    """Public auth operations must retain all declared introspection media types."""
+    """Public auth operations keep all introspection media types."""
     spec_path = (
         Path(__file__).resolve().parents[3]
         / "packages"

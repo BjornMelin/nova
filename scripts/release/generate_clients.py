@@ -280,7 +280,9 @@ def _has_request_body(operation: dict[str, Any]) -> bool:
     return isinstance(operation.get("requestBody"), dict)
 
 
-def _collect_request_content_types(operation: dict[str, Any]) -> tuple[str, ...]:
+def _collect_request_content_types(
+    operation: dict[str, Any],
+) -> tuple[str, ...]:
     request_body = operation.get("requestBody")
     if not isinstance(request_body, dict):
         return ()
@@ -515,7 +517,6 @@ def _render_typescript_types(
 
 
 def _render_request_interface(operation: Operation) -> list[str]:
-    base_name = operation.type_base_name
     request_type_name = operation.request_type_name
     property_lines = _render_request_properties(operation)
 
