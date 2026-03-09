@@ -18,6 +18,8 @@ Related:
 
 Deploy automation uses partitioned IAM roles with GitHub OIDC as the entry
 boundary, scoped pass-role controls, and environment-specific execution roles.
+Canonical documentation authority chain for this ADR is
+`requirements.md -> ADR-0023 -> SPEC-0000 -> SPEC-0016`.
 
 ## Context
 

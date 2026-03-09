@@ -33,6 +33,8 @@ ad-hoc URL entry allows placeholder values and undermines gate evidence quality.
    CI control-plane marker stacks:
    `${PROJECT}-ci-dev-service-base-url` and
    `${PROJECT}-ci-prod-service-base-url`.
+6. Release/runbook references for marker stack names must use this exact
+   `${PROJECT}-ci-{dev,prod}-service-base-url` convention.
 
 ## Consequences
 
