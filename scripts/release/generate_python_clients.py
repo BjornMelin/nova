@@ -790,6 +790,17 @@ def _patch_file_sdk(root: Path) -> None:
 
     _rewrite_file(root, "types.py", patch_types)
 
+    for path in (root / "api").rglob("*.py"):
+        rel_path = path.relative_to(root).as_posix()
+        _rewrite_file(
+            root,
+            rel_path,
+            lambda content: content.replace(
+                "status_code=HTTPStatus(response.status_code),\n",
+                "status_code=response.status_code,\n",
+            ).replace("from http import HTTPStatus\n", ""),
+        )
+
     def patch_sign_parts_request(content: str) -> str:
         return _replace_text(
             content,

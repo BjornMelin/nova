@@ -23,6 +23,7 @@ _DEFAULT_REDACTED_SUBSTRINGS = (
     "X-Amz-Credential=",
     "X-Amz-Signature=",
     "Bearer ",
+    "Bearer:",
     "Authorization:",
     "access_token=",
 )
