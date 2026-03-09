@@ -114,20 +114,24 @@ async def test_verify_runs_sync_jwt_verification_via_thread_boundary(
         None.
     """
     settings = Settings()
+    settings.oidc_verifier_thread_tokens = 5
+    settings.blocking_io_thread_tokens = 17
     service = TokenVerificationService(settings=settings)
     boundary_state = {"inside_run_sync": False}
     verifier = _VerifierAssertingThreadBoundary(boundary_state)
     service._verifier = cast(Any, verifier)
 
     run_sync_calls = 0
+    captured: dict[str, Any] = {}
 
     async def _run_sync(
         func: Callable[[str], dict[str, Any]],
         access_token: str,
-        **_kwargs: Any,
+        **kwargs: Any,
     ) -> dict[str, Any]:
         nonlocal run_sync_calls
         run_sync_calls += 1
+        captured["limiter"] = kwargs["limiter"]
         boundary_state["inside_run_sync"] = True
         try:
             return func(access_token)
@@ -143,6 +147,8 @@ async def test_verify_runs_sync_jwt_verification_via_thread_boundary(
     assert response.principal.subject == "subject-1"
     assert run_sync_calls == 1
     assert verifier.calls == 1
+    assert captured["limiter"] is service._verifier_thread_limiter
+    assert captured["limiter"].total_tokens == 5
 
 
 def test_build_verifier_does_not_embed_default_authorization_requirements(
@@ -160,7 +166,9 @@ def test_build_verifier_does_not_embed_default_authorization_requirements(
         def __init__(self, config: Any) -> None:
             captured["config"] = config
 
-    monkeypatch.setattr("nova_auth_api.service.JWTVerifier", _DummyVerifier)
+    monkeypatch.setattr(
+        "nova_runtime_support.auth_claims.JWTVerifier", _DummyVerifier
+    )
 
     verifier = _build_verifier(settings=settings)
 

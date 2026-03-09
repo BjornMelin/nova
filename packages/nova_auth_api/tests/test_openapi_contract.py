@@ -138,3 +138,32 @@ def test_openapi_schema_generation_smoke() -> None:
     schema = app.openapi()
     assert isinstance(schema, dict)
     assert schema.get("openapi") == "3.1.0"
+
+
+def test_openapi_uses_canonical_error_response_components_only() -> None:
+    """Auth OpenAPI should not expose FastAPI validation schemas."""
+    app = create_app()
+    schema = app.openapi()
+
+    components = schema["components"]
+    schemas = components["schemas"]
+    responses = components["responses"]
+
+    assert "HTTPValidationError" not in schemas
+    assert "ValidationError" not in schemas
+    assert "AuthInvalidRequestResponse" in responses
+    assert schema["paths"]["/v1/token/verify"]["post"]["responses"]["422"] == {
+        "$ref": "#/components/responses/AuthInvalidRequestResponse"
+    }
+    assert schema["paths"]["/v1/token/introspect"]["post"]["responses"][
+        "401"
+    ] == {"$ref": "#/components/responses/AuthUnauthorizedResponse"}
+    assert schema["paths"]["/v1/token/introspect"]["post"]["responses"][
+        "403"
+    ] == {"$ref": "#/components/responses/AuthForbiddenResponse"}
+    assert schema["paths"]["/v1/token/introspect"]["post"]["responses"][
+        "422"
+    ] == {"$ref": "#/components/responses/AuthInvalidRequestResponse"}
+    assert schema["paths"]["/v1/health/ready"]["get"]["responses"]["503"] == {
+        "$ref": "#/components/responses/AuthServiceUnavailableResponse"
+    }
