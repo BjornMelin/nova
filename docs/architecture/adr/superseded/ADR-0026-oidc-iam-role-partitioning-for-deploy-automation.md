@@ -10,7 +10,7 @@ Related:
   - "[SPEC-0000: HTTP API contract](../spec/SPEC-0000-http-api-contract.md)"
   - "[SPEC-0016: Hard-cut v1 route contract and route-literal guardrails](../spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md)"
   - "[ADR-0011: Hybrid CI/CD with GitHub CI and AWS-native Dev to Prod promotion](./ADR-0011-cicd-hybrid-github-aws-promotion.md)"
-  - "[SPEC-0019: CI/CD IAM least-privilege and role-boundary contract](../spec/SPEC-0019-ci-cd-iam-least-privilege-and-role-boundary-contract.md)"
+  - "[SPEC-0026: CI/CD IAM least-privilege matrix](../../spec/SPEC-0026-ci-cd-iam-least-privilege-matrix.md)"
   - "[SPEC-0020: Rollout and validation strategy](../spec/SPEC-0020-architecture-authority-pack-and-documentation-synchronization-contract.md)"
 ---
 

@@ -88,7 +88,7 @@ aws ecs describe-services \
   --region "${AWS_REGION}" \
   --cluster "${ECS_CLUSTER}" \
   --services "${ECS_SERVICE}" \
-  --query 'services[0].deployments'
+  --query 'services[0].{deployments:deployments,alarms:deploymentConfiguration.alarms}'
 ```
 
 Acceptance:
@@ -100,7 +100,12 @@ Acceptance:
 ## Immutable artifact continuity check
 
 Use CodePipeline action execution details and confirm the same digest is used
-for both deployments.
+for both deployments by auditing the image digest selected by the pipeline
+parameter `DeployImageDigestVariable`:
+
+- `DeployImageDigestVariable` resolves to either `FILE_IMAGE_DIGEST` or
+  `AUTH_IMAGE_DIGEST`.
+- Dev and Prod deploy actions both reference the same selected digest variable.
 
 ```bash
 aws codepipeline list-action-executions \
@@ -111,9 +116,9 @@ aws codepipeline list-action-executions \
 
 Acceptance:
 
-- `FILE_IMAGE_DIGEST` in Build output equals the digest used by both Dev and Prod
-- `AUTH_IMAGE_DIGEST` in Build output equals the digest used by both Dev and Prod
-  CloudFormation actions.
+- The selected build output digest (`${DeployImageDigestVariable}`) matches the
+  digest observed in both Dev and Prod CloudFormation deploy actions.
+- No rebuild occurs after manual approval.
 - No rebuild occurs after manual approval.
 
 ## Evidence to store

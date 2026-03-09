@@ -129,7 +129,8 @@ Secrets policy:
 Required CodeBuild environment inputs:
 
 - `CODEARTIFACT_DOMAIN`
-- `CODEARTIFACT_REPOSITORY`
+- `CODEARTIFACT_STAGING_REPOSITORY` (build publish target / promotion source)
+- `CODEARTIFACT_PROD_REPOSITORY` (promotion destination authority)
 - `ECR_REPOSITORY_URI` or `ECR_REPOSITORY_NAME`
 
 Default build target values:

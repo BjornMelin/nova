@@ -1,7 +1,8 @@
 ---
 Spec: 0018
 Title: Reusable workflow integration contract
-Status: Active
+Status: Superseded
+SupersededBy: "[SPEC-0025: Reusable workflow integration contract](../SPEC-0025-reusable-workflow-integration-contract.md)"
 Version: 1.2
 Date: 2026-03-04
 Related:
@@ -19,6 +20,8 @@ Related:
 ---
 
 ## 1. Scope
+
+This specification was superseded by [SPEC-0025: Reusable workflow integration contract](../SPEC-0025-reusable-workflow-integration-contract.md).
 
 Defines reusable GitHub workflow APIs, typed input/output contracts, and
 integration guarantees for Nova and downstream repos.

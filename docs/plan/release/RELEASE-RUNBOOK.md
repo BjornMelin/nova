@@ -182,11 +182,21 @@ For local developer shells, keep CodeArtifact npm configuration repo-scoped:
 ```bash
 cd <NOVA_REPO_ROOT>
 eval "$(npm run -s codeartifact:npm:env)"
-npm install --no-package-lock
 ```
 
 Use the committed `.npmrc` plus the generated repo-local
-`.npmrc.codeartifact`.
+`.npmrc.codeartifact`. Stop here if the goal is only to configure
+CodeArtifact authentication for the current shell.
+
+If you need to install workspace dependencies locally, run:
+
+```bash
+npm ci
+```
+
+If you only want to validate registry/auth behavior without modifying the repo
+working tree, run the install in a temporary directory instead of the repo
+root.
 If you need a different account/domain/repository, set `AWS_REGION`,
 `CODEARTIFACT_DOMAIN`, and/or `CODEARTIFACT_STAGING_REPOSITORY` before running
 the helper. Do not run `aws codeartifact login --tool npm` on a workstation

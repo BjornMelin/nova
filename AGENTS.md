@@ -149,7 +149,7 @@ rg -n "/v1/transfers|/v1/jobs|/v1/internal/jobs|/v1/capabilities|/v1/resources/p
   consumers.
 - Generated TypeScript SDK packages must not expose package-root `"."` exports.
 - TypeScript module policy is strict: do not create or retain `index.ts` barrel
-  files, do not use `export ... from` re-export barrels, and always import from
+ files, do not use `export … from` re-export barrels, and always import from
   explicit module subpaths (for example `@nova/sdk-fetch/url`,
   `@nova/sdk-fetch/client`, `@nova/sdk-auth/client`,
   `@nova/sdk-auth/operations`, `@nova/sdk-file/client`, and

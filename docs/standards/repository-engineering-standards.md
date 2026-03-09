@@ -14,14 +14,18 @@ Capture durable repo engineering/operator rules that are too detailed for
 1. `AGENTS.md`
 2. `README.md`
 3. `docs/overview/NOVA-REPO-OVERVIEW.md`
-4. the relevant authority docs:
+4. active runtime authority docs:
    - runtime API: `SPEC-0000`, `SPEC-0015`, `SPEC-0016`
-   - runtime ownership/safety: `ADR-0025`, `ADR-0026`, `SPEC-0017`,
-     `SPEC-0018`, `SPEC-0019`
+   - runtime ownership/safety: `ADR-0024`, `ADR-0027`, `ADR-0028`,
+     `ADR-0029`, `SPEC-0017`, `SPEC-0018`, `SPEC-0019`
    - downstream validation: `SPEC-0021`, `SPEC-0022`, `SPEC-0023`
-   - deploy-governance: `ADR-0030`, `ADR-0031`, `ADR-0032`, `SPEC-0024`,
-     `SPEC-0025`, `SPEC-0026`
 5. `docs/runbooks/README.md` when the task affects release or operations
+
+Relevant authority docs (non-active for runtime authority chain):
+
+- former runtime ownership/safety references: `ADR-0025`, `ADR-0026`
+- deploy-governance authority set: `ADR-0030`, `ADR-0031`, `ADR-0032`,
+  `SPEC-0024`, `SPEC-0025`, `SPEC-0026`
 
 ## Generated TypeScript SDK rules
 

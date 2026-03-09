@@ -1,7 +1,8 @@
 ---
 Spec: 0019
 Title: CI/CD IAM least-privilege and role-boundary contract
-Status: Active
+Status: Superseded
+SupersededBy: "[SPEC-0026: CI/CD IAM least-privilege matrix](../SPEC-0026-ci-cd-iam-least-privilege-matrix.md)"
 Version: 1.1
 Date: 2026-03-03
 Related:
@@ -15,6 +16,8 @@ Related:
 ---
 
 ## 1. Scope
+
+This specification was superseded by [SPEC-0026: CI/CD IAM least-privilege matrix](../SPEC-0026-ci-cd-iam-least-privilege-matrix.md).
 
 Defines least-privilege IAM boundaries for GitHub OIDC deploy automation,
 CloudFormation execution, and CI/CD service roles.

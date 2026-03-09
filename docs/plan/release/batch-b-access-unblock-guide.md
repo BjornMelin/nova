@@ -27,7 +27,7 @@ close Batch B governance and non-prod live validation gates.
   principal ARN.
 - Verify the denied read actions from the evidence log are now allowed:
   `codeconnections:GetConnection`, `codepipeline:ListPipelineExecutions`,
-  `codepipeline:ListPipelines`, and `codedeploy:ListApplications`.
+  `codepipeline:ListPipelines`, and `ecs:DescribeServices`.
 - Re-run `docs/plan/release/governance-lock-runbook.md` gates and confirm no new
   failures are introduced.
 
@@ -70,9 +70,6 @@ operator role. Do not apply the JSON below as a full production policy.
         "codepipeline:ListPipelineExecutions",
         "codepipeline:GetPipelineState",
         "codepipeline:GetPipelineExecution",
-        "codedeploy:ListApplications",
-        "codedeploy:GetDeploymentGroup",
-        "codedeploy:GetDeployment",
         "ecs:DescribeServices",
         "ecs:ListClusters",
         "ecs:ListServices",
@@ -147,7 +144,7 @@ From an assumed session for `BatchBValidationOperatorRoleArn`, verify at minimum
 - `aws codeconnections get-connection --connection-arn <arn>`
 - `aws codepipeline list-pipelines`
 - `aws codepipeline list-pipeline-executions --pipeline-name <name>`
-- `aws codedeploy list-applications`
+- `aws ecs describe-services --cluster <cluster-name> --services <service-name>`
 
 ### Rollback
 

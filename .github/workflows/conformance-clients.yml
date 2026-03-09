@@ -47,8 +47,8 @@ jobs:
           cache-dependency-path: package-lock.json
       - name: Install package dependencies
         run: npm ci
-      - name: Build sdk-fetch dependency graph
-        run: npm run -w @nova/sdk-fetch build
+      - name: Build TypeScript SDK dependency graph
+        run: npm run build:typescript:sdk-graph
       - name: Typecheck package
         run: npm run -w ${{ matrix.package_name }} typecheck
 

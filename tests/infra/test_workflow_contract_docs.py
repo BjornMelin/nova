@@ -175,7 +175,15 @@ def test_release_artifact_schema_contract_covers_required_gate_payloads() -> (
         schema["properties"]["codeartifact_promotion_candidates"]["uniqueItems"]
         is True
     )
-    npm_condition = promotion_candidate_def["allOf"][1]["then"]["properties"]
+    npm_condition = next(
+        entry["then"]["properties"]
+        for entry in promotion_candidate_def["allOf"]
+        if entry.get("if", {})
+        .get("properties", {})
+        .get("format", {})
+        .get("const")
+        == "npm"
+    )
     assert npm_condition["namespace"]["const"] == "nova"
     assert npm_condition["package"]["pattern"] == "^@nova/[a-z0-9][a-z0-9-]*$"
 

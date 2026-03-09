@@ -63,7 +63,6 @@ Parameters:
     Type: String
   DeployImageDigestVariable:
     Type: String
-    Default: FILE_IMAGE_DIGEST
     AllowedValues:
       - FILE_IMAGE_DIGEST
       - AUTH_IMAGE_DIGEST

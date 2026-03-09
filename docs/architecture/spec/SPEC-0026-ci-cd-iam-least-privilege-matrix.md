@@ -25,6 +25,7 @@ roles.
 | Principal | Trust source | Responsibility |
 | --- | --- | --- |
 | GitHub deploy role | GitHub OIDC | Calls deploy workflows and CloudFormation APIs |
+| Release-validation read role | Validation-access OIDC/identity used by PR workflows | Read-only access for release validation evidence and status checks |
 | CloudFormation execution roles (dev/prod) | CloudFormation service | Mutates stack resources for target environment |
 | ECS infrastructure role | ECS service | Performs load-balancer and service-linked blue/green infrastructure operations |
 | CodePipeline role | CodePipeline service | Executes pipeline stages and invokes build/deploy actions |
@@ -46,6 +47,7 @@ roles.
 | `cloudformation:CreateChangeSet`, `ExecuteChangeSet`, `Describe*` | GitHub deploy role | Stack-name scope, region scope |
 | `iam:PassRole` for CFN/pipeline/ECS infrastructure roles | GitHub deploy role | ARN allowlist + `iam:PassedToService` |
 | `codepipeline:StartPipelineExecution`, `GetPipelineState` | GitHub deploy role / pipeline operators | Named pipeline scope |
+| Read-only release validation (`codepipeline:GetPipelineState`, artifact and release-metadata read APIs, stack/event describe APIs) | Release-validation read role | Read-only actions only; no mutation/approval actions |
 | `codepipeline:PutApprovalResult` | Approved promotion actor | Manual approval stage/action scope |
 | Resource mutation during deploy | CFN execution roles / ECS infrastructure role | Environment stack scope only |
 

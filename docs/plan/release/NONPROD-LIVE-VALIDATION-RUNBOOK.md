@@ -41,8 +41,6 @@ Related setup sequence:
 - `ECS_SERVICE`
 - `ALB_TARGET_GROUP_BLUE_ARN`
 - `ALB_TARGET_GROUP_GREEN_ARN`
-- `CODEDEPLOY_APPLICATION_NAME`
-- `CODEDEPLOY_DEPLOYMENT_GROUP_NAME`
 - `DASHBOARD_NAME`
 - `ALARM_NAMES`
 - `CODEPIPELINE_NAME`
@@ -140,7 +138,7 @@ aws ecs describe-services \
   --region "${AWS_REGION}" \
   --cluster "${ECS_CLUSTER}" \
   --services "${ECS_SERVICE}" \
-  --query "services[0].deployments"
+  --query "services[0].{deployments:deployments,alarms:deploymentConfiguration.alarms}"
 
 aws elbv2 describe-target-health \
   --region "${AWS_REGION}" \

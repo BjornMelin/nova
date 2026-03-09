@@ -413,10 +413,12 @@ def test_runtime_env_and_parameter_contracts() -> None:
     ]:
         assert required in worker_text or required in async_text
 
-    assert "ImageDigest:" in worker_text
+    image_digest_wiring_pattern = (
+        r"(?ms)^\s*Image:\s*!Sub(?:\s+|\n\s+).*?@\$\{ImageDigest\}"
+    )
+    assert re.search(image_digest_wiring_pattern, worker_text) is not None
     assert "DockerImageTag:" not in worker_text
-    assert "@" in worker_text and "Image: !Sub" in worker_text
-    assert "ImageDigest:" in service_text
+    assert re.search(image_digest_wiring_pattern, service_text) is not None
     assert "DockerImageTag:" not in service_text
 
     assert "FileTransferAsyncParamsProvided:" in service_text

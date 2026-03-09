@@ -7,7 +7,9 @@ Date: 2026-03-07
 Related:
   - "[ADR-0024: Layered runtime authority pack for the Nova monorepo](../adr/ADR-0024-layered-architecture-authority-pack.md)"
   - "[ADR-0025: Runtime monorepo component boundaries and ownership](../adr/ADR-0025-runtime-monorepo-component-boundaries-and-ownership.md)"
+  - "[SPEC-0000: HTTP API contract](./SPEC-0000-http-api-contract.md)"
   - "[SPEC-0015: Nova API platform final topology and delivery contract](./SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md)"
+  - "[SPEC-0016: V1 route namespace and literal guardrails](./SPEC-0016-v1-route-namespace-and-literal-guardrails.md)"
   - "[SPEC-0018: Runtime configuration and startup validation contract](./SPEC-0018-runtime-configuration-and-startup-validation-contract.md)"
   - "[SPEC-0019: Auth execution and threadpool safety contract](./SPEC-0019-auth-execution-and-threadpool-safety-contract.md)"
 ---
@@ -61,14 +63,16 @@ cross-package boundaries for the Nova monorepo.
 
 ## 5. SDK and bridge relationship
 
-1. Nova owns complete public SDKs for Python, TypeScript, and R as the target
-   client contract.
+1. Nova owns the public Python SDK as the sole release-grade public SDK
+   authority.
 2. `nova_dash_bridge` remains a Python integration surface and must track the
    canonical Python contract surface without introducing alternate mount
    prefixes.
-3. TypeScript and R retained scaffolding may exist in-repo, but they do not
-   own runtime semantics; canonical OpenAPI remains the only SDK authority.
-4. Internal-only operations remain documented in canonical OpenAPI and are
+3. TypeScript and R retained scaffolding may exist in-repo, but they are
+   non-authoritative and must not be presented as public SDKs.
+4. Canonical OpenAPI remains the sole SDK authority for generated contract
+   surfaces.
+5. Internal-only operations remain documented in canonical OpenAPI and are
    excluded from client SDK generation.
 
 ## 6. Acceptance criteria
