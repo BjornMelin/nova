@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -97,9 +98,9 @@ def test_run_aws_times_out_with_actionable_error(
 ) -> None:
     def _raise_timeout(*args: object, **kwargs: object) -> None:
         del args, kwargs
-        raise codeartifact_npm.subprocess.TimeoutExpired("aws", 30)
+        raise subprocess.TimeoutExpired("aws", 30)
 
-    monkeypatch.setattr(codeartifact_npm.subprocess, "run", _raise_timeout)
+    monkeypatch.setattr(subprocess, "run", _raise_timeout)
 
     with pytest.raises(RuntimeError, match="timed out"):
         codeartifact_npm._run_aws("codeartifact", "get-authorization-token")
