@@ -1,13 +1,13 @@
 ---
-ADR: 0026
+ADR: 0032
 Title: OIDC and IAM role partitioning for deploy automation
 Status: Accepted
 Version: 1.1
 Date: 2026-03-03
 Related:
   - "[ADR-0011: Hybrid CI/CD with GitHub CI and AWS-native Dev to Prod promotion](./ADR-0011-cicd-hybrid-github-aws-promotion.md)"
-  - "[SPEC-0019: CI/CD IAM least-privilege matrix](../spec/SPEC-0019-auth-execution-and-threadpool-safety-contract.md)"
-  - "[SPEC-0020: Rollout and validation strategy](../spec/SPEC-0020-architecture-authority-pack-and-documentation-synchronization-contract.md)"
+  - "[SPEC-0026: CI/CD IAM least-privilege matrix](../spec/SPEC-0026-ci-cd-iam-least-privilege-matrix.md)"
+  - "[SPEC-0025: Reusable workflow integration contract](../spec/SPEC-0025-reusable-workflow-integration-contract.md)"
 ---
 
 ## Summary

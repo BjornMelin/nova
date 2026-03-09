@@ -108,20 +108,34 @@ async def initiate_upload(
         raise
 
     if key is not None:
-        await container.idempotency_store.store_response(
-            route="/v1/transfers/uploads/initiate",
-            scope_id=principal.scope_id,
-            idempotency_key=key,
-            request_payload=request_payload,
-            response_payload=response.model_dump(mode="json"),
-        )
+        try:
+            await container.idempotency_store.store_response(
+                route="/v1/transfers/uploads/initiate",
+                scope_id=principal.scope_id,
+                idempotency_key=key,
+                request_payload=request_payload,
+                response_payload=response.model_dump(mode="json"),
+            )
+        except Exception:
+            structlog.get_logger("api").exception(
+                "uploads_initiate_idempotency_store_response_failed",
+                route="/v1/transfers/uploads/initiate",
+                scope_id=principal.scope_id,
+            )
 
     container.metrics.incr("uploads_initiate_total")
-    await context.run_blocking(
-        container.activity_store.record,
-        principal=principal,
-        event_type="uploads_initiate",
-    )
+    try:
+        await context.run_blocking(
+            container.activity_store.record,
+            principal=principal,
+            event_type="uploads_initiate",
+        )
+    except Exception:
+        structlog.get_logger("api").exception(
+            "uploads_initiate_activity_record_failed",
+            route="/v1/transfers/uploads/initiate",
+            scope_id=principal.scope_id,
+        )
     emit_request_metric(
         container=container,
         route="uploads_initiate",
@@ -336,9 +350,17 @@ async def _record_transfer_failure(
         error=type(exc).__name__,
         error_detail=str(exc),
     )
-    await context.run_blocking(
-        container.activity_store.record,
-        principal=principal,
-        event_type=activity_event_type,
-        details=str(exc),
-    )
+    try:
+        await context.run_blocking(
+            container.activity_store.record,
+            principal=principal,
+            event_type=activity_event_type,
+            details=str(exc),
+        )
+    except Exception:
+        structlog.get_logger("api").exception(
+            "transfer_failure_activity_record_failed",
+            route=route_path,
+            scope_id=principal.scope_id,
+            event_type=activity_event_type,
+        )

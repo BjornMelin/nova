@@ -5,7 +5,6 @@ from __future__ import annotations
 from typing import Any
 
 import anyio
-from anyio.abc import CapacityLimiter
 from nova_runtime_support import build_jwt_verifier, normalized_principal_claims
 from oidc_jwt_verifier import AuthError, JWTVerifier
 
@@ -32,7 +31,7 @@ class TokenVerificationService:
         """Initialize service state."""
         self._settings = settings
         self._verifier = _build_verifier(settings=settings)
-        self._thread_limiter = CapacityLimiter(
+        self._thread_limiter = anyio.CapacityLimiter(
             settings.oidc_verifier_thread_tokens
         )
 

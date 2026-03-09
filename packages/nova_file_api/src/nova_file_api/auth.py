@@ -18,6 +18,7 @@ from nova_file_api.errors import (
     FileTransferError,
     forbidden,
     invalid_request,
+    queue_unavailable,
     unauthorized,
 )
 from nova_file_api.models import AuthMode, Principal
@@ -191,7 +192,9 @@ class Authenticator:
         try:
             response = await self._get_remote_client().post(url, json=payload)
         except httpx.HTTPError as exc:
-            raise unauthorized("remote auth verification failed") from exc
+            raise queue_unavailable(
+                "remote auth verification unavailable"
+            ) from exc
 
         if response.status_code != 200:
             raise _remote_auth_error(response=response)
@@ -327,7 +330,11 @@ def _remote_auth_error(*, response: httpx.Response) -> FileTransferError:
     status_code = response.status_code
     if status_code == 403 and code == "unauthorized":
         code = "forbidden"
-    if status_code not in {401, 403}:
+    if status_code >= 500:
+        code = "queue_unavailable"
+        status_code = 503
+        message = "remote auth verification unavailable"
+    elif status_code not in {401, 403}:
         status_code = 401
 
     headers: dict[str, str] = {}

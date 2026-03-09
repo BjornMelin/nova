@@ -249,12 +249,13 @@ def create_app(*, container_override: AppContainer | None = None) -> FastAPI:
         request: Request,
         exc: RequestValidationError,
     ) -> JSONResponse:
+        validation_errors = _sanitize_validation_errors(errors=exc.errors())
         return JSONResponse(
             status_code=422,
             content=canonical_error_content(
                 code="invalid_request",
                 message="request validation failed",
-                details={"errors": exc.errors()},
+                details={"errors": validation_errors},
                 request_id=_request_id(request=request),
             ),
         )
@@ -318,3 +319,15 @@ def _redact_sensitive_fields(
         else:
             output[key] = _sanitize_log_value(value)
     return output
+
+
+def _sanitize_validation_errors(
+    *,
+    errors: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Return validation errors with nested sensitive values redacted."""
+    return [
+        _sanitize_log_value(error)
+        for error in errors
+        if isinstance(error, dict)
+    ]

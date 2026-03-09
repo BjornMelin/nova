@@ -33,6 +33,9 @@ def build_jwt_verifier(
     required_permissions: Sequence[str] = (),
 ) -> JWTVerifier | None:
     """Build a JWT verifier when the required OIDC settings are present."""
+    issuer = _normalized_optional_setting(issuer)
+    audience = _normalized_optional_setting(audience)
+    jwks_url = _normalized_optional_setting(jwks_url)
     if issuer is None or audience is None or jwks_url is None:
         return None
     config = AuthConfig(
@@ -112,7 +115,16 @@ def collect_string_claim(
     if isinstance(value, (list, tuple)):
         normalized: list[str] = []
         for item in value:
-            if isinstance(item, str) and item.strip():
+            if not isinstance(item, str):
+                raise invalid_token_error("token claim type is invalid")
+            if item.strip():
                 normalized.append(item.strip())
         return normalized
     raise invalid_token_error("token claim type is invalid")
+
+
+def _normalized_optional_setting(value: str | None) -> str | None:
+    if value is None:
+        return None
+    normalized = value.strip()
+    return normalized or None

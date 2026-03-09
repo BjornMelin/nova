@@ -1,13 +1,13 @@
 ---
-ADR: 0025
+ADR: 0031
 Title: Reusable GitHub workflow API and versioning policy for deployment automation
 Status: Accepted
 Version: 1.1
 Date: 2026-03-03
 Related:
   - "[ADR-0011: Hybrid CI/CD with GitHub CI and AWS-native Dev to Prod promotion](./ADR-0011-cicd-hybrid-github-aws-promotion.md)"
-  - "[SPEC-0018: Reusable workflow integration contract](../spec/SPEC-0018-runtime-configuration-and-startup-validation-contract.md)"
-  - "[SPEC-0004: CI/CD and documentation automation](../spec/SPEC-0004-ci-cd-and-docs.md)"
+  - "[SPEC-0025: Reusable workflow integration contract](../spec/SPEC-0025-reusable-workflow-integration-contract.md)"
+  - "[SPEC-0024: CloudFormation module contract](../spec/SPEC-0024-cloudformation-module-contract.md)"
 ---
 
 ## Summary

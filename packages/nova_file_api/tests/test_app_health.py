@@ -111,7 +111,7 @@ def test_readyz_fails_when_bucket_is_missing() -> None:
     )
     with TestClient(app) as client:
         response = client.get("/v1/health/ready")
-    assert response.status_code == 200
+    assert response.status_code == 503
     payload = response.json()
     assert payload["ok"] is False
     assert payload["checks"] == {

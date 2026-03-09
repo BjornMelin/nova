@@ -351,18 +351,32 @@ async def _enqueue_job_core(
 
     response = EnqueueJobResponse(job_id=job.job_id, status=job.status)
     if idempotency_key is not None:
-        await container.idempotency_store.store_response(
+        try:
+            await container.idempotency_store.store_response(
+                route="/v1/jobs",
+                scope_id=principal.scope_id,
+                idempotency_key=idempotency_key,
+                request_payload=request_payload,
+                response_payload=response.model_dump(mode="json"),
+            )
+        except Exception:
+            structlog.get_logger("api").exception(
+                "jobs_enqueue_idempotency_store_response_failed",
+                route="/v1/jobs",
+                scope_id=principal.scope_id,
+            )
+    try:
+        await context.run_blocking(
+            container.activity_store.record,
+            principal=principal,
+            event_type="jobs_enqueue",
+        )
+    except Exception:
+        structlog.get_logger("api").exception(
+            "jobs_enqueue_activity_record_failed",
             route="/v1/jobs",
             scope_id=principal.scope_id,
-            idempotency_key=idempotency_key,
-            request_payload=request_payload,
-            response_payload=response.model_dump(mode="json"),
         )
-    await context.run_blocking(
-        container.activity_store.record,
-        principal=principal,
-        event_type="jobs_enqueue",
-    )
     container.metrics.incr("jobs_enqueue_total")
     emit_request_metric(container=container, route="jobs_enqueue", status="ok")
     return response
@@ -394,9 +408,17 @@ async def _record_job_failure(
     if extra:
         log_fields.update(extra)
     structlog.get_logger("api").exception(log_event, **log_fields)
-    await context.run_blocking(
-        container.activity_store.record,
-        principal=principal,
-        event_type=activity_event_type,
-        details=activity_details or str(exc),
-    )
+    try:
+        await context.run_blocking(
+            container.activity_store.record,
+            principal=principal,
+            event_type=activity_event_type,
+            details=activity_details or str(exc),
+        )
+    except Exception:
+        structlog.get_logger("api").exception(
+            "jobs_failure_activity_record_failed",
+            route=route_path,
+            scope_id=principal.scope_id,
+            event_type=activity_event_type,
+        )

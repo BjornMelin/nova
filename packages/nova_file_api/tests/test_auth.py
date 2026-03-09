@@ -318,8 +318,8 @@ async def test_remote_auth_mode_fails_closed_on_http_errors(
             ),
             session_id=None,
         )
-    assert exc.value.code == "unauthorized"
-    assert exc.value.status_code == 401
+    assert exc.value.code == "queue_unavailable"
+    assert exc.value.status_code == 503
 
 
 @pytest.mark.asyncio
