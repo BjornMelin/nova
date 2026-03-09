@@ -381,6 +381,10 @@ def test_runtime_env_and_parameter_contracts() -> None:
     assert "MaxValue: 1209599" in async_text
     assert "SqsManagedSseEnabled: true" in async_text
     assert "PointInTimeRecoveryEnabled: true" in async_text
+    assert "GlobalSecondaryIndexes:" in async_text
+    assert "IndexName: scope_id-created_at-index" in async_text
+    assert "AttributeName: scope_id" in async_text
+    assert "AttributeName: created_at" in async_text
 
     for env_name in [
         "FILE_TRANSFER_JOBS_QUEUE_URL",

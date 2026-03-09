@@ -360,7 +360,7 @@ class TransferService:
         job_id: str,
         filename: str,
     ) -> str:
-        safe = _sanitize_filename(filename)
+        """Build an export object key for a pre-sanitized download filename."""
         stable_job_id = "".join(
             character
             for character in job_id.strip()
@@ -368,7 +368,7 @@ class TransferService:
         )
         if not stable_job_id:
             stable_job_id = uuid4().hex
-        return f"{self._export_prefix}{scope_id}/{stable_job_id}/{safe}"
+        return f"{self._export_prefix}{scope_id}/{stable_job_id}/{filename}"
 
     def _assert_upload_scope(self, *, key: str, scope_id: str) -> None:
         expected_prefix = f"{self._upload_prefix}{scope_id}/"

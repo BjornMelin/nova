@@ -90,3 +90,16 @@ def test_endpoint_and_repo_local_npmrc_use_env_overrides(
         "--output",
         "text",
     )
+
+
+def test_run_aws_times_out_with_actionable_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def _raise_timeout(*args: object, **kwargs: object) -> None:
+        del args, kwargs
+        raise codeartifact_npm.subprocess.TimeoutExpired("aws", 30)
+
+    monkeypatch.setattr(codeartifact_npm.subprocess, "run", _raise_timeout)
+
+    with pytest.raises(RuntimeError, match="timed out"):
+        codeartifact_npm._run_aws("codeartifact", "get-authorization-token")

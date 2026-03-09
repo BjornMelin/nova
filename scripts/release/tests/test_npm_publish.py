@@ -124,3 +124,61 @@ def test_validate_prepared_npm_package_rejects_workspace_specs(
 
     with pytest.raises(ValueError, match="local-only specifier"):
         npm_publish.validate_prepared_npm_package(package_json)
+
+
+def test_planned_version_map_rejects_blank_new_version(
+    tmp_path: Path,
+) -> None:
+    units = {
+        "packages/nova_sdk_fetch": common.WorkspaceUnit(
+            unit_id="packages/nova_sdk_fetch",
+            path=tmp_path / "packages/nova_sdk_fetch",
+            project_name="@nova/sdk-fetch",
+            version="0.1.0",
+            dependencies=(),
+            package_format="npm",
+            namespace="nova",
+        )
+    }
+
+    with pytest.raises(ValueError, match="must declare new_version"):
+        npm_publish.planned_version_map(
+            version_plan={
+                "units": [
+                    {
+                        "unit_id": "packages/nova_sdk_fetch",
+                        "new_version": "",
+                    }
+                ]
+            },
+            units=units,
+        )
+
+
+def test_planned_version_map_rejects_invalid_semver(
+    tmp_path: Path,
+) -> None:
+    units = {
+        "packages/nova_sdk_fetch": common.WorkspaceUnit(
+            unit_id="packages/nova_sdk_fetch",
+            path=tmp_path / "packages/nova_sdk_fetch",
+            project_name="@nova/sdk-fetch",
+            version="0.1.0",
+            dependencies=(),
+            package_format="npm",
+            namespace="nova",
+        )
+    }
+
+    with pytest.raises(ValueError, match="invalid semver"):
+        npm_publish.planned_version_map(
+            version_plan={
+                "units": [
+                    {
+                        "unit_id": "packages/nova_sdk_fetch",
+                        "new_version": "latest",
+                    }
+                ]
+            },
+            units=units,
+        )

@@ -13,6 +13,7 @@ class _FakeTable:
     def __init__(self) -> None:
         self._items: dict[str, dict[str, Any]] = {}
         self.condition_writes: list[dict[str, Any]] = []
+        self.query_error: ClientError | None = None
 
     def put_item(
         self, *, Item: dict[str, Any], **kwargs: Any
@@ -50,6 +51,12 @@ class _FakeTable:
         if item is None:
             return {}
         return {"Item": dict(item)}
+
+    def query(self, **kwargs: Any) -> dict[str, Any]:
+        del kwargs
+        if self.query_error is not None:
+            raise self.query_error
+        return {"Items": []}
 
 
 class _FakeDynamoResource:
@@ -166,3 +173,19 @@ def test_dynamo_job_repository_update_if_status_enforces_expected_state(
         )
         is False
     )
+
+
+def test_dynamo_job_repository_list_for_scope_requires_gsi(
+    _fake_repo: DynamoJobRepository,
+) -> None:
+    table = cast(_FakeTable, _fake_repo._table)
+    table.query_error = ClientError(
+        error_response={"Error": {"Code": "ValidationException"}},
+        operation_name="Query",
+    )
+
+    with pytest.raises(
+        RuntimeError,
+        match="scope_id-created_at-index global secondary index",
+    ):
+        _fake_repo.list_for_scope(scope_id="scope-1", limit=10)

@@ -27,8 +27,12 @@ function mergeRequestHeaders(
   contentType: string | undefined,
 ): Headers {
   const headers = new Headers(defaultHeaders);
-  new Headers(resolvedHeaders).forEach((value, key) => headers.set(key, value));
-  new Headers(requestHeaders).forEach((value, key) => headers.set(key, value));
+  new Headers(resolvedHeaders).forEach((value, key) => {
+    headers.set(key, value);
+  });
+  new Headers(requestHeaders).forEach((value, key) => {
+    headers.set(key, value);
+  });
   if (!headers.has("accept")) {
     headers.set("accept", DEFAULT_JSON_MEDIA_TYPE);
   }

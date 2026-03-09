@@ -63,6 +63,7 @@ export function buildOperationUrl(
  * @param pathParams Replacement values keyed by path token name.
  * @param query Query-string values keyed by parameter name.
  * @returns Fully qualified operation URL string.
+ * @throws Error when required path tokens remain unresolved after substitution.
  */
 export function buildOperationDescriptorUrl(
   baseUrl: string,

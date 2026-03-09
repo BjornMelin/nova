@@ -35,8 +35,9 @@ class _FakeHttpClient:
     def close(self) -> None:
         return None
 
-    def post(self, url: str, json: dict[str, Any]) -> httpx.Response:
-        self.posts.append({"url": url, "json": json})
+    def post(self, url: str, **kwargs: Any) -> httpx.Response:
+        json_data = kwargs["json"]
+        self.posts.append({"url": url, "json": json_data})
         response = self.responses.pop(0)
         if isinstance(response, Exception):
             raise response
@@ -185,7 +186,10 @@ def test_worker_invalid_message_is_not_deleted(
         }
     )
 
-    worker = JobsWorker(settings=settings)
+    worker = JobsWorker(
+        settings=settings,
+        transfer_service=_FakeTransferService(),  # type: ignore[arg-type]
+    )
     should_delete = worker._handle_message(
         message={
             "MessageId": "msg-1",

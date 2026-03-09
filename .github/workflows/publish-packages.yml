@@ -415,7 +415,28 @@ jobs:
           }
           EOF
           npm install --no-progress "${NPM_INSTALL_SPECS[@]}"
+          export NOVA_EXPECTED_NPM_PACKAGES="$(uv run python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(
+              Path(".artifacts/npm-publish-report.json").read_text(encoding="utf-8")
+          )
+          print(
+              json.dumps(
+                  sorted(
+                      package["package"]
+                      for package in report.get("packages", [])
+                      if isinstance(package, dict) and package.get("package")
+                  )
+              )
+          )
+          PY
+          )"
           cat > smoke.mjs <<'EOF'
+          const expectedPackages = new Set(
+            JSON.parse(process.env.NOVA_EXPECTED_NPM_PACKAGES ?? "[]"),
+          );
           let buildDescriptorUrl = null;
           let fileOperations = null;
           let authOperations = null;
@@ -424,15 +445,37 @@ jobs:
 
           try {
             ({ buildOperationDescriptorUrl: buildDescriptorUrl } = await import("@nova/sdk-fetch/url"));
-          } catch {}
+          } catch (error) {
+            if (expectedPackages.has("@nova/sdk-fetch")) {
+              throw error;
+            }
+          }
           try {
             ({ operations: fileOperations } = await import("@nova/sdk-file/operations"));
             ({ createNovaFileClient: createFileClient } = await import("@nova/sdk-file/client"));
-          } catch {}
+          } catch (error) {
+            if (expectedPackages.has("@nova/sdk-file")) {
+              throw error;
+            }
+          }
           try {
             ({ operations: authOperations } = await import("@nova/sdk-auth/operations"));
             ({ createNovaAuthClient: createAuthClient } = await import("@nova/sdk-auth/client"));
-          } catch {}
+          } catch (error) {
+            if (expectedPackages.has("@nova/sdk-auth")) {
+              throw error;
+            }
+          }
+
+          if (expectedPackages.has("@nova/sdk-fetch") && !buildDescriptorUrl) {
+            throw new Error("@nova/sdk-fetch smoke import did not load buildOperationDescriptorUrl");
+          }
+          if (expectedPackages.has("@nova/sdk-file") && (!fileOperations || !createFileClient)) {
+            throw new Error("@nova/sdk-file smoke import did not load expected entrypoints");
+          }
+          if (expectedPackages.has("@nova/sdk-auth") && (!authOperations || !createAuthClient)) {
+            throw new Error("@nova/sdk-auth smoke import did not load expected entrypoints");
+          }
 
           if (buildDescriptorUrl && fileOperations) {
             const descriptorUrl = buildDescriptorUrl(

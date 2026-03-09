@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from scripts.release import common
 
 
@@ -61,6 +63,32 @@ def test_load_workspace_units_includes_managed_npm_units(
     assert units["packages/nova_sdk_fetch"].package_format == "npm"
     assert units["packages/nova_sdk_fetch"].namespace == "nova"
     assert units["packages/nova_sdk_fetch"].dependencies == ("undici",)
+
+
+def test_load_workspace_units_rejects_unscoped_managed_npm_packages(
+    tmp_path: Path,
+) -> None:
+    repo_root = tmp_path
+    (repo_root / "pyproject.toml").write_text(
+        "[tool.uv]\n\n[tool.uv.workspace]\nmembers = []\n",
+        encoding="utf-8",
+    )
+    (repo_root / "package.json").write_text(
+        '{\n  "private": true,\n  "workspaces": ["packages/sdk"]\n}\n',
+        encoding="utf-8",
+    )
+    (repo_root / "packages/sdk").mkdir(parents=True)
+    (repo_root / "packages/sdk/package.json").write_text(
+        "{\n"
+        '  "name": "nova-sdk",\n'
+        '  "version": "0.1.0",\n'
+        '  "novaRelease": {"managed": true}\n'
+        "}\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="requires a scoped package"):
+        common.load_workspace_units(repo_root)
 
 
 def test_order_units_for_release_respects_internal_dependencies() -> None:

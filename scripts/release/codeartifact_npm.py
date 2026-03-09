@@ -11,6 +11,7 @@ from pathlib import Path
 DEFAULT_REGION = "us-east-1"
 DEFAULT_DOMAIN = "cral"
 DEFAULT_REPOSITORY = "galaxypy-staging"
+AWS_CLI_TIMEOUT_SECONDS = 30
 
 
 def _repo_root() -> Path:
@@ -42,17 +43,33 @@ def _repository() -> str:
 
 
 def _run_aws(*args: str) -> str:
-    result = subprocess.run(
-        ["aws", *args],
-        check=True,
-        text=True,
-        capture_output=True,
-    )
+    try:
+        result = subprocess.run(
+            ["aws", *args],
+            check=True,
+            text=True,
+            capture_output=True,
+            timeout=AWS_CLI_TIMEOUT_SECONDS,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise RuntimeError(
+            "AWS CLI timed out while resolving CodeArtifact npm metadata"
+        ) from exc
+    except subprocess.CalledProcessError as exc:
+        stderr = (exc.stderr or "").strip()
+        raise RuntimeError(stderr or str(exc)) from exc
     return result.stdout.strip()
 
 
 def get_repository_endpoint() -> str:
-    """Return the repo-scoped npm endpoint for the staging repository."""
+    """Return the repo-scoped npm endpoint for the staging repository.
+
+    Returns:
+        Repository endpoint URL with a trailing slash.
+
+    Raises:
+        RuntimeError: If the AWS CLI call fails or times out.
+    """
     endpoint = _run_aws(
         "codeartifact",
         "get-repository-endpoint",
@@ -73,7 +90,14 @@ def get_repository_endpoint() -> str:
 
 
 def get_authorization_token() -> str:
-    """Return a CodeArtifact authorization token for npm commands."""
+    """Return a CodeArtifact authorization token for npm commands.
+
+    Returns:
+        Authorization token string for npm authentication.
+
+    Raises:
+        RuntimeError: If the AWS CLI call fails or times out.
+    """
     return _run_aws(
         "codeartifact",
         "get-authorization-token",
@@ -89,7 +113,15 @@ def get_authorization_token() -> str:
 
 
 def write_repo_local_npmrc() -> Path:
-    """Write a repo-local npmrc that scopes `@nova` to CodeArtifact."""
+    """Write a repo-local npmrc that scopes `@nova` to CodeArtifact.
+
+    Returns:
+        Path to the generated repo-local npm configuration file.
+
+    Raises:
+        OSError: If the file cannot be written or chmod fails.
+        RuntimeError: If CodeArtifact endpoint/token lookup fails.
+    """
     repo_root = _repo_root()
     endpoint = get_repository_endpoint()
     token = get_authorization_token()
@@ -111,14 +143,28 @@ def write_repo_local_npmrc() -> Path:
 
 
 def parse_args() -> argparse.Namespace:
-    """Parse the CLI command selector."""
+    """Parse the CLI command selector.
+
+    Returns:
+        Parsed CLI namespace containing the requested command.
+
+    Raises:
+        SystemExit: If CLI arguments are invalid.
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument("command", choices=("endpoint", "env", "token"))
     return parser.parse_args()
 
 
 def main() -> int:
-    """Run the requested helper command and print shell-safe output."""
+    """Run the requested helper command and print shell-safe output.
+
+    Returns:
+        Process exit status code.
+
+    Raises:
+        RuntimeError: If CodeArtifact metadata resolution fails.
+    """
     args = parse_args()
     if args.command == "endpoint":
         print(get_repository_endpoint())

@@ -151,7 +151,7 @@ The idempotency implementation MUST use an explicit request lifecycle:
 - commit (`committed`) only after successful mutation response
 - discard claims on failed mutation execution to preserve retry behavior
 - `IDEMPOTENCY_MODE=shared_required` is the canonical production mode for
-  AWS-backed multi-instance deployments and requires shared Redis.
+  AWS-backed multi-instance deployments and requires a shared Redis instance.
 - In `shared_required` mode, mutations MUST fail with `503`
   (`error.code = "idempotency_unavailable"`) when the distributed claim store
   cannot guarantee correctness.

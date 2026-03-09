@@ -176,6 +176,10 @@ def _load_npm_workspace_units(repo_root: Path) -> dict[str, WorkspaceUnit]:
         configured_namespace = release_data.get("namespace")
         if configured_namespace is not None:
             configured_namespace = str(configured_namespace).strip() or None
+        if inferred_namespace is None and configured_namespace is None:
+            raise ValueError(
+                f"novaRelease.managed in {member} requires a scoped package"
+            )
         if inferred_namespace and configured_namespace not in {
             None,
             inferred_namespace,

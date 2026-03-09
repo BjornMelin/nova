@@ -60,6 +60,8 @@ export type FetchHeadersResolver = (
 
 /**
  * Normalized HTTP response payload for SDK consumers.
+ *
+ * @typeParam TData - Expected shape of the decoded response body.
  */
 export interface FetchResponse<TData> {
   readonly status: number;

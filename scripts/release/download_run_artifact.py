@@ -232,7 +232,23 @@ def download_run_artifact(
     output_dir: Path,
     token: str,
 ) -> None:
-    """Download and extract a named artifact from a workflow run."""
+    """Download and extract a named artifact from a workflow run.
+
+    Args:
+        repo: GitHub repository in ``owner/repo`` form.
+        run_id: Workflow run identifier containing the artifact.
+        artifact_name: Artifact name to download from the workflow run.
+        output_dir: Destination directory for the extracted artifact contents.
+        token: GitHub API token with read access to Actions artifacts.
+
+    Returns:
+        None.
+
+    Raises:
+        RuntimeError: If the artifact lookup, download, or extraction fails.
+        urllib.error.HTTPError: If the GitHub API rejects the request.
+        OSError: If filesystem operations fail while preparing output paths.
+    """
     artifact = _find_named_artifact(
         repo=repo,
         run_id=run_id,
@@ -289,7 +305,7 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
 
 def main(argv: list[str] | None = None) -> int:
     """CLI entrypoint."""
-    args = _parse_args(argv or sys.argv[1:])
+    args = _parse_args(sys.argv[1:] if argv is None else argv)
     token = (
         os.environ.get("GITHUB_TOKEN")
         or os.environ.get("GH_TOKEN")

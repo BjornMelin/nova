@@ -11,6 +11,7 @@ from scripts.release.download_run_artifact import (
     _extract_archive,
     _find_named_artifact,
     download_run_artifact,
+    main,
 )
 
 
@@ -179,3 +180,8 @@ def test_download_run_artifact_rejects_symlinked_output_dir(
         )
 
     assert sentinel.read_text(encoding="utf-8") == "keep"
+
+
+def test_main_honors_explicit_empty_argv() -> None:
+    with pytest.raises(SystemExit):
+        main([])

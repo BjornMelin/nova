@@ -17,6 +17,46 @@ DEPENDENCY_FIELDS = (
     "peerDependencies",
 )
 LOCAL_DEPENDENCY_SPEC_RE = re.compile(r"^(workspace:|file:|link:)")
+SEMVER_RE = re.compile(
+    r"^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$"
+)
+
+
+def _validated_planned_versions(version_plan: dict[str, Any]) -> dict[str, str]:
+    """Return validated planned versions keyed by workspace unit ID.
+
+    Args:
+        version_plan: Release-plan payload containing planned unit versions.
+
+    Returns:
+        Mapping of workspace unit ID to validated target version.
+
+    Raises:
+        ValueError: If ``version_plan.units`` is malformed or contains an
+            invalid ``new_version`` for a planned unit.
+    """
+    raw_units = version_plan.get("units", [])
+    if not isinstance(raw_units, list):
+        raise ValueError("version_plan.units must be a JSON array")
+
+    versions: dict[str, str] = {}
+    for item in raw_units:
+        if not isinstance(item, dict):
+            raise ValueError("version_plan.units entries must be objects")
+        unit_id = str(item.get("unit_id", "")).strip()
+        new_version = str(item.get("new_version", "")).strip()
+        if not unit_id:
+            continue
+        if not new_version:
+            raise ValueError(
+                f"version plan unit {unit_id} must declare new_version"
+            )
+        if not SEMVER_RE.match(new_version):
+            raise ValueError(
+                f"version plan unit {unit_id} has invalid semver: {new_version}"
+            )
+        versions[unit_id] = new_version
+    return versions
 
 
 def planned_version_map(
@@ -24,13 +64,21 @@ def planned_version_map(
     version_plan: dict[str, Any],
     units: dict[str, common.WorkspaceUnit],
 ) -> dict[str, str]:
-    """Return per-unit versions after applying the release plan."""
+    """Return per-unit versions after applying the release plan.
+
+    Args:
+        version_plan: Release-plan payload with unit/version changes.
+        units: Workspace units keyed by unit ID.
+
+    Returns:
+        Mapping of every workspace unit ID to the version that should be
+        published after applying the release plan.
+
+    Raises:
+        ValueError: If planned unit versions are missing or invalid.
+    """
     versions = {unit_id: unit.version for unit_id, unit in units.items()}
-    for item in version_plan.get("units", []):
-        unit_id = str(item.get("unit_id", "")).strip()
-        new_version = str(item.get("new_version", "")).strip()
-        if unit_id and new_version:
-            versions[unit_id] = new_version
+    versions.update(_validated_planned_versions(version_plan))
     return versions
 
 
@@ -39,12 +87,22 @@ def collect_npm_unit_ids(
     version_plan: dict[str, Any],
     units: dict[str, common.WorkspaceUnit],
 ) -> list[str]:
-    """Return planned npm unit IDs in dependency order."""
+    """Return planned npm unit IDs in dependency order.
+
+    Args:
+        version_plan: Release-plan payload with unit/version changes.
+        units: Workspace units keyed by unit ID.
+
+    Returns:
+        Ordered npm workspace unit IDs for publish preparation.
+
+    Raises:
+        ValueError: If the release plan references a missing workspace unit or
+            contains invalid planned versions.
+    """
+    planned_versions = _validated_planned_versions(version_plan)
     npm_unit_ids: set[str] = set()
-    for item in version_plan.get("units", []):
-        unit_id = str(item.get("unit_id", "")).strip()
-        if not unit_id:
-            continue
+    for unit_id in planned_versions:
         unit = units.get(unit_id)
         if unit is None:
             raise ValueError(
@@ -63,7 +121,23 @@ def prepare_npm_publish_artifacts(
     registry_url: str,
     output_dir: Path,
 ) -> dict[str, Any]:
-    """Create publish-ready npm directories with exact internal semver deps."""
+    """Create publish-ready npm directories with exact internal semver deps.
+
+    Args:
+        repo_root: Repository root used to resolve workspace members.
+        version_plan: Release-plan payload with unit/version changes.
+        units: Workspace units keyed by unit ID.
+        registry_url: Target npm registry URL for publishConfig.
+        output_dir: Directory where prepared publish artifacts are written.
+
+    Returns:
+        Report payload describing prepared npm publish artifacts.
+
+    Raises:
+        ValueError: If workspace metadata, version planning, or package content
+            is invalid for npm publication.
+        OSError: If artifact directories cannot be created or copied.
+    """
     registry = registry_url.rstrip("/") + "/"
     version_by_unit = planned_version_map(
         version_plan=version_plan,
@@ -167,7 +241,18 @@ def prepare_npm_publish_artifacts(
 
 
 def validate_prepared_npm_package(package_json_path: Path) -> None:
-    """Reject publish artifacts with remaining local-only dependency specs."""
+    """Reject publish artifacts with remaining local-only dependency specs.
+
+    Args:
+        package_json_path: Path to the prepared package.json file to validate.
+
+    Returns:
+        None.
+
+    Raises:
+        ValueError: If the prepared package metadata is malformed or still
+            contains local-only dependency specifiers.
+    """
     package_data = json.loads(package_json_path.read_text(encoding="utf-8"))
     for field in DEPENDENCY_FIELDS:
         raw_dependencies = package_data.get(field, {})
@@ -182,7 +267,14 @@ def validate_prepared_npm_package(package_json_path: Path) -> None:
 
 
 def parse_args() -> argparse.Namespace:
-    """Parse CLI options."""
+    """Parse CLI options.
+
+    Returns:
+        Parsed CLI namespace for npm publish preparation.
+
+    Raises:
+        SystemExit: If CLI arguments are invalid.
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument("--repo-root", default=".")
     parser.add_argument("--version-plan", required=True)
@@ -196,7 +288,15 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> int:
-    """Prepare npm publish artifacts and write a report."""
+    """Prepare npm publish artifacts and write a report.
+
+    Returns:
+        Process exit status code.
+
+    Raises:
+        ValueError: If workspace or release-plan inputs are invalid.
+        OSError: If prepared artifacts or reports cannot be written.
+    """
     args = parse_args()
     repo_root = Path(args.repo_root).resolve()
     units = common.load_workspace_units(repo_root)

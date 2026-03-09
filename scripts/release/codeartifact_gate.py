@@ -251,7 +251,6 @@ def validate_release_gates(
             if unit_id in planned_unit_ids:
                 raise GateError(f"duplicate version plan unit_id: {unit_id}")
             planned_unit_ids.add(unit_id)
-    planned_unit_ids.discard("")
 
     if planned_unit_ids != changed_unit_ids:
         planned_sorted = ", ".join(sorted(planned_unit_ids))
