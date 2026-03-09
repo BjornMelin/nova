@@ -9,6 +9,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: release-plan-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   plan:
     if: >-
