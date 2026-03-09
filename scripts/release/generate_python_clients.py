@@ -631,6 +631,36 @@ def _patch_auth_sdk(root: Path) -> None:
         patch_token_introspect_request,
     )
 
+    def patch_types(content: str) -> str:
+        content = content.replace(
+            "from http import HTTPStatus\n",
+            "",
+        )
+        return content.replace(
+            "    status_code: HTTPStatus\n",
+            "    status_code: int\n",
+        )
+
+    _rewrite_file(root, "types.py", patch_types)
+
+    def patch_token_introspect_request_repr(content: str) -> str:
+        if "_attrs_field" not in content:
+            content = content.replace(
+                "from attrs import define as _attrs_define\n",
+                "from attrs import define as _attrs_define\n"
+                "from attrs import field as _attrs_field\n",
+            )
+        return content.replace(
+            "    access_token: str\n",
+            "    access_token: str = _attrs_field(repr=False)\n",
+        )
+
+    _rewrite_file(
+        root,
+        "models/token_introspect_request.py",
+        patch_token_introspect_request_repr,
+    )
+
     for rel_path, doc in (
         (
             "models/token_introspect_response_claims.py",
@@ -688,7 +718,7 @@ def _patch_file_sdk(root: Path) -> None:
     _rewrite_file(root, "api/jobs/list_jobs.py", patch_list_jobs)
 
     def patch_errors(content: str) -> str:
-        return _replace_text(
+        content = _replace_text(
             content,
             old=(
                 "        super().__init__(\n"
@@ -696,13 +726,17 @@ def _patch_file_sdk(root: Path) -> None:
                 "        )\n"
             ),
             new=(
-                "        super().__init__(\n"
-                '            "Unexpected status code: "\n'
-                '            f"{status_code}\\n\\nResponse content:\\n"\n'
-                "            f\"{content.decode(errors='ignore')}\"\n"
-                "        )\n"
+                '        super().__init__(f"Unexpected status code: {status_code}")\n'
             ),
             path="errors.py",
+        )
+        return content.replace(
+            "        super().__init__(\n"
+            '            "Unexpected status code: "\n'
+            '            f"{status_code}\\n\\nResponse content:\\n"\n'
+            "            f\"{content.decode(errors='ignore')}\"\n"
+            "        )\n",
+            '        super().__init__(f"Unexpected status code: {status_code}")\n',
         )
 
     _rewrite_file(root, "errors.py", patch_errors)

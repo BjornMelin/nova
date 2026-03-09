@@ -29,11 +29,8 @@ from nova_sdk_py_file.models.health_response import HealthResponse
 from nova_sdk_py_file.models.initiate_upload_request import (
     InitiateUploadRequest,
 )
-from nova_sdk_py_file.models.initiate_upload_response_type_0 import (
-    InitiateUploadResponseType0,
-)
-from nova_sdk_py_file.models.initiate_upload_response_type_1 import (
-    InitiateUploadResponseType1,
+from nova_sdk_py_file.models.initiate_upload_response import (
+    InitiateUploadResponse,
 )
 from nova_sdk_py_file.models.job_cancel_response import JobCancelResponse
 from nova_sdk_py_file.models.job_event import JobEvent
@@ -89,6 +86,10 @@ from nova_sdk_py_file.models.sign_parts_response_urls import (
     SignPartsResponseUrls,
 )
 from nova_sdk_py_file.models.upload_strategy import UploadStrategy
+from nova_sdk_py_file.models.validation_error import ValidationError
+from nova_sdk_py_file.models.validation_error_context import (
+    ValidationErrorContext,
+)
 
 __all__ = (
     "AbortUploadRequest",
@@ -107,8 +108,7 @@ __all__ = (
     "ErrorEnvelopeErrorDetails",
     "HealthResponse",
     "InitiateUploadRequest",
-    "InitiateUploadResponseType0",
-    "InitiateUploadResponseType1",
+    "InitiateUploadResponse",
     "JobCancelResponse",
     "JobEvent",
     "JobEventData",
@@ -139,4 +139,6 @@ __all__ = (
     "SignPartsResponse",
     "SignPartsResponseUrls",
     "UploadStrategy",
+    "ValidationError",
+    "ValidationErrorContext",
 )

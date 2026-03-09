@@ -25,6 +25,10 @@ from nova_sdk_py_auth.models.token_verify_response import TokenVerifyResponse
 from nova_sdk_py_auth.models.token_verify_response_claims import (
     TokenVerifyResponseClaims,
 )
+from nova_sdk_py_auth.models.validation_error import ValidationError
+from nova_sdk_py_auth.models.validation_error_context import (
+    ValidationErrorContext,
+)
 
 __all__ = (
     "ErrorEnvelope",
@@ -39,4 +43,6 @@ __all__ = (
     "TokenVerifyRequest",
     "TokenVerifyResponse",
     "TokenVerifyResponseClaims",
+    "ValidationError",
+    "ValidationErrorContext",
 )

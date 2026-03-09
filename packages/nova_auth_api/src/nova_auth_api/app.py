@@ -85,6 +85,7 @@ _OPENAPI_OPERATION_RESPONSES = {
         "post": {
             "401": "AuthUnauthorizedResponse",
             "403": "AuthForbiddenResponse",
+            "503": "AuthServiceUnavailableResponse",
             "422": "AuthInvalidRequestResponse",
         }
     },
@@ -92,6 +93,7 @@ _OPENAPI_OPERATION_RESPONSES = {
         "post": {
             "401": "AuthUnauthorizedResponse",
             "403": "AuthForbiddenResponse",
+            "503": "AuthServiceUnavailableResponse",
             "422": "AuthInvalidRequestResponse",
         }
     },
@@ -349,7 +351,7 @@ async def _parse_introspect_request(
                     "type": "model_attributes_type",
                     "loc": ("body",),
                     "msg": "Input should be a valid dictionary",
-                    "input": raw_payload,
+                    "input": None,
                 }
             ]
         )

@@ -73,7 +73,7 @@ def _build_response(
 
 def sync_detailed(
     *,
-    client: AuthenticatedClient,
+    client: AuthenticatedClient | Client,
     body: SignPartsRequest,
 ) -> Response[ErrorEnvelope | SignPartsResponse]:
     """Sign Upload Parts
@@ -104,7 +104,7 @@ def sync_detailed(
 
 def sync(
     *,
-    client: AuthenticatedClient,
+    client: AuthenticatedClient | Client,
     body: SignPartsRequest,
 ) -> ErrorEnvelope | SignPartsResponse | None:
     """Sign Upload Parts
@@ -130,7 +130,7 @@ def sync(
 
 async def asyncio_detailed(
     *,
-    client: AuthenticatedClient,
+    client: AuthenticatedClient | Client,
     body: SignPartsRequest,
 ) -> Response[ErrorEnvelope | SignPartsResponse]:
     """Sign Upload Parts
@@ -159,7 +159,7 @@ async def asyncio_detailed(
 
 async def asyncio(
     *,
-    client: AuthenticatedClient,
+    client: AuthenticatedClient | Client,
     body: SignPartsRequest,
 ) -> ErrorEnvelope | SignPartsResponse | None:
     """Sign Upload Parts

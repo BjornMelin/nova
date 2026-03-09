@@ -5,6 +5,7 @@ from collections.abc import Mapping
 from typing import Any, TypeVar, cast
 
 from attrs import define as _attrs_define
+from attrs import field as _attrs_field
 
 from nova_sdk_py_auth.types import UNSET, Unset
 
@@ -21,7 +22,7 @@ class TokenIntrospectRequest:
         required_scopes (list[str] | Unset):
     """
 
-    access_token: str
+    access_token: str = _attrs_field(repr=False)
     required_permissions: list[str] | Unset = UNSET
     required_scopes: list[str] | Unset = UNSET
 

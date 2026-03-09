@@ -10,11 +10,8 @@ from nova_sdk_py_file.models.error_envelope import ErrorEnvelope
 from nova_sdk_py_file.models.initiate_upload_request import (
     InitiateUploadRequest,
 )
-from nova_sdk_py_file.models.initiate_upload_response_type_0 import (
-    InitiateUploadResponseType0,
-)
-from nova_sdk_py_file.models.initiate_upload_response_type_1 import (
-    InitiateUploadResponseType1,
+from nova_sdk_py_file.models.initiate_upload_response import (
+    InitiateUploadResponse,
 )
 from nova_sdk_py_file.types import UNSET, Response, Unset
 
@@ -43,36 +40,9 @@ def _get_kwargs(
 
 def _parse_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> (
-    ErrorEnvelope
-    | InitiateUploadResponseType0
-    | InitiateUploadResponseType1
-    | None
-):
+) -> ErrorEnvelope | InitiateUploadResponse | None:
     if response.status_code == 200:
-
-        def _parse_response_200(
-            data: object,
-        ) -> InitiateUploadResponseType0 | InitiateUploadResponseType1:
-            try:
-                if not isinstance(data, dict):
-                    raise TypeError()
-                componentsschemas_initiate_upload_response_type_0 = (
-                    InitiateUploadResponseType0.from_dict(data)
-                )
-
-                return componentsschemas_initiate_upload_response_type_0
-            except (TypeError, ValueError, AttributeError, KeyError):
-                pass
-            if not isinstance(data, dict):
-                raise TypeError()
-            componentsschemas_initiate_upload_response_type_1 = (
-                InitiateUploadResponseType1.from_dict(data)
-            )
-
-            return componentsschemas_initiate_upload_response_type_1
-
-        response_200 = _parse_response_200(response.json())
+        response_200 = InitiateUploadResponse.from_dict(response.json())
 
         return response_200
 
@@ -104,9 +74,7 @@ def _parse_response(
 
 def _build_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> Response[
-    ErrorEnvelope | InitiateUploadResponseType0 | InitiateUploadResponseType1
-]:
+) -> Response[ErrorEnvelope | InitiateUploadResponse]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -117,12 +85,10 @@ def _build_response(
 
 def sync_detailed(
     *,
-    client: AuthenticatedClient,
+    client: AuthenticatedClient | Client,
     body: InitiateUploadRequest,
     idempotency_key: None | str | Unset = UNSET,
-) -> Response[
-    ErrorEnvelope | InitiateUploadResponseType0 | InitiateUploadResponseType1
-]:
+) -> Response[ErrorEnvelope | InitiateUploadResponse]:
     """Initiate Upload
 
      Choose upload strategy and return presigned metadata.
@@ -136,7 +102,7 @@ def sync_detailed(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[ErrorEnvelope | InitiateUploadResponseType0 | InitiateUploadResponseType1]
+        Response[ErrorEnvelope | InitiateUploadResponse]
     """
 
     kwargs = _get_kwargs(
@@ -153,15 +119,10 @@ def sync_detailed(
 
 def sync(
     *,
-    client: AuthenticatedClient,
+    client: AuthenticatedClient | Client,
     body: InitiateUploadRequest,
     idempotency_key: None | str | Unset = UNSET,
-) -> (
-    ErrorEnvelope
-    | InitiateUploadResponseType0
-    | InitiateUploadResponseType1
-    | None
-):
+) -> ErrorEnvelope | InitiateUploadResponse | None:
     """Initiate Upload
 
      Choose upload strategy and return presigned metadata.
@@ -175,7 +136,7 @@ def sync(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        ErrorEnvelope | InitiateUploadResponseType0 | InitiateUploadResponseType1
+        ErrorEnvelope | InitiateUploadResponse
     """
 
     return sync_detailed(
@@ -187,12 +148,10 @@ def sync(
 
 async def asyncio_detailed(
     *,
-    client: AuthenticatedClient,
+    client: AuthenticatedClient | Client,
     body: InitiateUploadRequest,
     idempotency_key: None | str | Unset = UNSET,
-) -> Response[
-    ErrorEnvelope | InitiateUploadResponseType0 | InitiateUploadResponseType1
-]:
+) -> Response[ErrorEnvelope | InitiateUploadResponse]:
     """Initiate Upload
 
      Choose upload strategy and return presigned metadata.
@@ -206,7 +165,7 @@ async def asyncio_detailed(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[ErrorEnvelope | InitiateUploadResponseType0 | InitiateUploadResponseType1]
+        Response[ErrorEnvelope | InitiateUploadResponse]
     """
 
     kwargs = _get_kwargs(
@@ -221,15 +180,10 @@ async def asyncio_detailed(
 
 async def asyncio(
     *,
-    client: AuthenticatedClient,
+    client: AuthenticatedClient | Client,
     body: InitiateUploadRequest,
     idempotency_key: None | str | Unset = UNSET,
-) -> (
-    ErrorEnvelope
-    | InitiateUploadResponseType0
-    | InitiateUploadResponseType1
-    | None
-):
+) -> ErrorEnvelope | InitiateUploadResponse | None:
     """Initiate Upload
 
      Choose upload strategy and return presigned metadata.
@@ -243,7 +197,7 @@ async def asyncio(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        ErrorEnvelope | InitiateUploadResponseType0 | InitiateUploadResponseType1
+        ErrorEnvelope | InitiateUploadResponse
     """
 
     return (

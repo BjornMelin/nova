@@ -438,6 +438,9 @@
           },
           "422": {
             "$ref": "#/components/responses/AuthInvalidRequestResponse"
+          },
+          "503": {
+            "$ref": "#/components/responses/AuthServiceUnavailableResponse"
           }
         },
         "security": [
@@ -484,6 +487,9 @@
           },
           "422": {
             "$ref": "#/components/responses/AuthInvalidRequestResponse"
+          },
+          "503": {
+            "$ref": "#/components/responses/AuthServiceUnavailableResponse"
           }
         },
         "security": [

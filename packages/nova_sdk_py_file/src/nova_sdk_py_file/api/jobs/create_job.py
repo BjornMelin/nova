@@ -81,7 +81,7 @@ def _build_response(
 
 def sync_detailed(
     *,
-    client: AuthenticatedClient,
+    client: AuthenticatedClient | Client,
     body: EnqueueJobRequest,
     idempotency_key: None | str | Unset = UNSET,
 ) -> Response[EnqueueJobResponse | ErrorEnvelope]:
@@ -115,7 +115,7 @@ def sync_detailed(
 
 def sync(
     *,
-    client: AuthenticatedClient,
+    client: AuthenticatedClient | Client,
     body: EnqueueJobRequest,
     idempotency_key: None | str | Unset = UNSET,
 ) -> EnqueueJobResponse | ErrorEnvelope | None:
@@ -144,7 +144,7 @@ def sync(
 
 async def asyncio_detailed(
     *,
-    client: AuthenticatedClient,
+    client: AuthenticatedClient | Client,
     body: EnqueueJobRequest,
     idempotency_key: None | str | Unset = UNSET,
 ) -> Response[EnqueueJobResponse | ErrorEnvelope]:
@@ -176,7 +176,7 @@ async def asyncio_detailed(
 
 async def asyncio(
     *,
-    client: AuthenticatedClient,
+    client: AuthenticatedClient | Client,
     body: EnqueueJobRequest,
     idempotency_key: None | str | Unset = UNSET,
 ) -> EnqueueJobResponse | ErrorEnvelope | None:
