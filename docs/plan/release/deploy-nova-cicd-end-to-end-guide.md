@@ -7,7 +7,15 @@ Last reviewed: 2026-03-05
 ## Purpose
 
 Provide a complete deploy sequence for Nova CI/CD resources and first release
-execution after runtime environments are provisioned.
+execution after runtime environments are provisioned, with the governing
+authority chain cited for operators.
+
+## References
+
+- `ADR-0023`
+- `SPEC-0000`
+- `SPEC-0016`
+- `requirements.md`
 
 ## Prerequisites
 
@@ -59,11 +67,15 @@ Fallback path:
 - `${ECR_REPOSITORY_NAME}`
 - `${ECR_REPOSITORY_URI}`
 - `${NOVA_DEPLOY_SERVICE_NAME}` (optional, default `nova-file-api`)
+- `${DEV_BASE_URL}` example `https://nova-file-api.dev.example.com`
+- `${PROD_BASE_URL}` example `https://nova-file-api.example.com`
 
 ## Step 1: set deployment values
 
 Export the required values for the Nova operator command pack:
 
+- `AWS_REGION`, `PROJECT`, `APPLICATION`, and `NOVA_DEPLOY_SERVICE_NAME`
+- `DEV_BASE_URL` and `PROD_BASE_URL`
 - `GITHUB_OIDC_PROVIDER_ARN`
 - `SECRET_NAME` / `RELEASE_SIGNING_SECRET_ARN`
 - `NOVA_ARTIFACT_BUCKET_NAME`
@@ -72,6 +84,17 @@ Export the required values for the Nova operator command pack:
 - `CODEARTIFACT_PROD_REPOSITORY`
 - optional: `EXISTING_CONNECTION_ARN`
 - optional: `NOVA_MANUAL_APPROVAL_TOPIC_ARN`
+
+Example exports:
+
+```bash
+export AWS_REGION="${AWS_REGION:-us-west-2}"
+export PROJECT="${PROJECT:-nova}"
+export APPLICATION="${APPLICATION:-ci}"
+export NOVA_DEPLOY_SERVICE_NAME="${NOVA_DEPLOY_SERVICE_NAME:-nova-file-api}"
+export DEV_BASE_URL="${DEV_BASE_URL:?set to the dev runtime base URL, for example https://nova-file-api.dev.example.com}"
+export PROD_BASE_URL="${PROD_BASE_URL:?set to the prod runtime base URL, for example https://nova-file-api.example.com}"
+```
 
 Reference details:
 [config-values-reference-guide.md](config-values-reference-guide.md)
