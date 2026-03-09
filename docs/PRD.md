@@ -38,8 +38,8 @@ async jobs with zero route-surface ambiguity.
    approval before prod.
 5. Documentation authority remains singular and unambiguous across README,
    PRD, requirements, ADR/SPEC, plan, and runbooks.
-6. Public SDK productization for this wave is Python-only; TypeScript and R
-   remain internal/generated catalogs until a dedicated promotion wave.
+6. Public SDK productization for this wave includes Python and TypeScript; R
+   remains an internal/generated catalog until a dedicated promotion wave.
 7. Deployment target-state uses ECS/Fargate behind ALB with ECS-native
    blue/green rollout, CloudWatch alarms, WAF on public ingress, and manifest
    hash evidence tied to the release manifest itself.

@@ -47,7 +47,8 @@ Route namespace policy:
 ### TypeScript lanes
 
 1. Import fixture JSON as test fixtures.
-2. Type-narrow fixture payloads against generated `@nova/sdk-auth-core` / `@nova/sdk-file-core` types.
+2. Exercise generated `@nova/sdk-auth/client` / `@nova/sdk-file/client`
+   methods against fixture-backed mock fetch implementations.
 3. Assert runtime handling for:
    - `verify.success`
    - `verify.401.invalid-token`

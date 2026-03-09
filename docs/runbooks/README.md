@@ -51,8 +51,8 @@ Active authority alignment for runbooks is governed by:
 Release runbooks define the canonical mixed-package publish path:
 
 - Python distributions publish to CodeArtifact with `twine`
-- TypeScript foundations publish to CodeArtifact npm after workspace-local
-  source-dependency rewrite and staged install smoke validation
+- TypeScript SDK packages publish to CodeArtifact npm after staged public-SDK
+  smoke validation of their subpath contracts
 
 Local developer npm auth for Nova must stay repo-scoped:
 

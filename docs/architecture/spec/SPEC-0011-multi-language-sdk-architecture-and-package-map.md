@@ -1,11 +1,11 @@
 ---
 Spec: 0011
-Title: Python-first SDK architecture and deferred TS/R package map
+Title: Public Python/TypeScript SDK architecture and deferred R package map
 Status: Active
 Version: 2.0
 Date: 2026-03-05
 Related:
-  - "[ADR-0013: Python-first SDK topology uses generated contract-core clients and defers TS/R productization](../adr/ADR-0013-final-state-sdk-topology-generated-core-plus-thin-adapters.md)"
+  - "[ADR-0013: Public Python/TypeScript SDK topology uses generated contract-core clients and defers R productization](../adr/ADR-0013-final-state-sdk-topology-generated-core-plus-thin-adapters.md)"
   - "[ADR-0002: OpenAPI as contract and SDK generation](../adr/ADR-0002-openapi-as-contract-and-sdk-generation.md)"
   - "[SPEC-0000: HTTP API contract](./SPEC-0000-http-api-contract.md)"
   - "[SPEC-0007: Auth API contract](./SPEC-0007-auth-api-contract.md)"
@@ -18,9 +18,9 @@ References:
 
 ## 1. Scope
 
-Defines the current-wave Nova SDK package map. Python is the only release-grade
-public SDK surface. TypeScript and R packages remain internal/generated catalogs
-until a later promotion wave.
+Defines the current-wave Nova SDK package map. Python and TypeScript are the
+release-grade public SDK surfaces. R packages remain internal/generated
+catalogs until a later promotion wave.
 
 ## 2. Canonical topology
 
@@ -68,23 +68,28 @@ Consumer mapping:
 - `dash-pca` consumes generated Python SDK packages plus thin bridge utilities.
 - No handwritten Python verify client remains authoritative in consumer repos.
 
-### 3.3 Internal/generated TypeScript catalogs
+### 3.3 Public/generated TypeScript SDKs
 
-- `@nova/sdk-file-core` (generated types and operation signatures from OpenAPI)
-- `@nova/sdk-auth-core` (generated auth operation types/signatures)
-- `@nova/sdk-fetch` (generator-owned runtime helper over `openapi-fetch`)
+- `@nova/sdk-file` (generated public file SDK with `client`, `types`,
+  `operations`, and `errors` subpaths)
+- `@nova/sdk-auth` (generated public auth SDK with `client`, `types`,
+  `operations`, and `errors` subpaths)
+- `@nova/sdk-fetch` (generator-owned runtime helper used by the public SDKs)
 
 Repository package paths:
 
-- `packages/nova_sdk_file_core/`
-- `packages/nova_sdk_auth_core/`
+- `packages/nova_sdk_file/`
+- `packages/nova_sdk_auth/`
 - `packages/nova_sdk_fetch/`
 
 Current status:
 
-- internal/generated catalog only
-- not a release-grade public SDK surface
-- not yet covered by public package publishing/support guarantees
+- release-grade public SDK surface
+- generated directly from the committed OpenAPI artifacts
+- runtime-lean and intentionally free of bundled validation libraries
+- public `types` subpaths expose curated operation helpers and reachable public
+  schema aliases only; raw whole-spec OpenAPI aliases are not public contract
+  surface
 
 ### 3.4 Internal/generated R catalogs
 
@@ -104,17 +109,25 @@ Current status:
 
 ## 4. Required SDK surface behaviors
 
-Public Python SDK packages must support:
+Public Python and TypeScript SDK packages must support:
 
 - explicit base URL configuration
 - configurable timeout
 - optional request-id header forwarding
+- OpenAPI-aligned request-body serialization for the media types declared by
+  each public operation
 - structured error envelope decoding (`error.code`, `error.message`,
   `error.request_id`)
 - typed request/response payload models
 
-Internal TS/R catalogs must remain deterministic from the same OpenAPI inputs
-but are not public compatibility authority in this wave.
+For public TypeScript SDKs specifically:
+
+- single-media request bodies may use generator-supplied default media types
+- multi-media request bodies must expose explicit generated `contentType`
+  selection when the wire format would otherwise be ambiguous
+
+Internal R catalogs must remain deterministic from the same OpenAPI inputs but
+are not public compatibility authority in this wave.
 
 ## 5. Auth contract surface
 
@@ -138,7 +151,8 @@ Nova owns:
 - OpenAPI contract source
 - generated SDK definitions
 - Python public package governance
-- TS/R internal catalog generation determinism
+- TypeScript public package governance
+- R internal catalog generation determinism
 
 Consumer repos own:
 
@@ -149,12 +163,14 @@ Consumer repos own:
 ## 7. Delivery and artifact publishing requirements
 
 - Canonical OpenAPI artifacts are exported and committed before SDK generation.
-- Python SDK packages are versioned and published from Nova CI.
+- Python and TypeScript SDK packages are versioned and published from Nova CI.
 - `scripts/release/generate_clients.py` is the deterministic generator entry
-  point for internal TypeScript and R operation catalogs.
+  point for public TypeScript SDK artifacts and internal R operation catalogs.
 - `scripts/release/generate_python_clients.py` is the deterministic generator
   entry point for committed Python SDK package trees.
-- TS/R generated artifacts must stay deterministic in CI, but public
+- TypeScript generated artifacts must stay deterministic in CI and retain the
+  published subpath contracts.
+- R generated artifacts must stay deterministic in CI, but public
   publishing/promotion is deferred to a later wave.
 
 ## 8. Traceability

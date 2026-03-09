@@ -20,7 +20,7 @@ and auditable outputs.
 - `quality-gates`
 - `dash-conformance`
 - `shiny-conformance`
-- `typescript-conformance`
+- `typescript-conformance` (public TypeScript SDK conformance)
 
 ## Operator flow
 

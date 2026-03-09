@@ -169,7 +169,7 @@ For each run capture:
     `changed-units.json` and `version-plan.json` consumed by release-apply and
     publish-packages from upstream workflow artifacts, not recomputed locally.
 13. For npm releases, retain the staged npm smoke output proving installability
-    and legacy `buildOperationUrl(…)` compatibility from CodeArtifact.
+    and public SDK subpath/client compatibility from CodeArtifact.
 
 ## 7. Local npm operator rule
 

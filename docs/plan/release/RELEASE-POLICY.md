@@ -63,7 +63,7 @@ Companion modular setup guides:
    artifacts must rewrite internal npm dependencies to concrete semver versions
    and remove publish-blocking `private: true`.
 9. Staged npm validation must install from CodeArtifact with `npm install --no-progress`
-   and verify the retained TypeScript helper contracts before prod promotion.
+   and verify the published TypeScript SDK subpath contracts before prod promotion.
 10. Internal npm package-group policy for `/npm/${CodeArtifactInternalNpmScope}/*` must allow direct
    publish while blocking both external and internal upstream ingestion.
 11. Promotion must include and verify `RELEASE_MANIFEST_SHA256`, where the value

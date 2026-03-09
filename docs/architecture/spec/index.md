@@ -25,8 +25,8 @@ Canonical chain: [requirements](../requirements.md) -> [ADR-0023](../adr/ADR-002
 | [SPEC-0008](./SPEC-0008-async-jobs-and-worker-orchestration.md) | Async Jobs and Worker Orchestration | Active | 2026-03-03 |
 | [SPEC-0009](./SPEC-0009-caching-and-idempotency.md) | Caching and Idempotency | Active | 2026-02-13 |
 | [SPEC-0010](./SPEC-0010-observability-analytics-and-activity-rollups.md) | Observability Analytics and Activity Rollups | Active | 2026-02-13 |
-| [SPEC-0011](./SPEC-0011-multi-language-sdk-architecture-and-package-map.md) | Multi-language SDK architecture and package map | Active | 2026-02-28 |
-| [SPEC-0012](./SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md) | SDK conformance, versioning, and compatibility governance | Active | 2026-02-28 |
+| [SPEC-0011](./SPEC-0011-multi-language-sdk-architecture-and-package-map.md) | Public Python/TypeScript SDK architecture and deferred R package map | Active | 2026-02-28 |
+| [SPEC-0012](./SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md) | Public SDK conformance, versioning, and compatibility governance | Active | 2026-02-28 |
 | [SPEC-0015](./SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md) | Nova API platform final topology and delivery contract | Active | 2026-03-03 |
 | [SPEC-0016](./SPEC-0016-v1-route-namespace-and-literal-guardrails.md) | Hard-cut v1 route contract and route-literal guardrails | Active | 2026-03-03 |
 | [SPEC-0017](./SPEC-0017-runtime-component-topology-and-ownership-contract.md) | CloudFormation module contract | Active | 2026-03-03 |

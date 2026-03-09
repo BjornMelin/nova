@@ -43,7 +43,7 @@ Every pull request MUST pass:
 - cross-framework conformance gate (`.github/workflows/conformance-clients.yml`):
   - `dash-conformance`
   - `shiny-conformance`
-  - `typescript-conformance`
+  - `typescript-conformance` (public TypeScript SDK client + fixture smoke)
 
 Protected branch wiring details are documented in
 `docs/plan/release/branch-protection-required-checks.md`.

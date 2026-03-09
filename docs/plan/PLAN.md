@@ -52,16 +52,15 @@ Last updated: 2026-03-05
 - Release IAM promotion controls now require explicit staged source and prod
   destination repository parameters for `CopyPackageVersions`.
 - Nova owns the public SDK contract across Python, TypeScript, and R.
-- Python remains the release-grade public SDK today; committed TypeScript and R
-  trees are retained in-repo as scaffolding on the completion path and must not
-  be deleted.
+- Python and TypeScript are release-grade public SDKs today; committed R trees
+  remain in-repo as scaffolding on the completion path and must not be deleted.
 - SDK-facing OpenAPI metadata now requires stable snake_case `operationId`
-  values, semantic tags, and deterministic regeneration of committed Python
-  SDK trees.
+  values, semantic tags, and deterministic regeneration of committed Python and
+  TypeScript SDK trees.
 - Release planning/apply/gate automation now models both PyPI and npm workspace
   units; staged npm publication rewrites internal source dependencies to
   concrete semver, validates installability from CodeArtifact, and preserves
-  the retained TypeScript helper contracts.
+  the published TypeScript SDK subpath contracts.
 
 ## Historical planning artifacts
 

@@ -20,8 +20,8 @@ requirements for the first production release.
 - Superseded ADR/SPEC material is archived only under
   `docs/architecture/adr/superseded/**` and
   `docs/architecture/spec/superseded/**`.
-- Public SDK policy for this release wave is Python-only; TypeScript and R
-  remain internal/generated catalogs.
+- Public SDK policy for this release wave is Python + TypeScript; R remains an
+  internal/generated catalog pending its parity wave.
 
 ## Scope
 
