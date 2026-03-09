@@ -53,7 +53,7 @@ def test_prepare_npm_publish_artifacts_rewrites_internal_versions(
         '  "private": true,\n'
         '  "workspaces": [\n'
         '    "packages/nova_sdk_fetch",\n'
-        '    "packages/nova_sdk_file_core"\n'
+        '    "packages/nova_sdk_file"\n'
         "  ]\n"
         "}\n",
     )
@@ -63,8 +63,8 @@ def test_prepare_npm_publish_artifacts_rewrites_internal_versions(
         version="0.1.0",
     )
     _write_managed_package(
-        repo_root / "packages/nova_sdk_file_core",
-        name="@nova/sdk-file-core",
+        repo_root / "packages/nova_sdk_file",
+        name="@nova/sdk-file",
         version="0.1.0",
         dependencies={"@nova/sdk-fetch": "file:../nova_sdk_fetch"},
     )
@@ -77,7 +77,7 @@ def test_prepare_npm_publish_artifacts_rewrites_internal_versions(
                 "new_version": "0.2.0",
             },
             {
-                "unit_id": "packages/nova_sdk_file_core",
+                "unit_id": "packages/nova_sdk_file",
                 "new_version": "0.2.0",
             },
         ]
@@ -96,10 +96,10 @@ def test_prepare_npm_publish_artifacts_rewrites_internal_versions(
 
     assert [item["package"] for item in report["packages"]] == [
         "@nova/sdk-fetch",
-        "@nova/sdk-file-core",
+        "@nova/sdk-file",
     ]
     prepared_core_path = (
-        repo_root / ".artifacts/npm-publish/nova_sdk_file_core/package.json"
+        repo_root / ".artifacts/npm-publish/nova_sdk_file/package.json"
     )
     prepared_core = json.loads(prepared_core_path.read_text(encoding="utf-8"))
     assert prepared_core["version"] == "0.2.0"
@@ -115,7 +115,7 @@ def test_validate_prepared_npm_package_rejects_workspace_specs(
     package_json = tmp_path / "package.json"
     package_json.write_text(
         "{\n"
-        '  "name": "@nova/sdk-file-core",\n'
+        '  "name": "@nova/sdk-file",\n'
         '  "version": "0.1.0",\n'
         '  "dependencies": {"@nova/sdk-fetch": "file:../nova_sdk_fetch"}\n'
         "}\n",

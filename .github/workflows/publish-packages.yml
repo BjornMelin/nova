@@ -417,19 +417,21 @@ jobs:
           npm install --no-progress "${NPM_INSTALL_SPECS[@]}"
           cat > smoke.mjs <<'EOF'
           let buildDescriptorUrl = null;
-          let buildFileUrl = null;
-          let buildAuthUrl = null;
           let fileOperations = null;
           let authOperations = null;
+          let createFileClient = null;
+          let createAuthClient = null;
 
           try {
-            ({ buildOperationDescriptorUrl: buildDescriptorUrl } = await import("@nova/sdk-fetch"));
+            ({ buildOperationDescriptorUrl: buildDescriptorUrl } = await import("@nova/sdk-fetch/url"));
           } catch {}
           try {
-            ({ buildOperationUrl: buildFileUrl, operations: fileOperations } = await import("@nova/sdk-file-core"));
+            ({ operations: fileOperations } = await import("@nova/sdk-file/operations"));
+            ({ createNovaFileClient: createFileClient } = await import("@nova/sdk-file/client"));
           } catch {}
           try {
-            ({ buildOperationUrl: buildAuthUrl, operations: authOperations } = await import("@nova/sdk-auth-core"));
+            ({ operations: authOperations } = await import("@nova/sdk-auth/operations"));
+            ({ createNovaAuthClient: createAuthClient } = await import("@nova/sdk-auth/client"));
           } catch {}
 
           if (buildDescriptorUrl && fileOperations) {
@@ -444,25 +446,68 @@ jobs:
             }
           }
 
-          if (buildFileUrl) {
-            const legacyFileUrl = buildFileUrl(
-              "https://nova.example/",
-              "/v1/jobs/{job_id}",
-              { job_id: "job-123" },
-              { include: "events" },
-            );
-            if (legacyFileUrl !== "https://nova.example/v1/jobs/job-123?include=events") {
-              throw new Error(`unexpected legacy file URL: ${legacyFileUrl}`);
+          if ("update_job_result" in (fileOperations ?? {})) {
+            throw new Error("internal file operation leaked into published SDK");
+          }
+
+          if (createFileClient) {
+            const fileClient = createFileClient({
+              baseUrl: "https://nova.example/",
+              fetchImpl: async (input) => {
+                const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+                if (url !== "https://nova.example/v1/jobs/job-123") {
+                  throw new Error(`unexpected file client URL: ${url}`);
+                }
+                return new Response(JSON.stringify({
+                  job: {
+                    job_id: "job-123",
+                    status: "queued",
+                    created_at: "2026-03-09T00:00:00Z",
+                    updated_at: "2026-03-09T00:00:00Z",
+                    events: [],
+                  },
+                }), {
+                  status: 200,
+                  headers: { "content-type": "application/json" },
+                });
+              },
+            });
+            const fileResponse = await fileClient.get_job_status({
+              pathParams: { job_id: "job-123" },
+            });
+            if (!fileResponse.ok || fileResponse.data?.job?.job_id !== "job-123") {
+              throw new Error("unexpected published file client response");
             }
           }
 
-          if (buildAuthUrl && authOperations) {
-            const legacyAuthUrl = buildAuthUrl(
-              "https://nova.example/",
-              authOperations.verify_token.path,
-            );
-            if (legacyAuthUrl !== "https://nova.example/v1/token/verify") {
-              throw new Error(`unexpected legacy auth URL: ${legacyAuthUrl}`);
+          if (createAuthClient && authOperations) {
+            const authClient = createAuthClient({
+              baseUrl: "https://nova.example/",
+              fetchImpl: async (input) => {
+                const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+                if (url !== "https://nova.example/v1/token/verify") {
+                  throw new Error(`unexpected auth client URL: ${url}`);
+                }
+                return new Response(JSON.stringify({
+                  claims: {},
+                  principal: {
+                    permissions: [],
+                    scope_id: "scope",
+                    scopes: [],
+                    subject: "subject",
+                    tenant_id: null,
+                  },
+                }), {
+                  status: 200,
+                  headers: { "content-type": "application/json" },
+                });
+              },
+            });
+            const authResponse = await authClient.verify_token({
+              body: { access_token: "token", required_permissions: [], required_scopes: [] },
+            });
+            if (!authResponse.ok || authResponse.data?.principal.subject !== "subject") {
+              throw new Error("unexpected published auth client response");
             }
           }
           EOF

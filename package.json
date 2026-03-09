@@ -8,8 +8,8 @@
   },
   "workspaces": [
     "packages/contracts/typescript",
-    "packages/nova_sdk_auth_core",
+    "packages/nova_sdk_auth",
     "packages/nova_sdk_fetch",
-    "packages/nova_sdk_file_core"
+    "packages/nova_sdk_file"
   ]
 }

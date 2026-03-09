@@ -17,6 +17,9 @@ jobs:
       - uses: ./.github/actions/setup-python-uv
         with:
           python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
       - name: Enforce TypeScript module policy
         run: uv run python scripts/conformance/check_typescript_module_policy.py
       - name: Verify generated TS/R client catalogs
@@ -33,8 +36,8 @@ jobs:
       matrix:
         package_name:
           - "@nova/sdk-fetch"
-          - "@nova/sdk-file-core"
-          - "@nova/sdk-auth-core"
+          - "@nova/sdk-file"
+          - "@nova/sdk-auth"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -62,8 +65,8 @@ jobs:
           set -euo pipefail
           for pkg in \
             packages/nova_sdk_fetch \
-            packages/nova_sdk_file_core \
-            packages/nova_sdk_auth_core
+            packages/nova_sdk_file \
+            packages/nova_sdk_auth
           do
             (
               cd "$pkg"
@@ -86,11 +89,13 @@ jobs:
           EOF
           npm install --no-package-lock \
             "${GITHUB_WORKSPACE}/packages/nova_sdk_fetch" \
-            "${GITHUB_WORKSPACE}/packages/nova_sdk_file_core" \
-            "${GITHUB_WORKSPACE}/packages/nova_sdk_auth_core"
+            "${GITHUB_WORKSPACE}/packages/nova_sdk_file" \
+            "${GITHUB_WORKSPACE}/packages/nova_sdk_auth"
           node --input-type=module <<'EOF'
-          import { operations as authOperations } from "@nova/sdk-auth-core/operations";
-          import { operations as fileOperations } from "@nova/sdk-file-core/operations";
+          import { createNovaAuthClient } from "@nova/sdk-auth/client";
+          import { operations as authOperations } from "@nova/sdk-auth/operations";
+          import { createNovaFileClient } from "@nova/sdk-file/client";
+          import { operations as fileOperations } from "@nova/sdk-file/operations";
           import { buildOperationDescriptorUrl, buildOperationUrl } from "@nova/sdk-fetch/url";
 
           const fileUrl = buildOperationUrl(
@@ -99,10 +104,7 @@ jobs:
             { job_id: "job-123" },
             { include: "events" },
           );
-          if (
-            fileUrl
-            !== "https://nova.example/v1/jobs/job-123?include=events"
-          ) {
+          if (fileUrl !== "https://nova.example/v1/jobs/job-123?include=events") {
             throw new Error(`unexpected file URL: ${fileUrl}`);
           }
 
@@ -120,11 +122,55 @@ jobs:
             { job_id: "job-123" },
             { include: "events" },
           );
-          if (
-            descriptorUrl
-            !== "https://nova.example/v1/jobs/job-123?include=events"
-          ) {
+          if (descriptorUrl !== "https://nova.example/v1/jobs/job-123?include=events") {
             throw new Error(`unexpected descriptor URL: ${descriptorUrl}`);
+          }
+
+          if ("update_job_result" in fileOperations) {
+            throw new Error("internal file operation leaked into public SDK");
+          }
+
+          const authClient = createNovaAuthClient({
+            baseUrl: "https://nova.example/",
+            fetchImpl: async () =>
+              new Response(JSON.stringify({ claims: {}, principal: { permissions: [], scope_id: "scope", scopes: [], subject: "subject", tenant_id: null } }), {
+                status: 200,
+                headers: { "content-type": "application/json" },
+              }),
+          });
+          const authResponse = await authClient.verify_token({
+            body: { access_token: "token", required_permissions: [], required_scopes: [] },
+          });
+          if (!authResponse.ok || authResponse.data?.principal.subject !== "subject") {
+            throw new Error("unexpected auth client response");
+          }
+
+          const fileClient = createNovaFileClient({
+            baseUrl: "https://nova.example/",
+            fetchImpl: async (input) => {
+              const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+              if (url !== "https://nova.example/v1/jobs/job-123") {
+                throw new Error(`unexpected file client URL: ${url}`);
+              }
+              return new Response(JSON.stringify({
+                job: {
+                  job_id: "job-123",
+                  status: "queued",
+                  created_at: "2026-03-09T00:00:00Z",
+                  updated_at: "2026-03-09T00:00:00Z",
+                  events: [],
+                },
+              }), {
+                status: 200,
+                headers: { "content-type": "application/json" },
+              });
+            },
+          });
+          const fileResponse = await fileClient.get_job_status({
+            pathParams: { job_id: "job-123" },
+          });
+          if (!fileResponse.ok || fileResponse.data?.job?.job_id !== "job-123") {
+            throw new Error("unexpected file client response");
           }
           EOF
 

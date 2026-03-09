@@ -74,10 +74,10 @@ def test_order_units_for_release_respects_internal_dependencies() -> None:
             package_format="npm",
             namespace="nova",
         ),
-        "packages/nova_sdk_file_core": common.WorkspaceUnit(
-            unit_id="packages/nova_sdk_file_core",
-            path=Path("packages/nova_sdk_file_core"),
-            project_name="@nova/sdk-file-core",
+        "packages/nova_sdk_file": common.WorkspaceUnit(
+            unit_id="packages/nova_sdk_file",
+            path=Path("packages/nova_sdk_file"),
+            project_name="@nova/sdk-file",
             version="0.1.0",
             dependencies=("@nova/sdk-fetch",),
             package_format="npm",
@@ -87,10 +87,10 @@ def test_order_units_for_release_respects_internal_dependencies() -> None:
 
     ordered = common.order_units_for_release(
         units,
-        {"packages/nova_sdk_file_core", "packages/nova_sdk_fetch"},
+        {"packages/nova_sdk_file", "packages/nova_sdk_fetch"},
     )
 
     assert ordered == [
         "packages/nova_sdk_fetch",
-        "packages/nova_sdk_file_core",
+        "packages/nova_sdk_file",
     ]

@@ -5,7 +5,15 @@
   },
   "files": [
     "src/conformance.ts",
-    "../../nova_sdk_auth_core/src/operations.ts",
-    "../../nova_sdk_file_core/src/operations.ts"
+    "../../nova_sdk_auth/src/client.ts",
+    "../../nova_sdk_auth/src/errors.ts",
+    "../../nova_sdk_auth/src/generated/openapi.ts",
+    "../../nova_sdk_auth/src/operations.ts",
+    "../../nova_sdk_auth/src/types.ts",
+    "../../nova_sdk_file/src/client.ts",
+    "../../nova_sdk_file/src/errors.ts",
+    "../../nova_sdk_file/src/generated/openapi.ts",
+    "../../nova_sdk_file/src/operations.ts",
+    "../../nova_sdk_file/src/types.ts"
   ]
 }

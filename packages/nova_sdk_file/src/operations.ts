@@ -2,7 +2,7 @@
 
 import type { OperationDescriptor } from "@nova/sdk-fetch/contracts";
 
-/** Catalog of generated operations keyed by operationId. */
+/** Catalog of generated public operations keyed by operationId. */
 export const operations = {
   "metrics_summary": {
     operationId: "metrics_summary",
@@ -27,12 +27,6 @@ export const operations = {
     method: "GET",
     path: "/v1/health/ready",
     summary: "Health Ready",
-  },
-  "update_job_result": {
-    operationId: "update_job_result",
-    method: "POST",
-    path: "/v1/internal/jobs/{job_id}/result",
-    summary: "Update Job Result",
   },
   "list_jobs": {
     operationId: "list_jobs",
@@ -114,7 +108,7 @@ export const operations = {
   },
 } as const satisfies Record<string, OperationDescriptor>;
 
-/** Union of all generated operation identifiers. */
+/** Union of all generated public operation identifiers. */
 export type OperationId = keyof typeof operations;
-/** Static type representing the generated operations catalog. */
+/** Static type representing the generated public operations catalog. */
 export type GeneratedOperationCatalog = typeof operations;

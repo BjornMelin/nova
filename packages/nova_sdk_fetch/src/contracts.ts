@@ -22,19 +22,21 @@ export type QueryParams = Record<string, QueryValue>;
 export type PathParams = Record<string, string | number>;
 
 /**
- * Runtime configuration for a JSON fetch client.
+ * Runtime configuration for a generated fetch client.
  */
-export interface JsonFetchClientOptions {
+export interface FetchClientOptions {
   readonly baseUrl: string;
   readonly defaultHeaders?: HeadersInit;
   readonly fetchImpl?: typeof fetch;
+  readonly resolveHeaders?: FetchHeadersResolver;
 }
 
 /**
  * Per-request options for an SDK operation invocation.
  */
-export interface JsonFetchRequestOptions {
+export interface FetchRequestOptions {
   readonly body?: unknown;
+  readonly contentType?: string;
   readonly query?: QueryParams;
   readonly pathParams?: PathParams;
   readonly headers?: HeadersInit;
@@ -42,9 +44,24 @@ export interface JsonFetchRequestOptions {
 }
 
 /**
+ * Runtime context provided to request-header resolver hooks.
+ */
+export interface FetchHeaderResolutionContext {
+  readonly operation: OperationDescriptor;
+  readonly request: FetchRequestOptions;
+}
+
+/**
+ * Resolve per-request headers from runtime client context.
+ */
+export type FetchHeadersResolver = (
+  context: FetchHeaderResolutionContext,
+) => HeadersInit | undefined | Promise<HeadersInit | undefined>;
+
+/**
  * Normalized HTTP response payload for SDK consumers.
  */
-export interface JsonFetchResponse<TData> {
+export interface FetchResponse<TData> {
   readonly status: number;
   readonly ok: boolean;
   readonly headers: Headers;
@@ -52,14 +69,14 @@ export interface JsonFetchResponse<TData> {
 }
 
 /**
- * JSON fetch client contract used by generated SDK call sites.
+ * Fetch client contract used by generated SDK call sites.
  */
-export interface JsonFetchClient {
+export interface FetchClient {
   /**
    * Execute a generated operation request and decode JSON response bodies.
    */
   request<TData>(
     operation: OperationDescriptor,
-    request?: JsonFetchRequestOptions,
-  ): Promise<JsonFetchResponse<TData>>;
+    request?: FetchRequestOptions,
+  ): Promise<FetchResponse<TData>>;
 }
