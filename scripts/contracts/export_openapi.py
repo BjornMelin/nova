@@ -35,6 +35,11 @@ def _write_outputs(output_dir: Path, *, check: bool) -> int:
     status = 0
     if not check:
         output_dir.mkdir(parents=True, exist_ok=True)
+    elif not output_dir.exists():
+        print(
+            f"OpenAPI artifact drift detected: missing directory {output_dir}"
+        )
+        return 1
 
     for name, content in rendered.items():
         destination = output_dir / name

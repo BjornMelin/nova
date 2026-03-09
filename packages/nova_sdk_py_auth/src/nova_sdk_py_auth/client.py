@@ -1,3 +1,4 @@
+# ruff: noqa
 import ssl
 from typing import Any
 
@@ -59,26 +60,14 @@ class Client:
 
     def with_headers(self, headers: dict[str, str]) -> "Client":
         """Get a new client matching this one with additional headers"""
-        if self._client is not None:
-            self._client.headers.update(headers)
-        if self._async_client is not None:
-            self._async_client.headers.update(headers)
         return evolve(self, headers={**self._headers, **headers})
 
     def with_cookies(self, cookies: dict[str, str]) -> "Client":
         """Get a new client matching this one with additional cookies"""
-        if self._client is not None:
-            self._client.cookies.update(cookies)
-        if self._async_client is not None:
-            self._async_client.cookies.update(cookies)
         return evolve(self, cookies={**self._cookies, **cookies})
 
     def with_timeout(self, timeout: httpx.Timeout) -> "Client":
         """Get a new client matching this one with a new timeout configuration"""
-        if self._client is not None:
-            self._client.timeout = timeout
-        if self._async_client is not None:
-            self._async_client.timeout = timeout
         return evolve(self, timeout=timeout)
 
     def set_httpx_client(self, client: httpx.Client) -> "Client":
@@ -207,26 +196,14 @@ class AuthenticatedClient:
 
     def with_headers(self, headers: dict[str, str]) -> "AuthenticatedClient":
         """Get a new client matching this one with additional headers"""
-        if self._client is not None:
-            self._client.headers.update(headers)
-        if self._async_client is not None:
-            self._async_client.headers.update(headers)
         return evolve(self, headers={**self._headers, **headers})
 
     def with_cookies(self, cookies: dict[str, str]) -> "AuthenticatedClient":
         """Get a new client matching this one with additional cookies"""
-        if self._client is not None:
-            self._client.cookies.update(cookies)
-        if self._async_client is not None:
-            self._async_client.cookies.update(cookies)
         return evolve(self, cookies={**self._cookies, **cookies})
 
     def with_timeout(self, timeout: httpx.Timeout) -> "AuthenticatedClient":
         """Get a new client matching this one with a new timeout configuration"""
-        if self._client is not None:
-            self._client.timeout = timeout
-        if self._async_client is not None:
-            self._async_client.timeout = timeout
         return evolve(self, timeout=timeout)
 
     def set_httpx_client(self, client: httpx.Client) -> "AuthenticatedClient":

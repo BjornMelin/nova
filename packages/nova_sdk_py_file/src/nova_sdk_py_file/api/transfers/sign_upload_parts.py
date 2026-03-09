@@ -1,3 +1,4 @@
+# ruff: noqa
 from http import HTTPStatus
 from typing import Any
 
@@ -5,6 +6,7 @@ import httpx
 
 from ... import errors
 from ...client import AuthenticatedClient, Client
+from ...models.error_envelope import ErrorEnvelope
 from ...models.sign_parts_request import SignPartsRequest
 from ...models.sign_parts_response import SignPartsResponse
 from ...types import Response
@@ -31,11 +33,26 @@ def _get_kwargs(
 
 def _parse_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> SignPartsResponse | None:
+) -> ErrorEnvelope | SignPartsResponse | None:
     if response.status_code == 200:
         response_200 = SignPartsResponse.from_dict(response.json())
 
         return response_200
+
+    if response.status_code == 401:
+        response_401 = ErrorEnvelope.from_dict(response.json())
+
+        return response_401
+
+    if response.status_code == 403:
+        response_403 = ErrorEnvelope.from_dict(response.json())
+
+        return response_403
+
+    if response.status_code == 422:
+        response_422 = ErrorEnvelope.from_dict(response.json())
+
+        return response_422
 
     if client.raise_on_unexpected_status:
         raise errors.UnexpectedStatus(response.status_code, response.content)
@@ -45,7 +62,7 @@ def _parse_response(
 
 def _build_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> Response[SignPartsResponse]:
+) -> Response[ErrorEnvelope | SignPartsResponse]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -58,7 +75,7 @@ def sync_detailed(
     *,
     client: AuthenticatedClient | Client,
     body: SignPartsRequest,
-) -> Response[SignPartsResponse]:
+) -> Response[ErrorEnvelope | SignPartsResponse]:
     """Sign Upload Parts
 
      Return presigned multipart part URLs.
@@ -71,7 +88,7 @@ def sync_detailed(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[SignPartsResponse]
+        Response[ErrorEnvelope | SignPartsResponse]
     """
 
     kwargs = _get_kwargs(
@@ -89,7 +106,7 @@ def sync(
     *,
     client: AuthenticatedClient | Client,
     body: SignPartsRequest,
-) -> SignPartsResponse | None:
+) -> ErrorEnvelope | SignPartsResponse | None:
     """Sign Upload Parts
 
      Return presigned multipart part URLs.
@@ -102,7 +119,7 @@ def sync(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        SignPartsResponse
+        ErrorEnvelope | SignPartsResponse
     """
 
     return sync_detailed(
@@ -115,7 +132,7 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient | Client,
     body: SignPartsRequest,
-) -> Response[SignPartsResponse]:
+) -> Response[ErrorEnvelope | SignPartsResponse]:
     """Sign Upload Parts
 
      Return presigned multipart part URLs.
@@ -128,7 +145,7 @@ async def asyncio_detailed(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[SignPartsResponse]
+        Response[ErrorEnvelope | SignPartsResponse]
     """
 
     kwargs = _get_kwargs(
@@ -144,7 +161,7 @@ async def asyncio(
     *,
     client: AuthenticatedClient | Client,
     body: SignPartsRequest,
-) -> SignPartsResponse | None:
+) -> ErrorEnvelope | SignPartsResponse | None:
     """Sign Upload Parts
 
      Return presigned multipart part URLs.
@@ -157,7 +174,7 @@ async def asyncio(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        SignPartsResponse
+        ErrorEnvelope | SignPartsResponse
     """
 
     return (

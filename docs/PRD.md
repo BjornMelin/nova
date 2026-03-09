@@ -80,8 +80,8 @@ Out of scope:
    contract validation fails.
 7. CodeArtifact promotion IAM contracts remain least-privilege and scoped to
    explicit staged source and prod destination repositories.
-8. Active runtime authority IDs (`ADR-0024` through `ADR-0026`,
-   `SPEC-0017` through `SPEC-0019`) describe runtime subjects only.
+8. Active runtime authority IDs (`ADR-0024`, `ADR-0027` through `ADR-0029`,
+   and `SPEC-0017` through `SPEC-0019`) describe runtime subjects only.
 9. Superseded ADR/SPEC content is excluded from active authority lists and
    active index sections.
 
@@ -96,8 +96,6 @@ Out of scope:
 - `docs/architecture/requirements.md`
 - `docs/architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md`
 - `docs/architecture/adr/ADR-0024-layered-architecture-authority-pack.md`
-- `docs/architecture/adr/ADR-0025-reusable-workflow-api-and-versioning-policy.md`
-- `docs/architecture/adr/ADR-0026-oidc-iam-role-partitioning-for-deploy-automation.md`
 - `docs/architecture/adr/ADR-0027-hard-cut-downstream-integration-and-consumer-contract-enforcement.md`
 - `docs/architecture/adr/ADR-0028-auth0-tenant-ops-reusable-workflow-api-contract.md`
 - `docs/architecture/adr/ADR-0029-ssm-runtime-base-url-authority-for-deploy-validation.md`
@@ -113,12 +111,3 @@ Out of scope:
 - `docs/architecture/spec/SPEC-0023-ssm-runtime-base-url-contract-for-deploy-validation.md`
 - `docs/plan/PLAN.md`
 - `docs/runbooks/README.md`
-
-Adjacent deploy-governance references:
-
-- `docs/architecture/adr/ADR-0030-native-cfn-modular-stack-architecture-for-nova-infrastructure-productization.md`
-- `docs/architecture/adr/ADR-0031-reusable-github-workflow-api-and-versioning-policy-for-deployment-automation.md`
-- `docs/architecture/adr/ADR-0032-oidc-and-iam-role-partitioning-for-deploy-automation.md`
-- `docs/architecture/spec/SPEC-0024-cloudformation-module-contract.md`
-- `docs/architecture/spec/SPEC-0025-reusable-workflow-integration-contract.md`
-- `docs/architecture/spec/SPEC-0026-ci-cd-iam-least-privilege-matrix.md`

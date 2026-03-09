@@ -117,11 +117,18 @@ async def initiate_upload(
                 response_payload=response.model_dump(mode="json"),
             )
         except Exception:
+            if claimed_idempotency:
+                await container.idempotency_store.discard_claim(
+                    route="/v1/transfers/uploads/initiate",
+                    scope_id=principal.scope_id,
+                    idempotency_key=key,
+                )
             structlog.get_logger("api").exception(
                 "uploads_initiate_idempotency_store_response_failed",
                 route="/v1/transfers/uploads/initiate",
                 scope_id=principal.scope_id,
             )
+            raise
 
     container.metrics.incr("uploads_initiate_total")
     try:
@@ -136,11 +143,18 @@ async def initiate_upload(
             route="/v1/transfers/uploads/initiate",
             scope_id=principal.scope_id,
         )
-    emit_request_metric(
-        container=container,
-        route="uploads_initiate",
-        status="ok",
-    )
+    try:
+        emit_request_metric(
+            container=container,
+            route="uploads_initiate",
+            status="ok",
+        )
+    except Exception:
+        structlog.get_logger("api").exception(
+            "uploads_initiate_metric_emit_failed",
+            route="/v1/transfers/uploads/initiate",
+            scope_id=principal.scope_id,
+        )
     return response
 
 

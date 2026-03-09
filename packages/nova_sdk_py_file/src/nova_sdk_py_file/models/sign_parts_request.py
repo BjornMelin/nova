@@ -1,3 +1,4 @@
+# ruff: noqa
 from __future__ import annotations
 
 from collections.abc import Mapping
@@ -29,7 +30,7 @@ class SignPartsRequest:
     def to_dict(self) -> dict[str, Any]:
         key = self.key
 
-        part_numbers = self.part_numbers
+        part_numbers = list(self.part_numbers)
 
         upload_id = self.upload_id
 

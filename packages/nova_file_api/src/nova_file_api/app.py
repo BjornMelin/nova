@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Sequence
 from contextlib import asynccontextmanager
 from typing import Any
 
@@ -17,6 +17,7 @@ from nova_runtime_support import (
     apply_operation_response_refs,
     canonical_error_content,
     configure_structlog,
+    ensure_error_envelope_schema,
     ensure_error_response_component,
     install_openapi_customizer,
     mark_operation_sdk_visibility,
@@ -154,6 +155,7 @@ def _install_openapi_overrides(app: FastAPI) -> None:
     """Apply canonical error/visibility OpenAPI overrides."""
 
     def customize_openapi(schema: dict[str, Any]) -> None:
+        ensure_error_envelope_schema(schema)
         for (
             component_name,
             description,
@@ -323,7 +325,7 @@ def _redact_sensitive_fields(
 
 def _sanitize_validation_errors(
     *,
-    errors: list[dict[str, Any]],
+    errors: Sequence[Any],
 ) -> list[dict[str, Any]]:
     """Return validation errors with nested sensitive values redacted."""
     return [

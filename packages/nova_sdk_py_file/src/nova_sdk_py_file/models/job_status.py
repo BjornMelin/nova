@@ -1,3 +1,4 @@
+# ruff: noqa
 from enum import Enum
 
 

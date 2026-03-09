@@ -84,6 +84,11 @@ class TokenVerificationService:
         """Return whether token verification is currently usable."""
         return self._verifier is not None
 
+    @property
+    def verifier_thread_tokens(self) -> int:
+        """Return configured thread tokens for verifier execution."""
+        return self._settings.oidc_verifier_thread_tokens
+
     async def _verify_claims(
         self,
         *,

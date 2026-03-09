@@ -135,7 +135,7 @@ A pull request modifying OpenAPI contracts must pass:
 - explicit change classification
 - regenerated Python SDK diffs
 - Python generated-client smoke
-- internal TS/R generated catalog drift gate via
+- internal TS/R generated-catalog drift gate via
   `scripts/release/generate_clients.py --check`
 - committed Python SDK drift gate via
   `scripts/release/generate_python_clients.py --check`

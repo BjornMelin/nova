@@ -57,6 +57,40 @@ def ensure_error_response_component(
     }
 
 
+def ensure_error_envelope_schema(
+    schema: dict[str, Any],
+    *,
+    name: str = "ErrorEnvelope",
+) -> None:
+    """Ensure the canonical error envelope schema is present."""
+    components = schema.setdefault("components", {})
+    schemas = components.setdefault("schemas", {})
+    schemas.setdefault(
+        name,
+        {
+            "type": "object",
+            "title": "ErrorEnvelope",
+            "required": ["error"],
+            "properties": {
+                "error": {
+                    "type": "object",
+                    "required": ["code", "message"],
+                    "properties": {
+                        "code": {"type": "string"},
+                        "message": {"type": "string"},
+                        "details": {"type": "object"},
+                        "request_id": {
+                            "type": ["string", "null"],
+                        },
+                    },
+                    "additionalProperties": True,
+                }
+            },
+            "additionalProperties": False,
+        },
+    )
+
+
 def replace_validation_error_responses(
     schema: dict[str, Any],
     *,
@@ -125,7 +159,8 @@ def apply_operation_response_refs(
             path -> method -> status -> component.
 
     Returns:
-        None.
+        None. This mutates ``schema`` in-place by replacing operation
+        responses with ``$ref`` objects.
     """
     paths = schema.get("paths", {})
     if not isinstance(paths, dict):

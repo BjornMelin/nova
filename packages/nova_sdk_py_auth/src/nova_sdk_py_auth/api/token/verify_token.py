@@ -1,3 +1,4 @@
+# ruff: noqa
 from http import HTTPStatus
 from typing import Any
 
@@ -5,6 +6,7 @@ import httpx
 
 from ... import errors
 from ...client import AuthenticatedClient, Client
+from ...models.error_envelope import ErrorEnvelope
 from ...models.token_verify_request import TokenVerifyRequest
 from ...models.token_verify_response import TokenVerifyResponse
 from ...types import Response
@@ -31,11 +33,26 @@ def _get_kwargs(
 
 def _parse_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> TokenVerifyResponse | None:
+) -> ErrorEnvelope | TokenVerifyResponse | None:
     if response.status_code == 200:
         response_200 = TokenVerifyResponse.from_dict(response.json())
 
         return response_200
+
+    if response.status_code == 401:
+        response_401 = ErrorEnvelope.from_dict(response.json())
+
+        return response_401
+
+    if response.status_code == 403:
+        response_403 = ErrorEnvelope.from_dict(response.json())
+
+        return response_403
+
+    if response.status_code == 422:
+        response_422 = ErrorEnvelope.from_dict(response.json())
+
+        return response_422
 
     if client.raise_on_unexpected_status:
         raise errors.UnexpectedStatus(response.status_code, response.content)
@@ -45,7 +62,7 @@ def _parse_response(
 
 def _build_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> Response[TokenVerifyResponse]:
+) -> Response[ErrorEnvelope | TokenVerifyResponse]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -56,9 +73,9 @@ def _build_response(
 
 def sync_detailed(
     *,
-    client: AuthenticatedClient | Client,
+    client: AuthenticatedClient,
     body: TokenVerifyRequest,
-) -> Response[TokenVerifyResponse]:
+) -> Response[ErrorEnvelope | TokenVerifyResponse]:
     """Verify Token
 
      Verify access token and return principal plus claims.
@@ -71,7 +88,7 @@ def sync_detailed(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[TokenVerifyResponse]
+        Response[ErrorEnvelope | TokenVerifyResponse]
     """
 
     kwargs = _get_kwargs(
@@ -87,9 +104,9 @@ def sync_detailed(
 
 def sync(
     *,
-    client: AuthenticatedClient | Client,
+    client: AuthenticatedClient,
     body: TokenVerifyRequest,
-) -> TokenVerifyResponse | None:
+) -> ErrorEnvelope | TokenVerifyResponse | None:
     """Verify Token
 
      Verify access token and return principal plus claims.
@@ -102,7 +119,7 @@ def sync(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        TokenVerifyResponse
+        ErrorEnvelope | TokenVerifyResponse
     """
 
     return sync_detailed(
@@ -113,9 +130,9 @@ def sync(
 
 async def asyncio_detailed(
     *,
-    client: AuthenticatedClient | Client,
+    client: AuthenticatedClient,
     body: TokenVerifyRequest,
-) -> Response[TokenVerifyResponse]:
+) -> Response[ErrorEnvelope | TokenVerifyResponse]:
     """Verify Token
 
      Verify access token and return principal plus claims.
@@ -128,7 +145,7 @@ async def asyncio_detailed(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[TokenVerifyResponse]
+        Response[ErrorEnvelope | TokenVerifyResponse]
     """
 
     kwargs = _get_kwargs(
@@ -142,9 +159,9 @@ async def asyncio_detailed(
 
 async def asyncio(
     *,
-    client: AuthenticatedClient | Client,
+    client: AuthenticatedClient,
     body: TokenVerifyRequest,
-) -> TokenVerifyResponse | None:
+) -> ErrorEnvelope | TokenVerifyResponse | None:
     """Verify Token
 
      Verify access token and return principal plus claims.
@@ -157,7 +174,7 @@ async def asyncio(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        TokenVerifyResponse
+        ErrorEnvelope | TokenVerifyResponse
     """
 
     return (

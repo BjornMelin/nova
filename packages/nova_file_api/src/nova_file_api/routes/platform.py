@@ -162,14 +162,17 @@ async def health_ready(
         )
         activity_store = False
 
-    try:
-        auth_dependency = await container.authenticator.healthcheck()
-    except Exception:
-        logger.exception(
-            "v1_health_ready_auth_dependency_healthcheck_failed",
-            route="/v1/health/ready",
-        )
-        auth_dependency = False
+    if container.settings.auth_mode == AuthMode.SAME_ORIGIN:
+        auth_dependency = True
+    else:
+        try:
+            auth_dependency = await container.authenticator.healthcheck()
+        except Exception:
+            logger.exception(
+                "v1_health_ready_auth_dependency_healthcheck_failed",
+                route="/v1/health/ready",
+            )
+            auth_dependency = False
 
     checks = {
         "bucket_configured": bool(

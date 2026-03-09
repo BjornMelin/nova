@@ -1,3 +1,4 @@
+# ruff: noqa
 from __future__ import annotations
 
 from collections.abc import Mapping
@@ -6,13 +7,13 @@ from typing import TYPE_CHECKING, Any, TypeVar
 from attrs import define as _attrs_define
 
 if TYPE_CHECKING:
-    from ..models.metrics_summary_response_activity import (
+    from nova_sdk_py_file.models.metrics_summary_response_activity import (
         MetricsSummaryResponseActivity,
     )
-    from ..models.metrics_summary_response_counters import (
+    from nova_sdk_py_file.models.metrics_summary_response_counters import (
         MetricsSummaryResponseCounters,
     )
-    from ..models.metrics_summary_response_latencies_ms import (
+    from nova_sdk_py_file.models.metrics_summary_response_latencies_ms import (
         MetricsSummaryResponseLatenciesMs,
     )
 
@@ -55,13 +56,13 @@ class MetricsSummaryResponse:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.metrics_summary_response_activity import (
+        from nova_sdk_py_file.models.metrics_summary_response_activity import (
             MetricsSummaryResponseActivity,
         )
-        from ..models.metrics_summary_response_counters import (
+        from nova_sdk_py_file.models.metrics_summary_response_counters import (
             MetricsSummaryResponseCounters,
         )
-        from ..models.metrics_summary_response_latencies_ms import (
+        from nova_sdk_py_file.models.metrics_summary_response_latencies_ms import (
             MetricsSummaryResponseLatenciesMs,
         )
 

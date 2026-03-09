@@ -35,6 +35,9 @@ def configure_structlog(
     Args:
         hidden_fields: Extra field names to redact in structured payloads.
         redacted_substrings: Extra substrings that trigger value redaction.
+
+    Returns:
+        None.
     """
     global _LOGGING_CONFIGURED
     if _LOGGING_CONFIGURED:

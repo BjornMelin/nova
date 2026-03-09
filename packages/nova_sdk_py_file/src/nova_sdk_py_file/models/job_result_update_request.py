@@ -1,3 +1,4 @@
+# ruff: noqa
 from __future__ import annotations
 
 from collections.abc import Mapping
@@ -32,6 +33,7 @@ class JobResultUpdateRequest:
     result: JobResultUpdateRequestResultType0 | None | Unset = UNSET
 
     def to_dict(self) -> dict[str, Any]:
+        """Serialize this model to a JSON-compatible dict."""
         from ..models.job_result_update_request_result_type_0 import (
             JobResultUpdateRequestResultType0,
         )
@@ -68,6 +70,7 @@ class JobResultUpdateRequest:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
+        """Build this model from a JSON-compatible mapping."""
         from ..models.job_result_update_request_result_type_0 import (
             JobResultUpdateRequestResultType0,
         )

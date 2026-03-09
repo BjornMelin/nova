@@ -1,3 +1,4 @@
+# ruff: noqa
 from __future__ import annotations
 
 from collections.abc import Mapping
@@ -11,7 +12,7 @@ T = TypeVar("T", bound="MetricsSummaryResponseActivity")
 
 @_attrs_define
 class MetricsSummaryResponseActivity:
-    """ """
+    """Low-cardinality activity metrics map."""
 
     additional_properties: dict[str, int] = _attrs_field(
         init=False, factory=dict
@@ -29,7 +30,9 @@ class MetricsSummaryResponseActivity:
         d = dict(src_dict)
         metrics_summary_response_activity = cls()
 
-        metrics_summary_response_activity.additional_properties = d
+        metrics_summary_response_activity.additional_properties = {
+            key: int(value) for key, value in d.items()
+        }
         return metrics_summary_response_activity
 
     @property

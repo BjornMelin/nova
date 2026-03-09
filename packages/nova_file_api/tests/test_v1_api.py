@@ -16,8 +16,10 @@ def test_v1_health_and_capabilities() -> None:
 
     assert live.status_code == 200
     assert live.json() == {"ok": True}
-    assert ready.status_code == 200
-    assert "checks" in ready.json()
+    assert ready.status_code == 503
+    ready_payload = ready.json()
+    assert ready_payload["ok"] is False
+    assert ready_payload["checks"]["bucket_configured"] is False
     assert caps.status_code == 200
     cap_keys = {entry["key"] for entry in caps.json()["capabilities"]}
     assert {"jobs", "jobs.events.poll", "transfers"}.issubset(cap_keys)

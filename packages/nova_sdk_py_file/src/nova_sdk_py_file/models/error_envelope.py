@@ -7,30 +7,29 @@ from typing import TYPE_CHECKING, Any, TypeVar
 from attrs import define as _attrs_define
 
 if TYPE_CHECKING:
-    from ..models.job_record import JobRecord
+    from ..models.error_envelope_error import ErrorEnvelopeError
 
 
-T = TypeVar("T", bound="JobStatusResponse")
+T = TypeVar("T", bound="ErrorEnvelope")
 
 
 @_attrs_define
-class JobStatusResponse:
-    """Response payload for status endpoint.
-
+class ErrorEnvelope:
+    """
     Attributes:
-        job (JobRecord): Persistent job representation.
+        error (ErrorEnvelopeError):
     """
 
-    job: JobRecord
+    error: ErrorEnvelopeError
 
     def to_dict(self) -> dict[str, Any]:
-        job = self.job.to_dict()
+        error = self.error.to_dict()
 
         field_dict: dict[str, Any] = {}
 
         field_dict.update(
             {
-                "job": job,
+                "error": error,
             }
         )
 
@@ -38,13 +37,13 @@ class JobStatusResponse:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.job_record import JobRecord
+        from ..models.error_envelope_error import ErrorEnvelopeError
 
         d = dict(src_dict)
-        job = JobRecord.from_dict(d.pop("job"))
+        error = ErrorEnvelopeError.from_dict(d.pop("error"))
 
-        job_status_response = cls(
-            job=job,
+        error_envelope = cls(
+            error=error,
         )
 
-        return job_status_response
+        return error_envelope

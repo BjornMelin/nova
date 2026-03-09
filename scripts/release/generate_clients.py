@@ -171,16 +171,22 @@ def _render_typescript(operations: list[Operation]) -> str:
             "DO NOT EDIT."
         ),
         "",
+        "/** Descriptor for a single API operation. */",
         "export interface OperationDescriptor {",
+        "  /** Stable operation identifier. */",
         "  readonly operationId: string;",
+        "  /** HTTP method literal for the operation. */",
         (
             '  readonly method: "GET" | "POST" | "PUT" | "PATCH" | '
             '"DELETE" | "OPTIONS" | "HEAD";'
         ),
+        "  /** Canonical route path literal. */",
         "  readonly path: string;",
+        "  /** Optional operation summary from OpenAPI. */",
         "  readonly summary?: string;",
         "}",
         "",
+        "/** Catalog of generated operations keyed by operationId. */",
         "export const operations = {",
     ]
 
@@ -206,7 +212,9 @@ def _render_typescript(operations: list[Operation]) -> str:
         [
             "} as const satisfies Record<string, OperationDescriptor>;",
             "",
+            "/** Union of all generated operation identifiers. */",
             "export type OperationId = keyof typeof operations;",
+            "/** Static type representing the generated operations catalog. */",
             "export type GeneratedOperationCatalog = typeof operations;",
             "",
         ]
@@ -290,6 +298,20 @@ def _render_r_client(target: GenerationTarget) -> str:
         "        fixed = TRUE",
         "      )",
         "    }",
+        "  }",
+        (
+            "  missing_path_params <- regmatches("
+            'resolved_path, gregexpr("\\\\{[^}]+\\\\}", resolved_path,'
+            " perl = TRUE)"
+            ")[[1]]"
+        ),
+        "  if (length(missing_path_params) > 0L) {",
+        (
+            "    stop(sprintf("
+            '"missing path parameter(s) for %s: %s", '
+            'operation_id, paste(missing_path_params, collapse = ", ")), '
+            "call. = FALSE)"
+        ),
         "  }",
         "",
         "  list(",

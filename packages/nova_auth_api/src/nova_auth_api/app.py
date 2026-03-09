@@ -18,6 +18,7 @@ from nova_runtime_support import (
     bind_request_id,
     canonical_error_content,
     configure_structlog,
+    ensure_error_envelope_schema,
     ensure_error_response_component,
     finalize_request_id,
     install_openapi_customizer,
@@ -116,6 +117,12 @@ def _install_openapi_overrides(app: FastAPI) -> None:
             "TokenIntrospectFormRequest",
             _TOKEN_INTROSPECT_FORM_REQUEST_SCHEMA,
         )
+        ensure_error_envelope_schema(schema)
+        security_schemes = components.setdefault("securitySchemes", {})
+        security_schemes.setdefault(
+            "bearerAuth",
+            {"type": "http", "scheme": "bearer", "bearerFormat": "JWT"},
+        )
         for (
             component_name,
             description,
@@ -129,6 +136,15 @@ def _install_openapi_overrides(app: FastAPI) -> None:
             schema,
             response_component_names=_OPENAPI_OPERATION_RESPONSES,
         )
+        paths = schema.get("paths", {})
+        if isinstance(paths, dict):
+            for path in ("/v1/token/verify", "/v1/token/introspect"):
+                path_item = paths.get(path)
+                if not isinstance(path_item, dict):
+                    continue
+                operation = path_item.get("post")
+                if isinstance(operation, dict):
+                    operation["security"] = [{"bearerAuth": []}]
         replace_validation_error_responses(
             schema,
             response_component_name="AuthInvalidRequestResponse",
@@ -171,7 +187,7 @@ def create_app(
     )
     async def health_live(request: Request) -> HealthResponse:
         """Return liveness status."""
-        request_id = _request_id(request=request) or bind_request_id(request)
+        request_id = _request_id(request=request)
         return HealthResponse(
             status="ok",
             service="nova-auth-api",
@@ -188,7 +204,7 @@ def create_app(
         service: TokenVerificationServiceDep,
     ) -> HealthResponse:
         """Return readiness status for token verification."""
-        request_id = _request_id(request=request) or bind_request_id(request)
+        request_id = _request_id(request=request)
         if not service.is_ready():
             raise service_unavailable("auth verifier unavailable")
         return HealthResponse(
@@ -297,9 +313,12 @@ async def request_context_middleware(
         unbind_request_id()
 
 
-def _request_id(*, request: Request) -> str | None:
-    """Extract request ID from request state or headers."""
-    return request_id_from_request(request=request)
+def _request_id(*, request: Request) -> str:
+    """Extract request ID from state/headers, creating one when missing."""
+    request_id = request_id_from_request(request=request)
+    if request_id is not None:
+        return request_id
+    return bind_request_id(request)
 
 
 async def _parse_introspect_request(

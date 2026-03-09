@@ -38,7 +38,12 @@ jobs:
         with:
           node-version: "22"
       - name: Install package-local dependencies
-        run: npm install --no-package-lock
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
         working-directory: ${{ matrix.package_path }}
       - name: Typecheck client package
         run: npm run typecheck

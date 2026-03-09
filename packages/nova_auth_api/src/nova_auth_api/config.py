@@ -53,6 +53,7 @@ class Settings(BaseSettings):
         ge=1,
         le=1000,
     )
+
     @property
     def default_required_scopes(self) -> tuple[str, ...]:
         """Return configured default required scopes."""

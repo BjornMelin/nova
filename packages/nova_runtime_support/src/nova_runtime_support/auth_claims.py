@@ -109,17 +109,27 @@ def collect_string_claim(
     if value is None:
         return []
     if isinstance(value, str):
-        return [
-            segment.strip() for segment in value.split(" ") if segment.strip()
-        ]
+        seen_tokens: set[str] = set()
+        normalized_tokens: list[str] = []
+        for segment in value.split(" "):
+            token = segment.strip()
+            if not token or token in seen_tokens:
+                continue
+            seen_tokens.add(token)
+            normalized_tokens.append(token)
+        return normalized_tokens
     if isinstance(value, (list, tuple)):
-        normalized: list[str] = []
+        seen_list_tokens: set[str] = set()
+        normalized_list_tokens: list[str] = []
         for item in value:
             if not isinstance(item, str):
                 raise invalid_token_error("token claim type is invalid")
-            if item.strip():
-                normalized.append(item.strip())
-        return normalized
+            token = item.strip()
+            if not token or token in seen_list_tokens:
+                continue
+            seen_list_tokens.add(token)
+            normalized_list_tokens.append(token)
+        return normalized_list_tokens
     raise invalid_token_error("token claim type is invalid")
 
 

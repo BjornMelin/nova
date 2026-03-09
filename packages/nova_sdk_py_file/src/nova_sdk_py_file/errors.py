@@ -1,3 +1,4 @@
+# ruff: noqa
 """Contains shared errors types that can be raised from API functions"""
 
 
@@ -8,7 +9,11 @@ class UnexpectedStatus(Exception):
         self.status_code = status_code
         self.content = content
 
-        super().__init__(f"Unexpected status code: {status_code}")
+        super().__init__(
+            "Unexpected status code: "
+            f"{status_code}\n\nResponse content:\n"
+            f"{content.decode(errors='ignore')}"
+        )
 
 
 __all__ = ["UnexpectedStatus"]

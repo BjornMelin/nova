@@ -1,3 +1,4 @@
+# ruff: noqa
 from __future__ import annotations
 
 from collections.abc import Mapping
@@ -58,7 +59,16 @@ class TokenIntrospectFormRequest:
             list[str], d.pop("required_permissions", UNSET)
         )
 
-        required_scopes = cast(list[str], d.pop("required_scopes", UNSET))
+        def _parse_required_scopes(data: object) -> list[str] | Unset:
+            if isinstance(data, Unset):
+                return data
+            if not isinstance(data, list):
+                raise TypeError("required_scopes must be a list when set")
+            return cast(list[str], data)
+
+        required_scopes = _parse_required_scopes(
+            d.pop("required_scopes", UNSET)
+        )
 
         token_introspect_form_request = cls(
             access_token=access_token,

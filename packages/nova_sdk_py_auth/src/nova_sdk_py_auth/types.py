@@ -1,3 +1,4 @@
+# ruff: noqa
 """Contains some shared types for properties"""
 
 from collections.abc import Mapping, MutableMapping

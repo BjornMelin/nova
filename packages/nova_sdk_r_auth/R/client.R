@@ -31,6 +31,10 @@ nova_auth_request_descriptor <- function(client, operation_id, path_params = lis
       )
     }
   }
+  missing_path_params <- regmatches(resolved_path, gregexpr("\\{[^}]+\\}", resolved_path, perl = TRUE))[[1]]
+  if (length(missing_path_params) > 0L) {
+    stop(sprintf("missing path parameter(s) for %s: %s", operation_id, paste(missing_path_params, collapse = ", ")), call. = FALSE)
+  }
 
   list(
     operation_id = operation$operation_id,

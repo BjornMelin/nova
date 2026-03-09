@@ -1,3 +1,4 @@
+# ruff: noqa
 from __future__ import annotations
 
 from collections.abc import Mapping
@@ -11,7 +12,7 @@ T = TypeVar("T", bound="TokenVerifyResponseClaims")
 
 @_attrs_define
 class TokenVerifyResponseClaims:
-    """Dynamic token-verification claim payload container."""
+    """Container for arbitrary token verification claims."""
 
     additional_properties: dict[str, Any] = _attrs_field(
         init=False, factory=dict

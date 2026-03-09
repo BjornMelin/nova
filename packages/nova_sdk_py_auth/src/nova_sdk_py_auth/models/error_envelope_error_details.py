@@ -7,18 +7,14 @@ from typing import Any, TypeVar
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
-T = TypeVar("T", bound="ReadinessResponseChecks")
+T = TypeVar("T", bound="ErrorEnvelopeErrorDetails")
 
 
 @_attrs_define
-class ReadinessResponseChecks:
-    """Readiness response checks for `/v1/health/ready`.
+class ErrorEnvelopeErrorDetails:
+    """ """
 
-    A mapping of dependency names to booleans indicating whether each required
-    readiness check passed for the associated service.
-    """
-
-    additional_properties: dict[str, bool] = _attrs_field(
+    additional_properties: dict[str, Any] = _attrs_field(
         init=False, factory=dict
     )
 
@@ -32,19 +28,19 @@ class ReadinessResponseChecks:
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
-        readiness_response_checks = cls()
+        error_envelope_error_details = cls()
 
-        readiness_response_checks.additional_properties = d
-        return readiness_response_checks
+        error_envelope_error_details.additional_properties = d
+        return error_envelope_error_details
 
     @property
     def additional_keys(self) -> list[str]:
         return list(self.additional_properties.keys())
 
-    def __getitem__(self, key: str) -> bool:
+    def __getitem__(self, key: str) -> Any:
         return self.additional_properties[key]
 
-    def __setitem__(self, key: str, value: bool) -> None:
+    def __setitem__(self, key: str, value: Any) -> None:
         self.additional_properties[key] = value
 
     def __delitem__(self, key: str) -> None:
