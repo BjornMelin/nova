@@ -7,8 +7,10 @@
 
 ## Active SPEC Catalog
 
-WS6 authority linkage: decisions `ADR-0027`, `ADR-0028`, and `ADR-0029` are
-implemented by `SPEC-0021`, `SPEC-0022`, and `SPEC-0023`.
+Canonical chain: [requirements](../requirements.md) -> [ADR-0023](../adr/ADR-0023-hard-cut-v1-canonical-route-surface.md)
+-> [SPEC-0000](./SPEC-0000-http-api-contract.md) -> [SPEC-0016](./SPEC-0016-v1-route-namespace-and-literal-guardrails.md)
+-> WS6 authority is implemented by `SPEC-0021`, `SPEC-0022`, and `SPEC-0023`
+(decisions `ADR-0027`, `ADR-0028`, `ADR-0029`).
 
 | SPEC | Title | Status | Date |
 | --- | --- | --- | --- |

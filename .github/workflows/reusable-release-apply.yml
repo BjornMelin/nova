@@ -103,12 +103,15 @@ jobs:
             exit 0
           fi
 
-          git add \
-            docs/plan/release/RELEASE-VERSION-MANIFEST.md \
-            uv.lock \
-            pyproject.toml \
-            apps \
-            packages
+          add_paths=(
+            docs/plan/release/RELEASE-VERSION-MANIFEST.md
+            uv.lock
+            pyproject.toml
+          )
+          [[ -e apps ]] && add_paths+=(apps)
+          [[ -e packages ]] && add_paths+=(packages)
+
+          git add "${add_paths[@]}"
 
           if git diff --cached --quiet; then
             echo "No staged release changes after add."

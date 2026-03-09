@@ -30,6 +30,7 @@ configure CI/CD stacks, and operate Nova release automation.
   - default: `us-east-1`
 - `CODEARTIFACT_STAGING_REPOSITORY`
   - value: staged publish repository used by package build and promotion source
+  - required: yes, default: from `CODEARTIFACT_REPOSITORY_NAME` when unset
 - `CODEARTIFACT_PROD_REPOSITORY`
   - value: prod promotion destination repository
 
@@ -95,6 +96,8 @@ Populate these via `infra/nova/deploy/service-base-url-ssm.yml` before running
 `scripts/release/day-0-operator-command-pack.sh`.
 
 ## Runtime stack parameter contract
+
+Documentation authority: [requirements.md](../../requirements.md) -> [ADR-0023](../../architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md) -> [SPEC-0000](../../architecture/spec/SPEC-0000-http-api-contract.md) -> [SPEC-0016](../../architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md)
 
 Capture and manage these runtime values per environment before CI/CD deploy:
 
@@ -201,6 +204,8 @@ Validation URLs:
 - `${PROD_BASE_URL}/v1/health/live`
 - `${PROD_BASE_URL}/v1/health/ready`
 - `${PROD_BASE_URL}/v1/capabilities`
+
+Documentation authority: [requirements.md](../../requirements.md) -> [ADR-0023](../../architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md) -> [SPEC-0000](../../architecture/spec/SPEC-0000-http-api-contract.md) -> [SPEC-0016](../../architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md)
 
 Route namespace policy:
 

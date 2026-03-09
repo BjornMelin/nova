@@ -5,6 +5,10 @@ Status: Active
 Version: 1.1
 Date: 2026-03-05
 Related:
+  - "[ADR-0023: Hard cut to a single canonical /v1 API surface](../adr/ADR-0023-hard-cut-v1-canonical-route-surface.md)"
+  - "[SPEC-0000: HTTP API Contract](./SPEC-0000-http-api-contract.md)"
+  - "[SPEC-0016: Hard-cut v1 route contract and route-literal guardrails](./SPEC-0016-v1-route-namespace-and-literal-guardrails.md)"
+  - "[requirements.md](../requirements.md)"
   - "[ADR-0029: SSM runtime base URL authority for deploy validation](../adr/ADR-0029-ssm-runtime-base-url-authority-for-deploy-validation.md)"
   - "[SPEC-0017: CloudFormation module contract](./SPEC-0017-runtime-component-topology-and-ownership-contract.md)"
   - "[SPEC-0020: Rollout and validation strategy](./SPEC-0020-architecture-authority-pack-and-documentation-synchronization-contract.md)"
@@ -34,7 +38,7 @@ Canonical stack ownership:
 
 ## 3. Value constraints
 
-1. Base URL values MUST be HTTPS (`https://...`).
+1. Base URL values MUST be HTTPS (`https://…`).
 2. Values MUST be environment-appropriate and routable to deployed runtime ALB
    endpoints.
 3. Non-HTTPS and placeholder endpoints are invalid for release validation gates.

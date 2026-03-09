@@ -7,7 +7,7 @@
 
 ## ADR Catalog
 
-Note: `ADR-0023` + `SPEC-0016` define the hard-cut canonical route authority:
+Note: `ADR-0023` + `SPEC-0000` + `SPEC-0016` + `requirements.md` define the hard-cut canonical route authority:
 runtime routes are `/v1/*` (plus `/metrics/summary`) only.
 
 Infrastructure productization and deploy-automation governance decisions are

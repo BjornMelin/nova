@@ -88,12 +88,18 @@ Use the modular operator guide set for provisioning and setup details:
 1. Trigger `Post Deploy Validate` (`post-deploy-validate.yml`) after deployment.
 2. Supply `validation_base_url` using deployed HTTPS endpoint.
 3. Confirm wrapper calls reusable API:
-   - `.github/workflows/reusable-post-deploy-validate.yml`
+   - `post-deploy-validate.yml` calls reusable workflow `.github/workflows/reusable-post-deploy-validate.yml`.
 4. Confirm artifact upload:
    - `post-deploy-validation-report`
    - report file: `post-deploy-validation-report.json`
-5. Confirm reusable workflow output:
-   - `validation_status=passed`
+5. Confirm wrapper/reusable workflow result via observable state, not wrapper outputs:
+   - In workflow run page, verify `post-deploy-validate` job status is `success` (or failure as evidence).
+   - Confirm `post-deploy-validate.yml` (wrapper) and
+     `.github/workflows/reusable-post-deploy-validate.yml` workflow runs are reviewed for completion status.
+6. Confirm `post-deploy-validation-report` artifact content:
+   - Artifact exists and contains a report payload (typically `post-deploy-validation-report.json`).
+   - Report status reflects the pass result in payload fields (for example `validation_status=passed` when present in logs).
+7. If the artifact is missing or ambiguous, search workflow logs for explicit completion markers (for example `validation_status=passed` or equivalent) from the reusable workflow run.
 
 ## 4. AWS promotion execution
 

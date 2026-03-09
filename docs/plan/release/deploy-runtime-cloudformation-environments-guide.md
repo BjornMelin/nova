@@ -257,6 +257,14 @@ aws cloudformation list-stacks --region "${AWS_REGION}" \
 
 ## References
 
+- Requirements baseline (`requirements.md`):
+  [../../architecture/requirements.md](../../architecture/requirements.md)
+- ADR-0023 hard-cut canonical route surface:
+  [../../architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md](../../architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md)
+- SPEC-0000 HTTP API contract:
+  [../../architecture/spec/SPEC-0000-http-api-contract.md](../../architecture/spec/SPEC-0000-http-api-contract.md)
+- SPEC-0016 v1 route namespace and literal guardrails:
+  [../../architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md](../../architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md)
 - CloudFormation Parameters:
   <https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/parameters-section-structure.html>
 - CloudFormation Fn::ImportValue restrictions:

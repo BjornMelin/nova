@@ -5,8 +5,12 @@ Status: Accepted
 Version: 1.1
 Date: 2026-03-03
 Related:
+  - "[ADR-0023: Canonical V1 route surface hard-cut](./ADR-0023-hard-cut-v1-canonical-route-surface.md)"
   - "[ADR-0011: Hybrid CI/CD with GitHub CI and AWS-native Dev to Prod promotion](./ADR-0011-cicd-hybrid-github-aws-promotion.md)"
+  - "[SPEC-0000: Canonical API contract](../spec/SPEC-0000-http-api-contract.md)"
+  - "[SPEC-0016: V1 route namespace and literal guardrails](../spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md)"
   - "[SPEC-0017: CloudFormation module contract](../spec/SPEC-0017-runtime-component-topology-and-ownership-contract.md)"
+  - "[requirements.md](../requirements.md)"
   - "[SPEC-0020: Rollout and validation strategy](../spec/SPEC-0020-architecture-authority-pack-and-documentation-synchronization-contract.md)"
   - "[SPEC-0004: CI/CD and documentation automation](../spec/SPEC-0004-ci-cd-and-docs.md)"
 ---

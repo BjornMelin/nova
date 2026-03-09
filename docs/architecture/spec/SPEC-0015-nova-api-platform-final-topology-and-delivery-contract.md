@@ -9,6 +9,7 @@ Related:
   - "[ADR-0023: Hard cut to a single canonical /v1 API surface](../adr/ADR-0023-hard-cut-v1-canonical-route-surface.md)"
   - "[SPEC-0000: HTTP API Contract](./SPEC-0000-http-api-contract.md)"
   - "[SPEC-0016: Hard-cut v1 route contract and route-literal guardrails](./SPEC-0016-v1-route-namespace-and-literal-guardrails.md)"
+  - "[requirements.md](../requirements.md)"
   - "[ADR-0024: Native-CFN modular stack architecture for Nova infrastructure productization](../adr/ADR-0024-layered-architecture-authority-pack.md)"
   - "[ADR-0025: Reusable GitHub workflow API and versioning policy for deployment automation](../adr/ADR-0025-reusable-workflow-api-and-versioning-policy.md)"
   - "[ADR-0026: OIDC and IAM role partitioning for deploy automation](../adr/ADR-0026-oidc-iam-role-partitioning-for-deploy-automation.md)"

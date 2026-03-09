@@ -1,6 +1,6 @@
 ---
 Spec: 0019
-Title: CI/CD IAM least-privilege matrix
+Title: Auth execution and threadpool safety contract
 Status: Active
 Version: 1.1
 Date: 2026-03-03

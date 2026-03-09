@@ -38,6 +38,7 @@ jobs:
       - name: Validate CloudFormation syntax and schema
         run: |
           set -euo pipefail
+          shopt -s globstar
           uv run cfn-lint infra/nova/*.yml infra/nova/deploy/*.yml infra/runtime/**/*.yml
 
       - name: Run infra preflight contract tests

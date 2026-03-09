@@ -90,6 +90,9 @@ Conditions:
   HasIamRolesStackName: !Not [!Equals [!Ref IamRolesStackName, ""]]
   HasArtifactBucketName: !Not [!Equals [!Ref ArtifactBucketName, ""]]
   HasConnectionName: !Not [!Equals [!Ref ConnectionName, ""]]
+  UseImportedConnectionName: !And
+    - !Not [!Condition HasConnectionName]
+    - !Condition HasFoundationStackName
   HasCodePipelineServiceRoleArn: !Not [!Equals [!Ref CodePipelineServiceRoleArn, ""]]
   HasCloudFormationExecutionRoleDevArn: !Not [!Equals [!Ref CloudFormationExecutionRoleDevArn, ""]]
   HasCloudFormationExecutionRoleProdArn: !Not [!Equals [!Ref CloudFormationExecutionRoleProdArn, ""]]
@@ -112,12 +115,12 @@ Rules:
           - !Not [!Equals [!Ref FoundationStackName, ""]]
         AssertDescription: Provide ArtifactBucketName or FoundationStackName.
   RequireConnectionNameWhenCreatingConnection:
-    RuleCondition: !Equals [!Ref ExistingConnectionArn, ""]
+    RuleCondition: !Condition CreateConnection
     Assertions:
       - Assert: !Or
-          - !Not [!Equals [!Ref ConnectionName, ""]]
-          - !Not [!Equals [!Ref FoundationStackName, ""]]
-        AssertDescription: Provide ConnectionName or FoundationStackName when ExistingConnectionArn is empty.
+          - !Condition HasConnectionName
+          - !Condition HasFoundationStackName
+        AssertDescription: When creating a connection, provide ConnectionName or FoundationStackName.
   RequireReleaseBuildProjectInput:
     Assertions:
       - Assert: !Or
@@ -140,7 +143,7 @@ Resources:
         - HasConnectionName
         - !Ref ConnectionName
         - !If
-          - HasFoundationStackName
+          - UseImportedConnectionName
           - !ImportValue
             Fn::Sub: "${FoundationStackName}-ConnectionName"
           - !Ref AWS::NoValue

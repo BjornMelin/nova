@@ -146,5 +146,5 @@ rg -n "/v1/transfers|/v1/jobs|nova_dash_bridge|nova_file_api" \
 
 ```bash
 rg -n "container-craft" README.md docs/architecture docs/plan docs/runbooks \
-  | rg -v "docs/history|historical|archive|retired|ADR-0001|ADR-0014|SPEC-0013|SPEC-0014|requirements.md|RELEASE-VERSION-MANIFEST"
+  | rg -v "docs/history|historical|archive|retired|ADR-0001|ADR-0014|SPEC-0013|SPEC-0014|RELEASE-VERSION-MANIFEST"
 ```

@@ -5,9 +5,13 @@ Status: Active
 Version: 1.2
 Date: 2026-03-04
 Related:
+  - "[ADR-0023: Canonical V1 route surface hard-cut](../adr/ADR-0023-hard-cut-v1-canonical-route-surface.md)"
   - "[ADR-0025: Reusable GitHub workflow API and versioning policy for deployment automation](../adr/ADR-0025-reusable-workflow-api-and-versioning-policy.md)"
+  - "[requirements.md](../requirements.md)"
   - "[ADR-0028: Auth0 tenant ops reusable workflow API contract](../adr/ADR-0028-auth0-tenant-ops-reusable-workflow-api-contract.md)"
+  - "[SPEC-0000: Canonical API contract](./SPEC-0000-http-api-contract.md)"
   - "[SPEC-0017: CloudFormation module contract](./SPEC-0017-runtime-component-topology-and-ownership-contract.md)"
+  - "[SPEC-0016: V1 route namespace and literal guardrails](./SPEC-0016-v1-route-namespace-and-literal-guardrails.md)"
   - "[SPEC-0021: Downstream hard-cut integration and consumer validation contract](./SPEC-0021-downstream-hard-cut-integration-and-consumer-validation-contract.md)"
   - "[SPEC-0022: Auth0 tenant ops reusable workflow contract](./SPEC-0022-auth0-tenant-ops-reusable-workflow-contract.md)"
   - "[SPEC-0023: SSM runtime base-url contract for deploy validation](./SPEC-0023-ssm-runtime-base-url-contract-for-deploy-validation.md)"

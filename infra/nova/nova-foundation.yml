@@ -78,6 +78,8 @@ Resources:
   ArtifactBucket:
     Type: AWS::S3::Bucket
     Condition: CreateArtifactBucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Properties:
       BucketName: !Ref ArtifactBucketName
       PublicAccessBlockConfiguration:
