@@ -33,6 +33,7 @@ class Operation:
     path: str
     summary: str | None
     has_request_body: bool
+    has_required_request_body: bool
     has_path_params: bool
     has_query_params: bool
     has_required_query_params: bool
@@ -57,7 +58,7 @@ class Operation:
     def requires_request(self) -> bool:
         """Return whether the generated client method must take a request object."""
         return (
-            self.has_request_body
+            self.has_required_request_body
             or self.has_path_params
             or self.has_required_query_params
             or self.has_required_header_params
@@ -172,7 +173,10 @@ def _load_operations(spec_path: Path) -> tuple[dict[str, Any], list[Operation]]:
                     method=method.upper(),
                     path=path,
                     summary=str(summary) if summary else None,
-                    has_request_body=_has_request_body(operation),
+                    has_request_body=_has_request_body(spec, operation),
+                    has_required_request_body=_request_body_required(
+                        spec, operation
+                    ),
                     has_path_params=("path" in parameter_index),
                     has_query_params=("query" in parameter_index),
                     has_required_query_params=_parameter_group_has_required(
@@ -183,7 +187,7 @@ def _load_operations(spec_path: Path) -> tuple[dict[str, Any], list[Operation]]:
                         parameter_index.get("header", ()),
                     ),
                     request_content_types=_collect_request_content_types(
-                        operation
+                        spec, operation
                     ),
                     response_status_codes=response_status_codes,
                 )
@@ -276,15 +280,44 @@ def _resolve_parameter(
     return resolved
 
 
-def _has_request_body(operation: dict[str, Any]) -> bool:
-    return isinstance(operation.get("requestBody"), dict)
+def _resolve_request_body(
+    spec: dict[str, Any],
+    operation: dict[str, Any],
+) -> dict[str, Any] | None:
+    request_body = operation.get("requestBody")
+    if not isinstance(request_body, dict):
+        return None
+    ref = request_body.get("$ref")
+    if isinstance(ref, str):
+        resolved = _resolve_local_ref(spec, ref)
+        if not isinstance(resolved, dict):
+            raise ValueError(
+                f"requestBody reference did not resolve to an object: {ref}"
+            )
+        return resolved
+    return request_body
+
+
+def _has_request_body(spec: dict[str, Any], operation: dict[str, Any]) -> bool:
+    return _resolve_request_body(spec, operation) is not None
+
+
+def _request_body_required(
+    spec: dict[str, Any],
+    operation: dict[str, Any],
+) -> bool:
+    request_body = _resolve_request_body(spec, operation)
+    if request_body is None:
+        return False
+    return bool(request_body.get("required", False))
 
 
 def _collect_request_content_types(
+    spec: dict[str, Any],
     operation: dict[str, Any],
 ) -> tuple[str, ...]:
-    request_body = operation.get("requestBody")
-    if not isinstance(request_body, dict):
+    request_body = _resolve_request_body(spec, operation)
+    if request_body is None:
         return ()
     content = request_body.get("content")
     if not isinstance(content, dict):
@@ -343,20 +376,43 @@ def _assert_unique_operation_ids(
 def _render_typescript_openapi(spec_path: Path) -> str:
     with tempfile.TemporaryDirectory() as tmp_dir:
         output_path = Path(tmp_dir) / "openapi.ts"
-        result = subprocess.run(
-            [
-                "npx",
-                "--yes",
-                OPENAPI_TYPESCRIPT_PACKAGE,
-                str(spec_path),
-                "-o",
-                str(output_path),
-            ],
-            cwd=REPO_ROOT,
-            check=False,
-            text=True,
-            capture_output=True,
-        )
+        command = [
+            "npx",
+            "--yes",
+            OPENAPI_TYPESCRIPT_PACKAGE,
+            str(spec_path),
+            "-o",
+            str(output_path),
+        ]
+        try:
+            result = subprocess.run(
+                command,
+                cwd=REPO_ROOT,
+                check=False,
+                text=True,
+                capture_output=True,
+                timeout=120,
+            )
+        except FileNotFoundError as exc:
+            raise RuntimeError(
+                "openapi-typescript generation failed: missing `npx` command"
+            ) from exc
+        except subprocess.TimeoutExpired as exc:
+            stdout = (
+                exc.stdout.strip()
+                if isinstance(exc.stdout, str)
+                else str(exc.stdout or "").strip()
+            )
+            stderr = (
+                exc.stderr.strip()
+                if isinstance(exc.stderr, str)
+                else str(exc.stderr or "").strip()
+            )
+            details = stderr or stdout or "no output captured"
+            raise RuntimeError(
+                "openapi-typescript generation timed out after 120s for "
+                f"{spec_path} using command {' '.join(command)}: {details}"
+            ) from exc
         if result.returncode != 0:
             stderr = result.stderr.strip()
             raise RuntimeError(
@@ -524,8 +580,9 @@ def _render_request_interface(operation: Operation) -> list[str]:
         lines = [f"export interface {request_type_name} {{"]
         lines.extend(f"  {line}" for line in property_lines)
         if operation.has_request_body:
+            optional = "?" if not operation.has_required_request_body else ""
             lines.append(
-                f"  readonly body: {_request_body_type_expression(operation)};"
+                f"  readonly body{optional}: {_request_body_type_expression(operation)};"
             )
         lines.append("}")
         return lines
@@ -535,8 +592,9 @@ def _render_request_interface(operation: Operation) -> list[str]:
         lines.append("  | {")
         lines.extend(f"      {line}" for line in property_lines)
         lines.append(f"      readonly contentType: {json.dumps(media_type)};")
+        optional = "?" if not operation.has_required_request_body else ""
         lines.append(
-            "      readonly body: "
+            f"      readonly body{optional}: "
             f"{_request_body_type_expression(operation, media_type)};"
         )
         lines.append("    }")
@@ -999,9 +1057,15 @@ def _remove_stale_generated_directory(
 ) -> list[str]:
     generated_dir = package_root / "src" / "generated"
     if check:
-        if generated_dir.exists():
-            return []
-        return [f"missing generated SDK directory: {generated_dir}"]
+        if not generated_dir.exists():
+            return [f"missing generated SDK directory: {generated_dir}"]
+        stale_entries = sorted(item.name for item in generated_dir.iterdir())
+        if stale_entries:
+            return [
+                "stale generated SDK directory is non-empty "
+                f"{generated_dir}: {', '.join(stale_entries)}"
+            ]
+        return []
 
     if generated_dir.exists():
         shutil.rmtree(generated_dir)

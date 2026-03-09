@@ -2,11 +2,12 @@
 ADR: 0010
 Title: Fail enqueue on queue publish errors and scope readiness to critical dependencies
 Status: Accepted
-Version: 1.3
-Date: 2026-03-05
+Version: 1.4
+Date: 2026-03-09
 Related:
   - "[SPEC-0000: HTTP API contract](../spec/SPEC-0000-http-api-contract.md)"
   - "[SPEC-0003: Observability](../spec/SPEC-0003-observability.md)"
+  - "[SPEC-0006: JWT/OIDC verification and principal mapping](../spec/SPEC-0006-jwt-oidc-verification-and-principal-mapping.md)"
   - "[SPEC-0008: Async jobs and worker orchestration](../spec/SPEC-0008-async-jobs-and-worker-orchestration.md)"
   - "[SPEC-0010: Observability analytics and activity rollups](../spec/SPEC-0010-observability-analytics-and-activity-rollups.md)"
   - "[SPEC-0018: Runtime configuration and startup validation contract](../spec/SPEC-0018-runtime-configuration-and-startup-validation-contract.md)"
@@ -78,12 +79,13 @@ Implementation commitments:
 3. Dashboard rollups become accurate and concurrency-safe.
 4. Startup misconfiguration is detected earlier instead of silently degrading.
 5. Local JWT mode now fails readiness closed when verifier configuration is
-   incomplete, matching the runtime validation rules in `SPEC-0018`.
+   incomplete, matching JWT/OIDC verifier authority in SPEC-0006.
 
 ## Changelog
 
-- 2026-03-05 (v1.3): Added `jwt_local` fail-closed readiness semantics and
-  aligned runtime-validation references with `SPEC-0018`.
+- 2026-03-09 (v1.4): Repointed jwt_local readiness verifier authority
+  references to SPEC-0006.
+- 2026-03-05 (v1.3): Added `jwt_local` fail-closed readiness semantics.
 - 2026-03-03 (v1.2): Canonicalized enqueue and readiness route references to
   `/v1/*` route surface.
 - 2026-02-12 (v1.0): Initial acceptance.

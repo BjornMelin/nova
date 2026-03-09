@@ -26,6 +26,9 @@ def test_public_sdk_packages_use_subpath_only_exports() -> None:
     """Public TS SDK packages must expose explicit subpaths only."""
     for package_dir_name in ("nova_sdk_auth", "nova_sdk_file"):
         package_data = _load_package_json(package_dir_name)
+        assert "main" not in package_data
+        assert "module" not in package_data
+        assert "types" not in package_data
         exports = package_data.get("exports")
         assert isinstance(exports, dict)
         assert "." not in exports
