@@ -1,6 +1,4 @@
 # ruff: noqa
-"""HTTP clients and helpers for the public `nova_sdk_py_file` SDK."""
-
 import ssl
 from typing import Any
 
@@ -61,59 +59,27 @@ class Client:
     _async_client: httpx.AsyncClient | None = field(default=None, init=False)
 
     def with_headers(self, headers: dict[str, str]) -> "Client":
-        """Build a copy of this client with merged default headers.
-
-        Args:
-            headers (dict[str, str]): Headers to merge into client defaults.
-
-        Returns:
-            Client: A new client instance with merged headers.
-        """
+        """Get a new client matching this one with additional headers"""
         return evolve(self, headers={**self._headers, **headers})
 
     def with_cookies(self, cookies: dict[str, str]) -> "Client":
-        """Build a copy of this client with merged default cookies.
-
-        Args:
-            cookies (dict[str, str]): Cookies to merge into client defaults.
-
-        Returns:
-            Client: A new client instance with merged cookies.
-        """
+        """Get a new client matching this one with additional cookies"""
         return evolve(self, cookies={**self._cookies, **cookies})
 
     def with_timeout(self, timeout: httpx.Timeout) -> "Client":
-        """Build a copy of this client with a replacement timeout.
-
-        Args:
-            timeout (httpx.Timeout): Timeout configuration for future requests.
-
-        Returns:
-            Client: A new client instance with the provided timeout.
-        """
+        """Get a new client matching this one with a new timeout configuration"""
         return evolve(self, timeout=timeout)
 
     def set_httpx_client(self, client: httpx.Client) -> "Client":
-        """Set a caller-managed sync HTTPX client instance.
+        """Manually set the underlying httpx.Client
 
-        Args:
-            client (httpx.Client): Preconfigured sync HTTPX client instance.
-
-        Returns:
-            Client: This client wrapper.
+        **NOTE**: This will override any other settings on the client, including cookies, headers, and timeout.
         """
         self._client = client
         return self
 
     def get_httpx_client(self) -> httpx.Client:
-        """Return the backing sync HTTPX client, creating it if needed.
-
-        Returns:
-            httpx.Client: The configured sync HTTPX client instance.
-
-        Raises:
-            httpx.HTTPError: Propagated when HTTPX client setup fails.
-        """
+        """Get the underlying httpx.Client, constructing a new one if not previously set"""
         if self._client is None:
             self._client = httpx.Client(
                 base_url=self._base_url,
@@ -127,55 +93,26 @@ class Client:
         return self._client
 
     def __enter__(self) -> "Client":
-        """Enter the sync HTTPX client context for this wrapper.
-
-        Returns:
-            Client: This client wrapper for use inside a context manager.
-
-        Raises:
-            httpx.HTTPError: Propagated by HTTPX context entry.
-        """
+        """Enter a context manager for self.client—you cannot enter twice (see httpx docs)"""
         self.get_httpx_client().__enter__()
         return self
 
     def __exit__(self, *args: Any, **kwargs: Any) -> None:
-        """Exit the sync HTTPX client context for this wrapper.
-
-        Args:
-            *args (Any): Positional exception-context arguments from `with`.
-            **kwargs (Any): Keyword exception-context arguments from `with`.
-
-        Returns:
-            None
-
-        Raises:
-            httpx.HTTPError: Propagated by HTTPX context exit.
-        """
+        """Exit a context manager for internal httpx.Client (see httpx docs)"""
         self.get_httpx_client().__exit__(*args, **kwargs)
 
     def set_async_httpx_client(
         self, async_client: httpx.AsyncClient
     ) -> "Client":
-        """Set a caller-managed async HTTPX client instance.
+        """Manually set the underlying httpx.AsyncClient
 
-        Args:
-            async_client (httpx.AsyncClient): Preconfigured async HTTPX client.
-
-        Returns:
-            Client: This client wrapper.
+        **NOTE**: This will override any other settings on the client, including cookies, headers, and timeout.
         """
         self._async_client = async_client
         return self
 
     def get_async_httpx_client(self) -> httpx.AsyncClient:
-        """Return the backing async HTTPX client, creating it if needed.
-
-        Returns:
-            httpx.AsyncClient: The configured async HTTPX client instance.
-
-        Raises:
-            httpx.HTTPError: Propagated when HTTPX client setup fails.
-        """
+        """Get the underlying httpx.AsyncClient, constructing a new one if not previously set"""
         if self._async_client is None:
             self._async_client = httpx.AsyncClient(
                 base_url=self._base_url,
@@ -189,30 +126,12 @@ class Client:
         return self._async_client
 
     async def __aenter__(self) -> "Client":
-        """Enter the async HTTPX client context for this wrapper.
-
-        Returns:
-            Client: This client wrapper for use inside an async context manager.
-
-        Raises:
-            httpx.HTTPError: Propagated by HTTPX async context entry.
-        """
+        """Enter a context manager for underlying httpx.AsyncClient—you cannot enter twice (see httpx docs)"""
         await self.get_async_httpx_client().__aenter__()
         return self
 
     async def __aexit__(self, *args: Any, **kwargs: Any) -> None:
-        """Exit the async HTTPX client context for this wrapper.
-
-        Args:
-            *args (Any): Positional exception-context arguments from `async with`.
-            **kwargs (Any): Keyword exception-context arguments from `async with`.
-
-        Returns:
-            None
-
-        Raises:
-            httpx.HTTPError: Propagated by HTTPX async context exit.
-        """
+        """Exit a context manager for underlying httpx.AsyncClient (see httpx docs)"""
         await self.get_async_httpx_client().__aexit__(*args, **kwargs)
 
 
@@ -276,59 +195,27 @@ class AuthenticatedClient:
     auth_header_name: str = "Authorization"
 
     def with_headers(self, headers: dict[str, str]) -> "AuthenticatedClient":
-        """Build a copy of this client with merged default headers.
-
-        Args:
-            headers (dict[str, str]): Headers to merge into client defaults.
-
-        Returns:
-            AuthenticatedClient: A new client instance with merged headers.
-        """
+        """Get a new client matching this one with additional headers"""
         return evolve(self, headers={**self._headers, **headers})
 
     def with_cookies(self, cookies: dict[str, str]) -> "AuthenticatedClient":
-        """Build a copy of this client with merged default cookies.
-
-        Args:
-            cookies (dict[str, str]): Cookies to merge into client defaults.
-
-        Returns:
-            AuthenticatedClient: A new client instance with merged cookies.
-        """
+        """Get a new client matching this one with additional cookies"""
         return evolve(self, cookies={**self._cookies, **cookies})
 
     def with_timeout(self, timeout: httpx.Timeout) -> "AuthenticatedClient":
-        """Build a copy of this client with a replacement timeout.
-
-        Args:
-            timeout (httpx.Timeout): Timeout configuration for future requests.
-
-        Returns:
-            AuthenticatedClient: A new client instance with the provided timeout.
-        """
+        """Get a new client matching this one with a new timeout configuration"""
         return evolve(self, timeout=timeout)
 
     def set_httpx_client(self, client: httpx.Client) -> "AuthenticatedClient":
-        """Set a caller-managed sync HTTPX client instance.
+        """Manually set the underlying httpx.Client
 
-        Args:
-            client (httpx.Client): Preconfigured sync HTTPX client instance.
-
-        Returns:
-            AuthenticatedClient: This client wrapper.
+        **NOTE**: This will override any other settings on the client, including cookies, headers, and timeout.
         """
         self._client = client
         return self
 
     def get_httpx_client(self) -> httpx.Client:
-        """Return the backing sync HTTPX client, creating it if needed.
-
-        Returns:
-            httpx.Client: The configured sync HTTPX client instance.
-
-        Raises:
-            httpx.HTTPError: Propagated when HTTPX client setup fails.
-        """
+        """Get the underlying httpx.Client, constructing a new one if not previously set"""
         if self._client is None:
             headers = {**self._headers}
             headers[self.auth_header_name] = (
@@ -346,55 +233,26 @@ class AuthenticatedClient:
         return self._client
 
     def __enter__(self) -> "AuthenticatedClient":
-        """Enter the sync HTTPX client context for this wrapper.
-
-        Returns:
-            AuthenticatedClient: This client wrapper for use in a context manager.
-
-        Raises:
-            httpx.HTTPError: Propagated by HTTPX context entry.
-        """
+        """Enter a context manager for self.client—you cannot enter twice (see httpx docs)"""
         self.get_httpx_client().__enter__()
         return self
 
     def __exit__(self, *args: Any, **kwargs: Any) -> None:
-        """Exit the sync HTTPX client context for this wrapper.
-
-        Args:
-            *args (Any): Positional exception-context arguments from `with`.
-            **kwargs (Any): Keyword exception-context arguments from `with`.
-
-        Returns:
-            None
-
-        Raises:
-            httpx.HTTPError: Propagated by HTTPX context exit.
-        """
+        """Exit a context manager for internal httpx.Client (see httpx docs)"""
         self.get_httpx_client().__exit__(*args, **kwargs)
 
     def set_async_httpx_client(
         self, async_client: httpx.AsyncClient
     ) -> "AuthenticatedClient":
-        """Set a caller-managed async HTTPX client instance.
+        """Manually set the underlying httpx.AsyncClient
 
-        Args:
-            async_client (httpx.AsyncClient): Preconfigured async HTTPX client.
-
-        Returns:
-            AuthenticatedClient: This client wrapper.
+        **NOTE**: This will override any other settings on the client, including cookies, headers, and timeout.
         """
         self._async_client = async_client
         return self
 
     def get_async_httpx_client(self) -> httpx.AsyncClient:
-        """Return the backing async HTTPX client, creating it if needed.
-
-        Returns:
-            httpx.AsyncClient: The configured async HTTPX client instance.
-
-        Raises:
-            httpx.HTTPError: Propagated when HTTPX client setup fails.
-        """
+        """Get the underlying httpx.AsyncClient, constructing a new one if not previously set"""
         if self._async_client is None:
             headers = {**self._headers}
             headers[self.auth_header_name] = (
@@ -412,28 +270,10 @@ class AuthenticatedClient:
         return self._async_client
 
     async def __aenter__(self) -> "AuthenticatedClient":
-        """Enter the async HTTPX client context for this wrapper.
-
-        Returns:
-            AuthenticatedClient: This client wrapper for async context usage.
-
-        Raises:
-            httpx.HTTPError: Propagated by HTTPX async context entry.
-        """
+        """Enter a context manager for underlying httpx.AsyncClient—you cannot enter twice (see httpx docs)"""
         await self.get_async_httpx_client().__aenter__()
         return self
 
     async def __aexit__(self, *args: Any, **kwargs: Any) -> None:
-        """Exit the async HTTPX client context for this wrapper.
-
-        Args:
-            *args (Any): Positional exception-context arguments from `async with`.
-            **kwargs (Any): Keyword exception-context arguments from `async with`.
-
-        Returns:
-            None
-
-        Raises:
-            httpx.HTTPError: Propagated by HTTPX async context exit.
-        """
+        """Exit a context manager for underlying httpx.AsyncClient (see httpx docs)"""
         await self.get_async_httpx_client().__aexit__(*args, **kwargs)
