@@ -5,12 +5,16 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from collections.abc import Callable
 from pathlib import Path
+from typing import Any
 
 from nova_auth_api.app import create_app as create_auth_app
 from nova_file_api.app import create_app as create_file_app
 
-OPENAPI_OUTPUTS = {
+OpenApiFactory = Callable[[], Any]
+
+OPENAPI_OUTPUTS: dict[str, OpenApiFactory] = {
     "nova-file-api.openapi.json": create_file_app,
     "nova-auth-api.openapi.json": create_auth_app,
 }

@@ -1,5 +1,57 @@
 {
   "components": {
+    "responses": {
+      "FileForbiddenResponse": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            }
+          }
+        },
+        "description": "Canonical forbidden request response."
+      },
+      "FileIdempotencyUnavailableResponse": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            }
+          }
+        },
+        "description": "Canonical idempotency-unavailable response."
+      },
+      "FileInvalidRequestResponse": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            }
+          }
+        },
+        "description": "Canonical invalid-request response."
+      },
+      "FileQueueUnavailableResponse": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            }
+          }
+        },
+        "description": "Canonical queue unavailable response."
+      },
+      "FileUnauthorizedResponse": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            }
+          }
+        },
+        "description": "Canonical unauthorized request response."
+      }
+    },
     "schemas": {
       "AbortUploadRequest": {
         "additionalProperties": false,
@@ -259,19 +311,6 @@
           "status"
         ],
         "title": "EnqueueJobResponse",
-        "type": "object"
-      },
-      "HTTPValidationError": {
-        "properties": {
-          "detail": {
-            "items": {
-              "$ref": "#/components/schemas/ValidationError"
-            },
-            "title": "Detail",
-            "type": "array"
-          }
-        },
-        "title": "HTTPValidationError",
         "type": "object"
       },
       "HealthResponse": {
@@ -997,46 +1036,6 @@
         ],
         "title": "UploadStrategy",
         "type": "string"
-      },
-      "ValidationError": {
-        "properties": {
-          "ctx": {
-            "title": "Context",
-            "type": "object"
-          },
-          "input": {
-            "title": "Input"
-          },
-          "loc": {
-            "items": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "integer"
-                }
-              ]
-            },
-            "title": "Location",
-            "type": "array"
-          },
-          "msg": {
-            "title": "Message",
-            "type": "string"
-          },
-          "type": {
-            "title": "Error Type",
-            "type": "string"
-          }
-        },
-        "required": [
-          "loc",
-          "msg",
-          "type"
-        ],
-        "title": "ValidationError",
-        "type": "object"
       }
     }
   },
@@ -1060,6 +1059,12 @@
               }
             },
             "description": "Successful Response"
+          },
+          "401": {
+            "$ref": "#/components/responses/FileUnauthorizedResponse"
+          },
+          "403": {
+            "$ref": "#/components/responses/FileForbiddenResponse"
           }
         },
         "summary": "Metrics Summary",
@@ -1186,21 +1191,18 @@
             },
             "description": "Successful Response"
           },
+          "403": {
+            "$ref": "#/components/responses/FileForbiddenResponse"
+          },
           "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
+            "$ref": "#/components/responses/FileInvalidRequestResponse"
           }
         },
         "summary": "Update Job Result",
         "tags": [
           "jobs"
-        ]
+        ],
+        "x-nova-sdk-visibility": "internal"
       }
     },
     "/v1/jobs": {
@@ -1232,15 +1234,14 @@
             },
             "description": "Successful Response"
           },
+          "401": {
+            "$ref": "#/components/responses/FileUnauthorizedResponse"
+          },
+          "403": {
+            "$ref": "#/components/responses/FileForbiddenResponse"
+          },
           "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
+            "$ref": "#/components/responses/FileInvalidRequestResponse"
           }
         },
         "summary": "List Jobs",
@@ -1290,15 +1291,17 @@
             },
             "description": "Successful Response"
           },
+          "401": {
+            "$ref": "#/components/responses/FileUnauthorizedResponse"
+          },
+          "403": {
+            "$ref": "#/components/responses/FileForbiddenResponse"
+          },
           "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
+            "$ref": "#/components/responses/FileInvalidRequestResponse"
+          },
+          "503": {
+            "$ref": "#/components/responses/FileQueueUnavailableResponse"
           }
         },
         "summary": "Create Job",
@@ -1333,15 +1336,14 @@
             },
             "description": "Successful Response"
           },
+          "401": {
+            "$ref": "#/components/responses/FileUnauthorizedResponse"
+          },
+          "403": {
+            "$ref": "#/components/responses/FileForbiddenResponse"
+          },
           "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
+            "$ref": "#/components/responses/FileInvalidRequestResponse"
           }
         },
         "summary": "Get Job Status",
@@ -1376,15 +1378,14 @@
             },
             "description": "Successful Response"
           },
+          "401": {
+            "$ref": "#/components/responses/FileUnauthorizedResponse"
+          },
+          "403": {
+            "$ref": "#/components/responses/FileForbiddenResponse"
+          },
           "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
+            "$ref": "#/components/responses/FileInvalidRequestResponse"
           }
         },
         "summary": "Cancel Job",
@@ -1419,15 +1420,14 @@
             },
             "description": "Successful Response"
           },
+          "401": {
+            "$ref": "#/components/responses/FileUnauthorizedResponse"
+          },
+          "403": {
+            "$ref": "#/components/responses/FileForbiddenResponse"
+          },
           "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
+            "$ref": "#/components/responses/FileInvalidRequestResponse"
           }
         },
         "summary": "List Job Events",
@@ -1462,15 +1462,14 @@
             },
             "description": "Successful Response"
           },
+          "401": {
+            "$ref": "#/components/responses/FileUnauthorizedResponse"
+          },
+          "403": {
+            "$ref": "#/components/responses/FileForbiddenResponse"
+          },
           "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
+            "$ref": "#/components/responses/FileInvalidRequestResponse"
           }
         },
         "summary": "Retry Job",
@@ -1527,14 +1526,7 @@
             "description": "Successful Response"
           },
           "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
+            "$ref": "#/components/responses/FileInvalidRequestResponse"
           }
         },
         "summary": "Plan Resources",
@@ -1568,15 +1560,14 @@
             },
             "description": "Successful Response"
           },
+          "401": {
+            "$ref": "#/components/responses/FileUnauthorizedResponse"
+          },
+          "403": {
+            "$ref": "#/components/responses/FileForbiddenResponse"
+          },
           "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
+            "$ref": "#/components/responses/FileInvalidRequestResponse"
           }
         },
         "summary": "Presign Download",
@@ -1610,15 +1601,14 @@
             },
             "description": "Successful Response"
           },
+          "401": {
+            "$ref": "#/components/responses/FileUnauthorizedResponse"
+          },
+          "403": {
+            "$ref": "#/components/responses/FileForbiddenResponse"
+          },
           "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
+            "$ref": "#/components/responses/FileInvalidRequestResponse"
           }
         },
         "summary": "Abort Upload",
@@ -1652,15 +1642,14 @@
             },
             "description": "Successful Response"
           },
+          "401": {
+            "$ref": "#/components/responses/FileUnauthorizedResponse"
+          },
+          "403": {
+            "$ref": "#/components/responses/FileForbiddenResponse"
+          },
           "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
+            "$ref": "#/components/responses/FileInvalidRequestResponse"
           }
         },
         "summary": "Complete Upload",
@@ -1712,15 +1701,17 @@
             },
             "description": "Successful Response"
           },
+          "401": {
+            "$ref": "#/components/responses/FileUnauthorizedResponse"
+          },
+          "403": {
+            "$ref": "#/components/responses/FileForbiddenResponse"
+          },
           "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
+            "$ref": "#/components/responses/FileInvalidRequestResponse"
+          },
+          "503": {
+            "$ref": "#/components/responses/FileIdempotencyUnavailableResponse"
           }
         },
         "summary": "Initiate Upload",
@@ -1754,15 +1745,14 @@
             },
             "description": "Successful Response"
           },
+          "401": {
+            "$ref": "#/components/responses/FileUnauthorizedResponse"
+          },
+          "403": {
+            "$ref": "#/components/responses/FileForbiddenResponse"
+          },
           "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
+            "$ref": "#/components/responses/FileInvalidRequestResponse"
           }
         },
         "summary": "Sign Upload Parts",

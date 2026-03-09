@@ -1,7 +1,11 @@
 {
   "job_type": "transfer.process",
   "payload": {
-    "upload_key": "session-abc123/sample.csv"
+    "bucket": "nova-bucket",
+    "key": "uploads/session-abc123/abc123/sample.csv",
+    "filename": "sample.csv",
+    "size_bytes": 1048576,
+    "content_type": "text/csv"
   },
   "session_id": "session-abc123"
 }

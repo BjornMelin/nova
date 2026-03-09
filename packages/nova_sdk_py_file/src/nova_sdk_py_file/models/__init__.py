@@ -12,7 +12,6 @@ from .enqueue_job_request import EnqueueJobRequest
 from .enqueue_job_request_payload import EnqueueJobRequestPayload
 from .enqueue_job_response import EnqueueJobResponse
 from .health_response import HealthResponse
-from .http_validation_error import HTTPValidationError
 from .initiate_upload_request import InitiateUploadRequest
 from .initiate_upload_response import InitiateUploadResponse
 from .job_cancel_response import JobCancelResponse
@@ -49,8 +48,6 @@ from .sign_parts_request import SignPartsRequest
 from .sign_parts_response import SignPartsResponse
 from .sign_parts_response_urls import SignPartsResponseUrls
 from .upload_strategy import UploadStrategy
-from .validation_error import ValidationError
-from .validation_error_context import ValidationErrorContext
 
 __all__ = (
     "AbortUploadRequest",
@@ -65,7 +62,6 @@ __all__ = (
     "EnqueueJobRequestPayload",
     "EnqueueJobResponse",
     "HealthResponse",
-    "HTTPValidationError",
     "InitiateUploadRequest",
     "InitiateUploadResponse",
     "JobCancelResponse",
@@ -98,6 +94,4 @@ __all__ = (
     "SignPartsResponse",
     "SignPartsResponseUrls",
     "UploadStrategy",
-    "ValidationError",
-    "ValidationErrorContext",
 )

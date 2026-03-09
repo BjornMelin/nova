@@ -4,12 +4,20 @@
 from __future__ import annotations
 
 import argparse
+import copy
+import json
 import shutil
 import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from typing import Any
+
+from nova_runtime_support import (
+    SDK_VISIBILITY_EXTENSION,
+    SDK_VISIBILITY_INTERNAL,
+)
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 OPENAPI_ROOT = REPO_ROOT / "packages" / "contracts" / "openapi"
@@ -17,6 +25,9 @@ _IGNORED_PARTS = {"__pycache__"}
 _IGNORED_PREFIXES = (".",)
 _GENERATOR_TIMEOUT_SECONDS = 60
 _FORMATTER_TIMEOUT_SECONDS = 60
+_HTTP_METHODS = frozenset(
+    {"get", "post", "put", "patch", "delete", "options", "head", "trace"}
+)
 
 
 @dataclass(frozen=True)
@@ -86,8 +97,53 @@ def _remove_ignored_paths(root: Path) -> None:
         path.unlink(missing_ok=True)
 
 
+def _load_spec_json(path: Path) -> dict[str, Any]:
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise ValueError(f"OpenAPI spec must decode to an object: {path}")
+    return payload
+
+
+def _filter_internal_operations_for_public_sdk(
+    spec: dict[str, Any],
+) -> dict[str, Any]:
+    filtered = copy.deepcopy(spec)
+    paths = filtered.get("paths")
+    if not isinstance(paths, dict):
+        raise ValueError("OpenAPI spec missing paths object")
+
+    for path, path_item in list(paths.items()):
+        if not isinstance(path_item, dict):
+            continue
+        for method, operation in list(path_item.items()):
+            if method not in _HTTP_METHODS or not isinstance(operation, dict):
+                continue
+            if (
+                operation.get(SDK_VISIBILITY_EXTENSION)
+                == SDK_VISIBILITY_INTERNAL
+            ):
+                del path_item[method]
+        if not any(method in _HTTP_METHODS for method in path_item):
+            del paths[path]
+    return filtered
+
+
+def _write_temp_spec(*, spec: dict[str, Any], destination: Path) -> Path:
+    destination.write_text(
+        json.dumps(spec, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    return destination
+
+
 def _generate_target(target: GenerationTarget, temp_root: Path) -> Path:
     destination = temp_root / target.package_name
+    spec_path = _write_temp_spec(
+        spec=_filter_internal_operations_for_public_sdk(
+            _load_spec_json(target.spec_path)
+        ),
+        destination=temp_root / f"{target.package_name}.openapi.json",
+    )
     result = subprocess.run(
         [
             sys.executable,
@@ -95,7 +151,7 @@ def _generate_target(target: GenerationTarget, temp_root: Path) -> Path:
             "openapi_python_client",
             "generate",
             "--path",
-            str(target.spec_path),
+            str(spec_path),
             "--meta",
             "none",
             "--output-path",

@@ -7,7 +7,6 @@ from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.enqueue_job_request import EnqueueJobRequest
 from ...models.enqueue_job_response import EnqueueJobResponse
-from ...models.http_validation_error import HTTPValidationError
 from ...types import UNSET, Response, Unset
 
 
@@ -35,16 +34,11 @@ def _get_kwargs(
 
 def _parse_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> EnqueueJobResponse | HTTPValidationError | None:
+) -> EnqueueJobResponse | None:
     if response.status_code == 200:
         response_200 = EnqueueJobResponse.from_dict(response.json())
 
         return response_200
-
-    if response.status_code == 422:
-        response_422 = HTTPValidationError.from_dict(response.json())
-
-        return response_422
 
     if client.raise_on_unexpected_status:
         raise errors.UnexpectedStatus(response.status_code, response.content)
@@ -54,7 +48,7 @@ def _parse_response(
 
 def _build_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> Response[EnqueueJobResponse | HTTPValidationError]:
+) -> Response[EnqueueJobResponse]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -68,7 +62,7 @@ def sync_detailed(
     client: AuthenticatedClient | Client,
     body: EnqueueJobRequest,
     idempotency_key: None | str | Unset = UNSET,
-) -> Response[EnqueueJobResponse | HTTPValidationError]:
+) -> Response[EnqueueJobResponse]:
     """Create Job
 
      Enqueue async processing job and return job id.
@@ -82,7 +76,7 @@ def sync_detailed(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[EnqueueJobResponse | HTTPValidationError]
+        Response[EnqueueJobResponse]
     """
 
     kwargs = _get_kwargs(
@@ -102,7 +96,7 @@ def sync(
     client: AuthenticatedClient | Client,
     body: EnqueueJobRequest,
     idempotency_key: None | str | Unset = UNSET,
-) -> EnqueueJobResponse | HTTPValidationError | None:
+) -> EnqueueJobResponse | None:
     """Create Job
 
      Enqueue async processing job and return job id.
@@ -116,7 +110,7 @@ def sync(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        EnqueueJobResponse | HTTPValidationError
+        EnqueueJobResponse
     """
 
     return sync_detailed(
@@ -131,7 +125,7 @@ async def asyncio_detailed(
     client: AuthenticatedClient | Client,
     body: EnqueueJobRequest,
     idempotency_key: None | str | Unset = UNSET,
-) -> Response[EnqueueJobResponse | HTTPValidationError]:
+) -> Response[EnqueueJobResponse]:
     """Create Job
 
      Enqueue async processing job and return job id.
@@ -145,7 +139,7 @@ async def asyncio_detailed(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[EnqueueJobResponse | HTTPValidationError]
+        Response[EnqueueJobResponse]
     """
 
     kwargs = _get_kwargs(
@@ -163,7 +157,7 @@ async def asyncio(
     client: AuthenticatedClient | Client,
     body: EnqueueJobRequest,
     idempotency_key: None | str | Unset = UNSET,
-) -> EnqueueJobResponse | HTTPValidationError | None:
+) -> EnqueueJobResponse | None:
     """Create Job
 
      Enqueue async processing job and return job id.
@@ -177,7 +171,7 @@ async def asyncio(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        EnqueueJobResponse | HTTPValidationError
+        EnqueueJobResponse
     """
 
     return (
