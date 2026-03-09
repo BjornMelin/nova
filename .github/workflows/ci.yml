@@ -67,7 +67,7 @@ jobs:
       - name: Lock and Sync
         run: |
           uv lock --check
-          uv sync --locked
+          uv sync --locked --python 3.12
 
       - name: Ruff Check
         run: uv run ruff check .

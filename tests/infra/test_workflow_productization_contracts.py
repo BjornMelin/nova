@@ -2,7 +2,16 @@
 
 from __future__ import annotations
 
-from .helpers import _read
+from pathlib import Path
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+
+
+def _read(rel_path: str) -> str:
+    """Read a repository-relative file path."""
+    path = REPO_ROOT / rel_path
+    assert path.is_file(), f"Expected file to exist: {path}"
+    return path.read_text(encoding="utf-8")
 
 
 def test_reusable_workflow_call_apis_exist_and_are_callable() -> None:
@@ -121,8 +130,6 @@ def test_cfn_contract_validate_workflow_exists_for_cfn_gates() -> None:
         "infra/nova/*.yml",
         "infra/nova/deploy/*.yml",
         "infra/runtime/**/*.yml",
-        "test_absorbed_infra_contracts.py",
-        "test_workflow_contract_docs.py",
-        "test_docs_authority_contracts.py",
+        "uv run pytest -q tests/infra",
     ]:
         assert required in text

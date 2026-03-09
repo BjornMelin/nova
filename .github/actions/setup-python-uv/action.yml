@@ -25,10 +25,16 @@ runs:
     - name: Sync dependencies
       shell: bash
       env:
+        PYTHON_VERSION: ${{ inputs.python-version }}
         SYNC_LOCKED: ${{ inputs.sync-locked }}
         SYNC_OFFLINE: ${{ inputs.sync-offline }}
       run: |
         set -euo pipefail
+
+        if [[ -z "$PYTHON_VERSION" ]]; then
+          echo "python-version input must not be empty" >&2
+          exit 1
+        fi
 
         case "$SYNC_LOCKED" in
           true|false) ;;
@@ -54,4 +60,5 @@ runs:
           SYNC_ARGS+=(--offline)
         fi
 
+        SYNC_ARGS+=(--python "$PYTHON_VERSION")
         uv sync "${SYNC_ARGS[@]}"

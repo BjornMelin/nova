@@ -3,11 +3,19 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from typing import Any
 
 import yaml
 
-from .helpers import REPO_ROOT, _read
+REPO_ROOT = Path(__file__).resolve().parents[2]
+
+
+def _read(rel_path: str) -> str:
+    """Read a repository-relative file path."""
+    path = REPO_ROOT / rel_path
+    assert path.is_file(), f"Expected file to exist: {path}"
+    return path.read_text(encoding="utf-8")
 
 
 def _read_json(rel: str) -> dict[str, Any]:
