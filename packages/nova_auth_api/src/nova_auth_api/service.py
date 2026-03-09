@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 import anyio
+from anyio.abc import CapacityLimiter
 from nova_runtime_support import build_jwt_verifier, normalized_principal_claims
 from oidc_jwt_verifier import AuthError, JWTVerifier
 
@@ -31,7 +32,7 @@ class TokenVerificationService:
         """Initialize service state."""
         self._settings = settings
         self._verifier = _build_verifier(settings=settings)
-        self._thread_limiter = anyio.CapacityLimiter(
+        self._verifier_thread_limiter: CapacityLimiter = anyio.CapacityLimiter(
             settings.oidc_verifier_thread_tokens
         )
 
@@ -84,11 +85,6 @@ class TokenVerificationService:
         """Return whether token verification is currently usable."""
         return self._verifier is not None
 
-    @property
-    def verifier_thread_tokens(self) -> int:
-        """Return configured thread tokens for verifier execution."""
-        return self._settings.oidc_verifier_thread_tokens
-
     async def _verify_claims(
         self,
         *,
@@ -106,7 +102,7 @@ class TokenVerificationService:
             claims = await anyio.to_thread.run_sync(
                 verifier.verify_access_token,
                 access_token,
-                limiter=self._thread_limiter,
+                limiter=self._verifier_thread_limiter,
             )
         except AuthError as exc:
             raise from_oidc_auth_error(exc) from exc
@@ -135,7 +131,9 @@ def _build_verifier(*, settings: Settings) -> JWTVerifier | None:
 def _principal_from_claims(*, claims: dict[str, Any]) -> Principal:
     normalized = normalized_principal_claims(
         claims=claims,
-        invalid_token_error=_invalid_token_error,
+        invalid_token_error=lambda message: _invalid_token_error(
+            message=message
+        ),
     )
     return Principal(
         subject=normalized.subject,
@@ -146,7 +144,7 @@ def _principal_from_claims(*, claims: dict[str, Any]) -> Principal:
     )
 
 
-def _invalid_token_error(message: str) -> AuthApiError:
+def _invalid_token_error(*, message: str) -> AuthApiError:
     return AuthApiError(
         code="invalid_token",
         message=message,

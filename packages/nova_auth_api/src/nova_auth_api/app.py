@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-import re
-from collections.abc import AsyncIterator, Awaitable, Callable, Sequence
+from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from json import JSONDecodeError
 from typing import Annotated, Any
 from urllib.parse import parse_qs
 
+import anyio
 import structlog
 from fastapi import Depends, FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -19,7 +19,6 @@ from nova_runtime_support import (
     bind_request_id,
     canonical_error_content,
     configure_structlog,
-    ensure_error_envelope_schema,
     ensure_error_response_component,
     finalize_request_id,
     install_openapi_customizer,
@@ -33,6 +32,7 @@ from starlette.responses import Response
 
 from nova_auth_api.config import Settings
 from nova_auth_api.dependencies import (
+    BLOCKING_IO_LIMITER_STATE_KEY,
     TokenVerificationServiceDep,
 )
 from nova_auth_api.errors import (
@@ -51,7 +51,6 @@ from nova_auth_api.service import TokenVerificationService
 
 _FORM_MEDIA_TYPE = "application/x-www-form-urlencoded"
 _JSON_MEDIA_TYPE = "application/json"
-_SENSITIVE_VALIDATION_FIELDS = {"access_token", "authorization", "token"}
 _TOKEN_INTROSPECT_JSON_REQUEST_SCHEMA_REF = {
     "$ref": "#/components/schemas/TokenIntrospectRequest"
 }
@@ -72,7 +71,6 @@ _TOKEN_INTROSPECT_FORM_REQUEST_SCHEMA = {
     **_TOKEN_INTROSPECT_REQUEST_SCHEMA,
     "title": "TokenIntrospectFormRequest",
 }
-_INTROSPECTION_AUTH_OPERATIONS = {"/v1/token/verify", "/v1/token/introspect"}
 _OPENAPI_RESPONSE_DESCRIPTIONS = {
     "AuthInvalidRequestResponse": "Canonical invalid-request response.",
     "AuthUnauthorizedResponse": "Canonical unauthorized token response.",
@@ -87,7 +85,6 @@ _OPENAPI_OPERATION_RESPONSES = {
         "post": {
             "401": "AuthUnauthorizedResponse",
             "403": "AuthForbiddenResponse",
-            "503": "AuthServiceUnavailableResponse",
             "422": "AuthInvalidRequestResponse",
         }
     },
@@ -95,7 +92,6 @@ _OPENAPI_OPERATION_RESPONSES = {
         "post": {
             "401": "AuthUnauthorizedResponse",
             "403": "AuthForbiddenResponse",
-            "503": "AuthServiceUnavailableResponse",
             "422": "AuthInvalidRequestResponse",
         }
     },
@@ -103,17 +99,8 @@ _OPENAPI_OPERATION_RESPONSES = {
 
 
 def _operation_id_from_route(route: APIRoute) -> str:
-    """Build stable OpenAPI operationId values from route function names."""
-    if route.name:
-        return route.name
-
-    method = sorted(route.methods or {"GET"})[0].lower()
-    normalized_path = route.path_format.strip("/")
-    normalized_path = re.sub(r"{([^}]+)}", r"\1", normalized_path)
-    normalized_path = normalized_path.replace("-", "_").replace("/", "_")
-    normalized_path = re.sub(r"[^a-zA-Z0-9_]", "", normalized_path)
-    normalized_path = re.sub(r"_+", "_", normalized_path).strip("_") or "root"
-    return f"{method}_{normalized_path}"
+    """Use the canonical route name as the stable OpenAPI operationId."""
+    return route.name
 
 
 def _install_openapi_overrides(app: FastAPI) -> None:
@@ -129,12 +116,6 @@ def _install_openapi_overrides(app: FastAPI) -> None:
         schemas.setdefault(
             "TokenIntrospectFormRequest",
             _TOKEN_INTROSPECT_FORM_REQUEST_SCHEMA,
-        )
-        ensure_error_envelope_schema(schema)
-        security_schemes = components.setdefault("securitySchemes", {})
-        security_schemes.setdefault(
-            "bearerAuth",
-            {"type": "http", "scheme": "bearer", "bearerFormat": "JWT"},
         )
         for (
             component_name,
@@ -153,15 +134,6 @@ def _install_openapi_overrides(app: FastAPI) -> None:
             schema,
             response_component_name="AuthInvalidRequestResponse",
         )
-        paths = schema.get("paths", {})
-        if isinstance(paths, dict):
-            for path in _INTROSPECTION_AUTH_OPERATIONS:
-                operation = paths.get(path, {}).get("post")
-                if isinstance(operation, dict):
-                    operation["x-auth-not-required"] = (
-                        "Auth-validation endpoint; "
-                        "bearerAuth is intentionally not required."
-                    )
         prune_validation_error_schemas(schema)
 
     install_openapi_customizer(app, customizer=customize_openapi)
@@ -179,6 +151,11 @@ def create_app(
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         app.state.settings = settings
+        setattr(
+            app.state,
+            BLOCKING_IO_LIMITER_STATE_KEY,
+            anyio.CapacityLimiter(settings.blocking_io_thread_tokens),
+        )
         app.state.auth_service = service_override or TokenVerificationService(
             settings=settings
         )
@@ -200,7 +177,7 @@ def create_app(
     )
     async def health_live(request: Request) -> HealthResponse:
         """Return liveness status."""
-        request_id = _request_id(request=request)
+        request_id = _request_id(request=request) or bind_request_id(request)
         return HealthResponse(
             status="ok",
             service="nova-auth-api",
@@ -217,7 +194,7 @@ def create_app(
         service: TokenVerificationServiceDep,
     ) -> HealthResponse:
         """Return readiness status for token verification."""
-        request_id = _request_id(request=request)
+        request_id = _request_id(request=request) or bind_request_id(request)
         if not service.is_ready():
             raise service_unavailable("auth verifier unavailable")
         return HealthResponse(
@@ -280,9 +257,7 @@ def create_app(
             content=canonical_error_content(
                 code="invalid_request",
                 message="request validation failed",
-                details={
-                    "errors": _sanitize_validation_errors(errors=exc.errors())
-                },
+                details={"errors": exc.errors()},
                 request_id=_request_id(request=request),
             ),
         )
@@ -326,12 +301,9 @@ async def request_context_middleware(
         unbind_request_id()
 
 
-def _request_id(*, request: Request) -> str:
-    """Extract request ID from state/headers, creating one when missing."""
-    request_id = request_id_from_request(request=request)
-    if request_id is not None:
-        return request_id
-    return bind_request_id(request)
+def _request_id(*, request: Request) -> str | None:
+    """Extract request ID from request state or headers."""
+    return request_id_from_request(request=request)
 
 
 async def _parse_introspect_request(
@@ -362,7 +334,7 @@ async def _parse_introspect_request(
                     "type": "model_attributes_type",
                     "loc": ("body",),
                     "msg": "Input should be a valid dictionary",
-                    "input": None,
+                    "input": raw_payload,
                 }
             ]
         )
@@ -372,7 +344,7 @@ async def _parse_introspect_request(
         return TokenIntrospectRequest.model_validate(normalized_payload)
     except ValidationError as exc:
         raise RequestValidationError(
-            _with_body_loc(errors=exc.errors(include_input=False))
+            _with_body_loc(errors=exc.errors())
         ) from exc
 
 
@@ -433,31 +405,3 @@ def _with_body_loc(*, errors: list[Any]) -> list[dict[str, Any]]:
             }
         )
     return output
-
-
-def _sanitize_validation_errors(
-    *,
-    errors: Sequence[Any],
-) -> list[dict[str, Any]]:
-    output: list[dict[str, Any]] = []
-    for error in errors:
-        if not isinstance(error, dict):
-            continue
-        sanitized = dict(error)
-        location = sanitized.get("loc", ())
-        if _validation_loc_is_sensitive(loc=location) and "input" in sanitized:
-            sanitized["input"] = "[REDACTED]"
-        output.append(sanitized)
-    return output
-
-
-def _validation_loc_is_sensitive(*, loc: object) -> bool:
-    if not isinstance(loc, (tuple, list)):
-        return False
-    for value in loc:
-        if (
-            isinstance(value, str)
-            and value.lower() in _SENSITIVE_VALIDATION_FIELDS
-        ):
-            return True
-    return False
