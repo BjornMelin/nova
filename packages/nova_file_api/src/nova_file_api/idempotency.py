@@ -6,8 +6,15 @@ import json
 from hashlib import sha256
 from typing import Any
 
-from nova_file_api.cache import TwoTierCache
-from nova_file_api.errors import idempotency_conflict
+from nova_file_api.cache import (
+    SharedCacheUnavailableError,
+    TwoTierCache,
+)
+from nova_file_api.errors import (
+    idempotency_conflict,
+    idempotency_unavailable,
+)
+from nova_file_api.models import IdempotencyMode
 
 _IDEMPOTENCY_STATE_IN_PROGRESS = "in_progress"
 _IDEMPOTENCY_STATE_COMMITTED = "committed"
@@ -22,6 +29,7 @@ class IdempotencyStore:
         cache: TwoTierCache,
         enabled: bool,
         ttl_seconds: int,
+        mode: IdempotencyMode,
     ) -> None:
         """Initialize idempotency storage.
 
@@ -29,10 +37,12 @@ class IdempotencyStore:
             cache: Cache backend used for idempotency entries.
             enabled: Whether idempotency checks are active.
             ttl_seconds: TTL for stored idempotent responses.
+            mode: Whether idempotency requires a shared claim store.
         """
         self._cache = cache
         self._enabled = enabled
         self._ttl_seconds = ttl_seconds
+        self._shared_required = mode == IdempotencyMode.SHARED_REQUIRED
 
     async def load_response(
         self,
@@ -65,7 +75,15 @@ class IdempotencyStore:
             scope_id=scope_id,
             idempotency_key=idempotency_key,
         )
-        entry = await self._cache.get_json(cache_key)
+        try:
+            entry = await self._cache.get_json(
+                cache_key,
+                require_shared=self._shared_required,
+            )
+        except SharedCacheUnavailableError as exc:
+            raise idempotency_unavailable(
+                "idempotency store is unavailable"
+            ) from exc
         if entry is None:
             return None
         if not isinstance(entry, dict):
@@ -114,21 +132,41 @@ class IdempotencyStore:
             "state": _IDEMPOTENCY_STATE_IN_PROGRESS,
             "request_hash": request_hash,
         }
-        created = await self._cache.set_json_if_absent(
-            key=cache_key,
-            payload=claim_payload,
-            ttl_seconds=self._ttl_seconds,
-        )
-        if created:
-            return True
-
-        existing = await self._cache.get_json(cache_key)
-        if existing is None:
-            return await self._cache.set_json_if_absent(
+        try:
+            created = await self._cache.set_json_if_absent(
                 key=cache_key,
                 payload=claim_payload,
                 ttl_seconds=self._ttl_seconds,
+                require_shared=self._shared_required,
             )
+        except SharedCacheUnavailableError as exc:
+            raise idempotency_unavailable(
+                "idempotency store is unavailable"
+            ) from exc
+        if created:
+            return True
+
+        try:
+            existing = await self._cache.get_json(
+                cache_key,
+                require_shared=self._shared_required,
+            )
+        except SharedCacheUnavailableError as exc:
+            raise idempotency_unavailable(
+                "idempotency store is unavailable"
+            ) from exc
+        if existing is None:
+            try:
+                return await self._cache.set_json_if_absent(
+                    key=cache_key,
+                    payload=claim_payload,
+                    ttl_seconds=self._ttl_seconds,
+                    require_shared=self._shared_required,
+                )
+            except SharedCacheUnavailableError as exc:
+                raise idempotency_unavailable(
+                    "idempotency store is unavailable"
+                ) from exc
         if not isinstance(existing, dict):
             raise idempotency_conflict("stored idempotency record is invalid")
 

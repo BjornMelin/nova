@@ -52,6 +52,13 @@ class ActivityStoreBackend(StrEnum):
     DYNAMODB = "dynamodb"
 
 
+class IdempotencyMode(StrEnum):
+    """Idempotency backends supported by the runtime."""
+
+    LOCAL_ONLY = "local_only"
+    SHARED_REQUIRED = "shared_required"
+
+
 class Principal(BaseModel):
     """Authorized caller identity used for scope enforcement."""
 

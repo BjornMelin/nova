@@ -14,13 +14,13 @@ from fastapi import Depends, Request
 from nova_file_api.container import AppContainer
 from nova_file_api.models import Principal
 
-BLOCKING_IO_LIMITER_STATE_KEY = "blocking_io_limiter"
 _APPLICATION_CONTAINER_NOT_INITIALIZED = (
     "application container is not initialized"
 )
 _APPLICATION_BLOCKING_IO_LIMITER_NOT_INITIALIZED = (
     "application blocking I/O limiter is not initialized"
 )
+BLOCKING_IO_LIMITER_STATE_KEY = "blocking_io_thread_limiter"
 
 
 def get_container(request: Request) -> AppContainer:

@@ -69,7 +69,9 @@ def _fake_repo(monkeypatch: pytest.MonkeyPatch) -> DynamoJobRepository:
         assert service_name == "dynamodb"
         return _FakeDynamoResource(table)
 
-    monkeypatch.setattr("nova_file_api.jobs.boto3.resource", _resource)
+    monkeypatch.setattr(
+        "nova_file_api.jobs_repository.boto3.resource", _resource
+    )
     return DynamoJobRepository(table_name="jobs-table")
 
 
@@ -79,7 +81,7 @@ def test_dynamo_job_repository_create_get_update(
     now = datetime.now(tz=UTC)
     record = JobRecord(
         job_id="job-dynamo-1",
-        job_type="transform",
+        job_type="transfer.process",
         scope_id="scope-1",
         status=JobStatus.PENDING,
         payload={"input": "value"},
@@ -123,7 +125,7 @@ def test_dynamo_job_repository_update_if_status_enforces_expected_state(
     now = datetime.now(tz=UTC)
     pending = JobRecord(
         job_id="job-dynamo-2",
-        job_type="transform",
+        job_type="transfer.process",
         scope_id="scope-1",
         status=JobStatus.PENDING,
         payload={"input": "value"},

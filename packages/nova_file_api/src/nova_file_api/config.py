@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import importlib.metadata
-import warnings
 
 from pydantic import Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -11,6 +10,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from nova_file_api.models import (
     ActivityStoreBackend,
     AuthMode,
+    IdempotencyMode,
     JobsQueueBackend,
     JobsRepositoryBackend,
 )
@@ -29,6 +29,14 @@ _MSG_WORKER_RUNTIME_REQUIRES_API_BASE_URL = (
 )
 _MSG_WORKER_RUNTIME_REQUIRES_UPDATE_TOKEN = (
     "JOBS_WORKER_UPDATE_TOKEN must be configured when JOBS_RUNTIME_MODE=worker"
+)
+_MSG_SHARED_REQUIRED_IDEMPOTENCY_REQUIRES_REDIS = (
+    "CACHE_REDIS_URL must be configured when "
+    "IDEMPOTENCY_ENABLED=true and IDEMPOTENCY_MODE=shared_required"
+)
+_MSG_PRODUCTION_IDEMPOTENCY_REQUIRES_SHARED = (
+    "IDEMPOTENCY_MODE must be shared_required when "
+    "ENVIRONMENT indicates production and IDEMPOTENCY_ENABLED=true"
 )
 
 
@@ -240,6 +248,10 @@ class Settings(BaseSettings):
         default=True,
         alias="IDEMPOTENCY_ENABLED",
     )
+    idempotency_mode: IdempotencyMode = Field(
+        default=IdempotencyMode.LOCAL_ONLY,
+        alias="IDEMPOTENCY_MODE",
+    )
     idempotency_ttl_seconds: int = Field(
         default=900,
         alias="IDEMPOTENCY_TTL_SECONDS",
@@ -342,35 +354,22 @@ class Settings(BaseSettings):
             if permission
         )
 
-    @property
-    def required_scopes(self) -> tuple[str, ...]:
-        """Backward-compatible alias for default_required_scopes."""
-        warnings.warn(
-            (
-                "Settings.required_scopes is deprecated; "
-                "use default_required_scopes"
-            ),
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return self.default_required_scopes
-
-    @property
-    def required_permissions(self) -> tuple[str, ...]:
-        """Backward-compatible alias for default_required_permissions."""
-        warnings.warn(
-            (
-                "Settings.required_permissions is deprecated; "
-                "use default_required_permissions"
-            ),
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return self.default_required_permissions
-
     @model_validator(mode="after")
     def validate_worker_runtime_settings(self) -> Settings:
-        """Validate required settings when the worker runtime is enabled."""
+        """Validate additional requirements for worker runtime mode."""
+        if self.idempotency_enabled:
+            if (
+                self.environment.lower() in {"prod", "production"}
+                and self.idempotency_mode != IdempotencyMode.SHARED_REQUIRED
+            ):
+                raise ValueError(_MSG_PRODUCTION_IDEMPOTENCY_REQUIRES_SHARED)
+            if (
+                self.idempotency_mode == IdempotencyMode.SHARED_REQUIRED
+                and not (self.cache_redis_url or "").strip()
+            ):
+                raise ValueError(
+                    _MSG_SHARED_REQUIRED_IDEMPOTENCY_REQUIRES_REDIS
+                )
         if self.jobs_runtime_mode != "worker":
             return self
         if not self.jobs_enabled:

@@ -6,7 +6,7 @@ import structlog
 from fastapi import APIRouter, Header, Query
 
 from nova_file_api.dependencies import RequestContext, RequestContextDep
-from nova_file_api.errors import forbidden, idempotency_conflict
+from nova_file_api.errors import forbidden
 from nova_file_api.models import (
     EnqueueJobRequest,
     EnqueueJobResponse,
@@ -24,6 +24,7 @@ from nova_file_api.routes.common import (
     validate_worker_update_token,
     validated_idempotency_key,
 )
+from nova_file_api.routes.idempotent_mutation import run_idempotent_mutation
 
 jobs_router = APIRouter(prefix="/v1", tags=["jobs"])
 
@@ -127,19 +128,12 @@ async def cancel_job(
         )
         raise
 
-    try:
-        await context.run_blocking(
-            container.activity_store.record,
-            principal=principal,
-            event_type="jobs_cancel_success",
-            details=f"job_id={job.job_id} status={job.status}",
-        )
-    except Exception:
-        structlog.get_logger("api").exception(
-            "jobs_cancel_activity_record_failed",
-            job_id=job.job_id,
-            status=job.status,
-        )
+    await context.run_blocking(
+        container.activity_store.record,
+        principal=principal,
+        event_type="jobs_cancel_success",
+        details=f"job_id={job.job_id} status={job.status}",
+    )
     container.metrics.incr("jobs_cancel_total")
     emit_request_metric(container=container, route="jobs_cancel", status="ok")
     return JobCancelResponse(job_id=job.job_id, status=job.status)
@@ -195,22 +189,15 @@ async def update_job_result(
         )
         raise
 
-    try:
-        await context.run_blocking(
-            container.activity_store.record,
-            principal=worker_principal,
-            event_type="jobs_result_update",
-            details=(
-                "worker result update accepted "
-                f"for job_id={job_id} status={job.status}"
-            ),
-        )
-    except Exception:
-        structlog.get_logger("api").exception(
-            "jobs_result_update_activity_record_failed",
-            job_id=job_id,
-            status=job.status,
-        )
+    await context.run_blocking(
+        container.activity_store.record,
+        principal=worker_principal,
+        event_type="jobs_result_update",
+        details=(
+            "worker result update accepted "
+            f"for job_id={job_id} status={job.status}"
+        ),
+    )
     container.metrics.incr("jobs_result_update_total")
     emit_request_metric(
         container=container,
@@ -255,25 +242,11 @@ async def retry_job(
     principal = await context.authenticate(session_id=None)
     if not container.settings.jobs_enabled:
         raise forbidden("jobs API is disabled")
-    try:
-        retried = await context.run_blocking(
-            container.job_service.retry,
-            job_id=job_id,
-            scope_id=principal.scope_id,
-        )
-    except Exception as exc:
-        await _record_job_failure(
-            context=context,
-            principal=principal,
-            metric_name="jobs_retry_failure_total",
-            route_metric="jobs_retry",
-            log_event="jobs_retry_request_failed",
-            route_path="/v1/jobs/{job_id}/retry",
-            activity_event_type="jobs_retry_failure",
-            exc=exc,
-            extra={"job_id": job_id},
-        )
-        raise
+    retried = await context.run_blocking(
+        container.job_service.retry,
+        job_id=job_id,
+        scope_id=principal.scope_id,
+    )
     return EnqueueJobResponse(job_id=retried.job_id, status=retried.status)
 
 
@@ -316,47 +289,28 @@ async def _enqueue_job_core(
     """Execute the enqueue and idempotency workflow."""
     container = context.container
     request_payload = payload.model_dump(mode="json")
-    claimed_idempotency = False
-
-    if idempotency_key is not None:
-        replay = await container.idempotency_store.load_response(
-            route="/v1/jobs",
-            scope_id=principal.scope_id,
-            idempotency_key=idempotency_key,
-            request_payload=request_payload,
-        )
-        if replay is not None:
-            container.metrics.incr("idempotency_replays_total")
-            return EnqueueJobResponse.model_validate(replay)
-
-        claimed_idempotency = await container.idempotency_store.claim_request(
-            route="/v1/jobs",
-            scope_id=principal.scope_id,
-            idempotency_key=idempotency_key,
-            request_payload=request_payload,
-        )
-        if not claimed_idempotency:
-            replay = await container.idempotency_store.load_response(
-                route="/v1/jobs",
-                scope_id=principal.scope_id,
-                idempotency_key=idempotency_key,
-                request_payload=request_payload,
-            )
-            if replay is not None:
-                container.metrics.incr("idempotency_replays_total")
-                return EnqueueJobResponse.model_validate(replay)
-            raise idempotency_conflict(
-                "idempotency request is already in progress"
-            )
 
     try:
-        with container.metrics.timed("jobs_enqueue_ms"):
-            job = await context.run_blocking(
-                container.job_service.enqueue,
-                job_type=payload.job_type,
-                payload=payload.payload,
-                scope_id=principal.scope_id,
-            )
+
+        async def execute() -> EnqueueJobResponse:
+            with container.metrics.timed("jobs_enqueue_ms"):
+                job = await context.run_blocking(
+                    container.job_service.enqueue,
+                    job_type=payload.job_type,
+                    payload=payload.payload,
+                    scope_id=principal.scope_id,
+                )
+            return EnqueueJobResponse(job_id=job.job_id, status=job.status)
+
+        response = await run_idempotent_mutation(
+            container=container,
+            route="/v1/jobs",
+            scope_id=principal.scope_id,
+            idempotency_key=idempotency_key,
+            request_payload=request_payload,
+            response_model=EnqueueJobResponse,
+            execute=execute,
+        )
     except Exception as exc:
         await _record_job_failure(
             context=context,
@@ -369,54 +323,14 @@ async def _enqueue_job_core(
             exc=exc,
             extra={"idempotency_key": idempotency_key},
         )
-        if idempotency_key is not None and claimed_idempotency:
-            await container.idempotency_store.discard_claim(
-                route="/v1/jobs",
-                scope_id=principal.scope_id,
-                idempotency_key=idempotency_key,
-            )
         raise
-
-    response = EnqueueJobResponse(job_id=job.job_id, status=job.status)
-    try:
-        await context.run_blocking(
-            container.activity_store.record,
-            principal=principal,
-            event_type="jobs_enqueue",
-        )
-        container.metrics.incr("jobs_enqueue_total")
-        emit_request_metric(
-            container=container,
-            route="jobs_enqueue",
-            status="ok",
-        )
-        if idempotency_key is not None:
-            await container.idempotency_store.store_response(
-                route="/v1/jobs",
-                scope_id=principal.scope_id,
-                idempotency_key=idempotency_key,
-                request_payload=request_payload,
-                response_payload=response.model_dump(mode="json"),
-            )
-    except Exception as exc:
-        await _record_job_failure(
-            context=context,
-            principal=principal,
-            metric_name="jobs_enqueue_failure_total",
-            route_metric="jobs_enqueue",
-            log_event="jobs_enqueue_response_finalize_failed",
-            route_path="/v1/jobs",
-            activity_event_type="jobs_enqueue_failure",
-            exc=exc,
-            extra={"idempotency_key": idempotency_key},
-        )
-        if idempotency_key is not None and claimed_idempotency:
-            await container.idempotency_store.discard_claim(
-                route="/v1/jobs",
-                scope_id=principal.scope_id,
-                idempotency_key=idempotency_key,
-            )
-        raise
+    await context.run_blocking(
+        container.activity_store.record,
+        principal=principal,
+        event_type="jobs_enqueue",
+    )
+    container.metrics.incr("jobs_enqueue_total")
+    emit_request_metric(container=container, route="jobs_enqueue", status="ok")
     return response
 
 
@@ -446,17 +360,9 @@ async def _record_job_failure(
     if extra:
         log_fields.update(extra)
     structlog.get_logger("api").exception(log_event, **log_fields)
-    try:
-        await context.run_blocking(
-            container.activity_store.record,
-            principal=principal,
-            event_type=activity_event_type,
-            details=activity_details or str(exc),
-        )
-    except Exception:
-        structlog.get_logger("api").exception(
-            "jobs_failure_activity_record_failed",
-            route=route_path,
-            scope_id=principal.scope_id,
-            event_type=activity_event_type,
-        )
+    await context.run_blocking(
+        container.activity_store.record,
+        principal=principal,
+        event_type=activity_event_type,
+        details=activity_details or str(exc),
+    )

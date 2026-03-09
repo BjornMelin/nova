@@ -87,6 +87,7 @@ def _build_container(
             cache=cache,
             enabled=True,
             ttl_seconds=300,
+            mode=settings.idempotency_mode,
         ),
     )
 

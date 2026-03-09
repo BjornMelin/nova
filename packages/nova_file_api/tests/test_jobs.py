@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -29,10 +30,12 @@ from nova_file_api.jobs import (
 )
 from nova_file_api.metrics import MetricsCollector
 from nova_file_api.models import (
+    TRANSFER_PROCESS_JOB_TYPE,
     AuthMode,
     JobRecord,
     JobStatus,
 )
+from nova_file_api.routes.common import WORKER_TOKEN_NOT_CONFIGURED
 from pydantic import SecretStr
 
 from ._test_doubles import StubAuthenticator, StubTransferService
@@ -58,7 +61,7 @@ class _FailingPublisher:
         return
 
     def healthcheck(self) -> bool:
-        return False
+        return True
 
 
 class _ConcurrentWinnerRepository(MemoryJobRepository):
@@ -198,7 +201,7 @@ def _build_same_origin_status_container(*, scope_id: str) -> AppContainer:
     repository.create(
         JobRecord(
             job_id="job-status-1",
-            job_type="transform",
+            job_type="transfer.process",
             scope_id=scope_id,
             status=JobStatus.PENDING,
             payload={"input": "value"},
@@ -223,6 +226,7 @@ def _build_same_origin_status_container(*, scope_id: str) -> AppContainer:
             cache=cache,
             enabled=True,
             ttl_seconds=300,
+            mode=settings.idempotency_mode,
         ),
     )
 
@@ -256,6 +260,7 @@ def _build_failing_job_container(
             cache=cache,
             enabled=True,
             ttl_seconds=300,
+            mode=settings.idempotency_mode,
         ),
     )
     return container, metrics, activity_store
@@ -265,10 +270,16 @@ def _job_record(*, job_id: str = "job-1") -> JobRecord:
     now = datetime.now(tz=UTC)
     return JobRecord(
         job_id=job_id,
-        job_type="transform",
+        job_type=TRANSFER_PROCESS_JOB_TYPE,
         scope_id="scope-1",
         status=JobStatus.PENDING,
-        payload={"input": "value"},
+        payload={
+            "bucket": "nova-bucket",
+            "key": "uploads/scope-1/source.csv",
+            "filename": "source.csv",
+            "size_bytes": 42,
+            "content_type": "text/csv",
+        },
         result=None,
         error=None,
         created_at=now,
@@ -314,13 +325,16 @@ def test_sqs_job_publisher_configures_retry_mode_and_attempts(
         captured["kwargs"] = kwargs
         return _FakeSqsClient()
 
-    monkeypatch.setattr("nova_file_api.jobs.boto3.client", _fake_client)
+    monkeypatch.setattr(
+        "nova_file_api.jobs_publisher.boto3.client", _fake_client
+    )
     publisher = SqsJobPublisher(
         queue_url="https://sqs.us-east-1.amazonaws.com/123/jobs",
         retry_mode="adaptive",
         retry_total_max_attempts=7,
     )
-    publisher.publish(job=_job_record())
+    record = _job_record()
+    publisher.publish(job=record)
 
     assert captured["service_name"] == "sqs"
     config = captured["kwargs"]["config"]
@@ -328,6 +342,20 @@ def test_sqs_job_publisher_configures_retry_mode_and_attempts(
     assert config.retries["mode"] == "adaptive"
     assert config.retries["total_max_attempts"] == 7
     assert captured["send_kwargs"]["QueueUrl"].endswith("/jobs")
+    payload = json.loads(captured["send_kwargs"]["MessageBody"])
+    assert payload == {
+        "created_at": record.created_at.isoformat(),
+        "job_id": "job-1",
+        "job_type": TRANSFER_PROCESS_JOB_TYPE,
+        "payload": {
+            "bucket": "nova-bucket",
+            "content_type": "text/csv",
+            "filename": "source.csv",
+            "key": "uploads/scope-1/source.csv",
+            "size_bytes": 42,
+        },
+        "scope_id": "scope-1",
+    }
 
 
 def test_sqs_job_publisher_maps_client_error_to_publish_error(
@@ -349,7 +377,9 @@ def test_sqs_job_publisher_maps_client_error_to_publish_error(
         del service_name, kwargs
         return _ClientErrorSqsClient()
 
-    monkeypatch.setattr("nova_file_api.jobs.boto3.client", _fake_client)
+    monkeypatch.setattr(
+        "nova_file_api.jobs_publisher.boto3.client", _fake_client
+    )
     publisher = SqsJobPublisher(
         queue_url="https://sqs.us-east-1.amazonaws.com/123/jobs",
     )
@@ -375,7 +405,9 @@ def test_sqs_job_publisher_maps_botocore_error_to_publish_error(
         del service_name, kwargs
         return _BotoCoreErrorSqsClient()
 
-    monkeypatch.setattr("nova_file_api.jobs.boto3.client", _fake_client)
+    monkeypatch.setattr(
+        "nova_file_api.jobs_publisher.boto3.client", _fake_client
+    )
     publisher = SqsJobPublisher(
         queue_url="https://sqs.us-east-1.amazonaws.com/123/jobs",
     )
@@ -397,7 +429,7 @@ def test_job_service_enqueue_marks_job_failed_when_publish_fails() -> None:
 
     with pytest.raises(FileTransferError) as exc_info:
         service.enqueue(
-            job_type="transform",
+            job_type="transfer.process",
             payload={"input": "value"},
             scope_id="scope-1",
         )
@@ -424,7 +456,7 @@ def test_job_service_enqueue_tracks_success_counter() -> None:
     )
 
     record = service.enqueue(
-        job_type="transform",
+        job_type="transfer.process",
         payload={"input": "value"},
         scope_id="scope-1",
     )
@@ -446,7 +478,7 @@ def test_job_service_enqueue_respects_memory_toggle() -> None:
     )
 
     record = service.enqueue(
-        job_type="transform",
+        job_type="transfer.process",
         payload={"input": "value"},
         scope_id="scope-1",
     )
@@ -486,6 +518,7 @@ def test_enqueue_failure_is_not_idempotency_cached() -> None:
             cache=cache,
             enabled=True,
             ttl_seconds=300,
+            mode=settings.idempotency_mode,
         ),
     )
 
@@ -494,12 +527,12 @@ def test_enqueue_failure_is_not_idempotency_cached() -> None:
         first = client.post(
             "/v1/jobs",
             headers={"Idempotency-Key": "job-failure-key"},
-            json={"job_type": "transform", "payload": {"input": "a"}},
+            json={"job_type": "transfer.process", "payload": {"input": "a"}},
         )
         second = client.post(
             "/v1/jobs",
             headers={"Idempotency-Key": "job-failure-key"},
-            json={"job_type": "transform", "payload": {"input": "a"}},
+            json={"job_type": "transfer.process", "payload": {"input": "a"}},
         )
 
     assert first.status_code == 503
@@ -519,7 +552,7 @@ def test_job_service_update_result_updates_job_status() -> None:
     now = datetime.now(tz=UTC)
     pending = JobRecord(
         job_id="job-update-1",
-        job_type="transform",
+        job_type="transfer.process",
         scope_id="scope-1",
         status=JobStatus.PENDING,
         payload={"input": "value"},
@@ -558,7 +591,7 @@ def test_job_service_update_result_observes_queue_lag_ms() -> None:
     created_at = datetime.now(tz=UTC) - timedelta(seconds=2)
     pending = JobRecord(
         job_id="job-update-5",
-        job_type="transform",
+        job_type="transfer.process",
         scope_id="scope-1",
         status=JobStatus.PENDING,
         payload={"input": "value"},
@@ -591,7 +624,7 @@ def test_job_service_update_result_allows_idempotent_terminal_update() -> None:
     now = datetime.now(tz=UTC)
     succeeded = JobRecord(
         job_id="job-update-4",
-        job_type="transform",
+        job_type="transfer.process",
         scope_id="scope-1",
         status=JobStatus.SUCCEEDED,
         payload={"input": "value"},
@@ -624,7 +657,7 @@ def test_job_service_update_result_clears_error_on_succeeded() -> None:
     now = datetime.now(tz=UTC)
     running = JobRecord(
         job_id="job-update-6",
-        job_type="transform",
+        job_type="transfer.process",
         scope_id="scope-1",
         status=JobStatus.RUNNING,
         payload={"input": "value"},
@@ -658,7 +691,7 @@ def test_job_service_update_result_rejects_invalid_transition() -> None:
     now = datetime.now(tz=UTC)
     failed = JobRecord(
         job_id="job-update-2",
-        job_type="transform",
+        job_type="transfer.process",
         scope_id="scope-1",
         status=JobStatus.FAILED,
         payload={"input": "value"},
@@ -693,7 +726,7 @@ def test_job_service_update_result_conflicts_on_stale_worker_transition() -> (
     now = datetime.now(tz=UTC)
     pending = JobRecord(
         job_id="job-update-race-1",
-        job_type="transform",
+        job_type="transfer.process",
         scope_id="scope-1",
         status=JobStatus.PENDING,
         payload={"input": "value"},
@@ -734,7 +767,7 @@ def test_job_service_cancel_does_not_clobber_concurrent_terminal_state() -> (
     now = datetime.now(tz=UTC)
     pending = JobRecord(
         job_id="job-cancel-race-1",
-        job_type="transform",
+        job_type="transfer.process",
         scope_id="scope-1",
         status=JobStatus.PENDING,
         payload={"input": "value"},
@@ -765,7 +798,7 @@ def test_job_service_cancel_conflicts_after_retry_limit() -> None:
     repository.create(
         JobRecord(
             job_id="job-cancel-never-settles",
-            job_type="transform",
+            job_type="transfer.process",
             scope_id="scope-1",
             status=JobStatus.PENDING,
             payload={"input": "value"},
@@ -805,7 +838,7 @@ def test_update_job_result_requires_valid_worker_token() -> None:
     repository.create(
         JobRecord(
             job_id="job-update-3",
-            job_type="transform",
+            job_type="transfer.process",
             scope_id="scope-1",
             status=JobStatus.PENDING,
             payload={"input": "value"},
@@ -830,6 +863,7 @@ def test_update_job_result_requires_valid_worker_token() -> None:
             cache=cache,
             enabled=True,
             ttl_seconds=300,
+            mode=settings.idempotency_mode,
         ),
     )
 
@@ -854,6 +888,129 @@ def test_update_job_result_requires_valid_worker_token() -> None:
     assert summary["events_total"] == 1
     assert summary["distinct_event_types"] == 1
     assert summary["active_users_today"] == 1
+
+
+def test_update_job_result_rejects_missing_worker_token_by_default() -> None:
+    settings = Settings()
+    settings.jobs_enabled = True
+
+    metrics = MetricsCollector(namespace="Tests")
+    shared = SharedRedisCache(url=None)
+    cache = TwoTierCache(
+        local=LocalTTLCache(ttl_seconds=60, max_entries=128),
+        shared=shared,
+        shared_ttl_seconds=60,
+    )
+    repository = MemoryJobRepository()
+    service = JobService(
+        repository=repository,
+        publisher=MemoryJobPublisher(),
+        metrics=metrics,
+    )
+    now = datetime.now(tz=UTC)
+    repository.create(
+        JobRecord(
+            job_id="job-update-missing-token",
+            job_type="transfer.process",
+            scope_id="scope-1",
+            status=JobStatus.PENDING,
+            payload={"input": "value"},
+            result=None,
+            error=None,
+            created_at=now,
+            updated_at=now,
+        )
+    )
+
+    container = AppContainer(
+        settings=settings,
+        metrics=metrics,
+        cache=cache,
+        shared_cache=shared,
+        authenticator=StubAuthenticator(),  # type: ignore[arg-type]
+        transfer_service=StubTransferService(),  # type: ignore[arg-type]
+        job_repository=repository,
+        job_service=service,
+        activity_store=MemoryActivityStore(),
+        idempotency_store=IdempotencyStore(
+            cache=cache,
+            enabled=True,
+            ttl_seconds=300,
+            mode=settings.idempotency_mode,
+        ),
+    )
+
+    app = create_app(container_override=container)
+    with TestClient(app) as client:
+        response = client.post(
+            "/v1/internal/jobs/job-update-missing-token/result",
+            json={"status": "running"},
+        )
+
+    assert response.status_code == 403
+    assert response.json()["error"]["message"] == WORKER_TOKEN_NOT_CONFIGURED
+
+
+def test_update_job_result_allows_missing_worker_token_with_override() -> None:
+    settings = Settings()
+    settings.jobs_enabled = True
+    settings.jobs_allow_insecure_missing_worker_token_nonprod = True
+
+    metrics = MetricsCollector(namespace="Tests")
+    shared = SharedRedisCache(url=None)
+    cache = TwoTierCache(
+        local=LocalTTLCache(ttl_seconds=60, max_entries=128),
+        shared=shared,
+        shared_ttl_seconds=60,
+    )
+    repository = MemoryJobRepository()
+    service = JobService(
+        repository=repository,
+        publisher=MemoryJobPublisher(),
+        metrics=metrics,
+    )
+    now = datetime.now(tz=UTC)
+    repository.create(
+        JobRecord(
+            job_id="job-update-insecure-override",
+            job_type="transfer.process",
+            scope_id="scope-1",
+            status=JobStatus.PENDING,
+            payload={"input": "value"},
+            result=None,
+            error=None,
+            created_at=now,
+            updated_at=now,
+        )
+    )
+
+    container = AppContainer(
+        settings=settings,
+        metrics=metrics,
+        cache=cache,
+        shared_cache=shared,
+        authenticator=StubAuthenticator(),  # type: ignore[arg-type]
+        transfer_service=StubTransferService(),  # type: ignore[arg-type]
+        job_repository=repository,
+        job_service=service,
+        activity_store=MemoryActivityStore(),
+        idempotency_store=IdempotencyStore(
+            cache=cache,
+            enabled=True,
+            ttl_seconds=300,
+            mode=settings.idempotency_mode,
+        ),
+    )
+
+    app = create_app(container_override=container)
+    with TestClient(app) as client:
+        response = client.post(
+            "/v1/internal/jobs/job-update-insecure-override/result",
+            json={"status": "running"},
+        )
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "running"
 
 
 def test_get_job_status_failure_emits_error_observability(

@@ -88,3 +88,40 @@ def test_auth_openapi_generated_client_smoke(tmp_path: Path) -> None:
         schema_path=_OPENAPI_ROOT / "nova-auth-api.openapi.json",
         tmp_path=tmp_path,
     )
+
+
+def test_committed_public_python_sdk_excludes_internal_worker_callback() -> (
+    None
+):
+    """Committed public Python SDK must not expose internal worker routes."""
+    assert not (
+        _REPO_ROOT
+        / "packages"
+        / "nova_sdk_py_file"
+        / "src"
+        / "nova_sdk_py_file"
+        / "api"
+        / "jobs"
+        / "update_job_result.py"
+    ).exists()
+
+
+def test_committed_public_python_sdk_uses_canonical_error_models_only() -> None:
+    """Committed public Python SDKs must not include HTTPValidationError."""
+    file_sdk_root = (
+        _REPO_ROOT
+        / "packages"
+        / "nova_sdk_py_file"
+        / "src"
+        / "nova_sdk_py_file"
+    )
+    auth_sdk_root = (
+        _REPO_ROOT
+        / "packages"
+        / "nova_sdk_py_auth"
+        / "src"
+        / "nova_sdk_py_auth"
+    )
+
+    assert not (file_sdk_root / "models" / "http_validation_error.py").exists()
+    assert not (auth_sdk_root / "models" / "http_validation_error.py").exists()

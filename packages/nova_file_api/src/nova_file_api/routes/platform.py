@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import structlog
-from fastapi import APIRouter, Response
+from fastapi import APIRouter
 
 from nova_file_api.dependencies import RequestContextDep
 from nova_file_api.errors import forbidden
@@ -12,6 +12,7 @@ from nova_file_api.models import (
     CapabilitiesResponse,
     CapabilityDescriptor,
     HealthResponse,
+    IdempotencyMode,
     MetricsSummaryResponse,
     ReadinessResponse,
     ReleaseInfoResponse,
@@ -122,7 +123,6 @@ async def health_live() -> HealthResponse:
 )
 async def health_ready(
     context: RequestContextDep,
-    response: Response,
 ) -> ReadinessResponse:
     """Return readiness checks for traffic-critical dependencies."""
     container = context.container
@@ -162,17 +162,14 @@ async def health_ready(
         )
         activity_store = False
 
-    if container.settings.auth_mode == AuthMode.SAME_ORIGIN:
-        auth_dependency = True
-    else:
-        try:
-            auth_dependency = await container.authenticator.healthcheck()
-        except Exception:
-            logger.exception(
-                "v1_health_ready_auth_dependency_healthcheck_failed",
-                route="/v1/health/ready",
-            )
-            auth_dependency = False
+    try:
+        auth_dependency = await container.authenticator.healthcheck()
+    except Exception:
+        logger.exception(
+            "v1_health_ready_auth_dependency_healthcheck_failed",
+            route="/v1/health/ready",
+        )
+        auth_dependency = False
 
     checks = {
         "bucket_configured": bool(
@@ -183,16 +180,20 @@ async def health_ready(
         "activity_store": activity_store,
         "auth_dependency": auth_dependency,
     }
-    is_ready = (
-        checks["bucket_configured"]
-        and checks["shared_cache"]
-        and checks["job_queue"]
-        and checks["activity_store"]
-        and checks["auth_dependency"]
+    shared_cache_required = (
+        container.settings.idempotency_enabled
+        and container.settings.idempotency_mode
+        == IdempotencyMode.SHARED_REQUIRED
     )
-    if not is_ready:
-        response.status_code = 503
-    return ReadinessResponse(ok=is_ready, checks=checks)
+    return ReadinessResponse(
+        ok=(
+            checks["bucket_configured"]
+            and (not shared_cache_required or checks["shared_cache"])
+            and checks["job_queue"]
+            and checks["auth_dependency"]
+        ),
+        checks=checks,
+    )
 
 
 @ops_router.get(

@@ -4,7 +4,20 @@ from __future__ import annotations
 
 from typing import Any
 
-from nova_file_api.app import _redact_sensitive_fields, _sanitize_log_value
+from nova_runtime_support.logging import (
+    _DEFAULT_HIDDEN_FIELDS,
+    _DEFAULT_REDACTED_SUBSTRINGS,
+    _build_redaction_processor,
+    _sanitize_log_value,
+)
+
+
+def _sanitize(value: object) -> object:
+    return _sanitize_log_value(
+        value,
+        hidden_fields=_DEFAULT_HIDDEN_FIELDS,
+        redacted_substrings=_DEFAULT_REDACTED_SUBSTRINGS,
+    )
 
 
 def test_sanitize_log_value_redacts_presigned_query_signature() -> None:
@@ -13,7 +26,7 @@ def test_sanitize_log_value_redacts_presigned_query_signature() -> None:
         "https://example.local/object?"
         "X-Amz-Credential=abc&X-Amz-Signature=deadbeef"
     )
-    assert _sanitize_log_value(raw) == "[REDACTED]"
+    assert _sanitize(raw) == "[REDACTED]"
 
 
 def test_sanitize_log_value_redacts_nested_sensitive_fields() -> None:
@@ -25,7 +38,7 @@ def test_sanitize_log_value_redacts_nested_sensitive_fields() -> None:
             "ok": True,
         },
     }
-    sanitized = _sanitize_log_value(payload)
+    sanitized = _sanitize(payload)
     assert isinstance(sanitized, dict)
     assert sanitized["token"] == "[REDACTED]"
     nested = sanitized["nested"]
@@ -41,6 +54,10 @@ def test_redact_sensitive_fields_processor_hides_known_keys() -> None:
         "authorization": "Bearer token-123",
         "presigned_url": "https://example.local/file",
     }
-    redacted = _redact_sensitive_fields(None, "info", event_dict)
+    redact = _build_redaction_processor(
+        hidden_fields=_DEFAULT_HIDDEN_FIELDS,
+        redacted_substrings=_DEFAULT_REDACTED_SUBSTRINGS,
+    )
+    redacted = redact(None, "info", event_dict)
     assert redacted["authorization"] == "[REDACTED]"
     assert redacted["presigned_url"] == "[REDACTED]"

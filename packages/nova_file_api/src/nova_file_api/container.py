@@ -99,6 +99,7 @@ def create_container(*, settings: Settings) -> AppContainer:
         cache=cache,
         enabled=settings.idempotency_enabled,
         ttl_seconds=settings.idempotency_ttl_seconds,
+        mode=settings.idempotency_mode,
     )
 
     authenticator = Authenticator(settings=settings, cache=cache)
