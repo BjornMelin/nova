@@ -63,7 +63,7 @@ def _parse_response(
 
 def _build_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> Response[AbortUploadResponse | ErrorEnvelope]:
+) -> Response[AbortUploadResponse | ErrorEnvelope | None]:
     return Response(
         status_code=response.status_code,
         content=response.content,
@@ -76,7 +76,7 @@ def sync_detailed(
     *,
     client: AuthenticatedClient,
     body: AbortUploadRequest,
-) -> Response[AbortUploadResponse | ErrorEnvelope]:
+) -> Response[AbortUploadResponse | ErrorEnvelope | None]:
     """Abort Upload
 
      Abort multipart upload.
@@ -89,7 +89,7 @@ def sync_detailed(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[AbortUploadResponse | ErrorEnvelope]
+        Response[AbortUploadResponse | ErrorEnvelope | None]
     """
 
     kwargs = _get_kwargs(
@@ -133,7 +133,7 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
     body: AbortUploadRequest,
-) -> Response[AbortUploadResponse | ErrorEnvelope]:
+) -> Response[AbortUploadResponse | ErrorEnvelope | None]:
     """Abort Upload
 
      Abort multipart upload.
@@ -146,7 +146,7 @@ async def asyncio_detailed(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[AbortUploadResponse | ErrorEnvelope]
+        Response[AbortUploadResponse | ErrorEnvelope | None]
     """
 
     kwargs = _get_kwargs(

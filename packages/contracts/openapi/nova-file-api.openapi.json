@@ -11,6 +11,16 @@
         },
         "description": "Canonical forbidden request response."
       },
+      "FileIdempotencyConflictResponse": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            }
+          }
+        },
+        "description": "Canonical idempotency-conflict response."
+      },
       "FileIdempotencyUnavailableResponse": {
         "content": {
           "application/json": {
@@ -1007,6 +1017,7 @@
             "items": {
               "$ref": "#/components/schemas/ResourcePlanItem"
             },
+            "maxItems": 256,
             "title": "Plan",
             "type": "array"
           }
@@ -1887,6 +1898,9 @@
           },
           "403": {
             "$ref": "#/components/responses/FileForbiddenResponse"
+          },
+          "409": {
+            "$ref": "#/components/responses/FileIdempotencyConflictResponse"
           },
           "422": {
             "$ref": "#/components/responses/FileInvalidRequestResponse"

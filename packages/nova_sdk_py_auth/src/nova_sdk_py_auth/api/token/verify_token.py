@@ -68,7 +68,7 @@ def _parse_response(
 
 def _build_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> Response[ErrorEnvelope | TokenVerifyResponse]:
+) -> Response[ErrorEnvelope | TokenVerifyResponse | None]:
     return Response(
         status_code=response.status_code,
         content=response.content,
@@ -81,7 +81,7 @@ def sync_detailed(
     *,
     client: AuthenticatedClient | Client,
     body: TokenVerifyRequest,
-) -> Response[ErrorEnvelope | TokenVerifyResponse]:
+) -> Response[ErrorEnvelope | TokenVerifyResponse | None]:
     """Verify Token
 
      Verify access token and return principal plus claims.
@@ -94,7 +94,7 @@ def sync_detailed(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[ErrorEnvelope | TokenVerifyResponse]
+        Response[ErrorEnvelope | TokenVerifyResponse | None]
     """
 
     kwargs = _get_kwargs(
@@ -125,7 +125,7 @@ def sync(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        ErrorEnvelope | TokenVerifyResponse
+        ErrorEnvelope | TokenVerifyResponse | None
     """
 
     return sync_detailed(
@@ -138,7 +138,7 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient | Client,
     body: TokenVerifyRequest,
-) -> Response[ErrorEnvelope | TokenVerifyResponse]:
+) -> Response[ErrorEnvelope | TokenVerifyResponse | None]:
     """Verify Token
 
      Verify access token and return principal plus claims.
@@ -151,7 +151,7 @@ async def asyncio_detailed(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[ErrorEnvelope | TokenVerifyResponse]
+        Response[ErrorEnvelope | TokenVerifyResponse | None]
     """
 
     kwargs = _get_kwargs(
@@ -180,7 +180,7 @@ async def asyncio(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        ErrorEnvelope | TokenVerifyResponse
+        ErrorEnvelope | TokenVerifyResponse | None
     """
 
     return (

@@ -48,6 +48,9 @@ _OPENAPI_RESPONSE_DESCRIPTIONS = {
     "FileInvalidRequestResponse": "Canonical invalid-request response.",
     "FileUnauthorizedResponse": "Canonical unauthorized request response.",
     "FileForbiddenResponse": "Canonical forbidden request response.",
+    "FileIdempotencyConflictResponse": (
+        "Canonical idempotency-conflict response."
+    ),
     "FileQueueUnavailableResponse": "Canonical queue unavailable response.",
     "FileIdempotencyUnavailableResponse": (
         "Canonical idempotency-unavailable response."
@@ -64,6 +67,7 @@ _OPENAPI_OPERATION_RESPONSES = {
         "post": {
             "401": "FileUnauthorizedResponse",
             "403": "FileForbiddenResponse",
+            "409": "FileIdempotencyConflictResponse",
             "422": "FileInvalidRequestResponse",
             "503": "FileIdempotencyUnavailableResponse",
         }

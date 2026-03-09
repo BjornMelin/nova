@@ -284,7 +284,7 @@ class JobResultUpdateRequest(BaseModel):
     def validate_success_error_contract(self) -> JobResultUpdateRequest:
         """Enforce response contract for succeeded job updates."""
         if self.status is JobStatus.SUCCEEDED and self.error is not None:
-            raise ValueError("error must be null when status is succeeded")
+            self.error = None
         return self
 
 
@@ -382,7 +382,7 @@ class ResourcePlanResponse(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    plan: list[ResourcePlanItem]
+    plan: list[ResourcePlanItem] = Field(max_length=256)
 
 
 class ReleaseInfoResponse(BaseModel):
