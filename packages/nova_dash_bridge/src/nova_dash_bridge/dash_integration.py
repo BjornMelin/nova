@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any, cast
 
 from dash import dcc, html
+from nova_file_api.models import TRANSFER_PROCESS_JOB_TYPE
 
 
 def _normalize_allowed_extensions(allowed_extensions: set[str]) -> set[str]:
@@ -92,7 +93,7 @@ def S3FileUploader(
     jobs_endpoint_base: str = "/v1/jobs",
     max_concurrency: int = 4,
     async_jobs_enabled: bool = False,
-    async_job_type: str = "process_upload",
+    async_job_type: str = TRANSFER_PROCESS_JOB_TYPE,
     async_job_min_bytes: int = 0,
     async_job_poll_interval_ms: int = 2000,
     async_job_timeout_ms: int = 900000,

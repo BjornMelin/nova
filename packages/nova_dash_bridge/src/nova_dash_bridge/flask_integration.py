@@ -1,4 +1,4 @@
-"""Flask integration helpers for file transfer APIs/assets."""
+"""Flask integration helpers for canonical file transfer APIs/assets."""
 # mypy: disable-error-code="untyped-decorator"
 
 from __future__ import annotations
@@ -9,61 +9,27 @@ from pathlib import Path
 from typing import Any
 
 from flask import Blueprint, Flask, jsonify, request
-from pydantic import ValidationError
 
 from nova_dash_bridge.config import (
     AuthPolicy,
     FileTransferEnvConfig,
     UploadPolicy,
 )
-from nova_dash_bridge.errors import FileTransferError, validation_error
-from nova_dash_bridge.models import (
-    AbortUploadRequest,
-    CompleteUploadRequest,
-    ErrorBody,
-    ErrorEnvelope,
-    InitiateUploadRequest,
-    PresignDownloadRequest,
-    SignPartsRequest,
+from nova_dash_bridge.errors import validation_error
+from nova_dash_bridge.http_adapter_core import (
+    coerce_error_response,
+    execute_operation,
 )
 from nova_dash_bridge.s3_client import SupportsCreateS3Client
-from nova_dash_bridge.service import (
-    FileTransferService,
-    coerce_file_transfer_error,
-)
+from nova_dash_bridge.service import FileTransferService
 
 LOGGER = logging.getLogger(__name__)
+_CANONICAL_TRANSFERS_PREFIX = "/v1/transfers"
 
 
 def _request_id() -> str | None:
     value = request.headers.get("X-Request-Id")
     return value if isinstance(value, str) else None
-
-
-def _error_response(exc: FileTransferError) -> tuple[Any, int]:
-    payload = ErrorEnvelope(
-        error=ErrorBody(
-            code=exc.code,
-            message=exc.message,
-            details=exc.details,
-            request_id=_request_id(),
-        )
-    )
-    return jsonify(payload.model_dump()), int(exc.status_code)
-
-
-def _parse_payload(model: type[Any]) -> Any:
-    try:
-        incoming = request.get_json(force=True, silent=False)
-        if incoming is None:
-            raise validation_error("request body must not be null")
-        return model.model_validate(incoming)
-    except ValidationError as exc:
-        raise validation_error(
-            "invalid request payload", details={"errors": exc.errors()}
-        ) from exc
-    except Exception as exc:
-        raise validation_error("request body must be valid JSON") from exc
 
 
 def create_file_transfer_blueprint(
@@ -72,9 +38,8 @@ def create_file_transfer_blueprint(
     upload_policy: UploadPolicy,
     auth_policy: AuthPolicy | None = None,
     s3_client_factory: SupportsCreateS3Client | None = None,
-    url_prefix: str = "/v1/transfers",
 ) -> Blueprint:
-    """Create a Flask blueprint for file transfer endpoints."""
+    """Create a Flask blueprint for canonical file transfer endpoints."""
     service = FileTransferService(
         env_config=env_config,
         upload_policy=upload_policy,
@@ -84,58 +49,51 @@ def create_file_transfer_blueprint(
     blueprint = Blueprint(
         "nova_dash_bridge_api",
         __name__,
-        url_prefix=url_prefix,
+        url_prefix=_CANONICAL_TRANSFERS_PREFIX,
     )
+
+    def run_operation(operation_name: str) -> tuple[Any, int]:
+        try:
+            try:
+                raw_payload = request.get_json(force=True, silent=False)
+            except Exception as exc:
+                raise validation_error(
+                    "request body must be valid JSON"
+                ) from exc
+            response = execute_operation(
+                service=service,
+                operation_name=operation_name,
+                raw_payload=raw_payload,
+            )
+            return jsonify(response.model_dump()), HTTPStatus.OK
+        except Exception as exc:  # noqa: BLE001
+            status_code, content = coerce_error_response(
+                exc=exc,
+                request_id=_request_id(),
+                logger=LOGGER,
+                log_event="flask_file_transfer_request_failed",
+            )
+            return jsonify(content), status_code
 
     @blueprint.post("/uploads/initiate")
     def initiate_upload() -> tuple[Any, int]:
-        try:
-            payload = _parse_payload(InitiateUploadRequest)
-            response = service.initiate_upload(payload)
-            return jsonify(response.model_dump()), HTTPStatus.OK
-        except Exception as exc:  # noqa: BLE001
-            err = coerce_file_transfer_error(exc)
-            return _error_response(err)
+        return run_operation("initiate_upload")
 
     @blueprint.post("/uploads/sign-parts")
     def sign_parts() -> tuple[Any, int]:
-        try:
-            payload = _parse_payload(SignPartsRequest)
-            response = service.sign_parts(payload)
-            return jsonify(response.model_dump()), HTTPStatus.OK
-        except Exception as exc:  # noqa: BLE001
-            err = coerce_file_transfer_error(exc)
-            return _error_response(err)
+        return run_operation("sign_parts")
 
     @blueprint.post("/uploads/complete")
     def complete_upload() -> tuple[Any, int]:
-        try:
-            payload = _parse_payload(CompleteUploadRequest)
-            response = service.complete_upload(payload)
-            return jsonify(response.model_dump()), HTTPStatus.OK
-        except Exception as exc:  # noqa: BLE001
-            err = coerce_file_transfer_error(exc)
-            return _error_response(err)
+        return run_operation("complete_upload")
 
     @blueprint.post("/uploads/abort")
     def abort_upload() -> tuple[Any, int]:
-        try:
-            payload = _parse_payload(AbortUploadRequest)
-            response = service.abort_upload(payload)
-            return jsonify(response.model_dump()), HTTPStatus.OK
-        except Exception as exc:  # noqa: BLE001
-            err = coerce_file_transfer_error(exc)
-            return _error_response(err)
+        return run_operation("abort_upload")
 
     @blueprint.post("/downloads/presign")
     def presign_download() -> tuple[Any, int]:
-        try:
-            payload = _parse_payload(PresignDownloadRequest)
-            response = service.presign_download(payload)
-            return jsonify(response.model_dump()), HTTPStatus.OK
-        except Exception as exc:  # noqa: BLE001
-            err = coerce_file_transfer_error(exc)
-            return _error_response(err)
+        return run_operation("presign_download")
 
     return blueprint
 
@@ -147,15 +105,13 @@ def register_file_transfer_blueprint(
     upload_policy: UploadPolicy,
     auth_policy: AuthPolicy | None = None,
     s3_client_factory: SupportsCreateS3Client | None = None,
-    url_prefix: str = "/v1/transfers",
 ) -> Blueprint:
-    """Create and register file transfer API blueprint."""
+    """Create and register the canonical file transfer API blueprint."""
     blueprint = create_file_transfer_blueprint(
         env_config=env_config,
         upload_policy=upload_policy,
         auth_policy=auth_policy,
         s3_client_factory=s3_client_factory,
-        url_prefix=url_prefix,
     )
     flask_app.register_blueprint(blueprint)
     return blueprint

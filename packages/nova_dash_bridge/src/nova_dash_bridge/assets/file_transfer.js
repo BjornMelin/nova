@@ -202,6 +202,18 @@
     return response.headers.get("ETag") || "";
   }
 
+  function normalizeOptionalString(value) {
+    return typeof value === "string" && value ? value : null;
+  }
+
+  function requireUploadEtag(etag) {
+    var normalized = normalizeOptionalString(etag);
+    if (!normalized) {
+      throw new Error("upload completed without an ETag");
+    }
+    return normalized;
+  }
+
   function sleep(ms) {
     return new Promise(function (resolve) {
       window.setTimeout(resolve, ms);
@@ -280,13 +292,20 @@
       completeParts.sort(function (a, b) {
         return a.part_number - b.part_number;
       });
-      await postJson(base + "/uploads/complete", {
+      var completedUpload = await postJson(base + "/uploads/complete", {
         key: key,
         upload_id: uploadId,
         parts: completeParts,
         session_id: sessionId,
       });
-      return { key: key, uploadId: uploadId };
+      return {
+        key: key,
+        uploadId: uploadId,
+        etag: requireUploadEtag(completedUpload && completedUpload.etag),
+        version_id: normalizeOptionalString(
+          completedUpload && completedUpload.version_id
+        ),
+      };
     } catch (error) {
       if (uploadId) {
         try {
@@ -303,7 +322,13 @@
     }
   }
 
-  function buildUploadResult(file, initiated, contentType, sessionId) {
+  function buildUploadResult(
+    file,
+    initiated,
+    contentType,
+    sessionId,
+    uploadMetadata
+  ) {
     return {
       bucket: initiated.bucket,
       key: initiated.key,
@@ -311,6 +336,10 @@
       size_bytes: file.size,
       content_type: contentType,
       session_id: sessionId,
+      etag: requireUploadEtag(uploadMetadata && uploadMetadata.etag),
+      version_id: normalizeOptionalString(
+        uploadMetadata && uploadMetadata.version_id
+      ),
     };
   }
 
@@ -423,20 +452,27 @@
 
     var uploadResult = null;
     if (initiated.strategy === "single") {
-      await putObject(initiated.url, file, contentType);
+      var singleEtag = await putObject(initiated.url, file, contentType);
       uploadResult = buildUploadResult(
         file,
         initiated,
         contentType,
-        sessionId
+        sessionId,
+        { etag: singleEtag, version_id: null }
       );
     } else if (initiated.strategy === "multipart") {
-      await uploadMultipart(config, file, initiated, sessionId);
+      var multipartResult = await uploadMultipart(
+        config,
+        file,
+        initiated,
+        sessionId
+      );
       uploadResult = buildUploadResult(
         file,
         initiated,
         contentType,
-        sessionId
+        sessionId,
+        multipartResult
       );
     } else {
       throw new Error("unknown strategy");
@@ -525,7 +561,7 @@
       resultStoreId: root.dataset.resultStoreId || "",
       progressStoreId: root.dataset.progressStoreId || "",
       asyncJobsEnabled: root.dataset.asyncJobsEnabled === "true",
-      asyncJobType: root.dataset.asyncJobType || "process_upload",
+      asyncJobType: root.dataset.asyncJobType || "transfer.process",
       asyncJobMinBytes: parseInt(root.dataset.asyncJobMinBytes || "0", 10),
       asyncJobPollIntervalMs: Math.max(
         100,

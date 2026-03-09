@@ -94,7 +94,8 @@ class FileTransferService:
             settings=_core_settings_from_bridge(
                 env_config=env_config,
                 upload_policy=upload_policy,
-            )
+            ),
+            s3_client=self._client(),
         )
 
     @property
@@ -316,6 +317,7 @@ class FileTransferService:
             bucket=core_response.bucket,
             key=core_response.key,
             etag=core_response.etag,
+            version_id=core_response.version_id,
         )
 
     def abort_upload(self, req: AbortUploadRequest) -> AbortUploadResponse:
@@ -487,38 +489,40 @@ def _core_settings_from_bridge(
     upload_policy: UploadPolicy,
 ) -> CoreSettings:
     """Build core runtime settings from bridge env + policy values."""
-    settings = CoreSettings()
-    settings.file_transfer_enabled = env_config.enabled
-    settings.file_transfer_bucket = env_config.bucket
-    settings.file_transfer_upload_prefix = env_config.upload_prefix
-    settings.file_transfer_export_prefix = env_config.export_prefix
-    settings.file_transfer_tmp_prefix = env_config.tmp_prefix
-    settings.file_transfer_presign_upload_ttl_seconds = (
-        env_config.presign_upload_ttl_seconds
+    return CoreSettings.model_validate(
+        {
+            "file_transfer_enabled": env_config.enabled,
+            "file_transfer_bucket": env_config.bucket,
+            "file_transfer_upload_prefix": env_config.upload_prefix,
+            "file_transfer_export_prefix": env_config.export_prefix,
+            "file_transfer_tmp_prefix": env_config.tmp_prefix,
+            "file_transfer_presign_upload_ttl_seconds": (
+                env_config.presign_upload_ttl_seconds
+            ),
+            "file_transfer_presign_download_ttl_seconds": (
+                env_config.presign_download_ttl_seconds
+            ),
+            "file_transfer_multipart_threshold_bytes": (
+                upload_policy.multipart_threshold_bytes
+                if upload_policy.multipart_threshold_bytes is not None
+                else env_config.multipart_threshold_bytes
+            ),
+            "file_transfer_part_size_bytes": (
+                upload_policy.part_size_bytes
+                if upload_policy.part_size_bytes is not None
+                else env_config.part_size_bytes
+            ),
+            "file_transfer_max_concurrency": (
+                upload_policy.max_concurrency
+                if upload_policy.max_concurrency is not None
+                else env_config.max_concurrency
+            ),
+            "file_transfer_use_accelerate_endpoint": (
+                env_config.use_accelerate_endpoint
+            ),
+            "max_upload_bytes": upload_policy.max_upload_bytes,
+        }
     )
-    settings.file_transfer_presign_download_ttl_seconds = (
-        env_config.presign_download_ttl_seconds
-    )
-    settings.file_transfer_multipart_threshold_bytes = (
-        upload_policy.multipart_threshold_bytes
-        if upload_policy.multipart_threshold_bytes is not None
-        else env_config.multipart_threshold_bytes
-    )
-    settings.file_transfer_part_size_bytes = (
-        upload_policy.part_size_bytes
-        if upload_policy.part_size_bytes is not None
-        else env_config.part_size_bytes
-    )
-    settings.file_transfer_max_concurrency = (
-        upload_policy.max_concurrency
-        if upload_policy.max_concurrency is not None
-        else env_config.max_concurrency
-    )
-    settings.file_transfer_use_accelerate_endpoint = (
-        env_config.use_accelerate_endpoint
-    )
-    settings.max_upload_bytes = upload_policy.max_upload_bytes
-    return settings
 
 
 def coerce_file_transfer_error(exc: Exception) -> FileTransferError:
