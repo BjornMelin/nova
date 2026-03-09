@@ -1,8 +1,9 @@
 # ruff: noqa
 """Client helpers for the `/v1/releases/info` endpoint.
 
-Functions in this module use AuthenticatedClient/Client and
-raise ``errors.UnexpectedStatus`` for undocumented responses."""
+Functions in this module use AuthenticatedClient/Client.
+Undocumented responses raise ``errors.UnexpectedStatus`` only
+when ``client.raise_on_unexpected_status`` is enabled."""
 
 from typing import Any
 

@@ -56,7 +56,7 @@ def _parse_response(
 
 def _build_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> Response[ErrorEnvelope | JobEventsResponse]:
+) -> Response[ErrorEnvelope | JobEventsResponse | None]:
     return Response(
         status_code=response.status_code,
         content=response.content,
@@ -69,7 +69,7 @@ def sync_detailed(
     job_id: str,
     *,
     client: AuthenticatedClient,
-) -> Response[ErrorEnvelope | JobEventsResponse]:
+) -> Response[ErrorEnvelope | JobEventsResponse | None]:
     """List Job Events
 
      Return poll events with an SSE-compatible envelope.
@@ -113,7 +113,7 @@ def sync(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        ErrorEnvelope | JobEventsResponse
+        ErrorEnvelope | JobEventsResponse | None
     """
 
     return sync_detailed(
@@ -126,7 +126,7 @@ async def asyncio_detailed(
     job_id: str,
     *,
     client: AuthenticatedClient,
-) -> Response[ErrorEnvelope | JobEventsResponse]:
+) -> Response[ErrorEnvelope | JobEventsResponse | None]:
     """List Job Events
 
      Return poll events with an SSE-compatible envelope.
@@ -168,7 +168,7 @@ async def asyncio(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        ErrorEnvelope | JobEventsResponse
+        ErrorEnvelope | JobEventsResponse | None
     """
 
     return (

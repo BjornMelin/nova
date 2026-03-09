@@ -45,31 +45,7 @@
         "content": {
           "application/json": {
             "schema": {
-              "allOf": [
-                {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                },
-                {
-                  "properties": {
-                    "error": {
-                      "properties": {
-                        "code": {
-                          "enum": [
-                            "queue_unavailable"
-                          ],
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "code"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ]
-                }
-              ]
+              "$ref": "#/components/schemas/ErrorEnvelope"
             }
           }
         },

@@ -57,9 +57,16 @@ class ReadinessResponseChecks:
         d = dict(src_dict)
         readiness_response_checks = cls()
 
-        readiness_response_checks.additional_properties = {
-            key: bool(value) for key, value in d.items()
-        }
+        validated_values: dict[str, bool] = {}
+        for key, value in d.items():
+            if not isinstance(value, bool):
+                raise TypeError(
+                    f"readiness_response_checks[{key!r}] must be bool; "
+                    f"got {value!r}"
+                )
+            validated_values[key] = value
+
+        readiness_response_checks.additional_properties = validated_values
         return readiness_response_checks
 
     @property

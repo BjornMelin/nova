@@ -1,4 +1,9 @@
 # ruff: noqa
+"""Client helpers for fetching job status.
+
+Functions in this module use AuthenticatedClient/Client and
+return JobStatusResponse or ErrorEnvelope payloads."""
+
 from typing import Any
 from urllib.parse import quote
 

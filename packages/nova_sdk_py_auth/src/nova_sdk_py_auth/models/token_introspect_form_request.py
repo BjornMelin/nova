@@ -27,6 +27,14 @@ class TokenIntrospectFormRequest:
     required_scopes: list[str] | Unset = UNSET
 
     def to_dict(self) -> dict[str, Any]:
+        """Serialize this model to a JSON-compatible dict.
+
+        Args:
+            None.
+
+        Returns:
+            dict[str, Any]: Serialized token verification payload.
+        """
         access_token = self.access_token
 
         required_permissions: list[str] | Unset = UNSET

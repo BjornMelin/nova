@@ -1059,6 +1059,18 @@ def _patch_auth_sdk(root: Path) -> None:
                 "            required_scopes = list(self.required_scopes)\n",
             )
             .replace(
+                "    def to_dict(self) -> dict[str, Any]:\n",
+                "    def to_dict(self) -> dict[str, Any]:\n"
+                '        """Serialize this model to a JSON-compatible dict.\n'
+                "\n"
+                "        Args:\n"
+                "            None.\n"
+                "\n"
+                "        Returns:\n"
+                "            dict[str, Any]: Serialized token verification payload.\n"
+                '        """\n',
+            )
+            .replace(
                 "        required_permissions = cast(\n"
                 '            list[str], d.pop("required_permissions", UNSET)\n'
                 "        )\n\n",
@@ -1165,6 +1177,18 @@ def _patch_auth_sdk(root: Path) -> None:
                 "            required_scopes = list(self.required_scopes)\n",
             )
             .replace(
+                "    def to_dict(self) -> dict[str, Any]:\n",
+                "    def to_dict(self) -> dict[str, Any]:\n"
+                '        """Serialize this model to a JSON-compatible dict.\n'
+                "\n"
+                "        Args:\n"
+                "            None.\n"
+                "\n"
+                "        Returns:\n"
+                "            dict[str, Any]: Serialized token verification payload.\n"
+                '        """\n',
+            )
+            .replace(
                 "        required_permissions = cast(\n"
                 '            list[str], d.pop("required_permissions", UNSET)\n'
                 "        )\n\n",
@@ -1181,6 +1205,25 @@ def _patch_auth_sdk(root: Path) -> None:
                 "        required_permissions = _parse_required_permissions(\n"
                 '            d.pop("required_permissions", UNSET)\n'
                 "        )\n\n",
+            )
+            .replace(
+                "    @classmethod\n"
+                "    def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:\n",
+                "    @classmethod\n"
+                "    def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:\n"
+                '        """Build this model from a JSON-compatible mapping.\n'
+                "\n"
+                "        Args:\n"
+                "            src_dict (Mapping[str, Any]): Source mapping used to build\n"
+                "                the model instance.\n"
+                "\n"
+                "        Returns:\n"
+                "            TokenVerifyRequest: Parsed token verify request model.\n"
+                "\n"
+                "        Raises:\n"
+                "            TypeError: If required_permissions or required_scopes are\n"
+                "                provided with non-list values.\n"
+                '        """\n',
             )
             .replace(
                 '        required_scopes = cast(list[str], d.pop("required_scopes", UNSET))\n',
@@ -1474,12 +1517,23 @@ def _patch_file_sdk(root: Path) -> None:
     _rewrite_file(
         root,
         "api/jobs/get_job_status.py",
-        lambda content: content.replace(
-            "    Returns:\n        ErrorEnvelope | JobStatusResponse\n",
-            "    Returns:\n        ErrorEnvelope | JobStatusResponse | None\n",
-        ).replace(
-            ") -> Response[ErrorEnvelope | JobStatusResponse]:",
-            ") -> Response[ErrorEnvelope | JobStatusResponse | None]:",
+        lambda content: (
+            _ensure_module_docstring(
+                content,
+                doc=(
+                    "Client helpers for fetching job status.\n\n"
+                    "Functions in this module use AuthenticatedClient/Client and\n"
+                    "return JobStatusResponse or ErrorEnvelope payloads."
+                ),
+            )
+            .replace(
+                "    Returns:\n        ErrorEnvelope | JobStatusResponse\n",
+                "    Returns:\n        ErrorEnvelope | JobStatusResponse | None\n",
+            )
+            .replace(
+                ") -> Response[ErrorEnvelope | JobStatusResponse]:",
+                ") -> Response[ErrorEnvelope | JobStatusResponse | None]:",
+            )
         ),
     )
     _rewrite_file(
@@ -1498,8 +1552,9 @@ def _patch_file_sdk(root: Path) -> None:
                 content,
                 doc=(
                     "Client helpers for the `/v1/releases/info` endpoint.\n\n"
-                    "Functions in this module use AuthenticatedClient/Client and\n"
-                    "raise ``errors.UnexpectedStatus`` for undocumented responses."
+                    "Functions in this module use AuthenticatedClient/Client.\n"
+                    "Undocumented responses raise ``errors.UnexpectedStatus`` only\n"
+                    "when ``client.raise_on_unexpected_status`` is enabled."
                 ),
             )
             .replace(
@@ -1545,7 +1600,7 @@ def _patch_file_sdk(root: Path) -> None:
                 "    Args:\n        body (CompleteUploadRequest): Multipart completion request.\n",
                 "    Args:\n"
                 "        body (CompleteUploadRequest): Multipart completion request.\n"
-                "        client (AuthenticatedClient | Client): Configured API client.\n",
+                "        client (AuthenticatedClient): Configured API client.\n",
             )
             .replace(
                 "    Raises:\n"
@@ -1561,6 +1616,56 @@ def _patch_file_sdk(root: Path) -> None:
                 "    Returns:\n        CompleteUploadResponse | ErrorEnvelope\n",
                 "    Returns:\n        CompleteUploadResponse | ErrorEnvelope | None\n",
             )
+            .replace(
+                ") -> Response[CompleteUploadResponse | ErrorEnvelope]:",
+                ") -> Response[CompleteUploadResponse | ErrorEnvelope | None]:",
+            )
+        ),
+    )
+    _rewrite_file(
+        root,
+        "api/jobs/list_job_events.py",
+        lambda content: content.replace(
+            ") -> Response[ErrorEnvelope | JobEventsResponse]:",
+            ") -> Response[ErrorEnvelope | JobEventsResponse | None]:",
+        ).replace(
+            "    Returns:\n        ErrorEnvelope | JobEventsResponse\n",
+            "    Returns:\n        ErrorEnvelope | JobEventsResponse | None\n",
+        ),
+    )
+    _rewrite_file(
+        root,
+        "api/transfers/presign_download.py",
+        lambda content: (
+            _ensure_module_docstring(
+                content,
+                doc=(
+                    "Client helpers for the presign download endpoint.\n\n"
+                    "Functions in this module accept PresignDownloadRequest and\n"
+                    "return PresignDownloadResponse or ErrorEnvelope payloads."
+                ),
+            )
+            .replace(
+                ") -> Response[ErrorEnvelope | PresignDownloadResponse]:",
+                ") -> Response[ErrorEnvelope | PresignDownloadResponse | None]:",
+            )
+            .replace(
+                "    Returns:\n        ErrorEnvelope | PresignDownloadResponse\n",
+                "    Returns:\n        ErrorEnvelope | PresignDownloadResponse | None\n",
+            )
+        ),
+    )
+    _rewrite_file(
+        root,
+        "api/transfers/sign_upload_parts.py",
+        lambda content: content.replace(
+            "    Args:\n        body (SignPartsRequest): Multipart sign-parts request.\n",
+            "    Args:\n"
+            "        body (SignPartsRequest): Multipart sign-parts request.\n"
+            "        client (AuthenticatedClient): Configured API client.\n",
+        ).replace(
+            ") -> Response[ErrorEnvelope | SignPartsResponse]:",
+            ") -> Response[ErrorEnvelope | SignPartsResponse | None]:",
         ),
     )
     _rewrite_file(
@@ -1962,11 +2067,9 @@ def _patch_file_sdk(root: Path) -> None:
         root,
         "models/error_envelope_error.py",
         lambda content: (
-            content.replace(
-                "# ruff: noqa\nfrom __future__ import annotations\n",
-                "# ruff: noqa\n"
-                '"""Error envelope body model for file API SDK responses."""\n\n'
-                "from __future__ import annotations\n",
+            _ensure_module_docstring(
+                content,
+                doc="Error envelope body model for file API SDK responses.",
             )
             .replace(
                 "    def to_dict(self) -> dict[str, Any]:\n",
@@ -2068,11 +2171,9 @@ def _patch_file_sdk(root: Path) -> None:
         root,
         "models/metrics_summary_response_counters.py",
         lambda content: (
-            content.replace(
-                "# ruff: noqa\nfrom __future__ import annotations\n",
-                "# ruff: noqa\n"
-                '"""Model for low-cardinality counter metrics returned by the API."""\n\n'
-                "from __future__ import annotations\n",
+            _ensure_module_docstring(
+                content,
+                doc="Model for low-cardinality counter metrics returned by the API.",
             )
             .replace(
                 '    """ """\n',
@@ -2160,9 +2261,15 @@ def _patch_file_sdk(root: Path) -> None:
             )
             .replace(
                 "        readiness_response_checks.additional_properties = d\n",
-                "        readiness_response_checks.additional_properties = {\n"
-                "            key: bool(value) for key, value in d.items()\n"
-                "        }\n",
+                "        validated_values: dict[str, bool] = {}\n"
+                "        for key, value in d.items():\n"
+                "            if not isinstance(value, bool):\n"
+                "                raise TypeError(\n"
+                '                    f"readiness_response_checks[{key!r}] must be bool; "\n'
+                '                    f"got {value!r}"\n'
+                "                )\n"
+                "            validated_values[key] = value\n\n"
+                "        readiness_response_checks.additional_properties = validated_values\n",
             )
         ),
     )
@@ -2170,11 +2277,9 @@ def _patch_file_sdk(root: Path) -> None:
         root,
         "models/sign_parts_response_urls.py",
         lambda content: (
-            content.replace(
-                "# ruff: noqa\nfrom __future__ import annotations\n",
-                "# ruff: noqa\n"
-                '"""Model for signed multipart part URLs keyed by part number."""\n\n'
-                "from __future__ import annotations\n",
+            _ensure_module_docstring(
+                content,
+                doc="Model for signed multipart part URLs keyed by part number.",
             )
             .replace(
                 '    """ """\n',
@@ -2191,22 +2296,12 @@ def _patch_file_sdk(root: Path) -> None:
     _rewrite_file(
         root,
         "models/upload_strategy.py",
-        lambda content: (
-            content.replace(
-                "from enum import Enum\n\n\nclass UploadStrategy",
-                '"""Upload strategy enum for transfer initiation."""\n\n'
-                "from enum import Enum\n\n\nclass UploadStrategy",
-            )
-            .replace(
-                "# ruff: noqa\nfrom enum import Enum\n\n\nclass UploadStrategy",
-                "# ruff: noqa\n"
-                '"""Upload strategy enum for transfer initiation."""\n\n'
-                "from enum import Enum\n\n\nclass UploadStrategy",
-            )
-            .replace(
-                "class UploadStrategy(str, Enum):\n",
-                'class UploadStrategy(str, Enum):\n    """Allowed transfer upload strategies."""\n',
-            )
+        lambda content: _ensure_module_docstring(
+            content,
+            doc="Upload strategy enum for transfer initiation.",
+        ).replace(
+            "class UploadStrategy(str, Enum):\n",
+            'class UploadStrategy(str, Enum):\n    """Allowed transfer upload strategies."""\n',
         ),
     )
     _rewrite_file(

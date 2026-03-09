@@ -68,7 +68,7 @@ def _parse_response(
 
 def _build_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> Response[CompleteUploadResponse | ErrorEnvelope]:
+) -> Response[CompleteUploadResponse | ErrorEnvelope | None]:
     return Response(
         status_code=response.status_code,
         content=response.content,
@@ -81,14 +81,14 @@ def sync_detailed(
     *,
     client: AuthenticatedClient,
     body: CompleteUploadRequest,
-) -> Response[CompleteUploadResponse | ErrorEnvelope]:
+) -> Response[CompleteUploadResponse | ErrorEnvelope | None]:
     """Complete Upload
 
      Complete multipart upload.
 
     Args:
         body (CompleteUploadRequest): Multipart completion request.
-        client (AuthenticatedClient | Client): Configured API client.
+        client (AuthenticatedClient): Configured API client.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented
@@ -122,7 +122,7 @@ def sync(
 
     Args:
         body (CompleteUploadRequest): Multipart completion request.
-        client (AuthenticatedClient | Client): Configured API client.
+        client (AuthenticatedClient): Configured API client.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented
@@ -144,14 +144,14 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
     body: CompleteUploadRequest,
-) -> Response[CompleteUploadResponse | ErrorEnvelope]:
+) -> Response[CompleteUploadResponse | ErrorEnvelope | None]:
     """Complete Upload
 
      Complete multipart upload.
 
     Args:
         body (CompleteUploadRequest): Multipart completion request.
-        client (AuthenticatedClient | Client): Configured API client.
+        client (AuthenticatedClient): Configured API client.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented
@@ -183,7 +183,7 @@ async def asyncio(
 
     Args:
         body (CompleteUploadRequest): Multipart completion request.
-        client (AuthenticatedClient | Client): Configured API client.
+        client (AuthenticatedClient): Configured API client.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented

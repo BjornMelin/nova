@@ -103,16 +103,16 @@ _OPENAPI_OPERATION_RESPONSES = {
 
 
 def _operation_id_from_route(route: APIRoute) -> str:
-    """Build a stable OpenAPI operationId from method + path literals."""
-    method = sorted(route.methods or {"GET"})[0].upper()
-    normalized_path = route.path_format
+    """Build stable OpenAPI operationId values from route function names."""
+    if route.name:
+        return route.name
+
+    method = sorted(route.methods or {"GET"})[0].lower()
+    normalized_path = route.path_format.strip("/")
     normalized_path = re.sub(r"{([^}]+)}", r"\1", normalized_path)
-    normalized_path = normalized_path.strip("/")
     normalized_path = normalized_path.replace("-", "_").replace("/", "_")
     normalized_path = re.sub(r"[^a-zA-Z0-9_]", "", normalized_path)
-    normalized_path = re.sub(r"_+", "_", normalized_path).strip("_")
-    if not normalized_path:
-        normalized_path = "root"
+    normalized_path = re.sub(r"_+", "_", normalized_path).strip("_") or "root"
     return f"{method}_{normalized_path}"
 
 

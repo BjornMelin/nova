@@ -1,4 +1,6 @@
 # ruff: noqa
+"""Model for signed multipart part URLs keyed by part number."""
+
 from __future__ import annotations
 
 from collections.abc import Mapping

@@ -1,4 +1,6 @@
 # ruff: noqa
+"""Model for low-cardinality counter metrics returned by the API."""
+
 from __future__ import annotations
 
 from collections.abc import Mapping

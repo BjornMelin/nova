@@ -27,6 +27,14 @@ class TokenVerifyRequest:
     required_scopes: list[str] | Unset = UNSET
 
     def to_dict(self) -> dict[str, Any]:
+        """Serialize this model to a JSON-compatible dict.
+
+        Args:
+            None.
+
+        Returns:
+            dict[str, Any]: Serialized token verification payload.
+        """
         access_token = self.access_token
 
         required_permissions: list[str] | Unset = UNSET
@@ -53,6 +61,19 @@ class TokenVerifyRequest:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
+        """Build this model from a JSON-compatible mapping.
+
+        Args:
+            src_dict (Mapping[str, Any]): Source mapping used to build
+                the model instance.
+
+        Returns:
+            TokenVerifyRequest: Parsed token verify request model.
+
+        Raises:
+            TypeError: If required_permissions or required_scopes are
+                provided with non-list values.
+        """
         d = dict(src_dict)
         access_token = d.pop("access_token")
 

@@ -1,4 +1,6 @@
 # ruff: noqa
+"""Error envelope body model for file API SDK responses."""
+
 from __future__ import annotations
 
 from collections.abc import Mapping
