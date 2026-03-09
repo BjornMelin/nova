@@ -2,20 +2,18 @@
 ADR: 0031
 Title: Reusable GitHub workflow API and versioning policy for deployment automation
 Status: Accepted
-Version: 1.2
-Date: 2026-03-09
-Supersedes:
-  - "ADR-0025"
+Version: 1.0
+Date: 2026-03-05
 Related:
-  - "[ADR-0025: Reusable GitHub workflow API and versioning policy for deployment automation (superseded)](./ADR-0025-reusable-workflow-api-and-versioning-policy.md)"
   - "[ADR-0011: Hybrid CI/CD with GitHub CI and AWS-native Dev to Prod promotion](./ADR-0011-cicd-hybrid-github-aws-promotion.md)"
-  - "[SPEC-0018: Reusable workflow integration contract](../spec/SPEC-0018-runtime-configuration-and-startup-validation-contract.md)"
+  - "[SPEC-0025: Reusable workflow integration contract](../spec/SPEC-0025-reusable-workflow-integration-contract.md)"
+  - "[SPEC-0004: CI/CD and documentation automation](../spec/SPEC-0004-ci-cd-and-docs.md)"
 ---
 
 ## Summary
 
 Nova publishes reusable `workflow_call` deployment APIs as a product contract.
-Entry workflows become thin wrappers, and downstream repos consume stable
+Entry workflows remain thin wrappers, and downstream repos consume stable,
 versioned workflow interfaces.
 
 ## Context
@@ -41,14 +39,11 @@ outputs, and behavior were not consistently documented or versioned.
 | B. Publish typed reusable workflows with explicit contract schemas | **9.5** |
 | C. Replace workflows with ad-hoc shell scripts per consumer repo | 6.8 |
 
-Threshold policy: only options >=9.0 are accepted.
+Threshold policy: only options `>= 9.0` are accepted.
 
 ## Decision
 
 Choose **Option B**.
-
-This ADR supersedes ADR-0025 as the active governance authority for reusable
-workflow API and versioning policy.
 
 ### Required characteristics
 
@@ -58,9 +53,18 @@ workflow API and versioning policy.
    `.github/actions/**`.
 3. Entry workflows in `.github/workflows/**` are wrappers around reusable
    implementations.
-4. Versioning contract:
-   - `@v1` is stable compatibility channel.
-   - `@v1.x.y` tags are immutable release pins for production use.
+4. Reference contract:
+   - reusable workflows remain typed `workflow_call` interfaces
+   - moving major tags such as `@v1` and `@v2` are the published compatibility
+     channels for cross-repo callers
+   - immutable release tags such as `@v1.x.y` and full commit SHAs are also
+     supported
+   - production and high-assurance consumers pin immutable release tags or full
+     commit SHAs
+   - breaking caller-visible workflow changes require a new major tag rather
+     than compatibility shims
+   - composite actions remain internal implementation details, not direct
+     external APIs
 
 ## Consequences
 
@@ -74,6 +78,8 @@ workflow API and versioning policy.
 
 - Requires stricter schema/doc synchronization discipline.
 - Introduces explicit version lifecycle management for workflow APIs.
+- Requires release-tag governance so moving major tags track only compatible
+  releases.
 
 ## Explicit non-decisions
 
@@ -82,4 +88,5 @@ workflow API and versioning policy.
 
 ## Changelog
 
-- 2026-03-03: Updated ADR scope to reusable workflow API and versioning policy.
+- 2026-03-05: Reissued reusable workflow governance under `ADR-0031` after
+  runtime authority identifiers were restored.

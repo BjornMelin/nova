@@ -7,10 +7,19 @@ on:
         description: Git ref/SHA to checkout before applying release changes.
         required: true
         type: string
+      plan_run_id:
+        description: Workflow run id that uploaded release-plan-artifacts.
+        required: true
+        type: string
       aws_region:
         description: AWS region for release role and signing secret lookup.
         required: false
         default: us-east-1
+        type: string
+      workflow_api_major:
+        description: Major version channel for published reusable workflow tags.
+        required: false
+        default: "1"
         type: string
       commit_message:
         description: Release commit message.
@@ -28,6 +37,7 @@ on:
 permissions:
   id-token: write
   contents: write
+  actions: read
 
 defaults:
   run:
@@ -67,15 +77,21 @@ jobs:
           role-to-assume: ${{ env.RELEASE_AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Recompute release plan
+      - name: Download immutable release-plan artifacts
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
-          uv run python -m scripts.release.changed_units \
-            --repo-root . \
-            --output .artifacts/changed-units.json
-          uv run python -m scripts.release.version_plan \
-            --repo-root . \
-            --changed-units .artifacts/changed-units.json \
-            --output .artifacts/version-plan.json
+          uv run python -m scripts.release.download_run_artifact \
+            --repo "${{ github.repository }}" \
+            --run-id "${{ inputs.plan_run_id }}" \
+            --artifact-name release-plan-artifacts \
+            --output-dir .artifacts
+
+      - name: Validate release-plan artifacts
+        run: |
+          set -euo pipefail
+          test -f .artifacts/changed-units.json
+          test -f .artifacts/version-plan.json
 
       - name: Apply versions + manifest
         run: |
@@ -115,3 +131,66 @@ jobs:
 
           git commit -S -m "${{ inputs.commit_message }}"
           git push origin HEAD:main
+
+      - name: Publish reusable workflow API tags
+        run: |
+          set -euo pipefail
+          base_commit="$(python - <<'PY'
+          import json
+          from pathlib import Path
+
+          payload = json.loads(
+              Path(".artifacts/changed-units.json").read_text(encoding="utf-8")
+          )
+          value = payload.get("base_commit")
+          print(value or "")
+          PY
+          )"
+          args=(
+            uv run python -m scripts.release.publish_workflow_api_tags
+            --repo-root .
+            --head-commit HEAD
+            --workflow-api-major "${{ inputs.workflow_api_major }}"
+            --metadata-path .artifacts/workflow-api-tagging.json
+            --remote origin
+            --push
+          )
+          if [ -n "$base_commit" ]; then
+            args+=(--base-commit "$base_commit")
+          fi
+          "${args[@]}"
+
+      - name: Record release apply metadata
+        run: |
+          set -euo pipefail
+          mkdir -p .artifacts
+          python - <<'PY'
+          import json
+          import subprocess
+          from pathlib import Path
+
+          payload = {
+              "release_commit_sha": subprocess.check_output(
+                  ["git", "rev-parse", "HEAD"], text=True
+              ).strip()
+          }
+          workflow_tagging = Path(".artifacts/workflow-api-tagging.json")
+          if workflow_tagging.exists():
+              payload["workflow_api_tagging"] = json.loads(
+                  workflow_tagging.read_text(encoding="utf-8")
+              )
+          Path(".artifacts/release-apply-metadata.json").write_text(
+              json.dumps(payload, indent=2) + "\n",
+              encoding="utf-8",
+          )
+          PY
+
+      - name: Upload release apply artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-apply-artifacts
+          path: |
+            .artifacts/changed-units.json
+            .artifacts/version-plan.json
+            .artifacts/workflow-api-tagging.json
+            .artifacts/release-apply-metadata.json

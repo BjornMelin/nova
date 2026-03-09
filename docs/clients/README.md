@@ -1,15 +1,15 @@
-# Downstream Consumer Docs
+# Integration Workflow Docs
 
 Status: Active
 Owner: nova release architecture
-Last reviewed: 2026-03-05
+Last reviewed: 2026-03-09
 
 ## Purpose
 
 Provide minimal downstream integration artifacts for Dash, R Shiny, and
 React/Next consumers that call Nova reusable deployment and post-deploy
-validation contracts. These docs are workflow/integration authority, not public
-SDK release authority.
+validation contracts. These docs are active authority for Nova's published
+reusable-workflow integration surface.
 
 ## Contents
 
@@ -20,26 +20,6 @@ SDK release authority.
 - `examples/workflows/dash-post-deploy-validate.yml`
 - `examples/workflows/rshiny-post-deploy-validate.yml`
 - `examples/workflows/react-next-post-deploy-validate.yml`
-
-## Production-safe pinning
-
-The example workflows above currently show mutable refs (for example `@v1`) in places.
-For release pipelines, prefer immutable refs so downstream deploy validation always
-runs the reviewed workflow version. Use a full commit SHA (preferred) or a fully
-qualified immutable tag.
-
-- `dash-minimal-workflow.yml`: `uses: 3M-Cloud/nova/.github/workflows/reusable-post-deploy-validate.yml@655ccab0d071c828045de4a4d3bb441d4349194e`
-- `rshiny-minimal-workflow.yml`: `uses: 3M-Cloud/nova/.github/workflows/reusable-post-deploy-validate.yml@655ccab0d071c828045de4a4d3bb441d4349194e`
-- `react-next-minimal-workflow.yml`: `uses: 3M-Cloud/nova/.github/workflows/reusable-post-deploy-validate.yml@655ccab0d071c828045de4a4d3bb441d4349194e`
-- `examples/workflows/dash-post-deploy-validate.yml`: `uses: 3M-Cloud/nova/.github/workflows/reusable-post-deploy-validate.yml@655ccab0d071c828045de4a4d3bb441d4349194e`
-- `examples/workflows/rshiny-post-deploy-validate.yml`: `uses: 3M-Cloud/nova/.github/workflows/reusable-post-deploy-validate.yml@655ccab0d071c828045de4a4d3bb441d4349194e`
-- `examples/workflows/react-next-post-deploy-validate.yml`: `uses: 3M-Cloud/nova/.github/workflows/reusable-post-deploy-validate.yml@655ccab0d071c828045de4a4d3bb441d4349194e`
-
-When migrating a pinned reference, validate compatibility with
-`reusable-workflow-inputs-v1.schema.json` and
-`reusable-workflow-outputs-v1.schema.json` in this repository’s `contracts`
-directory, then verify downstream consumers against
-`release-artifacts-v1.schema.json` and `deploy-size-profiles-v1.json`.
 
 ## Contract sources
 
@@ -52,14 +32,13 @@ directory, then verify downstream consumers against
 
 ## SDK package status
 
-Public release-grade SDK packages for this wave:
+Committed public client SDK trees in-repo today:
 
 - `../../packages/nova_sdk_py_file/`
 - `../../packages/nova_sdk_py_auth/`
 - `../../packages/nova_dash_bridge/`
 
-Internal/generated catalogs retained in-repo for drift checks and deferred
-productization:
+Retained TypeScript/R scaffolding and shared generator/runtime layers:
 
 - `../../packages/nova_sdk_file_core/`
 - `../../packages/nova_sdk_auth_core/`
@@ -67,8 +46,13 @@ productization:
 - `../../packages/nova_sdk_r_file/`
 - `../../packages/nova_sdk_r_auth/`
 
-All of these remain subordinate to the committed Nova OpenAPI contracts. Only
-the Python packages above are public release-grade SDK authority in this wave.
+All of these remain subordinate to the committed Nova OpenAPI contracts. Public
+SDK productization in this wave remains Python-only. The TypeScript/R packages
+above remain internal/generated foundations and must not be deleted before a
+later promotion wave lands. Internal-only operations stay in canonical OpenAPI
+but are excluded from client SDK generation. Installed-package typing metadata
+shipped by runtime distributions `nova_file_api` and `nova_auth_api` is
+separate from the generated SDK trees documented here.
 
 Generator-facing OpenAPI rules that downstream consumers can rely on:
 
@@ -76,3 +60,12 @@ Generator-facing OpenAPI rules that downstream consumers can rely on:
 - semantic tags for generated package/module grouping
 - committed Python SDK trees regenerated from
   `../../packages/contracts/openapi/*.openapi.json`
+
+## Workflow reference policy
+
+- `@v1` is the public compatibility channel for reusable workflow consumers.
+- Committed downstream workflow examples pin immutable release tags such as
+  `@v1.x.y`.
+- Production and high-assurance consumers should pin `@v1.x.y` or a full
+  commit SHA.
+- Branch refs such as `@main` are not part of the supported consumer contract.

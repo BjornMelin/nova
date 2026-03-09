@@ -6,6 +6,12 @@ FastAPI control-plane runtime for direct-to-S3 uploads/downloads and async job
 orchestration. The service returns presigned metadata and job state; it does not
 proxy file bytes.
 
+The canonical async worker lane executes `transfer.process` jobs by
+server-side copying a scoped upload object into the export prefix and returning
+`export_key` plus `download_filename`. For async worker retries, the same
+`job_id` reuses the same export key so SQS replay does not mint duplicate
+export objects.
+
 ## Canonical Contract
 
 Active route authority is hard-cut canonical `/v1/*` plus `/metrics/summary`:
@@ -35,15 +41,14 @@ contracts and operator runbooks.
 
 ## SDK Governance
 
-Nova owns complete client SDKs for Python, TypeScript, and R as the target
-public contract surface.
+Python SDKs are the only release-grade public client surface in this wave.
 
 Current repository posture:
 
 - committed Python SDK trees remain the public, drift-gated client artifacts
   used today
-- TypeScript and R package scaffolding stays in-repo as the required foundation
-  for future publish-ready parity and must not be deleted
+- TypeScript and R package scaffolding stays in-repo as internal/generated
+  foundation work and must not be deleted ahead of a later promotion wave
 - the TypeScript foundation packages install through the repo npm workspace in
   source/CI mode and publish as private CodeArtifact npm packages with concrete
   semver dependencies during staged release promotion
@@ -98,8 +103,15 @@ For exact endpoint and payload contract details, use:
   `OIDC_JWKS_URL` configuration fails the `auth_dependency` readiness check.
 - `POST /v1/internal/jobs/{job_id}/result` with `status=succeeded` normalizes
   `error` to `null`.
+- SQS-backed worker messages are work requests only:
+  `job_id`, `job_type`, `scope_id`, `payload`, and `created_at`.
+- `transfer.process` is the canonical async job type; successful worker
+  completion returns `export_key` and `download_filename`.
 - Malformed worker queue messages are retried and drain to DLQ through SQS
   redrive policy; they are not acknowledged immediately.
+- Worker result callbacks must be durably accepted before a message is deleted;
+  transient callback rejection leaves the source message on the queue for
+  retry/DLQ handling.
 
 ## Local Development
 
@@ -163,8 +175,16 @@ Release sequencing contract:
   blue/green deployment strategy, CloudWatch deployment alarms, and WAF on the
   public ALB path.
 - Worker deployment contract uses the packaged `nova-file-worker` command plus
-  `JobsApiBaseUrl` and `JobsWorkerUpdateTokenSecretArn` inputs for the
-  canonical `JOBS_*` runtime.
+  `JobsApiBaseUrl` and mandatory `JobsWorkerUpdateTokenSecretArn` inputs for
+  the canonical `JOBS_*` runtime, including scale-from-zero worker services.
+- Worker autoscaling uses explicit queue-depth step scaling
+  (bootstrap/backlog/surge plus empty-queue scale-in) and keeps
+  `ApproximateAgeOfOldestMessage` as an operator alarm.
+- Reusable GitHub workflows are published as versioned automation APIs:
+  `@v1` is the compatibility channel, while production consumers pin immutable
+  `@v1.x.y` tags or full commit SHAs.
+- Composite actions under `.github/actions/**` are internal implementation
+  details behind the reusable workflow API surface.
 - Base URL authority: deploy validation URLs are sourced from
   `/nova/{env}/{service}/base-url` via
   `infra/nova/deploy/service-base-url-ssm.yml`.

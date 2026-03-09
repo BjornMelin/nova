@@ -2,7 +2,7 @@
 
 Status: Active
 Owner: nova release architecture
-Last updated: 2026-03-05
+Last updated: 2026-03-09
 
 ## 1. Scope
 
@@ -27,6 +27,22 @@ Companion modular setup guides:
    `main`-branch plan runs and must checkout `workflow_run.head_sha`.
 5. Release commits from automation must be cryptographically signed.
 6. AWS promotion consumes immutable artifacts from signed source state.
+
+## 2A. Reusable workflow versioning policy
+
+1. Nova reusable workflows are published as external automation APIs.
+2. Each compatible workflow-contract release creates an immutable annotated tag
+   `v1.x.y` on the signed release commit.
+3. The moving major tag `v1` points to the latest compatible `v1.x.y` release
+   commit.
+4. Breaking caller-visible workflow contract changes require a new major line
+   (`v2`, `v2.x.y`) and must not silently retarget `v1`.
+5. Public docs may show `@v1` for onboarding, but production and
+   high-assurance guidance requires `@v1.x.y` or a full commit SHA.
+6. Composite actions under `.github/actions/**` are internal implementation
+   details and are not published as direct external APIs.
+7. Release automation reads `WORKFLOW_API_MAJOR` (default `1`) when publishing
+   reusable-workflow tags.
 
 ## 3. Promotion policy
 

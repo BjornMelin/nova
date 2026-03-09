@@ -31,8 +31,11 @@ also managed as a contract-governed authority surface.
 3. Post-deploy validation contracts must check both:
    - canonical route reachability (`/v1/*` + `/metrics/summary`), and
    - required legacy route `404` behavior.
-4. Consumer workflow usage must pin reusable workflow references to `@v1` for
-   stable channels and `@v1.x.y`/SHA for production immutability.
+4. Consumer workflow usage follows the reusable workflow versioning contract:
+   - stable major tags such as `@v1` are the public compatibility channel,
+   - committed examples use immutable release tags, and
+   - production/high-assurance consumers pin immutable release tags or full
+     commit SHAs.
 
 ## Consequences
 

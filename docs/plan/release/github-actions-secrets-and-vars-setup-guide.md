@@ -2,7 +2,7 @@
 
 Status: Active
 Owner: nova release architecture
-Last reviewed: 2026-03-05
+Last reviewed: 2026-03-09
 
 ## Purpose
 
@@ -22,6 +22,10 @@ Configure repository secrets and variables required by release automation in
 - `AWS_REGION`
 - `CODEARTIFACT_STAGING_REPOSITORY`
 - `CODEARTIFACT_PROD_REPOSITORY`
+- `WORKFLOW_API_MAJOR`
+  - default: `1`
+  - controls the moving reusable-workflow major tag published by
+    `release-apply.yml`
 
 ## Prerequisites
 
@@ -42,6 +46,7 @@ Configure repository secrets and variables required by release automation in
     export AWS_REGION="us-east-1"
     export CODEARTIFACT_STAGING_REPOSITORY="galaxypy-staging"
     export CODEARTIFACT_PROD_REPOSITORY="galaxypy-prod"
+    export WORKFLOW_API_MAJOR="1"
     ```
 
 2. Set repository secrets.
@@ -60,6 +65,7 @@ Configure repository secrets and variables required by release automation in
     gh variable set AWS_REGION --repo "${GH_REPO}" --body "${AWS_REGION}"
     gh variable set CODEARTIFACT_STAGING_REPOSITORY --repo "${GH_REPO}" --body "${CODEARTIFACT_STAGING_REPOSITORY}"
     gh variable set CODEARTIFACT_PROD_REPOSITORY --repo "${GH_REPO}" --body "${CODEARTIFACT_PROD_REPOSITORY}"
+    gh variable set WORKFLOW_API_MAJOR --repo "${GH_REPO}" --body "${WORKFLOW_API_MAJOR}"
     ```
 
 4. Verify current values exist.
@@ -81,6 +87,10 @@ Configured values are consumed by:
   - `RELEASE_AWS_ROLE_ARN: ${{ secrets.RELEASE_AWS_ROLE_ARN }}`
   - `CODEARTIFACT_STAGING_REPOSITORY: ${{ vars.CODEARTIFACT_STAGING_REPOSITORY }}`
   - `CODEARTIFACT_PROD_REPOSITORY: ${{ vars.CODEARTIFACT_PROD_REPOSITORY }}`
+- Release apply workflow tags
+  - `release-apply.yml`
+  - `reusable-release-apply.yml`
+  - `WORKFLOW_API_MAJOR: ${{ vars.WORKFLOW_API_MAJOR || '1' }}`
 - Auth0 tenant deploy workflows
   - `auth0-tenant-deploy.yml`
   - `reusable-auth0-tenant-deploy.yml`

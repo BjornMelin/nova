@@ -3,9 +3,13 @@ controlled promotion policy."""
 
 from __future__ import annotations
 
-import yaml
+from pathlib import Path
 
-from .helpers import read_repo_file as _read
+REPO_ROOT = Path(__file__).resolve().parents[2]
+
+
+def _read(rel: str) -> str:
+    return (REPO_ROOT / rel).read_text(encoding="utf-8")
 
 
 def test_publish_packages_workflow_has_staged_gate_contracts() -> None:
@@ -83,26 +87,23 @@ def test_promote_prod_workflow_has_controlled_package_promotion_policy() -> (
         )
 
 
-def test_release_apply_workflows_are_thin_wrappers_to_reusable_api() -> None:
-    """Release apply workflows must call shared reusable implementation."""
+def test_release_apply_workflow_is_thin_wrapper_to_reusable_api() -> None:
+    """Release apply workflow must call shared reusable implementation."""
     release_apply_text = _read(".github/workflows/release-apply.yml")
-    build_publish_text = _read(".github/workflows/build-and-publish-image.yml")
 
     for required in [
         "uses: ./.github/workflows/reusable-release-apply.yml",
         "checkout_ref:",
+        "plan_run_id:",
+        "workflow_api_major:",
         "release_signing_secret_id",
         "workflow_dispatch",
     ]:
         assert required in release_apply_text, (
             f"Missing release-apply wrapper contract: {required!r}"
         )
-        assert required in build_publish_text, (
-            f"Missing build-and-publish-image wrapper contract: {required!r}"
-        )
 
     assert 'workflows: ["Nova Release Plan"]' in release_apply_text
-    assert 'workflows: ["Publish Packages"]' in build_publish_text
 
     for forbidden in [
         "scripts.release.changed_units",
@@ -110,7 +111,29 @@ def test_release_apply_workflows_are_thin_wrappers_to_reusable_api() -> None:
         "Configure git signing from Secrets Manager",
     ]:
         assert forbidden not in release_apply_text
-        assert forbidden not in build_publish_text
+
+
+def test_reusable_release_apply_consumes_plan_artifacts() -> None:
+    """Reusable release-apply must consume immutable plan artifacts."""
+    text = _read(".github/workflows/reusable-release-apply.yml")
+
+    for required in [
+        "plan_run_id:",
+        "workflow_api_major:",
+        "scripts.release.download_run_artifact",
+        "scripts.release.publish_workflow_api_tags",
+        "release-plan-artifacts",
+        "release-apply-artifacts",
+        "release-apply-metadata.json",
+        "workflow-api-tagging.json",
+        "changed-units.json",
+        "version-plan.json",
+    ]:
+        assert required in text
+
+    assert "Recompute release plan" not in text
+    assert "scripts.release.changed_units" not in text
+    assert "scripts.release.version_plan" not in text
 
 
 def test_release_plan_workflow_is_wrapper_to_reusable_api() -> None:
@@ -166,7 +189,6 @@ def test_post_deploy_validate_workflow_contracts() -> None:
     for required in [
         "uses: ./.github/workflows/reusable-post-deploy-validate.yml",
         "validation_base_url",
-        "service_base_url",
         "validation_canonical_paths",
         "validation_legacy_404_paths",
         "report_path",
@@ -177,6 +199,8 @@ def test_post_deploy_validate_workflow_contracts() -> None:
         )
 
     for forbidden in [
+        "service_base_url",
+        "auth_service_base_url",
         "scripts/release/validate_route_contract.py",
         "actions/upload-artifact@v4",
     ]:
@@ -187,7 +211,6 @@ def test_post_deploy_validate_workflow_contracts() -> None:
     for required in [
         "workflow_call:",
         "validation_base_url",
-        "service_base_url",
         "validation_canonical_paths",
         "validation_legacy_404_paths",
         "report_path",
@@ -211,31 +234,21 @@ def test_post_deploy_validate_workflow_contracts() -> None:
             f"Missing required reusable contract: {required!r}"
         )
 
+    for forbidden in [
+        "service_base_url",
+        "auth_service_base_url",
+        "SERVICE_BASE_URL",
+        "AUTH_SERVICE_BASE_URL",
+    ]:
+        assert forbidden not in reusable_text, (
+            f"Reusable workflow must not preserve alias contract: {forbidden!r}"
+        )
+
 
 def test_auth0_tenant_deploy_workflow_contracts() -> None:
     """Validate Auth0 tenant deploy wrapper/reusable workflow contracts."""
     wrapper_text = _read(".github/workflows/auth0-tenant-deploy.yml")
     reusable_text = _read(".github/workflows/reusable-auth0-tenant-deploy.yml")
-
-    wrapper_workflow = yaml.safe_load(wrapper_text)
-    assert isinstance(wrapper_workflow, dict)
-    wrapper_jobs = wrapper_workflow.get("jobs")
-    assert isinstance(wrapper_jobs, dict), "Expected jobs mapping in wrapper"
-
-    auth0_reusable_workflow_path = (
-        "./.github/workflows/reusable-auth0-tenant-deploy.yml"
-    )
-
-    auth0_jobs = [
-        value
-        for value in wrapper_jobs.values()
-        if isinstance(value, dict)
-        and value.get("uses") == auth0_reusable_workflow_path
-    ]
-    assert len(auth0_jobs) == 1, (
-        "Expected exactly one wrapper job using reusable-auth0-tenant-deploy"
-    )
-    auth0_job = auth0_jobs[0]
 
     for required in [
         "uses: ./.github/workflows/reusable-auth0-tenant-deploy.yml",
@@ -245,26 +258,13 @@ def test_auth0_tenant_deploy_workflow_contracts() -> None:
         "input_file",
         "mapping_file",
         "artifact_name",
+        "AUTH0_DOMAIN",
+        "AUTH0_CLIENT_ID",
+        "AUTH0_CLIENT_SECRET",
     ]:
         assert required in wrapper_text, (
             f"Missing required wrapper contract: {required!r}"
         )
-
-    auth0_secrets = auth0_job.get("secrets", {})
-    if auth0_secrets != "inherit":
-        assert isinstance(auth0_secrets, dict), (
-            "Wrapper secrets must be either inherit or a mapping"
-        )
-
-        for required_secret in [
-            "AUTH0_DOMAIN",
-            "AUTH0_CLIENT_ID",
-            "AUTH0_CLIENT_SECRET",
-        ]:
-            assert any(
-                required_secret in str(secret_reference)
-                for secret_reference in auth0_secrets.values()
-            ), f"Missing required wrapper secret reference: {required_secret}"
 
     for forbidden in [
         "a0deploy import --input_file",
@@ -336,12 +336,13 @@ def test_deploy_validate_buildspec_enforces_route_contracts() -> None:
 
     for required in [
         "VALIDATION_BASE_URL",
-        "SERVICE_BASE_URL",
         "scripts/release/validate_route_contract.py",
         "deploy-validation-report.json",
         "VALIDATION_STATUS",
     ]:
         assert required in text, f"Missing required contract: {required!r}"
+
+    assert "SERVICE_BASE_URL" not in text
 
     for required in [
         "/v1/health/live",

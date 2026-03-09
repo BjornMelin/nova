@@ -3,12 +3,16 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from typing import Any
 
 import yaml
 
-from .helpers import REPO_ROOT
-from .helpers import read_repo_file as _read
+REPO_ROOT = Path(__file__).resolve().parents[2]
+
+
+def _read(rel: str) -> str:
+    return (REPO_ROOT / rel).read_text(encoding="utf-8")
 
 
 def _read_json(rel: str) -> dict[str, Any]:
@@ -35,7 +39,6 @@ def test_contract_schema_files_exist_and_are_valid_json() -> None:
         "docs/contracts/release-artifacts-v1.schema.json",
         "docs/contracts/workflow-post-deploy-validate.schema.json",
         "docs/contracts/workflow-auth0-tenant-deploy.schema.json",
-        "docs/contracts/workflow-auth0-tenant-ops-v1.schema.json",
         "docs/contracts/ssm-runtime-base-url-v1.schema.json",
         "docs/contracts/browser-live-validation-report.schema.json",
     ]:
@@ -53,11 +56,15 @@ def test_contract_schema_files_exist_and_are_valid_json() -> None:
         else:
             assert data.get("schema_version") == "1.0"
 
+    assert not (
+        REPO_ROOT / "docs/contracts/workflow-auth0-tenant-ops-v1.schema.json"
+    ).exists()
+
 
 def test_auth0_and_ssm_contract_schemas_include_required_keys() -> None:
     """Auth0 and SSM contract schemas must expose required authority fields."""
     auth0_schema = _read_json(
-        "docs/contracts/workflow-auth0-tenant-ops-v1.schema.json"
+        "docs/contracts/workflow-auth0-tenant-deploy.schema.json"
     )
     ssm_schema = _read_json(
         "docs/contracts/ssm-runtime-base-url-v1.schema.json"
@@ -96,23 +103,18 @@ def test_workflow_io_schema_contract_matches_reusable_deploy_runtime_api() -> (
     workflow_outputs = workflow_call["outputs"]
 
     schema_inputs = input_schema["properties"]
-    deploy_runtime_output_schema = output_schema["$defs"][
-        "deploy_runtime_output"
-    ]
-    schema_outputs = deploy_runtime_output_schema["properties"]
+    schema_outputs = output_schema["properties"]
 
     assert set(workflow_inputs).issubset(set(schema_inputs))
     assert set(workflow_outputs) == set(schema_outputs)
-    assert set(deploy_runtime_output_schema["required"]) == set(
-        workflow_outputs
-    )
 
     for required_input in input_schema["required"]:
         assert required_input in workflow_inputs
         assert workflow_inputs[required_input].get("required") is True
 
     assert (
-        output_schema["$defs"]["manifest_sha256"]["pattern"] == "^[a-f0-9]{64}$"
+        output_schema["properties"]["manifest_sha256"]["pattern"]
+        == "^[a-f0-9]{64}$"
     )
 
 
@@ -170,7 +172,7 @@ def test_downstream_examples_reference_reusable_post_deploy_workflow() -> None:
     """Downstream examples must call the shared reusable workflow."""
     workflow_ref = (
         "uses: 3M-Cloud/nova/.github/workflows/"
-        "reusable-post-deploy-validate.yml@"
+        "reusable-post-deploy-validate.yml@v1.x.y"
     )
     for rel_path in [
         "docs/clients/examples/workflows/dash-post-deploy-validate.yml",
@@ -184,20 +186,21 @@ def test_downstream_examples_reference_reusable_post_deploy_workflow() -> None:
         assert "validation_legacy_404_paths:" in text
 
 
-def test_downstream_minimal_workflow_files_exist_and_pin_v1() -> None:
-    """Minimal downstream workflow examples must exist and pin @v1."""
+def test_downstream_minimal_workflow_files_exist_and_pin_release_tag() -> None:
+    """Minimal downstream workflow examples must pin an immutable release tag.
+    """
     for rel_path in [
         "docs/clients/dash-minimal-workflow.yml",
         "docs/clients/rshiny-minimal-workflow.yml",
         "docs/clients/react-next-minimal-workflow.yml",
     ]:
         text = _read(rel_path)
-        assert "reusable-post-deploy-validate.yml@v1" in text
+        assert "reusable-post-deploy-validate.yml@v1.x.y" in text
         assert "validation_base_url: ${{ vars.NOVA_API_BASE_URL }}" in text
 
 
-def test_integration_guide_includes_versioning_policy_references() -> None:
-    """Integration guide must reference release and versioning docs."""
+def test_integration_guide_includes_major_and_immutable_ref_guidance() -> None:
+    """Integration guide must document major-tag and immutable-pin policy."""
     text = _read("docs/clients/post-deploy-validation-integration-guide.md")
 
     for required in [
@@ -207,21 +210,23 @@ def test_integration_guide_includes_versioning_policy_references() -> None:
         "docs/contracts/browser-live-validation-report.schema.json",
         "docs/contracts/release-artifacts-v1.schema.json",
         "docs/contracts/reusable-workflow-inputs-v1.schema.json",
-        (
-            "docs/contracts/reusable-workflow-outputs-v1.schema.json"
-            "#/$defs/validation_report_output"
-        ),
+        "docs/contracts/reusable-workflow-outputs-v1.schema.json",
         "docs/contracts/deploy-size-profiles-v1.json",
-        "docs/plan/release/RELEASE-POLICY.md",
-        (
-            "docs/architecture/spec/"
-            "SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md"
-        ),
         "@v1",
         "@v1.x.y",
-        "5-minute setup flow",
+        "full commit SHA",
+        (
+            "Branch refs such as `@main` are not part of the supported "
+            "consumer contract."
+        ),
     ]:
         assert required in text
+
+    for forbidden in [
+        "latest-only prelaunch",
+        "exact commit SHA before use",
+    ]:
+        assert forbidden not in text
 
 
 def test_auth0_workflow_schema_matches_reusable_auth0_api() -> None:

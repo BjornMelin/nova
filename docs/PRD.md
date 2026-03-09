@@ -1,7 +1,7 @@
 # Product Requirements Document (PRD): Nova Runtime
 
 Status: Active canonical PRD
-Last updated: 2026-03-05
+Last updated: 2026-03-09
 Audience: Product, Engineering, Platform Operations
 
 ## 1. Product Goal
@@ -16,6 +16,10 @@ async jobs with zero route-surface ambiguity.
   operator docs.
 - One truthful active runtime authority pack for topology, startup validation,
   and auth execution.
+- One truthful async worker lane that executes canonical `transfer.process`
+  work instead of synthetic completion.
+- One replay-safe async worker lane where callback retries do not create
+  duplicate export objects for the same job.
 - Superseded ADR/SPEC material is quarantined outside the active authority set.
 - Stable generated-client and conformance behavior against current OpenAPI.
 - Ergonomic SDK-facing OpenAPI identifiers and semantic generator groupings
@@ -29,20 +33,28 @@ async jobs with zero route-surface ambiguity.
    control plane, capability/release discovery, health/readiness, and metrics.
 2. Runtime semantics preserve queue failure behavior (`503 queue_unavailable`),
    readiness dependency-scoping, strict distributed idempotency behavior for
-   AWS-backed prod, and worker update normalization.
+   AWS-backed prod, worker update normalization, real async execution for
+   canonical `transfer.process` jobs, replay-safe per-job export-key
+   persistence under worker redelivery, and scale-from-zero-safe worker secret
+   plus autoscaling contracts.
 3. OpenAPI 3.1 output remains the contract source for SDK/client generation and
    policy checks, including stable snake_case `operationId` values, semantic
    SDK grouping tags, and resolvable named component schemas for custom request
    bodies.
 4. Release policy enforces immutable artifact promotion and auditable manual
    approval before prod.
-5. Documentation authority remains singular and unambiguous across README,
+5. Reusable GitHub workflows are published as versioned automation APIs, with
+   stable major tags for onboarding and immutable release tags or full commit
+   SHAs for production/high-assurance consumers.
+6. Documentation authority remains singular and unambiguous across README,
    PRD, requirements, ADR/SPEC, plan, and runbooks.
-6. Public SDK productization for this wave is Python-only; TypeScript and R
-   remain internal/generated catalogs until a dedicated promotion wave.
-7. Deployment target-state uses ECS/Fargate behind ALB with ECS-native
+7. Public SDK productization for this wave remains Python-only. Retained
+   TypeScript and R scaffolding stays internal/generated until a later
+   promotion wave and remains subordinate to canonical OpenAPI.
+8. Deployment target-state uses ECS/Fargate behind ALB with ECS-native
    blue/green rollout, CloudWatch alarms, WAF on public ingress, and manifest
-   hash evidence tied to the release manifest itself.
+   hash evidence tied to the release manifest itself. Worker scaling must be
+   scale-from-zero-safe and secret-backed.
 
 ## 4. Scope and Non-Goals
 
@@ -80,10 +92,10 @@ Out of scope:
 6. Auth0 tenant import/export paths are fail-fast and cannot mutate tenants when
    contract validation fails.
 7. CodeArtifact promotion IAM contracts remain least-privilege, scoped to
-   explicit staged source and prod destination repositories, and cover Python
-   plus private npm publication controls.
-8. Active runtime authority IDs (`ADR-0024`, `ADR-0027` through `ADR-0029`,
-   and `SPEC-0017` through `SPEC-0019`) describe runtime subjects only.
+   explicit staged source/prod destination repositories, and cover both Python
+   and private npm package publication plus internal package-group controls.
+8. Active runtime authority IDs (`ADR-0024` through `ADR-0026`,
+   `SPEC-0017` through `SPEC-0019`) describe runtime subjects only.
 9. Superseded ADR/SPEC content is excluded from active authority lists and
    active index sections.
 
@@ -98,6 +110,8 @@ Out of scope:
 - `docs/architecture/requirements.md`
 - `docs/architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md`
 - `docs/architecture/adr/ADR-0024-layered-architecture-authority-pack.md`
+- `docs/architecture/adr/ADR-0025-runtime-monorepo-component-boundaries-and-ownership.md`
+- `docs/architecture/adr/ADR-0026-fail-fast-runtime-configuration-and-safe-auth-execution.md`
 - `docs/architecture/adr/ADR-0027-hard-cut-downstream-integration-and-consumer-contract-enforcement.md`
 - `docs/architecture/adr/ADR-0028-auth0-tenant-ops-reusable-workflow-api-contract.md`
 - `docs/architecture/adr/ADR-0029-ssm-runtime-base-url-authority-for-deploy-validation.md`
@@ -113,3 +127,12 @@ Out of scope:
 - `docs/architecture/spec/SPEC-0023-ssm-runtime-base-url-contract-for-deploy-validation.md`
 - `docs/plan/PLAN.md`
 - `docs/runbooks/README.md`
+
+Adjacent deploy-governance references:
+
+- `docs/architecture/adr/ADR-0030-native-cfn-modular-stack-architecture-for-nova-infrastructure-productization.md`
+- `docs/architecture/adr/ADR-0031-reusable-github-workflow-api-and-versioning-policy-for-deployment-automation.md`
+- `docs/architecture/adr/ADR-0032-oidc-and-iam-role-partitioning-for-deploy-automation.md`
+- `docs/architecture/spec/SPEC-0024-cloudformation-module-contract.md`
+- `docs/architecture/spec/SPEC-0025-reusable-workflow-integration-contract.md`
+- `docs/architecture/spec/SPEC-0026-ci-cd-iam-least-privilege-matrix.md`
