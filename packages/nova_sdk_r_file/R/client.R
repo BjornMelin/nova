@@ -4,8 +4,8 @@ new_nova_file_client <- function(base_url, timeout_seconds = 30) {
   if (!is.character(base_url) || length(base_url) != 1L || !nzchar(base_url)) {
     stop("base_url must be a non-empty string", call. = FALSE)
   }
-  if (is.null(timeout_seconds) || !is.numeric(timeout_seconds) || length(timeout_seconds) != 1L || is.na(timeout_seconds) || !is.finite(timeout_seconds) || timeout_seconds <= 0) {
-    stop("timeout_seconds must be a finite positive number", call. = FALSE)
+  if (is.null(timeout_seconds) || !is.numeric(timeout_seconds) || length(timeout_seconds) != 1L || is.na(timeout_seconds) || !is.finite(timeout_seconds) || timeout_seconds < 0) {
+    stop("timeout_seconds must be a finite non-negative number", call. = FALSE)
   }
   structure(
     list(

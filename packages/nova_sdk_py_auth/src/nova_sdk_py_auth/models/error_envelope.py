@@ -15,7 +15,8 @@ T = TypeVar("T", bound="ErrorEnvelope")
 
 @_attrs_define
 class ErrorEnvelope:
-    """
+    """Canonical auth error envelope.
+
     Attributes:
         error (ErrorEnvelopeError):
     """

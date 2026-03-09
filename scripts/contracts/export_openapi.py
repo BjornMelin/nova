@@ -74,6 +74,7 @@ def _write_outputs(output_dir: Path, *, check: bool) -> int:
 
 
 def _args() -> argparse.Namespace:
+    """Parse command-line options for OpenAPI export/check workflows."""
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--output-dir",

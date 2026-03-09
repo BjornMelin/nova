@@ -9,7 +9,7 @@ from nova_file_api.app import create_app
 
 def test_v1_health_and_capabilities(monkeypatch: pytest.MonkeyPatch) -> None:
     """Verifies v1 live/ready health and capability keys are exposed."""
-    monkeypatch.delenv("FILE_TRANSFER_BUCKET", raising=False)
+    monkeypatch.setenv("FILE_TRANSFER_BUCKET", "")
     app = create_app()
     with TestClient(app) as client:
         live = client.get("/v1/health/live")

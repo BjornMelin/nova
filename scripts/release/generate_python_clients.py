@@ -653,8 +653,6 @@ def _patch_auth_sdk(root: Path) -> None:
     _rewrite_file(root, "models/principal.py", patch_principal)
 
     def patch_introspect_form_request(content: str) -> str:
-        if "_parse_required_permissions" in content:
-            return content
         content = content.replace(
             "        required_permissions = cast(\n"
             '            list[str], d.pop("required_permissions", UNSET)\n'
@@ -787,16 +785,30 @@ def _patch_auth_sdk(root: Path) -> None:
     _rewrite_file(
         root,
         "models/error_envelope.py",
-        lambda content: content.replace(
-            "    def to_dict(self) -> dict[str, Any]:\n",
-            "    def to_dict(self) -> dict[str, Any]:\n"
-            '        """Serialize this model to a JSON-compatible dict."""\n',
-        ).replace(
-            "    @classmethod\n"
-            "    def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:\n",
-            "    @classmethod\n"
-            "    def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:\n"
-            '        """Build this model from a JSON-compatible mapping."""\n',
+        lambda content: (
+            content.replace(
+                "# ruff: noqa\nfrom __future__ import annotations\n",
+                "# ruff: noqa\n"
+                '"""Error envelope model used by auth API responses."""\n\n'
+                "from __future__ import annotations\n",
+            )
+            .replace(
+                'class ErrorEnvelope:\n    """\n',
+                "class ErrorEnvelope:\n"
+                '    """Canonical auth error envelope.\n\n',
+            )
+            .replace(
+                "    def to_dict(self) -> dict[str, Any]:\n",
+                "    def to_dict(self) -> dict[str, Any]:\n"
+                '        """Serialize this model to a JSON-compatible dict."""\n',
+            )
+            .replace(
+                "    @classmethod\n"
+                "    def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:\n",
+                "    @classmethod\n"
+                "    def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:\n"
+                '        """Build this model from a JSON-compatible mapping."""\n',
+            )
         ),
     )
     _rewrite_file(
@@ -1100,20 +1112,32 @@ def _patch_file_sdk(root: Path) -> None:
     _rewrite_file(
         root,
         "api/ops/metrics_summary.py",
-        lambda content: content.replace(
-            "# ruff: noqa\nfrom typing import Any\n\nimport httpx\n",
-            "# ruff: noqa\n"
-            '"""Client helpers for the `/metrics/summary` endpoint."""\n\n'
-            "from typing import Any\n\nimport httpx\n",
-        ).replace(
-            "    Returns:\n        ErrorEnvelope | MetricsSummaryResponse\n",
-            "    Returns:\n        ErrorEnvelope | MetricsSummaryResponse | None\n",
+        lambda content: (
+            content.replace(
+                "from typing import Any\n\nimport httpx\n",
+                '"""Client helpers for the `/metrics/summary` endpoint."""\n\n'
+                "from typing import Any\n\nimport httpx\n",
+            )
+            .replace(
+                "# ruff: noqa\nfrom typing import Any\n\nimport httpx\n",
+                "# ruff: noqa\n"
+                '"""Client helpers for the `/metrics/summary` endpoint."""\n\n'
+                "from typing import Any\n\nimport httpx\n",
+            )
+            .replace(
+                "    Returns:\n        ErrorEnvelope | MetricsSummaryResponse\n",
+                "    Returns:\n        ErrorEnvelope | MetricsSummaryResponse | None\n",
+            )
         ),
     )
     _rewrite_file(
         root,
         "api/ops/health_live.py",
         lambda content: content.replace(
+            "from typing import Any\n",
+            '"""Client helpers for the `/v1/health/live` endpoint."""\n\n'
+            "from typing import Any\n",
+        ).replace(
             "# ruff: noqa\nfrom typing import Any\n",
             "# ruff: noqa\n"
             '"""Client helpers for the `/v1/health/live` endpoint."""\n\n'
@@ -1416,31 +1440,49 @@ def _patch_file_sdk(root: Path) -> None:
     _rewrite_file(
         root,
         "models/error_envelope_error.py",
-        lambda content: content.replace(
-            "    def to_dict(self) -> dict[str, Any]:\n",
-            "    def to_dict(self) -> dict[str, Any]:\n"
-            '        """Serialize this model to a JSON-compatible dict."""\n',
-        ).replace(
-            "    @classmethod\n"
-            "    def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:\n",
-            "    @classmethod\n"
-            "    def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:\n"
-            '        """Build this model from a JSON-compatible mapping."""\n',
+        lambda content: (
+            content.replace(
+                "# ruff: noqa\nfrom __future__ import annotations\n",
+                "# ruff: noqa\n"
+                '"""Error envelope body model for file API SDK responses."""\n\n'
+                "from __future__ import annotations\n",
+            )
+            .replace(
+                "    def to_dict(self) -> dict[str, Any]:\n",
+                "    def to_dict(self) -> dict[str, Any]:\n"
+                '        """Serialize this model to a JSON-compatible dict."""\n',
+            )
+            .replace(
+                "    @classmethod\n"
+                "    def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:\n",
+                "    @classmethod\n"
+                "    def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:\n"
+                '        """Build this model from a JSON-compatible mapping."""\n',
+            )
         ),
     )
     _rewrite_file(
         root,
         "models/job_events_response.py",
-        lambda content: content.replace(
-            "    def to_dict(self) -> dict[str, Any]:\n",
-            "    def to_dict(self) -> dict[str, Any]:\n"
-            '        """Serialize this model to a JSON-compatible dict."""\n',
-        ).replace(
-            "    @classmethod\n"
-            "    def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:\n",
-            "    @classmethod\n"
-            "    def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:\n"
-            '        """Build this model from a JSON-compatible mapping."""\n',
+        lambda content: (
+            content.replace(
+                "# ruff: noqa\nfrom __future__ import annotations\n",
+                "# ruff: noqa\n"
+                '"""Job events envelope model for polling/SSE style responses."""\n\n'
+                "from __future__ import annotations\n",
+            )
+            .replace(
+                "    def to_dict(self) -> dict[str, Any]:\n",
+                "    def to_dict(self) -> dict[str, Any]:\n"
+                '        """Serialize this model to a JSON-compatible dict."""\n',
+            )
+            .replace(
+                "    @classmethod\n"
+                "    def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:\n",
+                "    @classmethod\n"
+                "    def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:\n"
+                '        """Build this model from a JSON-compatible mapping."""\n',
+            )
         ),
     )
     _rewrite_file(
@@ -1467,14 +1509,23 @@ def _patch_file_sdk(root: Path) -> None:
     _rewrite_file(
         root,
         "models/metrics_summary_response_counters.py",
-        lambda content: content.replace(
-            '    """ """\n',
-            '    """Low-cardinality counter metrics map."""\n',
-        ).replace(
-            "        metrics_summary_response_counters.additional_properties = d\n",
-            "        metrics_summary_response_counters.additional_properties = {\n"
-            "            key: int(value) for key, value in d.items()\n"
-            "        }\n",
+        lambda content: (
+            content.replace(
+                "# ruff: noqa\nfrom __future__ import annotations\n",
+                "# ruff: noqa\n"
+                '"""Model for low-cardinality counter metrics returned by the API."""\n\n'
+                "from __future__ import annotations\n",
+            )
+            .replace(
+                '    """ """\n',
+                '    """Low-cardinality counter metrics map."""\n',
+            )
+            .replace(
+                "        metrics_summary_response_counters.additional_properties = d\n",
+                "        metrics_summary_response_counters.additional_properties = {\n"
+                "            key: int(value) for key, value in d.items()\n"
+                "        }\n",
+            )
         ),
     )
     _rewrite_file(
@@ -1490,27 +1541,44 @@ def _patch_file_sdk(root: Path) -> None:
     _rewrite_file(
         root,
         "models/sign_parts_response_urls.py",
-        lambda content: content.replace(
-            '    """ """\n',
-            '    """Signed part URL map keyed by part number."""\n',
-        ).replace(
-            "        sign_parts_response_urls.additional_properties = d\n",
-            "        sign_parts_response_urls.additional_properties = {\n"
-            "            key: str(value) for key, value in d.items()\n"
-            "        }\n",
+        lambda content: (
+            content.replace(
+                "# ruff: noqa\nfrom __future__ import annotations\n",
+                "# ruff: noqa\n"
+                '"""Model for signed multipart part URLs keyed by part number."""\n\n'
+                "from __future__ import annotations\n",
+            )
+            .replace(
+                '    """ """\n',
+                '    """Signed part URL map keyed by part number."""\n',
+            )
+            .replace(
+                "        sign_parts_response_urls.additional_properties = d\n",
+                "        sign_parts_response_urls.additional_properties = {\n"
+                "            key: str(value) for key, value in d.items()\n"
+                "        }\n",
+            )
         ),
     )
     _rewrite_file(
         root,
         "models/upload_strategy.py",
-        lambda content: content.replace(
-            "# ruff: noqa\nfrom enum import Enum\n\n\nclass UploadStrategy",
-            "# ruff: noqa\n"
-            '"""Upload strategy enum for transfer initiation."""\n\n'
-            "from enum import Enum\n\n\nclass UploadStrategy",
-        ).replace(
-            "class UploadStrategy(str, Enum):\n",
-            'class UploadStrategy(str, Enum):\n    """Allowed transfer upload strategies."""\n',
+        lambda content: (
+            content.replace(
+                "from enum import Enum\n\n\nclass UploadStrategy",
+                '"""Upload strategy enum for transfer initiation."""\n\n'
+                "from enum import Enum\n\n\nclass UploadStrategy",
+            )
+            .replace(
+                "# ruff: noqa\nfrom enum import Enum\n\n\nclass UploadStrategy",
+                "# ruff: noqa\n"
+                '"""Upload strategy enum for transfer initiation."""\n\n'
+                "from enum import Enum\n\n\nclass UploadStrategy",
+            )
+            .replace(
+                "class UploadStrategy(str, Enum):\n",
+                'class UploadStrategy(str, Enum):\n    """Allowed transfer upload strategies."""\n',
+            )
         ),
     )
     _rewrite_file(

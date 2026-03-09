@@ -1,4 +1,6 @@
 # ruff: noqa
+"""Upload strategy enum for transfer initiation."""
+
 from enum import Enum
 
 

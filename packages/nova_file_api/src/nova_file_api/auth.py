@@ -344,7 +344,7 @@ def _remote_auth_error(*, response: httpx.Response) -> FileTransferError:
     if status_code >= 500:
         code = "auth_unavailable"
         status_code = 503
-        message = "remote auth verification unavailable"
+        message = "remote auth service unavailable"
     elif status_code not in {401, 403}:
         status_code = 401
 
