@@ -14,10 +14,9 @@ requirements for the first production release.
 - Runtime contract is canonical `/v1/*` plus `/metrics/summary`; non-canonical
   route families are removed.
 - Runtime authority-pack governance and boundary/validation contracts are
-  active under `ADR-0024` + `ADR-0025` + `ADR-0026` and `SPEC-0017` through
-  `SPEC-0023`.
+  active under `ADR-0024` and `SPEC-0017` through `SPEC-0023`.
 - Deployment-control-plane governance is codified separately under
-  `ADR-0030` + `ADR-0031` + `ADR-0032` and `SPEC-0024` through `SPEC-0026`.
+  `ADR-0030` and `SPEC-0024` through `SPEC-0026`.
 - Superseded ADR/SPEC material is archived only under
   `docs/architecture/adr/superseded/**` and
   `docs/architecture/spec/superseded/**`.
