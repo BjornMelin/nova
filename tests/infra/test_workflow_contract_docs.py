@@ -7,8 +7,8 @@ from typing import Any
 
 import yaml
 
-from tests.infra.helpers import REPO_ROOT
-from tests.infra.helpers import read_repo_file as _read
+from .helpers import REPO_ROOT
+from .helpers import read_repo_file as _read
 
 
 def _read_json(rel: str) -> dict[str, Any]:

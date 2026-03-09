@@ -5,8 +5,8 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from tests.infra.helpers import REPO_ROOT
-from tests.infra.helpers import read_repo_file as _read
+from .helpers import REPO_ROOT
+from .helpers import read_repo_file as _read
 
 DOCS_ROOT = REPO_ROOT / "docs"
 AGENTS_PATH = REPO_ROOT / "AGENTS.md"

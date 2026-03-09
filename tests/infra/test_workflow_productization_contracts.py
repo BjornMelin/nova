@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import yaml
 
-from tests.infra.helpers import read_repo_file as _read
+from .helpers import read_repo_file as _read
 
 
 def test_reusable_workflow_call_apis_exist_and_are_callable() -> None:

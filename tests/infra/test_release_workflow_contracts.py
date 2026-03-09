@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import yaml
 
-from tests.infra.helpers import read_repo_file as _read
+from .helpers import read_repo_file as _read
 
 
 def test_publish_packages_workflow_has_staged_gate_contracts() -> None:

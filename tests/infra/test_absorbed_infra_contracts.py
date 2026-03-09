@@ -8,8 +8,8 @@ from __future__ import annotations
 
 import re
 
-from tests.infra.helpers import REPO_ROOT
-from tests.infra.helpers import read_repo_file as _read
+from .helpers import REPO_ROOT
+from .helpers import read_repo_file as _read
 
 RUNTIME_DEPLOYABLE_TEMPLATES = (
     "infra/runtime/ecr.yml",
