@@ -48,6 +48,19 @@ Active authority alignment for runbooks is governed by:
 13. [SPEC-0022](../architecture/spec/SPEC-0022-auth0-tenant-ops-reusable-workflow-contract.md)
 14. [SPEC-0023](../architecture/spec/SPEC-0023-ssm-runtime-base-url-contract-for-deploy-validation.md)
 
+Active authority alignment for runbooks is governed by:
+
+1. [ADR-0024](../architecture/adr/ADR-0024-layered-architecture-authority-pack.md)
+2. [ADR-0025](../architecture/adr/ADR-0025-runtime-monorepo-component-boundaries-and-ownership.md)
+3. [ADR-0026](../architecture/adr/ADR-0026-fail-fast-runtime-configuration-and-safe-auth-execution.md)
+4. [ADR-0027](../architecture/adr/ADR-0027-hard-cut-downstream-integration-and-consumer-contract-enforcement.md)
+5. [ADR-0028](../architecture/adr/ADR-0028-auth0-tenant-ops-reusable-workflow-api-contract.md)
+6. [ADR-0029](../architecture/adr/ADR-0029-ssm-runtime-base-url-authority-for-deploy-validation.md)
+7. [SPEC-0020](../architecture/spec/SPEC-0020-architecture-authority-pack-and-documentation-synchronization-contract.md)
+8. [SPEC-0021](../architecture/spec/SPEC-0021-downstream-hard-cut-integration-and-consumer-validation-contract.md)
+9. [SPEC-0022](../architecture/spec/SPEC-0022-auth0-tenant-ops-reusable-workflow-contract.md)
+10. [SPEC-0023](../architecture/spec/SPEC-0023-ssm-runtime-base-url-contract-for-deploy-validation.md)
+
 ## Related History
 
 - `docs/plan/HISTORY-INDEX.md`

@@ -12,6 +12,12 @@ and auth API services.
 - `packages/nova_dash_bridge/`: Dash/Flask/FastAPI bridge adapters.
 - `packages/contracts/`: OpenAPI and shared contract artifacts.
 
+Release-grade public SDK posture for this wave:
+
+- Python packages are the only release-grade public SDK surface.
+- TypeScript and R packages remain internal/generated catalogs until a later
+  promotion wave.
+
 ## Active Authority
 
 Use these as the active authority set:
@@ -38,11 +44,23 @@ Use these as the active authority set:
 - `docs/plan/PLAN.md`
 - `docs/runbooks/README.md`
 
+Adjacent deploy-governance authority (canonical, but not part of the active
+runtime pack):
+
+- `docs/architecture/adr/ADR-0030-native-cfn-modular-stack-architecture-for-nova-infrastructure-productization.md`
+- `docs/architecture/adr/ADR-0031-reusable-github-workflow-api-and-versioning-policy-for-deployment-automation.md`
+- `docs/architecture/adr/ADR-0032-oidc-and-iam-role-partitioning-for-deploy-automation.md`
+- `docs/architecture/spec/SPEC-0024-cloudformation-module-contract.md`
+- `docs/architecture/spec/SPEC-0025-reusable-workflow-integration-contract.md`
+- `docs/architecture/spec/SPEC-0026-ci-cd-iam-least-privilege-matrix.md`
+
 Historical-only pointers:
 
 - `PRD.md`
 - `FINAL-PLAN.md`
 - `docs/plan/HISTORY-INDEX.md`
+- `docs/architecture/adr/superseded/**`
+- `docs/architecture/spec/superseded/**`
 - `docs/history/**`
 
 ## Canonical Route Rules
@@ -64,6 +82,7 @@ Auth API routes MUST be:
 - `/v1/token/verify`
 - `/v1/token/introspect`
 - `/v1/health/live`
+- `/v1/health/ready`
 
 Disallowed runtime route families:
 
@@ -81,6 +100,20 @@ source .venv/bin/activate && \
 rg -n "/v1/transfers|/v1/jobs|/v1/internal/jobs|/v1/capabilities|/v1/resources/plan|/v1/releases/info|/v1/token/verify|/v1/token/introspect|/v1/health/live|/v1/health/ready|/metrics/summary" apps packages docs
 ```
 
+## SDK/OpenAPI Generation Rules
+
+- OpenAPI 3.1 artifacts in `packages/contracts/openapi/` are the only SDK
+  generation inputs.
+- SDK-facing `operationId` values MUST be stable lowercase snake_case, unique
+  per document, and not derived from path/method/version literals.
+- SDK-facing tags MUST be semantic router groups only:
+  `transfers`, `jobs`, `platform`, `ops`, `token`, and `health`.
+- Custom request-body `$ref` entries added through `openapi_extra` MUST resolve
+  to named component schemas in the emitted OpenAPI document.
+- Regenerate internal TS/R catalogs with
+  `scripts/release/generate_clients.py` and committed Python SDK trees with
+  `scripts/release/generate_python_clients.py`.
+
 ## Runtime Invariants
 
 - `POST /v1/jobs` queue publish failures MUST return `503` with
@@ -88,6 +121,8 @@ rg -n "/v1/transfers|/v1/jobs|/v1/internal/jobs|/v1/capabilities|/v1/resources/p
 - Failed enqueue responses MUST NOT be idempotency replay cached.
 - `/v1/health/ready` must evaluate only traffic-critical dependencies.
 - Missing/blank `FILE_TRANSFER_BUCKET` MUST fail readiness.
+- `AUTH_MODE=jwt_local` with incomplete `OIDC_ISSUER`, `OIDC_AUDIENCE`, or
+  `OIDC_JWKS_URL` MUST fail the `auth_dependency` readiness check.
 - `POST /v1/internal/jobs/{job_id}/result` with `status=succeeded` MUST clear
   `error` to `null`.
 - Do not log presigned URLs, JWTs, or signed query values.
@@ -95,6 +130,9 @@ rg -n "/v1/transfers|/v1/jobs|/v1/internal/jobs|/v1/capabilities|/v1/resources/p
   use a threadpool boundary.
 - `JOBS_QUEUE_BACKEND=sqs` with `JOBS_ENABLED=true` requires
   `JOBS_SQS_QUEUE_URL`.
+- `JOBS_RUNTIME_MODE=worker` requires `JOBS_ENABLED=true`,
+  `JOBS_QUEUE_BACKEND=sqs`, `JOBS_SQS_QUEUE_URL`, `JOBS_API_BASE_URL`, and
+  `JOBS_WORKER_UPDATE_TOKEN`.
 - `ACTIVITY_STORE_BACKEND=dynamodb` requires `ACTIVITY_ROLLUPS_TABLE`.
 
 ## Required Quality Gates
@@ -110,6 +148,9 @@ source .venv/bin/activate && uv run mypy
 source .venv/bin/activate && uv run pytest -q
 source .venv/bin/activate && uv run pytest -q \
   packages/nova_file_api/tests/test_generated_client_smoke.py
+source .venv/bin/activate && uv run python scripts/contracts/export_openapi.py --check
+source .venv/bin/activate && uv run python scripts/release/generate_clients.py --check
+source .venv/bin/activate && uv run python scripts/release/generate_python_clients.py --check
 source .venv/bin/activate && \
 for p in packages/nova_file_api packages/nova_auth_api \
   packages/nova_dash_bridge apps/nova_file_api_service \
@@ -130,6 +171,8 @@ Any behavioral or contract change MUST update all affected docs in the same PR:
 - affected `docs/clients/*.md` and `docs/clients/**/*.yml` for downstream integration contracts
 - affected `docs/plan/release/*.md`
 - `docs/runbooks/README.md` when runbook authority changes
+- `docs/architecture/adr/superseded/**` and
+  `docs/architecture/spec/superseded/**` when active authority is superseded
 - `docs/history/**` when archival paths/evidence pointers change
 - `PRD.md` and `FINAL-PLAN.md` only when archive pointers change
 
@@ -146,5 +189,5 @@ rg -n "/v1/transfers|/v1/jobs|nova_dash_bridge|nova_file_api" \
 
 ```bash
 rg -n "container-craft" README.md docs/architecture docs/plan docs/runbooks \
-  | rg -v "docs/history|historical|archive|retired|ADR-0001|ADR-0014|SPEC-0013|SPEC-0014|RELEASE-VERSION-MANIFEST"
+  | rg -v "docs/history|docs/architecture/adr/superseded|docs/architecture/spec/superseded|historical|archive|retired|ADR-0001|SPEC-0013|SPEC-0014|requirements.md|RELEASE-VERSION-MANIFEST"
 ```
