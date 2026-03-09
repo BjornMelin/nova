@@ -9,6 +9,8 @@ from fastapi import Depends, Request
 from nova_auth_api.service import TokenVerificationService
 
 _AUTH_SERVICE_NOT_INITIALIZED = "auth service not initialized"
+
+
 def get_token_verification_service(
     request: Request,
 ) -> TokenVerificationService:
