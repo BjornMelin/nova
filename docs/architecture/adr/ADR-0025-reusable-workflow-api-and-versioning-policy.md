@@ -19,8 +19,6 @@ Related:
 Nova publishes reusable `workflow_call` deployment APIs as a product contract.
 Entry workflows become thin wrappers, and downstream repos consume stable
 versioned workflow interfaces.
-Canonical documentation authority chain for this ADR is
-`requirements.md -> ADR-0023 -> SPEC-0000 -> SPEC-0016`.
 
 ## Context
 

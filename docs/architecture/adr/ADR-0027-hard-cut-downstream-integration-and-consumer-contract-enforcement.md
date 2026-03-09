@@ -18,8 +18,6 @@ Related:
 Downstream integrations are part of the hard-cut contract surface. Consumer repos
 must use canonical `/v1/*` runtime routes, adopt reusable validation workflow
 APIs, and keep consumer examples synchronized with active Nova contract schemas.
-Canonical documentation authority chain for this ADR is
-`requirements.md -> ADR-0023 -> SPEC-0000 -> SPEC-0016`.
 
 ## Context
 
