@@ -121,6 +121,8 @@ If `${NOVA_ARTIFACT_BUCKET_NAME}` already exists, pass it as
 `ExistingArtifactBucketName`. If it does not exist yet, set
 `ExistingArtifactBucketName=""` and pass it as `ArtifactBucketName`.
 
+If the artifact bucket already exists:
+
 ```bash
 aws cloudformation deploy \
   --region "${AWS_REGION}" \
@@ -131,7 +133,27 @@ aws cloudformation deploy \
     Project="${PROJECT}" \
     Application="${APPLICATION}" \
     ExistingArtifactBucketName="${NOVA_ARTIFACT_BUCKET_NAME}" \
-    ArtifactBucketName="" \
+    CodeArtifactDomainName="${CODEARTIFACT_DOMAIN_NAME}" \
+    CodeArtifactRepositoryName="${CODEARTIFACT_STAGING_REPOSITORY}" \
+    EcrRepositoryArn="${ECR_REPOSITORY_ARN}" \
+    EcrRepositoryName="${ECR_REPOSITORY_NAME}" \
+    EcrRepositoryUri="${ECR_REPOSITORY_URI}" \
+    ExistingConnectionArn="${EXISTING_CONNECTION_ARN:-}"
+```
+
+If the artifact bucket does not yet exist:
+
+```bash
+aws cloudformation deploy \
+  --region "${AWS_REGION}" \
+  --stack-name "${PROJECT}-${APPLICATION}-nova-foundation" \
+  --template-file infra/nova/nova-foundation.yml \
+  --capabilities CAPABILITY_NAMED_IAM \
+  --parameter-overrides \
+    Project="${PROJECT}" \
+    Application="${APPLICATION}" \
+    ExistingArtifactBucketName="" \
+    ArtifactBucketName="${NOVA_ARTIFACT_BUCKET_NAME}" \
     CodeArtifactDomainName="${CODEARTIFACT_DOMAIN_NAME}" \
     CodeArtifactRepositoryName="${CODEARTIFACT_STAGING_REPOSITORY}" \
     EcrRepositoryArn="${ECR_REPOSITORY_ARN}" \
