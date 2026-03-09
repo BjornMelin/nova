@@ -17,9 +17,25 @@ Active route authority is hard-cut canonical `/v1/*` plus `/metrics/summary`:
 Topology and release-delivery authority:
 
 - `docs/architecture/spec/SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md`
+- `docs/architecture/adr/ADR-0024-layered-architecture-authority-pack.md`
 
 Only canonical `/v1/*` routes and `/metrics/summary` are valid in active
 contracts and operator runbooks.
+
+## SDK Governance
+
+This release wave exposes one public, release-grade SDK surface: Python.
+TypeScript and R packages remain generator-owned in-repo catalogs and are not
+yet productized/published as first-class public SDKs.
+
+Current OpenAPI generation behavior:
+
+- `operationId` values are stable lowercase snake_case names and are currently
+  route/method-derived.
+- File API operation tags are currently router-owned and include
+  implementation tags such as `transfers`, `ops`, and `v1`.
+- OpenAPI artifacts are produced from runtime FastAPI schemas (`/openapi.json`)
+  for contract checks and client smoke validation.
 
 ## Runtime Capability Families
 
@@ -43,6 +59,9 @@ For exact endpoint and payload contract details, use:
 - Failed enqueue responses are not idempotency replay cached.
 - `/v1/health/ready` is dependency-scoped and fails on blank
   `FILE_TRANSFER_BUCKET`.
+- `AUTH_MODE=jwt_local` with incomplete `OIDC_ISSUER`, `OIDC_AUDIENCE`, or
+  `OIDC_JWKS_URL` configuration is not currently represented as a dedicated
+  `/v1/health/ready` `auth_dependency` check.
 - `POST /v1/internal/jobs/{job_id}/result` with `status=succeeded` normalizes
   `error` to `null`.
 
@@ -85,9 +104,16 @@ Release sequencing contract:
   `prod` before CI/CD stack rollout.
 - Foundation-first control plane: `nova-foundation` is deployed before IAM,
   CodeBuild, and CodePipeline stacks.
+- Runtime deployment target is ECS/Fargate behind ALB with CodeDeploy-based
+  ECS blue/green deployment controls and CloudWatch deployment alarms.
+- Worker deployment contract uses the packaged `nova-file-worker` command plus
+  `JobsApiBaseUrl` and `JobsWorkerUpdateTokenSecretArn` inputs for the
+  canonical `JOBS_*` runtime.
 - Base URL authority: deploy validation URLs are sourced from
   `/nova/{env}/{service}/base-url` via
   `infra/nova/deploy/service-base-url-ssm.yml`.
+- Release manifest hashing must describe the actual
+  `docs/plan/release/RELEASE-VERSION-MANIFEST.md` content promoted across lanes.
 
 Key active release docs:
 

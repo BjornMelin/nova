@@ -1,7 +1,7 @@
 # Requirements (nova runtime)
 
 Status: Canonical requirements source
-Last updated: 2026-03-03
+Last updated: 2026-03-05
 
 This document is the source of truth for functional and non-functional
 requirements for the first production release.
@@ -13,10 +13,15 @@ requirements for the first production release.
 - Hard-cut route authority is active under `ADR-0023` + `SPEC-0016`.
 - Runtime contract is canonical `/v1/*` plus `/metrics/summary`; non-canonical
   route families are removed.
-- Architecture authority-pack governance and boundary/validation contracts are
-  active under `ADR-0024` + `ADR-0025` + `ADR-0026` and `SPEC-0017` through
-  `SPEC-0023`, including downstream integration, Auth0 reusable workflow, and
-  SSM base-url authority contracts.
+- Runtime authority-pack governance and boundary/validation contracts are
+  active under `ADR-0024` and `SPEC-0017` through `SPEC-0023`.
+- Deployment-control-plane governance is codified separately under
+  `ADR-0030` and `SPEC-0024` through `SPEC-0026`.
+- Superseded ADR/SPEC material is archived only under
+  `docs/architecture/adr/superseded/**` and
+  `docs/architecture/spec/superseded/**`.
+- Public SDK policy for this release wave is Python-only; TypeScript and R
+  remain internal/generated catalogs.
 
 ## Scope
 
@@ -115,6 +120,9 @@ Readiness evaluation MUST include only traffic-critical dependencies.
 Feature flags (for example `JOBS_ENABLED`) MUST NOT drive readiness pass/fail.
 
 - Missing or blank `FILE_TRANSFER_BUCKET` MUST fail readiness.
+- `AUTH_MODE=jwt_local` with missing `OIDC_ISSUER`, `OIDC_AUDIENCE`, or
+  `OIDC_JWKS_URL` is not currently represented as a dedicated
+  `auth_dependency` readiness check in `/v1/health/ready`.
 
 ### FR-0003: Key generation and scope enforcement
 
@@ -180,6 +188,16 @@ MUST be incremented using first-seen marker logic with conditional writes.
 
 OpenAPI 3.1 output from the API implementation MUST be the canonical HTTP
 contract source for docs and client generation.
+
+Runtime OpenAPI metadata currently follows these rules:
+
+- `operationId` values are unique, stable, snake_case, and currently
+  route/method-derived.
+- file API operation tags are router-defined and currently include
+  implementation tags (for example `v1`) in addition to semantic group tags.
+- custom request-body schema references emitted via OpenAPI overrides MUST
+  resolve to named component schemas in the same document and remain contract-
+  test verifiable from runtime OpenAPI output.
 
 ### FR-0009: S3 multipart correctness and acceleration compatibility
 
@@ -308,6 +326,12 @@ synchronized in one PR.
 Dev/prod validation base URLs MUST be HTTPS, environment-scoped, and sourced
 from SSM authority values with evidence captured in release runbooks.
 
+### NFR-0110: Architecture authority synchronization
+
+Active architecture docs, indexes, and operator instruction files MUST remain
+synchronized and truthfully describe the subject identified by each active
+ADR/SPEC identifier.
+
 ## Integration Requirements
 
 ### IR-0000: Nova-local runtime and release authority
@@ -356,6 +380,12 @@ ops contract behavior.
 
 Deploy validation base URLs for dev/prod are sourced from SSM authority paths
 and consumed by runbook/operator workflows as canonical source values.
+
+### IR-0014: Superseded architecture archive boundary
+
+Superseded ADR/SPEC content MUST live only under the dedicated
+`docs/architecture/*/superseded/` directories and MUST NOT appear in active
+authority lists or active catalog sections.
 
 ## Explicit Non-Goals (Initial Release)
 

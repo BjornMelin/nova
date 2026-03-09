@@ -2,7 +2,7 @@
 
 Status: Active
 Owner: nova release architecture
-Last updated: 2026-02-24
+Last updated: 2026-03-05
 
 ## 1. Scope
 
@@ -56,7 +56,18 @@ Companion modular setup guides:
 5. Internal package groups must block external upstream ingestion.
 6. Publish to staged channel (`CODEARTIFACT_STAGING_REPOSITORY`) only after manifest, version, and namespace gates pass.
 7. Promotion to prod channel must consume only staged and gate-validated versions via `copy-package-versions`.
-8. Promotion must include and verify `RELEASE_MANIFEST_SHA256` against `docs/plan/release/RELEASE-VERSION-MANIFEST.md`.
+8. Promotion must include and verify `RELEASE_MANIFEST_SHA256`, where the value
+   is the actual SHA256 of `docs/plan/release/RELEASE-VERSION-MANIFEST.md`.
+9. Public Python SDK releases must classify OpenAPI tag or `operationId`
+   renames as MAJOR changes because they rename generated endpoint modules or
+   functions.
+
+## 5A. Runtime deployment policy
+
+1. Runtime service deployment uses ECS blue/green controls implemented via
+   AWS CodeDeploy for `AWS::ECS::Service` resources.
+2. Public ALB WebACL/WAF association is environment-template specific and must
+   be validated against the deployed runtime stack definitions for each lane.
 
 ## 6. Required release evidence
 
