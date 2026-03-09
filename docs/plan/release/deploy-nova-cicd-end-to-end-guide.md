@@ -66,9 +66,14 @@ Fallback path:
 - `${ECR_REPOSITORY_ARN}`
 - `${ECR_REPOSITORY_NAME}`
 - `${ECR_REPOSITORY_URI}`
+- `${NOVA_ARTIFACT_BUCKET_NAME}`
 - `${NOVA_DEPLOY_SERVICE_NAME}` (optional, default `nova-file-api`)
+- `${GITHUB_OIDC_PROVIDER_ARN}`
+- `${SECRET_NAME}` or `${RELEASE_SIGNING_SECRET_ARN}`
 - `${DEV_BASE_URL}` example `https://nova-file-api.dev.example.com`
 - `${PROD_BASE_URL}` example `https://nova-file-api.example.com`
+- `${EXISTING_CONNECTION_ARN}` (optional)
+- `${NOVA_MANUAL_APPROVAL_TOPIC_ARN}` (optional)
 
 ## Step 1: set deployment values
 
@@ -138,7 +143,16 @@ if [ "${CODEARTIFACT_STAGING_REPOSITORY}" = "${CODEARTIFACT_PROD_REPOSITORY}" ];
 fi
 ```
 
-## Step 2: deploy foundation stack from nova
+## Step 2: deploy foundation stack from nova (manual option)
+
+Choose one of the two flows below:
+
+- Option A: run Step 2 manually to deploy `${PROJECT}-${APPLICATION}-nova-foundation`, then continue to Step 3.
+- Option B: skip manual Step 2 and rely on Step 3; the command pack deploy will create `${PROJECT}-${APPLICATION}-nova-foundation` as its first action.
+
+If you run Step 2 manually, the later command pack in Step 3 will still re-apply
+`${PROJECT}-${APPLICATION}-nova-foundation` using the same parameter values; ensure
+the values match for idempotent behavior.
 
 If `${NOVA_ARTIFACT_BUCKET_NAME}` already exists, pass it as
 `ExistingArtifactBucketName`. If it does not exist yet, set
@@ -197,6 +211,11 @@ Run the operator command pack:
 ```bash
 ./scripts/release/day-0-operator-command-pack.sh
 ```
+
+If you ran Step 2 manually, this is an intentional re-apply for idempotency:
+
+- `${PROJECT}-${APPLICATION}-nova-foundation` is re-deployed first with the same
+  parameter values passed in Step 2.
 
 The command pack deploys stacks in this order:
 

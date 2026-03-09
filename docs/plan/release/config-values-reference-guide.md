@@ -97,7 +97,7 @@ Populate these via `infra/nova/deploy/service-base-url-ssm.yml` before running
 
 ## Runtime stack parameter contract
 
-Documentation authority: [requirements.md](../../requirements.md) -> [ADR-0023](../../architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md) -> [SPEC-0000](../../architecture/spec/SPEC-0000-http-api-contract.md) -> [SPEC-0016](../../architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md)
+Documentation authority: [ADR-0023](../../architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md) -> [SPEC-0000](../../architecture/spec/SPEC-0000-http-api-contract.md) -> [SPEC-0016](../../architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md) -> [requirements.md](../../requirements.md)
 
 Capture and manage these runtime values per environment before CI/CD deploy:
 
@@ -209,7 +209,7 @@ Validation URLs:
 - `${PROD_BASE_URL}/v1/health/ready`
 - `${PROD_BASE_URL}/v1/capabilities`
 
-Documentation authority: [requirements.md](../../requirements.md) -> [ADR-0023](../../architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md) -> [SPEC-0000](../../architecture/spec/SPEC-0000-http-api-contract.md) -> [SPEC-0016](../../architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md)
+Documentation authority: [ADR-0023](../../architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md) -> [SPEC-0000](../../architecture/spec/SPEC-0000-http-api-contract.md) -> [SPEC-0016](../../architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md) -> [requirements.md](../../requirements.md)
 
 Route namespace policy:
 

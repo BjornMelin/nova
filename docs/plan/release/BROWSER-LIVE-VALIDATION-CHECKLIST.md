@@ -32,6 +32,8 @@ Playwright pytest e2e by certifying environment-integrated behavior.
 ## Execution (non-mutating)
 
 ```bash
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+cd "$REPO_ROOT"
 set -euo pipefail
 RUN_ID="$(date -u +%Y%m%dT%H%M%SZ)"
 OUT=".artifacts/browser-live-validation/${RUN_ID}"
@@ -70,7 +72,7 @@ Pass:
 
 ```bash
 if [ "${AUTH_ENABLED:-false}" = "true" ]; then
-  agent-browser auth save dash-sso --url "$AUTH_LOGIN_URL" --username "$AUTH_USERNAME" --password "$AUTH_PASSWORD"
+  printf '%s' "$AUTH_PASSWORD" | agent-browser auth save dash-sso --url "$AUTH_LOGIN_URL" --username "$AUTH_USERNAME" --password-stdin
   agent-browser auth login dash-sso
   agent-browser open "${DASH_BASE_URL}/pca-discrete"
   agent-browser wait --load networkidle

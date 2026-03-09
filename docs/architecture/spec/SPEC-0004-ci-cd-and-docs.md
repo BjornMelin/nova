@@ -7,8 +7,8 @@ Date: 2026-03-05
 Related:
   - "[ADR-0002: OpenAPI as contract and SDK generation](../adr/ADR-0002-openapi-as-contract-and-sdk-generation.md)"
   - "[ADR-0011: Hybrid CI/CD with GitHub and AWS promotion](../adr/ADR-0011-cicd-hybrid-github-aws-promotion.md)"
-  - "[ADR-0025: Runtime monorepo component boundaries and ownership](../adr/ADR-0025-reusable-workflow-api-and-versioning-policy.md)"
-  - "[ADR-0026: Fail-fast runtime configuration and safe auth execution](../adr/ADR-0026-oidc-iam-role-partitioning-for-deploy-automation.md)"
+  - "[ADR-0025: Reusable GitHub workflow API and versioning policy for deployment automation](../adr/ADR-0025-reusable-workflow-api-and-versioning-policy.md)"
+  - "[ADR-0026: OIDC and IAM role partitioning for deploy automation](../adr/ADR-0026-oidc-iam-role-partitioning-for-deploy-automation.md)"
   - "[ADR-0023: Hard cut v1 canonical route surface](../adr/ADR-0023-hard-cut-v1-canonical-route-surface.md)"
   - "[ADR-0012: No Lambda runtime scope](../adr/ADR-0012-no-lambda-runtime-scope.md)"
   - "[SPEC-0000: HTTP API contract](./SPEC-0000-http-api-contract.md)"
@@ -166,8 +166,9 @@ CodeArtifact repository policy and package-group controls MUST enforce:
 
 ## 8. Documentation and traceability gates
 
-The same PR MUST update affected operational docs whenever CI/CD or release
-semantics change:
+Any behavioral or contract change MUST update all affected docs in the same PR. In
+particular, whenever CI/CD or release semantics change, the same PR MUST update
+all affected operational docs:
 
 - `README.md`
 - `docs/PRD.md`
@@ -177,9 +178,11 @@ semantics change:
 - affected `docs/contracts/*.json` workflow/artifact schemas
 - affected `docs/clients/*.md` and `docs/clients/**/*.yml` when downstream
   integration contracts change
+- `docs/runbooks/README.md` when runbook authority is changed
 - `PRD.md` and `FINAL-PLAN.md` pointers when archive paths or authority links
   change
 - `docs/plan/release/*` runbooks and policy docs
+- `docs/history/**` when archival paths or evidence pointers change
 
 ## 9. Traceability
 

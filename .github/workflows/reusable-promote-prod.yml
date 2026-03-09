@@ -137,20 +137,27 @@ jobs:
       - name: Promote package versions staging -> prod
         run: |
           set -euo pipefail
+          export CODEARTIFACT_DOMAIN="${{ env.CODEARTIFACT_DOMAIN }}"
+          export CODEARTIFACT_STAGING_REPOSITORY="${{ env.CODEARTIFACT_STAGING_REPOSITORY }}"
+          export CODEARTIFACT_PROD_REPOSITORY="${{ env.CODEARTIFACT_PROD_REPOSITORY }}"
           uv run python - <<'PY'
           import json
+          import os
           import subprocess
           from pathlib import Path
 
+          domain = os.environ["CODEARTIFACT_DOMAIN"]
+          staging_repository = os.environ["CODEARTIFACT_STAGING_REPOSITORY"]
+          prod_repository = os.environ["CODEARTIFACT_PROD_REPOSITORY"]
           candidates = json.loads(Path('.artifacts/validated-promotion-candidates.json').read_text())
           for item in candidates:
               package = item['package']
               version = item['version']
               cmd = [
                   'aws', 'codeartifact', 'copy-package-versions',
-                  '--domain', '${{ env.CODEARTIFACT_DOMAIN }}',
-                  '--source-repository', '${{ env.CODEARTIFACT_STAGING_REPOSITORY }}',
-                  '--destination-repository', '${{ env.CODEARTIFACT_PROD_REPOSITORY }}',
+                  '--domain', domain,
+                  '--source-repository', staging_repository,
+                  '--destination-repository', prod_repository,
                   '--format', 'pypi',
                   '--package', package,
                   '--versions', version,

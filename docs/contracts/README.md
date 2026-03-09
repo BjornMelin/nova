@@ -31,7 +31,8 @@ release and consumer integration gates.
 - `workflow-auth0-tenant-deploy.schema.json`
   - Workflow-specific validation schema for reusable Auth0 tenant ops API.
 - `browser-live-validation-report.schema.json`
-  - WS5 browser/live validation gate artifact contract for dash-pca + Nova.
+  - WS5 browser/live validation gate artifact contract for dash-pca + Nova
+    (WS5-origin artifact required by WS6/WS8 tooling and compatibility).
 - `workflow-auth0-tenant-ops-v1.schema.json`
   - Workflow-specific contract schema for Auth0 tenant operation reusable APIs.
 - `ssm-runtime-base-url-v1.schema.json`

@@ -10,11 +10,11 @@ Execute release flow for selective versioning, signed commit generation, and
 Dev to Prod AWS promotion.
 
 Canonical documentation authority chain:
-`requirements.md` -> `ADR-0023` -> `SPEC-0000` -> `SPEC-0016`
-([../../architecture/requirements.md](../../architecture/requirements.md),
-[../../architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md](../../architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md),
+`ADR-0023` -> `SPEC-0000` -> `SPEC-0016` -> `requirements.md`
+([../../architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md](../../architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md),
 [../../architecture/spec/SPEC-0000-http-api-contract.md](../../architecture/spec/SPEC-0000-http-api-contract.md),
-[../../architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md](../../architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md)).
+[../../architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md](../../architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md),
+[../../architecture/requirements.md](../../architecture/requirements.md)).
 
 ## 1A. Modular guide set
 
@@ -101,10 +101,9 @@ Use the modular operator guide set for provisioning and setup details:
 4. Confirm artifact upload:
    - `post-deploy-validation-report`
    - report file: `post-deploy-validation-report.json`
-5. Confirm wrapper/reusable workflow result via observable state, not wrapper outputs:
+5. Confirm post-deploy validation result via the caller workflow run context, because the reusable workflow executes through `workflow_call` and appears inside the caller run:
    - In workflow run page, verify `post-deploy-validate` job status is `success` (or failure as evidence).
-   - Confirm `post-deploy-validate.yml` (wrapper) and
-     `.github/workflows/reusable-post-deploy-validate.yml` workflow runs are reviewed for completion status.
+   - In the same caller run, inspect logs and artifacts for both `post-deploy-validate.yml` (wrapper) and `.github/workflows/reusable-post-deploy-validate.yml`; confirm completion and result details there.
 6. Confirm `post-deploy-validation-report` artifact content:
    - Artifact exists and contains a report payload (typically `post-deploy-validation-report.json`).
    - Report status reflects the pass result in payload fields (for example `validation_status=passed` when present in logs).

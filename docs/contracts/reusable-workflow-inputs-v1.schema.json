@@ -59,7 +59,7 @@
     "custom_task_memory": {
       "type": "integer",
       "minimum": 512,
-      "maximum": 65536
+      "maximum": 122880
     },
     "custom_desired_count": {
       "type": "integer",

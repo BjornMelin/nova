@@ -112,9 +112,29 @@ Rules:
           - !Not [!Equals [!Ref FoundationStackName, ""]]
         AssertDescription: Provide ArtifactBucketName or FoundationStackName.
   RequireConnectionNameWhenCreatingConnection:
-    RuleCondition: !Condition CreateConnection
+    RuleCondition:
+      Fn::And:
+        - Fn::Equals:
+            - Ref: ExistingConnectionArn
+            - ""
+        - Fn::Equals:
+            - Ref: FoundationStackName
+            - ""
     Assertions:
-      - Assert: !Condition HasConnectionName
+      - Assert:
+          Fn::Or:
+            - Fn::Not:
+                - Fn::Equals:
+                    - Ref: ExistingConnectionArn
+                    - ""
+            - Fn::Not:
+                - Fn::Equals:
+                    - Ref: FoundationStackName
+                    - ""
+            - Fn::Not:
+                - Fn::Equals:
+                    - Ref: ConnectionName
+                    - ""
         AssertDescription: When creating a connection, provide ConnectionName.
   RequireReleaseBuildProjectInput:
     Assertions:
