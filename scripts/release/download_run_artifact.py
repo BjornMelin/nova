@@ -252,6 +252,10 @@ def download_run_artifact(
         )
 
     archive_path = _download_archive_to_tempfile(url=archive_url, token=token)
+    if output_dir.is_symlink():
+        raise RuntimeError(
+            f"output directory must not be a symlink: {output_dir}"
+        )
     if output_dir.exists() and not output_dir.is_dir():
         raise RuntimeError(
             f"output directory exists and is not a directory: {output_dir}"

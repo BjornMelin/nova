@@ -136,3 +136,46 @@ def test_download_run_artifact_extracts_matching_archive(
     assert (output_dir / "release-apply-metadata.json").read_text(
         encoding="utf-8"
     ) == '{"ok": true}'
+
+
+def test_download_run_artifact_rejects_symlinked_output_dir(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    archive_path = tmp_path / "artifact.zip"
+    with zipfile.ZipFile(archive_path, mode="w") as archive:
+        archive.writestr("release-apply-metadata.json", '{"ok": true}')
+
+    monkeypatch.setattr(
+        artifact_module,
+        "_find_named_artifact",
+        lambda **_: {
+            "name": "release-apply-artifacts",
+            "expired": False,
+            "size_in_bytes": 128,
+            "archive_download_url": "https://example.local/archive.zip",
+        },
+    )
+    monkeypatch.setattr(
+        artifact_module,
+        "_download_archive_to_tempfile",
+        lambda **_: archive_path,
+    )
+
+    target_dir = tmp_path / "target"
+    target_dir.mkdir()
+    sentinel = target_dir / "keep.txt"
+    sentinel.write_text("keep", encoding="utf-8")
+    output_dir = tmp_path / "out-link"
+    output_dir.symlink_to(target_dir, target_is_directory=True)
+
+    with pytest.raises(RuntimeError, match="must not be a symlink"):
+        download_run_artifact(
+            repo="acme/nova",
+            run_id=123,
+            artifact_name="release-apply-artifacts",
+            output_dir=output_dir,
+            token="token",
+        )
+
+    assert sentinel.read_text(encoding="utf-8") == "keep"
