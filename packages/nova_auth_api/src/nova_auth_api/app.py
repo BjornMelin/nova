@@ -8,7 +8,6 @@ from json import JSONDecodeError
 from typing import Annotated, Any
 from urllib.parse import parse_qs
 
-import anyio
 import structlog
 from fastapi import Depends, FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -32,7 +31,6 @@ from starlette.responses import Response
 
 from nova_auth_api.config import Settings
 from nova_auth_api.dependencies import (
-    BLOCKING_IO_LIMITER_STATE_KEY,
     TokenVerificationServiceDep,
 )
 from nova_auth_api.errors import (
@@ -151,11 +149,6 @@ def create_app(
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         app.state.settings = settings
-        setattr(
-            app.state,
-            BLOCKING_IO_LIMITER_STATE_KEY,
-            anyio.CapacityLimiter(settings.blocking_io_thread_tokens),
-        )
         app.state.auth_service = service_override or TokenVerificationService(
             settings=settings
         )

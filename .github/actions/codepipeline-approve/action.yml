@@ -46,17 +46,26 @@ runs:
           exit 1
         }
 
-        APPROVAL_TOKEN="$(aws codepipeline get-pipeline-state \
-          --name "$PIPELINE_NAME" \
-          --region "$AWS_REGION" \
-          --query "stageStates[?stageName=='$STAGE_NAME'].actionStates[?actionName=='$ACTION_NAME'].latestExecution.token | [0]" \
-          --output text)"
+        APPROVAL_TOKEN="$(
+          aws codepipeline get-pipeline-state \
+            --name "$PIPELINE_NAME" \
+            --region "$AWS_REGION" \
+            --output json |
+          jq -r --arg stage "$STAGE_NAME" --arg action "$ACTION_NAME" '
+            .stageStates[]?
+            | select(.stageName == $stage)
+            | .actionStates[]?
+            | select(.actionName == $action)
+            | .latestExecution.token // empty
+          ' | head -n 1
+        )"
 
         if [[ -z "$APPROVAL_TOKEN" || "$APPROVAL_TOKEN" == "None" ]]; then
           echo "Approval token not found for pipeline $PIPELINE_NAME" >&2
           exit 1
         fi
 
+        # Replace commas because the --result syntax uses commas as separators.
         SUMMARY="${SUMMARY//,/;}"
 
         aws codepipeline put-approval-result \
