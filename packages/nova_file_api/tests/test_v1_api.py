@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import pytest
 from fastapi.testclient import TestClient
 from nova_file_api.app import create_app
 
 
-def test_v1_health_and_capabilities() -> None:
+def test_v1_health_and_capabilities(monkeypatch: pytest.MonkeyPatch) -> None:
     """Verifies v1 live/ready health and capability keys are exposed."""
+    monkeypatch.setenv("FILE_TRANSFER_BUCKET", "")
     app = create_app()
     with TestClient(app) as client:
         live = client.get("/v1/health/live")
@@ -16,8 +18,10 @@ def test_v1_health_and_capabilities() -> None:
 
     assert live.status_code == 200
     assert live.json() == {"ok": True}
-    assert ready.status_code == 200
-    assert "checks" in ready.json()
+    assert ready.status_code == 503
+    ready_payload = ready.json()
+    assert ready_payload["ok"] is False
+    assert ready_payload["checks"]["bucket_configured"] is False
     assert caps.status_code == 200
     cap_keys = {entry["key"] for entry in caps.json()["capabilities"]}
     assert {"jobs", "jobs.events.poll", "transfers"}.issubset(cap_keys)

@@ -6,7 +6,7 @@ Version: 1.2
 Date: 2026-03-04
 Related:
   - "[ADR-0023: Canonical V1 route surface hard-cut](../adr/ADR-0023-hard-cut-v1-canonical-route-surface.md)"
-  - "[ADR-0025: Reusable GitHub workflow API and versioning policy for deployment automation](../adr/ADR-0025-reusable-workflow-api-and-versioning-policy.md)"
+  - "[ADR-0031: Reusable GitHub workflow API and versioning policy for deployment automation](../adr/ADR-0031-reusable-github-workflow-api-and-versioning-policy-for-deployment-automation.md)"
   - "[requirements.md](../requirements.md)"
   - "[ADR-0028: Auth0 tenant ops reusable workflow API contract](../adr/ADR-0028-auth0-tenant-ops-reusable-workflow-api-contract.md)"
   - "[SPEC-0000: Canonical API contract](./SPEC-0000-http-api-contract.md)"

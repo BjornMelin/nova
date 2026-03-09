@@ -121,6 +121,12 @@ class Settings(BaseSettings):
         ge=1,
         le=1000,
     )
+    blocking_io_thread_tokens: int = Field(
+        default=80,
+        alias="BLOCKING_IO_THREAD_TOKENS",
+        ge=1,
+        le=1000,
+    )
 
     remote_auth_base_url: str | None = Field(
         default=None,
@@ -255,6 +261,10 @@ class Settings(BaseSettings):
     jobs_worker_update_token: SecretStr | None = Field(
         default=None,
         alias="JOBS_WORKER_UPDATE_TOKEN",
+    )
+    jobs_allow_insecure_missing_worker_token_nonprod: bool = Field(
+        default=False,
+        alias="JOBS_ALLOW_INSECURE_MISSING_WORKER_TOKEN_NONPROD",
     )
 
     activity_store_backend: ActivityStoreBackend = Field(

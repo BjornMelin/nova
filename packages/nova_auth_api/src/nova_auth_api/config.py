@@ -2,8 +2,18 @@
 
 from __future__ import annotations
 
+import importlib.metadata
+
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+def _default_app_version() -> str:
+    """Return installed package version with resilient fallback."""
+    try:
+        return importlib.metadata.version("nova-auth-api")
+    except importlib.metadata.PackageNotFoundError:
+        return "0.0.0"
 
 
 class Settings(BaseSettings):
@@ -17,6 +27,10 @@ class Settings(BaseSettings):
     )
 
     app_name: str = Field(default="nova-auth-api", alias="APP_NAME")
+    app_version: str = Field(
+        default_factory=_default_app_version,
+        alias="APP_VERSION",
+    )
     environment: str = Field(default="dev", alias="ENVIRONMENT")
 
     oidc_issuer: str | None = Field(default=None, alias="OIDC_ISSUER")

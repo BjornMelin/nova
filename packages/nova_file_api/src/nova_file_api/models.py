@@ -12,6 +12,7 @@ from pydantic import (
     Field,
     StringConstraints,
     field_validator,
+    model_validator,
 )
 
 
@@ -95,7 +96,11 @@ class SignPartsRequest(BaseModel):
 
     key: str = Field(min_length=1, max_length=2048)
     upload_id: str = Field(min_length=1, max_length=1024)
-    part_numbers: list[int] = Field(min_length=1, max_length=1000)
+    part_numbers: list[Annotated[int, Field(ge=1, le=10_000)]] = Field(
+        min_length=1,
+        max_length=1000,
+        json_schema_extra={"uniqueItems": True},
+    )
     session_id: str | None = Field(default=None, min_length=1, max_length=256)
 
     @field_validator("part_numbers")
@@ -256,11 +261,31 @@ class JobCancelResponse(BaseModel):
 class JobResultUpdateRequest(BaseModel):
     """Worker/internal request payload for job result updates."""
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(
+        extra="forbid",
+        json_schema_extra={
+            "allOf": [
+                {
+                    "if": {
+                        "properties": {"status": {"const": "succeeded"}},
+                        "required": ["status"],
+                    },
+                    "then": {"properties": {"error": {"type": "null"}}},
+                }
+            ]
+        },
+    )
 
     status: JobStatus
     result: dict[str, Any] | None = None
     error: str | None = Field(default=None, max_length=4096)
+
+    @model_validator(mode="after")
+    def validate_success_error_contract(self) -> JobResultUpdateRequest:
+        """Enforce response contract for succeeded job updates."""
+        if self.status is JobStatus.SUCCEEDED and self.error is not None:
+            self.error = None
+        return self
 
 
 class JobResultUpdateResponse(BaseModel):
@@ -278,7 +303,7 @@ class JobListResponse(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    jobs: list[JobRecord]
+    jobs: list[JobRecord] = Field(max_length=200)
 
 
 class JobEventType(StrEnum):
@@ -306,7 +331,7 @@ class JobEventsResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     job_id: str
-    events: list[JobEvent]
+    events: list[JobEvent] = Field(max_length=1000)
     next_cursor: str
 
 
@@ -325,7 +350,7 @@ class CapabilitiesResponse(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    capabilities: list[CapabilityDescriptor]
+    capabilities: list[CapabilityDescriptor] = Field(max_length=256)
 
 
 ResourceKey = Annotated[
@@ -357,7 +382,7 @@ class ResourcePlanResponse(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    plan: list[ResourcePlanItem]
+    plan: list[ResourcePlanItem] = Field(max_length=256)
 
 
 class ReleaseInfoResponse(BaseModel):

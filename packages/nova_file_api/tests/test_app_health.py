@@ -81,6 +81,9 @@ def test_v1_health_ready_returns_expected_checks() -> None:
     assert payload["checks"] == {
         "bucket_configured": True,
         "shared_cache": True,
+        "job_queue": True,
+        "activity_store": True,
+        "auth_dependency": True,
     }
 
 
@@ -95,6 +98,9 @@ def test_readyz_stays_ok_when_jobs_are_disabled() -> None:
     assert payload["checks"] == {
         "bucket_configured": True,
         "shared_cache": True,
+        "job_queue": True,
+        "activity_store": True,
+        "auth_dependency": True,
     }
 
 
@@ -105,12 +111,15 @@ def test_readyz_fails_when_bucket_is_missing() -> None:
     )
     with TestClient(app) as client:
         response = client.get("/v1/health/ready")
-    assert response.status_code == 200
+    assert response.status_code == 503
     payload = response.json()
     assert payload["ok"] is False
     assert payload["checks"] == {
         "bucket_configured": False,
         "shared_cache": True,
+        "job_queue": True,
+        "activity_store": True,
+        "auth_dependency": True,
     }
 
 

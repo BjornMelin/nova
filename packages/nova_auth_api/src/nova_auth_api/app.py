@@ -2,72 +2,169 @@
 
 from __future__ import annotations
 
-import logging
-from collections.abc import AsyncIterator, Awaitable, Callable, MutableMapping
+import re
+from collections.abc import AsyncIterator, Awaitable, Callable, Sequence
 from contextlib import asynccontextmanager
 from json import JSONDecodeError
-from typing import Any
+from typing import Annotated, Any
 from urllib.parse import parse_qs
-from uuid import uuid4
 
 import structlog
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from fastapi.routing import APIRoute
+from nova_runtime_support import (
+    apply_operation_response_refs,
+    bind_request_id,
+    canonical_error_content,
+    configure_structlog,
+    ensure_error_envelope_schema,
+    ensure_error_response_component,
+    finalize_request_id,
+    install_openapi_customizer,
+    prune_validation_error_schemas,
+    replace_validation_error_responses,
+    request_id_from_request,
+    unbind_request_id,
+)
 from pydantic import ValidationError
 from starlette.responses import Response
 
 from nova_auth_api.config import Settings
-from nova_auth_api.errors import AuthApiError, internal_error
+from nova_auth_api.dependencies import (
+    TokenVerificationServiceDep,
+)
+from nova_auth_api.errors import (
+    AuthApiError,
+    internal_error,
+    service_unavailable,
+)
 from nova_auth_api.models import (
-    ErrorBody,
-    ErrorEnvelope,
     HealthResponse,
     TokenIntrospectRequest,
     TokenIntrospectResponse,
     TokenVerifyRequest,
     TokenVerifyResponse,
 )
-from nova_auth_api.service import (
-    TokenVerificationService,
-    _set_verifier_thread_tokens,
-)
+from nova_auth_api.service import TokenVerificationService
 
-_AUTH_SERVICE_NOT_INITIALIZED = "auth service not initialized"
-_LOGGING_CONFIGURED = False
 _FORM_MEDIA_TYPE = "application/x-www-form-urlencoded"
 _JSON_MEDIA_TYPE = "application/json"
-_OPERATION_ID_HEALTH_LIVE = "health_live_v1_health_live_get"
-_OPERATION_ID_VERIFY_TOKEN = "verify_token_v1_token_verify_post"
-_OPERATION_ID_INTROSPECT_TOKEN = "introspect_token_v1_token_introspect_post"
+_SENSITIVE_VALIDATION_FIELDS = {"access_token", "authorization", "token"}
+_TOKEN_INTROSPECT_JSON_REQUEST_SCHEMA_REF = {
+    "$ref": "#/components/schemas/TokenIntrospectRequest"
+}
+_TOKEN_INTROSPECT_FORM_REQUEST_SCHEMA_REF = {
+    "$ref": "#/components/schemas/TokenIntrospectFormRequest"
+}
 _INTROSPECT_REQUEST_BODY: dict[str, Any] = {
     "required": True,
     "content": {
-        _JSON_MEDIA_TYPE: {
-            "schema": {
-                "$ref": "#/components/schemas/TokenIntrospectRequest",
-            }
-        },
-        _FORM_MEDIA_TYPE: {
-            "schema": {
-                "type": "object",
-                "required": ["token"],
-                "properties": {
-                    "token": {"type": "string", "minLength": 1},
-                    "token_type_hint": {"type": "string"},
-                    "required_scopes": {
-                        "type": "array",
-                        "items": {"type": "string"},
-                    },
-                    "required_permissions": {
-                        "type": "array",
-                        "items": {"type": "string"},
-                    },
-                },
-            }
-        },
+        _JSON_MEDIA_TYPE: {"schema": _TOKEN_INTROSPECT_JSON_REQUEST_SCHEMA_REF},
+        _FORM_MEDIA_TYPE: {"schema": _TOKEN_INTROSPECT_FORM_REQUEST_SCHEMA_REF},
     },
 }
+_TOKEN_INTROSPECT_REQUEST_SCHEMA = TokenIntrospectRequest.model_json_schema(
+    ref_template="#/components/schemas/{model}"
+)
+_TOKEN_INTROSPECT_FORM_REQUEST_SCHEMA = {
+    **_TOKEN_INTROSPECT_REQUEST_SCHEMA,
+    "title": "TokenIntrospectFormRequest",
+}
+_INTROSPECTION_AUTH_OPERATIONS = {"/v1/token/verify", "/v1/token/introspect"}
+_OPENAPI_RESPONSE_DESCRIPTIONS = {
+    "AuthInvalidRequestResponse": "Canonical invalid-request response.",
+    "AuthUnauthorizedResponse": "Canonical unauthorized token response.",
+    "AuthForbiddenResponse": "Canonical insufficient-scope response.",
+    "AuthServiceUnavailableResponse": "Canonical service unavailable response.",
+}
+_OPENAPI_OPERATION_RESPONSES = {
+    "/v1/health/ready": {
+        "get": {"503": "AuthServiceUnavailableResponse"},
+    },
+    "/v1/token/verify": {
+        "post": {
+            "401": "AuthUnauthorizedResponse",
+            "403": "AuthForbiddenResponse",
+            "503": "AuthServiceUnavailableResponse",
+            "422": "AuthInvalidRequestResponse",
+        }
+    },
+    "/v1/token/introspect": {
+        "post": {
+            "401": "AuthUnauthorizedResponse",
+            "403": "AuthForbiddenResponse",
+            "503": "AuthServiceUnavailableResponse",
+            "422": "AuthInvalidRequestResponse",
+        }
+    },
+}
+
+
+def _operation_id_from_route(route: APIRoute) -> str:
+    """Build stable OpenAPI operationId values from route function names."""
+    if route.name:
+        return route.name
+
+    method = sorted(route.methods or {"GET"})[0].lower()
+    normalized_path = route.path_format.strip("/")
+    normalized_path = re.sub(r"{([^}]+)}", r"\1", normalized_path)
+    normalized_path = normalized_path.replace("-", "_").replace("/", "_")
+    normalized_path = re.sub(r"[^a-zA-Z0-9_]", "", normalized_path)
+    normalized_path = re.sub(r"_+", "_", normalized_path).strip("_") or "root"
+    return f"{method}_{normalized_path}"
+
+
+def _install_openapi_overrides(app: FastAPI) -> None:
+    """Inject schema components required by custom OpenAPI request bodies."""
+
+    def customize_openapi(schema: dict[str, Any]) -> None:
+        components = schema.setdefault("components", {})
+        schemas = components.setdefault("schemas", {})
+        schemas.setdefault(
+            "TokenIntrospectRequest",
+            _TOKEN_INTROSPECT_REQUEST_SCHEMA,
+        )
+        schemas.setdefault(
+            "TokenIntrospectFormRequest",
+            _TOKEN_INTROSPECT_FORM_REQUEST_SCHEMA,
+        )
+        ensure_error_envelope_schema(schema)
+        security_schemes = components.setdefault("securitySchemes", {})
+        security_schemes.setdefault(
+            "bearerAuth",
+            {"type": "http", "scheme": "bearer", "bearerFormat": "JWT"},
+        )
+        for (
+            component_name,
+            description,
+        ) in _OPENAPI_RESPONSE_DESCRIPTIONS.items():
+            ensure_error_response_component(
+                schema,
+                name=component_name,
+                description=description,
+            )
+        apply_operation_response_refs(
+            schema,
+            response_component_names=_OPENAPI_OPERATION_RESPONSES,
+        )
+        replace_validation_error_responses(
+            schema,
+            response_component_name="AuthInvalidRequestResponse",
+        )
+        paths = schema.get("paths", {})
+        if isinstance(paths, dict):
+            for path in _INTROSPECTION_AUTH_OPERATIONS:
+                operation = paths.get(path, {}).get("post")
+                if isinstance(operation, dict):
+                    operation["x-auth-not-required"] = (
+                        "Auth-validation endpoint; "
+                        "bearerAuth is intentionally not required."
+                    )
+        prune_validation_error_schemas(schema)
+
+    install_openapi_customizer(app, customizer=customize_openapi)
 
 
 def create_app(
@@ -76,12 +173,11 @@ def create_app(
     service_override: TokenVerificationService | None = None,
 ) -> FastAPI:
     """Create configured FastAPI application."""
-    _configure_logging()
+    configure_structlog()
+    settings = settings_override or Settings()
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-        settings = settings_override or Settings()
-        _set_verifier_thread_tokens(settings.oidc_verifier_thread_tokens)
         app.state.settings = settings
         app.state.auth_service = service_override or TokenVerificationService(
             settings=settings
@@ -90,19 +186,40 @@ def create_app(
 
     app = FastAPI(
         title="nova-auth-api",
-        version="0.1.0",
+        version=settings.app_version,
+        generate_unique_id_function=_operation_id_from_route,
         lifespan=lifespan,
     )
+    _install_openapi_overrides(app)
     app.middleware("http")(request_context_middleware)
 
     @app.get(
         "/v1/health/live",
         response_model=HealthResponse,
-        operation_id=_OPERATION_ID_HEALTH_LIVE,
+        tags=["health"],
     )
     async def health_live(request: Request) -> HealthResponse:
         """Return liveness status."""
-        request_id = _request_id(request=request) or uuid4().hex
+        request_id = _request_id(request=request)
+        return HealthResponse(
+            status="ok",
+            service="nova-auth-api",
+            request_id=request_id,
+        )
+
+    @app.get(
+        "/v1/health/ready",
+        response_model=HealthResponse,
+        tags=["health"],
+    )
+    async def health_ready(
+        request: Request,
+        service: TokenVerificationServiceDep,
+    ) -> HealthResponse:
+        """Return readiness status for token verification."""
+        request_id = _request_id(request=request)
+        if not service.is_ready():
+            raise service_unavailable("auth verifier unavailable")
         return HealthResponse(
             status="ok",
             service="nova-auth-api",
@@ -112,28 +229,28 @@ def create_app(
     @app.post(
         "/v1/token/verify",
         response_model=TokenVerifyResponse,
-        operation_id=_OPERATION_ID_VERIFY_TOKEN,
+        tags=["token"],
     )
     async def verify_token(
         payload: TokenVerifyRequest,
-        request: Request,
+        service: TokenVerificationServiceDep,
     ) -> TokenVerifyResponse:
         """Verify access token and return principal plus claims."""
-        service = _service(request=request)
         return await service.verify(payload)
 
     @app.post(
         "/v1/token/introspect",
         response_model=TokenIntrospectResponse,
-        operation_id=_OPERATION_ID_INTROSPECT_TOKEN,
+        tags=["token"],
         openapi_extra={"requestBody": _INTROSPECT_REQUEST_BODY},
     )
     async def introspect_token(
-        request: Request,
+        payload: Annotated[
+            TokenIntrospectRequest, Depends(_parse_introspect_request)
+        ],
+        service: TokenVerificationServiceDep,
     ) -> TokenIntrospectResponse:
         """Introspect token and return active status plus claim details."""
-        payload = await _parse_introspect_payload(request=request)
-        service = _service(request=request)
         return await service.introspect(payload)
 
     @app.exception_handler(AuthApiError)
@@ -142,17 +259,14 @@ def create_app(
         exc: AuthApiError,
     ) -> JSONResponse:
         """Convert domain auth errors into canonical HTTP responses."""
-        payload = ErrorEnvelope(
-            error=ErrorBody(
+        return JSONResponse(
+            status_code=exc.status_code,
+            content=canonical_error_content(
                 code=exc.code,
                 message=exc.message,
                 details=exc.details,
                 request_id=_request_id(request=request),
-            )
-        )
-        return JSONResponse(
-            status_code=exc.status_code,
-            content=payload.model_dump(),
+            ),
             headers=exc.headers,
         )
 
@@ -161,17 +275,16 @@ def create_app(
         request: Request,
         exc: RequestValidationError,
     ) -> JSONResponse:
-        payload = ErrorEnvelope(
-            error=ErrorBody(
-                code="invalid_request",
-                message="request validation failed",
-                details={"errors": exc.errors()},
-                request_id=_request_id(request=request),
-            )
-        )
         return JSONResponse(
             status_code=422,
-            content=payload.model_dump(),
+            content=canonical_error_content(
+                code="invalid_request",
+                message="request validation failed",
+                details={
+                    "errors": _sanitize_validation_errors(errors=exc.errors())
+                },
+                request_id=_request_id(request=request),
+            ),
         )
 
     @app.exception_handler(Exception)
@@ -187,17 +300,14 @@ def create_app(
             request_id=_request_id(request=request),
         )
         err = internal_error("unexpected internal error")
-        payload = ErrorEnvelope(
-            error=ErrorBody(
+        return JSONResponse(
+            status_code=err.status_code,
+            content=canonical_error_content(
                 code=err.code,
                 message=err.message,
                 details=err.details,
                 request_id=_request_id(request=request),
-            )
-        )
-        return JSONResponse(
-            status_code=err.status_code,
-            content=payload.model_dump(),
+            ),
         )
 
     return app
@@ -208,37 +318,23 @@ async def request_context_middleware(
     call_next: Callable[[Request], Awaitable[Response]],
 ) -> Response:
     """Inject request ID into context and response headers."""
-    request_id = request.headers.get("X-Request-Id") or uuid4().hex
-    request.state.request_id = request_id
-    structlog.contextvars.bind_contextvars(request_id=request_id)
+    request_id = bind_request_id(request)
     try:
         response = await call_next(request)
-        response.headers["X-Request-Id"] = request_id
-        return response
+        return finalize_request_id(response, request_id=request_id)
     finally:
-        structlog.contextvars.unbind_contextvars("request_id")
+        unbind_request_id()
 
 
-def _service(*, request: Request) -> TokenVerificationService:
-    value = getattr(request.app.state, "auth_service", None)
-    if isinstance(value, TokenVerificationService):
-        return value
-    raise RuntimeError(_AUTH_SERVICE_NOT_INITIALIZED)
+def _request_id(*, request: Request) -> str:
+    """Extract request ID from state/headers, creating one when missing."""
+    request_id = request_id_from_request(request=request)
+    if request_id is not None:
+        return request_id
+    return bind_request_id(request)
 
 
-def _request_id(*, request: Request) -> str | None:
-    """Extract request ID from request state or headers."""
-    value = getattr(request.state, "request_id", None)
-    if isinstance(value, str) and value:
-        return value
-    value = request.headers.get("X-Request-Id")
-    if isinstance(value, str) and value:
-        return value
-    return None
-
-
-async def _parse_introspect_payload(
-    *,
+async def _parse_introspect_request(
     request: Request,
 ) -> TokenIntrospectRequest:
     media_type = _request_media_type(request=request)
@@ -266,7 +362,7 @@ async def _parse_introspect_payload(
                     "type": "model_attributes_type",
                     "loc": ("body",),
                     "msg": "Input should be a valid dictionary",
-                    "input": raw_payload,
+                    "input": None,
                 }
             ]
         )
@@ -276,7 +372,7 @@ async def _parse_introspect_payload(
         return TokenIntrospectRequest.model_validate(normalized_payload)
     except ValidationError as exc:
         raise RequestValidationError(
-            _with_body_loc(errors=exc.errors())
+            _with_body_loc(errors=exc.errors(include_input=False))
         ) from exc
 
 
@@ -339,51 +435,29 @@ def _with_body_loc(*, errors: list[Any]) -> list[dict[str, Any]]:
     return output
 
 
-def _configure_logging() -> None:
-    """Configure structured logging."""
-    global _LOGGING_CONFIGURED
-    if _LOGGING_CONFIGURED:
-        return
-
-    logging.basicConfig(level=logging.INFO, format="%(message)s")
-    structlog.configure(
-        processors=[
-            structlog.contextvars.merge_contextvars,
-            _redact_sensitive_fields,
-            structlog.processors.add_log_level,
-            structlog.processors.TimeStamper(fmt="iso", utc=True),
-            structlog.processors.format_exc_info,
-            structlog.processors.JSONRenderer(),
-        ],
-        logger_factory=structlog.stdlib.LoggerFactory(),
-        cache_logger_on_first_use=True,
-    )
-    _LOGGING_CONFIGURED = True
+def _sanitize_validation_errors(
+    *,
+    errors: Sequence[Any],
+) -> list[dict[str, Any]]:
+    output: list[dict[str, Any]] = []
+    for error in errors:
+        if not isinstance(error, dict):
+            continue
+        sanitized = dict(error)
+        location = sanitized.get("loc", ())
+        if _validation_loc_is_sensitive(loc=location) and "input" in sanitized:
+            sanitized["input"] = "[REDACTED]"
+        output.append(sanitized)
+    return output
 
 
-def _redact_sensitive_fields(
-    _logger: Any,
-    _method_name: str,
-    event_dict: MutableMapping[str, Any],
-) -> MutableMapping[str, Any]:
-    """Redact sensitive token fields before emitting structured logs."""
-    hidden_fields = {"token", "authorization", "access_token"}
-
-    def _sanitize(value: Any) -> Any:
-        if isinstance(value, dict):
-            return {
-                key: (
-                    "[REDACTED]"
-                    if key.lower() in hidden_fields
-                    else _sanitize(item)
-                )
-                for key, item in value.items()
-            }
-        if isinstance(value, list | tuple):
-            return [_sanitize(item) for item in value]
-        return value
-
-    return {
-        key: "[REDACTED]" if key.lower() in hidden_fields else _sanitize(value)
-        for key, value in event_dict.items()
-    }
+def _validation_loc_is_sensitive(*, loc: object) -> bool:
+    if not isinstance(loc, (tuple, list)):
+        return False
+    for value in loc:
+        if (
+            isinstance(value, str)
+            and value.lower() in _SENSITIVE_VALIDATION_FIELDS
+        ):
+            return True
+    return False

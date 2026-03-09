@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "../.."
+  },
+  "files": [
+    "src/conformance.ts",
+    "../../nova_sdk_auth_core/src/generated.ts",
+    "../../nova_sdk_file_core/src/generated.ts"
+  ]
+}

@@ -25,6 +25,7 @@ dependencies = [
   "nova-dash-bridge",
   "nova-file-api",
   "nova-file-api-service",
+  "nova-runtime-support",
 ]
 
 [dependency-groups]
@@ -34,6 +35,7 @@ dev = [
   "pytest>=9.0.2",
   "pytest-asyncio>=1.3.0",
   "ruff>=0.15.1",
+  "types-python-dateutil>=2.9.0.20250516",
 ]
 
 [project.urls]
@@ -47,9 +49,12 @@ default-groups = ["dev"]
 members = [
   "apps/nova_file_api_service",
   "apps/nova_auth_api_service",
+  "packages/nova_sdk_py_file",
+  "packages/nova_sdk_py_auth",
   "packages/nova_auth_api",
   "packages/nova_dash_bridge",
   "packages/nova_file_api",
+  "packages/nova_runtime_support",
 ]
 
 [tool.uv.sources]
@@ -58,6 +63,7 @@ nova-auth-api-service = { workspace = true }
 nova-dash-bridge = { workspace = true }
 nova-file-api = { workspace = true }
 nova-file-api-service = { workspace = true }
+nova-runtime-support = { workspace = true }
 
 [tool.pytest.ini_options]
 minversion = "8.0"
@@ -71,9 +77,12 @@ pythonpath = [
   ".",
   "apps/nova_auth_api_service/src",
   "apps/nova_file_api_service/src",
+  "packages/nova_sdk_py_auth/src",
+  "packages/nova_sdk_py_file/src",
   "packages/nova_auth_api/src",
   "packages/nova_dash_bridge/src",
   "packages/nova_file_api/src",
+  "packages/nova_runtime_support/src",
 ]
 addopts = [
   "-ra",
@@ -101,6 +110,8 @@ ignore = ["D203", "D213"]
 
 [tool.ruff.lint.per-file-ignores]
 "**/tests/**/*.py" = ["D"]
+"packages/nova_sdk_py_auth/src/**/*.py" = ["D", "E501"]
+"packages/nova_sdk_py_file/src/**/*.py" = ["D", "E501"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
@@ -116,7 +127,7 @@ warn_redundant_casts = true
 warn_return_any = true
 warn_unreachable = true
 pretty = true
-files = ["apps", "packages"]
+files = ["apps", "packages", "scripts"]
 
 [[tool.mypy.overrides]]
 module = ["boto3", "botocore.*", "oidc_jwt_verifier"]

@@ -150,6 +150,22 @@ def queue_unavailable(
     )
 
 
+def service_unavailable(
+    message: str,
+    *,
+    details: dict[str, Any] | None = None,
+    headers: dict[str, str] | None = None,
+) -> FileTransferError:
+    """Return a generic dependency-unavailable service error."""
+    return FileTransferError(
+        code="service_unavailable",
+        message=message,
+        status_code=int(HTTPStatus.SERVICE_UNAVAILABLE),
+        details=details or {},
+        headers=headers or {},
+    )
+
+
 def internal_error(
     message: str,
     *,

@@ -51,9 +51,9 @@ detection, but greenfield finalization requires one truthful public stance.
 
 | Option | Solution leverage (35%) | Application value (30%) | Maintenance and cognitive load (25%) | Architectural adaptability (10%) | Weighted total (/10.0) |
 | --- | --- | --- | --- | --- | ---: |
-| **A** | **9.6** | **9.4** | **9.5** | **9.3** | **9.48** |
-| B | 6.8 | 7.0 | 4.9 | 6.7 | 6.36 |
-| C | 4.2 | 4.5 | 6.1 | 5.8 | 4.89 |
+| **A** | **9.6** | **9.4** | **9.5** | **9.3** | **9.49** |
+| B | 6.8 | 7.0 | 4.9 | 6.7 | 6.38 |
+| C | 4.2 | 4.5 | 6.1 | 5.8 | 4.93 |
 
 Only options `>= 9.0` are accepted.
 

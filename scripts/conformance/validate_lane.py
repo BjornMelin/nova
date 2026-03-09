@@ -16,8 +16,23 @@ class ConformanceError(RuntimeError):
 
 def _read_json(relative_path: str) -> dict[str, Any]:
     fixture_path = FIXTURE_ROOT / relative_path
-    fixture_text = fixture_path.read_text(encoding="utf-8")
-    return json.loads(fixture_text)
+    try:
+        fixture_text = fixture_path.read_text(encoding="utf-8")
+    except OSError as exc:
+        raise ConformanceError(
+            f"fixture could not be read: {fixture_path} - {exc}"
+        ) from exc
+    try:
+        payload = json.loads(fixture_text)
+    except (json.JSONDecodeError, TypeError) as exc:
+        raise ConformanceError(
+            f"fixture must be valid JSON: {fixture_path} - {exc}"
+        ) from exc
+    if not isinstance(payload, dict):
+        raise ConformanceError(
+            f"fixture must decode to an object: {fixture_path}"
+        )
+    return payload
 
 
 def _assert_error_envelope(payload: dict[str, Any], *, code: str) -> None:
