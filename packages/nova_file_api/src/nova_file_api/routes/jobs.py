@@ -6,7 +6,7 @@ import structlog
 from fastapi import APIRouter, Header, Query
 
 from nova_file_api.dependencies import RequestContext, RequestContextDep
-from nova_file_api.errors import forbidden, idempotency_conflict
+from nova_file_api.errors import forbidden
 from nova_file_api.models import (
     EnqueueJobRequest,
     EnqueueJobResponse,
@@ -24,6 +24,7 @@ from nova_file_api.routes.common import (
     validate_worker_update_token,
     validated_idempotency_key,
 )
+from nova_file_api.routes.idempotent_mutation import run_idempotent_mutation
 
 jobs_router = APIRouter(prefix="/v1", tags=["jobs"])
 
@@ -288,47 +289,28 @@ async def _enqueue_job_core(
     """Execute the enqueue and idempotency workflow."""
     container = context.container
     request_payload = payload.model_dump(mode="json")
-    claimed_idempotency = False
-
-    if idempotency_key is not None:
-        replay = await container.idempotency_store.load_response(
-            route="/v1/jobs",
-            scope_id=principal.scope_id,
-            idempotency_key=idempotency_key,
-            request_payload=request_payload,
-        )
-        if replay is not None:
-            container.metrics.incr("idempotency_replays_total")
-            return EnqueueJobResponse.model_validate(replay)
-
-        claimed_idempotency = await container.idempotency_store.claim_request(
-            route="/v1/jobs",
-            scope_id=principal.scope_id,
-            idempotency_key=idempotency_key,
-            request_payload=request_payload,
-        )
-        if not claimed_idempotency:
-            replay = await container.idempotency_store.load_response(
-                route="/v1/jobs",
-                scope_id=principal.scope_id,
-                idempotency_key=idempotency_key,
-                request_payload=request_payload,
-            )
-            if replay is not None:
-                container.metrics.incr("idempotency_replays_total")
-                return EnqueueJobResponse.model_validate(replay)
-            raise idempotency_conflict(
-                "idempotency request is already in progress"
-            )
 
     try:
-        with container.metrics.timed("jobs_enqueue_ms"):
-            job = await context.run_blocking(
-                container.job_service.enqueue,
-                job_type=payload.job_type,
-                payload=payload.payload,
-                scope_id=principal.scope_id,
-            )
+
+        async def execute() -> EnqueueJobResponse:
+            with container.metrics.timed("jobs_enqueue_ms"):
+                job = await context.run_blocking(
+                    container.job_service.enqueue,
+                    job_type=payload.job_type,
+                    payload=payload.payload,
+                    scope_id=principal.scope_id,
+                )
+            return EnqueueJobResponse(job_id=job.job_id, status=job.status)
+
+        response = await run_idempotent_mutation(
+            container=container,
+            route="/v1/jobs",
+            scope_id=principal.scope_id,
+            idempotency_key=idempotency_key,
+            request_payload=request_payload,
+            response_model=EnqueueJobResponse,
+            execute=execute,
+        )
     except Exception as exc:
         await _record_job_failure(
             context=context,
@@ -341,23 +323,7 @@ async def _enqueue_job_core(
             exc=exc,
             extra={"idempotency_key": idempotency_key},
         )
-        if idempotency_key is not None and claimed_idempotency:
-            await container.idempotency_store.discard_claim(
-                route="/v1/jobs",
-                scope_id=principal.scope_id,
-                idempotency_key=idempotency_key,
-            )
         raise
-
-    response = EnqueueJobResponse(job_id=job.job_id, status=job.status)
-    if idempotency_key is not None:
-        await container.idempotency_store.store_response(
-            route="/v1/jobs",
-            scope_id=principal.scope_id,
-            idempotency_key=idempotency_key,
-            request_payload=request_payload,
-            response_payload=response.model_dump(mode="json"),
-        )
     await context.run_blocking(
         container.activity_store.record,
         principal=principal,

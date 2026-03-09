@@ -30,7 +30,7 @@ def test_v1_jobs_create_list_get_retry_and_events() -> None:
         create_resp = client.post(
             "/v1/jobs",
             headers={"X-Session-Id": "scope-v1"},
-            json={"job_type": "transform", "payload": {"input": "a"}},
+            json={"job_type": "transfer.process", "payload": {"input": "a"}},
         )
         assert create_resp.status_code == 200
         created = create_resp.json()
@@ -99,7 +99,7 @@ def test_v1_jobs_rejects_blank_idempotency_key() -> None:
                 "X-Session-Id": "scope-v1",
                 "Idempotency-Key": "",
             },
-            json={"job_type": "transform", "payload": {"input": "a"}},
+            json={"job_type": "transfer.process", "payload": {"input": "a"}},
         )
         whitespace_resp = client.post(
             "/v1/jobs",
@@ -107,7 +107,7 @@ def test_v1_jobs_rejects_blank_idempotency_key() -> None:
                 "X-Session-Id": "scope-v1",
                 "Idempotency-Key": "   ",
             },
-            json={"job_type": "transform", "payload": {"input": "a"}},
+            json={"job_type": "transfer.process", "payload": {"input": "a"}},
         )
     assert resp.status_code == 422
     assert resp.json()["error"]["code"] == "invalid_request"

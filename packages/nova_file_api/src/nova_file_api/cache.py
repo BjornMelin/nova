@@ -17,6 +17,10 @@ from redis.exceptions import RedisError
 from redis.retry import Retry
 
 
+class SharedCacheUnavailableError(RuntimeError):
+    """Raised when a shared-cache-backed flow cannot proceed safely."""
+
+
 @dataclass(slots=True)
 class _Entry:
     """Single cache entry with expiration metadata."""
@@ -239,7 +243,12 @@ class TwoTierCache:
             f"v{self._key_schema_version}:{digest}"
         )
 
-    async def get_json(self, key: str) -> dict[str, Any] | None:
+    async def get_json(
+        self,
+        key: str,
+        *,
+        require_shared: bool = False,
+    ) -> dict[str, Any] | None:
         """Return parsed JSON object if found."""
         local_value = self._local.get(key)
         if local_value is not None:
@@ -273,10 +282,14 @@ class TwoTierCache:
             self._incr("cache_miss_total")
             return None
         if status == "error":
+            if require_shared:
+                raise SharedCacheUnavailableError("shared cache read failed")
             self._incr("cache_miss_total")
             self._incr("cache_shared_fallback_total")
             self._incr("cache_get_error_total")
             return None
+        if require_shared:
+            raise SharedCacheUnavailableError("shared cache is not configured")
 
         self._incr("cache_miss_total")
         return None
@@ -312,6 +325,7 @@ class TwoTierCache:
         key: str,
         payload: dict[str, Any],
         ttl_seconds: int,
+        require_shared: bool = False,
     ) -> bool:
         """Atomically set key if absent; local fallback is best effort."""
         encoded = _encode_envelope(
@@ -330,6 +344,10 @@ class TwoTierCache:
             return True
         if status == "exists":
             return False
+        if require_shared:
+            raise SharedCacheUnavailableError(
+                "shared cache claim store is unavailable"
+            )
         if status == "error":
             self._incr("cache_shared_fallback_total")
             self._incr("cache_set_error_total")

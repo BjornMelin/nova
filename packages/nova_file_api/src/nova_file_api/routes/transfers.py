@@ -6,7 +6,6 @@ import structlog
 from fastapi import APIRouter, Header
 
 from nova_file_api.dependencies import RequestContext, RequestContextDep
-from nova_file_api.errors import idempotency_conflict
 from nova_file_api.models import (
     AbortUploadRequest,
     AbortUploadResponse,
@@ -24,6 +23,7 @@ from nova_file_api.routes.common import (
     emit_request_metric,
     validated_idempotency_key,
 )
+from nova_file_api.routes.idempotent_mutation import run_idempotent_mutation
 
 transfer_router = APIRouter(prefix="/v1/transfers", tags=["transfers"])
 
@@ -48,46 +48,26 @@ async def initiate_upload(
         idempotency_key=idempotency_key,
     )
     request_payload = payload.model_dump(mode="json")
-    claimed_idempotency = False
-
-    if key is not None:
-        replay = await container.idempotency_store.load_response(
-            route="/v1/transfers/uploads/initiate",
-            scope_id=principal.scope_id,
-            idempotency_key=key,
-            request_payload=request_payload,
-        )
-        if replay is not None:
-            container.metrics.incr("idempotency_replays_total")
-            return InitiateUploadResponse.model_validate(replay)
-
-        claimed_idempotency = await container.idempotency_store.claim_request(
-            route="/v1/transfers/uploads/initiate",
-            scope_id=principal.scope_id,
-            idempotency_key=key,
-            request_payload=request_payload,
-        )
-        if not claimed_idempotency:
-            replay = await container.idempotency_store.load_response(
-                route="/v1/transfers/uploads/initiate",
-                scope_id=principal.scope_id,
-                idempotency_key=key,
-                request_payload=request_payload,
-            )
-            if replay is not None:
-                container.metrics.incr("idempotency_replays_total")
-                return InitiateUploadResponse.model_validate(replay)
-            raise idempotency_conflict(
-                "idempotency request is already in progress"
-            )
 
     try:
-        with container.metrics.timed("uploads_initiate_ms"):
-            response = await context.run_blocking(
-                container.transfer_service.initiate_upload,
-                payload,
-                principal,
-            )
+
+        async def execute() -> InitiateUploadResponse:
+            with container.metrics.timed("uploads_initiate_ms"):
+                return await context.run_blocking(
+                    container.transfer_service.initiate_upload,
+                    payload,
+                    principal,
+                )
+
+        response = await run_idempotent_mutation(
+            container=container,
+            route="/v1/transfers/uploads/initiate",
+            scope_id=principal.scope_id,
+            idempotency_key=key,
+            request_payload=request_payload,
+            response_model=InitiateUploadResponse,
+            execute=execute,
+        )
     except Exception as exc:
         await _record_transfer_failure(
             context=context,
@@ -99,22 +79,7 @@ async def initiate_upload(
             activity_event_type="uploads_initiate_failure",
             exc=exc,
         )
-        if key is not None and claimed_idempotency:
-            await container.idempotency_store.discard_claim(
-                route="/v1/transfers/uploads/initiate",
-                scope_id=principal.scope_id,
-                idempotency_key=key,
-            )
         raise
-
-    if key is not None:
-        await container.idempotency_store.store_response(
-            route="/v1/transfers/uploads/initiate",
-            scope_id=principal.scope_id,
-            idempotency_key=key,
-            request_payload=request_payload,
-            response_payload=response.model_dump(mode="json"),
-        )
 
     container.metrics.incr("uploads_initiate_total")
     await context.run_blocking(

@@ -65,37 +65,18 @@ class _FailingRemoteAuthClient:
     def __init__(self, *, timeout: float) -> None:
         del timeout
 
-    async def __aenter__(self) -> _FailingRemoteAuthClient:
-        return self
-
-    async def __aexit__(
-        self,
-        exc_type: type[BaseException] | None,
-        exc: BaseException | None,
-        tb: Any,
-    ) -> None:
-        del exc_type, exc, tb
-
     async def post(self, url: str, json: dict[str, Any]) -> httpx.Response:
         del json
         request = httpx.Request("POST", url)
         raise httpx.ConnectError("connect failed", request=request)
 
+    async def aclose(self) -> None:
+        return None
+
 
 class _RejectedRemoteAuthClient:
     def __init__(self, *, timeout: float) -> None:
         del timeout
-
-    async def __aenter__(self) -> _RejectedRemoteAuthClient:
-        return self
-
-    async def __aexit__(
-        self,
-        exc_type: type[BaseException] | None,
-        exc: BaseException | None,
-        tb: Any,
-    ) -> None:
-        del exc_type, exc, tb
 
     async def post(self, url: str, json: dict[str, Any]) -> httpx.Response:
         del url, json
@@ -115,6 +96,62 @@ class _RejectedRemoteAuthClient:
             },
         )
 
+    async def aclose(self) -> None:
+        return None
+
+
+class _HealthyRemoteAuthReadinessClient:
+    requested_urls: list[str] = []
+
+    def __init__(self, *, timeout: float) -> None:
+        del timeout
+
+    async def get(self, url: str) -> httpx.Response:
+        type(self).requested_urls.append(url)
+        return httpx.Response(200)
+
+    async def aclose(self) -> None:
+        return None
+
+
+class _UnreadyRemoteAuthClient:
+    requested_urls: list[str] = []
+
+    def __init__(self, *, timeout: float) -> None:
+        del timeout
+
+    async def get(self, url: str) -> httpx.Response:
+        type(self).requested_urls.append(url)
+        return httpx.Response(503)
+
+    async def aclose(self) -> None:
+        return None
+
+
+class _ReusableRemoteAuthClient:
+    created = 0
+
+    def __init__(self, *, timeout: float) -> None:
+        del timeout
+        type(self).created += 1
+
+    async def post(self, url: str, json: dict[str, Any]) -> httpx.Response:
+        del url, json
+        return httpx.Response(
+            200,
+            json={
+                "principal": {
+                    "subject": "subject-1",
+                    "scope_id": "scope-1",
+                    "permissions": ["jobs:enqueue"],
+                    "scopes": ["uploads:write"],
+                }
+            },
+        )
+
+    async def aclose(self) -> None:
+        return None
+
 
 @pytest.mark.asyncio
 async def test_local_verification_uses_thread_boundary(
@@ -122,18 +159,22 @@ async def test_local_verification_uses_thread_boundary(
 ) -> None:
     settings = Settings()
     settings.auth_mode = AuthMode.JWT_LOCAL
+    settings.oidc_verifier_thread_tokens = 3
+    settings.blocking_io_thread_tokens = 11
     cache = _build_cache()
     auth = Authenticator(settings=settings, cache=cache)
     auth._verifier = cast(JWTVerifier, _VerifierReturningClaims())
 
     call_count = {"count": 0}
+    captured: dict[str, Any] = {}
 
     async def _run_sync(
         func: Callable[[str], dict[str, Any]],
         token: str,
-        **_kwargs: Any,
+        **kwargs: Any,
     ) -> dict[str, Any]:
         call_count["count"] += 1
+        captured["limiter"] = kwargs["limiter"]
         return func(token)
 
     monkeypatch.setattr(
@@ -145,6 +186,94 @@ async def test_local_verification_uses_thread_boundary(
 
     assert claims["sub"] == "subject-1"
     assert call_count["count"] == 1
+    assert captured["limiter"] is auth._verifier_thread_limiter
+    assert captured["limiter"].total_tokens == 3
+
+
+@pytest.mark.asyncio
+async def test_local_auth_healthcheck_fails_when_verifier_missing() -> None:
+    settings = Settings()
+    settings.auth_mode = AuthMode.JWT_LOCAL
+    auth = Authenticator(settings=settings, cache=_build_cache())
+
+    assert await auth.healthcheck() is False
+
+
+@pytest.mark.asyncio
+async def test_local_auth_healthcheck_is_ready_when_verifier_present() -> None:
+    settings = Settings()
+    settings.auth_mode = AuthMode.JWT_LOCAL
+    auth = Authenticator(settings=settings, cache=_build_cache())
+    auth._verifier = cast(JWTVerifier, _VerifierReturningClaims())
+
+    assert await auth.healthcheck() is True
+
+
+@pytest.mark.asyncio
+async def test_remote_auth_healthcheck_uses_ready_endpoint(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    settings = Settings()
+    settings.auth_mode = AuthMode.JWT_REMOTE
+    settings.remote_auth_base_url = "https://auth.example.local"
+    auth = Authenticator(settings=settings, cache=_build_cache())
+    _HealthyRemoteAuthReadinessClient.requested_urls = []
+
+    monkeypatch.setattr(
+        "nova_file_api.auth.httpx.AsyncClient",
+        _HealthyRemoteAuthReadinessClient,
+    )
+
+    assert await auth.healthcheck() is True
+    assert _HealthyRemoteAuthReadinessClient.requested_urls == [
+        "https://auth.example.local/v1/health/ready"
+    ]
+
+
+@pytest.mark.asyncio
+async def test_remote_auth_healthcheck_fails_when_ready_endpoint_is_unavailable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    settings = Settings()
+    settings.auth_mode = AuthMode.JWT_REMOTE
+    settings.remote_auth_base_url = "https://auth.example.local"
+    auth = Authenticator(settings=settings, cache=_build_cache())
+    _UnreadyRemoteAuthClient.requested_urls = []
+
+    monkeypatch.setattr(
+        "nova_file_api.auth.httpx.AsyncClient",
+        _UnreadyRemoteAuthClient,
+    )
+
+    assert await auth.healthcheck() is False
+    assert _UnreadyRemoteAuthClient.requested_urls == [
+        "https://auth.example.local/v1/health/ready"
+    ]
+
+
+@pytest.mark.asyncio
+async def test_remote_auth_reuses_a_single_async_client(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    settings = Settings()
+    settings.auth_mode = AuthMode.JWT_REMOTE
+    settings.remote_auth_base_url = "https://auth.example.local"
+    auth = Authenticator(settings=settings, cache=_build_cache())
+    _ReusableRemoteAuthClient.created = 0
+
+    monkeypatch.setattr(
+        "nova_file_api.auth.httpx.AsyncClient",
+        _ReusableRemoteAuthClient,
+    )
+
+    request = _build_request(headers={"Authorization": "Bearer token-123"})
+
+    first = await auth.authenticate(request=request, session_id=None)
+    second = await auth.authenticate(request=request, session_id=None)
+
+    assert first.subject == "subject-1"
+    assert second.subject == "subject-1"
+    assert _ReusableRemoteAuthClient.created == 1
 
 
 @pytest.mark.asyncio

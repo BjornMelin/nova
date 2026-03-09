@@ -3,16 +3,40 @@
 from __future__ import annotations
 
 import importlib.metadata
-import warnings
 
-from pydantic import Field, SecretStr
+from pydantic import Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from nova_file_api.models import (
     ActivityStoreBackend,
     AuthMode,
+    IdempotencyMode,
     JobsQueueBackend,
     JobsRepositoryBackend,
+)
+
+_MSG_WORKER_RUNTIME_REQUIRES_JOBS_ENABLED = (
+    "JOBS_ENABLED must be true when JOBS_RUNTIME_MODE=worker"
+)
+_MSG_WORKER_RUNTIME_REQUIRES_SQS_BACKEND = (
+    "JOBS_QUEUE_BACKEND must be sqs when JOBS_RUNTIME_MODE=worker"
+)
+_MSG_WORKER_RUNTIME_REQUIRES_SQS_QUEUE_URL = (
+    "JOBS_SQS_QUEUE_URL must be configured when JOBS_RUNTIME_MODE=worker"
+)
+_MSG_WORKER_RUNTIME_REQUIRES_API_BASE_URL = (
+    "JOBS_API_BASE_URL must be configured when JOBS_RUNTIME_MODE=worker"
+)
+_MSG_WORKER_RUNTIME_REQUIRES_UPDATE_TOKEN = (
+    "JOBS_WORKER_UPDATE_TOKEN must be configured when JOBS_RUNTIME_MODE=worker"
+)
+_MSG_SHARED_REQUIRED_IDEMPOTENCY_REQUIRES_REDIS = (
+    "CACHE_REDIS_URL must be configured when "
+    "IDEMPOTENCY_ENABLED=true and IDEMPOTENCY_MODE=shared_required"
+)
+_MSG_PRODUCTION_IDEMPOTENCY_REQUIRES_SHARED = (
+    "IDEMPOTENCY_MODE must be shared_required when "
+    "ENVIRONMENT indicates production and IDEMPOTENCY_ENABLED=true"
 )
 
 
@@ -121,6 +145,12 @@ class Settings(BaseSettings):
         ge=1,
         le=1000,
     )
+    blocking_io_thread_tokens: int = Field(
+        default=80,
+        alias="BLOCKING_IO_THREAD_TOKENS",
+        ge=1,
+        le=1000,
+    )
 
     remote_auth_base_url: str | None = Field(
         default=None,
@@ -218,6 +248,10 @@ class Settings(BaseSettings):
         default=True,
         alias="IDEMPOTENCY_ENABLED",
     )
+    idempotency_mode: IdempotencyMode = Field(
+        default=IdempotencyMode.LOCAL_ONLY,
+        alias="IDEMPOTENCY_MODE",
+    )
     idempotency_ttl_seconds: int = Field(
         default=900,
         alias="IDEMPOTENCY_TTL_SECONDS",
@@ -252,9 +286,40 @@ class Settings(BaseSettings):
         ge=1,
         le=10,
     )
+    jobs_sqs_max_number_of_messages: int = Field(
+        default=1,
+        alias="JOBS_SQS_MAX_NUMBER_OF_MESSAGES",
+        ge=1,
+        le=10,
+    )
+    jobs_sqs_wait_time_seconds: int = Field(
+        default=20,
+        alias="JOBS_SQS_WAIT_TIME_SECONDS",
+        ge=0,
+        le=20,
+    )
+    jobs_sqs_visibility_timeout_seconds: int = Field(
+        default=120,
+        alias="JOBS_SQS_VISIBILITY_TIMEOUT_SECONDS",
+        ge=0,
+        le=43200,
+    )
+    jobs_runtime_mode: str = Field(
+        default="api",
+        alias="JOBS_RUNTIME_MODE",
+        pattern="^(api|worker)$",
+    )
+    jobs_api_base_url: str | None = Field(
+        default=None,
+        alias="JOBS_API_BASE_URL",
+    )
     jobs_worker_update_token: SecretStr | None = Field(
         default=None,
         alias="JOBS_WORKER_UPDATE_TOKEN",
+    )
+    jobs_allow_insecure_missing_worker_token_nonprod: bool = Field(
+        default=False,
+        alias="JOBS_ALLOW_INSECURE_MISSING_WORKER_TOKEN_NONPROD",
     )
 
     activity_store_backend: ActivityStoreBackend = Field(
@@ -289,28 +354,39 @@ class Settings(BaseSettings):
             if permission
         )
 
-    @property
-    def required_scopes(self) -> tuple[str, ...]:
-        """Backward-compatible alias for default_required_scopes."""
-        warnings.warn(
-            (
-                "Settings.required_scopes is deprecated; "
-                "use default_required_scopes"
-            ),
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return self.default_required_scopes
-
-    @property
-    def required_permissions(self) -> tuple[str, ...]:
-        """Backward-compatible alias for default_required_permissions."""
-        warnings.warn(
-            (
-                "Settings.required_permissions is deprecated; "
-                "use default_required_permissions"
-            ),
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return self.default_required_permissions
+    @model_validator(mode="after")
+    def validate_worker_runtime_settings(self) -> Settings:
+        """Validate additional requirements for worker runtime mode."""
+        if self.idempotency_enabled:
+            if (
+                self.environment.lower() in {"prod", "production"}
+                and self.idempotency_mode != IdempotencyMode.SHARED_REQUIRED
+            ):
+                raise ValueError(_MSG_PRODUCTION_IDEMPOTENCY_REQUIRES_SHARED)
+            if (
+                self.idempotency_mode == IdempotencyMode.SHARED_REQUIRED
+                and not (self.cache_redis_url or "").strip()
+            ):
+                raise ValueError(
+                    _MSG_SHARED_REQUIRED_IDEMPOTENCY_REQUIRES_REDIS
+                )
+        if self.jobs_runtime_mode != "worker":
+            return self
+        if not self.jobs_enabled:
+            raise ValueError(_MSG_WORKER_RUNTIME_REQUIRES_JOBS_ENABLED)
+        if self.jobs_queue_backend != JobsQueueBackend.SQS:
+            raise ValueError(_MSG_WORKER_RUNTIME_REQUIRES_SQS_BACKEND)
+        queue_url = (self.jobs_sqs_queue_url or "").strip()
+        if not queue_url:
+            raise ValueError(_MSG_WORKER_RUNTIME_REQUIRES_SQS_QUEUE_URL)
+        api_base_url = (self.jobs_api_base_url or "").strip()
+        if not api_base_url:
+            raise ValueError(_MSG_WORKER_RUNTIME_REQUIRES_API_BASE_URL)
+        token = (
+            self.jobs_worker_update_token.get_secret_value()
+            if self.jobs_worker_update_token is not None
+            else ""
+        ).strip()
+        if not token:
+            raise ValueError(_MSG_WORKER_RUNTIME_REQUIRES_UPDATE_TOKEN)
+        return self

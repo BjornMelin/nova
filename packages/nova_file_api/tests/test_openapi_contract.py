@@ -174,6 +174,34 @@ def test_openapi_schema_generation_smoke() -> None:
     assert schema.get("openapi") == "3.1.0"
 
 
+def test_openapi_uses_canonical_error_components_and_internal_visibility() -> (
+    None
+):
+    """File API OpenAPI should use canonical error refs and internal markers."""
+    app = create_app()
+    schema = app.openapi()
+
+    components = schema["components"]
+    schemas = components["schemas"]
+    responses = components["responses"]
+
+    assert "HTTPValidationError" not in schemas
+    assert "ValidationError" not in schemas
+    assert "FileInvalidRequestResponse" in responses
+    assert schema["paths"]["/v1/jobs"]["post"]["responses"]["422"] == {
+        "$ref": "#/components/responses/FileInvalidRequestResponse"
+    }
+    assert schema["paths"]["/v1/jobs"]["post"]["responses"]["503"] == {
+        "$ref": "#/components/responses/FileQueueUnavailableResponse"
+    }
+    assert (
+        schema["paths"]["/v1/internal/jobs/{job_id}/result"]["post"][
+            "x-nova-sdk-visibility"
+        ]
+        == "internal"
+    )
+
+
 def test_legacy_routes_are_not_exposed() -> None:
     """Legacy API and legacy health routes must remain removed."""
     app = create_app()

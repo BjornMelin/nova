@@ -20,6 +20,9 @@ class StubAuthenticator:
             permissions=("metrics:read",),
         )
 
+    async def healthcheck(self) -> bool:
+        return True
+
 
 class StubTransferService:
     pass

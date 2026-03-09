@@ -51,6 +51,13 @@ class ActivityStoreBackend(StrEnum):
     DYNAMODB = "dynamodb"
 
 
+class IdempotencyMode(StrEnum):
+    """Idempotency backends supported by the runtime."""
+
+    LOCAL_ONLY = "local_only"
+    SHARED_REQUIRED = "shared_required"
+
+
 class Principal(BaseModel):
     """Authorized caller identity used for scope enforcement."""
 
@@ -199,6 +206,9 @@ class EnqueueJobRequest(BaseModel):
     job_type: str = Field(min_length=1, max_length=128)
     payload: dict[str, Any] = Field(default_factory=dict)
     session_id: str | None = Field(default=None, min_length=1, max_length=256)
+
+
+TRANSFER_PROCESS_JOB_TYPE = "transfer.process"
 
 
 class JobStatus(StrEnum):

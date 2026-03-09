@@ -12,6 +12,7 @@ from nova_file_api.models import (
     CapabilitiesResponse,
     CapabilityDescriptor,
     HealthResponse,
+    IdempotencyMode,
     MetricsSummaryResponse,
     ReadinessResponse,
     ReleaseInfoResponse,
@@ -179,9 +180,15 @@ async def health_ready(
         "activity_store": activity_store,
         "auth_dependency": auth_dependency,
     }
+    shared_cache_required = (
+        container.settings.idempotency_enabled
+        and container.settings.idempotency_mode
+        == IdempotencyMode.SHARED_REQUIRED
+    )
     return ReadinessResponse(
         ok=(
             checks["bucket_configured"]
+            and (not shared_cache_required or checks["shared_cache"])
             and checks["job_queue"]
             and checks["auth_dependency"]
         ),

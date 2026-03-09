@@ -4,10 +4,14 @@ from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
 from time import perf_counter
-from uuid import uuid4
 
 import structlog
 from fastapi import Request
+from nova_runtime_support import (
+    bind_request_id,
+    finalize_request_id,
+    unbind_request_id,
+)
 from starlette.responses import Response
 
 
@@ -17,9 +21,7 @@ async def request_context_middleware(
 ) -> Response:
     """Inject request ID into context and response headers."""
     started = perf_counter()
-    request_id = request.headers.get("X-Request-Id") or uuid4().hex
-    request.state.request_id = request_id
-    structlog.contextvars.bind_contextvars(request_id=request_id)
+    request_id = bind_request_id(request)
     logger = structlog.get_logger("http")
     auth_mode = _auth_mode_value(request=request)
     path = request.url.path
@@ -38,10 +40,10 @@ async def request_context_middleware(
             latency_ms=round(latency_ms, 3),
             auth_mode=auth_mode,
         )
-        structlog.contextvars.unbind_contextvars("request_id")
+        unbind_request_id()
         raise
 
-    response.headers["X-Request-Id"] = request_id
+    finalize_request_id(response, request_id=request_id)
     latency_ms = (perf_counter() - started) * 1000.0
     status_code = response.status_code
     outcome = "ok" if status_code < 400 else "error"
@@ -54,7 +56,7 @@ async def request_context_middleware(
         latency_ms=round(latency_ms, 3),
         auth_mode=auth_mode,
     )
-    structlog.contextvars.unbind_contextvars("request_id")
+    unbind_request_id()
     return response
 
 

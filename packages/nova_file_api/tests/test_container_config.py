@@ -5,6 +5,7 @@ from nova_file_api.config import Settings
 from nova_file_api.container import create_container
 from nova_file_api.models import (
     ActivityStoreBackend,
+    IdempotencyMode,
     JobsQueueBackend,
     JobsRepositoryBackend,
 )
@@ -46,3 +47,23 @@ def test_create_container_requires_jobs_table_for_dynamodb_repository() -> None:
 
     with pytest.raises(ValueError, match="JOBS_DYNAMODB_TABLE"):
         create_container(settings=settings)
+
+
+def test_settings_require_shared_cache_for_shared_required_idempotency(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("CACHE_REDIS_URL", raising=False)
+    with pytest.raises(ValueError, match="CACHE_REDIS_URL"):
+        Settings(
+            IDEMPOTENCY_ENABLED=True,
+            IDEMPOTENCY_MODE=IdempotencyMode.SHARED_REQUIRED,
+        )
+
+
+def test_settings_require_shared_required_idempotency_in_production() -> None:
+    with pytest.raises(ValueError, match="IDEMPOTENCY_MODE"):
+        Settings(
+            environment="production",
+            IDEMPOTENCY_ENABLED=True,
+            IDEMPOTENCY_MODE=IdempotencyMode.LOCAL_ONLY,
+        )

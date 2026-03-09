@@ -18,6 +18,7 @@ from nova_file_api.jobs import MemoryJobRepository
 from nova_file_api.metrics import MetricsCollector
 from nova_file_api.models import (
     EnqueueJobResponse,
+    IdempotencyMode,
     InitiateUploadResponse,
     JobRecord,
     JobStatus,
@@ -104,6 +105,7 @@ def _build_container(
 ) -> tuple[AppContainer, _StubTransferService, _StubJobService]:
     settings = Settings()
     settings.idempotency_enabled = idempotency_enabled
+    settings.idempotency_mode = IdempotencyMode.LOCAL_ONLY
     settings.jobs_enabled = True
     metrics = MetricsCollector(namespace="Tests")
     shared = SharedRedisCache(url=None)
@@ -129,6 +131,7 @@ def _build_container(
             cache=cache,
             enabled=idempotency_enabled,
             ttl_seconds=300,
+            mode=settings.idempotency_mode,
         ),
     )
     return container, transfer_service, job_service
@@ -216,7 +219,7 @@ def test_v1_jobs_allows_missing_idempotency_key_when_enabled() -> None:
     with TestClient(app) as client:
         response = client.post(
             "/v1/jobs",
-            json={"job_type": "transform", "payload": {"input": "a"}},
+            json={"job_type": "transfer.process", "payload": {"input": "a"}},
         )
     assert response.status_code == 200
     assert job_service.calls == 1
@@ -230,12 +233,12 @@ def test_v1_jobs_replays_response_for_same_idempotency_key() -> None:
         first = client.post(
             "/v1/jobs",
             headers={"Idempotency-Key": "job-key-1"},
-            json={"job_type": "transform", "payload": {"input": "a"}},
+            json={"job_type": "transfer.process", "payload": {"input": "a"}},
         )
         second = client.post(
             "/v1/jobs",
             headers={"Idempotency-Key": "job-key-1"},
-            json={"job_type": "transform", "payload": {"input": "a"}},
+            json={"job_type": "transfer.process", "payload": {"input": "a"}},
         )
     assert first.status_code == 200
     assert second.status_code == 200
@@ -253,14 +256,62 @@ def test_v1_jobs_reject_key_reuse_with_different_payload() -> None:
         first = client.post(
             "/v1/jobs",
             headers={"Idempotency-Key": "job-key-2"},
-            json={"job_type": "transform", "payload": {"input": "a"}},
+            json={"job_type": "transfer.process", "payload": {"input": "a"}},
         )
         second = client.post(
             "/v1/jobs",
             headers={"Idempotency-Key": "job-key-2"},
-            json={"job_type": "transform", "payload": {"input": "b"}},
+            json={"job_type": "transfer.process", "payload": {"input": "b"}},
         )
     assert first.status_code == 200
     assert second.status_code == 409
     assert second.json()["error"]["code"] == "idempotency_conflict"
     assert job_service.calls == 1
+
+
+def test_v1_initiate_returns_503_when_shared_store_is_unavailable() -> None:
+    container, transfer_service, _job_service = _build_container()
+    container.settings.idempotency_mode = IdempotencyMode.SHARED_REQUIRED
+    container.idempotency_store = IdempotencyStore(
+        cache=container.cache,
+        enabled=True,
+        ttl_seconds=300,
+        mode=container.settings.idempotency_mode,
+    )
+    app = create_app(container_override=container)
+    with TestClient(app) as client:
+        response = client.post(
+            "/v1/transfers/uploads/initiate",
+            headers={"Idempotency-Key": "upload-key-shared"},
+            json={
+                "filename": "sample.csv",
+                "size_bytes": 42,
+                "content_type": "text/csv",
+            },
+        )
+    assert response.status_code == 503
+    assert response.json()["error"]["code"] == "idempotency_unavailable"
+    assert transfer_service.calls == 0
+
+
+def test_v1_jobs_return_503_when_shared_idempotency_store_is_unavailable() -> (
+    None
+):
+    container, _transfer_service, job_service = _build_container()
+    container.settings.idempotency_mode = IdempotencyMode.SHARED_REQUIRED
+    container.idempotency_store = IdempotencyStore(
+        cache=container.cache,
+        enabled=True,
+        ttl_seconds=300,
+        mode=container.settings.idempotency_mode,
+    )
+    app = create_app(container_override=container)
+    with TestClient(app) as client:
+        response = client.post(
+            "/v1/jobs",
+            headers={"Idempotency-Key": "job-key-shared"},
+            json={"job_type": "transfer.process", "payload": {"input": "a"}},
+        )
+    assert response.status_code == 503
+    assert response.json()["error"]["code"] == "idempotency_unavailable"
+    assert job_service.calls == 0

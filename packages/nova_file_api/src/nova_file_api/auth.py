@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import time
-from collections.abc import Sequence
 from typing import Any
 
 import anyio
 import httpx
-from oidc_jwt_verifier import AuthConfig, AuthError, JWTVerifier
+from anyio.abc import CapacityLimiter
+from nova_runtime_support import build_jwt_verifier, normalized_principal_claims
+from oidc_jwt_verifier import AuthError, JWTVerifier
 from starlette.requests import Request
 
 from nova_file_api.cache import TwoTierCache
@@ -35,7 +36,10 @@ class Authenticator:
         self._settings = settings
         self._cache = cache
         self._verifier = self._build_verifier(settings)
-        self._thread_limiter: Any | None = None
+        self._verifier_thread_limiter: CapacityLimiter = anyio.CapacityLimiter(
+            settings.oidc_verifier_thread_tokens
+        )
+        self._remote_client: httpx.AsyncClient | None = None
 
     async def authenticate(
         self,
@@ -71,6 +75,32 @@ class Authenticator:
         principal = _principal_from_claims(claims=claims)
         self._enforce_required_authorization(principal=principal)
         return principal
+
+    async def healthcheck(self) -> bool:
+        """Return readiness of the active auth dependency."""
+        if self._settings.auth_mode == AuthMode.SAME_ORIGIN:
+            return True
+        if self._settings.auth_mode == AuthMode.JWT_LOCAL:
+            return self._verifier is not None
+
+        base_url = self._settings.remote_auth_base_url
+        if base_url is None:
+            return False
+
+        url = f"{base_url.rstrip('/')}/v1/health/ready"
+        try:
+            response = await self._get_remote_client().get(url)
+        except httpx.HTTPError:
+            return False
+        return response.status_code == 200
+
+    async def aclose(self) -> None:
+        """Close any lazily-initialized remote auth client."""
+        client = self._remote_client
+        if client is None:
+            return
+        self._remote_client = None
+        await client.aclose()
 
     def _same_origin_principal(
         self,
@@ -123,18 +153,11 @@ class Authenticator:
         if verifier is None:
             raise unauthorized("local jwt mode is misconfigured")
 
-        thread_limiter = self._thread_limiter
-        if thread_limiter is None:
-            thread_limiter = _jwt_verifier_thread_limiter()
-            self._thread_limiter = thread_limiter
-
         try:
-            # Default AnyIO worker pool is token-limited; tune
-            # OIDC_VERIFIER_THREAD_TOKENS via settings for expected load.
             claims = await anyio.to_thread.run_sync(
                 verifier.verify_access_token,
                 token,
-                limiter=thread_limiter,
+                limiter=self._verifier_thread_limiter,
             )
         except AuthError as exc:
             raise _local_auth_error(exc=exc) from exc
@@ -165,11 +188,8 @@ class Authenticator:
                 self._settings.default_required_permissions
             ),
         }
-        timeout = self._settings.remote_auth_timeout_seconds
-
         try:
-            async with httpx.AsyncClient(timeout=timeout) as client:
-                response = await client.post(url, json=payload)
+            response = await self._get_remote_client().post(url, json=payload)
         except httpx.HTTPError as exc:
             raise unauthorized("remote auth verification failed") from exc
 
@@ -209,21 +229,24 @@ class Authenticator:
     def _build_verifier(settings: Settings) -> JWTVerifier | None:
         if settings.auth_mode != AuthMode.JWT_LOCAL:
             return None
-        if (
-            settings.oidc_issuer is None
-            or settings.oidc_audience is None
-            or settings.oidc_jwks_url is None
-        ):
-            return None
-        config = AuthConfig(
+        return build_jwt_verifier(
             issuer=settings.oidc_issuer,
             audience=settings.oidc_audience,
             jwks_url=settings.oidc_jwks_url,
+            clock_skew_seconds=settings.oidc_clock_skew_seconds,
             required_scopes=settings.default_required_scopes,
             required_permissions=settings.default_required_permissions,
-            leeway_s=settings.oidc_clock_skew_seconds,
         )
-        return JWTVerifier(config=config)
+
+    def _get_remote_client(self) -> httpx.AsyncClient:
+        client = self._remote_client
+        if client is not None:
+            return client
+        client = httpx.AsyncClient(
+            timeout=self._settings.remote_auth_timeout_seconds
+        )
+        self._remote_client = client
+        return client
 
 
 def _extract_bearer_token(*, request: Request) -> str | None:
@@ -239,67 +262,16 @@ def _extract_bearer_token(*, request: Request) -> str | None:
 
 
 def _principal_from_claims(*, claims: dict[str, Any]) -> Principal:
-    subject_raw = claims.get("sub")
-    if not isinstance(subject_raw, str) or not subject_raw.strip():
-        raise unauthorized("token subject claim is missing")
-
-    tenant_value = _claim_as_str(claims=claims, keys=("tenant_id", "org_id"))
-    scope_value = _claim_as_str(claims=claims, keys=("scope_id",))
-    scope_id = scope_value or tenant_value or subject_raw
-
-    scopes = _collect_string_claim(claims.get("scope"))
-    permissions = _collect_string_claim(claims.get("permissions"))
-
-    return Principal(
-        subject=subject_raw,
-        scope_id=scope_id,
-        tenant_id=tenant_value,
-        scopes=tuple(scopes),
-        permissions=tuple(permissions),
+    normalized = normalized_principal_claims(
+        claims=claims,
+        invalid_token_error=unauthorized,
     )
-
-
-def _claim_as_str(*, claims: dict[str, Any], keys: Sequence[str]) -> str | None:
-    for key in keys:
-        value = claims.get(key)
-        if isinstance(value, str) and value.strip():
-            return value.strip()
-    return None
-
-
-def _jwt_verifier_thread_limiter() -> Any:
-    """Return the runtime AnyIO thread limiter used for verifier work."""
-    return anyio.to_thread.current_default_thread_limiter()
-
-
-def _set_verifier_thread_tokens(total_tokens: int) -> None:
-    """Set process-wide verifier thread capacity for sync JWT verification.
-
-    The default AnyIO thread-limiter protects event-loop liveness while running
-    CPU-bound or blocking verification steps in a worker pool.
-    """
-    limiter = _jwt_verifier_thread_limiter()
-    limiter.total_tokens = total_tokens
-
-
-def _collect_string_claim(value: object) -> list[str]:
-    if value is None:
-        return []
-    if isinstance(value, str):
-        return [
-            segment.strip() for segment in value.split(" ") if segment.strip()
-        ]
-    if isinstance(value, (list, tuple)):
-        output: list[str] = []
-        for item in value:
-            if isinstance(item, str) and item.strip():
-                output.append(item.strip())
-        return output
-    # File API surfaces FileTransferError in its canonical response envelope.
-    raise FileTransferError(
-        code="invalid_token",
-        message="token claim type is invalid",
-        status_code=401,
+    return Principal(
+        subject=normalized.subject,
+        scope_id=normalized.scope_id,
+        tenant_id=normalized.tenant_id,
+        scopes=normalized.scopes,
+        permissions=normalized.permissions,
     )
 
 
@@ -381,25 +353,23 @@ def _safe_json_dict(*, response: httpx.Response) -> dict[str, Any]:
 
 
 def _principal_from_remote_payload(*, principal: dict[str, Any]) -> Principal:
-    subject = _claim_as_str(claims=principal, keys=("subject", "sub"))
-    if subject is None:
-        raise unauthorized("remote auth principal is missing subject")
-
-    tenant_id = _claim_as_str(claims=principal, keys=("tenant_id", "org_id"))
-    scope_id = (
-        _claim_as_str(claims=principal, keys=("scope_id",))
-        or tenant_id
-        or subject
+    normalized = normalized_principal_claims(
+        claims=principal,
+        invalid_token_error=_remote_principal_error,
+        subject_keys=("subject", "sub"),
+        scopes_claim="scopes",
     )
-    scopes = _collect_string_claim(principal.get("scopes"))
-    permissions = _collect_string_claim(principal.get("permissions"))
     return Principal(
-        subject=subject,
-        scope_id=scope_id,
-        tenant_id=tenant_id,
-        scopes=tuple(scopes),
-        permissions=tuple(permissions),
+        subject=normalized.subject,
+        scope_id=normalized.scope_id,
+        tenant_id=normalized.tenant_id,
+        scopes=normalized.scopes,
+        permissions=normalized.permissions,
     )
+
+
+def _remote_principal_error(message: str) -> FileTransferError:
+    return unauthorized(f"remote auth principal is invalid: {message}")
 
 
 def _jwt_cache_ttl_seconds(
