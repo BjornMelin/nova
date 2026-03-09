@@ -6,8 +6,8 @@ Version: 1.0
 Date: 2026-03-05
 Related:
   - "[ADR-0011: Hybrid CI/CD with GitHub CI and AWS-native Dev to Prod promotion](./ADR-0011-cicd-hybrid-github-aws-promotion.md)"
-  - "[SPEC-0017: CloudFormation module contract](../spec/SPEC-0017-cloudformation-module-contract.md)"
   - "[SPEC-0020: Architecture authority pack and documentation synchronization contract](../spec/SPEC-0020-architecture-authority-pack-and-documentation-synchronization-contract.md)"
+  - "[SPEC-0024: CloudFormation module contract](../spec/SPEC-0024-cloudformation-module-contract.md)"
   - "[SPEC-0004: CI/CD and documentation automation](../spec/SPEC-0004-ci-cd-and-docs.md)"
 ---
 

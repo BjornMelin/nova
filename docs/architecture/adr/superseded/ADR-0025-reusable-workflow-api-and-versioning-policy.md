@@ -1,15 +1,18 @@
 ---
-ADR: 0031
+ADR: 0025
 Title: Reusable GitHub workflow API and versioning policy for deployment automation
-Status: Accepted
+Status: Superseded
 Version: 1.2
 Date: 2026-03-09
-Supersedes:
-  - "ADR-0025"
 Related:
-  - "[ADR-0025: Reusable GitHub workflow API and versioning policy for deployment automation (superseded)](./superseded/ADR-0025-reusable-workflow-api-and-versioning-policy.md)"
+  - "[requirements.md](../requirements.md)"
+  - "[ADR-0023: Hard-cut v1 canonical route surface](./ADR-0023-hard-cut-v1-canonical-route-surface.md)"
+  - "[SPEC-0000: HTTP API contract](../spec/SPEC-0000-http-api-contract.md)"
+  - "[SPEC-0016: Hard-cut v1 route contract and route-literal guardrails](../spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md)"
   - "[ADR-0011: Hybrid CI/CD with GitHub CI and AWS-native Dev to Prod promotion](./ADR-0011-cicd-hybrid-github-aws-promotion.md)"
-  - "[SPEC-0025: Reusable workflow integration contract](../spec/SPEC-0025-reusable-workflow-integration-contract.md)"
+  - "[SPEC-0018: Reusable workflow integration contract](../spec/SPEC-0018-reusable-workflow-integration-contract.md)"
+  - "[SPEC-0004: CI/CD and documentation automation](../spec/SPEC-0004-ci-cd-and-docs.md)"
+  - "[ADR-0031: Reusable GitHub workflow API and versioning policy for deployment automation](./ADR-0031-reusable-github-workflow-api-and-versioning-policy-for-deployment-automation.md)"
 ---
 
 ## Summary
@@ -47,9 +50,6 @@ Threshold policy: only options >=9.0 are accepted.
 
 Choose **Option B**.
 
-This ADR supersedes ADR-0025 as the active governance authority for reusable
-workflow API and versioning policy.
-
 ### Required characteristics
 
 1. Reusable workflow APIs are exposed via `workflow_call` and typed
@@ -83,3 +83,4 @@ workflow API and versioning policy.
 ## Changelog
 
 - 2026-03-03: Updated ADR scope to reusable workflow API and versioning policy.
+- 2026-03-09: Marked as superseded by ADR-0031.

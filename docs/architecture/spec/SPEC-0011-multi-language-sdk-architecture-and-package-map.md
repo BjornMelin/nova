@@ -1,11 +1,11 @@
 ---
 Spec: 0011
-Title: Public Python/TypeScript SDK architecture and deferred R package map
+Title: Public Python SDK architecture with generated/private TypeScript and deferred R package map
 Status: Active
 Version: 2.0
 Date: 2026-03-05
 Related:
-  - "[ADR-0013: Public Python/TypeScript SDK topology uses generated contract-core clients and defers R productization](../adr/ADR-0013-final-state-sdk-topology-generated-core-plus-thin-adapters.md)"
+  - "[ADR-0013: Public Python SDK topology uses generated contract-core clients while TypeScript remains generated/private and R stays deferred](../adr/ADR-0013-final-state-sdk-topology-generated-core-plus-thin-adapters.md)"
   - "[ADR-0002: OpenAPI as contract and SDK generation](../adr/ADR-0002-openapi-as-contract-and-sdk-generation.md)"
   - "[SPEC-0000: HTTP API contract](./SPEC-0000-http-api-contract.md)"
   - "[SPEC-0007: Auth API contract](./SPEC-0007-auth-api-contract.md)"
@@ -18,9 +18,10 @@ References:
 
 ## 1. Scope
 
-Defines the current-wave Nova SDK package map. Python and TypeScript are the
-release-grade public SDK surfaces. R packages remain internal/generated
-catalogs until a later promotion wave.
+Defines the current-wave Nova SDK package map. Python is the release-grade
+public SDK surface. TypeScript packages remain generated/private-distribution
+artifacts, and R packages remain internal/generated catalogs until later
+promotion waves.
 
 ## 2. Canonical topology
 
@@ -68,13 +69,13 @@ Consumer mapping:
 - `dash-pca` consumes generated Python SDK packages plus thin bridge utilities.
 - No handwritten Python verify client remains authoritative in consumer repos.
 
-### 3.3 Public/generated TypeScript SDKs
+### 3.3 Generated/private TypeScript SDKs
 
-- `@nova/sdk-file` (generated public file SDK with `client`, `types`,
+- `@nova/sdk-file` (generated file SDK with `client`, `types`,
   `operations`, and `errors` subpaths)
-- `@nova/sdk-auth` (generated public auth SDK with `client`, `types`,
+- `@nova/sdk-auth` (generated auth SDK with `client`, `types`,
   `operations`, and `errors` subpaths)
-- `@nova/sdk-fetch` (generator-owned runtime helper used by the public SDKs)
+- `@nova/sdk-fetch` (generator-owned runtime helper used by the generated SDKs)
 
 Repository package paths:
 
@@ -84,10 +85,10 @@ Repository package paths:
 
 Current status:
 
-- release-grade public SDK surface
+- generated/private-distribution SDK surface
 - generated directly from the committed OpenAPI artifacts
 - runtime-lean and intentionally free of bundled validation libraries
-- public `types` subpaths expose curated operation helpers and reachable public
+- `types` subpaths expose curated operation helpers and reachable public
   schema aliases only; raw whole-spec OpenAPI aliases are not public contract
   surface
 
@@ -109,7 +110,7 @@ Current status:
 
 ## 4. Required SDK surface behaviors
 
-Public Python and TypeScript SDK packages must support:
+Python public and TypeScript generated SDK packages must support:
 
 - explicit base URL configuration
 - configurable timeout
@@ -120,7 +121,7 @@ Public Python and TypeScript SDK packages must support:
   `error.request_id`)
 - typed request/response payload models
 
-For public TypeScript SDKs specifically:
+For generated/private TypeScript SDKs specifically:
 
 - single-media request bodies may use generator-supplied default media types
 - multi-media request bodies must expose explicit generated `contentType`
@@ -151,7 +152,7 @@ Nova owns:
 - OpenAPI contract source
 - generated SDK definitions
 - Python public package governance
-- TypeScript public package governance
+- TypeScript generated/private package governance
 - R internal catalog generation determinism
 
 Consumer repos own:
@@ -165,7 +166,8 @@ Consumer repos own:
 - Canonical OpenAPI artifacts are exported and committed before SDK generation.
 - Python and TypeScript SDK packages are versioned and published from Nova CI.
 - `scripts/release/generate_clients.py` is the deterministic generator entry
-  point for public TypeScript SDK artifacts and internal R operation catalogs.
+  point for generated/private TypeScript SDK artifacts and internal R operation
+  catalogs.
 - `scripts/release/generate_python_clients.py` is the deterministic generator
   entry point for committed Python SDK package trees.
 - TypeScript generated artifacts must stay deterministic in CI and retain the

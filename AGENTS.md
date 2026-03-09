@@ -12,18 +12,15 @@ and auth API services.
 - `packages/nova_dash_bridge/`: Dash/Flask/FastAPI bridge adapters.
 - `packages/contracts/`: OpenAPI and shared contract artifacts.
 
-Current public SDK posture:
-
-- The repository currently ships release-grade public SDKs for Python and
-  TypeScript.
-- The repository retains R scaffolding plus generator/runtime layers as the
-  required path to full parity; do not delete that scaffolding.
-- Internal-only operations remain excluded from client SDKs and belong to a
-  separate internal/admin generation mode.
-
 Target public SDK posture:
 
 - Nova must provide complete public SDKs for Python, TypeScript, and R.
+- The repository currently ships the release-grade public Python SDK and keeps
+  TypeScript as generated/private-distribution contract surface plus R
+  scaffolding as the required path to full parity; do not delete that
+  scaffolding.
+- Internal-only operations remain excluded from client SDKs and belong to a
+  separate internal/admin generation mode.
 
 ## Active Authority
 
@@ -33,18 +30,17 @@ Use these as the active authority set:
 - `docs/architecture/requirements.md`
 - `docs/architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md`
 - `docs/architecture/adr/ADR-0024-layered-architecture-authority-pack.md`
-- `docs/architecture/adr/ADR-0013-final-state-sdk-topology-generated-core-plus-thin-adapters.md`
+- `docs/architecture/adr/ADR-0025-runtime-monorepo-component-boundaries-and-ownership.md`
+- `docs/architecture/adr/ADR-0026-fail-fast-runtime-configuration-and-safe-auth-execution.md`
 - `docs/architecture/adr/ADR-0027-hard-cut-downstream-integration-and-consumer-contract-enforcement.md`
 - `docs/architecture/adr/ADR-0028-auth0-tenant-ops-reusable-workflow-api-contract.md`
 - `docs/architecture/adr/ADR-0029-ssm-runtime-base-url-authority-for-deploy-validation.md`
 - `docs/architecture/spec/SPEC-0000-http-api-contract.md`
-- `docs/architecture/spec/SPEC-0011-multi-language-sdk-architecture-and-package-map.md`
-- `docs/architecture/spec/SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md`
 - `docs/architecture/spec/SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md`
 - `docs/architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md`
-- `docs/architecture/spec/SPEC-0017-cloudformation-module-contract.md`
-- `docs/architecture/spec/SPEC-0018-reusable-workflow-integration-contract.md`
-- `docs/architecture/spec/SPEC-0019-ci-cd-iam-least-privilege-and-role-boundary-contract.md`
+- `docs/architecture/spec/SPEC-0017-runtime-component-topology-and-ownership-contract.md`
+- `docs/architecture/spec/SPEC-0018-runtime-configuration-and-startup-validation-contract.md`
+- `docs/architecture/spec/SPEC-0019-auth-execution-and-threadpool-safety-contract.md`
 - `docs/architecture/spec/SPEC-0020-architecture-authority-pack-and-documentation-synchronization-contract.md`
 - `docs/architecture/spec/SPEC-0021-downstream-hard-cut-integration-and-consumer-validation-contract.md`
 - `docs/architecture/spec/SPEC-0022-auth0-tenant-ops-reusable-workflow-contract.md`
@@ -59,8 +55,9 @@ Start here for fresh-context repo work that needs more detail than this file:
 - `README.md`
 - `docs/overview/NOVA-REPO-OVERVIEW.md`
 - `docs/standards/README.md`
-- `docs/architecture/spec/SPEC-0011-multi-language-sdk-architecture-and-package-map.md`
-- `docs/architecture/spec/SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md`
+- `docs/architecture/spec/SPEC-0017-runtime-component-topology-and-ownership-contract.md`
+- `docs/architecture/spec/SPEC-0018-runtime-configuration-and-startup-validation-contract.md`
+- `docs/architecture/spec/SPEC-0019-auth-execution-and-threadpool-safety-contract.md`
 - `docs/runbooks/README.md`
 
 This repository currently uses a single root `AGENTS.md`. Do not add nested
@@ -75,6 +72,9 @@ code or packaging surface):
 - `docs/architecture/adr/ADR-0030-native-cfn-modular-stack-architecture-for-nova-infrastructure-productization.md`
 - `docs/architecture/adr/ADR-0031-reusable-github-workflow-api-and-versioning-policy-for-deployment-automation.md`
 - `docs/architecture/adr/ADR-0032-oidc-and-iam-role-partitioning-for-deploy-automation.md`
+- `docs/architecture/spec/SPEC-0024-cloudformation-module-contract.md`
+- `docs/architecture/spec/SPEC-0025-reusable-workflow-integration-contract.md`
+- `docs/architecture/spec/SPEC-0026-ci-cd-iam-least-privilege-matrix.md`
 
 Historical-only pointers:
 
@@ -134,18 +134,20 @@ rg -n "/v1/transfers|/v1/jobs|/v1/internal/jobs|/v1/capabilities|/v1/resources/p
   to named component schemas in the emitted OpenAPI document.
 - Generated-client compatibility is validated through
   `packages/nova_file_api/tests/test_generated_client_smoke.py`.
-- Public TypeScript SDKs must expose curated public operation/schema helpers
-  only; raw whole-spec aliases and internal worker-only models are not public
+- Generated TypeScript SDKs must expose curated operation/schema helpers only;
+  raw whole-spec aliases and internal worker-only models are not public
   contract.
-- Public TypeScript SDK packages are `@nova/sdk-auth`, `@nova/sdk-file`, and
-  the shared runtime/helper package `@nova/sdk-fetch`.
-- Public TypeScript SDKs must honor the request media types declared in OpenAPI.
+- Generated TypeScript SDK packages are `@nova/sdk-auth`, `@nova/sdk-file`, and
+  the shared runtime/helper package `@nova/sdk-fetch`; they remain
+  private-distribution artifacts in this wave.
+- Generated TypeScript SDKs must honor the request media types declared in
+  OpenAPI.
   Multi-media request bodies use explicit generated `contentType` selection.
-- Public TypeScript SDK packages are validation-free: do not add `zod`,
+- Generated TypeScript SDK packages are validation-free: do not add `zod`,
   validator packages, validator subpaths, or runtime request/response
   validation helpers to these packages. App/BFF validation belongs to
   consumers.
-- Public TypeScript SDK packages must not expose package-root `"."` exports.
+- Generated TypeScript SDK packages must not expose package-root `"."` exports.
 - TypeScript module policy is strict: do not create or retain `index.ts` barrel
   files, do not use `export ... from` re-export barrels, and always import from
   explicit module subpaths (for example `@nova/sdk-fetch/url`,
@@ -153,13 +155,13 @@ rg -n "/v1/transfers|/v1/jobs|/v1/internal/jobs|/v1/capabilities|/v1/resources/p
   `@nova/sdk-auth/operations`, `@nova/sdk-file/client`, and
   `@nova/sdk-file/types`).
 - Internal/admin operations marked with `x-nova-sdk-visibility: internal` must
-  remain excluded from public TypeScript SDK generation.
+  remain excluded from generated TypeScript SDK output.
 - Treat generated TypeScript SDK outputs as generator-owned. Prefer changing
   runtime OpenAPI producers, committed OpenAPI artifacts, or
   `scripts/release/generate_clients.py` before editing generated SDK output by
   hand.
 - Do not reintroduce stale authority paths, root exports, runtime validation
-  libraries, or duplicated transport logic in the public TypeScript SDKs.
+  libraries, or duplicated transport logic in the generated TypeScript SDKs.
 
 ## npm / CodeArtifact Local Rule
 
@@ -175,7 +177,8 @@ rg -n "/v1/transfers|/v1/jobs|/v1/internal/jobs|/v1/capabilities|/v1/resources/p
   `CODEARTIFACT_DOMAIN`, and/or `CODEARTIFACT_STAGING_REPOSITORY` before
   running the helper.
 - Do not run `aws codeartifact login --tool npm` on a developer workstation.
-  It rewrites global npm config. CI may use it on ephemeral runners.
+  It rewrites global npm config. CI may use it on ephemeral runners. npm 10.x
+  requires AWS CLI v2.9.5 or newer for this command.
 
 ## Runtime Invariants
 
@@ -193,8 +196,8 @@ rg -n "/v1/transfers|/v1/jobs|/v1/internal/jobs|/v1/capabilities|/v1/resources/p
 - `/v1/health/ready` must evaluate only traffic-critical dependencies.
 - Missing/blank `FILE_TRANSFER_BUCKET` MUST fail readiness.
 - `AUTH_MODE=jwt_local` with incomplete `OIDC_ISSUER`, `OIDC_AUDIENCE`, or
-  `OIDC_JWKS_URL` is not currently enforced through a dedicated
-  `auth_dependency` readiness check on `/v1/health/ready`.
+  `OIDC_JWKS_URL` MUST fail the `auth_dependency` readiness check on
+  `/v1/health/ready`.
 - `POST /v1/internal/jobs/{job_id}/result` with `status=succeeded` MUST clear
   `error` to `null`.
 - Do not log presigned URLs, JWTs, or signed query values.
@@ -237,7 +240,7 @@ for p in packages/nova_file_api packages/nova_auth_api \
   apps/nova_auth_api_service; do uv build "$p"; done
 ```
 
-Additional required gates when touching OpenAPI, public TypeScript SDKs, npm
+Additional required gates when touching OpenAPI, generated TypeScript SDKs, npm
 packaging, release automation, or SDK docs/contracts:
 
 ```bash

@@ -73,8 +73,8 @@ Non-canonical runtime paths outside this set MUST return `404`.
 1. `packages/contracts/fixtures/v1/README.md` MUST reference canonical
    `/v1/*` routes only.
 2. Dash/Shiny/TypeScript conformance lane checks MUST align to v1 route
-   literals and schema fixtures. The TypeScript lane MUST exercise the public
-   validation-free SDK clients against fixture-backed mock fetches.
+   literals and schema fixtures. The TypeScript lane MUST exercise the
+   validation-free generated SDK clients against fixture-backed mock fetches.
 3. Generated-client smoke tests MUST remain green against the canonical route
    set.
 

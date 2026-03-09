@@ -7,7 +7,7 @@ Date: 2026-03-05
 Related:
   - "[ADR-0030: Native-CFN modular stack architecture for Nova infrastructure productization](./ADR-0030-native-cfn-modular-stack-architecture-for-nova-infrastructure-productization.md)"
   - "[SPEC-0023: SSM runtime base-url contract for deploy validation](../spec/SPEC-0023-ssm-runtime-base-url-contract-for-deploy-validation.md)"
-  - "[SPEC-0017: CloudFormation module contract](../spec/SPEC-0017-cloudformation-module-contract.md)"
+  - "[SPEC-0024: CloudFormation module contract](../spec/SPEC-0024-cloudformation-module-contract.md)"
 ---
 
 ## Summary

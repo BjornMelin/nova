@@ -38,8 +38,9 @@ async jobs with zero route-surface ambiguity.
    approval before prod.
 5. Documentation authority remains singular and unambiguous across README,
    PRD, requirements, ADR/SPEC, plan, and runbooks.
-6. Public SDK productization for this wave includes Python and TypeScript; R
-   remains an internal/generated catalog until a dedicated promotion wave.
+6. Public SDK productization for this wave includes Python. TypeScript remains
+   a generated/private-distribution contract surface and R remains an
+   internal/generated catalog until dedicated promotion waves.
 7. Deployment target-state uses ECS/Fargate behind ALB with ECS-native
    blue/green rollout, CloudWatch alarms, WAF on public ingress, and manifest
    hash evidence tied to the release manifest itself.
@@ -99,18 +100,17 @@ Out of scope:
 - `docs/architecture/requirements.md`
 - `docs/architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md`
 - `docs/architecture/adr/ADR-0024-layered-architecture-authority-pack.md`
-- `docs/architecture/adr/ADR-0013-final-state-sdk-topology-generated-core-plus-thin-adapters.md`
+- `docs/architecture/adr/ADR-0025-runtime-monorepo-component-boundaries-and-ownership.md`
+- `docs/architecture/adr/ADR-0026-fail-fast-runtime-configuration-and-safe-auth-execution.md`
 - `docs/architecture/adr/ADR-0027-hard-cut-downstream-integration-and-consumer-contract-enforcement.md`
 - `docs/architecture/adr/ADR-0028-auth0-tenant-ops-reusable-workflow-api-contract.md`
 - `docs/architecture/adr/ADR-0029-ssm-runtime-base-url-authority-for-deploy-validation.md`
 - `docs/architecture/spec/SPEC-0000-http-api-contract.md`
-- `docs/architecture/spec/SPEC-0011-multi-language-sdk-architecture-and-package-map.md`
-- `docs/architecture/spec/SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md`
 - `docs/architecture/spec/SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md`
 - `docs/architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md`
-- `docs/architecture/spec/SPEC-0017-cloudformation-module-contract.md`
-- `docs/architecture/spec/SPEC-0018-reusable-workflow-integration-contract.md`
-- `docs/architecture/spec/SPEC-0019-ci-cd-iam-least-privilege-and-role-boundary-contract.md`
+- `docs/architecture/spec/SPEC-0017-runtime-component-topology-and-ownership-contract.md`
+- `docs/architecture/spec/SPEC-0018-runtime-configuration-and-startup-validation-contract.md`
+- `docs/architecture/spec/SPEC-0019-auth-execution-and-threadpool-safety-contract.md`
 - `docs/architecture/spec/SPEC-0020-architecture-authority-pack-and-documentation-synchronization-contract.md`
 - `docs/architecture/spec/SPEC-0021-downstream-hard-cut-integration-and-consumer-validation-contract.md`
 - `docs/architecture/spec/SPEC-0022-auth0-tenant-ops-reusable-workflow-contract.md`

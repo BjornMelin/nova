@@ -89,6 +89,7 @@ Use the modular operator guide set for provisioning and setup details:
    - `.artifacts/npm-publish-report.json` when npm packages participate
 3. Confirm Python package uploads use `twine` and npm package uploads use
    `aws codeartifact login --tool npm` plus `npm publish --no-progress`.
+   When the runner uses npm 10.x, AWS CLI v2.9.5 or newer is required.
 4. Confirm staged npm smoke installs succeed from
    `CODEARTIFACT_STAGING_REPOSITORY` before prod promotion.
 5. Confirm package uploads target `CODEARTIFACT_STAGING_REPOSITORY` only.
@@ -136,7 +137,8 @@ Use the modular operator guide set for provisioning and setup details:
    component when copied.
 5. Manual approval must include reviewer identity and timestamp.
 6. Confirm immutable artifact continuity:
-   - Prod promotion uses the same `IMAGE_DIGEST` exported from Build/Dev.
+   - Prod promotion uses the same `FILE_IMAGE_DIGEST` and
+     `AUTH_IMAGE_DIGEST` exported from Build/Dev.
    - No rebuild occurs between Dev and Prod stages.
 
 ## 5. Rollback guidance
@@ -157,10 +159,12 @@ For each run capture:
 5. Manual approval actor and timestamp.
 6. Dev and Prod validation evidence links.
 7. Build exported variables:
-   - `IMAGE_DIGEST`
+   - `FILE_IMAGE_DIGEST`
+   - `AUTH_IMAGE_DIGEST`
    - `PUBLISHED_PACKAGES`
    - `RELEASE_MANIFEST_SHA256`
-8. Explicit digest continuity evidence (Dev -> Prod `IMAGE_DIGEST` match).
+8. Explicit digest continuity evidence (Dev -> Prod `FILE_IMAGE_DIGEST` and
+   `AUTH_IMAGE_DIGEST` match).
 9. Post-deploy route validation artifact link and workflow/job status or log markers.
 10. Link entry in `docs/plan/release/evidence-log.md` with the artifact link and workflow/job status or log markers.
 11. Runtime WAF evidence for any internet-facing ALB (`PublicAlbWebAclArn` or
@@ -169,7 +173,7 @@ For each run capture:
     `changed-units.json` and `version-plan.json` consumed by release-apply and
     publish-packages from upstream workflow artifacts, not recomputed locally.
 13. For npm releases, retain the staged npm smoke output proving installability
-    and public SDK subpath/client compatibility from CodeArtifact.
+    and generated/private SDK subpath/client compatibility from CodeArtifact.
 
 ## 7. Local npm operator rule
 
@@ -187,4 +191,5 @@ If you need a different account/domain/repository, set `AWS_REGION`,
 `CODEARTIFACT_DOMAIN`, and/or `CODEARTIFACT_STAGING_REPOSITORY` before running
 the helper. Do not run `aws codeartifact login --tool npm` on a workstation
 unless you explicitly intend to rewrite global `~/.npmrc`. CI may still use
-`aws codeartifact login --tool npm` because runners are ephemeral.
+`aws codeartifact login --tool npm` because runners are ephemeral. When the
+runner uses npm 10.x, AWS CLI v2.9.5 or newer is required.

@@ -6,7 +6,7 @@ Version: 1.0
 Date: 2026-03-04
 Related:
   - "[ADR-0028: Auth0 tenant ops reusable workflow API contract](../adr/ADR-0028-auth0-tenant-ops-reusable-workflow-api-contract.md)"
-  - "[SPEC-0018: Reusable workflow integration contract](./SPEC-0018-reusable-workflow-integration-contract.md)"
+  - "[SPEC-0025: Reusable workflow integration contract](./SPEC-0025-reusable-workflow-integration-contract.md)"
   - "[docs/plan/release/AUTH0-A0DEPLOY-RUNBOOK.md](../../plan/release/AUTH0-A0DEPLOY-RUNBOOK.md)"
 ---
 

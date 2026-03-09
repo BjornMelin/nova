@@ -189,11 +189,14 @@ AWS credentials, writes repo-local `.npmrc.codeartifact`, and sets
 
 Do not use `aws codeartifact login --tool npm` for local Nova development on a
 workstation because it rewrites global `~/.npmrc` and can break unrelated
-repositories. CI workflows may still use it because runners are ephemeral.
+repositories. CI workflows may still use it because runners are ephemeral. When
+the environment uses npm 10.x, AWS CLI v2.9.5 or newer is required for that
+command.
 
 Exported variables:
 
-- `IMAGE_DIGEST`
+- `FILE_IMAGE_DIGEST`
+- `AUTH_IMAGE_DIGEST`
 - `PUBLISHED_PACKAGES`
 - `RELEASE_MANIFEST_SHA256`
 - `CHANGED_UNITS`

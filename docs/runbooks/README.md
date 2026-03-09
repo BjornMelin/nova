@@ -37,26 +37,28 @@ Active authority alignment for runbooks is governed by:
 1. [ADR-0023](../architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md)
 2. [SPEC-0000](../architecture/spec/SPEC-0000-http-api-contract.md)
 3. [SPEC-0016](../architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md)
-4. [ADR-0013](../architecture/adr/ADR-0013-final-state-sdk-topology-generated-core-plus-thin-adapters.md)
-5. [SPEC-0011](../architecture/spec/SPEC-0011-multi-language-sdk-architecture-and-package-map.md)
-6. [SPEC-0012](../architecture/spec/SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md)
-7. [requirements.md](../architecture/requirements.md)
-8. [ADR-0024](../architecture/adr/ADR-0024-layered-architecture-authority-pack.md)
-9. [ADR-0025](../architecture/adr/ADR-0025-reusable-workflow-api-and-versioning-policy.md)
-10. [ADR-0026](../architecture/adr/ADR-0026-oidc-iam-role-partitioning-for-deploy-automation.md)
-11. [ADR-0027](../architecture/adr/ADR-0027-hard-cut-downstream-integration-and-consumer-contract-enforcement.md)
-12. [ADR-0028](../architecture/adr/ADR-0028-auth0-tenant-ops-reusable-workflow-api-contract.md)
-13. [ADR-0029](../architecture/adr/ADR-0029-ssm-runtime-base-url-authority-for-deploy-validation.md)
-14. [SPEC-0020](../architecture/spec/SPEC-0020-architecture-authority-pack-and-documentation-synchronization-contract.md)
-15. [SPEC-0021](../architecture/spec/SPEC-0021-downstream-hard-cut-integration-and-consumer-validation-contract.md)
-16. [SPEC-0022](../architecture/spec/SPEC-0022-auth0-tenant-ops-reusable-workflow-contract.md)
-17. [SPEC-0023](../architecture/spec/SPEC-0023-ssm-runtime-base-url-contract-for-deploy-validation.md)
+4. [requirements.md](../architecture/requirements.md)
+5. [ADR-0024](../architecture/adr/ADR-0024-layered-architecture-authority-pack.md)
+6. [ADR-0025](../architecture/adr/ADR-0025-runtime-monorepo-component-boundaries-and-ownership.md)
+7. [ADR-0026](../architecture/adr/ADR-0026-fail-fast-runtime-configuration-and-safe-auth-execution.md)
+8. [ADR-0027](../architecture/adr/ADR-0027-hard-cut-downstream-integration-and-consumer-contract-enforcement.md)
+9. [ADR-0028](../architecture/adr/ADR-0028-auth0-tenant-ops-reusable-workflow-api-contract.md)
+10. [ADR-0029](../architecture/adr/ADR-0029-ssm-runtime-base-url-authority-for-deploy-validation.md)
+11. [SPEC-0015](../architecture/spec/SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md)
+12. [SPEC-0016](../architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md)
+13. [SPEC-0017](../architecture/spec/SPEC-0017-runtime-component-topology-and-ownership-contract.md)
+14. [SPEC-0018](../architecture/spec/SPEC-0018-runtime-configuration-and-startup-validation-contract.md)
+15. [SPEC-0019](../architecture/spec/SPEC-0019-auth-execution-and-threadpool-safety-contract.md)
+16. [SPEC-0020](../architecture/spec/SPEC-0020-architecture-authority-pack-and-documentation-synchronization-contract.md)
+17. [SPEC-0021](../architecture/spec/SPEC-0021-downstream-hard-cut-integration-and-consumer-validation-contract.md)
+18. [SPEC-0022](../architecture/spec/SPEC-0022-auth0-tenant-ops-reusable-workflow-contract.md)
+19. [SPEC-0023](../architecture/spec/SPEC-0023-ssm-runtime-base-url-contract-for-deploy-validation.md)
 
 Release runbooks define the canonical mixed-package publish path:
 
 - Python distributions publish to CodeArtifact with `twine`
-- TypeScript SDK packages publish to CodeArtifact npm after staged public-SDK
-  smoke validation of their subpath contracts
+- TypeScript SDK packages publish to CodeArtifact npm as generated/private
+  artifacts after staged subpath-contract validation
 
 Local developer npm auth for Nova must stay repo-scoped:
 
@@ -65,6 +67,8 @@ Local developer npm auth for Nova must stay repo-scoped:
   `NPM_CONFIG_USERCONFIG`
 - do not run `aws codeartifact login --tool npm` on a workstation because it
   rewrites global `~/.npmrc` and affects unrelated repos
+- when CI or ephemeral shells use `aws codeartifact login --tool npm`, npm 10.x
+  requires AWS CLI v2.9.5 or newer
 - see `../plan/release/RELEASE-RUNBOOK.md` for the canonical local flow
 
 ## Related History

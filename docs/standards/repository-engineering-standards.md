@@ -16,21 +16,25 @@ Capture durable repo engineering/operator rules that are too detailed for
 3. `docs/overview/NOVA-REPO-OVERVIEW.md`
 4. the relevant authority docs:
    - runtime API: `SPEC-0000`, `SPEC-0015`, `SPEC-0016`
-   - public SDK governance: `ADR-0013`, `SPEC-0011`, `SPEC-0012`
-   - deploy-validation/control-plane: `SPEC-0017` through `SPEC-0023`
+   - runtime ownership/safety: `ADR-0025`, `ADR-0026`, `SPEC-0017`,
+     `SPEC-0018`, `SPEC-0019`
+   - downstream validation: `SPEC-0021`, `SPEC-0022`, `SPEC-0023`
+   - deploy-governance: `ADR-0030`, `ADR-0031`, `ADR-0032`, `SPEC-0024`,
+     `SPEC-0025`, `SPEC-0026`
 5. `docs/runbooks/README.md` when the task affects release or operations
 
-## Public TypeScript SDK rules
+## Generated TypeScript SDK rules
 
-- Public TypeScript packages are `@nova/sdk-auth`, `@nova/sdk-file`, and the
+- Generated TypeScript packages are `@nova/sdk-auth`, `@nova/sdk-file`, and the
   shared runtime/helper package `@nova/sdk-fetch`.
-- Public imports are subpath-only. Do not add package-root `"."` exports.
+- Publicly supported imports remain subpath-only. Do not add package-root `"."`
+  exports.
 - Do not create `index.ts` files or re-export barrels.
-- Public `types` surfaces stay curated; do not expose raw whole-spec aliases or
+- `types` surfaces stay curated; do not expose raw whole-spec aliases or
   internal-only worker models.
 - Internal/admin operations marked with `x-nova-sdk-visibility: internal` stay
-  excluded from public SDK generation.
-- Public TypeScript SDKs are validation-free. Do not add `zod`, validator
+  excluded from generated SDK output.
+- Generated TypeScript SDKs are validation-free. Do not add `zod`, validator
   packages, validator subpaths, or runtime request/response validation helpers.
 - OpenAPI remains the only schema authority for SDK generation.
 - Multi-media request bodies must preserve explicit generated `contentType`
@@ -48,7 +52,7 @@ Capture durable repo engineering/operator rules that are too detailed for
   - conformance fixtures/tests
   before touching generated SDK output by hand.
 - Keep `scripts/release/generate_clients.py --check` as the deterministic gate
-  for public TypeScript SDK artifacts.
+  for generated TypeScript SDK artifacts.
 - Do not swap or float generator behavior casually; update docs, tests, and
   workflows in the same change if the generation path changes.
 
@@ -68,7 +72,7 @@ Always-run repo baseline:
 - `uv run python scripts/release/generate_python_clients.py --check`
 - workspace Python build verification
 
-Additional required gates when touching OpenAPI, public TypeScript SDKs, npm
+Additional required gates when touching OpenAPI, generated TypeScript SDKs, npm
 packaging, release automation, or SDK docs/contracts:
 
 - `uv run python scripts/conformance/check_typescript_module_policy.py`
@@ -86,7 +90,7 @@ packaging, release automation, or SDK docs/contracts:
   duplicated, broken, or in conflict.
 - Keep `AGENTS.md` concise and durable; move longer explanatory material here or
   into the relevant authority docs.
-- Any change to public SDK topology, generation behavior, release validation, or
+- Any change to SDK topology, generation behavior, release validation, or
   conformance rules must update `AGENTS.md`, relevant README/overview docs, and
   the relevant ADR/SPEC/runbook docs in the same PR.
 - Active docs must link only to truthful, existing active authority paths.
@@ -96,9 +100,9 @@ packaging, release automation, or SDK docs/contracts:
 ## Do not reintroduce
 
 - stale authority filenames in active docs
-- package-root exports or barrels for public TypeScript SDKs
-- runtime validation libraries in public TypeScript SDK packages
-- internal-only operations or models in public SDK surfaces
+- package-root exports or barrels for generated TypeScript SDKs
+- runtime validation libraries in generated TypeScript SDK packages
+- internal-only operations or models in generated SDK surfaces
 - JSON-only shortcuts for operations that declare multiple request media types
 - hand-edited generated SDK outputs as the primary fix path
 - removal of R scaffolding, TS conformance assets, or generator/runtime support

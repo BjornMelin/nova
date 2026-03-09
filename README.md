@@ -18,9 +18,12 @@ Topology and release-delivery authority:
 
 - `docs/architecture/spec/SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md`
 - `docs/architecture/adr/ADR-0024-layered-architecture-authority-pack.md`
-- `docs/architecture/adr/ADR-0013-final-state-sdk-topology-generated-core-plus-thin-adapters.md`
-- `docs/architecture/spec/SPEC-0011-multi-language-sdk-architecture-and-package-map.md`
-- `docs/architecture/spec/SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md`
+- `docs/architecture/adr/ADR-0025-runtime-monorepo-component-boundaries-and-ownership.md`
+- `docs/architecture/adr/ADR-0026-fail-fast-runtime-configuration-and-safe-auth-execution.md`
+- `docs/architecture/spec/SPEC-0017-runtime-component-topology-and-ownership-contract.md`
+- `docs/architecture/spec/SPEC-0018-runtime-configuration-and-startup-validation-contract.md`
+- `docs/architecture/spec/SPEC-0019-auth-execution-and-threadpool-safety-contract.md`
+- `docs/architecture/spec/SPEC-0020-architecture-authority-pack-and-documentation-synchronization-contract.md`
 
 Engineering/operator deep references:
 
@@ -49,17 +52,19 @@ contracts and operator runbooks.
 
 ## SDK Governance
 
-Nova owns the client SDK contract surface, with Python and TypeScript as the
-current release-grade public SDKs and R retained in-repo for parity.
+Nova owns the client SDK contract surface, with Python as the current
+release-grade public SDK, TypeScript retained as generated/private-distribution
+contract surface, and R retained in-repo for parity scaffolding.
 
 Current repository posture:
 
 - committed Python SDK trees remain public, drift-gated client artifacts
-- committed TypeScript SDK package trees remain public, drift-gated npm
-  artifacts in the workspace and release pipeline
+- committed TypeScript SDK package trees remain private-distribution,
+  drift-gated npm artifacts in the workspace and release pipeline
 - committed TypeScript SDK packages `@nova/sdk-auth` and `@nova/sdk-file`
-  are public, OpenAPI-derived, and transport-focused
-- the TypeScript public `types` surfaces are curated from public operations and
+  are generated, OpenAPI-derived, transport-focused, and intentionally private
+  in this wave
+- the TypeScript `types` surfaces are curated from public operations and
   reachable public schemas only; raw whole-spec aliases are not part of the
   supported SDK contract
 - TypeScript runtime validation is intentionally not bundled; consuming apps or
@@ -85,7 +90,7 @@ SDK-facing OpenAPI rules are hard requirements:
   `scripts/release/generate_python_clients.py`.
 - Public SDK generation strips internal-only operations marked with
   `x-nova-sdk-visibility: internal`.
-- Public TypeScript SDK generation also strips internal-only schema aliases and
+- TypeScript SDK generation also strips internal-only schema aliases and
   requires explicit generated `contentType` selection when an operation
   exposes multiple request media types.
 - Published runtime Python distributions `nova_file_api` and `nova_auth_api`
@@ -173,7 +178,8 @@ AWS account/domain/repository, set `AWS_REGION`, `CODEARTIFACT_DOMAIN`, and/or
 `CODEARTIFACT_STAGING_REPOSITORY` before running the helper. Do not use
 `aws codeartifact login --tool npm` for local developer shells because it
 rewrites global `~/.npmrc`; that command remains acceptable in CI where the
-runner is ephemeral.
+runner is ephemeral. When CI or another ephemeral shell uses that command with
+npm 10.x, AWS CLI v2.9.5 or newer is required.
 
 ## Release and Operations
 

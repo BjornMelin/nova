@@ -40,13 +40,12 @@ Observed denied actions:
 - `codeconnections:GetConnection`
 - `codepipeline:ListPipelineExecutions`
 - `codepipeline:ListPipelines`
-- `codedeploy:ListApplications`
+- `ecs:DescribeServices`
 
 Required for full runbook execution (A-E gates):
 
 - CodeConnections: `GetConnection`
 - CodePipeline: `ListPipelines`, `ListPipelineExecutions`, `GetPipelineState`, `GetPipelineExecution`
-- CodeDeploy: `ListApplications`, `GetDeploymentGroup`, `GetDeployment`
 - ECS: `DescribeServices`, `ListClusters`, `ListServices`
 - ELBv2: `DescribeTargetHealth`, `DescribeTargetGroups`, `DescribeLoadBalancers`
 - CloudWatch: `GetDashboard`, `DescribeAlarms`, `GetMetricData`, `ListDashboards`

@@ -63,7 +63,8 @@ Companion modular setup guides:
    artifacts must rewrite internal npm dependencies to concrete semver versions
    and remove publish-blocking `private: true`.
 9. Staged npm validation must install from CodeArtifact with `npm install --no-progress`
-   and verify the published TypeScript SDK subpath contracts before prod promotion.
+   and verify the generated/private TypeScript SDK subpath contracts before
+   prod promotion.
 10. Internal npm package-group policy for `/npm/${CodeArtifactInternalNpmScope}/*` must allow direct
    publish while blocking both external and internal upstream ingestion.
 11. Promotion must include and verify `RELEASE_MANIFEST_SHA256`, where the value
@@ -74,11 +75,13 @@ Companion modular setup guides:
 
 ## 5A. Runtime deployment policy
 
-1. Runtime service deployment uses ECS-native blue/green controls on
+1. Runtime API service deployment uses ECS-native blue/green controls on
    `AWS::ECS::Service` resources with:
    - `DeploymentController.Type=ECS`
    - `DeploymentConfiguration.Strategy=BLUE_GREEN`
-2. Public ALB WebACL/WAF association is environment-template specific and must
+2. Queue worker services remain ECS rolling deployments with deployment circuit
+   breaker protection; they do not use load-balancer traffic shifting.
+3. Public ALB WebACL/WAF association is environment-template specific and must
    be validated against the deployed runtime stack definitions for each lane.
 
 ## 6. Required release evidence

@@ -11,7 +11,7 @@ React/Next consumers that call Nova reusable deployment and post-deploy
 validation contracts. These docs are workflow/integration authority, not public
 SDK release authority.
 
-For public SDK governance and repo engineering standards, use:
+For SDK governance and repo engineering standards, use:
 
 - `../standards/README.md`
 - `../architecture/spec/SPEC-0011-multi-language-sdk-architecture-and-package-map.md`
@@ -58,30 +58,30 @@ directory, then verify downstream consumers against
 
 ## SDK package status
 
-Public release-grade SDK packages for this wave:
+Release-grade public SDK packages for this wave:
 
 - `../../packages/nova_sdk_py_file/`
 - `../../packages/nova_sdk_py_auth/`
-- `../../packages/nova_sdk_file/`
-- `../../packages/nova_sdk_auth/`
 - `../../packages/nova_dash_bridge/`
 
-Generator/runtime helper packages retained in-repo for drift checks and
-packaging support:
+Generated/private-distribution SDK packages retained in-repo for conformance,
+private CodeArtifact publication, and future promotion work:
 
+- `../../packages/nova_sdk_file/`
+- `../../packages/nova_sdk_auth/`
 - `../../packages/nova_sdk_fetch/`
 - `../../packages/nova_sdk_r_file/`
 - `../../packages/nova_sdk_r_auth/`
 
 All of these remain subordinate to the committed Nova OpenAPI contracts.
-TypeScript SDK packages are transport-focused and do not ship bundled runtime
-validation.
+Generated/private TypeScript SDK packages are transport-focused and do not ship
+bundled runtime validation.
 
 Generator-facing OpenAPI rules that downstream consumers can rely on:
 
 - stable snake_case `operationId` values for generated function names
 - semantic tags for generated package/module grouping
-- committed Python and TypeScript SDK artifacts regenerated from
+- committed Python SDK artifacts and generated/private TypeScript SDK artifacts regenerated from
   `../../packages/contracts/openapi/*.openapi.json`
-- public TypeScript SDK `types` subpaths expose curated public operation
-  helpers and reachable public schema aliases only
+- generated/private TypeScript SDK `types` subpaths expose curated public
+  operation helpers and reachable public schema aliases only

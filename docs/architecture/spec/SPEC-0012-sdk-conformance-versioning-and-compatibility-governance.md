@@ -1,12 +1,12 @@
 ---
 Spec: 0012
-Title: SDK governance for public Python/TypeScript SDKs and deferred R catalogs
+Title: SDK governance for Python public plus generated/private TypeScript and deferred R catalogs
 Status: Active
 Version: 2.0
 Date: 2026-03-05
 Related:
-  - "[ADR-0013: Public Python/TypeScript SDK topology uses generated contract-core clients and defers R productization](../adr/ADR-0013-final-state-sdk-topology-generated-core-plus-thin-adapters.md)"
-  - "[SPEC-0011: Public Python/TypeScript SDK architecture and deferred R package map](./SPEC-0011-multi-language-sdk-architecture-and-package-map.md)"
+  - "[ADR-0013: Public Python SDK topology uses generated contract-core clients while TypeScript remains generated/private and R stays deferred](../adr/ADR-0013-final-state-sdk-topology-generated-core-plus-thin-adapters.md)"
+  - "[SPEC-0011: Public Python SDK architecture with generated/private TypeScript and deferred R package map](./SPEC-0011-multi-language-sdk-architecture-and-package-map.md)"
   - "[SPEC-0004: CI/CD and docs](./SPEC-0004-ci-cd-and-docs.md)"
   - "[Hard Cutover Checklist](../../plan/release/HARD-CUTOVER-CHECKLIST.md)"
 References:
@@ -21,7 +21,7 @@ Defines conformance, release/versioning policy, deprecation policy, and API
 compatibility governance for the current Nova SDK posture:
 
 - Python public release-grade SDK packages
-- TypeScript public release-grade SDK packages
+- TypeScript generated/private-distribution SDK packages
 - internal/generated R catalogs
 
 ## 2. Conformance fixture strategy
@@ -45,9 +45,9 @@ Required CI posture:
 
 - Python: release-grade conformance gate covering model/operation compile,
   fixture decode/encode, generated-client smoke, and auth error mapping
-- TypeScript: release-grade conformance gate covering generated-client smoke,
-  fixture-backed client execution, generated artifact drift, and public export
-  boundary enforcement
+- TypeScript: generated/private conformance gate covering generated-client
+  smoke, fixture-backed client execution, generated artifact drift, and
+  subpath/export boundary enforcement
 - R: internal catalog gate covering generated artifact drift and fixture
   roundtrip only
 
@@ -75,13 +75,15 @@ Minimum shared scenarios:
 
 ### 3.1 Public SemVer requirements
 
-Public Python and TypeScript SDK packages follow Semantic Versioning 2.0.0:
+Public Python SDK packages and generated/private TypeScript SDK packages follow
+Semantic Versioning 2.0.0:
 
 - MAJOR for backward-incompatible public API or contract changes
 - MINOR for backward-compatible API additions
 - PATCH for backward-compatible fixes only
 
-Breaking examples for public Python and TypeScript SDK packages include:
+Breaking examples for public Python and generated/private TypeScript SDK
+packages include:
 
 - OpenAPI tag changes that move generated endpoint modules/packages
 - `operationId` renames that change generated function names
@@ -95,10 +97,10 @@ support or publishing contract.
 
 ### 3.3 Release cadence and promotion
 
-- Python and TypeScript releases are produced by Nova CI only after public
-  conformance suites pass.
+- Python and TypeScript releases are produced by Nova CI only after the
+  required conformance suites pass.
 - Release notes must include explicit breaking/additive/fix classification for
-  public Python and TypeScript packages.
+  public Python packages and generated/private TypeScript packages.
 - Generated Python and TypeScript artifacts are immutable after release.
 - R productization remains deferred and must be completed in a future
   dedicated wave.
@@ -110,15 +112,15 @@ support or publishing contract.
 - Deprecated operations/fields must be marked in OpenAPI with deprecation
   metadata and changelog note.
 - Deprecation notice window: minimum one MINOR release before removal in next
-  MAJOR for public Python and TypeScript surfaces.
+  MAJOR for public Python and generated/private TypeScript surfaces.
 - Runtime behavior during deprecation must remain contract-compatible.
 
 ### 4.2 SDK deprecation baseline
 
 - Python public methods scheduled for removal must emit warnings-based
   deprecation.
-- TypeScript public APIs must preserve subpath contracts or take a MAJOR bump
-  when removing them.
+- TypeScript generated package APIs must preserve subpath contracts or take a
+  MAJOR bump when removing them.
 - R catalog evolution is internal until that language is promoted to public SDK
   status.
 
@@ -153,9 +155,11 @@ Merge must be blocked if any of the following occur:
 - error envelope shape drift (`error.code/message/request_id`) in a non-major
   public release
 - adapter introduces contract fork or local authority logic
-- a public TypeScript SDK export leaks internal-only operations or their
+- a generated/private TypeScript SDK export leaks internal-only operations or
+  their
   schema aliases
-- a public TypeScript SDK request path serializes a multi-media request body
+- a generated/private TypeScript SDK request path serializes a multi-media
+  request body
   without an explicit OpenAPI-aligned media-type selection rule
 
 ## 6. Governance ownership

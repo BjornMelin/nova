@@ -10,8 +10,8 @@ Nova is the canonical runtime monorepo for file-transfer orchestration and token
 - `apps/nova_auth_api_service`: ASGI service wrapper that boots the auth API runtime package.
 - `packages/nova_file_api`: Main transfer + jobs control-plane implementation.
 - `packages/nova_auth_api`: Token verify/introspect API implementation.
-- `packages/nova_sdk_file`: Public generated TypeScript file SDK.
-- `packages/nova_sdk_auth`: Public generated TypeScript auth SDK.
+- `packages/nova_sdk_file`: Generated/private TypeScript file SDK.
+- `packages/nova_sdk_auth`: Generated/private TypeScript auth SDK.
 - `packages/nova_sdk_fetch`: Shared TypeScript fetch transport/runtime helper.
 - `packages/nova_dash_bridge`: Integration bridge adapters for Dash/Flask/FastAPI clients.
 - `packages/contracts`: Contract artifacts, fixtures, and conformance helpers.
@@ -21,9 +21,9 @@ Nova is the canonical runtime monorepo for file-transfer orchestration and token
 
 - `AGENTS.md` for the durable root operator contract
 - `docs/standards/README.md` for deeper engineering standards and quality gates
-- `docs/architecture/spec/SPEC-0011-multi-language-sdk-architecture-and-package-map.md`
-  and `docs/architecture/spec/SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md`
-  for public SDK governance
+- `docs/architecture/adr/ADR-0025-runtime-monorepo-component-boundaries-and-ownership.md`
+  and `docs/architecture/spec/SPEC-0018-runtime-configuration-and-startup-validation-contract.md`
+  for runtime ownership and safety
 - `docs/runbooks/README.md` for operational runbooks
 
 ```mermaid
@@ -89,10 +89,10 @@ flowchart LR
   - Auth token verification and introspection routes.
   - Standardized auth error envelope behavior.
 - `nova_sdk_file` and `nova_sdk_auth` own:
-  - Generated public TypeScript client, operations, errors, and curated type surfaces.
-  - OpenAPI-aligned request serialization for the public SDK route surface.
+  - Generated/private TypeScript client, operations, errors, and curated type surfaces.
+  - OpenAPI-aligned request serialization for the generated SDK route surface.
 - `nova_sdk_fetch` owns:
-  - Shared fetch transport and URL helpers used by the generated public TypeScript SDKs.
+  - Shared fetch transport and URL helpers used by the generated/private TypeScript SDKs.
 - `nova_dash_bridge` owns:
   - Framework adapters that let Dash/Flask/FastAPI apps consume Nova-style transfer flows without redefining server contracts.
 - `contracts` owns:
@@ -186,7 +186,7 @@ flowchart TB
 
 1. Client or service calls auth API verify/introspect endpoints for token checks.
 2. Runtime services enforce auth decisions at request boundaries.
-3. Public TypeScript SDK callers use `contentType` selection for
+3. TypeScript SDK callers use `contentType` selection for
    `introspect_token` when choosing between JSON and form-encoded requests.
 
 ## 7) AWS and deployment topology

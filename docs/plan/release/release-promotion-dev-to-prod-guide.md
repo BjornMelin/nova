@@ -21,7 +21,8 @@ one signed source revision.
 1. Release commit is signed and verified.
 2. CodeConnections status is `AVAILABLE`.
 3. Pipeline build stage exports required variables:
-   - `IMAGE_DIGEST`
+   - `FILE_IMAGE_DIGEST`
+   - `AUTH_IMAGE_DIGEST`
    - `PUBLISHED_PACKAGES`
    - `RELEASE_MANIFEST_SHA256`
 
@@ -78,24 +79,23 @@ one signed source revision.
 
 5. Confirm `DeployProd` and `ValidateProd` complete successfully.
 
-## CodeDeploy blue/green promotion verification (Batch B1)
+## ECS-native blue/green promotion verification (Batch B1)
 
-After `DeployDev` and `DeployProd`, verify CodeDeploy deployment-group controls:
+After `DeployDev` and `DeployProd`, verify ECS-native deployment controls:
 
 ```bash
-aws deploy get-deployment-group \
+aws ecs describe-services \
   --region "${AWS_REGION}" \
-  --application-name "${CODEDEPLOY_APPLICATION_NAME}" \
-  --deployment-group-name "${CODEDEPLOY_DEPLOYMENT_GROUP_NAME}" \
-  --query 'deploymentGroupInfo.{deploymentStyle:deploymentStyle,alarmConfiguration:alarmConfiguration,autoRollback:autoRollbackConfiguration,ready:blueGreenDeploymentConfiguration.deploymentReadyOption}'
+  --cluster "${ECS_CLUSTER}" \
+  --services "${ECS_SERVICE}" \
+  --query 'services[0].deployments'
 ```
 
 Acceptance:
 
-- `deploymentStyle.deploymentType` = `BLUE_GREEN`
-- alarm configuration is enabled with rollback alarms bound
-- auto rollback includes `DEPLOYMENT_FAILURE`, `DEPLOYMENT_STOP_ON_ALARM`, and `DEPLOYMENT_STOP_ON_REQUEST`
-- deployment ready option uses timeout action `STOP_DEPLOYMENT` for readiness enforcement
+- service deployment posture is blue/green
+- deployment alarms are enabled with rollback alarms bound
+- green target group reaches healthy state before production traffic shift
 
 ## Immutable artifact continuity check
 
@@ -111,7 +111,8 @@ aws codepipeline list-action-executions \
 
 Acceptance:
 
-- `IMAGE_DIGEST` in Build output equals digest used by both Dev and Prod
+- `FILE_IMAGE_DIGEST` in Build output equals the digest used by both Dev and Prod
+- `AUTH_IMAGE_DIGEST` in Build output equals the digest used by both Dev and Prod
   CloudFormation actions.
 - No rebuild occurs after manual approval.
 

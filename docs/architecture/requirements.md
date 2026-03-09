@@ -13,15 +13,20 @@ requirements for the first production release.
 - Hard-cut route authority is active under `ADR-0023` + `SPEC-0016`.
 - Runtime contract is canonical `/v1/*` plus `/metrics/summary`; non-canonical
   route families are removed.
-- Runtime API, public SDK, and deploy-validation authority are synchronized
-  under `ADR-0024`, with public SDK governance codified in `ADR-0013`,
-  `SPEC-0011`, and `SPEC-0012`, and deploy-validation/control-plane contracts
-  codified in `SPEC-0017` through `SPEC-0023`.
+- Runtime API, runtime package ownership, runtime safety, and downstream
+  validation authority are synchronized under `ADR-0024`, with runtime
+  component/safety governance codified in `ADR-0025`, `ADR-0026`,
+  `SPEC-0017`, `SPEC-0018`, and `SPEC-0019`, and downstream validation
+  contracts codified in `ADR-0027` through `ADR-0029` and `SPEC-0021` through
+  `SPEC-0023`.
+- Adjacent deploy-governance authority is isolated under `ADR-0030` through
+  `ADR-0032` and `SPEC-0024` through `SPEC-0026`.
 - Superseded ADR/SPEC material is archived only under
   `docs/architecture/adr/superseded/**` and
   `docs/architecture/spec/superseded/**`.
-- Public SDK policy for this release wave is Python + TypeScript; R remains an
-  internal/generated catalog pending its parity wave.
+- Public SDK policy for this release wave is Python only. TypeScript remains a
+  generated/private-distribution contract surface and R remains an
+  internal/generated catalog pending later promotion waves.
 
 ## Scope
 
@@ -121,8 +126,8 @@ Feature flags (for example `JOBS_ENABLED`) MUST NOT drive readiness pass/fail.
 
 - Missing or blank `FILE_TRANSFER_BUCKET` MUST fail readiness.
 - `AUTH_MODE=jwt_local` with missing `OIDC_ISSUER`, `OIDC_AUDIENCE`, or
-  `OIDC_JWKS_URL` is not currently represented as a dedicated
-  `auth_dependency` readiness check in `/v1/health/ready`.
+  `OIDC_JWKS_URL` MUST fail the dedicated `auth_dependency` readiness check in
+  `/v1/health/ready`.
 
 ### FR-0003: Key generation and scope enforcement
 

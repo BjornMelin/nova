@@ -22,14 +22,17 @@ Use these in order:
 
 ## Key deep references
 
-- `../architecture/spec/SPEC-0011-multi-language-sdk-architecture-and-package-map.md`
-- `../architecture/spec/SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md`
 - `../architecture/adr/ADR-0013-final-state-sdk-topology-generated-core-plus-thin-adapters.md`
+- `../architecture/adr/ADR-0025-runtime-monorepo-component-boundaries-and-ownership.md`
+- `../architecture/adr/ADR-0026-fail-fast-runtime-configuration-and-safe-auth-execution.md`
+- `../architecture/spec/SPEC-0017-runtime-component-topology-and-ownership-contract.md`
+- `../architecture/spec/SPEC-0018-runtime-configuration-and-startup-validation-contract.md`
+- `../architecture/spec/SPEC-0019-auth-execution-and-threadpool-safety-contract.md`
 - `../plan/release/RELEASE-RUNBOOK.md`
 - `../plan/release/RELEASE-POLICY.md`
 
 ## Scope
 
-These standards summarize repo engineering workflow, public SDK rules, quality
-gates, and documentation synchronization. They do not replace architecture
-authority docs.
+These standards summarize repo engineering workflow, generated SDK rules,
+quality gates, and documentation synchronization. They do not replace
+architecture authority docs.

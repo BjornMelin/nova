@@ -8,13 +8,13 @@ Related:
   - "[ADR-0002: OpenAPI as contract and SDK generation](../adr/ADR-0002-openapi-as-contract-and-sdk-generation.md)"
   - "[ADR-0011: Hybrid CI/CD with GitHub and AWS promotion](../adr/ADR-0011-cicd-hybrid-github-aws-promotion.md)"
   - "[ADR-0031: Reusable GitHub workflow API and versioning policy for deployment automation](../adr/ADR-0031-reusable-github-workflow-api-and-versioning-policy-for-deployment-automation.md)"
-  - "[ADR-0026: OIDC and IAM role partitioning for deploy automation](../adr/ADR-0026-oidc-iam-role-partitioning-for-deploy-automation.md)"
+  - "[ADR-0032: OIDC and IAM role partitioning for deploy automation](../adr/ADR-0032-oidc-and-iam-role-partitioning-for-deploy-automation.md)"
   - "[ADR-0023: Hard cut v1 canonical route surface](../adr/ADR-0023-hard-cut-v1-canonical-route-surface.md)"
   - "[ADR-0012: No Lambda runtime scope](../adr/ADR-0012-no-lambda-runtime-scope.md)"
   - "[SPEC-0000: HTTP API contract](./SPEC-0000-http-api-contract.md)"
   - "[SPEC-0016: v1 route namespace and literal guardrails](./SPEC-0016-v1-route-namespace-and-literal-guardrails.md)"
   - "[requirements.md](../requirements.md)"
-  - "[SPEC-0018: Reusable workflow integration contract](./SPEC-0018-reusable-workflow-integration-contract.md)"
+  - "[SPEC-0025: Reusable workflow integration contract](./SPEC-0025-reusable-workflow-integration-contract.md)"
   - "[SPEC-0020: Architecture authority pack and documentation synchronization contract](./SPEC-0020-architecture-authority-pack-and-documentation-synchronization-contract.md)"
 References:
   - "[GitHub Actions](https://docs.github.com/actions)"
@@ -43,7 +43,7 @@ Every pull request MUST pass:
 - cross-framework conformance gate (`.github/workflows/conformance-clients.yml`):
   - `dash-conformance`
   - `shiny-conformance`
-  - `typescript-conformance` (public TypeScript SDK client + fixture smoke)
+  - `typescript-conformance` (generated/internal TypeScript SDK client + fixture smoke)
 
 Protected branch wiring details are documented in
 `docs/plan/release/branch-protection-required-checks.md`.
@@ -120,7 +120,8 @@ Secrets policy:
 2. Build and push container image artifacts and export immutable digest.
 3. Produce deploy artifacts consumed by both Dev and Prod promotion stages.
 4. Export build variables:
-   - `IMAGE_DIGEST`
+   - `FILE_IMAGE_DIGEST`
+   - `AUTH_IMAGE_DIGEST`
    - `PUBLISHED_PACKAGES`
    - `RELEASE_MANIFEST_SHA256`
    - `CHANGED_UNITS`

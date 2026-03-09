@@ -5,22 +5,22 @@
 - [Architecture Specifications](../spec/index.md)
 - [Operator Runbooks (canonical)](../../runbooks/README.md)
 
-## Active operator authority pack
+## Active runtime authority pack
 
-Normative operator-facing authority is layered across:
+Normative runtime authority is layered across:
 
-- runtime API and route authority (`ADR-0023`, `SPEC-0000`, `SPEC-0015`,
+- route and HTTP contract authority (`ADR-0023`, `SPEC-0000`, `SPEC-0015`,
   `SPEC-0016`)
-- public SDK governance (`ADR-0013`, `SPEC-0011`, `SPEC-0012`)
+- runtime package ownership and safety authority (`ADR-0025`, `ADR-0026`,
+  `SPEC-0017`, `SPEC-0018`, `SPEC-0019`, `SPEC-0020`)
 - downstream/deploy-validation authority (`ADR-0027` through `ADR-0029`,
-  `SPEC-0017` through `SPEC-0023`)
-
-Downstream/deploy-validation authority explicitly includes `SPEC-0021`,
-`SPEC-0022`, and `SPEC-0023`.
+  `SPEC-0021`, `SPEC-0022`, `SPEC-0023`)
 
 | ADR | Title | Status | Date |
 | --- | --- | --- | --- |
-| [ADR-0024](./ADR-0024-layered-architecture-authority-pack.md) | Layered operator authority pack for the Nova monorepo | Accepted | 2026-03-05 |
+| [ADR-0024](./ADR-0024-layered-architecture-authority-pack.md) | Layered runtime authority pack for the Nova monorepo | Accepted | 2026-03-05 |
+| [ADR-0025](./ADR-0025-runtime-monorepo-component-boundaries-and-ownership.md) | Runtime monorepo component boundaries and ownership | Accepted | 2026-03-05 |
+| [ADR-0026](./ADR-0026-fail-fast-runtime-configuration-and-safe-auth-execution.md) | Fail-fast runtime configuration and safe auth execution | Accepted | 2026-03-05 |
 | [ADR-0027](./ADR-0027-hard-cut-downstream-integration-and-consumer-contract-enforcement.md) | Hard-cut downstream integration and consumer contract enforcement | Accepted | 2026-03-04 |
 | [ADR-0028](./ADR-0028-auth0-tenant-ops-reusable-workflow-api-contract.md) | Auth0 tenant ops reusable workflow API contract | Accepted | 2026-03-04 |
 | [ADR-0029](./ADR-0029-ssm-runtime-base-url-authority-for-deploy-validation.md) | SSM runtime base URL authority for deploy validation | Accepted | 2026-03-04 |
@@ -33,8 +33,6 @@ boundaries, but are not part of the active runtime API authority layer.
 | ADR | Title | Status | Date |
 | --- | --- | --- | --- |
 | [ADR-0015](./ADR-0015-nova-api-platform-final-hosting-and-deployment-architecture-2026.md) | Nova API platform final hosting and deployment architecture (2026) | Accepted | 2026-03-03 |
-| [ADR-0025](./ADR-0025-reusable-workflow-api-and-versioning-policy.md) | Reusable GitHub workflow API and versioning policy for deployment automation | Superseded | 2026-03-09 |
-| [ADR-0026](./ADR-0026-oidc-iam-role-partitioning-for-deploy-automation.md) | OIDC and IAM role partitioning for deploy automation | Accepted | 2026-03-03 |
 | [ADR-0030](./ADR-0030-native-cfn-modular-stack-architecture-for-nova-infrastructure-productization.md) | Native-CFN modular stack architecture for Nova infrastructure productization | Accepted | 2026-03-05 |
 | [ADR-0031](./ADR-0031-reusable-github-workflow-api-and-versioning-policy-for-deployment-automation.md) | Reusable GitHub workflow API and versioning policy for deployment automation | Accepted | 2026-03-05 |
 | [ADR-0032](./ADR-0032-oidc-and-iam-role-partitioning-for-deploy-automation.md) | OIDC and IAM role partitioning for deploy automation | Accepted | 2026-03-05 |
@@ -59,7 +57,7 @@ operator-authority entrypoint identifiers.
 | [ADR-0010](./ADR-0010-enqueue-failure-and-readiness-semantics.md) | Fail enqueue on queue publish errors and scope readiness to critical dependencies | Accepted | 2026-03-05 |
 | [ADR-0011](./ADR-0011-cicd-hybrid-github-aws-promotion.md) | Hybrid CI/CD with GitHub CI and AWS-native Dev to Prod promotion | Accepted (umbrella decision) | 2026-03-05 |
 | [ADR-0012](./ADR-0012-no-lambda-runtime-scope.md) | Preserve ECS and SQS runtime scope and exclude Lambda orchestration | Accepted | 2026-02-24 |
-| [ADR-0013](./ADR-0013-final-state-sdk-topology-generated-core-plus-thin-adapters.md) | Public Python/TypeScript SDK topology uses generated contract-core clients and defers R productization | Accepted | 2026-03-05 |
+| [ADR-0013](./ADR-0013-final-state-sdk-topology-generated-core-plus-thin-adapters.md) | Public Python SDK topology uses generated contract-core clients while TypeScript remains generated/private and R stays deferred | Accepted | 2026-03-05 |
 | [ADR-0022](./ADR-0022-release-validation-read-access-iam-iac.md) | Release validation read role codified in Nova IaC for reproducible validation access | Accepted | 2026-03-02 |
 
 ## Superseded
