@@ -106,6 +106,13 @@ Rules:
     Assertions:
       - Assert: !Not [!Equals [!Ref LoadBalancerLogBucket, ""]]
         AssertDescription: Provide LoadBalancerLogBucket when EnableLoadBalancerAccessLogs=true.
+  BlueGreenTestListenerPortNotReserved:
+    RuleCondition: !Equals [!Ref EnableBlueGreenTestListener, "true"]
+    Assertions:
+      - Assert: !And
+          - !Not [!Equals [!Ref BlueGreenTestListenerPort, 80]]
+          - !Not [!Equals [!Ref BlueGreenTestListenerPort, 443]]
+        AssertDescription: BlueGreenTestListenerPort must not be 80 or 443 when EnableBlueGreenTestListener=true.
   RequireExactlyOneAlbIngressSource:
     Assertions:
       - Assert: !Or
