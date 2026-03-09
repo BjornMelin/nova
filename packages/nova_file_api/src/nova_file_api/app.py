@@ -403,10 +403,12 @@ def _redact_sensitive_fields(
 def _sanitize_validation_errors(
     *,
     errors: Sequence[Any],
-) -> list[dict[str, Any]]:
+) -> list[Any]:
     """Return validation errors with nested sensitive values redacted."""
-    return [
-        _sanitize_log_value(error)
-        for error in errors
-        if isinstance(error, dict)
-    ]
+    sanitized: list[Any] = []
+    for error in errors:
+        if isinstance(error, dict):
+            sanitized.append(_sanitize_log_value(error))
+        else:
+            sanitized.append(error)
+    return sanitized

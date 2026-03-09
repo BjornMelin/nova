@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import AsyncIterator, Awaitable, Callable, Sequence
 from contextlib import asynccontextmanager
 from json import JSONDecodeError
@@ -102,8 +103,17 @@ _OPENAPI_OPERATION_RESPONSES = {
 
 
 def _operation_id_from_route(route: APIRoute) -> str:
-    """Use the canonical route name as the stable OpenAPI operationId."""
-    return route.name
+    """Build a stable OpenAPI operationId from method + path literals."""
+    method = sorted(route.methods or {"GET"})[0].upper()
+    normalized_path = route.path_format
+    normalized_path = re.sub(r"{([^}]+)}", r"\1", normalized_path)
+    normalized_path = normalized_path.strip("/")
+    normalized_path = normalized_path.replace("-", "_").replace("/", "_")
+    normalized_path = re.sub(r"[^a-zA-Z0-9_]", "", normalized_path)
+    normalized_path = re.sub(r"_+", "_", normalized_path).strip("_")
+    if not normalized_path:
+        normalized_path = "root"
+    return f"{method}_{normalized_path}"
 
 
 def _install_openapi_overrides(app: FastAPI) -> None:

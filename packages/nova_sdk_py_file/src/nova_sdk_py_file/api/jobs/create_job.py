@@ -5,6 +5,7 @@ import httpx
 
 from nova_sdk_py_file import errors
 from nova_sdk_py_file.client import AuthenticatedClient, Client
+from nova_sdk_py_file.models.create_job_response_503 import CreateJobResponse503
 from nova_sdk_py_file.models.enqueue_job_request import EnqueueJobRequest
 from nova_sdk_py_file.models.enqueue_job_response import EnqueueJobResponse
 from nova_sdk_py_file.models.error_envelope import ErrorEnvelope
@@ -35,7 +36,7 @@ def _get_kwargs(
 
 def _parse_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> EnqueueJobResponse | ErrorEnvelope | None:
+) -> CreateJobResponse503 | EnqueueJobResponse | ErrorEnvelope | None:
     if response.status_code == 200:
         response_200 = EnqueueJobResponse.from_dict(response.json())
 
@@ -57,7 +58,7 @@ def _parse_response(
         return response_422
 
     if response.status_code == 503:
-        response_503 = ErrorEnvelope.from_dict(response.json())
+        response_503 = CreateJobResponse503.from_dict(response.json())
 
         return response_503
 
@@ -69,7 +70,7 @@ def _parse_response(
 
 def _build_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> Response[EnqueueJobResponse | ErrorEnvelope]:
+) -> Response[CreateJobResponse503 | EnqueueJobResponse | ErrorEnvelope]:
     return Response(
         status_code=response.status_code,
         content=response.content,
@@ -83,7 +84,7 @@ def sync_detailed(
     client: AuthenticatedClient,
     body: EnqueueJobRequest,
     idempotency_key: None | str | Unset = UNSET,
-) -> Response[EnqueueJobResponse | ErrorEnvelope]:
+) -> Response[CreateJobResponse503 | EnqueueJobResponse | ErrorEnvelope]:
     """Create Job
 
      Enqueue async processing job and return job id.
@@ -97,7 +98,7 @@ def sync_detailed(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[EnqueueJobResponse | ErrorEnvelope]
+        Response[CreateJobResponse503 | EnqueueJobResponse | ErrorEnvelope]
     """
 
     kwargs = _get_kwargs(
@@ -117,7 +118,7 @@ def sync(
     client: AuthenticatedClient,
     body: EnqueueJobRequest,
     idempotency_key: None | str | Unset = UNSET,
-) -> EnqueueJobResponse | ErrorEnvelope | None:
+) -> CreateJobResponse503 | EnqueueJobResponse | ErrorEnvelope | None:
     """Create Job
 
      Enqueue async processing job and return job id.
@@ -131,7 +132,7 @@ def sync(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        EnqueueJobResponse | ErrorEnvelope
+        CreateJobResponse503 | EnqueueJobResponse | ErrorEnvelope
     """
 
     return sync_detailed(
@@ -146,7 +147,7 @@ async def asyncio_detailed(
     client: AuthenticatedClient,
     body: EnqueueJobRequest,
     idempotency_key: None | str | Unset = UNSET,
-) -> Response[EnqueueJobResponse | ErrorEnvelope]:
+) -> Response[CreateJobResponse503 | EnqueueJobResponse | ErrorEnvelope]:
     """Create Job
 
      Enqueue async processing job and return job id.
@@ -160,7 +161,7 @@ async def asyncio_detailed(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[EnqueueJobResponse | ErrorEnvelope]
+        Response[CreateJobResponse503 | EnqueueJobResponse | ErrorEnvelope]
     """
 
     kwargs = _get_kwargs(
@@ -178,7 +179,7 @@ async def asyncio(
     client: AuthenticatedClient,
     body: EnqueueJobRequest,
     idempotency_key: None | str | Unset = UNSET,
-) -> EnqueueJobResponse | ErrorEnvelope | None:
+) -> CreateJobResponse503 | EnqueueJobResponse | ErrorEnvelope | None:
     """Create Job
 
      Enqueue async processing job and return job id.
@@ -192,7 +193,7 @@ async def asyncio(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        EnqueueJobResponse | ErrorEnvelope
+        CreateJobResponse503 | EnqueueJobResponse | ErrorEnvelope
     """
 
     return (
