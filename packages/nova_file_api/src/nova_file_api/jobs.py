@@ -248,13 +248,14 @@ class DynamoJobRepository:
                 response = self._table.query(**query_kwargs)
             except ClientError as exc:
                 error_code = str(exc.response.get("Error", {}).get("Code", ""))
-                if error_code in {
-                    "ValidationException",
-                    "ResourceNotFoundException",
-                }:
+                if error_code == "ValidationException":
                     raise RuntimeError(
                         "jobs table requires the scope_id-created_at-index "
                         "global secondary index for scoped listing"
+                    ) from exc
+                if error_code == "ResourceNotFoundException":
+                    raise RuntimeError(
+                        "jobs table is not configured for scoped listing"
                     ) from exc
                 raise
             items.extend(response.get("Items", []))

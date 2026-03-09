@@ -24,7 +24,26 @@ def _load_source_text(package_dir_name: str, file_name: str) -> str:
 
 def test_public_sdk_packages_use_subpath_only_exports() -> None:
     """Public TS SDK packages must expose explicit subpaths only."""
-    for package_dir_name in ("nova_sdk_auth", "nova_sdk_file"):
+    expected_exports = {
+        "nova_sdk_auth": {
+            "./client",
+            "./errors",
+            "./operations",
+            "./types",
+        },
+        "nova_sdk_file": {
+            "./client",
+            "./errors",
+            "./operations",
+            "./types",
+        },
+        "nova_sdk_fetch": {
+            "./client",
+            "./contracts",
+            "./url",
+        },
+    }
+    for package_dir_name, expected_subpaths in expected_exports.items():
         package_data = _load_package_json(package_dir_name)
         assert "main" not in package_data
         assert "module" not in package_data
@@ -32,12 +51,7 @@ def test_public_sdk_packages_use_subpath_only_exports() -> None:
         exports = package_data.get("exports")
         assert isinstance(exports, dict)
         assert "." not in exports
-        assert set(exports) == {
-            "./client",
-            "./errors",
-            "./operations",
-            "./types",
-        }
+        assert set(exports) == expected_subpaths
 
 
 def test_typescript_sdk_source_manifests_remain_private() -> None:

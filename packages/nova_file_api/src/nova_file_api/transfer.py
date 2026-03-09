@@ -231,7 +231,14 @@ class TransferService:
         job_id: str,
         filename: str,
     ) -> ExportCopyResult:
-        """Copy a caller-scoped upload object into the export prefix."""
+        """Copy a caller-scoped upload object into the export prefix.
+
+        Raises:
+            FileTransferError: ``invalid_request`` when caller validation or
+                source object absence/TOCTOU checks fail.
+            FileTransferError: ``upstream_s3_error`` for retryable S3
+                infra failures.
+        """
         if source_bucket != self.settings.file_transfer_bucket:
             raise invalid_request(
                 "bucket does not match configured transfer bucket",
@@ -260,7 +267,14 @@ class TransferService:
                 Key=export_key,
                 MetadataDirective="COPY",
             )
-        except (ClientError, BotoCoreError) as exc:
+        except ClientError as exc:
+            error_code = str(exc.response.get("Error", {}).get("Code", ""))
+            if error_code in {"404", "NoSuchKey", "NotFound"}:
+                raise invalid_request("source upload object not found") from exc
+            raise upstream_s3_error(
+                "failed to copy upload object to export key"
+            ) from exc
+        except BotoCoreError as exc:
             raise upstream_s3_error(
                 "failed to copy upload object to export key"
             ) from exc

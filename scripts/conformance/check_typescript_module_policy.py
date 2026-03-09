@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Iterator
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -13,8 +14,8 @@ BARREL_RE = re.compile(
 )
 
 
-def _iter_ts_files() -> list[Path]:
-    return sorted(TS_ROOT.glob("**/src/**/*.ts"))
+def _iter_ts_files() -> Iterator[Path]:
+    yield from sorted(TS_ROOT.glob("**/src/**/*.ts"))
 
 
 def main() -> int:

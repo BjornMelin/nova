@@ -106,7 +106,7 @@ function encodeRequestBody(
 /**
  * Create a fetch client used by generated SDK packages.
  *
- * @param options Runtime options used to configure the fetch client.
+ * @param options - Runtime options used to configure the fetch client.
  * @returns Fetch client for generated operation execution.
  */
 export function createFetchClient(options: FetchClientOptions): FetchClient {

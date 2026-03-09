@@ -189,3 +189,19 @@ def test_dynamo_job_repository_list_for_scope_requires_gsi(
         match="scope_id-created_at-index global secondary index",
     ):
         _fake_repo.list_for_scope(scope_id="scope-1", limit=10)
+
+
+def test_dynamo_job_repository_list_for_scope_table_missing(
+    _fake_repo: DynamoJobRepository,
+) -> None:
+    table = cast(_FakeTable, _fake_repo._table)
+    table.query_error = ClientError(
+        error_response={"Error": {"Code": "ResourceNotFoundException"}},
+        operation_name="Query",
+    )
+
+    with pytest.raises(
+        RuntimeError,
+        match="jobs table is not configured for scoped listing",
+    ):
+        _fake_repo.list_for_scope(scope_id="scope-1", limit=10)

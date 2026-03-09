@@ -126,7 +126,7 @@ Feature flags (for example `JOBS_ENABLED`) MUST NOT drive readiness pass/fail.
 
 - Missing or blank `FILE_TRANSFER_BUCKET` MUST fail readiness.
 - `AUTH_MODE=jwt_local` with missing `OIDC_ISSUER`, `OIDC_AUDIENCE`, or
-  `OIDC_JWKS_URL` MUST fail the dedicated `auth_dependency` readiness check in
+  `OIDC_JWKS_URL` MUST fail the dedicated `auth_dependency` readiness check on
   `/v1/health/ready`.
 
 ### FR-0003: Key generation and scope enforcement

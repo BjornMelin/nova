@@ -98,6 +98,7 @@ def test_prepare_npm_publish_artifacts_rewrites_internal_versions(
         "@nova/sdk-fetch",
         "@nova/sdk-file",
     ]
+    assert report["registry_url"].endswith("/")
     prepared_core_path = (
         repo_root / ".artifacts/npm-publish/nova_sdk_file/package.json"
     )

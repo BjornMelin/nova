@@ -54,19 +54,19 @@ export function createNovaAuthClient(
 
   return {
     baseUrl,
-    async health_live(request: HealthLiveRequestOptions = {}): Promise<HealthLiveResult> {
+    async health_live(request?: HealthLiveRequestOptions): Promise<HealthLiveResult> {
       return executeOperation<HealthLiveResult>(
         fetchClient,
         operations.health_live,
-        request as OperationRequest,
+        request ?? {} as OperationRequest,
         undefined,
       );
     },
-    async health_ready(request: HealthReadyRequestOptions = {}): Promise<HealthReadyResult> {
+    async health_ready(request?: HealthReadyRequestOptions): Promise<HealthReadyResult> {
       return executeOperation<HealthReadyResult>(
         fetchClient,
         operations.health_ready,
-        request as OperationRequest,
+        request ?? {} as OperationRequest,
         undefined,
       );
     },

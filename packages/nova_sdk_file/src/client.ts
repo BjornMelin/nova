@@ -17,10 +17,10 @@ export interface NovaFileClient {
   health_ready(request?: HealthReadyRequestOptions): Promise<HealthReadyResult>;
   list_jobs(request?: ListJobsRequestOptions): Promise<ListJobsResult>;
   create_job(request: CreateJobRequestOptions): Promise<CreateJobResult>;
-  get_job_status(request: GetJobStatusRequestOptions): Promise<GetJobStatusResult>;
-  cancel_job(request: CancelJobRequestOptions): Promise<CancelJobResult>;
-  list_job_events(request: ListJobEventsRequestOptions): Promise<ListJobEventsResult>;
-  retry_job(request: RetryJobRequestOptions): Promise<RetryJobResult>;
+  get_job_status(request?: GetJobStatusRequestOptions): Promise<GetJobStatusResult>;
+  cancel_job(request?: CancelJobRequestOptions): Promise<CancelJobResult>;
+  list_job_events(request?: ListJobEventsRequestOptions): Promise<ListJobEventsResult>;
+  retry_job(request?: RetryJobRequestOptions): Promise<RetryJobResult>;
   get_release_info(request?: GetReleaseInfoRequestOptions): Promise<GetReleaseInfoResult>;
   plan_resources(request: PlanResourcesRequestOptions): Promise<PlanResourcesResult>;
   presign_download(request: PresignDownloadRequestOptions): Promise<PresignDownloadResult>;
@@ -67,43 +67,43 @@ export function createNovaFileClient(
 
   return {
     baseUrl,
-    async metrics_summary(request: MetricsSummaryRequestOptions = {}): Promise<MetricsSummaryResult> {
+    async metrics_summary(request?: MetricsSummaryRequestOptions): Promise<MetricsSummaryResult> {
       return executeOperation<MetricsSummaryResult>(
         fetchClient,
         operations.metrics_summary,
-        request as OperationRequest,
+        request ?? {} as OperationRequest,
         undefined,
       );
     },
-    async get_capabilities(request: GetCapabilitiesRequestOptions = {}): Promise<GetCapabilitiesResult> {
+    async get_capabilities(request?: GetCapabilitiesRequestOptions): Promise<GetCapabilitiesResult> {
       return executeOperation<GetCapabilitiesResult>(
         fetchClient,
         operations.get_capabilities,
-        request as OperationRequest,
+        request ?? {} as OperationRequest,
         undefined,
       );
     },
-    async health_live(request: HealthLiveRequestOptions = {}): Promise<HealthLiveResult> {
+    async health_live(request?: HealthLiveRequestOptions): Promise<HealthLiveResult> {
       return executeOperation<HealthLiveResult>(
         fetchClient,
         operations.health_live,
-        request as OperationRequest,
+        request ?? {} as OperationRequest,
         undefined,
       );
     },
-    async health_ready(request: HealthReadyRequestOptions = {}): Promise<HealthReadyResult> {
+    async health_ready(request?: HealthReadyRequestOptions): Promise<HealthReadyResult> {
       return executeOperation<HealthReadyResult>(
         fetchClient,
         operations.health_ready,
-        request as OperationRequest,
+        request ?? {} as OperationRequest,
         undefined,
       );
     },
-    async list_jobs(request: ListJobsRequestOptions = {}): Promise<ListJobsResult> {
+    async list_jobs(request?: ListJobsRequestOptions): Promise<ListJobsResult> {
       return executeOperation<ListJobsResult>(
         fetchClient,
         operations.list_jobs,
-        request as OperationRequest,
+        request ?? {} as OperationRequest,
         undefined,
       );
     },
@@ -115,43 +115,43 @@ export function createNovaFileClient(
         "application/json",
       );
     },
-    async get_job_status(request: GetJobStatusRequestOptions): Promise<GetJobStatusResult> {
+    async get_job_status(request?: GetJobStatusRequestOptions): Promise<GetJobStatusResult> {
       return executeOperation<GetJobStatusResult>(
         fetchClient,
         operations.get_job_status,
-        request as OperationRequest,
+        request ?? {} as OperationRequest,
         undefined,
       );
     },
-    async cancel_job(request: CancelJobRequestOptions): Promise<CancelJobResult> {
+    async cancel_job(request?: CancelJobRequestOptions): Promise<CancelJobResult> {
       return executeOperation<CancelJobResult>(
         fetchClient,
         operations.cancel_job,
-        request as OperationRequest,
+        request ?? {} as OperationRequest,
         undefined,
       );
     },
-    async list_job_events(request: ListJobEventsRequestOptions): Promise<ListJobEventsResult> {
+    async list_job_events(request?: ListJobEventsRequestOptions): Promise<ListJobEventsResult> {
       return executeOperation<ListJobEventsResult>(
         fetchClient,
         operations.list_job_events,
-        request as OperationRequest,
+        request ?? {} as OperationRequest,
         undefined,
       );
     },
-    async retry_job(request: RetryJobRequestOptions): Promise<RetryJobResult> {
+    async retry_job(request?: RetryJobRequestOptions): Promise<RetryJobResult> {
       return executeOperation<RetryJobResult>(
         fetchClient,
         operations.retry_job,
-        request as OperationRequest,
+        request ?? {} as OperationRequest,
         undefined,
       );
     },
-    async get_release_info(request: GetReleaseInfoRequestOptions = {}): Promise<GetReleaseInfoResult> {
+    async get_release_info(request?: GetReleaseInfoRequestOptions): Promise<GetReleaseInfoResult> {
       return executeOperation<GetReleaseInfoResult>(
         fetchClient,
         operations.get_release_info,
-        request as OperationRequest,
+        request ?? {} as OperationRequest,
         undefined,
       );
     },

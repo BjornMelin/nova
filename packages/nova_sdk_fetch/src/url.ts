@@ -24,10 +24,10 @@ function assertNoUnresolvedPathTokens(pathTemplate: string, resolvedPath: string
 /**
  * Build an absolute operation URL from a path template and request params.
  *
- * @param baseUrl API base URL for the operation.
- * @param pathTemplate Route path template that may contain `{token}` segments.
- * @param pathParams Replacement values keyed by path token name.
- * @param query Query-string values keyed by parameter name.
+ * @param baseUrl - API base URL for the operation.
+ * @param pathTemplate - Route path template that may contain `{token}` segments.
+ * @param pathParams - Replacement values keyed by path token name.
+ * @param query - Query-string values keyed by parameter name.
  * @returns Fully qualified operation URL string.
  */
 export function buildOperationUrl(
@@ -58,10 +58,10 @@ export function buildOperationUrl(
 /**
  * Build an operation URL using a generated operation descriptor.
  *
- * @param baseUrl API base URL for the operation.
- * @param operation Generated operation descriptor with route metadata.
- * @param pathParams Replacement values keyed by path token name.
- * @param query Query-string values keyed by parameter name.
+ * @param baseUrl - API base URL for the operation.
+ * @param operation - Generated operation descriptor with route metadata.
+ * @param pathParams - Replacement values keyed by path token name.
+ * @param query - Query-string values keyed by parameter name.
  * @returns Fully qualified operation URL string.
  * @throws Error when required path tokens remain unresolved after substitution.
  */

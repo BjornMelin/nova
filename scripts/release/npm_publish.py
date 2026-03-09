@@ -13,6 +13,7 @@ from scripts.release import common
 
 DEPENDENCY_FIELDS = (
     "dependencies",
+    "devDependencies",
     "optionalDependencies",
     "peerDependencies",
 )

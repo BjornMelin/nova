@@ -4,7 +4,49 @@ from __future__ import annotations
 
 import pytest
 from fastapi.testclient import TestClient
+from nova_file_api.activity import MemoryActivityStore
 from nova_file_api.app import create_app
+from nova_file_api.auth import Authenticator
+from nova_file_api.cache import LocalTTLCache, SharedRedisCache, TwoTierCache
+from nova_file_api.config import Settings
+from nova_file_api.container import AppContainer
+from nova_file_api.idempotency import IdempotencyStore
+from nova_file_api.jobs import (
+    JobRecord,
+    JobService,
+    JobStatus,
+    MemoryJobPublisher,
+)
+from nova_file_api.metrics import MetricsCollector
+from nova_file_api.models import AuthMode
+
+from ._test_doubles import StubTransferService
+
+
+class _FailingListJobRepository:
+    def create(self, record: JobRecord) -> None:
+        del record
+        raise AssertionError("not expected in list-only test")
+
+    def get(self, job_id: str) -> JobRecord | None:
+        del job_id
+        return None
+
+    def update(self, record: JobRecord) -> None:
+        del record
+
+    def update_if_status(
+        self,
+        *,
+        record: JobRecord,
+        expected_status: JobStatus,
+    ) -> bool:
+        del record, expected_status
+        return False
+
+    def list_for_scope(self, *, scope_id: str, limit: int) -> list[JobRecord]:
+        del scope_id, limit
+        raise RuntimeError("jobs table is not configured for scoped listing")
 
 
 def test_v1_health_and_capabilities(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -117,3 +159,57 @@ def test_v1_jobs_rejects_blank_idempotency_key() -> None:
     assert resp.json()["error"]["code"] == "invalid_request"
     assert whitespace_resp.status_code == 422
     assert whitespace_resp.json()["error"]["code"] == "invalid_request"
+
+
+def test_v1_jobs_list_scoped_config_error_returns_internal_error() -> None:
+    settings = Settings.model_validate(
+        {
+            "AUTH_MODE": AuthMode.SAME_ORIGIN.value,
+            "JOBS_ENABLED": True,
+        }
+    )
+
+    metrics = MetricsCollector(namespace="Tests")
+    shared = SharedRedisCache(url=None)
+    cache = TwoTierCache(
+        local=LocalTTLCache(ttl_seconds=60, max_entries=128),
+        shared=shared,
+        shared_ttl_seconds=60,
+    )
+    repository = _FailingListJobRepository()
+    job_service = JobService(
+        repository=repository,
+        publisher=MemoryJobPublisher(),
+        metrics=metrics,
+    )
+    container = AppContainer(
+        settings=settings,
+        metrics=metrics,
+        cache=cache,
+        shared_cache=shared,
+        authenticator=Authenticator(
+            settings=settings,
+            cache=cache,
+        ),
+        transfer_service=StubTransferService(),  # type: ignore[arg-type]
+        job_repository=repository,
+        job_service=job_service,
+        activity_store=MemoryActivityStore(),
+        idempotency_store=IdempotencyStore(
+            cache=cache,
+            enabled=False,
+            ttl_seconds=300,
+        ),
+    )
+
+    app = create_app(container_override=container)
+    with TestClient(app, raise_server_exceptions=False) as client:
+        response = client.get(
+            "/v1/jobs",
+            headers={"X-Session-Id": "scope-1"},
+        )
+
+    assert response.status_code == 500
+    payload = response.json()
+    assert payload["error"]["code"] == "internal_error"
+    assert payload["error"]["message"] == "unexpected internal error"

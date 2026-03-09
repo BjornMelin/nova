@@ -57,7 +57,7 @@ class Operation:
     @property
     def requires_request(self) -> bool:
         """Return whether the generated client method must take a request object."""
-        return (
+        return self.has_request_body and (
             self.has_required_request_body
             or self.has_path_params
             or self.has_required_query_params
@@ -287,14 +287,33 @@ def _resolve_request_body(
     request_body = operation.get("requestBody")
     if not isinstance(request_body, dict):
         return None
+    return _resolve_request_body_definition(spec, request_body)
+
+
+def _resolve_request_body_definition(
+    spec: dict[str, Any],
+    request_body: dict[str, Any],
+    *,
+    seen_refs: frozenset[str] | None = None,
+) -> dict[str, Any]:
+    seen_refs_set = set(seen_refs or ())
     ref = request_body.get("$ref")
     if isinstance(ref, str):
+        if not ref.startswith("#/"):
+            raise ValueError(f"Unsupported requestBody reference: {ref!r}")
+        if ref in seen_refs_set:
+            raise ValueError(f"Circular requestBody reference detected: {ref}")
+        seen_refs_set.add(ref)
         resolved = _resolve_local_ref(spec, ref)
         if not isinstance(resolved, dict):
             raise ValueError(
                 f"requestBody reference did not resolve to an object: {ref}"
             )
-        return resolved
+        return _resolve_request_body_definition(
+            spec,
+            resolved,
+            seen_refs=frozenset(seen_refs_set),
+        )
     return request_body
 
 
@@ -415,9 +434,11 @@ def _render_typescript_openapi(spec_path: Path) -> str:
             ) from exc
         if result.returncode != 0:
             stderr = result.stderr.strip()
+            stdout = result.stdout.strip()
+            details = stderr or stdout or "no output captured"
             raise RuntimeError(
-                "openapi-typescript generation failed for "
-                f"{spec_path}: {stderr or result.stdout.strip()}"
+                "openapi-typescript generation command failed for "
+                f"{spec_path}: {details}"
             )
         return output_path.read_text(encoding="utf-8")
 
@@ -897,10 +918,8 @@ def _render_typescript_client(
             signature = f"{operation.operation_id}(request: {request_type})"
             request_expr = "request"
         else:
-            signature = (
-                f"{operation.operation_id}(request: {request_type} = {{}})"
-            )
-            request_expr = "request"
+            signature = f"{operation.operation_id}(request?: {request_type})"
+            request_expr = "request ?? {}"
         lines.extend(
             [
                 f"    async {signature}: Promise<{result_type}> {{",
@@ -1050,34 +1069,52 @@ def _write_or_check(path: Path, content: str, *, check: bool) -> list[str]:
     return issues
 
 
-def _remove_stale_generated_directory(
-    package_root: Path,
-    *,
-    check: bool,
+def _validate_generated_directory(
+    package_root: Path, *, check: bool
 ) -> list[str]:
     generated_dir = package_root / "src" / "generated"
-    if check:
-        if not generated_dir.exists():
-            return [f"missing generated SDK directory: {generated_dir}"]
-        stale_entries = sorted(item.name for item in generated_dir.iterdir())
-        if stale_entries:
-            return [
-                "stale generated SDK directory is non-empty "
-                f"{generated_dir}: {', '.join(stale_entries)}"
-            ]
+    expected_files = {"openapi.ts"}
+
+    if not check:
+        if generated_dir.exists():
+            shutil.rmtree(generated_dir)
+        generated_dir.mkdir(parents=True, exist_ok=True)
         return []
 
-    if generated_dir.exists():
-        shutil.rmtree(generated_dir)
-    generated_dir.mkdir(parents=True, exist_ok=True)
-    return []
+    if not generated_dir.exists():
+        return [f"missing generated SDK directory: {generated_dir}"]
+
+    current_file_names = {
+        item.name for item in generated_dir.iterdir() if item.is_file()
+    }
+    missing = sorted(expected_files - current_file_names)
+    extra = sorted(current_file_names - expected_files)
+    issues: list[str] = []
+    if missing:
+        issues.append(
+            "missing expected generated SDK artifacts in "
+            f"{generated_dir}: {', '.join(missing)}"
+        )
+    if extra:
+        issues.append(
+            "unexpected generated SDK artifacts in "
+            f"{generated_dir}: {', '.join(extra)}"
+        )
+    return issues
+
+
+def _remove_stale_generated_directory(
+    package_root: Path, *, check: bool
+) -> list[str]:
+    """Backward-compatible alias for legacy test/import paths."""
+    return _validate_generated_directory(package_root, check=check)
 
 
 def _generate_target(target: GenerationTarget, *, check: bool) -> list[str]:
     spec, operations = _load_operations(target.spec_path)
     issues: list[str] = []
     issues.extend(
-        _remove_stale_generated_directory(
+        _validate_generated_directory(
             target.ts_package_root,
             check=check,
         )

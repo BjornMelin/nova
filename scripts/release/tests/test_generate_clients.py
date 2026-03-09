@@ -8,7 +8,6 @@ from pathlib import Path
 
 import pytest
 
-from scripts.release import generate_clients as generate_clients_module
 from scripts.release.generate_clients import (
     Operation,
     _assert_unique_operation_ids,
@@ -187,7 +186,7 @@ def test_request_body_ref_requiredness_drives_method_request_signature(
 def test_remove_stale_generated_directory_flags_non_empty_directory(
     tmp_path: Path,
 ) -> None:
-    """Check-mode should fail when src/generated still has stale entries."""
+    """Check-mode should fail when required artifacts are missing."""
     generated_dir = tmp_path / "src" / "generated"
     generated_dir.mkdir(parents=True)
     stale_file = generated_dir / "stale.ts"
@@ -196,8 +195,8 @@ def test_remove_stale_generated_directory_flags_non_empty_directory(
     issues = _remove_stale_generated_directory(tmp_path, check=True)
 
     assert issues
-    assert "non-empty" in issues[0]
-    assert "stale.ts" in issues[0]
+    assert "missing expected generated SDK artifacts" in issues[0]
+    assert "openapi.ts" in issues[0]
 
 
 def test_render_typescript_openapi_times_out_with_actionable_error(
@@ -214,7 +213,7 @@ def test_render_typescript_openapi_times_out_with_actionable_error(
         )
 
     monkeypatch.setattr(
-        generate_clients_module.subprocess,
+        subprocess,
         "run",
         _raise_timeout,
     )

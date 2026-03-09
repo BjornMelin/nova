@@ -207,6 +207,19 @@ async function main(): Promise<void> {
             headers.get("authorization") === "Bearer integration-token",
             "verify_token must use resolved authorization header",
           );
+          assert(
+            headers.get("content-type")?.startsWith("application/json") ?? false,
+            "verify_token must use application/json content type",
+          );
+          assert(
+            bodyToString(init?.body) ===
+              JSON.stringify({
+                access_token: "integration-token",
+                required_permissions: [],
+                required_scopes: [],
+              }),
+            "verify_token must send JSON request body",
+          );
         },
       },
     }),
@@ -258,6 +271,57 @@ async function main(): Promise<void> {
     sawAuthHttpError = error instanceof NovaAuthSdkHttpError;
   }
   assert(sawAuthHttpError, "assertAuthOkResponse must throw NovaSdkHttpError");
+
+  const authForbiddenClient = createNovaAuthClient({
+    baseUrl: authBaseUrl,
+    fetchImpl: createFixtureFetch({
+      [verifyUrl]: {
+        status: 403,
+        body: verify403Fixture,
+        assertRequest: ({ init }) => {
+          assert(init?.method === "POST", "verify_token 403 must use POST");
+          const headers = new Headers(init?.headers);
+          assert(
+            headers.get("authorization") === "Bearer integration-token",
+            "verify_token 403 must use resolved authorization header",
+          );
+          assert(
+            headers.get("content-type")?.startsWith("application/json") ?? false,
+            "verify_token 403 must use application/json content type",
+          );
+          assert(
+            bodyToString(init?.body) ===
+              JSON.stringify({
+                access_token: "insufficient-token",
+                required_permissions: [],
+                required_scopes: [],
+              }),
+            "verify_token 403 must send JSON request body",
+          );
+        },
+      },
+    }),
+    resolveHeaders: ({ operation }) =>
+      operation.operationId === "verify_token"
+        ? { authorization: "Bearer integration-token" }
+        : undefined,
+  });
+  const verify403Result = await authForbiddenClient.verify_token({
+    body: {
+      access_token: "insufficient-token",
+      required_permissions: [],
+      required_scopes: [],
+    },
+  });
+  assert(!verify403Result.ok, "verify_token 403 fixture must not be ok");
+  assertErrorEnvelope(asRecord(verify403Result.data).error, "insufficient_scope");
+  let sawAuthForbiddenHttpError = false;
+  try {
+    assertAuthOkResponse("verify_token", verify403Result);
+  } catch (error) {
+    sawAuthForbiddenHttpError = error instanceof NovaAuthSdkHttpError;
+  }
+  assert(sawAuthForbiddenHttpError, "assertAuthOkResponse must throw NovaSdkHttpError");
 
   const introspectUrl = buildOperationDescriptorUrl(
     authBaseUrl,
@@ -360,6 +424,10 @@ async function main(): Promise<void> {
     fileBaseUrl,
     fileOperations.initiate_upload,
   );
+  const planResourcesUrl = buildOperationDescriptorUrl(
+    fileBaseUrl,
+    fileOperations.plan_resources,
+  );
   const capabilitiesUrl = buildOperationDescriptorUrl(
     fileBaseUrl,
     fileOperations.get_capabilities,
@@ -388,11 +456,47 @@ async function main(): Promise<void> {
             headers.get("idempotency-key") === "job-123",
             "create_job must send explicit idempotency header",
           );
+          assert(
+            headers.get("content-type")?.startsWith("application/json") ?? false,
+            "create_job must use application/json content type",
+          );
+          assert(
+            bodyToString(init?.body) === JSON.stringify(enqueueRequestFixture),
+            "create_job must send declared JSON request body",
+          );
         },
       },
       [initiateUploadUrl]: {
         status: 200,
         body: transferSuccessFixture,
+        assertRequest: ({ init }) => {
+          assert(init?.method === "POST", "initiate_upload must use POST");
+          const headers = new Headers(init?.headers);
+          assert(
+            headers.get("content-type")?.startsWith("application/json") ?? false,
+            "initiate_upload must use application/json content type",
+          );
+          assert(
+            bodyToString(init?.body) === JSON.stringify(transferRequestFixture),
+            "initiate_upload must send declared JSON request body",
+          );
+        },
+      },
+      [planResourcesUrl]: {
+        status: 200,
+        body: planFixture,
+        assertRequest: ({ init }) => {
+          assert(init?.method === "POST", "plan_resources must use POST");
+          const headers = new Headers(init?.headers);
+          assert(
+            headers.get("content-type")?.startsWith("application/json") ?? false,
+            "plan_resources must use application/json content type",
+          );
+          assert(
+            bodyToString(init?.body) === JSON.stringify({ resources: ["v1"] }),
+            "plan_resources must send declared JSON request body",
+          );
+        },
       },
       [capabilitiesUrl]: {
         status: 200,
@@ -472,8 +576,14 @@ async function main(): Promise<void> {
   }
   assert(sawFileHttpError, "assertFileOkResponse must throw NovaSdkHttpError");
 
-  assertErrorEnvelope(asRecord(verify403Fixture).error, "insufficient_scope");
-  assert(Array.isArray(asRecord(planFixture).plan), "resource plan list required");
+  const planResult = await fileClient.plan_resources({
+    body: {
+      resources: ["v1"],
+    },
+  });
+  assert(planResult.ok, "plan_resources success fixture must be ok");
+  assertFileOkResponse("plan_resources", planResult);
+  assert(Array.isArray(planResult.data.plan), "resource plan list required");
   assert(
     !Object.prototype.hasOwnProperty.call(fileOperations, "update_job_result"),
     "internal update_job_result operation must be excluded from public SDK",

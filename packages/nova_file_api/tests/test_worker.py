@@ -6,7 +6,7 @@ from typing import Any
 import httpx
 import pytest
 from nova_file_api.config import Settings
-from nova_file_api.errors import upstream_s3_error
+from nova_file_api.errors import invalid_request, upstream_s3_error
 from nova_file_api.models import JobsQueueBackend
 from nova_file_api.transfer import ExportCopyResult
 from nova_file_api.worker import JobsWorker
@@ -345,6 +345,180 @@ def test_worker_executes_transfer_process_and_posts_running_then_succeeded(
                     "download_filename": "source.csv",
                 },
                 "error": None,
+            },
+        },
+    ]
+
+
+def test_worker_non_retryable_execution_failure_reduces_to_terminal_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake_sqs = _FakeSqsClient()
+    fake_http = _FakeHttpClient()
+    fake_http.responses.append(
+        httpx.Response(
+            200,
+            request=httpx.Request(
+                "POST",
+                "https://api.example.local/v1/internal/jobs/job-2/result",
+            ),
+        )
+    )
+    fake_http.responses.append(
+        httpx.Response(
+            200,
+            request=httpx.Request(
+                "POST",
+                "https://api.example.local/v1/internal/jobs/job-2/result",
+            ),
+        )
+    )
+    transfer_service = _FakeTransferService()
+    transfer_service._error = invalid_request("source upload object not found")
+
+    monkeypatch.setattr(
+        "nova_file_api.worker.boto3.client",
+        lambda service_name, **kwargs: fake_sqs,
+    )
+    monkeypatch.setattr(
+        "nova_file_api.worker.httpx.Client",
+        lambda **kwargs: fake_http,
+    )
+
+    settings = Settings()
+    settings.jobs_enabled = True
+    settings.jobs_runtime_mode = "worker"
+    settings.jobs_queue_backend = JobsQueueBackend.SQS
+    settings.jobs_sqs_queue_url = "https://example.local/queue"
+    settings.jobs_api_base_url = "https://api.example.local"
+    settings.jobs_worker_update_token = SecretStr("worker-token")
+
+    worker = JobsWorker(
+        settings=settings,
+        transfer_service=transfer_service,  # type: ignore[arg-type]
+    )
+    should_delete = worker._handle_message(
+        message={
+            "MessageId": "msg-3",
+            "ReceiptHandle": "receipt-3",
+            "Body": _worker_message_body(job_id="job-2"),
+            "Attributes": {"ApproximateReceiveCount": "2"},
+        }
+    )
+
+    assert should_delete is True
+    assert fake_sqs.delete_calls == []
+    assert fake_http.posts == [
+        {
+            "url": "/v1/internal/jobs/job-2/result",
+            "json": {
+                "status": "running",
+                "result": None,
+                "error": None,
+            },
+        },
+        {
+            "url": "/v1/internal/jobs/job-2/result",
+            "json": {
+                "status": "failed",
+                "result": None,
+                "error": "source upload object not found",
+            },
+        },
+    ]
+
+
+def test_worker_run_deletes_message_when_non_retryable_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake_sqs = _FakeSqsClient()
+    fake_http = _FakeHttpClient()
+    fake_http.responses.extend(
+        [
+            httpx.Response(
+                200,
+                request=httpx.Request(
+                    "POST",
+                    "https://api.example.local/v1/internal/jobs/job-2/result",
+                ),
+            ),
+            httpx.Response(
+                200,
+                request=httpx.Request(
+                    "POST",
+                    "https://api.example.local/v1/internal/jobs/job-2/result",
+                ),
+            ),
+        ]
+    )
+    transfer_service = _FakeTransferService()
+    transfer_service._error = invalid_request("source upload object not found")
+
+    monkeypatch.setattr(
+        "nova_file_api.worker.boto3.client",
+        lambda service_name, **kwargs: fake_sqs,
+    )
+    monkeypatch.setattr(
+        "nova_file_api.worker.httpx.Client",
+        lambda **kwargs: fake_http,
+    )
+
+    settings = Settings.model_validate(
+        {
+            "JOBS_ENABLED": True,
+            "JOBS_RUNTIME_MODE": "worker",
+            "JOBS_QUEUE_BACKEND": JobsQueueBackend.SQS,
+            "JOBS_SQS_QUEUE_URL": "https://example.local/queue",
+            "JOBS_API_BASE_URL": "https://api.example.local",
+            "JOBS_WORKER_UPDATE_TOKEN": SecretStr("worker-token"),
+        }
+    )
+    worker = JobsWorker(
+        settings=settings,
+        transfer_service=transfer_service,  # type: ignore[arg-type]
+    )
+
+    message = {
+        "MessageId": "msg-3",
+        "ReceiptHandle": "receipt-3",
+        "Body": _worker_message_body(job_id="job-2"),
+        "Attributes": {"ApproximateReceiveCount": "2"},
+    }
+
+    def _receive_once() -> list[dict[str, object]]:
+        worker._stop_requested = True
+        return [message]
+
+    monkeypatch.setattr(
+        worker,
+        "_receive_messages",
+        _receive_once,
+    )
+
+    exit_code = worker.run()
+
+    assert exit_code == 0
+    assert fake_sqs.delete_calls == [
+        {
+            "QueueUrl": "https://example.local/queue",
+            "ReceiptHandle": "receipt-3",
+        }
+    ]
+    assert fake_http.posts == [
+        {
+            "url": "/v1/internal/jobs/job-2/result",
+            "json": {
+                "status": "running",
+                "result": None,
+                "error": None,
+            },
+        },
+        {
+            "url": "/v1/internal/jobs/job-2/result",
+            "json": {
+                "status": "failed",
+                "result": None,
+                "error": "source upload object not found",
             },
         },
     ]

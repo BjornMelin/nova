@@ -10,6 +10,11 @@
   "novaRelease": {
     "managed": false
   },
+  "dependencies": {
+    "@nova/sdk-auth": "file:../nova_sdk_auth",
+    "@nova/sdk-file": "file:../nova_sdk_file",
+    "@nova/sdk-fetch": "file:../nova_sdk_fetch"
+  },
   "devDependencies": {
     "@types/node": "^22.19.13",
     "typescript": "^5.9.2"
