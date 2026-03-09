@@ -14,6 +14,7 @@ Related setup sequence:
 - [`docs/runbooks/README.md`](../../runbooks/README.md)
 - [`deploy-nova-cicd-end-to-end-guide.md`](deploy-nova-cicd-end-to-end-guide.md)
 - [`release-promotion-dev-to-prod-guide.md`](release-promotion-dev-to-prod-guide.md)
+- [`BROWSER-LIVE-VALIDATION-CHECKLIST.md`](BROWSER-LIVE-VALIDATION-CHECKLIST.md)
 
 ## 2. Blocking gates covered
 
@@ -160,6 +161,10 @@ Acceptance:
 - Green target group reaches healthy state before production traffic shift.
 
 ## 7. Gate C: Cross-repo E2E smoke
+
+Use the deterministic execution contract in
+`BROWSER-LIVE-VALIDATION-CHECKLIST.md` for command-level browser validation and
+artifact capture.
 
 ### C1. Browser upload and async completion
 

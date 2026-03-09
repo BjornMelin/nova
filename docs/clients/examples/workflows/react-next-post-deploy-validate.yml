@@ -1,0 +1,15 @@
+name: React Next Post Deploy Validate
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    uses: 3M-Cloud/nova/.github/workflows/reusable-post-deploy-validate.yml@v1
+    with:
+      validation_base_url: ${{ vars.NOVA_API_BASE_URL }}
+      validation_canonical_paths: /v1/health/live,/v1/health/ready,/metrics/summary,/v1/capabilities,/v1/releases/info
+      validation_legacy_404_paths: /healthz,/readyz,/api/transfers/uploads/initiate,/api/jobs,/api/v1/transfers/uploads/initiate

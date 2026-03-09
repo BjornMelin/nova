@@ -1,0 +1,10 @@
+name: Dash Minimal Nova Deploy Validate
+
+on:
+  workflow_dispatch:
+
+jobs:
+  validate:
+    uses: 3M-Cloud/nova/.github/workflows/reusable-post-deploy-validate.yml@v1
+    with:
+      validation_base_url: ${{ vars.NOVA_API_BASE_URL }}

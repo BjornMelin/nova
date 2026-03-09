@@ -1,0 +1,16 @@
+name: R Shiny Post Deploy Validate
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    # Pin to immutable workflow revision to prevent mutable tag drift.
+    uses: 3M-Cloud/nova/.github/workflows/reusable-post-deploy-validate.yml@655ccab0d071c828045de4a4d3bb441d4349194e
+    with:
+      validation_base_url: ${{ vars.NOVA_API_BASE_URL }}
+      validation_canonical_paths: /v1/health/live,/v1/health/ready,/metrics/summary,/v1/capabilities,/v1/releases/info
+      validation_legacy_404_paths: /healthz,/readyz,/api/transfers/uploads/initiate,/api/jobs,/api/v1/transfers/uploads/initiate

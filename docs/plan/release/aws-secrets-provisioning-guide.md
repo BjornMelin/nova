@@ -7,7 +7,14 @@ Last reviewed: 2026-02-24
 ## Purpose
 
 Provision and rotate the release signing key in AWS Secrets Manager for the
-`Apply Release Plan` workflow.
+`Nova Release Apply` workflow (`.github/workflows/release-apply.yml`), which
+invokes `.github/workflows/reusable-release-apply.yml`.
+
+This guide is governed by the canonical authority chain:
+`docs/architecture/requirements.md`,
+`docs/architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md`,
+`docs/architecture/spec/SPEC-0000-http-api-contract.md`, and
+`docs/architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md`.
 
 ## Required secret contract
 
@@ -19,7 +26,7 @@ The release workflow expects JSON with these keys:
 - `signer_email`
 
 Reference workflow:
-`.github/workflows/build-and-publish-image.yml`
+`.github/workflows/release-apply.yml` (`Nova Release Apply`)
 
 ## Prerequisites
 

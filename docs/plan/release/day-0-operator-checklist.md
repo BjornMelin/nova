@@ -2,7 +2,7 @@
 
 Status: Active
 Owner: nova release architecture
-Last reviewed: 2026-03-02
+Last reviewed: 2026-03-05
 
 ## Purpose
 
@@ -15,8 +15,9 @@ safe operator path.
 2. GitHub CLI authenticated.
 3. Repository admin access to `${GITHUB_OWNER}/${GITHUB_REPO}` (default: `3M-Cloud/nova`).
 4. Required environment values prepared.
-5. `kubectl` is installed.
-6. Kubernetes context for `${NAMESPACE}` is authenticated and selected.
+5. Runtime stacks already deployed for `dev` and `prod`:
+   `deploy-runtime-cloudformation-environments-guide.md`.
+6. `jq` and `ssh-keygen` are installed.
 
 ## Inputs
 
@@ -26,14 +27,19 @@ safe operator path.
 - `${APPLICATION}` (default `ci`)
 - `${GITHUB_OWNER}` (default `3M-Cloud`)
 - `${GITHUB_REPO}` (default `nova`)
-- `${CONNECTION_ARN}` (required, e.g.,
+- `${EXISTING_CONNECTION_ARN}` (optional, e.g.,
   `arn:aws:codestar-connections:us-east-1:...:connection/xxxxxxxx`)
-- `${NAMESPACE}` (default `nova`)
-- `${KUBECONFIG}` (optional, defaults to current kubeconfig context)
-- `${API_DEPLOYMENT_NAME}` (required, e.g., `${APPLICATION}-api`)
-- `${APP_LABEL}` (required, e.g., `${APPLICATION}-api`)
-- `${AWS_ROLE_TO_ASSUME}` (required if using GitHub OIDC role chaining)
-- `${GITHUB_WEBHOOK_SECRET_NAME}` (optional)
+- `${CODEARTIFACT_DOMAIN_NAME}` (required)
+- `${CODEARTIFACT_REPOSITORY_NAME}` (optional fallback for staging default)
+- `${CODEARTIFACT_STAGING_REPOSITORY}` (required; defaulted from
+  `${CODEARTIFACT_REPOSITORY_NAME}` by command pack when unset)
+- `${CODEARTIFACT_PROD_REPOSITORY}` (required; must differ from staging)
+- `${ECR_REPOSITORY_ARN}` (required)
+- `${ECR_REPOSITORY_NAME}` (required)
+- `${ECR_REPOSITORY_URI}` (required)
+- `${SIGNER_NAME}` (required)
+- `${SIGNER_EMAIL}` (required)
+- `${NOVA_ARTIFACT_BUCKET_NAME}` (required)
 
 ## Step-by-step commands
 
@@ -46,34 +52,95 @@ export PROJECT="${PROJECT:-nova}"
 export APPLICATION="${APPLICATION:-ci}"
 export GITHUB_OWNER="${GITHUB_OWNER:-3M-Cloud}"
 export GITHUB_REPO="${GITHUB_REPO:-nova}"
-export CONNECTION_ARN="${CONNECTION_ARN:?Set CONNECTION_ARN}"
-export NAMESPACE="${NAMESPACE:?Set NAMESPACE}"
-export KUBECONFIG="${KUBECONFIG:-$HOME/.kube/config}"
-export API_DEPLOYMENT_NAME="${API_DEPLOYMENT_NAME:?Set API_DEPLOYMENT_NAME}"
-export APP_LABEL="${APP_LABEL:?Set APP_LABEL}"
-export BATCHB_VALIDATION_ROLE_NAME="${PROJECT}-${APPLICATION}-batch-b-validation-operator-role"
+export CODEARTIFACT_DOMAIN_NAME="${CODEARTIFACT_DOMAIN_NAME:?Set CODEARTIFACT_DOMAIN_NAME}"
+export CODEARTIFACT_REPOSITORY_NAME="${CODEARTIFACT_REPOSITORY_NAME:-galaxypy}"
+export CODEARTIFACT_STAGING_REPOSITORY="${CODEARTIFACT_STAGING_REPOSITORY:-${CODEARTIFACT_REPOSITORY_NAME}}"
+export CODEARTIFACT_PROD_REPOSITORY="${CODEARTIFACT_PROD_REPOSITORY:?Set CODEARTIFACT_PROD_REPOSITORY}"
+export EXISTING_CONNECTION_ARN="${EXISTING_CONNECTION_ARN:-}"
+export ECR_REPOSITORY_ARN="${ECR_REPOSITORY_ARN:?Set ECR_REPOSITORY_ARN}"
+export ECR_REPOSITORY_NAME="${ECR_REPOSITORY_NAME:?Set ECR_REPOSITORY_NAME}"
+export ECR_REPOSITORY_URI="${ECR_REPOSITORY_URI:?Set ECR_REPOSITORY_URI}"
+export NOVA_DEPLOY_SERVICE_NAME="${NOVA_DEPLOY_SERVICE_NAME:-nova-file-api}"
+export SIGNER_NAME="${SIGNER_NAME:?Set SIGNER_NAME}"
+export SIGNER_EMAIL="${SIGNER_EMAIL:?Set SIGNER_EMAIL}"
+export NOVA_ARTIFACT_BUCKET_NAME="${NOVA_ARTIFACT_BUCKET_NAME:?Set NOVA_ARTIFACT_BUCKET_NAME}"
 
-kubectl config current-context >/dev/null
+if [ "${CODEARTIFACT_STAGING_REPOSITORY}" = "${CODEARTIFACT_PROD_REPOSITORY}" ]; then
+  echo "CODEARTIFACT_STAGING_REPOSITORY and CODEARTIFACT_PROD_REPOSITORY must differ." >&2
+  exit 1
+fi
 ```
 
-### Step 2: Run command pack
+Required pre-check before Step 3 (replace `nova-file-api` if overridden via
+`NOVA_DEPLOY_SERVICE_NAME`):
+
+```bash
+aws ssm get-parameter --region "${AWS_REGION}" --name "/${PROJECT}/dev/${NOVA_DEPLOY_SERVICE_NAME}/base-url"
+aws ssm get-parameter --region "${AWS_REGION}" --name "/${PROJECT}/prod/${NOVA_DEPLOY_SERVICE_NAME}/base-url"
+```
+
+Ownership guardrail:
+
+- Base-url parameters are owned by the canonical stack pair
+  `${PROJECT}-${APPLICATION}-dev-service-base-url` and
+  `${PROJECT}-${APPLICATION}-prod-service-base-url`.
+- Do not create alternate stack names that manage the same SSM parameter paths.
+
+### Step 2: Bootstrap foundation stack first
+
+If `${NOVA_ARTIFACT_BUCKET_NAME}` already exists, pass it as
+`ExistingArtifactBucketName`. If it does not exist yet, set
+`ExistingArtifactBucketName=""` and pass it as `ArtifactBucketName`.
+
+```bash
+if aws s3api head-bucket --bucket "${NOVA_ARTIFACT_BUCKET_NAME}" >/dev/null 2>&1; then
+  FOUNDATION_BUCKET_ARGS=(
+    ExistingArtifactBucketName="${NOVA_ARTIFACT_BUCKET_NAME}"
+    ArtifactBucketName=""
+  )
+else
+  FOUNDATION_BUCKET_ARGS=(
+    ExistingArtifactBucketName=""
+    ArtifactBucketName="${NOVA_ARTIFACT_BUCKET_NAME}"
+  )
+fi
+
+aws cloudformation deploy \
+  --region "${AWS_REGION}" \
+  --stack-name "${PROJECT}-${APPLICATION}-nova-foundation" \
+  --template-file infra/nova/nova-foundation.yml \
+  --capabilities CAPABILITY_NAMED_IAM \
+  --parameter-overrides \
+    Project="${PROJECT}" \
+    Application="${APPLICATION}" \
+    "${FOUNDATION_BUCKET_ARGS[@]}" \
+    CodeArtifactDomainName="${CODEARTIFACT_DOMAIN_NAME}" \
+    CodeArtifactRepositoryName="${CODEARTIFACT_STAGING_REPOSITORY}" \
+    EcrRepositoryArn="${ECR_REPOSITORY_ARN}" \
+    EcrRepositoryName="${ECR_REPOSITORY_NAME}" \
+    EcrRepositoryUri="${ECR_REPOSITORY_URI}" \
+    ExistingConnectionArn="${EXISTING_CONNECTION_ARN}"
+```
+
+### Step 3: Run command pack
 
 ```bash
 ./scripts/release/day-0-operator-command-pack.sh
 ```
 
-### Step 3: Validate stack outputs
+### Step 4: Validate stack outputs
 
 ```bash
+aws cloudformation describe-stacks --region "${AWS_REGION}" --stack-name "${PROJECT}-${APPLICATION}-nova-foundation" --query 'Stacks[0].Outputs'
 aws cloudformation describe-stacks --region "${AWS_REGION}" --stack-name "${PROJECT}-${APPLICATION}-nova-iam-roles" --query 'Stacks[0].Outputs'
 aws cloudformation describe-stacks --region "${AWS_REGION}" --stack-name "${PROJECT}-${APPLICATION}-nova-ci-cd" --query 'Stacks[0].Outputs'
 ```
 
-### Step 4: Verify GitHub wiring is complete
+### Step 5: Verify GitHub wiring is complete
 
 ```bash
-required_secrets=(AWS_ROLE_TO_ASSUME AWS_REGION)
-required_vars=(PROJECT APPLICATION)
+required_secrets=(RELEASE_SIGNING_SECRET_ID RELEASE_AWS_ROLE_ARN)
+required_vars=(AWS_REGION CODEARTIFACT_STAGING_REPOSITORY CODEARTIFACT_PROD_REPOSITORY)
 
 existing_secrets="$(gh secret list --repo "${GITHUB_OWNER}/${GITHUB_REPO}" --json name -q '.[].name')"
 existing_vars="$(gh variable list --repo "${GITHUB_OWNER}/${GITHUB_REPO}" --json name -q '.[].name')"
@@ -88,7 +155,7 @@ done
 echo "All required GitHub secrets/variables are present."
 ```
 
-### Step 5: Trigger and verify release workflows/pipeline progression
+### Step 6: Trigger and verify release workflows/pipeline progression
 
 ```bash
 export CODEPIPELINE_NAME="$(aws cloudformation describe-stacks \
@@ -109,8 +176,7 @@ gh workflow run "Deploy Dev" --repo "${GITHUB_OWNER}/${GITHUB_REPO}" --ref main 
 DEPLOY_RUN_ID="$(gh run list --repo "${GITHUB_OWNER}/${GITHUB_REPO}" --workflow "Deploy Dev" --branch main --limit 1 --json databaseId --jq '.[0].databaseId')"
 gh run watch "${DEPLOY_RUN_ID}" --repo "${GITHUB_OWNER}/${GITHUB_REPO}" --exit-status
 
-kubectl rollout status "deployment/${API_DEPLOYMENT_NAME}" -n "${NAMESPACE}"
-kubectl get pods -l "app=${APP_LABEL}" -n "${NAMESPACE}"
+aws codepipeline get-pipeline-state --region "${AWS_REGION}" --name "${CODEPIPELINE_NAME}"
 ```
 
 Runbook: `docs/plan/release/release-promotion-dev-to-prod-guide.md`

@@ -1,5 +1,10 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: Nova hybrid CI/CD pipeline (Dev -> Manual Approval -> Prod).
+Metadata:
+  cfn-lint:
+    config:
+      ignore_checks:
+        - W6001
 
 Parameters:
   Project:
@@ -13,17 +18,47 @@ Parameters:
   MainBranchName:
     Type: String
     Default: main
+  FoundationStackName:
+    Type: String
+    Default: ""
+    Description: Optional stack name for importing shared CI/CD foundation outputs.
+  IamRolesStackName:
+    Type: String
+    Default: ""
+    Description: Optional IAM stack name for importing role output values.
+  CodeBuildStackName:
+    Type: String
+    Default: ""
+    Description: Optional CodeBuild stack name for importing build project names.
   ArtifactBucketName:
     Type: String
+    Default: ""
+    Description: Optional explicit artifact bucket name. If empty, imported from foundation.
   ConnectionName:
     Type: String
+    Default: ""
+    Description: Optional explicit connection name. If empty, imported from foundation.
   ExistingConnectionArn:
     Type: String
     Default: ""
+  CodePipelineServiceRoleArn:
+    Type: String
+    Default: ""
+    Description: Optional explicit CodePipeline role ARN override.
+  CloudFormationExecutionRoleDevArn:
+    Type: String
+    Default: ""
+    Description: Optional explicit CloudFormation dev execution role ARN override.
+  CloudFormationExecutionRoleProdArn:
+    Type: String
+    Default: ""
+    Description: Optional explicit CloudFormation prod execution role ARN override.
   ReleaseBuildProjectName:
     Type: String
+    Default: ""
   DeployValidateProjectName:
     Type: String
+    Default: ""
   DeployServiceName:
     Type: String
   DeployDevStackName:
@@ -32,8 +67,12 @@ Parameters:
     Type: String
   DevServiceBaseUrl:
     Type: String
+    AllowedPattern: "^https://(?![^\\s]*httpbin)(?![^\\s]*placeholder)(?![^\\s]*example\\.com)(?![^\\s]*<)(?![^\\s]*>)[^\\s]+$"
+    ConstraintDescription: Must be an HTTPS URL and not a placeholder/test host.
   ProdServiceBaseUrl:
     Type: String
+    AllowedPattern: "^https://(?![^\\s]*httpbin)(?![^\\s]*placeholder)(?![^\\s]*example\\.com)(?![^\\s]*<)(?![^\\s]*>)[^\\s]+$"
+    ConstraintDescription: Must be an HTTPS URL and not a placeholder/test host.
   ValidationCanonicalPaths:
     Type: String
     Default: /v1/health/live,/v1/health/ready,/metrics/summary,/v1/capabilities,/v1/releases/info
@@ -47,26 +86,99 @@ Parameters:
     Default: ""
 
 Conditions:
-  UseExistingConnection: !Not [!Equals [!Ref ExistingConnectionArn, ""]]
-  CreateConnection: !Equals [!Ref ExistingConnectionArn, ""]
+  HasFoundationStackName: !Not [!Equals [!Ref FoundationStackName, ""]]
+  HasIamRolesStackName: !Not [!Equals [!Ref IamRolesStackName, ""]]
+  HasArtifactBucketName: !Not [!Equals [!Ref ArtifactBucketName, ""]]
+  HasConnectionName: !Not [!Equals [!Ref ConnectionName, ""]]
+  HasCodePipelineServiceRoleArn: !Not [!Equals [!Ref CodePipelineServiceRoleArn, ""]]
+  HasCloudFormationExecutionRoleDevArn: !Not [!Equals [!Ref CloudFormationExecutionRoleDevArn, ""]]
+  HasCloudFormationExecutionRoleProdArn: !Not [!Equals [!Ref CloudFormationExecutionRoleProdArn, ""]]
+  HasReleaseBuildProjectName: !Not [!Equals [!Ref ReleaseBuildProjectName, ""]]
+  HasDeployValidateProjectName: !Not [!Equals [!Ref DeployValidateProjectName, ""]]
+  HasExistingConnectionArn: !Not [!Equals [!Ref ExistingConnectionArn, ""]]
+  CreateConnection: !And
+    - !Not [!Condition HasExistingConnectionArn]
+    - !Not [!Condition HasFoundationStackName]
   HasApprovalTopic: !Not [!Equals [!Ref ManualApprovalTopicArn, ""]]
+  HasResolvedApprovalTopic: !Or
+    - !Condition HasApprovalTopic
+    - !Condition HasFoundationStackName
+
+Rules:
+  RequireArtifactBucketInput:
+    Assertions:
+      - Assert: !Or
+          - !Not [!Equals [!Ref ArtifactBucketName, ""]]
+          - !Not [!Equals [!Ref FoundationStackName, ""]]
+        AssertDescription: Provide ArtifactBucketName or FoundationStackName.
+  RequireConnectionNameWhenCreatingConnection:
+    RuleCondition:
+      Fn::And:
+        - Fn::Equals:
+            - Ref: ExistingConnectionArn
+            - ""
+        - Fn::Equals:
+            - Ref: FoundationStackName
+            - ""
+    Assertions:
+      - Assert:
+          Fn::Or:
+            - Fn::Not:
+                - Fn::Equals:
+                    - Ref: ExistingConnectionArn
+                    - ""
+            - Fn::Not:
+                - Fn::Equals:
+                    - Ref: FoundationStackName
+                    - ""
+            - Fn::Not:
+                - Fn::Equals:
+                    - Ref: ConnectionName
+                    - ""
+        AssertDescription: When creating a connection, provide ConnectionName.
+  RequireReleaseBuildProjectInput:
+    Assertions:
+      - Assert: !Or
+          - !Not [!Equals [!Ref ReleaseBuildProjectName, ""]]
+          - !Not [!Equals [!Ref CodeBuildStackName, ""]]
+        AssertDescription: Provide ReleaseBuildProjectName or CodeBuildStackName.
+  RequireDeployValidateProjectInput:
+    Assertions:
+      - Assert: !Or
+          - !Not [!Equals [!Ref DeployValidateProjectName, ""]]
+          - !Not [!Equals [!Ref CodeBuildStackName, ""]]
+        AssertDescription: Provide DeployValidateProjectName or CodeBuildStackName.
 
 Resources:
   CodeConnection:
     Type: AWS::CodeConnections::Connection
     Condition: CreateConnection
     Properties:
-      ConnectionName: !Ref ConnectionName
+      ConnectionName: !If
+        - HasConnectionName
+        - !Ref ConnectionName
+        - !Sub "${AWS::StackName}-codeconnection"
       ProviderType: GitHub
 
   NovaPipeline:
     Type: AWS::CodePipeline::Pipeline
     Properties:
       Name: !Sub ${Project}-${Application}-nova-release-pipeline
-      RoleArn: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/${Project}-${Application}-nova-codepipeline-role"
+      RoleArn: !If
+        - HasCodePipelineServiceRoleArn
+        - !Ref CodePipelineServiceRoleArn
+        - !If
+          - HasIamRolesStackName
+          - !ImportValue
+            Fn::Sub: "${IamRolesStackName}-CodePipelineServiceRoleArn"
+          - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/${Project}-${Application}-nova-codepipeline-role"
       ArtifactStore:
         Type: S3
-        Location: !Ref ArtifactBucketName
+        Location: !If
+          - HasArtifactBucketName
+          - !Ref ArtifactBucketName
+          - !ImportValue
+            Fn::Sub: "${FoundationStackName}-ArtifactBucketName"
       Stages:
         - Name: Source
           Actions:
@@ -78,9 +190,13 @@ Resources:
                 Version: "1"
               Configuration:
                 ConnectionArn: !If
-                  - UseExistingConnection
+                  - HasExistingConnectionArn
                   - !Ref ExistingConnectionArn
-                  - !GetAtt CodeConnection.ConnectionArn
+                  - !If
+                    - HasFoundationStackName
+                    - !ImportValue
+                      Fn::Sub: "${FoundationStackName}-ConnectionArn"
+                    - !GetAtt CodeConnection.ConnectionArn
                 FullRepositoryId: !Sub ${RepositoryOwner}/${RepositoryName}
                 BranchName: !Ref MainBranchName
                 OutputArtifactFormat: CODE_ZIP
@@ -99,7 +215,11 @@ Resources:
                 Provider: CodeBuild
                 Version: "1"
               Configuration:
-                ProjectName: !Ref ReleaseBuildProjectName
+                ProjectName: !If
+                  - HasReleaseBuildProjectName
+                  - !Ref ReleaseBuildProjectName
+                  - !ImportValue
+                    Fn::Sub: "${CodeBuildStackName}-ReleaseBuildProjectName"
               InputArtifacts:
                 - Name: AppSourceOutput
               OutputArtifacts:
@@ -117,7 +237,14 @@ Resources:
               Configuration:
                 ActionMode: CREATE_UPDATE
                 Capabilities: CAPABILITY_NAMED_IAM
-                RoleArn: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/${Project}-${Application}-nova-cfn-dev-role"
+                RoleArn: !If
+                  - HasCloudFormationExecutionRoleDevArn
+                  - !Ref CloudFormationExecutionRoleDevArn
+                  - !If
+                    - HasIamRolesStackName
+                    - !ImportValue
+                      Fn::Sub: "${IamRolesStackName}-CloudFormationExecutionRoleDevArn"
+                    - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/${Project}-${Application}-nova-cfn-dev-role"
                 StackName: !Ref DeployDevStackName
                 TemplatePath: AppSourceOutput::infra/nova/deploy/image-digest-ssm.yml
                 ParameterOverrides: !Sub >-
@@ -137,7 +264,11 @@ Resources:
                 Provider: CodeBuild
                 Version: "1"
               Configuration:
-                ProjectName: !Ref DeployValidateProjectName
+                ProjectName: !If
+                  - HasDeployValidateProjectName
+                  - !Ref DeployValidateProjectName
+                  - !ImportValue
+                    Fn::Sub: "${CodeBuildStackName}-DeployValidateProjectName"
                 EnvironmentVariables: !Sub >-
                   [{"name":"VALIDATION_BASE_URL",
                   "value":"${DevServiceBaseUrl}","type":"PLAINTEXT"},
@@ -151,21 +282,25 @@ Resources:
                 - Name: AppSourceOutput
               RunOrder: 1
 
-        - !If
-          - HasApprovalTopic
-          - Name: ManualApproval
-            Actions:
-              - Name: ApproveProdPromotion
-                ActionTypeId:
-                  Category: Approval
-                  Owner: AWS
-                  Provider: Manual
-                  Version: "1"
-                Configuration:
-                  NotificationArn: !Ref ManualApprovalTopicArn
-                  CustomData: Approve promotion of immutable release artifact.
-                RunOrder: 1
-          - !Ref AWS::NoValue
+        - Name: ManualApproval
+          Actions:
+            - Name: ApproveProdPromotion
+              ActionTypeId:
+                Category: Approval
+                Owner: AWS
+                Provider: Manual
+                Version: "1"
+              Configuration:
+                NotificationArn: !If
+                  - HasResolvedApprovalTopic
+                  - !If
+                    - HasApprovalTopic
+                    - !Ref ManualApprovalTopicArn
+                    - !ImportValue
+                      Fn::Sub: "${FoundationStackName}-ManualApprovalTopicArn"
+                  - !Ref AWS::NoValue
+                CustomData: Approve promotion of immutable release artifact.
+              RunOrder: 1
 
         - Name: DeployProd
           Actions:
@@ -178,7 +313,14 @@ Resources:
               Configuration:
                 ActionMode: CREATE_UPDATE
                 Capabilities: CAPABILITY_NAMED_IAM
-                RoleArn: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/${Project}-${Application}-nova-cfn-prod-role"
+                RoleArn: !If
+                  - HasCloudFormationExecutionRoleProdArn
+                  - !Ref CloudFormationExecutionRoleProdArn
+                  - !If
+                    - HasIamRolesStackName
+                    - !ImportValue
+                      Fn::Sub: "${IamRolesStackName}-CloudFormationExecutionRoleProdArn"
+                    - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/${Project}-${Application}-nova-cfn-prod-role"
                 StackName: !Ref DeployProdStackName
                 TemplatePath: AppSourceOutput::infra/nova/deploy/image-digest-ssm.yml
                 ParameterOverrides: !Sub >-
@@ -198,7 +340,11 @@ Resources:
                 Provider: CodeBuild
                 Version: "1"
               Configuration:
-                ProjectName: !Ref DeployValidateProjectName
+                ProjectName: !If
+                  - HasDeployValidateProjectName
+                  - !Ref DeployValidateProjectName
+                  - !ImportValue
+                    Fn::Sub: "${CodeBuildStackName}-DeployValidateProjectName"
                 EnvironmentVariables: !Sub >-
                   [{"name":"VALIDATION_BASE_URL",
                   "value":"${ProdServiceBaseUrl}","type":"PLAINTEXT"},
@@ -217,9 +363,13 @@ Outputs:
     Value: !Ref NovaPipeline
   ConnectionArn:
     Value: !If
-      - UseExistingConnection
+      - HasExistingConnectionArn
       - !Ref ExistingConnectionArn
-      - !GetAtt CodeConnection.ConnectionArn
+      - !If
+        - HasFoundationStackName
+        - !ImportValue
+          Fn::Sub: "${FoundationStackName}-ConnectionArn"
+        - !GetAtt CodeConnection.ConnectionArn
   ConnectionActivationNote:
     Value: >-
       If a new connection was created, activate it once in the AWS console

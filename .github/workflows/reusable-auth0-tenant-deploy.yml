@@ -1,0 +1,227 @@
+name: Reusable Auth0 Tenant Ops
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: Target Auth0 tenant overlay environment (dev|qa|pr).
+        required: true
+        type: string
+      mode:
+        description: Auth0 operation mode (validate|import|export).
+        required: false
+        default: validate
+        type: string
+      input_file:
+        description: Tenant YAML input file path.
+        required: false
+        default: infra/auth0/tenant/tenant.yaml
+        type: string
+      mapping_file:
+        description: Optional mapping file override. Defaults to infra/auth0/mappings/{environment}.json.
+        required: false
+        default: ""
+        type: string
+      allow_delete:
+        description: Safety control for delete operations. Must remain false.
+        required: false
+        default: false
+        type: boolean
+      artifact_name:
+        description: Artifact name prefix for report/export outputs.
+        required: false
+        default: auth0-tenant-ops-report
+        type: string
+    secrets:
+      auth0_domain:
+        description: Auth0 tenant domain.
+        required: true
+      auth0_client_id:
+        description: Auth0 machine client ID.
+        required: true
+      auth0_client_secret:
+        description: Auth0 machine client secret.
+        required: true
+    outputs:
+      operation_status:
+        description: Overall operation status (passed|failed).
+        value: ${{ jobs.auth0-tenant-ops.outputs.operation_status }}
+      report_path:
+        description: JSON report artifact path.
+        value: ${{ jobs.auth0-tenant-ops.outputs.report_path }}
+      artifact_name:
+        description: Artifact name used for uploaded report/export assets.
+        value: ${{ jobs.auth0-tenant-ops.outputs.artifact_name }}
+
+permissions:
+  contents: read
+
+jobs:
+  auth0-tenant-ops:
+    runs-on: ubuntu-latest
+    outputs:
+      operation_status: ${{ steps.set-outputs.outputs.operation_status }}
+      report_path: ${{ steps.set-outputs.outputs.report_path }}
+      artifact_name: ${{ steps.set-outputs.outputs.artifact_name }}
+    env:
+      AUTH0_DOMAIN: ${{ secrets.auth0_domain }}
+      AUTH0_CLIENT_ID: ${{ secrets.auth0_client_id }}
+      AUTH0_CLIENT_SECRET: ${{ secrets.auth0_client_secret }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python and uv
+        uses: ./.github/actions/setup-python-uv
+
+      - name: Validate mode/environment/safety input contract
+        run: |
+          set -euo pipefail
+
+          case "${{ inputs.environment }}" in
+            dev|qa|pr) ;;
+            *)
+              echo "Unsupported environment: ${{ inputs.environment }}" >&2
+              exit 1
+              ;;
+          esac
+
+          case "${{ inputs.mode }}" in
+            validate|import|export) ;;
+            *)
+              echo "Unsupported mode: ${{ inputs.mode }}" >&2
+              exit 1
+              ;;
+          esac
+
+          if [[ "${{ inputs.allow_delete }}" == "true" ]]; then
+            echo "allow_delete=true is forbidden by policy; AUTH0_ALLOW_DELETE must remain false." >&2
+            exit 1
+          fi
+
+      - name: Resolve Auth0 mapping file
+        id: mapping
+        run: |
+          set -euo pipefail
+
+          mapping_path="${{ inputs.mapping_file }}"
+          if [ -z "$mapping_path" ]; then
+            mapping_path="infra/auth0/mappings/${{ inputs.environment }}.json"
+          fi
+
+          test -f "$mapping_path"
+          test -f "${{ inputs.input_file }}"
+          echo "mapping_path=$mapping_path" >> "$GITHUB_OUTPUT"
+
+      - name: Validate Auth0 contract
+        id: validate-contract
+        run: |
+          set -euo pipefail
+          uv run python -m scripts.release.validate_auth0_contract
+
+      - name: Install a0deploy
+        if: inputs.mode != 'validate' && steps.validate-contract.outcome == 'success'
+        run: npm install -g a0deploy
+
+      - name: Run Auth0 import
+        id: run-import
+        if: inputs.mode == 'import' && steps.validate-contract.outcome == 'success'
+        env:
+          AUTH0_INPUT_FILE: ${{ inputs.input_file }}
+          AUTH0_KEYWORD_MAPPINGS_FILE: ${{ steps.mapping.outputs.mapping_path }}
+        run: |
+          set -euo pipefail
+          export AUTH0_ALLOW_DELETE=false
+          AUTH0_KEYWORD_REPLACE_MAPPINGS="$(cat "$AUTH0_KEYWORD_MAPPINGS_FILE")"
+          export AUTH0_KEYWORD_REPLACE_MAPPINGS
+          a0deploy import --input_file "$AUTH0_INPUT_FILE"
+
+      - name: Run Auth0 export
+        id: run-export
+        if: inputs.mode == 'export' && steps.validate-contract.outcome == 'success'
+        env:
+          AUTH0_INPUT_FILE: ${{ inputs.input_file }}
+          AUTH0_KEYWORD_MAPPINGS_FILE: ${{ steps.mapping.outputs.mapping_path }}
+        run: |
+          set -euo pipefail
+          export AUTH0_ALLOW_DELETE=false
+          AUTH0_KEYWORD_REPLACE_MAPPINGS="$(cat "$AUTH0_KEYWORD_MAPPINGS_FILE")"
+          export AUTH0_KEYWORD_REPLACE_MAPPINGS
+          output_dir=".artifacts/auth0-export/${{ inputs.environment }}"
+          mkdir -p "$output_dir"
+          a0deploy export --format yaml --output_folder "$output_dir"
+
+      - name: Write Auth0 tenant ops report
+        if: always()
+        run: |
+          set -euo pipefail
+          mkdir -p .artifacts
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = {
+              "schema_version": "1.0",
+              "environment": "${{ inputs.environment }}",
+              "mode": "${{ inputs.mode }}",
+              "allow_delete": json.loads('${{ toJson(inputs.allow_delete) }}'),
+              "input_file": "${{ inputs.input_file }}",
+              "mapping_file": "${{ steps.mapping.outputs.mapping_path }}",
+              "validation_outcome": "${{ steps.validate-contract.outcome }}",
+              "import_outcome": "${{ steps.run-import.outcome }}",
+              "export_outcome": "${{ steps.run-export.outcome }}",
+          }
+          Path(".artifacts/auth0-tenant-ops-report.json").write_text(
+              json.dumps(report, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          PY
+
+      - id: set-outputs
+        if: always()
+        run: |
+          set -euo pipefail
+
+          mode="${{ inputs.mode }}"
+          validate_outcome="${{ steps.validate-contract.outcome }}"
+          import_outcome="${{ steps.run-import.outcome }}"
+          export_outcome="${{ steps.run-export.outcome }}"
+
+          status="failed"
+          if [[ "$validate_outcome" == "success" ]]; then
+            case "$mode" in
+              validate)
+                status="passed"
+                ;;
+              import)
+                if [[ "$import_outcome" == "success" ]]; then
+                  status="passed"
+                fi
+                ;;
+              export)
+                if [[ "$export_outcome" == "success" ]]; then
+                  status="passed"
+                fi
+                ;;
+            esac
+          fi
+
+          artifact_name="${{ inputs.artifact_name }}-${{ inputs.environment }}-${{ inputs.mode }}"
+
+          echo "operation_status=$status" >> "$GITHUB_OUTPUT"
+          echo "report_path=.artifacts/auth0-tenant-ops-report.json" >> "$GITHUB_OUTPUT"
+          echo "artifact_name=$artifact_name" >> "$GITHUB_OUTPUT"
+
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.set-outputs.outputs.artifact_name }}
+          if-no-files-found: ignore
+          path: |
+            .artifacts/auth0-tenant-ops-report.json
+            .artifacts/auth0-export
+
+      - name: Fail when operation status is failed
+        if: steps.set-outputs.outputs.operation_status != 'passed'
+        run: |
+          echo "Auth0 tenant ops workflow failed." >&2
+          exit 1

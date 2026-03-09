@@ -168,11 +168,16 @@ cython_debug/
 # PyPI configuration file
 .pypirc
 
+# Node / TypeScript local workspace artifacts
+node_modules/
+*.tsbuildinfo
+
 
 # opensrc - source code for packages
 opensrc/
 .agents/
 .codex/
+/.artifacts/
 
 # Auth0 export snapshots
 infra/auth0/output/
@@ -181,3 +186,13 @@ infra/auth0/output/
 infra/auth0/env/*
 !infra/auth0/env/
 !infra/auth0/env/*.env.example
+
+# Local npm token/config artifacts
+/.npmrc.codeartifact
+/.npmrc
+.npmrc*
+!/.npmrc.template
+/.yarnrc.yml
+.yarnrc
+.yarnrc.*
+!/.yarnrc.yml.template

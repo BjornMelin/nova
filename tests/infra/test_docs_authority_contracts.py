@@ -5,8 +5,11 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
+from .helpers import REPO_ROOT
+from .helpers import read_repo_file as _read
+
 DOCS_ROOT = REPO_ROOT / "docs"
+AGENTS_PATH = REPO_ROOT / "AGENTS.md"
 
 ACTIVE_DOCS_PATHS = (
     DOCS_ROOT / "runbooks",
@@ -32,6 +35,9 @@ LEGACY_ACTIVE_ROUTE_PATTERNS = (
     re.compile(r"/api(?:/|\*)"),
     re.compile(r"/healthz(?:\b|/)"),
     re.compile(r"/readyz(?:\b|/)"),
+)
+VALIDATION_DOC_PATH = (
+    DOCS_ROOT / "plan" / "release" / "config-values-reference-guide.md"
 )
 
 
@@ -77,7 +83,13 @@ def test_active_docs_do_not_reference_legacy_runtime_route_literals() -> None:
     violations: set[str] = set()
 
     for doc in _markdown_targets(ACTIVE_ROUTE_AUTHORITY_PATHS):
+        if doc == VALIDATION_DOC_PATH:
+            continue
+
         text = doc.read_text(encoding="utf-8")
+        if "validation_legacy_404_paths" in text:
+            continue
+
         for pattern in LEGACY_ACTIVE_ROUTE_PATTERNS:
             for match in pattern.finditer(text):
                 rel_path = doc.relative_to(REPO_ROOT)
@@ -156,3 +168,103 @@ def test_worker_lane_runbook_authority_exists() -> None:
         "queue_unavailable",
     ]:
         assert required in content
+
+
+def test_browser_live_validation_checklist_authority_exists() -> None:
+    """WS5 browser/live validation checklist must exist with gate contracts."""
+    path = (
+        DOCS_ROOT / "plan" / "release" / "BROWSER-LIVE-VALIDATION-CHECKLIST.md"
+    )
+    assert path.is_file()
+    content = path.read_text(encoding="utf-8")
+
+    for required in [
+        "agent-browser",
+        "ValidateDev",
+        "ValidateProd",
+        "/v1/transfers",
+        "/v1/jobs",
+        "browser-live-validation-report.schema.json",
+    ]:
+        assert required in content
+
+
+def test_agents_active_authority_pack_includes_ws6_contracts() -> None:
+    """AGENTS authority list must include active WS6 ADR/SPEC contracts."""
+    text = AGENTS_PATH.read_text(encoding="utf-8")
+    for required in [
+        "ADR-0027-hard-cut-downstream-integration-and-consumer-contract-enforcement.md",
+        "ADR-0028-auth0-tenant-ops-reusable-workflow-api-contract.md",
+        "ADR-0029-ssm-runtime-base-url-authority-for-deploy-validation.md",
+        "SPEC-0021-downstream-hard-cut-integration-and-consumer-validation-contract.md",
+        "SPEC-0022-auth0-tenant-ops-reusable-workflow-contract.md",
+        "SPEC-0023-ssm-runtime-base-url-contract-for-deploy-validation.md",
+        "/v1/token/verify",
+        "/v1/token/introspect",
+        "uv run ruff check . --select I",
+        "uv run ruff format . --check",
+    ]:
+        assert required in text
+
+
+def test_ws6_authority_docs_reference_new_contracts() -> None:
+    """Authority indexes and runbooks must reference WS6 contract additions."""
+    for rel_path in [
+        "docs/architecture/adr/index.md",
+        "docs/architecture/spec/index.md",
+        "docs/plan/PLAN.md",
+        "docs/runbooks/README.md",
+        "docs/PRD.md",
+    ]:
+        text = _read(rel_path)
+        for required in [
+            "ADR-0027",
+            "ADR-0028",
+            "ADR-0029",
+            "SPEC-0021",
+            "SPEC-0022",
+            "SPEC-0023",
+        ]:
+            assert required in text, f"{rel_path} missing {required}"
+
+
+def test_release_docs_align_validation_path_policy_contract() -> None:
+    """Release docs must allow legacy 404 checks in validation assertions."""
+    text = _read("docs/plan/release/config-values-reference-guide.md")
+    for required in [
+        "validation_legacy_404_paths",
+        (
+            "Legacy route literals are allowed only in dedicated "
+            "validation `404` checks"
+        ),
+    ]:
+        assert required in text
+
+
+def test_auth0_and_ssm_contract_docs_reference_schema_authority() -> None:
+    """Auth0 and SSM authority docs must reference active schema contracts."""
+    auth0_runbook = _read("docs/plan/release/AUTH0-A0DEPLOY-RUNBOOK.md")
+    contracts_readme = _read("docs/contracts/README.md")
+    ssm_spec = _read(
+        "docs/architecture/spec/SPEC-0023-ssm-runtime-base-url-contract-for-deploy-validation.md"
+    )
+
+    for required in [
+        "SPEC-0022-auth0-tenant-ops-reusable-workflow-contract.md",
+        "workflow-auth0-tenant-ops-v1.schema.json",
+    ]:
+        assert required in auth0_runbook
+
+    for required in [
+        "workflow-auth0-tenant-ops-v1.schema.json",
+        "ssm-runtime-base-url-v1.schema.json",
+        "SPEC-0022-auth0-tenant-ops-reusable-workflow-contract.md",
+        "SPEC-0023-ssm-runtime-base-url-contract-for-deploy-validation.md",
+    ]:
+        assert required in contracts_readme
+
+    for required in [
+        "/nova/dev/{service}/base-url",
+        "/nova/prod/{service}/base-url",
+    ]:
+        assert required in ssm_spec

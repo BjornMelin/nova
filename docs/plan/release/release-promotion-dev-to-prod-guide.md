@@ -13,8 +13,7 @@ one signed source revision.
 
 1. `nova-ci-cd` pipeline deployed and source integration active.
 2. Release workflows passing in `3M-Cloud/nova` on `main`.
-3. Operator permissions to approve CodePipeline manual approval actions (only when
-   `ManualApprovalTopicArn` is configured in the pipeline).
+3. Operator permissions to approve CodePipeline manual approval actions.
 4. Access to CloudWatch/CodeBuild logs for evidence capture.
 
 ## Preconditions
@@ -26,6 +25,16 @@ one signed source revision.
    - `PUBLISHED_PACKAGES`
    - `RELEASE_MANIFEST_SHA256`
 
+## Inputs
+
+- `${AWS_REGION}`
+- `${CODEPIPELINE_NAME}`
+- `${PIPELINE_EXECUTION_ID}`
+- `${MANIFEST_SHA256}`
+- `${CHANGED_UNITS_JSON}`
+- `${VERSION_PLAN_JSON}`
+- `${PROMOTION_CANDIDATES_JSON}`
+
 ## Promotion procedure
 
 1. Confirm latest pipeline execution and capture execution ID.
@@ -35,6 +44,13 @@ one signed source revision.
       --region "${AWS_REGION}" \
       --pipeline-name "${CODEPIPELINE_NAME}" \
       --max-results 5
+
+    PIPELINE_EXECUTION_ID="$(aws codepipeline list-pipeline-executions \
+      --region "${AWS_REGION}" \
+      --pipeline-name "${CODEPIPELINE_NAME}" \
+      --max-results 1 \
+      --query 'pipelineExecutionSummaries[0].pipelineExecutionId' \
+      --output text)"
     ```
 
 2. Wait for `DeployDev` and `ValidateDev` to succeed.
@@ -95,7 +111,7 @@ Acceptance:
 
 - `IMAGE_DIGEST` in Build output equals digest used by both Dev and Prod
   CloudFormation actions.
-- When manual approval is enabled, no rebuild occurs after manual approval.
+- No rebuild occurs after manual approval.
 
 ## Evidence to store
 
@@ -105,7 +121,7 @@ Acceptance:
 4. pipeline execution ID
 5. manifest digest used for package promotion gate
 6. package promotion candidates JSON
-7. when `ManualApprovalTopicArn` is configured: manual approver and timestamp
+7. manual approver and timestamp
 8. digest continuity evidence
 9. validation logs for `/v1/health/live`, `/v1/health/ready`,
    `/metrics/summary`

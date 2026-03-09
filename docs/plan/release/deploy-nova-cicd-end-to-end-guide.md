@@ -2,12 +2,20 @@
 
 Status: Active
 Owner: nova release architecture
-Last reviewed: 2026-02-24
+Last reviewed: 2026-03-05
 
 ## Purpose
 
 Provide a complete deploy sequence for Nova CI/CD resources and first release
-execution.
+execution after runtime environments are provisioned, with the governing
+authority chain cited for operators.
+
+## References
+
+- `ADR-0023`
+- `SPEC-0000`
+- `SPEC-0016`
+- `requirements.md`
 
 ## Prerequisites
 
@@ -16,15 +24,24 @@ execution.
 3. Release signing secret created in Secrets Manager.
 4. GitHub OIDC provider and trust role setup completed.
 5. `nova` repository admin rights for secrets/variables configuration.
+6. Runtime stacks are already deployed for `dev` and `prod` per:
+   [deploy-runtime-cloudformation-environments-guide.md](deploy-runtime-cloudformation-environments-guide.md)
+7. Canonical base URL SSM parameters exist for both environments:
+   `/nova/dev/{service}/base-url` and `/nova/prod/{service}/base-url`.
+8. Canonical base-url marker stacks are reserved for CI control-plane ownership:
+   `${PROJECT}-${APPLICATION}-dev-service-base-url` and
+   `${PROJECT}-${APPLICATION}-prod-service-base-url`.
 
 ## Deployment model
 
 Primary path:
 
-1. Deploy infrastructure from `nova/infra/nova/**` templates.
-2. Configure `nova` repository secrets/vars.
-3. Activate CodeConnections.
-4. Run release workflows and validate AWS promotion.
+1. Deploy runtime stacks for both environments (`infra/runtime/**`).
+2. Deploy foundation infrastructure from `infra/nova/nova-foundation.yml`.
+3. Deploy remaining CI/CD infrastructure from `infra/nova/**` templates.
+4. Configure `nova` repository secrets/vars.
+5. Activate CodeConnections.
+6. Run release workflows and validate AWS promotion.
 
 Fallback path:
 
@@ -39,23 +56,155 @@ Fallback path:
 - `${NOVA_REPO_ROOT}` local checkout path for the `nova` repository
 - `${GITHUB_OWNER}` default `3M-Cloud`
 - `${GITHUB_REPO}` default `nova`
+- `${AWS_ACCOUNT_ID}`
+- `${SIGNER_NAME}`
+- `${SIGNER_EMAIL}`
+- `${CODEARTIFACT_DOMAIN_NAME}`
+- `${CODEARTIFACT_REPOSITORY_NAME}` (optional fallback for staging default)
+- `${CODEARTIFACT_STAGING_REPOSITORY}`
+- `${CODEARTIFACT_PROD_REPOSITORY}` (must differ from staging)
+- `${ECR_REPOSITORY_ARN}`
+- `${ECR_REPOSITORY_NAME}`
+- `${ECR_REPOSITORY_URI}`
+- `${NOVA_ARTIFACT_BUCKET_NAME}`
+- `${NOVA_DEPLOY_SERVICE_NAME}` (optional, default `nova-file-api`)
+- `${GITHUB_OIDC_PROVIDER_ARN}`
+- `${SECRET_NAME}` or `${RELEASE_SIGNING_SECRET_ARN}`
+- `${DEV_BASE_URL}` example `https://nova-file-api.dev.example.com`
+- `${PROD_BASE_URL}` example `https://nova-file-api.example.com`
+- `${EXISTING_CONNECTION_ARN}` (optional)
+- `${NOVA_MANUAL_APPROVAL_TOPIC_ARN}` (optional)
 
 ## Step 1: set deployment values
 
 Export the required values for the Nova operator command pack:
 
+- `AWS_REGION`, `PROJECT`, `APPLICATION`, and `NOVA_DEPLOY_SERVICE_NAME`
+- `DEV_BASE_URL` and `PROD_BASE_URL`
 - `GITHUB_OIDC_PROVIDER_ARN`
 - `SECRET_NAME` / `RELEASE_SIGNING_SECRET_ARN`
 - `NOVA_ARTIFACT_BUCKET_NAME`
 - `ECR_REPOSITORY_URI` and `ECR_REPOSITORY_NAME`
-- `NOVA_DEV_SERVICE_BASE_URL`
-- `NOVA_PROD_SERVICE_BASE_URL`
+- `CODEARTIFACT_STAGING_REPOSITORY` (or `CODEARTIFACT_REPOSITORY_NAME` fallback)
+- `CODEARTIFACT_PROD_REPOSITORY`
 - optional: `EXISTING_CONNECTION_ARN`
+- optional: `NOVA_MANUAL_APPROVAL_TOPIC_ARN`
+
+Example exports:
+
+```bash
+export AWS_REGION="${AWS_REGION:-us-west-2}"
+export PROJECT="${PROJECT:-nova}"
+export APPLICATION="${APPLICATION:-ci}"
+export NOVA_DEPLOY_SERVICE_NAME="${NOVA_DEPLOY_SERVICE_NAME:-nova-file-api}"
+export DEV_BASE_URL="${DEV_BASE_URL:?set to the dev runtime base URL, for example https://nova-file-api.dev.example.com}"
+export PROD_BASE_URL="${PROD_BASE_URL:?set to the prod runtime base URL, for example https://nova-file-api.example.com}"
+```
 
 Reference details:
 [config-values-reference-guide.md](config-values-reference-guide.md)
 
-## Step 2: deploy CI/CD stacks from nova
+### Step 1a: persist canonical service base URLs in SSM
+
+Use the CI control-plane stack names as the only owners of these parameter
+paths. Do not deploy alternate stack names that manage the same
+`/nova/{env}/{service}/base-url` resources.
+
+```bash
+aws cloudformation deploy \
+  --region "${AWS_REGION}" \
+  --stack-name "${PROJECT}-${APPLICATION}-dev-service-base-url" \
+  --template-file infra/nova/deploy/service-base-url-ssm.yml \
+  --parameter-overrides \
+    Environment=dev \
+    ServiceName="${NOVA_DEPLOY_SERVICE_NAME:-nova-file-api}" \
+    ServiceBaseUrl="${DEV_BASE_URL}"
+
+aws cloudformation deploy \
+  --region "${AWS_REGION}" \
+  --stack-name "${PROJECT}-${APPLICATION}-prod-service-base-url" \
+  --template-file infra/nova/deploy/service-base-url-ssm.yml \
+  --parameter-overrides \
+    Environment=prod \
+    ServiceName="${NOVA_DEPLOY_SERVICE_NAME:-nova-file-api}" \
+    ServiceBaseUrl="${PROD_BASE_URL}"
+```
+
+Set and validate promotion repositories:
+
+```bash
+export CODEARTIFACT_REPOSITORY_NAME="${CODEARTIFACT_REPOSITORY_NAME:-galaxypy}"
+export CODEARTIFACT_STAGING_REPOSITORY="${CODEARTIFACT_STAGING_REPOSITORY:-${CODEARTIFACT_REPOSITORY_NAME}}"
+export CODEARTIFACT_PROD_REPOSITORY="${CODEARTIFACT_PROD_REPOSITORY:?required}"
+
+if [ "${CODEARTIFACT_STAGING_REPOSITORY}" = "${CODEARTIFACT_PROD_REPOSITORY}" ]; then
+  echo "CODEARTIFACT_STAGING_REPOSITORY and CODEARTIFACT_PROD_REPOSITORY must differ." >&2
+  exit 1
+fi
+```
+
+## Step 2: deploy foundation stack from nova (manual option)
+
+Choose one of the two flows below:
+
+- Option A: run Step 2 manually to deploy `${PROJECT}-${APPLICATION}-nova-foundation`, then continue to Step 3.
+- Option B: skip manual Step 2 and rely on Step 3; the command pack deploy will create `${PROJECT}-${APPLICATION}-nova-foundation` as its first action.
+
+If you run Step 2 manually, the later command pack in Step 3 will still re-apply
+`${PROJECT}-${APPLICATION}-nova-foundation` using the same parameter values; ensure
+the values match for idempotent behavior.
+
+If `${NOVA_ARTIFACT_BUCKET_NAME}` already exists, pass it as
+`ExistingArtifactBucketName`. If it does not exist yet, set
+`ExistingArtifactBucketName=""` and pass it as `ArtifactBucketName`.
+
+If the artifact bucket already exists:
+
+```bash
+aws cloudformation deploy \
+  --region "${AWS_REGION}" \
+  --stack-name "${PROJECT}-${APPLICATION}-nova-foundation" \
+  --template-file infra/nova/nova-foundation.yml \
+  --capabilities CAPABILITY_NAMED_IAM \
+  --parameter-overrides \
+    Project="${PROJECT}" \
+    Application="${APPLICATION}" \
+    ExistingArtifactBucketName="${NOVA_ARTIFACT_BUCKET_NAME}" \
+    CodeArtifactDomainName="${CODEARTIFACT_DOMAIN_NAME}" \
+    CodeArtifactRepositoryName="${CODEARTIFACT_STAGING_REPOSITORY}" \
+    EcrRepositoryArn="${ECR_REPOSITORY_ARN}" \
+    EcrRepositoryName="${ECR_REPOSITORY_NAME}" \
+    EcrRepositoryUri="${ECR_REPOSITORY_URI}" \
+    ExistingConnectionArn="${EXISTING_CONNECTION_ARN:-}"
+```
+
+If the artifact bucket does not yet exist:
+
+```bash
+aws cloudformation deploy \
+  --region "${AWS_REGION}" \
+  --stack-name "${PROJECT}-${APPLICATION}-nova-foundation" \
+  --template-file infra/nova/nova-foundation.yml \
+  --capabilities CAPABILITY_NAMED_IAM \
+  --parameter-overrides \
+    Project="${PROJECT}" \
+    Application="${APPLICATION}" \
+    ExistingArtifactBucketName="" \
+    ArtifactBucketName="${NOVA_ARTIFACT_BUCKET_NAME}" \
+    CodeArtifactDomainName="${CODEARTIFACT_DOMAIN_NAME}" \
+    CodeArtifactRepositoryName="${CODEARTIFACT_STAGING_REPOSITORY}" \
+    EcrRepositoryArn="${ECR_REPOSITORY_ARN}" \
+    EcrRepositoryName="${ECR_REPOSITORY_NAME}" \
+    EcrRepositoryUri="${ECR_REPOSITORY_URI}" \
+    ExistingConnectionArn="${EXISTING_CONNECTION_ARN:-}"
+```
+
+`CodeArtifactRepositoryName` maps to staged publish storage; promotion to prod is
+controlled by IAM parameters:
+`CodeArtifactPromotionSourceRepositoryName` and
+`CodeArtifactPromotionDestinationRepositoryName`.
+
+## Step 3: deploy CI/CD stacks from nova
 
 Run the operator command pack:
 
@@ -63,9 +212,26 @@ Run the operator command pack:
 ./scripts/release/day-0-operator-command-pack.sh
 ```
 
-## Step 3: capture stack outputs
+If you ran Step 2 manually, this is an intentional re-apply for idempotency:
+
+- `${PROJECT}-${APPLICATION}-nova-foundation` is re-deployed first with the same
+  parameter values passed in Step 2.
+
+The command pack deploys stacks in this order:
+
+1. `${PROJECT}-${APPLICATION}-nova-foundation`
+2. `${PROJECT}-${APPLICATION}-nova-iam-roles`
+3. `${PROJECT}-${APPLICATION}-nova-codebuild-release`
+4. `${PROJECT}-${APPLICATION}-nova-ci-cd`
+
+## Step 4: capture stack outputs
 
 ```bash
+aws cloudformation describe-stacks \
+  --region "${AWS_REGION}" \
+  --stack-name "${PROJECT}-${APPLICATION}-nova-foundation" \
+  --query 'Stacks[0].Outputs'
+
 aws cloudformation describe-stacks \
   --region "${AWS_REGION}" \
   --stack-name "${PROJECT}-${APPLICATION}-nova-iam-roles" \
@@ -82,18 +248,19 @@ Record:
 - `GitHubOIDCReleaseRoleArn`
 - `PipelineName`
 - `ConnectionArn`
+- `ManualApprovalTopicArn`
 
-## Step 4: configure GitHub repo secrets and vars
+## Step 5: configure GitHub repo secrets and vars
 
 Run setup from:
 [github-actions-secrets-and-vars-setup-guide.md](github-actions-secrets-and-vars-setup-guide.md)
 
-## Step 5: activate CodeConnections
+## Step 6: activate CodeConnections
 
 Run activation checks from:
 [codeconnections-activation-and-validation-guide.md](codeconnections-activation-and-validation-guide.md)
 
-## Step 6: run build/package/deploy workflows
+## Step 7: run build/package/deploy workflows
 
 ```bash
 export CODEPIPELINE_NAME="$(aws cloudformation describe-stacks --region "${AWS_REGION}" --stack-name "${PROJECT}-${APPLICATION}-nova-ci-cd" --query "Stacks[0].Outputs[?OutputKey=='PipelineName'].OutputValue | [0]" --output text)"
@@ -111,7 +278,7 @@ DEPLOY_RUN_ID="$(gh run list --repo "${GITHUB_OWNER}/${GITHUB_REPO}" --workflow 
 gh run watch "${DEPLOY_RUN_ID}" --repo "${GITHUB_OWNER}/${GITHUB_REPO}" --exit-status
 ```
 
-## Step 7: validate pipeline promotion path
+## Step 8: validate pipeline promotion path
 
 Expected stage order:
 

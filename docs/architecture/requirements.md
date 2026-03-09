@@ -13,6 +13,10 @@ requirements for the first production release.
 - Hard-cut route authority is active under `ADR-0023` + `SPEC-0016`.
 - Runtime contract is canonical `/v1/*` plus `/metrics/summary`; non-canonical
   route families are removed.
+- Architecture authority-pack governance and boundary/validation contracts are
+  active under `ADR-0024` + `ADR-0025` + `ADR-0026` and `SPEC-0017` through
+  `SPEC-0023`, including downstream integration, Auth0 reusable workflow, and
+  SSM base-url authority contracts.
 
 ## Scope
 
@@ -199,6 +203,32 @@ The hard-cut route policy MUST enforce:
   router modules mounted via `include_router`) resolving only to allowed
   runtime paths
 
+### FR-0011: Downstream hard-cut consumer integration contract
+
+Downstream consumer repositories and integration examples MUST:
+
+- use canonical `/v1/transfers` and `/v1/jobs` route families only
+- use reusable post-deploy validation contracts that assert canonical
+  non-`404` behavior
+- assert explicit legacy route `404` behavior for removed routes
+- keep workflow pinning policy explicit (`@v1` stable, `@v1.x.y`/SHA immutable)
+
+### FR-0012: Auth0 tenant ops reusable workflow contract
+
+Auth0 tenant operations MUST be governed by reusable workflow API contracts with
+typed input/output schemas and safety controls aligned with local
+tenant-as-code validator behavior.
+Import/export mutation paths MUST hard-fail before mutation when
+`validate_auth0_contract` fails.
+
+### FR-0013: SSM runtime base URL authority for deploy validation
+
+Deploy validation base URLs MUST be sourced from SSM-backed authority values
+using environment-scoped parameter paths and passed into validation workflows as
+HTTPS values. These parameter paths MUST be owned by a single canonical stack
+pair (`${PROJECT}-ci-dev-service-base-url`,
+`${PROJECT}-ci-prod-service-base-url`) with no overlapping stack ownership.
+
 ## Non-Functional Requirements
 
 ### NFR-0000: Security baseline
@@ -240,9 +270,9 @@ cover latency, error rate, and queue backlog.
 Every change MUST pass:
 
 - `source .venv/bin/activate && uv lock --check`
-- `source .venv/bin/activate && uv run ruff check . --fix`
+- `source .venv/bin/activate && uv run ruff check .`
 - `source .venv/bin/activate && uv run ruff check . --select I`
-- `source .venv/bin/activate && uv run ruff format .`
+- `source .venv/bin/activate && uv run ruff format . --check`
 - `source .venv/bin/activate && uv run mypy`
 - `source .venv/bin/activate && uv run pytest -q`
 - `source .venv/bin/activate && uv run pytest -q packages/nova_file_api/tests/test_generated_client_smoke.py`
@@ -260,6 +290,23 @@ authority links change.
 
 Route and contract changes MUST not introduce compatibility aliases or
 namespace shims unless ADR-approved with score >=9.0.
+
+### NFR-0107: Downstream contract-doc and schema synchronization
+
+Changes to downstream integration contracts MUST update all affected workflow
+schema files in `docs/contracts/**`, consumer integration docs in
+`docs/clients/**`, and enforcing infra/docs tests in the same change set.
+
+### NFR-0108: Auth0 workflow contract synchronization
+
+Changes to Auth0 tenant operation contracts MUST keep runbook guidance,
+reusable workflow schema contracts, and `validate_auth0_contract` checks
+synchronized in one PR.
+
+### NFR-0109: Runtime base URL integrity and provenance
+
+Dev/prod validation base URLs MUST be HTTPS, environment-scoped, and sourced
+from SSM authority values with evidence captured in release runbooks.
 
 ## Integration Requirements
 
@@ -292,6 +339,23 @@ S3 CORS policies MUST allow browser upload/download operations and expose
 
 Historical migration evidence under `docs/history/**` MUST remain non-authoritative
 for current runtime and deployment operations.
+
+### IR-0011: Cross-repo consumer conformance authority
+
+Cross-repo consumer conformance for dash/rshiny/react-next integration remains
+release-blocking authority, with canonical route usage and workflow contract
+parity enforced by CI checks.
+
+### IR-0012: Auth0 tenant ops authority boundary
+
+Active Auth0 authority remains in-repo under `infra/auth0/**` with contract
+schemas and validator checks; no external runtime repo owns active Auth0 tenant
+ops contract behavior.
+
+### IR-0013: SSM base URL source of truth for release validation
+
+Deploy validation base URLs for dev/prod are sourced from SSM authority paths
+and consumed by runbook/operator workflows as canonical source values.
 
 ## Explicit Non-Goals (Initial Release)
 

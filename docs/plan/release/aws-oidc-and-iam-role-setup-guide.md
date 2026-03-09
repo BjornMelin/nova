@@ -2,7 +2,7 @@
 
 Status: Active
 Owner: nova release architecture
-Last reviewed: 2026-02-24
+Last reviewed: 2026-03-05
 
 ## Purpose
 
@@ -25,7 +25,15 @@ release workflows and AWS pipeline stages.
 - `${GITHUB_REPO}` default: `nova`
 - `${MAIN_BRANCH}` default: `main`
 - `${SIGNING_SECRET_ARN}` from secrets provisioning guide
-- `${ARTIFACT_BUCKET_NAME}` S3 artifact bucket for CodePipeline
+- `${FOUNDATION_STACK_NAME}` default: `${PROJECT}-${APPLICATION}-nova-foundation`
+- `${CODEARTIFACT_STAGING_REPOSITORY}` example: `galaxypy-staging`
+- `${CODEARTIFACT_PROD_REPOSITORY}` example: `galaxypy-prod`
+
+Repository directionality contract:
+
+- Staging repo is the promotion source.
+- Prod repo is the promotion destination.
+- Source and destination repositories must not be identical.
 
 ## Step-by-step commands
 
@@ -53,7 +61,30 @@ release workflows and AWS pipeline stages.
     echo "${GITHUB_OIDC_PROVIDER_ARN}"
     ```
 
-4. Validate OIDC trust on deployed release role (post stack deploy).
+4. Deploy IAM role stack from `infra/nova/nova-iam-roles.yml`.
+
+    ```bash
+    FOUNDATION_STACK_NAME="${FOUNDATION_STACK_NAME:-${PROJECT}-${APPLICATION}-nova-foundation}"
+
+    aws cloudformation deploy \
+      --region "${AWS_REGION}" \
+      --stack-name "${PROJECT}-${APPLICATION}-nova-iam-roles" \
+      --template-file infra/nova/nova-iam-roles.yml \
+      --capabilities CAPABILITY_NAMED_IAM \
+      --parameter-overrides \
+        Project="${PROJECT}" \
+        Application="${APPLICATION}" \
+        FoundationStackName="${FOUNDATION_STACK_NAME}" \
+        RepositoryOwner="${GITHUB_OWNER}" \
+        RepositoryName="${GITHUB_REPO}" \
+        MainBranchName="${MAIN_BRANCH}" \
+        GitHubOidcProviderArn="${GITHUB_OIDC_PROVIDER_ARN}" \
+        ReleaseSigningSecretArn="${SIGNING_SECRET_ARN}" \
+        CodeArtifactPromotionSourceRepositoryName="${CODEARTIFACT_STAGING_REPOSITORY}" \
+        CodeArtifactPromotionDestinationRepositoryName="${CODEARTIFACT_PROD_REPOSITORY}"
+    ```
+
+5. Validate OIDC trust on deployed release role (post stack deploy).
 
     ```bash
     aws iam get-role \
@@ -68,20 +99,34 @@ Expected policy conditions:
 
 ## Required role-stack parameters
 
-Provide these values when deploying `infra/nova/nova-iam-roles.yml` from the `nova` repository:
+Provide these values when deploying `infra/nova/nova-iam-roles.yml`:
 
 - `GitHubOidcProviderArn`
 - `ReleaseSigningSecretArn`
-- `ArtifactBucketName`
+- `FoundationStackName` (or explicit artifact/CodeArtifact/ECR overrides)
 - `RepositoryOwner`
 - `RepositoryName`
 - `MainBranchName`
+- `CodeArtifactPromotionSourceRepositoryName`
+- `CodeArtifactPromotionDestinationRepositoryName`
 
 ## Acceptance checks
 
-1. `GitHubOIDCReleaseRoleArn` output exists.
+1. `GitHubOIDCReleaseRoleArn` output exists:
+
+   ```bash
+   aws cloudformation describe-stacks \
+     --region "${AWS_REGION}" \
+     --stack-name "${PROJECT}-${APPLICATION}-nova-iam-roles" \
+     --query 'Stacks[0].Outputs[?OutputKey==`GitHubOIDCReleaseRoleArn`].OutputValue | [0]' \
+     --output text
+   ```
 2. Assume-role policy includes scoped `aud` and `sub` constraints.
 3. Role has only required access to signing secret and no static keys.
+4. Promotion permissions are directional:
+   - `codeartifact:ReadFromRepository` scoped to staging source repository.
+   - `codeartifact:CopyPackageVersions` scoped to prod destination repository
+     plus required package ARNs.
 
 ## References
 

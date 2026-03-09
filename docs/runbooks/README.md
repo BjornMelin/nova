@@ -2,7 +2,7 @@
 
 Status: Active
 Owner: nova release architecture
-Last reviewed: 2026-03-03
+Last reviewed: 2026-03-05
 
 ## Purpose
 
@@ -11,22 +11,42 @@ All active release and delivery runbooks must live under `nova/docs/**`.
 
 ## Canonical runbook set
 
-1. [Day-0 operator checklist](../plan/release/day-0-operator-checklist.md)
-2. [Deploy Nova CI/CD end-to-end guide](../plan/release/deploy-nova-cicd-end-to-end-guide.md)
-3. [Release promotion dev-to-prod guide](../plan/release/release-promotion-dev-to-prod-guide.md)
-4. [Release runbook](../plan/release/RELEASE-RUNBOOK.md)
-5. [Release policy](../plan/release/RELEASE-POLICY.md)
-6. [Non-prod live validation runbook](../plan/release/NONPROD-LIVE-VALIDATION-RUNBOOK.md)
-7. [Troubleshooting and break-glass guide](../plan/release/troubleshooting-and-break-glass-guide.md)
-8. [Auth0 CLI + a0deploy runbook](../plan/release/AUTH0-A0DEPLOY-RUNBOOK.md)
-9. [Governance lock runbook](../plan/release/governance-lock-runbook.md)
-10. [Worker lane operations and failure handling](./worker-lane-operations-and-failure-handling.md)
+1. [Deploy runtime CloudFormation environments guide](../plan/release/deploy-runtime-cloudformation-environments-guide.md)
+2. [Day-0 operator checklist](../plan/release/day-0-operator-checklist.md)
+3. [Deploy Nova CI/CD end-to-end guide](../plan/release/deploy-nova-cicd-end-to-end-guide.md)
+4. [Release promotion dev-to-prod guide](../plan/release/release-promotion-dev-to-prod-guide.md)
+5. [Release runbook](../plan/release/RELEASE-RUNBOOK.md)
+6. [Release policy](../plan/release/RELEASE-POLICY.md)
+7. [Non-prod live validation runbook](../plan/release/NONPROD-LIVE-VALIDATION-RUNBOOK.md)
+8. [Troubleshooting and break-glass guide](../plan/release/troubleshooting-and-break-glass-guide.md)
+9. [Auth0 CLI + a0deploy runbook](../plan/release/AUTH0-A0DEPLOY-RUNBOOK.md)
+10. [Governance lock runbook](../plan/release/governance-lock-runbook.md)
+11. [Browser live validation checklist](../plan/release/BROWSER-LIVE-VALIDATION-CHECKLIST.md)
+12. [Worker lane operations and failure handling](./worker-lane-operations-and-failure-handling.md)
 
 ## Authority Guardrail
 
-For active Nova delivery operations, do not reference retired
-`container-craft` operational docs as current instructions.
+For active Nova delivery operations, do not reference retired legacy
+deployment operational docs as current instructions.
 Historical references are allowed only under `docs/history/**`.
+`docs/plan/HISTORY-INDEX.md` is also an allowed canonical index into archived material.
+
+Active authority alignment for runbooks is governed by:
+
+1. [ADR-0023](../architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md)
+2. [SPEC-0000](../architecture/spec/SPEC-0000-http-api-contract.md)
+3. [SPEC-0016](../architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md)
+4. [requirements.md](../architecture/requirements.md)
+5. [ADR-0024](../architecture/adr/ADR-0024-layered-architecture-authority-pack.md)
+6. [ADR-0025](../architecture/adr/ADR-0025-reusable-workflow-api-and-versioning-policy.md)
+7. [ADR-0026](../architecture/adr/ADR-0026-oidc-iam-role-partitioning-for-deploy-automation.md)
+8. [ADR-0027](../architecture/adr/ADR-0027-hard-cut-downstream-integration-and-consumer-contract-enforcement.md)
+9. [ADR-0028](../architecture/adr/ADR-0028-auth0-tenant-ops-reusable-workflow-api-contract.md)
+10. [ADR-0029](../architecture/adr/ADR-0029-ssm-runtime-base-url-authority-for-deploy-validation.md)
+11. [SPEC-0020](../architecture/spec/SPEC-0020-architecture-authority-pack-and-documentation-synchronization-contract.md)
+12. [SPEC-0021](../architecture/spec/SPEC-0021-downstream-hard-cut-integration-and-consumer-validation-contract.md)
+13. [SPEC-0022](../architecture/spec/SPEC-0022-auth0-tenant-ops-reusable-workflow-contract.md)
+14. [SPEC-0023](../architecture/spec/SPEC-0023-ssm-runtime-base-url-contract-for-deploy-validation.md)
 
 ## Related History
 

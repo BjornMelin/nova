@@ -1,0 +1,37 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Persist canonical Nova service base URL in SSM Parameter Store.
+
+Parameters:
+  ServiceName:
+    Type: String
+    MinLength: 1
+    MaxLength: 63
+    AllowedPattern: "^[A-Za-z0-9](?:[A-Za-z0-9_.-]{0,61}[A-Za-z0-9])?$"
+    ConstraintDescription: >-
+      Use 1-63 characters with only letters, numbers, dot, underscore, or
+      hyphen, and do not end with punctuation.
+  ServiceBaseUrl:
+    Type: String
+    MinLength: 9
+    MaxLength: 2048
+    AllowedPattern: '^(https://)(?![^\s]*httpbin)(?![^\s]*placeholder)(?![^\s]*example\.com)(?![^\s]*<)(?![^\s]*>)[^\s]+$'
+    ConstraintDescription: >-
+      Must be a valid HTTPS URL and must not contain placeholders or test
+      hosts such as httpbin.
+  Environment:
+    Type: String
+    AllowedValues:
+      - dev
+      - prod
+
+Resources:
+  ServiceBaseUrlParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/nova/${Environment}/${ServiceName}/base-url"
+      Type: String
+      Value: !Ref ServiceBaseUrl
+
+Outputs:
+  ServiceBaseUrl:
+    Value: !Ref ServiceBaseUrl

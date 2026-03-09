@@ -2,7 +2,7 @@
 
 Status: Active
 Owner: nova release architecture
-Last reviewed: 2026-02-24
+Last reviewed: 2026-03-05
 
 ## Purpose
 
@@ -19,6 +19,7 @@ provisioning and release promotion.
 
 Use these setup guides for variable definitions and sourcing:
 
+- [deploy-runtime-cloudformation-environments-guide.md](deploy-runtime-cloudformation-environments-guide.md)
 - [day-0-operator-checklist.md](day-0-operator-checklist.md)
 - [aws-oidc-and-iam-role-setup-guide.md](aws-oidc-and-iam-role-setup-guide.md)
 - [config-values-reference-guide.md](config-values-reference-guide.md)
@@ -38,7 +39,7 @@ Primary variable sources:
 
 ## Quick failure matrix
 
-### `Apply Release Plan` cannot assume AWS role
+### `Nova Release Apply` cannot assume AWS role
 
 Likely causes:
 
@@ -112,11 +113,82 @@ aws cloudformation describe-stack-events \
   --stack-name "${DEPLOY_STACK_NAME}"
 ```
 
+### Base-url SSM marker stacks drift or rollback fails
+
+Likely causes:
+
+- `/nova/{env}/{service}/base-url` parameter was deleted or modified outside
+  CloudFormation ownership.
+- stack update reached `UPDATE_ROLLBACK_FAILED` due
+  `AWS::SSM::Parameter ... was not found`.
+
+Commands:
+
+```bash
+aws cloudformation describe-stacks \
+  --region "${AWS_REGION}" \
+  --stack-name "${PROJECT}-${APPLICATION}-dev-service-base-url" \
+  --query "Stacks[0].StackStatus"
+
+aws cloudformation detect-stack-drift \
+  --region "${AWS_REGION}" \
+  --stack-name "${PROJECT}-${APPLICATION}-dev-service-base-url"
+
+aws cloudformation describe-stack-resource-drifts \
+  --region "${AWS_REGION}" \
+  --stack-name "${PROJECT}-${APPLICATION}-dev-service-base-url"
+```
+
+Canonical recovery path (repeat for `dev` and `prod`):
+
+```bash
+aws cloudformation delete-stack \
+  --region "${AWS_REGION}" \
+  --stack-name "${PROJECT}-${APPLICATION}-dev-service-base-url"
+
+aws cloudformation wait stack-delete-complete \
+  --region "${AWS_REGION}" \
+  --stack-name "${PROJECT}-${APPLICATION}-dev-service-base-url"
+
+aws cloudformation deploy \
+  --region "${AWS_REGION}" \
+  --stack-name "${PROJECT}-${APPLICATION}-dev-service-base-url" \
+  --template-file "${NOVA_REPO_ROOT}/infra/nova/deploy/service-base-url-ssm.yml" \
+  --parameter-overrides \
+    Environment=dev \
+    ServiceName="${NOVA_DEPLOY_SERVICE_NAME:-nova-file-api}" \
+    ServiceBaseUrl="${DEV_BASE_URL}"
+```
+
+Post-recovery verify:
+
+```bash
+aws ssm get-parameter \
+  --region "${AWS_REGION}" \
+  --name "/nova/dev/${NOVA_DEPLOY_SERVICE_NAME:-nova-file-api}/base-url"
+```
+
 ## Break-glass CLI deployment sequence
 
 If GitHub action path is unavailable, deploy stacks directly:
 
 ```bash
+aws cloudformation deploy \
+  --region "${AWS_REGION}" \
+  --stack-name "${PROJECT}-${APPLICATION}-nova-foundation" \
+  --template-file "${NOVA_REPO_ROOT}/infra/nova/nova-foundation.yml" \
+  --capabilities CAPABILITY_NAMED_IAM \
+  --parameter-overrides \
+    Project="${PROJECT}" \
+    Application="${APPLICATION}" \
+    ExistingArtifactBucketName="${NOVA_ARTIFACT_BUCKET_NAME}" \
+    CodeArtifactDomainName="${NOVA_CODEARTIFACT_DOMAIN_NAME}" \
+    CodeArtifactRepositoryName="${NOVA_CODEARTIFACT_STAGING_REPOSITORY_NAME}" \
+    EcrRepositoryArn="${NOVA_ECR_REPOSITORY_ARN}" \
+    EcrRepositoryName="${NOVA_ECR_REPOSITORY_NAME}" \
+    EcrRepositoryUri="${NOVA_ECR_REPOSITORY_URI}" \
+    ExistingConnectionArn="${CONNECTION_ARN}"
+
 aws cloudformation deploy \
   --region "${AWS_REGION}" \
   --stack-name "${PROJECT}-${APPLICATION}-nova-iam-roles" \
@@ -125,15 +197,14 @@ aws cloudformation deploy \
   --parameter-overrides \
     Project="${PROJECT}" \
     Application="${APPLICATION}" \
+    FoundationStackName="${PROJECT}-${APPLICATION}-nova-foundation" \
     RepositoryOwner="${GITHUB_OWNER}" \
     RepositoryName="${GITHUB_REPO}" \
     MainBranchName="main" \
     GitHubOidcProviderArn="${GITHUB_OIDC_PROVIDER_ARN}" \
     ReleaseSigningSecretArn="${RELEASE_SIGNING_SECRET_ARN}" \
-    ArtifactBucketName="${NOVA_ARTIFACT_BUCKET_NAME}" \
-    CodeArtifactDomainName="${NOVA_CODEARTIFACT_DOMAIN_NAME}" \
-    CodeArtifactRepositoryName="${NOVA_CODEARTIFACT_REPOSITORY_NAME}" \
-    EcrRepositoryArn="${NOVA_ECR_REPOSITORY_ARN}"
+    CodeArtifactPromotionSourceRepositoryName="${NOVA_CODEARTIFACT_STAGING_REPOSITORY_NAME}" \
+    CodeArtifactPromotionDestinationRepositoryName="${NOVA_CODEARTIFACT_PROD_REPOSITORY_NAME}"
 ```
 
 Use equivalent `aws cloudformation deploy` commands for:

@@ -71,9 +71,15 @@ Implementation commitments:
   branch patterns.
 - Release-signing material must be read at runtime from AWS Secrets Manager.
 - Prod promotion must consume the same artifact identifiers validated in Dev.
+- CodeArtifact promotion IAM must use explicit source/destination repository
+  parameters and must not rely on domain-wide wildcard repository permissions.
 
 ## Related Requirements
 
+- [ADR-0023: Canonical V1 route surface hard-cut](./ADR-0023-hard-cut-v1-canonical-route-surface.md)
+- [SPEC-0000: HTTP API Contract](../spec/SPEC-0000-http-api-contract.md)
+- [SPEC-0016: V1 route namespace and literal guardrails](../spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md)
+- [requirements.md](../requirements.md) (requirements baseline)
 - [NFR-0004](../requirements.md#nfr-0004-cicd-and-quality-gates)
 - [NFR-0000](../requirements.md#nfr-0000-security-baseline)
 - [IR-0002](../requirements.md#ir-0002-aws-service-dependencies)

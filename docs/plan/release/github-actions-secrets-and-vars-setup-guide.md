@@ -2,7 +2,7 @@
 
 Status: Active
 Owner: nova release architecture
-Last reviewed: 2026-02-24
+Last reviewed: 2026-03-05
 
 ## Purpose
 
@@ -13,10 +13,15 @@ Configure repository secrets and variables required by release automation in
 
 - `RELEASE_SIGNING_SECRET_ID`
 - `RELEASE_AWS_ROLE_ARN`
+- `AUTH0_DOMAIN` (required for `auth0-tenant-deploy.yml`)
+- `AUTH0_CLIENT_ID` (required for `auth0-tenant-deploy.yml`)
+- `AUTH0_CLIENT_SECRET` (required for `auth0-tenant-deploy.yml`)
 
 ## Required repository variables
 
 - `AWS_REGION`
+- `CODEARTIFACT_STAGING_REPOSITORY`
+- `CODEARTIFACT_PROD_REPOSITORY`
 
 ## Prerequisites
 
@@ -31,7 +36,12 @@ Configure repository secrets and variables required by release automation in
     export GH_REPO="3M-Cloud/nova"
     export RELEASE_SIGNING_SECRET_ID="nova/release/signing-key"
     export RELEASE_AWS_ROLE_ARN="arn:aws:iam::${AWS_ACCOUNT_ID}:role/nova-ci-github-oidc-release-role"
+    export AUTH0_DOMAIN="your-tenant.us.auth0.com"
+    export AUTH0_CLIENT_ID="auth0-machine-client-id"
+    export AUTH0_CLIENT_SECRET="auth0-machine-client-secret"
     export AWS_REGION="us-east-1"
+    export CODEARTIFACT_STAGING_REPOSITORY="galaxypy-staging"
+    export CODEARTIFACT_PROD_REPOSITORY="galaxypy-prod"
     ```
 
 2. Set repository secrets.
@@ -39,12 +49,17 @@ Configure repository secrets and variables required by release automation in
     ```bash
     gh secret set RELEASE_SIGNING_SECRET_ID --repo "${GH_REPO}" --body "${RELEASE_SIGNING_SECRET_ID}"
     gh secret set RELEASE_AWS_ROLE_ARN --repo "${GH_REPO}" --body "${RELEASE_AWS_ROLE_ARN}"
+    gh secret set AUTH0_DOMAIN --repo "${GH_REPO}" --body "${AUTH0_DOMAIN}"
+    gh secret set AUTH0_CLIENT_ID --repo "${GH_REPO}" --body "${AUTH0_CLIENT_ID}"
+    gh secret set AUTH0_CLIENT_SECRET --repo "${GH_REPO}" --body "${AUTH0_CLIENT_SECRET}"
     ```
 
-3. Set repository variable.
+3. Set repository variables.
 
     ```bash
     gh variable set AWS_REGION --repo "${GH_REPO}" --body "${AWS_REGION}"
+    gh variable set CODEARTIFACT_STAGING_REPOSITORY --repo "${GH_REPO}" --body "${CODEARTIFACT_STAGING_REPOSITORY}"
+    gh variable set CODEARTIFACT_PROD_REPOSITORY --repo "${GH_REPO}" --body "${CODEARTIFACT_PROD_REPOSITORY}"
     ```
 
 4. Verify current values exist.
@@ -64,6 +79,14 @@ Configured values are consumed by:
   - `AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}`
 - Deploy/promote workflows
   - `RELEASE_AWS_ROLE_ARN: ${{ secrets.RELEASE_AWS_ROLE_ARN }}`
+  - `CODEARTIFACT_STAGING_REPOSITORY: ${{ vars.CODEARTIFACT_STAGING_REPOSITORY }}`
+  - `CODEARTIFACT_PROD_REPOSITORY: ${{ vars.CODEARTIFACT_PROD_REPOSITORY }}`
+- Auth0 tenant deploy workflows
+  - `auth0-tenant-deploy.yml`
+  - `reusable-auth0-tenant-deploy.yml`
+- Post-deploy validation workflows
+  - `post-deploy-validate.yml` (manual wrapper)
+  - `reusable-post-deploy-validate.yml` (`workflow_call` API)
 
 ## Branch/signature policy checks
 
@@ -82,3 +105,5 @@ Configured values are consumed by:
   <https://cli.github.com/manual/gh_secret_set>
 - GitHub CLI variable command:
   <https://cli.github.com/manual/gh_variable_set>
+- Downstream integration guide:
+  `../../clients/post-deploy-validation-integration-guide.md`

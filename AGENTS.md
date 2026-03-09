@@ -19,9 +19,22 @@ Use these as the active authority set:
 - `docs/PRD.md`
 - `docs/architecture/requirements.md`
 - `docs/architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md`
+- `docs/architecture/adr/ADR-0024-layered-architecture-authority-pack.md`
+- `docs/architecture/adr/ADR-0025-reusable-workflow-api-and-versioning-policy.md`
+- `docs/architecture/adr/ADR-0026-oidc-iam-role-partitioning-for-deploy-automation.md`
+- `docs/architecture/adr/ADR-0027-hard-cut-downstream-integration-and-consumer-contract-enforcement.md`
+- `docs/architecture/adr/ADR-0028-auth0-tenant-ops-reusable-workflow-api-contract.md`
+- `docs/architecture/adr/ADR-0029-ssm-runtime-base-url-authority-for-deploy-validation.md`
 - `docs/architecture/spec/SPEC-0000-http-api-contract.md`
 - `docs/architecture/spec/SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md`
 - `docs/architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md`
+- `docs/architecture/spec/SPEC-0017-runtime-component-topology-and-ownership-contract.md`
+- `docs/architecture/spec/SPEC-0018-runtime-configuration-and-startup-validation-contract.md`
+- `docs/architecture/spec/SPEC-0019-auth-execution-and-threadpool-safety-contract.md`
+- `docs/architecture/spec/SPEC-0020-architecture-authority-pack-and-documentation-synchronization-contract.md`
+- `docs/architecture/spec/SPEC-0021-downstream-hard-cut-integration-and-consumer-validation-contract.md`
+- `docs/architecture/spec/SPEC-0022-auth0-tenant-ops-reusable-workflow-contract.md`
+- `docs/architecture/spec/SPEC-0023-ssm-runtime-base-url-contract-for-deploy-validation.md`
 - `docs/plan/PLAN.md`
 - `docs/runbooks/README.md`
 
@@ -46,6 +59,12 @@ Runtime routes MUST be:
 - `/v1/health/ready`
 - `/metrics/summary`
 
+Auth API routes MUST be:
+
+- `/v1/token/verify`
+- `/v1/token/introspect`
+- `/v1/health/live`
+
 Disallowed runtime route families:
 
 - `/api/*`
@@ -59,7 +78,7 @@ Required route verification command:
 
 ```bash
 source .venv/bin/activate && \
-rg -n "/v1/transfers|/v1/jobs|/v1/internal/jobs|/v1/capabilities|/v1/resources/plan|/v1/releases/info|/v1/health/live|/v1/health/ready|/metrics/summary" apps packages docs
+rg -n "/v1/transfers|/v1/jobs|/v1/internal/jobs|/v1/capabilities|/v1/resources/plan|/v1/releases/info|/v1/token/verify|/v1/token/introspect|/v1/health/live|/v1/health/ready|/metrics/summary" apps packages docs
 ```
 
 ## Runtime Invariants
@@ -84,7 +103,9 @@ Always run from repository root with `.venv` active.
 
 ```bash
 source .venv/bin/activate && uv lock --check
-source .venv/bin/activate && uv run ruff check . --fix && uv run ruff format .
+source .venv/bin/activate && uv run ruff check .
+source .venv/bin/activate && uv run ruff check . --select I
+source .venv/bin/activate && uv run ruff format . --check
 source .venv/bin/activate && uv run mypy
 source .venv/bin/activate && uv run pytest -q
 source .venv/bin/activate && uv run pytest -q \
@@ -105,6 +126,8 @@ Any behavioral or contract change MUST update all affected docs in the same PR:
 - affected `docs/architecture/adr/*.md`
 - affected `docs/architecture/spec/*.md`
 - `docs/plan/PLAN.md`
+- affected `docs/contracts/*.json`
+- affected `docs/clients/*.md` and `docs/clients/**/*.yml` for downstream integration contracts
 - affected `docs/plan/release/*.md`
 - `docs/runbooks/README.md` when runbook authority changes
 - `docs/history/**` when archival paths/evidence pointers change
@@ -122,6 +145,6 @@ rg -n "/v1/transfers|/v1/jobs|nova_dash_bridge|nova_file_api" \
 ## Historical Retirement Check
 
 ```bash
-rg -n "container-craft" AGENTS.md README.md docs/architecture docs/plan docs/runbooks \
-  | rg -v "docs/history|historical|archive|retired|ADR-0014|SPEC-0013|SPEC-0014|requirements.md|RELEASE-VERSION-MANIFEST"
+rg -n "container-craft" README.md docs/architecture docs/plan docs/runbooks \
+  | rg -v "docs/history|historical|archive|retired|ADR-0001|ADR-0014|SPEC-0013|SPEC-0014|RELEASE-VERSION-MANIFEST"
 ```

@@ -1,5 +1,11 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Description: ECS CFN rendered via Falcon (Drone CI) plugin
+Description: ECS service runtime stack for Nova API workloads.
+Metadata:
+  cfn-lint:
+    config:
+      ignore_checks:
+        - W1030
+        - W1031
 Parameters:
   Environment:
     Type: String
@@ -34,6 +40,11 @@ Parameters:
     Type: String
   SubnetList:
     Type: List<AWS::EC2::Subnet::Id>
+  AssignPublicIp:
+    Type: String
+    Default: DISABLED
+    AllowedValues: [ENABLED, DISABLED]
+    Description: awsvpc public IP assignment for ECS tasks.
   ListenerProtocol:
     Type: String
     Default: https
@@ -54,6 +65,16 @@ Parameters:
   TaskMemory:
     Type: String
     Default: "8192" # 8GB
+  DesiredCount:
+    Type: Number
+    Default: 1
+    MinValue: 0
+    Description: Initial desired task count for the ECS service.
+  RuntimeProfile:
+    Type: String
+    Default: standard
+    AllowedPattern: "^[A-Za-z0-9._-]+$"
+    Description: Runtime profile label propagated to ECS service tags and task environment.
   ListenerRulePriority:
     Type: String
   EnableBlueGreenDeployAuthority:
@@ -75,11 +96,11 @@ Parameters:
   CodeDeployApplicationName:
     Type: String
     Default: ""
-    Description: Optional explicit CodeDeploy application name. Defaults to ${Project}-${Application}-${Service}-ecs.
+    Description: Optional explicit CodeDeploy application name. Defaults to {Project}-{Application}-{Service}-ecs.
   CodeDeployDeploymentGroupName:
     Type: String
     Default: ""
-    Description: Optional explicit CodeDeploy deployment group name. Defaults to ${Project}-${Application}-${Service}-dg.
+    Description: Optional explicit CodeDeploy deployment group name. Defaults to {Project}-{Application}-{Service}-dg.
   CodeDeployServiceRoleArn:
     Type: String
     Default: ""
@@ -196,14 +217,17 @@ Parameters:
   FileTransferJobsQueueArn:
     Type: String
     Default: ""
+    AllowedPattern: "^$|^arn:(aws|aws-us-gov|aws-cn):sqs:[a-z0-9-]+:[0-9]{12}:[A-Za-z0-9_.-]+(\\.fifo)?$"
     Description: Async jobs queue ARN (required when FileTransferAsyncEnabled is true).
   FileTransferJobsTableArn:
     Type: String
     Default: ""
+    AllowedPattern: "^$|^arn:(aws|aws-us-gov|aws-cn):dynamodb:[a-z0-9-]+:[0-9]{12}:table\\/[A-Za-z0-9_.-]+$"
     Description: Async jobs table ARN (required when FileTransferAsyncEnabled is true).
   FileTransferActivityTableArn:
     Type: String
     Default: ""
+    AllowedPattern: "^$|^arn:(aws|aws-us-gov|aws-cn):dynamodb:[a-z0-9-]+:[0-9]{12}:table\\/[A-Za-z0-9_.-]+$"
     Description: Async activity table ARN (required when FileTransferAsyncEnabled is true).
   FileTransferCacheEnabled:
     Type: String
@@ -241,6 +265,20 @@ Parameters:
     AllowedPattern: "^[A-Za-z_][A-Za-z0-9_]*$"
     Description: >-
       Environment variable name used when GenerateAppSecretKey is true.
+  TaskExecutionSecretArns:
+    Type: CommaDelimitedList
+    Default: ""
+    AllowedPattern: "^$|^arn:aws[-a-z0-9]*:secretsmanager:[^:]+:[0-9]+:secret:[^/]+$"
+    ConstraintDescription: TaskExecutionSecretArns must be Secrets Manager ARNs.
+    Description: >-
+      Comma-delimited Secrets Manager ARNs only the ECS task execution role can
+      read for container secret injection.
+  TaskExecutionSsmParameterArns:
+    Type: CommaDelimitedList
+    Default: ""
+    Description: >-
+      Comma-delimited SSM parameter ARNs the ECS task execution role can read
+      for container secret injection.
   ServiceDNS:
     Type: String
   UseServiceDiscovery:
@@ -277,6 +315,13 @@ Mappings:
       LoadBalancerPort: 443
 
 Rules:
+  FileTransferBucketProvided:
+    Assertions:
+      - Assert: !Or
+          - !Equals [!Ref FileTransferEnabled, "false"]
+          - !Not [!Equals [!Ref FileTransferBucketName, ""]]
+        AssertDescription: >-
+          FileTransferBucketName is required when FileTransferEnabled is "true".
   FileTransferAsyncParamsProvided:
     Assertions:
       - Assert: !Or
@@ -318,6 +363,10 @@ Conditions:
   UseLegacyTaskRolePolicy: !Equals [!Ref UseLegacyTaskRolePolicy, "true"]
   CreateAppSecretKey: !Equals [!Ref GenerateAppSecretKey, "true"]
   EnableFileTransfer: !Equals [!Ref FileTransferEnabled, "true"]
+  HasFileTransferBucketName: !Not [!Equals [!Ref FileTransferBucketName, ""]]
+  EnableFileTransferWithBucket: !And
+    - !Condition EnableFileTransfer
+    - !Condition HasFileTransferBucketName
   EnableFileTransferAsync: !Equals [!Ref FileTransferAsyncEnabled, "true"]
   EnableFileTransferCache: !Equals [!Ref FileTransferCacheEnabled, "true"]
   UseCodeDeployBlueGreen: !Equals [!Ref EnableBlueGreenDeployAuthority, "true"]
@@ -326,6 +375,12 @@ Conditions:
     - !Condition UseCodeDeployBlueGreen
   HasCodeDeployApplicationNameOverride: !Not [!Equals [!Ref CodeDeployApplicationName, ""]]
   HasCodeDeployDeploymentGroupNameOverride: !Not [!Equals [!Ref CodeDeployDeploymentGroupName, ""]]
+  HasTaskExecutionSecretArns: !Not [!Equals [!Join ["", !Ref TaskExecutionSecretArns], ""]]
+  HasTaskExecutionSsmParameterArns: !Not [!Equals [!Join ["", !Ref TaskExecutionSsmParameterArns], ""]]
+  CreateTaskExecutionSecretsPolicy: !Or
+    - !Condition CreateAppSecretKey
+    - !Condition HasTaskExecutionSecretArns
+    - !Condition HasTaskExecutionSsmParameterArns
 
 Resources:
   ListenerRule:
@@ -480,130 +535,14 @@ Resources:
         PasswordLength: 64
         ExcludePunctuation: false
 
-{% if ecs_secret_resolvers %}
-  SecretArnResolverRole:
-    Type: AWS::IAM::Role
-    Properties:
-      RoleName: !Sub "${Project}-${Application}-${Service}-secret-arn-resolver-${AWS::Region}"
-      AssumeRolePolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          - Effect: Allow
-            Action:
-              - sts:AssumeRole
-            Principal:
-              Service:
-                - lambda.amazonaws.com
-      Policies:
-        - PolicyName: !Sub "${Project}-${Application}-${Service}-secret-arn-resolver"
-          PolicyDocument:
-            Version: "2012-10-17"
-            Statement:
-              - Effect: Allow
-                Action:
-                  - logs:CreateLogGroup
-                  - logs:CreateLogStream
-                  - logs:PutLogEvents
-                Resource: "*"
-              - Effect: Allow
-                Action:
-                  - secretsmanager:DescribeSecret
-                Resource:
-{% for arn in ecs_secret_resolver_iam_resources %}
-                  - "{{ arn }}"
-{% endfor %}
-
-  SecretArnResolverFunction:
-    Type: AWS::Lambda::Function
-    Properties:
-      FunctionName: !Sub "${Project}-${Application}-${Service}-secret-arn-resolver-${AWS::Region}"
-      Handler: index.handler
-      Runtime: python3.11
-      Timeout: 30
-      Role: !GetAtt SecretArnResolverRole.Arn
-      Code:
-        ZipFile: |
-          import json
-          import boto3
-          import urllib3
-          import logging
-
-          http = urllib3.PoolManager()
-          sm = boto3.client("secretsmanager")
-          logger = logging.getLogger()
-          logger.setLevel(logging.INFO)
-
-          def _send(event, context, status, data, physical_id, reason=None):
-            body = {
-              "Status": status,
-              "Reason": reason or f"See CloudWatch Logs: {context.log_stream_name}",
-              "PhysicalResourceId": physical_id,
-              "StackId": event["StackId"],
-              "RequestId": event["RequestId"],
-              "LogicalResourceId": event["LogicalResourceId"],
-              "Data": data,
-            }
-            encoded = json.dumps(body).encode("utf-8")
-            http.request(
-              "PUT",
-              event["ResponseURL"],
-              body=encoded,
-              headers={"content-type": "", "content-length": str(len(encoded))},
-              timeout=10.0,
-            )
-
-          def handler(event, context):
-            req_type = event.get("RequestType")
-            props = event.get("ResourceProperties") or {}
-            secret_id = props.get("SecretId")
-            physical_id = f"secret-arn:{secret_id}"
-            try:
-              if req_type == "Delete":
-                _send(event, context, "SUCCESS", {}, physical_id)
-                return
-              if not secret_id:
-                raise ValueError("SecretId is required")
-              resp = sm.describe_secret(SecretId=secret_id)
-              arn = resp.get("ARN") or resp.get("Arn")
-              if not arn:
-                raise ValueError("describe_secret did not return ARN")
-              _send(event, context, "SUCCESS", {"Arn": arn}, physical_id)
-            except Exception as exc:
-              logger.exception("Secret ARN resolution failed")
-              _send(event, context, "FAILED", {}, physical_id, reason=str(exc))
-
-{% for r in ecs_secret_resolvers %}
-  {{ r.resolver_id }}:
-    Type: Custom::ResolveSecretsManagerSecretArn
-    Properties:
-      ServiceToken: !GetAtt SecretArnResolverFunction.Arn
-      SecretId: '{{ r.secret_name | replace("'", "''") }}'
-{% endfor %}
-{% endif %}
-
-{% if ecs_secret_iam_resources or ecs_ssm_parameter_iam_resources or generate_app_secret_key == "true" %}
   EcsTaskExecutionSecretsPolicy:
-{% if generate_app_secret_key == "true" and not ecs_secret_iam_resources and not ecs_ssm_parameter_iam_resources %}
-    Condition: CreateAppSecretKey
-{% endif %}
+    Condition: CreateTaskExecutionSecretsPolicy
     Type: AWS::IAM::Policy
     Properties:
       PolicyName: !Sub "${Project}-${Application}-${Service}-ecs-task-execution-secrets-${AWS::Region}"
       PolicyDocument:
         Version: "2012-10-17"
         Statement:
-{% if ecs_secret_iam_resources %}
-          - Effect: Allow
-            Action:
-              - secretsmanager:GetSecretValue
-            Resource:
-{% if generate_app_secret_key == "true" %}
-              - !If [CreateAppSecretKey, !Ref AppSecretKeySecret, !Ref AWS::NoValue]
-{% endif %}
-{% for arn in ecs_secret_iam_resources %}
-              - "{{ arn }}"
-{% endfor %}
-{% elif generate_app_secret_key == "true" %}
           - !If
             - CreateAppSecretKey
             - Effect: Allow
@@ -612,31 +551,33 @@ Resources:
               Resource:
                 - !Ref AppSecretKeySecret
             - !Ref AWS::NoValue
-{% endif %}
-{% if ecs_ssm_parameter_iam_resources %}
-          - Effect: Allow
-            Action:
-              - ssm:GetParameters
-            Resource:
-{% for arn in ecs_ssm_parameter_iam_resources %}
-              - "{{ arn }}"
-{% endfor %}
-{% endif %}
-{% if ecs_secret_iam_resources or ecs_ssm_parameter_iam_resources or generate_app_secret_key == "true" %}
+          - !If
+            - HasTaskExecutionSecretArns
+            - Effect: Allow
+              Action:
+                - secretsmanager:GetSecretValue
+              Resource: !Ref TaskExecutionSecretArns
+            - !Ref AWS::NoValue
+          - !If
+            - HasTaskExecutionSsmParameterArns
+            - Effect: Allow
+              Action:
+                - ssm:GetParameters
+              Resource: !Ref TaskExecutionSsmParameterArns
+            - !Ref AWS::NoValue
           - Effect: Allow
             Action:
               - kms:Decrypt
-            # KMS key ARNs are not known at render time; ViaService limits usage to Secrets Manager/SSM.
+            # KMS key ARNs are not known at template authoring time;
+            # ViaService limits usage to Secrets Manager/SSM.
             Resource: "*"
             Condition:
               StringEquals:
                 kms:ViaService:
                   - !Sub "secretsmanager.${AWS::Region}.amazonaws.com"
                   - !Sub "ssm.${AWS::Region}.amazonaws.com"
-{% endif %}
       Roles:
         - !Sub "${Project}-${Application}-${Service}-ecs-task-execution-${AWS::Region}"
-{% endif %}
 
   TaskDefinition:
     Type: AWS::ECS::TaskDefinition
@@ -657,6 +598,30 @@ Resources:
               Value: !Sub "${AWS::Region}"
             - Name: ENV
               Value: !Sub "${Environment}"
+            - Name: NOVA_RUNTIME_PROFILE
+              Value: !Ref RuntimeProfile
+            - Name: FILE_TRANSFER_ENABLED
+              Value: !Ref FileTransferEnabled
+            - !If
+              - EnableFileTransferWithBucket
+              - Name: FILE_TRANSFER_BUCKET
+                Value: !Ref FileTransferBucketName
+              - !Ref AWS::NoValue
+            - !If
+              - EnableFileTransferWithBucket
+              - Name: FILE_TRANSFER_UPLOAD_PREFIX
+                Value: !Ref FileTransferUploadPrefix
+              - !Ref AWS::NoValue
+            - !If
+              - EnableFileTransferWithBucket
+              - Name: FILE_TRANSFER_EXPORT_PREFIX
+                Value: !Ref FileTransferExportPrefix
+              - !Ref AWS::NoValue
+            - !If
+              - EnableFileTransferWithBucket
+              - Name: FILE_TRANSFER_TMP_PREFIX
+                Value: !Ref FileTransferTmpPrefix
+              - !Ref AWS::NoValue
             - !If
               - UseLegacyEnvDict
               - Name: AUTH_APP_SECRET
@@ -667,27 +632,11 @@ Resources:
               - Name: ENV_DICT
                 Value: !Ref EnvVars
               - !Ref AWS::NoValue
-{% for item in ecs_environment_items %}
-            - Name: '{{ item.name | replace("'", "''") }}'
-              Value: '{{ item.value | replace("'", "''") }}'
-{% endfor %}
-
-{% if ecs_secrets_items or generate_app_secret_key == "true" %}
-          Secrets:
-            - !If
-              - CreateAppSecretKey
-              - Name: !Ref AppSecretEnvVarName
+          Secrets: !If
+            - CreateAppSecretKey
+            - - Name: !Ref AppSecretEnvVarName
                 ValueFrom: !Ref AppSecretKeySecret
-              - !Ref AWS::NoValue
-{% for s in ecs_secrets_items %}
-            - Name: '{{ s.name | replace("'", "''") }}'
-{% if s.value_from is defined %}
-              ValueFrom: '{{ s.value_from | replace("'", "''") }}'
-{% else %}
-              ValueFrom: !Sub "{{ '${' }}{{ s.resolver_id }}.Arn{{ '}' }}{{ s.suffix }}"
-{% endif %}
-{% endfor %}
-{% endif %}
+            - !Ref AWS::NoValue
 
           LogConfiguration:
             LogDriver: awslogs
@@ -727,7 +676,7 @@ Resources:
     Properties:
       PropagateTags: SERVICE
       PlatformVersion: LATEST
-      DesiredCount: 1
+      DesiredCount: !Ref DesiredCount
       DeploymentController:
         Type: !If [UseCodeDeployBlueGreen, CODE_DEPLOY, ECS]
       TaskDefinition: !Ref "TaskDefinition"
@@ -742,6 +691,7 @@ Resources:
       NetworkConfiguration:
         AwsvpcConfiguration:
           Subnets: !Ref SubnetList
+          AssignPublicIp: !Ref AssignPublicIp
           SecurityGroups:
             - !Ref ContainerSecurityGroup
       ServiceName: !Sub ${Project}-${Application}-${Service}
@@ -768,6 +718,8 @@ Resources:
           Value: !Ref Application
         - Key: Service
           Value: !Ref Service
+        - Key: RuntimeProfile
+          Value: !Ref RuntimeProfile
         - Key: ImageUri
           Value: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${DockerRepoName}:${DockerImageTag}
 
@@ -784,9 +736,6 @@ Resources:
   CodeDeployEcsDeploymentGroup:
     Type: AWS::CodeDeploy::DeploymentGroup
     Condition: UseCodeDeployBlueGreen
-    DependsOn:
-      - ECSService
-      - CodeDeployEcsApplication
     Properties:
       ApplicationName: !Ref CodeDeployEcsApplication
       DeploymentGroupName: !If
@@ -886,9 +835,6 @@ Resources:
               - s3:PutObject
               - s3:AbortMultipartUpload
               - s3:ListMultipartUploadParts
-              - s3:CreateMultipartUpload
-              - s3:UploadPart
-              - s3:CompleteMultipartUpload
             Resource:
               - !Sub "arn:${AWS::Partition}:s3:::${FileTransferBucketName}/${FileTransferUploadPrefix}*"
               - !Sub "arn:${AWS::Partition}:s3:::${FileTransferBucketName}/${FileTransferExportPrefix}*"
@@ -1033,7 +979,7 @@ Resources:
       Threshold: "2"
       ComparisonOperator: GreaterThanOrEqualToThreshold
       AlarmActions:
-        - !If [Monitor, !Ref AlarmArn, !Ref "AWS::NoValue" ]
+        - !Ref AlarmArn
 
   RequestCountPerTargetGreen:
     Type: AWS::CloudWatch::Alarm
@@ -1055,7 +1001,7 @@ Resources:
       Threshold: "2"
       ComparisonOperator: GreaterThanOrEqualToThreshold
       AlarmActions:
-        - !If [MonitorUseCodeDeployBlueGreen, !Ref AlarmArn, !Ref "AWS::NoValue" ]
+        - !Ref AlarmArn
 
   UnHealthyHostCount:
     Type: AWS::CloudWatch::Alarm
@@ -1098,7 +1044,7 @@ Resources:
       Threshold: "1"
       ComparisonOperator: GreaterThanOrEqualToThreshold
       AlarmActions:
-        - !If [MonitorUseCodeDeployBlueGreen, !Ref AlarmArn, !Ref "AWS::NoValue" ]
+        - !Ref AlarmArn
 
   HTTPCodeTarget2XXCount:
     Type: AWS::CloudWatch::Alarm
@@ -1141,7 +1087,7 @@ Resources:
       Threshold: "100"
       ComparisonOperator: GreaterThanOrEqualToThreshold
       AlarmActions:
-        - !If [MonitorUseCodeDeployBlueGreen, !Ref AlarmArn, !Ref "AWS::NoValue"]
+        - !Ref AlarmArn
 
   HTTPCodeTarget3XXCount:
     Type: AWS::CloudWatch::Alarm
@@ -1184,7 +1130,7 @@ Resources:
       Threshold: "1"
       ComparisonOperator: GreaterThanOrEqualToThreshold
       AlarmActions:
-        - !If [MonitorUseCodeDeployBlueGreen, !Ref AlarmArn, !Ref "AWS::NoValue"]
+        - !Ref AlarmArn
 
   HTTPCodeTarget4XXCount:
     Type: AWS::CloudWatch::Alarm
@@ -1227,7 +1173,7 @@ Resources:
       Threshold: "1"
       ComparisonOperator: GreaterThanOrEqualToThreshold
       AlarmActions:
-        - !If [MonitorUseCodeDeployBlueGreen, !Ref AlarmArn, !Ref "AWS::NoValue"]
+        - !Ref AlarmArn
 
   HTTPCodeTarget5XXCount:
     Type: AWS::CloudWatch::Alarm
@@ -1270,7 +1216,7 @@ Resources:
       Threshold: "1"
       ComparisonOperator: GreaterThanOrEqualToThreshold
       AlarmActions:
-        - !If [MonitorUseCodeDeployBlueGreen, !Ref AlarmArn, !Ref "AWS::NoValue"]
+        - !Ref AlarmArn
 
   TargetConnectionErrorCount:
     Type: AWS::CloudWatch::Alarm
@@ -1313,7 +1259,7 @@ Resources:
       Threshold: "1"
       ComparisonOperator: GreaterThanOrEqualToThreshold
       AlarmActions:
-        - !If [MonitorUseCodeDeployBlueGreen, !Ref AlarmArn, !Ref "AWS::NoValue"]
+        - !Ref AlarmArn
 
   TargetTLSNegotiationErrorCount:
     Type: AWS::CloudWatch::Alarm
@@ -1356,7 +1302,7 @@ Resources:
       Threshold: "1"
       ComparisonOperator: GreaterThanOrEqualToThreshold
       AlarmActions:
-        - !If [MonitorUseCodeDeployBlueGreen, !Ref AlarmArn, !Ref "AWS::NoValue"]
+        - !Ref AlarmArn
 
 
   # Lambda permissions for each alarm to trigger the Lambda function

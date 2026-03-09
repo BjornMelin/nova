@@ -7,6 +7,11 @@
 
 ## Active SPEC Catalog
 
+Canonical chain: [requirements](../requirements.md) -> [ADR-0023](../adr/ADR-0023-hard-cut-v1-canonical-route-surface.md)
+-> [SPEC-0000](./SPEC-0000-http-api-contract.md) -> [SPEC-0016](./SPEC-0016-v1-route-namespace-and-literal-guardrails.md)
+-> WS6 authority is implemented by `SPEC-0021`, `SPEC-0022`, and `SPEC-0023`
+(decisions `ADR-0027`, `ADR-0028`, `ADR-0029`).
+
 | SPEC | Title | Status | Date |
 | --- | --- | --- | --- |
 | [SPEC-0000](./SPEC-0000-http-api-contract.md) | HTTP API Contract | Active | 2026-03-03 |
@@ -24,6 +29,13 @@
 | [SPEC-0012](./SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md) | SDK conformance, versioning, and compatibility governance | Active | 2026-02-28 |
 | [SPEC-0015](./SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md) | Nova API platform final topology and delivery contract | Active | 2026-03-03 |
 | [SPEC-0016](./SPEC-0016-v1-route-namespace-and-literal-guardrails.md) | Hard-cut v1 route contract and route-literal guardrails | Active | 2026-03-03 |
+| [SPEC-0017](./SPEC-0017-runtime-component-topology-and-ownership-contract.md) | CloudFormation module contract | Active | 2026-03-03 |
+| [SPEC-0018](./SPEC-0018-runtime-configuration-and-startup-validation-contract.md) | Reusable workflow integration contract | Active | 2026-03-03 |
+| [SPEC-0019](./SPEC-0019-auth-execution-and-threadpool-safety-contract.md) | CI/CD IAM least-privilege and role-boundary contract | Active | 2026-03-03 |
+| [SPEC-0020](./SPEC-0020-architecture-authority-pack-and-documentation-synchronization-contract.md) | Rollout and validation strategy | Active | 2026-03-03 |
+| [SPEC-0021](./SPEC-0021-downstream-hard-cut-integration-and-consumer-validation-contract.md) | Downstream hard-cut integration and consumer validation contract | Active | 2026-03-04 |
+| [SPEC-0022](./SPEC-0022-auth0-tenant-ops-reusable-workflow-contract.md) | Auth0 tenant ops reusable workflow contract | Active | 2026-03-04 |
+| [SPEC-0023](./SPEC-0023-ssm-runtime-base-url-contract-for-deploy-validation.md) | SSM runtime base-url contract for deploy validation | Active | 2026-03-04 |
 
 ## Historical Specs
 

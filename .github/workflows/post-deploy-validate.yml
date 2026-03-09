@@ -21,26 +21,27 @@ on:
         required: false
         default: /healthz,/readyz,/api/transfers/uploads/initiate,/api/jobs,/api/v1/transfers/uploads/initiate
         type: string
+      report_path:
+        description: JSON report output path.
+        required: false
+        default: post-deploy-validation-report.json
+        type: string
+      artifact_name:
+        description: Uploaded artifact name for validation output.
+        required: false
+        default: post-deploy-validation-report
+        type: string
 
 permissions:
   contents: read
 
 jobs:
   post-deploy-validate:
-    runs-on: ubuntu-latest
-    env:
-      VALIDATION_BASE_URL: ${{ inputs.validation_base_url }}
-      SERVICE_BASE_URL: ${{ inputs.service_base_url }}
-      VALIDATION_CANONICAL_PATHS: ${{ inputs.validation_canonical_paths }}
-      VALIDATION_LEGACY_404_PATHS: ${{ inputs.validation_legacy_404_paths }}
-    steps:
-      - uses: actions/checkout@v4
-      - run: |
-          set -euo pipefail
-          python3 scripts/release/validate_route_contract.py \
-            --report-path post-deploy-validation-report.json
-      - if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: post-deploy-validation-report
-          path: post-deploy-validation-report.json
+    uses: ./.github/workflows/reusable-post-deploy-validate.yml
+    with:
+      validation_base_url: ${{ inputs.validation_base_url }}
+      service_base_url: ${{ inputs.service_base_url }}
+      validation_canonical_paths: ${{ inputs.validation_canonical_paths }}
+      validation_legacy_404_paths: ${{ inputs.validation_legacy_404_paths }}
+      report_path: ${{ inputs.report_path }}
+      artifact_name: ${{ inputs.artifact_name }}

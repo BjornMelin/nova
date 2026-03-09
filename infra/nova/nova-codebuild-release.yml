@@ -6,18 +6,34 @@ Parameters:
     Type: String
   Application:
     Type: String
+  FoundationStackName:
+    Type: String
+    Default: ""
+    Description: Optional stack name for importing shared CI/CD foundation outputs.
+  IamRolesStackName:
+    Type: String
+    Default: ""
+    Description: Optional IAM stack name for importing CodeBuild role ARN.
+  CodeBuildServiceRoleArn:
+    Type: String
+    Default: ""
+    Description: Optional explicit CodeBuild service role ARN override.
   CodeArtifactDomainName:
     Type: String
+    Default: ""
+    Description: Optional explicit CodeArtifact domain. If empty, imported from foundation.
   CodeArtifactRepositoryName:
     Type: String
+    Default: ""
+    Description: Optional explicit CodeArtifact repository. If empty, imported from foundation.
   EcrRepositoryUri:
     Type: String
-    MinLength: 1
-    ConstraintDescription: Must be a non-empty ECR repository URI.
+    Default: ""
+    Description: Optional explicit ECR repository URI. If empty, imported from foundation.
   EcrRepositoryName:
     Type: String
-    MinLength: 1
-    ConstraintDescription: Must be a non-empty ECR repository name.
+    Default: ""
+    Description: Optional explicit ECR repository name. If empty, imported from foundation.
   DockerfilePath:
     Type: String
     Default: apps/nova_file_api_service/Dockerfile
@@ -38,8 +54,46 @@ Parameters:
     Default: ""
 
 Conditions:
+  HasIamRolesStackName: !Not [!Equals [!Ref IamRolesStackName, ""]]
+  HasCodeBuildServiceRoleArn: !Not [!Equals [!Ref CodeBuildServiceRoleArn, ""]]
+  HasCodeArtifactDomainName: !Not [!Equals [!Ref CodeArtifactDomainName, ""]]
+  HasCodeArtifactRepositoryName: !Not [!Equals [!Ref CodeArtifactRepositoryName, ""]]
+  HasEcrRepositoryUri: !Not [!Equals [!Ref EcrRepositoryUri, ""]]
+  HasEcrRepositoryName: !Not [!Equals [!Ref EcrRepositoryName, ""]]
   HasReleaseBuildProjectName: !Not [!Equals [!Ref ReleaseBuildProjectName, ""]]
   HasDeployValidateProjectName: !Not [!Equals [!Ref DeployValidateProjectName, ""]]
+
+Rules:
+  HasCodeBuildServiceRoleArnOrIamRolesStackName:
+    Assertions:
+      - Assert: !Or
+          - !Not [!Equals [!Ref CodeBuildServiceRoleArn, ""]]
+          - !Not [!Equals [!Ref IamRolesStackName, ""]]
+        AssertDescription: Provide CodeBuildServiceRoleArn or IamRolesStackName.
+  RequireCodeArtifactDomainInput:
+    Assertions:
+      - Assert: !Or
+          - !Not [!Equals [!Ref CodeArtifactDomainName, ""]]
+          - !Not [!Equals [!Ref FoundationStackName, ""]]
+        AssertDescription: Provide CodeArtifactDomainName or FoundationStackName.
+  RequireCodeArtifactRepositoryInput:
+    Assertions:
+      - Assert: !Or
+          - !Not [!Equals [!Ref CodeArtifactRepositoryName, ""]]
+          - !Not [!Equals [!Ref FoundationStackName, ""]]
+        AssertDescription: Provide CodeArtifactRepositoryName or FoundationStackName.
+  RequireEcrRepositoryUriInput:
+    Assertions:
+      - Assert: !Or
+          - !Not [!Equals [!Ref EcrRepositoryUri, ""]]
+          - !Not [!Equals [!Ref FoundationStackName, ""]]
+        AssertDescription: Provide EcrRepositoryUri or FoundationStackName.
+  RequireEcrRepositoryNameInput:
+    Assertions:
+      - Assert: !Or
+          - !Not [!Equals [!Ref EcrRepositoryName, ""]]
+          - !Not [!Equals [!Ref FoundationStackName, ""]]
+        AssertDescription: Provide EcrRepositoryName or FoundationStackName.
 
 Resources:
   NovaReleaseBuildProject:
@@ -50,7 +104,14 @@ Resources:
         - !Ref ReleaseBuildProjectName
         - !Sub ${Project}-${Application}-nova-release-build
       Description: Builds immutable artifacts and publishes changed units.
-      ServiceRole: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/${Project}-${Application}-nova-codebuild-release-role"
+      ServiceRole: !If
+        - HasCodeBuildServiceRoleArn
+        - !Ref CodeBuildServiceRoleArn
+        - !If
+          - HasIamRolesStackName
+          - !ImportValue
+            Fn::Sub: "${IamRolesStackName}-CodeBuildReleaseRoleArn"
+          - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/${Project}-${Application}-nova-codebuild-release-role"
       Source:
         Type: CODEPIPELINE
         BuildSpec: !Ref ReleaseBuildspecPath
@@ -64,16 +125,32 @@ Resources:
         EnvironmentVariables:
           - Name: CODEARTIFACT_DOMAIN
             Type: PLAINTEXT
-            Value: !Ref CodeArtifactDomainName
+            Value: !If
+              - HasCodeArtifactDomainName
+              - !Ref CodeArtifactDomainName
+              - !ImportValue
+                Fn::Sub: "${FoundationStackName}-CodeArtifactDomainName"
           - Name: CODEARTIFACT_REPOSITORY
             Type: PLAINTEXT
-            Value: !Ref CodeArtifactRepositoryName
+            Value: !If
+              - HasCodeArtifactRepositoryName
+              - !Ref CodeArtifactRepositoryName
+              - !ImportValue
+                Fn::Sub: "${FoundationStackName}-CodeArtifactRepositoryName"
           - Name: ECR_REPOSITORY_URI
             Type: PLAINTEXT
-            Value: !Ref EcrRepositoryUri
+            Value: !If
+              - HasEcrRepositoryUri
+              - !Ref EcrRepositoryUri
+              - !ImportValue
+                Fn::Sub: "${FoundationStackName}-EcrRepositoryUri"
           - Name: ECR_REPOSITORY_NAME
             Type: PLAINTEXT
-            Value: !Ref EcrRepositoryName
+            Value: !If
+              - HasEcrRepositoryName
+              - !Ref EcrRepositoryName
+              - !ImportValue
+                Fn::Sub: "${FoundationStackName}-EcrRepositoryName"
           - Name: DOCKERFILE_PATH
             Type: PLAINTEXT
             Value: !Ref DockerfilePath
@@ -90,7 +167,14 @@ Resources:
         - !Ref DeployValidateProjectName
         - !Sub ${Project}-${Application}-nova-deploy-validate
       Description: Validates post-deploy readiness and operational endpoints.
-      ServiceRole: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/${Project}-${Application}-nova-codebuild-release-role"
+      ServiceRole: !If
+        - HasCodeBuildServiceRoleArn
+        - !Ref CodeBuildServiceRoleArn
+        - !If
+          - HasIamRolesStackName
+          - !ImportValue
+            Fn::Sub: "${IamRolesStackName}-CodeBuildReleaseRoleArn"
+          - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/${Project}-${Application}-nova-codebuild-release-role"
       Source:
         Type: CODEPIPELINE
         BuildSpec: !Ref ValidateBuildspecPath
@@ -105,9 +189,17 @@ Resources:
 Outputs:
   ReleaseBuildProjectName:
     Value: !Ref NovaReleaseBuildProject
+    Export:
+      Name: !Sub "${AWS::StackName}-ReleaseBuildProjectName"
   ReleaseBuildProjectArn:
     Value: !GetAtt NovaReleaseBuildProject.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-ReleaseBuildProjectArn"
   DeployValidateProjectName:
     Value: !Ref NovaDeployValidateBuildProject
+    Export:
+      Name: !Sub "${AWS::StackName}-DeployValidateProjectName"
   DeployValidateProjectArn:
     Value: !GetAtt NovaDeployValidateBuildProject.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-DeployValidateProjectArn"
