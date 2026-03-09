@@ -3,20 +3,16 @@ requires = ["hatchling>=1.27.0"]
 build-backend = "hatchling.build"
 
 [project]
-name = "nova-auth-api"
-version = "0.3.0"
-description = "Dedicated token verification service for nova."
+name = "nova-runtime-support"
+version = "0.1.0"
+description = "Internal shared runtime helpers for Nova services."
 readme = "README.md"
 requires-python = ">=3.12,<3.14"
 dependencies = [
-  "anyio>=4.11.0",
   "fastapi>=0.129.0",
-  "nova-runtime-support>=0.1.0",
   "oidc-jwt-verifier>=0.1.5",
-  "pydantic>=2.12.5",
-  "pydantic-settings>=2.12.0",
   "structlog>=25.5.0",
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/nova_auth_api"]
+packages = ["src/nova_runtime_support"]
