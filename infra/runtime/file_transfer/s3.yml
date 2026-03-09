@@ -149,7 +149,8 @@ Resources:
             - EnableTmpExpiration
             - Id: ExpireTmpFiles
               Status: Enabled
-              Prefix: !Ref TmpPrefix
+              Filter:
+                Prefix: !Ref TmpPrefix
               ExpirationInDays: !Ref TmpExpirationDays
             - !Ref AWS::NoValue
 

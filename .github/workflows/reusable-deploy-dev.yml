@@ -25,6 +25,9 @@ jobs:
   deploy-dev:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Configure AWS Credentials (OIDC)
         uses: ./.github/actions/configure-aws-oidc
         with:

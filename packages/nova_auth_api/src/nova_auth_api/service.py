@@ -32,9 +32,7 @@ class TokenVerificationService:
         """Initialize service state."""
         self._settings = settings
         self._verifier = _build_verifier(settings=settings)
-        self._verifier_thread_limiter: CapacityLimiter = anyio.CapacityLimiter(
-            settings.oidc_verifier_thread_tokens
-        )
+        self._verifier_thread_limiter: CapacityLimiter | None = None
 
     async def verify(self, request: TokenVerifyRequest) -> TokenVerifyResponse:
         """Verify access token and return principal plus claims."""
@@ -103,11 +101,17 @@ class TokenVerificationService:
                 "auth verifier unavailable",
                 www_authenticate='Bearer error="invalid_token"',
             )
+        limiter = self._verifier_thread_limiter
+        if limiter is None:
+            limiter = anyio.CapacityLimiter(
+                self._settings.oidc_verifier_thread_tokens
+            )
+            self._verifier_thread_limiter = limiter
         try:
             claims = await anyio.to_thread.run_sync(
                 verifier.verify_access_token,
                 access_token,
-                limiter=self._verifier_thread_limiter,
+                limiter=limiter,
             )
         except AuthError as exc:
             raise from_oidc_auth_error(exc) from exc
