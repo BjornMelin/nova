@@ -1,12 +1,12 @@
 # Release Version Manifest
 
-Date: 2026-03-09T10:27:27+00:00
+Date: 2026-03-09T23:52:14+00:00
 Status: Active
 Schema: 1.0
 
 ## Release Metadata
-- `base_commit`: `0704b452c80513b38c2a08e46c6d8605fe55705d`
-- `head_commit`: `0704b452c80513b38c2a08e46c6d8605fe55705d`
+- `base_commit`: `7f1b53c37f90076677b9c5f303f550532985d8bf`
+- `head_commit`: `7f1b53c37f90076677b9c5f303f550532985d8bf`
 - `first_release`: `False`
 - `global_bump`: `None`
 
@@ -24,6 +24,8 @@ Schema: 1.0
       "unit_id": "packages/nova_file_api",
       "project": "nova-file-api",
       "path": "packages/nova_file_api",
+      "format": "pypi",
+      "namespace": null,
       "version": "0.1.0"
     }
   ]
@@ -40,6 +42,9 @@ Schema: 1.0
 | `packages/nova_dash_bridge` | `nova-dash-bridge` | `0.3.1` | no |
 | `packages/nova_file_api` | `nova-file-api` | `0.5.0` | no |
 | `packages/nova_runtime_support` | `nova-runtime-support` | `0.1.0` | no |
+| `packages/nova_sdk_auth` | `@nova/sdk-auth` | `0.1.0` | no |
+| `packages/nova_sdk_fetch` | `@nova/sdk-fetch` | `0.1.0` | no |
+| `packages/nova_sdk_file` | `@nova/sdk-file` | `0.1.0` | no |
 | `packages/nova_sdk_py_auth` | `nova-sdk-py-auth` | `0.1.0` | no |
 | `packages/nova_sdk_py_file` | `nova-sdk-py-file` | `0.1.0` | no |
 
