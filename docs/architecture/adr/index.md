@@ -5,15 +5,22 @@
 - [Architecture Specifications](../spec/index.md)
 - [Operator Runbooks (canonical)](../../runbooks/README.md)
 
-## Active runtime authority pack
+## Active operator authority pack
 
-Normative runtime spec contracts for the active runtime authority pack are
-`SPEC-0017`, `SPEC-0018`, `SPEC-0019`, `SPEC-0021`, `SPEC-0022`, and
-`SPEC-0023`.
+Normative operator-facing authority is layered across:
+
+- runtime API and route authority (`ADR-0023`, `SPEC-0000`, `SPEC-0015`,
+  `SPEC-0016`)
+- public SDK governance (`ADR-0013`, `SPEC-0011`, `SPEC-0012`)
+- downstream/deploy-validation authority (`ADR-0027` through `ADR-0029`,
+  `SPEC-0017` through `SPEC-0023`)
+
+Downstream/deploy-validation authority explicitly includes `SPEC-0021`,
+`SPEC-0022`, and `SPEC-0023`.
 
 | ADR | Title | Status | Date |
 | --- | --- | --- | --- |
-| [ADR-0024](./ADR-0024-layered-architecture-authority-pack.md) | Layered runtime authority pack for the Nova monorepo | Accepted | 2026-03-05 |
+| [ADR-0024](./ADR-0024-layered-architecture-authority-pack.md) | Layered operator authority pack for the Nova monorepo | Accepted | 2026-03-05 |
 | [ADR-0027](./ADR-0027-hard-cut-downstream-integration-and-consumer-contract-enforcement.md) | Hard-cut downstream integration and consumer contract enforcement | Accepted | 2026-03-04 |
 | [ADR-0028](./ADR-0028-auth0-tenant-ops-reusable-workflow-api-contract.md) | Auth0 tenant ops reusable workflow API contract | Accepted | 2026-03-04 |
 | [ADR-0029](./ADR-0029-ssm-runtime-base-url-authority-for-deploy-validation.md) | SSM runtime base URL authority for deploy validation | Accepted | 2026-03-04 |
@@ -21,13 +28,13 @@ Normative runtime spec contracts for the active runtime authority pack are
 ## Adjacent deploy-governance authority
 
 These ADRs are canonical for deployment-control-plane and CI/CD IAM policy
-boundaries, but are not part of the active runtime authority pack.
+boundaries, but are not part of the active runtime API authority layer.
 
 | ADR | Title | Status | Date |
 | --- | --- | --- | --- |
 | [ADR-0015](./ADR-0015-nova-api-platform-final-hosting-and-deployment-architecture-2026.md) | Nova API platform final hosting and deployment architecture (2026) | Accepted | 2026-03-03 |
-| [ADR-0025](./ADR-0025-runtime-monorepo-component-boundaries-and-ownership.md) | Runtime monorepo component boundaries and ownership | Accepted | 2026-03-05 |
-| [ADR-0026](./ADR-0026-fail-fast-runtime-configuration-and-safe-auth-execution.md) | Fail-fast runtime configuration and safe auth execution | Accepted | 2026-03-05 |
+| [ADR-0025](./ADR-0025-reusable-workflow-api-and-versioning-policy.md) | Reusable GitHub workflow API and versioning policy for deployment automation | Superseded | 2026-03-09 |
+| [ADR-0026](./ADR-0026-oidc-iam-role-partitioning-for-deploy-automation.md) | OIDC and IAM role partitioning for deploy automation | Accepted | 2026-03-03 |
 | [ADR-0030](./ADR-0030-native-cfn-modular-stack-architecture-for-nova-infrastructure-productization.md) | Native-CFN modular stack architecture for Nova infrastructure productization | Accepted | 2026-03-05 |
 | [ADR-0031](./ADR-0031-reusable-github-workflow-api-and-versioning-policy-for-deployment-automation.md) | Reusable GitHub workflow API and versioning policy for deployment automation | Accepted | 2026-03-05 |
 | [ADR-0032](./ADR-0032-oidc-and-iam-role-partitioning-for-deploy-automation.md) | OIDC and IAM role partitioning for deploy automation | Accepted | 2026-03-05 |
@@ -35,7 +42,7 @@ boundaries, but are not part of the active runtime authority pack.
 ## Active supporting decisions
 
 These ADRs remain accepted and implemented, but they are not the primary
-runtime authority-pack identifiers.
+operator-authority entrypoint identifiers.
 
 | ADR | Title | Status | Date |
 | --- | --- | --- | --- |

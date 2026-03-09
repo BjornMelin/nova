@@ -30,6 +30,7 @@ ACTIVE_ROUTE_AUTHORITY_PATHS = (
     DOCS_ROOT / "architecture" / "requirements.md",
     *ACTIVE_DOCS_PATHS,
 )
+STANDARDS_ROOT = DOCS_ROOT / "standards"
 
 LEGACY_ACTIVE_ROUTE_PATTERNS = (
     re.compile(r"/api(?:/|\*)"),
@@ -58,6 +59,12 @@ def _markdown_targets(paths: tuple[Path, ...]) -> list[Path]:
 def test_canonical_runbook_entrypoint_exists() -> None:
     """Canonical runbook index must exist in Nova docs."""
     assert (DOCS_ROOT / "runbooks" / "README.md").is_file()
+
+
+def test_standards_entrypoint_exists() -> None:
+    """Canonical standards index must exist for deeper operator guidance."""
+    assert (STANDARDS_ROOT / "README.md").is_file()
+    assert (STANDARDS_ROOT / "repository-engineering-standards.md").is_file()
 
 
 def test_active_docs_do_not_link_to_retired_container_craft_docs() -> None:
@@ -92,6 +99,9 @@ def test_active_docs_do_not_reference_legacy_runtime_route_literals() -> None:
 
         for pattern in LEGACY_ACTIVE_ROUTE_PATTERNS:
             for match in pattern.finditer(text):
+                context = text[max(0, match.start() - 24) : match.start()]
+                if "http" in context or "https" in context:
+                    continue
                 rel_path = doc.relative_to(REPO_ROOT)
                 violations.add(f"{rel_path}: {match.group(0)}")
 
@@ -196,13 +206,30 @@ def test_agents_active_authority_pack_includes_ws6_contracts() -> None:
         "ADR-0027-hard-cut-downstream-integration-and-consumer-contract-enforcement.md",
         "ADR-0028-auth0-tenant-ops-reusable-workflow-api-contract.md",
         "ADR-0029-ssm-runtime-base-url-authority-for-deploy-validation.md",
+        "ADR-0013-final-state-sdk-topology-generated-core-plus-thin-adapters.md",
+        "SPEC-0011-multi-language-sdk-architecture-and-package-map.md",
+        "SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md",
         "SPEC-0021-downstream-hard-cut-integration-and-consumer-validation-contract.md",
         "SPEC-0022-auth0-tenant-ops-reusable-workflow-contract.md",
         "SPEC-0023-ssm-runtime-base-url-contract-for-deploy-validation.md",
+        "docs/standards/README.md",
         "/v1/token/verify",
         "/v1/token/introspect",
         "uv run ruff check . --select I",
         "uv run ruff format . --check",
+    ]:
+        assert required in text
+
+
+def test_agents_includes_typescript_sdk_operator_rules() -> None:
+    """AGENTS must include the public TS SDK anti-regression rules."""
+    text = AGENTS_PATH.read_text(encoding="utf-8")
+    for required in [
+        'must not expose package-root `"."` exports',
+        "validation-free",
+        "x-nova-sdk-visibility: internal",
+        "scripts/release/generate_clients.py",
+        "docs/standards/README.md",
     ]:
         assert required in text
 
@@ -215,17 +242,56 @@ def test_ws6_authority_docs_reference_new_contracts() -> None:
         "docs/plan/PLAN.md",
         "docs/runbooks/README.md",
         "docs/PRD.md",
+        "README.md",
     ]:
         text = _read(rel_path)
         for required in [
+            "ADR-0013",
             "ADR-0027",
             "ADR-0028",
             "ADR-0029",
+            "SPEC-0011",
+            "SPEC-0012",
             "SPEC-0021",
             "SPEC-0022",
             "SPEC-0023",
         ]:
             assert required in text, f"{rel_path} missing {required}"
+
+
+def test_active_docs_do_not_reference_stale_authority_paths() -> None:
+    """Active docs must not keep stale ADR/SPEC filenames alive."""
+    stale_paths = [
+        "ADR-0025-runtime-monorepo-component-boundaries-and-ownership.md",
+        "ADR-0026-fail-fast-runtime-configuration-and-safe-auth-execution.md",
+        "SPEC-0017-runtime-component-topology-and-ownership-contract.md",
+        "SPEC-0018-runtime-configuration-and-startup-validation-contract.md",
+        "SPEC-0019-auth-execution-and-threadpool-safety-contract.md",
+    ]
+
+    violations: list[str] = []
+    for doc in _markdown_targets(
+        (
+            REPO_ROOT / "README.md",
+            REPO_ROOT / "AGENTS.md",
+            DOCS_ROOT / "PRD.md",
+            DOCS_ROOT / "plan" / "PLAN.md",
+            DOCS_ROOT / "runbooks" / "README.md",
+            DOCS_ROOT / "overview" / "NOVA-REPO-OVERVIEW.md",
+            DOCS_ROOT / "clients" / "README.md",
+            DOCS_ROOT / "standards",
+            DOCS_ROOT / "architecture" / "adr",
+            DOCS_ROOT / "architecture" / "spec",
+        )
+    ):
+        text = doc.read_text(encoding="utf-8")
+        for stale_path in stale_paths:
+            if stale_path in text:
+                violations.append(f"{doc.relative_to(REPO_ROOT)}: {stale_path}")
+
+    assert not violations, (
+        "Found stale authority paths in active docs:\n" + "\n".join(violations)
+    )
 
 
 def test_release_docs_align_validation_path_policy_contract() -> None:

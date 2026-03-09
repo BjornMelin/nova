@@ -12,15 +12,18 @@ and auth API services.
 - `packages/nova_dash_bridge/`: Dash/Flask/FastAPI bridge adapters.
 - `packages/contracts/`: OpenAPI and shared contract artifacts.
 
-Target public SDK posture:
+Current public SDK posture:
 
-- Nova must provide complete public SDKs for Python, TypeScript, and R.
 - The repository currently ships release-grade public SDKs for Python and
   TypeScript.
 - The repository retains R scaffolding plus generator/runtime layers as the
   required path to full parity; do not delete that scaffolding.
 - Internal-only operations remain excluded from client SDKs and belong to a
   separate internal/admin generation mode.
+
+Target public SDK posture:
+
+- Nova must provide complete public SDKs for Python, TypeScript, and R.
 
 ## Active Authority
 
@@ -30,21 +33,39 @@ Use these as the active authority set:
 - `docs/architecture/requirements.md`
 - `docs/architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md`
 - `docs/architecture/adr/ADR-0024-layered-architecture-authority-pack.md`
+- `docs/architecture/adr/ADR-0013-final-state-sdk-topology-generated-core-plus-thin-adapters.md`
 - `docs/architecture/adr/ADR-0027-hard-cut-downstream-integration-and-consumer-contract-enforcement.md`
 - `docs/architecture/adr/ADR-0028-auth0-tenant-ops-reusable-workflow-api-contract.md`
 - `docs/architecture/adr/ADR-0029-ssm-runtime-base-url-authority-for-deploy-validation.md`
 - `docs/architecture/spec/SPEC-0000-http-api-contract.md`
+- `docs/architecture/spec/SPEC-0011-multi-language-sdk-architecture-and-package-map.md`
+- `docs/architecture/spec/SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md`
 - `docs/architecture/spec/SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md`
 - `docs/architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md`
-- `docs/architecture/spec/SPEC-0017-runtime-component-topology-and-ownership-contract.md`
-- `docs/architecture/spec/SPEC-0018-runtime-configuration-and-startup-validation-contract.md`
-- `docs/architecture/spec/SPEC-0019-auth-execution-and-threadpool-safety-contract.md`
+- `docs/architecture/spec/SPEC-0017-cloudformation-module-contract.md`
+- `docs/architecture/spec/SPEC-0018-reusable-workflow-integration-contract.md`
+- `docs/architecture/spec/SPEC-0019-ci-cd-iam-least-privilege-and-role-boundary-contract.md`
 - `docs/architecture/spec/SPEC-0020-architecture-authority-pack-and-documentation-synchronization-contract.md`
 - `docs/architecture/spec/SPEC-0021-downstream-hard-cut-integration-and-consumer-validation-contract.md`
 - `docs/architecture/spec/SPEC-0022-auth0-tenant-ops-reusable-workflow-contract.md`
 - `docs/architecture/spec/SPEC-0023-ssm-runtime-base-url-contract-for-deploy-validation.md`
 - `docs/plan/PLAN.md`
 - `docs/runbooks/README.md`
+
+## Deep References
+
+Start here for fresh-context repo work that needs more detail than this file:
+
+- `README.md`
+- `docs/overview/NOVA-REPO-OVERVIEW.md`
+- `docs/standards/README.md`
+- `docs/architecture/spec/SPEC-0011-multi-language-sdk-architecture-and-package-map.md`
+- `docs/architecture/spec/SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md`
+- `docs/runbooks/README.md`
+
+This repository currently uses a single root `AGENTS.md`. Do not add nested
+`AGENTS.md` files unless a directory-local rule is both durable and materially
+different from the repo root contract.
 
 Adjacent deploy-governance authority (canonical, but not part of the active
 runtime pack; these documents govern deployment, operational controls, and
@@ -54,9 +75,6 @@ code or packaging surface):
 - `docs/architecture/adr/ADR-0030-native-cfn-modular-stack-architecture-for-nova-infrastructure-productization.md`
 - `docs/architecture/adr/ADR-0031-reusable-github-workflow-api-and-versioning-policy-for-deployment-automation.md`
 - `docs/architecture/adr/ADR-0032-oidc-and-iam-role-partitioning-for-deploy-automation.md`
-- `docs/architecture/spec/SPEC-0024-cloudformation-module-contract.md`
-- `docs/architecture/spec/SPEC-0025-reusable-workflow-integration-contract.md`
-- `docs/architecture/spec/SPEC-0026-ci-cd-iam-least-privilege-matrix.md`
 
 Historical-only pointers:
 
@@ -119,14 +137,29 @@ rg -n "/v1/transfers|/v1/jobs|/v1/internal/jobs|/v1/capabilities|/v1/resources/p
 - Public TypeScript SDKs must expose curated public operation/schema helpers
   only; raw whole-spec aliases and internal worker-only models are not public
   contract.
+- Public TypeScript SDK packages are `@nova/sdk-auth`, `@nova/sdk-file`, and
+  the shared runtime/helper package `@nova/sdk-fetch`.
 - Public TypeScript SDKs must honor the request media types declared in OpenAPI.
   Multi-media request bodies use explicit generated `contentType` selection.
+- Public TypeScript SDK packages are validation-free: do not add `zod`,
+  validator packages, validator subpaths, or runtime request/response
+  validation helpers to these packages. App/BFF validation belongs to
+  consumers.
+- Public TypeScript SDK packages must not expose package-root `"."` exports.
 - TypeScript module policy is strict: do not create or retain `index.ts` barrel
   files, do not use `export ... from` re-export barrels, and always import from
   explicit module subpaths (for example `@nova/sdk-fetch/url`,
   `@nova/sdk-fetch/client`, `@nova/sdk-auth/client`,
   `@nova/sdk-auth/operations`, `@nova/sdk-file/client`, and
   `@nova/sdk-file/types`).
+- Internal/admin operations marked with `x-nova-sdk-visibility: internal` must
+  remain excluded from public TypeScript SDK generation.
+- Treat generated TypeScript SDK outputs as generator-owned. Prefer changing
+  runtime OpenAPI producers, committed OpenAPI artifacts, or
+  `scripts/release/generate_clients.py` before editing generated SDK output by
+  hand.
+- Do not reintroduce stale authority paths, root exports, runtime validation
+  libraries, or duplicated transport logic in the public TypeScript SDKs.
 
 ## npm / CodeArtifact Local Rule
 
@@ -184,6 +217,8 @@ rg -n "/v1/transfers|/v1/jobs|/v1/internal/jobs|/v1/capabilities|/v1/resources/p
 
 Always run from repository root with `.venv` active.
 
+Always-run repo gates:
+
 ```bash
 source .venv/bin/activate && uv lock --check
 source .venv/bin/activate && uv run ruff check .
@@ -202,6 +237,20 @@ for p in packages/nova_file_api packages/nova_auth_api \
   apps/nova_auth_api_service; do uv build "$p"; done
 ```
 
+Additional required gates when touching OpenAPI, public TypeScript SDKs, npm
+packaging, release automation, or SDK docs/contracts:
+
+```bash
+source .venv/bin/activate && uv run python scripts/conformance/check_typescript_module_policy.py
+npm run -w @nova/sdk-fetch build
+npm run -w @nova/sdk-fetch typecheck
+npm run -w @nova/sdk-auth typecheck
+npm run -w @nova/sdk-file typecheck
+npm run -w @nova/contracts-ts-conformance typecheck
+npm run -w @nova/contracts-ts-conformance verify
+source .venv/bin/activate && uv run pytest -q scripts/release/tests/test_typescript_sdk_contracts.py
+```
+
 ## Documentation Update Rules
 
 Any behavioral or contract change MUST update all affected docs in the same PR:
@@ -211,6 +260,7 @@ Any behavioral or contract change MUST update all affected docs in the same PR:
 - `docs/architecture/requirements.md`
 - affected `docs/architecture/adr/*.md`
 - affected `docs/architecture/spec/*.md`
+- affected `docs/standards/*.md`
 - `docs/plan/PLAN.md`
 - affected `docs/contracts/*.json`
 - affected `docs/clients/*.md` and `docs/clients/**/*.yml` for downstream integration contracts
@@ -220,6 +270,7 @@ Any behavioral or contract change MUST update all affected docs in the same PR:
   `docs/architecture/spec/superseded/**` when active authority is superseded
 - `docs/history/**` when archival paths/evidence pointers change
 - `PRD.md` and `FINAL-PLAN.md` only when archive pointers change
+- `AGENTS.md` when the durable operator contract changes
 
 ## Cross-Repo Check (dash-pca)
 

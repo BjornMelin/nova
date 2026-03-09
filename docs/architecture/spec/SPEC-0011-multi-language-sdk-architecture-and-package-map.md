@@ -12,8 +12,8 @@ Related:
   - "[Plan Master](../../plan/PLAN.md)"
 References:
   - "[OpenAPI Specification](https://spec.openapis.org/oas/latest.html)"
-  - "[openapi-fetch](https://openapi-ts.dev/openapi-fetch/)"
-  - "[OpenAPI Generator typescript-fetch](https://openapi-generator.tech/docs/generators/typescript-fetch/)"
+  - "[openapi-typescript](https://openapi-ts.dev/introduction)"
+  - "[Node.js package entry points / exports](https://nodejs.org/api/packages.html#package-entry-points)"
 ---
 
 ## 1. Scope

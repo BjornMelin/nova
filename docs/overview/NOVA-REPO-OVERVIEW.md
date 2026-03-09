@@ -17,6 +17,15 @@ Nova is the canonical runtime monorepo for file-transfer orchestration and token
 - `packages/contracts`: Contract artifacts, fixtures, and conformance helpers.
 - `infra/nova` and `infra/runtime`: CloudFormation stacks for CI/CD foundation and runtime environments.
 
+## Read Next
+
+- `AGENTS.md` for the durable root operator contract
+- `docs/standards/README.md` for deeper engineering standards and quality gates
+- `docs/architecture/spec/SPEC-0011-multi-language-sdk-architecture-and-package-map.md`
+  and `docs/architecture/spec/SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md`
+  for public SDK governance
+- `docs/runbooks/README.md` for operational runbooks
+
 ```mermaid
 flowchart TB
     subgraph Apps

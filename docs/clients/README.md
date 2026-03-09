@@ -11,6 +11,12 @@ React/Next consumers that call Nova reusable deployment and post-deploy
 validation contracts. These docs are workflow/integration authority, not public
 SDK release authority.
 
+For public SDK governance and repo engineering standards, use:
+
+- `../standards/README.md`
+- `../architecture/spec/SPEC-0011-multi-language-sdk-architecture-and-package-map.md`
+- `../architecture/spec/SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md`
+
 ## Contents
 
 - `post-deploy-validation-integration-guide.md`

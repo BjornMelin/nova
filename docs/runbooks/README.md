@@ -8,6 +8,7 @@ Last reviewed: 2026-03-05
 
 Canonical entrypoint for Nova-path operator runbooks.
 All active release and delivery runbooks must live under `nova/docs/**`.
+Deeper repo engineering/operator standards live under `docs/standards/**`.
 
 ## Canonical runbook set
 
@@ -36,17 +37,20 @@ Active authority alignment for runbooks is governed by:
 1. [ADR-0023](../architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md)
 2. [SPEC-0000](../architecture/spec/SPEC-0000-http-api-contract.md)
 3. [SPEC-0016](../architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md)
-4. [requirements.md](../architecture/requirements.md)
-5. [ADR-0024](../architecture/adr/ADR-0024-layered-architecture-authority-pack.md)
-6. [ADR-0025](../architecture/adr/ADR-0025-reusable-workflow-api-and-versioning-policy.md)
-7. [ADR-0026](../architecture/adr/ADR-0026-oidc-iam-role-partitioning-for-deploy-automation.md)
-8. [ADR-0027](../architecture/adr/ADR-0027-hard-cut-downstream-integration-and-consumer-contract-enforcement.md)
-9. [ADR-0028](../architecture/adr/ADR-0028-auth0-tenant-ops-reusable-workflow-api-contract.md)
-10. [ADR-0029](../architecture/adr/ADR-0029-ssm-runtime-base-url-authority-for-deploy-validation.md)
-11. [SPEC-0020](../architecture/spec/SPEC-0020-architecture-authority-pack-and-documentation-synchronization-contract.md)
-12. [SPEC-0021](../architecture/spec/SPEC-0021-downstream-hard-cut-integration-and-consumer-validation-contract.md)
-13. [SPEC-0022](../architecture/spec/SPEC-0022-auth0-tenant-ops-reusable-workflow-contract.md)
-14. [SPEC-0023](../architecture/spec/SPEC-0023-ssm-runtime-base-url-contract-for-deploy-validation.md)
+4. [ADR-0013](../architecture/adr/ADR-0013-final-state-sdk-topology-generated-core-plus-thin-adapters.md)
+5. [SPEC-0011](../architecture/spec/SPEC-0011-multi-language-sdk-architecture-and-package-map.md)
+6. [SPEC-0012](../architecture/spec/SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md)
+7. [requirements.md](../architecture/requirements.md)
+8. [ADR-0024](../architecture/adr/ADR-0024-layered-architecture-authority-pack.md)
+9. [ADR-0025](../architecture/adr/ADR-0025-reusable-workflow-api-and-versioning-policy.md)
+10. [ADR-0026](../architecture/adr/ADR-0026-oidc-iam-role-partitioning-for-deploy-automation.md)
+11. [ADR-0027](../architecture/adr/ADR-0027-hard-cut-downstream-integration-and-consumer-contract-enforcement.md)
+12. [ADR-0028](../architecture/adr/ADR-0028-auth0-tenant-ops-reusable-workflow-api-contract.md)
+13. [ADR-0029](../architecture/adr/ADR-0029-ssm-runtime-base-url-authority-for-deploy-validation.md)
+14. [SPEC-0020](../architecture/spec/SPEC-0020-architecture-authority-pack-and-documentation-synchronization-contract.md)
+15. [SPEC-0021](../architecture/spec/SPEC-0021-downstream-hard-cut-integration-and-consumer-validation-contract.md)
+16. [SPEC-0022](../architecture/spec/SPEC-0022-auth0-tenant-ops-reusable-workflow-contract.md)
+17. [SPEC-0023](../architecture/spec/SPEC-0023-ssm-runtime-base-url-contract-for-deploy-validation.md)
 
 Release runbooks define the canonical mixed-package publish path:
 

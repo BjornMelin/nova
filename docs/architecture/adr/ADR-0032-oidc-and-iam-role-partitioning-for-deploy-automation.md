@@ -6,8 +6,8 @@ Version: 1.1
 Date: 2026-03-03
 Related:
   - "[ADR-0011: Hybrid CI/CD with GitHub CI and AWS-native Dev to Prod promotion](./ADR-0011-cicd-hybrid-github-aws-promotion.md)"
-  - "[SPEC-0026: CI/CD IAM least-privilege matrix](../spec/SPEC-0026-ci-cd-iam-least-privilege-matrix.md)"
-  - "[SPEC-0025: Reusable workflow integration contract](../spec/SPEC-0025-reusable-workflow-integration-contract.md)"
+  - "[SPEC-0019: CI/CD IAM least-privilege and role-boundary contract](../spec/SPEC-0019-ci-cd-iam-least-privilege-and-role-boundary-contract.md)"
+  - "[SPEC-0018: Reusable workflow integration contract](../spec/SPEC-0018-reusable-workflow-integration-contract.md)"
 ---
 
 ## Summary

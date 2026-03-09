@@ -18,17 +18,31 @@ Topology and release-delivery authority:
 
 - `docs/architecture/spec/SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md`
 - `docs/architecture/adr/ADR-0024-layered-architecture-authority-pack.md`
-- `docs/architecture/adr/ADR-0025-runtime-monorepo-component-boundaries-and-ownership.md`
-- `docs/architecture/adr/ADR-0026-fail-fast-runtime-configuration-and-safe-auth-execution.md`
+- `docs/architecture/adr/ADR-0013-final-state-sdk-topology-generated-core-plus-thin-adapters.md`
+- `docs/architecture/spec/SPEC-0011-multi-language-sdk-architecture-and-package-map.md`
+- `docs/architecture/spec/SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md`
+
+Engineering/operator deep references:
+
+- `AGENTS.md`
+- `docs/overview/NOVA-REPO-OVERVIEW.md`
+- `docs/standards/README.md`
+- `docs/runbooks/README.md`
+
+Downstream/deploy-validation authority:
+
+- `docs/architecture/adr/ADR-0027-hard-cut-downstream-integration-and-consumer-contract-enforcement.md`
+- `docs/architecture/adr/ADR-0028-auth0-tenant-ops-reusable-workflow-api-contract.md`
+- `docs/architecture/adr/ADR-0029-ssm-runtime-base-url-authority-for-deploy-validation.md`
+- `docs/architecture/spec/SPEC-0021-downstream-hard-cut-integration-and-consumer-validation-contract.md`
+- `docs/architecture/spec/SPEC-0022-auth0-tenant-ops-reusable-workflow-contract.md`
+- `docs/architecture/spec/SPEC-0023-ssm-runtime-base-url-contract-for-deploy-validation.md`
 
 Adjacent deployment-control-plane authority:
 
 - `docs/architecture/adr/ADR-0030-native-cfn-modular-stack-architecture-for-nova-infrastructure-productization.md`
 - `docs/architecture/adr/ADR-0031-reusable-github-workflow-api-and-versioning-policy-for-deployment-automation.md`
 - `docs/architecture/adr/ADR-0032-oidc-and-iam-role-partitioning-for-deploy-automation.md`
-- `docs/architecture/spec/SPEC-0024-cloudformation-module-contract.md`
-- `docs/architecture/spec/SPEC-0025-reusable-workflow-integration-contract.md`
-- `docs/architecture/spec/SPEC-0026-ci-cd-iam-least-privilege-matrix.md`
 
 Only canonical `/v1/*` routes and `/metrics/summary` are valid in active
 contracts and operator runbooks.

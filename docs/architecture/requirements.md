@@ -13,10 +13,10 @@ requirements for the first production release.
 - Hard-cut route authority is active under `ADR-0023` + `SPEC-0016`.
 - Runtime contract is canonical `/v1/*` plus `/metrics/summary`; non-canonical
   route families are removed.
-- Runtime authority-pack governance and boundary/validation contracts are
-  active under `ADR-0024` and `SPEC-0017` through `SPEC-0023`.
-- Deployment-control-plane governance is codified separately under
-  `ADR-0024`, `ADR-0031`, and `ADR-0032` and `SPEC-0024` through `SPEC-0026`.
+- Runtime API, public SDK, and deploy-validation authority are synchronized
+  under `ADR-0024`, with public SDK governance codified in `ADR-0013`,
+  `SPEC-0011`, and `SPEC-0012`, and deploy-validation/control-plane contracts
+  codified in `SPEC-0017` through `SPEC-0023`.
 - Superseded ADR/SPEC material is archived only under
   `docs/architecture/adr/superseded/**` and
   `docs/architecture/spec/superseded/**`.

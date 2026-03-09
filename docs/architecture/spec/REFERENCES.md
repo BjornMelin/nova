@@ -11,6 +11,12 @@
 - [AnyIO thread guidance](https://anyio.readthedocs.io/en/latest/threads.html)
 - [FastAPI error handling](https://fastapi.tiangolo.com/tutorial/handling-errors/)
 
+## OpenAPI and SDK generation
+
+- [OpenAPI Specification](https://spec.openapis.org/oas/latest.html)
+- [openapi-typescript documentation](https://openapi-ts.dev/introduction)
+- [Node.js package entry points / exports](https://nodejs.org/api/packages.html#package-entry-points)
+
 ## AWS transfer and infrastructure
 
 - [AWS S3 multipart limits](https://docs.aws.amazon.com/AmazonS3/latest/userguide/qfacts.html)

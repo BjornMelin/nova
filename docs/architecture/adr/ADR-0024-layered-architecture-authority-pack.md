@@ -1,6 +1,6 @@
 ---
 ADR: 0024
-Title: Layered runtime authority pack for the Nova monorepo
+Title: Layered operator authority pack for the Nova monorepo
 Status: Accepted
 Version: 2.0
 Date: 2026-03-05
@@ -12,27 +12,29 @@ Related:
   - "[Plan index authority set](../../plan/PLAN.md)"
   - "[Runbooks authority index](../../runbooks/README.md)"
   - "[ADR-0023: Hard cut to a single canonical /v1 API surface](./ADR-0023-hard-cut-v1-canonical-route-surface.md)"
-  - "[ADR-0025: Runtime monorepo component boundaries and ownership](./ADR-0025-runtime-monorepo-component-boundaries-and-ownership.md)"
-  - "[ADR-0026: Fail-fast runtime configuration and safe auth execution](./ADR-0026-fail-fast-runtime-configuration-and-safe-auth-execution.md)"
+  - "[ADR-0013: Public Python/TypeScript SDK topology uses generated contract-core clients and defers R productization](./ADR-0013-final-state-sdk-topology-generated-core-plus-thin-adapters.md)"
+  - "[ADR-0026: OIDC and IAM role partitioning for deploy automation](./ADR-0026-oidc-iam-role-partitioning-for-deploy-automation.md)"
   - "[ADR-0030: Native-CFN modular stack architecture for Nova infrastructure productization](./ADR-0030-native-cfn-modular-stack-architecture-for-nova-infrastructure-productization.md)"
-  - "[SPEC-0017: Runtime component topology and ownership contract](../spec/SPEC-0017-runtime-component-topology-and-ownership-contract.md)"
-  - "[SPEC-0018: Runtime configuration and startup validation contract](../spec/SPEC-0018-runtime-configuration-and-startup-validation-contract.md)"
-  - "[SPEC-0019: Auth execution and threadpool safety contract](../spec/SPEC-0019-auth-execution-and-threadpool-safety-contract.md)"
+  - "[SPEC-0011: Public Python/TypeScript SDK architecture and deferred R package map](../spec/SPEC-0011-multi-language-sdk-architecture-and-package-map.md)"
+  - "[SPEC-0012: Public SDK conformance, versioning, and compatibility governance](../spec/SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md)"
+  - "[SPEC-0017: CloudFormation module contract](../spec/SPEC-0017-cloudformation-module-contract.md)"
+  - "[SPEC-0018: Reusable workflow integration contract](../spec/SPEC-0018-reusable-workflow-integration-contract.md)"
+  - "[SPEC-0019: CI/CD IAM least-privilege and role-boundary contract](../spec/SPEC-0019-ci-cd-iam-least-privilege-and-role-boundary-contract.md)"
   - "[SPEC-0020: Architecture authority pack and documentation synchronization contract](../spec/SPEC-0020-architecture-authority-pack-and-documentation-synchronization-contract.md)"
 ---
 
 ## Summary
 
-Nova keeps one active runtime authority pack. The active runtime ADR/SPEC set
-must describe runtime package boundaries, runtime configuration rules, and auth
-execution safety. Deployment-control-plane, reusable workflow, and CI/CD IAM
-subjects are governed separately and must not occupy runtime authority IDs.
+Nova keeps one active operator authority graph. Runtime API authority, public
+SDK governance, and deploy-validation/control-plane authority must each have a
+truthful documented owner, and the same graph must appear in AGENTS, README,
+PRD, plan, runbooks, and indexes.
 
 ## Context
 
 Nova is greenfield and hard-cut by default. We do not preserve parallel
-authority chains or tolerate mixed runtime/deploy topics inside the same active
-identifier set.
+authority chains, stale paths, or misleading labels that imply a different
+subject than the file actually governs.
 
 ## Alternatives and scored decision
 
@@ -47,9 +49,9 @@ identifier set.
 
 | Option | Weighted score (/10) |
 | --- | ---: |
-| A. Keep current identifiers but tolerate mixed runtime and deploy subjects | 4.7 |
-| B. Restore runtime subjects to the active identifiers and move deploy/workflow/IAM content to new identifiers | **9.8** |
-| C. Create a second active authority list for runtime while leaving the current files untouched | 5.6 |
+| A. Keep stale labels and broken links across active docs | 3.9 |
+| B. Normalize the operator authority graph and make every active path truthful | **9.8** |
+| C. Add more overlay docs while leaving the current drift in place | 5.4 |
 
 Threshold policy: only options `>= 9.0` are accepted.
 
@@ -59,42 +61,43 @@ Choose **Option B**.
 
 ### Required characteristics
 
-1. The active runtime authority pack is:
-   - `ADR-0023`, `ADR-0024`, and `ADR-0027` through `ADR-0029`
-   - `SPEC-0000`, `SPEC-0015`, `SPEC-0016`, and `SPEC-0017` through `SPEC-0023`
-2. `ADR-0024` governs layered authority-pack boundaries for runtime
-   documentation subjects.
-3. `SPEC-0017` through `SPEC-0023` govern runtime topology,
-   configuration/startup validation, auth/threadpool safety, downstream
-   integration contracts, Auth0 reusable workflow contracts, and SSM base-url
-   authority.
-4. Infrastructure productization, reusable workflow API governance, and CI/CD
-   IAM least-privilege move to `ADR-0030` through `ADR-0032` and
-   `SPEC-0024` through `SPEC-0026`.
-5. README, AGENTS, PRD, requirements, plan, runbooks, and indexes must all
-   reference the same authority graph in the same change.
+1. Runtime API authority is anchored by `ADR-0023`, `SPEC-0000`,
+   `SPEC-0015`, and `SPEC-0016`.
+2. Public SDK governance is anchored by `ADR-0013`, `SPEC-0011`, and
+   `SPEC-0012`.
+3. Downstream/deploy-validation authority is anchored by `ADR-0027` through
+   `ADR-0029` and `SPEC-0017` through `SPEC-0023`.
+4. `ADR-0024` governs the layered boundaries and synchronization rules across
+   those operator-facing documentation layers.
+5. README, AGENTS, PRD, requirements, plan, runbooks, standards docs, and
+   indexes must all reference the same operator authority graph in the same
+   change.
 
 ## Consequences
 
 ### Positive
 
-- Runtime engineers can trust the active authority IDs again.
-- Deployment docs remain available without polluting runtime authority.
+- Engineers can trust the active authority graph again.
+- SDK governance becomes first-class instead of implicit.
+- Deployment docs remain available without polluting runtime API authority.
 - Review and test guardrails can key off one truthful active doc set.
 
 ### Trade-offs
 
-- Existing cross-links and indexes require a one-time renumbering pass.
-- Historical references that used the drifted subject mapping must be updated.
+- Existing cross-links and indexes require a one-time cleanup pass.
+- Historical references that used stale filenames must be updated.
 
 ## Explicit non-decisions
 
-- No duplicate active runtime authority list.
-- No mixed runtime/deployment subject matter inside one active identifier.
-- No compatibility note that treats the drifted identifiers as still valid for
-  deploy/workflow/IAM governance.
+- No duplicate active operator authority list.
+- No stale link preservation inside active docs.
+- No compatibility note that treats broken or misleading active paths as still
+  valid.
 
 ## Changelog
 
 - 2026-03-05: Restored `ADR-0024` as the runtime authority-pack decision and
   moved displaced deploy/workflow/IAM topics to new identifiers.
+- 2026-03-09: Reframed `ADR-0024` as the layered operator authority decision
+  and aligned the active graph with truthful runtime, SDK, and deploy-validation
+  owners.

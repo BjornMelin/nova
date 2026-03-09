@@ -14,8 +14,8 @@ async jobs with zero route-surface ambiguity.
 - One canonical public namespace: `/v1/*` (plus `/metrics/summary`).
 - Zero active references to non-canonical route literals in runtime and active
   operator docs.
-- One truthful active runtime authority pack for topology, startup validation,
-  and auth execution.
+- One truthful active operator authority graph across runtime API, SDK, and
+  deploy-validation governance.
 - Superseded ADR/SPEC material is quarantined outside the active authority set.
 - Stable generated-client and conformance behavior against current OpenAPI.
 - Ergonomic SDK-facing OpenAPI identifiers and semantic generator groupings
@@ -82,8 +82,9 @@ Out of scope:
 7. CodeArtifact promotion IAM contracts remain least-privilege, scoped to
    explicit staged source and prod destination repositories, and cover Python
    plus private npm publication controls.
-8. Active runtime authority IDs (`ADR-0024`, `ADR-0027` through `ADR-0029`,
-   and `SPEC-0017` through `SPEC-0019`) describe runtime subjects only.
+8. Active operator authority IDs and paths are truthful, resolvable, and
+   synchronized across README, AGENTS, plan, PRD, runbooks, and architecture
+   indexes.
 9. Superseded ADR/SPEC content is excluded from active authority lists and
    active index sections.
 
@@ -98,18 +99,22 @@ Out of scope:
 - `docs/architecture/requirements.md`
 - `docs/architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md`
 - `docs/architecture/adr/ADR-0024-layered-architecture-authority-pack.md`
+- `docs/architecture/adr/ADR-0013-final-state-sdk-topology-generated-core-plus-thin-adapters.md`
 - `docs/architecture/adr/ADR-0027-hard-cut-downstream-integration-and-consumer-contract-enforcement.md`
 - `docs/architecture/adr/ADR-0028-auth0-tenant-ops-reusable-workflow-api-contract.md`
 - `docs/architecture/adr/ADR-0029-ssm-runtime-base-url-authority-for-deploy-validation.md`
 - `docs/architecture/spec/SPEC-0000-http-api-contract.md`
+- `docs/architecture/spec/SPEC-0011-multi-language-sdk-architecture-and-package-map.md`
+- `docs/architecture/spec/SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md`
 - `docs/architecture/spec/SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md`
 - `docs/architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md`
-- `docs/architecture/spec/SPEC-0017-runtime-component-topology-and-ownership-contract.md`
-- `docs/architecture/spec/SPEC-0018-runtime-configuration-and-startup-validation-contract.md`
-- `docs/architecture/spec/SPEC-0019-auth-execution-and-threadpool-safety-contract.md`
+- `docs/architecture/spec/SPEC-0017-cloudformation-module-contract.md`
+- `docs/architecture/spec/SPEC-0018-reusable-workflow-integration-contract.md`
+- `docs/architecture/spec/SPEC-0019-ci-cd-iam-least-privilege-and-role-boundary-contract.md`
 - `docs/architecture/spec/SPEC-0020-architecture-authority-pack-and-documentation-synchronization-contract.md`
 - `docs/architecture/spec/SPEC-0021-downstream-hard-cut-integration-and-consumer-validation-contract.md`
 - `docs/architecture/spec/SPEC-0022-auth0-tenant-ops-reusable-workflow-contract.md`
 - `docs/architecture/spec/SPEC-0023-ssm-runtime-base-url-contract-for-deploy-validation.md`
+- `docs/standards/README.md`
 - `docs/plan/PLAN.md`
 - `docs/runbooks/README.md`
