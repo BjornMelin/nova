@@ -31,11 +31,6 @@ on:
         required: false
         default: ""
         type: string
-      allow_delete:
-        description: Must remain false by policy.
-        required: false
-        default: false
-        type: boolean
       artifact_name:
         description: Artifact name prefix.
         required: false
@@ -54,7 +49,7 @@ jobs:
       mode: ${{ inputs.mode }}
       input_file: ${{ inputs.input_file }}
       mapping_file: ${{ inputs.mapping_file }}
-      allow_delete: ${{ inputs.allow_delete }}
+      allow_delete: false
       artifact_name: ${{ inputs.artifact_name }}
     secrets:
       auth0_domain: ${{ secrets.AUTH0_DOMAIN }}

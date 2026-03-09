@@ -188,6 +188,39 @@ Resources:
       ToPort: 443
       SourceSecurityGroupId: !Ref AlbIngressSourceSecurityGroupId
 
+  ALBSecurityGroupIngressHttpPrefixList:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: HasAlbIngressPrefixListId
+    Properties:
+      GroupId: !Ref ALBSecurityGroup
+      Description: allow HTTP ingress from managed prefix list
+      IpProtocol: TCP
+      FromPort: 80
+      ToPort: 80
+      SourcePrefixListId: !Ref AlbIngressPrefixListId
+
+  ALBSecurityGroupIngressHttpCidr:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: HasAlbIngressCidr
+    Properties:
+      GroupId: !Ref ALBSecurityGroup
+      Description: allow HTTP ingress from CIDR
+      IpProtocol: TCP
+      FromPort: 80
+      ToPort: 80
+      CidrIp: !Ref AlbIngressCidr
+
+  ALBSecurityGroupIngressHttpSourceSecurityGroup:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: HasAlbIngressSourceSecurityGroupId
+    Properties:
+      GroupId: !Ref ALBSecurityGroup
+      Description: allow HTTP ingress from source security group
+      IpProtocol: TCP
+      FromPort: 80
+      ToPort: 80
+      SourceSecurityGroupId: !Ref AlbIngressSourceSecurityGroupId
+
   ALBSecurityGroupIngressCodeDeployTestListenerPrefixList:
     Type: AWS::EC2::SecurityGroupIngress
     Condition: CreateCodeDeployTestListenerWithPrefixList

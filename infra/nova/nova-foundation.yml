@@ -55,6 +55,7 @@ Conditions:
     - !Condition HasArtifactBucketName
   HasArtifactBucketName: !Not [!Equals [!Ref ArtifactBucketName, ""]]
   HasExistingConnectionArn: !Not [!Equals [!Ref ExistingConnectionArn, ""]]
+  ShouldExportConnectionName: !Not [!Condition HasExistingConnectionArn]
   CreateConnection: !Not [!Condition HasExistingConnectionArn]
   HasManualApprovalTopicArn: !Not [!Equals [!Ref ManualApprovalTopicArn, ""]]
   HasManualApprovalTopicName: !Not [!Equals [!Ref ManualApprovalTopicName, ""]]
@@ -148,7 +149,10 @@ Outputs:
       Name: !Sub "${AWS::StackName}-EcrRepositoryUri"
 
   ConnectionName:
-    Value: !Ref ConnectionName
+    Value: !If
+      - ShouldExportConnectionName
+      - !Ref ConnectionName
+      - ""
     Export:
       Name: !Sub "${AWS::StackName}-ConnectionName"
 

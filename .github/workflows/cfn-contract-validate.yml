@@ -33,7 +33,7 @@ jobs:
         uses: ./.github/actions/setup-python-uv
 
       - name: Install cfn-lint
-        run: uv pip install cfn-lint
+        run: uv pip install cfn-lint==1.46.0
 
       - name: Validate CloudFormation syntax and schema
         run: |

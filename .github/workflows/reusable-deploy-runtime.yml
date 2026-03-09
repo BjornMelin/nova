@@ -213,10 +213,14 @@ jobs:
         run: |
           set -euo pipefail
           manifest_sha256="$(sha256sum .artifacts/deploy-evidence.json | awk '{print $1}')"
-          echo "stack_name=${{ inputs.stack_name }}" >> "$GITHUB_OUTPUT"
-          echo "pipeline_execution_id=" >> "$GITHUB_OUTPUT"
-          echo "validation_report_path=.artifacts/deploy-evidence.json" >> "$GITHUB_OUTPUT"
-          echo "manifest_sha256=${manifest_sha256}" >> "$GITHUB_OUTPUT"
+          # This workflow does not invoke pipeline APIs, so no execution id is available.
+          pipeline_execution_id=""
+          {
+            echo "stack_name=${{ inputs.stack_name }}"
+            echo "pipeline_execution_id=${pipeline_execution_id}"
+            echo "validation_report_path=.artifacts/deploy-evidence.json"
+            echo "manifest_sha256=${manifest_sha256}"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Upload deploy evidence
         uses: actions/upload-artifact@v4

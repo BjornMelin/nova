@@ -131,7 +131,8 @@ jobs:
         run: |
           set -euo pipefail
           export AUTH0_ALLOW_DELETE=false
-          export AUTH0_KEYWORD_REPLACE_MAPPINGS="$(cat \"$AUTH0_KEYWORD_MAPPINGS_FILE\")"
+          AUTH0_KEYWORD_REPLACE_MAPPINGS="$(cat "$AUTH0_KEYWORD_MAPPINGS_FILE")"
+          export AUTH0_KEYWORD_REPLACE_MAPPINGS
           a0deploy import --input_file "$AUTH0_INPUT_FILE"
 
       - name: Run Auth0 export
@@ -143,7 +144,8 @@ jobs:
         run: |
           set -euo pipefail
           export AUTH0_ALLOW_DELETE=false
-          export AUTH0_KEYWORD_REPLACE_MAPPINGS="$(cat \"$AUTH0_KEYWORD_MAPPINGS_FILE\")"
+          AUTH0_KEYWORD_REPLACE_MAPPINGS="$(cat "$AUTH0_KEYWORD_MAPPINGS_FILE")"
+          export AUTH0_KEYWORD_REPLACE_MAPPINGS
           output_dir=".artifacts/auth0-export/${{ inputs.environment }}"
           mkdir -p "$output_dir"
           a0deploy export --format yaml --output_folder "$output_dir"

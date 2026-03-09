@@ -217,7 +217,7 @@ Parameters:
   FileTransferJobsQueueArn:
     Type: String
     Default: ""
-    AllowedPattern: "^$|^arn:(aws|aws-us-gov|aws-cn):sqs:[a-z0-9-]+:[0-9]{12}:[A-Za-z0-9_-]+$"
+    AllowedPattern: "^$|^arn:(aws|aws-us-gov|aws-cn):sqs:[a-z0-9-]+:[0-9]{12}:[A-Za-z0-9_.-]+(\\.fifo)?$"
     Description: Async jobs queue ARN (required when FileTransferAsyncEnabled is true).
   FileTransferJobsTableArn:
     Type: String
@@ -268,9 +268,11 @@ Parameters:
   TaskExecutionSecretArns:
     Type: CommaDelimitedList
     Default: ""
+    AllowedPattern: "^$|^arn:aws[-a-z0-9]*:secretsmanager:[^:]+:[0-9]+:secret:[^/]+$"
+    ConstraintDescription: TaskExecutionSecretArns must be Secrets Manager ARNs.
     Description: >-
-      Comma-delimited Secrets Manager ARNs (or names) the ECS task execution
-      role can read for container secret injection.
+      Comma-delimited Secrets Manager ARNs only the ECS task execution role can
+      read for container secret injection.
   TaskExecutionSsmParameterArns:
     Type: CommaDelimitedList
     Default: ""
