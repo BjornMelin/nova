@@ -18,6 +18,8 @@ OPENAPI_OUTPUTS: dict[str, OpenApiFactory] = {
     "nova-file-api.openapi.json": create_file_app,
     "nova-auth-api.openapi.json": create_auth_app,
 }
+REPO_ROOT = Path(__file__).resolve().parents[2]
+DEFAULT_OUTPUT_DIR = REPO_ROOT / "packages" / "contracts" / "openapi"
 
 
 def _render_openapi() -> dict[str, str]:
@@ -31,7 +33,8 @@ def _render_openapi() -> dict[str, str]:
 def _write_outputs(output_dir: Path, *, check: bool) -> int:
     rendered = _render_openapi()
     status = 0
-    output_dir.mkdir(parents=True, exist_ok=True)
+    if not check:
+        output_dir.mkdir(parents=True, exist_ok=True)
 
     for name, content in rendered.items():
         destination = output_dir / name
@@ -58,7 +61,7 @@ def _args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--output-dir",
-        default="packages/contracts/openapi",
+        default=str(DEFAULT_OUTPUT_DIR),
     )
     parser.add_argument(
         "--check",
@@ -73,7 +76,7 @@ def main() -> int:
     args = _args()
     output_dir = Path(args.output_dir)
     if not output_dir.is_absolute():
-        output_dir = Path.cwd() / output_dir
+        output_dir = REPO_ROOT / output_dir
     return _write_outputs(output_dir, check=args.check)
 
 

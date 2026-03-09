@@ -1,14 +1,24 @@
 """Contains all the data models used in inputs/outputs"""
 
-from .health_response import HealthResponse
-from .principal import Principal
-from .token_introspect_form_request import TokenIntrospectFormRequest
-from .token_introspect_request import TokenIntrospectRequest
-from .token_introspect_response import TokenIntrospectResponse
-from .token_introspect_response_claims import TokenIntrospectResponseClaims
-from .token_verify_request import TokenVerifyRequest
-from .token_verify_response import TokenVerifyResponse
-from .token_verify_response_claims import TokenVerifyResponseClaims
+from nova_sdk_py_auth.models.health_response import HealthResponse
+from nova_sdk_py_auth.models.principal import Principal
+from nova_sdk_py_auth.models.token_introspect_form_request import (
+    TokenIntrospectFormRequest,
+)
+from nova_sdk_py_auth.models.token_introspect_request import (
+    TokenIntrospectRequest,
+)
+from nova_sdk_py_auth.models.token_introspect_response import (
+    TokenIntrospectResponse,
+)
+from nova_sdk_py_auth.models.token_introspect_response_claims import (
+    TokenIntrospectResponseClaims,
+)
+from nova_sdk_py_auth.models.token_verify_request import TokenVerifyRequest
+from nova_sdk_py_auth.models.token_verify_response import TokenVerifyResponse
+from nova_sdk_py_auth.models.token_verify_response_claims import (
+    TokenVerifyResponseClaims,
+)
 
 __all__ = (
     "HealthResponse",

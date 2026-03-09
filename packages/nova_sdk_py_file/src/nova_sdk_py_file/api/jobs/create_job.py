@@ -16,7 +16,7 @@ def _get_kwargs(
     idempotency_key: None | str | Unset = UNSET,
 ) -> dict[str, Any]:
     headers: dict[str, Any] = {}
-    if not isinstance(idempotency_key, Unset):
+    if not isinstance(idempotency_key, Unset) and idempotency_key is not None:
         headers["Idempotency-Key"] = idempotency_key
 
     _kwargs: dict[str, Any] = {

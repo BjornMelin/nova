@@ -3,8 +3,9 @@ from typing import Any
 
 import httpx
 
+from nova_sdk_py_file.client import AuthenticatedClient, Client
+
 from ... import errors
-from ...client import AuthenticatedClient, Client
 from ...models.job_list_response import JobListResponse
 from ...types import UNSET, Response, Unset
 

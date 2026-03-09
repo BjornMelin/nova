@@ -44,6 +44,11 @@ class _StubService(TokenVerificationService):
         return True
 
 
+class _NotReadyStubService(_StubService):
+    def is_ready(self) -> bool:
+        return False
+
+
 def test_v1_health_live() -> None:
     app = create_app(service_override=_StubService())
     with TestClient(app) as client:
@@ -69,7 +74,7 @@ def test_v1_health_ready() -> None:
 
 
 def test_v1_health_ready_returns_503_when_verifier_missing() -> None:
-    app = create_app()
+    app = create_app(service_override=_NotReadyStubService())
     with TestClient(app) as client:
         response = client.get(
             "/v1/health/ready",

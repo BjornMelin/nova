@@ -189,6 +189,9 @@ def _run_ruff(*, args: list[str], root: Path) -> None:
 
 
 def _repair_missing_unset_imports(root: Path) -> None:
+    # openapi-python-client occasionally emits `Unset` annotations without
+    # importing `Unset`; patch generated files before lint/format so committed
+    # SDK artifacts remain type-checkable and deterministic.
     for path in root.rglob("*.py"):
         content = path.read_text(encoding="utf-8")
         if "Unset" not in content:

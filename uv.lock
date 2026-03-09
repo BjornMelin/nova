@@ -743,9 +743,9 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "attrs", specifier = ">=25.4.0" },
-    { name = "httpx", specifier = ">=0.28.1" },
-    { name = "python-dateutil", specifier = ">=2.9.0" },
+    { name = "attrs", specifier = ">=25.4.0,<26" },
+    { name = "httpx", specifier = ">=0.28.1,<1" },
+    { name = "python-dateutil", specifier = ">=2.9.0,<3" },
 ]
 
 [[package]]

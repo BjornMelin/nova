@@ -8,12 +8,12 @@ from ...client import AuthenticatedClient, Client
 from ...models.token_introspect_form_request import TokenIntrospectFormRequest
 from ...models.token_introspect_request import TokenIntrospectRequest
 from ...models.token_introspect_response import TokenIntrospectResponse
-from ...types import UNSET, Response, Unset
+from ...types import Response
 
 
 def _get_kwargs(
     *,
-    body: TokenIntrospectRequest | TokenIntrospectFormRequest | Unset = UNSET,
+    body: TokenIntrospectRequest | TokenIntrospectFormRequest,
 ) -> dict[str, Any]:
     headers: dict[str, Any] = {}
 
@@ -63,7 +63,7 @@ def _build_response(
 def sync_detailed(
     *,
     client: AuthenticatedClient | Client,
-    body: TokenIntrospectRequest | TokenIntrospectFormRequest | Unset = UNSET,
+    body: TokenIntrospectRequest | TokenIntrospectFormRequest,
 ) -> Response[TokenIntrospectResponse]:
     """Introspect Token
 
@@ -95,7 +95,7 @@ def sync_detailed(
 def sync(
     *,
     client: AuthenticatedClient | Client,
-    body: TokenIntrospectRequest | TokenIntrospectFormRequest | Unset = UNSET,
+    body: TokenIntrospectRequest | TokenIntrospectFormRequest,
 ) -> TokenIntrospectResponse | None:
     """Introspect Token
 
@@ -122,7 +122,7 @@ def sync(
 async def asyncio_detailed(
     *,
     client: AuthenticatedClient | Client,
-    body: TokenIntrospectRequest | TokenIntrospectFormRequest | Unset = UNSET,
+    body: TokenIntrospectRequest | TokenIntrospectFormRequest,
 ) -> Response[TokenIntrospectResponse]:
     """Introspect Token
 
@@ -152,7 +152,7 @@ async def asyncio_detailed(
 async def asyncio(
     *,
     client: AuthenticatedClient | Client,
-    body: TokenIntrospectRequest | TokenIntrospectFormRequest | Unset = UNSET,
+    body: TokenIntrospectRequest | TokenIntrospectFormRequest,
 ) -> TokenIntrospectResponse | None:
     """Introspect Token
 
