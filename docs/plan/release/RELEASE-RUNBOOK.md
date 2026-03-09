@@ -41,8 +41,8 @@ Use the modular operator guide set for provisioning and setup details:
 3. CodeConnections source connection is `AVAILABLE`.
 4. Runtime stacks are deployed for `dev` and `prod`, and validation base URLs
    are captured from canonical base-url marker stacks:
-   `${PROJECT}-${APPLICATION}-dev-service-base-url` and
-   `${PROJECT}-${APPLICATION}-prod-service-base-url`.
+   `${PROJECT}-ci-dev-service-base-url` and
+   `${PROJECT}-ci-prod-service-base-url`.
 5. Dev and Prod digest-marker deployment stack parameters are configured.
 6. Release build project parameters provide CodeArtifact and ECR targets:
    - `CODEARTIFACT_DOMAIN`
@@ -94,7 +94,7 @@ Use the modular operator guide set for provisioning and setup details:
 
 1. Trigger `Post Deploy Validate` (`post-deploy-validate.yml`) after deployment.
 2. Supply `validation_base_url` from the canonical marker-derived base URL:
-   `${PROJECT}-${APPLICATION}-<env>-service-base-url`, or read the matching
+   `${PROJECT}-ci-<env>-service-base-url`, or read the matching
    `/nova/{env}/{service}/base-url` SSM parameter that the marker stack manages.
 3. Confirm wrapper calls reusable API:
    - `post-deploy-validate.yml` calls reusable workflow `.github/workflows/reusable-post-deploy-validate.yml`.

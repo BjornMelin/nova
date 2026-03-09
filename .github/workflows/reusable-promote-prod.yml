@@ -146,7 +146,7 @@ jobs:
           for item in candidates:
               package = item['package']
               version = item['version']
-              result = subprocess.run([
+              cmd = [
                   'aws', 'codeartifact', 'copy-package-versions',
                   '--domain', '${{ env.CODEARTIFACT_DOMAIN }}',
                   '--source-repository', '${{ env.CODEARTIFACT_STAGING_REPOSITORY }}',
@@ -156,7 +156,21 @@ jobs:
                   '--versions', version,
                   '--no-cli-pager',
                   '--output', 'json',
-              ], check=True, text=True, capture_output=True)
+              ]
+              try:
+                  result = subprocess.run(
+                      cmd,
+                      check=True,
+                      text=True,
+                      capture_output=True,
+                  )
+              except subprocess.CalledProcessError as exc:
+                  stderr = (exc.stderr or '').strip()
+                  stdout = (exc.stdout or '').strip()
+                  details = stderr or stdout or 'no stderr/stdout captured'
+                  raise SystemExit(
+                      f'AWS CodeArtifact copy failed for {package} {version}: {details}'
+                  ) from exc
               payload = json.loads(result.stdout or '{}')
               failed = payload.get('failedVersions') or {}
               unexpected = {
