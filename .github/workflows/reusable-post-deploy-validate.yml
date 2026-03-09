@@ -7,14 +7,19 @@ on:
         description: Canonical base URL to validate (e.g. https://api.example.com).
         required: false
         type: string
-      service_base_url:
-        description: Legacy alias for validation_base_url.
+      auth_validation_base_url:
+        description: Optional auth API base URL to validate alongside the file API.
         required: false
         type: string
       validation_canonical_paths:
         description: Comma-delimited canonical paths that must resolve (non-404 and <500).
         required: false
         default: /v1/health/live,/v1/health/ready,/metrics/summary,/v1/capabilities,/v1/releases/info
+        type: string
+      auth_validation_canonical_paths:
+        description: Comma-delimited auth canonical paths. METHOD:/path is supported.
+        required: false
+        default: GET:/v1/health/live,GET:/v1/health/ready,POST:/v1/token/verify,POST:/v1/token/introspect
         type: string
       validation_legacy_404_paths:
         description: Comma-delimited legacy paths that must return 404.
@@ -54,8 +59,9 @@ jobs:
       artifact_name: ${{ steps.set-outputs.outputs.artifact_name }}
     env:
       VALIDATION_BASE_URL: ${{ inputs.validation_base_url }}
-      SERVICE_BASE_URL: ${{ inputs.service_base_url }}
+      AUTH_VALIDATION_BASE_URL: ${{ inputs.auth_validation_base_url }}
       VALIDATION_CANONICAL_PATHS: ${{ inputs.validation_canonical_paths }}
+      AUTH_VALIDATION_CANONICAL_PATHS: ${{ inputs.auth_validation_canonical_paths }}
       VALIDATION_LEGACY_404_PATHS: ${{ inputs.validation_legacy_404_paths }}
     steps:
       - uses: actions/checkout@v4

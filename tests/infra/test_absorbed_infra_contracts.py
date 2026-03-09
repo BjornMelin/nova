@@ -744,7 +744,7 @@ def test_nova_ci_cd_validation_env_contracts() -> None:
         "ValidationCanonicalPaths:",
         "ValidationLegacy404Paths:",
         '"name":"VALIDATION_BASE_URL"',
-        '"name":"SERVICE_BASE_URL"',
+        '"name":"AUTH_VALIDATION_BASE_URL"',
         '"name":"VALIDATION_CANONICAL_PATHS"',
         '"name":"VALIDATION_LEGACY_404_PATHS"',
     ]:
