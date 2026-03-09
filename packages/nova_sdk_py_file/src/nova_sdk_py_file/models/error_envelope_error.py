@@ -1,6 +1,3 @@
-# ruff: noqa
-"""Error envelope body model for file API SDK responses."""
-
 from __future__ import annotations
 
 from collections.abc import Mapping
@@ -9,7 +6,7 @@ from typing import TYPE_CHECKING, Any, TypeVar, cast
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
-from nova_sdk_py_file.types import UNSET, Unset
+from ..types import UNSET, Unset
 
 if TYPE_CHECKING:
     from ..models.error_envelope_error_details import ErrorEnvelopeErrorDetails
@@ -37,7 +34,6 @@ class ErrorEnvelopeError:
     )
 
     def to_dict(self) -> dict[str, Any]:
-        """Serialize this model to a JSON-compatible dict."""
         code = self.code
 
         message = self.message
@@ -69,7 +65,6 @@ class ErrorEnvelopeError:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        """Build this model from a JSON-compatible mapping."""
         from ..models.error_envelope_error_details import (
             ErrorEnvelopeErrorDetails,
         )

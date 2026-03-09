@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import time
 from typing import Any
 
@@ -18,6 +19,7 @@ from nova_file_api.errors import (
     FileTransferError,
     forbidden,
     invalid_request,
+    service_unavailable,
     unauthorized,
 )
 from nova_file_api.models import AuthMode, Principal
@@ -40,6 +42,7 @@ class Authenticator:
             settings.oidc_verifier_thread_tokens
         )
         self._remote_client: httpx.AsyncClient | None = None
+        self._remote_client_lock = asyncio.Lock()
 
     async def authenticate(
         self,
@@ -89,7 +92,8 @@ class Authenticator:
 
         url = f"{base_url.rstrip('/')}/v1/health/ready"
         try:
-            response = await self._get_remote_client().get(url)
+            client = await self._get_remote_client()
+            response = await client.get(url)
         except httpx.HTTPError:
             return False
         return response.status_code == 200
@@ -189,9 +193,15 @@ class Authenticator:
             ),
         }
         try:
-            response = await self._get_remote_client().post(url, json=payload)
+            client = await self._get_remote_client()
+            response = await client.post(
+                url,
+                json=payload,
+            )
         except httpx.HTTPError as exc:
-            raise unauthorized("remote auth verification failed") from exc
+            raise service_unavailable(
+                "remote auth verification unavailable"
+            ) from exc
 
         if response.status_code != 200:
             raise _remote_auth_error(response=response)
@@ -238,15 +248,19 @@ class Authenticator:
             required_permissions=settings.default_required_permissions,
         )
 
-    def _get_remote_client(self) -> httpx.AsyncClient:
+    async def _get_remote_client(self) -> httpx.AsyncClient:
         client = self._remote_client
         if client is not None:
             return client
-        client = httpx.AsyncClient(
-            timeout=self._settings.remote_auth_timeout_seconds
-        )
-        self._remote_client = client
-        return client
+        async with self._remote_client_lock:
+            client = self._remote_client
+            if client is not None:
+                return client
+            client = httpx.AsyncClient(
+                timeout=self._settings.remote_auth_timeout_seconds
+            )
+            self._remote_client = client
+            return client
 
 
 def _extract_bearer_token(*, request: Request) -> str | None:
@@ -327,7 +341,11 @@ def _remote_auth_error(*, response: httpx.Response) -> FileTransferError:
     status_code = response.status_code
     if status_code == 403 and code == "unauthorized":
         code = "forbidden"
-    if status_code not in {401, 403}:
+    if status_code >= 500:
+        code = "auth_unavailable"
+        status_code = 503
+        message = "remote auth service unavailable"
+    elif status_code not in {401, 403}:
         status_code = 401
 
     headers: dict[str, str] = {}

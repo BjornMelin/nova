@@ -1,4 +1,3 @@
-# ruff: noqa
 from __future__ import annotations
 
 from collections.abc import Mapping
@@ -12,14 +11,13 @@ T = TypeVar("T", bound="JobEventData")
 
 @_attrs_define
 class JobEventData:
-    """Event payload map for asynchronous job events."""
+    """ """
 
     additional_properties: dict[str, Any] = _attrs_field(
         init=False, factory=dict
     )
 
     def to_dict(self) -> dict[str, Any]:
-        """Serialize this model to a JSON-compatible dict."""
 
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
@@ -28,7 +26,6 @@ class JobEventData:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        """Build this model from a JSON-compatible mapping."""
         d = dict(src_dict)
         job_event_data = cls()
 

@@ -1,11 +1,9 @@
-# ruff: noqa
 from __future__ import annotations
 
 from collections.abc import Mapping
 from typing import Any, TypeVar
 
 from attrs import define as _attrs_define
-from attrs import field as _attrs_field
 
 T = TypeVar("T", bound="PresignDownloadResponse")
 
@@ -24,7 +22,7 @@ class PresignDownloadResponse:
     bucket: str
     expires_in_seconds: int
     key: str
-    url: str = _attrs_field(repr=False)
+    url: str
 
     def to_dict(self) -> dict[str, Any]:
         bucket = self.bucket

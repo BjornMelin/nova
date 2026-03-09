@@ -110,8 +110,8 @@ ignore = ["D203", "D213"]
 
 [tool.ruff.lint.per-file-ignores]
 "**/tests/**/*.py" = ["D"]
-"packages/nova_sdk_py_auth/src/**/*.py" = ["D", "E501"]
-"packages/nova_sdk_py_file/src/**/*.py" = ["D", "E501"]
+"packages/nova_sdk_py_auth/src/**/*.py" = ["D", "E501", "SIM", "UP"]
+"packages/nova_sdk_py_file/src/**/*.py" = ["D", "E501", "SIM", "UP"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"

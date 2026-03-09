@@ -62,8 +62,7 @@ def workflow_api_changed(changed_files: list[str]) -> bool:
         if path in WORKFLOW_API_EXACT_PATHS:
             return True
         if any(
-            path.startswith(prefix)
-            for prefix in WORKFLOW_API_PATH_PREFIXES
+            path.startswith(prefix) for prefix in WORKFLOW_API_PATH_PREFIXES
         ):
             return True
     return False

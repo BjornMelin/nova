@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import structlog
-from fastapi import APIRouter
+from fastapi import APIRouter, Response
 
 from nova_file_api.dependencies import RequestContextDep
 from nova_file_api.errors import forbidden
@@ -123,6 +123,7 @@ async def health_live() -> HealthResponse:
 )
 async def health_ready(
     context: RequestContextDep,
+    response: Response,
 ) -> ReadinessResponse:
     """Return readiness checks for traffic-critical dependencies."""
     container = context.container
@@ -185,15 +186,15 @@ async def health_ready(
         and container.settings.idempotency_mode
         == IdempotencyMode.SHARED_REQUIRED
     )
-    return ReadinessResponse(
-        ok=(
-            checks["bucket_configured"]
-            and (not shared_cache_required or checks["shared_cache"])
-            and checks["job_queue"]
-            and checks["auth_dependency"]
-        ),
-        checks=checks,
+    is_ready = (
+        checks["bucket_configured"]
+        and (not shared_cache_required or checks["shared_cache"])
+        and checks["job_queue"]
+        and checks["auth_dependency"]
     )
+    if not checks["bucket_configured"]:
+        response.status_code = 503
+    return ReadinessResponse(ok=is_ready, checks=checks)
 
 
 @ops_router.get(

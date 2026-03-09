@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Sequence
 from contextlib import asynccontextmanager
 from typing import Any
 
@@ -17,6 +17,7 @@ from nova_runtime_support import (
     apply_operation_response_refs,
     canonical_error_content,
     configure_structlog,
+    ensure_error_envelope_schema,
     ensure_error_response_component,
     install_openapi_customizer,
     mark_operation_sdk_visibility,
@@ -36,10 +37,20 @@ from nova_file_api.routes import (
     v1_router,
 )
 
+_HIDDEN_FIELDS = {
+    "token",
+    "authorization",
+    "url",
+    "presigned_url",
+    "signature",
+}
 _OPENAPI_RESPONSE_DESCRIPTIONS = {
     "FileInvalidRequestResponse": "Canonical invalid-request response.",
     "FileUnauthorizedResponse": "Canonical unauthorized request response.",
     "FileForbiddenResponse": "Canonical forbidden request response.",
+    "FileIdempotencyConflictResponse": (
+        "Canonical idempotency-conflict response."
+    ),
     "FileQueueUnavailableResponse": "Canonical queue unavailable response.",
     "FileIdempotencyUnavailableResponse": (
         "Canonical idempotency-unavailable response."
@@ -56,6 +67,7 @@ _OPENAPI_OPERATION_RESPONSES = {
         "post": {
             "401": "FileUnauthorizedResponse",
             "403": "FileForbiddenResponse",
+            "409": "FileIdempotencyConflictResponse",
             "422": "FileInvalidRequestResponse",
             "503": "FileIdempotencyUnavailableResponse",
         }
@@ -136,6 +148,15 @@ _OPENAPI_OPERATION_RESPONSES = {
         }
     },
 }
+_HTTP_METHODS = {
+    "delete",
+    "get",
+    "head",
+    "options",
+    "patch",
+    "post",
+    "trace",
+}
 
 
 def _operation_id_from_route(route: APIRoute) -> str:
@@ -147,6 +168,29 @@ def _install_openapi_overrides(app: FastAPI) -> None:
     """Apply canonical error/visibility OpenAPI overrides."""
 
     def customize_openapi(schema: dict[str, Any]) -> None:
+        ensure_error_envelope_schema(schema)
+        components = schema.setdefault("components", {})
+        security_schemes = components.setdefault("securitySchemes", {})
+        security_schemes.setdefault(
+            "sessionAuth",
+            {
+                "type": "apiKey",
+                "in": "header",
+                "name": "X-Session-Id",
+                "description": "Session identifier header for caller context.",
+            },
+        )
+        security_schemes.setdefault(
+            "X-Worker-Token",
+            {
+                "type": "apiKey",
+                "in": "header",
+                "name": "X-Worker-Token",
+                "description": (
+                    "Worker token header for trusted job-worker calls."
+                ),
+            },
+        )
         for (
             component_name,
             description,
@@ -160,10 +204,52 @@ def _install_openapi_overrides(app: FastAPI) -> None:
             schema,
             response_component_names=_OPENAPI_OPERATION_RESPONSES,
         )
+        paths = schema.get("paths", {})
+        if isinstance(paths, dict):
+            health_ready = paths.get("/v1/health/ready", {})
+            if isinstance(health_ready, dict):
+                health_ready_get = health_ready.get("get")
+                if isinstance(health_ready_get, dict):
+                    responses = health_ready_get.setdefault("responses", {})
+                    if isinstance(responses, dict):
+                        responses["503"] = {
+                            "description": (
+                                "Service Unavailable - Readiness failed"
+                            ),
+                            "content": {
+                                "application/json": {
+                                    "schema": {
+                                        "$ref": "#/components/schemas/"
+                                        "ReadinessResponse"
+                                    }
+                                }
+                            },
+                        }
         replace_validation_error_responses(
             schema,
             response_component_name="FileInvalidRequestResponse",
         )
+        if isinstance(paths, dict):
+            for path, path_item in paths.items():
+                if not isinstance(path_item, dict):
+                    continue
+                for method, operation in path_item.items():
+                    if method not in _HTTP_METHODS or not isinstance(
+                        operation, dict
+                    ):
+                        continue
+                    responses = operation.get("responses")
+                    if not isinstance(responses, dict):
+                        continue
+                    if "401" not in responses and "403" not in responses:
+                        continue
+                    if (
+                        path == "/v1/internal/jobs/{job_id}/result"
+                        and method == "post"
+                    ):
+                        operation["security"] = [{"X-Worker-Token": []}]
+                    else:
+                        operation["security"] = [{"sessionAuth": []}]
         mark_operation_sdk_visibility(
             schema,
             path="/v1/internal/jobs/{job_id}/result",
@@ -171,6 +257,10 @@ def _install_openapi_overrides(app: FastAPI) -> None:
             visibility=SDK_VISIBILITY_INTERNAL,
         )
         prune_validation_error_schemas(schema)
+        schemas = components.get("schemas")
+        if isinstance(schemas, dict):
+            schemas.pop("HTTPValidationError", None)
+            schemas.pop("ValidationError", None)
 
     install_openapi_customizer(app, customizer=customize_openapi)
 
@@ -242,12 +332,13 @@ def create_app(*, container_override: AppContainer | None = None) -> FastAPI:
         request: Request,
         exc: RequestValidationError,
     ) -> JSONResponse:
+        validation_errors = _sanitize_validation_errors(errors=exc.errors())
         return JSONResponse(
             status_code=422,
             content=canonical_error_content(
                 code="invalid_request",
                 message="request validation failed",
-                details={"errors": exc.errors()},
+                details={"errors": validation_errors},
                 request_id=_request_id(request=request),
             ),
         )
@@ -275,3 +366,53 @@ def create_app(*, container_override: AppContainer | None = None) -> FastAPI:
 
 def _request_id(*, request: Request) -> str | None:
     return request_id_from_request(request=request)
+
+
+def _sanitize_log_value(value: Any) -> Any:
+    """Redact nested sensitive values before they reach logs."""
+    if isinstance(value, dict):
+        output: dict[Any, Any] = {}
+        for key, item in value.items():
+            if isinstance(key, str) and key.lower() in _HIDDEN_FIELDS:
+                output[key] = "[REDACTED]"
+            else:
+                output[key] = _sanitize_log_value(item)
+        return output
+    if isinstance(value, list):
+        return [_sanitize_log_value(item) for item in value]
+    if isinstance(value, tuple):
+        return tuple(_sanitize_log_value(item) for item in value)
+    if isinstance(value, str):
+        lowered = value.lower()
+        if "x-amz-signature=" in lowered:
+            return "[REDACTED]"
+    return value
+
+
+def _redact_sensitive_fields(
+    _logger: Any,
+    _method_name: str,
+    event_dict: dict[str, Any],
+) -> dict[str, Any]:
+    """Redact top-level and nested sensitive logging fields."""
+    output: dict[str, Any] = {}
+    for key, value in event_dict.items():
+        if key.lower() in _HIDDEN_FIELDS:
+            output[key] = "[REDACTED]"
+        else:
+            output[key] = _sanitize_log_value(value)
+    return output
+
+
+def _sanitize_validation_errors(
+    *,
+    errors: Sequence[Any],
+) -> list[Any]:
+    """Return validation errors with nested sensitive values redacted."""
+    sanitized: list[Any] = []
+    for error in errors:
+        if isinstance(error, dict):
+            sanitized.append(_sanitize_log_value(error))
+        else:
+            sanitized.append(error)
+    return sanitized

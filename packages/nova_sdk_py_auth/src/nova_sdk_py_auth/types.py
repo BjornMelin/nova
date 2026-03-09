@@ -1,7 +1,7 @@
-# ruff: noqa
 """Contains some shared types for properties"""
 
 from collections.abc import Mapping, MutableMapping
+from http import HTTPStatus
 from typing import IO, BinaryIO, Generic, Literal, TypeVar
 
 from attrs import define
@@ -45,7 +45,7 @@ T = TypeVar("T")
 class Response(Generic[T]):
     """A response from an endpoint"""
 
-    status_code: int
+    status_code: HTTPStatus
     content: bytes
     headers: MutableMapping[str, str]
     parsed: T | None

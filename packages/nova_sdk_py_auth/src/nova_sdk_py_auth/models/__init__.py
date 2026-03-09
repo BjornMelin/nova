@@ -1,5 +1,8 @@
 """Contains all the data models used in inputs/outputs"""
 
+from .error_envelope import ErrorEnvelope
+from .error_envelope_error import ErrorEnvelopeError
+from .error_envelope_error_details import ErrorEnvelopeErrorDetails
 from .health_response import HealthResponse
 from .principal import Principal
 from .token_introspect_form_request import TokenIntrospectFormRequest
@@ -11,6 +14,9 @@ from .token_verify_response import TokenVerifyResponse
 from .token_verify_response_claims import TokenVerifyResponseClaims
 
 __all__ = (
+    "ErrorEnvelope",
+    "ErrorEnvelopeError",
+    "ErrorEnvelopeErrorDetails",
     "HealthResponse",
     "Principal",
     "TokenIntrospectFormRequest",

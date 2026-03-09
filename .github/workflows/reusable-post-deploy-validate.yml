@@ -70,10 +70,10 @@ jobs:
         run: |
           set -euo pipefail
           if [[ -z "${{ inputs.validation_base_url }}" ]] \
-            && [[ -z "${{ inputs.service_base_url }}" ]] \
+            && [[ -z "${{ inputs.auth_validation_base_url }}" ]] \
             && [[ -z "${{ github.event.inputs.validation_base_url }}" ]] \
-            && [[ -z "${{ github.event.inputs.service_base_url }}" ]]; then
-            echo "Either validation_base_url or service_base_url must be provided." >&2
+            && [[ -z "${{ github.event.inputs.auth_validation_base_url }}" ]]; then
+            echo "Provide validation_base_url and/or auth_validation_base_url." >&2
             exit 1
           fi
 

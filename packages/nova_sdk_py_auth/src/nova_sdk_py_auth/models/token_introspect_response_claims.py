@@ -1,4 +1,3 @@
-# ruff: noqa
 from __future__ import annotations
 
 from collections.abc import Mapping
@@ -12,7 +11,7 @@ T = TypeVar("T", bound="TokenIntrospectResponseClaims")
 
 @_attrs_define
 class TokenIntrospectResponseClaims:
-    """Generated API client symbol."""
+    """ """
 
     additional_properties: dict[str, Any] = _attrs_field(
         init=False, factory=dict

@@ -4,9 +4,6 @@ new_nova_file_client <- function(base_url, timeout_seconds = 30) {
   if (!is.character(base_url) || length(base_url) != 1L || !nzchar(base_url)) {
     stop("base_url must be a non-empty string", call. = FALSE)
   }
-  if (is.null(timeout_seconds) || !is.numeric(timeout_seconds) || length(timeout_seconds) != 1L || is.na(timeout_seconds) || !is.finite(timeout_seconds) || timeout_seconds <= 0) {
-    stop("timeout_seconds must be a finite positive number", call. = FALSE)
-  }
   structure(
     list(
       base_url = sub("/+$", "", base_url),
@@ -33,10 +30,6 @@ nova_file_request_descriptor <- function(client, operation_id, path_params = lis
         fixed = TRUE
       )
     }
-  }
-  missing_path_params <- regmatches(resolved_path, gregexpr("\\{[^}]+\\}", resolved_path, perl = TRUE))[[1]]
-  if (length(missing_path_params) > 0L) {
-    stop(sprintf("missing path parameter(s) for %s: %s", operation_id, paste(missing_path_params, collapse = ", ")), call. = FALSE)
   }
 
   list(

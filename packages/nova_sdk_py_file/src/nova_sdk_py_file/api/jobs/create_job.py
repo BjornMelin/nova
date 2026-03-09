@@ -7,6 +7,7 @@ from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.enqueue_job_request import EnqueueJobRequest
 from ...models.enqueue_job_response import EnqueueJobResponse
+from ...models.error_envelope import ErrorEnvelope
 from ...types import UNSET, Response, Unset
 
 
@@ -34,11 +35,31 @@ def _get_kwargs(
 
 def _parse_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> EnqueueJobResponse | None:
+) -> EnqueueJobResponse | ErrorEnvelope | None:
     if response.status_code == 200:
         response_200 = EnqueueJobResponse.from_dict(response.json())
 
         return response_200
+
+    if response.status_code == 401:
+        response_401 = ErrorEnvelope.from_dict(response.json())
+
+        return response_401
+
+    if response.status_code == 403:
+        response_403 = ErrorEnvelope.from_dict(response.json())
+
+        return response_403
+
+    if response.status_code == 422:
+        response_422 = ErrorEnvelope.from_dict(response.json())
+
+        return response_422
+
+    if response.status_code == 503:
+        response_503 = ErrorEnvelope.from_dict(response.json())
+
+        return response_503
 
     if client.raise_on_unexpected_status:
         raise errors.UnexpectedStatus(response.status_code, response.content)
@@ -48,7 +69,7 @@ def _parse_response(
 
 def _build_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> Response[EnqueueJobResponse]:
+) -> Response[EnqueueJobResponse | ErrorEnvelope]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -59,10 +80,10 @@ def _build_response(
 
 def sync_detailed(
     *,
-    client: AuthenticatedClient | Client,
+    client: AuthenticatedClient,
     body: EnqueueJobRequest,
     idempotency_key: None | str | Unset = UNSET,
-) -> Response[EnqueueJobResponse]:
+) -> Response[EnqueueJobResponse | ErrorEnvelope]:
     """Create Job
 
      Enqueue async processing job and return job id.
@@ -76,7 +97,7 @@ def sync_detailed(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[EnqueueJobResponse]
+        Response[EnqueueJobResponse | ErrorEnvelope]
     """
 
     kwargs = _get_kwargs(
@@ -93,10 +114,10 @@ def sync_detailed(
 
 def sync(
     *,
-    client: AuthenticatedClient | Client,
+    client: AuthenticatedClient,
     body: EnqueueJobRequest,
     idempotency_key: None | str | Unset = UNSET,
-) -> EnqueueJobResponse | None:
+) -> EnqueueJobResponse | ErrorEnvelope | None:
     """Create Job
 
      Enqueue async processing job and return job id.
@@ -110,7 +131,7 @@ def sync(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        EnqueueJobResponse
+        EnqueueJobResponse | ErrorEnvelope
     """
 
     return sync_detailed(
@@ -122,10 +143,10 @@ def sync(
 
 async def asyncio_detailed(
     *,
-    client: AuthenticatedClient | Client,
+    client: AuthenticatedClient,
     body: EnqueueJobRequest,
     idempotency_key: None | str | Unset = UNSET,
-) -> Response[EnqueueJobResponse]:
+) -> Response[EnqueueJobResponse | ErrorEnvelope]:
     """Create Job
 
      Enqueue async processing job and return job id.
@@ -139,7 +160,7 @@ async def asyncio_detailed(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[EnqueueJobResponse]
+        Response[EnqueueJobResponse | ErrorEnvelope]
     """
 
     kwargs = _get_kwargs(
@@ -154,10 +175,10 @@ async def asyncio_detailed(
 
 async def asyncio(
     *,
-    client: AuthenticatedClient | Client,
+    client: AuthenticatedClient,
     body: EnqueueJobRequest,
     idempotency_key: None | str | Unset = UNSET,
-) -> EnqueueJobResponse | None:
+) -> EnqueueJobResponse | ErrorEnvelope | None:
     """Create Job
 
      Enqueue async processing job and return job id.
@@ -171,7 +192,7 @@ async def asyncio(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        EnqueueJobResponse
+        EnqueueJobResponse | ErrorEnvelope
     """
 
     return (

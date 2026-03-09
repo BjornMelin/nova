@@ -1,4 +1,3 @@
-# ruff: noqa
 from __future__ import annotations
 
 from collections.abc import Mapping
@@ -6,7 +5,7 @@ from typing import Any, TypeVar, cast
 
 from attrs import define as _attrs_define
 
-from nova_sdk_py_file.types import UNSET, Unset
+from ..types import UNSET, Unset
 
 T = TypeVar("T", bound="SignPartsRequest")
 
@@ -30,7 +29,7 @@ class SignPartsRequest:
     def to_dict(self) -> dict[str, Any]:
         key = self.key
 
-        part_numbers = list(self.part_numbers)
+        part_numbers = self.part_numbers
 
         upload_id = self.upload_id
 

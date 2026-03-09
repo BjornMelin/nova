@@ -6,11 +6,11 @@ from typing import Any, TypeVar
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
-T = TypeVar("T", bound="CapabilityDescriptorDetails")
+T = TypeVar("T", bound="ErrorEnvelopeErrorDetails")
 
 
 @_attrs_define
-class CapabilityDescriptorDetails:
+class ErrorEnvelopeErrorDetails:
     """ """
 
     additional_properties: dict[str, Any] = _attrs_field(
@@ -27,10 +27,10 @@ class CapabilityDescriptorDetails:
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
-        capability_descriptor_details = cls()
+        error_envelope_error_details = cls()
 
-        capability_descriptor_details.additional_properties = d
-        return capability_descriptor_details
+        error_envelope_error_details.additional_properties = d
+        return error_envelope_error_details
 
     @property
     def additional_keys(self) -> list[str]:

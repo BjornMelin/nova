@@ -2,276 +2,242 @@
 
 Status: Active
 Owner: nova release architecture
-Last reviewed: 2026-03-05
+Last reviewed: 2026-03-06
 
 ## Purpose
 
-Deploy Nova runtime infrastructure stacks in a reproducible order for any AWS
-account/region, then produce the environment base URLs required by CI/CD
-pipeline stacks.
+Converge a Nova runtime environment to the final AWS module topology with one
+canonical operator path. This guide is the authority for `dev` and `prod`
+runtime deployment before CI/CD bootstrap and release promotion.
 
-## Scope
+## Canonical Path
 
-This guide covers runtime stacks under `infra/runtime/**` for `dev` and `prod`.
-It must be executed before CI/CD stack deployment guidance in:
-`deploy-nova-cicd-end-to-end-guide.md`.
+Use only:
 
-## Prerequisites
+```bash
+./scripts/release/deploy-runtime-cloudformation-environment.sh
+```
 
-1. AWS CLI v2 authenticated to target account and region.
-2. `jq` installed.
-3. Repository checkout at `${NOVA_REPO_ROOT}`.
-4. Permissions for CloudFormation create/update/execute + IAM pass role for
-   ECS/CodeDeploy roles + service permissions for ECS/ELB/S3/SQS/DynamoDB/KMS.
-5. Hosted zone ownership or delegated DNS update authority when using ALB DNS.
+Do not hand-stitch `infra/runtime/**` stacks ad hoc for live convergence, and
+do not treat `.github/workflows/reusable-deploy-runtime.yml` as a substitute
+for first-time or fix-forward runtime convergence. The reusable workflow is a
+CI orchestration surface; this operator script is the canonical environment
+convergence path.
 
-## Required Inputs
-
-Export these values before running commands:
-
-- `AWS_REGION`
-- `AWS_ACCOUNT_ID`
-- `PROJECT` (default `nova`)
-- `APPLICATION` (service family, for example `file-api`)
-- `CONTROL_PLANE_PROJECT` (default `nova`, used for base-url SSM marker stacks)
-- `CONTROL_PLANE_APPLICATION` (default `ci`, used for base-url SSM marker stacks)
-- `ENVIRONMENT` (`dev` or `prod`)
-- `NOVA_REPO_ROOT`
-- `VPC_ID`
-- `SUBNET_IDS` (comma-delimited subnet IDs used by ECS task ENIs)
-- `ALB_HOSTED_ZONE_NAME` (example `internal.example.com`)
-- `ALB_HOSTED_ZONE_ID` (optional Route53 hosted zone ID for cert DNS validation automation)
-- `ALB_DNS_NAME` (example `api-dev.internal.example.com`)
-- `ALB_NAME`
-- `ALB_SCHEME` (`internal` or `internet-facing`, default `internal`)
-- `ENABLE_ALB_ACCESS_LOGS` (`true` or `false`, default `false`)
-- `ALB_LOG_BUCKET` (required only when `ENABLE_ALB_ACCESS_LOGS=true`)
-- `ALB_INGRESS_PREFIX_LIST_ID` or `ALB_INGRESS_CIDR` or
-  `ALB_INGRESS_SOURCE_SG_ID` (exactly one is required)
-- `ECS_CLUSTER_NAME`
-- `SERVICE_NAME`
-- `SERVICE_DNS` (example `${SERVICE_NAME}.${ALB_HOSTED_ZONE_NAME}`)
-- `DOCKER_REPOSITORY_NAME`
-- `DOCKER_IMAGE_TAG` (immutable tag or digest label)
-- `TASK_ROLE_ARN`
-- `OWNER_TAG`
-- `ALARM_ACTION_ARN`
-- `ASSIGN_PUBLIC_IP` (`ENABLED` or `DISABLED`, default `DISABLED`)
-
-Network model requirements:
-
-- `ASSIGN_PUBLIC_IP=DISABLED`: use private subnets with NAT or required VPC
-  interface endpoints (for ECR/API dependencies).
-- `ASSIGN_PUBLIC_IP=ENABLED`: use subnet/routing that supports direct outbound
-  internet egress for task bootstrap.
-
-## Reproducible Deployment Sequence
-
-Deploy in this order for each environment:
+The script deploys exactly this module sequence for one environment:
 
 1. `infra/runtime/kms.yml`
 2. `infra/runtime/ecr.yml`
 3. `infra/runtime/ecs/cluster.yml`
 4. `infra/runtime/file_transfer/s3.yml`
 5. `infra/runtime/file_transfer/async.yml`
-6. `infra/runtime/file_transfer/cache.yml` (optional)
+6. `infra/runtime/file_transfer/cache.yml`
 7. `infra/runtime/ecs/service.yml`
-8. `infra/runtime/file_transfer/worker.yml` (optional)
-9. `infra/runtime/observability/ecs-observability-baseline.yml` (recommended)
+8. `infra/runtime/file_transfer/worker.yml`
+9. `infra/runtime/observability/ecs-observability-baseline.yml`
+10. `infra/nova/deploy/service-base-url-ssm.yml`
 
-Run the same sequence for `dev`, then `prod`, with environment-specific
-parameters and names.
+## Final-Release Runtime Guardrails
 
-## Change-Set-First Command Pattern
+The canonical script enforces the AWS release posture that matches active
+authority:
 
-Use this pattern for every stack to keep deployments reproducible and auditable:
+- `AssignPublicIp=DISABLED`
+- `IdempotencyMode=shared_required`
+- `FileTransferAsyncEnabled=true`
+- `FileTransferCacheEnabled=true`
+- deterministic rollback alarm names bound into the ECS service
+- change-set-first CloudFormation execution for every stack
+- base-url SSM marker update at `/nova/{env}/{service}/base-url`
 
-```bash
-STACK_NAME="${PROJECT}-${APPLICATION}-${ENVIRONMENT}-runtime-kms"
-CHANGE_SET="${STACK_NAME}-cs-$(date +%Y%m%d%H%M%S)"
+Additional hard guardrails:
 
-aws cloudformation deploy \
-  --region "${AWS_REGION}" \
-  --stack-name "${STACK_NAME}" \
-  --template-file "${NOVA_REPO_ROOT}/infra/runtime/kms.yml" \
-  --capabilities CAPABILITY_NAMED_IAM \
-  --no-execute-changeset \
-  --change-set-name "${CHANGE_SET}" \
-  --parameter-overrides \
-    Project="${PROJECT}"
+- Use private subnets with NAT or required interface/gateway endpoints. Do not
+  switch Nova release tasks to public-IP mode to compensate for missing
+  network prerequisites.
+- Use a dedicated runtime file-transfer bucket. Do not reuse the CI artifact bucket as the file-transfer bucket.
+- Public ALBs are allowed, but they must be protected by the runtime cluster
+  WebACL path from `infra/runtime/ecs/cluster.yml`.
+- Worker tasks intentionally remain `IDEMPOTENCY_MODE=local_only`; do not wire
+  shared-cache idempotency into the worker definition.
+- Worker stack deployment always requires
+  `JOBS_WORKER_UPDATE_TOKEN_SECRET_ARN`, even when `WORKER_DESIRED_COUNT=0`
+  and `WORKER_MIN_TASK_COUNT=0`.
+- Worker autoscaling uses queue-depth step scaling to bootstrap from zero,
+  react to sustained backlog, handle surge load, and scale in on sustained
+  emptiness. Queue age is retained as an operator alarm.
 
-aws cloudformation describe-change-set \
-  --region "${AWS_REGION}" \
-  --stack-name "${STACK_NAME}" \
-  --change-set-name "${CHANGE_SET}" \
-  --query '{Status:Status,ExecutionStatus:ExecutionStatus,Reason:StatusReason,Changes:length(Changes)}'
+## Prerequisites
 
-aws cloudformation execute-change-set \
-  --region "${AWS_REGION}" \
-  --stack-name "${STACK_NAME}" \
-  --change-set-name "${CHANGE_SET}"
+1. AWS CLI v2 authenticated to the target account and region.
+2. `jq` installed.
+3. Repository checkout available at `${NOVA_REPO_ROOT}`.
+4. CloudFormation/IAM/ECS/ELB/S3/SQS/DynamoDB/KMS/Secrets Manager permissions
+   for the target account.
+5. A valid task role ARN for the API service.
+6. A valid worker update token secret ARN for the queue worker callback path.
 
-aws cloudformation wait stack-update-complete \
-  --region "${AWS_REGION}" \
-  --stack-name "${STACK_NAME}" || \
-aws cloudformation wait stack-create-complete \
-  --region "${AWS_REGION}" \
-  --stack-name "${STACK_NAME}"
-```
+## Required Inputs
 
-## Cluster Stack Ingress Source Contract
+Export these values before running the script:
 
-`infra/runtime/ecs/cluster.yml` now requires exactly one of:
+- `AWS_REGION`
+- `PROJECT`
+- `APPLICATION`
+- `ENVIRONMENT`
+- `NOVA_REPO_ROOT`
+- `VPC_ID`
+- `SUBNET_IDS`
+- `ALB_NAME`
+- `ALB_HOSTED_ZONE_NAME`
+- `ALB_DNS_NAME`
+- exactly one of:
+  `ALB_INGRESS_PREFIX_LIST_ID`, `ALB_INGRESS_CIDR`,
+  `ALB_INGRESS_SOURCE_SG_ID`
+- `ECS_CLUSTER_NAME`
+- `SERVICE_NAME`
+- `SERVICE_DNS`
+- `DOCKER_REPOSITORY_NAME`
+- `DOCKER_IMAGE_TAG`
+- `TASK_ROLE_ARN`
+- `OWNER_TAG`
+- `ALARM_ACTION_ARN`
+- `FILE_TRANSFER_BUCKET_BASE_NAME`
+- `FILE_TRANSFER_CORS_ALLOWED_ORIGINS`
+- `JOBS_WORKER_UPDATE_TOKEN_SECRET_ARN`
 
-- `AlbIngressPrefixListId`
-- `AlbIngressCidr`
-- `AlbIngressSourceSecurityGroupId`
+Commonly overridden optional inputs:
 
-Additional cluster controls:
+- `CONTROL_PLANE_PROJECT` (default `nova`)
+- `CONTROL_PLANE_APPLICATION` (default `ci`)
+- `ALB_SCHEME` (`internet-facing` by default)
+- `ALB_HOSTED_ZONE_ID`
+- `ENABLE_ALB_ACCESS_LOGS`
+- `ALB_LOG_BUCKET`
+- `KMS_ALIAS`
+- `API_DESIRED_COUNT`
+- `API_TASK_CPU`
+- `API_TASK_MEMORY`
+- `WORKER_SERVICE_NAME`
+- `WORKER_DESIRED_COUNT`
+- `WORKER_MIN_TASK_COUNT`
+- `WORKER_MAX_TASK_COUNT`
+- `WORKER_SCALE_OUT_QUEUE_DEPTH_TARGET`
+- `WORKER_SCALE_OUT_QUEUE_AGE_SECONDS_TARGET`
+- `OBSERVABILITY_MIN_TASK_COUNT`
+- `OBSERVABILITY_MAX_TASK_COUNT`
 
-- `LoadBalancerScheme` supports `internal` or `internet-facing`.
-- `HostedZoneId` is optional; when provided, ACM validation records can be
-  provisioned automatically.
-- `EnableLoadBalancerAccessLogs=true` requires `LoadBalancerLogBucket`.
+The script derives the remaining runtime wiring from stack outputs, including:
 
-Example using CIDR:
+- KMS key ID/ARN/alias
+- file-transfer bucket name
+- async queue/table/activity ARNs and queue URL
+- cache URL secret ARN
+- ALB full name
+- blue target-group full name
+- runtime base URL
 
-```bash
-aws cloudformation deploy \
-  --region "${AWS_REGION}" \
-  --stack-name "${PROJECT}-${APPLICATION}-${ENVIRONMENT}-runtime-cluster" \
-  --template-file "${NOVA_REPO_ROOT}/infra/runtime/ecs/cluster.yml" \
-  --capabilities CAPABILITY_NAMED_IAM \
-  --parameter-overrides \
-    Project="${PROJECT}" \
-    Application="${APPLICATION}" \
-    EcsClusterName="${ECS_CLUSTER_NAME}" \
-    LoadBalancerId="dash" \
-    LoadBalancerName="${ALB_NAME}" \
-    LoadBalancerScheme="${ALB_SCHEME}" \
-    HostedZoneName="${ALB_HOSTED_ZONE_NAME}" \
-    HostedZoneId="${ALB_HOSTED_ZONE_ID}" \
-    LoadBalancerDNSName="${ALB_DNS_NAME}" \
-    EnableLoadBalancerAccessLogs="${ENABLE_ALB_ACCESS_LOGS:-false}" \
-    VpcId="${VPC_ID}" \
-    SubnetList="${SUBNET_IDS}" \
-    AlbIngressCidr="${ALB_INGRESS_CIDR}" \
-    LoadBalancerLogBucket="${ALB_LOG_BUCKET}" \
-    ImportKmsKeyId="${AWS_ACCOUNT_ID}:${AWS_REGION}:${PROJECT}:KmsKeyId"
-```
+## Canonical Invocation
 
-## Service Stack Example
+Run once for `dev`, then once for `prod`.
 
-`infra/runtime/ecs/service.yml` contract notes:
-
-- `AssignPublicIp` defaults to `DISABLED`; use `ENABLED` only when required by
-  subnet/network architecture.
-- If `FileTransferEnabled=true`, `FileTransferBucketName` must be provided.
-
-```bash
-aws cloudformation deploy \
-  --region "${AWS_REGION}" \
-  --stack-name "${PROJECT}-${APPLICATION}-${ENVIRONMENT}-runtime-service" \
-  --template-file "${NOVA_REPO_ROOT}/infra/runtime/ecs/service.yml" \
-  --capabilities CAPABILITY_NAMED_IAM \
-  --parameter-overrides \
-    Environment="${ENVIRONMENT}" \
-    Project="${PROJECT}" \
-    Application="${APPLICATION}" \
-    Service="${SERVICE_NAME}" \
-    EcsClusterName="${ECS_CLUSTER_NAME}" \
-    LoadBalancerName="${ALB_NAME}" \
-    DockerRepoName="${DOCKER_REPOSITORY_NAME}" \
-    DockerImageTag="${DOCKER_IMAGE_TAG}" \
-    VpcId="${VPC_ID}" \
-    SubnetList="${SUBNET_IDS}" \
-    AssignPublicIp="${ASSIGN_PUBLIC_IP:-DISABLED}" \
-    TaskRole="${TASK_ROLE_ARN}" \
-    ServiceDNS="${SERVICE_DNS}" \
-    ListenerRulePriority="100" \
-    AlarmArn="${ALARM_ACTION_ARN}" \
-    Owner="${OWNER_TAG}"
-```
-
-## Capture Runtime Outputs for CI/CD
-
-After successful service deployment, record base URLs for pipeline validation:
+Example:
 
 ```bash
-DEV_LOAD_BALANCER_DNS="$(aws cloudformation describe-stacks \
-  --region "${AWS_REGION}" \
-  --stack-name "${PROJECT}-${APPLICATION}-dev-runtime-cluster" \
-  --query "Stacks[0].Outputs[?OutputKey=='LoadBalancerDnsName'].OutputValue | [0]" \
-  --output text)"
-DEV_BASE_URL="https://${DEV_LOAD_BALANCER_DNS}"
+export AWS_REGION="us-east-1"
+export PROJECT="nova"
+export APPLICATION="file-api"
+export ENVIRONMENT="dev"
+export NOVA_REPO_ROOT="${PWD}"
+export VPC_ID="vpc-0123456789abcdef0"
+export SUBNET_IDS="subnet-aaaa1111,subnet-bbbb2222"
+export ALB_NAME="nova-fileapi-dev-alb-public"
+export ALB_HOSTED_ZONE_NAME="bjornmelin.io"
+export ALB_DNS_NAME="api-dev-nova.bjornmelin.io"
+export ALB_INGRESS_CIDR="0.0.0.0/0"
+export ECS_CLUSTER_NAME="nova-file-api-dev"
+export SERVICE_NAME="nova-file-api-dev"
+export SERVICE_DNS="api-dev-nova.bjornmelin.io"
+export DOCKER_REPOSITORY_NAME="nova-file-api"
+export DOCKER_IMAGE_TAG="sha-RELEASE_DIGEST"
+export TASK_ROLE_ARN="arn:aws:iam::123456789012:role/nova-file-api-nova-file-api-dev-ecs-task-us-east-1"
+export OWNER_TAG="nova-release"
+export ALARM_ACTION_ARN="arn:aws:sns:us-east-1:123456789012:nova-alarms"
+export FILE_TRANSFER_BUCKET_BASE_NAME="nova-file-api-dev-transfer"
+export FILE_TRANSFER_CORS_ALLOWED_ORIGINS="https://dash-dev.example.com"
+export JOBS_WORKER_UPDATE_TOKEN_SECRET_ARN="arn:aws:secretsmanager:us-east-1:123456789012:secret:nova/dev/jobs-worker-token"
 
-PROD_LOAD_BALANCER_DNS="$(aws cloudformation describe-stacks \
-  --region "${AWS_REGION}" \
-  --stack-name "${PROJECT}-${APPLICATION}-prod-runtime-cluster" \
-  --query "Stacks[0].Outputs[?OutputKey=='LoadBalancerDnsName'].OutputValue | [0]" \
-  --output text)"
-PROD_BASE_URL="https://${PROD_LOAD_BALANCER_DNS}"
-
-echo "DEV_BASE_URL=${DEV_BASE_URL}"
-echo "PROD_BASE_URL=${PROD_BASE_URL}"
+./scripts/release/deploy-runtime-cloudformation-environment.sh
 ```
 
-Persist these values to SSM for CI/CD authority:
+## What the Script Enforces
 
-Canonical stack ownership rule:
+The script performs these checks before any change-set execution:
 
-- Use only the CI control-plane stack pair to manage base-url parameters.
-- Do not create additional stack names that manage the same parameter paths.
+- required environment inputs are present
+- exactly one ALB ingress source is provided
+- `ENVIRONMENT` is `dev` or `prod`
+- `ALB_SCHEME` is valid
+- the CI artifact bucket, if discoverable, is not reused as the runtime
+  transfer bucket
+- `ECS_INFRASTRUCTURE_ROLE_ARN` is either provided directly or resolved from
+  `${CONTROL_PLANE_PROJECT}-${CONTROL_PLANE_APPLICATION}-nova-iam-roles`
 
-```bash
-aws cloudformation deploy \
-  --region "${AWS_REGION}" \
-  --stack-name "${CONTROL_PLANE_PROJECT:-nova}-${CONTROL_PLANE_APPLICATION:-ci}-dev-service-base-url" \
-  --template-file "${NOVA_REPO_ROOT}/infra/nova/deploy/service-base-url-ssm.yml" \
-  --parameter-overrides \
-    Environment="dev" \
-    ServiceName="${SERVICE_NAME}" \
-    ServiceBaseUrl="${DEV_BASE_URL}"
+During deployment, the script:
 
-aws cloudformation deploy \
-  --region "${AWS_REGION}" \
-  --stack-name "${CONTROL_PLANE_PROJECT:-nova}-${CONTROL_PLANE_APPLICATION:-ci}-prod-service-base-url" \
-  --template-file "${NOVA_REPO_ROOT}/infra/nova/deploy/service-base-url-ssm.yml" \
-  --parameter-overrides \
-    Environment="prod" \
-    ServiceName="${SERVICE_NAME}" \
-    ServiceBaseUrl="${PROD_BASE_URL}"
-```
-
-`scripts/release/day-0-operator-command-pack.sh` resolves these parameters from
-`/nova/{env}/${SERVICE_NAME}/base-url` and fails fast on missing/invalid values.
+- creates a named change set per stack
+- inspects CloudFormation validation events before execution
+- skips empty change sets without failing the full run
+- waits for each stack to finish before continuing
+- publishes the canonical base URL for the service into the CI-controlled SSM
+  parameter stack
 
 ## Verification
 
-Run after each environment deployment:
+Run after each environment convergence:
 
 ```bash
-aws ecs list-clusters --region "${AWS_REGION}"
-aws elbv2 describe-load-balancers --region "${AWS_REGION}" --names "${ALB_NAME}"
-aws cloudformation list-stacks --region "${AWS_REGION}" \
+aws cloudformation list-stacks \
+  --region "${AWS_REGION}" \
   --stack-status-filter CREATE_COMPLETE UPDATE_COMPLETE
+
+aws ecs describe-services \
+  --region "${AWS_REGION}" \
+  --cluster "${ECS_CLUSTER_NAME}" \
+  --services "${PROJECT}-${APPLICATION}-${SERVICE_NAME}" \
+  --query 'services[0].{deploymentController:deploymentController.type,strategy:deploymentConfiguration.strategy,assignPublicIp:networkConfiguration.awsvpcConfiguration.assignPublicIp}'
+
+aws ssm get-parameter \
+  --region "${AWS_REGION}" \
+  --name "/nova/${ENVIRONMENT}/${SERVICE_NAME}/base-url"
 ```
 
-## References
+Expected release posture:
 
-- Requirements baseline (`requirements.md`):
-  [../../architecture/requirements.md](../../architecture/requirements.md)
-- ADR-0023 hard-cut canonical route surface:
-  [../../architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md](../../architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md)
-- SPEC-0000 HTTP API contract:
-  [../../architecture/spec/SPEC-0000-http-api-contract.md](../../architecture/spec/SPEC-0000-http-api-contract.md)
-- SPEC-0016 v1 route namespace and literal guardrails:
-  [../../architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md](../../architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md)
-- CloudFormation Parameters:
-  <https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/parameters-section-structure.html>
-- CloudFormation Fn::ImportValue restrictions:
-  <https://docs.aws.amazon.com/AWSCloudFormation/latest/TemplateReference/intrinsic-function-reference-importvalue.html>
-- CloudFormation best practices:
-  <https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/best-practices.html>
-- CodeDeploy ECS service role:
-  <https://docs.aws.amazon.com/AmazonECS/latest/developerguide/codedeploy_IAM_role.html>
+- `deploymentController.type = ECS`
+- `deploymentConfiguration.strategy = BLUE_GREEN`
+- `assignPublicIp = DISABLED`
+- runtime stack inventory includes `kms`, `ecr`, `cluster`, `s3`, `async`,
+  `cache`, `service`, `worker`, and `observability`
+
+## Relationship to CI/CD Bootstrap
+
+This runtime convergence guide must be completed for both `dev` and `prod`
+before:
+
+- [day-0-operator-checklist.md](day-0-operator-checklist.md)
+- [deploy-nova-cicd-end-to-end-guide.md](deploy-nova-cicd-end-to-end-guide.md)
+- [release-promotion-dev-to-prod-guide.md](release-promotion-dev-to-prod-guide.md)
+
+The CI/CD command pack depends on the SSM base-url markers this script writes.
+
+## AWS References
+
+- CloudFormation pre-deployment validation:
+  <https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/validate-stack-deployments.html>
+- Amazon ECS infrastructure IAM role for load balancers:
+  <https://docs.aws.amazon.com/AmazonECS/latest/developerguide/AmazonECSInfrastructureRolePolicyForLoadBalancers.html>
+- ECS deployment alarms:
+  <https://docs.aws.amazon.com/AWSCloudFormation/latest/TemplateReference/aws-properties-ecs-service-deploymentalarms.html>
+- ECS blue/green deployment workflow:
+  <https://docs.aws.amazon.com/AmazonECS/latest/developerguide/blue-green-deployment-how-it-works.html>

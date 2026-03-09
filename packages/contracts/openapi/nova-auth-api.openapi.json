@@ -43,6 +43,41 @@
       }
     },
     "schemas": {
+      "ErrorEnvelope": {
+        "additionalProperties": false,
+        "properties": {
+          "error": {
+            "additionalProperties": true,
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "details": {
+                "type": "object"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "title": "ErrorEnvelope",
+        "type": "object"
+      },
       "HealthResponse": {
         "additionalProperties": false,
         "description": "Health check response payload.",
@@ -79,6 +114,7 @@
             "items": {
               "type": "string"
             },
+            "maxItems": 256,
             "title": "Permissions",
             "type": "array"
           },
@@ -91,6 +127,7 @@
             "items": {
               "type": "string"
             },
+            "maxItems": 256,
             "title": "Scopes",
             "type": "array"
           },
@@ -131,6 +168,7 @@
             "items": {
               "type": "string"
             },
+            "maxItems": 256,
             "title": "Required Permissions",
             "type": "array"
           },
@@ -139,6 +177,7 @@
             "items": {
               "type": "string"
             },
+            "maxItems": 256,
             "title": "Required Scopes",
             "type": "array"
           }
@@ -163,6 +202,7 @@
             "items": {
               "type": "string"
             },
+            "maxItems": 256,
             "title": "Required Permissions",
             "type": "array"
           },
@@ -171,6 +211,7 @@
             "items": {
               "type": "string"
             },
+            "maxItems": 256,
             "title": "Required Scopes",
             "type": "array"
           }
@@ -225,6 +266,7 @@
             "items": {
               "type": "string"
             },
+            "maxItems": 256,
             "title": "Required Permissions",
             "type": "array"
           },
@@ -233,6 +275,7 @@
             "items": {
               "type": "string"
             },
+            "maxItems": 256,
             "title": "Required Scopes",
             "type": "array"
           }
@@ -263,11 +306,18 @@
         "title": "TokenVerifyResponse",
         "type": "object"
       }
+    },
+    "securitySchemes": {
+      "bearerAuth": {
+        "bearerFormat": "JWT",
+        "scheme": "bearer",
+        "type": "http"
+      }
     }
   },
   "info": {
     "title": "nova-auth-api",
-    "version": "0.3.0"
+    "version": "0.4.0"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -356,12 +406,16 @@
           },
           "422": {
             "$ref": "#/components/responses/AuthInvalidRequestResponse"
+          },
+          "503": {
+            "$ref": "#/components/responses/AuthServiceUnavailableResponse"
           }
         },
         "summary": "Introspect Token",
         "tags": [
           "token"
-        ]
+        ],
+        "x-auth-not-required": "Auth-validation endpoint; bearerAuth is intentionally not required."
       }
     },
     "/v1/token/verify": {
@@ -397,12 +451,16 @@
           },
           "422": {
             "$ref": "#/components/responses/AuthInvalidRequestResponse"
+          },
+          "503": {
+            "$ref": "#/components/responses/AuthServiceUnavailableResponse"
           }
         },
         "summary": "Verify Token",
         "tags": [
           "token"
-        ]
+        ],
+        "x-auth-not-required": "Auth-validation endpoint; bearerAuth is intentionally not required."
       }
     }
   }

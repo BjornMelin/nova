@@ -6,11 +6,11 @@ from typing import Any, TypeVar
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
-T = TypeVar("T", bound="CapabilityDescriptorDetails")
+T = TypeVar("T", bound="JobResultUpdateRequestResultType0")
 
 
 @_attrs_define
-class CapabilityDescriptorDetails:
+class JobResultUpdateRequestResultType0:
     """ """
 
     additional_properties: dict[str, Any] = _attrs_field(
@@ -27,10 +27,10 @@ class CapabilityDescriptorDetails:
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
-        capability_descriptor_details = cls()
+        job_result_update_request_result_type_0 = cls()
 
-        capability_descriptor_details.additional_properties = d
-        return capability_descriptor_details
+        job_result_update_request_result_type_0.additional_properties = d
+        return job_result_update_request_result_type_0
 
     @property
     def additional_keys(self) -> list[str]:

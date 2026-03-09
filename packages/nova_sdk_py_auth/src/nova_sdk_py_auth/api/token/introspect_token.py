@@ -1,21 +1,15 @@
-# ruff: noqa
+from http import HTTPStatus
 from typing import Any
 
 import httpx
 
-from nova_sdk_py_auth import errors
-from nova_sdk_py_auth.client import AuthenticatedClient, Client
-from nova_sdk_py_auth.models.error_envelope import ErrorEnvelope
-from nova_sdk_py_auth.models.token_introspect_form_request import (
-    TokenIntrospectFormRequest,
-)
-from nova_sdk_py_auth.models.token_introspect_request import (
-    TokenIntrospectRequest,
-)
-from nova_sdk_py_auth.models.token_introspect_response import (
-    TokenIntrospectResponse,
-)
-from nova_sdk_py_auth.types import UNSET, Response, Unset
+from ... import errors
+from ...client import AuthenticatedClient, Client
+from ...models.error_envelope import ErrorEnvelope
+from ...models.token_introspect_form_request import TokenIntrospectFormRequest
+from ...models.token_introspect_request import TokenIntrospectRequest
+from ...models.token_introspect_response import TokenIntrospectResponse
+from ...types import UNSET, Response, Unset
 
 
 def _get_kwargs(
@@ -33,7 +27,7 @@ def _get_kwargs(
         _kwargs["json"] = body.to_dict()
 
         headers["Content-Type"] = "application/json"
-    elif isinstance(body, TokenIntrospectFormRequest):
+    if isinstance(body, TokenIntrospectFormRequest):
         _kwargs["data"] = body.to_dict()
 
         headers["Content-Type"] = "application/x-www-form-urlencoded"
@@ -80,7 +74,7 @@ def _build_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
 ) -> Response[ErrorEnvelope | TokenIntrospectResponse]:
     return Response(
-        status_code=response.status_code,
+        status_code=HTTPStatus(response.status_code),
         content=response.content,
         headers=response.headers,
         parsed=_parse_response(client=client, response=response),
@@ -97,7 +91,8 @@ def sync_detailed(
      Introspect token and return active status plus claim details.
 
     Args:
-        body (TokenIntrospectRequest | TokenIntrospectFormRequest | Unset): Request payload for token introspection.
+        body (TokenIntrospectRequest): Request payload for token introspection.
+        body (TokenIntrospectFormRequest): Request payload for token introspection.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -128,7 +123,8 @@ def sync(
      Introspect token and return active status plus claim details.
 
     Args:
-        body (TokenIntrospectRequest | TokenIntrospectFormRequest | Unset): Request payload for token introspection.
+        body (TokenIntrospectRequest): Request payload for token introspection.
+        body (TokenIntrospectFormRequest): Request payload for token introspection.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -154,7 +150,8 @@ async def asyncio_detailed(
      Introspect token and return active status plus claim details.
 
     Args:
-        body (TokenIntrospectRequest | TokenIntrospectFormRequest | Unset): Request payload for token introspection.
+        body (TokenIntrospectRequest): Request payload for token introspection.
+        body (TokenIntrospectFormRequest): Request payload for token introspection.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -183,7 +180,8 @@ async def asyncio(
      Introspect token and return active status plus claim details.
 
     Args:
-        body (TokenIntrospectRequest | TokenIntrospectFormRequest | Unset): Request payload for token introspection.
+        body (TokenIntrospectRequest): Request payload for token introspection.
+        body (TokenIntrospectFormRequest): Request payload for token introspection.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.

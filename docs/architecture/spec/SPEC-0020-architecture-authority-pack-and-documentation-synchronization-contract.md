@@ -1,82 +1,110 @@
 ---
 Spec: 0020
-Title: Rollout and validation strategy
+Title: Architecture authority pack and documentation synchronization contract
 Status: Active
-Version: 1.2
+Version: 2.0
 Date: 2026-03-05
 Related:
-  - "[ADR-0023: Hard cut to a single canonical /v1 API surface](../adr/ADR-0023-hard-cut-v1-canonical-route-surface.md)"
-  - "[SPEC-0000: HTTP API Contract](./SPEC-0000-http-api-contract.md)"
-  - "[SPEC-0016: Hard-cut v1 route contract and route-literal guardrails](./SPEC-0016-v1-route-namespace-and-literal-guardrails.md)"
-  - "[requirements.md](../requirements.md)"
-  - "[ADR-0024: Native-CFN modular stack architecture for Nova infrastructure productization](../adr/ADR-0024-layered-architecture-authority-pack.md)"
-  - "[ADR-0026: OIDC and IAM role partitioning for deploy automation](../adr/ADR-0026-oidc-iam-role-partitioning-for-deploy-automation.md)"
-  - "[ADR-0029: SSM runtime base URL authority for deploy validation](../adr/ADR-0029-ssm-runtime-base-url-authority-for-deploy-validation.md)"
-  - "[SPEC-0017: CloudFormation module contract](./SPEC-0017-runtime-component-topology-and-ownership-contract.md)"
-  - "[SPEC-0018: Reusable workflow integration contract](./SPEC-0018-runtime-configuration-and-startup-validation-contract.md)"
-  - "[SPEC-0019: CI/CD IAM least-privilege and role-boundary contract](./SPEC-0019-auth-execution-and-threadpool-safety-contract.md)"
-  - "[SPEC-0023: SSM runtime base-url contract for deploy validation](./SPEC-0023-ssm-runtime-base-url-contract-for-deploy-validation.md)"
+  - "[ADR-0024: Layered runtime authority pack for the Nova monorepo](../adr/ADR-0024-layered-architecture-authority-pack.md)"
+  - "[ADR-0030: Native-CFN modular stack architecture for Nova infrastructure productization](../adr/ADR-0030-native-cfn-modular-stack-architecture-for-nova-infrastructure-productization.md)"
+  - "[ADR-0031: Reusable GitHub workflow API and versioning policy for deployment automation](../adr/ADR-0031-reusable-github-workflow-api-and-versioning-policy-for-deployment-automation.md)"
+  - "[ADR-0032: OIDC and IAM role partitioning for deploy automation](../adr/ADR-0032-oidc-and-iam-role-partitioning-for-deploy-automation.md)"
+  - "[SPEC-0015: Nova API platform final topology and delivery contract](./SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md)"
+  - "[SPEC-0024: CloudFormation module contract](./SPEC-0024-cloudformation-module-contract.md)"
+  - "[SPEC-0025: Reusable workflow integration contract](./SPEC-0025-reusable-workflow-integration-contract.md)"
+  - "[SPEC-0026: CI/CD IAM least-privilege matrix](./SPEC-0026-ci-cd-iam-least-privilege-matrix.md)"
 ---
 
 ## 1. Scope
 
-Defines rollout sequencing, validation gates, and acceptance criteria for Nova
-infrastructure productization and reusable deployment APIs.
+Defines how Nova classifies architecture authority documents, synchronizes
+active authority references, and archives superseded ADR/SPEC material without
+leaving conflicting active guidance behind.
 
-## 2. Rollout order (required)
+## 2. Authority classes
 
-Stacks and control-plane components must be applied in this order:
+Nova architecture documents are divided into three classes:
 
-1. Foundation (`nova-foundation`)
-2. IAM roles (`nova-iam-roles`)
-3. CodeBuild release projects (`nova-codebuild-release`)
-4. CI/CD pipeline (`nova-ci-cd`)
-5. Runtime stacks (`nova-dev` / `nova-prod`)
+1. Active runtime authority
+   - `docs/PRD.md`
+   - `docs/architecture/requirements.md`
+   - `ADR-0023` through `ADR-0029`
+   - `SPEC-0000`
+   - `SPEC-0015` through `SPEC-0023`
+   - `docs/plan/PLAN.md`
+   - `docs/runbooks/README.md`
+2. Adjacent deploy-governance authority
+   - `ADR-0030` through `ADR-0032`
+   - `SPEC-0024` through `SPEC-0026`
+3. Superseded authority
+   - `docs/architecture/adr/superseded/**`
+   - `docs/architecture/spec/superseded/**`
+   - superseded material is preserved for traceability only and is not active
+     authority
 
-## 3. Deployment execution strategy
+## 3. Synchronization contract
 
-1. Use change-set-first stack updates.
-2. Require explicit approval for production promotion paths.
-3. Capture deploy evidence artifacts for each run.
+When architecture, deploy-governance, or runtime contracts change, the same
+change set MUST update all affected active authority surfaces:
 
-## 4. Validation gates
+1. `AGENTS.md`
+2. `docs/PRD.md`
+3. `docs/architecture/requirements.md`
+4. `docs/architecture/adr/index.md`
+5. `docs/architecture/spec/index.md`
+6. `docs/plan/PLAN.md`
+7. `docs/runbooks/README.md`
+8. affected ADR/SPEC files
+9. affected `docs/plan/release/**` and `docs/contracts/**` files when deploy
+   or reusable workflow contracts change
 
-| Gate | Purpose | Required evidence |
-| --- | --- | --- |
-| A | Identity and account readiness | `sts get-caller-identity`, stack read access |
-| B | Control-plane readiness | CI/CD stack healthy, pipeline contract matches template |
-| C | Runtime inventory | ECS/CodeDeploy/alarms inventory present as expected |
-| D | Route and behavior validation | Post-deploy route checks, canonical/legacy assertions, and SSM base-url provenance evidence |
-| E | Release acceptance | Artifacts, approvals, and runbook checklist closure |
+## 4. Superseded-material contract
 
-## 5. Failure and recovery requirements
+1. Superseded ADRs and SPECs MUST be moved under the dedicated
+   `superseded/` directories.
+2. Superseded ADRs and SPECs MUST declare the active replacement or governing
+   authority set in the archived file.
+3. Active authority lists and active index sections MUST NOT reference files in
+   `superseded/`.
+4. Historical execution evidence belongs under `docs/history/**`, not under
+   active architecture identifiers.
 
-1. `UPDATE_ROLLBACK_FAILED` stacks must be recovered before progressing.
-2. IAM access-denied blockers are release blockers until remediated.
-3. Recoveries must preserve IaC source-of-truth (no unmanaged hotfix drift).
+## 5. Deploy-governance citation contract
 
-## 6. Documentation and ledger synchronization
+Active deploy-governance docs MUST remain aligned to current official AWS
+documentation for the live implementation. The primary authority document for a
+subject must cite the relevant AWS source when it describes:
 
-1. The active orchestration plan file under `.agents/plans/` is the shared
-   execution ledger for status, subagents, and verification evidence.
-2. Checklist state must reflect implemented + verified vs blocked items.
-3. All blockers require explicit action/resource evidence and remediation steps.
-4. Deploy validation evidence must include SSM authority paths and resolved
-   dev/prod base URLs used by validation gates.
+1. ECS-native blue/green deployment behavior
+2. ECS infrastructure IAM role requirements for load balancer traffic shifting
+3. CloudFormation pre-deployment validation via change sets and
+   `DescribeEvents`
+4. `OperationEvents` validation output semantics
+5. WAF rate-based protections on public ALB ingress
+
+## 6. Testable invariants
+
+1. `AGENTS.md`, `docs/PRD.md`, `docs/plan/PLAN.md`, and
+   `docs/runbooks/README.md` must reference the same active authority set.
+2. `docs/architecture/adr/index.md` and `docs/architecture/spec/index.md` must
+   separate active and superseded sections.
+3. Active architecture docs must not use `.agents/plans/` as an execution
+   ledger authority.
+4. Active architecture docs must not leave stale subject/title mismatches
+   between filename, title, and referenced purpose.
 
 ## 7. Acceptance criteria
 
-1. Rollout order is executed successfully end-to-end.
-2. Gates A-E are satisfied with evidence captured in release docs/ledger.
-3. Reusable workflow contracts and infra tests pass in CI.
-4. SSM-backed base URL provenance is recorded for each validation run.
+1. Active authority references are self-consistent across top-level docs.
+2. Superseded ADR/SPEC files are physically separated and excluded from active
+   sections.
+3. Deploy-governance docs cite current AWS sources that match the live Nova
+   deployment model.
+4. Documentation contract tests fail when active references drift from this
+   structure.
 
 ## 8. Traceability
 
-- [ADR-0023: Hard cut to a single canonical /v1 API surface](../adr/ADR-0023-hard-cut-v1-canonical-route-surface.md)
-- [SPEC-0000: HTTP API Contract](./SPEC-0000-http-api-contract.md)
-- [SPEC-0016: Hard-cut v1 route contract and route-literal guardrails](./SPEC-0016-v1-route-namespace-and-literal-guardrails.md)
-- [requirements.md](../requirements.md)
 - [NFR-0105](../requirements.md#nfr-0105-contract-traceability)
-- [NFR-0106](../requirements.md#nfr-0106-no-shim-posture)
-- [IR-0000](../requirements.md#ir-0000-nova-local-runtime-and-release-authority)
+- [NFR-0110](../requirements.md#nfr-0110-architecture-authority-synchronization)
+- [IR-0014](../requirements.md#ir-0014-superseded-architecture-archive-boundary)

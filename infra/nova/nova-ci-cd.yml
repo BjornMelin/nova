@@ -1,10 +1,5 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: Nova hybrid CI/CD pipeline (Dev -> Manual Approval -> Prod).
-Metadata:
-  cfn-lint:
-    config:
-      ignore_checks:
-        - W6001
 
 Parameters:
   Project:
@@ -61,9 +56,15 @@ Parameters:
     Default: ""
   DeployServiceName:
     Type: String
+  AuthDeployServiceName:
+    Type: String
   DeployDevStackName:
     Type: String
   DeployProdStackName:
+    Type: String
+  AuthDeployDevStackName:
+    Type: String
+  AuthDeployProdStackName:
     Type: String
   DevServiceBaseUrl:
     Type: String
@@ -73,10 +74,22 @@ Parameters:
     Type: String
     AllowedPattern: "^https://(?![^\\s]*httpbin)(?![^\\s]*placeholder)(?![^\\s]*example\\.com)(?![^\\s]*<)(?![^\\s]*>)[^\\s]+$"
     ConstraintDescription: Must be an HTTPS URL and not a placeholder/test host.
+  DevAuthServiceBaseUrl:
+    Type: String
+    AllowedPattern: "^https://(?![^\\s]*httpbin)(?![^\\s]*placeholder)(?![^\\s]*example\\.com)(?![^\\s]*<)(?![^\\s]*>)[^\\s]+$"
+    ConstraintDescription: Must be an HTTPS URL and not a placeholder/test host.
+  ProdAuthServiceBaseUrl:
+    Type: String
+    AllowedPattern: "^https://(?![^\\s]*httpbin)(?![^\\s]*placeholder)(?![^\\s]*example\\.com)(?![^\\s]*<)(?![^\\s]*>)[^\\s]+$"
+    ConstraintDescription: Must be an HTTPS URL and not a placeholder/test host.
   ValidationCanonicalPaths:
     Type: String
     Default: /v1/health/live,/v1/health/ready,/metrics/summary,/v1/capabilities,/v1/releases/info
     Description: Comma-delimited canonical routes validated as live post-deploy.
+  AuthValidationCanonicalPaths:
+    Type: String
+    Default: GET:/v1/health/live,GET:/v1/health/ready,POST:/v1/token/verify,POST:/v1/token/introspect
+    Description: Comma-delimited auth routes validated as live post-deploy.
   ValidationLegacy404Paths:
     Type: String
     Default: /healthz,/readyz,/api/transfers/uploads/initiate,/api/jobs,/api/v1/transfers/uploads/initiate
@@ -112,30 +125,12 @@ Rules:
           - !Not [!Equals [!Ref FoundationStackName, ""]]
         AssertDescription: Provide ArtifactBucketName or FoundationStackName.
   RequireConnectionNameWhenCreatingConnection:
-    RuleCondition:
-      Fn::And:
-        - Fn::Equals:
-            - Ref: ExistingConnectionArn
-            - ""
-        - Fn::Equals:
-            - Ref: FoundationStackName
-            - ""
+    RuleCondition: !Equals [!Ref ExistingConnectionArn, ""]
     Assertions:
-      - Assert:
-          Fn::Or:
-            - Fn::Not:
-                - Fn::Equals:
-                    - Ref: ExistingConnectionArn
-                    - ""
-            - Fn::Not:
-                - Fn::Equals:
-                    - Ref: FoundationStackName
-                    - ""
-            - Fn::Not:
-                - Fn::Equals:
-                    - Ref: ConnectionName
-                    - ""
-        AssertDescription: When creating a connection, provide ConnectionName.
+      - Assert: !Or
+          - !Not [!Equals [!Ref ConnectionName, ""]]
+          - !Not [!Equals [!Ref FoundationStackName, ""]]
+        AssertDescription: Provide ConnectionName or FoundationStackName when ExistingConnectionArn is empty.
   RequireReleaseBuildProjectInput:
     Assertions:
       - Assert: !Or
@@ -157,13 +152,16 @@ Resources:
       ConnectionName: !If
         - HasConnectionName
         - !Ref ConnectionName
-        - !Sub "${AWS::StackName}-codeconnection"
+        - !ImportValue
+          Fn::Sub: "${FoundationStackName}-ConnectionName"
       ProviderType: GitHub
 
   NovaPipeline:
     Type: AWS::CodePipeline::Pipeline
     Properties:
       Name: !Sub ${Project}-${Application}-nova-release-pipeline
+      PipelineType: V2
+      ExecutionMode: QUEUED
       RoleArn: !If
         - HasCodePipelineServiceRoleArn
         - !Ref CodePipelineServiceRoleArn
@@ -227,15 +225,18 @@ Resources:
               RunOrder: 1
 
         - Name: DeployDev
+          OnFailure:
+            Result: ROLLBACK
           Actions:
-            - Name: DeployDevStack
+            - Name: CreateDevChangeSet
               ActionTypeId:
                 Category: Deploy
                 Owner: AWS
                 Provider: CloudFormation
                 Version: "1"
               Configuration:
-                ActionMode: CREATE_UPDATE
+                ActionMode: CHANGE_SET_REPLACE
+                ChangeSetName: !Sub "${Project}-${Application}-dev-release-changeset"
                 Capabilities: CAPABILITY_NAMED_IAM
                 RoleArn: !If
                   - HasCloudFormationExecutionRoleDevArn
@@ -250,10 +251,59 @@ Resources:
                 ParameterOverrides: !Sub >-
                   {"ServiceName":"${DeployServiceName}",
                   "Environment":"dev",
-                  "ImageDigest":"#{ReleaseBuild.IMAGE_DIGEST}"}
+                  "ImageDigest":"#{ReleaseBuild.FILE_IMAGE_DIGEST}"}
               InputArtifacts:
                 - Name: AppSourceOutput
               RunOrder: 1
+            - Name: CreateDevAuthChangeSet
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: "1"
+              Configuration:
+                ActionMode: CHANGE_SET_REPLACE
+                ChangeSetName: !Sub "${Project}-${Application}-dev-auth-release-changeset"
+                Capabilities: CAPABILITY_NAMED_IAM
+                RoleArn: !If
+                  - HasCloudFormationExecutionRoleDevArn
+                  - !Ref CloudFormationExecutionRoleDevArn
+                  - !If
+                    - HasIamRolesStackName
+                    - !ImportValue
+                      Fn::Sub: "${IamRolesStackName}-CloudFormationExecutionRoleDevArn"
+                    - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/${Project}-${Application}-nova-cfn-dev-role"
+                StackName: !Ref AuthDeployDevStackName
+                TemplatePath: AppSourceOutput::infra/nova/deploy/image-digest-ssm.yml
+                ParameterOverrides: !Sub >-
+                  {"ServiceName":"${AuthDeployServiceName}",
+                  "Environment":"dev",
+                  "ImageDigest":"#{ReleaseBuild.AUTH_IMAGE_DIGEST}"}
+              InputArtifacts:
+                - Name: AppSourceOutput
+              RunOrder: 1
+            - Name: ExecuteDevChangeSet
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: "1"
+              Configuration:
+                ActionMode: CHANGE_SET_EXECUTE
+                ChangeSetName: !Sub "${Project}-${Application}-dev-release-changeset"
+                StackName: !Ref DeployDevStackName
+              RunOrder: 2
+            - Name: ExecuteDevAuthChangeSet
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: "1"
+              Configuration:
+                ActionMode: CHANGE_SET_EXECUTE
+                ChangeSetName: !Sub "${Project}-${Application}-dev-auth-release-changeset"
+                StackName: !Ref AuthDeployDevStackName
+              RunOrder: 2
 
         - Name: ValidateDev
           Actions:
@@ -272,10 +322,12 @@ Resources:
                 EnvironmentVariables: !Sub >-
                   [{"name":"VALIDATION_BASE_URL",
                   "value":"${DevServiceBaseUrl}","type":"PLAINTEXT"},
-                  {"name":"SERVICE_BASE_URL",
-                  "value":"${DevServiceBaseUrl}","type":"PLAINTEXT"},
+                  {"name":"AUTH_VALIDATION_BASE_URL",
+                  "value":"${DevAuthServiceBaseUrl}","type":"PLAINTEXT"},
                   {"name":"VALIDATION_CANONICAL_PATHS",
                   "value":"${ValidationCanonicalPaths}","type":"PLAINTEXT"},
+                  {"name":"AUTH_VALIDATION_CANONICAL_PATHS",
+                  "value":"${AuthValidationCanonicalPaths}","type":"PLAINTEXT"},
                   {"name":"VALIDATION_LEGACY_404_PATHS",
                   "value":"${ValidationLegacy404Paths}","type":"PLAINTEXT"}]
               InputArtifacts:
@@ -303,15 +355,18 @@ Resources:
               RunOrder: 1
 
         - Name: DeployProd
+          OnFailure:
+            Result: ROLLBACK
           Actions:
-            - Name: DeployProdStack
+            - Name: CreateProdChangeSet
               ActionTypeId:
                 Category: Deploy
                 Owner: AWS
                 Provider: CloudFormation
                 Version: "1"
               Configuration:
-                ActionMode: CREATE_UPDATE
+                ActionMode: CHANGE_SET_REPLACE
+                ChangeSetName: !Sub "${Project}-${Application}-prod-release-changeset"
                 Capabilities: CAPABILITY_NAMED_IAM
                 RoleArn: !If
                   - HasCloudFormationExecutionRoleProdArn
@@ -326,10 +381,59 @@ Resources:
                 ParameterOverrides: !Sub >-
                   {"ServiceName":"${DeployServiceName}",
                   "Environment":"prod",
-                  "ImageDigest":"#{ReleaseBuild.IMAGE_DIGEST}"}
+                  "ImageDigest":"#{ReleaseBuild.FILE_IMAGE_DIGEST}"}
               InputArtifacts:
                 - Name: AppSourceOutput
               RunOrder: 1
+            - Name: CreateProdAuthChangeSet
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: "1"
+              Configuration:
+                ActionMode: CHANGE_SET_REPLACE
+                ChangeSetName: !Sub "${Project}-${Application}-prod-auth-release-changeset"
+                Capabilities: CAPABILITY_NAMED_IAM
+                RoleArn: !If
+                  - HasCloudFormationExecutionRoleProdArn
+                  - !Ref CloudFormationExecutionRoleProdArn
+                  - !If
+                    - HasIamRolesStackName
+                    - !ImportValue
+                      Fn::Sub: "${IamRolesStackName}-CloudFormationExecutionRoleProdArn"
+                    - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/${Project}-${Application}-nova-cfn-prod-role"
+                StackName: !Ref AuthDeployProdStackName
+                TemplatePath: AppSourceOutput::infra/nova/deploy/image-digest-ssm.yml
+                ParameterOverrides: !Sub >-
+                  {"ServiceName":"${AuthDeployServiceName}",
+                  "Environment":"prod",
+                  "ImageDigest":"#{ReleaseBuild.AUTH_IMAGE_DIGEST}"}
+              InputArtifacts:
+                - Name: AppSourceOutput
+              RunOrder: 1
+            - Name: ExecuteProdChangeSet
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: "1"
+              Configuration:
+                ActionMode: CHANGE_SET_EXECUTE
+                ChangeSetName: !Sub "${Project}-${Application}-prod-release-changeset"
+                StackName: !Ref DeployProdStackName
+              RunOrder: 2
+            - Name: ExecuteProdAuthChangeSet
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: "1"
+              Configuration:
+                ActionMode: CHANGE_SET_EXECUTE
+                ChangeSetName: !Sub "${Project}-${Application}-prod-auth-release-changeset"
+                StackName: !Ref AuthDeployProdStackName
+              RunOrder: 2
 
         - Name: ValidateProd
           Actions:
@@ -348,10 +452,12 @@ Resources:
                 EnvironmentVariables: !Sub >-
                   [{"name":"VALIDATION_BASE_URL",
                   "value":"${ProdServiceBaseUrl}","type":"PLAINTEXT"},
-                  {"name":"SERVICE_BASE_URL",
-                  "value":"${ProdServiceBaseUrl}","type":"PLAINTEXT"},
+                  {"name":"AUTH_VALIDATION_BASE_URL",
+                  "value":"${ProdAuthServiceBaseUrl}","type":"PLAINTEXT"},
                   {"name":"VALIDATION_CANONICAL_PATHS",
                   "value":"${ValidationCanonicalPaths}","type":"PLAINTEXT"},
+                  {"name":"AUTH_VALIDATION_CANONICAL_PATHS",
+                  "value":"${AuthValidationCanonicalPaths}","type":"PLAINTEXT"},
                   {"name":"VALIDATION_LEGACY_404_PATHS",
                   "value":"${ValidationLegacy404Paths}","type":"PLAINTEXT"}]
               InputArtifacts:

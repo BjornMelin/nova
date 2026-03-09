@@ -1,12 +1,11 @@
-# ruff: noqa
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 from attrs import define as _attrs_define
 
-from nova_sdk_py_auth.types import UNSET, Unset
+from ..types import UNSET, Unset
 
 if TYPE_CHECKING:
     from ..models.principal import Principal
@@ -33,7 +32,6 @@ class TokenIntrospectResponse:
     principal: None | Principal | Unset = UNSET
 
     def to_dict(self) -> dict[str, Any]:
-        """Serialize this model to a JSON-compatible dict."""
         from ..models.principal import Principal
 
         active = self.active
@@ -66,7 +64,6 @@ class TokenIntrospectResponse:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        """Build this model from a JSON-compatible mapping."""
         from ..models.principal import Principal
         from ..models.token_introspect_response_claims import (
             TokenIntrospectResponseClaims,
@@ -95,7 +92,7 @@ class TokenIntrospectResponse:
                 return principal_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
-            raise TypeError("principal must be an object, null, or UNSET")
+            return cast(None | Principal | Unset, data)
 
         principal = _parse_principal(d.pop("principal", UNSET))
 

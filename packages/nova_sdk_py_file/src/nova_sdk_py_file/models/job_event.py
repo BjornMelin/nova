@@ -1,4 +1,3 @@
-# ruff: noqa
 from __future__ import annotations
 
 import datetime
@@ -8,9 +7,9 @@ from typing import TYPE_CHECKING, Any, TypeVar
 from attrs import define as _attrs_define
 from dateutil.parser import isoparse
 
-from nova_sdk_py_file.models.job_event_type import JobEventType
-from nova_sdk_py_file.models.job_status import JobStatus
-from nova_sdk_py_file.types import UNSET, Unset
+from ..models.job_event_type import JobEventType
+from ..models.job_status import JobStatus
+from ..types import UNSET, Unset
 
 if TYPE_CHECKING:
     from ..models.job_event_data import JobEventData

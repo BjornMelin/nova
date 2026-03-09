@@ -2,7 +2,7 @@
 
 Status: Active
 Owner: nova release architecture
-Last reviewed: 2026-03-03
+Last reviewed: 2026-03-05
 
 ## Purpose
 
@@ -21,9 +21,13 @@ one signed source revision.
 1. Release commit is signed and verified.
 2. CodeConnections status is `AVAILABLE`.
 3. Pipeline build stage exports required variables:
-   - `IMAGE_DIGEST`
+   - `FILE_IMAGE_DIGEST`
+   - `AUTH_IMAGE_DIGEST`
    - `PUBLISHED_PACKAGES`
    - `RELEASE_MANIFEST_SHA256`
+
+`RELEASE_MANIFEST_SHA256` is the SHA256 of
+`docs/plan/release/RELEASE-VERSION-MANIFEST.md`.
 
 ## Inputs
 
@@ -34,6 +38,9 @@ one signed source revision.
 - `${CHANGED_UNITS_JSON}`
 - `${VERSION_PLAN_JSON}`
 - `${PROMOTION_CANDIDATES_JSON}`
+- `${ECS_CLUSTER}`
+- `${ECS_SERVICE}`
+- `${PUBLIC_ALB_WEB_ACL_ARN}` (when ALB is internet-facing)
 
 ## Promotion procedure
 
@@ -64,7 +71,10 @@ one signed source revision.
 3. Execute `Promote Prod` workflow dispatch with:
 
    - `pipeline_name`
-   - `manifest_sha256` from `codeartifact-gate-report.json`
+   - `manifest_sha256` equal to `RELEASE_MANIFEST_SHA256`
+     (`SHA256(docs/plan/release/RELEASE-VERSION-MANIFEST.md)`);
+     `codeartifact-gate-report.json` may carry this value but is not the
+     authority itself
    - `changed_units_json` from staged gate artifact (`changed-units.json`)
    - `version_plan_json` from staged gate artifact (`version-plan.json`)
    - `promotion_candidates_json` from `codeartifact-promotion-candidates.json`
@@ -78,24 +88,26 @@ one signed source revision.
 
 5. Confirm `DeployProd` and `ValidateProd` complete successfully.
 
-## CodeDeploy blue/green promotion verification (Batch B1)
+## ECS-native blue/green promotion verification
 
-After `DeployDev` and `DeployProd`, verify CodeDeploy deployment-group controls:
+After `DeployDev` and `DeployProd`, verify ECS-native service deployment
+controls:
 
 ```bash
-aws deploy get-deployment-group \
+aws ecs describe-services \
   --region "${AWS_REGION}" \
-  --application-name "${CODEDEPLOY_APPLICATION_NAME}" \
-  --deployment-group-name "${CODEDEPLOY_DEPLOYMENT_GROUP_NAME}" \
-  --query 'deploymentGroupInfo.{deploymentStyle:deploymentStyle,alarmConfiguration:alarmConfiguration,autoRollback:autoRollbackConfiguration,ready:blueGreenDeploymentConfiguration.deploymentReadyOption}'
+  --cluster "${ECS_CLUSTER}" \
+  --services "${ECS_SERVICE}" \
+  --query 'services[0].{deploymentController:deploymentController,deploymentConfiguration:deploymentConfiguration,loadBalancers:loadBalancers}'
 ```
 
 Acceptance:
 
-- `deploymentStyle.deploymentType` = `BLUE_GREEN`
-- alarm configuration is enabled with rollback alarms bound
-- auto rollback includes `DEPLOYMENT_FAILURE`, `DEPLOYMENT_STOP_ON_ALARM`, and `DEPLOYMENT_STOP_ON_REQUEST`
-- deployment ready option uses timeout action `STOP_DEPLOYMENT` for readiness enforcement
+- `deploymentController.type` is `ECS`
+- `deploymentConfiguration.strategy` is `BLUE_GREEN`
+- deployment alarms are enabled with rollback alarms bound
+- the service load balancer configuration references primary and alternate
+  target groups plus `EcsInfrastructureRoleArn`
 
 ## Immutable artifact continuity check
 
@@ -111,8 +123,10 @@ aws codepipeline list-action-executions \
 
 Acceptance:
 
-- `IMAGE_DIGEST` in Build output equals digest used by both Dev and Prod
-  CloudFormation actions.
+- `FILE_IMAGE_DIGEST` in Build output equals digest used by both Dev and Prod
+  file-service CloudFormation actions.
+- `AUTH_IMAGE_DIGEST` in Build output equals digest used by both Dev and Prod
+  auth-service CloudFormation actions.
 - No rebuild occurs after manual approval.
 
 ## Evidence to store
@@ -124,9 +138,10 @@ Acceptance:
 5. manifest digest used for package promotion gate
 6. package promotion candidates JSON
 7. manual approver and timestamp
-8. digest continuity evidence
+8. digest continuity evidence for file and auth images
 9. validation logs for `/v1/health/live`, `/v1/health/ready`,
-   `/metrics/summary`
+   `/metrics/summary`, `/v1/token/verify`, and `/v1/token/introspect`
+10. WAF evidence for any internet-facing ALB (`PublicAlbWebAclArn`)
 
 Store links in:
 

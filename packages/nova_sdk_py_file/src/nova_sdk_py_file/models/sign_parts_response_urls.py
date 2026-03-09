@@ -1,6 +1,3 @@
-# ruff: noqa
-"""Model for signed multipart part URLs keyed by part number."""
-
 from __future__ import annotations
 
 from collections.abc import Mapping
@@ -14,7 +11,7 @@ T = TypeVar("T", bound="SignPartsResponseUrls")
 
 @_attrs_define
 class SignPartsResponseUrls:
-    """Signed part URL map keyed by part number."""
+    """ """
 
     additional_properties: dict[str, str] = _attrs_field(
         init=False, factory=dict
@@ -32,9 +29,7 @@ class SignPartsResponseUrls:
         d = dict(src_dict)
         sign_parts_response_urls = cls()
 
-        sign_parts_response_urls.additional_properties = {
-            key: str(value) for key, value in d.items()
-        }
+        sign_parts_response_urls.additional_properties = d
         return sign_parts_response_urls
 
     @property

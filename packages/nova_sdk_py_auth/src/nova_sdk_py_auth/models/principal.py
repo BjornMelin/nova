@@ -1,4 +1,3 @@
-# ruff: noqa
 from __future__ import annotations
 
 from collections.abc import Mapping
@@ -6,7 +5,7 @@ from typing import Any, TypeVar, cast
 
 from attrs import define as _attrs_define
 
-from nova_sdk_py_auth.types import UNSET, Unset
+from ..types import UNSET, Unset
 
 T = TypeVar("T", bound="Principal")
 
@@ -72,23 +71,9 @@ class Principal:
 
         subject = d.pop("subject")
 
-        def _parse_permissions(data: object) -> list[str] | Unset:
-            if isinstance(data, Unset):
-                return data
-            if not isinstance(data, list):
-                raise TypeError("permissions must be a list when set")
-            return cast(list[str], data)
+        permissions = cast(list[str], d.pop("permissions", UNSET))
 
-        permissions = _parse_permissions(d.pop("permissions", UNSET))
-
-        def _parse_scopes(data: object) -> list[str] | Unset:
-            if isinstance(data, Unset):
-                return data
-            if not isinstance(data, list):
-                raise TypeError("scopes must be a list when set")
-            return cast(list[str], data)
-
-        scopes = _parse_scopes(d.pop("scopes", UNSET))
+        scopes = cast(list[str], d.pop("scopes", UNSET))
 
         def _parse_tenant_id(data: object) -> None | str | Unset:
             if data is None:

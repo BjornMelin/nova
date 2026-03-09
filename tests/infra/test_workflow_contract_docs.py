@@ -103,7 +103,11 @@ def test_workflow_io_schema_contract_matches_reusable_deploy_runtime_api() -> (
     workflow_outputs = workflow_call["outputs"]
 
     schema_inputs = input_schema["properties"]
-    schema_outputs = output_schema["properties"]
+    schema_outputs = output_schema.get("properties")
+    if schema_outputs is None:
+        schema_outputs = output_schema["$defs"]["deploy_runtime_output"][
+            "properties"
+        ]
 
     assert set(workflow_inputs).issubset(set(schema_inputs))
     assert set(workflow_outputs) == set(schema_outputs)
@@ -112,10 +116,13 @@ def test_workflow_io_schema_contract_matches_reusable_deploy_runtime_api() -> (
         assert required_input in workflow_inputs
         assert workflow_inputs[required_input].get("required") is True
 
-    assert (
-        output_schema["properties"]["manifest_sha256"]["pattern"]
-        == "^[a-f0-9]{64}$"
-    )
+    manifest_schema = schema_outputs["manifest_sha256"]
+    if "$ref" in manifest_schema:
+        ref = manifest_schema["$ref"]
+        assert ref == "#/$defs/manifest_sha256"
+        manifest_schema = output_schema["$defs"]["manifest_sha256"]
+
+    assert manifest_schema["pattern"] == "^[a-f0-9]{64}$"
 
 
 def test_release_artifact_schema_contract_covers_required_gate_payloads() -> (
@@ -187,8 +194,7 @@ def test_downstream_examples_reference_reusable_post_deploy_workflow() -> None:
 
 
 def test_downstream_minimal_workflow_files_exist_and_pin_release_tag() -> None:
-    """Minimal downstream workflow examples must pin an immutable release tag.
-    """
+    """Minimal downstream workflow examples must pin immutable release tags."""
     for rel_path in [
         "docs/clients/dash-minimal-workflow.yml",
         "docs/clients/rshiny-minimal-workflow.yml",

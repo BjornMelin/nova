@@ -11,6 +11,9 @@ from .completed_part import CompletedPart
 from .enqueue_job_request import EnqueueJobRequest
 from .enqueue_job_request_payload import EnqueueJobRequestPayload
 from .enqueue_job_response import EnqueueJobResponse
+from .error_envelope import ErrorEnvelope
+from .error_envelope_error import ErrorEnvelopeError
+from .error_envelope_error_details import ErrorEnvelopeErrorDetails
 from .health_response import HealthResponse
 from .initiate_upload_request import InitiateUploadRequest
 from .initiate_upload_response import InitiateUploadResponse
@@ -61,6 +64,9 @@ __all__ = (
     "EnqueueJobRequest",
     "EnqueueJobRequestPayload",
     "EnqueueJobResponse",
+    "ErrorEnvelope",
+    "ErrorEnvelopeError",
+    "ErrorEnvelopeErrorDetails",
     "HealthResponse",
     "InitiateUploadRequest",
     "InitiateUploadResponse",
