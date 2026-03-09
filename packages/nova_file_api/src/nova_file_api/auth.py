@@ -19,7 +19,7 @@ from nova_file_api.errors import (
     FileTransferError,
     forbidden,
     invalid_request,
-    queue_unavailable,
+    service_unavailable,
     unauthorized,
 )
 from nova_file_api.models import AuthMode, Principal
@@ -199,7 +199,7 @@ class Authenticator:
                 json=payload,
             )
         except httpx.HTTPError as exc:
-            raise queue_unavailable(
+            raise service_unavailable(
                 "remote auth verification unavailable"
             ) from exc
 

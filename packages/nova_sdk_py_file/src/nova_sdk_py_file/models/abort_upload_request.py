@@ -1,3 +1,5 @@
+"""Model definitions for multipart upload abort requests."""
+
 # ruff: noqa
 from __future__ import annotations
 
@@ -26,6 +28,7 @@ class AbortUploadRequest:
     session_id: None | str | Unset = UNSET
 
     def to_dict(self) -> dict[str, Any]:
+        """Serialize this model to a JSON-compatible mapping."""
         key = self.key
 
         upload_id = self.upload_id
@@ -51,6 +54,7 @@ class AbortUploadRequest:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
+        """Build this model from a JSON-compatible mapping."""
         d = dict(src_dict)
         key = d.pop("key")
 

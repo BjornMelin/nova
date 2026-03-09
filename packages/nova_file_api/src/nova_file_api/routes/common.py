@@ -41,7 +41,19 @@ def validated_idempotency_key(
     container: AppContainer,
     idempotency_key: str | None,
 ) -> str | None:
-    """Validate the Idempotency-Key header for mutation routes."""
+    """Validate the Idempotency-Key header for mutation routes.
+
+    Args:
+        container: Application dependency container.
+        idempotency_key: Raw ``Idempotency-Key`` header value.
+
+    Returns:
+        The normalized idempotency key when provided and enabled; otherwise
+        ``None``.
+
+    Raises:
+        FileTransferError: If the header is present but blank.
+    """
     if not container.settings.idempotency_enabled:
         return None
     if idempotency_key is None:
@@ -56,7 +68,19 @@ def validate_worker_update_token(
     container: AppContainer,
     worker_token: str | None,
 ) -> None:
-    """Validate the worker-side update token."""
+    """Validate the worker-side update token.
+
+    Args:
+        container: Application dependency container.
+        worker_token: Raw ``X-Worker-Token`` header value.
+
+    Returns:
+        None.
+
+    Raises:
+        FileTransferError: If the worker token is missing/invalid when
+            enforcement is required.
+    """
     expected = container.settings.jobs_worker_update_token
     expected_token = (
         expected.get_secret_value() if expected is not None else None

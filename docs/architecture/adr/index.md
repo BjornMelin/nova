@@ -11,7 +11,7 @@ Note: `ADR-0023` + `SPEC-0000` + `SPEC-0016` + `requirements.md` define the hard
 runtime routes are `/v1/*` (plus `/metrics/summary`) only.
 
 Infrastructure productization and deploy-automation governance decisions are
-codified by `ADR-0024`, `ADR-0025`, and `ADR-0026`.
+codified by `ADR-0030`, `ADR-0031`, and `ADR-0032`.
 
 Downstream hard-cut integration, Auth0 reusable workflow contracts, and SSM
 runtime base URL authority are codified by `ADR-0027`, `ADR-0028`, and
@@ -41,7 +41,10 @@ Normative spec contracts for these decisions are `SPEC-0021`, `SPEC-0022`, and
 | [ADR-0022](./ADR-0022-batch-b-operator-iam-iac.md) | Batch B operator IAM role codified in Nova IaC for reproducible validation access | Accepted | 2026-03-02 |
 | [ADR-0023](./ADR-0023-hard-cut-v1-canonical-route-surface.md) | Hard cut to a single canonical `/v1/*` API surface | Accepted | 2026-03-03 |
 | [ADR-0024](./ADR-0024-layered-architecture-authority-pack.md) | Native-CFN modular stack architecture for Nova infrastructure productization | Accepted | 2026-03-03 |
-| [ADR-0025](./ADR-0025-reusable-workflow-api-and-versioning-policy.md) | Reusable GitHub workflow API and versioning policy for deployment automation | Accepted | 2026-03-03 |
+| [ADR-0025](./ADR-0025-reusable-workflow-api-and-versioning-policy.md) | Reusable GitHub workflow API and versioning policy for deployment automation | Superseded (by ADR-0031) | 2026-03-09 |
+| [ADR-0030](./ADR-0030-native-cfn-modular-stack-architecture-for-nova-infrastructure-productization.md) | Native-CFN modular stack architecture for Nova infrastructure productization | Accepted | 2026-03-09 |
+| [ADR-0031](./ADR-0031-reusable-github-workflow-api-and-versioning-policy-for-deployment-automation.md) | Reusable GitHub workflow API and versioning policy for deployment automation | Accepted | 2026-03-09 |
+| [ADR-0032](./ADR-0032-oidc-and-iam-role-partitioning-for-deploy-automation.md) | OIDC and IAM role partitioning for deploy automation | Accepted | 2026-03-09 |
 | [ADR-0026](./ADR-0026-oidc-iam-role-partitioning-for-deploy-automation.md) | OIDC and IAM role partitioning for deploy automation | Accepted | 2026-03-03 |
 | [ADR-0027](./ADR-0027-hard-cut-downstream-integration-and-consumer-contract-enforcement.md) | Hard-cut downstream integration and consumer contract enforcement | Accepted | 2026-03-04 |
 | [ADR-0028](./ADR-0028-auth0-tenant-ops-reusable-workflow-api-contract.md) | Auth0 tenant ops reusable workflow API contract | Accepted | 2026-03-04 |

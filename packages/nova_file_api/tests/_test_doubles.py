@@ -21,7 +21,11 @@ class StubAuthenticator:
         )
 
     async def healthcheck(self) -> bool:
-        """Return healthy status for tests using this stub authenticator."""
+        """Return healthy status for tests using this stub authenticator.
+
+        Returns:
+            ``True`` to indicate the test double is always healthy.
+        """
         return True
 
 

@@ -5,6 +5,7 @@ Status: Accepted
 Version: 1.2
 Date: 2026-03-09
 Related:
+  - "[ADR-0025: Reusable GitHub workflow API and versioning policy for deployment automation (superseded)](./ADR-0025-reusable-workflow-api-and-versioning-policy.md)"
   - "[ADR-0011: Hybrid CI/CD with GitHub CI and AWS-native Dev to Prod promotion](./ADR-0011-cicd-hybrid-github-aws-promotion.md)"
   - "[SPEC-0018: Reusable workflow integration contract](../spec/SPEC-0018-runtime-configuration-and-startup-validation-contract.md)"
 ---
@@ -43,6 +44,9 @@ Threshold policy: only options >=9.0 are accepted.
 ## Decision
 
 Choose **Option B**.
+
+This ADR supersedes ADR-0025 as the active governance authority for reusable
+workflow API and versioning policy.
 
 ### Required characteristics
 

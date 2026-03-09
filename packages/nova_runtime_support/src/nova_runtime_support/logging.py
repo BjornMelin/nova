@@ -52,13 +52,13 @@ def configure_structlog(
     structlog.configure(
         processors=[
             structlog.contextvars.merge_contextvars,
+            structlog.processors.add_log_level,
+            structlog.processors.TimeStamper(fmt="iso", utc=True),
+            structlog.processors.format_exc_info,
             _build_redaction_processor(
                 hidden_fields=hidden,
                 redacted_substrings=substrings,
             ),
-            structlog.processors.add_log_level,
-            structlog.processors.TimeStamper(fmt="iso", utc=True),
-            structlog.processors.format_exc_info,
             structlog.processors.JSONRenderer(),
         ],
         logger_factory=structlog.stdlib.LoggerFactory(),

@@ -191,11 +191,18 @@ async def sign_upload_parts(
         raise
 
     container.metrics.incr("uploads_sign_parts_total")
-    await context.run_blocking(
-        container.activity_store.record,
-        principal=principal,
-        event_type="uploads_sign_parts",
-    )
+    try:
+        await context.run_blocking(
+            container.activity_store.record,
+            principal=principal,
+            event_type="uploads_sign_parts",
+        )
+    except Exception:
+        structlog.get_logger("api").exception(
+            "uploads_sign_parts_activity_record_failed",
+            route="/v1/transfers/uploads/sign-parts",
+            scope_id=principal.scope_id,
+        )
     emit_request_metric(
         container=container,
         route="uploads_sign_parts",
@@ -237,11 +244,18 @@ async def complete_upload(
         raise
 
     container.metrics.incr("uploads_complete_total")
-    await context.run_blocking(
-        container.activity_store.record,
-        principal=principal,
-        event_type="uploads_complete",
-    )
+    try:
+        await context.run_blocking(
+            container.activity_store.record,
+            principal=principal,
+            event_type="uploads_complete",
+        )
+    except Exception:
+        structlog.get_logger("api").exception(
+            "uploads_complete_activity_record_failed",
+            route="/v1/transfers/uploads/complete",
+            scope_id=principal.scope_id,
+        )
     emit_request_metric(
         container=container,
         route="uploads_complete",
@@ -283,11 +297,18 @@ async def abort_upload(
         raise
 
     container.metrics.incr("uploads_abort_total")
-    await context.run_blocking(
-        container.activity_store.record,
-        principal=principal,
-        event_type="uploads_abort",
-    )
+    try:
+        await context.run_blocking(
+            container.activity_store.record,
+            principal=principal,
+            event_type="uploads_abort",
+        )
+    except Exception:
+        structlog.get_logger("api").exception(
+            "uploads_abort_activity_record_failed",
+            route="/v1/transfers/uploads/abort",
+            scope_id=principal.scope_id,
+        )
     emit_request_metric(
         container=container,
         route="uploads_abort",
@@ -329,11 +350,18 @@ async def presign_download(
         raise
 
     container.metrics.incr("downloads_presign_total")
-    await context.run_blocking(
-        container.activity_store.record,
-        principal=principal,
-        event_type="downloads_presign",
-    )
+    try:
+        await context.run_blocking(
+            container.activity_store.record,
+            principal=principal,
+            event_type="downloads_presign",
+        )
+    except Exception:
+        structlog.get_logger("api").exception(
+            "downloads_presign_activity_record_failed",
+            route="/v1/transfers/downloads/presign",
+            scope_id=principal.scope_id,
+        )
     emit_request_metric(
         container=container,
         route="downloads_presign",

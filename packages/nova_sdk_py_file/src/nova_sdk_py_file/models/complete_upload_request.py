@@ -1,3 +1,5 @@
+"""Model definitions for multipart upload completion requests."""
+
 # ruff: noqa
 from __future__ import annotations
 
@@ -32,6 +34,7 @@ class CompleteUploadRequest:
     session_id: None | str | Unset = UNSET
 
     def to_dict(self) -> dict[str, Any]:
+        """Serialize this model to a JSON-compatible mapping."""
         key = self.key
 
         parts = []
@@ -63,6 +66,7 @@ class CompleteUploadRequest:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
+        """Build this model from a JSON-compatible mapping."""
         from ..models.completed_part import CompletedPart
 
         d = dict(src_dict)

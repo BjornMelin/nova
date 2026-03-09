@@ -32,7 +32,20 @@ def build_jwt_verifier(
     required_scopes: Sequence[str] = (),
     required_permissions: Sequence[str] = (),
 ) -> JWTVerifier | None:
-    """Build a JWT verifier when the required OIDC settings are present."""
+    """Build a JWT verifier when required OIDC settings are present.
+
+    Args:
+        issuer: OIDC issuer URL.
+        audience: Expected JWT audience.
+        jwks_url: JWKS endpoint URL.
+        clock_skew_seconds: Allowed verification clock skew in seconds.
+        required_scopes: Required scope values for accepted tokens.
+        required_permissions: Required permission values for accepted tokens.
+
+    Returns:
+        A configured ``JWTVerifier`` when issuer, audience, and jwks_url are
+        all set; otherwise ``None``.
+    """
     issuer = _normalized_optional_setting(issuer)
     audience = _normalized_optional_setting(audience)
     jwks_url = _normalized_optional_setting(jwks_url)
@@ -59,7 +72,24 @@ def normalized_principal_claims(
     scopes_claim: str = "scope",
     permissions_claim: str = "permissions",
 ) -> NormalizedPrincipalClaims:
-    """Normalize principal fields from a JWT or service-auth payload."""
+    """Normalize principal fields from a JWT or service-auth payload.
+
+    Args:
+        claims: JWT-like claim payload to normalize.
+        invalid_token_error: Factory used to build token-validation exceptions.
+        subject_keys: Claim keys to check for subject identity.
+        scope_keys: Claim keys to check for explicit scope identifier.
+        tenant_keys: Claim keys to check for tenant identifier.
+        scopes_claim: Claim name containing scopes.
+        permissions_claim: Claim name containing permissions.
+
+    Returns:
+        Normalized principal values suitable for authorization decisions.
+
+    Raises:
+        Exception: Built by ``invalid_token_error`` when required claims are
+            missing or malformed.
+    """
     subject = claim_as_str(claims=claims, keys=subject_keys)
     if subject is None:
         raise invalid_token_error("token subject claim is missing")
@@ -93,7 +123,15 @@ def claim_as_str(
     claims: Mapping[str, Any],
     keys: Sequence[str],
 ) -> str | None:
-    """Return the first non-blank string claim value among the provided keys."""
+    """Return the first non-blank claim string among the provided keys.
+
+    Args:
+        claims: JWT-like claim payload to inspect.
+        keys: Candidate claim keys in lookup order.
+
+    Returns:
+        The first non-empty string claim value, or ``None`` when none exist.
+    """
     for key in keys:
         value = claims.get(key)
         if isinstance(value, str) and value.strip():
@@ -105,7 +143,18 @@ def collect_string_claim(
     value: object,
     invalid_token_error: InvalidTokenErrorFactory,
 ) -> list[str]:
-    """Normalize a string/list claim into a deduplicated ordered list."""
+    """Normalize a string or list claim into a deduplicated ordered list.
+
+    Args:
+        value: Raw claim value (string, list/tuple of strings, or ``None``).
+        invalid_token_error: Factory used to build token-validation exceptions.
+
+    Returns:
+        Normalized ordered list of unique non-empty claim values.
+
+    Raises:
+        Exception: Built by ``invalid_token_error`` when claim type is invalid.
+    """
     if value is None:
         return []
     if isinstance(value, str):

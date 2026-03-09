@@ -127,12 +127,19 @@ async def cancel_job(
         )
         raise
 
-    await context.run_blocking(
-        container.activity_store.record,
-        principal=principal,
-        event_type="jobs_cancel_success",
-        details=f"job_id={job.job_id} status={job.status}",
-    )
+    try:
+        await context.run_blocking(
+            container.activity_store.record,
+            principal=principal,
+            event_type="jobs_cancel_success",
+            details=f"job_id={job.job_id} status={job.status}",
+        )
+    except Exception:
+        container.logger.exception(
+            "jobs_cancel_activity_record_failed",
+            job_id=job.job_id,
+            status=job.status,
+        )
     container.metrics.incr("jobs_cancel_total")
     emit_request_metric(container=container, route="jobs_cancel", status="ok")
     return JobCancelResponse(job_id=job.job_id, status=job.status)
@@ -188,15 +195,22 @@ async def update_job_result(
         )
         raise
 
-    await context.run_blocking(
-        container.activity_store.record,
-        principal=worker_principal,
-        event_type="jobs_result_update",
-        details=(
-            "worker result update accepted "
-            f"for job_id={job_id} status={job.status}"
-        ),
-    )
+    try:
+        await context.run_blocking(
+            container.activity_store.record,
+            principal=worker_principal,
+            event_type="jobs_result_update",
+            details=(
+                "worker result update accepted "
+                f"for job_id={job_id} status={job.status}"
+            ),
+        )
+    except Exception:
+        container.logger.exception(
+            "jobs_result_update_activity_record_failed",
+            job_id=job_id,
+            status=job.status,
+        )
     container.metrics.incr("jobs_result_update_total")
     emit_request_metric(
         container=container,
@@ -241,11 +255,25 @@ async def retry_job(
     principal = await context.authenticate(session_id=None)
     if not container.settings.jobs_enabled:
         raise forbidden("jobs API is disabled")
-    retried = await context.run_blocking(
-        container.job_service.retry,
-        job_id=job_id,
-        scope_id=principal.scope_id,
-    )
+    try:
+        retried = await context.run_blocking(
+            container.job_service.retry,
+            job_id=job_id,
+            scope_id=principal.scope_id,
+        )
+    except Exception as exc:
+        await _record_job_failure(
+            context=context,
+            principal=principal,
+            metric_name="jobs_retry_failure_total",
+            route_metric="jobs_retry",
+            log_event="jobs_retry_request_failed",
+            route_path="/v1/jobs/{job_id}/retry",
+            activity_event_type="jobs_retry_failure",
+            exc=exc,
+            extra={"job_id": job_id},
+        )
+        raise
     return EnqueueJobResponse(job_id=retried.job_id, status=retried.status)
 
 

@@ -142,8 +142,36 @@ def prune_validation_error_schemas(schema: dict[str, Any]) -> None:
     schemas = components.get("schemas")
     if not isinstance(schemas, dict):
         return
+    schema_refs = _collect_schema_refs(schema=schema)
     for schema_name in _VALIDATION_SCHEMA_NAMES:
+        schema_ref = f"#/components/schemas/{schema_name}"
+        if schema_ref in schema_refs:
+            continue
         schemas.pop(schema_name, None)
+
+
+def _collect_schema_refs(schema: dict[str, Any]) -> set[str]:
+    refs: set[str] = set()
+
+    def walk(node: object) -> None:
+        if isinstance(node, dict):
+            ref_value = node.get("$ref")
+            if isinstance(ref_value, str):
+                refs.add(ref_value)
+            for value in node.values():
+                walk(value)
+            return
+        if isinstance(node, list):
+            for value in node:
+                walk(value)
+
+    walk(schema.get("paths", {}))
+    walk(schema.get("components", {}).get("responses", {}))
+    walk(schema.get("components", {}).get("requestBodies", {}))
+    walk(schema.get("components", {}).get("parameters", {}))
+    walk(schema.get("components", {}).get("headers", {}))
+    walk(schema.get("components", {}).get("securitySchemes", {}))
+    return refs
 
 
 def apply_operation_response_refs(

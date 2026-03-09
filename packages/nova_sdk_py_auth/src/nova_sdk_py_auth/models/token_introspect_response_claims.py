@@ -1,3 +1,5 @@
+"""Models dynamic claims returned by token introspection responses."""
+
 # ruff: noqa
 from __future__ import annotations
 
@@ -19,6 +21,7 @@ class TokenIntrospectResponseClaims:
     )
 
     def to_dict(self) -> dict[str, Any]:
+        """Serialize this model to a JSON-compatible mapping."""
 
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
@@ -27,6 +30,7 @@ class TokenIntrospectResponseClaims:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
+        """Build this model from a JSON-compatible mapping."""
         d = dict(src_dict)
         token_introspect_response_claims = cls()
 
@@ -35,6 +39,7 @@ class TokenIntrospectResponseClaims:
 
     @property
     def additional_keys(self) -> list[str]:
+        """Return dynamic claim keys captured on this model."""
         return list(self.additional_properties.keys())
 
     def __getitem__(self, key: str) -> Any:
