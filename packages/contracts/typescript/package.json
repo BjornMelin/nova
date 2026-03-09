@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit src/conformance.ts ../../nova_sdk_auth_core/src/generated.ts ../../nova_sdk_file_core/src/generated.ts",
     "verify": "tsc -p tsconfig.json && node dist/conformance.js"
   },
   "devDependencies": {
