@@ -8,7 +8,7 @@ permissions:
 
 jobs:
   validate:
-    uses: 3M-Cloud/nova/.github/workflows/reusable-post-deploy-validate.yml@v1
+    uses: 3M-Cloud/nova/.github/workflows/reusable-post-deploy-validate.yml@v1.x.y
     with:
       validation_base_url: ${{ vars.NOVA_API_BASE_URL }}
       validation_canonical_paths: /v1/health/live,/v1/health/ready,/metrics/summary,/v1/capabilities,/v1/releases/info

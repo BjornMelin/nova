@@ -1,7 +1,7 @@
 # Product Requirements Document (PRD): Nova Runtime
 
 Status: Active canonical PRD
-Last updated: 2026-03-07
+Last updated: 2026-03-09
 Audience: Product, Engineering, Platform Operations
 
 ## 1. Product Goal
@@ -43,13 +43,16 @@ async jobs with zero route-surface ambiguity.
    bodies.
 4. Release policy enforces immutable artifact promotion and auditable manual
    approval before prod.
-5. Documentation authority remains singular and unambiguous across README,
+5. Reusable GitHub workflows are published as versioned automation APIs, with
+   stable major tags for onboarding and immutable release tags or full commit
+   SHAs for production/high-assurance consumers.
+6. Documentation authority remains singular and unambiguous across README,
    PRD, requirements, ADR/SPEC, plan, and runbooks.
-6. Nova owns complete public SDKs for Python, TypeScript, and R as the target
+7. Nova owns complete public SDKs for Python, TypeScript, and R as the target
    product contract. Current committed Python SDKs and retained TypeScript/R
    scaffolding remain subordinate to canonical OpenAPI until full publish-ready
    parity is completed.
-7. Deployment target-state uses ECS/Fargate behind ALB with ECS-native
+8. Deployment target-state uses ECS/Fargate behind ALB with ECS-native
    blue/green rollout, CloudWatch alarms, WAF on public ingress, and manifest
    hash evidence tied to the release manifest itself. Worker scaling must be
    scale-from-zero-safe and secret-backed.

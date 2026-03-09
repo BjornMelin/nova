@@ -5,10 +5,25 @@ on:
     workflows: ["Nova Release Plan"]
     types: [completed]
   workflow_dispatch:
+    inputs:
+      plan_run_id:
+        description: Workflow run id that uploaded release-plan-artifacts.
+        required: true
+        type: string
+      workflow_api_major:
+        description: Major version channel for published reusable workflow tags.
+        required: false
+        default: "1"
+        type: string
 
 permissions:
   id-token: write
   contents: write
+  actions: read
+
+concurrency:
+  group: release-apply-${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_branch || github.ref }}
+  cancel-in-progress: false
 
 jobs:
   apply:
@@ -21,7 +36,9 @@ jobs:
     uses: ./.github/workflows/reusable-release-apply.yml
     with:
       checkout_ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+      plan_run_id: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.id || inputs.plan_run_id }}
       aws_region: ${{ vars.AWS_REGION || 'us-east-1' }}
+      workflow_api_major: ${{ github.event_name == 'workflow_dispatch' && inputs.workflow_api_major || vars.WORKFLOW_API_MAJOR || '1' }}
     secrets:
       release_aws_role_arn: ${{ secrets.RELEASE_AWS_ROLE_ARN }}
       release_signing_secret_id: ${{ secrets.RELEASE_SIGNING_SECRET_ID }}

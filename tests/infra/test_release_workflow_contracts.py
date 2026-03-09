@@ -95,6 +95,7 @@ def test_release_apply_workflow_is_thin_wrapper_to_reusable_api() -> None:
         "uses: ./.github/workflows/reusable-release-apply.yml",
         "checkout_ref:",
         "plan_run_id:",
+        "workflow_api_major:",
         "release_signing_secret_id",
         "workflow_dispatch",
     ]:
@@ -118,10 +119,13 @@ def test_reusable_release_apply_consumes_plan_artifacts() -> None:
 
     for required in [
         "plan_run_id:",
+        "workflow_api_major:",
         "scripts.release.download_run_artifact",
+        "scripts.release.publish_workflow_api_tags",
         "release-plan-artifacts",
         "release-apply-artifacts",
         "release-apply-metadata.json",
+        "workflow-api-tagging.json",
         "changed-units.json",
         "version-plan.json",
     ]:
@@ -206,11 +210,9 @@ def test_post_deploy_validate_workflow_contracts() -> None:
     for required in [
         "uses: ./.github/workflows/reusable-post-deploy-validate.yml",
         "validation_base_url",
-        "service_base_url",
         "validation_canonical_paths",
         "validation_legacy_404_paths",
         "auth_validation_base_url",
-        "auth_service_base_url",
         "auth_validation_canonical_paths",
         "report_path",
         "artifact_name",
@@ -220,6 +222,8 @@ def test_post_deploy_validate_workflow_contracts() -> None:
         )
 
     for forbidden in [
+        "service_base_url",
+        "auth_service_base_url",
         "scripts/release/validate_route_contract.py",
         "actions/upload-artifact@v4",
     ]:
@@ -230,11 +234,9 @@ def test_post_deploy_validate_workflow_contracts() -> None:
     for required in [
         "workflow_call:",
         "validation_base_url",
-        "service_base_url",
         "validation_canonical_paths",
         "validation_legacy_404_paths",
         "auth_validation_base_url",
-        "auth_service_base_url",
         "auth_validation_canonical_paths",
         "report_path",
         "artifact_name",
@@ -243,7 +245,6 @@ def test_post_deploy_validate_workflow_contracts() -> None:
         "VALIDATION_CANONICAL_PATHS",
         "VALIDATION_LEGACY_404_PATHS",
         "AUTH_VALIDATION_BASE_URL",
-        "AUTH_SERVICE_BASE_URL",
         "AUTH_VALIDATION_CANONICAL_PATHS",
         "steps.run-validation.outcome",
         "set-outputs",
@@ -261,6 +262,16 @@ def test_post_deploy_validate_workflow_contracts() -> None:
     ]:
         assert required in reusable_text, (
             f"Missing required reusable contract: {required!r}"
+        )
+
+    for forbidden in [
+        "service_base_url",
+        "auth_service_base_url",
+        "SERVICE_BASE_URL",
+        "AUTH_SERVICE_BASE_URL",
+    ]:
+        assert forbidden not in reusable_text, (
+            f"Reusable workflow must not preserve alias contract: {forbidden!r}"
         )
 
 
@@ -355,12 +366,13 @@ def test_deploy_validate_buildspec_enforces_route_contracts() -> None:
 
     for required in [
         "VALIDATION_BASE_URL",
-        "SERVICE_BASE_URL",
         "scripts/release/validate_route_contract.py",
         "deploy-validation-report.json",
         "VALIDATION_STATUS",
     ]:
         assert required in text, f"Missing required contract: {required!r}"
+
+    assert "SERVICE_BASE_URL" not in text
 
     for required in [
         "/v1/health/live",

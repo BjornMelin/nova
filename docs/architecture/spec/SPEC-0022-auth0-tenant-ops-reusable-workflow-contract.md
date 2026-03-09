@@ -18,7 +18,7 @@ its synchronization with existing tenant-as-code runbook and validator controls.
 ## 2. Contract authority artifacts
 
 1. Reusable workflow contract schema:
-   - `docs/contracts/workflow-auth0-tenant-ops-v1.schema.json`
+   - `docs/contracts/workflow-auth0-tenant-deploy.schema.json`
 2. Auth0 runbook authority:
    - `docs/plan/release/AUTH0-A0DEPLOY-RUNBOOK.md`
 3. Local validation authority:
@@ -49,6 +49,9 @@ its synchronization with existing tenant-as-code runbook and validator controls.
    - schema docs/contracts, and
    - contract tests.
 2. Drift between runbook/local validator/workflow API is release-blocking.
+3. Cross-repo Auth0 workflow references follow `SPEC-0025`:
+   major tags are the compatibility channel, while production guidance requires
+   immutable release tags or full SHAs.
 
 ## 6. Acceptance criteria
 

@@ -2,7 +2,7 @@
 
 Status: Active
 Owner: nova release architecture
-Last updated: 2026-03-05
+Last updated: 2026-03-09
 
 ## 1. Purpose
 
@@ -52,6 +52,8 @@ Use the modular operator guide set for provisioning and setup details:
 9. IAM roles stack is deployed with promotion repository parameters:
    - `CodeArtifactPromotionSourceRepositoryName`
    - `CodeArtifactPromotionDestinationRepositoryName`
+10. Repository variable `WORKFLOW_API_MAJOR` is set to the active reusable
+    workflow major channel (default `1`).
 
 ## 3. GitHub release execution
 
@@ -80,7 +82,19 @@ Use the modular operator guide set for provisioning and setup details:
 1. Confirm `Verify Release Signature` passes.
 2. For release automation commits, `verified=true` is required.
 
-### D. Package staged publish gate
+### D. Publish reusable workflow tags
+
+1. Treat the signed release commit as the workflow API release commit.
+2. Create an immutable annotated release tag for the workflow API major line,
+   for example `v1.2.3`.
+3. Update the moving major tag (`v1`) to the same commit only when the release
+   is backward-compatible for existing `v1` callers.
+4. If the workflow contract is breaking, publish a new major line (`v2.0.0`
+   and `v2`) and do not move `v1`.
+5. Record the immutable release tag and moving major tag targets in the release
+   evidence log.
+
+### E. Package staged publish gate
 
 1. Trigger `Publish Packages` (or wait for `Nova Release Apply` completion trigger).
 2. Confirm `scripts.release.codeartifact_gate` generated:
@@ -95,7 +109,7 @@ Use the modular operator guide set for provisioning and setup details:
 6. Confirm promotion copies from `CODEARTIFACT_STAGING_REPOSITORY` to
    `CODEARTIFACT_PROD_REPOSITORY`.
 
-### E. Post-deploy route validation gate
+### F. Post-deploy route validation gate
 
 1. Trigger `Post Deploy Validate` (`post-deploy-validate.yml`) after deployment.
 2. Supply `validation_base_url` and `auth_validation_base_url` using deployed
@@ -151,24 +165,26 @@ For each run capture:
 1. Release plan workflow run URL.
 2. Release apply workflow run URL.
 3. Signature verification workflow run URL.
-4. CodePipeline execution ID and stage outcomes.
-5. Manual approval actor and timestamp.
-6. Dev and Prod validation evidence links.
-7. Build exported variables:
+4. Immutable reusable-workflow tag (`v1.x.y`) and moving major tag (`v1`)
+   published for the release commit.
+5. CodePipeline execution ID and stage outcomes.
+6. Manual approval actor and timestamp.
+7. Dev and Prod validation evidence links.
+8. Build exported variables:
    - `FILE_IMAGE_DIGEST`
    - `AUTH_IMAGE_DIGEST`
    - `PUBLISHED_PACKAGES`
    - `RELEASE_MANIFEST_SHA256`
-8. Explicit digest continuity evidence (Dev -> Prod file/auth digest match).
-9. Post-deploy route validation artifact link and status output for both
+9. Explicit digest continuity evidence (Dev -> Prod file/auth digest match).
+10. Post-deploy route validation artifact link and status output for both
    services.
-10. Link entry in `docs/plan/release/evidence-log.md`.
-11. Runtime WAF evidence for any internet-facing ALB (`PublicAlbWebAclArn` or
+11. Link entry in `docs/plan/release/evidence-log.md`.
+12. Runtime WAF evidence for any internet-facing ALB (`PublicAlbWebAclArn` or
     equivalent stack output).
-12. Immutable release-plan artifact continuity evidence:
+13. Immutable release-plan artifact continuity evidence:
     `changed-units.json` and `version-plan.json` consumed by release-apply and
     publish-packages from upstream workflow artifacts, not recomputed locally.
-13. For npm releases, retain the staged npm smoke output proving installability
+14. For npm releases, retain the staged npm smoke output proving installability
     and legacy `buildOperationUrl(...)` compatibility from CodeArtifact.
 
 ## 7. Local npm operator rule

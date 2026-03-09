@@ -106,6 +106,23 @@ def test_active_docs_do_not_reference_legacy_runtime_route_literals() -> None:
     )
 
 
+def test_active_docs_do_not_use_workstream_batch_naming() -> None:
+    """Active docs must use descriptive release-validation naming."""
+    violations: set[str] = set()
+
+    for doc in _markdown_targets(ACTIVE_ROUTE_AUTHORITY_PATHS):
+        text = doc.read_text(encoding="utf-8")
+        for term in ("Batch B", "BatchB", "batch-b"):
+            if term in text:
+                rel_path = doc.relative_to(REPO_ROOT)
+                violations.add(f"{rel_path}: {term}")
+
+    assert not violations, (
+        "Found workstream batch naming in active docs:\n"
+        + "\n".join(sorted(violations))
+    )
+
+
 def test_observability_security_cost_runbook_authority_exists() -> None:
     """Batch A4 authority runbook must exist.
 
@@ -139,6 +156,7 @@ def test_release_docs_include_codeartifact_staged_promotion_authority() -> None:
     for required in [
         "CODEARTIFACT_STAGING_REPOSITORY",
         "CODEARTIFACT_PROD_REPOSITORY",
+        "WORKFLOW_API_MAJOR",
         "publish-packages.yml",
         "promote-prod.yml",
     ]:
@@ -192,6 +210,34 @@ def test_browser_live_validation_checklist_authority_exists() -> None:
         "browser-live-validation-report.schema.json",
     ]:
         assert required in content
+
+
+def test_runtime_deploy_guide_uses_canonical_script() -> None:
+    """Runtime deploy authority must point to the final convergence path."""
+    text = _read(
+        "docs/plan/release/deploy-runtime-cloudformation-environments-guide.md"
+    )
+
+    for required in [
+        "scripts/release/deploy-runtime-cloudformation-environment.sh",
+        "infra/runtime/file_transfer/s3.yml",
+        "infra/runtime/file_transfer/async.yml",
+        "infra/runtime/file_transfer/cache.yml",
+        "infra/runtime/file_transfer/worker.yml",
+        "AssignPublicIp=DISABLED",
+        "IdempotencyMode=shared_required",
+        "FileTransferCacheEnabled=true",
+        "Do not reuse the CI artifact bucket as the file-transfer bucket.",
+        "reusable-deploy-runtime.yml",
+    ]:
+        assert required in text
+
+    for forbidden in [
+        'AssignPublicIp="${ASSIGN_PUBLIC_IP:-DISABLED}"',
+        'IdempotencyMode="${IDEMPOTENCY_MODE:-local_only}"',
+        'FileTransferCacheEnabled="${FILE_TRANSFER_CACHE_ENABLED:-false}"',
+    ]:
+        assert forbidden not in text
 
 
 def test_agents_active_authority_pack_includes_ws6_contracts() -> None:
@@ -345,6 +391,21 @@ def test_release_docs_align_validation_path_policy_contract() -> None:
         assert required in text
 
 
+def test_release_config_values_distinguish_artifact_and_transfer_buckets() -> (
+    None
+):
+    """Release config authority must keep CI and runtime buckets distinct."""
+    text = _read("docs/plan/release/config-values-reference-guide.md")
+
+    for required in [
+        "NOVA_ARTIFACT_BUCKET_NAME` is CI/CD storage",
+        "It is not the runtime upload/download bucket.",
+        "FILE_TRANSFER_BUCKET_BASE_NAME",
+        "deploy-runtime-cloudformation-environment.sh",
+    ]:
+        assert required in text
+
+
 def test_auth0_and_ssm_contract_docs_reference_schema_authority() -> None:
     """Auth0 and SSM authority docs must reference active schema contracts."""
     auth0_runbook = _read("docs/plan/release/AUTH0-A0DEPLOY-RUNBOOK.md")
@@ -355,15 +416,19 @@ def test_auth0_and_ssm_contract_docs_reference_schema_authority() -> None:
 
     for required in [
         "SPEC-0022-auth0-tenant-ops-reusable-workflow-contract.md",
-        "workflow-auth0-tenant-ops-v1.schema.json",
+        "workflow-auth0-tenant-deploy.schema.json",
+        "@v1",
+        "@v1.x.y",
     ]:
         assert required in auth0_runbook
 
     for required in [
-        "workflow-auth0-tenant-ops-v1.schema.json",
+        "workflow-auth0-tenant-deploy.schema.json",
         "ssm-runtime-base-url-v1.schema.json",
         "SPEC-0022-auth0-tenant-ops-reusable-workflow-contract.md",
         "SPEC-0023-ssm-runtime-base-url-contract-for-deploy-validation.md",
+        "@v1",
+        "@v1.x.y",
     ]:
         assert required in contracts_readme
 
@@ -374,9 +439,43 @@ def test_auth0_and_ssm_contract_docs_reference_schema_authority() -> None:
         assert required in ssm_spec
 
 
-def test_active_release_docs_do_not_reference_retired_conformance_lane_names() -> (
-    None
-):
+def test_release_docs_define_reusable_workflow_versioning_policy() -> None:
+    """Release docs must define major-tag and immutable-pin workflow policy."""
+    release_policy = _read("docs/plan/release/RELEASE-POLICY.md")
+    release_runbook = _read("docs/plan/release/RELEASE-RUNBOOK.md")
+    clients_readme = _read("docs/clients/README.md")
+
+    for required in [
+        "v1.x.y",
+        "v1` points to the latest compatible",
+        "production and",
+        "high-assurance guidance requires",
+        "`@v1.x.y` or a full commit SHA",
+        "Composite actions under `.github/actions/**` are internal",
+        "published as direct external APIs",
+    ]:
+        assert required in release_policy
+
+    for required in [
+        "Publish reusable workflow tags",
+        "v1.2.3",
+        "v2.0.0",
+        "moving major tag (`v1`)",
+        "WORKFLOW_API_MAJOR",
+    ]:
+        assert required in release_runbook
+
+    for required in [
+        "`@v1` is the public compatibility channel",
+        "immutable release tags such as",
+        "`@v1.x.y`",
+        "full",
+        "commit SHA",
+    ]:
+        assert required in clients_readme
+
+
+def test_active_release_docs_exclude_retired_conformance_lane_names() -> None:
     """Active release docs must use the current conformance workflow names."""
     active_release_docs = [
         "docs/plan/release/branch-protection-required-checks.md",
@@ -398,9 +497,7 @@ def test_active_release_docs_do_not_reference_retired_conformance_lane_names() -
             assert required in text, f"{rel_path} missing {required}"
 
 
-def test_auth_api_contract_doc_matches_current_verify_and_introspect_shape() -> (
-    None
-):
+def test_auth_api_contract_doc_matches_verify_introspect_shape() -> None:
     """Auth API spec must describe the live verify/introspect contract."""
     text = _read("docs/architecture/spec/SPEC-0007-auth-api-contract.md")
 

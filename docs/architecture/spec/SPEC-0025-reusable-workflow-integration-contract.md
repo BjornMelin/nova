@@ -53,9 +53,17 @@ Required reusable workflows:
 
 ## 5. Versioning policy
 
-1. `@v1` is the stable compatibility channel.
-2. `@v1.x.y` tags are immutable and required for production pinning.
-3. Breaking contract changes require a new major channel (`v2`, etc.).
+1. Reusable workflows are published as versioned external automation APIs.
+2. Supported cross-repo refs are:
+   - stable moving major tags such as `@v1`
+   - immutable release tags such as `@v1.x.y`
+   - full commit SHAs
+3. Production and high-assurance consumers MUST pin immutable release tags or
+   full commit SHAs.
+4. Consumer docs MUST NOT publish branch refs such as `@main` as supported
+   integration references.
+5. Breaking caller-visible workflow contract changes require a new major tag
+   and synchronized contract-doc updates.
 
 ## 6. Consumer integration contract
 
@@ -63,7 +71,11 @@ Required reusable workflows:
    reusable workflows.
 2. Validation workflows require `NOVA_API_BASE_URL` and must produce
    contract-compliant artifacts.
-3. Integration guides must document both stable and immutable pin strategies.
+3. Integration guides may use `@v1` in prose quick starts, but committed
+   examples must use immutable release tags and production guidance must
+   require immutable refs.
+4. Composite actions under `.github/actions/**` remain internal implementation
+   details and are not a supported external API surface.
 
 ## 7. CloudFormation validation contract
 

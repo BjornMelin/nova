@@ -2,18 +2,21 @@
 
 Status: Active
 Owner: nova release architecture
-Last reviewed: 2026-03-03
+Last reviewed: 2026-03-09
 
 ## Purpose
 
 Integrate downstream consumer repos with Nova post-deploy route validation
-using the reusable workflow API and WS6/WS8 contract schemas.
-This guide is designed as a 5-minute setup flow for downstream repos.
+using the published reusable workflow contract and WS6/WS8 schemas.
 
 ## Inputs
 
 - Reusable workflow reference:
-  `3M-Cloud/nova/.github/workflows/reusable-post-deploy-validate.yml@v1`
+  - quick start compatibility channel:
+    `3M-Cloud/nova/.github/workflows/reusable-post-deploy-validate.yml@v1`
+  - immutable production pin:
+    `3M-Cloud/nova/.github/workflows/reusable-post-deploy-validate.yml@v1.x.y`
+  - full commit SHA pin is also supported for maximum determinism
 - Required repo variable in consumer repo: `NOVA_API_BASE_URL`
   - Must be an HTTPS base URL.
 - Optional path overrides:
@@ -25,9 +28,8 @@ This guide is designed as a 5-minute setup flow for downstream repos.
 1. Copy one minimal workflow from `examples/workflows/` into your consumer
    repo.
 2. Set `NOVA_API_BASE_URL` in repository variables.
-3. Pin workflow reference to a release tag or commit SHA before production use.
-   - Stable channel: `@v1`
-   - Immutable pin: `@v1.x.y` (or commit SHA) for production pipelines
+3. For production or high-assurance automation, pin the workflow reference to
+   an immutable `@v1.x.y` release tag or a full commit SHA before use.
 4. Dispatch the workflow after deployment and review uploaded
    `post-deploy-validation-report` artifact.
 
@@ -46,13 +48,14 @@ This guide is designed as a 5-minute setup flow for downstream repos.
 - Browser live-gate artifacts (WS5) follow
   `docs/contracts/browser-live-validation-report.schema.json`.
 
-## Versioning policy references
+## Usage notes
 
-- `docs/plan/release/RELEASE-POLICY.md` (release branch, immutable artifact, and
-  promotion policy)
-- `docs/architecture/spec/SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md`
-  (SemVer and compatibility governance)
-- `docs/plan/release/RELEASE-VERSION-MANIFEST.md` (release artifact evidence)
+- `@v1` is the stable compatibility channel for onboarding and quick starts.
+- Committed Nova consumer examples use immutable release tags (`@v1.x.y`) so
+  the checked-in workflow ref is deterministic.
+- Production and high-assurance consumers should pin `@v1.x.y` or a full
+  commit SHA.
+- Branch refs such as `@main` are not part of the supported consumer contract.
 
 ## References
 

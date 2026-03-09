@@ -253,7 +253,9 @@ Downstream consumer repositories and integration examples MUST:
 - use reusable post-deploy validation contracts that assert canonical
   non-`404` behavior
 - assert explicit legacy route `404` behavior for removed routes
-- keep workflow pinning policy explicit (`@v1` stable, `@v1.x.y`/SHA immutable)
+- expose stable reusable workflow major-version refs for onboarding while
+  requiring immutable release tags or exact commit SHAs for production and
+  high-assurance consumers
 
 ### FR-0012: Auth0 tenant ops reusable workflow contract
 

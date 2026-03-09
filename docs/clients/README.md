@@ -1,15 +1,15 @@
-# Downstream Consumer Docs
+# Integration Workflow Docs
 
 Status: Active
 Owner: nova release architecture
-Last reviewed: 2026-03-07
+Last reviewed: 2026-03-09
 
 ## Purpose
 
 Provide minimal downstream integration artifacts for Dash, R Shiny, and
 React/Next consumers that call Nova reusable deployment and post-deploy
-validation contracts. These docs are workflow/integration authority, not public
-SDK release authority.
+validation contracts. These docs are active authority for Nova's published
+reusable-workflow integration surface.
 
 ## Contents
 
@@ -60,3 +60,12 @@ Generator-facing OpenAPI rules that downstream consumers can rely on:
 - semantic tags for generated package/module grouping
 - committed Python SDK trees regenerated from
   `../../packages/contracts/openapi/*.openapi.json`
+
+## Workflow reference policy
+
+- `@v1` is the public compatibility channel for reusable workflow consumers.
+- Committed downstream workflow examples pin immutable release tags such as
+  `@v1.x.y`.
+- Production and high-assurance consumers should pin `@v1.x.y` or a full
+  commit SHA.
+- Branch refs such as `@main` are not part of the supported consumer contract.

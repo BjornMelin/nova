@@ -2,13 +2,13 @@
 
 Status: Active
 Owner: nova release architecture
-Last reviewed: 2026-03-06
+Last reviewed: 2026-03-09
 
 ## Purpose
 
 Provide machine-readable JSON schema contracts for reusable post-deploy
 workflow APIs, downstream size profiles, release artifacts, and committed
-OpenAPI documents used by release and consumer integration gates.
+OpenAPI documents used by release and downstream integration gates.
 
 ## Schema Set
 
@@ -33,8 +33,6 @@ Canonical committed OpenAPI artifacts live under `packages/contracts/openapi/`:
   - Workflow-specific validation schema for reusable Auth0 tenant ops API.
 - `browser-live-validation-report.schema.json`
   - WS5 browser/live validation gate artifact contract for dash-pca + Nova.
-- `workflow-auth0-tenant-ops-v1.schema.json`
-  - Workflow-specific contract schema for Auth0 tenant operation reusable APIs.
 - `ssm-runtime-base-url-v1.schema.json`
   - SSM parameter path + HTTPS value contract for runtime deploy-validation base URLs.
 
@@ -106,7 +104,11 @@ but are excluded from client SDK generation.
 - `../architecture/spec/SPEC-0022-auth0-tenant-ops-reusable-workflow-contract.md`
 - `../architecture/spec/SPEC-0023-ssm-runtime-base-url-contract-for-deploy-validation.md`
 
-## Versioning policy
+## Workflow reference policy
 
-- `v1` is the stable rolling compatibility channel.
-- `v1.x.y` tags are immutable releases and are required for production pinning.
+- Reusable workflows are published automation APIs with stable major tags such
+  as `@v1`.
+- Committed cross-repo examples use immutable release tags such as `@v1.x.y`.
+- Production and high-assurance consumers should pin immutable release tags or
+  full commit SHAs.
+- Branch refs such as `@main` are not part of the supported consumer contract.

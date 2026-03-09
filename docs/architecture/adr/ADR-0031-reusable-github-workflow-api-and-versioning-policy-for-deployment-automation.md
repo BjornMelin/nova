@@ -53,9 +53,18 @@ Choose **Option B**.
    `.github/actions/**`.
 3. Entry workflows in `.github/workflows/**` are wrappers around reusable
    implementations.
-4. Versioning contract:
-   - `@v1` is the stable compatibility channel.
-   - `@v1.x.y` tags are immutable release pins for production use.
+4. Reference contract:
+   - reusable workflows remain typed `workflow_call` interfaces
+   - moving major tags such as `@v1` and `@v2` are the published compatibility
+     channels for cross-repo callers
+   - immutable release tags such as `@v1.x.y` and full commit SHAs are also
+     supported
+   - production and high-assurance consumers pin immutable release tags or full
+     commit SHAs
+   - breaking caller-visible workflow changes require a new major tag rather
+     than compatibility shims
+   - composite actions remain internal implementation details, not direct
+     external APIs
 
 ## Consequences
 
@@ -69,6 +78,8 @@ Choose **Option B**.
 
 - Requires stricter schema/doc synchronization discipline.
 - Introduces explicit version lifecycle management for workflow APIs.
+- Requires release-tag governance so moving major tags track only compatible
+  releases.
 
 ## Explicit non-decisions
 

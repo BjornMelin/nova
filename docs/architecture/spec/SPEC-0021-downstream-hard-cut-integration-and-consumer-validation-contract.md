@@ -32,11 +32,16 @@ Post-deploy validation contracts MUST include both:
    contract behavior.
 2. Legacy route checks that verify required `404` responses.
 
-## 4. Reusable workflow pinning contract
+## 4. Reusable workflow reference contract
 
-1. Stable integration channel uses reusable workflow reference `@v1`.
-2. Production integrations MUST pin immutable tags (`@v1.x.y`) or commit SHA.
-3. Consumer examples must document both stable and immutable pin strategies.
+1. Stable major tags such as `@v1` are the published compatibility channel for
+   downstream consumers.
+2. Committed consumer workflow examples MUST use immutable release tags such as
+   `@v1.x.y`.
+3. Production and high-assurance integrations MUST pin immutable release tags
+   or exact commit SHAs.
+4. Consumer docs MUST NOT publish branch refs such as `@main` as supported
+   integration references.
 
 ## 5. Documentation and evidence contract
 
@@ -50,6 +55,8 @@ Post-deploy validation contracts MUST include both:
 1. Downstream workflow examples pass contract-doc tests.
 2. Consumer route defaults remain canonical-only.
 3. Post-deploy validation artifacts prove canonical and legacy-404 assertions.
+4. Consumer guidance distinguishes major-tag onboarding from immutable
+   production pinning.
 
 ## 7. Traceability
 

@@ -2,7 +2,7 @@
 
 Status: Active
 Owner: nova release architecture
-Last reviewed: 2026-03-06
+Last reviewed: 2026-03-09
 
 ## Purpose
 
@@ -32,6 +32,9 @@ configure CI/CD stacks, and operate Nova release automation.
   - value: staged publish repository used by package build and promotion source
 - `CODEARTIFACT_PROD_REPOSITORY`
   - value: prod promotion destination repository
+- `WORKFLOW_API_MAJOR`
+  - default: `1`
+  - value: moving major tag channel published for reusable workflow APIs
 
 ## Nova operator command-pack environment keys
 

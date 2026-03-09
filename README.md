@@ -181,6 +181,11 @@ Release sequencing contract:
 - Worker autoscaling uses explicit queue-depth step scaling
   (bootstrap/backlog/surge plus empty-queue scale-in) and keeps
   `ApproximateAgeOfOldestMessage` as an operator alarm.
+- Reusable GitHub workflows are published as versioned automation APIs:
+  `@v1` is the compatibility channel, while production consumers pin immutable
+  `@v1.x.y` tags or full commit SHAs.
+- Composite actions under `.github/actions/**` are internal implementation
+  details behind the reusable workflow API surface.
 - Base URL authority: deploy validation URLs are sourced from
   `/nova/{env}/{service}/base-url` via
   `infra/nova/deploy/service-base-url-ssm.yml`.

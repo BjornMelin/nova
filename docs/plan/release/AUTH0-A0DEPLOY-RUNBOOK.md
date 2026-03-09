@@ -7,7 +7,7 @@ Define the canonical `nova` procedure for Auth0 tenant-as-code operations using 
 Reusable workflow contract authority:
 
 - `docs/architecture/spec/SPEC-0022-auth0-tenant-ops-reusable-workflow-contract.md`
-- `docs/contracts/workflow-auth0-tenant-ops-v1.schema.json`
+- `docs/contracts/workflow-auth0-tenant-deploy.schema.json`
 - `scripts/release/validate_auth0_contract.py`
 
 ## Preconditions
@@ -118,12 +118,20 @@ Run this before each import/export:
 python -m scripts.release.validate_auth0_contract
 ```
 
-## GitHub workflow productization
+## GitHub workflow automation
 
 Nova now exposes Auth0 tenant operations as reusable workflow APIs:
 
 - `.github/workflows/reusable-auth0-tenant-deploy.yml` (`workflow_call`)
 - `.github/workflows/auth0-tenant-deploy.yml` (thin `workflow_dispatch` wrapper)
+
+Supported cross-repo references:
+
+- quick-start compatibility channel:
+  `3M-Cloud/nova/.github/workflows/reusable-auth0-tenant-deploy.yml@v1`
+- immutable production pin:
+  `3M-Cloud/nova/.github/workflows/reusable-auth0-tenant-deploy.yml@v1.x.y`
+- full commit SHA pin for maximum determinism
 
 Required repository secrets for workflow execution:
 
@@ -133,8 +141,14 @@ Required repository secrets for workflow execution:
 
 Contract schemas:
 
-- `docs/contracts/workflow-auth0-tenant-ops-v1.schema.json`
 - `docs/contracts/workflow-auth0-tenant-deploy.schema.json`
+
+Versioning policy:
+
+- `@v1` is the public compatibility channel.
+- Production and high-assurance consumers should pin `@v1.x.y` or a full
+  commit SHA.
+- Branch refs such as `@main` are not part of the supported consumer contract.
 
 ## Validation checklist
 
