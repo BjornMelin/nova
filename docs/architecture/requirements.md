@@ -191,7 +191,7 @@ contract source for docs and client generation.
 
 SDK-facing OpenAPI metadata MUST also satisfy these rules:
 
-- `operationId` values are unique, stable, lowercase snake_case, and not
+- `operationId` values are unique, stable, snake_case, and not
   path/method/version-derived.
 - operation tags are semantic client-grouping tags only:
   `transfers`, `jobs`, `platform`, `ops`, `token`, and `health`.

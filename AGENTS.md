@@ -45,7 +45,9 @@ Use these as the active authority set:
 - `docs/runbooks/README.md`
 
 Adjacent deploy-governance authority (canonical, but not part of the active
-runtime pack):
+runtime pack; these documents govern deployment, operational controls, and
+CI/CD/IAM policy boundaries related to the product without defining the runtime
+code or packaging surface):
 
 - `docs/architecture/adr/ADR-0030-native-cfn-modular-stack-architecture-for-nova-infrastructure-productization.md`
 - `docs/architecture/adr/ADR-0031-reusable-github-workflow-api-and-versioning-policy-for-deployment-automation.md`
