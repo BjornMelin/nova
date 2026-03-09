@@ -38,6 +38,7 @@
     },
     "manifest_sha256": {
       "type": "string",
+      "description": "SHA256 of docs/plan/release/RELEASE-VERSION-MANIFEST.md.",
       "pattern": "^[a-f0-9]{64}$"
     },
     "cloudformation_change_set_output": {

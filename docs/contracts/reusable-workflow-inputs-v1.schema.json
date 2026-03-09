@@ -2,6 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://3m-cloud.github.io/nova/docs/contracts/reusable-workflow-inputs-v1.schema.json",
   "title": "Reusable workflow inputs v1",
+  "description": "Input contract for reusable deploy-runtime workflow API.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -24,50 +25,52 @@
       "minLength": 1
     },
     "template_file": {
-      "type": "string",
-      "minLength": 1
-    },
-    "aws_region": {
-      "type": "string",
-      "description": "AWS region code (for example: us-east-1, us-gov-west-1)",
-      "minLength": 1
+      "$ref": "#/$defs/relative_file_path"
     },
     "parameter_file": {
       "type": "string",
       "default": ""
     },
     "image_tag": {
-      "type": "string"
+      "type": "string",
+      "default": ""
     },
     "size_profile": {
       "type": "string",
-      "enum": ["small", "medium", "large", "custom"]
+      "enum": ["small", "medium", "large", "custom"],
+      "default": "medium"
     },
     "enable_worker": {
-      "type": "boolean"
+      "type": "boolean",
+      "default": false
     },
     "custom_container_port": {
-      "type": "integer",
-      "minimum": 1,
+      "type": "number",
+      "minimum": 0,
       "maximum": 65535
     },
     "custom_task_cpu": {
-      "type": "integer",
-      "minimum": 256,
+      "type": "number",
+      "minimum": 0,
       "maximum": 16384
     },
     "custom_task_memory": {
-      "type": "integer",
-      "minimum": 512,
-      "maximum": 122880
+      "type": "number",
+      "minimum": 0,
+      "maximum": 65536
     },
     "custom_desired_count": {
-      "type": "integer",
+      "type": "number",
       "minimum": 0,
       "maximum": 100
     },
     "approval_environment": {
-      "type": "string"
+      "type": "string",
+      "default": ""
+    },
+    "aws_region": {
+      "type": "string",
+      "pattern": "^[a-z]{2}-[a-z]+-\\d$"
     },
     "capabilities": {
       "type": "string",
@@ -76,6 +79,13 @@
     "pipeline_name": {
       "type": "string",
       "default": ""
+    }
+  },
+  "$defs": {
+    "relative_file_path": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?!/).+"
     }
   }
 }

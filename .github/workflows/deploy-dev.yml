@@ -1,23 +1,36 @@
 name: Deploy Dev
 
 on:
+  workflow_run:
+    workflows: ["Publish Packages"]
+    types: [completed]
   workflow_dispatch:
     inputs:
       pipeline_name:
         description: AWS CodePipeline name
-        required: true
+        required: false
+        default: ""
         type: string
 
 permissions:
   id-token: write
   contents: read
 
+concurrency:
+  group: deploy-dev-${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_branch || github.ref }}
+  cancel-in-progress: false
+
 jobs:
   deploy-dev:
-    if: github.ref == 'refs/heads/main'
+    if: >-
+      (github.event_name == 'workflow_dispatch' &&
+      github.ref == 'refs/heads/main') ||
+      (github.event_name == 'workflow_run' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main')
     uses: ./.github/workflows/reusable-deploy-dev.yml
     with:
-      pipeline_name: ${{ inputs.pipeline_name }}
+      pipeline_name: ${{ github.event_name == 'workflow_dispatch' && inputs.pipeline_name || vars.CODEPIPELINE_NAME }}
       aws_region: ${{ vars.AWS_REGION || 'us-east-1' }}
     secrets:
       release_aws_role_arn: ${{ secrets.RELEASE_AWS_ROLE_ARN }}

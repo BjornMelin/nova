@@ -120,6 +120,26 @@ runs:
           exit 1
         fi
 
+        VALIDATION_FAIL_COUNT="$(aws cloudformation describe-events \
+          --stack-name "$STACK_NAME" \
+          --change-set-name "$CHANGE_SET_NAME" \
+          --region "$AWS_REGION" \
+          --query "length(OperationEvents[?EventType=='VALIDATION_ERROR' && ValidationStatus=='FAILED' && ValidationFailureMode=='FAIL'])" \
+          --output text)"
+        if [[ -z "$VALIDATION_FAIL_COUNT" || "$VALIDATION_FAIL_COUNT" == "None" ]]; then
+          VALIDATION_FAIL_COUNT="0"
+        fi
+        if [[ "$VALIDATION_FAIL_COUNT" != "0" ]]; then
+          echo "CloudFormation validation failed for change set ${CHANGE_SET_NAME}." >&2
+          aws cloudformation describe-events \
+            --stack-name "$STACK_NAME" \
+            --change-set-name "$CHANGE_SET_NAME" \
+            --region "$AWS_REGION" \
+            --query "OperationEvents[?EventType=='VALIDATION_ERROR' && ValidationStatus=='FAILED' && ValidationFailureMode=='FAIL'].[Timestamp,ValidationName,ValidationPath,ValidationStatusReason]" \
+            --output table >&2 || true
+          exit 1
+        fi
+
         aws cloudformation execute-change-set \
           --stack-name "$STACK_NAME" \
           --change-set-name "$CHANGE_SET_NAME" \

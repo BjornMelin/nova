@@ -100,16 +100,21 @@ on:
         description: Validation/evidence artifact path.
         value: ${{ jobs.deploy.outputs.validation_report_path }}
       manifest_sha256:
-        description: Optional immutable release manifest hash (when supplied by caller).
+        description: Immutable SHA256 of docs/plan/release/RELEASE-VERSION-MANIFEST.md.
         value: ${{ jobs.deploy.outputs.manifest_sha256 }}
 
 permissions:
   id-token: write
   contents: read
 
+concurrency:
+  group: reusable-deploy-runtime-${{ inputs.stack_name }}-${{ inputs.environment }}
+  cancel-in-progress: false
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    environment: ${{ inputs.approval_environment != '' && inputs.approval_environment || inputs.environment }}
     outputs:
       stack_name: ${{ steps.outputs.outputs.stack_name }}
       change_set_name: ${{ steps.deploy.outputs.change-set-name }}
@@ -212,15 +217,12 @@ jobs:
       - id: outputs
         run: |
           set -euo pipefail
-          manifest_sha256="$(sha256sum .artifacts/deploy-evidence.json | awk '{print $1}')"
-          # This workflow does not invoke pipeline APIs, so no execution id is available.
-          pipeline_execution_id=""
-          {
-            echo "stack_name=${{ inputs.stack_name }}"
-            echo "pipeline_execution_id=${pipeline_execution_id}"
-            echo "validation_report_path=.artifacts/deploy-evidence.json"
-            echo "manifest_sha256=${manifest_sha256}"
-          } >> "$GITHUB_OUTPUT"
+          test -f docs/plan/release/RELEASE-VERSION-MANIFEST.md
+          manifest_sha256="$(sha256sum docs/plan/release/RELEASE-VERSION-MANIFEST.md | awk '{print $1}')"
+          echo "stack_name=${{ inputs.stack_name }}" >> "$GITHUB_OUTPUT"
+          echo "pipeline_execution_id=" >> "$GITHUB_OUTPUT"
+          echo "validation_report_path=.artifacts/deploy-evidence.json" >> "$GITHUB_OUTPUT"
+          echo "manifest_sha256=${manifest_sha256}" >> "$GITHUB_OUTPUT"
 
       - name: Upload deploy evidence
         uses: actions/upload-artifact@v4
