@@ -1,23 +1,13 @@
-# ruff: noqa
-"""Client helpers for the presign download endpoint.
-
-Functions in this module accept PresignDownloadRequest and
-return PresignDownloadResponse or ErrorEnvelope payloads."""
-
+from http import HTTPStatus
 from typing import Any
 
 import httpx
 
-from nova_sdk_py_file import errors
-from nova_sdk_py_file.client import AuthenticatedClient, Client
-from nova_sdk_py_file.models.error_envelope import ErrorEnvelope
-from nova_sdk_py_file.models.presign_download_request import (
-    PresignDownloadRequest,
-)
-from nova_sdk_py_file.models.presign_download_response import (
-    PresignDownloadResponse,
-)
-from nova_sdk_py_file.types import Response
+from ... import errors
+from ...client import AuthenticatedClient, Client
+from ...models.presign_download_request import PresignDownloadRequest
+from ...models.presign_download_response import PresignDownloadResponse
+from ...types import Response
 
 
 def _get_kwargs(
@@ -41,26 +31,11 @@ def _get_kwargs(
 
 def _parse_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> ErrorEnvelope | PresignDownloadResponse | None:
+) -> PresignDownloadResponse | None:
     if response.status_code == 200:
         response_200 = PresignDownloadResponse.from_dict(response.json())
 
         return response_200
-
-    if response.status_code == 401:
-        response_401 = ErrorEnvelope.from_dict(response.json())
-
-        return response_401
-
-    if response.status_code == 403:
-        response_403 = ErrorEnvelope.from_dict(response.json())
-
-        return response_403
-
-    if response.status_code == 422:
-        response_422 = ErrorEnvelope.from_dict(response.json())
-
-        return response_422
 
     if client.raise_on_unexpected_status:
         raise errors.UnexpectedStatus(response.status_code, response.content)
@@ -70,9 +45,9 @@ def _parse_response(
 
 def _build_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> Response[ErrorEnvelope | PresignDownloadResponse | None]:
+) -> Response[PresignDownloadResponse]:
     return Response(
-        status_code=response.status_code,
+        status_code=HTTPStatus(response.status_code),
         content=response.content,
         headers=response.headers,
         parsed=_parse_response(client=client, response=response),
@@ -81,9 +56,9 @@ def _build_response(
 
 def sync_detailed(
     *,
-    client: AuthenticatedClient,
+    client: AuthenticatedClient | Client,
     body: PresignDownloadRequest,
-) -> Response[ErrorEnvelope | PresignDownloadResponse | None]:
+) -> Response[PresignDownloadResponse]:
     """Presign Download
 
      Issue presigned GET URL for caller-scoped key.
@@ -96,7 +71,7 @@ def sync_detailed(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[ErrorEnvelope | PresignDownloadResponse]
+        Response[PresignDownloadResponse]
     """
 
     kwargs = _get_kwargs(
@@ -112,9 +87,9 @@ def sync_detailed(
 
 def sync(
     *,
-    client: AuthenticatedClient,
+    client: AuthenticatedClient | Client,
     body: PresignDownloadRequest,
-) -> ErrorEnvelope | PresignDownloadResponse | None:
+) -> PresignDownloadResponse | None:
     """Presign Download
 
      Issue presigned GET URL for caller-scoped key.
@@ -127,7 +102,7 @@ def sync(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        ErrorEnvelope | PresignDownloadResponse | None
+        PresignDownloadResponse
     """
 
     return sync_detailed(
@@ -138,9 +113,9 @@ def sync(
 
 async def asyncio_detailed(
     *,
-    client: AuthenticatedClient,
+    client: AuthenticatedClient | Client,
     body: PresignDownloadRequest,
-) -> Response[ErrorEnvelope | PresignDownloadResponse | None]:
+) -> Response[PresignDownloadResponse]:
     """Presign Download
 
      Issue presigned GET URL for caller-scoped key.
@@ -153,7 +128,7 @@ async def asyncio_detailed(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[ErrorEnvelope | PresignDownloadResponse]
+        Response[PresignDownloadResponse]
     """
 
     kwargs = _get_kwargs(
@@ -167,9 +142,9 @@ async def asyncio_detailed(
 
 async def asyncio(
     *,
-    client: AuthenticatedClient,
+    client: AuthenticatedClient | Client,
     body: PresignDownloadRequest,
-) -> ErrorEnvelope | PresignDownloadResponse | None:
+) -> PresignDownloadResponse | None:
     """Presign Download
 
      Issue presigned GET URL for caller-scoped key.
@@ -182,7 +157,7 @@ async def asyncio(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        ErrorEnvelope | PresignDownloadResponse | None
+        PresignDownloadResponse
     """
 
     return (

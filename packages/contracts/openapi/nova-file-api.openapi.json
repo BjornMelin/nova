@@ -11,16 +11,6 @@
         },
         "description": "Canonical forbidden request response."
       },
-      "FileIdempotencyConflictResponse": {
-        "content": {
-          "application/json": {
-            "schema": {
-              "$ref": "#/components/schemas/ErrorEnvelope"
-            }
-          }
-        },
-        "description": "Canonical idempotency-conflict response."
-      },
       "FileIdempotencyUnavailableResponse": {
         "content": {
           "application/json": {
@@ -121,7 +111,6 @@
             "items": {
               "$ref": "#/components/schemas/CapabilityDescriptor"
             },
-            "maxItems": 256,
             "title": "Capabilities",
             "type": "array"
           }
@@ -324,41 +313,6 @@
         "title": "EnqueueJobResponse",
         "type": "object"
       },
-      "ErrorEnvelope": {
-        "additionalProperties": false,
-        "properties": {
-          "error": {
-            "additionalProperties": true,
-            "properties": {
-              "code": {
-                "type": "string"
-              },
-              "details": {
-                "type": "object"
-              },
-              "message": {
-                "type": "string"
-              },
-              "request_id": {
-                "type": [
-                  "string",
-                  "null"
-                ]
-              }
-            },
-            "required": [
-              "code",
-              "message"
-            ],
-            "type": "object"
-          }
-        },
-        "required": [
-          "error"
-        ],
-        "title": "ErrorEnvelope",
-        "type": "object"
-      },
       "HealthResponse": {
         "additionalProperties": false,
         "description": "Health endpoint response body.",
@@ -558,7 +512,6 @@
             "items": {
               "$ref": "#/components/schemas/JobEvent"
             },
-            "maxItems": 1000,
             "title": "Events",
             "type": "array"
           },
@@ -587,7 +540,6 @@
             "items": {
               "$ref": "#/components/schemas/JobRecord"
             },
-            "maxItems": 200,
             "title": "Jobs",
             "type": "array"
           }
@@ -670,27 +622,6 @@
       },
       "JobResultUpdateRequest": {
         "additionalProperties": false,
-        "allOf": [
-          {
-            "if": {
-              "properties": {
-                "status": {
-                  "const": "succeeded"
-                }
-              },
-              "required": [
-                "status"
-              ]
-            },
-            "then": {
-              "properties": {
-                "error": {
-                  "type": "null"
-                }
-              }
-            }
-          }
-        ],
         "description": "Worker/internal request payload for job result updates.",
         "properties": {
           "error": {
@@ -1017,7 +948,6 @@
             "items": {
               "$ref": "#/components/schemas/ResourcePlanItem"
             },
-            "maxItems": 256,
             "title": "Plan",
             "type": "array"
           }
@@ -1040,15 +970,12 @@
           },
           "part_numbers": {
             "items": {
-              "maximum": 10000.0,
-              "minimum": 1.0,
               "type": "integer"
             },
             "maxItems": 1000,
             "minItems": 1,
             "title": "Part Numbers",
-            "type": "array",
-            "uniqueItems": true
+            "type": "array"
           },
           "session_id": {
             "anyOf": [
@@ -1109,66 +1036,12 @@
         ],
         "title": "UploadStrategy",
         "type": "string"
-      },
-      "ValidationError": {
-        "properties": {
-          "ctx": {
-            "title": "Context",
-            "type": "object"
-          },
-          "input": {
-            "title": "Input"
-          },
-          "loc": {
-            "items": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "integer"
-                }
-              ]
-            },
-            "title": "Location",
-            "type": "array"
-          },
-          "msg": {
-            "title": "Message",
-            "type": "string"
-          },
-          "type": {
-            "title": "Error Type",
-            "type": "string"
-          }
-        },
-        "required": [
-          "loc",
-          "msg",
-          "type"
-        ],
-        "title": "ValidationError",
-        "type": "object"
-      }
-    },
-    "securitySchemes": {
-      "X-Worker-Token": {
-        "description": "Worker token header for trusted job-worker calls.",
-        "in": "header",
-        "name": "X-Worker-Token",
-        "type": "apiKey"
-      },
-      "sessionAuth": {
-        "description": "Session identifier header for caller context.",
-        "in": "header",
-        "name": "X-Session-Id",
-        "type": "apiKey"
       }
     }
   },
   "info": {
     "title": "nova-file-api",
-    "version": "0.5.0"
+    "version": "0.4.0"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -1194,11 +1067,6 @@
             "$ref": "#/components/responses/FileForbiddenResponse"
           }
         },
-        "security": [
-          {
-            "sessionAuth": []
-          }
-        ],
         "summary": "Metrics Summary",
         "tags": [
           "ops"
@@ -1263,16 +1131,6 @@
               }
             },
             "description": "Successful Response"
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ReadinessResponse"
-                }
-              }
-            },
-            "description": "Service Unavailable - Readiness failed"
           }
         },
         "summary": "Health Ready",
@@ -1340,11 +1198,6 @@
             "$ref": "#/components/responses/FileInvalidRequestResponse"
           }
         },
-        "security": [
-          {
-            "X-Worker-Token": []
-          }
-        ],
         "summary": "Update Job Result",
         "tags": [
           "jobs"
@@ -1391,11 +1244,6 @@
             "$ref": "#/components/responses/FileInvalidRequestResponse"
           }
         },
-        "security": [
-          {
-            "sessionAuth": []
-          }
-        ],
         "summary": "List Jobs",
         "tags": [
           "jobs"
@@ -1456,11 +1304,6 @@
             "$ref": "#/components/responses/FileQueueUnavailableResponse"
           }
         },
-        "security": [
-          {
-            "sessionAuth": []
-          }
-        ],
         "summary": "Create Job",
         "tags": [
           "jobs"
@@ -1503,11 +1346,6 @@
             "$ref": "#/components/responses/FileInvalidRequestResponse"
           }
         },
-        "security": [
-          {
-            "sessionAuth": []
-          }
-        ],
         "summary": "Get Job Status",
         "tags": [
           "jobs"
@@ -1550,11 +1388,6 @@
             "$ref": "#/components/responses/FileInvalidRequestResponse"
           }
         },
-        "security": [
-          {
-            "sessionAuth": []
-          }
-        ],
         "summary": "Cancel Job",
         "tags": [
           "jobs"
@@ -1597,11 +1430,6 @@
             "$ref": "#/components/responses/FileInvalidRequestResponse"
           }
         },
-        "security": [
-          {
-            "sessionAuth": []
-          }
-        ],
         "summary": "List Job Events",
         "tags": [
           "jobs"
@@ -1644,11 +1472,6 @@
             "$ref": "#/components/responses/FileInvalidRequestResponse"
           }
         },
-        "security": [
-          {
-            "sessionAuth": []
-          }
-        ],
         "summary": "Retry Job",
         "tags": [
           "jobs"
@@ -1747,11 +1570,6 @@
             "$ref": "#/components/responses/FileInvalidRequestResponse"
           }
         },
-        "security": [
-          {
-            "sessionAuth": []
-          }
-        ],
         "summary": "Presign Download",
         "tags": [
           "transfers"
@@ -1793,11 +1611,6 @@
             "$ref": "#/components/responses/FileInvalidRequestResponse"
           }
         },
-        "security": [
-          {
-            "sessionAuth": []
-          }
-        ],
         "summary": "Abort Upload",
         "tags": [
           "transfers"
@@ -1839,11 +1652,6 @@
             "$ref": "#/components/responses/FileInvalidRequestResponse"
           }
         },
-        "security": [
-          {
-            "sessionAuth": []
-          }
-        ],
         "summary": "Complete Upload",
         "tags": [
           "transfers"
@@ -1899,9 +1707,6 @@
           "403": {
             "$ref": "#/components/responses/FileForbiddenResponse"
           },
-          "409": {
-            "$ref": "#/components/responses/FileIdempotencyConflictResponse"
-          },
           "422": {
             "$ref": "#/components/responses/FileInvalidRequestResponse"
           },
@@ -1909,11 +1714,6 @@
             "$ref": "#/components/responses/FileIdempotencyUnavailableResponse"
           }
         },
-        "security": [
-          {
-            "sessionAuth": []
-          }
-        ],
         "summary": "Initiate Upload",
         "tags": [
           "transfers"
@@ -1955,11 +1755,6 @@
             "$ref": "#/components/responses/FileInvalidRequestResponse"
           }
         },
-        "security": [
-          {
-            "sessionAuth": []
-          }
-        ],
         "summary": "Sign Upload Parts",
         "tags": [
           "transfers"

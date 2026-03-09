@@ -1,16 +1,13 @@
-# ruff: noqa
-"""Client helpers for the `/v1/transfers/uploads/sign-parts` endpoint."""
-
+from http import HTTPStatus
 from typing import Any
 
 import httpx
 
-from nova_sdk_py_file import errors
-from nova_sdk_py_file.client import AuthenticatedClient, Client
-from nova_sdk_py_file.models.error_envelope import ErrorEnvelope
-from nova_sdk_py_file.models.sign_parts_request import SignPartsRequest
-from nova_sdk_py_file.models.sign_parts_response import SignPartsResponse
-from nova_sdk_py_file.types import Response
+from ... import errors
+from ...client import AuthenticatedClient, Client
+from ...models.sign_parts_request import SignPartsRequest
+from ...models.sign_parts_response import SignPartsResponse
+from ...types import Response
 
 
 def _get_kwargs(
@@ -34,26 +31,11 @@ def _get_kwargs(
 
 def _parse_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> ErrorEnvelope | SignPartsResponse | None:
+) -> SignPartsResponse | None:
     if response.status_code == 200:
         response_200 = SignPartsResponse.from_dict(response.json())
 
         return response_200
-
-    if response.status_code == 401:
-        response_401 = ErrorEnvelope.from_dict(response.json())
-
-        return response_401
-
-    if response.status_code == 403:
-        response_403 = ErrorEnvelope.from_dict(response.json())
-
-        return response_403
-
-    if response.status_code == 422:
-        response_422 = ErrorEnvelope.from_dict(response.json())
-
-        return response_422
 
     if client.raise_on_unexpected_status:
         raise errors.UnexpectedStatus(response.status_code, response.content)
@@ -63,9 +45,9 @@ def _parse_response(
 
 def _build_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> Response[ErrorEnvelope | SignPartsResponse | None]:
+) -> Response[SignPartsResponse]:
     return Response(
-        status_code=response.status_code,
+        status_code=HTTPStatus(response.status_code),
         content=response.content,
         headers=response.headers,
         parsed=_parse_response(client=client, response=response),
@@ -74,23 +56,22 @@ def _build_response(
 
 def sync_detailed(
     *,
-    client: AuthenticatedClient,
+    client: AuthenticatedClient | Client,
     body: SignPartsRequest,
-) -> Response[ErrorEnvelope | SignPartsResponse | None]:
+) -> Response[SignPartsResponse]:
     """Sign Upload Parts
 
      Return presigned multipart part URLs.
 
     Args:
         body (SignPartsRequest): Multipart sign-parts request.
-        client (AuthenticatedClient): Configured API client.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[ErrorEnvelope | SignPartsResponse]
+        Response[SignPartsResponse]
     """
 
     kwargs = _get_kwargs(
@@ -106,23 +87,22 @@ def sync_detailed(
 
 def sync(
     *,
-    client: AuthenticatedClient,
+    client: AuthenticatedClient | Client,
     body: SignPartsRequest,
-) -> ErrorEnvelope | SignPartsResponse | None:
+) -> SignPartsResponse | None:
     """Sign Upload Parts
 
      Return presigned multipart part URLs.
 
     Args:
         body (SignPartsRequest): Multipart sign-parts request.
-        client (AuthenticatedClient): Configured API client.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        ErrorEnvelope | SignPartsResponse | None
+        SignPartsResponse
     """
 
     return sync_detailed(
@@ -133,23 +113,22 @@ def sync(
 
 async def asyncio_detailed(
     *,
-    client: AuthenticatedClient,
+    client: AuthenticatedClient | Client,
     body: SignPartsRequest,
-) -> Response[ErrorEnvelope | SignPartsResponse | None]:
+) -> Response[SignPartsResponse]:
     """Sign Upload Parts
 
      Return presigned multipart part URLs.
 
     Args:
         body (SignPartsRequest): Multipart sign-parts request.
-        client (AuthenticatedClient): Configured API client.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[ErrorEnvelope | SignPartsResponse]
+        Response[SignPartsResponse]
     """
 
     kwargs = _get_kwargs(
@@ -163,23 +142,22 @@ async def asyncio_detailed(
 
 async def asyncio(
     *,
-    client: AuthenticatedClient,
+    client: AuthenticatedClient | Client,
     body: SignPartsRequest,
-) -> ErrorEnvelope | SignPartsResponse | None:
+) -> SignPartsResponse | None:
     """Sign Upload Parts
 
      Return presigned multipart part URLs.
 
     Args:
         body (SignPartsRequest): Multipart sign-parts request.
-        client (AuthenticatedClient): Configured API client.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        ErrorEnvelope | SignPartsResponse | None
+        SignPartsResponse
     """
 
     return (

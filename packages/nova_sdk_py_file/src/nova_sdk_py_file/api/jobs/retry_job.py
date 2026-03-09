@@ -1,16 +1,13 @@
-# ruff: noqa
-"""Client helpers for the `/v1/jobs/{job_id}/retry` endpoint."""
-
+from http import HTTPStatus
 from typing import Any
 from urllib.parse import quote
 
 import httpx
 
-from nova_sdk_py_file import errors
-from nova_sdk_py_file.client import AuthenticatedClient, Client
-from nova_sdk_py_file.models.enqueue_job_response import EnqueueJobResponse
-from nova_sdk_py_file.models.error_envelope import ErrorEnvelope
-from nova_sdk_py_file.types import Response
+from ... import errors
+from ...client import AuthenticatedClient, Client
+from ...models.enqueue_job_response import EnqueueJobResponse
+from ...types import Response
 
 
 def _get_kwargs(
@@ -29,31 +26,11 @@ def _get_kwargs(
 
 def _parse_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> EnqueueJobResponse | ErrorEnvelope | None:
+) -> EnqueueJobResponse | None:
     if response.status_code == 200:
         response_200 = EnqueueJobResponse.from_dict(response.json())
 
         return response_200
-
-    if response.status_code == 401:
-        response_401 = ErrorEnvelope.from_dict(response.json())
-
-        return response_401
-
-    if response.status_code == 403:
-        response_403 = ErrorEnvelope.from_dict(response.json())
-
-        return response_403
-
-    if response.status_code == 422:
-        response_422 = ErrorEnvelope.from_dict(response.json())
-
-        return response_422
-
-    if response.status_code == 503:
-        response_503 = ErrorEnvelope.from_dict(response.json())
-
-        return response_503
 
     if client.raise_on_unexpected_status:
         raise errors.UnexpectedStatus(response.status_code, response.content)
@@ -63,9 +40,9 @@ def _parse_response(
 
 def _build_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> Response[EnqueueJobResponse | ErrorEnvelope]:
+) -> Response[EnqueueJobResponse]:
     return Response(
-        status_code=response.status_code,
+        status_code=HTTPStatus(response.status_code),
         content=response.content,
         headers=response.headers,
         parsed=_parse_response(client=client, response=response),
@@ -75,8 +52,8 @@ def _build_response(
 def sync_detailed(
     job_id: str,
     *,
-    client: AuthenticatedClient,
-) -> Response[EnqueueJobResponse | ErrorEnvelope]:
+    client: AuthenticatedClient | Client,
+) -> Response[EnqueueJobResponse]:
     """Retry Job
 
      Retry a terminal failed or canceled job.
@@ -89,7 +66,7 @@ def sync_detailed(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[EnqueueJobResponse | ErrorEnvelope]
+        Response[EnqueueJobResponse]
     """
 
     kwargs = _get_kwargs(
@@ -106,8 +83,8 @@ def sync_detailed(
 def sync(
     job_id: str,
     *,
-    client: AuthenticatedClient,
-) -> EnqueueJobResponse | ErrorEnvelope | None:
+    client: AuthenticatedClient | Client,
+) -> EnqueueJobResponse | None:
     """Retry Job
 
      Retry a terminal failed or canceled job.
@@ -120,7 +97,7 @@ def sync(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        EnqueueJobResponse | ErrorEnvelope
+        EnqueueJobResponse
     """
 
     return sync_detailed(
@@ -132,8 +109,8 @@ def sync(
 async def asyncio_detailed(
     job_id: str,
     *,
-    client: AuthenticatedClient,
-) -> Response[EnqueueJobResponse | ErrorEnvelope]:
+    client: AuthenticatedClient | Client,
+) -> Response[EnqueueJobResponse]:
     """Retry Job
 
      Retry a terminal failed or canceled job.
@@ -146,7 +123,7 @@ async def asyncio_detailed(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[EnqueueJobResponse | ErrorEnvelope]
+        Response[EnqueueJobResponse]
     """
 
     kwargs = _get_kwargs(
@@ -161,8 +138,8 @@ async def asyncio_detailed(
 async def asyncio(
     job_id: str,
     *,
-    client: AuthenticatedClient,
-) -> EnqueueJobResponse | ErrorEnvelope | None:
+    client: AuthenticatedClient | Client,
+) -> EnqueueJobResponse | None:
     """Retry Job
 
      Retry a terminal failed or canceled job.
@@ -175,7 +152,7 @@ async def asyncio(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        EnqueueJobResponse | ErrorEnvelope
+        EnqueueJobResponse
     """
 
     return (

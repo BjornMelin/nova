@@ -1,5 +1,3 @@
-"""Tests for release client catalog generation helpers."""
-
 from __future__ import annotations
 
 from pathlib import Path
@@ -14,7 +12,6 @@ from scripts.release.generate_clients import (
 
 
 def test_default_operation_id_keeps_path_parameter_names() -> None:
-    """Verify default operation IDs preserve path-parameter names."""
     assert (
         _default_operation_id(
             method="get",
@@ -25,7 +22,6 @@ def test_default_operation_id_keeps_path_parameter_names() -> None:
 
 
 def test_assert_unique_operation_ids_fails_on_collision() -> None:
-    """Verify duplicate operation IDs raise a ValueError."""
     with pytest.raises(ValueError, match="Duplicate operationId"):
         _assert_unique_operation_ids(
             spec_path=Path("spec.json"),

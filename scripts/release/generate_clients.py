@@ -171,22 +171,16 @@ def _render_typescript(operations: list[Operation]) -> str:
             "DO NOT EDIT."
         ),
         "",
-        "/** Descriptor for a single API operation. */",
         "export interface OperationDescriptor {",
-        "  /** Stable operation identifier. */",
         "  readonly operationId: string;",
-        "  /** HTTP method literal for the operation. */",
         (
             '  readonly method: "GET" | "POST" | "PUT" | "PATCH" | '
             '"DELETE" | "OPTIONS" | "HEAD";'
         ),
-        "  /** Canonical route path literal. */",
         "  readonly path: string;",
-        "  /** Optional operation summary from OpenAPI. */",
         "  readonly summary?: string;",
         "}",
         "",
-        "/** Catalog of generated operations keyed by operationId. */",
         "export const operations = {",
     ]
 
@@ -212,9 +206,7 @@ def _render_typescript(operations: list[Operation]) -> str:
         [
             "} as const satisfies Record<string, OperationDescriptor>;",
             "",
-            "/** Union of all generated operation identifiers. */",
             "export type OperationId = keyof typeof operations;",
-            "/** Static type representing the generated operations catalog. */",
             "export type GeneratedOperationCatalog = typeof operations;",
             "",
         ]
@@ -263,16 +255,6 @@ def _render_r_client(target: GenerationTarget) -> str:
         ),
         '    stop("base_url must be a non-empty string", call. = FALSE)',
         "  }",
-        (
-            "  if (is.null(timeout_seconds) || !is.numeric(timeout_seconds) || "
-            "length(timeout_seconds) != 1L || is.na(timeout_seconds) || "
-            "!is.finite(timeout_seconds) || timeout_seconds <= 0) {"
-        ),
-        (
-            '    stop("timeout_seconds must be a finite positive number", '
-            "call. = FALSE)"
-        ),
-        "  }",
         "  structure(",
         "    list(",
         '      base_url = sub("/+$", "", base_url),',
@@ -308,20 +290,6 @@ def _render_r_client(target: GenerationTarget) -> str:
         "        fixed = TRUE",
         "      )",
         "    }",
-        "  }",
-        (
-            "  missing_path_params <- regmatches("
-            'resolved_path, gregexpr("\\\\{[^}]+\\\\}", resolved_path,'
-            " perl = TRUE)"
-            ")[[1]]"
-        ),
-        "  if (length(missing_path_params) > 0L) {",
-        (
-            "    stop(sprintf("
-            '"missing path parameter(s) for %s: %s", '
-            'operation_id, paste(missing_path_params, collapse = ", ")), '
-            "call. = FALSE)"
-        ),
         "  }",
         "",
         "  list(",
@@ -378,11 +346,7 @@ def _generate_target(target: GenerationTarget, *, check: bool) -> list[str]:
 
 
 def parse_args() -> argparse.Namespace:
-    """Parse CLI arguments for generated client catalog management.
-
-    Returns:
-        argparse.Namespace: Parsed CLI arguments.
-    """
+    """Parse CLI arguments for generated client catalog management."""
     parser = argparse.ArgumentParser(
         description="Generate lightweight TS/R SDK catalogs from OpenAPI.",
     )
@@ -395,11 +359,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> int:
-    """Generate client catalogs or fail when committed artifacts drift.
-
-    Returns:
-        int: Process exit code (0 on success, 1 when artifacts drift).
-    """
+    """Generate client catalogs or fail when committed artifacts drift."""
     args = parse_args()
     issues: list[str] = []
     for target in TARGETS:
