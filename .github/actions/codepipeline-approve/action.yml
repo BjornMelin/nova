@@ -57,12 +57,22 @@ runs:
           exit 1
         fi
 
-        SUMMARY="${SUMMARY//,/;}"
+        json_escape() {
+          local value="$1"
+          value="${value//\\/\\\\}"
+          value="${value//\"/\\\"}"
+          value="${value//$'\n'/\\n}"
+          value="${value//$'\r'/\\r}"
+          value="${value//$'\t'/\\t}"
+          printf '%s' "$value"
+        }
+
+        RESULT_JSON="{\"summary\":\"$(json_escape "$SUMMARY")\",\"status\":\"Approved\"}"
 
         aws codepipeline put-approval-result \
           --pipeline-name "$PIPELINE_NAME" \
           --stage-name "$STAGE_NAME" \
           --action-name "$ACTION_NAME" \
           --token "$APPROVAL_TOKEN" \
-          --result summary="$SUMMARY",status=Approved \
+          --result "$RESULT_JSON" \
           --region "$AWS_REGION"

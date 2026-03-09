@@ -11,28 +11,93 @@ runs:
       shell: bash
       run: |
         set -euo pipefail
+        umask 077
+        SECRET_FILE=/tmp/release_signing_secret.json
+        KEY_FILE=/tmp/release_signing_key
+        PUB_FILE=/tmp/release_signing_key.pub
+
+        SECRET_TMP="$(mktemp /tmp/release_signing_secret.json.XXXXXX)"
+        KEY_TMP="$(mktemp /tmp/release_signing_key.XXXXXX)"
+        PUB_TMP="$(mktemp /tmp/release_signing_key.pub.XXXXXX)"
+
+        secure_remove() {
+          local file="$1"
+          [[ -f "$file" ]] || return 0
+          if command -v shred >/dev/null 2>&1; then
+            shred -u "$file" || rm -f "$file"
+          else
+            rm -f "$file"
+          fi
+        }
+
+        cleanup() {
+          secure_remove "$SECRET_TMP"
+          secure_remove "$KEY_TMP"
+          secure_remove "$PUB_TMP"
+          secure_remove "$SECRET_FILE"
+          secure_remove "$KEY_FILE"
+          secure_remove "$PUB_FILE"
+        }
+        trap cleanup EXIT
 
         aws secretsmanager get-secret-value \
           --secret-id "${{ inputs.signing-secret-id }}" \
           --query SecretString \
-          --output text > /tmp/release_signing_secret.json
+          --output text > "$SECRET_TMP"
+        chmod 600 "$SECRET_TMP"
+        mv -f "$SECRET_TMP" "$SECRET_FILE"
+        chmod 600 "$SECRET_FILE"
 
-        jq -r '.private_key' /tmp/release_signing_secret.json \
-          > /tmp/release_signing_key
-        jq -r '.public_key' /tmp/release_signing_secret.json \
-          > /tmp/release_signing_key.pub
-        SIGNER_NAME=$(jq -r '.signer_name' /tmp/release_signing_secret.json)
-        SIGNER_EMAIL=$(jq -r '.signer_email' /tmp/release_signing_secret.json)
-        rm -f /tmp/release_signing_secret.json
+        jq -r '.private_key' "$SECRET_FILE" > "$KEY_TMP"
+        chmod 600 "$KEY_TMP"
+        mv -f "$KEY_TMP" "$KEY_FILE"
+        chmod 600 "$KEY_FILE"
+
+        jq -r '.public_key' "$SECRET_FILE" > "$PUB_TMP"
+        chmod 600 "$PUB_TMP"
+        mv -f "$PUB_TMP" "$PUB_FILE"
+        chmod 600 "$PUB_FILE"
+
+        SIGNER_NAME=$(jq -r '.signer_name' "$SECRET_FILE")
+        SIGNER_EMAIL=$(jq -r '.signer_email' "$SECRET_FILE")
+
+        validate_required_var() {
+          local field_name="$1"
+          local field_value="$2"
+          if [[ -z "${field_value//[[:space:]]/}" || "$field_value" == "null" ]]; then
+            echo "Missing or null required field in signing secret: $field_name" >&2
+            exit 1
+          fi
+        }
+
+        validate_required_file_field() {
+          local field_name="$1"
+          local field_path="$2"
+          if [[ ! -s "$field_path" ]]; then
+            echo "Missing or empty required key material in signing secret: $field_name" >&2
+            exit 1
+          fi
+          local field_value
+          field_value="$(<"$field_path")"
+          if [[ -z "${field_value//[[:space:]]/}" || "$field_value" == "null" ]]; then
+            echo "Missing or null required key material in signing secret: $field_name" >&2
+            exit 1
+          fi
+        }
+
+        validate_required_file_field "private_key" "$KEY_FILE"
+        validate_required_file_field "public_key" "$PUB_FILE"
+        validate_required_var "signer_name" "$SIGNER_NAME"
+        validate_required_var "signer_email" "$SIGNER_EMAIL"
 
         mkdir -p ~/.ssh
-        mv /tmp/release_signing_key ~/.ssh/release_signing_key
-        mv /tmp/release_signing_key.pub ~/.ssh/release_signing_key.pub
+        mv "$KEY_FILE" ~/.ssh/release_signing_key
+        mv "$PUB_FILE" ~/.ssh/release_signing_key.pub
         chmod 600 ~/.ssh/release_signing_key
         chmod 644 ~/.ssh/release_signing_key.pub
 
         git config user.name "$SIGNER_NAME"
         git config user.email "$SIGNER_EMAIL"
         git config gpg.format ssh
-        git config user.signingkey ~/.ssh/release_signing_key
+        git config user.signingkey "$HOME/.ssh/release_signing_key"
         git config commit.gpgsign true

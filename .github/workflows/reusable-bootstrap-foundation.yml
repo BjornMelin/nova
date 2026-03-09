@@ -96,24 +96,50 @@ jobs:
           aws-region: ${{ inputs.aws_region }}
 
       - name: Prepare parameters
+        shell: bash
+        env:
+          PROJECT: ${{ inputs.project }}
+          APPLICATION: ${{ inputs.application }}
+          ARTIFACT_BUCKET_NAME: ${{ inputs.artifact_bucket_name }}
+          CODEARTIFACT_DOMAIN_NAME: ${{ inputs.codeartifact_domain_name }}
+          CODEARTIFACT_REPOSITORY_NAME: ${{ inputs.codeartifact_repository_name }}
+          ECR_REPOSITORY_ARN: ${{ inputs.ecr_repository_arn }}
+          ECR_REPOSITORY_NAME: ${{ inputs.ecr_repository_name }}
+          ECR_REPOSITORY_URI: ${{ inputs.ecr_repository_uri }}
+          CONNECTION_NAME: ${{ inputs.connection_name }}
+          EXISTING_CONNECTION_ARN: ${{ inputs.existing_connection_arn }}
+          MANUAL_APPROVAL_TOPIC_ARN: ${{ inputs.manual_approval_topic_arn }}
+          MANUAL_APPROVAL_TOPIC_NAME: ${{ inputs.manual_approval_topic_name }}
         run: |
+          set -euo pipefail
           mkdir -p .artifacts
-          cat > .artifacts/foundation-parameters.json <<JSON
-          [
-            {"ParameterKey":"Project","ParameterValue":"${{ inputs.project }}"},
-            {"ParameterKey":"Application","ParameterValue":"${{ inputs.application }}"},
-            {"ParameterKey":"ArtifactBucketName","ParameterValue":"${{ inputs.artifact_bucket_name }}"},
-            {"ParameterKey":"CodeArtifactDomainName","ParameterValue":"${{ inputs.codeartifact_domain_name }}"},
-            {"ParameterKey":"CodeArtifactRepositoryName","ParameterValue":"${{ inputs.codeartifact_repository_name }}"},
-            {"ParameterKey":"EcrRepositoryArn","ParameterValue":"${{ inputs.ecr_repository_arn }}"},
-            {"ParameterKey":"EcrRepositoryName","ParameterValue":"${{ inputs.ecr_repository_name }}"},
-            {"ParameterKey":"EcrRepositoryUri","ParameterValue":"${{ inputs.ecr_repository_uri }}"},
-            {"ParameterKey":"ConnectionName","ParameterValue":"${{ inputs.connection_name }}"},
-            {"ParameterKey":"ExistingConnectionArn","ParameterValue":"${{ inputs.existing_connection_arn }}"},
-            {"ParameterKey":"ManualApprovalTopicArn","ParameterValue":"${{ inputs.manual_approval_topic_arn }}"},
-            {"ParameterKey":"ManualApprovalTopicName","ParameterValue":"${{ inputs.manual_approval_topic_name }}"}
-          ]
-          JSON
+          jq -n -e \
+            --arg project "$PROJECT" \
+            --arg application "$APPLICATION" \
+            --arg artifact_bucket_name "$ARTIFACT_BUCKET_NAME" \
+            --arg codeartifact_domain_name "$CODEARTIFACT_DOMAIN_NAME" \
+            --arg codeartifact_repository_name "$CODEARTIFACT_REPOSITORY_NAME" \
+            --arg ecr_repository_arn "$ECR_REPOSITORY_ARN" \
+            --arg ecr_repository_name "$ECR_REPOSITORY_NAME" \
+            --arg ecr_repository_uri "$ECR_REPOSITORY_URI" \
+            --arg connection_name "$CONNECTION_NAME" \
+            --arg existing_connection_arn "$EXISTING_CONNECTION_ARN" \
+            --arg manual_approval_topic_arn "$MANUAL_APPROVAL_TOPIC_ARN" \
+            --arg manual_approval_topic_name "$MANUAL_APPROVAL_TOPIC_NAME" \
+            '[
+              {"ParameterKey":"Project","ParameterValue":$project},
+              {"ParameterKey":"Application","ParameterValue":$application},
+              {"ParameterKey":"ArtifactBucketName","ParameterValue":$artifact_bucket_name},
+              {"ParameterKey":"CodeArtifactDomainName","ParameterValue":$codeartifact_domain_name},
+              {"ParameterKey":"CodeArtifactRepositoryName","ParameterValue":$codeartifact_repository_name},
+              {"ParameterKey":"EcrRepositoryArn","ParameterValue":$ecr_repository_arn},
+              {"ParameterKey":"EcrRepositoryName","ParameterValue":$ecr_repository_name},
+              {"ParameterKey":"EcrRepositoryUri","ParameterValue":$ecr_repository_uri},
+              {"ParameterKey":"ConnectionName","ParameterValue":$connection_name},
+              {"ParameterKey":"ExistingConnectionArn","ParameterValue":$existing_connection_arn},
+              {"ParameterKey":"ManualApprovalTopicArn","ParameterValue":$manual_approval_topic_arn},
+              {"ParameterKey":"ManualApprovalTopicName","ParameterValue":$manual_approval_topic_name}
+            ]' > .artifacts/foundation-parameters.json
 
       - id: deploy
         name: Deploy foundation stack (change-set first)

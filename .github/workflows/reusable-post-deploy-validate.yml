@@ -60,6 +60,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Validate inputs
+        run: |
+          set -euo pipefail
+          if [[ -z "${{ inputs.validation_base_url }}" ]] \
+            && [[ -z "${{ inputs.service_base_url }}" ]] \
+            && [[ -z "${{ github.event.inputs.validation_base_url }}" ]] \
+            && [[ -z "${{ github.event.inputs.service_base_url }}" ]]; then
+            echo "Either validation_base_url or service_base_url must be provided." >&2
+            exit 1
+          fi
+
       - id: run-validation
         name: Validate canonical and legacy route contracts
         continue-on-error: true

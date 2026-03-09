@@ -361,6 +361,10 @@ Conditions:
   UseLegacyTaskRolePolicy: !Equals [!Ref UseLegacyTaskRolePolicy, "true"]
   CreateAppSecretKey: !Equals [!Ref GenerateAppSecretKey, "true"]
   EnableFileTransfer: !Equals [!Ref FileTransferEnabled, "true"]
+  HasFileTransferBucketName: !Not [!Equals [!Ref FileTransferBucketName, ""]]
+  EnableFileTransferWithBucket: !And
+    - !Condition EnableFileTransfer
+    - !Condition HasFileTransferBucketName
   EnableFileTransferAsync: !Equals [!Ref FileTransferAsyncEnabled, "true"]
   EnableFileTransferCache: !Equals [!Ref FileTransferCacheEnabled, "true"]
   UseCodeDeployBlueGreen: !Equals [!Ref EnableBlueGreenDeployAuthority, "true"]
@@ -596,14 +600,26 @@ Resources:
               Value: !Ref RuntimeProfile
             - Name: FILE_TRANSFER_ENABLED
               Value: !Ref FileTransferEnabled
-            - Name: FILE_TRANSFER_BUCKET
-              Value: !Ref FileTransferBucketName
-            - Name: FILE_TRANSFER_UPLOAD_PREFIX
-              Value: !Ref FileTransferUploadPrefix
-            - Name: FILE_TRANSFER_EXPORT_PREFIX
-              Value: !Ref FileTransferExportPrefix
-            - Name: FILE_TRANSFER_TMP_PREFIX
-              Value: !Ref FileTransferTmpPrefix
+            - !If
+              - EnableFileTransferWithBucket
+              - Name: FILE_TRANSFER_BUCKET
+                Value: !Ref FileTransferBucketName
+              - !Ref AWS::NoValue
+            - !If
+              - EnableFileTransferWithBucket
+              - Name: FILE_TRANSFER_UPLOAD_PREFIX
+                Value: !Ref FileTransferUploadPrefix
+              - !Ref AWS::NoValue
+            - !If
+              - EnableFileTransferWithBucket
+              - Name: FILE_TRANSFER_EXPORT_PREFIX
+                Value: !Ref FileTransferExportPrefix
+              - !Ref AWS::NoValue
+            - !If
+              - EnableFileTransferWithBucket
+              - Name: FILE_TRANSFER_TMP_PREFIX
+                Value: !Ref FileTransferTmpPrefix
+              - !Ref AWS::NoValue
             - !If
               - UseLegacyEnvDict
               - Name: AUTH_APP_SECRET

@@ -43,6 +43,10 @@ Parameters:
   ManualApprovalTopicName:
     Type: String
     Default: ""
+  ManualApprovalKmsKeyArn:
+    Type: String
+    Default: alias/aws/sns
+    Description: KMS key ARN or alias used for SNS server-side encryption.
 
 Conditions:
   HasExistingArtifactBucketName: !Not [!Equals [!Ref ExistingArtifactBucketName, ""]]
@@ -107,6 +111,7 @@ Resources:
         - HasManualApprovalTopicName
         - !Ref ManualApprovalTopicName
         - !Sub ${Project}-${Application}-nova-manual-approval
+      KmsMasterKeyId: !Ref ManualApprovalKmsKeyArn
 
 Outputs:
   ArtifactBucketName:

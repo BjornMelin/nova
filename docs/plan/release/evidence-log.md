@@ -94,9 +94,10 @@ For each validation/promotion execution, append:
   - artifact/log links:
     - `.agents/plans/2026-03-03-nova-iac-closure-dash-pca-hard-cut-integration.md`
       (`Blocker Resolution` + `Verification Evidence` sections)
-    - `/tmp/nova-dev-route-validation.json`
-    - `/tmp/nova-prod-route-validation.json`
-    - `/tmp/nova-browser-evidence/` (`dev-live.png`, `prod-live.png`, `dev-legacy.png`)
+    - `docs/plan/release/evidence/2026-03-05-live-runtime-route-authority/nova-dev-route-validation.json`
+    - `docs/plan/release/evidence/2026-03-05-live-runtime-route-authority/nova-prod-route-validation.json`
+    - `docs/plan/release/evidence/2026-03-05-live-runtime-route-authority/nova-browser-evidence.json`
+      (`dev-live.png`, `prod-live.png`, `dev-legacy.png`)
   - remediation notes:
     - `nova-file-api-{dev,prod}-runtime-{ecr,cluster,service}` reached
       `CREATE_COMPLETE` in `us-east-1`.

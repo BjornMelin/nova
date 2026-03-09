@@ -222,11 +222,7 @@ def test_ws6_authority_docs_reference_new_contracts() -> None:
 
 
 def test_release_docs_align_validation_path_policy_contract() -> None:
-    """Release docs must allow legacy 404 checks only as validation assertions.
-
-    Returns:
-        None.
-    """
+    """Release docs must allow legacy 404 checks in validation assertions."""
     text = _read("docs/plan/release/config-values-reference-guide.md")
     for required in [
         "validation_legacy_404_paths",

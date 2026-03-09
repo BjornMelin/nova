@@ -64,6 +64,12 @@ Conditions:
   HasDeployValidateProjectName: !Not [!Equals [!Ref DeployValidateProjectName, ""]]
 
 Rules:
+  HasCodeBuildServiceRoleArnOrIamRolesStackName:
+    Assertions:
+      - Assert: !Or
+          - !Not [!Equals [!Ref CodeBuildServiceRoleArn, ""]]
+          - !Not [!Equals [!Ref IamRolesStackName, ""]]
+        AssertDescription: Provide CodeBuildServiceRoleArn or IamRolesStackName.
   RequireCodeArtifactDomainInput:
     Assertions:
       - Assert: !Or

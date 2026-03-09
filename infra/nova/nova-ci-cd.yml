@@ -139,8 +139,11 @@ Resources:
       ConnectionName: !If
         - HasConnectionName
         - !Ref ConnectionName
-        - !ImportValue
-          Fn::Sub: "${FoundationStackName}-ConnectionName"
+        - !If
+          - HasFoundationStackName
+          - !ImportValue
+            Fn::Sub: "${FoundationStackName}-ConnectionName"
+          - !Ref AWS::NoValue
       ProviderType: GitHub
 
   NovaPipeline:
