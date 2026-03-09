@@ -25,6 +25,9 @@ class TokenVerifyResponseClaims:
 
         Returns:
             A dictionary containing all dynamic claim key/value pairs.
+
+        Raises:
+            None.
         """
 
         field_dict: dict[str, Any] = {}
@@ -41,6 +44,9 @@ class TokenVerifyResponseClaims:
 
         Returns:
             A ``TokenVerifyResponseClaims`` instance populated from ``src_dict``.
+
+        Raises:
+            None.
         """
         d = dict(src_dict)
         token_verify_response_claims = cls()
@@ -54,6 +60,9 @@ class TokenVerifyResponseClaims:
 
         Returns:
             A list of keys currently stored in ``additional_properties``.
+
+        Raises:
+            None.
         """
         return list(self.additional_properties.keys())
 

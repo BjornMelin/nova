@@ -25,6 +25,9 @@ class TokenIntrospectResponseClaims:
 
         Returns:
             A dictionary containing all dynamic claim key/value pairs.
+
+        Raises:
+            None.
         """
 
         field_dict: dict[str, Any] = {}
@@ -42,6 +45,9 @@ class TokenIntrospectResponseClaims:
         Returns:
             A ``TokenIntrospectResponseClaims`` instance populated from
             ``src_dict``.
+
+        Raises:
+            None.
         """
         d = dict(src_dict)
         token_introspect_response_claims = cls()
@@ -55,6 +61,9 @@ class TokenIntrospectResponseClaims:
 
         Returns:
             A list of keys currently stored in ``additional_properties``.
+
+        Raises:
+            None.
         """
         return list(self.additional_properties.keys())
 

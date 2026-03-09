@@ -165,12 +165,7 @@ def _collect_schema_refs(schema: dict[str, Any]) -> set[str]:
             for value in node:
                 walk(value)
 
-    walk(schema.get("paths", {}))
-    walk(schema.get("components", {}).get("responses", {}))
-    walk(schema.get("components", {}).get("requestBodies", {}))
-    walk(schema.get("components", {}).get("parameters", {}))
-    walk(schema.get("components", {}).get("headers", {}))
-    walk(schema.get("components", {}).get("securitySchemes", {}))
+    walk(schema)
     return refs
 
 
