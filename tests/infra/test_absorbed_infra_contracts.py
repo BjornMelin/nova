@@ -148,7 +148,6 @@ def test_foundation_exports_and_stack_wiring_contracts() -> None:
         "IamRolesStackName:",
         "CodeBuildStackName:",
         "${FoundationStackName}-ArtifactBucketName",
-        "${FoundationStackName}-ConnectionName",
         "${FoundationStackName}-ConnectionArn",
         "${FoundationStackName}-ManualApprovalTopicArn",
         "${CodeBuildStackName}-ReleaseBuildProjectName",

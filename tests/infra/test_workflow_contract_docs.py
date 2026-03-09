@@ -7,7 +7,7 @@ from typing import Any
 
 import yaml
 
-from .helpers import _read
+from .helpers import REPO_ROOT, _read
 
 
 def _read_json(rel: str) -> dict[str, Any]:
@@ -162,7 +162,7 @@ def test_downstream_examples_reference_reusable_post_deploy_workflow() -> None:
     """Downstream examples must call the shared reusable workflow."""
     workflow_ref = (
         "uses: 3M-Cloud/nova/.github/workflows/"
-        "reusable-post-deploy-validate.yml@v1"
+        "reusable-post-deploy-validate.yml@"
     )
     for rel_path in [
         "docs/clients/examples/workflows/dash-post-deploy-validate.yml",

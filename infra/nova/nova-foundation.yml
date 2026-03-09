@@ -68,6 +68,11 @@ Rules:
           - !Not [!Equals [!Ref ExistingArtifactBucketName, ""]]
           - !Not [!Equals [!Ref ArtifactBucketName, ""]]
         AssertDescription: Provide ExistingArtifactBucketName or ArtifactBucketName.
+      - Assert: !Not
+          - !And
+            - !Not [!Equals [!Ref ExistingArtifactBucketName, ""]]
+            - !Not [!Equals [!Ref ArtifactBucketName, ""]]
+        AssertDescription: Provide only one of ExistingArtifactBucketName or ArtifactBucketName.
   RequireArtifactBucketNameWhenCreating:
     RuleCondition: !Equals [!Ref ExistingArtifactBucketName, ""]
     Assertions:

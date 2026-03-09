@@ -136,6 +136,10 @@ Default stack names:
 - `${project}-ci-dev-service-base-url`
 - `${project}-ci-prod-service-base-url`
 
+Placeholder note:
+`${project}` is your project identifier (for example, your org or repo slug),
+and `${application}` is the application or service name managed by these stacks.
+
 Canonical SSM base-url marker ownership:
 
 - `/nova/dev/{service}/base-url` is managed only by

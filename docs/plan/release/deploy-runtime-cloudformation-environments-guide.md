@@ -198,17 +198,19 @@ aws cloudformation deploy \
 After successful service deployment, record base URLs for pipeline validation:
 
 ```bash
-DEV_BASE_URL="$(aws cloudformation describe-stacks \
+DEV_LOAD_BALANCER_DNS="$(aws cloudformation describe-stacks \
   --region "${AWS_REGION}" \
   --stack-name "${PROJECT}-${APPLICATION}-dev-runtime-cluster" \
   --query "Stacks[0].Outputs[?OutputKey=='LoadBalancerDnsName'].OutputValue | [0]" \
   --output text)"
+DEV_BASE_URL="https://${DEV_LOAD_BALANCER_DNS}"
 
-PROD_BASE_URL="$(aws cloudformation describe-stacks \
+PROD_LOAD_BALANCER_DNS="$(aws cloudformation describe-stacks \
   --region "${AWS_REGION}" \
   --stack-name "${PROJECT}-${APPLICATION}-prod-runtime-cluster" \
   --query "Stacks[0].Outputs[?OutputKey=='LoadBalancerDnsName'].OutputValue | [0]" \
   --output text)"
+PROD_BASE_URL="https://${PROD_LOAD_BALANCER_DNS}"
 
 echo "DEV_BASE_URL=${DEV_BASE_URL}"
 echo "PROD_BASE_URL=${PROD_BASE_URL}"

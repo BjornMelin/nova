@@ -6,7 +6,7 @@ Version: 1.1
 Date: 2026-03-03
 Related:
   - "[ADR-0011: Hybrid CI/CD with GitHub CI and AWS-native Dev to Prod promotion](./ADR-0011-cicd-hybrid-github-aws-promotion.md)"
-  - "[SPEC-0019: CI/CD IAM least-privilege matrix](../spec/SPEC-0019-auth-execution-and-threadpool-safety-contract.md)"
+  - "[SPEC-0019: CI/CD IAM least-privilege and role-boundary contract](../spec/SPEC-0019-auth-execution-and-threadpool-safety-contract.md)"
   - "[SPEC-0020: Rollout and validation strategy](../spec/SPEC-0020-architecture-authority-pack-and-documentation-synchronization-contract.md)"
 ---
 

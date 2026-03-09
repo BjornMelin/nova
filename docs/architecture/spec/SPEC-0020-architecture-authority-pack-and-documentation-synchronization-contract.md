@@ -14,7 +14,7 @@ Related:
   - "[ADR-0029: SSM runtime base URL authority for deploy validation](../adr/ADR-0029-ssm-runtime-base-url-authority-for-deploy-validation.md)"
   - "[SPEC-0017: CloudFormation module contract](./SPEC-0017-runtime-component-topology-and-ownership-contract.md)"
   - "[SPEC-0018: Reusable workflow integration contract](./SPEC-0018-runtime-configuration-and-startup-validation-contract.md)"
-  - "[SPEC-0019: CI/CD IAM least-privilege matrix](./SPEC-0019-auth-execution-and-threadpool-safety-contract.md)"
+  - "[SPEC-0019: CI/CD IAM least-privilege and role-boundary contract](./SPEC-0019-auth-execution-and-threadpool-safety-contract.md)"
   - "[SPEC-0023: SSM runtime base-url contract for deploy validation](./SPEC-0023-ssm-runtime-base-url-contract-for-deploy-validation.md)"
 ---
 

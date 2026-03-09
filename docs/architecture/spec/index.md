@@ -31,7 +31,7 @@ Canonical chain: [requirements](../requirements.md) -> [ADR-0023](../adr/ADR-002
 | [SPEC-0016](./SPEC-0016-v1-route-namespace-and-literal-guardrails.md) | Hard-cut v1 route contract and route-literal guardrails | Active | 2026-03-03 |
 | [SPEC-0017](./SPEC-0017-runtime-component-topology-and-ownership-contract.md) | CloudFormation module contract | Active | 2026-03-03 |
 | [SPEC-0018](./SPEC-0018-runtime-configuration-and-startup-validation-contract.md) | Reusable workflow integration contract | Active | 2026-03-03 |
-| [SPEC-0019](./SPEC-0019-auth-execution-and-threadpool-safety-contract.md) | CI/CD IAM least-privilege matrix | Active | 2026-03-03 |
+| [SPEC-0019](./SPEC-0019-auth-execution-and-threadpool-safety-contract.md) | CI/CD IAM least-privilege and role-boundary contract | Active | 2026-03-03 |
 | [SPEC-0020](./SPEC-0020-architecture-authority-pack-and-documentation-synchronization-contract.md) | Rollout and validation strategy | Active | 2026-03-03 |
 | [SPEC-0021](./SPEC-0021-downstream-hard-cut-integration-and-consumer-validation-contract.md) | Downstream hard-cut integration and consumer validation contract | Active | 2026-03-04 |
 | [SPEC-0022](./SPEC-0022-auth0-tenant-ops-reusable-workflow-contract.md) | Auth0 tenant ops reusable workflow contract | Active | 2026-03-04 |

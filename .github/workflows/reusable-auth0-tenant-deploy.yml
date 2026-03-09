@@ -163,7 +163,7 @@ jobs:
               "schema_version": "1.0",
               "environment": "${{ inputs.environment }}",
               "mode": "${{ inputs.mode }}",
-              "allow_delete": json.loads('${{ toJson(fromJson(inputs.allow_delete)) }}'),
+              "allow_delete": json.loads('${{ toJson(inputs.allow_delete) }}'),
               "input_file": "${{ inputs.input_file }}",
               "mapping_file": "${{ steps.mapping.outputs.mapping_path }}",
               "validation_outcome": "${{ steps.validate-contract.outcome }}",

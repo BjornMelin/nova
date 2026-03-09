@@ -90,9 +90,6 @@ Conditions:
   HasIamRolesStackName: !Not [!Equals [!Ref IamRolesStackName, ""]]
   HasArtifactBucketName: !Not [!Equals [!Ref ArtifactBucketName, ""]]
   HasConnectionName: !Not [!Equals [!Ref ConnectionName, ""]]
-  UseImportedConnectionName: !And
-    - !Not [!Condition HasConnectionName]
-    - !Condition HasFoundationStackName
   HasCodePipelineServiceRoleArn: !Not [!Equals [!Ref CodePipelineServiceRoleArn, ""]]
   HasCloudFormationExecutionRoleDevArn: !Not [!Equals [!Ref CloudFormationExecutionRoleDevArn, ""]]
   HasCloudFormationExecutionRoleProdArn: !Not [!Equals [!Ref CloudFormationExecutionRoleProdArn, ""]]
@@ -117,10 +114,8 @@ Rules:
   RequireConnectionNameWhenCreatingConnection:
     RuleCondition: !Condition CreateConnection
     Assertions:
-      - Assert: !Or
-          - !Condition HasConnectionName
-          - !Condition HasFoundationStackName
-        AssertDescription: When creating a connection, provide ConnectionName or FoundationStackName.
+      - Assert: !Condition HasConnectionName
+        AssertDescription: When creating a connection, provide ConnectionName.
   RequireReleaseBuildProjectInput:
     Assertions:
       - Assert: !Or
@@ -142,11 +137,7 @@ Resources:
       ConnectionName: !If
         - HasConnectionName
         - !Ref ConnectionName
-        - !If
-          - UseImportedConnectionName
-          - !ImportValue
-            Fn::Sub: "${FoundationStackName}-ConnectionName"
-          - !Ref AWS::NoValue
+        - !Sub "${AWS::StackName}-codeconnection"
       ProviderType: GitHub
 
   NovaPipeline:

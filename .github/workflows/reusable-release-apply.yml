@@ -98,11 +98,6 @@ jobs:
         run: |
           set -euo pipefail
 
-          if git diff --quiet; then
-            echo "No release changes detected."
-            exit 0
-          fi
-
           add_paths=(
             docs/plan/release/RELEASE-VERSION-MANIFEST.md
             uv.lock
@@ -114,7 +109,7 @@ jobs:
           git add "${add_paths[@]}"
 
           if git diff --cached --quiet; then
-            echo "No staged release changes after add."
+            echo "No release changes detected."
             exit 0
           fi
 

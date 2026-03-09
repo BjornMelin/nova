@@ -29,6 +29,7 @@ All active release and delivery runbooks must live under `nova/docs/**`.
 For active Nova delivery operations, do not reference retired legacy
 deployment operational docs as current instructions.
 Historical references are allowed only under `docs/history/**`.
+`docs/plan/HISTORY-INDEX.md` is also an allowed canonical index into archived material.
 
 Active authority alignment for runbooks is governed by:
 

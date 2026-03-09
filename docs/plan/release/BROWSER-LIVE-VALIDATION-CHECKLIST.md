@@ -6,10 +6,10 @@ Last updated: 2026-03-04
 
 ## Authority / Related Documents
 
-Authority: [ADR-0023](../architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md),
-[SPEC-0000](../architecture/spec/SPEC-0000-http-api-contract.md),
-[SPEC-0016](../architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md),
-[requirements.md](../architecture/requirements.md)
+Authority: [ADR-0023](../../architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md),
+[SPEC-0000](../../architecture/spec/SPEC-0000-http-api-contract.md),
+[SPEC-0016](../../architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md),
+[requirements.md](../../architecture/requirements.md)
 
 ## Purpose
 
@@ -76,6 +76,10 @@ if [ "${AUTH_ENABLED:-false}" = "true" ]; then
   agent-browser wait --load networkidle
 fi
 ```
+
+When `AUTH_ENABLED=true`, `agent-browser auth save` and `agent-browser auth login`
+mutate the local browser session/cookie context used for validation, but they do
+not create tenant-visible runtime data.
 
 Pass:
 
@@ -158,9 +162,6 @@ if [ -n "${BROWSER_LIVE_CLEANUP_URL:-}" ]; then
     -H "Content-Type: application/json" \
     -d "{\"scope\":\"${BROWSER_LIVE_SCOPE}\"}" || true
 fi
-
-# Keep artifacts for release evidence, but clear large ephemeral outputs when required.
-rm -f "$OUT"/result.xlsx.tmp || true
 ```
 
 Pass:

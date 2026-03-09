@@ -9,6 +9,13 @@ Last updated: 2026-03-05
 Execute release flow for selective versioning, signed commit generation, and
 Dev to Prod AWS promotion.
 
+Canonical documentation authority chain:
+`requirements.md` -> `ADR-0023` -> `SPEC-0000` -> `SPEC-0016`
+([../../architecture/requirements.md](../../architecture/requirements.md),
+[../../architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md](../../architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md),
+[../../architecture/spec/SPEC-0000-http-api-contract.md](../../architecture/spec/SPEC-0000-http-api-contract.md),
+[../../architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md](../../architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md)).
+
 ## 1A. Modular guide set
 
 Use the modular operator guide set for provisioning and setup details:
@@ -86,7 +93,9 @@ Use the modular operator guide set for provisioning and setup details:
 ### E. Post-deploy route validation gate
 
 1. Trigger `Post Deploy Validate` (`post-deploy-validate.yml`) after deployment.
-2. Supply `validation_base_url` using deployed HTTPS endpoint.
+2. Supply `validation_base_url` from the canonical marker-derived base URL:
+   `${PROJECT}-${APPLICATION}-<env>-service-base-url`, or read the matching
+   `/nova/{env}/{service}/base-url` SSM parameter that the marker stack manages.
 3. Confirm wrapper calls reusable API:
    - `post-deploy-validate.yml` calls reusable workflow `.github/workflows/reusable-post-deploy-validate.yml`.
 4. Confirm artifact upload:
@@ -146,5 +155,5 @@ For each run capture:
    - `PUBLISHED_PACKAGES`
    - `RELEASE_MANIFEST_SHA256`
 8. Explicit digest continuity evidence (Dev -> Prod `IMAGE_DIGEST` match).
-9. Post-deploy route validation artifact link and status output.
-10. Link entry in `docs/plan/release/evidence-log.md`.
+9. Post-deploy route validation artifact link and workflow/job status or log markers.
+10. Link entry in `docs/plan/release/evidence-log.md` with the artifact link and workflow/job status or log markers.
