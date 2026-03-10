@@ -32,7 +32,8 @@ owned by Nova.
 
 Canonical OpenAPI artifacts must expose stable SDK-facing metadata:
 
-- snake_case `operationId` values that are unique and not path/method-derived
+- explicit snake_case `operationId` values that are unique and frozen by the
+  runtime contract tests
 - semantic tags used as generated client/module group boundaries
 - named component schemas for custom request bodies referenced from operations
 

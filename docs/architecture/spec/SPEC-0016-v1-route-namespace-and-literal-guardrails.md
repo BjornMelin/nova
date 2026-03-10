@@ -63,8 +63,9 @@ Non-canonical runtime paths outside this set MUST return `404`.
 1. Required literal checks for canonical route set above.
 2. OpenAPI contract checks that every path is either `/metrics/summary` or
    starts with `/v1/`.
-3. Route decorator structural checks in `api.py` and `app.py` so resolved
-   runtime paths are only `/v1/*` or `/metrics/summary`.
+3. Route decorator structural checks in runtime router modules and app
+   factories so resolved runtime paths are only `/v1/*` or
+   `/metrics/summary`.
 4. Failure on runtime source references to non-canonical route literals.
 5. Unique OpenAPI `operationId` values.
 
