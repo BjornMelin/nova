@@ -14,6 +14,7 @@ class _FakeTable:
         self._items: dict[str, dict[str, Any]] = {}
         self.condition_writes: list[dict[str, Any]] = []
         self.query_error: ClientError | None = None
+        self.query_calls: list[dict[str, Any]] = []
 
     async def put_item(
         self, *, Item: dict[str, Any], **kwargs: Any
@@ -53,9 +54,11 @@ class _FakeTable:
         return {"Item": dict(item)}
 
     async def query(self, **kwargs: Any) -> dict[str, Any]:
-        del kwargs
+        self.query_calls.append(kwargs)
         if self.query_error is not None:
             raise self.query_error
+        assert kwargs["IndexName"] == "scope_id-created_at-index"
+        assert kwargs.get("ScanIndexForward") is False
         return {"Items": []}
 
 

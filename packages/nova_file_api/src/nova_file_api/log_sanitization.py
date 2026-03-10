@@ -14,6 +14,21 @@ HIDDEN_FIELDS = {
 }
 
 
+def _loc_contains_sensitive_field(*, loc: Sequence[Any]) -> bool:
+    """Return True when validation location references a sensitive field."""
+    for entry in loc:
+        if not isinstance(entry, str):
+            continue
+        entry_lower = entry.lower()
+        if entry_lower in HIDDEN_FIELDS:
+            return True
+        if "authorization" in entry_lower or "token" in entry_lower:
+            return True
+        if "password" in entry_lower:
+            return True
+    return False
+
+
 def sanitize_log_value(value: Any) -> Any:
     """Redact nested sensitive values before they reach logs."""
     if isinstance(value, dict):
@@ -53,7 +68,15 @@ def sanitize_validation_errors(*, errors: Sequence[Any]) -> list[Any]:
     sanitized: list[Any] = []
     for error in errors:
         if isinstance(error, dict):
-            sanitized.append(sanitize_log_value(error))
+            normalized_error: dict[str, Any] = dict(error)
+            loc_value = normalized_error.get("loc", ())
+            if (
+                isinstance(loc_value, Sequence)
+                and not isinstance(loc_value, (str, bytes))
+                and _loc_contains_sensitive_field(loc=loc_value)
+            ):
+                normalized_error["input"] = "[REDACTED]"
+            sanitized.append(sanitize_log_value(normalized_error))
         else:
             sanitized.append(error)
     return sanitized

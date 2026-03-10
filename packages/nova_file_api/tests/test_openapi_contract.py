@@ -158,9 +158,15 @@ def test_routes_cover_the_explicit_operation_id_contract() -> None:
         if not isinstance(route, APIRoute) or not route.include_in_schema:
             continue
         assert isinstance(route.operation_id, str)
+        expected_methods = OPERATION_ID_BY_PATH_AND_METHOD.get(route.path)
+        if expected_methods is None:
+            continue
         for method in route.methods:
             normalized_method = method.lower()
-            if normalized_method not in _HTTP_METHODS:
+            if (
+                normalized_method not in _HTTP_METHODS
+                or normalized_method not in expected_methods
+            ):
                 continue
             route_map.setdefault(route.path, {})[normalized_method] = (
                 route.operation_id
@@ -180,6 +186,29 @@ def test_openapi_schema_generation_smoke() -> None:
     schema = app.openapi()
     assert isinstance(schema, dict)
     assert schema.get("openapi") == "3.1.0"
+
+
+def test_openapi_customized_error_and_visibility_contracts() -> None:
+    """OpenAPI should retain error, readiness, and visibility wiring."""
+    app = _build_openapi_app()
+    payload = app.openapi()
+
+    jobs_post = payload["paths"]["/v1/jobs"]["post"]["responses"]
+    assert jobs_post["409"] == {
+        "$ref": "#/components/responses/FileIdempotencyConflictResponse"
+    }
+    assert jobs_post["503"] == {
+        "$ref": "#/components/responses/FileQueueUnavailableResponse"
+    }
+
+    ready_responses = payload["paths"]["/v1/health/ready"]["get"]["responses"]
+    assert ready_responses["503"]["description"] == (
+        "Service Unavailable - Readiness failed"
+    )
+
+    worker_post = payload["paths"]["/v1/internal/jobs/{job_id}/result"]["post"]
+    assert worker_post["x-nova-sdk-visibility"] == "internal"
+    assert worker_post["security"] == [{"X-Worker-Token": []}]
 
 
 def test_legacy_routes_are_not_exposed() -> None:

@@ -209,6 +209,7 @@ export type CreateJobErrorData = CreateJobErrorResult["data"];
 export type CreateJobResponse200 = ResponseBodyOf<CreateJobResponses[200]>;
 export type CreateJobResponse401 = ResponseBodyOf<CreateJobResponses[401]>;
 export type CreateJobResponse403 = ResponseBodyOf<CreateJobResponses[403]>;
+export type CreateJobResponse409 = ResponseBodyOf<CreateJobResponses[409]>;
 export type CreateJobResponse422 = ResponseBodyOf<CreateJobResponses[422]>;
 export type CreateJobResponse503 = ResponseBodyOf<CreateJobResponses[503]>;
 export interface CreateJobRequestOptions {

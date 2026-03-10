@@ -5,10 +5,12 @@ import threading
 from collections.abc import Coroutine
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FutureTimeout
-from typing import Any
+from typing import Any, TypeVar
 
 from nova_file_api.activity import MemoryActivityStore
 from nova_file_api.models import Principal
+
+_T = TypeVar("_T")
 
 
 def _principal(*, subject: str) -> Principal:
@@ -23,10 +25,9 @@ def _principal(*, subject: str) -> Principal:
 
 
 class _BackgroundLoop:
-    """Own a dedicated event loop thread for thread-safe coroutine execution."""
+    """Run coroutines on a dedicated background event loop thread."""
 
     def __init__(self) -> None:
-        """Initialize loop thread state."""
         self._loop = asyncio.new_event_loop()
         self._ready = threading.Event()
         self._thread = threading.Thread(
@@ -36,28 +37,24 @@ class _BackgroundLoop:
         )
 
     def __enter__(self) -> _BackgroundLoop:
-        """Start the background loop thread."""
         self._thread.start()
         if not self._ready.wait(timeout=5):
             raise AssertionError("background loop did not start")
         return self
 
     def __exit__(self, exc_type: object, exc: object, tb: object) -> None:
-        """Stop the background loop thread and close its resources."""
         del exc_type, exc, tb
         self._loop.call_soon_threadsafe(self._loop.stop)
         self._thread.join(timeout=5)
         if self._thread.is_alive():
             raise AssertionError("background loop thread did not stop")
 
-    def run[T](self, coroutine: Coroutine[Any, Any, T]) -> T:
-        """Run one coroutine on the dedicated loop and block for the result."""
+    def run(self, coroutine: Coroutine[Any, Any, _T]) -> _T:
         return asyncio.run_coroutine_threadsafe(coroutine, self._loop).result(
             timeout=10
         )
 
     def _run(self) -> None:
-        """Run the event loop until explicitly stopped."""
         asyncio.set_event_loop(self._loop)
         self._ready.set()
         try:
@@ -91,41 +88,42 @@ def test_memory_activity_store_thread_safe_record_and_summary() -> None:
     def _writer(worker_index: int) -> None:
         principal = subjects[worker_index]
         _wait_for_start(context=f"writer-{worker_index}")
-        for iteration in range(events_per_writer):
-            runtime.run(
-                store.record(
-                    principal=principal,
-                    event_type=f"event-{iteration % 3}",
+        with _BackgroundLoop() as runtime:
+            for iteration in range(events_per_writer):
+                runtime.run(
+                    store.record(
+                        principal=principal,
+                        event_type=f"event-{iteration % 3}",
+                    )
                 )
-            )
-            if iteration % 25 == 0:
-                snapshot = runtime.run(store.summary())
-                assert snapshot["events_total"] >= 0
+                if iteration % 25 == 0:
+                    snapshot = runtime.run(store.summary())
+                    assert snapshot["events_total"] >= 0
 
     def _reader() -> None:
         _wait_for_start(context="reader")
-        for _ in range(summary_reads_per_reader):
-            snapshot = runtime.run(store.summary())
-            assert snapshot["events_total"] >= 0
-            assert snapshot["active_users_today"] >= 0
-            assert snapshot["distinct_event_types"] >= 0
+        with _BackgroundLoop() as runtime:
+            for _ in range(summary_reads_per_reader):
+                snapshot = runtime.run(store.summary())
+                assert snapshot["events_total"] >= 0
+                assert snapshot["active_users_today"] >= 0
+                assert snapshot["distinct_event_types"] >= 0
 
-    with _BackgroundLoop() as runtime:
-        with ThreadPoolExecutor(
-            max_workers=writer_threads + reader_threads
-        ) as pool:
-            futures = [
-                pool.submit(_writer, index) for index in range(writer_threads)
-            ]
-            futures.extend(pool.submit(_reader) for _ in range(reader_threads))
-            _wait_for_start(context="main")
-            for future in futures:
-                try:
-                    future.result(timeout=30)
-                except FutureTimeout as exc:
-                    raise AssertionError("worker thread timed out") from exc
+    with ThreadPoolExecutor(
+        max_workers=writer_threads + reader_threads
+    ) as pool:
+        futures = [
+            pool.submit(_writer, index) for index in range(writer_threads)
+        ]
+        futures.extend(pool.submit(_reader) for _ in range(reader_threads))
+        _wait_for_start(context="main")
+        for future in futures:
+            try:
+                future.result(timeout=30)
+            except FutureTimeout as exc:
+                raise AssertionError("worker thread timed out") from exc
 
-        summary = runtime.run(store.summary())
+    summary = asyncio.run(store.summary())
     assert summary["events_total"] == writer_threads * events_per_writer
     assert summary["active_users_today"] == writer_threads
     assert summary["distinct_event_types"] == 3

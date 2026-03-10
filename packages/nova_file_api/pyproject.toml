@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.12,<3.14"
 dependencies = [
   "anyio>=4.11.0",
-  "aioboto3==15.5.0",
+  "aioboto3>=15.5.0,<16",
   "fastapi>=0.129.0",
   "httpx>=0.28.1",
   "oidc-jwt-verifier>=0.1.5",

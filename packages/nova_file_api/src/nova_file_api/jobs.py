@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 import json
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from threading import Lock
 from typing import Any, Protocol, cast
 from uuid import uuid4
 
@@ -89,12 +89,12 @@ class MemoryJobRepository:
     """In-memory job record repository."""
 
     _records: dict[str, JobRecord]
-    _lock: Lock = field(init=False, repr=False)
+    _lock: asyncio.Lock = field(init=False, repr=False)
 
     def __init__(self) -> None:
         """Initialize empty in-memory record storage."""
         self._records = {}
-        self._lock = Lock()
+        self._lock = asyncio.Lock()
 
     async def create(self, record: JobRecord) -> None:
         """Persist a new in-memory job record.
@@ -102,7 +102,7 @@ class MemoryJobRepository:
         Args:
             record: Job record to persist.
         """
-        with self._lock:
+        async with self._lock:
             self._records[record.job_id] = record
 
     async def get(self, job_id: str) -> JobRecord | None:
@@ -111,7 +111,7 @@ class MemoryJobRepository:
         Args:
             job_id: Unique job identifier.
         """
-        with self._lock:
+        async with self._lock:
             return self._records.get(job_id)
 
     async def update(self, record: JobRecord) -> None:
@@ -120,7 +120,7 @@ class MemoryJobRepository:
         Args:
             record: Updated job record.
         """
-        with self._lock:
+        async with self._lock:
             self._records[record.job_id] = record
 
     async def update_if_status(
@@ -130,7 +130,7 @@ class MemoryJobRepository:
         expected_status: JobStatus,
     ) -> bool:
         """Replace record only when current status matches expected value."""
-        with self._lock:
+        async with self._lock:
             current = self._records.get(record.job_id)
             if current is None:
                 return False
@@ -156,7 +156,7 @@ class MemoryJobRepository:
         """
         if limit <= 0:
             raise ValueError("limit must be greater than zero")
-        with self._lock:
+        async with self._lock:
             records = [
                 r for r in self._records.values() if r.scope_id == scope_id
             ]
@@ -294,9 +294,10 @@ class DynamoJobRepository:
             return self._table
         async with self._table_lock:
             if self._table is None:
-                self._table = await self.dynamodb_resource.Table(
-                    self.table_name
-                )
+                table = self.dynamodb_resource.Table(self.table_name)
+                if inspect.isawaitable(table):
+                    table = await table
+                self._table = table
         return cast(Any, self._table)
 
 

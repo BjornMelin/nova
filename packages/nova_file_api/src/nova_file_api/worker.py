@@ -127,6 +127,8 @@ class TransferProcessPayload:
 class _WorkerResultUpdateError(Exception):
     """Raised when a worker result callback is not durably accepted."""
 
+    # Keep dataclass fields for structured logging while still initializing
+    # Exception args through Exception.__init__ in __post_init__.
     message: str
     retryable: bool
     status_code: int | None = None
@@ -227,8 +229,14 @@ class JobsWorker:
 
     def _install_signal_handlers(self) -> None:
         """Install signal handlers for graceful worker shutdown."""
-        signal.signal(signal.SIGINT, self._handle_stop_signal)
-        signal.signal(signal.SIGTERM, self._handle_stop_signal)
+        loop = asyncio.get_running_loop()
+        for signum in (signal.SIGINT, signal.SIGTERM):
+            try:
+                loop.add_signal_handler(
+                    signum, self._handle_stop_signal, signum, None
+                )
+            except (NotImplementedError, RuntimeError):
+                signal.signal(signum, self._handle_stop_signal)
 
     def _handle_stop_signal(self, signum: int, _frame: Any) -> None:
         """Mark worker loop for shutdown when an OS signal is received."""

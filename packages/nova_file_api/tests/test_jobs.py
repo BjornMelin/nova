@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from typing import Any, cast
@@ -195,16 +196,20 @@ def _build_same_origin_status_container(*, scope_id: str) -> AppContainer:
         metrics=metrics,
     )
     now = datetime.now(tz=UTC)
-    repository._records["job-status-1"] = JobRecord(
-        job_id="job-status-1",
-        job_type="transform",
-        scope_id=scope_id,
-        status=JobStatus.PENDING,
-        payload={"input": "value"},
-        result=None,
-        error=None,
-        created_at=now,
-        updated_at=now,
+    asyncio.run(
+        repository.create(
+            JobRecord(
+                job_id="job-status-1",
+                job_type="transform",
+                scope_id=scope_id,
+                status=JobStatus.PENDING,
+                payload={"input": "value"},
+                result=None,
+                error=None,
+                created_at=now,
+                updated_at=now,
+            )
+        )
     )
 
     return AppContainer(

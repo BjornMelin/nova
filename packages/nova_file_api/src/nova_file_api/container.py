@@ -137,7 +137,7 @@ def create_container(
     if settings.jobs_queue_backend == JobsQueueBackend.SQS:
         if settings.jobs_enabled and not settings.jobs_sqs_queue_url:
             raise ValueError(_MSG_JOBS_SQS_QUEUE_URL_REQUIRED)
-        if settings.jobs_sqs_queue_url:
+        if settings.jobs_enabled and settings.jobs_sqs_queue_url:
             if sqs_client is None:
                 raise ValueError(_MSG_SQS_CLIENT_REQUIRED)
             publisher = SqsJobPublisher(

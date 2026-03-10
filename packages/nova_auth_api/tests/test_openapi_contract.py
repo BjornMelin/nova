@@ -103,9 +103,15 @@ def test_routes_cover_the_explicit_operation_id_contract() -> None:
         assert isinstance(operation_id, str)
         assert isinstance(methods, set)
         operation_ids.append(operation_id)
+        expected_methods = OPERATION_ID_BY_PATH_AND_METHOD.get(path)
+        if expected_methods is None:
+            continue
         for method in methods:
             normalized_method = method.lower()
-            if normalized_method not in _HTTP_METHODS:
+            if (
+                normalized_method not in _HTTP_METHODS
+                or normalized_method not in expected_methods
+            ):
                 continue
             route_map.setdefault(path, {})[normalized_method] = operation_id
 

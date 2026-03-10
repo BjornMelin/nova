@@ -6,6 +6,7 @@ import asyncio
 import logging
 import math
 import re
+import threading
 from collections.abc import Coroutine
 from contextlib import closing
 from pathlib import Path
@@ -139,6 +140,8 @@ class FileTransferService:
             env_config=env_config,
             upload_policy=upload_policy,
         )
+        self._core_service: TransferService | None = None
+        self._core_service_lock = threading.Lock()
 
     @property
     def part_size_bytes(self) -> int:
@@ -170,11 +173,19 @@ class FileTransferService:
         return self._factory.create(self._env)
 
     def _build_core_service(self) -> TransferService:
-        """Build a core transfer service bound to a sync S3 client adapter."""
-        return TransferService(
-            settings=self._core_settings,
-            s3_client=_AsyncS3ClientAdapter(client=self._client()),
-        )
+        """Build and cache a core transfer service for repeated bridge calls."""
+        service = self._core_service
+        if service is not None:
+            return service
+        with self._core_service_lock:
+            service = self._core_service
+            if service is None:
+                service = TransferService(
+                    settings=self._core_settings,
+                    s3_client=_AsyncS3ClientAdapter(client=self._client()),
+                )
+                self._core_service = service
+        return service
 
     @staticmethod
     def _run_async(awaitable: Coroutine[Any, Any, _T]) -> _T:

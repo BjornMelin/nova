@@ -55,9 +55,11 @@ def register_exception_handlers(app: FastAPI) -> None:
         request: Request,
         exc: Exception,
     ) -> JSONResponse:
+        request_id = request_id_from_request(request=request)
         structlog.get_logger("errors").exception(
             "unhandled_exception",
             error_type=type(exc).__name__,
+            request_id=request_id,
         )
         err = internal_error("unexpected internal error")
         return JSONResponse(
@@ -66,6 +68,6 @@ def register_exception_handlers(app: FastAPI) -> None:
                 code=err.code,
                 message=err.message,
                 details=err.details,
-                request_id=request_id_from_request(request=request),
+                request_id=request_id,
             ),
         )
