@@ -5,7 +5,8 @@ set -euo pipefail
 # current file-transfer module topology using change-set-first CloudFormation
 # deploys.
 #
-# Final default posture enforced by this operator:
+# Default posture applied by this operator when related override environment
+# variables are left unset:
 # - AssignPublicIp=DISABLED
 # - IdempotencyMode=shared_required
 # - FileTransferAsyncEnabled=true
@@ -62,8 +63,14 @@ deploy_stack() {
   shift 2
 
   local template_file="${NOVA_REPO_ROOT}/${template_rel}"
-  local change_set_name="${stack_name}-cs-$(date +%Y%m%d%H%M%S)"
+  local timestamp
+  local stack_prefix
+  local change_set_name
   local waiter_name="stack-create-complete"
+
+  timestamp="$(date +%Y%m%d%H%M%S)"
+  stack_prefix="${stack_name:0:110}"
+  change_set_name="${stack_prefix}-cs-${timestamp}"
 
   [ -f "$template_file" ] || {
     echo "Missing template file: $template_file" >&2
@@ -85,10 +92,14 @@ deploy_stack() {
     --no-execute-changeset \
     --no-fail-on-empty-changeset >/dev/null
 
+  local waiter_status=0
+  set +e
   aws cloudformation wait change-set-create-complete \
     --region "$AWS_REGION" \
     --stack-name "$stack_name" \
-    --change-set-name "$change_set_name" >/dev/null 2>&1 || true
+    --change-set-name "$change_set_name" >/dev/null 2>&1
+  waiter_status=$?
+  set -e
 
   local status=""
   local reason=""
@@ -105,6 +116,10 @@ deploy_stack() {
     --query "StatusReason" \
     --output text)"
 
+  if [ "$waiter_status" -ne 0 ]; then
+    echo "==> ${stack_name}: change set waiter returned ${waiter_status}; checking status" >&2
+  fi
+
   if [ "$status" = "FAILED" ]; then
     if [[ "$reason" == *"didn't contain changes"* ]] || [[ "$reason" == *"No updates are to be performed"* ]]; then
       echo "==> ${stack_name}: no changes"
@@ -112,6 +127,16 @@ deploy_stack() {
     fi
 
     echo "CloudFormation change set failed for ${stack_name}: ${reason}" >&2
+    aws cloudformation describe-change-set \
+      --region "$AWS_REGION" \
+      --stack-name "$stack_name" \
+      --change-set-name "$change_set_name" \
+      --output json >&2 || true
+    exit 1
+  fi
+
+  if [ "$waiter_status" -ne 0 ] && [ "$status" != "CREATE_COMPLETE" ]; then
+    echo "CloudFormation change set did not complete for ${stack_name}: status=${status} reason=${reason}" >&2
     aws cloudformation describe-change-set \
       --region "$AWS_REGION" \
       --stack-name "$stack_name" \
@@ -256,7 +281,6 @@ API_LISTENER_RULE_PRIORITY="${API_LISTENER_RULE_PRIORITY:-100}"
 FILE_TRANSFER_ASYNC_ENABLED="${FILE_TRANSFER_ASYNC_ENABLED:-true}"
 FILE_TRANSFER_CACHE_ENABLED="${FILE_TRANSFER_CACHE_ENABLED:-true}"
 ENABLE_WORKER="${ENABLE_WORKER:-true}"
-WORKER_SERVICE_NAME="${WORKER_SERVICE_NAME:-${SERVICE_NAME:-}-worker}"
 WORKER_DESIRED_COUNT="${WORKER_DESIRED_COUNT:-1}"
 WORKER_MIN_TASK_COUNT="${WORKER_MIN_TASK_COUNT:-1}"
 WORKER_MAX_TASK_COUNT="${WORKER_MAX_TASK_COUNT:-20}"
@@ -300,6 +324,7 @@ require_env ALB_HOSTED_ZONE_NAME
 require_env ALB_DNS_NAME
 require_env ECS_CLUSTER_NAME
 require_env SERVICE_NAME
+WORKER_SERVICE_NAME="${WORKER_SERVICE_NAME:-${SERVICE_NAME}-worker}"
 require_env SERVICE_DNS
 require_env DOCKER_REPOSITORY_NAME
 require_env IMAGE_DIGEST

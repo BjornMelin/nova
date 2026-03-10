@@ -102,8 +102,14 @@ def test_composite_actions_provide_shared_release_primitives() -> None:
     cfn_lifecycle_text = _read(
         ".github/actions/cfn-change-set-lifecycle/action.yml"
     )
-    assert "--change-set-id" not in cfn_lifecycle_text
-    assert '--query "Events[' not in cfn_lifecycle_text
+    assert "--change-set-id" not in cfn_lifecycle_text, (
+        "Composite action must use change-set-name validation flow, not "
+        f"legacy change-set-id queries:\n{cfn_lifecycle_text}"
+    )
+    assert '--query "Events[' not in cfn_lifecycle_text, (
+        "Composite action must query OperationEvents instead of legacy Events "
+        f"output:\n{cfn_lifecycle_text}"
+    )
 
 
 def test_reusable_deploy_runtime_contract_includes_typed_inputs_outputs() -> (

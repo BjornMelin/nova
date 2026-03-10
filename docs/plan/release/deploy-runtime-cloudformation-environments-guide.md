@@ -14,7 +14,8 @@ Canonical operator path:
 
 - `scripts/release/deploy-runtime-cloudformation-environment.sh`
 - The script applies the same change-set-first sequence documented here and
-  enforces the current final runtime posture (`AssignPublicIp=DISABLED`,
+  defaults to the current runtime posture when related override environment
+  variables are left unset (`AssignPublicIp=DISABLED`,
   `IDEMPOTENCY_MODE=shared_required`, async queue wiring, and cache-enabled
   file-transfer service deployment).
 

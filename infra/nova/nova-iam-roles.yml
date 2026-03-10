@@ -336,6 +336,7 @@ Resources:
               - cloudformation:UpdateStack
               - cloudformation:DeleteChangeSet
               - cloudformation:DescribeChangeSet
+              - cloudformation:DescribeEvents
               - cloudformation:DescribeStacks
               - cloudformation:ExecuteChangeSet
             Resource:

@@ -30,6 +30,10 @@ jobs:
         run: |
           set -euo pipefail
           workflow_ref="${{ github.workflow_ref }}"
+          if [[ "$workflow_ref" != *"/.github/workflows/"* ]]; then
+            echo "Malformed github.workflow_ref: $workflow_ref" >&2
+            exit 1
+          fi
           echo "WORKFLOW_SOURCE_REPOSITORY=${workflow_ref%%/.github/workflows/*}" >> "$GITHUB_ENV"
           echo "WORKFLOW_SOURCE_SHA=${{ github.workflow_sha }}" >> "$GITHUB_ENV"
 
