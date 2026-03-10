@@ -41,7 +41,7 @@ class _FakeDynamoDbClient:
         self._items: dict[tuple[str, str], dict[str, dict[str, str]]] = {}
         self.put_conditions: list[str] = []
 
-    def update_item(
+    async def update_item(
         self,
         *,
         TableName: str,
@@ -77,7 +77,7 @@ class _FakeDynamoDbClient:
         self._items[key] = item
         return {}
 
-    def put_item(
+    async def put_item(
         self,
         *,
         TableName: str,
@@ -95,7 +95,7 @@ class _FakeDynamoDbClient:
         self._items[key] = dict(Item)
         return {}
 
-    def get_item(
+    async def get_item(
         self,
         *,
         TableName: str,
@@ -123,7 +123,7 @@ class _FailingDynamoDbClient(_FakeDynamoDbClient):
         self.update_item_calls = 0
         self.put_item_calls = 0
 
-    def update_item(
+    async def update_item(
         self,
         *,
         TableName: str,
@@ -136,7 +136,7 @@ class _FailingDynamoDbClient(_FakeDynamoDbClient):
         failure = self._update_failures.get(self.update_item_calls)
         if failure is not None:
             raise failure
-        return super().update_item(
+        return await super().update_item(
             TableName=TableName,
             Key=Key,
             UpdateExpression=UpdateExpression,
@@ -144,7 +144,7 @@ class _FailingDynamoDbClient(_FakeDynamoDbClient):
             ExpressionAttributeValues=ExpressionAttributeValues,
         )
 
-    def put_item(
+    async def put_item(
         self,
         *,
         TableName: str,
@@ -155,7 +155,7 @@ class _FailingDynamoDbClient(_FakeDynamoDbClient):
         failure = self._put_failures.get(self.put_item_calls)
         if failure is not None:
             raise failure
-        return super().put_item(
+        return await super().put_item(
             TableName=TableName,
             Item=Item,
             ConditionExpression=ConditionExpression,
@@ -166,91 +166,88 @@ def _expected_principal_fingerprint(*, subject: str) -> str:
     return hashlib.sha256(subject.encode("utf-8")).hexdigest()[:16]
 
 
-def test_dynamo_activity_store_uses_injected_client_without_boto3(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    def _unexpected_boto3_client(
-        service_name: str, **kwargs: object
-    ) -> _FakeDynamoDbClient:
-        del service_name, kwargs
-        raise AssertionError("boto3.client should not be called")
-
-    monkeypatch.setattr(
-        "nova_file_api.activity.boto3.client",
-        _unexpected_boto3_client,
-    )
-
+@pytest.mark.asyncio
+async def test_dynamo_activity_store_uses_injected_client_without_boto3() -> (
+    None
+):
     store = DynamoActivityStore(
         table_name="activity-rollups",
         ddb_client=_FakeDynamoDbClient(),
     )
-    store.record(
+    await store.record(
         principal=_principal(subject="user-1"),
         event_type="uploads_initiate",
     )
 
-    summary = store.summary()
+    summary = await store.summary()
     assert summary["events_total"] == 1
 
 
-def test_dynamo_activity_summary_counts_repeat_event_once() -> None:
+@pytest.mark.asyncio
+async def test_dynamo_activity_summary_counts_repeat_event_once() -> None:
     store = DynamoActivityStore(
         table_name="activity-rollups",
         ddb_client=_FakeDynamoDbClient(),
     )
 
-    store.record(
+    await store.record(
         principal=_principal(subject="user-1"),
         event_type="uploads_initiate",
     )
-    store.record(
+    await store.record(
         principal=_principal(subject="user-1"),
         event_type="uploads_initiate",
     )
 
-    summary = store.summary()
+    summary = await store.summary()
     assert summary["events_total"] == 2
     assert summary["active_users_today"] == 1
     assert summary["distinct_event_types"] == 1
 
 
-def test_dynamo_activity_summary_counts_new_event_types_and_users() -> None:
+@pytest.mark.asyncio
+async def test_dynamo_activity_summary_counts_new_event_types_and_users() -> (
+    None
+):
     store = DynamoActivityStore(
         table_name="activity-rollups",
         ddb_client=_FakeDynamoDbClient(),
     )
 
-    store.record(
+    await store.record(
         principal=_principal(subject="user-1"),
         event_type="uploads_initiate",
     )
-    store.record(
+    await store.record(
         principal=_principal(subject="user-2"),
         event_type="jobs_enqueue",
     )
-    store.record(
+    await store.record(
         principal=_principal(subject="user-2"),
         event_type="jobs_enqueue",
     )
 
-    summary = store.summary()
+    summary = await store.summary()
     assert summary["events_total"] == 3
     assert summary["active_users_today"] == 2
     assert summary["distinct_event_types"] == 2
 
 
-def test_dynamo_activity_store_uses_conditional_first_seen_markers() -> None:
+@pytest.mark.asyncio
+async def test_dynamo_activity_store_uses_conditional_first_seen_markers() -> (
+    None
+):
     client = _FakeDynamoDbClient()
     store = DynamoActivityStore(
         table_name="activity-rollups",
         ddb_client=client,
     )
 
-    store.record(
+    await store.record(
         principal=_principal(subject="user-1"),
         event_type="uploads_initiate",
     )
-    store.record(
+    await store.record(
         principal=_principal(subject="user-1"),
         event_type="uploads_initiate",
     )
@@ -262,7 +259,8 @@ def test_dynamo_activity_store_uses_conditional_first_seen_markers() -> None:
     )
 
 
-def test_dynamo_activity_record_logs_counter_failures_and_hides_principal(
+@pytest.mark.asyncio
+async def test_dynamo_activity_record_logs_counter_failures_and_hides_principal(
     caplog: LogCaptureFixture,
 ) -> None:
     store = DynamoActivityStore(
@@ -278,7 +276,7 @@ def test_dynamo_activity_record_logs_counter_failures_and_hides_principal(
     principal = _principal(subject="user-1")
 
     with caplog.at_level("WARNING"):
-        store.record(principal=principal, event_type="uploads_initiate")
+        await store.record(principal=principal, event_type="uploads_initiate")
 
     warning_records = [
         record
@@ -296,7 +294,8 @@ def test_dynamo_activity_record_logs_counter_failures_and_hides_principal(
     )
 
 
-def test_dynamo_activity_record_user_marker_error_logs_warning(
+@pytest.mark.asyncio
+async def test_dynamo_activity_record_user_marker_error_logs_warning(
     caplog: LogCaptureFixture,
 ) -> None:
     store = DynamoActivityStore(
@@ -313,7 +312,7 @@ def test_dynamo_activity_record_user_marker_error_logs_warning(
     principal = _principal(subject="user-2")
 
     with caplog.at_level("WARNING"):
-        store.record(principal=principal, event_type="jobs_enqueue")
+        await store.record(principal=principal, event_type="jobs_enqueue")
 
     warning_records = [
         record
@@ -329,7 +328,8 @@ def test_dynamo_activity_record_user_marker_error_logs_warning(
     assert "user-2" not in warning_records[0].getMessage()
 
 
-def test_dynamo_activity_record_distinct_event_type_increment_failure_logged(
+@pytest.mark.asyncio
+async def test_dynamo_activity_record_event_type_increment_failure_logged(
     caplog: LogCaptureFixture,
 ) -> None:
     store = DynamoActivityStore(
@@ -346,7 +346,7 @@ def test_dynamo_activity_record_distinct_event_type_increment_failure_logged(
     principal = _principal(subject="user-3")
 
     with caplog.at_level("WARNING"):
-        store.record(principal=principal, event_type="jobs_complete")
+        await store.record(principal=principal, event_type="jobs_complete")
 
     warning_records = [
         record

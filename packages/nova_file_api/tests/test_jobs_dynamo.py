@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Any, cast
+from typing import Any
 
 import pytest
 from botocore.exceptions import ClientError
@@ -15,7 +15,7 @@ class _FakeTable:
         self.condition_writes: list[dict[str, Any]] = []
         self.query_error: ClientError | None = None
 
-    def put_item(
+    async def put_item(
         self, *, Item: dict[str, Any], **kwargs: Any
     ) -> dict[str, Any]:
         condition = kwargs.get("ConditionExpression")
@@ -45,14 +45,14 @@ class _FakeTable:
         self._items[str(Item["job_id"])] = dict(Item)
         return {}
 
-    def get_item(self, *, Key: dict[str, Any]) -> dict[str, Any]:
+    async def get_item(self, *, Key: dict[str, Any]) -> dict[str, Any]:
         job_id = str(Key["job_id"])
         item = self._items.get(job_id)
         if item is None:
             return {}
         return {"Item": dict(item)}
 
-    def query(self, **kwargs: Any) -> dict[str, Any]:
+    async def query(self, **kwargs: Any) -> dict[str, Any]:
         del kwargs
         if self.query_error is not None:
             raise self.query_error
@@ -63,26 +63,29 @@ class _FakeDynamoResource:
     def __init__(self, table: _FakeTable) -> None:
         self._table = table
 
-    def Table(self, table_name: str) -> _FakeTable:
+    async def Table(self, table_name: str) -> _FakeTable:
         del table_name
         return self._table
 
 
 @pytest.fixture
-def _fake_repo(monkeypatch: pytest.MonkeyPatch) -> DynamoJobRepository:
+def _fake_repo() -> tuple[DynamoJobRepository, _FakeTable]:
     table = _FakeTable()
+    return (
+        DynamoJobRepository(
+            table_name="jobs-table",
+            dynamodb_resource=_FakeDynamoResource(table),
+        ),
+        table,
+    )
 
-    def _resource(service_name: str) -> _FakeDynamoResource:
-        assert service_name == "dynamodb"
-        return _FakeDynamoResource(table)
 
-    monkeypatch.setattr("nova_file_api.jobs.boto3.resource", _resource)
-    return DynamoJobRepository(table_name="jobs-table")
-
-
-def test_dynamo_job_repository_create_get_update(
-    _fake_repo: DynamoJobRepository,
+@pytest.mark.asyncio
+async def test_dynamo_job_repository_create_get_update(
+    _fake_repo: tuple[DynamoJobRepository, _FakeTable],
 ) -> None:
+    repo, _table = _fake_repo
+    del _table
     now = datetime.now(tz=UTC)
     record = JobRecord(
         job_id="job-dynamo-1",
@@ -96,8 +99,8 @@ def test_dynamo_job_repository_create_get_update(
         updated_at=now,
     )
 
-    _fake_repo.create(record)
-    loaded = _fake_repo.get("job-dynamo-1")
+    await repo.create(record)
+    loaded = await repo.get("job-dynamo-1")
 
     assert loaded is not None
     assert loaded.job_id == "job-dynamo-1"
@@ -110,23 +113,28 @@ def test_dynamo_job_repository_create_get_update(
             "updated_at": datetime.now(tz=UTC),
         }
     )
-    _fake_repo.update(updated)
+    await repo.update(updated)
 
-    loaded_updated = _fake_repo.get("job-dynamo-1")
+    loaded_updated = await repo.get("job-dynamo-1")
     assert loaded_updated is not None
     assert loaded_updated.status == JobStatus.SUCCEEDED
     assert loaded_updated.result == {"accepted": True}
 
 
-def test_dynamo_job_repository_get_missing_returns_none(
-    _fake_repo: DynamoJobRepository,
+@pytest.mark.asyncio
+async def test_dynamo_job_repository_get_missing_returns_none(
+    _fake_repo: tuple[DynamoJobRepository, _FakeTable],
 ) -> None:
-    assert _fake_repo.get("missing") is None
+    repo, _table = _fake_repo
+    del _table
+    assert await repo.get("missing") is None
 
 
-def test_dynamo_job_repository_update_if_status_enforces_expected_state(
-    _fake_repo: DynamoJobRepository,
+@pytest.mark.asyncio
+async def test_dynamo_job_repository_update_if_status_enforces_expected_state(
+    _fake_repo: tuple[DynamoJobRepository, _FakeTable],
 ) -> None:
+    repo, table = _fake_repo
     now = datetime.now(tz=UTC)
     pending = JobRecord(
         job_id="job-dynamo-2",
@@ -139,7 +147,7 @@ def test_dynamo_job_repository_update_if_status_enforces_expected_state(
         created_at=now,
         updated_at=now,
     )
-    _fake_repo.create(pending)
+    await repo.create(pending)
 
     succeeded = pending.model_copy(
         update={
@@ -149,13 +157,12 @@ def test_dynamo_job_repository_update_if_status_enforces_expected_state(
         }
     )
     assert (
-        _fake_repo.update_if_status(
+        await repo.update_if_status(
             record=succeeded,
             expected_status=JobStatus.PENDING,
         )
         is True
     )
-    table = cast(_FakeTable, _fake_repo._table)
     conditional_write = table.condition_writes[0]
     assert conditional_write["ConditionExpression"] == (
         "attribute_exists(job_id) AND #status = :expected_status"
@@ -167,7 +174,7 @@ def test_dynamo_job_repository_update_if_status_enforces_expected_state(
         ":expected_status": "pending"
     }
     assert (
-        _fake_repo.update_if_status(
+        await repo.update_if_status(
             record=pending,
             expected_status=JobStatus.PENDING,
         )
@@ -175,10 +182,11 @@ def test_dynamo_job_repository_update_if_status_enforces_expected_state(
     )
 
 
-def test_dynamo_job_repository_list_for_scope_requires_gsi(
-    _fake_repo: DynamoJobRepository,
+@pytest.mark.asyncio
+async def test_dynamo_job_repository_list_for_scope_requires_gsi(
+    _fake_repo: tuple[DynamoJobRepository, _FakeTable],
 ) -> None:
-    table = cast(_FakeTable, _fake_repo._table)
+    repo, table = _fake_repo
     table.query_error = ClientError(
         error_response={
             "Error": {
@@ -196,13 +204,14 @@ def test_dynamo_job_repository_list_for_scope_requires_gsi(
         RuntimeError,
         match="scope_id-created_at-index global secondary index",
     ):
-        _fake_repo.list_for_scope(scope_id="scope-1", limit=10)
+        await repo.list_for_scope(scope_id="scope-1", limit=10)
 
 
-def test_dynamo_job_repository_list_for_scope_reraises_other_validation_errors(
-    _fake_repo: DynamoJobRepository,
+@pytest.mark.asyncio
+async def test_dynamo_job_repository_list_for_scope_reraises_validation_errors(
+    _fake_repo: tuple[DynamoJobRepository, _FakeTable],
 ) -> None:
-    table = cast(_FakeTable, _fake_repo._table)
+    repo, table = _fake_repo
     table.query_error = ClientError(
         error_response={
             "Error": {
@@ -214,13 +223,14 @@ def test_dynamo_job_repository_list_for_scope_reraises_other_validation_errors(
     )
 
     with pytest.raises(ClientError, match="Query key condition not supported"):
-        _fake_repo.list_for_scope(scope_id="scope-1", limit=10)
+        await repo.list_for_scope(scope_id="scope-1", limit=10)
 
 
-def test_dynamo_job_repository_list_for_scope_table_missing(
-    _fake_repo: DynamoJobRepository,
+@pytest.mark.asyncio
+async def test_dynamo_job_repository_list_for_scope_table_missing(
+    _fake_repo: tuple[DynamoJobRepository, _FakeTable],
 ) -> None:
-    table = cast(_FakeTable, _fake_repo._table)
+    repo, table = _fake_repo
     table.query_error = ClientError(
         error_response={"Error": {"Code": "ResourceNotFoundException"}},
         operation_name="Query",
@@ -230,4 +240,4 @@ def test_dynamo_job_repository_list_for_scope_table_missing(
         RuntimeError,
         match="jobs table is not configured for scoped listing",
     ):
-        _fake_repo.list_for_scope(scope_id="scope-1", limit=10)
+        await repo.list_for_scope(scope_id="scope-1", limit=10)

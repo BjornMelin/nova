@@ -48,7 +48,7 @@ class _StubJobService:
     def __init__(self) -> None:
         self.calls = 0
 
-    def enqueue(
+    async def enqueue(
         self,
         *,
         job_type: str,
@@ -69,11 +69,11 @@ class _StubJobService:
             updated_at=now,
         )
 
-    def get(self, *, job_id: str, scope_id: str) -> JobRecord:
+    async def get(self, *, job_id: str, scope_id: str) -> JobRecord:
         del job_id, scope_id
         raise RuntimeError("not used by this test")
 
-    def cancel(self, *, job_id: str, scope_id: str) -> JobRecord:
+    async def cancel(self, *, job_id: str, scope_id: str) -> JobRecord:
         del job_id, scope_id
         raise RuntimeError("not used by this test")
 
@@ -82,7 +82,7 @@ class _StubTransferService:
     def __init__(self) -> None:
         self.calls = 0
 
-    def initiate_upload(
+    async def initiate_upload(
         self,
         payload: Any,
         principal: Principal,

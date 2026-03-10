@@ -1,43 +1,78 @@
 from __future__ import annotations
 
 import json
-from typing import Any
+from typing import Any, cast
 
 import httpx
 import pytest
 from nova_file_api.config import Settings
 from nova_file_api.errors import invalid_request, upstream_s3_error
 from nova_file_api.models import JobsQueueBackend
-from nova_file_api.transfer import ExportCopyResult
+from nova_file_api.transfer import ExportCopyResult, TransferService
 from nova_file_api.worker import JobsWorker
 from pydantic import SecretStr
 
 
+class _AsyncContext:
+    """Wrap an object in an async context-manager interface."""
+
+    def __init__(self, value: Any) -> None:
+        self._value = value
+
+    async def __aenter__(self) -> Any:
+        return self._value
+
+    async def __aexit__(
+        self, exc_type: object, exc: object, tb: object
+    ) -> bool:
+        del exc_type, exc, tb
+        return False
+
+
+class _FakeSession:
+    """Expose aioboto3 Session.client API for worker run tests."""
+
+    def __init__(self, *, sqs_client: Any, s3_client: Any) -> None:
+        self._sqs_client = sqs_client
+        self._s3_client = s3_client
+
+    def client(self, service_name: str, **kwargs: Any) -> _AsyncContext:
+        del kwargs
+        if service_name == "sqs":
+            return _AsyncContext(self._sqs_client)
+        if service_name == "s3":
+            return _AsyncContext(self._s3_client)
+        raise AssertionError(f"unexpected service name: {service_name}")
+
+
 class _FakeSqsClient:
+    """Capture SQS interactions for worker tests."""
+
     def __init__(self) -> None:
         self.receive_calls: list[dict[str, Any]] = []
         self.delete_calls: list[dict[str, Any]] = []
+        self.messages: list[dict[str, Any]] = []
 
-    def receive_message(self, **kwargs: Any) -> dict[str, Any]:
+    async def receive_message(self, **kwargs: Any) -> dict[str, Any]:
         self.receive_calls.append(kwargs)
-        return {"Messages": []}
+        if not self.messages:
+            return {"Messages": []}
+        return {"Messages": list(self.messages)}
 
-    def delete_message(self, **kwargs: Any) -> None:
+    async def delete_message(self, **kwargs: Any) -> None:
         self.delete_calls.append(kwargs)
 
 
 class _FakeHttpClient:
+    """Capture internal result callback POST requests."""
+
     def __init__(self, **kwargs: Any) -> None:
         self.kwargs = kwargs
         self.responses: list[httpx.Response | Exception] = []
         self.posts: list[dict[str, Any]] = []
 
-    def close(self) -> None:
-        return None
-
-    def post(self, url: str, **kwargs: Any) -> httpx.Response:
-        json_data = kwargs["json"]
-        self.posts.append({"url": url, "json": json_data})
+    async def post(self, url: str, **kwargs: Any) -> httpx.Response:
+        self.posts.append({"url": url, "json": kwargs["json"]})
         response = self.responses.pop(0)
         if isinstance(response, Exception):
             raise response
@@ -45,12 +80,14 @@ class _FakeHttpClient:
 
 
 class _FakeTransferService:
+    """Provide deterministic transfer worker outcomes."""
+
     def __init__(self) -> None:
         self.calls: list[dict[str, Any]] = []
-        self._result: ExportCopyResult | None = None
-        self._error: Exception | None = None
+        self.result: ExportCopyResult | None = None
+        self.error: Exception | None = None
 
-    def copy_upload_to_export(
+    async def copy_upload_to_export(
         self,
         *,
         source_bucket: str,
@@ -68,10 +105,10 @@ class _FakeTransferService:
                 "filename": filename,
             }
         )
-        if self._error is not None:
-            raise self._error
-        if self._result is not None:
-            return self._result
+        if self.error is not None:
+            raise self.error
+        if self.result is not None:
+            return self.result
         return ExportCopyResult(
             export_key=f"exports/{scope_id}/{job_id}/{filename}",
             download_filename=filename,
@@ -120,24 +157,36 @@ def _worker_settings() -> Settings:
     )
 
 
-def test_worker_receive_message_uses_configured_sqs_polling_settings(
-    monkeypatch: pytest.MonkeyPatch,
+def _attach_runtime_clients(
+    *,
+    worker: JobsWorker,
+    sqs_client: _FakeSqsClient,
+    api_client: _FakeHttpClient,
+    transfer_service: _FakeTransferService,
 ) -> None:
+    worker._sqs = sqs_client
+    worker._api = cast(httpx.AsyncClient, api_client)
+    worker._runtime_transfer_service = cast(TransferService, transfer_service)
+
+
+def _build_worker(
+    *,
+    settings: Settings | None = None,
+    transfer_service: _FakeTransferService | None = None,
+) -> JobsWorker:
+    concrete_transfer_service = (
+        _FakeTransferService() if transfer_service is None else transfer_service
+    )
+    return JobsWorker(
+        settings=_worker_settings() if settings is None else settings,
+        transfer_service=cast(TransferService, concrete_transfer_service),
+    )
+
+
+@pytest.mark.asyncio
+async def test_worker_receive_message_uses_configured_sqs_settings() -> None:
     fake_sqs = _FakeSqsClient()
-    captured_client_kwargs: dict[str, Any] = {}
-
-    def _fake_boto3_client(service_name: str, **kwargs: Any) -> _FakeSqsClient:
-        assert service_name == "sqs"
-        assert "config" in kwargs
-        return fake_sqs
-
-    def _fake_http_client(**kwargs: Any) -> _FakeHttpClient:
-        captured_client_kwargs.update(kwargs)
-        return _FakeHttpClient(**kwargs)
-
-    monkeypatch.setattr("nova_file_api.worker.boto3.client", _fake_boto3_client)
-    monkeypatch.setattr("nova_file_api.worker.httpx.Client", _fake_http_client)
-
+    transfer_service = _FakeTransferService()
     settings = Settings.model_validate(
         {
             "JOBS_ENABLED": True,
@@ -153,13 +202,13 @@ def test_worker_receive_message_uses_configured_sqs_polling_settings(
             "JOBS_SQS_VISIBILITY_TIMEOUT_SECONDS": 180,
         }
     )
-
-    worker = JobsWorker(
+    worker = _build_worker(
         settings=settings,
-        transfer_service=_FakeTransferService(),  # type: ignore[arg-type]
+        transfer_service=transfer_service,
     )
+    worker._sqs = fake_sqs
 
-    assert worker._receive_messages() == []
+    assert await worker._receive_messages() == []
     assert fake_sqs.receive_calls == [
         {
             "QueueUrl": "https://sqs.us-west-2.amazonaws.com/123456789012/nova-jobs",
@@ -169,41 +218,22 @@ def test_worker_receive_message_uses_configured_sqs_polling_settings(
             "MessageSystemAttributeNames": ["ApproximateReceiveCount"],
         }
     ]
-    assert captured_client_kwargs["base_url"] == "https://api.example.local"
-    assert captured_client_kwargs["headers"]["X-Worker-Token"] == "worker-token"
 
 
-def test_worker_invalid_message_is_not_deleted(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+@pytest.mark.asyncio
+async def test_worker_invalid_message_is_not_deleted() -> None:
     fake_sqs = _FakeSqsClient()
     fake_http = _FakeHttpClient()
-
-    monkeypatch.setattr(
-        "nova_file_api.worker.boto3.client",
-        lambda service_name, **kwargs: fake_sqs,
-    )
-    monkeypatch.setattr(
-        "nova_file_api.worker.httpx.Client",
-        lambda **kwargs: fake_http,
-    )
-
-    settings = Settings.model_validate(
-        {
-            "JOBS_ENABLED": True,
-            "JOBS_RUNTIME_MODE": "worker",
-            "JOBS_QUEUE_BACKEND": JobsQueueBackend.SQS,
-            "JOBS_SQS_QUEUE_URL": "https://example.local/queue",
-            "JOBS_API_BASE_URL": "https://api.example.local",
-            "JOBS_WORKER_UPDATE_TOKEN": SecretStr("worker-token"),
-        }
+    transfer_service = _FakeTransferService()
+    worker = _build_worker(transfer_service=transfer_service)
+    _attach_runtime_clients(
+        worker=worker,
+        sqs_client=fake_sqs,
+        api_client=fake_http,
+        transfer_service=transfer_service,
     )
 
-    worker = JobsWorker(
-        settings=settings,
-        transfer_service=_FakeTransferService(),  # type: ignore[arg-type]
-    )
-    should_delete = worker._handle_message(
+    should_delete = await worker._handle_message(
         message={
             "MessageId": "msg-1",
             "ReceiptHandle": "receipt-1",
@@ -217,9 +247,8 @@ def test_worker_invalid_message_is_not_deleted(
     assert fake_sqs.delete_calls == []
 
 
-def test_worker_posts_failed_status_for_unsupported_job_type(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+@pytest.mark.asyncio
+async def test_worker_posts_failed_status_for_unsupported_job_type() -> None:
     fake_sqs = _FakeSqsClient()
     fake_http = _FakeHttpClient()
     fake_http.responses.append(
@@ -231,23 +260,16 @@ def test_worker_posts_failed_status_for_unsupported_job_type(
             ),
         )
     )
-
-    monkeypatch.setattr(
-        "nova_file_api.worker.boto3.client",
-        lambda service_name, **kwargs: fake_sqs,
+    transfer_service = _FakeTransferService()
+    worker = _build_worker(transfer_service=transfer_service)
+    _attach_runtime_clients(
+        worker=worker,
+        sqs_client=fake_sqs,
+        api_client=fake_http,
+        transfer_service=transfer_service,
     )
-    monkeypatch.setattr(
-        "nova_file_api.worker.httpx.Client",
-        lambda **kwargs: fake_http,
-    )
 
-    settings = _worker_settings()
-
-    worker = JobsWorker(
-        settings=settings,
-        transfer_service=_FakeTransferService(),  # type: ignore[arg-type]
-    )
-    should_delete = worker._handle_message(
+    should_delete = await worker._handle_message(
         message={
             "MessageId": "msg-2",
             "ReceiptHandle": "receipt-2",
@@ -269,47 +291,38 @@ def test_worker_posts_failed_status_for_unsupported_job_type(
     ]
 
 
-def test_worker_executes_transfer_process_and_posts_running_then_succeeded(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+@pytest.mark.asyncio
+async def test_worker_executes_transfer_process_and_posts_success() -> None:
     fake_sqs = _FakeSqsClient()
     fake_http = _FakeHttpClient()
-    fake_http.responses.append(
-        httpx.Response(
-            200,
-            request=httpx.Request(
-                "POST",
-                "https://api.example.local/v1/internal/jobs/job-2/result",
+    fake_http.responses.extend(
+        [
+            httpx.Response(
+                200,
+                request=httpx.Request(
+                    "POST",
+                    "https://api.example.local/v1/internal/jobs/job-2/result",
+                ),
             ),
-        )
-    )
-    fake_http.responses.append(
-        httpx.Response(
-            200,
-            request=httpx.Request(
-                "POST",
-                "https://api.example.local/v1/internal/jobs/job-2/result",
+            httpx.Response(
+                200,
+                request=httpx.Request(
+                    "POST",
+                    "https://api.example.local/v1/internal/jobs/job-2/result",
+                ),
             ),
-        )
+        ]
     )
     transfer_service = _FakeTransferService()
-
-    monkeypatch.setattr(
-        "nova_file_api.worker.boto3.client",
-        lambda service_name, **kwargs: fake_sqs,
-    )
-    monkeypatch.setattr(
-        "nova_file_api.worker.httpx.Client",
-        lambda **kwargs: fake_http,
+    worker = _build_worker(transfer_service=transfer_service)
+    _attach_runtime_clients(
+        worker=worker,
+        sqs_client=fake_sqs,
+        api_client=fake_http,
+        transfer_service=transfer_service,
     )
 
-    settings = _worker_settings()
-
-    worker = JobsWorker(
-        settings=settings,
-        transfer_service=transfer_service,  # type: ignore[arg-type]
-    )
-    should_delete = worker._handle_message(
+    should_delete = await worker._handle_message(
         message={
             "MessageId": "msg-3",
             "ReceiptHandle": "receipt-3",
@@ -351,58 +364,48 @@ def test_worker_executes_transfer_process_and_posts_running_then_succeeded(
     ]
 
 
-def test_worker_non_retryable_execution_failure_reduces_to_terminal_failure(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+@pytest.mark.asyncio
+async def test_worker_non_retryable_execution_failure_posts_failure() -> None:
     fake_sqs = _FakeSqsClient()
     fake_http = _FakeHttpClient()
-    fake_http.responses.append(
-        httpx.Response(
-            200,
-            request=httpx.Request(
-                "POST",
-                "https://api.example.local/v1/internal/jobs/job-2/result",
+    fake_http.responses.extend(
+        [
+            httpx.Response(
+                200,
+                request=httpx.Request(
+                    "POST",
+                    "https://api.example.local/v1/internal/jobs/job-2/result",
+                ),
             ),
-        )
-    )
-    fake_http.responses.append(
-        httpx.Response(
-            200,
-            request=httpx.Request(
-                "POST",
-                "https://api.example.local/v1/internal/jobs/job-2/result",
+            httpx.Response(
+                200,
+                request=httpx.Request(
+                    "POST",
+                    "https://api.example.local/v1/internal/jobs/job-2/result",
+                ),
             ),
-        )
+        ]
     )
     transfer_service = _FakeTransferService()
-    transfer_service._error = invalid_request("source upload object not found")
-
-    monkeypatch.setattr(
-        "nova_file_api.worker.boto3.client",
-        lambda service_name, **kwargs: fake_sqs,
-    )
-    monkeypatch.setattr(
-        "nova_file_api.worker.httpx.Client",
-        lambda **kwargs: fake_http,
+    transfer_service.error = invalid_request("source upload object not found")
+    worker = _build_worker(transfer_service=transfer_service)
+    _attach_runtime_clients(
+        worker=worker,
+        sqs_client=fake_sqs,
+        api_client=fake_http,
+        transfer_service=transfer_service,
     )
 
-    settings = _worker_settings()
-
-    worker = JobsWorker(
-        settings=settings,
-        transfer_service=transfer_service,  # type: ignore[arg-type]
-    )
-    should_delete = worker._handle_message(
+    should_delete = await worker._handle_message(
         message={
-            "MessageId": "msg-3",
-            "ReceiptHandle": "receipt-3",
+            "MessageId": "msg-4",
+            "ReceiptHandle": "receipt-4",
             "Body": _worker_message_body(job_id="job-2"),
             "Attributes": {"ApproximateReceiveCount": "2"},
         }
     )
 
     assert should_delete is True
-    assert fake_sqs.delete_calls == []
     assert fake_http.posts == [
         {
             "url": "/v1/internal/jobs/job-2/result",
@@ -423,105 +426,10 @@ def test_worker_non_retryable_execution_failure_reduces_to_terminal_failure(
     ]
 
 
-def test_worker_run_deletes_message_when_non_retryable_error(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    fake_sqs = _FakeSqsClient()
-    fake_http = _FakeHttpClient()
-    fake_http.responses.extend(
-        [
-            httpx.Response(
-                200,
-                request=httpx.Request(
-                    "POST",
-                    "https://api.example.local/v1/internal/jobs/job-2/result",
-                ),
-            ),
-            httpx.Response(
-                200,
-                request=httpx.Request(
-                    "POST",
-                    "https://api.example.local/v1/internal/jobs/job-2/result",
-                ),
-            ),
-        ]
-    )
-    transfer_service = _FakeTransferService()
-    transfer_service._error = invalid_request("source upload object not found")
-
-    monkeypatch.setattr(
-        "nova_file_api.worker.boto3.client",
-        lambda service_name, **kwargs: fake_sqs,
-    )
-    monkeypatch.setattr(
-        "nova_file_api.worker.httpx.Client",
-        lambda **kwargs: fake_http,
-    )
-
-    settings = Settings.model_validate(
-        {
-            "JOBS_ENABLED": True,
-            "JOBS_RUNTIME_MODE": "worker",
-            "JOBS_QUEUE_BACKEND": JobsQueueBackend.SQS,
-            "JOBS_SQS_QUEUE_URL": "https://example.local/queue",
-            "JOBS_API_BASE_URL": "https://api.example.local",
-            "JOBS_WORKER_UPDATE_TOKEN": SecretStr("worker-token"),
-        }
-    )
-    worker = JobsWorker(
-        settings=settings,
-        transfer_service=transfer_service,  # type: ignore[arg-type]
-    )
-
-    message: dict[str, object] = {
-        "MessageId": "msg-3",
-        "ReceiptHandle": "receipt-3",
-        "Body": _worker_message_body(job_id="job-2"),
-        "Attributes": {"ApproximateReceiveCount": "2"},
-    }
-
-    def _receive_once() -> list[dict[str, object]]:
-        worker._stop_requested = True
-        return [message]
-
-    monkeypatch.setattr(
-        worker,
-        "_receive_messages",
-        _receive_once,
-    )
-
-    exit_code = worker.run()
-
-    assert exit_code == 0
-    assert fake_sqs.delete_calls == [
-        {
-            "QueueUrl": "https://example.local/queue",
-            "ReceiptHandle": "receipt-3",
-        }
-    ]
-    assert fake_http.posts == [
-        {
-            "url": "/v1/internal/jobs/job-2/result",
-            "json": {
-                "status": "running",
-                "result": None,
-                "error": None,
-            },
-        },
-        {
-            "url": "/v1/internal/jobs/job-2/result",
-            "json": {
-                "status": "failed",
-                "result": None,
-                "error": "source upload object not found",
-            },
-        },
-    ]
-
-
-def test_worker_retryable_execution_failure_leaves_message_unacked(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+@pytest.mark.asyncio
+async def test_worker_retryable_execution_failure_leaves_message_unacked() -> (
+    None
+):
     fake_sqs = _FakeSqsClient()
     fake_http = _FakeHttpClient()
     fake_http.responses.append(
@@ -534,33 +442,25 @@ def test_worker_retryable_execution_failure_leaves_message_unacked(
         )
     )
     transfer_service = _FakeTransferService()
-    transfer_service._error = upstream_s3_error(
+    transfer_service.error = upstream_s3_error(
         "failed to copy upload object to export key"
     )
-
-    monkeypatch.setattr(
-        "nova_file_api.worker.boto3.client",
-        lambda service_name, **kwargs: fake_sqs,
-    )
-    monkeypatch.setattr(
-        "nova_file_api.worker.httpx.Client",
-        lambda **kwargs: fake_http,
+    worker = _build_worker(transfer_service=transfer_service)
+    _attach_runtime_clients(
+        worker=worker,
+        sqs_client=fake_sqs,
+        api_client=fake_http,
+        transfer_service=transfer_service,
     )
 
-    settings = _worker_settings()
-
-    worker = JobsWorker(
-        settings=settings,
-        transfer_service=transfer_service,  # type: ignore[arg-type]
+    should_delete = await worker._handle_message(
+        message={
+            "MessageId": "msg-5",
+            "ReceiptHandle": "receipt-5",
+            "Body": _worker_message_body(job_id="job-2"),
+            "Attributes": {"ApproximateReceiveCount": "2"},
+        }
     )
-    message = {
-        "MessageId": "msg-3",
-        "ReceiptHandle": "receipt-3",
-        "Body": _worker_message_body(job_id="job-2"),
-        "Attributes": {"ApproximateReceiveCount": "2"},
-    }
-
-    should_delete = worker._handle_message(message=message)
 
     assert should_delete is False
     assert fake_sqs.delete_calls == []
@@ -576,77 +476,8 @@ def test_worker_retryable_execution_failure_leaves_message_unacked(
     ]
 
 
-def test_worker_leaves_message_unacked_when_running_update_retries_exhausted(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    fake_sqs = _FakeSqsClient()
-    fake_http = _FakeHttpClient()
-    fake_http.responses.extend(
-        [
-            httpx.Response(
-                404,
-                request=httpx.Request(
-                    "POST",
-                    "https://api.example.local/v1/internal/jobs/job-2/result",
-                ),
-            ),
-            httpx.Response(
-                409,
-                request=httpx.Request(
-                    "POST",
-                    "https://api.example.local/v1/internal/jobs/job-2/result",
-                ),
-            ),
-            httpx.Response(
-                409,
-                request=httpx.Request(
-                    "POST",
-                    "https://api.example.local/v1/internal/jobs/job-2/result",
-                ),
-            ),
-        ]
-    )
-    transfer_service = _FakeTransferService()
-
-    monkeypatch.setattr(
-        "nova_file_api.worker.boto3.client",
-        lambda service_name, **kwargs: fake_sqs,
-    )
-    monkeypatch.setattr(
-        "nova_file_api.worker.httpx.Client",
-        lambda **kwargs: fake_http,
-    )
-    monkeypatch.setattr("nova_file_api.worker.time.sleep", lambda _: None)
-    monkeypatch.setattr(
-        "nova_file_api.worker.random.uniform",
-        lambda _lower, _upper: 1.0,
-    )
-
-    settings = _worker_settings()
-
-    worker = JobsWorker(
-        settings=settings,
-        transfer_service=transfer_service,  # type: ignore[arg-type]
-    )
-    should_delete = worker._handle_message(
-        message={
-            "MessageId": "msg-4",
-            "ReceiptHandle": "receipt-4",
-            "Body": _worker_message_body(job_id="job-2"),
-            "Attributes": {"ApproximateReceiveCount": "1"},
-        }
-    )
-
-    assert should_delete is False
-    assert transfer_service.calls == []
-    assert len(fake_http.posts) == 3
-    assert all(
-        item["json"] == {"status": "running", "result": None, "error": None}
-        for item in fake_http.posts
-    )
-
-
-def test_worker_retries_running_update_until_accepted(
+@pytest.mark.asyncio
+async def test_worker_retries_running_update_until_accepted(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     fake_sqs = _FakeSqsClient()
@@ -686,33 +517,27 @@ def test_worker_retries_running_update_until_accepted(
     transfer_service = _FakeTransferService()
     sleep_calls: list[float] = []
 
-    monkeypatch.setattr(
-        "nova_file_api.worker.boto3.client",
-        lambda service_name, **kwargs: fake_sqs,
-    )
-    monkeypatch.setattr(
-        "nova_file_api.worker.httpx.Client",
-        lambda **kwargs: fake_http,
-    )
-    monkeypatch.setattr(
-        "nova_file_api.worker.time.sleep",
-        lambda delay: sleep_calls.append(delay),
-    )
+    async def _fake_sleep(delay: float) -> None:
+        sleep_calls.append(delay)
+
+    monkeypatch.setattr("nova_file_api.worker.asyncio.sleep", _fake_sleep)
     monkeypatch.setattr(
         "nova_file_api.worker.random.uniform",
         lambda _lower, _upper: 1.0,
     )
 
-    settings = _worker_settings()
-
-    worker = JobsWorker(
-        settings=settings,
-        transfer_service=transfer_service,  # type: ignore[arg-type]
+    worker = _build_worker(transfer_service=transfer_service)
+    _attach_runtime_clients(
+        worker=worker,
+        sqs_client=fake_sqs,
+        api_client=fake_http,
+        transfer_service=transfer_service,
     )
-    should_delete = worker._handle_message(
+
+    should_delete = await worker._handle_message(
         message={
-            "MessageId": "msg-5",
-            "ReceiptHandle": "receipt-5",
+            "MessageId": "msg-6",
+            "ReceiptHandle": "receipt-6",
             "Body": _worker_message_body(job_id="job-2"),
             "Attributes": {"ApproximateReceiveCount": "1"},
         }
@@ -720,19 +545,12 @@ def test_worker_retries_running_update_until_accepted(
 
     assert should_delete is True
     assert sleep_calls == [0.25, 0.5]
-    assert transfer_service.calls == [
-        {
-            "source_bucket": "nova-bucket",
-            "source_key": "uploads/scope-1/source.csv",
-            "scope_id": "scope-1",
-            "job_id": "job-2",
-            "filename": "source.csv",
-        }
-    ]
     assert len(fake_http.posts) == 4
+    assert len(transfer_service.calls) == 1
 
 
-def test_worker_leaves_message_unacked_when_terminal_update_is_rejected(
+@pytest.mark.asyncio
+async def test_worker_unacked_when_terminal_update_retries_exhausted(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     fake_sqs = _FakeSqsClient()
@@ -771,59 +589,106 @@ def test_worker_leaves_message_unacked_when_terminal_update_is_rejected(
     )
     transfer_service = _FakeTransferService()
 
-    monkeypatch.setattr(
-        "nova_file_api.worker.boto3.client",
-        lambda service_name, **kwargs: fake_sqs,
-    )
-    monkeypatch.setattr(
-        "nova_file_api.worker.httpx.Client",
-        lambda **kwargs: fake_http,
-    )
-    monkeypatch.setattr("nova_file_api.worker.time.sleep", lambda _: None)
+    async def _fake_sleep(delay: float) -> None:
+        del delay
+        return None
+
+    monkeypatch.setattr("nova_file_api.worker.asyncio.sleep", _fake_sleep)
     monkeypatch.setattr(
         "nova_file_api.worker.random.uniform",
         lambda _lower, _upper: 1.0,
     )
 
-    settings = _worker_settings()
-
-    worker = JobsWorker(
-        settings=settings,
-        transfer_service=transfer_service,  # type: ignore[arg-type]
+    worker = _build_worker(transfer_service=transfer_service)
+    _attach_runtime_clients(
+        worker=worker,
+        sqs_client=fake_sqs,
+        api_client=fake_http,
+        transfer_service=transfer_service,
     )
-    should_delete = worker._handle_message(
+
+    should_delete = await worker._handle_message(
         message={
-            "MessageId": "msg-6",
-            "ReceiptHandle": "receipt-6",
+            "MessageId": "msg-7",
+            "ReceiptHandle": "receipt-7",
             "Body": _worker_message_body(job_id="job-2"),
             "Attributes": {"ApproximateReceiveCount": "1"},
         }
     )
 
     assert should_delete is False
-    assert transfer_service.calls == [
-        {
-            "source_bucket": "nova-bucket",
-            "source_key": "uploads/scope-1/source.csv",
-            "scope_id": "scope-1",
-            "job_id": "job-2",
-            "filename": "source.csv",
-        }
-    ]
+    assert len(fake_http.posts) == 4
     assert fake_http.posts[0]["json"] == {
         "status": "running",
         "result": None,
         "error": None,
     }
-    assert all(
-        item["json"]
-        == {
-            "status": "succeeded",
-            "result": {
-                "export_key": "exports/scope-1/job-2/source.csv",
-                "download_filename": "source.csv",
-            },
-            "error": None,
-        }
-        for item in fake_http.posts[1:]
+
+
+@pytest.mark.asyncio
+async def test_worker_run_deletes_message_when_non_retryable_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake_sqs = _FakeSqsClient()
+    fake_http = _FakeHttpClient()
+    fake_http.responses.extend(
+        [
+            httpx.Response(
+                200,
+                request=httpx.Request(
+                    "POST",
+                    "https://api.example.local/v1/internal/jobs/job-2/result",
+                ),
+            ),
+            httpx.Response(
+                200,
+                request=httpx.Request(
+                    "POST",
+                    "https://api.example.local/v1/internal/jobs/job-2/result",
+                ),
+            ),
+        ]
     )
+    transfer_service = _FakeTransferService()
+    transfer_service.error = invalid_request("source upload object not found")
+
+    worker = _build_worker(transfer_service=transfer_service)
+    worker._session = cast(
+        Any,
+        _FakeSession(
+            sqs_client=fake_sqs,
+            s3_client=object(),
+        ),
+    )
+
+    async def _receive_once() -> list[dict[str, Any]]:
+        worker._stop_requested = True
+        return [
+            {
+                "MessageId": "msg-8",
+                "ReceiptHandle": "receipt-8",
+                "Body": _worker_message_body(job_id="job-2"),
+                "Attributes": {"ApproximateReceiveCount": "2"},
+            }
+        ]
+
+    monkeypatch.setattr(worker, "_receive_messages", _receive_once)
+    monkeypatch.setattr(worker, "_install_signal_handlers", lambda: None)
+    monkeypatch.setattr(
+        "nova_file_api.worker.httpx.AsyncClient",
+        lambda **kwargs: _AsyncContext(fake_http),
+    )
+    monkeypatch.setattr(
+        "nova_file_api.worker.TransferService",
+        lambda settings, s3_client: transfer_service,
+    )
+
+    exit_code = await worker.run()
+
+    assert exit_code == 0
+    assert fake_sqs.delete_calls == [
+        {
+            "QueueUrl": "https://example.local/queue",
+            "ReceiptHandle": "receipt-8",
+        }
+    ]

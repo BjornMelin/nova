@@ -4,13 +4,65 @@ from __future__ import annotations
 
 from typing import Any
 
+from fastapi import FastAPI
 from fastapi.routing import APIRoute
-from fastapi.testclient import TestClient
+from nova_file_api.activity import MemoryActivityStore
 from nova_file_api.app import create_app
+from nova_file_api.auth import Authenticator
+from nova_file_api.cache import LocalTTLCache, SharedRedisCache, TwoTierCache
+from nova_file_api.config import Settings
+from nova_file_api.container import AppContainer
+from nova_file_api.idempotency import IdempotencyStore
+from nova_file_api.jobs import (
+    JobService,
+    MemoryJobPublisher,
+    MemoryJobRepository,
+)
+from nova_file_api.metrics import MetricsCollector
+from nova_file_api.models import AuthMode
+
+from ._test_doubles import StubTransferService
 
 _HTTP_METHODS = frozenset(
     {"get", "post", "put", "patch", "delete", "options", "head", "trace"}
 )
+
+
+def _build_openapi_app() -> FastAPI:
+    """Build the file API app without starting real AWS clients in tests."""
+    settings = Settings()
+    settings.auth_mode = AuthMode.SAME_ORIGIN
+    settings.jobs_enabled = True
+
+    metrics = MetricsCollector(namespace="Tests")
+    shared = SharedRedisCache(url=None)
+    cache = TwoTierCache(
+        local=LocalTTLCache(ttl_seconds=60, max_entries=128),
+        shared=shared,
+        shared_ttl_seconds=60,
+    )
+    repository = MemoryJobRepository()
+    container = AppContainer(
+        settings=settings,
+        metrics=metrics,
+        cache=cache,
+        shared_cache=shared,
+        authenticator=Authenticator(settings=settings, cache=cache),
+        transfer_service=StubTransferService(),  # type: ignore[arg-type]
+        job_repository=repository,
+        job_service=JobService(
+            repository=repository,
+            publisher=MemoryJobPublisher(),
+            metrics=metrics,
+        ),
+        activity_store=MemoryActivityStore(),
+        idempotency_store=IdempotencyStore(
+            cache=cache,
+            enabled=True,
+            ttl_seconds=300,
+        ),
+    )
+    return create_app(container_override=container)
 
 
 def _operation_id_map(payload: dict[str, Any]) -> dict[str, dict[str, str]]:
@@ -61,12 +113,8 @@ def _operation_tag_map(
 
 def test_openapi_path_method_operation_ids_are_stable() -> None:
     """OpenAPI should expose stable path+method+operationId mappings."""
-    app = create_app()
-    with TestClient(app) as client:
-        response = client.get("/openapi.json")
-    assert response.status_code == 200
-
-    payload = response.json()
+    app = _build_openapi_app()
+    payload = app.openapi()
     expected_operation_map = {
         "/metrics/summary": {
             "get": "metrics_summary",
@@ -126,12 +174,8 @@ def test_openapi_path_method_operation_ids_are_stable() -> None:
 
 def test_openapi_path_method_tags_are_semantic() -> None:
     """OpenAPI should group file API operations under semantic tags."""
-    app = create_app()
-    with TestClient(app) as client:
-        response = client.get("/openapi.json")
-    assert response.status_code == 200
-
-    payload = response.json()
+    app = _build_openapi_app()
+    payload = app.openapi()
     expected_tag_map = {
         "/metrics/summary": {"get": ["ops"]},
         "/v1/transfers/uploads/initiate": {"post": ["transfers"]},
@@ -156,7 +200,7 @@ def test_openapi_path_method_tags_are_semantic() -> None:
 
 def test_route_names_are_unique_for_operation_ids() -> None:
     """Route names must remain unique when operationIds follow route names."""
-    app = create_app()
+    app = _build_openapi_app()
     route_names = [
         route.name
         for route in app.routes
@@ -168,7 +212,7 @@ def test_route_names_are_unique_for_operation_ids() -> None:
 
 def test_openapi_schema_generation_smoke() -> None:
     """OpenAPI schema should build via app factory without exceptions."""
-    app = create_app()
+    app = _build_openapi_app()
     schema = app.openapi()
     assert isinstance(schema, dict)
     assert schema.get("openapi") == "3.1.0"
@@ -176,12 +220,9 @@ def test_openapi_schema_generation_smoke() -> None:
 
 def test_legacy_routes_are_not_exposed() -> None:
     """Legacy API and legacy health routes must remain removed."""
-    app = create_app()
-    with TestClient(app) as client:
-        assert (
-            client.post("/api/transfers/uploads/initiate", json={}).status_code
-            == 404
-        )
-        assert client.post("/api/jobs/enqueue", json={}).status_code == 404
-        assert client.get("/healthz").status_code == 404
-        assert client.get("/readyz").status_code == 404
+    app = _build_openapi_app()
+    route_paths = {route.path for route in app.routes if hasattr(route, "path")}
+    assert "/api/transfers/uploads/initiate" not in route_paths
+    assert "/api/jobs/enqueue" not in route_paths
+    assert "/healthz" not in route_paths
+    assert "/readyz" not in route_paths
