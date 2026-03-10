@@ -352,7 +352,7 @@ async function main(): Promise<void> {
             "introspect_token form mode must use form content type",
           );
           assert(
-            bodyToString(init?.body) === "access_token=form-token&required_scopes=read",
+            bodyToString(init?.body) === "token=form-token&required_scopes=read",
             "introspect_token form mode must serialize as URL encoded payload",
           );
         },
@@ -362,7 +362,7 @@ async function main(): Promise<void> {
   const introspectFormResult = await authIntrospectionClient.introspect_token({
     contentType: "application/x-www-form-urlencoded",
     body: {
-      access_token: "form-token",
+      token: "form-token",
       required_permissions: [],
       required_scopes: ["read"],
     },
