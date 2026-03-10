@@ -24,6 +24,12 @@ Use these in order:
 ## Key Deep References
 
 - `../architecture/README.md` for active authority routing
+- Active documentation must reference the single canonical route authority
+  chain:
+  - `../architecture/requirements.md`
+  - `../architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md`
+  - `../architecture/spec/SPEC-0000-http-api-contract.md`
+  - `../architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md`
 - `../architecture/adr/ADR-0013-final-state-sdk-topology-generated-core-plus-thin-adapters.md` for older SDK topology context that still informs generated-surface review
 - `./repository-engineering-standards.md` for the full gate matrix and documentation sync rules
 - `../plan/release/RELEASE-RUNBOOK.md`

@@ -159,8 +159,9 @@ When changing runtime routes or bridge integration, spot check the Dash
 downstream consumer:
 
 ```bash
+export DASH_PCA_REPO=/path/to/dash-pca
 rg -n "/v1/transfers|/v1/jobs|nova_dash_bridge|nova_file_api" \
-  ~/repos/work/pca-analysis-dash/dash-pca
+  "${DASH_PCA_REPO:?set DASH_PCA_REPO to your dash-pca checkout}"
 ```
 
 When touching docs or route authority, ensure retired `container-craft`

@@ -53,6 +53,7 @@ Auth service target routes:
 - `POST /v1/token/verify`
 - `POST /v1/token/introspect`
 - `GET /v1/health/live`
+- `GET /v1/health/ready`
 
 Non-canonical runtime paths outside this set MUST return `404`.
 

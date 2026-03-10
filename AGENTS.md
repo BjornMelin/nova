@@ -42,7 +42,7 @@ SDK posture:
   explicit generated `contentType` selection for multi-media bodies.
 - Do not add `zod`, validator packages, validator subpaths, or runtime
   request/response validation helpers to generated TypeScript SDKs.
-- Do not create or retain `index.ts` barrels or `export ... from`
+- Do not create or retain `index.ts` barrels or `export … from`
   re-export barrels in generated TypeScript SDK packages; use explicit module
   subpaths.
 - Prefer fixing generator-owned SDK output through runtime OpenAPI producers,
@@ -208,8 +208,9 @@ source .venv/bin/activate && uv run --with pytest pytest -q \
 Spot check the Dash downstream consumer:
 
 ```bash
+export DASH_PCA_REPO=/path/to/dash-pca
 rg -n "/v1/transfers|/v1/jobs|nova_dash_bridge|nova_file_api" \
-  ~/repos/work/pca-analysis-dash/dash-pca
+  "${DASH_PCA_REPO:?set DASH_PCA_REPO to your dash-pca checkout}"
 ```
 
 ## Documentation Rules

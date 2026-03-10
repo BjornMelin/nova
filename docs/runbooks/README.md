@@ -11,6 +11,11 @@ operations runbooks.
 
 For architecture authority, use `../architecture/README.md`.
 For deeper engineering workflow standards, use `../standards/README.md`.
+Active documentation must reference the single canonical route authority chain:
+`../architecture/requirements.md`,
+`../architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md`,
+`../architecture/spec/SPEC-0000-http-api-contract.md`, and
+`../architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md`.
 Active runtime topology and safety authority uses `ADR-0025`, `ADR-0026`,
 `SPEC-0017`, `SPEC-0018`, `SPEC-0019`, and `SPEC-0020`.
 Active downstream validation authority uses `ADR-0027`, `ADR-0028`, `ADR-0029`,

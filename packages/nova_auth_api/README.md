@@ -22,3 +22,7 @@ runtime concerns into dedicated modules:
 - `request_parsing.py` for dual-mode introspection payload parsing
 - `exception_handlers.py` for canonical error envelopes
 - `openapi.py` and `operation_ids.py` for stable OpenAPI emission
+
+The package also exposes a loadable module-level ASGI app at
+`nova_auth_api.main:app` for process managers and deployment tooling.
+Prefer `create_app()` when constructing a configured app in Python code.
