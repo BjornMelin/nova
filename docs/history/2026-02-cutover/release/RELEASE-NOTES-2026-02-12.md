@@ -6,8 +6,8 @@ Scope: `nova` runtime monorepo + cross-repo integration alignment
 ## Highlights
 
 - Finalized monorepo runtime structure:
-  - `apps/nova_file_api_service`
-  - `apps/nova_auth_api_service`
+  - `packages/nova_file_api`
+  - `packages/nova_auth_api`
   - `packages/nova_file_api`
   - `packages/nova_auth_api`
   - `packages/nova_dash_bridge`

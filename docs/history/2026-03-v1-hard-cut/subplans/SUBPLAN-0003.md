@@ -25,8 +25,8 @@ routing, SQS/Redis/DynamoDB dependencies, and operational guardrails.
 
 Repositories:
 
-- `apps/nova_file_api_service`
-- `apps/nova_auth_api_service`
+- `packages/nova_file_api`
+- `packages/nova_auth_api`
 - `packages/nova_file_api`
 - `packages/nova_auth_api`
 - `packages/nova_dash_bridge`

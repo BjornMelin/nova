@@ -248,6 +248,20 @@ def test_agents_includes_typescript_sdk_operator_rules() -> None:
         assert required in text
 
 
+def test_agents_includes_workspace_packaging_and_docker_build_rules() -> None:
+    """AGENTS must keep the current package and local image-build contract."""
+    text = AGENTS_PATH.read_text(encoding="utf-8")
+    for required in [
+        "explicit intra-workspace runtime dependencies",
+        "Do not rely on root workspace sync/install shape",
+        "BuildKit plus `buildx`",
+        "docker-buildx-and-credential-helper-setup-guide.md",
+        "docker buildx version",
+        "DOCKER_BUILDKIT=1 docker buildx build --load",
+    ]:
+        assert required in text
+
+
 def test_authority_docs_reference_restored_runtime_set() -> None:
     """Authority docs must reference the restored runtime set."""
     for rel_path in [

@@ -135,8 +135,20 @@ Required CodeBuild environment inputs:
 
 Default build target values:
 
-- `DOCKERFILE_PATH=apps/nova_file_api_service/Dockerfile`
+- `FILE_DOCKERFILE_PATH=apps/nova_file_api_service/Dockerfile`
+- `AUTH_DOCKERFILE_PATH=apps/nova_auth_api_service/Dockerfile`
 - `DOCKER_BUILD_CONTEXT=.`
+- `DOCKER_BUILDKIT=1`
+- Docker CLI with `buildx` available in the release-build environment
+
+Release-image Dockerfile contract:
+
+- Service Dockerfiles remain under `apps/*`; do not move them into workspace
+  package paths.
+- Service image builds MUST run with Docker BuildKit enabled.
+- Service Dockerfiles MUST use exec-form single-process `uvicorn` commands and
+  may not add `gunicorn` or in-container worker fan-out for the ECS/Fargate API
+  services.
 
 ## 6. AWS promotion and deployment controls
 

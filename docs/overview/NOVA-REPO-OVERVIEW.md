@@ -6,10 +6,8 @@ Nova is the canonical runtime monorepo for file-transfer orchestration and token
 
 ## 2) Monorepo map
 
-- `apps/nova_file_api_service`: ASGI service wrapper that boots the file API runtime package.
-- `apps/nova_auth_api_service`: ASGI service wrapper that boots the auth API runtime package.
-- `packages/nova_file_api`: Main transfer + jobs control-plane implementation.
-- `packages/nova_auth_api`: Token verify/introspect API implementation.
+- `packages/nova_file_api`: Main transfer + jobs control-plane implementation and ASGI entrypoint.
+- `packages/nova_auth_api`: Token verify/introspect API implementation and ASGI entrypoint.
 - `packages/nova_sdk_file`: Generated/private TypeScript file SDK.
 - `packages/nova_sdk_auth`: Generated/private TypeScript auth SDK.
 - `packages/nova_sdk_fetch`: Shared TypeScript fetch transport/runtime helper.
@@ -28,10 +26,6 @@ Nova is the canonical runtime monorepo for file-transfer orchestration and token
 
 ```mermaid
 flowchart TB
-    subgraph Apps
-        A1["apps/nova_file_api_service"]
-        A2["apps/nova_auth_api_service"]
-    end
     subgraph RuntimePackages
         P1["packages/nova_file_api"]
         P2["packages/nova_auth_api"]
@@ -43,15 +37,13 @@ flowchart TB
         I2["infra/runtime"]
     end
 
-    A1 --> P1
-    A2 --> P2
     P3 --> P1
     P4 --> P1
     P4 --> P2
-    I1 --> A1
-    I1 --> A2
-    I2 --> A1
-    I2 --> A2
+    I1 --> P1
+    I1 --> P2
+    I2 --> P1
+    I2 --> P2
 ```
 
 ## 3) Runtime architecture at a glance
@@ -255,8 +247,8 @@ sequenceDiagram
 - “It standardizes canonical `/v1/*` API behavior and operational guardrails.”
 
 2. Minute 2: Monorepo layout
-- Walk apps vs packages.
-- Emphasize that `apps/*` are wrappers and `packages/*` hold core logic.
+- Walk runtime packages and supporting packages.
+- Emphasize that `packages/*` own both runtime logic and deployable service surfaces.
 
 3. Minutes 3-4: Architecture flow
 - Explain request path into `nova_file_api`.
@@ -281,7 +273,7 @@ sequenceDiagram
 - “Why no `/api/v1/*` alias?”
   - Hard-cut canonical route policy to avoid dual contract drift.
 - “Where is business logic?”
-  - In `packages/nova_file_api` and `packages/nova_auth_api`; apps are thin runtime wrappers.
+  - In `packages/nova_file_api` and `packages/nova_auth_api`; release-only service Dockerfiles live under `apps/*` so container-only edits stay outside release-managed package paths.
 - “How do Dash clients integrate?”
   - Through `packages/nova_dash_bridge` adapters, without forking core runtime contracts.
 - “What is the async completion boundary?”
