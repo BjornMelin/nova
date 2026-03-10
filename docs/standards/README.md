@@ -2,37 +2,35 @@
 
 Status: Active
 Owner: nova release architecture
-Last reviewed: 2026-03-09
+Last reviewed: 2026-03-10
 
 ## Purpose
 
-Canonical entrypoint for deeper repo engineering/operator standards that are
-too detailed for `AGENTS.md` but still durable across sessions.
+Canonical entrypoint for repo engineering standards that are too detailed for
+`AGENTS.md` but still durable across sessions.
 
-## Read this after `AGENTS.md`
+## Read This After `AGENTS.md`
 
 Use these in order:
 
 1. `../../AGENTS.md`
-2. `../../README.md`
-3. `../overview/NOVA-REPO-OVERVIEW.md`
-4. `./repository-engineering-standards.md`
-5. relevant ADR/SPEC authority docs for the change you are making
-6. `../runbooks/README.md` when the task affects release/operations
+2. `../README.md`
+3. `../architecture/README.md`
+4. `../overview/NOVA-REPO-OVERVIEW.md`
+5. `./repository-engineering-standards.md`
+6. relevant ADR/SPEC authority docs for the change you are making
+7. `../runbooks/README.md` when the task affects release or operations
 
-## Key deep references
+## Key Deep References
 
-- `../architecture/adr/ADR-0013-final-state-sdk-topology-generated-core-plus-thin-adapters.md`
-- `../architecture/adr/ADR-0025-runtime-monorepo-component-boundaries-and-ownership.md`
-- `../architecture/adr/ADR-0026-fail-fast-runtime-configuration-and-safe-auth-execution.md`
-- `../architecture/spec/SPEC-0017-runtime-component-topology-and-ownership-contract.md`
-- `../architecture/spec/SPEC-0018-runtime-configuration-and-startup-validation-contract.md`
-- `../architecture/spec/SPEC-0019-auth-execution-and-threadpool-safety-contract.md`
+- `../architecture/README.md` for active authority routing
+- `../architecture/adr/ADR-0013-final-state-sdk-topology-generated-core-plus-thin-adapters.md` for older SDK topology context that still informs generated-surface review
+- `./repository-engineering-standards.md` for the full gate matrix and documentation sync rules
 - `../plan/release/RELEASE-RUNBOOK.md`
 - `../plan/release/RELEASE-POLICY.md`
 
 ## Scope
 
-These standards summarize repo engineering workflow, generated SDK rules,
-quality gates, and documentation synchronization. They do not replace
-architecture authority docs.
+These standards cover repo engineering workflow, generated artifact rules,
+quality-gate routing, and documentation synchronization. They do not replace
+the architecture authority docs.

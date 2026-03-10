@@ -1,5 +1,7 @@
 # Architecture Decision Records
 
+- [Architecture Authority Map](../README.md)
+
 - [ADR Template](./ADR-template.md)
 - [Canonical Requirements](../requirements.md)
 - [Architecture Specifications](../spec/index.md)
