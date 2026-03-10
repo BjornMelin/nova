@@ -1,5 +1,7 @@
 # Architecture Specifications
 
+- [Architecture Authority Map](../README.md)
+
 - [Canonical Requirements](../requirements.md)
 - [ADR Index](../adr/index.md)
 - [Reference Links](./REFERENCES.md)

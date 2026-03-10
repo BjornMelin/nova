@@ -4,13 +4,66 @@ from __future__ import annotations
 
 from typing import Any
 
+from fastapi import FastAPI
 from fastapi.routing import APIRoute
-from fastapi.testclient import TestClient
+from nova_file_api.activity import MemoryActivityStore
 from nova_file_api.app import create_app
+from nova_file_api.auth import Authenticator
+from nova_file_api.cache import LocalTTLCache, SharedRedisCache, TwoTierCache
+from nova_file_api.config import Settings
+from nova_file_api.container import AppContainer
+from nova_file_api.idempotency import IdempotencyStore
+from nova_file_api.jobs import (
+    JobService,
+    MemoryJobPublisher,
+    MemoryJobRepository,
+)
+from nova_file_api.metrics import MetricsCollector
+from nova_file_api.models import AuthMode
+from nova_file_api.operation_ids import OPERATION_ID_BY_PATH_AND_METHOD
+
+from ._test_doubles import StubTransferService
 
 _HTTP_METHODS = frozenset(
     {"get", "post", "put", "patch", "delete", "options", "head", "trace"}
 )
+
+
+def _build_openapi_app() -> FastAPI:
+    """Build the file API app without starting real AWS clients in tests."""
+    settings = Settings()
+    settings.auth_mode = AuthMode.SAME_ORIGIN
+    settings.jobs_enabled = True
+
+    metrics = MetricsCollector(namespace="Tests")
+    shared = SharedRedisCache(url=None)
+    cache = TwoTierCache(
+        local=LocalTTLCache(ttl_seconds=60, max_entries=128),
+        shared=shared,
+        shared_ttl_seconds=60,
+    )
+    repository = MemoryJobRepository()
+    container = AppContainer(
+        settings=settings,
+        metrics=metrics,
+        cache=cache,
+        shared_cache=shared,
+        authenticator=Authenticator(settings=settings, cache=cache),
+        transfer_service=StubTransferService(),  # type: ignore[arg-type]
+        job_repository=repository,
+        job_service=JobService(
+            repository=repository,
+            publisher=MemoryJobPublisher(),
+            metrics=metrics,
+        ),
+        activity_store=MemoryActivityStore(),
+        idempotency_store=IdempotencyStore(
+            cache=cache,
+            enabled=True,
+            ttl_seconds=300,
+        ),
+    )
+    return create_app(container_override=container)
 
 
 def _operation_id_map(payload: dict[str, Any]) -> dict[str, dict[str, str]]:
@@ -61,77 +114,15 @@ def _operation_tag_map(
 
 def test_openapi_path_method_operation_ids_are_stable() -> None:
     """OpenAPI should expose stable path+method+operationId mappings."""
-    app = create_app()
-    with TestClient(app) as client:
-        response = client.get("/openapi.json")
-    assert response.status_code == 200
-
-    payload = response.json()
-    expected_operation_map = {
-        "/metrics/summary": {
-            "get": "metrics_summary",
-        },
-        "/v1/transfers/uploads/initiate": {
-            "post": "initiate_upload",
-        },
-        "/v1/transfers/uploads/sign-parts": {
-            "post": "sign_upload_parts",
-        },
-        "/v1/transfers/uploads/complete": {
-            "post": "complete_upload",
-        },
-        "/v1/transfers/uploads/abort": {
-            "post": "abort_upload",
-        },
-        "/v1/transfers/downloads/presign": {
-            "post": "presign_download",
-        },
-        "/v1/jobs": {
-            "get": "list_jobs",
-            "post": "create_job",
-        },
-        "/v1/jobs/{job_id}": {
-            "get": "get_job_status",
-        },
-        "/v1/jobs/{job_id}/cancel": {
-            "post": "cancel_job",
-        },
-        "/v1/jobs/{job_id}/retry": {
-            "post": "retry_job",
-        },
-        "/v1/jobs/{job_id}/events": {
-            "get": "list_job_events",
-        },
-        "/v1/internal/jobs/{job_id}/result": {
-            "post": "update_job_result",
-        },
-        "/v1/capabilities": {
-            "get": "get_capabilities",
-        },
-        "/v1/resources/plan": {
-            "post": "plan_resources",
-        },
-        "/v1/releases/info": {
-            "get": "get_release_info",
-        },
-        "/v1/health/live": {
-            "get": "health_live",
-        },
-        "/v1/health/ready": {
-            "get": "health_ready",
-        },
-    }
-    assert _operation_id_map(payload) == expected_operation_map
+    app = _build_openapi_app()
+    payload = app.openapi()
+    assert _operation_id_map(payload) == OPERATION_ID_BY_PATH_AND_METHOD
 
 
 def test_openapi_path_method_tags_are_semantic() -> None:
     """OpenAPI should group file API operations under semantic tags."""
-    app = create_app()
-    with TestClient(app) as client:
-        response = client.get("/openapi.json")
-    assert response.status_code == 200
-
-    payload = response.json()
+    app = _build_openapi_app()
+    payload = app.openapi()
     expected_tag_map = {
         "/metrics/summary": {"get": ["ops"]},
         "/v1/transfers/uploads/initiate": {"post": ["transfers"]},
@@ -154,34 +145,77 @@ def test_openapi_path_method_tags_are_semantic() -> None:
     assert _operation_tag_map(payload) == expected_tag_map
 
 
-def test_route_names_are_unique_for_operation_ids() -> None:
-    """Route names must remain unique when operationIds follow route names."""
-    app = create_app()
-    route_names = [
-        route.name
+def test_routes_cover_the_explicit_operation_id_contract() -> None:
+    """Application routes should match the explicit operation-id contract."""
+    app = _build_openapi_app()
+    route_map: dict[str, dict[str, str]] = {}
+    operation_ids = [
+        route.operation_id
         for route in app.routes
         if isinstance(route, APIRoute) and route.include_in_schema
     ]
-    assert route_names
-    assert len(route_names) == len(set(route_names))
+    for route in app.routes:
+        if not isinstance(route, APIRoute) or not route.include_in_schema:
+            continue
+        assert isinstance(route.operation_id, str)
+        expected_methods = OPERATION_ID_BY_PATH_AND_METHOD.get(route.path)
+        if expected_methods is None:
+            continue
+        for method in route.methods:
+            normalized_method = method.lower()
+            if (
+                normalized_method not in _HTTP_METHODS
+                or normalized_method not in expected_methods
+            ):
+                continue
+            route_map.setdefault(route.path, {})[normalized_method] = (
+                route.operation_id
+            )
+    assert operation_ids
+    assert all(
+        isinstance(operation_id, str) and operation_id
+        for operation_id in operation_ids
+    )
+    assert route_map == OPERATION_ID_BY_PATH_AND_METHOD
+    assert len(operation_ids) == len(set(operation_ids))
 
 
 def test_openapi_schema_generation_smoke() -> None:
     """OpenAPI schema should build via app factory without exceptions."""
-    app = create_app()
+    app = _build_openapi_app()
     schema = app.openapi()
     assert isinstance(schema, dict)
     assert schema.get("openapi") == "3.1.0"
 
 
+def test_openapi_customized_error_and_visibility_contracts() -> None:
+    """OpenAPI should retain error, readiness, and visibility wiring."""
+    app = _build_openapi_app()
+    payload = app.openapi()
+
+    jobs_post = payload["paths"]["/v1/jobs"]["post"]["responses"]
+    assert jobs_post["409"] == {
+        "$ref": "#/components/responses/FileIdempotencyConflictResponse"
+    }
+    assert jobs_post["503"] == {
+        "$ref": "#/components/responses/FileQueueUnavailableResponse"
+    }
+
+    ready_responses = payload["paths"]["/v1/health/ready"]["get"]["responses"]
+    assert ready_responses["503"]["description"] == (
+        "Service Unavailable - Readiness failed"
+    )
+
+    worker_post = payload["paths"]["/v1/internal/jobs/{job_id}/result"]["post"]
+    assert worker_post["x-nova-sdk-visibility"] == "internal"
+    assert worker_post["security"] == [{"X-Worker-Token": []}]
+
+
 def test_legacy_routes_are_not_exposed() -> None:
     """Legacy API and legacy health routes must remain removed."""
-    app = create_app()
-    with TestClient(app) as client:
-        assert (
-            client.post("/api/transfers/uploads/initiate", json={}).status_code
-            == 404
-        )
-        assert client.post("/api/jobs/enqueue", json={}).status_code == 404
-        assert client.get("/healthz").status_code == 404
-        assert client.get("/readyz").status_code == 404
+    app = _build_openapi_app()
+    route_paths = {route.path for route in app.routes if hasattr(route, "path")}
+    assert "/api/transfers/uploads/initiate" not in route_paths
+    assert "/api/jobs/enqueue" not in route_paths
+    assert "/healthz" not in route_paths
+    assert "/readyz" not in route_paths

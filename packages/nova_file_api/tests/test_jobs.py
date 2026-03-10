@@ -4,9 +4,9 @@ from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+import httpx
 import pytest
 from botocore.exceptions import BotoCoreError, ClientError
-from fastapi.testclient import TestClient
 from nova_file_api.activity import MemoryActivityStore
 from nova_file_api.app import create_app
 from nova_file_api.auth import Authenticator
@@ -41,13 +41,13 @@ CaptureEmf = Callable[[MetricsCollector], list[dict[str, str]]]
 
 
 class _FailingPublisher:
-    def publish(self, *, job: JobRecord) -> None:
+    async def publish(self, *, job: JobRecord) -> None:
         del job
         raise JobPublishError(
             details={"error_type": "ClientError", "error_code": "Throttling"}
         )
 
-    def post_publish(
+    async def post_publish(
         self,
         *,
         job: JobRecord,
@@ -57,7 +57,7 @@ class _FailingPublisher:
         del job, repository, metrics
         return
 
-    def healthcheck(self) -> bool:
+    async def healthcheck(self) -> bool:
         return False
 
 
@@ -67,7 +67,7 @@ class _ConcurrentWinnerRepository(MemoryJobRepository):
         self._winner_status = winner_status
         self._injected = False
 
-    def update_if_status(
+    async def update_if_status(
         self,
         *,
         record: JobRecord,
@@ -75,7 +75,7 @@ class _ConcurrentWinnerRepository(MemoryJobRepository):
     ) -> bool:
         if not self._injected:
             self._injected = True
-            existing = self.get(record.job_id)
+            existing = await self.get(record.job_id)
             assert existing is not None
             winner = existing.model_copy(
                 update={
@@ -85,15 +85,15 @@ class _ConcurrentWinnerRepository(MemoryJobRepository):
                     "updated_at": datetime.now(tz=UTC),
                 }
             )
-            super().update(winner)
-        return super().update_if_status(
+            await super().update(winner)
+        return await super().update_if_status(
             record=record,
             expected_status=expected_status,
         )
 
 
 class _NeverSettlingRepository(MemoryJobRepository):
-    def update_if_status(
+    async def update_if_status(
         self,
         *,
         record: JobRecord,
@@ -111,7 +111,7 @@ class _FlakyJobService:
     def __init__(self) -> None:
         self.calls = 0
 
-    def enqueue(
+    async def enqueue(
         self,
         *,
         job_type: str,
@@ -136,17 +136,17 @@ class _FlakyJobService:
             updated_at=now,
         )
 
-    def get(self, *, job_id: str, scope_id: str) -> JobRecord:
+    async def get(self, *, job_id: str, scope_id: str) -> JobRecord:
         del job_id, scope_id
         raise _TestDoubleError
 
-    def cancel(self, *, job_id: str, scope_id: str) -> JobRecord:
+    async def cancel(self, *, job_id: str, scope_id: str) -> JobRecord:
         del job_id, scope_id
         raise _TestDoubleError
 
 
 class _AlwaysFailingJobService:
-    def enqueue(
+    async def enqueue(
         self,
         *,
         job_type: str,
@@ -156,15 +156,15 @@ class _AlwaysFailingJobService:
         del job_type, payload, scope_id
         raise _TestDoubleError
 
-    def get(self, *, job_id: str, scope_id: str) -> JobRecord:
+    async def get(self, *, job_id: str, scope_id: str) -> JobRecord:
         del job_id, scope_id
         raise _TestDoubleError
 
-    def cancel(self, *, job_id: str, scope_id: str) -> JobRecord:
+    async def cancel(self, *, job_id: str, scope_id: str) -> JobRecord:
         del job_id, scope_id
         raise _TestDoubleError
 
-    def update_result(
+    async def update_result(
         self,
         *,
         job_id: str,
@@ -176,7 +176,7 @@ class _AlwaysFailingJobService:
         raise _TestDoubleError
 
 
-def _build_same_origin_status_container(*, scope_id: str) -> AppContainer:
+async def _build_same_origin_status_container(*, scope_id: str) -> AppContainer:
     settings = Settings()
     settings.auth_mode = AuthMode.SAME_ORIGIN
     settings.jobs_enabled = True
@@ -195,7 +195,7 @@ def _build_same_origin_status_container(*, scope_id: str) -> AppContainer:
         metrics=metrics,
     )
     now = datetime.now(tz=UTC)
-    repository.create(
+    await repository.create(
         JobRecord(
             job_id="job-status-1",
             job_type="transform",
@@ -299,42 +299,29 @@ def capture_emf(
     return _patch
 
 
-def test_sqs_job_publisher_configures_retry_mode_and_attempts(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+@pytest.mark.asyncio
+async def test_sqs_job_publisher_sends_expected_queue_payload() -> None:
     captured: dict[str, Any] = {}
 
     class _FakeSqsClient:
-        def send_message(self, **kwargs: object) -> dict[str, str]:
+        async def send_message(self, **kwargs: object) -> dict[str, str]:
             captured["send_kwargs"] = kwargs
             return {"MessageId": "1"}
 
-    def _fake_client(service_name: str, **kwargs: object) -> _FakeSqsClient:
-        captured["service_name"] = service_name
-        captured["kwargs"] = kwargs
-        return _FakeSqsClient()
-
-    monkeypatch.setattr("nova_file_api.jobs.boto3.client", _fake_client)
     publisher = SqsJobPublisher(
         queue_url="https://sqs.us-east-1.amazonaws.com/123/jobs",
-        retry_mode="adaptive",
-        retry_total_max_attempts=7,
+        sqs_client=_FakeSqsClient(),
     )
-    publisher.publish(job=_job_record())
+    await publisher.publish(job=_job_record())
 
-    assert captured["service_name"] == "sqs"
-    config = captured["kwargs"]["config"]
-    assert config.retries is not None
-    assert config.retries["mode"] == "adaptive"
-    assert config.retries["total_max_attempts"] == 7
     assert captured["send_kwargs"]["QueueUrl"].endswith("/jobs")
+    assert "MessageBody" in captured["send_kwargs"]
 
 
-def test_sqs_job_publisher_maps_client_error_to_publish_error(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+@pytest.mark.asyncio
+async def test_sqs_job_publisher_maps_client_error_to_publish_error() -> None:
     class _ClientErrorSqsClient:
-        def send_message(self, **kwargs: object) -> dict[str, str]:
+        async def send_message(self, **kwargs: object) -> dict[str, str]:
             del kwargs
             raise ClientError(
                 error_response={
@@ -343,50 +330,39 @@ def test_sqs_job_publisher_maps_client_error_to_publish_error(
                 operation_name="SendMessage",
             )
 
-    def _fake_client(
-        service_name: str, **kwargs: object
-    ) -> _ClientErrorSqsClient:
-        del service_name, kwargs
-        return _ClientErrorSqsClient()
-
-    monkeypatch.setattr("nova_file_api.jobs.boto3.client", _fake_client)
     publisher = SqsJobPublisher(
         queue_url="https://sqs.us-east-1.amazonaws.com/123/jobs",
+        sqs_client=_ClientErrorSqsClient(),
     )
 
     with pytest.raises(JobPublishError) as exc:
-        publisher.publish(job=_job_record())
+        await publisher.publish(job=_job_record())
     assert exc.value.details["error_type"] == "ClientError"
     assert exc.value.details["error_code"] == "ThrottlingException"
 
 
-def test_sqs_job_publisher_maps_botocore_error_to_publish_error(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+@pytest.mark.asyncio
+async def test_sqs_job_publisher_maps_botocore_error_to_publish_error() -> None:
     class _BotoCoreErrorSqsClient:
-        def send_message(self, **kwargs: object) -> dict[str, str]:
+        async def send_message(self, **kwargs: object) -> dict[str, str]:
             del kwargs
             raise BotoCoreError()
 
-    def _fake_client(
-        service_name: str,
-        **kwargs: object,
-    ) -> _BotoCoreErrorSqsClient:
-        del service_name, kwargs
-        return _BotoCoreErrorSqsClient()
-
-    monkeypatch.setattr("nova_file_api.jobs.boto3.client", _fake_client)
     publisher = SqsJobPublisher(
         queue_url="https://sqs.us-east-1.amazonaws.com/123/jobs",
+        sqs_client=_BotoCoreErrorSqsClient(),
     )
 
     with pytest.raises(JobPublishError) as exc:
-        publisher.publish(job=_job_record())
+        await publisher.publish(job=_job_record())
     assert exc.value.details["error_type"] == "BotoCoreError"
     assert exc.value.details["error_code"] == "BotoCoreError"
 
 
-def test_job_service_enqueue_marks_job_failed_when_publish_fails() -> None:
+@pytest.mark.asyncio
+async def test_job_service_enqueue_marks_job_failed_when_publish_fails() -> (
+    None
+):
     repository = MemoryJobRepository()
     metrics = MetricsCollector(namespace="Tests")
     service = JobService(
@@ -396,7 +372,7 @@ def test_job_service_enqueue_marks_job_failed_when_publish_fails() -> None:
     )
 
     with pytest.raises(FileTransferError) as exc_info:
-        service.enqueue(
+        await service.enqueue(
             job_type="transform",
             payload={"input": "value"},
             scope_id="scope-1",
@@ -414,7 +390,8 @@ def test_job_service_enqueue_marks_job_failed_when_publish_fails() -> None:
     assert record.error == "queue_unavailable"
 
 
-def test_job_service_enqueue_tracks_success_counter() -> None:
+@pytest.mark.asyncio
+async def test_job_service_enqueue_tracks_success_counter() -> None:
     repository = MemoryJobRepository()
     metrics = MetricsCollector(namespace="Tests")
     service = JobService(
@@ -423,7 +400,7 @@ def test_job_service_enqueue_tracks_success_counter() -> None:
         metrics=metrics,
     )
 
-    record = service.enqueue(
+    record = await service.enqueue(
         job_type="transform",
         payload={"input": "value"},
         scope_id="scope-1",
@@ -436,7 +413,8 @@ def test_job_service_enqueue_tracks_success_counter() -> None:
     assert "jobs_publish_failed" not in counters
 
 
-def test_job_service_enqueue_respects_memory_toggle() -> None:
+@pytest.mark.asyncio
+async def test_job_service_enqueue_respects_memory_toggle() -> None:
     repository = MemoryJobRepository()
     metrics = MetricsCollector(namespace="Tests")
     service = JobService(
@@ -445,7 +423,7 @@ def test_job_service_enqueue_respects_memory_toggle() -> None:
         metrics=metrics,
     )
 
-    record = service.enqueue(
+    record = await service.enqueue(
         job_type="transform",
         payload={"input": "value"},
         scope_id="scope-1",
@@ -458,7 +436,8 @@ def test_job_service_enqueue_respects_memory_toggle() -> None:
     assert "jobs_publish_failed" not in counters
 
 
-def test_enqueue_failure_is_not_idempotency_cached() -> None:
+@pytest.mark.asyncio
+async def test_enqueue_failure_is_not_idempotency_cached() -> None:
     settings = Settings()
     settings.jobs_enabled = True
     settings.idempotency_enabled = True
@@ -490,13 +469,19 @@ def test_enqueue_failure_is_not_idempotency_cached() -> None:
     )
 
     app = create_app(container_override=container)
-    with TestClient(app) as client:
-        first = client.post(
+    async with (
+        app.router.lifespan_context(app),
+        httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app),
+            base_url="http://testserver",
+        ) as client,
+    ):
+        first = await client.post(
             "/v1/jobs",
             headers={"Idempotency-Key": "job-failure-key"},
             json={"job_type": "transform", "payload": {"input": "a"}},
         )
-        second = client.post(
+        second = await client.post(
             "/v1/jobs",
             headers={"Idempotency-Key": "job-failure-key"},
             json={"job_type": "transform", "payload": {"input": "a"}},
@@ -508,7 +493,8 @@ def test_enqueue_failure_is_not_idempotency_cached() -> None:
     assert job_service.calls == 2
 
 
-def test_job_service_update_result_updates_job_status() -> None:
+@pytest.mark.asyncio
+async def test_job_service_update_result_updates_job_status() -> None:
     repository = MemoryJobRepository()
     metrics = MetricsCollector(namespace="Tests")
     service = JobService(
@@ -528,9 +514,9 @@ def test_job_service_update_result_updates_job_status() -> None:
         created_at=now,
         updated_at=now,
     )
-    repository.create(pending)
+    await repository.create(pending)
 
-    updated = service.update_result(
+    updated = await service.update_result(
         job_id="job-update-1",
         status=JobStatus.RUNNING,
         result=None,
@@ -547,7 +533,8 @@ def test_job_service_update_result_updates_job_status() -> None:
     assert latencies["jobs_queue_lag_ms"] >= 0.0
 
 
-def test_job_service_update_result_observes_queue_lag_ms() -> None:
+@pytest.mark.asyncio
+async def test_job_service_update_result_observes_queue_lag_ms() -> None:
     repository = MemoryJobRepository()
     metrics = MetricsCollector(namespace="Tests")
     service = JobService(
@@ -567,9 +554,9 @@ def test_job_service_update_result_observes_queue_lag_ms() -> None:
         created_at=created_at,
         updated_at=created_at,
     )
-    repository.create(pending)
+    await repository.create(pending)
 
-    service.update_result(
+    await service.update_result(
         job_id="job-update-5",
         status=JobStatus.RUNNING,
         result=None,
@@ -580,7 +567,8 @@ def test_job_service_update_result_observes_queue_lag_ms() -> None:
     assert latencies["jobs_queue_lag_ms"] >= 1500.0
 
 
-def test_job_service_update_result_allows_idempotent_terminal_update() -> None:
+@pytest.mark.asyncio
+async def test_job_service_allows_idempotent_terminal_result_update() -> None:
     repository = MemoryJobRepository()
     metrics = MetricsCollector(namespace="Tests")
     service = JobService(
@@ -600,9 +588,9 @@ def test_job_service_update_result_allows_idempotent_terminal_update() -> None:
         created_at=now,
         updated_at=now,
     )
-    repository.create(succeeded)
+    await repository.create(succeeded)
 
-    updated = service.update_result(
+    updated = await service.update_result(
         job_id="job-update-4",
         status=JobStatus.SUCCEEDED,
         result=None,
@@ -613,7 +601,8 @@ def test_job_service_update_result_allows_idempotent_terminal_update() -> None:
     assert updated.result == {"ok": True}
 
 
-def test_job_service_update_result_clears_error_on_succeeded() -> None:
+@pytest.mark.asyncio
+async def test_job_service_update_result_clears_error_on_succeeded() -> None:
     repository = MemoryJobRepository()
     metrics = MetricsCollector(namespace="Tests")
     service = JobService(
@@ -633,9 +622,9 @@ def test_job_service_update_result_clears_error_on_succeeded() -> None:
         created_at=now,
         updated_at=now,
     )
-    repository.create(running)
+    await repository.create(running)
 
-    updated = service.update_result(
+    updated = await service.update_result(
         job_id="job-update-6",
         status=JobStatus.SUCCEEDED,
         result={"accepted": True},
@@ -647,7 +636,8 @@ def test_job_service_update_result_clears_error_on_succeeded() -> None:
     assert updated.error is None
 
 
-def test_job_service_update_result_rejects_invalid_transition() -> None:
+@pytest.mark.asyncio
+async def test_job_service_update_result_rejects_invalid_transition() -> None:
     repository = MemoryJobRepository()
     metrics = MetricsCollector(namespace="Tests")
     service = JobService(
@@ -667,10 +657,10 @@ def test_job_service_update_result_rejects_invalid_transition() -> None:
         created_at=now,
         updated_at=now,
     )
-    repository.create(failed)
+    await repository.create(failed)
 
     with pytest.raises(FileTransferError) as excinfo:
-        service.update_result(
+        await service.update_result(
             job_id="job-update-2",
             status=JobStatus.SUCCEEDED,
             result={"ok": True},
@@ -680,9 +670,8 @@ def test_job_service_update_result_rejects_invalid_transition() -> None:
     assert excinfo.value.status_code == 409
 
 
-def test_job_service_update_result_conflicts_on_stale_worker_transition() -> (
-    None
-):
+@pytest.mark.asyncio
+async def test_job_service_result_update_conflicts_on_stale() -> None:
     repository = _ConcurrentWinnerRepository(winner_status=JobStatus.SUCCEEDED)
     metrics = MetricsCollector(namespace="Tests")
     service = JobService(
@@ -702,10 +691,10 @@ def test_job_service_update_result_conflicts_on_stale_worker_transition() -> (
         created_at=now,
         updated_at=now,
     )
-    repository.create(pending)
+    await repository.create(pending)
 
     with pytest.raises(FileTransferError) as excinfo:
-        service.update_result(
+        await service.update_result(
             job_id="job-update-race-1",
             status=JobStatus.FAILED,
             result=None,
@@ -713,7 +702,7 @@ def test_job_service_update_result_conflicts_on_stale_worker_transition() -> (
         )
 
     assert excinfo.value.code == "conflict"
-    latest = repository.get("job-update-race-1")
+    latest = await repository.get("job-update-race-1")
     assert latest is not None
     assert latest.status == JobStatus.SUCCEEDED
     counters = metrics.counters_snapshot()
@@ -721,9 +710,8 @@ def test_job_service_update_result_conflicts_on_stale_worker_transition() -> (
     assert "jobs_worker_result_updates_failed" not in counters
 
 
-def test_job_service_cancel_does_not_clobber_concurrent_terminal_state() -> (
-    None
-):
+@pytest.mark.asyncio
+async def test_job_service_cancel_keeps_concurrent_terminal_state() -> None:
     repository = _ConcurrentWinnerRepository(winner_status=JobStatus.SUCCEEDED)
     metrics = MetricsCollector(namespace="Tests")
     service = JobService(
@@ -743,9 +731,12 @@ def test_job_service_cancel_does_not_clobber_concurrent_terminal_state() -> (
         created_at=now,
         updated_at=now,
     )
-    repository.create(pending)
+    await repository.create(pending)
 
-    returned = service.cancel(job_id="job-cancel-race-1", scope_id="scope-1")
+    returned = await service.cancel(
+        job_id="job-cancel-race-1",
+        scope_id="scope-1",
+    )
 
     assert returned.status == JobStatus.SUCCEEDED
     assert returned.result == {"accepted": True}
@@ -753,7 +744,8 @@ def test_job_service_cancel_does_not_clobber_concurrent_terminal_state() -> (
     assert "jobs_canceled" not in counters
 
 
-def test_job_service_cancel_conflicts_after_retry_limit() -> None:
+@pytest.mark.asyncio
+async def test_job_service_cancel_conflicts_after_retry_limit() -> None:
     repository = _NeverSettlingRepository()
     metrics = MetricsCollector(namespace="Tests")
     service = JobService(
@@ -762,7 +754,7 @@ def test_job_service_cancel_conflicts_after_retry_limit() -> None:
         metrics=metrics,
     )
     now = datetime.now(tz=UTC)
-    repository.create(
+    await repository.create(
         JobRecord(
             job_id="job-cancel-never-settles",
             job_type="transform",
@@ -777,13 +769,17 @@ def test_job_service_cancel_conflicts_after_retry_limit() -> None:
     )
 
     with pytest.raises(FileTransferError) as excinfo:
-        service.cancel(job_id="job-cancel-never-settles", scope_id="scope-1")
+        await service.cancel(
+            job_id="job-cancel-never-settles",
+            scope_id="scope-1",
+        )
 
     assert excinfo.value.code == "conflict"
     assert excinfo.value.status_code == 409
 
 
-def test_update_job_result_requires_valid_worker_token() -> None:
+@pytest.mark.asyncio
+async def test_update_job_result_requires_valid_worker_token() -> None:
     settings = Settings()
     settings.jobs_enabled = True
     settings.jobs_worker_update_token = SecretStr("test-worker-token")
@@ -802,7 +798,7 @@ def test_update_job_result_requires_valid_worker_token() -> None:
         metrics=metrics,
     )
     now = datetime.now(tz=UTC)
-    repository.create(
+    await repository.create(
         JobRecord(
             job_id="job-update-3",
             job_type="transform",
@@ -834,13 +830,19 @@ def test_update_job_result_requires_valid_worker_token() -> None:
     )
 
     app = create_app(container_override=container)
-    with TestClient(app) as client:
-        forbidden_response = client.post(
+    async with (
+        app.router.lifespan_context(app),
+        httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app),
+            base_url="http://testserver",
+        ) as client,
+    ):
+        forbidden_response = await client.post(
             "/v1/internal/jobs/job-update-3/result",
             headers={"X-Worker-Token": "wrong-token"},
             json={"status": "running"},
         )
-        ok_response = client.post(
+        ok_response = await client.post(
             "/v1/internal/jobs/job-update-3/result",
             headers={"X-Worker-Token": "test-worker-token"},
             json={"status": "succeeded", "result": {"accepted": True}},
@@ -850,61 +852,87 @@ def test_update_job_result_requires_valid_worker_token() -> None:
     assert forbidden_response.json()["error"]["code"] == "forbidden"
     assert ok_response.status_code == 200
     assert ok_response.json()["status"] == "succeeded"
-    summary = container.activity_store.summary()
-    assert summary["events_total"] == 1
-    assert summary["distinct_event_types"] == 1
-    assert summary["active_users_today"] == 1
+    activity_summary = await container.activity_store.summary()
+    assert activity_summary["events_total"] == 1
+    assert activity_summary["distinct_event_types"] == 1
+    assert activity_summary["active_users_today"] == 1
 
 
-def test_get_job_status_failure_emits_error_observability(
+@pytest.mark.asyncio
+async def test_get_job_status_failure_emits_error_observability(
     capture_emf: CaptureEmf,
 ) -> None:
     container, metrics, activity_store = _build_failing_job_container()
     emitted_dimensions = capture_emf(metrics)
     app = create_app(container_override=container)
-    with TestClient(app, raise_server_exceptions=False) as client:
-        response = client.get("/v1/jobs/job-status-1")
+    async with (
+        app.router.lifespan_context(app),
+        httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app, raise_app_exceptions=False),
+            base_url="http://testserver",
+        ) as client,
+    ):
+        response = await client.get("/v1/jobs/job-status-1")
 
     assert response.status_code == 500
     counters = metrics.counters_snapshot()
     assert counters["jobs_status_failure_total"] == 1
     assert {"route": "jobs_status", "status": "error"} in emitted_dimensions
-    summary = activity_store.summary()
-    assert summary["events_total"] == 1
-    assert summary["distinct_event_types"] == 1
-    assert summary["active_users_today"] == 1
+    activity_summary = await activity_store.summary()
+    assert activity_summary["events_total"] == 1
+    assert activity_summary["distinct_event_types"] == 1
+    assert activity_summary["active_users_today"] == 1
 
 
-def test_legacy_cancel_route_is_not_exposed() -> None:
+@pytest.mark.asyncio
+async def test_legacy_cancel_route_is_not_exposed() -> None:
     """Verify legacy cancel route is not exposed and returns 404."""
-    app = create_app()
-    with TestClient(app) as client:
-        response = client.post("/api/jobs/job-status-1/cancel")
+    app = create_app(
+        container_override=await _build_same_origin_status_container(
+            scope_id="scope-legacy"
+        )
+    )
+    async with (
+        app.router.lifespan_context(app),
+        httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app),
+            base_url="http://testserver",
+        ) as client,
+    ):
+        response = await client.post("/api/jobs/job-status-1/cancel")
 
     assert response.status_code == 404
 
 
-def test_cancel_job_failure_emits_error_observability(
+@pytest.mark.asyncio
+async def test_cancel_job_failure_emits_error_observability(
     capture_emf: CaptureEmf,
 ) -> None:
     """Verify cancel failures emit metrics and observability dimensions."""
     container, metrics, activity_store = _build_failing_job_container()
     emitted_dimensions = capture_emf(metrics)
     app = create_app(container_override=container)
-    with TestClient(app, raise_server_exceptions=False) as client:
-        response = client.post("/v1/jobs/job-status-1/cancel")
+    async with (
+        app.router.lifespan_context(app),
+        httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app, raise_app_exceptions=False),
+            base_url="http://testserver",
+        ) as client,
+    ):
+        response = await client.post("/v1/jobs/job-status-1/cancel")
 
     assert response.status_code == 500
     counters = metrics.counters_snapshot()
     assert counters["jobs_cancel_failure_total"] == 1
     assert {"route": "jobs_cancel", "status": "error"} in emitted_dimensions
-    summary = activity_store.summary()
-    assert summary["events_total"] == 1
-    assert summary["distinct_event_types"] == 1
-    assert summary["active_users_today"] == 1
+    activity_summary = await activity_store.summary()
+    assert activity_summary["events_total"] == 1
+    assert activity_summary["distinct_event_types"] == 1
+    assert activity_summary["active_users_today"] == 1
 
 
-def test_update_job_result_failure_emits_error_observability(
+@pytest.mark.asyncio
+async def test_update_job_result_failure_emits_error_observability(
     capture_emf: CaptureEmf,
 ) -> None:
     container, metrics, activity_store = _build_failing_job_container(
@@ -912,8 +940,14 @@ def test_update_job_result_failure_emits_error_observability(
     )
     emitted_dimensions = capture_emf(metrics)
     app = create_app(container_override=container)
-    with TestClient(app, raise_server_exceptions=False) as client:
-        response = client.post(
+    async with (
+        app.router.lifespan_context(app),
+        httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app, raise_app_exceptions=False),
+            base_url="http://testserver",
+        ) as client,
+    ):
+        response = await client.post(
             "/v1/internal/jobs/job-update-4/result",
             headers={"X-Worker-Token": "test-worker-token"},
             json={"status": "running"},
@@ -926,17 +960,26 @@ def test_update_job_result_failure_emits_error_observability(
         "route": "jobs_result_update",
         "status": "error",
     } in emitted_dimensions
-    summary = activity_store.summary()
-    assert summary["events_total"] == 1
-    assert summary["distinct_event_types"] == 1
-    assert summary["active_users_today"] == 1
+    activity_summary = await activity_store.summary()
+    assert activity_summary["events_total"] == 1
+    assert activity_summary["distinct_event_types"] == 1
+    assert activity_summary["active_users_today"] == 1
 
 
-def test_get_job_status_accepts_scope_header_same_origin() -> None:
-    container = _build_same_origin_status_container(scope_id="scope-header")
+@pytest.mark.asyncio
+async def test_get_job_status_accepts_scope_header_same_origin() -> None:
+    container = await _build_same_origin_status_container(
+        scope_id="scope-header"
+    )
     app = create_app(container_override=container)
-    with TestClient(app) as client:
-        response = client.get(
+    async with (
+        app.router.lifespan_context(app),
+        httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app),
+            base_url="http://testserver",
+        ) as client,
+    ):
+        response = await client.get(
             "/v1/jobs/job-status-1",
             headers={"X-Session-Id": "scope-header"},
         )
@@ -947,11 +990,22 @@ def test_get_job_status_accepts_scope_header_same_origin() -> None:
     assert payload["job"]["scope_id"] == "scope-header"
 
 
-def test_get_job_status_requires_session_scope_in_same_origin_mode() -> None:
-    container = _build_same_origin_status_container(scope_id="scope-header")
+@pytest.mark.asyncio
+async def test_get_job_status_requires_session_scope_in_same_origin_mode() -> (
+    None
+):
+    container = await _build_same_origin_status_container(
+        scope_id="scope-header"
+    )
     app = create_app(container_override=container)
-    with TestClient(app) as client:
-        response = client.get("/v1/jobs/job-status-1")
+    async with (
+        app.router.lifespan_context(app),
+        httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app),
+            base_url="http://testserver",
+        ) as client,
+    ):
+        response = await client.get("/v1/jobs/job-status-1")
 
     assert response.status_code == 401
     payload = response.json()

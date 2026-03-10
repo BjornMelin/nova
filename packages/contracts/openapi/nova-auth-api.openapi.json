@@ -156,20 +156,13 @@
       },
       "TokenIntrospectFormRequest": {
         "additionalProperties": false,
-        "description": "Request payload for token introspection.",
+        "description": "RFC7662 form payload where token is rewritten to access_token by normalize_introspect_payload.",
         "properties": {
-          "access_token": {
-            "minLength": 1,
-            "title": "Access Token",
-            "type": "string"
-          },
           "required_permissions": {
             "default": [],
             "items": {
               "type": "string"
             },
-            "maxItems": 256,
-            "title": "Required Permissions",
             "type": "array"
           },
           "required_scopes": {
@@ -177,13 +170,20 @@
             "items": {
               "type": "string"
             },
-            "maxItems": 256,
-            "title": "Required Scopes",
             "type": "array"
+          },
+          "token": {
+            "description": "RFC7662 token value rewritten to access_token.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "token_type_hint": {
+            "description": "Optional RFC7662 token type hint.",
+            "type": "string"
           }
         },
         "required": [
-          "access_token"
+          "token"
         ],
         "title": "TokenIntrospectFormRequest",
         "type": "object"

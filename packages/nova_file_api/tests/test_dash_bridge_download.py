@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import nova_dash_bridge.service as dash_service_module
 import pytest
 from nova_dash_bridge.config import FileTransferEnvConfig, UploadPolicy
 from nova_dash_bridge.errors import FileTransferError
@@ -39,10 +40,25 @@ class _FakeS3Factory:
         return self._client
 
 
+class _FakeCoreTransferService:
+    """Satisfy bridge constructor dependency for download-focused tests."""
+
+    def __init__(
+        self, *, settings: object, s3_client: object | None = None
+    ) -> None:
+        del settings, s3_client
+
+
 def _service_with_response(
     *,
+    monkeypatch: pytest.MonkeyPatch,
     response: dict[str, object],
 ) -> FileTransferService:
+    monkeypatch.setattr(
+        dash_service_module,
+        "TransferService",
+        _FakeCoreTransferService,
+    )
     return FileTransferService(
         env_config=FileTransferEnvConfig(
             enabled=True,
@@ -58,13 +74,16 @@ def _service_with_response(
     )
 
 
-def test_download_closes_stream_when_content_length_exceeds_limit() -> None:
+def test_download_closes_stream_when_content_length_exceeds_limit(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     body = _FakeBody()
     service = _service_with_response(
+        monkeypatch=monkeypatch,
         response={
             "ContentLength": 11,
             "Body": body,
-        }
+        },
     )
 
     with pytest.raises(FileTransferError, match="maximum download size"):
@@ -78,13 +97,16 @@ def test_download_closes_stream_when_content_length_exceeds_limit() -> None:
     assert body.read_calls == 0
 
 
-def test_download_closes_stream_on_chunked_oversize_early_exit() -> None:
+def test_download_closes_stream_on_chunked_oversize_early_exit(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     body = _FakeBody(chunks=[b"abcde", b"fghij", b"k"])
     service = _service_with_response(
+        monkeypatch=monkeypatch,
         response={
             "ContentLength": None,
             "Body": body,
-        }
+        },
     )
 
     with pytest.raises(FileTransferError, match="maximum download size"):

@@ -5,9 +5,12 @@ Status: Active
 Version: 2.0
 Date: 2026-03-05
 Related:
+  - "[Requirements: Nova functional and non-functional requirements](../requirements.md)"
+  - "[ADR-0023: Hard cut to a single canonical /v1 API surface](../adr/ADR-0023-hard-cut-v1-canonical-route-surface.md)"
   - "[ADR-0013: Public Python SDK topology uses generated contract-core clients while TypeScript remains generated/private and R stays deferred](../adr/ADR-0013-final-state-sdk-topology-generated-core-plus-thin-adapters.md)"
   - "[ADR-0002: OpenAPI as contract and SDK generation](../adr/ADR-0002-openapi-as-contract-and-sdk-generation.md)"
   - "[SPEC-0000: HTTP API contract](./SPEC-0000-http-api-contract.md)"
+  - "[SPEC-0016: Hard-cut v1 route contract and route-literal guardrails](./SPEC-0016-v1-route-namespace-and-literal-guardrails.md)"
   - "[SPEC-0007: Auth API contract](./SPEC-0007-auth-api-contract.md)"
   - "[Plan Master](../../plan/PLAN.md)"
 References:
@@ -32,7 +35,8 @@ owned by Nova.
 
 Canonical OpenAPI artifacts must expose stable SDK-facing metadata:
 
-- snake_case `operationId` values that are unique and not path/method-derived
+- explicit snake_case `operationId` values that are unique and frozen by the
+  runtime contract tests
 - semantic tags used as generated client/module group boundaries
 - named component schemas for custom request bodies referenced from operations
 

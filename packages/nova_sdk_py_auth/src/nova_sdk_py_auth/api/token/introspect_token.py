@@ -97,7 +97,9 @@ def sync_detailed(
      Introspect token and return active status plus claim details.
 
     Args:
-        body (TokenIntrospectRequest | TokenIntrospectFormRequest | Unset): Request payload for token introspection.
+        body (TokenIntrospectRequest): Request payload for token introspection.
+        body (TokenIntrospectFormRequest): RFC7662 form payload where token is rewritten to
+            access_token by normalize_introspect_payload.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -128,7 +130,9 @@ def sync(
      Introspect token and return active status plus claim details.
 
     Args:
-        body (TokenIntrospectRequest | TokenIntrospectFormRequest | Unset): Request payload for token introspection.
+        body (TokenIntrospectRequest): Request payload for token introspection.
+        body (TokenIntrospectFormRequest): RFC7662 form payload where token is rewritten to
+            access_token by normalize_introspect_payload.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -154,7 +158,9 @@ async def asyncio_detailed(
      Introspect token and return active status plus claim details.
 
     Args:
-        body (TokenIntrospectRequest | TokenIntrospectFormRequest | Unset): Request payload for token introspection.
+        body (TokenIntrospectRequest): Request payload for token introspection.
+        body (TokenIntrospectFormRequest): RFC7662 form payload where token is rewritten to
+            access_token by normalize_introspect_payload.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -183,7 +189,9 @@ async def asyncio(
      Introspect token and return active status plus claim details.
 
     Args:
-        body (TokenIntrospectRequest | TokenIntrospectFormRequest | Unset): Request payload for token introspection.
+        body (TokenIntrospectRequest): Request payload for token introspection.
+        body (TokenIntrospectFormRequest): RFC7662 form payload where token is rewritten to
+            access_token by normalize_introspect_payload.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.

@@ -1,7 +1,7 @@
 # Requirements (nova runtime)
 
 Status: Canonical requirements source
-Last updated: 2026-03-05
+Last updated: 2026-03-10
 
 This document is the source of truth for functional and non-functional
 requirements for the first production release.
@@ -204,10 +204,10 @@ contract source for docs and client generation.
 
 Runtime OpenAPI metadata currently follows these rules:
 
-- `operationId` values are unique, stable, snake_case, and currently
-  route/method-derived.
-- file API operation tags are router-defined and currently include
-  implementation tags (for example `v1`) in addition to semantic group tags.
+- `operationId` values are unique, stable, and snake_case-aligned to the
+  runtime OpenAPI contract tests.
+- public operation tags are semantic group tags only (`transfers`, `jobs`,
+  `platform`, `ops`, `token`, and `health`).
 - custom request-body schema references emitted via OpenAPI overrides MUST
   resolve to named component schemas in the same document and remain contract-
   test verifiable from runtime OpenAPI output.

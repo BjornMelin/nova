@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import structlog
-from fastapi import APIRouter, Header, Query
+from fastapi import APIRouter
 
 from nova_file_api.dependencies import RequestContext, RequestContextDep
 from nova_file_api.errors import forbidden, idempotency_conflict
@@ -19,7 +19,19 @@ from nova_file_api.models import (
     JobStatusResponse,
     Principal,
 )
+from nova_file_api.operation_ids import (
+    CANCEL_JOB_OPERATION_ID,
+    CREATE_JOB_OPERATION_ID,
+    GET_JOB_STATUS_OPERATION_ID,
+    LIST_JOB_EVENTS_OPERATION_ID,
+    LIST_JOBS_OPERATION_ID,
+    RETRY_JOB_OPERATION_ID,
+    UPDATE_JOB_RESULT_OPERATION_ID,
+)
 from nova_file_api.routes.common import (
+    IdempotencyKeyHeader,
+    JobsLimitQuery,
+    WorkerTokenHeader,
     emit_request_metric,
     validate_worker_update_token,
     validated_idempotency_key,
@@ -30,15 +42,13 @@ jobs_router = APIRouter(prefix="/v1", tags=["jobs"])
 
 @jobs_router.post(
     "/jobs",
+    operation_id=CREATE_JOB_OPERATION_ID,
     response_model=EnqueueJobResponse,
 )
 async def create_job(
     payload: EnqueueJobRequest,
     context: RequestContextDep,
-    idempotency_key: str | None = Header(
-        default=None,
-        alias="Idempotency-Key",
-    ),
+    idempotency_key: IdempotencyKeyHeader = None,
 ) -> EnqueueJobResponse:
     """Enqueue async processing job and return job id."""
     container = context.container
@@ -61,6 +71,7 @@ async def create_job(
 
 @jobs_router.get(
     "/jobs/{job_id}",
+    operation_id=GET_JOB_STATUS_OPERATION_ID,
     response_model=JobStatusResponse,
 )
 async def get_job_status(
@@ -71,8 +82,7 @@ async def get_job_status(
     container = context.container
     principal = await context.authenticate(session_id=None)
     try:
-        job = await context.run_blocking(
-            container.job_service.get,
+        job = await container.job_service.get(
             job_id=job_id,
             scope_id=principal.scope_id,
         )
@@ -97,6 +107,7 @@ async def get_job_status(
 
 @jobs_router.post(
     "/jobs/{job_id}/cancel",
+    operation_id=CANCEL_JOB_OPERATION_ID,
     response_model=JobCancelResponse,
 )
 async def cancel_job(
@@ -108,8 +119,7 @@ async def cancel_job(
     principal = await context.authenticate(session_id=None)
 
     try:
-        job = await context.run_blocking(
-            container.job_service.cancel,
+        job = await container.job_service.cancel(
             job_id=job_id,
             scope_id=principal.scope_id,
         )
@@ -128,8 +138,7 @@ async def cancel_job(
         raise
 
     try:
-        await context.run_blocking(
-            container.activity_store.record,
+        await container.activity_store.record(
             principal=principal,
             event_type="jobs_cancel_success",
             details=f"job_id={job.job_id} status={job.status}",
@@ -147,13 +156,14 @@ async def cancel_job(
 
 @jobs_router.post(
     "/internal/jobs/{job_id}/result",
+    operation_id=UPDATE_JOB_RESULT_OPERATION_ID,
     response_model=JobResultUpdateResponse,
 )
 async def update_job_result(
     job_id: str,
     payload: JobResultUpdateRequest,
     context: RequestContextDep,
-    worker_token: str | None = Header(default=None, alias="X-Worker-Token"),
+    worker_token: WorkerTokenHeader = None,
 ) -> JobResultUpdateResponse:
     """Update job status/result from trusted worker-side processing."""
     container = context.container
@@ -170,8 +180,7 @@ async def update_job_result(
     )
 
     try:
-        job = await context.run_blocking(
-            container.job_service.update_result,
+        job = await container.job_service.update_result(
             job_id=job_id,
             status=payload.status,
             result=payload.result,
@@ -196,8 +205,7 @@ async def update_job_result(
         raise
 
     try:
-        await context.run_blocking(
-            container.activity_store.record,
+        await container.activity_store.record(
             principal=worker_principal,
             event_type="jobs_result_update",
             details=(
@@ -226,16 +234,16 @@ async def update_job_result(
 
 @jobs_router.get(
     "/jobs",
+    operation_id=LIST_JOBS_OPERATION_ID,
     response_model=JobListResponse,
 )
 async def list_jobs(
     context: RequestContextDep,
-    limit: int = Query(default=50, ge=1, le=200),
+    limit: JobsLimitQuery = 50,
 ) -> JobListResponse:
     """List caller-owned jobs with most recent first."""
     principal = await context.authenticate(session_id=None)
-    jobs = await context.run_blocking(
-        context.container.job_service.list_for_scope,
+    jobs = await context.container.job_service.list_for_scope(
         scope_id=principal.scope_id,
         limit=limit,
     )
@@ -244,6 +252,7 @@ async def list_jobs(
 
 @jobs_router.post(
     "/jobs/{job_id}/retry",
+    operation_id=RETRY_JOB_OPERATION_ID,
     response_model=EnqueueJobResponse,
 )
 async def retry_job(
@@ -256,8 +265,7 @@ async def retry_job(
     if not container.settings.jobs_enabled:
         raise forbidden("jobs API is disabled")
     try:
-        retried = await context.run_blocking(
-            container.job_service.retry,
+        retried = await container.job_service.retry(
             job_id=job_id,
             scope_id=principal.scope_id,
         )
@@ -279,6 +287,7 @@ async def retry_job(
 
 @jobs_router.get(
     "/jobs/{job_id}/events",
+    operation_id=LIST_JOB_EVENTS_OPERATION_ID,
     response_model=JobEventsResponse,
 )
 async def list_job_events(
@@ -287,8 +296,7 @@ async def list_job_events(
 ) -> JobEventsResponse:
     """Return poll events with an SSE-compatible envelope."""
     principal = await context.authenticate(session_id=None)
-    job = await context.run_blocking(
-        context.container.job_service.get,
+    job = await context.container.job_service.get(
         job_id=job_id,
         scope_id=principal.scope_id,
     )
@@ -351,8 +359,7 @@ async def _enqueue_job_core(
 
     try:
         with container.metrics.timed("jobs_enqueue_ms"):
-            job = await context.run_blocking(
-                container.job_service.enqueue,
+            job = await container.job_service.enqueue(
                 job_type=payload.job_type,
                 payload=payload.payload,
                 scope_id=principal.scope_id,
@@ -379,8 +386,7 @@ async def _enqueue_job_core(
 
     response = EnqueueJobResponse(job_id=job.job_id, status=job.status)
     try:
-        await context.run_blocking(
-            container.activity_store.record,
+        await container.activity_store.record(
             principal=principal,
             event_type="jobs_enqueue",
         )
@@ -447,8 +453,7 @@ async def _record_job_failure(
         log_fields.update(extra)
     structlog.get_logger("api").exception(log_event, **log_fields)
     try:
-        await context.run_blocking(
-            container.activity_store.record,
+        await container.activity_store.record(
             principal=principal,
             event_type=activity_event_type,
             details=activity_details or str(exc),

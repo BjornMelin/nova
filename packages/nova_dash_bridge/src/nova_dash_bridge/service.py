@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import math
 import re
+import threading
+from collections.abc import Callable, Coroutine
 from contextlib import closing
 from pathlib import Path
-from typing import Any
+from typing import Any, TypeVar, cast
 from urllib.parse import quote_from_bytes
 from uuid import uuid4
 
@@ -63,11 +66,74 @@ from nova_dash_bridge.models import (
     SignPartsResponse,
 )
 from nova_dash_bridge.s3_client import (
+    S3Client,
     S3ClientFactory,
     SupportsCreateS3Client,
 )
 
 _INVALID_FILENAME_RE = re.compile(r"[^A-Za-z0-9._-]+")
+_T = TypeVar("_T")
+
+
+class _AsyncS3ClientAdapter:
+    """Expose async S3 methods by delegating to a sync boto3 client."""
+
+    def __init__(self, *, client: S3Client) -> None:
+        """Store the bridge-managed sync S3 client."""
+        self._client = client
+
+    async def generate_presigned_url(self, **kwargs: Any) -> str:
+        """Generate a presigned URL using the sync boto3 client."""
+        return str(
+            await asyncio.to_thread(
+                self._client.generate_presigned_url,
+                **kwargs,
+            )
+        )
+
+    async def create_multipart_upload(self, **kwargs: Any) -> dict[str, Any]:
+        """Create a multipart upload with the sync boto3 client."""
+        return cast(
+            dict[str, Any],
+            await asyncio.to_thread(
+                self._client.create_multipart_upload,
+                **kwargs,
+            ),
+        )
+
+    async def complete_multipart_upload(self, **kwargs: Any) -> dict[str, Any]:
+        """Complete multipart upload with the sync boto3 client."""
+        return cast(
+            dict[str, Any],
+            await asyncio.to_thread(
+                self._client.complete_multipart_upload,
+                **kwargs,
+            ),
+        )
+
+    async def abort_multipart_upload(self, **kwargs: Any) -> dict[str, Any]:
+        """Abort multipart upload with the sync boto3 client."""
+        return cast(
+            dict[str, Any],
+            await asyncio.to_thread(
+                self._client.abort_multipart_upload,
+                **kwargs,
+            ),
+        )
+
+    async def head_object(self, **kwargs: Any) -> dict[str, Any]:
+        """Fetch object metadata using the sync boto3 client."""
+        return cast(
+            dict[str, Any],
+            await asyncio.to_thread(self._client.head_object, **kwargs),
+        )
+
+    async def copy_object(self, **kwargs: Any) -> dict[str, Any]:
+        """Copy an object using the sync boto3 client."""
+        return cast(
+            dict[str, Any],
+            await asyncio.to_thread(self._client.copy_object, **kwargs),
+        )
 
 
 class FileTransferService:
@@ -90,12 +156,12 @@ class FileTransferService:
         self._auth = auth_policy or AuthPolicy()
         self._factory = s3_client_factory or S3ClientFactory()
         self._logger = logger or logging.getLogger(__name__)
-        self._core = TransferService(
-            settings=_core_settings_from_bridge(
-                env_config=env_config,
-                upload_policy=upload_policy,
-            )
+        self._core_settings = _core_settings_from_bridge(
+            env_config=env_config,
+            upload_policy=upload_policy,
         )
+        self._core_service: TransferService | None = None
+        self._core_service_lock = threading.Lock()
 
     @property
     def part_size_bytes(self) -> int:
@@ -122,9 +188,36 @@ class FileTransferService:
         if not self._env.bucket:
             raise internal_error("FILE_TRANSFER_BUCKET is not configured")
 
-    def _client(self) -> Any:
+    def _client(self) -> S3Client:
         """Return an S3 client from bridge factory configuration."""
         return self._factory.create(self._env)
+
+    def _build_core_service(self) -> TransferService:
+        """Build and cache a core transfer service for repeated bridge calls."""
+        service = self._core_service
+        if service is not None:
+            return service
+        with self._core_service_lock:
+            service = self._core_service
+            if service is None:
+                service = TransferService(
+                    settings=self._core_settings,
+                    s3_client=_AsyncS3ClientAdapter(client=self._client()),
+                )
+                self._core_service = service
+        return service
+
+    @staticmethod
+    def _run_async(factory: Callable[[], Coroutine[Any, Any, _T]]) -> _T:
+        """Execute one async operation from the synchronous bridge layer."""
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            return asyncio.run(factory())
+        raise RuntimeError(
+            "FileTransferService sync methods cannot run inside an active "
+            "event loop"
+        )
 
     @staticmethod
     def sanitize_filename(filename: str) -> str:
@@ -237,14 +330,16 @@ class FileTransferService:
         self.ensure_enabled()
         self.validate_upload_request(req)
         principal = self._principal(session_id=req.session_id)
-        core_response = self._core.initiate_upload(
-            CoreInitiateUploadRequest(
-                filename=req.filename,
-                content_type=req.content_type,
-                size_bytes=req.size_bytes,
-                session_id=None,
-            ),
-            principal,
+        core_response = self._run_async(
+            lambda: self._build_core_service().initiate_upload(
+                CoreInitiateUploadRequest(
+                    filename=req.filename,
+                    content_type=req.content_type,
+                    size_bytes=req.size_bytes,
+                    session_id=None,
+                ),
+                principal,
+            )
         )
         if core_response.strategy == UploadStrategy.SINGLE:
             if core_response.url is None:
@@ -272,14 +367,16 @@ class FileTransferService:
         """Presign multipart upload part URLs."""
         self.ensure_enabled()
         principal = self._principal(session_id=req.session_id)
-        core_response = self._core.sign_parts(
-            CoreSignPartsRequest(
-                key=req.key,
-                upload_id=req.upload_id,
-                part_numbers=req.part_numbers,
-                session_id=None,
-            ),
-            principal,
+        core_response = self._run_async(
+            lambda: self._build_core_service().sign_parts(
+                CoreSignPartsRequest(
+                    key=req.key,
+                    upload_id=req.upload_id,
+                    part_numbers=req.part_numbers,
+                    session_id=None,
+                ),
+                principal,
+            )
         )
         return SignPartsResponse(
             urls={
@@ -303,14 +400,16 @@ class FileTransferService:
             )
             for part in req.parts
         ]
-        core_response = self._core.complete_upload(
-            CoreCompleteUploadRequest(
-                key=req.key,
-                upload_id=req.upload_id,
-                parts=core_parts,
-                session_id=None,
-            ),
-            principal,
+        core_response = self._run_async(
+            lambda: self._build_core_service().complete_upload(
+                CoreCompleteUploadRequest(
+                    key=req.key,
+                    upload_id=req.upload_id,
+                    parts=core_parts,
+                    session_id=None,
+                ),
+                principal,
+            )
         )
         return CompleteUploadResponse(
             bucket=core_response.bucket,
@@ -322,13 +421,15 @@ class FileTransferService:
         """Abort multipart upload and return bridge response."""
         self.ensure_enabled()
         principal = self._principal(session_id=req.session_id)
-        self._core.abort_upload(
-            CoreAbortUploadRequest(
-                key=req.key,
-                upload_id=req.upload_id,
-                session_id=None,
-            ),
-            principal,
+        self._run_async(
+            lambda: self._build_core_service().abort_upload(
+                CoreAbortUploadRequest(
+                    key=req.key,
+                    upload_id=req.upload_id,
+                    session_id=None,
+                ),
+                principal,
+            )
         )
         return AbortUploadResponse()
 
@@ -369,15 +470,17 @@ class FileTransferService:
                 content_disposition=req.content_disposition,
                 filename=req.filename,
             )
-        core_response = self._core.presign_download(
-            CorePresignDownloadRequest(
-                key=req.key,
-                session_id=None,
-                content_disposition=disposition,
-                filename=req.filename,
-                content_type=None,
-            ),
-            Principal(subject=scope_id, scope_id=scope_id),
+        core_response = self._run_async(
+            lambda: self._build_core_service().presign_download(
+                CorePresignDownloadRequest(
+                    key=req.key,
+                    session_id=None,
+                    content_disposition=disposition,
+                    filename=req.filename,
+                    content_type=None,
+                ),
+                self._principal(session_id=scope_id),
+            )
         )
         return PresignDownloadResponse(
             bucket=core_response.bucket,

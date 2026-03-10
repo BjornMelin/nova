@@ -511,6 +511,7 @@ def _patch_auth_sdk(root: Path) -> None:
                 "token introspection.\n"
             ),
             path="api/token/introspect_token.py",
+            required=False,
         )
         content = content.replace(
             "    Returns:\n        TokenIntrospectResponse\n",

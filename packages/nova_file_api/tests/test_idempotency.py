@@ -13,6 +13,7 @@ from nova_file_api.cache import (
 )
 from nova_file_api.config import Settings
 from nova_file_api.container import AppContainer
+from nova_file_api.errors import queue_unavailable
 from nova_file_api.idempotency import IdempotencyStore
 from nova_file_api.jobs import MemoryJobRepository
 from nova_file_api.metrics import MetricsCollector
@@ -48,7 +49,7 @@ class _StubJobService:
     def __init__(self) -> None:
         self.calls = 0
 
-    def enqueue(
+    async def enqueue(
         self,
         *,
         job_type: str,
@@ -69,11 +70,11 @@ class _StubJobService:
             updated_at=now,
         )
 
-    def get(self, *, job_id: str, scope_id: str) -> JobRecord:
+    async def get(self, *, job_id: str, scope_id: str) -> JobRecord:
         del job_id, scope_id
         raise RuntimeError("not used by this test")
 
-    def cancel(self, *, job_id: str, scope_id: str) -> JobRecord:
+    async def cancel(self, *, job_id: str, scope_id: str) -> JobRecord:
         del job_id, scope_id
         raise RuntimeError("not used by this test")
 
@@ -82,7 +83,7 @@ class _StubTransferService:
     def __init__(self) -> None:
         self.calls = 0
 
-    def initiate_upload(
+    async def initiate_upload(
         self,
         payload: Any,
         principal: Principal,
@@ -95,6 +96,26 @@ class _StubTransferService:
             key=f"uploads/scope-1/object-{self.calls}",
             expires_in_seconds=900,
             url=f"https://example.local/upload/{self.calls}",
+        )
+
+
+class _FailFirstEnqueueJobService(_StubJobService):
+    async def enqueue(
+        self,
+        *,
+        job_type: str,
+        payload: dict[str, Any],
+        scope_id: str,
+    ) -> JobRecord:
+        if self.calls == 0:
+            self.calls += 1
+            raise queue_unavailable(
+                "job enqueue failed because queue unavailable"
+            )
+        return await super().enqueue(
+            job_type=job_type,
+            payload=payload,
+            scope_id=scope_id,
         )
 
 
@@ -264,3 +285,30 @@ def test_v1_jobs_reject_key_reuse_with_different_payload() -> None:
     assert second.status_code == 409
     assert second.json()["error"]["code"] == "idempotency_conflict"
     assert job_service.calls == 1
+
+
+def test_v1_jobs_failed_enqueue_is_not_idempotency_replayed() -> None:
+    """A failed enqueue must not be replay-cached by idempotency middleware."""
+    container, _transfer_service, _job_service = _build_container()
+    flaky_job_service = _FailFirstEnqueueJobService()
+    container.job_service = flaky_job_service  # type: ignore[assignment]
+    app = create_app(container_override=container)
+
+    with TestClient(app) as client:
+        first = client.post(
+            "/v1/jobs",
+            headers={"Idempotency-Key": "job-key-failed-enqueue"},
+            json={"job_type": "transform", "payload": {"input": "a"}},
+        )
+        second = client.post(
+            "/v1/jobs",
+            headers={"Idempotency-Key": "job-key-failed-enqueue"},
+            json={"job_type": "transform", "payload": {"input": "a"}},
+        )
+
+    assert first.status_code == 503
+    assert first.json()["error"]["code"] == "queue_unavailable"
+    assert second.status_code == 200
+    parsed = EnqueueJobResponse.model_validate(second.json())
+    assert parsed.job_id == "job-2"
+    assert flaky_job_service.calls == 2

@@ -66,7 +66,10 @@ nova-file-api-service = { workspace = true }
 nova-runtime-support = { workspace = true }
 
 [tool.pytest.ini_options]
-minversion = "8.0"
+minversion = "9.0"
+asyncio_mode = "strict"
+asyncio_default_fixture_loop_scope = "function"
+asyncio_default_test_loop_scope = "function"
 testpaths = [
   "packages/nova_auth_api/tests",
   "packages/nova_file_api/tests",

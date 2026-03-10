@@ -141,21 +141,17 @@ export interface components {
         };
         /**
          * TokenIntrospectFormRequest
-         * @description Request payload for token introspection.
+         * @description RFC7662 form payload where token is rewritten to access_token by normalize_introspect_payload.
          */
         TokenIntrospectFormRequest: {
-            /** Access Token */
-            access_token: string;
-            /**
-             * Required Permissions
-             * @default []
-             */
+            /** @default [] */
             required_permissions: string[];
-            /**
-             * Required Scopes
-             * @default []
-             */
+            /** @default [] */
             required_scopes: string[];
+            /** @description RFC7662 token value rewritten to access_token. */
+            token: string;
+            /** @description Optional RFC7662 token type hint. */
+            token_type_hint?: string;
         };
         /**
          * TokenIntrospectRequest

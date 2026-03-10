@@ -2,15 +2,14 @@
 
 from __future__ import annotations
 
+import asyncio
+import inspect
 import json
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from threading import Lock
-from typing import Any, Protocol
+from typing import Any, Protocol, cast
 from uuid import uuid4
 
-import boto3
-from botocore.config import Config
 from botocore.exceptions import BotoCoreError, ClientError
 
 from nova_file_api.errors import conflict, not_found, queue_unavailable
@@ -21,16 +20,16 @@ from nova_file_api.models import JobRecord, JobStatus
 class JobRepository(Protocol):
     """Persist and retrieve job records."""
 
-    def create(self, record: JobRecord) -> None:
+    async def create(self, record: JobRecord) -> None:
         """Persist a new job record."""
 
-    def get(self, job_id: str) -> JobRecord | None:
+    async def get(self, job_id: str) -> JobRecord | None:
         """Return job record by id if present."""
 
-    def update(self, record: JobRecord) -> None:
+    async def update(self, record: JobRecord) -> None:
         """Replace a job record."""
 
-    def update_if_status(
+    async def update_if_status(
         self,
         *,
         record: JobRecord,
@@ -38,7 +37,9 @@ class JobRepository(Protocol):
     ) -> bool:
         """Replace record only when current status matches expected value."""
 
-    def list_for_scope(self, *, scope_id: str, limit: int) -> list[JobRecord]:
+    async def list_for_scope(
+        self, *, scope_id: str, limit: int
+    ) -> list[JobRecord]:
         """List jobs visible to the provided caller scope.
 
         Args:
@@ -56,10 +57,10 @@ class JobRepository(Protocol):
 class JobPublisher(Protocol):
     """Queue interface for background job dispatch."""
 
-    def publish(self, *, job: JobRecord) -> None:
+    async def publish(self, *, job: JobRecord) -> None:
         """Publish job record to background queue."""
 
-    def post_publish(
+    async def post_publish(
         self,
         *,
         job: JobRecord,
@@ -68,7 +69,7 @@ class JobPublisher(Protocol):
     ) -> None:
         """Run optional post-publish handling."""
 
-    def healthcheck(self) -> bool:
+    async def healthcheck(self) -> bool:
         """Return readiness of the backing queue dependency."""
 
 
@@ -88,48 +89,48 @@ class MemoryJobRepository:
     """In-memory job record repository."""
 
     _records: dict[str, JobRecord]
-    _lock: Lock = field(init=False, repr=False)
+    _lock: asyncio.Lock = field(init=False, repr=False)
 
     def __init__(self) -> None:
         """Initialize empty in-memory record storage."""
         self._records = {}
-        self._lock = Lock()
+        self._lock = asyncio.Lock()
 
-    def create(self, record: JobRecord) -> None:
+    async def create(self, record: JobRecord) -> None:
         """Persist a new in-memory job record.
 
         Args:
             record: Job record to persist.
         """
-        with self._lock:
+        async with self._lock:
             self._records[record.job_id] = record
 
-    def get(self, job_id: str) -> JobRecord | None:
+    async def get(self, job_id: str) -> JobRecord | None:
         """Return a job record by ID when present.
 
         Args:
             job_id: Unique job identifier.
         """
-        with self._lock:
+        async with self._lock:
             return self._records.get(job_id)
 
-    def update(self, record: JobRecord) -> None:
+    async def update(self, record: JobRecord) -> None:
         """Replace an existing job record.
 
         Args:
             record: Updated job record.
         """
-        with self._lock:
+        async with self._lock:
             self._records[record.job_id] = record
 
-    def update_if_status(
+    async def update_if_status(
         self,
         *,
         record: JobRecord,
         expected_status: JobStatus,
     ) -> bool:
         """Replace record only when current status matches expected value."""
-        with self._lock:
+        async with self._lock:
             current = self._records.get(record.job_id)
             if current is None:
                 return False
@@ -138,7 +139,9 @@ class MemoryJobRepository:
             self._records[record.job_id] = record
             return True
 
-    def list_for_scope(self, *, scope_id: str, limit: int) -> list[JobRecord]:
+    async def list_for_scope(
+        self, *, scope_id: str, limit: int
+    ) -> list[JobRecord]:
         """List caller-scoped jobs newest-first.
 
         Args:
@@ -153,7 +156,7 @@ class MemoryJobRepository:
         """
         if limit <= 0:
             raise ValueError("limit must be greater than zero")
-        with self._lock:
+        async with self._lock:
             records = [
                 r for r in self._records.values() if r.scope_id == scope_id
             ]
@@ -166,37 +169,43 @@ class DynamoJobRepository:
     """DynamoDB-backed job record repository."""
 
     table_name: str
-    _table: Any = field(init=False, repr=False)
+    dynamodb_resource: Any
+    _table: Any | None = field(init=False, repr=False, default=None)
+    _table_lock: asyncio.Lock = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
-        """Initialize DynamoDB table binding."""
-        self._table = boto3.resource("dynamodb").Table(self.table_name)
+        """Initialize lazy table resolver."""
+        self._table_lock = asyncio.Lock()
 
-    def create(self, record: JobRecord) -> None:
+    async def create(self, record: JobRecord) -> None:
         """Persist a new job record."""
-        self._table.put_item(Item=_record_to_item(record))
+        table = await self._resolve_table()
+        await table.put_item(Item=_record_to_item(record))
 
-    def get(self, job_id: str) -> JobRecord | None:
+    async def get(self, job_id: str) -> JobRecord | None:
         """Return job record by id when present."""
-        response = self._table.get_item(Key={"job_id": job_id})
+        table = await self._resolve_table()
+        response = await table.get_item(Key={"job_id": job_id})
         item = response.get("Item")
         if item is None:
             return None
         return _item_to_record(item)
 
-    def update(self, record: JobRecord) -> None:
+    async def update(self, record: JobRecord) -> None:
         """Replace an existing job record."""
-        self._table.put_item(Item=_record_to_item(record))
+        table = await self._resolve_table()
+        await table.put_item(Item=_record_to_item(record))
 
-    def update_if_status(
+    async def update_if_status(
         self,
         *,
         record: JobRecord,
         expected_status: JobStatus,
     ) -> bool:
         """Replace record only when current status matches expected value."""
+        table = await self._resolve_table()
         try:
-            self._table.put_item(
+            await table.put_item(
                 Item=_record_to_item(record),
                 ConditionExpression=(
                     "attribute_exists(job_id) AND #status = :expected_status"
@@ -213,7 +222,9 @@ class DynamoJobRepository:
             raise
         return True
 
-    def list_for_scope(self, *, scope_id: str, limit: int) -> list[JobRecord]:
+    async def list_for_scope(
+        self, *, scope_id: str, limit: int
+    ) -> list[JobRecord]:
         """List caller-scoped jobs newest-first.
 
         Args:
@@ -232,6 +243,7 @@ class DynamoJobRepository:
         items: list[dict[str, Any]] = []
         last_evaluated_key: dict[str, Any] | None = None
         remaining = limit
+        table = await self._resolve_table()
         while True:
             query_kwargs: dict[str, Any] = {
                 "IndexName": "scope_id-created_at-index",
@@ -245,7 +257,7 @@ class DynamoJobRepository:
                 query_kwargs["ExclusiveStartKey"] = last_evaluated_key
 
             try:
-                response = self._table.query(**query_kwargs)
+                response = await table.query(**query_kwargs)
             except ClientError as exc:
                 error = exc.response.get("Error", {})
                 error_code = str(error.get("Code", ""))
@@ -277,6 +289,17 @@ class DynamoJobRepository:
                 break
         return [_item_to_record(item) for item in items[:limit]]
 
+    async def _resolve_table(self) -> Any:
+        if self._table is not None:
+            return self._table
+        async with self._table_lock:
+            if self._table is None:
+                table = self.dynamodb_resource.Table(self.table_name)
+                if inspect.isawaitable(table):
+                    table = await table
+                self._table = table
+        return cast(Any, self._table)
+
 
 @dataclass(slots=True)
 class MemoryJobPublisher:
@@ -284,7 +307,7 @@ class MemoryJobPublisher:
 
     process_immediately: bool = True
 
-    def publish(self, *, job: JobRecord) -> None:
+    async def publish(self, *, job: JobRecord) -> None:
         """Publish a job in memory.
 
         Args:
@@ -293,7 +316,7 @@ class MemoryJobPublisher:
         del job
         return
 
-    def post_publish(
+    async def post_publish(
         self,
         *,
         job: JobRecord,
@@ -306,7 +329,7 @@ class MemoryJobPublisher:
         running = job.model_copy(
             update={"status": JobStatus.RUNNING, "updated_at": _utc_now()}
         )
-        repository.update(running)
+        await repository.update(running)
         done = running.model_copy(
             update={
                 "status": JobStatus.SUCCEEDED,
@@ -314,10 +337,10 @@ class MemoryJobPublisher:
                 "updated_at": _utc_now(),
             }
         )
-        repository.update(done)
+        await repository.update(done)
         metrics.incr("jobs_succeeded")
 
-    def healthcheck(self) -> bool:
+    async def healthcheck(self) -> bool:
         """Return readiness for the memory-backed publisher."""
         return True
 
@@ -327,23 +350,9 @@ class SqsJobPublisher:
     """SQS-backed queue publisher."""
 
     queue_url: str
-    retry_mode: str = "standard"
-    retry_total_max_attempts: int = 3
-    _sqs: Any = field(init=False, repr=False)
+    sqs_client: Any
 
-    def __post_init__(self) -> None:
-        """Initialize the SQS client after dataclass construction."""
-        self._sqs = boto3.client(
-            "sqs",
-            config=Config(
-                retries={
-                    "mode": self.retry_mode,
-                    "total_max_attempts": self.retry_total_max_attempts,
-                }
-            ),
-        )
-
-    def publish(self, *, job: JobRecord) -> None:
+    async def publish(self, *, job: JobRecord) -> None:
         """Publish a job payload to SQS.
 
         Args:
@@ -357,7 +366,7 @@ class SqsJobPublisher:
             "created_at": job.created_at.isoformat(),
         }
         try:
-            self._sqs.send_message(
+            await self.sqs_client.send_message(
                 QueueUrl=self.queue_url,
                 MessageBody=json.dumps(
                     payload, separators=(",", ":"), sort_keys=True
@@ -380,7 +389,7 @@ class SqsJobPublisher:
                 }
             ) from exc
 
-    def post_publish(
+    async def post_publish(
         self,
         *,
         job: JobRecord,
@@ -391,10 +400,10 @@ class SqsJobPublisher:
         del job, repository, metrics
         return
 
-    def healthcheck(self) -> bool:
+    async def healthcheck(self) -> bool:
         """Return whether queue metadata can be fetched successfully."""
         try:
-            self._sqs.get_queue_attributes(
+            await self.sqs_client.get_queue_attributes(
                 QueueUrl=self.queue_url,
                 AttributeNames=["QueueArn"],
             )
@@ -411,7 +420,7 @@ class JobService:
     publisher: JobPublisher
     metrics: MetricsCollector
 
-    def enqueue(
+    async def enqueue(
         self,
         *,
         job_type: str,
@@ -431,9 +440,9 @@ class JobService:
             created_at=now,
             updated_at=now,
         )
-        self.repository.create(record)
+        await self.repository.create(record)
         try:
-            self.publisher.publish(job=record)
+            await self.publisher.publish(job=record)
         except JobPublishError as exc:
             failed = record.model_copy(
                 update={
@@ -442,7 +451,7 @@ class JobService:
                     "updated_at": _utc_now(),
                 }
             )
-            self.repository.update(failed)
+            await self.repository.update(failed)
             self.metrics.incr("jobs_publish_failed")
             raise queue_unavailable(
                 "job enqueue failed because queue publish failed",
@@ -450,27 +459,27 @@ class JobService:
             ) from exc
 
         self.metrics.incr("jobs_enqueued")
-        self.publisher.post_publish(
+        await self.publisher.post_publish(
             job=record,
             repository=self.repository,
             metrics=self.metrics,
         )
 
-        return self.repository.get(record.job_id) or record
+        return (await self.repository.get(record.job_id)) or record
 
-    def get(self, *, job_id: str, scope_id: str) -> JobRecord:
+    async def get(self, *, job_id: str, scope_id: str) -> JobRecord:
         """Return job by id when owned by caller scope."""
-        record = self.repository.get(job_id)
+        record = await self.repository.get(job_id)
         if record is None:
             raise not_found("job not found")
         if record.scope_id != scope_id:
             raise not_found("job not found")
         return record
 
-    def cancel(self, *, job_id: str, scope_id: str) -> JobRecord:
+    async def cancel(self, *, job_id: str, scope_id: str) -> JobRecord:
         """Cancel non-terminal job when owned by caller."""
         for _ in range(MAX_CANCEL_RETRIES):
-            record = self.get(job_id=job_id, scope_id=scope_id)
+            record = await self.get(job_id=job_id, scope_id=scope_id)
             if record.status in {
                 JobStatus.SUCCEEDED,
                 JobStatus.FAILED,
@@ -483,7 +492,7 @@ class JobService:
                     "updated_at": _utc_now(),
                 }
             )
-            updated_ok = self.repository.update_if_status(
+            updated_ok = await self.repository.update_if_status(
                 record=updated,
                 expected_status=record.status,
             )
@@ -499,7 +508,7 @@ class JobService:
             },
         )
 
-    def list_for_scope(
+    async def list_for_scope(
         self, *, scope_id: str, limit: int = 50
     ) -> list[JobRecord]:
         """List jobs for caller scope, newest first.
@@ -516,9 +525,11 @@ class JobService:
         """
         if limit <= 0:
             raise ValueError("limit must be greater than zero")
-        return self.repository.list_for_scope(scope_id=scope_id, limit=limit)
+        return await self.repository.list_for_scope(
+            scope_id=scope_id, limit=limit
+        )
 
-    def retry(self, *, job_id: str, scope_id: str) -> JobRecord:
+    async def retry(self, *, job_id: str, scope_id: str) -> JobRecord:
         """Retry a failed/canceled job by creating a new pending record.
 
         Args:
@@ -531,7 +542,7 @@ class JobService:
         Raises:
             HTTPException: If the source job is not failed/canceled.
         """
-        original = self.get(job_id=job_id, scope_id=scope_id)
+        original = await self.get(job_id=job_id, scope_id=scope_id)
         if original.status not in {JobStatus.FAILED, JobStatus.CANCELED}:
             raise conflict(
                 "job retry is only allowed from failed or canceled states",
@@ -540,13 +551,13 @@ class JobService:
                     "current_status": original.status.value,
                 },
             )
-        return self.enqueue(
+        return await self.enqueue(
             job_type=original.job_type,
             payload=original.payload,
             scope_id=scope_id,
         )
 
-    def update_result(
+    async def update_result(
         self,
         *,
         job_id: str,
@@ -555,7 +566,7 @@ class JobService:
         error: str | None,
     ) -> JobRecord:
         """Update job result/status from worker-side processing."""
-        record = self.repository.get(job_id)
+        record = await self.repository.get(job_id)
         if record is None:
             raise not_found("job not found")
         if not _is_valid_transition(current=record.status, target=status):
@@ -588,12 +599,12 @@ class JobService:
             update_payload["error"] = record.error or "worker_failed"
 
         updated = record.model_copy(update=update_payload)
-        updated_ok = self.repository.update_if_status(
+        updated_ok = await self.repository.update_if_status(
             record=updated,
             expected_status=record.status,
         )
         if not updated_ok:
-            latest = self.repository.get(job_id)
+            latest = await self.repository.get(job_id)
             if latest is None:
                 raise not_found("job not found")
             if latest.status == status:

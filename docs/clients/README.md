@@ -79,7 +79,8 @@ bundled runtime validation.
 
 Generator-facing OpenAPI rules that downstream consumers can rely on:
 
-- stable snake_case `operationId` values for generated function names
+- stable, explicit snake_case `operationId` values for generated function
+  names
 - semantic tags for generated package/module grouping
 - committed Python SDK artifacts and generated/private TypeScript SDK artifacts regenerated from
   `../../packages/contracts/openapi/*.openapi.json`

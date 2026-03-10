@@ -1021,6 +1021,7 @@ export interface operations {
             };
             401: components["responses"]["FileUnauthorizedResponse"];
             403: components["responses"]["FileForbiddenResponse"];
+            409: components["responses"]["FileIdempotencyConflictResponse"];
             422: components["responses"]["FileInvalidRequestResponse"];
             503: components["responses"]["FileQueueUnavailableResponse"];
         };

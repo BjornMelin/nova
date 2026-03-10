@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi.routing import APIRoute
 from fastapi.testclient import TestClient
 from nova_auth_api.app import create_app
+from nova_auth_api.operation_ids import OPERATION_ID_BY_PATH_AND_METHOD
 
 _HTTP_METHODS = frozenset(
     {"get", "post", "put", "patch", "delete", "options", "head", "trace"}
@@ -67,15 +67,7 @@ def test_openapi_path_method_operation_ids_are_stable() -> None:
     assert response.status_code == 200
 
     payload = response.json()
-    expected_operation_map = {
-        "/v1/health/live": {"get": "health_live"},
-        "/v1/health/ready": {"get": "health_ready"},
-        "/v1/token/verify": {"post": "verify_token"},
-        "/v1/token/introspect": {
-            "post": "introspect_token",
-        },
-    }
-    assert _operation_id_map(payload) == expected_operation_map
+    assert _operation_id_map(payload) == OPERATION_ID_BY_PATH_AND_METHOD
 
 
 def test_openapi_path_method_tags_are_semantic() -> None:
@@ -95,16 +87,40 @@ def test_openapi_path_method_tags_are_semantic() -> None:
     assert _operation_tag_map(payload) == expected_tag_map
 
 
-def test_route_names_are_unique_for_operation_ids() -> None:
-    """Route names must remain unique when operationIds follow route names."""
+def test_routes_cover_the_explicit_operation_id_contract() -> None:
+    """Application routes should match the explicit operation-id contract."""
     app = create_app()
-    route_names = [
-        route.name
-        for route in app.routes
-        if isinstance(route, APIRoute) and route.include_in_schema
-    ]
-    assert route_names
-    assert len(route_names) == len(set(route_names))
+    operation_ids: list[str] = []
+    route_map: dict[str, dict[str, str]] = {}
+
+    for route in app.routes:
+        path = getattr(route, "path", None)
+        operation_id = getattr(route, "operation_id", None)
+        methods = getattr(route, "methods", None)
+        include_in_schema = getattr(route, "include_in_schema", False)
+        if not include_in_schema or not isinstance(path, str):
+            continue
+        assert isinstance(operation_id, str), (
+            f"Route {path} missing operation_id"
+        )
+        assert isinstance(methods, set), (
+            f"Route {path} missing methods: {methods!r}"
+        )
+        operation_ids.append(operation_id)
+        expected_methods = OPERATION_ID_BY_PATH_AND_METHOD.get(path)
+        if expected_methods is None:
+            continue
+        for method in methods:
+            normalized_method = method.lower()
+            if (
+                normalized_method not in _HTTP_METHODS
+                or normalized_method not in expected_methods
+            ):
+                continue
+            route_map.setdefault(path, {})[normalized_method] = operation_id
+
+    assert route_map == OPERATION_ID_BY_PATH_AND_METHOD
+    assert len(operation_ids) == len(set(operation_ids))
 
 
 def test_introspect_request_body_reuses_named_schema_for_all_media_types() -> (
@@ -127,9 +143,13 @@ def test_introspect_request_body_reuses_named_schema_for_all_media_types() -> (
     assert components["TokenIntrospectRequest"]["title"] == (
         "TokenIntrospectRequest"
     )
-    assert components["TokenIntrospectFormRequest"]["title"] == (
-        "TokenIntrospectFormRequest"
-    )
+    form_schema = components["TokenIntrospectFormRequest"]
+    assert form_schema["title"] == "TokenIntrospectFormRequest"
+    assert form_schema["required"] == ["token"]
+    assert form_schema["properties"]["token"]["type"] == "string"
+    assert form_schema["properties"]["token"]["minLength"] == 1
+    assert form_schema["properties"]["token_type_hint"]["type"] == "string"
+    assert "access_token" not in form_schema["properties"]
 
 
 def test_openapi_schema_generation_smoke() -> None:

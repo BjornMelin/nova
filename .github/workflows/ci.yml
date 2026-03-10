@@ -206,10 +206,21 @@ jobs:
           import sys
           from pathlib import Path
 
-          files = [
-              Path("packages/nova_file_api/src/nova_file_api/api.py"),
-              Path("packages/nova_file_api/src/nova_file_api/app.py"),
+          runtime_roots = [
+              Path("packages/nova_file_api/src/nova_file_api"),
+              Path("packages/nova_auth_api/src/nova_auth_api"),
           ]
+          files: list[Path] = []
+          for runtime_root in runtime_roots:
+              routes_dir = runtime_root / "routes"
+              app_file = runtime_root / "app.py"
+              if not app_file.is_file():
+                  print(f"::error::missing runtime app module: {app_file}")
+                  sys.exit(1)
+              if not routes_dir.is_dir():
+                  print(f"::error::missing runtime routes directory: {routes_dir}")
+                  sys.exit(1)
+              files.extend([app_file, *sorted(routes_dir.glob("*.py"))])
           methods = {
               "get",
               "post",
