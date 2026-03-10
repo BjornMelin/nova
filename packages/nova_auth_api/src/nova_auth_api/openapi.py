@@ -54,7 +54,14 @@ OPENAPI_OPERATION_RESPONSES = {
 
 
 def install_auth_openapi(app: FastAPI) -> None:
-    """Install auth-service OpenAPI customizations on the application."""
+    """Install auth-service OpenAPI customizations on the application.
+
+    Args:
+        app: FastAPI application instance to customize.
+
+    Returns:
+        None
+    """
 
     def customize_openapi(schema: dict[str, Any]) -> None:
         components = schema.setdefault("components", {})

@@ -57,7 +57,14 @@ def _build_v1_container(
     *,
     file_transfer_bucket: str = "test-transfer-bucket",
 ) -> AppContainer:
-    """Build an in-memory container for v1 route tests."""
+    """Build an in-memory container for v1 route tests.
+
+    Args:
+        file_transfer_bucket: Bucket name used by transfer operations.
+
+    Returns:
+        AppContainer with in-memory dependencies for v1 route tests.
+    """
     settings = Settings()
     settings.auth_mode = AuthMode.SAME_ORIGIN
     settings.jobs_enabled = True

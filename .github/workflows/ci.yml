@@ -208,7 +208,14 @@ jobs:
 
           file_api_root = Path("packages/nova_file_api/src/nova_file_api")
           routes_dir = file_api_root / "routes"
-          files = [file_api_root / "app.py", *sorted(routes_dir.glob("*.py"))]
+          app_file = file_api_root / "app.py"
+          if not app_file.is_file():
+              print(f"::error::missing runtime app module: {app_file}")
+              sys.exit(1)
+          if not routes_dir.is_dir():
+              print(f"::error::missing runtime routes directory: {routes_dir}")
+              sys.exit(1)
+          files = [app_file, *sorted(routes_dir.glob("*.py"))]
           methods = {
               "get",
               "post",

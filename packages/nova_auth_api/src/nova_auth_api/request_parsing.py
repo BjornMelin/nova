@@ -39,7 +39,18 @@ TOKEN_INTROSPECT_FORM_REQUEST_SCHEMA = {
 async def parse_introspect_request(
     request: Request,
 ) -> TokenIntrospectRequest:
-    """Parse JSON or RFC7662 form payloads for token introspection."""
+    """Parse token-introspection payloads from JSON or RFC7662 forms.
+
+    Args:
+        request: Incoming FastAPI request object.
+
+    Returns:
+        Validated introspection request payload.
+
+    Raises:
+        RequestValidationError: If payload decoding fails, if the payload is not
+            a mapping, or if request validation fails.
+    """
     media_type = request_media_type(request=request)
     if media_type == FORM_MEDIA_TYPE:
         raw_payload = parse_form_payload(body=await request.body())
@@ -86,7 +97,14 @@ IntrospectRequestDep = Annotated[
 
 
 def request_media_type(*, request: Request) -> str:
-    """Return the normalized request content type."""
+    """Return the normalized request content type.
+
+    Args:
+        request: Incoming FastAPI request object.
+
+    Returns:
+        Normalized content type, defaulting to JSON media type.
+    """
     value = request.headers.get("content-type")
     if not isinstance(value, str):
         return JSON_MEDIA_TYPE
@@ -142,7 +160,7 @@ def with_body_loc(*, errors: list[Any]) -> list[dict[str, Any]]:
         output.append(
             {
                 **error,
-                "loc": ("body", *list(error.get("loc", ()))),
+                "loc": ("body", *error.get("loc", ())),
             }
         )
     return output

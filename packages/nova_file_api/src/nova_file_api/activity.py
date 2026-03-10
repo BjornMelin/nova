@@ -33,13 +33,43 @@ class ActivityStore(Protocol):
         event_type: str,
         details: str | None = None,
     ) -> None:
-        """Record activity event for principal."""
+        """Record one activity event for a principal.
+
+        Args:
+            principal: Authenticated principal that triggered the event.
+            event_type: Event name used for daily counters.
+            details: Optional diagnostic context for structured logs.
+
+        Returns:
+            None
+
+        Raises:
+            ClientError: If the backing store rejects the write.
+            BotoCoreError: If the DynamoDB client fails.
+        """
 
     async def summary(self) -> dict[str, int]:
-        """Return aggregate summary counters."""
+        """Return aggregate summary counters.
+
+        Returns:
+            Daily counters for total events, active users, and event-type
+            cardinality.
+
+        Raises:
+            ClientError: If the backing store query fails.
+            BotoCoreError: If the DynamoDB client fails.
+        """
 
     async def healthcheck(self) -> bool:
-        """Return readiness of the activity store backend."""
+        """Return readiness of the activity store backend.
+
+        Returns:
+            True when the backing store can be queried for health.
+
+        Raises:
+            ClientError: If the readiness probe fails.
+            BotoCoreError: If the DynamoDB client fails.
+        """
 
 
 class DynamoDbClientProtocol(Protocol):
@@ -95,7 +125,16 @@ class MemoryActivityStore:
         event_type: str,
         details: str | None = None,
     ) -> None:
-        """Record one event for the principal and current day."""
+        """Record one event for the principal and current day.
+
+        Args:
+            principal: Authenticated principal associated with the event.
+            event_type: Event name used for counters.
+            details: Optional diagnostic details emitted to logs.
+
+        Returns:
+            None
+        """
         day = _day_key()
         if details is not None:
             logger.info(
@@ -113,7 +152,12 @@ class MemoryActivityStore:
             self._subjects_per_day[day].add(principal.subject)
 
     async def summary(self) -> dict[str, int]:
-        """Return aggregate counters for dashboard display."""
+        """Return aggregate counters for dashboard display.
+
+        Returns:
+            Daily counters for total events, active users, and distinct event
+            types.
+        """
         day = _day_key()
         with self._lock:
             day_events = dict(self._events_per_day.get(day, {}))
@@ -126,7 +170,11 @@ class MemoryActivityStore:
         }
 
     async def healthcheck(self) -> bool:
-        """In-memory rollups are always ready."""
+        """Report readiness for the in-memory activity store.
+
+        Returns:
+            True because in-memory rollups have no external dependency.
+        """
         return True
 
 
@@ -161,6 +209,13 @@ class DynamoActivityStore:
             principal: Authenticated caller principal.
             event_type: Event name for per-type counters.
             details: Optional diagnostic context from failure paths.
+
+        Returns:
+            None
+
+        Raises:
+            ClientError: If DynamoDB rejects a write operation.
+            BotoCoreError: If the DynamoDB client fails.
         """
         day = _day_key()
         context = _record_log_context(
@@ -247,7 +302,12 @@ class DynamoActivityStore:
                 )
 
     async def summary(self) -> dict[str, int]:
-        """Read current-day aggregate counters from DynamoDB."""
+        """Read current-day aggregate counters from DynamoDB.
+
+        Returns:
+            Daily counters for total events, active users, and distinct event
+            types.
+        """
         day = _day_key()
         try:
             response = await self._ddb.get_item(
@@ -278,7 +338,11 @@ class DynamoActivityStore:
         }
 
     async def healthcheck(self) -> bool:
-        """Return True when the configured rollup table can be queried."""
+        """Return True when the configured rollup table can be queried.
+
+        Returns:
+            True when the health probe query succeeds, otherwise False.
+        """
         try:
             await self._ddb.get_item(
                 TableName=self._table_name,

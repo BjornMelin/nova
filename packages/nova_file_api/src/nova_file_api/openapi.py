@@ -81,6 +81,7 @@ OPENAPI_OPERATION_RESPONSES = {
         "post": {
             "401": "FileUnauthorizedResponse",
             "403": "FileForbiddenResponse",
+            "409": "FileIdempotencyConflictResponse",
             "422": "FileInvalidRequestResponse",
             "503": "FileQueueUnavailableResponse",
         },
