@@ -7,9 +7,6 @@ from pathlib import Path
 from typing import Any, cast
 from uuid import uuid4
 
-import boto3
-from botocore.client import BaseClient
-from botocore.config import Config
 from botocore.exceptions import BotoCoreError, ClientError
 
 from nova_file_api.config import Settings
@@ -39,26 +36,22 @@ class ExportCopyResult:
 
 
 class TransferService:
-    """Control-plane transfer service backed by boto3 presign calls."""
+    """Control-plane transfer service backed by async S3 calls."""
 
     def __init__(
         self,
         *,
         settings: Settings,
-        s3_client: Any | None = None,
+        s3_client: Any,
     ) -> None:
         """Initialize transfer service and S3 client.
 
         Args:
             settings: Runtime settings for transfer behavior.
-            s3_client: Optional prebuilt S3 client override.
+            s3_client: Prebuilt async S3 client.
         """
         self.settings = settings
-        self._s3 = (
-            cast(BaseClient, s3_client)
-            if s3_client is not None
-            else _build_s3_client(settings=self.settings)
-        )
+        self._s3 = cast(Any, s3_client)
         self._upload_prefix = _normalize_prefix(
             self.settings.file_transfer_upload_prefix
         )
@@ -69,7 +62,7 @@ class TransferService:
             self.settings.file_transfer_tmp_prefix
         )
 
-    def initiate_upload(
+    async def initiate_upload(
         self,
         request: InitiateUploadRequest,
         principal: Principal,
@@ -93,17 +86,17 @@ class TransferService:
             request.size_bytes
             < self.settings.file_transfer_multipart_threshold_bytes
         ):
-            return self._single_upload_response(
+            return await self._single_upload_response(
                 key=key,
                 content_type=request.content_type,
             )
 
-        return self._multipart_upload_response(
+        return await self._multipart_upload_response(
             key=key,
             content_type=request.content_type,
         )
 
-    def sign_parts(
+    async def sign_parts(
         self,
         request: SignPartsRequest,
         principal: Principal,
@@ -113,7 +106,7 @@ class TransferService:
 
         urls: dict[int, str] = {}
         for part_number in request.part_numbers:
-            urls[part_number] = self._generate_presigned_url(
+            urls[part_number] = await self._generate_presigned_url(
                 operation="upload_part",
                 params={
                     "Bucket": self.settings.file_transfer_bucket,
@@ -133,7 +126,7 @@ class TransferService:
             urls=urls,
         )
 
-    def complete_upload(
+    async def complete_upload(
         self,
         request: CompleteUploadRequest,
         principal: Principal,
@@ -147,7 +140,7 @@ class TransferService:
         ]
 
         try:
-            result = self._s3.complete_multipart_upload(
+            result = await self._s3.complete_multipart_upload(
                 Bucket=self.settings.file_transfer_bucket,
                 Key=request.key,
                 UploadId=request.upload_id,
@@ -165,7 +158,7 @@ class TransferService:
             version_id=_opt_str(result.get("VersionId")),
         )
 
-    def abort_upload(
+    async def abort_upload(
         self,
         request: AbortUploadRequest,
         principal: Principal,
@@ -174,7 +167,7 @@ class TransferService:
         self._assert_upload_scope(key=request.key, scope_id=principal.scope_id)
 
         try:
-            self._s3.abort_multipart_upload(
+            await self._s3.abort_multipart_upload(
                 Bucket=self.settings.file_transfer_bucket,
                 Key=request.key,
                 UploadId=request.upload_id,
@@ -184,7 +177,7 @@ class TransferService:
 
         return AbortUploadResponse(ok=True)
 
-    def presign_download(
+    async def presign_download(
         self,
         request: PresignDownloadRequest,
         principal: Principal,
@@ -207,7 +200,7 @@ class TransferService:
         if request.content_type is not None:
             params["ResponseContentType"] = request.content_type
 
-        url = self._generate_presigned_url(
+        url = await self._generate_presigned_url(
             operation="get_object",
             params=params,
             expires_in=self.settings.file_transfer_presign_download_ttl_seconds,
@@ -222,7 +215,7 @@ class TransferService:
             ),
         )
 
-    def copy_upload_to_export(
+    async def copy_upload_to_export(
         self,
         *,
         source_bucket: str,
@@ -258,7 +251,7 @@ class TransferService:
                 },
             )
         self._assert_upload_scope(key=source_key, scope_id=scope_id)
-        self._assert_upload_object_exists(key=source_key)
+        await self._assert_upload_object_exists(key=source_key)
         download_filename = _sanitize_filename(
             filename or Path(source_key).name
         )
@@ -268,7 +261,7 @@ class TransferService:
             filename=download_filename,
         )
         try:
-            self._s3.copy_object(
+            await self._s3.copy_object(
                 Bucket=self.settings.file_transfer_bucket,
                 CopySource={
                     "Bucket": self.settings.file_transfer_bucket,
@@ -293,7 +286,7 @@ class TransferService:
             download_filename=download_filename,
         )
 
-    def _single_upload_response(
+    async def _single_upload_response(
         self,
         *,
         key: str,
@@ -306,7 +299,7 @@ class TransferService:
         if content_type:
             params["ContentType"] = content_type
 
-        url = self._generate_presigned_url(
+        url = await self._generate_presigned_url(
             operation="put_object",
             params=params,
             expires_in=self.settings.file_transfer_presign_upload_ttl_seconds,
@@ -322,7 +315,7 @@ class TransferService:
             ),
         )
 
-    def _multipart_upload_response(
+    async def _multipart_upload_response(
         self,
         *,
         key: str,
@@ -335,7 +328,7 @@ class TransferService:
         if content_type:
             kwargs["ContentType"] = content_type
         try:
-            output = self._s3.create_multipart_upload(**kwargs)
+            output = await self._s3.create_multipart_upload(**kwargs)
         except (ClientError, BotoCoreError) as exc:
             raise upstream_s3_error(
                 "failed to initiate multipart upload"
@@ -356,7 +349,7 @@ class TransferService:
             ),
         )
 
-    def _generate_presigned_url(
+    async def _generate_presigned_url(
         self,
         *,
         operation: str,
@@ -364,7 +357,7 @@ class TransferService:
         expires_in: int,
     ) -> str:
         try:
-            generated = self._s3.generate_presigned_url(
+            generated = await self._s3.generate_presigned_url(
                 ClientMethod=operation,
                 Params=params,
                 ExpiresIn=expires_in,
@@ -408,9 +401,9 @@ class TransferService:
         if not any(key.startswith(prefix) for prefix in expected_prefixes):
             raise invalid_request("key is outside caller read scope")
 
-    def _assert_upload_object_exists(self, *, key: str) -> None:
+    async def _assert_upload_object_exists(self, *, key: str) -> None:
         try:
-            self._s3.head_object(
+            await self._s3.head_object(
                 Bucket=self.settings.file_transfer_bucket,
                 Key=key,
             )
@@ -425,12 +418,6 @@ class TransferService:
             raise upstream_s3_error(
                 "failed to inspect source upload object"
             ) from exc
-
-
-def _build_s3_client(*, settings: Settings) -> BaseClient:
-    accelerate_enabled = settings.file_transfer_use_accelerate_endpoint
-    config = Config(s3={"use_accelerate_endpoint": accelerate_enabled})
-    return boto3.client("s3", config=config)
 
 
 def _sanitize_filename(filename: str) -> str:

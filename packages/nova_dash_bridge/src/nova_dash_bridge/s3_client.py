@@ -15,6 +15,8 @@ if TYPE_CHECKING:
 else:
     S3Client = BaseClient
 
+__all__ = ["S3Client", "S3ClientFactory", "SupportsCreateS3Client"]
+
 
 class S3ClientFactory:
     """Build S3 clients with optional Transfer Acceleration support."""

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any
 
 from nova_file_api.activity import (
     ActivityStore,
@@ -46,6 +47,14 @@ _MSG_ACTIVITY_ROLLUPS_TABLE_REQUIRED = (
     "ACTIVITY_ROLLUPS_TABLE must be configured when "
     "ACTIVITY_STORE_BACKEND=dynamodb"
 )
+_MSG_S3_CLIENT_REQUIRED = "s3_client must be provided"
+_MSG_DYNAMODB_RESOURCE_REQUIRED = (
+    "dynamodb_resource must be provided when DynamoDB backends are enabled"
+)
+_MSG_SQS_CLIENT_REQUIRED = (
+    "sqs_client must be provided when JOBS_QUEUE_BACKEND=sqs and "
+    "JOBS_ENABLED=true"
+)
 
 
 @dataclass(slots=True)
@@ -64,8 +73,16 @@ class AppContainer:
     idempotency_store: IdempotencyStore
 
 
-def create_container(*, settings: Settings) -> AppContainer:
+def create_container(
+    *,
+    settings: Settings,
+    s3_client: Any,
+    dynamodb_resource: Any | None = None,
+    sqs_client: Any | None = None,
+) -> AppContainer:
     """Build dependency container from settings."""
+    if s3_client is None:
+        raise ValueError(_MSG_S3_CLIENT_REQUIRED)
     metrics = MetricsCollector(namespace=settings.metrics_namespace)
     local_cache = LocalTTLCache(
         ttl_seconds=settings.cache_local_ttl_seconds,
@@ -102,14 +119,17 @@ def create_container(*, settings: Settings) -> AppContainer:
     )
 
     authenticator = Authenticator(settings=settings, cache=cache)
-    transfer_service = TransferService(settings=settings)
+    transfer_service = TransferService(settings=settings, s3_client=s3_client)
 
     job_repository: JobRepository
     if settings.jobs_repository_backend == JobsRepositoryBackend.DYNAMODB:
         if not settings.jobs_dynamodb_table:
             raise ValueError(_MSG_JOBS_DYNAMODB_TABLE_REQUIRED)
+        if dynamodb_resource is None:
+            raise ValueError(_MSG_DYNAMODB_RESOURCE_REQUIRED)
         job_repository = DynamoJobRepository(
-            table_name=settings.jobs_dynamodb_table
+            table_name=settings.jobs_dynamodb_table,
+            dynamodb_resource=dynamodb_resource,
         )
     else:
         job_repository = MemoryJobRepository()
@@ -118,10 +138,11 @@ def create_container(*, settings: Settings) -> AppContainer:
         if settings.jobs_enabled and not settings.jobs_sqs_queue_url:
             raise ValueError(_MSG_JOBS_SQS_QUEUE_URL_REQUIRED)
         if settings.jobs_sqs_queue_url:
+            if sqs_client is None:
+                raise ValueError(_MSG_SQS_CLIENT_REQUIRED)
             publisher = SqsJobPublisher(
                 queue_url=settings.jobs_sqs_queue_url,
-                retry_mode=settings.jobs_sqs_retry_mode,
-                retry_total_max_attempts=settings.jobs_sqs_retry_total_max_attempts,
+                sqs_client=sqs_client,
             )
         else:
             publisher = MemoryJobPublisher()
@@ -137,8 +158,14 @@ def create_container(*, settings: Settings) -> AppContainer:
     if settings.activity_store_backend == ActivityStoreBackend.DYNAMODB:
         if not settings.activity_rollups_table:
             raise ValueError(_MSG_ACTIVITY_ROLLUPS_TABLE_REQUIRED)
+        if dynamodb_resource is None:
+            raise ValueError(_MSG_DYNAMODB_RESOURCE_REQUIRED)
+        ddb_client = _dynamodb_client_from_resource(
+            dynamodb_resource=dynamodb_resource
+        )
         activity_store = DynamoActivityStore(
-            table_name=settings.activity_rollups_table
+            table_name=settings.activity_rollups_table,
+            ddb_client=ddb_client,
         )
     else:
         activity_store = MemoryActivityStore()
@@ -155,3 +182,10 @@ def create_container(*, settings: Settings) -> AppContainer:
         activity_store=activity_store,
         idempotency_store=idempotency_store,
     )
+
+
+def _dynamodb_client_from_resource(*, dynamodb_resource: Any) -> Any:
+    meta = getattr(dynamodb_resource, "meta", None)
+    if meta is not None and hasattr(meta, "client"):
+        return meta.client
+    return dynamodb_resource

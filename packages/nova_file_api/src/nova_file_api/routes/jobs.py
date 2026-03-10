@@ -71,8 +71,7 @@ async def get_job_status(
     container = context.container
     principal = await context.authenticate(session_id=None)
     try:
-        job = await context.run_blocking(
-            container.job_service.get,
+        job = await container.job_service.get(
             job_id=job_id,
             scope_id=principal.scope_id,
         )
@@ -108,8 +107,7 @@ async def cancel_job(
     principal = await context.authenticate(session_id=None)
 
     try:
-        job = await context.run_blocking(
-            container.job_service.cancel,
+        job = await container.job_service.cancel(
             job_id=job_id,
             scope_id=principal.scope_id,
         )
@@ -128,8 +126,7 @@ async def cancel_job(
         raise
 
     try:
-        await context.run_blocking(
-            container.activity_store.record,
+        await container.activity_store.record(
             principal=principal,
             event_type="jobs_cancel_success",
             details=f"job_id={job.job_id} status={job.status}",
@@ -170,8 +167,7 @@ async def update_job_result(
     )
 
     try:
-        job = await context.run_blocking(
-            container.job_service.update_result,
+        job = await container.job_service.update_result(
             job_id=job_id,
             status=payload.status,
             result=payload.result,
@@ -196,8 +192,7 @@ async def update_job_result(
         raise
 
     try:
-        await context.run_blocking(
-            container.activity_store.record,
+        await container.activity_store.record(
             principal=worker_principal,
             event_type="jobs_result_update",
             details=(
@@ -234,8 +229,7 @@ async def list_jobs(
 ) -> JobListResponse:
     """List caller-owned jobs with most recent first."""
     principal = await context.authenticate(session_id=None)
-    jobs = await context.run_blocking(
-        context.container.job_service.list_for_scope,
+    jobs = await context.container.job_service.list_for_scope(
         scope_id=principal.scope_id,
         limit=limit,
     )
@@ -256,8 +250,7 @@ async def retry_job(
     if not container.settings.jobs_enabled:
         raise forbidden("jobs API is disabled")
     try:
-        retried = await context.run_blocking(
-            container.job_service.retry,
+        retried = await container.job_service.retry(
             job_id=job_id,
             scope_id=principal.scope_id,
         )
@@ -287,8 +280,7 @@ async def list_job_events(
 ) -> JobEventsResponse:
     """Return poll events with an SSE-compatible envelope."""
     principal = await context.authenticate(session_id=None)
-    job = await context.run_blocking(
-        context.container.job_service.get,
+    job = await context.container.job_service.get(
         job_id=job_id,
         scope_id=principal.scope_id,
     )
@@ -351,8 +343,7 @@ async def _enqueue_job_core(
 
     try:
         with container.metrics.timed("jobs_enqueue_ms"):
-            job = await context.run_blocking(
-                container.job_service.enqueue,
+            job = await container.job_service.enqueue(
                 job_type=payload.job_type,
                 payload=payload.payload,
                 scope_id=principal.scope_id,
@@ -379,8 +370,7 @@ async def _enqueue_job_core(
 
     response = EnqueueJobResponse(job_id=job.job_id, status=job.status)
     try:
-        await context.run_blocking(
-            container.activity_store.record,
+        await container.activity_store.record(
             principal=principal,
             event_type="jobs_enqueue",
         )
@@ -447,8 +437,7 @@ async def _record_job_failure(
         log_fields.update(extra)
     structlog.get_logger("api").exception(log_event, **log_fields)
     try:
-        await context.run_blocking(
-            container.activity_store.record,
+        await container.activity_store.record(
             principal=principal,
             event_type=activity_event_type,
             details=activity_details or str(exc),

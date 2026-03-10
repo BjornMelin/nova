@@ -2,12 +2,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
-from functools import partial
 from hmac import compare_digest
-from typing import Any
 
-import anyio
 import structlog
 from fastapi import APIRouter, Header, Query, Request
 
@@ -55,7 +51,6 @@ transfer_router = APIRouter(prefix="/v1/transfers", tags=["transfers"])
 ops_router = APIRouter(tags=["ops"])
 v1_router = APIRouter(prefix="/v1", tags=["v1"])
 _WORKER_TOKEN_NOT_CONFIGURED = "worker update token not configured"  # noqa: S105
-_API_THREAD_LIMITER_STATE_KEY = "api_thread_limiter"
 _OPERATION_ID_INITIATE_UPLOAD = (
     "initiate_upload_v1_transfers_uploads_initiate_post"
 )
@@ -141,9 +136,7 @@ async def initiate_upload(
 
     try:
         with container.metrics.timed("uploads_initiate_ms"):
-            response = await _run_blocking(
-                request,
-                container.transfer_service.initiate_upload,
+            response = await container.transfer_service.initiate_upload(
                 payload,
                 principal,
             )
@@ -160,9 +153,7 @@ async def initiate_upload(
             error=type(exc).__name__,
             error_detail=str(exc),
         )
-        await _run_blocking(
-            request,
-            container.activity_store.record,
+        await container.activity_store.record(
             principal=principal,
             event_type="uploads_initiate_failure",
             details=str(exc),
@@ -185,9 +176,7 @@ async def initiate_upload(
         )
 
     container.metrics.incr("uploads_initiate_total")
-    await _run_blocking(
-        request,
-        container.activity_store.record,
+    await container.activity_store.record(
         principal=principal,
         event_type="uploads_initiate",
     )
@@ -215,9 +204,7 @@ async def sign_parts(
 
     try:
         with container.metrics.timed("uploads_sign_parts_ms"):
-            response = await _run_blocking(
-                request,
-                container.transfer_service.sign_parts,
+            response = await container.transfer_service.sign_parts(
                 payload,
                 principal,
             )
@@ -234,9 +221,7 @@ async def sign_parts(
             error=type(exc).__name__,
             error_detail=str(exc),
         )
-        await _run_blocking(
-            request,
-            container.activity_store.record,
+        await container.activity_store.record(
             principal=principal,
             event_type="uploads_sign_parts_failure",
             details=str(exc),
@@ -244,9 +229,7 @@ async def sign_parts(
         raise
 
     container.metrics.incr("uploads_sign_parts_total")
-    await _run_blocking(
-        request,
-        container.activity_store.record,
+    await container.activity_store.record(
         principal=principal,
         event_type="uploads_sign_parts",
     )
@@ -274,9 +257,7 @@ async def complete_upload(
 
     try:
         with container.metrics.timed("uploads_complete_ms"):
-            response = await _run_blocking(
-                request,
-                container.transfer_service.complete_upload,
+            response = await container.transfer_service.complete_upload(
                 payload,
                 principal,
             )
@@ -293,9 +274,7 @@ async def complete_upload(
             error=type(exc).__name__,
             error_detail=str(exc),
         )
-        await _run_blocking(
-            request,
-            container.activity_store.record,
+        await container.activity_store.record(
             principal=principal,
             event_type="uploads_complete_failure",
             details=str(exc),
@@ -303,9 +282,7 @@ async def complete_upload(
         raise
 
     container.metrics.incr("uploads_complete_total")
-    await _run_blocking(
-        request,
-        container.activity_store.record,
+    await container.activity_store.record(
         principal=principal,
         event_type="uploads_complete",
     )
@@ -333,9 +310,7 @@ async def abort_upload(
 
     try:
         with container.metrics.timed("uploads_abort_ms"):
-            response = await _run_blocking(
-                request,
-                container.transfer_service.abort_upload,
+            response = await container.transfer_service.abort_upload(
                 payload,
                 principal,
             )
@@ -352,9 +327,7 @@ async def abort_upload(
             error=type(exc).__name__,
             error_detail=str(exc),
         )
-        await _run_blocking(
-            request,
-            container.activity_store.record,
+        await container.activity_store.record(
             principal=principal,
             event_type="uploads_abort_failure",
             details=str(exc),
@@ -362,9 +335,7 @@ async def abort_upload(
         raise
 
     container.metrics.incr("uploads_abort_total")
-    await _run_blocking(
-        request,
-        container.activity_store.record,
+    await container.activity_store.record(
         principal=principal,
         event_type="uploads_abort",
     )
@@ -392,9 +363,7 @@ async def presign_download(
 
     try:
         with container.metrics.timed("downloads_presign_ms"):
-            response = await _run_blocking(
-                request,
-                container.transfer_service.presign_download,
+            response = await container.transfer_service.presign_download(
                 payload,
                 principal,
             )
@@ -411,9 +380,7 @@ async def presign_download(
             error=type(exc).__name__,
             error_detail=str(exc),
         )
-        await _run_blocking(
-            request,
-            container.activity_store.record,
+        await container.activity_store.record(
             principal=principal,
             event_type="downloads_presign_failure",
             details=str(exc),
@@ -421,9 +388,7 @@ async def presign_download(
         raise
 
     container.metrics.incr("downloads_presign_total")
-    await _run_blocking(
-        request,
-        container.activity_store.record,
+    await container.activity_store.record(
         principal=principal,
         event_type="downloads_presign",
     )
@@ -512,9 +477,7 @@ async def _enqueue_job_core(
 
     try:
         with container.metrics.timed("jobs_enqueue_ms"):
-            job = await _run_blocking(
-                request,
-                container.job_service.enqueue,
+            job = await container.job_service.enqueue(
                 job_type=payload.job_type,
                 payload=payload.payload,
                 scope_id=principal.scope_id,
@@ -533,9 +496,7 @@ async def _enqueue_job_core(
             error=type(exc).__name__,
             error_detail=str(exc),
         )
-        await _run_blocking(
-            request,
-            container.activity_store.record,
+        await container.activity_store.record(
             principal=principal,
             event_type="jobs_enqueue_failure",
             details=str(exc),
@@ -557,9 +518,7 @@ async def _enqueue_job_core(
             request_payload=request_payload,
             response_payload=response.model_dump(mode="json"),
         )
-    await _run_blocking(
-        request,
-        container.activity_store.record,
+    await container.activity_store.record(
         principal=principal,
         event_type="jobs_enqueue",
     )
@@ -581,9 +540,7 @@ async def get_job_status(job_id: str, request: Request) -> JobStatusResponse:
         session_id=None,
     )
     try:
-        job = await _run_blocking(
-            request,
-            container.job_service.get,
+        job = await container.job_service.get(
             job_id=job_id,
             scope_id=principal.scope_id,
         )
@@ -601,9 +558,7 @@ async def get_job_status(job_id: str, request: Request) -> JobStatusResponse:
             error=type(exc).__name__,
             error_detail=str(exc),
         )
-        await _run_blocking(
-            request,
-            container.activity_store.record,
+        await container.activity_store.record(
             principal=principal,
             event_type="jobs_status_failure",
             details=str(exc),
@@ -627,9 +582,7 @@ async def cancel_job(job_id: str, request: Request) -> JobCancelResponse:
         session_id=None,
     )
     try:
-        job = await _run_blocking(
-            request,
-            container.job_service.cancel,
+        job = await container.job_service.cancel(
             job_id=job_id,
             scope_id=principal.scope_id,
         )
@@ -647,17 +600,13 @@ async def cancel_job(job_id: str, request: Request) -> JobCancelResponse:
             error=type(exc).__name__,
             error_detail=str(exc),
         )
-        await _run_blocking(
-            request,
-            container.activity_store.record,
+        await container.activity_store.record(
             principal=principal,
             event_type="jobs_cancel_failure",
             details=str(exc),
         )
         raise
-    await _run_blocking(
-        request,
-        container.activity_store.record,
+    await container.activity_store.record(
         principal=principal,
         event_type="jobs_cancel_success",
         details=f"job_id={job.job_id} status={job.status}",
@@ -691,9 +640,7 @@ async def update_job_result(
         scope_id="system:jobs-worker",
     )
     try:
-        job = await _run_blocking(
-            request,
-            container.job_service.update_result,
+        job = await container.job_service.update_result(
             job_id=job_id,
             status=payload.status,
             result=payload.result,
@@ -712,9 +659,7 @@ async def update_job_result(
             error=type(exc).__name__,
             error_detail=str(exc),
         )
-        await _run_blocking(
-            request,
-            container.activity_store.record,
+        await container.activity_store.record(
             principal=worker_principal,
             event_type="jobs_result_update_failure",
             details=(
@@ -723,9 +668,7 @@ async def update_job_result(
             ),
         )
         raise
-    await _run_blocking(
-        request,
-        container.activity_store.record,
+    await container.activity_store.record(
         principal=worker_principal,
         event_type="jobs_result_update",
         details=(
@@ -769,9 +712,7 @@ async def v1_list_jobs(
     principal = await container.authenticator.authenticate(
         request=request, session_id=None
     )
-    jobs = await _run_blocking(
-        request,
-        container.job_service.list_for_scope,
+    jobs = await container.job_service.list_for_scope(
         scope_id=principal.scope_id,
         limit=limit,
     )
@@ -802,9 +743,7 @@ async def v1_retry_job(job_id: str, request: Request) -> EnqueueJobResponse:
     )
     if not container.settings.jobs_enabled:
         raise forbidden("jobs API is disabled")
-    retried = await _run_blocking(
-        request,
-        container.job_service.retry,
+    retried = await container.job_service.retry(
         job_id=job_id,
         scope_id=principal.scope_id,
     )
@@ -833,9 +772,7 @@ async def v1_job_events(job_id: str, request: Request) -> JobEventsResponse:
     principal = await container.authenticator.authenticate(
         request=request, session_id=None
     )
-    job = await _run_blocking(
-        request,
-        container.job_service.get,
+    job = await container.job_service.get(
         job_id=job_id,
         scope_id=principal.scope_id,
     )
@@ -1011,10 +948,7 @@ async def metrics_summary(request: Request) -> MetricsSummaryResponse:
     return MetricsSummaryResponse(
         counters=container.metrics.counters_snapshot(),
         latencies_ms=container.metrics.latency_snapshot(),
-        activity=await _run_blocking(
-            request,
-            container.activity_store.summary,
-        ),
+        activity=await container.activity_store.summary(),
     )
 
 
@@ -1051,27 +985,6 @@ def _emit_request_metric(
         unit="Count",
         dimensions={"route": route, "status": status},
     )
-
-
-async def _run_blocking[**P, R](
-    request: Request,
-    fn: Callable[P, R],
-    /,
-    *args: P.args,
-    **kwargs: P.kwargs,
-) -> R:
-    limiter = _api_thread_limiter(request)
-    return await anyio.to_thread.run_sync(
-        partial(fn, *args, **kwargs),
-        limiter=limiter,
-    )
-
-
-def _api_thread_limiter(request: Request) -> Any:
-    limiter = getattr(request.app.state, _API_THREAD_LIMITER_STATE_KEY, None)
-    if limiter is None:
-        return anyio.to_thread.current_default_thread_limiter()
-    return limiter
 
 
 def _validated_idempotency_key(

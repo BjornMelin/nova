@@ -97,8 +97,7 @@ async def initiate_upload(
 
     try:
         with container.metrics.timed("uploads_initiate_ms"):
-            response = await context.run_blocking(
-                container.transfer_service.initiate_upload,
+            response = await container.transfer_service.initiate_upload(
                 payload,
                 principal,
             )
@@ -152,8 +151,7 @@ async def initiate_upload(
         event_name="uploads_initiate_metric_increment_failed",
     )
     try:
-        await context.run_blocking(
-            container.activity_store.record,
+        await container.activity_store.record(
             principal=principal,
             event_type="uploads_initiate",
         )
@@ -192,8 +190,7 @@ async def sign_upload_parts(
 
     try:
         with container.metrics.timed("uploads_sign_parts_ms"):
-            response = await context.run_blocking(
-                container.transfer_service.sign_parts,
+            response = await container.transfer_service.sign_parts(
                 payload,
                 principal,
             )
@@ -218,8 +215,7 @@ async def sign_upload_parts(
         event_name="uploads_sign_parts_metric_increment_failed",
     )
     try:
-        await context.run_blocking(
-            container.activity_store.record,
+        await container.activity_store.record(
             principal=principal,
             event_type="uploads_sign_parts",
         )
@@ -254,8 +250,7 @@ async def complete_upload(
 
     try:
         with container.metrics.timed("uploads_complete_ms"):
-            response = await context.run_blocking(
-                container.transfer_service.complete_upload,
+            response = await container.transfer_service.complete_upload(
                 payload,
                 principal,
             )
@@ -280,8 +275,7 @@ async def complete_upload(
         event_name="uploads_complete_metric_increment_failed",
     )
     try:
-        await context.run_blocking(
-            container.activity_store.record,
+        await container.activity_store.record(
             principal=principal,
             event_type="uploads_complete",
         )
@@ -316,8 +310,7 @@ async def abort_upload(
 
     try:
         with container.metrics.timed("uploads_abort_ms"):
-            response = await context.run_blocking(
-                container.transfer_service.abort_upload,
+            response = await container.transfer_service.abort_upload(
                 payload,
                 principal,
             )
@@ -342,8 +335,7 @@ async def abort_upload(
         event_name="uploads_abort_metric_increment_failed",
     )
     try:
-        await context.run_blocking(
-            container.activity_store.record,
+        await container.activity_store.record(
             principal=principal,
             event_type="uploads_abort",
         )
@@ -378,8 +370,7 @@ async def presign_download(
 
     try:
         with container.metrics.timed("downloads_presign_ms"):
-            response = await context.run_blocking(
-                container.transfer_service.presign_download,
+            response = await container.transfer_service.presign_download(
                 payload,
                 principal,
             )
@@ -404,8 +395,7 @@ async def presign_download(
         event_name="downloads_presign_metric_increment_failed",
     )
     try:
-        await context.run_blocking(
-            container.activity_store.record,
+        await container.activity_store.record(
             principal=principal,
             event_type="downloads_presign",
         )
@@ -456,8 +446,7 @@ async def _record_transfer_failure(
         error_code="transfer_failure",
     )
     try:
-        await context.run_blocking(
-            container.activity_store.record,
+        await container.activity_store.record(
             principal=principal,
             event_type=activity_event_type,
             details=type(exc).__name__,

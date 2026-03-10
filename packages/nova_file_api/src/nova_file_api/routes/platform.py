@@ -139,9 +139,7 @@ async def health_ready(
 
     if container.settings.jobs_enabled:
         try:
-            job_queue = await context.run_blocking(
-                container.job_service.publisher.healthcheck,
-            )
+            job_queue = await container.job_service.publisher.healthcheck()
         except Exception:
             logger.exception(
                 "v1_health_ready_job_queue_healthcheck_failed",
@@ -152,9 +150,7 @@ async def health_ready(
         job_queue = True
 
     try:
-        activity_store = await context.run_blocking(
-            container.activity_store.healthcheck,
-        )
+        activity_store = await container.activity_store.healthcheck()
     except Exception:
         logger.exception(
             "v1_health_ready_activity_store_healthcheck_failed",
@@ -219,5 +215,5 @@ async def metrics_summary(
     return MetricsSummaryResponse(
         counters=container.metrics.counters_snapshot(),
         latencies_ms=container.metrics.latency_snapshot(),
-        activity=await context.run_blocking(container.activity_store.summary),
+        activity=await container.activity_store.summary(),
     )

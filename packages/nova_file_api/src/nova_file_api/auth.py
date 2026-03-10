@@ -42,7 +42,7 @@ class Authenticator:
             settings.oidc_verifier_thread_tokens
         )
         self._remote_client: httpx.AsyncClient | None = None
-        self._remote_client_lock = asyncio.Lock()
+        self._remote_client_lock: asyncio.Lock | None = None
 
     async def authenticate(
         self,
@@ -257,7 +257,11 @@ class Authenticator:
         client = self._remote_client
         if client is not None:
             return client
-        async with self._remote_client_lock:
+        lock = self._remote_client_lock
+        if lock is None:
+            lock = asyncio.Lock()
+            self._remote_client_lock = lock
+        async with lock:
             client = self._remote_client
             if client is not None:
                 return client

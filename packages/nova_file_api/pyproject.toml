@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.12,<3.14"
 dependencies = [
   "anyio>=4.11.0",
-  "boto3>=1.42.47",
+  "aioboto3==15.5.0",
   "fastapi>=0.129.0",
   "httpx>=0.28.1",
   "oidc-jwt-verifier>=0.1.5",
@@ -21,7 +21,7 @@ dependencies = [
 ]
 
 [project.scripts]
-nova-file-worker = "nova_file_api.worker:main"
+nova-file-worker = "nova_file_api.worker:cli"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/nova_file_api"]

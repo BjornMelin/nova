@@ -6,8 +6,9 @@ from collections.abc import AsyncIterator, Sequence
 from contextlib import asynccontextmanager
 from typing import Any
 
-import anyio
+import aioboto3  # type: ignore[import-untyped]
 import structlog
+from botocore.config import Config
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -28,7 +29,6 @@ from nova_runtime_support import (
 
 from nova_file_api.config import Settings
 from nova_file_api.container import AppContainer, create_container
-from nova_file_api.dependencies import BLOCKING_IO_LIMITER_STATE_KEY
 from nova_file_api.errors import FileTransferError, internal_error
 from nova_file_api.middleware import request_context_middleware
 from nova_file_api.routes import (
@@ -273,26 +273,57 @@ def create_app(*, container_override: AppContainer | None = None) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         app.state.settings = settings
-        setattr(
-            app.state,
-            BLOCKING_IO_LIMITER_STATE_KEY,
-            anyio.CapacityLimiter(settings.blocking_io_thread_tokens),
+        if container_override is not None:
+            app.state.container = container_override
+            try:
+                yield
+            finally:
+                close_authenticator = getattr(
+                    app.state.container.authenticator,
+                    "aclose",
+                    None,
+                )
+                if callable(close_authenticator):
+                    await close_authenticator()
+            return
+
+        session = aioboto3.Session()
+        s3_config = Config(
+            s3={
+                "use_accelerate_endpoint": (
+                    settings.file_transfer_use_accelerate_endpoint
+                )
+            }
         )
-        app.state.container = (
-            container_override
-            if container_override is not None
-            else create_container(settings=settings)
+        sqs_config = Config(
+            retries={
+                "mode": settings.jobs_sqs_retry_mode,
+                "total_max_attempts": (
+                    settings.jobs_sqs_retry_total_max_attempts
+                ),
+            }
         )
-        try:
-            yield
-        finally:
-            close_authenticator = getattr(
-                app.state.container.authenticator,
-                "aclose",
-                None,
+        async with (
+            session.client("s3", config=s3_config) as s3_client,
+            session.resource("dynamodb") as dynamodb_resource,
+            session.client("sqs", config=sqs_config) as sqs_client,
+        ):
+            app.state.container = create_container(
+                settings=settings,
+                s3_client=s3_client,
+                dynamodb_resource=dynamodb_resource,
+                sqs_client=sqs_client,
             )
-            if callable(close_authenticator):
-                await close_authenticator()
+            try:
+                yield
+            finally:
+                close_authenticator = getattr(
+                    app.state.container.authenticator,
+                    "aclose",
+                    None,
+                )
+                if callable(close_authenticator):
+                    await close_authenticator()
 
     app = FastAPI(
         title="nova-file-api",
