@@ -70,7 +70,7 @@ def test_build_changed_units_report_first_release_marks_all_units() -> None:
     }
 
 
-def test_build_changed_units_report_ignores_service_dockerfile_only_changes() -> None:
+def test_build_changed_units_report_ignores_dockerfile_only_changes() -> None:
     units = {
         "packages/nova_file_api": _unit(
             "packages/nova_file_api",
