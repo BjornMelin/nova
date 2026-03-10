@@ -629,8 +629,15 @@ async def test_worker_unacked_when_terminal_update_retries_exhausted(
 async def test_worker_run_deletes_message_when_non_retryable_error(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    captured_async_client_args: tuple[
+        tuple[Any, ...], dict[str, Any]
+    ] | None = None
+    captured_transfer_service_args: tuple[
+        tuple[Any, ...], dict[str, Any]
+    ] | None = None
     fake_sqs = _FakeSqsClient()
     fake_http = _FakeHttpClient()
+    fake_s3_client = object()
     fake_http.responses.extend(
         [
             httpx.Response(
@@ -651,13 +658,14 @@ async def test_worker_run_deletes_message_when_non_retryable_error(
     )
     transfer_service = _FakeTransferService()
     transfer_service.error = invalid_request("source upload object not found")
+    settings = _worker_settings()
 
-    worker = _build_worker(transfer_service=transfer_service)
+    worker = JobsWorker(settings=settings, transfer_service=None)
     worker._session = cast(
         Any,
         _FakeSession(
             sqs_client=fake_sqs,
-            s3_client=object(),
+            s3_client=fake_s3_client,
         ),
     )
 
@@ -674,18 +682,45 @@ async def test_worker_run_deletes_message_when_non_retryable_error(
 
     monkeypatch.setattr(worker, "_receive_messages", _receive_once)
     monkeypatch.setattr(worker, "_install_signal_handlers", lambda: None)
+
+    def _capture_async_client(*args: Any, **kwargs: Any) -> _AsyncContext:
+        nonlocal captured_async_client_args
+        captured_async_client_args = (args, kwargs)
+        return _AsyncContext(fake_http)
+
     monkeypatch.setattr(
         "nova_file_api.worker.httpx.AsyncClient",
-        lambda **kwargs: _AsyncContext(fake_http),
+        _capture_async_client,
     )
+
+    def _capture_transfer_service(
+        *args: Any, **kwargs: Any
+    ) -> _FakeTransferService:
+        nonlocal captured_transfer_service_args
+        captured_transfer_service_args = (args, kwargs)
+        return transfer_service
+
     monkeypatch.setattr(
         "nova_file_api.worker.TransferService",
-        lambda settings, s3_client: transfer_service,
+        _capture_transfer_service,
     )
 
     exit_code = await worker.run()
 
     assert exit_code == 0
+    assert captured_async_client_args is not None
+    async_client_args, async_client_kwargs = captured_async_client_args
+    assert async_client_args == ()
+    assert async_client_kwargs["base_url"] == settings.jobs_api_base_url
+    assert async_client_kwargs["timeout"] == 10.0
+    assert async_client_kwargs["headers"]["X-Worker-Token"] == "worker-token"
+    assert captured_transfer_service_args is not None
+    transfer_service_args, transfer_service_kwargs = (
+        captured_transfer_service_args
+    )
+    assert transfer_service_args == ()
+    assert transfer_service_kwargs['settings'] is settings
+    assert transfer_service_kwargs['s3_client'] is fake_s3_client
     assert fake_sqs.delete_calls == [
         {
             "QueueUrl": "https://example.local/queue",
