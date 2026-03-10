@@ -206,10 +206,9 @@ jobs:
           import sys
           from pathlib import Path
 
-          files = [
-              Path("packages/nova_file_api/src/nova_file_api/api.py"),
-              Path("packages/nova_file_api/src/nova_file_api/app.py"),
-          ]
+          file_api_root = Path("packages/nova_file_api/src/nova_file_api")
+          routes_dir = file_api_root / "routes"
+          files = [file_api_root / "app.py", *sorted(routes_dir.glob("*.py"))]
           methods = {
               "get",
               "post",
