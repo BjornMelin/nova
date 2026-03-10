@@ -1,13 +1,12 @@
 from __future__ import annotations
 
-import asyncio
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+import httpx
 import pytest
 from botocore.exceptions import BotoCoreError, ClientError
-from fastapi.testclient import TestClient
 from nova_file_api.activity import MemoryActivityStore
 from nova_file_api.app import create_app
 from nova_file_api.auth import Authenticator
@@ -177,7 +176,7 @@ class _AlwaysFailingJobService:
         raise _TestDoubleError
 
 
-def _build_same_origin_status_container(*, scope_id: str) -> AppContainer:
+async def _build_same_origin_status_container(*, scope_id: str) -> AppContainer:
     settings = Settings()
     settings.auth_mode = AuthMode.SAME_ORIGIN
     settings.jobs_enabled = True
@@ -196,19 +195,17 @@ def _build_same_origin_status_container(*, scope_id: str) -> AppContainer:
         metrics=metrics,
     )
     now = datetime.now(tz=UTC)
-    asyncio.run(
-        repository.create(
-            JobRecord(
-                job_id="job-status-1",
-                job_type="transform",
-                scope_id=scope_id,
-                status=JobStatus.PENDING,
-                payload={"input": "value"},
-                result=None,
-                error=None,
-                created_at=now,
-                updated_at=now,
-            )
+    await repository.create(
+        JobRecord(
+            job_id="job-status-1",
+            job_type="transform",
+            scope_id=scope_id,
+            status=JobStatus.PENDING,
+            payload={"input": "value"},
+            result=None,
+            error=None,
+            created_at=now,
+            updated_at=now,
         )
     )
 
@@ -439,7 +436,8 @@ async def test_job_service_enqueue_respects_memory_toggle() -> None:
     assert "jobs_publish_failed" not in counters
 
 
-def test_enqueue_failure_is_not_idempotency_cached() -> None:
+@pytest.mark.asyncio
+async def test_enqueue_failure_is_not_idempotency_cached() -> None:
     settings = Settings()
     settings.jobs_enabled = True
     settings.idempotency_enabled = True
@@ -471,13 +469,19 @@ def test_enqueue_failure_is_not_idempotency_cached() -> None:
     )
 
     app = create_app(container_override=container)
-    with TestClient(app) as client:
-        first = client.post(
+    async with (
+        app.router.lifespan_context(app),
+        httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app),
+            base_url="http://testserver",
+        ) as client,
+    ):
+        first = await client.post(
             "/v1/jobs",
             headers={"Idempotency-Key": "job-failure-key"},
             json={"job_type": "transform", "payload": {"input": "a"}},
         )
-        second = client.post(
+        second = await client.post(
             "/v1/jobs",
             headers={"Idempotency-Key": "job-failure-key"},
             json={"job_type": "transform", "payload": {"input": "a"}},
@@ -774,7 +778,8 @@ async def test_job_service_cancel_conflicts_after_retry_limit() -> None:
     assert excinfo.value.status_code == 409
 
 
-def test_update_job_result_requires_valid_worker_token() -> None:
+@pytest.mark.asyncio
+async def test_update_job_result_requires_valid_worker_token() -> None:
     settings = Settings()
     settings.jobs_enabled = True
     settings.jobs_worker_update_token = SecretStr("test-worker-token")
@@ -793,19 +798,17 @@ def test_update_job_result_requires_valid_worker_token() -> None:
         metrics=metrics,
     )
     now = datetime.now(tz=UTC)
-    asyncio.run(
-        repository.create(
-            JobRecord(
-                job_id="job-update-3",
-                job_type="transform",
-                scope_id="scope-1",
-                status=JobStatus.PENDING,
-                payload={"input": "value"},
-                result=None,
-                error=None,
-                created_at=now,
-                updated_at=now,
-            )
+    await repository.create(
+        JobRecord(
+            job_id="job-update-3",
+            job_type="transform",
+            scope_id="scope-1",
+            status=JobStatus.PENDING,
+            payload={"input": "value"},
+            result=None,
+            error=None,
+            created_at=now,
+            updated_at=now,
         )
     )
 
@@ -827,13 +830,19 @@ def test_update_job_result_requires_valid_worker_token() -> None:
     )
 
     app = create_app(container_override=container)
-    with TestClient(app) as client:
-        forbidden_response = client.post(
+    async with (
+        app.router.lifespan_context(app),
+        httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app),
+            base_url="http://testserver",
+        ) as client,
+    ):
+        forbidden_response = await client.post(
             "/v1/internal/jobs/job-update-3/result",
             headers={"X-Worker-Token": "wrong-token"},
             json={"status": "running"},
         )
-        ok_response = client.post(
+        ok_response = await client.post(
             "/v1/internal/jobs/job-update-3/result",
             headers={"X-Worker-Token": "test-worker-token"},
             json={"status": "succeeded", "result": {"accepted": True}},
@@ -843,65 +852,87 @@ def test_update_job_result_requires_valid_worker_token() -> None:
     assert forbidden_response.json()["error"]["code"] == "forbidden"
     assert ok_response.status_code == 200
     assert ok_response.json()["status"] == "succeeded"
-    activity_summary = asyncio.run(container.activity_store.summary())
+    activity_summary = await container.activity_store.summary()
     assert activity_summary["events_total"] == 1
     assert activity_summary["distinct_event_types"] == 1
     assert activity_summary["active_users_today"] == 1
 
 
-def test_get_job_status_failure_emits_error_observability(
+@pytest.mark.asyncio
+async def test_get_job_status_failure_emits_error_observability(
     capture_emf: CaptureEmf,
 ) -> None:
     container, metrics, activity_store = _build_failing_job_container()
     emitted_dimensions = capture_emf(metrics)
     app = create_app(container_override=container)
-    with TestClient(app, raise_server_exceptions=False) as client:
-        response = client.get("/v1/jobs/job-status-1")
+    async with (
+        app.router.lifespan_context(app),
+        httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app, raise_app_exceptions=False),
+            base_url="http://testserver",
+        ) as client,
+    ):
+        response = await client.get("/v1/jobs/job-status-1")
 
     assert response.status_code == 500
     counters = metrics.counters_snapshot()
     assert counters["jobs_status_failure_total"] == 1
     assert {"route": "jobs_status", "status": "error"} in emitted_dimensions
-    activity_summary = asyncio.run(activity_store.summary())
+    activity_summary = await activity_store.summary()
     assert activity_summary["events_total"] == 1
     assert activity_summary["distinct_event_types"] == 1
     assert activity_summary["active_users_today"] == 1
 
 
-def test_legacy_cancel_route_is_not_exposed() -> None:
+@pytest.mark.asyncio
+async def test_legacy_cancel_route_is_not_exposed() -> None:
     """Verify legacy cancel route is not exposed and returns 404."""
     app = create_app(
-        container_override=_build_same_origin_status_container(
+        container_override=await _build_same_origin_status_container(
             scope_id="scope-legacy"
         )
     )
-    with TestClient(app) as client:
-        response = client.post("/api/jobs/job-status-1/cancel")
+    async with (
+        app.router.lifespan_context(app),
+        httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app),
+            base_url="http://testserver",
+        ) as client,
+    ):
+        response = await client.post("/api/jobs/job-status-1/cancel")
 
     assert response.status_code == 404
 
 
-def test_cancel_job_failure_emits_error_observability(
+@pytest.mark.asyncio
+async def test_cancel_job_failure_emits_error_observability(
     capture_emf: CaptureEmf,
 ) -> None:
     """Verify cancel failures emit metrics and observability dimensions."""
     container, metrics, activity_store = _build_failing_job_container()
     emitted_dimensions = capture_emf(metrics)
     app = create_app(container_override=container)
-    with TestClient(app, raise_server_exceptions=False) as client:
-        response = client.post("/v1/jobs/job-status-1/cancel")
+    async with (
+        app.router.lifespan_context(app),
+        httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app, raise_app_exceptions=False),
+            base_url="http://testserver",
+        ) as client,
+    ):
+        response = await client.post("/v1/jobs/job-status-1/cancel")
 
     assert response.status_code == 500
     counters = metrics.counters_snapshot()
     assert counters["jobs_cancel_failure_total"] == 1
     assert {"route": "jobs_cancel", "status": "error"} in emitted_dimensions
-    activity_summary = asyncio.run(activity_store.summary())
+    activity_summary = await activity_store.summary()
     assert activity_summary["events_total"] == 1
     assert activity_summary["distinct_event_types"] == 1
     assert activity_summary["active_users_today"] == 1
 
 
-def test_update_job_result_failure_emits_error_observability(
+@pytest.mark.asyncio
+async def test_update_job_result_failure_emits_error_observability(
     capture_emf: CaptureEmf,
 ) -> None:
     container, metrics, activity_store = _build_failing_job_container(
@@ -909,8 +940,14 @@ def test_update_job_result_failure_emits_error_observability(
     )
     emitted_dimensions = capture_emf(metrics)
     app = create_app(container_override=container)
-    with TestClient(app, raise_server_exceptions=False) as client:
-        response = client.post(
+    async with (
+        app.router.lifespan_context(app),
+        httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app, raise_app_exceptions=False),
+            base_url="http://testserver",
+        ) as client,
+    ):
+        response = await client.post(
             "/v1/internal/jobs/job-update-4/result",
             headers={"X-Worker-Token": "test-worker-token"},
             json={"status": "running"},
@@ -923,17 +960,26 @@ def test_update_job_result_failure_emits_error_observability(
         "route": "jobs_result_update",
         "status": "error",
     } in emitted_dimensions
-    activity_summary = asyncio.run(activity_store.summary())
+    activity_summary = await activity_store.summary()
     assert activity_summary["events_total"] == 1
     assert activity_summary["distinct_event_types"] == 1
     assert activity_summary["active_users_today"] == 1
 
 
-def test_get_job_status_accepts_scope_header_same_origin() -> None:
-    container = _build_same_origin_status_container(scope_id="scope-header")
+@pytest.mark.asyncio
+async def test_get_job_status_accepts_scope_header_same_origin() -> None:
+    container = await _build_same_origin_status_container(
+        scope_id="scope-header"
+    )
     app = create_app(container_override=container)
-    with TestClient(app) as client:
-        response = client.get(
+    async with (
+        app.router.lifespan_context(app),
+        httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app),
+            base_url="http://testserver",
+        ) as client,
+    ):
+        response = await client.get(
             "/v1/jobs/job-status-1",
             headers={"X-Session-Id": "scope-header"},
         )
@@ -944,11 +990,22 @@ def test_get_job_status_accepts_scope_header_same_origin() -> None:
     assert payload["job"]["scope_id"] == "scope-header"
 
 
-def test_get_job_status_requires_session_scope_in_same_origin_mode() -> None:
-    container = _build_same_origin_status_container(scope_id="scope-header")
+@pytest.mark.asyncio
+async def test_get_job_status_requires_session_scope_in_same_origin_mode() -> (
+    None
+):
+    container = await _build_same_origin_status_container(
+        scope_id="scope-header"
+    )
     app = create_app(container_override=container)
-    with TestClient(app) as client:
-        response = client.get("/v1/jobs/job-status-1")
+    async with (
+        app.router.lifespan_context(app),
+        httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app),
+            base_url="http://testserver",
+        ) as client,
+    ):
+        response = await client.get("/v1/jobs/job-status-1")
 
     assert response.status_code == 401
     payload = response.json()
