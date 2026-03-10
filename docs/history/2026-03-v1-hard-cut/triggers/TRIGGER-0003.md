@@ -22,8 +22,6 @@ Branch: `feat/subplan-0003-infra-cross-repo-integration`
 Scope:
 - `packages/nova_file_api`
 - `packages/nova_auth_api`
-- `packages/nova_file_api`
-- `packages/nova_auth_api`
 - `packages/nova_dash_bridge`
 - `packages/contracts`
 - `${REPO_INFRA_PATH:-~/repos/work/infra-stack/container-craft}`

@@ -52,7 +52,7 @@ Use the modular operator guide set for provisioning and setup details:
    - `ECR_REPOSITORY_URI` (or `ECR_REPOSITORY_NAME`)
 7. Release-image build environments provide Docker BuildKit plus the `buildx`
    CLI plugin.
-7. IAM roles stack is deployed with promotion repository parameters:
+8. IAM roles stack is deployed with promotion repository parameters:
    - `CodeArtifactPromotionSourceRepositoryName`
    - `CodeArtifactPromotionDestinationRepositoryName`
 

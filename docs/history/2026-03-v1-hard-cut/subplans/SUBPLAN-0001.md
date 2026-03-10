@@ -27,8 +27,6 @@ Repository scope (this monorepo):
 
 - `packages/nova_file_api`
 - `packages/nova_auth_api`
-- `packages/nova_file_api`
-- `packages/nova_auth_api`
 - `packages/contracts`
 
 In scope:

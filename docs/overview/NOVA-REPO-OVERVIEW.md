@@ -248,7 +248,7 @@ sequenceDiagram
 
 2. Minute 2: Monorepo layout
 - Walk runtime packages and supporting packages.
-- Emphasize that `packages/*` own both runtime logic and deployable service surfaces.
+- Emphasize that `packages/*` own runtime/API surfaces and core runtime logic.
 
 3. Minutes 3-4: Architecture flow
 - Explain request path into `nova_file_api`.

@@ -5,6 +5,10 @@ Status: Accepted
 Version: 2.1
 Date: 2026-03-10
 Related:
+  - "[ADR-0023: Hard-cut v1 canonical route surface](./ADR-0023-hard-cut-v1-canonical-route-surface.md)"
+  - "[SPEC-0000: HTTP API contract](../spec/SPEC-0000-http-api-contract.md)"
+  - "[SPEC-0016: V1 route namespace and literal guardrails](../spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md)"
+  - "[requirements.md](../requirements.md)"
   - "[ADR-0024: Layered runtime authority pack for the Nova monorepo](./ADR-0024-layered-architecture-authority-pack.md)"
   - "[ADR-0026: Fail-fast runtime configuration and safe auth execution](./ADR-0026-fail-fast-runtime-configuration-and-safe-auth-execution.md)"
   - "[SPEC-0017: Runtime component topology and ownership contract](../spec/SPEC-0017-runtime-component-topology-and-ownership-contract.md)"
@@ -65,7 +69,6 @@ Choose **Option B**.
    - canonical `/v1/transfers/*` and `/v1/jobs*` runtime behavior
    - capability, release-info, liveness, readiness, and metrics handlers
    - transfer, jobs, cache, idempotency, and activity orchestration
-   - the canonical `nova_file_api.main:app` process entrypoint
    - the canonical `nova_file_api.main:app` process entrypoint consumed by the
      release-only file-service Dockerfile under `apps/`
 2. `packages/nova_auth_api/` owns:

@@ -15,8 +15,12 @@ or WSL when:
 
 This guide is for local operator and developer workstations. It does not change
 the release-environment contract, which is already defined in
-`buildspecs/buildspec-release.yml` and
-`../../architecture/spec/SPEC-0004-ci-cd-and-docs.md`.
+`buildspecs/buildspec-release.yml`.
+
+Authority chain: [ADR-0023](../architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md) →
+[SPEC-0000](../architecture/spec/SPEC-0000-http-api-contract.md) →
+[SPEC-0016](../architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md) →
+[requirements.md](../architecture/requirements.md).
 
 ## When to Use This
 
@@ -80,14 +84,21 @@ sudo install -m 0755 ~/.docker/cli-plugins/docker-compose /usr/local/lib/docker/
 ```
 
 If `~/.docker/cli-plugins/docker-buildx` does not exist, install a fresh
-release binary:
+release binary. This guide targets x86_64 (amd64); for arm64, use
+`linux-arm64` in the URL suffix.
 
 ```bash
 BUILDX_VERSION=v0.30.1
+ARCH=$(uname -m)
+case "$ARCH" in
+  x86_64) BUILDX_SUFFIX=linux-amd64 ;;
+  aarch64|arm64) BUILDX_SUFFIX=linux-arm64 ;;
+  *) echo "Unsupported arch: $ARCH"; exit 1 ;;
+esac
 
 sudo install -d -m 0755 /usr/local/lib/docker/cli-plugins
 sudo curl -SL \
-  "https://github.com/docker/buildx/releases/download/${BUILDX_VERSION}/buildx-${BUILDX_VERSION}.linux-amd64" \
+  "https://github.com/docker/buildx/releases/download/${BUILDX_VERSION}/buildx-${BUILDX_VERSION}.${BUILDX_SUFFIX}" \
   -o /usr/local/lib/docker/cli-plugins/docker-buildx
 sudo chmod +x /usr/local/lib/docker/cli-plugins/docker-buildx
 ```
@@ -144,23 +155,20 @@ Docker Hub:
 docker login
 ```
 
-ECR example:
+ECR example (replace `${AWS_REGION}` and `${AWS_ACCOUNT_ID}` with your values):
 
 ```bash
-AWS_REGION=us-east-1
-AWS_ACCOUNT_ID=099060980393
-
-aws ecr get-login-password --region "$AWS_REGION" \
+aws ecr get-login-password --region "${AWS_REGION}" \
   | docker login --username AWS --password-stdin \
     "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
 ```
 
 ## Step 6: Verify Nova Service Image Builds
 
-From the repo root:
+From the repo root (replace `<NOVA_REPO_ROOT>` with your local clone path):
 
 ```bash
-cd /home/bjorn/repos/work/infra-stack/nova
+cd <NOVA_REPO_ROOT>
 
 DOCKER_BUILDKIT=1 docker buildx build --load \
   -f apps/nova_file_api_service/Dockerfile \
@@ -206,5 +214,5 @@ source .venv/bin/activate && uv run pytest -q packages/nova_file_api/tests/test_
   <https://docs.docker.com/build/building/multi-platform/#install-buildx>
 - Docker build best practices:
   <https://docs.docker.com/build/building/best-practices/>
-- `../../architecture/spec/SPEC-0004-ci-cd-and-docs.md`
+- [SPEC-0000](../architecture/spec/SPEC-0000-http-api-contract.md)
 - `../../../buildspecs/buildspec-release.yml`

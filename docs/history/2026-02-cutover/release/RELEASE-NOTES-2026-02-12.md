@@ -8,8 +8,6 @@ Scope: `nova` runtime monorepo + cross-repo integration alignment
 - Finalized monorepo runtime structure:
   - `packages/nova_file_api`
   - `packages/nova_auth_api`
-  - `packages/nova_file_api`
-  - `packages/nova_auth_api`
   - `packages/nova_dash_bridge`
   - `packages/contracts`
 - Completed endpoint hard-cutover to:

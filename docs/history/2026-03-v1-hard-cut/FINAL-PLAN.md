@@ -108,7 +108,6 @@ Remove old `/api/file-transfer/*` routes and replace with:
 
 Create this structure in current repo:
 
-- packages/nova_file_api/
 - packages/nova_auth_api/
 - packages/nova_file_api/
 - packages/nova_dash_bridge/
@@ -341,7 +340,6 @@ Execution and evidence checklist:
 ## Execution Log
 
 - 2026-02-12: Created monorepo runtime layout:
-  `packages/nova_file_api`, `packages/nova_auth_api`,
   `packages/nova_file_api`, `packages/nova_auth_api`,
   `packages/nova_dash_bridge`, `packages/contracts`.
 - 2026-02-12: Migrated runtime source to

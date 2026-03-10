@@ -28,8 +28,6 @@ Repositories:
 
 - `packages/nova_file_api`
 - `packages/nova_auth_api`
-- `packages/nova_file_api`
-- `packages/nova_auth_api`
 - `packages/nova_dash_bridge`
 - `packages/contracts`
 - `~/repos/work/infra-stack/container-craft`

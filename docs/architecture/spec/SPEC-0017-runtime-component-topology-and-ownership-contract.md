@@ -5,13 +5,10 @@ Status: Active
 Version: 2.2
 Date: 2026-03-10
 Related:
-  - "[ADR-0024: Layered runtime authority pack for the Nova monorepo](../adr/ADR-0024-layered-architecture-authority-pack.md)"
-  - "[ADR-0025: Runtime monorepo component boundaries and ownership](../adr/ADR-0025-runtime-monorepo-component-boundaries-and-ownership.md)"
+  - "[ADR-0023: Hard-cut v1 canonical route surface](../adr/ADR-0023-hard-cut-v1-canonical-route-surface.md)"
   - "[SPEC-0000: HTTP API contract](./SPEC-0000-http-api-contract.md)"
-  - "[SPEC-0015: Nova API platform final topology and delivery contract](./SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md)"
   - "[SPEC-0016: V1 route namespace and literal guardrails](./SPEC-0016-v1-route-namespace-and-literal-guardrails.md)"
-  - "[SPEC-0018: Runtime configuration and startup validation contract](./SPEC-0018-runtime-configuration-and-startup-validation-contract.md)"
-  - "[SPEC-0019: Auth execution and threadpool safety contract](./SPEC-0019-auth-execution-and-threadpool-safety-contract.md)"
+  - "[requirements.md](../requirements.md)"
 ---
 
 ## 1. Scope
@@ -74,10 +71,13 @@ cross-package boundaries for the Nova monorepo.
 
 1. Active authority docs describe runtime package topology instead of
    deploy-control-plane modules.
-2. Runtime package ownership statements in README, PRD, requirements, plan, and
-   runbooks align with this package map.
-3. Bridge and runtime-package docs do not claim conflicting route, contract, or auth-policy
-   authority.
+2. Runtime package ownership statements in README, AGENTS, PRD, requirements,
+   plan, runbooks, and architecture indexes align with this package map.
+3. Active operator authority IDs and paths must be truthful, resolvable, and
+   synchronized across README, AGENTS, plan, PRD, runbooks, and architecture
+   indexes.
+4. Bridge and runtime-package docs do not claim conflicting route, contract, or
+   auth-policy authority.
 
 ## 7. Traceability
 

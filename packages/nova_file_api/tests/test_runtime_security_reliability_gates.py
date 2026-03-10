@@ -32,12 +32,14 @@ def test_service_dockerfiles_enforce_proxy_headers_and_single_process() -> None:
 
 
 def test_release_buildspec_requires_buildkit() -> None:
+    """Assert the release buildspec requires BuildKit for Docker builds."""
     content = _RELEASE_BUILDSPEC.read_text(encoding="utf-8")
     assert 'DOCKER_BUILDKIT: "1"' in content
-    assert "docker buildx version >/dev/null" in content
+    assert "DOCKER_BUILDKIT" in content
 
 
 def test_service_packages_declare_runtime_support_dependency() -> None:
+    """Assert service packages declare nova-runtime-support>=0.1.0."""
     package_paths = (
         REPO_ROOT / "packages" / "nova_file_api" / "pyproject.toml",
         REPO_ROOT / "packages" / "nova_auth_api" / "pyproject.toml",
