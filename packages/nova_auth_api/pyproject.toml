@@ -19,3 +19,6 @@ dependencies = [
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/nova_auth_api"]
+
+[tool.fastapi]
+entrypoint = "nova_auth_api.main:app"

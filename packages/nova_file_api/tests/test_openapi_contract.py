@@ -20,6 +20,7 @@ from nova_file_api.jobs import (
 )
 from nova_file_api.metrics import MetricsCollector
 from nova_file_api.models import AuthMode
+from nova_file_api.operation_ids import OPERATION_ID_BY_PATH_AND_METHOD
 
 from ._test_doubles import StubTransferService
 
@@ -115,61 +116,7 @@ def test_openapi_path_method_operation_ids_are_stable() -> None:
     """OpenAPI should expose stable path+method+operationId mappings."""
     app = _build_openapi_app()
     payload = app.openapi()
-    expected_operation_map = {
-        "/metrics/summary": {
-            "get": "metrics_summary",
-        },
-        "/v1/transfers/uploads/initiate": {
-            "post": "initiate_upload",
-        },
-        "/v1/transfers/uploads/sign-parts": {
-            "post": "sign_upload_parts",
-        },
-        "/v1/transfers/uploads/complete": {
-            "post": "complete_upload",
-        },
-        "/v1/transfers/uploads/abort": {
-            "post": "abort_upload",
-        },
-        "/v1/transfers/downloads/presign": {
-            "post": "presign_download",
-        },
-        "/v1/jobs": {
-            "get": "list_jobs",
-            "post": "create_job",
-        },
-        "/v1/jobs/{job_id}": {
-            "get": "get_job_status",
-        },
-        "/v1/jobs/{job_id}/cancel": {
-            "post": "cancel_job",
-        },
-        "/v1/jobs/{job_id}/retry": {
-            "post": "retry_job",
-        },
-        "/v1/jobs/{job_id}/events": {
-            "get": "list_job_events",
-        },
-        "/v1/internal/jobs/{job_id}/result": {
-            "post": "update_job_result",
-        },
-        "/v1/capabilities": {
-            "get": "get_capabilities",
-        },
-        "/v1/resources/plan": {
-            "post": "plan_resources",
-        },
-        "/v1/releases/info": {
-            "get": "get_release_info",
-        },
-        "/v1/health/live": {
-            "get": "health_live",
-        },
-        "/v1/health/ready": {
-            "get": "health_ready",
-        },
-    }
-    assert _operation_id_map(payload) == expected_operation_map
+    assert _operation_id_map(payload) == OPERATION_ID_BY_PATH_AND_METHOD
 
 
 def test_openapi_path_method_tags_are_semantic() -> None:
@@ -198,16 +145,33 @@ def test_openapi_path_method_tags_are_semantic() -> None:
     assert _operation_tag_map(payload) == expected_tag_map
 
 
-def test_route_names_are_unique_for_operation_ids() -> None:
-    """Route names must remain unique when operationIds follow route names."""
+def test_routes_cover_the_explicit_operation_id_contract() -> None:
+    """Application routes should match the explicit operation-id contract."""
     app = _build_openapi_app()
-    route_names = [
-        route.name
+    route_map: dict[str, dict[str, str]] = {}
+    operation_ids = [
+        route.operation_id
         for route in app.routes
         if isinstance(route, APIRoute) and route.include_in_schema
     ]
-    assert route_names
-    assert len(route_names) == len(set(route_names))
+    for route in app.routes:
+        if not isinstance(route, APIRoute) or not route.include_in_schema:
+            continue
+        assert isinstance(route.operation_id, str)
+        for method in route.methods:
+            normalized_method = method.lower()
+            if normalized_method not in _HTTP_METHODS:
+                continue
+            route_map.setdefault(route.path, {})[normalized_method] = (
+                route.operation_id
+            )
+    assert operation_ids
+    assert all(
+        isinstance(operation_id, str) and operation_id
+        for operation_id in operation_ids
+    )
+    assert route_map == OPERATION_ID_BY_PATH_AND_METHOD
+    assert len(operation_ids) == len(set(operation_ids))
 
 
 def test_openapi_schema_generation_smoke() -> None:

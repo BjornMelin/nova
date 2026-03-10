@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 import structlog
-from fastapi import APIRouter, Header
+from fastapi import APIRouter
 
 from nova_file_api.dependencies import RequestContext, RequestContextDep
 from nova_file_api.errors import idempotency_conflict
@@ -22,7 +22,15 @@ from nova_file_api.models import (
     SignPartsRequest,
     SignPartsResponse,
 )
+from nova_file_api.operation_ids import (
+    ABORT_UPLOAD_OPERATION_ID,
+    COMPLETE_UPLOAD_OPERATION_ID,
+    INITIATE_UPLOAD_OPERATION_ID,
+    PRESIGN_DOWNLOAD_OPERATION_ID,
+    SIGN_UPLOAD_PARTS_OPERATION_ID,
+)
 from nova_file_api.routes.common import (
+    IdempotencyKeyHeader,
     emit_request_metric,
     validated_idempotency_key,
 )
@@ -32,15 +40,13 @@ transfer_router = APIRouter(prefix="/v1/transfers", tags=["transfers"])
 
 @transfer_router.post(
     "/uploads/initiate",
+    operation_id=INITIATE_UPLOAD_OPERATION_ID,
     response_model=InitiateUploadResponse,
 )
 async def initiate_upload(
     payload: InitiateUploadRequest,
     context: RequestContextDep,
-    idempotency_key: str | None = Header(
-        default=None,
-        alias="Idempotency-Key",
-    ),
+    idempotency_key: IdempotencyKeyHeader = None,
 ) -> InitiateUploadResponse:
     """Choose upload strategy and return presigned metadata."""
     container = context.container
@@ -178,6 +184,7 @@ async def initiate_upload(
 
 @transfer_router.post(
     "/uploads/sign-parts",
+    operation_id=SIGN_UPLOAD_PARTS_OPERATION_ID,
     response_model=SignPartsResponse,
 )
 async def sign_upload_parts(
@@ -238,6 +245,7 @@ async def sign_upload_parts(
 
 @transfer_router.post(
     "/uploads/complete",
+    operation_id=COMPLETE_UPLOAD_OPERATION_ID,
     response_model=CompleteUploadResponse,
 )
 async def complete_upload(
@@ -298,6 +306,7 @@ async def complete_upload(
 
 @transfer_router.post(
     "/uploads/abort",
+    operation_id=ABORT_UPLOAD_OPERATION_ID,
     response_model=AbortUploadResponse,
 )
 async def abort_upload(
@@ -358,6 +367,7 @@ async def abort_upload(
 
 @transfer_router.post(
     "/downloads/presign",
+    operation_id=PRESIGN_DOWNLOAD_OPERATION_ID,
     response_model=PresignDownloadResponse,
 )
 async def presign_download(

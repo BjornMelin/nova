@@ -11,3 +11,14 @@ Token verification and introspection package for the Nova runtime.
 
 `POST /v1/token/introspect` accepts both `application/json` and
 `application/x-www-form-urlencoded` request bodies.
+
+## Internal structure
+
+The package keeps `create_app()` as the public factory surface and splits
+runtime concerns into dedicated modules:
+
+- `routes/` for HTTP handlers
+- `middleware.py` for request-id context
+- `request_parsing.py` for dual-mode introspection payload parsing
+- `exception_handlers.py` for canonical error envelopes
+- `openapi.py` and `operation_ids.py` for stable OpenAPI emission

@@ -23,5 +23,8 @@ dependencies = [
 [project.scripts]
 nova-file-worker = "nova_file_api.worker:cli"
 
+[tool.fastapi]
+entrypoint = "nova_file_api.main:app"
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/nova_file_api"]

@@ -3,13 +3,24 @@
 from __future__ import annotations
 
 from hmac import compare_digest
+from typing import Annotated
 
 import structlog
+from fastapi import Header, Query
 
 from nova_file_api.container import AppContainer
 from nova_file_api.errors import forbidden, invalid_request
 
 WORKER_TOKEN_NOT_CONFIGURED = "worker update token not configured"  # noqa: S105
+IdempotencyKeyHeader = Annotated[
+    str | None,
+    Header(alias="Idempotency-Key"),
+]
+WorkerTokenHeader = Annotated[
+    str | None,
+    Header(alias="X-Worker-Token"),
+]
+JobsLimitQuery = Annotated[int, Query(ge=1, le=200)]
 
 
 def emit_request_metric(

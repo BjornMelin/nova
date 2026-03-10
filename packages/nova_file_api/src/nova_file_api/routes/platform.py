@@ -19,6 +19,14 @@ from nova_file_api.models import (
     ResourcePlanRequest,
     ResourcePlanResponse,
 )
+from nova_file_api.operation_ids import (
+    GET_CAPABILITIES_OPERATION_ID,
+    GET_RELEASE_INFO_OPERATION_ID,
+    HEALTH_LIVE_OPERATION_ID,
+    HEALTH_READY_OPERATION_ID,
+    METRICS_SUMMARY_OPERATION_ID,
+    PLAN_RESOURCES_OPERATION_ID,
+)
 from nova_file_api.routes.common import emit_request_metric
 
 ops_router = APIRouter(tags=["ops"])
@@ -27,6 +35,7 @@ platform_router = APIRouter(prefix="/v1", tags=["platform"])
 
 @platform_router.get(
     "/capabilities",
+    operation_id=GET_CAPABILITIES_OPERATION_ID,
     response_model=CapabilitiesResponse,
 )
 async def get_capabilities(
@@ -50,6 +59,7 @@ async def get_capabilities(
 
 @platform_router.post(
     "/resources/plan",
+    operation_id=PLAN_RESOURCES_OPERATION_ID,
     response_model=ResourcePlanResponse,
 )
 async def plan_resources(
@@ -93,6 +103,7 @@ async def plan_resources(
 
 @platform_router.get(
     "/releases/info",
+    operation_id=GET_RELEASE_INFO_OPERATION_ID,
     response_model=ReleaseInfoResponse,
 )
 async def get_release_info(
@@ -109,6 +120,7 @@ async def get_release_info(
 
 @ops_router.get(
     "/v1/health/live",
+    operation_id=HEALTH_LIVE_OPERATION_ID,
     response_model=HealthResponse,
 )
 async def health_live() -> HealthResponse:
@@ -118,6 +130,7 @@ async def health_live() -> HealthResponse:
 
 @ops_router.get(
     "/v1/health/ready",
+    operation_id=HEALTH_READY_OPERATION_ID,
     response_model=ReadinessResponse,
 )
 async def health_ready(
@@ -193,6 +206,7 @@ async def health_ready(
 
 @ops_router.get(
     "/metrics/summary",
+    operation_id=METRICS_SUMMARY_OPERATION_ID,
     response_model=MetricsSummaryResponse,
 )
 async def metrics_summary(
