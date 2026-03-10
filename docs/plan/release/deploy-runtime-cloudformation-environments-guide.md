@@ -10,6 +10,14 @@ Deploy Nova runtime infrastructure stacks in a reproducible order for any AWS
 account/region, then produce the environment base URLs required by CI/CD
 pipeline stacks.
 
+Canonical operator path:
+
+- `scripts/release/deploy-runtime-cloudformation-environment.sh`
+- The script applies the same change-set-first sequence documented here and
+  enforces the current final runtime posture (`AssignPublicIp=DISABLED`,
+  `IDEMPOTENCY_MODE=shared_required`, async queue wiring, and cache-enabled
+  file-transfer service deployment).
+
 ## Scope
 
 This guide covers runtime stacks under `infra/runtime/**` for `dev` and `prod`.
@@ -53,6 +61,9 @@ Export these values before running commands:
 - `SERVICE_DNS` (example `${SERVICE_NAME}.${ALB_HOSTED_ZONE_NAME}`)
 - `DOCKER_REPOSITORY_NAME`
 - `IMAGE_DIGEST` (OCI digest, `sha256:...`)
+- `ENV_VARS_JSON` (JSON object string passed through `EnvVars`; it must include
+  `IDEMPOTENCY_MODE=shared_required` and the async/cache runtime keys required
+  by the current file-transfer service posture)
 - `TASK_ROLE_ARN`
 - `ECS_INFRASTRUCTURE_ROLE_ARN`
 - `OWNER_TAG`
@@ -82,6 +93,34 @@ Deploy in this order for each environment:
 
 Run the same sequence for `dev`, then `prod`, with environment-specific
 parameters and names.
+
+## Canonical Operator Script
+
+Use the repository operator script when you want one audited path instead of
+copying individual `aws cloudformation deploy` commands:
+
+```bash
+export ENVIRONMENT=dev
+export IMAGE_DIGEST=sha256:...
+export ENV_VARS_JSON='{"IDEMPOTENCY_MODE":"shared_required","JOBS_ENABLED":"true","JOBS_QUEUE_BACKEND":"sqs","JOBS_REPOSITORY_BACKEND":"dynamodb","JOBS_RUNTIME_MODE":"worker","CACHE_REDIS_URL":"rediss://..."}'
+
+"${NOVA_REPO_ROOT}/scripts/release/deploy-runtime-cloudformation-environment.sh"
+```
+
+The script deploys:
+
+1. `infra/runtime/kms.yml`
+2. `infra/runtime/ecr.yml`
+3. `infra/runtime/ecs/cluster.yml`
+4. `infra/runtime/file_transfer/s3.yml`
+5. `infra/runtime/file_transfer/async.yml`
+6. `infra/runtime/file_transfer/cache.yml`
+7. `infra/runtime/ecs/service.yml`
+8. `infra/runtime/file_transfer/worker.yml`
+9. `infra/runtime/observability/ecs-observability-baseline.yml`
+10. `infra/nova/deploy/service-base-url-ssm.yml`
+
+and preserves the documented change-set-first flow for each stack.
 
 ## Change-Set-First Command Pattern
 

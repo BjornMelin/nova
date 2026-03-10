@@ -42,4 +42,8 @@ jobs:
       - name: Run infra preflight contract tests
         run: |
           set -euo pipefail
-          uv run --with pytest pytest -q tests/infra
+          uv run --with pytest pytest -q \
+            tests/infra/test_absorbed_infra_contracts.py \
+            tests/infra/test_workflow_productization_contracts.py \
+            tests/infra/test_workflow_contract_docs.py \
+            tests/infra/test_docs_authority_contracts.py

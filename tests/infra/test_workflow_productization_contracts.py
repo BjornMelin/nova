@@ -80,6 +80,9 @@ def test_composite_actions_provide_shared_release_primitives() -> None:
             "create-change-set",
             "execute-change-set",
             "no-fail-on-empty-changeset",
+            "aws cloudformation describe-events",
+            "--change-set-name",
+            "OperationEvents",
         ],
         ".github/actions/collect-deploy-evidence/action.yml": [
             "using: composite",
@@ -95,6 +98,12 @@ def test_composite_actions_provide_shared_release_primitives() -> None:
             assert required in text, (
                 f"Missing composite action contract in {rel_path}: {required!r}"
             )
+
+    cfn_lifecycle_text = _read(
+        ".github/actions/cfn-change-set-lifecycle/action.yml"
+    )
+    assert "--change-set-id" not in cfn_lifecycle_text
+    assert '--query "Events[' not in cfn_lifecycle_text
 
 
 def test_reusable_deploy_runtime_contract_includes_typed_inputs_outputs() -> (
@@ -163,6 +172,57 @@ def test_cfn_contract_validate_workflow_exists_for_cfn_gates() -> None:
         "infra/nova/*.yml",
         "infra/nova/deploy/*.yml",
         "infra/runtime/**/*.yml",
-        "uv run --with pytest pytest -q tests/infra",
+        "test_absorbed_infra_contracts.py",
+        "test_workflow_productization_contracts.py",
+        "test_workflow_contract_docs.py",
+        "test_docs_authority_contracts.py",
     ]:
         assert required in text
+
+
+def test_reusable_deploy_dev_checks_out_workflow_source_for_local_actions() -> (
+    None
+):
+    """Reusable deploy-dev must checkout source before local actions."""
+    text = _read(".github/workflows/reusable-deploy-dev.yml")
+
+    for required in [
+        "WORKFLOW_SOURCE_REPOSITORY",
+        "WORKFLOW_SOURCE_SHA",
+        "github.workflow_sha",
+        "actions/checkout@v4",
+        "repository: ${{ env.WORKFLOW_SOURCE_REPOSITORY }}",
+        "ref: ${{ env.WORKFLOW_SOURCE_SHA }}",
+        "uses: ./.github/actions/configure-aws-oidc",
+        "uses: ./.github/actions/codepipeline-start",
+    ]:
+        assert required in text
+
+
+def test_canonical_runtime_deploy_script_enforces_final_posture() -> None:
+    """Canonical runtime convergence must live in one operator script."""
+    text = _read("scripts/release/deploy-runtime-cloudformation-environment.sh")
+
+    for required in [
+        "infra/runtime/kms.yml",
+        "infra/runtime/ecr.yml",
+        "infra/runtime/ecs/cluster.yml",
+        "infra/runtime/file_transfer/s3.yml",
+        "infra/runtime/file_transfer/async.yml",
+        "infra/runtime/file_transfer/cache.yml",
+        "infra/runtime/ecs/service.yml",
+        "infra/runtime/file_transfer/worker.yml",
+        "infra/runtime/observability/ecs-observability-baseline.yml",
+        "infra/nova/deploy/service-base-url-ssm.yml",
+        "--no-execute-changeset",
+        "--change-set-name",
+        "AssignPublicIp=DISABLED",
+        "IdempotencyMode=shared_required",
+        "FileTransferAsyncEnabled=true",
+        "FileTransferCacheEnabled=true",
+        "TaskExecutionSecretArns=",
+        "Runtime file-transfer bucket must not reuse the CI artifact bucket",
+    ]:
+        assert required in text
+
+    assert "AllowExecutionRoleSecretsWildcard" not in text
