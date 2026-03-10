@@ -25,11 +25,10 @@ def _principal() -> Principal:
 
 def _settings_without_local_oidc_verifier() -> Settings:
     """Build settings with local verifier construction disabled."""
-    settings = Settings(
-        oidc_issuer=None,
-        oidc_audience=None,
-        oidc_jwks_url=None,
-    )
+    settings = Settings()
+    settings.oidc_issuer = None
+    settings.oidc_audience = None
+    settings.oidc_jwks_url = None
     return settings
 
 
