@@ -31,8 +31,35 @@ TOKEN_INTROSPECT_REQUEST_SCHEMA = TokenIntrospectRequest.model_json_schema(
     ref_template="#/components/schemas/{model}"
 )
 TOKEN_INTROSPECT_FORM_REQUEST_SCHEMA = {
-    **TOKEN_INTROSPECT_REQUEST_SCHEMA,
     "title": "TokenIntrospectFormRequest",
+    "description": (
+        "RFC7662 form payload where token is rewritten to access_token by "
+        "normalize_introspect_payload."
+    ),
+    "type": "object",
+    "required": ["token"],
+    "properties": {
+        "token": {
+            "type": "string",
+            "minLength": 1,
+            "description": "RFC7662 token value rewritten to access_token.",
+        },
+        "token_type_hint": {
+            "type": "string",
+            "description": "Optional RFC7662 token type hint.",
+        },
+        "required_scopes": {
+            "type": "array",
+            "items": {"type": "string"},
+            "default": [],
+        },
+        "required_permissions": {
+            "type": "array",
+            "items": {"type": "string"},
+            "default": [],
+        },
+    },
+    "additionalProperties": False,
 }
 
 
@@ -112,7 +139,20 @@ def request_media_type(*, request: Request) -> str:
 
 
 def parse_form_payload(*, body: bytes) -> dict[str, Any]:
-    """Parse UTF-8 form-encoded introspection bodies."""
+    """Parse a UTF-8 form-encoded introspection body.
+
+    Args:
+        body: Raw request body bytes to decode and parse as
+            application/x-www-form-urlencoded content.
+
+    Returns:
+        Parsed payload mapping form field names to values. Scalar fields map to
+        the final submitted string value, and repeated required_scopes or
+        required_permissions entries map to a list of strings.
+
+    Raises:
+        RequestValidationError: If body cannot be decoded as UTF-8.
+    """
     try:
         decoded_body = body.decode("utf-8")
     except UnicodeDecodeError as exc:
@@ -141,7 +181,19 @@ def normalize_introspect_payload(
     *,
     raw_payload: dict[str, Any],
 ) -> dict[str, Any]:
-    """Normalize RFC7662 form names into the canonical request payload."""
+    """Normalize RFC7662 form keys into the canonical introspection payload.
+
+    Args:
+        raw_payload: Parsed request payload that may contain RFC7662 keys such
+            as token and token_type_hint.
+
+    Returns:
+        Copied payload dictionary where token is rewritten to access_token when
+        needed and RFC7662-only keys are removed.
+
+    Raises:
+        None.
+    """
     payload = dict(raw_payload)
     token_value = payload.get("token")
     if "access_token" not in payload and token_value is not None:
@@ -152,7 +204,19 @@ def normalize_introspect_payload(
 
 
 def with_body_loc(*, errors: list[Any]) -> list[dict[str, Any]]:
-    """Prefix validation locations with body for request-body errors."""
+    """Prefix validation error locations with the request body path.
+
+    Args:
+        errors: Validation error entries, typically from Pydantic, where each
+            dictionary may include a loc tuple to rewrite.
+
+    Returns:
+        List of error dictionaries with loc rewritten as
+        ("body", *existing_loc). Non-dictionary entries are skipped.
+
+    Raises:
+        None.
+    """
     output: list[dict[str, Any]] = []
     for error in errors:
         if not isinstance(error, dict):

@@ -123,7 +123,8 @@ def test_memory_activity_store_thread_safe_record_and_summary() -> None:
             except FutureTimeout as exc:
                 raise AssertionError("worker thread timed out") from exc
 
-    summary = asyncio.run(store.summary())
+    with _BackgroundLoop() as runtime:
+        summary = runtime.run(store.summary())
     assert summary["events_total"] == writer_threads * events_per_writer
     assert summary["active_users_today"] == writer_threads
     assert summary["distinct_event_types"] == 3

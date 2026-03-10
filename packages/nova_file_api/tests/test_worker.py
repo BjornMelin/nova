@@ -23,7 +23,10 @@ class _AsyncContext:
         return self._value
 
     async def __aexit__(
-        self, exc_type: object, exc: object, tb: object
+        self,
+        exc_type: object,
+        exc: object,
+        tb: object,
     ) -> bool:
         del exc_type, exc, tb
         return False
@@ -184,7 +187,7 @@ def _build_worker(
 
 
 @pytest.mark.asyncio
-async def test_worker_receive_message_uses_configured_sqs_settings() -> None:
+async def test_worker_receive_sqs_settings() -> None:
     """Verify worker receive-message call uses configured SQS settings."""
     fake_sqs = _FakeSqsClient()
     transfer_service = _FakeTransferService()
@@ -369,7 +372,7 @@ async def test_worker_executes_transfer_process_and_posts_success() -> None:
 
 
 @pytest.mark.asyncio
-async def test_worker_non_retryable_execution_failure_posts_failure() -> None:
+async def test_worker_non_retryable_error_posts_failure() -> None:
     """Verify worker reports failure for non-retryable execution errors."""
     fake_sqs = _FakeSqsClient()
     fake_http = _FakeHttpClient()
@@ -432,9 +435,7 @@ async def test_worker_non_retryable_execution_failure_posts_failure() -> None:
 
 
 @pytest.mark.asyncio
-async def test_worker_retryable_execution_failure_leaves_message_unacked() -> (
-    None
-):
+async def test_worker_retryable_error_leaves_message_unacked() -> None:
     """Verify worker leaves message unacked for retryable execution errors."""
     fake_sqs = _FakeSqsClient()
     fake_http = _FakeHttpClient()

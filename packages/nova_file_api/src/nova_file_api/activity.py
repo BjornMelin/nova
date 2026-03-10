@@ -43,9 +43,9 @@ class ActivityStore(Protocol):
         Returns:
             None
 
-        Raises:
-            ClientError: If the backing store rejects the write.
-            BotoCoreError: If the DynamoDB client fails.
+        Note:
+            Errors from the backing store are caught and logged; this method
+            does not raise ClientError or BotoCoreError.
         """
 
     async def summary(self) -> dict[str, int]:
@@ -213,9 +213,9 @@ class DynamoActivityStore:
         Returns:
             None
 
-        Raises:
-            ClientError: If DynamoDB rejects a write operation.
-            BotoCoreError: If the DynamoDB client fails.
+        Note:
+            Errors from DynamoDB are caught and logged; this method does not
+            raise ClientError or BotoCoreError.
         """
         day = _day_key()
         context = _record_log_context(

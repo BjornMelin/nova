@@ -23,6 +23,15 @@ def _principal() -> Principal:
     )
 
 
+def _settings_without_local_oidc_verifier() -> Settings:
+    """Build settings with local verifier construction disabled."""
+    settings = Settings()
+    settings.oidc_issuer = None
+    settings.oidc_audience = None
+    settings.oidc_jwks_url = None
+    return settings
+
+
 class _VerifierAssertingThreadBoundary:
     def __init__(self, state: dict[str, bool]) -> None:
         self._state = state
@@ -39,7 +48,7 @@ class _VerifierAssertingThreadBoundary:
 async def test_verify_uses_defaults_when_override_fields_are_omitted(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    settings = Settings()
+    settings = _settings_without_local_oidc_verifier()
     settings.oidc_required_scopes = "uploads:write"
     settings.oidc_required_permissions = "jobs:enqueue"
     service = TokenVerificationService(settings=settings)
@@ -69,7 +78,7 @@ async def test_verify_uses_defaults_when_override_fields_are_omitted(
 async def test_introspect_respects_explicit_empty_overrides(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    settings = Settings()
+    settings = _settings_without_local_oidc_verifier()
     settings.oidc_required_scopes = "uploads:write"
     settings.oidc_required_permissions = "jobs:enqueue"
     service = TokenVerificationService(settings=settings)
@@ -113,7 +122,7 @@ async def test_verify_runs_sync_jwt_verification_via_thread_boundary(
     Returns:
         None.
     """
-    settings = Settings()
+    settings = _settings_without_local_oidc_verifier()
     service = TokenVerificationService(settings=settings)
     boundary_state = {"inside_run_sync": False}
     verifier = _VerifierAssertingThreadBoundary(boundary_state)

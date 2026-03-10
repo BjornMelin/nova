@@ -65,7 +65,10 @@ def create_app(*, container_override: AppContainer | None = None) -> FastAPI:
         requires_sqs = (
             settings.jobs_enabled
             and settings.jobs_queue_backend == JobsQueueBackend.SQS
-            and bool(settings.jobs_sqs_queue_url)
+            and bool(
+                settings.jobs_sqs_queue_url
+                and settings.jobs_sqs_queue_url.strip()
+            )
         )
         async with AsyncExitStack() as stack:
             s3_client = await stack.enter_async_context(

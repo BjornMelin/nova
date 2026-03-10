@@ -139,9 +139,13 @@ def test_introspect_request_body_reuses_named_schema_for_all_media_types() -> (
     assert components["TokenIntrospectRequest"]["title"] == (
         "TokenIntrospectRequest"
     )
-    assert components["TokenIntrospectFormRequest"]["title"] == (
-        "TokenIntrospectFormRequest"
-    )
+    form_schema = components["TokenIntrospectFormRequest"]
+    assert form_schema["title"] == "TokenIntrospectFormRequest"
+    assert form_schema["required"] == ["token"]
+    assert form_schema["properties"]["token"]["type"] == "string"
+    assert form_schema["properties"]["token"]["minLength"] == 1
+    assert form_schema["properties"]["token_type_hint"]["type"] == "string"
+    assert "access_token" not in form_schema["properties"]
 
 
 def test_openapi_schema_generation_smoke() -> None:

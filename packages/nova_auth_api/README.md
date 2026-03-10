@@ -26,4 +26,4 @@ The package splits runtime concerns into dedicated modules:
 - `middleware.py` for request-id context
 - `request_parsing.py` for dual-mode introspection payload parsing
 - `exception_handlers.py` for canonical error envelopes
-- `openapi.py` and `operation_ids.py` for stable OpenAPI emission
+- `openapi.py` and `operation_ids.py` for stable OpenAPI emission.

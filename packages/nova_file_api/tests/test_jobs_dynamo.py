@@ -15,6 +15,8 @@ class _FakeTable:
         self.condition_writes: list[dict[str, Any]] = []
         self.query_error: ClientError | None = None
         self.query_calls: list[dict[str, Any]] = []
+        self.query_items: list[dict[str, Any]] = []
+        self.query_last_evaluated_key: dict[str, Any] | None = None
 
     async def put_item(
         self, *, Item: dict[str, Any], **kwargs: Any
@@ -59,14 +61,19 @@ class _FakeTable:
             raise self.query_error
         assert kwargs["IndexName"] == "scope_id-created_at-index"
         assert kwargs.get("ScanIndexForward") is False
-        return {"Items": []}
+        response: dict[str, Any] = {
+            "Items": [dict(item) for item in self.query_items]
+        }
+        if self.query_last_evaluated_key is not None:
+            response["LastEvaluatedKey"] = dict(self.query_last_evaluated_key)
+        return response
 
 
 class _FakeDynamoResource:
     def __init__(self, table: _FakeTable) -> None:
         self._table = table
 
-    async def Table(self, table_name: str) -> _FakeTable:
+    def Table(self, table_name: str) -> _FakeTable:
         del table_name
         return self._table
 
@@ -183,6 +190,32 @@ async def test_dynamo_job_repository_update_if_status_enforces_expected_state(
         )
         is False
     )
+
+
+@pytest.mark.asyncio
+async def test_dynamo_job_repository_list_for_scope_returns_records(
+    _fake_repo: tuple[DynamoJobRepository, _FakeTable],
+) -> None:
+    repo, table = _fake_repo
+    now = datetime.now(tz=UTC)
+    record = JobRecord(
+        job_id="job-list-1",
+        job_type="transform",
+        scope_id="scope-1",
+        status=JobStatus.PENDING,
+        payload={"input": "value"},
+        result=None,
+        error=None,
+        created_at=now,
+        updated_at=now,
+    )
+    table.query_items = [record.model_dump(mode="json")]
+
+    loaded = await repo.list_for_scope(scope_id="scope-1", limit=10)
+
+    assert len(loaded) == 1
+    assert loaded[0].job_id == "job-list-1"
+    assert loaded[0].scope_id == "scope-1"
 
 
 @pytest.mark.asyncio

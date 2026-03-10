@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
-from typing import Any, cast
+from typing import Any
 
 import pytest
 from botocore.exceptions import BotoCoreError, ClientError
@@ -793,16 +793,20 @@ def test_update_job_result_requires_valid_worker_token() -> None:
         metrics=metrics,
     )
     now = datetime.now(tz=UTC)
-    repository._records["job-update-3"] = JobRecord(
-        job_id="job-update-3",
-        job_type="transform",
-        scope_id="scope-1",
-        status=JobStatus.PENDING,
-        payload={"input": "value"},
-        result=None,
-        error=None,
-        created_at=now,
-        updated_at=now,
+    asyncio.run(
+        repository.create(
+            JobRecord(
+                job_id="job-update-3",
+                job_type="transform",
+                scope_id="scope-1",
+                status=JobStatus.PENDING,
+                payload={"input": "value"},
+                result=None,
+                error=None,
+                created_at=now,
+                updated_at=now,
+            )
+        )
     )
 
     container = AppContainer(
@@ -839,7 +843,10 @@ def test_update_job_result_requires_valid_worker_token() -> None:
     assert forbidden_response.json()["error"]["code"] == "forbidden"
     assert ok_response.status_code == 200
     assert ok_response.json()["status"] == "succeeded"
-    assert cast(MemoryActivityStore, container.activity_store)._events_per_day
+    activity_summary = asyncio.run(container.activity_store.summary())
+    assert activity_summary["events_total"] == 1
+    assert activity_summary["distinct_event_types"] == 1
+    assert activity_summary["active_users_today"] == 1
 
 
 def test_get_job_status_failure_emits_error_observability(
@@ -855,7 +862,10 @@ def test_get_job_status_failure_emits_error_observability(
     counters = metrics.counters_snapshot()
     assert counters["jobs_status_failure_total"] == 1
     assert {"route": "jobs_status", "status": "error"} in emitted_dimensions
-    assert activity_store._events_per_day
+    activity_summary = asyncio.run(activity_store.summary())
+    assert activity_summary["events_total"] == 1
+    assert activity_summary["distinct_event_types"] == 1
+    assert activity_summary["active_users_today"] == 1
 
 
 def test_legacy_cancel_route_is_not_exposed() -> None:
@@ -885,7 +895,10 @@ def test_cancel_job_failure_emits_error_observability(
     counters = metrics.counters_snapshot()
     assert counters["jobs_cancel_failure_total"] == 1
     assert {"route": "jobs_cancel", "status": "error"} in emitted_dimensions
-    assert activity_store._events_per_day
+    activity_summary = asyncio.run(activity_store.summary())
+    assert activity_summary["events_total"] == 1
+    assert activity_summary["distinct_event_types"] == 1
+    assert activity_summary["active_users_today"] == 1
 
 
 def test_update_job_result_failure_emits_error_observability(
@@ -910,7 +923,10 @@ def test_update_job_result_failure_emits_error_observability(
         "route": "jobs_result_update",
         "status": "error",
     } in emitted_dimensions
-    assert activity_store._events_per_day
+    activity_summary = asyncio.run(activity_store.summary())
+    assert activity_summary["events_total"] == 1
+    assert activity_summary["distinct_event_types"] == 1
+    assert activity_summary["active_users_today"] == 1
 
 
 def test_get_job_status_accepts_scope_header_same_origin() -> None:
