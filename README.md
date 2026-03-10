@@ -18,11 +18,11 @@ Use these entrypoints before drilling into deeper docs:
 
 ## Runtime Topology
 
-- `apps/nova_file_api_service/`: ASGI boot wrapper for the file API runtime
-- `apps/nova_auth_api_service/`: ASGI boot wrapper for the auth API runtime
-- `packages/nova_file_api/`: transfer, jobs, readiness, metrics, and worker
+- `packages/nova_file_api/`: transfer, jobs, readiness, metrics, ASGI
+  entrypoint, and worker
   orchestration
-- `packages/nova_auth_api/`: token verify/introspect semantics
+- `packages/nova_auth_api/`: token verify/introspect semantics and ASGI
+  entrypoint
 - `packages/nova_dash_bridge/`: Dash/Flask/FastAPI integration adapters
 - `packages/nova_runtime_support/`: shared runtime support helpers
 - `packages/contracts/`: OpenAPI artifacts and contract fixtures
@@ -114,8 +114,7 @@ Package/app build verification:
 ```bash
 source .venv/bin/activate && \
 for p in packages/nova_file_api packages/nova_auth_api \
-  packages/nova_dash_bridge apps/nova_file_api_service \
-  apps/nova_auth_api_service; do uv build "$p"; done
+  packages/nova_dash_bridge; do uv build "$p"; done
 ```
 
 If you touch `packages/nova_runtime_support`, also run:
@@ -151,6 +150,16 @@ Key release docs:
 - `docs/plan/release/NONPROD-LIVE-VALIDATION-RUNBOOK.md`
 - `docs/plan/release/release-promotion-dev-to-prod-guide.md`
 - `docs/plan/release/deploy-runtime-cloudformation-environments-guide.md`
+- `docs/plan/release/docker-buildx-and-credential-helper-setup-guide.md`
+
+## Local Service Images
+
+Local service-image verification uses the release-owned Dockerfiles under
+`apps/*` and now requires Docker BuildKit plus `buildx`.
+
+See:
+
+- `docs/plan/release/docker-buildx-and-credential-helper-setup-guide.md`
 
 ## Historical and Archive Paths
 
