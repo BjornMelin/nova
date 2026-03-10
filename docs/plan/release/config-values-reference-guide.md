@@ -117,7 +117,8 @@ Capture and manage these runtime values per environment before CI/CD deploy:
 - `SERVICE_DNS`
 - `TASK_ROLE_ARN`
 - `DOCKER_REPOSITORY_NAME`
-- `DOCKER_IMAGE_TAG`
+- `IMAGE_DIGEST`
+- `ENV_VARS_JSON`
 - `OWNER_TAG`
 - `ALARM_ACTION_ARN`
 - `ASSIGN_PUBLIC_IP` (`ENABLED` or `DISABLED`)

@@ -372,6 +372,8 @@ def test_iam_scope_constraints_for_release_roles() -> None:
 def test_runtime_env_and_parameter_contracts() -> None:
     """Runtime templates must preserve env/parameter guardrails."""
     async_text = _read("infra/runtime/file_transfer/async.yml")
+    ecr_text = _read("infra/runtime/ecr.yml")
+    s3_text = _read("infra/runtime/file_transfer/s3.yml")
     worker_text = _read("infra/runtime/file_transfer/worker.yml")
     service_text = _read("infra/runtime/ecs/service.yml")
 
@@ -430,6 +432,11 @@ def test_runtime_env_and_parameter_contracts() -> None:
     assert (
         "FileTransferCacheSecurityGroupExportName is required" in service_text
     )
+    assert "AllowExecutionRoleSecretsWildcard" not in ecr_text
+    assert (
+        "TaskExecutionSecretArns/TaskExecutionSsmParameterArns" not in ecr_text
+    )
+    assert "Prefix: !Ref TmpPrefix" in s3_text
 
 
 def test_pipeline_validation_base_url_parameters_are_constrained() -> None:

@@ -25,6 +25,24 @@ jobs:
   deploy-dev:
     runs-on: ubuntu-latest
     steps:
+      - name: Resolve workflow source repository
+        shell: bash
+        run: |
+          set -euo pipefail
+          workflow_ref="${{ github.workflow_ref }}"
+          if [[ "$workflow_ref" != *"/.github/workflows/"* ]]; then
+            echo "Malformed github.workflow_ref: $workflow_ref" >&2
+            exit 1
+          fi
+          echo "WORKFLOW_SOURCE_REPOSITORY=${workflow_ref%%/.github/workflows/*}" >> "$GITHUB_ENV"
+          echo "WORKFLOW_SOURCE_SHA=${{ github.workflow_sha }}" >> "$GITHUB_ENV"
+
+      - name: Checkout workflow source repository
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.WORKFLOW_SOURCE_REPOSITORY }}
+          ref: ${{ env.WORKFLOW_SOURCE_SHA }}
+
       - name: Configure AWS Credentials (OIDC)
         uses: ./.github/actions/configure-aws-oidc
         with:

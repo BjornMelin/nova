@@ -67,14 +67,17 @@ Required reusable workflows:
 
 ## 6. Consumer integration contract
 
-1. Downstream examples under `docs/clients/**` must compile and reference
+1. Reusable workflows that invoke internal composite actions from
+   `.github/actions/**` must checkout their workflow source repository at the
+   immutable `github.workflow_sha` revision before using local actions.
+2. Downstream examples under `docs/clients/**` must compile and reference
    reusable workflows.
-2. Validation workflows require `NOVA_API_BASE_URL` and must produce
+3. Validation workflows require `NOVA_API_BASE_URL` and must produce
    contract-compliant artifacts.
-3. Integration guides may use `@v1` in prose quick starts, but committed
+4. Integration guides may use `@v1` in prose quick starts, but committed
    examples must use immutable release tags and production guidance must
    require immutable refs.
-4. Composite actions under `.github/actions/**` remain internal implementation
+5. Composite actions under `.github/actions/**` remain internal implementation
    details and are not a supported external API surface.
 
 ## 7. CloudFormation validation contract
