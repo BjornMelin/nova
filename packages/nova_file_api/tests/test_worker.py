@@ -22,9 +22,7 @@ class _AsyncContext:
     async def __aenter__(self) -> Any:
         return self._value
 
-    async def __aexit__(
-        self, exc_type: object, exc: object, tb: object
-    ) -> bool:
+    async def __aexit__(self, exc_type: object, exc: object, tb: object) -> bool:
         del exc_type, exc, tb
         return False
 
@@ -185,6 +183,7 @@ def _build_worker(
 
 @pytest.mark.asyncio
 async def test_worker_receive_message_uses_configured_sqs_settings() -> None:
+    """Verify worker receive-message call incorporates configured SQS settings."""
     fake_sqs = _FakeSqsClient()
     transfer_service = _FakeTransferService()
     settings = Settings.model_validate(
@@ -222,6 +221,7 @@ async def test_worker_receive_message_uses_configured_sqs_settings() -> None:
 
 @pytest.mark.asyncio
 async def test_worker_invalid_message_is_not_deleted() -> None:
+    """Verify that malformed or invalid SQS messages are not acked/deleted."""
     fake_sqs = _FakeSqsClient()
     fake_http = _FakeHttpClient()
     transfer_service = _FakeTransferService()
@@ -249,6 +249,7 @@ async def test_worker_invalid_message_is_not_deleted() -> None:
 
 @pytest.mark.asyncio
 async def test_worker_posts_failed_status_for_unsupported_job_type() -> None:
+    """Verify worker reports failure when encountering an unknown job type."""
     fake_sqs = _FakeSqsClient()
     fake_http = _FakeHttpClient()
     fake_http.responses.append(
@@ -293,6 +294,7 @@ async def test_worker_posts_failed_status_for_unsupported_job_type() -> None:
 
 @pytest.mark.asyncio
 async def test_worker_executes_transfer_process_and_posts_success() -> None:
+    """Verify successful end-to-end transfer job processing and reporting."""
     fake_sqs = _FakeSqsClient()
     fake_http = _FakeHttpClient()
     fake_http.responses.extend(
@@ -366,6 +368,7 @@ async def test_worker_executes_transfer_process_and_posts_success() -> None:
 
 @pytest.mark.asyncio
 async def test_worker_non_retryable_execution_failure_posts_failure() -> None:
+    """Verify worker reports terminal failure for non-retryable execution errors."""
     fake_sqs = _FakeSqsClient()
     fake_http = _FakeHttpClient()
     fake_http.responses.extend(
@@ -427,9 +430,8 @@ async def test_worker_non_retryable_execution_failure_posts_failure() -> None:
 
 
 @pytest.mark.asyncio
-async def test_worker_retryable_execution_failure_leaves_message_unacked() -> (
-    None
-):
+async def test_worker_retryable_execution_failure_leaves_message_unacked() -> None:
+    """Verify worker leaves message unacked for retryable execution errors."""
     fake_sqs = _FakeSqsClient()
     fake_http = _FakeHttpClient()
     fake_http.responses.append(
@@ -480,6 +482,14 @@ async def test_worker_retryable_execution_failure_leaves_message_unacked() -> (
 async def test_worker_retries_running_update_until_accepted(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """Verify worker retries the initial 'running' status post until success.
+
+    Args:
+        monkeypatch: Pytest fixture for mocking asyncio sleep and random.
+
+    Returns:
+        None
+    """
     fake_sqs = _FakeSqsClient()
     fake_http = _FakeHttpClient()
     fake_http.responses.extend(
@@ -553,6 +563,14 @@ async def test_worker_retries_running_update_until_accepted(
 async def test_worker_unacked_when_terminal_update_retries_exhausted(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """Verify message remains unacked if terminal result post fails repeatedly.
+
+    Args:
+        monkeypatch: Pytest fixture for mocking asyncio sleep and random.
+
+    Returns:
+        None
+    """
     fake_sqs = _FakeSqsClient()
     fake_http = _FakeHttpClient()
     fake_http.responses.extend(
@@ -629,12 +647,16 @@ async def test_worker_unacked_when_terminal_update_retries_exhausted(
 async def test_worker_run_deletes_message_when_non_retryable_error(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    captured_async_client_args: tuple[
-        tuple[Any, ...], dict[str, Any]
-    ] | None = None
-    captured_transfer_service_args: tuple[
-        tuple[Any, ...], dict[str, Any]
-    ] | None = None
+    """Verify end-to-end worker.run() deletes message on non-retryable error.
+
+    Args:
+        monkeypatch: Pytest fixture for mocking runtime service construction.
+
+    Returns:
+        None
+    """
+    captured_async_client_args: tuple[tuple[Any, ...], dict[str, Any]] | None = None
+    captured_transfer_service_args: tuple[tuple[Any, ...], dict[str, Any]] | None = None
     fake_sqs = _FakeSqsClient()
     fake_http = _FakeHttpClient()
     fake_s3_client = object()
@@ -693,9 +715,7 @@ async def test_worker_run_deletes_message_when_non_retryable_error(
         _capture_async_client,
     )
 
-    def _capture_transfer_service(
-        *args: Any, **kwargs: Any
-    ) -> _FakeTransferService:
+    def _capture_transfer_service(*args: Any, **kwargs: Any) -> _FakeTransferService:
         nonlocal captured_transfer_service_args
         captured_transfer_service_args = (args, kwargs)
         return transfer_service
@@ -715,12 +735,10 @@ async def test_worker_run_deletes_message_when_non_retryable_error(
     assert async_client_kwargs["timeout"] == 10.0
     assert async_client_kwargs["headers"]["X-Worker-Token"] == "worker-token"
     assert captured_transfer_service_args is not None
-    transfer_service_args, transfer_service_kwargs = (
-        captured_transfer_service_args
-    )
+    transfer_service_args, transfer_service_kwargs = captured_transfer_service_args
     assert transfer_service_args == ()
-    assert transfer_service_kwargs['settings'] is settings
-    assert transfer_service_kwargs['s3_client'] is fake_s3_client
+    assert transfer_service_kwargs["settings"] is settings
+    assert transfer_service_kwargs["s3_client"] is fake_s3_client
     assert fake_sqs.delete_calls == [
         {
             "QueueUrl": "https://example.local/queue",
