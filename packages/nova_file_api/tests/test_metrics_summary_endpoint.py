@@ -26,7 +26,12 @@ class _StubAuthenticator:
     """Return a fixed principal for metrics summary authorization tests."""
 
     def __init__(self, *, permissions: tuple[str, ...]) -> None:
-        """Store the permissions exposed by the fake authenticator."""
+        """
+        Initialize the authenticator with the given permissions.
+        
+        Parameters:
+            permissions (tuple[str, ...]): Permission strings that the stubbed principal will expose.
+        """
         self._permissions = permissions
 
     async def authenticate(
@@ -35,6 +40,18 @@ class _StubAuthenticator:
         request: Request,
         session_id: str | None,
     ) -> Principal:
+        """
+        Return a fixed Principal representing the test caller "caller-1".
+        
+        Both `request` and `session_id` are ignored by this authenticator.
+        
+        Parameters:
+            request (Request): Ignored by this authenticator.
+            session_id (str | None): Ignored by this authenticator.
+        
+        Returns:
+            Principal: Principal with subject "caller-1", scope_id "scope-1", tenant_id `None`, no scopes, and the permissions configured on this authenticator.
+        """
         del request, session_id
         return Principal(
             subject="caller-1",
@@ -50,7 +67,18 @@ async def _build_container(
     auth_mode: AuthMode,
     permissions: tuple[str, ...],
 ) -> AppContainer:
-    """Build a minimal app container for metrics summary tests."""
+    """
+    Builds a minimal AppContainer configured for metrics summary tests.
+    
+    The returned container uses the provided authentication mode and a stub authenticator seeded with the given permissions, and includes prepopulated testing components (metrics with a single request counter and a latency sample, a two-tier cache with a shared redis stub, in-memory job repository/service and publisher, an activity store with one recorded "jobs_enqueue" event for subject "caller-1"/scope "scope-1", a stub transfer service, and an idempotency store enabled with a 300s TTL).
+    
+    Parameters:
+        auth_mode (AuthMode): Authentication mode to set on the container.
+        permissions (tuple[str, ...]): Permissions to assign to the stub authenticator.
+    
+    Returns:
+        AppContainer: A fully constructed application container ready for metrics summary tests.
+    """
     settings = Settings()
     settings.auth_mode = auth_mode
 

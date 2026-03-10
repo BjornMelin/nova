@@ -39,7 +39,20 @@ TOKEN_INTROSPECT_FORM_REQUEST_SCHEMA = {
 async def parse_introspect_request(
     request: Request,
 ) -> TokenIntrospectRequest:
-    """Parse JSON or RFC7662 form payloads for token introspection."""
+    """
+    Parse an incoming HTTP request into a validated TokenIntrospectRequest.
+    
+    Accepts either JSON or RFC7662 form-encoded payloads (application/x-www-form-urlencoded), normalizes RFC7662 field names, and validates the resulting payload against the TokenIntrospectRequest model.
+    
+    Parameters:
+        request (Request): The incoming HTTP request to parse.
+    
+    Returns:
+        TokenIntrospectRequest: The validated introspection request model.
+    
+    Raises:
+        RequestValidationError: If the request body contains invalid JSON or cannot be decoded, if the parsed body is not a mapping, or if model validation fails (validation error locations are prefixed with `body`).
+    """
     media_type = request_media_type(request=request)
     if media_type == FORM_MEDIA_TYPE:
         raw_payload = parse_form_payload(body=await request.body())
@@ -86,7 +99,14 @@ IntrospectRequestDep = Annotated[
 
 
 def request_media_type(*, request: Request) -> str:
-    """Return the normalized request content type."""
+    """
+    Determine the normalized media type from the request's Content-Type header.
+    
+    Strips any parameters (everything after ';'), trims whitespace, and lowercases the result. Defaults to "application/json" when the header is missing or not a string.
+    
+    Returns:
+        media_type (str): The normalized media type (e.g. "application/json", "application/x-www-form-urlencoded").
+    """
     value = request.headers.get("content-type")
     if not isinstance(value, str):
         return JSON_MEDIA_TYPE
@@ -94,7 +114,22 @@ def request_media_type(*, request: Request) -> str:
 
 
 def parse_form_payload(*, body: bytes) -> dict[str, Any]:
-    """Parse UTF-8 form-encoded introspection bodies."""
+    """
+    Parse an x-www-form-urlencoded introspection request body into a normalized payload dictionary.
+    
+    Decodes the raw bytes as UTF-8, parses the form-encoded string into keys and values, and returns a dictionary where:
+    - "required_scopes" and "required_permissions" map to the full list of values (list[str]).
+    - All other keys map to the last value provided for that key, or an empty string if no value was provided.
+    
+    Parameters:
+        body (bytes): Raw request body.
+    
+    Returns:
+        dict[str, Any]: Parsed payload with string keys and either str or list[str] values.
+    
+    Raises:
+        RequestValidationError: If the body cannot be decoded as UTF-8; the error will include a `"type": "unicode_decode_error"` entry.
+    """
     try:
         decoded_body = body.decode("utf-8")
     except UnicodeDecodeError as exc:
@@ -123,7 +158,15 @@ def normalize_introspect_payload(
     *,
     raw_payload: dict[str, Any],
 ) -> dict[str, Any]:
-    """Normalize RFC7662 form names into the canonical request payload."""
+    """
+    Normalize an introspection request payload to canonical field names.
+    
+    Parameters:
+        raw_payload (dict[str, Any]): Parsed request payload from JSON or form data.
+    
+    Returns:
+        dict[str, Any]: A copy of the payload where `access_token` is set to the value of `token` if `access_token` was missing, and the keys `token` and `token_type_hint` have been removed.
+    """
     payload = dict(raw_payload)
     token_value = payload.get("token")
     if "access_token" not in payload and token_value is not None:
@@ -134,7 +177,17 @@ def normalize_introspect_payload(
 
 
 def with_body_loc(*, errors: list[Any]) -> list[dict[str, Any]]:
-    """Prefix validation locations with body for request-body errors."""
+    """
+    Prefix the `loc` entries of validation error dictionaries with `"body"`.
+    
+    Non-dictionary entries in `errors` are ignored. For each dictionary error, returns a shallow copy with its `loc` value replaced by a tuple starting with `"body"` followed by the original location components (uses an empty tuple if `loc` is missing).
+    
+    Parameters:
+        errors (list[Any]): A list of validation error objects; dictionary entries are processed, others are skipped.
+    
+    Returns:
+        list[dict[str, Any]]: A list of error dictionaries with `loc` values prefixed by `"body"`.
+    """
     output: list[dict[str, Any]] = []
     for error in errors:
         if not isinstance(error, dict):

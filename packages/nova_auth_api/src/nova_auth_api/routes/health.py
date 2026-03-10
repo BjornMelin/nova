@@ -22,7 +22,12 @@ router = APIRouter(prefix="/v1/health", tags=["health"])
     operation_id=HEALTH_LIVE_OPERATION_ID,
 )
 async def health_live(request_id: RequestIdDep) -> HealthResponse:
-    """Return liveness status."""
+    """
+    Return the service liveness information.
+    
+    Returns:
+        HealthResponse: HealthResponse with status "ok", service "nova-auth-api", and the provided request_id.
+    """
     return HealthResponse(
         status="ok",
         service="nova-auth-api",
@@ -39,7 +44,18 @@ async def health_ready(
     request_id: RequestIdDep,
     service: TokenVerificationServiceDep,
 ) -> HealthResponse:
-    """Return readiness status for token verification."""
+    """
+    Return a readiness HealthResponse when the token verification service reports ready.
+    
+    Parameters:
+        request_id (str): Request identifier provided by the RequestIdDep dependency.
+    
+    Returns:
+        HealthResponse: Object with status "ok", service "nova-auth-api", and the provided request_id.
+    
+    Raises:
+        service_unavailable: If the token verification service is not ready (message "auth verifier unavailable").
+    """
     if not service.is_ready():
         raise service_unavailable("auth verifier unavailable")
     return HealthResponse(

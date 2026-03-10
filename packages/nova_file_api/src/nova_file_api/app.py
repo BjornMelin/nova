@@ -19,7 +19,23 @@ from nova_file_api.routes import ops_router, transfer_router, v1_router
 
 
 def create_app(*, container_override: AppContainer | None = None) -> FastAPI:
-    """Create configured FastAPI application."""
+    """
+    Create and configure a FastAPI application for nova-file-api.
+    
+    The returned application is initialized with the lifecycle manager that sets up
+    and tears down the dependency container (or attaches the provided override),
+    registers middleware, routers, OpenAPI overrides, and exception handlers.
+    
+    Parameters:
+        container_override (AppContainer | None): Optional prebuilt application
+            container to attach to the app instead of creating one. If provided,
+            the container is used as-is and, if its `authenticator` exposes an
+            `aclose` coroutine, that coroutine will be awaited on shutdown.
+    
+    Returns:
+        FastAPI: A FastAPI application instance configured with the project's
+        routers, middleware, lifespan, and exception handlers.
+    """
     configure_structlog()
     settings = (
         container_override.settings
@@ -29,6 +45,11 @@ def create_app(*, container_override: AppContainer | None = None) -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+        """
+        Manage application lifespan by attaching settings and a dependency container to app.state and ensuring the container's authenticator is closed on shutdown.
+        
+        If a container_override is provided, it is attached to app.state.container and its `authenticator.aclose()` coroutine is awaited on shutdown when present. If no override is provided, AWS clients/resources are created, an application container is instantiated and attached to app.state.container for the app lifetime, and that container's `authenticator.aclose()` coroutine is awaited on shutdown when present.
+        """
         app.state.settings = settings
         if container_override is not None:
             app.state.container = container_override

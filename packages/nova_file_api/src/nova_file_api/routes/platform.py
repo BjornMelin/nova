@@ -41,7 +41,14 @@ platform_router = APIRouter(prefix="/v1", tags=["platform"])
 async def get_capabilities(
     context: RequestContextDep,
 ) -> CapabilitiesResponse:
-    """Expose runtime capability declarations."""
+    """
+    List runtime capabilities exposed by the service.
+    
+    Each CapabilityDescriptor indicates whether a named runtime feature (for example "jobs", "jobs.events.poll", "transfers") is enabled based on the current service settings.
+    
+    Returns:
+        CapabilitiesResponse: Response containing a list of CapabilityDescriptor entries describing available runtime features.
+    """
     settings = context.container.settings
     capabilities = [
         CapabilityDescriptor(key="jobs", enabled=settings.jobs_enabled),
@@ -66,7 +73,14 @@ async def plan_resources(
     payload: ResourcePlanRequest,
     context: RequestContextDep,
 ) -> ResourcePlanResponse:
-    """Plan supportability for requested resource keys."""
+    """
+    Produce a compatibility plan for requested resource keys.
+    
+    For each resource in the request, returns a ResourcePlanItem indicating whether the resource is supported and, if not, a concrete reason derived from availability and runtime settings.
+    
+    Returns:
+        ResourcePlanResponse: Contains a list of ResourcePlanItem where `supported` is `true` when the resource is available and not disabled by settings, otherwise `false` with `reason` set to one of `"unsupported_resource"`, `"jobs_disabled"`, or `"file_transfers_disabled"`.
+    """
     settings = context.container.settings
     available = {"jobs", "transfers", "downloads", "uploads"}
     plan = [
@@ -109,7 +123,12 @@ async def plan_resources(
 async def get_release_info(
     context: RequestContextDep,
 ) -> ReleaseInfoResponse:
-    """Return service release metadata."""
+    """
+    Provide the service's release metadata.
+    
+    Returns:
+        ReleaseInfoResponse: Contains `name` (application name), `version` (application version), and `environment` (deployment environment).
+    """
     settings = context.container.settings
     return ReleaseInfoResponse(
         name=settings.app_name,
@@ -124,7 +143,12 @@ async def get_release_info(
     response_model=HealthResponse,
 )
 async def health_live() -> HealthResponse:
-    """Return liveness status."""
+    """
+    Indicates that the service is alive.
+    
+    Returns:
+        HealthResponse: A health response with ok=True.
+    """
     return HealthResponse(ok=True)
 
 
@@ -137,7 +161,20 @@ async def health_ready(
     context: RequestContextDep,
     response: Response,
 ) -> ReadinessResponse:
-    """Return readiness checks for traffic-critical dependencies."""
+    """
+    Determine readiness of traffic-critical dependencies.
+    
+    Performs health checks for shared cache, job queue (if enabled), activity store,
+    and authentication dependency (unless SAME_ORIGIN). Sets the HTTP response
+    status to 503 when any check indicates failure.
+    
+    Parameters:
+        response (Response): HTTP response object; its status_code will be set to 503 when not ready.
+    
+    Returns:
+        ReadinessResponse: Contains `ok` indicating overall readiness and `checks` mapping
+        individual dependency names to their boolean health status.
+    """
     container = context.container
     logger = structlog.get_logger("api")
 
@@ -212,7 +249,15 @@ async def health_ready(
 async def metrics_summary(
     context: RequestContextDep,
 ) -> MetricsSummaryResponse:
-    """Return low-cardinality metrics summary for dashboards."""
+    """
+    Provide a low-cardinality metrics summary for dashboards.
+    
+    Raises:
+        ForbiddenError: If the request principal lacks the "metrics:read" permission when auth mode is not SAME_ORIGIN.
+    
+    Returns:
+        MetricsSummaryResponse: Contains a counters snapshot, a latency snapshot in milliseconds, and an activity summary from the activity store.
+    """
     container = context.container
     principal = await context.authenticate(session_id=None)
     if (

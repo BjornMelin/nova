@@ -34,9 +34,24 @@ class _FakeS3Client:
 
 class _FakeS3Factory:
     def __init__(self, *, client: _FakeS3Client) -> None:
+        """
+        Initialize the factory with a fake S3 client to be returned by create().
+        
+        Parameters:
+            client (_FakeS3Client): The fake S3 client that this factory will return.
+        """
         self._client = client
 
     def create(self, _env: FileTransferEnvConfig) -> _FakeS3Client:
+        """
+        Return the factory's stored fake S3 client.
+        
+        Parameters:
+            _env (FileTransferEnvConfig): Ignored; provided for interface compatibility.
+        
+        Returns:
+            _FakeS3Client: The preconfigured fake S3 client instance stored by the factory.
+        """
         return self._client
 
 
@@ -46,6 +61,11 @@ class _FakeCoreTransferService:
     def __init__(
         self, *, settings: object, s3_client: object | None = None
     ) -> None:
+        """
+        Test-only no-op initializer that satisfies the core transfer service constructor signature.
+        
+        Accepts the same parameters as the real service but discards them and creates no state; present only to satisfy test fixture dependencies.
+        """
         del settings, s3_client
 
 
@@ -54,6 +74,16 @@ def _service_with_response(
     monkeypatch: pytest.MonkeyPatch,
     response: dict[str, object],
 ) -> FileTransferService:
+    """
+    Create a FileTransferService configured to use a fake S3 client that returns the provided response.
+    
+    Parameters:
+        monkeypatch (pytest.MonkeyPatch): Patch fixture used to replace the real TransferService with a test double.
+        response (dict[str, object]): The dictionary that the fake S3 client's get_object method will return.
+    
+    Returns:
+        FileTransferService: A service instance that uses a _FakeS3Factory wrapping a _FakeS3Client which returns `response`.
+    """
     monkeypatch.setattr(
         dash_service_module,
         "TransferService",

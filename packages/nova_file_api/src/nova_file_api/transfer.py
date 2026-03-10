@@ -44,11 +44,12 @@ class TransferService:
         settings: Settings,
         s3_client: Any,
     ) -> None:
-        """Initialize transfer service and S3 client.
-
-        Args:
-            settings: Runtime settings for transfer behavior.
-            s3_client: Prebuilt async S3 client.
+        """
+        Create a TransferService configured with runtime settings and a prebuilt async S3 client.
+        
+        Parameters:
+            settings (Settings): Configuration controlling upload/export/tmp prefixes and transfer behavior.
+            s3_client (Any): Preconfigured async-capable S3 client used for all S3 operations.
         """
         self.settings = settings
         self._s3 = cast(Any, s3_client)
@@ -67,7 +68,19 @@ class TransferService:
         request: InitiateUploadRequest,
         principal: Principal,
     ) -> InitiateUploadResponse:
-        """Initiate single or multipart upload based on policy."""
+        """
+        Start an upload by allocating an S3 key and returning either a single-part or multipart upload initiation response.
+        
+        Parameters:
+            request (InitiateUploadRequest): Contains filename, size_bytes, and optional content_type used to select upload strategy and build the upload object.
+            principal (Principal): Caller principal whose scope_id is used to construct the upload key.
+        
+        Returns:
+            InitiateUploadResponse: Response describing the chosen upload strategy and S3 parameters (bucket/key and either a presigned put URL for single uploads or an upload_id, part size, and presign TTL for multipart).
+        
+        Raises:
+            invalid_request: If request.size_bytes exceeds the configured max_upload_bytes.
+        """
         if request.size_bytes > self.settings.max_upload_bytes:
             raise invalid_request(
                 "file size exceeds configured upload limit",
@@ -101,7 +114,16 @@ class TransferService:
         request: SignPartsRequest,
         principal: Principal,
     ) -> SignPartsResponse:
-        """Sign multipart part URLs for caller-owned key."""
+        """
+        Generate presigned upload URLs for each multipart part for an upload key owned by the caller.
+        
+        Parameters:
+            request (SignPartsRequest): Request containing `key`, `upload_id`, and `part_numbers` to sign.
+            principal (Principal): Caller identity; `scope_id` is used to verify ownership of the upload key.
+        
+        Returns:
+            SignPartsResponse: Contains `expires_in_seconds` and `urls`, a mapping from part number to its presigned upload URL.
+        """
         self._assert_upload_scope(key=request.key, scope_id=principal.scope_id)
 
         urls: dict[int, str] = {}
@@ -131,7 +153,18 @@ class TransferService:
         request: CompleteUploadRequest,
         principal: Principal,
     ) -> CompleteUploadResponse:
-        """Complete multipart upload for caller-owned key."""
+        """
+        Finalize a multipart upload for an upload key owned by the provided principal.
+        
+        Validates the caller's ownership of the key and completes the multipart upload identified by request.upload_id and request.parts.
+        
+        Returns:
+            CompleteUploadResponse: The completed object's bucket and key, `etag` if present, and `version_id` if present.
+        
+        Raises:
+            invalid_request: If the key is outside the caller's upload scope.
+            upstream_s3_error: If the S3 complete multipart upload operation fails.
+        """
         self._assert_upload_scope(key=request.key, scope_id=principal.scope_id)
 
         parts = [
@@ -163,7 +196,21 @@ class TransferService:
         request: AbortUploadRequest,
         principal: Principal,
     ) -> AbortUploadResponse:
-        """Abort multipart upload for caller-owned key."""
+        """
+        Abort a multipart upload owned by the caller.
+        
+        Validates that the provided key is within the caller's upload scope and aborts the multipart upload identified by the request's upload_id.
+        
+        Parameters:
+        	request: Contains `key` (the object key to abort) and `upload_id` (the multipart upload ID).
+        	principal: Caller principal whose `scope_id` is used to validate ownership of the upload key.
+        
+        Returns:
+        	AbortUploadResponse: Response with `ok` set to True when the abort succeeds.
+        
+        Raises:
+        	upstream_s3_error: If the underlying S3 abort operation fails.
+        """
         self._assert_upload_scope(key=request.key, scope_id=principal.scope_id)
 
         try:
@@ -182,7 +229,21 @@ class TransferService:
         request: PresignDownloadRequest,
         principal: Principal,
     ) -> PresignDownloadResponse:
-        """Presign download URL for caller-owned key."""
+        """
+        Create a presigned GET URL for a read-authorized object key.
+        
+        The response may include ResponseContentDisposition set from `request.content_disposition`
+        (if provided) or constructed from `request.filename` (sanitized) as a fallback.
+        If `request.content_type` is provided it is forwarded as ResponseContentType.
+        The caller's `principal.scope_id` is validated against the key's allowed read scopes.
+        
+        Parameters:
+            request: Uses `key`, optional `content_disposition`, optional `filename`, and optional `content_type`.
+            principal: Caller principal whose `scope_id` is used for read-scope validation.
+        
+        Returns:
+            PresignDownloadResponse: Contains bucket, key, a presigned GET URL, and `expires_in_seconds`.
+        """
         self._assert_read_scope(key=request.key, scope_id=principal.scope_id)
 
         params: dict[str, Any] = {
@@ -224,23 +285,22 @@ class TransferService:
         job_id: str,
         filename: str,
     ) -> ExportCopyResult:
-        """Copy a caller-scoped upload object into the export prefix.
-
-        Args:
-            source_bucket: Bucket containing the upload object to export.
-            source_key: Caller-scoped upload object key to copy.
-            scope_id: Caller scope identifier used for ownership validation.
-            job_id: Job identifier used to namespace the export object key.
-            filename: Download filename to preserve in the export result.
-
+        """
+        Copy an upload object from the caller's scoped upload prefix into the service's export prefix for a job.
+        
+        Parameters:
+            source_bucket (str): Bucket containing the source upload object; must match configured transfer bucket.
+            source_key (str): Key of the caller-scoped upload object to copy.
+            scope_id (str): Caller scope identifier used for ownership validation.
+            job_id (str): Job identifier used to namespace the export object key; sanitized if necessary.
+            filename (str): Desired download filename to preserve with the exported object; falls back to the source object's basename.
+        
         Returns:
-            ExportCopyResult: Metadata describing the copied export object.
-
+            ExportCopyResult: Contains `export_key` (the destination key under the export prefix) and `download_filename` (sanitized filename to present to download consumers).
+        
         Raises:
-            FileTransferError: ``invalid_request`` when caller validation or
-                source object absence/TOCTOU checks fail.
-            FileTransferError: ``upstream_s3_error`` for retryable S3
-                infra failures.
+            FileTransferError: Raised via `invalid_request` when the source bucket does not match configuration, the source key is outside the caller's upload scope, or the source object is not found.
+            FileTransferError: Raised via `upstream_s3_error` for S3-side errors that should be retried or investigated.
         """
         if source_bucket != self.settings.file_transfer_bucket:
             raise invalid_request(
@@ -292,6 +352,16 @@ class TransferService:
         key: str,
         content_type: str | None,
     ) -> InitiateUploadResponse:
+        """
+        Create an initiation response for a single-object upload by generating a presigned PUT URL.
+        
+        Parameters:
+            key (str): S3 object key where the file will be uploaded.
+            content_type (str | None): Optional MIME type to associate with the uploaded object; included as Content-Type on the upload if provided.
+        
+        Returns:
+            InitiateUploadResponse: Response containing UploadStrategy.SINGLE, the target bucket and key, a presigned PUT URL, and the URL's expiration in seconds.
+        """
         params: dict[str, Any] = {
             "Bucket": self.settings.file_transfer_bucket,
             "Key": key,
@@ -321,6 +391,20 @@ class TransferService:
         key: str,
         content_type: str | None,
     ) -> InitiateUploadResponse:
+        """
+        Initiates a multipart upload in S3 for the specified object key.
+        
+        Parameters:
+            key (str): Object key for the multipart upload.
+            content_type (str | None): Optional Content-Type to assign to the created object.
+        
+        Returns:
+            InitiateUploadResponse: Initiation details including strategy `MULTIPART`, bucket, key,
+            `upload_id`, configured `part_size_bytes`, and `expires_in_seconds`.
+        
+        Raises:
+            upstream_s3_error: If the S3 create_multipart_upload call fails or the response lacks an UploadId.
+        """
         kwargs: dict[str, Any] = {
             "Bucket": self.settings.file_transfer_bucket,
             "Key": key,
@@ -356,6 +440,20 @@ class TransferService:
         params: dict[str, Any],
         expires_in: int,
     ) -> str:
+        """
+        Generate a presigned S3 URL for the given client operation and parameters.
+        
+        Parameters:
+            operation (str): S3 client method name to presign (e.g., "put_object", "get_object").
+            params (dict[str, Any]): Parameters to pass to the S3 operation (Bucket, Key, etc.).
+            expires_in (int): Number of seconds the presigned URL will remain valid.
+        
+        Returns:
+            url (str): The generated presigned URL.
+        
+        Raises:
+            upstream_s3_error: If the underlying S3 client fails to generate the presigned URL.
+        """
         try:
             generated = await self._s3.generate_presigned_url(
                 ClientMethod=operation,
@@ -388,11 +486,33 @@ class TransferService:
         return f"{self._export_prefix}{scope_id}/{stable_job_id}/{filename}"
 
     def _assert_upload_scope(self, *, key: str, scope_id: str) -> None:
+        """
+        Verify that the given S3 object key resides within the caller's upload scope.
+        
+        Parameters:
+            key (str): The S3 object key to validate.
+            scope_id (str): The caller's scope identifier used to determine the allowed upload prefix.
+        
+        Raises:
+            InvalidRequestError: If the key does not start with the caller's upload scope prefix (raises with message "key is outside caller upload scope").
+        """
         expected_prefix = f"{self._upload_prefix}{scope_id}/"
         if not key.startswith(expected_prefix):
             raise invalid_request("key is outside caller upload scope")
 
     def _assert_read_scope(self, *, key: str, scope_id: str) -> None:
+        """
+        Assert that `key` is readable by the caller identified by `scope_id`.
+        
+        This checks whether `key` starts with one of the service's readable prefixes for the given scope (upload, export, or tmp). If the key is not under any of those prefixes, an `invalid_request` error is raised.
+        
+        Parameters:
+            key (str): S3 object key to validate.
+            scope_id (str): Caller scope identifier used to construct allowed prefixes.
+        
+        Raises:
+            invalid_request: If `key` is outside the caller's read scope (message: "key is outside caller read scope").
+        """
         expected_prefixes = (
             f"{self._upload_prefix}{scope_id}/",
             f"{self._export_prefix}{scope_id}/",
@@ -402,6 +522,16 @@ class TransferService:
             raise invalid_request("key is outside caller read scope")
 
     async def _assert_upload_object_exists(self, *, key: str) -> None:
+        """
+        Verify that the specified object exists in the service's configured transfer S3 bucket.
+        
+        Parameters:
+            key (str): S3 object key to check.
+        
+        Raises:
+            invalid_request: If the object does not exist (S3 error code "404", "NoSuchKey", or "NotFound").
+            upstream_s3_error: If an S3 or BotoCore error occurs while inspecting the object.
+        """
         try:
             await self._s3.head_object(
                 Bucket=self.settings.file_transfer_bucket,
@@ -421,6 +551,15 @@ class TransferService:
 
 
 def _sanitize_filename(filename: str) -> str:
+    """
+    Sanitize a filename to a safe basename containing only letters, digits, '.', '-', and '_' and truncated to at most 255 characters.
+    
+    Parameters:
+        filename (str): A filename or path; only the basename portion is considered.
+    
+    Returns:
+        sanitized_filename (str): The cleaned basename. If the cleaned name is empty, returns "file". If longer than 255 characters, the result is truncated to 255 characters.
+    """
     base_name = Path(filename).name
     cleaned = "".join(
         character

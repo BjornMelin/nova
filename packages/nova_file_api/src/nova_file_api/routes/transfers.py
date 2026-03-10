@@ -48,7 +48,17 @@ async def initiate_upload(
     context: RequestContextDep,
     idempotency_key: IdempotencyKeyHeader = None,
 ) -> InitiateUploadResponse:
-    """Choose upload strategy and return presigned metadata."""
+    """
+    Determine the upload strategy and provide presigned metadata and instructions for starting an upload.
+    
+    If an idempotency key is provided, the request may be replayed, claimed for deduplication, and the final response stored for future replays; metrics and activity events are emitted on a best-effort basis.
+    
+    Parameters:
+        idempotency_key (IdempotencyKeyHeader, optional): Idempotency key used to enable replay and deduplication of this request. If omitted, idempotency semantics are not applied.
+    
+    Returns:
+        InitiateUploadResponse: Presigned upload metadata and client instructions required to perform the upload.
+    """
     container = context.container
     principal = await context.authenticate(session_id=payload.session_id)
     key = validated_idempotency_key(
@@ -191,7 +201,12 @@ async def sign_upload_parts(
     payload: SignPartsRequest,
     context: RequestContextDep,
 ) -> SignPartsResponse:
-    """Return presigned multipart part URLs."""
+    """
+    Generate presigned URLs for multipart upload parts.
+    
+    Returns:
+        SignPartsResponse: Presigned part URLs along with multipart upload identifiers and related metadata.
+    """
     container = context.container
     principal = await context.authenticate(session_id=payload.session_id)
 
@@ -252,7 +267,12 @@ async def complete_upload(
     payload: CompleteUploadRequest,
     context: RequestContextDep,
 ) -> CompleteUploadResponse:
-    """Complete multipart upload."""
+    """
+    Complete a multipart upload and return details about the completed transfer.
+    
+    Returns:
+        response (CompleteUploadResponse): Details about the completed upload.
+    """
     container = context.container
     principal = await context.authenticate(session_id=payload.session_id)
 
@@ -313,7 +333,14 @@ async def abort_upload(
     payload: AbortUploadRequest,
     context: RequestContextDep,
 ) -> AbortUploadResponse:
-    """Abort multipart upload."""
+    """
+    Abort an in-progress multipart upload.
+    
+    Attempts to abort the multipart upload identified by the request payload; on success it records best-effort metrics and an activity event describing the abort.
+    
+    Returns:
+        An AbortUploadResponse describing the result of the abort operation.
+    """
     container = context.container
     principal = await context.authenticate(session_id=payload.session_id)
 
@@ -374,7 +401,14 @@ async def presign_download(
     payload: PresignDownloadRequest,
     context: RequestContextDep,
 ) -> PresignDownloadResponse:
-    """Issue presigned GET URL for caller-scoped key."""
+    """
+    Issue a presigned GET URL scoped to the requesting principal.
+    
+    Performs the presign operation for the provided request and attempts to emit request metrics and record an activity event; failures in metric or activity recording are best-effort and do not change the operation result. On presign operation failure, transfer failure metrics and an activity attempt are recorded before the exception is propagated.
+    
+    Returns:
+        PresignDownloadResponse: Object containing the presigned GET URL and any associated metadata required to perform the download.
+    """
     container = context.container
     principal = await context.authenticate(session_id=payload.session_id)
 
@@ -437,7 +471,21 @@ async def _record_transfer_failure(
     activity_event_type: str,
     exc: Exception,
 ) -> None:
-    """Record canonical metrics, logs, and activity for transfer failures."""
+    """
+    Record transfer failure metrics, emit a structured log entry, and attempt to record an activity event.
+    
+    This helper emits a failure metric (best-effort), logs the provided exception and context (route and principal scope), and then attempts to record an activity event describing the failure; if activity recording fails, that failure is logged but not raised.
+    
+    Parameters:
+        context (RequestContext): Request-scoped container and services used to emit metrics and record activity.
+        principal (Principal): Authenticated principal associated with the request; used for scope and activity recording.
+        metric_name (str): Name of the counter metric to increment for the failure.
+        route_metric (str): Route identifier used when emitting the route-level metric.
+        log_event (str): Message/event name to include in the structured exception log.
+        route_path (str): API route path used in logs and metrics for context.
+        activity_event_type (str): Activity event type name to record in the activity store.
+        exc (Exception): The exception instance that caused the transfer failure.
+    """
     container = context.container
     _emit_request_metric_best_effort(
         container=container,

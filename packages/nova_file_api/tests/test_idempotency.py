@@ -46,6 +46,11 @@ class _StubAuthenticator:
 
 class _StubJobService:
     def __init__(self) -> None:
+        """
+        Create a stub service instance that tracks invocation count.
+        
+        Initializes an internal counter `calls` to 0 for tests to verify how many times the service's methods are invoked.
+        """
         self.calls = 0
 
     async def enqueue(
@@ -55,6 +60,17 @@ class _StubJobService:
         payload: dict[str, Any],
         scope_id: str,
     ) -> JobRecord:
+        """
+        Create and return a new pending JobRecord with a generated job_id and timestamps set to the current UTC time.
+        
+        Parameters:
+            job_type (str): Logical type or name of the job.
+            payload (dict[str, Any]): Payload provided to the job.
+            scope_id (str): Identifier of the scope the job belongs to.
+        
+        Returns:
+            JobRecord: The enqueued job record with status `JobStatus.PENDING`, a generated `job_id` of the form `"job-{n}"`, and `created_at`/`updated_at` set to the current UTC time.
+        """
         self.calls += 1
         now = datetime.now(tz=UTC)
         return JobRecord(
@@ -70,16 +86,33 @@ class _StubJobService:
         )
 
     async def get(self, *, job_id: str, scope_id: str) -> JobRecord:
+        """
+        Indicates the stubbed get method is not used by tests by always raising a RuntimeError.
+        
+        Raises:
+            RuntimeError: Always raised with message "not used by this test".
+        """
         del job_id, scope_id
         raise RuntimeError("not used by this test")
 
     async def cancel(self, *, job_id: str, scope_id: str) -> JobRecord:
+        """
+        This stub method is intentionally unusable in tests and always raises a RuntimeError.
+        
+        Raises:
+            RuntimeError: Always raised with message "not used by this test".
+        """
         del job_id, scope_id
         raise RuntimeError("not used by this test")
 
 
 class _StubTransferService:
     def __init__(self) -> None:
+        """
+        Create a stub service instance that tracks invocation count.
+        
+        Initializes an internal counter `calls` to 0 for tests to verify how many times the service's methods are invoked.
+        """
         self.calls = 0
 
     async def initiate_upload(
@@ -87,6 +120,23 @@ class _StubTransferService:
         payload: Any,
         principal: Principal,
     ) -> InitiateUploadResponse:
+        """
+        Produce a deterministic InitiateUploadResponse for tests using the single-part upload strategy.
+        
+        This stub ignores its inputs and increments an internal call counter; the counter value is embedded in the returned key and url.
+        
+        Parameters:
+            payload (Any): Ignored by this stub.
+            principal (Principal): Ignored by this stub.
+        
+        Returns:
+            InitiateUploadResponse: Response with
+                - strategy: UploadStrategy.SINGLE
+                - bucket: "bucket-a"
+                - key: "uploads/scope-1/object-{n}" where {n} is the internal call index
+                - expires_in_seconds: 900
+                - url: "https://example.local/upload/{n}" where {n} is the internal call index
+        """
         del payload, principal
         self.calls += 1
         return InitiateUploadResponse(

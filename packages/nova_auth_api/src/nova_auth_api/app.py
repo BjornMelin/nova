@@ -21,7 +21,16 @@ def create_app(
     settings_override: Settings | None = None,
     service_override: TokenVerificationService | None = None,
 ) -> FastAPI:
-    """Create configured FastAPI application."""
+    """
+    Create and configure a FastAPI application for nova-auth-api.
+    
+    Parameters:
+        settings_override (Settings | None): Optional Settings instance to use instead of creating a new one; its values (including app_version) will be applied to the app.
+        service_override (TokenVerificationService | None): Optional TokenVerificationService to attach as app.state.auth_service; if omitted a default service is created using the chosen settings.
+    
+    Returns:
+        A configured FastAPI application with OpenAPI customization installed, request context middleware and exception handlers registered, health and token routers included, and app.state.settings and app.state.auth_service populated.
+    """
     configure_structlog()
     settings = settings_override or Settings()
 

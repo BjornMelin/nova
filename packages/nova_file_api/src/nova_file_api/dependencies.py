@@ -16,7 +16,15 @@ _APPLICATION_CONTAINER_NOT_INITIALIZED = (
 
 
 def get_container(request: Request) -> AppContainer:
-    """Return dependency container from app state."""
+    """
+    Retrieve the application container stored on the FastAPI app state.
+    
+    Returns:
+        AppContainer: The application's container instance.
+    
+    Raises:
+        TypeError: If the container is missing or is not an AppContainer.
+    """
     container = getattr(request.app.state, "container", None)
     if not isinstance(container, AppContainer):
         raise TypeError(_APPLICATION_CONTAINER_NOT_INITIALIZED)
@@ -24,7 +32,12 @@ def get_container(request: Request) -> AppContainer:
 
 
 def get_request_id(request: Request) -> str | None:
-    """Return request-id value from middleware state."""
+    """
+    Return the request identifier attached to request.state by middleware, if any.
+    
+    Returns:
+        The request identifier string if present on request.state, otherwise None.
+    """
     value = getattr(request.state, "request_id", None)
     if isinstance(value, str):
         return value
@@ -39,7 +52,15 @@ class RequestContext:
     container: AppContainer
 
     async def authenticate(self, *, session_id: str | None) -> Principal:
-        """Authenticate the current caller for the request."""
+        """
+        Authenticate the current request's caller and return the resulting Principal.
+        
+        Parameters:
+            session_id (str | None): Optional session identifier to use for authentication; pass None to authenticate without a session.
+        
+        Returns:
+            Principal: The authenticated principal for the current request.
+        """
         return await self.container.authenticator.authenticate(
             request=self.request,
             session_id=session_id,
@@ -50,7 +71,12 @@ def get_request_context(
     request: Request,
     container: Annotated[AppContainer, Depends(get_container)],
 ) -> RequestContext:
-    """Return a request-scoped runtime context for handlers."""
+    """
+    Create a request-scoped runtime context for route handlers.
+    
+    Returns:
+        RequestContext: A RequestContext containing the current Request and the resolved AppContainer.
+    """
     return RequestContext(
         request=request,
         container=container,

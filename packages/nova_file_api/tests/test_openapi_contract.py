@@ -30,7 +30,14 @@ _HTTP_METHODS = frozenset(
 
 
 def _build_openapi_app() -> FastAPI:
-    """Build the file API app without starting real AWS clients in tests."""
+    """
+    Create a FastAPI app configured for OpenAPI and schema regression tests.
+    
+    The app is prewired with in-memory stores and test doubles and overrides external integrations so no real external services or AWS clients are started; suitable for generating OpenAPI schema and exercising route- and schema-related tests.
+    
+    Returns:
+        FastAPI: A FastAPI application instance ready for generating OpenAPI schema and exercising route-related tests.
+    """
     settings = Settings()
     settings.auth_mode = AuthMode.SAME_ORIGIN
     settings.jobs_enabled = True
@@ -67,6 +74,20 @@ def _build_openapi_app() -> FastAPI:
 
 
 def _operation_id_map(payload: dict[str, Any]) -> dict[str, dict[str, str]]:
+    """
+    Extract mapping of OpenAPI paths to per-method `operationId` strings.
+    
+    Parameters:
+        payload (dict[str, Any]): Parsed OpenAPI document; must contain a "paths" mapping where each path maps
+            to a mapping of HTTP methods to operation objects.
+    
+    Returns:
+        dict[str, dict[str, str]]: Mapping from path -> (HTTP method -> `operationId`) for methods present in the payload.
+    
+    Raises:
+        AssertionError: If "paths" is missing or not a dict, if a path or path item has unexpected types,
+            if an operation is not a dict, or if an `operationId` is missing or not a non-empty string.
+    """
     paths = payload.get("paths", {})
     assert isinstance(paths, dict)
 
@@ -183,7 +204,11 @@ def test_openapi_schema_generation_smoke() -> None:
 
 
 def test_legacy_routes_are_not_exposed() -> None:
-    """Legacy API and legacy health routes must remain removed."""
+    """
+    Ensure legacy API and health routes are not exposed by the test FastAPI app.
+    
+    Asserts that the legacy transfer upload initiation, job enqueue, and health endpoints (/healthz, /readyz) are absent from the application's route paths.
+    """
     app = _build_openapi_app()
     route_paths = {route.path for route in app.routes if hasattr(route, "path")}
     assert "/api/transfers/uploads/initiate" not in route_paths

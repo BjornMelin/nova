@@ -17,14 +17,32 @@ class _AsyncContext:
     """Wrap an object in an async context-manager interface."""
 
     def __init__(self, value: Any) -> None:
+        """
+        Store a value to be yielded by the instance when used as an async context manager.
+        
+        Parameters:
+            value (Any): The object that __aenter__ will return when the context is entered.
+        """
         self._value = value
 
     async def __aenter__(self) -> Any:
+        """
+        Provide the wrapped value when entering the asynchronous context manager.
+        
+        Returns:
+            The stored value held by the context manager.
+        """
         return self._value
 
     async def __aexit__(
         self, exc_type: object, exc: object, tb: object
     ) -> bool:
+        """
+        Exit the asynchronous context manager and ensure any exception raised inside the context is propagated.
+        
+        Returns:
+            False: indicates the exception, if any, should be propagated (not suppressed).
+        """
         del exc_type, exc, tb
         return False
 
@@ -33,10 +51,30 @@ class _FakeSession:
     """Expose aioboto3 Session.client API for worker run tests."""
 
     def __init__(self, *, sqs_client: Any, s3_client: Any) -> None:
+        """
+        Initialize the fake session with the provided SQS and S3 client objects.
+        
+        Parameters:
+            sqs_client (Any): An object that implements the asynchronous SQS client interface used in tests (e.g., async receive_message and delete_message).
+            s3_client (Any): An object that implements the S3 client interface used in tests.
+        """
         self._sqs_client = sqs_client
         self._s3_client = s3_client
 
     def client(self, service_name: str, **kwargs: Any) -> _AsyncContext:
+        """
+        Get an async context manager that yields a fake runtime client for a given service.
+        
+        Parameters:
+            service_name: The service to retrieve; must be "sqs" or "s3".
+            **kwargs: Ignored.
+        
+        Returns:
+            An async context manager that yields the corresponding fake client.
+        
+        Raises:
+            AssertionError: If `service_name` is not "sqs" or "s3".
+        """
         del kwargs
         if service_name == "sqs":
             return _AsyncContext(self._sqs_client)
@@ -49,17 +87,40 @@ class _FakeSqsClient:
     """Capture SQS interactions for worker tests."""
 
     def __init__(self) -> None:
+        """
+        Initialize the fake SQS client capturing calls and queued messages for tests.
+        
+        Attributes:
+            receive_calls (list[dict[str, Any]]): Recorded kwargs for each receive_message invocation.
+            delete_calls (list[dict[str, Any]]): Recorded kwargs for each delete_message invocation.
+            messages (list[dict[str, Any]]): Preloaded messages to be returned by receive_message.
+        """
         self.receive_calls: list[dict[str, Any]] = []
         self.delete_calls: list[dict[str, Any]] = []
         self.messages: list[dict[str, Any]] = []
 
     async def receive_message(self, **kwargs: Any) -> dict[str, Any]:
+        """
+        Simulate receiving messages from a test SQS-like queue and record the call arguments.
+        
+        Parameters:
+            **kwargs (Any): Keyword arguments passed to the simulated receive_message call; appended to self.receive_calls for later inspection.
+        
+        Returns:
+            dict: A mapping with the key "Messages" whose value is a list of message dictionaries taken from self.messages; returns {"Messages": []} when no messages are available.
+        """
         self.receive_calls.append(kwargs)
         if not self.messages:
             return {"Messages": []}
         return {"Messages": list(self.messages)}
 
     async def delete_message(self, **kwargs: Any) -> None:
+        """
+        Record parameters of an SQS `delete_message` invocation for test inspection.
+        
+        Appends the provided keyword arguments to `self.delete_calls` so tests can assert which
+        delete requests would have been made (e.g., QueueUrl and ReceiptHandle).
+        """
         self.delete_calls.append(kwargs)
 
 
@@ -67,11 +128,37 @@ class _FakeHttpClient:
     """Capture internal result callback POST requests."""
 
     def __init__(self, **kwargs: Any) -> None:
+        """
+        Create a fake HTTP client configured for tests.
+        
+        Stores the provided configuration and initializes a queue of responses (or exceptions) and a log of POST requests; post() will record requests to `posts` and return or raise items from `responses`.
+        
+        Parameters:
+            **kwargs: Arbitrary configuration values for test setup; stored on the instance as `kwargs`.
+        
+        Attributes:
+            kwargs (dict): The provided configuration kwargs.
+            responses (list[httpx.Response | Exception]): Queue of responses or exceptions that post() will return or raise.
+            posts (list[dict[str, Any]]): Recorded POST requests, each as a dict with keys like "url" and "json".
+        """
         self.kwargs = kwargs
         self.responses: list[httpx.Response | Exception] = []
         self.posts: list[dict[str, Any]] = []
 
     async def post(self, url: str, **kwargs: Any) -> httpx.Response:
+        """
+        Simulate an HTTP POST by recording the request and returning or raising the next queued response.
+        
+        Parameters:
+            url (str): The destination URL of the POST.
+            **kwargs: Expect a `json` keyword containing the JSON payload that will be recorded.
+        
+        Returns:
+            httpx.Response: The next response object popped from the internal responses queue.
+        
+        Raises:
+            Exception: If the next item in the internal responses queue is an Exception, that exception is raised.
+        """
         self.posts.append({"url": url, "json": kwargs["json"]})
         response = self.responses.pop(0)
         if isinstance(response, Exception):
@@ -83,6 +170,14 @@ class _FakeTransferService:
     """Provide deterministic transfer worker outcomes."""
 
     def __init__(self) -> None:
+        """
+        Create a deterministic fake transfer service for tests.
+        
+        Attributes:
+            calls (list[dict[str, Any]]): Recorded arguments for each copy_upload_to_export invocation.
+            result (ExportCopyResult | None): Predefined result to return from copy_upload_to_export when set.
+            error (Exception | None): Predefined exception to raise from copy_upload_to_export when set.
+        """
         self.calls: list[dict[str, Any]] = []
         self.result: ExportCopyResult | None = None
         self.error: Exception | None = None
@@ -96,6 +191,22 @@ class _FakeTransferService:
         job_id: str,
         filename: str,
     ) -> ExportCopyResult:
+        """
+        Copy an upload into the export store and return metadata for the exported object.
+        
+        Parameters:
+            source_bucket (str): Name of the S3 bucket containing the source object.
+            source_key (str): Key of the source object in the S3 bucket.
+            scope_id (str): Identifier for the export scope (used to build export path).
+            job_id (str): Identifier for the job producing the export.
+            filename (str): Filename to use for the exported object.
+        
+        Returns:
+            ExportCopyResult: Contains `export_key` (S3 key for the exported object) and `download_filename` (filename clients should use).
+        
+        Raises:
+            Exception: If the transfer service was configured with an error, that exception is raised.
+        """
         self.calls.append(
             {
                 "source_bucket": source_bucket,
@@ -145,6 +256,20 @@ def _worker_message_body(
 
 
 def _worker_settings() -> Settings:
+    """
+    Create a Settings instance preconfigured for a worker process.
+    
+    The returned Settings has worker-specific values required for tests:
+    - JOBS_ENABLED: True
+    - JOBS_RUNTIME_MODE: "worker"
+    - JOBS_QUEUE_BACKEND: SQS
+    - JOBS_SQS_QUEUE_URL: "https://example.local/queue"
+    - JOBS_API_BASE_URL: "https://api.example.local"
+    - JOBS_WORKER_UPDATE_TOKEN: SecretStr("worker-token")
+    
+    Returns:
+        Settings: A Settings object populated with the above worker configuration.
+    """
     return Settings.model_validate(
         {
             "JOBS_ENABLED": True,
@@ -164,6 +289,17 @@ def _attach_runtime_clients(
     api_client: _FakeHttpClient,
     transfer_service: _FakeTransferService,
 ) -> None:
+    """
+    Attach fake runtime clients to a JobsWorker for tests.
+    
+    Assigns the provided fake SQS client to worker._sqs, the fake HTTP client to worker._api (as an httpx.AsyncClient), and the fake transfer service to worker._runtime_transfer_service (as a TransferService).
+    
+    Parameters:
+        worker (JobsWorker): Worker instance to modify.
+        sqs_client (_FakeSqsClient): Fake SQS client to attach.
+        api_client (_FakeHttpClient): Fake HTTP client to attach (used as the worker's API client).
+        transfer_service (_FakeTransferService): Fake transfer service to attach.
+    """
     worker._sqs = sqs_client
     worker._api = cast(httpx.AsyncClient, api_client)
     worker._runtime_transfer_service = cast(TransferService, transfer_service)
@@ -174,6 +310,19 @@ def _build_worker(
     settings: Settings | None = None,
     transfer_service: _FakeTransferService | None = None,
 ) -> JobsWorker:
+    """
+    Builds a JobsWorker preconfigured for use in tests.
+    
+    If `settings` is omitted, a test-focused Settings instance is created. If
+    `transfer_service` is omitted, a new deterministic _FakeTransferService is used.
+    
+    Parameters:
+        settings (Settings | None): Optional Settings to initialize the worker with.
+        transfer_service (_FakeTransferService | None): Optional fake transfer service to use for deterministic transfer behavior in tests.
+    
+    Returns:
+        worker (JobsWorker): A JobsWorker configured with the provided or default settings and transfer service.
+    """
     concrete_transfer_service = (
         _FakeTransferService() if transfer_service is None else transfer_service
     )
@@ -518,6 +667,14 @@ async def test_worker_retries_running_update_until_accepted(
     sleep_calls: list[float] = []
 
     async def _fake_sleep(delay: float) -> None:
+        """
+        Record a simulated sleep delay into the shared sleep_calls list without pausing execution.
+        
+        Appends the provided delay value to the module-level `sleep_calls` list so tests can assert intended sleep durations instead of actually sleeping.
+        
+        Parameters:
+            delay (float): The number of seconds that would have been slept.
+        """
         sleep_calls.append(delay)
 
     monkeypatch.setattr("nova_file_api.worker.asyncio.sleep", _fake_sleep)
@@ -590,6 +747,12 @@ async def test_worker_unacked_when_terminal_update_retries_exhausted(
     transfer_service = _FakeTransferService()
 
     async def _fake_sleep(delay: float) -> None:
+        """
+        No-op replacement for asyncio.sleep that returns immediately.
+        
+        Parameters:
+            delay (float): Sleep duration in seconds; this parameter is ignored.
+        """
         del delay
         return None
 
@@ -662,6 +825,14 @@ async def test_worker_run_deletes_message_when_non_retryable_error(
     )
 
     async def _receive_once() -> list[dict[str, Any]]:
+        """
+        Signal the worker to stop and return a single SQS-like message.
+        
+        The returned message is a dict containing "MessageId", "ReceiptHandle", "Body" (a serialized worker message), and "Attributes" (including "ApproximateReceiveCount").
+        
+        Returns:
+            list[dict[str, Any]]: A list containing one SQS-like message dictionary.
+        """
         worker._stop_requested = True
         return [
             {

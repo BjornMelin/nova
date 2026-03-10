@@ -29,11 +29,14 @@ class Authenticator:
     """Resolve and validate principals based on configured auth mode."""
 
     def __init__(self, *, settings: Settings, cache: TwoTierCache) -> None:
-        """Initialize authenticator state and optional JWT verifier.
-
-        Args:
-            settings: Runtime authentication settings.
-            cache: Shared cache for token verification results.
+        """
+        Initialize the Authenticator with runtime configuration and cache, building a verifier if configured.
+        
+        Sets up internal state including an optional JWT verifier, a capacity limiter for verifier threads, and lazy placeholders for the remote HTTP client and its creation lock.
+        
+        Parameters:
+            settings (Settings): Runtime authentication configuration used to build the verifier and control auth behavior.
+            cache (TwoTierCache): Shared two-tier cache for storing token verification results.
         """
         self._settings = settings
         self._cache = cache
@@ -50,14 +53,20 @@ class Authenticator:
         request: Request,
         session_id: str | None,
     ) -> Principal:
-        """Authenticate caller and return principal.
-
-        Args:
-            request: Current request with headers.
-            session_id: Optional body-provided session identifier.
-
+        """
+        Authenticate the incoming request and return the resolved Principal.
+        
+        Inspects request headers for authentication (or session headers for same-origin mode) and validates credentials according to configured auth_mode.
+        
+        Parameters:
+            request (Request): Incoming request; Authorization and session-related headers are examined when applicable.
+            session_id (str | None): Optional session identifier provided in the request body used to resolve same-origin sessions.
+        
+        Returns:
+            Principal: Authenticated principal containing subject, scope_id, tenant_id, scopes, and permissions.
+        
         Raises:
-            FileTransferError: On authentication or authorization failures.
+            FileTransferError: If authentication or authorization fails.
         """
         if self._settings.auth_mode == AuthMode.SAME_ORIGIN:
             return self._same_origin_principal(
@@ -240,6 +249,15 @@ class Authenticator:
 
     @staticmethod
     def _build_verifier(settings: Settings) -> JWTVerifier | None:
+        """
+        Create a JWTVerifier when local JWT verification is enabled and configured.
+        
+        Parameters:
+            settings (Settings): Application settings used to determine auth mode and verifier configuration.
+        
+        Returns:
+            JWTVerifier | None: A configured JWTVerifier if settings indicate JWT_LOCAL mode and local OIDC verifier is configured; `None` otherwise.
+        """
         if settings.auth_mode != AuthMode.JWT_LOCAL:
             return None
         if not settings.local_oidc_verifier_configured:
@@ -254,6 +272,14 @@ class Authenticator:
         )
 
     async def _get_remote_client(self) -> httpx.AsyncClient:
+        """
+        Get or create the shared httpx.AsyncClient used for remote verification, initializing it lazily in a thread-safe manner.
+        
+        If no client exists, a lock is created (if necessary) and used to ensure only one AsyncClient instance is constructed and cached on first use.
+        
+        Returns:
+            httpx.AsyncClient: The cached or newly created async HTTP client.
+        """
         client = self._remote_client
         if client is not None:
             return client

@@ -71,7 +71,11 @@ def test_openapi_path_method_operation_ids_are_stable() -> None:
 
 
 def test_openapi_path_method_tags_are_semantic() -> None:
-    """OpenAPI should group auth operations under semantic tags."""
+    """
+    Ensure OpenAPI paths for health and token endpoints use semantic tags.
+    
+    Asserts that /v1/health/live and /v1/health/ready are tagged "health" and /v1/token/verify and /v1/token/introspect are tagged "token".
+    """
     app = create_app()
     with TestClient(app) as client:
         response = client.get("/openapi.json")

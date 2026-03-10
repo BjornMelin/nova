@@ -12,7 +12,15 @@ from nova_file_api.models import Principal
 
 
 def _principal(*, subject: str) -> Principal:
-    """Build a test principal for activity store operations."""
+    """
+    Create a Principal used in tests for activity store operations.
+    
+    Parameters:
+        subject (str): Identifier for the principal's subject.
+    
+    Returns:
+        Principal: A Principal with the given subject, fixed scope_id "scope-1", no tenant, and empty scopes and permissions.
+    """
     return Principal(
         subject=subject,
         scope_id="scope-1",
@@ -36,14 +44,31 @@ class _BackgroundLoop:
         )
 
     def __enter__(self) -> _BackgroundLoop:
-        """Start the background loop thread."""
+        """
+        Start the background event loop thread and wait for it to become ready.
+        
+        Waits up to 5 seconds for the loop to signal readiness; if the loop does not become ready within that time an AssertionError is raised.
+        
+        Returns:
+            self: The started _BackgroundLoop instance.
+        
+        Raises:
+            AssertionError: If the background loop did not start within 5 seconds.
+        """
         self._thread.start()
         if not self._ready.wait(timeout=5):
             raise AssertionError("background loop did not start")
         return self
 
     def __exit__(self, exc_type: object, exc: object, tb: object) -> None:
-        """Stop the background loop thread and close its resources."""
+        """
+        Stop the background event loop and join its thread.
+        
+        Schedules a thread-safe stop of the loop, waits up to 5 seconds for the background thread to finish, and raises an error if the thread does not terminate.
+        
+        Raises:
+            AssertionError: If the background thread is still alive after the 5 second join timeout.
+        """
         del exc_type, exc, tb
         self._loop.call_soon_threadsafe(self._loop.stop)
         self._thread.join(timeout=5)
@@ -51,13 +76,29 @@ class _BackgroundLoop:
             raise AssertionError("background loop thread did not stop")
 
     def run[T](self, coroutine: Coroutine[Any, Any, T]) -> T:
-        """Run one coroutine on the dedicated loop and block for the result."""
+        """
+        Run the given coroutine on the background event loop and return its result.
+        
+        Parameters:
+            coroutine (Coroutine[Any, Any, T]): Coroutine to schedule on the background loop.
+        
+        Returns:
+            T: The value produced by the coroutine.
+        
+        Raises:
+            concurrent.futures.TimeoutError: If the coroutine does not complete within 10 seconds.
+            Exception: Any exception raised by the coroutine is propagated.
+        """
         return asyncio.run_coroutine_threadsafe(coroutine, self._loop).result(
             timeout=10
         )
 
     def _run(self) -> None:
-        """Run the event loop until explicitly stopped."""
+        """
+        Run and manage the background asyncio event loop on the current thread until it is stopped.
+        
+        Sets this object's loop as the current event loop, signals that the loop is ready, runs the loop until it is stopped, shuts down asynchronous generators, closes the loop, and clears the current event loop reference.
+        """
         asyncio.set_event_loop(self._loop)
         self._ready.set()
         try:
@@ -69,7 +110,16 @@ class _BackgroundLoop:
 
 
 def test_memory_activity_store_thread_safe_record_and_summary() -> None:
-    """Verify concurrent readers and writers observe consistent memory state."""
+    """
+    Verify that MemoryActivityStore produces consistent summaries under concurrent write/read load.
+    
+    Spawns multiple writer and reader threads synchronized with a barrier; each writer records a fixed number of events (cycling through three event types) and readers repeatedly fetch summaries. Assertions are performed during execution to ensure summary fields are non-negative, and final assertions verify that:
+    - "events_total" equals writers * events_per_writer,
+    - "active_users_today" equals the number of writers,
+    - "distinct_event_types" equals 3.
+    
+    The test runs store coroutines on a dedicated background event loop provided by _BackgroundLoop and fails if thread coordination or worker completion times out.
+    """
     store = MemoryActivityStore()
     writer_threads = 8
     reader_threads = 4
@@ -81,6 +131,15 @@ def test_memory_activity_store_thread_safe_record_and_summary() -> None:
     ]
 
     def _wait_for_start(*, context: str) -> None:
+        """
+        Waits up to 10 seconds for the shared start barrier to be released and fails the test if it does not.
+        
+        Parameters:
+            context (str): Description of the calling step used in the failure message.
+        
+        Raises:
+            AssertionError: If waiting on the barrier times out.
+        """
         try:
             start.wait(timeout=10)
         except threading.BrokenBarrierError as exc:
@@ -89,6 +148,14 @@ def test_memory_activity_store_thread_safe_record_and_summary() -> None:
             ) from exc
 
     def _writer(worker_index: int) -> None:
+        """
+        Runs a writer thread that records a sequence of events for the principal identified by worker_index and intermittently validates the activity store summary.
+        
+        The function waits for the coordinated test start, then records `events_per_writer` events for the corresponding principal, cycling event types ("event-0".."event-2"). Every 25th iteration it reads a summary and asserts that reported totals are non-negative.
+        
+        Parameters:
+            worker_index (int): Index into the shared `subjects` list selecting which principal this writer will record events for.
+        """
         principal = subjects[worker_index]
         _wait_for_start(context=f"writer-{worker_index}")
         for iteration in range(events_per_writer):
@@ -103,6 +170,11 @@ def test_memory_activity_store_thread_safe_record_and_summary() -> None:
                 assert snapshot["events_total"] >= 0
 
     def _reader() -> None:
+        """
+        Performs repeated summary reads from the activity store and validates key metrics.
+        
+        Performs summary_reads_per_reader snapshot reads via the shared runtime and, for each snapshot, asserts that `events_total`, `active_users_today`, and `distinct_event_types` are greater than or equal to zero.
+        """
         _wait_for_start(context="reader")
         for _ in range(summary_reads_per_reader):
             snapshot = runtime.run(store.summary())

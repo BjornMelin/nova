@@ -11,6 +11,14 @@ from nova_file_api.models import JobRecord, JobStatus
 
 class _FakeTable:
     def __init__(self) -> None:
+        """
+        Initialize the in-memory fake table used by tests.
+        
+        Sets up:
+        - _items: mapping from job_id (str) to stored item dict.
+        - condition_writes: list capturing conditional write attempts (condition expression and attributes).
+        - query_error: optional ClientError to be raised by query() to simulate DynamoDB errors.
+        """
         self._items: dict[str, dict[str, Any]] = {}
         self.condition_writes: list[dict[str, Any]] = []
         self.query_error: ClientError | None = None
@@ -18,6 +26,28 @@ class _FakeTable:
     async def put_item(
         self, *, Item: dict[str, Any], **kwargs: Any
     ) -> dict[str, Any]:
+        """
+        Store an item in the in-memory table, optionally enforcing a conditional expression.
+        
+        If a ConditionExpression is provided, the condition details (ConditionExpression,
+        ExpressionAttributeNames, ExpressionAttributeValues) are recorded in
+        condition_writes. If ExpressionAttributeValues contains the key ":expected_status",
+        the current item's "status" is compared to that value; if the item is missing or
+        the status does not match, a ClientError with Error.Code "ConditionalCheckFailedException"
+        is raised. On success a shallow copy of Item is stored under Item["job_id"].
+        
+        Parameters:
+            Item (dict[str, Any]): The item to store; must contain a "job_id" key.
+            ConditionExpression (optional, in kwargs): Condition expression string to record.
+            ExpressionAttributeNames (optional, in kwargs): Map of expression attribute names.
+            ExpressionAttributeValues (optional, in kwargs): Map of expression attribute values; used to read ":expected_status" if present.
+        
+        Returns:
+            dict: An empty dictionary.
+        
+        Raises:
+            botocore.exceptions.ClientError: With Error.Code "ConditionalCheckFailedException" when the conditional check fails (item missing or status mismatch).
+        """
         condition = kwargs.get("ConditionExpression")
         if condition is not None:
             self.condition_writes.append(
@@ -46,6 +76,15 @@ class _FakeTable:
         return {}
 
     async def get_item(self, *, Key: dict[str, Any]) -> dict[str, Any]:
+        """
+        Retrieve an item by job_id from the fake table's in-memory store.
+        
+        Parameters:
+        	Key (dict[str, Any]): Mapping containing the key "job_id" whose value identifies the item to fetch.
+        
+        Returns:
+        	dict[str, Any]: If found, returns {"Item": <item dict>}; otherwise returns an empty dict.
+        """
         job_id = str(Key["job_id"])
         item = self._items.get(job_id)
         if item is None:
@@ -53,6 +92,15 @@ class _FakeTable:
         return {"Item": dict(item)}
 
     async def query(self, **kwargs: Any) -> dict[str, Any]:
+        """
+        Execute a query against the fake table and return matching items.
+        
+        Raises:
+            ClientError: the stored query_error if one has been configured.
+        
+        Returns:
+            result (dict): A dictionary with key "Items" mapping to the list of matching items; defaults to an empty list.
+        """
         del kwargs
         if self.query_error is not None:
             raise self.query_error
@@ -61,15 +109,38 @@ class _FakeTable:
 
 class _FakeDynamoResource:
     def __init__(self, table: _FakeTable) -> None:
+        """
+        Create a fake DynamoDB resource that returns the provided in-memory table.
+        
+        Parameters:
+            table (_FakeTable): In-memory table instance that will be returned by Table().
+        """
         self._table = table
 
     async def Table(self, table_name: str) -> _FakeTable:
+        """
+        Return the stored fake table instance.
+        
+        This async factory ignores the provided table name and always returns the _FakeTable instance supplied when the resource was created.
+        
+        Parameters:
+            table_name (str): Name of the table to retrieve; this value is ignored.
+        
+        Returns:
+            _FakeTable: The fake DynamoDB table instance.
+        """
         del table_name
         return self._table
 
 
 @pytest.fixture
 def _fake_repo() -> tuple[DynamoJobRepository, _FakeTable]:
+    """
+    Create a DynamoJobRepository backed by an in-memory fake DynamoDB table for tests.
+    
+    Returns:
+        tuple[DynamoJobRepository, _FakeTable]: A two-tuple where the first element is a DynamoJobRepository configured to use a fake DynamoDB resource, and the second element is the corresponding _FakeTable instance that records interactions and can be inspected by tests.
+    """
     table = _FakeTable()
     return (
         DynamoJobRepository(

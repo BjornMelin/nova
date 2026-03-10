@@ -31,7 +31,15 @@ async def verify_token(
     payload: TokenVerifyRequest,
     service: TokenVerificationServiceDep,
 ) -> TokenVerifyResponse:
-    """Verify access token and return principal plus claims."""
+    """
+    Verify an access token and return the authenticated principal and its claims.
+    
+    Parameters:
+        payload: Verification request containing the token and any verification options.
+    
+    Returns:
+        TokenVerifyResponse: Authenticated principal and associated token claims.
+    """
     return await service.verify(payload)
 
 
@@ -45,5 +53,13 @@ async def introspect_token(
     payload: IntrospectRequestDep,
     service: TokenVerificationServiceDep,
 ) -> TokenIntrospectResponse:
-    """Introspect token and return active status plus claim details."""
+    """
+    Determine whether an access token is active and provide its claims and metadata.
+    
+    Parameters:
+    	payload (IntrospectRequestDep): Introspection request containing the token and optional token_type_hint.
+    
+    Returns:
+    	TokenIntrospectResponse: Indicates whether the token is active; when active, includes token claims and related metadata.
+    """
     return await service.introspect(payload)

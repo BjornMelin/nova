@@ -145,7 +145,13 @@ class JobsWorker:
         settings: Settings,
         transfer_service: TransferService | None = None,
     ) -> None:
-        """Initialize worker configuration and runtime state."""
+        """
+        Create a JobsWorker configured with application settings and an optional transfer service.
+        
+        Parameters:
+            settings (Settings): Application settings containing the SQS queue URL, worker token, and other configuration required by the worker.
+            transfer_service (TransferService | None): Optional TransferService instance to use at runtime; if omitted, a runtime TransferService will be created when the worker starts.
+        """
         self._settings = settings
         self._logger = structlog.get_logger("jobs_worker")
         self._stop_requested = False
@@ -161,7 +167,12 @@ class JobsWorker:
         )
 
     async def run(self) -> int:
-        """Run the worker receive/process/ack loop until shutdown signal."""
+        """
+        Run the worker loop that receives, processes, and acknowledges SQS messages until a shutdown signal is received.
+        
+        Returns:
+            exit_code (int): Process exit code; 0 on normal shutdown.
+        """
         self._install_signal_handlers()
         self._logger.info(
             "jobs_worker_started",
@@ -231,12 +242,23 @@ class JobsWorker:
         signal.signal(signal.SIGTERM, self._handle_stop_signal)
 
     def _handle_stop_signal(self, signum: int, _frame: Any) -> None:
-        """Mark worker loop for shutdown when an OS signal is received."""
+        """
+        Mark the worker loop to stop in response to an OS signal.
+        
+        Parameters:
+            signum (int): Signal number received.
+            _frame (Any): Execution frame (ignored).
+        """
         self._stop_requested = True
         self._logger.info("jobs_worker_stop_requested", signal=signum)
 
     async def _receive_messages(self) -> list[dict[str, Any]]:
-        """Receive one poll batch from SQS with long polling enabled."""
+        """
+        Poll SQS for up to a batch of messages using long polling.
+        
+        Returns:
+            A list of message dictionaries returned by SQS. Returns an empty list when no messages are available, when the response structure is unexpected, or when a receive error occurs.
+        """
         sqs_client = self._require_sqs()
         try:
             response = await sqs_client.receive_message(
@@ -261,7 +283,17 @@ class JobsWorker:
         return [m for m in messages if isinstance(m, dict)]
 
     async def _handle_message(self, *, message: dict[str, Any]) -> bool:
-        """Process one queue message and return whether to delete it."""
+        """
+        Process a single SQS job message and determine whether it should be removed from the queue.
+        
+        Parses the message into a WorkerJobMessage, validates the job and payload, publishes a RUNNING update, executes the transfer.process job when applicable, and publishes a terminal SUCCEEDED or FAILED result. Messages that encountered retryable errors are left on the queue so they can be retried.
+        
+        Parameters:
+            message (dict[str, Any]): Raw SQS message dictionary (as returned by receive) containing at least `MessageId` and `Body`.
+        
+        Returns:
+            `true` if the message should be deleted from the queue, `false` otherwise.
+        """
         message_id = str(message.get("MessageId", ""))
         body = str(message.get("Body", ""))
         receive_count = _approximate_receive_count(message=message)
@@ -366,7 +398,20 @@ class JobsWorker:
         result: dict[str, Any] | None,
         error: str | None,
     ) -> bool:
-        """Publish a terminal worker result and report delete eligibility."""
+        """
+        Publish a terminal job result and indicate whether the originating SQS message should be deleted.
+        
+        Parameters:
+            message_id (str): The SQS message identifier for logging.
+            receive_count (int | None): Approximate receive count of the message, if available.
+            job_id (str): The job identifier whose result is being published.
+            status (JobStatus): Final job status to publish.
+            result (dict[str, Any] | None): Result payload for successful jobs, if any.
+            error (str | None): Error message for failed jobs, if any.
+        
+        Returns:
+            bool: `true` if the result was accepted and the message is eligible for deletion, `false` otherwise.
+        """
         try:
             await self._publish_result(
                 job_id=job_id,
@@ -403,7 +448,18 @@ class JobsWorker:
         result: dict[str, Any] | None,
         error: str | None,
     ) -> None:
-        """Publish worker completion status to the internal result endpoint."""
+        """
+        Post the job's final status, result, and error to the internal result API, retrying with exponential backoff for transient failures.
+        
+        Parameters:
+            job_id (str): Identifier of the job to update.
+            status (JobStatus): Final job status to report.
+            result (dict[str, Any] | None): Result payload to include for successful jobs, or None.
+            error (str | None): Human-readable error message for failed jobs, or None.
+        
+        Raises:
+            _WorkerResultUpdateError: If the API rejects the update permanently or all retry attempts are exhausted.
+        """
         api_client = self._require_api_client()
         route = _INTERNAL_RESULT_ROUTE_TEMPLATE.format(job_id=job_id)
         payload = {"status": status.value, "result": result, "error": error}
@@ -450,7 +506,13 @@ class JobsWorker:
             await asyncio.sleep(delay_seconds)
 
     async def _delete_message(self, *, message: dict[str, Any]) -> None:
-        """Delete handled message from SQS to finalize processing."""
+        """
+        Delete the SQS message represented by `message` to finalize processing.
+        
+        Parameters:
+            message (dict[str, Any]): SQS message dictionary; the `ReceiptHandle` field is required.
+                If `ReceiptHandle` is missing or empty the function returns without attempting deletion.
+        """
         sqs_client = self._require_sqs()
         receipt_handle = str(message.get("ReceiptHandle", "")).strip()
         if not receipt_handle:
@@ -468,22 +530,58 @@ class JobsWorker:
             )
 
     def _require_sqs(self) -> Any:
+        """
+        Get the initialized SQS client used by the worker.
+        
+        Returns:
+            The initialized SQS client instance.
+        
+        Raises:
+            RuntimeError: If the worker SQS client has not been initialized.
+        """
         if self._sqs is None:
             raise RuntimeError("worker SQS client is not initialized")
         return self._sqs
 
     def _require_api_client(self) -> httpx.AsyncClient:
+        """
+        Return the initialized HTTP API client used by the worker.
+        
+        Returns:
+            The initialized httpx.AsyncClient used to post job results.
+        
+        Raises:
+            RuntimeError: If the worker HTTP client has not been initialized.
+        """
         if self._api is None:
             raise RuntimeError("worker HTTP client is not initialized")
         return self._api
 
     def _require_transfer_service(self) -> TransferService:
+        """
+        Ensure the worker's runtime transfer service is initialized and return it.
+        
+        Returns:
+            The initialized TransferService instance.
+        
+        Raises:
+            RuntimeError: If the worker transfer service is not initialized.
+        """
         if self._runtime_transfer_service is None:
             raise RuntimeError("worker transfer service is not initialized")
         return self._runtime_transfer_service
 
 
 def _approximate_receive_count(*, message: dict[str, Any]) -> int | None:
+    """
+    Extract the SQS message's ApproximateReceiveCount.
+    
+    Parameters:
+    	message (dict[str, Any]): The raw SQS message dictionary (expected to contain an "Attributes" mapping).
+    
+    Returns:
+    	int: The parsed ApproximateReceiveCount if present and convertible to int, `None` otherwise.
+    """
     attributes = message.get("Attributes")
     if not isinstance(attributes, dict):
         return None
@@ -516,6 +614,12 @@ def _success_result_from_export(
     *,
     export: ExportCopyResult,
 ) -> dict[str, Any]:
+    """
+    Builds a worker success result dictionary from an ExportCopyResult.
+    
+    Returns:
+        dict: A mapping with keys `export_key` and `download_filename` taken from the provided export.
+    """
     return {
         "export_key": export.export_key,
         "download_filename": export.download_filename,
@@ -523,7 +627,15 @@ def _success_result_from_export(
 
 
 async def main() -> int:
-    """Package script entrypoint for the SQS worker process."""
+    """
+    Start and run the SQS worker process using application settings.
+    
+    Returns:
+        int: Process exit code returned by the worker.
+    
+    Raises:
+        ValueError: If `JOBS_RUNTIME_MODE` is not set to "worker".
+    """
     settings = Settings()
     if settings.jobs_runtime_mode != _WORKER_RUNTIME_MODE:
         raise ValueError(
@@ -533,7 +645,12 @@ async def main() -> int:
 
 
 def cli() -> int:
-    """Run the async worker entrypoint from a synchronous CLI boundary."""
+    """
+    Synchronously run the asynchronous worker entrypoint and return its process exit code.
+    
+    Returns:
+        exit_code (int): Process exit code returned by the worker (0 for success, non-zero for failure).
+    """
     return asyncio.run(main())
 
 

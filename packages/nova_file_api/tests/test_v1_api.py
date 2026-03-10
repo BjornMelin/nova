@@ -24,14 +24,35 @@ from ._test_doubles import StubTransferService
 
 class _FailingListJobRepository:
     async def create(self, record: JobRecord) -> None:
+        """
+        Reject creation requests for use in list-only tests by always raising an AssertionError.
+        
+        Parameters:
+            record (JobRecord): Ignored input; present to match repository create signature.
+        
+        Raises:
+            AssertionError: Always raised with message "not expected in list-only test".
+        """
         del record
         raise AssertionError("not expected in list-only test")
 
     async def get(self, job_id: str) -> JobRecord | None:
+        """
+        Simulate a missing job by always returning None.
+        
+        Returns:
+            None: Always returns None to represent a job that is missing or unavailable.
+        """
         del job_id
         return None
 
     async def update(self, record: JobRecord) -> None:
+        """
+        A no-op update method for tests that discards the provided JobRecord without performing any action.
+        
+        Parameters:
+            record (JobRecord): The job record to update; this implementation ignores the value.
+        """
         del record
 
     async def update_if_status(
@@ -40,6 +61,12 @@ class _FailingListJobRepository:
         record: JobRecord,
         expected_status: JobStatus,
     ) -> bool:
+        """
+        Attempt a conditional status update for a job record; always fails in this test repository.
+        
+        Returns:
+            True if the record was updated, False otherwise. This implementation always returns False.
+        """
         del record, expected_status
         return False
 
@@ -49,6 +76,14 @@ class _FailingListJobRepository:
         scope_id: str,
         limit: int,
     ) -> list[JobRecord]:
+        """
+        Indicate that scoped job listing is unsupported by this repository.
+        
+        Always raises RuntimeError with message "jobs table is not configured for scoped listing".
+        
+        Raises:
+            RuntimeError: Always raised to signal scoped listing is not supported.
+        """
         del scope_id, limit
         raise RuntimeError("jobs table is not configured for scoped listing")
 
@@ -57,7 +92,20 @@ def _build_v1_container(
     *,
     file_transfer_bucket: str = "test-transfer-bucket",
 ) -> AppContainer:
-    """Build an in-memory container for v1 route tests."""
+    """
+    Builds an AppContainer configured for v1 endpoint tests.
+    
+    Configures test-oriented, in-memory components and settings suitable for exercising
+    v1 routes (auth SAME_ORIGIN, jobs enabled, metrics, two-tier cache, in-memory
+    job repository/publisher/service, stub transfer service, activity store, and an
+    idempotency store).
+    
+    Parameters:
+        file_transfer_bucket (str): File transfer bucket name to set on the container's settings.
+    
+    Returns:
+        AppContainer: A fully wired AppContainer instance with in-memory/test implementations.
+    """
     settings = Settings()
     settings.auth_mode = AuthMode.SAME_ORIGIN
     settings.jobs_enabled = True

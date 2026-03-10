@@ -50,7 +50,15 @@ async def create_job(
     context: RequestContextDep,
     idempotency_key: IdempotencyKeyHeader = None,
 ) -> EnqueueJobResponse:
-    """Enqueue async processing job and return job id."""
+    """
+    Enqueue a job for processing.
+    
+    Parameters:
+        idempotency_key (IdempotencyKeyHeader | None): Optional idempotency key from the `Idempotency-Key` header used to deduplicate or replay requests.
+    
+    Returns:
+        EnqueueJobResponse: Object containing the created `job_id` and the job's initial `status`.
+    """
     container = context.container
     principal = await context.authenticate(session_id=payload.session_id)
 
@@ -78,7 +86,12 @@ async def get_job_status(
     job_id: str,
     context: RequestContextDep,
 ) -> JobStatusResponse:
-    """Return status for the caller-owned job."""
+    """
+    Retrieve the status and details of a job owned by the caller.
+    
+    Returns:
+        JobStatusResponse: The job's details and current status.
+    """
     container = context.container
     principal = await context.authenticate(session_id=None)
     try:
@@ -114,7 +127,12 @@ async def cancel_job(
     job_id: str,
     context: RequestContextDep,
 ) -> JobCancelResponse:
-    """Cancel a caller-owned non-terminal job."""
+    """
+    Cancel a non-terminal job owned by the caller.
+    
+    Returns:
+        JobCancelResponse: The cancelled job's `job_id` and current `status`.
+    """
     container = context.container
     principal = await context.authenticate(session_id=None)
 
@@ -165,7 +183,18 @@ async def update_job_result(
     context: RequestContextDep,
     worker_token: WorkerTokenHeader = None,
 ) -> JobResultUpdateResponse:
-    """Update job status/result from trusted worker-side processing."""
+    """
+    Accept and apply a job status and result update submitted by an authorized worker.
+    
+    Validates the worker token, updates the job's status/result, records an activity event and metrics, and returns the job's updated state.
+    
+    Parameters:
+        payload (JobResultUpdateRequest): Contains the new `status`, optional `result`, and optional `error` details to apply to the job.
+        worker_token (WorkerTokenHeader | None): Worker authentication token supplied by the caller (from the X-Worker-Token header).
+    
+    Returns:
+        JobResultUpdateResponse: The updated job information containing `job_id`, `status`, and `updated_at`.
+    """
     container = context.container
     if not container.settings.jobs_enabled:
         raise forbidden("jobs API is disabled")
@@ -241,7 +270,15 @@ async def list_jobs(
     context: RequestContextDep,
     limit: JobsLimitQuery = 50,
 ) -> JobListResponse:
-    """List caller-owned jobs with most recent first."""
+    """
+    List the caller's jobs ordered most recent first.
+    
+    Parameters:
+        limit (JobsLimitQuery): Maximum number of jobs to return (validated and bounded by JobsLimitQuery).
+    
+    Returns:
+        JobListResponse: Response object containing the jobs ordered by recency (newest first).
+    """
     principal = await context.authenticate(session_id=None)
     jobs = await context.container.job_service.list_for_scope(
         scope_id=principal.scope_id,
@@ -259,7 +296,18 @@ async def retry_job(
     job_id: str,
     context: RequestContextDep,
 ) -> EnqueueJobResponse:
-    """Retry a terminal failed or canceled job."""
+    """
+    Retry a terminal failed or canceled job owned by the caller.
+    
+    Parameters:
+        job_id (str): Identifier of the job to retry.
+    
+    Returns:
+        EnqueueJobResponse: The retried job's `job_id` and current `status`.
+    
+    Raises:
+        HTTPException: If the jobs API is disabled (forbidden).
+    """
     container = context.container
     principal = await context.authenticate(session_id=None)
     if not container.settings.jobs_enabled:
@@ -294,7 +342,12 @@ async def list_job_events(
     job_id: str,
     context: RequestContextDep,
 ) -> JobEventsResponse:
-    """Return poll events with an SSE-compatible envelope."""
+    """
+    Return the latest poll events for a job in an SSE-compatible envelope.
+    
+    Returns:
+        JobEventsResponse: An envelope containing the job_id, a single JobEvent reflecting the job's current status, result, and error, and next_cursor set to that event's id.
+    """
     principal = await context.authenticate(session_id=None)
     job = await context.container.job_service.get(
         job_id=job_id,
@@ -321,7 +374,17 @@ async def _enqueue_job_core(
     principal: Principal,
     idempotency_key: str | None,
 ) -> EnqueueJobResponse:
-    """Execute the enqueue and idempotency workflow."""
+    """
+    Enqueue a job for processing and apply idempotency handling for the caller's scope.
+    
+    If an idempotency key is provided, the function will attempt to replay a stored response, claim the key for an in-flight request, and store the resulting response for future replays. On success this records an activity and increments enqueue metrics; on failure it records a job failure and cleans up any idempotency claim.
+    
+    Parameters:
+        idempotency_key (str | None): Optional idempotency key used to detect or claim duplicate enqueue requests within the principal's scope.
+    
+    Returns:
+        EnqueueJobResponse: The enqueued job's identifier and current status.
+    """
     container = context.container
     request_payload = payload.model_dump(mode="json")
     claimed_idempotency = False
@@ -439,7 +502,23 @@ async def _record_job_failure(
     activity_details: str | None = None,
     extra: dict[str, object] | None = None,
 ) -> None:
-    """Record canonical metrics, logs, and activity for job failures."""
+    """
+    Record metrics, structured logs, and an activity event for a job-related failure.
+    
+    Increments the named failure metric, emits an error route metric, logs the exception with structured fields including route and scope, and attempts to record an activity event attributing the failure to the given principal. If activity recording fails, a secondary log is emitted.
+    
+    Parameters:
+        context (RequestContext): Request-scoped container and services.
+        principal (Principal): Principal whose scope is associated with the failure.
+        metric_name (str): Name of the metric to increment for this failure.
+        route_metric (str): Identifier used when emitting the route-level metric.
+        log_event (str): Message/event key used for the primary exception log.
+        route_path (str): API route path related to the failure (included in logs).
+        activity_event_type (str): Activity store event type to record for the failure.
+        exc (Exception): The exception instance that triggered this failure recording.
+        activity_details (str | None): Optional human-readable details to store with the activity; defaults to the exception string when omitted.
+        extra (dict[str, object] | None): Optional additional structured fields to include in the primary log.
+    """
     container = context.container
     container.metrics.incr(metric_name)
     emit_request_metric(container=container, route=route_metric, status="error")

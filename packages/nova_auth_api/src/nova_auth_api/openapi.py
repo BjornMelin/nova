@@ -57,6 +57,14 @@ def install_auth_openapi(app: FastAPI) -> None:
     """Install auth-service OpenAPI customizations on the application."""
 
     def customize_openapi(schema: dict[str, Any]) -> None:
+        """
+        Apply auth-specific components, responses, and path-level adjustments to an OpenAPI schema.
+        
+        Mutates the provided OpenAPI schema in-place to ensure token introspection request schemas exist, register a bearerAuth security scheme, add a canonical error envelope and standardized error response components, map operation responses to those canonical components, replace validation error responses with the canonical invalid-request response, annotate introspection POST operations with an x-auth-not-required hint and attach the introspection request body where required, and prune unused validation-error schemas.
+        
+        Parameters:
+            schema (dict[str, Any]): The OpenAPI schema object to modify in-place.
+        """
         components = schema.setdefault("components", {})
         schemas = components.setdefault("schemas", {})
         schemas.setdefault(

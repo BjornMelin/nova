@@ -132,9 +132,24 @@ HTTP_METHODS = {
 
 
 def install_file_api_openapi_overrides(app: FastAPI) -> None:
-    """Apply canonical error/visibility OpenAPI overrides."""
+    """
+    Install file API OpenAPI customizations into a FastAPI application.
+    
+    Adds canonical error response components, registers session and X-Worker-Token security schemes, injects a 503 readiness response for /v1/health/ready, replaces validation error responses with the FileInvalidRequestResponse component, assigns per-operation security (uses X-Worker-Token for POST /v1/internal/jobs/{job_id}/result and sessionAuth for other authenticated operations), marks the internal job-result operation as internal SDK-visible, and prunes unused validation-error schemas.
+    
+    Parameters:
+        app (FastAPI): The FastAPI application to register the OpenAPI customizer on.
+    """
 
     def customize_openapi(schema: dict[str, Any]) -> None:
+        """
+        Apply file API–specific OpenAPI customizations to an OpenAPI schema.
+        
+        Mutates the provided schema in place: ensures the standard error envelope and canonical error response components, registers session and worker-token security schemes, injects operation-level response references, adds a 503 readiness response for /v1/health/ready, replaces validation error responses with the FileInvalidRequestResponse component, assigns per-operation security (uses X-Worker-Token for POST /v1/internal/jobs/{job_id}/result and sessionAuth for other authenticated operations), marks the internal job result operation as internal SDK-visible, and prunes unused validation-error schemas.
+        
+        Parameters:
+            schema (dict[str, Any]): The mutable OpenAPI schema to modify in place.
+        """
         ensure_error_envelope_schema(schema)
         components = schema.setdefault("components", {})
         security_schemes = components.setdefault("securitySchemes", {})

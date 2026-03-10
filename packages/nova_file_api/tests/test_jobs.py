@@ -42,6 +42,12 @@ CaptureEmf = Callable[[MetricsCollector], list[dict[str, str]]]
 
 class _FailingPublisher:
     async def publish(self, *, job: JobRecord) -> None:
+        """
+        Simulates a publisher that always fails with a throttling client error.
+        
+        Raises:
+            JobPublishError: Always raised with details {"error_type": "ClientError", "error_code": "Throttling"}.
+        """
         del job
         raise JobPublishError(
             details={"error_type": "ClientError", "error_code": "Throttling"}
@@ -54,15 +60,34 @@ class _FailingPublisher:
         repository: JobRepository,
         metrics: MetricsCollector,
     ) -> None:
+        """
+        No-op post-publish hook that fulfills the publisher interface.
+        
+        Accepts the published `job`, the `repository`, and `metrics` but performs no action.
+        """
         del job, repository, metrics
         return
 
     async def healthcheck(self) -> bool:
+        """
+        Report whether the publisher is healthy.
+        
+        This test publisher always reports itself as unhealthy.
+        
+        Returns:
+            `False` indicating the publisher is not healthy.
+        """
         return False
 
 
 class _ConcurrentWinnerRepository(MemoryJobRepository):
     def __init__(self, *, winner_status: JobStatus) -> None:
+        """
+        Create a repository that injects a predetermined terminal status on the first conditional update attempt.
+        
+        Parameters:
+            winner_status (JobStatus): Terminal status to apply to the job the first time update_if_status is called.
+        """
         super().__init__()
         self._winner_status = winner_status
         self._injected = False
@@ -73,6 +98,18 @@ class _ConcurrentWinnerRepository(MemoryJobRepository):
         record: JobRecord,
         expected_status: JobStatus,
     ) -> bool:
+        """
+        Simulates a concurrent winner by injecting a terminal update on first invocation, then performs the conditional update.
+        
+        On the first call only, the repository is modified so the stored job is moved to the configured winner status with result {"accepted": True} and no error; after that the function attempts the conditional update against the provided record and expected_status. Subsequent calls perform the conditional update without injecting a winner.
+        
+        Parameters:
+            record (JobRecord): The job record to update conditionally.
+            expected_status (JobStatus): The status that must match the current record for the conditional update to succeed.
+        
+        Returns:
+            `true` if the conditional update succeeded (record matched expected_status and was updated), `false` otherwise.
+        """
         if not self._injected:
             self._injected = True
             existing = await self.get(record.job_id)
@@ -99,6 +136,14 @@ class _NeverSettlingRepository(MemoryJobRepository):
         record: JobRecord,
         expected_status: JobStatus,
     ) -> bool:
+        """
+        Simulate a repository that never accepts status updates.
+        
+        This method ignores `record` and `expected_status` and always reports the conditional update failed.
+        
+        Returns:
+            `False` indicating the repository did not apply the update.
+        """
         del record, expected_status
         return False
 
@@ -109,6 +154,11 @@ class _TestDoubleError(RuntimeError):
 
 class _FlakyJobService:
     def __init__(self) -> None:
+        """
+        Initialize a flaky job service test double and its internal call counter.
+        
+        Sets self.calls to 0 to track how many times enqueue has been invoked.
+        """
         self.calls = 0
 
     async def enqueue(
@@ -118,6 +168,22 @@ class _FlakyJobService:
         payload: dict[str, Any],
         scope_id: str,
     ) -> JobRecord:
+        """
+        Simulate enqueueing a job that fails on the first call and succeeds on subsequent calls.
+        
+        On the first invocation this function raises a queue_unavailable error to emulate a transient publish failure; on later calls it returns a newly created JobRecord with status PENDING, a job_id formatted as "job-{n}" where n is the call count, and created_at/updated_at set to the current UTC time.
+        
+        Parameters:
+            job_type (str): Type identifier for the job.
+            payload (dict[str, Any]): Job payload.
+            scope_id (str): Scope identifier for the job.
+        
+        Returns:
+            JobRecord: The created job record with status PENDING and timestamps set to now.
+        
+        Raises:
+            queue_unavailable: Emitted on the first call to simulate a queue publish failure.
+        """
         self.calls += 1
         if self.calls == 1:
             raise queue_unavailable(  # noqa: TRY003 - explicit message asserted through API error flow
@@ -137,10 +203,24 @@ class _FlakyJobService:
         )
 
     async def get(self, *, job_id: str, scope_id: str) -> JobRecord:
+        """
+        Simulated job retrieval that always fails for testing.
+        
+        Always raises _TestDoubleError to signal a controlled test failure when invoked.
+        
+        Raises:
+            _TestDoubleError: Always raised to simulate an error from the job service.
+        """
         del job_id, scope_id
         raise _TestDoubleError
 
     async def cancel(self, *, job_id: str, scope_id: str) -> JobRecord:
+        """
+        Simulate a cancellation operation that always fails for testing.
+        
+        Raises:
+            _TestDoubleError: Always raised to simulate an internal failure during cancel.
+        """
         del job_id, scope_id
         raise _TestDoubleError
 
@@ -153,14 +233,34 @@ class _AlwaysFailingJobService:
         payload: dict[str, Any],
         scope_id: str,
     ) -> JobRecord:
+        """
+        Simulate a failing enqueue operation for tests.
+        
+        Raises:
+            _TestDoubleError: Raised to simulate an enqueue failure from the job service.
+        """
         del job_type, payload, scope_id
         raise _TestDoubleError
 
     async def get(self, *, job_id: str, scope_id: str) -> JobRecord:
+        """
+        Simulated job retrieval that always fails for testing.
+        
+        Always raises _TestDoubleError to signal a controlled test failure when invoked.
+        
+        Raises:
+            _TestDoubleError: Always raised to simulate an error from the job service.
+        """
         del job_id, scope_id
         raise _TestDoubleError
 
     async def cancel(self, *, job_id: str, scope_id: str) -> JobRecord:
+        """
+        Simulate a cancellation operation that always fails for testing.
+        
+        Raises:
+            _TestDoubleError: Always raised to simulate an internal failure during cancel.
+        """
         del job_id, scope_id
         raise _TestDoubleError
 
@@ -172,11 +272,33 @@ class _AlwaysFailingJobService:
         result: dict[str, Any] | None,
         error: str | None,
     ) -> JobRecord:
+        """
+        Test double that simulates a failing job update by ignoring inputs and always raising _TestDoubleError.
+        
+        This method does not return a JobRecord; it deterministically raises to signal a controlled test failure.
+        
+        Raises:
+            _TestDoubleError: Raised unconditionally to simulate an error from the job service.
+        """
         del job_id, status, result, error
         raise _TestDoubleError
 
 
 def _build_same_origin_status_container(*, scope_id: str) -> AppContainer:
+    """
+    Builds an application container configured for same-origin job status tests.
+    
+    Creates settings with SAME_ORIGIN auth and jobs enabled, a metrics collector,
+    two-tier cache (local + shared), an in-memory job repository pre-populated
+    with a pending JobRecord having id "job-status-1" and the given scope_id, and
+    test doubles for authenticator, transfer service, activity store, and idempotency.
+    
+    Parameters:
+        scope_id (str): Scope identifier to assign to the pre-populated job record.
+    
+    Returns:
+        AppContainer: Fully initialized container ready for testing same-origin job status endpoints.
+    """
     settings = Settings()
     settings.auth_mode = AuthMode.SAME_ORIGIN
     settings.jobs_enabled = True
@@ -278,7 +400,24 @@ def _job_record(*, job_id: str = "job-1") -> JobRecord:
 def capture_emf(
     monkeypatch: pytest.MonkeyPatch,
 ) -> CaptureEmf:
+    """
+    Create and return a test helper that patches a MetricsCollector to capture emitted EMF metric dimensions.
+    
+    Parameters:
+        monkeypatch (pytest.MonkeyPatch): pytest monkeypatch fixture used to replace the collector's emit_emf method.
+    
+    Returns:
+        capture_emf (Callable[[MetricsCollector], list[dict[str, str]]]): A function that, when called with a MetricsCollector, patches its `emit_emf` to append each emission's `dimensions` dict to a list and returns that list for inspection in tests.
+    """
     def _patch(metrics: MetricsCollector) -> list[dict[str, str]]:
+        """
+        Capture EMF metric dimensions emitted by a MetricsCollector by patching its `emit_emf` method.
+        
+        The function patches `metrics.emit_emf` so emitted metric calls append their `dimensions` dict to the returned list.
+        
+        Returns:
+            captured_dimensions (list[dict[str, str]]): A list that will be populated with the `dimensions` dictionaries supplied to `emit_emf`.
+        """
         captured_dimensions: list[dict[str, str]] = []
 
         def _capture_emit_emf(
@@ -299,10 +438,26 @@ def capture_emf(
 
 @pytest.mark.asyncio
 async def test_sqs_job_publisher_sends_expected_queue_payload() -> None:
+    """
+    Verifies that SqsJobPublisher sends a message to the configured jobs queue and includes a MessageBody.
+    
+    Sets up a fake SQS client to capture send_message keyword arguments, publishes a job, and asserts the captured QueueUrl ends with "/jobs" and that a MessageBody was provided.
+    """
     captured: dict[str, Any] = {}
 
     class _FakeSqsClient:
         async def send_message(self, **kwargs: object) -> dict[str, str]:
+            """
+            Record the provided send-message keyword arguments for test inspection.
+            
+            Stores the received keyword arguments in the surrounding `captured["send_kwargs"]` for assertions and returns a fake SQS response.
+            
+            Parameters:
+                **kwargs (object): Keyword arguments that would be passed to an SQS client's send_message; stored for inspection.
+            
+            Returns:
+                dict[str, str]: A fake response dictionary with `MessageId` set to `"1"`.
+            """
             captured["send_kwargs"] = kwargs
             return {"MessageId": "1"}
 
@@ -320,6 +475,14 @@ async def test_sqs_job_publisher_sends_expected_queue_payload() -> None:
 async def test_sqs_job_publisher_maps_client_error_to_publish_error() -> None:
     class _ClientErrorSqsClient:
         async def send_message(self, **kwargs: object) -> dict[str, str]:
+            """
+            Simulate an SQS send_message call that always raises a throttling ClientError.
+            
+            Ignores all keyword arguments and raises botocore.exceptions.ClientError with error response Error Code "ThrottlingException" and operation name "SendMessage".
+            
+            Raises:
+                ClientError: Indicates a throttling error (Error Code "ThrottlingException") for the "SendMessage" operation.
+            """
             del kwargs
             raise ClientError(
                 error_response={
@@ -343,6 +506,12 @@ async def test_sqs_job_publisher_maps_client_error_to_publish_error() -> None:
 async def test_sqs_job_publisher_maps_botocore_error_to_publish_error() -> None:
     class _BotoCoreErrorSqsClient:
         async def send_message(self, **kwargs: object) -> dict[str, str]:
+            """
+            Simulate an SQS client's send_message by always raising a BotoCoreError.
+            
+            Raises:
+                BotoCoreError: always raised to simulate a client-side failure when sending a message.
+            """
             del kwargs
             raise BotoCoreError()
 
@@ -594,6 +763,11 @@ async def test_job_service_allows_idempotent_terminal_result_update() -> None:
 
 @pytest.mark.asyncio
 async def test_job_service_update_result_clears_error_on_succeeded() -> None:
+    """
+    Verifies that updating a RUNNING job to SUCCEEDED updates the result and clears any existing error.
+    
+    Creates a job in RUNNING state with a previous result and an error, calls update_result to set status to SUCCEEDED with a new result, and asserts the stored job has status SUCCEEDED, the result is replaced by the new value, and the error field is cleared.
+    """
     repository = MemoryJobRepository()
     metrics = MetricsCollector(namespace="Tests")
     service = JobService(
@@ -703,6 +877,11 @@ async def test_job_service_result_update_conflicts_on_stale() -> None:
 
 @pytest.mark.asyncio
 async def test_job_service_cancel_keeps_concurrent_terminal_state() -> None:
+    """
+    Verifies that cancelling a job returns the repository's concurrent terminal state instead of overwriting it.
+    
+    Sets up a repository that injects a concurrent SUCCEEDED state for the job; calling JobService.cancel must return the repository's terminal record (status SUCCEEDED and result {"accepted": True}) and must not increment the "jobs_canceled" metric.
+    """
     repository = _ConcurrentWinnerRepository(winner_status=JobStatus.SUCCEEDED)
     metrics = MetricsCollector(namespace="Tests")
     service = JobService(
@@ -737,6 +916,11 @@ async def test_job_service_cancel_keeps_concurrent_terminal_state() -> None:
 
 @pytest.mark.asyncio
 async def test_job_service_cancel_conflicts_after_retry_limit() -> None:
+    """
+    Verifies that cancelling a pending job raises a conflict error after retry attempts when the repository never applies status updates.
+    
+    Sets up a _NeverSettlingRepository containing a pending job, calls JobService.cancel for that job, and asserts a FileTransferError is raised with code "conflict" and HTTP status 409.
+    """
     repository = _NeverSettlingRepository()
     metrics = MetricsCollector(namespace="Tests")
     service = JobService(
@@ -770,6 +954,11 @@ async def test_job_service_cancel_conflicts_after_retry_limit() -> None:
 
 
 def test_update_job_result_requires_valid_worker_token() -> None:
+    """
+    Verify that updating a job's result requires the correct worker token and records activity on success.
+    
+    Sends a POST to the internal job result update endpoint without and with the configured worker token. Asserts that a request with an incorrect token is rejected with a forbidden error and that a request with the valid token succeeds, updates the job status to `succeeded`, accepts the provided result payload, and produces activity events.
+    """
     settings = Settings()
     settings.jobs_enabled = True
     settings.jobs_worker_update_token = SecretStr("test-worker-token")
@@ -840,6 +1029,19 @@ def test_update_job_result_requires_valid_worker_token() -> None:
 def test_get_job_status_failure_emits_error_observability(
     capture_emf: CaptureEmf,
 ) -> None:
+    """
+    Verifies that a failing job status request produces an error response, increments failure metrics, emits an error observability dimension for the route, and records activity events.
+    
+    This test:
+    - Sends GET /v1/jobs/job-status-1 using a container whose job service fails.
+    - Asserts the response status is 500.
+    - Asserts the metrics counter "jobs_status_failure_total" is incremented.
+    - Asserts an emitted EMF dimension includes {"route": "jobs_status", "status": "error"}.
+    - Asserts that at least one activity event was recorded.
+    
+    Parameters:
+        capture_emf (Callable[[MetricsCollector], list[dict]]): Test helper that captures EMF dimension dictionaries emitted by the provided metrics collector.
+    """
     container, metrics, activity_store = _build_failing_job_container()
     emitted_dimensions = capture_emf(metrics)
     app = create_app(container_override=container)
