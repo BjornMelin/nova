@@ -6,10 +6,8 @@ requires-python = ">=3.12, <3.14"
 members = [
     "nova",
     "nova-auth-api",
-    "nova-auth-api-service",
     "nova-dash-bridge",
     "nova-file-api",
-    "nova-file-api-service",
     "nova-runtime-support",
     "nova-sdk-py-auth",
     "nova-sdk-py-file",
@@ -808,10 +806,8 @@ version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
     { name = "nova-auth-api" },
-    { name = "nova-auth-api-service" },
     { name = "nova-dash-bridge" },
     { name = "nova-file-api" },
-    { name = "nova-file-api-service" },
     { name = "nova-runtime-support" },
 ]
 
@@ -828,10 +824,8 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "nova-auth-api", editable = "packages/nova_auth_api" },
-    { name = "nova-auth-api-service", editable = "apps/nova_auth_api_service" },
     { name = "nova-dash-bridge", editable = "packages/nova_dash_bridge" },
     { name = "nova-file-api", editable = "packages/nova_file_api" },
-    { name = "nova-file-api-service", editable = "apps/nova_file_api_service" },
     { name = "nova-runtime-support", editable = "packages/nova_runtime_support" },
 ]
 
@@ -852,34 +846,23 @@ source = { editable = "packages/nova_auth_api" }
 dependencies = [
     { name = "anyio" },
     { name = "fastapi" },
+    { name = "nova-runtime-support" },
     { name = "oidc-jwt-verifier" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "structlog" },
+    { name = "uvicorn", extra = ["standard"] },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "anyio", specifier = ">=4.11.0" },
     { name = "fastapi", specifier = ">=0.129.0" },
+    { name = "nova-runtime-support", editable = "packages/nova_runtime_support" },
     { name = "oidc-jwt-verifier", specifier = ">=0.1.5" },
     { name = "pydantic", specifier = ">=2.12.5" },
     { name = "pydantic-settings", specifier = ">=2.12.0" },
     { name = "structlog", specifier = ">=25.5.0" },
-]
-
-[[package]]
-name = "nova-auth-api-service"
-version = "0.2.2"
-source = { editable = "apps/nova_auth_api_service" }
-dependencies = [
-    { name = "nova-auth-api" },
-    { name = "uvicorn", extra = ["standard"] },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "nova-auth-api", editable = "packages/nova_auth_api" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.38.0" },
 ]
 
@@ -924,11 +907,13 @@ dependencies = [
     { name = "anyio" },
     { name = "fastapi" },
     { name = "httpx" },
+    { name = "nova-runtime-support" },
     { name = "oidc-jwt-verifier" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "redis" },
     { name = "structlog" },
+    { name = "uvicorn", extra = ["standard"] },
 ]
 
 [package.metadata]
@@ -937,25 +922,12 @@ requires-dist = [
     { name = "anyio", specifier = ">=4.11.0" },
     { name = "fastapi", specifier = ">=0.129.0" },
     { name = "httpx", specifier = ">=0.28.1" },
+    { name = "nova-runtime-support", editable = "packages/nova_runtime_support" },
     { name = "oidc-jwt-verifier", specifier = ">=0.1.5" },
     { name = "pydantic", specifier = ">=2.12.5" },
     { name = "pydantic-settings", specifier = ">=2.12.0" },
     { name = "redis", specifier = ">=7.1.1" },
     { name = "structlog", specifier = ">=25.5.0" },
-]
-
-[[package]]
-name = "nova-file-api-service"
-version = "0.2.4"
-source = { editable = "apps/nova_file_api_service" }
-dependencies = [
-    { name = "nova-file-api" },
-    { name = "uvicorn", extra = ["standard"] },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "nova-file-api", editable = "packages/nova_file_api" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.38.0" },
 ]
 
