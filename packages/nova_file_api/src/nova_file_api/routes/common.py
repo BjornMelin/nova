@@ -3,13 +3,24 @@
 from __future__ import annotations
 
 from hmac import compare_digest
+from typing import Annotated
 
 import structlog
+from fastapi import Header, Query
 
 from nova_file_api.container import AppContainer
 from nova_file_api.errors import forbidden, invalid_request
 
 WORKER_TOKEN_NOT_CONFIGURED = "worker update token not configured"  # noqa: S105
+IdempotencyKeyHeader = Annotated[
+    str | None,
+    Header(alias="Idempotency-Key"),
+]
+WorkerTokenHeader = Annotated[
+    str | None,
+    Header(alias="X-Worker-Token"),
+]
+JobsLimitQuery = Annotated[int, Query(ge=1, le=200)]
 
 
 def emit_request_metric(
@@ -18,15 +29,14 @@ def emit_request_metric(
     route: str,
     status: str,
 ) -> None:
-    """Emit a low-cardinality request counter.
-
-    Args:
-        container (AppContainer): Application dependency container.
-        route (str): Route name used for metric dimensions.
-        status (str): Request outcome label.
-
-    Returns:
-        None: Function returns ``None`` after emitting the metric.
+    """
+    Emit a low-cardinality request counter.
+    
+    Emit a single count to the "requests_total" metric with dimensions for route and status.
+    
+    Parameters:
+        route (str): Route name used as the metric's "route" dimension.
+        status (str): Outcome label used as the metric's "status" dimension.
     """
     container.metrics.emit_emf(
         metric_name="requests_total",

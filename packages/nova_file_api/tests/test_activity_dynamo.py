@@ -38,10 +38,17 @@ def _client_error(
 
 class _FakeDynamoDbClient:
     def __init__(self) -> None:
+        """
+        Initialize the in-memory fake DynamoDB client state used by tests.
+        
+        Attributes:
+            _items (dict[tuple[str, str], dict[str, dict[str, str]]]): Mapping of (pk, sk) keys to stored DynamoDB-style items.
+            put_conditions (list[str]): Recorded ConditionExpression values passed to put_item calls.
+        """
         self._items: dict[tuple[str, str], dict[str, dict[str, str]]] = {}
         self.put_conditions: list[str] = []
 
-    def update_item(
+    async def update_item(
         self,
         *,
         TableName: str,
@@ -50,6 +57,17 @@ class _FakeDynamoDbClient:
         ExpressionAttributeNames: dict[str, str],
         ExpressionAttributeValues: dict[str, dict[str, str]],
     ) -> dict[str, Any]:
+        """
+        Increment a numeric attribute and set the updated_at attribute for the item identified by Key in the in-memory store.
+        
+        Parameters:
+            Key (dict[str, dict[str, str]]): Primary key dict with structure {"pk": {"S": "<pk>"}, "sk": {"S": "<sk>"}} identifying the item.
+            ExpressionAttributeNames (dict[str, str]): Mapping of expression aliases (e.g. "#counter", "#updated_at") to actual attribute names.
+            ExpressionAttributeValues (dict[str, dict[str, str]]): Mapping of expression value tokens where one token must be ":updated_at" (a value map) and one token is a numeric value (with key "N") used to increment the counter.
+        
+        Returns:
+            dict: An empty dict to simulate DynamoDB's empty response body.
+        """
         del TableName, UpdateExpression
         pk = Key["pk"]["S"]
         sk = Key["sk"]["S"]
@@ -77,13 +95,31 @@ class _FakeDynamoDbClient:
         self._items[key] = item
         return {}
 
-    def put_item(
+    async def put_item(
         self,
         *,
         TableName: str,
         Item: dict[str, dict[str, str]],
         ConditionExpression: str,
     ) -> dict[str, Any]:
+        """
+        Store the provided item in the in-memory table and record the provided condition expression.
+        
+        The Item is expected to be a DynamoDB-style attribute map (e.g., {"pk": {"S": "value"}, "sk": {"S": "value"}, ...}).
+        The ConditionExpression is appended to the client's put_conditions list. If ConditionExpression is
+        "attribute_not_exists(pk)" and an item with the same (pk, sk) already exists, a ClientError is raised to
+        simulate DynamoDB's conditional write failure.
+        
+        Parameters:
+            Item (dict): DynamoDB-style item map; must contain "pk" and "sk" string attributes.
+            ConditionExpression (str): Conditional expression applied to the put operation.
+        
+        Returns:
+            dict: An empty response map, simulating a successful PutItem response.
+        
+        Raises:
+            botocore.exceptions.ClientError: If ConditionExpression == "attribute_not_exists(pk)" and the key exists.
+        """
         del TableName
         self.put_conditions.append(ConditionExpression)
         key = (Item["pk"]["S"], Item["sk"]["S"])
@@ -95,12 +131,24 @@ class _FakeDynamoDbClient:
         self._items[key] = dict(Item)
         return {}
 
-    def get_item(
+    async def get_item(
         self,
         *,
         TableName: str,
         Key: dict[str, dict[str, str]],
     ) -> dict[str, Any]:
+        """
+        Retrieve an item by its primary key from the in-memory DynamoDB-like store.
+        
+        Parameters:
+            TableName (str): Ignored; present for API compatibility.
+            Key (dict[str, dict[str, str]]): DynamoDB-style key with string attributes; must contain
+                {'pk': {'S': primary_key}, 'sk': {'S': sort_key}}.
+        
+        Returns:
+            dict: An empty dict if no item is found; otherwise a dict with the stored item under the
+            "Item" key (e.g., {"Item": {...}}).
+        """
         del TableName
         key = (Key["pk"]["S"], Key["sk"]["S"])
         item = self._items.get(key)
@@ -116,14 +164,24 @@ class _FailingDynamoDbClient(_FakeDynamoDbClient):
         update_failures: dict[int, Exception] | None = None,
         put_failures: dict[int, Exception] | None = None,
     ) -> None:
-        """Inject failures for deterministic write-path testing."""
+        """
+        Configure deterministic failures for the simulated DynamoDB write paths.
+        
+        Parameters:
+            update_failures (dict[int, Exception] | None): Mapping from zero-based update_item call index to the Exception to raise for that call. If None, no update failures are injected.
+            put_failures (dict[int, Exception] | None): Mapping from zero-based put_item call index to the Exception to raise for that call. If None, no put failures are injected.
+        
+        Initializes:
+            _update_failures, _put_failures: stored failure maps.
+            update_item_calls, put_item_calls: counters tracking how many times each operation has been invoked.
+        """
         super().__init__()
         self._update_failures = update_failures or {}
         self._put_failures = put_failures or {}
         self.update_item_calls = 0
         self.put_item_calls = 0
 
-    def update_item(
+    async def update_item(
         self,
         *,
         TableName: str,
@@ -132,11 +190,20 @@ class _FailingDynamoDbClient(_FakeDynamoDbClient):
         ExpressionAttributeNames: dict[str, str],
         ExpressionAttributeValues: dict[str, dict[str, str]],
     ) -> dict[str, Any]:
+        """
+        Record an update_item invocation, raise a configured failure for this call if one is configured, or forward the call to the superclass implementation.
+        
+        Returns:
+            dict[str, Any]: The response returned by the underlying client's update_item.
+        
+        Raises:
+            Exception: If a configured failure is registered for the current call index, that exception is raised.
+        """
         self.update_item_calls += 1
         failure = self._update_failures.get(self.update_item_calls)
         if failure is not None:
             raise failure
-        return super().update_item(
+        return await super().update_item(
             TableName=TableName,
             Key=Key,
             UpdateExpression=UpdateExpression,
@@ -144,18 +211,32 @@ class _FailingDynamoDbClient(_FakeDynamoDbClient):
             ExpressionAttributeValues=ExpressionAttributeValues,
         )
 
-    def put_item(
+    async def put_item(
         self,
         *,
         TableName: str,
         Item: dict[str, dict[str, str]],
         ConditionExpression: str,
     ) -> dict[str, Any]:
+        """
+        Simulate a DynamoDB PutItem call for tests, tracking call count and optionally raising an injected failure.
+        
+        Parameters:
+            TableName (str): The target table name.
+            Item (dict[str, dict[str, str]]): DynamoDB-style attribute map to put.
+            ConditionExpression (str): Conditional expression applied to the put.
+        
+        Returns:
+            dict[str, Any]: The DynamoDB-style response returned by the underlying put_item implementation.
+        
+        Raises:
+            Exception: The configured failure for the current call index, if one has been injected.
+        """
         self.put_item_calls += 1
         failure = self._put_failures.get(self.put_item_calls)
         if failure is not None:
             raise failure
-        return super().put_item(
+        return await super().put_item(
             TableName=TableName,
             Item=Item,
             ConditionExpression=ConditionExpression,
@@ -163,94 +244,100 @@ class _FailingDynamoDbClient(_FakeDynamoDbClient):
 
 
 def _expected_principal_fingerprint(*, subject: str) -> str:
+    """
+    Compute a 16-character SHA-256 hex fingerprint of a principal subject.
+    
+    Parameters:
+        subject (str): Subject identifier to fingerprint.
+    
+    Returns:
+        str: 16-character lowercase hexadecimal fingerprint derived from the SHA-256 digest of `subject`.
+    """
     return hashlib.sha256(subject.encode("utf-8")).hexdigest()[:16]
 
 
-def test_dynamo_activity_store_uses_injected_client_without_boto3(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    def _unexpected_boto3_client(
-        service_name: str, **kwargs: object
-    ) -> _FakeDynamoDbClient:
-        del service_name, kwargs
-        raise AssertionError("boto3.client should not be called")
-
-    monkeypatch.setattr(
-        "nova_file_api.activity.boto3.client",
-        _unexpected_boto3_client,
-    )
-
+@pytest.mark.asyncio
+async def test_dynamo_activity_store_uses_injected_client_without_boto3() -> (
+    None
+):
     store = DynamoActivityStore(
         table_name="activity-rollups",
         ddb_client=_FakeDynamoDbClient(),
     )
-    store.record(
+    await store.record(
         principal=_principal(subject="user-1"),
         event_type="uploads_initiate",
     )
 
-    summary = store.summary()
+    summary = await store.summary()
     assert summary["events_total"] == 1
 
 
-def test_dynamo_activity_summary_counts_repeat_event_once() -> None:
+@pytest.mark.asyncio
+async def test_dynamo_activity_summary_counts_repeat_event_once() -> None:
     store = DynamoActivityStore(
         table_name="activity-rollups",
         ddb_client=_FakeDynamoDbClient(),
     )
 
-    store.record(
+    await store.record(
         principal=_principal(subject="user-1"),
         event_type="uploads_initiate",
     )
-    store.record(
+    await store.record(
         principal=_principal(subject="user-1"),
         event_type="uploads_initiate",
     )
 
-    summary = store.summary()
+    summary = await store.summary()
     assert summary["events_total"] == 2
     assert summary["active_users_today"] == 1
     assert summary["distinct_event_types"] == 1
 
 
-def test_dynamo_activity_summary_counts_new_event_types_and_users() -> None:
+@pytest.mark.asyncio
+async def test_dynamo_activity_summary_counts_new_event_types_and_users() -> (
+    None
+):
     store = DynamoActivityStore(
         table_name="activity-rollups",
         ddb_client=_FakeDynamoDbClient(),
     )
 
-    store.record(
+    await store.record(
         principal=_principal(subject="user-1"),
         event_type="uploads_initiate",
     )
-    store.record(
+    await store.record(
         principal=_principal(subject="user-2"),
         event_type="jobs_enqueue",
     )
-    store.record(
+    await store.record(
         principal=_principal(subject="user-2"),
         event_type="jobs_enqueue",
     )
 
-    summary = store.summary()
+    summary = await store.summary()
     assert summary["events_total"] == 3
     assert summary["active_users_today"] == 2
     assert summary["distinct_event_types"] == 2
 
 
-def test_dynamo_activity_store_uses_conditional_first_seen_markers() -> None:
+@pytest.mark.asyncio
+async def test_dynamo_activity_store_uses_conditional_first_seen_markers() -> (
+    None
+):
     client = _FakeDynamoDbClient()
     store = DynamoActivityStore(
         table_name="activity-rollups",
         ddb_client=client,
     )
 
-    store.record(
+    await store.record(
         principal=_principal(subject="user-1"),
         event_type="uploads_initiate",
     )
-    store.record(
+    await store.record(
         principal=_principal(subject="user-1"),
         event_type="uploads_initiate",
     )
@@ -262,7 +349,8 @@ def test_dynamo_activity_store_uses_conditional_first_seen_markers() -> None:
     )
 
 
-def test_dynamo_activity_record_logs_counter_failures_and_hides_principal(
+@pytest.mark.asyncio
+async def test_dynamo_activity_record_logs_counter_failures_and_hides_principal(
     caplog: LogCaptureFixture,
 ) -> None:
     store = DynamoActivityStore(
@@ -278,7 +366,7 @@ def test_dynamo_activity_record_logs_counter_failures_and_hides_principal(
     principal = _principal(subject="user-1")
 
     with caplog.at_level("WARNING"):
-        store.record(principal=principal, event_type="uploads_initiate")
+        await store.record(principal=principal, event_type="uploads_initiate")
 
     warning_records = [
         record
@@ -296,7 +384,8 @@ def test_dynamo_activity_record_logs_counter_failures_and_hides_principal(
     )
 
 
-def test_dynamo_activity_record_user_marker_error_logs_warning(
+@pytest.mark.asyncio
+async def test_dynamo_activity_record_user_marker_error_logs_warning(
     caplog: LogCaptureFixture,
 ) -> None:
     store = DynamoActivityStore(
@@ -313,7 +402,7 @@ def test_dynamo_activity_record_user_marker_error_logs_warning(
     principal = _principal(subject="user-2")
 
     with caplog.at_level("WARNING"):
-        store.record(principal=principal, event_type="jobs_enqueue")
+        await store.record(principal=principal, event_type="jobs_enqueue")
 
     warning_records = [
         record
@@ -329,7 +418,8 @@ def test_dynamo_activity_record_user_marker_error_logs_warning(
     assert "user-2" not in warning_records[0].getMessage()
 
 
-def test_dynamo_activity_record_distinct_event_type_increment_failure_logged(
+@pytest.mark.asyncio
+async def test_dynamo_activity_record_event_type_increment_failure_logged(
     caplog: LogCaptureFixture,
 ) -> None:
     store = DynamoActivityStore(
@@ -346,7 +436,7 @@ def test_dynamo_activity_record_distinct_event_type_increment_failure_logged(
     principal = _principal(subject="user-3")
 
     with caplog.at_level("WARNING"):
-        store.record(principal=principal, event_type="jobs_complete")
+        await store.record(principal=principal, event_type="jobs_complete")
 
     warning_records = [
         record

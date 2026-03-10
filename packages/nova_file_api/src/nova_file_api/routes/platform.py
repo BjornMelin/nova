@@ -19,6 +19,14 @@ from nova_file_api.models import (
     ResourcePlanRequest,
     ResourcePlanResponse,
 )
+from nova_file_api.operation_ids import (
+    GET_CAPABILITIES_OPERATION_ID,
+    GET_RELEASE_INFO_OPERATION_ID,
+    HEALTH_LIVE_OPERATION_ID,
+    HEALTH_READY_OPERATION_ID,
+    METRICS_SUMMARY_OPERATION_ID,
+    PLAN_RESOURCES_OPERATION_ID,
+)
 from nova_file_api.routes.common import emit_request_metric
 
 ops_router = APIRouter(tags=["ops"])
@@ -27,12 +35,18 @@ platform_router = APIRouter(prefix="/v1", tags=["platform"])
 
 @platform_router.get(
     "/capabilities",
+    operation_id=GET_CAPABILITIES_OPERATION_ID,
     response_model=CapabilitiesResponse,
 )
 async def get_capabilities(
     context: RequestContextDep,
 ) -> CapabilitiesResponse:
-    """Expose runtime capability declarations."""
+    """
+    Declare runtime capabilities exposed by the service.
+    
+    Returns:
+        CapabilitiesResponse: A response containing a list of CapabilityDescriptor entries that indicate which runtime features (e.g., jobs, jobs.events.poll, transfers) are enabled.
+    """
     settings = context.container.settings
     capabilities = [
         CapabilityDescriptor(key="jobs", enabled=settings.jobs_enabled),
@@ -50,13 +64,25 @@ async def get_capabilities(
 
 @platform_router.post(
     "/resources/plan",
+    operation_id=PLAN_RESOURCES_OPERATION_ID,
     response_model=ResourcePlanResponse,
 )
 async def plan_resources(
     payload: ResourcePlanRequest,
     context: RequestContextDep,
 ) -> ResourcePlanResponse:
-    """Plan supportability for requested resource keys."""
+    """
+    Produce a resource compatibility plan for the requested resource keys.
+    
+    For each resource in payload.resources, returns a ResourcePlanItem indicating whether the resource is supported and, if not, a reason. Support is determined from a fixed available set {"jobs", "transfers", "downloads", "uploads"} and is further constrained by runtime settings: if settings.jobs_enabled is False any "jobs" item is marked unsupported with reason "jobs_disabled"; if settings.file_transfer_enabled is False any "transfers", "downloads", or "uploads" item is marked unsupported with reason "file_transfers_disabled".
+    
+    Parameters:
+        payload (ResourcePlanRequest): Request containing the list of resource keys to evaluate.
+        context (RequestContextDep): Request context carrying runtime settings.
+    
+    Returns:
+        ResourcePlanResponse: Response containing a plan (list of ResourcePlanItem) where each item has `supported` set to `true` when the resource is available and not disabled by settings, otherwise `false` with a concrete `reason` such as "unsupported_resource", "jobs_disabled", or "file_transfers_disabled".
+    """
     settings = context.container.settings
     available = {"jobs", "transfers", "downloads", "uploads"}
     plan = [
@@ -93,12 +119,18 @@ async def plan_resources(
 
 @platform_router.get(
     "/releases/info",
+    operation_id=GET_RELEASE_INFO_OPERATION_ID,
     response_model=ReleaseInfoResponse,
 )
 async def get_release_info(
     context: RequestContextDep,
 ) -> ReleaseInfoResponse:
-    """Return service release metadata."""
+    """
+    Provide the service's release metadata.
+    
+    Returns:
+        ReleaseInfoResponse: Contains `name` (application name), `version` (application version), and `environment` (deployment environment).
+    """
     settings = context.container.settings
     return ReleaseInfoResponse(
         name=settings.app_name,
@@ -109,22 +141,42 @@ async def get_release_info(
 
 @ops_router.get(
     "/v1/health/live",
+    operation_id=HEALTH_LIVE_OPERATION_ID,
     response_model=HealthResponse,
 )
 async def health_live() -> HealthResponse:
-    """Return liveness status."""
+    """
+    Indicates whether the service is alive.
+    
+    Returns:
+        HealthResponse: Response with ok=True.
+    """
     return HealthResponse(ok=True)
 
 
 @ops_router.get(
     "/v1/health/ready",
+    operation_id=HEALTH_READY_OPERATION_ID,
     response_model=ReadinessResponse,
 )
 async def health_ready(
     context: RequestContextDep,
     response: Response,
 ) -> ReadinessResponse:
-    """Return readiness checks for traffic-critical dependencies."""
+    """
+    Determine readiness of traffic-critical dependencies.
+    
+    Performs health checks for shared cache, job queue (if enabled), activity store,
+    and authentication dependency (unless SAME_ORIGIN). Sets the HTTP response
+    status to 503 when any check indicates failure.
+    
+    Parameters:
+        response (Response): HTTP response object; its status_code will be set to 503 when not ready.
+    
+    Returns:
+        ReadinessResponse: Contains `ok` indicating overall readiness and `checks` mapping
+        individual dependency names to their boolean health status.
+    """
     container = context.container
     logger = structlog.get_logger("api")
 
@@ -139,9 +191,7 @@ async def health_ready(
 
     if container.settings.jobs_enabled:
         try:
-            job_queue = await context.run_blocking(
-                container.job_service.publisher.healthcheck,
-            )
+            job_queue = await container.job_service.publisher.healthcheck()
         except Exception:
             logger.exception(
                 "v1_health_ready_job_queue_healthcheck_failed",
@@ -152,9 +202,7 @@ async def health_ready(
         job_queue = True
 
     try:
-        activity_store = await context.run_blocking(
-            container.activity_store.healthcheck,
-        )
+        activity_store = await container.activity_store.healthcheck()
     except Exception:
         logger.exception(
             "v1_health_ready_activity_store_healthcheck_failed",
@@ -197,12 +245,21 @@ async def health_ready(
 
 @ops_router.get(
     "/metrics/summary",
+    operation_id=METRICS_SUMMARY_OPERATION_ID,
     response_model=MetricsSummaryResponse,
 )
 async def metrics_summary(
     context: RequestContextDep,
 ) -> MetricsSummaryResponse:
-    """Return low-cardinality metrics summary for dashboards."""
+    """
+    Provide a low-cardinality metrics summary used by dashboards.
+    
+    Returns:
+        MetricsSummaryResponse: Contains:
+            - counters: mapping of metric names to their current counts.
+            - latencies_ms: latency measurements in milliseconds.
+            - activity: summary object from the activity store.
+    """
     container = context.container
     principal = await context.authenticate(session_id=None)
     if (
@@ -219,5 +276,5 @@ async def metrics_summary(
     return MetricsSummaryResponse(
         counters=container.metrics.counters_snapshot(),
         latencies_ms=container.metrics.latency_snapshot(),
-        activity=await context.run_blocking(container.activity_store.summary),
+        activity=await container.activity_store.summary(),
     )

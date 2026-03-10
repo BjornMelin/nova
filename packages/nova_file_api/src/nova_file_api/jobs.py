@@ -2,15 +2,14 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from threading import Lock
-from typing import Any, Protocol
+from typing import Any, Protocol, cast
 from uuid import uuid4
 
-import boto3
-from botocore.config import Config
 from botocore.exceptions import BotoCoreError, ClientError
 
 from nova_file_api.errors import conflict, not_found, queue_unavailable
@@ -21,55 +20,94 @@ from nova_file_api.models import JobRecord, JobStatus
 class JobRepository(Protocol):
     """Persist and retrieve job records."""
 
-    def create(self, record: JobRecord) -> None:
+    async def create(self, record: JobRecord) -> None:
         """Persist a new job record."""
 
-    def get(self, job_id: str) -> JobRecord | None:
-        """Return job record by id if present."""
+    async def get(self, job_id: str) -> JobRecord | None:
+        """
+        Retrieve the job record for the given job ID.
+        
+        Parameters:
+            job_id (str): The unique identifier of the job.
+        
+        Returns:
+            JobRecord | None: The JobRecord if present, otherwise None.
+        """
 
-    def update(self, record: JobRecord) -> None:
-        """Replace a job record."""
+    async def update(self, record: JobRecord) -> None:
+        """
+        Replace the stored job record with the provided JobRecord.
+        
+        Parameters:
+            record (JobRecord): Job record to persist; it will replace any existing record with the same job_id.
+        """
 
-    def update_if_status(
+    async def update_if_status(
         self,
         *,
         record: JobRecord,
         expected_status: JobStatus,
     ) -> bool:
-        """Replace record only when current status matches expected value."""
-
-    def list_for_scope(self, *, scope_id: str, limit: int) -> list[JobRecord]:
-        """List jobs visible to the provided caller scope.
-
-        Args:
-            scope_id: Caller scope identifier used for ownership filtering.
-            limit: Maximum number of records to return, newest first.
-
+        """
+        Attempt to replace the stored job record only when its current status equals the provided expected status.
+        
+        Parameters:
+            record (JobRecord): The new job record to write if the condition matches.
+            expected_status (JobStatus): The status value that the existing stored record must have for the replacement to proceed.
+        
         Returns:
-            list[JobRecord]: Caller-owned records sorted by most recent first.
+            bool: `True` if the repository record was replaced, `False` otherwise.
+        """
 
+    async def list_for_scope(
+        self, *, scope_id: str, limit: int
+    ) -> list[JobRecord]:
+        """
+        List jobs owned by the given scope, ordered newest first.
+        
+        Args:
+            scope_id: Identifier of the caller scope used to filter owned jobs.
+            limit: Maximum number of records to return; must be greater than zero.
+        
+        Returns:
+            A list of JobRecord objects belonging to the provided scope ordered by descending creation time (newest first), limited to `limit`.
+        
         Raises:
-            ValueError: If ``limit`` is not a positive integer.
+            ValueError: If `limit` is not a positive integer.
         """
 
 
 class JobPublisher(Protocol):
     """Queue interface for background job dispatch."""
 
-    def publish(self, *, job: JobRecord) -> None:
-        """Publish job record to background queue."""
+    async def publish(self, *, job: JobRecord) -> None:
+        """
+        Publish a job record to the backing queue for asynchronous processing.
+        
+        Parameters:
+            job (JobRecord): The job record to enqueue.
+        """
 
-    def post_publish(
+    async def post_publish(
         self,
         *,
         job: JobRecord,
         repository: JobRepository,
         metrics: MetricsCollector,
     ) -> None:
-        """Run optional post-publish handling."""
+        """
+        Perform optional post-publish actions after a job is enqueued.
+        
+        Implementations may update the persisted job record (for example to mark it running or succeeded) and emit metrics or other side effects related to the enqueue operation.
+        """
 
-    def healthcheck(self) -> bool:
-        """Return readiness of the backing queue dependency."""
+    async def healthcheck(self) -> bool:
+        """
+        Check whether the backing queue service is reachable and ready.
+        
+        Returns:
+            bool: `True` if the backing queue is reachable and operational, `False` otherwise.
+        """
 
 
 @dataclass(slots=True)
@@ -95,7 +133,7 @@ class MemoryJobRepository:
         self._records = {}
         self._lock = Lock()
 
-    def create(self, record: JobRecord) -> None:
+    async def create(self, record: JobRecord) -> None:
         """Persist a new in-memory job record.
 
         Args:
@@ -104,31 +142,42 @@ class MemoryJobRepository:
         with self._lock:
             self._records[record.job_id] = record
 
-    def get(self, job_id: str) -> JobRecord | None:
-        """Return a job record by ID when present.
-
-        Args:
-            job_id: Unique job identifier.
+    async def get(self, job_id: str) -> JobRecord | None:
+        """
+        Retrieve the job record for the given job ID if it exists.
+        
+        Returns:
+            JobRecord | None: The record for the job ID, or `None` if no record is found.
         """
         with self._lock:
             return self._records.get(job_id)
 
-    def update(self, record: JobRecord) -> None:
-        """Replace an existing job record.
-
-        Args:
-            record: Updated job record.
+    async def update(self, record: JobRecord) -> None:
+        """
+        Store the given JobRecord in the in-memory repository, overwriting any existing record with the same job_id.
+        
+        Parameters:
+            record (JobRecord): The job record to store; this will replace any existing entry with the same job_id.
         """
         with self._lock:
             self._records[record.job_id] = record
 
-    def update_if_status(
+    async def update_if_status(
         self,
         *,
         record: JobRecord,
         expected_status: JobStatus,
     ) -> bool:
-        """Replace record only when current status matches expected value."""
+        """
+        Conditionally replace an existing job record in the in-memory store when its current status equals the expected status.
+        
+        Parameters:
+            record (JobRecord): The new job record to store (replaces the existing record with the same job_id).
+            expected_status (JobStatus): The status value that the existing record must have for the replacement to occur.
+        
+        Returns:
+            bool: `True` if the record was replaced; `False` if no existing record was found or its status did not match `expected_status`.
+        """
         with self._lock:
             current = self._records.get(record.job_id)
             if current is None:
@@ -138,7 +187,9 @@ class MemoryJobRepository:
             self._records[record.job_id] = record
             return True
 
-    def list_for_scope(self, *, scope_id: str, limit: int) -> list[JobRecord]:
+    async def list_for_scope(
+        self, *, scope_id: str, limit: int
+    ) -> list[JobRecord]:
         """List caller-scoped jobs newest-first.
 
         Args:
@@ -166,37 +217,62 @@ class DynamoJobRepository:
     """DynamoDB-backed job record repository."""
 
     table_name: str
-    _table: Any = field(init=False, repr=False)
+    dynamodb_resource: Any
+    _table: Any | None = field(init=False, repr=False, default=None)
+    _table_lock: asyncio.Lock = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
-        """Initialize DynamoDB table binding."""
-        self._table = boto3.resource("dynamodb").Table(self.table_name)
+        """Initialize lazy table resolver."""
+        self._table_lock = asyncio.Lock()
 
-    def create(self, record: JobRecord) -> None:
-        """Persist a new job record."""
-        self._table.put_item(Item=_record_to_item(record))
+    async def create(self, record: JobRecord) -> None:
+        """
+        Persist the provided JobRecord to the repository's DynamoDB table.
+        
+        Parameters:
+            record (JobRecord): Job record to store; the repository will upsert this record as-is.
+        """
+        table = await self._resolve_table()
+        await table.put_item(Item=_record_to_item(record))
 
-    def get(self, job_id: str) -> JobRecord | None:
-        """Return job record by id when present."""
-        response = self._table.get_item(Key={"job_id": job_id})
+    async def get(self, job_id: str) -> JobRecord | None:
+        """
+        Retrieve a job record by its ID.
+        
+        Returns:
+            The JobRecord for the given ID, or None if no matching record exists.
+        """
+        table = await self._resolve_table()
+        response = await table.get_item(Key={"job_id": job_id})
         item = response.get("Item")
         if item is None:
             return None
         return _item_to_record(item)
 
-    def update(self, record: JobRecord) -> None:
+    async def update(self, record: JobRecord) -> None:
         """Replace an existing job record."""
-        self._table.put_item(Item=_record_to_item(record))
+        table = await self._resolve_table()
+        await table.put_item(Item=_record_to_item(record))
 
-    def update_if_status(
+    async def update_if_status(
         self,
         *,
         record: JobRecord,
         expected_status: JobStatus,
     ) -> bool:
-        """Replace record only when current status matches expected value."""
+        """
+        Replace a persisted job record only if the stored job's status equals the provided expected status.
+        
+        Parameters:
+            record: The JobRecord to write.
+            expected_status: The JobStatus that the existing stored record must have for the replace to occur.
+        
+        Returns:
+            `true` if the record was replaced, `false` otherwise.
+        """
+        table = await self._resolve_table()
         try:
-            self._table.put_item(
+            await table.put_item(
                 Item=_record_to_item(record),
                 ConditionExpression=(
                     "attribute_exists(job_id) AND #status = :expected_status"
@@ -213,7 +289,9 @@ class DynamoJobRepository:
             raise
         return True
 
-    def list_for_scope(self, *, scope_id: str, limit: int) -> list[JobRecord]:
+    async def list_for_scope(
+        self, *, scope_id: str, limit: int
+    ) -> list[JobRecord]:
         """List caller-scoped jobs newest-first.
 
         Args:
@@ -232,6 +310,7 @@ class DynamoJobRepository:
         items: list[dict[str, Any]] = []
         last_evaluated_key: dict[str, Any] | None = None
         remaining = limit
+        table = await self._resolve_table()
         while True:
             query_kwargs: dict[str, Any] = {
                 "IndexName": "scope_id-created_at-index",
@@ -245,7 +324,7 @@ class DynamoJobRepository:
                 query_kwargs["ExclusiveStartKey"] = last_evaluated_key
 
             try:
-                response = self._table.query(**query_kwargs)
+                response = await table.query(**query_kwargs)
             except ClientError as exc:
                 error = exc.response.get("Error", {})
                 error_code = str(error.get("Code", ""))
@@ -277,6 +356,24 @@ class DynamoJobRepository:
                 break
         return [_item_to_record(item) for item in items[:limit]]
 
+    async def _resolve_table(self) -> Any:
+        """
+        Lazily resolve and cache the DynamoDB table object for this repository.
+        
+        If the table has not been resolved yet, acquires the internal async lock, initializes and caches the table on the instance; subsequent calls return the cached table.
+        
+        Returns:
+            table (Any): The resolved DynamoDB table object.
+        """
+        if self._table is not None:
+            return self._table
+        async with self._table_lock:
+            if self._table is None:
+                self._table = await self.dynamodb_resource.Table(
+                    self.table_name
+                )
+        return cast(Any, self._table)
+
 
 @dataclass(slots=True)
 class MemoryJobPublisher:
@@ -284,16 +381,17 @@ class MemoryJobPublisher:
 
     process_immediately: bool = True
 
-    def publish(self, *, job: JobRecord) -> None:
-        """Publish a job in memory.
-
-        Args:
-            job: Job record to publish.
+    async def publish(self, *, job: JobRecord) -> None:
+        """
+        Discard the provided JobRecord when publishing to the in-memory queue.
+        
+        Parameters:
+            job (JobRecord): The job to discard; this operation has no external side effects.
         """
         del job
         return
 
-    def post_publish(
+    async def post_publish(
         self,
         *,
         job: JobRecord,
@@ -306,7 +404,7 @@ class MemoryJobPublisher:
         running = job.model_copy(
             update={"status": JobStatus.RUNNING, "updated_at": _utc_now()}
         )
-        repository.update(running)
+        await repository.update(running)
         done = running.model_copy(
             update={
                 "status": JobStatus.SUCCEEDED,
@@ -314,11 +412,16 @@ class MemoryJobPublisher:
                 "updated_at": _utc_now(),
             }
         )
-        repository.update(done)
+        await repository.update(done)
         metrics.incr("jobs_succeeded")
 
-    def healthcheck(self) -> bool:
-        """Return readiness for the memory-backed publisher."""
+    async def healthcheck(self) -> bool:
+        """
+        Check whether the memory-backed publisher is ready.
+        
+        Returns:
+            `True` if the publisher is ready, `False` otherwise.
+        """
         return True
 
 
@@ -327,27 +430,19 @@ class SqsJobPublisher:
     """SQS-backed queue publisher."""
 
     queue_url: str
-    retry_mode: str = "standard"
-    retry_total_max_attempts: int = 3
-    _sqs: Any = field(init=False, repr=False)
+    sqs_client: Any
 
-    def __post_init__(self) -> None:
-        """Initialize the SQS client after dataclass construction."""
-        self._sqs = boto3.client(
-            "sqs",
-            config=Config(
-                retries={
-                    "mode": self.retry_mode,
-                    "total_max_attempts": self.retry_total_max_attempts,
-                }
-            ),
-        )
-
-    def publish(self, *, job: JobRecord) -> None:
-        """Publish a job payload to SQS.
-
-        Args:
-            job: Job record to send.
+    async def publish(self, *, job: JobRecord) -> None:
+        """
+        Publish a job to the configured SQS queue.
+        
+        Serializes the job's identifying fields and payload, sends them as the message body to the publisher's queue URL, and raises a JobPublishError if the underlying SQS client fails.
+        
+        Parameters:
+            job (JobRecord): Job record whose payload will be sent to SQS.
+        
+        Raises:
+            JobPublishError: If the SQS client or underlying boto core experiences an error; the exception's `details` contains `error_type` and `error_code`.
         """
         payload = {
             "job_id": job.job_id,
@@ -357,7 +452,7 @@ class SqsJobPublisher:
             "created_at": job.created_at.isoformat(),
         }
         try:
-            self._sqs.send_message(
+            await self.sqs_client.send_message(
                 QueueUrl=self.queue_url,
                 MessageBody=json.dumps(
                     payload, separators=(",", ":"), sort_keys=True
@@ -380,7 +475,7 @@ class SqsJobPublisher:
                 }
             ) from exc
 
-    def post_publish(
+    async def post_publish(
         self,
         *,
         job: JobRecord,
@@ -391,10 +486,15 @@ class SqsJobPublisher:
         del job, repository, metrics
         return
 
-    def healthcheck(self) -> bool:
-        """Return whether queue metadata can be fetched successfully."""
+    async def healthcheck(self) -> bool:
+        """
+        Check whether the SQS queue is reachable and its attributes can be retrieved.
+        
+        Returns:
+            `true` if queue attributes could be fetched, `false` otherwise.
+        """
         try:
-            self._sqs.get_queue_attributes(
+            await self.sqs_client.get_queue_attributes(
                 QueueUrl=self.queue_url,
                 AttributeNames=["QueueArn"],
             )
@@ -411,14 +511,29 @@ class JobService:
     publisher: JobPublisher
     metrics: MetricsCollector
 
-    def enqueue(
+    async def enqueue(
         self,
         *,
         job_type: str,
         payload: dict[str, Any],
         scope_id: str,
     ) -> JobRecord:
-        """Create and enqueue a job record."""
+        """
+        Create a new pending job, persist it, publish it to the queue, and return the stored record.
+        
+        Creates a JobRecord with the given type, payload, and scope, stores it in the repository, and publishes it via the configured publisher. If publishing fails, the job is marked failed in the repository and a queue_unavailable error is raised. Metrics for enqueue and failed publish are incremented and post-publish hooks are invoked after successful publish.
+        
+        Parameters:
+            job_type (str): Logical type/name of the job to enqueue.
+            payload (dict[str, Any]): Arbitrary JSON-serializable payload for the job.
+            scope_id (str): Identifier of the owning scope (used for access and listing).
+        
+        Returns:
+            JobRecord: The stored job record (reflecting any repository-updated fields).
+        
+        Raises:
+            queue_unavailable: When the queue publish fails and the job is marked failed.
+        """
         now = _utc_now()
         record = JobRecord(
             job_id=uuid4().hex,
@@ -431,9 +546,9 @@ class JobService:
             created_at=now,
             updated_at=now,
         )
-        self.repository.create(record)
+        await self.repository.create(record)
         try:
-            self.publisher.publish(job=record)
+            await self.publisher.publish(job=record)
         except JobPublishError as exc:
             failed = record.model_copy(
                 update={
@@ -442,7 +557,7 @@ class JobService:
                     "updated_at": _utc_now(),
                 }
             )
-            self.repository.update(failed)
+            await self.repository.update(failed)
             self.metrics.incr("jobs_publish_failed")
             raise queue_unavailable(
                 "job enqueue failed because queue publish failed",
@@ -450,27 +565,49 @@ class JobService:
             ) from exc
 
         self.metrics.incr("jobs_enqueued")
-        self.publisher.post_publish(
+        await self.publisher.post_publish(
             job=record,
             repository=self.repository,
             metrics=self.metrics,
         )
 
-        return self.repository.get(record.job_id) or record
+        return (await self.repository.get(record.job_id)) or record
 
-    def get(self, *, job_id: str, scope_id: str) -> JobRecord:
-        """Return job by id when owned by caller scope."""
-        record = self.repository.get(job_id)
+    async def get(self, *, job_id: str, scope_id: str) -> JobRecord:
+        """
+        Retrieve a job by ID if it is owned by the provided scope.
+        
+        Parameters:
+            job_id (str): ID of the job to retrieve.
+            scope_id (str): Scope identifier used to verify ownership.
+        
+        Returns:
+            JobRecord: The job record matching the given job_id and scope_id.
+        
+        Raises:
+            Error from `not_found`: If the job does not exist or is not owned by the provided scope.
+        """
+        record = await self.repository.get(job_id)
         if record is None:
             raise not_found("job not found")
         if record.scope_id != scope_id:
             raise not_found("job not found")
         return record
 
-    def cancel(self, *, job_id: str, scope_id: str) -> JobRecord:
-        """Cancel non-terminal job when owned by caller."""
+    async def cancel(self, *, job_id: str, scope_id: str) -> JobRecord:
+        """
+        Cancel a job owned by the caller if it is not in a terminal state.
+        
+        If the job is already in a terminal status (SUCCEEDED, FAILED, or CANCELED) the existing record is returned unchanged. The function attempts an atomic status update repeatedly to avoid races; on success it returns the updated record with status set to CANCELED.
+        
+        Returns:
+            JobRecord: The job record after cancellation, or the existing terminal record if no change was necessary.
+        
+        Raises:
+            conflict: If the job could not be canceled after MAX_CANCEL_RETRIES due to concurrent updates.
+        """
         for _ in range(MAX_CANCEL_RETRIES):
-            record = self.get(job_id=job_id, scope_id=scope_id)
+            record = await self.get(job_id=job_id, scope_id=scope_id)
             if record.status in {
                 JobStatus.SUCCEEDED,
                 JobStatus.FAILED,
@@ -483,7 +620,7 @@ class JobService:
                     "updated_at": _utc_now(),
                 }
             )
-            updated_ok = self.repository.update_if_status(
+            updated_ok = await self.repository.update_if_status(
                 record=updated,
                 expected_status=record.status,
             )
@@ -499,7 +636,7 @@ class JobService:
             },
         )
 
-    def list_for_scope(
+    async def list_for_scope(
         self, *, scope_id: str, limit: int = 50
     ) -> list[JobRecord]:
         """List jobs for caller scope, newest first.
@@ -516,22 +653,23 @@ class JobService:
         """
         if limit <= 0:
             raise ValueError("limit must be greater than zero")
-        return self.repository.list_for_scope(scope_id=scope_id, limit=limit)
+        return await self.repository.list_for_scope(
+            scope_id=scope_id, limit=limit
+        )
 
-    def retry(self, *, job_id: str, scope_id: str) -> JobRecord:
-        """Retry a failed/canceled job by creating a new pending record.
-
-        Args:
-            job_id: Identifier of the terminal job to retry.
-            scope_id: Caller scope identifier for ownership enforcement.
-
-        Returns:
-            JobRecord: Newly enqueued pending retry job.
-
-        Raises:
-            HTTPException: If the source job is not failed/canceled.
+    async def retry(self, *, job_id: str, scope_id: str) -> JobRecord:
         """
-        original = self.get(job_id=job_id, scope_id=scope_id)
+        Create a new pending job that re-enqueues a terminal job owned by the caller's scope.
+        
+        If the source job's status is not FAILED or CANCELED, raises an HTTPException indicating the retry is disallowed.
+        
+        Returns:
+            JobRecord: The newly enqueued pending retry job.
+        
+        Raises:
+            HTTPException: If the source job is not in FAILED or CANCELED state.
+        """
+        original = await self.get(job_id=job_id, scope_id=scope_id)
         if original.status not in {JobStatus.FAILED, JobStatus.CANCELED}:
             raise conflict(
                 "job retry is only allowed from failed or canceled states",
@@ -540,13 +678,13 @@ class JobService:
                     "current_status": original.status.value,
                 },
             )
-        return self.enqueue(
+        return await self.enqueue(
             job_type=original.job_type,
             payload=original.payload,
             scope_id=scope_id,
         )
 
-    def update_result(
+    async def update_result(
         self,
         *,
         job_id: str,
@@ -554,8 +692,23 @@ class JobService:
         result: dict[str, Any] | None,
         error: str | None,
     ) -> JobRecord:
-        """Update job result/status from worker-side processing."""
-        record = self.repository.get(job_id)
+        """
+        Apply a worker's processing outcome to a job record, persist the updated status/result, and emit related metrics.
+        
+        Parameters:
+            job_id (str): Identifier of the job to update.
+            status (JobStatus): New status to set on the job.
+            result (dict[str, Any] | None): Optional result payload produced by the worker.
+            error (str | None): Optional error message produced by the worker.
+        
+        Returns:
+            JobRecord: The job record after the update.
+        
+        Raises:
+            NotFoundError: If no job with the given `job_id` exists.
+            ConflictError: If the requested status transition is invalid or the record was modified concurrently.
+        """
+        record = await self.repository.get(job_id)
         if record is None:
             raise not_found("job not found")
         if not _is_valid_transition(current=record.status, target=status):
@@ -588,12 +741,12 @@ class JobService:
             update_payload["error"] = record.error or "worker_failed"
 
         updated = record.model_copy(update=update_payload)
-        updated_ok = self.repository.update_if_status(
+        updated_ok = await self.repository.update_if_status(
             record=updated,
             expected_status=record.status,
         )
         if not updated_ok:
-            latest = self.repository.get(job_id)
+            latest = await self.repository.get(job_id)
             if latest is None:
                 raise not_found("job not found")
             if latest.status == status:

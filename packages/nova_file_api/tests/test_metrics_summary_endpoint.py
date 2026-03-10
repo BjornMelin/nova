@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from fastapi.testclient import TestClient
+import httpx
+import pytest
 from nova_file_api.activity import MemoryActivityStore
 from nova_file_api.app import create_app
 from nova_file_api.cache import LocalTTLCache, SharedRedisCache, TwoTierCache
@@ -22,7 +23,10 @@ from tests._test_doubles import StubTransferService
 
 
 class _StubAuthenticator:
+    """Return a fixed principal for metrics summary authorization tests."""
+
     def __init__(self, *, permissions: tuple[str, ...]) -> None:
+        """Store the permissions exposed by the fake authenticator."""
         self._permissions = permissions
 
     async def authenticate(
@@ -31,6 +35,16 @@ class _StubAuthenticator:
         request: Request,
         session_id: str | None,
     ) -> Principal:
+        """
+        Return a fixed Principal used for metrics summary authorization tests.
+        
+        Parameters:
+            request (Request): Ignored.
+            session_id (str | None): Ignored.
+        
+        Returns:
+            Principal: Principal with subject "caller-1", scope_id "scope-1", tenant_id None, empty scopes, and the permissions supplied to this authenticator.
+        """
         del request, session_id
         return Principal(
             subject="caller-1",
@@ -41,11 +55,23 @@ class _StubAuthenticator:
         )
 
 
-def _build_container(
+async def _build_container(
     *,
     auth_mode: AuthMode,
     permissions: tuple[str, ...],
 ) -> AppContainer:
+    """
+    Builds a minimal AppContainer configured for metrics summary tests.
+    
+    The returned container uses the provided authentication mode and a stub authenticator seeded with the given permissions, and includes prepopulated testing components (metrics with a single request counter and a latency sample, a two-tier cache with a shared redis stub, in-memory job repository/service and publisher, an activity store with one recorded "jobs_enqueue" event for subject "caller-1"/scope "scope-1", a stub transfer service, and an idempotency store enabled with a 300s TTL).
+    
+    Parameters:
+        auth_mode (AuthMode): Authentication mode to set on the container.
+        permissions (tuple[str, ...]): Permissions to assign to the stub authenticator.
+    
+    Returns:
+        AppContainer: A fully constructed application container ready for metrics summary tests.
+    """
     settings = Settings()
     settings.auth_mode = auth_mode
 
@@ -66,7 +92,7 @@ def _build_container(
         metrics=metrics,
     )
     activity_store = MemoryActivityStore()
-    activity_store.record(
+    await activity_store.record(
         principal=Principal(subject="caller-1", scope_id="scope-1"),
         event_type="jobs_enqueue",
     )
@@ -91,16 +117,23 @@ def _build_container(
     )
 
 
-def test_metrics_summary_same_origin_allows_missing_permission() -> None:
+@pytest.mark.asyncio
+async def test_metrics_summary_same_origin_allows_missing_permission() -> None:
     """SAME_ORIGIN allows metrics summary access without permissions."""
     app = create_app(
-        container_override=_build_container(
+        container_override=await _build_container(
             auth_mode=AuthMode.SAME_ORIGIN,
             permissions=(),
         )
     )
-    with TestClient(app) as client:
-        response = client.get("/metrics/summary")
+    async with (
+        app.router.lifespan_context(app),
+        httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app),
+            base_url="http://testserver",
+        ) as client,
+    ):
+        response = await client.get("/metrics/summary")
     assert response.status_code == 200
     payload = response.json()
     assert payload == {
@@ -114,32 +147,50 @@ def test_metrics_summary_same_origin_allows_missing_permission() -> None:
     }
 
 
-def test_metrics_summary_non_same_origin_rejects_missing_permission() -> None:
+@pytest.mark.asyncio
+async def test_metrics_summary_non_same_origin_rejects_missing_permission() -> (
+    None
+):
     """JWT_LOCAL rejects metrics summary when metrics:read is missing."""
     app = create_app(
-        container_override=_build_container(
+        container_override=await _build_container(
             auth_mode=AuthMode.JWT_LOCAL,
             permissions=(),
         )
     )
-    with TestClient(app) as client:
-        response = client.get("/metrics/summary")
+    async with (
+        app.router.lifespan_context(app),
+        httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app),
+            base_url="http://testserver",
+        ) as client,
+    ):
+        response = await client.get("/metrics/summary")
     assert response.status_code == 403
     payload = response.json()
     assert payload["error"]["code"] == "forbidden"
     assert payload["error"]["message"] == "missing metrics:read permission"
 
 
-def test_metrics_summary_non_same_origin_allows_metrics_permission() -> None:
+@pytest.mark.asyncio
+async def test_metrics_summary_non_same_origin_allows_metrics_permission() -> (
+    None
+):
     """JWT_LOCAL allows metrics summary when metrics:read permission exists."""
     app = create_app(
-        container_override=_build_container(
+        container_override=await _build_container(
             auth_mode=AuthMode.JWT_LOCAL,
             permissions=("metrics:read",),
         )
     )
-    with TestClient(app) as client:
-        response = client.get("/metrics/summary")
+    async with (
+        app.router.lifespan_context(app),
+        httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app),
+            base_url="http://testserver",
+        ) as client,
+    ):
+        response = await client.get("/metrics/summary")
     assert response.status_code == 200
     payload = response.json()
     assert payload["counters"]["requests_total"] == 1

@@ -2,29 +2,29 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
 from dataclasses import dataclass
-from functools import partial
-from typing import Annotated, cast
+from typing import Annotated
 
-import anyio
-from anyio.abc import CapacityLimiter
 from fastapi import Depends, Request
 
 from nova_file_api.container import AppContainer
 from nova_file_api.models import Principal
 
-BLOCKING_IO_LIMITER_STATE_KEY = "blocking_io_limiter"
 _APPLICATION_CONTAINER_NOT_INITIALIZED = (
     "application container is not initialized"
-)
-_APPLICATION_BLOCKING_IO_LIMITER_NOT_INITIALIZED = (
-    "application blocking I/O limiter is not initialized"
 )
 
 
 def get_container(request: Request) -> AppContainer:
-    """Return dependency container from app state."""
+    """
+    Retrieve the application container stored on the FastAPI app state.
+    
+    Returns:
+        AppContainer: The application's container instance.
+    
+    Raises:
+        TypeError: If the container is missing or is not an AppContainer.
+    """
     container = getattr(request.app.state, "container", None)
     if not isinstance(container, AppContainer):
         raise TypeError(_APPLICATION_CONTAINER_NOT_INITIALIZED)
@@ -32,19 +32,16 @@ def get_container(request: Request) -> AppContainer:
 
 
 def get_request_id(request: Request) -> str | None:
-    """Return request-id value from middleware state."""
+    """
+    Retrieve the request identifier set by middleware, if present.
+    
+    Returns:
+        `str` if a `request_id` string is stored on request.state, `None` otherwise.
+    """
     value = getattr(request.state, "request_id", None)
     if isinstance(value, str):
         return value
     return None
-
-
-def get_blocking_io_limiter(request: Request) -> CapacityLimiter:
-    """Return the app-scoped limiter for blocking runtime work."""
-    limiter = getattr(request.app.state, BLOCKING_IO_LIMITER_STATE_KEY, None)
-    if limiter is None:
-        raise TypeError(_APPLICATION_BLOCKING_IO_LIMITER_NOT_INITIALIZED)
-    return cast(CapacityLimiter, limiter)
 
 
 @dataclass(slots=True)
@@ -53,41 +50,36 @@ class RequestContext:
 
     request: Request
     container: AppContainer
-    blocking_io_limiter: CapacityLimiter
 
     async def authenticate(self, *, session_id: str | None) -> Principal:
-        """Authenticate the current caller for the request."""
+        """
+        Authenticate the request's caller and return their principal.
+        
+        Parameters:
+            session_id (str | None): Optional session identifier to authenticate (or None to authenticate without a session).
+        
+        Returns:
+            Principal: The authenticated principal for the current request.
+        """
         return await self.container.authenticator.authenticate(
             request=self.request,
             session_id=session_id,
-        )
-
-    async def run_blocking[**P, R](
-        self,
-        fn: Callable[P, R],
-        /,
-        *args: P.args,
-        **kwargs: P.kwargs,
-    ) -> R:
-        """Run blocking work via the runtime-specific limiter."""
-        return await anyio.to_thread.run_sync(
-            partial(fn, *args, **kwargs),
-            limiter=self.blocking_io_limiter,
         )
 
 
 def get_request_context(
     request: Request,
     container: Annotated[AppContainer, Depends(get_container)],
-    blocking_io_limiter: Annotated[
-        CapacityLimiter, Depends(get_blocking_io_limiter)
-    ],
 ) -> RequestContext:
-    """Return a request-scoped runtime context for handlers."""
+    """
+    Provide a request-scoped runtime context for route handlers.
+    
+    Returns:
+        RequestContext: The context containing the current Request and the resolved application container.
+    """
     return RequestContext(
         request=request,
         container=container,
-        blocking_io_limiter=blocking_io_limiter,
     )
 
 

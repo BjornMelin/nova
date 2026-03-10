@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import math
 import re
+from collections.abc import Coroutine
 from contextlib import closing
 from pathlib import Path
-from typing import Any
+from typing import Any, TypeVar, cast
 from urllib.parse import quote_from_bytes
 from uuid import uuid4
 
@@ -63,11 +65,109 @@ from nova_dash_bridge.models import (
     SignPartsResponse,
 )
 from nova_dash_bridge.s3_client import (
+    S3Client,
     S3ClientFactory,
     SupportsCreateS3Client,
 )
 
 _INVALID_FILENAME_RE = re.compile(r"[^A-Za-z0-9._-]+")
+_T = TypeVar("_T")
+
+
+class _AsyncS3ClientAdapter:
+    """Expose async S3 methods by delegating to a sync boto3 client."""
+
+    def __init__(self, *, client: S3Client) -> None:
+        """Store the bridge-managed sync S3 client."""
+        self._client = client
+
+    async def generate_presigned_url(self, **kwargs: Any) -> str:
+        """
+        Generate a presigned URL for S3 operations.
+        
+        Keyword arguments are forwarded to the underlying synchronous S3 client's generate_presigned_url and must follow that API's accepted parameters.
+        
+        Returns:
+            The generated presigned URL as a string.
+        """
+        return str(self._client.generate_presigned_url(**kwargs))
+
+    async def create_multipart_upload(self, **kwargs: Any) -> dict[str, Any]:
+        """
+        Initiate an S3 multipart upload and return the S3 client's response.
+        
+        Parameters:
+            kwargs (Any): Keyword arguments forwarded to the underlying S3 client's
+                create_multipart_upload call (for example: `Bucket`, `Key`,
+                `ContentType`, `Metadata`).
+        
+        Returns:
+            dict[str, Any]: The response dictionary returned by the S3 client, typically
+            including an `UploadId` and other response metadata.
+        """
+        return cast(
+            dict[str, Any],
+            self._client.create_multipart_upload(**kwargs),
+        )
+
+    async def complete_multipart_upload(self, **kwargs: Any) -> dict[str, Any]:
+        """
+        Complete a multipart upload on S3 and return the service response.
+        
+        Parameters:
+            kwargs: Keyword arguments passed to the underlying S3 client's `complete_multipart_upload` call.
+                Common keys include:
+                    - Bucket (str): The target bucket name.
+                    - Key (str): The object key.
+                    - UploadId (str): The multipart upload ID to complete.
+                    - MultipartUpload (dict): Parts information, e.g. {"Parts": [{"ETag": "...", "PartNumber": 1}, ...]}.
+        
+        Returns:
+            response (dict[str, Any]): The response returned by the S3 client for the completed multipart upload.
+        """
+        return cast(
+            dict[str, Any],
+            self._client.complete_multipart_upload(**kwargs),
+        )
+
+    async def abort_multipart_upload(self, **kwargs: Any) -> dict[str, Any]:
+        """
+        Abort a multipart upload on S3 for the specified bucket, key, and upload ID.
+        
+        Parameters:
+            Bucket (str): The name of the S3 bucket.
+            Key (str): The object key for the multipart upload.
+            UploadId (str): The multipart upload ID to abort.
+            **kwargs: Additional parameters accepted by the underlying S3 client's `abort_multipart_upload`.
+        
+        Returns:
+            dict[str, Any]: The response dictionary returned by the S3 client's `abort_multipart_upload`.
+        """
+        return cast(
+            dict[str, Any],
+            self._client.abort_multipart_upload(**kwargs),
+        )
+
+    async def head_object(self, **kwargs: Any) -> dict[str, Any]:
+        """
+        Fetch metadata for an S3 object.
+        
+        Returns:
+            metadata (dict[str, Any]): Dictionary containing the object's metadata and response fields as returned by the S3 service.
+        """
+        return cast(dict[str, Any], self._client.head_object(**kwargs))
+
+    async def copy_object(self, **kwargs: Any) -> dict[str, Any]:
+        """
+        Copy an S3 object using the provided parameters.
+        
+        Parameters:
+            kwargs (Any): Keyword arguments forwarded to the underlying synchronous S3 client's copy_object call (for example `Bucket`, `Key`, `CopySource`, `Metadata`, etc.).
+        
+        Returns:
+            dict[str, Any]: Response dictionary returned by the S3 client containing metadata about the copy operation.
+        """
+        return cast(dict[str, Any], self._client.copy_object(**kwargs))
 
 
 class FileTransferService:
@@ -84,17 +184,24 @@ class FileTransferService:
         s3_client_factory: SupportsCreateS3Client | None = None,
         logger: logging.Logger | None = None,
     ) -> None:
-        """Initialize bridge service dependencies."""
+        """
+        Construct the FileTransferService with environment and policy dependencies and optional overrides.
+        
+        Parameters:
+        	env_config (FileTransferEnvConfig): Bridge environment configuration used to derive core settings (bucket, prefixes, limits).
+        	upload_policy (UploadPolicy): Upload policy that controls thresholds, part sizes, and other transfer constraints.
+        	auth_policy (AuthPolicy | None): Optional authentication policy used to resolve and validate scope IDs; a default AuthPolicy is created when not provided.
+        	s3_client_factory (SupportsCreateS3Client | None): Optional factory to create S3 clients; a default S3ClientFactory is used when not provided.
+        	logger (logging.Logger | None): Optional logger for the service; defaults to the module logger when not provided.
+        """
         self._env = env_config
         self._policy = upload_policy
         self._auth = auth_policy or AuthPolicy()
         self._factory = s3_client_factory or S3ClientFactory()
         self._logger = logger or logging.getLogger(__name__)
-        self._core = TransferService(
-            settings=_core_settings_from_bridge(
-                env_config=env_config,
-                upload_policy=upload_policy,
-            )
+        self._core_settings = _core_settings_from_bridge(
+            env_config=env_config,
+            upload_policy=upload_policy,
         )
 
     @property
@@ -116,19 +223,70 @@ class FileTransferService:
         )
 
     def ensure_enabled(self) -> None:
-        """Validate file transfer is enabled and minimally configured."""
+        """
+        Validate that file transfer is enabled and a target bucket is configured.
+        
+        Raises:
+            conflict_error: If file transfer is disabled in the environment.
+            internal_error: If the file transfer bucket is not configured.
+        """
         if not self._env.enabled:
             raise conflict_error("file transfer is not enabled")
         if not self._env.bucket:
             raise internal_error("FILE_TRANSFER_BUCKET is not configured")
 
-    def _client(self) -> Any:
-        """Return an S3 client from bridge factory configuration."""
+    def _client(self) -> S3Client:
+        """
+        Get an S3 client configured for the current environment using the bridge's client factory.
+        
+        Returns:
+            An S3Client instance bound to the service environment.
+        """
         return self._factory.create(self._env)
+
+    def _build_core_service(self) -> TransferService:
+        """
+        Constructs a TransferService configured with the bridge's core settings and an async adapter for the configured S3 client.
+        
+        Returns:
+            TransferService: A TransferService instance bound to an _AsyncS3ClientAdapter wrapping the current S3 client.
+        """
+        return TransferService(
+            settings=self._core_settings,
+            s3_client=_AsyncS3ClientAdapter(client=self._client()),
+        )
+
+    @staticmethod
+    def _run_async(awaitable: Coroutine[Any, Any, _T]) -> _T:
+        """
+        Run a single awaitable from synchronous code, using asyncio.run when no event loop is active.
+        
+        Returns:
+            The awaited result.
+        
+        Raises:
+            RuntimeError: if called while an event loop is already running.
+        """
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            return asyncio.run(awaitable)
+        raise RuntimeError(
+            "FileTransferService sync methods cannot run inside an active "
+            "event loop"
+        )
 
     @staticmethod
     def sanitize_filename(filename: str) -> str:
-        """Return a safe filename for key generation and download headers."""
+        """
+        Produce a filesystem- and header-safe filename derived from an input path.
+        
+        Parameters:
+            filename (str): Input filename or path; may include directories and extension.
+        
+        Returns:
+            str: A sanitized filename consisting of a cleaned stem and the original extension (lowercased). Invalid characters in the stem are replaced with underscores, leading/trailing dots or underscores are removed, and `"upload"` is used as the stem if the result would be empty.
+        """
         name = Path(filename).name
         stem = Path(name).stem.strip()
         ext = Path(name).suffix.lower()
@@ -233,18 +391,37 @@ class FileTransferService:
         self,
         req: InitiateUploadRequest,
     ) -> InitiateUploadResponseSingle | InitiateUploadResponseMultipart:
-        """Initiate upload and return bridge response contract."""
+        """
+        Initiate an upload according to bridge policy and return the appropriate initiate response.
+        
+        Builds a core initiate request, runs the core service, and returns either a single-part
+        initiate response with a presigned URL or a multipart initiate response with upload metadata.
+        
+        Parameters:
+            req (InitiateUploadRequest): Client-provided upload initiation request (filename, content type, size, session_id, etc.).
+        
+        Returns:
+            InitiateUploadResponseSingle | InitiateUploadResponseMultipart: A single-part response containing a presigned upload URL
+            when the core strategy is single, or a multipart response containing upload_id and part size when the strategy is multipart.
+        
+        Raises:
+            FileTransferError: Propagated from validation or enabling checks.
+            FileTransferError (internal_error): If the core response is missing required fields for the chosen strategy (missing presigned URL,
+            multipart upload id, or multipart part size).
+        """
         self.ensure_enabled()
         self.validate_upload_request(req)
         principal = self._principal(session_id=req.session_id)
-        core_response = self._core.initiate_upload(
-            CoreInitiateUploadRequest(
-                filename=req.filename,
-                content_type=req.content_type,
-                size_bytes=req.size_bytes,
-                session_id=None,
-            ),
-            principal,
+        core_response = self._run_async(
+            self._build_core_service().initiate_upload(
+                CoreInitiateUploadRequest(
+                    filename=req.filename,
+                    content_type=req.content_type,
+                    size_bytes=req.size_bytes,
+                    session_id=None,
+                ),
+                principal,
+            )
         )
         if core_response.strategy == UploadStrategy.SINGLE:
             if core_response.url is None:
@@ -269,17 +446,29 @@ class FileTransferService:
         )
 
     def sign_parts(self, req: SignPartsRequest) -> SignPartsResponse:
-        """Presign multipart upload part URLs."""
+        """
+        Generate presigned URLs for the parts of a multipart upload.
+        
+        Parameters:
+            req (SignPartsRequest): Request containing the object key, multipart upload ID,
+                list of part numbers to sign, and the session ID used to build the principal.
+        
+        Returns:
+            SignPartsResponse: Mapping of part number strings to presigned URLs and the
+            expiration time in seconds.
+        """
         self.ensure_enabled()
         principal = self._principal(session_id=req.session_id)
-        core_response = self._core.sign_parts(
-            CoreSignPartsRequest(
-                key=req.key,
-                upload_id=req.upload_id,
-                part_numbers=req.part_numbers,
-                session_id=None,
-            ),
-            principal,
+        core_response = self._run_async(
+            self._build_core_service().sign_parts(
+                CoreSignPartsRequest(
+                    key=req.key,
+                    upload_id=req.upload_id,
+                    part_numbers=req.part_numbers,
+                    session_id=None,
+                ),
+                principal,
+            )
         )
         return SignPartsResponse(
             urls={
@@ -293,7 +482,15 @@ class FileTransferService:
         self,
         req: CompleteUploadRequest,
     ) -> CompleteUploadResponse:
-        """Complete multipart upload and return bridge response."""
+        """
+        Finalize a multipart upload using the provided request.
+        
+        Parameters:
+            req (CompleteUploadRequest): Request containing the object key, upload ID, completed parts, and session ID.
+        
+        Returns:
+            CompleteUploadResponse: Response containing the `bucket`, `key`, and `etag` of the completed upload.
+        """
         self.ensure_enabled()
         principal = self._principal(session_id=req.session_id)
         core_parts = [
@@ -303,14 +500,16 @@ class FileTransferService:
             )
             for part in req.parts
         ]
-        core_response = self._core.complete_upload(
-            CoreCompleteUploadRequest(
-                key=req.key,
-                upload_id=req.upload_id,
-                parts=core_parts,
-                session_id=None,
-            ),
-            principal,
+        core_response = self._run_async(
+            self._build_core_service().complete_upload(
+                CoreCompleteUploadRequest(
+                    key=req.key,
+                    upload_id=req.upload_id,
+                    parts=core_parts,
+                    session_id=None,
+                ),
+                principal,
+            )
         )
         return CompleteUploadResponse(
             bucket=core_response.bucket,
@@ -319,16 +518,23 @@ class FileTransferService:
         )
 
     def abort_upload(self, req: AbortUploadRequest) -> AbortUploadResponse:
-        """Abort multipart upload and return bridge response."""
+        """
+        Abort an in-progress multipart upload described by the request.
+        
+        Returns:
+        	AbortUploadResponse: An empty response indicating the abort operation was completed.
+        """
         self.ensure_enabled()
         principal = self._principal(session_id=req.session_id)
-        self._core.abort_upload(
-            CoreAbortUploadRequest(
-                key=req.key,
-                upload_id=req.upload_id,
-                session_id=None,
-            ),
-            principal,
+        self._run_async(
+            self._build_core_service().abort_upload(
+                CoreAbortUploadRequest(
+                    key=req.key,
+                    upload_id=req.upload_id,
+                    session_id=None,
+                ),
+                principal,
+            )
         )
         return AbortUploadResponse()
 
@@ -355,7 +561,14 @@ class FileTransferService:
         self,
         req: PresignDownloadRequest,
     ) -> PresignDownloadResponse:
-        """Generate presigned GET URL for export objects."""
+        """
+        Generate a presigned GET URL for an export object.
+        
+        Validates that file transfer is enabled and that the requested key is within the configured export prefix and scope. If a filename is provided, constructs a safe Content-Disposition header for the download before generating the presigned URL.
+        
+        Returns:
+            PresignDownloadResponse: Contains `bucket`, `key`, `url`, and `expires_in_seconds`.
+        """
         self.ensure_enabled()
         scope_id = self.resolve_scope_id(req.session_id)
         self.ensure_key_scoped(
@@ -369,15 +582,17 @@ class FileTransferService:
                 content_disposition=req.content_disposition,
                 filename=req.filename,
             )
-        core_response = self._core.presign_download(
-            CorePresignDownloadRequest(
-                key=req.key,
-                session_id=None,
-                content_disposition=disposition,
-                filename=req.filename,
-                content_type=None,
-            ),
-            Principal(subject=scope_id, scope_id=scope_id),
+        core_response = self._run_async(
+            self._build_core_service().presign_download(
+                CorePresignDownloadRequest(
+                    key=req.key,
+                    session_id=None,
+                    content_disposition=disposition,
+                    filename=req.filename,
+                    content_type=None,
+                ),
+                Principal(subject=scope_id, scope_id=scope_id),
+            )
         )
         return PresignDownloadResponse(
             bucket=core_response.bucket,

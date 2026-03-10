@@ -29,11 +29,12 @@ class Authenticator:
     """Resolve and validate principals based on configured auth mode."""
 
     def __init__(self, *, settings: Settings, cache: TwoTierCache) -> None:
-        """Initialize authenticator state and optional JWT verifier.
-
-        Args:
-            settings: Runtime authentication settings.
-            cache: Shared cache for token verification results.
+        """
+        Initialize authenticator state and optional JWT verifier.
+        
+        Parameters:
+            settings (Settings): Runtime authentication configuration used to build the verifier and control auth behavior.
+            cache (TwoTierCache): Shared two-tier cache for storing token verification results.
         """
         self._settings = settings
         self._cache = cache
@@ -42,7 +43,7 @@ class Authenticator:
             settings.oidc_verifier_thread_tokens
         )
         self._remote_client: httpx.AsyncClient | None = None
-        self._remote_client_lock = asyncio.Lock()
+        self._remote_client_lock: asyncio.Lock | None = None
 
     async def authenticate(
         self,
@@ -50,14 +51,18 @@ class Authenticator:
         request: Request,
         session_id: str | None,
     ) -> Principal:
-        """Authenticate caller and return principal.
-
-        Args:
-            request: Current request with headers.
-            session_id: Optional body-provided session identifier.
-
+        """
+        Authenticate the incoming request and produce a Principal representing the authenticated subject.
+        
+        Parameters:
+            request (Request): The incoming request; headers are inspected for authentication information (e.g., Authorization, session headers).
+            session_id (str | None): Optional session identifier supplied in the request body used when resolving same-origin sessions.
+        
+        Returns:
+            Principal: The authenticated principal containing subject, scope_id, tenant_id, scopes, and permissions.
+        
         Raises:
-            FileTransferError: On authentication or authorization failures.
+            FileTransferError: If authentication or authorization fails.
         """
         if self._settings.auth_mode == AuthMode.SAME_ORIGIN:
             return self._same_origin_principal(
@@ -254,10 +259,22 @@ class Authenticator:
         )
 
     async def _get_remote_client(self) -> httpx.AsyncClient:
+        """
+        Return a cached httpx.AsyncClient, creating and caching one on first use in a thread-safe manner.
+        
+        The method lazily initializes self._remote_client and, if needed, self._remote_client_lock to ensure only one AsyncClient is created concurrently.
+        
+        Returns:
+            httpx.AsyncClient: The cached or newly created async HTTP client stored on self._remote_client.
+        """
         client = self._remote_client
         if client is not None:
             return client
-        async with self._remote_client_lock:
+        lock = self._remote_client_lock
+        if lock is None:
+            lock = asyncio.Lock()
+            self._remote_client_lock = lock
+        async with lock:
             client = self._remote_client
             if client is not None:
                 return client

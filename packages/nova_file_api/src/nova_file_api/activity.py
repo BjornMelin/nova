@@ -12,7 +12,6 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Protocol
 
-import boto3
 from botocore.exceptions import BotoCoreError, ClientError
 
 from nova_file_api.models import Principal
@@ -27,26 +26,49 @@ type DynamoKey = DynamoItem
 class ActivityStore(Protocol):
     """Interface for activity rollup storage."""
 
-    def record(
+    async def record(
         self,
         *,
         principal: Principal,
         event_type: str,
         details: str | None = None,
     ) -> None:
-        """Record activity event for principal."""
+        """
+        Record an activity event for the given principal and event type for today's rollup.
+        
+        Records a single occurrence of event_type associated with principal for the current UTC day. Optionally accepts a free-form details string which will be sanitized and truncated for logging and storage purposes.
+        
+        Parameters:
+        	principal (Principal): The authenticated actor whose `subject` uniquely identifies the user.
+        	event_type (str): A short identifier for the event being recorded (for example, "upload" or "login").
+        	details (str | None): Optional additional information about the event; may be redacted or truncated before persisting.
+        """
 
-    def summary(self) -> dict[str, int]:
-        """Return aggregate summary counters."""
+    async def summary(self) -> dict[str, int]:
+        """
+        Provide today's aggregate activity counters from the rollup store.
+        
+        Returns:
+            dict[str, int]: A mapping with keys:
+                - "events_total": total number of events recorded today,
+                - "active_users_today": number of distinct principals observed today,
+                - "distinct_event_types": number of distinct event types observed today.
+            If the summary item is missing or an error occurs, all values will be 0.
+        """
 
-    def healthcheck(self) -> bool:
-        """Return readiness of the activity store backend."""
+    async def healthcheck(self) -> bool:
+        """
+        Check whether the activity store backend is ready.
+        
+        Returns:
+            `True` if the backend is reachable and operational, `False` otherwise.
+        """
 
 
 class DynamoDbClientProtocol(Protocol):
     """Subset of DynamoDB client methods used by rollup storage."""
 
-    def update_item(
+    async def update_item(
         self,
         *,
         TableName: str,
@@ -55,24 +77,55 @@ class DynamoDbClientProtocol(Protocol):
         ExpressionAttributeNames: dict[str, str],
         ExpressionAttributeValues: DynamoItem,
     ) -> object:
-        """Update a DynamoDB item."""
+        """
+        Apply an UpdateItem expression to a DynamoDB item in the specified table.
+        
+        Parameters:
+            TableName (str): Name of the DynamoDB table to update.
+            Key (DynamoKey): Primary key of the item to update (DynamoDB attribute map).
+            UpdateExpression (str): DynamoDB UpdateExpression describing the update.
+            ExpressionAttributeNames (dict[str, str]): Mapping of expression attribute name placeholders (e.g., "#name") to actual attribute names.
+            ExpressionAttributeValues (DynamoItem): Mapping of expression attribute value placeholders (e.g., ":val") to DynamoDB attribute value maps.
+        
+        Returns:
+            object: The raw response object returned by the DynamoDB client for the UpdateItem call.
+        """
 
-    def put_item(
+    async def put_item(
         self,
         *,
         TableName: str,
         Item: DynamoItem,
         ConditionExpression: str,
     ) -> object:
-        """Put a DynamoDB item."""
+        """
+        Insert an item into the specified DynamoDB table when the provided condition is satisfied.
+        
+        Parameters:
+            TableName (str): Name of the DynamoDB table to write to.
+            Item (DynamoItem): Attribute map representing the item to put.
+            ConditionExpression (str): DynamoDB condition expression that must evaluate to true for the put to succeed.
+        
+        Returns:
+            object: The raw response returned by the DynamoDB client operation.
+        """
 
-    def get_item(
+    async def get_item(
         self,
         *,
         TableName: str,
         Key: DynamoKey,
     ) -> dict[str, DynamoItem]:
-        """Get a DynamoDB item."""
+        """
+        Retrieve an item from a DynamoDB table by primary key.
+        
+        Parameters:
+            TableName (str): Name of the DynamoDB table to query.
+            Key (DynamoKey): Primary key of the item to retrieve (attribute-name to DynamoDB attribute value map).
+        
+        Returns:
+            dict[str, DynamoItem]: The raw DynamoDB response dictionary. If an item is found it appears under the 'Item' key as a mapping of attribute names to DynamoDB attribute values; otherwise the response will not contain 'Item' (commonly an empty dict).
+        """
 
 
 @dataclass(slots=True)
@@ -84,19 +137,35 @@ class MemoryActivityStore:
     _lock: LockType
 
     def __init__(self) -> None:
-        """Initialize in-memory counters and subject sets."""
+        """
+        Initialize the store's in-memory counters, subject sets, and synchronization lock.
+        
+        Creates the following attributes:
+        - _events_per_day: mapping from day string to mapping of event type to count.
+        - _subjects_per_day: mapping from day string to a set of unique principal subjects.
+        - _lock: threading.Lock used to protect concurrent updates.
+        """
         self._events_per_day = defaultdict(lambda: defaultdict(int))
         self._subjects_per_day = defaultdict(set)
         self._lock = threading.Lock()
 
-    def record(
+    async def record(
         self,
         *,
         principal: Principal,
         event_type: str,
         details: str | None = None,
     ) -> None:
-        """Record one event for the principal and current day."""
+        """
+        Record a single activity event for the current UTC day.
+        
+        Increments the in-memory counter for the given event_type for today's date and marks the principal as active for today. This operation is thread-safe.
+        
+        Parameters:
+        	principal (Principal): The actor responsible for the event; its `subject` value is used to track unique active principals.
+        	event_type (str): A short string identifying the type/category of the event.
+        	details (str | None): Optional text included in the emitted log when provided; not stored in the aggregate counters.
+        """
         day = _day_key()
         if details is not None:
             logger.info(
@@ -113,8 +182,16 @@ class MemoryActivityStore:
             self._events_per_day[day][event_type] += 1
             self._subjects_per_day[day].add(principal.subject)
 
-    def summary(self) -> dict[str, int]:
-        """Return aggregate counters for dashboard display."""
+    async def summary(self) -> dict[str, int]:
+        """
+        Provide today's aggregated activity counters for dashboard display.
+        
+        Returns:
+            dict[str, int]: A mapping with keys:
+                - events_total: total number of events recorded today.
+                - active_users_today: number of unique principals seen today.
+                - distinct_event_types: number of distinct event types observed today.
+        """
         day = _day_key()
         with self._lock:
             day_events = dict(self._events_per_day.get(day, {}))
@@ -126,8 +203,13 @@ class MemoryActivityStore:
             "distinct_event_types": len(day_events),
         }
 
-    def healthcheck(self) -> bool:
-        """In-memory rollups are always ready."""
+    async def healthcheck(self) -> bool:
+        """
+        Always reports that the in-memory activity store is ready.
+        
+        Returns:
+            True: Indicates the in-memory store is ready.
+        """
         return True
 
 
@@ -138,32 +220,32 @@ class DynamoActivityStore:
         self,
         *,
         table_name: str,
-        ddb_client: DynamoDbClientProtocol | None = None,
+        ddb_client: DynamoDbClientProtocol,
     ) -> None:
-        """Create a rollup store bound to the configured table.
-
-        Args:
-            table_name: DynamoDB table name for activity rollups.
-            ddb_client: Optional injected DynamoDB client for testing.
+        """
+        Create a rollup store bound to the specified DynamoDB table.
+        
+        Parameters:
+            table_name (str): DynamoDB table name used to store daily rollups.
+            ddb_client (DynamoDbClientProtocol): Injected async DynamoDB client used for all table operations.
         """
         self._table_name = table_name
-        if ddb_client is None:
-            ddb_client = boto3.client("dynamodb")
         self._ddb: DynamoDbClientProtocol = ddb_client
 
-    def record(
+    async def record(
         self,
         *,
         principal: Principal,
         event_type: str,
         details: str | None = None,
     ) -> None:
-        """Update activity counters for one event.
-
-        Args:
-            principal: Authenticated caller principal.
-            event_type: Event name for per-type counters.
-            details: Optional diagnostic context from failure paths.
+        """
+        Record a single activity event and update daily rollup counters and markers.
+        
+        Parameters:
+            principal (Principal): Authenticated caller whose `subject` identifies the actor.
+            event_type (str): Event name used for per-type rollups and markers.
+            details (str | None): Optional diagnostic context; sensitive values will be sanitized before logging.
         """
         day = _day_key()
         context = _record_log_context(
@@ -187,10 +269,10 @@ class DynamoActivityStore:
             "sk": {"S": event_type},
         }
         try:
-            self._increment_counter(
+            await self._increment_counter(
                 key=event_rollup_key, counter_name="event_count"
             )
-            self._increment_counter(
+            await self._increment_counter(
                 key=summary_key, counter_name="events_total"
             )
         except (ClientError, BotoCoreError) as exc:
@@ -202,7 +284,9 @@ class DynamoActivityStore:
             return
 
         try:
-            user_was_new = self._write_marker_if_absent(key=user_marker_key)
+            user_was_new = await self._write_marker_if_absent(
+                key=user_marker_key
+            )
         except (ClientError, BotoCoreError) as exc:
             logger.warning(
                 "activity user marker write failed; "
@@ -213,7 +297,7 @@ class DynamoActivityStore:
             user_was_new = False
         if user_was_new:
             try:
-                self._increment_counter(
+                await self._increment_counter(
                     key=summary_key, counter_name="active_users_today"
                 )
             except (ClientError, BotoCoreError) as exc:
@@ -224,7 +308,7 @@ class DynamoActivityStore:
                 )
 
         try:
-            event_type_was_new = self._write_marker_if_absent(
+            event_type_was_new = await self._write_marker_if_absent(
                 key=event_type_marker_key
             )
         except (ClientError, BotoCoreError) as exc:
@@ -237,7 +321,7 @@ class DynamoActivityStore:
             event_type_was_new = False
         if event_type_was_new:
             try:
-                self._increment_counter(
+                await self._increment_counter(
                     key=summary_key, counter_name="distinct_event_types"
                 )
             except (ClientError, BotoCoreError) as exc:
@@ -247,11 +331,11 @@ class DynamoActivityStore:
                     exc_info=exc,
                 )
 
-    def summary(self) -> dict[str, int]:
+    async def summary(self) -> dict[str, int]:
         """Read current-day aggregate counters from DynamoDB."""
         day = _day_key()
         try:
-            response = self._ddb.get_item(
+            response = await self._ddb.get_item(
                 TableName=self._table_name,
                 Key={"pk": {"S": f"ROLLUP#{day}"}, "sk": {"S": "SUMMARY"}},
             )
@@ -278,10 +362,15 @@ class DynamoActivityStore:
             ),
         }
 
-    def healthcheck(self) -> bool:
-        """Return True when the configured rollup table can be queried."""
+    async def healthcheck(self) -> bool:
+        """
+        Check whether the configured DynamoDB rollup table can be queried.
+        
+        Returns:
+            `true` if the rollup table can be queried, `false` otherwise.
+        """
         try:
-            self._ddb.get_item(
+            await self._ddb.get_item(
                 TableName=self._table_name,
                 Key={"pk": {"S": "ROLLUP#health"}, "sk": {"S": "SUMMARY"}},
             )
@@ -289,14 +378,20 @@ class DynamoActivityStore:
             return False
         return True
 
-    def _increment_counter(
+    async def _increment_counter(
         self,
         *,
         key: dict[str, dict[str, str]],
         counter_name: str,
     ) -> None:
-        """Increment one numeric counter on the target item."""
-        self._ddb.update_item(
+        """
+        Increment the specified numeric counter attribute on the DynamoDB item identified by `key`.
+        
+        Parameters:
+            key (dict[str, dict[str, str]]): DynamoDB key object identifying the target item (e.g., {"pk": {"S": "..."}, "sk": {"S": "..."}}).
+            counter_name (str): Name of the numeric attribute to increment on the item.
+        """
+        await self._ddb.update_item(
             TableName=self._table_name,
             Key=key,
             UpdateExpression=(
@@ -312,14 +407,25 @@ class DynamoActivityStore:
             },
         )
 
-    def _write_marker_if_absent(
+    async def _write_marker_if_absent(
         self,
         *,
         key: dict[str, dict[str, str]],
     ) -> bool:
-        """Write a marker item only if absent, returning True on creation."""
+        """
+        Create a marker item in DynamoDB for the provided key only if an item with that primary key does not already exist.
+        
+        Parameters:
+            key (dict[str, dict[str, str]]): DynamoDB item key attributes (e.g., {"pk": {"S": "..."}, "sk": {"S": "..."}}).
+        
+        Returns:
+            bool: `True` if the marker item was created, `False` if an item already existed.
+        
+        Raises:
+            ClientError, BotoCoreError: Propagates DynamoDB client errors except the conditional-failure that indicates the item already exists.
+        """
         try:
-            self._ddb.put_item(
+            await self._ddb.put_item(
                 TableName=self._table_name,
                 Item={
                     **key,

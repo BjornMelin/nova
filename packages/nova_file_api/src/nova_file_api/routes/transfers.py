@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 import structlog
-from fastapi import APIRouter, Header
+from fastapi import APIRouter
 
 from nova_file_api.dependencies import RequestContext, RequestContextDep
 from nova_file_api.errors import idempotency_conflict
@@ -22,7 +22,15 @@ from nova_file_api.models import (
     SignPartsRequest,
     SignPartsResponse,
 )
+from nova_file_api.operation_ids import (
+    ABORT_UPLOAD_OPERATION_ID,
+    COMPLETE_UPLOAD_OPERATION_ID,
+    INITIATE_UPLOAD_OPERATION_ID,
+    PRESIGN_DOWNLOAD_OPERATION_ID,
+    SIGN_UPLOAD_PARTS_OPERATION_ID,
+)
 from nova_file_api.routes.common import (
+    IdempotencyKeyHeader,
     emit_request_metric,
     validated_idempotency_key,
 )
@@ -32,17 +40,28 @@ transfer_router = APIRouter(prefix="/v1/transfers", tags=["transfers"])
 
 @transfer_router.post(
     "/uploads/initiate",
+    operation_id=INITIATE_UPLOAD_OPERATION_ID,
     response_model=InitiateUploadResponse,
 )
 async def initiate_upload(
     payload: InitiateUploadRequest,
     context: RequestContextDep,
-    idempotency_key: str | None = Header(
-        default=None,
-        alias="Idempotency-Key",
-    ),
+    idempotency_key: IdempotencyKeyHeader = None,
 ) -> InitiateUploadResponse:
-    """Choose upload strategy and return presigned metadata."""
+    """
+    Determine upload strategy and return presigned metadata for initiating an upload.
+    
+    If an Idempotency-Key is provided, the function will attempt to replay a stored response,
+    claim the idempotency key for the request, and store the resulting response for future replays.
+    The call also records activity and emits request/metric events (best-effort).
+    
+    Parameters:
+        payload (InitiateUploadRequest): Request payload containing upload details and session_id.
+        idempotency_key (IdempotencyKeyHeader, optional): Idempotency key to enable request replay and deduplication.
+    
+    Returns:
+        InitiateUploadResponse: Presigned metadata and instructions required by the client to perform the upload.
+    """
     container = context.container
     principal = await context.authenticate(session_id=payload.session_id)
     key = validated_idempotency_key(
@@ -97,8 +116,7 @@ async def initiate_upload(
 
     try:
         with container.metrics.timed("uploads_initiate_ms"):
-            response = await context.run_blocking(
-                container.transfer_service.initiate_upload,
+            response = await container.transfer_service.initiate_upload(
                 payload,
                 principal,
             )
@@ -152,8 +170,7 @@ async def initiate_upload(
         event_name="uploads_initiate_metric_increment_failed",
     )
     try:
-        await context.run_blocking(
-            container.activity_store.record,
+        await container.activity_store.record(
             principal=principal,
             event_type="uploads_initiate",
         )
@@ -180,20 +197,25 @@ async def initiate_upload(
 
 @transfer_router.post(
     "/uploads/sign-parts",
+    operation_id=SIGN_UPLOAD_PARTS_OPERATION_ID,
     response_model=SignPartsResponse,
 )
 async def sign_upload_parts(
     payload: SignPartsRequest,
     context: RequestContextDep,
 ) -> SignPartsResponse:
-    """Return presigned multipart part URLs."""
+    """
+    Generate presigned URLs for multipart upload parts.
+    
+    Returns:
+        SignPartsResponse: Presigned part URLs and related multipart upload metadata.
+    """
     container = context.container
     principal = await context.authenticate(session_id=payload.session_id)
 
     try:
         with container.metrics.timed("uploads_sign_parts_ms"):
-            response = await context.run_blocking(
-                container.transfer_service.sign_parts,
+            response = await container.transfer_service.sign_parts(
                 payload,
                 principal,
             )
@@ -218,8 +240,7 @@ async def sign_upload_parts(
         event_name="uploads_sign_parts_metric_increment_failed",
     )
     try:
-        await context.run_blocking(
-            container.activity_store.record,
+        await container.activity_store.record(
             principal=principal,
             event_type="uploads_sign_parts",
         )
@@ -242,20 +263,27 @@ async def sign_upload_parts(
 
 @transfer_router.post(
     "/uploads/complete",
+    operation_id=COMPLETE_UPLOAD_OPERATION_ID,
     response_model=CompleteUploadResponse,
 )
 async def complete_upload(
     payload: CompleteUploadRequest,
     context: RequestContextDep,
 ) -> CompleteUploadResponse:
-    """Complete multipart upload."""
+    """
+    Complete a multipart upload and return details about the completed transfer.
+    
+    Attempts to finish the multipart upload using the transfer service; on success it records metrics and an activity event, and on failure it records transfer failure metrics and re-raises the original exception.
+    
+    Returns:
+        CompleteUploadResponse: Details about the completed upload.
+    """
     container = context.container
     principal = await context.authenticate(session_id=payload.session_id)
 
     try:
         with container.metrics.timed("uploads_complete_ms"):
-            response = await context.run_blocking(
-                container.transfer_service.complete_upload,
+            response = await container.transfer_service.complete_upload(
                 payload,
                 principal,
             )
@@ -280,8 +308,7 @@ async def complete_upload(
         event_name="uploads_complete_metric_increment_failed",
     )
     try:
-        await context.run_blocking(
-            container.activity_store.record,
+        await container.activity_store.record(
             principal=principal,
             event_type="uploads_complete",
         )
@@ -304,20 +331,25 @@ async def complete_upload(
 
 @transfer_router.post(
     "/uploads/abort",
+    operation_id=ABORT_UPLOAD_OPERATION_ID,
     response_model=AbortUploadResponse,
 )
 async def abort_upload(
     payload: AbortUploadRequest,
     context: RequestContextDep,
 ) -> AbortUploadResponse:
-    """Abort multipart upload."""
+    """
+    Abort an in-progress multipart upload.
+    
+    Returns:
+        An AbortUploadResponse representing the outcome of the abort operation.
+    """
     container = context.container
     principal = await context.authenticate(session_id=payload.session_id)
 
     try:
         with container.metrics.timed("uploads_abort_ms"):
-            response = await context.run_blocking(
-                container.transfer_service.abort_upload,
+            response = await container.transfer_service.abort_upload(
                 payload,
                 principal,
             )
@@ -342,8 +374,7 @@ async def abort_upload(
         event_name="uploads_abort_metric_increment_failed",
     )
     try:
-        await context.run_blocking(
-            container.activity_store.record,
+        await container.activity_store.record(
             principal=principal,
             event_type="uploads_abort",
         )
@@ -366,20 +397,25 @@ async def abort_upload(
 
 @transfer_router.post(
     "/downloads/presign",
+    operation_id=PRESIGN_DOWNLOAD_OPERATION_ID,
     response_model=PresignDownloadResponse,
 )
 async def presign_download(
     payload: PresignDownloadRequest,
     context: RequestContextDep,
 ) -> PresignDownloadResponse:
-    """Issue presigned GET URL for caller-scoped key."""
+    """
+    Issue a presigned GET URL scoped to the requesting principal.
+    
+    Returns:
+        PresignDownloadResponse: Object containing the presigned GET URL and any associated metadata required to perform the download.
+    """
     container = context.container
     principal = await context.authenticate(session_id=payload.session_id)
 
     try:
         with container.metrics.timed("downloads_presign_ms"):
-            response = await context.run_blocking(
-                container.transfer_service.presign_download,
+            response = await container.transfer_service.presign_download(
                 payload,
                 principal,
             )
@@ -404,8 +440,7 @@ async def presign_download(
         event_name="downloads_presign_metric_increment_failed",
     )
     try:
-        await context.run_blocking(
-            container.activity_store.record,
+        await container.activity_store.record(
             principal=principal,
             event_type="downloads_presign",
         )
@@ -437,7 +472,21 @@ async def _record_transfer_failure(
     activity_event_type: str,
     exc: Exception,
 ) -> None:
-    """Record canonical metrics, logs, and activity for transfer failures."""
+    """
+    Record transfer failure metrics, emit a structured log entry, and attempt to record an activity event.
+    
+    This helper emits a failure metric (best-effort), logs the provided exception and context (route and principal scope), and then attempts to record an activity event describing the failure; if activity recording fails, that failure is logged but not raised.
+    
+    Parameters:
+        context (RequestContext): Request-scoped container and services used to emit metrics and record activity.
+        principal (Principal): Authenticated principal associated with the request; used for scope and activity recording.
+        metric_name (str): Name of the counter metric to increment for the failure.
+        route_metric (str): Route identifier used when emitting the route-level metric.
+        log_event (str): Message/event name to include in the structured exception log.
+        route_path (str): API route path used in logs and metrics for context.
+        activity_event_type (str): Activity event type name to record in the activity store.
+        exc (Exception): The exception instance that caused the transfer failure.
+    """
     container = context.container
     _emit_request_metric_best_effort(
         container=container,
@@ -456,8 +505,7 @@ async def _record_transfer_failure(
         error_code="transfer_failure",
     )
     try:
-        await context.run_blocking(
-            container.activity_store.record,
+        await container.activity_store.record(
             principal=principal,
             event_type=activity_event_type,
             details=type(exc).__name__,
