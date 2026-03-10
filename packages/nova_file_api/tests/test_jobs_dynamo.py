@@ -61,10 +61,37 @@ class _FakeTable:
             raise self.query_error
         assert kwargs["IndexName"] == "scope_id-created_at-index"
         assert kwargs.get("ScanIndexForward") is False
-        response: dict[str, Any] = {
-            "Items": [dict(item) for item in self.query_items]
-        }
-        if self.query_last_evaluated_key is not None:
+        key_condition = kwargs.get("KeyConditionExpression")
+        assert key_condition == "#scope_id = :scope_id"
+        attribute_values = kwargs.get("ExpressionAttributeValues", {})
+        scope_id = attribute_values.get(":scope_id")
+        assert isinstance(scope_id, str)
+
+        limit = kwargs.get("Limit")
+        assert isinstance(limit, int)
+        assert limit > 0
+
+        items = [
+            dict(item)
+            for item in self.query_items
+            if item.get("scope_id") == scope_id
+        ]
+        start_index = 0
+        exclusive_start_key = kwargs.get("ExclusiveStartKey")
+        if exclusive_start_key:
+            start_key = exclusive_start_key.get("job_id")
+            if start_key is not None:
+                for index, item in enumerate(items):
+                    if item.get("job_id") == start_key:
+                        start_index = index + 1
+                        break
+
+        page = items[start_index : start_index + limit]
+        response: dict[str, Any] = {"Items": page}
+        if (
+            len(page) < len(items[start_index:])
+            and self.query_last_evaluated_key is not None
+        ):
             response["LastEvaluatedKey"] = dict(self.query_last_evaluated_key)
         return response
 

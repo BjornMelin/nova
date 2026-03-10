@@ -3,8 +3,12 @@ from __future__ import annotations
 import asyncio
 import threading
 from collections.abc import Coroutine
-from concurrent.futures import ThreadPoolExecutor
-from concurrent.futures import TimeoutError as FutureTimeout
+from concurrent.futures import (
+    ThreadPoolExecutor,
+)
+from concurrent.futures import (
+    TimeoutError as FutureTimeout,
+)
 from typing import Any, TypeVar
 
 from nova_file_api.activity import MemoryActivityStore

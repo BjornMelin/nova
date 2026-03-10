@@ -81,7 +81,7 @@ async def parse_introspect_request(
     media_type = request_media_type(request=request)
     if media_type == FORM_MEDIA_TYPE:
         raw_payload = parse_form_payload(body=await request.body())
-    else:
+    elif media_type == JSON_MEDIA_TYPE:
         try:
             raw_payload = await request.json()
         except (JSONDecodeError, UnicodeDecodeError) as exc:
@@ -95,6 +95,17 @@ async def parse_introspect_request(
                     }
                 ]
             ) from exc
+    else:
+        raise RequestValidationError(
+            [
+                {
+                    "type": "value_error.content_type",
+                    "loc": ("header", "content-type"),
+                    "msg": "Unsupported content type",
+                    "input": media_type,
+                }
+            ]
+        )
 
     if not isinstance(raw_payload, dict):
         raise RequestValidationError(
@@ -173,6 +184,17 @@ def parse_form_payload(*, body: bytes) -> dict[str, Any]:
         if key in {"required_scopes", "required_permissions"}:
             payload[key] = values
             continue
+        if len(values) > 1:
+            raise RequestValidationError(
+                [
+                    {
+                        "type": "value_error.not_scalar",
+                        "loc": ("body", key),
+                        "msg": "Duplicate scalar fields are not allowed",
+                        "input": values,
+                    }
+                ]
+            )
         payload[key] = values[-1] if values else ""
     return payload
 

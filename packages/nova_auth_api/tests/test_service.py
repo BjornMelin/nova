@@ -25,10 +25,11 @@ def _principal() -> Principal:
 
 def _settings_without_local_oidc_verifier() -> Settings:
     """Build settings with local verifier construction disabled."""
-    settings = Settings()
-    settings.oidc_issuer = None
-    settings.oidc_audience = None
-    settings.oidc_jwks_url = None
+    settings = Settings(
+        oidc_issuer=None,
+        oidc_audience=None,
+        oidc_jwks_url=None,
+    )
     return settings
 
 
@@ -175,7 +176,12 @@ def test_build_verifier_does_not_embed_default_authorization_requirements(
         jwks_url: str | None,
         clock_skew_seconds: int,
     ) -> _DummyVerifier | None:
-        del issuer, audience, jwks_url, clock_skew_seconds
+        captured["args"] = {
+            "issuer": issuer,
+            "audience": audience,
+            "jwks_url": jwks_url,
+            "clock_skew_seconds": clock_skew_seconds,
+        }
         captured["config"] = type(
             "_Config",
             (),
@@ -194,6 +200,12 @@ def test_build_verifier_does_not_embed_default_authorization_requirements(
     verifier = _build_verifier(settings=settings)
 
     assert verifier is not None
+    assert captured["args"]["issuer"] == settings.oidc_issuer
+    assert captured["args"]["audience"] == settings.oidc_audience
+    assert captured["args"]["jwks_url"] == settings.oidc_jwks_url
+    assert captured["args"]["clock_skew_seconds"] == (
+        settings.oidc_clock_skew_seconds
+    )
     config = captured["config"]
     assert config.required_scopes == ()
     assert config.required_permissions == ()

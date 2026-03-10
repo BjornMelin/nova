@@ -479,7 +479,7 @@ class FileTransferService:
                     filename=req.filename,
                     content_type=None,
                 ),
-                Principal(subject=scope_id, scope_id=scope_id),
+                self._principal(session_id=scope_id),
             )
         )
         return PresignDownloadResponse(

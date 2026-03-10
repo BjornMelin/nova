@@ -100,8 +100,12 @@ def test_routes_cover_the_explicit_operation_id_contract() -> None:
         include_in_schema = getattr(route, "include_in_schema", False)
         if not include_in_schema or not isinstance(path, str):
             continue
-        assert isinstance(operation_id, str)
-        assert isinstance(methods, set)
+        assert isinstance(operation_id, str), (
+            f"Route {path} missing operation_id"
+        )
+        assert isinstance(methods, set), (
+            f"Route {path} missing methods: {methods!r}"
+        )
         operation_ids.append(operation_id)
         expected_methods = OPERATION_ID_BY_PATH_AND_METHOD.get(path)
         if expected_methods is None:

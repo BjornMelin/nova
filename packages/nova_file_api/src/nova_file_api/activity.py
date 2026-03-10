@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import logging
 import re
-import threading
-from _thread import LockType
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -54,10 +53,6 @@ class ActivityStore(Protocol):
         Returns:
             Daily counters for total events, active users, and event-type
             cardinality.
-
-        Raises:
-            ClientError: If the backing store query fails.
-            BotoCoreError: If the DynamoDB client fails.
         """
 
     async def healthcheck(self) -> bool:
@@ -65,10 +60,6 @@ class ActivityStore(Protocol):
 
         Returns:
             True when the backing store can be queried for health.
-
-        Raises:
-            ClientError: If the readiness probe fails.
-            BotoCoreError: If the DynamoDB client fails.
         """
 
 
@@ -110,13 +101,13 @@ class MemoryActivityStore:
 
     _events_per_day: dict[str, dict[str, int]]
     _subjects_per_day: dict[str, set[str]]
-    _lock: LockType
+    _lock: asyncio.Lock
 
     def __init__(self) -> None:
         """Initialize in-memory counters and subject sets."""
         self._events_per_day = defaultdict(lambda: defaultdict(int))
         self._subjects_per_day = defaultdict(set)
-        self._lock = threading.Lock()
+        self._lock = asyncio.Lock()
 
     async def record(
         self,
@@ -147,7 +138,7 @@ class MemoryActivityStore:
                     details=details,
                 ),
             )
-        with self._lock:
+        async with self._lock:
             self._events_per_day[day][event_type] += 1
             self._subjects_per_day[day].add(principal.subject)
 
@@ -159,7 +150,7 @@ class MemoryActivityStore:
             types.
         """
         day = _day_key()
-        with self._lock:
+        async with self._lock:
             day_events = dict(self._events_per_day.get(day, {}))
             active_users_today = len(self._subjects_per_day.get(day, set()))
         total_events = sum(day_events.values())

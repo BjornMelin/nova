@@ -42,7 +42,7 @@ class Authenticator:
             settings.oidc_verifier_thread_tokens
         )
         self._remote_client: httpx.AsyncClient | None = None
-        self._remote_client_lock: asyncio.Lock | None = None
+        self._remote_client_lock = asyncio.Lock()
 
     async def authenticate(
         self,
@@ -257,11 +257,7 @@ class Authenticator:
         client = self._remote_client
         if client is not None:
             return client
-        lock = self._remote_client_lock
-        if lock is None:
-            lock = asyncio.Lock()
-            self._remote_client_lock = lock
-        async with lock:
+        async with self._remote_client_lock:
             client = self._remote_client
             if client is not None:
                 return client
@@ -352,7 +348,6 @@ def _remote_auth_error(*, response: httpx.Response) -> FileTransferError:
         code = "forbidden"
     if status_code >= 500:
         code = "auth_unavailable"
-        status_code = 503
         message = "remote auth service unavailable"
     elif status_code not in {401, 403}:
         status_code = 401

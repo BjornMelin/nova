@@ -213,9 +213,10 @@ async def test_worker_receive_sqs_settings() -> None:
     worker._sqs = fake_sqs
 
     assert await worker._receive_messages() == []
+    queue_url = "https://sqs.us-west-2.amazonaws.com/123456789012/nova-jobs"
     assert fake_sqs.receive_calls == [
         {
-            "QueueUrl": "https://sqs.us-west-2.amazonaws.com/123456789012/nova-jobs",
+            "QueueUrl": queue_url,
             "MaxNumberOfMessages": 5,
             "WaitTimeSeconds": 7,
             "VisibilityTimeout": 180,
