@@ -9,6 +9,7 @@ env:
     - RELEASE_MANIFEST_SHA256
     - CHANGED_UNITS
   variables:
+    DOCKER_BUILDKIT: "1"
     FILE_DOCKERFILE_PATH: apps/nova_file_api_service/Dockerfile
     AUTH_DOCKERFILE_PATH: apps/nova_auth_api_service/Dockerfile
     DOCKER_BUILD_CONTEXT: .
@@ -126,6 +127,7 @@ phases:
         fi
         export ECR_REPOSITORY_URI ECR_REPOSITORY_NAME
       - aws ecr get-login-password --region "$REGION" | docker login --username AWS --password-stdin "$ECR_REGISTRY"
+      - docker buildx version >/dev/null
 
   build:
     commands:
