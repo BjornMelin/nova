@@ -158,7 +158,7 @@ class TransferService:
                 upload_id, part_size_bytes, and list of uploaded parts.
 
         Raises:
-            FileTransferError: If scope validation fails or upload does not exist.
+            FileTransferError: If scope validation fails or upload DNE.
         """
         self._assert_upload_scope(key=request.key, scope_id=principal.scope_id)
         uploaded_parts = await self._list_multipart_parts(
