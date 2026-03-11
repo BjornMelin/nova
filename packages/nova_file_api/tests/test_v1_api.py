@@ -5,11 +5,9 @@ from __future__ import annotations
 import pytest
 from fastapi.testclient import TestClient
 from nova_file_api.activity import MemoryActivityStore
-from nova_file_api.app import create_app
 from nova_file_api.auth import Authenticator
 from nova_file_api.cache import LocalTTLCache, SharedRedisCache, TwoTierCache
 from nova_file_api.config import Settings
-from nova_file_api.container import AppContainer
 from nova_file_api.idempotency import IdempotencyStore
 from nova_file_api.jobs import (
     JobService,
@@ -20,6 +18,7 @@ from nova_file_api.metrics import MetricsCollector
 from nova_file_api.models import AuthMode, JobRecord, JobStatus
 
 from ._test_doubles import StubTransferService
+from .conftest import RuntimeDeps, build_test_app
 
 
 class _FailingListJobRepository:
@@ -53,18 +52,11 @@ class _FailingListJobRepository:
         raise RuntimeError("jobs table is not configured for scoped listing")
 
 
-def _build_v1_container(
+def _build_v1_deps(
     *,
     file_transfer_bucket: str = "test-transfer-bucket",
-) -> AppContainer:
-    """Build an in-memory container for v1 route tests.
-
-    Args:
-        file_transfer_bucket: Bucket name used by transfer operations.
-
-    Returns:
-        AppContainer with in-memory dependencies for v1 route tests.
-    """
+) -> RuntimeDeps:
+    """Build an in-memory dependency set for v1 route tests."""
     settings = Settings()
     settings.auth_mode = AuthMode.SAME_ORIGIN
     settings.jobs_enabled = True
@@ -83,14 +75,13 @@ def _build_v1_container(
         publisher=MemoryJobPublisher(),
         metrics=metrics,
     )
-    return AppContainer(
+    return RuntimeDeps(
         settings=settings,
         metrics=metrics,
-        cache=cache,
         shared_cache=shared,
+        cache=cache,
         authenticator=Authenticator(settings=settings, cache=cache),
-        transfer_service=StubTransferService(),  # type: ignore[arg-type]
-        job_repository=repository,
+        transfer_service=StubTransferService(),
         job_service=job_service,
         activity_store=MemoryActivityStore(),
         idempotency_store=IdempotencyStore(
@@ -104,9 +95,7 @@ def _build_v1_container(
 def test_v1_health_and_capabilities(monkeypatch: pytest.MonkeyPatch) -> None:
     """Verifies v1 live/ready health and capability keys are exposed."""
     monkeypatch.setenv("FILE_TRANSFER_BUCKET", "")
-    app = create_app(
-        container_override=_build_v1_container(file_transfer_bucket="")
-    )
+    app = build_test_app(_build_v1_deps(file_transfer_bucket=""))
     with TestClient(app) as client:
         live = client.get("/v1/health/live")
         ready = client.get("/v1/health/ready")
@@ -125,7 +114,7 @@ def test_v1_health_and_capabilities(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_v1_jobs_create_list_get_retry_and_events() -> None:
     """Verifies v1 job create/list/get/retry/event lifecycle behavior."""
-    app = create_app(container_override=_build_v1_container())
+    app = build_test_app(_build_v1_deps())
     with TestClient(app) as client:
         create_resp = client.post(
             "/v1/jobs",
@@ -167,7 +156,7 @@ def test_v1_jobs_create_list_get_retry_and_events() -> None:
 
 def test_v1_resource_plan_and_release_info() -> None:
     """Verifies v1 resource planning plus release metadata contract."""
-    app = create_app(container_override=_build_v1_container())
+    app = build_test_app(_build_v1_deps())
     with TestClient(app) as client:
         plan = client.post(
             "/v1/resources/plan", json={"resources": ["jobs", "unknown"]}
@@ -191,7 +180,7 @@ def test_v1_resource_plan_and_release_info() -> None:
 
 def test_v1_jobs_rejects_blank_idempotency_key() -> None:
     """Verifies v1 jobs reject blank Idempotency-Key header values."""
-    app = create_app(container_override=_build_v1_container())
+    app = build_test_app(_build_v1_deps())
     with TestClient(app) as client:
         resp = client.post(
             "/v1/jobs",
@@ -237,17 +226,16 @@ def test_v1_jobs_list_scoped_config_error_returns_internal_error() -> None:
         publisher=MemoryJobPublisher(),
         metrics=metrics,
     )
-    container = AppContainer(
+    deps = RuntimeDeps(
         settings=settings,
         metrics=metrics,
-        cache=cache,
         shared_cache=shared,
+        cache=cache,
         authenticator=Authenticator(
             settings=settings,
             cache=cache,
         ),
-        transfer_service=StubTransferService(),  # type: ignore[arg-type]
-        job_repository=repository,
+        transfer_service=StubTransferService(),
         job_service=job_service,
         activity_store=MemoryActivityStore(),
         idempotency_store=IdempotencyStore(
@@ -257,7 +245,7 @@ def test_v1_jobs_list_scoped_config_error_returns_internal_error() -> None:
         ),
     )
 
-    app = create_app(container_override=container)
+    app = build_test_app(deps)
     with TestClient(app, raise_server_exceptions=False) as client:
         response = client.get(
             "/v1/jobs",

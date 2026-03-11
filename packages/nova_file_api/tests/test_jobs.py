@@ -8,7 +8,6 @@ import httpx
 import pytest
 from botocore.exceptions import BotoCoreError, ClientError
 from nova_file_api.activity import MemoryActivityStore
-from nova_file_api.app import create_app
 from nova_file_api.auth import Authenticator
 from nova_file_api.cache import (
     LocalTTLCache,
@@ -16,7 +15,6 @@ from nova_file_api.cache import (
     TwoTierCache,
 )
 from nova_file_api.config import Settings
-from nova_file_api.container import AppContainer
 from nova_file_api.errors import FileTransferError, queue_unavailable
 from nova_file_api.idempotency import IdempotencyStore
 from nova_file_api.jobs import (
@@ -36,6 +34,7 @@ from nova_file_api.models import (
 from pydantic import SecretStr
 
 from ._test_doubles import StubAuthenticator, StubTransferService
+from .conftest import RuntimeDeps, build_test_app
 
 CaptureEmf = Callable[[MetricsCollector], list[dict[str, str]]]
 
@@ -176,7 +175,7 @@ class _AlwaysFailingJobService:
         raise _TestDoubleError
 
 
-async def _build_same_origin_status_container(*, scope_id: str) -> AppContainer:
+async def _build_same_origin_status_container(*, scope_id: str) -> RuntimeDeps:
     settings = Settings()
     settings.auth_mode = AuthMode.SAME_ORIGIN
     settings.jobs_enabled = True
@@ -209,13 +208,13 @@ async def _build_same_origin_status_container(*, scope_id: str) -> AppContainer:
         )
     )
 
-    return AppContainer(
+    return RuntimeDeps(
         settings=settings,
         metrics=metrics,
         cache=cache,
         shared_cache=shared,
         authenticator=Authenticator(settings=settings, cache=cache),
-        transfer_service=StubTransferService(),  # type: ignore[arg-type]
+        transfer_service=StubTransferService(),
         job_repository=repository,
         job_service=service,
         activity_store=MemoryActivityStore(),
@@ -230,7 +229,7 @@ async def _build_same_origin_status_container(*, scope_id: str) -> AppContainer:
 def _build_failing_job_container(
     *,
     worker_token: SecretStr | None = None,
-) -> tuple[AppContainer, MetricsCollector, MemoryActivityStore]:
+) -> tuple[RuntimeDeps, MetricsCollector, MemoryActivityStore]:
     settings = Settings()
     settings.jobs_enabled = True
     settings.jobs_worker_update_token = worker_token
@@ -242,15 +241,15 @@ def _build_failing_job_container(
         shared_ttl_seconds=60,
     )
     activity_store = MemoryActivityStore()
-    container = AppContainer(
+    container = RuntimeDeps(
         settings=settings,
         metrics=metrics,
         cache=cache,
         shared_cache=shared,
-        authenticator=StubAuthenticator(),  # type: ignore[arg-type]
-        transfer_service=StubTransferService(),  # type: ignore[arg-type]
+        authenticator=StubAuthenticator(),
+        transfer_service=StubTransferService(),
         job_repository=MemoryJobRepository(),
-        job_service=_AlwaysFailingJobService(),  # type: ignore[arg-type]
+        job_service=_AlwaysFailingJobService(),
         activity_store=activity_store,
         idempotency_store=IdempotencyStore(
             cache=cache,
@@ -451,15 +450,15 @@ async def test_enqueue_failure_is_not_idempotency_cached() -> None:
     )
     job_service = _FlakyJobService()
 
-    container = AppContainer(
+    container = RuntimeDeps(
         settings=settings,
         metrics=metrics,
         cache=cache,
         shared_cache=shared,
-        authenticator=StubAuthenticator(),  # type: ignore[arg-type]
-        transfer_service=StubTransferService(),  # type: ignore[arg-type]
+        authenticator=StubAuthenticator(),
+        transfer_service=StubTransferService(),
         job_repository=MemoryJobRepository(),
-        job_service=job_service,  # type: ignore[arg-type]
+        job_service=job_service,
         activity_store=MemoryActivityStore(),
         idempotency_store=IdempotencyStore(
             cache=cache,
@@ -468,7 +467,7 @@ async def test_enqueue_failure_is_not_idempotency_cached() -> None:
         ),
     )
 
-    app = create_app(container_override=container)
+    app = build_test_app(container)
     async with (
         app.router.lifespan_context(app),
         httpx.AsyncClient(
@@ -812,13 +811,13 @@ async def test_update_job_result_requires_valid_worker_token() -> None:
         )
     )
 
-    container = AppContainer(
+    container = RuntimeDeps(
         settings=settings,
         metrics=metrics,
         cache=cache,
         shared_cache=shared,
-        authenticator=StubAuthenticator(),  # type: ignore[arg-type]
-        transfer_service=StubTransferService(),  # type: ignore[arg-type]
+        authenticator=StubAuthenticator(),
+        transfer_service=StubTransferService(),
         job_repository=repository,
         job_service=service,
         activity_store=MemoryActivityStore(),
@@ -829,7 +828,7 @@ async def test_update_job_result_requires_valid_worker_token() -> None:
         ),
     )
 
-    app = create_app(container_override=container)
+    app = build_test_app(container)
     async with (
         app.router.lifespan_context(app),
         httpx.AsyncClient(
@@ -864,7 +863,7 @@ async def test_get_job_status_failure_emits_error_observability(
 ) -> None:
     container, metrics, activity_store = _build_failing_job_container()
     emitted_dimensions = capture_emf(metrics)
-    app = create_app(container_override=container)
+    app = build_test_app(container)
     async with (
         app.router.lifespan_context(app),
         httpx.AsyncClient(
@@ -887,10 +886,8 @@ async def test_get_job_status_failure_emits_error_observability(
 @pytest.mark.asyncio
 async def test_legacy_cancel_route_is_not_exposed() -> None:
     """Verify legacy cancel route is not exposed and returns 404."""
-    app = create_app(
-        container_override=await _build_same_origin_status_container(
-            scope_id="scope-legacy"
-        )
+    app = build_test_app(
+        await _build_same_origin_status_container(scope_id="scope-legacy")
     )
     async with (
         app.router.lifespan_context(app),
@@ -911,7 +908,7 @@ async def test_cancel_job_failure_emits_error_observability(
     """Verify cancel failures emit metrics and observability dimensions."""
     container, metrics, activity_store = _build_failing_job_container()
     emitted_dimensions = capture_emf(metrics)
-    app = create_app(container_override=container)
+    app = build_test_app(container)
     async with (
         app.router.lifespan_context(app),
         httpx.AsyncClient(
@@ -939,7 +936,7 @@ async def test_update_job_result_failure_emits_error_observability(
         worker_token=SecretStr("test-worker-token")
     )
     emitted_dimensions = capture_emf(metrics)
-    app = create_app(container_override=container)
+    app = build_test_app(container)
     async with (
         app.router.lifespan_context(app),
         httpx.AsyncClient(
@@ -971,7 +968,7 @@ async def test_get_job_status_accepts_scope_header_same_origin() -> None:
     container = await _build_same_origin_status_container(
         scope_id="scope-header"
     )
-    app = create_app(container_override=container)
+    app = build_test_app(container)
     async with (
         app.router.lifespan_context(app),
         httpx.AsyncClient(
@@ -997,7 +994,7 @@ async def test_get_job_status_requires_session_scope_in_same_origin_mode() -> (
     container = await _build_same_origin_status_container(
         scope_id="scope-header"
     )
-    app = create_app(container_override=container)
+    app = build_test_app(container)
     async with (
         app.router.lifespan_context(app),
         httpx.AsyncClient(

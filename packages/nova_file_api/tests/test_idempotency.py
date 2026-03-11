@@ -5,17 +5,10 @@ from typing import Any
 
 from fastapi.testclient import TestClient
 from nova_file_api.activity import MemoryActivityStore
-from nova_file_api.app import create_app
-from nova_file_api.cache import (
-    LocalTTLCache,
-    SharedRedisCache,
-    TwoTierCache,
-)
+from nova_file_api.cache import LocalTTLCache, SharedRedisCache, TwoTierCache
 from nova_file_api.config import Settings
-from nova_file_api.container import AppContainer
 from nova_file_api.errors import queue_unavailable
 from nova_file_api.idempotency import IdempotencyStore
-from nova_file_api.jobs import MemoryJobRepository
 from nova_file_api.metrics import MetricsCollector
 from nova_file_api.models import (
     EnqueueJobResponse,
@@ -26,6 +19,8 @@ from nova_file_api.models import (
     UploadStrategy,
 )
 from starlette.requests import Request
+
+from .conftest import RuntimeDeps, build_test_app
 
 
 class _StubAuthenticator:
@@ -119,10 +114,9 @@ class _FailFirstEnqueueJobService(_StubJobService):
         )
 
 
-def _build_container(
-    *,
-    idempotency_enabled: bool = True,
-) -> tuple[AppContainer, _StubTransferService, _StubJobService]:
+def _build_deps(
+    *, idempotency_enabled: bool = True
+) -> tuple[RuntimeDeps, _StubTransferService, _StubJobService]:
     settings = Settings()
     settings.idempotency_enabled = idempotency_enabled
     settings.jobs_enabled = True
@@ -135,16 +129,14 @@ def _build_container(
     )
     transfer_service = _StubTransferService()
     job_service = _StubJobService()
-    repo = MemoryJobRepository()
-    container = AppContainer(
+    deps = RuntimeDeps(
         settings=settings,
         metrics=metrics,
-        cache=cache,
         shared_cache=shared,
-        authenticator=_StubAuthenticator(),  # type: ignore[arg-type]
-        transfer_service=transfer_service,  # type: ignore[arg-type]
-        job_repository=repo,
-        job_service=job_service,  # type: ignore[arg-type]
+        cache=cache,
+        authenticator=_StubAuthenticator(),
+        transfer_service=transfer_service,
+        job_service=job_service,
         activity_store=MemoryActivityStore(),
         idempotency_store=IdempotencyStore(
             cache=cache,
@@ -152,13 +144,13 @@ def _build_container(
             ttl_seconds=300,
         ),
     )
-    return container, transfer_service, job_service
+    return deps, transfer_service, job_service
 
 
 def test_v1_initiate_allows_missing_idempotency_key_when_enabled() -> None:
     """Verify `/v1/transfers/uploads/initiate` accepts requests without key."""
-    container, transfer_service, _job_service = _build_container()
-    app = create_app(container_override=container)
+    deps, transfer_service, _job_service = _build_deps()
+    app = build_test_app(deps)
     with TestClient(app) as client:
         response = client.post(
             "/v1/transfers/uploads/initiate",
@@ -174,8 +166,8 @@ def test_v1_initiate_allows_missing_idempotency_key_when_enabled() -> None:
 
 def test_v1_initiate_replays_response_for_same_idempotency_key() -> None:
     """Verify same initiate key+payload replays the cached response."""
-    container, transfer_service, _job_service = _build_container()
-    app = create_app(container_override=container)
+    deps, transfer_service, _job_service = _build_deps()
+    app = build_test_app(deps)
     with TestClient(app) as client:
         first = client.post(
             "/v1/transfers/uploads/initiate",
@@ -203,8 +195,8 @@ def test_v1_initiate_replays_response_for_same_idempotency_key() -> None:
 
 def test_v1_initiate_rejects_key_reuse_with_different_payload() -> None:
     """Verify key reuse with different initiate payload returns conflict."""
-    container, transfer_service, _job_service = _build_container()
-    app = create_app(container_override=container)
+    deps, transfer_service, _job_service = _build_deps()
+    app = build_test_app(deps)
     with TestClient(app) as client:
         first = client.post(
             "/v1/transfers/uploads/initiate",
@@ -232,8 +224,8 @@ def test_v1_initiate_rejects_key_reuse_with_different_payload() -> None:
 
 def test_v1_jobs_allows_missing_idempotency_key_when_enabled() -> None:
     """Verify `/v1/jobs` accepts requests without Idempotency-Key."""
-    container, _transfer_service, job_service = _build_container()
-    app = create_app(container_override=container)
+    deps, _transfer_service, job_service = _build_deps()
+    app = build_test_app(deps)
     with TestClient(app) as client:
         response = client.post(
             "/v1/jobs",
@@ -245,8 +237,8 @@ def test_v1_jobs_allows_missing_idempotency_key_when_enabled() -> None:
 
 def test_v1_jobs_replays_response_for_same_idempotency_key() -> None:
     """Verify identical key+payload replays the cached enqueue response."""
-    container, _transfer_service, job_service = _build_container()
-    app = create_app(container_override=container)
+    deps, _transfer_service, job_service = _build_deps()
+    app = build_test_app(deps)
     with TestClient(app) as client:
         first = client.post(
             "/v1/jobs",
@@ -268,8 +260,8 @@ def test_v1_jobs_replays_response_for_same_idempotency_key() -> None:
 
 def test_v1_jobs_reject_key_reuse_with_different_payload() -> None:
     """Verify same key with different payload returns idempotency conflict."""
-    container, _transfer_service, job_service = _build_container()
-    app = create_app(container_override=container)
+    deps, _transfer_service, job_service = _build_deps()
+    app = build_test_app(deps)
     with TestClient(app) as client:
         first = client.post(
             "/v1/jobs",
@@ -289,10 +281,10 @@ def test_v1_jobs_reject_key_reuse_with_different_payload() -> None:
 
 def test_v1_jobs_failed_enqueue_is_not_idempotency_replayed() -> None:
     """A failed enqueue must not be replay-cached by idempotency middleware."""
-    container, _transfer_service, _job_service = _build_container()
+    deps, _transfer_service, _job_service = _build_deps()
     flaky_job_service = _FailFirstEnqueueJobService()
-    container.job_service = flaky_job_service  # type: ignore[assignment]
-    app = create_app(container_override=container)
+    deps.job_service = flaky_job_service
+    app = build_test_app(deps)
 
     with TestClient(app) as client:
         first = client.post(

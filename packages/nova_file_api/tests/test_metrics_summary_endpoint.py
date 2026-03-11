@@ -5,10 +5,8 @@ from __future__ import annotations
 import httpx
 import pytest
 from nova_file_api.activity import MemoryActivityStore
-from nova_file_api.app import create_app
 from nova_file_api.cache import LocalTTLCache, SharedRedisCache, TwoTierCache
 from nova_file_api.config import Settings
-from nova_file_api.container import AppContainer
 from nova_file_api.idempotency import IdempotencyStore
 from nova_file_api.jobs import (
     JobService,
@@ -21,12 +19,13 @@ from starlette.requests import Request
 
 from tests._test_doubles import StubTransferService
 
+from .conftest import RuntimeDeps, build_test_app
+
 
 class _StubAuthenticator:
     """Return a fixed principal for metrics summary authorization tests."""
 
     def __init__(self, *, permissions: tuple[str, ...]) -> None:
-        """Store the permissions exposed by the fake authenticator."""
         self._permissions = permissions
 
     async def authenticate(
@@ -45,12 +44,12 @@ class _StubAuthenticator:
         )
 
 
-async def _build_container(
+async def _request_metrics_summary(
     *,
     auth_mode: AuthMode,
     permissions: tuple[str, ...],
-) -> AppContainer:
-    """Build a minimal app container for metrics summary tests."""
+) -> httpx.Response:
+    """Create a test app and return one /metrics/summary response."""
     settings = Settings()
     settings.auth_mode = auth_mode
 
@@ -76,36 +75,21 @@ async def _build_container(
         event_type="jobs_enqueue",
     )
 
-    return AppContainer(
-        settings=settings,
-        metrics=metrics,
-        cache=cache,
-        shared_cache=shared_cache,
-        authenticator=(
-            _StubAuthenticator(permissions=permissions)  # type: ignore[arg-type]
-        ),
-        transfer_service=StubTransferService(),  # type: ignore[arg-type]
-        job_repository=job_repository,
-        job_service=job_service,
-        activity_store=activity_store,
-        idempotency_store=IdempotencyStore(
+    app = build_test_app(
+        RuntimeDeps(
+            settings=settings,
+            metrics=metrics,
+            shared_cache=shared_cache,
             cache=cache,
-            enabled=True,
-            ttl_seconds=300,
-        ),
-    )
-
-
-async def _request_metrics_summary(
-    *,
-    auth_mode: AuthMode,
-    permissions: tuple[str, ...],
-) -> httpx.Response:
-    """Create a test app and return one /metrics/summary response."""
-    app = create_app(
-        container_override=await _build_container(
-            auth_mode=auth_mode,
-            permissions=permissions,
+            authenticator=_StubAuthenticator(permissions=permissions),
+            transfer_service=StubTransferService(),
+            job_service=job_service,
+            activity_store=activity_store,
+            idempotency_store=IdempotencyStore(
+                cache=cache,
+                enabled=True,
+                ttl_seconds=300,
+            ),
         )
     )
     async with (
