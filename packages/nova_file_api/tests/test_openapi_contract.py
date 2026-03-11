@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Any
-
 from fastapi import FastAPI
 from fastapi.routing import APIRoute
 from nova_file_api.activity import MemoryActivityStore
@@ -58,7 +56,9 @@ def _build_openapi_app() -> FastAPI:
     )
 
 
-def _operation_id_map(payload: dict[str, Any]) -> dict[str, dict[str, str]]:
+def _operation_id_map(
+    payload: dict[str, object],
+) -> dict[str, dict[str, str]]:
     paths = payload.get("paths", {})
     assert isinstance(paths, dict)
 
@@ -81,7 +81,7 @@ def _operation_id_map(payload: dict[str, Any]) -> dict[str, dict[str, str]]:
 
 
 def _operation_tag_map(
-    payload: dict[str, Any],
+    payload: dict[str, object],
 ) -> dict[str, dict[str, list[str]]]:
     paths = payload.get("paths", {})
     assert isinstance(paths, dict)

@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Any
-
 import structlog
 from fastapi import APIRouter, Request
 
@@ -20,6 +18,7 @@ from nova_file_api.dependencies import (
 )
 from nova_file_api.errors import forbidden, idempotency_conflict
 from nova_file_api.idempotency import IdempotencyStore
+from nova_file_api.jobs import JobService
 from nova_file_api.metrics import MetricsCollector
 from nova_file_api.models import (
     EnqueueJobRequest,
@@ -352,7 +351,7 @@ async def list_job_events(
 async def _enqueue_job_core(
     *,
     metrics: MetricsCollector,
-    job_service: Any,
+    job_service: JobService,
     activity_store: ActivityStore,
     idempotency_store: IdempotencyStore,
     payload: EnqueueJobRequest,

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
-from typing import Any
 
 import httpx
 import pytest
@@ -113,7 +112,7 @@ class _FlakyJobService:
         self,
         *,
         job_type: str,
-        payload: dict[str, Any],
+        payload: dict[str, object],
         scope_id: str,
     ) -> JobRecord:
         self.calls += 1
@@ -148,7 +147,7 @@ class _AlwaysFailingJobService:
         self,
         *,
         job_type: str,
-        payload: dict[str, Any],
+        payload: dict[str, object],
         scope_id: str,
     ) -> JobRecord:
         del job_type, payload, scope_id
@@ -167,7 +166,7 @@ class _AlwaysFailingJobService:
         *,
         job_id: str,
         status: JobStatus,
-        result: dict[str, Any] | None,
+        result: dict[str, object] | None,
         error: str | None,
     ) -> JobRecord:
         del job_id, status, result, error
@@ -281,12 +280,18 @@ def capture_emf(
 
 @pytest.mark.asyncio
 async def test_sqs_job_publisher_sends_expected_queue_payload() -> None:
-    captured: dict[str, Any] = {}
+    captured_send_kwargs: dict[str, object] = {}
 
     class _FakeSqsClient:
         async def send_message(self, **kwargs: object) -> dict[str, str]:
-            captured["send_kwargs"] = kwargs
+            captured_send_kwargs.update(kwargs)
             return {"MessageId": "1"}
+
+        async def get_queue_attributes(
+            self, **kwargs: object
+        ) -> dict[str, str]:
+            del kwargs
+            return {"QueueArn": "arn:aws:sqs:us-east-1:123:jobs"}
 
     publisher = SqsJobPublisher(
         queue_url="https://sqs.us-east-1.amazonaws.com/123/jobs",
@@ -294,8 +299,10 @@ async def test_sqs_job_publisher_sends_expected_queue_payload() -> None:
     )
     await publisher.publish(job=_job_record())
 
-    assert captured["send_kwargs"]["QueueUrl"].endswith("/jobs")
-    assert "MessageBody" in captured["send_kwargs"]
+    queue_url = captured_send_kwargs.get("QueueUrl")
+    assert isinstance(queue_url, str)
+    assert queue_url.endswith("/jobs")
+    assert "MessageBody" in captured_send_kwargs
 
 
 @pytest.mark.asyncio
@@ -309,6 +316,12 @@ async def test_sqs_job_publisher_maps_client_error_to_publish_error() -> None:
                 },
                 operation_name="SendMessage",
             )
+
+        async def get_queue_attributes(
+            self, **kwargs: object
+        ) -> dict[str, str]:
+            del kwargs
+            return {"QueueArn": "arn:aws:sqs:us-east-1:123:jobs"}
 
     publisher = SqsJobPublisher(
         queue_url="https://sqs.us-east-1.amazonaws.com/123/jobs",
@@ -327,6 +340,12 @@ async def test_sqs_job_publisher_maps_botocore_error_to_publish_error() -> None:
         async def send_message(self, **kwargs: object) -> dict[str, str]:
             del kwargs
             raise BotoCoreError()
+
+        async def get_queue_attributes(
+            self, **kwargs: object
+        ) -> dict[str, str]:
+            del kwargs
+            return {"QueueArn": "arn:aws:sqs:us-east-1:123:jobs"}
 
     publisher = SqsJobPublisher(
         queue_url="https://sqs.us-east-1.amazonaws.com/123/jobs",

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Any
 
 from fastapi.testclient import TestClient
 from nova_file_api.activity import MemoryActivityStore
@@ -51,7 +50,7 @@ class _StubJobService:
         self,
         *,
         job_type: str,
-        payload: dict[str, Any],
+        payload: dict[str, object],
         scope_id: str,
     ) -> JobRecord:
         self.calls += 1
@@ -83,7 +82,7 @@ class _StubTransferService:
 
     async def initiate_upload(
         self,
-        payload: Any,
+        payload: object,
         principal: Principal,
     ) -> InitiateUploadResponse:
         del payload, principal
@@ -102,7 +101,7 @@ class _FailFirstEnqueueJobService(_StubJobService):
         self,
         *,
         job_type: str,
-        payload: dict[str, Any],
+        payload: dict[str, object],
         scope_id: str,
     ) -> JobRecord:
         if self.calls == 0:

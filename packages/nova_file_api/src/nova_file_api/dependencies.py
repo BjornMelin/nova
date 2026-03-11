@@ -7,13 +7,14 @@ raise ValueError when required config is missing.
 
 from __future__ import annotations
 
-from typing import Annotated, Any, cast
+from typing import Annotated, cast
 
 from fastapi import Depends, FastAPI, Request
 
 from nova_file_api.activity import (
     ActivityStore,
     DynamoActivityStore,
+    DynamoDbClientProtocol,
     MemoryActivityStore,
 )
 from nova_file_api.auth import Authenticator
@@ -22,11 +23,13 @@ from nova_file_api.config import Settings
 from nova_file_api.idempotency import IdempotencyStore
 from nova_file_api.jobs import (
     DynamoJobRepository,
+    DynamoResource,
     JobPublisher,
     JobRepository,
     JobService,
     MemoryJobPublisher,
     MemoryJobRepository,
+    SqsClient,
     SqsJobPublisher,
 )
 from nova_file_api.metrics import MetricsCollector
@@ -65,9 +68,9 @@ def initialize_runtime_state(
     app: FastAPI,
     *,
     settings: Settings,
-    s3_client: Any,
-    dynamodb_resource: Any | None = None,
-    sqs_client: Any | None = None,
+    s3_client: object,
+    dynamodb_resource: object | None = None,
+    sqs_client: object | None = None,
 ) -> None:
     """Build and attach runtime singletons to application state.
 
@@ -212,7 +215,7 @@ def build_authenticator(
 def build_transfer_service(
     *,
     settings: Settings,
-    s3_client: Any,
+    s3_client: object,
 ) -> TransferService:
     """Create the transfer service."""
     return TransferService(settings=settings, s3_client=s3_client)
@@ -221,7 +224,7 @@ def build_transfer_service(
 def build_job_repository(
     *,
     settings: Settings,
-    dynamodb_resource: Any | None,
+    dynamodb_resource: object | None,
 ) -> JobRepository:
     """Create the configured job repository.
 
@@ -244,7 +247,7 @@ def build_job_repository(
             raise ValueError(_MSG_DYNAMODB_RESOURCE_REQUIRED)
         return DynamoJobRepository(
             table_name=settings.jobs_dynamodb_table,
-            dynamodb_resource=dynamodb_resource,
+            dynamodb_resource=cast(DynamoResource, dynamodb_resource),
         )
     return MemoryJobRepository()
 
@@ -252,7 +255,7 @@ def build_job_repository(
 def build_job_publisher(
     *,
     settings: Settings,
-    sqs_client: Any | None,
+    sqs_client: object | None,
 ) -> JobPublisher:
     """Create the configured job publisher.
 
@@ -278,7 +281,10 @@ def build_job_publisher(
         if settings.jobs_enabled and queue_url:
             if sqs_client is None:
                 raise ValueError(_MSG_SQS_CLIENT_REQUIRED)
-            return SqsJobPublisher(queue_url=queue_url, sqs_client=sqs_client)
+            return SqsJobPublisher(
+                queue_url=queue_url,
+                sqs_client=cast(SqsClient, sqs_client),
+            )
     return MemoryJobPublisher()
 
 
@@ -308,7 +314,7 @@ def build_job_service(
 def build_activity_store(
     *,
     settings: Settings,
-    dynamodb_resource: Any | None,
+    dynamodb_resource: object | None,
 ) -> ActivityStore:
     """Create the configured activity store.
 
@@ -331,8 +337,11 @@ def build_activity_store(
             raise ValueError(_MSG_DYNAMODB_RESOURCE_REQUIRED)
         return DynamoActivityStore(
             table_name=settings.activity_rollups_table,
-            ddb_client=_dynamodb_client_from_resource(
-                dynamodb_resource=dynamodb_resource
+            ddb_client=cast(
+                DynamoDbClientProtocol,
+                _dynamodb_client_from_resource(
+                    dynamodb_resource=dynamodb_resource
+                ),
             ),
         )
     return MemoryActivityStore()
@@ -465,7 +474,7 @@ AuthenticatorDep = Annotated[Authenticator, Depends(get_authenticator)]
 PrincipalDep = Annotated[Principal, Depends(get_principal)]
 
 
-def _dynamodb_client_from_resource(*, dynamodb_resource: Any) -> Any:
+def _dynamodb_client_from_resource(*, dynamodb_resource: object) -> object:
     meta = getattr(dynamodb_resource, "meta", None)
     if meta is not None and hasattr(meta, "client"):
         return meta.client

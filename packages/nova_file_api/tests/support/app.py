@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
 
 from fastapi import FastAPI
+from nova_file_api.activity import ActivityStore
 from nova_file_api.app import create_app
 from nova_file_api.cache import LocalTTLCache, SharedRedisCache, TwoTierCache
 from nova_file_api.config import Settings
@@ -21,6 +21,7 @@ from nova_file_api.dependencies import (
     get_two_tier_cache,
 )
 from nova_file_api.idempotency import IdempotencyStore
+from nova_file_api.jobs import JobRepository
 from nova_file_api.metrics import MetricsCollector
 
 
@@ -36,12 +37,12 @@ class RuntimeDeps:
     metrics: MetricsCollector
     shared_cache: SharedRedisCache
     cache: TwoTierCache
-    authenticator: Any
-    transfer_service: Any
-    job_service: Any
-    activity_store: Any
+    authenticator: object
+    transfer_service: object
+    job_service: object
+    activity_store: ActivityStore
     idempotency_store: IdempotencyStore
-    job_repository: Any | None = None
+    job_repository: JobRepository | None = None
 
 
 def build_cache_stack(
@@ -75,10 +76,10 @@ def build_cache_stack(
 
 def build_runtime_deps(
     *,
-    authenticator: Any,
-    transfer_service: Any,
-    job_service: Any,
-    activity_store: Any,
+    authenticator: object,
+    transfer_service: object,
+    job_service: object,
+    activity_store: ActivityStore,
     settings: Settings | None = None,
     metrics: MetricsCollector | None = None,
     shared_cache: SharedRedisCache | None = None,
@@ -86,7 +87,7 @@ def build_runtime_deps(
     idempotency_store: IdempotencyStore | None = None,
     idempotency_enabled: bool = True,
     idempotency_ttl_seconds: int = 300,
-    job_repository: Any | None = None,
+    job_repository: JobRepository | None = None,
 ) -> RuntimeDeps:
     """
     Build a runtime dependency graph for route tests.
