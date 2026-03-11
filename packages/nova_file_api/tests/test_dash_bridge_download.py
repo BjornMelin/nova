@@ -1,17 +1,12 @@
 from __future__ import annotations
 
 import nova_dash_bridge.service as dash_service_module
+import nova_file_api.models as core_models
 import pytest
 from nova_dash_bridge.config import FileTransferEnvConfig, UploadPolicy
 from nova_dash_bridge.errors import FileTransferError
 from nova_dash_bridge.models import UploadIntrospectionRequest
 from nova_dash_bridge.service import FileTransferService
-from nova_file_api.models import (
-    UploadedPart as CoreUploadedPart,
-)
-from nova_file_api.models import (
-    UploadIntrospectionResponse as CoreUploadIntrospectionResponse,
-)
 
 
 class _FakeBody:
@@ -59,14 +54,14 @@ class _FakeCoreTransferService:
         self,
         request: object,
         principal: object,
-    ) -> CoreUploadIntrospectionResponse:
+    ) -> core_models.UploadIntrospectionResponse:
         del request, principal
-        return CoreUploadIntrospectionResponse(
+        return core_models.UploadIntrospectionResponse(
             bucket="bucket-a",
             key="uploads/scope-1/object.csv",
             upload_id="upload-1",
             part_size_bytes=8,
-            parts=[CoreUploadedPart(part_number=1, etag='"etag-1"')],
+            parts=[core_models.UploadedPart(part_number=1, etag='"etag-1"')],
         )
 
 
