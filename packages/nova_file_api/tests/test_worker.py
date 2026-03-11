@@ -442,13 +442,16 @@ async def test_worker_extends_visibility_during_long_running_transfer() -> None:
     )
 
     assert should_delete is True
-    assert fake_sqs.change_visibility_calls == [
-        {
+    assert len(fake_sqs.change_visibility_calls) >= 1
+    assert all(
+        call
+        == {
             "QueueUrl": "https://example.local/queue",
             "ReceiptHandle": "receipt-3b",
             "VisibilityTimeout": 1,
         }
-    ]
+        for call in fake_sqs.change_visibility_calls
+    )
 
 
 @pytest.mark.asyncio

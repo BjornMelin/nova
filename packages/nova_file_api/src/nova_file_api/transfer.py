@@ -178,6 +178,18 @@ class TransferService:
             for part_number, etag, size_bytes in uploaded_parts
         }
 
+        seen_part_numbers: set[int] = set()
+        duplicate_part_numbers: set[int] = set()
+        for part in request.parts:
+            if part.part_number in seen_part_numbers:
+                duplicate_part_numbers.add(part.part_number)
+            seen_part_numbers.add(part.part_number)
+        if duplicate_part_numbers:
+            raise invalid_request(
+                "multipart upload part numbers must be unique",
+                details={"part_numbers": sorted(duplicate_part_numbers)},
+            )
+
         parts = [
             {"ETag": part.etag, "PartNumber": part.part_number}
             for part in sorted(request.parts, key=lambda item: item.part_number)

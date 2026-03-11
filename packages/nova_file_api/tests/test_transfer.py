@@ -360,6 +360,37 @@ async def test_complete_upload_rejects_missing_part() -> None:
 
 
 @pytest.mark.asyncio
+async def test_complete_upload_rejects_duplicate_part_numbers() -> None:
+    settings = Settings()
+    fake_s3 = _FakeS3Client()
+    service = TransferService(settings=settings, s3_client=fake_s3)
+    fake_s3.list_parts_responses = [
+        {
+            "Parts": [{"PartNumber": 1, "ETag": '"etag-1"', "Size": 3}],
+            "IsTruncated": False,
+        }
+    ]
+
+    with pytest.raises(FileTransferError) as exc_info:
+        await service.complete_upload(
+            request=CompleteUploadRequest(
+                key="uploads/scope-1/file.csv",
+                upload_id="upload-1",
+                parts=[
+                    CompletedPart(part_number=1, etag='"etag-1"'),
+                    CompletedPart(part_number=1, etag='"etag-1"'),
+                ],
+            ),
+            principal=_principal(),
+        )
+
+    assert exc_info.value.code == "invalid_request"
+    assert str(exc_info.value) == "multipart upload part numbers must be unique"
+    assert exc_info.value.details == {"part_numbers": [1]}
+    assert fake_s3.complete_calls == []
+
+
+@pytest.mark.asyncio
 async def test_copy_upload_to_export_uses_multipart_copy_above_5_gb() -> None:
     settings = Settings.model_validate(
         {"FILE_TRANSFER_PART_SIZE_BYTES": 128 * 1024 * 1024}
