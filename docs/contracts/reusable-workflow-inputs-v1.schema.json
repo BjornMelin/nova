@@ -7,6 +7,7 @@
   "required": [
     "app_type",
     "environment",
+    "runtime_cost_mode",
     "stack_name",
     "template_file"
   ],

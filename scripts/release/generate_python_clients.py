@@ -2297,58 +2297,61 @@ def _patch_file_sdk(root: Path) -> None:
     _rewrite_file(
         root,
         "models/uploaded_part.py",
-        lambda content: (
-            _ensure_module_docstring(
-                content,
-                doc="Multipart uploaded-part model for resume introspection.",
-            )
-            .replace(
-                '    """Part state returned for multipart upload introspection.\n\n    Attributes:\n        etag (str):\n        part_number (int):\n    """\n',
-                '    """Part state returned for multipart upload introspection.\n\n'
-                "    Attributes:\n"
-                "        etag (str): ETag returned by S3 for this uploaded part.\n"
-                "        part_number (int): 1-based multipart part number.\n"
-                '    """\n',
-            )
-            .replace(
-                "    def to_dict(self) -> dict[str, Any]:\n",
-                "    def to_dict(self) -> dict[str, Any]:\n"
+        lambda content: _replace_text(
+            _replace_text(
+                _replace_text(
+                    _ensure_module_docstring(
+                        content,
+                        doc="Multipart uploaded-part model for resume introspection.",
+                    ),
+                    old='    """Part state returned for multipart upload introspection.\n\n    Attributes:\n        etag (str):\n        part_number (int):\n    """\n',
+                    new='    """Part state returned for multipart upload introspection.\n\n'
+                    "    Attributes:\n"
+                    "        etag (str): ETag returned by S3 for this uploaded part.\n"
+                    "        part_number (int): 1-based multipart part number.\n"
+                    '    """\n',
+                    path="models/uploaded_part.py",
+                ),
+                old="    def to_dict(self) -> dict[str, Any]:\n",
+                new="    def to_dict(self) -> dict[str, Any]:\n"
                 '        """Serialize this model to a JSON-compatible dict.\n\n'
                 "        Args:\n"
                 "            None.\n\n"
                 "        Returns:\n"
                 "            dict[str, Any]: Serialized uploaded part payload.\n"
                 '        """\n',
-            )
-            .replace(
-                "    @classmethod\n"
-                "    def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:\n",
-                "    @classmethod\n"
-                "    def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:\n"
-                '        """Build this model from a JSON-compatible mapping.\n\n'
-                "        Args:\n"
-                "            src_dict (Mapping[str, Any]): Source mapping containing\n"
-                "                ``etag`` and ``part_number`` keys.\n\n"
-                "        Returns:\n"
-                "            UploadedPart: Parsed uploaded-part model.\n\n"
-                "        Raises:\n"
-                "            KeyError: If required keys are missing.\n"
-                "            TypeError: If value types are not compatible.\n"
-                '        """\n',
-            )
+                path="models/uploaded_part.py",
+            ),
+            old="    @classmethod\n"
+            "    def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:\n",
+            new="    @classmethod\n"
+            "    def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:\n"
+            '        """Build this model from a JSON-compatible mapping.\n\n'
+            "        Args:\n"
+            "            src_dict (Mapping[str, Any]): Source mapping containing\n"
+            "                ``etag`` and ``part_number`` keys.\n\n"
+            "        Returns:\n"
+            "            UploadedPart: Parsed uploaded-part model.\n\n"
+            "        Raises:\n"
+            "            KeyError: If required keys are missing.\n"
+            "            TypeError: If value types are not compatible.\n"
+            '        """\n',
+            path="models/uploaded_part.py",
         ),
     )
     _rewrite_file(
         root,
         "models/upload_introspection_response.py",
-        lambda content: _ensure_module_docstring(
-            content,
-            doc="Multipart upload introspection response model.",
-        ).replace(
-            "from typing import TYPE_CHECKING, Any, TypeVar\n",
-            "from typing import TYPE_CHECKING\n"
+        lambda content: _replace_text(
+            _ensure_module_docstring(
+                content,
+                doc="Multipart upload introspection response model.",
+            ),
+            old="from typing import TYPE_CHECKING, Any, TypeVar\n",
+            new="from typing import TYPE_CHECKING\n"
             "from typing import Any\n"
             "from typing import TypeVar\n",
+            path="models/upload_introspection_response.py",
         ),
     )
     _rewrite_file(

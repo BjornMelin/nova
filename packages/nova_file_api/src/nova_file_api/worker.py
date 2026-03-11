@@ -343,46 +343,49 @@ class JobsWorker:
             )
             return False
 
-        try:
-            transfer_service = self._require_transfer_service()
-            export = await self._run_with_visibility_extension(
-                message=message,
-                job_id=worker_message.job_id,
-                operation=lambda: transfer_service.copy_upload_to_export(
+        async def _execute_and_publish() -> bool:
+            try:
+                transfer_service = self._require_transfer_service()
+                export = await transfer_service.copy_upload_to_export(
                     source_bucket=payload.bucket,
                     source_key=payload.key,
                     scope_id=worker_message.scope_id,
                     job_id=worker_message.job_id,
                     filename=payload.filename,
-                ),
-            )
-        except FileTransferError as exc:
-            if exc.status_code >= 500:
-                self._logger.warning(
-                    "jobs_worker_execution_retryable_failure",
-                    message_id=message_id,
-                    job_id=worker_message.job_id,
-                    receive_count=receive_count,
-                    error_code=exc.code,
-                    error_detail=exc.message,
                 )
-                return False
+            except FileTransferError as exc:
+                if exc.status_code >= 500:
+                    self._logger.warning(
+                        "jobs_worker_execution_retryable_failure",
+                        message_id=message_id,
+                        job_id=worker_message.job_id,
+                        receive_count=receive_count,
+                        error_code=exc.code,
+                        error_detail=exc.message,
+                    )
+                    return False
+                return await self._publish_terminal_result(
+                    message_id=message_id,
+                    receive_count=receive_count,
+                    job_id=worker_message.job_id,
+                    status=JobStatus.FAILED,
+                    result=None,
+                    error=exc.message,
+                )
+
             return await self._publish_terminal_result(
                 message_id=message_id,
                 receive_count=receive_count,
                 job_id=worker_message.job_id,
-                status=JobStatus.FAILED,
-                result=None,
-                error=exc.message,
+                status=JobStatus.SUCCEEDED,
+                result=_success_result_from_export(export=export),
+                error=None,
             )
 
-        return await self._publish_terminal_result(
-            message_id=message_id,
-            receive_count=receive_count,
+        return await self._run_with_visibility_extension(
+            message=message,
             job_id=worker_message.job_id,
-            status=JobStatus.SUCCEEDED,
-            result=_success_result_from_export(export=export),
-            error=None,
+            operation=_execute_and_publish,
         )
 
     async def _run_with_visibility_extension(

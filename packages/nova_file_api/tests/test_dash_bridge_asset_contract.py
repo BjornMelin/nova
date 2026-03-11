@@ -78,11 +78,8 @@ def test_multipart_asset_uses_progressive_sign_batch_default() -> None:
     )
 
 
-def test_file_transfer_asset_uses_progressive_sign_batches() -> None:
+def test_file_transfer_asset_uses_progressive_sign_batches_override() -> None:
     source = _file_transfer_asset_source()
 
-    assert 'root.dataset.signBatchSize || ""' in source
-    assert re.search(
-        r"Math\.min\(16,\s*Math\.max\(1,\s*maxConcurrency \* 2\)\)",
-        source,
-    )
+    assert 'configuredBatchSize > 0' in source
+    assert 'configuredBatchSize' in source

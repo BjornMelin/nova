@@ -50,10 +50,10 @@ contract generated from runtime implementation. For async additions:
     with SPEC-0000.
 - `GET /v1/jobs/{job_id}/events`
   - Request body: none; optional query params `cursor` and `limit`.
-  - Response: `JobEventsResponse` containing `events[]`, `next_cursor`, and
-    `has_more`.
-  - Event item shape: `JobEvent` with `event_type`, `message`, `details`,
-    `created_at`.
+  - Response: `JobEventsResponse` containing `job_id`, `next_cursor`, and
+    `events[]`.
+  - Event item shape: `JobEvent` with `event_id`, `job_id`, `status`,
+    `timestamp`, and optional `data` and `event_type` fields.
   - Errors: shared error envelope with `401/403/404/500` semantics aligned with
     SPEC-0000.
 

@@ -147,17 +147,34 @@ class TransferService:
         request: UploadIntrospectionRequest,
         principal: Principal,
     ) -> UploadIntrospectionResponse:
-        """Return uploaded multipart part state for a caller-owned key."""
+        """Return uploaded multipart part state for a caller-owned key.
+
+        Args:
+            request: Upload introspection request containing key and upload_id.
+            principal: Authenticated principal for scope validation.
+
+        Returns:
+            UploadIntrospectionResponse: Multipart state including bucket, key,
+                upload_id, part_size_bytes, and list of uploaded parts.
+
+        Raises:
+            FileTransferError: If scope validation fails or upload does not exist.
+        """
         self._assert_upload_scope(key=request.key, scope_id=principal.scope_id)
         uploaded_parts = await self._list_multipart_parts(
             key=request.key,
             upload_id=request.upload_id,
         )
+        part_size_bytes = (
+            uploaded_parts[0][2]
+            if uploaded_parts
+            else self.settings.file_transfer_part_size_bytes
+        )
         return UploadIntrospectionResponse(
             bucket=self.settings.file_transfer_bucket,
             key=request.key,
             upload_id=request.upload_id,
-            part_size_bytes=self.settings.file_transfer_part_size_bytes,
+            part_size_bytes=part_size_bytes,
             parts=[
                 UploadedPart(part_number=part_number, etag=etag)
                 for part_number, etag, _size in uploaded_parts

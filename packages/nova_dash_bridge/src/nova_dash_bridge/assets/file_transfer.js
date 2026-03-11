@@ -563,6 +563,17 @@
           typeof error.message === "string" &&
           error.message.indexOf("multipart upload was not found") !== -1
         ) {
+          try {
+            await postJson(
+              config.transfersEndpointBase + "/uploads/introspect",
+              {
+                key: initiated.key,
+                upload_id: initiated.upload_id,
+                session_id: sessionId,
+              }
+            );
+          } catch (introspectError) {
+          }
           clearMultipartState(storageKey);
           sessionId = getSessionId();
           storageKey = multipartStateStorageKey(config, file);

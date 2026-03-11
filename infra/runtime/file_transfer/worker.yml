@@ -57,6 +57,7 @@ Parameters:
     Type: Number
     Default: 120
     MinValue: 1
+    MaxValue: 43200
   JobsApiBaseUrl:
     Type: String
   JobsWorkerUpdateTokenSecretArn:

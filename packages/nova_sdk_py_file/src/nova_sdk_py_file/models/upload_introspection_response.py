@@ -22,11 +22,11 @@ class UploadIntrospectionResponse:
     """Multipart upload introspection response.
 
     Attributes:
-        bucket (str):
-        key (str):
-        part_size_bytes (int):
-        parts (list[UploadedPart]):
-        upload_id (str):
+        bucket (str): S3 bucket name for the multipart upload.
+        key (str): S3 object key for the multipart upload.
+        part_size_bytes (int): Part size in bytes used for this upload.
+        parts (list[UploadedPart]): List of already uploaded parts.
+        upload_id (str): Multipart upload ID.
     """
 
     bucket: str
@@ -36,6 +36,11 @@ class UploadIntrospectionResponse:
     upload_id: str
 
     def to_dict(self) -> dict[str, Any]:
+        """Serialize this model to a JSON-compatible dict.
+
+        Returns:
+            dict[str, Any]: Serialized upload introspection response.
+        """
         bucket = self.bucket
 
         key = self.key
@@ -65,6 +70,19 @@ class UploadIntrospectionResponse:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
+        """Build this model from a JSON-compatible mapping.
+
+        Args:
+            src_dict (Mapping[str, Any]): Source mapping containing bucket, key,
+                part_size_bytes, parts, and upload_id.
+
+        Returns:
+            UploadIntrospectionResponse: Parsed upload introspection response.
+
+        Raises:
+            KeyError: If required keys are missing.
+            TypeError: If value types are not compatible.
+        """
         from ..models.uploaded_part import UploadedPart
 
         d = dict(src_dict)

@@ -7,6 +7,8 @@ from collections.abc import Mapping
 from typing import Any, TypeVar
 
 from attrs import define as _attrs_define
+from attrs import field as _attrs_field
+from attrs import validators as _attrs_validators
 
 T = TypeVar("T", bound="UploadedPart")
 
@@ -17,11 +19,17 @@ class UploadedPart:
 
     Attributes:
         etag (str): ETag returned by S3 for this uploaded part.
-        part_number (int): 1-based multipart part number.
+        part_number (int): 1-based multipart part number (valid range: 1-10,000).
     """
 
     etag: str
-    part_number: int
+    part_number: int = _attrs_field(
+        validator=_attrs_validators.and_(
+            _attrs_validators.instance_of(int),
+            _attrs_validators.ge(1),
+            _attrs_validators.le(10000),
+        )
+    )
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize this model to a JSON-compatible dict.
