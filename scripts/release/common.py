@@ -101,12 +101,12 @@ def _load_python_workspace_units(repo_root: Path) -> dict[str, WorkspaceUnit]:
         .get("members", [])
     )
     if not isinstance(members, list):
-        raise ValueError("tool.uv.workspace.members must be a list")
+        raise TypeError("tool.uv.workspace.members must be a list")
 
     units: dict[str, WorkspaceUnit] = {}
     for member in members:
         if not isinstance(member, str):
-            raise ValueError("workspace member paths must be strings")
+            raise TypeError("workspace member paths must be strings")
         member_path = repo_root / member
         project_data = tomllib.loads(
             (member_path / "pyproject.toml").read_text(encoding="utf-8")
@@ -119,7 +119,7 @@ def _load_python_workspace_units(repo_root: Path) -> dict[str, WorkspaceUnit]:
             raise ValueError(f"project.version in {member} must be non-empty")
         dependencies = project_data.get("dependencies", [])
         if not isinstance(dependencies, list):
-            raise ValueError(f"project.dependencies in {member} must be a list")
+            raise TypeError(f"project.dependencies in {member} must be a list")
         units[member] = WorkspaceUnit(
             unit_id=member,
             path=member_path,
@@ -142,22 +142,22 @@ def _load_npm_workspace_units(repo_root: Path) -> dict[str, WorkspaceUnit]:
     if isinstance(raw_workspaces, dict):
         raw_workspaces = raw_workspaces.get("packages", [])
     if not isinstance(raw_workspaces, list):
-        raise ValueError("package.json workspaces must be a list")
+        raise TypeError("package.json workspaces must be a list")
 
     units: dict[str, WorkspaceUnit] = {}
     for member in raw_workspaces:
         if not isinstance(member, str):
-            raise ValueError("package.json workspace entries must be strings")
+            raise TypeError("package.json workspace entries must be strings")
         member_path = repo_root / member
         package_data = json.loads(
             (member_path / "package.json").read_text(encoding="utf-8")
         )
         release_data = package_data.get("novaRelease", {})
         if not isinstance(release_data, dict):
-            raise ValueError(f"novaRelease in {member} must be an object")
+            raise TypeError(f"novaRelease in {member} must be an object")
         managed_raw = release_data.get("managed", False)
         if not isinstance(managed_raw, bool):
-            raise ValueError(
+            raise TypeError(
                 f"novaRelease.managed in {member} must be a boolean"
             )
         if not managed_raw:
@@ -216,7 +216,7 @@ def _collect_npm_dependency_names(
     ):
         raw_dependencies = package_data.get(field, {})
         if not isinstance(raw_dependencies, dict):
-            raise ValueError(f"package.json field {field} must be an object")
+            raise TypeError(f"package.json field {field} must be an object")
         for name in raw_dependencies:
             dependency_names.add(str(name))
     return tuple(sorted(dependency_names))

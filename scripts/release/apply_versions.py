@@ -94,16 +94,16 @@ def apply_version_updates(
         ValueError: If a target pyproject version does not match the plan.
     """
     if not isinstance(version_plan, Mapping):
-        raise ValueError("version_plan must be a JSON object")
+        raise TypeError("version_plan must be a JSON object")
     raw_units = version_plan.get("units", [])
     if not isinstance(raw_units, list):
-        raise ValueError("version_plan.units must be a JSON array")
+        raise TypeError("version_plan.units must be a JSON array")
 
     updated: list[str] = []
     seen_unit_ids: set[str] = set()
     for item in raw_units:
         if not isinstance(item, Mapping):
-            raise ValueError("version plan units must be objects")
+            raise TypeError("version plan units must be objects")
         unit_id = str(item.get("unit_id", "")).strip()
         old_version = str(item.get("old_version", "")).strip()
         new_version = str(item.get("new_version", "")).strip()

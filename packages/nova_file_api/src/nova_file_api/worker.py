@@ -45,7 +45,7 @@ class WorkerJobMessage:
         """Parse and validate an SQS message body payload."""
         raw = json.loads(body)
         if not isinstance(raw, dict):
-            raise ValueError("message body must be an object")
+            raise TypeError("message body must be an object")
         if {"status", "result", "error"} & raw.keys():
             raise ValueError(
                 "message body must not contain result-update fields"
@@ -63,7 +63,7 @@ class WorkerJobMessage:
         if payload is None:
             payload = {}
         if not isinstance(payload, dict):
-            raise ValueError("message body payload must be an object")
+            raise TypeError("message body payload must be an object")
         try:
             created_at = _parse_iso8601(str(raw.get("created_at", "")).strip())
         except ValueError as exc:

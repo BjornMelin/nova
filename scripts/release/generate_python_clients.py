@@ -109,7 +109,7 @@ def _remove_ignored_paths(root: Path) -> None:
 def _load_spec_json(path: Path) -> dict[str, Any]:
     payload = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(payload, dict):
-        raise ValueError(f"OpenAPI spec must decode to an object: {path}")
+        raise TypeError(f"OpenAPI spec must decode to an object: {path}")
     return payload
 
 
@@ -119,7 +119,7 @@ def _filter_internal_operations_for_public_sdk(
     filtered = copy.deepcopy(spec)
     paths = filtered.get("paths")
     if not isinstance(paths, dict):
-        raise ValueError("OpenAPI spec missing paths object")
+        raise TypeError("OpenAPI spec missing paths object")
 
     for path, path_item in list(paths.items()):
         if not isinstance(path_item, dict):

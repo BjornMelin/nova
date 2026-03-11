@@ -40,7 +40,7 @@ def _request_json(*, url: str, token: str) -> dict[str, Any]:
     ) as response:
         payload = json.loads(response.read().decode("utf-8"))
     if not isinstance(payload, dict):
-        raise RuntimeError("GitHub API returned a non-object JSON payload")
+        raise TypeError("GitHub API returned a non-object JSON payload")
     return payload
 
 
@@ -188,7 +188,7 @@ def _find_named_artifact(
                 total_count = raw_total_count
         artifacts = listing.get("artifacts", [])
         if not isinstance(artifacts, list):
-            raise RuntimeError("GitHub API returned invalid artifacts payload")
+            raise TypeError("GitHub API returned invalid artifacts payload")
         typed_artifacts = [item for item in artifacts if isinstance(item, dict)]
         matches.extend(
             item

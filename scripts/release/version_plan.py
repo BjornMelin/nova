@@ -115,7 +115,7 @@ def main() -> int:
     base_commit = changed_report.get("base_commit")
     head_commit = changed_report.get("head_commit")
     if not isinstance(head_commit, str):
-        raise ValueError("changed-units report missing head_commit")
+        raise TypeError("changed-units report missing head_commit")
 
     commit_messages = common.collect_commit_messages(
         repo_root,
