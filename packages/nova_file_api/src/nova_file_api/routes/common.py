@@ -12,7 +12,7 @@ from nova_file_api.config import Settings
 from nova_file_api.errors import forbidden, invalid_request
 from nova_file_api.metrics import MetricsCollector
 
-WORKER_TOKEN_NOT_CONFIGURED = "worker update token not configured"  # noqa: S105
+WORKER_TOKEN_NOT_CONFIGURED = "worker update token not configured"
 IdempotencyKeyHeader = Annotated[
     str | None,
     Header(alias="Idempotency-Key"),

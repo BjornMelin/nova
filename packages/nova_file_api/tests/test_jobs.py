@@ -117,7 +117,7 @@ class _FlakyJobService:
     ) -> JobRecord:
         self.calls += 1
         if self.calls == 1:
-            raise queue_unavailable(  # noqa: TRY003 - explicit message asserted through API error flow
+            raise queue_unavailable(
                 "job enqueue failed because queue publish failed"
             )
         now = datetime.now(tz=UTC)

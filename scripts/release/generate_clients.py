@@ -582,11 +582,11 @@ def _render_typescript_types(
                 f'export type {base_name}ErrorData = {base_name}ErrorResult["data"];',
             ]
         )
-        for status_code in operation.response_status_codes:
-            lines.append(
-                f"export type {base_name}Response{status_code} = "
-                f"ResponseBodyOf<{base_name}Responses[{status_code}]>;"
-            )
+        lines.extend(
+            f"export type {base_name}Response{status_code} = "
+            f"ResponseBodyOf<{base_name}Responses[{status_code}]>;"
+            for status_code in operation.response_status_codes
+        )
         lines.extend(_render_request_interface(operation))
 
     lines.append("")

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
-import random
+import secrets
 import signal
 from dataclasses import dataclass
 from datetime import datetime
@@ -516,7 +516,7 @@ def _result_update_retry_delay_seconds(*, attempt: int) -> float:
             _RESULT_UPDATE_MAX_DELAY_SECONDS,
         )
     )
-    jitter = random.uniform(0.75, 1.25)
+    jitter = secrets.SystemRandom().uniform(0.75, 1.25)
     return float(delay_seconds * jitter)
 
 

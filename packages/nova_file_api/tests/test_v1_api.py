@@ -166,7 +166,7 @@ def test_v1_resource_plan_and_release_info() -> None:
     assert plan.status_code == 200
     payload = plan.json()
     assert len(payload["plan"]) == 2
-    unknown = [i for i in payload["plan"] if i["resource"] == "unknown"][0]
+    unknown = next(i for i in payload["plan"] if i["resource"] == "unknown")
     assert unknown["supported"] is False
     assert unknown["reason"] == "unsupported_resource"
 

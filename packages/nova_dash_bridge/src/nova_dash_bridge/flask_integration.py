@@ -93,7 +93,7 @@ def create_file_transfer_blueprint(
             payload = _parse_payload(InitiateUploadRequest)
             response = service.initiate_upload(payload)
             return jsonify(response.model_dump()), HTTPStatus.OK
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             err = coerce_file_transfer_error(exc)
             return _error_response(err)
 
@@ -103,7 +103,7 @@ def create_file_transfer_blueprint(
             payload = _parse_payload(SignPartsRequest)
             response = service.sign_parts(payload)
             return jsonify(response.model_dump()), HTTPStatus.OK
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             err = coerce_file_transfer_error(exc)
             return _error_response(err)
 
@@ -113,7 +113,7 @@ def create_file_transfer_blueprint(
             payload = _parse_payload(CompleteUploadRequest)
             response = service.complete_upload(payload)
             return jsonify(response.model_dump()), HTTPStatus.OK
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             err = coerce_file_transfer_error(exc)
             return _error_response(err)
 
@@ -123,7 +123,7 @@ def create_file_transfer_blueprint(
             payload = _parse_payload(AbortUploadRequest)
             response = service.abort_upload(payload)
             return jsonify(response.model_dump()), HTTPStatus.OK
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             err = coerce_file_transfer_error(exc)
             return _error_response(err)
 
@@ -133,7 +133,7 @@ def create_file_transfer_blueprint(
             payload = _parse_payload(PresignDownloadRequest)
             response = service.presign_download(payload)
             return jsonify(response.model_dump()), HTTPStatus.OK
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             err = coerce_file_transfer_error(exc)
             return _error_response(err)
 
