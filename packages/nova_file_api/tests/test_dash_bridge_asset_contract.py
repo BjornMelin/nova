@@ -27,3 +27,41 @@ def test_poll_async_job_forwards_session_scope_header() -> None:
         r"pollAsyncJob\(\s*config,\s*enqueued\.job_id,\s*uploadResult\.session_id\s*\)",
         source,
     )
+
+
+def test_multipart_asset_uses_resume_introspection_and_persistent_state() -> (
+    None
+):
+    source = _file_transfer_asset_source()
+
+    assert (
+        "function multipartStateStorageKey(config, file, sessionId)" in source
+    )
+    assert 'String(sessionId || "")' in source
+    assert (
+        "var storageKey = multipartStateStorageKey(config, file, sessionId);"
+        in source
+    )
+    assert (
+        "window.localStorage.setItem(storageKey, JSON.stringify(state));"
+        in source
+    )
+    assert 'base + "/uploads/introspect"' in source
+    assert "window.localStorage.removeItem(storageKey);" in source
+
+
+def test_multipart_asset_uses_progressive_sign_batch_default() -> None:
+    source = _file_transfer_asset_source()
+
+    assert 'root.dataset.signBatchSize || ""' in source
+    assert re.search(
+        r"Math\.min\(16,\s*Math\.max\(1,\s*maxConcurrency \* 2\)\)",
+        source,
+    )
+
+
+def test_file_transfer_asset_uses_progressive_sign_batches() -> None:
+    source = _file_transfer_asset_source()
+
+    assert 'root.dataset.signBatchSize || ""' in source
+    assert "Math.min(16, Math.max(1, maxConcurrency * 2))" in source

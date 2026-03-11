@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import math
+from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, cast
@@ -10,7 +12,11 @@ from uuid import uuid4
 from botocore.exceptions import BotoCoreError, ClientError
 
 from nova_file_api.config import Settings
-from nova_file_api.errors import invalid_request, upstream_s3_error
+from nova_file_api.errors import (
+    FileTransferError,
+    invalid_request,
+    upstream_s3_error,
+)
 from nova_file_api.models import (
     AbortUploadRequest,
     AbortUploadResponse,
@@ -23,8 +29,16 @@ from nova_file_api.models import (
     Principal,
     SignPartsRequest,
     SignPartsResponse,
+    UploadedPart,
+    UploadIntrospectionRequest,
+    UploadIntrospectionResponse,
     UploadStrategy,
 )
+
+_COPY_OBJECT_MAX_BYTES = 5_000_000_000
+_MAX_MULTIPART_PARTS = 10_000
+_MIN_MULTIPART_PART_SIZE_BYTES = 5 * 1024 * 1024
+_MAX_MULTIPART_PART_SIZE_BYTES = 5 * 1024 * 1024 * 1024
 
 
 @dataclass(slots=True, frozen=True)
@@ -126,6 +140,28 @@ class TransferService:
             urls=urls,
         )
 
+    async def introspect_upload(
+        self,
+        request: UploadIntrospectionRequest,
+        principal: Principal,
+    ) -> UploadIntrospectionResponse:
+        """Return uploaded multipart part state for a caller-owned key."""
+        self._assert_upload_scope(key=request.key, scope_id=principal.scope_id)
+        uploaded_parts = await self._list_multipart_parts(
+            key=request.key,
+            upload_id=request.upload_id,
+        )
+        return UploadIntrospectionResponse(
+            bucket=self.settings.file_transfer_bucket,
+            key=request.key,
+            upload_id=request.upload_id,
+            part_size_bytes=self.settings.file_transfer_part_size_bytes,
+            parts=[
+                UploadedPart(part_number=part_number, etag=etag)
+                for part_number, etag, _size in uploaded_parts
+            ],
+        )
+
     async def complete_upload(
         self,
         request: CompleteUploadRequest,
@@ -133,11 +169,34 @@ class TransferService:
     ) -> CompleteUploadResponse:
         """Complete multipart upload for caller-owned key."""
         self._assert_upload_scope(key=request.key, scope_id=principal.scope_id)
+        uploaded_parts = await self._list_multipart_parts(
+            key=request.key,
+            upload_id=request.upload_id,
+        )
+        uploaded_parts_by_number = {
+            part_number: (etag, size_bytes)
+            for part_number, etag, size_bytes in uploaded_parts
+        }
 
         parts = [
             {"ETag": part.etag, "PartNumber": part.part_number}
             for part in sorted(request.parts, key=lambda item: item.part_number)
         ]
+        expected_size_bytes = 0
+        for part in request.parts:
+            uploaded = uploaded_parts_by_number.get(part.part_number)
+            if uploaded is None:
+                raise invalid_request(
+                    "multipart upload part is missing",
+                    details={"part_number": part.part_number},
+                )
+            uploaded_etag, size_bytes = uploaded
+            if _normalize_etag(uploaded_etag) != _normalize_etag(part.etag):
+                raise invalid_request(
+                    "multipart upload part etag mismatch",
+                    details={"part_number": part.part_number},
+                )
+            expected_size_bytes += size_bytes
 
         try:
             result = await self._s3.complete_multipart_upload(
@@ -150,6 +209,29 @@ class TransferService:
             raise upstream_s3_error(
                 "failed to complete multipart upload"
             ) from exc
+        # Multipart completion is already committed when S3 returns success.
+        # Keep this verification best-effort so flaky read-after-complete checks
+        # do not turn a successful completion into a retry-unsafe error.
+        try:
+            completed_object = await self._head_object(
+                bucket=self.settings.file_transfer_bucket,
+                key=request.key,
+                missing_message="completed multipart upload object not found",
+                failure_message="failed to inspect completed multipart upload",
+            )
+            content_length = _require_non_negative_int(
+                completed_object.get("ContentLength"),
+                error_message=(
+                    "completed multipart upload is missing content length"
+                ),
+            )
+            if content_length != expected_size_bytes:
+                raise upstream_s3_error(
+                    "completed multipart upload size did not match "
+                    "uploaded parts"
+                )
+        except FileTransferError:
+            pass
 
         return CompleteUploadResponse(
             bucket=self.settings.file_transfer_bucket,
@@ -251,7 +333,12 @@ class TransferService:
                 },
             )
         self._assert_upload_scope(key=source_key, scope_id=scope_id)
-        await self._assert_upload_object_exists(key=source_key)
+        source_object = await self._head_object(
+            bucket=self.settings.file_transfer_bucket,
+            key=source_key,
+            missing_message="source upload object not found",
+            failure_message="failed to inspect source upload object",
+        )
         download_filename = _sanitize_filename(
             filename or Path(source_key).name
         )
@@ -260,16 +347,28 @@ class TransferService:
             job_id=job_id,
             filename=download_filename,
         )
+        source_size_bytes = _require_non_negative_int(
+            source_object.get("ContentLength"),
+            error_message="source upload object is missing content length",
+        )
         try:
-            await self._s3.copy_object(
-                Bucket=self.settings.file_transfer_bucket,
-                CopySource={
-                    "Bucket": self.settings.file_transfer_bucket,
-                    "Key": source_key,
-                },
-                Key=export_key,
-                MetadataDirective="COPY",
-            )
+            if source_size_bytes <= _COPY_OBJECT_MAX_BYTES:
+                await self._s3.copy_object(
+                    Bucket=self.settings.file_transfer_bucket,
+                    CopySource={
+                        "Bucket": self.settings.file_transfer_bucket,
+                        "Key": source_key,
+                    },
+                    Key=export_key,
+                    MetadataDirective="COPY",
+                )
+            else:
+                await self._multipart_copy_upload_to_export(
+                    source_key=source_key,
+                    export_key=export_key,
+                    source_size_bytes=source_size_bytes,
+                    source_object=source_object,
+                )
         except ClientError as exc:
             error_code = str(exc.response.get("Error", {}).get("Code", ""))
             if error_code in {"404", "NoSuchKey", "NotFound"}:
@@ -366,6 +465,178 @@ class TransferService:
         except (ClientError, BotoCoreError) as exc:
             raise upstream_s3_error("failed to generate presigned URL") from exc
 
+    async def _list_multipart_parts(
+        self,
+        *,
+        key: str,
+        upload_id: str,
+    ) -> list[tuple[int, str, int]]:
+        parts: list[tuple[int, str, int]] = []
+        part_number_marker: int | None = None
+        while True:
+            kwargs: dict[str, Any] = {
+                "Bucket": self.settings.file_transfer_bucket,
+                "Key": key,
+                "UploadId": upload_id,
+                "MaxParts": 1000,
+            }
+            if part_number_marker is not None:
+                kwargs["PartNumberMarker"] = part_number_marker
+            try:
+                response = await self._s3.list_parts(**kwargs)
+            except ClientError as exc:
+                error_code = str(exc.response.get("Error", {}).get("Code", ""))
+                if error_code in {"404", "NoSuchUpload", "NotFound"}:
+                    raise invalid_request(
+                        "multipart upload was not found"
+                    ) from exc
+                raise upstream_s3_error(
+                    "failed to inspect multipart upload parts"
+                ) from exc
+            except BotoCoreError as exc:
+                raise upstream_s3_error(
+                    "failed to inspect multipart upload parts"
+                ) from exc
+
+            raw_parts = response.get("Parts")
+            if isinstance(raw_parts, list):
+                for raw_part in raw_parts:
+                    if not isinstance(raw_part, dict):
+                        continue
+                    part_number = _require_positive_int(
+                        raw_part.get("PartNumber"),
+                        error_message=(
+                            "multipart upload part is missing part number"
+                        ),
+                    )
+                    etag = _opt_str(raw_part.get("ETag"))
+                    if etag is None:
+                        raise upstream_s3_error(
+                            "multipart upload part is missing etag"
+                        )
+                    size_bytes = _require_non_negative_int(
+                        raw_part.get("Size"),
+                        error_message="multipart upload part is missing size",
+                    )
+                    parts.append((part_number, etag, size_bytes))
+
+            if not response.get("IsTruncated"):
+                break
+            part_number_marker = _require_positive_int(
+                response.get("NextPartNumberMarker"),
+                error_message=(
+                    "multipart upload pagination is missing next part marker"
+                ),
+            )
+        return sorted(parts, key=lambda item: item[0])
+
+    async def _head_object(
+        self,
+        *,
+        bucket: str,
+        key: str,
+        missing_message: str,
+        failure_message: str,
+    ) -> dict[str, Any]:
+        try:
+            output = await self._s3.head_object(Bucket=bucket, Key=key)
+        except ClientError as exc:
+            error_code = str(exc.response.get("Error", {}).get("Code", ""))
+            if error_code in {"404", "NoSuchKey", "NotFound"}:
+                raise invalid_request(missing_message) from exc
+            raise upstream_s3_error(failure_message) from exc
+        except BotoCoreError as exc:
+            raise upstream_s3_error(failure_message) from exc
+        return cast(dict[str, Any], output)
+
+    async def _multipart_copy_upload_to_export(
+        self,
+        *,
+        source_key: str,
+        export_key: str,
+        source_size_bytes: int,
+        source_object: dict[str, Any],
+    ) -> None:
+        upload_id: str | None = None
+        part_size_bytes = _multipart_copy_part_size_bytes(
+            source_size_bytes=source_size_bytes,
+            preferred_part_size_bytes=self.settings.file_transfer_part_size_bytes,
+        )
+        try:
+            create_upload_kwargs = _multipart_copy_create_upload_kwargs(
+                bucket=self.settings.file_transfer_bucket,
+                key=export_key,
+                source_object=source_object,
+            )
+            output = await self._s3.create_multipart_upload(
+                **create_upload_kwargs
+            )
+            upload_id = _opt_str(output.get("UploadId"))
+            if upload_id is None:
+                raise upstream_s3_error(
+                    "multipart export copy response missing upload id"
+                )
+
+            completed_parts: list[dict[str, Any]] = []
+            part_number = 1
+            start_byte = 0
+            while start_byte < source_size_bytes:
+                end_byte = min(
+                    source_size_bytes - 1,
+                    start_byte + part_size_bytes - 1,
+                )
+                response = await self._s3.upload_part_copy(
+                    Bucket=self.settings.file_transfer_bucket,
+                    CopySource={
+                        "Bucket": self.settings.file_transfer_bucket,
+                        "Key": source_key,
+                    },
+                    CopySourceRange=f"bytes={start_byte}-{end_byte}",
+                    Key=export_key,
+                    PartNumber=part_number,
+                    UploadId=upload_id,
+                )
+                completed_parts.append(
+                    {
+                        "ETag": _copy_part_etag(response),
+                        "PartNumber": part_number,
+                    }
+                )
+                start_byte = end_byte + 1
+                part_number += 1
+
+            await self._s3.complete_multipart_upload(
+                Bucket=self.settings.file_transfer_bucket,
+                Key=export_key,
+                UploadId=upload_id,
+                MultipartUpload={"Parts": completed_parts},
+            )
+        except ClientError as exc:
+            error_code = str(exc.response.get("Error", {}).get("Code", ""))
+            if upload_id is not None:
+                with suppress(ClientError, BotoCoreError):
+                    await self._s3.abort_multipart_upload(
+                        Bucket=self.settings.file_transfer_bucket,
+                        Key=export_key,
+                        UploadId=upload_id,
+                    )
+            if error_code in {"404", "NoSuchKey", "NotFound"}:
+                raise invalid_request("source upload object not found") from exc
+            raise upstream_s3_error(
+                "failed to copy upload object to export key"
+            ) from exc
+        except BotoCoreError as exc:
+            if upload_id is not None:
+                with suppress(ClientError, BotoCoreError):
+                    await self._s3.abort_multipart_upload(
+                        Bucket=self.settings.file_transfer_bucket,
+                        Key=export_key,
+                        UploadId=upload_id,
+                    )
+            raise upstream_s3_error(
+                "failed to copy upload object to export key"
+            ) from exc
+
     def _new_upload_key(self, *, scope_id: str, filename: str) -> str:
         safe = _sanitize_filename(filename)
         return f"{self._upload_prefix}{scope_id}/{uuid4().hex}/{safe}"
@@ -401,24 +672,6 @@ class TransferService:
         if not any(key.startswith(prefix) for prefix in expected_prefixes):
             raise invalid_request("key is outside caller read scope")
 
-    async def _assert_upload_object_exists(self, *, key: str) -> None:
-        try:
-            await self._s3.head_object(
-                Bucket=self.settings.file_transfer_bucket,
-                Key=key,
-            )
-        except ClientError as exc:
-            error_code = str(exc.response.get("Error", {}).get("Code", ""))
-            if error_code in {"404", "NoSuchKey", "NotFound"}:
-                raise invalid_request("source upload object not found") from exc
-            raise upstream_s3_error(
-                "failed to inspect source upload object"
-            ) from exc
-        except BotoCoreError as exc:
-            raise upstream_s3_error(
-                "failed to inspect source upload object"
-            ) from exc
-
 
 def _sanitize_filename(filename: str) -> str:
     base_name = Path(filename).name
@@ -447,3 +700,80 @@ def _opt_str(value: object) -> str | None:
     if isinstance(value, str):
         return value
     return None
+
+
+def _normalize_etag(value: str) -> str:
+    return value.strip().strip('"')
+
+
+def _require_positive_int(value: Any, *, error_message: str) -> int:
+    if isinstance(value, int) and value > 0:
+        return value
+    if isinstance(value, str):
+        try:
+            parsed = int(value)
+        except ValueError:
+            parsed = 0
+        if parsed > 0:
+            return parsed
+    raise upstream_s3_error(error_message)
+
+
+def _require_non_negative_int(value: Any, *, error_message: str) -> int:
+    if isinstance(value, int) and value >= 0:
+        return value
+    if isinstance(value, str):
+        try:
+            parsed = int(value)
+        except ValueError:
+            parsed = -1
+        if parsed >= 0:
+            return parsed
+    raise upstream_s3_error(error_message)
+
+
+def _copy_part_etag(response: dict[str, Any]) -> str:
+    copy_result = response.get("CopyPartResult")
+    if not isinstance(copy_result, dict):
+        raise upstream_s3_error("multipart export copy part result is missing")
+    etag = _opt_str(copy_result.get("ETag"))
+    if etag is None:
+        raise upstream_s3_error("multipart export copy part etag is missing")
+    return etag
+
+
+def _multipart_copy_part_size_bytes(
+    *,
+    source_size_bytes: int,
+    preferred_part_size_bytes: int,
+) -> int:
+    return min(
+        _MAX_MULTIPART_PART_SIZE_BYTES,
+        max(
+            preferred_part_size_bytes,
+            _MIN_MULTIPART_PART_SIZE_BYTES,
+            math.ceil(source_size_bytes / _MAX_MULTIPART_PARTS),
+        ),
+    )
+
+
+def _multipart_copy_create_upload_kwargs(
+    *,
+    bucket: str,
+    key: str,
+    source_object: dict[str, Any],
+) -> dict[str, Any]:
+    kwargs: dict[str, Any] = {"Bucket": bucket, "Key": key}
+    for field in (
+        "CacheControl",
+        "ContentDisposition",
+        "ContentEncoding",
+        "ContentLanguage",
+        "ContentType",
+        "Expires",
+        "Metadata",
+    ):
+        value = source_object.get(field)
+        if value is not None:
+            kwargs[field] = value
+    return kwargs
