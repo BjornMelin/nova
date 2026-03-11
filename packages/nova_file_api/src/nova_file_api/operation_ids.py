@@ -5,6 +5,7 @@ from typing import Final
 METRICS_SUMMARY_OPERATION_ID: Final = "metrics_summary"
 INITIATE_UPLOAD_OPERATION_ID: Final = "initiate_upload"
 SIGN_UPLOAD_PARTS_OPERATION_ID: Final = "sign_upload_parts"
+INTROSPECT_UPLOAD_OPERATION_ID: Final = "introspect_upload"
 COMPLETE_UPLOAD_OPERATION_ID: Final = "complete_upload"
 ABORT_UPLOAD_OPERATION_ID: Final = "abort_upload"
 PRESIGN_DOWNLOAD_OPERATION_ID: Final = "presign_download"
@@ -26,6 +27,9 @@ OPERATION_ID_BY_PATH_AND_METHOD = {
     "/v1/transfers/uploads/initiate": {"post": INITIATE_UPLOAD_OPERATION_ID},
     "/v1/transfers/uploads/sign-parts": {
         "post": SIGN_UPLOAD_PARTS_OPERATION_ID
+    },
+    "/v1/transfers/uploads/introspect": {
+        "post": INTROSPECT_UPLOAD_OPERATION_ID
     },
     "/v1/transfers/uploads/complete": {"post": COMPLETE_UPLOAD_OPERATION_ID},
     "/v1/transfers/uploads/abort": {"post": ABORT_UPLOAD_OPERATION_ID},

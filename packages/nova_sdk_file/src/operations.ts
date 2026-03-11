@@ -100,6 +100,12 @@ export const operations = {
     path: "/v1/transfers/uploads/initiate",
     summary: "Initiate Upload",
   },
+  "introspect_upload": {
+    operationId: "introspect_upload",
+    method: "POST",
+    path: "/v1/transfers/uploads/introspect",
+    summary: "Introspect Upload",
+  },
   "sign_upload_parts": {
     operationId: "sign_upload_parts",
     method: "POST",

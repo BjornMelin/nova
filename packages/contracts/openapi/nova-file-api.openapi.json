@@ -1101,6 +1101,80 @@
         "title": "SignPartsResponse",
         "type": "object"
       },
+      "UploadIntrospectionRequest": {
+        "additionalProperties": false,
+        "description": "Multipart upload introspection request.",
+        "properties": {
+          "key": {
+            "maxLength": 2048,
+            "minLength": 1,
+            "title": "Key",
+            "type": "string"
+          },
+          "session_id": {
+            "anyOf": [
+              {
+                "maxLength": 256,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Id"
+          },
+          "upload_id": {
+            "maxLength": 1024,
+            "minLength": 1,
+            "title": "Upload Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "upload_id"
+        ],
+        "title": "UploadIntrospectionRequest",
+        "type": "object"
+      },
+      "UploadIntrospectionResponse": {
+        "additionalProperties": false,
+        "description": "Multipart upload introspection response.",
+        "properties": {
+          "bucket": {
+            "title": "Bucket",
+            "type": "string"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "part_size_bytes": {
+            "title": "Part Size Bytes",
+            "type": "integer"
+          },
+          "parts": {
+            "items": {
+              "$ref": "#/components/schemas/UploadedPart"
+            },
+            "title": "Parts",
+            "type": "array"
+          },
+          "upload_id": {
+            "title": "Upload Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "bucket",
+          "key",
+          "upload_id",
+          "part_size_bytes"
+        ],
+        "title": "UploadIntrospectionResponse",
+        "type": "object"
+      },
       "UploadStrategy": {
         "description": "Upload strategy options returned by initiate endpoint.",
         "enum": [
@@ -1109,6 +1183,30 @@
         ],
         "title": "UploadStrategy",
         "type": "string"
+      },
+      "UploadedPart": {
+        "additionalProperties": false,
+        "description": "Part state returned for multipart upload introspection.",
+        "properties": {
+          "etag": {
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Etag",
+            "type": "string"
+          },
+          "part_number": {
+            "maximum": 10000.0,
+            "minimum": 1.0,
+            "title": "Part Number",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "part_number",
+          "etag"
+        ],
+        "title": "UploadedPart",
+        "type": "object"
       },
       "ValidationError": {
         "properties": {
@@ -1918,6 +2016,52 @@
           }
         ],
         "summary": "Initiate Upload",
+        "tags": [
+          "transfers"
+        ]
+      }
+    },
+    "/v1/transfers/uploads/introspect": {
+      "post": {
+        "description": "Return uploaded multipart part state for resume flows.",
+        "operationId": "introspect_upload",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UploadIntrospectionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadIntrospectionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "$ref": "#/components/responses/FileUnauthorizedResponse"
+          },
+          "403": {
+            "$ref": "#/components/responses/FileForbiddenResponse"
+          },
+          "422": {
+            "$ref": "#/components/responses/FileInvalidRequestResponse"
+          }
+        },
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ],
+        "summary": "Introspect Upload",
         "tags": [
           "transfers"
         ]

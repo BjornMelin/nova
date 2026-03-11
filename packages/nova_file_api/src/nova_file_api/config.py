@@ -78,7 +78,7 @@ class Settings(BaseSettings):
         alias="FILE_TRANSFER_TMP_PREFIX",
     )
     file_transfer_presign_upload_ttl_seconds: int = Field(
-        default=900,
+        default=1800,
         alias="FILE_TRANSFER_PRESIGN_UPLOAD_TTL_SECONDS",
         ge=60,
         le=3600,
@@ -111,7 +111,7 @@ class Settings(BaseSettings):
         alias="FILE_TRANSFER_USE_ACCELERATE_ENDPOINT",
     )
     max_upload_bytes: int = Field(
-        default=5 * 1024 * 1024 * 1024,
+        default=500 * 1024 * 1024 * 1024,
         alias="FILE_TRANSFER_MAX_UPLOAD_BYTES",
         ge=1,
     )

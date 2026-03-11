@@ -29,11 +29,14 @@ from nova_file_api.models import (
     Principal,
     SignPartsRequest,
     SignPartsResponse,
+    UploadIntrospectionRequest,
+    UploadIntrospectionResponse,
 )
 from nova_file_api.operation_ids import (
     ABORT_UPLOAD_OPERATION_ID,
     COMPLETE_UPLOAD_OPERATION_ID,
     INITIATE_UPLOAD_OPERATION_ID,
+    INTROSPECT_UPLOAD_OPERATION_ID,
     PRESIGN_DOWNLOAD_OPERATION_ID,
     SIGN_UPLOAD_PARTS_OPERATION_ID,
 )
@@ -260,6 +263,75 @@ async def sign_upload_parts(
         route_metric="uploads_sign_parts",
         route_path="/v1/transfers/uploads/sign-parts",
         event_name="uploads_sign_parts_metric_emit_failed",
+        status="ok",
+    )
+    return response
+
+
+@transfer_router.post(
+    "/uploads/introspect",
+    operation_id=INTROSPECT_UPLOAD_OPERATION_ID,
+    response_model=UploadIntrospectionResponse,
+)
+async def introspect_upload(
+    request: Request,
+    payload: UploadIntrospectionRequest,
+    metrics: MetricsDep,
+    transfer_service: TransferServiceDep,
+    activity_store: ActivityStoreDep,
+    authenticator: AuthenticatorDep,
+) -> UploadIntrospectionResponse:
+    """Return uploaded multipart part state for resume flows."""
+    principal = await authenticate_principal(
+        request=request,
+        authenticator=authenticator,
+        session_id=payload.session_id,
+    )
+
+    try:
+        with metrics.timed("uploads_introspect_ms"):
+            response = await transfer_service.introspect_upload(
+                payload,
+                principal,
+            )
+    except Exception as exc:
+        await _record_transfer_failure(
+            metrics=metrics,
+            activity_store=activity_store,
+            principal=principal,
+            metric_name="uploads_introspect_failure_total",
+            route_metric="uploads_introspect",
+            log_event="introspect_upload_request_failed",
+            route_path="/v1/transfers/uploads/introspect",
+            activity_event_type="uploads_introspect_failure",
+            exc=exc,
+        )
+        raise
+
+    _increment_metric_best_effort(
+        metrics=metrics,
+        principal=principal,
+        metric_name="uploads_introspect_total",
+        route_path="/v1/transfers/uploads/introspect",
+        event_name="uploads_introspect_metric_increment_failed",
+    )
+    try:
+        await activity_store.record(
+            principal=principal,
+            event_type="uploads_introspect",
+        )
+    except Exception:
+        structlog.get_logger("api").exception(
+            "uploads_introspect_activity_record_failed",
+            route="/v1/transfers/uploads/introspect",
+            scope_id=principal.scope_id,
+        )
+    _emit_request_metric_best_effort(
+        metrics=metrics,
+        principal=principal,
+        route_metric="uploads_introspect",
+        route_path="/v1/transfers/uploads/introspect",
+        event_name="uploads_introspect_metric_emit_failed",
         status="ok",
     )
     return response

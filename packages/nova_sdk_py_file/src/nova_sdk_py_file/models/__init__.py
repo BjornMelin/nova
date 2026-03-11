@@ -76,7 +76,14 @@ from nova_sdk_py_file.models.sign_parts_response import SignPartsResponse
 from nova_sdk_py_file.models.sign_parts_response_urls import (
     SignPartsResponseUrls,
 )
+from nova_sdk_py_file.models.upload_introspection_request import (
+    UploadIntrospectionRequest,
+)
+from nova_sdk_py_file.models.upload_introspection_response import (
+    UploadIntrospectionResponse,
+)
 from nova_sdk_py_file.models.upload_strategy import UploadStrategy
+from nova_sdk_py_file.models.uploaded_part import UploadedPart
 
 __all__ = (
     "AbortUploadRequest",
@@ -122,5 +129,8 @@ __all__ = (
     "SignPartsRequest",
     "SignPartsResponse",
     "SignPartsResponseUrls",
+    "UploadedPart",
+    "UploadIntrospectionRequest",
+    "UploadIntrospectionResponse",
     "UploadStrategy",
 )

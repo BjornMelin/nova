@@ -5,7 +5,7 @@ import type { FetchClientOptions, OperationDescriptor, PathParams, QueryParams }
 import { normalizeBaseUrl } from "@nova/sdk-fetch/url";
 import { NovaSdkTransportError } from "./errors.js";
 import { operations } from "./operations.js";
-import type { MetricsSummaryRequestOptions, MetricsSummaryResult, GetCapabilitiesRequestOptions, GetCapabilitiesResult, HealthLiveRequestOptions, HealthLiveResult, HealthReadyRequestOptions, HealthReadyResult, ListJobsRequestOptions, ListJobsResult, CreateJobRequestOptions, CreateJobResult, GetJobStatusRequestOptions, GetJobStatusResult, CancelJobRequestOptions, CancelJobResult, ListJobEventsRequestOptions, ListJobEventsResult, RetryJobRequestOptions, RetryJobResult, GetReleaseInfoRequestOptions, GetReleaseInfoResult, PlanResourcesRequestOptions, PlanResourcesResult, PresignDownloadRequestOptions, PresignDownloadResult, AbortUploadRequestOptions, AbortUploadResult, CompleteUploadRequestOptions, CompleteUploadResult, InitiateUploadRequestOptions, InitiateUploadResult, SignUploadPartsRequestOptions, SignUploadPartsResult } from "./types.js";
+import type { MetricsSummaryRequestOptions, MetricsSummaryResult, GetCapabilitiesRequestOptions, GetCapabilitiesResult, HealthLiveRequestOptions, HealthLiveResult, HealthReadyRequestOptions, HealthReadyResult, ListJobsRequestOptions, ListJobsResult, CreateJobRequestOptions, CreateJobResult, GetJobStatusRequestOptions, GetJobStatusResult, CancelJobRequestOptions, CancelJobResult, ListJobEventsRequestOptions, ListJobEventsResult, RetryJobRequestOptions, RetryJobResult, GetReleaseInfoRequestOptions, GetReleaseInfoResult, PlanResourcesRequestOptions, PlanResourcesResult, PresignDownloadRequestOptions, PresignDownloadResult, AbortUploadRequestOptions, AbortUploadResult, CompleteUploadRequestOptions, CompleteUploadResult, InitiateUploadRequestOptions, InitiateUploadResult, IntrospectUploadRequestOptions, IntrospectUploadResult, SignUploadPartsRequestOptions, SignUploadPartsResult } from "./types.js";
 
 /**
  * Options for configuring the generated @nova/sdk-file client.
@@ -81,6 +81,10 @@ export interface NovaFileClient {
    * Invoke the `initiate_upload` operation.
    */
   initiate_upload(request: InitiateUploadRequestOptions): Promise<InitiateUploadResult>;
+  /**
+   * Invoke the `introspect_upload` operation.
+   */
+  introspect_upload(request: IntrospectUploadRequestOptions): Promise<IntrospectUploadResult>;
   /**
    * Invoke the `sign_upload_parts` operation.
    */
@@ -302,6 +306,17 @@ export function createNovaFileClient(
       return executeOperation<InitiateUploadResult>(
         fetchClient,
         operations.initiate_upload,
+        request as OperationRequest,
+        "application/json",
+      );
+    },
+    /**
+     * Invoke the `introspect_upload` operation.
+     */
+    async introspect_upload(request: IntrospectUploadRequestOptions): Promise<IntrospectUploadResult> {
+      return executeOperation<IntrospectUploadResult>(
+        fetchClient,
+        operations.introspect_upload,
         request as OperationRequest,
         "application/json",
       );

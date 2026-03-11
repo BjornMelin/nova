@@ -8,7 +8,7 @@ import math
 import re
 import threading
 from collections.abc import Callable, Coroutine
-from contextlib import closing
+from contextlib import closing, suppress
 from pathlib import Path
 from typing import Any, TypeVar, cast
 from urllib.parse import quote_from_bytes
@@ -39,6 +39,12 @@ from nova_file_api.models import (
 from nova_file_api.models import (
     SignPartsRequest as CoreSignPartsRequest,
 )
+from nova_file_api.models import (
+    UploadIntrospectionRequest as CoreUploadIntrospectionRequest,
+)
+from nova_file_api.models import (
+    UploadIntrospectionResponse as CoreUploadIntrospectionResponse,
+)
 from nova_file_api.transfer import TransferService
 
 from nova_dash_bridge.config import (
@@ -64,6 +70,9 @@ from nova_dash_bridge.models import (
     PresignDownloadResponse,
     SignPartsRequest,
     SignPartsResponse,
+    UploadedPart,
+    UploadIntrospectionRequest,
+    UploadIntrospectionResponse,
 )
 from nova_dash_bridge.s3_client import (
     S3Client,
@@ -128,11 +137,25 @@ class _AsyncS3ClientAdapter:
             await asyncio.to_thread(self._client.head_object, **kwargs),
         )
 
+    async def list_parts(self, **kwargs: Any) -> dict[str, Any]:
+        """List uploaded multipart parts using the sync boto3 client."""
+        return cast(
+            dict[str, Any],
+            await asyncio.to_thread(self._client.list_parts, **kwargs),
+        )
+
     async def copy_object(self, **kwargs: Any) -> dict[str, Any]:
         """Copy an object using the sync boto3 client."""
         return cast(
             dict[str, Any],
             await asyncio.to_thread(self._client.copy_object, **kwargs),
+        )
+
+    async def upload_part_copy(self, **kwargs: Any) -> dict[str, Any]:
+        """Copy a multipart range using the sync boto3 client."""
+        return cast(
+            dict[str, Any],
+            await asyncio.to_thread(self._client.upload_part_copy, **kwargs),
         )
 
 
@@ -213,7 +236,15 @@ class FileTransferService:
         try:
             asyncio.get_running_loop()
         except RuntimeError:
-            return asyncio.run(factory())
+            loop = asyncio.new_event_loop()
+            try:
+                return loop.run_until_complete(factory())
+            finally:
+                with suppress(Exception):
+                    loop.run_until_complete(loop.shutdown_asyncgens())
+                with suppress(Exception):
+                    loop.run_until_complete(loop.shutdown_default_executor())
+                loop.close()
         raise RuntimeError(
             "FileTransferService sync methods cannot run inside an active "
             "event loop"
@@ -385,6 +416,25 @@ class FileTransferService:
             },
             expires_in_seconds=core_response.expires_in_seconds,
         )
+
+    def introspect_upload(
+        self,
+        req: UploadIntrospectionRequest,
+    ) -> UploadIntrospectionResponse:
+        """Inspect uploaded multipart parts for resume flows."""
+        self.ensure_enabled()
+        principal = self._principal(session_id=req.session_id)
+        core_response = self._run_async(
+            lambda: self._build_core_service().introspect_upload(
+                CoreUploadIntrospectionRequest(
+                    key=req.key,
+                    upload_id=req.upload_id,
+                    session_id=None,
+                ),
+                principal,
+            )
+        )
+        return _bridge_upload_introspection_response(core_response)
 
     def complete_upload(
         self,
@@ -622,6 +672,22 @@ def _core_settings_from_bridge(
     )
     settings.max_upload_bytes = upload_policy.max_upload_bytes
     return settings
+
+
+def _bridge_upload_introspection_response(
+    response: CoreUploadIntrospectionResponse,
+) -> UploadIntrospectionResponse:
+    """Convert core multipart introspection payload to bridge model."""
+    return UploadIntrospectionResponse(
+        bucket=response.bucket,
+        key=response.key,
+        upload_id=response.upload_id,
+        part_size_bytes=response.part_size_bytes,
+        parts=[
+            UploadedPart(part_number=part.part_number, etag=part.etag)
+            for part in response.parts
+        ],
+    )
 
 
 def coerce_file_transfer_error(exc: Exception) -> FileTransferError:
