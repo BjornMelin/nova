@@ -127,8 +127,16 @@ async def get_job_status(
         )
         raise
 
-    metrics.incr("jobs_status_total")
-    emit_request_metric(metrics=metrics, route="jobs_status", status="ok")
+    try:
+        metrics.incr("jobs_status_total")
+        emit_request_metric(metrics=metrics, route="jobs_status", status="ok")
+    except Exception:
+        structlog.get_logger("api").exception(
+            "jobs_status_success_side_effects_failed",
+            route="/v1/jobs/{job_id}",
+            scope_id=principal.scope_id,
+            job_id=job_id,
+        )
     return JobStatusResponse(job=job)
 
 
@@ -177,8 +185,16 @@ async def cancel_job(
             job_id=job.job_id,
             status=job.status,
         )
-    metrics.incr("jobs_cancel_total")
-    emit_request_metric(metrics=metrics, route="jobs_cancel", status="ok")
+    try:
+        metrics.incr("jobs_cancel_total")
+        emit_request_metric(metrics=metrics, route="jobs_cancel", status="ok")
+    except Exception:
+        structlog.get_logger("api").exception(
+            "jobs_cancel_success_side_effects_failed",
+            route="/v1/jobs/{job_id}/cancel",
+            scope_id=principal.scope_id,
+            job_id=job_id,
+        )
     return JobCancelResponse(job_id=job.job_id, status=job.status)
 
 
@@ -250,12 +266,20 @@ async def update_job_result(
             job_id=job_id,
             status=job.status,
         )
-    metrics.incr("jobs_result_update_total")
-    emit_request_metric(
-        metrics=metrics,
-        route="jobs_result_update",
-        status="ok",
-    )
+    try:
+        metrics.incr("jobs_result_update_total")
+        emit_request_metric(
+            metrics=metrics,
+            route="jobs_result_update",
+            status="ok",
+        )
+    except Exception:
+        structlog.get_logger("api").exception(
+            "jobs_result_update_success_side_effects_failed",
+            route="/v1/internal/jobs/{job_id}/result",
+            scope_id=worker_principal.scope_id,
+            job_id=job_id,
+        )
     return JobResultUpdateResponse(
         job_id=job.job_id,
         status=job.status,
@@ -431,20 +455,13 @@ async def _enqueue_job_core(
                 request_payload=request_payload,
                 response_payload=response.model_dump(mode="json"),
             )
-        except Exception as exc:
-            await _record_job_failure(
-                metrics=metrics,
-                activity_store=activity_store,
-                principal=principal,
-                metric_name="jobs_enqueue_failure_total",
-                route_metric="jobs_enqueue",
-                log_event="jobs_enqueue_idempotency_store_response_failed",
-                route_path="/v1/jobs",
-                activity_event_type="jobs_enqueue_failure",
-                exc=exc,
-                extra={"idempotency_key": idempotency_key},
+        except Exception:
+            structlog.get_logger("api").exception(
+                "jobs_enqueue_idempotency_store_response_failed",
+                route="/v1/jobs",
+                scope_id=principal.scope_id,
+                idempotency_key=idempotency_key,
             )
-            raise
 
     try:
         await activity_store.record(
@@ -457,20 +474,13 @@ async def _enqueue_job_core(
             route="jobs_enqueue",
             status="ok",
         )
-    except Exception as exc:
-        await _record_job_failure(
-            metrics=metrics,
-            activity_store=activity_store,
-            principal=principal,
-            metric_name="jobs_enqueue_failure_total",
-            route_metric="jobs_enqueue",
-            log_event="jobs_enqueue_response_finalize_failed",
-            route_path="/v1/jobs",
-            activity_event_type="jobs_enqueue_failure",
-            exc=exc,
-            extra={"idempotency_key": idempotency_key},
+    except Exception:
+        structlog.get_logger("api").exception(
+            "jobs_enqueue_response_finalize_failed",
+            route="/v1/jobs",
+            scope_id=principal.scope_id,
+            idempotency_key=idempotency_key,
         )
-        raise
     return response
 
 

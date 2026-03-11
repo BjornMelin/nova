@@ -241,12 +241,17 @@ def build_job_repository(
             or dynamodb_resource is missing when required.
     """
     if settings.jobs_repository_backend == JobsRepositoryBackend.DYNAMODB:
-        if not settings.jobs_dynamodb_table:
+        jobs_table = (
+            settings.jobs_dynamodb_table.strip()
+            if settings.jobs_dynamodb_table
+            else ""
+        )
+        if not jobs_table:
             raise ValueError(_MSG_JOBS_DYNAMODB_TABLE_REQUIRED)
         if dynamodb_resource is None:
             raise ValueError(_MSG_DYNAMODB_RESOURCE_REQUIRED)
         return DynamoJobRepository(
-            table_name=settings.jobs_dynamodb_table,
+            table_name=jobs_table,
             dynamodb_resource=cast(DynamoResource, dynamodb_resource),
         )
     return MemoryJobRepository()
@@ -331,12 +336,17 @@ def build_activity_store(
             or dynamodb_resource is missing when required.
     """
     if settings.activity_store_backend == ActivityStoreBackend.DYNAMODB:
-        if not settings.activity_rollups_table:
+        rollups_table = (
+            settings.activity_rollups_table.strip()
+            if settings.activity_rollups_table
+            else ""
+        )
+        if not rollups_table:
             raise ValueError(_MSG_ACTIVITY_ROLLUPS_TABLE_REQUIRED)
         if dynamodb_resource is None:
             raise ValueError(_MSG_DYNAMODB_RESOURCE_REQUIRED)
         return DynamoActivityStore(
-            table_name=settings.activity_rollups_table,
+            table_name=rollups_table,
             ddb_client=cast(
                 DynamoDbClientProtocol,
                 _dynamodb_client_from_resource(

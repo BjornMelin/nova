@@ -109,20 +109,31 @@ def build_runtime_deps(
     Returns:
         RuntimeDeps instance ready for build_test_app.
     """
-    resolved_settings = settings or Settings()
-    resolved_metrics = metrics or MetricsCollector(namespace="Tests")
-    if shared_cache is None or cache is None:
-        shared_cache, cache = build_cache_stack()
+    resolved_settings = Settings() if settings is None else settings
+    resolved_metrics = (
+        MetricsCollector(namespace="Tests") if metrics is None else metrics
+    )
+    if (shared_cache is None) != (cache is None):
+        raise ValueError(
+            "shared_cache and cache must both be provided or both be None"
+        )
+    if shared_cache is None and cache is None:
+        resolved_shared_cache, resolved_cache = build_cache_stack()
+    else:
+        assert shared_cache is not None
+        assert cache is not None
+        resolved_shared_cache = shared_cache
+        resolved_cache = cache
     resolved_idempotency_store = idempotency_store or IdempotencyStore(
-        cache=cache,
+        cache=resolved_cache,
         enabled=idempotency_enabled,
         ttl_seconds=idempotency_ttl_seconds,
     )
     return RuntimeDeps(
         settings=resolved_settings,
         metrics=resolved_metrics,
-        shared_cache=shared_cache,
-        cache=cache,
+        shared_cache=resolved_shared_cache,
+        cache=resolved_cache,
         authenticator=authenticator,
         transfer_service=transfer_service,
         job_service=job_service,
@@ -142,8 +153,11 @@ def build_test_app(deps: RuntimeDeps) -> FastAPI:
     Returns:
         Configured FastAPI app instance.
     """
+    from nova_file_api.dependencies import get_settings
+
     app = create_app()
     app.state.settings = deps.settings
+    app.dependency_overrides[get_settings] = lambda: deps.settings
     app.dependency_overrides[get_metrics] = lambda: deps.metrics
     app.dependency_overrides[get_shared_cache] = lambda: deps.shared_cache
     app.dependency_overrides[get_two_tier_cache] = lambda: deps.cache
