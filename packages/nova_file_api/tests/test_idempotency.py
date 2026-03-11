@@ -5,10 +5,8 @@ from typing import Any
 
 from fastapi.testclient import TestClient
 from nova_file_api.activity import MemoryActivityStore
-from nova_file_api.cache import LocalTTLCache, SharedRedisCache, TwoTierCache
 from nova_file_api.config import Settings
 from nova_file_api.errors import queue_unavailable
-from nova_file_api.idempotency import IdempotencyStore
 from nova_file_api.metrics import MetricsCollector
 from nova_file_api.models import (
     EnqueueJobResponse,
@@ -20,7 +18,12 @@ from nova_file_api.models import (
 )
 from starlette.requests import Request
 
-from .conftest import RuntimeDeps, build_test_app
+from .support.app import (
+    RuntimeDeps,
+    build_cache_stack,
+    build_runtime_deps,
+    build_test_app,
+)
 
 
 class _StubAuthenticator:
@@ -121,15 +124,10 @@ def _build_deps(
     settings.idempotency_enabled = idempotency_enabled
     settings.jobs_enabled = True
     metrics = MetricsCollector(namespace="Tests")
-    shared = SharedRedisCache(url=None)
-    cache = TwoTierCache(
-        local=LocalTTLCache(ttl_seconds=60, max_entries=128),
-        shared=shared,
-        shared_ttl_seconds=60,
-    )
+    shared, cache = build_cache_stack()
     transfer_service = _StubTransferService()
     job_service = _StubJobService()
-    deps = RuntimeDeps(
+    deps = build_runtime_deps(
         settings=settings,
         metrics=metrics,
         shared_cache=shared,
@@ -138,11 +136,7 @@ def _build_deps(
         transfer_service=transfer_service,
         job_service=job_service,
         activity_store=MemoryActivityStore(),
-        idempotency_store=IdempotencyStore(
-            cache=cache,
-            enabled=idempotency_enabled,
-            ttl_seconds=300,
-        ),
+        idempotency_enabled=idempotency_enabled,
     )
     return deps, transfer_service, job_service
 

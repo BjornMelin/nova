@@ -8,9 +8,7 @@ from fastapi import FastAPI
 from fastapi.routing import APIRoute
 from nova_file_api.activity import MemoryActivityStore
 from nova_file_api.auth import Authenticator
-from nova_file_api.cache import LocalTTLCache, SharedRedisCache, TwoTierCache
 from nova_file_api.config import Settings
-from nova_file_api.idempotency import IdempotencyStore
 from nova_file_api.jobs import (
     JobService,
     MemoryJobPublisher,
@@ -20,8 +18,12 @@ from nova_file_api.metrics import MetricsCollector
 from nova_file_api.models import AuthMode
 from nova_file_api.operation_ids import OPERATION_ID_BY_PATH_AND_METHOD
 
-from ._test_doubles import StubTransferService
-from .conftest import RuntimeDeps, build_test_app
+from .support.app import (
+    build_cache_stack,
+    build_runtime_deps,
+    build_test_app,
+)
+from .support.doubles import StubTransferService
 
 _HTTP_METHODS = frozenset(
     {"get", "post", "put", "patch", "delete", "options", "head", "trace"}
@@ -35,15 +37,10 @@ def _build_openapi_app() -> FastAPI:
     settings.jobs_enabled = True
 
     metrics = MetricsCollector(namespace="Tests")
-    shared = SharedRedisCache(url=None)
-    cache = TwoTierCache(
-        local=LocalTTLCache(ttl_seconds=60, max_entries=128),
-        shared=shared,
-        shared_ttl_seconds=60,
-    )
+    shared, cache = build_cache_stack()
     repository = MemoryJobRepository()
     return build_test_app(
-        RuntimeDeps(
+        build_runtime_deps(
             settings=settings,
             metrics=metrics,
             shared_cache=shared,
@@ -56,11 +53,7 @@ def _build_openapi_app() -> FastAPI:
                 metrics=metrics,
             ),
             activity_store=MemoryActivityStore(),
-            idempotency_store=IdempotencyStore(
-                cache=cache,
-                enabled=True,
-                ttl_seconds=300,
-            ),
+            idempotency_enabled=True,
         )
     )
 

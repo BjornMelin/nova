@@ -6,9 +6,7 @@ import pytest
 from fastapi.testclient import TestClient
 from nova_file_api.activity import MemoryActivityStore
 from nova_file_api.auth import Authenticator
-from nova_file_api.cache import LocalTTLCache, SharedRedisCache, TwoTierCache
 from nova_file_api.config import Settings
-from nova_file_api.idempotency import IdempotencyStore
 from nova_file_api.jobs import (
     JobService,
     MemoryJobPublisher,
@@ -17,8 +15,13 @@ from nova_file_api.jobs import (
 from nova_file_api.metrics import MetricsCollector
 from nova_file_api.models import AuthMode, JobRecord, JobStatus
 
-from ._test_doubles import StubTransferService
-from .conftest import RuntimeDeps, build_test_app
+from .support.app import (
+    RuntimeDeps,
+    build_cache_stack,
+    build_runtime_deps,
+    build_test_app,
+)
+from .support.doubles import StubTransferService
 
 
 class _FailingListJobRepository:
@@ -51,31 +54,32 @@ class _FailingListJobRepository:
         del scope_id, limit
         raise RuntimeError("jobs table is not configured for scoped listing")
 
+    async def healthcheck(self) -> bool:
+        return True
+
 
 def _build_v1_deps(
     *,
     file_transfer_bucket: str = "test-transfer-bucket",
 ) -> RuntimeDeps:
     """Build an in-memory dependency set for v1 route tests."""
-    settings = Settings()
-    settings.auth_mode = AuthMode.SAME_ORIGIN
-    settings.jobs_enabled = True
-    settings.file_transfer_bucket = file_transfer_bucket
+    settings = Settings.model_validate(
+        {
+            "auth_mode": AuthMode.SAME_ORIGIN,
+            "jobs_enabled": True,
+            "file_transfer_bucket": file_transfer_bucket,
+        }
+    )
 
     metrics = MetricsCollector(namespace="Tests")
-    shared = SharedRedisCache(url=None)
-    cache = TwoTierCache(
-        local=LocalTTLCache(ttl_seconds=60, max_entries=128),
-        shared=shared,
-        shared_ttl_seconds=60,
-    )
+    shared, cache = build_cache_stack()
     repository = MemoryJobRepository()
     job_service = JobService(
         repository=repository,
         publisher=MemoryJobPublisher(),
         metrics=metrics,
     )
-    return RuntimeDeps(
+    return build_runtime_deps(
         settings=settings,
         metrics=metrics,
         shared_cache=shared,
@@ -84,11 +88,7 @@ def _build_v1_deps(
         transfer_service=StubTransferService(),
         job_service=job_service,
         activity_store=MemoryActivityStore(),
-        idempotency_store=IdempotencyStore(
-            cache=cache,
-            enabled=True,
-            ttl_seconds=300,
-        ),
+        idempotency_enabled=True,
     )
 
 
@@ -214,19 +214,14 @@ def test_v1_jobs_list_scoped_config_error_returns_internal_error() -> None:
     )
 
     metrics = MetricsCollector(namespace="Tests")
-    shared = SharedRedisCache(url=None)
-    cache = TwoTierCache(
-        local=LocalTTLCache(ttl_seconds=60, max_entries=128),
-        shared=shared,
-        shared_ttl_seconds=60,
-    )
+    shared, cache = build_cache_stack()
     repository = _FailingListJobRepository()
     job_service = JobService(
         repository=repository,
         publisher=MemoryJobPublisher(),
         metrics=metrics,
     )
-    deps = RuntimeDeps(
+    deps = build_runtime_deps(
         settings=settings,
         metrics=metrics,
         shared_cache=shared,
@@ -238,11 +233,7 @@ def test_v1_jobs_list_scoped_config_error_returns_internal_error() -> None:
         transfer_service=StubTransferService(),
         job_service=job_service,
         activity_store=MemoryActivityStore(),
-        idempotency_store=IdempotencyStore(
-            cache=cache,
-            enabled=False,
-            ttl_seconds=300,
-        ),
+        idempotency_enabled=False,
     )
 
     app = build_test_app(deps)

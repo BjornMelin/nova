@@ -1,4 +1,9 @@
-"""FastAPI dependency helpers and runtime state assembly."""
+"""FastAPI dependency helpers and runtime state assembly.
+
+Dependency getters (get_settings, get_metrics, etc.) raise TypeError when
+application state is not initialized. Build factories for DynamoDB/SQS backends
+raise ValueError when required config is missing.
+"""
 
 from __future__ import annotations
 
@@ -72,6 +77,13 @@ def initialize_runtime_state(
         s3_client: Configured S3 client used by transfer services.
         dynamodb_resource: Optional DynamoDB resource for DynamoDB backends.
         sqs_client: Optional SQS client for queue-backed jobs.
+
+    Returns:
+        None.
+
+    Raises:
+        ValueError: When runtime prerequisites are not met (missing s3_client,
+            JOBS_SQS_QUEUE_URL, JOBS_DYNAMODB_TABLE, etc.).
     """
     if s3_client is None:
         raise ValueError(_MSG_S3_CLIENT_REQUIRED)
@@ -152,7 +164,16 @@ def build_two_tier_cache(
     metrics: MetricsCollector,
     shared_cache: SharedRedisCache,
 ) -> TwoTierCache:
-    """Create the two-tier cache used by auth and idempotency."""
+    """Create the two-tier cache used by auth and idempotency.
+
+    Args:
+        settings: Resolved runtime settings.
+        metrics: Metrics collector for cache instrumentation.
+        shared_cache: Shared Redis cache for the second tier.
+
+    Returns:
+        The configured two-tier cache.
+    """
     return TwoTierCache(
         local=LocalTTLCache(
             ttl_seconds=settings.cache_local_ttl_seconds,
@@ -202,7 +223,20 @@ def build_job_repository(
     settings: Settings,
     dynamodb_resource: Any | None,
 ) -> JobRepository:
-    """Create the configured job repository."""
+    """Create the configured job repository.
+
+    Args:
+        settings: Resolved runtime settings.
+        dynamodb_resource: DynamoDB resource when repository backend is
+            DynamoDB.
+
+    Returns:
+        The configured job repository.
+
+    Raises:
+        ValueError: When JOBS_DYNAMODB_TABLE is missing for DynamoDB backend,
+            or dynamodb_resource is missing when required.
+    """
     if settings.jobs_repository_backend == JobsRepositoryBackend.DYNAMODB:
         if not settings.jobs_dynamodb_table:
             raise ValueError(_MSG_JOBS_DYNAMODB_TABLE_REQUIRED)
@@ -220,7 +254,19 @@ def build_job_publisher(
     settings: Settings,
     sqs_client: Any | None,
 ) -> JobPublisher:
-    """Create the configured job publisher."""
+    """Create the configured job publisher.
+
+    Args:
+        settings: Resolved runtime settings.
+        sqs_client: SQS client when queue backend is SQS and jobs enabled.
+
+    Returns:
+        The configured job publisher.
+
+    Raises:
+        ValueError: When JOBS_SQS_QUEUE_URL is missing for SQS backend with
+            jobs enabled, or sqs_client is missing when required.
+    """
     if settings.jobs_queue_backend == JobsQueueBackend.SQS:
         queue_url = (
             settings.jobs_sqs_queue_url.strip()
@@ -242,7 +288,16 @@ def build_job_service(
     job_publisher: JobPublisher,
     metrics: MetricsCollector,
 ) -> JobService:
-    """Create the job service."""
+    """Create the job service.
+
+    Args:
+        job_repository: Configured job repository.
+        job_publisher: Configured job publisher.
+        metrics: Metrics collector for job instrumentation.
+
+    Returns:
+        The configured job service.
+    """
     return JobService(
         repository=job_repository,
         publisher=job_publisher,
@@ -255,7 +310,20 @@ def build_activity_store(
     settings: Settings,
     dynamodb_resource: Any | None,
 ) -> ActivityStore:
-    """Create the configured activity store."""
+    """Create the configured activity store.
+
+    Args:
+        settings: Resolved runtime settings.
+        dynamodb_resource: DynamoDB resource when store backend is DynamoDB.
+            Required when activity store backend is DynamoDB.
+
+    Returns:
+        The configured activity store.
+
+    Raises:
+        ValueError: When ACTIVITY_ROLLUPS_TABLE is missing for DynamoDB backend,
+            or dynamodb_resource is missing when required.
+    """
     if settings.activity_store_backend == ActivityStoreBackend.DYNAMODB:
         if not settings.activity_rollups_table:
             raise ValueError(_MSG_ACTIVITY_ROLLUPS_TABLE_REQUIRED)

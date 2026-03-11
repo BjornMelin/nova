@@ -156,14 +156,24 @@ async def health_ready(
         shared_cache_ready = False
 
     if settings.jobs_enabled:
+        job_queue = True
         try:
-            job_queue = await job_service.publisher.healthcheck()
+            publisher_ok = await job_service.publisher.healthcheck()
         except Exception:
             logger.exception(
                 "v1_health_ready_job_queue_healthcheck_failed",
                 route="/v1/health/ready",
             )
-            job_queue = False
+            publisher_ok = False
+        try:
+            repository_ok = await job_service.repository.healthcheck()
+        except Exception:
+            logger.exception(
+                "v1_health_ready_job_repository_healthcheck_failed",
+                route="/v1/health/ready",
+            )
+            repository_ok = False
+        job_queue = publisher_ok and repository_ok
     else:
         job_queue = True
 
@@ -225,6 +235,7 @@ async def metrics_summary(
     ):
         raise forbidden("missing metrics:read permission")
 
+    activity_summary = await activity_store.summary()
     emit_request_metric(
         metrics=metrics,
         route="metrics_summary",
@@ -233,5 +244,5 @@ async def metrics_summary(
     return MetricsSummaryResponse(
         counters=metrics.counters_snapshot(),
         latencies_ms=metrics.latency_snapshot(),
-        activity=await activity_store.summary(),
+        activity=activity_summary,
     )

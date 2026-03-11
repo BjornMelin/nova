@@ -9,14 +9,8 @@ import pytest
 from botocore.exceptions import BotoCoreError, ClientError
 from nova_file_api.activity import MemoryActivityStore
 from nova_file_api.auth import Authenticator
-from nova_file_api.cache import (
-    LocalTTLCache,
-    SharedRedisCache,
-    TwoTierCache,
-)
 from nova_file_api.config import Settings
 from nova_file_api.errors import FileTransferError, queue_unavailable
-from nova_file_api.idempotency import IdempotencyStore
 from nova_file_api.jobs import (
     JobPublishError,
     JobRepository,
@@ -33,8 +27,13 @@ from nova_file_api.models import (
 )
 from pydantic import SecretStr
 
-from ._test_doubles import StubAuthenticator, StubTransferService
-from .conftest import RuntimeDeps, build_test_app
+from .support.app import (
+    RuntimeDeps,
+    build_cache_stack,
+    build_runtime_deps,
+    build_test_app,
+)
+from .support.doubles import StubAuthenticator, StubTransferService
 
 CaptureEmf = Callable[[MetricsCollector], list[dict[str, str]]]
 
@@ -181,12 +180,7 @@ async def _build_same_origin_status_container(*, scope_id: str) -> RuntimeDeps:
     settings.jobs_enabled = True
 
     metrics = MetricsCollector(namespace="Tests")
-    shared = SharedRedisCache(url=None)
-    cache = TwoTierCache(
-        local=LocalTTLCache(ttl_seconds=60, max_entries=128),
-        shared=shared,
-        shared_ttl_seconds=60,
-    )
+    shared, cache = build_cache_stack()
     repository = MemoryJobRepository()
     service = JobService(
         repository=repository,
@@ -208,7 +202,7 @@ async def _build_same_origin_status_container(*, scope_id: str) -> RuntimeDeps:
         )
     )
 
-    return RuntimeDeps(
+    return build_runtime_deps(
         settings=settings,
         metrics=metrics,
         cache=cache,
@@ -218,11 +212,7 @@ async def _build_same_origin_status_container(*, scope_id: str) -> RuntimeDeps:
         job_repository=repository,
         job_service=service,
         activity_store=MemoryActivityStore(),
-        idempotency_store=IdempotencyStore(
-            cache=cache,
-            enabled=True,
-            ttl_seconds=300,
-        ),
+        idempotency_enabled=True,
     )
 
 
@@ -234,14 +224,9 @@ def _build_failing_job_container(
     settings.jobs_enabled = True
     settings.jobs_worker_update_token = worker_token
     metrics = MetricsCollector(namespace="Tests")
-    shared = SharedRedisCache(url=None)
-    cache = TwoTierCache(
-        local=LocalTTLCache(ttl_seconds=60, max_entries=128),
-        shared=shared,
-        shared_ttl_seconds=60,
-    )
+    shared, cache = build_cache_stack()
     activity_store = MemoryActivityStore()
-    container = RuntimeDeps(
+    container = build_runtime_deps(
         settings=settings,
         metrics=metrics,
         cache=cache,
@@ -251,11 +236,7 @@ def _build_failing_job_container(
         job_repository=MemoryJobRepository(),
         job_service=_AlwaysFailingJobService(),
         activity_store=activity_store,
-        idempotency_store=IdempotencyStore(
-            cache=cache,
-            enabled=True,
-            ttl_seconds=300,
-        ),
+        idempotency_enabled=True,
     )
     return container, metrics, activity_store
 
@@ -442,15 +423,10 @@ async def test_enqueue_failure_is_not_idempotency_cached() -> None:
     settings.idempotency_enabled = True
 
     metrics = MetricsCollector(namespace="Tests")
-    shared = SharedRedisCache(url=None)
-    cache = TwoTierCache(
-        local=LocalTTLCache(ttl_seconds=60, max_entries=128),
-        shared=shared,
-        shared_ttl_seconds=60,
-    )
+    shared, cache = build_cache_stack()
     job_service = _FlakyJobService()
 
-    container = RuntimeDeps(
+    container = build_runtime_deps(
         settings=settings,
         metrics=metrics,
         cache=cache,
@@ -460,11 +436,7 @@ async def test_enqueue_failure_is_not_idempotency_cached() -> None:
         job_repository=MemoryJobRepository(),
         job_service=job_service,
         activity_store=MemoryActivityStore(),
-        idempotency_store=IdempotencyStore(
-            cache=cache,
-            enabled=True,
-            ttl_seconds=300,
-        ),
+        idempotency_enabled=True,
     )
 
     app = build_test_app(container)
@@ -784,12 +756,7 @@ async def test_update_job_result_requires_valid_worker_token() -> None:
     settings.jobs_worker_update_token = SecretStr("test-worker-token")
 
     metrics = MetricsCollector(namespace="Tests")
-    shared = SharedRedisCache(url=None)
-    cache = TwoTierCache(
-        local=LocalTTLCache(ttl_seconds=60, max_entries=128),
-        shared=shared,
-        shared_ttl_seconds=60,
-    )
+    shared, cache = build_cache_stack()
     repository = MemoryJobRepository()
     service = JobService(
         repository=repository,
@@ -811,7 +778,7 @@ async def test_update_job_result_requires_valid_worker_token() -> None:
         )
     )
 
-    container = RuntimeDeps(
+    container = build_runtime_deps(
         settings=settings,
         metrics=metrics,
         cache=cache,
@@ -821,11 +788,7 @@ async def test_update_job_result_requires_valid_worker_token() -> None:
         job_repository=repository,
         job_service=service,
         activity_store=MemoryActivityStore(),
-        idempotency_store=IdempotencyStore(
-            cache=cache,
-            enabled=True,
-            ttl_seconds=300,
-        ),
+        idempotency_enabled=True,
     )
 
     app = build_test_app(container)

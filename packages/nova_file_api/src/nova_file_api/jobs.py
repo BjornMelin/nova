@@ -53,6 +53,9 @@ class JobRepository(Protocol):
             ValueError: If ``limit`` is not a positive integer.
         """
 
+    async def healthcheck(self) -> bool:
+        """Return readiness of the backing storage dependency."""
+
 
 class JobPublisher(Protocol):
     """Queue interface for background job dispatch."""
@@ -162,6 +165,10 @@ class MemoryJobRepository:
             ]
         records.sort(key=lambda r: r.created_at, reverse=True)
         return records[:limit]
+
+    async def healthcheck(self) -> bool:
+        """Report readiness for in-memory storage (always ready)."""
+        return True
 
 
 @dataclass(slots=True)
@@ -299,6 +306,15 @@ class DynamoJobRepository:
                     table = await table
                 self._table = table
         return cast(Any, self._table)
+
+    async def healthcheck(self) -> bool:
+        """Return True when the DynamoDB table is reachable."""
+        try:
+            table = await self._resolve_table()
+            await table.get_item(Key={"job_id": "__health_check__"})
+        except (ClientError, BotoCoreError):
+            return False
+        return True
 
 
 @dataclass(slots=True)

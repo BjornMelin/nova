@@ -5,9 +5,7 @@ from __future__ import annotations
 import httpx
 import pytest
 from nova_file_api.activity import MemoryActivityStore
-from nova_file_api.cache import LocalTTLCache, SharedRedisCache, TwoTierCache
 from nova_file_api.config import Settings
-from nova_file_api.idempotency import IdempotencyStore
 from nova_file_api.jobs import (
     JobService,
     MemoryJobPublisher,
@@ -17,9 +15,8 @@ from nova_file_api.metrics import MetricsCollector
 from nova_file_api.models import AuthMode, Principal
 from starlette.requests import Request
 
-from tests._test_doubles import StubTransferService
-
-from .conftest import RuntimeDeps, build_test_app
+from .support.app import build_cache_stack, build_runtime_deps, build_test_app
+from .support.doubles import StubTransferService
 
 
 class _StubAuthenticator:
@@ -57,12 +54,7 @@ async def _request_metrics_summary(
     metrics.incr("requests_total")
     metrics.observe_ms("jobs_enqueue_ms", 12.345)
 
-    shared_cache = SharedRedisCache(url=None)
-    cache = TwoTierCache(
-        local=LocalTTLCache(ttl_seconds=60, max_entries=128),
-        shared=shared_cache,
-        shared_ttl_seconds=60,
-    )
+    shared_cache, cache = build_cache_stack()
     job_repository = MemoryJobRepository()
     job_service = JobService(
         repository=job_repository,
@@ -76,7 +68,7 @@ async def _request_metrics_summary(
     )
 
     app = build_test_app(
-        RuntimeDeps(
+        build_runtime_deps(
             settings=settings,
             metrics=metrics,
             shared_cache=shared_cache,
@@ -85,11 +77,7 @@ async def _request_metrics_summary(
             transfer_service=StubTransferService(),
             job_service=job_service,
             activity_store=activity_store,
-            idempotency_store=IdempotencyStore(
-                cache=cache,
-                enabled=True,
-                ttl_seconds=300,
-            ),
+            idempotency_enabled=True,
         )
     )
     async with (

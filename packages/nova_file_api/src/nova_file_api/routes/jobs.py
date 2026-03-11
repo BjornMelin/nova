@@ -423,6 +423,30 @@ async def _enqueue_job_core(
         raise
 
     response = EnqueueJobResponse(job_id=job.job_id, status=job.status)
+    if idempotency_key is not None:
+        try:
+            await idempotency_store.store_response(
+                route="/v1/jobs",
+                scope_id=principal.scope_id,
+                idempotency_key=idempotency_key,
+                request_payload=request_payload,
+                response_payload=response.model_dump(mode="json"),
+            )
+        except Exception as exc:
+            await _record_job_failure(
+                metrics=metrics,
+                activity_store=activity_store,
+                principal=principal,
+                metric_name="jobs_enqueue_failure_total",
+                route_metric="jobs_enqueue",
+                log_event="jobs_enqueue_idempotency_store_response_failed",
+                route_path="/v1/jobs",
+                activity_event_type="jobs_enqueue_failure",
+                exc=exc,
+                extra={"idempotency_key": idempotency_key},
+            )
+            raise
+
     try:
         await activity_store.record(
             principal=principal,
@@ -434,14 +458,6 @@ async def _enqueue_job_core(
             route="jobs_enqueue",
             status="ok",
         )
-        if idempotency_key is not None:
-            await idempotency_store.store_response(
-                route="/v1/jobs",
-                scope_id=principal.scope_id,
-                idempotency_key=idempotency_key,
-                request_payload=request_payload,
-                response_payload=response.model_dump(mode="json"),
-            )
     except Exception as exc:
         await _record_job_failure(
             metrics=metrics,
@@ -455,12 +471,6 @@ async def _enqueue_job_core(
             exc=exc,
             extra={"idempotency_key": idempotency_key},
         )
-        if idempotency_key is not None and claimed_idempotency:
-            await idempotency_store.discard_claim(
-                route="/v1/jobs",
-                scope_id=principal.scope_id,
-                idempotency_key=idempotency_key,
-            )
         raise
     return response
 

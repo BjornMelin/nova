@@ -12,6 +12,7 @@ from nova_file_api.models import (
 
 
 def test_runtime_state_requires_sqs_queue_url_when_jobs_enabled() -> None:
+    """Raise ValueError if JOBS_SQS_QUEUE_URL missing with SQS jobs enabled."""
     settings = Settings()
     settings.jobs_enabled = True
     settings.jobs_queue_backend = JobsQueueBackend.SQS
@@ -34,6 +35,7 @@ def test_initialize_runtime_state_requires_s3_client() -> None:
 
 
 def test_runtime_state_allows_missing_sqs_url_when_jobs_disabled() -> None:
+    """Allow missing SQS queue URL when jobs are disabled."""
     settings = Settings()
     settings.jobs_enabled = False
     settings.jobs_queue_backend = JobsQueueBackend.SQS
@@ -45,6 +47,7 @@ def test_runtime_state_allows_missing_sqs_url_when_jobs_disabled() -> None:
 
 
 def test_runtime_state_requires_rollup_table_for_dynamodb_backend() -> None:
+    """Raise ValueError when ACTIVITY_ROLLUPS_TABLE missing for DynamoDB."""
     settings = Settings()
     settings.activity_store_backend = ActivityStoreBackend.DYNAMODB
     settings.activity_rollups_table = None
@@ -59,6 +62,7 @@ def test_runtime_state_requires_rollup_table_for_dynamodb_backend() -> None:
 
 
 def test_runtime_state_requires_jobs_table_for_dynamodb_repository() -> None:
+    """Raise ValueError when JOBS_DYNAMODB_TABLE missing for DynamoDB."""
     settings = Settings()
     settings.jobs_repository_backend = JobsRepositoryBackend.DYNAMODB
     settings.jobs_dynamodb_table = None
