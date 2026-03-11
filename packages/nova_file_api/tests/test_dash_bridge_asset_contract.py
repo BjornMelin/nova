@@ -81,5 +81,5 @@ def test_multipart_asset_uses_progressive_sign_batch_default() -> None:
 def test_file_transfer_asset_uses_progressive_sign_batches_override() -> None:
     source = _file_transfer_asset_source()
 
-    assert 'configuredBatchSize > 0' in source
-    assert 'configuredBatchSize' in source
+    assert "configuredBatchSize > 0" in source
+    assert "configuredBatchSize" in source
