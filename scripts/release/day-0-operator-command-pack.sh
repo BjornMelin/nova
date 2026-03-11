@@ -290,7 +290,8 @@ aws cloudformation deploy \
     Application="$APPLICATION" \
     FoundationStackName="$FOUNDATION_STACK_NAME" \
     IamRolesStackName="$IAM_STACK_NAME" \
-    DockerfilePath="apps/nova_file_api_service/Dockerfile" \
+    FileDockerfilePath="apps/nova_file_api_service/Dockerfile" \
+    AuthDockerfilePath="apps/nova_auth_api_service/Dockerfile" \
     DockerBuildContext="." \
     ReleaseBuildspecPath="buildspecs/buildspec-release.yml" \
     ValidateBuildspecPath="buildspecs/buildspec-deploy-validate.yml"

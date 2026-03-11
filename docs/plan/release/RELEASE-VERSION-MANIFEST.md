@@ -36,8 +36,6 @@ Schema: 1.0
 
 | Unit | Package | Version | Changed |
 | --- | --- | --- | --- |
-| `apps/nova_auth_api_service` | `nova-auth-api-service` | `0.2.2` | no |
-| `apps/nova_file_api_service` | `nova-file-api-service` | `0.2.4` | no |
 | `packages/nova_auth_api` | `nova-auth-api` | `0.4.0` | no |
 | `packages/nova_dash_bridge` | `nova-dash-bridge` | `0.3.1` | no |
 | `packages/nova_file_api` | `nova-file-api` | `0.5.0` | no |

@@ -25,10 +25,11 @@ Active downstream validation authority uses `ADR-0027`, `ADR-0028`, `ADR-0029`,
 
 1. [Deploy runtime CloudFormation environments guide](../plan/release/deploy-runtime-cloudformation-environments-guide.md)
 2. [Day-0 operator checklist](../plan/release/day-0-operator-checklist.md)
-3. [Deploy Nova CI/CD end-to-end guide](../plan/release/deploy-nova-cicd-end-to-end-guide.md)
-4. [Release runbook](../plan/release/RELEASE-RUNBOOK.md)
-5. [Release policy](../plan/release/RELEASE-POLICY.md)
-6. [Release promotion dev-to-prod guide](../plan/release/release-promotion-dev-to-prod-guide.md)
+3. [Docker Buildx and credential-helper setup guide](../plan/release/docker-buildx-and-credential-helper-setup-guide.md)
+4. [Deploy Nova CI/CD end-to-end guide](../plan/release/deploy-nova-cicd-end-to-end-guide.md)
+5. [Release runbook](../plan/release/RELEASE-RUNBOOK.md)
+6. [Release policy](../plan/release/RELEASE-POLICY.md)
+7. [Release promotion dev-to-prod guide](../plan/release/release-promotion-dev-to-prod-guide.md)
 
 ## Validation and Governance
 

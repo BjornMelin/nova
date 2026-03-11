@@ -139,8 +139,7 @@ Track and verify final delivery across:
     `packages/nova_file_api`,
     `packages/nova_auth_api`,
     `packages/nova_dash_bridge`,
-    `apps/nova_file_api_service`,
-    `apps/nova_auth_api_service`.
+    `packages/contracts`.
 
 ## Open Risks
 

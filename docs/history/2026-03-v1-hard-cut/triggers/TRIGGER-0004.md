@@ -20,8 +20,6 @@ Execute `docs/history/2026-03-v1-hard-cut/subplans/SUBPLAN-0004.md` end-to-end.
 Branch: `feat/subplan-0004-e2e-validation-release-closure`
 
 Scope:
-- `apps/nova_file_api_service`
-- `apps/nova_auth_api_service`
 - `packages/nova_file_api`
 - `packages/nova_auth_api`
 - `packages/nova_dash_bridge`

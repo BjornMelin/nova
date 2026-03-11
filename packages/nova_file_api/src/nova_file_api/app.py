@@ -20,7 +20,12 @@ from nova_file_api.models import (
     JobsRepositoryBackend,
 )
 from nova_file_api.openapi import install_file_api_openapi_overrides
-from nova_file_api.routes import ops_router, transfer_router, v1_router
+from nova_file_api.routes import (
+    jobs_router,
+    ops_router,
+    platform_router,
+    transfer_router,
+)
 
 
 async def _close_authenticator(*, container: AppContainer) -> None:
@@ -113,7 +118,8 @@ def create_app(*, container_override: AppContainer | None = None) -> FastAPI:
     app.middleware("http")(request_context_middleware)
     app.include_router(ops_router)
     app.include_router(transfer_router)
-    app.include_router(v1_router)
+    app.include_router(jobs_router)
+    app.include_router(platform_router)
     register_exception_handlers(app)
 
     return app

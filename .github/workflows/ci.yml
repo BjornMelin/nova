@@ -94,9 +94,7 @@ jobs:
           for p in \
             packages/nova_file_api \
             packages/nova_auth_api \
-            packages/nova_dash_bridge \
-            apps/nova_file_api_service \
-            apps/nova_auth_api_service; do
+            packages/nova_dash_bridge; do
             uv build "$p"
           done
 
@@ -127,8 +125,6 @@ jobs:
           ROUTE_LITERAL_PATTERN="/v1/jobs/\\{job_id\\}/events"
           ROUTE_LITERAL_PATTERN_ALT="/jobs/\\{job_id\\}/events"
           RUNTIME_PATHS=(
-            "apps/nova_file_api_service/src"
-            "apps/nova_auth_api_service/src"
             "packages/nova_file_api/src"
             "packages/nova_auth_api/src"
             "packages/nova_dash_bridge/src"

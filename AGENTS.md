@@ -19,14 +19,21 @@ different.
 
 ## Runtime Topology
 
-- `apps/nova_file_api_service/`: ASGI wrapper for the file API runtime.
-- `apps/nova_auth_api_service/`: ASGI wrapper for the auth API runtime.
-- `packages/nova_file_api/`: transfer, jobs, readiness, metrics, and worker
+- `packages/nova_file_api/`: transfer, jobs, readiness, metrics, ASGI
+  entrypoint, and worker
   orchestration.
-- `packages/nova_auth_api/`: token verify/introspect semantics.
+- `packages/nova_auth_api/`: token verify/introspect semantics and ASGI
+  entrypoint.
 - `packages/nova_dash_bridge/`: Dash/Flask/FastAPI integration adapters.
 - `packages/nova_runtime_support/`: shared runtime support helpers.
 - `packages/contracts/`: OpenAPI artifacts and contract inputs.
+
+Workspace packaging rules:
+
+- Runtime packages must declare explicit intra-workspace runtime dependencies in
+  their own `pyproject.toml` files.
+- Do not rely on root workspace sync/install shape as an implicit production
+  contract.
 
 SDK posture:
 
@@ -102,7 +109,7 @@ Quick route preflight:
 
 ```bash
 source .venv/bin/activate && \
-rg -n "/v1/transfers|/v1/jobs|/v1/internal/jobs|/v1/capabilities|/v1/resources/plan|/v1/releases/info|/v1/token/verify|/v1/token/introspect|/v1/health/live|/v1/health/ready|/metrics/summary" apps packages docs
+rg -n "/v1/transfers|/v1/jobs|/v1/internal/jobs|/v1/capabilities|/v1/resources/plan|/v1/releases/info|/v1/token/verify|/v1/token/introspect|/v1/health/live|/v1/health/ready|/metrics/summary" packages docs
 ```
 
 ## Runtime Invariants
@@ -143,7 +150,7 @@ rg -n "/v1/transfers|/v1/jobs|/v1/internal/jobs|/v1/capabilities|/v1/resources/p
 Use the baseline gates for most code changes, then expand based on what you
 touched.
 
-### Runtime code under `apps/` or runtime packages
+### Runtime code under runtime packages
 
 Run:
 
@@ -161,8 +168,7 @@ source .venv/bin/activate && uv run python scripts/release/generate_clients.py -
 source .venv/bin/activate && uv run python scripts/release/generate_python_clients.py --check
 source .venv/bin/activate && \
 for p in packages/nova_file_api packages/nova_auth_api \
-  packages/nova_dash_bridge apps/nova_file_api_service \
-  apps/nova_auth_api_service; do uv build "$p"; done
+  packages/nova_dash_bridge; do uv build "$p"; done
 ```
 
 Notes:
@@ -202,6 +208,36 @@ source .venv/bin/activate && uv run --with pytest pytest -q \
   tests/infra/test_workflow_contract_docs.py \
   tests/infra/test_docs_authority_contracts.py
 ```
+
+### Service Dockerfiles or release-image build flow
+
+Use this when touching `apps/nova_file_api_service/Dockerfile`,
+`apps/nova_auth_api_service/Dockerfile`, `buildspecs/buildspec-release.yml`, or
+release-image documentation:
+
+```bash
+docker buildx version
+DOCKER_BUILDKIT=1 docker buildx build --load \
+  -f apps/nova_file_api_service/Dockerfile \
+  -t nova-file-api:test .
+DOCKER_BUILDKIT=1 docker buildx build --load \
+  -f apps/nova_auth_api_service/Dockerfile \
+  -t nova-auth-api:test .
+source .venv/bin/activate && uv run pytest -q \
+  packages/nova_file_api/tests/test_runtime_security_reliability_gates.py \
+  tests/infra/test_workflow_productization_contracts.py \
+  tests/infra/test_workflow_contract_docs.py \
+  tests/infra/test_docs_authority_contracts.py
+```
+
+Notes:
+
+- Release-owned service Dockerfiles stay under `apps/*`; do not move them into
+  workspace package paths.
+- Local service-image verification and release builds now require Docker
+  BuildKit plus `buildx`.
+- If local Docker hits plugin-path or credential-helper failures, use
+  `docs/plan/release/docker-buildx-and-credential-helper-setup-guide.md`.
 
 ### Downstream route or bridge contract changes
 

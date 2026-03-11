@@ -108,8 +108,7 @@ Remove old `/api/file-transfer/*` routes and replace with:
 
 Create this structure in current repo:
 
-- apps/nova_file_api_service/
-- apps/nova_auth_api_service/
+- packages/nova_auth_api/
 - packages/nova_file_api/
 - packages/nova_dash_bridge/
 - packages/contracts/ (OpenAPI artifacts + schema utilities only)
@@ -130,8 +129,8 @@ Create this structure in current repo:
 - [x] Add workspace layout directories listed above.
 - [x] Move existing runtime source into packages/nova_file_api/src/nova_file_api.
 - [x] Move existing bridge source plan into packages/nova_dash_bridge.
-- [x] Add apps/nova_file_api_service app entrypoint importing nova_file_api.
-- [x] Add apps/nova_auth_api_service service skeleton from current auth spec.
+- [x] Add package-owned `nova_file_api.main:app` entrypoint importing `nova_file_api`.
+- [x] Add package-owned `nova_auth_api.main:app` entrypoint from the current auth spec.
 - [x] Update root/package metadata names to nova,
   nova_file_api, nova_auth_api, nova_dash_bridge.
 - [x] Update import paths across code/tests to new namespaces.
@@ -341,7 +340,6 @@ Execution and evidence checklist:
 ## Execution Log
 
 - 2026-02-12: Created monorepo runtime layout:
-  `apps/nova_file_api_service`, `apps/nova_auth_api_service`,
   `packages/nova_file_api`, `packages/nova_auth_api`,
   `packages/nova_dash_bridge`, `packages/contracts`.
 - 2026-02-12: Migrated runtime source to

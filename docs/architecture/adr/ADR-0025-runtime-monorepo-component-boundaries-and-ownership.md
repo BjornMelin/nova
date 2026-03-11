@@ -2,9 +2,13 @@
 ADR: 0025
 Title: Runtime monorepo component boundaries and ownership
 Status: Accepted
-Version: 2.0
-Date: 2026-03-05
+Version: 2.1
+Date: 2026-03-10
 Related:
+  - "[ADR-0023: Hard-cut v1 canonical route surface](./ADR-0023-hard-cut-v1-canonical-route-surface.md)"
+  - "[SPEC-0000: HTTP API contract](../spec/SPEC-0000-http-api-contract.md)"
+  - "[SPEC-0016: V1 route namespace and literal guardrails](../spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md)"
+  - "[requirements.md](../requirements.md)"
   - "[ADR-0024: Layered runtime authority pack for the Nova monorepo](./ADR-0024-layered-architecture-authority-pack.md)"
   - "[ADR-0026: Fail-fast runtime configuration and safe auth execution](./ADR-0026-fail-fast-runtime-configuration-and-safe-auth-execution.md)"
   - "[SPEC-0017: Runtime component topology and ownership contract](../spec/SPEC-0017-runtime-component-topology-and-ownership-contract.md)"
@@ -15,25 +19,26 @@ Related:
 
 ## Summary
 
-Nova runtime ownership is package-first. App directories are thin ASGI wrappers;
-runtime packages own request handling, orchestration, auth, and worker logic;
-the Dash bridge is an adapter over canonical Nova contracts instead of a second
-runtime authority.
+Nova runtime ownership is package-first. Runtime packages own request handling,
+orchestration, auth, worker logic, and process entrypoints; release-only
+service Dockerfiles stay outside workspace package paths so container changes do
+not masquerade as package releases. The Dash bridge remains an adapter over
+canonical Nova contracts instead of a second runtime authority.
 
 ## Context
 
 The runtime now lives in one monorepo, but the architecture only stays legible
 if package ownership remains explicit:
 
-- `apps/nova_file_api_service/` and `apps/nova_auth_api_service/` boot services.
 - `packages/nova_file_api/` owns transfer and job control-plane behavior.
 - `packages/nova_auth_api/` owns token verify/introspect behavior.
 - `packages/nova_dash_bridge/` owns framework integration only.
 - `packages/contracts/` owns OpenAPI artifacts, fixtures, and generated-client
   contract inputs.
 
-Without explicit boundaries, bridge code and app wrappers accumulate duplicate
-models, config logic, and runtime behavior.
+Without explicit boundaries, bridge code and duplicate service wrappers
+accumulate redundant models, config logic, runtime behavior, and release
+surface area.
 
 ## Alternatives and scored decision
 
@@ -60,20 +65,23 @@ Choose **Option B**.
 
 ### Required characteristics
 
-1. `apps/*` contain bootstrapping, process wiring, and no domain authority.
-2. `packages/nova_file_api/` owns:
+1. `packages/nova_file_api/` owns:
    - canonical `/v1/transfers/*` and `/v1/jobs*` runtime behavior
    - capability, release-info, liveness, readiness, and metrics handlers
    - transfer, jobs, cache, idempotency, and activity orchestration
-3. `packages/nova_auth_api/` owns:
+   - the canonical `nova_file_api.main:app` process entrypoint consumed by the
+     release-only file-service Dockerfile under `apps/`
+2. `packages/nova_auth_api/` owns:
    - `/v1/token/verify`
    - `/v1/token/introspect`
    - token principal mapping and auth failure envelopes
-4. `packages/nova_dash_bridge/` may provide framework extraction and glue, but
+   - the canonical `nova_auth_api.main:app` process entrypoint consumed by the
+     release-only auth-service Dockerfile under `apps/`
+3. `packages/nova_dash_bridge/` may provide framework extraction and glue, but
    it must not redefine Nova API models, endpoint ownership, auth semantics, or
    policy rules.
-5. `packages/contracts/` is the only OpenAPI contract artifact authority.
-6. Deployment workflows and CI/CD contracts belong to separate deploy-governance
+4. `packages/contracts/` is the only OpenAPI contract artifact authority.
+5. Deployment workflows and CI/CD contracts belong to separate deploy-governance
    docs, not this runtime boundary decision.
 
 ## Consequences
@@ -86,17 +94,20 @@ Choose **Option B**.
 
 ### Trade-offs
 
-- Convenience shortcuts inside bridge and app layers must be removed.
+- Convenience shortcuts inside bridge and duplicate service layers must be removed.
 - Some integration helpers need explicit dependency boundaries instead of
   ambient settings mutation.
 
 ## Explicit non-decisions
 
 - No second contract authority inside `nova_dash_bridge`.
-- No app-wrapper business logic ownership.
+- No duplicate app-wrapper package layer for service bootstrapping.
 - No runtime ownership claims in CI/CD workflow docs.
 
 ## Changelog
 
+- 2026-03-10 (v2.1): Consolidated service entrypoints into
+  `packages/nova_file_api` and `packages/nova_auth_api`, while keeping the
+  release-only service Dockerfiles outside workspace package paths.
 - 2026-03-05: Restored `ADR-0025` to runtime boundary ownership and moved
   reusable-workflow governance to `ADR-0031`.

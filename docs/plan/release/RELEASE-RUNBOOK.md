@@ -2,7 +2,7 @@
 
 Status: Active
 Owner: nova release architecture
-Last updated: 2026-03-05
+Last updated: 2026-03-10
 
 ## 1. Purpose
 
@@ -23,6 +23,7 @@ Use the modular operator guide set for provisioning and setup details:
 - `../../runbooks/README.md`
 - `deploy-runtime-cloudformation-environments-guide.md`
 - `day-0-operator-checklist.md`
+- `docker-buildx-and-credential-helper-setup-guide.md`
 - `scripts/release/day-0-operator-command-pack.sh`
 - `aws-oidc-and-iam-role-setup-guide.md`
 - `aws-secrets-provisioning-guide.md`
@@ -49,7 +50,9 @@ Use the modular operator guide set for provisioning and setup details:
    - `CODEARTIFACT_STAGING_REPOSITORY`
    - `CODEARTIFACT_PROD_REPOSITORY`
    - `ECR_REPOSITORY_URI` (or `ECR_REPOSITORY_NAME`)
-7. IAM roles stack is deployed with promotion repository parameters:
+7. Release-image build environments provide Docker BuildKit plus the `buildx`
+   CLI plugin.
+8. IAM roles stack is deployed with promotion repository parameters:
    - `CodeArtifactPromotionSourceRepositoryName`
    - `CodeArtifactPromotionDestinationRepositoryName`
 
@@ -203,3 +206,10 @@ the helper. Do not run `aws codeartifact login --tool npm` on a workstation
 unless you explicitly intend to rewrite global `~/.npmrc`. CI may still use
 `aws codeartifact login --tool npm` because runners are ephemeral. When the
 runner uses npm 10.x, AWS CLI v2.9.5 or newer is required.
+
+## 8. Local Docker operator rule
+
+For local service-image verification, operators must use a Docker CLI with
+BuildKit and `buildx` available. Use
+`docker-buildx-and-credential-helper-setup-guide.md` when the workstation hits
+credential-helper or plugin-path failures before the repo Dockerfiles build.

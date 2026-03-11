@@ -21,6 +21,7 @@ Use these setup guides for variable definitions and sourcing:
 
 - [deploy-runtime-cloudformation-environments-guide.md](deploy-runtime-cloudformation-environments-guide.md)
 - [day-0-operator-checklist.md](day-0-operator-checklist.md)
+- [docker-buildx-and-credential-helper-setup-guide.md](docker-buildx-and-credential-helper-setup-guide.md)
 - [aws-oidc-and-iam-role-setup-guide.md](aws-oidc-and-iam-role-setup-guide.md)
 - [config-values-reference-guide.md](config-values-reference-guide.md)
 
@@ -89,12 +90,14 @@ Likely causes:
 
 - missing CodeBuild env vars
 - insufficient IAM for ECR push or CodeArtifact publish
+- release environment missing `buildx` while `DOCKER_BUILDKIT=1` is enforced
 
 Commands:
 
 ```bash
 aws codebuild batch-get-projects --names "${RELEASE_BUILD_PROJECT_NAME}"
 aws logs tail "/aws/codebuild/${RELEASE_BUILD_PROJECT_NAME}" --follow
+docker buildx version
 ```
 
 ### Deploy stages fail on CloudFormation

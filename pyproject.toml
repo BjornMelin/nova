@@ -21,10 +21,8 @@ classifiers = [
 ]
 dependencies = [
   "nova-auth-api",
-  "nova-auth-api-service",
   "nova-dash-bridge",
   "nova-file-api",
-  "nova-file-api-service",
   "nova-runtime-support",
 ]
 
@@ -47,8 +45,6 @@ default-groups = ["dev"]
 
 [tool.uv.workspace]
 members = [
-  "apps/nova_file_api_service",
-  "apps/nova_auth_api_service",
   "packages/nova_sdk_py_file",
   "packages/nova_sdk_py_auth",
   "packages/nova_auth_api",
@@ -59,10 +55,8 @@ members = [
 
 [tool.uv.sources]
 nova-auth-api = { workspace = true }
-nova-auth-api-service = { workspace = true }
 nova-dash-bridge = { workspace = true }
 nova-file-api = { workspace = true }
-nova-file-api-service = { workspace = true }
 nova-runtime-support = { workspace = true }
 
 [tool.pytest.ini_options]
@@ -78,8 +72,6 @@ testpaths = [
 ]
 pythonpath = [
   ".",
-  "apps/nova_auth_api_service/src",
-  "apps/nova_file_api_service/src",
   "packages/nova_sdk_py_auth/src",
   "packages/nova_sdk_py_file/src",
   "packages/nova_auth_api/src",
@@ -130,7 +122,7 @@ warn_redundant_casts = true
 warn_return_any = true
 warn_unreachable = true
 pretty = true
-files = ["apps", "packages", "scripts"]
+files = ["packages", "scripts"]
 
 [[tool.mypy.overrides]]
 module = ["boto3", "botocore.*", "oidc_jwt_verifier"]
