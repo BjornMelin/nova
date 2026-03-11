@@ -60,6 +60,9 @@ Use the modular operator guide set for provisioning and setup details:
 
 ### A. Plan
 
+0. For non-release commits on `main`, include `[skip release]` in the commit
+   subject/body to bypass `Nova Release Plan` and avoid unnecessary
+   CodeBuild/CodePipeline executions.
 1. Trigger `Nova Release Plan` (`release-plan.yml`) or wait for a `main` push
    run.
 2. Confirm artifacts:

@@ -143,6 +143,7 @@ def test_reusable_deploy_runtime_contract_includes_typed_inputs_outputs() -> (
         "aws_region",
         "parameter_file",
         "size_profile",
+        "runtime_cost_mode",
         "enable_worker",
         "approval_environment",
         "stack_name",

@@ -8,7 +8,8 @@
     "app_type",
     "environment",
     "stack_name",
-    "template_file"
+    "template_file",
+    "runtime_cost_mode"
   ],
   "properties": {
     "app_type": {
@@ -44,6 +45,11 @@
     "size_profile": {
       "type": "string",
       "enum": ["small", "medium", "large", "custom"]
+    },
+    "runtime_cost_mode": {
+      "type": "string",
+      "enum": ["standard", "saver", "paused"],
+      "description": "Runtime deployment cost posture."
     },
     "enable_worker": {
       "type": "boolean"

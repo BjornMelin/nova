@@ -34,6 +34,10 @@ on:
         required: false
         default: medium
         type: string
+      runtime_cost_mode:
+        description: Runtime cost posture (standard, saver, paused).
+        required: true
+        type: string
       enable_worker:
         description: Worker lane toggle.
         required: false
@@ -142,6 +146,7 @@ jobs:
           ENVIRONMENT: ${{ inputs.environment }}
           IMAGE_DIGEST: ${{ inputs.image_digest }}
           ENABLE_WORKER: ${{ inputs.enable_worker }}
+          RUNTIME_COST_MODE: ${{ inputs.runtime_cost_mode }}
           CONTAINER_PORT: ${{ steps.profile.outputs.container-port }}
           TASK_CPU: ${{ steps.profile.outputs.task-cpu }}
           TASK_MEMORY: ${{ steps.profile.outputs.task-memory }}
@@ -170,12 +175,32 @@ jobs:
             else:
               raise SystemExit("parameter_file must contain JSON object or parameter list")
 
+          runtime_cost_mode = os.environ["RUNTIME_COST_MODE"].strip()
+          if runtime_cost_mode not in {"standard", "saver", "paused"}:
+              raise SystemExit(
+                  "runtime_cost_mode must be one of: standard, saver, paused"
+              )
+
+          container_port = int(os.environ["CONTAINER_PORT"])
+          task_cpu = int(os.environ["TASK_CPU"])
+          task_memory = int(os.environ["TASK_MEMORY"])
+          desired_count = int(os.environ["DESIRED_COUNT"])
+          enable_worker = os.environ["ENABLE_WORKER"].lower() == "true"
+
+          if runtime_cost_mode == "saver":
+              task_cpu = 512
+              task_memory = 1024
+              desired_count = 1
+          elif runtime_cost_mode == "paused":
+              desired_count = 0
+              enable_worker = False
+
           payload["Environment"] = os.environ["ENVIRONMENT"]
-          payload["DockerContainerPort"] = os.environ["CONTAINER_PORT"]
-          payload["TaskCpu"] = os.environ["TASK_CPU"]
-          payload["TaskMemory"] = os.environ["TASK_MEMORY"]
-          payload["DesiredCount"] = os.environ["DESIRED_COUNT"]
-          payload["EnableWorker"] = "true" if os.environ["ENABLE_WORKER"].lower() == "true" else "false"
+          payload["DockerContainerPort"] = str(container_port)
+          payload["TaskCpu"] = str(task_cpu)
+          payload["TaskMemory"] = str(task_memory)
+          payload["DesiredCount"] = str(desired_count)
+          payload["EnableWorker"] = "true" if enable_worker else "false"
 
           image_digest = os.environ.get("IMAGE_DIGEST", "").strip()
           if image_digest:
