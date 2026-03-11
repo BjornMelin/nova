@@ -14,6 +14,8 @@ from nova_file_api.models import (
     Principal,
     SignPartsRequest,
     SignPartsResponse,
+    UploadIntrospectionRequest,
+    UploadIntrospectionResponse,
 )
 from nova_file_api.transfer import ExportCopyResult
 from starlette.requests import Request
@@ -64,6 +66,14 @@ class StubTransferService:
     ) -> SignPartsResponse:
         del request, principal
         raise AssertionError("sign_parts should be stubbed per test")
+
+    async def introspect_upload(
+        self,
+        request: UploadIntrospectionRequest,
+        principal: Principal,
+    ) -> UploadIntrospectionResponse:
+        del request, principal
+        raise AssertionError("introspect_upload should be stubbed per test")
 
     async def complete_upload(
         self,

@@ -12,7 +12,13 @@ from nova_file_api.jobs import (
     MemoryJobRepository,
 )
 from nova_file_api.metrics import MetricsCollector
-from nova_file_api.models import AuthMode, JobRecord, JobStatus
+from nova_file_api.models import (
+    AuthMode,
+    JobRecord,
+    JobStatus,
+    UploadedPart,
+    UploadIntrospectionResponse,
+)
 
 from .support.app import (
     RuntimeDeps,
@@ -21,6 +27,22 @@ from .support.app import (
     build_test_app,
 )
 from .support.doubles import StubTransferService
+
+
+class _IntrospectTransferService(StubTransferService):
+    async def introspect_upload(
+        self,
+        payload: object,
+        principal: object,
+    ) -> UploadIntrospectionResponse:
+        del payload, principal
+        return UploadIntrospectionResponse(
+            bucket="test-transfer-bucket",
+            key="uploads/scope-1/file.csv",
+            upload_id="upload-1",
+            part_size_bytes=128 * 1024 * 1024,
+            parts=[UploadedPart(part_number=1, etag='"etag-1"')],
+        )
 
 
 class _FailingListJobRepository:
@@ -108,6 +130,25 @@ def test_v1_health_and_capabilities() -> None:
     assert caps.status_code == 200
     cap_keys = {entry["key"] for entry in caps.json()["capabilities"]}
     assert {"jobs", "jobs.events.poll", "transfers"}.issubset(cap_keys)
+
+
+def test_v1_upload_introspect_returns_uploaded_parts() -> None:
+    """Verify multipart introspection is exposed on the canonical v1 route."""
+    deps = _build_v1_deps()
+    deps.transfer_service = _IntrospectTransferService()
+    app = build_test_app(deps)
+    with TestClient(app) as client:
+        response = client.post(
+            "/v1/transfers/uploads/introspect",
+            headers={"X-Session-Id": "scope-1"},
+            json={
+                "key": "uploads/scope-1/file.csv",
+                "upload_id": "upload-1",
+            },
+        )
+
+    assert response.status_code == 200
+    assert response.json()["parts"] == [{"part_number": 1, "etag": '"etag-1"'}]
 
 
 def test_v1_jobs_create_list_get_retry_and_events() -> None:

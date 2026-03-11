@@ -4,7 +4,16 @@ import nova_dash_bridge.service as dash_service_module
 import pytest
 from nova_dash_bridge.config import FileTransferEnvConfig, UploadPolicy
 from nova_dash_bridge.errors import FileTransferError
+from nova_dash_bridge.models import (
+    UploadIntrospectionRequest,
+)
 from nova_dash_bridge.service import FileTransferService
+from nova_file_api.models import (
+    UploadedPart as CoreUploadedPart,
+)
+from nova_file_api.models import (
+    UploadIntrospectionResponse,
+)
 
 
 class _FakeBody:
@@ -48,6 +57,20 @@ class _FakeCoreTransferService:
     ) -> None:
         del settings, s3_client
 
+    async def introspect_upload(
+        self,
+        request: object,
+        principal: object,
+    ) -> UploadIntrospectionResponse:
+        del request, principal
+        return UploadIntrospectionResponse(
+            bucket="bucket-a",
+            key="uploads/scope-1/object.csv",
+            upload_id="upload-1",
+            part_size_bytes=8,
+            parts=[CoreUploadedPart(part_number=1, etag='"etag-1"')],
+        )
+
 
 def _service_with_response(
     *,
@@ -60,9 +83,11 @@ def _service_with_response(
         _FakeCoreTransferService,
     )
     return FileTransferService(
-        env_config=FileTransferEnvConfig(
-            enabled=True,
-            bucket="bucket-a",
+        env_config=FileTransferEnvConfig.model_validate(
+            {
+                "FILE_TRANSFER_ENABLED": True,
+                "FILE_TRANSFER_BUCKET": "bucket-a",
+            }
         ),
         upload_policy=UploadPolicy(
             max_upload_bytes=100,
@@ -118,3 +143,28 @@ def test_download_closes_stream_on_chunked_oversize_early_exit(
 
     assert body.closed is True
     assert body.read_calls == 3
+
+
+def test_introspect_upload_maps_core_response(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    service = _service_with_response(
+        monkeypatch=monkeypatch,
+        response={},
+    )
+
+    response = service.introspect_upload(
+        UploadIntrospectionRequest(
+            key="uploads/scope-1/object.csv",
+            upload_id="upload-1",
+            session_id="12345678-1234-1234-1234-1234567890ab",
+        )
+    )
+
+    assert response.model_dump() == {
+        "bucket": "bucket-a",
+        "key": "uploads/scope-1/object.csv",
+        "upload_id": "upload-1",
+        "part_size_bytes": 8,
+        "parts": [{"part_number": 1, "etag": '"etag-1"'}],
+    }

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 from typing import Any, cast
 
@@ -54,6 +55,7 @@ class _FakeSqsClient:
     def __init__(self) -> None:
         self.receive_calls: list[dict[str, Any]] = []
         self.delete_calls: list[dict[str, Any]] = []
+        self.change_visibility_calls: list[dict[str, Any]] = []
         self.messages: list[dict[str, Any]] = []
 
     async def receive_message(self, **kwargs: Any) -> dict[str, Any]:
@@ -64,6 +66,9 @@ class _FakeSqsClient:
 
     async def delete_message(self, **kwargs: Any) -> None:
         self.delete_calls.append(kwargs)
+
+    async def change_message_visibility(self, **kwargs: Any) -> None:
+        self.change_visibility_calls.append(kwargs)
 
 
 class _FakeHttpClient:
@@ -89,6 +94,7 @@ class _FakeTransferService:
         self.calls: list[dict[str, Any]] = []
         self.result: ExportCopyResult | None = None
         self.error: Exception | None = None
+        self.delay_seconds = 0.0
 
     async def copy_upload_to_export(
         self,
@@ -108,6 +114,8 @@ class _FakeTransferService:
                 "filename": filename,
             }
         )
+        if self.delay_seconds > 0:
+            await asyncio.sleep(self.delay_seconds)
         if self.error is not None:
             raise self.error
         if self.result is not None:
@@ -374,6 +382,72 @@ async def test_worker_executes_transfer_process_and_posts_success() -> None:
                 "error": None,
             },
         },
+    ]
+
+
+@pytest.mark.asyncio
+async def test_worker_extends_visibility_during_long_running_transfer() -> None:
+    """Verify long-running transfer work refreshes SQS visibility timeout."""
+    fake_sqs = _FakeSqsClient()
+    fake_http = _FakeHttpClient()
+    fake_http.responses.extend(
+        [
+            httpx.Response(
+                200,
+                request=httpx.Request(
+                    "POST",
+                    "https://api.example.local/v1/internal/jobs/job-2/result",
+                ),
+            ),
+            httpx.Response(
+                200,
+                request=httpx.Request(
+                    "POST",
+                    "https://api.example.local/v1/internal/jobs/job-2/result",
+                ),
+            ),
+        ]
+    )
+    transfer_service = _FakeTransferService()
+    transfer_service.delay_seconds = 0.6
+    settings = Settings.model_validate(
+        {
+            "JOBS_ENABLED": True,
+            "JOBS_RUNTIME_MODE": "worker",
+            "JOBS_QUEUE_BACKEND": JobsQueueBackend.SQS,
+            "JOBS_SQS_QUEUE_URL": "https://example.local/queue",
+            "JOBS_API_BASE_URL": "https://api.example.local",
+            "JOBS_WORKER_UPDATE_TOKEN": SecretStr("worker-token"),
+            "JOBS_SQS_VISIBILITY_TIMEOUT_SECONDS": 1,
+        }
+    )
+    worker = _build_worker(
+        settings=settings,
+        transfer_service=transfer_service,
+    )
+    _attach_runtime_clients(
+        worker=worker,
+        sqs_client=fake_sqs,
+        api_client=fake_http,
+        transfer_service=transfer_service,
+    )
+
+    should_delete = await worker._handle_message(
+        message={
+            "MessageId": "msg-3b",
+            "ReceiptHandle": "receipt-3b",
+            "Body": _worker_message_body(job_id="job-2"),
+            "Attributes": {"ApproximateReceiveCount": "2"},
+        }
+    )
+
+    assert should_delete is True
+    assert fake_sqs.change_visibility_calls == [
+        {
+            "QueueUrl": "https://example.local/queue",
+            "ReceiptHandle": "receipt-3b",
+            "VisibilityTimeout": 1,
+        }
     ]
 
 
