@@ -25,14 +25,85 @@ def _extract_function(source: str, function_name: str) -> str:
     brace_start = source.find("{", start_index)
     assert brace_start != -1
     depth = 0
-    for idx in range(brace_start, len(source)):
+    idx = brace_start
+    in_single = False
+    in_double = False
+    in_template = False
+    in_line_comment = False
+    in_block_comment = False
+    escaped = False
+    while idx < len(source):
         char = source[idx]
+        next_char = source[idx + 1] if idx + 1 < len(source) else ""
+
+        if in_line_comment:
+            if char == "\n":
+                in_line_comment = False
+            idx += 1
+            continue
+        if in_block_comment:
+            if char == "*" and next_char == "/":
+                in_block_comment = False
+                idx += 2
+                continue
+            idx += 1
+            continue
+        if in_single:
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == "'":
+                in_single = False
+            idx += 1
+            continue
+        if in_double:
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == '"':
+                in_double = False
+            idx += 1
+            continue
+        if in_template:
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == "`":
+                in_template = False
+            idx += 1
+            continue
+
+        if char == "/" and next_char == "/":
+            in_line_comment = True
+            idx += 2
+            continue
+        if char == "/" and next_char == "*":
+            in_block_comment = True
+            idx += 2
+            continue
+        if char == "'":
+            in_single = True
+            idx += 1
+            continue
+        if char == '"':
+            in_double = True
+            idx += 1
+            continue
+        if char == "`":
+            in_template = True
+            idx += 1
+            continue
+
         if char == "{":
             depth += 1
         elif char == "}":
             depth -= 1
             if depth == 0:
                 return source[start_index : idx + 1]
+        idx += 1
     raise AssertionError(f"failed to parse function body for {function_name}")
 
 
@@ -64,6 +135,8 @@ def test_multipart_asset_uses_resume_introspection_and_persistent_state() -> (
         persist_helper_source
     )
     assert 'base + "/uploads/introspect"' in source
+    assert 'config.transfersEndpointBase + "/downloads/presign"' in source
+    assert "multipart upload completion is ambiguous" in source
     assert "var resumeMissingMultipart =" in source
     assert re.search(
         (

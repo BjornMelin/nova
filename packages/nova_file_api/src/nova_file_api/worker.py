@@ -32,6 +32,7 @@ _RETRYABLE_RESULT_STATUS_CODES = {404, 409, 500, 502, 503, 504}
 _WORKER_RUNTIME_MODE = "worker"
 _MIN_VISIBILITY_EXTENSION_INTERVAL_SECONDS = 0.5
 _VISIBILITY_EXTENSION_RETRY_DELAY_SECONDS = 1.0
+_SQS_VISIBILITY_TIMEOUT_MAX_SECONDS = 43_200
 
 _T = TypeVar("_T")
 
@@ -459,6 +460,15 @@ class JobsWorker:
                     ),
                 )
             except (ClientError, BotoCoreError) as exc:
+                if isinstance(
+                    exc, ClientError
+                ) and _is_visibility_timeout_ceiling_error(exc):
+                    self._logger.warning(
+                        "jobs_worker_visibility_extension_ceiling_reached",
+                        job_id=job_id,
+                        max_visibility_seconds=_SQS_VISIBILITY_TIMEOUT_MAX_SECONDS,
+                    )
+                    return
                 self._logger.warning(
                     "jobs_worker_visibility_extension_failed",
                     job_id=job_id,
@@ -622,6 +632,23 @@ def _result_update_retry_delay_seconds(*, attempt: int) -> float:
     )
     jitter = secrets.SystemRandom().uniform(0.75, 1.25)
     return float(delay_seconds * jitter)
+
+
+def _is_visibility_timeout_ceiling_error(exc: ClientError) -> bool:
+    """Return True when SQS rejects visibility extension at the 12h ceiling."""
+    error = exc.response.get("Error", {})
+    code = str(error.get("Code", "")).strip()
+    message = str(error.get("Message", "")).lower()
+    if code not in {
+        "InvalidParameterValue",
+        "AWS.SimpleQueueService.InvalidParameterValue",
+    }:
+        return False
+    return "visibility" in message and (
+        str(_SQS_VISIBILITY_TIMEOUT_MAX_SECONDS) in message
+        or "maximum time left" in message
+        or "maximum visibility timeout" in message
+    )
 
 
 def _success_result_from_export(

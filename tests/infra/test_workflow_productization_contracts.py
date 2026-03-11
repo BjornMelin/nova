@@ -244,7 +244,12 @@ def test_runtime_deploy_script_enforces_visibility_and_execute_mode() -> None:
     rel_path = "scripts/release/deploy-runtime-cloudformation-environment.sh"
     text = _read(rel_path)
 
+    assert (
+        'if ! [[ "$JOBS_SQS_VISIBILITY_TIMEOUT_SECONDS" =~ ^[0-9]+$ ]]; then'
+        in text
+    )
     assert 'JOBS_SQS_VISIBILITY_TIMEOUT_SECONDS" -lt 1' in text
+    assert 'JOBS_SQS_VISIBILITY_TIMEOUT_SECONDS" -gt 43200' in text
     assert "between 1 and 43200 (12 hours)" in text
 
     script_path = REPO_ROOT / rel_path

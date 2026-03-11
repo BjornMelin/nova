@@ -6,11 +6,15 @@ from typing import Any, cast
 
 import httpx
 import pytest
+from botocore.exceptions import ClientError
 from nova_file_api.config import Settings
 from nova_file_api.errors import invalid_request, upstream_s3_error
 from nova_file_api.models import JobsQueueBackend
 from nova_file_api.transfer import ExportCopyResult, TransferService
-from nova_file_api.worker import JobsWorker
+from nova_file_api.worker import (
+    JobsWorker,
+    _is_visibility_timeout_ceiling_error,
+)
 from pydantic import SecretStr
 
 
@@ -515,6 +519,34 @@ async def test_worker_non_retryable_error_posts_failure() -> None:
             },
         },
     ]
+
+
+def test_visibility_timeout_ceiling_error_detector() -> None:
+    """SQS 12-hour ceiling responses must be detected as non-retryable."""
+    exc = ClientError(
+        error_response={
+            "Error": {
+                "Code": "InvalidParameterValue",
+                "Message": (
+                    "Value 43200 for parameter VisibilityTimeout exceeds "
+                    "the maximum visibility timeout"
+                ),
+            }
+        },
+        operation_name="ChangeMessageVisibility",
+    )
+    assert _is_visibility_timeout_ceiling_error(exc) is True
+
+    other_exc = ClientError(
+        error_response={
+            "Error": {
+                "Code": "AccessDenied",
+                "Message": "not authorized",
+            }
+        },
+        operation_name="ChangeMessageVisibility",
+    )
+    assert _is_visibility_timeout_ceiling_error(other_exc) is False
 
 
 @pytest.mark.asyncio

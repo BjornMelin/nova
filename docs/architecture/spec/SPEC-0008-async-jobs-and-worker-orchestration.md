@@ -105,6 +105,10 @@ Invalid transitions MUST fail with `409` (`error.code = "conflict"`).
 - Long-running worker operations MUST extend message visibility before half of
   the configured timeout elapses instead of relying only on static
   `VisibilityTimeout` sizing.
+- Long-running worker operations MUST NOT rely on visibility extensions beyond
+  the SQS 12-hour (43,200 second) ceiling from the original receive; work that
+  may exceed that cap MUST checkpoint, split, re-enqueue, or fail before the
+  window is exhausted.
 - Non-retryable failures SHOULD transition to `failed` with structured error
   details.
 - First worker transition from `pending` MUST record queue lag metric

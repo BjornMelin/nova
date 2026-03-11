@@ -2088,6 +2088,29 @@ def _patch_file_sdk(root: Path) -> None:
     )
     _rewrite_file(
         root,
+        "api/transfers/introspect_upload.py",
+        lambda content: content.replace(
+            "    Args:\n"
+            "        request: FastAPI request object used for auth context.\n"
+            "        payload: Multipart introspection input payload.\n"
+            "        metrics: Request-scoped metrics collector dependency.\n"
+            "        transfer_service: Transfer domain service dependency.\n"
+            "        activity_store: Activity persistence dependency.\n"
+            "        authenticator: Principal authenticator dependency.\n"
+            "\n"
+            "    Returns:\n"
+            "        UploadIntrospectionResponse: Multipart state for resume operations.\n"
+            "\n",
+            "",
+        ).replace(
+            "    Returns:\n"
+            "        ErrorEnvelope | UploadIntrospectionResponse\n",
+            "    Returns:\n"
+            "        ErrorEnvelope | UploadIntrospectionResponse | None\n",
+        ),
+    )
+    _rewrite_file(
+        root,
         "models/job_events_response.py",
         lambda content: (
             _ensure_module_docstring(
@@ -2300,16 +2323,33 @@ def _patch_file_sdk(root: Path) -> None:
         lambda content: _replace_text(
             _replace_text(
                 _replace_text(
-                    _ensure_module_docstring(
-                        content,
-                        doc="Multipart uploaded-part model for resume introspection.",
+                    _replace_text(
+                        _replace_text(
+                            _ensure_module_docstring(
+                                content,
+                                doc="Multipart uploaded-part model for resume introspection.",
+                            ),
+                            old='    """Part state returned for multipart upload introspection.\n\n    Attributes:\n        etag (str):\n        part_number (int):\n    """\n',
+                            new='    """Part state returned for multipart upload introspection.\n\n'
+                            "    Attributes:\n"
+                            "        etag (str): ETag returned by S3 for this uploaded part.\n"
+                            "        part_number (int): 1-based multipart part number.\n"
+                            '    """\n',
+                            path="models/uploaded_part.py",
+                        ),
+                        old="from attrs import define as _attrs_define\n",
+                        new="from attrs import define as _attrs_define\n"
+                        "from attrs import field as _attrs_field\n"
+                        "from attrs import validators as _attrs_validators\n",
+                        path="models/uploaded_part.py",
                     ),
-                    old='    """Part state returned for multipart upload introspection.\n\n    Attributes:\n        etag (str):\n        part_number (int):\n    """\n',
-                    new='    """Part state returned for multipart upload introspection.\n\n'
-                    "    Attributes:\n"
-                    "        etag (str): ETag returned by S3 for this uploaded part.\n"
-                    "        part_number (int): 1-based multipart part number.\n"
-                    '    """\n',
+                    old="    etag: str\n",
+                    new="    etag: str = _attrs_field(\n"
+                    "        validator=_attrs_validators.and_(\n"
+                    "            _attrs_validators.instance_of(str),\n"
+                    "            _attrs_validators.min_len(1),\n"
+                    "        )\n"
+                    "    )\n",
                     path="models/uploaded_part.py",
                 ),
                 old="    def to_dict(self) -> dict[str, Any]:\n",
@@ -2342,16 +2382,9 @@ def _patch_file_sdk(root: Path) -> None:
     _rewrite_file(
         root,
         "models/upload_introspection_response.py",
-        lambda content: _replace_text(
-            _ensure_module_docstring(
-                content,
-                doc="Multipart upload introspection response model.",
-            ),
-            old="from typing import TYPE_CHECKING, Any, TypeVar\n",
-            new="from typing import TYPE_CHECKING\n"
-            "from typing import Any\n"
-            "from typing import TypeVar\n",
-            path="models/upload_introspection_response.py",
+        lambda content: _ensure_module_docstring(
+            content,
+            doc="Multipart upload introspection response model.",
         ),
     )
     _rewrite_file(

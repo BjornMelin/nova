@@ -7,6 +7,8 @@ from collections.abc import Mapping
 from typing import Any, TypeVar
 
 from attrs import define as _attrs_define
+from attrs import field as _attrs_field
+from attrs import validators as _attrs_validators
 
 T = TypeVar("T", bound="UploadedPart")
 
@@ -20,7 +22,12 @@ class UploadedPart:
         part_number (int): 1-based multipart part number.
     """
 
-    etag: str
+    etag: str = _attrs_field(
+        validator=_attrs_validators.and_(
+            _attrs_validators.instance_of(str),
+            _attrs_validators.min_len(1),
+        )
+    )
     part_number: int
 
     def to_dict(self) -> dict[str, Any]:

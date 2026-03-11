@@ -501,6 +501,46 @@
     return null;
   }
 
+  function isMultipartNotFoundError(error) {
+    return (
+      error &&
+      typeof error.message === "string" &&
+      error.message.indexOf("multipart upload was not found") !== -1
+    );
+  }
+
+  function isUploadObjectMissingError(error) {
+    return (
+      error &&
+      typeof error.message === "string" &&
+      (error.message.indexOf("upload object not found") !== -1 ||
+        error.message.indexOf("source upload object not found") !== -1 ||
+        error.message.indexOf("HTTP 404") !== -1)
+    );
+  }
+
+  async function checkUploadObjectExists(config, key, sessionId, filename) {
+    var requestPayload = {
+      key: key,
+      session_id: sessionId,
+    };
+    if (typeof filename === "string" && filename) {
+      requestPayload.filename = filename;
+    }
+    try {
+      await postJson(
+        config.transfersEndpointBase + "/downloads/presign",
+        requestPayload
+      );
+      return true;
+    } catch (error) {
+      if (isUploadObjectMissingError(error)) {
+        return false;
+      }
+      throw error;
+    }
+  }
+
   async function handleUpload(config, file) {
     var contentType = file.type || "application/octet-stream";
     var sessionId = getSessionId();
@@ -563,6 +603,7 @@
           typeof error.message === "string" &&
           error.message.indexOf("multipart upload was not found") !== -1;
         if (resumeMissingMultipart) {
+          var introspectMissingMultipart = false;
           try {
             await postJson(
               config.transfersEndpointBase + "/uploads/introspect",
@@ -573,6 +614,24 @@
               }
             );
           } catch (introspectError) {
+            if (!isMultipartNotFoundError(introspectError)) {
+              throw introspectError;
+            }
+            introspectMissingMultipart = true;
+          }
+          if (!introspectMissingMultipart) {
+            throw error;
+          }
+          var uploadObjectExists = await checkUploadObjectExists(
+            config,
+            initiated.key,
+            sessionId,
+            file.name
+          );
+          if (uploadObjectExists) {
+            throw new Error(
+              "multipart upload completion is ambiguous; upload object already exists"
+            );
           }
           clearMultipartState(storageKey);
           sessionId = getSessionId();
