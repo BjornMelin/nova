@@ -2440,7 +2440,13 @@ def _apply_repo_python_sdk_patches(root: Path) -> None:
 
 
 def _strip_selected_ruff_noqa(root: Path) -> None:
-    for rel_path in ("api/__init__.py", "api/token/__init__.py"):
+    for rel_path in (
+        "api/__init__.py",
+        "api/token/__init__.py",
+        "api/transfers/introspect_upload.py",
+        "models/upload_introspection_response.py",
+        "models/uploaded_part.py",
+    ):
         _rewrite_file(
             root,
             rel_path,

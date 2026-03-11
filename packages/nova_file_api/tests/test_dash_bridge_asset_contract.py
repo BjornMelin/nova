@@ -118,9 +118,7 @@ def test_poll_async_job_forwards_session_scope_header() -> None:
     )
 
 
-def test_multipart_asset_uses_resume_introspection_and_persistent_state() -> (
-    None
-):
+def test_multipart_asset_uses_resume_introspection_state() -> None:
     source = _file_transfer_asset_source()
     key_helper_source = _extract_function(source, "multipartStateStorageKey")
     load_helper_source = _extract_function(source, "loadMultipartState")

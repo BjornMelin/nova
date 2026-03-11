@@ -1,4 +1,3 @@
-# ruff: noqa
 """Multipart upload introspection response model."""
 
 from __future__ import annotations

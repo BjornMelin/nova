@@ -1,4 +1,3 @@
-# ruff: noqa
 from typing import Any
 
 import httpx

@@ -300,9 +300,7 @@ async def test_complete_upload_verifies_listed_parts_and_object_size() -> None:
 
 
 @pytest.mark.asyncio
-async def test_complete_upload_succeeds_when_post_complete_check_fails() -> (
-    None
-):
+async def test_complete_upload_succeeds_when_post_check_fails() -> None:
     settings = Settings()
     fake_s3 = _FakeS3Client()
     service = TransferService(settings=settings, s3_client=fake_s3)
@@ -454,9 +452,7 @@ async def test_copy_upload_to_export_aborts_failed_multipart_copy() -> None:
 
 
 @pytest.mark.asyncio
-async def test_copy_upload_to_export_large_copy_missing_source_is_invalid() -> (
-    None
-):
+async def test_large_copy_missing_source_is_invalid() -> None:
     settings = Settings.model_validate(
         {"FILE_TRANSFER_PART_SIZE_BYTES": 128 * 1024 * 1024}
     )

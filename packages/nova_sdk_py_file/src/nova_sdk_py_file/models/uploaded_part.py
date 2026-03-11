@@ -1,4 +1,3 @@
-# ruff: noqa
 """Multipart uploaded-part model for resume introspection."""
 
 from __future__ import annotations
