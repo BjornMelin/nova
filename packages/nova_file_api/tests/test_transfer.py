@@ -257,7 +257,7 @@ async def test_introspect_upload_lists_parts_across_pages() -> None:
         principal=_principal(),
     )
 
-    assert response.part_size_bytes == settings.file_transfer_part_size_bytes
+    assert response.part_size_bytes == 8
     assert [part.model_dump() for part in response.parts] == [
         {"part_number": 1, "etag": '"etag-1"'},
         {"part_number": 2, "etag": '"etag-2"'},

@@ -557,12 +557,12 @@
       try {
         await uploadMultipart(config, file, initiated, sessionId);
       } catch (error) {
-        if (
+        var resumeMissingMultipart =
           resumedMultipart &&
           error &&
           typeof error.message === "string" &&
-          error.message.indexOf("multipart upload was not found") !== -1
-        ) {
+          error.message.indexOf("multipart upload was not found") !== -1;
+        if (resumeMissingMultipart) {
           try {
             await postJson(
               config.transfersEndpointBase + "/uploads/introspect",
@@ -595,6 +595,9 @@
             throw new Error("unknown strategy");
           }
         } else {
+          if (resumedMultipart) {
+            clearMultipartState(storageKey);
+          }
           throw error;
         }
       }

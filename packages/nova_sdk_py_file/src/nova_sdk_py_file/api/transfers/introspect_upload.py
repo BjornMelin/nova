@@ -84,7 +84,17 @@ def sync_detailed(
      Return uploaded multipart part state for resume flows.
 
     Args:
-        client (AuthenticatedClient): Authenticated client instance.
+        request: FastAPI request object used for auth context.
+        payload: Multipart introspection input payload.
+        metrics: Request-scoped metrics collector dependency.
+        transfer_service: Transfer domain service dependency.
+        activity_store: Activity persistence dependency.
+        authenticator: Principal authenticator dependency.
+
+    Returns:
+        UploadIntrospectionResponse: Multipart state for resume operations.
+
+    Args:
         body (UploadIntrospectionRequest): Multipart upload introspection request.
 
     Raises:
@@ -116,7 +126,17 @@ def sync(
      Return uploaded multipart part state for resume flows.
 
     Args:
-        client (AuthenticatedClient): Authenticated client instance.
+        request: FastAPI request object used for auth context.
+        payload: Multipart introspection input payload.
+        metrics: Request-scoped metrics collector dependency.
+        transfer_service: Transfer domain service dependency.
+        activity_store: Activity persistence dependency.
+        authenticator: Principal authenticator dependency.
+
+    Returns:
+        UploadIntrospectionResponse: Multipart state for resume operations.
+
+    Args:
         body (UploadIntrospectionRequest): Multipart upload introspection request.
 
     Raises:
@@ -143,7 +163,17 @@ async def asyncio_detailed(
      Return uploaded multipart part state for resume flows.
 
     Args:
-        client (AuthenticatedClient): Authenticated client instance.
+        request: FastAPI request object used for auth context.
+        payload: Multipart introspection input payload.
+        metrics: Request-scoped metrics collector dependency.
+        transfer_service: Transfer domain service dependency.
+        activity_store: Activity persistence dependency.
+        authenticator: Principal authenticator dependency.
+
+    Returns:
+        UploadIntrospectionResponse: Multipart state for resume operations.
+
+    Args:
         body (UploadIntrospectionRequest): Multipart upload introspection request.
 
     Raises:
@@ -173,7 +203,17 @@ async def asyncio(
      Return uploaded multipart part state for resume flows.
 
     Args:
-        client (AuthenticatedClient): Authenticated client instance.
+        request: FastAPI request object used for auth context.
+        payload: Multipart introspection input payload.
+        metrics: Request-scoped metrics collector dependency.
+        transfer_service: Transfer domain service dependency.
+        activity_store: Activity persistence dependency.
+        authenticator: Principal authenticator dependency.
+
+    Returns:
+        UploadIntrospectionResponse: Multipart state for resume operations.
+
+    Args:
         body (UploadIntrospectionRequest): Multipart upload introspection request.
 
     Raises:

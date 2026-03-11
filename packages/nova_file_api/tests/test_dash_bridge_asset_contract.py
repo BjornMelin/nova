@@ -64,6 +64,14 @@ def test_multipart_asset_uses_resume_introspection_and_persistent_state() -> (
         persist_helper_source
     )
     assert 'base + "/uploads/introspect"' in source
+    assert "var resumeMissingMultipart =" in source
+    assert re.search(
+        (
+            r"else\s*\{\s*if \(resumedMultipart\)\s*\{\s*"
+            r"clearMultipartState\(storageKey\);\s*\}\s*throw error;\s*\}"
+        ),
+        source,
+    )
     assert "storage.removeItem(storageKey);" in clear_helper_source
     assert "var storage = window.localStorage;" in load_helper_source
 

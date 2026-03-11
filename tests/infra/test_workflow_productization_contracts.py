@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import yaml
 
+from .helpers import REPO_ROOT
 from .helpers import read_repo_file as _read
 
 
@@ -233,3 +234,20 @@ def test_canonical_runtime_deploy_script_enforces_final_posture() -> None:
         assert required in text
 
     assert "AllowExecutionRoleSecretsWildcard" not in text
+
+
+def test_runtime_deploy_script_enforces_visibility_and_execute_mode() -> None:
+    """Runtime deploy script must fail fast on invalid queue timeout.
+
+    The script also must remain executable for operators.
+    """
+    rel_path = "scripts/release/deploy-runtime-cloudformation-environment.sh"
+    text = _read(rel_path)
+
+    assert 'JOBS_SQS_VISIBILITY_TIMEOUT_SECONDS" -lt 1' in text
+    assert "between 1 and 43200 (12 hours)" in text
+
+    script_path = REPO_ROOT / rel_path
+    assert script_path.stat().st_mode & 0o111, (
+        f"Expected operator script to be executable: {script_path}"
+    )

@@ -2026,7 +2026,7 @@
     },
     "/v1/transfers/uploads/introspect": {
       "post": {
-        "description": "Return uploaded multipart part state for resume flows.",
+        "description": "Return uploaded multipart part state for resume flows.\n\nArgs:\n    request: FastAPI request object used for auth context.\n    payload: Multipart introspection input payload.\n    metrics: Request-scoped metrics collector dependency.\n    transfer_service: Transfer domain service dependency.\n    activity_store: Activity persistence dependency.\n    authenticator: Principal authenticator dependency.\n\nReturns:\n    UploadIntrospectionResponse: Multipart state for resume operations.",
         "operationId": "introspect_upload",
         "requestBody": {
           "content": {
