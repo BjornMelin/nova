@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
 from fastapi.testclient import TestClient
 from nova_file_api.activity import MemoryActivityStore
 from nova_file_api.auth import Authenticator
@@ -92,9 +91,8 @@ def _build_v1_deps(
     )
 
 
-def test_v1_health_and_capabilities(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_v1_health_and_capabilities() -> None:
     """Verifies v1 live/ready health and capability keys are exposed."""
-    monkeypatch.setenv("FILE_TRANSFER_BUCKET", "")
     app = build_test_app(_build_v1_deps(file_transfer_bucket=""))
     with TestClient(app) as client:
         live = client.get("/v1/health/live")

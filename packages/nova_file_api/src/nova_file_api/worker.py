@@ -42,7 +42,21 @@ class WorkerJobMessage:
 
     @classmethod
     def from_body(cls, *, body: str) -> WorkerJobMessage:
-        """Parse and validate an SQS message body payload."""
+        """Parse and validate an SQS message body payload.
+
+        Args:
+            body: Raw SQS message body JSON string.
+
+        Returns:
+            Parsed and validated worker job message.
+
+        Raises:
+            TypeError: If the parsed message body or ``payload`` field is not
+                a JSON object.
+            ValueError: If required fields (``job_id``, ``job_type``, or
+                ``scope_id``) are missing, if result-update fields are present,
+                or if ``created_at`` is invalid.
+        """
         raw = json.loads(body)
         if not isinstance(raw, dict):
             raise TypeError("message body must be an object")

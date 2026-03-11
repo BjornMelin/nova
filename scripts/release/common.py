@@ -76,6 +76,8 @@ def load_workspace_units(repo_root: Path) -> dict[str, WorkspaceUnit]:
     Raises:
         ValueError: If workspace metadata is malformed or
             required values are missing.
+        TypeError: If workspace metadata types are invalid, including malformed
+            workspace-member/dependency lists or TOML-decoded structures.
     """
     units = _load_python_workspace_units(repo_root)
     npm_units = _load_npm_workspace_units(repo_root)
@@ -91,7 +93,19 @@ def load_workspace_units(repo_root: Path) -> dict[str, WorkspaceUnit]:
 
 
 def _load_python_workspace_units(repo_root: Path) -> dict[str, WorkspaceUnit]:
-    """Load uv workspace units and metadata from pyproject.toml files."""
+    """Load uv workspace units and metadata from pyproject.toml files.
+
+    Args:
+        repo_root: Repository root containing uv workspace configuration.
+
+    Returns:
+        Mapping of Python workspace member path to workspace metadata.
+
+    Raises:
+        ValueError: If ``project.name`` or ``project.version`` is missing.
+        TypeError: If workspace members/dependencies are malformed or decoded
+            TOML content has invalid JSON-like structure.
+    """
     root_pyproject = repo_root / "pyproject.toml"
     root_data = tomllib.loads(root_pyproject.read_text(encoding="utf-8"))
     members = (
@@ -132,7 +146,18 @@ def _load_python_workspace_units(repo_root: Path) -> dict[str, WorkspaceUnit]:
 
 
 def _load_npm_workspace_units(repo_root: Path) -> dict[str, WorkspaceUnit]:
-    """Load release-managed npm workspace units from package.json workspaces."""
+    """Load release-managed npm workspace units from package.json workspaces.
+
+    Args:
+        repo_root: Repository root containing npm workspace configuration.
+
+    Returns:
+        Mapping of npm workspace member path to workspace metadata.
+
+    Raises:
+        ValueError: If required npm package metadata is missing/invalid.
+        TypeError: If workspace or ``novaRelease`` metadata has invalid types.
+    """
     root_package = repo_root / "package.json"
     if not root_package.exists():
         return {}

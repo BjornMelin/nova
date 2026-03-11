@@ -33,7 +33,9 @@ def _validated_planned_versions(version_plan: dict[str, Any]) -> dict[str, str]:
         Mapping of workspace unit ID to validated target version.
 
     Raises:
-        ValueError: If ``version_plan.units`` is malformed or contains an
+        TypeError: If ``version_plan.units`` is not a JSON array or contains
+            non-object entries.
+        ValueError: If ``version_plan.units`` contains an
             invalid ``new_version`` for a planned unit.
     """
     raw_units = version_plan.get("units", [])
@@ -137,6 +139,8 @@ def prepare_npm_publish_artifacts(
         Report payload describing prepared npm publish artifacts.
 
     Raises:
+        TypeError: If workspace metadata, version-plan payloads, or package
+            dependency maps contain invalid JSON structure.
         ValueError: If workspace metadata, version planning, or package content
             is invalid for npm publication.
         OSError: If artifact directories cannot be created or copied.
@@ -253,6 +257,7 @@ def validate_prepared_npm_package(package_json_path: Path) -> None:
         None.
 
     Raises:
+        TypeError: If dependency fields are not JSON objects.
         ValueError: If the prepared package metadata is malformed or still
             contains local-only dependency specifiers.
     """

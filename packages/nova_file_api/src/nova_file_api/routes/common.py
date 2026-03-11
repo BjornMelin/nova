@@ -12,7 +12,7 @@ from nova_file_api.config import Settings
 from nova_file_api.errors import forbidden, invalid_request
 from nova_file_api.metrics import MetricsCollector
 
-WORKER_TOKEN_NOT_CONFIGURED = "worker update token not configured"
+WORKER_TOKEN_INVALID = "invalid worker update token"
 IdempotencyKeyHeader = Annotated[
     str | None,
     Header(alias="Idempotency-Key"),
@@ -58,6 +58,10 @@ def validated_idempotency_key(
 
     Returns:
         The normalized idempotency key when provided and enabled.
+
+    Raises:
+        FileTransferError: If ``idempotency_key`` is blank when idempotency is
+            enabled.
     """
     if not settings.idempotency_enabled:
         return None
@@ -78,6 +82,15 @@ def validate_worker_update_token(
     Args:
         settings: Runtime settings containing worker-token configuration.
         worker_token: Raw ``X-Worker-Token`` header value.
+
+    Returns:
+        None.
+
+    Raises:
+        FileTransferError: If worker-token validation fails. This includes
+            missing worker-token configuration in production (or when non-prod
+            insecure bypass is disabled), and invalid/mismatched provided
+            ``X-Worker-Token`` values.
     """
     expected = settings.jobs_worker_update_token
     expected_token = (
@@ -88,7 +101,7 @@ def validate_worker_update_token(
         if is_prod or not (
             settings.jobs_allow_insecure_missing_worker_token_nonprod
         ):
-            raise forbidden(WORKER_TOKEN_NOT_CONFIGURED)
+            raise forbidden(WORKER_TOKEN_INVALID)
         structlog.get_logger("api").warning(
             "worker_update_token_validation_skipped",
             environment=settings.environment,
@@ -97,4 +110,4 @@ def validate_worker_update_token(
 
     provided = worker_token.strip() if worker_token else ""
     if not compare_digest(expected_token.strip(), provided):
-        raise forbidden("invalid worker update token")
+        raise forbidden(WORKER_TOKEN_INVALID)

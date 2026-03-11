@@ -92,6 +92,8 @@ def apply_version_updates(
     Raises:
         KeyError: If a plan unit_id is missing from workspace units.
         ValueError: If a target pyproject version does not match the plan.
+        TypeError: If ``version_plan`` or ``version_plan["units"]`` has an
+            invalid JSON structure.
     """
     if not isinstance(version_plan, Mapping):
         raise TypeError("version_plan must be a JSON object")

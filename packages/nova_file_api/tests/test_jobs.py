@@ -289,9 +289,11 @@ async def test_sqs_job_publisher_sends_expected_queue_payload() -> None:
 
         async def get_queue_attributes(
             self, **kwargs: object
-        ) -> dict[str, str]:
+        ) -> dict[str, dict[str, str]]:
             del kwargs
-            return {"QueueArn": "arn:aws:sqs:us-east-1:123:jobs"}
+            return {
+                "Attributes": {"QueueArn": "arn:aws:sqs:us-east-1:123:jobs"}
+            }
 
     publisher = SqsJobPublisher(
         queue_url="https://sqs.us-east-1.amazonaws.com/123/jobs",
@@ -319,9 +321,11 @@ async def test_sqs_job_publisher_maps_client_error_to_publish_error() -> None:
 
         async def get_queue_attributes(
             self, **kwargs: object
-        ) -> dict[str, str]:
+        ) -> dict[str, dict[str, str]]:
             del kwargs
-            return {"QueueArn": "arn:aws:sqs:us-east-1:123:jobs"}
+            return {
+                "Attributes": {"QueueArn": "arn:aws:sqs:us-east-1:123:jobs"}
+            }
 
     publisher = SqsJobPublisher(
         queue_url="https://sqs.us-east-1.amazonaws.com/123/jobs",
@@ -343,9 +347,11 @@ async def test_sqs_job_publisher_maps_botocore_error_to_publish_error() -> None:
 
         async def get_queue_attributes(
             self, **kwargs: object
-        ) -> dict[str, str]:
+        ) -> dict[str, dict[str, str]]:
             del kwargs
-            return {"QueueArn": "arn:aws:sqs:us-east-1:123:jobs"}
+            return {
+                "Attributes": {"QueueArn": "arn:aws:sqs:us-east-1:123:jobs"}
+            }
 
     publisher = SqsJobPublisher(
         queue_url="https://sqs.us-east-1.amazonaws.com/123/jobs",
