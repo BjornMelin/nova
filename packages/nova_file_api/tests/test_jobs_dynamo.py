@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, cast
 
 import pytest
 from botocore.exceptions import ClientError
-from nova_file_api.jobs import DynamoJobRepository
+from nova_file_api.jobs import DynamoJobRepository, DynamoResource
 from nova_file_api.models import JobRecord, JobStatus
 
 
@@ -111,7 +111,7 @@ def _fake_repo() -> tuple[DynamoJobRepository, _FakeTable]:
     return (
         DynamoJobRepository(
             table_name="jobs-table",
-            dynamodb_resource=_FakeDynamoResource(table),
+            dynamodb_resource=cast(DynamoResource, _FakeDynamoResource(table)),
         ),
         table,
     )

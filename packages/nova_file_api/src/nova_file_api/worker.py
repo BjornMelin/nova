@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
-import random
+import secrets
 import signal
 from dataclasses import dataclass
 from datetime import datetime
@@ -42,10 +42,24 @@ class WorkerJobMessage:
 
     @classmethod
     def from_body(cls, *, body: str) -> WorkerJobMessage:
-        """Parse and validate an SQS message body payload."""
+        """Parse and validate an SQS message body payload.
+
+        Args:
+            body: Raw SQS message body JSON string.
+
+        Returns:
+            Parsed and validated worker job message.
+
+        Raises:
+            TypeError: If the parsed message body or ``payload`` field is not
+                a JSON object.
+            ValueError: If required fields (``job_id``, ``job_type``, or
+                ``scope_id``) are missing, if result-update fields are present,
+                or if ``created_at`` is invalid.
+        """
         raw = json.loads(body)
         if not isinstance(raw, dict):
-            raise ValueError("message body must be an object")
+            raise TypeError("message body must be an object")
         if {"status", "result", "error"} & raw.keys():
             raise ValueError(
                 "message body must not contain result-update fields"
@@ -63,7 +77,7 @@ class WorkerJobMessage:
         if payload is None:
             payload = {}
         if not isinstance(payload, dict):
-            raise ValueError("message body payload must be an object")
+            raise TypeError("message body payload must be an object")
         try:
             created_at = _parse_iso8601(str(raw.get("created_at", "")).strip())
         except ValueError as exc:
@@ -516,7 +530,7 @@ def _result_update_retry_delay_seconds(*, attempt: int) -> float:
             _RESULT_UPDATE_MAX_DELAY_SECONDS,
         )
     )
-    jitter = random.uniform(0.75, 1.25)
+    jitter = secrets.SystemRandom().uniform(0.75, 1.25)
     return float(delay_seconds * jitter)
 
 

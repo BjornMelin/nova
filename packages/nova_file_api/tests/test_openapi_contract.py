@@ -2,17 +2,11 @@
 
 from __future__ import annotations
 
-from typing import Any
-
 from fastapi import FastAPI
 from fastapi.routing import APIRoute
 from nova_file_api.activity import MemoryActivityStore
-from nova_file_api.app import create_app
 from nova_file_api.auth import Authenticator
-from nova_file_api.cache import LocalTTLCache, SharedRedisCache, TwoTierCache
 from nova_file_api.config import Settings
-from nova_file_api.container import AppContainer
-from nova_file_api.idempotency import IdempotencyStore
 from nova_file_api.jobs import (
     JobService,
     MemoryJobPublisher,
@@ -22,7 +16,12 @@ from nova_file_api.metrics import MetricsCollector
 from nova_file_api.models import AuthMode
 from nova_file_api.operation_ids import OPERATION_ID_BY_PATH_AND_METHOD
 
-from ._test_doubles import StubTransferService
+from .support.app import (
+    build_cache_stack,
+    build_runtime_deps,
+    build_test_app,
+)
+from .support.doubles import StubTransferService
 
 _HTTP_METHODS = frozenset(
     {"get", "post", "put", "patch", "delete", "options", "head", "trace"}
@@ -30,43 +29,36 @@ _HTTP_METHODS = frozenset(
 
 
 def _build_openapi_app() -> FastAPI:
-    """Build the file API app without starting real AWS clients in tests."""
+    """Build the file API app without real external dependencies."""
     settings = Settings()
     settings.auth_mode = AuthMode.SAME_ORIGIN
     settings.jobs_enabled = True
 
     metrics = MetricsCollector(namespace="Tests")
-    shared = SharedRedisCache(url=None)
-    cache = TwoTierCache(
-        local=LocalTTLCache(ttl_seconds=60, max_entries=128),
-        shared=shared,
-        shared_ttl_seconds=60,
-    )
+    shared, cache = build_cache_stack()
     repository = MemoryJobRepository()
-    container = AppContainer(
-        settings=settings,
-        metrics=metrics,
-        cache=cache,
-        shared_cache=shared,
-        authenticator=Authenticator(settings=settings, cache=cache),
-        transfer_service=StubTransferService(),  # type: ignore[arg-type]
-        job_repository=repository,
-        job_service=JobService(
-            repository=repository,
-            publisher=MemoryJobPublisher(),
+    return build_test_app(
+        build_runtime_deps(
+            settings=settings,
             metrics=metrics,
-        ),
-        activity_store=MemoryActivityStore(),
-        idempotency_store=IdempotencyStore(
+            shared_cache=shared,
             cache=cache,
-            enabled=True,
-            ttl_seconds=300,
-        ),
+            authenticator=Authenticator(settings=settings, cache=cache),
+            transfer_service=StubTransferService(),
+            job_service=JobService(
+                repository=repository,
+                publisher=MemoryJobPublisher(),
+                metrics=metrics,
+            ),
+            activity_store=MemoryActivityStore(),
+            idempotency_enabled=True,
+        )
     )
-    return create_app(container_override=container)
 
 
-def _operation_id_map(payload: dict[str, Any]) -> dict[str, dict[str, str]]:
+def _operation_id_map(
+    payload: dict[str, object],
+) -> dict[str, dict[str, str]]:
     paths = payload.get("paths", {})
     assert isinstance(paths, dict)
 
@@ -89,7 +81,7 @@ def _operation_id_map(payload: dict[str, Any]) -> dict[str, dict[str, str]]:
 
 
 def _operation_tag_map(
-    payload: dict[str, Any],
+    payload: dict[str, object],
 ) -> dict[str, dict[str, list[str]]]:
     paths = payload.get("paths", {})
     assert isinstance(paths, dict)
@@ -218,4 +210,3 @@ def test_legacy_routes_are_not_exposed() -> None:
     assert "/api/transfers/uploads/initiate" not in route_paths
     assert "/api/jobs/enqueue" not in route_paths
     assert "/healthz" not in route_paths
-    assert "/readyz" not in route_paths

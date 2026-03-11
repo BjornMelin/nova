@@ -118,6 +118,11 @@ class _FakeTransferService:
         )
 
 
+class _DeterministicSystemRandom:
+    def uniform(self, _lower: float, _upper: float) -> float:
+        return 1.0
+
+
 def _worker_message_body(
     *,
     job_id: str = "job-1",
@@ -537,9 +542,10 @@ async def test_worker_retries_running_update_until_accepted(
         sleep_calls.append(delay)
 
     monkeypatch.setattr("nova_file_api.worker.asyncio.sleep", _fake_sleep)
+
     monkeypatch.setattr(
-        "nova_file_api.worker.random.uniform",
-        lambda _lower, _upper: 1.0,
+        "nova_file_api.worker.secrets.SystemRandom",
+        _DeterministicSystemRandom,
     )
 
     worker = _build_worker(transfer_service=transfer_service)
@@ -618,9 +624,10 @@ async def test_worker_unacked_when_terminal_update_retries_exhausted(
         return None
 
     monkeypatch.setattr("nova_file_api.worker.asyncio.sleep", _fake_sleep)
+
     monkeypatch.setattr(
-        "nova_file_api.worker.random.uniform",
-        lambda _lower, _upper: 1.0,
+        "nova_file_api.worker.secrets.SystemRandom",
+        _DeterministicSystemRandom,
     )
 
     worker = _build_worker(transfer_service=transfer_service)

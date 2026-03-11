@@ -8,10 +8,11 @@ from typing import Annotated
 import structlog
 from fastapi import Header, Query
 
-from nova_file_api.container import AppContainer
+from nova_file_api.config import Settings
 from nova_file_api.errors import forbidden, invalid_request
+from nova_file_api.metrics import MetricsCollector
 
-WORKER_TOKEN_NOT_CONFIGURED = "worker update token not configured"  # noqa: S105
+WORKER_TOKEN_INVALID = "invalid worker update token"
 IdempotencyKeyHeader = Annotated[
     str | None,
     Header(alias="Idempotency-Key"),
@@ -25,21 +26,18 @@ JobsLimitQuery = Annotated[int, Query(ge=1, le=200)]
 
 def emit_request_metric(
     *,
-    container: AppContainer,
+    metrics: MetricsCollector,
     route: str,
     status: str,
 ) -> None:
     """Emit a low-cardinality request counter.
 
     Args:
-        container (AppContainer): Application dependency container.
-        route (str): Route name used for metric dimensions.
-        status (str): Request outcome label.
-
-    Returns:
-        None: Function returns ``None`` after emitting the metric.
+        metrics: Metrics collector used for EMF output.
+        route: Route name used for metric dimensions.
+        status: Request outcome label.
     """
-    container.metrics.emit_emf(
+    metrics.emit_emf(
         metric_name="requests_total",
         value=1,
         unit="Count",
@@ -49,23 +47,23 @@ def emit_request_metric(
 
 def validated_idempotency_key(
     *,
-    container: AppContainer,
+    settings: Settings,
     idempotency_key: str | None,
 ) -> str | None:
     """Validate the Idempotency-Key header for mutation routes.
 
     Args:
-        container: Application dependency container.
+        settings: Runtime settings used to check feature enablement.
         idempotency_key: Raw ``Idempotency-Key`` header value.
 
     Returns:
-        The normalized idempotency key when provided and enabled; otherwise
-        ``None``.
+        The normalized idempotency key when provided and enabled.
 
     Raises:
-        FileTransferError: If the header is present but blank.
+        FileTransferError: If ``idempotency_key`` is blank when idempotency is
+            enabled.
     """
-    if not container.settings.idempotency_enabled:
+    if not settings.idempotency_enabled:
         return None
     if idempotency_key is None:
         return None
@@ -76,41 +74,40 @@ def validated_idempotency_key(
 
 def validate_worker_update_token(
     *,
-    container: AppContainer,
+    settings: Settings,
     worker_token: str | None,
 ) -> None:
     """Validate the worker-side update token.
 
     Args:
-        container: Application dependency container.
+        settings: Runtime settings containing worker-token configuration.
         worker_token: Raw ``X-Worker-Token`` header value.
 
     Returns:
         None.
 
     Raises:
-        FileTransferError: If the worker token is missing/invalid when
-            enforcement is required.
+        FileTransferError: If worker-token validation fails. This includes
+            missing worker-token configuration in production (or when non-prod
+            insecure bypass is disabled), and invalid/mismatched provided
+            ``X-Worker-Token`` values.
     """
-    expected = container.settings.jobs_worker_update_token
+    expected = settings.jobs_worker_update_token
     expected_token = (
         expected.get_secret_value() if expected is not None else None
     )
     if expected_token is None or not expected_token.strip():
-        is_prod = container.settings.environment.lower() in {
-            "prod",
-            "production",
-        }
+        is_prod = settings.environment.lower() in {"prod", "production"}
         if is_prod or not (
-            container.settings.jobs_allow_insecure_missing_worker_token_nonprod
+            settings.jobs_allow_insecure_missing_worker_token_nonprod
         ):
-            raise forbidden(WORKER_TOKEN_NOT_CONFIGURED)
+            raise forbidden(WORKER_TOKEN_INVALID)
         structlog.get_logger("api").warning(
             "worker_update_token_validation_skipped",
-            environment=container.settings.environment,
+            environment=settings.environment,
         )
         return
 
     provided = worker_token.strip() if worker_token else ""
     if not compare_digest(expected_token.strip(), provided):
-        raise forbidden("invalid worker update token")
+        raise forbidden(WORKER_TOKEN_INVALID)

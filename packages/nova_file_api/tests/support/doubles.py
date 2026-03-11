@@ -1,3 +1,5 @@
+"""Test doubles for nova_file_api auth and transfer interfaces."""
+
 from __future__ import annotations
 
 from nova_file_api.models import (
@@ -18,6 +20,8 @@ from starlette.requests import Request
 
 
 class StubAuthenticator:
+    """Authenticator test double that returns a fixed principal."""
+
     async def authenticate(
         self,
         *,
@@ -34,16 +38,16 @@ class StubAuthenticator:
         )
 
     async def healthcheck(self) -> bool:
-        """Return healthy status for tests using this stub authenticator.
-
-        Returns:
-            ``True`` to indicate the test double is always healthy.
-        """
+        """Return True to indicate the stub is always healthy."""
         return True
 
 
 class StubTransferService:
-    """Async transfer test double that fails on unexpected calls."""
+    """
+    Transfer service test double that raises AssertionError on any call.
+
+    Tests must stub or override methods when transfer behavior is needed.
+    """
 
     async def initiate_upload(
         self,

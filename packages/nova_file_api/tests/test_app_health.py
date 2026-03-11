@@ -2,16 +2,8 @@ from __future__ import annotations
 
 from fastapi.testclient import TestClient
 from nova_file_api.activity import MemoryActivityStore
-from nova_file_api.app import create_app
 from nova_file_api.auth import Authenticator
-from nova_file_api.cache import (
-    LocalTTLCache,
-    SharedRedisCache,
-    TwoTierCache,
-)
 from nova_file_api.config import Settings
-from nova_file_api.container import AppContainer
-from nova_file_api.idempotency import IdempotencyStore
 from nova_file_api.jobs import (
     JobService,
     MemoryJobPublisher,
@@ -20,52 +12,47 @@ from nova_file_api.jobs import (
 from nova_file_api.metrics import MetricsCollector
 from nova_file_api.models import AuthMode
 
-from ._test_doubles import StubAuthenticator, StubTransferService
+from .support.app import (
+    RuntimeDeps,
+    build_cache_stack,
+    build_runtime_deps,
+    build_test_app,
+)
+from .support.doubles import StubAuthenticator, StubTransferService
 
 
-def _build_container(
+def _build_deps(
     *,
     jobs_enabled: bool = True,
     file_transfer_bucket: str = "test-transfer-bucket",
-) -> AppContainer:
-    """Build an app container with in-memory test doubles."""
+) -> RuntimeDeps:
+    """Build in-memory test doubles for readiness and health checks."""
     settings = Settings()
     settings.jobs_enabled = jobs_enabled
     settings.file_transfer_bucket = file_transfer_bucket
     metrics = MetricsCollector(namespace="Tests")
-    shared = SharedRedisCache(url=None)
-    cache = TwoTierCache(
-        local=LocalTTLCache(ttl_seconds=60, max_entries=128),
-        shared=shared,
-        shared_ttl_seconds=60,
-    )
-    repo = MemoryJobRepository()
-    jobs = JobService(
-        repository=repo,
+    shared, cache = build_cache_stack()
+    job_service = JobService(
+        repository=MemoryJobRepository(),
         publisher=MemoryJobPublisher(),
         metrics=metrics,
     )
-    return AppContainer(
+    return build_runtime_deps(
         settings=settings,
         metrics=metrics,
-        cache=cache,
         shared_cache=shared,
-        authenticator=StubAuthenticator(),  # type: ignore[arg-type]
-        transfer_service=StubTransferService(),  # type: ignore[arg-type]
-        job_repository=repo,
-        job_service=jobs,
+        cache=cache,
+        authenticator=StubAuthenticator(),
+        transfer_service=StubTransferService(),
+        job_service=job_service,
         activity_store=MemoryActivityStore(),
-        idempotency_store=IdempotencyStore(
-            cache=cache,
-            enabled=True,
-            ttl_seconds=300,
-        ),
+        idempotency_enabled=True,
     )
 
 
 def test_v1_health_live_returns_ok() -> None:
     """Verify `/v1/health/live` returns 200 with an ok payload."""
-    app = create_app(container_override=_build_container())
+    app = build_test_app(_build_deps())
     with TestClient(app) as client:
         response = client.get("/v1/health/live")
     assert response.status_code == 200
@@ -74,7 +61,7 @@ def test_v1_health_live_returns_ok() -> None:
 
 def test_v1_health_ready_returns_expected_checks() -> None:
     """Verify `/v1/health/ready` exposes expected readiness checks."""
-    app = create_app(container_override=_build_container())
+    app = build_test_app(_build_deps())
     with TestClient(app) as client:
         response = client.get("/v1/health/ready")
     assert response.status_code == 200
@@ -91,7 +78,7 @@ def test_v1_health_ready_returns_expected_checks() -> None:
 
 def test_readyz_stays_ok_when_jobs_are_disabled() -> None:
     """Verify feature flags do not force readiness false."""
-    app = create_app(container_override=_build_container(jobs_enabled=False))
+    app = build_test_app(_build_deps(jobs_enabled=False))
     with TestClient(app) as client:
         response = client.get("/v1/health/ready")
     assert response.status_code == 200
@@ -108,9 +95,7 @@ def test_readyz_stays_ok_when_jobs_are_disabled() -> None:
 
 def test_readyz_fails_when_bucket_is_missing() -> None:
     """Verify readiness fails when FILE_TRANSFER_BUCKET is not configured."""
-    app = create_app(
-        container_override=_build_container(file_transfer_bucket="")
-    )
+    app = build_test_app(_build_deps(file_transfer_bucket=""))
     with TestClient(app) as client:
         response = client.get("/v1/health/ready")
     assert response.status_code == 503
@@ -127,16 +112,16 @@ def test_readyz_fails_when_bucket_is_missing() -> None:
 
 def test_readyz_fails_when_jwt_local_oidc_settings_are_incomplete() -> None:
     """Verify jwt_local readiness fails closed without full OIDC config."""
-    container = _build_container()
-    container.settings.auth_mode = AuthMode.JWT_LOCAL
-    container.settings.oidc_issuer = "https://issuer.example/"
-    container.settings.oidc_audience = None
-    container.settings.oidc_jwks_url = None
-    container.authenticator = Authenticator(
-        settings=container.settings,
-        cache=container.cache,
+    deps = _build_deps()
+    deps.settings.auth_mode = AuthMode.JWT_LOCAL
+    deps.settings.oidc_issuer = "https://issuer.example/"
+    deps.settings.oidc_audience = None
+    deps.settings.oidc_jwks_url = None
+    deps.authenticator = Authenticator(
+        settings=deps.settings,
+        cache=deps.cache,
     )
-    app = create_app(container_override=container)
+    app = build_test_app(deps)
 
     with TestClient(app) as client:
         response = client.get("/v1/health/ready")
@@ -155,7 +140,7 @@ def test_readyz_fails_when_jwt_local_oidc_settings_are_incomplete() -> None:
 
 def test_validation_errors_use_canonical_error_envelope() -> None:
     """Verify request validation failures return the standard error envelope."""
-    app = create_app(container_override=_build_container())
+    app = build_test_app(_build_deps())
     with TestClient(app) as client:
         response = client.post(
             "/v1/jobs",

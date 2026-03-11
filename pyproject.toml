@@ -100,13 +100,44 @@ exclude = [
 ]
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "B", "UP", "SIM", "D"]
-ignore = ["D203", "D213"]
+select = [
+  "E",     # Errors
+  "W",     # Warnings
+  "F",     # Flake8
+  "I",     # Imports
+  "B",     # Bugbear
+  "UP",    # Upgrades
+  "SIM",   # Simplicity
+  "D",     # Docstring
+  "FAST",  # FastAPI
+  "ASYNC", # flake8-async
+  "S",     # flake8-bandit
+  "PERF",  # flake8-performance
+  "TRY",   # flake8-try
+  "RUF",   # ruff
+]
+ignore = ["D203", "D213", "S101", "TRY301", "TRY003"]
 
 [tool.ruff.lint.per-file-ignores]
 "**/tests/**/*.py" = ["D"]
 "packages/nova_sdk_py_auth/src/**/*.py" = ["D", "E501"]
 "packages/nova_sdk_py_file/src/**/*.py" = ["D", "E501"]
+"packages/nova_auth_api/src/nova_auth_api/operation_ids.py" = ["S105"]
+"packages/nova_auth_api/tests/test_app.py" = ["S105"]
+"packages/nova_auth_api/tests/test_service.py" = ["S106"]
+"packages/nova_file_api/src/nova_file_api/config.py" = ["S105"]
+"packages/nova_file_api/src/nova_file_api/routes/common.py" = ["S105"]
+"packages/nova_file_api/tests/test_activity_dynamo.py" = ["S105"]
+"packages/nova_file_api/tests/test_auth.py" = ["S106"]
+"packages/nova_file_api/tests/test_generated_client_smoke.py" = ["S603"]
+"packages/nova_file_api/tests/test_logging_sanitization.py" = ["S105"]
+"scripts/release/codeartifact_npm.py" = ["S603", "S607"]
+"scripts/release/common.py" = ["S603", "S607"]
+"scripts/release/download_run_artifact.py" = ["S310"]
+"scripts/release/generate_clients.py" = ["S603"]
+"scripts/release/generate_python_clients.py" = ["S603"]
+"scripts/release/tests/test_download_run_artifact.py" = ["S106"]
+"scripts/release/validate_route_contract.py" = ["S310"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"

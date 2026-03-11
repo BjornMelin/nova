@@ -5,9 +5,10 @@ from __future__ import annotations
 import asyncio
 import inspect
 import json
+from collections.abc import Awaitable, Mapping
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from typing import Any, Protocol, cast
+from typing import Protocol, cast
 from uuid import uuid4
 
 from botocore.exceptions import BotoCoreError, ClientError
@@ -15,6 +16,8 @@ from botocore.exceptions import BotoCoreError, ClientError
 from nova_file_api.errors import conflict, not_found, queue_unavailable
 from nova_file_api.metrics import MetricsCollector
 from nova_file_api.models import JobRecord, JobStatus
+
+JsonObject = dict[str, object]
 
 
 class JobRepository(Protocol):
@@ -53,6 +56,9 @@ class JobRepository(Protocol):
             ValueError: If ``limit`` is not a positive integer.
         """
 
+    async def healthcheck(self) -> bool:
+        """Return readiness of the backing storage dependency."""
+
 
 class JobPublisher(Protocol):
     """Queue interface for background job dispatch."""
@@ -73,11 +79,43 @@ class JobPublisher(Protocol):
         """Return readiness of the backing queue dependency."""
 
 
+class DynamoTable(Protocol):
+    """Subset of DynamoDB table operations used by repositories."""
+
+    async def put_item(self, **kwargs: object) -> Mapping[str, object]:
+        """Create or replace an item."""
+
+    async def get_item(self, **kwargs: object) -> Mapping[str, object]:
+        """Read a single item by key."""
+
+    async def query(self, **kwargs: object) -> Mapping[str, object]:
+        """Query items using a secondary index."""
+
+
+class DynamoResource(Protocol):
+    """Subset of DynamoDB resource operations used by repositories."""
+
+    def Table(self, table_name: str) -> DynamoTable | Awaitable[DynamoTable]:
+        """Return table object or awaitable table object."""
+
+
+class SqsClient(Protocol):
+    """Subset of SQS client operations used by publishers."""
+
+    async def send_message(self, **kwargs: object) -> Mapping[str, object]:
+        """Publish a queue message."""
+
+    async def get_queue_attributes(
+        self, **kwargs: object
+    ) -> Mapping[str, object]:
+        """Read queue attributes for health checks."""
+
+
 @dataclass(slots=True)
 class JobPublishError(Exception):
     """Raised when queue publish fails and enqueue cannot proceed."""
 
-    details: dict[str, Any]
+    details: dict[str, str]
 
     def __post_init__(self) -> None:
         """Provide a stable Exception message for logging surfaces."""
@@ -163,14 +201,18 @@ class MemoryJobRepository:
         records.sort(key=lambda r: r.created_at, reverse=True)
         return records[:limit]
 
+    async def healthcheck(self) -> bool:
+        """Report readiness for in-memory storage (always ready)."""
+        return True
+
 
 @dataclass(slots=True)
 class DynamoJobRepository:
     """DynamoDB-backed job record repository."""
 
     table_name: str
-    dynamodb_resource: Any
-    _table: Any | None = field(init=False, repr=False, default=None)
+    dynamodb_resource: DynamoResource
+    _table: DynamoTable | None = field(init=False, repr=False, default=None)
     _table_lock: asyncio.Lock = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
@@ -189,7 +231,7 @@ class DynamoJobRepository:
         item = response.get("Item")
         if item is None:
             return None
-        return _item_to_record(item)
+        return _item_to_record(cast(JsonObject, item))
 
     async def update(self, record: JobRecord) -> None:
         """Replace an existing job record."""
@@ -240,12 +282,12 @@ class DynamoJobRepository:
         if limit <= 0:
             raise ValueError("limit must be greater than zero")
 
-        items: list[dict[str, Any]] = []
-        last_evaluated_key: dict[str, Any] | None = None
+        items: list[JsonObject] = []
+        last_evaluated_key: JsonObject | None = None
         remaining = limit
         table = await self._resolve_table()
         while True:
-            query_kwargs: dict[str, Any] = {
+            query_kwargs: dict[str, object] = {
                 "IndexName": "scope_id-created_at-index",
                 "KeyConditionExpression": "#scope_id = :scope_id",
                 "ExpressionAttributeNames": {"#scope_id": "scope_id"},
@@ -282,14 +324,16 @@ class DynamoJobRepository:
                         "jobs table is not configured for scoped listing"
                     ) from exc
                 raise
-            items.extend(response.get("Items", []))
-            last_evaluated_key = response.get("LastEvaluatedKey")
+            items.extend(cast(list[JsonObject], response.get("Items", [])))
+            last_evaluated_key = cast(
+                JsonObject | None, response.get("LastEvaluatedKey")
+            )
             remaining = limit - len(items)
             if last_evaluated_key is None or remaining <= 0:
                 break
         return [_item_to_record(item) for item in items[:limit]]
 
-    async def _resolve_table(self) -> Any:
+    async def _resolve_table(self) -> DynamoTable:
         if self._table is not None:
             return self._table
         async with self._table_lock:
@@ -298,7 +342,17 @@ class DynamoJobRepository:
                 if inspect.isawaitable(table):
                     table = await table
                 self._table = table
-        return cast(Any, self._table)
+        assert self._table is not None
+        return self._table
+
+    async def healthcheck(self) -> bool:
+        """Return True when the DynamoDB table is reachable."""
+        try:
+            table = await self._resolve_table()
+            await table.get_item(Key={"job_id": "__health_check__"})
+        except (ClientError, BotoCoreError):
+            return False
+        return True
 
 
 @dataclass(slots=True)
@@ -350,7 +404,7 @@ class SqsJobPublisher:
     """SQS-backed queue publisher."""
 
     queue_url: str
-    sqs_client: Any
+    sqs_client: SqsClient
 
     async def publish(self, *, job: JobRecord) -> None:
         """Publish a job payload to SQS.
@@ -424,7 +478,7 @@ class JobService:
         self,
         *,
         job_type: str,
-        payload: dict[str, Any],
+        payload: JsonObject,
         scope_id: str,
     ) -> JobRecord:
         """Create and enqueue a job record."""
@@ -562,7 +616,7 @@ class JobService:
         *,
         job_id: str,
         status: JobStatus,
-        result: dict[str, Any] | None,
+        result: JsonObject | None,
         error: str | None,
     ) -> JobRecord:
         """Update job result/status from worker-side processing."""
@@ -580,7 +634,7 @@ class JobService:
             )
 
         now = _utc_now()
-        update_payload: dict[str, Any] = {
+        update_payload: dict[str, object] = {
             "status": status,
             "updated_at": now,
         }
@@ -680,11 +734,11 @@ def _is_valid_transition(*, current: JobStatus, target: JobStatus) -> bool:
     return target in _ALLOWED_TRANSITIONS[current]
 
 
-def _record_to_item(record: JobRecord) -> dict[str, Any]:
+def _record_to_item(record: JobRecord) -> JsonObject:
     """Serialize JobRecord to DynamoDB-friendly item."""
-    return record.model_dump(mode="json")
+    return cast(JsonObject, record.model_dump(mode="json"))
 
 
-def _item_to_record(item: dict[str, Any]) -> JobRecord:
+def _item_to_record(item: JsonObject) -> JobRecord:
     """Deserialize DynamoDB item to JobRecord."""
     return JobRecord.model_validate(item)

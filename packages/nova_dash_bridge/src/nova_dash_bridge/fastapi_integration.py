@@ -174,7 +174,7 @@ def create_fastapi_router(
         async def wrapped(request: Request) -> Any:
             try:
                 return await handler(request)
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 err = coerce_file_transfer_error(exc)
                 return json_response(
                     status_code=int(err.status_code),

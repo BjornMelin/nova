@@ -5,11 +5,7 @@ from __future__ import annotations
 import httpx
 import pytest
 from nova_file_api.activity import MemoryActivityStore
-from nova_file_api.app import create_app
-from nova_file_api.cache import LocalTTLCache, SharedRedisCache, TwoTierCache
 from nova_file_api.config import Settings
-from nova_file_api.container import AppContainer
-from nova_file_api.idempotency import IdempotencyStore
 from nova_file_api.jobs import (
     JobService,
     MemoryJobPublisher,
@@ -19,14 +15,14 @@ from nova_file_api.metrics import MetricsCollector
 from nova_file_api.models import AuthMode, Principal
 from starlette.requests import Request
 
-from tests._test_doubles import StubTransferService
+from .support.app import build_cache_stack, build_runtime_deps, build_test_app
+from .support.doubles import StubTransferService
 
 
 class _StubAuthenticator:
     """Return a fixed principal for metrics summary authorization tests."""
 
     def __init__(self, *, permissions: tuple[str, ...]) -> None:
-        """Store the permissions exposed by the fake authenticator."""
         self._permissions = permissions
 
     async def authenticate(
@@ -45,12 +41,12 @@ class _StubAuthenticator:
         )
 
 
-async def _build_container(
+async def _request_metrics_summary(
     *,
     auth_mode: AuthMode,
     permissions: tuple[str, ...],
-) -> AppContainer:
-    """Build a minimal app container for metrics summary tests."""
+) -> httpx.Response:
+    """Create a test app and return one /metrics/summary response."""
     settings = Settings()
     settings.auth_mode = auth_mode
 
@@ -58,12 +54,7 @@ async def _build_container(
     metrics.incr("requests_total")
     metrics.observe_ms("jobs_enqueue_ms", 12.345)
 
-    shared_cache = SharedRedisCache(url=None)
-    cache = TwoTierCache(
-        local=LocalTTLCache(ttl_seconds=60, max_entries=128),
-        shared=shared_cache,
-        shared_ttl_seconds=60,
-    )
+    shared_cache, cache = build_cache_stack()
     job_repository = MemoryJobRepository()
     job_service = JobService(
         repository=job_repository,
@@ -76,36 +67,17 @@ async def _build_container(
         event_type="jobs_enqueue",
     )
 
-    return AppContainer(
-        settings=settings,
-        metrics=metrics,
-        cache=cache,
-        shared_cache=shared_cache,
-        authenticator=(
-            _StubAuthenticator(permissions=permissions)  # type: ignore[arg-type]
-        ),
-        transfer_service=StubTransferService(),  # type: ignore[arg-type]
-        job_repository=job_repository,
-        job_service=job_service,
-        activity_store=activity_store,
-        idempotency_store=IdempotencyStore(
+    app = build_test_app(
+        build_runtime_deps(
+            settings=settings,
+            metrics=metrics,
+            shared_cache=shared_cache,
             cache=cache,
-            enabled=True,
-            ttl_seconds=300,
-        ),
-    )
-
-
-async def _request_metrics_summary(
-    *,
-    auth_mode: AuthMode,
-    permissions: tuple[str, ...],
-) -> httpx.Response:
-    """Create a test app and return one /metrics/summary response."""
-    app = create_app(
-        container_override=await _build_container(
-            auth_mode=auth_mode,
-            permissions=permissions,
+            authenticator=_StubAuthenticator(permissions=permissions),
+            transfer_service=StubTransferService(),
+            job_service=job_service,
+            activity_store=activity_store,
+            idempotency_enabled=True,
         )
     )
     async with (

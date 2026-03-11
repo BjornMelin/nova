@@ -2,23 +2,14 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
-from typing import Any
 
 import httpx
 import pytest
 from botocore.exceptions import BotoCoreError, ClientError
 from nova_file_api.activity import MemoryActivityStore
-from nova_file_api.app import create_app
 from nova_file_api.auth import Authenticator
-from nova_file_api.cache import (
-    LocalTTLCache,
-    SharedRedisCache,
-    TwoTierCache,
-)
 from nova_file_api.config import Settings
-from nova_file_api.container import AppContainer
 from nova_file_api.errors import FileTransferError, queue_unavailable
-from nova_file_api.idempotency import IdempotencyStore
 from nova_file_api.jobs import (
     JobPublishError,
     JobRepository,
@@ -35,7 +26,13 @@ from nova_file_api.models import (
 )
 from pydantic import SecretStr
 
-from ._test_doubles import StubAuthenticator, StubTransferService
+from .support.app import (
+    RuntimeDeps,
+    build_cache_stack,
+    build_runtime_deps,
+    build_test_app,
+)
+from .support.doubles import StubAuthenticator, StubTransferService
 
 CaptureEmf = Callable[[MetricsCollector], list[dict[str, str]]]
 
@@ -115,12 +112,12 @@ class _FlakyJobService:
         self,
         *,
         job_type: str,
-        payload: dict[str, Any],
+        payload: dict[str, object],
         scope_id: str,
     ) -> JobRecord:
         self.calls += 1
         if self.calls == 1:
-            raise queue_unavailable(  # noqa: TRY003 - explicit message asserted through API error flow
+            raise queue_unavailable(
                 "job enqueue failed because queue publish failed"
             )
         now = datetime.now(tz=UTC)
@@ -150,7 +147,7 @@ class _AlwaysFailingJobService:
         self,
         *,
         job_type: str,
-        payload: dict[str, Any],
+        payload: dict[str, object],
         scope_id: str,
     ) -> JobRecord:
         del job_type, payload, scope_id
@@ -169,25 +166,20 @@ class _AlwaysFailingJobService:
         *,
         job_id: str,
         status: JobStatus,
-        result: dict[str, Any] | None,
+        result: dict[str, object] | None,
         error: str | None,
     ) -> JobRecord:
         del job_id, status, result, error
         raise _TestDoubleError
 
 
-async def _build_same_origin_status_container(*, scope_id: str) -> AppContainer:
+async def _build_same_origin_status_container(*, scope_id: str) -> RuntimeDeps:
     settings = Settings()
     settings.auth_mode = AuthMode.SAME_ORIGIN
     settings.jobs_enabled = True
 
     metrics = MetricsCollector(namespace="Tests")
-    shared = SharedRedisCache(url=None)
-    cache = TwoTierCache(
-        local=LocalTTLCache(ttl_seconds=60, max_entries=128),
-        shared=shared,
-        shared_ttl_seconds=60,
-    )
+    shared, cache = build_cache_stack()
     repository = MemoryJobRepository()
     service = JobService(
         repository=repository,
@@ -209,54 +201,41 @@ async def _build_same_origin_status_container(*, scope_id: str) -> AppContainer:
         )
     )
 
-    return AppContainer(
+    return build_runtime_deps(
         settings=settings,
         metrics=metrics,
         cache=cache,
         shared_cache=shared,
         authenticator=Authenticator(settings=settings, cache=cache),
-        transfer_service=StubTransferService(),  # type: ignore[arg-type]
+        transfer_service=StubTransferService(),
         job_repository=repository,
         job_service=service,
         activity_store=MemoryActivityStore(),
-        idempotency_store=IdempotencyStore(
-            cache=cache,
-            enabled=True,
-            ttl_seconds=300,
-        ),
+        idempotency_enabled=True,
     )
 
 
 def _build_failing_job_container(
     *,
     worker_token: SecretStr | None = None,
-) -> tuple[AppContainer, MetricsCollector, MemoryActivityStore]:
+) -> tuple[RuntimeDeps, MetricsCollector, MemoryActivityStore]:
     settings = Settings()
     settings.jobs_enabled = True
     settings.jobs_worker_update_token = worker_token
     metrics = MetricsCollector(namespace="Tests")
-    shared = SharedRedisCache(url=None)
-    cache = TwoTierCache(
-        local=LocalTTLCache(ttl_seconds=60, max_entries=128),
-        shared=shared,
-        shared_ttl_seconds=60,
-    )
+    shared, cache = build_cache_stack()
     activity_store = MemoryActivityStore()
-    container = AppContainer(
+    container = build_runtime_deps(
         settings=settings,
         metrics=metrics,
         cache=cache,
         shared_cache=shared,
-        authenticator=StubAuthenticator(),  # type: ignore[arg-type]
-        transfer_service=StubTransferService(),  # type: ignore[arg-type]
+        authenticator=StubAuthenticator(),
+        transfer_service=StubTransferService(),
         job_repository=MemoryJobRepository(),
-        job_service=_AlwaysFailingJobService(),  # type: ignore[arg-type]
+        job_service=_AlwaysFailingJobService(),
         activity_store=activity_store,
-        idempotency_store=IdempotencyStore(
-            cache=cache,
-            enabled=True,
-            ttl_seconds=300,
-        ),
+        idempotency_enabled=True,
     )
     return container, metrics, activity_store
 
@@ -301,12 +280,20 @@ def capture_emf(
 
 @pytest.mark.asyncio
 async def test_sqs_job_publisher_sends_expected_queue_payload() -> None:
-    captured: dict[str, Any] = {}
+    captured_send_kwargs: dict[str, object] = {}
 
     class _FakeSqsClient:
         async def send_message(self, **kwargs: object) -> dict[str, str]:
-            captured["send_kwargs"] = kwargs
+            captured_send_kwargs.update(kwargs)
             return {"MessageId": "1"}
+
+        async def get_queue_attributes(
+            self, **kwargs: object
+        ) -> dict[str, dict[str, str]]:
+            del kwargs
+            return {
+                "Attributes": {"QueueArn": "arn:aws:sqs:us-east-1:123:jobs"}
+            }
 
     publisher = SqsJobPublisher(
         queue_url="https://sqs.us-east-1.amazonaws.com/123/jobs",
@@ -314,8 +301,10 @@ async def test_sqs_job_publisher_sends_expected_queue_payload() -> None:
     )
     await publisher.publish(job=_job_record())
 
-    assert captured["send_kwargs"]["QueueUrl"].endswith("/jobs")
-    assert "MessageBody" in captured["send_kwargs"]
+    queue_url = captured_send_kwargs.get("QueueUrl")
+    assert isinstance(queue_url, str)
+    assert queue_url.endswith("/jobs")
+    assert "MessageBody" in captured_send_kwargs
 
 
 @pytest.mark.asyncio
@@ -329,6 +318,14 @@ async def test_sqs_job_publisher_maps_client_error_to_publish_error() -> None:
                 },
                 operation_name="SendMessage",
             )
+
+        async def get_queue_attributes(
+            self, **kwargs: object
+        ) -> dict[str, dict[str, str]]:
+            del kwargs
+            return {
+                "Attributes": {"QueueArn": "arn:aws:sqs:us-east-1:123:jobs"}
+            }
 
     publisher = SqsJobPublisher(
         queue_url="https://sqs.us-east-1.amazonaws.com/123/jobs",
@@ -347,6 +344,14 @@ async def test_sqs_job_publisher_maps_botocore_error_to_publish_error() -> None:
         async def send_message(self, **kwargs: object) -> dict[str, str]:
             del kwargs
             raise BotoCoreError()
+
+        async def get_queue_attributes(
+            self, **kwargs: object
+        ) -> dict[str, dict[str, str]]:
+            del kwargs
+            return {
+                "Attributes": {"QueueArn": "arn:aws:sqs:us-east-1:123:jobs"}
+            }
 
     publisher = SqsJobPublisher(
         queue_url="https://sqs.us-east-1.amazonaws.com/123/jobs",
@@ -443,32 +448,23 @@ async def test_enqueue_failure_is_not_idempotency_cached() -> None:
     settings.idempotency_enabled = True
 
     metrics = MetricsCollector(namespace="Tests")
-    shared = SharedRedisCache(url=None)
-    cache = TwoTierCache(
-        local=LocalTTLCache(ttl_seconds=60, max_entries=128),
-        shared=shared,
-        shared_ttl_seconds=60,
-    )
+    shared, cache = build_cache_stack()
     job_service = _FlakyJobService()
 
-    container = AppContainer(
+    container = build_runtime_deps(
         settings=settings,
         metrics=metrics,
         cache=cache,
         shared_cache=shared,
-        authenticator=StubAuthenticator(),  # type: ignore[arg-type]
-        transfer_service=StubTransferService(),  # type: ignore[arg-type]
+        authenticator=StubAuthenticator(),
+        transfer_service=StubTransferService(),
         job_repository=MemoryJobRepository(),
-        job_service=job_service,  # type: ignore[arg-type]
+        job_service=job_service,
         activity_store=MemoryActivityStore(),
-        idempotency_store=IdempotencyStore(
-            cache=cache,
-            enabled=True,
-            ttl_seconds=300,
-        ),
+        idempotency_enabled=True,
     )
 
-    app = create_app(container_override=container)
+    app = build_test_app(container)
     async with (
         app.router.lifespan_context(app),
         httpx.AsyncClient(
@@ -785,12 +781,7 @@ async def test_update_job_result_requires_valid_worker_token() -> None:
     settings.jobs_worker_update_token = SecretStr("test-worker-token")
 
     metrics = MetricsCollector(namespace="Tests")
-    shared = SharedRedisCache(url=None)
-    cache = TwoTierCache(
-        local=LocalTTLCache(ttl_seconds=60, max_entries=128),
-        shared=shared,
-        shared_ttl_seconds=60,
-    )
+    shared, cache = build_cache_stack()
     repository = MemoryJobRepository()
     service = JobService(
         repository=repository,
@@ -812,24 +803,20 @@ async def test_update_job_result_requires_valid_worker_token() -> None:
         )
     )
 
-    container = AppContainer(
+    container = build_runtime_deps(
         settings=settings,
         metrics=metrics,
         cache=cache,
         shared_cache=shared,
-        authenticator=StubAuthenticator(),  # type: ignore[arg-type]
-        transfer_service=StubTransferService(),  # type: ignore[arg-type]
+        authenticator=StubAuthenticator(),
+        transfer_service=StubTransferService(),
         job_repository=repository,
         job_service=service,
         activity_store=MemoryActivityStore(),
-        idempotency_store=IdempotencyStore(
-            cache=cache,
-            enabled=True,
-            ttl_seconds=300,
-        ),
+        idempotency_enabled=True,
     )
 
-    app = create_app(container_override=container)
+    app = build_test_app(container)
     async with (
         app.router.lifespan_context(app),
         httpx.AsyncClient(
@@ -864,7 +851,7 @@ async def test_get_job_status_failure_emits_error_observability(
 ) -> None:
     container, metrics, activity_store = _build_failing_job_container()
     emitted_dimensions = capture_emf(metrics)
-    app = create_app(container_override=container)
+    app = build_test_app(container)
     async with (
         app.router.lifespan_context(app),
         httpx.AsyncClient(
@@ -887,10 +874,8 @@ async def test_get_job_status_failure_emits_error_observability(
 @pytest.mark.asyncio
 async def test_legacy_cancel_route_is_not_exposed() -> None:
     """Verify legacy cancel route is not exposed and returns 404."""
-    app = create_app(
-        container_override=await _build_same_origin_status_container(
-            scope_id="scope-legacy"
-        )
+    app = build_test_app(
+        await _build_same_origin_status_container(scope_id="scope-legacy")
     )
     async with (
         app.router.lifespan_context(app),
@@ -911,7 +896,7 @@ async def test_cancel_job_failure_emits_error_observability(
     """Verify cancel failures emit metrics and observability dimensions."""
     container, metrics, activity_store = _build_failing_job_container()
     emitted_dimensions = capture_emf(metrics)
-    app = create_app(container_override=container)
+    app = build_test_app(container)
     async with (
         app.router.lifespan_context(app),
         httpx.AsyncClient(
@@ -939,7 +924,7 @@ async def test_update_job_result_failure_emits_error_observability(
         worker_token=SecretStr("test-worker-token")
     )
     emitted_dimensions = capture_emf(metrics)
-    app = create_app(container_override=container)
+    app = build_test_app(container)
     async with (
         app.router.lifespan_context(app),
         httpx.AsyncClient(
@@ -971,7 +956,7 @@ async def test_get_job_status_accepts_scope_header_same_origin() -> None:
     container = await _build_same_origin_status_container(
         scope_id="scope-header"
     )
-    app = create_app(container_override=container)
+    app = build_test_app(container)
     async with (
         app.router.lifespan_context(app),
         httpx.AsyncClient(
@@ -997,7 +982,7 @@ async def test_get_job_status_requires_session_scope_in_same_origin_mode() -> (
     container = await _build_same_origin_status_container(
         scope_id="scope-header"
     )
-    app = create_app(container_override=container)
+    app = build_test_app(container)
     async with (
         app.router.lifespan_context(app),
         httpx.AsyncClient(

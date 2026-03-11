@@ -40,7 +40,7 @@ def _request_json(*, url: str, token: str) -> dict[str, Any]:
     ) as response:
         payload = json.loads(response.read().decode("utf-8"))
     if not isinstance(payload, dict):
-        raise RuntimeError("GitHub API returned a non-object JSON payload")
+        raise TypeError("GitHub API returned a non-object JSON payload")
     return payload
 
 
@@ -188,7 +188,7 @@ def _find_named_artifact(
                 total_count = raw_total_count
         artifacts = listing.get("artifacts", [])
         if not isinstance(artifacts, list):
-            raise RuntimeError("GitHub API returned invalid artifacts payload")
+            raise TypeError("GitHub API returned invalid artifacts payload")
         typed_artifacts = [item for item in artifacts if isinstance(item, dict)]
         matches.extend(
             item
@@ -246,50 +246,74 @@ def download_run_artifact(
 
     Raises:
         RuntimeError: If the artifact lookup, download, or extraction fails.
-        urllib.error.HTTPError: If the GitHub API rejects the request.
-        OSError: If filesystem operations fail while preparing output paths.
     """
-    artifact = _find_named_artifact(
-        repo=repo,
-        run_id=run_id,
-        artifact_name=artifact_name,
-        token=token,
-    )
-    artifact_size = artifact.get("size_in_bytes")
-    if isinstance(artifact_size, int) and artifact_size > _MAX_ARCHIVE_BYTES:
-        raise RuntimeError(
-            f"Artifact {artifact_name!r} for run {run_id} exceeds size limit"
-        )
-
-    archive_url = artifact.get("archive_download_url")
-    if not isinstance(archive_url, str) or not archive_url:
-        raise RuntimeError(
-            f"Artifact {artifact_name!r} for run {run_id} has no download URL"
-        )
-
-    archive_path = _download_archive_to_tempfile(url=archive_url, token=token)
-    if output_dir.is_symlink():
-        raise RuntimeError(
-            f"output directory must not be a symlink: {output_dir}"
-        )
-    if output_dir.exists() and not output_dir.is_dir():
-        raise RuntimeError(
-            f"output directory exists and is not a directory: {output_dir}"
-        )
     try:
-        with tempfile.TemporaryDirectory(
-            prefix="nova-release-artifact-extract-"
-        ) as staging:
-            staging_dir = Path(staging)
-            _extract_archive(archive_path=archive_path, output_dir=staging_dir)
-            output_dir.mkdir(parents=True, exist_ok=True)
-            _clear_directory_contents(output_dir)
-            _copy_directory_contents(
-                source_dir=staging_dir,
-                target_dir=output_dir,
+        artifact = _find_named_artifact(
+            repo=repo,
+            run_id=run_id,
+            artifact_name=artifact_name,
+            token=token,
+        )
+        artifact_size = artifact.get("size_in_bytes")
+        if (
+            isinstance(artifact_size, int)
+            and artifact_size > _MAX_ARCHIVE_BYTES
+        ):
+            raise RuntimeError(
+                "Artifact "
+                f"{artifact_name!r} for run {run_id} exceeds size limit"
             )
-    finally:
-        archive_path.unlink(missing_ok=True)
+
+        archive_url = artifact.get("archive_download_url")
+        if not isinstance(archive_url, str) or not archive_url:
+            raise RuntimeError(
+                "Artifact "
+                f"{artifact_name!r} for run {run_id} has no download URL"
+            )
+
+        archive_path = _download_archive_to_tempfile(
+            url=archive_url,
+            token=token,
+        )
+        if output_dir.is_symlink():
+            raise RuntimeError(
+                f"output directory must not be a symlink: {output_dir}"
+            )
+        if output_dir.exists() and not output_dir.is_dir():
+            raise RuntimeError(
+                f"output directory exists and is not a directory: {output_dir}"
+            )
+        try:
+            with tempfile.TemporaryDirectory(
+                prefix="nova-release-artifact-extract-"
+            ) as staging:
+                staging_dir = Path(staging)
+                _extract_archive(
+                    archive_path=archive_path,
+                    output_dir=staging_dir,
+                )
+                output_dir.mkdir(parents=True, exist_ok=True)
+                _clear_directory_contents(output_dir)
+                _copy_directory_contents(
+                    source_dir=staging_dir,
+                    target_dir=output_dir,
+                )
+        finally:
+            archive_path.unlink(missing_ok=True)
+    except TypeError as exc:
+        raise RuntimeError(
+            "GitHub API returned invalid artifact payload shape"
+        ) from exc
+    except (
+        OSError,
+        urllib.error.HTTPError,
+        urllib.error.URLError,
+        zipfile.BadZipFile,
+    ) as exc:
+        raise RuntimeError(
+            "Failed to download or extract artifact "
+            f"{artifact_name!r} for run {run_id}"
+        ) from exc
 
 
 def _parse_args(argv: list[str]) -> argparse.Namespace:

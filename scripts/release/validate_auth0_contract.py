@@ -88,8 +88,10 @@ def validate_overlay(
         return [f"{overlay_path}: unable to parse env overlay: {exc}"]
 
     missing_keys = REQUIRED_ENV_KEYS.difference(env_values)
-    for key in sorted(missing_keys):
-        errors.append(f"{overlay_path}: missing required key {key}")
+    errors.extend(
+        f"{overlay_path}: missing required key {key}"
+        for key in sorted(missing_keys)
+    )
 
     if "AUTH0_ALLOW_DELETE" in env_values:
         allow_delete = env_values["AUTH0_ALLOW_DELETE"]

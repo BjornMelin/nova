@@ -143,7 +143,7 @@ def _load_operations(spec_path: Path) -> tuple[dict[str, Any], list[Operation]]:
     spec = _load_spec(spec_path)
     paths = spec.get("paths")
     if not isinstance(paths, dict):
-        raise ValueError(f"OpenAPI spec missing paths object: {spec_path}")
+        raise TypeError(f"OpenAPI spec missing paths object: {spec_path}")
 
     operations: list[Operation] = []
     for path, path_item in paths.items():
@@ -276,7 +276,7 @@ def _resolve_parameter(
         parameters.get(parameter_name) if isinstance(parameters, dict) else None
     )
     if not isinstance(resolved, dict):
-        raise ValueError(f"Missing component parameter for reference: {ref}")
+        raise TypeError(f"Missing component parameter for reference: {ref}")
     return resolved
 
 
@@ -306,7 +306,7 @@ def _resolve_request_body_definition(
         seen_refs_set.add(ref)
         resolved = _resolve_local_ref(spec, ref)
         if not isinstance(resolved, dict):
-            raise ValueError(
+            raise TypeError(
                 f"requestBody reference did not resolve to an object: {ref}"
             )
         return _resolve_request_body_definition(
@@ -582,11 +582,11 @@ def _render_typescript_types(
                 f'export type {base_name}ErrorData = {base_name}ErrorResult["data"];',
             ]
         )
-        for status_code in operation.response_status_codes:
-            lines.append(
-                f"export type {base_name}Response{status_code} = "
-                f"ResponseBodyOf<{base_name}Responses[{status_code}]>;"
-            )
+        lines.extend(
+            f"export type {base_name}Response{status_code} = "
+            f"ResponseBodyOf<{base_name}Responses[{status_code}]>;"
+            for status_code in operation.response_status_codes
+        )
         lines.extend(_render_request_interface(operation))
 
     lines.append("")

@@ -33,17 +33,19 @@ def _validated_planned_versions(version_plan: dict[str, Any]) -> dict[str, str]:
         Mapping of workspace unit ID to validated target version.
 
     Raises:
-        ValueError: If ``version_plan.units`` is malformed or contains an
+        TypeError: If ``version_plan.units`` is not a JSON array or contains
+            non-object entries.
+        ValueError: If ``version_plan.units`` contains an
             invalid ``new_version`` for a planned unit.
     """
     raw_units = version_plan.get("units", [])
     if not isinstance(raw_units, list):
-        raise ValueError("version_plan.units must be a JSON array")
+        raise TypeError("version_plan.units must be a JSON array")
 
     versions: dict[str, str] = {}
     for item in raw_units:
         if not isinstance(item, dict):
-            raise ValueError("version_plan.units entries must be objects")
+            raise TypeError("version_plan.units entries must be objects")
         unit_id = str(item.get("unit_id", "")).strip()
         new_version = str(item.get("new_version", "")).strip()
         if not unit_id:
@@ -137,6 +139,8 @@ def prepare_npm_publish_artifacts(
         Report payload describing prepared npm publish artifacts.
 
     Raises:
+        TypeError: If workspace metadata, version-plan payloads, or package
+            dependency maps contain invalid JSON structure.
         ValueError: If workspace metadata, version planning, or package content
             is invalid for npm publication.
         OSError: If artifact directories cannot be created or copied.
@@ -190,7 +194,7 @@ def prepare_npm_publish_artifacts(
 
         publish_config = package_data.get("publishConfig", {})
         if not isinstance(publish_config, dict):
-            raise ValueError(
+            raise TypeError(
                 f"publishConfig in {unit.project_name} must be an object"
             )
         publish_config["registry"] = registry
@@ -201,7 +205,7 @@ def prepare_npm_publish_artifacts(
             if raw_dependencies is None:
                 continue
             if not isinstance(raw_dependencies, dict):
-                raise ValueError(
+                raise TypeError(
                     "package.json field "
                     f"{field} in {unit.project_name} must be an object"
                 )
@@ -253,6 +257,7 @@ def validate_prepared_npm_package(package_json_path: Path) -> None:
         None.
 
     Raises:
+        TypeError: If dependency fields are not JSON objects.
         ValueError: If the prepared package metadata is malformed or still
             contains local-only dependency specifiers.
     """
@@ -260,7 +265,7 @@ def validate_prepared_npm_package(package_json_path: Path) -> None:
     for field in DEPENDENCY_FIELDS:
         raw_dependencies = package_data.get(field, {})
         if not isinstance(raw_dependencies, dict):
-            raise ValueError(f"{package_json_path}: {field} must be an object")
+            raise TypeError(f"{package_json_path}: {field} must be an object")
         for dependency_name, dependency_version in raw_dependencies.items():
             if LOCAL_DEPENDENCY_SPEC_RE.match(str(dependency_version).strip()):
                 raise ValueError(
