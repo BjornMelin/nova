@@ -281,7 +281,19 @@ async def introspect_upload(
     activity_store: ActivityStoreDep,
     authenticator: AuthenticatorDep,
 ) -> UploadIntrospectionResponse:
-    """Return uploaded multipart part state for resume flows."""
+    """Return uploaded multipart part state for resume flows.
+
+    Args:
+        request: FastAPI request object used for auth context.
+        payload: Multipart introspection input payload.
+        metrics: Request-scoped metrics collector dependency.
+        transfer_service: Transfer domain service dependency.
+        activity_store: Activity persistence dependency.
+        authenticator: Principal authenticator dependency.
+
+    Returns:
+        UploadIntrospectionResponse: Multipart state for resume operations.
+    """
     principal = await authenticate_principal(
         request=request,
         authenticator=authenticator,

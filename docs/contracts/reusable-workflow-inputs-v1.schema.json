@@ -8,8 +8,7 @@
     "app_type",
     "environment",
     "stack_name",
-    "template_file",
-    "runtime_cost_mode"
+    "template_file"
   ],
   "properties": {
     "app_type": {

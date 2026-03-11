@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import math
 from contextlib import suppress
 from dataclasses import dataclass
@@ -39,6 +40,7 @@ _COPY_OBJECT_MAX_BYTES = 5_000_000_000
 _MAX_MULTIPART_PARTS = 10_000
 _MIN_MULTIPART_PART_SIZE_BYTES = 5 * 1024 * 1024
 _MAX_MULTIPART_PART_SIZE_BYTES = 5 * 1024 * 1024 * 1024
+_LOGGER = logging.getLogger(__name__)
 
 
 @dataclass(slots=True, frozen=True)
@@ -243,7 +245,15 @@ class TransferService:
                     "uploaded parts"
                 )
         except FileTransferError:
-            pass
+            _LOGGER.warning(
+                "multipart_completion_verification_failed",
+                extra={
+                    "bucket": self.settings.file_transfer_bucket,
+                    "key": request.key,
+                    "expected_size_bytes": expected_size_bytes,
+                },
+                exc_info=True,
+            )
 
         return CompleteUploadResponse(
             bucket=self.settings.file_transfer_bucket,

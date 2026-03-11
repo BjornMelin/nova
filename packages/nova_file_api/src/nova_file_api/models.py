@@ -151,8 +151,8 @@ class UploadIntrospectionResponse(BaseModel):
     bucket: str
     key: str
     upload_id: str
-    part_size_bytes: int
-    parts: list[UploadedPart] = Field(default_factory=list)
+    part_size_bytes: int = Field(gt=0)
+    parts: list[UploadedPart] = Field(max_length=10_000)
 
 
 class CompletedPart(BaseModel):

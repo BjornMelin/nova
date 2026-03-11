@@ -340,6 +340,17 @@ export interface paths {
         /**
          * Introspect Upload
          * @description Return uploaded multipart part state for resume flows.
+         *
+         *     Args:
+         *         request: FastAPI request object used for auth context.
+         *         payload: Multipart introspection input payload.
+         *         metrics: Request-scoped metrics collector dependency.
+         *         transfer_service: Transfer domain service dependency.
+         *         activity_store: Activity persistence dependency.
+         *         authenticator: Principal authenticator dependency.
+         *
+         *     Returns:
+         *         UploadIntrospectionResponse: Multipart state for resume operations.
          */
         post: operations["introspect_upload"];
         delete?: never;
@@ -810,7 +821,7 @@ export interface components {
             /** Part Size Bytes */
             part_size_bytes: number;
             /** Parts */
-            parts?: components["schemas"]["UploadedPart"][];
+            parts: components["schemas"]["UploadedPart"][];
             /** Upload Id */
             upload_id: string;
         };

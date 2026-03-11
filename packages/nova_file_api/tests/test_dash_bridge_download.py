@@ -4,15 +4,13 @@ import nova_dash_bridge.service as dash_service_module
 import pytest
 from nova_dash_bridge.config import FileTransferEnvConfig, UploadPolicy
 from nova_dash_bridge.errors import FileTransferError
-from nova_dash_bridge.models import (
-    UploadIntrospectionRequest,
-)
+from nova_dash_bridge.models import UploadIntrospectionRequest
 from nova_dash_bridge.service import FileTransferService
 from nova_file_api.models import (
     UploadedPart as CoreUploadedPart,
 )
 from nova_file_api.models import (
-    UploadIntrospectionResponse,
+    UploadIntrospectionResponse as CoreUploadIntrospectionResponse,
 )
 
 
@@ -61,9 +59,9 @@ class _FakeCoreTransferService:
         self,
         request: object,
         principal: object,
-    ) -> UploadIntrospectionResponse:
+    ) -> CoreUploadIntrospectionResponse:
         del request, principal
-        return UploadIntrospectionResponse(
+        return CoreUploadIntrospectionResponse(
             bucket="bucket-a",
             key="uploads/scope-1/object.csv",
             upload_id="upload-1",

@@ -209,8 +209,10 @@
   }
 
   function multipartStateStorageKey(config, file) {
+    var resumeNamespace = String(config.resumeNamespace || "");
     return [
       "nova-multipart-upload",
+      resumeNamespace,
       config.transfersEndpointBase || "/v1/transfers",
       file.name || "",
       String(file.size || 0),
@@ -219,9 +221,11 @@
   }
 
   function loadMultipartState(storageKey) {
-    if (!storageKey || !window.localStorage) return null;
+    if (!storageKey) return null;
     try {
-      var raw = window.localStorage.getItem(storageKey);
+      var storage = window.localStorage;
+      if (!storage) return null;
+      var raw = storage.getItem(storageKey);
       if (!raw) return null;
       var parsed = JSON.parse(raw);
       if (!parsed || typeof parsed !== "object") return null;
@@ -232,18 +236,22 @@
   }
 
   function persistMultipartState(storageKey, state) {
-    if (!storageKey || !window.localStorage) return;
+    if (!storageKey) return;
     try {
-      window.localStorage.setItem(storageKey, JSON.stringify(state));
+      var storage = window.localStorage;
+      if (!storage) return;
+      storage.setItem(storageKey, JSON.stringify(state));
     } catch (_error) {
       // Best-effort persistence only.
     }
   }
 
   function clearMultipartState(storageKey) {
-    if (!storageKey || !window.localStorage) return;
+    if (!storageKey) return;
     try {
-      window.localStorage.removeItem(storageKey);
+      var storage = window.localStorage;
+      if (!storage) return;
+      storage.removeItem(storageKey);
     } catch (_error) {
       // Best-effort cleanup only.
     }
@@ -496,7 +504,7 @@
   async function handleUpload(config, file) {
     var contentType = file.type || "application/octet-stream";
     var sessionId = getSessionId();
-    var storageKey = multipartStateStorageKey(config, file, sessionId);
+    var storageKey = multipartStateStorageKey(config, file);
     var storedMultipartState = loadMultipartState(storageKey);
     sessionId =
       storedMultipartState &&
@@ -567,7 +575,14 @@
               session_id: sessionId,
             }
           );
-          await uploadMultipart(config, file, initiated, sessionId);
+          if (initiated.strategy === "single") {
+            await putObject(initiated.url, file, contentType);
+            clearMultipartState(storageKey);
+          } else if (initiated.strategy === "multipart") {
+            await uploadMultipart(config, file, initiated, sessionId);
+          } else {
+            throw new Error("unknown strategy");
+          }
         } else {
           throw error;
         }
@@ -662,6 +677,7 @@
       jobsEndpointBase: root.dataset.jobsEndpointBase || "/v1/jobs",
       maxConcurrency: root.dataset.maxConcurrency || "4",
       signBatchSize: root.dataset.signBatchSize || "",
+      resumeNamespace: root.dataset.resumeNamespace || "",
       maxBytes: parseInt(root.dataset.maxBytes || "0", 10),
       resultStoreId: root.dataset.resultStoreId || "",
       progressStoreId: root.dataset.progressStoreId || "",

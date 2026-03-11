@@ -30,6 +30,7 @@ _RESULT_UPDATE_MAX_DELAY_SECONDS = 2.0
 _RETRYABLE_RESULT_STATUS_CODES = {404, 409, 500, 502, 503, 504}
 _WORKER_RUNTIME_MODE = "worker"
 _MIN_VISIBILITY_EXTENSION_INTERVAL_SECONDS = 0.5
+_VISIBILITY_EXTENSION_RETRY_DELAY_SECONDS = 1.0
 
 
 @dataclass(slots=True, frozen=True)
@@ -437,10 +438,12 @@ class JobsWorker:
         interval_seconds: float,
     ) -> None:
         """Heartbeat visibility timeout while long-running work is active."""
+        retry_delay_seconds = min(
+            _VISIBILITY_EXTENSION_RETRY_DELAY_SECONDS,
+            interval_seconds,
+        )
+        await asyncio.sleep(interval_seconds)
         while True:
-            await asyncio.sleep(interval_seconds)
-            if self._stop_requested:
-                return
             try:
                 await self._require_sqs().change_message_visibility(
                     QueueUrl=self._queue_url,
@@ -455,6 +458,9 @@ class JobsWorker:
                     job_id=job_id,
                     error_type=type(exc).__name__,
                 )
+                await asyncio.sleep(retry_delay_seconds)
+                continue
+            await asyncio.sleep(interval_seconds)
 
     async def _publish_terminal_result(
         self,

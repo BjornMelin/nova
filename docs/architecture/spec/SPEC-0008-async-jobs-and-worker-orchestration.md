@@ -5,10 +5,10 @@ Status: Active
 Version: 1.9
 Date: 2026-03-11
 Related:
-  - "[ADR-0006: SQS + ECS worker orchestration](../adr/ADR-0006-async-orchestration-sqs-ecs-worker.md)"
+  - "ADR-0023"
   - "[SPEC-0000: HTTP API contract](./SPEC-0000-http-api-contract.md)"
-  - "[SPEC-0001: Security model](./SPEC-0001-security-model.md)"
-  - "[SPEC-0009: Caching and idempotency](./SPEC-0009-caching-and-idempotency.md)"
+  - "SPEC-0016"
+  - "requirements.md"
 References:
   - "[Amazon SQS Developer Guide](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/welcome.html)"
   - "[Amazon ECS Developer Guide](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/Welcome.html)"

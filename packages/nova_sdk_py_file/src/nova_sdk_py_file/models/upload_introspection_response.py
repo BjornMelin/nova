@@ -1,12 +1,14 @@
 # ruff: noqa
+"""Multipart upload introspection response model."""
+
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import TYPE_CHECKING
+from typing import Any
+from typing import TypeVar
 
 from attrs import define as _attrs_define
-
-from nova_sdk_py_file.types import UNSET, Unset
 
 if TYPE_CHECKING:
     from ..models.uploaded_part import UploadedPart
@@ -23,15 +25,15 @@ class UploadIntrospectionResponse:
         bucket (str):
         key (str):
         part_size_bytes (int):
+        parts (list[UploadedPart]):
         upload_id (str):
-        parts (list[UploadedPart] | Unset):
     """
 
     bucket: str
     key: str
     part_size_bytes: int
+    parts: list[UploadedPart]
     upload_id: str
-    parts: list[UploadedPart] | Unset = UNSET
 
     def to_dict(self) -> dict[str, Any]:
         bucket = self.bucket
@@ -40,14 +42,12 @@ class UploadIntrospectionResponse:
 
         part_size_bytes = self.part_size_bytes
 
-        upload_id = self.upload_id
+        parts = []
+        for parts_item_data in self.parts:
+            parts_item = parts_item_data.to_dict()
+            parts.append(parts_item)
 
-        parts: list[dict[str, Any]] | Unset = UNSET
-        if not isinstance(self.parts, Unset):
-            parts = []
-            for parts_item_data in self.parts:
-                parts_item = parts_item_data.to_dict()
-                parts.append(parts_item)
+        upload_id = self.upload_id
 
         field_dict: dict[str, Any] = {}
 
@@ -56,11 +56,10 @@ class UploadIntrospectionResponse:
                 "bucket": bucket,
                 "key": key,
                 "part_size_bytes": part_size_bytes,
+                "parts": parts,
                 "upload_id": upload_id,
             }
         )
-        if parts is not UNSET:
-            field_dict["parts"] = parts
 
         return field_dict
 
@@ -75,23 +74,21 @@ class UploadIntrospectionResponse:
 
         part_size_bytes = d.pop("part_size_bytes")
 
+        parts = []
+        _parts = d.pop("parts")
+        for parts_item_data in _parts:
+            parts_item = UploadedPart.from_dict(parts_item_data)
+
+            parts.append(parts_item)
+
         upload_id = d.pop("upload_id")
-
-        _parts = d.pop("parts", UNSET)
-        parts: list[UploadedPart] | Unset = UNSET
-        if _parts is not UNSET:
-            parts = []
-            for parts_item_data in _parts:
-                parts_item = UploadedPart.from_dict(parts_item_data)
-
-                parts.append(parts_item)
 
         upload_introspection_response = cls(
             bucket=bucket,
             key=key,
             part_size_bytes=part_size_bytes,
-            upload_id=upload_id,
             parts=parts,
+            upload_id=upload_id,
         )
 
         return upload_introspection_response

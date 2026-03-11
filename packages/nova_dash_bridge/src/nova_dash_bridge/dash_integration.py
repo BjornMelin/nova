@@ -130,6 +130,12 @@ def S3FileUploader(
             value=sign_batch_size,
             field_name="sign_batch_size",
         )
+        sign_batch_cap = min(16, max_concurrency * 2)
+        if sign_batch_size > sign_batch_cap:
+            raise ValueError(
+                "sign_batch_size must be less than or equal to "
+                f"min(16, 2 * max_concurrency) ({sign_batch_cap})"
+            )
     min_bytes = _validate_non_negative(
         value=async_job_min_bytes,
         field_name="async_job_min_bytes",
@@ -175,6 +181,7 @@ def S3FileUploader(
                 "data-sign-batch-size": (
                     "" if sign_batch_size is None else str(sign_batch_size)
                 ),
+                "data-resume-namespace": component_id,
                 "data-max-bytes": str(max_bytes),
                 "data-accept": accept_value,
                 "data-multiple": str(multiple).lower(),

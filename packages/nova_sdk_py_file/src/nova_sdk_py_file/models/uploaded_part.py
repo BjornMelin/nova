@@ -1,4 +1,6 @@
 # ruff: noqa
+"""Multipart uploaded-part model for resume introspection."""
+
 from __future__ import annotations
 
 from collections.abc import Mapping
@@ -14,14 +16,22 @@ class UploadedPart:
     """Part state returned for multipart upload introspection.
 
     Attributes:
-        etag (str):
-        part_number (int):
+        etag (str): ETag returned by S3 for this uploaded part.
+        part_number (int): 1-based multipart part number.
     """
 
     etag: str
     part_number: int
 
     def to_dict(self) -> dict[str, Any]:
+        """Serialize this model to a JSON-compatible dict.
+
+        Args:
+            None.
+
+        Returns:
+            dict[str, Any]: Serialized uploaded part payload.
+        """
         etag = self.etag
 
         part_number = self.part_number
@@ -39,6 +49,19 @@ class UploadedPart:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
+        """Build this model from a JSON-compatible mapping.
+
+        Args:
+            src_dict (Mapping[str, Any]): Source mapping containing
+                ``etag`` and ``part_number`` keys.
+
+        Returns:
+            UploadedPart: Parsed uploaded-part model.
+
+        Raises:
+            KeyError: If required keys are missing.
+            TypeError: If value types are not compatible.
+        """
         d = dict(src_dict)
         etag = d.pop("etag")
 
