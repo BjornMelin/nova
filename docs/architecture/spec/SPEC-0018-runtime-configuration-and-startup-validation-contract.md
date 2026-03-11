@@ -2,8 +2,8 @@
 Spec: 0018
 Title: Runtime configuration and startup validation contract
 Status: Active
-Version: 2.2
-Date: 2026-03-06
+Version: 2.3
+Date: 2026-03-11
 Related:
   - "[ADR-0026: Fail-fast runtime configuration and safe auth execution](../adr/ADR-0026-fail-fast-runtime-configuration-and-safe-auth-execution.md)"
   - "[SPEC-0017: Runtime component topology and ownership contract](./SPEC-0017-runtime-component-topology-and-ownership-contract.md)"
@@ -50,6 +50,8 @@ Required startup validation:
    - worker deployments MUST inject `JOBS_WORKER_UPDATE_TOKEN` from a
      secret-backed deployment input even when the ECS service is configured to
      start at zero tasks
+   - release operator input for this worker secret MUST be
+     `JOBS_WORKER_UPDATE_TOKEN_SECRET_ARN`
 5. `ACTIVITY_STORE_BACKEND=dynamodb` requires `ACTIVITY_ROLLUPS_TABLE`.
 6. `IDEMPOTENCY_ENABLED=true` with `IDEMPOTENCY_MODE=shared_required` requires
    `CACHE_REDIS_URL`.
@@ -57,6 +59,9 @@ Required startup validation:
    mutation entrypoints must use `IDEMPOTENCY_MODE=shared_required`.
 8. Runtime configuration aliases that duplicate canonical settings are
    deprecated and must be removed instead of carried forward.
+9. Default runtime posture for file transfer MUST set:
+   - `FILE_TRANSFER_MAX_UPLOAD_BYTES=536_870_912_000`
+   - `FILE_TRANSFER_PRESIGN_UPLOAD_TTL_SECONDS=1800`
 
 ## 4. Readiness contract
 

@@ -2,7 +2,7 @@
 
 Status: Active
 Owner: nova release architecture
-Last reviewed: 2026-03-05
+Last reviewed: 2026-03-11
 
 ## Purpose
 
@@ -104,6 +104,7 @@ copying individual `aws cloudformation deploy` commands:
 export ENVIRONMENT=dev
 export IMAGE_DIGEST=sha256:...
 export ENV_VARS_JSON='{"IDEMPOTENCY_MODE":"shared_required","JOBS_ENABLED":"true","JOBS_QUEUE_BACKEND":"sqs","JOBS_REPOSITORY_BACKEND":"dynamodb","JOBS_RUNTIME_MODE":"worker","CACHE_REDIS_URL":"rediss://..."}'
+export JOBS_WORKER_UPDATE_TOKEN_SECRET_ARN="arn:aws:secretsmanager:..."
 
 "${NOVA_REPO_ROOT}/scripts/release/deploy-runtime-cloudformation-environment.sh"
 ```
@@ -122,6 +123,17 @@ The script deploys:
 10. `infra/nova/deploy/service-base-url-ssm.yml`
 
 and preserves the documented change-set-first flow for each stack.
+
+Worker/file-transfer contract notes:
+
+- When `ENABLE_WORKER=true` and `FILE_TRANSFER_ASYNC_ENABLED=true`, the script
+  now requires `JOBS_WORKER_UPDATE_TOKEN_SECRET_ARN`.
+- Canonical worker runtime inputs are `JOBS_*`; stale worker aliases are not
+  valid deployment inputs.
+- Default large-upload posture is `FILE_TRANSFER_MAX_UPLOAD_BYTES=536_870_912_000`
+  and `FILE_TRANSFER_PRESIGN_UPLOAD_TTL_SECONDS=1800`.
+- If `FILE_TRANSFER_USE_ACCELERATE_ENDPOINT=true`, the bucket must already have
+  Transfer Acceleration enabled and the bucket name must contain no periods.
 
 ## Change-Set-First Command Pattern
 

@@ -2,8 +2,8 @@
 Spec: 0008
 Title: Async Jobs and Worker Orchestration
 Status: Active
-Version: 1.8
-Date: 2026-03-03
+Version: 1.9
+Date: 2026-03-11
 Related:
   - "[ADR-0006: SQS + ECS worker orchestration](../adr/ADR-0006-async-orchestration-sqs-ecs-worker.md)"
   - "[SPEC-0000: HTTP API contract](./SPEC-0000-http-api-contract.md)"
@@ -102,6 +102,9 @@ Invalid transitions MUST fail with `409` (`error.code = "conflict"`).
 - Queue topology MUST include a dedicated dead-letter queue (DLQ) and source
   queue `RedrivePolicy.maxReceiveCount` so terminal poison messages leave the
   hot queue deterministically.
+- Long-running worker operations MUST extend message visibility before half of
+  the configured timeout elapses instead of relying only on static
+  `VisibilityTimeout` sizing.
 - Non-retryable failures SHOULD transition to `failed` with structured error
   details.
 - First worker transition from `pending` MUST record queue lag metric
@@ -141,6 +144,8 @@ Worker status callbacks MUST validate `X-Worker-Token` when
 
 ## Changelog
 
+- 2026-03-11 (v1.9): Added heartbeat-based SQS visibility-extension
+  requirement for long-running worker operations.
 - 2026-03-03 (v1.8): Canonicalized job route documentation to `/v1/*`, added
   `/v1/jobs/{job_id}/retry` and `/v1/jobs/{job_id}/events` endpoint contract
   details, and updated internal worker callback route to
