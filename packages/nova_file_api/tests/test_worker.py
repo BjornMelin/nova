@@ -409,7 +409,7 @@ async def test_worker_extends_visibility_during_long_running_transfer() -> None:
         ]
     )
     transfer_service = _FakeTransferService()
-    transfer_service.delay_seconds = 0.6
+    transfer_service.delay_seconds = 1.2
     settings = Settings.model_validate(
         {
             "JOBS_ENABLED": True,

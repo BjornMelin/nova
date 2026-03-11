@@ -34,14 +34,10 @@ def test_multipart_asset_uses_resume_introspection_and_persistent_state() -> (
 ):
     source = _file_transfer_asset_source()
 
-    assert (
-        "function multipartStateStorageKey(config, file, sessionId)" in source
-    )
-    assert 'String(sessionId || "")' in source
-    assert (
-        "var storageKey = multipartStateStorageKey(config, file, sessionId);"
-        in source
-    )
+    assert "function multipartStateStorageKey(config, file)" in source
+    assert 'String(sessionId || "")' not in source
+    assert "var storageKey = multipartStateStorageKey(config, file);" in source
+    assert "storageKey = multipartStateStorageKey(config, file);" in source
     assert (
         "window.localStorage.setItem(storageKey, JSON.stringify(state));"
         in source

@@ -208,11 +208,10 @@
     });
   }
 
-  function multipartStateStorageKey(config, file, sessionId) {
+  function multipartStateStorageKey(config, file) {
     return [
       "nova-multipart-upload",
       config.transfersEndpointBase || "/v1/transfers",
-      String(sessionId || ""),
       file.name || "",
       String(file.size || 0),
       String(file.lastModified || 0),
@@ -274,7 +273,7 @@
     var totalParts = Math.ceil(file.size / partSize);
     var completeParts = [];
     var uploadedBytes = 0;
-    var storageKey = multipartStateStorageKey(config, file, sessionId);
+    var storageKey = multipartStateStorageKey(config, file);
     persistMultipartState(storageKey, {
       bucket: initiated.bucket,
       key: key,
@@ -558,7 +557,7 @@
         ) {
           clearMultipartState(storageKey);
           sessionId = getSessionId();
-          storageKey = multipartStateStorageKey(config, file, sessionId);
+          storageKey = multipartStateStorageKey(config, file);
           initiated = await postJson(
             config.transfersEndpointBase + "/uploads/initiate",
             {
