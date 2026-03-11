@@ -2,13 +2,21 @@
 
 from __future__ import annotations
 
-from typing import Any
-
 import structlog
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 
-from nova_file_api.dependencies import RequestContext, RequestContextDep
+from nova_file_api.activity import ActivityStore
+from nova_file_api.dependencies import (
+    ActivityStoreDep,
+    AuthenticatorDep,
+    IdempotencyStoreDep,
+    MetricsDep,
+    SettingsDep,
+    TransferServiceDep,
+    authenticate_principal,
+)
 from nova_file_api.errors import idempotency_conflict
+from nova_file_api.metrics import MetricsCollector
 from nova_file_api.models import (
     AbortUploadRequest,
     AbortUploadResponse,
@@ -44,22 +52,31 @@ transfer_router = APIRouter(prefix="/v1/transfers", tags=["transfers"])
     response_model=InitiateUploadResponse,
 )
 async def initiate_upload(
+    request: Request,
     payload: InitiateUploadRequest,
-    context: RequestContextDep,
+    settings: SettingsDep,
+    metrics: MetricsDep,
+    transfer_service: TransferServiceDep,
+    activity_store: ActivityStoreDep,
+    idempotency_store: IdempotencyStoreDep,
+    authenticator: AuthenticatorDep,
     idempotency_key: IdempotencyKeyHeader = None,
 ) -> InitiateUploadResponse:
     """Choose upload strategy and return presigned metadata."""
-    container = context.container
-    principal = await context.authenticate(session_id=payload.session_id)
+    principal = await authenticate_principal(
+        request=request,
+        authenticator=authenticator,
+        session_id=payload.session_id,
+    )
     key = validated_idempotency_key(
-        container=container,
+        settings=settings,
         idempotency_key=idempotency_key,
     )
     request_payload = payload.model_dump(mode="json")
     claimed_idempotency = False
 
     if key is not None:
-        replay = await container.idempotency_store.load_response(
+        replay = await idempotency_store.load_response(
             route="/v1/transfers/uploads/initiate",
             scope_id=principal.scope_id,
             idempotency_key=key,
@@ -67,7 +84,7 @@ async def initiate_upload(
         )
         if replay is not None:
             _increment_metric_best_effort(
-                container=container,
+                metrics=metrics,
                 principal=principal,
                 metric_name="idempotency_replays_total",
                 route_path="/v1/transfers/uploads/initiate",
@@ -75,14 +92,14 @@ async def initiate_upload(
             )
             return InitiateUploadResponse.model_validate(replay)
 
-        claimed_idempotency = await container.idempotency_store.claim_request(
+        claimed_idempotency = await idempotency_store.claim_request(
             route="/v1/transfers/uploads/initiate",
             scope_id=principal.scope_id,
             idempotency_key=key,
             request_payload=request_payload,
         )
         if not claimed_idempotency:
-            replay = await container.idempotency_store.load_response(
+            replay = await idempotency_store.load_response(
                 route="/v1/transfers/uploads/initiate",
                 scope_id=principal.scope_id,
                 idempotency_key=key,
@@ -90,7 +107,7 @@ async def initiate_upload(
             )
             if replay is not None:
                 _increment_metric_best_effort(
-                    container=container,
+                    metrics=metrics,
                     principal=principal,
                     metric_name="idempotency_replays_total",
                     route_path="/v1/transfers/uploads/initiate",
@@ -102,14 +119,15 @@ async def initiate_upload(
             )
 
     try:
-        with container.metrics.timed("uploads_initiate_ms"):
-            response = await container.transfer_service.initiate_upload(
+        with metrics.timed("uploads_initiate_ms"):
+            response = await transfer_service.initiate_upload(
                 payload,
                 principal,
             )
     except Exception as exc:
         await _record_transfer_failure(
-            context=context,
+            metrics=metrics,
+            activity_store=activity_store,
             principal=principal,
             metric_name="uploads_initiate_failure_total",
             route_metric="uploads_initiate",
@@ -119,7 +137,7 @@ async def initiate_upload(
             exc=exc,
         )
         if key is not None and claimed_idempotency:
-            await container.idempotency_store.discard_claim(
+            await idempotency_store.discard_claim(
                 route="/v1/transfers/uploads/initiate",
                 scope_id=principal.scope_id,
                 idempotency_key=key,
@@ -128,7 +146,7 @@ async def initiate_upload(
 
     if key is not None:
         try:
-            await container.idempotency_store.store_response(
+            await idempotency_store.store_response(
                 route="/v1/transfers/uploads/initiate",
                 scope_id=principal.scope_id,
                 idempotency_key=key,
@@ -137,7 +155,7 @@ async def initiate_upload(
             )
         except Exception:
             if claimed_idempotency:
-                await container.idempotency_store.discard_claim(
+                await idempotency_store.discard_claim(
                     route="/v1/transfers/uploads/initiate",
                     scope_id=principal.scope_id,
                     idempotency_key=key,
@@ -150,14 +168,14 @@ async def initiate_upload(
             raise
 
     _increment_metric_best_effort(
-        container=container,
+        metrics=metrics,
         principal=principal,
         metric_name="uploads_initiate_total",
         route_path="/v1/transfers/uploads/initiate",
         event_name="uploads_initiate_metric_increment_failed",
     )
     try:
-        await container.activity_store.record(
+        await activity_store.record(
             principal=principal,
             event_type="uploads_initiate",
         )
@@ -169,7 +187,7 @@ async def initiate_upload(
         )
     try:
         emit_request_metric(
-            container=container,
+            metrics=metrics,
             route="uploads_initiate",
             status="ok",
         )
@@ -188,22 +206,30 @@ async def initiate_upload(
     response_model=SignPartsResponse,
 )
 async def sign_upload_parts(
+    request: Request,
     payload: SignPartsRequest,
-    context: RequestContextDep,
+    metrics: MetricsDep,
+    transfer_service: TransferServiceDep,
+    activity_store: ActivityStoreDep,
+    authenticator: AuthenticatorDep,
 ) -> SignPartsResponse:
     """Return presigned multipart part URLs."""
-    container = context.container
-    principal = await context.authenticate(session_id=payload.session_id)
+    principal = await authenticate_principal(
+        request=request,
+        authenticator=authenticator,
+        session_id=payload.session_id,
+    )
 
     try:
-        with container.metrics.timed("uploads_sign_parts_ms"):
-            response = await container.transfer_service.sign_parts(
+        with metrics.timed("uploads_sign_parts_ms"):
+            response = await transfer_service.sign_parts(
                 payload,
                 principal,
             )
     except Exception as exc:
         await _record_transfer_failure(
-            context=context,
+            metrics=metrics,
+            activity_store=activity_store,
             principal=principal,
             metric_name="uploads_sign_parts_failure_total",
             route_metric="uploads_sign_parts",
@@ -215,14 +241,14 @@ async def sign_upload_parts(
         raise
 
     _increment_metric_best_effort(
-        container=container,
+        metrics=metrics,
         principal=principal,
         metric_name="uploads_sign_parts_total",
         route_path="/v1/transfers/uploads/sign-parts",
         event_name="uploads_sign_parts_metric_increment_failed",
     )
     try:
-        await container.activity_store.record(
+        await activity_store.record(
             principal=principal,
             event_type="uploads_sign_parts",
         )
@@ -233,7 +259,7 @@ async def sign_upload_parts(
             scope_id=principal.scope_id,
         )
     _emit_request_metric_best_effort(
-        container=container,
+        metrics=metrics,
         principal=principal,
         route_metric="uploads_sign_parts",
         route_path="/v1/transfers/uploads/sign-parts",
@@ -249,22 +275,30 @@ async def sign_upload_parts(
     response_model=CompleteUploadResponse,
 )
 async def complete_upload(
+    request: Request,
     payload: CompleteUploadRequest,
-    context: RequestContextDep,
+    metrics: MetricsDep,
+    transfer_service: TransferServiceDep,
+    activity_store: ActivityStoreDep,
+    authenticator: AuthenticatorDep,
 ) -> CompleteUploadResponse:
     """Complete multipart upload."""
-    container = context.container
-    principal = await context.authenticate(session_id=payload.session_id)
+    principal = await authenticate_principal(
+        request=request,
+        authenticator=authenticator,
+        session_id=payload.session_id,
+    )
 
     try:
-        with container.metrics.timed("uploads_complete_ms"):
-            response = await container.transfer_service.complete_upload(
+        with metrics.timed("uploads_complete_ms"):
+            response = await transfer_service.complete_upload(
                 payload,
                 principal,
             )
     except Exception as exc:
         await _record_transfer_failure(
-            context=context,
+            metrics=metrics,
+            activity_store=activity_store,
             principal=principal,
             metric_name="uploads_complete_failure_total",
             route_metric="uploads_complete",
@@ -276,14 +310,14 @@ async def complete_upload(
         raise
 
     _increment_metric_best_effort(
-        container=container,
+        metrics=metrics,
         principal=principal,
         metric_name="uploads_complete_total",
         route_path="/v1/transfers/uploads/complete",
         event_name="uploads_complete_metric_increment_failed",
     )
     try:
-        await container.activity_store.record(
+        await activity_store.record(
             principal=principal,
             event_type="uploads_complete",
         )
@@ -294,7 +328,7 @@ async def complete_upload(
             scope_id=principal.scope_id,
         )
     _emit_request_metric_best_effort(
-        container=container,
+        metrics=metrics,
         principal=principal,
         route_metric="uploads_complete",
         route_path="/v1/transfers/uploads/complete",
@@ -310,22 +344,30 @@ async def complete_upload(
     response_model=AbortUploadResponse,
 )
 async def abort_upload(
+    request: Request,
     payload: AbortUploadRequest,
-    context: RequestContextDep,
+    metrics: MetricsDep,
+    transfer_service: TransferServiceDep,
+    activity_store: ActivityStoreDep,
+    authenticator: AuthenticatorDep,
 ) -> AbortUploadResponse:
     """Abort multipart upload."""
-    container = context.container
-    principal = await context.authenticate(session_id=payload.session_id)
+    principal = await authenticate_principal(
+        request=request,
+        authenticator=authenticator,
+        session_id=payload.session_id,
+    )
 
     try:
-        with container.metrics.timed("uploads_abort_ms"):
-            response = await container.transfer_service.abort_upload(
+        with metrics.timed("uploads_abort_ms"):
+            response = await transfer_service.abort_upload(
                 payload,
                 principal,
             )
     except Exception as exc:
         await _record_transfer_failure(
-            context=context,
+            metrics=metrics,
+            activity_store=activity_store,
             principal=principal,
             metric_name="uploads_abort_failure_total",
             route_metric="uploads_abort",
@@ -337,14 +379,14 @@ async def abort_upload(
         raise
 
     _increment_metric_best_effort(
-        container=container,
+        metrics=metrics,
         principal=principal,
         metric_name="uploads_abort_total",
         route_path="/v1/transfers/uploads/abort",
         event_name="uploads_abort_metric_increment_failed",
     )
     try:
-        await container.activity_store.record(
+        await activity_store.record(
             principal=principal,
             event_type="uploads_abort",
         )
@@ -355,7 +397,7 @@ async def abort_upload(
             scope_id=principal.scope_id,
         )
     _emit_request_metric_best_effort(
-        container=container,
+        metrics=metrics,
         principal=principal,
         route_metric="uploads_abort",
         route_path="/v1/transfers/uploads/abort",
@@ -371,22 +413,30 @@ async def abort_upload(
     response_model=PresignDownloadResponse,
 )
 async def presign_download(
+    request: Request,
     payload: PresignDownloadRequest,
-    context: RequestContextDep,
+    metrics: MetricsDep,
+    transfer_service: TransferServiceDep,
+    activity_store: ActivityStoreDep,
+    authenticator: AuthenticatorDep,
 ) -> PresignDownloadResponse:
     """Issue presigned GET URL for caller-scoped key."""
-    container = context.container
-    principal = await context.authenticate(session_id=payload.session_id)
+    principal = await authenticate_principal(
+        request=request,
+        authenticator=authenticator,
+        session_id=payload.session_id,
+    )
 
     try:
-        with container.metrics.timed("downloads_presign_ms"):
-            response = await container.transfer_service.presign_download(
+        with metrics.timed("downloads_presign_ms"):
+            response = await transfer_service.presign_download(
                 payload,
                 principal,
             )
     except Exception as exc:
         await _record_transfer_failure(
-            context=context,
+            metrics=metrics,
+            activity_store=activity_store,
             principal=principal,
             metric_name="downloads_presign_failure_total",
             route_metric="downloads_presign",
@@ -398,14 +448,14 @@ async def presign_download(
         raise
 
     _increment_metric_best_effort(
-        container=container,
+        metrics=metrics,
         principal=principal,
         metric_name="downloads_presign_total",
         route_path="/v1/transfers/downloads/presign",
         event_name="downloads_presign_metric_increment_failed",
     )
     try:
-        await container.activity_store.record(
+        await activity_store.record(
             principal=principal,
             event_type="downloads_presign",
         )
@@ -416,7 +466,7 @@ async def presign_download(
             scope_id=principal.scope_id,
         )
     _emit_request_metric_best_effort(
-        container=container,
+        metrics=metrics,
         principal=principal,
         route_metric="downloads_presign",
         route_path="/v1/transfers/downloads/presign",
@@ -428,7 +478,8 @@ async def presign_download(
 
 async def _record_transfer_failure(
     *,
-    context: RequestContext,
+    metrics: MetricsCollector,
+    activity_store: ActivityStore,
     principal: Principal,
     metric_name: str,
     route_metric: str,
@@ -438,9 +489,8 @@ async def _record_transfer_failure(
     exc: Exception,
 ) -> None:
     """Record canonical metrics, logs, and activity for transfer failures."""
-    container = context.container
     _emit_request_metric_best_effort(
-        container=container,
+        metrics=metrics,
         principal=principal,
         route_metric=route_metric,
         route_path=route_path,
@@ -456,7 +506,7 @@ async def _record_transfer_failure(
         error_code="transfer_failure",
     )
     try:
-        await container.activity_store.record(
+        await activity_store.record(
             principal=principal,
             event_type=activity_event_type,
             details=type(exc).__name__,
@@ -472,7 +522,7 @@ async def _record_transfer_failure(
 
 def _emit_request_metric_best_effort(
     *,
-    container: Any,
+    metrics: MetricsCollector,
     principal: Principal,
     route_metric: str,
     route_path: str,
@@ -483,9 +533,9 @@ def _emit_request_metric_best_effort(
     """Emit request metrics without failing completed request handlers."""
     try:
         if counter_metric is not None:
-            container.metrics.incr(counter_metric)
+            metrics.incr(counter_metric)
         emit_request_metric(
-            container=container,
+            metrics=metrics,
             route=route_metric,
             status=status,
         )
@@ -501,7 +551,7 @@ def _emit_request_metric_best_effort(
 
 def _increment_metric_best_effort(
     *,
-    container: Any,
+    metrics: MetricsCollector,
     principal: Principal,
     metric_name: str,
     route_path: str,
@@ -509,7 +559,7 @@ def _increment_metric_best_effort(
 ) -> None:
     """Increment counters without failing completed request handlers."""
     try:
-        container.metrics.incr(metric_name)
+        metrics.incr(metric_name)
     except Exception:
         structlog.get_logger("api").exception(
             event_name,
