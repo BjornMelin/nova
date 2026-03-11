@@ -6,10 +6,11 @@ import asyncio
 import json
 import secrets
 import signal
+from collections.abc import Awaitable, Callable
 from contextlib import suppress
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any
+from typing import Any, TypeVar
 
 import aioboto3  # type: ignore[import-untyped]
 import httpx
@@ -31,6 +32,8 @@ _RETRYABLE_RESULT_STATUS_CODES = {404, 409, 500, 502, 503, 504}
 _WORKER_RUNTIME_MODE = "worker"
 _MIN_VISIBILITY_EXTENSION_INTERVAL_SECONDS = 0.5
 _VISIBILITY_EXTENSION_RETRY_DELAY_SECONDS = 1.0
+
+_T = TypeVar("_T")
 
 
 @dataclass(slots=True, frozen=True)
@@ -393,8 +396,8 @@ class JobsWorker:
         *,
         message: dict[str, Any],
         job_id: str,
-        operation: Any,
-    ) -> Any:
+        operation: Callable[[], Awaitable[_T]],
+    ) -> _T:
         """Run a long-lived operation while extending SQS visibility."""
         task = self._start_visibility_extension_task(
             message=message,
