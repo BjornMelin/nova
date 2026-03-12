@@ -7,6 +7,7 @@ set -euo pipefail
 #
 # Default posture applied by this operator when related override environment
 # variables are left unset:
+# - RUNTIME_COST_MODE is required and selects standard, saver, or paused posture
 # - AssignPublicIp=DISABLED
 # - IdempotencyMode=shared_required
 # - FileTransferAsyncEnabled=true
@@ -160,6 +161,22 @@ deploy_stack() {
   echo "==> ${stack_name}: complete"
 }
 
+delete_stack_if_exists() {
+  local stack_name="$1"
+  if ! stack_exists "$stack_name"; then
+    echo "==> ${stack_name}: stack not found, skipping delete"
+    return 0
+  fi
+  echo "==> ${stack_name}: delete stack"
+  aws cloudformation delete-stack \
+    --region "$AWS_REGION" \
+    --stack-name "$stack_name" >/dev/null
+  aws cloudformation wait stack-delete-complete \
+    --region "$AWS_REGION" \
+    --stack-name "$stack_name" >/dev/null
+  echo "==> ${stack_name}: deleted"
+}
+
 require_exactly_one_ingress_source() {
   local count=0
   [ -n "${ALB_INGRESS_PREFIX_LIST_ID:-}" ] && count=$((count + 1))
@@ -273,14 +290,10 @@ ENABLE_ALB_ACCESS_LOGS="${ENABLE_ALB_ACCESS_LOGS:-false}"
 ENABLE_BLUE_GREEN_TEST_LISTENER="${ENABLE_BLUE_GREEN_TEST_LISTENER:-false}"
 BLUE_GREEN_TEST_LISTENER_PORT="${BLUE_GREEN_TEST_LISTENER_PORT:-8443}"
 ASSIGN_PUBLIC_IP="${ASSIGN_PUBLIC_IP:-DISABLED}"
-API_DESIRED_COUNT="${API_DESIRED_COUNT:-2}"
-API_TASK_CPU="${API_TASK_CPU:-2048}"
-API_TASK_MEMORY="${API_TASK_MEMORY:-8192}"
 API_RUNTIME_PROFILE="${API_RUNTIME_PROFILE:-standard}"
 API_LISTENER_RULE_PRIORITY="${API_LISTENER_RULE_PRIORITY:-100}"
 FILE_TRANSFER_ASYNC_ENABLED="${FILE_TRANSFER_ASYNC_ENABLED:-true}"
 FILE_TRANSFER_CACHE_ENABLED="${FILE_TRANSFER_CACHE_ENABLED:-true}"
-ENABLE_WORKER="${ENABLE_WORKER:-true}"
 WORKER_DESIRED_COUNT="${WORKER_DESIRED_COUNT:-1}"
 WORKER_MIN_TASK_COUNT="${WORKER_MIN_TASK_COUNT:-1}"
 WORKER_MAX_TASK_COUNT="${WORKER_MAX_TASK_COUNT:-20}"
@@ -290,11 +303,10 @@ WORKER_SCALE_OUT_QUEUE_DEPTH_TARGET="${WORKER_SCALE_OUT_QUEUE_DEPTH_TARGET:-100}
 WORKER_SCALE_OUT_QUEUE_AGE_SECONDS_TARGET="${WORKER_SCALE_OUT_QUEUE_AGE_SECONDS_TARGET:-60}"
 WORKER_SCALE_IN_COOLDOWN_SECONDS="${WORKER_SCALE_IN_COOLDOWN_SECONDS:-120}"
 WORKER_SCALE_OUT_COOLDOWN_SECONDS="${WORKER_SCALE_OUT_COOLDOWN_SECONDS:-60}"
-OBSERVABILITY_ENABLED="${OBSERVABILITY_ENABLED:-true}"
-OBSERVABILITY_MIN_TASK_COUNT="${OBSERVABILITY_MIN_TASK_COUNT:-2}"
-OBSERVABILITY_MAX_TASK_COUNT="${OBSERVABILITY_MAX_TASK_COUNT:-20}"
+WORKER_STACK_ACTION="${WORKER_STACK_ACTION:-deploy}"
 OBSERVABILITY_CPU_TARGET="${OBSERVABILITY_CPU_TARGET:-60}"
 OBSERVABILITY_MEMORY_TARGET="${OBSERVABILITY_MEMORY_TARGET:-70}"
+RUNTIME_COST_MODE="${RUNTIME_COST_MODE:-}"
 KMS_ALIAS="${KMS_ALIAS:-${PROJECT:-}-${APPLICATION:-}-${ENVIRONMENT:-}}"
 FILE_TRANSFER_UPLOAD_PREFIX="${FILE_TRANSFER_UPLOAD_PREFIX:-uploads/}"
 FILE_TRANSFER_EXPORT_PREFIX="${FILE_TRANSFER_EXPORT_PREFIX:-exports/}"
@@ -304,7 +316,15 @@ JOBS_DEAD_LETTER_QUEUE_NAME="${JOBS_DEAD_LETTER_QUEUE_NAME:-${PROJECT:-}-${APPLI
 JOBS_TABLE_NAME="${JOBS_TABLE_NAME:-${PROJECT:-}-${APPLICATION:-}-${SERVICE_NAME:-}-${ENVIRONMENT:-}-jobs}"
 ACTIVITY_TABLE_NAME="${ACTIVITY_TABLE_NAME:-${PROJECT:-}-${APPLICATION:-}-${SERVICE_NAME:-}-${ENVIRONMENT:-}-activity}"
 JOBS_REGION="${JOBS_REGION:-$AWS_REGION}"
-JOBS_VISIBILITY_TIMEOUT_SECONDS="${JOBS_VISIBILITY_TIMEOUT_SECONDS:-120}"
+JOBS_SQS_VISIBILITY_TIMEOUT_SECONDS="${JOBS_SQS_VISIBILITY_TIMEOUT_SECONDS:-120}"
+if ! [[ "$JOBS_SQS_VISIBILITY_TIMEOUT_SECONDS" =~ ^[0-9]+$ ]]; then
+  echo "Error: JOBS_SQS_VISIBILITY_TIMEOUT_SECONDS must be a whole number" >&2
+  exit 1
+fi
+if [ "$JOBS_SQS_VISIBILITY_TIMEOUT_SECONDS" -lt 1 ] || [ "$JOBS_SQS_VISIBILITY_TIMEOUT_SECONDS" -gt 43200 ]; then
+  echo "Error: JOBS_SQS_VISIBILITY_TIMEOUT_SECONDS must be between 1 and 43200 (12 hours)" >&2
+  exit 1
+fi
 JOBS_MESSAGE_RETENTION_SECONDS="${JOBS_MESSAGE_RETENTION_SECONDS:-345600}"
 JOBS_MAX_RECEIVE_COUNT="${JOBS_MAX_RECEIVE_COUNT:-5}"
 FILE_TRANSFER_CACHE_CLUSTER_NAME="${FILE_TRANSFER_CACHE_CLUSTER_NAME:-${PROJECT:-}-${APPLICATION:-}-${SERVICE_NAME:-}-${ENVIRONMENT:-}}"
@@ -340,8 +360,54 @@ if [ "$ENVIRONMENT" != "dev" ] && [ "$ENVIRONMENT" != "prod" ]; then
   exit 1
 fi
 
+if [ -z "$RUNTIME_COST_MODE" ]; then
+  echo "Missing required environment variable: RUNTIME_COST_MODE (standard|saver|paused)." >&2
+  exit 1
+fi
+
+case "$RUNTIME_COST_MODE" in
+  standard)
+    API_DESIRED_COUNT="${API_DESIRED_COUNT:-2}"
+    API_TASK_CPU="${API_TASK_CPU:-2048}"
+    API_TASK_MEMORY="${API_TASK_MEMORY:-8192}"
+    ENABLE_WORKER="${ENABLE_WORKER:-true}"
+    WORKER_STACK_ACTION="deploy"
+    OBSERVABILITY_ENABLED="${OBSERVABILITY_ENABLED:-true}"
+    OBSERVABILITY_MIN_TASK_COUNT="${OBSERVABILITY_MIN_TASK_COUNT:-2}"
+    OBSERVABILITY_MAX_TASK_COUNT="${OBSERVABILITY_MAX_TASK_COUNT:-20}"
+    ;;
+  saver)
+    API_DESIRED_COUNT="${API_DESIRED_COUNT:-1}"
+    API_TASK_CPU="${API_TASK_CPU:-512}"
+    API_TASK_MEMORY="${API_TASK_MEMORY:-1024}"
+    ENABLE_WORKER="${ENABLE_WORKER:-true}"
+    WORKER_STACK_ACTION="deploy"
+    OBSERVABILITY_ENABLED="${OBSERVABILITY_ENABLED:-true}"
+    OBSERVABILITY_MIN_TASK_COUNT="${OBSERVABILITY_MIN_TASK_COUNT:-1}"
+    OBSERVABILITY_MAX_TASK_COUNT="${OBSERVABILITY_MAX_TASK_COUNT:-2}"
+    ;;
+  paused)
+    API_DESIRED_COUNT="${API_DESIRED_COUNT:-0}"
+    API_TASK_CPU="${API_TASK_CPU:-512}"
+    API_TASK_MEMORY="${API_TASK_MEMORY:-1024}"
+    ENABLE_WORKER="${ENABLE_WORKER:-false}"
+    WORKER_STACK_ACTION="delete"
+    OBSERVABILITY_ENABLED="${OBSERVABILITY_ENABLED:-false}"
+    OBSERVABILITY_MIN_TASK_COUNT="${OBSERVABILITY_MIN_TASK_COUNT:-1}"
+    OBSERVABILITY_MAX_TASK_COUNT="${OBSERVABILITY_MAX_TASK_COUNT:-2}"
+    ;;
+  *)
+    echo "RUNTIME_COST_MODE must be one of: standard, saver, paused." >&2
+    exit 1
+    ;;
+esac
+
 require_exactly_one_ingress_source
 ensure_runtime_env_posture
+
+if [ "$ENABLE_WORKER" = "true" ] && [ "$FILE_TRANSFER_ASYNC_ENABLED" = "true" ]; then
+  require_env JOBS_WORKER_UPDATE_TOKEN_SECRET_ARN
+fi
 
 RUNTIME_BUCKET_NAME="${FILE_TRANSFER_BUCKET_BASE_NAME}-${AWS_REGION}-${AWS_ACCOUNT_ID}"
 ARTIFACT_BUCKET_NAME="$(resolve_artifact_bucket_name)"
@@ -443,7 +509,7 @@ if [ "$FILE_TRANSFER_ASYNC_ENABLED" = "true" ]; then
     "JobsDeadLetterQueueName=${JOBS_DEAD_LETTER_QUEUE_NAME}" \
     "JobsTableName=${JOBS_TABLE_NAME}" \
     "ActivityTableName=${ACTIVITY_TABLE_NAME}" \
-    "JobsVisibilityTimeoutSeconds=${JOBS_VISIBILITY_TIMEOUT_SECONDS}" \
+    "JobsVisibilityTimeoutSeconds=${JOBS_SQS_VISIBILITY_TIMEOUT_SECONDS}" \
     "JobsMessageRetentionSeconds=${JOBS_MESSAGE_RETENTION_SECONDS}" \
     "JobsMaxReceiveCount=${JOBS_MAX_RECEIVE_COUNT}" \
     "AlarmNotificationTopicArn=${ALARM_ACTION_ARN}"
@@ -528,7 +594,9 @@ deploy_stack \
 
 SERVICE_BASE_URL="$(stack_output "$SERVICE_STACK_NAME" EcsDnsName)"
 
-if [ "$ENABLE_WORKER" = "true" ] && [ "$FILE_TRANSFER_ASYNC_ENABLED" = "true" ]; then
+if [ "$WORKER_STACK_ACTION" = "delete" ]; then
+  delete_stack_if_exists "$WORKER_STACK_NAME"
+elif [ "$ENABLE_WORKER" = "true" ] && [ "$FILE_TRANSFER_ASYNC_ENABLED" = "true" ]; then
   deploy_stack \
     "$WORKER_STACK_NAME" \
     "infra/runtime/file_transfer/worker.yml" \
@@ -548,7 +616,9 @@ if [ "$ENABLE_WORKER" = "true" ] && [ "$FILE_TRANSFER_ASYNC_ENABLED" = "true" ];
     "JobsQueueArn=${JOBS_QUEUE_ARN}" \
     "JobsQueueUrl=${JOBS_QUEUE_URL}" \
     "JobsRegion=${JOBS_REGION}" \
-    "FileTransferApiBaseUrl=${SERVICE_BASE_URL}" \
+    "JobsVisibilityTimeoutSeconds=${JOBS_SQS_VISIBILITY_TIMEOUT_SECONDS}" \
+    "JobsApiBaseUrl=${SERVICE_BASE_URL}" \
+    "JobsWorkerUpdateTokenSecretArn=${JOBS_WORKER_UPDATE_TOKEN_SECRET_ARN}" \
     "FileTransferBucketName=${RUNTIME_BUCKET_NAME}" \
     "FileTransferUploadPrefix=${FILE_TRANSFER_UPLOAD_PREFIX}" \
     "FileTransferExportPrefix=${FILE_TRANSFER_EXPORT_PREFIX}" \
@@ -592,6 +662,8 @@ if [ "$OBSERVABILITY_ENABLED" = "true" ]; then
     "MaxTaskCount=${OBSERVABILITY_MAX_TASK_COUNT}" \
     "TargetCpuUtilizationPercent=${OBSERVABILITY_CPU_TARGET}" \
     "TargetMemoryUtilizationPercent=${OBSERVABILITY_MEMORY_TARGET}"
+else
+  delete_stack_if_exists "$OBSERVABILITY_STACK_NAME"
 fi
 
 deploy_stack \

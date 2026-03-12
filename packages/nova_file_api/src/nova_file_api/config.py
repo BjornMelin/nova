@@ -78,7 +78,7 @@ class Settings(BaseSettings):
         alias="FILE_TRANSFER_TMP_PREFIX",
     )
     file_transfer_presign_upload_ttl_seconds: int = Field(
-        default=900,
+        default=1800,
         alias="FILE_TRANSFER_PRESIGN_UPLOAD_TTL_SECONDS",
         ge=60,
         le=3600,
@@ -111,7 +111,7 @@ class Settings(BaseSettings):
         alias="FILE_TRANSFER_USE_ACCELERATE_ENDPOINT",
     )
     max_upload_bytes: int = Field(
-        default=5 * 1024 * 1024 * 1024,
+        default=500 * 1024 * 1024 * 1024,
         alias="FILE_TRANSFER_MAX_UPLOAD_BYTES",
         ge=1,
     )
@@ -402,4 +402,15 @@ class Settings(BaseSettings):
         ).strip()
         if not token:
             raise ValueError(_MSG_WORKER_RUNTIME_REQUIRES_UPDATE_TOKEN)
+        return self
+
+    @model_validator(mode="after")
+    def validate_multipart_upload_capacity(self) -> Settings:
+        """Ensure max upload bytes can be represented with multipart parts."""
+        max_supported_upload_bytes = self.file_transfer_part_size_bytes * 10_000
+        if self.max_upload_bytes > max_supported_upload_bytes:
+            raise ValueError(
+                "FILE_TRANSFER_MAX_UPLOAD_BYTES must be less than or equal to "
+                "FILE_TRANSFER_PART_SIZE_BYTES * 10000"
+            )
         return self

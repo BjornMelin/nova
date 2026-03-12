@@ -83,6 +83,35 @@ class SignPartsResponse(StrictModel):
     expires_in_seconds: int
 
 
+class UploadedPart(StrictModel):
+    """Multipart part state returned for upload introspection."""
+
+    part_number: int = Field(ge=1, le=10_000)
+    etag: str = Field(min_length=1)
+
+
+class UploadIntrospectionRequest(StrictModel):
+    """Request payload for introspecting multipart upload state."""
+
+    key: str = Field(min_length=1)
+    upload_id: str = Field(min_length=1)
+    session_id: str = Field(
+        min_length=16,
+        max_length=64,
+        pattern=r"^[0-9a-fA-F-]{16,64}$",
+    )
+
+
+class UploadIntrospectionResponse(StrictModel):
+    """Response payload for multipart upload introspection."""
+
+    bucket: str
+    key: str
+    upload_id: str
+    part_size_bytes: int
+    parts: list[UploadedPart] = Field(default_factory=list)
+
+
 class CompletedPart(StrictModel):
     """Part completion details returned by browser client."""
 

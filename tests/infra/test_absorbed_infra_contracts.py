@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import re
 
+import yaml
+
 from .helpers import REPO_ROOT
 from .helpers import read_repo_file as _read
 
@@ -24,6 +26,27 @@ RUNTIME_DEPLOYABLE_TEMPLATES = (
 )
 
 
+class _CfnYamlLoader(yaml.SafeLoader):
+    """YAML loader that treats CloudFormation intrinsics as plain data."""
+
+
+def _construct_cfn_tag(
+    loader: _CfnYamlLoader,
+    _tag_suffix: str,
+    node: yaml.Node,
+) -> object:
+    if isinstance(node, yaml.ScalarNode):
+        return loader.construct_scalar(node)
+    if isinstance(node, yaml.SequenceNode):
+        return loader.construct_sequence(node)
+    if isinstance(node, yaml.MappingNode):
+        return loader.construct_mapping(node)
+    raise TypeError(f"Unsupported YAML node: {type(node)!r}")
+
+
+_CfnYamlLoader.add_multi_constructor("!", _construct_cfn_tag)
+
+
 def _section(text: str, start_marker: str, end_marker: str) -> str:
     start = text.find(start_marker)
     assert start != -1, f"Missing section marker: {start_marker}"
@@ -38,6 +61,15 @@ def _default_number_from_block(block: str) -> int:
         if stripped.startswith("Default:"):
             return int(stripped.removeprefix("Default:").strip().strip('"'))
     raise AssertionError("Expected Default entry in parameter block")
+
+
+def _yaml_template(rel_path: str) -> dict[str, object]:
+    payload = yaml.load(
+        _read(rel_path),
+        Loader=_CfnYamlLoader,  # noqa: S506 - subclasses SafeLoader
+    )
+    assert isinstance(payload, dict)
+    return payload
 
 
 def test_absorbed_template_paths_present() -> None:
@@ -375,6 +407,7 @@ def test_runtime_env_and_parameter_contracts() -> None:
     ecr_text = _read("infra/runtime/ecr.yml")
     s3_text = _read("infra/runtime/file_transfer/s3.yml")
     worker_text = _read("infra/runtime/file_transfer/worker.yml")
+    worker_template = _yaml_template("infra/runtime/file_transfer/worker.yml")
     service_text = _read("infra/runtime/ecs/service.yml")
 
     assert "JobsVisibilityTimeoutSeconds" in async_text
@@ -388,16 +421,56 @@ def test_runtime_env_and_parameter_contracts() -> None:
     assert "AttributeName: scope_id" in async_text
     assert "AttributeName: created_at" in async_text
 
-    for env_name in [
-        "FILE_TRANSFER_JOBS_QUEUE_URL",
-        "FILE_TRANSFER_JOBS_REGION",
+    resources = worker_template["Resources"]
+    assert isinstance(resources, dict)
+    worker_task_definition = resources["WorkerTaskDefinition"]
+    assert isinstance(worker_task_definition, dict)
+    properties = worker_task_definition["Properties"]
+    assert isinstance(properties, dict)
+    container_definitions = properties["ContainerDefinitions"]
+    assert isinstance(container_definitions, list)
+    container = container_definitions[0]
+    assert isinstance(container, dict)
+
+    assert container["Command"] == ["nova-file-worker"]
+    environment = container["Environment"]
+    assert isinstance(environment, list)
+    env_names = {
+        entry["Name"]
+        for entry in environment
+        if isinstance(entry, dict) and isinstance(entry.get("Name"), str)
+    }
+    assert {
+        "JOBS_ENABLED",
+        "JOBS_RUNTIME_MODE",
+        "JOBS_QUEUE_BACKEND",
+        "JOBS_SQS_QUEUE_URL",
+        "JOBS_API_BASE_URL",
         "FILE_TRANSFER_BUCKET",
         "FILE_TRANSFER_UPLOAD_PREFIX",
         "FILE_TRANSFER_EXPORT_PREFIX",
         "FILE_TRANSFER_TMP_PREFIX",
+    }.issubset(env_names)
+    assert {
+        "FILE_TRANSFER_API_BASE_URL",
+        "FILE_TRANSFER_JOBS_QUEUE_URL",
+        "FILE_TRANSFER_JOBS_REGION",
         "APP_SYNC_PROCESSING_MAX_BYTES",
-    ]:
-        assert f"- Name: {env_name}" in worker_text
+    }.isdisjoint(env_names)
+
+    secrets = container["Secrets"]
+    assert isinstance(secrets, list)
+    secret_names = {
+        entry["Name"]
+        for entry in secrets
+        if isinstance(entry, dict) and isinstance(entry.get("Name"), str)
+    }
+    assert secret_names == {"JOBS_WORKER_UPDATE_TOKEN"}
+    parameters = worker_template["Parameters"]
+    assert isinstance(parameters, dict)
+    assert "JobsWorkerUpdateTokenSecretArn" in parameters
+    assert "WorkerCommand" not in parameters
+    assert "SyncProcessingMaxBytes" not in parameters
 
     for required in [
         "JobsDeadLetterQueue:",

@@ -2088,6 +2088,39 @@ def _patch_file_sdk(root: Path) -> None:
     )
     _rewrite_file(
         root,
+        "api/transfers/introspect_upload.py",
+        lambda content: (
+            _ensure_module_docstring(
+                content,
+                doc=(
+                    "Client helpers for the `/v1/transfers/uploads/introspect` "
+                    "endpoint."
+                ),
+            )
+            .replace(
+                "    Args:\n"
+                "        request: FastAPI request object used for auth context.\n"
+                "        payload: Multipart introspection input payload.\n"
+                "        metrics: Request-scoped metrics collector dependency.\n"
+                "        transfer_service: Transfer domain service dependency.\n"
+                "        activity_store: Activity persistence dependency.\n"
+                "        authenticator: Principal authenticator dependency.\n"
+                "\n"
+                "    Returns:\n"
+                "        UploadIntrospectionResponse: Multipart state for resume operations.\n"
+                "\n",
+                "",
+            )
+            .replace(
+                "    Returns:\n"
+                "        ErrorEnvelope | UploadIntrospectionResponse\n",
+                "    Returns:\n"
+                "        ErrorEnvelope | UploadIntrospectionResponse | None\n",
+            )
+        ),
+    )
+    _rewrite_file(
+        root,
         "models/job_events_response.py",
         lambda content: (
             _ensure_module_docstring(
@@ -2296,6 +2329,92 @@ def _patch_file_sdk(root: Path) -> None:
     )
     _rewrite_file(
         root,
+        "models/uploaded_part.py",
+        lambda content: _replace_text(
+            _replace_text(
+                _replace_text(
+                    _replace_text(
+                        _replace_text(
+                            _ensure_module_docstring(
+                                content,
+                                doc="Multipart uploaded-part model for resume introspection.",
+                            ),
+                            old='    """Part state returned for multipart upload introspection.\n\n    Attributes:\n        etag (str):\n        part_number (int):\n    """\n',
+                            new='    """Part state returned for multipart upload introspection.\n\n'
+                            "    Attributes:\n"
+                            "        etag (str): ETag returned by S3 for this uploaded part.\n"
+                            "        part_number (int): 1-based multipart part number.\n"
+                            '    """\n',
+                            path="models/uploaded_part.py",
+                        ),
+                        old="from attrs import define as _attrs_define\n",
+                        new="from attrs import define as _attrs_define\n"
+                        "from attrs import field as _attrs_field\n"
+                        "from attrs import validators as _attrs_validators\n",
+                        path="models/uploaded_part.py",
+                    ),
+                    old="    etag: str\n",
+                    new="    etag: str = _attrs_field(\n"
+                    "        validator=_attrs_validators.and_(\n"
+                    "            _attrs_validators.instance_of(str),\n"
+                    "            _attrs_validators.min_len(1),\n"
+                    "        )\n"
+                    "    )\n",
+                    path="models/uploaded_part.py",
+                ),
+                old="    def to_dict(self) -> dict[str, Any]:\n",
+                new="    def to_dict(self) -> dict[str, Any]:\n"
+                '        """Serialize this model to a JSON-compatible dict.\n\n'
+                "        Args:\n"
+                "            None.\n\n"
+                "        Returns:\n"
+                "            dict[str, Any]: Serialized uploaded part payload.\n"
+                '        """\n',
+                path="models/uploaded_part.py",
+            ),
+            old="    @classmethod\n"
+            "    def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:\n",
+            new="    @classmethod\n"
+            "    def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:\n"
+            '        """Build this model from a JSON-compatible mapping.\n\n'
+            "        Args:\n"
+            "            src_dict (Mapping[str, Any]): Source mapping containing\n"
+            "                ``etag`` and ``part_number`` keys.\n\n"
+            "        Returns:\n"
+            "            UploadedPart: Parsed uploaded-part model.\n\n"
+            "        Raises:\n"
+            "            KeyError: If required keys are missing.\n"
+            "            TypeError: If value types are not compatible.\n"
+            '        """\n',
+            path="models/uploaded_part.py",
+        ),
+    )
+    _rewrite_file(
+        root,
+        "models/upload_introspection_response.py",
+        lambda content: _replace_text(
+            _replace_text(
+                _ensure_module_docstring(
+                    content,
+                    doc="Multipart upload introspection response model.",
+                ),
+                old=(
+                    "if TYPE_CHECKING:\n"
+                    "    from ..models.uploaded_part import UploadedPart\n"
+                ),
+                new=(
+                    "if TYPE_CHECKING:\n"
+                    "    from nova_sdk_py_file.models.uploaded_part import UploadedPart\n"
+                ),
+                path="models/upload_introspection_response.py",
+            ),
+            old="from ..models.uploaded_part import UploadedPart\n",
+            new="from nova_sdk_py_file.models.uploaded_part import UploadedPart\n",
+            path="models/upload_introspection_response.py",
+        ),
+    )
+    _rewrite_file(
+        root,
         "models/upload_strategy.py",
         lambda content: _ensure_module_docstring(
             content,
@@ -2347,7 +2466,13 @@ def _apply_repo_python_sdk_patches(root: Path) -> None:
 
 
 def _strip_selected_ruff_noqa(root: Path) -> None:
-    for rel_path in ("api/__init__.py", "api/token/__init__.py"):
+    for rel_path in (
+        "api/__init__.py",
+        "api/token/__init__.py",
+        "api/transfers/introspect_upload.py",
+        "models/upload_introspection_response.py",
+        "models/uploaded_part.py",
+    ):
         _rewrite_file(
             root,
             rel_path,

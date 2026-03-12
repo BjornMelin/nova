@@ -124,6 +124,37 @@ class SignPartsResponse(BaseModel):
     urls: dict[int, str]
 
 
+class UploadedPart(BaseModel):
+    """Part state returned for multipart upload introspection."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    part_number: int = Field(ge=1, le=10_000)
+    etag: str = Field(min_length=1, max_length=256)
+
+
+class UploadIntrospectionRequest(BaseModel):
+    """Multipart upload introspection request."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    key: str = Field(min_length=1, max_length=2048)
+    upload_id: str = Field(min_length=1, max_length=1024)
+    session_id: str | None = Field(default=None, min_length=1, max_length=256)
+
+
+class UploadIntrospectionResponse(BaseModel):
+    """Multipart upload introspection response."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    bucket: str
+    key: str
+    upload_id: str
+    part_size_bytes: int = Field(gt=0)
+    parts: list[UploadedPart] = Field(max_length=10_000)
+
+
 class CompletedPart(BaseModel):
     """Part metadata needed for multipart completion."""
 

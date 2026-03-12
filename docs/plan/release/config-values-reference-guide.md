@@ -205,7 +205,6 @@ Exported variables:
 Reference file:
 `buildspecs/buildspec-release.yml`
 
-
 ## Promote-prod workflow dispatch inputs
 
 `promote-prod.yml` requires these runtime inputs:
@@ -251,6 +250,23 @@ Route namespace policy:
   checks and required legacy-route `404` assertions.
 - Legacy route literals are allowed only in dedicated validation `404` checks
   (`validation_legacy_404_paths`), not as active runtime routes.
+
+## File-transfer large-upload contract
+
+Operator/runtime values that now define the large-upload posture:
+
+- `FILE_TRANSFER_MAX_UPLOAD_BYTES=536_870_912_000`
+- `FILE_TRANSFER_PRESIGN_UPLOAD_TTL_SECONDS=1800`
+- `FILE_TRANSFER_PART_SIZE_BYTES=134217728`
+- `FILE_TRANSFER_USE_ACCELERATE_ENDPOINT=false` by default
+- `JOBS_WORKER_UPDATE_TOKEN_SECRET_ARN` when the worker stack is enabled
+
+Operational notes:
+
+- `FILE_TRANSFER_USE_ACCELERATE_ENDPOINT=true` requires an acceleration-enabled
+  bucket whose name is DNS-compliant and contains no periods.
+- Worker token delivery is secret-backed only; stale worker env aliases are not
+  valid inputs.
 
 ## References
 

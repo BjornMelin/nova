@@ -21,6 +21,7 @@ from nova_dash_bridge.models import (
     InitiateUploadRequest,
     PresignDownloadRequest,
     SignPartsRequest,
+    UploadIntrospectionRequest,
 )
 from nova_dash_bridge.s3_client import SupportsCreateS3Client
 from nova_dash_bridge.service import (
@@ -203,6 +204,13 @@ def create_fastapi_router(
         """Return presigned multipart part upload URLs."""
         payload = await _parse_payload(request, SignPartsRequest)
         return await run_in_threadpool(service.sign_parts, payload)
+
+    @router.post("/uploads/introspect")
+    @handle_file_transfer_errors
+    async def introspect_upload(request: Request) -> Any:
+        """Return uploaded multipart part state for resume flows."""
+        payload = await _parse_payload(request, UploadIntrospectionRequest)
+        return await run_in_threadpool(service.introspect_upload, payload)
 
     @router.post("/uploads/complete")
     @handle_file_transfer_errors

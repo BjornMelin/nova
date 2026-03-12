@@ -2,13 +2,13 @@
 Spec: 0008
 Title: Async Jobs and Worker Orchestration
 Status: Active
-Version: 1.8
-Date: 2026-03-03
+Version: 1.9
+Date: 2026-03-11
 Related:
-  - "[ADR-0006: SQS + ECS worker orchestration](../adr/ADR-0006-async-orchestration-sqs-ecs-worker.md)"
+  - "[ADR-0023: Hard-cut v1 canonical route surface](../adr/ADR-0023-hard-cut-v1-canonical-route-surface.md)"
   - "[SPEC-0000: HTTP API contract](./SPEC-0000-http-api-contract.md)"
-  - "[SPEC-0001: Security model](./SPEC-0001-security-model.md)"
-  - "[SPEC-0009: Caching and idempotency](./SPEC-0009-caching-and-idempotency.md)"
+  - "[SPEC-0016: v1 route namespace and literal guardrails](./SPEC-0016-v1-route-namespace-and-literal-guardrails.md)"
+  - "[requirements.md](../requirements.md)"
 References:
   - "[Amazon SQS Developer Guide](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/welcome.html)"
   - "[Amazon ECS Developer Guide](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/Welcome.html)"
@@ -50,10 +50,10 @@ contract generated from runtime implementation. For async additions:
     with SPEC-0000.
 - `GET /v1/jobs/{job_id}/events`
   - Request body: none; optional query params `cursor` and `limit`.
-  - Response: `JobEventsResponse` containing `events[]`, `next_cursor`, and
-    `has_more`.
-  - Event item shape: `JobEvent` with `event_type`, `message`, `details`,
-    `created_at`.
+  - Response: `JobEventsResponse` containing `job_id`, `next_cursor`, and
+    `events[]`.
+  - Event item shape: `JobEvent` with `event_id`, `job_id`, `status`,
+    `timestamp`, and optional `data` and `event_type` fields.
   - Errors: shared error envelope with `401/403/404/500` semantics aligned with
     SPEC-0000.
 
@@ -102,6 +102,13 @@ Invalid transitions MUST fail with `409` (`error.code = "conflict"`).
 - Queue topology MUST include a dedicated dead-letter queue (DLQ) and source
   queue `RedrivePolicy.maxReceiveCount` so terminal poison messages leave the
   hot queue deterministically.
+- Long-running worker operations MUST extend message visibility before half of
+  the configured timeout elapses instead of relying only on static
+  `VisibilityTimeout` sizing.
+- Long-running worker operations MUST NOT rely on visibility extensions beyond
+  the SQS 12-hour (43,200 second) ceiling from the original receive; work that
+  may exceed that cap MUST checkpoint, split, re-enqueue, or fail before the
+  window is exhausted.
 - Non-retryable failures SHOULD transition to `failed` with structured error
   details.
 - First worker transition from `pending` MUST record queue lag metric
@@ -141,6 +148,8 @@ Worker status callbacks MUST validate `X-Worker-Token` when
 
 ## Changelog
 
+- 2026-03-11 (v1.9): Added heartbeat-based SQS visibility-extension
+  requirement for long-running worker operations.
 - 2026-03-03 (v1.8): Canonicalized job route documentation to `/v1/*`, added
   `/v1/jobs/{job_id}/retry` and `/v1/jobs/{job_id}/events` endpoint contract
   details, and updated internal worker callback route to

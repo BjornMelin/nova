@@ -46,7 +46,7 @@ class FileTransferEnvConfig(BaseSettings):
         validation_alias="FILE_TRANSFER_TMP_PREFIX",
     )
     presign_upload_ttl_seconds: int = Field(
-        default=900,
+        default=1800,
         ge=60,
         le=3600,
         validation_alias="FILE_TRANSFER_PRESIGN_UPLOAD_TTL_SECONDS",

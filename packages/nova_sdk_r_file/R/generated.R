@@ -98,6 +98,12 @@ nova_file_operation_catalog <- function() {
       path = "/v1/transfers/uploads/initiate",
       summary = "Initiate Upload"
     ),
+    "introspect_upload" = list(
+      operation_id = "introspect_upload",
+      method = "POST",
+      path = "/v1/transfers/uploads/introspect",
+      summary = "Introspect Upload"
+    ),
     "sign_upload_parts" = list(
       operation_id = "sign_upload_parts",
       method = "POST",

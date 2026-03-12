@@ -88,6 +88,22 @@ Operational guidance:
 - tune scale targets only after 7-day p95 and saturation review
 - do not lower `MinTaskCount` to 1 in prod except explicit exception with incident/risk note
 
+## Cost-emergency near-zero posture
+
+Canonical runtime convergence (`scripts/release/deploy-runtime-cloudformation-environment.sh`)
+now requires `RUNTIME_COST_MODE`:
+
+- `standard`: prod-safe baseline (`API_TASK_CPU=2048`, `API_TASK_MEMORY=8192`,
+  `API_DESIRED_COUNT=2`, `OBSERVABILITY_MIN_TASK_COUNT=2`)
+- `saver`: low-cost active posture (`API_TASK_CPU=512`, `API_TASK_MEMORY=1024`,
+  `API_DESIRED_COUNT=1`, `OBSERVABILITY_MIN_TASK_COUNT=1`,
+  `OBSERVABILITY_MAX_TASK_COUNT=2`)
+- `paused`: near-zero runtime posture (`API_DESIRED_COUNT=0`,
+  `OBSERVABILITY_ENABLED=false`, `ENABLE_WORKER=false`)
+
+When runtime availability can be sacrificed to stop spend immediately, use
+`RUNTIME_COST_MODE=paused` and converge both `dev` and `prod`.
+
 ## Cost hook
 
 `MonthlyEstimatedChargesAlarm` (`AWS/Billing EstimatedCharges`) is the baseline hook.

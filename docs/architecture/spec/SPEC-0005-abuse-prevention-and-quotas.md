@@ -2,10 +2,13 @@
 Spec: 0005
 Title: Abuse Prevention and Quotas
 Status: Active
-Version: 1.2
-Date: 2026-03-03
+Version: 1.3
+Date: 2026-03-11
 Related:
+  - "[ADR-0023: Hard-cut v1 canonical route surface](../adr/ADR-0023-hard-cut-v1-canonical-route-surface.md)"
   - "[SPEC-0000: HTTP API contract](./SPEC-0000-http-api-contract.md)"
+  - "[SPEC-0016: v1 route namespace and literal guardrails](./SPEC-0016-v1-route-namespace-and-literal-guardrails.md)"
+  - "[requirements.md](../requirements.md)"
   - "[SPEC-0003: Observability](./SPEC-0003-observability.md)"
 References:
   - "[AWS WAF rate-based rules](https://docs.aws.amazon.com/waf/latest/developerguide/waf-rule-statement-type-rate-based.html)"
@@ -41,6 +44,9 @@ Per-scope quotas (phase target):
 - maximum active multipart uploads
 - maximum total bytes initiated per window (hour/day)
 - maximum `sign-parts` calls per upload/session
+
+These quotas remain active planned work. Large-upload correctness hardening does
+not delete, supersede, or silently defer this abuse-control slice.
 
 ### 2.3 Cleanup and cost containment
 

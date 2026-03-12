@@ -119,6 +119,7 @@ def test_openapi_path_method_tags_are_semantic() -> None:
         "/metrics/summary": {"get": ["ops"]},
         "/v1/transfers/uploads/initiate": {"post": ["transfers"]},
         "/v1/transfers/uploads/sign-parts": {"post": ["transfers"]},
+        "/v1/transfers/uploads/introspect": {"post": ["transfers"]},
         "/v1/transfers/uploads/complete": {"post": ["transfers"]},
         "/v1/transfers/uploads/abort": {"post": ["transfers"]},
         "/v1/transfers/downloads/presign": {"post": ["transfers"]},

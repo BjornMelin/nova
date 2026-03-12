@@ -6,9 +6,11 @@ import asyncio
 import json
 import secrets
 import signal
+from collections.abc import Awaitable, Callable
+from contextlib import suppress
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any
+from typing import Any, TypeVar
 
 import aioboto3  # type: ignore[import-untyped]
 import httpx
@@ -28,6 +30,11 @@ _RESULT_UPDATE_BASE_DELAY_SECONDS = 0.25
 _RESULT_UPDATE_MAX_DELAY_SECONDS = 2.0
 _RETRYABLE_RESULT_STATUS_CODES = {404, 409, 500, 502, 503, 504}
 _WORKER_RUNTIME_MODE = "worker"
+_MIN_VISIBILITY_EXTENSION_INTERVAL_SECONDS = 0.5
+_VISIBILITY_EXTENSION_RETRY_DELAY_SECONDS = 1.0
+_SQS_VISIBILITY_TIMEOUT_MAX_SECONDS = 43_200
+
+_T = TypeVar("_T")
 
 
 @dataclass(slots=True, frozen=True)
@@ -340,43 +347,136 @@ class JobsWorker:
             )
             return False
 
-        try:
-            transfer_service = self._require_transfer_service()
-            export = await transfer_service.copy_upload_to_export(
-                source_bucket=payload.bucket,
-                source_key=payload.key,
-                scope_id=worker_message.scope_id,
-                job_id=worker_message.job_id,
-                filename=payload.filename,
-            )
-        except FileTransferError as exc:
-            if exc.status_code >= 500:
-                self._logger.warning(
-                    "jobs_worker_execution_retryable_failure",
-                    message_id=message_id,
+        async def _execute_and_publish() -> bool:
+            try:
+                transfer_service = self._require_transfer_service()
+                export = await transfer_service.copy_upload_to_export(
+                    source_bucket=payload.bucket,
+                    source_key=payload.key,
+                    scope_id=worker_message.scope_id,
                     job_id=worker_message.job_id,
-                    receive_count=receive_count,
-                    error_code=exc.code,
-                    error_detail=exc.message,
+                    filename=payload.filename,
                 )
-                return False
+            except FileTransferError as exc:
+                if exc.status_code >= 500:
+                    self._logger.warning(
+                        "jobs_worker_execution_retryable_failure",
+                        message_id=message_id,
+                        job_id=worker_message.job_id,
+                        receive_count=receive_count,
+                        error_code=exc.code,
+                        error_detail=exc.message,
+                    )
+                    return False
+                return await self._publish_terminal_result(
+                    message_id=message_id,
+                    receive_count=receive_count,
+                    job_id=worker_message.job_id,
+                    status=JobStatus.FAILED,
+                    result=None,
+                    error=exc.message,
+                )
+
             return await self._publish_terminal_result(
                 message_id=message_id,
                 receive_count=receive_count,
                 job_id=worker_message.job_id,
-                status=JobStatus.FAILED,
-                result=None,
-                error=exc.message,
+                status=JobStatus.SUCCEEDED,
+                result=_success_result_from_export(export=export),
+                error=None,
             )
 
-        return await self._publish_terminal_result(
-            message_id=message_id,
-            receive_count=receive_count,
+        return await self._run_with_visibility_extension(
+            message=message,
             job_id=worker_message.job_id,
-            status=JobStatus.SUCCEEDED,
-            result=_success_result_from_export(export=export),
-            error=None,
+            operation=_execute_and_publish,
         )
+
+    async def _run_with_visibility_extension(
+        self,
+        *,
+        message: dict[str, Any],
+        job_id: str,
+        operation: Callable[[], Awaitable[_T]],
+    ) -> _T:
+        """Run a long-lived operation while extending SQS visibility."""
+        task = self._start_visibility_extension_task(
+            message=message,
+            job_id=job_id,
+        )
+        try:
+            return await operation()
+        finally:
+            if task is not None:
+                task.cancel()
+                with suppress(asyncio.CancelledError):
+                    await task
+
+    def _start_visibility_extension_task(
+        self,
+        *,
+        message: dict[str, Any],
+        job_id: str,
+    ) -> asyncio.Task[None] | None:
+        """Start a heartbeat task for extending message visibility."""
+        receipt_handle = str(message.get("ReceiptHandle", "")).strip()
+        if not receipt_handle:
+            return None
+        visibility_timeout = self._settings.jobs_sqs_visibility_timeout_seconds
+        if visibility_timeout <= 0:
+            return None
+        interval_seconds = max(
+            _MIN_VISIBILITY_EXTENSION_INTERVAL_SECONDS,
+            visibility_timeout / 2.0,
+        )
+        return asyncio.create_task(
+            self._extend_visibility_loop(
+                receipt_handle=receipt_handle,
+                job_id=job_id,
+                interval_seconds=interval_seconds,
+            )
+        )
+
+    async def _extend_visibility_loop(
+        self,
+        *,
+        receipt_handle: str,
+        job_id: str,
+        interval_seconds: float,
+    ) -> None:
+        """Heartbeat visibility timeout while long-running work is active."""
+        retry_delay_seconds = min(
+            _VISIBILITY_EXTENSION_RETRY_DELAY_SECONDS,
+            interval_seconds,
+        )
+        await asyncio.sleep(interval_seconds)
+        while True:
+            try:
+                await self._require_sqs().change_message_visibility(
+                    QueueUrl=self._queue_url,
+                    ReceiptHandle=receipt_handle,
+                    VisibilityTimeout=(
+                        self._settings.jobs_sqs_visibility_timeout_seconds
+                    ),
+                )
+            except (ClientError, BotoCoreError) as exc:
+                if isinstance(
+                    exc, ClientError
+                ) and _is_visibility_timeout_ceiling_error(exc):
+                    self._logger.warning(
+                        "jobs_worker_visibility_extension_ceiling_reached",
+                        job_id=job_id,
+                        max_visibility_seconds=_SQS_VISIBILITY_TIMEOUT_MAX_SECONDS,
+                    )
+                    return
+                self._logger.warning(
+                    "jobs_worker_visibility_extension_failed",
+                    job_id=job_id,
+                    error_type=type(exc).__name__,
+                )
+                await asyncio.sleep(retry_delay_seconds)
+                continue
+            await asyncio.sleep(interval_seconds)
 
     async def _publish_terminal_result(
         self,
@@ -532,6 +632,23 @@ def _result_update_retry_delay_seconds(*, attempt: int) -> float:
     )
     jitter = secrets.SystemRandom().uniform(0.75, 1.25)
     return float(delay_seconds * jitter)
+
+
+def _is_visibility_timeout_ceiling_error(exc: ClientError) -> bool:
+    """Return True when SQS rejects visibility extension at the 12h ceiling."""
+    error = exc.response.get("Error", {})
+    code = str(error.get("Code", "")).strip()
+    message = str(error.get("Message", "")).lower()
+    if code not in {
+        "InvalidParameterValue",
+        "AWS.SimpleQueueService.InvalidParameterValue",
+    }:
+        return False
+    return "visibility" in message and (
+        str(_SQS_VISIBILITY_TIMEOUT_MAX_SECONDS) in message
+        or "maximum time left" in message
+        or "maximum visibility timeout" in message
+    )
 
 
 def _success_result_from_export(

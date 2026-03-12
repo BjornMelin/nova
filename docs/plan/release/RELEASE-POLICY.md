@@ -27,6 +27,9 @@ Companion modular setup guides:
    `main`-branch plan runs and must checkout `workflow_run.head_sha`.
 5. Release commits from automation must be cryptographically signed.
 6. AWS promotion consumes immutable artifacts from signed source state.
+7. Non-release `main` commits should include `[skip release]` so release-plan
+   automation is intentionally throttled when no publish/deploy action is
+   needed.
 
 ## 3. Promotion policy
 

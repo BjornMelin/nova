@@ -1,7 +1,7 @@
 # Requirements (nova runtime)
 
 Status: Canonical requirements source
-Last updated: 2026-03-10
+Last updated: 2026-03-11
 
 This document is the source of truth for functional and non-functional
 requirements for the first production release.
@@ -47,6 +47,7 @@ The service MUST provide:
 
 - `POST /v1/transfers/uploads/initiate`
 - `POST /v1/transfers/uploads/sign-parts`
+- `POST /v1/transfers/uploads/introspect`
 - `POST /v1/transfers/uploads/complete`
 - `POST /v1/transfers/uploads/abort`
 - `POST /v1/transfers/downloads/presign`
@@ -219,6 +220,17 @@ The service MUST enforce AWS multipart constraints:
 - part number range: 1 to 10,000
 - part size bounds: 5 MiB to 5 GiB (last part may be smaller)
 - complete payload includes per-part `ETag` values
+- `POST /v1/transfers/uploads/introspect` MUST expose uploaded part state
+  for resumable multipart uploads
+- default runtime posture MUST support `500 GiB` single-file uploads through
+  `FILE_TRANSFER_MAX_UPLOAD_BYTES=536_870_912_000`, while remaining
+  environment-configurable upward
+- default upload presign TTL MUST be `1800` seconds
+- browser and bridge clients MUST use progressive multipart signing rather than
+  wide-batch presigning; the canonical batch rule is
+  `min(16, 2 * maxConcurrency)` unless a smaller client override is configured
+- export-copy flows for objects larger than `5 GB` MUST use multipart copy
+  rather than `CopyObject`
 
 When `FILE_TRANSFER_USE_ACCELERATE_ENDPOINT=true`, presigned URLs MUST be
 generated using acceleration-compatible client configuration.
@@ -287,6 +299,10 @@ limits require adjustment.
 
 The service MUST remain control-plane only and scale horizontally behind ALB on
 ECS/Fargate.
+
+Default runtime posture MUST support `500 GiB` single-file uploads and
+multi-TiB aggregate workloads through direct-to-S3 multipart transfer, not API
+byte proxying.
 
 Selected backend misconfiguration MUST fail fast at startup instead of silently
 degrading behavior.

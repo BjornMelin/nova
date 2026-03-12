@@ -51,6 +51,13 @@ OPENAPI_OPERATION_RESPONSES = {
             "422": "FileInvalidRequestResponse",
         }
     },
+    "/v1/transfers/uploads/introspect": {
+        "post": {
+            "401": "FileUnauthorizedResponse",
+            "403": "FileForbiddenResponse",
+            "422": "FileInvalidRequestResponse",
+        }
+    },
     "/v1/transfers/uploads/complete": {
         "post": {
             "401": "FileUnauthorizedResponse",

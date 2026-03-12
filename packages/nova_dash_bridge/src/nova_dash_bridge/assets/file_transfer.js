@@ -208,6 +208,61 @@
     });
   }
 
+  function multipartStateStorageKey(config, file) {
+    var resumeNamespace = String(config.resumeNamespace || "");
+    return [
+      "nova-multipart-upload",
+      resumeNamespace,
+      config.transfersEndpointBase || "/v1/transfers",
+      file.name || "",
+      String(file.size || 0),
+      String(file.lastModified || 0),
+    ].join(":");
+  }
+
+  function loadMultipartState(storageKey) {
+    if (!storageKey) return null;
+    try {
+      var storage = window.localStorage;
+      if (!storage) return null;
+      var raw = storage.getItem(storageKey);
+      if (!raw) return null;
+      var parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed !== "object") return null;
+      return parsed;
+    } catch (_error) {
+      return null;
+    }
+  }
+
+  function persistMultipartState(storageKey, state) {
+    if (!storageKey) return;
+    try {
+      var storage = window.localStorage;
+      if (!storage) return;
+      storage.setItem(storageKey, JSON.stringify(state));
+    } catch (_error) {
+      // Best-effort persistence only.
+    }
+  }
+
+  function clearMultipartState(storageKey) {
+    if (!storageKey) return;
+    try {
+      var storage = window.localStorage;
+      if (!storage) return;
+      storage.removeItem(storageKey);
+    } catch (_error) {
+      // Best-effort cleanup only.
+    }
+  }
+
+  function partSizeForNumber(fileSize, partSize, partNumber) {
+    var start = (partNumber - 1) * partSize;
+    var end = Math.min(fileSize, start + partSize);
+    return Math.max(0, end - start);
+  }
+
   async function uploadMultipart(config, file, initiated, sessionId) {
     var base = config.transfersEndpointBase;
     var key = initiated.key;
@@ -219,9 +274,21 @@
       );
     }
     var maxConcurrency = Math.max(1, parseInt(config.maxConcurrency, 10) || 4);
+    var configuredBatchSize = parseInt(config.signBatchSize || "0", 10);
+    var batchSize = configuredBatchSize > 0
+      ? configuredBatchSize
+      : Math.min(16, Math.max(1, maxConcurrency * 2));
     var totalParts = Math.ceil(file.size / partSize);
     var completeParts = [];
     var uploadedBytes = 0;
+    var storageKey = multipartStateStorageKey(config, file);
+    persistMultipartState(storageKey, {
+      bucket: initiated.bucket,
+      key: key,
+      upload_id: uploadId,
+      part_size_bytes: partSize,
+      session_id: sessionId,
+    });
 
     async function uploadSinglePart(partNumber, url) {
       var start = (partNumber - 1) * partSize;
@@ -244,11 +311,46 @@
     }
 
     try {
-      var batchSize = 50;
-      for (var startPart = 1; startPart <= totalParts; startPart += batchSize) {
-        var endPart = Math.min(totalParts, startPart + batchSize - 1);
-        var partNumbers = [];
-        for (var p = startPart; p <= endPart; p += 1) partNumbers.push(p);
+      var completedByPartNumber = {};
+      var introspected = await postJson(base + "/uploads/introspect", {
+        key: key,
+        upload_id: uploadId,
+        session_id: sessionId,
+      });
+      var existingParts =
+        introspected && Array.isArray(introspected.parts)
+          ? introspected.parts
+          : [];
+      existingParts.forEach(function (part) {
+        var partNumber = parseInt(part.part_number, 10);
+        if (!Number.isFinite(partNumber) || partNumber <= 0) return;
+        completedByPartNumber[partNumber] = {
+          part_number: partNumber,
+          etag: part.etag || "",
+        };
+        uploadedBytes += partSizeForNumber(file.size, partSize, partNumber);
+      });
+      if (uploadedBytes > 0) {
+        var resumedPct = Math.floor((uploadedBytes / file.size) * 100);
+        setProgress(
+          config.progressStoreId,
+          resumedPct,
+          "Resuming upload… " + resumedPct + "%"
+        );
+      }
+
+      var pendingPartNumbers = [];
+      for (var pending = 1; pending <= totalParts; pending += 1) {
+        if (!completedByPartNumber[pending]) {
+          pendingPartNumbers.push(pending);
+        }
+      }
+
+      for (var startIndex = 0; startIndex < pendingPartNumbers.length; startIndex += batchSize) {
+        var partNumbers = pendingPartNumbers.slice(
+          startIndex,
+          startIndex + batchSize
+        );
 
         var sign = await postJson(base + "/uploads/sign-parts", {
           key: key,
@@ -269,7 +371,7 @@
                   throw new Error("missing signed URL for part " + partNumber);
                 }
                 var completed = await uploadSinglePart(partNumber, signedUrl);
-                completeParts.push(completed);
+                completedByPartNumber[partNumber] = completed;
               }
             })()
           );
@@ -277,6 +379,9 @@
         await Promise.all(workers);
       }
 
+      completeParts = Object.keys(completedByPartNumber).map(function (keyName) {
+        return completedByPartNumber[Number(keyName)];
+      });
       completeParts.sort(function (a, b) {
         return a.part_number - b.part_number;
       });
@@ -286,19 +391,9 @@
         parts: completeParts,
         session_id: sessionId,
       });
+      clearMultipartState(storageKey);
       return { key: key, uploadId: uploadId };
     } catch (error) {
-      if (uploadId) {
-        try {
-          await postJson(base + "/uploads/abort", {
-            key: key,
-            upload_id: uploadId,
-            session_id: sessionId,
-          });
-        } catch (_abortError) {
-          // Best-effort cleanup; preserve the original upload failure.
-        }
-      }
       throw error;
     }
   }
@@ -406,24 +501,92 @@
     return null;
   }
 
+  function isMultipartNotFoundError(error) {
+    return (
+      error &&
+      typeof error.message === "string" &&
+      error.message.indexOf("multipart upload was not found") !== -1
+    );
+  }
+
+  function isUploadObjectMissingError(error) {
+    return (
+      error &&
+      typeof error.message === "string" &&
+      (error.message.indexOf("upload object not found") !== -1 ||
+        error.message.indexOf("source upload object not found") !== -1 ||
+        error.message.indexOf("HTTP 404") !== -1)
+    );
+  }
+
+  async function checkUploadObjectExists(config, key, sessionId, filename) {
+    var requestPayload = {
+      key: key,
+      session_id: sessionId,
+    };
+    if (typeof filename === "string" && filename) {
+      requestPayload.filename = filename;
+    }
+    try {
+      await postJson(
+        config.transfersEndpointBase + "/downloads/presign",
+        requestPayload
+      );
+      return true;
+    } catch (error) {
+      if (isUploadObjectMissingError(error)) {
+        return false;
+      }
+      throw error;
+    }
+  }
+
   async function handleUpload(config, file) {
-    var sessionId = getSessionId();
     var contentType = file.type || "application/octet-stream";
+    var sessionId = getSessionId();
+    var storageKey = multipartStateStorageKey(config, file);
+    var storedMultipartState = loadMultipartState(storageKey);
+    sessionId =
+      storedMultipartState &&
+      typeof storedMultipartState.session_id === "string" &&
+      storedMultipartState.session_id
+        ? storedMultipartState.session_id
+        : sessionId;
     setProgress(config.progressStoreId, 0, "Preparing upload…");
 
-    var initiated = await postJson(
-      config.transfersEndpointBase + "/uploads/initiate",
-      {
-        filename: file.name,
-        content_type: contentType,
-        size_bytes: file.size,
-        session_id: sessionId,
-      }
-    );
+    var initiated = null;
+    var resumedMultipart =
+      storedMultipartState &&
+      typeof storedMultipartState.upload_id === "string" &&
+      typeof storedMultipartState.key === "string" &&
+      typeof storedMultipartState.bucket === "string" &&
+      Number.isFinite(parseInt(storedMultipartState.part_size_bytes, 10));
+    if (resumedMultipart) {
+      initiated = {
+        strategy: "multipart",
+        bucket: storedMultipartState.bucket,
+        key: storedMultipartState.key,
+        upload_id: storedMultipartState.upload_id,
+        part_size_bytes: parseInt(storedMultipartState.part_size_bytes, 10),
+        expires_in_seconds: 0,
+      };
+      setProgress(config.progressStoreId, 0, "Resuming upload…");
+    } else {
+      initiated = await postJson(
+        config.transfersEndpointBase + "/uploads/initiate",
+        {
+          filename: file.name,
+          content_type: contentType,
+          size_bytes: file.size,
+          session_id: sessionId,
+        }
+      );
+    }
 
     var uploadResult = null;
     if (initiated.strategy === "single") {
       await putObject(initiated.url, file, contentType);
+      clearMultipartState(storageKey);
       uploadResult = buildUploadResult(
         file,
         initiated,
@@ -431,7 +594,68 @@
         sessionId
       );
     } else if (initiated.strategy === "multipart") {
-      await uploadMultipart(config, file, initiated, sessionId);
+      try {
+        await uploadMultipart(config, file, initiated, sessionId);
+      } catch (error) {
+        var resumeMissingMultipart =
+          resumedMultipart && isMultipartNotFoundError(error);
+        if (resumeMissingMultipart) {
+          var introspectMissingMultipart = false;
+          try {
+            await postJson(
+              config.transfersEndpointBase + "/uploads/introspect",
+              {
+                key: initiated.key,
+                upload_id: initiated.upload_id,
+                session_id: sessionId,
+              }
+            );
+          } catch (introspectError) {
+            if (!isMultipartNotFoundError(introspectError)) {
+              throw introspectError;
+            }
+            introspectMissingMultipart = true;
+          }
+          if (!introspectMissingMultipart) {
+            throw error;
+          }
+          var uploadObjectExists = await checkUploadObjectExists(
+            config,
+            initiated.key,
+            sessionId,
+            file.name
+          );
+          if (uploadObjectExists) {
+            throw new Error(
+              "multipart upload completion is ambiguous; upload object already exists"
+            );
+          }
+          clearMultipartState(storageKey);
+          sessionId = getSessionId();
+          storageKey = multipartStateStorageKey(config, file);
+          initiated = await postJson(
+            config.transfersEndpointBase + "/uploads/initiate",
+            {
+              filename: file.name,
+              content_type: contentType,
+              size_bytes: file.size,
+              session_id: sessionId,
+            }
+          );
+          if (initiated.strategy === "single") {
+            await putObject(initiated.url, file, contentType);
+            clearMultipartState(storageKey);
+          } else if (initiated.strategy === "multipart") {
+            await uploadMultipart(config, file, initiated, sessionId);
+          } else {
+            throw new Error("unknown strategy");
+          }
+        } else {
+          // Keep resumable state for transient failures and retry paths.
+          // We only clear stored state in verified missing-multipart scenarios.
+          throw error;
+        }
+      }
       uploadResult = buildUploadResult(
         file,
         initiated,
@@ -521,6 +745,8 @@
         root.dataset.transfersEndpointBase || "/v1/transfers",
       jobsEndpointBase: root.dataset.jobsEndpointBase || "/v1/jobs",
       maxConcurrency: root.dataset.maxConcurrency || "4",
+      signBatchSize: root.dataset.signBatchSize || "",
+      resumeNamespace: root.dataset.resumeNamespace || "",
       maxBytes: parseInt(root.dataset.maxBytes || "0", 10),
       resultStoreId: root.dataset.resultStoreId || "",
       progressStoreId: root.dataset.progressStoreId || "",

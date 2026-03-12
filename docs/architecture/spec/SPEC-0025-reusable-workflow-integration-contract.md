@@ -49,7 +49,8 @@ Required reusable workflows:
    - `docs/contracts/reusable-workflow-outputs-v1.schema.json`
    - `docs/contracts/workflow-post-deploy-validate.schema.json`
    - `docs/contracts/workflow-auth0-tenant-deploy.schema.json`
-3. Runtime deploy contract includes size profiles and custom bounds validation.
+3. Runtime deploy contract includes `runtime_cost_mode` (`standard|saver|paused`),
+   size profiles, and custom bounds validation.
 
 ## 5. Versioning policy
 

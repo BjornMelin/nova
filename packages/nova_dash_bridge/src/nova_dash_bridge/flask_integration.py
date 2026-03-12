@@ -25,6 +25,7 @@ from nova_dash_bridge.models import (
     InitiateUploadRequest,
     PresignDownloadRequest,
     SignPartsRequest,
+    UploadIntrospectionRequest,
 )
 from nova_dash_bridge.s3_client import SupportsCreateS3Client
 from nova_dash_bridge.service import (
@@ -102,6 +103,16 @@ def create_file_transfer_blueprint(
         try:
             payload = _parse_payload(SignPartsRequest)
             response = service.sign_parts(payload)
+            return jsonify(response.model_dump()), HTTPStatus.OK
+        except Exception as exc:
+            err = coerce_file_transfer_error(exc)
+            return _error_response(err)
+
+    @blueprint.post("/uploads/introspect")
+    def introspect_upload() -> tuple[Any, int]:
+        try:
+            payload = _parse_payload(UploadIntrospectionRequest)
+            response = service.introspect_upload(payload)
             return jsonify(response.model_dump()), HTTPStatus.OK
         except Exception as exc:
             err = coerce_file_transfer_error(exc)

@@ -2,7 +2,8 @@
 
 Status: Active  
 Owner: nova release architecture  
-Last reviewed: 2026-03-02
+Last reviewed: 2026-03-11
+Authority: ADR-0023, SPEC-0000, SPEC-0016, requirements.md
 
 ## Scope
 
@@ -13,11 +14,17 @@ ECS/Fargate workers.
 
 - Source queue (`JobsQueue`) MUST define `RedrivePolicy` to `JobsDeadLetterQueue`.
 - `JobsMaxReceiveCount` controls retry-to-DLQ cutoff for poison messages.
+- Worker tasks MUST run the installed `nova-file-worker` command and use
+  canonical `JOBS_*` runtime inputs.
+- `JOBS_WORKER_UPDATE_TOKEN` MUST be injected through ECS `Secrets` sourced
+  from operator input `JOBS_WORKER_UPDATE_TOKEN_SECRET_ARN`.
 - Worker ECS service MUST run with autoscaling target tracking on:
   - `AWS/SQS :: ApproximateNumberOfMessagesVisible`
   - `AWS/SQS :: ApproximateAgeOfOldestMessage`
 - Worker API result updates MUST preserve terminal-state immutability and reject
   invalid transitions with `409 conflict`.
+- Long-running worker operations MUST extend SQS visibility before half of the
+  configured timeout elapses.
 
 ## Queue + DLQ triage
 
@@ -50,11 +57,29 @@ ECS/Fargate workers.
 - Tune `WorkerScaleOutQueueDepthTarget` and
   `WorkerScaleOutQueueAgeSecondsTarget` from observed processing throughput.
 - Avoid disabling scale-in entirely; prefer cooldown tuning.
+- Keep the worker token secret current and redeploy ECS tasks after secret
+  rotation; ECS secret injection is task-start scoped.
 
 ## Recovery checklist
 
 1. Confirm ECS service healthy and task definition current.
-2. Confirm queue URL/ARN/name wiring in worker task env and IAM policy.
-3. Confirm DLQ redrive policy still references active DLQ ARN.
-4. Confirm both queue-depth and queue-age scaling policies are present.
-5. Reprocess failed jobs only after upstream dependency stability is verified.
+2. Confirm worker task definition command is `nova-file-worker`.
+3. Confirm canonical worker env wiring only:
+   - `JOBS_ENABLED=true`
+   - `JOBS_RUNTIME_MODE=worker`
+   - `JOBS_QUEUE_BACKEND=sqs`
+   - `JOBS_SQS_QUEUE_URL`
+   - `JOBS_SQS_VISIBILITY_TIMEOUT_SECONDS`
+   - `JOBS_API_BASE_URL`
+   - `FILE_TRANSFER_BUCKET`
+   - `FILE_TRANSFER_UPLOAD_PREFIX`
+   - `FILE_TRANSFER_EXPORT_PREFIX`
+   - `FILE_TRANSFER_TMP_PREFIX`
+4. Confirm `JOBS_WORKER_UPDATE_TOKEN` is injected through ECS `Secrets` from
+   `JOBS_WORKER_UPDATE_TOKEN_SECRET_ARN`.
+5. Confirm queue URL/ARN/name wiring in worker task env and IAM policy.
+6. Confirm visibility-extension warnings are absent or understood
+   (`jobs_worker_visibility_extension_failed`).
+7. Confirm DLQ redrive policy still references active DLQ ARN.
+8. Confirm both queue-depth and queue-age scaling policies are present.
+9. Reprocess failed jobs only after upstream dependency stability is verified.

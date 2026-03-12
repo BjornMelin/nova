@@ -45,6 +45,11 @@
       "type": "string",
       "enum": ["small", "medium", "large", "custom"]
     },
+    "runtime_cost_mode": {
+      "type": "string",
+      "enum": ["standard", "saver", "paused"],
+      "description": "Runtime deployment cost posture."
+    },
     "enable_worker": {
       "type": "boolean"
     },

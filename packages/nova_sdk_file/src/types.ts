@@ -80,7 +80,10 @@ export type ResourcePlanRequest = GeneratedComponents["schemas"]["ResourcePlanRe
 export type ResourcePlanResponse = GeneratedComponents["schemas"]["ResourcePlanResponse"];
 export type SignPartsRequest = GeneratedComponents["schemas"]["SignPartsRequest"];
 export type SignPartsResponse = GeneratedComponents["schemas"]["SignPartsResponse"];
+export type UploadIntrospectionRequest = GeneratedComponents["schemas"]["UploadIntrospectionRequest"];
+export type UploadIntrospectionResponse = GeneratedComponents["schemas"]["UploadIntrospectionResponse"];
 export type UploadStrategy = GeneratedComponents["schemas"]["UploadStrategy"];
+export type UploadedPart = GeneratedComponents["schemas"]["UploadedPart"];
 
 /** Operation-specific request and response helpers. */
 
@@ -453,6 +456,30 @@ export interface InitiateUploadRequestOptions {
   readonly headers?: InitiateUploadHeaders;
   readonly signal?: AbortSignal;
   readonly body: InitiateUploadRequestBody;
+}
+
+type IntrospectUploadSpec = OperationOf<"introspect_upload">;
+export type IntrospectUploadOperation = IntrospectUploadSpec;
+export type IntrospectUploadPathParams = Simplify<FieldOf<ParametersOf<IntrospectUploadSpec>, "path">>;
+export type IntrospectUploadQueryParams = Simplify<FieldOf<ParametersOf<IntrospectUploadSpec>, "query">>;
+export type IntrospectUploadHeaders = Simplify<FieldOf<ParametersOf<IntrospectUploadSpec>, "header">>;
+export type IntrospectUploadRequestContentType = RequestContentTypesOf<IntrospectUploadSpec>;
+export type IntrospectUploadRequestBody = RequestBodyOf<IntrospectUploadSpec>;
+export type IntrospectUploadRequestBodyForContentType<TContentType extends IntrospectUploadRequestContentType> = RequestBodyForContentType<IntrospectUploadSpec, TContentType>;
+export type IntrospectUploadResponses = ResponsesOf<IntrospectUploadSpec>;
+export type IntrospectUploadResult = ResultForResponses<IntrospectUploadResponses>;
+export type IntrospectUploadResponseData = IntrospectUploadResult["data"];
+export type IntrospectUploadSuccessResult = Extract<IntrospectUploadResult, { ok: true }>;
+export type IntrospectUploadErrorResult = Extract<IntrospectUploadResult, { ok: false }>;
+export type IntrospectUploadSuccessData = IntrospectUploadSuccessResult["data"];
+export type IntrospectUploadErrorData = IntrospectUploadErrorResult["data"];
+export type IntrospectUploadResponse200 = ResponseBodyOf<IntrospectUploadResponses[200]>;
+export type IntrospectUploadResponse401 = ResponseBodyOf<IntrospectUploadResponses[401]>;
+export type IntrospectUploadResponse403 = ResponseBodyOf<IntrospectUploadResponses[403]>;
+export type IntrospectUploadResponse422 = ResponseBodyOf<IntrospectUploadResponses[422]>;
+export interface IntrospectUploadRequestOptions {
+  readonly signal?: AbortSignal;
+  readonly body: IntrospectUploadRequestBody;
 }
 
 type SignUploadPartsSpec = OperationOf<"sign_upload_parts">;

@@ -91,6 +91,7 @@ def S3FileUploader(
     transfers_endpoint_base: str = "/v1/transfers",
     jobs_endpoint_base: str = "/v1/jobs",
     max_concurrency: int = 4,
+    sign_batch_size: int | None = None,
     async_jobs_enabled: bool = False,
     async_job_type: str = "process_upload",
     async_job_min_bytes: int = 0,
@@ -107,6 +108,7 @@ def S3FileUploader(
         transfers_endpoint_base: Base path for transfer endpoints.
         jobs_endpoint_base: Base path for async job endpoints.
         max_concurrency: Multipart upload worker concurrency.
+        sign_batch_size: Optional multipart sign batch size override.
         async_jobs_enabled: Toggle async background job flow.
         async_job_type: Job type name for enqueue requests.
         async_job_min_bytes: Minimum size to use async flow.
@@ -123,6 +125,17 @@ def S3FileUploader(
         value=max_concurrency,
         field_name="max_concurrency",
     )
+    if sign_batch_size is not None:
+        sign_batch_size = _validate_positive(
+            value=sign_batch_size,
+            field_name="sign_batch_size",
+        )
+        sign_batch_cap = min(16, max_concurrency * 2)
+        if sign_batch_size > sign_batch_cap:
+            raise ValueError(
+                "sign_batch_size must be less than or equal to "
+                f"min(16, 2 * max_concurrency) ({sign_batch_cap})"
+            )
     min_bytes = _validate_non_negative(
         value=async_job_min_bytes,
         field_name="async_job_min_bytes",
@@ -165,6 +178,10 @@ def S3FileUploader(
                 "data-result-store-id": f"{component_id}-result",
                 "data-progress-store-id": f"{component_id}-progress",
                 "data-max-concurrency": str(max_concurrency),
+                "data-sign-batch-size": (
+                    "" if sign_batch_size is None else str(sign_batch_size)
+                ),
+                "data-resume-namespace": component_id,
                 "data-max-bytes": str(max_bytes),
                 "data-accept": accept_value,
                 "data-multiple": str(multiple).lower(),

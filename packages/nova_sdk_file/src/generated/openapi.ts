@@ -328,6 +328,37 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/transfers/uploads/introspect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Introspect Upload
+         * @description Return uploaded multipart part state for resume flows.
+         *
+         *     Args:
+         *         request: FastAPI request object used for auth context.
+         *         payload: Multipart introspection input payload.
+         *         metrics: Request-scoped metrics collector dependency.
+         *         transfer_service: Transfer domain service dependency.
+         *         activity_store: Activity persistence dependency.
+         *         authenticator: Principal authenticator dependency.
+         *
+         *     Returns:
+         *         UploadIntrospectionResponse: Multipart state for resume operations.
+         */
+        post: operations["introspect_upload"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/transfers/uploads/sign-parts": {
         parameters: {
             query?: never;
@@ -767,11 +798,49 @@ export interface components {
             };
         };
         /**
+         * UploadIntrospectionRequest
+         * @description Multipart upload introspection request.
+         */
+        UploadIntrospectionRequest: {
+            /** Key */
+            key: string;
+            /** Session Id */
+            session_id?: string | null;
+            /** Upload Id */
+            upload_id: string;
+        };
+        /**
+         * UploadIntrospectionResponse
+         * @description Multipart upload introspection response.
+         */
+        UploadIntrospectionResponse: {
+            /** Bucket */
+            bucket: string;
+            /** Key */
+            key: string;
+            /** Part Size Bytes */
+            part_size_bytes: number;
+            /** Parts */
+            parts: components["schemas"]["UploadedPart"][];
+            /** Upload Id */
+            upload_id: string;
+        };
+        /**
          * UploadStrategy
          * @description Upload strategy options returned by initiate endpoint.
          * @enum {string}
          */
         UploadStrategy: "single" | "multipart";
+        /**
+         * UploadedPart
+         * @description Part state returned for multipart upload introspection.
+         */
+        UploadedPart: {
+            /** Etag */
+            etag: string;
+            /** Part Number */
+            part_number: number;
+        };
         /** ValidationError */
         ValidationError: {
             /** Context */
@@ -1281,6 +1350,33 @@ export interface operations {
             409: components["responses"]["FileIdempotencyConflictResponse"];
             422: components["responses"]["FileInvalidRequestResponse"];
             503: components["responses"]["FileIdempotencyUnavailableResponse"];
+        };
+    };
+    introspect_upload: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UploadIntrospectionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UploadIntrospectionResponse"];
+                };
+            };
+            401: components["responses"]["FileUnauthorizedResponse"];
+            403: components["responses"]["FileForbiddenResponse"];
+            422: components["responses"]["FileInvalidRequestResponse"];
         };
     };
     sign_upload_parts: {
