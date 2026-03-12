@@ -2089,24 +2089,34 @@ def _patch_file_sdk(root: Path) -> None:
     _rewrite_file(
         root,
         "api/transfers/introspect_upload.py",
-        lambda content: content.replace(
-            "    Args:\n"
-            "        request: FastAPI request object used for auth context.\n"
-            "        payload: Multipart introspection input payload.\n"
-            "        metrics: Request-scoped metrics collector dependency.\n"
-            "        transfer_service: Transfer domain service dependency.\n"
-            "        activity_store: Activity persistence dependency.\n"
-            "        authenticator: Principal authenticator dependency.\n"
-            "\n"
-            "    Returns:\n"
-            "        UploadIntrospectionResponse: Multipart state for resume operations.\n"
-            "\n",
-            "",
-        ).replace(
-            "    Returns:\n"
-            "        ErrorEnvelope | UploadIntrospectionResponse\n",
-            "    Returns:\n"
-            "        ErrorEnvelope | UploadIntrospectionResponse | None\n",
+        lambda content: (
+            _ensure_module_docstring(
+                content,
+                doc=(
+                    "Client helpers for the `/v1/transfers/uploads/introspect` "
+                    "endpoint."
+                ),
+            )
+            .replace(
+                "    Args:\n"
+                "        request: FastAPI request object used for auth context.\n"
+                "        payload: Multipart introspection input payload.\n"
+                "        metrics: Request-scoped metrics collector dependency.\n"
+                "        transfer_service: Transfer domain service dependency.\n"
+                "        activity_store: Activity persistence dependency.\n"
+                "        authenticator: Principal authenticator dependency.\n"
+                "\n"
+                "    Returns:\n"
+                "        UploadIntrospectionResponse: Multipart state for resume operations.\n"
+                "\n",
+                "",
+            )
+            .replace(
+                "    Returns:\n"
+                "        ErrorEnvelope | UploadIntrospectionResponse\n",
+                "    Returns:\n"
+                "        ErrorEnvelope | UploadIntrospectionResponse | None\n",
+            )
         ),
     )
     _rewrite_file(
@@ -2382,9 +2392,25 @@ def _patch_file_sdk(root: Path) -> None:
     _rewrite_file(
         root,
         "models/upload_introspection_response.py",
-        lambda content: _ensure_module_docstring(
-            content,
-            doc="Multipart upload introspection response model.",
+        lambda content: _replace_text(
+            _replace_text(
+                _ensure_module_docstring(
+                    content,
+                    doc="Multipart upload introspection response model.",
+                ),
+                old=(
+                    "if TYPE_CHECKING:\n"
+                    "    from ..models.uploaded_part import UploadedPart\n"
+                ),
+                new=(
+                    "if TYPE_CHECKING:\n"
+                    "    from nova_sdk_py_file.models.uploaded_part import UploadedPart\n"
+                ),
+                path="models/upload_introspection_response.py",
+            ),
+            old="from ..models.uploaded_part import UploadedPart\n",
+            new="from nova_sdk_py_file.models.uploaded_part import UploadedPart\n",
+            path="models/upload_introspection_response.py",
         ),
     )
     _rewrite_file(

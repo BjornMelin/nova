@@ -27,6 +27,7 @@ class _FakeS3Client:
         self.copy_error: Exception | None = None
         self.head_responses: list[dict[str, Any] | Exception] = []
         self.list_parts_responses: list[dict[str, Any] | Exception] = []
+        self.expected_part_markers: list[int | None] = []
         self.multipart_upload_id = "upload-id"
 
     async def generate_presigned_url(
@@ -74,6 +75,14 @@ class _FakeS3Client:
 
     async def list_parts(self, **kwargs: Any) -> dict[str, Any]:
         self.calls.append({"list_parts": kwargs})
+        if self.expected_part_markers:
+            expected_marker = self.expected_part_markers.pop(0)
+            observed_marker = kwargs.get("PartNumberMarker")
+            if observed_marker != expected_marker:
+                raise AssertionError(
+                    "expected PartNumberMarker "
+                    f"{expected_marker!r} but received {observed_marker!r}"
+                )
         if self.list_parts_responses:
             item = self.list_parts_responses.pop(0)
             if isinstance(item, Exception):
@@ -233,6 +242,7 @@ async def test_introspect_upload_lists_parts_across_pages() -> None:
     settings = Settings()
     fake_s3 = _FakeS3Client()
     service = TransferService(settings=settings, s3_client=fake_s3)
+    fake_s3.expected_part_markers = [None, 1]
     fake_s3.list_parts_responses = [
         {
             "Parts": [
@@ -421,7 +431,29 @@ async def test_copy_upload_to_export_uses_multipart_copy_above_5_gb() -> None:
             "Metadata": {"source": "unit-test"},
         }
     ]
-    assert len(fake_s3.upload_part_copy_calls) > 1
+    expected_content_length = 5_000_000_001
+    part_size_bytes = settings.file_transfer_part_size_bytes
+    expected_part_count = (
+        expected_content_length + part_size_bytes - 1
+    ) // part_size_bytes
+    assert len(fake_s3.upload_part_copy_calls) == expected_part_count
+    previous_end_byte = -1
+    for expected_part_number, call in enumerate(
+        fake_s3.upload_part_copy_calls, start=1
+    ):
+        assert call["PartNumber"] == expected_part_number
+        copy_source_range = call["CopySourceRange"]
+        assert copy_source_range.startswith("bytes=")
+        range_without_prefix = copy_source_range.removeprefix("bytes=")
+        start_str, end_str = range_without_prefix.split("-", 1)
+        start_byte = int(start_str)
+        end_byte = int(end_str)
+        assert start_byte == previous_end_byte + 1
+        if expected_part_number < expected_part_count:
+            assert end_byte == (start_byte + part_size_bytes - 1)
+        else:
+            assert end_byte == expected_content_length - 1
+        previous_end_byte = end_byte
     assert fake_s3.complete_calls[-1]["UploadId"] == fake_s3.multipart_upload_id
 
 

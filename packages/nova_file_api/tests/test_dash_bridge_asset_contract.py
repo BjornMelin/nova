@@ -138,8 +138,16 @@ def test_multipart_asset_uses_resume_introspection_state() -> None:
     assert "var resumeMissingMultipart =" in source
     assert re.search(
         (
-            r"else\s*\{\s*if \(resumedMultipart\)\s*\{\s*"
-            r"clearMultipartState\(storageKey\);\s*\}\s*throw error;\s*\}"
+            r"if \(resumeMissingMultipart\)\s*\{[\s\S]*"
+            r"clearMultipartState\(storageKey\);[\s\S]*"
+            r"config\.transfersEndpointBase \+ \"/uploads/initiate\""
+        ),
+        source,
+    )
+    assert re.search(
+        (
+            r"else\s*\{[\s\S]*"
+            r"throw error;\s*\}"
         ),
         source,
     )

@@ -598,10 +598,7 @@
         await uploadMultipart(config, file, initiated, sessionId);
       } catch (error) {
         var resumeMissingMultipart =
-          resumedMultipart &&
-          error &&
-          typeof error.message === "string" &&
-          error.message.indexOf("multipart upload was not found") !== -1;
+          resumedMultipart && isMultipartNotFoundError(error);
         if (resumeMissingMultipart) {
           var introspectMissingMultipart = false;
           try {
@@ -654,9 +651,8 @@
             throw new Error("unknown strategy");
           }
         } else {
-          if (resumedMultipart) {
-            clearMultipartState(storageKey);
-          }
+          // Keep resumable state for transient failures and retry paths.
+          // We only clear stored state in verified missing-multipart scenarios.
           throw error;
         }
       }
