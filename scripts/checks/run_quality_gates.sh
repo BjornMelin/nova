@@ -13,7 +13,6 @@ fi
 
 uv lock --check
 uv run ruff check .
-uv run ruff check . --select I
 uv run ruff format . --check
 uv run ty check --force-exclude --error-on-warning --output-format concise packages scripts
 uv run mypy
