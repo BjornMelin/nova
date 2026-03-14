@@ -269,7 +269,7 @@ Notes:
 Spot check the Dash downstream consumer:
 
 ```bash
-export DASH_PCA_REPO=/path/to/dash-pca
+export DASH_PCA_REPO="${DASH_PCA_REPO:-/path/to/dash-pca}"
 rg -n "/v1/transfers|/v1/jobs|nova_dash_bridge|nova_file_api" \
   "${DASH_PCA_REPO:?set DASH_PCA_REPO to your dash-pca checkout}"
 ```

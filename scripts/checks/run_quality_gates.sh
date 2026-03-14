@@ -13,7 +13,7 @@ uv lock --check
 uv run ruff check .
 uv run ruff check . --select I
 uv run ruff format . --check
-uv run ty check --force-exclude --output-format concise packages scripts
+uv run ty check --force-exclude --error-on-warning --output-format concise packages scripts
 uv run mypy
 uv run pytest -q
 uv run pytest -q packages/nova_file_api/tests/test_generated_client_smoke.py

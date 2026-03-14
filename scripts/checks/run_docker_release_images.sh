@@ -9,11 +9,16 @@ if ! command -v uv >/dev/null 2>&1; then
   exit 1
 fi
 
+if ! command -v docker >/dev/null 2>&1; then
+  echo "docker is required for release image builds." >&2
+  exit 1
+fi
+
 docker buildx version
-DOCKER_BUILDKIT=1 docker buildx build --load \
+docker buildx build --load \
   -f apps/nova_file_api_service/Dockerfile \
   -t nova-file-api:test .
-DOCKER_BUILDKIT=1 docker buildx build --load \
+docker buildx build --load \
   -f apps/nova_auth_api_service/Dockerfile \
   -t nova-auth-api:test .
 uv run pytest -q \

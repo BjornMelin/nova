@@ -8,7 +8,9 @@ from anyio.abc import CapacityLimiter
 from anyio.to_thread import (
     current_default_thread_limiter as anyio_current_default_thread_limiter,
 )
-from anyio.to_thread import run_sync as anyio_run_sync
+from anyio.to_thread import (
+    run_sync as anyio_run_sync,
+)
 
 
 async def run_sync[T](

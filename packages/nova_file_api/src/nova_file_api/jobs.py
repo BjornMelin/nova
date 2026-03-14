@@ -112,12 +112,17 @@ class SqsClient(Protocol):
 
 
 def _as_dynamo_table(table: object) -> DynamoTable:
-    if not (
-        hasattr(table, "put_item")
-        and hasattr(table, "get_item")
-        and hasattr(table, "query")
-    ):
-        raise TypeError("dynamodb resource returned an invalid table object")
+    invalid_methods = [
+        method_name
+        for method_name in ("put_item", "get_item", "query")
+        if not callable(getattr(table, method_name, None))
+    ]
+    if invalid_methods:
+        methods = ", ".join(invalid_methods)
+        raise TypeError(
+            "dynamodb resource returned an invalid table object; "
+            f"missing or non-callable: {methods}"
+        )
     return cast(DynamoTable, table)
 
 

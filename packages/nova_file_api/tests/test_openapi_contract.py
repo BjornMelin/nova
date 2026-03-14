@@ -106,7 +106,13 @@ def _operation_tag_map(
             if method not in _HTTP_METHODS:
                 continue
             operation_mapping = _string_object_mapping(operation)
-            tags = _string_list(operation_mapping.get("tags"))
+            operation_id = operation_mapping.get("operationId")
+            raw_tags = operation_mapping.get("tags")
+            assert raw_tags is not None, (
+                f"operation tags missing for {method.upper()} {path}"
+                f" (operationId={operation_id!r})"
+            )
+            tags = _string_list(raw_tags)
             method_tags[method] = tags
         if method_tags:
             operation_map[path] = method_tags

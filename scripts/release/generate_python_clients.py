@@ -714,39 +714,66 @@ def _patch_auth_sdk(root: Path) -> None:
     _rewrite_file(root, "client.py", patch_client)
 
     def patch_token_introspect_response(content: str) -> str:
-        content = content.replace(
-            "    def to_dict(self) -> dict[str, Any]:\n"
-            "        from ..models.principal import Principal\n",
-            "    def to_dict(self) -> dict[str, Any]:\n"
-            '        """Serialize this model to a JSON-compatible dict."""\n'
-            "        from ..models.principal import Principal\n",
+        content = _replace_text(
+            content,
+            old=(
+                "    def to_dict(self) -> dict[str, Any]:\n"
+                "        from ..models.principal import Principal\n"
+            ),
+            new=(
+                "    def to_dict(self) -> dict[str, Any]:\n"
+                '        """Serialize this model to a JSON-compatible dict.\n\n'
+                "        Returns:\n"
+                "            dict[str, Any]: JSON-compatible representation.\n"
+                '        """\n'
+                "        from ..models.principal import Principal\n"
+            ),
+            path="models/token_introspect_response.py",
         )
-        content = content.replace(
-            "    @classmethod\n"
-            "    def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:\n"
-            "        from ..models.principal import Principal\n",
-            "    @classmethod\n"
-            "    def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:\n"
-            '        """Build this model from a JSON-compatible mapping."""\n'
-            "        from ..models.principal import Principal\n",
+        content = _replace_text(
+            content,
+            old=(
+                "    @classmethod\n"
+                "    def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:\n"
+                "        from ..models.principal import Principal\n"
+            ),
+            new=(
+                "    @classmethod\n"
+                "    def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:\n"
+                '        """Build this model from a JSON-compatible mapping.\n\n'
+                "        Args:\n"
+                "            src_dict: Source mapping to parse.\n\n"
+                "        Returns:\n"
+                "            T: Parsed token introspection response model.\n\n"
+                "        Raises:\n"
+                "            TypeError: If nested principal data has an invalid shape.\n"
+                '        """\n'
+                "        from ..models.principal import Principal\n"
+            ),
+            path="models/token_introspect_response.py",
         )
-        content = content.replace(
-            "            try:\n"
-            "                if not isinstance(data, dict):\n"
-            "                    raise TypeError()\n"
-            "                principal_type_0 = Principal.from_dict(data)\n\n"
-            "                return principal_type_0\n"
-            "            except (TypeError, ValueError, AttributeError, KeyError):\n"
-            "                pass\n"
-            "            return cast(None | Principal | Unset, data)\n",
-            "            if not isinstance(data, dict):\n"
-            "                raise TypeError(\n"
-            '                    "principal must be an object, null, or UNSET"\n'
-            "                )\n"
-            "            principal_data = cast(Mapping[str, Any], data)\n"
-            "            return Principal.from_dict(principal_data)\n",
+        return _replace_text(
+            content,
+            old=(
+                "            try:\n"
+                "                if not isinstance(data, dict):\n"
+                "                    raise TypeError()\n"
+                "                principal_type_0 = Principal.from_dict(data)\n\n"
+                "                return principal_type_0\n"
+                "            except (TypeError, ValueError, AttributeError, KeyError):\n"
+                "                pass\n"
+                "            return cast(None | Principal | Unset, data)\n"
+            ),
+            new=(
+                "            if not isinstance(data, Mapping):\n"
+                "                raise TypeError(\n"
+                '                    "principal must be an object, null, or UNSET"\n'
+                "                )\n"
+                "            principal_data = cast(Mapping[str, Any], data)\n"
+                "            return Principal.from_dict(principal_data)\n"
+            ),
+            path="models/token_introspect_response.py",
         )
-        return content
 
     _rewrite_file(
         root,
@@ -2070,7 +2097,7 @@ def _patch_file_sdk(root: Path) -> None:
                 "            except (TypeError, ValueError, AttributeError, KeyError):\n"
                 "                pass\n"
                 "            return cast(JobRecordResultType0 | None | Unset, data)\n",
-                "            if not isinstance(data, dict):\n"
+                "            if not isinstance(data, Mapping):\n"
                 "                raise TypeError(\n"
                 '                    "result must be a mapping, null, or UNSET"\n'
                 "                )\n"

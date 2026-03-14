@@ -63,7 +63,7 @@ repos:
     hooks:
       - id: typing-gates
         name: typing gates
-        entry: bash -lc 'uv run ty check --force-exclude --output-format concise packages scripts && uv run mypy'
+        entry: bash -c 'uv run ty check --force-exclude --error-on-warning --output-format concise packages scripts && uv run mypy'
         language: system
         pass_filenames: false
         stages: [pre-push, manual]

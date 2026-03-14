@@ -9,6 +9,11 @@ if ! command -v uv >/dev/null 2>&1; then
   exit 1
 fi
 
+if ! command -v npm >/dev/null 2>&1; then
+  echo "npm is required. Install it, then run scripts/dev/install_hooks.sh." >&2
+  exit 1
+fi
+
 uv run python scripts/conformance/check_typescript_module_policy.py
 npm run -w @nova/sdk-fetch build
 npm run -w @nova/sdk-fetch typecheck
