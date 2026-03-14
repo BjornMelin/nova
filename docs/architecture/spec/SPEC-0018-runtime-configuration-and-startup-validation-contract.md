@@ -56,9 +56,10 @@ Required startup validation:
 6. `IDEMPOTENCY_ENABLED` and `IDEMPOTENCY_TTL_SECONDS` are the current
    idempotency settings surface; the runtime does not yet define
    `IDEMPOTENCY_MODE`.
-7. `CACHE_REDIS_URL` enables the shared cache tier for duplicate prevention,
-   but shared-cache failures currently degrade to best-effort local claim
-   handling instead of a fail-closed runtime mode.
+7. `CACHE_REDIS_URL` enables the shared cache tier for duplicate prevention.
+   Shared-cache failures degrade duplicate-claim handling to best-effort local
+   behavior, and readiness reporting remains authoritative for deployment
+   traffic policy.
 8. Deploy and operator docs must not claim `IDEMPOTENCY_MODE` support until
    the runtime implements those semantics.
 9. Runtime configuration aliases that duplicate canonical settings are
@@ -79,7 +80,8 @@ Required startup validation:
 5. When jobs are disabled, the reported `job_queue` check remains ready instead
    of making the service unready by feature disablement alone.
 6. Shared cache and activity-store health remain visible in diagnostics and
-   currently participate in overall readiness.
+   currently participate in overall readiness; shared-cache failures still
+   degrade duplicate-claim handling to best-effort local behavior.
 7. Feature flags do not determine readiness by themselves.
 
 ## 5. Environment and startup ownership
