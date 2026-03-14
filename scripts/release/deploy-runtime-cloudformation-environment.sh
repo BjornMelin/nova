@@ -285,7 +285,7 @@ ensure_runtime_env_json_contract() {
   local unknown_fields=""
   unknown_fields="$(
     jq -r --argjson allowed "$allowed_keys_json" '
-      | keys_unsorted - $allowed
+      keys_unsorted - $allowed
       | .[]
     ' <<<"$ENV_VARS_JSON"
   )"
