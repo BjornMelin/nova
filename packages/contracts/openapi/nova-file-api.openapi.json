@@ -1352,7 +1352,7 @@
     },
     "/v1/health/ready": {
       "get": {
-        "description": "Return readiness checks for traffic-critical dependencies.",
+        "description": "Return readiness checks for the current runtime dependencies.",
         "operationId": "health_ready",
         "responses": {
           "200": {

@@ -116,16 +116,14 @@ rg -n "/v1/transfers|/v1/jobs|/v1/internal/jobs|/v1/capabilities|/v1/resources/p
 
 - `POST /v1/jobs` queue publish failures must return `503` with
   `error.code = "queue_unavailable"`.
-- Mutation entrypoints running with distributed idempotency may return `503`
-  with `error.code = "idempotency_unavailable"` when the shared claim store
-  cannot guarantee correctness.
+- Mutation entrypoints running with idempotency currently use the two-tier
+  cache and may fall back to local claim handling when the shared cache errors.
 - Failed enqueue responses must not be idempotency replay cached.
-- `IDEMPOTENCY_ENABLED=true` with `IDEMPOTENCY_MODE=shared_required` requires
-  `CACHE_REDIS_URL`.
-- Production idempotent mutation posture must use
-  `IDEMPOTENCY_MODE=shared_required`; do not treat `local_only` as a production
-  default.
-- `/v1/health/ready` evaluates traffic-critical dependencies only.
+- `IDEMPOTENCY_ENABLED` and `IDEMPOTENCY_TTL_SECONDS` are the current
+  idempotency settings surface; deploy and operator docs must not claim
+  `IDEMPOTENCY_MODE` support until runtime semantics exist.
+- `/v1/health/ready` currently returns `503` when any reported readiness check
+  is false.
 - Missing or blank `FILE_TRANSFER_BUCKET` must fail readiness.
 - `AUTH_MODE=jwt_local` with incomplete `OIDC_ISSUER`, `OIDC_AUDIENCE`, or
   `OIDC_JWKS_URL` must fail the `auth_dependency` readiness check.

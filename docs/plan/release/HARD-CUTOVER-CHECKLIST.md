@@ -80,7 +80,7 @@ Owner: Release Architecture
 - [x] `/v1/jobs/{id}/events` event contract implemented and documented.
 - [x] `/v1/capabilities`, `/v1/resources/plan`, `/v1/releases/info` delivered.
 - [x] `/v1/health/live` and `/v1/health/ready` implemented with
-  lightweight dependency-scoped semantics.
+  the current aggregate readiness semantics.
 - [x] `SPEC-0015` workflow artifacts from `.github/workflows/` are present and
   validated in this release path:
   `build-and-publish-image.yml`, `publish-packages.yml`, `deploy-dev.yml`,

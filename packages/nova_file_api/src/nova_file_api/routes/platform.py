@@ -143,7 +143,7 @@ async def health_ready(
     activity_store: ActivityStoreDep,
     authenticator: AuthenticatorDep,
 ) -> ReadinessResponse:
-    """Return readiness checks for traffic-critical dependencies."""
+    """Return readiness checks for the current runtime dependencies."""
     logger = structlog.get_logger("api")
 
     try:

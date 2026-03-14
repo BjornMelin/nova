@@ -73,7 +73,7 @@ export interface paths {
         };
         /**
          * Health Ready
-         * @description Return readiness checks for traffic-critical dependencies.
+         * @description Return readiness checks for the current runtime dependencies.
          */
         get: operations["health_ready"];
         put?: never;

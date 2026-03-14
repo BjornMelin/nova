@@ -53,30 +53,33 @@ Required startup validation:
    - release operator input for this worker secret MUST be
      `JOBS_WORKER_UPDATE_TOKEN_SECRET_ARN`
 5. `ACTIVITY_STORE_BACKEND=dynamodb` requires `ACTIVITY_ROLLUPS_TABLE`.
-6. `IDEMPOTENCY_ENABLED=true` with `IDEMPOTENCY_MODE=shared_required` requires
-   `CACHE_REDIS_URL`.
-7. Production environments (`ENVIRONMENT=prod|production`) with idempotent
-   mutation entrypoints must use `IDEMPOTENCY_MODE=shared_required`.
-8. Runtime configuration aliases that duplicate canonical settings are
+6. `IDEMPOTENCY_ENABLED` and `IDEMPOTENCY_TTL_SECONDS` are the current
+   idempotency settings surface; the runtime does not yet define
+   `IDEMPOTENCY_MODE`.
+7. `CACHE_REDIS_URL` enables the shared cache tier for duplicate prevention,
+   but shared-cache failures currently degrade to best-effort local claim
+   handling instead of a fail-closed runtime mode.
+8. Deploy and operator docs must not claim `IDEMPOTENCY_MODE` support until
+   the runtime implements those semantics.
+9. Runtime configuration aliases that duplicate canonical settings are
    deprecated and must be removed instead of carried forward.
-9. Default runtime posture for file transfer MUST set:
+10. Default runtime posture for file transfer MUST set:
    - `FILE_TRANSFER_MAX_UPLOAD_BYTES=536_870_912_000`
    - `FILE_TRANSFER_PRESIGN_UPLOAD_TTL_SECONDS=1800`
 
 ## 4. Readiness contract
 
 1. `/v1/health/live` is process liveness only.
-2. `/v1/health/ready` evaluates traffic-critical dependencies only.
+2. `/v1/health/ready` reports the current runtime dependency checks and
+   returns `503` when any reported check is false.
 3. Missing or blank `FILE_TRANSFER_BUCKET` fails readiness.
 4. `AUTH_MODE=jwt_local` with incomplete local verifier configuration
    (`OIDC_ISSUER`, `OIDC_AUDIENCE`, or `OIDC_JWKS_URL` missing) fails the
    `auth_dependency` readiness check.
-5. Shared cache health fails readiness when
-   `IDEMPOTENCY_MODE=shared_required`; otherwise it remains an observable check
-   only.
-6. Optional observers such as activity-store health remain visible in
-   diagnostics, but they do not fail readiness unless they are the configured
-   traffic-critical dependency for the active runtime path.
+5. When jobs are disabled, the reported `job_queue` check remains ready instead
+   of making the service unready by feature disablement alone.
+6. Shared cache and activity-store health remain visible in diagnostics and
+   currently participate in overall readiness.
 7. Feature flags do not determine readiness by themselves.
 
 ## 5. Environment and startup ownership
@@ -90,7 +93,8 @@ Required startup validation:
 ## 6. Acceptance criteria
 
 1. Runtime docs reference this spec for backend-coupling rules.
-2. Active docs state that readiness is traffic-critical, not observer-wide.
+2. Active docs state the current aggregate readiness contract and do not claim
+   an unimplemented `IDEMPOTENCY_MODE`.
 3. Bridge and adapter docs do not claim separate runtime startup contracts.
 
 ## 7. Traceability
