@@ -49,6 +49,9 @@ Active downstream validation authority uses `ADR-0027`, `ADR-0028`, `ADR-0029`,
 - Active Nova operator instructions must resolve to paths under root `docs/**`.
 - Historical references are allowed only under `docs/history/**` or through
   `docs/plan/HISTORY-INDEX.md`.
+- Local developer hook bootstrap now uses repo-root pre-commit configuration
+  plus `scripts/dev/install_hooks.sh`; `ty` is enforced through the required
+  local and CI typing gates inside the standard quality lane.
 - Release runbooks define the canonical mixed-package publish path: Python
   distributions publish to CodeArtifact with `twine`, and TypeScript SDK
   packages publish to CodeArtifact npm as generated/private artifacts after

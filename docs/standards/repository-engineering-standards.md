@@ -57,11 +57,21 @@ Use these authority packs consistently:
 Use the repo workflows as the enforcement map:
 
 - `.github/workflows/ci.yml`
-  - runtime reliability, baseline quality gates, canonical-route guard
+  - runtime reliability, baseline quality gates, required `ty` plus `mypy`
+    compatibility backstop, canonical-route guard
 - `.github/workflows/conformance-clients.yml`
   - OpenAPI export, generated SDK checks, TS/R conformance
 - `.github/workflows/cfn-contract-validate.yml`
   - CloudFormation syntax/schema plus docs/infra contract checks
+
+Repo-local enforcement complements CI:
+
+- root `.pre-commit-config.yaml`
+- `scripts/checks/run_quality_gates.sh`
+- `scripts/checks/run_sdk_conformance.sh`
+- `scripts/checks/run_infra_contracts.sh`
+- `scripts/checks/run_docker_release_images.sh`
+- `scripts/dev/install_hooks.sh`
 
 `AGENTS.md` intentionally carries only the short execution subset. This file is
 the canonical deep matrix.
@@ -107,6 +117,7 @@ Always-run repo baseline:
 - `uv run ruff check .`
 - `uv run ruff check . --select I`
 - `uv run ruff format . --check`
+- `uv run ty check --force-exclude --error-on-warning packages scripts`
 - `uv run mypy`
 - `uv run pytest -q`
 - `uv run pytest -q packages/nova_file_api/tests/test_generated_client_smoke.py`
@@ -115,6 +126,15 @@ Always-run repo baseline:
 - `uv run python scripts/release/generate_python_clients.py --check`
 - workspace Python build verification for package/app units
 - if `packages/nova_runtime_support` changes, build it explicitly
+
+Canonical typing gates:
+
+- `uv run ty check --force-exclude --error-on-warning packages scripts`
+- `uv run mypy`
+
+`ty` is the required full-repo type gate. `mypy` remains the required
+compatibility backstop until `ty` reaches stable strictness parity for this
+monorepo.
 
 Additional required gates when touching OpenAPI, generated TypeScript SDKs, npm
 packaging, release automation, or SDK docs/contracts:
@@ -152,6 +172,22 @@ governance:
 - Active docs must link only to truthful, existing active authority paths.
 - Historical material belongs under `docs/history/**` or superseded ADR/SPEC
   paths, not in active instructions.
+
+## Pre-commit Policy
+
+- Install hooks with `uv run pre-commit install --install-hooks --hook-type pre-commit --hook-type pre-push`.
+- If `uv` is not on `PATH`, bootstrap it first, then run
+  `scripts/dev/install_hooks.sh`.
+- Cheap autofixing and file-hygiene hooks run at `pre-commit`.
+- `typing-gates` runs at `pre-push`.
+- Manual hooks mirror the AGENTS task router:
+  - `typing-gates`
+  - `quality-gates`
+  - `sdk-conformance`
+  - `infra-contracts`
+  - `docker-release-images`
+- `ty` is enforced in the required local and CI typing gates. It does not need
+  a separate branch-protection context because it is part of `quality-gates`.
 
 ## Downstream and Retirement Spot Checks
 

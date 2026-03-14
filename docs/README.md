@@ -35,6 +35,8 @@ artifacts, or documentation synchronization:
 
 - `./standards/README.md`
 - `./standards/repository-engineering-standards.md`
+- repo-root `.pre-commit-config.yaml` and `scripts/checks/*.sh` for local hook
+  enforcement that mirrors the AGENTS task router
 
 ### Runbooks and release operations
 
