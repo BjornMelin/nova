@@ -275,7 +275,7 @@ ensure_runtime_env_json_contract() {
     ' <<<"$ENV_VARS_JSON"
   )"
   if [ -n "$null_fields" ]; then
-    echo "ENV_VARS_JSON contains null values; use explicit empty strings instead:" >&2
+    echo "ENV_VARS_JSON contains null values; remove the key or set an appropriate typed value (number/boolean/enum) instead of null:" >&2
     while IFS= read -r field; do
       [ -n "$field" ] && echo "  - $field" >&2
     done <<<"$null_fields"

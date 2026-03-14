@@ -345,7 +345,7 @@ Parameters:
   FileTransferPartSizeBytes:
     Type: Number
     Default: 134217728
-    MinValue: 0
+    MinValue: 5242880
   FileTransferMaxConcurrency:
     Type: Number
     Default: 4

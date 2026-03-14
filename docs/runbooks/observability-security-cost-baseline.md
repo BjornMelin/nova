@@ -1,4 +1,4 @@
-# Observability, Security, and Cost Baseline (ADR-0015 / SPEC-0015)
+# Observability, Security, and Cost Baseline (ADR-0023 + SPEC-0000 + SPEC-0016 + requirements.md)
 
 This runbook is the production authority for Batch A4 (blueprint Batch 5 hardening scope):
 
