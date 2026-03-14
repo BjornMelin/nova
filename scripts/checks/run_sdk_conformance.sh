@@ -10,7 +10,7 @@ if ! command -v uv >/dev/null 2>&1; then
 fi
 
 if ! command -v npm >/dev/null 2>&1; then
-  echo "npm is required. Install it, then run scripts/dev/install_hooks.sh." >&2
+  echo "npm is required for SDK conformance checks." >&2
   exit 1
 fi
 

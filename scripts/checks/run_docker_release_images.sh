@@ -14,7 +14,11 @@ if ! command -v docker >/dev/null 2>&1; then
   exit 1
 fi
 
-docker buildx version
+if ! docker buildx version >/dev/null 2>&1; then
+  echo "docker buildx is required for release image builds." >&2
+  exit 1
+fi
+
 docker buildx build --load \
   -f apps/nova_file_api_service/Dockerfile \
   -t nova-file-api:test .

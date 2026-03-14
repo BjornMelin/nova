@@ -112,11 +112,11 @@ class SqsClient(Protocol):
 
 
 def _as_dynamo_table(table: object) -> DynamoTable:
-    invalid_methods = [
-        method_name
-        for method_name in ("put_item", "get_item", "query")
-        if not callable(getattr(table, method_name, None))
-    ]
+    invalid_methods: list[str] = []
+    for method_name in ("put_item", "get_item", "query"):
+        method = getattr(table, method_name, None)
+        if not callable(method):
+            invalid_methods.append(method_name)
     if invalid_methods:
         methods = ", ".join(invalid_methods)
         raise TypeError(
