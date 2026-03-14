@@ -16,7 +16,9 @@ from nova_file_api.models import (
     AuthMode,
     JobRecord,
     JobStatus,
+    Principal,
     UploadedPart,
+    UploadIntrospectionRequest,
     UploadIntrospectionResponse,
 )
 
@@ -32,10 +34,10 @@ from .support.doubles import StubTransferService
 class _IntrospectTransferService(StubTransferService):
     async def introspect_upload(
         self,
-        payload: object,
-        principal: object,
+        request: UploadIntrospectionRequest,
+        principal: Principal,
     ) -> UploadIntrospectionResponse:
-        del payload, principal
+        del request, principal
         return UploadIntrospectionResponse(
             bucket="test-transfer-bucket",
             key="uploads/scope-1/file.csv",

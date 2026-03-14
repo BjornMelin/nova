@@ -10,9 +10,9 @@ from collections.abc import Awaitable, Callable
 from contextlib import suppress
 from dataclasses import dataclass
 from datetime import datetime
+from importlib import import_module
 from typing import Any, TypeVar
 
-import aioboto3  # type: ignore[import-untyped]
 import httpx
 import structlog
 from botocore.config import Config
@@ -35,6 +35,10 @@ _VISIBILITY_EXTENSION_RETRY_DELAY_SECONDS = 1.0
 _SQS_VISIBILITY_TIMEOUT_MAX_SECONDS = 43_200
 
 _T = TypeVar("_T")
+
+
+def _new_aioboto3_session() -> Any:
+    return import_module("aioboto3").Session()
 
 
 @dataclass(slots=True, frozen=True)
@@ -173,7 +177,7 @@ class JobsWorker:
         self._logger = structlog.get_logger("jobs_worker")
         self._stop_requested = False
         self._queue_url = (settings.jobs_sqs_queue_url or "").strip()
-        self._session = aioboto3.Session()
+        self._session = _new_aioboto3_session()
         self._transfer_service = transfer_service
         self._runtime_transfer_service: TransferService | None = None
         self._sqs: Any | None = None

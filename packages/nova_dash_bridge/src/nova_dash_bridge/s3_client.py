@@ -2,18 +2,14 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Protocol, cast
+from typing import Any, Protocol
 
 import boto3
-from botocore.client import BaseClient
 from botocore.config import Config
 
 from nova_dash_bridge.config import FileTransferEnvConfig
 
-if TYPE_CHECKING:
-    from mypy_boto3_s3 import S3Client  # type: ignore[import-not-found]
-else:
-    S3Client = BaseClient
+type S3Client = Any
 
 __all__ = ["S3Client", "S3ClientFactory", "SupportsCreateS3Client"]
 
@@ -29,7 +25,7 @@ class S3ClientFactory:
         kwargs: dict[str, Any] = {"config": config}
         if env.region:
             kwargs["region_name"] = env.region
-        return cast("S3Client", boto3.client("s3", **kwargs))
+        return boto3.client("s3", **kwargs)
 
 
 class SupportsCreateS3Client(Protocol):

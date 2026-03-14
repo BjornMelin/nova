@@ -67,7 +67,7 @@ class TransferService:
             s3_client: Prebuilt async S3 client.
         """
         self.settings = settings
-        self._s3 = cast(Any, s3_client)
+        self._s3 = s3_client
         self._upload_prefix = _normalize_prefix(
             self.settings.file_transfer_upload_prefix
         )
@@ -158,7 +158,8 @@ class TransferService:
                 upload_id, part_size_bytes, and list of uploaded parts.
 
         Raises:
-            FileTransferError: If scope validation fails or upload DNE.
+            FileTransferError: If scope validation fails or upload
+                does not exist.
         """
         self._assert_upload_scope(key=request.key, scope_id=principal.scope_id)
         uploaded_parts = await self._list_multipart_parts(

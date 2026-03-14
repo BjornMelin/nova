@@ -6,6 +6,7 @@ from typing import Any
 
 import anyio
 from nova_runtime_support import build_jwt_verifier, normalized_principal_claims
+from nova_runtime_support.threading import run_sync
 from oidc_jwt_verifier import AuthError, JWTVerifier
 
 from nova_auth_api.config import Settings
@@ -103,9 +104,8 @@ class TokenVerificationService:
                 www_authenticate='Bearer error="invalid_token"',
             )
         try:
-            claims = await anyio.to_thread.run_sync(
-                verifier.verify_access_token,
-                access_token,
+            claims = await run_sync(
+                lambda: verifier.verify_access_token(access_token),
                 limiter=self._thread_limiter,
             )
         except AuthError as exc:

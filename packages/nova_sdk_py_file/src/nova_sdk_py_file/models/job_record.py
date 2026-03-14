@@ -132,15 +132,10 @@ class JobRecord:
                 return data
             if isinstance(data, Unset):
                 return data
-            try:
-                if not isinstance(data, dict):
-                    raise TypeError()
-                result_type_0 = JobRecordResultType0.from_dict(data)
-
-                return result_type_0
-            except (TypeError, ValueError, AttributeError, KeyError):
-                pass
-            return cast(JobRecordResultType0 | None | Unset, data)
+            if not isinstance(data, dict):
+                raise TypeError("result must be a mapping, null, or UNSET")
+            result_data = cast(Mapping[str, Any], data)
+            return JobRecordResultType0.from_dict(result_data)
 
         result = _parse_result(d.pop("result", UNSET))
 

@@ -131,21 +131,18 @@ async def test_verify_runs_sync_jwt_verification_via_thread_boundary(
     run_sync_calls = 0
 
     async def _run_sync(
-        func: Callable[[str], dict[str, Any]],
-        access_token: str,
+        func: Callable[[], dict[str, Any]],
         **_kwargs: Any,
     ) -> dict[str, Any]:
         nonlocal run_sync_calls
         run_sync_calls += 1
         boundary_state["inside_run_sync"] = True
         try:
-            return func(access_token)
+            return func()
         finally:
             boundary_state["inside_run_sync"] = False
 
-    monkeypatch.setattr(
-        "nova_auth_api.service.anyio.to_thread.run_sync", _run_sync
-    )
+    monkeypatch.setattr("nova_auth_api.service.run_sync", _run_sync)
 
     response = await service.verify(TokenVerifyRequest(access_token="token-1"))
 

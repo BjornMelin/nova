@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
+from typing import cast
+
 from fastapi import FastAPI
 from fastapi.routing import APIRoute
 from nova_file_api.activity import MemoryActivityStore
@@ -26,6 +29,18 @@ from .support.doubles import StubTransferService
 _HTTP_METHODS = frozenset(
     {"get", "post", "put", "patch", "delete", "options", "head", "trace"}
 )
+
+
+def _string_object_mapping(value: object) -> Mapping[str, object]:
+    assert isinstance(value, Mapping)
+    assert all(isinstance(key, str) for key in value)
+    return cast("Mapping[str, object]", value)
+
+
+def _string_list(value: object) -> list[str]:
+    assert isinstance(value, list)
+    assert all(isinstance(item, str) for item in value)
+    return cast("list[str]", value)
 
 
 def _build_openapi_app() -> FastAPI:
@@ -59,19 +74,17 @@ def _build_openapi_app() -> FastAPI:
 def _operation_id_map(
     payload: dict[str, object],
 ) -> dict[str, dict[str, str]]:
-    paths = payload.get("paths", {})
-    assert isinstance(paths, dict)
+    paths = _string_object_mapping(payload.get("paths", {}))
 
     operation_map: dict[str, dict[str, str]] = {}
     for path, path_item in paths.items():
-        assert isinstance(path, str)
-        assert isinstance(path_item, dict)
+        path_mapping = _string_object_mapping(path_item)
         method_ids: dict[str, str] = {}
-        for method, operation in path_item.items():
+        for method, operation in path_mapping.items():
             if method not in _HTTP_METHODS:
                 continue
-            assert isinstance(operation, dict)
-            operation_id = operation.get("operationId")
+            operation_mapping = _string_object_mapping(operation)
+            operation_id = operation_mapping.get("operationId")
             assert isinstance(operation_id, str)
             assert operation_id
             method_ids[method] = operation_id
@@ -83,21 +96,17 @@ def _operation_id_map(
 def _operation_tag_map(
     payload: dict[str, object],
 ) -> dict[str, dict[str, list[str]]]:
-    paths = payload.get("paths", {})
-    assert isinstance(paths, dict)
+    paths = _string_object_mapping(payload.get("paths", {}))
 
     operation_map: dict[str, dict[str, list[str]]] = {}
     for path, path_item in paths.items():
-        assert isinstance(path, str)
-        assert isinstance(path_item, dict)
+        path_mapping = _string_object_mapping(path_item)
         method_tags: dict[str, list[str]] = {}
-        for method, operation in path_item.items():
+        for method, operation in path_mapping.items():
             if method not in _HTTP_METHODS:
                 continue
-            assert isinstance(operation, dict)
-            tags = operation.get("tags")
-            assert isinstance(tags, list)
-            assert all(isinstance(tag, str) for tag in tags)
+            operation_mapping = _string_object_mapping(operation)
+            tags = _string_list(operation_mapping.get("tags"))
             method_tags[method] = tags
         if method_tags:
             operation_map[path] = method_tags

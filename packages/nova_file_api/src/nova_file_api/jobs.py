@@ -111,6 +111,16 @@ class SqsClient(Protocol):
         """Read queue attributes for health checks."""
 
 
+def _as_dynamo_table(table: object) -> DynamoTable:
+    if not (
+        hasattr(table, "put_item")
+        and hasattr(table, "get_item")
+        and hasattr(table, "query")
+    ):
+        raise TypeError("dynamodb resource returned an invalid table object")
+    return cast(DynamoTable, table)
+
+
 @dataclass(slots=True)
 class JobPublishError(Exception):
     """Raised when queue publish fails and enqueue cannot proceed."""
@@ -338,10 +348,10 @@ class DynamoJobRepository:
             return self._table
         async with self._table_lock:
             if self._table is None:
-                table = self.dynamodb_resource.Table(self.table_name)
-                if inspect.isawaitable(table):
-                    table = await table
-                self._table = table
+                table_obj = self.dynamodb_resource.Table(self.table_name)
+                if inspect.isawaitable(table_obj):
+                    table_obj = await table_obj
+                self._table = _as_dynamo_table(table_obj)
         assert self._table is not None
         return self._table
 

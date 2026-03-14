@@ -4,8 +4,9 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 from contextlib import AsyncExitStack, asynccontextmanager
+from importlib import import_module
+from typing import Any
 
-import aioboto3  # type: ignore[import-untyped]
 from botocore.config import Config
 from fastapi import FastAPI
 from nova_runtime_support import configure_structlog
@@ -28,6 +29,10 @@ from nova_file_api.routes import (
 )
 
 
+def _new_aioboto3_session() -> Any:
+    return import_module("aioboto3").Session()
+
+
 async def _close_authenticator(*, app: FastAPI) -> None:
     """Close the app authenticator when it exposes an async close hook."""
     close_authenticator = getattr(
@@ -45,7 +50,7 @@ def create_app() -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         runtime_settings = app.state.settings
-        session = aioboto3.Session()
+        session = _new_aioboto3_session()
         s3_config = Config(
             s3={
                 "use_accelerate_endpoint": (

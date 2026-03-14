@@ -260,7 +260,7 @@ def test_introspect_validation_error_omits_access_token_input() -> None:
 
 def test_service_uses_configured_verifier_thread_tokens() -> None:
     """Verify service exposes configured verifier thread-token limit."""
-    service = TokenVerificationService(
-        settings=Settings(OIDC_VERIFIER_THREAD_TOKENS=7)
-    )
+    settings = Settings()
+    settings.oidc_verifier_thread_tokens = 7
+    service = TokenVerificationService(settings=settings)
     assert service.verifier_thread_tokens == 7
