@@ -2,7 +2,10 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-ROOT="$(git -C "${SCRIPT_DIR}" rev-parse --show-toplevel 2>/dev/null)"
+ROOT=""
+if ! ROOT="$(git -C "${SCRIPT_DIR}" rev-parse --show-toplevel 2>/dev/null)"; then
+  ROOT=""
+fi
 ROOT="${ROOT:-$(cd -- "${SCRIPT_DIR}/../.." && pwd)}"
 cd "${ROOT}"
 
@@ -17,7 +20,6 @@ uv run ruff format . --check
 uv run ty check --force-exclude --error-on-warning --output-format concise packages scripts
 uv run mypy
 uv run pytest -q
-uv run pytest -q packages/nova_file_api/tests/test_generated_client_smoke.py
 uv run python scripts/contracts/export_openapi.py --check
 uv run python scripts/release/generate_clients.py --check
 uv run python scripts/release/generate_python_clients.py --check
