@@ -220,6 +220,10 @@ Parameters:
   CacheRedisUrlSecretArn:
     Type: String
     Default: ""
+    AllowedPattern: "^$|^arn:(aws|aws-us-gov|aws-cn):secretsmanager:[a-z0-9-]+:[0-9]{12}:secret:[A-Za-z0-9/_+=.@-]+$"
+    ConstraintDescription: >-
+      CacheRedisUrlSecretArn must be a base Secrets Manager secret ARN without
+      json-key or version suffix segments.
     Description: Secrets Manager ARN for the CACHE_REDIS_URL value when cache is enabled.
   AuthMode:
     Type: String
@@ -241,57 +245,73 @@ Parameters:
     Type: String
     Default: ""
   OidcClockSkewSeconds:
-    Type: String
-    Default: "0"
+    Type: Number
+    Default: 0
+    MinValue: 0
   OidcVerifierThreadTokens:
-    Type: String
-    Default: "40"
+    Type: Number
+    Default: 40
+    MinValue: 1
   BlockingIoThreadTokens:
-    Type: String
-    Default: "80"
+    Type: Number
+    Default: 80
+    MinValue: 1
   RemoteAuthBaseUrl:
     Type: String
     Default: ""
   RemoteAuthTimeoutSeconds:
-    Type: String
-    Default: "2.0"
+    Type: Number
+    Default: 2.0
+    MinValue: 0
   CacheRedisMaxConnections:
-    Type: String
-    Default: "64"
+    Type: Number
+    Default: 64
+    MinValue: 1
   CacheRedisSocketTimeoutSeconds:
-    Type: String
-    Default: "0.5"
+    Type: Number
+    Default: 0.5
+    MinValue: 0
   CacheRedisSocketConnectTimeoutSeconds:
-    Type: String
-    Default: "0.5"
+    Type: Number
+    Default: 0.5
+    MinValue: 0
   CacheRedisHealthCheckIntervalSeconds:
-    Type: String
-    Default: "30"
+    Type: Number
+    Default: 30
+    MinValue: 0
   CacheRedisRetryBaseSeconds:
-    Type: String
-    Default: "0.05"
+    Type: Number
+    Default: 0.05
+    MinValue: 0
   CacheRedisRetryCapSeconds:
-    Type: String
-    Default: "0.5"
+    Type: Number
+    Default: 0.5
+    MinValue: 0
   CacheRedisRetryAttempts:
-    Type: String
-    Default: "2"
+    Type: Number
+    Default: 2
+    MinValue: 0
   CacheRedisDecodeResponses:
     Type: String
     Default: "false"
     AllowedValues: ["true", "false"]
   CacheRedisProtocol:
-    Type: String
-    Default: "2"
+    Type: Number
+    Default: 2
+    MinValue: 2
+    MaxValue: 3
   CacheLocalTtlSeconds:
-    Type: String
-    Default: "120"
+    Type: Number
+    Default: 120
+    MinValue: 0
   CacheLocalMaxEntries:
-    Type: String
-    Default: "2000"
+    Type: Number
+    Default: 2000
+    MinValue: 1
   CacheSharedTtlSeconds:
-    Type: String
-    Default: "300"
+    Type: Number
+    Default: 300
+    MinValue: 0
   CacheKeyPrefix:
     Type: String
     Default: "nova"
@@ -299,37 +319,45 @@ Parameters:
     Type: String
     Default: "1"
   AuthJwtCacheMaxTtlSeconds:
-    Type: String
-    Default: "120"
+    Type: Number
+    Default: 120
+    MinValue: 0
   IdempotencyEnabled:
     Type: String
     Default: "true"
     AllowedValues: ["true", "false"]
   IdempotencyTtlSeconds:
-    Type: String
-    Default: "900"
+    Type: Number
+    Default: 900
+    MinValue: 0
   FileTransferPresignUploadTtlSeconds:
-    Type: String
-    Default: "1800"
+    Type: Number
+    Default: 1800
+    MinValue: 0
   FileTransferPresignDownloadTtlSeconds:
-    Type: String
-    Default: "900"
+    Type: Number
+    Default: 900
+    MinValue: 0
   FileTransferMultipartThresholdBytes:
-    Type: String
-    Default: "104857600"
+    Type: Number
+    Default: 104857600
+    MinValue: 0
   FileTransferPartSizeBytes:
-    Type: String
-    Default: "134217728"
+    Type: Number
+    Default: 134217728
+    MinValue: 0
   FileTransferMaxConcurrency:
-    Type: String
-    Default: "4"
+    Type: Number
+    Default: 4
+    MinValue: 1
   FileTransferUseAccelerateEndpoint:
     Type: String
     Default: "false"
     AllowedValues: ["true", "false"]
   FileTransferMaxUploadBytes:
-    Type: String
-    Default: "536870912000"
+    Type: Number
+    Default: 536870912000
+    MinValue: 1
   UseLegacyTaskRolePolicy:
     Type: String
     Default: "true"
@@ -447,6 +475,24 @@ Rules:
         AssertDescription: >-
           CacheRedisUrlSecretArn is required when FileTransferCacheEnabled is
           "true".
+  JwtRemoteAuthParamsProvided:
+    Assertions:
+      - Assert: !Or
+          - !Not [!Equals [!Ref AuthMode, "jwt_remote"]]
+          - !Not [!Equals [!Ref RemoteAuthBaseUrl, ""]]
+        AssertDescription: >-
+          RemoteAuthBaseUrl is required when AuthMode is "jwt_remote".
+  JwtLocalOidcParamsProvided:
+    Assertions:
+      - Assert: !Or
+          - !Not [!Equals [!Ref AuthMode, "jwt_local"]]
+          - !And
+              - !Not [!Equals [!Ref OidcIssuer, ""]]
+              - !Not [!Equals [!Ref OidcAudience, ""]]
+              - !Not [!Equals [!Ref OidcJwksUrl, ""]]
+        AssertDescription: >-
+          OidcIssuer, OidcAudience, and OidcJwksUrl are required when AuthMode
+          is "jwt_local".
   BlueGreenTrafficControlParamsProvided:
     Assertions:
       - Assert: !Not [!Equals [!Ref EcsInfrastructureRoleArn, ""]]
@@ -466,6 +512,9 @@ Conditions:
   EnableFileTransferAsync: !Equals [!Ref FileTransferAsyncEnabled, "true"]
   EnableFileTransferCache: !Equals [!Ref FileTransferCacheEnabled, "true"]
   HasCacheRedisUrlSecretArn: !Not [!Equals [!Ref CacheRedisUrlSecretArn, ""]]
+  EnableFileTransferCacheWithSecretArn: !And
+    - !Condition EnableFileTransferCache
+    - !Condition HasCacheRedisUrlSecretArn
   HasTestTrafficListenerArn: !Not [!Equals [!Ref TestTrafficListenerArn, ""]]
   MonitorAlternateTargetGroup: !Equals [!Ref MonitorEcsService, "true"]
   HasDeploymentRollbackAlarmNamePrimary: !Not
@@ -481,7 +530,7 @@ Conditions:
     - !Condition CreateAppSecretKey
     - !Condition HasTaskExecutionSecretArns
     - !Condition HasTaskExecutionSsmParameterArns
-    - !Condition HasCacheRedisUrlSecretArn
+    - !Condition EnableFileTransferCacheWithSecretArn
 
 Resources:
   ListenerRule:
@@ -672,7 +721,7 @@ Resources:
               Resource: !Ref TaskExecutionSsmParameterArns
             - !Ref AWS::NoValue
           - !If
-            - HasCacheRedisUrlSecretArn
+            - EnableFileTransferCacheWithSecretArn
             - Effect: Allow
               Action:
                 - secretsmanager:GetSecretValue

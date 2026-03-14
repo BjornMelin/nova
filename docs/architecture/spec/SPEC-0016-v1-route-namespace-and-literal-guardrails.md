@@ -87,7 +87,7 @@ Non-canonical runtime paths outside this set MUST return `404`.
 3. Enqueue failure and readiness invariants are preserved:
    - `queue_unavailable` remains `503` on enqueue publish failures.
    - readiness remains bucket-sensitive and matches the aggregate readiness
-     contract defined in SPEC-0000 (health/readiness semantics).
+     contract defined in SPEC-0000 Section 4 (health/readiness semantics).
    - `status=succeeded` worker updates normalize `error=null`.
 4. CI fails on any legacy route reintroduction.
 

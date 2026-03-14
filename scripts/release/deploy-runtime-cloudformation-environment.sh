@@ -190,7 +190,7 @@ require_exactly_one_ingress_source() {
 
 json_field_present() {
   local field="$1"
-  jq -e --arg field "$field" '.[$field] != null and .[$field] != ""' <<<"$ENV_VARS_JSON" >/dev/null
+  jq -e --arg field "$field" '.[$field] != null' <<<"$ENV_VARS_JSON" >/dev/null
 }
 
 json_field_value() {
@@ -209,7 +209,53 @@ append_json_parameter_override() {
   fi
 }
 
+ENV_JSON_PARAMETER_MAPPINGS=(
+  "AUTH_MODE:AuthMode"
+  "OIDC_ISSUER:OidcIssuer"
+  "OIDC_AUDIENCE:OidcAudience"
+  "OIDC_JWKS_URL:OidcJwksUrl"
+  "OIDC_REQUIRED_SCOPES:OidcRequiredScopes"
+  "OIDC_REQUIRED_PERMISSIONS:OidcRequiredPermissions"
+  "OIDC_CLOCK_SKEW_SECONDS:OidcClockSkewSeconds"
+  "OIDC_VERIFIER_THREAD_TOKENS:OidcVerifierThreadTokens"
+  "BLOCKING_IO_THREAD_TOKENS:BlockingIoThreadTokens"
+  "REMOTE_AUTH_BASE_URL:RemoteAuthBaseUrl"
+  "REMOTE_AUTH_TIMEOUT_SECONDS:RemoteAuthTimeoutSeconds"
+  "CACHE_REDIS_MAX_CONNECTIONS:CacheRedisMaxConnections"
+  "CACHE_REDIS_SOCKET_TIMEOUT_SECONDS:CacheRedisSocketTimeoutSeconds"
+  "CACHE_REDIS_SOCKET_CONNECT_TIMEOUT_SECONDS:CacheRedisSocketConnectTimeoutSeconds"
+  "CACHE_REDIS_HEALTH_CHECK_INTERVAL_SECONDS:CacheRedisHealthCheckIntervalSeconds"
+  "CACHE_REDIS_RETRY_BASE_SECONDS:CacheRedisRetryBaseSeconds"
+  "CACHE_REDIS_RETRY_CAP_SECONDS:CacheRedisRetryCapSeconds"
+  "CACHE_REDIS_RETRY_ATTEMPTS:CacheRedisRetryAttempts"
+  "CACHE_REDIS_DECODE_RESPONSES:CacheRedisDecodeResponses"
+  "CACHE_REDIS_PROTOCOL:CacheRedisProtocol"
+  "CACHE_LOCAL_TTL_SECONDS:CacheLocalTtlSeconds"
+  "CACHE_LOCAL_MAX_ENTRIES:CacheLocalMaxEntries"
+  "CACHE_SHARED_TTL_SECONDS:CacheSharedTtlSeconds"
+  "CACHE_KEY_PREFIX:CacheKeyPrefix"
+  "CACHE_KEY_SCHEMA_VERSION:CacheKeySchemaVersion"
+  "AUTH_JWT_CACHE_MAX_TTL_SECONDS:AuthJwtCacheMaxTtlSeconds"
+  "IDEMPOTENCY_ENABLED:IdempotencyEnabled"
+  "IDEMPOTENCY_TTL_SECONDS:IdempotencyTtlSeconds"
+  "FILE_TRANSFER_PRESIGN_UPLOAD_TTL_SECONDS:FileTransferPresignUploadTtlSeconds"
+  "FILE_TRANSFER_PRESIGN_DOWNLOAD_TTL_SECONDS:FileTransferPresignDownloadTtlSeconds"
+  "FILE_TRANSFER_MULTIPART_THRESHOLD_BYTES:FileTransferMultipartThresholdBytes"
+  "FILE_TRANSFER_PART_SIZE_BYTES:FileTransferPartSizeBytes"
+  "FILE_TRANSFER_MAX_CONCURRENCY:FileTransferMaxConcurrency"
+  "FILE_TRANSFER_USE_ACCELERATE_ENDPOINT:FileTransferUseAccelerateEndpoint"
+  "FILE_TRANSFER_MAX_UPLOAD_BYTES:FileTransferMaxUploadBytes"
+)
+
 ensure_runtime_env_json_contract() {
+  local allowed_keys_json
+  allowed_keys_json="$(
+    printf '%s\n' "${ENV_JSON_PARAMETER_MAPPINGS[@]}" \
+      | cut -d: -f1 \
+      | jq -R . \
+      | jq -s .
+  )"
+
   jq -e 'type == "object"' <<<"$ENV_VARS_JSON" >/dev/null || {
     echo "ENV_VARS_JSON must be a JSON object." >&2
     exit 1
@@ -220,46 +266,25 @@ ensure_runtime_env_json_contract() {
     exit 1
   }
 
+  local null_fields=""
+  null_fields="$(
+    jq -r '
+      to_entries[]
+      | select(.value == null)
+      | .key
+    ' <<<"$ENV_VARS_JSON"
+  )"
+  if [ -n "$null_fields" ]; then
+    echo "ENV_VARS_JSON contains null values; use explicit empty strings instead:" >&2
+    while IFS= read -r field; do
+      [ -n "$field" ] && echo "  - $field" >&2
+    done <<<"$null_fields"
+    exit 1
+  fi
+
   local unknown_fields=""
   unknown_fields="$(
-    jq -r '
-      [
-        "AUTH_MODE",
-        "OIDC_ISSUER",
-        "OIDC_AUDIENCE",
-        "OIDC_JWKS_URL",
-        "OIDC_REQUIRED_SCOPES",
-        "OIDC_REQUIRED_PERMISSIONS",
-        "OIDC_CLOCK_SKEW_SECONDS",
-        "OIDC_VERIFIER_THREAD_TOKENS",
-        "BLOCKING_IO_THREAD_TOKENS",
-        "REMOTE_AUTH_BASE_URL",
-        "REMOTE_AUTH_TIMEOUT_SECONDS",
-        "CACHE_REDIS_MAX_CONNECTIONS",
-        "CACHE_REDIS_SOCKET_TIMEOUT_SECONDS",
-        "CACHE_REDIS_SOCKET_CONNECT_TIMEOUT_SECONDS",
-        "CACHE_REDIS_HEALTH_CHECK_INTERVAL_SECONDS",
-        "CACHE_REDIS_RETRY_BASE_SECONDS",
-        "CACHE_REDIS_RETRY_CAP_SECONDS",
-        "CACHE_REDIS_RETRY_ATTEMPTS",
-        "CACHE_REDIS_DECODE_RESPONSES",
-        "CACHE_REDIS_PROTOCOL",
-        "CACHE_LOCAL_TTL_SECONDS",
-        "CACHE_LOCAL_MAX_ENTRIES",
-        "CACHE_SHARED_TTL_SECONDS",
-        "CACHE_KEY_PREFIX",
-        "CACHE_KEY_SCHEMA_VERSION",
-        "AUTH_JWT_CACHE_MAX_TTL_SECONDS",
-        "IDEMPOTENCY_ENABLED",
-        "IDEMPOTENCY_TTL_SECONDS",
-        "FILE_TRANSFER_PRESIGN_UPLOAD_TTL_SECONDS",
-        "FILE_TRANSFER_PRESIGN_DOWNLOAD_TTL_SECONDS",
-        "FILE_TRANSFER_MULTIPART_THRESHOLD_BYTES",
-        "FILE_TRANSFER_PART_SIZE_BYTES",
-        "FILE_TRANSFER_MAX_CONCURRENCY",
-        "FILE_TRANSFER_USE_ACCELERATE_ENDPOINT",
-        "FILE_TRANSFER_MAX_UPLOAD_BYTES"
-      ] as $allowed
+    jq -r --argjson allowed "$allowed_keys_json" '
       | keys_unsorted - $allowed
       | .[]
     ' <<<"$ENV_VARS_JSON"
@@ -638,42 +663,7 @@ service_args=(
   "TaskExecutionSsmParameterArns=${TASK_EXECUTION_SSM_PARAMETER_ARNS}"
 )
 
-for mapping in \
-  "AUTH_MODE:AuthMode" \
-  "OIDC_ISSUER:OidcIssuer" \
-  "OIDC_AUDIENCE:OidcAudience" \
-  "OIDC_JWKS_URL:OidcJwksUrl" \
-  "OIDC_REQUIRED_SCOPES:OidcRequiredScopes" \
-  "OIDC_REQUIRED_PERMISSIONS:OidcRequiredPermissions" \
-  "OIDC_CLOCK_SKEW_SECONDS:OidcClockSkewSeconds" \
-  "OIDC_VERIFIER_THREAD_TOKENS:OidcVerifierThreadTokens" \
-  "BLOCKING_IO_THREAD_TOKENS:BlockingIoThreadTokens" \
-  "REMOTE_AUTH_BASE_URL:RemoteAuthBaseUrl" \
-  "REMOTE_AUTH_TIMEOUT_SECONDS:RemoteAuthTimeoutSeconds" \
-  "CACHE_REDIS_MAX_CONNECTIONS:CacheRedisMaxConnections" \
-  "CACHE_REDIS_SOCKET_TIMEOUT_SECONDS:CacheRedisSocketTimeoutSeconds" \
-  "CACHE_REDIS_SOCKET_CONNECT_TIMEOUT_SECONDS:CacheRedisSocketConnectTimeoutSeconds" \
-  "CACHE_REDIS_HEALTH_CHECK_INTERVAL_SECONDS:CacheRedisHealthCheckIntervalSeconds" \
-  "CACHE_REDIS_RETRY_BASE_SECONDS:CacheRedisRetryBaseSeconds" \
-  "CACHE_REDIS_RETRY_CAP_SECONDS:CacheRedisRetryCapSeconds" \
-  "CACHE_REDIS_RETRY_ATTEMPTS:CacheRedisRetryAttempts" \
-  "CACHE_REDIS_DECODE_RESPONSES:CacheRedisDecodeResponses" \
-  "CACHE_REDIS_PROTOCOL:CacheRedisProtocol" \
-  "CACHE_LOCAL_TTL_SECONDS:CacheLocalTtlSeconds" \
-  "CACHE_LOCAL_MAX_ENTRIES:CacheLocalMaxEntries" \
-  "CACHE_SHARED_TTL_SECONDS:CacheSharedTtlSeconds" \
-  "CACHE_KEY_PREFIX:CacheKeyPrefix" \
-  "CACHE_KEY_SCHEMA_VERSION:CacheKeySchemaVersion" \
-  "AUTH_JWT_CACHE_MAX_TTL_SECONDS:AuthJwtCacheMaxTtlSeconds" \
-  "IDEMPOTENCY_ENABLED:IdempotencyEnabled" \
-  "IDEMPOTENCY_TTL_SECONDS:IdempotencyTtlSeconds" \
-  "FILE_TRANSFER_PRESIGN_UPLOAD_TTL_SECONDS:FileTransferPresignUploadTtlSeconds" \
-  "FILE_TRANSFER_PRESIGN_DOWNLOAD_TTL_SECONDS:FileTransferPresignDownloadTtlSeconds" \
-  "FILE_TRANSFER_MULTIPART_THRESHOLD_BYTES:FileTransferMultipartThresholdBytes" \
-  "FILE_TRANSFER_PART_SIZE_BYTES:FileTransferPartSizeBytes" \
-  "FILE_TRANSFER_MAX_CONCURRENCY:FileTransferMaxConcurrency" \
-  "FILE_TRANSFER_USE_ACCELERATE_ENDPOINT:FileTransferUseAccelerateEndpoint" \
-  "FILE_TRANSFER_MAX_UPLOAD_BYTES:FileTransferMaxUploadBytes"; do
+for mapping in "${ENV_JSON_PARAMETER_MAPPINGS[@]}"; do
   IFS=":" read -r json_field parameter_name <<<"$mapping"
   parameter_override="$(append_json_parameter_override "$json_field" "$parameter_name")"
   if [ -n "$parameter_override" ]; then
