@@ -465,6 +465,7 @@ Conditions:
     - !Condition HasFileTransferBucketName
   EnableFileTransferAsync: !Equals [!Ref FileTransferAsyncEnabled, "true"]
   EnableFileTransferCache: !Equals [!Ref FileTransferCacheEnabled, "true"]
+  HasCacheRedisUrlSecretArn: !Not [!Equals [!Ref CacheRedisUrlSecretArn, ""]]
   HasTestTrafficListenerArn: !Not [!Equals [!Ref TestTrafficListenerArn, ""]]
   MonitorAlternateTargetGroup: !Equals [!Ref MonitorEcsService, "true"]
   HasDeploymentRollbackAlarmNamePrimary: !Not
@@ -480,6 +481,7 @@ Conditions:
     - !Condition CreateAppSecretKey
     - !Condition HasTaskExecutionSecretArns
     - !Condition HasTaskExecutionSsmParameterArns
+    - !Condition HasCacheRedisUrlSecretArn
 
 Resources:
   ListenerRule:
@@ -668,6 +670,14 @@ Resources:
               Action:
                 - ssm:GetParameters
               Resource: !Ref TaskExecutionSsmParameterArns
+            - !Ref AWS::NoValue
+          - !If
+            - HasCacheRedisUrlSecretArn
+            - Effect: Allow
+              Action:
+                - secretsmanager:GetSecretValue
+              Resource:
+                - !Ref CacheRedisUrlSecretArn
             - !Ref AWS::NoValue
           - Effect: Allow
             Action:

@@ -201,28 +201,12 @@ json_field_value() {
 }
 
 append_json_parameter_override() {
-  local -n target="$1"
-  local json_field="$2"
-  local parameter_name="$3"
+  local json_field="$1"
+  local parameter_name="$2"
 
   if json_field_present "$json_field"; then
-    target+=("${parameter_name}=$(json_field_value "$json_field")")
+    printf "%s=%s" "$parameter_name" "$(json_field_value "$json_field")"
   fi
-}
-
-append_csv_value() {
-  local current="$1"
-  local next="$2"
-
-  if [ -z "$current" ]; then
-    printf "%s" "$next"
-    return
-  fi
-  if [ -z "$next" ]; then
-    printf "%s" "$current"
-    return
-  fi
-  printf "%s,%s" "$current" "$next"
 }
 
 ensure_runtime_env_json_contract() {
@@ -602,14 +586,8 @@ if [ "$FILE_TRANSFER_ASYNC_ENABLED" = "true" ]; then
 fi
 
 CACHE_URL_SECRET_ARN=""
-SERVICE_TASK_EXECUTION_SECRET_ARNS="$TASK_EXECUTION_SECRET_ARNS"
 if [ "$FILE_TRANSFER_CACHE_ENABLED" = "true" ]; then
   CACHE_URL_SECRET_ARN="$(stack_output "$CACHE_STACK_NAME" CacheUrlSecretArn)"
-  SERVICE_TASK_EXECUTION_SECRET_ARNS="$(
-    append_csv_value \
-      "$SERVICE_TASK_EXECUTION_SECRET_ARNS" \
-      "$CACHE_URL_SECRET_ARN"
-  )"
 fi
 
 TEST_TRAFFIC_LISTENER_ARN=""
@@ -656,7 +634,7 @@ service_args=(
   "JobsTableName=${JOBS_TABLE_NAME}"
   "ActivityTableName=${ACTIVITY_TABLE_NAME}"
   "CacheRedisUrlSecretArn=${CACHE_URL_SECRET_ARN}"
-  "TaskExecutionSecretArns=${SERVICE_TASK_EXECUTION_SECRET_ARNS}"
+  "TaskExecutionSecretArns=${TASK_EXECUTION_SECRET_ARNS}"
   "TaskExecutionSsmParameterArns=${TASK_EXECUTION_SSM_PARAMETER_ARNS}"
 )
 
@@ -697,7 +675,10 @@ for mapping in \
   "FILE_TRANSFER_USE_ACCELERATE_ENDPOINT:FileTransferUseAccelerateEndpoint" \
   "FILE_TRANSFER_MAX_UPLOAD_BYTES:FileTransferMaxUploadBytes"; do
   IFS=":" read -r json_field parameter_name <<<"$mapping"
-  append_json_parameter_override service_args "$json_field" "$parameter_name"
+  parameter_override="$(append_json_parameter_override "$json_field" "$parameter_name")"
+  if [ -n "$parameter_override" ]; then
+    service_args+=("$parameter_override")
+  fi
 done
 
 deploy_stack \
