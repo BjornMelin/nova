@@ -112,6 +112,18 @@ class SqsClient(Protocol):
 
 
 def _as_dynamo_table(table: object) -> DynamoTable:
+    """Validate and cast a DynamoDB table-like object.
+
+    Args:
+        table: Candidate table object returned by the DynamoDB resource.
+
+    Returns:
+        The same object cast to ``DynamoTable`` once required methods exist.
+
+    Raises:
+        TypeError: Raised when ``put_item``, ``get_item``, or ``query`` is
+            missing or not callable.
+    """
     invalid_methods: list[str] = []
     for method_name in ("put_item", "get_item", "query"):
         method = getattr(table, method_name, None)

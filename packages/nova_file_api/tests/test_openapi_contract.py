@@ -34,13 +34,13 @@ _HTTP_METHODS = frozenset(
 def _string_object_mapping(value: object) -> Mapping[str, object]:
     assert isinstance(value, Mapping)
     assert all(isinstance(key, str) for key in value)
-    return cast("Mapping[str, object]", value)
+    return cast(Mapping[str, object], value)
 
 
 def _string_list(value: object) -> list[str]:
     assert isinstance(value, list)
     assert all(isinstance(item, str) for item in value)
-    return cast("list[str]", value)
+    return cast(list[str], value)
 
 
 def _build_openapi_app() -> FastAPI:

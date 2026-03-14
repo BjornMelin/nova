@@ -1,4 +1,7 @@
 fail_fast: false
+default_install_hook_types:
+  - pre-commit
+  - pre-push
 default_stages:
   - pre-commit
 
