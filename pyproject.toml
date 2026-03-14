@@ -30,9 +30,11 @@ dependencies = [
 dev = [
   "mypy>=1.19.1",
   "openapi-python-client>=0.26.2",
+  "pre-commit>=4.3.0",
   "pytest>=9.0.2",
   "pytest-asyncio>=1.3.0",
   "ruff>=0.15.1",
+  "ty>=0.0.21",
   "types-python-dateutil>=2.9.0.20250516",
 ]
 
@@ -153,7 +155,16 @@ warn_redundant_casts = true
 warn_return_any = true
 warn_unreachable = true
 pretty = true
-files = ["packages", "scripts"]
+files = [
+  "packages/nova_auth_api/src",
+  "packages/nova_dash_bridge/src",
+  "packages/nova_file_api/src",
+  "packages/nova_runtime_support/src",
+  "packages/nova_sdk_py_auth/src",
+  "packages/nova_sdk_py_file/src",
+  "scripts/contracts",
+  "scripts/release",
+]
 
 [[tool.mypy.overrides]]
 module = ["boto3", "botocore.*", "oidc_jwt_verifier"]
@@ -162,3 +173,44 @@ ignore_missing_imports = true
 [[tool.mypy.overrides]]
 module = ["dash", "dash.*", "flask", "flask.*"]
 ignore_missing_imports = true
+
+[tool.ty.environment]
+python = ".venv"
+python-version = "3.12"
+root = [
+  ".",
+  "packages/nova_auth_api/src",
+  "packages/nova_dash_bridge/src",
+  "packages/nova_file_api/src",
+  "packages/nova_runtime_support/src",
+  "packages/nova_sdk_py_auth/src",
+  "packages/nova_sdk_py_file/src",
+]
+
+[tool.ty.src]
+include = ["packages", "scripts"]
+exclude = [
+  ".git",
+  ".venv",
+  "__pycache__",
+  "build",
+  "dist",
+]
+
+[tool.ty.analysis]
+respect-type-ignore-comments = true
+replace-imports-with-any = [
+  "boto3",
+  "botocore",
+  "botocore.**",
+  "dash",
+  "dash.**",
+  "flask",
+  "flask.**",
+  "mypy_boto3_s3",
+  "oidc_jwt_verifier",
+]
+
+[tool.ty.terminal]
+error-on-warning = true
+output-format = "concise"

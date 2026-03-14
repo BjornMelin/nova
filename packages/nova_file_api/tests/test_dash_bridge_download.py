@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+from typing import cast
+
 import nova_dash_bridge.service as dash_service_module
 import nova_file_api.models as core_models
 import pytest
 from nova_dash_bridge.config import FileTransferEnvConfig, UploadPolicy
 from nova_dash_bridge.errors import FileTransferError
 from nova_dash_bridge.models import UploadIntrospectionRequest
+from nova_dash_bridge.s3_client import S3Client, SupportsCreateS3Client
 from nova_dash_bridge.service import FileTransferService
 
 
@@ -38,8 +41,8 @@ class _FakeS3Factory:
     def __init__(self, *, client: _FakeS3Client) -> None:
         self._client = client
 
-    def create(self, _env: FileTransferEnvConfig) -> _FakeS3Client:
-        return self._client
+    def create(self, _env: FileTransferEnvConfig) -> S3Client:
+        return cast("S3Client", self._client)
 
 
 class _FakeCoreTransferService:
@@ -86,8 +89,9 @@ def _service_with_response(
             max_upload_bytes=100,
             allowed_extensions={".csv"},
         ),
-        s3_client_factory=_FakeS3Factory(
-            client=_FakeS3Client(response=response)
+        s3_client_factory=cast(
+            "SupportsCreateS3Client",
+            _FakeS3Factory(client=_FakeS3Client(response=response)),
         ),
     )
 

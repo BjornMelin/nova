@@ -120,7 +120,7 @@ def _sanitize_log_value(
                 item,
                 hidden_fields=hidden_fields,
                 redacted_substrings=redacted_substrings,
-                key_name=key,
+                key_name=key if isinstance(key, str) else None,
             )
             for key, item in value.items()
         }

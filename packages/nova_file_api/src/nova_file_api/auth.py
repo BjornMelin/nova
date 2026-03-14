@@ -10,6 +10,7 @@ import anyio
 import httpx
 from anyio.abc import CapacityLimiter
 from nova_runtime_support import build_jwt_verifier, normalized_principal_claims
+from nova_runtime_support.threading import run_sync
 from oidc_jwt_verifier import AuthError, JWTVerifier
 from starlette.requests import Request
 
@@ -161,9 +162,8 @@ class Authenticator:
             raise unauthorized("local jwt mode is misconfigured")
 
         try:
-            claims = await anyio.to_thread.run_sync(
-                verifier.verify_access_token,
-                token,
+            claims = await run_sync(
+                lambda: verifier.verify_access_token(token),
                 limiter=self._verifier_thread_limiter,
             )
         except AuthError as exc:

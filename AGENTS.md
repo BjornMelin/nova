@@ -159,6 +159,7 @@ source .venv/bin/activate && uv lock --check
 source .venv/bin/activate && uv run ruff check .
 source .venv/bin/activate && uv run ruff check . --select I
 source .venv/bin/activate && uv run ruff format . --check
+source .venv/bin/activate && uv run ty check --force-exclude --error-on-warning packages scripts
 source .venv/bin/activate && uv run mypy
 source .venv/bin/activate && uv run pytest -q
 source .venv/bin/activate && uv run pytest -q \
@@ -173,11 +174,35 @@ for p in packages/nova_file_api packages/nova_auth_api \
 
 Notes:
 
+- `ty` is the canonical Python type gate for the full repo typing surface.
+- `mypy` remains a required compatibility backstop on its narrower configured
+  scope.
 - CI also enforces a stronger canonical-route policy guard in
   `.github/workflows/ci.yml`. Use the quick route preflight above before
   broader edits.
 - If you touch `packages/nova_runtime_support`, also run:
   `source .venv/bin/activate && uv build packages/nova_runtime_support`
+
+### Pre-commit hooks
+
+Install repo hooks with:
+
+```bash
+source .venv/bin/activate && uv sync --locked
+source .venv/bin/activate && uv run pre-commit install --install-hooks \
+  --hook-type pre-commit --hook-type pre-push
+```
+
+If `uv` is not on `PATH`, install it first, then rerun
+`scripts/dev/install_hooks.sh`.
+
+Manual pre-commit hook entrypoints mirror the task router:
+
+- `uv run pre-commit run typing-gates --hook-stage manual -a`
+- `uv run pre-commit run quality-gates --hook-stage manual -a`
+- `uv run pre-commit run sdk-conformance --hook-stage manual -a`
+- `uv run pre-commit run infra-contracts --hook-stage manual -a`
+- `uv run pre-commit run docker-release-images --hook-stage manual -a`
 
 ### OpenAPI, generated SDKs, npm packaging, or SDK docs/contracts
 
@@ -244,9 +269,9 @@ Notes:
 Spot check the Dash downstream consumer:
 
 ```bash
-export DASH_PCA_REPO=/path/to/dash-pca
+export DASH_PCA_REPO="${DASH_PCA_REPO:?set DASH_PCA_REPO to your dash-pca checkout}"
 rg -n "/v1/transfers|/v1/jobs|nova_dash_bridge|nova_file_api" \
-  "${DASH_PCA_REPO:?set DASH_PCA_REPO to your dash-pca checkout}"
+  "${DASH_PCA_REPO}"
 ```
 
 ## Documentation Rules

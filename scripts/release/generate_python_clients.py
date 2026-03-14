@@ -15,7 +15,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Any
+from typing import Any, cast
 
 from nova_runtime_support import (
     SDK_VISIBILITY_EXTENSION,
@@ -140,12 +140,13 @@ def _filter_internal_operations_for_public_sdk(
 def _collect_component_refs(node: object) -> set[tuple[str, str]]:
     refs: set[tuple[str, str]] = set()
     if isinstance(node, dict):
-        ref = node.get("$ref")
+        node_mapping = cast("dict[str, object]", node)
+        ref = node_mapping.get("$ref")
         if isinstance(ref, str):
             match = _COMPONENT_REF_RE.match(ref)
             if match is not None:
                 refs.add((match.group("section"), match.group("name")))
-        for value in node.values():
+        for value in node_mapping.values():
             refs.update(_collect_component_refs(value))
     elif isinstance(node, list):
         for item in node:
@@ -163,7 +164,8 @@ def _collect_security_scheme_refs(spec: dict[str, Any]) -> set[tuple[str, str]]:
             if not isinstance(requirement, dict):
                 continue
             for scheme_name in requirement:
-                refs.add(("securitySchemes", scheme_name))
+                if isinstance(scheme_name, str):
+                    refs.add(("securitySchemes", scheme_name))
 
     _collect_from_security(spec.get("security"))
     for path_item in (spec.get("paths") or {}).values():
@@ -712,7 +714,6 @@ def _patch_auth_sdk(root: Path) -> None:
     _rewrite_file(root, "client.py", patch_client)
 
     def patch_token_introspect_response(content: str) -> str:
-        content = content.replace(", cast", "")
         content = _replace_text(
             content,
             old=(
@@ -721,7 +722,10 @@ def _patch_auth_sdk(root: Path) -> None:
             ),
             new=(
                 "    def to_dict(self) -> dict[str, Any]:\n"
-                '        """Serialize this model to a JSON-compatible dict."""\n'
+                '        """Serialize this model to a JSON-compatible dict.\n\n'
+                "        Returns:\n"
+                "            dict[str, Any]: JSON-compatible representation.\n"
+                '        """\n'
                 "        from ..models.principal import Principal\n"
             ),
             path="models/token_introspect_response.py",
@@ -736,18 +740,37 @@ def _patch_auth_sdk(root: Path) -> None:
             new=(
                 "    @classmethod\n"
                 "    def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:\n"
-                '        """Build this model from a JSON-compatible mapping."""\n'
+                '        """Build this model from a JSON-compatible mapping.\n\n'
+                "        Args:\n"
+                "            src_dict: Source mapping to parse.\n\n"
+                "        Returns:\n"
+                "            T: Parsed token introspection response model.\n\n"
+                "        Raises:\n"
+                "            TypeError: If nested principal data has an invalid shape.\n"
+                '        """\n'
                 "        from ..models.principal import Principal\n"
             ),
             path="models/token_introspect_response.py",
         )
         return _replace_text(
             content,
-            old="            return cast(None | Principal | Unset, data)\n",
+            old=(
+                "            try:\n"
+                "                if not isinstance(data, dict):\n"
+                "                    raise TypeError()\n"
+                "                principal_type_0 = Principal.from_dict(data)\n\n"
+                "                return principal_type_0\n"
+                "            except (TypeError, ValueError, AttributeError, KeyError):\n"
+                "                pass\n"
+                "            return cast(None | Principal | Unset, data)\n"
+            ),
             new=(
-                "            raise TypeError(\n"
-                '                "principal must be an object, null, or UNSET"\n'
-                "            )\n"
+                "            if not isinstance(data, Mapping):\n"
+                "                raise TypeError(\n"
+                '                    "principal must be an object, null, or UNSET"\n'
+                "                )\n"
+                "            principal_data = cast(Mapping[str, Any], data)\n"
+                "            return Principal.from_dict(principal_data)\n"
             ),
             path="models/token_introspect_response.py",
         )
@@ -2048,20 +2071,39 @@ def _patch_file_sdk(root: Path) -> None:
     _rewrite_file(
         root,
         "models/job_record.py",
-        lambda content: content.replace(
-            "    def to_dict(self) -> dict[str, Any]:\n"
-            "        from ..models.job_record_result_type_0 import JobRecordResultType0\n",
-            "    def to_dict(self) -> dict[str, Any]:\n"
-            '        """Serialize this model to a JSON-compatible dict."""\n'
-            "        from ..models.job_record_result_type_0 import JobRecordResultType0\n",
-        ).replace(
-            "    @classmethod\n"
-            "    def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:\n"
-            "        from ..models.job_record_payload import JobRecordPayload\n",
-            "    @classmethod\n"
-            "    def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:\n"
-            '        """Build this model from a JSON-compatible mapping."""\n'
-            "        from ..models.job_record_payload import JobRecordPayload\n",
+        lambda content: (
+            content.replace(
+                "    def to_dict(self) -> dict[str, Any]:\n"
+                "        from ..models.job_record_result_type_0 import JobRecordResultType0\n",
+                "    def to_dict(self) -> dict[str, Any]:\n"
+                '        """Serialize this model to a JSON-compatible dict."""\n'
+                "        from ..models.job_record_result_type_0 import JobRecordResultType0\n",
+            )
+            .replace(
+                "    @classmethod\n"
+                "    def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:\n"
+                "        from ..models.job_record_payload import JobRecordPayload\n",
+                "    @classmethod\n"
+                "    def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:\n"
+                '        """Build this model from a JSON-compatible mapping."""\n'
+                "        from ..models.job_record_payload import JobRecordPayload\n",
+            )
+            .replace(
+                "            try:\n"
+                "                if not isinstance(data, dict):\n"
+                "                    raise TypeError()\n"
+                "                result_type_0 = JobRecordResultType0.from_dict(data)\n\n"
+                "                return result_type_0\n"
+                "            except (TypeError, ValueError, AttributeError, KeyError):\n"
+                "                pass\n"
+                "            return cast(JobRecordResultType0 | None | Unset, data)\n",
+                "            if not isinstance(data, Mapping):\n"
+                "                raise TypeError(\n"
+                '                    "result must be a mapping, null, or UNSET"\n'
+                "                )\n"
+                "            result_data = cast(Mapping[str, Any], data)\n"
+                "            return JobRecordResultType0.from_dict(result_data)\n",
+            )
         ),
     )
     _rewrite_file(

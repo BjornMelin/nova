@@ -38,5 +38,5 @@ Use these in order:
 ## Scope
 
 These standards cover repo engineering workflow, generated artifact rules,
-quality-gate routing, and documentation synchronization. They do not replace
-the architecture authority docs.
+quality-gate routing, pre-commit hook policy, and documentation
+synchronization. They do not replace the architecture authority docs.

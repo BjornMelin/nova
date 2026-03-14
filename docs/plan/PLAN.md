@@ -48,6 +48,8 @@ guidance:
   routers and workflow contracts.
 - Stable generated-client and conformance behavior remain part of release
   readiness, not a separate documentation model.
+- Repo-local pre-commit hooks now mirror the AGENTS task router, and `ty` is
+  now part of the required typing contract enforced by the main quality gates.
 
 ## Historical Planning Artifacts
 

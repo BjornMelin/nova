@@ -100,6 +100,7 @@ source .venv/bin/activate && uv lock --check
 source .venv/bin/activate && uv run ruff check .
 source .venv/bin/activate && uv run ruff check . --select I
 source .venv/bin/activate && uv run ruff format . --check
+source .venv/bin/activate && uv run ty check --force-exclude --error-on-warning packages scripts
 source .venv/bin/activate && uv run mypy
 source .venv/bin/activate && uv run pytest -q
 source .venv/bin/activate && uv run pytest -q \
@@ -108,6 +109,16 @@ source .venv/bin/activate && uv run python scripts/contracts/export_openapi.py -
 source .venv/bin/activate && uv run python scripts/release/generate_clients.py --check
 source .venv/bin/activate && uv run python scripts/release/generate_python_clients.py --check
 ```
+
+Canonical typing gates:
+
+```bash
+source .venv/bin/activate && uv run ty check --force-exclude --error-on-warning packages scripts
+source .venv/bin/activate && uv run mypy
+```
+
+`ty` is the required full-repo type gate. `mypy` remains a required
+compatibility backstop on its narrower configured scope.
 
 Package/app build verification:
 
@@ -121,6 +132,29 @@ If you touch `packages/nova_runtime_support`, also run:
 
 ```bash
 source .venv/bin/activate && uv build packages/nova_runtime_support
+```
+
+## Pre-commit hooks
+
+Install the repo hooks with:
+
+```bash
+source .venv/bin/activate && uv sync --locked
+source .venv/bin/activate && uv run pre-commit install --install-hooks \
+  --hook-type pre-commit --hook-type pre-push
+```
+
+If `uv` is not on your shell `PATH`, install it first, then rerun
+`scripts/dev/install_hooks.sh`.
+
+Useful manual hook entrypoints:
+
+```bash
+source .venv/bin/activate && uv run pre-commit run typing-gates --hook-stage manual -a
+source .venv/bin/activate && uv run pre-commit run quality-gates --hook-stage manual -a
+source .venv/bin/activate && uv run pre-commit run sdk-conformance --hook-stage manual -a
+source .venv/bin/activate && uv run pre-commit run infra-contracts --hook-stage manual -a
+source .venv/bin/activate && uv run pre-commit run docker-release-images --hook-stage manual -a
 ```
 
 ## Repo-Local npm / CodeArtifact Auth

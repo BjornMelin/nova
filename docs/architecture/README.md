@@ -68,6 +68,11 @@ workflows, CI/CD IAM policy, or deployment-control-plane design.
 - `spec/SPEC-0025-reusable-workflow-integration-contract.md`
 - `spec/SPEC-0026-ci-cd-iam-least-privilege-matrix.md`
 
+Quality-gate implementation details, including repo-local pre-commit hooks and
+the canonical `ty` plus `mypy` typing-gate wiring, remain governed by
+`../standards/README.md` and
+do not replace the required gate authority in `requirements.md`.
+
 ## Catalog Indexes
 
 Use these when you know the kind of architecture doc you need but not the exact

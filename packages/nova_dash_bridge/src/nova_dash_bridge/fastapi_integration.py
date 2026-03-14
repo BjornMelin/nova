@@ -4,7 +4,7 @@
 from functools import wraps
 from typing import TYPE_CHECKING, Any
 
-import anyio
+from nova_runtime_support.threading import current_default_thread_limiter
 from pydantic import ValidationError
 
 from nova_dash_bridge.config import (
@@ -35,7 +35,7 @@ else:  # pragma: no cover
     try:
         from fastapi import Request
     except ModuleNotFoundError:
-        Request = Any  # type: ignore[misc,assignment]
+        Request = Any
 
 
 def _fastapi_imports() -> tuple[type[Any], type[Any], type[Any], Any]:
@@ -137,7 +137,7 @@ async def _parse_payload(request: Request, model: type[Any]) -> Any:
 
 def _configure_thread_limiter(*, total_tokens: int) -> None:
     """Configure AnyIO thread tokens before request handling starts."""
-    limiter = anyio.to_thread.current_default_thread_limiter()
+    limiter = current_default_thread_limiter()
     limiter.total_tokens = total_tokens
 
 

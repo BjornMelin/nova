@@ -5,11 +5,11 @@ from __future__ import annotations
 from collections.abc import AsyncIterator
 from contextlib import AsyncExitStack, asynccontextmanager
 
-import aioboto3  # type: ignore[import-untyped]
 from botocore.config import Config
 from fastapi import FastAPI
 from nova_runtime_support import configure_structlog
 
+from nova_file_api.aws import new_aioboto3_session
 from nova_file_api.config import Settings
 from nova_file_api.dependencies import initialize_runtime_state
 from nova_file_api.exception_handlers import register_exception_handlers
@@ -45,7 +45,7 @@ def create_app() -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         runtime_settings = app.state.settings
-        session = aioboto3.Session()
+        session = new_aioboto3_session()
         s3_config = Config(
             s3={
                 "use_accelerate_endpoint": (

@@ -78,6 +78,9 @@ jobs:
       - name: Ruff Format
         run: uv run ruff format . --check
 
+      - name: Ty
+        run: uv run ty check --force-exclude --output-format github packages scripts
+
       - name: Mypy
         run: uv run mypy
 

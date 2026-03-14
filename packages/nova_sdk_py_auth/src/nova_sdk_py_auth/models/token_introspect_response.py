@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 from attrs import define as _attrs_define
 
@@ -33,7 +33,11 @@ class TokenIntrospectResponse:
     principal: None | Principal | Unset = UNSET
 
     def to_dict(self) -> dict[str, Any]:
-        """Serialize this model to a JSON-compatible dict."""
+        """Serialize this model to a JSON-compatible dict.
+
+        Returns:
+            dict[str, Any]: JSON-compatible representation.
+        """
         from ..models.principal import Principal
 
         active = self.active
@@ -66,7 +70,17 @@ class TokenIntrospectResponse:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        """Build this model from a JSON-compatible mapping."""
+        """Build this model from a JSON-compatible mapping.
+
+        Args:
+            src_dict: Source mapping to parse.
+
+        Returns:
+            T: Parsed token introspection response model.
+
+        Raises:
+            TypeError: If nested principal data has an invalid shape.
+        """
         from ..models.principal import Principal
         from ..models.token_introspect_response_claims import (
             TokenIntrospectResponseClaims,
@@ -87,15 +101,10 @@ class TokenIntrospectResponse:
                 return data
             if isinstance(data, Unset):
                 return data
-            try:
-                if not isinstance(data, dict):
-                    raise TypeError()
-                principal_type_0 = Principal.from_dict(data)
-
-                return principal_type_0
-            except (TypeError, ValueError, AttributeError, KeyError):
-                pass
-            raise TypeError("principal must be an object, null, or UNSET")
+            if not isinstance(data, Mapping):
+                raise TypeError("principal must be an object, null, or UNSET")
+            principal_data = cast(Mapping[str, Any], data)
+            return Principal.from_dict(principal_data)
 
         principal = _parse_principal(d.pop("principal", UNSET))
 

@@ -111,6 +111,33 @@ class SqsClient(Protocol):
         """Read queue attributes for health checks."""
 
 
+def _as_dynamo_table(table: object) -> DynamoTable:
+    """Validate and cast a DynamoDB table-like object.
+
+    Args:
+        table: Candidate table object returned by the DynamoDB resource.
+
+    Returns:
+        The same object cast to ``DynamoTable`` once required methods exist.
+
+    Raises:
+        TypeError: Raised when ``put_item``, ``get_item``, or ``query`` is
+            missing or not callable.
+    """
+    invalid_methods: list[str] = []
+    for method_name in ("put_item", "get_item", "query"):
+        method = getattr(table, method_name, None)
+        if not callable(method):
+            invalid_methods.append(method_name)
+    if invalid_methods:
+        methods = ", ".join(invalid_methods)
+        raise TypeError(
+            "dynamodb resource returned an invalid table object; "
+            f"missing or non-callable: {methods}"
+        )
+    return cast(DynamoTable, table)
+
+
 @dataclass(slots=True)
 class JobPublishError(Exception):
     """Raised when queue publish fails and enqueue cannot proceed."""
@@ -338,10 +365,10 @@ class DynamoJobRepository:
             return self._table
         async with self._table_lock:
             if self._table is None:
-                table = self.dynamodb_resource.Table(self.table_name)
-                if inspect.isawaitable(table):
-                    table = await table
-                self._table = table
+                table_obj = self.dynamodb_resource.Table(self.table_name)
+                if inspect.isawaitable(table_obj):
+                    table_obj = await table_obj
+                self._table = _as_dynamo_table(table_obj)
         assert self._table is not None
         return self._table
 

@@ -17,6 +17,14 @@ _VALIDATION_SCHEMA_NAMES = ("HTTPValidationError", "ValidationError")
 OpenApiSchemaCustomizer = Callable[[dict[str, Any]], None]
 
 
+def _string_mapping(node: object) -> Mapping[str, object] | None:
+    if not isinstance(node, Mapping):
+        return None
+    if not all(isinstance(key, str) for key in node):
+        return None
+    return cast(Mapping[str, object], node)
+
+
 def install_openapi_customizer(
     app: FastAPI,
     *,
@@ -229,11 +237,12 @@ def _collect_schema_refs(schema: dict[str, Any]) -> set[str]:
     refs: set[str] = set()
 
     def walk(node: object) -> None:
-        if isinstance(node, dict):
-            ref_value = node.get("$ref")
+        mapping = _string_mapping(node)
+        if mapping is not None:
+            ref_value = mapping.get("$ref")
             if isinstance(ref_value, str):
                 refs.add(ref_value)
-            for value in node.values():
+            for value in mapping.values():
                 walk(value)
             return
         if isinstance(node, list):

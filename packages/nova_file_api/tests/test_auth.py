@@ -129,15 +129,14 @@ async def test_local_verification_uses_thread_boundary(
     call_count = {"count": 0}
 
     async def _run_sync(
-        func: Callable[[str], dict[str, Any]],
-        token: str,
+        func: Callable[[], dict[str, Any]],
         **_kwargs: Any,
     ) -> dict[str, Any]:
         call_count["count"] += 1
-        return func(token)
+        return func()
 
     monkeypatch.setattr(
-        "nova_file_api.auth.anyio.to_thread.run_sync",
+        "nova_file_api.auth.run_sync",
         _run_sync,
     )
 

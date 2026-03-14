@@ -325,6 +325,11 @@ Every change MUST pass:
 - `source .venv/bin/activate && uv run pytest -q packages/nova_file_api/tests/test_generated_client_smoke.py`
 - workspace package/app build verification (`uv build` per workspace unit)
 
+The canonical typing gates are
+`source .venv/bin/activate && uv run ty check --force-exclude --error-on-warning packages scripts`
+and `source .venv/bin/activate && uv run mypy`. `ty` is the required full-repo
+gate; `mypy` remains the required compatibility backstop in this phase.
+
 ### NFR-0105: Contract traceability
 
 Target implementation PRs MUST update `README.md`, `AGENTS.md`,
