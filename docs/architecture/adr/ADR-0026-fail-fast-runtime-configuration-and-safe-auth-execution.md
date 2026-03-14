@@ -110,6 +110,5 @@ Choose **Option B**.
 - 2026-03-05: Restored `ADR-0026` to runtime configuration and auth-safety
   governance and moved CI/CD IAM partitioning to `ADR-0032`.
 - 2026-03-05: Added process-scoped remote-auth client lifecycle requirements.
-- 2026-03-14: Reconciled active docs to the current aggregate readiness
-  contract and removed premature `IDEMPOTENCY_MODE` claims from the active
-  runtime authority pack.
+- 2026-03-14: Updated readiness-contract language and removed premature
+  `IDEMPOTENCY_MODE` claims from the active runtime authority pack.
