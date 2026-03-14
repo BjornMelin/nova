@@ -9,7 +9,6 @@ set -euo pipefail
 # variables are left unset:
 # - RUNTIME_COST_MODE is required and selects standard, saver, or paused posture
 # - AssignPublicIp=DISABLED
-# - IdempotencyMode=shared_required
 # - FileTransferAsyncEnabled=true
 # - FileTransferCacheEnabled=true
 # - TaskExecutionSecretArns=
@@ -189,49 +188,105 @@ require_exactly_one_ingress_source() {
   fi
 }
 
-json_field_equals() {
-  local field="$1"
-  local expected="$2"
-  jq -e --arg field "$field" --arg expected "$expected" '.[$field] == $expected' <<<"$ENV_VARS_JSON" >/dev/null
-}
-
 json_field_present() {
   local field="$1"
   jq -e --arg field "$field" '.[$field] != null and .[$field] != ""' <<<"$ENV_VARS_JSON" >/dev/null
 }
 
-ensure_runtime_env_posture() {
-  json_field_equals "IDEMPOTENCY_MODE" "shared_required" || {
-    echo "ENV_VARS_JSON must set IdempotencyMode=shared_required via IDEMPOTENCY_MODE=shared_required." >&2
+json_field_value() {
+  local field="$1"
+  jq -r --arg field "$field" '
+    if .[$field] == null then "" else .[$field] | tostring end
+  ' <<<"$ENV_VARS_JSON"
+}
+
+append_json_parameter_override() {
+  local -n target="$1"
+  local json_field="$2"
+  local parameter_name="$3"
+
+  if json_field_present "$json_field"; then
+    target+=("${parameter_name}=$(json_field_value "$json_field")")
+  fi
+}
+
+append_csv_value() {
+  local current="$1"
+  local next="$2"
+
+  if [ -z "$current" ]; then
+    printf "%s" "$next"
+    return
+  fi
+  if [ -z "$next" ]; then
+    printf "%s" "$current"
+    return
+  fi
+  printf "%s,%s" "$current" "$next"
+}
+
+ensure_runtime_env_json_contract() {
+  jq -e 'type == "object"' <<<"$ENV_VARS_JSON" >/dev/null || {
+    echo "ENV_VARS_JSON must be a JSON object." >&2
     exit 1
   }
 
-  if [ "$FILE_TRANSFER_CACHE_ENABLED" = "true" ]; then
-    json_field_present "CACHE_REDIS_URL" || {
-      echo "ENV_VARS_JSON must include CACHE_REDIS_URL when FileTransferCacheEnabled=true." >&2
-      exit 1
-    }
-  fi
+  jq -e 'has("IDEMPOTENCY_MODE") | not' <<<"$ENV_VARS_JSON" >/dev/null || {
+    echo "ENV_VARS_JSON must not include IDEMPOTENCY_MODE until runtime semantics are implemented." >&2
+    exit 1
+  }
 
-  if [ "$FILE_TRANSFER_ASYNC_ENABLED" = "true" ]; then
-    for field in JOBS_ENABLED JOBS_QUEUE_BACKEND JOBS_REPOSITORY_BACKEND JOBS_RUNTIME_MODE; do
-      json_field_present "$field" || {
-        echo "ENV_VARS_JSON must include ${field} when FileTransferAsyncEnabled=true." >&2
-        exit 1
-      }
-    done
-    json_field_equals "JOBS_ENABLED" "true" || {
-      echo "ENV_VARS_JSON must set JOBS_ENABLED=true when FileTransferAsyncEnabled=true." >&2
-      exit 1
-    }
-    json_field_equals "JOBS_QUEUE_BACKEND" "sqs" || {
-      echo "ENV_VARS_JSON must set JOBS_QUEUE_BACKEND=sqs when FileTransferAsyncEnabled=true." >&2
-      exit 1
-    }
-    json_field_equals "JOBS_REPOSITORY_BACKEND" "dynamodb" || {
-      echo "ENV_VARS_JSON must set JOBS_REPOSITORY_BACKEND=dynamodb when FileTransferAsyncEnabled=true." >&2
-      exit 1
-    }
+  local unknown_fields=""
+  unknown_fields="$(
+    jq -r '
+      [
+        "AUTH_MODE",
+        "OIDC_ISSUER",
+        "OIDC_AUDIENCE",
+        "OIDC_JWKS_URL",
+        "OIDC_REQUIRED_SCOPES",
+        "OIDC_REQUIRED_PERMISSIONS",
+        "OIDC_CLOCK_SKEW_SECONDS",
+        "OIDC_VERIFIER_THREAD_TOKENS",
+        "BLOCKING_IO_THREAD_TOKENS",
+        "REMOTE_AUTH_BASE_URL",
+        "REMOTE_AUTH_TIMEOUT_SECONDS",
+        "CACHE_REDIS_MAX_CONNECTIONS",
+        "CACHE_REDIS_SOCKET_TIMEOUT_SECONDS",
+        "CACHE_REDIS_SOCKET_CONNECT_TIMEOUT_SECONDS",
+        "CACHE_REDIS_HEALTH_CHECK_INTERVAL_SECONDS",
+        "CACHE_REDIS_RETRY_BASE_SECONDS",
+        "CACHE_REDIS_RETRY_CAP_SECONDS",
+        "CACHE_REDIS_RETRY_ATTEMPTS",
+        "CACHE_REDIS_DECODE_RESPONSES",
+        "CACHE_REDIS_PROTOCOL",
+        "CACHE_LOCAL_TTL_SECONDS",
+        "CACHE_LOCAL_MAX_ENTRIES",
+        "CACHE_SHARED_TTL_SECONDS",
+        "CACHE_KEY_PREFIX",
+        "CACHE_KEY_SCHEMA_VERSION",
+        "AUTH_JWT_CACHE_MAX_TTL_SECONDS",
+        "IDEMPOTENCY_ENABLED",
+        "IDEMPOTENCY_TTL_SECONDS",
+        "FILE_TRANSFER_PRESIGN_UPLOAD_TTL_SECONDS",
+        "FILE_TRANSFER_PRESIGN_DOWNLOAD_TTL_SECONDS",
+        "FILE_TRANSFER_MULTIPART_THRESHOLD_BYTES",
+        "FILE_TRANSFER_PART_SIZE_BYTES",
+        "FILE_TRANSFER_MAX_CONCURRENCY",
+        "FILE_TRANSFER_USE_ACCELERATE_ENDPOINT",
+        "FILE_TRANSFER_MAX_UPLOAD_BYTES"
+      ] as $allowed
+      | keys_unsorted - $allowed
+      | .[]
+    ' <<<"$ENV_VARS_JSON"
+  )"
+
+  if [ -n "$unknown_fields" ]; then
+    echo "ENV_VARS_JSON contains unsupported keys:" >&2
+    while IFS= read -r field; do
+      [ -n "$field" ] && echo "  - $field" >&2
+    done <<<"$unknown_fields"
+    exit 1
   fi
 }
 
@@ -403,7 +458,7 @@ case "$RUNTIME_COST_MODE" in
 esac
 
 require_exactly_one_ingress_source
-ensure_runtime_env_posture
+ensure_runtime_env_json_contract
 
 if [ "$ENABLE_WORKER" = "true" ] && [ "$FILE_TRANSFER_ASYNC_ENABLED" = "true" ]; then
   require_env JOBS_WORKER_UPDATE_TOKEN_SECRET_ARN
@@ -533,13 +588,28 @@ fi
 
 JOBS_QUEUE_ARN=""
 JOBS_QUEUE_URL=""
+JOBS_TABLE_NAME=""
 JOBS_TABLE_ARN=""
+ACTIVITY_TABLE_NAME=""
 ACTIVITY_TABLE_ARN=""
 if [ "$FILE_TRANSFER_ASYNC_ENABLED" = "true" ]; then
   JOBS_QUEUE_ARN="$(stack_output "$ASYNC_STACK_NAME" JobsQueueArn)"
   JOBS_QUEUE_URL="$(stack_output "$ASYNC_STACK_NAME" JobsQueueUrl)"
+  JOBS_TABLE_NAME="$(stack_output "$ASYNC_STACK_NAME" JobsTableName)"
   JOBS_TABLE_ARN="$(stack_output "$ASYNC_STACK_NAME" JobsTableArn)"
+  ACTIVITY_TABLE_NAME="$(stack_output "$ASYNC_STACK_NAME" ActivityTableName)"
   ACTIVITY_TABLE_ARN="$(stack_output "$ASYNC_STACK_NAME" ActivityTableArn)"
+fi
+
+CACHE_URL_SECRET_ARN=""
+SERVICE_TASK_EXECUTION_SECRET_ARNS="$TASK_EXECUTION_SECRET_ARNS"
+if [ "$FILE_TRANSFER_CACHE_ENABLED" = "true" ]; then
+  CACHE_URL_SECRET_ARN="$(stack_output "$CACHE_STACK_NAME" CacheUrlSecretArn)"
+  SERVICE_TASK_EXECUTION_SECRET_ARNS="$(
+    append_csv_value \
+      "$SERVICE_TASK_EXECUTION_SECRET_ARNS" \
+      "$CACHE_URL_SECRET_ARN"
+  )"
 fi
 
 TEST_TRAFFIC_LISTENER_ARN=""
@@ -582,10 +652,53 @@ service_args=(
   "FileTransferActivityTableArn=${ACTIVITY_TABLE_ARN}"
   "FileTransferCacheEnabled=${FILE_TRANSFER_CACHE_ENABLED}"
   "FileTransferCacheSecurityGroupExportName=${CACHE_SG_EXPORT_NAME}"
-  "EnvVars=${ENV_VARS_JSON}"
-  "TaskExecutionSecretArns=${TASK_EXECUTION_SECRET_ARNS}"
+  "JobsQueueUrl=${JOBS_QUEUE_URL}"
+  "JobsTableName=${JOBS_TABLE_NAME}"
+  "ActivityTableName=${ACTIVITY_TABLE_NAME}"
+  "CacheRedisUrlSecretArn=${CACHE_URL_SECRET_ARN}"
+  "TaskExecutionSecretArns=${SERVICE_TASK_EXECUTION_SECRET_ARNS}"
   "TaskExecutionSsmParameterArns=${TASK_EXECUTION_SSM_PARAMETER_ARNS}"
 )
+
+for mapping in \
+  "AUTH_MODE:AuthMode" \
+  "OIDC_ISSUER:OidcIssuer" \
+  "OIDC_AUDIENCE:OidcAudience" \
+  "OIDC_JWKS_URL:OidcJwksUrl" \
+  "OIDC_REQUIRED_SCOPES:OidcRequiredScopes" \
+  "OIDC_REQUIRED_PERMISSIONS:OidcRequiredPermissions" \
+  "OIDC_CLOCK_SKEW_SECONDS:OidcClockSkewSeconds" \
+  "OIDC_VERIFIER_THREAD_TOKENS:OidcVerifierThreadTokens" \
+  "BLOCKING_IO_THREAD_TOKENS:BlockingIoThreadTokens" \
+  "REMOTE_AUTH_BASE_URL:RemoteAuthBaseUrl" \
+  "REMOTE_AUTH_TIMEOUT_SECONDS:RemoteAuthTimeoutSeconds" \
+  "CACHE_REDIS_MAX_CONNECTIONS:CacheRedisMaxConnections" \
+  "CACHE_REDIS_SOCKET_TIMEOUT_SECONDS:CacheRedisSocketTimeoutSeconds" \
+  "CACHE_REDIS_SOCKET_CONNECT_TIMEOUT_SECONDS:CacheRedisSocketConnectTimeoutSeconds" \
+  "CACHE_REDIS_HEALTH_CHECK_INTERVAL_SECONDS:CacheRedisHealthCheckIntervalSeconds" \
+  "CACHE_REDIS_RETRY_BASE_SECONDS:CacheRedisRetryBaseSeconds" \
+  "CACHE_REDIS_RETRY_CAP_SECONDS:CacheRedisRetryCapSeconds" \
+  "CACHE_REDIS_RETRY_ATTEMPTS:CacheRedisRetryAttempts" \
+  "CACHE_REDIS_DECODE_RESPONSES:CacheRedisDecodeResponses" \
+  "CACHE_REDIS_PROTOCOL:CacheRedisProtocol" \
+  "CACHE_LOCAL_TTL_SECONDS:CacheLocalTtlSeconds" \
+  "CACHE_LOCAL_MAX_ENTRIES:CacheLocalMaxEntries" \
+  "CACHE_SHARED_TTL_SECONDS:CacheSharedTtlSeconds" \
+  "CACHE_KEY_PREFIX:CacheKeyPrefix" \
+  "CACHE_KEY_SCHEMA_VERSION:CacheKeySchemaVersion" \
+  "AUTH_JWT_CACHE_MAX_TTL_SECONDS:AuthJwtCacheMaxTtlSeconds" \
+  "IDEMPOTENCY_ENABLED:IdempotencyEnabled" \
+  "IDEMPOTENCY_TTL_SECONDS:IdempotencyTtlSeconds" \
+  "FILE_TRANSFER_PRESIGN_UPLOAD_TTL_SECONDS:FileTransferPresignUploadTtlSeconds" \
+  "FILE_TRANSFER_PRESIGN_DOWNLOAD_TTL_SECONDS:FileTransferPresignDownloadTtlSeconds" \
+  "FILE_TRANSFER_MULTIPART_THRESHOLD_BYTES:FileTransferMultipartThresholdBytes" \
+  "FILE_TRANSFER_PART_SIZE_BYTES:FileTransferPartSizeBytes" \
+  "FILE_TRANSFER_MAX_CONCURRENCY:FileTransferMaxConcurrency" \
+  "FILE_TRANSFER_USE_ACCELERATE_ENDPOINT:FileTransferUseAccelerateEndpoint" \
+  "FILE_TRANSFER_MAX_UPLOAD_BYTES:FileTransferMaxUploadBytes"; do
+  IFS=":" read -r json_field parameter_name <<<"$mapping"
+  append_json_parameter_override service_args "$json_field" "$parameter_name"
+done
 
 deploy_stack \
   "$SERVICE_STACK_NAME" \

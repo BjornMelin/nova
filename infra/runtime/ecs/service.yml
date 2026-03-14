@@ -149,10 +149,6 @@ Parameters:
   #   Type: String
   #   Default: "false"
   #   AllowedValues: ["true", "false"]
-  EnvVars:
-    Type: String
-    Default: "{}"
-    Description: 'List of environment variables as a JSON String. Ex: ''{"key1": "value1", "key2": "value2"}'''
   FileTransferEnabled:
     Type: String
     Default: "false"
@@ -209,13 +205,131 @@ Parameters:
     Type: String
     Default: ""
     Description: Export name for the managed cache security group ID.
-  UseLegacyEnvDict:
+  JobsQueueUrl:
+    Type: String
+    Default: ""
+    Description: Runtime SQS queue URL injected into the API service when async is enabled.
+  JobsTableName:
+    Type: String
+    Default: ""
+    Description: Runtime DynamoDB jobs table name injected into the API service when async is enabled.
+  ActivityTableName:
+    Type: String
+    Default: ""
+    Description: Runtime DynamoDB activity table name injected into the API service when async is enabled.
+  CacheRedisUrlSecretArn:
+    Type: String
+    Default: ""
+    Description: Secrets Manager ARN for the CACHE_REDIS_URL value when cache is enabled.
+  AuthMode:
+    Type: String
+    Default: "same_origin"
+    AllowedValues: ["same_origin", "jwt_local", "jwt_remote"]
+  OidcIssuer:
+    Type: String
+    Default: ""
+  OidcAudience:
+    Type: String
+    Default: ""
+  OidcJwksUrl:
+    Type: String
+    Default: ""
+  OidcRequiredScopes:
+    Type: String
+    Default: ""
+  OidcRequiredPermissions:
+    Type: String
+    Default: ""
+  OidcClockSkewSeconds:
+    Type: String
+    Default: "0"
+  OidcVerifierThreadTokens:
+    Type: String
+    Default: "40"
+  BlockingIoThreadTokens:
+    Type: String
+    Default: "80"
+  RemoteAuthBaseUrl:
+    Type: String
+    Default: ""
+  RemoteAuthTimeoutSeconds:
+    Type: String
+    Default: "2.0"
+  CacheRedisMaxConnections:
+    Type: String
+    Default: "64"
+  CacheRedisSocketTimeoutSeconds:
+    Type: String
+    Default: "0.5"
+  CacheRedisSocketConnectTimeoutSeconds:
+    Type: String
+    Default: "0.5"
+  CacheRedisHealthCheckIntervalSeconds:
+    Type: String
+    Default: "30"
+  CacheRedisRetryBaseSeconds:
+    Type: String
+    Default: "0.05"
+  CacheRedisRetryCapSeconds:
+    Type: String
+    Default: "0.5"
+  CacheRedisRetryAttempts:
+    Type: String
+    Default: "2"
+  CacheRedisDecodeResponses:
+    Type: String
+    Default: "false"
+    AllowedValues: ["true", "false"]
+  CacheRedisProtocol:
+    Type: String
+    Default: "2"
+  CacheLocalTtlSeconds:
+    Type: String
+    Default: "120"
+  CacheLocalMaxEntries:
+    Type: String
+    Default: "2000"
+  CacheSharedTtlSeconds:
+    Type: String
+    Default: "300"
+  CacheKeyPrefix:
+    Type: String
+    Default: "nova"
+  CacheKeySchemaVersion:
+    Type: String
+    Default: "1"
+  AuthJwtCacheMaxTtlSeconds:
+    Type: String
+    Default: "120"
+  IdempotencyEnabled:
     Type: String
     Default: "true"
     AllowedValues: ["true", "false"]
-    Description: >-
-      If true, inject legacy ENV_DICT/AUTH_APP_SECRET values into the task
-      environment. Prefer ECS-native `Secrets` and explicit `Environment`.
+  IdempotencyTtlSeconds:
+    Type: String
+    Default: "900"
+  FileTransferPresignUploadTtlSeconds:
+    Type: String
+    Default: "1800"
+  FileTransferPresignDownloadTtlSeconds:
+    Type: String
+    Default: "900"
+  FileTransferMultipartThresholdBytes:
+    Type: String
+    Default: "104857600"
+  FileTransferPartSizeBytes:
+    Type: String
+    Default: "134217728"
+  FileTransferMaxConcurrency:
+    Type: String
+    Default: "4"
+  FileTransferUseAccelerateEndpoint:
+    Type: String
+    Default: "false"
+    AllowedValues: ["true", "false"]
+  FileTransferMaxUploadBytes:
+    Type: String
+    Default: "536870912000"
   UseLegacyTaskRolePolicy:
     Type: String
     Default: "true"
@@ -305,6 +419,17 @@ Rules:
           FileTransferJobsQueueArn, FileTransferJobsTableArn, and
           FileTransferActivityTableArn are required when
           FileTransferAsyncEnabled is "true".
+  FileTransferAsyncRuntimeParamsProvided:
+    Assertions:
+      - Assert: !Or
+          - !Equals [!Ref FileTransferAsyncEnabled, "false"]
+          - !And
+              - !Not [!Equals [!Ref JobsQueueUrl, ""]]
+              - !Not [!Equals [!Ref JobsTableName, ""]]
+              - !Not [!Equals [!Ref ActivityTableName, ""]]
+        AssertDescription: >-
+          JobsQueueUrl, JobsTableName, and ActivityTableName are required
+          when FileTransferAsyncEnabled is "true".
   FileTransferCacheParamsProvided:
     Assertions:
       - Assert: !Or
@@ -314,6 +439,14 @@ Rules:
         AssertDescription: >-
           FileTransferCacheSecurityGroupExportName is required when
           FileTransferCacheEnabled is "true".
+  FileTransferCacheSecretProvided:
+    Assertions:
+      - Assert: !Or
+          - !Equals [!Ref FileTransferCacheEnabled, "false"]
+          - !Not [!Equals [!Ref CacheRedisUrlSecretArn, ""]]
+        AssertDescription: >-
+          CacheRedisUrlSecretArn is required when FileTransferCacheEnabled is
+          "true".
   BlueGreenTrafficControlParamsProvided:
     Assertions:
       - Assert: !Not [!Equals [!Ref EcsInfrastructureRoleArn, ""]]
@@ -323,7 +456,6 @@ Rules:
 Conditions:
   UseServiceDiscovery: !Equals [!Ref UseServiceDiscovery, "true"]
   Monitor: !Equals [!Ref MonitorEcsService, "true"]
-  UseLegacyEnvDict: !Equals [!Ref UseLegacyEnvDict, "true"]
   UseLegacyTaskRolePolicy: !Equals [!Ref UseLegacyTaskRolePolicy, "true"]
   CreateAppSecretKey: !Equals [!Ref GenerateAppSecretKey, "true"]
   EnableFileTransfer: !Equals [!Ref FileTransferEnabled, "true"]
@@ -568,12 +700,107 @@ Resources:
           Environment:
             - Name: AWS_DEFAULT_REGION
               Value: !Sub "${AWS::Region}"
-            - Name: ENV
+            - Name: ENVIRONMENT
               Value: !Sub "${Environment}"
             - Name: NOVA_RUNTIME_PROFILE
               Value: !Ref RuntimeProfile
             - Name: FILE_TRANSFER_ENABLED
               Value: !Ref FileTransferEnabled
+            - Name: AUTH_MODE
+              Value: !Ref AuthMode
+            - Name: OIDC_ISSUER
+              Value: !Ref OidcIssuer
+            - Name: OIDC_AUDIENCE
+              Value: !Ref OidcAudience
+            - Name: OIDC_JWKS_URL
+              Value: !Ref OidcJwksUrl
+            - Name: OIDC_REQUIRED_SCOPES
+              Value: !Ref OidcRequiredScopes
+            - Name: OIDC_REQUIRED_PERMISSIONS
+              Value: !Ref OidcRequiredPermissions
+            - Name: OIDC_CLOCK_SKEW_SECONDS
+              Value: !Ref OidcClockSkewSeconds
+            - Name: OIDC_VERIFIER_THREAD_TOKENS
+              Value: !Ref OidcVerifierThreadTokens
+            - Name: BLOCKING_IO_THREAD_TOKENS
+              Value: !Ref BlockingIoThreadTokens
+            - Name: REMOTE_AUTH_BASE_URL
+              Value: !Ref RemoteAuthBaseUrl
+            - Name: REMOTE_AUTH_TIMEOUT_SECONDS
+              Value: !Ref RemoteAuthTimeoutSeconds
+            - Name: CACHE_REDIS_MAX_CONNECTIONS
+              Value: !Ref CacheRedisMaxConnections
+            - Name: CACHE_REDIS_SOCKET_TIMEOUT_SECONDS
+              Value: !Ref CacheRedisSocketTimeoutSeconds
+            - Name: CACHE_REDIS_SOCKET_CONNECT_TIMEOUT_SECONDS
+              Value: !Ref CacheRedisSocketConnectTimeoutSeconds
+            - Name: CACHE_REDIS_HEALTH_CHECK_INTERVAL_SECONDS
+              Value: !Ref CacheRedisHealthCheckIntervalSeconds
+            - Name: CACHE_REDIS_RETRY_BASE_SECONDS
+              Value: !Ref CacheRedisRetryBaseSeconds
+            - Name: CACHE_REDIS_RETRY_CAP_SECONDS
+              Value: !Ref CacheRedisRetryCapSeconds
+            - Name: CACHE_REDIS_RETRY_ATTEMPTS
+              Value: !Ref CacheRedisRetryAttempts
+            - Name: CACHE_REDIS_DECODE_RESPONSES
+              Value: !Ref CacheRedisDecodeResponses
+            - Name: CACHE_REDIS_PROTOCOL
+              Value: !Ref CacheRedisProtocol
+            - Name: CACHE_LOCAL_TTL_SECONDS
+              Value: !Ref CacheLocalTtlSeconds
+            - Name: CACHE_LOCAL_MAX_ENTRIES
+              Value: !Ref CacheLocalMaxEntries
+            - Name: CACHE_SHARED_TTL_SECONDS
+              Value: !Ref CacheSharedTtlSeconds
+            - Name: CACHE_KEY_PREFIX
+              Value: !Ref CacheKeyPrefix
+            - Name: CACHE_KEY_SCHEMA_VERSION
+              Value: !Ref CacheKeySchemaVersion
+            - Name: AUTH_JWT_CACHE_MAX_TTL_SECONDS
+              Value: !Ref AuthJwtCacheMaxTtlSeconds
+            - Name: IDEMPOTENCY_ENABLED
+              Value: !Ref IdempotencyEnabled
+            - Name: IDEMPOTENCY_TTL_SECONDS
+              Value: !Ref IdempotencyTtlSeconds
+            - Name: FILE_TRANSFER_PRESIGN_UPLOAD_TTL_SECONDS
+              Value: !Ref FileTransferPresignUploadTtlSeconds
+            - Name: FILE_TRANSFER_PRESIGN_DOWNLOAD_TTL_SECONDS
+              Value: !Ref FileTransferPresignDownloadTtlSeconds
+            - Name: FILE_TRANSFER_MULTIPART_THRESHOLD_BYTES
+              Value: !Ref FileTransferMultipartThresholdBytes
+            - Name: FILE_TRANSFER_PART_SIZE_BYTES
+              Value: !Ref FileTransferPartSizeBytes
+            - Name: FILE_TRANSFER_MAX_CONCURRENCY
+              Value: !Ref FileTransferMaxConcurrency
+            - Name: FILE_TRANSFER_USE_ACCELERATE_ENDPOINT
+              Value: !Ref FileTransferUseAccelerateEndpoint
+            - Name: FILE_TRANSFER_MAX_UPLOAD_BYTES
+              Value: !Ref FileTransferMaxUploadBytes
+            - Name: JOBS_ENABLED
+              Value: !If [EnableFileTransferAsync, "true", "false"]
+            - Name: JOBS_QUEUE_BACKEND
+              Value: !If [EnableFileTransferAsync, "sqs", "memory"]
+            - Name: JOBS_REPOSITORY_BACKEND
+              Value: !If [EnableFileTransferAsync, "dynamodb", "memory"]
+            - Name: JOBS_RUNTIME_MODE
+              Value: "api"
+            - !If
+              - EnableFileTransferAsync
+              - Name: JOBS_SQS_QUEUE_URL
+                Value: !Ref JobsQueueUrl
+              - !Ref AWS::NoValue
+            - !If
+              - EnableFileTransferAsync
+              - Name: JOBS_DYNAMODB_TABLE
+                Value: !Ref JobsTableName
+              - !Ref AWS::NoValue
+            - Name: ACTIVITY_STORE_BACKEND
+              Value: !If [EnableFileTransferAsync, "dynamodb", "memory"]
+            - !If
+              - EnableFileTransferAsync
+              - Name: ACTIVITY_ROLLUPS_TABLE
+                Value: !Ref ActivityTableName
+              - !Ref AWS::NoValue
             - !If
               - EnableFileTransferWithBucket
               - Name: FILE_TRANSFER_BUCKET
@@ -594,21 +821,17 @@ Resources:
               - Name: FILE_TRANSFER_TMP_PREFIX
                 Value: !Ref FileTransferTmpPrefix
               - !Ref AWS::NoValue
+          Secrets:
             - !If
-              - UseLegacyEnvDict
-              - Name: AUTH_APP_SECRET
-                Value: !Sub "/${Environment}/auth0/app/${Environment}-${Project}-${Application}-${Service}-spa"
-              - !Ref AWS::NoValue
-            - !If
-              - UseLegacyEnvDict
-              - Name: ENV_DICT
-                Value: !Ref EnvVars
-              - !Ref AWS::NoValue
-          Secrets: !If
-            - CreateAppSecretKey
-            - - Name: !Ref AppSecretEnvVarName
+              - CreateAppSecretKey
+              - Name: !Ref AppSecretEnvVarName
                 ValueFrom: !Ref AppSecretKeySecret
-            - !Ref AWS::NoValue
+              - !Ref AWS::NoValue
+            - !If
+              - EnableFileTransferCache
+              - Name: CACHE_REDIS_URL
+                ValueFrom: !Ref CacheRedisUrlSecretArn
+              - !Ref AWS::NoValue
 
           LogConfiguration:
             LogDriver: awslogs
@@ -1401,7 +1624,7 @@ Resources:
       Action: lambda:InvokeFunction
       Principal: lambda.alarms.cloudwatch.amazonaws.com
       SourceArn: !Sub "arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:${TargetTLSNegotiationErrorCountGreen}"
-      
+
 
 
 Outputs:
