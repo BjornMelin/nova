@@ -1,0 +1,4 @@
+[default.extend-words]
+a0deploy = "a0deploy"
+presign = "presign"
+signin = "signin"
