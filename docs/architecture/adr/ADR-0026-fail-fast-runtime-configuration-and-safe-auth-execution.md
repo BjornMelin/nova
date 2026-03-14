@@ -5,10 +5,10 @@ Status: Accepted
 Version: 2.1
 Date: 2026-03-05
 Related:
-  - "[ADR-0023: Hard cut to a single canonical /v1 API surface](./ADR-0023-hard-cut-v1-canonical-route-surface.md)"
-  - "[SPEC-0000: HTTP API Contract](../spec/SPEC-0000-http-api-contract.md)"
-  - "[SPEC-0016: Hard-cut v1 route contract and route-literal guardrails](../spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md)"
-  - "[Requirements: Nova architecture and product requirements](../requirements.md)"
+  - "[ADR-0023](./ADR-0023-hard-cut-v1-canonical-route-surface.md)"
+  - "[SPEC-0000](../spec/SPEC-0000-http-api-contract.md)"
+  - "[SPEC-0016](../spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md)"
+  - "[requirements.md](../requirements.md)"
   - "[ADR-0024: Layered runtime authority pack for the Nova monorepo](./ADR-0024-layered-architecture-authority-pack.md)"
   - "[ADR-0025: Runtime monorepo component boundaries and ownership](./ADR-0025-runtime-monorepo-component-boundaries-and-ownership.md)"
   - "[SPEC-0018: Runtime configuration and startup validation contract](../spec/SPEC-0018-runtime-configuration-and-startup-validation-contract.md)"
