@@ -35,7 +35,29 @@ def test_create_fastapi_app_uses_lifespan_startup(
     with TestClient(app) as client:
         assert TRANSFER_ROUTE_PREFIX in client.get("/openapi.json").text
 
-    assert calls == [12]
+    assert calls[0] == 12
+    assert len(calls) == 2
+
+
+def test_routes_include_transfer_operation_metadata() -> None:
+    app = fastapi_integration.create_fastapi_app(
+        env_config=FileTransferEnvConfig.model_validate(
+            {
+                "FILE_TRANSFER_ENABLED": True,
+                "FILE_TRANSFER_BUCKET": "bucket-a",
+            }
+        ),
+        upload_policy=UploadPolicy(
+            max_upload_bytes=100,
+            allowed_extensions={".csv"},
+        ),
+    )
+    with TestClient(app) as client:
+        openapi_doc = client.get("/openapi.json").json()
+
+    operation = openapi_doc["paths"]["/v1/transfers/uploads/initiate"]["post"]
+    assert operation["operationId"] == "initiate_upload"
+    assert operation["tags"] == ["transfers"]
 
 
 @pytest.mark.parametrize(

@@ -6,6 +6,14 @@ from functools import wraps
 from json import JSONDecodeError
 from typing import TYPE_CHECKING, Any, cast
 
+from nova_file_api.operation_ids import (
+    ABORT_UPLOAD_OPERATION_ID,
+    COMPLETE_UPLOAD_OPERATION_ID,
+    INITIATE_UPLOAD_OPERATION_ID,
+    INTROSPECT_UPLOAD_OPERATION_ID,
+    PRESIGN_DOWNLOAD_OPERATION_ID,
+    SIGN_UPLOAD_PARTS_OPERATION_ID,
+)
 from nova_file_api.public import (
     ABORT_UPLOAD_ROUTE,
     COMPLETE_UPLOAD_ROUTE,
@@ -154,7 +162,7 @@ def create_fastapi_router(
         Any: FastAPI APIRouter containing file transfer routes.
     """
     apirouter, _, json_response, run_in_threadpool, _ = _fastapi_imports()
-    router = apirouter(prefix=TRANSFER_ROUTE_PREFIX)
+    router = apirouter(prefix=TRANSFER_ROUTE_PREFIX, tags=["transfers"])
     service = FileTransferService(
         env_config=env_config,
         upload_policy=upload_policy,
@@ -185,6 +193,7 @@ def create_fastapi_router(
 
     @router.post(
         UPLOADS_INITIATE_ROUTE,
+        operation_id=INITIATE_UPLOAD_OPERATION_ID,
         response_model=(
             InitiateUploadResponseSingle | InitiateUploadResponseMultipart
         ),
@@ -200,7 +209,11 @@ def create_fastapi_router(
             await run_in_threadpool(service.initiate_upload, payload),
         )
 
-    @router.post(SIGN_PARTS_ROUTE, response_model=SignPartsResponse)
+    @router.post(
+        SIGN_PARTS_ROUTE,
+        operation_id=SIGN_UPLOAD_PARTS_OPERATION_ID,
+        response_model=SignPartsResponse,
+    )
     @handle_file_transfer_errors
     async def sign_parts(
         request: Request,
@@ -214,6 +227,7 @@ def create_fastapi_router(
 
     @router.post(
         INTROSPECT_UPLOAD_ROUTE,
+        operation_id=INTROSPECT_UPLOAD_OPERATION_ID,
         response_model=UploadIntrospectionResponse,
     )
     @handle_file_transfer_errors
@@ -227,7 +241,11 @@ def create_fastapi_router(
             await run_in_threadpool(service.introspect_upload, payload),
         )
 
-    @router.post(COMPLETE_UPLOAD_ROUTE, response_model=CompleteUploadResponse)
+    @router.post(
+        COMPLETE_UPLOAD_ROUTE,
+        operation_id=COMPLETE_UPLOAD_OPERATION_ID,
+        response_model=CompleteUploadResponse,
+    )
     @handle_file_transfer_errors
     async def complete_upload(
         request: Request,
@@ -239,7 +257,11 @@ def create_fastapi_router(
             await run_in_threadpool(service.complete_upload, payload),
         )
 
-    @router.post(ABORT_UPLOAD_ROUTE, response_model=AbortUploadResponse)
+    @router.post(
+        ABORT_UPLOAD_ROUTE,
+        operation_id=ABORT_UPLOAD_OPERATION_ID,
+        response_model=AbortUploadResponse,
+    )
     @handle_file_transfer_errors
     async def abort_upload(
         request: Request,
@@ -253,6 +275,7 @@ def create_fastapi_router(
 
     @router.post(
         PRESIGN_DOWNLOAD_ROUTE,
+        operation_id=PRESIGN_DOWNLOAD_OPERATION_ID,
         response_model=PresignDownloadResponse,
     )
     @handle_file_transfer_errors
@@ -291,8 +314,14 @@ def create_fastapi_app(
 
     @asynccontextmanager
     async def lifespan(_app: Any) -> Any:
+        previous_thread_tokens = int(
+            current_default_thread_limiter().total_tokens
+        )
         _configure_thread_limiter(total_tokens=env_config.thread_tokens)
-        yield
+        try:
+            yield
+        finally:
+            _configure_thread_limiter(total_tokens=previous_thread_tokens)
 
     app = fastapi(lifespan=lifespan)
 

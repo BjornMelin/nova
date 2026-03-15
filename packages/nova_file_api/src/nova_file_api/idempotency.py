@@ -34,6 +34,11 @@ class IdempotencyStore:
         self._enabled = enabled
         self._ttl_seconds = ttl_seconds
 
+    @property
+    def enabled(self) -> bool:
+        """Return whether idempotency checks are enabled for this store."""
+        return self._enabled
+
     async def load_response(
         self,
         *,

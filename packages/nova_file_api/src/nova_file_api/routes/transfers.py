@@ -157,7 +157,7 @@ async def initiate_upload(
             "route": "/v1/transfers/uploads/initiate",
             "scope_id": principal.scope_id,
         },
-        store_response_failure_mode="raise",
+        store_response_failure_mode="log",
     )
 
 

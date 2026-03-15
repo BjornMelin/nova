@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+from pydantic_settings import BaseSettings, PydanticBaseSettingsSource
+
 from nova_file_api.config import Settings
 from nova_file_api.errors import FileTransferError
 from nova_file_api.models import (
@@ -58,46 +60,63 @@ class TransferFacadeConfig:
 
 def _settings_from_facade_config(config: TransferFacadeConfig) -> Settings:
     """Materialize canonical runtime settings from public transfer config."""
+
+    class _FacadeSettings(Settings):
+        @classmethod
+        def settings_customise_sources(
+            cls,
+            settings_cls: type[BaseSettings],
+            init_settings: PydanticBaseSettingsSource,
+            env_settings: PydanticBaseSettingsSource,
+            dotenv_settings: PydanticBaseSettingsSource,
+            file_secret_settings: PydanticBaseSettingsSource,
+        ) -> tuple[PydanticBaseSettingsSource, ...]:
+            del cls
+            del (
+                settings_cls,
+                env_settings,
+                dotenv_settings,
+                file_secret_settings,
+            )
+            return (init_settings,)
+
     default_values = {
-        field_name: field.get_default(call_default_factory=True)
+        (
+            field.alias
+            if isinstance(field.alias, str) and field.alias
+            else field_name
+        ): field.get_default(call_default_factory=True)
         for field_name, field in Settings.model_fields.items()
     }
     default_values.update(
         {
-            "file_transfer_enabled": config.file_transfer_enabled,
-            "file_transfer_bucket": config.file_transfer_bucket,
-            "file_transfer_upload_prefix": config.file_transfer_upload_prefix,
-            "file_transfer_export_prefix": config.file_transfer_export_prefix,
-            "file_transfer_tmp_prefix": config.file_transfer_tmp_prefix,
-            "file_transfer_presign_upload_ttl_seconds": (
+            "FILE_TRANSFER_ENABLED": config.file_transfer_enabled,
+            "FILE_TRANSFER_BUCKET": config.file_transfer_bucket,
+            "FILE_TRANSFER_UPLOAD_PREFIX": config.file_transfer_upload_prefix,
+            "FILE_TRANSFER_EXPORT_PREFIX": config.file_transfer_export_prefix,
+            "FILE_TRANSFER_TMP_PREFIX": config.file_transfer_tmp_prefix,
+            "FILE_TRANSFER_PRESIGN_UPLOAD_TTL_SECONDS": (
                 config.file_transfer_presign_upload_ttl_seconds
             ),
-            "file_transfer_presign_download_ttl_seconds": (
+            "FILE_TRANSFER_PRESIGN_DOWNLOAD_TTL_SECONDS": (
                 config.file_transfer_presign_download_ttl_seconds
             ),
-            "file_transfer_multipart_threshold_bytes": (
+            "FILE_TRANSFER_MULTIPART_THRESHOLD_BYTES": (
                 config.file_transfer_multipart_threshold_bytes
             ),
-            "file_transfer_part_size_bytes": (
+            "FILE_TRANSFER_PART_SIZE_BYTES": (
                 config.file_transfer_part_size_bytes
             ),
-            "file_transfer_max_concurrency": (
+            "FILE_TRANSFER_MAX_CONCURRENCY": (
                 config.file_transfer_max_concurrency
             ),
-            "file_transfer_use_accelerate_endpoint": (
+            "FILE_TRANSFER_USE_ACCELERATE_ENDPOINT": (
                 config.file_transfer_use_accelerate_endpoint
             ),
-            "max_upload_bytes": config.max_upload_bytes,
+            "FILE_TRANSFER_MAX_UPLOAD_BYTES": config.max_upload_bytes,
         }
     )
-    settings = Settings.model_construct(**default_values)
-    max_supported_upload_bytes = settings.file_transfer_part_size_bytes * 10_000
-    if settings.max_upload_bytes > max_supported_upload_bytes:
-        raise ValueError(
-            "FILE_TRANSFER_MAX_UPLOAD_BYTES must be less than or equal to "
-            "FILE_TRANSFER_PART_SIZE_BYTES * 10000"
-        )
-    return settings
+    return _FacadeSettings(**default_values)
 
 
 def build_transfer_service(
@@ -105,7 +124,18 @@ def build_transfer_service(
     config: TransferFacadeConfig,
     s3_client: Any,
 ) -> TransferService:
-    """Build the canonical transfer service for bridge consumers."""
+    """Build the canonical transfer service for bridge consumers.
+
+    Args:
+        config: Transfer settings used to materialize runtime configuration.
+        s3_client: S3 client dependency passed through to TransferService.
+
+    Returns:
+        TransferService: Canonical transfer service instance for adapters.
+
+    Raises:
+        ValidationError: If settings derived from config are invalid.
+    """
     return TransferService(
         settings=_settings_from_facade_config(config),
         s3_client=s3_client,
