@@ -3,6 +3,7 @@
 
 from contextlib import asynccontextmanager
 from functools import wraps
+from json import JSONDecodeError
 from typing import TYPE_CHECKING, Any, cast
 
 from nova_file_api.public import (
@@ -53,7 +54,9 @@ else:  # pragma: no cover
         Request = Any
 
 
-def _fastapi_imports() -> tuple[type[Any], type[Any], type[Any], Any]:
+def _fastapi_imports() -> tuple[
+    type[Any], type[Any], type[Any], Any, type[Any]
+]:
     """Load FastAPI symbols only when the optional dependency is installed.
 
     Returns:
@@ -65,13 +68,20 @@ def _fastapi_imports() -> tuple[type[Any], type[Any], type[Any], Any]:
     """
     try:
         from fastapi import APIRouter, FastAPI
+        from fastapi.exceptions import RequestValidationError
         from fastapi.responses import JSONResponse
         from starlette.concurrency import run_in_threadpool
     except ModuleNotFoundError as exc:  # pragma: no cover
         raise RuntimeError(
             "FastAPI integration requires optional dependency group `fastapi`"
         ) from exc
-    return APIRouter, FastAPI, JSONResponse, run_in_threadpool
+    return (
+        APIRouter,
+        FastAPI,
+        JSONResponse,
+        run_in_threadpool,
+        RequestValidationError,
+    )
 
 
 def _request_id(request: Request) -> str | None:
@@ -143,7 +153,7 @@ def create_fastapi_router(
     Returns:
         Any: FastAPI APIRouter containing file transfer routes.
     """
-    apirouter, _, json_response, run_in_threadpool = _fastapi_imports()
+    apirouter, _, json_response, run_in_threadpool, _ = _fastapi_imports()
     router = apirouter(prefix=TRANSFER_ROUTE_PREFIX)
     service = FileTransferService(
         env_config=env_config,
@@ -277,7 +287,7 @@ def create_fastapi_app(
     Returns:
         Any: FastAPI application instance with mounted transfer routes.
     """
-    _, fastapi, _, _ = _fastapi_imports()
+    _, fastapi, json_response, _, request_validation_error = _fastapi_imports()
 
     @asynccontextmanager
     async def lifespan(_app: Any) -> Any:
@@ -285,6 +295,33 @@ def create_fastapi_app(
         yield
 
     app = fastapi(lifespan=lifespan)
+
+    @app.exception_handler(request_validation_error)
+    async def handle_request_validation_error(
+        request: Request,
+        exc: Any,
+    ) -> Any:
+        return json_response(
+            status_code=422,
+            content=_error_payload(
+                code="invalid_request",
+                message="request validation failed",
+                details={"errors": exc.errors()},
+                request_id=_request_id(request),
+            ),
+        )
+
+    @app.exception_handler(JSONDecodeError)
+    async def handle_json_decode_error(request: Request, exc: Exception) -> Any:
+        return json_response(
+            status_code=422,
+            content=_error_payload(
+                code="invalid_request",
+                message="request validation failed",
+                details={"reason": str(exc)},
+                request_id=_request_id(request),
+            ),
+        )
 
     app.include_router(
         create_fastapi_router(
