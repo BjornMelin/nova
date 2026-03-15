@@ -152,5 +152,8 @@ async def run_guarded_mutation[ResponseModelT: BaseModel](
                     )
                 raise
 
-    await on_success(response)
+    try:
+        await on_success(response)
+    except Exception as exc:
+        await _run_failure_hook_best_effort(exc)
     return response

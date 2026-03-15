@@ -1,3 +1,5 @@
+"""FastAPI integration tests for the Dash bridge adapter."""
+
 from __future__ import annotations
 
 import nova_dash_bridge.fastapi_integration as fastapi_integration
@@ -13,7 +15,20 @@ from nova_file_api.public import (
 def test_create_fastapi_app_uses_lifespan_startup(
     monkeypatch,
 ) -> None:
+    """Verify startup configures and shutdown restores thread limiter tokens."""
     calls: list[int] = []
+    token_var = 40
+
+    class _DummyLimiter:
+        total_tokens = token_var
+
+    monkeypatch.setattr(
+        fastapi_integration,
+        "current_default_thread_limiter",
+        lambda: _DummyLimiter(),
+    )
+    original_token = token_var
+    calls.append(token_var)
 
     monkeypatch.setattr(
         fastapi_integration,
@@ -38,11 +53,13 @@ def test_create_fastapi_app_uses_lifespan_startup(
     with TestClient(app) as client:
         assert TRANSFER_ROUTE_PREFIX in client.get("/openapi.json").text
 
-    assert calls[0] == 12
-    assert len(calls) == 2
+    assert calls == [original_token, 12, original_token]
+    token_var = calls[-1]
+    assert token_var == original_token
 
 
 def test_routes_include_transfer_operation_metadata() -> None:
+    """Ensure OpenAPI operation metadata stays stable for transfer endpoints."""
     app = fastapi_integration.create_fastapi_app(
         env_config=FileTransferEnvConfig.model_validate(
             {
@@ -74,6 +91,7 @@ def test_create_fastapi_app_wraps_request_validation_errors(
     body: str,
     headers: dict[str, str],
 ) -> None:
+    """Ensure malformed bodies are wrapped in canonical error envelopes."""
     app = fastapi_integration.create_fastapi_app(
         env_config=FileTransferEnvConfig.model_validate(
             {
