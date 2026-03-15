@@ -17,11 +17,13 @@ References:
 Service MUST expose:
 
 - `GET /v1/health/live` for liveness
-- `GET /v1/health/ready` for readiness checks of critical dependencies
+- `GET /v1/health/ready` for readiness checks of the current runtime
+  dependencies
 
 Readiness rules:
 
-- `/v1/health/ready` `ok` MUST reflect only traffic-critical dependency checks.
+- `/v1/health/ready` `ok` MUST reflect the current runtime checks reported in
+  the response body.
 - Feature flags (for example `jobs_enabled`) MUST NOT drive readiness
   pass/fail.
 - Optional feature disablement MUST NOT mark service unready.

@@ -16,8 +16,7 @@ Canonical operator path:
 - The script applies the same change-set-first sequence documented here and
   requires `RUNTIME_COST_MODE` (`standard|saver|paused`) to select runtime
   cost posture before applying related override defaults (`AssignPublicIp=DISABLED`,
-  `IDEMPOTENCY_MODE=shared_required`, async queue wiring, and cache-enabled
-  file-transfer service deployment).
+  async queue wiring, and cache-enabled file-transfer service deployment).
 
 ## Scope
 
@@ -62,9 +61,9 @@ Export these values before running commands:
 - `SERVICE_DNS` (example `${SERVICE_NAME}.${ALB_HOSTED_ZONE_NAME}`)
 - `DOCKER_REPOSITORY_NAME`
 - `IMAGE_DIGEST` (OCI digest, `sha256:...`)
-- `ENV_VARS_JSON` (JSON object string passed through `EnvVars`; it must include
-  `IDEMPOTENCY_MODE=shared_required` and the async/cache runtime keys required
-  by the current file-transfer service posture)
+- `ENV_VARS_JSON` (JSON object string used only for supported non-secret API
+  runtime overrides; it is validated by the operator script and exploded into
+  explicit ECS environment entries rather than passed through as `ENV_DICT`)
 - `RUNTIME_COST_MODE` (`standard`, `saver`, or `paused`)
 - `TASK_ROLE_ARN`
 - `ECS_INFRASTRUCTURE_ROLE_ARN`
@@ -104,7 +103,7 @@ copying individual `aws cloudformation deploy` commands:
 ```bash
 export ENVIRONMENT=dev
 export IMAGE_DIGEST=sha256:...
-export ENV_VARS_JSON='{"IDEMPOTENCY_MODE":"shared_required","JOBS_ENABLED":"true","JOBS_QUEUE_BACKEND":"sqs","JOBS_REPOSITORY_BACKEND":"dynamodb","JOBS_RUNTIME_MODE":"worker","CACHE_REDIS_URL":"rediss://..."}'
+export ENV_VARS_JSON='{"AUTH_MODE":"same_origin","FILE_TRANSFER_MAX_UPLOAD_BYTES":"536870912000"}'
 export JOBS_WORKER_UPDATE_TOKEN_SECRET_ARN="arn:aws:secretsmanager:..."
 export RUNTIME_COST_MODE=standard
 
@@ -140,6 +139,13 @@ Worker/file-transfer contract notes:
 
 - When `ENABLE_WORKER=true` and `FILE_TRANSFER_ASYNC_ENABLED=true`, the script
   now requires `JOBS_WORKER_UPDATE_TOKEN_SECRET_ARN`.
+- The service stack no longer accepts `ENV_DICT` / `AUTH_APP_SECRET` legacy
+  env-bundle wiring.
+- Async queue URL/table names and cache secret injection are derived from stack
+  outputs, not operator JSON.
+- `ENV_VARS_JSON` only supports implemented non-secret API overrides; the
+  script rejects unsupported keys, including `IDEMPOTENCY_MODE` until runtime
+  semantics land in code.
 - Canonical worker runtime inputs are `JOBS_*`; stale worker aliases are not
   valid deployment inputs.
 - Default large-upload posture is `FILE_TRANSFER_MAX_UPLOAD_BYTES=536_870_912_000`

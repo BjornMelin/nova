@@ -409,6 +409,7 @@ def test_runtime_env_and_parameter_contracts() -> None:
     worker_text = _read("infra/runtime/file_transfer/worker.yml")
     worker_template = _yaml_template("infra/runtime/file_transfer/worker.yml")
     service_text = _read("infra/runtime/ecs/service.yml")
+    service_template = _yaml_template("infra/runtime/ecs/service.yml")
 
     assert "JobsVisibilityTimeoutSeconds" in async_text
     assert "MinValue: 30" in async_text
@@ -472,6 +473,59 @@ def test_runtime_env_and_parameter_contracts() -> None:
     assert "WorkerCommand" not in parameters
     assert "SyncProcessingMaxBytes" not in parameters
 
+    service_resources = service_template["Resources"]
+    assert isinstance(service_resources, dict)
+    service_task_definition = service_resources["TaskDefinition"]
+    assert isinstance(service_task_definition, dict)
+    service_properties = service_task_definition["Properties"]
+    assert isinstance(service_properties, dict)
+    service_containers = service_properties["ContainerDefinitions"]
+    assert isinstance(service_containers, list)
+    service_container = service_containers[0]
+    assert isinstance(service_container, dict)
+
+    service_environment = service_container["Environment"]
+    assert isinstance(service_environment, list)
+    service_env_names = {
+        entry["Name"]
+        for entry in service_environment
+        if isinstance(entry, dict) and isinstance(entry.get("Name"), str)
+    }
+    assert {
+        "ENVIRONMENT",
+        "AUTH_MODE",
+        "FILE_TRANSFER_ENABLED",
+        "JOBS_ENABLED",
+        "JOBS_QUEUE_BACKEND",
+        "JOBS_REPOSITORY_BACKEND",
+        "JOBS_RUNTIME_MODE",
+        "ACTIVITY_STORE_BACKEND",
+    }.issubset(service_env_names)
+    assert {
+        "ENV",
+        "ENV_DICT",
+        "AUTH_APP_SECRET",
+    }.isdisjoint(service_env_names)
+
+    service_secrets = service_container["Secrets"]
+    assert isinstance(service_secrets, list)
+    service_secret_names = {
+        entry["Name"]
+        for entry in service_secrets
+        if isinstance(entry, dict) and isinstance(entry.get("Name"), str)
+    }
+    assert "CACHE_REDIS_URL" not in service_secret_names
+    assert "Name: CACHE_REDIS_URL" in service_text
+
+    service_parameters = service_template["Parameters"]
+    assert isinstance(service_parameters, dict)
+    assert "EnvVars" not in service_parameters
+    assert "UseLegacyEnvDict" not in service_parameters
+    assert "JobsQueueUrl" in service_parameters
+    assert "JobsTableName" in service_parameters
+    assert "ActivityTableName" in service_parameters
+    assert "CacheRedisUrlSecretArn" in service_parameters
+
     for required in [
         "JobsDeadLetterQueue:",
         "RedrivePolicy:",
@@ -497,11 +551,15 @@ def test_runtime_env_and_parameter_contracts() -> None:
     assert "DockerImageTag:" not in service_text
 
     assert "FileTransferAsyncParamsProvided:" in service_text
+    assert "FileTransferAsyncRuntimeParamsProvided:" in service_text
     assert "FileTransferCacheParamsProvided:" in service_text
+    assert "FileTransferCacheSecretProvided:" in service_text
     assert (
         "FileTransferJobsQueueArn, FileTransferJobsTableArn, and"
         in service_text
     )
+    assert "JobsQueueUrl, JobsTableName, and ActivityTableName" in service_text
+    assert "CacheRedisUrlSecretArn is required" in service_text
     assert (
         "FileTransferCacheSecurityGroupExportName is required" in service_text
     )

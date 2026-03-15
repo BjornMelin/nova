@@ -122,8 +122,11 @@ The service MUST provide:
 - `GET /v1/health/ready`
 - `GET /metrics/summary`
 
-Readiness evaluation MUST include only traffic-critical dependencies.
-Feature flags (for example `JOBS_ENABLED`) MUST NOT drive readiness pass/fail.
+Readiness evaluation MUST expose the current runtime dependency checks and MUST
+return failure when any reported check is false.
+Feature flags (for example `JOBS_ENABLED`) MUST NOT drive readiness pass/fail
+by themselves; disabled features collapse to ready checks instead of
+introducing failing dependencies.
 
 - Missing or blank `FILE_TRANSFER_BUCKET` MUST fail readiness.
 - `AUTH_MODE=jwt_local` with missing `OIDC_ISSUER`, `OIDC_AUDIENCE`, or
@@ -151,13 +154,16 @@ The idempotency implementation MUST use an explicit request lifecycle:
 - claim (`in_progress`) before mutation execution
 - commit (`committed`) only after successful mutation response
 - discard claims on failed mutation execution to preserve retry behavior
-- `IDEMPOTENCY_MODE=shared_required` is the canonical production mode for
-  AWS-backed multi-instance deployments and requires a shared Redis instance.
-- In `shared_required` mode, mutations MUST fail with `503`
-  (`error.code = "idempotency_unavailable"`) when the distributed claim store
-  cannot guarantee correctness.
-- `IDEMPOTENCY_MODE=local_only` is limited to explicit local/single-process
-  operation and MUST not be treated as the production default.
+
+Current runtime posture:
+
+- `IDEMPOTENCY_ENABLED` and `IDEMPOTENCY_TTL_SECONDS` are the active
+  configuration surface; the runtime does not yet expose `IDEMPOTENCY_MODE`.
+- When `CACHE_REDIS_URL` is configured, the shared Redis tier participates in
+  duplicate prevention, but shared-cache failures currently degrade to
+  best-effort local claim handling instead of a hard-fail production mode.
+- Active operator docs and deploy automation MUST NOT instruct operators to set
+  `IDEMPOTENCY_MODE` until runtime support exists.
 
 ### FR-0005: Authentication and authorization
 
@@ -175,8 +181,8 @@ session scope.
 The service MUST support a two-tier cache model:
 
 - Local in-process TTL cache
-- Shared Redis cache used as the distributed cache authority when
-  `IDEMPOTENCY_MODE=shared_required`
+- Shared Redis cache used as the distributed cache tier when
+  `CACHE_REDIS_URL` is configured
 
 Shared cache keys MUST be namespaced and schema-versioned, and JWT cache TTL
 MUST be bounded by token expiration (`exp`) with configured max TTL caps.

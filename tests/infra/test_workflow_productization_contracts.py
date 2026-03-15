@@ -225,7 +225,6 @@ def test_canonical_runtime_deploy_script_enforces_final_posture() -> None:
         "--no-execute-changeset",
         "--change-set-name",
         "AssignPublicIp=DISABLED",
-        "IdempotencyMode=shared_required",
         "FileTransferAsyncEnabled=true",
         "FileTransferCacheEnabled=true",
         "TaskExecutionSecretArns=",
@@ -234,6 +233,12 @@ def test_canonical_runtime_deploy_script_enforces_final_posture() -> None:
         assert required in text
 
     assert "AllowExecutionRoleSecretsWildcard" not in text
+    assert "ENV_VARS_JSON must not include IDEMPOTENCY_MODE" in text
+    assert '"EnvVars=${ENV_VARS_JSON}"' not in text
+    assert '"JobsQueueUrl=${JOBS_QUEUE_URL}"' in text
+    assert '"JobsTableName=${JOBS_TABLE_NAME}"' in text
+    assert '"ActivityTableName=${ACTIVITY_TABLE_NAME}"' in text
+    assert '"CacheRedisUrlSecretArn=${CACHE_URL_SECRET_ARN}"' in text
 
 
 def test_runtime_deploy_script_enforces_visibility_and_execute_mode() -> None:

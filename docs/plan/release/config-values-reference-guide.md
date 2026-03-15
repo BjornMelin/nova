@@ -119,6 +119,9 @@ Capture and manage these runtime values per environment before CI/CD deploy:
 - `DOCKER_REPOSITORY_NAME`
 - `IMAGE_DIGEST`
 - `ENV_VARS_JSON`
+  Use this only for supported non-secret API runtime overrides. The runtime
+  deploy script validates the JSON keys and maps them to explicit ECS
+  environment entries; it is no longer passed through as `ENV_DICT`.
 - `OWNER_TAG`
 - `ALARM_ACTION_ARN`
 - `ASSIGN_PUBLIC_IP` (`ENABLED` or `DISABLED`)

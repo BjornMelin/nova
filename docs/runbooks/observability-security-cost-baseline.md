@@ -1,4 +1,4 @@
-# Observability, Security, and Cost Baseline (ADR-0015 / SPEC-0015)
+# Observability, Security, and Cost Baseline (ADR-0023 + SPEC-0000 + SPEC-0016 + requirements.md)
 
 This runbook is the production authority for Batch A4 (blueprint Batch 5 hardening scope):
 
@@ -103,6 +103,10 @@ now requires `RUNTIME_COST_MODE`:
 
 When runtime availability can be sacrificed to stop spend immediately, use
 `RUNTIME_COST_MODE=paused` and converge both `dev` and `prod`.
+
+If `CacheUrlSecretArn` rotates to a new secret value under the same ARN, force
+a new ECS deployment after rotation so running tasks reload `CACHE_REDIS_URL`.
+Without a forced deployment, existing tasks keep the previous secret value.
 
 ## Cost hook
 

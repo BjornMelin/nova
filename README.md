@@ -80,10 +80,12 @@ For detailed SDK governance and generation rules, use:
 
 - `POST /v1/jobs` publish failures return `503` with
   `error.code = "queue_unavailable"`
-- strict distributed idempotency outages return `503` with
-  `error.code = "idempotency_unavailable"` for guarded mutation entrypoints
-- `/v1/health/ready` is dependency-scoped and fails on blank
-  `FILE_TRANSFER_BUCKET`
+- idempotent mutation entrypoints currently use `IDEMPOTENCY_ENABLED` plus
+  bounded TTL settings; shared-cache failures degrade to best-effort local
+  claim handling instead of an `IDEMPOTENCY_MODE` hard-fail contract
+- `/v1/health/ready` reports the current runtime dependency checks and returns
+  `503` when any reported check is false; blank `FILE_TRANSFER_BUCKET` still
+  fails readiness
 - `AUTH_MODE=jwt_local` with incomplete OIDC settings leaves
   `auth_dependency` not-ready
 - `POST /v1/internal/jobs/{job_id}/result` with `status=succeeded` normalizes
