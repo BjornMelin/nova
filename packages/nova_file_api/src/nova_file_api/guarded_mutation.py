@@ -155,5 +155,11 @@ async def run_guarded_mutation[ResponseModelT: BaseModel](
     try:
         await on_success(response)
     except Exception as exc:
+        logger.exception(
+            "guarded_mutation_success_hook_failed",
+            route=route,
+            scope_id=scope_id,
+            error_type=type(exc).__name__,
+        )
         await _run_failure_hook_best_effort(exc)
     return response
