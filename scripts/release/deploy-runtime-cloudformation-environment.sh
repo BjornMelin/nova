@@ -266,6 +266,22 @@ ensure_runtime_env_json_contract() {
     exit 1
   }
 
+  local non_scalar_fields=""
+  non_scalar_fields="$(
+    jq -r '
+      to_entries[]
+      | select((.value | type) == "array" or (.value | type) == "object")
+      | .key
+    ' <<<"$ENV_VARS_JSON"
+  )"
+  if [ -n "$non_scalar_fields" ]; then
+    echo "ENV_VARS_JSON contains non-scalar values; append_json_parameter_override/json_field_value require scalar values only:" >&2
+    while IFS= read -r field; do
+      [ -n "$field" ] && echo "  - $field" >&2
+    done <<<"$non_scalar_fields"
+    exit 1
+  fi
+
   local null_fields=""
   null_fields="$(
     jq -r '
