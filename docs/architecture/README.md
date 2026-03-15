@@ -35,9 +35,12 @@ or removed legacy namespaces.
 Use when the question is about package boundaries, startup validation, auth
 execution, threadpool safety, or documentation synchronization.
 
-Current branch authority: `nova_dash_bridge` is a bounded adapter that may
-consume `nova_file_api.public` for in-process transfer integration. It must not
-reach into `nova_file_api` internals outside that public seam.
+Integration boundary: `nova_dash_bridge` consumes `nova_file_api.public` as the
+canonical in-process transfer seam. Normative ownership and boundary rules are
+defined in:
+
+- `spec/SPEC-0017-runtime-component-topology-and-ownership-contract.md`
+- `adr/ADR-0025-runtime-monorepo-component-boundaries-and-ownership.md`
 
 - `adr/ADR-0024-layered-architecture-authority-pack.md`
 - `adr/ADR-0025-runtime-monorepo-component-boundaries-and-ownership.md`

@@ -4,7 +4,10 @@ import nova_dash_bridge.fastapi_integration as fastapi_integration
 import pytest
 from fastapi.testclient import TestClient
 from nova_dash_bridge.config import FileTransferEnvConfig, UploadPolicy
-from nova_file_api.public import TRANSFER_ROUTE_PREFIX
+from nova_file_api.public import (
+    TRANSFER_ROUTE_PREFIX,
+    UPLOADS_INITIATE_ROUTE,
+)
 
 
 def test_create_fastapi_app_uses_lifespan_startup(
@@ -86,7 +89,7 @@ def test_create_fastapi_app_wraps_request_validation_errors(
     )
     with TestClient(app) as client:
         response = client.post(
-            "/v1/transfers/uploads/initiate",
+            f"{TRANSFER_ROUTE_PREFIX}{UPLOADS_INITIATE_ROUTE}",
             content=body,
             headers=headers,
         )
