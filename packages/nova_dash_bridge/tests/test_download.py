@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import cast
 
 import nova_dash_bridge.service as dash_service_module
-import nova_file_api.models as core_models
+import nova_file_api.public as public_contract
 import pytest
 from nova_dash_bridge.config import FileTransferEnvConfig, UploadPolicy
 from nova_dash_bridge.errors import FileTransferError
@@ -46,25 +46,26 @@ class _FakeS3Factory:
 
 
 class _FakeCoreTransferService:
-    """Satisfy bridge constructor dependency for download-focused tests."""
-
-    def __init__(
-        self, *, settings: object, s3_client: object | None = None
-    ) -> None:
-        del settings, s3_client
+    def __init__(self, **_: object) -> None:
+        return None
 
     async def introspect_upload(
         self,
         request: object,
         principal: object,
-    ) -> core_models.UploadIntrospectionResponse:
+    ) -> public_contract.UploadIntrospectionResponse:
         del request, principal
-        return core_models.UploadIntrospectionResponse(
+        return public_contract.UploadIntrospectionResponse(
             bucket="bucket-a",
             key="uploads/scope-1/object.csv",
             upload_id="upload-1",
             part_size_bytes=8,
-            parts=[core_models.UploadedPart(part_number=1, etag='"etag-1"')],
+            parts=[
+                public_contract.UploadedPart(
+                    part_number=1,
+                    etag='"etag-1"',
+                )
+            ],
         )
 
 
@@ -75,8 +76,8 @@ def _service_with_response(
 ) -> FileTransferService:
     monkeypatch.setattr(
         dash_service_module,
-        "TransferService",
-        _FakeCoreTransferService,
+        "build_transfer_service",
+        lambda **_: _FakeCoreTransferService(),
     )
     return FileTransferService(
         env_config=FileTransferEnvConfig.model_validate(

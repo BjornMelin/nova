@@ -15,7 +15,7 @@ from nova_file_api.dependencies import (
     TransferServiceDep,
     authenticate_principal,
 )
-from nova_file_api.errors import idempotency_conflict
+from nova_file_api.guarded_mutation import run_guarded_mutation
 from nova_file_api.metrics import MetricsCollector
 from nova_file_api.models import (
     AbortUploadRequest,
@@ -76,58 +76,15 @@ async def initiate_upload(
         idempotency_key=idempotency_key,
     )
     request_payload = payload.model_dump(mode="json")
-    claimed_idempotency = False
 
-    if key is not None:
-        replay = await idempotency_store.load_response(
-            route="/v1/transfers/uploads/initiate",
-            scope_id=principal.scope_id,
-            idempotency_key=key,
-            request_payload=request_payload,
-        )
-        if replay is not None:
-            _increment_metric_best_effort(
-                metrics=metrics,
-                principal=principal,
-                metric_name="idempotency_replays_total",
-                route_path="/v1/transfers/uploads/initiate",
-                event_name="uploads_initiate_metric_increment_failed",
-            )
-            return InitiateUploadResponse.model_validate(replay)
-
-        claimed_idempotency = await idempotency_store.claim_request(
-            route="/v1/transfers/uploads/initiate",
-            scope_id=principal.scope_id,
-            idempotency_key=key,
-            request_payload=request_payload,
-        )
-        if not claimed_idempotency:
-            replay = await idempotency_store.load_response(
-                route="/v1/transfers/uploads/initiate",
-                scope_id=principal.scope_id,
-                idempotency_key=key,
-                request_payload=request_payload,
-            )
-            if replay is not None:
-                _increment_metric_best_effort(
-                    metrics=metrics,
-                    principal=principal,
-                    metric_name="idempotency_replays_total",
-                    route_path="/v1/transfers/uploads/initiate",
-                    event_name="uploads_initiate_metric_increment_failed",
-                )
-                return InitiateUploadResponse.model_validate(replay)
-            raise idempotency_conflict(
-                "idempotency request is already in progress"
-            )
-
-    try:
+    async def _execute() -> InitiateUploadResponse:
         with metrics.timed("uploads_initiate_ms"):
-            response = await transfer_service.initiate_upload(
+            return await transfer_service.initiate_upload(
                 payload,
                 principal,
             )
-    except Exception as exc:
+
+    async def _on_failure(exc: Exception) -> None:
         await _record_transfer_failure(
             metrics=metrics,
             activity_store=activity_store,
@@ -139,64 +96,69 @@ async def initiate_upload(
             activity_event_type="uploads_initiate_failure",
             exc=exc,
         )
-        if key is not None and claimed_idempotency:
-            await idempotency_store.discard_claim(
-                route="/v1/transfers/uploads/initiate",
-                scope_id=principal.scope_id,
-                idempotency_key=key,
-            )
-        raise
 
-    if key is not None:
+    async def _on_success(response: InitiateUploadResponse) -> None:
+        del response
+        _increment_metric_best_effort(
+            metrics=metrics,
+            principal=principal,
+            metric_name="uploads_initiate_total",
+            route_path="/v1/transfers/uploads/initiate",
+            event_name="uploads_initiate_metric_increment_failed",
+        )
         try:
-            await idempotency_store.store_response(
-                route="/v1/transfers/uploads/initiate",
-                scope_id=principal.scope_id,
-                idempotency_key=key,
-                request_payload=request_payload,
-                response_payload=response.model_dump(mode="json"),
+            await activity_store.record(
+                principal=principal,
+                event_type="uploads_initiate",
             )
         except Exception:
-            # Do not discard_claim: upload was created; leaving claim reserved
-            # prevents retries from creating duplicate uploads.
             structlog.get_logger("api").exception(
-                "uploads_initiate_idempotency_store_response_failed",
+                "uploads_initiate_activity_record_failed",
                 route="/v1/transfers/uploads/initiate",
                 scope_id=principal.scope_id,
             )
-            raise
+        try:
+            emit_request_metric(
+                metrics=metrics,
+                route="uploads_initiate",
+                status="ok",
+            )
+        except Exception:
+            structlog.get_logger("api").exception(
+                "uploads_initiate_metric_emit_failed",
+                route="/v1/transfers/uploads/initiate",
+                scope_id=principal.scope_id,
+            )
 
-    _increment_metric_best_effort(
-        metrics=metrics,
-        principal=principal,
-        metric_name="uploads_initiate_total",
-        route_path="/v1/transfers/uploads/initiate",
-        event_name="uploads_initiate_metric_increment_failed",
-    )
-    try:
-        await activity_store.record(
-            principal=principal,
-            event_type="uploads_initiate",
-        )
-    except Exception:
-        structlog.get_logger("api").exception(
-            "uploads_initiate_activity_record_failed",
-            route="/v1/transfers/uploads/initiate",
-            scope_id=principal.scope_id,
-        )
-    try:
-        emit_request_metric(
+    def _replay_metric() -> None:
+        _increment_metric_best_effort(
             metrics=metrics,
-            route="uploads_initiate",
-            status="ok",
+            principal=principal,
+            metric_name="idempotency_replays_total",
+            route_path="/v1/transfers/uploads/initiate",
+            event_name="uploads_initiate_metric_increment_failed",
         )
-    except Exception:
-        structlog.get_logger("api").exception(
-            "uploads_initiate_metric_emit_failed",
-            route="/v1/transfers/uploads/initiate",
-            scope_id=principal.scope_id,
-        )
-    return response
+
+    return await run_guarded_mutation(
+        route="/v1/transfers/uploads/initiate",
+        scope_id=principal.scope_id,
+        request_payload=request_payload,
+        idempotency_store=idempotency_store,
+        idempotency_key=key,
+        response_model=InitiateUploadResponse,
+        replay_metric=_replay_metric,
+        execute=_execute,
+        on_failure=_on_failure,
+        on_success=_on_success,
+        store_response_failure_event=(
+            "uploads_initiate_idempotency_store_response_failed"
+        ),
+        store_response_failure_extra={
+            "route": "/v1/transfers/uploads/initiate",
+            "scope_id": principal.scope_id,
+        },
+        store_response_failure_mode="raise",
+    )
 
 
 @transfer_router.post(

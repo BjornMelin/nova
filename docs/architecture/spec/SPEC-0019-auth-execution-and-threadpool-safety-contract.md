@@ -44,7 +44,8 @@ code.
 2. `nova_file_api` may call local verification or remote auth, but it must use
    the same canonical auth semantics and safe thread boundaries.
 3. `nova_dash_bridge` may forward auth context and call canonical Nova
-   contracts, but it must not create divergent verification behavior.
+   contracts through `nova_file_api.public`, but it must not create divergent
+   verification behavior.
 
 ## 5. Acceptance criteria
 

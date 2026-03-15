@@ -79,7 +79,8 @@ Choose **Option B**.
      release-only auth-service Dockerfile under `apps/`
 3. `packages/nova_dash_bridge/` may provide framework extraction and glue, but
    it must not redefine Nova API models, endpoint ownership, auth semantics, or
-   policy rules.
+   policy rules. Its canonical in-process dependency surface is
+   `nova_file_api.public`.
 4. `packages/contracts/` is the only OpenAPI contract artifact authority.
 5. Deployment workflows and CI/CD contracts belong to separate deploy-governance
    docs, not this runtime boundary decision.
@@ -89,7 +90,8 @@ Choose **Option B**.
 ### Positive
 
 - Code review can reject duplicate runtime authority at package boundaries.
-- Bridge refactors have a clear target: reuse core contracts and services.
+- Bridge refactors have a clear target: reuse the `nova_file_api.public`
+  contract surface instead of runtime internals.
 - Runtime docs map directly to the repository layout operators see on disk.
 
 ### Trade-offs

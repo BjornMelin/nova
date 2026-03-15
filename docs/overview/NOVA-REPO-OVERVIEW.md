@@ -11,7 +11,7 @@ Nova is the canonical runtime monorepo for file-transfer orchestration and token
 - `packages/nova_sdk_file`: Generated/private TypeScript file SDK.
 - `packages/nova_sdk_auth`: Generated/private TypeScript auth SDK.
 - `packages/nova_sdk_fetch`: Shared TypeScript fetch transport/runtime helper.
-- `packages/nova_dash_bridge`: Integration bridge adapters for Dash/Flask/FastAPI clients.
+- `packages/nova_dash_bridge`: Integration bridge adapters for Dash/Flask/FastAPI clients over `nova_file_api.public`.
 - `packages/contracts`: Contract artifacts, fixtures, and conformance helpers.
 - `infra/nova` and `infra/runtime`: CloudFormation stacks for CI/CD foundation and runtime environments.
 
@@ -37,7 +37,8 @@ flowchart TB
         I2["infra/runtime"]
     end
 
-    P3 --> P1
+    P3 --> PUB["nova_file_api.public"]
+    PUB --> P1
     P4 --> P1
     P4 --> P2
     I1 --> P1
@@ -87,6 +88,8 @@ flowchart LR
   - Shared fetch transport and URL helpers used by the generated/private TypeScript SDKs.
 - `nova_dash_bridge` owns:
   - Framework adapters that let Dash/Flask/FastAPI apps consume Nova-style transfer flows without redefining server contracts.
+  - Package-local adapter regression tests and architecture-boundary enforcement.
+  - Consumption of the canonical in-process transfer seam through `nova_file_api.public`, not direct runtime internals.
 - `contracts` owns:
   - Test fixtures, schemas, and conformance artifacts used by release and integration checks.
 
@@ -96,7 +99,8 @@ flowchart LR
     FILE --> ACT["activity and job lifecycle"]
     FILE --> ROUTES["canonical v1 routes"]
     AUTH["nova_auth_api"] --> TOK["verify and introspect"]
-    BRIDGE["nova_dash_bridge"] --> FILE
+    BRIDGE["nova_dash_bridge"] --> PUBLIC["nova_file_api.public"]
+    PUBLIC --> FILE
     CONTRACTS["contracts"] --> FILE
     CONTRACTS --> AUTH
 ```
@@ -275,7 +279,7 @@ sequenceDiagram
 - “Where is business logic?”
   - In `packages/nova_file_api` and `packages/nova_auth_api`; release-only service Dockerfiles live under `apps/*` so container-only edits stay outside release-managed package paths.
 - “How do Dash clients integrate?”
-  - Through `packages/nova_dash_bridge` adapters, without forking core runtime contracts.
+  - Through `packages/nova_dash_bridge` adapters, without forking core runtime contracts or importing `nova_file_api` internals directly.
 - “What is the async completion boundary?”
   - Worker posts to `/v1/internal/jobs/{job_id}/result`; clients read via `/v1/jobs*`.
 

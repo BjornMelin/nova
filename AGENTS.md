@@ -24,7 +24,8 @@ different.
   orchestration.
 - `packages/nova_auth_api/`: token verify/introspect semantics and ASGI
   entrypoint.
-- `packages/nova_dash_bridge/`: Dash/Flask/FastAPI integration adapters.
+- `packages/nova_dash_bridge/`: Dash/Flask/FastAPI integration adapters over
+  the canonical `nova_file_api.public` surface.
 - `packages/nova_runtime_support/`: shared runtime support helpers.
 - `packages/contracts/`: OpenAPI artifacts and contract inputs.
 
@@ -93,8 +94,8 @@ SDK posture:
 - Do not add compatibility aliases or namespace shims such as `/api/*`,
   `/api/v1/*`, `/healthz`, or `/readyz`.
 - `nova_dash_bridge` is an adapter package. It may forward context and call
-  canonical Nova contracts, but it must not redefine route, auth, or storage
-  authority.
+  canonical Nova contracts through `nova_file_api.public`, but it must not
+  redefine route, auth, or storage authority.
 - OpenAPI 3.1 emitted from runtime code is the contract source for docs and SDK
   generation.
 - OpenAPI `operationId` values must remain stable snake_case names, and tags

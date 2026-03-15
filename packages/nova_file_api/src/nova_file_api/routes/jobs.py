@@ -16,7 +16,8 @@ from nova_file_api.dependencies import (
     SettingsDep,
     authenticate_principal,
 )
-from nova_file_api.errors import forbidden, idempotency_conflict
+from nova_file_api.errors import forbidden
+from nova_file_api.guarded_mutation import run_guarded_mutation
 from nova_file_api.idempotency import IdempotencyStore
 from nova_file_api.jobs import JobService
 from nova_file_api.metrics import MetricsCollector
@@ -384,47 +385,17 @@ async def _enqueue_job_core(
 ) -> EnqueueJobResponse:
     """Execute the enqueue and idempotency workflow."""
     request_payload = payload.model_dump(mode="json")
-    claimed_idempotency = False
 
-    if idempotency_key is not None:
-        replay = await idempotency_store.load_response(
-            route="/v1/jobs",
-            scope_id=principal.scope_id,
-            idempotency_key=idempotency_key,
-            request_payload=request_payload,
-        )
-        if replay is not None:
-            metrics.incr("idempotency_replays_total")
-            return EnqueueJobResponse.model_validate(replay)
-
-        claimed_idempotency = await idempotency_store.claim_request(
-            route="/v1/jobs",
-            scope_id=principal.scope_id,
-            idempotency_key=idempotency_key,
-            request_payload=request_payload,
-        )
-        if not claimed_idempotency:
-            replay = await idempotency_store.load_response(
-                route="/v1/jobs",
-                scope_id=principal.scope_id,
-                idempotency_key=idempotency_key,
-                request_payload=request_payload,
-            )
-            if replay is not None:
-                metrics.incr("idempotency_replays_total")
-                return EnqueueJobResponse.model_validate(replay)
-            raise idempotency_conflict(
-                "idempotency request is already in progress"
-            )
-
-    try:
+    async def _execute() -> EnqueueJobResponse:
         with metrics.timed("jobs_enqueue_ms"):
             job = await job_service.enqueue(
                 job_type=payload.job_type,
                 payload=payload.payload,
                 scope_id=principal.scope_id,
             )
-    except Exception as exc:
+        return EnqueueJobResponse(job_id=job.job_id, status=job.status)
+
+    async def _on_failure(exc: Exception) -> None:
         await _record_job_failure(
             metrics=metrics,
             activity_store=activity_store,
@@ -437,51 +408,52 @@ async def _enqueue_job_core(
             exc=exc,
             extra={"idempotency_key": idempotency_key},
         )
-        if idempotency_key is not None and claimed_idempotency:
-            await idempotency_store.discard_claim(
-                route="/v1/jobs",
-                scope_id=principal.scope_id,
-                idempotency_key=idempotency_key,
-            )
-        raise
 
-    response = EnqueueJobResponse(job_id=job.job_id, status=job.status)
-    if idempotency_key is not None:
+    async def _on_success(response: EnqueueJobResponse) -> None:
+        del response
         try:
-            await idempotency_store.store_response(
-                route="/v1/jobs",
-                scope_id=principal.scope_id,
-                idempotency_key=idempotency_key,
-                request_payload=request_payload,
-                response_payload=response.model_dump(mode="json"),
+            await activity_store.record(
+                principal=principal,
+                event_type="jobs_enqueue",
+            )
+            metrics.incr("jobs_enqueue_total")
+            emit_request_metric(
+                metrics=metrics,
+                route="jobs_enqueue",
+                status="ok",
             )
         except Exception:
             structlog.get_logger("api").exception(
-                "jobs_enqueue_idempotency_store_response_failed",
+                "jobs_enqueue_response_finalize_failed",
                 route="/v1/jobs",
                 scope_id=principal.scope_id,
                 idempotency_key=idempotency_key,
             )
 
-    try:
-        await activity_store.record(
-            principal=principal,
-            event_type="jobs_enqueue",
-        )
-        metrics.incr("jobs_enqueue_total")
-        emit_request_metric(
-            metrics=metrics,
-            route="jobs_enqueue",
-            status="ok",
-        )
-    except Exception:
-        structlog.get_logger("api").exception(
-            "jobs_enqueue_response_finalize_failed",
-            route="/v1/jobs",
-            scope_id=principal.scope_id,
-            idempotency_key=idempotency_key,
-        )
-    return response
+    def _replay_metric() -> None:
+        metrics.incr("idempotency_replays_total")
+
+    return await run_guarded_mutation(
+        route="/v1/jobs",
+        scope_id=principal.scope_id,
+        request_payload=request_payload,
+        idempotency_store=idempotency_store,
+        idempotency_key=idempotency_key,
+        response_model=EnqueueJobResponse,
+        replay_metric=_replay_metric,
+        execute=_execute,
+        on_failure=_on_failure,
+        on_success=_on_success,
+        store_response_failure_event=(
+            "jobs_enqueue_idempotency_store_response_failed"
+        ),
+        store_response_failure_extra={
+            "route": "/v1/jobs",
+            "scope_id": principal.scope_id,
+            "idempotency_key": idempotency_key,
+        },
+        store_response_failure_mode="log",
+    )
 
 
 async def _record_job_failure(

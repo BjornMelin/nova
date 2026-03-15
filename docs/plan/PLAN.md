@@ -40,6 +40,8 @@ guidance:
 
 - Active runtime authority is layered across route/API authority, runtime
   topology and safety, downstream validation, and adjacent deploy-governance.
+- `nova_dash_bridge` remains adapter-only and now consumes canonical in-process
+  transfer contracts through `nova_file_api.public`.
 - Runtime topology and safety authority uses `ADR-0025`, `ADR-0026`,
   `SPEC-0017`, `SPEC-0018`, `SPEC-0019`, and `SPEC-0020`.
 - Downstream validation authority uses `ADR-0027`, `ADR-0028`, `ADR-0029`,

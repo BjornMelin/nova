@@ -23,7 +23,8 @@ Use these entrypoints before drilling into deeper docs:
   orchestration
 - `packages/nova_auth_api/`: token verify/introspect semantics and ASGI
   entrypoint
-- `packages/nova_dash_bridge/`: Dash/Flask/FastAPI integration adapters
+- `packages/nova_dash_bridge/`: Dash/Flask/FastAPI integration adapters over
+  `nova_file_api.public`
 - `packages/nova_runtime_support/`: shared runtime support helpers
 - `packages/contracts/`: OpenAPI artifacts and contract fixtures
 

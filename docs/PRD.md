@@ -45,6 +45,8 @@ async jobs with zero route-surface ambiguity.
 7. Deployment target-state uses ECS/Fargate behind ALB with ECS-native
    blue/green rollout, CloudWatch alarms, WAF on public ingress, and manifest
    hash evidence tied to the release manifest itself.
+8. `nova_dash_bridge` remains an adapter-only integration surface and consumes
+   canonical in-process transfer contracts only through `nova_file_api.public`.
 
 ## 4. Scope and Non-Goals
 
