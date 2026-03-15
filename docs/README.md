@@ -1,7 +1,7 @@
 # Nova Documentation
 
 Status: Active
-Last reviewed: 2026-03-10
+Last reviewed: 2026-03-14
 
 ## Purpose
 
@@ -71,3 +71,6 @@ Use these only for traceability, not as active authority:
   paths.
 - If a doc changes runtime behavior, contracts, or durable operator guidance,
   update the relevant router docs in the same PR.
+- Adapter-boundary changes must keep `./architecture/README.md`,
+  `ADR-0025`, and `SPEC-0017` aligned on `nova_dash_bridge ->
+  nova_file_api.public` as the canonical in-process seam.

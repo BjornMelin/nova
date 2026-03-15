@@ -1,7 +1,7 @@
 # Nova Architecture Authority Map
 
 Status: Active
-Last reviewed: 2026-03-10
+Last reviewed: 2026-03-14
 
 ## Purpose
 
@@ -34,6 +34,10 @@ or removed legacy namespaces.
 
 Use when the question is about package boundaries, startup validation, auth
 execution, threadpool safety, or documentation synchronization.
+
+Current branch authority: `nova_dash_bridge` is a bounded adapter that may
+consume `nova_file_api.public` for in-process transfer integration. It must not
+reach into `nova_file_api` internals outside that public seam.
 
 - `adr/ADR-0024-layered-architecture-authority-pack.md`
 - `adr/ADR-0025-runtime-monorepo-component-boundaries-and-ownership.md`
