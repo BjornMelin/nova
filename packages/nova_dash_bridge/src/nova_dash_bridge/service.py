@@ -15,37 +15,40 @@ from urllib.parse import quote_from_bytes
 from uuid import uuid4
 
 from botocore.exceptions import BotoCoreError, ClientError
-from nova_file_api.config import Settings as CoreSettings
-from nova_file_api.errors import FileTransferError as CoreFileTransferError
-from nova_file_api.models import (
+from nova_file_api.public import (
     AbortUploadRequest as CoreAbortUploadRequest,
 )
-from nova_file_api.models import (
+from nova_file_api.public import (
     CompletedPart as CoreCompletedPart,
 )
-from nova_file_api.models import (
+from nova_file_api.public import (
     CompleteUploadRequest as CoreCompleteUploadRequest,
 )
-from nova_file_api.models import (
+from nova_file_api.public import (
+    FileTransferError as CoreFileTransferError,
+)
+from nova_file_api.public import (
     InitiateUploadRequest as CoreInitiateUploadRequest,
 )
-from nova_file_api.models import (
+from nova_file_api.public import (
     PresignDownloadRequest as CorePresignDownloadRequest,
 )
-from nova_file_api.models import (
+from nova_file_api.public import (
     Principal,
+    TransferFacadeConfig,
+    TransferService,
     UploadStrategy,
+    build_transfer_service,
 )
-from nova_file_api.models import (
+from nova_file_api.public import (
     SignPartsRequest as CoreSignPartsRequest,
 )
-from nova_file_api.models import (
+from nova_file_api.public import (
     UploadIntrospectionRequest as CoreUploadIntrospectionRequest,
 )
-from nova_file_api.models import (
+from nova_file_api.public import (
     UploadIntrospectionResponse as CoreUploadIntrospectionResponse,
 )
-from nova_file_api.transfer import TransferService
 
 from nova_dash_bridge.config import (
     AuthPolicy,
@@ -179,7 +182,7 @@ class FileTransferService:
         self._auth = auth_policy or AuthPolicy()
         self._factory = s3_client_factory or S3ClientFactory()
         self._logger = logger or logging.getLogger(__name__)
-        self._core_settings = _core_settings_from_bridge(
+        self._core_config = _core_config_from_bridge(
             env_config=env_config,
             upload_policy=upload_policy,
         )
@@ -223,8 +226,8 @@ class FileTransferService:
         with self._core_service_lock:
             service = self._core_service
             if service is None:
-                service = TransferService(
-                    settings=self._core_settings,
+                service = build_transfer_service(
+                    config=self._core_config,
                     s3_client=_AsyncS3ClientAdapter(client=self._client()),
                 )
                 self._core_service = service
@@ -634,44 +637,44 @@ class FileTransferService:
             return b"".join(chunks)
 
 
-def _core_settings_from_bridge(
+def _core_config_from_bridge(
     *,
     env_config: FileTransferEnvConfig,
     upload_policy: UploadPolicy,
-) -> CoreSettings:
-    """Build core runtime settings from bridge env + policy values."""
-    settings = CoreSettings()
-    settings.file_transfer_enabled = env_config.enabled
-    settings.file_transfer_bucket = env_config.bucket
-    settings.file_transfer_upload_prefix = env_config.upload_prefix
-    settings.file_transfer_export_prefix = env_config.export_prefix
-    settings.file_transfer_tmp_prefix = env_config.tmp_prefix
-    settings.file_transfer_presign_upload_ttl_seconds = (
-        env_config.presign_upload_ttl_seconds
+) -> TransferFacadeConfig:
+    """Build public transfer config from bridge env + policy values."""
+    return TransferFacadeConfig(
+        file_transfer_enabled=env_config.enabled,
+        file_transfer_bucket=env_config.bucket,
+        file_transfer_upload_prefix=env_config.upload_prefix,
+        file_transfer_export_prefix=env_config.export_prefix,
+        file_transfer_tmp_prefix=env_config.tmp_prefix,
+        file_transfer_presign_upload_ttl_seconds=(
+            env_config.presign_upload_ttl_seconds
+        ),
+        file_transfer_presign_download_ttl_seconds=(
+            env_config.presign_download_ttl_seconds
+        ),
+        file_transfer_multipart_threshold_bytes=(
+            upload_policy.multipart_threshold_bytes
+            if upload_policy.multipart_threshold_bytes is not None
+            else env_config.multipart_threshold_bytes
+        ),
+        file_transfer_part_size_bytes=(
+            upload_policy.part_size_bytes
+            if upload_policy.part_size_bytes is not None
+            else env_config.part_size_bytes
+        ),
+        file_transfer_max_concurrency=(
+            upload_policy.max_concurrency
+            if upload_policy.max_concurrency is not None
+            else env_config.max_concurrency
+        ),
+        file_transfer_use_accelerate_endpoint=(
+            env_config.use_accelerate_endpoint
+        ),
+        max_upload_bytes=upload_policy.max_upload_bytes,
     )
-    settings.file_transfer_presign_download_ttl_seconds = (
-        env_config.presign_download_ttl_seconds
-    )
-    settings.file_transfer_multipart_threshold_bytes = (
-        upload_policy.multipart_threshold_bytes
-        if upload_policy.multipart_threshold_bytes is not None
-        else env_config.multipart_threshold_bytes
-    )
-    settings.file_transfer_part_size_bytes = (
-        upload_policy.part_size_bytes
-        if upload_policy.part_size_bytes is not None
-        else env_config.part_size_bytes
-    )
-    settings.file_transfer_max_concurrency = (
-        upload_policy.max_concurrency
-        if upload_policy.max_concurrency is not None
-        else env_config.max_concurrency
-    )
-    settings.file_transfer_use_accelerate_endpoint = (
-        env_config.use_accelerate_endpoint
-    )
-    settings.max_upload_bytes = upload_policy.max_upload_bytes
-    return settings
 
 
 def _bridge_upload_introspection_response(

@@ -144,13 +144,7 @@ def test_multipart_asset_uses_resume_introspection_state() -> None:
         ),
         source,
     )
-    assert re.search(
-        (
-            r"else\s*\{[\s\S]*"
-            r"throw error;\s*\}"
-        ),
-        source,
-    )
+    assert re.search(r"else\s*\{[\s\S]*throw error;\s*\}", source)
     assert "storage.removeItem(storageKey);" in clear_helper_source
     assert "var storage = window.localStorage;" in load_helper_source
 

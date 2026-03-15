@@ -1,27 +1,51 @@
 """Optional FastAPI adapter for file transfer endpoints."""
 # mypy: disable-error-code="untyped-decorator"
 
+from contextlib import asynccontextmanager
 from functools import wraps
-from typing import TYPE_CHECKING, Any
+from json import JSONDecodeError
+from typing import TYPE_CHECKING, Any, cast
 
+from nova_file_api.operation_ids import (
+    ABORT_UPLOAD_OPERATION_ID,
+    COMPLETE_UPLOAD_OPERATION_ID,
+    INITIATE_UPLOAD_OPERATION_ID,
+    INTROSPECT_UPLOAD_OPERATION_ID,
+    PRESIGN_DOWNLOAD_OPERATION_ID,
+    SIGN_UPLOAD_PARTS_OPERATION_ID,
+)
+from nova_file_api.public import (
+    ABORT_UPLOAD_ROUTE,
+    COMPLETE_UPLOAD_ROUTE,
+    INTROSPECT_UPLOAD_ROUTE,
+    PRESIGN_DOWNLOAD_ROUTE,
+    SIGN_PARTS_ROUTE,
+    TRANSFER_ROUTE_PREFIX,
+    UPLOADS_INITIATE_ROUTE,
+)
 from nova_runtime_support.threading import current_default_thread_limiter
-from pydantic import ValidationError
 
 from nova_dash_bridge.config import (
     AuthPolicy,
     FileTransferEnvConfig,
     UploadPolicy,
 )
-from nova_dash_bridge.errors import validation_error
 from nova_dash_bridge.models import (
     AbortUploadRequest,
+    AbortUploadResponse,
     CompleteUploadRequest,
+    CompleteUploadResponse,
     ErrorBody,
     ErrorEnvelope,
     InitiateUploadRequest,
+    InitiateUploadResponseMultipart,
+    InitiateUploadResponseSingle,
     PresignDownloadRequest,
+    PresignDownloadResponse,
     SignPartsRequest,
+    SignPartsResponse,
     UploadIntrospectionRequest,
+    UploadIntrospectionResponse,
 )
 from nova_dash_bridge.s3_client import SupportsCreateS3Client
 from nova_dash_bridge.service import (
@@ -38,7 +62,9 @@ else:  # pragma: no cover
         Request = Any
 
 
-def _fastapi_imports() -> tuple[type[Any], type[Any], type[Any], Any]:
+def _fastapi_imports() -> tuple[
+    type[Any], type[Any], type[Any], Any, type[Any]
+]:
     """Load FastAPI symbols only when the optional dependency is installed.
 
     Returns:
@@ -50,13 +76,20 @@ def _fastapi_imports() -> tuple[type[Any], type[Any], type[Any], Any]:
     """
     try:
         from fastapi import APIRouter, FastAPI
+        from fastapi.exceptions import RequestValidationError
         from fastapi.responses import JSONResponse
         from starlette.concurrency import run_in_threadpool
     except ModuleNotFoundError as exc:  # pragma: no cover
         raise RuntimeError(
             "FastAPI integration requires optional dependency group `fastapi`"
         ) from exc
-    return APIRouter, FastAPI, JSONResponse, run_in_threadpool
+    return (
+        APIRouter,
+        FastAPI,
+        JSONResponse,
+        run_in_threadpool,
+        RequestValidationError,
+    )
 
 
 def _request_id(request: Request) -> str | None:
@@ -104,37 +137,6 @@ def _error_payload(
     return envelope.model_dump()
 
 
-async def _parse_payload(request: Request, model: type[Any]) -> Any:
-    """Parse and validate JSON request data into a model instance.
-
-    Args:
-        request: Incoming FastAPI request.
-        model: Pydantic model type used for validation.
-
-    Returns:
-        Any: Validated model instance.
-
-    Raises:
-        FileTransferError: ``validation_error`` when JSON is invalid or
-            schema validation fails.
-    """
-    try:
-        incoming = await request.json()
-    except Exception as exc:
-        raise validation_error("request body must be valid JSON") from exc
-
-    if incoming is None:
-        raise validation_error("request body must not be null")
-
-    try:
-        return model.model_validate(incoming)
-    except ValidationError as exc:
-        raise validation_error(
-            "invalid request payload",
-            details={"errors": exc.errors()},
-        ) from exc
-
-
 def _configure_thread_limiter(*, total_tokens: int) -> None:
     """Configure AnyIO thread tokens before request handling starts."""
     limiter = current_default_thread_limiter()
@@ -159,8 +161,8 @@ def create_fastapi_router(
     Returns:
         Any: FastAPI APIRouter containing file transfer routes.
     """
-    apirouter, _, json_response, run_in_threadpool = _fastapi_imports()
-    router = apirouter()
+    apirouter, _, json_response, run_in_threadpool, _ = _fastapi_imports()
+    router = apirouter(prefix=TRANSFER_ROUTE_PREFIX, tags=["transfers"])
     service = FileTransferService(
         env_config=env_config,
         upload_policy=upload_policy,
@@ -172,9 +174,9 @@ def create_fastapi_router(
         """Wrap route handlers with contract error-envelope responses."""
 
         @wraps(handler)
-        async def wrapped(request: Request) -> Any:
+        async def wrapped(request: Request, *args: Any, **kwargs: Any) -> Any:
             try:
-                return await handler(request)
+                return await handler(request, *args, **kwargs)
             except Exception as exc:
                 err = coerce_file_transfer_error(exc)
                 return json_response(
@@ -189,53 +191,103 @@ def create_fastapi_router(
 
         return wrapped
 
-    @router.post("/uploads/initiate")
+    @router.post(
+        UPLOADS_INITIATE_ROUTE,
+        operation_id=INITIATE_UPLOAD_OPERATION_ID,
+        response_model=(
+            InitiateUploadResponseSingle | InitiateUploadResponseMultipart
+        ),
+    )
     @handle_file_transfer_errors
     async def initiate_upload(
         request: Request,
-    ) -> Any:
+        payload: InitiateUploadRequest,
+    ) -> InitiateUploadResponseSingle | InitiateUploadResponseMultipart:
         """Initiate upload and return single or multipart strategy payload."""
-        payload = await _parse_payload(request, InitiateUploadRequest)
-        return await run_in_threadpool(service.initiate_upload, payload)
+        return cast(
+            InitiateUploadResponseSingle | InitiateUploadResponseMultipart,
+            await run_in_threadpool(service.initiate_upload, payload),
+        )
 
-    @router.post("/uploads/sign-parts")
+    @router.post(
+        SIGN_PARTS_ROUTE,
+        operation_id=SIGN_UPLOAD_PARTS_OPERATION_ID,
+        response_model=SignPartsResponse,
+    )
     @handle_file_transfer_errors
-    async def sign_parts(request: Request) -> Any:
+    async def sign_parts(
+        request: Request,
+        payload: SignPartsRequest,
+    ) -> SignPartsResponse:
         """Return presigned multipart part upload URLs."""
-        payload = await _parse_payload(request, SignPartsRequest)
-        return await run_in_threadpool(service.sign_parts, payload)
+        return cast(
+            SignPartsResponse,
+            await run_in_threadpool(service.sign_parts, payload),
+        )
 
-    @router.post("/uploads/introspect")
+    @router.post(
+        INTROSPECT_UPLOAD_ROUTE,
+        operation_id=INTROSPECT_UPLOAD_OPERATION_ID,
+        response_model=UploadIntrospectionResponse,
+    )
     @handle_file_transfer_errors
-    async def introspect_upload(request: Request) -> Any:
+    async def introspect_upload(
+        request: Request,
+        payload: UploadIntrospectionRequest,
+    ) -> UploadIntrospectionResponse:
         """Return uploaded multipart part state for resume flows."""
-        payload = await _parse_payload(request, UploadIntrospectionRequest)
-        return await run_in_threadpool(service.introspect_upload, payload)
+        return cast(
+            UploadIntrospectionResponse,
+            await run_in_threadpool(service.introspect_upload, payload),
+        )
 
-    @router.post("/uploads/complete")
+    @router.post(
+        COMPLETE_UPLOAD_ROUTE,
+        operation_id=COMPLETE_UPLOAD_OPERATION_ID,
+        response_model=CompleteUploadResponse,
+    )
     @handle_file_transfer_errors
     async def complete_upload(
         request: Request,
-    ) -> Any:
+        payload: CompleteUploadRequest,
+    ) -> CompleteUploadResponse:
         """Complete multipart upload and return final object metadata."""
-        payload = await _parse_payload(request, CompleteUploadRequest)
-        return await run_in_threadpool(service.complete_upload, payload)
+        return cast(
+            CompleteUploadResponse,
+            await run_in_threadpool(service.complete_upload, payload),
+        )
 
-    @router.post("/uploads/abort")
+    @router.post(
+        ABORT_UPLOAD_ROUTE,
+        operation_id=ABORT_UPLOAD_OPERATION_ID,
+        response_model=AbortUploadResponse,
+    )
     @handle_file_transfer_errors
-    async def abort_upload(request: Request) -> Any:
+    async def abort_upload(
+        request: Request,
+        payload: AbortUploadRequest,
+    ) -> AbortUploadResponse:
         """Abort an active multipart upload."""
-        payload = await _parse_payload(request, AbortUploadRequest)
-        return await run_in_threadpool(service.abort_upload, payload)
+        return cast(
+            AbortUploadResponse,
+            await run_in_threadpool(service.abort_upload, payload),
+        )
 
-    @router.post("/downloads/presign")
+    @router.post(
+        PRESIGN_DOWNLOAD_ROUTE,
+        operation_id=PRESIGN_DOWNLOAD_OPERATION_ID,
+        response_model=PresignDownloadResponse,
+    )
     @handle_file_transfer_errors
     async def presign_download(
         request: Request,
-    ) -> Any:
+        payload: PresignDownloadRequest,
+    ) -> PresignDownloadResponse:
         """Return a presigned download URL for an export object."""
-        payload = await _parse_payload(request, PresignDownloadRequest)
-        return await run_in_threadpool(service.presign_download, payload)
+        return cast(
+            PresignDownloadResponse,
+            await run_in_threadpool(service.presign_download, payload),
+        )
 
     return router
 
@@ -258,13 +310,47 @@ def create_fastapi_app(
     Returns:
         Any: FastAPI application instance with mounted transfer routes.
     """
-    _, fastapi, _, _ = _fastapi_imports()
-    app = fastapi()
+    _, fastapi, json_response, _, request_validation_error = _fastapi_imports()
 
-    async def _startup() -> None:
+    @asynccontextmanager
+    async def lifespan(_app: Any) -> Any:
+        previous_thread_tokens = int(
+            current_default_thread_limiter().total_tokens
+        )
         _configure_thread_limiter(total_tokens=env_config.thread_tokens)
+        try:
+            yield
+        finally:
+            _configure_thread_limiter(total_tokens=previous_thread_tokens)
 
-    app.add_event_handler("startup", _startup)
+    app = fastapi(lifespan=lifespan)
+
+    @app.exception_handler(request_validation_error)
+    async def handle_request_validation_error(
+        request: Request,
+        exc: Any,
+    ) -> Any:
+        return json_response(
+            status_code=422,
+            content=_error_payload(
+                code="invalid_request",
+                message="request validation failed",
+                details={"errors": exc.errors()},
+                request_id=_request_id(request),
+            ),
+        )
+
+    @app.exception_handler(JSONDecodeError)
+    async def handle_json_decode_error(request: Request, exc: Exception) -> Any:
+        return json_response(
+            status_code=422,
+            content=_error_payload(
+                code="invalid_request",
+                message="request validation failed",
+                details={"reason": str(exc)},
+                request_id=_request_id(request),
+            ),
+        )
 
     app.include_router(
         create_fastapi_router(
@@ -273,6 +359,5 @@ def create_fastapi_app(
             auth_policy=auth_policy,
             s3_client_factory=s3_client_factory,
         ),
-        prefix="/v1/transfers",
     )
     return app

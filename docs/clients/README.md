@@ -62,6 +62,9 @@ Release-grade public SDK packages for this wave:
 
 - `../../packages/nova_sdk_py_file/`
 - `../../packages/nova_sdk_py_auth/`
+
+Integration adapter packages retained in-repo for downstream framework wiring:
+
 - `../../packages/nova_dash_bridge/`
 
 Generated/private-distribution SDK packages retained in-repo for conformance,
@@ -72,6 +75,10 @@ private CodeArtifact publication, and future promotion work:
 - `../../packages/nova_sdk_fetch/`
 - `../../packages/nova_sdk_r_file/`
 - `../../packages/nova_sdk_r_auth/`
+
+`nova_dash_bridge` is an adapter-only package, not release-grade SDK contract
+authority. It consumes the canonical in-process bridge seam exposed by
+`nova_file_api.public`.
 
 All of these remain subordinate to the committed Nova OpenAPI contracts.
 Generated/private TypeScript SDK packages are transport-focused and do not ship

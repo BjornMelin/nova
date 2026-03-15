@@ -61,7 +61,7 @@ Implementation commitments:
   - `nova_sdk_py_file`
   - `nova_sdk_py_auth`
 - `nova_dash_bridge` remains a thin Python integration adapter over canonical
-  Nova contracts.
+  Nova contracts, using `nova_file_api.public` as its in-process runtime seam.
 - `@nova/sdk-file`, `@nova/sdk-auth`, and `@nova/sdk-fetch` remain
   generator-owned TypeScript packages used for private distribution and
   conformance.

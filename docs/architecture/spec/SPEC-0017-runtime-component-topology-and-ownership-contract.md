@@ -35,7 +35,7 @@ cross-package boundaries for the Nova monorepo.
 2. `nova_dash_bridge` is an adapter package. It may:
    - extract framework request metadata
    - forward headers and request identifiers
-   - call canonical Nova services or generated clients
+   - call canonical Nova services through `nova_file_api.public` or generated clients
 3. `nova_dash_bridge` must not:
    - define alternate endpoint paths
    - redefine Nova error envelopes
@@ -48,8 +48,9 @@ cross-package boundaries for the Nova monorepo.
 
 1. `nova_file_api` and `nova_auth_api` may depend on `packages/contracts`
    artifacts.
-2. `nova_dash_bridge` depends on canonical runtime contracts or generated
-   Python SDK packages, not on handwritten contract forks.
+2. `nova_dash_bridge` depends on canonical runtime contracts through
+   `nova_file_api.public` or generated Python SDK packages, not on handwritten
+   contract forks or direct runtime-internal imports.
 3. Route literals remain governed by the canonical route-authority specs; this
    spec governs where those routes are implemented and owned.
 

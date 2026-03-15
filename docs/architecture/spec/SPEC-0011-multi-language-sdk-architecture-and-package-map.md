@@ -67,6 +67,7 @@ These are the only generation inputs.
 - `nova_sdk_py_auth` (generated): auth API verify/introspect client and models.
 - `nova_dash_bridge` (thin adapter): Dash/Flask/FastAPI request extraction,
   authorization-header forwarding, request-id propagation, framework glue only.
+  It consumes the canonical in-process transfer seam via `nova_file_api.public`.
 
 Consumer mapping:
 
