@@ -1,9 +1,6 @@
 name: Nova Release Plan
 
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
 
 permissions:
@@ -11,9 +8,7 @@ permissions:
 
 jobs:
   plan:
-    if: >-
-      github.event_name == 'workflow_dispatch' ||
-      !contains(github.event.head_commit.message, '[skip release]')
+    if: github.ref == 'refs/heads/main'
     uses: ./.github/workflows/reusable-release-plan.yml
     with:
       checkout_ref: ${{ github.sha }}

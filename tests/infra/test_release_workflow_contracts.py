@@ -3,6 +3,8 @@ controlled promotion policy."""
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import yaml
 
 from .helpers import read_repo_file as _read
@@ -105,26 +107,24 @@ def test_promote_prod_workflow_has_controlled_package_promotion_policy() -> (
         )
 
 
-def test_release_apply_workflows_are_thin_wrappers_to_reusable_api() -> None:
-    """Release apply workflows must call shared reusable implementation."""
+def test_release_apply_workflow_is_manual_wrapper_to_reusable_api() -> None:
+    """Release apply wrapper must stay manual and delegate to shared API."""
     release_apply_text = _read(".github/workflows/release-apply.yml")
-    build_publish_text = _read(".github/workflows/build-and-publish-image.yml")
 
     for required in [
         "uses: ./.github/workflows/reusable-release-apply.yml",
         "checkout_ref:",
         "release_signing_secret_id",
         "workflow_dispatch",
+        "github.ref == 'refs/heads/main'",
     ]:
         assert required in release_apply_text, (
             f"Missing release-apply wrapper contract: {required!r}"
         )
-        assert required in build_publish_text, (
-            f"Missing build-and-publish-image wrapper contract: {required!r}"
-        )
 
-    assert 'workflows: ["Nova Release Plan"]' in release_apply_text
-    assert 'workflows: ["Publish Packages"]' in build_publish_text
+    assert 'workflows: ["Nova Release Plan"]' not in release_apply_text
+    assert "workflow_run:" not in release_apply_text
+    assert "github.event.workflow_run.head_sha" not in release_apply_text
 
     for forbidden in [
         "scripts.release.changed_units",
@@ -132,7 +132,8 @@ def test_release_apply_workflows_are_thin_wrappers_to_reusable_api() -> None:
         "Configure git signing from Secrets Manager",
     ]:
         assert forbidden not in release_apply_text
-        assert forbidden not in build_publish_text
+
+    assert not Path(".github/workflows/build-and-publish-image.yml").exists()
 
 
 def test_release_plan_workflow_is_wrapper_to_reusable_api() -> None:
@@ -147,6 +148,8 @@ def test_release_plan_workflow_is_wrapper_to_reusable_api() -> None:
         in release_plan_text
     )
     assert "workflow_dispatch" in release_plan_text
+    assert "push:" not in release_plan_text
+    assert "github.ref == 'refs/heads/main'" in release_plan_text
     assert "workflow_call:" in reusable_release_plan_text
     for required in [
         "scripts.release.changed_units",
@@ -154,6 +157,27 @@ def test_release_plan_workflow_is_wrapper_to_reusable_api() -> None:
         "release-plan-artifacts",
     ]:
         assert required in reusable_release_plan_text
+
+
+def test_publish_packages_workflow_requires_explicit_release_apply_run_id() -> (
+    None
+):
+    """Publish workflow must stay manual and use immutable apply inputs."""
+    text = _read(".github/workflows/publish-packages.yml")
+
+    for required in [
+        "workflow_dispatch",
+        "release_apply_run_id",
+        "required: true",
+        "github.ref == 'refs/heads/main'",
+    ]:
+        assert required in text
+
+    for forbidden in [
+        "workflow_run:",
+        "github.event.workflow_run",
+    ]:
+        assert forbidden not in text
 
 
 def test_deploy_dev_workflow_uses_reusable_api() -> None:

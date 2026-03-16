@@ -181,11 +181,48 @@ def test_cfn_contract_validate_workflow_exists_for_cfn_gates() -> None:
         "infra/nova/deploy/*.yml",
         "infra/runtime/**/*.yml",
         "test_absorbed_infra_contracts.py",
+        "test_ci_scope_detector.py",
         "test_workflow_productization_contracts.py",
         "test_workflow_contract_docs.py",
         "test_docs_authority_contracts.py",
     ]:
         assert required in text
+    assert "paths:" not in text
+
+
+def test_required_ci_workflows_use_scope_classifier_gate() -> None:
+    """Required workflows must always trigger and gate heavy jobs by scope."""
+    required_workflows = {
+        ".github/workflows/ci.yml": [
+            "classify-changes:",
+            "scripts/ci/detect_workflow_scopes.py",
+            "run_runtime_ci",
+            "runtime-security-reliability-gates:",
+            "quality-gates:",
+        ],
+        ".github/workflows/conformance-clients.yml": [
+            "classify-changes:",
+            "scripts/ci/detect_workflow_scopes.py",
+            "run_conformance_required",
+            "run_conformance_optional",
+            "dash-conformance:",
+            "shiny-conformance:",
+            "typescript-conformance:",
+        ],
+        ".github/workflows/cfn-contract-validate.yml": [
+            "classify-changes:",
+            "scripts/ci/detect_workflow_scopes.py",
+            "run_cfn",
+            "cfn-and-contracts:",
+        ],
+    }
+
+    for rel_path, required_strings in required_workflows.items():
+        text = _read(rel_path)
+        for required in required_strings:
+            assert required in text, (
+                f"Missing scope-classifier contract in {rel_path}: {required!r}"
+            )
 
 
 def test_reusable_deploy_dev_checks_out_workflow_source_for_local_actions() -> (

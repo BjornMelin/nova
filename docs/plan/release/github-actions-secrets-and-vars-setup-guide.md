@@ -73,11 +73,11 @@ Configure repository secrets and variables required by release automation in
 
 Configured values are consumed by:
 
-- `build-and-publish-image.yml`
+- `release-apply.yml`
   - `SIGNING_SECRET_ID: ${{ secrets.RELEASE_SIGNING_SECRET_ID }}`
   - `RELEASE_AWS_ROLE_ARN: ${{ secrets.RELEASE_AWS_ROLE_ARN }}`
   - `AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}`
-- Deploy/promote workflows
+- Package/deploy/promote workflows
   - `RELEASE_AWS_ROLE_ARN: ${{ secrets.RELEASE_AWS_ROLE_ARN }}`
   - `CODEARTIFACT_STAGING_REPOSITORY: ${{ vars.CODEARTIFACT_STAGING_REPOSITORY }}`
   - `CODEARTIFACT_PROD_REPOSITORY: ${{ vars.CODEARTIFACT_PROD_REPOSITORY }}`

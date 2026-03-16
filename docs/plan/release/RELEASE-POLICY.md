@@ -21,15 +21,12 @@ Companion modular setup guides:
 ## 2. Branch and artifact policy
 
 1. `main` is the only release branch.
-2. Release planning and release apply automation run from `main`.
-3. `release-apply` manual dispatch runs are allowed only on `main`.
-4. `release-apply` workflow-run executions are allowed only for successful
-   `main`-branch plan runs and must checkout `workflow_run.head_sha`.
-5. Release commits from automation must be cryptographically signed.
-6. AWS promotion consumes immutable artifacts from signed source state.
-7. Non-release `main` commits should include `[skip release]` so release-plan
-   automation is intentionally throttled when no publish/deploy action is
-   needed.
+2. `release-plan`, `release-apply`, and `publish-packages` are explicit manual
+   dispatch workflows that run from `main` only.
+3. `publish-packages` must consume an explicit successful
+   `release_apply_run_id`; it may not auto-chain from ambient `main` pushes.
+4. Release commits from automation must be cryptographically signed.
+5. AWS promotion consumes immutable artifacts from signed source state.
 
 ## 3. Promotion policy
 

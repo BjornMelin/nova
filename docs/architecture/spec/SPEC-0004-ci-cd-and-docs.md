@@ -48,22 +48,31 @@ Every pull request MUST pass:
 Protected branch wiring details are documented in
 `docs/plan/release/branch-protection-required-checks.md`.
 
+Required-check workflows MUST always trigger on pull requests to `main` branch
+protection. Minute reduction is enforced with an initial classifier job and
+job-level `if:` guards, not workflow-level path filters that leave required
+checks pending.
+
 ## 2. Hybrid pipeline model
 
 Canonical flow:
 
 1. `ci.yml` validates code and contracts on PR and main.
-2. `release-plan.yml` is the entry wrapper and delegates to
+2. `release-plan.yml` is a manual entry wrapper on `main` and delegates to
    `reusable-release-plan.yml` to compute `changed-units.json` and
    `version-plan.json`.
-3. `release-apply.yml` and `build-and-publish-image.yml` are entry wrappers
-   and delegate to `reusable-release-apply.yml`.
-4. `reusable-release-apply.yml` applies selective versions, writes release
+3. `release-apply.yml` is a manual `main`-only entry wrapper and delegates to
+   `reusable-release-apply.yml`.
+4. `publish-packages.yml` is a manual `main`-only staged publish gate that
+   consumes immutable `release-apply` artifacts from an explicit
+   `release_apply_run_id`.
+5. `reusable-release-apply.yml` applies selective versions, writes release
    manifest,
    updates `uv.lock`, and commits signed release metadata from `main` only.
-   For `workflow_run`, checkout is pinned to `workflow_run.head_sha`.
-5. AWS CodePipeline source action consumes signed commit through CodeConnections.
-6. AWS stages run:
+6. AWS CodePipeline source action consumes signed commit through CodeConnections.
+7. AWS CodeBuild/buildspec release stages own container image build/push
+   authority; GitHub does not carry a separate image-wrapper workflow.
+8. AWS stages run:
    - Build release artifacts
    - Deploy Dev
    - Validate Dev

@@ -275,8 +275,8 @@ Operational notes:
 
 - Publish packages workflow:
   <https://github.com/3M-Cloud/nova/blob/main/.github/workflows/publish-packages.yml>
-- Build/publish image workflow:
-  <https://github.com/3M-Cloud/nova/blob/main/.github/workflows/build-and-publish-image.yml>
+- Release apply workflow:
+  <https://github.com/3M-Cloud/nova/blob/main/.github/workflows/release-apply.yml>
 - Promote prod workflow:
   <https://github.com/3M-Cloud/nova/blob/main/.github/workflows/promote-prod.yml>
 - CodeBuild environment variable types:
