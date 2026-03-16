@@ -13,6 +13,7 @@ Configure the following checks as **required** for `main`.
 
 From workflow `Nova CI` (`.github/workflows/ci.yml`):
 
+- `classify-changes`
 - `runtime-security-reliability-gates`
 - `quality-gates`
 
@@ -79,6 +80,7 @@ gh api \
   "required_status_checks": {
     "strict": true,
     "contexts": [
+      "classify-changes",
       "runtime-security-reliability-gates",
       "quality-gates",
       "dash-conformance",

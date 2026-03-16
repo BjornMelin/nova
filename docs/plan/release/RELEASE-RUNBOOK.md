@@ -71,7 +71,7 @@ Use the modular operator guide set for provisioning and setup details:
    Release Apply` in Actions; older docs and CLI snippets may still show
    `Apply Release Plan`).
 2. Confirm workflow:
-   - runs from `main` only (manual dispatch on non-main refs is blocked)
+   - runs from `main` only (manual dispatch on non-main refs is skipped by the branch guard)
    - checks out the selected `main` commit SHA for the manual dispatch run
    - applies versions from version plan
    - writes release manifest

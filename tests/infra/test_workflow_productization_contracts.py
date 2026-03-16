@@ -173,55 +173,111 @@ def test_reusable_deploy_runtime_contract_includes_typed_inputs_outputs() -> (
 def test_cfn_contract_validate_workflow_exists_for_cfn_gates() -> None:
     """CI must include CFN syntax/schema and preflight contract validation."""
     text = _read(".github/workflows/cfn-contract-validate.yml")
+    workflow = yaml.safe_load(text)
+    assert isinstance(workflow, dict)
+    assert workflow.get("name") == "CFN Contract Validate"
+
+    on_contract = workflow.get("on")
+    if on_contract is None:
+        on_contract = workflow.get(True)
+    assert isinstance(on_contract, dict)
+    assert "workflow_dispatch" in on_contract
+    assert "paths" not in workflow
+
+    jobs = workflow.get("jobs")
+    assert isinstance(jobs, dict)
+    assert "cfn-and-contracts" in jobs
+
+    classify_job = jobs.get("classify-changes")
+    assert isinstance(classify_job, dict)
+    classify_steps = classify_job.get("steps")
+    assert isinstance(classify_steps, list)
+    assert any(
+        isinstance(step, dict)
+        and "scripts/ci/detect_workflow_scopes.py" in str(step.get("run", ""))
+        for step in classify_steps
+    )
+
+    cfn_job = jobs.get("cfn-and-contracts")
+    assert isinstance(cfn_job, dict)
+    cfn_job_text = yaml.safe_dump(cfn_job, sort_keys=False)
     for required in [
-        "name: CFN Contract Validate",
-        "workflow_dispatch",
         "cfn-lint",
         "infra/nova/*.yml",
         "infra/nova/deploy/*.yml",
         "infra/runtime/**/*.yml",
         "test_absorbed_infra_contracts.py",
         "test_ci_scope_detector.py",
+        "test_release_workflow_contracts.py",
         "test_workflow_productization_contracts.py",
         "test_workflow_contract_docs.py",
         "test_docs_authority_contracts.py",
     ]:
-        assert required in text
-    assert "paths:" not in text
+        assert required in cfn_job_text
 
 
 def test_required_ci_workflows_use_scope_classifier_gate() -> None:
     """Required workflows must always trigger and gate heavy jobs by scope."""
     required_workflows = {
-        ".github/workflows/ci.yml": [
-            "classify-changes:",
-            "scripts/ci/detect_workflow_scopes.py",
-            "run_runtime_ci",
-            "runtime-security-reliability-gates:",
-            "quality-gates:",
-        ],
-        ".github/workflows/conformance-clients.yml": [
-            "classify-changes:",
-            "scripts/ci/detect_workflow_scopes.py",
-            "run_conformance_required",
-            "run_conformance_optional",
-            "dash-conformance:",
-            "shiny-conformance:",
-            "typescript-conformance:",
-        ],
-        ".github/workflows/cfn-contract-validate.yml": [
-            "classify-changes:",
-            "scripts/ci/detect_workflow_scopes.py",
-            "run_cfn",
-            "cfn-and-contracts:",
-        ],
+        ".github/workflows/ci.yml": {
+            "classifier_output": "run_runtime_ci",
+            "gated_jobs": [
+                "runtime-security-reliability-gates",
+                "quality-gates",
+            ],
+        },
+        ".github/workflows/conformance-clients.yml": {
+            "classifier_output": "run_conformance_required",
+            "gated_jobs": [
+                "dash-conformance",
+                "shiny-conformance",
+                "typescript-conformance",
+            ],
+        },
+        ".github/workflows/cfn-contract-validate.yml": {
+            "classifier_output": "run_cfn",
+            "gated_jobs": ["cfn-and-contracts"],
+        },
     }
 
-    for rel_path, required_strings in required_workflows.items():
-        text = _read(rel_path)
-        for required in required_strings:
-            assert required in text, (
-                f"Missing scope-classifier contract in {rel_path}: {required!r}"
+    for rel_path, expectation in required_workflows.items():
+        workflow = yaml.safe_load(_read(rel_path))
+        assert isinstance(workflow, dict)
+        jobs = workflow.get("jobs")
+        assert isinstance(jobs, dict)
+
+        classifier = jobs.get("classify-changes")
+        assert isinstance(classifier, dict), (
+            f"Missing classify-changes job in {rel_path}"
+        )
+        classifier_steps = classifier.get("steps")
+        assert isinstance(classifier_steps, list)
+        assert any(
+            isinstance(step, dict)
+            and "scripts/ci/detect_workflow_scopes.py"
+            in str(step.get("run", ""))
+            for step in classifier_steps
+        ), f"Missing scope detector invocation in {rel_path}"
+
+        classifier_outputs = classifier.get("outputs")
+        assert isinstance(classifier_outputs, dict)
+        assert expectation["classifier_output"] in classifier_outputs, (
+            f"Missing classifier output {expectation['classifier_output']} in "
+            f"{rel_path}"
+        )
+
+        for job_name in expectation["gated_jobs"]:
+            job = jobs.get(job_name)
+            assert isinstance(job, dict), (
+                f"Missing expected gated job {job_name!r} in {rel_path}"
+            )
+            condition = str(job.get("if", ""))
+            assert "classify-changes" in condition, (
+                f"Expected {job_name!r} to depend on classifier in {rel_path}"
+            )
+            assert expectation["classifier_output"] in condition, (
+                f"Expected {job_name!r} to gate on "
+                f"{expectation['classifier_output']} in {rel_path}"
             )
 
 

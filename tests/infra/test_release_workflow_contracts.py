@@ -3,10 +3,9 @@ controlled promotion policy."""
 
 from __future__ import annotations
 
-from pathlib import Path
-
 import yaml
 
+from .helpers import REPO_ROOT
 from .helpers import read_repo_file as _read
 
 
@@ -133,7 +132,9 @@ def test_release_apply_workflow_is_manual_wrapper_to_reusable_api() -> None:
     ]:
         assert forbidden not in release_apply_text
 
-    assert not Path(".github/workflows/build-and-publish-image.yml").exists()
+    assert not (
+        REPO_ROOT / ".github" / "workflows" / "build-and-publish-image.yml"
+    ).exists()
 
 
 def test_release_plan_workflow_is_wrapper_to_reusable_api() -> None:

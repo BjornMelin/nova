@@ -61,6 +61,7 @@ CONFORMANCE_OPTIONAL_EXACT = {
     ".github/workflows/conformance-clients.yml",
 }
 CFN_PREFIXES = (
+    "scripts/ci/",
     "infra/",
     "buildspecs/",
     ".github/workflows/",

@@ -1,8 +1,16 @@
+"""Tests for the CI workflow scope detector script and output contract."""
+
 from __future__ import annotations
 
 import json
+import shutil
+import subprocess
+import sys
+from pathlib import Path
 
 from scripts.ci import detect_workflow_scopes as scope_detector
+
+from .helpers import REPO_ROOT
 
 
 def _outputs(changed_files: list[str]) -> dict[str, str]:
@@ -48,3 +56,48 @@ def test_workflow_changes_mark_cfn_and_targeted_ci_lanes() -> None:
     assert outputs["run_cfn"] == "true"
     affected_units = json.loads(outputs["affected_units_json"])
     assert affected_units == []
+
+
+def test_scope_detector_cli_emits_expected_output_contract(
+    tmp_path: Path,
+) -> None:
+    git_executable = shutil.which("git")
+    assert git_executable, (
+        "git executable must be available for CLI contract test"
+    )
+    head_sha = subprocess.run(  # noqa: S603
+        [git_executable, "rev-parse", "HEAD"],
+        check=True,
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    output_path = tmp_path / "github-output.txt"
+
+    subprocess.run(  # noqa: S603
+        [
+            sys.executable,
+            "scripts/ci/detect_workflow_scopes.py",
+            "--event-name",
+            "pull_request",
+            "--head-sha",
+            head_sha,
+            "--base-sha",
+            head_sha,
+            "--github-output",
+            str(output_path),
+        ],
+        check=True,
+        cwd=REPO_ROOT,
+    )
+
+    output_lines = output_path.read_text(encoding="utf-8").splitlines()
+    outputs = dict(line.split("=", 1) for line in output_lines if "=" in line)
+
+    assert outputs["changed_files_json"] == "[]"
+    assert json.loads(outputs["affected_units_json"]) == []
+    assert outputs["docs_only"] == "false"
+    assert outputs["run_runtime_ci"] == "false"
+    assert outputs["run_conformance_required"] == "false"
+    assert outputs["run_conformance_optional"] == "false"
+    assert outputs["run_cfn"] == "false"
