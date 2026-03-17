@@ -11,7 +11,7 @@ set -euo pipefail
 # - AssignPublicIp=DISABLED
 # - FileTransferAsyncEnabled=true
 # - FileTransferCacheEnabled=true
-# - TaskExecutionSecretArns=
+# - ECS service stack owns the task role and cache-secret wiring
 
 require_cmd() {
   local cmd="$1"
@@ -25,6 +25,15 @@ require_env() {
   local name="$1"
   if [ -z "${!name:-}" ]; then
     echo "Missing required environment variable: $name" >&2
+    exit 1
+  fi
+}
+
+reject_legacy_env() {
+  local name="$1"
+  local reason="$2"
+  if [ -n "${!name:-}" ]; then
+    echo "Unsupported legacy environment variable: ${name}. ${reason}" >&2
     exit 1
   fi
 }
@@ -418,8 +427,6 @@ JOBS_MESSAGE_RETENTION_SECONDS="${JOBS_MESSAGE_RETENTION_SECONDS:-345600}"
 JOBS_MAX_RECEIVE_COUNT="${JOBS_MAX_RECEIVE_COUNT:-5}"
 FILE_TRANSFER_CACHE_CLUSTER_NAME="${FILE_TRANSFER_CACHE_CLUSTER_NAME:-${PROJECT:-}-${APPLICATION:-}-${SERVICE_NAME:-}-${ENVIRONMENT:-}}"
 FILE_TRANSFER_CACHE_URL_SECRET_NAME="${FILE_TRANSFER_CACHE_URL_SECRET_NAME:-/${PROJECT:-}/${APPLICATION:-}/${SERVICE_NAME:-}/${ENVIRONMENT:-}/file-transfer-cache}"
-TASK_EXECUTION_SECRET_ARNS="${TASK_EXECUTION_SECRET_ARNS:-}"
-TASK_EXECUTION_SSM_PARAMETER_ARNS="${TASK_EXECUTION_SSM_PARAMETER_ARNS:-}"
 
 require_env AWS_ACCOUNT_ID
 require_env PROJECT
@@ -437,12 +444,21 @@ WORKER_SERVICE_NAME="${WORKER_SERVICE_NAME:-${SERVICE_NAME}-worker}"
 require_env SERVICE_DNS
 require_env DOCKER_REPOSITORY_NAME
 require_env IMAGE_DIGEST
-require_env TASK_ROLE_ARN
 require_env OWNER_TAG
 require_env ALARM_ACTION_ARN
 require_env FILE_TRANSFER_BUCKET_BASE_NAME
 require_env FILE_TRANSFER_CORS_ALLOWED_ORIGINS
 require_env ENV_VARS_JSON
+
+reject_legacy_env \
+  TASK_ROLE_ARN \
+  "The ECS service stack now owns the repo-managed task role; stop supplying TaskRole overrides."
+reject_legacy_env \
+  TASK_EXECUTION_SECRET_ARNS \
+  "The ECS service stack now scopes execution-role secret access internally; remove this legacy override."
+reject_legacy_env \
+  TASK_EXECUTION_SSM_PARAMETER_ARNS \
+  "The ECS service stack no longer accepts generic execution-role SSM secret wiring."
 
 if [ "$ENVIRONMENT" != "dev" ] && [ "$ENVIRONMENT" != "prod" ]; then
   echo "ENVIRONMENT must be dev or prod." >&2
@@ -657,7 +673,6 @@ service_args=(
   "VpcId=${VPC_ID}"
   "SubnetList=${SUBNET_IDS}"
   "AssignPublicIp=${ASSIGN_PUBLIC_IP}"
-  "TaskRole=${TASK_ROLE_ARN}"
   "TaskCpu=${API_TASK_CPU}"
   "TaskMemory=${API_TASK_MEMORY}"
   "DesiredCount=${API_DESIRED_COUNT}"
@@ -684,8 +699,6 @@ service_args=(
   "JobsTableName=${JOBS_TABLE_NAME}"
   "ActivityTableName=${ACTIVITY_TABLE_NAME}"
   "CacheRedisUrlSecretArn=${CACHE_URL_SECRET_ARN}"
-  "TaskExecutionSecretArns=${TASK_EXECUTION_SECRET_ARNS}"
-  "TaskExecutionSsmParameterArns=${TASK_EXECUTION_SSM_PARAMETER_ARNS}"
 )
 
 for mapping in "${ENV_JSON_PARAMETER_MAPPINGS[@]}"; do
