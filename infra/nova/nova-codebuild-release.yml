@@ -123,8 +123,8 @@ Resources:
     Properties:
       LogGroupName: !If
         - HasReleaseBuildProjectName
-        - !Sub "/aws/codebuild/${ReleaseBuildProjectName}"
-        - !Sub "/aws/codebuild/${Project}-${Application}-nova-release-build"
+        - !Sub "/aws/codebuild/${ReleaseBuildProjectName}-${AWS::StackName}"
+        - !Sub "/aws/codebuild/${Project}-${Application}-nova-release-build-${AWS::StackName}"
       RetentionInDays: !Ref CodeBuildLogRetentionInDays
 
   NovaReleaseBuildProject:
@@ -205,8 +205,8 @@ Resources:
     Properties:
       LogGroupName: !If
         - HasDeployValidateProjectName
-        - !Sub "/aws/codebuild/${DeployValidateProjectName}"
-        - !Sub "/aws/codebuild/${Project}-${Application}-nova-deploy-validate"
+        - !Sub "/aws/codebuild/${DeployValidateProjectName}-${AWS::StackName}"
+        - !Sub "/aws/codebuild/${Project}-${Application}-nova-deploy-validate-${AWS::StackName}"
       RetentionInDays: !Ref CodeBuildLogRetentionInDays
 
   NovaDeployValidateBuildProject:

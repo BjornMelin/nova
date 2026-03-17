@@ -33,7 +33,7 @@ Resources:
             "rules": [
               {
                 "rulePriority": 1,
-                "description": "Expire untagged images immediately",
+                "description": "Expire untagged images after 1 day",
                 "selection": {
                   "tagStatus": "untagged",
                   "countType": "sinceImagePushed",

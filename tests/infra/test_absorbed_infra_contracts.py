@@ -638,7 +638,9 @@ def test_runtime_env_and_parameter_contracts() -> None:
                     f"{statement!r}"
                 )
             resource = statement.get("Resource")
-            if resource == "*":
+            if resource == "*" or (
+                isinstance(resource, list) and "*" in resource
+            ):
                 sid = statement.get("Sid")
                 assert sid == "FileTransferKms", (
                     "Unexpected wildcard resource in "
@@ -834,7 +836,7 @@ def test_runtime_ecr_lifecycle_policy_keeps_current_and_rollback_images() -> (
         '"rulePriority": 2',
         '"tagStatus": "any"',
         '"countNumber": 2',
-        "Expire untagged images immediately",
+        "Expire untagged images after 1 day",
         "Keep the current image and one rollback image",
     ]:
         assert required in text

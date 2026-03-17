@@ -664,7 +664,7 @@ Resources:
             Resource: "*"
             Condition:
               StringEquals:
-                kms:ViaService: !Sub "secretsmanager.${AWS::Region}.amazonaws.com"
+                kms:ViaService: !Sub "secretsmanager.${AWS::Region}.${AWS::URLSuffix}"
       Roles:
         - !Sub "${Project}-${Application}-${Service}-ecs-task-execution-${AWS::Region}"
 
