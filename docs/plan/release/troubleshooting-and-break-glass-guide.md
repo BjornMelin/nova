@@ -2,7 +2,7 @@
 
 Status: Active
 Owner: nova release architecture
-Last reviewed: 2026-03-05
+Last reviewed: 2026-03-17
 
 ## Purpose
 
@@ -115,6 +115,37 @@ aws cloudformation describe-stack-events \
   --region "${AWS_REGION}" \
   --stack-name "${DEPLOY_STACK_NAME}"
 ```
+
+### `ecs execute-command` fails against runtime tasks
+
+Likely causes:
+
+- the repo-managed ECS task role is missing the required
+  `ssmmessages` session-channel permissions
+- the task was launched before `EnableExecuteCommand` was enabled
+- the runtime network path lacks the required Systems Manager Session Manager
+  connectivity for private/no-NAT environments
+
+Commands:
+
+```bash
+aws ecs describe-services \
+  --region "${AWS_REGION}" \
+  --cluster "${ECS_CLUSTER_NAME}" \
+  --services "${SERVICE_NAME}" \
+  --query "services[0].enableExecuteCommand"
+
+aws ecs describe-task-definition \
+  --region "${AWS_REGION}" \
+  --task-definition "${TASK_DEFINITION_ARN}" \
+  --query "taskDefinition.{TaskRoleArn:taskRoleArn,ExecutionRoleArn:executionRoleArn}"
+```
+
+Operator note:
+
+- Nova keeps ECS Exec support through repo-managed task roles in the runtime
+  stacks. Do not attempt to restore Exec by passing `TASK_ROLE_ARN`; that input
+  remains retired from the active deploy contract.
 
 ### Base-url SSM marker stacks drift or rollback fails
 

@@ -481,6 +481,34 @@ def test_runtime_env_and_parameter_contracts() -> None:
     assert "JobsWorkerUpdateTokenSecretArn" in parameters
     assert "WorkerCommand" not in parameters
     assert "SyncProcessingMaxBytes" not in parameters
+    assert "TaskRoleArn: !GetAtt WorkerTaskRole.Arn" in worker_text
+
+    worker_service = resources["WorkerService"]
+    assert isinstance(worker_service, dict)
+    worker_service_properties = worker_service["Properties"]
+    assert isinstance(worker_service_properties, dict)
+    assert worker_service_properties["EnableExecuteCommand"] is True
+
+    required_exec_actions = {
+        "ssmmessages:CreateControlChannel",
+        "ssmmessages:CreateDataChannel",
+        "ssmmessages:OpenControlChannel",
+        "ssmmessages:OpenDataChannel",
+    }
+
+    worker_exec_policy = resources["WorkerEcsExecTaskPolicy"]
+    assert isinstance(worker_exec_policy, dict)
+    worker_exec_policy_doc = worker_exec_policy["Properties"]["PolicyDocument"]
+    assert isinstance(worker_exec_policy_doc, dict)
+    worker_exec_statements = worker_exec_policy_doc["Statement"]
+    assert isinstance(worker_exec_statements, list)
+    assert len(worker_exec_statements) == 1
+    worker_exec_statement = worker_exec_statements[0]
+    assert isinstance(worker_exec_statement, dict)
+    worker_exec_actions = worker_exec_statement["Action"]
+    assert isinstance(worker_exec_actions, list)
+    assert set(worker_exec_actions) == required_exec_actions
+    assert worker_exec_statement["Resource"] == "*"
 
     service_resources = service_template["Resources"]
     assert isinstance(service_resources, dict)
@@ -543,6 +571,12 @@ def test_runtime_env_and_parameter_contracts() -> None:
     assert "TaskRoleArn: !GetAtt ECSTaskRole.Arn" in service_text
     assert "TaskRoleArn: !Ref TaskRole" not in service_text
 
+    ecs_service = service_resources["ECSService"]
+    assert isinstance(ecs_service, dict)
+    ecs_service_properties = ecs_service["Properties"]
+    assert isinstance(ecs_service_properties, dict)
+    assert ecs_service_properties["EnableExecuteCommand"] is True
+
     assert "AppSecretKeySecret" not in service_resources
     assert "ECSTaskPolicy" not in service_resources
 
@@ -565,6 +599,22 @@ def test_runtime_env_and_parameter_contracts() -> None:
     }
     assert "secretsmanager:GetSecretValue" in execution_actions
     assert "ssm:GetParameters" not in execution_actions
+
+    service_exec_policy = service_resources["EcsExecTaskPolicy"]
+    assert isinstance(service_exec_policy, dict)
+    service_exec_policy_doc = service_exec_policy["Properties"][
+        "PolicyDocument"
+    ]
+    assert isinstance(service_exec_policy_doc, dict)
+    service_exec_statements = service_exec_policy_doc["Statement"]
+    assert isinstance(service_exec_statements, list)
+    assert len(service_exec_statements) == 1
+    service_exec_statement = service_exec_statements[0]
+    assert isinstance(service_exec_statement, dict)
+    service_exec_actions = service_exec_statement["Action"]
+    assert isinstance(service_exec_actions, list)
+    assert set(service_exec_actions) == required_exec_actions
+    assert service_exec_statement["Resource"] == "*"
 
     for policy_name in [
         "FileTransferTaskPolicy",

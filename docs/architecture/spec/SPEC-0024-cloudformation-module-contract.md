@@ -2,7 +2,7 @@
 Spec: 0024
 Title: CloudFormation module contract
 Status: Active
-Version: 1.2
+Version: 1.3
 Date: 2026-03-17
 Related:
   - "[ADR-0030: Native-CFN modular stack architecture for Nova infrastructure productization](../adr/ADR-0030-native-cfn-modular-stack-architecture-for-nova-infrastructure-productization.md)"
@@ -48,6 +48,10 @@ Additional runtime ECS service contract:
    contract.
 3. Cache-backed runtime secret injection remains an ECS `Secrets` +
    execution-role concern, not a plaintext environment-variable shim.
+4. When a runtime ECS service keeps `EnableExecuteCommand: true`, the
+   stack-managed task role must include the AWS-required `ssmmessages`
+   session-channel permissions needed by ECS Exec. Operators do not restore
+   this behavior through external task-role overrides.
 
 ## 4. Inter-stack import/export contract
 
@@ -83,8 +87,8 @@ Additional runtime ECS service contract:
 3. Foundation-to-control-plane imports are validated by tests.
 4. SSM base-url path and HTTPS constraints are validated by tests/docs
    contracts.
-5. ECS service task-role ownership and secret wiring are validated by tests and
-   operator docs.
+5. ECS service task-role ownership, ECS Exec permissions, and secret wiring are
+   validated by tests and operator docs.
 6. Artifact storage pruning and CodeBuild log retention are documented in the
    release operator guides.
 

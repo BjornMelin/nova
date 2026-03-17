@@ -176,6 +176,24 @@ Resources:
             Action:
               - sts:AssumeRole
 
+  WorkerEcsExecTaskPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: !Sub "${Project}-${Application}-${WorkerServiceName}-ecs-task-exec"
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: EcsExecSessionChannels
+            Effect: Allow
+            Action:
+              - ssmmessages:CreateControlChannel
+              - ssmmessages:CreateDataChannel
+              - ssmmessages:OpenControlChannel
+              - ssmmessages:OpenDataChannel
+            Resource: "*"
+      Roles:
+        - !Ref WorkerTaskRole
+
   WorkerTaskPolicy:
     Type: AWS::IAM::Policy
     Properties:
