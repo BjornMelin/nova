@@ -2,7 +2,7 @@
 
 Status: Active
 Owner: nova release architecture
-Last updated: 2026-03-05
+Last updated: 2026-03-17
 
 ## 1. Scope
 
@@ -92,3 +92,16 @@ Each release cycle must retain evidence in:
 - `docs/plan/release/NONPROD-LIVE-VALIDATION-RUNBOOK.md`
 - `docs/plan/release/evidence-log.md`
 - `docs/plan/release/RELEASE-RUNBOOK.md` execution notes
+
+## 7. Release control-plane cost posture
+
+1. When release work is idle, keep the `nova-codebuild-release` and
+   `nova-ci-cd` CloudFormation stacks deleted so CodePipeline and CodeBuild do
+   not accrue avoidable monthly charges.
+2. Delete the control plane only when release work is idle.
+3. Recreate the control plane only when release work resumes, using
+   `scripts/release/day-0-operator-command-pack.sh` as the canonical
+   provisioning path.
+4. Artifact and log storage should remain self-pruning through the
+   CloudFormation lifecycle/retention policies owned by
+   `nova-foundation.yml` and `nova-codebuild-release.yml`.

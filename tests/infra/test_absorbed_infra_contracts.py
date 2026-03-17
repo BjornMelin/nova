@@ -156,7 +156,13 @@ def test_foundation_exports_and_stack_wiring_contracts() -> None:
         "AWS::CodeArtifact::PackageGroup",
         "Pattern: !Sub /npm/${CodeArtifactInternalNpmScope}/*",
         "RestrictionMode: BLOCK",
+        "LifecycleConfiguration:",
+        "ArtifactBucketLifecyclePolicy",
+        'Prefix: ""',
+        "AbortIncompleteMultipartUpload:",
+        "NoncurrentVersionExpiration:",
         "ManualApprovalTopicArn:",
+        "ShouldExportConnectionName:",
         "${AWS::StackName}-ArtifactBucketName",
         "${AWS::StackName}-CodeArtifactDomainName",
         "${AWS::StackName}-CodeArtifactRepositoryName",
@@ -195,6 +201,9 @@ def test_foundation_exports_and_stack_wiring_contracts() -> None:
         "${FoundationStackName}-EcrRepositoryUri",
         "${FoundationStackName}-EcrRepositoryName",
         "${IamRolesStackName}-CodeBuildReleaseRoleArn",
+        "CodeBuildLogRetentionInDays:",
+        "CloudWatchLogs:",
+        "RetentionInDays: !Ref CodeBuildLogRetentionInDays",
         "ReleaseBuildspecPath:",
         "ValidateBuildspecPath:",
         (
@@ -758,6 +767,27 @@ def test_observability_security_cost_baseline_contracts() -> None:
     assert "ServiceLogKmsKeyArn" in text
     assert "UseServiceLogCMK" in text
     assert "KmsKeyId: !If [UseServiceLogCMK" in text
+
+
+def test_runtime_ecr_lifecycle_policy_keeps_current_and_rollback_images() -> (
+    None
+):
+    """ECR lifecycle policy must keep the current image plus one rollback."""
+    text = _read("infra/runtime/ecr.yml")
+
+    for required in [
+        '"rulePriority": 1',
+        '"tagStatus": "untagged"',
+        '"countType": "sinceImagePushed"',
+        '"countUnit": "days"',
+        '"countNumber": 1',
+        '"rulePriority": 2',
+        '"tagStatus": "any"',
+        '"countNumber": 2',
+        "Expire untagged images immediately",
+        "Keep the current image and one rollback image",
+    ]:
+        assert required in text
 
 
 def test_ecs_native_blue_green_authority_contracts() -> None:

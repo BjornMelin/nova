@@ -2,7 +2,7 @@
 Spec: 0024
 Title: CloudFormation module contract
 Status: Active
-Version: 1.1
+Version: 1.2
 Date: 2026-03-17
 Related:
   - "[ADR-0030: Native-CFN modular stack architecture for Nova infrastructure productization](../adr/ADR-0030-native-cfn-modular-stack-architecture-for-nova-infrastructure-productization.md)"
@@ -32,10 +32,10 @@ Required stack modules:
 
 | Module | Required responsibilities |
 | --- | --- |
-| `nova-foundation.yml` | Artifact bucket baseline, optional CodeConnection resource, manual approval SNS topic, exported shared values |
+| `nova-foundation.yml` | Artifact bucket baseline, including lifecycle rules for stack-created buckets, optional CodeConnection resource, manual approval SNS topic, exported shared values |
 | `nova-iam-roles.yml` | CI/CD roles, pass-role scopes, service role partitioning, ECS infrastructure role bindings |
-| `nova-codebuild-release.yml` | Build/validation CodeBuild projects and related role bindings |
-| `nova-ci-cd.yml` | CodePipeline stages, artifact wiring, promotion controls, manual approval stage |
+| `nova-codebuild-release.yml` | Build/validation CodeBuild projects, retained CloudWatch log groups, and related role bindings |
+| `nova-ci-cd.yml` | CodePipeline stages, artifact wiring, promotion controls, manual approval stage, and an intentionally recreatable idle-state control plane |
 | `infra/nova/deploy/service-base-url-ssm.yml` | Environment-scoped SSM authority values for deploy validation base URLs (`/nova/{env}/{service}/base-url`) |
 | `infra/runtime/**` | Runtime infrastructure (ECS, ALB, WAF, queues, cache, secrets wiring, app parameters, observability) |
 
@@ -69,6 +69,12 @@ Additional runtime ECS service contract:
 2. Empty change-sets may be tolerated without failing the workflow.
 3. Stack names, capabilities, and parameter payloads are explicit workflow
    inputs.
+4. The release control plane (`nova-codebuild-release.yml` and
+   `nova-ci-cd.yml`) may be deleted while idle and recreated from repo-owned
+   templates when release work resumes.
+5. When `nova-foundation.yml` imports an existing artifact bucket through
+   `ExistingArtifactBucketName`, equivalent lifecycle controls must be applied
+   directly to that bucket because the stack does not own the bucket resource.
 
 ## 7. Acceptance criteria
 
@@ -79,6 +85,8 @@ Additional runtime ECS service contract:
    contracts.
 5. ECS service task-role ownership and secret wiring are validated by tests and
    operator docs.
+6. Artifact storage pruning and CodeBuild log retention are documented in the
+   release operator guides.
 
 ## 8. Traceability
 

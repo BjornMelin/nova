@@ -93,6 +93,16 @@ Resources:
     UpdateReplacePolicy: Retain
     Properties:
       BucketName: !Ref ArtifactBucketName
+      LifecycleConfiguration:
+        Rules:
+          - Id: ArtifactBucketLifecyclePolicy
+            Status: Enabled
+            Prefix: ""
+            ExpirationInDays: 30
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 7
+            NoncurrentVersionExpiration:
+              NoncurrentDays: 30
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
         BlockPublicPolicy: true
@@ -182,10 +192,8 @@ Outputs:
       Name: !Sub "${AWS::StackName}-EcrRepositoryUri"
 
   ConnectionName:
-    Value: !If
-      - ShouldExportConnectionName
-      - !Ref ConnectionName
-      - ""
+    Condition: ShouldExportConnectionName
+    Value: !Ref ConnectionName
     Export:
       Name: !Sub "${AWS::StackName}-ConnectionName"
 
