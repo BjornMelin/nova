@@ -2,7 +2,7 @@
 ADR: 0007
 Title: Adopt two-tier cache with idempotency replay storage
 Status: Accepted
-Version: 1.1
+Version: 1.2
 Date: 2026-02-13
 Related:
   - "[SPEC-0009: Caching and idempotency](../spec/SPEC-0009-caching-and-idempotency.md)"
@@ -46,9 +46,12 @@ Implementation commitments:
 
 - Local in-memory TTL cache for fastest-path reads.
 - Optional shared Redis cache for cross-instance consistency.
-- Degrade gracefully to local-only mode when Redis is unavailable.
+- General cache reads/writes degrade best-effort when Redis is unavailable.
 - Store `Idempotency-Key` records with payload hash validation and
   `in_progress` -> `committed` lifecycle.
+- When idempotency is enabled, require shared Redis claim storage and fail
+  closed on shared-store unavailability instead of replaying local-only
+  mutation semantics.
 - Discard in-progress idempotency claims on failed mutation execution so
   clients can retry safely.
 - Derive JWT cache TTL from token `exp` with bounded max TTL.
@@ -65,3 +68,5 @@ Implementation commitments:
 - 2026-02-12 (v1.0): Initial acceptance.
 - 2026-02-13 (v1.1): Added async Redis call-path, explicit idempotency claim
   lifecycle, and JWT `exp`-bounded cache TTL commitments.
+- 2026-03-16 (v1.2): Distinguished best-effort general caching from strict
+  shared idempotency semantics.

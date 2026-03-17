@@ -10,6 +10,7 @@ from nova_file_api.app import create_app
 from nova_file_api.cache import LocalTTLCache, SharedRedisCache, TwoTierCache
 from nova_file_api.config import Settings
 from nova_file_api.dependencies import (
+    build_idempotency_store,
     get_activity_store,
     get_authenticator,
     get_idempotency_store,
@@ -23,6 +24,8 @@ from nova_file_api.dependencies import (
 from nova_file_api.idempotency import IdempotencyStore
 from nova_file_api.jobs import JobRepository
 from nova_file_api.metrics import MetricsCollector
+
+from .redis import MemoryRedisClient
 
 
 @dataclass(slots=True)
@@ -85,6 +88,7 @@ def build_runtime_deps(
     shared_cache: SharedRedisCache | None = None,
     cache: TwoTierCache | None = None,
     idempotency_store: IdempotencyStore | None = None,
+    use_in_memory_shared_cache: bool = False,
     idempotency_enabled: bool = True,
     idempotency_ttl_seconds: int = 300,
     job_repository: JobRepository | None = None,
@@ -101,6 +105,8 @@ def build_runtime_deps(
         metrics: Optional metrics; defaults to MetricsCollector.
         shared_cache: Shared cache; built via build_cache_stack if None.
         cache: Two-tier cache; built via build_cache_stack if None.
+        use_in_memory_shared_cache: If ``True``, build an in-memory cache stack
+            for tests.
         idempotency_store: Idempotency store; built from cache if None.
         idempotency_enabled: Whether idempotency is enabled when building store.
         idempotency_ttl_seconds: TTL for idempotency store when building.
@@ -113,21 +119,42 @@ def build_runtime_deps(
     resolved_metrics = (
         MetricsCollector(namespace="Tests") if metrics is None else metrics
     )
+    resolved_settings.idempotency_enabled = idempotency_enabled
+    resolved_settings.idempotency_ttl_seconds = idempotency_ttl_seconds
     if (shared_cache is None) != (cache is None):
         raise ValueError(
             "shared_cache and cache must both be provided or both be None"
         )
     if shared_cache is None and cache is None:
-        resolved_shared_cache, resolved_cache = build_cache_stack()
+        if use_in_memory_shared_cache:
+            resolved_shared_cache, resolved_cache = build_cache_stack()
+            resolved_shared_cache._client = MemoryRedisClient()  # type: ignore[assignment]
+        elif idempotency_enabled:
+            raise ValueError(
+                "idempotency_enabled requires shared_cache/cache or "
+                "use_in_memory_shared_cache in tests; cache_redis_url is not "
+                f"auto-bound here ({resolved_settings.cache_redis_url!r})"
+            )
+        else:
+            resolved_shared_cache = SharedRedisCache(url=None)
+            resolved_cache = TwoTierCache(
+                local=LocalTTLCache(
+                    ttl_seconds=60,
+                    max_entries=128,
+                ),
+                shared=resolved_shared_cache,
+                shared_ttl_seconds=60,
+            )
     else:
         assert shared_cache is not None
         assert cache is not None
         resolved_shared_cache = shared_cache
         resolved_cache = cache
-    resolved_idempotency_store = idempotency_store or IdempotencyStore(
-        cache=resolved_cache,
-        enabled=idempotency_enabled,
-        ttl_seconds=idempotency_ttl_seconds,
+        if use_in_memory_shared_cache:
+            resolved_shared_cache._client = MemoryRedisClient()  # type: ignore[assignment]
+    resolved_idempotency_store = idempotency_store or build_idempotency_store(
+        settings=resolved_settings,
+        shared_cache=resolved_shared_cache,
     )
     return RuntimeDeps(
         settings=resolved_settings,
@@ -156,6 +183,11 @@ def build_test_app(deps: RuntimeDeps) -> FastAPI:
     from nova_file_api.dependencies import get_settings
 
     app = create_app()
+    app.state._shared_cache_provider = lambda: deps.shared_cache
+    app.state._two_tier_cache_provider = lambda: deps.cache
+    app.state._idempotency_store_provider = lambda: deps.idempotency_store
+    app.state.shared_cache = deps.shared_cache
+    app.state.cache = deps.cache
     app.state.settings = deps.settings
     app.dependency_overrides[get_settings] = lambda: deps.settings
     app.dependency_overrides[get_metrics] = lambda: deps.metrics

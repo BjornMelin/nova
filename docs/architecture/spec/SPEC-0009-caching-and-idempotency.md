@@ -2,8 +2,8 @@
 Spec: 0009
 Title: Caching and Idempotency
 Status: Active
-Version: 1.2
-Date: 2026-02-13
+Version: 1.3
+Date: 2026-03-16
 Related:
   - "[ADR-0007: Two-tier cache and idempotency store](../adr/ADR-0007-two-tier-cache-and-idempotency-store.md)"
   - "[SPEC-0006: JWT/OIDC verification and principal mapping](./SPEC-0006-jwt-oidc-verification-and-principal-mapping.md)"
@@ -29,7 +29,7 @@ Shared keys are namespaced and schema-versioned (`CACHE_KEY_PREFIX`,
 
 - JWT verification result caching
 - Auth metadata hot-path caching
-- Idempotency replay entry storage
+- Shared Redis-backed idempotency claim and replay storage
 
 JWT cache entries MUST use TTL derived from token expiration (`exp`) with
 configured upper bounds.
@@ -37,21 +37,32 @@ configured upper bounds.
 ## 3. Resilience behavior
 
 - Shared Redis failures MUST not fail request processing by default.
-- Cache behavior MUST degrade to local-only mode when shared cache is
-  unavailable.
+- General cache behavior MAY degrade to local-only operation when the shared
+  cache is unavailable.
+- Mutation idempotency correctness MUST NOT degrade to local-only claim
+  handling when idempotency is enabled.
 - Readiness should surface shared cache health for operators.
 
 ## 4. Idempotency policy
 
 For protected mutation endpoints:
 
-- Require `Idempotency-Key` when feature is enabled.
+- `IDEMPOTENCY_ENABLED=true` requires `CACHE_REDIS_URL`.
+- Missing `Idempotency-Key` is allowed; blank keys are invalid.
 - Bind replay records to route + caller scope + key.
 - Reject key reuse with different payload (`idempotency_conflict`).
 - Use explicit record state transitions:
   - `in_progress` claim before execution
   - `committed` after success response
   - claim discard on failure path
+- Shared idempotency-store failures MUST fail closed with `503` and
+  `error.code = "idempotency_unavailable"`.
+- If execution succeeds but commit persistence fails, the runtime MUST keep the
+  existing `in_progress` claim so retries with the same key do not re-execute
+  the mutation.
+- Clients receiving `idempotency_unavailable` from a protected mutation MUST
+  retry with the same `Idempotency-Key`; rotating keys after this failure mode
+  is unsafe because the original mutation may already have applied.
 - Enqueue failures (`503` + `error.code = "queue_unavailable"`) MUST NOT be
   replay-cached as successful responses.
 

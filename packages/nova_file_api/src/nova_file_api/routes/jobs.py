@@ -452,7 +452,7 @@ async def _enqueue_job_core(
             "scope_id": principal.scope_id,
             "idempotency_key": idempotency_key,
         },
-        store_response_failure_mode="log",
+        store_response_failure_mode="raise",
     )
 
 

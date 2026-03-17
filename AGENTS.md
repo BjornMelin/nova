@@ -117,17 +117,21 @@ rg -n "/v1/transfers|/v1/jobs|/v1/internal/jobs|/v1/capabilities|/v1/resources/p
 
 - `POST /v1/jobs` queue publish failures must return `503` with
   `error.code = "queue_unavailable"`.
-- Mutation entrypoints running with idempotency currently use the two-tier
-  cache and may fall back to local claim handling when the shared cache errors.
+- Mutation entrypoints running with idempotency require a shared Redis claim
+  store. Shared-store failures must return `503` with
+  `error.code = "idempotency_unavailable"` instead of falling back to local
+  claim handling.
 - Failed enqueue responses must not be idempotency replay cached.
 - `IDEMPOTENCY_ENABLED` and `IDEMPOTENCY_TTL_SECONDS` are the current
-  idempotency settings surface; deploy and operator docs must not claim
-  `IDEMPOTENCY_MODE` support until runtime semantics exist.
-- `/v1/health/ready` currently returns `503` when any reported readiness check
-  is false.
+  idempotency settings surface; do not add or document `IDEMPOTENCY_MODE`.
+- `IDEMPOTENCY_ENABLED=true` requires `CACHE_REDIS_URL`.
+- `/v1/health/ready` returns `503` when a traffic-critical readiness check is
+  false.
 - Missing or blank `FILE_TRANSFER_BUCKET` must fail readiness.
 - `AUTH_MODE=jwt_local` with incomplete `OIDC_ISSUER`, `OIDC_AUDIENCE`, or
   `OIDC_JWKS_URL` must fail the `auth_dependency` readiness check.
+- Shared cache only gates readiness when idempotency is enabled; activity-store
+  health remains visible but is not readiness-fatal in the current contract.
 - Do not run synchronous JWT verification directly on async event-loop paths;
   use a threadpool boundary.
 - `POST /v1/internal/jobs/{job_id}/result` with `status=succeeded` must clear

@@ -71,16 +71,18 @@ Choose **Option B**.
 3. `/v1/health/ready` reports the current runtime dependency checks
    explicitly.
 4. Cache and activity-store degradation remain visible in readiness
-   diagnostics; overall readiness follows the active check set until finer
-   dependency scoping is implemented.
+   diagnostics; overall readiness gates only traffic-critical dependencies
+   derived from the active runtime settings.
 5. Local synchronous OIDC/JWT verification never runs directly on async
    event-loop paths.
 6. `OIDC_VERIFIER_THREAD_TOKENS` is verifier-only authority; generic blocking
    I/O uses a separate limiter contract.
 7. Remote auth remains optional, fail-closed when enabled, and reuses a
    process-scoped async HTTP client with explicit shutdown cleanup.
-8. Deploy and operator docs must not claim an `IDEMPOTENCY_MODE` contract or
-   fail-closed shared-cache semantics before the runtime implements them.
+8. Deploy and operator docs must enforce the current strict idempotency
+   contract: `IDEMPOTENCY_ENABLED=true` requires shared Redis claim storage,
+   and shared-store failures fail closed without an `IDEMPOTENCY_MODE`
+   surface.
 
 ## Consequences
 
@@ -112,3 +114,5 @@ Choose **Option B**.
 - 2026-03-05: Added process-scoped remote-auth client lifecycle requirements.
 - 2026-03-14: Updated readiness-contract language and removed premature
   `IDEMPOTENCY_MODE` claims from the active runtime authority pack.
+- 2026-03-16: Finalized strict shared idempotency and dependency-scoped
+  readiness gating in the active runtime contract.

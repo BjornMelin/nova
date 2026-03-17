@@ -78,6 +78,7 @@ async def _request_metrics_summary(
             job_service=job_service,
             activity_store=activity_store,
             idempotency_enabled=True,
+            use_in_memory_shared_cache=True,
         )
     )
     async with (

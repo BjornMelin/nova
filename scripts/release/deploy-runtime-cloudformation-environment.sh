@@ -262,7 +262,7 @@ ensure_runtime_env_json_contract() {
   }
 
   jq -e 'has("IDEMPOTENCY_MODE") | not' <<<"$ENV_VARS_JSON" >/dev/null || {
-    echo "ENV_VARS_JSON must not include IDEMPOTENCY_MODE until runtime semantics are implemented." >&2
+    echo "ENV_VARS_JSON must not include IDEMPOTENCY_MODE; the runtime contract uses IDEMPOTENCY_ENABLED with shared-cache fail-closed semantics." >&2
     exit 1
   }
 
@@ -311,6 +311,15 @@ ensure_runtime_env_json_contract() {
     while IFS= read -r field; do
       [ -n "$field" ] && echo "  - $field" >&2
     done <<<"$unknown_fields"
+    exit 1
+  fi
+
+  local effective_idempotency_enabled="true"
+  if json_field_present "IDEMPOTENCY_ENABLED"; then
+    effective_idempotency_enabled="$(json_field_value "IDEMPOTENCY_ENABLED")"
+  fi
+  if [ "$effective_idempotency_enabled" = "true" ] && [ "$FILE_TRANSFER_CACHE_ENABLED" != "true" ]; then
+    echo "IDEMPOTENCY_ENABLED=true requires FILE_TRANSFER_CACHE_ENABLED=true so CACHE_REDIS_URL is injected into the runtime task." >&2
     exit 1
   fi
 }

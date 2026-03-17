@@ -122,8 +122,10 @@ The service MUST provide:
 - `GET /v1/health/ready`
 - `GET /metrics/summary`
 
-Readiness evaluation MUST expose the current runtime dependency checks and MUST
-return failure when any reported check is false.
+Readiness evaluation MUST expose the current runtime dependency checks (as required by
+FR-0002 and the Readiness evaluation clause) and MUST return `503 Service
+Unavailable` when any traffic-critical check is false. This HTTP 503 signal is the
+canonical readiness-failure behavior across runtime, tests, and docs.
 Feature flags (for example `JOBS_ENABLED`) MUST NOT drive readiness pass/fail
 by themselves; disabled features collapse to ready checks instead of
 introducing failing dependencies.
@@ -158,12 +160,20 @@ The idempotency implementation MUST use an explicit request lifecycle:
 Current runtime posture:
 
 - `IDEMPOTENCY_ENABLED` and `IDEMPOTENCY_TTL_SECONDS` are the active
-  configuration surface; the runtime does not yet expose `IDEMPOTENCY_MODE`.
-- When `CACHE_REDIS_URL` is configured, the shared Redis tier participates in
-  duplicate prevention, but shared-cache failures currently degrade to
-  best-effort local claim handling instead of a hard-fail production mode.
-- Active operator docs and deploy automation MUST NOT instruct operators to set
-  `IDEMPOTENCY_MODE` until runtime support exists.
+  configuration surface; the runtime does not expose `IDEMPOTENCY_MODE`.
+- `IDEMPOTENCY_ENABLED=true` requires `CACHE_REDIS_URL` and a shared Redis
+  claim store for duplicate prevention across instances.
+- Shared idempotency store failures MUST fail closed with `503` and
+  `error.code = "idempotency_unavailable"`.
+- If a mutation succeeds but the replay record cannot be committed, Nova MUST
+  preserve the existing `in_progress` claim so retries with the same key do
+  not execute the mutation a second time.
+- Clients receiving `idempotency_unavailable` from a protected mutation MUST
+  reuse the same `Idempotency-Key`; minting a new key after that response risks
+  creating a duplicate mutation.
+- Missing `Idempotency-Key` remains allowed; blank keys are invalid.
+- Active operator docs and deploy automation MUST enforce the shared-cache
+  requirement without introducing a mode matrix.
 
 ### FR-0005: Authentication and authorization
 

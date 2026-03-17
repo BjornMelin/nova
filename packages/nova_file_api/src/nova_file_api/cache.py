@@ -8,13 +8,21 @@ from collections import OrderedDict
 from collections.abc import Callable
 from dataclasses import dataclass
 from hashlib import sha256
+from inspect import isawaitable
 from threading import RLock
-from typing import Any
+from typing import Any, cast
 
 from redis.asyncio import Redis
 from redis.backoff import ExponentialWithJitterBackoff
 from redis.exceptions import RedisError
 from redis.retry import Retry
+
+_DELETE_IF_VALUE_MATCHES_LUA = """
+if redis.call("get", KEYS[1]) == ARGV[1] then
+  return redis.call("del", KEYS[1])
+end
+return 0
+"""
 
 
 @dataclass(slots=True)
@@ -23,6 +31,28 @@ class _Entry:
 
     value: str
     expires_at: float
+
+
+def namespaced_cache_key(
+    *,
+    namespace: str,
+    raw: str,
+    key_prefix: str,
+    key_schema_version: int,
+) -> str:
+    """Build a stable versioned cache key for shared storage.
+
+    Args:
+        namespace: Cache namespace used to partition keyspace.
+        raw: Raw cache input to hash.
+        key_prefix: Global key prefix shared by the runtime.
+        key_schema_version: Version marker for schema evolution.
+
+    Returns:
+        str: A stable versioned cache key.
+    """
+    digest = sha256(raw.encode("utf-8")).hexdigest()
+    return f"{key_prefix}:{namespace}:v{key_schema_version}:{digest}"
 
 
 class LocalTTLCache:
@@ -181,15 +211,39 @@ class SharedRedisCache:
             return "error"
         return "created" if bool(created) else "exists"
 
-    async def delete_with_status(self, key: str) -> str:
-        """Delete key and return backend status."""
+    async def delete_with_status(
+        self,
+        key: str,
+        *,
+        expected_value: str | None = None,
+    ) -> str:
+        """Delete key and return backend status.
+
+        Returns one of ``disabled``, ``ok``, ``mismatch``, or ``error``.
+        ``mismatch`` is used only when ``expected_value`` is provided and the
+        shared key is missing or no longer owned by the caller.
+        """
         if self._client is None:
             return "disabled"
         try:
-            await self._client.delete(key)
+            if expected_value is None:
+                await self._client.delete(key)
+                return "ok"
+            maybe_deleted = self._client.eval(
+                _DELETE_IF_VALUE_MATCHES_LUA,
+                1,
+                key,
+                expected_value,
+            )
+            deleted = (
+                await maybe_deleted
+                if isawaitable(maybe_deleted)
+                else maybe_deleted
+            )
         except RedisError:
             return "error"
-        return "ok"
+        deleted_count = cast(int, deleted)
+        return "ok" if deleted_count == 1 else "mismatch"
 
     async def ping(self) -> bool:
         """Return backend health when configured."""
@@ -233,10 +287,11 @@ class TwoTierCache:
 
     def namespaced_key(self, namespace: str, raw: str) -> str:
         """Build a fully namespaced versioned key for shared cache usage."""
-        digest = sha256(raw.encode("utf-8")).hexdigest()
-        return (
-            f"{self._key_prefix}:{namespace}:"
-            f"v{self._key_schema_version}:{digest}"
+        return namespaced_cache_key(
+            namespace=namespace,
+            raw=raw,
+            key_prefix=self._key_prefix,
+            key_schema_version=self._key_schema_version,
         )
 
     async def get_json(self, key: str) -> dict[str, Any] | None:

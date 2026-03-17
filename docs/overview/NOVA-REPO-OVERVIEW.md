@@ -235,7 +235,7 @@ sequenceDiagram
 
 - Queue publish failures for `POST /v1/jobs` must return `503` with `error.code = "queue_unavailable"`.
 - Failed enqueue responses must not be replay-cached by idempotency mechanisms.
-- `/v1/health/ready` reports the current runtime dependency checks and returns `503` when any reported check is false.
+- `/v1/health/ready` reports the current runtime dependency checks and returns `503` when a traffic-critical check is false.
 - Missing or blank `FILE_TRANSFER_BUCKET` must fail readiness.
 - Worker callback with `status=succeeded` must clear `error` to `null`.
 - Presigned URLs, JWTs, and signed query values must not be logged.

@@ -112,6 +112,7 @@ def _build_v1_deps(
         job_service=job_service,
         activity_store=MemoryActivityStore(),
         idempotency_enabled=True,
+        use_in_memory_shared_cache=True,
     )
 
 

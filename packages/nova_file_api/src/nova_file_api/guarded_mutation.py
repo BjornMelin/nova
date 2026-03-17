@@ -81,6 +81,26 @@ async def run_guarded_mutation[ResponseModelT: BaseModel](
                 error_type=type(exc).__name__,
             )
 
+    async def _discard_claim_best_effort() -> None:
+        assert idempotency_key is not None
+        try:
+            await idempotency_store.discard_claim(
+                route=route,
+                scope_id=scope_id,
+                idempotency_key=idempotency_key,
+                request_payload=request_payload,
+            )
+        except Exception as discard_exc:
+            logger.exception(
+                "guarded_mutation_discard_claim_failed",
+                route=route,
+                scope_id=scope_id,
+                idempotency_key=idempotency_key,
+                error_type=type(discard_exc).__name__,
+                error_message=str(discard_exc),
+            )
+            raise
+
     if idempotency_enabled and idempotency_key is not None:
         replay = await idempotency_store.load_response(
             route=route,
@@ -121,11 +141,7 @@ async def run_guarded_mutation[ResponseModelT: BaseModel](
             and idempotency_key is not None
             and claimed_idempotency
         ):
-            await idempotency_store.discard_claim(
-                route=route,
-                scope_id=scope_id,
-                idempotency_key=idempotency_key,
-            )
+            await _discard_claim_best_effort()
         raise
 
     if idempotency_enabled and idempotency_key is not None:
@@ -137,19 +153,12 @@ async def run_guarded_mutation[ResponseModelT: BaseModel](
                 request_payload=request_payload,
                 response_payload=response.model_dump(mode="json"),
             )
-        except Exception as exc:
+        except Exception:
             logger.exception(
                 store_response_failure_event,
                 **store_response_failure_extra,
             )
             if store_response_failure_mode == "raise":
-                await _run_failure_hook_best_effort(exc)
-                if claimed_idempotency:
-                    await idempotency_store.discard_claim(
-                        route=route,
-                        scope_id=scope_id,
-                        idempotency_key=idempotency_key,
-                    )
                 raise
 
     try:

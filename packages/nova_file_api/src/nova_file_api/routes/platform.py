@@ -205,7 +205,14 @@ async def health_ready(
         "activity_store": activity_store_ready,
         "auth_dependency": auth_dependency,
     }
-    is_ready = all(checks.values())
+    required_checks: tuple[str, ...] = (
+        "bucket_configured",
+        "auth_dependency",
+        "job_queue",
+    )
+    if settings.idempotency_enabled:
+        required_checks = (*required_checks, "shared_cache")
+    is_ready = all(checks[name] for name in required_checks)
     if not is_ready:
         response.status_code = 503
     return ReadinessResponse(ok=is_ready, checks=checks)

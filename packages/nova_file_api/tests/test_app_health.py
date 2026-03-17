@@ -3,7 +3,10 @@ from __future__ import annotations
 from fastapi.testclient import TestClient
 from nova_file_api.activity import MemoryActivityStore
 from nova_file_api.auth import Authenticator
+from nova_file_api.cache import SharedRedisCache
 from nova_file_api.config import Settings
+from nova_file_api.dependencies import build_two_tier_cache
+from nova_file_api.idempotency import IdempotencyStore
 from nova_file_api.jobs import (
     JobService,
     MemoryJobPublisher,
@@ -19,6 +22,19 @@ from .support.app import (
     build_test_app,
 )
 from .support.doubles import StubAuthenticator, StubTransferService
+
+
+class _FailingSharedCache(SharedRedisCache):
+    def __init__(self) -> None:
+        super().__init__(url=None)
+
+    async def ping(self) -> bool:
+        return False
+
+
+class _FailingActivityStore(MemoryActivityStore):
+    async def healthcheck(self) -> bool:
+        return False
 
 
 def _build_deps(
@@ -47,6 +63,28 @@ def _build_deps(
         job_service=job_service,
         activity_store=MemoryActivityStore(),
         idempotency_enabled=True,
+        use_in_memory_shared_cache=True,
+    )
+
+
+def _rebind_shared_cache_for_readiness(
+    *,
+    deps: RuntimeDeps,
+    shared_cache: SharedRedisCache,
+) -> None:
+    """Rebind cache and idempotency store to a replacement shared cache."""
+    deps.shared_cache = shared_cache
+    deps.cache = build_two_tier_cache(
+        settings=deps.settings,
+        metrics=deps.metrics,
+        shared_cache=shared_cache,
+    )
+    deps.idempotency_store = IdempotencyStore(
+        shared_cache=shared_cache,
+        enabled=deps.settings.idempotency_enabled,
+        ttl_seconds=deps.settings.idempotency_ttl_seconds,
+        key_prefix=deps.settings.cache_key_prefix,
+        key_schema_version=deps.settings.cache_key_schema_version,
     )
 
 
@@ -89,6 +127,76 @@ def test_readyz_stays_ok_when_jobs_are_disabled() -> None:
         "shared_cache": True,
         "job_queue": True,
         "activity_store": True,
+        "auth_dependency": True,
+    }
+
+
+def test_readyz_does_not_gate_shared_cache_when_idempotency_disabled() -> None:
+    """Shared-cache outages stay visible when idempotency is off."""
+    deps = _build_deps()
+    deps.settings.idempotency_enabled = False
+    _rebind_shared_cache_for_readiness(
+        deps=deps,
+        shared_cache=_FailingSharedCache(),
+    )
+    app = build_test_app(deps)
+
+    with TestClient(app) as client:
+        response = client.get("/v1/health/ready")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["ok"] is True
+    assert payload["checks"] == {
+        "bucket_configured": True,
+        "shared_cache": False,
+        "job_queue": True,
+        "activity_store": True,
+        "auth_dependency": True,
+    }
+
+
+def test_readyz_fails_when_idempotency_requires_shared_cache() -> None:
+    """Shared-cache outages fail readiness when idempotency is enabled."""
+    deps = _build_deps()
+    _rebind_shared_cache_for_readiness(
+        deps=deps,
+        shared_cache=_FailingSharedCache(),
+    )
+    app = build_test_app(deps)
+
+    with TestClient(app) as client:
+        response = client.get("/v1/health/ready")
+
+    assert response.status_code == 503
+    payload = response.json()
+    assert payload["ok"] is False
+    assert payload["checks"] == {
+        "bucket_configured": True,
+        "shared_cache": False,
+        "job_queue": True,
+        "activity_store": True,
+        "auth_dependency": True,
+    }
+
+
+def test_readyz_reports_activity_store_failures_without_gating() -> None:
+    """Activity-store degradation should remain diagnostic in readiness."""
+    deps = _build_deps()
+    deps.activity_store = _FailingActivityStore()
+    app = build_test_app(deps)
+
+    with TestClient(app) as client:
+        response = client.get("/v1/health/ready")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["ok"] is True
+    assert payload["checks"] == {
+        "bucket_configured": True,
+        "shared_cache": True,
+        "job_queue": True,
+        "activity_store": False,
         "auth_dependency": True,
     }
 

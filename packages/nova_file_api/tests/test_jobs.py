@@ -212,6 +212,7 @@ async def _build_same_origin_status_container(*, scope_id: str) -> RuntimeDeps:
         job_service=service,
         activity_store=MemoryActivityStore(),
         idempotency_enabled=True,
+        use_in_memory_shared_cache=True,
     )
 
 
@@ -236,6 +237,7 @@ def _build_failing_job_container(
         job_service=_AlwaysFailingJobService(),
         activity_store=activity_store,
         idempotency_enabled=True,
+        use_in_memory_shared_cache=True,
     )
     return container, metrics, activity_store
 
@@ -462,6 +464,7 @@ async def test_enqueue_failure_is_not_idempotency_cached() -> None:
         job_service=job_service,
         activity_store=MemoryActivityStore(),
         idempotency_enabled=True,
+        use_in_memory_shared_cache=True,
     )
 
     app = build_test_app(container)
@@ -814,6 +817,7 @@ async def test_update_job_result_requires_valid_worker_token() -> None:
         job_service=service,
         activity_store=MemoryActivityStore(),
         idempotency_enabled=True,
+        use_in_memory_shared_cache=True,
     )
 
     app = build_test_app(container)

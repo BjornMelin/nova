@@ -1,11 +1,21 @@
 from __future__ import annotations
 
+import json
 from datetime import UTC, datetime
+from unittest.mock import AsyncMock, Mock
 
+import nova_file_api.idempotency as idempotency_module
+import pytest
 from fastapi.testclient import TestClient
 from nova_file_api.activity import MemoryActivityStore
+from nova_file_api.cache import SharedRedisCache
 from nova_file_api.config import Settings
+from nova_file_api.dependencies import (
+    build_idempotency_store,
+    build_two_tier_cache,
+)
 from nova_file_api.errors import queue_unavailable
+from nova_file_api.idempotency import IdempotencyStore
 from nova_file_api.metrics import MetricsCollector
 from nova_file_api.models import (
     EnqueueJobResponse,
@@ -15,6 +25,7 @@ from nova_file_api.models import (
     Principal,
     UploadStrategy,
 )
+from redis.exceptions import RedisError
 from starlette.requests import Request
 
 from .support.app import (
@@ -23,6 +34,7 @@ from .support.app import (
     build_runtime_deps,
     build_test_app,
 )
+from .support.redis import MemoryRedisClient as _DictRedisClient
 
 
 class _StubAuthenticator:
@@ -116,8 +128,110 @@ class _FailFirstEnqueueJobService(_StubJobService):
         )
 
 
+class _ErrorRedisClient:
+    async def get(self, key: str) -> str | None:
+        del key
+        raise RedisError("simulated read outage")
+
+    async def set(
+        self,
+        *,
+        name: str,
+        value: str,
+        ex: int,
+        nx: bool = False,
+    ) -> bool:
+        del name, value, ex, nx
+        raise RedisError("simulated write outage")
+
+    async def delete(self, key: str) -> int:
+        del key
+        raise RedisError("simulated delete outage")
+
+    async def eval(
+        self,
+        script: str,
+        numkeys: int,
+        key: str,
+        expected_value: str,
+    ) -> int:
+        del script, numkeys, key, expected_value
+        raise RedisError("simulated delete outage")
+
+    async def ping(self) -> bool:
+        return False
+
+
+class _ClaimOnlyRedisClient:
+    def __init__(self) -> None:
+        self._data: dict[str, str] = {}
+
+    async def get(self, key: str) -> str | None:
+        return self._data.get(key)
+
+    async def set(
+        self,
+        *,
+        name: str,
+        value: str,
+        ex: int,
+        nx: bool = False,
+    ) -> bool:
+        del ex
+        if nx:
+            if name in self._data:
+                return False
+            self._data[name] = value
+            return True
+        raise RedisError("simulated commit outage")
+
+    async def delete(self, key: str) -> int:
+        return 1 if self._data.pop(key, None) is not None else 0
+
+    async def eval(
+        self,
+        script: str,
+        numkeys: int,
+        key: str,
+        expected_value: str,
+    ) -> int:
+        del script, numkeys
+        if self._data.get(key) != expected_value:
+            return 0
+        return await self.delete(key)
+
+    async def ping(self) -> bool:
+        return True
+
+
+def _shared_cache_with_client(client: object) -> SharedRedisCache:
+    shared_cache = SharedRedisCache(url=None)
+    shared_cache._client = client  # type: ignore[assignment]
+    return shared_cache
+
+
+def _replace_shared_cache(
+    *,
+    deps: RuntimeDeps,
+    shared_cache: SharedRedisCache,
+) -> None:
+    """Rebind cache and idempotency store to a replacement shared cache."""
+    deps.shared_cache = shared_cache
+    deps.cache = build_two_tier_cache(
+        settings=deps.settings,
+        metrics=deps.metrics,
+        shared_cache=shared_cache,
+    )
+    deps.idempotency_store = build_idempotency_store(
+        settings=deps.settings,
+        shared_cache=shared_cache,
+    )
+
+
 def _build_deps(
-    *, idempotency_enabled: bool = True
+    *,
+    idempotency_enabled: bool = True,
+    use_in_memory_shared_cache: bool = True,
 ) -> tuple[RuntimeDeps, _StubTransferService, _StubJobService]:
     settings = Settings()
     settings.idempotency_enabled = idempotency_enabled
@@ -136,6 +250,7 @@ def _build_deps(
         job_service=job_service,
         activity_store=MemoryActivityStore(),
         idempotency_enabled=idempotency_enabled,
+        use_in_memory_shared_cache=use_in_memory_shared_cache,
     )
     return deps, transfer_service, job_service
 
@@ -297,3 +412,234 @@ def test_v1_jobs_failed_enqueue_is_not_idempotency_replayed() -> None:
     parsed = EnqueueJobResponse.model_validate(second.json())
     assert parsed.job_id == "job-2"
     assert flaky_job_service.calls == 2
+
+
+def test_v1_initiate_fails_closed_when_shared_claim_store_is_unavailable() -> (
+    None
+):
+    """Redis claim-store outages must fail closed before executing work."""
+    deps, transfer_service, _job_service = _build_deps()
+    failing_shared_cache = _shared_cache_with_client(_ErrorRedisClient())
+    _replace_shared_cache(
+        deps=deps,
+        shared_cache=failing_shared_cache,
+    )
+    app = build_test_app(deps)
+
+    with TestClient(app) as client:
+        response = client.post(
+            "/v1/transfers/uploads/initiate",
+            headers={"Idempotency-Key": "upload-key-error"},
+            json={
+                "filename": "sample.csv",
+                "size_bytes": 42,
+                "content_type": "text/csv",
+            },
+        )
+
+    assert response.status_code == 503
+    assert response.json()["error"]["code"] == "idempotency_unavailable"
+    assert transfer_service.calls == 0
+
+
+def test_v1_initiate_store_failure_is_not_replayed() -> None:
+    """Commit-store outages must block duplicate execution."""
+    deps, transfer_service, _job_service = _build_deps()
+    flaky_shared_cache = _shared_cache_with_client(_ClaimOnlyRedisClient())
+    _replace_shared_cache(
+        deps=deps,
+        shared_cache=flaky_shared_cache,
+    )
+    app = build_test_app(deps)
+
+    with TestClient(app) as client:
+        first = client.post(
+            "/v1/transfers/uploads/initiate",
+            headers={"Idempotency-Key": "upload-key-commit-outage"},
+            json={
+                "filename": "sample.csv",
+                "size_bytes": 42,
+                "content_type": "text/csv",
+            },
+        )
+        second = client.post(
+            "/v1/transfers/uploads/initiate",
+            headers={"Idempotency-Key": "upload-key-commit-outage"},
+            json={
+                "filename": "sample.csv",
+                "size_bytes": 42,
+                "content_type": "text/csv",
+            },
+        )
+
+    assert first.status_code == 503
+    assert first.json()["error"]["code"] == "idempotency_unavailable"
+    assert second.status_code == 409
+    assert second.json()["error"]["code"] == "idempotency_conflict"
+    assert transfer_service.calls == 1
+
+
+def test_v1_jobs_store_failure_blocks_duplicate_enqueue() -> None:
+    """Commit-store outages must not re-run a successful enqueue."""
+    deps, _transfer_service, job_service = _build_deps()
+    flaky_shared_cache = _shared_cache_with_client(_ClaimOnlyRedisClient())
+    _replace_shared_cache(
+        deps=deps,
+        shared_cache=flaky_shared_cache,
+    )
+    app = build_test_app(deps)
+
+    with TestClient(app) as client:
+        first = client.post(
+            "/v1/jobs",
+            headers={"Idempotency-Key": "job-key-commit-outage"},
+            json={"job_type": "transform", "payload": {"input": "a"}},
+        )
+        second = client.post(
+            "/v1/jobs",
+            headers={"Idempotency-Key": "job-key-commit-outage"},
+            json={"job_type": "transform", "payload": {"input": "a"}},
+        )
+
+    assert first.status_code == 503
+    assert first.json()["error"]["code"] == "idempotency_unavailable"
+    assert second.status_code == 409
+    assert second.json()["error"]["code"] == "idempotency_conflict"
+    assert job_service.calls == 1
+
+
+@pytest.mark.asyncio
+async def test_shared_idempotency_store_prevents_duplicate_claims() -> None:
+    """Separate store instances sharing Redis must not both claim one key."""
+    shared_cache = _shared_cache_with_client(_DictRedisClient())
+    first_store = IdempotencyStore(
+        shared_cache=shared_cache,
+        enabled=True,
+        ttl_seconds=300,
+        key_prefix="nova",
+        key_schema_version=1,
+    )
+    second_store = IdempotencyStore(
+        shared_cache=shared_cache,
+        enabled=True,
+        ttl_seconds=300,
+        key_prefix="nova",
+        key_schema_version=1,
+    )
+
+    first_claim = await first_store.claim_request(
+        route="/v1/jobs",
+        scope_id="scope-1",
+        idempotency_key="job-key-shared",
+        request_payload={"job_type": "transform", "payload": {"input": "a"}},
+    )
+
+    assert first_claim is True
+    with pytest.raises(Exception, match="already in progress"):
+        await second_store.claim_request(
+            route="/v1/jobs",
+            scope_id="scope-1",
+            idempotency_key="job-key-shared",
+            request_payload={
+                "job_type": "transform",
+                "payload": {"input": "a"},
+            },
+        )
+
+
+@pytest.mark.asyncio
+async def test_claim_request_conflicts_when_claim_entry_expires_before_read(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Expired claim entries must fail closed instead of replaying."""
+    store = IdempotencyStore(
+        shared_cache=_shared_cache_with_client(_DictRedisClient()),
+        enabled=True,
+        ttl_seconds=300,
+        key_prefix="nova",
+        key_schema_version=1,
+    )
+    write_entry_if_absent = AsyncMock(return_value=False)
+    read_entry = AsyncMock(return_value=None)
+    assert_request_hash = Mock()
+
+    monkeypatch.setattr(
+        store,
+        "_write_entry_if_absent",
+        write_entry_if_absent,
+    )
+    monkeypatch.setattr(store, "_read_entry", read_entry)
+    monkeypatch.setattr(
+        idempotency_module,
+        "_assert_entry_request_hash",
+        assert_request_hash,
+    )
+
+    with pytest.raises(Exception, match="stored idempotency record is invalid"):
+        await store.claim_request(
+            route="/v1/jobs",
+            scope_id="scope-1",
+            idempotency_key="job-key-expired-claim",
+            request_payload={
+                "job_type": "transform",
+                "payload": {"input": "a"},
+            },
+        )
+
+    assert_request_hash.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_discard_claim_keeps_newer_owner_when_claim_was_replaced() -> (
+    None
+):
+    """Failure cleanup must not delete a newer claimant's in-progress entry."""
+    client = _DictRedisClient()
+    shared_cache = _shared_cache_with_client(client)
+    store = IdempotencyStore(
+        shared_cache=shared_cache,
+        enabled=True,
+        ttl_seconds=300,
+        key_prefix="nova",
+        key_schema_version=1,
+    )
+    first_payload = {"job_type": "transform", "payload": {"input": "a"}}
+    second_payload = {"job_type": "transform", "payload": {"input": "b"}}
+
+    claimed = await store.claim_request(
+        route="/v1/jobs",
+        scope_id="scope-1",
+        idempotency_key="job-key-replaced-claim",
+        request_payload=first_payload,
+    )
+    assert claimed is True
+
+    cache_key = store._entry_cache_key(
+        route="/v1/jobs",
+        scope_id="scope-1",
+        idempotency_key="job-key-replaced-claim",
+    )
+    client._data[cache_key] = json.dumps(
+        {
+            "state": "in_progress",
+            "request_hash": idempotency_module._payload_hash(
+                payload=second_payload,
+            ),
+        },
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+
+    await store.discard_claim(
+        route="/v1/jobs",
+        scope_id="scope-1",
+        idempotency_key="job-key-replaced-claim",
+        request_payload=first_payload,
+    )
+
+    assert await store._read_entry(cache_key) == {
+        "state": "in_progress",
+        "request_hash": idempotency_module._payload_hash(
+            payload=second_payload,
+        ),
+    }

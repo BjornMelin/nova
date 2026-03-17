@@ -475,6 +475,16 @@ Rules:
         AssertDescription: >-
           CacheRedisUrlSecretArn is required when FileTransferCacheEnabled is
           "true".
+  IdempotencyRequiresSharedCache:
+    Assertions:
+      - Assert: !Or
+          - !Equals [!Ref IdempotencyEnabled, "false"]
+          - !And
+              - !Equals [!Ref FileTransferCacheEnabled, "true"]
+              - !Not [!Equals [!Ref CacheRedisUrlSecretArn, ""]]
+        AssertDescription: >-
+          IdempotencyEnabled requires FileTransferCacheEnabled to be "true"
+          and CacheRedisUrlSecretArn to be configured.
   JwtRemoteAuthParamsProvided:
     Assertions:
       - Assert: !Or

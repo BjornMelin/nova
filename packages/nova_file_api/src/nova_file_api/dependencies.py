@@ -54,6 +54,9 @@ _MSG_ACTIVITY_ROLLUPS_TABLE_REQUIRED = (
     "ACTIVITY_ROLLUPS_TABLE must be configured when "
     "ACTIVITY_STORE_BACKEND=dynamodb"
 )
+_MSG_IDEMPOTENCY_REQUIRES_SHARED_CACHE = (
+    "CACHE_REDIS_URL must be configured when IDEMPOTENCY_ENABLED=true"
+)
 _MSG_S3_CLIENT_REQUIRED = "s3_client must be provided"
 _MSG_DYNAMODB_RESOURCE_REQUIRED = (
     "dynamodb_resource must be provided when DynamoDB backends are enabled"
@@ -62,6 +65,48 @@ _MSG_SQS_CLIENT_REQUIRED = (
     "sqs_client must be provided when JOBS_QUEUE_BACKEND=sqs and "
     "JOBS_ENABLED=true"
 )
+
+
+def _resolve_shared_cache(
+    *,
+    app: FastAPI,
+    settings: Settings,
+) -> SharedRedisCache:
+    """Resolve the shared cache from providers, state, or fresh settings."""
+    shared_cache_provider = getattr(app.state, "_shared_cache_provider", None)
+    prebuilt_shared_cache = (
+        shared_cache_provider() if callable(shared_cache_provider) else None
+    )
+    if isinstance(prebuilt_shared_cache, SharedRedisCache):
+        return prebuilt_shared_cache
+
+    existing_shared_cache = getattr(app.state, "shared_cache", None)
+    if isinstance(existing_shared_cache, SharedRedisCache):
+        return existing_shared_cache
+
+    return build_shared_cache(settings=settings)
+
+
+def _cache_uses_shared_cache(
+    cache: object,
+    *,
+    shared_cache: SharedRedisCache,
+) -> bool:
+    """Return whether a cache instance is bound to the resolved shared cache."""
+    return isinstance(cache, TwoTierCache) and (
+        getattr(cache, "_shared", None) is shared_cache
+    )
+
+
+def _idempotency_store_uses_shared_cache(
+    store: object,
+    *,
+    shared_cache: SharedRedisCache,
+) -> bool:
+    """Return whether a store instance uses the resolved shared cache."""
+    return isinstance(store, IdempotencyStore) and (
+        getattr(store, "_shared_cache", None) is shared_cache
+    )
 
 
 def initialize_runtime_state(
@@ -92,12 +137,22 @@ def initialize_runtime_state(
         raise ValueError(_MSG_S3_CLIENT_REQUIRED)
 
     metrics = build_metrics(settings=settings)
-    shared_cache = build_shared_cache(settings=settings)
-    cache = build_two_tier_cache(
-        settings=settings,
-        metrics=metrics,
-        shared_cache=shared_cache,
-    )
+    shared_cache = _resolve_shared_cache(app=app, settings=settings)
+
+    cache_provider = getattr(app.state, "_two_tier_cache_provider", None)
+    prebuilt_cache = cache_provider() if callable(cache_provider) else None
+    existing_cache = getattr(app.state, "cache", None)
+    cache: TwoTierCache
+    if _cache_uses_shared_cache(prebuilt_cache, shared_cache=shared_cache):
+        cache = cast(TwoTierCache, prebuilt_cache)
+    elif _cache_uses_shared_cache(existing_cache, shared_cache=shared_cache):
+        cache = cast(TwoTierCache, existing_cache)
+    else:
+        cache = build_two_tier_cache(
+            settings=settings,
+            metrics=metrics,
+            shared_cache=shared_cache,
+        )
     job_repository = build_job_repository(
         settings=settings,
         dynamodb_resource=dynamodb_resource,
@@ -130,10 +185,31 @@ def initialize_runtime_state(
         metrics=metrics,
     )
     app.state.activity_store = activity_store
-    app.state.idempotency_store = build_idempotency_store(
-        settings=settings,
-        cache=cache,
+    idempotency_store_provider = getattr(
+        app.state, "_idempotency_store_provider", None
     )
+    prebuilt_idempotency_store = (
+        idempotency_store_provider()
+        if callable(idempotency_store_provider)
+        else None
+    )
+    existing_idempotency_store = getattr(app.state, "idempotency_store", None)
+    if _idempotency_store_uses_shared_cache(
+        prebuilt_idempotency_store,
+        shared_cache=shared_cache,
+    ):
+        idempotency_store = cast(IdempotencyStore, prebuilt_idempotency_store)
+    elif _idempotency_store_uses_shared_cache(
+        existing_idempotency_store,
+        shared_cache=shared_cache,
+    ):
+        idempotency_store = cast(IdempotencyStore, existing_idempotency_store)
+    else:
+        idempotency_store = build_idempotency_store(
+            settings=settings,
+            shared_cache=shared_cache,
+        )
+    app.state.idempotency_store = idempotency_store
 
 
 def build_metrics(*, settings: Settings) -> MetricsCollector:
@@ -167,7 +243,7 @@ def build_two_tier_cache(
     metrics: MetricsCollector,
     shared_cache: SharedRedisCache,
 ) -> TwoTierCache:
-    """Create the two-tier cache used by auth and idempotency.
+    """Create the two-tier cache used by auth and general cached lookups.
 
     Args:
         settings: Resolved runtime settings.
@@ -193,13 +269,29 @@ def build_two_tier_cache(
 def build_idempotency_store(
     *,
     settings: Settings,
-    cache: TwoTierCache,
+    shared_cache: SharedRedisCache,
 ) -> IdempotencyStore:
-    """Create the idempotency store."""
+    """Create the idempotency store.
+
+    Args:
+        settings: Resolved runtime settings.
+        shared_cache: Shared Redis cache for idempotency entries.
+
+    Returns:
+        The configured idempotency store.
+
+    Raises:
+        ValueError: When settings.idempotency_enabled is true but
+            shared_cache.available is false.
+    """
+    if settings.idempotency_enabled and not shared_cache.available:
+        raise ValueError(_MSG_IDEMPOTENCY_REQUIRES_SHARED_CACHE)
     return IdempotencyStore(
-        cache=cache,
+        shared_cache=shared_cache,
         enabled=settings.idempotency_enabled,
         ttl_seconds=settings.idempotency_ttl_seconds,
+        key_prefix=settings.cache_key_prefix,
+        key_schema_version=settings.cache_key_schema_version,
     )
 
 
