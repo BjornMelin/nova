@@ -54,6 +54,9 @@ _MSG_ACTIVITY_ROLLUPS_TABLE_REQUIRED = (
     "ACTIVITY_ROLLUPS_TABLE must be configured when "
     "ACTIVITY_STORE_BACKEND=dynamodb"
 )
+_MSG_IDEMPOTENCY_REQUIRES_SHARED_CACHE = (
+    "CACHE_REDIS_URL must be configured when IDEMPOTENCY_ENABLED=true"
+)
 _MSG_S3_CLIENT_REQUIRED = "s3_client must be provided"
 _MSG_DYNAMODB_RESOURCE_REQUIRED = (
     "dynamodb_resource must be provided when DynamoDB backends are enabled"
@@ -132,7 +135,7 @@ def initialize_runtime_state(
     app.state.activity_store = activity_store
     app.state.idempotency_store = build_idempotency_store(
         settings=settings,
-        cache=cache,
+        shared_cache=shared_cache,
     )
 
 
@@ -167,7 +170,7 @@ def build_two_tier_cache(
     metrics: MetricsCollector,
     shared_cache: SharedRedisCache,
 ) -> TwoTierCache:
-    """Create the two-tier cache used by auth and idempotency.
+    """Create the two-tier cache used by auth and general cached lookups.
 
     Args:
         settings: Resolved runtime settings.
@@ -193,13 +196,17 @@ def build_two_tier_cache(
 def build_idempotency_store(
     *,
     settings: Settings,
-    cache: TwoTierCache,
+    shared_cache: SharedRedisCache,
 ) -> IdempotencyStore:
     """Create the idempotency store."""
+    if settings.idempotency_enabled and not shared_cache.available:
+        raise ValueError(_MSG_IDEMPOTENCY_REQUIRES_SHARED_CACHE)
     return IdempotencyStore(
-        cache=cache,
+        shared_cache=shared_cache,
         enabled=settings.idempotency_enabled,
         ttl_seconds=settings.idempotency_ttl_seconds,
+        key_prefix=settings.cache_key_prefix,
+        key_schema_version=settings.cache_key_schema_version,
     )
 
 

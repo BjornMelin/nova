@@ -41,6 +41,16 @@
         },
         "description": "Canonical invalid-request response."
       },
+      "FileMutationUnavailableResponse": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            }
+          }
+        },
+        "description": "Canonical mutation dependency-unavailable response."
+      },
       "FileQueueUnavailableResponse": {
         "content": {
           "application/json": {
@@ -1557,7 +1567,7 @@
             "$ref": "#/components/responses/FileInvalidRequestResponse"
           },
           "503": {
-            "$ref": "#/components/responses/FileQueueUnavailableResponse"
+            "$ref": "#/components/responses/FileMutationUnavailableResponse"
           }
         },
         "security": [

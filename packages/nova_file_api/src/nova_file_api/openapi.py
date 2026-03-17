@@ -23,6 +23,9 @@ OPENAPI_RESPONSE_DESCRIPTIONS = {
     "FileIdempotencyConflictResponse": (
         "Canonical idempotency-conflict response."
     ),
+    "FileMutationUnavailableResponse": (
+        "Canonical mutation dependency-unavailable response."
+    ),
     "FileQueueUnavailableResponse": "Canonical queue unavailable response.",
     "FileIdempotencyUnavailableResponse": (
         "Canonical idempotency-unavailable response."
@@ -90,7 +93,7 @@ OPENAPI_OPERATION_RESPONSES = {
             "403": "FileForbiddenResponse",
             "409": "FileIdempotencyConflictResponse",
             "422": "FileInvalidRequestResponse",
-            "503": "FileQueueUnavailableResponse",
+            "503": "FileMutationUnavailableResponse",
         },
     },
     "/v1/jobs/{job_id}": {

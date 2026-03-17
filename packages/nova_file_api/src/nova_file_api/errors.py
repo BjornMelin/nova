@@ -118,6 +118,22 @@ def idempotency_conflict(
     )
 
 
+def idempotency_unavailable(
+    message: str,
+    *,
+    details: dict[str, Any] | None = None,
+    headers: dict[str, str] | None = None,
+) -> FileTransferError:
+    """Return an idempotency dependency-unavailable error."""
+    return FileTransferError(
+        code="idempotency_unavailable",
+        message=message,
+        status_code=int(HTTPStatus.SERVICE_UNAVAILABLE),
+        details=details or {},
+        headers=headers or {},
+    )
+
+
 def upstream_s3_error(
     message: str,
     *,

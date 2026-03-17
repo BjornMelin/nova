@@ -892,6 +892,15 @@ export interface components {
                 "application/json": components["schemas"]["ErrorEnvelope"];
             };
         };
+        /** @description Canonical mutation dependency-unavailable response. */
+        FileMutationUnavailableResponse: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ErrorEnvelope"];
+            };
+        };
         /** @description Canonical queue unavailable response. */
         FileQueueUnavailableResponse: {
             headers: {
@@ -1092,7 +1101,7 @@ export interface operations {
             403: components["responses"]["FileForbiddenResponse"];
             409: components["responses"]["FileIdempotencyConflictResponse"];
             422: components["responses"]["FileInvalidRequestResponse"];
-            503: components["responses"]["FileQueueUnavailableResponse"];
+            503: components["responses"]["FileMutationUnavailableResponse"];
         };
     };
     get_job_status: {

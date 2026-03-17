@@ -25,6 +25,18 @@ class _Entry:
     expires_at: float
 
 
+def namespaced_cache_key(
+    *,
+    namespace: str,
+    raw: str,
+    key_prefix: str,
+    key_schema_version: int,
+) -> str:
+    """Build a stable versioned cache key for shared storage."""
+    digest = sha256(raw.encode("utf-8")).hexdigest()
+    return f"{key_prefix}:{namespace}:v{key_schema_version}:{digest}"
+
+
 class LocalTTLCache:
     """Small in-memory TTL cache with bounded capacity."""
 
@@ -233,10 +245,11 @@ class TwoTierCache:
 
     def namespaced_key(self, namespace: str, raw: str) -> str:
         """Build a fully namespaced versioned key for shared cache usage."""
-        digest = sha256(raw.encode("utf-8")).hexdigest()
-        return (
-            f"{self._key_prefix}:{namespace}:"
-            f"v{self._key_schema_version}:{digest}"
+        return namespaced_cache_key(
+            namespace=namespace,
+            raw=raw,
+            key_prefix=self._key_prefix,
+            key_schema_version=self._key_schema_version,
         )
 
     async def get_json(self, key: str) -> dict[str, Any] | None:
