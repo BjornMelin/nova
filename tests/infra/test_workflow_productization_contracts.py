@@ -184,6 +184,14 @@ def test_cfn_contract_validate_workflow_exists_for_cfn_gates() -> None:
     assert isinstance(on_contract, dict)
     assert "workflow_dispatch" in on_contract
     assert "paths" not in workflow
+    pull_request_on = on_contract.get("pull_request")
+    if isinstance(pull_request_on, dict):
+        assert "paths" not in pull_request_on
+        assert "paths-ignore" not in pull_request_on
+    push_on = on_contract.get("push")
+    if isinstance(push_on, dict):
+        assert "paths" not in push_on
+        assert "paths-ignore" not in push_on
 
     jobs = workflow.get("jobs")
     assert isinstance(jobs, dict)
@@ -271,6 +279,17 @@ def test_required_ci_workflows_use_scope_classifier_gate() -> None:
             job = jobs.get(job_name)
             assert isinstance(job, dict), (
                 f"Missing expected gated job {job_name!r} in {rel_path}"
+            )
+            job_needs = job.get("needs")
+            if isinstance(job_needs, str):
+                needs_list = [job_needs]
+            elif isinstance(job_needs, list):
+                needs_list = job_needs
+            else:
+                needs_list = []
+            assert "classify-changes" in needs_list, (
+                "Expected classify-changes job dependency in "
+                f"{job_name!r} for {rel_path}"
             )
             condition = str(job.get("if", ""))
             assert "classify-changes" in condition, (
