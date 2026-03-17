@@ -105,6 +105,8 @@ SDK posture:
 - Generated-client compatibility is enforced by
   `packages/nova_file_api/tests/test_generated_client_smoke.py`.
 - Never log presigned URLs, JWTs, or signed query values.
+- Keep `.agents/AUDIT_DELIVERABLES/*` updated locally for dev tracking, but
+  leave it ignored and never commit it in PRs.
 
 Quick route preflight:
 
