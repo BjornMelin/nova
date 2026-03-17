@@ -122,8 +122,10 @@ The service MUST provide:
 - `GET /v1/health/ready`
 - `GET /metrics/summary`
 
-Readiness evaluation MUST expose the current runtime dependency checks and MUST
-return failure when a traffic-critical check is false.
+Readiness evaluation MUST expose the current runtime dependency checks (as required by
+FR-0002 and the Readiness evaluation clause) and MUST return `503 Service
+Unavailable` when any traffic-critical check is false. This HTTP 503 signal is the
+canonical readiness-failure behavior across runtime, tests, and docs.
 Feature flags (for example `JOBS_ENABLED`) MUST NOT drive readiness pass/fail
 by themselves; disabled features collapse to ready checks instead of
 introducing failing dependencies.

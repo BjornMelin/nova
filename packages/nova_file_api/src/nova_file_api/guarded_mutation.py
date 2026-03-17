@@ -81,7 +81,7 @@ async def run_guarded_mutation[ResponseModelT: BaseModel](
                 error_type=type(exc).__name__,
             )
 
-    async def _discard_claim_best_effort(*, exc: Exception) -> None:
+    async def _discard_claim_best_effort() -> None:
         assert idempotency_key is not None
         try:
             await idempotency_store.discard_claim(
@@ -89,13 +89,16 @@ async def run_guarded_mutation[ResponseModelT: BaseModel](
                 scope_id=scope_id,
                 idempotency_key=idempotency_key,
             )
-        except Exception:
+        except Exception as discard_exc:
             logger.exception(
                 "guarded_mutation_discard_claim_failed",
                 route=route,
                 scope_id=scope_id,
-                error_type=type(exc).__name__,
+                idempotency_key=idempotency_key,
+                error_type=type(discard_exc).__name__,
+                error_message=str(discard_exc),
             )
+            raise
 
     if idempotency_enabled and idempotency_key is not None:
         replay = await idempotency_store.load_response(
@@ -137,7 +140,7 @@ async def run_guarded_mutation[ResponseModelT: BaseModel](
             and idempotency_key is not None
             and claimed_idempotency
         ):
-            await _discard_claim_best_effort(exc=exc)
+            await _discard_claim_best_effort()
         raise
 
     if idempotency_enabled and idempotency_key is not None:

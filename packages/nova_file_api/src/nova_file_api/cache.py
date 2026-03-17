@@ -32,7 +32,17 @@ def namespaced_cache_key(
     key_prefix: str,
     key_schema_version: int,
 ) -> str:
-    """Build a stable versioned cache key for shared storage."""
+    """Build a stable versioned cache key for shared storage.
+
+    Args:
+        namespace: Cache namespace used to partition keyspace.
+        raw: Raw cache input to hash.
+        key_prefix: Global key prefix shared by the runtime.
+        key_schema_version: Version marker for schema evolution.
+
+    Returns:
+        str: A stable versioned cache key.
+    """
     digest = sha256(raw.encode("utf-8")).hexdigest()
     return f"{key_prefix}:{namespace}:v{key_schema_version}:{digest}"
 

@@ -67,6 +67,7 @@ def _build_openapi_app() -> FastAPI:
             ),
             activity_store=MemoryActivityStore(),
             idempotency_enabled=True,
+            use_in_memory_shared_cache=True,
         )
     )
 

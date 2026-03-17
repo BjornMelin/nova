@@ -95,11 +95,36 @@ def initialize_runtime_state(
         raise ValueError(_MSG_S3_CLIENT_REQUIRED)
 
     metrics = build_metrics(settings=settings)
-    shared_cache = build_shared_cache(settings=settings)
-    cache = build_two_tier_cache(
-        settings=settings,
-        metrics=metrics,
-        shared_cache=shared_cache,
+    shared_cache_provider = getattr(app.state, "_shared_cache_provider", None)
+    prebuilt_shared_cache = (
+        shared_cache_provider() if callable(shared_cache_provider) else None
+    )
+    existing_shared_cache = getattr(app.state, "shared_cache", None)
+    shared_cache = (
+        prebuilt_shared_cache
+        if isinstance(prebuilt_shared_cache, SharedRedisCache)
+        else (
+            existing_shared_cache
+            if isinstance(existing_shared_cache, SharedRedisCache)
+            else build_shared_cache(settings=settings)
+        )
+    )
+
+    cache_provider = getattr(app.state, "_two_tier_cache_provider", None)
+    prebuilt_cache = cache_provider() if callable(cache_provider) else None
+    existing_cache = getattr(app.state, "cache", None)
+    cache = (
+        prebuilt_cache
+        if isinstance(prebuilt_cache, TwoTierCache)
+        else (
+            existing_cache
+            if isinstance(existing_cache, TwoTierCache)
+            else build_two_tier_cache(
+                settings=settings,
+                metrics=metrics,
+                shared_cache=shared_cache,
+            )
+        )
     )
     job_repository = build_job_repository(
         settings=settings,
@@ -133,9 +158,21 @@ def initialize_runtime_state(
         metrics=metrics,
     )
     app.state.activity_store = activity_store
-    app.state.idempotency_store = build_idempotency_store(
-        settings=settings,
-        shared_cache=shared_cache,
+    idempotency_store_provider = getattr(
+        app.state, "_idempotency_store_provider", None
+    )
+    prebuilt_idempotency_store = (
+        idempotency_store_provider()
+        if callable(idempotency_store_provider)
+        else None
+    )
+    app.state.idempotency_store = (
+        prebuilt_idempotency_store
+        if isinstance(prebuilt_idempotency_store, IdempotencyStore)
+        else build_idempotency_store(
+            settings=settings,
+            shared_cache=shared_cache,
+        )
     )
 
 

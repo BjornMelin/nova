@@ -168,10 +168,7 @@ class _ClaimOnlyRedisClient:
         raise RedisError("simulated commit outage")
 
     async def delete(self, key: str) -> int:
-        if key in self._data:
-            self._data.pop(key, None)
-            return 1
-        return 0
+        return 1 if self._data.pop(key, None) is not None else 0
 
     async def ping(self) -> bool:
         return True
@@ -215,7 +212,9 @@ def _shared_cache_with_client(client: object) -> SharedRedisCache:
 
 
 def _build_deps(
-    *, idempotency_enabled: bool = True
+    *,
+    idempotency_enabled: bool = True,
+    use_in_memory_shared_cache: bool = True,
 ) -> tuple[RuntimeDeps, _StubTransferService, _StubJobService]:
     settings = Settings()
     settings.idempotency_enabled = idempotency_enabled
@@ -234,6 +233,7 @@ def _build_deps(
         job_service=job_service,
         activity_store=MemoryActivityStore(),
         idempotency_enabled=idempotency_enabled,
+        use_in_memory_shared_cache=use_in_memory_shared_cache,
     )
     return deps, transfer_service, job_service
 

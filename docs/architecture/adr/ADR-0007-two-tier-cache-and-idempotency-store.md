@@ -2,7 +2,7 @@
 ADR: 0007
 Title: Adopt two-tier cache with idempotency replay storage
 Status: Accepted
-Version: 1.1
+Version: 1.2
 Date: 2026-02-13
 Related:
   - "[SPEC-0009: Caching and idempotency](../spec/SPEC-0009-caching-and-idempotency.md)"

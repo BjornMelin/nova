@@ -137,10 +137,7 @@ class IdempotencyStore:
 
         existing = await self._read_entry(cache_key)
         if existing is None:
-            return await self._write_entry_if_absent(
-                cache_key=cache_key,
-                payload=claim_payload,
-            )
+            raise idempotency_conflict("stored idempotency record is invalid")
         if not isinstance(existing, dict):
             raise idempotency_conflict("stored idempotency record is invalid")
 
