@@ -81,12 +81,14 @@ For detailed SDK governance and generation rules, use:
 
 - `POST /v1/jobs` publish failures return `503` with
   `error.code = "queue_unavailable"`
-- idempotent mutation entrypoints currently use `IDEMPOTENCY_ENABLED` plus
-  bounded TTL settings; shared-cache failures degrade to best-effort local
-  claim handling instead of an `IDEMPOTENCY_MODE` hard-fail contract
-- `/v1/health/ready` reports the current runtime dependency checks and returns
-  `503` when any reported check is false; blank `FILE_TRANSFER_BUCKET` still
-  fails readiness
+- idempotent mutation entrypoints use `IDEMPOTENCY_ENABLED` plus bounded TTL
+  settings; when enabled, Nova requires shared Redis claim storage and returns
+  `503` with `error.code = "idempotency_unavailable"` if that shared store is
+  unavailable
+- `/v1/health/ready` gates traffic on `bucket_configured`,
+  `auth_dependency`, and active runtime dependencies; `shared_cache` gates
+  readiness only when idempotency is enabled, while `activity_store` remains a
+  diagnostic check
 - `AUTH_MODE=jwt_local` with incomplete OIDC settings leaves
   `auth_dependency` not-ready
 - `POST /v1/internal/jobs/{job_id}/result` with `status=succeeded` normalizes

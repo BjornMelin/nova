@@ -123,7 +123,7 @@ The service MUST provide:
 - `GET /metrics/summary`
 
 Readiness evaluation MUST expose the current runtime dependency checks and MUST
-return failure when any reported check is false.
+return failure when a traffic-critical check is false.
 Feature flags (for example `JOBS_ENABLED`) MUST NOT drive readiness pass/fail
 by themselves; disabled features collapse to ready checks instead of
 introducing failing dependencies.
@@ -158,12 +158,14 @@ The idempotency implementation MUST use an explicit request lifecycle:
 Current runtime posture:
 
 - `IDEMPOTENCY_ENABLED` and `IDEMPOTENCY_TTL_SECONDS` are the active
-  configuration surface; the runtime does not yet expose `IDEMPOTENCY_MODE`.
-- When `CACHE_REDIS_URL` is configured, the shared Redis tier participates in
-  duplicate prevention, but shared-cache failures currently degrade to
-  best-effort local claim handling instead of a hard-fail production mode.
-- Active operator docs and deploy automation MUST NOT instruct operators to set
-  `IDEMPOTENCY_MODE` until runtime support exists.
+  configuration surface; the runtime does not expose `IDEMPOTENCY_MODE`.
+- `IDEMPOTENCY_ENABLED=true` requires `CACHE_REDIS_URL` and a shared Redis
+  claim store for duplicate prevention across instances.
+- Shared idempotency store failures MUST fail closed with `503` and
+  `error.code = "idempotency_unavailable"`.
+- Missing `Idempotency-Key` remains allowed; blank keys are invalid.
+- Active operator docs and deploy automation MUST enforce the shared-cache
+  requirement without introducing a mode matrix.
 
 ### FR-0005: Authentication and authorization
 

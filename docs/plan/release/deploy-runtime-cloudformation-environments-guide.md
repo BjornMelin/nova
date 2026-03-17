@@ -144,8 +144,10 @@ Worker/file-transfer contract notes:
 - Async queue URL/table names and cache secret injection are derived from stack
   outputs, not operator JSON.
 - `ENV_VARS_JSON` only supports implemented non-secret API overrides; the
-  script rejects unsupported keys, including `IDEMPOTENCY_MODE` until runtime
-  semantics land in code.
+  script rejects unsupported keys, including `IDEMPOTENCY_MODE`, and enforces
+  the current strict posture: `IDEMPOTENCY_ENABLED=true` requires
+  `FILE_TRANSFER_CACHE_ENABLED=true` so `CACHE_REDIS_URL` is injected into the
+  task definition.
 - Canonical worker runtime inputs are `JOBS_*`; stale worker aliases are not
   valid deployment inputs.
 - Default large-upload posture is `FILE_TRANSFER_MAX_UPLOAD_BYTES=536_870_912_000`
