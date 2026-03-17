@@ -252,8 +252,8 @@ def build_idempotency_store(
         The configured idempotency store.
 
     Raises:
-        ValueError: When IDEMPOTENCY_ENABLED=true but shared cache is not
-            available.
+        ValueError: When settings.idempotency_enabled is true but
+            shared_cache.available is false.
     """
     if settings.idempotency_enabled and not shared_cache.available:
         raise ValueError(_MSG_IDEMPOTENCY_REQUIRES_SHARED_CACHE)
