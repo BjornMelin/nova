@@ -10,6 +10,7 @@ from nova_file_api.app import create_app
 from nova_file_api.cache import LocalTTLCache, SharedRedisCache, TwoTierCache
 from nova_file_api.config import Settings
 from nova_file_api.dependencies import (
+    build_idempotency_store,
     get_activity_store,
     get_authenticator,
     get_idempotency_store,
@@ -151,12 +152,9 @@ def build_runtime_deps(
         resolved_cache = cache
         if use_in_memory_shared_cache:
             resolved_shared_cache._client = MemoryRedisClient()  # type: ignore[assignment]
-    resolved_idempotency_store = idempotency_store or IdempotencyStore(
+    resolved_idempotency_store = idempotency_store or build_idempotency_store(
+        settings=resolved_settings,
         shared_cache=resolved_shared_cache,
-        enabled=idempotency_enabled,
-        ttl_seconds=idempotency_ttl_seconds,
-        key_prefix=resolved_settings.cache_key_prefix,
-        key_schema_version=resolved_settings.cache_key_schema_version,
     )
     return RuntimeDeps(
         settings=resolved_settings,

@@ -87,6 +87,28 @@ def _resolve_shared_cache(
     return build_shared_cache(settings=settings)
 
 
+def _cache_uses_shared_cache(
+    cache: object,
+    *,
+    shared_cache: SharedRedisCache,
+) -> bool:
+    """Return whether a cache instance is bound to the resolved shared cache."""
+    return isinstance(cache, TwoTierCache) and (
+        getattr(cache, "_shared", None) is shared_cache
+    )
+
+
+def _idempotency_store_uses_shared_cache(
+    store: object,
+    *,
+    shared_cache: SharedRedisCache,
+) -> bool:
+    """Return whether a store instance uses the resolved shared cache."""
+    return isinstance(store, IdempotencyStore) and (
+        getattr(store, "_shared_cache", None) is shared_cache
+    )
+
+
 def initialize_runtime_state(
     app: FastAPI,
     *,
@@ -120,19 +142,17 @@ def initialize_runtime_state(
     cache_provider = getattr(app.state, "_two_tier_cache_provider", None)
     prebuilt_cache = cache_provider() if callable(cache_provider) else None
     existing_cache = getattr(app.state, "cache", None)
-    cache = (
-        prebuilt_cache
-        if isinstance(prebuilt_cache, TwoTierCache)
-        else (
-            existing_cache
-            if isinstance(existing_cache, TwoTierCache)
-            else build_two_tier_cache(
-                settings=settings,
-                metrics=metrics,
-                shared_cache=shared_cache,
-            )
+    cache: TwoTierCache
+    if _cache_uses_shared_cache(prebuilt_cache, shared_cache=shared_cache):
+        cache = cast(TwoTierCache, prebuilt_cache)
+    elif _cache_uses_shared_cache(existing_cache, shared_cache=shared_cache):
+        cache = cast(TwoTierCache, existing_cache)
+    else:
+        cache = build_two_tier_cache(
+            settings=settings,
+            metrics=metrics,
+            shared_cache=shared_cache,
         )
-    )
     job_repository = build_job_repository(
         settings=settings,
         dynamodb_resource=dynamodb_resource,
@@ -173,14 +193,23 @@ def initialize_runtime_state(
         if callable(idempotency_store_provider)
         else None
     )
-    app.state.idempotency_store = (
-        prebuilt_idempotency_store
-        if isinstance(prebuilt_idempotency_store, IdempotencyStore)
-        else build_idempotency_store(
+    existing_idempotency_store = getattr(app.state, "idempotency_store", None)
+    if _idempotency_store_uses_shared_cache(
+        prebuilt_idempotency_store,
+        shared_cache=shared_cache,
+    ):
+        idempotency_store = cast(IdempotencyStore, prebuilt_idempotency_store)
+    elif _idempotency_store_uses_shared_cache(
+        existing_idempotency_store,
+        shared_cache=shared_cache,
+    ):
+        idempotency_store = cast(IdempotencyStore, existing_idempotency_store)
+    else:
+        idempotency_store = build_idempotency_store(
             settings=settings,
             shared_cache=shared_cache,
         )
-    )
+    app.state.idempotency_store = idempotency_store
 
 
 def build_metrics(*, settings: Settings) -> MetricsCollector:

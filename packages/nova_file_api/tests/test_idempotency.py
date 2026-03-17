@@ -10,6 +10,10 @@ from fastapi.testclient import TestClient
 from nova_file_api.activity import MemoryActivityStore
 from nova_file_api.cache import SharedRedisCache
 from nova_file_api.config import Settings
+from nova_file_api.dependencies import (
+    build_idempotency_store,
+    build_two_tier_cache,
+)
 from nova_file_api.errors import queue_unavailable
 from nova_file_api.idempotency import IdempotencyStore
 from nova_file_api.metrics import MetricsCollector
@@ -206,6 +210,24 @@ def _shared_cache_with_client(client: object) -> SharedRedisCache:
     return shared_cache
 
 
+def _replace_shared_cache(
+    *,
+    deps: RuntimeDeps,
+    shared_cache: SharedRedisCache,
+) -> None:
+    """Rebind cache and idempotency store to a replacement shared cache."""
+    deps.shared_cache = shared_cache
+    deps.cache = build_two_tier_cache(
+        settings=deps.settings,
+        metrics=deps.metrics,
+        shared_cache=shared_cache,
+    )
+    deps.idempotency_store = build_idempotency_store(
+        settings=deps.settings,
+        shared_cache=shared_cache,
+    )
+
+
 def _build_deps(
     *,
     idempotency_enabled: bool = True,
@@ -398,13 +420,9 @@ def test_v1_initiate_fails_closed_when_shared_claim_store_is_unavailable() -> (
     """Redis claim-store outages must fail closed before executing work."""
     deps, transfer_service, _job_service = _build_deps()
     failing_shared_cache = _shared_cache_with_client(_ErrorRedisClient())
-    deps.shared_cache = failing_shared_cache
-    deps.idempotency_store = IdempotencyStore(
+    _replace_shared_cache(
+        deps=deps,
         shared_cache=failing_shared_cache,
-        enabled=True,
-        ttl_seconds=deps.settings.idempotency_ttl_seconds,
-        key_prefix=deps.settings.cache_key_prefix,
-        key_schema_version=deps.settings.cache_key_schema_version,
     )
     app = build_test_app(deps)
 
@@ -428,13 +446,9 @@ def test_v1_initiate_store_failure_is_not_replayed() -> None:
     """Commit-store outages must block duplicate execution."""
     deps, transfer_service, _job_service = _build_deps()
     flaky_shared_cache = _shared_cache_with_client(_ClaimOnlyRedisClient())
-    deps.shared_cache = flaky_shared_cache
-    deps.idempotency_store = IdempotencyStore(
+    _replace_shared_cache(
+        deps=deps,
         shared_cache=flaky_shared_cache,
-        enabled=True,
-        ttl_seconds=deps.settings.idempotency_ttl_seconds,
-        key_prefix=deps.settings.cache_key_prefix,
-        key_schema_version=deps.settings.cache_key_schema_version,
     )
     app = build_test_app(deps)
 
@@ -469,13 +483,9 @@ def test_v1_jobs_store_failure_blocks_duplicate_enqueue() -> None:
     """Commit-store outages must not re-run a successful enqueue."""
     deps, _transfer_service, job_service = _build_deps()
     flaky_shared_cache = _shared_cache_with_client(_ClaimOnlyRedisClient())
-    deps.shared_cache = flaky_shared_cache
-    deps.idempotency_store = IdempotencyStore(
+    _replace_shared_cache(
+        deps=deps,
         shared_cache=flaky_shared_cache,
-        enabled=True,
-        ttl_seconds=deps.settings.idempotency_ttl_seconds,
-        key_prefix=deps.settings.cache_key_prefix,
-        key_schema_version=deps.settings.cache_key_schema_version,
     )
     app = build_test_app(deps)
 

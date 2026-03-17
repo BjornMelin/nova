@@ -3,7 +3,10 @@ from __future__ import annotations
 from fastapi.testclient import TestClient
 from nova_file_api.activity import MemoryActivityStore
 from nova_file_api.auth import Authenticator
+from nova_file_api.cache import SharedRedisCache
 from nova_file_api.config import Settings
+from nova_file_api.dependencies import build_two_tier_cache
+from nova_file_api.idempotency import IdempotencyStore
 from nova_file_api.jobs import (
     JobService,
     MemoryJobPublisher,
@@ -21,7 +24,10 @@ from .support.app import (
 from .support.doubles import StubAuthenticator, StubTransferService
 
 
-class _FailingSharedCache:
+class _FailingSharedCache(SharedRedisCache):
+    def __init__(self) -> None:
+        super().__init__(url=None)
+
     async def ping(self) -> bool:
         return False
 
@@ -58,6 +64,27 @@ def _build_deps(
         activity_store=MemoryActivityStore(),
         idempotency_enabled=True,
         use_in_memory_shared_cache=True,
+    )
+
+
+def _rebind_shared_cache_for_readiness(
+    *,
+    deps: RuntimeDeps,
+    shared_cache: SharedRedisCache,
+) -> None:
+    """Rebind cache and idempotency store to a replacement shared cache."""
+    deps.shared_cache = shared_cache
+    deps.cache = build_two_tier_cache(
+        settings=deps.settings,
+        metrics=deps.metrics,
+        shared_cache=shared_cache,
+    )
+    deps.idempotency_store = IdempotencyStore(
+        shared_cache=shared_cache,
+        enabled=deps.settings.idempotency_enabled,
+        ttl_seconds=deps.settings.idempotency_ttl_seconds,
+        key_prefix=deps.settings.cache_key_prefix,
+        key_schema_version=deps.settings.cache_key_schema_version,
     )
 
 
@@ -108,7 +135,10 @@ def test_readyz_does_not_gate_shared_cache_when_idempotency_disabled() -> None:
     """Shared-cache outages stay visible when idempotency is off."""
     deps = _build_deps()
     deps.settings.idempotency_enabled = False
-    deps.shared_cache = _FailingSharedCache()  # type: ignore[assignment]
+    _rebind_shared_cache_for_readiness(
+        deps=deps,
+        shared_cache=_FailingSharedCache(),
+    )
     app = build_test_app(deps)
 
     with TestClient(app) as client:
@@ -129,7 +159,10 @@ def test_readyz_does_not_gate_shared_cache_when_idempotency_disabled() -> None:
 def test_readyz_fails_when_idempotency_requires_shared_cache() -> None:
     """Shared-cache outages fail readiness when idempotency is enabled."""
     deps = _build_deps()
-    deps.shared_cache = _FailingSharedCache()  # type: ignore[assignment]
+    _rebind_shared_cache_for_readiness(
+        deps=deps,
+        shared_cache=_FailingSharedCache(),
+    )
     app = build_test_app(deps)
 
     with TestClient(app) as client:
