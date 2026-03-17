@@ -21,6 +21,16 @@ from .support.app import (
 from .support.doubles import StubAuthenticator, StubTransferService
 
 
+class _FailingSharedCache:
+    async def ping(self) -> bool:
+        return False
+
+
+class _FailingActivityStore(MemoryActivityStore):
+    async def healthcheck(self) -> bool:
+        return False
+
+
 def _build_deps(
     *,
     jobs_enabled: bool = True,
@@ -89,6 +99,70 @@ def test_readyz_stays_ok_when_jobs_are_disabled() -> None:
         "shared_cache": True,
         "job_queue": True,
         "activity_store": True,
+        "auth_dependency": True,
+    }
+
+
+def test_readyz_does_not_gate_shared_cache_when_idempotency_disabled() -> None:
+    """Shared-cache outages stay visible when idempotency is off."""
+    deps = _build_deps()
+    deps.settings.idempotency_enabled = False
+    deps.shared_cache = _FailingSharedCache()  # type: ignore[assignment]
+    app = build_test_app(deps)
+
+    with TestClient(app) as client:
+        response = client.get("/v1/health/ready")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["ok"] is True
+    assert payload["checks"] == {
+        "bucket_configured": True,
+        "shared_cache": False,
+        "job_queue": True,
+        "activity_store": True,
+        "auth_dependency": True,
+    }
+
+
+def test_readyz_fails_when_idempotency_requires_shared_cache() -> None:
+    """Shared-cache outages fail readiness when idempotency is enabled."""
+    deps = _build_deps()
+    deps.shared_cache = _FailingSharedCache()  # type: ignore[assignment]
+    app = build_test_app(deps)
+
+    with TestClient(app) as client:
+        response = client.get("/v1/health/ready")
+
+    assert response.status_code == 503
+    payload = response.json()
+    assert payload["ok"] is False
+    assert payload["checks"] == {
+        "bucket_configured": True,
+        "shared_cache": False,
+        "job_queue": True,
+        "activity_store": True,
+        "auth_dependency": True,
+    }
+
+
+def test_readyz_reports_activity_store_failures_without_gating() -> None:
+    """Activity-store degradation should remain diagnostic in readiness."""
+    deps = _build_deps()
+    deps.activity_store = _FailingActivityStore()
+    app = build_test_app(deps)
+
+    with TestClient(app) as client:
+        response = client.get("/v1/health/ready")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["ok"] is True
+    assert payload["checks"] == {
+        "bucket_configured": True,
+        "shared_cache": True,
+        "job_queue": True,
+        "activity_store": False,
         "auth_dependency": True,
     }
 

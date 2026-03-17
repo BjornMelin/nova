@@ -206,7 +206,7 @@ def test_openapi_customized_error_and_visibility_contracts() -> None:
         "$ref": "#/components/responses/FileIdempotencyConflictResponse"
     }
     assert jobs_post["503"] == {
-        "$ref": "#/components/responses/FileQueueUnavailableResponse"
+        "$ref": "#/components/responses/FileMutationUnavailableResponse"
     }
 
     ready_responses = payload["paths"]["/v1/health/ready"]["get"]["responses"]

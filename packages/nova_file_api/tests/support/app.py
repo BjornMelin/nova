@@ -25,6 +25,39 @@ from nova_file_api.jobs import JobRepository
 from nova_file_api.metrics import MetricsCollector
 
 
+class _MemoryRedisClient:
+    """Deterministic in-memory Redis double for route-style tests."""
+
+    def __init__(self) -> None:
+        self._data: dict[str, str] = {}
+
+    async def get(self, key: str) -> str | None:
+        return self._data.get(key)
+
+    async def set(
+        self,
+        *,
+        name: str,
+        value: str,
+        ex: int,
+        nx: bool = False,
+    ) -> bool:
+        del ex
+        if nx and name in self._data:
+            return False
+        self._data[name] = value
+        return True
+
+    async def delete(self, key: str) -> int:
+        if key in self._data:
+            self._data.pop(key, None)
+            return 1
+        return 0
+
+    async def ping(self) -> bool:
+        return True
+
+
 @dataclass(slots=True)
 class RuntimeDeps:
     """
@@ -113,6 +146,10 @@ def build_runtime_deps(
     resolved_metrics = (
         MetricsCollector(namespace="Tests") if metrics is None else metrics
     )
+    resolved_settings.idempotency_enabled = idempotency_enabled
+    resolved_settings.idempotency_ttl_seconds = idempotency_ttl_seconds
+    if idempotency_enabled and not (resolved_settings.cache_redis_url or ""):
+        resolved_settings.cache_redis_url = "redis://cache.test:6379/0"
     if (shared_cache is None) != (cache is None):
         raise ValueError(
             "shared_cache and cache must both be provided or both be None"
@@ -124,10 +161,14 @@ def build_runtime_deps(
         assert cache is not None
         resolved_shared_cache = shared_cache
         resolved_cache = cache
+    if idempotency_enabled and not resolved_shared_cache.available:
+        resolved_shared_cache._client = _MemoryRedisClient()  # type: ignore[assignment]
     resolved_idempotency_store = idempotency_store or IdempotencyStore(
-        cache=resolved_cache,
+        shared_cache=resolved_shared_cache,
         enabled=idempotency_enabled,
         ttl_seconds=idempotency_ttl_seconds,
+        key_prefix=resolved_settings.cache_key_prefix,
+        key_schema_version=resolved_settings.cache_key_schema_version,
     )
     return RuntimeDeps(
         settings=resolved_settings,

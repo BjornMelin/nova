@@ -554,12 +554,17 @@ def test_runtime_env_and_parameter_contracts() -> None:
     assert "FileTransferAsyncRuntimeParamsProvided:" in service_text
     assert "FileTransferCacheParamsProvided:" in service_text
     assert "FileTransferCacheSecretProvided:" in service_text
+    assert "IdempotencyRequiresSharedCache:" in service_text
     assert (
         "FileTransferJobsQueueArn, FileTransferJobsTableArn, and"
         in service_text
     )
     assert "JobsQueueUrl, JobsTableName, and ActivityTableName" in service_text
     assert "CacheRedisUrlSecretArn is required" in service_text
+    assert (
+        'IdempotencyEnabled requires FileTransferCacheEnabled to be "true"'
+        in service_text
+    )
     assert (
         "FileTransferCacheSecurityGroupExportName is required" in service_text
     )
