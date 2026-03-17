@@ -8,6 +8,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 from scripts.ci import detect_workflow_scopes as scope_detector
 
 from .helpers import REPO_ROOT
@@ -37,6 +39,16 @@ def test_docs_authority_changes_only_enable_cfn_lane() -> None:
     assert outputs["docs_only"] == "true"
 
 
+def test_prd_changes_enable_only_cfn_lane() -> None:
+    outputs = _outputs(["docs/PRD.md"])
+
+    assert outputs["run_runtime_ci"] == "false"
+    assert outputs["run_conformance_required"] == "false"
+    assert outputs["run_conformance_optional"] == "false"
+    assert outputs["run_cfn"] == "true"
+    assert outputs["docs_only"] == "true"
+
+
 def test_docs_history_changes_remain_docs_only_without_required_lanes() -> None:
     outputs = _outputs(["docs/history/2026-02-cutover/notes.md"])
 
@@ -56,6 +68,25 @@ def test_workflow_changes_mark_cfn_and_targeted_ci_lanes() -> None:
     assert outputs["run_cfn"] == "true"
     affected_units = json.loads(outputs["affected_units_json"])
     assert affected_units == []
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "scripts/release/generate_clients.py",
+        "scripts/release/generate_python_clients.py",
+    ],
+)
+def test_generator_entrypoints_enable_conformance_and_cfn_lanes(
+    path: str,
+) -> None:
+    outputs = _outputs([path])
+
+    assert outputs["run_runtime_ci"] == "false"
+    assert outputs["run_conformance_required"] == "true"
+    assert outputs["run_conformance_optional"] == "true"
+    assert outputs["run_cfn"] == "true"
+    assert outputs["docs_only"] == "false"
 
 
 def test_scope_detector_cli_emits_expected_output_contract(

@@ -27,6 +27,10 @@ RUNTIME_EXACT = {
     ".github/workflows/ci.yml",
     ".github/actions/setup-python-uv/action.yml",
 }
+CONFORMANCE_GENERATOR_EXACT = {
+    "scripts/release/generate_clients.py",
+    "scripts/release/generate_python_clients.py",
+}
 CONFORMANCE_REQUIRED_PREFIXES = (
     *RUNTIME_PREFIXES,
     "packages/contracts/",
@@ -45,7 +49,7 @@ CONFORMANCE_REQUIRED_EXACT = {
     ".npmrc",
     ".github/workflows/conformance-clients.yml",
     ".github/actions/setup-python-uv/action.yml",
-}
+} | CONFORMANCE_GENERATOR_EXACT
 CONFORMANCE_OPTIONAL_PREFIXES = (
     *RUNTIME_PREFIXES,
     "packages/contracts/typescript/",
@@ -59,7 +63,7 @@ CONFORMANCE_OPTIONAL_EXACT = {
     "package-lock.json",
     ".npmrc",
     ".github/workflows/conformance-clients.yml",
-}
+} | CONFORMANCE_GENERATOR_EXACT
 CFN_PREFIXES = (
     "scripts/ci/",
     "infra/",
@@ -75,12 +79,15 @@ CFN_PREFIXES = (
     "docs/contracts/",
     "docs/plan/release/",
 )
+CFN_AUTHORITY_DOC_EXACT = {
+    "docs/PRD.md",
+}
 CFN_EXACT = {
     "AGENTS.md",
     "README.md",
     "docs/README.md",
     "docs/plan/PLAN.md",
-}
+} | CFN_AUTHORITY_DOC_EXACT
 DOC_ONLY_PREFIXES = (
     "docs/",
     "docs/history/",
