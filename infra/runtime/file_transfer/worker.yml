@@ -159,7 +159,7 @@ Resources:
             Condition:
               StringEquals:
                 kms:ViaService:
-                  - !Sub "secretsmanager.${AWS::Region}.amazonaws.com"
+                  - !Sub "secretsmanager.${AWS::Region}.${AWS::URLSuffix}"
       Roles:
         - !Ref WorkerTaskExecutionRole
 

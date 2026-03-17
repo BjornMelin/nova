@@ -32,7 +32,7 @@ require_env() {
 reject_legacy_env() {
   local name="$1"
   local reason="$2"
-  if [ -n "${!name:-}" ]; then
+  if [[ -v "${name}" ]]; then
     echo "Unsupported legacy environment variable: ${name}. ${reason}" >&2
     exit 1
   fi
