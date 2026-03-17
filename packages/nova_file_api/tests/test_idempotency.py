@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import json
 from datetime import UTC, datetime
+from unittest.mock import AsyncMock, Mock
 
+import nova_file_api.idempotency as idempotency_module
 import pytest
 from fastapi.testclient import TestClient
 from nova_file_api.activity import MemoryActivityStore
@@ -140,6 +143,16 @@ class _ErrorRedisClient:
         del key
         raise RedisError("simulated delete outage")
 
+    async def eval(
+        self,
+        script: str,
+        numkeys: int,
+        key: str,
+        expected_value: str,
+    ) -> int:
+        del script, numkeys, key, expected_value
+        raise RedisError("simulated delete outage")
+
     async def ping(self) -> bool:
         return False
 
@@ -170,6 +183,18 @@ class _ClaimOnlyRedisClient:
     async def delete(self, key: str) -> int:
         return 1 if self._data.pop(key, None) is not None else 0
 
+    async def eval(
+        self,
+        script: str,
+        numkeys: int,
+        key: str,
+        expected_value: str,
+    ) -> int:
+        del script, numkeys
+        if self._data.get(key) != expected_value:
+            return 0
+        return await self.delete(key)
+
     async def ping(self) -> bool:
         return True
 
@@ -196,10 +221,19 @@ class _DictRedisClient:
         return True
 
     async def delete(self, key: str) -> int:
-        if key in self._data:
-            self._data.pop(key, None)
-            return 1
-        return 0
+        return 1 if self._data.pop(key, None) is not None else 0
+
+    async def eval(
+        self,
+        script: str,
+        numkeys: int,
+        key: str,
+        expected_value: str,
+    ) -> int:
+        del script, numkeys
+        if self._data.get(key) != expected_value:
+            return 0
+        return await self.delete(key)
 
     async def ping(self) -> bool:
         return True
@@ -540,3 +574,101 @@ async def test_shared_idempotency_store_prevents_duplicate_claims() -> None:
                 "payload": {"input": "a"},
             },
         )
+
+
+@pytest.mark.asyncio
+async def test_claim_request_conflicts_when_claim_entry_expires_before_read(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Expired claim entries must fail closed instead of replaying."""
+    store = IdempotencyStore(
+        shared_cache=_shared_cache_with_client(_DictRedisClient()),
+        enabled=True,
+        ttl_seconds=300,
+        key_prefix="nova",
+        key_schema_version=1,
+    )
+    write_entry_if_absent = AsyncMock(return_value=False)
+    read_entry = AsyncMock(return_value=None)
+    assert_request_hash = Mock()
+
+    monkeypatch.setattr(
+        store,
+        "_write_entry_if_absent",
+        write_entry_if_absent,
+    )
+    monkeypatch.setattr(store, "_read_entry", read_entry)
+    monkeypatch.setattr(
+        idempotency_module,
+        "_assert_entry_request_hash",
+        assert_request_hash,
+    )
+
+    with pytest.raises(Exception, match="stored idempotency record is invalid"):
+        await store.claim_request(
+            route="/v1/jobs",
+            scope_id="scope-1",
+            idempotency_key="job-key-expired-claim",
+            request_payload={
+                "job_type": "transform",
+                "payload": {"input": "a"},
+            },
+        )
+
+    assert_request_hash.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_discard_claim_keeps_newer_owner_when_claim_was_replaced() -> (
+    None
+):
+    """Failure cleanup must not delete a newer claimant's in-progress entry."""
+    client = _DictRedisClient()
+    shared_cache = _shared_cache_with_client(client)
+    store = IdempotencyStore(
+        shared_cache=shared_cache,
+        enabled=True,
+        ttl_seconds=300,
+        key_prefix="nova",
+        key_schema_version=1,
+    )
+    first_payload = {"job_type": "transform", "payload": {"input": "a"}}
+    second_payload = {"job_type": "transform", "payload": {"input": "b"}}
+
+    claimed = await store.claim_request(
+        route="/v1/jobs",
+        scope_id="scope-1",
+        idempotency_key="job-key-replaced-claim",
+        request_payload=first_payload,
+    )
+    assert claimed is True
+
+    cache_key = store._entry_cache_key(
+        route="/v1/jobs",
+        scope_id="scope-1",
+        idempotency_key="job-key-replaced-claim",
+    )
+    client._data[cache_key] = json.dumps(
+        {
+            "state": "in_progress",
+            "request_hash": idempotency_module._payload_hash(
+                payload=second_payload,
+            ),
+        },
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+
+    await store.discard_claim(
+        route="/v1/jobs",
+        scope_id="scope-1",
+        idempotency_key="job-key-replaced-claim",
+        request_payload=first_payload,
+    )
+
+    assert await store._read_entry(cache_key) == {
+        "state": "in_progress",
+        "request_hash": idempotency_module._payload_hash(
+            payload=second_payload,
+        ),
+    }

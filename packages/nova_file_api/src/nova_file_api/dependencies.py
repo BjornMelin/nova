@@ -67,6 +67,26 @@ _MSG_SQS_CLIENT_REQUIRED = (
 )
 
 
+def _resolve_shared_cache(
+    *,
+    app: FastAPI,
+    settings: Settings,
+) -> SharedRedisCache:
+    """Resolve the shared cache from providers, state, or fresh settings."""
+    shared_cache_provider = getattr(app.state, "_shared_cache_provider", None)
+    prebuilt_shared_cache = (
+        shared_cache_provider() if callable(shared_cache_provider) else None
+    )
+    if isinstance(prebuilt_shared_cache, SharedRedisCache):
+        return prebuilt_shared_cache
+
+    existing_shared_cache = getattr(app.state, "shared_cache", None)
+    if isinstance(existing_shared_cache, SharedRedisCache):
+        return existing_shared_cache
+
+    return build_shared_cache(settings=settings)
+
+
 def initialize_runtime_state(
     app: FastAPI,
     *,
@@ -95,20 +115,7 @@ def initialize_runtime_state(
         raise ValueError(_MSG_S3_CLIENT_REQUIRED)
 
     metrics = build_metrics(settings=settings)
-    shared_cache_provider = getattr(app.state, "_shared_cache_provider", None)
-    prebuilt_shared_cache = (
-        shared_cache_provider() if callable(shared_cache_provider) else None
-    )
-    existing_shared_cache = getattr(app.state, "shared_cache", None)
-    shared_cache = (
-        prebuilt_shared_cache
-        if isinstance(prebuilt_shared_cache, SharedRedisCache)
-        else (
-            existing_shared_cache
-            if isinstance(existing_shared_cache, SharedRedisCache)
-            else build_shared_cache(settings=settings)
-        )
-    )
+    shared_cache = _resolve_shared_cache(app=app, settings=settings)
 
     cache_provider = getattr(app.state, "_two_tier_cache_provider", None)
     prebuilt_cache = cache_provider() if callable(cache_provider) else None

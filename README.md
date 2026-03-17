@@ -82,7 +82,7 @@ For detailed SDK governance and generation rules, use:
 - `POST /v1/jobs` publish failures return `503` with
   `error.code = "queue_unavailable"`
 - idempotent mutation entrypoints use `IDEMPOTENCY_ENABLED` plus bounded TTL
-  settings; when enabled, Nova requires shared Redis claim storage and returns
+  settings; when enabled, Nova requires a shared Redis claim storage and returns
   `503` with `error.code = "idempotency_unavailable"` if that shared store is
   unavailable; if execution succeeded before replay persistence failed, Nova
   keeps the existing claim so retries with the same key do not re-run the

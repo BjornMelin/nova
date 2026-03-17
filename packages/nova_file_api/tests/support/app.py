@@ -49,10 +49,19 @@ class _MemoryRedisClient:
         return True
 
     async def delete(self, key: str) -> int:
-        if key in self._data:
-            self._data.pop(key, None)
-            return 1
-        return 0
+        return 1 if self._data.pop(key, None) is not None else 0
+
+    async def eval(
+        self,
+        script: str,
+        numkeys: int,
+        key: str,
+        expected_value: str,
+    ) -> int:
+        del script, numkeys
+        if self._data.get(key) != expected_value:
+            return 0
+        return await self.delete(key)
 
     async def ping(self) -> bool:
         return True

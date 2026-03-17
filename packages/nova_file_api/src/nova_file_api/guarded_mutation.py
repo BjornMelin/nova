@@ -88,6 +88,7 @@ async def run_guarded_mutation[ResponseModelT: BaseModel](
                 route=route,
                 scope_id=scope_id,
                 idempotency_key=idempotency_key,
+                request_payload=request_payload,
             )
         except Exception as discard_exc:
             logger.exception(

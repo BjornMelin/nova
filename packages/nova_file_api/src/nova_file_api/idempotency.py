@@ -200,6 +200,7 @@ class IdempotencyStore:
         route: str,
         scope_id: str,
         idempotency_key: str,
+        request_payload: dict[str, Any],
     ) -> None:
         """Delete in-progress idempotency claim after failed execution."""
         if not self._enabled:
@@ -209,8 +210,18 @@ class IdempotencyStore:
             scope_id=scope_id,
             idempotency_key=idempotency_key,
         )
-        status = await self._shared_cache.delete_with_status(cache_key)
-        if status == "ok":
+        request_hash = _payload_hash(payload=request_payload)
+        expected_entry = _serialize_entry(
+            {
+                "state": _IDEMPOTENCY_STATE_IN_PROGRESS,
+                "request_hash": request_hash,
+            }
+        )
+        status = await self._shared_cache.delete_with_status(
+            cache_key,
+            expected_value=expected_entry,
+        )
+        if status in {"ok", "mismatch"}:
             return
         raise _idempotency_unavailable_error(status=status)
 

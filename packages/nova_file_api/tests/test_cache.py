@@ -35,10 +35,19 @@ class _DictRedisClient:
         return True
 
     async def delete(self, key: str) -> int:
-        if key in self._data:
-            self._data.pop(key, None)
-            return 1
-        return 0
+        return 1 if self._data.pop(key, None) is not None else 0
+
+    async def eval(
+        self,
+        script: str,
+        numkeys: int,
+        key: str,
+        expected_value: str,
+    ) -> int:
+        del script, numkeys
+        if self._data.get(key) != expected_value:
+            return 0
+        return await self.delete(key)
 
     async def ping(self) -> bool:
         return True
@@ -64,6 +73,16 @@ class _ErrorRedisClient:
         del key
         raise RedisError("simulated delete outage")
 
+    async def eval(
+        self,
+        script: str,
+        numkeys: int,
+        key: str,
+        expected_value: str,
+    ) -> int:
+        del script, numkeys, key, expected_value
+        raise RedisError("simulated delete outage")
+
     async def ping(self) -> bool:
         return False
 
@@ -83,6 +102,14 @@ class AsyncRedisClientProtocol(Protocol):
     ) -> bool: ...
 
     async def delete(self, key: str) -> int: ...
+
+    async def eval(
+        self,
+        script: str,
+        numkeys: int,
+        key: str,
+        expected_value: str,
+    ) -> int: ...
 
     async def ping(self) -> bool: ...
 
@@ -152,3 +179,33 @@ async def test_two_tier_cache_reports_shared_fallback_when_redis_errors() -> (
     counters = metrics.counters_snapshot()
     assert counters["cache_miss_total"] == 1
     assert counters["cache_shared_fallback_total"] == 2
+
+
+@pytest.mark.asyncio
+async def test_shared_cache_delete_with_status_checks_expected_value() -> None:
+    client = _DictRedisClient()
+    shared = _build_shared_cache(client=client)
+
+    created = await client.set(
+        name="idempotency-key",
+        value="claim-a",
+        ex=60,
+    )
+    assert created is True
+
+    mismatch = await shared.delete_with_status(
+        "idempotency-key",
+        expected_value="claim-b",
+    )
+    assert mismatch == "mismatch"
+    assert await shared.get_with_status("idempotency-key") == (
+        "claim-a",
+        "hit",
+    )
+
+    deleted = await shared.delete_with_status(
+        "idempotency-key",
+        expected_value="claim-a",
+    )
+    assert deleted == "ok"
+    assert await shared.get_with_status("idempotency-key") == (None, "miss")
