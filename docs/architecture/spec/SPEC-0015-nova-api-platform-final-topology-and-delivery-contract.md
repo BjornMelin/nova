@@ -89,7 +89,6 @@ Required workflows in `.github/workflows/`:
 - `release-apply.yml`
 - `publish-packages.yml`
 - `promote-prod.yml`
-- `build-and-publish-image.yml`
 - `deploy-dev.yml`
 - `post-deploy-validate.yml`
 - `reusable-release-plan.yml`
@@ -104,6 +103,9 @@ Required workflows in `.github/workflows/`:
 `post-deploy-validate.yml` is the manual entrypoint wrapper.
 `reusable-post-deploy-validate.yml` owns the shared `workflow_call` API used by
 Nova and downstream consumer repositories.
+Container image build and push authority lives in CodeBuild via
+`buildspecs/buildspec-release.yml`, not a GitHub Actions image-wrapper
+workflow.
 
 `ci.yml` MUST enforce:
 

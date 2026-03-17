@@ -83,5 +83,5 @@ Owner: Release Architecture
   the current aggregate readiness semantics.
 - [x] `SPEC-0015` workflow artifacts from `.github/workflows/` are present and
   validated in this release path:
-  `build-and-publish-image.yml`, `publish-packages.yml`, `deploy-dev.yml`,
-  `promote-prod.yml`, `post-deploy-validate.yml`, `conformance-clients.yml`.
+  `publish-packages.yml`, `deploy-dev.yml`, `promote-prod.yml`,
+  `post-deploy-validate.yml`, `conformance-clients.yml`.

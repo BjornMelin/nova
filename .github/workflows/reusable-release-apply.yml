@@ -15,7 +15,7 @@ on:
       commit_message:
         description: Release commit message.
         required: false
-        default: "chore(release): apply selective versions [skip release]"
+        default: "chore(release): apply selective versions"
         type: string
     secrets:
       release_aws_role_arn:

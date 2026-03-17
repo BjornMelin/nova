@@ -60,11 +60,7 @@ Use the modular operator guide set for provisioning and setup details:
 
 ### A. Plan
 
-0. For non-release commits on `main`, include `[skip release]` in the commit
-   subject/body to bypass `Nova Release Plan` and avoid unnecessary
-   CodeBuild/CodePipeline executions.
-1. Trigger `Nova Release Plan` (`release-plan.yml`) or wait for a `main` push
-   run.
+1. Trigger `Nova Release Plan` (`release-plan.yml`) from `main`.
 2. Confirm artifacts:
    - `changed-units.json`
    - `version-plan.json`
@@ -75,8 +71,8 @@ Use the modular operator guide set for provisioning and setup details:
    Release Apply` in Actions; older docs and CLI snippets may still show
    `Apply Release Plan`).
 2. Confirm workflow:
-   - runs from `main` only (manual dispatch on non-main refs is blocked)
-   - for `workflow_run`, checks out `workflow_run.head_sha`
+   - runs from `main` only (manual dispatch on non-main refs is skipped by the branch guard)
+   - checks out the selected `main` commit SHA for the manual dispatch run
    - applies versions from version plan
    - writes release manifest
    - creates signed commit on `main`
@@ -88,7 +84,8 @@ Use the modular operator guide set for provisioning and setup details:
 
 ### D. Package staged publish gate
 
-1. Trigger `Publish Packages` (or wait for `Nova Release Apply` completion trigger).
+1. Trigger `Publish Packages` manually from `main` with the successful
+   `Nova Release Apply` run id.
 2. Confirm `scripts.release.codeartifact_gate` generated:
    - `.artifacts/codeartifact-gate-report.json`
    - `.artifacts/codeartifact-promotion-candidates.json`
@@ -180,6 +177,7 @@ For each run capture:
     publish-packages from upstream workflow artifacts, not recomputed locally.
 13. For npm releases, retain the staged npm smoke output proving installability
     and generated/private SDK subpath/client compatibility from CodeArtifact.
+14. Record the explicit `release_apply_run_id` used for staged publish.
 
 ## 7. Local npm operator rule
 

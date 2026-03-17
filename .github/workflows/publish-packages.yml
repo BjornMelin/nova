@@ -1,9 +1,6 @@
 name: Publish Packages
 
 on:
-  workflow_run:
-    workflows: ["Nova Release Apply"]
-    types: [completed]
   workflow_dispatch:
     inputs:
       expected_manifest_sha256:
@@ -12,7 +9,7 @@ on:
         type: string
       release_apply_run_id:
         description: Workflow run id that uploaded release-apply-artifacts.
-        required: false
+        required: true
         type: string
 
 permissions:
@@ -21,16 +18,12 @@ permissions:
   actions: read
 
 concurrency:
-  group: publish-packages-${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_branch || github.ref }}
+  group: publish-packages-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
   publish-staging:
-    if: >-
-      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
-      (github.event_name == 'workflow_run' &&
-      github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.head_branch == 'main')
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     env:
       AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
@@ -38,12 +31,14 @@ jobs:
       CODEARTIFACT_DOMAIN: ${{ vars.CODEARTIFACT_DOMAIN }}
       CODEARTIFACT_STAGING_REPOSITORY: ${{ vars.CODEARTIFACT_STAGING_REPOSITORY }}
       EXPECTED_MANIFEST_SHA256: ${{ inputs.expected_manifest_sha256 }}
-      RELEASE_APPLY_RUN_ID: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.id || inputs.release_apply_run_id }}
+      RELEASE_APPLY_RUN_ID: ${{ inputs.release_apply_run_id }}
     steps:
       - name: Validate release-apply workflow run id
         uses: actions/github-script@v7
         env:
           EXPECTED_RELEASE_APPLY_WORKFLOW_NAME: Nova Release Apply
+          EXPECTED_RELEASE_APPLY_WORKFLOW_PATH: .github/workflows/release-apply.yml
+          EXPECTED_RELEASE_APPLY_EVENT: workflow_dispatch
           EXPECTED_RELEASE_BRANCH: main
         with:
           github-token: ${{ github.token }}
@@ -58,6 +53,8 @@ jobs:
 
             const runId = Number.parseInt(runIdRaw.trim(), 10);
             const expectedWorkflowName = process.env.EXPECTED_RELEASE_APPLY_WORKFLOW_NAME;
+            const expectedWorkflowPath = process.env.EXPECTED_RELEASE_APPLY_WORKFLOW_PATH;
+            const expectedRunEvent = process.env.EXPECTED_RELEASE_APPLY_EVENT;
             const expectedBranch = process.env.EXPECTED_RELEASE_BRANCH;
             const [owner, repo] = process.env.GITHUB_REPOSITORY.split("/");
 
@@ -79,6 +76,16 @@ jobs:
             if (workflow.name !== expectedWorkflowName) {
               errors.push(
                 `workflow name mismatch: expected "${expectedWorkflowName}", got "${workflow.name}"`,
+              );
+            }
+            if (workflow.path !== expectedWorkflowPath) {
+              errors.push(
+                `workflow path mismatch: expected "${expectedWorkflowPath}", got "${workflow.path}"`,
+              );
+            }
+            if (run.event !== expectedRunEvent) {
+              errors.push(
+                `run event mismatch: expected "${expectedRunEvent}", got "${run.event}"`,
               );
             }
             if (run.conclusion !== "success") {

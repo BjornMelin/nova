@@ -9,8 +9,44 @@ on:
 permissions:
   contents: read
 
+defaults:
+  run:
+    shell: bash
+
+concurrency:
+  group: conformance-clients-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
+  classify-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      changed_files_json: ${{ steps.scope.outputs.changed_files_json }}
+      affected_units_json: ${{ steps.scope.outputs.affected_units_json }}
+      run_conformance_required: ${{ steps.scope.outputs.run_conformance_required }}
+      run_conformance_optional: ${{ steps.scope.outputs.run_conformance_optional }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Detect workflow scopes
+        id: scope
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          HEAD_SHA: ${{ github.sha }}
+          BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          python3 scripts/ci/detect_workflow_scopes.py \
+            --event-name "${EVENT_NAME}" \
+            --head-sha "${HEAD_SHA}" \
+            --base-sha "${BASE_SHA}"
+
   generated-clients:
+    needs: classify-changes
+    if: >-
+      github.event_name == 'push' ||
+      needs.classify-changes.outputs.run_conformance_required == 'true' ||
+      needs.classify-changes.outputs.run_conformance_optional == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -30,8 +66,13 @@ jobs:
         run: uv run python scripts/release/generate_python_clients.py --check
 
   typescript-core-packages:
+    needs:
+      - classify-changes
+      - generated-clients
+    if: >-
+      github.event_name == 'push' ||
+      needs.classify-changes.outputs.run_conformance_optional == 'true'
     runs-on: ubuntu-latest
-    needs: generated-clients
     strategy:
       matrix:
         package_name:
@@ -53,8 +94,13 @@ jobs:
         run: npm run -w ${{ matrix.package_name }} typecheck
 
   typescript-sdk-smoke:
+    needs:
+      - classify-changes
+      - generated-clients
+    if: >-
+      github.event_name == 'push' ||
+      needs.classify-changes.outputs.run_conformance_optional == 'true'
     runs-on: ubuntu-latest
-    needs: generated-clients
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -168,8 +214,11 @@ jobs:
           EOF
 
   dash-conformance:
+    needs:
+      - classify-changes
+      - generated-clients
+    if: needs.classify-changes.outputs.run_conformance_required == 'true'
     runs-on: ubuntu-latest
-    needs: generated-clients
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-python-uv
@@ -181,8 +230,11 @@ jobs:
         run: uv run pytest -q scripts/release/tests/test_contract_fixtures_v1.py
 
   shiny-conformance:
+    needs:
+      - classify-changes
+      - generated-clients
+    if: needs.classify-changes.outputs.run_conformance_required == 'true'
     runs-on: ubuntu-latest
-    needs: generated-clients
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-python-uv
@@ -199,8 +251,11 @@ jobs:
           Rscript -e 'source("packages/nova_sdk_r_auth/R/generated.R"); source("packages/nova_sdk_r_auth/R/client.R"); stopifnot(length(nova_auth_operation_catalog()) > 0L)'
 
   typescript-conformance:
+    needs:
+      - classify-changes
+      - generated-clients
+    if: needs.classify-changes.outputs.run_conformance_required == 'true'
     runs-on: ubuntu-latest
-    needs: generated-clients
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

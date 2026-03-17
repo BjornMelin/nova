@@ -14,31 +14,51 @@ defaults:
     shell: bash
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
+  classify-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      changed_files_json: ${{ steps.scope.outputs.changed_files_json }}
+      affected_units_json: ${{ steps.scope.outputs.affected_units_json }}
+      docs_only: ${{ steps.scope.outputs.docs_only }}
+      run_runtime_ci: ${{ steps.scope.outputs.run_runtime_ci }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect workflow scopes
+        id: scope
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          HEAD_SHA: ${{ github.sha }}
+          BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          python3 scripts/ci/detect_workflow_scopes.py \
+            --event-name "${EVENT_NAME}" \
+            --head-sha "${HEAD_SHA}" \
+            --base-sha "${BASE_SHA}"
+
   runtime-security-reliability-gates:
+    needs: classify-changes
+    if: needs.classify-changes.outputs.run_runtime_ci == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
+      - name: Setup Python and uv
+        uses: ./.github/actions/setup-python-uv
         with:
           python-version: "3.12"
 
-      - name: Setup uv
-        uses: astral-sh/setup-uv@v4
-
-      - name: Lock and Sync
-        run: |
-          uv lock --check
-          uv sync --locked --python 3.12
-
       - name: Runtime/Security/Reliability Gates
         run: |
+          uv lock --check
           uv run pytest -q \
             packages/nova_file_api/tests/test_runtime_security_reliability_gates.py \
             packages/nova_file_api/tests/test_auth.py::test_local_auth_error_maps_common_jwt_claim_failures \
@@ -51,23 +71,20 @@ jobs:
             packages/nova_file_api/tests/test_activity_dynamo.py::test_dynamo_activity_store_uses_conditional_first_seen_markers
 
   quality-gates:
+    needs: classify-changes
+    if: needs.classify-changes.outputs.run_runtime_ci == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
+      - name: Setup Python and uv
+        uses: ./.github/actions/setup-python-uv
         with:
           python-version: "3.12"
 
-      - name: Setup uv
-        uses: astral-sh/setup-uv@v4
-
-      - name: Lock and Sync
-        run: |
-          uv lock --check
-          uv sync --locked --python 3.12
+      - name: Lock Check
+        run: uv lock --check
 
       - name: Ruff Check
         run: uv run ruff check .

@@ -13,6 +13,7 @@ Configure the following checks as **required** for `main`.
 
 From workflow `Nova CI` (`.github/workflows/ci.yml`):
 
+- `classify-changes`
 - `runtime-security-reliability-gates`
 - `quality-gates`
 
@@ -79,6 +80,7 @@ gh api \
   "required_status_checks": {
     "strict": true,
     "contexts": [
+      "classify-changes",
       "runtime-security-reliability-gates",
       "quality-gates",
       "dash-conformance",
@@ -113,5 +115,9 @@ TypeScript conformance lane scope remains intentionally minimal:
 - contract fixture typing
 - SDK/client envelope verification
 - auth verify + queue/transfer contract parity
+
+Required-check workflows must stay always-triggered for protected-branch PRs.
+Minute reduction is handled inside those workflows with classifier jobs and
+job-level `if:` guards, not top-level workflow `paths` filters.
 
 No broad app feature tests are part of this required check set.
