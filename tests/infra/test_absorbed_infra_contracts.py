@@ -521,10 +521,73 @@ def test_runtime_env_and_parameter_contracts() -> None:
     assert isinstance(service_parameters, dict)
     assert "EnvVars" not in service_parameters
     assert "UseLegacyEnvDict" not in service_parameters
+    assert "TaskRole" not in service_parameters
+    assert "UseLegacyTaskRolePolicy" not in service_parameters
+    assert "GenerateAppSecretKey" not in service_parameters
+    assert "AppSecretEnvVarName" not in service_parameters
+    assert "TaskExecutionSecretArns" not in service_parameters
+    assert "TaskExecutionSsmParameterArns" not in service_parameters
     assert "JobsQueueUrl" in service_parameters
     assert "JobsTableName" in service_parameters
     assert "ActivityTableName" in service_parameters
     assert "CacheRedisUrlSecretArn" in service_parameters
+    assert "TaskRoleArn: !GetAtt ECSTaskRole.Arn" in service_text
+    assert "TaskRoleArn: !Ref TaskRole" not in service_text
+
+    assert "AppSecretKeySecret" not in service_resources
+    assert "ECSTaskPolicy" not in service_resources
+
+    execution_policy = service_resources["EcsTaskExecutionSecretsPolicy"]
+    assert isinstance(execution_policy, dict)
+    execution_policy_doc = execution_policy["Properties"]["PolicyDocument"]
+    assert isinstance(execution_policy_doc, dict)
+    execution_statements = execution_policy_doc["Statement"]
+    assert isinstance(execution_statements, list)
+    execution_actions = {
+        action
+        for statement in execution_statements
+        if isinstance(statement, dict)
+        for action in (
+            statement.get("Action", [])
+            if isinstance(statement.get("Action"), list)
+            else [statement.get("Action")]
+        )
+        if isinstance(action, str)
+    }
+    assert "secretsmanager:GetSecretValue" in execution_actions
+    assert "ssm:GetParameters" not in execution_actions
+
+    for policy_name in [
+        "FileTransferTaskPolicy",
+        "FileTransferAsyncTaskPolicy",
+    ]:
+        policy = service_resources[policy_name]
+        assert isinstance(policy, dict)
+        policy_doc = policy["Properties"]["PolicyDocument"]
+        assert isinstance(policy_doc, dict)
+        policy_statements = policy_doc["Statement"]
+        assert isinstance(policy_statements, list)
+        for statement in policy_statements:
+            assert isinstance(statement, dict)
+            actions = statement.get("Action", [])
+            if isinstance(actions, str):
+                actions = [actions]
+            for action in actions:
+                assert isinstance(action, str)
+                assert action not in {"s3:*", "dynamodb:*", "kms:*"}, (
+                    f"{policy_name} must not use broad wildcard actions: "
+                    f"{statement!r}"
+                )
+            resource = statement.get("Resource")
+            if resource == "*":
+                sid = statement.get("Sid")
+                assert sid == "FileTransferKms", (
+                    "Unexpected wildcard resource in "
+                    f"{policy_name}: {statement!r}"
+                )
+                condition = statement.get("Condition")
+                assert isinstance(condition, dict)
+                assert "ForAnyValue:StringLike" in condition
 
     for required in [
         "JobsDeadLetterQueue:",
