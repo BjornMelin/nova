@@ -2,8 +2,8 @@
 Spec: 0024
 Title: CloudFormation module contract
 Status: Active
-Version: 1.0
-Date: 2026-03-05
+Version: 1.1
+Date: 2026-03-17
 Related:
   - "[ADR-0030: Native-CFN modular stack architecture for Nova infrastructure productization](../adr/ADR-0030-native-cfn-modular-stack-architecture-for-nova-infrastructure-productization.md)"
   - "[ADR-0029: SSM runtime base URL authority for deploy validation](../adr/ADR-0029-ssm-runtime-base-url-authority-for-deploy-validation.md)"
@@ -39,6 +39,16 @@ Required stack modules:
 | `infra/nova/deploy/service-base-url-ssm.yml` | Environment-scoped SSM authority values for deploy validation base URLs (`/nova/{env}/{service}/base-url`) |
 | `infra/runtime/**` | Runtime infrastructure (ECS, ALB, WAF, queues, cache, secrets wiring, app parameters, observability) |
 
+Additional runtime ECS service contract:
+
+1. `infra/runtime/ecs/service.yml` owns the ECS service task role and must wire
+   `TaskDefinition.TaskRoleArn` to the stack-managed `ECSTaskRole`.
+2. Generic operator-provided `TaskRole`, `TaskExecutionSecretArns`, and
+   `TaskExecutionSsmParameterArns` parameters are not part of the active module
+   contract.
+3. Cache-backed runtime secret injection remains an ECS `Secrets` +
+   execution-role concern, not a plaintext environment-variable shim.
+
 ## 4. Inter-stack import/export contract
 
 1. Foundation outputs are imported by IAM, CodeBuild, and CI/CD stacks.
@@ -67,6 +77,8 @@ Required stack modules:
 3. Foundation-to-control-plane imports are validated by tests.
 4. SSM base-url path and HTTPS constraints are validated by tests/docs
    contracts.
+5. ECS service task-role ownership and secret wiring are validated by tests and
+   operator docs.
 
 ## 8. Traceability
 

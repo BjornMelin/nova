@@ -1,7 +1,7 @@
 # Plan Index (Current State)
 
 Status: Active planning and release index
-Last updated: 2026-03-10
+Last updated: 2026-03-17
 
 ## Purpose
 
@@ -48,6 +48,10 @@ guidance:
   `SPEC-0021`, `SPEC-0022`, and `SPEC-0023`.
 - Release planning and apply paths must stay synchronized with the active docs
   routers and workflow contracts.
+- Runtime deploy planning now assumes `infra/runtime/ecs/service.yml` owns the
+  ECS service task role and cache secret injection; operator plans must not
+  depend on `TASK_ROLE_ARN`, `TASK_EXECUTION_SECRET_ARNS`, or
+  `TASK_EXECUTION_SSM_PARAMETER_ARNS`.
 - Stable generated-client and conformance behavior remain part of release
   readiness, not a separate documentation model.
 - Repo-local pre-commit hooks now mirror the AGENTS task router, and `ty` is

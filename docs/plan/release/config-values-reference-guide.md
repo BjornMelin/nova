@@ -2,7 +2,7 @@
 
 Status: Active
 Owner: nova release architecture
-Last reviewed: 2026-03-05
+Last reviewed: 2026-03-17
 
 ## Purpose
 
@@ -115,16 +115,23 @@ Capture and manage these runtime values per environment before CI/CD deploy:
 - `ECS_CLUSTER_NAME`
 - `SERVICE_NAME`
 - `SERVICE_DNS`
-- `TASK_ROLE_ARN`
 - `DOCKER_REPOSITORY_NAME`
 - `IMAGE_DIGEST`
 - `ENV_VARS_JSON`
   Use this only for supported non-secret API runtime overrides. The runtime
   deploy script validates the JSON keys and maps them to explicit ECS
   environment entries; it is no longer passed through as `ENV_DICT`.
+- `ECS_INFRASTRUCTURE_ROLE_ARN` (optional override; otherwise resolved from the
+  control-plane IAM stack)
 - `OWNER_TAG`
 - `ALARM_ACTION_ARN`
 - `ASSIGN_PUBLIC_IP` (`ENABLED` or `DISABLED`)
+
+Retired runtime deploy inputs:
+
+- `TASK_ROLE_ARN`
+- `TASK_EXECUTION_SECRET_ARNS`
+- `TASK_EXECUTION_SSM_PARAMETER_ARNS`
 
 See:
 `deploy-runtime-cloudformation-environments-guide.md`

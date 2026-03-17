@@ -2,7 +2,7 @@
 
 Status: Active
 Owner: nova release architecture
-Last reviewed: 2026-03-10
+Last reviewed: 2026-03-17
 
 ## Purpose
 
@@ -40,3 +40,9 @@ Use these in order:
 These standards cover repo engineering workflow, generated artifact rules,
 quality-gate routing, pre-commit hook policy, and documentation
 synchronization. They do not replace the architecture authority docs.
+
+Durable operator inputs must stay synchronized across scripts, templates, and
+docs. For runtime deploys, the ECS service stack now owns the repo-managed task
+role and cache secret injection, so active docs and tests must reject
+`TASK_ROLE_ARN`, `TASK_EXECUTION_SECRET_ARNS`, and
+`TASK_EXECUTION_SSM_PARAMETER_ARNS`.

@@ -147,6 +147,10 @@ rg -n "/v1/transfers|/v1/jobs|/v1/internal/jobs|/v1/capabilities|/v1/resources/p
 - Malformed worker queue messages must remain unacked so SQS retry/DLQ policy
   handles poison messages.
 - `ACTIVITY_STORE_BACKEND=dynamodb` requires `ACTIVITY_ROLLUPS_TABLE`.
+- The runtime ECS service stack owns its repo-managed task role and cache
+  secret injection. Do not pass `TASK_ROLE_ARN`,
+  `TASK_EXECUTION_SECRET_ARNS`, or `TASK_EXECUTION_SSM_PARAMETER_ARNS` to
+  `scripts/release/deploy-runtime-cloudformation-environment.sh`.
 
 ## Task Router
 

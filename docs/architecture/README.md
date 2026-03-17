@@ -1,7 +1,7 @@
 # Nova Architecture Authority Map
 
 Status: Active
-Last reviewed: 2026-03-14
+Last reviewed: 2026-03-17
 
 ## Purpose
 
@@ -63,6 +63,11 @@ or deploy-validation base URL authority.
 
 Use when the question is about CloudFormation module boundaries, reusable
 workflows, CI/CD IAM policy, or deployment-control-plane design.
+
+Current deploy-governance baseline: the ECS service runtime stack owns the
+repo-managed task role and cache-secret execution-role policy. Operator docs
+and workflows must not reintroduce external `TaskRole` or generic execution
+secret override inputs.
 
 - `adr/ADR-0015-nova-api-platform-final-hosting-and-deployment-architecture-2026.md`
 - `adr/ADR-0030-native-cfn-modular-stack-architecture-for-nova-infrastructure-productization.md`
