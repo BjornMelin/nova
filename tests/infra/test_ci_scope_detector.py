@@ -93,9 +93,7 @@ def test_scope_detector_cli_emits_expected_output_contract(
     tmp_path: Path,
 ) -> None:
     git_executable = shutil.which("git")
-    assert git_executable, (
-        "git executable must be available for CLI contract test"
-    )
+    assert git_executable, "git executable is required for CLI contract tests"
     head_sha = subprocess.run(  # noqa: S603
         [git_executable, "rev-parse", "HEAD"],
         check=True,

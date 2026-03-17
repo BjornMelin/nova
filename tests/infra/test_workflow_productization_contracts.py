@@ -1,11 +1,12 @@
 """Workflow productization contracts for reusable workflows and composites."""
 
+# ruff: noqa: I001
+
 from __future__ import annotations
 
 import yaml
 
-from .helpers import REPO_ROOT
-from .helpers import read_repo_file as _read
+from .helpers import REPO_ROOT, read_repo_file as _read
 
 
 def test_reusable_workflow_call_apis_exist_and_are_callable() -> None:

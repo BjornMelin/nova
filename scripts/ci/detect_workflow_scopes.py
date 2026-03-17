@@ -88,10 +88,7 @@ CFN_EXACT = {
     "docs/README.md",
     "docs/plan/PLAN.md",
 } | CFN_AUTHORITY_DOC_EXACT
-DOC_ONLY_PREFIXES = (
-    "docs/",
-    "docs/history/",
-)
+DOC_ONLY_PREFIXES = ("docs/",)
 DOC_ONLY_EXACT = {"AGENTS.md", "README.md"}
 
 
@@ -206,7 +203,11 @@ def _write_outputs(outputs: dict[str, str], github_output: str) -> None:
 
 
 def main() -> int:
-    """Run the classifier and emit GitHub Actions step outputs."""
+    """Run the classifier and emit GitHub Actions step outputs.
+
+    Returns:
+        int: 0 for success, non-zero for failure.
+    """
     args = _parse_args()
     base_sha = _normalize_base_sha(args.base_sha)
     changed_files = _load_changed_files(
