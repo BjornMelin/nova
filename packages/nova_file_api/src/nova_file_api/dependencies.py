@@ -242,7 +242,19 @@ def build_idempotency_store(
     settings: Settings,
     shared_cache: SharedRedisCache,
 ) -> IdempotencyStore:
-    """Create the idempotency store."""
+    """Create the idempotency store.
+
+    Args:
+        settings: Resolved runtime settings.
+        shared_cache: Shared Redis cache for idempotency entries.
+
+    Returns:
+        The configured idempotency store.
+
+    Raises:
+        ValueError: When IDEMPOTENCY_ENABLED=true but shared cache is not
+            available.
+    """
     if settings.idempotency_enabled and not shared_cache.available:
         raise ValueError(_MSG_IDEMPOTENCY_REQUIRES_SHARED_CACHE)
     return IdempotencyStore(
