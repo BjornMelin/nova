@@ -163,6 +163,12 @@ Current runtime posture:
   claim store for duplicate prevention across instances.
 - Shared idempotency store failures MUST fail closed with `503` and
   `error.code = "idempotency_unavailable"`.
+- If a mutation succeeds but the replay record cannot be committed, Nova MUST
+  preserve the existing `in_progress` claim so retries with the same key do
+  not execute the mutation a second time.
+- Clients receiving `idempotency_unavailable` from a protected mutation MUST
+  reuse the same `Idempotency-Key`; minting a new key after that response risks
+  creating a duplicate mutation.
 - Missing `Idempotency-Key` remains allowed; blank keys are invalid.
 - Active operator docs and deploy automation MUST enforce the shared-cache
   requirement without introducing a mode matrix.

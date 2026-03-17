@@ -430,7 +430,7 @@ def test_v1_initiate_fails_closed_when_shared_claim_store_is_unavailable() -> (
 
 
 def test_v1_initiate_store_failure_is_not_replayed() -> None:
-    """Commit-store outages must not leave a replayable success behind."""
+    """Commit-store outages must block duplicate execution."""
     deps, transfer_service, _job_service = _build_deps()
     flaky_shared_cache = _shared_cache_with_client(_ClaimOnlyRedisClient())
     deps.shared_cache = flaky_shared_cache
@@ -465,9 +465,42 @@ def test_v1_initiate_store_failure_is_not_replayed() -> None:
 
     assert first.status_code == 503
     assert first.json()["error"]["code"] == "idempotency_unavailable"
-    assert second.status_code == 503
-    assert second.json()["error"]["code"] == "idempotency_unavailable"
-    assert transfer_service.calls == 2
+    assert second.status_code == 409
+    assert second.json()["error"]["code"] == "idempotency_conflict"
+    assert transfer_service.calls == 1
+
+
+def test_v1_jobs_store_failure_blocks_duplicate_enqueue() -> None:
+    """Commit-store outages must not re-run a successful enqueue."""
+    deps, _transfer_service, job_service = _build_deps()
+    flaky_shared_cache = _shared_cache_with_client(_ClaimOnlyRedisClient())
+    deps.shared_cache = flaky_shared_cache
+    deps.idempotency_store = IdempotencyStore(
+        shared_cache=flaky_shared_cache,
+        enabled=True,
+        ttl_seconds=deps.settings.idempotency_ttl_seconds,
+        key_prefix=deps.settings.cache_key_prefix,
+        key_schema_version=deps.settings.cache_key_schema_version,
+    )
+    app = build_test_app(deps)
+
+    with TestClient(app) as client:
+        first = client.post(
+            "/v1/jobs",
+            headers={"Idempotency-Key": "job-key-commit-outage"},
+            json={"job_type": "transform", "payload": {"input": "a"}},
+        )
+        second = client.post(
+            "/v1/jobs",
+            headers={"Idempotency-Key": "job-key-commit-outage"},
+            json={"job_type": "transform", "payload": {"input": "a"}},
+        )
+
+    assert first.status_code == 503
+    assert first.json()["error"]["code"] == "idempotency_unavailable"
+    assert second.status_code == 409
+    assert second.json()["error"]["code"] == "idempotency_conflict"
+    assert job_service.calls == 1
 
 
 @pytest.mark.asyncio

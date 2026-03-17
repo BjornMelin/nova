@@ -84,7 +84,9 @@ For detailed SDK governance and generation rules, use:
 - idempotent mutation entrypoints use `IDEMPOTENCY_ENABLED` plus bounded TTL
   settings; when enabled, Nova requires shared Redis claim storage and returns
   `503` with `error.code = "idempotency_unavailable"` if that shared store is
-  unavailable
+  unavailable; if execution succeeded before replay persistence failed, Nova
+  keeps the existing claim so retries with the same key do not re-run the
+  mutation
 - `/v1/health/ready` gates traffic on `bucket_configured`,
   `auth_dependency`, and active runtime dependencies; `shared_cache` gates
   readiness only when idempotency is enabled, while `activity_store` remains a

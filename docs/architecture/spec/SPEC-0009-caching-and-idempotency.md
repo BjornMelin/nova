@@ -57,6 +57,12 @@ For protected mutation endpoints:
   - claim discard on failure path
 - Shared idempotency-store failures MUST fail closed with `503` and
   `error.code = "idempotency_unavailable"`.
+- If execution succeeds but commit persistence fails, the runtime MUST keep the
+  existing `in_progress` claim so retries with the same key do not re-execute
+  the mutation.
+- Clients receiving `idempotency_unavailable` from a protected mutation MUST
+  retry with the same `Idempotency-Key`; rotating keys after this failure mode
+  is unsafe because the original mutation may already have applied.
 - Enqueue failures (`503` + `error.code = "queue_unavailable"`) MUST NOT be
   replay-cached as successful responses.
 

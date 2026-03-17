@@ -149,19 +149,12 @@ async def run_guarded_mutation[ResponseModelT: BaseModel](
                 request_payload=request_payload,
                 response_payload=response.model_dump(mode="json"),
             )
-        except Exception as exc:
+        except Exception:
             logger.exception(
                 store_response_failure_event,
                 **store_response_failure_extra,
             )
             if store_response_failure_mode == "raise":
-                await _run_failure_hook_best_effort(exc)
-                if claimed_idempotency:
-                    await idempotency_store.discard_claim(
-                        route=route,
-                        scope_id=scope_id,
-                        idempotency_key=idempotency_key,
-                    )
                 raise
 
     try:

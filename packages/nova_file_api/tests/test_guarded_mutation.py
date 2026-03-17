@@ -17,7 +17,7 @@ class _FakeIdempotencyStore:
         self.replay: dict[str, Any] | None = None
         self.claim_result = True
         self.stored_payload: dict[str, Any] | None = None
-        self.discarded = False
+        self.discard_calls = 0
         self.raise_on_store = False
         self.raise_on_discard = False
 
@@ -35,7 +35,7 @@ class _FakeIdempotencyStore:
     async def discard_claim(self, **_: Any) -> None:
         if self.raise_on_discard:
             raise RuntimeError("discard failed")
-        self.discarded = True
+        self.discard_calls += 1
 
 
 @pytest.mark.asyncio
@@ -138,7 +138,7 @@ async def test_run_guarded_mutation_discards_claim_on_failure() -> None:
         )
 
     assert failures == ["boom"]
-    assert store.discarded is True
+    assert store.discard_calls == 1
 
 
 @pytest.mark.asyncio
@@ -170,7 +170,7 @@ async def test_discard_claim_when_failure_hook_raises() -> None:
             store_response_failure_extra={},
         )
 
-    assert store.discarded is True
+    assert store.discard_calls == 1
 
 
 @pytest.mark.asyncio
@@ -277,11 +277,13 @@ async def test_claim_false_without_replay_conflicts() -> None:
 
     assert failures == []
     assert successes == []
-    assert store.discarded is False
+    assert store.discard_calls == 0
 
 
 @pytest.mark.asyncio
-async def test_run_guarded_mutation_store_failure_raise_cleans_claim() -> None:
+async def test_run_guarded_mutation_store_failure_raise_preserves_claim() -> (
+    None
+):
     store = _FakeIdempotencyStore()
     store.raise_on_store = True
     failures: list[str] = []
@@ -312,5 +314,5 @@ async def test_run_guarded_mutation_store_failure_raise_cleans_claim() -> None:
             store_response_failure_mode="raise",
         )
 
-    assert failures == ["store failed"]
-    assert store.discarded is True
+    assert failures == []
+    assert store.discard_calls == 0
