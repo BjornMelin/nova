@@ -73,7 +73,7 @@ Required startup validation:
 11. Default runtime posture for file transfer MUST set:
    - `FILE_TRANSFER_MAX_UPLOAD_BYTES=536_870_912_000`
    - `FILE_TRANSFER_PRESIGN_UPLOAD_TTL_SECONDS=1800`
-12. Active operator docs and infra tests must consume the generated
+1. Active operator docs and infra tests must consume the generated
     runtime-config contract artifacts instead of maintaining duplicate env-key
     lists by hand.
 

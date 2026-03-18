@@ -235,6 +235,7 @@ runtime_env_json_override_pairs() {
 ensure_runtime_env_json_contract() {
   local contract_path
   local allowed_keys_json
+  local forbidden_keys_json
   contract_path="$(runtime_config_contract_path)"
   [ -f "$contract_path" ] || {
     echo "Missing runtime config contract artifact: $contract_path" >&2
@@ -243,14 +244,12 @@ ensure_runtime_env_json_contract() {
   allowed_keys_json="$(
     jq -c '[.env_vars_json.supported_overrides[].env_var]' "$contract_path"
   )"
+  forbidden_keys_json="$(
+    jq -c '[.env_vars_json.forbidden_keys[]]' "$contract_path"
+  )"
 
   jq -e 'type == "object"' <<<"$ENV_VARS_JSON" >/dev/null || {
     echo "ENV_VARS_JSON must be a JSON object." >&2
-    exit 1
-  }
-
-  jq -e 'has("IDEMPOTENCY_MODE") | not' <<<"$ENV_VARS_JSON" >/dev/null || {
-    echo "ENV_VARS_JSON must not include IDEMPOTENCY_MODE; the runtime contract uses IDEMPOTENCY_ENABLED with shared-cache fail-closed semantics." >&2
     exit 1
   }
 
@@ -299,6 +298,22 @@ ensure_runtime_env_json_contract() {
     while IFS= read -r field; do
       [ -n "$field" ] && echo "  - $field" >&2
     done <<<"$unknown_fields"
+    exit 1
+  fi
+
+  local forbidden_fields=""
+  forbidden_fields="$(
+    jq -r --argjson forbidden "$forbidden_keys_json" '
+      keys_unsorted | map(select(. as $key | $forbidden | index($key)))
+      | .[]
+    ' <<<"$ENV_VARS_JSON"
+  )"
+
+  if [ -n "$forbidden_fields" ]; then
+    echo "ENV_VARS_JSON contains forbidden keys from the runtime contract:" >&2
+    while IFS= read -r field; do
+      [ -n "$field" ] && echo "  - $field" >&2
+    done <<<"$forbidden_fields"
     exit 1
   fi
 

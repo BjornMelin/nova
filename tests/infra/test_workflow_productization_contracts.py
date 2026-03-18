@@ -349,12 +349,10 @@ def test_canonical_runtime_deploy_script_enforces_final_posture() -> None:
         assert required in text
 
     assert "AllowExecutionRoleSecretsWildcard" not in text
-    idempotency_mode_guard = (
-        "ENV_VARS_JSON must not include IDEMPOTENCY_MODE; the runtime "
-        "contract uses IDEMPOTENCY_ENABLED with shared-cache fail-closed "
-        "semantics."
+    assert (
+        "ENV_VARS_JSON contains forbidden keys from the runtime contract:"
+        in text
     )
-    assert idempotency_mode_guard in text
     assert (
         "IDEMPOTENCY_ENABLED=true requires FILE_TRANSFER_CACHE_ENABLED=true"
         in text

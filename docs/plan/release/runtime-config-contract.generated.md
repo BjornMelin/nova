@@ -13,7 +13,7 @@ Canonical sources:
 
 | Env Var | Field | Type | Required | Secret | Default |
 | --- | --- | --- | --- | --- | --- |
-| ACTIVITY_ROLLUPS_TABLE | activity_rollups_table | str \| NoneType | no | no | `None` |
+| ACTIVITY_ROLLUPS_TABLE | activity_rollups_table | str \| None | no | no | `None` |
 | ACTIVITY_STORE_BACKEND | activity_store_backend | ActivityStoreBackend | no | no | `<ActivityStoreBackend.MEMORY: 'memory'>` |
 | APP_NAME | app_name | str | no | no | `'nova-file-api'` |
 | APP_VERSION | app_version | str | no | no | `<factory>` |
@@ -33,7 +33,7 @@ Canonical sources:
 | CACHE_REDIS_RETRY_CAP_SECONDS | cache_redis_retry_cap_seconds | float | no | no | `0.5` |
 | CACHE_REDIS_SOCKET_CONNECT_TIMEOUT_SECONDS | cache_redis_socket_connect_timeout_seconds | float | no | no | `0.5` |
 | CACHE_REDIS_SOCKET_TIMEOUT_SECONDS | cache_redis_socket_timeout_seconds | float | no | no | `0.5` |
-| CACHE_REDIS_URL | cache_redis_url | str \| NoneType | no | no | `None` |
+| CACHE_REDIS_URL | cache_redis_url | str \| None | no | no | `None` |
 | CACHE_SHARED_TTL_SECONDS | cache_shared_ttl_seconds | int | no | no | `300` |
 | ENVIRONMENT | environment | str | no | no | `'dev'` |
 | FILE_TRANSFER_BUCKET | file_transfer_bucket | str | no | no | `''` |
@@ -51,28 +51,28 @@ Canonical sources:
 | IDEMPOTENCY_ENABLED | idempotency_enabled | bool | no | no | `True` |
 | IDEMPOTENCY_TTL_SECONDS | idempotency_ttl_seconds | int | no | no | `900` |
 | JOBS_ALLOW_INSECURE_MISSING_WORKER_TOKEN_NONPROD | jobs_allow_insecure_missing_worker_token_nonprod | bool | no | no | `False` |
-| JOBS_API_BASE_URL | jobs_api_base_url | str \| NoneType | no | no | `None` |
-| JOBS_DYNAMODB_TABLE | jobs_dynamodb_table | str \| NoneType | no | no | `None` |
+| JOBS_API_BASE_URL | jobs_api_base_url | str \| None | no | no | `None` |
+| JOBS_DYNAMODB_TABLE | jobs_dynamodb_table | str \| None | no | no | `None` |
 | JOBS_ENABLED | jobs_enabled | bool | no | no | `True` |
 | JOBS_QUEUE_BACKEND | jobs_queue_backend | JobsQueueBackend | no | no | `<JobsQueueBackend.MEMORY: 'memory'>` |
 | JOBS_REPOSITORY_BACKEND | jobs_repository_backend | JobsRepositoryBackend | no | no | `<JobsRepositoryBackend.MEMORY: 'memory'>` |
 | JOBS_RUNTIME_MODE | jobs_runtime_mode | str | no | no | `'api'` |
 | JOBS_SQS_MAX_NUMBER_OF_MESSAGES | jobs_sqs_max_number_of_messages | int | no | no | `1` |
-| JOBS_SQS_QUEUE_URL | jobs_sqs_queue_url | str \| NoneType | no | no | `None` |
+| JOBS_SQS_QUEUE_URL | jobs_sqs_queue_url | str \| None | no | no | `None` |
 | JOBS_SQS_RETRY_MODE | jobs_sqs_retry_mode | str | no | no | `'standard'` |
 | JOBS_SQS_RETRY_TOTAL_MAX_ATTEMPTS | jobs_sqs_retry_total_max_attempts | int | no | no | `3` |
 | JOBS_SQS_VISIBILITY_TIMEOUT_SECONDS | jobs_sqs_visibility_timeout_seconds | int | no | no | `120` |
 | JOBS_SQS_WAIT_TIME_SECONDS | jobs_sqs_wait_time_seconds | int | no | no | `20` |
-| JOBS_WORKER_UPDATE_TOKEN | jobs_worker_update_token | SecretStr \| NoneType | no | yes | `None` |
+| JOBS_WORKER_UPDATE_TOKEN | jobs_worker_update_token | SecretStr \| None | no | yes | `None` |
 | METRICS_NAMESPACE | metrics_namespace | str | no | no | `'NovaFileApi'` |
-| OIDC_AUDIENCE | oidc_audience | str \| NoneType | no | no | `None` |
+| OIDC_AUDIENCE | oidc_audience | str \| None | no | no | `None` |
 | OIDC_CLOCK_SKEW_SECONDS | oidc_clock_skew_seconds | int | no | no | `0` |
-| OIDC_ISSUER | oidc_issuer | str \| NoneType | no | no | `None` |
-| OIDC_JWKS_URL | oidc_jwks_url | str \| NoneType | no | no | `None` |
+| OIDC_ISSUER | oidc_issuer | str \| None | no | no | `None` |
+| OIDC_JWKS_URL | oidc_jwks_url | str \| None | no | no | `None` |
 | OIDC_REQUIRED_PERMISSIONS | oidc_required_permissions | str | no | no | `''` |
 | OIDC_REQUIRED_SCOPES | oidc_required_scopes | str | no | no | `''` |
 | OIDC_VERIFIER_THREAD_TOKENS | oidc_verifier_thread_tokens | int | no | no | `40` |
-| REMOTE_AUTH_BASE_URL | remote_auth_base_url | str \| NoneType | no | no | `None` |
+| REMOTE_AUTH_BASE_URL | remote_auth_base_url | str \| None | no | no | `None` |
 | REMOTE_AUTH_TIMEOUT_SECONDS | remote_auth_timeout_seconds | float | no | no | `2.0` |
 
 ## Generated ENV_VARS_JSON support matrix

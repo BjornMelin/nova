@@ -491,7 +491,7 @@
       "field_name": "activity_rollups_table",
       "required": false,
       "secret": false,
-      "type_label": "str | NoneType"
+      "type_label": "str | None"
     },
     {
       "default_repr": "<ActivityStoreBackend.MEMORY: 'memory'>",
@@ -651,7 +651,7 @@
       "field_name": "cache_redis_url",
       "required": false,
       "secret": false,
-      "type_label": "str | NoneType"
+      "type_label": "str | None"
     },
     {
       "default_repr": "300",
@@ -795,7 +795,7 @@
       "field_name": "jobs_api_base_url",
       "required": false,
       "secret": false,
-      "type_label": "str | NoneType"
+      "type_label": "str | None"
     },
     {
       "default_repr": "None",
@@ -803,7 +803,7 @@
       "field_name": "jobs_dynamodb_table",
       "required": false,
       "secret": false,
-      "type_label": "str | NoneType"
+      "type_label": "str | None"
     },
     {
       "default_repr": "True",
@@ -851,7 +851,7 @@
       "field_name": "jobs_sqs_queue_url",
       "required": false,
       "secret": false,
-      "type_label": "str | NoneType"
+      "type_label": "str | None"
     },
     {
       "default_repr": "'standard'",
@@ -891,7 +891,7 @@
       "field_name": "jobs_worker_update_token",
       "required": false,
       "secret": true,
-      "type_label": "SecretStr | NoneType"
+      "type_label": "SecretStr | None"
     },
     {
       "default_repr": "'NovaFileApi'",
@@ -907,7 +907,7 @@
       "field_name": "oidc_audience",
       "required": false,
       "secret": false,
-      "type_label": "str | NoneType"
+      "type_label": "str | None"
     },
     {
       "default_repr": "0",
@@ -923,7 +923,7 @@
       "field_name": "oidc_issuer",
       "required": false,
       "secret": false,
-      "type_label": "str | NoneType"
+      "type_label": "str | None"
     },
     {
       "default_repr": "None",
@@ -931,7 +931,7 @@
       "field_name": "oidc_jwks_url",
       "required": false,
       "secret": false,
-      "type_label": "str | NoneType"
+      "type_label": "str | None"
     },
     {
       "default_repr": "''",
@@ -963,7 +963,7 @@
       "field_name": "remote_auth_base_url",
       "required": false,
       "secret": false,
-      "type_label": "str | NoneType"
+      "type_label": "str | None"
     },
     {
       "default_repr": "2.0",

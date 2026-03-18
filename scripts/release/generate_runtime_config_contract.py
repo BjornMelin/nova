@@ -76,7 +76,14 @@ def _args() -> argparse.Namespace:
 
 
 def main() -> int:
-    """Generate or verify the committed runtime-config contract artifacts."""
+    """Generate or verify the committed runtime-config contract artifacts.
+
+    Returns:
+        int: Exit status code, where 0 indicates success.
+
+    Raises:
+        None.
+    """
     helpers = _load_contract_helpers()
     args = _args()
     status = 0

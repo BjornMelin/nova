@@ -69,6 +69,8 @@ def _annotation_contains(annotation: Any, target: type[object]) -> bool:
 def _type_label(annotation: Any) -> str:
     if annotation is Any:
         return "Any"
+    if annotation is type(None):
+        return "None"
 
     origin = get_origin(annotation)
     if origin is None:
@@ -106,7 +108,15 @@ def _default_repr(field: FieldInfo) -> str:
 
 
 def runtime_setting_contracts() -> tuple[RuntimeSettingContract, ...]:
-    """Return the runtime settings contract derived from Settings."""
+    """Return the runtime settings contract derived from ``Settings``.
+
+    Returns:
+        tuple[RuntimeSettingContract, ...]: Sorted runtime setting contract
+            entries derived from the canonical ``Settings`` model.
+
+    Raises:
+        None.
+    """
     contracts = [
         RuntimeSettingContract(
             field_name=field_name,
@@ -403,17 +413,40 @@ def _assert_known_runtime_env(env_vars: Iterable[str]) -> None:
         raise ValueError(f"Unknown runtime contract env vars: {joined}")
 
 
-_assert_known_runtime_env(
-    contract.name for contract in SERVICE_TEMPLATE_ENV if not contract.secret
-)
-_assert_known_runtime_env(
-    contract.name for contract in WORKER_TEMPLATE_ENV if not contract.secret
-)
+def _assert_non_secret_runtime_env(env_vars: Iterable[str]) -> None:
+    contracts = {
+        contract.env_var: contract for contract in runtime_setting_contracts()
+    }
+    secret_env_vars = sorted(
+        env_var
+        for env_var in set(env_vars)
+        if (contract := contracts.get(env_var)) is not None and contract.secret
+    )
+    if secret_env_vars:
+        joined = ", ".join(secret_env_vars)
+        raise ValueError(
+            f"Secret runtime contract env vars are not allowed here: {joined}"
+        )
+
+
+_assert_known_runtime_env(contract.name for contract in SERVICE_TEMPLATE_ENV)
+_assert_known_runtime_env(contract.name for contract in WORKER_TEMPLATE_ENV)
 _assert_known_runtime_env(override.env_var for override in ENV_JSON_OVERRIDES)
+_assert_non_secret_runtime_env(
+    override.env_var for override in ENV_JSON_OVERRIDES
+)
 
 
 def build_contract_payload() -> dict[str, Any]:
-    """Build the full runtime-config contract payload."""
+    """Build the full runtime-config contract payload.
+
+    Returns:
+        dict[str, Any]: Canonical runtime-config contract payload for JSON and
+            Markdown renderers.
+
+    Raises:
+        None.
+    """
     settings_contracts = runtime_setting_contracts()
     return {
         "schema_version": 1,
@@ -463,17 +496,38 @@ def build_contract_payload() -> dict[str, Any]:
 
 
 def contract_json_path() -> Path:
-    """Return the canonical generated JSON artifact path."""
+    """Return the canonical generated JSON artifact path.
+
+    Returns:
+        Path: Repository-relative path to the generated JSON artifact.
+
+    Raises:
+        None.
+    """
     return REPO_ROOT / CONTRACT_JSON_PATH
 
 
 def contract_markdown_path() -> Path:
-    """Return the canonical generated Markdown artifact path."""
+    """Return the canonical generated Markdown artifact path.
+
+    Returns:
+        Path: Repository-relative path to the generated Markdown artifact.
+
+    Raises:
+        None.
+    """
     return REPO_ROOT / CONTRACT_MARKDOWN_PATH
 
 
 def render_contract_json() -> str:
-    """Render the canonical contract JSON artifact."""
+    """Render the canonical contract JSON artifact.
+
+    Returns:
+        str: Serialized contract payload with stable indentation.
+
+    Raises:
+        None.
+    """
     return json.dumps(build_contract_payload(), indent=2, sort_keys=True) + "\n"
 
 
@@ -546,7 +600,14 @@ def _render_env_json_table(entries: list[dict[str, Any]]) -> str:
 
 
 def render_contract_markdown() -> str:
-    """Render the generated operator-facing Markdown summary."""
+    """Render the generated operator-facing Markdown summary.
+
+    Returns:
+        str: Operator-facing Markdown summary for the runtime-config contract.
+
+    Raises:
+        None.
+    """
     payload = build_contract_payload()
     service_env = payload["service_template"]["env"]
     service_secrets = payload["service_template"]["secrets"]
