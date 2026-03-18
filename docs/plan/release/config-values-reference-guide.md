@@ -97,6 +97,17 @@ Populate these via `infra/nova/deploy/service-base-url-ssm.yml` before running
 
 ## Runtime stack parameter contract
 
+Generated runtime config authority:
+
+- `runtime-config-contract.generated.md` is the operator-facing matrix for
+  current runtime env vars, `ENV_VARS_JSON` supported overrides, and ECS
+  template wiring.
+- Regenerate it with
+  `source .venv/bin/activate && uv run python scripts/release/generate_runtime_config_contract.py`.
+- The underlying source of truth is
+  `packages/nova_file_api/src/nova_file_api/config.py` plus
+  `scripts/release/runtime_config_contract.py`.
+
 Documentation authority: [ADR-0023](../../architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md) -> [SPEC-0000](../../architecture/spec/SPEC-0000-http-api-contract.md) -> [SPEC-0016](../../architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md) -> [requirements.md](../../requirements.md)
 
 Capture and manage these runtime values per environment before CI/CD deploy:
@@ -119,8 +130,9 @@ Capture and manage these runtime values per environment before CI/CD deploy:
 - `IMAGE_DIGEST`
 - `ENV_VARS_JSON`
   Use this only for supported non-secret API runtime overrides. The runtime
-  deploy script validates the JSON keys and maps them to explicit ECS
-  environment entries; it is no longer passed through as `ENV_DICT`.
+  deploy script validates the JSON keys against the generated runtime config
+  contract and maps them to explicit ECS environment entries; it is no longer
+  passed through as `ENV_DICT`.
 - `ECS_INFRASTRUCTURE_ROLE_ARN` (optional override; otherwise resolved from the
   control-plane IAM stack)
 - `OWNER_TAG`
@@ -135,6 +147,8 @@ Retired runtime deploy inputs:
 
 See:
 `deploy-runtime-cloudformation-environments-guide.md`
+and
+`runtime-config-contract.generated.md`
 
 ## CloudFormation stack names and outputs
 

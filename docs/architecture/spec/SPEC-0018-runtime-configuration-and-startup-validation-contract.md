@@ -2,8 +2,8 @@
 Spec: 0018
 Title: Runtime configuration and startup validation contract
 Status: Active
-Version: 2.3
-Date: 2026-03-11
+Version: 2.4
+Date: 2026-03-17
 Related:
   - "[ADR-0026: Fail-fast runtime configuration and safe auth execution](../adr/ADR-0026-fail-fast-runtime-configuration-and-safe-auth-execution.md)"
   - "[SPEC-0017: Runtime component topology and ownership contract](./SPEC-0017-runtime-component-topology-and-ownership-contract.md)"
@@ -24,7 +24,12 @@ readiness semantics for Nova runtime packages.
    environment contract for the auth API runtime.
 3. `packages/nova_dash_bridge/src/nova_dash_bridge/config.py` may define
    adapter-local environment settings only.
-4. Bridge code must not mutate `nova_file_api.Settings()` or recreate runtime
+4. `scripts/release/runtime_config_contract.py` is the only allowed curated
+   supplement for deploy-template metadata that cannot be inferred from
+   `Settings` alone.
+5. `scripts/release/generate_runtime_config_contract.py` must keep the
+   committed runtime-config JSON and Markdown artifacts current.
+6. Bridge code must not mutate `nova_file_api.Settings()` or recreate runtime
    authority through ambient settings rewriting.
 
 ## 3. Fail-fast startup rules
@@ -68,6 +73,9 @@ Required startup validation:
 11. Default runtime posture for file transfer MUST set:
    - `FILE_TRANSFER_MAX_UPLOAD_BYTES=536_870_912_000`
    - `FILE_TRANSFER_PRESIGN_UPLOAD_TTL_SECONDS=1800`
+12. Active operator docs and infra tests must consume the generated
+    runtime-config contract artifacts instead of maintaining duplicate env-key
+    lists by hand.
 
 ## 4. Readiness contract
 
@@ -100,6 +108,7 @@ Required startup validation:
 2. Active docs state the current shared-idempotency and scoped-readiness
    contract and do not claim an unimplemented `IDEMPOTENCY_MODE`.
 3. Bridge and adapter docs do not claim separate runtime startup contracts.
+4. Runtime deploy/docs/tests share a single generated env/override matrix.
 
 ## 7. Traceability
 

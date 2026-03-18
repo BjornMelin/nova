@@ -113,9 +113,20 @@ source .venv/bin/activate && uv run pytest -q
 source .venv/bin/activate && uv run pytest -q \
   packages/nova_file_api/tests/test_generated_client_smoke.py
 source .venv/bin/activate && uv run python scripts/contracts/export_openapi.py --check
+source .venv/bin/activate && uv run python scripts/release/generate_runtime_config_contract.py --check
 source .venv/bin/activate && uv run python scripts/release/generate_clients.py --check
 source .venv/bin/activate && uv run python scripts/release/generate_python_clients.py --check
 ```
+
+Runtime deploy/config drift guard:
+
+- `packages/nova_file_api/src/nova_file_api/config.py` is the typed runtime
+  source of truth.
+- `scripts/release/runtime_config_contract.py` adds the curated deploy/template
+  metadata that cannot be inferred from `Settings` alone.
+- `docs/plan/release/runtime-config-contract.generated.md` is the generated
+  operator-facing matrix. Refresh it with
+  `scripts/release/generate_runtime_config_contract.py`.
 
 Canonical typing gates:
 

@@ -174,6 +174,7 @@ source .venv/bin/activate && uv run pytest -q
 source .venv/bin/activate && uv run pytest -q \
   packages/nova_file_api/tests/test_generated_client_smoke.py
 source .venv/bin/activate && uv run python scripts/contracts/export_openapi.py --check
+source .venv/bin/activate && uv run python scripts/release/generate_runtime_config_contract.py --check
 source .venv/bin/activate && uv run python scripts/release/generate_clients.py --check
 source .venv/bin/activate && uv run python scripts/release/generate_python_clients.py --check
 source .venv/bin/activate && \
@@ -186,6 +187,11 @@ Notes:
 - `ty` is the canonical Python type gate for the full repo typing surface.
 - `mypy` remains a required compatibility backstop on its narrower configured
   scope.
+- Runtime config deploy/docs/tests must treat
+  `packages/nova_file_api/src/nova_file_api/config.py` plus
+  `scripts/release/runtime_config_contract.py` as the source-of-truth pair and
+  keep `docs/plan/release/runtime-config-contract.generated.md` fresh via
+  `scripts/release/generate_runtime_config_contract.py`.
 - CI also enforces a stronger canonical-route policy guard in
   `.github/workflows/ci.yml`. Use the quick route preflight above before
   broader edits.
