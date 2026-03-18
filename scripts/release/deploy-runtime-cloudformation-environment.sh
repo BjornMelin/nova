@@ -218,60 +218,38 @@ append_json_parameter_override() {
   fi
 }
 
-ENV_JSON_PARAMETER_MAPPINGS=(
-  "AUTH_MODE:AuthMode"
-  "OIDC_ISSUER:OidcIssuer"
-  "OIDC_AUDIENCE:OidcAudience"
-  "OIDC_JWKS_URL:OidcJwksUrl"
-  "OIDC_REQUIRED_SCOPES:OidcRequiredScopes"
-  "OIDC_REQUIRED_PERMISSIONS:OidcRequiredPermissions"
-  "OIDC_CLOCK_SKEW_SECONDS:OidcClockSkewSeconds"
-  "OIDC_VERIFIER_THREAD_TOKENS:OidcVerifierThreadTokens"
-  "BLOCKING_IO_THREAD_TOKENS:BlockingIoThreadTokens"
-  "REMOTE_AUTH_BASE_URL:RemoteAuthBaseUrl"
-  "REMOTE_AUTH_TIMEOUT_SECONDS:RemoteAuthTimeoutSeconds"
-  "CACHE_REDIS_MAX_CONNECTIONS:CacheRedisMaxConnections"
-  "CACHE_REDIS_SOCKET_TIMEOUT_SECONDS:CacheRedisSocketTimeoutSeconds"
-  "CACHE_REDIS_SOCKET_CONNECT_TIMEOUT_SECONDS:CacheRedisSocketConnectTimeoutSeconds"
-  "CACHE_REDIS_HEALTH_CHECK_INTERVAL_SECONDS:CacheRedisHealthCheckIntervalSeconds"
-  "CACHE_REDIS_RETRY_BASE_SECONDS:CacheRedisRetryBaseSeconds"
-  "CACHE_REDIS_RETRY_CAP_SECONDS:CacheRedisRetryCapSeconds"
-  "CACHE_REDIS_RETRY_ATTEMPTS:CacheRedisRetryAttempts"
-  "CACHE_REDIS_DECODE_RESPONSES:CacheRedisDecodeResponses"
-  "CACHE_REDIS_PROTOCOL:CacheRedisProtocol"
-  "CACHE_LOCAL_TTL_SECONDS:CacheLocalTtlSeconds"
-  "CACHE_LOCAL_MAX_ENTRIES:CacheLocalMaxEntries"
-  "CACHE_SHARED_TTL_SECONDS:CacheSharedTtlSeconds"
-  "CACHE_KEY_PREFIX:CacheKeyPrefix"
-  "CACHE_KEY_SCHEMA_VERSION:CacheKeySchemaVersion"
-  "AUTH_JWT_CACHE_MAX_TTL_SECONDS:AuthJwtCacheMaxTtlSeconds"
-  "IDEMPOTENCY_ENABLED:IdempotencyEnabled"
-  "IDEMPOTENCY_TTL_SECONDS:IdempotencyTtlSeconds"
-  "FILE_TRANSFER_PRESIGN_UPLOAD_TTL_SECONDS:FileTransferPresignUploadTtlSeconds"
-  "FILE_TRANSFER_PRESIGN_DOWNLOAD_TTL_SECONDS:FileTransferPresignDownloadTtlSeconds"
-  "FILE_TRANSFER_MULTIPART_THRESHOLD_BYTES:FileTransferMultipartThresholdBytes"
-  "FILE_TRANSFER_PART_SIZE_BYTES:FileTransferPartSizeBytes"
-  "FILE_TRANSFER_MAX_CONCURRENCY:FileTransferMaxConcurrency"
-  "FILE_TRANSFER_USE_ACCELERATE_ENDPOINT:FileTransferUseAccelerateEndpoint"
-  "FILE_TRANSFER_MAX_UPLOAD_BYTES:FileTransferMaxUploadBytes"
-)
+runtime_config_contract_path() {
+  printf "%s" "${NOVA_REPO_ROOT}/packages/contracts/fixtures/runtime_config_contract.json"
+}
+
+runtime_env_json_override_pairs() {
+  local contract_path
+  contract_path="$(runtime_config_contract_path)"
+  jq -r '
+    .env_vars_json.supported_overrides[]
+    | [.env_var, .cloudformation_parameter]
+    | @tsv
+  ' "$contract_path"
+}
 
 ensure_runtime_env_json_contract() {
+  local contract_path
   local allowed_keys_json
+  local forbidden_keys_json
+  contract_path="$(runtime_config_contract_path)"
+  [ -f "$contract_path" ] || {
+    echo "Missing runtime config contract artifact: $contract_path" >&2
+    exit 1
+  }
   allowed_keys_json="$(
-    printf '%s\n' "${ENV_JSON_PARAMETER_MAPPINGS[@]}" \
-      | cut -d: -f1 \
-      | jq -R . \
-      | jq -s .
+    jq -c '[.env_vars_json.supported_overrides[].env_var]' "$contract_path"
+  )"
+  forbidden_keys_json="$(
+    jq -c '[.env_vars_json.forbidden_keys[]]' "$contract_path"
   )"
 
   jq -e 'type == "object"' <<<"$ENV_VARS_JSON" >/dev/null || {
     echo "ENV_VARS_JSON must be a JSON object." >&2
-    exit 1
-  }
-
-  jq -e 'has("IDEMPOTENCY_MODE") | not' <<<"$ENV_VARS_JSON" >/dev/null || {
-    echo "ENV_VARS_JSON must not include IDEMPOTENCY_MODE; the runtime contract uses IDEMPOTENCY_ENABLED with shared-cache fail-closed semantics." >&2
     exit 1
   }
 
@@ -320,6 +298,22 @@ ensure_runtime_env_json_contract() {
     while IFS= read -r field; do
       [ -n "$field" ] && echo "  - $field" >&2
     done <<<"$unknown_fields"
+    exit 1
+  fi
+
+  local forbidden_fields=""
+  forbidden_fields="$(
+    jq -r --argjson forbidden "$forbidden_keys_json" '
+      keys_unsorted | map(select(. as $key | $forbidden | index($key)))
+      | .[]
+    ' <<<"$ENV_VARS_JSON"
+  )"
+
+  if [ -n "$forbidden_fields" ]; then
+    echo "ENV_VARS_JSON contains forbidden keys from the runtime contract:" >&2
+    while IFS= read -r field; do
+      [ -n "$field" ] && echo "  - $field" >&2
+    done <<<"$forbidden_fields"
     exit 1
   fi
 
@@ -701,13 +695,12 @@ service_args=(
   "CacheRedisUrlSecretArn=${CACHE_URL_SECRET_ARN}"
 )
 
-for mapping in "${ENV_JSON_PARAMETER_MAPPINGS[@]}"; do
-  IFS=":" read -r json_field parameter_name <<<"$mapping"
+while IFS=$'\t' read -r json_field parameter_name; do
   parameter_override="$(append_json_parameter_override "$json_field" "$parameter_name")"
   if [ -n "$parameter_override" ]; then
     service_args+=("$parameter_override")
   fi
-done
+done < <(runtime_env_json_override_pairs)
 
 deploy_stack \
   "$SERVICE_STACK_NAME" \

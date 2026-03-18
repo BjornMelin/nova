@@ -30,6 +30,7 @@ Active downstream validation authority uses `ADR-0027`, `ADR-0028`, `ADR-0029`,
 5. [Release runbook](../plan/release/RELEASE-RUNBOOK.md)
 6. [Release policy](../plan/release/RELEASE-POLICY.md)
 7. [Release promotion dev-to-prod guide](../plan/release/release-promotion-dev-to-prod-guide.md)
+8. [Runtime config contract](../plan/release/runtime-config-contract.generated.md)
 
 ## Validation and Governance
 
@@ -60,6 +61,10 @@ Active downstream validation authority uses `ADR-0027`, `ADR-0028`, `ADR-0029`,
   infrastructure owned by `infra/runtime/ecs/service.yml`; do not document or
   require `TASK_ROLE_ARN`, `TASK_EXECUTION_SECRET_ARNS`, or
   `TASK_EXECUTION_SSM_PARAMETER_ARNS`.
+- Runtime env/override lists in active runbooks must resolve back to the
+  generated runtime config contract at
+  `../plan/release/runtime-config-contract.generated.md`, not to hand-maintained
+  duplicates.
 - Local developer npm auth must stay repo-scoped: use
   `eval "$(npm run -s codeartifact:npm:env)"`, do not run
   `aws codeartifact login --tool npm` on a workstation, and keep the AWS CLI

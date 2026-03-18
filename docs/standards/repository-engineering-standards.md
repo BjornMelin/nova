@@ -2,7 +2,7 @@
 
 Status: Active
 Owner: nova release architecture
-Last reviewed: 2026-03-10
+Last reviewed: 2026-03-17
 
 ## Purpose
 
@@ -122,6 +122,7 @@ Always-run repo baseline:
 - `uv run pytest -q`
 - `uv run pytest -q packages/nova_file_api/tests/test_generated_client_smoke.py`
 - `uv run python scripts/contracts/export_openapi.py --check`
+- `uv run python scripts/release/generate_runtime_config_contract.py --check`
 - `uv run python scripts/release/generate_clients.py --check`
 - `uv run python scripts/release/generate_python_clients.py --check`
 - workspace Python build verification for package/app units
@@ -160,6 +161,10 @@ governance:
   duplicated, broken, or conflicting.
 - Keep `AGENTS.md` concise and durable; move deeper explanatory material here or
   into the relevant authority docs.
+- Runtime env/override guidance must not fork into handwritten copies; use
+  `packages/nova_file_api/src/nova_file_api/config.py` plus
+  `scripts/release/runtime_config_contract.py` as authority and keep
+  `docs/plan/release/runtime-config-contract.generated.md` fresh.
 - If the change affects behavior, contracts, workflows, or durable operator
   routing, update the router docs in the same PR:
   - `AGENTS.md`

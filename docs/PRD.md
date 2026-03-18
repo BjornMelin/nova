@@ -1,7 +1,7 @@
 # Product Requirements Document (PRD): Nova Runtime
 
 Status: Active canonical PRD
-Last updated: 2026-03-05
+Last updated: 2026-03-17
 Audience: Product, Engineering, Platform Operations
 
 ## 1. Product Goal
@@ -16,6 +16,8 @@ async jobs with zero route-surface ambiguity.
   operator docs.
 - One truthful active operator authority graph across runtime API, SDK, and
   deploy-validation governance.
+- One generated runtime-config matrix for deploy/docs/test consumers, backed by
+  the typed settings model rather than duplicated env-key lists.
 - Superseded ADR/SPEC material is quarantined outside the active authority set.
 - Stable generated-client and conformance behavior against current OpenAPI.
 - Ergonomic SDK-facing OpenAPI identifiers and semantic generator groupings
@@ -47,6 +49,9 @@ async jobs with zero route-surface ambiguity.
    hash evidence tied to the release manifest itself.
 8. `nova_dash_bridge` remains an adapter-only integration surface and consumes
    canonical in-process transfer contracts only through `nova_file_api.public`.
+9. Runtime deploy/operator surfaces must share one generated env/override
+   contract derived from the typed runtime settings plus minimal curated
+   template metadata.
 
 ## 4. Scope and Non-Goals
 
@@ -96,6 +101,8 @@ Out of scope:
 
 - Consumer drift to retired routes if downstream defaults regress.
 - Documentation drift if active files duplicate route or release authority.
+- Runtime config drift if deploy scripts, templates, tests, and docs carry
+  separate handwritten env/override lists.
 - Guardrail erosion if CI checks are renamed/removed without doc updates.
 
 ## 8. Active References

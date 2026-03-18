@@ -16,11 +16,13 @@ fi
 
 uv lock --check
 uv run ruff check .
+uv run ruff check . --select I
 uv run ruff format . --check
 uv run ty check --force-exclude --error-on-warning --output-format concise packages scripts
 uv run mypy
 uv run pytest -q
 uv run python scripts/contracts/export_openapi.py --check
+uv run python scripts/release/generate_runtime_config_contract.py --check
 uv run python scripts/release/generate_clients.py --check
 uv run python scripts/release/generate_python_clients.py --check
 

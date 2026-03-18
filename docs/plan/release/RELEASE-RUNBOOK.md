@@ -2,7 +2,7 @@
 
 Status: Active
 Owner: nova release architecture
-Last updated: 2026-03-10
+Last updated: 2026-03-17
 
 ## 1. Purpose
 
@@ -28,6 +28,7 @@ Use the modular operator guide set for provisioning and setup details:
 - `aws-oidc-and-iam-role-setup-guide.md`
 - `aws-secrets-provisioning-guide.md`
 - `config-values-reference-guide.md`
+- `runtime-config-contract.generated.md`
 - `github-actions-secrets-and-vars-setup-guide.md`
 - `codeconnections-activation-and-validation-guide.md`
 - `deploy-nova-cicd-end-to-end-guide.md`

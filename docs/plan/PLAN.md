@@ -19,6 +19,7 @@ For operator runbooks, use `../runbooks/README.md`.
 - `./release/NONPROD-LIVE-VALIDATION-RUNBOOK.md`
 - `./release/release-promotion-dev-to-prod-guide.md`
 - `./release/deploy-runtime-cloudformation-environments-guide.md`
+- `./release/runtime-config-contract.generated.md`
 - `./release/HARD-CUTOVER-CHECKLIST.md`
 - `./release/RELEASE-VERSION-MANIFEST.md`
 
@@ -28,6 +29,7 @@ Use these when you need environment setup, operator inputs, or break-glass
 guidance:
 
 - `./release/config-values-reference-guide.md`
+- `./release/runtime-config-contract.generated.md`
 - `./release/day-0-operator-checklist.md`
 - `./release/aws-oidc-and-iam-role-setup-guide.md`
 - `./release/aws-secrets-provisioning-guide.md`
@@ -48,6 +50,9 @@ guidance:
   `SPEC-0021`, `SPEC-0022`, and `SPEC-0023`.
 - Release planning and apply paths must stay synchronized with the active docs
   routers and workflow contracts.
+- Runtime deploy/config planning now uses the generated runtime config contract
+  as the live env/override matrix, with `Settings` plus curated deploy
+  metadata remaining the underlying authority.
 - Runtime deploy planning now assumes `infra/runtime/ecs/service.yml` owns the
   ECS service task role and cache secret injection; operator plans must not
   depend on `TASK_ROLE_ARN`, `TASK_EXECUTION_SECRET_ARNS`, or

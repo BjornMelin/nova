@@ -40,6 +40,9 @@ LEGACY_ACTIVE_ROUTE_PATTERNS = (
 VALIDATION_DOC_PATH = (
     DOCS_ROOT / "plan" / "release" / "config-values-reference-guide.md"
 )
+RUNTIME_CONFIG_CONTRACT_DOC_PATH = (
+    DOCS_ROOT / "plan" / "release" / "runtime-config-contract.generated.md"
+)
 
 
 def _markdown_files(base_path: Path) -> list[Path]:
@@ -152,6 +155,7 @@ def test_release_docs_include_codeartifact_staged_promotion_authority() -> None:
         "CODEARTIFACT_PROD_REPOSITORY",
         "publish-packages.yml",
         "promote-prod.yml",
+        "runtime-config-contract.generated.md",
     ]:
         assert required in config_values
 
@@ -168,6 +172,20 @@ def test_release_docs_include_codeartifact_staged_promotion_authority() -> None:
         "day-0-operator-command-pack.sh",
     ]:
         assert required in release_policy
+
+
+def test_generated_runtime_config_contract_doc_exists() -> None:
+    """Generated runtime config doc must stay present and self-describing."""
+    assert RUNTIME_CONFIG_CONTRACT_DOC_PATH.is_file()
+    text = RUNTIME_CONFIG_CONTRACT_DOC_PATH.read_text(encoding="utf-8")
+    for required in [
+        "scripts/release/generate_runtime_config_contract.py",
+        "packages/nova_file_api/src/nova_file_api/config.py",
+        "scripts/release/runtime_config_contract.py",
+        "Generated ENV_VARS_JSON support matrix",
+        "Worker command:",
+    ]:
+        assert required in text
 
 
 def test_worker_lane_runbook_authority_exists() -> None:

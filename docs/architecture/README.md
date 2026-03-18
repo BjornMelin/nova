@@ -47,6 +47,13 @@ defined in:
 - `spec/SPEC-0019-auth-execution-and-threadpool-safety-contract.md`
 - `spec/SPEC-0020-architecture-authority-pack-and-documentation-synchronization-contract.md`
 
+Generated runtime-config matrix:
+
+- `../plan/release/runtime-config-contract.generated.md` is the operator-facing
+  artifact generated from the canonical runtime settings contract. It documents
+  current env vars, `ENV_VARS_JSON` support, and ECS template wiring without
+  becoming an independent authority.
+
 ### Downstream validation authority
 
 Use when the question is about cross-repo integration, Auth0 tenant workflows,

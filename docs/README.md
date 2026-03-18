@@ -46,6 +46,8 @@ runtime operations:
 - `./runbooks/README.md`
 - `./plan/PLAN.md`
 - `./plan/release/`
+- `./plan/release/runtime-config-contract.generated.md` for the generated
+  runtime env/deploy matrix
 
 ### Overview and product context
 
@@ -75,6 +77,11 @@ Use these only for traceability, not as active authority:
   repo-managed task role and cache secret injection; active docs must not
   require `TASK_ROLE_ARN`, `TASK_EXECUTION_SECRET_ARNS`, or
   `TASK_EXECUTION_SSM_PARAMETER_ARNS`.
+- Runtime config docs, deploy scripts, and infra tests must derive their live
+  env/override matrix from `packages/nova_file_api/src/nova_file_api/config.py`
+  plus `scripts/release/runtime_config_contract.py`, with
+  `./plan/release/runtime-config-contract.generated.md` treated as the
+  operator-facing generated view.
 - Adapter-boundary changes must keep `./architecture/README.md`,
   `./architecture/adr/ADR-0025-runtime-monorepo-component-boundaries-and-ownership.md`,
   and

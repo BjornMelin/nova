@@ -10,6 +10,8 @@ import re
 
 import yaml
 
+from scripts.release.runtime_config_contract import build_contract_payload
+
 from .helpers import REPO_ROOT
 from .helpers import read_repo_file as _read
 
@@ -70,6 +72,20 @@ def _yaml_template(rel_path: str) -> dict[str, object]:
     )
     assert isinstance(payload, dict)
     return payload
+
+
+def _collect_named_entries(node: object) -> set[str]:
+    names: set[str] = set()
+    if isinstance(node, dict):
+        name = node.get("Name")
+        if isinstance(name, str):
+            names.add(name)
+        for value in node.values():
+            names.update(_collect_named_entries(value))
+    elif isinstance(node, list):
+        for item in node:
+            names.update(_collect_named_entries(item))
+    return names
 
 
 def test_absorbed_template_paths_present() -> None:
@@ -435,6 +451,7 @@ def test_iam_scope_constraints_for_release_roles() -> None:
 
 def test_runtime_env_and_parameter_contracts() -> None:
     """Runtime templates must preserve env/parameter guardrails."""
+    contract = build_contract_payload()
     async_text = _read("infra/runtime/file_transfer/async.yml")
     ecr_text = _read("infra/runtime/ecr.yml")
     s3_text = _read("infra/runtime/file_transfer/s3.yml")
@@ -468,37 +485,22 @@ def test_runtime_env_and_parameter_contracts() -> None:
     assert container["Command"] == ["nova-file-worker"]
     environment = container["Environment"]
     assert isinstance(environment, list)
-    env_names = {
-        entry["Name"]
-        for entry in environment
-        if isinstance(entry, dict) and isinstance(entry.get("Name"), str)
+    env_names = _collect_named_entries(environment)
+    expected_worker_env = {
+        entry["name"] for entry in contract["worker_template"]["env"]
     }
-    assert {
-        "JOBS_ENABLED",
-        "JOBS_RUNTIME_MODE",
-        "JOBS_QUEUE_BACKEND",
-        "JOBS_SQS_QUEUE_URL",
-        "JOBS_API_BASE_URL",
-        "FILE_TRANSFER_BUCKET",
-        "FILE_TRANSFER_UPLOAD_PREFIX",
-        "FILE_TRANSFER_EXPORT_PREFIX",
-        "FILE_TRANSFER_TMP_PREFIX",
-    }.issubset(env_names)
-    assert {
-        "FILE_TRANSFER_API_BASE_URL",
-        "FILE_TRANSFER_JOBS_QUEUE_URL",
-        "FILE_TRANSFER_JOBS_REGION",
-        "APP_SYNC_PROCESSING_MAX_BYTES",
-    }.isdisjoint(env_names)
+    assert expected_worker_env.issubset(env_names)
+    assert set(contract["worker_template"]["forbidden_env_vars"]).isdisjoint(
+        env_names
+    )
 
     secrets = container["Secrets"]
     assert isinstance(secrets, list)
-    secret_names = {
-        entry["Name"]
-        for entry in secrets
-        if isinstance(entry, dict) and isinstance(entry.get("Name"), str)
+    secret_names = _collect_named_entries(secrets)
+    expected_worker_secrets = {
+        entry["name"] for entry in contract["worker_template"]["secrets"]
     }
-    assert secret_names == {"JOBS_WORKER_UPDATE_TOKEN"}
+    assert secret_names == expected_worker_secrets
     parameters = worker_template["Parameters"]
     assert isinstance(parameters, dict)
     assert "JobsWorkerUpdateTokenSecretArn" in parameters
@@ -546,47 +548,29 @@ def test_runtime_env_and_parameter_contracts() -> None:
 
     service_environment = service_container["Environment"]
     assert isinstance(service_environment, list)
-    service_env_names = {
-        entry["Name"]
-        for entry in service_environment
-        if isinstance(entry, dict) and isinstance(entry.get("Name"), str)
+    service_env_names = _collect_named_entries(service_environment)
+    expected_service_env = {
+        entry["name"] for entry in contract["service_template"]["env"]
     }
-    assert {
-        "ENVIRONMENT",
-        "AUTH_MODE",
-        "FILE_TRANSFER_ENABLED",
-        "JOBS_ENABLED",
-        "JOBS_QUEUE_BACKEND",
-        "JOBS_REPOSITORY_BACKEND",
-        "JOBS_RUNTIME_MODE",
-        "ACTIVITY_STORE_BACKEND",
-    }.issubset(service_env_names)
-    assert {
-        "ENV",
-        "ENV_DICT",
-        "AUTH_APP_SECRET",
-    }.isdisjoint(service_env_names)
+    assert expected_service_env.issubset(service_env_names)
+    assert set(contract["service_template"]["forbidden_env_vars"]).isdisjoint(
+        service_env_names
+    )
 
     service_secrets = service_container["Secrets"]
     assert isinstance(service_secrets, list)
-    service_secret_names = {
-        entry["Name"]
-        for entry in service_secrets
-        if isinstance(entry, dict) and isinstance(entry.get("Name"), str)
+    service_secret_names = _collect_named_entries(service_secrets)
+    expected_service_secrets = {
+        entry["name"] for entry in contract["service_template"]["secrets"]
     }
-    assert "CACHE_REDIS_URL" not in service_secret_names
-    assert "Name: CACHE_REDIS_URL" in service_text
+    assert service_secret_names == expected_service_secrets
 
     service_parameters = service_template["Parameters"]
     assert isinstance(service_parameters, dict)
-    assert "EnvVars" not in service_parameters
-    assert "UseLegacyEnvDict" not in service_parameters
-    assert "TaskRole" not in service_parameters
-    assert "UseLegacyTaskRolePolicy" not in service_parameters
-    assert "GenerateAppSecretKey" not in service_parameters
-    assert "AppSecretEnvVarName" not in service_parameters
-    assert "TaskExecutionSecretArns" not in service_parameters
-    assert "TaskExecutionSsmParameterArns" not in service_parameters
+    for forbidden_parameter in contract["service_template"][
+        "forbidden_parameters"
+    ]:
+        assert forbidden_parameter not in service_parameters
     assert "JobsQueueUrl" in service_parameters
     assert "JobsTableName" in service_parameters
     assert "ActivityTableName" in service_parameters

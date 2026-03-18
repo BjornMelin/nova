@@ -46,3 +46,11 @@ docs. For runtime deploys, the ECS service stack now owns the repo-managed task
 role and cache secret injection, so active docs and tests must reject
 `TASK_ROLE_ARN`, `TASK_EXECUTION_SECRET_ARNS`, and
 `TASK_EXECUTION_SSM_PARAMETER_ARNS`.
+
+Runtime config drift guard:
+
+- keep `packages/nova_file_api/src/nova_file_api/config.py` and
+  `scripts/release/runtime_config_contract.py` aligned as the source-of-truth
+  pair
+- refresh `../plan/release/runtime-config-contract.generated.md` with
+  `scripts/release/generate_runtime_config_contract.py`

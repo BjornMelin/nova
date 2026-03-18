@@ -55,7 +55,7 @@ class Settings(BaseSettings):
         default_factory=_default_app_version,
         alias="APP_VERSION",
     )
-    environment: str = Field(default="dev")
+    environment: str = Field(default="dev", alias="ENVIRONMENT")
 
     file_transfer_enabled: bool = Field(
         default=True,

@@ -24,6 +24,7 @@ Use these setup guides for variable definitions and sourcing:
 - [docker-buildx-and-credential-helper-setup-guide.md](docker-buildx-and-credential-helper-setup-guide.md)
 - [aws-oidc-and-iam-role-setup-guide.md](aws-oidc-and-iam-role-setup-guide.md)
 - [config-values-reference-guide.md](config-values-reference-guide.md)
+- [runtime-config-contract.generated.md](runtime-config-contract.generated.md)
 
 Primary variable sources:
 

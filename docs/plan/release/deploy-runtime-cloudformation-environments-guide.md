@@ -13,6 +13,7 @@ pipeline stacks.
 Canonical operator path:
 
 - `scripts/release/deploy-runtime-cloudformation-environment.sh`
+- `runtime-config-contract.generated.md`
 - The script applies the same change-set-first sequence documented here and
   requires `RUNTIME_COST_MODE` (`standard|saver|paused`) to select runtime
   cost posture before applying related override defaults (`AssignPublicIp=DISABLED`,
@@ -62,8 +63,9 @@ Export these values before running commands:
 - `DOCKER_REPOSITORY_NAME`
 - `IMAGE_DIGEST` (OCI digest, `sha256:...`)
 - `ENV_VARS_JSON` (JSON object string used only for supported non-secret API
-  runtime overrides; it is validated by the operator script and exploded into
-  explicit ECS environment entries rather than passed through as `ENV_DICT`)
+  runtime overrides; it is validated by the operator script against the
+  generated runtime config contract and exploded into explicit ECS environment
+  entries rather than passed through as `ENV_DICT`)
 - `RUNTIME_COST_MODE` (`standard`, `saver`, or `paused`)
 - `OWNER_TAG`
 - `ALARM_ACTION_ARN`
@@ -155,6 +157,8 @@ Worker/file-transfer contract notes:
   the current strict posture: `IDEMPOTENCY_ENABLED=true` requires
   `FILE_TRANSFER_CACHE_ENABLED=true` so `CACHE_REDIS_URL` is injected into the
   task definition.
+- The supported override list is generated from the canonical runtime settings
+  contract; do not hand-edit duplicate key lists in docs or scripts.
 - Canonical worker runtime inputs are `JOBS_*`; stale worker aliases are not
   valid deployment inputs.
 - Default large-upload posture is `FILE_TRANSFER_MAX_UPLOAD_BYTES=536_870_912_000`

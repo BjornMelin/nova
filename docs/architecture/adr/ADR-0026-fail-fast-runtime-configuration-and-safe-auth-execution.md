@@ -2,8 +2,8 @@
 ADR: 0026
 Title: Fail-fast runtime configuration and safe auth execution
 Status: Accepted
-Version: 2.1
-Date: 2026-03-05
+Version: 2.2
+Date: 2026-03-17
 Related:
   - "[ADR-0023](./ADR-0023-hard-cut-v1-canonical-route-surface.md)"
   - "[SPEC-0000](../spec/SPEC-0000-http-api-contract.md)"
@@ -83,6 +83,9 @@ Choose **Option B**.
    contract: `IDEMPOTENCY_ENABLED=true` requires shared Redis claim storage,
    and shared-store failures fail closed without an `IDEMPOTENCY_MODE`
    surface.
+9. Deploy scripts, infra tests, and operator docs consume a generated
+   runtime-config contract artifact derived from the typed runtime settings plus
+   the minimal curated deploy metadata required for ECS template wiring.
 
 ## Consequences
 
@@ -92,6 +95,8 @@ Choose **Option B**.
 - Auth safety rules stay close to the code paths they govern.
 - Operational docs can distinguish critical readiness gates from observability
   signals.
+- Runtime deploy/config drift is checked as generated-artifact freshness rather
+  than by maintaining duplicate handwritten env matrices.
 
 ### Trade-offs
 
@@ -116,3 +121,5 @@ Choose **Option B**.
   `IDEMPOTENCY_MODE` claims from the active runtime authority pack.
 - 2026-03-16: Finalized strict shared idempotency and dependency-scoped
   readiness gating in the active runtime contract.
+- 2026-03-17: Added the generated runtime-config contract artifact as the
+  required deploy/docs/test anti-drift mechanism.
