@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.7
 FROM public.ecr.aws/docker/library/python:3.12-slim AS builder
 
-COPY --from=ghcr.io/astral-sh/uv:0.10.9 /uv /uvx /bin/
+COPY --from=ghcr.io/astral-sh/uv:0.10.10 /uv /uvx /bin/
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
