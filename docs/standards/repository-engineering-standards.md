@@ -137,6 +137,16 @@ Canonical typing gates:
 compatibility backstop until `ty` reaches stable strictness parity for this
 monorepo.
 
+Toolchain baseline notes:
+
+- `pyproject.toml` pins the supported `uv` CLI via
+  `[tool.uv].required-version`; keep CI and local bootstrap flows on that
+  version unless a repo-wide verification run intentionally bumps it.
+- Pytest defaults to `--import-mode=importlib` and relies on editable workspace
+  installs instead of repo-level `pythonpath` injection. Treat any return to a
+  global `pythonpath` shim as a regression unless it is backed by a newly
+  reproduced import failure.
+
 Additional required gates when touching OpenAPI, generated TypeScript SDKs, npm
 packaging, release automation, or SDK docs/contracts:
 
