@@ -31,16 +31,28 @@ Resources:
         LifecyclePolicyText: |
           {
             "rules": [
-            {
-              "rulePriority": 1,
-              "description": "Only keep 2 images",
-              "selection": {
-                "tagStatus": "any",
-                "countType": "imageCountMoreThan",
-                "countNumber": 2
+              {
+                "rulePriority": 1,
+                "description": "Expire untagged images after 1 day",
+                "selection": {
+                  "tagStatus": "untagged",
+                  "countType": "sinceImagePushed",
+                  "countUnit": "days",
+                  "countNumber": 1
+                },
+                "action": { "type": "expire" }
               },
-              "action": { "type": "expire" }
-            }]
+              {
+                "rulePriority": 2,
+                "description": "Keep the current image and one rollback image",
+                "selection": {
+                  "tagStatus": "any",
+                  "countType": "imageCountMoreThan",
+                  "countNumber": 2
+                },
+                "action": { "type": "expire" }
+              }
+            ]
           }
       EncryptionConfiguration:
         EncryptionType: KMS

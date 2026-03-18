@@ -2,7 +2,7 @@
 
 Status: Active
 Owner: nova release architecture
-Last reviewed: 2026-03-03
+Last reviewed: 2026-03-17
 
 ## Purpose
 
@@ -13,6 +13,9 @@ that signed release commits trigger pipeline executions.
 
 1. AWS CLI v2 configured for the target account and region.
 2. `nova-ci-cd` stack deployed and accessible in CloudFormation.
+   If the release control plane is in its idle-cost posture, recreate
+   `nova-ci-cd` and `nova-codebuild-release` first with
+   `./scripts/release/day-0-operator-command-pack.sh`.
 3. Permissions for `cloudformation:DescribeStacks`,
    `codeconnections:GetConnection`, and `codepipeline:*read*` APIs.
 

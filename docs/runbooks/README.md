@@ -2,7 +2,7 @@
 
 Status: Active
 Owner: nova release architecture
-Last reviewed: 2026-03-10
+Last reviewed: 2026-03-17
 
 ## Purpose
 
@@ -56,6 +56,10 @@ Active downstream validation authority uses `ADR-0027`, `ADR-0028`, `ADR-0029`,
   distributions publish to CodeArtifact with `twine`, and TypeScript SDK
   packages publish to CodeArtifact npm as generated/private artifacts after
   staged subpath-contract validation.
+- Runtime deploy runbooks must treat the ECS service task role as repo-managed
+  infrastructure owned by `infra/runtime/ecs/service.yml`; do not document or
+  require `TASK_ROLE_ARN`, `TASK_EXECUTION_SECRET_ARNS`, or
+  `TASK_EXECUTION_SSM_PARAMETER_ARNS`.
 - Local developer npm auth must stay repo-scoped: use
   `eval "$(npm run -s codeartifact:npm:env)"`, do not run
   `aws codeartifact login --tool npm` on a workstation, and keep the AWS CLI

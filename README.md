@@ -193,6 +193,10 @@ Key release docs:
 - `docs/plan/release/deploy-runtime-cloudformation-environments-guide.md`
 - `docs/plan/release/docker-buildx-and-credential-helper-setup-guide.md`
 
+The runtime deploy operator now owns the ECS service task role and cache secret
+wiring. Do not supply `TASK_ROLE_ARN`,
+`TASK_EXECUTION_SECRET_ARNS`, or `TASK_EXECUTION_SSM_PARAMETER_ARNS`.
+
 ## Local Service Images
 
 Local service-image verification uses the release-owned Dockerfiles under

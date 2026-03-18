@@ -340,8 +340,11 @@ def test_canonical_runtime_deploy_script_enforces_final_posture() -> None:
         "AssignPublicIp=DISABLED",
         "FileTransferAsyncEnabled=true",
         "FileTransferCacheEnabled=true",
-        "TaskExecutionSecretArns=",
         "Runtime file-transfer bucket must not reuse the CI artifact bucket",
+        "Unsupported legacy environment variable:",
+        "TASK_ROLE_ARN",
+        "TASK_EXECUTION_SECRET_ARNS",
+        "TASK_EXECUTION_SSM_PARAMETER_ARNS",
     ]:
         assert required in text
 
@@ -355,6 +358,14 @@ def test_canonical_runtime_deploy_script_enforces_final_posture() -> None:
     assert (
         "IDEMPOTENCY_ENABLED=true requires FILE_TRANSFER_CACHE_ENABLED=true"
         in text
+    )
+    assert '[ -n "${!name+x}" ]' in text
+    assert "require_env TASK_ROLE_ARN" not in text
+    assert '"TaskRole=${TASK_ROLE_ARN}"' not in text
+    assert '"TaskExecutionSecretArns=${TASK_EXECUTION_SECRET_ARNS}"' not in text
+    assert (
+        '"TaskExecutionSsmParameterArns=${TASK_EXECUTION_SSM_PARAMETER_ARNS}"'
+        not in text
     )
     assert '"EnvVars=${ENV_VARS_JSON}"' not in text
     assert '"JobsQueueUrl=${JOBS_QUEUE_URL}"' in text

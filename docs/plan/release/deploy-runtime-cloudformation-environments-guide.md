@@ -2,7 +2,7 @@
 
 Status: Active
 Owner: nova release architecture
-Last reviewed: 2026-03-11
+Last reviewed: 2026-03-17
 
 ## Purpose
 
@@ -65,11 +65,11 @@ Export these values before running commands:
   runtime overrides; it is validated by the operator script and exploded into
   explicit ECS environment entries rather than passed through as `ENV_DICT`)
 - `RUNTIME_COST_MODE` (`standard`, `saver`, or `paused`)
-- `TASK_ROLE_ARN`
-- `ECS_INFRASTRUCTURE_ROLE_ARN`
 - `OWNER_TAG`
 - `ALARM_ACTION_ARN`
 - `ASSIGN_PUBLIC_IP` (`ENABLED` or `DISABLED`, default `DISABLED`)
+- `ECS_INFRASTRUCTURE_ROLE_ARN` (optional override; when unset the operator
+  resolves the ECS infrastructure role from the control-plane IAM stack)
 
 Network model requirements:
 
@@ -141,6 +141,13 @@ Worker/file-transfer contract notes:
   now requires `JOBS_WORKER_UPDATE_TOKEN_SECRET_ARN`.
 - The service stack no longer accepts `ENV_DICT` / `AUTH_APP_SECRET` legacy
   env-bundle wiring.
+- The service stack now owns the repo-managed ECS task role directly. Do not
+  provide `TASK_ROLE_ARN`.
+- The repo-managed runtime task roles preserve the ECS Exec session-channel
+  permissions required when `EnableExecuteCommand` remains enabled; do not
+  work around Exec failures by reintroducing external task-role inputs.
+- Generic execution-role secret overrides are retired. Do not provide
+  `TASK_EXECUTION_SECRET_ARNS` or `TASK_EXECUTION_SSM_PARAMETER_ARNS`.
 - Async queue URL/table names and cache secret injection are derived from stack
   outputs, not operator JSON.
 - `ENV_VARS_JSON` only supports implemented non-secret API overrides; the
@@ -154,6 +161,9 @@ Worker/file-transfer contract notes:
   and `FILE_TRANSFER_PRESIGN_UPLOAD_TTL_SECONDS=1800`.
 - If `FILE_TRANSFER_USE_ACCELERATE_ENDPOINT=true`, the bucket must already have
   Transfer Acceleration enabled and the bucket name must contain no periods.
+- In private subnets without NAT/public egress, ECS Exec additionally requires
+  the underlying Systems Manager Session Manager connectivity prerequisites
+  such as `ssmmessages` VPC endpoint reachability.
 
 ## Change-Set-First Command Pattern
 
@@ -259,7 +269,6 @@ aws cloudformation deploy \
     VpcId="${VPC_ID}" \
     SubnetList="${SUBNET_IDS}" \
     AssignPublicIp="${ASSIGN_PUBLIC_IP:-DISABLED}" \
-    TaskRole="${TASK_ROLE_ARN}" \
     EcsInfrastructureRoleArn="${ECS_INFRASTRUCTURE_ROLE_ARN}" \
     ServiceDNS="${SERVICE_DNS}" \
     ListenerRulePriority="100" \

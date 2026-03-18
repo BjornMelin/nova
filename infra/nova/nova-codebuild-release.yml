@@ -34,6 +34,33 @@ Parameters:
     Type: String
     Default: ""
     Description: Optional explicit ECR repository name. If empty, imported from foundation.
+  CodeBuildLogRetentionInDays:
+    Type: Number
+    Default: 14
+    AllowedValues:
+      - 1
+      - 3
+      - 5
+      - 7
+      - 14
+      - 30
+      - 60
+      - 90
+      - 120
+      - 150
+      - 180
+      - 365
+      - 400
+      - 545
+      - 731
+      - 1096
+      - 1827
+      - 2192
+      - 2557
+      - 2922
+      - 3288
+      - 3653
+    Description: Retention period for CodeBuild CloudWatch log groups in days.
   FileDockerfilePath:
     Type: String
     Default: apps/nova_file_api_service/Dockerfile
@@ -112,6 +139,15 @@ Rules:
         AssertDescription: Provide EcrRepositoryName or FoundationStackName.
 
 Resources:
+  ReleaseBuildLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !If
+        - HasReleaseBuildProjectName
+        - !Sub "/aws/codebuild/${ReleaseBuildProjectName}-${AWS::StackName}"
+        - !Sub "/aws/codebuild/${Project}-${Application}-nova-release-build-${AWS::StackName}"
+      RetentionInDays: !Ref CodeBuildLogRetentionInDays
+
   NovaReleaseBuildProject:
     Type: AWS::CodeBuild::Project
     Properties:
@@ -133,6 +169,10 @@ Resources:
         BuildSpec: !Ref ReleaseBuildspecPath
       Artifacts:
         Type: CODEPIPELINE
+      LogsConfig:
+        CloudWatchLogs:
+          Status: ENABLED
+          GroupName: !Ref ReleaseBuildLogGroup
       Environment:
         Type: LINUX_CONTAINER
         ComputeType: BUILD_GENERAL1_MEDIUM
@@ -181,6 +221,15 @@ Resources:
             Value: !Ref DockerBuildContext
       TimeoutInMinutes: 60
 
+  DeployValidateLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !If
+        - HasDeployValidateProjectName
+        - !Sub "/aws/codebuild/${DeployValidateProjectName}-${AWS::StackName}"
+        - !Sub "/aws/codebuild/${Project}-${Application}-nova-deploy-validate-${AWS::StackName}"
+      RetentionInDays: !Ref CodeBuildLogRetentionInDays
+
   NovaDeployValidateBuildProject:
     Type: AWS::CodeBuild::Project
     Properties:
@@ -202,6 +251,10 @@ Resources:
         BuildSpec: !Ref ValidateBuildspecPath
       Artifacts:
         Type: CODEPIPELINE
+      LogsConfig:
+        CloudWatchLogs:
+          Status: ENABLED
+          GroupName: !Ref DeployValidateLogGroup
       Environment:
         Type: LINUX_CONTAINER
         ComputeType: BUILD_GENERAL1_SMALL

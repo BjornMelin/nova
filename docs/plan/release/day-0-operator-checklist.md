@@ -2,7 +2,7 @@
 
 Status: Active
 Owner: nova release architecture
-Last reviewed: 2026-03-05
+Last reviewed: 2026-03-17
 
 ## Purpose
 
@@ -92,6 +92,15 @@ If `${NOVA_ARTIFACT_BUCKET_NAME}` already exists, pass it as
 `ExistingArtifactBucketName`. If it does not exist yet, set
 `ExistingArtifactBucketName=""` and pass it as `ArtifactBucketName`.
 
+Artifact bucket retention baseline:
+
+- If the foundation stack creates the bucket, `nova-foundation.yml` applies the
+  lifecycle baseline automatically.
+- If the bucket already exists and you pass `ExistingArtifactBucketName`, apply
+  equivalent lifecycle controls directly on the bucket:
+  current-object expiration after 30 days, noncurrent-version expiration after
+  30 days, and incomplete multipart abort after 7 days.
+
 ```bash
 if aws s3api head-bucket --bucket "${NOVA_ARTIFACT_BUCKET_NAME}" >/dev/null 2>&1; then
   FOUNDATION_BUCKET_ARGS=(
@@ -178,6 +187,29 @@ gh run watch "${DEPLOY_RUN_ID}" --repo "${GITHUB_OWNER}/${GITHUB_REPO}" --exit-s
 
 aws codepipeline get-pipeline-state --region "${AWS_REGION}" --name "${CODEPIPELINE_NAME}"
 ```
+
+### Step 7: Return to idle cost posture after release work
+
+When release work is complete and you do not need the AWS promotion control
+plane live, delete the two idle-cost stacks:
+
+```bash
+aws cloudformation delete-stack \
+  --region "${AWS_REGION}" \
+  --stack-name "${PROJECT}-${APPLICATION}-nova-ci-cd"
+aws cloudformation wait stack-delete-complete \
+  --region "${AWS_REGION}" \
+  --stack-name "${PROJECT}-${APPLICATION}-nova-ci-cd"
+
+aws cloudformation delete-stack \
+  --region "${AWS_REGION}" \
+  --stack-name "${PROJECT}-${APPLICATION}-nova-codebuild-release"
+aws cloudformation wait stack-delete-complete \
+  --region "${AWS_REGION}" \
+  --stack-name "${PROJECT}-${APPLICATION}-nova-codebuild-release"
+```
+
+Recreate them later with `./scripts/release/day-0-operator-command-pack.sh`.
 
 Runbook: `docs/plan/release/release-promotion-dev-to-prod-guide.md`
 

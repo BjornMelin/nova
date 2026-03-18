@@ -156,7 +156,13 @@ def test_foundation_exports_and_stack_wiring_contracts() -> None:
         "AWS::CodeArtifact::PackageGroup",
         "Pattern: !Sub /npm/${CodeArtifactInternalNpmScope}/*",
         "RestrictionMode: BLOCK",
+        "LifecycleConfiguration:",
+        "ArtifactBucketLifecyclePolicy",
+        'Prefix: ""',
+        "AbortIncompleteMultipartUpload:",
+        "NoncurrentVersionExpiration:",
         "ManualApprovalTopicArn:",
+        "ShouldExportConnectionName:",
         "${AWS::StackName}-ArtifactBucketName",
         "${AWS::StackName}-CodeArtifactDomainName",
         "${AWS::StackName}-CodeArtifactRepositoryName",
@@ -195,6 +201,32 @@ def test_foundation_exports_and_stack_wiring_contracts() -> None:
         "${FoundationStackName}-EcrRepositoryUri",
         "${FoundationStackName}-EcrRepositoryName",
         "${IamRolesStackName}-CodeBuildReleaseRoleArn",
+        "CodeBuildLogRetentionInDays:",
+        "CloudWatchLogs:",
+        "RetentionInDays: !Ref CodeBuildLogRetentionInDays",
+        "AllowedValues:",
+        "  - 1",
+        "  - 3",
+        "  - 5",
+        "  - 7",
+        "  - 14",
+        "  - 30",
+        "  - 60",
+        "  - 90",
+        "  - 120",
+        "  - 150",
+        "  - 180",
+        "  - 365",
+        "  - 400",
+        "  - 545",
+        "  - 731",
+        "  - 1096",
+        "  - 1827",
+        "  - 2192",
+        "  - 2557",
+        "  - 2922",
+        "  - 3288",
+        "  - 3653",
         "ReleaseBuildspecPath:",
         "ValidateBuildspecPath:",
         (
@@ -472,6 +504,34 @@ def test_runtime_env_and_parameter_contracts() -> None:
     assert "JobsWorkerUpdateTokenSecretArn" in parameters
     assert "WorkerCommand" not in parameters
     assert "SyncProcessingMaxBytes" not in parameters
+    assert "TaskRoleArn: !GetAtt WorkerTaskRole.Arn" in worker_text
+
+    worker_service = resources["WorkerService"]
+    assert isinstance(worker_service, dict)
+    worker_service_properties = worker_service["Properties"]
+    assert isinstance(worker_service_properties, dict)
+    assert worker_service_properties["EnableExecuteCommand"] is True
+
+    required_exec_actions = {
+        "ssmmessages:CreateControlChannel",
+        "ssmmessages:CreateDataChannel",
+        "ssmmessages:OpenControlChannel",
+        "ssmmessages:OpenDataChannel",
+    }
+
+    worker_exec_policy = resources["WorkerEcsExecTaskPolicy"]
+    assert isinstance(worker_exec_policy, dict)
+    worker_exec_policy_doc = worker_exec_policy["Properties"]["PolicyDocument"]
+    assert isinstance(worker_exec_policy_doc, dict)
+    worker_exec_statements = worker_exec_policy_doc["Statement"]
+    assert isinstance(worker_exec_statements, list)
+    assert len(worker_exec_statements) == 1
+    worker_exec_statement = worker_exec_statements[0]
+    assert isinstance(worker_exec_statement, dict)
+    worker_exec_actions = worker_exec_statement["Action"]
+    assert isinstance(worker_exec_actions, list)
+    assert set(worker_exec_actions) == required_exec_actions
+    assert worker_exec_statement["Resource"] == "*"
 
     service_resources = service_template["Resources"]
     assert isinstance(service_resources, dict)
@@ -521,10 +581,122 @@ def test_runtime_env_and_parameter_contracts() -> None:
     assert isinstance(service_parameters, dict)
     assert "EnvVars" not in service_parameters
     assert "UseLegacyEnvDict" not in service_parameters
+    assert "TaskRole" not in service_parameters
+    assert "UseLegacyTaskRolePolicy" not in service_parameters
+    assert "GenerateAppSecretKey" not in service_parameters
+    assert "AppSecretEnvVarName" not in service_parameters
+    assert "TaskExecutionSecretArns" not in service_parameters
+    assert "TaskExecutionSsmParameterArns" not in service_parameters
     assert "JobsQueueUrl" in service_parameters
     assert "JobsTableName" in service_parameters
     assert "ActivityTableName" in service_parameters
     assert "CacheRedisUrlSecretArn" in service_parameters
+    assert "TaskRoleArn: !GetAtt ECSTaskRole.Arn" in service_text
+    assert "TaskRoleArn: !Ref TaskRole" not in service_text
+
+    ecs_service = service_resources["ECSService"]
+    assert isinstance(ecs_service, dict)
+    ecs_service_properties = ecs_service["Properties"]
+    assert isinstance(ecs_service_properties, dict)
+    assert ecs_service_properties["EnableExecuteCommand"] is True
+
+    assert "AppSecretKeySecret" not in service_resources
+    assert "ECSTaskPolicy" not in service_resources
+
+    execution_policy = service_resources["EcsTaskExecutionSecretsPolicy"]
+    assert isinstance(execution_policy, dict)
+    execution_policy_doc = execution_policy["Properties"]["PolicyDocument"]
+    assert isinstance(execution_policy_doc, dict)
+    execution_statements = execution_policy_doc["Statement"]
+    assert isinstance(execution_statements, list)
+    execution_actions = {
+        action
+        for statement in execution_statements
+        if isinstance(statement, dict)
+        for action in (
+            statement.get("Action", [])
+            if isinstance(statement.get("Action"), list)
+            else [statement.get("Action")]
+        )
+        if isinstance(action, str)
+    }
+    assert execution_actions == {
+        "secretsmanager:GetSecretValue",
+        "kms:Decrypt",
+    }
+    assert "ssm:GetParameters" not in execution_actions
+    for statement in execution_statements:
+        if not isinstance(statement, dict):
+            continue
+        actions = statement.get("Action", [])
+        if isinstance(actions, str):
+            actions = [actions]
+        resource = statement.get("Resource")
+        if "secretsmanager:GetSecretValue" in actions:
+            assert resource == ["CacheRedisUrlSecretArn"]
+            continue
+        if "kms:Decrypt" in actions:
+            assert resource == "*"
+            condition = statement.get("Condition")
+            assert isinstance(condition, dict)
+            kms_via_service = "secretsmanager.${AWS::Region}.${AWS::URLSuffix}"
+            assert condition == {
+                "StringEquals": {"kms:ViaService": kms_via_service}
+            }
+            continue
+        assert resource not in {None, "*"}
+        if isinstance(resource, (list, str)):
+            assert "*" not in resource
+
+    service_exec_policy = service_resources["EcsExecTaskPolicy"]
+    assert isinstance(service_exec_policy, dict)
+    service_exec_policy_doc = service_exec_policy["Properties"][
+        "PolicyDocument"
+    ]
+    assert isinstance(service_exec_policy_doc, dict)
+    service_exec_statements = service_exec_policy_doc["Statement"]
+    assert isinstance(service_exec_statements, list)
+    assert len(service_exec_statements) == 1
+    service_exec_statement = service_exec_statements[0]
+    assert isinstance(service_exec_statement, dict)
+    service_exec_actions = service_exec_statement["Action"]
+    assert isinstance(service_exec_actions, list)
+    assert set(service_exec_actions) == required_exec_actions
+    assert service_exec_statement["Resource"] == "*"
+
+    for policy_name in [
+        "FileTransferTaskPolicy",
+        "FileTransferAsyncTaskPolicy",
+    ]:
+        policy = service_resources[policy_name]
+        assert isinstance(policy, dict)
+        policy_doc = policy["Properties"]["PolicyDocument"]
+        assert isinstance(policy_doc, dict)
+        policy_statements = policy_doc["Statement"]
+        assert isinstance(policy_statements, list)
+        for statement in policy_statements:
+            assert isinstance(statement, dict)
+            actions = statement.get("Action", [])
+            if isinstance(actions, str):
+                actions = [actions]
+            for action in actions:
+                assert isinstance(action, str)
+                assert action not in {"s3:*", "dynamodb:*", "kms:*"}, (
+                    f"{policy_name} must not use broad wildcard actions: "
+                    f"{statement!r}"
+                )
+            resource = statement.get("Resource")
+            if resource == "*" or (
+                isinstance(resource, list) and "*" in resource
+            ):
+                sid = statement.get("Sid")
+                assert sid == "FileTransferKms", (
+                    "Unexpected wildcard resource in "
+                    f"{policy_name}: {statement!r}"
+                )
+                condition = statement.get("Condition")
+                assert isinstance(condition, dict)
+                assert "ForAnyValue:StringLike" in condition
 
     for required in [
         "JobsDeadLetterQueue:",
@@ -695,6 +867,28 @@ def test_observability_security_cost_baseline_contracts() -> None:
     assert "ServiceLogKmsKeyArn" in text
     assert "UseServiceLogCMK" in text
     assert "KmsKeyId: !If [UseServiceLogCMK" in text
+
+
+def test_runtime_ecr_lifecycle_policy_keeps_current_and_rollback_images() -> (
+    None
+):
+    """ECR lifecycle policy must keep the current image plus one rollback."""
+    text = _read("infra/runtime/ecr.yml")
+
+    for required in [
+        '"rulePriority": 1',
+        '"tagStatus": "untagged"',
+        '"countType": "sinceImagePushed"',
+        '"countUnit": "days"',
+        '"countNumber": 1',
+        '"rulePriority": 2',
+        '"tagStatus": "any"',
+        '"countType": "imageCountMoreThan"',
+        '"countNumber": 2',
+        "Expire untagged images after 1 day",
+        "Keep the current image and one rollback image",
+    ]:
+        assert required in text
 
 
 def test_ecs_native_blue_green_authority_contracts() -> None:

@@ -105,6 +105,8 @@ SDK posture:
 - Generated-client compatibility is enforced by
   `packages/nova_file_api/tests/test_generated_client_smoke.py`.
 - Never log presigned URLs, JWTs, or signed query values.
+- Keep `.agents/AUDIT_DELIVERABLES/*` updated locally for dev tracking, but
+  leave it ignored and never commit it in PRs.
 
 Quick route preflight:
 
@@ -147,6 +149,10 @@ rg -n "/v1/transfers|/v1/jobs|/v1/internal/jobs|/v1/capabilities|/v1/resources/p
 - Malformed worker queue messages must remain unacked so SQS retry/DLQ policy
   handles poison messages.
 - `ACTIVITY_STORE_BACKEND=dynamodb` requires `ACTIVITY_ROLLUPS_TABLE`.
+- The runtime ECS service stack owns its repo-managed task role and cache
+  secret injection. Do not pass `TASK_ROLE_ARN`,
+  `TASK_EXECUTION_SECRET_ARNS`, or `TASK_EXECUTION_SSM_PARAMETER_ARNS` to
+  `scripts/release/deploy-runtime-cloudformation-environment.sh`.
 
 ## Task Router
 

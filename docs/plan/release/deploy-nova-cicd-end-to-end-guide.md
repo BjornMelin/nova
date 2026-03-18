@@ -2,7 +2,7 @@
 
 Status: Active
 Owner: nova release architecture
-Last reviewed: 2026-03-05
+Last reviewed: 2026-03-17
 
 ## Purpose
 
@@ -42,6 +42,8 @@ Primary path:
 4. Configure `nova` repository secrets/vars.
 5. Activate CodeConnections.
 6. Run release workflows and validate AWS promotion.
+7. Delete the release-control stacks when the environment returns to an idle
+   development posture.
 
 Fallback path:
 
@@ -157,6 +159,14 @@ the values match for idempotent behavior.
 If `${NOVA_ARTIFACT_BUCKET_NAME}` already exists, pass it as
 `ExistingArtifactBucketName`. If it does not exist yet, set
 `ExistingArtifactBucketName=""` and pass it as `ArtifactBucketName`.
+
+If you import an existing artifact bucket with `ExistingArtifactBucketName`,
+the stack does not own that bucket resource. Apply the same lifecycle baseline
+directly on the bucket:
+
+- expire current objects after 30 days
+- expire noncurrent versions after 30 days
+- abort incomplete multipart uploads after 7 days
 
 If the artifact bucket already exists:
 
@@ -297,6 +307,29 @@ aws codepipeline get-pipeline-state \
   --region "${AWS_REGION}" \
   --name "${CODEPIPELINE_NAME}"
 ```
+
+## Step 9: return the release control plane to idle
+
+After release validation is complete, delete the control-plane stacks to avoid
+idle CodePipeline and CodeBuild spend:
+
+```bash
+aws cloudformation delete-stack \
+  --region "${AWS_REGION}" \
+  --stack-name "${PROJECT}-${APPLICATION}-nova-ci-cd"
+aws cloudformation wait stack-delete-complete \
+  --region "${AWS_REGION}" \
+  --stack-name "${PROJECT}-${APPLICATION}-nova-ci-cd"
+
+aws cloudformation delete-stack \
+  --region "${AWS_REGION}" \
+  --stack-name "${PROJECT}-${APPLICATION}-nova-codebuild-release"
+aws cloudformation wait stack-delete-complete \
+  --region "${AWS_REGION}" \
+  --stack-name "${PROJECT}-${APPLICATION}-nova-codebuild-release"
+```
+
+Recreate both stacks later by rerunning Step 3.
 
 ## References
 

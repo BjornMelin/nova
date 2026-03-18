@@ -162,6 +162,10 @@ def test_release_docs_include_codeartifact_staged_promotion_authority() -> None:
             "and gate-validated versions"
         ),
         "RELEASE_MANIFEST_SHA256",
+        "Release control-plane cost posture",
+        "nova-codebuild-release",
+        "nova-ci-cd",
+        "day-0-operator-command-pack.sh",
     ]:
         assert required in release_policy
 
