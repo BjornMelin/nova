@@ -10,10 +10,14 @@ import re
 
 import yaml
 
-from scripts.release.runtime_config_contract import build_contract_payload
-
-from .helpers import REPO_ROOT
+from .helpers import REPO_ROOT, load_repo_module
 from .helpers import read_repo_file as _read
+
+runtime_config_contract = load_repo_module(
+    "tests.infra.runtime_config_contract",
+    "scripts/release/runtime_config_contract.py",
+)
+build_contract_payload = runtime_config_contract.build_contract_payload
 
 RUNTIME_DEPLOYABLE_TEMPLATES = (
     "infra/runtime/ecr.yml",

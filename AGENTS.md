@@ -187,6 +187,12 @@ Notes:
 - `ty` is the canonical Python type gate for the full repo typing surface.
 - `mypy` remains a required compatibility backstop on its narrower configured
   scope.
+- `pyproject.toml` pins the supported `uv` CLI via
+  `[tool.uv].required-version`; keep local tooling, CI, and docs aligned when
+  bumping that version.
+- Pytest runs in `--import-mode=importlib` against editable workspace installs.
+  Do not add repo-level `pythonpath` overrides back unless a newly verified
+  import failure requires them.
 - Runtime config deploy/docs/tests must treat
   `packages/nova_file_api/src/nova_file_api/config.py` plus
   `scripts/release/runtime_config_contract.py` as the source-of-truth pair and

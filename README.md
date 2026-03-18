@@ -118,6 +118,15 @@ source .venv/bin/activate && uv run python scripts/release/generate_clients.py -
 source .venv/bin/activate && uv run python scripts/release/generate_python_clients.py --check
 ```
 
+Tooling notes:
+
+- Nova pins the supported `uv` CLI via `[tool.uv].required-version`; keep local
+  tooling and CI on that exact version when changing the Python workspace
+  contract.
+- Pytest runs in `--import-mode=importlib` against editable workspace installs.
+  Do not reintroduce repo-level `pythonpath` shims unless a new test failure
+  proves they are required.
+
 Runtime deploy/config drift guard:
 
 - `packages/nova_file_api/src/nova_file_api/config.py` is the typed runtime
