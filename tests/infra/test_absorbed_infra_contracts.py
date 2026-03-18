@@ -204,6 +204,29 @@ def test_foundation_exports_and_stack_wiring_contracts() -> None:
         "CodeBuildLogRetentionInDays:",
         "CloudWatchLogs:",
         "RetentionInDays: !Ref CodeBuildLogRetentionInDays",
+        "AllowedValues:",
+        "  - 1",
+        "  - 3",
+        "  - 5",
+        "  - 7",
+        "  - 14",
+        "  - 30",
+        "  - 60",
+        "  - 90",
+        "  - 120",
+        "  - 150",
+        "  - 180",
+        "  - 365",
+        "  - 400",
+        "  - 545",
+        "  - 731",
+        "  - 1096",
+        "  - 1827",
+        "  - 2192",
+        "  - 2557",
+        "  - 2922",
+        "  - 3288",
+        "  - 3653",
         "ReleaseBuildspecPath:",
         "ValidateBuildspecPath:",
         (
@@ -597,8 +620,33 @@ def test_runtime_env_and_parameter_contracts() -> None:
         )
         if isinstance(action, str)
     }
-    assert "secretsmanager:GetSecretValue" in execution_actions
+    assert execution_actions == {
+        "secretsmanager:GetSecretValue",
+        "kms:Decrypt",
+    }
     assert "ssm:GetParameters" not in execution_actions
+    for statement in execution_statements:
+        if not isinstance(statement, dict):
+            continue
+        actions = statement.get("Action", [])
+        if isinstance(actions, str):
+            actions = [actions]
+        resource = statement.get("Resource")
+        if "secretsmanager:GetSecretValue" in actions:
+            assert resource == ["CacheRedisUrlSecretArn"]
+            continue
+        if "kms:Decrypt" in actions:
+            assert resource == "*"
+            condition = statement.get("Condition")
+            assert isinstance(condition, dict)
+            kms_via_service = "secretsmanager.${AWS::Region}.${AWS::URLSuffix}"
+            assert condition == {
+                "StringEquals": {"kms:ViaService": kms_via_service}
+            }
+            continue
+        assert resource not in {None, "*"}
+        if isinstance(resource, (list, str)):
+            assert "*" not in resource
 
     service_exec_policy = service_resources["EcsExecTaskPolicy"]
     assert isinstance(service_exec_policy, dict)
@@ -835,6 +883,7 @@ def test_runtime_ecr_lifecycle_policy_keeps_current_and_rollback_images() -> (
         '"countNumber": 1',
         '"rulePriority": 2',
         '"tagStatus": "any"',
+        '"countType": "imageCountMoreThan"',
         '"countNumber": 2',
         "Expire untagged images after 1 day",
         "Keep the current image and one rollback image",
