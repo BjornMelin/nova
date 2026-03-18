@@ -10,9 +10,12 @@ from pathlib import Path
 
 import pytest
 
-from scripts.ci import detect_workflow_scopes as scope_detector
+from .helpers import REPO_ROOT, load_repo_module
 
-from .helpers import REPO_ROOT
+scope_detector = load_repo_module(
+    "tests.infra.detect_workflow_scopes",
+    "scripts/ci/detect_workflow_scopes.py",
+)
 
 
 def _outputs(changed_files: list[str]) -> dict[str, str]:

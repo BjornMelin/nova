@@ -44,6 +44,7 @@ Documentation = "https://github.com/3M-Cloud/nova/tree/main/docs"
 
 [tool.uv]
 default-groups = ["dev"]
+required-version = "==0.10.10"
 
 [tool.uv.workspace]
 members = [
@@ -72,19 +73,11 @@ testpaths = [
   "scripts/release/tests",
   "tests/infra",
 ]
-pythonpath = [
-  ".",
-  "packages/nova_sdk_py_auth/src",
-  "packages/nova_sdk_py_file/src",
-  "packages/nova_auth_api/src",
-  "packages/nova_dash_bridge/src",
-  "packages/nova_file_api/src",
-  "packages/nova_runtime_support/src",
-]
 addopts = [
   "-ra",
   "--strict-config",
   "--strict-markers",
+  "--import-mode=importlib",
 ]
 filterwarnings = [
   "error",
