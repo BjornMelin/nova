@@ -258,7 +258,7 @@ Resources:
           Command:
             - "nova-file-worker"
           Environment:
-            - Name: ENV
+            - Name: ENVIRONMENT
               Value: !Ref Environment
             - Name: AWS_DEFAULT_REGION
               Value: !Ref JobsRegion
