@@ -1,12 +1,12 @@
 ---
 Spec: 0012
-Title: SDK governance for Python public plus generated/private TypeScript and deferred R catalogs
+Title: SDK governance for Python public, release-grade TypeScript, and first-class internal R packages
 Status: Active
-Version: 2.0
-Date: 2026-03-05
+Version: 3.0
+Date: 2026-03-18
 Related:
-  - "[ADR-0013: Public Python SDK topology uses generated contract-core clients while TypeScript remains generated/private and R stays deferred](../adr/ADR-0013-final-state-sdk-topology-generated-core-plus-thin-adapters.md)"
-  - "[SPEC-0011: Public Python SDK architecture with generated/private TypeScript and deferred R package map](./SPEC-0011-multi-language-sdk-architecture-and-package-map.md)"
+  - "[ADR-0013: Public Python SDK topology uses generated contract-core clients while TypeScript is release-grade in CodeArtifact and R is a first-class internal release line](../adr/ADR-0013-final-state-sdk-topology-generated-core-plus-thin-adapters.md)"
+  - "[SPEC-0011: Public Python SDK architecture with release-grade TypeScript and first-class internal R package map](./SPEC-0011-multi-language-sdk-architecture-and-package-map.md)"
   - "[SPEC-0004: CI/CD and docs](./SPEC-0004-ci-cd-and-docs.md)"
   - "[Hard Cutover Checklist](../../plan/release/HARD-CUTOVER-CHECKLIST.md)"
 References:
@@ -21,8 +21,9 @@ Defines conformance, release/versioning policy, deprecation policy, and API
 compatibility governance for the current Nova SDK posture:
 
 - Python public release-grade SDK packages
-- TypeScript generated/private-distribution SDK packages
-- internal/generated R catalogs
+- TypeScript release-grade SDK packages within Nova's existing CodeArtifact
+  staged/prod system
+- first-class internal R package artifacts
 
 ## 2. Conformance fixture strategy
 
@@ -45,11 +46,12 @@ Required CI posture:
 
 - Python: release-grade conformance gate covering model/operation compile,
   fixture decode/encode, generated-client smoke, and auth error mapping
-- TypeScript: generated/private conformance gate covering generated-client
-  smoke, fixture-backed client execution, generated artifact drift, and
+- TypeScript: release-grade conformance gate covering generated-client smoke,
+  fixture-backed client execution, published artifact drift, and
   subpath/export boundary enforcement
-- R: internal catalog gate covering generated artifact drift and fixture
-  roundtrip only
+- R: internal release-artifact gate covering package structure,
+  `scripts/checks/verify_r_cmd_check.sh`, fixture roundtrip, and signed
+  tarball evidence; any `R CMD check` warning blocks merge/release
 
 Nova repository lanes:
 
@@ -75,35 +77,39 @@ Minimum shared scenarios:
 
 ### 3.1 Public SemVer requirements
 
-Public Python SDK packages and generated/private TypeScript SDK packages follow
+Public Python SDK packages and release-grade TypeScript SDK packages follow
 Semantic Versioning 2.0.0:
 
 - MAJOR for backward-incompatible public API or contract changes
 - MINOR for backward-compatible API additions
 - PATCH for backward-compatible fixes only
 
-Breaking examples for public Python and generated/private TypeScript SDK
-packages include:
+Breaking examples for public Python and release-grade TypeScript SDK packages
+include:
 
 - OpenAPI tag changes that move generated endpoint modules/packages
 - `operationId` renames that change generated function names
 - contract removals or incompatible schema changes
 
-### 3.2 Deferred catalog version posture
+### 3.2 Internal R package version posture
 
-R catalogs are not public compatibility authority in this wave. They must
-remain deterministic from OpenAPI inputs, but they do not imply a public
-support or publishing contract.
+R packages are not public compatibility authority in this wave. They must
+remain deterministic from OpenAPI inputs, preserve signed tarball evidence,
+and follow the internal release-line versioning contract, but they do not imply
+a public support or publishing contract.
 
 ### 3.3 Release cadence and promotion
 
 - Python and TypeScript releases are produced by Nova CI only after the
   required conformance suites pass.
+- R package releases are produced by Nova CI only after package build/check
+  passes through `scripts/checks/verify_r_cmd_check.sh` and signed tarball
+  evidence pass.
 - Release notes must include explicit breaking/additive/fix classification for
-  public Python packages and generated/private TypeScript packages.
+  public Python packages, release-grade TypeScript packages, and internal R
+  package artifacts.
 - Generated Python and TypeScript artifacts are immutable after release.
-- R productization remains deferred and must be completed in a future
-  dedicated wave.
+- R package tarballs are immutable after release.
 
 ## 4. Deprecation policy
 
@@ -112,17 +118,17 @@ support or publishing contract.
 - Deprecated operations/fields must be marked in OpenAPI with deprecation
   metadata and changelog note.
 - Deprecation notice window: minimum one MINOR release before removal in next
-  MAJOR for public Python and generated/private TypeScript surfaces.
+  MAJOR for public Python and release-grade TypeScript surfaces.
 - Runtime behavior during deprecation must remain contract-compatible.
 
 ### 4.2 SDK deprecation baseline
 
 - Python public methods scheduled for removal must emit warnings-based
   deprecation.
-- TypeScript generated package APIs must preserve subpath contracts or take a
-  MAJOR bump when removing them.
-- R catalog evolution is internal until that language is promoted to public SDK
-  status.
+- TypeScript package APIs must preserve subpath contracts or take a MAJOR bump
+  when removing them.
+- R package evolution is internal and must keep the released tarball evidence
+  and exported namespace aligned with the versioned package contract.
 
 ## 5. API/contract governance and compatibility policy
 
@@ -140,10 +146,13 @@ A pull request modifying OpenAPI contracts must pass:
 
 - schema validity checks
 - explicit change classification
-- regenerated Python and TypeScript SDK diffs
+- regenerated Python, TypeScript, and R SDK/package diffs
 - Python and TypeScript generated-client smoke
-- internal R generated-catalog drift gate via
-  `scripts/release/generate_clients.py --check`
+- TypeScript staged/prod artifact validation and subpath/export boundary
+  checks
+- internal R verification gate via `scripts/checks/verify_r_cmd_check.sh` and
+  signed tarball evidence
+- `scripts/release/generate_clients.py --check`
 - committed Python SDK drift gate via
   `scripts/release/generate_python_clients.py --check`
 
@@ -155,12 +164,12 @@ Merge must be blocked if any of the following occur:
 - error envelope shape drift (`error.code/message/request_id`) in a non-major
   public release
 - adapter introduces contract fork or local authority logic
-- a generated/private TypeScript SDK export leaks internal-only operations or
-  their
+- a TypeScript SDK export leaks internal-only operations or their
   schema aliases
-- a generated/private TypeScript SDK request path serializes a multi-media
-  request body
+- a TypeScript SDK request path serializes a multi-media request body
   without an explicit OpenAPI-aligned media-type selection rule
+- an internal R release artifact is missing signed tarball evidence or a
+  versioned package namespace manifest
 
 ## 6. Governance ownership
 

@@ -40,10 +40,12 @@ SDK posture:
 
 - Nova must provide complete public SDKs for Python, TypeScript, and R.
 - Python is the release-grade public SDK surface.
-- TypeScript remains generated/private-distribution contract surface.
-- R scaffolding stays in-repo and must not be deleted.
+- TypeScript is release-grade within Nova's existing CodeArtifact staged/prod
+  system while remaining generator-owned and subpath-only.
+- R packages are first-class internal release artifacts with real package
+  trees, logical format `r`, CodeArtifact generic transport, and signed tarball
+  evidence.
 - Internal-only operations remain excluded from public SDK generation.
-- Generated TypeScript SDKs remain validation-free private-distribution artifacts in this wave.
 - Public TypeScript SDK packages must not expose package-root `"."` exports.
 - Operations marked with `x-nova-sdk-visibility: internal` remain excluded.
 - Generated TypeScript SDKs must honor declared request media types and use
@@ -85,6 +87,10 @@ SDK posture:
   - `docs/architecture/spec/SPEC-0024-cloudformation-module-contract.md`
   - `docs/architecture/spec/SPEC-0025-reusable-workflow-integration-contract.md`
   - `docs/architecture/spec/SPEC-0026-ci-cd-iam-least-privilege-matrix.md`
+- SDK and release-artifact governance pack:
+  - `docs/architecture/adr/ADR-0013-final-state-sdk-topology-generated-core-plus-thin-adapters.md`
+  - `docs/architecture/spec/SPEC-0011-multi-language-sdk-architecture-and-package-map.md`
+  - `docs/architecture/spec/SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md`
 
 ## Canonical Guardrails
 
@@ -240,6 +246,21 @@ npm run -w @nova/contracts-ts-conformance typecheck
 npm run -w @nova/contracts-ts-conformance verify
 source .venv/bin/activate && uv run pytest -q scripts/release/tests/test_typescript_sdk_contracts.py
 ```
+
+### R package artifacts, release packaging, or R SDK docs/contracts
+
+Also run the shared R conformance entrypoint:
+
+```bash
+source .venv/bin/activate && bash scripts/checks/run_sdk_conformance.sh
+```
+
+Notes:
+
+- `scripts/checks/run_sdk_conformance.sh` wraps
+  `scripts/checks/verify_r_cmd_check.sh`.
+- The helper parses `00check.log` and fails the lane when `R CMD check`
+  reports warnings.
 
 ### Infra, workflows, or docs governance
 

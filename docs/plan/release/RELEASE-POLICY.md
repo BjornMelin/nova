@@ -2,7 +2,7 @@
 
 Status: Active
 Owner: nova release architecture
-Last updated: 2026-03-17
+Last updated: 2026-03-18
 
 ## 1. Scope
 
@@ -48,8 +48,10 @@ Companion modular setup guides:
 1. Selective per-unit versioning is required.
 2. Release build uploads must target CodeArtifact via:
    - `twine --repository codeartifact` for Python distributions
-   - `npm publish` against the staged npm endpoint for release-prepared npm
-     artifacts
+   - `npm publish` against the staged npm endpoint for release-grade
+     TypeScript artifacts
+   - R releases published as CodeArtifact generic packages carrying the
+     tarball plus detached `.sig` asset
 3. Selective publish package paths are resolved from signed release commit diff
    (`HEAD^..HEAD`) to avoid empty publish sets on manifest-touching release
    commits.
@@ -62,9 +64,10 @@ Companion modular setup guides:
    `file:../nova_sdk_fetch`) for local development, but staged publish
    artifacts must rewrite internal npm dependencies to concrete semver versions
    and remove publish-blocking `private: true`.
-9. Staged npm validation must install from CodeArtifact with `npm install --no-progress`
-   and verify the generated/private TypeScript SDK subpath contracts before
-   prod promotion.
+9. Staged npm validation must install from CodeArtifact with
+   `npm install --no-progress` and verify the release-grade TypeScript SDK
+   subpath contracts, curated exports, and tarball shape before prod
+   promotion.
 10. Internal npm package-group policy for `/npm/${CodeArtifactInternalNpmScope}/*` must allow direct
    publish while blocking both external and internal upstream ingestion.
 11. Promotion must include and verify `RELEASE_MANIFEST_SHA256`, where the value
@@ -72,6 +75,12 @@ Companion modular setup guides:
 12. Public Python SDK releases must classify OpenAPI tag or `operationId`
    renames as MAJOR changes because they rename generated endpoint modules or
    functions.
+13. R release artifacts must be built with `R CMD build` and `R CMD check`,
+    then promoted through CodeArtifact generic packages that carry both the
+    tarball and detached `.sig` asset under the same staged/prod repository
+    controls. Promotion must retain tarball and signature SHA evidence, and
+    the shared R conformance helper fails the lane if `R CMD check` reports
+    warnings.
 
 ## 5A. Runtime deployment policy
 

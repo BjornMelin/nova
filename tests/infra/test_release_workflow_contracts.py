@@ -27,10 +27,29 @@ def test_publish_packages_workflow_has_staged_gate_contracts() -> None:
         "release_apply_run_id",
         "CODEARTIFACT_STAGING_REPOSITORY",
         "Setup Node",
+        "Setup R",
+        "Configure release signing",
+        "steps.release-units.outputs.has_r_units == 'true'",
+        "steps.release-units.outputs.has_r_units",
+        "--r-publish-report",
+        "published_assets",
+        "fileb://",
+        "tarball_sha256",
+        "signature_sha256",
+        "signature_path",
+        "signature_name = signature_path.name",
+        "published_assets = []",
+        "for asset_path, asset_name, asset_sha256, unfinished in",
+        "--unfinished",
+        "No R packages changed; skipping R build/sign.",
         "aws codeartifact get-repository-endpoint",
         "aws codeartifact login",
         "twine upload --repository codeartifact",
         "npm publish --no-progress",
+        "Build, check, and sign R packages",
+        "publish-package-version",
+        "codeartifact_format",
+        "generic",
         "Smoke test npm packages from CodeArtifact staging",
     ]:
         assert required in text, f"Missing required contract: {required!r}"
@@ -83,8 +102,13 @@ def test_promote_prod_workflow_has_controlled_package_promotion_policy() -> (
         "EXPECTED_VERSION_PLAN_SHA256",
         "EXPECTED_PROMOTION_CANDIDATES_SHA256",
         "copy-package-versions",
-        "package_format",
+        "codeartifact_format",
+        "tarball_sha256",
+        "signature_sha256",
+        "missing a valid tarball sha256",
+        "missing a valid signature sha256",
         "--namespace",
+        "generic",
         "approve-prod-pipeline",
         "codepipeline-approve",
     ]:
@@ -180,6 +204,32 @@ def test_publish_packages_workflow_requires_explicit_release_apply_run_id() -> (
         "github.event.workflow_run",
     ]:
         assert forbidden not in text
+
+
+def test_publish_packages_workflow_runs_codeartifact_gate_before_publish() -> (
+    None
+):
+    """Publish workflow must fail closed before any staging side effects."""
+    text = _read(".github/workflows/publish-packages.yml")
+
+    gate_index = text.index("- name: Run CodeArtifact release gates")
+    python_publish_index = text.index(
+        "- name: Publish to CodeArtifact staging repository"
+    )
+    npm_publish_index = text.index(
+        "- name: Publish npm packages to CodeArtifact staging repository"
+    )
+    r_publish_index = text.index(
+        "- name: Publish R packages to CodeArtifact staging repository"
+    )
+    smoke_index = text.index(
+        "- name: Smoke test npm packages from CodeArtifact staging"
+    )
+
+    assert gate_index < python_publish_index
+    assert gate_index < npm_publish_index
+    assert gate_index < r_publish_index
+    assert gate_index < smoke_index
 
 
 def test_deploy_dev_workflow_uses_reusable_api() -> None:

@@ -1,13 +1,13 @@
 ---
 Spec: 0011
-Title: Public Python SDK architecture with generated/private TypeScript and deferred R package map
+Title: Public Python SDK architecture with release-grade TypeScript and first-class internal R package map
 Status: Active
-Version: 2.0
-Date: 2026-03-05
+Version: 3.0
+Date: 2026-03-18
 Related:
   - "[Requirements: Nova functional and non-functional requirements](../requirements.md)"
   - "[ADR-0023: Hard cut to a single canonical /v1 API surface](../adr/ADR-0023-hard-cut-v1-canonical-route-surface.md)"
-  - "[ADR-0013: Public Python SDK topology uses generated contract-core clients while TypeScript remains generated/private and R stays deferred](../adr/ADR-0013-final-state-sdk-topology-generated-core-plus-thin-adapters.md)"
+  - "[ADR-0013: Public Python SDK topology uses generated contract-core clients while TypeScript is release-grade in CodeArtifact and R is a first-class internal release line](../adr/ADR-0013-final-state-sdk-topology-generated-core-plus-thin-adapters.md)"
   - "[ADR-0002: OpenAPI as contract and SDK generation](../adr/ADR-0002-openapi-as-contract-and-sdk-generation.md)"
   - "[SPEC-0000: HTTP API contract](./SPEC-0000-http-api-contract.md)"
   - "[SPEC-0016: Hard-cut v1 route contract and route-literal guardrails](./SPEC-0016-v1-route-namespace-and-literal-guardrails.md)"
@@ -22,9 +22,12 @@ References:
 ## 1. Scope
 
 Defines the current-wave Nova SDK package map. Python is the release-grade
-public SDK surface. TypeScript packages remain generated/private-distribution
-artifacts, and R packages remain internal/generated catalogs until later
-promotion waves.
+public SDK surface. TypeScript packages are release-grade within Nova's
+existing CodeArtifact staged/prod system while remaining generator-owned and
+subpath-only, and R packages are first-class internal release artifacts with
+real package scaffolds, logical format `r`, CodeArtifact generic transport,
+and release evidence that records both the tarball and detached `.sig` SHA256
+values.
 
 ## 2. Canonical topology
 
@@ -74,7 +77,7 @@ Consumer mapping:
 - `dash-pca` consumes generated Python SDK packages plus thin bridge utilities.
 - No handwritten Python verify client remains authoritative in consumer repos.
 
-### 3.3 Generated/private TypeScript SDKs
+### 3.3 Release-grade TypeScript SDKs
 
 - `@nova/sdk-file` (generated file SDK with `client`, `types`,
   `operations`, and `errors` subpaths)
@@ -90,17 +93,19 @@ Repository package paths:
 
 Current status:
 
-- generated/private-distribution SDK surface
+- release-grade SDK surface within Nova's existing CodeArtifact staged/prod
+  system
 - generated directly from the committed OpenAPI artifacts
+- generator-owned and subpath-only
 - runtime-lean and intentionally free of bundled validation libraries
 - `types` subpaths expose curated operation helpers and reachable public
   schema aliases only; raw whole-spec OpenAPI aliases are not public contract
   surface
 
-### 3.4 Internal/generated R catalogs
+### 3.4 First-class internal R packages
 
-- `nova.sdk.r.file` (generated client bindings/models)
-- `nova.sdk.r.auth` (generated auth bindings/models)
+- `nova.sdk.r.file` (real R package exposing generated client bindings/models)
+- `nova.sdk.r.auth` (real R package exposing generated auth bindings/models)
 
 Repository package paths:
 
@@ -109,13 +114,18 @@ Repository package paths:
 
 Current status:
 
-- internal/generated catalog only
-- not a release-grade public SDK surface
-- not yet covered by public package publishing/support guarantees
+- first-class internal release artifact line
+- real package scaffolds with logical format `r`
+- transported through CodeArtifact generic packages as a tarball plus
+  detached `.sig`
+- accompanied by release evidence that records `tarball_sha256` and
+  `signature_sha256`
+- not a public SDK surface or public support commitment
 
 ## 4. Required SDK surface behaviors
 
-Python public and TypeScript generated SDK packages must support:
+Python public, TypeScript release-grade, and R internal release packages must
+support:
 
 - explicit base URL configuration
 - configurable timeout
@@ -126,14 +136,15 @@ Python public and TypeScript generated SDK packages must support:
   `error.request_id`)
 - typed request/response payload models
 
-For generated/private TypeScript SDKs specifically:
+For TypeScript SDKs specifically:
 
 - single-media request bodies may use generator-supplied default media types
 - multi-media request bodies must expose explicit generated `contentType`
   selection when the wire format would otherwise be ambiguous
 
-Internal R catalogs must remain deterministic from the same OpenAPI inputs but
-are not public compatibility authority in this wave.
+R packages must preserve the same OpenAPI-driven wire contract behavior while
+keeping package-native constructors, namespace generation, and tarball
+evidence deterministic across releases.
 
 ## 5. Auth contract surface
 
@@ -157,8 +168,8 @@ Nova owns:
 - OpenAPI contract source
 - generated SDK definitions
 - Python public package governance
-- TypeScript generated/private package governance
-- R internal catalog generation determinism
+- TypeScript CodeArtifact release-line governance
+- R internal release package governance and tarball evidence
 
 Consumer repos own:
 
@@ -170,15 +181,16 @@ Consumer repos own:
 
 - Canonical OpenAPI artifacts are exported and committed before SDK generation.
 - Python and TypeScript SDK packages are versioned and published from Nova CI.
+- R packages are built, checked, and released from Nova CI as CodeArtifact
+  generic packages carrying the tarball and detached `.sig`.
 - `scripts/release/generate_clients.py` is the deterministic generator entry
-  point for generated/private TypeScript SDK artifacts and internal R operation
-  catalogs.
+  point for TypeScript SDK artifacts and R package sources.
 - `scripts/release/generate_python_clients.py` is the deterministic generator
   entry point for committed Python SDK package trees.
-- TypeScript generated artifacts must stay deterministic in CI and retain the
-  published subpath contracts.
-- R generated artifacts must stay deterministic in CI, but public
-  publishing/promotion is deferred to a later wave.
+- TypeScript artifacts must stay deterministic in CI and retain the published
+  subpath contracts.
+- R package sources and tarball evidence must stay deterministic in CI and be
+  promoted through CodeArtifact generic packages.
 
 ## 8. Traceability
 

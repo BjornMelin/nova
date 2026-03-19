@@ -1,7 +1,7 @@
 # Product Requirements Document (PRD): Nova Runtime
 
 Status: Active canonical PRD
-Last updated: 2026-03-17
+Last updated: 2026-03-18
 Audience: Product, Engineering, Platform Operations
 
 ## 1. Product Goal
@@ -41,9 +41,12 @@ async jobs with zero route-surface ambiguity.
    approval before prod.
 5. Documentation authority remains singular and unambiguous across README,
    PRD, requirements, ADR/SPEC, plan, and runbooks.
-6. Public SDK productization for this wave includes Python. TypeScript remains
-   a generated/private-distribution contract surface and R remains an
-   internal/generated catalog until dedicated promotion waves.
+6. Public SDK productization for this wave includes Python public,
+   TypeScript release-grade within Nova's existing CodeArtifact staged/prod
+   system while remaining generator-owned and subpath-only, and R as a
+   first-class internal release artifact line with real packages, logical
+   format `r`, CodeArtifact generic package transport, and signed tarball
+   evidence.
 7. Deployment target-state uses ECS/Fargate behind ALB with ECS-native
    blue/green rollout, CloudWatch alarms, WAF on public ingress, and manifest
    hash evidence tied to the release manifest itself.
@@ -90,7 +93,8 @@ Out of scope:
    contract validation fails.
 7. CodeArtifact promotion IAM contracts remain least-privilege, scoped to
    explicit staged source and prod destination repositories, and cover Python
-   plus private npm publication controls.
+   distributions, TypeScript staged/prod package promotion, and R generic
+   package artifacts.
 8. Active operator authority IDs and paths are truthful, resolvable, and
    synchronized across README, AGENTS, plan, PRD, runbooks, and architecture
    indexes.

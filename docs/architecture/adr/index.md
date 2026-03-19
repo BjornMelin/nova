@@ -17,6 +17,8 @@ Normative runtime authority is layered across:
   `SPEC-0017`, `SPEC-0018`, `SPEC-0019`, `SPEC-0020`)
 - downstream/deploy-validation authority (`ADR-0027` through `ADR-0029`,
   `SPEC-0021`, `SPEC-0022`, `SPEC-0023`)
+- SDK and release-artifact governance authority (`ADR-0013`, `SPEC-0011`,
+  `SPEC-0012`)
 
 | ADR | Title | Status | Date |
 | --- | --- | --- | --- |
@@ -59,7 +61,7 @@ operator-authority entrypoint identifiers.
 | [ADR-0010](./ADR-0010-enqueue-failure-and-readiness-semantics.md) | Fail enqueue on queue publish errors and scope readiness to critical dependencies | Accepted | 2026-03-05 |
 | [ADR-0011](./ADR-0011-cicd-hybrid-github-aws-promotion.md) | Hybrid CI/CD with GitHub CI and AWS-native Dev to Prod promotion | Accepted (umbrella decision) | 2026-03-05 |
 | [ADR-0012](./ADR-0012-no-lambda-runtime-scope.md) | Preserve ECS and SQS runtime scope and exclude Lambda orchestration | Accepted | 2026-02-24 |
-| [ADR-0013](./ADR-0013-final-state-sdk-topology-generated-core-plus-thin-adapters.md) | Public Python SDK topology uses generated contract-core clients while TypeScript remains generated/private and R stays deferred | Accepted | 2026-03-05 |
+| [ADR-0013](./ADR-0013-final-state-sdk-topology-generated-core-plus-thin-adapters.md) | Public Python SDK topology uses generated contract-core clients while TypeScript is release-grade in CodeArtifact and R is a first-class internal release line | Accepted | 2026-03-18 |
 | [ADR-0022](./ADR-0022-release-validation-read-access-iam-iac.md) | Release validation read role codified in Nova IaC for reproducible validation access | Accepted | 2026-03-02 |
 
 ## Superseded

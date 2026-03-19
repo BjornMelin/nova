@@ -304,6 +304,17 @@ def test_required_ci_workflows_use_scope_classifier_gate() -> None:
             )
 
 
+def test_sdk_conformance_shared_r_check_helper_is_used() -> None:
+    """SDK conformance lanes must share the warning-fail R helper."""
+    workflow_text = _read(".github/workflows/conformance-clients.yml")
+    script_text = _read("scripts/checks/run_sdk_conformance.sh")
+    helper_text = _read("scripts/checks/verify_r_cmd_check.sh")
+
+    assert "scripts/checks/verify_r_cmd_check.sh" in workflow_text
+    assert "scripts/checks/verify_r_cmd_check.sh" in script_text
+    assert "R CMD check reported warnings" in helper_text
+
+
 def test_reusable_deploy_dev_checks_out_workflow_source_for_local_actions() -> (
     None
 ):

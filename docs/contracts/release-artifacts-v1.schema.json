@@ -76,7 +76,8 @@
         "unit_id",
         "project",
         "path",
-        "format"
+        "format",
+        "codeartifact_format"
       ],
       "properties": {
         "unit_id": {
@@ -95,7 +96,16 @@
           "type": "string",
           "enum": [
             "pypi",
-            "npm"
+            "npm",
+            "r"
+          ]
+        },
+        "codeartifact_format": {
+          "type": "string",
+          "enum": [
+            "pypi",
+            "npm",
+            "generic"
           ]
         },
         "namespace": {
@@ -158,6 +168,7 @@
               "path",
               "version",
               "format",
+              "codeartifact_format",
               "namespace"
             ],
             "properties": {
@@ -180,7 +191,16 @@
                 "type": "string",
                 "enum": [
                   "pypi",
-                  "npm"
+                  "npm",
+                  "r"
+                ]
+              },
+              "codeartifact_format": {
+                "type": "string",
+                "enum": [
+                  "pypi",
+                  "npm",
+                  "generic"
                 ]
               },
               "namespace": {
@@ -246,6 +266,7 @@
               "project",
               "path",
               "format",
+              "codeartifact_format",
               "namespace",
               "old_version",
               "new_version",
@@ -269,7 +290,16 @@
                 "type": "string",
                 "enum": [
                   "pypi",
-                  "npm"
+                  "npm",
+                  "r"
+                ]
+              },
+              "codeartifact_format": {
+                "type": "string",
+                "enum": [
+                  "pypi",
+                  "npm",
+                  "generic"
                 ]
               },
               "namespace": {
@@ -306,6 +336,7 @@
       "additionalProperties": false,
       "required": [
         "format",
+        "codeartifact_format",
         "namespace",
         "package",
         "version",
@@ -316,7 +347,16 @@
           "type": "string",
           "enum": [
             "pypi",
-            "npm"
+            "npm",
+            "r"
+          ]
+        },
+        "codeartifact_format": {
+          "type": "string",
+          "enum": [
+            "pypi",
+            "npm",
+            "generic"
           ]
         },
         "namespace": {
@@ -328,7 +368,7 @@
         },
         "package": {
           "type": "string",
-          "pattern": "^(@[a-z0-9][a-z0-9-]*/[a-z0-9][a-z0-9-]*|nova-[a-z0-9][a-z0-9-]*)$"
+          "pattern": "^(@[a-z0-9][a-z0-9-]*/[a-z0-9][a-z0-9-]*|nova-[a-z0-9][a-z0-9-]*|[a-z0-9][a-z0-9._-]{0,254})$"
         },
         "version": {
           "$ref": "#/$defs/semver"
@@ -336,6 +376,12 @@
         "unit_id": {
           "type": "string",
           "minLength": 1
+        },
+        "tarball_sha256": {
+          "$ref": "#/$defs/sha256_digest"
+        },
+        "signature_sha256": {
+          "$ref": "#/$defs/sha256_digest"
         }
       },
       "allOf": [
@@ -354,6 +400,9 @@
               },
               "package": {
                 "pattern": "^nova-[a-z0-9][a-z0-9-]*$"
+              },
+              "codeartifact_format": {
+                "const": "pypi"
               }
             }
           }
@@ -374,6 +423,42 @@
               },
               "package": {
                 "pattern": "^@nova/[a-z0-9][a-z0-9-]*$"
+              },
+              "codeartifact_format": {
+                "const": "npm"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "format": {
+                "const": "r"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "tarball_sha256",
+              "signature_sha256"
+            ],
+            "properties": {
+              "namespace": {
+                "type": "string",
+                "const": "nova"
+              },
+              "package": {
+                "pattern": "^[a-z0-9][a-z0-9._-]{0,254}$"
+              },
+              "tarball_sha256": {
+                "$ref": "#/$defs/sha256_digest"
+              },
+              "signature_sha256": {
+                "$ref": "#/$defs/sha256_digest"
+              },
+              "codeartifact_format": {
+                "const": "generic"
               }
             }
           }

@@ -1,7 +1,7 @@
 # Nova Architecture Authority Map
 
 Status: Active
-Last reviewed: 2026-03-17
+Last reviewed: 2026-03-18
 
 ## Purpose
 
@@ -65,6 +65,15 @@ or deploy-validation base URL authority.
 - `spec/SPEC-0021-downstream-hard-cut-integration-and-consumer-validation-contract.md`
 - `spec/SPEC-0022-auth0-tenant-ops-reusable-workflow-contract.md`
 - `spec/SPEC-0023-ssm-runtime-base-url-contract-for-deploy-validation.md`
+
+### SDK and release-artifact governance authority
+
+Use when the question is about public Python SDK topology, release-grade
+TypeScript, or first-class internal R release artifacts.
+
+- `adr/ADR-0013-final-state-sdk-topology-generated-core-plus-thin-adapters.md`
+- `spec/SPEC-0011-multi-language-sdk-architecture-and-package-map.md`
+- `spec/SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md`
 
 ### Adjacent deploy-governance authority
 

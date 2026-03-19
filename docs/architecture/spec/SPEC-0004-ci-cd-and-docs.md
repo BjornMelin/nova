@@ -2,8 +2,8 @@
 Spec: 0004
 Title: CI/CD and Documentation Automation
 Status: Active
-Version: 1.7
-Date: 2026-03-05
+Version: 1.8
+Date: 2026-03-18
 Related:
   - "[ADR-0002: OpenAPI as contract and SDK generation](../adr/ADR-0002-openapi-as-contract-and-sdk-generation.md)"
   - "[ADR-0011: Hybrid CI/CD with GitHub and AWS promotion](../adr/ADR-0011-cicd-hybrid-github-aws-promotion.md)"
@@ -43,7 +43,12 @@ Every pull request MUST pass:
 - cross-framework conformance gate (`.github/workflows/conformance-clients.yml`):
   - `dash-conformance`
   - `shiny-conformance`
-  - `typescript-conformance` (generated/internal TypeScript SDK client + fixture smoke)
+  - `typescript-conformance` (release-grade TypeScript SDK client + fixture
+    smoke; required check name remains stable)
+
+Release workflows also carry the first-class internal R release line via
+package build/check and signed tarball evidence. Those validations remain in
+release automation rather than protected-branch required checks.
 
 Protected branch wiring details are documented in
 `docs/plan/release/branch-protection-required-checks.md`.
@@ -126,6 +131,10 @@ Secrets policy:
 
 1. Publish changed workspace package artifacts to CodeArtifact.
    - `twine upload` MUST target `--repository codeartifact`.
+   - release-grade TypeScript package artifacts MUST be staged and promoted
+     through CodeArtifact npm repositories.
+   - R package artifacts MUST be built, checked, and stored as signed tarball
+     evidence plus CodeArtifact generic packages.
 2. Build and push container image artifacts and export immutable digest.
 3. Produce deploy artifacts consumed by both Dev and Prod promotion stages.
 4. Export build variables:
