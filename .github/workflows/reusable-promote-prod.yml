@@ -295,16 +295,29 @@ jobs:
           set -euo pipefail
           uv run python - <<'PY'
           import json
+          import re
           import subprocess
           from pathlib import Path
 
           candidates = json.loads(Path('.artifacts/validated-promotion-candidates.json').read_text())
+          sha256_re = re.compile(r'^[A-Fa-f0-9]{64}$')
           for item in candidates:
               package = item['package']
-              package_format = item.get('format', 'pypi')
+              codeartifact_format = item.get('codeartifact_format', item.get('format', 'pypi'))
               namespace = item.get('namespace')
               package_name = package
-              if package_format == 'npm' and namespace:
+              if item.get('format') == 'r':
+                  tarball_sha256 = item.get('tarball_sha256')
+                  signature_sha256 = item.get('signature_sha256')
+                  if not isinstance(tarball_sha256, str) or not sha256_re.fullmatch(tarball_sha256):
+                      raise SystemExit(
+                          f"R promotion candidate {package} is missing a valid tarball sha256"
+                      )
+                  if not isinstance(signature_sha256, str) or not sha256_re.fullmatch(signature_sha256):
+                      raise SystemExit(
+                          f"R promotion candidate {package} is missing a valid signature sha256"
+                      )
+              if codeartifact_format == 'npm' and namespace:
                   scoped_prefix = f'@{namespace}/'
                   if not package.startswith(scoped_prefix):
                       raise SystemExit(
@@ -317,9 +330,9 @@ jobs:
                   '--domain', '${{ env.CODEARTIFACT_DOMAIN }}',
                   '--source-repository', '${{ env.CODEARTIFACT_STAGING_REPOSITORY }}',
                   '--destination-repository', '${{ env.CODEARTIFACT_PROD_REPOSITORY }}',
-                  '--format', package_format,
+                  '--format', codeartifact_format,
               ]
-              if package_format == 'npm' and namespace:
+              if codeartifact_format in {'npm', 'generic'} and namespace:
                   command.extend(['--namespace', namespace])
               command.extend([
                   '--package', package_name,

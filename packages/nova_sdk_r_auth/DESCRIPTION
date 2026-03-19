@@ -1,0 +1,16 @@
+Package: nova.sdk.r.auth
+Type: Package
+Title: Nova SDK R auth client
+Version: 0.1.0
+Authors@R: person("Nova SDK Team", email = "sdk@nova.invalid", role = c("aut", "cre"))
+Description: Generated R client for the Nova auth API.
+License: file LICENSE
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.2
+Imports:
+    httr2,
+    jsonlite
+Suggests:
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3

@@ -243,12 +243,22 @@ jobs:
       - name: Validate Shiny lane fixtures
         run: uv run python scripts/conformance/validate_lane.py --lane shiny
       - uses: r-lib/actions/setup-r@v2
-      - name: Source generated R file SDK
+        with:
+          r-version: release
+      - name: Install R dependencies for nova.sdk.r.file
+        uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          working-directory: packages/nova_sdk_r_file
+      - name: Install R dependencies for nova.sdk.r.auth
+        uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          working-directory: packages/nova_sdk_r_auth
+      - name: Build and check generated R SDK packages
         run: |
-          Rscript -e 'source("packages/nova_sdk_r_file/R/generated.R"); source("packages/nova_sdk_r_file/R/client.R"); stopifnot(length(nova_file_operation_catalog()) > 0L)'
-      - name: Source generated R auth SDK
-        run: |
-          Rscript -e 'source("packages/nova_sdk_r_auth/R/generated.R"); source("packages/nova_sdk_r_auth/R/client.R"); stopifnot(length(nova_auth_operation_catalog()) > 0L)'
+          set -euo pipefail
+          for package_dir in packages/nova_sdk_r_file packages/nova_sdk_r_auth; do
+            bash scripts/checks/verify_r_cmd_check.sh "${package_dir}"
+          done
 
   typescript-conformance:
     needs:

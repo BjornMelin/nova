@@ -1,4 +1,4 @@
-"""Apply version plan updates to workspace pyproject.toml files."""
+"""Apply version plan updates to workspace manifests."""
 
 from __future__ import annotations
 
@@ -71,6 +71,29 @@ def _replace_package_version(
     return json.dumps(package_data, indent=2) + "\n"
 
 
+def _replace_description_version(
+    description_text: str,
+    old_version: str,
+    new_version: str,
+) -> str:
+    version_pattern = re.compile(r"(?m)^Version:\s*([^\n]+)\s*$")
+    match = version_pattern.search(description_text)
+    if match is None:
+        raise ValueError("DESCRIPTION version field not found")
+    if match.group(1).strip() != old_version:
+        raise ValueError(
+            "planned old version does not match file: "
+            f"expected {old_version}, found {match.group(1).strip()}"
+        )
+    version_start = match.start(1)
+    version_end = match.end(1)
+    return (
+        description_text[:version_start]
+        + new_version
+        + description_text[version_end:]
+    )
+
+
 def apply_version_updates(
     *,
     repo_root: Path,
@@ -91,7 +114,7 @@ def apply_version_updates(
 
     Raises:
         KeyError: If a plan unit_id is missing from workspace units.
-        ValueError: If a target pyproject version does not match the plan.
+        ValueError: If a target manifest version does not match the plan.
         TypeError: If ``version_plan`` or ``version_plan["units"]`` has an
             invalid JSON structure.
     """
@@ -138,6 +161,14 @@ def apply_version_updates(
             manifest_path = unit.path / "pyproject.toml"
             text = manifest_path.read_text(encoding="utf-8")
             replaced = _replace_project_version(text, old_version, new_version)
+        elif unit.package_format == "r":
+            manifest_path = unit.path / "DESCRIPTION"
+            text = manifest_path.read_text(encoding="utf-8")
+            replaced = _replace_description_version(
+                text,
+                old_version,
+                new_version,
+            )
         else:
             raise ValueError(
                 "unsupported package format for "

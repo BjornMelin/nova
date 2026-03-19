@@ -4,17 +4,24 @@ from __future__ import annotations
 
 import json
 import subprocess
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
 
 from scripts.release.generate_clients import (
+    TARGETS,
+    GenerationTarget,
     Operation,
     _assert_unique_operation_ids,
     _collect_public_schema_names,
     _default_operation_id,
     _load_operations,
     _remove_stale_generated_directory,
+    _render_r_client,
+    _render_r_description,
+    _render_r_license_text,
+    _render_r_package_manual,
     _render_typescript_openapi,
 )
 
@@ -220,3 +227,99 @@ def test_render_typescript_openapi_times_out_with_actionable_error(
 
     with pytest.raises(RuntimeError, match="timed out after 120s"):
         _render_typescript_openapi(Path("spec.openapi.json"))
+
+
+@pytest.mark.parametrize("target", TARGETS)
+def test_render_r_description_includes_valid_maintainer_metadata(
+    target: GenerationTarget,
+) -> None:
+    """R DESCRIPTION metadata must include a named maintainer with email."""
+    description = _render_r_description(target)
+
+    expected_maintainer = (
+        'Authors@R: person("Nova SDK Team", email = "sdk@nova.invalid", '
+        'role = c("aut", "cre"))'
+    )
+    assert expected_maintainer in description
+    assert "License: file LICENSE" in description
+
+
+@pytest.mark.parametrize("target", TARGETS)
+def test_render_r_description_preserves_existing_version(
+    target: GenerationTarget, tmp_path: Path
+) -> None:
+    """Regeneration should preserve an existing release-bumped DESCRIPTION."""
+    package_root = tmp_path / target.r_output_path.parent.parent.name
+    package_root.mkdir(parents=True)
+    (package_root / "DESCRIPTION").write_text(
+        "\n".join(
+            [
+                f"Package: {target.r_package_name}",
+                "Type: Package",
+                f"Title: {target.r_package_title}",
+                "Version: 9.9.9",
+                (
+                    'Authors@R: person("Nova SDK Team", email = '
+                    '"sdk@nova.invalid", role = c("aut", "cre"))'
+                ),
+                f"Description: {target.r_package_description}",
+                "License: file LICENSE",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    preserved_target = replace(
+        target,
+        r_output_path=package_root / "R" / "generated.R",
+        r_client_output_path=package_root / "R" / "client.R",
+    )
+
+    description = _render_r_description(preserved_target)
+
+    assert "Version: 9.9.9" in description
+
+
+@pytest.mark.parametrize("target", TARGETS)
+def test_render_r_license_text_marks_package_internal(
+    target: GenerationTarget,
+) -> None:
+    """Generated R package license text should reflect internal-only use."""
+    license_text = _render_r_license_text(target)
+
+    assert target.r_package_title in license_text
+    assert "internal Nova use only" in license_text
+
+
+@pytest.mark.parametrize("target", TARGETS)
+def test_render_r_client_defaults_default_headers_to_null(
+    target: GenerationTarget,
+) -> None:
+    """Generated R constructors must accept omitted default headers."""
+    client_code = _render_r_client(target)
+
+    assert "default_headers = NULL" in client_code
+
+
+@pytest.mark.parametrize("target", TARGETS)
+def test_render_r_package_manual_documents_usage_arguments(
+    target: GenerationTarget,
+) -> None:
+    """Generated R package manuals must document every usage argument."""
+    manual = _render_r_package_manual(target)
+
+    for argument_name in (
+        "base_url",
+        "request_performer",
+        "default_headers",
+        "timeout_seconds",
+        "client",
+        "operation_id",
+        "body",
+        "path_params",
+        "query",
+        "headers",
+        "content_type",
+        "status",
+    ):
+        assert f"\\item{{{argument_name}}}" in manual

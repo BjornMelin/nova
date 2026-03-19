@@ -32,6 +32,9 @@ def build_changed_units_report(
             "path": unit_id,
             "version": units[unit_id].version,
             "format": units[unit_id].package_format,
+            "codeartifact_format": common.resolve_codeartifact_format(
+                units[unit_id]
+            ),
             "namespace": units[unit_id].namespace,
         }
         for unit_id in changed_ids

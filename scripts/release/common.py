@@ -12,7 +12,8 @@ from pathlib import Path
 from typing import Any, Literal, cast
 
 BumpLevel = Literal["major", "minor", "patch"]
-PackageFormat = Literal["pypi", "npm"]
+PackageFormat = Literal["pypi", "npm", "r"]
+CodeArtifactFormat = Literal["pypi", "npm", "generic"]
 DEFAULT_MANIFEST_PATH = "docs/plan/release/RELEASE-VERSION-MANIFEST.md"
 
 
@@ -26,6 +27,7 @@ class WorkspaceUnit:
     version: str
     dependencies: tuple[str, ...]
     package_format: PackageFormat = "pypi"
+    codeartifact_format: CodeArtifactFormat | None = None
     namespace: str | None = None
 
 
@@ -80,16 +82,32 @@ def load_workspace_units(repo_root: Path) -> dict[str, WorkspaceUnit]:
             workspace-member/dependency lists or TOML-decoded structures.
     """
     units = _load_python_workspace_units(repo_root)
-    npm_units = _load_npm_workspace_units(repo_root)
+    _merge_workspace_units(units, _load_npm_workspace_units(repo_root))
+    _merge_workspace_units(units, _load_nova_release_units(repo_root))
+    return units
 
-    duplicate_unit_ids = sorted(set(units).intersection(npm_units))
+
+def resolve_codeartifact_format(unit: WorkspaceUnit) -> CodeArtifactFormat:
+    """Return the publish backend format for a workspace unit."""
+    if unit.codeartifact_format is not None:
+        return unit.codeartifact_format
+    if unit.package_format == "r":
+        return "generic"
+    return cast(CodeArtifactFormat, unit.package_format)
+
+
+def _merge_workspace_units(
+    units: dict[str, WorkspaceUnit],
+    new_units: dict[str, WorkspaceUnit],
+) -> None:
+    """Merge workspace units, rejecting duplicate unit IDs."""
+    duplicate_unit_ids = sorted(set(units).intersection(new_units))
     if duplicate_unit_ids:
         raise ValueError(
             "workspace unit IDs overlap across package managers: "
             + ", ".join(duplicate_unit_ids)
         )
-    units.update(npm_units)
-    return units
+    units.update(new_units)
 
 
 def _load_python_workspace_units(repo_root: Path) -> dict[str, WorkspaceUnit]:
@@ -141,6 +159,7 @@ def _load_python_workspace_units(repo_root: Path) -> dict[str, WorkspaceUnit]:
             version=version,
             dependencies=tuple(str(dep) for dep in dependencies),
             package_format="pypi",
+            codeartifact_format="pypi",
         )
     return units
 
@@ -224,9 +243,140 @@ def _load_npm_workspace_units(repo_root: Path) -> dict[str, WorkspaceUnit]:
             version=version,
             dependencies=_collect_npm_dependency_names(package_data),
             package_format="npm",
+            codeartifact_format="npm",
             namespace=inferred_namespace or configured_namespace,
         )
     return units
+
+
+def _load_nova_release_units(repo_root: Path) -> dict[str, WorkspaceUnit]:
+    """Load release-managed R units from ``tool.nova.release`` metadata.
+
+    The registry provides discovery metadata only; package versions are read
+    from each R unit's ``DESCRIPTION`` file.
+    """
+    root_pyproject = repo_root / "pyproject.toml"
+    root_data = tomllib.loads(root_pyproject.read_text(encoding="utf-8"))
+    raw_units = (
+        root_data.get("tool", {})
+        .get("nova", {})
+        .get("release", {})
+        .get("units", [])
+    )
+    if not isinstance(raw_units, list):
+        raise TypeError("tool.nova.release.units must be a list")
+
+    units: dict[str, WorkspaceUnit] = {}
+    for raw_unit in raw_units:
+        if not isinstance(raw_unit, dict):
+            raise TypeError("tool.nova.release.units entries must be objects")
+
+        unit_id = str(raw_unit.get("unit_id", "")).strip()
+        path_text = str(raw_unit.get("path", "")).strip()
+        configured_project_name = str(raw_unit.get("project_name", "")).strip()
+        package_format = str(raw_unit.get("format", "")).strip()
+        codeartifact_format = str(
+            raw_unit.get("codeartifact_format", "")
+        ).strip()
+        namespace = raw_unit.get("namespace")
+        if namespace is not None:
+            namespace = str(namespace).strip() or None
+        raw_dependencies = raw_unit.get("dependencies", [])
+
+        if not unit_id:
+            raise ValueError("tool.nova.release.units entry missing unit_id")
+        if not path_text:
+            raise ValueError(
+                f"tool.nova.release.units entry {unit_id} missing path"
+            )
+        if not configured_project_name:
+            raise ValueError(
+                f"tool.nova.release.units entry {unit_id} missing project_name"
+            )
+        if "version" in raw_unit:
+            raise ValueError(
+                "tool.nova.release.units entry "
+                f"{unit_id} must not define version; read from DESCRIPTION"
+            )
+        if package_format != "r":
+            raise ValueError(
+                f"tool.nova.release.units entry {unit_id} must use format = 'r'"
+            )
+        if codeartifact_format != "generic":
+            raise ValueError(
+                "tool.nova.release.units entry "
+                f"{unit_id} must use codeartifact_format = 'generic'"
+            )
+        if namespace is None:
+            raise ValueError(
+                f"tool.nova.release.units entry {unit_id} requires namespace"
+            )
+        if not isinstance(raw_dependencies, list):
+            raise TypeError(
+                "tool.nova.release.units entry "
+                f"{unit_id} dependencies must be a list"
+            )
+
+        description_path = repo_root / path_text / "DESCRIPTION"
+        description_project_name = _read_description_field(
+            description_path,
+            "Package",
+        )
+        description_version = _read_description_field(
+            description_path,
+            "Version",
+        )
+        if description_project_name != configured_project_name:
+            raise ValueError(
+                "tool.nova.release.units entry "
+                f"{unit_id} project_name does not match DESCRIPTION Package"
+            )
+
+        units[unit_id] = WorkspaceUnit(
+            unit_id=unit_id,
+            path=repo_root / path_text,
+            project_name=configured_project_name,
+            version=description_version,
+            dependencies=tuple(str(dep) for dep in raw_dependencies),
+            package_format="r",
+            codeartifact_format="generic",
+            namespace=namespace,
+        )
+    return units
+
+
+def _read_description_field(description_path: Path, field_name: str) -> str:
+    """Return a field value from an R DESCRIPTION file.
+
+    Args:
+        description_path: Path to the DESCRIPTION file.
+        field_name: DESCRIPTION field name to read.
+
+    Returns:
+        Trimmed field value.
+
+    Raises:
+        ValueError: If the field is missing or blank.
+    """
+    try:
+        text = description_path.read_text(encoding="utf-8")
+    except FileNotFoundError as exc:
+        raise ValueError(
+            f"DESCRIPTION file not found: {description_path}"
+        ) from exc
+    field_pattern = re.compile(rf"(?m)^{re.escape(field_name)}:\s*([^\n]+)\s*$")
+    match = field_pattern.search(text)
+    if match is None:
+        raise ValueError(
+            f"DESCRIPTION field {field_name} not found: {description_path}"
+        )
+    value = match.group(1).strip()
+    if not value:
+        raise ValueError(
+            f"DESCRIPTION field {field_name} must be non-empty: "
+            f"{description_path}"
+        )
+    return value
 
 
 def _collect_npm_dependency_names(

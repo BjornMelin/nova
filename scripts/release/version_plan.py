@@ -50,6 +50,7 @@ def build_version_plan(
             "project": unit.project_name,
             "path": unit_id,
             "format": unit.package_format,
+            "codeartifact_format": common.resolve_codeartifact_format(unit),
             "namespace": unit.namespace,
             "old_version": unit.version,
             "new_version": common.increment_semver(unit.version, bump_level),
@@ -71,6 +72,7 @@ def build_version_plan(
                 "project": unit.project_name,
                 "path": dependent_unit,
                 "format": unit.package_format,
+                "codeartifact_format": common.resolve_codeartifact_format(unit),
                 "namespace": unit.namespace,
                 "old_version": unit.version,
                 "new_version": common.increment_semver(
