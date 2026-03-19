@@ -108,10 +108,11 @@ the canonical deep matrix.
 - R packages use real package scaffolds, `logical format r`, generator-owned
   output from `scripts/release/generate_clients.py`, testthat coverage, and
   verification through the shared `scripts/checks/verify_r_cmd_check.sh`
-  helper. The helper runs `R CMD build` and `R CMD check`, parses
-  `00check.log`, and fails the lane if `R CMD check` reports warnings. When
-  regenerating, the generator preserves an existing `DESCRIPTION` version
-  instead of resetting it.
+  helper. The helper runs `R CMD build` and `R CMD check --no-manual`,
+  parses `00check.log`, and fails the lane if `R CMD check` reports warnings
+  without requiring `pdflatex` on CI or release runners. When regenerating,
+  the generator preserves an existing `DESCRIPTION` version instead of
+  resetting it.
 - R release artifacts are transported through CodeArtifact generic packages and
   must retain signed tarball and detached `.sig` evidence in the release
   workflow.
@@ -187,7 +188,7 @@ or R SDK docs/contracts:
 
 - `bash scripts/checks/verify_r_cmd_check.sh <package-dir>` (or the repo-local
   conformance entrypoint that invokes it); the helper runs `R CMD build` and
-  `R CMD check`, parses `00check.log`, and fails on warnings
+  `R CMD check --no-manual`, parses `00check.log`, and fails on warnings
 - any R package unit tests or documentation generation checks introduced by the
   change
 

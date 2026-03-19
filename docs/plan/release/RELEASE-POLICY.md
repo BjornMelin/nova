@@ -80,7 +80,8 @@ Companion modular setup guides:
     tarball and detached `.sig` asset under the same staged/prod repository
     controls. Promotion must retain tarball and signature SHA evidence, and
     the shared R conformance helper fails the lane if `R CMD check` reports
-    warnings.
+    warnings, while using `R CMD check --no-manual` so release runners do not
+    require `pdflatex`.
 
 ## 5A. Runtime deployment policy
 

@@ -53,8 +53,9 @@ Use the modular operator guide set for provisioning and setup details:
    - `ECR_REPOSITORY_URI` (or `ECR_REPOSITORY_NAME`)
 7. Release runners provide the R toolchain needed for `R CMD build` and
    `R CMD check` on the package release line, and the shared conformance
-   helper (`scripts/checks/verify_r_cmd_check.sh`) fails the lane if
-   `R CMD check` reports warnings.
+   helper (`scripts/checks/verify_r_cmd_check.sh`) fails the R lane if
+   `R CMD check` reports warnings, while running `R CMD check --no-manual`
+   so runners do not require `pdflatex`.
 8. Release-image build environments provide Docker BuildKit plus the `buildx`
    CLI plugin.
 9. IAM roles stack is deployed with promotion repository parameters:
@@ -104,7 +105,8 @@ Use the modular operator guide set for provisioning and setup details:
    assets, publishes the tarball `--unfinished`, and rewrites the report with
    `published_assets` after upload. The shared conformance helper
    (`scripts/checks/verify_r_cmd_check.sh`) fails the R lane if `R CMD check`
-   reports warnings.
+   reports warnings, while using `R CMD check --no-manual` so the lane does
+   not depend on `pdflatex`.
    When the runner uses npm 10.x, AWS CLI v2.9.5 or newer is required.
 4. Confirm staged npm smoke installs succeed from
    `CODEARTIFACT_STAGING_REPOSITORY` before prod promotion and validate the

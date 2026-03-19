@@ -62,7 +62,9 @@ if [[ -z "${tarball}" ]]; then
   exit 1
 fi
 
-R CMD check "${tarball}"
+# CI and release runners should not need a TeX toolchain just to validate the
+# generated SDK package. Keep the warning/error gate, but skip PDF manual build.
+R CMD check --no-manual "${tarball}"
 
 check_log="${package_name}.Rcheck/00check.log"
 if [[ ! -f "${check_log}" ]]; then

@@ -312,6 +312,7 @@ def test_sdk_conformance_shared_r_check_helper_is_used() -> None:
 
     assert "scripts/checks/verify_r_cmd_check.sh" in workflow_text
     assert "scripts/checks/verify_r_cmd_check.sh" in script_text
+    assert "--no-manual" in helper_text
     assert "R CMD check reported warnings" in helper_text
 
 
