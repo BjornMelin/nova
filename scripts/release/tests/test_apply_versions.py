@@ -38,7 +38,11 @@ def _write_description(path: Path, name: str, version: str) -> None:
     )
 
 
-def _write_release_pyproject(path: Path, unit_id: str) -> None:
+def _write_release_pyproject(
+    path: Path,
+    unit_id: str,
+    project_name: str = "nova.sdk.r.file",
+) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
         "[tool.uv]\n\n"
@@ -46,7 +50,7 @@ def _write_release_pyproject(path: Path, unit_id: str) -> None:
         "\n[[tool.nova.release.units]]\n"
         f'unit_id = "{unit_id}"\n'
         f'path = "{unit_id}"\n'
-        'project_name = "nova.sdk.r.file"\n'
+        f'project_name = "{project_name}"\n'
         "dependencies = []\n"
         'format = "r"\n'
         'codeartifact_format = "generic"\n'
@@ -107,7 +111,11 @@ def test_apply_version_updates_changes_r_description(
 ) -> None:
     repo_root = tmp_path
     pyproject = repo_root / "pyproject.toml"
-    _write_release_pyproject(pyproject, "packages/nova_sdk_r_file")
+    _write_release_pyproject(
+        pyproject,
+        "packages/nova_sdk_r_file",
+        project_name="nova.sdk.r.file",
+    )
     original_pyproject = pyproject.read_text(encoding="utf-8")
     description = repo_root / "packages/nova_sdk_r_file/DESCRIPTION"
     _write_description(description, "nova.sdk.r.file", "0.1.0")

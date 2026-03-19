@@ -389,17 +389,8 @@ jobs:
               tarball_name = f"{package_name}_{package_version}.tar.gz"
               tarball_path = repo_root / tarball_name
               subprocess.run(
-                  ["R", "CMD", "build", "--no-build-vignettes", str(unit.path)],
-                  check=True,
-                  cwd=repo_root,
-              )
-              subprocess.run(
-                  ["R", "CMD", "check", "--no-manual", tarball_name],
-                  check=True,
-                  cwd=repo_root,
-              )
-              subprocess.run(
                   [
+                      "bash",
                       str(
                           repo_root
                           / "scripts"
@@ -407,6 +398,7 @@ jobs:
                           / "verify_r_cmd_check.sh"
                       ),
                       str(unit.path),
+                      "--keep-tarball",
                   ],
                   check=True,
                   cwd=repo_root,
@@ -442,6 +434,8 @@ jobs:
               )
               shutil.copy2(tarball_path, tarball_artifact_path)
               shutil.copy2(signature_path, signature_artifact_path)
+              tarball_path.unlink(missing_ok=True)
+              signature_path.unlink(missing_ok=True)
               (package_artifact_dir / "SHA256SUMS").write_text(
                   f"{tarball_sha256}  {tarball_name}\n",
                   encoding="utf-8",
@@ -665,7 +659,7 @@ jobs:
                       "--package-version",
                       package_version,
                       "--asset-content",
-                      f"fileb://{asset_path}",
+                      str(asset_path),
                       "--asset-name",
                       asset_name,
                       "--asset-sha256",

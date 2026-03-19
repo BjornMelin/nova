@@ -33,7 +33,6 @@ def test_publish_packages_workflow_has_staged_gate_contracts() -> None:
         "steps.release-units.outputs.has_r_units",
         "--r-publish-report",
         "published_assets",
-        "fileb://",
         "tarball_sha256",
         "signature_sha256",
         "signature_path",
@@ -53,6 +52,10 @@ def test_publish_packages_workflow_has_staged_gate_contracts() -> None:
         "Smoke test npm packages from CodeArtifact staging",
     ]:
         assert required in text, f"Missing required contract: {required!r}"
+
+    assert "fileb://" not in text, (
+        "R publish assets should use plain file paths for CodeArtifact upload"
+    )
 
     for forbidden in [
         "python -m scripts.release.changed_units",

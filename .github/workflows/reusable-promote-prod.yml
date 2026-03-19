@@ -247,14 +247,53 @@ jobs:
                   json.dumps(payload, indent=2, sort_keys=True) + "\n",
                   encoding="utf-8",
               )
+
+          r_packages = [
+              item
+              for item in payloads[2]["payload"]
+              if isinstance(item, dict) and item.get("format") == "r"
+          ]
+          if r_packages:
+              Path(".artifacts/r-publish-report.json").write_text(
+                  json.dumps(
+                      {
+                          "schema_version": "1.0",
+                          "generated_at": "2026-03-19T00:00:00Z",
+                          "packages": [
+                              {
+                                  "unit_id": item["unit_id"],
+                                  "package": item["package"],
+                                  "version": item["version"],
+                                  "format": item["format"],
+                                  "codeartifact_format": item["codeartifact_format"],
+                                  "namespace": item.get("namespace"),
+                                  "tarball_path": item["tarball_path"],
+                                  "signature_path": item["signature_path"],
+                                  "tarball_sha256": item["tarball_sha256"],
+                                  "signature_sha256": item["signature_sha256"],
+                              }
+                              for item in r_packages
+                          ],
+                      },
+                      indent=2,
+                      sort_keys=True,
+                  )
+                  + "\n",
+                  encoding="utf-8",
+              )
           PY
 
+          R_PUBLISH_REPORT_ARGS=()
+          if [[ -f .artifacts/r-publish-report.json ]]; then
+            R_PUBLISH_REPORT_ARGS=(--r-publish-report .artifacts/r-publish-report.json)
+          fi
           uv run python -m scripts.release.codeartifact_gate \
             --repo-root . \
             --manifest-path docs/plan/release/RELEASE-VERSION-MANIFEST.md \
             --changed-units .artifacts/changed-units.json \
             --version-plan .artifacts/version-plan.json \
             --expected-manifest-sha256 "$EXPECTED_MANIFEST_SHA256" \
+            "${R_PUBLISH_REPORT_ARGS[@]}" \
             --gate-report-out .artifacts/prod-promotion-gate-report.json \
             --promotion-candidates-out .artifacts/validated-promotion-candidates.json
 
