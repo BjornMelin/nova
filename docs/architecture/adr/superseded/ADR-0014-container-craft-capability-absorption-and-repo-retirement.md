@@ -17,8 +17,8 @@ Related:
   - "[ADR-0031: Reusable GitHub workflow API and versioning policy for deployment automation](../ADR-0031-reusable-github-workflow-api-and-versioning-policy-for-deployment-automation.md)"
   - "[ADR-0032: OIDC and IAM role partitioning for deploy automation](../ADR-0032-oidc-and-iam-role-partitioning-for-deploy-automation.md)"
   - "[SPEC-0004: CI/CD and documentation automation](../../spec/SPEC-0004-ci-cd-and-docs.md)"
-  - "[SPEC-0013: Container-craft capability absorption execution spec (archived)](../../../history/2026-02-cutover/architecture/spec/SPEC-0013-container-craft-capability-absorption-execution-spec.md)"
-  - "[SPEC-0014: Container-craft capability inventory and Nova absorption target map (archived)](../../../history/2026-02-cutover/architecture/spec/SPEC-0014-container-craft-capability-inventory-and-absorption-map.md)"
+  - "[SPEC-0013: Container-craft capability absorption execution spec (superseded)](../../spec/superseded/SPEC-0013-container-craft-capability-absorption-execution-spec.md)"
+  - "[SPEC-0014: Container-craft capability inventory and Nova absorption target map (superseded)](../../spec/superseded/SPEC-0014-container-craft-capability-inventory-and-absorption-map.md)"
 References:
   - "[AWS CodePipeline: how executions work (multiple source actions behavior)](https://docs.aws.amazon.com/codepipeline/latest/userguide/concepts-how-it-works.html)"
   - "[AWS CodePipeline CloudFormation action reference](https://docs.aws.amazon.com/codepipeline/latest/userguide/action-reference-CloudFormation.html)"

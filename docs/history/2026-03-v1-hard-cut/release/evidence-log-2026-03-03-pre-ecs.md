@@ -26,7 +26,7 @@ audit traceability only and is non-authoritative for current operations.
       `codepipeline:GetPipelineState`,
       `codedeploy:ListApplications`.
     - Re-run Gate A-E per
-      `docs/plan/release/NONPROD-LIVE-VALIDATION-RUNBOOK.md`.
+      `docs/runbooks/release/nonprod-live-validation-runbook.md`.
 
 - `2026-03-03T09:32:00Z` | operator: `AWSReservedSSO_PowerUserAccess ([REDACTED])` |
   environment: `dev` | gate: `WS4 rerun + WS4 template apply`

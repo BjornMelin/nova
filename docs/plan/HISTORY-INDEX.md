@@ -21,9 +21,3 @@ Use active authority docs for implementation and operations:
    - `planning/2026-03-01-adr0015-spec0015-implementation-blueprint.md`
    - `subplans/`
    - `triggers/`
-2. `docs/history/2026-02-cutover/`
-   - `README.md`
-   - `LEGACY-REPO-ARCHIVE-REDIRECT.md`
-   - `release/RELEASE-NOTES-2026-02-12.md`
-   - `architecture/spec/SPEC-0013-container-craft-capability-absorption-execution-spec.md`
-   - `architecture/spec/SPEC-0014-container-craft-capability-inventory-and-absorption-map.md`

@@ -35,7 +35,7 @@ This is intentional to keep a single active tenant path during local modernizati
 `tenant/tenant.yaml` uses placeholder tokens (for example `@@WEB_CALLBACK_URL@@`).
 At runtime, export `AUTH0_KEYWORD_REPLACE_MAPPINGS` from `AUTH0_KEYWORD_MAPPINGS_FILE`, then run `a0deploy` against the shared tenant file.
 
-See runbook: `docs/plan/release/AUTH0-A0DEPLOY-RUNBOOK.md`.
+See runbook: `docs/runbooks/release/auth0-a0deploy-runbook.md`.
 
 ## Contract validation
 

@@ -57,9 +57,12 @@ runtime operations:
 - `./plan/PLAN.md`
 - `./plan/greenfield-simplification-program.md`
 - `./plan/greenfield-authority-map.md`
-- `./plan/release/`
-- `./plan/release/runtime-config-contract.generated.md` for the generated
-  runtime env/deploy matrix
+- `./runbooks/release/` and `./runbooks/provisioning/` for narrative operator
+  runbooks
+- `./release/` for committed release artifacts (manifest, generated runtime
+  contract markdown)
+- `./release/runtime-config-contract.generated.md` for the generated runtime
+  env/deploy matrix
 
 ### Overview and product context
 
@@ -92,7 +95,7 @@ Use these only for traceability, not as active authority:
 - Runtime config docs, deploy scripts, and infra tests must derive their live
   env/override matrix from `packages/nova_file_api/src/nova_file_api/config.py`
   plus `scripts/release/runtime_config_contract.py`, with
-  `./plan/release/runtime-config-contract.generated.md` treated as the
+  `./release/runtime-config-contract.generated.md` treated as the
   operator-facing generated view.
 - Adapter-boundary changes must keep `./architecture/README.md`,
   `./architecture/adr/ADR-0025-runtime-monorepo-component-boundaries-and-ownership.md`,

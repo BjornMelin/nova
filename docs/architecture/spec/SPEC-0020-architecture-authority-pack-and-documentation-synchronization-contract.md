@@ -60,8 +60,8 @@ together with code per branch merge policy):
 6. `docs/plan/PLAN.md`
 7. `docs/runbooks/README.md`
 8. affected ADR/SPEC files
-9. affected `docs/plan/release/**` and `docs/contracts/**` files when deploy
-   or reusable workflow contracts change
+9. affected `docs/runbooks/**`, committed `docs/release/**`, and
+   `docs/contracts/**` files when deploy or reusable workflow contracts change
 
 ## 4. Superseded-material contract
 

@@ -303,7 +303,7 @@ def test_integration_guide_includes_versioning_policy_references() -> None:
             "#/$defs/validation_report_output"
         ),
         "docs/contracts/deploy-size-profiles-v1.json",
-        "docs/plan/release/RELEASE-POLICY.md",
+        "docs/runbooks/release/release-policy.md",
         (
             "docs/architecture/spec/"
             "SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md"

@@ -5,7 +5,8 @@ Owner: Release Architecture
 Archived from: `docs/plan/release/HARD-CUTOVER-CHECKLIST.md` (2026-03-19)
 
 This file is retained for audit. It is **not** active operator authority. For
-current release docs, use [`docs/plan/release/README.md`](../../../plan/release/README.md).
+current release artifacts, use [`docs/release/README.md`](../../../release/README.md)
+  and [`docs/runbooks/release/README.md`](../../../runbooks/release/README.md).
 
 ---
 
@@ -66,13 +67,12 @@ Owner: Release Architecture
 ## 6. Final Live Gates (External AWS Execution Required)
 
 - [x] Operator runbook is published:
-  `docs/plan/release/NONPROD-LIVE-VALIDATION-RUNBOOK.md`
+  `docs/runbooks/release/nonprod-live-validation-runbook.md`
 - Note: runbook publication is complete; the live gates below remain blocked
   pending non-prod AWS access and must be completed during staged rollout.
-- [x] Gate preflight evidence recorded with current blockers:
-  `docs/plan/release/evidence-log.md` (entry `2026-03-03T08:29:33Z`).
-- [x] Gate rerun evidence recorded under `bjorn-dev`:
-  `docs/plan/release/evidence-log.md` (entry `2026-03-03T09:32:00Z`).
+- [x] Gate preflight evidence recorded with current blockers (archived copy:
+  `docs/history/2026-03-v1-hard-cut/release/evidence-log-2026-03-03-pre-ecs.md`).
+- [x] Gate rerun evidence recorded under `bjorn-dev` (same historical archive file).
 - Note: remaining blocker is CI/CD stack update authority
   (`iam:PassRole` denied for `nova-ci-nova-codepipeline-role`) plus missing
   deployed runtime inventory for ECS-native blue/green live gates.
@@ -82,8 +82,8 @@ Owner: Release Architecture
 
 ## 7. Release Artifacts
 
-- [x] Final release notes published:
-  `docs/history/2026-02-cutover/release/RELEASE-NOTES-2026-02-12.md`
+- [x] Final release notes published (2026-02-12; standalone file removed with
+  retired `docs/history/2026-02-cutover/` bundle).
 
 ## 8. Target-State Capability Checklist (Implemented)
 

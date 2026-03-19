@@ -76,14 +76,16 @@ Repo-local enforcement complements CI:
 `AGENTS.md` intentionally carries only the short execution subset. This file is
 the canonical deep matrix.
 
-## Release operator docs profile (`docs/plan/release`)
+## Release operator docs profile (`docs/runbooks/**`)
 
-Rules for provisioning, release, and validation markdown under
-`docs/plan/release/**` (index: `docs/plan/release/README.md`):
+Rules for narrative provisioning, release, and validation markdown under
+`docs/runbooks/release/**` and `docs/runbooks/provisioning/**` (indexes:
+`docs/runbooks/README.md`, `docs/runbooks/release/README.md`,
+`docs/runbooks/provisioning/README.md`):
 
-1. **Naming:** New files use kebab-case. Exceptions: `README.md`, and existing
-   uppercase release artifacts already referenced by automation (for example
-   `RELEASE-RUNBOOK.md`).
+1. **Naming:** New files use kebab-case. Exceptions: `README.md`, and
+   machine-stable uppercase artifacts under `docs/release/` that automation
+   consumes (for example `RELEASE-VERSION-MANIFEST.md`).
 2. **Operator guide sections:** Each guide should include `Purpose`,
    `Prerequisites`, `Inputs`, `Step-by-step commands`, `Acceptance checks`, and
    `References` where applicable.
@@ -95,9 +97,9 @@ Rules for provisioning, release, and validation markdown under
 5. **Final-state clarity:** Active release docs describe implemented, executable
    behavior only. Superseded or exploratory plans belong under
    `docs/history/**`.
-6. **Authority:** Do not duplicate ADR/SPEC contracts; link
-   `docs/plan/release/release-authority-chain.md` or architecture indexes
-   instead.
+6. **Authority:** Do not duplicate ADR/SPEC contracts; link the
+   [canonical documentation authority chain](../runbooks/release/README.md#canonical-documentation-authority-chain)
+   or architecture indexes instead.
 7. **Nova-path guardrail:** Active operator paths stay under `docs/**`; do not
    cite retired external Nova doc trees as current guidance. Infra contract
    tests enforce active-path rules.
@@ -233,7 +235,7 @@ governance:
 - Runtime env/override guidance must not fork into handwritten copies; use
   `packages/nova_file_api/src/nova_file_api/config.py` plus
   `scripts/release/runtime_config_contract.py` as authority and keep
-  `docs/plan/release/runtime-config-contract.generated.md` fresh.
+  `docs/release/runtime-config-contract.generated.md` fresh.
 - `docs/clients/README.md` is downstream integration guidance only. It must
   remain subordinate to the active authority docs and not become the primary
   SDK release authority.

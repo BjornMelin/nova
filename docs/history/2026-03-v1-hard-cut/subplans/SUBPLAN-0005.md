@@ -111,7 +111,6 @@ Track and verify final delivery across:
   - retry mode + attempt configuration assertions
   - publish error mapping for `ClientError` and `BotoCoreError`
 - 2026-02-12: Published release closure artifacts:
-  - `docs/history/2026-02-cutover/release/RELEASE-NOTES-2026-02-12.md`
   - `docs/plan/release/HARD-CUTOVER-CHECKLIST.md`
   - `docs/plan/release/RELEASE-VERSION-MANIFEST.md`
 - 2026-02-12: Runtime quality gates rerun after plan/doc synchronization:
@@ -125,7 +124,7 @@ Track and verify final delivery across:
     `packages/nova_file_api/tests/test_generated_client_smoke.py`
     (`1` passed)
 - 2026-02-12: Added external live gate operator runbook:
-  - `docs/plan/release/NONPROD-LIVE-VALIDATION-RUNBOOK.md`
+  - `docs/runbooks/release/nonprod-live-validation-runbook.md`
 - 2026-02-23: Packaging/job/readiness remediation verification:
   - `source .venv/bin/activate && uv run pytest -q`
     `packages/nova_file_api/tests/test_jobs.py`
@@ -145,4 +144,4 @@ Track and verify final delivery across:
 
 - Live AWS validation steps remain pending for ALB health behavior,
   dashboards/alarms, and full non-prod cross-repo smoke. Execute:
-  `docs/plan/release/NONPROD-LIVE-VALIDATION-RUNBOOK.md`.
+  `docs/runbooks/release/nonprod-live-validation-runbook.md`.

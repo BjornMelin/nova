@@ -217,7 +217,7 @@ Notes:
 - Runtime config deploy/docs/tests must treat
   `packages/nova_file_api/src/nova_file_api/config.py` plus
   `scripts/release/runtime_config_contract.py` as the source-of-truth pair and
-  keep `docs/plan/release/runtime-config-contract.generated.md` fresh via
+  keep `docs/release/runtime-config-contract.generated.md` fresh via
   `scripts/release/generate_runtime_config_contract.py`.
 - CI also enforces a stronger canonical-route policy guard in
   `.github/workflows/ci.yml`. Use the quick route preflight above before
@@ -320,7 +320,7 @@ Notes:
 - Local service-image verification and release builds now require Docker
   BuildKit plus `buildx`.
 - If local Docker hits plugin-path or credential-helper failures, use
-  `docs/plan/release/docker-buildx-and-credential-helper-setup-guide.md`.
+  `docs/runbooks/provisioning/docker-buildx-credential-helper-setup.md`.
 
 ### Downstream route or bridge contract changes
 

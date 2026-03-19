@@ -146,7 +146,7 @@ Runtime deploy/config drift guard:
   source of truth.
 - `scripts/release/runtime_config_contract.py` adds the curated deploy/template
   metadata that cannot be inferred from `Settings` alone.
-- `docs/plan/release/runtime-config-contract.generated.md` is the generated
+- `docs/release/runtime-config-contract.generated.md` is the generated
   operator-facing matrix. Refresh it with
   `scripts/release/generate_runtime_config_contract.py`.
 
@@ -219,12 +219,12 @@ Use `docs/runbooks/README.md` as the canonical runbook entrypoint.
 
 Key release docs:
 
-- `docs/plan/release/RELEASE-RUNBOOK.md`
-- `docs/plan/release/RELEASE-POLICY.md`
-- `docs/plan/release/NONPROD-LIVE-VALIDATION-RUNBOOK.md`
-- `docs/plan/release/release-promotion-dev-to-prod-guide.md`
-- `docs/plan/release/deploy-runtime-cloudformation-environments-guide.md`
-- `docs/plan/release/docker-buildx-and-credential-helper-setup-guide.md`
+- `docs/runbooks/release/release-runbook.md`
+- `docs/runbooks/release/release-policy.md`
+- `docs/runbooks/release/nonprod-live-validation-runbook.md`
+- `docs/runbooks/release/release-promotion-dev-to-prod.md`
+- `docs/runbooks/provisioning/deploy-runtime-cloudformation-environments.md`
+- `docs/runbooks/provisioning/docker-buildx-credential-helper-setup.md`
 
 The runtime deploy operator now owns the ECS service task role and cache secret
 wiring. Do not supply `TASK_ROLE_ARN`,
@@ -237,7 +237,7 @@ Local service-image verification uses the release-owned Dockerfiles under
 
 See:
 
-- `docs/plan/release/docker-buildx-and-credential-helper-setup-guide.md`
+- `docs/runbooks/provisioning/docker-buildx-credential-helper-setup.md`
 
 ## Historical and Archive Paths
 

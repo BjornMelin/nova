@@ -11,7 +11,7 @@ Provision and rotate the release signing key in AWS Secrets Manager for the
 invokes `.github/workflows/reusable-release-apply.yml`.
 
 This guide is governed by the canonical documentation authority:
-[release-authority-chain.md](release-authority-chain.md).
+[`../release/README.md#canonical-documentation-authority-chain`](../release/README.md#canonical-documentation-authority-chain).
 
 ## Required secret contract
 

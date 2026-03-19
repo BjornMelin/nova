@@ -151,24 +151,24 @@ OWNER="${GITHUB_OWNER:?Set GITHUB_OWNER (e.g., BjornMelin)}"
 REPO="${GITHUB_REPO:?Set GITHUB_REPO (e.g., nova)}"
 ```
 
-2. Verify CODEOWNERS snapshot.
+1. Verify CODEOWNERS snapshot.
 
 ```bash
 gh api repos/${OWNER}/${REPO}/contents/.github/CODEOWNERS --jq '{path: .path, sha: .sha}'
 gh api repos/${OWNER}/${REPO}/contents/.github/CODEOWNERS --jq '.content | @base64d' | sha256sum
 ```
 
-3. Verify protection + required check contexts.
+1. Verify protection + required check contexts.
 
 ```bash
 gh api repos/${OWNER}/${REPO}/branches/main/protection
 gh api repos/${OWNER}/${REPO}/branches/main/protection --jq '.required_status_checks.contexts'
 ```
 
-4. If drift exists, reconcile **Part A** (required checks and rules) via GitHub
+1. If drift exists, reconcile **Part A** (required checks and rules) via GitHub
    UI or the optional apply snippet after review.
 
-5. Capture evidence.
+2. Capture evidence.
 
 ```bash
 EVIDENCE_DIR="${TMPDIR:-/tmp}/nova-governance-evidence/governance/$(date -u +%Y%m%dT%H%M%SZ)"

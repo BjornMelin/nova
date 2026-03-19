@@ -19,12 +19,12 @@ provisioning and release promotion.
 
 Use these setup guides for variable definitions and sourcing:
 
-- [deploy-runtime-cloudformation-environments-guide.md](deploy-runtime-cloudformation-environments-guide.md)
-- [day-0-operator-checklist.md](day-0-operator-checklist.md)
-- [docker-buildx-and-credential-helper-setup-guide.md](docker-buildx-and-credential-helper-setup-guide.md)
-- [aws-oidc-and-iam-role-setup-guide.md](aws-oidc-and-iam-role-setup-guide.md)
-- [config-values-reference-guide.md](config-values-reference-guide.md)
-- [runtime-config-contract.generated.md](runtime-config-contract.generated.md)
+- [deploy-runtime-cloudformation-environments.md](../provisioning/deploy-runtime-cloudformation-environments.md)
+- [day-0-operator-checklist.md](../provisioning/day-0-operator-checklist.md)
+- [docker-buildx-credential-helper-setup.md](../provisioning/docker-buildx-credential-helper-setup.md)
+- [aws-oidc-and-iam-role-setup.md](../provisioning/aws-oidc-and-iam-role-setup.md)
+- [config-values-reference.md](../provisioning/config-values-reference.md)
+- [runtime-config-contract.generated.md](../../release/runtime-config-contract.generated.md)
 
 Primary variable sources:
 
@@ -38,6 +38,76 @@ Primary variable sources:
   configured overrides.
 - `${DEPLOY_STACK_NAME}`: target CloudFormation deployment stack name from
   environment-specific config.
+
+## Batch B validation read access
+
+Minimal access and evidence paths to close Batch B governance and non-prod live
+validation gates.
+
+### Prerequisites
+
+1. Release stack operator role is deployable with `BatchBOperatorPrincipalArn`.
+2. `aws` and `gh` CLIs are authenticated.
+3. AWS `codepipeline:GetPipelineState` scope covers the target pipeline pattern
+   `${Project}-${Application}-*`.
+
+### Inputs
+
+- `${PROJECT}` (default `nova`)
+- `${APPLICATION}` (default `ci`)
+- `${BATCHB_VALIDATION_ROLE_NAME}` (default
+  `${PROJECT}-${APPLICATION}-batch-b-validation-operator-role`)
+
+### Acceptance checks
+
+- Confirm the Batch B validation role exists and can be assumed by the operator
+  principal ARN.
+- Verify previously denied read actions are allowed:
+  `codeconnections:GetConnection`, `codepipeline:ListPipelineExecutions`,
+  `codepipeline:ListPipelines`, and `ecs:DescribeServices`.
+- Re-run [governance-lock-and-branch-protection.md](governance-lock-and-branch-protection.md)
+  gates and confirm no new failures.
+
+### IAM read access (minimum)
+
+Use the Nova IaC-defined Batch B validation operator role in
+`infra/nova/nova-iam-roles.yml` by setting `BatchBOperatorPrincipalArn` on
+stack apply/update.
+
+Observed denied actions (historical):
+
+- `codeconnections:GetConnection`
+- `codepipeline:ListPipelineExecutions`
+- `codepipeline:ListPipelines`
+- `ecs:DescribeServices`
+
+Required for full non-prod runbook gates (A–E):
+
+- CodeConnections: `GetConnection`
+- CodePipeline: `ListPipelines`, `ListPipelineExecutions`, `GetPipelineState`,
+  `GetPipelineExecution`
+- ECS: `DescribeServices`, `ListClusters`, `ListServices`
+- ELBv2: `DescribeTargetHealth`, `DescribeTargetGroups`, `DescribeLoadBalancers`
+- CloudWatch: `GetDashboard`, `DescribeAlarms`, `GetMetricData`, `ListDashboards`
+
+Canonical policy source: `infra/nova/nova-iam-roles.yml` (do not treat ad-hoc
+JSON copies as production policy).
+
+### GitHub governance evidence fallback (plan-limited repos)
+
+When branch-protection/rules REST endpoints return plan-level `403`, capture
+manual evidence via GitHub UI in the same timestamped evidence folder.
+
+Required UI captures:
+
+1. Branch protection for `main` (required checks, strict/up-to-date, reviews,
+   conversation resolution).
+2. `CODEOWNERS` on `main` with commit/blob reference.
+3. PR link proving `CODEOWNERS` on `main` (if applicable).
+
+Suggested file names: `github-ui-branch-protection-main.png`,
+`github-ui-required-checks-main.png`, `github-ui-codeowners-main.png`,
+`operator-attestation.md` (date/operator/context).
 
 ## Quick failure matrix
 
@@ -260,10 +330,9 @@ Always record:
 4. remediation commands run
 5. prevention action
 
-Store evidence in:
-
-- `docs/plan/release/NONPROD-LIVE-VALIDATION-RUNBOOK.md`
-- `docs/plan/release/evidence-log.md`
+Store incident evidence where reviewers can find it: workflow run URLs, CloudTrail
+or CloudWatch log excerpts (redacted), and the promotion PR or ticket—not an
+append-only markdown log in `docs/` (see [`release-policy.md`](release-policy.md) §6).
 
 ## References
 

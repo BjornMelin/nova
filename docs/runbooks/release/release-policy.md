@@ -14,9 +14,9 @@ This policy governs runtime releases for `nova` with these fixed constraints:
 
 Companion modular setup guides (full index: [README.md](README.md)):
 
-- `../../runbooks/README.md`
-- `aws-secrets-provisioning-guide.md`
-- `aws-oidc-and-iam-role-setup-guide.md`
+- [Operator runbooks index](../README.md)
+- [aws-secrets-provisioning.md](../provisioning/aws-secrets-provisioning.md)
+- [aws-oidc-and-iam-role-setup.md](../provisioning/aws-oidc-and-iam-role-setup.md)
 
 ## 2. Branch and artifact policy
 
@@ -71,7 +71,7 @@ Companion modular setup guides (full index: [README.md](README.md)):
 10. Internal npm package-group policy for `/npm/${CodeArtifactInternalNpmScope}/*` must allow direct
    publish while blocking both external and internal upstream ingestion.
 11. Promotion must include and verify `RELEASE_MANIFEST_SHA256`, where the value
-   is the actual SHA256 of `docs/plan/release/RELEASE-VERSION-MANIFEST.md`.
+   is the actual SHA256 of `docs/release/RELEASE-VERSION-MANIFEST.md`.
 12. Public Python SDK releases must classify OpenAPI tag or `operationId`
    renames as MAJOR changes because they rename generated endpoint modules or
    functions.
@@ -96,12 +96,22 @@ Companion modular setup guides (full index: [README.md](README.md)):
 
 ## 6. Required release evidence
 
-Each release cycle must retain evidence in:
+Each release cycle must retain **durable, reviewable pointers** (not a second
+ledger inside `docs/`). At minimum:
 
-- `docs/plan/release/RELEASE-VERSION-MANIFEST.md`
-- `docs/plan/release/NONPROD-LIVE-VALIDATION-RUNBOOK.md`
-- `docs/plan/release/evidence-log.md`
-- `docs/plan/release/RELEASE-RUNBOOK.md` execution notes
+- `docs/release/RELEASE-VERSION-MANIFEST.md` (machine-stable artifact path)
+  and verified `RELEASE_MANIFEST_SHA256` continuity through promotion.
+- GitHub Actions (or equivalent CI) **workflow run URLs** for release plan,
+  release apply, signature verification, publish, and post-deploy validation
+  jobs—sufficient to reproduce what ran and whether it succeeded.
+- **Promotion record**: the PR or internal change ticket that carried Dev→Prod
+  approval, digest parity (`FILE_IMAGE_DIGEST`, `AUTH_IMAGE_DIGEST`), and any
+  post-deploy validation artifact links (for example JSON under org-owned object
+  storage).
+- Live AWS/pipeline checks follow
+  `docs/runbooks/release/nonprod-live-validation-runbook.md` and
+  `docs/runbooks/release/release-runbook.md`; file **execution notes** only when
+  they unblock the next operator (otherwise the workflow run + PR suffice).
 
 ## 7. Release control-plane cost posture
 

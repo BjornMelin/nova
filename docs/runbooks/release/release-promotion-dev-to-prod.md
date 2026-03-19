@@ -119,7 +119,6 @@ Acceptance:
 - The selected build output digest (`${DeployImageDigestVariable}`) matches the
   digest observed in both Dev and Prod CloudFormation deploy actions.
 - No rebuild occurs after manual approval.
-- No rebuild occurs after manual approval.
 
 ## Evidence to store
 
@@ -134,10 +133,10 @@ Acceptance:
 9. validation logs for `/v1/health/live`, `/v1/health/ready`,
    `/metrics/summary`
 
-Store links in:
-
-- `docs/plan/release/NONPROD-LIVE-VALIDATION-RUNBOOK.md`
-- `docs/plan/release/evidence-log.md`
+Attach the list above to the **promotion PR** (or internal change record) and
+keep workflow run URLs in GitHub Actions history. Gate execution steps live in
+[`nonprod-live-validation-runbook.md`](nonprod-live-validation-runbook.md); policy
+for what counts as durable evidence is [`release-policy.md`](release-policy.md) §6.
 
 ## References
 

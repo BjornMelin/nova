@@ -8,7 +8,7 @@ Last updated: 2026-03-19
 
 - **This runbook (NONPROD):** AWS-live integration—CodeConnections, ALB,
   CodePipeline/CodeBuild, CloudWatch, cross-repo flows against real accounts.
-- **[BROWSER-LIVE-VALIDATION-CHECKLIST.md](BROWSER-LIVE-VALIDATION-CHECKLIST.md):**
+- **[browser-live-validation-checklist.md](browser-live-validation-checklist.md):**
   Deterministic browser/`agent-browser` checks against `DASH_BASE_URL` and
   `NOVA_BASE_URL` (route contract + UI smoke). Use both where applicable.
 
@@ -22,10 +22,10 @@ that cannot be fully proven by local checks.
 
 Related setup sequence:
 
-- [`docs/runbooks/README.md`](../../runbooks/README.md)
-- [`deploy-nova-cicd-end-to-end-guide.md`](deploy-nova-cicd-end-to-end-guide.md)
-- [`release-promotion-dev-to-prod-guide.md`](release-promotion-dev-to-prod-guide.md)
-- [`BROWSER-LIVE-VALIDATION-CHECKLIST.md`](BROWSER-LIVE-VALIDATION-CHECKLIST.md)
+- [`Runbooks index`](../README.md)
+- [`nova-cicd-end-to-end-deploy.md`](../provisioning/nova-cicd-end-to-end-deploy.md)
+- [`release-promotion-dev-to-prod.md`](release-promotion-dev-to-prod.md)
+- [`browser-live-validation-checklist.md`](browser-live-validation-checklist.md)
 
 ## 2. Blocking gates covered
 
@@ -172,8 +172,8 @@ Acceptance:
 ## 7. Gate C: Cross-repo E2E smoke
 
 Use the deterministic execution contract in
-`BROWSER-LIVE-VALIDATION-CHECKLIST.md` for command-level browser validation and
-artifact capture.
+[`browser-live-validation-checklist.md`](browser-live-validation-checklist.md)
+for command-level browser validation and artifact capture.
 
 ### C1. Browser upload and async completion
 
@@ -240,14 +240,16 @@ For each gate capture:
 - pass/fail
 - remediation notes (if failed)
 
-Store evidence links in:
-
-- `docs/plan/release/evidence-log.md`
+Record outcomes with durable pointers (for example GitHub Actions run URLs,
+pipeline execution IDs, and object-storage URIs for JSON bundles) and attach
+them to the promotion PR or change record per
+[`release-policy.md`](release-policy.md) §6—do not maintain a separate log file
+under `docs/`.
 
 ## 11. Access prerequisites and rollback
 
 Before running gates A-E, ensure Batch B validation read access exists (see:
-`docs/plan/release/batch-b-access-unblock-guide.md`).
+`docs/runbooks/release/troubleshooting-and-break-glass.md#batch-b-validation-read-access`).
 
 Rollback (IAM): set `BatchBOperatorPrincipalArn` to empty string and update the
 IAM stack to remove `BatchBValidationOperatorRole`.

@@ -10,13 +10,13 @@ Execute release flow for selective versioning, signed commit generation, and
 Dev to Prod AWS promotion.
 
 Canonical documentation authority chain:
-[release-authority-chain.md](release-authority-chain.md).
+[README.md#canonical-documentation-authority-chain](README.md#canonical-documentation-authority-chain).
 
 ## 1A. Modular guide set
 
 Provisioning, validation, and setup guides are indexed in
 [README.md](README.md) (this directory) and
-[`../../runbooks/README.md`](../../runbooks/README.md). Use
+[`../README.md`](../README.md). Use
 `scripts/release/day-0-operator-command-pack.sh` with the day-0 checklist.
 
 ## 2. Preconditions
@@ -170,7 +170,10 @@ For each run capture:
 8. Explicit digest continuity evidence (Dev -> Prod `FILE_IMAGE_DIGEST` and
    `AUTH_IMAGE_DIGEST` match).
 9. Post-deploy route validation artifact link and workflow/job status or log markers.
-10. Link entry in `docs/plan/release/evidence-log.md` with the artifact link and workflow/job status or log markers.
+10. Consolidate the above into a durable promotion record (for example release PR
+    description, internal change ticket, or org-owned artifact store URI); avoid
+    duplicating the same pointers in `docs/` unless policy explicitly requires
+    it—see `release-policy.md` §6.
 11. Runtime WAF evidence for any internet-facing ALB (`PublicAlbWebAclArn` or
     equivalent stack output).
 12. Immutable release-plan artifact continuity evidence:
@@ -217,5 +220,5 @@ runner uses npm 10.x, AWS CLI v2.9.5 or newer is required.
 
 For local service-image verification, operators must use a Docker CLI with
 BuildKit and `buildx` available. Use
-`docker-buildx-and-credential-helper-setup-guide.md` when the workstation hits
+[`docker-buildx-credential-helper-setup.md`](../provisioning/docker-buildx-credential-helper-setup.md) when the workstation hits
 credential-helper or plugin-path failures before the repo Dockerfiles build.

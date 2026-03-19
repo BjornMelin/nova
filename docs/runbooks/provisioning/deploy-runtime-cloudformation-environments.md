@@ -23,7 +23,7 @@ Canonical operator path:
 
 This guide covers runtime stacks under `infra/runtime/**` for `dev` and `prod`.
 It must be executed before CI/CD stack deployment guidance in:
-`deploy-nova-cicd-end-to-end-guide.md`.
+[`nova-cicd-end-to-end-deploy.md`](nova-cicd-end-to-end-deploy.md).
 
 ## Prerequisites
 
@@ -347,7 +347,7 @@ aws cloudformation list-stacks --region "${AWS_REGION}" \
 ## References
 
 - Route/API documentation authority:
-  [release-authority-chain.md](release-authority-chain.md)
+  [`../release/README.md#canonical-documentation-authority-chain`](../release/README.md#canonical-documentation-authority-chain)
 - CloudFormation Parameters:
   <https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/parameters-section-structure.html>
 - CloudFormation Fn::ImportValue restrictions:

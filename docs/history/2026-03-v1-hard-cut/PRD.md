@@ -12,14 +12,14 @@
 > - docs/architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md
 > - docs/architecture/spec/superseded/SPEC-0011-multi-language-sdk-architecture-and-package-map.md
 > - docs/architecture/spec/SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md
-> - docs/history/2026-02-cutover/architecture/spec/SPEC-0013-container-craft-capability-absorption-execution-spec.md
-> - docs/history/2026-02-cutover/architecture/spec/SPEC-0014-container-craft-capability-inventory-and-absorption-map.md
+> - docs/architecture/spec/superseded/SPEC-0013-container-craft-capability-absorption-execution-spec.md
+> - docs/architecture/spec/superseded/SPEC-0014-container-craft-capability-inventory-and-absorption-map.md
 > - docs/architecture/spec/SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md
 > - docs/architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md
 >
 > Status: Reference-only for superseded sections.
 
-# PRD: Deployable File Transfer API Platform for Nova Clients
+## PRD: Deployable File Transfer API Platform for Nova Clients
 
 **Date:** 2026-02-12
 **Status:** Historical reference (hard-cut `/v1/*` authority active)

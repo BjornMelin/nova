@@ -15,8 +15,8 @@ safe operator path.
 2. GitHub CLI authenticated.
 3. Repository admin access to `${GITHUB_OWNER}/${GITHUB_REPO}` (default: `3M-Cloud/nova`).
 4. Required environment values prepared.
-5. Runtime stacks already deployed for `dev` and `prod`:
-   `deploy-runtime-cloudformation-environments-guide.md`.
+5. Runtime stacks already deployed for `dev` and `prod` (see
+   [deploy-runtime-cloudformation-environments.md](./deploy-runtime-cloudformation-environments.md)).
 6. `jq` and `ssh-keygen` are installed.
 
 ## Inputs
@@ -211,7 +211,7 @@ aws cloudformation wait stack-delete-complete \
 
 Recreate them later with `./scripts/release/day-0-operator-command-pack.sh`.
 
-Runbook: `docs/plan/release/release-promotion-dev-to-prod-guide.md`
+Runbook: `docs/runbooks/release/release-promotion-dev-to-prod.md`
 
 Pipeline dashboard:
 `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/actions/workflows`
@@ -221,10 +221,11 @@ Pipeline dashboard:
 1. Release signing and workflow auth are valid.
 2. Pipeline completes Dev -> ManualApproval -> Prod in order.
 3. `FILE_IMAGE_DIGEST` and `AUTH_IMAGE_DIGEST` continuity is preserved Dev to Prod.
-4. Evidence links are added to release docs/plan artifacts.
+4. Durable promotion evidence (workflow run URLs, digest continuity, approval
+   record) is captured per [`release-policy.md`](../release/release-policy.md) §6.
 
 ## References
 
 - [runbooks README](../../runbooks/README.md)
-- [governance-lock-and-branch-protection.md](governance-lock-and-branch-protection.md)
-- [troubleshooting-and-break-glass-guide.md](troubleshooting-and-break-glass-guide.md)
+- [governance-lock-and-branch-protection.md](../release/governance-lock-and-branch-protection.md)
+- [troubleshooting-and-break-glass.md](../release/troubleshooting-and-break-glass.md)

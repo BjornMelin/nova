@@ -79,10 +79,5 @@ These specs are retained for traceability only and are not active authority.
 | [SPEC-0017 (CloudFormation)](./superseded/SPEC-0017-cloudformation-module-contract.md) | CloudFormation module contract (retired filename; successor SPEC-0024) | Superseded | 2026-03-05 |
 | [SPEC-0018 (workflows)](./superseded/SPEC-0018-reusable-workflow-integration-contract.md) | Reusable workflow integration contract (retired filename; successor SPEC-0025) | Superseded | 2026-03-04 |
 | [SPEC-0019 (IAM)](./superseded/SPEC-0019-ci-cd-iam-least-privilege-and-role-boundary-contract.md) | CI/CD IAM least-privilege and role-boundary contract (retired filename; successor SPEC-0026) | Superseded | 2026-03-03 |
-
-## Historical Specs
-
-Archived migration-era specs:
-
-- `docs/history/2026-02-cutover/architecture/spec/SPEC-0013-container-craft-capability-absorption-execution-spec.md`
-- `docs/history/2026-02-cutover/architecture/spec/SPEC-0014-container-craft-capability-inventory-and-absorption-map.md`
+| [SPEC-0013](./superseded/SPEC-0013-container-craft-capability-absorption-execution-spec.md) | Container-craft capability absorption execution spec | Superseded | 2026-02-28 |
+| [SPEC-0014](./superseded/SPEC-0014-container-craft-capability-inventory-and-absorption-map.md) | Container-craft capability inventory and Nova absorption target map | Superseded | 2026-02-28 |

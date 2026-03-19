@@ -12,7 +12,7 @@ authority chain cited for operators.
 
 ## References
 
-- [release-authority-chain.md](release-authority-chain.md)
+- [`../release/README.md#canonical-documentation-authority-chain`](../release/README.md#canonical-documentation-authority-chain)
 
 ## Prerequisites
 
@@ -22,7 +22,7 @@ authority chain cited for operators.
 4. GitHub OIDC provider and trust role setup completed.
 5. `nova` repository admin rights for secrets/variables configuration.
 6. Runtime stacks are already deployed for `dev` and `prod` per:
-   [deploy-runtime-cloudformation-environments-guide.md](deploy-runtime-cloudformation-environments-guide.md)
+   [deploy-runtime-cloudformation-environments.md](deploy-runtime-cloudformation-environments.md)
 7. Canonical base URL SSM parameters exist for both environments:
    `/nova/dev/{service}/base-url` and `/nova/prod/{service}/base-url`.
 8. Canonical base-url marker stacks are reserved for CI control-plane ownership:
@@ -45,7 +45,7 @@ Primary path:
 Fallback path:
 
 - use direct AWS CLI/CloudFormation commands documented in
-  [troubleshooting-and-break-glass-guide.md](troubleshooting-and-break-glass-guide.md)
+  [troubleshooting-and-break-glass.md](../release/troubleshooting-and-break-glass.md)
 
 ## Inputs checklist
 
@@ -101,7 +101,7 @@ export PROD_BASE_URL="${PROD_BASE_URL:?set to the prod runtime base URL, for exa
 ```
 
 Reference details:
-[config-values-reference-guide.md](config-values-reference-guide.md)
+[config-values-reference.md](config-values-reference.md)
 
 ### Step 1a: persist canonical service base URLs in SSM
 
@@ -260,12 +260,12 @@ Record:
 ## Step 5: configure GitHub repo secrets and vars
 
 Run setup from:
-[github-actions-secrets-and-vars-setup-guide.md](github-actions-secrets-and-vars-setup-guide.md)
+[github-actions-secrets-and-vars.md](github-actions-secrets-and-vars.md)
 
 ## Step 6: activate CodeConnections
 
 Run activation checks from:
-[codeconnections-activation-and-validation-guide.md](codeconnections-activation-and-validation-guide.md)
+[codeconnections-activation-and-validation.md](codeconnections-activation-and-validation.md)
 
 ## Step 7: run build/package/deploy workflows
 

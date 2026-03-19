@@ -74,4 +74,4 @@ Repositories:
 
 External AWS gate execution path:
 
-- `docs/plan/release/NONPROD-LIVE-VALIDATION-RUNBOOK.md`
+- `docs/runbooks/release/nonprod-live-validation-runbook.md`

@@ -25,22 +25,25 @@ Green-field simplification authority uses `ADR-0033` through `ADR-0041`,
 
 ## Release and Deployment
 
-1. [Deploy runtime CloudFormation environments guide](../plan/release/deploy-runtime-cloudformation-environments-guide.md)
-2. [Day-0 operator checklist](../plan/release/day-0-operator-checklist.md)
-3. [Docker Buildx and credential-helper setup guide](../plan/release/docker-buildx-and-credential-helper-setup-guide.md)
-4. [Deploy Nova CI/CD end-to-end guide](../plan/release/deploy-nova-cicd-end-to-end-guide.md)
-5. [Release runbook](../plan/release/RELEASE-RUNBOOK.md)
-6. [Release policy](../plan/release/RELEASE-POLICY.md)
-7. [Release promotion dev-to-prod guide](../plan/release/release-promotion-dev-to-prod-guide.md)
-8. [Runtime config contract](../plan/release/runtime-config-contract.generated.md)
+Provisioning indexes: [`provisioning/README.md`](./provisioning/README.md). Release
+indexes: [`release/README.md`](./release/README.md).
+
+1. [Deploy runtime CloudFormation environments](provisioning/deploy-runtime-cloudformation-environments.md)
+2. [Day-0 operator checklist](provisioning/day-0-operator-checklist.md)
+3. [Docker Buildx and credential-helper setup](provisioning/docker-buildx-credential-helper-setup.md)
+4. [Deploy Nova CI/CD end-to-end](provisioning/nova-cicd-end-to-end-deploy.md)
+5. [Release runbook](release/release-runbook.md)
+6. [Release policy](release/release-policy.md)
+7. [Release promotion dev→prod](release/release-promotion-dev-to-prod.md)
+8. [Runtime config contract](../release/runtime-config-contract.generated.md) (generated; [`docs/release/`](../release/README.md))
 
 ## Validation and Governance
 
-1. [Non-prod live validation runbook](../plan/release/NONPROD-LIVE-VALIDATION-RUNBOOK.md)
-2. [Browser live validation checklist](../plan/release/BROWSER-LIVE-VALIDATION-CHECKLIST.md)
-3. [Governance lock and branch protection](../plan/release/governance-lock-and-branch-protection.md)
-4. [Auth0 CLI + a0deploy runbook](../plan/release/AUTH0-A0DEPLOY-RUNBOOK.md)
-5. [Troubleshooting and break-glass guide](../plan/release/troubleshooting-and-break-glass-guide.md)
+1. [Non-prod live validation runbook](release/nonprod-live-validation-runbook.md)
+2. [Browser live validation checklist](release/browser-live-validation-checklist.md)
+3. [Governance lock and branch protection](release/governance-lock-and-branch-protection.md)
+4. [Auth0 CLI + a0deploy runbook](release/auth0-a0deploy-runbook.md)
+5. [Troubleshooting and break-glass](release/troubleshooting-and-break-glass.md)
 
 ## Runtime Operations
 
@@ -65,13 +68,13 @@ Green-field simplification authority uses `ADR-0033` through `ADR-0041`,
   `TASK_EXECUTION_SSM_PARAMETER_ARNS`.
 - Runtime env/override lists in active runbooks must resolve back to the
   generated runtime config contract at
-  `../plan/release/runtime-config-contract.generated.md`, not to hand-maintained
+  `../release/runtime-config-contract.generated.md`, not to hand-maintained
   duplicates.
 - Local developer npm auth must stay repo-scoped: use
   `eval "$(npm run -s codeartifact:npm:env)"`, do not run
   `aws codeartifact login --tool npm` on a workstation, and keep the AWS CLI
   floor at v2.9.5 or newer when ephemeral CI shells use that command. See
-  `../plan/release/RELEASE-RUNBOOK.md` for the canonical local flow.
+  [`release/release-runbook.md`](./release/release-runbook.md) for the canonical local flow.
 
 ## Related Entry Points
 

@@ -73,4 +73,4 @@ Repositories:
 
 Live validation evidence should be recorded via:
 
-- `docs/plan/release/NONPROD-LIVE-VALIDATION-RUNBOOK.md`
+- `docs/runbooks/release/nonprod-live-validation-runbook.md`

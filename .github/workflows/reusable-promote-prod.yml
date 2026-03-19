@@ -8,7 +8,7 @@ on:
         required: true
         type: string
       manifest_sha256:
-        description: SHA256 for docs/plan/release/RELEASE-VERSION-MANIFEST.md.
+        description: SHA256 for docs/release/RELEASE-VERSION-MANIFEST.md.
         required: true
         type: string
       changed_units_json:
@@ -303,7 +303,7 @@ jobs:
           fi
           uv run python -m scripts.release.codeartifact_gate \
             --repo-root . \
-            --manifest-path docs/plan/release/RELEASE-VERSION-MANIFEST.md \
+            --manifest-path docs/release/RELEASE-VERSION-MANIFEST.md \
             --changed-units .artifacts/changed-units.json \
             --version-plan .artifacts/version-plan.json \
             --expected-manifest-sha256 "$EXPECTED_MANIFEST_SHA256" \

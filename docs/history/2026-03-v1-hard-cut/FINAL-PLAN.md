@@ -12,8 +12,8 @@
 > - docs/architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md
 > - docs/architecture/spec/superseded/SPEC-0011-multi-language-sdk-architecture-and-package-map.md
 > - docs/architecture/spec/SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md
-> - docs/history/2026-02-cutover/architecture/spec/SPEC-0013-container-craft-capability-absorption-execution-spec.md
-> - docs/history/2026-02-cutover/architecture/spec/SPEC-0014-container-craft-capability-inventory-and-absorption-map.md
+> - docs/architecture/spec/superseded/SPEC-0013-container-craft-capability-absorption-execution-spec.md
+> - docs/architecture/spec/superseded/SPEC-0014-container-craft-capability-inventory-and-absorption-map.md
 > - docs/architecture/spec/SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md
 > - docs/architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md
 >
@@ -31,7 +31,7 @@
 - Route namespace supersession: `/api/*`, `/healthz`, and `/readyz` are
   removed from active runtime contract.
 
-# Final Hard-Cutover Monorepo Plan: nova Runtime + container-craft Infra
+## Final Hard-Cutover Monorepo Plan: nova Runtime + container-craft Infra
 
 ## Summary
 
@@ -183,7 +183,7 @@ Create this structure in current repo:
   container-craft platform owner (`@infra-platform`) with target date
   `2026-02-20` before prod cutover.
 - [ ] Health check alignment sign-off completed via
-  `docs/plan/release/NONPROD-LIVE-VALIDATION-RUNBOOK.md`.
+  `docs/runbooks/release/nonprod-live-validation-runbook.md`.
 - [x] Keep/add env mappings for SQS/Redis/DynamoDB backends.
 - [x] Validate retry env contract:
 - [x] `JOBS_SQS_RETRY_MODE`
@@ -233,11 +233,11 @@ In monorepo docs:
 - [ ] Validate cross-repo E2E path: browser upload -> enqueue -> worker update -> result/download.
 - [ ] Owner + target date recorded for cross-repo E2E validation.
 - [ ] Sign-off recorded for cross-repo E2E validation via
-  `docs/plan/release/NONPROD-LIVE-VALIDATION-RUNBOOK.md`.
+  `docs/runbooks/release/nonprod-live-validation-runbook.md`.
 - [ ] Validate dashboards/alarms and synthetic failure scenarios.
 - [ ] Owner + target date recorded for dashboard/alarm validation.
 - [ ] Sign-off recorded for dashboard/alarm validation via
-  `docs/plan/release/NONPROD-LIVE-VALIDATION-RUNBOOK.md`.
+  `docs/runbooks/release/nonprod-live-validation-runbook.md`.
 - [x] Finalize active documentation cleanup for post-cutover steady state.
 - [x] Publish modular CI/CD provisioning and secrets guide set in `nova` and
   mirrored operator guide set in `container-craft` with action-first and CLI
@@ -248,7 +248,7 @@ In monorepo docs:
   `scripts/release/day-0-operator-command-pack.sh`.
 - [x] Publish release notes with hard-cutover migration checklist.
 - [x] Publish operator runbook for live AWS validation gates:
-  `docs/plan/release/NONPROD-LIVE-VALIDATION-RUNBOOK.md`.
+  `docs/runbooks/release/nonprod-live-validation-runbook.md`.
 
 ## Testing and Acceptance Scenarios
 
@@ -292,10 +292,10 @@ In monorepo docs:
    - [x] `container-craft` routes and env mappings align with new API.
    - [x] dash-pca updated and passing against new contracts.
    - [ ] End-to-end non-prod smoke succeeds before prod release
-     (tracked via `docs/plan/release/NONPROD-LIVE-VALIDATION-RUNBOOK.md`).
+     (tracked via `docs/runbooks/release/nonprod-live-validation-runbook.md`).
    - [ ] Owner + target date recorded for non-prod smoke.
    - [ ] Sign-off recorded for non-prod smoke via
-     `docs/plan/release/NONPROD-LIVE-VALIDATION-RUNBOOK.md`.
+     `docs/runbooks/release/nonprod-live-validation-runbook.md`.
 
 ## Assumptions and Defaults
 
@@ -315,7 +315,7 @@ The following gates require live non-prod AWS access:
 
 Execution and evidence checklist:
 
-- `docs/plan/release/NONPROD-LIVE-VALIDATION-RUNBOOK.md`
+- `docs/runbooks/release/nonprod-live-validation-runbook.md`
 
 ## Primary Sources to Use During Execution
 
@@ -402,7 +402,6 @@ Execution and evidence checklist:
 - 2026-02-12: Added queue retry/pressure test coverage for `SqsJobPublisher`
   configuration and publish-failure mappings.
 - 2026-02-12: Published release closure artifacts:
-  - `docs/history/2026-02-cutover/release/RELEASE-NOTES-2026-02-12.md`
   - `docs/plan/release/HARD-CUTOVER-CHECKLIST.md`
   - `docs/plan/release/RELEASE-VERSION-MANIFEST.md`
 - 2026-02-12: Re-ran required runtime quality gates:
@@ -421,7 +420,7 @@ Execution and evidence checklist:
     `packages/nova_file_api/tests/test_generated_client_smoke.py`
   - Result: `1 passed`.
 - 2026-02-12: Added operator runbook for remaining external live gates:
-  `docs/plan/release/NONPROD-LIVE-VALIDATION-RUNBOOK.md`.
+  `docs/runbooks/release/nonprod-live-validation-runbook.md`.
 - 2026-02-13: Implemented cache/idempotency addendum:
   async cache call-path completion across auth/API/idempotency, explicit
   idempotency claim/commit/discard lifecycle for mutation safety, redis env
@@ -511,7 +510,7 @@ Execution and evidence checklist:
   - Remaining external gates (manual/non-local):
     Secrets Manager signing secret provisioning, CodeConnections activation, and
     first Dev->Prod promotion evidence capture in
-    `docs/plan/release/NONPROD-LIVE-VALIDATION-RUNBOOK.md`.
+    `docs/runbooks/release/nonprod-live-validation-runbook.md`.
 - 2026-02-24: Release automation correctness remediation:
   - `buildspec-release.yml` now resolves changed publish units from signed
     release commit diff (`HEAD^..HEAD`) and publishes unit paths from
@@ -526,5 +525,5 @@ Execution and evidence checklist:
   - Release docs synchronized:
     `README.md`,
     `docs/architecture/spec/SPEC-0004-ci-cd-and-docs.md`,
-    `docs/plan/release/RELEASE-POLICY.md`,
-    `docs/plan/release/RELEASE-RUNBOOK.md`.
+    `docs/runbooks/release/release-policy.md`,
+    `docs/runbooks/release/release-runbook.md`.

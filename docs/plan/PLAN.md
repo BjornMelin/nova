@@ -16,19 +16,18 @@ For operator runbooks, use `../runbooks/README.md`.
 - `./greenfield-simplification-program.md`
 - `./greenfield-authority-map.md`
 - `../runbooks/README.md`
-- `./release/README.md` (catalog for all `docs/plan/release/` docs)
-- `./release/RELEASE-RUNBOOK.md`
-- `./release/RELEASE-POLICY.md`
-- `./release/NONPROD-LIVE-VALIDATION-RUNBOOK.md`
-- `./release/release-promotion-dev-to-prod-guide.md`
-- `./release/deploy-runtime-cloudformation-environments-guide.md`
-- `./release/runtime-config-contract.generated.md`
-- `./release/HARD-CUTOVER-CHECKLIST.md`
-- `./release/RELEASE-VERSION-MANIFEST.md`
+- `../runbooks/release/README.md` (release validation and policy)
+- `../runbooks/provisioning/README.md` (first-time deploy and CI/CD setup)
+- `../release/README.md` (committed release artifacts: manifest, generated runtime contract)
+- `../release/runtime-config-contract.generated.md`
+- `../release/RELEASE-VERSION-MANIFEST.md`
+- Historical hard-cut checklist:
+  [`../history/2026-03-v1-hard-cut/release/HARD-CUTOVER-CHECKLIST.md`](../history/2026-03-v1-hard-cut/release/HARD-CUTOVER-CHECKLIST.md)
 
 ## Supporting release guides
 
-Full catalog and recommended order: [`./release/README.md`](./release/README.md).
+Full catalog: [`../runbooks/README.md`](../runbooks/README.md). Machine-stable
+paths: [`../release/README.md`](../release/README.md).
 Release/provisioning doc conventions: **Release operator docs profile** in
 [`../standards/repository-engineering-standards.md`](../standards/repository-engineering-standards.md).
 
@@ -73,4 +72,3 @@ Release/provisioning doc conventions: **Release operator docs profile** in
 - `../architecture/adr/superseded/`
 - `../architecture/spec/superseded/`
 - `../history/2026-03-v1-hard-cut/`
-- `../history/2026-02-cutover/`

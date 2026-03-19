@@ -17,7 +17,8 @@ This guide is for local operator and developer workstations. It does not change
 the release-environment contract, which is already defined in
 `buildspecs/buildspec-release.yml`.
 
-Documentation authority: [release-authority-chain.md](release-authority-chain.md).
+Documentation authority:
+[`../release/README.md#canonical-documentation-authority-chain`](../release/README.md#canonical-documentation-authority-chain).
 
 ## When to Use This
 
@@ -211,5 +212,5 @@ source .venv/bin/activate && uv run pytest -q packages/nova_file_api/tests/test_
   <https://docs.docker.com/build/building/multi-platform/#install-buildx>
 - Docker build best practices:
   <https://docs.docker.com/build/building/best-practices/>
-- [SPEC-0000](../architecture/spec/SPEC-0000-http-api-contract.md)
+- [SPEC-0000](../../architecture/spec/SPEC-0000-http-api-contract.md)
 - `../../../buildspecs/buildspec-release.yml`

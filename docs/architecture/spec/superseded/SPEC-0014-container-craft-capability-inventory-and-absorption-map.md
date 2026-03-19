@@ -1,13 +1,13 @@
 ---
 Spec: 0014
 Title: Container-craft capability inventory and Nova absorption target map
-Status: Active
+Status: Superseded
 Version: 1.0
 Date: 2026-02-28
 Related:
-  - "[ADR-0014: Absorb remaining container-craft Nova capabilities into nova and retire container-craft](../../../../architecture/adr/superseded/ADR-0014-container-craft-capability-absorption-and-repo-retirement.md)"
+  - "[ADR-0014: Absorb remaining container-craft Nova capabilities into nova and retire container-craft](../../adr/superseded/ADR-0014-container-craft-capability-absorption-and-repo-retirement.md)"
   - "[SPEC-0013: Container-craft capability absorption execution spec](./SPEC-0013-container-craft-capability-absorption-execution-spec.md)"
-  - "[SPEC-0004: CI/CD and documentation automation](./SPEC-0004-ci-cd-and-docs.md)"
+  - "[SPEC-0004: CI/CD and documentation automation](../SPEC-0004-ci-cd-and-docs.md)"
 ---
 
 ## 1. Purpose
@@ -70,7 +70,7 @@ Scope is **Nova-required capabilities only** (runtime + release + promotion + op
 | GAP-11 | Auth0 retained-scope closure (explicit exclusion) | N/A | Evidence check: active Nova runbooks/workflows reference only Deploy CLI tenant-as-code paths under `infra/auth0/{tenant,mappings,env}`; no retained requirement for CFN API/SPA stacks. |
 | GAP-12 | CodeArtifact retained-scope closure (explicit exclusion) | N/A | Evidence check: release/promotion templates consume pre-provisioned CodeArtifact names through parameters and scoped IAM; no retained requirement for Nova-owned domain/repository CFN provisioning stacks. |
 | GAP-13 | Renderer/contract validation replacement | `scripts/infra/*`, `tests/infra/*` | Deterministic render tests; reject legacy toggles and unsafe defaults. |
-| GAP-14 | Archive readiness governance | `docs/architecture/spec/SPEC-0013.md` + release runbooks | Gate checklist validation in docs CI. |
+| GAP-14 | Archive readiness governance | `docs/architecture/spec/superseded/SPEC-0013-container-craft-capability-absorption-execution-spec.md` + release runbooks | Gate checklist validation in docs CI. |
 
 ## 5. PR expansion plan (full migration coverage)
 

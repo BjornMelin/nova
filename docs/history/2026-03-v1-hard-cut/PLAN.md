@@ -12,8 +12,8 @@
 > - docs/architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md
 > - docs/architecture/spec/superseded/SPEC-0011-multi-language-sdk-architecture-and-package-map.md
 > - docs/architecture/spec/SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md
-> - docs/history/2026-02-cutover/architecture/spec/SPEC-0013-container-craft-capability-absorption-execution-spec.md
-> - docs/history/2026-02-cutover/architecture/spec/SPEC-0014-container-craft-capability-inventory-and-absorption-map.md
+> - docs/architecture/spec/superseded/SPEC-0013-container-craft-capability-absorption-execution-spec.md
+> - docs/architecture/spec/superseded/SPEC-0014-container-craft-capability-inventory-and-absorption-map.md
 > - docs/architecture/spec/SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md
 > - docs/architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md
 >
@@ -30,7 +30,7 @@
 - Route namespace authority is explicit: `/api/*`, `/healthz`, and `/readyz`
   are removed and must not reappear in runtime code.
 
-# Final Production Architecture Plan (Locked, Release Track)
+## Final Production Architecture Plan (Locked, Release Track)
 
 Status: Reference baseline + transition addendum
 Last updated: 2026-03-02
@@ -269,7 +269,7 @@ below are checked.
 
 External live gate execution reference:
 
-- `docs/plan/release/NONPROD-LIVE-VALIDATION-RUNBOOK.md`
+- `docs/runbooks/release/nonprod-live-validation-runbook.md`
 
 ## Subplan Mapping
 
@@ -355,7 +355,7 @@ Required for each implementation slice:
   `packages/nova_file_api/tests/test_generated_client_smoke.py`
   (`1` passing test).
 - 2026-02-12: Added operator runbook for remaining external gates:
-  `docs/plan/release/NONPROD-LIVE-VALIDATION-RUNBOOK.md`.
+  `docs/runbooks/release/nonprod-live-validation-runbook.md`.
 - 2026-02-13: Review regression hardening:
   - Before: async uploader polling called `GET /api/jobs/{job_id}` without
     same-origin caller-scope headers, causing `401 missing session scope`.
@@ -497,7 +497,7 @@ Required for each implementation slice:
     decision-complete setup flow.
   - Added day-0 execution checklists in both repos for first-time operator
     rollout:
-    - `docs/plan/release/day-0-operator-checklist.md`
+    - `docs/runbooks/provisioning/day-0-operator-checklist.md`
     - `container-craft/docs/how-to/day-0-nova-cicd-operator-checklist.md`
   - Added runnable command-pack script for one-shot operator execution:
     - `scripts/release/day-0-operator-command-pack.sh`
@@ -524,8 +524,8 @@ Required for each implementation slice:
   - Synced docs:
     `README.md`,
     `docs/architecture/spec/SPEC-0004-ci-cd-and-docs.md`,
-    `docs/plan/release/RELEASE-POLICY.md`,
-    `docs/plan/release/RELEASE-RUNBOOK.md`.
+    `docs/runbooks/release/release-policy.md`,
+    `docs/runbooks/release/release-runbook.md`.
 
 ## Source References
 

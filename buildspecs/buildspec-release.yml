@@ -204,12 +204,12 @@ phases:
   post_build:
     commands:
       - set -euo pipefail
-      - test -f docs/plan/release/RELEASE-VERSION-MANIFEST.md
-      - RELEASE_MANIFEST_SHA256="$(sha256sum docs/plan/release/RELEASE-VERSION-MANIFEST.md | awk '{print $1}')"
+      - test -f docs/release/RELEASE-VERSION-MANIFEST.md
+      - RELEASE_MANIFEST_SHA256="$(sha256sum docs/release/RELEASE-VERSION-MANIFEST.md | awk '{print $1}')"
       - export RELEASE_MANIFEST_SHA256
 
 artifacts:
   files:
     - changed-units.json
     - version-plan.json
-    - docs/plan/release/RELEASE-VERSION-MANIFEST.md
+    - docs/release/RELEASE-VERSION-MANIFEST.md

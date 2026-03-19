@@ -8,13 +8,14 @@ Last updated: 2026-03-19
 
 - **This checklist:** Scripted browser validation (`agent-browser`) for
   dash + Nova URLs, route contract JSON, and non-mutating smoke steps.
-- **[NONPROD-LIVE-VALIDATION-RUNBOOK.md](NONPROD-LIVE-VALIDATION-RUNBOOK.md):**
+- **[nonprod-live-validation-runbook.md](nonprod-live-validation-runbook.md):**
   Broader AWS control-plane and pipeline gates. Run both when certifying a
   release to prod.
 
 ## Authority / Related Documents
 
-Authority: [release-authority-chain.md](release-authority-chain.md)
+Authority:
+[README.md#canonical-documentation-authority-chain](README.md#canonical-documentation-authority-chain)
 
 ## Purpose
 
@@ -195,7 +196,8 @@ If your environment cannot isolate by scope, run a manual tenant cleanup before 
 ### Prod promotion (`ValidateProd` companion gate)
 
 - Block on any `P0` or unwaived `P1`.
-- Require full artifact set and immutable evidence links in release ledger.
+- Require full artifact set and immutable evidence links on the promotion PR or
+  per [`release-policy.md`](release-policy.md) §6.
 
 ## Artifact Contract
 

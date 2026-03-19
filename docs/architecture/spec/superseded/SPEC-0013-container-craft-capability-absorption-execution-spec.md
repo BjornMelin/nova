@@ -1,13 +1,13 @@
 ---
 Spec: 0013
 Title: Container-craft capability absorption execution spec
-Status: Active
+Status: Superseded
 Version: 1.0
 Date: 2026-02-28
 Related:
-  - "[ADR-0014: Absorb remaining container-craft Nova capabilities into nova and retire container-craft](../../../../architecture/adr/superseded/ADR-0014-container-craft-capability-absorption-and-repo-retirement.md)"
-  - "[ADR-0011: Hybrid CI/CD with GitHub and AWS promotion](../../../../architecture/adr/ADR-0011-cicd-hybrid-github-aws-promotion.md)"
-  - "[SPEC-0004: CI/CD and documentation automation](./SPEC-0004-ci-cd-and-docs.md)"
+  - "[ADR-0014: Absorb remaining container-craft Nova capabilities into nova and retire container-craft](../../adr/superseded/ADR-0014-container-craft-capability-absorption-and-repo-retirement.md)"
+  - "[ADR-0011: Hybrid CI/CD with GitHub and AWS promotion](../../adr/ADR-0011-cicd-hybrid-github-aws-promotion.md)"
+  - "[SPEC-0004: CI/CD and documentation automation](../SPEC-0004-ci-cd-and-docs.md)"
 ---
 
 ## 1. Scope and final-state constraints
@@ -69,7 +69,7 @@ Mandatory constraints:
 | GAP-03 | Missing CodeBuild project template ownership | `infra/nova/nova-codebuild-release.yml` | Contract tests validate required environment variables and buildspec path defaults; verify required output variables from buildspec contract |
 | GAP-04 | Missing image digest SSM deploy template ownership | `infra/nova/deploy/image-digest-ssm.yml` | Template unit test validates parameter constraints and deterministic SSM parameter path format `/nova/{env}/{service}/image-digest` |
 | GAP-05 | Partial architecture (dual-source pipeline) | `infra/nova/nova-ci-cd.yml` refactor | Regression test validates single-source artifact model and valid `TemplatePath` resolution within `AppSourceOutput` |
-| GAP-06 | Partial retirement governance | `docs/architecture/spec/SPEC-0013…` + release runbooks | Checklist test (docs lint) requires all archive gates present and linked from release docs |
+| GAP-06 | Partial retirement governance | `docs/architecture/spec/superseded/SPEC-0013-container-craft-capability-absorption-execution-spec.md` + release runbooks | Checklist test (docs lint) requires all archive gates present and linked from release docs |
 | GAP-07 | Auth0 retained-scope closure (explicit exclusion) | N/A | Evidence check confirms active Nova Auth0 authority is tenant-as-code (`infra/auth0/tenant/**`, env overlays, mappings) and not container-craft CFN API/SPA stacks |
 | GAP-08 | CodeArtifact retained-scope closure (explicit exclusion) | N/A | Evidence check confirms Nova consumes pre-provisioned CodeArtifact names through release stack parameters and scoped IAM, with no retained need for container-craft provisioning templates |
 

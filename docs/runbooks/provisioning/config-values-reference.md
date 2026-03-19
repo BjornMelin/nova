@@ -108,7 +108,8 @@ Generated runtime config authority:
   `packages/nova_file_api/src/nova_file_api/config.py` plus
   `scripts/release/runtime_config_contract.py`.
 
-Documentation authority: [release-authority-chain.md](release-authority-chain.md).
+Documentation authority:
+[`../release/README.md#canonical-documentation-authority-chain`](../release/README.md#canonical-documentation-authority-chain).
 
 Capture and manage these runtime values per environment before CI/CD deploy:
 
@@ -146,7 +147,7 @@ Retired runtime deploy inputs:
 - `TASK_EXECUTION_SSM_PARAMETER_ARNS`
 
 See:
-`deploy-runtime-cloudformation-environments-guide.md`
+[`deploy-runtime-cloudformation-environments.md`](deploy-runtime-cloudformation-environments.md)
 and
 `runtime-config-contract.generated.md`
 
@@ -241,7 +242,7 @@ Reference file:
 
 Source all JSON payload inputs from `publish-packages.yml` gate artifacts.
 `manifest_sha256` must equal `RELEASE_MANIFEST_SHA256`, the SHA256 of
-`docs/plan/release/RELEASE-VERSION-MANIFEST.md`. If the value is read from
+`docs/release/RELEASE-VERSION-MANIFEST.md`. If the value is read from
 `codeartifact-gate-report.json`, treat that report as a carrier of the
 canonical manifest digest rather than the authority itself.
 `promotion_candidates_json` may include PyPI, npm, and R candidates. PyPI and
@@ -266,7 +267,8 @@ Validation URLs:
 - `${PROD_BASE_URL}/v1/health/ready`
 - `${PROD_BASE_URL}/v1/capabilities`
 
-Documentation authority: [release-authority-chain.md](release-authority-chain.md).
+Documentation authority:
+[`../release/README.md#canonical-documentation-authority-chain`](../release/README.md#canonical-documentation-authority-chain).
 
 Route namespace policy:
 
