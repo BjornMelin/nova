@@ -639,8 +639,12 @@ Schema: 1.0
                     "format": "r",
                     "codeartifact_format": "generic",
                     "namespace": "nova",
-                    "tarball_path": "packages/nova_sdk_r_file/a.tar.gz",
-                    "signature_path": "packages/nova_sdk_r_file/a.tar.gz.sig",
+                    "tarball_path": (
+                        "packages/nova_sdk_r_file/nova.sdk.r.file_0.2.0.tar.gz"
+                    ),
+                    "signature_path": (
+                        "packages/nova_sdk_r_file/nova.sdk.r.file_0.2.0.tar.gz.sig"
+                    ),
                     "tarball_sha256": "a" * 64,
                     "signature_sha256": "b" * 64,
                 },
@@ -651,8 +655,12 @@ Schema: 1.0
                     "format": "r",
                     "codeartifact_format": "generic",
                     "namespace": "nova",
-                    "tarball_path": "packages/nova_sdk_r_file/b.tar.gz",
-                    "signature_path": "packages/nova_sdk_r_file/b.tar.gz.sig",
+                    "tarball_path": (
+                        "packages/nova_sdk_r_file/nova.sdk.r.file_0.2.0.tar.gz"
+                    ),
+                    "signature_path": (
+                        "packages/nova_sdk_r_file/nova.sdk.r.file_0.2.0.tar.gz.sig"
+                    ),
                     "tarball_sha256": "c" * 64,
                     "signature_sha256": "d" * 64,
                 },

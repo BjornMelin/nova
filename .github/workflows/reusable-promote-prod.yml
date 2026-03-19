@@ -138,6 +138,7 @@ jobs:
             local label="$1"
             local json_value="$2"
             local path_value="$3"
+            local workspace_root
 
             if [[ -z "$json_value" && -z "$path_value" ]]; then
               echo "${label}: provide ${label}_json or ${label}_path" >&2
@@ -149,6 +150,15 @@ jobs:
                 echo "${label}: absolute path is not allowed (${path_value})" >&2
                 exit 1
               }
+              workspace_root="$(realpath "$GITHUB_WORKSPACE")"
+              path_value="$(realpath -m -- "$path_value")"
+              case "$path_value" in
+                "$workspace_root" | "$workspace_root"/*) ;;
+                *)
+                  echo "${label}: path escapes the workspace (${path_value})" >&2
+                  exit 1
+                  ;;
+              esac
               [[ -f "$path_value" ]] || {
                 echo "${label}: file not found (${path_value})" >&2
                 exit 1
@@ -178,6 +188,7 @@ jobs:
           uv run python - <<'PY'
           import hashlib
           import json
+          from datetime import datetime, timezone
           import os
           from pathlib import Path
 
@@ -254,11 +265,14 @@ jobs:
               if isinstance(item, dict) and item.get("format") == "r"
           ]
           if r_packages:
+              generated_at = datetime.now(timezone.utc).replace(
+                  microsecond=0
+              ).isoformat().replace("+00:00", "Z")
               Path(".artifacts/r-publish-report.json").write_text(
                   json.dumps(
                       {
                           "schema_version": "1.0",
-                          "generated_at": "2026-03-19T00:00:00Z",
+                          "generated_at": generated_at,
                           "packages": [
                               {
                                   "unit_id": item["unit_id"],

@@ -526,6 +526,12 @@
         "unit_id": {
           "type": "string",
           "minLength": 1
+        },
+        "tarball_sha256": {
+          "$ref": "#/$defs/sha256_digest"
+        },
+        "signature_sha256": {
+          "$ref": "#/$defs/sha256_digest"
         }
       },
       "allOf": [
