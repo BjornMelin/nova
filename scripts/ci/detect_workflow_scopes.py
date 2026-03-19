@@ -8,6 +8,7 @@ import json
 import os
 import sys
 from pathlib import Path
+from typing import Any, Protocol, cast
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
@@ -92,8 +93,29 @@ DOC_ONLY_PREFIXES = ("docs/",)
 DOC_ONLY_EXACT = {"AGENTS.md", "README.md"}
 
 
-def _common_module():
-    return importlib.import_module("scripts.release.common")
+class _ReleaseCommonModule(Protocol):
+    def list_changed_files(
+        self,
+        repo_root: Path,
+        *,
+        head_commit: str,
+        base_commit: str | None,
+    ) -> list[str]: ...
+
+    def load_workspace_units(self, repo_root: Path) -> dict[str, Any]: ...
+
+    def detect_changed_unit_ids(
+        self,
+        changed_files: list[str],
+        units: dict[str, Any],
+    ) -> set[str]: ...
+
+
+def _common_module() -> _ReleaseCommonModule:
+    return cast(
+        _ReleaseCommonModule,
+        importlib.import_module("scripts.release.common"),
+    )
 
 
 def _parse_args() -> argparse.Namespace:

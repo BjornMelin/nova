@@ -4,9 +4,16 @@
 
 from __future__ import annotations
 
+from typing import TypedDict
+
 import yaml
 
 from .helpers import REPO_ROOT, read_repo_file as _read
+
+
+class _RequiredWorkflowExpectation(TypedDict):
+    classifier_output: str
+    gated_jobs: list[str]
 
 
 def test_reusable_workflow_call_apis_exist_and_are_callable() -> None:
@@ -230,7 +237,7 @@ def test_cfn_contract_validate_workflow_exists_for_cfn_gates() -> None:
 
 def test_required_ci_workflows_use_scope_classifier_gate() -> None:
     """Required workflows must always trigger and gate heavy jobs by scope."""
-    required_workflows = {
+    required_workflows: dict[str, _RequiredWorkflowExpectation] = {
         ".github/workflows/ci.yml": {
             "classifier_output": "run_runtime_ci",
             "gated_jobs": [

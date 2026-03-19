@@ -13,7 +13,7 @@ from nova_file_api.public import (
 
 
 def test_create_fastapi_app_uses_lifespan_startup(
-    monkeypatch,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Verify startup configures and shutdown restores thread limiter tokens."""
     calls: list[int] = []
