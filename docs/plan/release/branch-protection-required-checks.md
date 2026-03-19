@@ -21,7 +21,8 @@ From workflow `Conformance Clients` (`.github/workflows/conformance-clients.yml`
 
 - `dash-conformance`
 - `shiny-conformance`
-- `typescript-conformance` (generated/internal TypeScript SDK conformance)
+- `typescript-conformance` (release-grade TypeScript SDK conformance; required
+  check name remains stable)
 
 From workflow `CFN Contract Validate` (`.github/workflows/cfn-contract-validate.yml`):
 
@@ -110,11 +111,13 @@ JSON
 
 ## Scope guardrails
 
-TypeScript conformance lane scope remains intentionally minimal:
+TypeScript conformance lane scope remains intentionally minimal and now
+verifies the release-grade CodeArtifact package shape:
 
 - contract fixture typing
 - SDK/client envelope verification
 - auth verify + queue/transfer contract parity
+- subpath/export boundary enforcement
 
 Required-check workflows must stay always-triggered for protected-branch PRs.
 Minute reduction is handled inside those workflows with classifier jobs and

@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import shutil
+import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -191,6 +193,7 @@ def prepare_npm_publish_artifacts(
         package_data["version"] = version_by_unit[unit_id]
         package_data.pop("private", None)
         package_data.pop("novaRelease", None)
+        package_data["files"] = ["dist"]
 
         publish_config = package_data.get("publishConfig", {})
         if not isinstance(publish_config, dict):
@@ -224,6 +227,11 @@ def prepare_npm_publish_artifacts(
             encoding="utf-8",
         )
         validate_prepared_npm_package(package_path)
+        packed_file_names, tarball_path = _validate_packable_npm_artifact(
+            target_dir
+        )
+        tarball_filename = tarball_path.name
+        tarball_sha256 = hashlib.sha256(tarball_path.read_bytes()).hexdigest()
         try:
             publish_dir = str(target_dir.relative_to(repo_root))
         except ValueError:
@@ -236,6 +244,9 @@ def prepare_npm_publish_artifacts(
                 "namespace": unit.namespace,
                 "version": version_by_unit[unit_id],
                 "publish_dir": publish_dir,
+                "tarball_filename": tarball_filename,
+                "tarball_sha256": tarball_sha256,
+                "packed_files": packed_file_names,
             }
         )
 
@@ -272,6 +283,132 @@ def validate_prepared_npm_package(package_json_path: Path) -> None:
                     f"{package_json_path}: dependency {dependency_name} "
                     "still uses a local-only specifier"
                 )
+
+
+def _validate_packable_npm_artifact(
+    package_dir: Path,
+) -> tuple[list[str], Path]:
+    """Validate the prepared package with `npm pack --dry-run --json`.
+
+    Args:
+        package_dir: Prepared npm package directory.
+
+    Returns:
+        Ordered list of packed file paths from the validated dry-run result.
+
+    Raises:
+        RuntimeError: If `npm pack` fails.
+        TypeError: If the npm JSON payload does not match the expected shape.
+        ValueError: If the dry-run result is missing the tarball metadata or
+            packed file list.
+    """
+    dry_run_result = _run_npm_pack(package_dir, dry_run=True)
+    packed_files = _extract_npm_packed_files(dry_run_result, package_dir)
+    if not packed_files:
+        raise ValueError(f"{package_dir}: npm pack dry-run produced no files")
+    if not any(
+        packed_file == "dist" or packed_file.startswith("dist/")
+        for packed_file in packed_files
+    ):
+        raise ValueError(
+            f"{package_dir}: npm pack dry-run did not include any dist/ files"
+        )
+
+    pack_result = _run_npm_pack(package_dir, dry_run=False)
+    dry_run_filename = _extract_npm_pack_filename(dry_run_result, package_dir)
+    pack_filename = _extract_npm_pack_filename(pack_result, package_dir)
+    if dry_run_filename != pack_filename:
+        raise ValueError(
+            f"{package_dir}: npm pack filename changed between dry-run "
+            f"and pack: {dry_run_filename} != {pack_filename}"
+        )
+
+    packed_files_from_pack = _extract_npm_packed_files(pack_result, package_dir)
+    if packed_files_from_pack and packed_files_from_pack != packed_files:
+        raise ValueError(
+            f"{package_dir}: npm pack file list changed between dry-run "
+            "and pack"
+        )
+
+    filename = pack_filename
+    tarball_path = package_dir / filename
+    if not tarball_path.exists():
+        raise ValueError(f"{package_dir}: npm pack did not create {filename}")
+    return packed_files, tarball_path
+
+
+def _run_npm_pack(package_dir: Path, *, dry_run: bool) -> list[dict[str, Any]]:
+    """Run npm pack and return the decoded JSON payload."""
+    args = ["npm", "pack", "--json"]
+    if dry_run:
+        args.insert(2, "--dry-run")
+    result = subprocess.run(  # noqa: S603
+        args,
+        cwd=package_dir,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        stderr = result.stderr.strip()
+        raise RuntimeError(f"npm pack failed in {package_dir}: {stderr}")
+
+    try:
+        payload = json.loads(result.stdout or "[]")
+    except json.JSONDecodeError as exc:
+        raise ValueError(
+            f"{package_dir}: npm pack produced invalid JSON"
+        ) from exc
+    if not isinstance(payload, list):
+        raise TypeError(f"{package_dir}: npm pack payload must be a JSON array")
+    for item in payload:
+        if not isinstance(item, dict):
+            raise TypeError(
+                f"{package_dir}: npm pack payload entries must be objects"
+            )
+    return payload
+
+
+def _extract_npm_pack_filename(
+    pack_result: list[dict[str, Any]],
+    package_dir: Path,
+) -> str:
+    """Return the pack tarball filename from an npm JSON payload."""
+    if not pack_result:
+        raise ValueError(f"{package_dir}: npm pack produced no result objects")
+    filename = str(pack_result[0].get("filename", "")).strip()
+    if not filename:
+        raise ValueError(f"{package_dir}: npm pack result missing filename")
+    return filename
+
+
+def _extract_npm_packed_files(
+    pack_result: list[dict[str, Any]],
+    package_dir: Path,
+) -> list[str]:
+    """Return packed file paths from an npm JSON payload."""
+    if not pack_result:
+        raise ValueError(f"{package_dir}: npm pack produced no result objects")
+    raw_files = pack_result[0].get("files", [])
+    if not isinstance(raw_files, list):
+        raise TypeError(f"{package_dir}: npm pack result files must be a list")
+    packed_files: list[str] = []
+    for item in raw_files:
+        if isinstance(item, str):
+            packed_files.append(item)
+            continue
+        if not isinstance(item, dict):
+            raise TypeError(
+                f"{package_dir}: npm pack result files entries must be strings "
+                "or objects"
+            )
+        path = str(item.get("path", "")).strip()
+        if not path:
+            raise ValueError(
+                f"{package_dir}: npm pack result file entry missing path"
+            )
+        packed_files.append(path)
+    return packed_files
 
 
 def parse_args() -> argparse.Namespace:

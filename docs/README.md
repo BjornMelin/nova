@@ -1,7 +1,7 @@
 # Nova Documentation
 
 Status: Active
-Last reviewed: 2026-03-17
+Last reviewed: 2026-03-18
 
 ## Purpose
 
@@ -27,6 +27,16 @@ safety:
 - `./architecture/requirements.md`
 - `./architecture/adr/index.md`
 - `./architecture/spec/index.md`
+
+### SDK and release governance
+
+Use these when the question is about SDK packaging, release-grade TypeScript,
+or first-class internal R release artifacts:
+
+- `./clients/README.md`
+- `./architecture/adr/ADR-0013-final-state-sdk-topology-generated-core-plus-thin-adapters.md`
+- `./architecture/spec/SPEC-0011-multi-language-sdk-architecture-and-package-map.md`
+- `./architecture/spec/SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md`
 
 ### Standards and engineering workflow
 

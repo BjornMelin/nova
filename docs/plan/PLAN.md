@@ -1,7 +1,7 @@
 # Plan Index (Current State)
 
 Status: Active planning and release index
-Last updated: 2026-03-17
+Last updated: 2026-03-18
 
 ## Purpose
 
@@ -53,6 +53,11 @@ guidance:
 - Runtime deploy/config planning now uses the generated runtime config contract
   as the live env/override matrix, with `Settings` plus curated deploy
   metadata remaining the underlying authority.
+- SDK planning now treats TypeScript as release-grade within Nova's existing
+  CodeArtifact staged/prod system while keeping it generator-owned and
+  subpath-only, and treats R as a first-class internal release artifact line
+  with real packages, logical format `r`, CodeArtifact generic transport, and
+  signed tarball evidence.
 - Runtime deploy planning now assumes `infra/runtime/ecs/service.yml` owns the
   ECS service task role and cache secret injection; operator plans must not
   depend on `TASK_ROLE_ARN`, `TASK_EXECUTION_SECRET_ARNS`, or

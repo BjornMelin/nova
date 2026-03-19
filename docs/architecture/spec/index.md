@@ -21,6 +21,8 @@ Downstream validation authority is implemented by `SPEC-0021`, `SPEC-0022`,
 and `SPEC-0023` (decisions `ADR-0027`, `ADR-0028`, `ADR-0029`).
 Adjacent deploy-governance authority is implemented by `SPEC-0024`,
 `SPEC-0025`, and `SPEC-0026` (decisions `ADR-0030`, `ADR-0031`, `ADR-0032`).
+SDK and release-artifact governance authority is implemented by `SPEC-0011`,
+`SPEC-0012`, and decision `ADR-0013`.
 
 | SPEC | Title | Status | Date |
 | --- | --- | --- | --- |
@@ -35,8 +37,8 @@ Adjacent deploy-governance authority is implemented by `SPEC-0024`,
 | [SPEC-0008](./SPEC-0008-async-jobs-and-worker-orchestration.md) | Async Jobs and Worker Orchestration | Active | 2026-03-03 |
 | [SPEC-0009](./SPEC-0009-caching-and-idempotency.md) | Caching and Idempotency | Active | 2026-02-13 |
 | [SPEC-0010](./SPEC-0010-observability-analytics-and-activity-rollups.md) | Observability Analytics and Activity Rollups | Active | 2026-02-13 |
-| [SPEC-0011](./SPEC-0011-multi-language-sdk-architecture-and-package-map.md) | Public Python SDK architecture with generated/private TypeScript and deferred R package map | Active | 2026-02-28 |
-| [SPEC-0012](./SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md) | SDK conformance, versioning, and compatibility governance for Python public plus generated/private TypeScript and deferred R | Active | 2026-02-28 |
+| [SPEC-0011](./SPEC-0011-multi-language-sdk-architecture-and-package-map.md) | Public Python SDK architecture with release-grade TypeScript and first-class internal R package map | Active | 2026-03-18 |
+| [SPEC-0012](./SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md) | SDK conformance, versioning, and compatibility governance for Python public, release-grade TypeScript, and first-class internal R packages | Active | 2026-03-18 |
 | [SPEC-0015](./SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md) | Nova API platform final topology and delivery contract | Active | 2026-03-03 |
 | [SPEC-0016](./SPEC-0016-v1-route-namespace-and-literal-guardrails.md) | Hard-cut v1 route contract and route-literal guardrails | Active | 2026-03-03 |
 | [SPEC-0017](./SPEC-0017-runtime-component-topology-and-ownership-contract.md) | Runtime component topology and ownership contract | Active | 2026-03-07 |

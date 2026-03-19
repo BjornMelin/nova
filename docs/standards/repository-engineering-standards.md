@@ -2,7 +2,7 @@
 
 Status: Active
 Owner: nova release architecture
-Last reviewed: 2026-03-17
+Last reviewed: 2026-03-18
 
 ## Purpose
 
@@ -80,6 +80,9 @@ the canonical deep matrix.
 
 - Generated TypeScript packages are `@nova/sdk-auth`, `@nova/sdk-file`, and the
   shared runtime/helper package `@nova/sdk-fetch`.
+- Generated TypeScript packages are release-grade within Nova's existing
+  CodeArtifact staged/prod system, but they remain generator-owned and
+  subpath-only.
 - Publicly supported imports remain subpath-only. Do not add package-root `"."`
   exports.
 - Do not create `index.ts` files or re-export barrels.
@@ -87,13 +90,34 @@ the canonical deep matrix.
   internal-only worker models.
 - Internal/admin operations marked with `x-nova-sdk-visibility: internal` stay
   excluded from generated SDK output.
-- Generated TypeScript SDKs are validation-free. Do not add `zod`, validator
-  packages, validator subpaths, or runtime request/response validation helpers.
+- Generated TypeScript SDKs are intentionally free of bundled validation
+  libraries. Do not add `zod`, validator packages, validator subpaths, or
+  runtime request/response validation helpers.
 - OpenAPI remains the only schema authority for SDK generation.
 - Multi-media request bodies must preserve explicit generated `contentType`
   selection instead of collapsing to JSON-only behavior.
 - Shared transport/runtime logic belongs in `@nova/sdk-fetch` rather than being
   duplicated per SDK package.
+
+## R Package Rules
+
+- R SDK packages are first-class internal release artifacts, not deferred
+  generated catalogs.
+- The package line is `nova.sdk.r.file` and `nova.sdk.r.auth`, with repository
+  paths under `packages/nova_sdk_r_file/` and `packages/nova_sdk_r_auth/`.
+- R packages use real package scaffolds, `logical format r`, generator-owned
+  output from `scripts/release/generate_clients.py`, testthat coverage, and
+  verification through the shared `scripts/checks/verify_r_cmd_check.sh`
+  helper. The helper runs `R CMD build` and `R CMD check --no-manual`,
+  parses `00check.log`, and fails the lane if `R CMD check` reports warnings
+  without requiring `pdflatex` on CI or release runners. When regenerating,
+  the generator preserves an existing `DESCRIPTION` version instead of
+  resetting it.
+- R release artifacts are transported through CodeArtifact generic packages and
+  must retain signed tarball and detached `.sig` evidence in the release
+  workflow.
+- Keep the release evidence and package metadata deterministic; do not invent
+  a separate internal registry or CRAN-style public publishing path.
 
 ## Generator Ownership Rules
 
@@ -159,6 +183,15 @@ packaging, release automation, or SDK docs/contracts:
 - `npm run -w @nova/contracts-ts-conformance verify`
 - `uv run pytest -q scripts/release/tests/test_typescript_sdk_contracts.py`
 
+Additional required gates when touching R package artifacts, release packaging,
+or R SDK docs/contracts:
+
+- `bash scripts/checks/verify_r_cmd_check.sh <package-dir>` (or the repo-local
+  conformance entrypoint that invokes it); the helper runs `R CMD build` and
+  `R CMD check --no-manual`, parses `00check.log`, and fails on warnings
+- any R package unit tests or documentation generation checks introduced by the
+  change
+
 Additional required gates when touching infra, workflow contracts, or docs
 governance:
 
@@ -175,6 +208,9 @@ governance:
   `packages/nova_file_api/src/nova_file_api/config.py` plus
   `scripts/release/runtime_config_contract.py` as authority and keep
   `docs/plan/release/runtime-config-contract.generated.md` fresh.
+- `docs/clients/README.md` is downstream integration guidance only. It must
+  remain subordinate to the active authority docs and not become the primary
+  SDK release authority.
 - If the change affects behavior, contracts, workflows, or durable operator
   routing, update the router docs in the same PR:
   - `AGENTS.md`

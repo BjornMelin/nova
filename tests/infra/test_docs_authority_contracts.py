@@ -170,8 +170,20 @@ def test_release_docs_include_codeartifact_staged_promotion_authority() -> None:
         "nova-codebuild-release",
         "nova-ci-cd",
         "day-0-operator-command-pack.sh",
+        "R conformance helper fails the lane",
     ]:
         assert required in release_policy
+
+    runbook_text = (
+        DOCS_ROOT / "plan" / "release" / "RELEASE-RUNBOOK.md"
+    ).read_text(encoding="utf-8")
+    for required in [
+        "shared conformance helper",
+        "scripts/checks/verify_r_cmd_check.sh",
+        "fails the R lane if `R CMD check`",
+        "reports warnings",
+    ]:
+        assert required in runbook_text
 
 
 def test_generated_runtime_config_contract_doc_exists() -> None:
@@ -260,11 +272,11 @@ def test_agents_includes_typescript_sdk_operator_rules() -> None:
     text = AGENTS_PATH.read_text(encoding="utf-8")
     for required in [
         'must not expose package-root `"."` exports',
-        "validation-free",
+        "CodeArtifact staged/prod",
+        "generator-owned and subpath-only",
         "x-nova-sdk-visibility: internal",
         "scripts/release/generate_clients.py",
         "docs/standards/README.md",
-        "private-distribution artifacts in this wave",
         "v2.9.5 or newer",
     ]:
         assert required in text

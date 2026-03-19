@@ -78,6 +78,7 @@ def render_manifest(
     lines.append('      "project": "nova-file-api",')
     lines.append('      "path": "packages/nova_file_api",')
     lines.append('      "format": "pypi",')
+    lines.append('      "codeartifact_format": "pypi",')
     lines.append('      "namespace": null,')
     lines.append('      "version": "0.1.0"')
     lines.append("    }")

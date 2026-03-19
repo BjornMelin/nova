@@ -8,9 +8,11 @@ Nova is the canonical runtime monorepo for file-transfer orchestration and token
 
 - `packages/nova_file_api`: Main transfer + jobs control-plane implementation and ASGI entrypoint.
 - `packages/nova_auth_api`: Token verify/introspect API implementation and ASGI entrypoint.
-- `packages/nova_sdk_file`: Generated/private TypeScript file SDK.
-- `packages/nova_sdk_auth`: Generated/private TypeScript auth SDK.
+- `packages/nova_sdk_file`: Release-grade TypeScript file SDK within the CodeArtifact staged/prod system.
+- `packages/nova_sdk_auth`: Release-grade TypeScript auth SDK within the CodeArtifact staged/prod system.
 - `packages/nova_sdk_fetch`: Shared TypeScript fetch transport/runtime helper.
+- `packages/nova_sdk_r_file`: First-class internal R file SDK package.
+- `packages/nova_sdk_r_auth`: First-class internal R auth SDK package.
 - `packages/nova_dash_bridge`: Integration bridge adapters for Dash/Flask/FastAPI clients over `nova_file_api.public`.
 - `packages/contracts`: Contract artifacts, fixtures, and conformance helpers.
 - `infra/nova` and `infra/runtime`: CloudFormation stacks for CI/CD foundation and runtime environments.
@@ -82,10 +84,15 @@ flowchart LR
   - Auth token verification and introspection routes.
   - Standardized auth error envelope behavior.
 - `nova_sdk_file` and `nova_sdk_auth` own:
-  - Generated/private TypeScript client, operations, errors, and curated type surfaces.
+  - Release-grade TypeScript client, operations, errors, and curated type surfaces.
   - OpenAPI-aligned request serialization for the generated SDK route surface.
+  - Subpath-only packaging and staged/prod CodeArtifact publication shape.
 - `nova_sdk_fetch` owns:
-  - Shared fetch transport and URL helpers used by the generated/private TypeScript SDKs.
+  - Shared fetch transport and URL helpers used by the TypeScript SDKs.
+- `nova_sdk_r_file` and `nova_sdk_r_auth` own:
+  - Real R package scaffolds with generated client bindings/models.
+  - `logical format r` release artifacts transported through CodeArtifact generic packages.
+  - Signed tarball evidence and package-native namespace/man page generation.
 - `nova_dash_bridge` owns:
   - Framework adapters that let Dash/Flask/FastAPI apps consume Nova-style transfer flows without redefining server contracts.
   - Package-local adapter regression tests and architecture-boundary enforcement.
@@ -131,7 +138,7 @@ No compatibility aliases or namespace shims should be added for disallowed famil
 ### High-level endpoint intent map
 
 | Path family | Primary consumer | Intent |
-|---|---|---|
+| --- | --- | --- |
 | `/v1/transfers/*` | External clients and app integrations | Plan and orchestrate file-transfer operations |
 | `/v1/jobs*` | External clients and integrations | Submit and track async jobs |
 | `/v1/internal/jobs/{job_id}/result` | Internal worker | Record job completion result |
@@ -184,6 +191,8 @@ flowchart TB
 2. Runtime services enforce auth decisions at request boundaries.
 3. TypeScript SDK callers use `contentType` selection for
    `introspect_token` when choosing between JSON and form-encoded requests.
+4. R package releases travel as signed tarball evidence plus CodeArtifact
+   generic package artifacts, not as a separate public registry surface.
 
 ## 7) AWS and deployment topology
 
@@ -247,30 +256,37 @@ sequenceDiagram
 ### Minute-by-minute script
 
 1. Minute 1: Purpose and scope
-- “Nova is our transfer/job control plane and auth verification runtime in one monorepo.”
-- “It standardizes canonical `/v1/*` API behavior and operational guardrails.”
+
+   - “Nova is our transfer/job control plane and auth verification runtime in one monorepo.”
+   - “It standardizes canonical `/v1/*` API behavior and operational guardrails.”
 
 2. Minute 2: Monorepo layout
-- Walk runtime packages and supporting packages.
-- Emphasize that `packages/*` own runtime/API surfaces and core runtime logic.
+
+   - Walk runtime packages and supporting packages.
+   - Emphasize that `packages/*` own runtime/API surfaces and core runtime logic.
 
 3. Minutes 3-4: Architecture flow
-- Explain request path into `nova_file_api`.
-- Explain queue-based async job lifecycle and internal worker callback.
+
+   - Explain request path into `nova_file_api`.
+   - Explain queue-based async job lifecycle and internal worker callback.
 
 4. Minute 5: API surface rules
-- Show allowed route families and strict no-legacy aliases rule.
+
+   - Show allowed route families and strict no-legacy aliases rule.
 
 5. Minutes 6-7: Client integration story
-- Capabilities -> transfer plan -> transfer execution.
-- Job submit -> worker completion -> status/result reads.
+
+   - Capabilities -> transfer plan -> transfer execution.
+   - Job submit -> worker completion -> status/result reads.
 
 6. Minutes 8-9: AWS topology and delivery
-- Map services to ECS, SQS, S3, DynamoDB, Redis, ALB/WAF, CloudWatch, KMS.
-- Explain release/promotion posture at high level.
+
+   - Map services to ECS, SQS, S3, DynamoDB, Redis, ALB/WAF, CloudWatch, KMS.
+   - Explain release/promotion posture at high level.
 
 7. Minute 10: Reliability and security guarantees
-- Cover queue-unavailable semantics, readiness strictness, sensitive logging guardrails, and auth threadpool boundary.
+
+   - Cover queue-unavailable semantics, readiness strictness, sensitive logging guardrails, and auth threadpool boundary.
 
 ### Quick FAQ responses
 

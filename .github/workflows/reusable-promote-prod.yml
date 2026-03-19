@@ -138,6 +138,7 @@ jobs:
             local label="$1"
             local json_value="$2"
             local path_value="$3"
+            local workspace_root
 
             if [[ -z "$json_value" && -z "$path_value" ]]; then
               echo "${label}: provide ${label}_json or ${label}_path" >&2
@@ -149,6 +150,15 @@ jobs:
                 echo "${label}: absolute path is not allowed (${path_value})" >&2
                 exit 1
               }
+              workspace_root="$(realpath "$GITHUB_WORKSPACE")"
+              path_value="$(realpath -m -- "$path_value")"
+              case "$path_value" in
+                "$workspace_root" | "$workspace_root"/*) ;;
+                *)
+                  echo "${label}: path escapes the workspace (${path_value})" >&2
+                  exit 1
+                  ;;
+              esac
               [[ -f "$path_value" ]] || {
                 echo "${label}: file not found (${path_value})" >&2
                 exit 1
@@ -178,6 +188,7 @@ jobs:
           uv run python - <<'PY'
           import hashlib
           import json
+          from datetime import datetime, timezone
           import os
           from pathlib import Path
 
@@ -247,14 +258,56 @@ jobs:
                   json.dumps(payload, indent=2, sort_keys=True) + "\n",
                   encoding="utf-8",
               )
+
+          r_packages = [
+              item
+              for item in payloads[2]["payload"]
+              if isinstance(item, dict) and item.get("format") == "r"
+          ]
+          if r_packages:
+              generated_at = datetime.now(timezone.utc).replace(
+                  microsecond=0
+              ).isoformat().replace("+00:00", "Z")
+              Path(".artifacts/r-publish-report.json").write_text(
+                  json.dumps(
+                      {
+                          "schema_version": "1.0",
+                          "generated_at": generated_at,
+                          "packages": [
+                              {
+                                  "unit_id": item["unit_id"],
+                                  "package": item["package"],
+                                  "version": item["version"],
+                                  "format": item["format"],
+                                  "codeartifact_format": item["codeartifact_format"],
+                                  "namespace": item.get("namespace"),
+                                  "tarball_path": item["tarball_path"],
+                                  "signature_path": item["signature_path"],
+                                  "tarball_sha256": item["tarball_sha256"],
+                                  "signature_sha256": item["signature_sha256"],
+                              }
+                              for item in r_packages
+                          ],
+                      },
+                      indent=2,
+                      sort_keys=True,
+                  )
+                  + "\n",
+                  encoding="utf-8",
+              )
           PY
 
+          R_PUBLISH_REPORT_ARGS=()
+          if [[ -f .artifacts/r-publish-report.json ]]; then
+            R_PUBLISH_REPORT_ARGS=(--r-publish-report .artifacts/r-publish-report.json)
+          fi
           uv run python -m scripts.release.codeartifact_gate \
             --repo-root . \
             --manifest-path docs/plan/release/RELEASE-VERSION-MANIFEST.md \
             --changed-units .artifacts/changed-units.json \
             --version-plan .artifacts/version-plan.json \
             --expected-manifest-sha256 "$EXPECTED_MANIFEST_SHA256" \
+            "${R_PUBLISH_REPORT_ARGS[@]}" \
             --gate-report-out .artifacts/prod-promotion-gate-report.json \
             --promotion-candidates-out .artifacts/validated-promotion-candidates.json
 
@@ -295,16 +348,29 @@ jobs:
           set -euo pipefail
           uv run python - <<'PY'
           import json
+          import re
           import subprocess
           from pathlib import Path
 
           candidates = json.loads(Path('.artifacts/validated-promotion-candidates.json').read_text())
+          sha256_re = re.compile(r'^[A-Fa-f0-9]{64}$')
           for item in candidates:
               package = item['package']
-              package_format = item.get('format', 'pypi')
+              codeartifact_format = item.get('codeartifact_format', item.get('format', 'pypi'))
               namespace = item.get('namespace')
               package_name = package
-              if package_format == 'npm' and namespace:
+              if item.get('format') == 'r':
+                  tarball_sha256 = item.get('tarball_sha256')
+                  signature_sha256 = item.get('signature_sha256')
+                  if not isinstance(tarball_sha256, str) or not sha256_re.fullmatch(tarball_sha256):
+                      raise SystemExit(
+                          f"R promotion candidate {package} is missing a valid tarball sha256"
+                      )
+                  if not isinstance(signature_sha256, str) or not sha256_re.fullmatch(signature_sha256):
+                      raise SystemExit(
+                          f"R promotion candidate {package} is missing a valid signature sha256"
+                      )
+              if codeartifact_format == 'npm' and namespace:
                   scoped_prefix = f'@{namespace}/'
                   if not package.startswith(scoped_prefix):
                       raise SystemExit(
@@ -317,9 +383,9 @@ jobs:
                   '--domain', '${{ env.CODEARTIFACT_DOMAIN }}',
                   '--source-repository', '${{ env.CODEARTIFACT_STAGING_REPOSITORY }}',
                   '--destination-repository', '${{ env.CODEARTIFACT_PROD_REPOSITORY }}',
-                  '--format', package_format,
+                  '--format', codeartifact_format,
               ]
-              if package_format == 'npm' and namespace:
+              if codeartifact_format in {'npm', 'generic'} and namespace:
                   command.extend(['--namespace', namespace])
               command.extend([
                   '--package', package_name,

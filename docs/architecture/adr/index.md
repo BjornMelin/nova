@@ -39,6 +39,15 @@ boundaries, but are not part of the active runtime API authority layer.
 | [ADR-0031](./ADR-0031-reusable-github-workflow-api-and-versioning-policy-for-deployment-automation.md) | Reusable GitHub workflow API and versioning policy for deployment automation | Accepted | 2026-03-05 |
 | [ADR-0032](./ADR-0032-oidc-and-iam-role-partitioning-for-deploy-automation.md) | OIDC and IAM role partitioning for deploy automation | Accepted | 2026-03-05 |
 
+## SDK and release-artifact governance authority
+
+These identifiers are canonical for SDK topology and release-artifact
+governance, separate from the runtime authority pack.
+
+- `ADR-0013`
+- `SPEC-0011`
+- `SPEC-0012`
+
 ## Active supporting decisions
 
 These ADRs remain accepted and implemented, but they are not the primary
@@ -59,7 +68,7 @@ operator-authority entrypoint identifiers.
 | [ADR-0010](./ADR-0010-enqueue-failure-and-readiness-semantics.md) | Fail enqueue on queue publish errors and scope readiness to critical dependencies | Accepted | 2026-03-05 |
 | [ADR-0011](./ADR-0011-cicd-hybrid-github-aws-promotion.md) | Hybrid CI/CD with GitHub CI and AWS-native Dev to Prod promotion | Accepted (umbrella decision) | 2026-03-05 |
 | [ADR-0012](./ADR-0012-no-lambda-runtime-scope.md) | Preserve ECS and SQS runtime scope and exclude Lambda orchestration | Accepted | 2026-02-24 |
-| [ADR-0013](./ADR-0013-final-state-sdk-topology-generated-core-plus-thin-adapters.md) | Public Python SDK topology uses generated contract-core clients while TypeScript remains generated/private and R stays deferred | Accepted | 2026-03-05 |
+| [ADR-0013](./ADR-0013-final-state-sdk-topology-generated-core-plus-thin-adapters.md) | Public Python SDK topology uses generated contract-core clients while TypeScript is release-grade in CodeArtifact and R is a first-class internal release line | Accepted | 2026-03-18 |
 | [ADR-0022](./ADR-0022-release-validation-read-access-iam-iac.md) | Release validation read role codified in Nova IaC for reproducible validation access | Accepted | 2026-03-02 |
 
 ## Superseded

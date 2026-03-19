@@ -64,8 +64,13 @@ Do not add compatibility aliases or retired legacy route families.
 Nova owns the SDK contract surface:
 
 - Python is the release-grade public SDK
-- TypeScript remains generated/private-distribution contract surface
-- R scaffolding remains in-repo for parity and must not be deleted
+- TypeScript is release-grade within Nova's existing CodeArtifact staged/prod
+  system, but remains generator-owned and subpath-only
+- R is a first-class internal release artifact line with real R packages,
+  logical format `r`, CodeArtifact generic package transport, and signed
+  tarball evidence
+- `docs/clients/README.md` stays secondary and is not the primary SDK release
+  authority
 
 OpenAPI 3.1 emitted from runtime code is the contract source for docs and SDK
 generation. Runtime contract tests enforce stable snake_case `operationId`

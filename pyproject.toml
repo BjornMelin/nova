@@ -62,6 +62,26 @@ nova-dash-bridge = { workspace = true }
 nova-file-api = { workspace = true }
 nova-runtime-support = { workspace = true }
 
+[tool.nova.release]
+
+[[tool.nova.release.units]]
+unit_id = "packages/nova_sdk_r_file"
+path = "packages/nova_sdk_r_file"
+project_name = "nova.sdk.r.file"
+dependencies = []
+format = "r"
+codeartifact_format = "generic"
+namespace = "nova"
+
+[[tool.nova.release.units]]
+unit_id = "packages/nova_sdk_r_auth"
+path = "packages/nova_sdk_r_auth"
+project_name = "nova.sdk.r.auth"
+dependencies = []
+format = "r"
+codeartifact_format = "generic"
+namespace = "nova"
+
 [tool.pytest.ini_options]
 minversion = "9.0"
 asyncio_mode = "strict"

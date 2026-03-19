@@ -24,6 +24,41 @@ def _write_pyproject(path: Path, name: str, version: str) -> None:
     )
 
 
+def _write_description(path: Path, name: str, version: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        "\n".join(
+            [
+                f"Package: {name}",
+                f"Version: {version}",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+
+def _write_release_pyproject(
+    path: Path,
+    unit_id: str,
+    project_name: str = "nova.sdk.r.file",
+) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        "[tool.uv]\n\n"
+        "[tool.nova.release]\n"
+        "\n[[tool.nova.release.units]]\n"
+        f'unit_id = "{unit_id}"\n'
+        f'path = "{unit_id}"\n'
+        f'project_name = "{project_name}"\n'
+        "dependencies = []\n"
+        'format = "r"\n'
+        'codeartifact_format = "generic"\n'
+        'namespace = "nova"\n',
+        encoding="utf-8",
+    )
+
+
 def test_apply_version_updates_changes_only_planned_units(
     tmp_path: Path,
 ) -> None:
@@ -69,6 +104,54 @@ def test_apply_version_updates_changes_only_planned_units(
     assert updated == ["packages/nova_file_api/pyproject.toml"]
     assert 'version = "0.1.1"' in file_api.read_text(encoding="utf-8")
     assert 'version = "0.1.0"' in dash.read_text(encoding="utf-8")
+
+
+def test_apply_version_updates_changes_r_description(
+    tmp_path: Path,
+) -> None:
+    repo_root = tmp_path
+    pyproject = repo_root / "pyproject.toml"
+    _write_release_pyproject(
+        pyproject,
+        "packages/nova_sdk_r_file",
+        project_name="nova.sdk.r.file",
+    )
+    original_pyproject = pyproject.read_text(encoding="utf-8")
+    description = repo_root / "packages/nova_sdk_r_file/DESCRIPTION"
+    _write_description(description, "nova.sdk.r.file", "0.1.0")
+
+    units = {
+        "packages/nova_sdk_r_file": common.WorkspaceUnit(
+            unit_id="packages/nova_sdk_r_file",
+            path=description.parent,
+            project_name="nova.sdk.r.file",
+            version="0.1.0",
+            dependencies=(),
+            package_format="r",
+            codeartifact_format="generic",
+            namespace="nova",
+        )
+    }
+    plan = {
+        "units": [
+            {
+                "unit_id": "packages/nova_sdk_r_file",
+                "old_version": "0.1.0",
+                "new_version": "0.1.1",
+            }
+        ]
+    }
+
+    updated = apply_versions.apply_version_updates(
+        repo_root=repo_root,
+        version_plan=plan,
+        units=units,
+        dry_run=False,
+    )
+
+    assert updated == ["packages/nova_sdk_r_file/DESCRIPTION"]
+    assert pyproject.read_text(encoding="utf-8") == original_pyproject
+    assert "Version: 0.1.1" in description.read_text(encoding="utf-8")
 
 
 def test_apply_version_updates_changes_npm_package_json(

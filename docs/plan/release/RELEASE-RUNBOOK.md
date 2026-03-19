@@ -2,7 +2,7 @@
 
 Status: Active
 Owner: nova release architecture
-Last updated: 2026-03-17
+Last updated: 2026-03-18
 
 ## 1. Purpose
 
@@ -51,9 +51,14 @@ Use the modular operator guide set for provisioning and setup details:
    - `CODEARTIFACT_STAGING_REPOSITORY`
    - `CODEARTIFACT_PROD_REPOSITORY`
    - `ECR_REPOSITORY_URI` (or `ECR_REPOSITORY_NAME`)
-7. Release-image build environments provide Docker BuildKit plus the `buildx`
+7. Release runners provide the R toolchain needed for `R CMD build` and
+   `R CMD check` on the package release line, and the shared conformance
+   helper (`scripts/checks/verify_r_cmd_check.sh`) fails the R lane if
+   `R CMD check` reports warnings, while running `R CMD check --no-manual`
+   so runners do not require `pdflatex`.
+8. Release-image build environments provide Docker BuildKit plus the `buildx`
    CLI plugin.
-8. IAM roles stack is deployed with promotion repository parameters:
+9. IAM roles stack is deployed with promotion repository parameters:
    - `CodeArtifactPromotionSourceRepositoryName`
    - `CodeArtifactPromotionDestinationRepositoryName`
 
@@ -88,15 +93,27 @@ Use the modular operator guide set for provisioning and setup details:
 1. Trigger `Publish Packages` manually from `main` with the successful
    `Nova Release Apply` run id.
 2. Confirm `scripts.release.codeartifact_gate` generated:
+   - `.artifacts/r-publish-report.json`
    - `.artifacts/codeartifact-gate-report.json`
    - `.artifacts/codeartifact-promotion-candidates.json`
    - `.artifacts/npm-publish-report.json` when npm packages participate
-3. Confirm Python package uploads use `twine` and npm package uploads use
-   `aws codeartifact login --tool npm` plus `npm publish --no-progress`.
+3. Confirm Python package uploads use `twine`, TypeScript package uploads use
+   `aws codeartifact login --tool npm` plus `npm publish --no-progress`, and
+   R package releases use `R CMD build` and `R CMD check` before tarball
+   evidence is stored. The R publish flow writes `.artifacts/r-publish-report.json`,
+   uploads the tarball and detached `.sig` as separate CodeArtifact generic
+   assets, publishes the tarball `--unfinished`, and rewrites the report with
+   `published_assets` after upload. The shared conformance helper
+   (`scripts/checks/verify_r_cmd_check.sh`) fails the R lane if `R CMD check`
+   reports warnings, while using `R CMD check --no-manual` so the lane does
+   not depend on `pdflatex`.
    When the runner uses npm 10.x, AWS CLI v2.9.5 or newer is required.
 4. Confirm staged npm smoke installs succeed from
-   `CODEARTIFACT_STAGING_REPOSITORY` before prod promotion.
-5. Confirm package uploads target `CODEARTIFACT_STAGING_REPOSITORY` only.
+   `CODEARTIFACT_STAGING_REPOSITORY` before prod promotion and validate the
+   release-grade TypeScript subpath contracts.
+5. Confirm package uploads target `CODEARTIFACT_STAGING_REPOSITORY` only and
+   that R generic package tarball and signature assets are captured as signed
+   release evidence.
 6. Confirm promotion copies from `CODEARTIFACT_STAGING_REPOSITORY` to
    `CODEARTIFACT_PROD_REPOSITORY`.
 
@@ -176,9 +193,13 @@ For each run capture:
 12. Immutable release-plan artifact continuity evidence:
     `changed-units.json` and `version-plan.json` consumed by release-apply and
     publish-packages from upstream workflow artifacts, not recomputed locally.
-13. For npm releases, retain the staged npm smoke output proving installability
-    and generated/private SDK subpath/client compatibility from CodeArtifact.
-14. Record the explicit `release_apply_run_id` used for staged publish.
+13. For TypeScript releases, retain the staged npm smoke output proving
+    installability, curated export shape, and subpath/client compatibility from
+    CodeArtifact.
+14. For R releases, retain the tarball path, signature path, both SHA256
+    values, build/check logs, `.artifacts/r-publish-report.json`, and
+    CodeArtifact generic package evidence.
+15. Record the explicit `release_apply_run_id` used for staged publish.
 
 ## 7. Local npm operator rule
 

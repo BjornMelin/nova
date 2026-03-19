@@ -244,9 +244,10 @@ Source all JSON payload inputs from `publish-packages.yml` gate artifacts.
 `docs/plan/release/RELEASE-VERSION-MANIFEST.md`. If the value is read from
 `codeartifact-gate-report.json`, treat that report as a carrier of the
 canonical manifest digest rather than the authority itself.
-`promotion_candidates_json` may now include both PyPI and npm candidates; npm
-entries keep the package scope in `package` and the bare scope name in
-`namespace`.
+`promotion_candidates_json` may include PyPI, npm, and R candidates. PyPI and
+npm entries omit tarball/signature evidence, npm entries keep the package scope
+in `package` and the bare scope name in `namespace`, and R entries include
+`tarball_sha256` plus `signature_sha256`.
 
 ## Endpoint and validation contract
 

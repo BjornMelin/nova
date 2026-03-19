@@ -149,7 +149,12 @@ def test_release_artifact_schema_contract_covers_required_gate_payloads() -> (
         assert required_def in defs
 
     workspace_unit_props = defs["workspace_unit_ref"]["properties"]
-    assert workspace_unit_props["format"]["enum"] == ["pypi", "npm"]
+    assert workspace_unit_props["format"]["enum"] == ["pypi", "npm", "r"]
+    assert workspace_unit_props["codeartifact_format"]["enum"] == [
+        "pypi",
+        "npm",
+        "generic",
+    ]
     changed_units_items = defs["changed_units"]["properties"]["changed_units"][
         "items"
     ]
@@ -157,20 +162,50 @@ def test_release_artifact_schema_contract_covers_required_gate_payloads() -> (
     version_plan_item_props = defs["version_plan"]["properties"]["units"][
         "items"
     ]["properties"]
-    assert changed_unit_item_props["format"]["enum"] == ["pypi", "npm"]
+    assert changed_unit_item_props["format"]["enum"] == [
+        "pypi",
+        "npm",
+        "r",
+    ]
+    assert changed_unit_item_props["codeartifact_format"]["enum"] == [
+        "pypi",
+        "npm",
+        "generic",
+    ]
     assert changed_unit_item_props["namespace"]["type"] == ["string", "null"]
-    assert version_plan_item_props["format"]["enum"] == ["pypi", "npm"]
+    assert version_plan_item_props["format"]["enum"] == [
+        "pypi",
+        "npm",
+        "r",
+    ]
+    assert version_plan_item_props["codeartifact_format"]["enum"] == [
+        "pypi",
+        "npm",
+        "generic",
+    ]
     assert version_plan_item_props["namespace"]["type"] == ["string", "null"]
     promotion_candidate_def = defs["promotion_candidate"]
     assert promotion_candidate_def["properties"]["format"]["enum"] == [
         "pypi",
         "npm",
+        "r",
     ]
+    assert promotion_candidate_def["properties"]["codeartifact_format"][
+        "enum"
+    ] == ["pypi", "npm", "generic"]
     assert promotion_candidate_def["properties"]["namespace"]["pattern"] == (
         "^[a-z0-9][a-z0-9-]*$"
     )
     assert promotion_candidate_def["properties"]["unit_id"]["type"] == "string"
     assert promotion_candidate_def["properties"]["unit_id"]["minLength"] == 1
+    assert (
+        promotion_candidate_def["properties"]["tarball_sha256"]["$ref"]
+        == "#/$defs/sha256_digest"
+    )
+    assert (
+        promotion_candidate_def["properties"]["signature_sha256"]["$ref"]
+        == "#/$defs/sha256_digest"
+    )
     assert (
         schema["properties"]["codeartifact_promotion_candidates"]["uniqueItems"]
         is True
@@ -186,6 +221,25 @@ def test_release_artifact_schema_contract_covers_required_gate_payloads() -> (
     )
     assert npm_condition["namespace"]["const"] == "nova"
     assert npm_condition["package"]["pattern"] == "^@nova/[a-z0-9][a-z0-9-]*$"
+    r_condition = next(
+        entry["then"]
+        for entry in promotion_candidate_def["allOf"]
+        if entry.get("if", {})
+        .get("properties", {})
+        .get("format", {})
+        .get("const")
+        == "r"
+    )
+    assert r_condition["required"] == [
+        "tarball_sha256",
+        "signature_sha256",
+    ]
+    r_props = r_condition["properties"]
+    assert r_props["codeartifact_format"]["const"] == "generic"
+    assert r_props["namespace"]["const"] == "nova"
+    assert r_props["package"]["pattern"] == ("^[a-z0-9][a-z0-9._-]{0,254}$")
+    assert r_props["tarball_sha256"]["$ref"] == "#/$defs/sha256_digest"
+    assert r_props["signature_sha256"]["$ref"] == "#/$defs/sha256_digest"
 
 
 def test_size_profiles_schema_contract_covers_dash_rshiny_react_next() -> None:

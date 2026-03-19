@@ -2,14 +2,15 @@
 
 Status: Active
 Owner: nova release architecture
-Last reviewed: 2026-03-05
+Last reviewed: 2026-03-18
 
 ## Purpose
 
 Provide minimal downstream integration artifacts for Dash, R Shiny, and
 React/Next consumers that call Nova reusable deployment and post-deploy
 validation contracts. These docs are workflow/integration authority, not public
-SDK release authority.
+SDK release authority. Keep this file secondary to the active architecture and
+release-policy docs.
 
 For SDK governance and repo engineering standards, use:
 
@@ -67,12 +68,15 @@ Integration adapter packages retained in-repo for downstream framework wiring:
 
 - `../../packages/nova_dash_bridge/`
 
-Generated/private-distribution SDK packages retained in-repo for conformance,
-private CodeArtifact publication, and future promotion work:
+TypeScript SDK packages retained in-repo as release-grade CodeArtifact
+staged/prod artifacts:
 
 - `../../packages/nova_sdk_file/`
 - `../../packages/nova_sdk_auth/`
 - `../../packages/nova_sdk_fetch/`
+
+R SDK packages retained in-repo as first-class internal release artifacts:
+
 - `../../packages/nova_sdk_r_file/`
 - `../../packages/nova_sdk_r_auth/`
 
@@ -81,15 +85,20 @@ authority. It consumes the canonical in-process bridge seam exposed by
 `nova_file_api.public`.
 
 All of these remain subordinate to the committed Nova OpenAPI contracts.
-Generated/private TypeScript SDK packages are transport-focused and do not ship
-bundled runtime validation.
+TypeScript SDK packages are release-grade within Nova's CodeArtifact
+staged/prod flow, remain subpath-only, and do not ship bundled runtime
+validation. R packages are built as real packages, transported through
+CodeArtifact generic packages, and evidenced with signed tarballs rather than a
+separate public registry.
 
 Generator-facing OpenAPI rules that downstream consumers can rely on:
 
 - stable, explicit snake_case `operationId` values for generated function
   names
 - semantic tags for generated package/module grouping
-- committed Python SDK artifacts and generated/private TypeScript SDK artifacts regenerated from
-  `../../packages/contracts/openapi/*.openapi.json`
-- generated/private TypeScript SDK `types` subpaths expose curated public
+- committed Python SDK artifacts and release-grade TypeScript SDK artifacts
+  regenerated from `../../packages/contracts/openapi/*.openapi.json`
+- release-grade TypeScript SDK `types` subpaths expose curated public
   operation helpers and reachable public schema aliases only
+- R package release artifacts are built from the same OpenAPI sources and
+  preserved as signed tarball evidence in release runs

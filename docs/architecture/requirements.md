@@ -1,7 +1,7 @@
 # Requirements (nova runtime)
 
 Status: Canonical requirements source
-Last updated: 2026-03-11
+Last updated: 2026-03-18
 
 This document is the source of truth for functional and non-functional
 requirements for the first production release.
@@ -24,9 +24,11 @@ requirements for the first production release.
 - Superseded ADR/SPEC material is archived only under
   `docs/architecture/adr/superseded/**` and
   `docs/architecture/spec/superseded/**`.
-- Public SDK policy for this release wave is Python only. TypeScript remains a
-  generated/private-distribution contract surface and R remains an
-  internal/generated catalog pending later promotion waves.
+- Public SDK policy for this release wave is Python public, TypeScript
+  release-grade within Nova's existing CodeArtifact staged/prod system while
+  remaining generator-owned and subpath-only, and R as a first-class internal
+  release artifact line with real packages, logical format `r`, CodeArtifact
+  generic package transport, and signed tarball evidence.
 
 ## Scope
 
