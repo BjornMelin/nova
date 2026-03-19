@@ -3,23 +3,56 @@
 from __future__ import annotations
 
 import json
+import operator
 import shutil
 import subprocess
 import sys
+from collections.abc import Callable
 from pathlib import Path
+from typing import cast
 
 import pytest
 
 from .helpers import REPO_ROOT, load_repo_module
 
-scope_detector = load_repo_module(
-    "tests.infra.detect_workflow_scopes",
-    "scripts/ci/detect_workflow_scopes.py",
+scope_detector = cast(
+    object,
+    load_repo_module(
+        "tests.infra.detect_workflow_scopes",
+        "scripts/ci/detect_workflow_scopes.py",
+    ),
+)
+scope_detector_build_outputs = cast(
+    Callable[[list[str]], dict[str, str]],
+    operator.attrgetter("_build_outputs")(scope_detector),
 )
 
 
 def _outputs(changed_files: list[str]) -> dict[str, str]:
-    return scope_detector._build_outputs(changed_files)
+    return scope_detector_build_outputs(changed_files)
+
+
+def _write_repo_file(
+    temp_repo: Path,
+    rel_path: str,
+    *,
+    content: str | None = None,
+) -> None:
+    target = temp_repo / rel_path
+    target.parent.mkdir(parents=True, exist_ok=True)
+    if content is None:
+        content = (REPO_ROOT / rel_path).read_text(encoding="utf-8")
+    _ = target.write_text(content, encoding="utf-8")
+
+
+def _run_git(git_executable: str, repo_root: Path, *args: str) -> str:
+    return subprocess.run(  # noqa: S603
+        [git_executable, *args],
+        check=True,
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
 
 
 def test_runtime_changes_enable_runtime_and_conformance_lanes() -> None:
@@ -74,7 +107,7 @@ def test_workflow_changes_mark_cfn_and_targeted_ci_lanes() -> None:
     assert outputs["run_conformance_required"] == "false"
     assert outputs["run_conformance_optional"] == "false"
     assert outputs["run_cfn"] == "true"
-    affected_units = json.loads(outputs["affected_units_json"])
+    affected_units = cast(list[str], json.loads(outputs["affected_units_json"]))
     assert affected_units == []
 
 
@@ -104,16 +137,30 @@ def test_scope_detector_cli_emits_expected_output_contract(
     """CLI contract should emit classifier outputs deterministically."""
     git_executable = shutil.which("git")
     assert git_executable, "git executable is required for CLI contract tests"
-    head_sha = subprocess.run(  # noqa: S603
-        [git_executable, "rev-parse", "HEAD"],
-        check=True,
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
-    ).stdout.strip()
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    _write_repo_file(
+        repo_root,
+        "pyproject.toml",
+        content="[tool.uv.workspace]\nmembers = []\n",
+    )
+    _write_repo_file(repo_root, "scripts/ci/detect_workflow_scopes.py")
+    _write_repo_file(repo_root, "scripts/release/common.py")
+    _ = _run_git(git_executable, repo_root, "init")
+    _ = _run_git(git_executable, repo_root, "config", "user.name", "Nova Tests")
+    _ = _run_git(
+        git_executable,
+        repo_root,
+        "config",
+        "user.email",
+        "nova-tests@example.com",
+    )
+    _ = _run_git(git_executable, repo_root, "add", ".")
+    _ = _run_git(git_executable, repo_root, "commit", "-m", "initial")
+    head_sha = _run_git(git_executable, repo_root, "rev-parse", "HEAD")
     output_path = tmp_path / "github-output.txt"
 
-    subprocess.run(  # noqa: S603
+    _ = subprocess.run(  # noqa: S603
         [
             sys.executable,
             "scripts/ci/detect_workflow_scopes.py",
@@ -127,7 +174,7 @@ def test_scope_detector_cli_emits_expected_output_contract(
             str(output_path),
         ],
         check=True,
-        cwd=REPO_ROOT,
+        cwd=repo_root,
     )
 
     output_lines = output_path.read_text(encoding="utf-8").splitlines()

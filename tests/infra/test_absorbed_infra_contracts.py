@@ -50,7 +50,11 @@ def _construct_cfn_tag(
     raise TypeError(f"Unsupported YAML node: {type(node)!r}")
 
 
-_CfnYamlLoader.add_multi_constructor("!", _construct_cfn_tag)
+yaml.add_multi_constructor(
+    "!",
+    _construct_cfn_tag,
+    Loader=_CfnYamlLoader,
+)
 
 
 def _section(text: str, start_marker: str, end_marker: str) -> str:

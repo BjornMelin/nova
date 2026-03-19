@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import nova_file_api.public as public
+import pytest
 from nova_file_api.transfer import TransferService
 
 
 def test_build_transfer_service_ignores_ambient_settings_env(
-    monkeypatch,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv("JOBS_RUNTIME_MODE", "worker")
 

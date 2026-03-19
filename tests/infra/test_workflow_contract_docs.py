@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from typing import Any
+from typing import Any, cast
 
 import yaml
 
@@ -12,7 +12,9 @@ from .helpers import read_repo_file as _read
 
 
 def _read_json(rel: str) -> dict[str, Any]:
-    return json.loads(_read(rel))
+    payload = json.loads(_read(rel))
+    assert isinstance(payload, dict)
+    return cast(dict[str, Any], payload)
 
 
 def _load_workflow_call(rel: str) -> dict[str, Any]:
