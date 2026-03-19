@@ -200,6 +200,7 @@ jobs:
                   if item.get("format") == "r"
               },
           )
+          print(f"r_unit_ids={json.dumps(r_unit_ids)}")
           print(f"has_r_units={'true' if r_unit_ids else 'false'}")
           print(f"r_unit_count={len(r_unit_ids)}")
           PY
@@ -318,13 +319,13 @@ jobs:
           r-version: "4.3.2"
 
       - name: Install R dependencies for nova.sdk.r.file
-        if: steps.release-units.outputs.has_r_units == 'true'
+        if: contains(fromJson(steps.release-units.outputs.r_unit_ids), 'packages/nova_sdk_r_file')
         uses: r-lib/actions/setup-r-dependencies@v2
         with:
           working-directory: packages/nova_sdk_r_file
 
       - name: Install R dependencies for nova.sdk.r.auth
-        if: steps.release-units.outputs.has_r_units == 'true'
+        if: contains(fromJson(steps.release-units.outputs.r_unit_ids), 'packages/nova_sdk_r_auth')
         uses: r-lib/actions/setup-r-dependencies@v2
         with:
           working-directory: packages/nova_sdk_r_auth
@@ -473,15 +474,19 @@ jobs:
         run: |
           set -euo pipefail
           R_PUBLISH_REPORT_ARGS=()
+          EXPECTED_MANIFEST_SHA256_ARGS=()
           if [[ "${{ steps.release-units.outputs.has_r_units }}" == "true" ]]; then
             R_PUBLISH_REPORT_ARGS=(--r-publish-report .artifacts/r-publish-report.json)
+          fi
+          if [[ -n "${EXPECTED_MANIFEST_SHA256:-}" ]]; then
+            EXPECTED_MANIFEST_SHA256_ARGS=(--expected-manifest-sha256 "${EXPECTED_MANIFEST_SHA256}")
           fi
           uv run python -m scripts.release.codeartifact_gate \
             --repo-root . \
             --manifest-path docs/plan/release/RELEASE-VERSION-MANIFEST.md \
             --changed-units .artifacts/changed-units.json \
             --version-plan .artifacts/version-plan.json \
-            --expected-manifest-sha256 "${EXPECTED_MANIFEST_SHA256}" \
+            "${EXPECTED_MANIFEST_SHA256_ARGS[@]}" \
             "${R_PUBLISH_REPORT_ARGS[@]}" \
             --gate-report-out .artifacts/codeartifact-gate-report.json \
             --promotion-candidates-out .artifacts/codeartifact-promotion-candidates.json
@@ -628,6 +633,89 @@ jobs:
                   )
 
               published_assets = []
+              describe_command = [
+                  "aws",
+                  "codeartifact",
+                  "describe-package-version",
+                  "--domain",
+                  os.environ["CODEARTIFACT_DOMAIN"],
+                  "--repository",
+                  os.environ["CODEARTIFACT_STAGING_REPOSITORY"],
+                  "--format",
+                  "generic",
+                  "--namespace",
+                  item["namespace"],
+                  "--package",
+                  package_name,
+                  "--package-version",
+                  package_version,
+                  "--region",
+                  os.environ["AWS_REGION"],
+                  "--output",
+                  "json",
+              ]
+              describe = subprocess.run(
+                  describe_command,
+                  check=False,
+                  text=True,
+                  capture_output=True,
+              )
+              published_asset_names = set()
+              if describe.returncode == 0:
+                  description = json.loads(describe.stdout or "{}")
+                  package_version_payload = description.get("packageVersion", {})
+                  raw_assets = (
+                      package_version_payload.get("assetList")
+                      or package_version_payload.get("assets")
+                      or package_version_payload.get("assetSummaries")
+                      or []
+                  )
+                  for raw_asset in raw_assets:
+                      if not isinstance(raw_asset, dict):
+                          continue
+                      raw_name = raw_asset.get("name")
+                      if isinstance(raw_name, str) and raw_name:
+                          published_asset_names.add(raw_name)
+              else:
+                  error_text = (describe.stderr or describe.stdout or "").lower()
+                  if "does not exist" not in error_text and "not found" not in error_text:
+                      raise SystemExit(
+                          f"failed to describe package-version {package_name} "
+                          f"{package_version}: {error_text or 'unknown error'}"
+                      )
+
+              has_tarball_asset = tarball_name in published_asset_names
+              has_signature_asset = signature_name in published_asset_names
+              if has_tarball_asset and has_signature_asset:
+                  item["published_assets"] = [
+                      {
+                          "asset_name": tarball_name,
+                          "asset_path": str(tarball_path),
+                          "asset_sha256": item["tarball_sha256"],
+                          "asset_exists": True,
+                          "skipped": True,
+                      },
+                      {
+                          "asset_name": signature_name,
+                          "asset_path": str(signature_path),
+                          "asset_sha256": item["signature_sha256"],
+                          "asset_exists": True,
+                          "skipped": True,
+                      },
+                  ]
+                  item["publish_output"] = {
+                      "status": "skipped",
+                      "reason": "all assets already present",
+                  }
+                  continue
+              if has_tarball_asset != has_signature_asset:
+                  raise SystemExit(
+                      "partial R publish state detected for "
+                      f"{package_name} {package_version}: "
+                      f"tarball_present={has_tarball_asset}, "
+                      f"signature_present={has_signature_asset}"
+                  )
+
               for asset_path, asset_name, asset_sha256, unfinished in (
                   (
                       tarball_path,

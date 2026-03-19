@@ -215,10 +215,21 @@ def _load_r_publish_report(
                 f"R publish report references unknown unit: {unit_id}"
             )
         unit = units[unit_id]
+        namespace = str(item.get("namespace", "")).strip()
         if unit.package_format != "r":
             raise GateError(
                 "R publish report may only contain R package evidence: "
                 f"{unit_id}"
+            )
+        if not namespace:
+            raise GateError(
+                f"R publish report namespace missing for unit {unit_id}"
+            )
+        if namespace != unit.namespace:
+            raise GateError(
+                "R publish report namespace mismatch for "
+                f"{unit_id}: report={namespace!r} "
+                f"workspace={unit.namespace!r}"
             )
         if package != unit.project_name:
             raise GateError(
@@ -229,6 +240,27 @@ def _load_r_publish_report(
             raise GateError(
                 "R publish report version mismatch for "
                 f"{unit_id}: report={version!r} workspace={unit.version!r}"
+            )
+        tarball_path = str(item.get("tarball_path", "")).strip()
+        signature_path = str(item.get("signature_path", "")).strip()
+        if not tarball_path:
+            raise GateError(
+                f"R publish report missing tarball_path for {unit_id}"
+            )
+        if not signature_path:
+            raise GateError(
+                f"R publish report missing signature_path for {unit_id}"
+            )
+        if not tarball_path.endswith(f"{version}.tar.gz"):
+            raise GateError(
+                "R publish report tarball metadata version mismatch for "
+                f"{unit_id}: package_version={version!r} path={tarball_path!r}"
+            )
+        if not signature_path.endswith(f"{version}.tar.gz.sig"):
+            raise GateError(
+                "R publish report signature metadata version mismatch for "
+                f"{unit_id}: package_version={version!r} path="
+                f"{signature_path!r}"
             )
         if not SHA256_RE.match(tarball_sha256):
             raise GateError(
@@ -241,8 +273,12 @@ def _load_r_publish_report(
         if unit_id in evidence_by_unit_id:
             raise GateError(f"duplicate unit_id in R publish report: {unit_id}")
         evidence_by_unit_id[unit_id] = {
+            "version": version,
+            "namespace": namespace,
             "tarball_sha256": tarball_sha256,
             "signature_sha256": signature_sha256,
+            "tarball_path": tarball_path,
+            "signature_path": signature_path,
         }
 
     return evidence_by_unit_id
@@ -276,6 +312,12 @@ def _load_candidates(
                 f"version plan unit not found in workspace: {unit_id}"
             )
         unit = units[unit_id]
+        if version != unit.version:
+            raise GateError(
+                "version plan new_version mismatch for unit "
+                f"{unit_id}: workspace={unit.version!r} "
+                f"plan={version!r}"
+            )
         item_format = item.get("format")
         if item_format is not None and item_format != unit.package_format:
             raise GateError(
@@ -306,6 +348,31 @@ def _load_candidates(
             if not evidence:
                 raise GateError(
                     "R release candidates require signed tarball evidence"
+                )
+            evidence_version = evidence.get("version", "").strip()
+            if evidence_version != unit.version:
+                raise GateError(
+                    "R publish report version mismatch for "
+                    f"{unit_id}: evidence={evidence_version!r} "
+                    f"workspace={unit.version!r}"
+                )
+            tarball_path = evidence.get("tarball_path", "").strip()
+            signature_path = evidence.get("signature_path", "").strip()
+            if not tarball_path or not signature_path:
+                raise GateError(
+                    "R publish report missing tarball/signature metadata for "
+                    f"{unit_id}"
+                )
+            if not tarball_path.endswith(f"{unit.version}.tar.gz"):
+                raise GateError(
+                    "R publish evidence tarball metadata version mismatch for "
+                    f"{unit_id}: version={unit.version!r} path={tarball_path!r}"
+                )
+            if not signature_path.endswith(f"{unit.version}.tar.gz.sig"):
+                raise GateError(
+                    "R publish evidence signature metadata mismatch for "
+                    f"{unit_id}: version={unit.version!r} path="
+                    f"{signature_path!r}"
                 )
             consumed_r_evidence.add(unit_id)
         candidates.append(
