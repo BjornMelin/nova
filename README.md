@@ -87,9 +87,8 @@ values and semantic tags for public grouping.
 For detailed SDK governance and generation rules, use:
 
 - `docs/standards/repository-engineering-standards.md`
-- `docs/architecture/spec/SPEC-0011-multi-language-sdk-architecture-and-package-map.md`
-- `docs/architecture/spec/SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md`
 - `docs/architecture/spec/SPEC-0029-sdk-architecture-and-artifact-contract.md`
+- `docs/architecture/spec/SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md`
 
 ## Key Runtime Invariants
 

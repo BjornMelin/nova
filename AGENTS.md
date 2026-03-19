@@ -96,11 +96,9 @@ SDK posture:
   - `docs/architecture/spec/SPEC-0025-reusable-workflow-integration-contract.md`
   - `docs/architecture/spec/SPEC-0026-ci-cd-iam-least-privilege-matrix.md`
 - SDK and release-artifact governance pack:
-  - `docs/architecture/adr/ADR-0013-final-state-sdk-topology-generated-core-plus-thin-adapters.md`
   - `docs/architecture/adr/ADR-0038-sdk-architecture-by-language.md`
-  - `docs/architecture/spec/SPEC-0011-multi-language-sdk-architecture-and-package-map.md`
-  - `docs/architecture/spec/SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md`
   - `docs/architecture/spec/SPEC-0029-sdk-architecture-and-artifact-contract.md`
+  - `docs/architecture/spec/SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md`
 
 ## Canonical Guardrails
 

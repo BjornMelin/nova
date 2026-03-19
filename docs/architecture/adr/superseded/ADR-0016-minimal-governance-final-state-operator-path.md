@@ -4,6 +4,7 @@ Title: Minimal governance final-state operator path
 Status: Superseded
 Version: 1.0
 Date: 2026-03-02
+Superseded-by: "[ADR-0024: Layered runtime authority pack for the Nova monorepo](../ADR-0024-layered-architecture-authority-pack.md)"
 Related:
   - "[ADR-0011: Hybrid CI/CD with GitHub and AWS promotion](../ADR-0011-cicd-hybrid-github-aws-promotion.md)"
   - "[ADR-0014: container-craft absorption and repo retirement](./ADR-0014-container-craft-capability-absorption-and-repo-retirement.md)"

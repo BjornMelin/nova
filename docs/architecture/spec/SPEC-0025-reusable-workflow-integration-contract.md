@@ -4,6 +4,7 @@ Title: Reusable workflow integration contract
 Status: Active
 Version: 1.1
 Date: 2026-03-05
+Supersedes: "[SPEC-0018 (superseded): Reusable workflow integration contract](./superseded/SPEC-0018-reusable-workflow-integration-contract.md)"
 Related:
   - "[ADR-0031: Reusable GitHub workflow API and versioning policy for deployment automation](../adr/ADR-0031-reusable-github-workflow-api-and-versioning-policy-for-deployment-automation.md)"
   - "[ADR-0028: Auth0 tenant ops reusable workflow API contract](../adr/ADR-0028-auth0-tenant-ops-reusable-workflow-api-contract.md)"

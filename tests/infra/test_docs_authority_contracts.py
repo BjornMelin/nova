@@ -261,6 +261,7 @@ def test_agents_active_authority_pack_has_final_split() -> None:
         "docs/standards/README.md",
         "ADR-0033-single-runtime-auth-authority.md",
         "SPEC-0027-public-http-contract-revision-and-bearer-auth.md",
+        "SPEC-0029-sdk-architecture-and-artifact-contract.md",
         "bearer JWT",
         "uv run ruff check . --select I",
         "uv run ruff format . --check",
@@ -323,6 +324,7 @@ def test_authority_docs_reference_restored_runtime_set() -> None:
             "SPEC-0022",
             "SPEC-0023",
             "SPEC-0027",
+            "SPEC-0029",
         ]:
             assert required in text, f"{rel_path} missing {required}"
 
@@ -337,6 +339,7 @@ def test_active_docs_do_not_reference_displaced_deploy_authority_paths() -> (
         "SPEC-0017-cloudformation-module-contract.md",
         "SPEC-0018-reusable-workflow-integration-contract.md",
         "SPEC-0019-ci-cd-iam-least-privilege-and-role-boundary-contract.md",
+        "SPEC-0011-multi-language-sdk-architecture-and-package-map.md",
     ]
 
     violations: list[str] = []

@@ -4,14 +4,15 @@ Title: Absorb remaining container-craft Nova capabilities into nova and retire c
 Status: Superseded
 Version: 1.0
 Date: 2026-02-28
+Superseded-by: "[ADR-0024: Layered runtime authority pack for the Nova monorepo](../ADR-0024-layered-architecture-authority-pack.md)"
 Related:
   - "[ADR-0011: Hybrid CI/CD with GitHub and AWS promotion](../ADR-0011-cicd-hybrid-github-aws-promotion.md)"
   - "[ADR-0012: No Lambda runtime scope](../ADR-0012-no-lambda-runtime-scope.md)"
   - "[ADR-0015: Nova API platform final hosting and deployment architecture (2026)](../ADR-0015-nova-api-platform-final-hosting-and-deployment-architecture-2026.md)"
   - "[ADR-0023: Hard cut to a single canonical /v1 API surface](../ADR-0023-hard-cut-v1-canonical-route-surface.md)"
   - "[ADR-0024: Layered runtime authority pack for the Nova monorepo](../ADR-0024-layered-architecture-authority-pack.md)"
-  - "[ADR-0025: Reusable GitHub workflow API and versioning policy for deployment automation](../ADR-0025-reusable-workflow-api-and-versioning-policy.md)"
-  - "[ADR-0026: OIDC and IAM role partitioning for deploy automation](../ADR-0026-oidc-iam-role-partitioning-for-deploy-automation.md)"
+  - "[ADR-0025: Reusable GitHub workflow API and versioning policy (superseded predecessor)](./ADR-0025-reusable-workflow-api-and-versioning-policy.md)"
+  - "[ADR-0026: OIDC and IAM role partitioning for deploy automation (superseded predecessor)](./ADR-0026-oidc-iam-role-partitioning-for-deploy-automation.md)"
   - "[ADR-0030: Native-CFN modular stack architecture for Nova infrastructure productization](../ADR-0030-native-cfn-modular-stack-architecture-for-nova-infrastructure-productization.md)"
   - "[ADR-0031: Reusable GitHub workflow API and versioning policy for deployment automation](../ADR-0031-reusable-github-workflow-api-and-versioning-policy-for-deployment-automation.md)"
   - "[ADR-0032: OIDC and IAM role partitioning for deploy automation](../ADR-0032-oidc-and-iam-role-partitioning-for-deploy-automation.md)"

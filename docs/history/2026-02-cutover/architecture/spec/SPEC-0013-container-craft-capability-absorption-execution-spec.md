@@ -5,8 +5,8 @@ Status: Active
 Version: 1.0
 Date: 2026-02-28
 Related:
-  - "[ADR-0014: Absorb remaining container-craft Nova capabilities into nova and retire container-craft](../adr/ADR-0014-container-craft-capability-absorption-and-repo-retirement.md)"
-  - "[ADR-0011: Hybrid CI/CD with GitHub and AWS promotion](../adr/ADR-0011-cicd-hybrid-github-aws-promotion.md)"
+  - "[ADR-0014: Absorb remaining container-craft Nova capabilities into nova and retire container-craft](../../../../architecture/adr/superseded/ADR-0014-container-craft-capability-absorption-and-repo-retirement.md)"
+  - "[ADR-0011: Hybrid CI/CD with GitHub and AWS promotion](../../../../architecture/adr/ADR-0011-cicd-hybrid-github-aws-promotion.md)"
   - "[SPEC-0004: CI/CD and documentation automation](./SPEC-0004-ci-cd-and-docs.md)"
 ---
 

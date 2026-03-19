@@ -1,13 +1,13 @@
 # Decision Frameworks and Scores
 
-> **Canonical option tables and narrative** for each decision now live in the pack ADRs under [`adr/`](adr/README.md). This file keeps **scoring rules**, **framework weight definitions**, the **promotion summary**, and pointers to rejected options so the audit methodology stays in one place without duplicating large matrices.
+> **Canonical option tables and narrative** for each decision now live under [`docs/architecture/adr/`](../../architecture/adr/index.md). This file keeps **scoring rules**, **framework weight definitions**, the **promotion summary**, and pointers to rejected options so the audit methodology stays in one place without duplicating large matrices.
 
 This document defines the custom weighted scoring systems used in the second-pass audit and indexes the scored options for each major decision.
 
 ## Scoring rules
 
 - Every major decision is scored on a **1.0–10.0** scale.
-- Only options scoring **9.0 or higher** are promoted into the final implementation program (with the **AWS composite** nuance documented in [ADR-0007](adr/ADR-0007-aws-target-platform.md)).
+- Only options scoring **9.0 or higher** are promoted into the final implementation program (with the **AWS composite** nuance documented in [ADR-0039](../../architecture/adr/ADR-0039-aws-target-platform.md)).
 - Code/runtime and SDK matrices use **1–10 per criterion**.
 - AWS matrices use **1–5 per criterion**, then normalize to a 10-point final score.
 
@@ -31,12 +31,12 @@ Interpretation:
 
 | Topic | ADR |
 | --- | --- |
-| Auth topology | [ADR-0001](adr/ADR-0001-single-runtime-auth-authority.md) |
-| Public auth contract | [ADR-0002](adr/ADR-0002-bearer-jwt-public-auth-contract.md) |
-| Worker result update path | [ADR-0003](adr/ADR-0003-worker-direct-result-persistence.md) |
-| OpenAPI and operation-id strategy | [ADR-0004](adr/ADR-0004-native-fastapi-contract-expression.md) |
-| Middleware and error strategy | [ADR-0009](adr/ADR-0009-shared-pure-asgi-middleware-and-errors.md) |
-| Public Python surface and adapter strategy | [ADR-0005](adr/ADR-0005-async-first-public-surface.md) |
+| Auth topology | [ADR-0033](../../architecture/adr/ADR-0033-single-runtime-auth-authority.md) |
+| Public auth contract | [ADR-0034](../../architecture/adr/ADR-0034-bearer-jwt-public-auth-contract.md) |
+| Worker result update path | [ADR-0035](../../architecture/adr/ADR-0035-worker-direct-result-persistence.md) |
+| OpenAPI and operation-id strategy | [ADR-0036](../../architecture/adr/ADR-0036-native-fastapi-openapi-contract.md) |
+| Middleware and error strategy | [ADR-0041](../../architecture/adr/ADR-0041-shared-pure-asgi-middleware-and-errors.md) |
+| Public Python surface and adapter strategy | [ADR-0037](../../architecture/adr/ADR-0037-async-first-public-surface.md) |
 
 ## Framework B — SDK strategy
 
@@ -54,7 +54,7 @@ Interpretation:
 - language-ecosystem fit matters because these SDKs must feel native to their consumers
 - maintenance burden reduction is weighted heavily because current Nova spends too much code on SDK scaffolding
 
-**ADR index (Framework B):** [ADR-0006 — SDK architecture by language](adr/ADR-0006-sdk-architecture-by-language.md) (TypeScript, Python, R subsections).
+**ADR index (Framework B):** [ADR-0038 — SDK architecture by language](../../architecture/adr/ADR-0038-sdk-architecture-by-language.md) (TypeScript, Python, R subsections).
 
 ## Framework C — AWS architecture
 
@@ -73,27 +73,27 @@ Interpretation:
 - this is the AWS-focused architecture matrix used to choose compute, front door, and datastore options
 - it matches the recommended weighting pattern for serious AWS architecture reviews
 
-**ADR index (Framework C):** [ADR-0007 — AWS target platform](adr/ADR-0007-aws-target-platform.md) (compute, front door, datastore, end-to-end tables).
+**ADR index (Framework C):** [ADR-0039 — AWS target platform](../../architecture/adr/ADR-0039-aws-target-platform.md) (compute, front door, datastore, end-to-end tables).
 
 ## Final promoted decisions (all >= 9.0)
 
 | Decision | Winning option | Score /10 | ADR |
 | --- | --- | --- | --- |
-| Auth topology | Inline async verifier in file API and delete auth service | 9.70 | [ADR-0001](adr/ADR-0001-single-runtime-auth-authority.md) |
-| Public auth contract | Bearer JWT only; derive scope from claims | 9.35 | [ADR-0002](adr/ADR-0002-bearer-jwt-public-auth-contract.md) |
-| Worker result update path | Direct service/repository updates from worker | 9.35 | [ADR-0003](adr/ADR-0003-worker-direct-result-persistence.md) |
-| OpenAPI and operation-id strategy | Native FastAPI contract features with minimal hooks | 9.10 | [ADR-0004](adr/ADR-0004-native-fastapi-contract-expression.md) |
-| Middleware and error strategy | Shared pure ASGI middleware + shared error registration | 9.15 | [ADR-0009](adr/ADR-0009-shared-pure-asgi-middleware-and-errors.md) |
-| Public Python surface and adapter strategy | Async-first canonical surface + thin sync adapters | 9.35 | [ADR-0005](adr/ADR-0005-async-first-public-surface.md) |
-| TypeScript SDK strategy | openapi-typescript + openapi-fetch | 9.50 | [ADR-0006](adr/ADR-0006-sdk-architecture-by-language.md) |
-| Python SDK strategy | openapi-python-client with config + minimal templates | 9.10 | [ADR-0006](adr/ADR-0006-sdk-architecture-by-language.md) |
-| R SDK strategy | Thin httr2 package with minimal metadata/codegen | 9.10 | [ADR-0006](adr/ADR-0006-sdk-architecture-by-language.md) |
-| AWS datastore choice | DynamoDB | 9.31 | [ADR-0007](adr/ADR-0007-aws-target-platform.md) |
-| End-to-end platform architecture | CloudFront + ALB + ECS/Fargate + S3/SQS/DynamoDB | 9.23 | [ADR-0007](adr/ADR-0007-aws-target-platform.md) |
+| Auth topology | Inline async verifier in file API and delete auth service | 9.70 | [ADR-0033](../../architecture/adr/ADR-0033-single-runtime-auth-authority.md) |
+| Public auth contract | Bearer JWT only; derive scope from claims | 9.35 | [ADR-0034](../../architecture/adr/ADR-0034-bearer-jwt-public-auth-contract.md) |
+| Worker result update path | Direct service/repository updates from worker | 9.35 | [ADR-0035](../../architecture/adr/ADR-0035-worker-direct-result-persistence.md) |
+| OpenAPI and operation-id strategy | Native FastAPI contract features with minimal hooks | 9.10 | [ADR-0036](../../architecture/adr/ADR-0036-native-fastapi-openapi-contract.md) |
+| Middleware and error strategy | Shared pure ASGI middleware + shared error registration | 9.15 | [ADR-0041](../../architecture/adr/ADR-0041-shared-pure-asgi-middleware-and-errors.md) |
+| Public Python surface and adapter strategy | Async-first canonical surface + thin sync adapters | 9.35 | [ADR-0037](../../architecture/adr/ADR-0037-async-first-public-surface.md) |
+| TypeScript SDK strategy | openapi-typescript + openapi-fetch | 9.50 | [ADR-0038](../../architecture/adr/ADR-0038-sdk-architecture-by-language.md) |
+| Python SDK strategy | openapi-python-client with config + minimal templates | 9.10 | [ADR-0038](../../architecture/adr/ADR-0038-sdk-architecture-by-language.md) |
+| R SDK strategy | Thin httr2 package with minimal metadata/codegen | 9.10 | [ADR-0038](../../architecture/adr/ADR-0038-sdk-architecture-by-language.md) |
+| AWS datastore choice | DynamoDB | 9.31 | [ADR-0039](../../architecture/adr/ADR-0039-aws-target-platform.md) |
+| End-to-end platform architecture | CloudFront + ALB + ECS/Fargate + S3/SQS/DynamoDB | 9.23 | [ADR-0039](../../architecture/adr/ADR-0039-aws-target-platform.md) |
 
 ## Repo rebaseline (program step)
 
-The final branch **chore/repo-rebaseline-ci-release** is scored **9.17/10** in [manifest.json](manifest.json) as program prioritization. Narrative and commitments: [ADR-0008](adr/ADR-0008-repo-rebaseline-after-cuts.md).
+The final branch **chore/repo-rebaseline-ci-release** is scored **9.17/10** in [manifest.json](manifest.json) as program prioritization. Narrative and commitments: [ADR-0040](../../architecture/adr/ADR-0040-repo-rebaseline-after-cuts.md).
 
 ## Not promoted into the final implementation program
 

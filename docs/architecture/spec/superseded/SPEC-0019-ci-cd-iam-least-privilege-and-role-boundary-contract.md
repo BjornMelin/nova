@@ -2,17 +2,17 @@
 Spec: 0019
 Title: CI/CD IAM least-privilege and role-boundary contract
 Status: Superseded
-SupersededBy: "[SPEC-0026: CI/CD IAM least-privilege matrix](../SPEC-0026-ci-cd-iam-least-privilege-matrix.md)"
+Superseded-by: "[SPEC-0026: CI/CD IAM least-privilege matrix](../SPEC-0026-ci-cd-iam-least-privilege-matrix.md)"
 Version: 1.1
 Date: 2026-03-03
 Related:
-  - "[requirements.md](../requirements.md)"
-  - "[ADR-0023: Hard-cut v1 canonical route surface](../adr/ADR-0023-hard-cut-v1-canonical-route-surface.md)"
-  - "[SPEC-0000: HTTP API contract](./SPEC-0000-http-api-contract.md)"
-  - "[SPEC-0016: v1 route namespace and literal guardrails](./SPEC-0016-v1-route-namespace-and-literal-guardrails.md)"
-  - "[ADR-0026: OIDC and IAM role partitioning for deploy automation](../adr/ADR-0026-oidc-iam-role-partitioning-for-deploy-automation.md)"
-  - "[SPEC-0017: CloudFormation module contract](./SPEC-0017-cloudformation-module-contract.md)"
-  - "[SPEC-0001: Security model](./SPEC-0001-security-model.md)"
+  - "[requirements.md](../../requirements.md)"
+  - "[ADR-0023: Hard-cut v1 canonical route surface](../../adr/ADR-0023-hard-cut-v1-canonical-route-surface.md)"
+  - "[SPEC-0000: HTTP API contract](../SPEC-0000-http-api-contract.md)"
+  - "[SPEC-0016: v1 route namespace and literal guardrails](../SPEC-0016-v1-route-namespace-and-literal-guardrails.md)"
+  - "[ADR-0026: OIDC and IAM role partitioning for deploy automation (superseded)](../../adr/superseded/ADR-0026-oidc-iam-role-partitioning-for-deploy-automation.md)"
+  - "[SPEC-0017: CloudFormation module contract (superseded)](./SPEC-0017-cloudformation-module-contract.md)"
+  - "[SPEC-0001: Security model](../SPEC-0001-security-model.md)"
 ---
 
 ## 1. Scope
@@ -63,6 +63,6 @@ CloudFormation execution, and CI/CD service roles.
 
 ## 7. Traceability
 
-- [NFR-0000](../requirements.md#nfr-0000-security-baseline)
-- [NFR-0105](../requirements.md#nfr-0105-contract-traceability)
-- [IR-0000](../requirements.md#ir-0000-nova-local-runtime-and-release-authority)
+- [NFR-0000](../../requirements.md#nfr-0000-security-baseline)
+- [NFR-0105](../../requirements.md#nfr-0105-contract-traceability)
+- [IR-0000](../../requirements.md#ir-0000-nova-local-runtime-and-release-authority)

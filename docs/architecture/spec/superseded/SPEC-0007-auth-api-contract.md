@@ -8,7 +8,7 @@ Date: 2026-03-03
 Related:
   - "[SPEC-0006: JWT/OIDC verification and principal mapping](../SPEC-0006-jwt-oidc-verification-and-principal-mapping.md)"
   - "[SPEC-0000: HTTP API contract](../SPEC-0000-http-api-contract.md)"
-  - "[ADR-0005: Add dedicated nova-auth-api service (superseded)](../adr/superseded/ADR-0005-add-dedicated-nova-auth-api-service.md)"
+  - "[ADR-0005: Add dedicated nova-auth-api service (superseded)](../../adr/superseded/ADR-0005-add-dedicated-nova-auth-api-service.md)"
 References:
   - "[RFC 7662 OAuth Token Introspection](https://www.rfc-editor.org/rfc/rfc7662)"
   - "[RFC 6750 Bearer Token Usage](https://datatracker.ietf.org/doc/html/rfc6750)"

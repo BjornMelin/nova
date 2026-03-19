@@ -4,10 +4,11 @@ Title: Green-field SDK architecture by language
 Status: Accepted
 Version: 1.0
 Date: 2026-03-19
+Supersedes: "[ADR-0013: Final-state SDK topology (superseded)](./superseded/ADR-0013-final-state-sdk-topology-generated-core-plus-thin-adapters.md)"
 Related:
   - "[SPEC-0029: SDK architecture and artifact contract](../spec/SPEC-0029-sdk-architecture-and-artifact-contract.md)"
-  - "[ADR-0013: Final-state SDK topology](./ADR-0013-final-state-sdk-topology-generated-core-plus-thin-adapters.md)"
-  - "[SPEC-0011: Multi-language SDK architecture and package map](../spec/SPEC-0011-multi-language-sdk-architecture-and-package-map.md)"
+  - "[ADR-0013: Final-state SDK topology (superseded)](./superseded/ADR-0013-final-state-sdk-topology-generated-core-plus-thin-adapters.md)"
+  - "[SPEC-0011: Multi-language SDK architecture and package map (superseded)](../spec/superseded/SPEC-0011-multi-language-sdk-architecture-and-package-map.md)"
   - "[SPEC-0012: SDK conformance, versioning, and compatibility governance](../spec/SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md)"
   - "[ADR-0033: Green-field single runtime auth authority](./ADR-0033-single-runtime-auth-authority.md)"
   - "[Green-field simplification program](../../plan/greenfield-simplification-program.md)"
@@ -32,7 +33,7 @@ options score **≥ 9.10** under Framework B (see evidence file).
 - Auth-only SDK packages go away with
   [ADR-0033](./ADR-0033-single-runtime-auth-authority.md).
 - TypeScript and R moves must **preserve**
-  [SPEC-0011](../spec/SPEC-0011-multi-language-sdk-architecture-and-package-map.md)
+  [SPEC-0029](../spec/SPEC-0029-sdk-architecture-and-artifact-contract.md)
   / [SPEC-0012](../spec/SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md)
   and `AGENTS.md` invariants: no `zod` in generated TS SDKs, no package-root
   `"."` exports, no barrel re-exports, explicit `contentType` for multi-media
@@ -88,5 +89,6 @@ tooling leverage 15%, migration clarity 10%.
 
 ## Changelog
 
+- 2026-03-19: Recorded formal supersession of [ADR-0013](./superseded/ADR-0013-final-state-sdk-topology-generated-core-plus-thin-adapters.md) (moved to `superseded/`).
 - 2026-03-19: Canonical ADR ported from green-field pack ADR-0006; explicit
-  SPEC-0011/SPEC-0012 invariant preservation.
+  SPEC-0029/SPEC-0012 invariant preservation.

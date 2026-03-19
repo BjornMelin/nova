@@ -2,12 +2,12 @@
 Spec: 0029
 Title: SDK architecture and artifact contract
 Status: Active
-Version: 1.0
+Version: 1.1
 Date: 2026-03-19
+Supersedes: "[SPEC-0011: Multi-language SDK architecture and package map (superseded)](./superseded/SPEC-0011-multi-language-sdk-architecture-and-package-map.md)"
 Related:
   - "[ADR-0038: Green-field SDK architecture by language](../adr/ADR-0038-sdk-architecture-by-language.md)"
-  - "[ADR-0013: Final-state SDK topology](../adr/ADR-0013-final-state-sdk-topology-generated-core-plus-thin-adapters.md)"
-  - "[SPEC-0011: Multi-language SDK architecture and package map](./SPEC-0011-multi-language-sdk-architecture-and-package-map.md)"
+  - "[ADR-0013: Final-state SDK topology (superseded)](../adr/superseded/ADR-0013-final-state-sdk-topology-generated-core-plus-thin-adapters.md)"
   - "[SPEC-0012: SDK conformance, versioning, and compatibility governance](./SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md)"
   - "[requirements.md](../requirements.md)"
 ---
@@ -18,10 +18,11 @@ Define the **target** per-language SDK architecture and published artifacts
 after the green-field program ([ADR-0038](../adr/ADR-0038-sdk-architecture-by-language.md)).
 
 This SPEC **implements** the topology intent of
-[ADR-0013](../adr/ADR-0013-final-state-sdk-topology-generated-core-plus-thin-adapters.md)
-and **must remain aligned** with
-[SPEC-0011](./SPEC-0011-multi-language-sdk-architecture-and-package-map.md) and
-[SPEC-0012](./SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md).
+[ADR-0013](../adr/superseded/ADR-0013-final-state-sdk-topology-generated-core-plus-thin-adapters.md)
+and is the active successor to superseded
+[SPEC-0011](./superseded/SPEC-0011-multi-language-sdk-architecture-and-package-map.md).
+[SPEC-0012](./SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md)
+remains the authority for conformance, versioning, and compatibility governance.
 
 ## 2. Artifacts
 
@@ -65,13 +66,92 @@ and **must remain aligned** with
 - Build, typecheck, and smoke-check commands remain in CI.
 - Docs and examples must track the final artifact surface.
 
-## 7. Traceability
+## 7. Package map and repository layout (target)
+
+### 7.1 Contracts source
+
+- `packages/contracts/openapi/nova-file-api.openapi.json` is the canonical
+  public OpenAPI artifact for SDK generation inputs.
+
+### 7.2 Python
+
+- One generated public file client package (for example `nova_sdk_py_file`).
+- `nova_dash_bridge` remains a thin adapter: framework glue and header
+  forwarding only; it calls `nova_file_api.public` and must not own route or
+  auth authority.
+
+### 7.3 TypeScript
+
+- One release-grade generated package (for example `@nova/sdk-file`) with
+  explicit subpath exports (`client`, `types`, `operations`, `errors`, and
+  similar generator-owned surfaces).
+- `types` subpaths expose curated operation helpers and reachable public schema
+  aliases only; raw whole-spec OpenAPI aliases are not public contract surface.
+
+### 7.4 R
+
+- One first-class internal release package (for example `nova.sdk.r.file`).
+- Logical format `r`, CodeArtifact generic transport, tarball plus detached
+  `.sig`, with release evidence recording `tarball_sha256` and
+  `signature_sha256`.
+
+## 8. Required client behaviors
+
+Public Python, TypeScript, and R SDKs must support:
+
+- explicit base URL configuration
+- configurable timeout
+- optional request-id header forwarding
+- OpenAPI-aligned request-body serialization for the media types declared by each
+  public operation
+- structured error envelope decoding (`error.code`, `error.message`,
+  `error.request_id`)
+- typed request/response payload models
+
+TypeScript: single-media bodies may use generator-supplied default media types;
+multi-media bodies must expose explicit generated `contentType` selection when
+the wire format would otherwise be ambiguous.
+
+R: preserve OpenAPI-driven wire behavior with package-native constructors,
+namespace generation, and deterministic tarball evidence across releases.
+
+## 9. Auth contract surface (public SDKs)
+
+Public callers authenticate with **bearer JWT** verified in the file API
+runtime per
+[SPEC-0027](./SPEC-0027-public-http-contract-revision-and-bearer-auth.md).
+There is **no** generated client surface for `POST /v1/token/verify`,
+`POST /v1/token/introspect`, or other retired dedicated-auth routes.
+
+## 10. Repository ownership and delivery
+
+Nova owns OpenAPI contract sources, generated SDK definitions, and release
+governance for Python public, TypeScript CodeArtifact, and R internal packages.
+
+Consumer repos own application logic, framework wiring, and optional wrappers
+that do not override SDK contract behavior.
+
+- Canonical OpenAPI artifacts are exported and committed before SDK generation.
+- `scripts/release/generate_clients.py` is the deterministic generator entry
+  point for TypeScript SDK artifacts and R package sources.
+- `scripts/release/generate_python_clients.py` is the deterministic generator
+  entry point for committed Python SDK package trees.
+- TypeScript artifacts must stay deterministic in CI and retain published
+  subpath contracts.
+- R package sources and tarball evidence must stay deterministic in CI and be
+  promoted through CodeArtifact generic packages.
+
+## 11. Traceability
 
 - [GFR-R6](../requirements.md#gfr-r6--sdks-must-feel-native-per-language)
 - [GFR-R8](../requirements.md#gfr-r8--one-client-artifact-family-per-language)
 - [GFR-R9](../requirements.md#gfr-r9--deterministic-build-and-verification)
+- [FR-0008](../requirements.md#fr-0008-openapi-contract-ownership)
+- [NFR-0004](../requirements.md#nfr-0004-cicd-and-quality-gates)
 
 ## Changelog
 
-- 2026-03-19: Initial canonical SPEC; ports green-field pack SPEC-0003 with
+- 2026-03-19: v1.1 — Active successor to SPEC-0011; add package map, client
+  behaviors, ownership/delivery, and bearer-only auth surface for SDKs.
+- 2026-03-19: v1.0 — Initial canonical SPEC; ports green-field pack SPEC-0003 with
   explicit SPEC-0011/SPEC-0012 alignment.

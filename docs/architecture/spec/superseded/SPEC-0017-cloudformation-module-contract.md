@@ -2,6 +2,7 @@
 Spec: 0017
 Title: CloudFormation module contract
 Status: Superseded
+Superseded-by: "[SPEC-0024: CloudFormation module contract](../SPEC-0024-cloudformation-module-contract.md)"
 Version: 1.2
 Date: 2026-03-05
 Related:
@@ -9,7 +10,7 @@ Related:
   - "[SPEC-0000: HTTP API Contract](../SPEC-0000-http-api-contract.md)"
   - "[SPEC-0016: Hard-cut v1 route contract and route-literal guardrails](../SPEC-0016-v1-route-namespace-and-literal-guardrails.md)"
   - "[requirements.md](../../requirements.md)"
-  - "[ADR-0024: Native-CFN modular stack architecture for Nova infrastructure productization](../../adr/ADR-0024-layered-architecture-authority-pack.md)"
+  - "[ADR-0030: Native-CFN modular stack architecture for Nova infrastructure productization](../../adr/ADR-0030-native-cfn-modular-stack-architecture-for-nova-infrastructure-productization.md)"
   - "[ADR-0029: SSM runtime base URL authority for deploy validation](../../adr/ADR-0029-ssm-runtime-base-url-authority-for-deploy-validation.md)"
   - "[SPEC-0004: CI/CD and documentation automation](../SPEC-0004-ci-cd-and-docs.md)"
   - "[SPEC-0015: Nova API platform final topology and delivery contract](../SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md)"
@@ -17,6 +18,11 @@ Related:
 ---
 
 ## 1. Scope
+
+This specification was superseded by
+[SPEC-0024](../SPEC-0024-cloudformation-module-contract.md). The active
+`SPEC-0017` identifier now refers to
+[runtime component topology](../SPEC-0017-runtime-component-topology-and-ownership-contract.md).
 
 Defines the required module structure and inter-stack contract for Nova native
 CloudFormation templates.
@@ -74,7 +80,7 @@ Required stack modules:
 
 ## 8. Traceability
 
-- [NFR-0105](../requirements.md#nfr-0105-contract-traceability)
-- [NFR-0106](../requirements.md#nfr-0106-no-shim-posture)
-- [IR-0000](../requirements.md#ir-0000-nova-local-runtime-and-release-authority)
-- [FR-0013](../requirements.md#fr-0013-ssm-runtime-base-url-authority-for-deploy-validation)
+- [NFR-0105](../../requirements.md#nfr-0105-contract-traceability)
+- [NFR-0106](../../requirements.md#nfr-0106-no-shim-posture)
+- [IR-0000](../../requirements.md#ir-0000-nova-local-runtime-and-release-authority)
+- [FR-0013](../../requirements.md#fr-0013-ssm-runtime-base-url-authority-for-deploy-validation)

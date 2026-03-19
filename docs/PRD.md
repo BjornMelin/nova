@@ -31,7 +31,9 @@ auth channel).
 - Ergonomic SDK-facing OpenAPI identifiers and semantic generator groupings
   remain stable across regeneration.
 - TypeScript SDKs use `openapi-typescript` + `openapi-fetch` per `ADR-0038` /
-  `SPEC-0029` while preserving `SPEC-0011` / `SPEC-0012` invariants.
+  `SPEC-0029` while honoring active `SPEC-0012` (predecessor package-map detail,
+  if needed for archaeology only:
+  [`spec/index.md`](./architecture/spec/index.md) → Superseded `SPEC-0011`).
 - Worker job completion uses **direct persistence**, not an internal HTTP
   callback (`SPEC-0028`, `ADR-0035`).
 - Release promotion evidence is complete for non-prod validation and dev→prod
@@ -54,9 +56,12 @@ auth channel).
 5. Documentation authority remains singular and unambiguous across README,
    PRD, requirements, ADR/SPEC, plan, and runbooks, synchronized per
    `SPEC-0020` (including green-field branch merge policy).
-6. Public SDK productization follows `ADR-0013` / `ADR-0038`, `SPEC-0011` /
-   `SPEC-0012`, and `SPEC-0029` (Python public; TypeScript CodeArtifact
-   staged/prod; R internal first-class line).
+6. Public SDK productization follows `ADR-0038`, `SPEC-0029`, and `SPEC-0012`
+   (Python public; TypeScript CodeArtifact staged/prod; R internal first-class
+   line). Superseded predecessors (`ADR-0013`, `SPEC-0011`, etc.) are listed only
+   in [`adr/index.md`](./architecture/adr/index.md) and
+   [`spec/index.md`](./architecture/spec/index.md) (Superseded tables) and under
+   `adr/superseded/` / `spec/superseded/`—not active authority.
 7. Deployment target-state aligns with `ADR-0015` / `ADR-0039`: ECS/Fargate
    behind ALB (and CloudFront/WAF ingress as described in platform docs),
    ECS-native blue/green rollout, CloudWatch alarms, WAF on public ingress, and

@@ -1,23 +1,31 @@
 ---
 Spec: 0011
 Title: Public Python SDK architecture with release-grade TypeScript and first-class internal R package map
-Status: Active
+Status: Superseded
+Superseded-by: "[SPEC-0029: SDK architecture and artifact contract](../SPEC-0029-sdk-architecture-and-artifact-contract.md)"
 Version: 3.0
 Date: 2026-03-18
 Related:
-  - "[Requirements: Nova functional and non-functional requirements](../requirements.md)"
-  - "[ADR-0023: Hard cut to a single canonical /v1 API surface](../adr/ADR-0023-hard-cut-v1-canonical-route-surface.md)"
-  - "[ADR-0013: Public Python SDK topology uses generated contract-core clients while TypeScript is release-grade in CodeArtifact and R is a first-class internal release line](../adr/ADR-0013-final-state-sdk-topology-generated-core-plus-thin-adapters.md)"
-  - "[ADR-0002: OpenAPI as contract and SDK generation](../adr/ADR-0002-openapi-as-contract-and-sdk-generation.md)"
-  - "[SPEC-0000: HTTP API contract](./SPEC-0000-http-api-contract.md)"
-  - "[SPEC-0016: Hard-cut v1 route contract and route-literal guardrails](./SPEC-0016-v1-route-namespace-and-literal-guardrails.md)"
-  - "[SPEC-0027: Public HTTP contract revision and bearer auth](./SPEC-0027-public-http-contract-revision-and-bearer-auth.md)"
-  - "[Plan Master](../../plan/PLAN.md)"
+  - "[Requirements: Nova functional and non-functional requirements](../../requirements.md)"
+  - "[ADR-0023: Hard cut to a single canonical /v1 API surface](../../adr/ADR-0023-hard-cut-v1-canonical-route-surface.md)"
+  - "[ADR-0013: Final-state SDK topology (superseded)](../../adr/superseded/ADR-0013-final-state-sdk-topology-generated-core-plus-thin-adapters.md)"
+  - "[ADR-0038: Green-field SDK architecture by language](../../adr/ADR-0038-sdk-architecture-by-language.md)"
+  - "[ADR-0002: OpenAPI as contract and SDK generation](../../adr/ADR-0002-openapi-as-contract-and-sdk-generation.md)"
+  - "[SPEC-0000: HTTP API contract](../SPEC-0000-http-api-contract.md)"
+  - "[SPEC-0016: Hard-cut v1 route contract and route-literal guardrails](../SPEC-0016-v1-route-namespace-and-literal-guardrails.md)"
+  - "[SPEC-0027: Public HTTP contract revision and bearer auth](../SPEC-0027-public-http-contract-revision-and-bearer-auth.md)"
+  - "[Plan Master](../../../plan/PLAN.md)"
 References:
   - "[OpenAPI Specification](https://spec.openapis.org/oas/latest.html)"
   - "[openapi-typescript](https://openapi-ts.dev/introduction)"
   - "[Node.js package entry points / exports](https://nodejs.org/api/packages.html#package-entry-points)"
 ---
+
+This specification was superseded by
+[SPEC-0029](../SPEC-0029-sdk-architecture-and-artifact-contract.md), which is
+the active SDK architecture and artifact authority for the green-field program.
+[SPEC-0012](../SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md)
+remains active for conformance, versioning, and compatibility governance.
 
 ## 1. Scope
 
@@ -194,7 +202,7 @@ Consumer repos own:
 
 ## 8. Traceability
 
-- [FR-0005](../requirements.md#fr-0005-authentication-and-authorization)
-- [FR-0008](../requirements.md#fr-0008-openapi-contract-ownership)
-- [NFR-0004](../requirements.md#nfr-0004-cicd-and-quality-gates)
-- [IR-0003](../requirements.md#ir-0003-optional-remote-auth-service)
+- [FR-0005](../../requirements.md#fr-0005-authentication-and-authorization)
+- [FR-0008](../../requirements.md#fr-0008-openapi-contract-ownership)
+- [NFR-0004](../../requirements.md#nfr-0004-cicd-and-quality-gates)
+- [IR-0003](../../requirements.md#ir-0003-optional-remote-auth-service)

@@ -8,6 +8,12 @@ Last reviewed: 2026-03-19
 This document routes readers to the correct architecture authority without
 duplicating the full ADR and SPEC catalogs across top-level docs.
 
+**Active-only lists:** Sections below name **in-force** ADRs and SPECs only.
+Superseded predecessors are **not** linked here (to avoid agents or readers
+treating retired docs as current). Find them under `adr/index.md` and
+`spec/index.md` (Superseded tables) and in `adr/superseded/` and
+`spec/superseded/` for traceability.
+
 ## Canonical Runtime Contract Chain
 
 Use this chain first for public runtime contract questions:
@@ -91,11 +97,9 @@ or deploy-validation base URL authority.
 Use when the question is about public Python SDK topology, release-grade
 TypeScript, or first-class internal R release artifacts.
 
-- `adr/ADR-0013-final-state-sdk-topology-generated-core-plus-thin-adapters.md`
 - `adr/ADR-0038-sdk-architecture-by-language.md`
-- `spec/SPEC-0011-multi-language-sdk-architecture-and-package-map.md`
-- `spec/SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md`
 - `spec/SPEC-0029-sdk-architecture-and-artifact-contract.md`
+- `spec/SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md`
 
 ### Adjacent deploy-governance authority
 

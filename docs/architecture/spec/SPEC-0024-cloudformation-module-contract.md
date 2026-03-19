@@ -4,6 +4,7 @@ Title: CloudFormation module contract
 Status: Active
 Version: 1.3
 Date: 2026-03-17
+Supersedes: "[SPEC-0017 (superseded): CloudFormation module contract](./superseded/SPEC-0017-cloudformation-module-contract.md)"
 Related:
   - "[ADR-0030: Native-CFN modular stack architecture for Nova infrastructure productization](../adr/ADR-0030-native-cfn-modular-stack-architecture-for-nova-infrastructure-productization.md)"
   - "[ADR-0029: SSM runtime base URL authority for deploy validation](../adr/ADR-0029-ssm-runtime-base-url-authority-for-deploy-validation.md)"

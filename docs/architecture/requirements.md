@@ -69,7 +69,9 @@ persistence primitives, not HTTP callbacks into the API runtime.
 ### GFR-R6 — SDKs must feel native per language
 
 Python, TypeScript, and R SDKs MUST follow the stacks in `ADR-0038` /
-`SPEC-0029` while preserving `SPEC-0011` / `SPEC-0012` conformance rules.
+`SPEC-0029` and active `SPEC-0012` conformance rules. Superseded `SPEC-0011` is
+indexed in [`spec/index.md`](./spec/index.md) (Superseded) for traceability
+only—not implementation authority.
 
 ### GFR-R7 — Managed AWS services preferred
 

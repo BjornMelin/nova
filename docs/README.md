@@ -34,11 +34,9 @@ Use these when the question is about SDK packaging, release-grade TypeScript,
 or first-class internal R release artifacts:
 
 - `./clients/README.md`
-- `./architecture/adr/ADR-0013-final-state-sdk-topology-generated-core-plus-thin-adapters.md`
 - `./architecture/adr/ADR-0038-sdk-architecture-by-language.md`
-- `./architecture/spec/SPEC-0011-multi-language-sdk-architecture-and-package-map.md`
-- `./architecture/spec/SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md`
 - `./architecture/spec/SPEC-0029-sdk-architecture-and-artifact-contract.md`
+- `./architecture/spec/SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md`
 
 ### Standards and engineering workflow
 

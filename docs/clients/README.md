@@ -15,7 +15,7 @@ release-policy docs.
 For SDK governance and repo engineering standards, use:
 
 - `../standards/README.md`
-- `../architecture/spec/SPEC-0011-multi-language-sdk-architecture-and-package-map.md`
+- `../architecture/spec/SPEC-0029-sdk-architecture-and-artifact-contract.md`
 - `../architecture/spec/SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md`
 
 ## Contents

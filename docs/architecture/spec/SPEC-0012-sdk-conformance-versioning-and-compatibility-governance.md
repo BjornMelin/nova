@@ -5,8 +5,10 @@ Status: Active
 Version: 3.0
 Date: 2026-03-18
 Related:
-  - "[ADR-0013: Public Python SDK topology uses generated contract-core clients while TypeScript is release-grade in CodeArtifact and R is a first-class internal release line](../adr/ADR-0013-final-state-sdk-topology-generated-core-plus-thin-adapters.md)"
-  - "[SPEC-0011: Public Python SDK architecture with release-grade TypeScript and first-class internal R package map](./SPEC-0011-multi-language-sdk-architecture-and-package-map.md)"
+  - "[ADR-0013: Final-state SDK topology (superseded)](../adr/superseded/ADR-0013-final-state-sdk-topology-generated-core-plus-thin-adapters.md)"
+  - "[ADR-0038: Green-field SDK architecture by language](../adr/ADR-0038-sdk-architecture-by-language.md)"
+  - "[SPEC-0029: SDK architecture and artifact contract](./SPEC-0029-sdk-architecture-and-artifact-contract.md)"
+  - "[SPEC-0011: Multi-language SDK architecture and package map (superseded)](./superseded/SPEC-0011-multi-language-sdk-architecture-and-package-map.md)"
   - "[SPEC-0004: CI/CD and docs](./SPEC-0004-ci-cd-and-docs.md)"
   - "[Hard Cutover Checklist](../../plan/release/HARD-CUTOVER-CHECKLIST.md)"
 References:

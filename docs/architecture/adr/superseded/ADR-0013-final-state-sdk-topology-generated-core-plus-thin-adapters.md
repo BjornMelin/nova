@@ -1,15 +1,16 @@
 ---
 ADR: 0013
 Title: Public Python SDK topology uses generated contract-core clients while TypeScript is release-grade in CodeArtifact and R is a first-class internal release line
-Status: Accepted
+Status: Superseded
 Version: 3.0
 Date: 2026-03-18
+Superseded-by: "[ADR-0038: Green-field SDK architecture by language](../ADR-0038-sdk-architecture-by-language.md)"
 Related:
-  - "[ADR-0002: Treat OpenAPI as the contract and generate client SDKs from it](./ADR-0002-openapi-as-contract-and-sdk-generation.md)"
-  - "[SPEC-0027: Public HTTP contract revision and bearer auth](../spec/SPEC-0027-public-http-contract-revision-and-bearer-auth.md)"
-  - "[SPEC-0011: Public Python SDK architecture with release-grade TypeScript and first-class internal R package map](../spec/SPEC-0011-multi-language-sdk-architecture-and-package-map.md)"
-  - "[SPEC-0012: SDK governance for Python public, release-grade TypeScript, and first-class internal R packages](../spec/SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md)"
-  - "[Plan Master](../../plan/PLAN.md)"
+  - "[ADR-0002: Treat OpenAPI as the contract and generate client SDKs from it](../ADR-0002-openapi-as-contract-and-sdk-generation.md)"
+  - "[SPEC-0027: Public HTTP contract revision and bearer auth](../../spec/SPEC-0027-public-http-contract-revision-and-bearer-auth.md)"
+  - "[SPEC-0011: Public Python SDK architecture with release-grade TypeScript and first-class internal R package map (superseded)](../../spec/superseded/SPEC-0011-multi-language-sdk-architecture-and-package-map.md)"
+  - "[SPEC-0012: SDK governance for Python public, release-grade TypeScript, and first-class internal R packages](../../spec/SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md)"
+  - "[Plan Master](../../../plan/PLAN.md)"
 References:
   - "[Semantic Versioning 2.0.0](https://semver.org/)"
   - "[OpenAPI Specification](https://spec.openapis.org/oas/latest.html)"
@@ -87,10 +88,10 @@ Implementation commitments:
 
 ## Related requirements
 
-- [FR-0005](../requirements.md#fr-0005-authentication-and-authorization)
-- [FR-0008](../requirements.md#fr-0008-openapi-contract-ownership)
-- [NFR-0004](../requirements.md#nfr-0004-cicd-and-quality-gates)
-- [IR-0003](../requirements.md#ir-0003-optional-remote-auth-service)
+- [FR-0005](../../requirements.md#fr-0005-authentication-and-authorization)
+- [FR-0008](../../requirements.md#fr-0008-openapi-contract-ownership)
+- [NFR-0004](../../requirements.md#nfr-0004-cicd-and-quality-gates)
+- [IR-0003](../../requirements.md#ir-0003-optional-remote-auth-service)
 
 ## Consequences
 
@@ -104,6 +105,7 @@ Implementation commitments:
 
 ## Changelog
 
+- 2026-03-19: Superseded by [ADR-0038](../ADR-0038-sdk-architecture-by-language.md); retained for traceability.
 - 2026-03-18: Recast SDK governance to final Python public, TypeScript
   CodeArtifact, and first-class internal R release posture.
 - 2026-03-05: Added stable SDK identifier/tagging and deterministic Python
