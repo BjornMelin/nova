@@ -388,4 +388,4 @@ Keep npm registry config repo-local.
 - `docs/plan/PLAN.md`
 - `docs/architecture/adr/index.md`
 - `docs/architecture/spec/index.md`
-- `docs/plan/HISTORY-INDEX.md` when tracing retired or superseded guidance
+- `docs/history/README.md` when tracing retired or superseded program archives

@@ -399,9 +399,7 @@ gate; `mypy` remains the required compatibility backstop in this phase.
 
 Target implementation PRs MUST update `README.md`, `AGENTS.md`,
 `docs/PRD.md`, `docs/architecture/requirements.md`, affected ADR/SPEC docs,
-and `docs/plan/PLAN.md` in the same change set. Historical pointer files
-(`PRD.md`, `FINAL-PLAN.md`) MUST be updated only when archive location or
-authority links change.
+and `docs/plan/PLAN.md` in the same change set. Historical artifacts (`docs/history/**`, plus the repo-root `FINAL-PLAN.md` pointer) MUST be updated only when archive location or authority links change.
 
 ### NFR-0106: No-shim posture
 

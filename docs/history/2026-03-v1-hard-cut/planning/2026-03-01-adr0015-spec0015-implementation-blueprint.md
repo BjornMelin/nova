@@ -1,13 +1,14 @@
 # ADR-0015 / SPEC-0015 Final Implementation Blueprint
 
-Status: Proposed for execution branch
+Status: Historical archive snapshot (non-authoritative for current operations)
 Owner: nova platform
 Date: 2026-03-01
+
 Related:
 
-- [ADR-0015](../architecture/adr/ADR-0015-nova-api-platform-final-hosting-and-deployment-architecture-2026.md)
-- [SPEC-0015](../architecture/spec/SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md)
-- [Requirements](../architecture/requirements.md)
+- [ADR-0015](../../../architecture/adr/ADR-0015-nova-api-platform-final-hosting-and-deployment-architecture-2026.md)
+- [SPEC-0015](../../../architecture/spec/SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md)
+- [Requirements](../../../architecture/requirements.md)
 - [Runbooks index](../../../runbooks/README.md)
 
 ## 1) Final-state audit summary (evidence-based)

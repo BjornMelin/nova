@@ -323,7 +323,6 @@ sequenceDiagram
 
 ### Historical context (non-authoritative for current behavior)
 
-- `PRD.md`
-- `FINAL-PLAN.md`
-- `docs/plan/HISTORY-INDEX.md`
-- `docs/history/**`
+- `FINAL-PLAN.md` (repo-root pointer; full text under `docs/history/`)
+- `docs/history/**` (archived PRD, program plan, subplans, release evidence;
+  index at `docs/history/README.md`)

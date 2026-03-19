@@ -76,8 +76,7 @@ authority docs:
 
 Use these only for traceability, not as active authority:
 
-- `./history/`
-- `./plan/HISTORY-INDEX.md`
+- `./history/` (see [`./history/README.md`](./history/README.md) for bundles)
 - `./architecture/adr/superseded/`
 - `./architecture/spec/superseded/`
 

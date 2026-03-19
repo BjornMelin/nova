@@ -247,4 +247,3 @@ Historical and superseded materials belong under:
 - `docs/history/**`
 - `docs/architecture/adr/superseded/**`
 - `docs/architecture/spec/superseded/**`
-- `docs/plan/HISTORY-INDEX.md`

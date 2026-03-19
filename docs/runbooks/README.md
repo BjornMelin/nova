@@ -53,8 +53,8 @@ indexes: [`release/README.md`](./release/README.md).
 ## Runbook Guardrails
 
 - Active Nova operator instructions must resolve to paths under root `docs/**`.
-- Historical references are allowed only under `docs/history/**` or through
-  `docs/plan/HISTORY-INDEX.md`.
+- Historical references are allowed only under `docs/history/**` (see
+  [`../history/README.md`](../history/README.md) for bundle index).
 - Local developer hook bootstrap now uses repo-root pre-commit configuration
   plus `scripts/dev/install_hooks.sh`; `ty` is enforced through the required
   local and CI typing gates inside the standard quality lane.
@@ -82,4 +82,3 @@ indexes: [`release/README.md`](./release/README.md).
 - `../architecture/README.md`
 - `../standards/README.md`
 - `../plan/PLAN.md`
-- `../plan/HISTORY-INDEX.md`

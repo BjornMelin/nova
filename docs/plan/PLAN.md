@@ -5,24 +5,26 @@ Last updated: 2026-03-19
 
 ## Purpose
 
-This file routes readers to the active planning, release, and history documents.
-For architecture authority, use `../architecture/README.md`.
-For operator runbooks, use `../runbooks/README.md`.
+This file routes readers to active planning and release documents. For
+architecture authority, use `../architecture/README.md`. For operator runbooks,
+use `../runbooks/README.md`. Archived program material lives under
+[`../history/README.md`](../history/README.md) only when you need traceability.
 
 ## Active Planning and Release Entry Points
 
 - `../PRD.md`
 - `../architecture/requirements.md`
-- `./greenfield-simplification-program.md`
-- `./greenfield-authority-map.md`
+- `./greenfield-simplification-program.md` (canonical green-field program router)
+- `./greenfield-authority-map.md` (ADR/SPEC index map for the program)
+- `./greenfield-evidence/README.md` (supporting audit and scoring **copies**;
+  non-authoritative—see table there for `EXECUTIVE_AUDIT.md`, CSV manifests, and
+  related artifacts)
 - `../runbooks/README.md`
 - `../runbooks/release/README.md` (release validation and policy)
 - `../runbooks/provisioning/README.md` (first-time deploy and CI/CD setup)
 - `../release/README.md` (committed release artifacts: manifest, generated runtime contract)
 - `../release/runtime-config-contract.generated.md`
 - `../release/RELEASE-VERSION-MANIFEST.md`
-- Historical hard-cut checklist:
-  [`../history/2026-03-v1-hard-cut/release/HARD-CUTOVER-CHECKLIST.md`](../history/2026-03-v1-hard-cut/release/HARD-CUTOVER-CHECKLIST.md)
 
 ## Supporting release guides
 
@@ -30,6 +32,15 @@ Full catalog: [`../runbooks/README.md`](../runbooks/README.md). Machine-stable
 paths: [`../release/README.md`](../release/README.md).
 Release/provisioning doc conventions: **Release operator docs profile** in
 [`../standards/repository-engineering-standards.md`](../standards/repository-engineering-standards.md).
+
+## `docs/plan` directory layout
+
+| Path | Role |
+| --- | --- |
+| `PLAN.md` | This index (active planning + release pointers) |
+| `greenfield-simplification-program.md` | Green-field program narrative and execution router |
+| `greenfield-authority-map.md` | Maps program workstreams to ADRs and SPECs |
+| `greenfield-evidence/` | Non-normative evidence pack copies; index at `greenfield-evidence/README.md` |
 
 ## Current Planning Notes
 
@@ -65,10 +76,3 @@ Release/provisioning doc conventions: **Release operator docs profile** in
   readiness, not a separate documentation model.
 - Repo-local pre-commit hooks now mirror the AGENTS task router, and `ty` is
   now part of the required typing contract enforced by the main quality gates.
-
-## Historical Planning Artifacts
-
-- `./HISTORY-INDEX.md`
-- `../architecture/adr/superseded/`
-- `../architecture/spec/superseded/`
-- `../history/2026-03-v1-hard-cut/`

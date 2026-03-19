@@ -9,7 +9,7 @@ implementation hardening. Target-state cutover work is tracked by
 ## Async Jobs + Cache + Observability Completion
 
 Order: 2 of 5
-Parent plan: `docs/plan/PLAN.md`
+Parent plan: `FINAL-PLAN.md` (archived program narrative in this bundle)
 Depends on: `SUBPLAN-0001`
 
 ## Persona

@@ -9,7 +9,7 @@ runtime/deployment authority.
 ## Infra + Cross-Repo Integration
 
 Order: 3 of 5
-Parent plan: `docs/plan/PLAN.md`
+Parent plan: `FINAL-PLAN.md` (archived program narrative in this bundle)
 Depends on: `SUBPLAN-0001`, `SUBPLAN-0002`
 
 ## Persona

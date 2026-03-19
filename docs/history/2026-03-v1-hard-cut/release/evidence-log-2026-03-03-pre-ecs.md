@@ -8,6 +8,9 @@ This file preserves March 3, 2026 release evidence entries that predate the
 current ECS-native blue/green runtime deployment authority. It is retained for
 audit traceability only and is non-authoritative for current operations.
 
+Artifact links below may reference `.agents/plans/...` paths. Those files are
+local agent working notes and are **not** guaranteed to exist in every clone.
+
 ## Archived Entries
 
 - `2026-03-03T08:29:33Z` | operator: `openclaw-project-operator-role` |

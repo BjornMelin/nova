@@ -19,174 +19,85 @@
 >
 > Status: Reference-only for superseded sections.
 
+## Historical document contract
+
+- **Active product requirements** live in [`docs/PRD.md`](../../PRD.md). Treat
+  this file as a frozen snapshot for the March 2026 hard-cut program, not as
+  an execution checklist for current work.
+- **Route authority today:** canonical consumer surface is `/v1/*` plus
+  `/metrics/summary` (`ADR-0023`, `SPEC-0000`, `SPEC-0016`). Do not implement
+  from the obsolete path names in the subsection below unless you are
+  deliberately reproducing historical context.
+
 ## PRD: Deployable File Transfer API Platform for Nova Clients
 
 **Date:** 2026-02-12
-**Status:** Historical reference (hard-cut `/v1/*` authority active)
-**Last updated:** 2026-03-03
+**Last updated:** 2026-03-19 (archive trim)
 
-## 0. Architecture State and Transition
+### Problem
 
-Hard-cut route authority is active in runtime:
+Provide a reusable file-transfer **control-plane** API so browser clients can
+upload and download via S3 without streaming large payloads through app
+containers. Consumers include Dash, Shiny, and TypeScript frontends.
 
-- canonical contract routes are `/v1/*` plus `/metrics/summary`
-- legacy `/api/*`, `/healthz`, and `/readyz` routes are removed
-- namespace and guardrail authority is `ADR-0023` + `SPEC-0016`
+### Product goals (durable intent)
 
-## 1. Problem
+1. Stable, documented HTTP contract with OpenAPI 3.1 as the source of truth.
+2. Multipart and large-object upload flows within S3 constraints; optional
+   Transfer Acceleration when infra enables it.
+3. Strong auth boundaries (same-origin and JWT modes), scoped ownership, and
+   least-privilege IAM.
+4. Async jobs with explicit queue-failure semantics (`503` /
+   `queue_unavailable`; failed enqueue not idempotency-cached).
+5. Observability: structured logs, bounded metric dimensions, worker queue lag
+   and throughput signals.
+6. CI/CD and release artifacts aligned with `SPEC-0015` workflow names and
+   gates.
 
-We need a reusable, production-grade API service that provides a stable file
-transfer control-plane so browser clients can upload/download from S3
-efficiently without proxying large payloads through web application containers.
+### Obsolete route namespace (program-era snapshot only)
 
-The service must be usable by:
+During the consolidation program, interim docs referred to `/api/transfers/*`,
+`/api/jobs/*`, `/healthz`, and `/readyz`. That namespace was **superseded** by
+the hard cut to `/v1/*`, `/v1/health/live`, and `/v1/health/ready`. The
+archived program plan in `FINAL-PLAN.md` records those paths as historical
+evidence.
 
-- Dash apps (Python)
-- Shiny apps (R)
-- Next.js apps (TypeScript)
+### Reliability themes (abbreviated)
 
-## 2. Product Goals
+For the full rule set, use active specs (`SPEC-0000`, `SPEC-0015`, `SPEC-0016`,
+`SPEC-0017`–`SPEC-0019`, `SPEC-0028` as applicable). Themes captured in this
+archive include: idempotency claim/commit/discard; legal worker transitions and
+`409` on illegal transitions; `succeeded` clears `error`; same-origin scope
+precedence for body-less job polling; EMF as top-level structured fields;
+readiness excludes feature-flag coupling; blank `FILE_TRANSFER_BUCKET` fails
+readiness.
 
-1. Implement and maintain canonical consumer contract routes under `/v1/*`
-   while preserving baseline transfer compatibility at `/api/transfers/*`.
-2. Support uploads from small files to very large objects (multi-GB), including
-   multipart workflows with strict S3 constraints.
-3. Support Transfer Acceleration when enabled in infra and runtime settings.
-4. Provide strong security boundaries:
-   - authenticated access (same-origin or JWT modes)
-   - scoped key ownership enforcement
-   - least-privilege IAM integration
-5. Provide high-quality API contract artifacts:
-   - OpenAPI 3.1 as source-of-truth contract
-   - docs and SDK-generation-ready output
-6. Provide reliable async orchestration with explicit queue-failure semantics.
+### Capability surface (target era)
 
-## 3. Functional Requirements Summary
+Platform capability routes implemented under the `/v1/*` program include
+jobs, events, capabilities, resources/plan, releases/info, and health
+endpoints, as enumerated in `SPEC-0015` / `SPEC-0000`.
 
-- File transfer endpoints:
-  - initiate/sign-parts/complete/abort upload
-  - presign download
-- Async jobs endpoints:
-  - create/status/cancel/retry/events under `/v1/jobs*`
-  - worker/internal result update callback (`/api/jobs/{job_id}/result`)
-- Operational endpoints:
-  - `/healthz`
-  - `/readyz`
-  - `/metrics/summary`
-- Idempotency on protected mutation entrypoints:
-  - `uploads/initiate`
-  - `jobs/enqueue`
+### Non-goals (initial release era)
 
-### 3.1 Reliability and correctness requirements
+- No byte-streaming data-plane through FastAPI.
+- No default Step Functions/Lambda orchestration.
+- No broad compatibility shims outside approved bridge scope (`nova_dash_bridge`).
 
-- Queue publish failures during `jobs/enqueue` must be client-visible:
-  - response status `503`
-  - `error.code = "queue_unavailable"`
-- Enqueue publish failures must not be reported as successful enqueue.
-- Failed enqueue attempts must not be idempotency replay cached.
-- Idempotency handling must use explicit claim/commit/discard lifecycle for
-  mutation safety and retry correctness.
-- JWT verification cache TTL must not exceed token `exp` and configured max TTL
-  bounds.
-- Worker status updates must enforce legal job state transitions and reject
-  invalid transitions with `409 conflict`.
-- Worker `succeeded` updates must always clear job `error` state.
-- Worker processing must emit queue lag and throughput metrics:
-  - `jobs_queue_lag_ms` on first transition out of `pending`
-  - `jobs_worker_result_updates_total` and per-status update counters
-- Same-origin browser polling for body-less async job routes must propagate
-  caller scope via trusted headers (`X-Session-Id` or `X-Scope-Id`).
-- Same-origin scope resolution must prioritize `X-Session-Id` over body
-  `session_id` and `X-Scope-Id`; conflicting `X-Session-Id` and body
-  `session_id` values must fail closed with `422`.
-- In-memory queue mode must respect `process_immediately`; disabled mode must
-  keep jobs in `pending` after enqueue.
-- CloudWatch EMF metric logs must keep `_aws` and metric fields at the top
-  level of the structured log event (not JSON-string nested).
-- Readiness must reflect critical traffic-serving dependencies only.
-- Feature flags (for example `JOBS_ENABLED`) must not flip readiness to false.
-- Missing/blank `FILE_TRANSFER_BUCKET` must keep readiness false.
-- DynamoDB activity rollups must correctly maintain:
-  - `events_total`
-  - `active_users_today`
-  - `distinct_event_types`
+### Primary users
 
-### 3.2 Capability-contract requirements
+Frontend integrators (Dash/Shiny/Next.js), platform engineers (`infra/**`),
+and runtime engineers (queue, cache, metrics).
 
-The runtime currently implements capability requirements defined in `SPEC-0015`:
+### Success metrics (high level)
 
-- `/v1/jobs`
-- `/v1/jobs/{id}/events`
-- `/v1/capabilities`
-- `/v1/resources/plan`
-- `/v1/releases/info`
-- `/v1/health/live`
-- `/v1/health/ready`
+End-to-end control-plane flows, accurate enqueue failure behavior, correct
+readiness, accurate rollups, stable OpenAPI and CI conformance, docs aligned
+with implementation.
 
-Route namespace policy from `ADR-0023` and `SPEC-0016` is active:
+### Release and quality gates (historical shorthand)
 
-- Canonical client capability routes use `/v1/*`.
-- `/api/v1/*` namespace aliases are disallowed.
-
-It also requires the workflow artifacts currently defined in
-`SPEC-0015`:
-
-- `build-and-publish-image.yml`
-- `publish-packages.yml`
-- `deploy-dev.yml`
-- `promote-prod.yml`
-- `post-deploy-validate.yml`
-- `conformance-clients.yml`
-
-## 4. Non-goals (Initial Release)
-
-- No byte-streaming data-plane API through FastAPI.
-- No workflow-engine adoption (Step Functions/Lambda orchestration) by default.
-- No heavy compute pipelines bundled into this runtime.
-- No broad backwards-compatibility shim layers beyond approved bridge scope.
-
-## 5. Primary Users
-
-- Frontend code in Dash/Shiny/Next.js that needs signed operations.
-- Platform engineers maintaining Nova-owned deployment stacks in `infra/**`.
-- Runtime engineers operating queue/cache/metrics behavior in AWS.
-
-## 6. Success Metrics
-
-- Upload/download control-plane flows work end-to-end in dev and prod.
-- Enqueue failure modes are accurate and observable (`503 queue_unavailable`).
-- Readiness behavior matches deployment intent for optional feature toggles.
-- Rollup metrics for `distinct_event_types` and `active_users_today` are
-  accurate under repeated events.
-- Queue lag and worker result-update throughput metrics are visible through
-  metrics summaries/dashboards.
-- OpenAPI schema remains stable and published through CI/CD.
-- Docs and architecture artifacts stay synchronized with implementation.
-
-## 7. Release and Quality Gates
-
-Required quality gates:
-
-- `source .venv/bin/activate && uv run ruff check . --fix && uv run ruff format .`
-- `source .venv/bin/activate && uv run mypy`
-- `source .venv/bin/activate && uv run pytest -q`
-
-Deployment gates:
-
-- health endpoint responds within expected time
-- readiness reflects true dependency health and ignores feature toggles
-- structured logs include `request_id`
-- OpenAPI schema and docs pipeline are green
-
-### 7.1 CI/CD release controls
-
-- Hybrid release flow:
-  - GitHub Actions for CI, selective version planning, and signed release commit
-    apply
-  - AWS CodePipeline/CodeBuild/CloudFormation for Dev to Prod promotion
-- Dev and Prod are the only release environments.
-- Manual approval is mandatory before Prod deployment.
-- Release automation commits must be cryptographically signed and GitHub
-  verified.
-- Deployment promotion must reuse immutable artifacts from Dev in Prod.
-- No long-lived AWS keys in GitHub; OIDC role assumption only.
+Use the current gates in [`AGENTS.md`](../../../AGENTS.md). At archive time,
+monorepo checks included `ruff`, `mypy`, and `pytest`; release flow combined
+GitHub Actions with AWS CodePipeline/CodeBuild promotion and signed release
+commits.
