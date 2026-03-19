@@ -70,9 +70,9 @@ Owner: Release Architecture
   `docs/runbooks/release/nonprod-live-validation-runbook.md`
 - Note: runbook publication is complete; the live gates below remain blocked
   pending non-prod AWS access and must be completed during staged rollout.
-- [x] Gate preflight evidence recorded with current blockers (archived copy:
-  `docs/history/2026-03-v1-hard-cut/release/evidence-log-2026-03-03-pre-ecs.md`).
-- [x] Gate rerun evidence recorded under `bjorn-dev` (same historical archive file).
+- [x] Gate preflight evidence recorded with current blockers (program-era
+  operator notes; not duplicated as a standalone file in this archive).
+- [x] Gate rerun evidence recorded under `bjorn-dev` (program-era).
 - Note: remaining blocker is CI/CD stack update authority
   (`iam:PassRole` denied for `nova-ci-nova-codepipeline-role`) plus missing
   deployed runtime inventory for ECS-native blue/green live gates.

@@ -30,4 +30,3 @@ the time. There are no separate Codex/agent trigger stubs in this archive.
 - `planning/2026-03-01-adr0015-spec0015-implementation-blueprint.md`
 - `subplans/SUBPLAN-0001.md` … `subplans/SUBPLAN-0005.md`
 - `release/HARD-CUTOVER-CHECKLIST.md`
-- `release/evidence-log-2026-03-03-pre-ecs.md`

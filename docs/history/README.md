@@ -26,6 +26,6 @@ Runbooks and release artifacts:
 
 | Bundle | Contents (summary) |
 | --- | --- |
-| [`2026-03-v1-hard-cut/`](2026-03-v1-hard-cut/README.md) | Archived PRD and consolidated `FINAL-PLAN.md` (former `PLAN.md` merged in), ADR-0015/SPEC-0015 implementation blueprint, five subplans, release checklist and pre-ECS evidence log. |
+| [`2026-03-v1-hard-cut/`](2026-03-v1-hard-cut/README.md) | Archived PRD and consolidated `FINAL-PLAN.md` (former `PLAN.md` merged in), ADR-0015/SPEC-0015 implementation blueprint, five subplans, and release checklist. |
 
 For a file-level manifest, see each bundle’s `README.md`.

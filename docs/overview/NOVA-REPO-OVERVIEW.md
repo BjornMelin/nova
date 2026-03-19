@@ -1,10 +1,10 @@
 # Nova Runtime Repository Overview
 
-## 1) What Nova is
+## 1. What Nova is
 
 Nova is the canonical runtime monorepo for file-transfer orchestration and token verification services. It provides a control plane for transfer and async job workflows, plus an auth API for token verify/introspect operations. Nova is not a byte-streaming proxy for file payloads; file movement is delegated through planned resources and storage integrations.
 
-## 2) Monorepo map
+## 2. Monorepo map
 
 - `packages/nova_file_api`: Main transfer + jobs control-plane implementation and ASGI entrypoint.
 - `packages/nova_auth_api`: Token verify/introspect API implementation and ASGI entrypoint.
@@ -49,7 +49,7 @@ flowchart TB
     I2 --> P2
 ```
 
-## 3) Runtime architecture at a glance
+## 3. Runtime architecture at a glance
 
 - `nova_file_api` serves canonical `/v1/*` transfer and job endpoints.
 - Requests pass through auth, validation, idempotency, and service-layer orchestration.
@@ -73,7 +73,7 @@ flowchart LR
     API --> OBS["/v1/health/live /v1/health/ready /metrics/summary"]
 ```
 
-## 4) Package responsibilities and interactions
+## 4. Package responsibilities and interactions
 
 - `nova_file_api` owns:
   - Transfer orchestration endpoints and request/response models.
@@ -112,7 +112,7 @@ flowchart LR
     CONTRACTS --> AUTH
 ```
 
-## 5) Canonical API surface and route guardrails
+## 5. Canonical API surface and route guardrails
 
 ### Allowed runtime route families
 
@@ -169,7 +169,7 @@ flowchart TB
     BAD -. not allowed .- PublicV1
 ```
 
-## 6) Client usage flows
+## 6. Client usage flows
 
 ### Transfer flow (typical)
 
@@ -194,7 +194,7 @@ flowchart TB
 4. R package releases travel as signed tarball evidence plus CodeArtifact
    generic package artifacts, not as a separate public registry surface.
 
-## 7) AWS and deployment topology
+## 7. AWS and deployment topology
 
 ### Runtime plane (high level)
 
@@ -240,7 +240,7 @@ sequenceDiagram
     RT-->>GH: Report deployment and validation status
 ```
 
-## 8) Security and reliability invariants
+## 8. Security and reliability invariants
 
 - Queue publish failures for `POST /v1/jobs` must return `503` with `error.code = "queue_unavailable"`.
 - Failed enqueue responses must not be replay-cached by idempotency mechanisms.
@@ -251,7 +251,7 @@ sequenceDiagram
 - Synchronous JWT verification must not run directly on async event-loop paths; threadpool boundaries are required.
 - Config coupling constraints are enforced for backend selections (for example queue/activity backends requiring corresponding resource settings).
 
-## 9) How to explain Nova in 10 minutes (talk track)
+## 9. How to explain Nova in 10 minutes (talk track)
 
 ### Minute-by-minute script
 
@@ -299,7 +299,7 @@ sequenceDiagram
 - “What is the async completion boundary?”
   - Worker posts to `/v1/internal/jobs/{job_id}/result`; clients read via `/v1/jobs*`.
 
-## 10) Glossary and source-of-truth references
+## 10. Glossary and source-of-truth references
 
 ### Glossary
 

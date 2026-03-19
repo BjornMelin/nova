@@ -85,11 +85,12 @@ In scope:
 
 ### D. Test expansion
 
-- [x] Add tests for remote auth fail-closed behavior
-- [x] Add tests for Redis outage fallback
-- [x] Add tests for activity rollup summary edge cases
-- [x] Add tests for enqueue publish-failure behavior and idempotency failure path
-- [x] Add tests for readiness behavior with jobs feature disabled
+- [x] Add tests for:
+  - [x] remote auth fail-closed behavior
+  - [x] Redis outage fallback
+  - [x] activity rollup summary edge cases
+  - [x] enqueue publish-failure behavior and idempotency failure path
+  - [x] readiness behavior with jobs feature disabled
 
 ## Acceptance Criteria
 
