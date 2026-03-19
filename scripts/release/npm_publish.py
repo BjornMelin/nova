@@ -306,6 +306,13 @@ def _validate_packable_npm_artifact(
     packed_files = _extract_npm_packed_files(dry_run_result, package_dir)
     if not packed_files:
         raise ValueError(f"{package_dir}: npm pack dry-run produced no files")
+    if not any(
+        packed_file == "dist" or packed_file.startswith("dist/")
+        for packed_file in packed_files
+    ):
+        raise ValueError(
+            f"{package_dir}: npm pack dry-run did not include any dist/ files"
+        )
 
     pack_result = _run_npm_pack(package_dir, dry_run=False)
     dry_run_filename = _extract_npm_pack_filename(dry_run_result, package_dir)

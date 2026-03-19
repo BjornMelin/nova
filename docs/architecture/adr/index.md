@@ -17,8 +17,6 @@ Normative runtime authority is layered across:
   `SPEC-0017`, `SPEC-0018`, `SPEC-0019`, `SPEC-0020`)
 - downstream/deploy-validation authority (`ADR-0027` through `ADR-0029`,
   `SPEC-0021`, `SPEC-0022`, `SPEC-0023`)
-- SDK and release-artifact governance authority (`ADR-0013`, `SPEC-0011`,
-  `SPEC-0012`)
 
 | ADR | Title | Status | Date |
 | --- | --- | --- | --- |
@@ -40,6 +38,15 @@ boundaries, but are not part of the active runtime API authority layer.
 | [ADR-0030](./ADR-0030-native-cfn-modular-stack-architecture-for-nova-infrastructure-productization.md) | Native-CFN modular stack architecture for Nova infrastructure productization | Accepted | 2026-03-05 |
 | [ADR-0031](./ADR-0031-reusable-github-workflow-api-and-versioning-policy-for-deployment-automation.md) | Reusable GitHub workflow API and versioning policy for deployment automation | Accepted | 2026-03-05 |
 | [ADR-0032](./ADR-0032-oidc-and-iam-role-partitioning-for-deploy-automation.md) | OIDC and IAM role partitioning for deploy automation | Accepted | 2026-03-05 |
+
+## SDK and release-artifact governance authority
+
+These identifiers are canonical for SDK topology and release-artifact
+governance, separate from the runtime authority pack.
+
+- `ADR-0013`
+- `SPEC-0011`
+- `SPEC-0012`
 
 ## Active supporting decisions
 

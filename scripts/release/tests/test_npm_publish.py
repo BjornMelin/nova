@@ -352,3 +352,54 @@ def test_planned_version_map_rejects_invalid_semver(
             },
             units=units,
         )
+
+
+def test_validate_packable_npm_artifact_rejects_missing_dist_files(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    package_dir = tmp_path / "packages/nova_sdk_fetch"
+    package_dir.mkdir(parents=True)
+    _write_text(
+        package_dir / "package.json",
+        "{\n"
+        '  "name": "@nova/sdk-fetch",\n'
+        '  "version": "0.1.0",\n'
+        '  "files": ["src"],\n'
+        '  "exports": {".": {"default": "./src/index.js"}}\n'
+        "}\n",
+    )
+    _write_text(package_dir / "src/index.js", "export const ready = true;\n")
+
+    def fake_run(
+        args: list[str],
+        *,
+        cwd: Path | str | None = None,
+        check: bool = False,
+        capture_output: bool = False,
+        text: bool = False,
+        **_kwargs: object,
+    ) -> subprocess.CompletedProcess[str]:
+        del check, capture_output, text
+        cwd_path = Path(cwd or ".")
+        filename = "nova-sdk-fetch-0.1.0.tgz"
+        if "--dry-run" not in args:
+            (cwd_path / filename).write_bytes(b"tarball")
+        return subprocess.CompletedProcess(
+            args=list(args),
+            returncode=0,
+            stdout=json.dumps(
+                [
+                    {
+                        "filename": filename,
+                        "files": [{"path": "src/index.js"}],
+                    }
+                ]
+            ),
+            stderr="",
+        )
+
+    monkeypatch.setattr(cast(Any, npm_publish).subprocess, "run", fake_run)
+
+    with pytest.raises(ValueError, match="did not include any dist/ files"):
+        npm_publish._validate_packable_npm_artifact(package_dir)

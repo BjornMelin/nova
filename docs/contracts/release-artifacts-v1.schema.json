@@ -114,7 +114,57 @@
             "null"
           ]
         }
-      }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "format": {
+                "const": "pypi"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "codeartifact_format": {
+                "const": "pypi"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "format": {
+                "const": "npm"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "codeartifact_format": {
+                "const": "npm"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "format": {
+                "const": "r"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "codeartifact_format": {
+                "const": "generic"
+              }
+            }
+          }
+        }
+      ]
     },
     "changed_units": {
       "type": "object",
@@ -209,7 +259,57 @@
                   "null"
                 ]
               }
-            }
+            },
+            "allOf": [
+              {
+                "if": {
+                  "properties": {
+                    "format": {
+                      "const": "pypi"
+                    }
+                  }
+                },
+                "then": {
+                  "properties": {
+                    "codeartifact_format": {
+                      "const": "pypi"
+                    }
+                  }
+                }
+              },
+              {
+                "if": {
+                  "properties": {
+                    "format": {
+                      "const": "npm"
+                    }
+                  }
+                },
+                "then": {
+                  "properties": {
+                    "codeartifact_format": {
+                      "const": "npm"
+                    }
+                  }
+                }
+              },
+              {
+                "if": {
+                  "properties": {
+                    "format": {
+                      "const": "r"
+                    }
+                  }
+                },
+                "then": {
+                  "properties": {
+                    "codeartifact_format": {
+                      "const": "generic"
+                    }
+                  }
+                }
+              }
+            ]
           }
         }
       }
@@ -326,7 +426,57 @@
                 "type": "string",
                 "minLength": 1
               }
-            }
+            },
+            "allOf": [
+              {
+                "if": {
+                  "properties": {
+                    "format": {
+                      "const": "pypi"
+                    }
+                  }
+                },
+                "then": {
+                  "properties": {
+                    "codeartifact_format": {
+                      "const": "pypi"
+                    }
+                  }
+                }
+              },
+              {
+                "if": {
+                  "properties": {
+                    "format": {
+                      "const": "npm"
+                    }
+                  }
+                },
+                "then": {
+                  "properties": {
+                    "codeartifact_format": {
+                      "const": "npm"
+                    }
+                  }
+                }
+              },
+              {
+                "if": {
+                  "properties": {
+                    "format": {
+                      "const": "r"
+                    }
+                  }
+                },
+                "then": {
+                  "properties": {
+                    "codeartifact_format": {
+                      "const": "generic"
+                    }
+                  }
+                }
+              }
+            ]
           }
         }
       }

@@ -88,7 +88,14 @@ def load_workspace_units(repo_root: Path) -> dict[str, WorkspaceUnit]:
 
 
 def resolve_codeartifact_format(unit: WorkspaceUnit) -> CodeArtifactFormat:
-    """Return the publish backend format for a workspace unit."""
+    """Return the publish backend format for a workspace unit.
+
+    Args:
+        unit: Workspace unit metadata.
+
+    Returns:
+        The publish backend format for the unit.
+    """
     if unit.codeartifact_format is not None:
         return unit.codeartifact_format
     if unit.package_format == "r":
@@ -330,6 +337,11 @@ def _load_nova_release_units(repo_root: Path) -> dict[str, WorkspaceUnit]:
             raise ValueError(
                 "tool.nova.release.units entry "
                 f"{unit_id} project_name does not match DESCRIPTION Package"
+            )
+        if unit_id != path_text:
+            raise ValueError(
+                "tool.nova.release.units entry "
+                f"{unit_id} must keep unit_id equal to path: {path_text}"
             )
 
         units[unit_id] = WorkspaceUnit(

@@ -238,6 +238,8 @@ def _load_r_publish_report(
             raise GateError(
                 f"invalid signature sha256 in R publish report for {unit_id}"
             )
+        if unit_id in evidence_by_unit_id:
+            raise GateError(f"duplicate unit_id in R publish report: {unit_id}")
         evidence_by_unit_id[unit_id] = {
             "tarball_sha256": tarball_sha256,
             "signature_sha256": signature_sha256,

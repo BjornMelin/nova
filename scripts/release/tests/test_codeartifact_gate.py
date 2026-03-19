@@ -580,6 +580,98 @@ Schema: 1.0
     ]
 
 
+def test_validate_release_gates_rejects_duplicate_r_publish_evidence(
+    tmp_path: Path,
+) -> None:
+    repo_root = _create_test_workspace_with_r(tmp_path)
+    manifest_text = """# Release Version Manifest
+
+Status: Active
+Schema: 1.0
+
+## Canonical Runtime Monorepo
+
+| Unit | Package | Version | Changed |
+| --- | --- | --- | --- |
+| `packages/nova_sdk_r_file` | `nova.sdk.r.file` | `0.2.0` | yes |
+"""
+    manifest = tmp_path / "manifest.md"
+    manifest.write_text(manifest_text, encoding="utf-8")
+
+    changed_units = tmp_path / "changed-units.json"
+    _write_json(
+        changed_units,
+        {
+            "changed_units": [{"unit_id": "packages/nova_sdk_r_file"}],
+            "base_commit": "abc",
+            "head_commit": "def",
+            "first_release": False,
+        },
+    )
+
+    version_plan = tmp_path / "version-plan.json"
+    _write_json(
+        version_plan,
+        {
+            "global_bump": "patch",
+            "units": [
+                {
+                    "unit_id": "packages/nova_sdk_r_file",
+                    "format": "r",
+                    "codeartifact_format": "generic",
+                    "namespace": "nova",
+                    "new_version": "0.2.0",
+                }
+            ],
+        },
+    )
+    r_publish_report = tmp_path / "r-publish-report.json"
+    _write_json(
+        r_publish_report,
+        {
+            "schema_version": "1.0",
+            "generated_at": "2026-03-09T00:00:00Z",
+            "packages": [
+                {
+                    "unit_id": "packages/nova_sdk_r_file",
+                    "package": "nova.sdk.r.file",
+                    "version": "0.2.0",
+                    "format": "r",
+                    "codeartifact_format": "generic",
+                    "namespace": "nova",
+                    "tarball_path": "packages/nova_sdk_r_file/a.tar.gz",
+                    "signature_path": "packages/nova_sdk_r_file/a.tar.gz.sig",
+                    "tarball_sha256": "a" * 64,
+                    "signature_sha256": "b" * 64,
+                },
+                {
+                    "unit_id": "packages/nova_sdk_r_file",
+                    "package": "nova.sdk.r.file",
+                    "version": "0.2.0",
+                    "format": "r",
+                    "codeartifact_format": "generic",
+                    "namespace": "nova",
+                    "tarball_path": "packages/nova_sdk_r_file/b.tar.gz",
+                    "signature_path": "packages/nova_sdk_r_file/b.tar.gz.sig",
+                    "tarball_sha256": "c" * 64,
+                    "signature_sha256": "d" * 64,
+                },
+            ],
+        },
+    )
+
+    expected_sha = hashlib.sha256(manifest_text.encode("utf-8")).hexdigest()
+    with pytest.raises(codeartifact_gate.GateError, match="duplicate unit_id"):
+        codeartifact_gate.validate_release_gates(
+            repo_root=repo_root,
+            manifest_path=manifest,
+            changed_units_path=changed_units,
+            version_plan_path=version_plan,
+            expected_manifest_sha256=expected_sha,
+            r_publish_report_path=r_publish_report,
+        )
+
+
 def test_main_writes_canonical_non_r_candidates_without_evidence_keys(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

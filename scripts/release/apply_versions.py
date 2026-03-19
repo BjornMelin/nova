@@ -113,7 +113,6 @@ def apply_version_updates(
         Relative file paths updated by the version plan.
 
     Raises:
-        KeyError: If a plan unit_id is missing from workspace units.
         ValueError: If a target manifest version does not match the plan.
         TypeError: If ``version_plan`` or ``version_plan["units"]`` has an
             invalid JSON structure.

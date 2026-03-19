@@ -24,6 +24,7 @@ nova_file_default_request_performer <- function(request) {
       )
     )
   }
+  http_request <- httr2::req_error(http_request, is_error = ~ FALSE)
   response <- httr2::req_perform(http_request)
   list(
     status = httr2::resp_status(response),

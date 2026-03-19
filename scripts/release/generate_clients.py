@@ -982,6 +982,7 @@ def _render_typescript_client(
 
 
 def _r_exported_function_names(prefix: str) -> tuple[str, ...]:
+    """Return the exported R function names for a client prefix."""
     return (
         f"create_{prefix}_client",
         f"{prefix}_operation_catalog",
@@ -992,13 +993,17 @@ def _r_exported_function_names(prefix: str) -> tuple[str, ...]:
 
 
 def _r_package_doc_filename(target: GenerationTarget) -> str:
+    """Return the Rd filename for the generated R package docs."""
     return f"{target.r_package_name}.Rd"
 
 
 def _render_r_license_text(target: GenerationTarget) -> str:
+    """Render the internal R package license notice text."""
     return "\n".join(
         [
             f"{target.r_package_title}",
+            "",
+            "Copyright (c) 2026 3M Cloud. All rights reserved.",
             "",
             "This package is generated for internal Nova use only.",
             "All rights reserved.",
@@ -1289,6 +1294,7 @@ def _render_r_client(target: GenerationTarget) -> str:
         "      )",
         "    )",
         "  }",
+        "  http_request <- httr2::req_error(http_request, is_error = ~ FALSE)",
         "  response <- httr2::req_perform(http_request)",
         "  list(",
         "    status = httr2::resp_status(response),",
