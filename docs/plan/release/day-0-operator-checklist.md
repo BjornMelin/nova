@@ -226,5 +226,5 @@ Pipeline dashboard:
 ## References
 
 - [runbooks README](../../runbooks/README.md)
-- [governance-lock-runbook.md](governance-lock-runbook.md)
+- [governance-lock-and-branch-protection.md](governance-lock-and-branch-protection.md)
 - [troubleshooting-and-break-glass-guide.md](troubleshooting-and-break-glass-guide.md)

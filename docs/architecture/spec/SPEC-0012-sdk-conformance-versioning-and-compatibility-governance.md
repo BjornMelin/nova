@@ -10,7 +10,7 @@ Related:
   - "[SPEC-0029: SDK architecture and artifact contract](./SPEC-0029-sdk-architecture-and-artifact-contract.md)"
   - "[SPEC-0011: Multi-language SDK architecture and package map (superseded)](./superseded/SPEC-0011-multi-language-sdk-architecture-and-package-map.md)"
   - "[SPEC-0004: CI/CD and docs](./SPEC-0004-ci-cd-and-docs.md)"
-  - "[Hard Cutover Checklist](../../plan/release/HARD-CUTOVER-CHECKLIST.md)"
+  - "[Hard Cutover Checklist (archived)](../../history/2026-03-v1-hard-cut/release/HARD-CUTOVER-CHECKLIST.md)"
 References:
   - "[Semantic Versioning 2.0.0](https://semver.org/)"
   - "[OpenAPI Specification](https://spec.openapis.org/oas/latest.html)"

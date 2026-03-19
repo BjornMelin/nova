@@ -12,7 +12,7 @@ This policy governs runtime releases for `nova` with these fixed constraints:
 2. Runtime topology remains ECS/Fargate + SQS worker.
 3. No Lambda-based runtime orchestration is introduced in this scope.
 
-Companion modular setup guides:
+Companion modular setup guides (full index: [README.md](README.md)):
 
 - `../../runbooks/README.md`
 - `aws-secrets-provisioning-guide.md`

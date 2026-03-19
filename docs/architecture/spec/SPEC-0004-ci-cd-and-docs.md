@@ -51,7 +51,7 @@ package build/check and signed tarball evidence. Those validations remain in
 release automation rather than protected-branch required checks.
 
 Protected branch wiring details are documented in
-`docs/plan/release/branch-protection-required-checks.md`.
+`docs/plan/release/governance-lock-and-branch-protection.md`.
 
 Required-check workflows MUST always trigger on pull requests to `main` branch
 protection. Minute reduction is enforced with an initial classifier job and

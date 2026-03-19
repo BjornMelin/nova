@@ -16,6 +16,7 @@ For operator runbooks, use `../runbooks/README.md`.
 - `./greenfield-simplification-program.md`
 - `./greenfield-authority-map.md`
 - `../runbooks/README.md`
+- `./release/README.md` (catalog for all `docs/plan/release/` docs)
 - `./release/RELEASE-RUNBOOK.md`
 - `./release/RELEASE-POLICY.md`
 - `./release/NONPROD-LIVE-VALIDATION-RUNBOOK.md`
@@ -25,20 +26,11 @@ For operator runbooks, use `../runbooks/README.md`.
 - `./release/HARD-CUTOVER-CHECKLIST.md`
 - `./release/RELEASE-VERSION-MANIFEST.md`
 
-## Supporting Release Guides
+## Supporting release guides
 
-Use these when you need environment setup, operator inputs, or break-glass
-guidance:
-
-- `./release/config-values-reference-guide.md`
-- `./release/runtime-config-contract.generated.md`
-- `./release/day-0-operator-checklist.md`
-- `./release/aws-oidc-and-iam-role-setup-guide.md`
-- `./release/aws-secrets-provisioning-guide.md`
-- `./release/github-actions-secrets-and-vars-setup-guide.md`
-- `./release/codeconnections-activation-and-validation-guide.md`
-- `./release/troubleshooting-and-break-glass-guide.md`
-- `./release/documentation-maintenance-guide.md`
+Full catalog and recommended order: [`./release/README.md`](./release/README.md).
+Release/provisioning doc conventions: **Release operator docs profile** in
+[`../standards/repository-engineering-standards.md`](../standards/repository-engineering-standards.md).
 
 ## Current Planning Notes
 

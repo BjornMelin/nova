@@ -38,7 +38,7 @@ Green-field simplification authority uses `ADR-0033` through `ADR-0041`,
 
 1. [Non-prod live validation runbook](../plan/release/NONPROD-LIVE-VALIDATION-RUNBOOK.md)
 2. [Browser live validation checklist](../plan/release/BROWSER-LIVE-VALIDATION-CHECKLIST.md)
-3. [Governance lock runbook](../plan/release/governance-lock-runbook.md)
+3. [Governance lock and branch protection](../plan/release/governance-lock-and-branch-protection.md)
 4. [Auth0 CLI + a0deploy runbook](../plan/release/AUTH0-A0DEPLOY-RUNBOOK.md)
 5. [Troubleshooting and break-glass guide](../plan/release/troubleshooting-and-break-glass-guide.md)
 

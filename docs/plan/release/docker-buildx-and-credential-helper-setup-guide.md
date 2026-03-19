@@ -17,10 +17,7 @@ This guide is for local operator and developer workstations. It does not change
 the release-environment contract, which is already defined in
 `buildspecs/buildspec-release.yml`.
 
-Authority chain: [ADR-0023](../architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md) →
-[SPEC-0000](../architecture/spec/SPEC-0000-http-api-contract.md) →
-[SPEC-0016](../architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md) →
-[requirements.md](../architecture/requirements.md).
+Documentation authority: [release-authority-chain.md](release-authority-chain.md).
 
 ## When to Use This
 

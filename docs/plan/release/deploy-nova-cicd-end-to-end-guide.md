@@ -12,10 +12,7 @@ authority chain cited for operators.
 
 ## References
 
-- `ADR-0023`
-- `SPEC-0000`
-- `SPEC-0016`
-- `requirements.md`
+- [release-authority-chain.md](release-authority-chain.md)
 
 ## Prerequisites
 

@@ -36,8 +36,11 @@ Use these in order:
   for current SDK governance (superseded predecessors: `../architecture/adr/index.md`
   and `../architecture/spec/index.md`)
 - `./repository-engineering-standards.md` for the full gate matrix and documentation sync rules
+- `../plan/release/README.md` for the release/provisioning doc catalog
 - `../plan/release/RELEASE-RUNBOOK.md`
 - `../plan/release/RELEASE-POLICY.md`
+- Release doc conventions: **Release operator docs profile** in
+  `./repository-engineering-standards.md`
 
 ## Scope
 

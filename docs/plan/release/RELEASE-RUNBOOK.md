@@ -10,31 +10,14 @@ Execute release flow for selective versioning, signed commit generation, and
 Dev to Prod AWS promotion.
 
 Canonical documentation authority chain:
-`ADR-0023` -> `SPEC-0000` -> `SPEC-0016` -> `requirements.md`
-([../../architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md](../../architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md),
-[../../architecture/spec/SPEC-0000-http-api-contract.md](../../architecture/spec/SPEC-0000-http-api-contract.md),
-[../../architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md](../../architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md),
-[../../architecture/requirements.md](../../architecture/requirements.md)).
+[release-authority-chain.md](release-authority-chain.md).
 
 ## 1A. Modular guide set
 
-Use the modular operator guide set for provisioning and setup details:
-
-- `../../runbooks/README.md`
-- `deploy-runtime-cloudformation-environments-guide.md`
-- `day-0-operator-checklist.md`
-- `docker-buildx-and-credential-helper-setup-guide.md`
-- `scripts/release/day-0-operator-command-pack.sh`
-- `aws-oidc-and-iam-role-setup-guide.md`
-- `aws-secrets-provisioning-guide.md`
-- `config-values-reference-guide.md`
-- `runtime-config-contract.generated.md`
-- `github-actions-secrets-and-vars-setup-guide.md`
-- `codeconnections-activation-and-validation-guide.md`
-- `deploy-nova-cicd-end-to-end-guide.md`
-- `release-promotion-dev-to-prod-guide.md`
-- `troubleshooting-and-break-glass-guide.md`
-- `BROWSER-LIVE-VALIDATION-CHECKLIST.md`
+Provisioning, validation, and setup guides are indexed in
+[README.md](README.md) (this directory) and
+[`../../runbooks/README.md`](../../runbooks/README.md). Use
+`scripts/release/day-0-operator-command-pack.sh` with the day-0 checklist.
 
 ## 2. Preconditions
 

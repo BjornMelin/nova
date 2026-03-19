@@ -2,14 +2,19 @@
 
 Status: Active
 Owner: Release Architecture + Platform Operations
-Last updated: 2026-03-04
+Last updated: 2026-03-19
+
+## When to use this vs NONPROD runbook
+
+- **This checklist:** Scripted browser validation (`agent-browser`) for
+  dash + Nova URLs, route contract JSON, and non-mutating smoke steps.
+- **[NONPROD-LIVE-VALIDATION-RUNBOOK.md](NONPROD-LIVE-VALIDATION-RUNBOOK.md):**
+  Broader AWS control-plane and pipeline gates. Run both when certifying a
+  release to prod.
 
 ## Authority / Related Documents
 
-Authority: [ADR-0023](../../architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md),
-[SPEC-0000](../../architecture/spec/SPEC-0000-http-api-contract.md),
-[SPEC-0016](../../architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md),
-[requirements.md](../../architecture/requirements.md)
+Authority: [release-authority-chain.md](release-authority-chain.md)
 
 ## Purpose
 
@@ -175,7 +180,6 @@ Pass:
 ### C08: Optional manual cleanup verification
 
 If your environment cannot isolate by scope, run a manual tenant cleanup before the next release validation window and document deletion confirmation in the artifact summary.
-
 
 ## CI Gating Policy
 

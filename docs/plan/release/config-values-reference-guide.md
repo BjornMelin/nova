@@ -108,7 +108,7 @@ Generated runtime config authority:
   `packages/nova_file_api/src/nova_file_api/config.py` plus
   `scripts/release/runtime_config_contract.py`.
 
-Documentation authority: [ADR-0023](../../architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md) -> [SPEC-0000](../../architecture/spec/SPEC-0000-http-api-contract.md) -> [SPEC-0016](../../architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md) -> [requirements.md](../../requirements.md)
+Documentation authority: [release-authority-chain.md](release-authority-chain.md).
 
 Capture and manage these runtime values per environment before CI/CD deploy:
 
@@ -266,7 +266,7 @@ Validation URLs:
 - `${PROD_BASE_URL}/v1/health/ready`
 - `${PROD_BASE_URL}/v1/capabilities`
 
-Documentation authority: [ADR-0023](../../architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md) -> [SPEC-0000](../../architecture/spec/SPEC-0000-http-api-contract.md) -> [SPEC-0016](../../architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md) -> [requirements.md](../../requirements.md)
+Documentation authority: [release-authority-chain.md](release-authority-chain.md).
 
 Route namespace policy:
 

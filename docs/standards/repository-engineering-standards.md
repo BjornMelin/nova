@@ -76,6 +76,32 @@ Repo-local enforcement complements CI:
 `AGENTS.md` intentionally carries only the short execution subset. This file is
 the canonical deep matrix.
 
+## Release operator docs profile (`docs/plan/release`)
+
+Rules for provisioning, release, and validation markdown under
+`docs/plan/release/**` (index: `docs/plan/release/README.md`):
+
+1. **Naming:** New files use kebab-case. Exceptions: `README.md`, and existing
+   uppercase release artifacts already referenced by automation (for example
+   `RELEASE-RUNBOOK.md`).
+2. **Operator guide sections:** Each guide should include `Purpose`,
+   `Prerequisites`, `Inputs`, `Step-by-step commands`, `Acceptance checks`, and
+   `References` where applicable.
+3. **Placeholders:** Use `${AWS_ACCOUNT_ID}`, `${AWS_REGION}`, `${PROJECT}`,
+   etc.; never commit live secrets.
+4. **Review cadence:** Keep `Last reviewed` / `Last updated` current; re-read
+   after CI/CD or infra contract changes (at least every 90 days for high-churn
+   guides).
+5. **Final-state clarity:** Active release docs describe implemented, executable
+   behavior only. Superseded or exploratory plans belong under
+   `docs/history/**`.
+6. **Authority:** Do not duplicate ADR/SPEC contracts; link
+   `docs/plan/release/release-authority-chain.md` or architecture indexes
+   instead.
+7. **Nova-path guardrail:** Active operator paths stay under `docs/**`; do not
+   cite retired external Nova doc trees as current guidance. Infra contract
+   tests enforce active-path rules.
+
 ## Generated TypeScript SDK Rules
 
 - Generated TypeScript packages are `@nova/sdk-auth`, `@nova/sdk-file`, and the

@@ -1,8 +1,19 @@
 # Non-Prod Live Validation Runbook
 
-Status: Pending external execution
+Status: Active
 Owner: Release Architecture + Platform Operations
-Last updated: 2026-03-03
+Last updated: 2026-03-19
+
+## When to use this vs browser checklist
+
+- **This runbook (NONPROD):** AWS-live integration—CodeConnections, ALB,
+  CodePipeline/CodeBuild, CloudWatch, cross-repo flows against real accounts.
+- **[BROWSER-LIVE-VALIDATION-CHECKLIST.md](BROWSER-LIVE-VALIDATION-CHECKLIST.md):**
+  Deterministic browser/`agent-browser` checks against `DASH_BASE_URL` and
+  `NOVA_BASE_URL` (route contract + UI smoke). Use both where applicable.
+
+Some checklist items at the end still depend on **non-prod AWS access** and
+stack health; treat unchecked boxes there as environment backlog, not doc drift.
 
 ## 1. Purpose
 

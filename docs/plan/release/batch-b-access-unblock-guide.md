@@ -28,7 +28,7 @@ close Batch B governance and non-prod live validation gates.
 - Verify the denied read actions from the evidence log are now allowed:
   `codeconnections:GetConnection`, `codepipeline:ListPipelineExecutions`,
   `codepipeline:ListPipelines`, and `ecs:DescribeServices`.
-- Re-run `docs/plan/release/governance-lock-runbook.md` gates and confirm no new
+- Re-run `docs/plan/release/governance-lock-and-branch-protection.md` gates and confirm no new
   failures are introduced.
 
 ## 1) AWS IAM read access delta (minimum)
@@ -121,12 +121,10 @@ Required file outputs in evidence folder:
 
 After access updates:
 
-1. Re-run `docs/plan/release/governance-lock-runbook.md` evidence capture.
+1. Re-run `docs/plan/release/governance-lock-and-branch-protection.md` evidence capture.
 2. Re-run `docs/plan/release/NONPROD-LIVE-VALIDATION-RUNBOOK.md` Gates A-E.
 3. Append pass/fail + artifact paths to:
    - `docs/plan/release/evidence-log.md`
-
-
 
 ## 4) Apply / verify / rollback
 
@@ -154,6 +152,6 @@ From an assumed session for `BatchBValidationOperatorRoleArn`, verify at minimum
 
 ## References
 
-- [documentation-maintenance-guide.md](documentation-maintenance-guide.md)
-- [gov lock runbook](governance-lock-runbook.md)
+- [repository-engineering-standards.md](../../standards/repository-engineering-standards.md) (Release operator docs profile)
+- [governance lock and branch protection](governance-lock-and-branch-protection.md)
 - [NONPROD live validation runbook](NONPROD-LIVE-VALIDATION-RUNBOOK.md)
