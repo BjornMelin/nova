@@ -1,13 +1,14 @@
 ---
 Spec: 0007
 Title: Auth API Contract
-Status: Active
+Status: Superseded
+Superseded-by: "[SPEC-0027: Public HTTP contract revision and bearer auth](../SPEC-0027-public-http-contract-revision-and-bearer-auth.md)"
 Version: 1.1
 Date: 2026-03-03
 Related:
-  - "[SPEC-0006: JWT/OIDC verification and principal mapping](./SPEC-0006-jwt-oidc-verification-and-principal-mapping.md)"
-  - "[SPEC-0000: HTTP API contract](./SPEC-0000-http-api-contract.md)"
-  - "[ADR-0005: Add dedicated nova-auth-api service while keeping local verification default](../adr/ADR-0005-add-dedicated-nova-auth-api-service.md)"
+  - "[SPEC-0006: JWT/OIDC verification and principal mapping](../SPEC-0006-jwt-oidc-verification-and-principal-mapping.md)"
+  - "[SPEC-0000: HTTP API contract](../SPEC-0000-http-api-contract.md)"
+  - "[ADR-0005: Add dedicated nova-auth-api service (superseded)](../adr/superseded/ADR-0005-add-dedicated-nova-auth-api-service.md)"
 References:
   - "[RFC 7662 OAuth Token Introspection](https://www.rfc-editor.org/rfc/rfc7662)"
   - "[RFC 6750 Bearer Token Usage](https://datatracker.ietf.org/doc/html/rfc6750)"
@@ -168,7 +169,14 @@ Minimum coverage:
 - introspection disabled behavior (`404` or `501`)
 - `/v1/health/live` success behavior and response shape
 
-## 8. Traceability
+## 8. Changelog
+
+- 2026-03-19: **Superseded** by
+  [SPEC-0027](../SPEC-0027-public-http-contract-revision-and-bearer-auth.md).
+  The dedicated `nova-auth-api` HTTP contract is retired in favor of bearer JWT
+  verification inside the public file API runtime.
+
+## 9. Traceability
 
 - [FR-0005](../requirements.md#fr-0005-authentication-and-authorization)
 - [IR-0003](../requirements.md#ir-0003-optional-remote-auth-service)

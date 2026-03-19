@@ -29,8 +29,11 @@ Nova architecture documents are divided into three classes:
    - `docs/PRD.md`
    - `docs/architecture/requirements.md`
    - `ADR-0023` through `ADR-0029`
+   - `ADR-0033` through `ADR-0041` (green-field simplification; see
+     `docs/plan/greenfield-simplification-program.md`)
    - `SPEC-0000`
    - `SPEC-0015` through `SPEC-0023`
+   - `SPEC-0027` through `SPEC-0029`
    - `docs/plan/PLAN.md`
    - `docs/runbooks/README.md`
 2. Adjacent deploy-governance authority
@@ -45,7 +48,9 @@ Nova architecture documents are divided into three classes:
 ## 3. Synchronization contract
 
 When architecture, deploy-governance, or runtime contracts change, the same
-change set MUST update all affected active authority surfaces:
+change set MUST update all affected active authority surfaces (including
+green-field program steps, where implementation PRs MUST land docs updates
+together with code per branch merge policy):
 
 1. `AGENTS.md`
 2. `docs/PRD.md`

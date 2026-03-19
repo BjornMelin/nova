@@ -1,0 +1,42 @@
+matrix,option,framework,final_score_10
+Auth topology,Keep dedicated auth service + remote verification,code_runtime,4.05
+Auth topology,Keep in-app auth but preserve sync verifier + multi-mode complexity,code_runtime,5.6
+Auth topology,Inline async verifier in file API and delete auth service,code_runtime,9.7
+Public auth contract,Keep same_origin + body/header session scope,code_runtime,3.95
+Public auth contract,Header-only session scope contract,code_runtime,5.05
+Public auth contract,Bearer JWT only; derive scope from claims,code_runtime,9.35
+Worker result update path,Keep internal HTTP callback,code_runtime,3.55
+Worker result update path,Introduce async event fan-back for result updates,code_runtime,5.85
+Worker result update path,Direct service/repository updates from worker,code_runtime,9.35
+OpenAPI and operation-id strategy,Keep bespoke schema surgery and path/method registries,code_runtime,4.1
+OpenAPI and operation-id strategy,Native FastAPI contract features with minimal hooks,code_runtime,9.1
+OpenAPI and operation-id strategy,Hand-authored static OpenAPI,code_runtime,4.85
+Middleware and error strategy,Service-local HTTP middleware duplication,code_runtime,4.25
+Middleware and error strategy,Shared pure ASGI middleware + shared error registration,code_runtime,9.15
+Middleware and error strategy,Per-route request context and manual error wrapping,code_runtime,4.1
+Public Python surface and adapter strategy,Keep sync façade over async core,code_runtime,5.0
+Public Python surface and adapter strategy,Async-first canonical surface + thin sync adapters,code_runtime,9.35
+Public Python surface and adapter strategy,Sync-first canonical surface,code_runtime,4.35
+TypeScript SDK strategy,Keep custom fetch runtime and bespoke generator logic,sdk,4.85
+TypeScript SDK strategy,openapi-typescript + openapi-fetch,sdk,9.5
+TypeScript SDK strategy,openapi-generator typescript-fetch,sdk,6.5
+Python SDK strategy,Keep openapi-python-client plus large patch script,sdk,6.15
+Python SDK strategy,openapi-python-client with config + minimal templates,sdk,9.1
+Python SDK strategy,openapi-generator python,sdk,6.15
+R SDK strategy,Keep current bespoke generated runtime,sdk,5.55
+R SDK strategy,OpenAPI Generator R beta client,sdk,5.45
+R SDK strategy,Thin httr2 package with minimal metadata/codegen,sdk,9.1
+AWS compute choice,Lambda,aws,8.31
+AWS compute choice,ECS / Fargate,aws,8.92
+AWS compute choice,App Runner,aws,8.0
+AWS compute choice,EKS,aws,8.31
+AWS API front door,ALB,aws,8.92
+AWS API front door,API Gateway HTTP API,aws,8.69
+AWS API front door,API Gateway REST API,aws,7.62
+AWS datastore choice,DynamoDB,aws,9.31
+AWS datastore choice,Aurora / RDS,aws,7.46
+AWS datastore choice,Redis-only persistence,aws,6.85
+End-to-end platform architecture,CloudFront + ALB + ECS/Fargate + S3/SQS/DynamoDB,aws,9.23
+End-to-end platform architecture,CloudFront + API Gateway HTTP API + Lambda + S3/SQS/DynamoDB,aws,8.54
+End-to-end platform architecture,CloudFront + App Runner + S3/SQS/DynamoDB,aws,8.0
+End-to-end platform architecture,CloudFront + ALB + EKS + S3/SQS/DynamoDB,aws,8.31

@@ -7,7 +7,7 @@ Date: 2026-02-12
 Related:
   - "[SPEC-0001: Security model](./SPEC-0001-security-model.md)"
   - "[SPEC-0000: HTTP API contract](./SPEC-0000-http-api-contract.md)"
-  - "[SPEC-0007: Auth API contract](./SPEC-0007-auth-api-contract.md)"
+  - "[SPEC-0027: Public HTTP contract revision and bearer auth](./SPEC-0027-public-http-contract-revision-and-bearer-auth.md)"
   - "[ADR-0004: Canonical OIDC verifier adoption](../adr/ADR-0004-canonical-oidc-jwt-verifier-adoption.md)"
 References:
   - "[oidc-jwt-verifier source](https://github.com/BjornMelin/oidc-jwt-verifier)"

@@ -20,6 +20,8 @@ Active runtime topology and safety authority uses `ADR-0025`, `ADR-0026`,
 `SPEC-0017`, `SPEC-0018`, `SPEC-0019`, and `SPEC-0020`.
 Active downstream validation authority uses `ADR-0027`, `ADR-0028`, `ADR-0029`,
 `SPEC-0021`, `SPEC-0022`, and `SPEC-0023`.
+Green-field simplification authority uses `ADR-0033` through `ADR-0041`,
+`SPEC-0027` through `SPEC-0029`, and `../plan/greenfield-simplification-program.md`.
 
 ## Release and Deployment
 

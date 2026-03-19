@@ -1,7 +1,7 @@
 # Nova Documentation
 
 Status: Active
-Last reviewed: 2026-03-18
+Last reviewed: 2026-03-19
 
 ## Purpose
 
@@ -35,8 +35,10 @@ or first-class internal R release artifacts:
 
 - `./clients/README.md`
 - `./architecture/adr/ADR-0013-final-state-sdk-topology-generated-core-plus-thin-adapters.md`
+- `./architecture/adr/ADR-0038-sdk-architecture-by-language.md`
 - `./architecture/spec/SPEC-0011-multi-language-sdk-architecture-and-package-map.md`
 - `./architecture/spec/SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md`
+- `./architecture/spec/SPEC-0029-sdk-architecture-and-artifact-contract.md`
 
 ### Standards and engineering workflow
 
@@ -55,6 +57,8 @@ runtime operations:
 
 - `./runbooks/README.md`
 - `./plan/PLAN.md`
+- `./plan/greenfield-simplification-program.md`
+- `./plan/greenfield-authority-map.md`
 - `./plan/release/`
 - `./plan/release/runtime-config-contract.generated.md` for the generated
   runtime env/deploy matrix

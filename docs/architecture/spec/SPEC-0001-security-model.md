@@ -6,7 +6,7 @@ Version: 1.6
 Date: 2026-03-03
 Related:
   - "[ADR-0004: Canonical OIDC verifier adoption](../adr/ADR-0004-canonical-oidc-jwt-verifier-adoption.md)"
-  - "[ADR-0005: Dedicated nova-auth-api track](../adr/ADR-0005-add-dedicated-nova-auth-api-service.md)"
+  - "[ADR-0033: Green-field single runtime auth authority](../adr/ADR-0033-single-runtime-auth-authority.md)"
   - "[SPEC-0000: HTTP API contract](./SPEC-0000-http-api-contract.md)"
   - "[SPEC-0006: JWT/OIDC verification and principal mapping](./SPEC-0006-jwt-oidc-verification-and-principal-mapping.md)"
 References:

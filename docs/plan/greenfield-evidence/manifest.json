@@ -1,0 +1,146 @@
+{
+  "pack_name": "nova_greenfield_codex_pack",
+  "created_at": "2026-03-19",
+  "summary": "Independent second-pass audit and branch-by-branch Codex implementation pack for green-field Nova simplification.",
+  "run_order": [
+    {
+      "order": 1,
+      "branch": "feat/api-inline-async-jwt-auth",
+      "prompt": "prompts/01_feat_api-inline-async-jwt-auth.md",
+      "score": 9.68,
+      "semver": "MAJOR",
+      "depends_on": "latest main",
+      "decision": "Inline async JWT verification into nova_file_api and delete the dedicated auth service plus auth SDKs."
+    },
+    {
+      "order": 2,
+      "branch": "feat/api-strip-session-scope-from-public-contract",
+      "prompt": "prompts/02_feat_api-strip-session-scope-from-public-contract.md",
+      "score": 9.44,
+      "semver": "MAJOR",
+      "depends_on": "branch 1 merged to main",
+      "decision": "Remove public `session_id`, `X-Session-Id`, and `X-Scope-Id` semantics; derive caller scope exclusively from authenticated JWT claims."
+    },
+    {
+      "order": 3,
+      "branch": "refactor/worker-direct-job-result-updates",
+      "prompt": "prompts/03_refactor_worker-direct-job-result-updates.md",
+      "score": 9.53,
+      "semver": "MAJOR",
+      "depends_on": "branch 2 merged to main",
+      "decision": "Remove the worker's internal HTTP callback and have the worker update jobs, activity, and metrics directly via shared services/repositories."
+    },
+    {
+      "order": 4,
+      "branch": "refactor/api-native-fastapi-openapi",
+      "prompt": "prompts/04_refactor_api-native-fastapi-openapi.md",
+      "score": 9.31,
+      "semver": "MAJOR",
+      "depends_on": "branch 3 merged to main",
+      "decision": "Replace bespoke OpenAPI mutation and operation-id scaffolding with native FastAPI features: `responses`, security dependencies, router metadata, and a custom `generate_unique_id_function` only where required."
+    },
+    {
+      "order": 5,
+      "branch": "refactor/runtime-pure-asgi-middleware-errors",
+      "prompt": "prompts/05_refactor_runtime-pure-asgi-middleware-errors.md",
+      "score": 9.14,
+      "semver": "MAJOR",
+      "depends_on": "branch 4 merged to main",
+      "decision": "Move request context propagation and common error-envelope handling into a single shared pure ASGI layer and shared exception-registration primitives."
+    },
+    {
+      "order": 6,
+      "branch": "refactor/public-async-first-surface",
+      "prompt": "prompts/06_refactor_public-async-first-surface.md",
+      "score": 9.41,
+      "semver": "MAJOR",
+      "depends_on": "branch 5 merged to main",
+      "decision": "Make `nova_file_api.public` async-first, call it directly from FastAPI integrations, and keep truly necessary sync adapters only for Dash/Flask consumers."
+    },
+    {
+      "order": 7,
+      "branch": "refactor/sdk-typescript-openapi-fetch",
+      "prompt": "prompts/07_refactor_sdk-typescript-openapi-fetch.md",
+      "score": 9.47,
+      "semver": "MAJOR",
+      "depends_on": "branch 6 merged to main",
+      "decision": "Replace the custom `@nova/sdk-fetch` runtime and bulky TS generation logic with `openapi-typescript` plus `openapi-fetch` and thin Nova-specific auth/base-url assembly."
+    },
+    {
+      "order": 8,
+      "branch": "refactor/sdk-python-template-thin",
+      "prompt": "prompts/08_refactor_sdk-python-template-thin.md",
+      "score": 9.24,
+      "semver": "MAJOR",
+      "depends_on": "branch 7 merged to main",
+      "decision": "Keep `openapi-python-client`, but move Nova-specific customizations into generator config and a very small custom-template layer, deleting most post-generation patching logic."
+    },
+    {
+      "order": 9,
+      "branch": "refactor/sdk-r-httr2-thin-client",
+      "prompt": "prompts/09_refactor_sdk-r-httr2-thin-client.md",
+      "score": 9.13,
+      "semver": "MAJOR",
+      "depends_on": "branch 8 merged to main",
+      "decision": "Do not adopt OpenAPI Generator's beta R client. Build/retain a thin httr2-based Nova R package with minimal generated operation metadata and idiomatic auth/request helpers."
+    },
+    {
+      "order": 10,
+      "branch": "infra/greenfield-ecs-platform",
+      "prompt": "prompts/10_infra_greenfield-ecs-platform.md",
+      "score": 9.22,
+      "semver": "MAJOR",
+      "depends_on": "branch 9 merged to main",
+      "decision": "Finalize the target platform as CloudFront (+WAF) \u2192 ALB \u2192 ECS/Fargate, with one public API service and one worker service, plus S3, SQS, DynamoDB, Secrets Manager/SSM, and ADOT-based observability."
+    },
+    {
+      "order": 11,
+      "branch": "chore/repo-rebaseline-ci-release",
+      "prompt": "prompts/11_chore_repo-rebaseline-ci-release.md",
+      "score": 9.17,
+      "semver": "MAJOR",
+      "depends_on": "branch 10 merged to main",
+      "decision": "After the architectural cuts land, rebaseline the repo: workspace members, dependency floors, CI matrix, release flow, docs, manifests, and verification commands around the smaller system."
+    }
+  ],
+  "core_docs": [
+    "README_RUN_ORDER.md",
+    "EXECUTIVE_AUDIT.md",
+    "PREVIOUS_RESPONSE_AUDIT.md",
+    "DECISION_FRAMEWORKS_AND_SCORES.md",
+    "TARGET_ARCHITECTURE.md",
+    "REPO_RESTRUCTURE_BLUEPRINT.md",
+    "BEST_PRACTICES_APPLIED.md",
+    "CHANGE_IMPACT_MAP.md",
+    "RISK_REGISTER_AND_MITIGATIONS.md",
+    "DEPENDENCY_LEVERAGE_AUDIT.md",
+    "ENTROPY_REDUCTION_LEDGER.md",
+    "IMPLEMENTATION_PROGRAM.md",
+    "REJECTED_AND_DEFERRED_OPTIONS.md",
+    "RESEARCH_REFERENCE_INDEX.md",
+    "REVIEW_GATE_TEMPLATE.md"
+  ],
+  "requirements": [
+    "requirements/GREENFIELD_RUNTIME_REQUIREMENTS.md"
+  ],
+  "adrs": [
+    "adr/ADR-0001-single-runtime-auth-authority.md",
+    "adr/ADR-0002-bearer-jwt-public-auth-contract.md",
+    "adr/ADR-0003-worker-direct-result-persistence.md",
+    "adr/ADR-0004-native-fastapi-contract-expression.md",
+    "adr/ADR-0005-async-first-public-surface.md",
+    "adr/ADR-0006-sdk-architecture-by-language.md",
+    "adr/ADR-0007-aws-target-platform.md",
+    "adr/ADR-0008-repo-rebaseline-after-cuts.md",
+    "adr/ADR-0009-shared-pure-asgi-middleware-and-errors.md"
+  ],
+  "specs": [
+    "spec/SPEC-0001-public-http-api-v2-contract.md",
+    "spec/SPEC-0002-worker-job-lifecycle.md",
+    "spec/SPEC-0003-sdk-architecture-and-artifact-contract.md"
+  ],
+  "data_files": [
+    "data/decision_scores.csv",
+    "data/entropy_ledger.csv"
+  ]
+}

@@ -6,7 +6,7 @@ Version: 3.0
 Date: 2026-03-18
 Related:
   - "[ADR-0002: Treat OpenAPI as the contract and generate client SDKs from it](./ADR-0002-openapi-as-contract-and-sdk-generation.md)"
-  - "[SPEC-0007: Auth API Contract](../spec/SPEC-0007-auth-api-contract.md)"
+  - "[SPEC-0027: Public HTTP contract revision and bearer auth](../spec/SPEC-0027-public-http-contract-revision-and-bearer-auth.md)"
   - "[SPEC-0011: Public Python SDK architecture with release-grade TypeScript and first-class internal R package map](../spec/SPEC-0011-multi-language-sdk-architecture-and-package-map.md)"
   - "[SPEC-0012: SDK governance for Python public, release-grade TypeScript, and first-class internal R packages](../spec/SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md)"
   - "[Plan Master](../../plan/PLAN.md)"

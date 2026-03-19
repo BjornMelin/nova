@@ -1,0 +1,12 @@
+branch,guaranteed_files_removed,guaranteed_loc_removed,likely_additional_loc_reduction_low,likely_additional_loc_reduction_high,notes
+01 feat/api-inline-async-jwt-auth,67,4535,300,900,"Deletes standalone auth service, auth SDK packages, auth app image, and related manifests/workflow references."
+02 feat/api-strip-session-scope-from-public-contract,0,0,250,800,"Removes `session_id` fields and same-origin auth plumbing from models, routes, tests, docs, and SDKs."
+03 refactor/worker-direct-job-result-updates,0,0,200,500,Deletes internal result-update route and worker callback config/HTTP logic.
+04 refactor/api-native-fastapi-openapi,0,0,350,900,Collapses large `openapi.py` mutation logic and most operation-id registry scaffolding.
+05 refactor/runtime-pure-asgi-middleware-errors,0,0,120,300,Moves duplicated middleware/error glue into one shared pure-ASGI implementation.
+06 refactor/public-async-first-surface,0,0,300,900,Deletes sync-over-async event-loop helpers and threadpool bridge indirection.
+07 refactor/sdk-typescript-openapi-fetch,6,376,900,2200,Deletes `@nova/sdk-fetch` and materially shrinks TypeScript generator/output complexity.
+08 refactor/sdk-python-template-thin,0,0,1200,1800,Shrinks `generate_python_clients.py` and associated output patching substantially.
+09 refactor/sdk-r-httr2-thin-client,0,0,250,700,Replaces bespoke R runtime layers with thin httr2-oriented code.
+10 infra/greenfield-ecs-platform,0,0,200,800,Deletes auth-service infra and simplifies deployment topology and runbooks.
+11 chore/repo-rebaseline-ci-release,0,0,300,900,"Prunes stale workflows, docs, manifests, and release scripts after earlier cuts."

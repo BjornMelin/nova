@@ -259,8 +259,9 @@ def test_agents_active_authority_pack_has_final_split() -> None:
         "SPEC-0025-reusable-workflow-integration-contract.md",
         "SPEC-0026-ci-cd-iam-least-privilege-matrix.md",
         "docs/standards/README.md",
-        "/v1/token/verify",
-        "/v1/token/introspect",
+        "ADR-0033-single-runtime-auth-authority.md",
+        "SPEC-0027-public-http-contract-revision-and-bearer-auth.md",
+        "bearer JWT",
         "uv run ruff check . --select I",
         "uv run ruff format . --check",
     ]:
@@ -313,6 +314,7 @@ def test_authority_docs_reference_restored_runtime_set() -> None:
             "ADR-0027",
             "ADR-0028",
             "ADR-0029",
+            "ADR-0033",
             "SPEC-0017",
             "SPEC-0018",
             "SPEC-0019",
@@ -320,6 +322,7 @@ def test_authority_docs_reference_restored_runtime_set() -> None:
             "SPEC-0021",
             "SPEC-0022",
             "SPEC-0023",
+            "SPEC-0027",
         ]:
             assert required in text, f"{rel_path} missing {required}"
 

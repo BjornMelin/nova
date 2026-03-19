@@ -2,10 +2,13 @@
 Spec: 0008
 Title: Async Jobs and Worker Orchestration
 Status: Active
-Version: 1.9
-Date: 2026-03-11
+Version: 2.0
+Date: 2026-03-19
 Related:
   - "[ADR-0023: Hard-cut v1 canonical route surface](../adr/ADR-0023-hard-cut-v1-canonical-route-surface.md)"
+  - "[ADR-0035: Green-field worker direct result persistence](../adr/ADR-0035-worker-direct-result-persistence.md)"
+  - "[SPEC-0028: Worker job lifecycle and direct result path](./SPEC-0028-worker-job-lifecycle-and-direct-result-path.md)"
+  - "[SPEC-0027: Public HTTP contract revision and bearer auth](./SPEC-0027-public-http-contract-revision-and-bearer-auth.md)"
   - "[SPEC-0000: HTTP API contract](./SPEC-0000-http-api-contract.md)"
   - "[SPEC-0016: v1 route namespace and literal guardrails](./SPEC-0016-v1-route-namespace-and-literal-guardrails.md)"
   - "[requirements.md](../requirements.md)"
@@ -24,19 +27,18 @@ Async jobs are managed through:
 - `POST /v1/jobs/{job_id}/cancel`
 - `POST /v1/jobs/{job_id}/retry`
 - `GET /v1/jobs/{job_id}/events`
-- `POST /v1/internal/jobs/{job_id}/result` (worker/internal update path)
 
-For same-origin deployments, browser polling clients calling body-less
-job-scope routes (`GET /v1/jobs/{job_id}`, `GET /v1/jobs/{job_id}/events`,
-`POST /v1/jobs/{job_id}/cancel`, `POST /v1/jobs/{job_id}/retry`) MUST send
-caller scope context via trusted header (`X-Session-Id` or `X-Scope-Id`).
-When `X-Session-Id` and `X-Scope-Id` are both present, `X-Session-Id` is the
-canonical scope input. If `X-Session-Id` and body `session_id` are both present
-and differ, request validation MUST fail with `422`
-(`error.message = "conflicting session scope"`). If `X-Session-Id` is absent
-and `X-Scope-Id` plus body `session_id` are both present and differ,
-authentication MUST fail with `401`
-(`error.message = "conflicting session scope"`).
+**Green-field result path:** worker completion and terminal status updates are
+**not** written via `POST /v1/internal/jobs/{job_id}/result`. The worker uses
+shared services/repositories per
+[SPEC-0028](./SPEC-0028-worker-job-lifecycle-and-direct-result-path.md) and
+[ADR-0035](../adr/ADR-0035-worker-direct-result-persistence.md).
+
+**Scope binding:** caller scope for job operations is derived from **verified JWT
+claims** in the public file API runtime per
+[SPEC-0027](./SPEC-0027-public-http-contract-revision-and-bearer-auth.md).
+`session_id`, `X-Session-Id`, and `X-Scope-Id` are **not** public contract inputs
+for authorization scope.
 
 ### 1.1 Endpoint payload contracts
 
@@ -137,8 +139,9 @@ Failed enqueue responses (`queue_unavailable`) MUST NOT be replay-cached.
   - `JOBS_SQS_RETRY_MODE`
   - `JOBS_SQS_RETRY_TOTAL_MAX_ATTEMPTS`
 
-Worker status callbacks MUST validate `X-Worker-Token` when
-`JOBS_WORKER_UPDATE_TOKEN` is configured, per SPEC-0001 §6.
+HTTP callback tokens for worker result posts are **not** part of the target
+configuration surface once the direct persistence path is implemented
+([SPEC-0028](./SPEC-0028-worker-job-lifecycle-and-direct-result-path.md)).
 
 ## 7. Traceability
 
@@ -148,6 +151,9 @@ Worker status callbacks MUST validate `X-Worker-Token` when
 
 ## Changelog
 
+- 2026-03-19 (v2.0): Aligned public job surface and scope binding with green-field
+  ADR/SPEC chain; removed internal HTTP result callback and session/header scope
+  rules from the target contract (see SPEC-0027/SPEC-0028).
 - 2026-03-11 (v1.9): Added heartbeat-based SQS visibility-extension
   requirement for long-running worker operations.
 - 2026-03-03 (v1.8): Canonicalized job route documentation to `/v1/*`, added

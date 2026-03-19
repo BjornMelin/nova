@@ -13,7 +13,14 @@ Canonical runtime chain:
 [requirements](../requirements.md) ->
 [ADR-0023](../adr/ADR-0023-hard-cut-v1-canonical-route-surface.md) ->
 [SPEC-0000](./SPEC-0000-http-api-contract.md) ->
-[SPEC-0016](./SPEC-0016-v1-route-namespace-and-literal-guardrails.md).
+[SPEC-0016](./SPEC-0016-v1-route-namespace-and-literal-guardrails.md) ->
+[SPEC-0027](./SPEC-0027-public-http-contract-revision-and-bearer-auth.md)
+(public auth / OpenAPI revision; path namespace remains `/v1/*`).
+
+Green-field worker and SDK overlays (decisions `ADR-0033` through `ADR-0041`):
+[SPEC-0028](./SPEC-0028-worker-job-lifecycle-and-direct-result-path.md),
+[SPEC-0029](./SPEC-0029-sdk-architecture-and-artifact-contract.md), and
+[green-field program](../../plan/greenfield-simplification-program.md).
 
 Runtime package/safety authority is implemented by `SPEC-0017`,
 `SPEC-0018`, and `SPEC-0019` (decisions `ADR-0025`, `ADR-0026`).
@@ -22,7 +29,7 @@ and `SPEC-0023` (decisions `ADR-0027`, `ADR-0028`, `ADR-0029`).
 Adjacent deploy-governance authority is implemented by `SPEC-0024`,
 `SPEC-0025`, and `SPEC-0026` (decisions `ADR-0030`, `ADR-0031`, `ADR-0032`).
 SDK and release-artifact governance authority is implemented by `SPEC-0011`,
-`SPEC-0012`, and decision `ADR-0013`.
+`SPEC-0012`, `SPEC-0029`, and decisions `ADR-0013` / `ADR-0038`.
 
 | SPEC | Title | Status | Date |
 | --- | --- | --- | --- |
@@ -33,8 +40,7 @@ SDK and release-artifact governance authority is implemented by `SPEC-0011`,
 | [SPEC-0004](./SPEC-0004-ci-cd-and-docs.md) | CI/CD and Documentation Automation | Active | 2026-03-03 |
 | [SPEC-0005](./SPEC-0005-abuse-prevention-and-quotas.md) | Abuse Prevention and Quotas | Active | 2026-03-03 |
 | [SPEC-0006](./SPEC-0006-jwt-oidc-verification-and-principal-mapping.md) | JWT/OIDC Verification and Principal Mapping | Active | 2026-02-12 |
-| [SPEC-0007](./SPEC-0007-auth-api-contract.md) | Auth API Contract | Active | 2026-03-03 |
-| [SPEC-0008](./SPEC-0008-async-jobs-and-worker-orchestration.md) | Async Jobs and Worker Orchestration | Active | 2026-03-03 |
+| [SPEC-0008](./SPEC-0008-async-jobs-and-worker-orchestration.md) | Async Jobs and Worker Orchestration | Active | 2026-03-19 |
 | [SPEC-0009](./SPEC-0009-caching-and-idempotency.md) | Caching and Idempotency | Active | 2026-02-13 |
 | [SPEC-0010](./SPEC-0010-observability-analytics-and-activity-rollups.md) | Observability Analytics and Activity Rollups | Active | 2026-02-13 |
 | [SPEC-0011](./SPEC-0011-multi-language-sdk-architecture-and-package-map.md) | Public Python SDK architecture with release-grade TypeScript and first-class internal R package map | Active | 2026-03-18 |
@@ -51,6 +57,17 @@ SDK and release-artifact governance authority is implemented by `SPEC-0011`,
 | [SPEC-0024](./SPEC-0024-cloudformation-module-contract.md) | CloudFormation module contract | Active | 2026-03-05 |
 | [SPEC-0025](./SPEC-0025-reusable-workflow-integration-contract.md) | Reusable workflow integration contract | Active | 2026-03-05 |
 | [SPEC-0026](./SPEC-0026-ci-cd-iam-least-privilege-matrix.md) | CI/CD IAM least-privilege matrix | Active | 2026-03-05 |
+| [SPEC-0027](./SPEC-0027-public-http-contract-revision-and-bearer-auth.md) | Public HTTP contract revision and bearer auth | Active | 2026-03-19 |
+| [SPEC-0028](./SPEC-0028-worker-job-lifecycle-and-direct-result-path.md) | Worker job lifecycle and direct result path | Active | 2026-03-19 |
+| [SPEC-0029](./SPEC-0029-sdk-architecture-and-artifact-contract.md) | SDK architecture and artifact contract | Active | 2026-03-19 |
+
+## Superseded specs
+
+These specs are retained for traceability only and are not active authority.
+
+| SPEC | Title | Status | Date |
+| --- | --- | --- | --- |
+| [SPEC-0007](./superseded/SPEC-0007-auth-api-contract.md) | Auth API Contract | Superseded | 2026-03-19 |
 
 ## Historical Specs
 

@@ -1,7 +1,7 @@
 # Plan Index (Current State)
 
 Status: Active planning and release index
-Last updated: 2026-03-18
+Last updated: 2026-03-19
 
 ## Purpose
 
@@ -13,6 +13,8 @@ For operator runbooks, use `../runbooks/README.md`.
 
 - `../PRD.md`
 - `../architecture/requirements.md`
+- `./greenfield-simplification-program.md`
+- `./greenfield-authority-map.md`
 - `../runbooks/README.md`
 - `./release/RELEASE-RUNBOOK.md`
 - `./release/RELEASE-POLICY.md`
@@ -40,6 +42,12 @@ guidance:
 
 ## Current Planning Notes
 
+- Green-field simplification is an active program: single public runtime auth,
+  bearer JWT scope from claims, direct worker persistence, native OpenAPI,
+  shared pure ASGI middleware, async-first `nova_file_api.public`, TS/R/Python
+  SDK stack cuts, infra narrative alignment, and final repo rebaseline. Start
+  at `./greenfield-simplification-program.md` and `../architecture/adr/index.md`
+  (`ADR-0033`–`ADR-0041`) plus `SPEC-0027`–`SPEC-0029`.
 - Active runtime authority is layered across route/API authority, runtime
   topology and safety, downstream validation, and adjacent deploy-governance.
 - `nova_dash_bridge` remains adapter-only and now consumes canonical in-process

@@ -1,13 +1,14 @@
 ---
 ADR: 0005
 Title: Add dedicated nova-auth-api service while keeping local verification default
-Status: Accepted
+Status: Superseded
+Superseded-by: "[ADR-0033: Green-field single runtime auth authority](../ADR-0033-single-runtime-auth-authority.md)"
 Version: 1.2
 Date: 2026-03-05
 Related:
-  - "[ADR-0001: Deploy on ECS Fargate behind ALB with same-origin routing](./ADR-0001-deployment-on-ecs-fargate-behind-alb.md)"
-  - "[ADR-0004: Adopt oidc-jwt-verifier as the canonical JWT/OIDC verification engine](./ADR-0004-canonical-oidc-jwt-verifier-adoption.md)"
-  - "[SPEC-0007: Auth API contract](../spec/SPEC-0007-auth-api-contract.md)"
+  - "[ADR-0001: Deploy on ECS Fargate behind ALB with same-origin routing](../ADR-0001-deployment-on-ecs-fargate-behind-alb.md)"
+  - "[ADR-0004: Adopt oidc-jwt-verifier as the canonical JWT/OIDC verification engine](../ADR-0004-canonical-oidc-jwt-verifier-adoption.md)"
+  - "[SPEC-0007: Auth API contract (superseded)](../spec/superseded/SPEC-0007-auth-api-contract.md)"
 References:
   - "[RFC 7662 OAuth Token Introspection](https://www.rfc-editor.org/rfc/rfc7662)"
   - "[AWS ECS health checks](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/load-balancer-healthcheck.html)"
@@ -75,6 +76,10 @@ Implementation commitments:
 
 ## Changelog
 
+- 2026-03-19: **Superseded** by
+  [ADR-0033](../ADR-0033-single-runtime-auth-authority.md). Nova
+  targets a single public runtime with in-process JWT verification; the
+  dedicated auth service track is retired.
 - 2026-03-05 (v1.2): Added `/v1/health/ready` to the dedicated auth-service
   contract.
 - 2026-03-03 (v1.1): Updated auth-service liveness endpoint commitment to
