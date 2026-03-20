@@ -4,7 +4,7 @@
 from contextlib import asynccontextmanager
 from functools import wraps
 from json import JSONDecodeError
-from typing import TYPE_CHECKING, Any, Final, cast
+from typing import TYPE_CHECKING, Annotated, Any, Final, cast
 
 from nova_file_api.public import (
     ABORT_UPLOAD_ROUTE,
@@ -14,6 +14,7 @@ from nova_file_api.public import (
     SIGN_PARTS_ROUTE,
     TRANSFER_ROUTE_PREFIX,
     UPLOADS_INITIATE_ROUTE,
+    Principal,
 )
 from nova_runtime_support.threading import current_default_thread_limiter
 
@@ -22,6 +23,7 @@ from nova_dash_bridge.config import (
     FileTransferEnvConfig,
     UploadPolicy,
 )
+from nova_dash_bridge.errors import FileTransferError, unauthorized_error
 from nova_dash_bridge.models import (
     AbortUploadRequest,
     AbortUploadResponse,
@@ -106,15 +108,6 @@ def _request_id(request: Request) -> str | None:
     return value if isinstance(value, str) else None
 
 
-def _authorization_header(request: Request) -> str | None:
-    """Read the Authorization header when present."""
-    headers = getattr(request, "headers", None)
-    if headers is None:
-        return None
-    value = headers.get("Authorization")
-    return value if isinstance(value, str) else None
-
-
 def _error_payload(
     *,
     code: str,
@@ -142,6 +135,17 @@ def _error_payload(
         )
     )
     return envelope.model_dump()
+
+
+def _error_headers(err: FileTransferError) -> dict[str, str]:
+    """Return response headers for canonical bridge file-transfer errors."""
+    headers = dict(getattr(err, "headers", {}))
+    if int(err.status_code) == 401 and "WWW-Authenticate" not in headers:
+        headers["WWW-Authenticate"] = (
+            'Bearer error="invalid_token", '
+            'error_description="missing bearer token"'
+        )
+    return headers
 
 
 def _configure_thread_limiter(*, total_tokens: int) -> None:
@@ -176,6 +180,29 @@ def create_fastapi_router(
         auth_policy=auth_policy,
         s3_client_factory=s3_client_factory,
     )
+    from fastapi import Depends, Security
+    from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+
+    bearer_auth = HTTPBearer(
+        auto_error=False,
+        scheme_name="bearerAuth",
+        bearerFormat="JWT",
+    )
+
+    def _resolve_principal(
+        credentials: Annotated[
+            HTTPAuthorizationCredentials | None,
+            Security(bearer_auth),
+        ],
+    ) -> Principal:
+        if credentials is None or not credentials.credentials.strip():
+            raise unauthorized_error("missing bearer token")
+        authorization_header = (
+            f"{credentials.scheme} {credentials.credentials.strip()}"
+        )
+        return service.resolve_principal(authorization_header)
+
+    PrincipalDep = Annotated[Principal, Depends(_resolve_principal)]
 
     def handle_file_transfer_errors(handler: Any) -> Any:
         """Wrap route handlers with contract error-envelope responses."""
@@ -194,12 +221,10 @@ def create_fastapi_router(
                         details=err.details,
                         request_id=_request_id(request),
                     ),
+                    headers=_error_headers(err),
                 )
 
         return wrapped
-
-    def _principal(request: Request) -> Any:
-        return service.resolve_principal(_authorization_header(request))
 
     @router.post(
         UPLOADS_INITIATE_ROUTE,
@@ -210,6 +235,7 @@ def create_fastapi_router(
     async def initiate_upload(
         request: Request,
         payload: InitiateUploadRequest,
+        principal: PrincipalDep,
     ) -> InitiateUploadResponse:
         """Initiate upload and return single or multipart strategy payload."""
         return cast(
@@ -217,7 +243,7 @@ def create_fastapi_router(
             await run_in_threadpool(
                 service.initiate_upload,
                 payload,
-                principal=_principal(request),
+                principal=principal,
             ),
         )
 
@@ -230,6 +256,7 @@ def create_fastapi_router(
     async def sign_parts(
         request: Request,
         payload: SignPartsRequest,
+        principal: PrincipalDep,
     ) -> SignPartsResponse:
         """Return presigned multipart part upload URLs."""
         return cast(
@@ -237,7 +264,7 @@ def create_fastapi_router(
             await run_in_threadpool(
                 service.sign_parts,
                 payload,
-                principal=_principal(request),
+                principal=principal,
             ),
         )
 
@@ -250,6 +277,7 @@ def create_fastapi_router(
     async def introspect_upload(
         request: Request,
         payload: UploadIntrospectionRequest,
+        principal: PrincipalDep,
     ) -> UploadIntrospectionResponse:
         """Return uploaded multipart part state for resume flows."""
         return cast(
@@ -257,7 +285,7 @@ def create_fastapi_router(
             await run_in_threadpool(
                 service.introspect_upload,
                 payload,
-                principal=_principal(request),
+                principal=principal,
             ),
         )
 
@@ -270,6 +298,7 @@ def create_fastapi_router(
     async def complete_upload(
         request: Request,
         payload: CompleteUploadRequest,
+        principal: PrincipalDep,
     ) -> CompleteUploadResponse:
         """Complete multipart upload and return final object metadata."""
         return cast(
@@ -277,7 +306,7 @@ def create_fastapi_router(
             await run_in_threadpool(
                 service.complete_upload,
                 payload,
-                principal=_principal(request),
+                principal=principal,
             ),
         )
 
@@ -290,6 +319,7 @@ def create_fastapi_router(
     async def abort_upload(
         request: Request,
         payload: AbortUploadRequest,
+        principal: PrincipalDep,
     ) -> AbortUploadResponse:
         """Abort an active multipart upload."""
         return cast(
@@ -297,7 +327,7 @@ def create_fastapi_router(
             await run_in_threadpool(
                 service.abort_upload,
                 payload,
-                principal=_principal(request),
+                principal=principal,
             ),
         )
 
@@ -310,6 +340,7 @@ def create_fastapi_router(
     async def presign_download(
         request: Request,
         payload: PresignDownloadRequest,
+        principal: PrincipalDep,
     ) -> PresignDownloadResponse:
         """Return a presigned download URL for an export object."""
         return cast(
@@ -317,7 +348,7 @@ def create_fastapi_router(
             await run_in_threadpool(
                 service.presign_download,
                 payload,
-                principal=_principal(request),
+                principal=principal,
             ),
         )
 
@@ -356,6 +387,23 @@ def create_fastapi_app(
             _configure_thread_limiter(total_tokens=previous_thread_tokens)
 
     app = fastapi(lifespan=lifespan)
+
+    @app.exception_handler(FileTransferError)
+    async def handle_file_transfer_error(
+        request: Request,
+        exc: FileTransferError,
+    ) -> Any:
+        err = coerce_file_transfer_error(exc)
+        return json_response(
+            status_code=int(err.status_code),
+            content=_error_payload(
+                code=err.code,
+                message=err.message,
+                details=err.details,
+                request_id=_request_id(request),
+            ),
+            headers=_error_headers(err),
+        )
 
     @app.exception_handler(request_validation_error)
     async def handle_request_validation_error(

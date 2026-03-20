@@ -52,7 +52,9 @@ class _FakeS3Factory:
 
 class _FakeCoreTransferService:
     def __init__(self, **_: object) -> None:
-        return None
+        self.last_presign_request: (
+            public_contract.PresignDownloadRequest | None
+        ) = None
 
     async def introspect_upload(
         self,
@@ -71,6 +73,23 @@ class _FakeCoreTransferService:
                     etag='"etag-1"',
                 )
             ],
+        )
+
+    async def presign_download(
+        self,
+        request: object,
+        principal: object,
+    ) -> public_contract.PresignDownloadResponse:
+        del principal
+        self.last_presign_request = cast(
+            public_contract.PresignDownloadRequest,
+            request,
+        )
+        return public_contract.PresignDownloadResponse(
+            bucket="bucket-a",
+            key="exports/scope-1/report.csv",
+            url="https://example.invalid/presigned",
+            expires_in_seconds=900,
         )
 
 
@@ -198,3 +217,32 @@ def test_introspect_upload_maps_core_response(
         "part_size_bytes": 8,
         "parts": [{"part_number": 1, "etag": '"etag-1"'}],
     }
+
+
+def test_presign_download_preserves_explicit_content_disposition(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    service = _service_with_response(
+        monkeypatch=monkeypatch,
+        response={},
+    )
+    fake_core = _FakeCoreTransferService()
+    monkeypatch.setattr(service, "_build_core_service", lambda: fake_core)
+
+    response = service.presign_download(
+        public_contract.PresignDownloadRequest(
+            key="exports/scope-1/report.csv",
+            content_disposition='inline; filename="custom.csv"',
+            filename="fallback.csv",
+            content_type=None,
+        ),
+        principal=Principal(subject="user-1", scope_id="scope-1"),
+    )
+
+    assert response.url == "https://example.invalid/presigned"
+    assert fake_core.last_presign_request is not None
+    assert (
+        fake_core.last_presign_request.content_disposition
+        == 'inline; filename="custom.csv"'
+    )
+    assert fake_core.last_presign_request.filename == "fallback.csv"

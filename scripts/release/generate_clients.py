@@ -1539,7 +1539,8 @@ def _render_r_readme(
                 '    payload = list(upload_key = "tenant-acme/sample.csv")',
                 "  )",
                 ")",
-                "result$data$job$job_id",
+                "result$data$job_id",
+                "result$data$status",
             ]
         )
     else:
@@ -1656,11 +1657,12 @@ def _render_r_tests(
             "  captured_requests <- list()",
             f'  client <- {constructor}("https://nova.example/", request_performer = function(request) {{',
             "    captured_requests[[length(captured_requests) + 1L]] <<- request",
-            '    list(status = 200L, headers = list(), body = \'{"job":{"job_id":"job-0001","status":"pending"}}\', url = request$url)',
+            '    list(status = 200L, headers = list(), body = \'{"job_id":"job-0001","status":"pending"}\', url = request$url)',
             "  })",
             '  result <- client$create_job(body = list(job_type = "transfer.process", payload = list(upload_key = "tenant-acme/sample.csv")), headers = list("Authorization" = "Bearer token-123", "Idempotency-Key" = "req-123"))',
             "  expect_true(result$ok)",
-            '  expect_equal(result$data$job$job_id, "job-0001")',
+            '  expect_equal(result$data$job_id, "job-0001")',
+            '  expect_equal(result$data$status, "pending")',
             '  expect_equal(captured_requests[[1]]$content_type, "application/json")',
             '  expect_equal(captured_requests[[1]]$headers[["Idempotency-Key"]], "req-123")',
             '  expect_equal(captured_requests[[1]]$headers[["Authorization"]], "Bearer token-123")',

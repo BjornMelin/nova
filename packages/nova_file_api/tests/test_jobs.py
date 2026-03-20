@@ -189,7 +189,7 @@ class _ScopedAuthenticator:
         if token is None or not token.strip():
             raise unauthorized("missing bearer token")
         return Principal(
-            subject=self._scope_id,
+            subject=f"user-for-{self._scope_id}",
             scope_id=self._scope_id,
             permissions=("metrics:read",),
         )

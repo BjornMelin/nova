@@ -30,5 +30,6 @@ result <- client$create_job(
     payload = list(upload_key = "tenant-acme/sample.csv")
   )
 )
-result$data$job$job_id
+result$data$job_id
+result$data$status
 ```

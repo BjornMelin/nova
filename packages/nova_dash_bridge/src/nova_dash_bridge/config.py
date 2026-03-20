@@ -189,7 +189,13 @@ class AuthPolicy:
             raise ValueError(
                 "resolved principal must include non-empty subject and scope_id"
             )
-        return principal
+        return Principal(
+            subject=subject,
+            scope_id=scope_id,
+            tenant_id=principal.tenant_id,
+            scopes=principal.scopes,
+            permissions=principal.permissions,
+        )
 
 
 def policy_from_env(

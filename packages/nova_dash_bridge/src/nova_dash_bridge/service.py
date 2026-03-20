@@ -444,14 +444,15 @@ class FileTransferService:
             allowed_prefix=self._env.export_prefix,
         )
         disposition: str | None
-        if req.filename:
-            base_cd = req.content_disposition or "attachment"
+        if req.content_disposition is not None:
+            disposition = req.content_disposition
+        elif req.filename:
             disposition = self._build_content_disposition(
-                content_disposition=base_cd,
+                content_disposition="attachment",
                 filename=req.filename,
             )
         else:
-            disposition = req.content_disposition
+            disposition = None
         core_response = self._run_async(
             lambda: self._build_core_service().presign_download(
                 PresignDownloadRequest(

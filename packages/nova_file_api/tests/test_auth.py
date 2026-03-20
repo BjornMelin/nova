@@ -109,6 +109,8 @@ async def test_authenticate_requires_bearer_token() -> None:
     assert exc.value.code == "unauthorized"
     assert exc.value.status_code == 401
     assert exc.value.message == "missing bearer token"
+    assert "WWW-Authenticate" in exc.value.headers
+    assert exc.value.headers["WWW-Authenticate"].startswith("Bearer")
 
 
 def test_file_transfer_error_initializes_exception_message() -> None:

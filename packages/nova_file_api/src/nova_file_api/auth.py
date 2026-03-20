@@ -60,7 +60,15 @@ class Authenticator:
         """
         normalized_token = token.strip() if isinstance(token, str) else ""
         if not normalized_token:
-            raise unauthorized("missing bearer token")
+            raise unauthorized(
+                "missing bearer token",
+                headers={
+                    "WWW-Authenticate": (
+                        'Bearer error="invalid_token", '
+                        'error_description="missing bearer token"'
+                    ),
+                },
+            )
 
         claims = await self._verify_local_token(token=normalized_token)
 
