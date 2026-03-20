@@ -31,7 +31,6 @@ The runtime now lives in one monorepo, but the architecture only stays legible
 if package ownership remains explicit:
 
 - `packages/nova_file_api/` owns transfer and job control-plane behavior.
-- `packages/nova_auth_api/` owns token verify/introspect behavior.
 - `packages/nova_dash_bridge/` owns framework integration only.
 - `packages/contracts/` owns OpenAPI artifacts, fixtures, and generated-client
   contract inputs.
@@ -69,20 +68,15 @@ Choose **Option B**.
    - canonical `/v1/transfers/*` and `/v1/jobs*` runtime behavior
    - capability, release-info, liveness, readiness, and metrics handlers
    - transfer, jobs, cache, idempotency, and activity orchestration
+   - in-process bearer JWT verification and principal mapping
    - the canonical `nova_file_api.main:app` process entrypoint consumed by the
      release-only file-service Dockerfile under `apps/`
-2. `packages/nova_auth_api/` owns:
-   - `/v1/token/verify`
-   - `/v1/token/introspect`
-   - token principal mapping and auth failure envelopes
-   - the canonical `nova_auth_api.main:app` process entrypoint consumed by the
-     release-only auth-service Dockerfile under `apps/`
-3. `packages/nova_dash_bridge/` may provide framework extraction and glue, but
+2. `packages/nova_dash_bridge/` may provide framework extraction and glue, but
    it must not redefine Nova API models, endpoint ownership, auth semantics, or
    policy rules. Its canonical in-process dependency surface is
    `nova_file_api.public`.
-4. `packages/contracts/` is the only OpenAPI contract artifact authority.
-5. Deployment workflows and CI/CD contracts belong to separate deploy-governance
+3. `packages/contracts/` is the only OpenAPI contract artifact authority.
+4. Deployment workflows and CI/CD contracts belong to separate deploy-governance
    docs, not this runtime boundary decision.
 
 ## Consequences
@@ -108,6 +102,8 @@ Choose **Option B**.
 
 ## Changelog
 
+- 2026-03-19 (v2.2): Removed active `nova_auth_api` ownership from the runtime
+  boundary contract after the in-process auth cutover landed in `nova_file_api`.
 - 2026-03-10 (v2.1): Consolidated service entrypoints into
   `packages/nova_file_api` and `packages/nova_auth_api`, while keeping the
   release-only service Dockerfiles outside workspace package paths.

@@ -220,7 +220,7 @@ Pipeline dashboard:
 
 1. Release signing and workflow auth are valid.
 2. Pipeline completes Dev -> ManualApproval -> Prod in order.
-3. `FILE_IMAGE_DIGEST` and `AUTH_IMAGE_DIGEST` continuity is preserved Dev to Prod.
+3. `FILE_IMAGE_DIGEST` continuity is preserved Dev to Prod.
 4. Durable promotion evidence (workflow run URLs, digest continuity, approval
    record) is captured per [`release-policy.md`](../release/release-policy.md) §6.
 

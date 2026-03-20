@@ -2,8 +2,8 @@
 ADR: 0026
 Title: Fail-fast runtime configuration and safe auth execution
 Status: Accepted
-Version: 2.2
-Date: 2026-03-17
+Version: 2.3
+Date: 2026-03-19
 Related:
   - "[ADR-0023](./ADR-0023-hard-cut-v1-canonical-route-surface.md)"
   - "[SPEC-0000](../spec/SPEC-0000-http-api-contract.md)"
@@ -19,9 +19,10 @@ Related:
 ## Summary
 
 Nova runtime fails fast on invalid configuration, exposes explicit readiness
-checks for the dependencies it currently evaluates, and executes synchronous
-token verification only behind explicit threadpool boundaries. Runtime safety
-is not delegated to deploy-automation IAM docs.
+checks for the dependencies it currently evaluates, and keeps any remaining
+synchronous token verification behind explicit threadpool boundaries while the
+public file API uses async-native verification. Runtime safety is not delegated
+to deploy-automation IAM docs.
 
 ## Context
 
@@ -29,7 +30,7 @@ Nova exposes configuration-heavy runtime behavior:
 
 - queue backend selection
 - activity-store backend selection
-- same-origin, local OIDC, and remote auth modes
+- same-origin and local OIDC auth modes
 - worker callback/update-token behavior
 - readiness and health semantics
 
@@ -75,15 +76,13 @@ Choose **Option B**.
    derived from the active runtime settings.
 5. Local synchronous OIDC/JWT verification never runs directly on async
    event-loop paths.
-6. `OIDC_VERIFIER_THREAD_TOKENS` is verifier-only authority; generic blocking
-   I/O uses a separate limiter contract.
-7. Remote auth remains optional, fail-closed when enabled, and reuses a
-   process-scoped async HTTP client with explicit shutdown cleanup.
-8. Deploy and operator docs must enforce the current strict idempotency
+6. Any remaining threadpool/offload tuning stays scoped to blocking work that
+   still exists outside the async-native JWT path.
+7. Deploy and operator docs must enforce the current strict idempotency
    contract: `IDEMPOTENCY_ENABLED=true` requires shared Redis claim storage,
    and shared-store failures fail closed without an `IDEMPOTENCY_MODE`
    surface.
-9. Deploy scripts, infra tests, and operator docs consume a generated
+8. Deploy scripts, infra tests, and operator docs consume a generated
    runtime-config contract artifact derived from the typed runtime settings plus
    the minimal curated deploy metadata required for ECS template wiring.
 
@@ -101,7 +100,7 @@ Choose **Option B**.
 ### Trade-offs
 
 - Startup becomes stricter and rejects more partial configurations.
-- Thread-limiter settings become explicit operational inputs instead of hidden
+- Remaining blocking-work boundaries stay explicit instead of relying on hidden
   defaults.
 
 ## Explicit non-decisions
@@ -133,3 +132,5 @@ on async handlers until and unless fully eliminated.
   readiness gating in the active runtime contract.
 - 2026-03-17: Added the generated runtime-config contract artifact as the
   required deploy/docs/test anti-drift mechanism.
+- 2026-03-19: Updated the ADR for the async-native in-process verifier and the
+  retired remote-auth path.

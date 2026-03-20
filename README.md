@@ -21,8 +21,6 @@ Use these entrypoints before drilling into deeper docs:
 - `packages/nova_file_api/`: transfer, jobs, readiness, metrics, ASGI
   entrypoint, worker orchestration, and **in-process bearer JWT** verification
   in the target architecture (`ADR-0033`, `SPEC-0027`)
-- `packages/nova_auth_api/`: **retired** in the target architecture (superseded
-  `ADR-0005`); package may remain until green-field branch 1 removes it
 - `packages/nova_dash_bridge/`: Dash/Flask/FastAPI integration adapters over
   `nova_file_api.public`
 - `packages/nova_runtime_support/`: shared runtime support helpers
@@ -164,8 +162,7 @@ Package/app build verification:
 
 ```bash
 source .venv/bin/activate && \
-for p in packages/nova_file_api packages/nova_auth_api \
-  packages/nova_dash_bridge; do uv build "$p"; done
+for p in packages/nova_file_api packages/nova_dash_bridge; do uv build "$p"; done
 ```
 
 If you touch `packages/nova_runtime_support`, also run:

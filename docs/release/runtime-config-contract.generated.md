@@ -71,9 +71,6 @@ Canonical sources:
 | OIDC_JWKS_URL | oidc_jwks_url | str \| None | no | no | `None` |
 | OIDC_REQUIRED_PERMISSIONS | oidc_required_permissions | str | no | no | `''` |
 | OIDC_REQUIRED_SCOPES | oidc_required_scopes | str | no | no | `''` |
-| OIDC_VERIFIER_THREAD_TOKENS | oidc_verifier_thread_tokens | int | no | no | `40` |
-| REMOTE_AUTH_BASE_URL | remote_auth_base_url | str \| None | no | no | `None` |
-| REMOTE_AUTH_TIMEOUT_SECONDS | remote_auth_timeout_seconds | float | no | no | `2.0` |
 
 ## Generated ENV_VARS_JSON support matrix
 
@@ -86,10 +83,7 @@ Canonical sources:
 | OIDC_REQUIRED_SCOPES | OidcRequiredScopes |
 | OIDC_REQUIRED_PERMISSIONS | OidcRequiredPermissions |
 | OIDC_CLOCK_SKEW_SECONDS | OidcClockSkewSeconds |
-| OIDC_VERIFIER_THREAD_TOKENS | OidcVerifierThreadTokens |
 | BLOCKING_IO_THREAD_TOKENS | BlockingIoThreadTokens |
-| REMOTE_AUTH_BASE_URL | RemoteAuthBaseUrl |
-| REMOTE_AUTH_TIMEOUT_SECONDS | RemoteAuthTimeoutSeconds |
 | CACHE_REDIS_MAX_CONNECTIONS | CacheRedisMaxConnections |
 | CACHE_REDIS_SOCKET_TIMEOUT_SECONDS | CacheRedisSocketTimeoutSeconds |
 | CACHE_REDIS_SOCKET_CONNECT_TIMEOUT_SECONDS | CacheRedisSocketConnectTimeoutSeconds |
@@ -132,10 +126,7 @@ Forbidden ENV_VARS_JSON keys:
 | OIDC_REQUIRED_SCOPES | task parameter | when jwt_local | no |
 | OIDC_REQUIRED_PERMISSIONS | task parameter | when jwt_local | no |
 | OIDC_CLOCK_SKEW_SECONDS | task parameter | always | no |
-| OIDC_VERIFIER_THREAD_TOKENS | task parameter | always | no |
 | BLOCKING_IO_THREAD_TOKENS | task parameter | always | no |
-| REMOTE_AUTH_BASE_URL | task parameter | when jwt_remote | no |
-| REMOTE_AUTH_TIMEOUT_SECONDS | task parameter | always | no |
 | FILE_TRANSFER_ENABLED | stack-derived | always | no |
 | JOBS_ENABLED | stack-derived | always | no |
 | JOBS_QUEUE_BACKEND | stack-derived | always | no |

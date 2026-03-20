@@ -2,7 +2,6 @@
 
 Canonical, versioned fixture bundle for cross-framework conformance on:
 
-- Auth verify contract (`POST /v1/token/verify`)
 - Transfer initiate contract (`POST /v1/transfers/uploads/initiate`)
 - Async jobs create/status contracts (`POST /v1/jobs`, `GET /v1/jobs/{job_id}`)
 - v1 capability surface (`/v1/jobs`, `/v1/jobs/{job_id}/events`, `/v1/capabilities`, `/v1/resources/plan`, `/v1/releases/info`, `/v1/health/live`, `/v1/health/ready`)
@@ -35,24 +34,21 @@ Route namespace policy:
 1. Load `manifest.json` to resolve schema + fixture paths.
 2. Validate fixture JSON against schema files.
 3. Validate decoded payloads using generated/python contract models.
-4. Assert canonical error envelope parity for 401/403/503 fixtures.
+4. Assert canonical error envelope parity for 503 fixtures.
 
 ### Shiny/R lanes
 
 1. Read fixtures with `jsonlite::fromJSON`.
 2. Validate top-level and required fields against schema-required keys.
-3. Assert verify success principal shape and queue-unavailable error shape.
+3. Assert queue-unavailable error shape and file API response parity.
 4. Keep adapter logic thin: no schema forks and no local authority mapping.
 
 ### TypeScript lanes
 
 1. Import fixture JSON as test fixtures.
-2. Exercise generated `@nova/sdk-auth/client` / `@nova/sdk-file/client`
-   methods against fixture-backed mock fetch implementations.
+2. Exercise generated `@nova/sdk-file/client` methods against fixture-backed
+   mock fetch implementations.
 3. Assert runtime handling for:
-   - `verify.success`
-   - `verify.401.invalid-token`
-   - `verify.403.insufficient-scope`
    - `enqueue.503.queue-unavailable`
 
 ## Governance requirements

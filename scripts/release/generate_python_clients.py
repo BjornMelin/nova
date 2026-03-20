@@ -58,15 +58,6 @@ TARGETS = (
         / "nova_sdk_py_file",
         package_name="nova_sdk_py_file",
     ),
-    GenerationTarget(
-        spec_path=OPENAPI_ROOT / "nova-auth-api.openapi.json",
-        output_path=REPO_ROOT
-        / "packages"
-        / "nova_sdk_py_auth"
-        / "src"
-        / "nova_sdk_py_auth",
-        package_name="nova_sdk_py_auth",
-    ),
 )
 
 
@@ -925,7 +916,7 @@ def _patch_auth_sdk(root: Path) -> None:
         "api/token/verify_token.py",
         lambda content: _ensure_module_docstring(
             content,
-            doc="Client helpers for the `/v1/token/verify` endpoint.",
+            doc="Client helpers for generated auth verification endpoints.",
         ),
     )
     _rewrite_file(

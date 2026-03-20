@@ -78,7 +78,6 @@ jobs:
         package_name:
           - "@nova/sdk-fetch"
           - "@nova/sdk-file"
-          - "@nova/sdk-auth"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -128,11 +127,8 @@ jobs:
           EOF
           npm install --no-package-lock \
             "${GITHUB_WORKSPACE}/packages/nova_sdk_fetch" \
-            "${GITHUB_WORKSPACE}/packages/nova_sdk_file" \
-            "${GITHUB_WORKSPACE}/packages/nova_sdk_auth"
+            "${GITHUB_WORKSPACE}/packages/nova_sdk_file"
           node --input-type=module <<'EOF'
-          import { createNovaAuthClient } from "@nova/sdk-auth/client";
-          import { operations as authOperations } from "@nova/sdk-auth/operations";
           import { createNovaFileClient } from "@nova/sdk-file/client";
           import { operations as fileOperations } from "@nova/sdk-file/operations";
           import { buildOperationDescriptorUrl, buildOperationUrl } from "@nova/sdk-fetch/url";
@@ -147,14 +143,6 @@ jobs:
             throw new Error(`unexpected file URL: ${fileUrl}`);
           }
 
-          const authUrl = buildOperationUrl(
-            "https://nova.example/",
-            authOperations.verify_token.path,
-          );
-          if (authUrl !== "https://nova.example/v1/token/verify") {
-            throw new Error(`unexpected auth URL: ${authUrl}`);
-          }
-
           const descriptorUrl = buildOperationDescriptorUrl(
             "https://nova.example/",
             fileOperations.get_job_status,
@@ -167,21 +155,6 @@ jobs:
 
           if ("update_job_result" in fileOperations) {
             throw new Error("internal file operation leaked into public SDK");
-          }
-
-          const authClient = createNovaAuthClient({
-            baseUrl: "https://nova.example/",
-            fetchImpl: async () =>
-              new Response(JSON.stringify({ claims: {}, principal: { permissions: [], scope_id: "scope", scopes: [], subject: "subject", tenant_id: null } }), {
-                status: 200,
-                headers: { "content-type": "application/json" },
-              }),
-          });
-          const authResponse = await authClient.verify_token({
-            body: { access_token: "token", required_permissions: [], required_scopes: [] },
-          });
-          if (!authResponse.ok || authResponse.data?.principal.subject !== "subject") {
-            throw new Error("unexpected auth client response");
           }
 
           const fileClient = createNovaFileClient({
@@ -249,14 +222,10 @@ jobs:
         uses: r-lib/actions/setup-r-dependencies@v2
         with:
           working-directory: packages/nova_sdk_r_file
-      - name: Install R dependencies for nova.sdk.r.auth
-        uses: r-lib/actions/setup-r-dependencies@v2
-        with:
-          working-directory: packages/nova_sdk_r_auth
       - name: Build and check generated R SDK packages
         run: |
           set -euo pipefail
-          for package_dir in packages/nova_sdk_r_file packages/nova_sdk_r_auth; do
+          for package_dir in packages/nova_sdk_r_file; do
             bash scripts/checks/verify_r_cmd_check.sh "${package_dir}"
           done
 

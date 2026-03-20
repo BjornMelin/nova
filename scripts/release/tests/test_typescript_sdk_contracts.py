@@ -25,12 +25,6 @@ def _load_source_text(package_dir_name: str, file_name: str) -> str:
 def test_public_sdk_packages_use_subpath_only_exports() -> None:
     """Public TS SDK packages must expose explicit subpaths only."""
     expected_exports = {
-        "nova_sdk_auth": {
-            "./client",
-            "./errors",
-            "./operations",
-            "./types",
-        },
         "nova_sdk_file": {
             "./client",
             "./errors",
@@ -56,18 +50,14 @@ def test_public_sdk_packages_use_subpath_only_exports() -> None:
 
 def test_typescript_sdk_source_manifests_remain_private() -> None:
     """Source TS SDK manifests stay private until staged publish preparation."""
-    for package_dir_name in (
-        "nova_sdk_auth",
-        "nova_sdk_fetch",
-        "nova_sdk_file",
-    ):
+    for package_dir_name in ("nova_sdk_fetch", "nova_sdk_file"):
         package_data = _load_package_json(package_dir_name)
         assert package_data.get("private") is True
 
 
 def test_public_sdk_packages_remain_validation_free() -> None:
     """Public TS SDK packages must not bundle Zod or validator dependencies."""
-    for package_dir_name in ("nova_sdk_auth", "nova_sdk_file"):
+    for package_dir_name in ("nova_sdk_file",):
         package_data = _load_package_json(package_dir_name)
         dependencies = package_data.get("dependencies", {})
         assert isinstance(dependencies, dict)
@@ -84,7 +74,7 @@ def test_public_sdk_types_omit_raw_model_aliases() -> None:
         "export type OperationId =",
     )
 
-    for package_dir_name in ("nova_sdk_auth", "nova_sdk_file"):
+    for package_dir_name in ("nova_sdk_file",):
         source = _load_source_text(package_dir_name, "types.ts")
         for banned_export in banned_exports:
             assert banned_export not in source

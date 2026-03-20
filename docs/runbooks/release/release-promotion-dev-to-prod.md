@@ -22,7 +22,6 @@ one signed source revision.
 2. CodeConnections status is `AVAILABLE`.
 3. Pipeline build stage exports required variables:
    - `FILE_IMAGE_DIGEST`
-   - `AUTH_IMAGE_DIGEST`
    - `PUBLISHED_PACKAGES`
    - `RELEASE_MANIFEST_SHA256`
 
@@ -103,8 +102,7 @@ Use CodePipeline action execution details and confirm the same digest is used
 for both deployments by auditing the image digest selected by the pipeline
 parameter `DeployImageDigestVariable`:
 
-- `DeployImageDigestVariable` resolves to either `FILE_IMAGE_DIGEST` or
-  `AUTH_IMAGE_DIGEST`.
+- `DeployImageDigestVariable` resolves to `FILE_IMAGE_DIGEST`.
 - Dev and Prod deploy actions both reference the same selected digest variable.
 
 ```bash

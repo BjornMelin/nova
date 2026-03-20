@@ -2,7 +2,8 @@
 
 from nova_runtime_support.auth_claims import (
     NormalizedPrincipalClaims,
-    build_jwt_verifier,
+    build_async_jwt_verifier,
+    build_auth_config,
     normalized_principal_claims,
 )
 from nova_runtime_support.http import (
@@ -31,7 +32,8 @@ __all__ = [
     "NormalizedPrincipalClaims",
     "apply_operation_response_refs",
     "bind_request_id",
-    "build_jwt_verifier",
+    "build_async_jwt_verifier",
+    "build_auth_config",
     "canonical_error_content",
     "configure_structlog",
     "ensure_error_envelope_schema",

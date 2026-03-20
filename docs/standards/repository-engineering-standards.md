@@ -106,8 +106,8 @@ Rules for narrative provisioning, release, and validation markdown under
 
 ## Generated TypeScript SDK Rules
 
-- Generated TypeScript packages are `@nova/sdk-auth`, `@nova/sdk-file`, and the
-  shared runtime/helper package `@nova/sdk-fetch`.
+- Generated TypeScript packages are `@nova/sdk-file` and the shared
+  runtime/helper package `@nova/sdk-fetch`.
 - Generated TypeScript packages are release-grade within Nova's existing
   CodeArtifact staged/prod system, but they remain generator-owned and
   subpath-only.
@@ -131,8 +131,8 @@ Rules for narrative provisioning, release, and validation markdown under
 
 - R SDK packages are first-class internal release artifacts, not deferred
   generated catalogs.
-- The package line is `nova.sdk.r.file` and `nova.sdk.r.auth`, with repository
-  paths under `packages/nova_sdk_r_file/` and `packages/nova_sdk_r_auth/`.
+- The package line is `nova.sdk.r.file`, with repository path under
+  `packages/nova_sdk_r_file/`.
 - R packages use real package scaffolds, `logical format r`, generator-owned
   output from `scripts/release/generate_clients.py`, testthat coverage, and
   verification through the shared `scripts/checks/verify_r_cmd_check.sh`
@@ -205,7 +205,6 @@ packaging, release automation, or SDK docs/contracts:
 - `uv run python scripts/conformance/check_typescript_module_policy.py`
 - `npm run -w @nova/sdk-fetch build`
 - `npm run -w @nova/sdk-fetch typecheck`
-- `npm run -w @nova/sdk-auth typecheck`
 - `npm run -w @nova/sdk-file typecheck`
 - `npm run -w @nova/contracts-ts-conformance typecheck`
 - `npm run -w @nova/contracts-ts-conformance verify`

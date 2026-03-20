@@ -28,7 +28,6 @@ uv run python scripts/release/generate_python_clients.py --check
 
 for package in \
   packages/nova_file_api \
-  packages/nova_auth_api \
   packages/nova_dash_bridge \
   packages/nova_runtime_support; do
   uv build "${package}"

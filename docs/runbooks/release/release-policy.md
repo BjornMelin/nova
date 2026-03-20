@@ -106,8 +106,7 @@ ledger inside `docs/`). At minimum:
   jobs -- sufficient to reproduce what ran and whether it succeeded.
 - **Promotion record**: the PR or internal change ticket that carried Dev→Prod
   approval, `FILE_IMAGE_DIGEST`, and any post-deploy validation artifact links
-  (for example JSON under org-owned object storage). Include
-  `AUTH_IMAGE_DIGEST` only when an auth-image was part of the promoted change.
+  (for example JSON under org-owned object storage).
 - Live AWS/pipeline checks follow
   `docs/runbooks/release/nonprod-live-validation-runbook.md` and
   `docs/runbooks/release/release-runbook.md`; file **execution notes** only when

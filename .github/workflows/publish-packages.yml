@@ -324,12 +324,6 @@ jobs:
         with:
           working-directory: packages/nova_sdk_r_file
 
-      - name: Install R dependencies for nova.sdk.r.auth
-        if: contains(fromJson(steps.release-units.outputs.r_unit_ids), 'packages/nova_sdk_r_auth')
-        uses: r-lib/actions/setup-r-dependencies@v2
-        with:
-          working-directory: packages/nova_sdk_r_auth
-
       - name: Build, check, and sign R packages
         if: steps.release-units.outputs.has_r_units == 'true'
         run: |
@@ -844,9 +838,7 @@ jobs:
           );
           let buildDescriptorUrl = null;
           let fileOperations = null;
-          let authOperations = null;
           let createFileClient = null;
-          let createAuthClient = null;
 
           try {
             ({ buildOperationDescriptorUrl: buildDescriptorUrl } = await import("@nova/sdk-fetch/url"));
@@ -863,23 +855,12 @@ jobs:
               throw error;
             }
           }
-          try {
-            ({ operations: authOperations } = await import("@nova/sdk-auth/operations"));
-            ({ createNovaAuthClient: createAuthClient } = await import("@nova/sdk-auth/client"));
-          } catch (error) {
-            if (expectedPackages.has("@nova/sdk-auth")) {
-              throw error;
-            }
-          }
 
           if (expectedPackages.has("@nova/sdk-fetch") && !buildDescriptorUrl) {
             throw new Error("@nova/sdk-fetch smoke import did not load buildOperationDescriptorUrl");
           }
           if (expectedPackages.has("@nova/sdk-file") && (!fileOperations || !createFileClient)) {
             throw new Error("@nova/sdk-file smoke import did not load expected entrypoints");
-          }
-          if (expectedPackages.has("@nova/sdk-auth") && (!authOperations || !createAuthClient)) {
-            throw new Error("@nova/sdk-auth smoke import did not load expected entrypoints");
           }
 
           if (buildDescriptorUrl && fileOperations) {
@@ -923,40 +904,9 @@ jobs:
             const fileResponse = await fileClient.get_job_status({
               pathParams: { job_id: "job-123" },
             });
-            if (!fileResponse.ok || fileResponse.data?.job?.job_id !== "job-123") {
-              throw new Error("unexpected published file client response");
-            }
+          if (!fileResponse.ok || fileResponse.data?.job?.job_id !== "job-123") {
+            throw new Error("unexpected published file client response");
           }
-
-          if (createAuthClient && authOperations) {
-            const authClient = createAuthClient({
-              baseUrl: "https://nova.example/",
-              fetchImpl: async (input) => {
-                const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
-                if (url !== "https://nova.example/v1/token/verify") {
-                  throw new Error(`unexpected auth client URL: ${url}`);
-                }
-                return new Response(JSON.stringify({
-                  claims: {},
-                  principal: {
-                    permissions: [],
-                    scope_id: "scope",
-                    scopes: [],
-                    subject: "subject",
-                    tenant_id: null,
-                  },
-                }), {
-                  status: 200,
-                  headers: { "content-type": "application/json" },
-                });
-              },
-            });
-            const authResponse = await authClient.verify_token({
-              body: { access_token: "token", required_permissions: [], required_scopes: [] },
-            });
-            if (!authResponse.ok || authResponse.data?.principal.subject !== "subject") {
-              throw new Error("unexpected published auth client response");
-            }
           }
           EOF
           node smoke.mjs

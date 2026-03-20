@@ -373,7 +373,7 @@ def test_validate_release_gates_rejects_changed_units_plan_drift(
         {
             "changed_units": [
                 {"unit_id": "packages/nova_file_api"},
-                {"unit_id": "packages/nova_auth_api"},
+                {"unit_id": "packages/nova_runtime_support"},
             ]
         },
     )

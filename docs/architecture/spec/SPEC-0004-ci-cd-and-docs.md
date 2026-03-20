@@ -139,7 +139,6 @@ Secrets policy:
 3. Produce deploy artifacts consumed by both Dev and Prod promotion stages.
 4. Export build variables:
    - `FILE_IMAGE_DIGEST`
-   - `AUTH_IMAGE_DIGEST`
    - `PUBLISHED_PACKAGES`
    - `RELEASE_MANIFEST_SHA256`
    - `CHANGED_UNITS`
@@ -154,7 +153,6 @@ Required CodeBuild environment inputs:
 Default build target values:
 
 - `FILE_DOCKERFILE_PATH=apps/nova_file_api_service/Dockerfile`
-- `AUTH_DOCKERFILE_PATH=apps/nova_auth_api_service/Dockerfile`
 - `DOCKER_BUILD_CONTEXT=.`
 - `DOCKER_BUILDKIT=1`
 - Docker CLI with `buildx` available in the release-build environment

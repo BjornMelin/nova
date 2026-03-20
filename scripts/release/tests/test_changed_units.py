@@ -49,9 +49,9 @@ def test_build_changed_units_report_first_release_marks_all_units() -> None:
             "packages/nova_file_api",
             "nova-file-api",
         ),
-        "packages/nova_auth_api": _unit(
-            "packages/nova_auth_api",
-            "nova-auth-api",
+        "packages/nova_runtime_support": _unit(
+            "packages/nova_runtime_support",
+            "nova-runtime-support",
         ),
     }
 
@@ -66,7 +66,7 @@ def test_build_changed_units_report_first_release_marks_all_units() -> None:
     changed_ids = {item["unit_id"] for item in report["changed_units"]}
     assert changed_ids == {
         "packages/nova_file_api",
-        "packages/nova_auth_api",
+        "packages/nova_runtime_support",
     }
 
 
@@ -76,9 +76,9 @@ def test_build_changed_units_report_ignores_dockerfile_only_changes() -> None:
             "packages/nova_file_api",
             "nova-file-api",
         ),
-        "packages/nova_auth_api": _unit(
-            "packages/nova_auth_api",
-            "nova-auth-api",
+        "packages/nova_runtime_support": _unit(
+            "packages/nova_runtime_support",
+            "nova-runtime-support",
         ),
     }
 

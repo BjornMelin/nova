@@ -2,16 +2,14 @@
 
 from __future__ import annotations
 
-import asyncio
 import time
-from typing import Any
+from typing import Any, Protocol
 
-import anyio
-import httpx
-from anyio.abc import CapacityLimiter
-from nova_runtime_support import build_jwt_verifier, normalized_principal_claims
-from nova_runtime_support.threading import run_sync
-from oidc_jwt_verifier import AuthError, JWTVerifier
+from nova_runtime_support import (
+    build_async_jwt_verifier,
+    normalized_principal_claims,
+)
+from oidc_jwt_verifier import AuthError
 from starlette.requests import Request
 
 from nova_file_api.cache import TwoTierCache
@@ -20,10 +18,19 @@ from nova_file_api.errors import (
     FileTransferError,
     forbidden,
     invalid_request,
-    service_unavailable,
     unauthorized,
 )
 from nova_file_api.models import AuthMode, Principal
+
+
+class AccessTokenVerifier(Protocol):
+    """Structural interface for async JWT access-token verification."""
+
+    async def verify_access_token(self, token: str) -> dict[str, Any]:
+        """Verify one access token and return decoded claims."""
+
+    async def aclose(self) -> None:
+        """Release verifier-owned async resources."""
 
 
 class Authenticator:
@@ -39,11 +46,6 @@ class Authenticator:
         self._settings = settings
         self._cache = cache
         self._verifier = self._build_verifier(settings)
-        self._verifier_thread_limiter: CapacityLimiter = anyio.CapacityLimiter(
-            settings.oidc_verifier_thread_tokens
-        )
-        self._remote_client: httpx.AsyncClient | None = None
-        self._remote_client_lock = asyncio.Lock()
 
     async def authenticate(
         self,
@@ -69,12 +71,7 @@ class Authenticator:
         if token is None:
             raise unauthorized("missing bearer token")
 
-        if self._settings.auth_mode == AuthMode.JWT_REMOTE:
-            principal = await self._verify_remote_principal(token=token)
-            self._enforce_required_authorization(principal=principal)
-            return principal
-        else:
-            claims = await self._verify_local_token(token=token)
+        claims = await self._verify_local_token(token=token)
 
         principal = _principal_from_claims(claims=claims)
         self._enforce_required_authorization(principal=principal)
@@ -84,31 +81,17 @@ class Authenticator:
         """Return readiness of the active auth dependency."""
         if self._settings.auth_mode == AuthMode.SAME_ORIGIN:
             return True
-        if self._settings.auth_mode == AuthMode.JWT_LOCAL:
-            return (
-                self._settings.local_oidc_verifier_configured
-                and self._verifier is not None
-            )
-
-        base_url = self._settings.remote_auth_base_url
-        if base_url is None:
-            return False
-
-        url = f"{base_url.rstrip('/')}/v1/health/ready"
-        try:
-            client = await self._get_remote_client()
-            response = await client.get(url)
-        except httpx.HTTPError:
-            return False
-        return response.status_code == 200
+        return (
+            self._settings.local_oidc_verifier_configured
+            and self._verifier is not None
+        )
 
     async def aclose(self) -> None:
-        """Close any lazily-initialized remote auth client."""
-        client = self._remote_client
-        if client is None:
+        """Close verifier-owned async resources when configured."""
+        verifier = self._verifier
+        if verifier is None:
             return
-        self._remote_client = None
-        await client.aclose()
+        await verifier.aclose()
 
     def _same_origin_principal(
         self,
@@ -162,10 +145,7 @@ class Authenticator:
             raise unauthorized("local jwt mode is misconfigured")
 
         try:
-            claims = await run_sync(
-                lambda: verifier.verify_access_token(token),
-                limiter=self._verifier_thread_limiter,
-            )
+            claims = await verifier.verify_access_token(token)
         except AuthError as exc:
             raise _local_auth_error(exc=exc) from exc
 
@@ -182,49 +162,6 @@ class Authenticator:
             )
         return claims
 
-    async def _verify_remote_principal(self, *, token: str) -> Principal:
-        base_url = self._settings.remote_auth_base_url
-        if base_url is None:
-            raise unauthorized("remote auth mode is misconfigured")
-
-        url = f"{base_url.rstrip('/')}/v1/token/verify"
-        payload = {
-            "access_token": token,
-            "required_scopes": list(self._settings.default_required_scopes),
-            "required_permissions": list(
-                self._settings.default_required_permissions
-            ),
-        }
-        try:
-            client = await self._get_remote_client()
-            response = await client.post(
-                url,
-                json=payload,
-            )
-        except httpx.HTTPError as exc:
-            raise service_unavailable(
-                "remote auth verification unavailable"
-            ) from exc
-
-        if response.status_code != 200:
-            raise _remote_auth_error(response=response)
-
-        try:
-            decoded = response.json()
-        except (ValueError, UnicodeDecodeError) as exc:
-            raise unauthorized("remote auth returned invalid response") from exc
-        if not isinstance(decoded, dict):
-            raise unauthorized("remote auth returned invalid response")
-
-        principal_raw = decoded.get("principal")
-        if isinstance(principal_raw, dict):
-            return _principal_from_remote_payload(principal=principal_raw)
-
-        claims_raw = decoded.get("claims", decoded.get("token", decoded))
-        if not isinstance(claims_raw, dict):
-            raise unauthorized("remote auth claims payload is invalid")
-        return _principal_from_claims(claims=claims_raw)
-
     def _enforce_required_authorization(self, *, principal: Principal) -> None:
         required_scopes = set(self._settings.default_required_scopes)
         if required_scopes and not required_scopes.issubset(
@@ -239,33 +176,15 @@ class Authenticator:
             raise forbidden("missing required permissions")
 
     @staticmethod
-    def _build_verifier(settings: Settings) -> JWTVerifier | None:
+    def _build_verifier(settings: Settings) -> AccessTokenVerifier | None:
         if settings.auth_mode != AuthMode.JWT_LOCAL:
             return None
-        if not settings.local_oidc_verifier_configured:
-            return None
-        return build_jwt_verifier(
+        return build_async_jwt_verifier(
             issuer=settings.oidc_issuer,
             audience=settings.oidc_audience,
             jwks_url=settings.oidc_jwks_url,
             clock_skew_seconds=settings.oidc_clock_skew_seconds,
-            required_scopes=settings.default_required_scopes,
-            required_permissions=settings.default_required_permissions,
         )
-
-    async def _get_remote_client(self) -> httpx.AsyncClient:
-        client = self._remote_client
-        if client is not None:
-            return client
-        async with self._remote_client_lock:
-            client = self._remote_client
-            if client is not None:
-                return client
-            client = httpx.AsyncClient(
-                timeout=self._settings.remote_auth_timeout_seconds
-            )
-            self._remote_client = client
-            return client
 
 
 def _extract_bearer_token(*, request: Request) -> str | None:
@@ -328,70 +247,6 @@ def _www_authenticate_from_auth_error(*, exc: AuthError) -> str | None:
     if isinstance(value, str) and value:
         return value
     return None
-
-
-def _remote_auth_error(*, response: httpx.Response) -> FileTransferError:
-    body = _safe_json_dict(response=response)
-    error_payload = body.get("error")
-    code = "unauthorized"
-    message = "remote auth rejected token"
-    if isinstance(error_payload, dict):
-        code_value = error_payload.get("code")
-        message_value = error_payload.get("message")
-        if isinstance(code_value, str) and code_value:
-            code = code_value
-        if isinstance(message_value, str) and message_value:
-            message = message_value
-
-    status_code = response.status_code
-    if status_code == 403 and code == "unauthorized":
-        code = "forbidden"
-    if status_code >= 500:
-        code = "auth_unavailable"
-        message = "remote auth service unavailable"
-    elif status_code not in {401, 403}:
-        status_code = 401
-
-    headers: dict[str, str] = {}
-    header_value = response.headers.get("WWW-Authenticate")
-    if header_value:
-        headers["WWW-Authenticate"] = header_value
-    return FileTransferError(
-        code=code,
-        message=message,
-        status_code=status_code,
-        headers=headers,
-    )
-
-
-def _safe_json_dict(*, response: httpx.Response) -> dict[str, Any]:
-    try:
-        decoded = response.json()
-    except (ValueError, UnicodeDecodeError):
-        return {}
-    if isinstance(decoded, dict):
-        return decoded
-    return {}
-
-
-def _principal_from_remote_payload(*, principal: dict[str, Any]) -> Principal:
-    normalized = normalized_principal_claims(
-        claims=principal,
-        invalid_token_error=_remote_principal_error,
-        subject_keys=("subject", "sub"),
-        scopes_claim="scopes",
-    )
-    return Principal(
-        subject=normalized.subject,
-        scope_id=normalized.scope_id,
-        tenant_id=normalized.tenant_id,
-        scopes=normalized.scopes,
-        permissions=normalized.permissions,
-    )
-
-
-def _remote_principal_error(message: str) -> FileTransferError:
-    return unauthorized(f"remote auth principal is invalid: {message}")
 
 
 def _jwt_cache_ttl_seconds(

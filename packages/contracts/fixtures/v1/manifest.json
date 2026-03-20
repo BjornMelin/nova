@@ -3,8 +3,6 @@
   "canonical_root": "packages/contracts/fixtures/v1",
   "schemas": {
     "canonical_error_envelope": "schemas/canonical-error-envelope.schema.json",
-    "auth_verify_request": "schemas/auth-verify.request.schema.json",
-    "auth_verify_success_response": "schemas/auth-verify.success.schema.json",
     "transfer_initiate_request": "schemas/transfer-initiate.request.schema.json",
     "transfer_initiate_success_response": "schemas/transfer-initiate.success.schema.json",
     "jobs_enqueue_request": "schemas/jobs-enqueue.request.schema.json",
@@ -15,11 +13,6 @@
     "v1_releases_info_success_response": "schemas/v1-releases-info.success.schema.json"
   },
   "fixtures": {
-    "auth": {
-      "verify_success": "fixtures/auth/verify.success.json",
-      "verify_401_invalid_token": "fixtures/auth/verify.401.invalid-token.json",
-      "verify_403_insufficient_scope": "fixtures/auth/verify.403.insufficient-scope.json"
-    },
     "transfer": {
       "initiate_request": "fixtures/transfer/initiate.request.json",
       "initiate_success": "fixtures/transfer/initiate.success.json"

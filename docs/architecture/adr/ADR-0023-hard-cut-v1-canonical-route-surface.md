@@ -34,9 +34,8 @@ allowed for this release wave.
 4. Health/readiness standardize to `/v1/health/live` and
    `/v1/health/ready`.
 5. Observability summary remains non-versioned at `/metrics/summary`.
-6. Auth service routes standardize to `/v1/token/verify`,
-   `/v1/token/introspect`, `/v1/health/live`, and `/v1/health/ready`.
-7. Removed routes: all non-canonical pre-cutover route families.
+6. Removed routes: all non-canonical pre-cutover route families and the
+   retired dedicated-auth route surface.
 
 ### Why canonical `/v1/*` namespace
 
