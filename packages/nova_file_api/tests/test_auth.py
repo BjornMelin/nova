@@ -16,28 +16,6 @@ from nova_file_api.config import Settings
 from nova_file_api.errors import FileTransferError
 from nova_file_api.models import AuthMode
 from oidc_jwt_verifier import AuthError
-from starlette.requests import Request
-
-
-def _build_request(*, headers: dict[str, str]) -> Request:
-    raw_headers = [
-        (key.lower().encode("utf-8"), value.encode("utf-8"))
-        for key, value in headers.items()
-    ]
-    scope: dict[str, Any] = {
-        "type": "http",
-        "asgi": {"version": "3.0", "spec_version": "2.3"},
-        "http_version": "1.1",
-        "method": "GET",
-        "scheme": "https",
-        "path": "/v1/jobs",
-        "raw_path": b"/v1/jobs",
-        "query_string": b"",
-        "headers": raw_headers,
-        "client": ("127.0.0.1", 0),
-        "server": ("testserver", 443),
-    }
-    return Request(scope=scope)
 
 
 def _build_cache() -> TwoTierCache:
@@ -97,7 +75,7 @@ async def test_authenticator_aclose_closes_async_verifier() -> None:
 
 
 @pytest.mark.asyncio
-async def test_jwt_mode_prefers_principal_claim_scope_over_session_id(
+async def test_jwt_mode_uses_principal_claim_scope(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     settings = Settings()
@@ -115,65 +93,22 @@ async def test_jwt_mode_prefers_principal_claim_scope_over_session_id(
     monkeypatch.setattr(auth, "_verify_local_token", _fake_verify_local_token)
 
     principal = await auth.authenticate(
-        request=_build_request(headers={"Authorization": "Bearer token-123"}),
-        session_id="scope-from-session",
+        token="token-123",
     )
     assert principal.scope_id == "scope-from-token"
 
 
 @pytest.mark.asyncio
-async def test_same_origin_prefers_session_header_precedence() -> None:
+async def test_authenticate_requires_bearer_token() -> None:
     settings = Settings()
-    settings.auth_mode = AuthMode.SAME_ORIGIN
-    auth = Authenticator(settings=settings, cache=_build_cache())
-
-    principal = await auth.authenticate(
-        request=_build_request(
-            headers={
-                "X-Session-Id": "scope-from-session-header",
-                "X-Scope-Id": "scope-from-legacy-header",
-            }
-        ),
-        session_id="scope-from-session-header",
-    )
-
-    assert principal.scope_id == "scope-from-session-header"
-
-
-@pytest.mark.asyncio
-async def test_same_origin_rejects_conflicting_session_scope() -> None:
-    settings = Settings()
-    settings.auth_mode = AuthMode.SAME_ORIGIN
+    settings.auth_mode = AuthMode.JWT_LOCAL
     auth = Authenticator(settings=settings, cache=_build_cache())
 
     with pytest.raises(FileTransferError) as exc:
-        await auth.authenticate(
-            request=_build_request(
-                headers={"X-Session-Id": "scope-from-session-header"}
-            ),
-            session_id="scope-from-body",
-        )
-    assert exc.value.code == "invalid_request"
-    assert exc.value.status_code == 422
-    assert exc.value.message == "conflicting session scope"
-
-
-@pytest.mark.asyncio
-async def test_same_origin_rejects_legacy_header_body_conflict() -> None:
-    settings = Settings()
-    settings.auth_mode = AuthMode.SAME_ORIGIN
-    auth = Authenticator(settings=settings, cache=_build_cache())
-
-    with pytest.raises(FileTransferError) as exc:
-        await auth.authenticate(
-            request=_build_request(
-                headers={"X-Scope-Id": "scope-from-legacy-header"}
-            ),
-            session_id="scope-from-body",
-        )
+        await auth.authenticate(token=None)
     assert exc.value.code == "unauthorized"
     assert exc.value.status_code == 401
-    assert exc.value.message == "conflicting session scope"
+    assert exc.value.message == "missing bearer token"
 
 
 def test_file_transfer_error_initializes_exception_message() -> None:
@@ -206,12 +141,7 @@ async def test_required_scope_is_enforced_from_principal_claims(
     monkeypatch.setattr(auth, "_verify_local_token", _fake_verify_local_token)
 
     with pytest.raises(FileTransferError) as exc:
-        await auth.authenticate(
-            request=_build_request(
-                headers={"Authorization": "Bearer token-123"}
-            ),
-            session_id=None,
-        )
+        await auth.authenticate(token="token-123")
     assert exc.value.code == "forbidden"
     assert exc.value.status_code == 403
 
@@ -237,12 +167,7 @@ async def test_required_permission_is_enforced_from_principal_claims(
     monkeypatch.setattr(auth, "_verify_local_token", _fake_verify_local_token)
 
     with pytest.raises(FileTransferError) as exc:
-        await auth.authenticate(
-            request=_build_request(
-                headers={"Authorization": "Bearer token-123"}
-            ),
-            session_id=None,
-        )
+        await auth.authenticate(token="token-123")
     assert exc.value.code == "forbidden"
     assert exc.value.status_code == 403
 

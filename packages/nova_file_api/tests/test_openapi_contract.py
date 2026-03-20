@@ -16,7 +16,6 @@ from nova_file_api.jobs import (
     MemoryJobRepository,
 )
 from nova_file_api.metrics import MetricsCollector
-from nova_file_api.models import AuthMode
 from nova_file_api.operation_ids import OPERATION_ID_BY_PATH_AND_METHOD
 
 from .support.app import (
@@ -46,7 +45,6 @@ def _string_list(value: object) -> list[str]:
 def _build_openapi_app() -> FastAPI:
     """Build the file API app without real external dependencies."""
     settings = Settings()
-    settings.auth_mode = AuthMode.SAME_ORIGIN
     settings.jobs_enabled = True
 
     metrics = MetricsCollector(namespace="Tests")
@@ -218,6 +216,22 @@ def test_openapi_customized_error_and_visibility_contracts() -> None:
     worker_post = payload["paths"]["/v1/internal/jobs/{job_id}/result"]["post"]
     assert worker_post["x-nova-sdk-visibility"] == "internal"
     assert worker_post["security"] == [{"X-Worker-Token": []}]
+
+
+def test_openapi_uses_bearer_security_for_public_routes() -> None:
+    """Public OpenAPI routes advertise bearer auth."""
+    app = _build_openapi_app()
+    payload = app.openapi()
+
+    security_schemes = payload["components"]["securitySchemes"]
+    assert "bearerAuth" in security_schemes
+    assert "sessionAuth" not in security_schemes
+    assert security_schemes["bearerAuth"]["type"] == "http"
+    assert security_schemes["bearerAuth"]["scheme"] == "bearer"
+    assert security_schemes["bearerAuth"]["bearerFormat"] == "JWT"
+
+    public_post = payload["paths"]["/v1/jobs"]["post"]
+    assert public_post["security"] == [{"bearerAuth": []}]
 
 
 def test_legacy_routes_are_not_exposed() -> None:

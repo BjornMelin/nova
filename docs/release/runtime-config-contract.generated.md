@@ -18,7 +18,7 @@ Canonical sources:
 | APP_NAME | app_name | str | no | no | `'nova-file-api'` |
 | APP_VERSION | app_version | str | no | no | `<factory>` |
 | AUTH_JWT_CACHE_MAX_TTL_SECONDS | auth_jwt_cache_max_ttl_seconds | int | no | no | `120` |
-| AUTH_MODE | auth_mode | AuthMode | no | no | `<AuthMode.SAME_ORIGIN: 'same_origin'>` |
+| AUTH_MODE | auth_mode | AuthMode | no | no | `<AuthMode.JWT_LOCAL: 'jwt_local'>` |
 | BLOCKING_IO_THREAD_TOKENS | blocking_io_thread_tokens | int | no | no | `80` |
 | CACHE_KEY_PREFIX | cache_key_prefix | str | no | no | `'nova'` |
 | CACHE_KEY_SCHEMA_VERSION | cache_key_schema_version | int | no | no | `1` |

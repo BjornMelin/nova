@@ -3,17 +3,16 @@
 from __future__ import annotations
 
 import structlog
-from fastapi import APIRouter, Request
+from fastapi import APIRouter
 
 from nova_file_api.activity import ActivityStore
 from nova_file_api.dependencies import (
     ActivityStoreDep,
-    AuthenticatorDep,
     IdempotencyStoreDep,
     MetricsDep,
+    PrincipalDep,
     SettingsDep,
     TransferServiceDep,
-    authenticate_principal,
 )
 from nova_file_api.guarded_mutation import run_guarded_mutation
 from nova_file_api.metrics import MetricsCollector
@@ -55,22 +54,16 @@ transfer_router = APIRouter(prefix="/v1/transfers", tags=["transfers"])
     response_model=InitiateUploadResponse,
 )
 async def initiate_upload(
-    request: Request,
     payload: InitiateUploadRequest,
     settings: SettingsDep,
     metrics: MetricsDep,
     transfer_service: TransferServiceDep,
     activity_store: ActivityStoreDep,
     idempotency_store: IdempotencyStoreDep,
-    authenticator: AuthenticatorDep,
+    principal: PrincipalDep,
     idempotency_key: IdempotencyKeyHeader = None,
 ) -> InitiateUploadResponse:
     """Choose upload strategy and return presigned metadata."""
-    principal = await authenticate_principal(
-        request=request,
-        authenticator=authenticator,
-        session_id=payload.session_id,
-    )
     key = validated_idempotency_key(
         settings=settings,
         idempotency_key=idempotency_key,
@@ -167,20 +160,13 @@ async def initiate_upload(
     response_model=SignPartsResponse,
 )
 async def sign_upload_parts(
-    request: Request,
     payload: SignPartsRequest,
     metrics: MetricsDep,
     transfer_service: TransferServiceDep,
     activity_store: ActivityStoreDep,
-    authenticator: AuthenticatorDep,
+    principal: PrincipalDep,
 ) -> SignPartsResponse:
     """Return presigned multipart part URLs."""
-    principal = await authenticate_principal(
-        request=request,
-        authenticator=authenticator,
-        session_id=payload.session_id,
-    )
-
     try:
         with metrics.timed("uploads_sign_parts_ms"):
             response = await transfer_service.sign_parts(
@@ -236,32 +222,24 @@ async def sign_upload_parts(
     response_model=UploadIntrospectionResponse,
 )
 async def introspect_upload(
-    request: Request,
     payload: UploadIntrospectionRequest,
     metrics: MetricsDep,
     transfer_service: TransferServiceDep,
     activity_store: ActivityStoreDep,
-    authenticator: AuthenticatorDep,
+    principal: PrincipalDep,
 ) -> UploadIntrospectionResponse:
     """Return uploaded multipart part state for resume flows.
 
     Args:
-        request: FastAPI request object used for auth context.
         payload: Multipart introspection input payload.
         metrics: Request-scoped metrics collector dependency.
         transfer_service: Transfer domain service dependency.
         activity_store: Activity persistence dependency.
-        authenticator: Principal authenticator dependency.
+        principal: Authenticated caller principal.
 
     Returns:
         UploadIntrospectionResponse: Multipart state for resume operations.
     """
-    principal = await authenticate_principal(
-        request=request,
-        authenticator=authenticator,
-        session_id=payload.session_id,
-    )
-
     try:
         with metrics.timed("uploads_introspect_ms"):
             response = await transfer_service.introspect_upload(
@@ -317,20 +295,13 @@ async def introspect_upload(
     response_model=CompleteUploadResponse,
 )
 async def complete_upload(
-    request: Request,
     payload: CompleteUploadRequest,
     metrics: MetricsDep,
     transfer_service: TransferServiceDep,
     activity_store: ActivityStoreDep,
-    authenticator: AuthenticatorDep,
+    principal: PrincipalDep,
 ) -> CompleteUploadResponse:
     """Complete multipart upload."""
-    principal = await authenticate_principal(
-        request=request,
-        authenticator=authenticator,
-        session_id=payload.session_id,
-    )
-
     try:
         with metrics.timed("uploads_complete_ms"):
             response = await transfer_service.complete_upload(
@@ -386,20 +357,13 @@ async def complete_upload(
     response_model=AbortUploadResponse,
 )
 async def abort_upload(
-    request: Request,
     payload: AbortUploadRequest,
     metrics: MetricsDep,
     transfer_service: TransferServiceDep,
     activity_store: ActivityStoreDep,
-    authenticator: AuthenticatorDep,
+    principal: PrincipalDep,
 ) -> AbortUploadResponse:
     """Abort multipart upload."""
-    principal = await authenticate_principal(
-        request=request,
-        authenticator=authenticator,
-        session_id=payload.session_id,
-    )
-
     try:
         with metrics.timed("uploads_abort_ms"):
             response = await transfer_service.abort_upload(
@@ -455,20 +419,13 @@ async def abort_upload(
     response_model=PresignDownloadResponse,
 )
 async def presign_download(
-    request: Request,
     payload: PresignDownloadRequest,
     metrics: MetricsDep,
     transfer_service: TransferServiceDep,
     activity_store: ActivityStoreDep,
-    authenticator: AuthenticatorDep,
+    principal: PrincipalDep,
 ) -> PresignDownloadResponse:
     """Issue presigned GET URL for caller-scoped key."""
-    principal = await authenticate_principal(
-        request=request,
-        authenticator=authenticator,
-        session_id=payload.session_id,
-    )
-
     try:
         with metrics.timed("downloads_presign_ms"):
             response = await transfer_service.presign_download(

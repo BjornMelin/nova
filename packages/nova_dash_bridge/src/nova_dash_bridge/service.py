@@ -370,7 +370,6 @@ class FileTransferService:
                     filename=req.filename,
                     content_type=req.content_type,
                     size_bytes=req.size_bytes,
-                    session_id=None,
                 ),
                 principal,
             )
@@ -407,7 +406,6 @@ class FileTransferService:
                     key=req.key,
                     upload_id=req.upload_id,
                     part_numbers=req.part_numbers,
-                    session_id=None,
                 ),
                 principal,
             )
@@ -432,7 +430,6 @@ class FileTransferService:
                 CoreUploadIntrospectionRequest(
                     key=req.key,
                     upload_id=req.upload_id,
-                    session_id=None,
                 ),
                 principal,
             )
@@ -459,7 +456,6 @@ class FileTransferService:
                     key=req.key,
                     upload_id=req.upload_id,
                     parts=core_parts,
-                    session_id=None,
                 ),
                 principal,
             )
@@ -479,7 +475,6 @@ class FileTransferService:
                 CoreAbortUploadRequest(
                     key=req.key,
                     upload_id=req.upload_id,
-                    session_id=None,
                 ),
                 principal,
             )
@@ -527,7 +522,6 @@ class FileTransferService:
             lambda: self._build_core_service().presign_download(
                 CorePresignDownloadRequest(
                     key=req.key,
-                    session_id=None,
                     content_disposition=disposition,
                     filename=req.filename,
                     content_type=None,

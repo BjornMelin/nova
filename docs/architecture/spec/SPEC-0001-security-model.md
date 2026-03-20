@@ -2,8 +2,8 @@
 Spec: 0001
 Title: Security Model
 Status: Active
-Version: 1.6
-Date: 2026-03-03
+Version: 1.7
+Date: 2026-03-20
 Related:
   - "[ADR-0023: Hard-cut v1 canonical route surface](../adr/ADR-0023-hard-cut-v1-canonical-route-surface.md)"
   - "[SPEC-0000: HTTP API contract](./SPEC-0000-http-api-contract.md)"
@@ -21,27 +21,23 @@ References:
   - "[RFC 8725 JWT Best Current Practices](https://datatracker.ietf.org/doc/html/rfc8725)"
 ---
 
-## 1. Authentication modes
+## 1. Authentication model
 
-### 1.1 Same-origin mode
+### 1.1 Public bearer-JWT mode
 
-Primary deployment model. Upstream application identity is trusted and mapped to
-scope.
+The public runtime contract uses bearer JWT authentication only. Verification
+uses canonical `oidc-jwt-verifier` policy, and caller scope/tenancy are derived
+from verified claims rather than from request bodies or custom scope headers.
 
-For body-less scope-bound routes (for example `GET /v1/jobs/{job_id}`), caller
-scope MUST be conveyed using trusted headers (`X-Scope-Id` or
-`X-Session-Id`).
-When both headers are present, `X-Session-Id` MUST win for scope binding.
-When `X-Session-Id` and body `session_id` differ, request validation MUST fail
-with `422` and message `conflicting session scope`.
-When `X-Session-Id` is absent and `X-Scope-Id` plus body `session_id` differ,
-authentication MUST fail with `401` and message `conflicting session scope`.
+Public requests MUST send `Authorization: Bearer <token>`.
 
-### 1.2 Local JWT/OIDC verification mode
+- Missing or invalid bearer tokens MUST return `401`.
+- Authorization failures after token verification MUST return `403`.
+- `401` responses MUST include RFC 6750-compatible `WWW-Authenticate` headers.
+- `session_id`, `X-Session-Id`, and `X-Scope-Id` are not part of the active
+  public contract and MUST NOT be used as authorization inputs.
 
-Default token mode. Verification uses canonical `oidc-jwt-verifier` policy.
-
-### 1.3 Remote auth hard cut
+### 1.2 Remote auth hard cut
 
 There is no optional remote auth mode in the active runtime architecture. JWT
 verification happens inside `nova_file_api`, and deploy/release contracts MUST
@@ -70,7 +66,6 @@ Scope derivation priority:
 
 1. trusted tenant/org claim
 2. trusted subject claim
-3. session fallback only in non-JWT mode
 
 Client `session_id` MUST NOT override trusted JWT identity.
 

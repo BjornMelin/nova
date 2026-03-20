@@ -6,8 +6,6 @@ from typing import Any, TypeVar, cast
 
 from attrs import define as _attrs_define
 
-from nova_sdk_py_file.types import UNSET, Unset
-
 T = TypeVar("T", bound="SignPartsRequest")
 
 
@@ -19,13 +17,11 @@ class SignPartsRequest:
         key (str):
         part_numbers (list[int]):
         upload_id (str):
-        session_id (None | str | Unset):
     """
 
     key: str
     part_numbers: list[int]
     upload_id: str
-    session_id: None | str | Unset = UNSET
 
     def to_dict(self) -> dict[str, Any]:
         key = self.key
@@ -33,12 +29,6 @@ class SignPartsRequest:
         part_numbers = list(self.part_numbers)
 
         upload_id = self.upload_id
-
-        session_id: None | str | Unset
-        if isinstance(self.session_id, Unset):
-            session_id = UNSET
-        else:
-            session_id = self.session_id
 
         field_dict: dict[str, Any] = {}
 
@@ -49,8 +39,6 @@ class SignPartsRequest:
                 "upload_id": upload_id,
             }
         )
-        if session_id is not UNSET:
-            field_dict["session_id"] = session_id
 
         return field_dict
 
@@ -63,20 +51,10 @@ class SignPartsRequest:
 
         upload_id = d.pop("upload_id")
 
-        def _parse_session_id(data: object) -> None | str | Unset:
-            if data is None:
-                return data
-            if isinstance(data, Unset):
-                return data
-            return cast(None | str | Unset, data)
-
-        session_id = _parse_session_id(d.pop("session_id", UNSET))
-
         sign_parts_request = cls(
             key=key,
             part_numbers=part_numbers,
             upload_id=upload_id,
-            session_id=session_id,
         )
 
         return sign_parts_request

@@ -26,7 +26,6 @@ from nova_file_api.models import (
     UploadStrategy,
 )
 from redis.exceptions import RedisError
-from starlette.requests import Request
 
 from .support.app import (
     RuntimeDeps,
@@ -41,10 +40,9 @@ class _StubAuthenticator:
     async def authenticate(
         self,
         *,
-        request: Request,
-        session_id: str | None,
+        token: str | None,
     ) -> Principal:
-        del request, session_id
+        del token
         return Principal(
             subject="user-1",
             scope_id="scope-1",

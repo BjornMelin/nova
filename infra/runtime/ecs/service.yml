@@ -225,8 +225,8 @@ Parameters:
     Description: Secrets Manager ARN for the CACHE_REDIS_URL value when cache is enabled.
   AuthMode:
     Type: String
-    Default: "same_origin"
-    AllowedValues: ["same_origin", "jwt_local"]
+    Default: "jwt_local"
+    AllowedValues: ["jwt_local"]
   OidcIssuer:
     Type: String
     Default: ""

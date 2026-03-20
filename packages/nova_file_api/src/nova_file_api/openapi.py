@@ -150,15 +150,6 @@ def install_file_api_openapi_overrides(app: FastAPI) -> None:
         components = schema.setdefault("components", {})
         security_schemes = components.setdefault("securitySchemes", {})
         security_schemes.setdefault(
-            "sessionAuth",
-            {
-                "type": "apiKey",
-                "in": "header",
-                "name": "X-Session-Id",
-                "description": "Session identifier header for caller context.",
-            },
-        )
-        security_schemes.setdefault(
             "X-Worker-Token",
             {
                 "type": "apiKey",
@@ -228,8 +219,6 @@ def install_file_api_openapi_overrides(app: FastAPI) -> None:
                         and method == "post"
                     ):
                         operation["security"] = [{"X-Worker-Token": []}]
-                    else:
-                        operation["security"] = [{"sessionAuth": []}]
         mark_operation_sdk_visibility(
             schema,
             path="/v1/internal/jobs/{job_id}/result",

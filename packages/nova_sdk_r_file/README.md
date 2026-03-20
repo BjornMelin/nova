@@ -19,6 +19,7 @@ Nova release tooling can build and check the real package tree.
 client <- create_nova_file_client(
   "https://nova.example/",
   default_headers = list(
+    "Authorization" = "Bearer eyJhbGciOi...",
     "Idempotency-Key" = "req-123"
   )
 )
@@ -26,8 +27,7 @@ client <- create_nova_file_client(
 result <- client$create_job(
   body = list(
     job_type = "transfer.process",
-    payload = list(upload_key = "session-abc123/sample.csv"),
-    session_id = "session-abc123"
+    payload = list(upload_key = "tenant-acme/sample.csv")
   )
 )
 result$data$job$job_id

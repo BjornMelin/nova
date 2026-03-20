@@ -20,14 +20,12 @@ class PresignDownloadRequest:
         content_disposition (None | str | Unset):
         content_type (None | str | Unset):
         filename (None | str | Unset):
-        session_id (None | str | Unset):
     """
 
     key: str
     content_disposition: None | str | Unset = UNSET
     content_type: None | str | Unset = UNSET
     filename: None | str | Unset = UNSET
-    session_id: None | str | Unset = UNSET
 
     def to_dict(self) -> dict[str, Any]:
         key = self.key
@@ -50,12 +48,6 @@ class PresignDownloadRequest:
         else:
             filename = self.filename
 
-        session_id: None | str | Unset
-        if isinstance(self.session_id, Unset):
-            session_id = UNSET
-        else:
-            session_id = self.session_id
-
         field_dict: dict[str, Any] = {}
 
         field_dict.update(
@@ -69,8 +61,6 @@ class PresignDownloadRequest:
             field_dict["content_type"] = content_type
         if filename is not UNSET:
             field_dict["filename"] = filename
-        if session_id is not UNSET:
-            field_dict["session_id"] = session_id
 
         return field_dict
 
@@ -108,21 +98,11 @@ class PresignDownloadRequest:
 
         filename = _parse_filename(d.pop("filename", UNSET))
 
-        def _parse_session_id(data: object) -> None | str | Unset:
-            if data is None:
-                return data
-            if isinstance(data, Unset):
-                return data
-            return cast(None | str | Unset, data)
-
-        session_id = _parse_session_id(d.pop("session_id", UNSET))
-
         presign_download_request = cls(
             key=key,
             content_disposition=content_disposition,
             content_type=content_type,
             filename=filename,
-            session_id=session_id,
         )
 
         return presign_download_request

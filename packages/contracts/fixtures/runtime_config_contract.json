@@ -496,7 +496,7 @@
       "type_label": "int"
     },
     {
-      "default_repr": "<AuthMode.SAME_ORIGIN: 'same_origin'>",
+      "default_repr": "<AuthMode.JWT_LOCAL: 'jwt_local'>",
       "env_var": "AUTH_MODE",
       "field_name": "auth_mode",
       "required": false,

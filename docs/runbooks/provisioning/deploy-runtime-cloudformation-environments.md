@@ -105,7 +105,7 @@ copying individual `aws cloudformation deploy` commands:
 ```bash
 export ENVIRONMENT=dev
 export IMAGE_DIGEST=sha256:...
-export ENV_VARS_JSON='{"AUTH_MODE":"same_origin","FILE_TRANSFER_MAX_UPLOAD_BYTES":"536870912000"}'
+export ENV_VARS_JSON='{"AUTH_MODE":"jwt_local","FILE_TRANSFER_MAX_UPLOAD_BYTES":"536870912000"}'
 export JOBS_WORKER_UPDATE_TOKEN_SECRET_ARN="arn:aws:secretsmanager:..."
 export RUNTIME_COST_MODE=standard
 

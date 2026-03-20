@@ -9,7 +9,8 @@ from __future__ import annotations
 
 from typing import Annotated, cast
 
-from fastapi import Depends, FastAPI, Request
+from fastapi import Depends, FastAPI, Request, Security
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from nova_file_api.activity import (
     ActivityStore,
@@ -64,6 +65,15 @@ _MSG_DYNAMODB_RESOURCE_REQUIRED = (
 _MSG_SQS_CLIENT_REQUIRED = (
     "sqs_client must be provided when JOBS_QUEUE_BACKEND=sqs and "
     "JOBS_ENABLED=true"
+)
+_BEARER_AUTH = HTTPBearer(
+    auto_error=False,
+    scheme_name="bearerAuth",
+    bearerFormat="JWT",
+    description=(
+        "Bearer JWT for public Nova file API requests. Scope and tenancy "
+        "are derived from verified claims."
+    ),
 )
 
 
@@ -537,26 +547,26 @@ def get_request_id(request: Request) -> str | None:
 
 async def authenticate_principal(
     *,
-    request: Request,
     authenticator: Authenticator,
-    session_id: str | None,
+    credentials: HTTPAuthorizationCredentials | None,
 ) -> Principal:
     """Authenticate the current caller for a request."""
     return await authenticator.authenticate(
-        request=request,
-        session_id=session_id,
+        token=(credentials.credentials if credentials is not None else None),
     )
 
 
 async def get_principal(
-    request: Request,
     authenticator: Annotated[Authenticator, Depends(get_authenticator)],
+    credentials: Annotated[
+        HTTPAuthorizationCredentials | None,
+        Security(_BEARER_AUTH),
+    ],
 ) -> Principal:
-    """Authenticate a request that does not rely on a body session id."""
+    """Authenticate a bearer-authenticated public API request."""
     return await authenticate_principal(
-        request=request,
         authenticator=authenticator,
-        session_id=None,
+        credentials=credentials,
     )
 
 

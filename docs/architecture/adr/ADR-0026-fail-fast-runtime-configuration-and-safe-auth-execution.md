@@ -2,8 +2,8 @@
 ADR: 0026
 Title: Fail-fast runtime configuration and safe auth execution
 Status: Accepted
-Version: 2.3
-Date: 2026-03-19
+Version: 2.4
+Date: 2026-03-20
 Related:
   - "[ADR-0023](./ADR-0023-hard-cut-v1-canonical-route-surface.md)"
   - "[SPEC-0000](../spec/SPEC-0000-http-api-contract.md)"
@@ -30,7 +30,7 @@ Nova exposes configuration-heavy runtime behavior:
 
 - queue backend selection
 - activity-store backend selection
-- same-origin and local OIDC auth modes
+- local OIDC bearer-JWT auth mode
 - worker callback/update-token behavior
 - readiness and health semantics
 
