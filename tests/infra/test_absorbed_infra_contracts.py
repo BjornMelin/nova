@@ -1006,6 +1006,8 @@ def test_ecs_service_auth_contracts() -> None:
         "JwtRemoteAuthParamsProvided:",
         "REMOTE_AUTH_BASE_URL",
         "REMOTE_AUTH_TIMEOUT_SECONDS",
+        "OidcVerifierThreadTokens",
+        "OIDC_VERIFIER_THREAD_TOKENS",
     ]:
         assert token not in text
 
@@ -1038,11 +1040,20 @@ def test_pipeline_single_digest_promotion_contract() -> None:
     """Pipeline must promote the file workload digest without a selector."""
     text = _read("infra/nova/nova-ci-cd.yml")
 
-    for token in [
-        "FILE_IMAGE_DIGEST",
-        "#{ReleaseBuild.FILE_IMAGE_DIGEST}",
+    def _stage_block(start_token: str, end_token: str) -> str:
+        start = text.index(start_token)
+        end = text.index(end_token, start)
+        return text[start:end]
+
+    for stage_text, stage_name in [
+        (_stage_block("- Name: DeployDev", "- Name: ValidateDev"), "DeployDev"),
+        (
+            _stage_block("- Name: DeployProd", "- Name: ValidateProd"),
+            "DeployProd",
+        ),
     ]:
-        assert token in text
+        assert "FILE_IMAGE_DIGEST" in stage_text, stage_name
+        assert "#{ReleaseBuild.FILE_IMAGE_DIGEST}" in stage_text, stage_name
 
     for token in [
         "DeployImageDigestVariable:",

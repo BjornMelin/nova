@@ -20,13 +20,20 @@ Defines how Nova executes in-process auth safely in async runtime code.
 1. Local synchronous JWT verification must run behind a threadpool boundary
    **when** verification remains synchronous on async request paths. When JWT
    verification is async-native in the file API ([ADR-0033](../adr/ADR-0033-single-runtime-auth-authority.md),
-   [ADR-0037](../adr/ADR-0037-async-first-public-surface.md)), this
-   rule applies only to verification paths that are still synchronous.
+   [ADR-0037](../adr/ADR-0037-async-first-public-surface.md)), the
+   process-scoped async verifier must be instantiated during the FastAPI
+   lifespan context manager at runtime startup and explicitly closed with an
+   awaited `aclose()` during shutdown; do not rely on background tasks,
+   implicit destructors, or ad-hoc per-request creation.
 2. Dedicated auth microservice HTTP calls are not part of the target
    architecture (superseded `ADR-0005` / `SPEC-0007`).
 3. Auth failure responses preserve the canonical Nova bearer-auth contract,
    including RFC 6750 challenge behavior on `401` responses.
 4. Presigned URLs, bearer tokens, and signed query values must never be logged.
+   When auth verification is async-native, the verifier lifecycle requirement
+   above applies to the same process-scoped verifier that handles those
+   values, so the verifier must still be created in FastAPI lifespan and
+   closed with awaited `aclose()` on shutdown.
 
 ## 3. Threadpool and limiter contract
 

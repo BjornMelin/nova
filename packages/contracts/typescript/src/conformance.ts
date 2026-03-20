@@ -154,6 +154,9 @@ async function main(): Promise<void> {
     manifest.fixtures.v1api.capabilities_success,
   );
   const planFixture = readJson<unknown>(manifest.fixtures.v1api.resources_plan_success);
+  const expectedPlanPayload = {
+    resources: ["jobs", "transfers"],
+  };
   const releaseFixture = readJson<unknown>(
     manifest.fixtures.v1api.releases_info_success,
   );
@@ -261,6 +264,17 @@ async function main(): Promise<void> {
         body: planFixture,
         assertRequest: ({ init }) => {
           assert(init?.method === "POST", "plan_resources must use POST");
+          const headers = new Headers(init?.headers);
+          assert(
+            headers.get("content-type")?.toLowerCase().includes("application/json") ??
+              false,
+            "plan_resources must use application/json content type",
+          );
+          assert(
+            JSON.stringify(JSON.parse(bodyToString(init?.body))) ===
+              JSON.stringify(expectedPlanPayload),
+            "plan_resources must send JSON request body",
+          );
         },
       },
       [releaseUrl]: {
@@ -304,9 +318,7 @@ async function main(): Promise<void> {
   assertFileOkResponse("get_capabilities", capabilitiesResult);
 
   const planResult = await fileClient.plan_resources({
-    body: {
-      resources: ["jobs", "transfers"],
-    },
+    body: expectedPlanPayload,
   });
   assert(planResult.ok, "plan_resources fixture must be ok");
   assertFileOkResponse("plan_resources", planResult);

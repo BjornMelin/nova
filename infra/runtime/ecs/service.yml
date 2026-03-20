@@ -246,10 +246,6 @@ Parameters:
     Type: Number
     Default: 0
     MinValue: 0
-  OidcVerifierThreadTokens:
-    Type: Number
-    Default: 40
-    MinValue: 1
   BlockingIoThreadTokens:
     Type: Number
     Default: 80
@@ -689,8 +685,6 @@ Resources:
               Value: !Ref OidcRequiredPermissions
             - Name: OIDC_CLOCK_SKEW_SECONDS
               Value: !Ref OidcClockSkewSeconds
-            - Name: OIDC_VERIFIER_THREAD_TOKENS
-              Value: !Ref OidcVerifierThreadTokens
             - Name: BLOCKING_IO_THREAD_TOKENS
               Value: !Ref BlockingIoThreadTokens
             - Name: CACHE_REDIS_MAX_CONNECTIONS
