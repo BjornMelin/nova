@@ -356,7 +356,6 @@ WORKER_TEMPLATE_ENV: tuple[TemplateEnvContract, ...] = (
     TemplateEnvContract(
         "JOBS_SQS_VISIBILITY_TIMEOUT_SECONDS", "stack parameter", "always"
     ),
-    TemplateEnvContract("JOBS_API_BASE_URL", "stack parameter", "always"),
     TemplateEnvContract("FILE_TRANSFER_BUCKET", "stack parameter", "always"),
     TemplateEnvContract(
         "FILE_TRANSFER_UPLOAD_PREFIX", "stack parameter", "always"
@@ -366,12 +365,6 @@ WORKER_TEMPLATE_ENV: tuple[TemplateEnvContract, ...] = (
     ),
     TemplateEnvContract(
         "FILE_TRANSFER_TMP_PREFIX", "stack parameter", "always"
-    ),
-    TemplateEnvContract(
-        "JOBS_WORKER_UPDATE_TOKEN",
-        "Secrets Manager",
-        "always",
-        secret=True,
     ),
 )
 

@@ -502,16 +502,21 @@ def test_runtime_env_and_parameter_contracts() -> None:
         env_names
     )
 
-    secrets = container["Secrets"]
-    assert isinstance(secrets, list)
-    secret_names = _collect_named_entries(secrets)
     expected_worker_secrets = {
         entry["name"] for entry in contract["worker_template"]["secrets"]
     }
-    assert secret_names == expected_worker_secrets
+    secrets = container.get("Secrets")
+    if expected_worker_secrets:
+        assert isinstance(secrets, list)
+        secret_names = _collect_named_entries(secrets)
+        assert secret_names == expected_worker_secrets
+    else:
+        assert secrets is None
     parameters = worker_template["Parameters"]
     assert isinstance(parameters, dict)
-    assert "JobsWorkerUpdateTokenSecretArn" in parameters
+    assert ("JobsWorkerUpdateTokenSecretArn" in parameters) == bool(
+        expected_worker_secrets
+    )
     assert "WorkerCommand" not in parameters
     assert "SyncProcessingMaxBytes" not in parameters
     assert "TaskRoleArn: !GetAtt WorkerTaskRole.Arn" in worker_text

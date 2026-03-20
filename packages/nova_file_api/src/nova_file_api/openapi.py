@@ -6,12 +6,10 @@ from typing import Any
 
 from fastapi import FastAPI
 from nova_runtime_support import (
-    SDK_VISIBILITY_INTERNAL,
     apply_operation_response_refs,
     ensure_error_envelope_schema,
     ensure_error_response_component,
     install_openapi_customizer,
-    mark_operation_sdk_visibility,
     prune_validation_error_schemas,
     replace_validation_error_responses,
 )
@@ -124,21 +122,6 @@ OPENAPI_OPERATION_RESPONSES = {
             "422": "FileInvalidRequestResponse",
         }
     },
-    "/v1/internal/jobs/{job_id}/result": {
-        "post": {
-            "403": "FileForbiddenResponse",
-            "422": "FileInvalidRequestResponse",
-        }
-    },
-}
-HTTP_METHODS = {
-    "delete",
-    "get",
-    "head",
-    "options",
-    "patch",
-    "post",
-    "trace",
 }
 
 
@@ -147,19 +130,6 @@ def install_file_api_openapi_overrides(app: FastAPI) -> None:
 
     def customize_openapi(schema: dict[str, Any]) -> None:
         ensure_error_envelope_schema(schema)
-        components = schema.setdefault("components", {})
-        security_schemes = components.setdefault("securitySchemes", {})
-        security_schemes.setdefault(
-            "X-Worker-Token",
-            {
-                "type": "apiKey",
-                "in": "header",
-                "name": "X-Worker-Token",
-                "description": (
-                    "Worker token header for trusted job-worker calls."
-                ),
-            },
-        )
         for (
             component_name,
             description,
@@ -199,31 +169,6 @@ def install_file_api_openapi_overrides(app: FastAPI) -> None:
         replace_validation_error_responses(
             schema,
             response_component_name="FileInvalidRequestResponse",
-        )
-        if isinstance(paths, dict):
-            for path, path_item in paths.items():
-                if not isinstance(path_item, dict):
-                    continue
-                for method, operation in path_item.items():
-                    if method not in HTTP_METHODS or not isinstance(
-                        operation, dict
-                    ):
-                        continue
-                    responses = operation.get("responses")
-                    if not isinstance(responses, dict):
-                        continue
-                    if "401" not in responses and "403" not in responses:
-                        continue
-                    if (
-                        path == "/v1/internal/jobs/{job_id}/result"
-                        and method == "post"
-                    ):
-                        operation["security"] = [{"X-Worker-Token": []}]
-        mark_operation_sdk_visibility(
-            schema,
-            path="/v1/internal/jobs/{job_id}/result",
-            method="post",
-            visibility=SDK_VISIBILITY_INTERNAL,
         )
         prune_validation_error_schemas(schema)
 

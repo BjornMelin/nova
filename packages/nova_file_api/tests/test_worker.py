@@ -2,20 +2,32 @@ from __future__ import annotations
 
 import asyncio
 import json
+from datetime import UTC, datetime
 from typing import Any, cast
 
-import httpx
 import pytest
 from botocore.exceptions import ClientError
+from nova_file_api.activity import MemoryActivityStore
 from nova_file_api.config import Settings
-from nova_file_api.errors import invalid_request, upstream_s3_error
-from nova_file_api.models import JobsQueueBackend
+from nova_file_api.errors import (
+    FileTransferError,
+    invalid_request,
+    not_found,
+    service_unavailable,
+    upstream_s3_error,
+)
+from nova_file_api.jobs import (
+    JobService,
+    MemoryJobPublisher,
+    MemoryJobRepository,
+)
+from nova_file_api.metrics import MetricsCollector
+from nova_file_api.models import JobRecord, JobsQueueBackend, JobStatus
 from nova_file_api.transfer import ExportCopyResult, TransferService
 from nova_file_api.worker import (
     JobsWorker,
     _is_visibility_timeout_ceiling_error,
 )
-from pydantic import SecretStr
 
 
 class _AsyncContext:
@@ -75,22 +87,6 @@ class _FakeSqsClient:
         self.change_visibility_calls.append(kwargs)
 
 
-class _FakeHttpClient:
-    """Capture internal result callback POST requests."""
-
-    def __init__(self, **kwargs: Any) -> None:
-        self.kwargs = kwargs
-        self.responses: list[httpx.Response | Exception] = []
-        self.posts: list[dict[str, Any]] = []
-
-    async def post(self, url: str, **kwargs: Any) -> httpx.Response:
-        self.posts.append({"url": url, "json": kwargs["json"]})
-        response = self.responses.pop(0)
-        if isinstance(response, Exception):
-            raise response
-        return response
-
-
 class _FakeTransferService:
     """Provide deterministic transfer worker outcomes."""
 
@@ -128,6 +124,26 @@ class _FakeTransferService:
             export_key=f"exports/{scope_id}/{job_id}/{filename}",
             download_filename=filename,
         )
+
+
+class _ScriptedJobService:
+    """Replay a scripted sequence of result-update outcomes."""
+
+    def __init__(
+        self,
+        *,
+        fallback: JobService,
+        scripted_results: list[FileTransferError | None],
+    ) -> None:
+        self._fallback = fallback
+        self._scripted_results = scripted_results
+
+    async def update_result(self, **kwargs: Any) -> JobRecord:
+        if self._scripted_results:
+            next_result = self._scripted_results.pop(0)
+            if next_result is not None:
+                raise next_result
+        return await self._fallback.update_result(**kwargs)
 
 
 class _DeterministicSystemRandom:
@@ -171,22 +187,52 @@ def _worker_settings() -> Settings:
             "JOBS_RUNTIME_MODE": "worker",
             "JOBS_QUEUE_BACKEND": JobsQueueBackend.SQS,
             "JOBS_SQS_QUEUE_URL": "https://example.local/queue",
-            "JOBS_API_BASE_URL": "https://api.example.local",
-            "JOBS_WORKER_UPDATE_TOKEN": SecretStr("worker-token"),
         }
     )
+
+
+async def _build_worker_runtime(
+    *,
+    job_id: str = "job-1",
+    scope_id: str = "scope-1",
+    status: JobStatus = JobStatus.PENDING,
+) -> tuple[MemoryJobRepository, JobService, MemoryActivityStore]:
+    repository = MemoryJobRepository()
+    service = JobService(
+        repository=repository,
+        publisher=MemoryJobPublisher(),
+        metrics=MetricsCollector(namespace="Tests"),
+    )
+    activity_store = MemoryActivityStore()
+    now = datetime.now(tz=UTC)
+    await repository.create(
+        JobRecord(
+            job_id=job_id,
+            job_type="transfer.process",
+            scope_id=scope_id,
+            status=status,
+            payload={"input": "value"},
+            result=None,
+            error=None,
+            created_at=now,
+            updated_at=now,
+        )
+    )
+    return repository, service, activity_store
 
 
 def _attach_runtime_clients(
     *,
     worker: JobsWorker,
     sqs_client: _FakeSqsClient,
-    api_client: _FakeHttpClient,
     transfer_service: _FakeTransferService,
+    job_service: JobService,
+    activity_store: MemoryActivityStore,
 ) -> None:
     worker._sqs = sqs_client
-    worker._api = cast(httpx.AsyncClient, api_client)
     worker._runtime_transfer_service = cast(TransferService, transfer_service)
+    worker._runtime_job_service = job_service
+    worker._runtime_activity_store = activity_store
 
 
 def _build_worker(
@@ -216,8 +262,6 @@ async def test_worker_receive_sqs_settings() -> None:
             "JOBS_SQS_QUEUE_URL": (
                 "https://sqs.us-west-2.amazonaws.com/123456789012/nova-jobs"
             ),
-            "JOBS_API_BASE_URL": "https://api.example.local",
-            "JOBS_WORKER_UPDATE_TOKEN": SecretStr("worker-token"),
             "JOBS_SQS_MAX_NUMBER_OF_MESSAGES": 5,
             "JOBS_SQS_WAIT_TIME_SECONDS": 7,
             "JOBS_SQS_VISIBILITY_TIMEOUT_SECONDS": 180,
@@ -246,14 +290,15 @@ async def test_worker_receive_sqs_settings() -> None:
 async def test_worker_invalid_message_is_not_deleted() -> None:
     """Verify that malformed or invalid SQS messages are not acked/deleted."""
     fake_sqs = _FakeSqsClient()
-    fake_http = _FakeHttpClient()
     transfer_service = _FakeTransferService()
+    _, job_service, activity_store = await _build_worker_runtime()
     worker = _build_worker(transfer_service=transfer_service)
     _attach_runtime_clients(
         worker=worker,
         sqs_client=fake_sqs,
-        api_client=fake_http,
         transfer_service=transfer_service,
+        job_service=job_service,
+        activity_store=activity_store,
     )
 
     should_delete = await worker._handle_message(
@@ -266,7 +311,6 @@ async def test_worker_invalid_message_is_not_deleted() -> None:
     )
 
     assert should_delete is False
-    assert fake_http.posts == []
     assert fake_sqs.delete_calls == []
 
 
@@ -274,23 +318,15 @@ async def test_worker_invalid_message_is_not_deleted() -> None:
 async def test_worker_posts_failed_status_for_unsupported_job_type() -> None:
     """Verify worker reports failure when encountering an unknown job type."""
     fake_sqs = _FakeSqsClient()
-    fake_http = _FakeHttpClient()
-    fake_http.responses.append(
-        httpx.Response(
-            200,
-            request=httpx.Request(
-                "POST",
-                "https://api.example.local/v1/internal/jobs/job-1/result",
-            ),
-        )
-    )
     transfer_service = _FakeTransferService()
+    repository, job_service, activity_store = await _build_worker_runtime()
     worker = _build_worker(transfer_service=transfer_service)
     _attach_runtime_clients(
         worker=worker,
         sqs_client=fake_sqs,
-        api_client=fake_http,
         transfer_service=transfer_service,
+        job_service=job_service,
+        activity_store=activity_store,
     )
 
     should_delete = await worker._handle_message(
@@ -303,48 +339,27 @@ async def test_worker_posts_failed_status_for_unsupported_job_type() -> None:
     )
 
     assert should_delete is True
-    assert fake_http.posts == [
-        {
-            "url": "/v1/internal/jobs/job-1/result",
-            "json": {
-                "status": "failed",
-                "result": None,
-                "error": "unsupported job type: unknown.job",
-            },
-        }
-    ]
+    record = await repository.get("job-1")
+    assert record is not None
+    assert record.status == JobStatus.FAILED
+    assert record.error == "unsupported job type: unknown.job"
 
 
 @pytest.mark.asyncio
 async def test_worker_executes_transfer_process_and_posts_success() -> None:
     """Verify successful end-to-end transfer job processing and reporting."""
     fake_sqs = _FakeSqsClient()
-    fake_http = _FakeHttpClient()
-    fake_http.responses.extend(
-        [
-            httpx.Response(
-                200,
-                request=httpx.Request(
-                    "POST",
-                    "https://api.example.local/v1/internal/jobs/job-2/result",
-                ),
-            ),
-            httpx.Response(
-                200,
-                request=httpx.Request(
-                    "POST",
-                    "https://api.example.local/v1/internal/jobs/job-2/result",
-                ),
-            ),
-        ]
-    )
     transfer_service = _FakeTransferService()
+    repository, job_service, activity_store = await _build_worker_runtime(
+        job_id="job-2"
+    )
     worker = _build_worker(transfer_service=transfer_service)
     _attach_runtime_clients(
         worker=worker,
         sqs_client=fake_sqs,
-        api_client=fake_http,
         transfer_service=transfer_service,
+        job_service=job_service,
+        activity_store=activity_store,
     )
 
     should_delete = await worker._handle_message(
@@ -366,62 +381,31 @@ async def test_worker_executes_transfer_process_and_posts_success() -> None:
             "filename": "source.csv",
         }
     ]
-    assert fake_http.posts == [
-        {
-            "url": "/v1/internal/jobs/job-2/result",
-            "json": {
-                "status": "running",
-                "result": None,
-                "error": None,
-            },
-        },
-        {
-            "url": "/v1/internal/jobs/job-2/result",
-            "json": {
-                "status": "succeeded",
-                "result": {
-                    "export_key": "exports/scope-1/job-2/source.csv",
-                    "download_filename": "source.csv",
-                },
-                "error": None,
-            },
-        },
-    ]
+    record = await repository.get("job-2")
+    assert record is not None
+    assert record.status == JobStatus.SUCCEEDED
+    assert record.result == {
+        "export_key": "exports/scope-1/job-2/source.csv",
+        "download_filename": "source.csv",
+    }
+    assert record.error is None
+    activity_summary = await activity_store.summary()
+    assert activity_summary["events_total"] == 2
 
 
 @pytest.mark.asyncio
 async def test_worker_extends_visibility_during_long_running_transfer() -> None:
     """Verify long-running transfer work refreshes SQS visibility timeout."""
     fake_sqs = _FakeSqsClient()
-    fake_http = _FakeHttpClient()
-    fake_http.responses.extend(
-        [
-            httpx.Response(
-                200,
-                request=httpx.Request(
-                    "POST",
-                    "https://api.example.local/v1/internal/jobs/job-2/result",
-                ),
-            ),
-            httpx.Response(
-                200,
-                request=httpx.Request(
-                    "POST",
-                    "https://api.example.local/v1/internal/jobs/job-2/result",
-                ),
-            ),
-        ]
-    )
     transfer_service = _FakeTransferService()
     transfer_service.delay_seconds = 1.2
+    _, job_service, activity_store = await _build_worker_runtime(job_id="job-2")
     settings = Settings.model_validate(
         {
             "JOBS_ENABLED": True,
             "JOBS_RUNTIME_MODE": "worker",
             "JOBS_QUEUE_BACKEND": JobsQueueBackend.SQS,
             "JOBS_SQS_QUEUE_URL": "https://example.local/queue",
-            "JOBS_API_BASE_URL": "https://api.example.local",
-            "JOBS_WORKER_UPDATE_TOKEN": SecretStr("worker-token"),
             "JOBS_SQS_VISIBILITY_TIMEOUT_SECONDS": 1,
         }
     )
@@ -432,8 +416,9 @@ async def test_worker_extends_visibility_during_long_running_transfer() -> None:
     _attach_runtime_clients(
         worker=worker,
         sqs_client=fake_sqs,
-        api_client=fake_http,
         transfer_service=transfer_service,
+        job_service=job_service,
+        activity_store=activity_store,
     )
 
     should_delete = await worker._handle_message(
@@ -462,33 +447,18 @@ async def test_worker_extends_visibility_during_long_running_transfer() -> None:
 async def test_worker_non_retryable_error_posts_failure() -> None:
     """Verify worker reports failure for non-retryable execution errors."""
     fake_sqs = _FakeSqsClient()
-    fake_http = _FakeHttpClient()
-    fake_http.responses.extend(
-        [
-            httpx.Response(
-                200,
-                request=httpx.Request(
-                    "POST",
-                    "https://api.example.local/v1/internal/jobs/job-2/result",
-                ),
-            ),
-            httpx.Response(
-                200,
-                request=httpx.Request(
-                    "POST",
-                    "https://api.example.local/v1/internal/jobs/job-2/result",
-                ),
-            ),
-        ]
-    )
     transfer_service = _FakeTransferService()
     transfer_service.error = invalid_request("source upload object not found")
+    repository, job_service, activity_store = await _build_worker_runtime(
+        job_id="job-2"
+    )
     worker = _build_worker(transfer_service=transfer_service)
     _attach_runtime_clients(
         worker=worker,
         sqs_client=fake_sqs,
-        api_client=fake_http,
         transfer_service=transfer_service,
+        job_service=job_service,
+        activity_store=activity_store,
     )
 
     should_delete = await worker._handle_message(
@@ -501,24 +471,10 @@ async def test_worker_non_retryable_error_posts_failure() -> None:
     )
 
     assert should_delete is True
-    assert fake_http.posts == [
-        {
-            "url": "/v1/internal/jobs/job-2/result",
-            "json": {
-                "status": "running",
-                "result": None,
-                "error": None,
-            },
-        },
-        {
-            "url": "/v1/internal/jobs/job-2/result",
-            "json": {
-                "status": "failed",
-                "result": None,
-                "error": "source upload object not found",
-            },
-        },
-    ]
+    record = await repository.get("job-2")
+    assert record is not None
+    assert record.status == JobStatus.FAILED
+    assert record.error == "source upload object not found"
 
 
 def test_visibility_timeout_ceiling_error_detector() -> None:
@@ -553,26 +509,20 @@ def test_visibility_timeout_ceiling_error_detector() -> None:
 async def test_worker_retryable_error_leaves_message_unacked() -> None:
     """Verify worker leaves message unacked for retryable execution errors."""
     fake_sqs = _FakeSqsClient()
-    fake_http = _FakeHttpClient()
-    fake_http.responses.append(
-        httpx.Response(
-            200,
-            request=httpx.Request(
-                "POST",
-                "https://api.example.local/v1/internal/jobs/job-2/result",
-            ),
-        )
-    )
     transfer_service = _FakeTransferService()
     transfer_service.error = upstream_s3_error(
         "failed to copy upload object to export key"
+    )
+    repository, job_service, activity_store = await _build_worker_runtime(
+        job_id="job-2"
     )
     worker = _build_worker(transfer_service=transfer_service)
     _attach_runtime_clients(
         worker=worker,
         sqs_client=fake_sqs,
-        api_client=fake_http,
         transfer_service=transfer_service,
+        job_service=job_service,
+        activity_store=activity_store,
     )
 
     should_delete = await worker._handle_message(
@@ -586,16 +536,9 @@ async def test_worker_retryable_error_leaves_message_unacked() -> None:
 
     assert should_delete is False
     assert fake_sqs.delete_calls == []
-    assert fake_http.posts == [
-        {
-            "url": "/v1/internal/jobs/job-2/result",
-            "json": {
-                "status": "running",
-                "result": None,
-                "error": None,
-            },
-        }
-    ]
+    record = await repository.get("job-2")
+    assert record is not None
+    assert record.status == JobStatus.RUNNING
 
 
 @pytest.mark.asyncio
@@ -611,41 +554,18 @@ async def test_worker_retries_running_update_until_accepted(
         None
     """
     fake_sqs = _FakeSqsClient()
-    fake_http = _FakeHttpClient()
-    fake_http.responses.extend(
-        [
-            httpx.Response(
-                404,
-                request=httpx.Request(
-                    "POST",
-                    "https://api.example.local/v1/internal/jobs/job-2/result",
-                ),
-            ),
-            httpx.Response(
-                503,
-                request=httpx.Request(
-                    "POST",
-                    "https://api.example.local/v1/internal/jobs/job-2/result",
-                ),
-            ),
-            httpx.Response(
-                200,
-                request=httpx.Request(
-                    "POST",
-                    "https://api.example.local/v1/internal/jobs/job-2/result",
-                ),
-            ),
-            httpx.Response(
-                200,
-                request=httpx.Request(
-                    "POST",
-                    "https://api.example.local/v1/internal/jobs/job-2/result",
-                ),
-            ),
-        ]
-    )
     transfer_service = _FakeTransferService()
+    repository, job_service, activity_store = await _build_worker_runtime(
+        job_id="job-2"
+    )
     sleep_calls: list[float] = []
+    flaky_job_service = _ScriptedJobService(
+        fallback=job_service,
+        scripted_results=[
+            not_found("job not found"),
+            service_unavailable("storage temporarily unavailable"),
+        ],
+    )
 
     async def _fake_sleep(delay: float) -> None:
         sleep_calls.append(delay)
@@ -661,8 +581,9 @@ async def test_worker_retries_running_update_until_accepted(
     _attach_runtime_clients(
         worker=worker,
         sqs_client=fake_sqs,
-        api_client=fake_http,
         transfer_service=transfer_service,
+        job_service=cast(JobService, flaky_job_service),
+        activity_store=activity_store,
     )
 
     should_delete = await worker._handle_message(
@@ -676,8 +597,10 @@ async def test_worker_retries_running_update_until_accepted(
 
     assert should_delete is True
     assert sleep_calls == [0.25, 0.5]
-    assert len(fake_http.posts) == 4
     assert len(transfer_service.calls) == 1
+    record = await repository.get("job-2")
+    assert record is not None
+    assert record.status == JobStatus.SUCCEEDED
 
 
 @pytest.mark.asyncio
@@ -693,40 +616,19 @@ async def test_worker_unacked_when_terminal_update_retries_exhausted(
         None
     """
     fake_sqs = _FakeSqsClient()
-    fake_http = _FakeHttpClient()
-    fake_http.responses.extend(
-        [
-            httpx.Response(
-                200,
-                request=httpx.Request(
-                    "POST",
-                    "https://api.example.local/v1/internal/jobs/job-2/result",
-                ),
-            ),
-            httpx.Response(
-                503,
-                request=httpx.Request(
-                    "POST",
-                    "https://api.example.local/v1/internal/jobs/job-2/result",
-                ),
-            ),
-            httpx.Response(
-                503,
-                request=httpx.Request(
-                    "POST",
-                    "https://api.example.local/v1/internal/jobs/job-2/result",
-                ),
-            ),
-            httpx.Response(
-                503,
-                request=httpx.Request(
-                    "POST",
-                    "https://api.example.local/v1/internal/jobs/job-2/result",
-                ),
-            ),
-        ]
-    )
     transfer_service = _FakeTransferService()
+    repository, job_service, activity_store = await _build_worker_runtime(
+        job_id="job-2"
+    )
+    flaky_job_service = _ScriptedJobService(
+        fallback=job_service,
+        scripted_results=[
+            None,
+            service_unavailable("storage temporarily unavailable"),
+            service_unavailable("storage temporarily unavailable"),
+            service_unavailable("storage temporarily unavailable"),
+        ],
+    )
 
     async def _fake_sleep(delay: float) -> None:
         del delay
@@ -743,8 +645,9 @@ async def test_worker_unacked_when_terminal_update_retries_exhausted(
     _attach_runtime_clients(
         worker=worker,
         sqs_client=fake_sqs,
-        api_client=fake_http,
         transfer_service=transfer_service,
+        job_service=cast(JobService, flaky_job_service),
+        activity_store=activity_store,
     )
 
     should_delete = await worker._handle_message(
@@ -757,12 +660,9 @@ async def test_worker_unacked_when_terminal_update_retries_exhausted(
     )
 
     assert should_delete is False
-    assert len(fake_http.posts) == 4
-    assert fake_http.posts[0]["json"] == {
-        "status": "running",
-        "result": None,
-        "error": None,
-    }
+    record = await repository.get("job-2")
+    assert record is not None
+    assert record.status == JobStatus.RUNNING
 
 
 @pytest.mark.asyncio
@@ -777,38 +677,24 @@ async def test_worker_run_deletes_message_when_non_retryable_error(
     Returns:
         None
     """
-    captured_async_client_args: (
-        tuple[tuple[Any, ...], dict[str, Any]] | None
-    ) = None
     captured_transfer_service_args: (
         tuple[tuple[Any, ...], dict[str, Any]] | None
     ) = None
     fake_sqs = _FakeSqsClient()
-    fake_http = _FakeHttpClient()
     fake_s3_client = object()
-    fake_http.responses.extend(
-        [
-            httpx.Response(
-                200,
-                request=httpx.Request(
-                    "POST",
-                    "https://api.example.local/v1/internal/jobs/job-2/result",
-                ),
-            ),
-            httpx.Response(
-                200,
-                request=httpx.Request(
-                    "POST",
-                    "https://api.example.local/v1/internal/jobs/job-2/result",
-                ),
-            ),
-        ]
-    )
     transfer_service = _FakeTransferService()
     transfer_service.error = invalid_request("source upload object not found")
     settings = _worker_settings()
+    repository, job_service, activity_store = await _build_worker_runtime(
+        job_id="job-2"
+    )
 
-    worker = JobsWorker(settings=settings, transfer_service=None)
+    worker = JobsWorker(
+        settings=settings,
+        transfer_service=None,
+        job_service=job_service,
+        activity_store=activity_store,
+    )
     worker._session = cast(
         Any,
         _FakeSession(
@@ -831,16 +717,6 @@ async def test_worker_run_deletes_message_when_non_retryable_error(
     monkeypatch.setattr(worker, "_receive_messages", _receive_once)
     monkeypatch.setattr(worker, "_install_signal_handlers", lambda: None)
 
-    def _capture_async_client(*args: Any, **kwargs: Any) -> _AsyncContext:
-        nonlocal captured_async_client_args
-        captured_async_client_args = (args, kwargs)
-        return _AsyncContext(fake_http)
-
-    monkeypatch.setattr(
-        "nova_file_api.worker.httpx.AsyncClient",
-        _capture_async_client,
-    )
-
     def _capture_transfer_service(
         *args: Any,
         **kwargs: Any,
@@ -857,12 +733,6 @@ async def test_worker_run_deletes_message_when_non_retryable_error(
     exit_code = await worker.run()
 
     assert exit_code == 0
-    assert captured_async_client_args is not None
-    async_client_args, async_client_kwargs = captured_async_client_args
-    assert async_client_args == ()
-    assert async_client_kwargs["base_url"] == settings.jobs_api_base_url
-    assert async_client_kwargs["timeout"] == 10.0
-    assert async_client_kwargs["headers"]["X-Worker-Token"] == "worker-token"
     assert captured_transfer_service_args is not None
     (
         transfer_service_args,
@@ -877,3 +747,6 @@ async def test_worker_run_deletes_message_when_non_retryable_error(
             "ReceiptHandle": "receipt-8",
         }
     ]
+    record = await repository.get("job-2")
+    assert record is not None
+    assert record.status == JobStatus.FAILED

@@ -50,8 +50,6 @@ Canonical sources:
 | FILE_TRANSFER_USE_ACCELERATE_ENDPOINT | file_transfer_use_accelerate_endpoint | bool | no | no | `False` |
 | IDEMPOTENCY_ENABLED | idempotency_enabled | bool | no | no | `True` |
 | IDEMPOTENCY_TTL_SECONDS | idempotency_ttl_seconds | int | no | no | `900` |
-| JOBS_ALLOW_INSECURE_MISSING_WORKER_TOKEN_NONPROD | jobs_allow_insecure_missing_worker_token_nonprod | bool | no | no | `False` |
-| JOBS_API_BASE_URL | jobs_api_base_url | str \| None | no | no | `None` |
 | JOBS_DYNAMODB_TABLE | jobs_dynamodb_table | str \| None | no | no | `None` |
 | JOBS_ENABLED | jobs_enabled | bool | no | no | `True` |
 | JOBS_QUEUE_BACKEND | jobs_queue_backend | JobsQueueBackend | no | no | `<JobsQueueBackend.MEMORY: 'memory'>` |
@@ -63,7 +61,6 @@ Canonical sources:
 | JOBS_SQS_RETRY_TOTAL_MAX_ATTEMPTS | jobs_sqs_retry_total_max_attempts | int | no | no | `3` |
 | JOBS_SQS_VISIBILITY_TIMEOUT_SECONDS | jobs_sqs_visibility_timeout_seconds | int | no | no | `120` |
 | JOBS_SQS_WAIT_TIME_SECONDS | jobs_sqs_wait_time_seconds | int | no | no | `20` |
-| JOBS_WORKER_UPDATE_TOKEN | jobs_worker_update_token | SecretStr \| None | no | yes | `None` |
 | METRICS_NAMESPACE | metrics_namespace | str | no | no | `'NovaFileApi'` |
 | OIDC_AUDIENCE | oidc_audience | str \| None | no | no | `None` |
 | OIDC_CLOCK_SKEW_SECONDS | oidc_clock_skew_seconds | int | no | no | `0` |
@@ -183,12 +180,10 @@ Forbidden service parameters:
 | JOBS_QUEUE_BACKEND | literal | always | no |
 | JOBS_SQS_QUEUE_URL | stack parameter | always | no |
 | JOBS_SQS_VISIBILITY_TIMEOUT_SECONDS | stack parameter | always | no |
-| JOBS_API_BASE_URL | stack parameter | always | no |
 | FILE_TRANSFER_BUCKET | stack parameter | always | no |
 | FILE_TRANSFER_UPLOAD_PREFIX | stack parameter | always | no |
 | FILE_TRANSFER_EXPORT_PREFIX | stack parameter | always | no |
 | FILE_TRANSFER_TMP_PREFIX | stack parameter | always | no |
-| JOBS_WORKER_UPDATE_TOKEN | Secrets Manager | always | yes |
 
 Worker command:
 `nova-file-worker`

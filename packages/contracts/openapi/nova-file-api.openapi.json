@@ -626,90 +626,6 @@
         "title": "JobRecord",
         "type": "object"
       },
-      "JobResultUpdateRequest": {
-        "additionalProperties": false,
-        "allOf": [
-          {
-            "if": {
-              "properties": {
-                "status": {
-                  "const": "succeeded"
-                }
-              },
-              "required": [
-                "status"
-              ]
-            },
-            "then": {
-              "properties": {
-                "error": {
-                  "type": "null"
-                }
-              }
-            }
-          }
-        ],
-        "description": "Worker/internal request payload for job result updates.",
-        "properties": {
-          "error": {
-            "anyOf": [
-              {
-                "maxLength": 4096,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Error"
-          },
-          "result": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Result"
-          },
-          "status": {
-            "$ref": "#/components/schemas/JobStatus"
-          }
-        },
-        "required": [
-          "status"
-        ],
-        "title": "JobResultUpdateRequest",
-        "type": "object"
-      },
-      "JobResultUpdateResponse": {
-        "additionalProperties": false,
-        "description": "Response payload for internal job result updates.",
-        "properties": {
-          "job_id": {
-            "title": "Job Id",
-            "type": "string"
-          },
-          "status": {
-            "$ref": "#/components/schemas/JobStatus"
-          },
-          "updated_at": {
-            "format": "date-time",
-            "title": "Updated At",
-            "type": "string"
-          }
-        },
-        "required": [
-          "job_id",
-          "status",
-          "updated_at"
-        ],
-        "title": "JobResultUpdateResponse",
-        "type": "object"
-      },
       "JobStatus": {
         "description": "Lifecycle status of an async job.",
         "enum": [
@@ -1172,12 +1088,6 @@
       }
     },
     "securitySchemes": {
-      "X-Worker-Token": {
-        "description": "Worker token header for trusted job-worker calls.",
-        "in": "header",
-        "name": "X-Worker-Token",
-        "type": "apiKey"
-      },
       "bearerAuth": {
         "bearerFormat": "JWT",
         "description": "Bearer JWT for public Nova file API requests. Scope and tenancy are derived from verified claims.",
@@ -1299,77 +1209,6 @@
         "tags": [
           "ops"
         ]
-      }
-    },
-    "/v1/internal/jobs/{job_id}/result": {
-      "post": {
-        "description": "Update job status/result from trusted worker-side processing.",
-        "operationId": "update_job_result",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "job_id",
-            "required": true,
-            "schema": {
-              "title": "Job Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "header",
-            "name": "X-Worker-Token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Worker-Token"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/JobResultUpdateRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/JobResultUpdateResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "403": {
-            "$ref": "#/components/responses/FileForbiddenResponse"
-          },
-          "422": {
-            "$ref": "#/components/responses/FileInvalidRequestResponse"
-          }
-        },
-        "security": [
-          {
-            "X-Worker-Token": []
-          }
-        ],
-        "summary": "Update Job Result",
-        "tags": [
-          "jobs"
-        ],
-        "x-nova-sdk-visibility": "internal"
       }
     },
     "/v1/jobs": {

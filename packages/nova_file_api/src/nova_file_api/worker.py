@@ -7,23 +7,36 @@ import json
 import secrets
 import signal
 from collections.abc import Awaitable, Callable
-from contextlib import suppress
+from contextlib import AsyncExitStack, suppress
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, TypeVar
 
-import httpx
 import structlog
 from botocore.config import Config
 from botocore.exceptions import BotoCoreError, ClientError
 
+from nova_file_api.activity import ActivityStore
 from nova_file_api.aws import new_aioboto3_session
 from nova_file_api.config import Settings
+from nova_file_api.dependencies import (
+    build_activity_store,
+    build_job_publisher,
+    build_job_repository,
+    build_job_service,
+    build_metrics,
+)
 from nova_file_api.errors import FileTransferError
-from nova_file_api.models import TRANSFER_PROCESS_JOB_TYPE, JobStatus
+from nova_file_api.jobs import JobService
+from nova_file_api.models import (
+    TRANSFER_PROCESS_JOB_TYPE,
+    ActivityStoreBackend,
+    JobsRepositoryBackend,
+    JobStatus,
+    Principal,
+)
 from nova_file_api.transfer import ExportCopyResult, TransferService
 
-_INTERNAL_RESULT_ROUTE_TEMPLATE = "/v1/internal/jobs/{job_id}/result"
 _RECEIVE_ERROR_BACKOFF_SECONDS = 2.0
 _RESULT_UPDATE_MAX_ATTEMPTS = 3
 _RESULT_UPDATE_BASE_DELAY_SECONDS = 0.25
@@ -33,6 +46,10 @@ _WORKER_RUNTIME_MODE = "worker"
 _MIN_VISIBILITY_EXTENSION_INTERVAL_SECONDS = 0.5
 _VISIBILITY_EXTENSION_RETRY_DELAY_SECONDS = 1.0
 _SQS_VISIBILITY_TIMEOUT_MAX_SECONDS = 43_200
+_WORKER_PRINCIPAL = Principal(
+    subject="system:jobs-worker",
+    scope_id="system:jobs-worker",
+)
 
 _T = TypeVar("_T")
 
@@ -146,7 +163,7 @@ class TransferProcessPayload:
 
 @dataclass(slots=True)
 class _WorkerResultUpdateError(Exception):
-    """Raised when a worker result callback is not durably accepted."""
+    """Raised when a worker result update is not durably accepted."""
 
     # Keep dataclass fields for structured logging while still initializing
     # Exception args through Exception.__init__ in __post_init__.
@@ -160,13 +177,15 @@ class _WorkerResultUpdateError(Exception):
 
 
 class JobsWorker:
-    """Long-running SQS worker that posts job result updates to API."""
+    """Long-running SQS worker that writes job result updates directly."""
 
     def __init__(
         self,
         *,
         settings: Settings,
         transfer_service: TransferService | None = None,
+        job_service: JobService | None = None,
+        activity_store: ActivityStore | None = None,
     ) -> None:
         """Initialize worker configuration and runtime state."""
         self._settings = settings
@@ -175,13 +194,12 @@ class JobsWorker:
         self._queue_url = (settings.jobs_sqs_queue_url or "").strip()
         self._session = new_aioboto3_session()
         self._transfer_service = transfer_service
+        self._job_service = job_service
+        self._activity_store = activity_store
         self._runtime_transfer_service: TransferService | None = None
+        self._runtime_job_service: JobService | None = None
+        self._runtime_activity_store: ActivityStore | None = None
         self._sqs: Any | None = None
-        self._api: httpx.AsyncClient | None = None
-        token = settings.jobs_worker_update_token
-        self._worker_token = (
-            token.get_secret_value() if token is not None else ""
-        )
 
     async def run(self) -> int:
         """Run the worker receive/process/ack loop until shutdown signal."""
@@ -206,29 +224,55 @@ class JobsWorker:
                 ),
             }
         )
+        requires_dynamodb = (
+            self._settings.jobs_repository_backend
+            == JobsRepositoryBackend.DYNAMODB
+            or self._settings.activity_store_backend
+            == ActivityStoreBackend.DYNAMODB
+        )
         try:
-            async with (
-                self._session.client("sqs", config=sqs_config) as sqs_client,
-                self._session.client("s3", config=s3_config) as s3_client,
-                httpx.AsyncClient(
-                    base_url=(self._settings.jobs_api_base_url or "").rstrip(
-                        "/"
-                    ),
-                    timeout=10.0,
-                    headers={
-                        "X-Worker-Token": self._worker_token,
-                        "Content-Type": "application/json",
-                    },
-                ) as api_client,
-            ):
+            async with AsyncExitStack() as stack:
+                sqs_client = await stack.enter_async_context(
+                    self._session.client("sqs", config=sqs_config)
+                )
+                s3_client = await stack.enter_async_context(
+                    self._session.client("s3", config=s3_config)
+                )
+                dynamodb_resource = None
+                if requires_dynamodb:
+                    dynamodb_resource = await stack.enter_async_context(
+                        self._session.resource("dynamodb")
+                    )
                 self._sqs = sqs_client
-                self._api = api_client
                 self._runtime_transfer_service = (
                     self._transfer_service
                     if self._transfer_service is not None
                     else TransferService(
                         settings=self._settings,
                         s3_client=s3_client,
+                    )
+                )
+                self._runtime_job_service = (
+                    self._job_service
+                    if self._job_service is not None
+                    else build_job_service(
+                        job_repository=build_job_repository(
+                            settings=self._settings,
+                            dynamodb_resource=dynamodb_resource,
+                        ),
+                        job_publisher=build_job_publisher(
+                            settings=self._settings,
+                            sqs_client=sqs_client,
+                        ),
+                        metrics=build_metrics(settings=self._settings),
+                    )
+                )
+                self._runtime_activity_store = (
+                    self._activity_store
+                    if self._activity_store is not None
+                    else build_activity_store(
+                        settings=self._settings,
+                        dynamodb_resource=dynamodb_resource,
                     )
                 )
                 while not self._stop_requested:
@@ -242,9 +286,10 @@ class JobsWorker:
                         if should_delete:
                             await self._delete_message(message=message)
         finally:
-            self._api = None
             self._sqs = None
             self._runtime_transfer_service = None
+            self._runtime_job_service = None
+            self._runtime_activity_store = None
             self._logger.info("jobs_worker_stopped")
         return 0
 
@@ -525,35 +570,45 @@ class JobsWorker:
         result: dict[str, Any] | None,
         error: str | None,
     ) -> None:
-        """Publish worker completion status to the internal result endpoint."""
-        api_client = self._require_api_client()
-        route = _INTERNAL_RESULT_ROUTE_TEMPLATE.format(job_id=job_id)
-        payload = {"status": status.value, "result": result, "error": error}
+        """Persist worker completion status through shared runtime services."""
+        job_service = self._require_job_service()
         last_error: _WorkerResultUpdateError | None = None
         for attempt in range(1, _RESULT_UPDATE_MAX_ATTEMPTS + 1):
             try:
-                response = await api_client.post(route, json=payload)
-            except httpx.HTTPError as exc:
+                job = await job_service.update_result(
+                    job_id=job_id,
+                    status=status,
+                    result=result,
+                    error=error,
+                )
+            except FileTransferError as exc:
+                retryable = exc.status_code in _RETRYABLE_RESULT_STATUS_CODES
                 last_error = _WorkerResultUpdateError(
-                    "worker result update request failed",
+                    (
+                        "worker result update was rejected transiently"
+                        if retryable
+                        else "worker result update was rejected permanently"
+                    ),
+                    retryable=retryable,
+                    status_code=exc.status_code,
+                    error_type=exc.code,
+                )
+                await self._record_job_result_update_failure(
+                    job_id=job_id,
+                    status=status,
+                    error_detail=exc.message,
+                )
+                if not retryable:
+                    raise last_error from exc
+            except Exception as exc:
+                last_error = _WorkerResultUpdateError(
+                    "worker result update failed",
                     retryable=True,
                     error_type=type(exc).__name__,
                 )
             else:
-                if response.is_success:
-                    return
-                if response.status_code in _RETRYABLE_RESULT_STATUS_CODES:
-                    last_error = _WorkerResultUpdateError(
-                        "worker result update was rejected transiently",
-                        retryable=True,
-                        status_code=response.status_code,
-                    )
-                else:
-                    raise _WorkerResultUpdateError(
-                        "worker result update was rejected permanently",
-                        retryable=False,
-                        status_code=response.status_code,
-                    )
+                await self._record_job_result_update_success(job=job)
+                return
             if attempt == _RESULT_UPDATE_MAX_ATTEMPTS:
                 assert last_error is not None
                 raise last_error
@@ -594,15 +649,63 @@ class JobsWorker:
             raise RuntimeError("worker SQS client is not initialized")
         return self._sqs
 
-    def _require_api_client(self) -> httpx.AsyncClient:
-        if self._api is None:
-            raise RuntimeError("worker HTTP client is not initialized")
-        return self._api
-
     def _require_transfer_service(self) -> TransferService:
         if self._runtime_transfer_service is None:
             raise RuntimeError("worker transfer service is not initialized")
         return self._runtime_transfer_service
+
+    def _require_job_service(self) -> JobService:
+        if self._runtime_job_service is None:
+            raise RuntimeError("worker job service is not initialized")
+        return self._runtime_job_service
+
+    def _require_activity_store(self) -> ActivityStore:
+        if self._runtime_activity_store is None:
+            raise RuntimeError("worker activity store is not initialized")
+        return self._runtime_activity_store
+
+    async def _record_job_result_update_success(self, *, job: Any) -> None:
+        """Emit the worker result-update activity event best-effort."""
+        try:
+            await self._require_activity_store().record(
+                principal=_WORKER_PRINCIPAL,
+                event_type="jobs_result_update",
+                details=(
+                    "worker result update accepted "
+                    f"for job_id={job.job_id} status={job.status}"
+                ),
+            )
+        except Exception:
+            self._logger.exception(
+                "jobs_result_update_activity_record_failed",
+                job_id=job.job_id,
+                status=job.status.value,
+            )
+
+    async def _record_job_result_update_failure(
+        self,
+        *,
+        job_id: str,
+        status: JobStatus,
+        error_detail: str,
+    ) -> None:
+        """Emit the worker result-update failure event best-effort."""
+        try:
+            await self._require_activity_store().record(
+                principal=_WORKER_PRINCIPAL,
+                event_type="jobs_result_update_failure",
+                details=(
+                    "worker result update failed "
+                    f"for job_id={job_id} status={status.value}: "
+                    f"{error_detail}"
+                ),
+            )
+        except Exception:
+            self._logger.exception(
+                "jobs_result_update_failure_activity_record_failed",
+                job_id=job_id,
+                status=status.value,
+            )
 
 
 def _approximate_receive_count(*, message: dict[str, Any]) -> int | None:

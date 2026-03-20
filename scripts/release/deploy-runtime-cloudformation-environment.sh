@@ -504,10 +504,6 @@ esac
 require_exactly_one_ingress_source
 ensure_runtime_env_json_contract
 
-if [ "$ENABLE_WORKER" = "true" ] && [ "$FILE_TRANSFER_ASYNC_ENABLED" = "true" ]; then
-  require_env JOBS_WORKER_UPDATE_TOKEN_SECRET_ARN
-fi
-
 RUNTIME_BUCKET_NAME="${FILE_TRANSFER_BUCKET_BASE_NAME}-${AWS_REGION}-${AWS_ACCOUNT_ID}"
 ARTIFACT_BUCKET_NAME="$(resolve_artifact_bucket_name)"
 if [ -n "$ARTIFACT_BUCKET_NAME" ] && [ "$RUNTIME_BUCKET_NAME" = "$ARTIFACT_BUCKET_NAME" ]; then
@@ -732,8 +728,6 @@ elif [ "$ENABLE_WORKER" = "true" ] && [ "$FILE_TRANSFER_ASYNC_ENABLED" = "true" 
     "JobsQueueUrl=${JOBS_QUEUE_URL}" \
     "JobsRegion=${JOBS_REGION}" \
     "JobsVisibilityTimeoutSeconds=${JOBS_SQS_VISIBILITY_TIMEOUT_SECONDS}" \
-    "JobsApiBaseUrl=${SERVICE_BASE_URL}" \
-    "JobsWorkerUpdateTokenSecretArn=${JOBS_WORKER_UPDATE_TOKEN_SECRET_ARN}" \
     "FileTransferBucketName=${RUNTIME_BUCKET_NAME}" \
     "FileTransferUploadPrefix=${FILE_TRANSFER_UPLOAD_PREFIX}" \
     "FileTransferExportPrefix=${FILE_TRANSFER_EXPORT_PREFIX}" \

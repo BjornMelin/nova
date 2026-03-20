@@ -752,22 +752,6 @@
       "type_label": "int"
     },
     {
-      "default_repr": "False",
-      "env_var": "JOBS_ALLOW_INSECURE_MISSING_WORKER_TOKEN_NONPROD",
-      "field_name": "jobs_allow_insecure_missing_worker_token_nonprod",
-      "required": false,
-      "secret": false,
-      "type_label": "bool"
-    },
-    {
-      "default_repr": "None",
-      "env_var": "JOBS_API_BASE_URL",
-      "field_name": "jobs_api_base_url",
-      "required": false,
-      "secret": false,
-      "type_label": "str | None"
-    },
-    {
       "default_repr": "None",
       "env_var": "JOBS_DYNAMODB_TABLE",
       "field_name": "jobs_dynamodb_table",
@@ -854,14 +838,6 @@
       "required": false,
       "secret": false,
       "type_label": "int"
-    },
-    {
-      "default_repr": "None",
-      "env_var": "JOBS_WORKER_UPDATE_TOKEN",
-      "field_name": "jobs_worker_update_token",
-      "required": false,
-      "secret": true,
-      "type_label": "SecretStr | None"
     },
     {
       "default_repr": "'NovaFileApi'",
@@ -968,12 +944,6 @@
       },
       {
         "condition": "always",
-        "name": "JOBS_API_BASE_URL",
-        "secret": false,
-        "source": "stack parameter"
-      },
-      {
-        "condition": "always",
         "name": "FILE_TRANSFER_BUCKET",
         "secret": false,
         "source": "stack parameter"
@@ -1003,13 +973,6 @@
       "FILE_TRANSFER_JOBS_REGION",
       "APP_SYNC_PROCESSING_MAX_BYTES"
     ],
-    "secrets": [
-      {
-        "condition": "always",
-        "name": "JOBS_WORKER_UPDATE_TOKEN",
-        "secret": true,
-        "source": "Secrets Manager"
-      }
-    ]
+    "secrets": []
   }
 }

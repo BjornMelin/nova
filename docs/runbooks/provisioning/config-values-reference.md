@@ -285,14 +285,13 @@ Operator/runtime values that now define the large-upload posture:
 - `FILE_TRANSFER_PRESIGN_UPLOAD_TTL_SECONDS=1800`
 - `FILE_TRANSFER_PART_SIZE_BYTES=134217728`
 - `FILE_TRANSFER_USE_ACCELERATE_ENDPOINT=false` by default
-- `JOBS_WORKER_UPDATE_TOKEN_SECRET_ARN` when the worker stack is enabled
 
 Operational notes:
 
 - `FILE_TRANSFER_USE_ACCELERATE_ENDPOINT=true` requires an acceleration-enabled
   bucket whose name is DNS-compliant and contains no periods.
-- Worker token delivery is secret-backed only; stale worker env aliases are not
-  valid inputs.
+- Worker result persistence uses direct shared runtime services; callback token
+  secrets and stale worker env aliases are not valid inputs.
 
 ## References
 

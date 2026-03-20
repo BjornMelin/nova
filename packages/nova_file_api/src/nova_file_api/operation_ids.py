@@ -12,7 +12,6 @@ PRESIGN_DOWNLOAD_OPERATION_ID: Final = "presign_download"
 CREATE_JOB_OPERATION_ID: Final = "create_job"
 GET_JOB_STATUS_OPERATION_ID: Final = "get_job_status"
 CANCEL_JOB_OPERATION_ID: Final = "cancel_job"
-UPDATE_JOB_RESULT_OPERATION_ID: Final = "update_job_result"
 LIST_JOBS_OPERATION_ID: Final = "list_jobs"
 RETRY_JOB_OPERATION_ID: Final = "retry_job"
 LIST_JOB_EVENTS_OPERATION_ID: Final = "list_job_events"
@@ -42,9 +41,6 @@ OPERATION_ID_BY_PATH_AND_METHOD = {
     "/v1/jobs/{job_id}/cancel": {"post": CANCEL_JOB_OPERATION_ID},
     "/v1/jobs/{job_id}/retry": {"post": RETRY_JOB_OPERATION_ID},
     "/v1/jobs/{job_id}/events": {"get": LIST_JOB_EVENTS_OPERATION_ID},
-    "/v1/internal/jobs/{job_id}/result": {
-        "post": UPDATE_JOB_RESULT_OPERATION_ID
-    },
     "/v1/capabilities": {"get": GET_CAPABILITIES_OPERATION_ID},
     "/v1/resources/plan": {"post": PLAN_RESOURCES_OPERATION_ID},
     "/v1/releases/info": {"get": GET_RELEASE_INFO_OPERATION_ID},

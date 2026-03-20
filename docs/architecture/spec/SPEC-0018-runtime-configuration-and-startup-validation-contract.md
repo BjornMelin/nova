@@ -46,15 +46,8 @@ Required startup validation:
    - `JOBS_ENABLED=true`
    - `JOBS_QUEUE_BACKEND=sqs`
    - `JOBS_SQS_QUEUE_URL`
-   - `JOBS_API_BASE_URL`
-   - `JOBS_WORKER_UPDATE_TOKEN`
-   - deployment wiring that always injects `JOBS_WORKER_UPDATE_TOKEN`,
-     including scale-from-zero ECS worker services
-   - worker deployments MUST inject `JOBS_WORKER_UPDATE_TOKEN` from a
-     secret-backed deployment input even when the ECS service is configured to
-     start at zero tasks
-   - release operator input for this worker secret MUST be
-     `JOBS_WORKER_UPDATE_TOKEN_SECRET_ARN`
+   - any repository/activity-store settings required by the configured worker
+     persistence backends
 5. `ACTIVITY_STORE_BACKEND=dynamodb` requires `ACTIVITY_ROLLUPS_TABLE`.
 6. `IDEMPOTENCY_ENABLED` and `IDEMPOTENCY_TTL_SECONDS` are the current
    idempotency settings surface; the runtime does not define

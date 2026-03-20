@@ -28,7 +28,6 @@ Primary contract endpoints:
 - `GET /v1/releases/info`
 - `GET /v1/health/live`
 - `GET /v1/health/ready`
-- `POST /v1/internal/jobs/{job_id}/result`
 - `GET /metrics/summary`
 
 Canonical runtime namespace is `/v1/*`; legacy `/api/*`, `/healthz`, and

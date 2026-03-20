@@ -75,15 +75,14 @@ Client `session_id` MUST NOT override trusted JWT identity.
 - Presigned URLs and query signatures MUST NOT be logged.
 - Error payloads MUST NOT include sensitive authentication or URL material.
 
-## 6. Worker callback authentication
+## 6. Worker result persistence boundary
 
-- Internal worker status updates
-  (`POST /v1/internal/jobs/{job_id}/result`)
-  MUST use a shared-secret header validation pattern (`X-Worker-Token`) when a
-  worker token is configured.
-- Invalid worker token values MUST return `403`.
-- Worker tokens MUST be delivered via environment/secret configuration, never
-  hardcoded in source.
+- Worker status updates MUST execute through shared runtime services or direct
+  persistence primitives inside Nova; there is no internal HTTP callback route.
+- Worker result writes MUST keep terminal-state immutability and same-state
+  idempotency rules from the job lifecycle contract.
+- Worker configuration MUST not introduce shared-secret callback credentials for
+  result updates.
 
 ## 7. Traceability
 

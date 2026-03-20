@@ -30,10 +30,8 @@ Control-plane endpoints are cheap individually but can be abused to:
 Primary control SHOULD be infrastructure-level:
 
 - AWS WAF rate-based rules on `/v1/transfers/*` and `/v1/jobs/*`.
-- Internal worker callback route family `/v1/internal/jobs/*` is exempt from
-  public WAF rate-limiting scope because it is authenticated with
-  `X-Worker-Token` per SPEC-0001 and is a non-browser worker path documented in
-  SPEC-0000 and SPEC-0008.
+- Worker result persistence does not traverse the public HTTP surface and is
+  therefore outside the WAF-managed route family entirely.
 
 Secondary control MAY be app-level throttling for defense in depth.
 

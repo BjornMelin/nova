@@ -44,10 +44,6 @@ Public runtime routes:
 - `GET /v1/health/ready`
 - `GET /metrics/summary`
 
-Internal-only route:
-
-- `POST /v1/internal/jobs/{job_id}/result`
-
 Non-canonical runtime paths outside this set MUST return `404`.
 
 ## 4. CI guardrail requirements
