@@ -187,7 +187,15 @@ class _ScopedAuthenticator:
         token: str | None,
     ) -> Principal:
         if token is None or not token.strip():
-            raise unauthorized("missing bearer token")
+            raise unauthorized(
+                "missing bearer token",
+                headers={
+                    "WWW-Authenticate": (
+                        'Bearer error="invalid_token", '
+                        'error_description="missing bearer token"'
+                    )
+                },
+            )
         return Principal(
             subject=f"user-for-{self._scope_id}",
             scope_id=self._scope_id,
@@ -1030,3 +1038,4 @@ async def test_get_job_status_requires_bearer_token() -> None:
     payload = response.json()
     assert payload["error"]["code"] == "unauthorized"
     assert payload["error"]["message"] == "missing bearer token"
+    assert response.headers["WWW-Authenticate"].startswith("Bearer")

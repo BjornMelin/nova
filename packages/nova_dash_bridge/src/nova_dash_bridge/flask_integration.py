@@ -46,7 +46,17 @@ def _authorization_header() -> str | None:
     return value if isinstance(value, str) else None
 
 
-def _error_response(exc: FileTransferError) -> tuple[Any, int]:
+def _error_headers(exc: FileTransferError) -> dict[str, str]:
+    headers = dict(getattr(exc, "headers", {}))
+    if int(exc.status_code) == 401 and "WWW-Authenticate" not in headers:
+        headers["WWW-Authenticate"] = (
+            'Bearer error="invalid_token", '
+            'error_description="missing bearer token"'
+        )
+    return headers
+
+
+def _error_response(exc: FileTransferError) -> tuple[Any, int, dict[str, str]]:
     payload = ErrorEnvelope(
         error=ErrorBody(
             code=exc.code,
@@ -55,7 +65,11 @@ def _error_response(exc: FileTransferError) -> tuple[Any, int]:
             request_id=_request_id(),
         )
     )
-    return jsonify(payload.model_dump()), int(exc.status_code)
+    return (
+        jsonify(payload.model_dump()),
+        int(exc.status_code),
+        _error_headers(exc),
+    )
 
 
 def _parse_payload(model: type[Any]) -> Any:
