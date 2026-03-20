@@ -2,18 +2,15 @@
 
 from __future__ import annotations
 
-import re
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from typing import Any
 
+from nova_file_api.public import Principal
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-ScopeResolver = Callable[[str | None], str]
-AuthVerifier = Callable[[str | None], None]
-
-_SESSION_ID_RE = re.compile(r"^[0-9a-fA-F-]{16,64}$")
+PrincipalResolver = Callable[[str | None], Principal]
 
 
 class FileTransferEnvConfig(BaseSettings):
@@ -176,29 +173,25 @@ class UploadPolicy:
 
 @dataclass(slots=True, kw_only=True)
 class AuthPolicy:
-    """Authentication/scoping policy hooks for integrations."""
+    """Authentication hooks for framework integrations."""
 
-    require_auth: bool = False
-    scope_resolver: ScopeResolver | None = None
-    verifier: AuthVerifier | None = None
+    principal_resolver: PrincipalResolver | None = None
 
-    def resolve_scope_id(
+    def resolve_principal(
         self,
-        session_id: str | None,
-    ) -> str:
-        """Resolve scope id for key generation and key-ownership checks."""
-        if self.verifier is not None:
-            self.verifier(session_id)
-        if self.scope_resolver is not None:
-            scope_id = self.scope_resolver(session_id)
-        else:
-            scope_id = session_id or ""
-        scope = scope_id.strip()
-        if not scope:
-            raise ValueError("session_id is required")
-        if not _SESSION_ID_RE.match(scope):
-            raise ValueError("session_id format is invalid")
-        return scope
+        authorization_header: str | None,
+    ) -> Principal:
+        """Resolve a trusted principal from the incoming bearer header."""
+        if self.principal_resolver is None:
+            raise ValueError("auth principal_resolver is required")
+        principal = self.principal_resolver(authorization_header)
+        subject = principal.subject.strip()
+        scope_id = principal.scope_id.strip()
+        if not subject or not scope_id:
+            raise ValueError(
+                "resolved principal must include non-empty subject and scope_id"
+            )
+        return principal
 
 
 def policy_from_env(

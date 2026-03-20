@@ -1,7 +1,7 @@
 # Worker Lane Operations and Failure Handling
 
-Status: Active  
-Owner: nova release architecture  
+Status: Active
+Owner: nova release architecture
 Last reviewed: 2026-03-11
 Authority: ADR-0023, SPEC-0000, SPEC-0016, requirements.md
 

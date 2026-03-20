@@ -41,6 +41,11 @@ def _request_id() -> str | None:
     return value if isinstance(value, str) else None
 
 
+def _authorization_header() -> str | None:
+    value = request.headers.get("Authorization")
+    return value if isinstance(value, str) else None
+
+
 def _error_response(exc: FileTransferError) -> tuple[Any, int]:
     payload = ErrorEnvelope(
         error=ErrorBody(
@@ -88,11 +93,14 @@ def create_file_transfer_blueprint(
         url_prefix=url_prefix,
     )
 
+    def _principal() -> Any:
+        return service.resolve_principal(_authorization_header())
+
     @blueprint.post("/uploads/initiate")
     def initiate_upload() -> tuple[Any, int]:
         try:
             payload = _parse_payload(InitiateUploadRequest)
-            response = service.initiate_upload(payload)
+            response = service.initiate_upload(payload, principal=_principal())
             return jsonify(response.model_dump()), HTTPStatus.OK
         except Exception as exc:
             err = coerce_file_transfer_error(exc)
@@ -102,7 +110,7 @@ def create_file_transfer_blueprint(
     def sign_parts() -> tuple[Any, int]:
         try:
             payload = _parse_payload(SignPartsRequest)
-            response = service.sign_parts(payload)
+            response = service.sign_parts(payload, principal=_principal())
             return jsonify(response.model_dump()), HTTPStatus.OK
         except Exception as exc:
             err = coerce_file_transfer_error(exc)
@@ -112,7 +120,10 @@ def create_file_transfer_blueprint(
     def introspect_upload() -> tuple[Any, int]:
         try:
             payload = _parse_payload(UploadIntrospectionRequest)
-            response = service.introspect_upload(payload)
+            response = service.introspect_upload(
+                payload,
+                principal=_principal(),
+            )
             return jsonify(response.model_dump()), HTTPStatus.OK
         except Exception as exc:
             err = coerce_file_transfer_error(exc)
@@ -122,7 +133,7 @@ def create_file_transfer_blueprint(
     def complete_upload() -> tuple[Any, int]:
         try:
             payload = _parse_payload(CompleteUploadRequest)
-            response = service.complete_upload(payload)
+            response = service.complete_upload(payload, principal=_principal())
             return jsonify(response.model_dump()), HTTPStatus.OK
         except Exception as exc:
             err = coerce_file_transfer_error(exc)
@@ -132,7 +143,7 @@ def create_file_transfer_blueprint(
     def abort_upload() -> tuple[Any, int]:
         try:
             payload = _parse_payload(AbortUploadRequest)
-            response = service.abort_upload(payload)
+            response = service.abort_upload(payload, principal=_principal())
             return jsonify(response.model_dump()), HTTPStatus.OK
         except Exception as exc:
             err = coerce_file_transfer_error(exc)
@@ -142,7 +153,7 @@ def create_file_transfer_blueprint(
     def presign_download() -> tuple[Any, int]:
         try:
             payload = _parse_payload(PresignDownloadRequest)
-            response = service.presign_download(payload)
+            response = service.presign_download(payload, principal=_principal())
             return jsonify(response.model_dump()), HTTPStatus.OK
         except Exception as exc:
             err = coerce_file_transfer_error(exc)

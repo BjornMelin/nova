@@ -438,17 +438,6 @@ Rules:
         AssertDescription: >-
           IdempotencyEnabled requires FileTransferCacheEnabled to be "true"
           and CacheRedisUrlSecretArn to be configured.
-  JwtLocalOidcParamsProvided:
-    Assertions:
-      - Assert: !Or
-          - !Not [!Equals [!Ref AuthMode, "jwt_local"]]
-          - !And
-              - !Not [!Equals [!Ref OidcIssuer, ""]]
-              - !Not [!Equals [!Ref OidcAudience, ""]]
-              - !Not [!Equals [!Ref OidcJwksUrl, ""]]
-        AssertDescription: >-
-          OidcIssuer, OidcAudience, and OidcJwksUrl are required when AuthMode
-          is "jwt_local".
   BlueGreenTrafficControlParamsProvided:
     Assertions:
       - Assert: !Not [!Equals [!Ref EcsInfrastructureRoleArn, ""]]

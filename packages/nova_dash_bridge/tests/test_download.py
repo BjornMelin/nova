@@ -10,6 +10,7 @@ from nova_dash_bridge.errors import FileTransferError
 from nova_dash_bridge.models import UploadIntrospectionRequest
 from nova_dash_bridge.s3_client import S3Client, SupportsCreateS3Client
 from nova_dash_bridge.service import FileTransferService
+from nova_file_api.public import Principal
 
 
 class _FakeBody:
@@ -155,8 +156,8 @@ def test_introspect_upload_maps_core_response(
         UploadIntrospectionRequest(
             key="uploads/scope-1/object.csv",
             upload_id="upload-1",
-            session_id="12345678-1234-1234-1234-1234567890ab",
-        )
+        ),
+        principal=Principal(subject="user-1", scope_id="scope-1"),
     )
 
     assert response.model_dump() == {

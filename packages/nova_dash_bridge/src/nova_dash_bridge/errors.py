@@ -53,6 +53,20 @@ def forbidden_error(
     )
 
 
+def unauthorized_error(
+    message: str,
+    *,
+    details: dict[str, Any] | None = None,
+) -> FileTransferError:
+    """Build an unauthorized error instance."""
+    return FileTransferError(
+        code="unauthorized",
+        message=message,
+        status_code=HTTPStatus.UNAUTHORIZED,
+        details=details or {},
+    )
+
+
 def conflict_error(
     message: str,
     *,

@@ -4,16 +4,8 @@
 from contextlib import asynccontextmanager
 from functools import wraps
 from json import JSONDecodeError
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, Final, cast
 
-from nova_file_api.operation_ids import (
-    ABORT_UPLOAD_OPERATION_ID,
-    COMPLETE_UPLOAD_OPERATION_ID,
-    INITIATE_UPLOAD_OPERATION_ID,
-    INTROSPECT_UPLOAD_OPERATION_ID,
-    PRESIGN_DOWNLOAD_OPERATION_ID,
-    SIGN_UPLOAD_PARTS_OPERATION_ID,
-)
 from nova_file_api.public import (
     ABORT_UPLOAD_ROUTE,
     COMPLETE_UPLOAD_ROUTE,
@@ -38,8 +30,7 @@ from nova_dash_bridge.models import (
     ErrorBody,
     ErrorEnvelope,
     InitiateUploadRequest,
-    InitiateUploadResponseMultipart,
-    InitiateUploadResponseSingle,
+    InitiateUploadResponse,
     PresignDownloadRequest,
     PresignDownloadResponse,
     SignPartsRequest,
@@ -60,6 +51,13 @@ else:  # pragma: no cover
         from fastapi import Request
     except ModuleNotFoundError:
         Request = Any
+
+INITIATE_UPLOAD_OPERATION_ID: Final = "initiate_upload"
+SIGN_UPLOAD_PARTS_OPERATION_ID: Final = "sign_upload_parts"
+INTROSPECT_UPLOAD_OPERATION_ID: Final = "introspect_upload"
+COMPLETE_UPLOAD_OPERATION_ID: Final = "complete_upload"
+ABORT_UPLOAD_OPERATION_ID: Final = "abort_upload"
+PRESIGN_DOWNLOAD_OPERATION_ID: Final = "presign_download"
 
 
 def _fastapi_imports() -> tuple[
@@ -105,6 +103,15 @@ def _request_id(request: Request) -> str | None:
     if headers is None:
         return None
     value = headers.get("X-Request-Id")
+    return value if isinstance(value, str) else None
+
+
+def _authorization_header(request: Request) -> str | None:
+    """Read the Authorization header when present."""
+    headers = getattr(request, "headers", None)
+    if headers is None:
+        return None
+    value = headers.get("Authorization")
     return value if isinstance(value, str) else None
 
 
@@ -191,22 +198,27 @@ def create_fastapi_router(
 
         return wrapped
 
+    def _principal(request: Request) -> Any:
+        return service.resolve_principal(_authorization_header(request))
+
     @router.post(
         UPLOADS_INITIATE_ROUTE,
         operation_id=INITIATE_UPLOAD_OPERATION_ID,
-        response_model=(
-            InitiateUploadResponseSingle | InitiateUploadResponseMultipart
-        ),
+        response_model=InitiateUploadResponse,
     )
     @handle_file_transfer_errors
     async def initiate_upload(
         request: Request,
         payload: InitiateUploadRequest,
-    ) -> InitiateUploadResponseSingle | InitiateUploadResponseMultipart:
+    ) -> InitiateUploadResponse:
         """Initiate upload and return single or multipart strategy payload."""
         return cast(
-            InitiateUploadResponseSingle | InitiateUploadResponseMultipart,
-            await run_in_threadpool(service.initiate_upload, payload),
+            InitiateUploadResponse,
+            await run_in_threadpool(
+                service.initiate_upload,
+                payload,
+                principal=_principal(request),
+            ),
         )
 
     @router.post(
@@ -222,7 +234,11 @@ def create_fastapi_router(
         """Return presigned multipart part upload URLs."""
         return cast(
             SignPartsResponse,
-            await run_in_threadpool(service.sign_parts, payload),
+            await run_in_threadpool(
+                service.sign_parts,
+                payload,
+                principal=_principal(request),
+            ),
         )
 
     @router.post(
@@ -238,7 +254,11 @@ def create_fastapi_router(
         """Return uploaded multipart part state for resume flows."""
         return cast(
             UploadIntrospectionResponse,
-            await run_in_threadpool(service.introspect_upload, payload),
+            await run_in_threadpool(
+                service.introspect_upload,
+                payload,
+                principal=_principal(request),
+            ),
         )
 
     @router.post(
@@ -254,7 +274,11 @@ def create_fastapi_router(
         """Complete multipart upload and return final object metadata."""
         return cast(
             CompleteUploadResponse,
-            await run_in_threadpool(service.complete_upload, payload),
+            await run_in_threadpool(
+                service.complete_upload,
+                payload,
+                principal=_principal(request),
+            ),
         )
 
     @router.post(
@@ -270,7 +294,11 @@ def create_fastapi_router(
         """Abort an active multipart upload."""
         return cast(
             AbortUploadResponse,
-            await run_in_threadpool(service.abort_upload, payload),
+            await run_in_threadpool(
+                service.abort_upload,
+                payload,
+                principal=_principal(request),
+            ),
         )
 
     @router.post(
@@ -286,7 +314,11 @@ def create_fastapi_router(
         """Return a presigned download URL for an export object."""
         return cast(
             PresignDownloadResponse,
-            await run_in_threadpool(service.presign_download, payload),
+            await run_in_threadpool(
+                service.presign_download,
+                payload,
+                principal=_principal(request),
+            ),
         )
 
     return router
