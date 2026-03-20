@@ -34,6 +34,7 @@ from nova_dash_bridge.service import (
 )
 
 LOGGER = logging.getLogger(__name__)
+FlaskResponse = tuple[Any, int] | tuple[Any, int, dict[str, str]]
 
 
 def _request_id() -> str | None:
@@ -111,7 +112,7 @@ def create_file_transfer_blueprint(
         return service.resolve_principal(_authorization_header())
 
     @blueprint.post("/uploads/initiate")
-    def initiate_upload() -> tuple[Any, int]:
+    def initiate_upload() -> FlaskResponse:
         try:
             payload = _parse_payload(InitiateUploadRequest)
             response = service.initiate_upload(payload, principal=_principal())
@@ -121,7 +122,7 @@ def create_file_transfer_blueprint(
             return _error_response(err)
 
     @blueprint.post("/uploads/sign-parts")
-    def sign_parts() -> tuple[Any, int]:
+    def sign_parts() -> FlaskResponse:
         try:
             payload = _parse_payload(SignPartsRequest)
             response = service.sign_parts(payload, principal=_principal())
@@ -131,7 +132,7 @@ def create_file_transfer_blueprint(
             return _error_response(err)
 
     @blueprint.post("/uploads/introspect")
-    def introspect_upload() -> tuple[Any, int]:
+    def introspect_upload() -> FlaskResponse:
         try:
             payload = _parse_payload(UploadIntrospectionRequest)
             response = service.introspect_upload(
@@ -144,7 +145,7 @@ def create_file_transfer_blueprint(
             return _error_response(err)
 
     @blueprint.post("/uploads/complete")
-    def complete_upload() -> tuple[Any, int]:
+    def complete_upload() -> FlaskResponse:
         try:
             payload = _parse_payload(CompleteUploadRequest)
             response = service.complete_upload(payload, principal=_principal())
@@ -154,7 +155,7 @@ def create_file_transfer_blueprint(
             return _error_response(err)
 
     @blueprint.post("/uploads/abort")
-    def abort_upload() -> tuple[Any, int]:
+    def abort_upload() -> FlaskResponse:
         try:
             payload = _parse_payload(AbortUploadRequest)
             response = service.abort_upload(payload, principal=_principal())
@@ -164,7 +165,7 @@ def create_file_transfer_blueprint(
             return _error_response(err)
 
     @blueprint.post("/downloads/presign")
-    def presign_download() -> tuple[Any, int]:
+    def presign_download() -> FlaskResponse:
         try:
             payload = _parse_payload(PresignDownloadRequest)
             response = service.presign_download(payload, principal=_principal())
