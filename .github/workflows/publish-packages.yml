@@ -124,7 +124,7 @@ jobs:
       - name: Setup uv
         uses: astral-sh/setup-uv@v7
         with:
-          version: "0.10.10"
+          version: "0.10.12"
           enable-cache: true
           prune-cache: true
 

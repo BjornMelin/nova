@@ -18,7 +18,7 @@ phases:
       python: "3.12"
     commands:
       - pip install --upgrade pip
-      - pip install uv twine
+      - pip install 'uv==0.10.12' twine
 
   pre_build:
     commands:

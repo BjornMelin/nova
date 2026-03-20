@@ -44,7 +44,7 @@ Documentation = "https://github.com/3M-Cloud/nova/tree/main/docs"
 
 [tool.uv]
 default-groups = ["dev"]
-required-version = "==0.10.10"
+required-version = "==0.10.12"
 
 [tool.uv.workspace]
 members = [

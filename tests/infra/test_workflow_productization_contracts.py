@@ -51,7 +51,7 @@ def test_composite_actions_provide_shared_release_primitives() -> None:
             "using: composite",
             "actions/setup-python@v5",
             "astral-sh/setup-uv@v7",
-            'version: "0.10.10"',
+            'version: "0.10.12"',
             "enable-cache: true",
             "prune-cache: true",
             "uv sync",

@@ -199,7 +199,7 @@ def test_publish_packages_workflow_requires_explicit_release_apply_run_id() -> (
         "release_apply_run_id",
         "required: true",
         "github.ref == 'refs/heads/main'",
-        'version: "0.10.10"',
+        'version: "0.10.12"',
     ]:
         assert required in text
 
