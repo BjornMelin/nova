@@ -173,7 +173,7 @@ For each run capture:
 10. Consolidate the above into a durable promotion record (for example release PR
     description, internal change ticket, or org-owned artifact store URI); avoid
     duplicating the same pointers in `docs/` unless policy explicitly requires
-    it—see `release-policy.md` §6.
+    it--see `release-policy.md` §6.
 11. Runtime WAF evidence for any internet-facing ALB (`PublicAlbWebAclArn` or
     equivalent stack output).
 12. Immutable release-plan artifact continuity evidence:

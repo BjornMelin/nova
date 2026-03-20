@@ -6,10 +6,13 @@ Version: 1.1
 Date: 2026-03-19
 Supersedes: "[SPEC-0011: Multi-language SDK architecture and package map (superseded)](./superseded/SPEC-0011-multi-language-sdk-architecture-and-package-map.md)"
 Related:
+  - "[ADR-0023: Hard-cut v1 canonical route surface](../adr/ADR-0023-hard-cut-v1-canonical-route-surface.md)"
+  - "[SPEC-0000: HTTP API contract](./SPEC-0000-http-api-contract.md)"
+  - "[SPEC-0016: V1 route namespace and literal guardrails](./SPEC-0016-v1-route-namespace-and-literal-guardrails.md)"
+  - "[requirements.md](../requirements.md)"
   - "[ADR-0038: Green-field SDK architecture by language](../adr/ADR-0038-sdk-architecture-by-language.md)"
   - "[ADR-0013: Final-state SDK topology (superseded)](../adr/superseded/ADR-0013-final-state-sdk-topology-generated-core-plus-thin-adapters.md)"
   - "[SPEC-0012: SDK conformance, versioning, and compatibility governance](./SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md)"
-  - "[requirements.md](../requirements.md)"
 ---
 
 ## 1. Purpose
@@ -151,7 +154,7 @@ that do not override SDK contract behavior.
 
 ## Changelog
 
-- 2026-03-19: v1.1 — Active successor to SPEC-0011; add package map, client
+- 2026-03-19: v1.1 -- Active successor to SPEC-0011; add package map, client
   behaviors, ownership/delivery, and bearer-only auth surface for SDKs.
-- 2026-03-19: v1.0 — Initial canonical SPEC; ports green-field pack SPEC-0003 with
+- 2026-03-19: v1.0 -- Initial canonical SPEC; ports green-field pack SPEC-0003 with
   explicit SPEC-0011/SPEC-0012 alignment.

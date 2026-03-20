@@ -15,7 +15,7 @@ Canonical path constants: [`scripts/release/release_paths.py`](../../scripts/rel
 | File | Role |
 | --- | --- |
 | [`RELEASE-VERSION-MANIFEST.md`](RELEASE-VERSION-MANIFEST.md) | Selective per-unit versions for release tooling; SHA256 gates promotion |
-| [`runtime-config-contract.generated.md`](runtime-config-contract.generated.md) | Operator-facing env/deploy matrix; **do not edit** — run `uv run python scripts/release/generate_runtime_config_contract.py` |
+| [`runtime-config-contract.generated.md`](runtime-config-contract.generated.md) | Operator-facing env/deploy matrix; **do not edit** -- run `uv run python scripts/release/generate_runtime_config_contract.py` |
 
 JSON fixture for the same contract: `packages/contracts/fixtures/runtime_config_contract.json` (also generator-owned).
 

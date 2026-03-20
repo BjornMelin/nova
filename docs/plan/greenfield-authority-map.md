@@ -1,4 +1,4 @@
-# Green-field simplification — authority ID map
+# Green-field simplification -- authority ID map
 
 Status: Active routing index
 Last updated: 2026-03-19
@@ -43,5 +43,5 @@ per [ADR-0023](../architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.
 
 ## Program and evidence
 
-- [greenfield-simplification-program.md](./greenfield-simplification-program.md) — branch order and DoD
-- [greenfield-evidence/README.md](./greenfield-evidence/README.md) — non-normative audit copies
+- [greenfield-simplification-program.md](./greenfield-simplification-program.md) -- branch order and DoD
+- [greenfield-evidence/README.md](./greenfield-evidence/README.md) -- non-normative audit copies

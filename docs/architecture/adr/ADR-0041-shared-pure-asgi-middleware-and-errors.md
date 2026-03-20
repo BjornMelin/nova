@@ -5,6 +5,10 @@ Status: Accepted
 Version: 1.0
 Date: 2026-03-19
 Related:
+  - "[ADR-0023: Hard-cut v1 canonical route surface](./ADR-0023-hard-cut-v1-canonical-route-surface.md)"
+  - "[SPEC-0000: HTTP API contract](../spec/SPEC-0000-http-api-contract.md)"
+  - "[SPEC-0016: V1 route namespace and literal guardrails](../spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md)"
+  - "[requirements.md](../requirements.md)"
   - "[ADR-0036: Green-field native FastAPI OpenAPI contract expression](./ADR-0036-native-fastapi-openapi-contract.md)"
   - "[ADR-0037: Green-field async-first public surface](./ADR-0037-async-first-public-surface.md)"
   - "[Green-field simplification program](../../plan/greenfield-simplification-program.md)"

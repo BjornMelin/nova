@@ -5,6 +5,10 @@ Status: Accepted
 Version: 1.0
 Date: 2026-03-19
 Related:
+  - "[ADR-0023: Hard-cut v1 canonical route surface](./ADR-0023-hard-cut-v1-canonical-route-surface.md)"
+  - "[SPEC-0000: HTTP API contract](../spec/SPEC-0000-http-api-contract.md)"
+  - "[SPEC-0016: V1 route namespace and literal guardrails](../spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md)"
+  - "[requirements.md](../requirements.md)"
   - "[SPEC-0028: Worker job lifecycle and direct result path](../spec/SPEC-0028-worker-job-lifecycle-and-direct-result-path.md)"
   - "[Green-field simplification program](../../plan/greenfield-simplification-program.md)"
 References:
@@ -20,7 +24,7 @@ Winning option: **9.35/10** (Framework A).
 ## Context
 
 - The worker previously POSTed to an internal HTTP endpoint that delegated to
-  the same service layer—adding secrets, retries, latency, and failure modes
+  the same service layer--adding secrets, retries, latency, and failure modes
   without isolation benefit.
 - [GFR-R5](../requirements.md#gfr-r5--worker-must-not-self-call-the-api) forbids
   self-call patterns.

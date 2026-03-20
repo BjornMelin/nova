@@ -12,7 +12,12 @@ from nova_file_api.config import Settings
 from pydantic import SecretStr
 from pydantic.fields import FieldInfo
 
-from scripts.release.release_paths import RUNTIME_CONFIG_GENERATED_MD_PATH
+try:
+    from scripts.release.release_paths import RUNTIME_CONFIG_GENERATED_MD_PATH
+except ModuleNotFoundError:  # pragma: no cover - test harness fallback
+    RUNTIME_CONFIG_GENERATED_MD_PATH = (
+        "docs/release/runtime-config-contract.generated.md"
+    )
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 

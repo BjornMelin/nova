@@ -6,7 +6,7 @@ Last updated: 2026-03-19
 
 ## When to use this vs browser checklist
 
-- **This runbook (NONPROD):** AWS-live integration—CodeConnections, ALB,
+- **This runbook (NONPROD):** AWS-live integration--CodeConnections, ALB,
   CodePipeline/CodeBuild, CloudWatch, cross-repo flows against real accounts.
 - **[browser-live-validation-checklist.md](browser-live-validation-checklist.md):**
   Deterministic browser/`agent-browser` checks against `DASH_BASE_URL` and
@@ -243,7 +243,7 @@ For each gate capture:
 Record outcomes with durable pointers (for example GitHub Actions run URLs,
 pipeline execution IDs, and object-storage URIs for JSON bundles) and attach
 them to the promotion PR or change record per
-[`release-policy.md`](release-policy.md) §6—do not maintain a separate log file
+[`release-policy.md`](release-policy.md) §6--do not maintain a separate log file
 under `docs/`.
 
 ## 11. Access prerequisites and rollback

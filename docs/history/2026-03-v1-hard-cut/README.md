@@ -23,9 +23,9 @@ the time. There are no separate Codex/agent trigger stubs in this archive.
 
 ## Archived records
 
-- `PRD.md` — archived product framing (trimmed; active product authority is
+- `PRD.md` -- archived product framing (trimmed; active product authority is
   `docs/PRD.md`)
-- `FINAL-PLAN.md` — consolidated program plan (subsumes the removed sibling
+- `FINAL-PLAN.md` -- consolidated program plan (subsumes the removed sibling
   `PLAN.md`)
 - `planning/2026-03-01-adr0015-spec0015-implementation-blueprint.md`
 - `subplans/SUBPLAN-0001.md` … `subplans/SUBPLAN-0005.md`

@@ -12,11 +12,11 @@ release and CI/CD. Execute in roughly this order; then use
 
 ## Recommended order
 
-1. [deploy-runtime-cloudformation-environments.md](deploy-runtime-cloudformation-environments.md) — `infra/runtime/**` for `dev` / `prod`
-2. [day-0-operator-checklist.md](day-0-operator-checklist.md) — minimal CI/CD path + `scripts/release/day-0-operator-command-pack.sh`
-3. [docker-buildx-credential-helper-setup.md](docker-buildx-credential-helper-setup.md) — local Docker BuildKit / credential helper
+1. [deploy-runtime-cloudformation-environments.md](deploy-runtime-cloudformation-environments.md) -- `infra/runtime/**` for `dev` / `prod`
+2. [day-0-operator-checklist.md](day-0-operator-checklist.md) -- minimal CI/CD path + `scripts/release/day-0-operator-command-pack.sh`
+3. [docker-buildx-credential-helper-setup.md](docker-buildx-credential-helper-setup.md) -- local Docker BuildKit / credential helper
 4. [aws-oidc-and-iam-role-setup.md](aws-oidc-and-iam-role-setup.md), [aws-secrets-provisioning.md](aws-secrets-provisioning.md), [github-actions-secrets-and-vars.md](github-actions-secrets-and-vars.md), [codeconnections-activation-and-validation.md](codeconnections-activation-and-validation.md)
-5. [nova-cicd-end-to-end-deploy.md](nova-cicd-end-to-end-deploy.md) — CI/CD stacks after runtime
+5. [nova-cicd-end-to-end-deploy.md](nova-cicd-end-to-end-deploy.md) -- CI/CD stacks after runtime
 
 ## Reference
 

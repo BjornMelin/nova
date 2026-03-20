@@ -103,11 +103,11 @@ ledger inside `docs/`). At minimum:
   and verified `RELEASE_MANIFEST_SHA256` continuity through promotion.
 - GitHub Actions (or equivalent CI) **workflow run URLs** for release plan,
   release apply, signature verification, publish, and post-deploy validation
-  jobs—sufficient to reproduce what ran and whether it succeeded.
+  jobs -- sufficient to reproduce what ran and whether it succeeded.
 - **Promotion record**: the PR or internal change ticket that carried Dev→Prod
-  approval, digest parity (`FILE_IMAGE_DIGEST`, `AUTH_IMAGE_DIGEST`), and any
-  post-deploy validation artifact links (for example JSON under org-owned object
-  storage).
+  approval, `FILE_IMAGE_DIGEST`, and any post-deploy validation artifact links
+  (for example JSON under org-owned object storage). Include
+  `AUTH_IMAGE_DIGEST` only when an auth-image was part of the promoted change.
 - Live AWS/pipeline checks follow
   `docs/runbooks/release/nonprod-live-validation-runbook.md` and
   `docs/runbooks/release/release-runbook.md`; file **execution notes** only when

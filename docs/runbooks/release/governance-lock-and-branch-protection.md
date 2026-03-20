@@ -10,7 +10,7 @@ Define the **policy** for protected `main` (required checks and branch rules)
 and the **operator runbook** to verify or apply the lock with auditable
 outputs. Replaces separate branch-protection and governance-lock-only docs.
 
-## Part A — Policy (PR-14 governance lock)
+## Part A -- Policy (PR-14 governance lock)
 
 ### Target branch
 
@@ -134,7 +134,7 @@ job-level `if:` guards, not top-level workflow `paths` filters.
 
 No broad app feature tests are part of this required check set.
 
-## Part B — Operator verification flow
+## Part B -- Operator verification flow
 
 ### Preconditions
 

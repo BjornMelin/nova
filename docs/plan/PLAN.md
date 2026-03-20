@@ -17,7 +17,7 @@ use `../runbooks/README.md`. Archived program material lives under
 - `./greenfield-simplification-program.md` (canonical green-field program router)
 - `./greenfield-authority-map.md` (ADR/SPEC index map for the program)
 - `./greenfield-evidence/README.md` (supporting audit and scoring **copies**;
-  non-authoritative—see table there for `EXECUTIVE_AUDIT.md`, CSV manifests, and
+  non-authoritative--see table there for `EXECUTIVE_AUDIT.md`, CSV manifests, and
   related artifacts)
 - `../runbooks/README.md`
 - `../runbooks/release/README.md` (release validation and policy)

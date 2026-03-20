@@ -1,7 +1,7 @@
 # ADR-0015 / SPEC-0015 implementation blueprint (archive)
 
 Status: **Historical snapshot** (2026-03-01). Non-authoritative for current
-operations—verify live posture against
+operations--verify live posture against
 [ADR-0015](../../../architecture/adr/ADR-0015-nova-api-platform-final-hosting-and-deployment-architecture-2026.md),
 [SPEC-0015](../../../architecture/spec/SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md),
 and [requirements](../../../architecture/requirements.md).
@@ -15,18 +15,18 @@ and [requirements](../../../architecture/requirements.md).
 1. **Locked target (ADR-0015):** Production = **ECS/Fargate + ALB + CodeDeploy
    blue/green + GitHub Actions OIDC** (weighted **9.3/10**). Any “ECS Express”
    style shortcut is **accelerator-only**, not rollback or governance authority.
-2. **SPEC-0015 (at snapshot):** **Planned**—artifact/workflow contract and
+2. **SPEC-0015 (at snapshot):** **Planned**--artifact/workflow contract and
    platform capability bar documented; implementation tracked on branches, not
    assumed done here.
 3. **Gap mental model:** Many workflow **files** and **infra templates** already
    existed on `main`. Remaining work was **contract hardening** (digests,
    manifests, permissions), **complete blue/green IaC**, **`/v1/*` APIs**, and
-   **CodeArtifact promotion gates**—not inventing filenames from scratch.
-4. **Strategy picked:** **Option B** (9.4/10)—direct final-state cut in-repo.
-   Rejected: minimal additive rollout (7.8—dual authority); infra-first then
-   API (8.6—slows clients).
+   **CodeArtifact promotion gates**--not inventing filenames from scratch.
+4. **Strategy picked:** **Option B** (9.4/10)--direct final-state cut in-repo.
+   Rejected: minimal additive rollout (7.8--dual authority); infra-first then
+   API (8.6--slows clients).
 
-**Docs anchor (evidence):** PR #22, commit `23956b3`—“finalize 2026 Nova API
+**Docs anchor (evidence):** PR #22, commit `23956b3`--“finalize 2026 Nova API
 platform ADR/SPEC” on `main`.
 
 ## Authority layout (at snapshot)
@@ -60,7 +60,7 @@ When done, all of the following must hold:
 4. **This repo** is the single operational source for IaC + release/deploy
    workflows (no shadow deploy path).
 
-## Work batches (single WBS—no separate “missing” list)
+## Work batches (single WBS--no separate “missing” list)
 
 | Batch | Focus | Deliverables (minimum) | Accept when |
 | --- | --- | --- | --- |

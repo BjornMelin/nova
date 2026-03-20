@@ -141,4 +141,4 @@ Guaranteed deletions from the final plan:
 
 The best final Nova is **not** an optimized version of the current two-service runtime. It is a **single-service API + worker platform** with a much thinner SDK and contract toolchain.
 
-The current repo has good foundations — FastAPI, aioboto3, Pydantic, uv, and typed clients — but it is paying an unnecessary tax in duplicated auth, contract mutation, adapter layering, and custom SDK runtime code. The implementation program in this pack is designed to delete those taxes decisively.
+The current repo has good foundations -- FastAPI, aioboto3, Pydantic, uv, and typed clients -- but it is paying an unnecessary tax in duplicated auth, contract mutation, adapter layering, and custom SDK runtime code. The implementation program in this pack is designed to delete those taxes decisively.

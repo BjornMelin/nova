@@ -5,6 +5,10 @@ Status: Accepted
 Version: 1.0
 Date: 2026-03-19
 Related:
+  - "[ADR-0023: Hard-cut v1 canonical route surface](./ADR-0023-hard-cut-v1-canonical-route-surface.md)"
+  - "[SPEC-0000: HTTP API contract](../spec/SPEC-0000-http-api-contract.md)"
+  - "[SPEC-0016: V1 route namespace and literal guardrails](../spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md)"
+  - "[requirements.md](../requirements.md)"
   - "[Green-field simplification program](../../plan/greenfield-simplification-program.md)"
 References:
   - "[manifest.json (pack)](../../plan/greenfield-evidence/manifest.json)"

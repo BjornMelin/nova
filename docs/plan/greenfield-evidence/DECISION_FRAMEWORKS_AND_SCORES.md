@@ -11,7 +11,7 @@ This document defines the custom weighted scoring systems used in the second-pas
 - Code/runtime and SDK matrices use **1–10 per criterion**.
 - AWS matrices use **1–5 per criterion**, then normalize to a 10-point final score.
 
-## Framework A — Code / runtime simplification
+## Framework A -- Code / runtime simplification
 
 | Criterion | Weight |
 | --- | --- |
@@ -38,7 +38,7 @@ Interpretation:
 | Middleware and error strategy | [ADR-0041](../../architecture/adr/ADR-0041-shared-pure-asgi-middleware-and-errors.md) |
 | Public Python surface and adapter strategy | [ADR-0037](../../architecture/adr/ADR-0037-async-first-public-surface.md) |
 
-## Framework B — SDK strategy
+## Framework B -- SDK strategy
 
 | Criterion | Weight |
 | --- | --- |
@@ -54,9 +54,9 @@ Interpretation:
 - language-ecosystem fit matters because these SDKs must feel native to their consumers
 - maintenance burden reduction is weighted heavily because current Nova spends too much code on SDK scaffolding
 
-**ADR index (Framework B):** [ADR-0038 — SDK architecture by language](../../architecture/adr/ADR-0038-sdk-architecture-by-language.md) (TypeScript, Python, R subsections).
+**ADR index (Framework B):** [ADR-0038 -- SDK architecture by language](../../architecture/adr/ADR-0038-sdk-architecture-by-language.md) (TypeScript, Python, R subsections).
 
-## Framework C — AWS architecture
+## Framework C -- AWS architecture
 
 | Criterion | Weight |
 | --- | --- |
@@ -73,7 +73,7 @@ Interpretation:
 - this is the AWS-focused architecture matrix used to choose compute, front door, and datastore options
 - it matches the recommended weighting pattern for serious AWS architecture reviews
 
-**ADR index (Framework C):** [ADR-0039 — AWS target platform](../../architecture/adr/ADR-0039-aws-target-platform.md) (compute, front door, datastore, end-to-end tables).
+**ADR index (Framework C):** [ADR-0039 -- AWS target platform](../../architecture/adr/ADR-0039-aws-target-platform.md) (compute, front door, datastore, end-to-end tables).
 
 ## Final promoted decisions (all >= 9.0)
 
@@ -105,7 +105,7 @@ Some options remain technically plausible but do **not** score above 9.0 under t
 | Header-only session scope contract | 4 | 5 | 6 | 5 | 5 | 7 | 5.05 |
 | Bearer JWT only; derive scope from claims | 10 | 9 | 9 | 10 | 9 | 8 | 9.35 |
 
-**Winner:** `Bearer JWT only; derive scope from claims` — **9.35/10**
+**Winner:** `Bearer JWT only; derive scope from claims` -- **9.35/10**
 
 Deriving scope from verified claims is the cleanest and most secure design. Session/body scope inputs are a legacy surrogate that bloats every client and route.
 
@@ -119,7 +119,7 @@ Framework: **code_runtime**
 | Introduce async event fan-back for result updates | 5 | 4 | 8 | 7 | 6 | 5 | 5.85 |
 | Direct service/repository updates from worker | 10 | 9 | 9 | 9 | 10 | 8 | 9.35 |
 
-**Winner:** `Direct service/repository updates from worker` — **9.35/10**
+**Winner:** `Direct service/repository updates from worker` -- **9.35/10**
 
 Direct worker-side updates win because the current HTTP callback is an unnecessary self-hop that adds secrets, retries, latency, and failure modes without adding separation of concerns.
 
@@ -133,7 +133,7 @@ Framework: **code_runtime**
 | Native FastAPI contract features with minimal hooks | 10 | 8 | 9 | 9 | 10 | 7 | 9.10 |
 | Hand-authored static OpenAPI | 4 | 5 | 5 | 7 | 4 | 4 | 4.85 |
 
-**Winner:** `Native FastAPI contract features with minimal hooks` — **9.10/10**
+**Winner:** `Native FastAPI contract features with minimal hooks` -- **9.10/10**
 
 Native FastAPI declarations win because they align the code with the framework and shrink the custom contract layer dramatically while keeping stable operation IDs possible.
 
@@ -147,7 +147,7 @@ Framework: **code_runtime**
 | Shared pure ASGI middleware + shared error registration | 10 | 8 | 9 | 9 | 10 | 8 | 9.15 |
 | Per-route request context and manual error wrapping | 4 | 3 | 5 | 5 | 3 | 6 | 4.10 |
 
-**Winner:** `Shared pure ASGI middleware + shared error registration` — **9.15/10**
+**Winner:** `Shared pure ASGI middleware + shared error registration` -- **9.15/10**
 
 Pure ASGI middleware wins because it centralizes request context correctly and avoids the edge cases and duplication of ad-hoc HTTP middleware glue.
 
@@ -161,7 +161,7 @@ Framework: **code_runtime**
 | Async-first canonical surface + thin sync adapters | 10 | 9 | 9 | 9 | 10 | 8 | 9.35 |
 | Sync-first canonical surface | 3 | 4 | 4 | 6 | 5 | 7 | 4.35 |
 
-**Winner:** `Async-first canonical surface + thin sync adapters` — **9.35/10**
+**Winner:** `Async-first canonical surface + thin sync adapters` -- **9.35/10**
 
 Async-first wins because Nova's core is already async. The current sync façade only exists to support adapters that should instead sit at the edges.
 
@@ -175,7 +175,7 @@ Framework: **sdk**
 | openapi-typescript + openapi-fetch | 10 | 9 | 10 | 9 | 10 | 8 | 9.50 |
 | openapi-generator typescript-fetch | 7 | 7 | 6 | 7 | 6 | 6 | 6.50 |
 
-**Winner:** `openapi-typescript + openapi-fetch` — **9.50/10**
+**Winner:** `openapi-typescript + openapi-fetch` -- **9.50/10**
 
 The openapi-ts stack wins because it is now mature, small, and directly aligned with the ecosystem. Nova's custom TS runtime is pure maintenance tax.
 
@@ -189,7 +189,7 @@ Framework: **sdk**
 | openapi-python-client with config + minimal templates | 10 | 9 | 9 | 9 | 9 | 8 | 9.10 |
 | openapi-generator python | 6 | 7 | 6 | 6 | 6 | 6 | 6.15 |
 
-**Winner:** `openapi-python-client with config + minimal templates` — **9.10/10**
+**Winner:** `openapi-python-client with config + minimal templates` -- **9.10/10**
 
 `openapi-python-client` remains the right generator, but only when Nova stops fighting it with a giant patch script.
 
@@ -203,7 +203,7 @@ Framework: **sdk**
 | OpenAPI Generator R beta client | 5 | 5 | 6 | 4 | 6 | 7 | 5.45 |
 | Thin httr2 package with minimal metadata/codegen | 10 | 9 | 9 | 9 | 9 | 8 | 9.10 |
 
-**Winner:** `Thin httr2 package with minimal metadata/codegen` — **9.10/10**
+**Winner:** `Thin httr2 package with minimal metadata/codegen` -- **9.10/10**
 
 A thin `httr2` package wins because it matches the R ecosystem and avoids both Nova's current bespoke runtime and the upstream beta generator's feature gaps.
 
@@ -218,7 +218,7 @@ Framework: **aws**
 | App Runner | 4 | 4 | 5 | 4 | 4 | 4 | 2 | 8.00 |
 | EKS | 5 | 5 | 2 | 4 | 3 | 5 | 5 | 8.31 |
 
-**Winner:** `ECS / Fargate` — **8.92/10**
+**Winner:** `ECS / Fargate` -- **8.92/10**
 
 ECS/Fargate edges out the alternatives because Nova is not just a bursty API; it is a steady HTTP service plus a long-running worker that benefits from shared runtime semantics.
 
@@ -232,7 +232,7 @@ Framework: **aws**
 | API Gateway HTTP API | 5 | 5 | 4 | 4 | 4 | 5 | 2 | 8.69 |
 | API Gateway REST API | 5 | 5 | 3 | 3 | 2 | 5 | 2 | 7.62 |
 
-**Winner:** `ALB` — **8.92/10**
+**Winner:** `ALB` -- **8.92/10**
 
 ALB narrowly wins for the chosen ECS deployment model because it is the simplest direct fit. API Gateway HTTP API remains a good alternative for some workloads but is not the strongest overall fit here.
 
@@ -246,7 +246,7 @@ Framework: **aws**
 | Aurora / RDS | 5 | 4 | 3 | 4 | 3 | 3 | 3 | 7.46 |
 | Redis-only persistence | 4 | 3 | 3 | 5 | 3 | 3 | 2 | 6.85 |
 
-**Winner:** `DynamoDB` — **9.31/10**
+**Winner:** `DynamoDB` -- **9.31/10**
 
 DynamoDB is the strongest operational fit for Nova's job/activity metadata: managed, scalable, and well-matched to keyed access patterns.
 
@@ -261,7 +261,7 @@ Framework: **aws**
 | CloudFront + App Runner + S3/SQS/DynamoDB | 4 | 4 | 5 | 4 | 4 | 4 | 2 | 8.00 |
 | CloudFront + ALB + EKS + S3/SQS/DynamoDB | 5 | 5 | 2 | 4 | 3 | 5 | 5 | 8.31 |
 
-**Winner:** `CloudFront + ALB + ECS/Fargate + S3/SQS/DynamoDB` — **9.23/10**
+**Winner:** `CloudFront + ALB + ECS/Fargate + S3/SQS/DynamoDB` -- **9.23/10**
 
 CloudFront + ALB + ECS/Fargate + S3/SQS/DynamoDB is the cleanest combined fit for Nova's steady API, worker, and managed-service priorities.
 

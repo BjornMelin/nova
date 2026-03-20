@@ -2,19 +2,17 @@
 
 ## 1. What Nova is
 
-Nova is the canonical runtime monorepo for file-transfer orchestration and token verification services. It provides a control plane for transfer and async job workflows, plus an auth API for token verify/introspect operations. Nova is not a byte-streaming proxy for file payloads; file movement is delegated through planned resources and storage integrations.
+Nova is the canonical runtime monorepo for file-transfer orchestration and in-process bearer JWT verification. It provides a control plane for transfer and async job workflows. Nova is not a byte-streaming proxy for file payloads; file movement is delegated through planned resources and storage integrations.
 
 ## 2. Monorepo map
 
-- `packages/nova_file_api`: Main transfer + jobs control-plane implementation and ASGI entrypoint.
-- `packages/nova_auth_api`: Token verify/introspect API implementation and ASGI entrypoint.
+- `packages/nova_file_api`: Main transfer + jobs control-plane implementation, bearer JWT verification, and ASGI entrypoint.
+- `packages/nova_sdk_py_file`: Public Python file SDK package.
 - `packages/nova_sdk_file`: Release-grade TypeScript file SDK within the CodeArtifact staged/prod system.
-- `packages/nova_sdk_auth`: Release-grade TypeScript auth SDK within the CodeArtifact staged/prod system.
-- `packages/nova_sdk_fetch`: Shared TypeScript fetch transport/runtime helper.
 - `packages/nova_sdk_r_file`: First-class internal R file SDK package.
-- `packages/nova_sdk_r_auth`: First-class internal R auth SDK package.
 - `packages/nova_dash_bridge`: Integration bridge adapters for Dash/Flask/FastAPI clients over `nova_file_api.public`.
 - `packages/contracts`: Contract artifacts, fixtures, and conformance helpers.
+- `packages/nova_runtime_support`: Shared runtime helpers used by the canonical runtime.
 - `infra/nova` and `infra/runtime`: CloudFormation stacks for CI/CD foundation and runtime environments.
 
 ## Read Next
@@ -30,46 +28,40 @@ Nova is the canonical runtime monorepo for file-transfer orchestration and token
 flowchart TB
     subgraph RuntimePackages
         P1["packages/nova_file_api"]
-        P2["packages/nova_auth_api"]
-        P3["packages/nova_dash_bridge"]
-        P4["packages/contracts"]
+        P2["packages/nova_dash_bridge"]
+        P3["packages/contracts"]
     end
     subgraph Infra
         I1["infra/nova"]
         I2["infra/runtime"]
     end
 
-    P3 --> PUB["nova_file_api.public"]
+    P2 --> PUB["nova_file_api.public"]
     PUB --> P1
-    P4 --> P1
-    P4 --> P2
+    P3 --> P1
     I1 --> P1
-    I1 --> P2
     I2 --> P1
-    I2 --> P2
 ```
 
 ## 3. Runtime architecture at a glance
 
 - `nova_file_api` serves canonical `/v1/*` transfer and job endpoints.
-- Requests pass through auth, validation, idempotency, and service-layer orchestration.
-- Async workloads are published to queue backends and completed by workers.
-- Workers report completion to the internal callback endpoint (`/v1/internal/jobs/{job_id}/result`).
+- Requests pass through bearer JWT verification, validation, idempotency, and service-layer orchestration.
+- Async workloads are published to queue backends and completed by workers that update shared runtime services directly.
 - Health and observability surfaces are exposed via:
   - `/v1/health/live`
   - `/v1/health/ready`
   - `/metrics/summary`
-- `nova_auth_api` separately serves token verification/introspection capabilities.
 
 ```mermaid
 flowchart LR
     C["Client"] --> API["nova_file_api /v1 endpoints"]
-    API --> AUTH["Auth and validation boundary"]
+    API --> AUTH["Bearer JWT verification and validation boundary"]
     AUTH --> ORCH["Transfer and jobs orchestration"]
     ORCH --> SQS["Queue backend"]
     SQS --> W["Worker"]
-    W --> CB["POST /v1/internal/jobs/{job_id}/result"]
-    CB --> API
+    W --> FILE["Direct service/repository update path"]
+    FILE --> API
     API --> OBS["/v1/health/live /v1/health/ready /metrics/summary"]
 ```
 
@@ -77,22 +69,13 @@ flowchart LR
 
 - `nova_file_api` owns:
   - Transfer orchestration endpoints and request/response models.
-  - Async job submission and status/result lifecycle.
+  - Bearer JWT verification, async job submission, and status/result lifecycle.
   - Idempotency cache semantics and activity recording integrations.
   - Runtime capability/resource planning endpoints.
-- `nova_auth_api` owns:
-  - Auth token verification and introspection routes.
-  - Standardized auth error envelope behavior.
-- `nova_sdk_file` and `nova_sdk_auth` own:
-  - Release-grade TypeScript client, operations, errors, and curated type surfaces.
+- `nova_sdk_py_file`, `nova_sdk_file`, and `nova_sdk_r_file` own:
+  - Public Python, release-grade TypeScript, and first-class internal R client surfaces.
   - OpenAPI-aligned request serialization for the generated SDK route surface.
-  - Subpath-only packaging and staged/prod CodeArtifact publication shape.
-- `nova_sdk_fetch` owns:
-  - Shared fetch transport and URL helpers used by the TypeScript SDKs.
-- `nova_sdk_r_file` and `nova_sdk_r_auth` own:
-  - Real R package scaffolds with generated client bindings/models.
-  - `logical format r` release artifacts transported through CodeArtifact generic packages.
-  - Signed tarball evidence and package-native namespace/man page generation.
+  - Subpath-only TypeScript packaging and signed tarball / CodeArtifact release evidence where applicable.
 - `nova_dash_bridge` owns:
   - Framework adapters that let Dash/Flask/FastAPI apps consume Nova-style transfer flows without redefining server contracts.
   - Package-local adapter regression tests and architecture-boundary enforcement.
@@ -105,11 +88,9 @@ flowchart LR
     FILE["nova_file_api"] --> CACHE["idempotency and cache logic"]
     FILE --> ACT["activity and job lifecycle"]
     FILE --> ROUTES["canonical v1 routes"]
-    AUTH["nova_auth_api"] --> TOK["verify and introspect"]
     BRIDGE["nova_dash_bridge"] --> PUBLIC["nova_file_api.public"]
     PUBLIC --> FILE
     CONTRACTS["contracts"] --> FILE
-    CONTRACTS --> AUTH
 ```
 
 ## 5. Canonical API surface and route guardrails
@@ -118,7 +99,6 @@ flowchart LR
 
 - `/v1/transfers/*`
 - `/v1/jobs*`
-- `/v1/internal/jobs/{job_id}/result` (internal worker callback only)
 - `/v1/capabilities`
 - `/v1/resources/plan`
 - `/v1/releases/info`
@@ -141,7 +121,6 @@ No compatibility aliases or namespace shims should be added for disallowed famil
 | --- | --- | --- |
 | `/v1/transfers/*` | External clients and app integrations | Plan and orchestrate file-transfer operations |
 | `/v1/jobs*` | External clients and integrations | Submit and track async jobs |
-| `/v1/internal/jobs/{job_id}/result` | Internal worker | Record job completion result |
 | `/v1/capabilities` | Clients / UI / automation | Discover enabled runtime capabilities |
 | `/v1/resources/plan` | Clients / operators | Get resource planning metadata |
 | `/v1/releases/info` | Operators / tooling | Surface runtime release info |
@@ -158,12 +137,10 @@ flowchart TB
         HL["/v1/health/live"]
         HR["/v1/health/ready"]
     end
-    INT["/v1/internal/jobs/{job_id}/result internal only"]
     M["/metrics/summary"]
     BAD["Disallowed: /api/* /api/v1/* /healthz /readyz"]
 
     T --> J
-    J --> INT
     HL --> HR
     HR --> M
     BAD -. not allowed .- PublicV1
@@ -182,17 +159,15 @@ flowchart TB
 
 1. Submit work via `POST /v1/jobs`.
 2. Receive job metadata and track using `/v1/jobs*` read endpoints.
-3. Internal worker processes queue message and posts completion to `/v1/internal/jobs/{job_id}/result`.
+3. Internal worker processes queue message and updates shared job state through runtime services.
 4. Client reads terminal state and result through public job endpoints.
 
 ### Auth usage
 
-1. Client or service calls auth API verify/introspect endpoints for token checks.
+1. Client or service presents bearer JWT credentials and the runtime verifies them in process.
 2. Runtime services enforce auth decisions at request boundaries.
-3. TypeScript SDK callers use `contentType` selection for
-   `introspect_token` when choosing between JSON and form-encoded requests.
-4. R package releases travel as signed tarball evidence plus CodeArtifact
-   generic package artifacts, not as a separate public registry surface.
+3. TypeScript SDK callers use `contentType` selection for multi-media request bodies where needed.
+4. R package releases travel as signed tarball evidence plus CodeArtifact generic package artifacts, not as a separate public registry surface.
 
 ## 7. AWS and deployment topology
 
@@ -293,11 +268,11 @@ sequenceDiagram
 - “Why no `/api/v1/*` alias?”
   - Hard-cut canonical route policy to avoid dual contract drift.
 - “Where is business logic?”
-  - In `packages/nova_file_api` and `packages/nova_auth_api`; release-only service Dockerfiles live under `apps/*` so container-only edits stay outside release-managed package paths.
+  - In `packages/nova_file_api` and shared runtime helpers; release-only service Dockerfiles live under `apps/*` so container-only edits stay outside release-managed package paths.
 - “How do Dash clients integrate?”
   - Through `packages/nova_dash_bridge` adapters, without forking core runtime contracts or importing `nova_file_api` internals directly.
 - “What is the async completion boundary?”
-  - Worker posts to `/v1/internal/jobs/{job_id}/result`; clients read via `/v1/jobs*`.
+  - Workers update shared runtime services directly; clients read via `/v1/jobs*`.
 
 ## 10. Glossary and source-of-truth references
 

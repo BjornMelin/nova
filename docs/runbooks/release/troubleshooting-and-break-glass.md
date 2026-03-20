@@ -331,7 +331,7 @@ Always record:
 5. prevention action
 
 Store incident evidence where reviewers can find it: workflow run URLs, CloudTrail
-or CloudWatch log excerpts (redacted), and the promotion PR or ticket—not an
+or CloudWatch log excerpts (redacted), and the promotion PR or ticket--not an
 append-only markdown log in `docs/` (see [`release-policy.md`](release-policy.md) §6).
 
 ## References
