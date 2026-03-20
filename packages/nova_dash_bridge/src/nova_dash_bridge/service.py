@@ -16,38 +16,26 @@ from uuid import uuid4
 
 from botocore.exceptions import BotoCoreError, ClientError
 from nova_file_api.public import (
-    AbortUploadRequest as CoreAbortUploadRequest,
-)
-from nova_file_api.public import (
-    CompletedPart as CoreCompletedPart,
-)
-from nova_file_api.public import (
-    CompleteUploadRequest as CoreCompleteUploadRequest,
-)
-from nova_file_api.public import (
-    FileTransferError as CoreFileTransferError,
-)
-from nova_file_api.public import (
-    InitiateUploadRequest as CoreInitiateUploadRequest,
-)
-from nova_file_api.public import (
-    PresignDownloadRequest as CorePresignDownloadRequest,
-)
-from nova_file_api.public import (
+    AbortUploadRequest,
+    AbortUploadResponse,
+    CompleteUploadRequest,
+    CompleteUploadResponse,
+    InitiateUploadRequest,
+    InitiateUploadResponse,
+    PresignDownloadRequest,
+    PresignDownloadResponse,
     Principal,
+    SignPartsRequest,
+    SignPartsResponse,
     TransferFacadeConfig,
     TransferService,
+    UploadIntrospectionRequest,
+    UploadIntrospectionResponse,
     UploadStrategy,
     build_transfer_service,
 )
 from nova_file_api.public import (
-    SignPartsRequest as CoreSignPartsRequest,
-)
-from nova_file_api.public import (
-    UploadIntrospectionRequest as CoreUploadIntrospectionRequest,
-)
-from nova_file_api.public import (
-    UploadIntrospectionResponse as CoreUploadIntrospectionResponse,
+    FileTransferError as CoreFileTransferError,
 )
 
 from nova_dash_bridge.config import (
@@ -59,23 +47,8 @@ from nova_dash_bridge.errors import (
     FileTransferError,
     conflict_error,
     internal_error,
+    unauthorized_error,
     validation_error,
-)
-from nova_dash_bridge.models import (
-    AbortUploadRequest,
-    AbortUploadResponse,
-    CompleteUploadRequest,
-    CompleteUploadResponse,
-    InitiateUploadRequest,
-    InitiateUploadResponseMultipart,
-    InitiateUploadResponseSingle,
-    PresignDownloadRequest,
-    PresignDownloadResponse,
-    SignPartsRequest,
-    SignPartsResponse,
-    UploadedPart,
-    UploadIntrospectionRequest,
-    UploadIntrospectionResponse,
 )
 from nova_dash_bridge.s3_client import (
     S3Client,
@@ -172,14 +145,14 @@ class FileTransferService:
         *,
         env_config: FileTransferEnvConfig,
         upload_policy: UploadPolicy,
-        auth_policy: AuthPolicy | None = None,
+        auth_policy: AuthPolicy,
         s3_client_factory: SupportsCreateS3Client | None = None,
         logger: logging.Logger | None = None,
     ) -> None:
         """Initialize bridge service dependencies."""
         self._env = env_config
         self._policy = upload_policy
-        self._auth = auth_policy or AuthPolicy()
+        self._auth = auth_policy
         self._factory = s3_client_factory or S3ClientFactory()
         self._logger = logger or logging.getLogger(__name__)
         self._core_config = _core_config_from_bridge(
@@ -276,20 +249,15 @@ class FileTransferService:
             )
         return raw if raw.endswith("/") else f"{raw}/"
 
-    def resolve_scope_id(
+    def resolve_principal(
         self,
-        session_id: str | None,
-    ) -> str:
-        """Resolve and validate scope id used for object boundaries."""
+        authorization_header: str | None,
+    ) -> Principal:
+        """Resolve a trusted principal from an integration-provided header."""
         try:
-            return self._auth.resolve_scope_id(session_id)
+            return self._auth.resolve_principal(authorization_header)
         except ValueError as exc:
-            raise validation_error(str(exc)) from exc
-
-    def _principal(self, *, session_id: str | None) -> Principal:
-        """Build a core principal from bridge auth/session policy."""
-        scope_id = self.resolve_scope_id(session_id)
-        return Principal(subject=scope_id, scope_id=scope_id)
+            raise unauthorized_error(str(exc)) from exc
 
     def build_upload_key(self, *, scope_id: str, filename: str) -> str:
         """Build a server-generated upload key."""
@@ -316,7 +284,7 @@ class FileTransferService:
             raise validation_error("key is outside the allowed prefix")
         scoped = f"{prefix}{scope_id}/"
         if not key.startswith(scoped):
-            raise validation_error("key is outside the session scope")
+            raise validation_error("key is outside the principal scope")
 
     def multipart_part_count(self, *, size_bytes: int) -> int:
         """Return multipart part count for configured part size."""
@@ -359,130 +327,87 @@ class FileTransferService:
     def initiate_upload(
         self,
         req: InitiateUploadRequest,
-    ) -> InitiateUploadResponseSingle | InitiateUploadResponseMultipart:
+        *,
+        principal: Principal,
+    ) -> InitiateUploadResponse:
         """Initiate upload and return bridge response contract."""
         self.ensure_enabled()
         self.validate_upload_request(req)
-        principal = self._principal(session_id=req.session_id)
         core_response = self._run_async(
             lambda: self._build_core_service().initiate_upload(
-                CoreInitiateUploadRequest(
-                    filename=req.filename,
-                    content_type=req.content_type,
-                    size_bytes=req.size_bytes,
-                    session_id=None,
-                ),
+                req,
                 principal,
             )
         )
-        if core_response.strategy == UploadStrategy.SINGLE:
-            if core_response.url is None:
-                raise internal_error("missing presigned upload URL")
-            return InitiateUploadResponseSingle(
-                bucket=core_response.bucket,
-                key=core_response.key,
-                url=core_response.url,
-                expires_in_seconds=core_response.expires_in_seconds,
-            )
-
-        if core_response.upload_id is None:
+        if (
+            core_response.strategy == UploadStrategy.SINGLE
+            and core_response.url is None
+        ):
+            raise internal_error("missing presigned upload URL")
+        if (
+            core_response.strategy == UploadStrategy.MULTIPART
+            and core_response.upload_id is None
+        ):
             raise internal_error("missing multipart upload id")
-        if core_response.part_size_bytes is None:
+        if (
+            core_response.strategy == UploadStrategy.MULTIPART
+            and core_response.part_size_bytes is None
+        ):
             raise internal_error("missing multipart part size")
-        return InitiateUploadResponseMultipart(
-            bucket=core_response.bucket,
-            key=core_response.key,
-            upload_id=core_response.upload_id,
-            part_size_bytes=core_response.part_size_bytes,
-            expires_in_seconds=core_response.expires_in_seconds,
-        )
+        return core_response
 
-    def sign_parts(self, req: SignPartsRequest) -> SignPartsResponse:
+    def sign_parts(
+        self,
+        req: SignPartsRequest,
+        *,
+        principal: Principal,
+    ) -> SignPartsResponse:
         """Presign multipart upload part URLs."""
         self.ensure_enabled()
-        principal = self._principal(session_id=req.session_id)
         core_response = self._run_async(
-            lambda: self._build_core_service().sign_parts(
-                CoreSignPartsRequest(
-                    key=req.key,
-                    upload_id=req.upload_id,
-                    part_numbers=req.part_numbers,
-                    session_id=None,
-                ),
-                principal,
-            )
+            lambda: self._build_core_service().sign_parts(req, principal)
         )
-        return SignPartsResponse(
-            urls={
-                str(part_number): url
-                for part_number, url in core_response.urls.items()
-            },
-            expires_in_seconds=core_response.expires_in_seconds,
-        )
+        return core_response
 
     def introspect_upload(
         self,
         req: UploadIntrospectionRequest,
+        *,
+        principal: Principal,
     ) -> UploadIntrospectionResponse:
         """Inspect uploaded multipart parts for resume flows."""
         self.ensure_enabled()
-        principal = self._principal(session_id=req.session_id)
         core_response = self._run_async(
-            lambda: self._build_core_service().introspect_upload(
-                CoreUploadIntrospectionRequest(
-                    key=req.key,
-                    upload_id=req.upload_id,
-                    session_id=None,
-                ),
-                principal,
-            )
+            lambda: self._build_core_service().introspect_upload(req, principal)
         )
-        return _bridge_upload_introspection_response(core_response)
+        return core_response
 
     def complete_upload(
         self,
         req: CompleteUploadRequest,
+        *,
+        principal: Principal,
     ) -> CompleteUploadResponse:
         """Complete multipart upload and return bridge response."""
         self.ensure_enabled()
-        principal = self._principal(session_id=req.session_id)
-        core_parts = [
-            CoreCompletedPart(
-                part_number=part.part_number,
-                etag=part.etag,
-            )
-            for part in req.parts
-        ]
         core_response = self._run_async(
             lambda: self._build_core_service().complete_upload(
-                CoreCompleteUploadRequest(
-                    key=req.key,
-                    upload_id=req.upload_id,
-                    parts=core_parts,
-                    session_id=None,
-                ),
+                req,
                 principal,
             )
         )
-        return CompleteUploadResponse(
-            bucket=core_response.bucket,
-            key=core_response.key,
-            etag=core_response.etag,
-        )
+        return core_response
 
-    def abort_upload(self, req: AbortUploadRequest) -> AbortUploadResponse:
+    def abort_upload(
+        self,
+        req: AbortUploadRequest,
+        *,
+        principal: Principal,
+    ) -> AbortUploadResponse:
         """Abort multipart upload and return bridge response."""
         self.ensure_enabled()
-        principal = self._principal(session_id=req.session_id)
         self._run_async(
-            lambda: self._build_core_service().abort_upload(
-                CoreAbortUploadRequest(
-                    key=req.key,
-                    upload_id=req.upload_id,
-                    session_id=None,
-                ),
-                principal,
-            )
+            lambda: self._build_core_service().abort_upload(req, principal)
         )
         return AbortUploadResponse()
 
@@ -508,39 +433,38 @@ class FileTransferService:
     def presign_download(
         self,
         req: PresignDownloadRequest,
+        *,
+        principal: Principal,
     ) -> PresignDownloadResponse:
         """Generate presigned GET URL for export objects."""
         self.ensure_enabled()
-        scope_id = self.resolve_scope_id(req.session_id)
         self.ensure_key_scoped(
             key=req.key,
-            scope_id=scope_id,
+            scope_id=principal.scope_id,
             allowed_prefix=self._env.export_prefix,
         )
-        disposition: str = req.content_disposition
-        if req.filename:
+        disposition: str | None
+        if req.content_disposition is not None:
+            disposition = req.content_disposition
+        elif req.filename:
             disposition = self._build_content_disposition(
-                content_disposition=req.content_disposition,
+                content_disposition="attachment",
                 filename=req.filename,
             )
+        else:
+            disposition = None
         core_response = self._run_async(
             lambda: self._build_core_service().presign_download(
-                CorePresignDownloadRequest(
+                PresignDownloadRequest(
                     key=req.key,
-                    session_id=None,
                     content_disposition=disposition,
                     filename=req.filename,
                     content_type=None,
                 ),
-                self._principal(session_id=scope_id),
+                principal,
             )
         )
-        return PresignDownloadResponse(
-            bucket=core_response.bucket,
-            key=core_response.key,
-            url=core_response.url,
-            expires_in_seconds=core_response.expires_in_seconds,
-        )
+        return core_response
 
     def put_export_bytes(
         self,
@@ -674,22 +598,6 @@ def _core_config_from_bridge(
             env_config.use_accelerate_endpoint
         ),
         max_upload_bytes=upload_policy.max_upload_bytes,
-    )
-
-
-def _bridge_upload_introspection_response(
-    response: CoreUploadIntrospectionResponse,
-) -> UploadIntrospectionResponse:
-    """Convert core multipart introspection payload to bridge model."""
-    return UploadIntrospectionResponse(
-        bucket=response.bucket,
-        key=response.key,
-        upload_id=response.upload_id,
-        part_size_bytes=response.part_size_bytes,
-        parts=[
-            UploadedPart(part_number=part.part_number, etag=part.etag)
-            for part in response.parts
-        ],
     )
 
 

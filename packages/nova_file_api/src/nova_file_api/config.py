@@ -116,7 +116,7 @@ class Settings(BaseSettings):
         ge=1,
     )
 
-    auth_mode: AuthMode = Field(default=AuthMode.SAME_ORIGIN, alias="AUTH_MODE")
+    auth_mode: AuthMode = Field(default=AuthMode.JWT_LOCAL, alias="AUTH_MODE")
     oidc_issuer: str | None = Field(default=None, alias="OIDC_ISSUER")
     oidc_audience: str | None = Field(default=None, alias="OIDC_AUDIENCE")
     oidc_jwks_url: str | None = Field(default=None, alias="OIDC_JWKS_URL")

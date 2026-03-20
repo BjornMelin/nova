@@ -1,15 +1,20 @@
 from __future__ import annotations
 
-from typing import cast
+from typing import Any, cast
 
 import nova_dash_bridge.service as dash_service_module
 import nova_file_api.public as public_contract
 import pytest
-from nova_dash_bridge.config import FileTransferEnvConfig, UploadPolicy
+from nova_dash_bridge.config import (
+    AuthPolicy,
+    FileTransferEnvConfig,
+    UploadPolicy,
+)
 from nova_dash_bridge.errors import FileTransferError
 from nova_dash_bridge.models import UploadIntrospectionRequest
 from nova_dash_bridge.s3_client import S3Client, SupportsCreateS3Client
 from nova_dash_bridge.service import FileTransferService
+from nova_file_api.public import Principal
 
 
 class _FakeBody:
@@ -47,7 +52,9 @@ class _FakeS3Factory:
 
 class _FakeCoreTransferService:
     def __init__(self, **_: object) -> None:
-        return None
+        self.last_presign_request: (
+            public_contract.PresignDownloadRequest | None
+        ) = None
 
     async def introspect_upload(
         self,
@@ -66,6 +73,49 @@ class _FakeCoreTransferService:
                     etag='"etag-1"',
                 )
             ],
+        )
+
+    async def presign_download(
+        self,
+        request: object,
+        principal: object,
+    ) -> public_contract.PresignDownloadResponse:
+        del principal
+        self.last_presign_request = cast(
+            public_contract.PresignDownloadRequest,
+            request,
+        )
+        return public_contract.PresignDownloadResponse(
+            bucket="bucket-a",
+            key="exports/scope-1/report.csv",
+            url="https://example.invalid/presigned",
+            expires_in_seconds=900,
+        )
+
+
+def _auth_policy() -> AuthPolicy:
+    return AuthPolicy(
+        principal_resolver=lambda _: Principal(
+            subject="user-1",
+            scope_id="scope-1",
+        )
+    )
+
+
+def test_file_transfer_service_requires_auth_policy() -> None:
+    constructor = cast(Any, FileTransferService)
+    with pytest.raises(TypeError, match="auth_policy"):
+        constructor(
+            env_config=FileTransferEnvConfig.model_validate(
+                {
+                    "FILE_TRANSFER_ENABLED": True,
+                    "FILE_TRANSFER_BUCKET": "bucket-a",
+                }
+            ),
+            upload_policy=UploadPolicy(
+                max_upload_bytes=100,
+                allowed_extensions={".csv"},
+            ),
         )
 
 
@@ -90,6 +140,7 @@ def _service_with_response(
             max_upload_bytes=100,
             allowed_extensions={".csv"},
         ),
+        auth_policy=_auth_policy(),
         s3_client_factory=cast(
             "SupportsCreateS3Client",
             _FakeS3Factory(client=_FakeS3Client(response=response)),
@@ -155,8 +206,8 @@ def test_introspect_upload_maps_core_response(
         UploadIntrospectionRequest(
             key="uploads/scope-1/object.csv",
             upload_id="upload-1",
-            session_id="12345678-1234-1234-1234-1234567890ab",
-        )
+        ),
+        principal=Principal(subject="user-1", scope_id="scope-1"),
     )
 
     assert response.model_dump() == {
@@ -166,3 +217,32 @@ def test_introspect_upload_maps_core_response(
         "part_size_bytes": 8,
         "parts": [{"part_number": 1, "etag": '"etag-1"'}],
     }
+
+
+def test_presign_download_preserves_explicit_content_disposition(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    service = _service_with_response(
+        monkeypatch=monkeypatch,
+        response={},
+    )
+    fake_core = _FakeCoreTransferService()
+    monkeypatch.setattr(service, "_build_core_service", lambda: fake_core)
+
+    response = service.presign_download(
+        public_contract.PresignDownloadRequest(
+            key="exports/scope-1/report.csv",
+            content_disposition='inline; filename="custom.csv"',
+            filename="fallback.csv",
+            content_type=None,
+        ),
+        principal=Principal(subject="user-1", scope_id="scope-1"),
+    )
+
+    assert response.url == "https://example.invalid/presigned"
+    assert fake_core.last_presign_request is not None
+    assert (
+        fake_core.last_presign_request.content_disposition
+        == 'inline; filename="custom.csv"'
+    )
+    assert fake_core.last_presign_request.filename == "fallback.csv"

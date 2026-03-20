@@ -342,12 +342,11 @@ export interface paths {
          * @description Return uploaded multipart part state for resume flows.
          *
          *     Args:
-         *         request: FastAPI request object used for auth context.
          *         payload: Multipart introspection input payload.
          *         metrics: Request-scoped metrics collector dependency.
          *         transfer_service: Transfer domain service dependency.
          *         activity_store: Activity persistence dependency.
-         *         authenticator: Principal authenticator dependency.
+         *         principal: Authenticated caller principal.
          *
          *     Returns:
          *         UploadIntrospectionResponse: Multipart state for resume operations.
@@ -390,8 +389,6 @@ export interface components {
         AbortUploadRequest: {
             /** Key */
             key: string;
-            /** Session Id */
-            session_id?: string | null;
             /** Upload Id */
             upload_id: string;
         };
@@ -437,8 +434,6 @@ export interface components {
             key: string;
             /** Parts */
             parts: components["schemas"]["CompletedPart"][];
-            /** Session Id */
-            session_id?: string | null;
             /** Upload Id */
             upload_id: string;
         };
@@ -477,8 +472,6 @@ export interface components {
             payload?: {
                 [key: string]: unknown;
             };
-            /** Session Id */
-            session_id?: string | null;
         };
         /**
          * EnqueueJobResponse
@@ -517,8 +510,6 @@ export interface components {
             content_type?: string | null;
             /** Filename */
             filename: string;
-            /** Session Id */
-            session_id?: string | null;
             /** Size Bytes */
             size_bytes: number;
         };
@@ -702,8 +693,6 @@ export interface components {
             filename?: string | null;
             /** Key */
             key: string;
-            /** Session Id */
-            session_id?: string | null;
         };
         /**
          * PresignDownloadResponse
@@ -780,8 +769,6 @@ export interface components {
             key: string;
             /** Part Numbers */
             part_numbers: number[];
-            /** Session Id */
-            session_id?: string | null;
             /** Upload Id */
             upload_id: string;
         };
@@ -804,8 +791,6 @@ export interface components {
         UploadIntrospectionRequest: {
             /** Key */
             key: string;
-            /** Session Id */
-            session_id?: string | null;
             /** Upload Id */
             upload_id: string;
         };

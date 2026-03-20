@@ -8,53 +8,27 @@
     window.dash_clientside.set_props(id, props);
   }
 
-  function byteToHex(byte) {
-    return (byte + 0x100).toString(16).slice(1);
-  }
-
-  function formatUuidFromBytes(bytes) {
-    bytes[6] = (bytes[6] & 0x0f) | 0x40;
-    bytes[8] = (bytes[8] & 0x3f) | 0x80;
-    var hex = "";
-    for (var idx = 0; idx < bytes.length; idx += 1) {
-      hex += byteToHex(bytes[idx]);
-    }
-    return (
-      hex.slice(0, 8) +
-      "-" +
-      hex.slice(8, 12) +
-      "-" +
-      hex.slice(12, 16) +
-      "-" +
-      hex.slice(16, 20) +
-      "-" +
-      hex.slice(20, 32)
-    );
-  }
-
-  function safeUuid() {
-    if (window.crypto && typeof window.crypto.randomUUID === "function") {
-      return window.crypto.randomUUID();
-    }
-    if (window.crypto && typeof window.crypto.getRandomValues === "function") {
-      var secureBytes = new Uint8Array(16);
-      window.crypto.getRandomValues(secureBytes);
-      return formatUuidFromBytes(secureBytes);
-    }
-    var fallbackBytes = new Uint8Array(16);
-    for (var idx = 0; idx < fallbackBytes.length; idx += 1) {
-      fallbackBytes[idx] = Math.floor(Math.random() * 256);
-    }
-    return formatUuidFromBytes(fallbackBytes);
-  }
-
-  function getSessionId() {
-    var node = document.getElementById("file-transfer-session-id");
+  function getAuthorizationHeader(config) {
+    var node = document.getElementById(config.authHeaderElementId || "");
     if (node && typeof node.textContent === "string") {
       var value = node.textContent.trim();
       if (value) return value;
     }
-    return safeUuid();
+    return "";
+  }
+
+  function authorizedHeaders(config, headers) {
+    var merged = {};
+    if (headers && typeof headers === "object") {
+      Object.keys(headers).forEach(function (key) {
+        merged[key] = headers[key];
+      });
+    }
+    var authorizationHeader = getAuthorizationHeader(config);
+    if (authorizationHeader) {
+      merged.Authorization = authorizationHeader;
+    }
+    return merged;
   }
 
   async function postJson(url, payload, headers) {
@@ -263,7 +237,7 @@
     return Math.max(0, end - start);
   }
 
-  async function uploadMultipart(config, file, initiated, sessionId) {
+  async function uploadMultipart(config, file, initiated) {
     var base = config.transfersEndpointBase;
     var key = initiated.key;
     var uploadId = initiated.upload_id;
@@ -287,7 +261,6 @@
       key: key,
       upload_id: uploadId,
       part_size_bytes: partSize,
-      session_id: sessionId,
     });
 
     async function uploadSinglePart(partNumber, url) {
@@ -312,11 +285,14 @@
 
     try {
       var completedByPartNumber = {};
-      var introspected = await postJson(base + "/uploads/introspect", {
-        key: key,
-        upload_id: uploadId,
-        session_id: sessionId,
-      });
+      var introspected = await postJson(
+        base + "/uploads/introspect",
+        {
+          key: key,
+          upload_id: uploadId,
+        },
+        authorizedHeaders(config)
+      );
       var existingParts =
         introspected && Array.isArray(introspected.parts)
           ? introspected.parts
@@ -352,12 +328,15 @@
           startIndex + batchSize
         );
 
-        var sign = await postJson(base + "/uploads/sign-parts", {
-          key: key,
-          upload_id: uploadId,
-          part_numbers: partNumbers,
-          session_id: sessionId,
-        });
+        var sign = await postJson(
+          base + "/uploads/sign-parts",
+          {
+            key: key,
+            upload_id: uploadId,
+            part_numbers: partNumbers,
+          },
+          authorizedHeaders(config)
+        );
 
         var queue = partNumbers.slice();
         var workers = [];
@@ -385,12 +364,15 @@
       completeParts.sort(function (a, b) {
         return a.part_number - b.part_number;
       });
-      await postJson(base + "/uploads/complete", {
-        key: key,
-        upload_id: uploadId,
-        parts: completeParts,
-        session_id: sessionId,
-      });
+      await postJson(
+        base + "/uploads/complete",
+        {
+          key: key,
+          upload_id: uploadId,
+          parts: completeParts,
+        },
+        authorizedHeaders(config)
+      );
       clearMultipartState(storageKey);
       return { key: key, uploadId: uploadId };
     } catch (error) {
@@ -398,14 +380,13 @@
     }
   }
 
-  function buildUploadResult(file, initiated, contentType, sessionId) {
+  function buildUploadResult(file, initiated, contentType) {
     return {
       bucket: initiated.bucket,
       key: initiated.key,
       filename: file.name,
       size_bytes: file.size,
       content_type: contentType,
-      session_id: sessionId,
     };
   }
 
@@ -420,7 +401,7 @@
   async function enqueueAsyncJob(config, uploadResult) {
     var jobsBase = config.jobsEndpointBase.replace(/\/$/, "");
     var idempotencyKey =
-      "job-enqueue:" + uploadResult.session_id + ":" + uploadResult.key;
+      "job-enqueue:" + uploadResult.bucket + ":" + uploadResult.key;
     var enqueuePayload = {
       job_type: config.asyncJobType,
       payload: {
@@ -430,26 +411,21 @@
         size_bytes: uploadResult.size_bytes,
         content_type: uploadResult.content_type,
       },
-      session_id: uploadResult.session_id,
     };
     return postJson(
       jobsBase,
       enqueuePayload,
-      { "Idempotency-Key": idempotencyKey }
+      authorizedHeaders(config, { "Idempotency-Key": idempotencyKey })
     );
   }
 
-  async function pollAsyncJob(config, jobId, sessionId) {
+  async function pollAsyncJob(config, jobId) {
     var startedMs = Date.now();
     var jobsBase = config.jobsEndpointBase.replace(/\/$/, "");
-    var pollHeaders = {};
-    if (typeof sessionId === "string" && sessionId) {
-      pollHeaders["X-Session-Id"] = sessionId;
-    }
     while (true) {
       var response = await getJson(
         jobsBase + "/" + encodeURIComponent(jobId),
-        pollHeaders
+        authorizedHeaders(config)
       );
       var job = response && response.job ? response.job : {};
       var status = job.status || "";
@@ -479,7 +455,6 @@
     }
     var requestPayload = {
       key: result.export_key,
-      session_id: uploadResult.session_id,
     };
     if (
       typeof result.download_filename === "string" &&
@@ -489,7 +464,8 @@
     }
     var response = await postJson(
       config.transfersEndpointBase + "/downloads/presign",
-      requestPayload
+      requestPayload,
+      authorizedHeaders(config)
     );
     if (response && typeof response.url === "string" && response.url) {
       return {
@@ -519,10 +495,9 @@
     );
   }
 
-  async function checkUploadObjectExists(config, key, sessionId, filename) {
+  async function checkUploadObjectExists(config, key, filename) {
     var requestPayload = {
       key: key,
-      session_id: sessionId,
     };
     if (typeof filename === "string" && filename) {
       requestPayload.filename = filename;
@@ -530,7 +505,8 @@
     try {
       await postJson(
         config.transfersEndpointBase + "/downloads/presign",
-        requestPayload
+        requestPayload,
+        authorizedHeaders(config)
       );
       return true;
     } catch (error) {
@@ -543,15 +519,8 @@
 
   async function handleUpload(config, file) {
     var contentType = file.type || "application/octet-stream";
-    var sessionId = getSessionId();
     var storageKey = multipartStateStorageKey(config, file);
     var storedMultipartState = loadMultipartState(storageKey);
-    sessionId =
-      storedMultipartState &&
-      typeof storedMultipartState.session_id === "string" &&
-      storedMultipartState.session_id
-        ? storedMultipartState.session_id
-        : sessionId;
     setProgress(config.progressStoreId, 0, "Preparing upload…");
 
     var initiated = null;
@@ -578,8 +547,8 @@
           filename: file.name,
           content_type: contentType,
           size_bytes: file.size,
-          session_id: sessionId,
-        }
+        },
+        authorizedHeaders(config)
       );
     }
 
@@ -590,12 +559,11 @@
       uploadResult = buildUploadResult(
         file,
         initiated,
-        contentType,
-        sessionId
+        contentType
       );
     } else if (initiated.strategy === "multipart") {
       try {
-        await uploadMultipart(config, file, initiated, sessionId);
+        await uploadMultipart(config, file, initiated);
       } catch (error) {
         var resumeMissingMultipart =
           resumedMultipart && isMultipartNotFoundError(error);
@@ -607,8 +575,8 @@
               {
                 key: initiated.key,
                 upload_id: initiated.upload_id,
-                session_id: sessionId,
-              }
+              },
+              authorizedHeaders(config)
             );
           } catch (introspectError) {
             if (!isMultipartNotFoundError(introspectError)) {
@@ -622,7 +590,6 @@
           var uploadObjectExists = await checkUploadObjectExists(
             config,
             initiated.key,
-            sessionId,
             file.name
           );
           if (uploadObjectExists) {
@@ -631,7 +598,6 @@
             );
           }
           clearMultipartState(storageKey);
-          sessionId = getSessionId();
           storageKey = multipartStateStorageKey(config, file);
           initiated = await postJson(
             config.transfersEndpointBase + "/uploads/initiate",
@@ -639,14 +605,14 @@
               filename: file.name,
               content_type: contentType,
               size_bytes: file.size,
-              session_id: sessionId,
-            }
+            },
+            authorizedHeaders(config)
           );
           if (initiated.strategy === "single") {
             await putObject(initiated.url, file, contentType);
             clearMultipartState(storageKey);
           } else if (initiated.strategy === "multipart") {
-            await uploadMultipart(config, file, initiated, sessionId);
+            await uploadMultipart(config, file, initiated);
           } else {
             throw new Error("unknown strategy");
           }
@@ -659,8 +625,7 @@
       uploadResult = buildUploadResult(
         file,
         initiated,
-        contentType,
-        sessionId
+        contentType
       );
     } else {
       throw new Error("unknown strategy");
@@ -692,8 +657,7 @@
     );
     var job = await pollAsyncJob(
       config,
-      enqueued.job_id,
-      uploadResult.session_id
+      enqueued.job_id
     );
     if (job.status === "failed" || job.status === "canceled") {
       var errorMessage =
@@ -744,6 +708,7 @@
       transfersEndpointBase:
         root.dataset.transfersEndpointBase || "/v1/transfers",
       jobsEndpointBase: root.dataset.jobsEndpointBase || "/v1/jobs",
+      authHeaderElementId: root.dataset.authHeaderElementId || "",
       maxConcurrency: root.dataset.maxConcurrency || "4",
       signBatchSize: root.dataset.signBatchSize || "",
       resumeNamespace: root.dataset.resumeNamespace || "",

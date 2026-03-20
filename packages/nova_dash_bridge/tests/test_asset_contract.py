@@ -107,15 +107,26 @@ def _extract_function(source: str, function_name: str) -> str:
     raise AssertionError(f"failed to parse function body for {function_name}")
 
 
-def test_poll_async_job_forwards_session_scope_header() -> None:
+def test_poll_async_job_uses_bearer_auth_only() -> None:
     source = _file_transfer_asset_source()
 
-    assert "async function pollAsyncJob(config, jobId, sessionId)" in source
-    assert 'pollHeaders["X-Session-Id"] = sessionId;' in source
+    assert "async function pollAsyncJob(config, jobId)" in source
+    assert "authorizedHeaders(config)" in source
+    assert "X-Session-Id" not in source
     assert re.search(
-        r"pollAsyncJob\(\s*config,\s*enqueued\.job_id,\s*uploadResult\.session_id\s*\)",
+        r"pollAsyncJob\(\s*config,\s*enqueued\.job_id\s*\)",
         source,
     )
+
+
+def test_asset_reads_bearer_header_from_configured_dom_element() -> None:
+    source = _file_transfer_asset_source()
+
+    assert "function getAuthorizationHeader(config)" in source
+    assert 'root.dataset.authHeaderElementId || ""' in source
+    assert "var authorizationHeader = getAuthorizationHeader(config);" in source
+    assert "config.authHeader = getAuthorizationHeader(config);" not in source
+    assert 'authHeader: ""' not in source
 
 
 def test_multipart_asset_uses_resume_introspection_state() -> None:
@@ -132,6 +143,7 @@ def test_multipart_asset_uses_resume_introspection_state() -> None:
     assert "storage.setItem(storageKey, JSON.stringify(state));" in (
         persist_helper_source
     )
+    assert "session_id" not in persist_helper_source
     assert 'base + "/uploads/introspect"' in source
     assert 'config.transfersEndpointBase + "/downloads/presign"' in source
     assert "multipart upload completion is ambiguous" in source

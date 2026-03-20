@@ -10,17 +10,15 @@ from nova_runtime_support import (
     normalized_principal_claims,
 )
 from oidc_jwt_verifier import AuthError
-from starlette.requests import Request
 
 from nova_file_api.cache import TwoTierCache
 from nova_file_api.config import Settings
 from nova_file_api.errors import (
     FileTransferError,
     forbidden,
-    invalid_request,
     unauthorized,
 )
-from nova_file_api.models import AuthMode, Principal
+from nova_file_api.models import Principal
 
 
 class AccessTokenVerifier(Protocol):
@@ -50,28 +48,29 @@ class Authenticator:
     async def authenticate(
         self,
         *,
-        request: Request,
-        session_id: str | None,
+        token: str | None,
     ) -> Principal:
         """Authenticate caller and return principal.
 
         Args:
-            request: Current request with headers.
-            session_id: Optional body-provided session identifier.
+            token: Bearer token extracted from the Authorization header.
 
         Raises:
             FileTransferError: On authentication or authorization failures.
         """
-        if self._settings.auth_mode == AuthMode.SAME_ORIGIN:
-            return self._same_origin_principal(
-                request=request, session_id=session_id
+        normalized_token = token.strip() if isinstance(token, str) else ""
+        if not normalized_token:
+            raise unauthorized(
+                "missing bearer token",
+                headers={
+                    "WWW-Authenticate": (
+                        'Bearer error="invalid_token", '
+                        'error_description="missing bearer token"'
+                    ),
+                },
             )
 
-        token = _extract_bearer_token(request=request)
-        if token is None:
-            raise unauthorized("missing bearer token")
-
-        claims = await self._verify_local_token(token=token)
+        claims = await self._verify_local_token(token=normalized_token)
 
         principal = _principal_from_claims(claims=claims)
         self._enforce_required_authorization(principal=principal)
@@ -79,8 +78,6 @@ class Authenticator:
 
     async def healthcheck(self) -> bool:
         """Return readiness of the active auth dependency."""
-        if self._settings.auth_mode == AuthMode.SAME_ORIGIN:
-            return True
         return (
             self._settings.local_oidc_verifier_configured
             and self._verifier is not None
@@ -92,47 +89,6 @@ class Authenticator:
         if verifier is None:
             return
         await verifier.aclose()
-
-    def _same_origin_principal(
-        self,
-        *,
-        request: Request,
-        session_id: str | None,
-    ) -> Principal:
-        header_session_id = request.headers.get("X-Session-Id")
-        header_scope_id = request.headers.get("X-Scope-Id")
-        session_scope = (
-            header_session_id.strip()
-            if header_session_id is not None and header_session_id.strip()
-            else None
-        )
-        body_scope = (
-            session_id.strip()
-            if session_id is not None and session_id.strip()
-            else None
-        )
-        legacy_scope = (
-            header_scope_id.strip()
-            if header_scope_id is not None and header_scope_id.strip()
-            else None
-        )
-        if (
-            session_scope is not None
-            and body_scope is not None
-            and session_scope != body_scope
-        ):
-            raise invalid_request("conflicting session scope")
-        if (
-            session_scope is None
-            and legacy_scope is not None
-            and body_scope is not None
-            and legacy_scope != body_scope
-        ):
-            raise unauthorized("conflicting session scope")
-        raw_scope = session_scope or body_scope or legacy_scope
-        if raw_scope is None:
-            raise unauthorized("missing session scope")
-        return Principal(subject=raw_scope, scope_id=raw_scope)
 
     async def _verify_local_token(self, *, token: str) -> dict[str, Any]:
         cache_key = self._cache.namespaced_key("jwt", token)
@@ -177,26 +133,12 @@ class Authenticator:
 
     @staticmethod
     def _build_verifier(settings: Settings) -> AccessTokenVerifier | None:
-        if settings.auth_mode != AuthMode.JWT_LOCAL:
-            return None
         return build_async_jwt_verifier(
             issuer=settings.oidc_issuer,
             audience=settings.oidc_audience,
             jwks_url=settings.oidc_jwks_url,
             clock_skew_seconds=settings.oidc_clock_skew_seconds,
         )
-
-
-def _extract_bearer_token(*, request: Request) -> str | None:
-    auth_header = request.headers.get("Authorization")
-    if auth_header is None:
-        return None
-    if not auth_header.lower().startswith("bearer "):
-        return None
-    token = auth_header[7:].strip()
-    if not token:
-        return None
-    return token
 
 
 def _principal_from_claims(*, claims: dict[str, Any]) -> Principal:

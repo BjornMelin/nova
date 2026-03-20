@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from nova_file_api.errors import unauthorized
 from nova_file_api.models import (
     AbortUploadRequest,
     AbortUploadResponse,
@@ -18,7 +19,6 @@ from nova_file_api.models import (
     UploadIntrospectionResponse,
 )
 from nova_file_api.transfer import ExportCopyResult
-from starlette.requests import Request
 
 
 class StubAuthenticator:
@@ -27,10 +27,10 @@ class StubAuthenticator:
     async def authenticate(
         self,
         *,
-        request: Request,
-        session_id: str | None,
+        token: str | None,
     ) -> Principal:
-        del request, session_id
+        if token is None or not token.strip():
+            raise unauthorized("missing bearer token")
         return Principal(
             subject="user-1",
             scope_id="scope-1",

@@ -3,18 +3,16 @@
 from __future__ import annotations
 
 import structlog
-from fastapi import APIRouter, Request
+from fastapi import APIRouter
 
 from nova_file_api.activity import ActivityStore
 from nova_file_api.dependencies import (
     ActivityStoreDep,
-    AuthenticatorDep,
     IdempotencyStoreDep,
     JobServiceDep,
     MetricsDep,
     PrincipalDep,
     SettingsDep,
-    authenticate_principal,
 )
 from nova_file_api.errors import forbidden
 from nova_file_api.guarded_mutation import run_guarded_mutation
@@ -60,23 +58,16 @@ jobs_router = APIRouter(prefix="/v1", tags=["jobs"])
     response_model=EnqueueJobResponse,
 )
 async def create_job(
-    request: Request,
     payload: EnqueueJobRequest,
     settings: SettingsDep,
     metrics: MetricsDep,
     job_service: JobServiceDep,
     activity_store: ActivityStoreDep,
     idempotency_store: IdempotencyStoreDep,
-    authenticator: AuthenticatorDep,
+    principal: PrincipalDep,
     idempotency_key: IdempotencyKeyHeader = None,
 ) -> EnqueueJobResponse:
     """Enqueue async processing job and return job id."""
-    principal = await authenticate_principal(
-        request=request,
-        authenticator=authenticator,
-        session_id=payload.session_id,
-    )
-
     if not settings.jobs_enabled:
         raise forbidden("jobs API is disabled")
 

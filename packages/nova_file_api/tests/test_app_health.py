@@ -23,6 +23,8 @@ from .support.app import (
 )
 from .support.doubles import StubAuthenticator, StubTransferService
 
+AUTH_HEADERS = {"Authorization": "Bearer token-123"}
+
 
 class _FailingSharedCache(SharedRedisCache):
     def __init__(self) -> None:
@@ -252,7 +254,10 @@ def test_validation_errors_use_canonical_error_envelope() -> None:
     with TestClient(app) as client:
         response = client.post(
             "/v1/jobs",
-            headers={"X-Request-Id": "req-transfer-422"},
+            headers={
+                **AUTH_HEADERS,
+                "X-Request-Id": "req-transfer-422",
+            },
             json={
                 "job_type": "",
             },

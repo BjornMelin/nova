@@ -4,20 +4,18 @@ from __future__ import annotations
 
 import structlog
 from fastapi import APIRouter, Response
-from starlette.requests import Request
 
 from nova_file_api.dependencies import (
     ActivityStoreDep,
     AuthenticatorDep,
     JobServiceDep,
     MetricsDep,
+    PrincipalDep,
     SettingsDep,
     SharedCacheDep,
-    authenticate_principal,
 )
 from nova_file_api.errors import forbidden
 from nova_file_api.models import (
-    AuthMode,
     CapabilitiesResponse,
     CapabilityDescriptor,
     HealthResponse,
@@ -186,17 +184,14 @@ async def health_ready(
         )
         activity_store_ready = False
 
-    if settings.auth_mode == AuthMode.SAME_ORIGIN:
-        auth_dependency = True
-    else:
-        try:
-            auth_dependency = await authenticator.healthcheck()
-        except Exception:
-            logger.exception(
-                "v1_health_ready_auth_dependency_healthcheck_failed",
-                route="/v1/health/ready",
-            )
-            auth_dependency = False
+    try:
+        auth_dependency = await authenticator.healthcheck()
+    except Exception:
+        logger.exception(
+            "v1_health_ready_auth_dependency_healthcheck_failed",
+            route="/v1/health/ready",
+        )
+        auth_dependency = False
 
     checks = {
         "bucket_configured": bool(settings.file_transfer_bucket.strip()),
@@ -224,22 +219,12 @@ async def health_ready(
     response_model=MetricsSummaryResponse,
 )
 async def metrics_summary(
-    request: Request,
-    settings: SettingsDep,
     metrics: MetricsDep,
     activity_store: ActivityStoreDep,
-    authenticator: AuthenticatorDep,
+    principal: PrincipalDep,
 ) -> MetricsSummaryResponse:
     """Return low-cardinality metrics summary for dashboards."""
-    principal = await authenticate_principal(
-        request=request,
-        authenticator=authenticator,
-        session_id=None,
-    )
-    if (
-        settings.auth_mode != AuthMode.SAME_ORIGIN
-        and "metrics:read" not in principal.permissions
-    ):
+    if "metrics:read" not in principal.permissions:
         raise forbidden("missing metrics:read permission")
 
     activity_summary = await activity_store.summary()

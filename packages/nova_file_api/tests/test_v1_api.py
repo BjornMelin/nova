@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from fastapi.testclient import TestClient
 from nova_file_api.activity import MemoryActivityStore
-from nova_file_api.auth import Authenticator
 from nova_file_api.config import Settings
 from nova_file_api.jobs import (
     JobService,
@@ -13,7 +12,6 @@ from nova_file_api.jobs import (
 )
 from nova_file_api.metrics import MetricsCollector
 from nova_file_api.models import (
-    AuthMode,
     JobRecord,
     JobStatus,
     Principal,
@@ -28,7 +26,9 @@ from .support.app import (
     build_runtime_deps,
     build_test_app,
 )
-from .support.doubles import StubTransferService
+from .support.doubles import StubAuthenticator, StubTransferService
+
+AUTH_HEADERS = {"Authorization": "Bearer token-123"}
 
 
 class _IntrospectTransferService(StubTransferService):
@@ -88,7 +88,6 @@ def _build_v1_deps(
     """Build an in-memory dependency set for v1 route tests."""
     settings = Settings.model_validate(
         {
-            "auth_mode": AuthMode.SAME_ORIGIN,
             "jobs_enabled": True,
             "file_transfer_bucket": file_transfer_bucket,
         }
@@ -107,7 +106,7 @@ def _build_v1_deps(
         metrics=metrics,
         shared_cache=shared,
         cache=cache,
-        authenticator=Authenticator(settings=settings, cache=cache),
+        authenticator=StubAuthenticator(),
         transfer_service=StubTransferService(),
         job_service=job_service,
         activity_store=MemoryActivityStore(),
@@ -143,7 +142,7 @@ def test_v1_upload_introspect_returns_uploaded_parts() -> None:
     with TestClient(app) as client:
         response = client.post(
             "/v1/transfers/uploads/introspect",
-            headers={"X-Session-Id": "scope-1"},
+            headers=AUTH_HEADERS,
             json={
                 "key": "uploads/scope-1/file.csv",
                 "upload_id": "upload-1",
@@ -160,14 +159,14 @@ def test_v1_jobs_create_list_get_retry_and_events() -> None:
     with TestClient(app) as client:
         create_resp = client.post(
             "/v1/jobs",
-            headers={"X-Session-Id": "scope-v1"},
+            headers=AUTH_HEADERS,
             json={"job_type": "transform", "payload": {"input": "a"}},
         )
         assert create_resp.status_code == 200
         created = create_resp.json()
         job_id = created["job_id"]
 
-        list_resp = client.get("/v1/jobs", headers={"X-Session-Id": "scope-v1"})
+        list_resp = client.get("/v1/jobs", headers=AUTH_HEADERS)
         assert list_resp.status_code == 200
         assert any(
             item["job_id"] == job_id for item in list_resp.json()["jobs"]
@@ -175,20 +174,20 @@ def test_v1_jobs_create_list_get_retry_and_events() -> None:
 
         get_resp = client.get(
             f"/v1/jobs/{job_id}",
-            headers={"X-Session-Id": "scope-v1"},
+            headers=AUTH_HEADERS,
         )
         assert get_resp.status_code == 200
         assert get_resp.json()["job"]["job_id"] == job_id
 
         retry_resp = client.post(
             f"/v1/jobs/{job_id}/retry",
-            headers={"X-Session-Id": "scope-v1"},
+            headers=AUTH_HEADERS,
         )
         assert retry_resp.status_code == 409
 
         events_resp = client.get(
             f"/v1/jobs/{job_id}/events",
-            headers={"X-Session-Id": "scope-v1"},
+            headers=AUTH_HEADERS,
         )
         assert events_resp.status_code == 200
         events = events_resp.json()["events"]
@@ -227,7 +226,7 @@ def test_v1_jobs_rejects_blank_idempotency_key() -> None:
         resp = client.post(
             "/v1/jobs",
             headers={
-                "X-Session-Id": "scope-v1",
+                **AUTH_HEADERS,
                 "Idempotency-Key": "",
             },
             json={"job_type": "transform", "payload": {"input": "a"}},
@@ -235,7 +234,7 @@ def test_v1_jobs_rejects_blank_idempotency_key() -> None:
         whitespace_resp = client.post(
             "/v1/jobs",
             headers={
-                "X-Session-Id": "scope-v1",
+                **AUTH_HEADERS,
                 "Idempotency-Key": "   ",
             },
             json={"job_type": "transform", "payload": {"input": "a"}},
@@ -250,7 +249,6 @@ def test_v1_jobs_list_scoped_config_error_returns_internal_error() -> None:
     """Verify a scoped jobs listing config error returns an internal error."""
     settings = Settings.model_validate(
         {
-            "AUTH_MODE": AuthMode.SAME_ORIGIN.value,
             "JOBS_ENABLED": True,
         }
     )
@@ -268,10 +266,7 @@ def test_v1_jobs_list_scoped_config_error_returns_internal_error() -> None:
         metrics=metrics,
         shared_cache=shared,
         cache=cache,
-        authenticator=Authenticator(
-            settings=settings,
-            cache=cache,
-        ),
+        authenticator=StubAuthenticator(),
         transfer_service=StubTransferService(),
         job_service=job_service,
         activity_store=MemoryActivityStore(),
@@ -282,10 +277,29 @@ def test_v1_jobs_list_scoped_config_error_returns_internal_error() -> None:
     with TestClient(app, raise_server_exceptions=False) as client:
         response = client.get(
             "/v1/jobs",
-            headers={"X-Session-Id": "scope-1"},
+            headers=AUTH_HEADERS,
         )
 
     assert response.status_code == 500
     payload = response.json()
     assert payload["error"]["code"] == "internal_error"
     assert payload["error"]["message"] == "unexpected internal error"
+
+
+def test_v1_jobs_rejects_legacy_session_scope_body_fields() -> None:
+    """Public request models reject removed session-scope surrogate fields."""
+    app = build_test_app(_build_v1_deps())
+    with TestClient(app) as client:
+        response = client.post(
+            "/v1/jobs",
+            headers=AUTH_HEADERS,
+            json={
+                "job_type": "transform",
+                "payload": {"input": "a"},
+                "session_id": "scope-v1",
+            },
+        )
+
+    assert response.status_code == 422
+    payload = response.json()
+    assert payload["error"]["code"] == "invalid_request"

@@ -98,6 +98,20 @@ SDK posture:
   - `docs/architecture/spec/SPEC-0029-sdk-architecture-and-artifact-contract.md`
   - `docs/architecture/spec/SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md`
 
+## Docs Sync Rules
+
+- Keep `AGENTS.md`, `README.md`, `docs/README.md`, and the relevant active
+  authority docs aligned in the same change set when runtime contracts or
+  operator workflows change.
+- Bridge/browser auth changes must keep downstream guidance aligned on the
+  bearer-only `nova_dash_bridge -> nova_file_api.public` seam and canonical
+  `/v1/transfers` + `/v1/jobs` routes.
+- Runtime deploy docs must describe `AUTH_MODE=jwt_local` OIDC completeness as
+  a Nova readiness/runtime contract. Do not move that enforcement back into
+  CloudFormation template validation.
+- Downstream consumer docs must not describe `session_id`, `X-Session-Id`, or
+  `X-Scope-Id` as valid public auth inputs.
+
 ## Canonical Guardrails
 
 - Public runtime routes are canonical `/v1/*` plus `/metrics/summary`.
@@ -199,6 +213,7 @@ for p in packages/nova_file_api packages/nova_dash_bridge; do uv build "$p"; don
 ```
 
 Notes:
+
 - `ty` is the canonical Python type gate for the full repo typing surface.
 - `mypy` remains a required compatibility backstop on its narrower configured
   scope.

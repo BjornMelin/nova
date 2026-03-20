@@ -90,6 +90,7 @@ def S3FileUploader(
     multiple: bool = False,
     transfers_endpoint_base: str = "/v1/transfers",
     jobs_endpoint_base: str = "/v1/jobs",
+    auth_header_element_id: str = "",
     max_concurrency: int = 4,
     sign_batch_size: int | None = None,
     async_jobs_enabled: bool = False,
@@ -107,6 +108,8 @@ def S3FileUploader(
         multiple: Whether multiple file uploads are allowed.
         transfers_endpoint_base: Base path for transfer endpoints.
         jobs_endpoint_base: Base path for async job endpoints.
+        auth_header_element_id: DOM element id containing bearer auth
+            header text.
         max_concurrency: Multipart upload worker concurrency.
         sign_batch_size: Optional multipart sign batch size override.
         async_jobs_enabled: Toggle async background job flow.
@@ -173,6 +176,7 @@ def S3FileUploader(
             {
                 "data-transfers-endpoint-base": transfers_endpoint_base,
                 "data-jobs-endpoint-base": jobs_endpoint_base,
+                "data-auth-header-element-id": auth_header_element_id,
                 "data-dropzone-id": f"{component_id}-dropzone",
                 "data-input-id": f"{component_id}-input",
                 "data-result-store-id": f"{component_id}-result",

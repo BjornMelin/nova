@@ -19,13 +19,11 @@ class InitiateUploadRequest:
         filename (str):
         size_bytes (int):
         content_type (None | str | Unset):
-        session_id (None | str | Unset):
     """
 
     filename: str
     size_bytes: int
     content_type: None | str | Unset = UNSET
-    session_id: None | str | Unset = UNSET
 
     def to_dict(self) -> dict[str, Any]:
         filename = self.filename
@@ -38,12 +36,6 @@ class InitiateUploadRequest:
         else:
             content_type = self.content_type
 
-        session_id: None | str | Unset
-        if isinstance(self.session_id, Unset):
-            session_id = UNSET
-        else:
-            session_id = self.session_id
-
         field_dict: dict[str, Any] = {}
 
         field_dict.update(
@@ -54,8 +46,6 @@ class InitiateUploadRequest:
         )
         if content_type is not UNSET:
             field_dict["content_type"] = content_type
-        if session_id is not UNSET:
-            field_dict["session_id"] = session_id
 
         return field_dict
 
@@ -75,20 +65,10 @@ class InitiateUploadRequest:
 
         content_type = _parse_content_type(d.pop("content_type", UNSET))
 
-        def _parse_session_id(data: object) -> None | str | Unset:
-            if data is None:
-                return data
-            if isinstance(data, Unset):
-                return data
-            return cast(None | str | Unset, data)
-
-        session_id = _parse_session_id(d.pop("session_id", UNSET))
-
         initiate_upload_request = cls(
             filename=filename,
             size_bytes=size_bytes,
             content_type=content_type,
-            session_id=session_id,
         )
 
         return initiate_upload_request

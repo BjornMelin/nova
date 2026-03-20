@@ -22,19 +22,21 @@ test_that("client methods execute requests and decode success and error envelope
   captured_requests <- list()
   client <- create_nova_file_client("https://nova.example/", request_performer = function(request) {
     captured_requests[[length(captured_requests) + 1L]] <<- request
-    list(status = 200L, headers = list(), body = '{"job":{"job_id":"job-0001","status":"pending"}}', url = request$url)
+    list(status = 200L, headers = list(), body = '{"job_id":"job-0001","status":"pending"}', url = request$url)
   })
-  result <- client$create_job(body = list(job_type = "transfer.process", payload = list(upload_key = "session-abc123/sample.csv"), session_id = "session-abc123"), headers = list("Idempotency-Key" = "req-123"))
+  result <- client$create_job(body = list(job_type = "transfer.process", payload = list(upload_key = "tenant-acme/sample.csv")), headers = list("Authorization" = "Bearer token-123", "Idempotency-Key" = "req-123"))
   expect_true(result$ok)
-  expect_equal(result$data$job$job_id, "job-0001")
+  expect_equal(result$data$job_id, "job-0001")
+  expect_equal(result$data$status, "pending")
   expect_equal(captured_requests[[1]]$content_type, "application/json")
   expect_equal(captured_requests[[1]]$headers[["Idempotency-Key"]], "req-123")
+  expect_equal(captured_requests[[1]]$headers[["Authorization"]], "Bearer token-123")
   expect_equal(captured_requests[[1]]$body$job_type, "transfer.process")
 
   failing_client <- create_nova_file_client("https://nova.example/", request_performer = function(request) {
     list(status = 503L, headers = list(), body = '{"error":{"code":"queue_unavailable","message":"jobs queue unavailable","details":{"backend":"sqs"},"request_id":"req-jobs-503"}}', url = request$url)
   })
-  error_result <- failing_client$create_job(body = list(job_type = "transfer.process", payload = list(upload_key = "session-abc123/sample.csv"), session_id = "session-abc123"))
+  error_result <- failing_client$create_job(body = list(job_type = "transfer.process", payload = list(upload_key = "tenant-acme/sample.csv")), headers = list("Authorization" = "Bearer token-123"))
   expect_false(error_result$ok)
   expect_equal(error_result$error$error$code, "queue_unavailable")
 })

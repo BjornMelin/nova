@@ -26,7 +26,6 @@ class UploadStrategy(StrEnum):
 class AuthMode(StrEnum):
     """Authentication modes supported by the API."""
 
-    SAME_ORIGIN = "same_origin"
     JWT_LOCAL = "jwt_local"
 
 
@@ -71,7 +70,6 @@ class InitiateUploadRequest(BaseModel):
     filename: str = Field(min_length=1, max_length=512)
     content_type: str | None = Field(default=None, max_length=256)
     size_bytes: int = Field(gt=0)
-    session_id: str | None = Field(default=None, min_length=1, max_length=256)
 
 
 class InitiateUploadResponse(BaseModel):
@@ -100,7 +98,6 @@ class SignPartsRequest(BaseModel):
         max_length=1000,
         json_schema_extra={"uniqueItems": True},
     )
-    session_id: str | None = Field(default=None, min_length=1, max_length=256)
 
     @field_validator("part_numbers")
     @classmethod
@@ -139,7 +136,6 @@ class UploadIntrospectionRequest(BaseModel):
 
     key: str = Field(min_length=1, max_length=2048)
     upload_id: str = Field(min_length=1, max_length=1024)
-    session_id: str | None = Field(default=None, min_length=1, max_length=256)
 
 
 class UploadIntrospectionResponse(BaseModel):
@@ -171,7 +167,6 @@ class CompleteUploadRequest(BaseModel):
     key: str = Field(min_length=1, max_length=2048)
     upload_id: str = Field(min_length=1, max_length=1024)
     parts: list[CompletedPart] = Field(min_length=1, max_length=10_000)
-    session_id: str | None = Field(default=None, min_length=1, max_length=256)
 
 
 class CompleteUploadResponse(BaseModel):
@@ -192,7 +187,6 @@ class AbortUploadRequest(BaseModel):
 
     key: str = Field(min_length=1, max_length=2048)
     upload_id: str = Field(min_length=1, max_length=1024)
-    session_id: str | None = Field(default=None, min_length=1, max_length=256)
 
 
 class AbortUploadResponse(BaseModel):
@@ -209,7 +203,6 @@ class PresignDownloadRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     key: str = Field(min_length=1, max_length=2048)
-    session_id: str | None = Field(default=None, min_length=1, max_length=256)
     content_disposition: str | None = Field(default=None, max_length=512)
     filename: str | None = Field(default=None, max_length=512)
     content_type: str | None = Field(default=None, max_length=256)
@@ -233,7 +226,6 @@ class EnqueueJobRequest(BaseModel):
 
     job_type: str = Field(min_length=1, max_length=128)
     payload: dict[str, Any] = Field(default_factory=dict)
-    session_id: str | None = Field(default=None, min_length=1, max_length=256)
 
 
 TRANSFER_PROCESS_JOB_TYPE = "transfer.process"

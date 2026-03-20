@@ -2,14 +2,47 @@
 
 from __future__ import annotations
 
+from typing import Any, cast
+
 import nova_dash_bridge.fastapi_integration as fastapi_integration
 import pytest
 from fastapi.testclient import TestClient
-from nova_dash_bridge.config import FileTransferEnvConfig, UploadPolicy
+from nova_dash_bridge.config import (
+    AuthPolicy,
+    FileTransferEnvConfig,
+    UploadPolicy,
+)
 from nova_file_api.public import (
     TRANSFER_ROUTE_PREFIX,
     UPLOADS_INITIATE_ROUTE,
+    Principal,
 )
+
+
+def _auth_policy() -> AuthPolicy:
+    return AuthPolicy(
+        principal_resolver=lambda _: Principal(
+            subject="user-1",
+            scope_id="scope-1",
+        )
+    )
+
+
+def test_create_fastapi_app_requires_auth_policy() -> None:
+    app_factory = cast(Any, fastapi_integration.create_fastapi_app)
+    with pytest.raises(TypeError, match="auth_policy"):
+        app_factory(
+            env_config=FileTransferEnvConfig.model_validate(
+                {
+                    "FILE_TRANSFER_ENABLED": True,
+                    "FILE_TRANSFER_BUCKET": "bucket-a",
+                }
+            ),
+            upload_policy=UploadPolicy(
+                max_upload_bytes=100,
+                allowed_extensions={".csv"},
+            ),
+        )
 
 
 def test_create_fastapi_app_uses_lifespan_startup(
@@ -48,6 +81,7 @@ def test_create_fastapi_app_uses_lifespan_startup(
             max_upload_bytes=100,
             allowed_extensions={".csv"},
         ),
+        auth_policy=_auth_policy(),
     )
 
     with TestClient(app) as client:
@@ -71,6 +105,7 @@ def test_routes_include_transfer_operation_metadata() -> None:
             max_upload_bytes=100,
             allowed_extensions={".csv"},
         ),
+        auth_policy=_auth_policy(),
     )
     with TestClient(app) as client:
         openapi_doc = client.get("/openapi.json").json()
@@ -78,6 +113,11 @@ def test_routes_include_transfer_operation_metadata() -> None:
     operation = openapi_doc["paths"]["/v1/transfers/uploads/initiate"]["post"]
     assert operation["operationId"] == "initiate_upload"
     assert operation["tags"] == ["transfers"]
+    assert operation["security"] == [{"bearerAuth": []}]
+    assert (
+        openapi_doc["components"]["securitySchemes"]["bearerAuth"]["scheme"]
+        == "bearer"
+    )
 
 
 @pytest.mark.parametrize(
@@ -104,12 +144,13 @@ def test_create_fastapi_app_wraps_request_validation_errors(
             max_upload_bytes=100,
             allowed_extensions={".csv"},
         ),
+        auth_policy=_auth_policy(),
     )
     with TestClient(app) as client:
         response = client.post(
             f"{TRANSFER_ROUTE_PREFIX}{UPLOADS_INITIATE_ROUTE}",
             content=body,
-            headers=headers,
+            headers={**headers, "Authorization": "Bearer token-123"},
         )
 
     assert response.status_code == 422
@@ -117,3 +158,33 @@ def test_create_fastapi_app_wraps_request_validation_errors(
     assert payload["error"]["code"] == "invalid_request"
     assert payload["error"]["message"] == "request validation failed"
     assert payload["error"]["details"]
+
+
+def test_create_fastapi_app_requires_bearer_auth() -> None:
+    """Ensure missing credentials are rejected before request validation."""
+    app = fastapi_integration.create_fastapi_app(
+        env_config=FileTransferEnvConfig.model_validate(
+            {
+                "FILE_TRANSFER_ENABLED": True,
+                "FILE_TRANSFER_BUCKET": "bucket-a",
+                "FILE_TRANSFER_THREAD_TOKENS": 12,
+            }
+        ),
+        upload_policy=UploadPolicy(
+            max_upload_bytes=100,
+            allowed_extensions={".csv"},
+        ),
+        auth_policy=_auth_policy(),
+    )
+    with TestClient(app) as client:
+        response = client.post(
+            f"{TRANSFER_ROUTE_PREFIX}{UPLOADS_INITIATE_ROUTE}",
+            content="{}",
+            headers={"Content-Type": "application/json"},
+        )
+
+    assert response.status_code == 401
+    payload = response.json()
+    assert payload["error"]["code"] == "unauthorized"
+    assert payload["error"]["message"] == "missing bearer token"
+    assert response.headers["WWW-Authenticate"].startswith("Bearer")

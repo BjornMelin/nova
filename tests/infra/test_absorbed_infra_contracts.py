@@ -984,11 +984,11 @@ def test_cluster_tls_and_blue_green_test_listener_contracts() -> None:
 
 
 def test_ecs_service_auth_contracts() -> None:
-    """ECS service template must expose only branch-1 auth modes/env vars."""
+    """ECS service template must expose only bearer-JWT auth wiring/env vars."""
     text = _read("infra/runtime/ecs/service.yml")
 
     for token in [
-        'AllowedValues: ["same_origin", "jwt_local"]',
+        'AllowedValues: ["jwt_local"]',
         "OidcIssuer:",
         "OidcAudience:",
         "OidcJwksUrl:",

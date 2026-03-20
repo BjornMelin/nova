@@ -2,8 +2,8 @@
 Spec: 0000
 Title: HTTP API Contract
 Status: Active
-Version: 2.1
-Date: 2026-03-19
+Version: 2.2
+Date: 2026-03-20
 Related:
   - "[ADR-0000: FastAPI service decision](../adr/ADR-0000-fastapi-microservice.md)"
   - "[ADR-0006: Async orchestration with SQS + ECS worker](../adr/ADR-0006-async-orchestration-sqs-ecs-worker.md)"
@@ -109,41 +109,24 @@ idempotent retries via `Idempotency-Key` header.
 
 - Keys are server-generated.
 - Follow-up operations MUST validate key ownership and allowed prefix.
-- In JWT mode, trusted principal-derived scope MUST take precedence over
-  client-provided session identifiers.
+- Trusted principal-derived scope MUST be used for scope-bound authorization.
+- Public clients MUST NOT provide `session_id`, `X-Session-Id`, or `X-Scope-Id`
+  as authorization surrogates.
 
 ## 8. Authentication and authorization semantics
 
-Supported auth modes:
+Public runtime expectations:
 
-- same-origin
-- jwt-local
-
-Same-origin expectations:
-
-- Body-bearing routes may convey caller scope via `session_id` payload field.
-- Body-less scope-bound routes (for example `GET /v1/jobs/{job_id}`) MUST
-  convey caller scope via trusted header (`X-Session-Id` or `X-Scope-Id`).
-- When `X-Session-Id` and `X-Scope-Id` are both present, `X-Session-Id` MUST take
-  precedence for scope binding.
-- Differing `X-Session-Id` and `X-Scope-Id` values are not a protocol error;
-  the request is evaluated using `X-Session-Id`.
-- When `X-Session-Id` and body `session_id` are both present with differing
-  values, request validation MUST fail with `422` and
-  `error.message = "conflicting session scope"`.
-- When `X-Session-Id` is absent and `X-Scope-Id` plus body `session_id` are
-  both present with differing values, authentication MUST fail with `401` and
-  `error.message = "conflicting session scope"`.
-
-JWT mode expectations:
-
+- `jwt_local` is the active public authentication mode.
 - `Authorization: Bearer <token>` is required.
 - `401` for authentication failures, `403` for authorization failures.
 - `401` MUST include RFC 6750-compatible
   `WWW-Authenticate: Bearer ...` header; header generation failures MUST fail
   closed.
-- In JWT mode, principal-derived scope MUST take precedence over
-  client-provided `X-Session-Id`, `X-Scope-Id`, or body `session_id`.
+- Scope and tenancy MUST be derived from verified claims in the authenticated
+  `Principal`.
+- `session_id`, `X-Session-Id`, and `X-Scope-Id` are not part of the public
+  authentication contract and MUST NOT influence authorization behavior.
 
 ## 9. Error envelope
 

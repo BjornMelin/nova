@@ -8,7 +8,6 @@
   "properties": {
     "filename": { "type": "string", "minLength": 1, "maxLength": 512 },
     "content_type": { "type": ["string", "null"], "maxLength": 256 },
-    "size_bytes": { "type": "integer", "minimum": 1 },
-    "session_id": { "type": ["string", "null"], "minLength": 1, "maxLength": 256 }
+    "size_bytes": { "type": "integer", "minimum": 1 }
   }
 }

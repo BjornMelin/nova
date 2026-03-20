@@ -2,7 +2,7 @@
 
 Status: Active
 Owner: nova release architecture
-Last reviewed: 2026-03-17
+Last reviewed: 2026-03-20
 
 ## Purpose
 
@@ -105,7 +105,7 @@ copying individual `aws cloudformation deploy` commands:
 ```bash
 export ENVIRONMENT=dev
 export IMAGE_DIGEST=sha256:...
-export ENV_VARS_JSON='{"AUTH_MODE":"same_origin","FILE_TRANSFER_MAX_UPLOAD_BYTES":"536870912000"}'
+export ENV_VARS_JSON='{"AUTH_MODE":"jwt_local","OIDC_ISSUER":"https://issuer.example.com/","OIDC_AUDIENCE":"api://nova","OIDC_JWKS_URL":"https://issuer.example.com/.well-known/jwks.json","FILE_TRANSFER_MAX_UPLOAD_BYTES":"536870912000"}'
 export JOBS_WORKER_UPDATE_TOKEN_SECRET_ARN="arn:aws:secretsmanager:..."
 export RUNTIME_COST_MODE=standard
 
@@ -161,6 +161,12 @@ Worker/file-transfer contract notes:
   contract; do not hand-edit duplicate key lists in docs or scripts.
 - Canonical worker runtime inputs are `JOBS_*`; stale worker aliases are not
   valid deployment inputs.
+- `AUTH_MODE=jwt_local` without `OIDC_ISSUER`, `OIDC_AUDIENCE`, and
+  `OIDC_JWKS_URL` now reaches CloudFormation successfully but must still fail
+  Nova readiness until the bearer-verification dependency is fully configured.
+- Treat that readiness failure as the canonical enforcement point. The runtime
+  config contract and startup/readiness specs, not CloudFormation parameter
+  validation, define the final `jwt_local` OIDC completeness rule.
 - Default large-upload posture is `FILE_TRANSFER_MAX_UPLOAD_BYTES=536_870_912_000`
   and `FILE_TRANSFER_PRESIGN_UPLOAD_TTL_SECONDS=1800`.
 - If `FILE_TRANSFER_USE_ACCELERATE_ENDPOINT=true`, the bucket must already have

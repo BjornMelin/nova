@@ -7,9 +7,12 @@ import httpx
 import pytest
 from botocore.exceptions import BotoCoreError, ClientError
 from nova_file_api.activity import MemoryActivityStore
-from nova_file_api.auth import Authenticator
 from nova_file_api.config import Settings
-from nova_file_api.errors import FileTransferError, queue_unavailable
+from nova_file_api.errors import (
+    FileTransferError,
+    queue_unavailable,
+    unauthorized,
+)
 from nova_file_api.jobs import (
     JobPublishError,
     JobRepository,
@@ -20,9 +23,9 @@ from nova_file_api.jobs import (
 )
 from nova_file_api.metrics import MetricsCollector
 from nova_file_api.models import (
-    AuthMode,
     JobRecord,
     JobStatus,
+    Principal,
 )
 from pydantic import SecretStr
 
@@ -35,6 +38,7 @@ from .support.app import (
 from .support.doubles import StubAuthenticator, StubTransferService
 
 CaptureEmf = Callable[[MetricsCollector], list[dict[str, str]]]
+AUTH_HEADERS = {"Authorization": "Bearer token-123"}
 
 
 class _FailingPublisher:
@@ -173,9 +177,37 @@ class _AlwaysFailingJobService:
         raise _TestDoubleError
 
 
-async def _build_same_origin_status_container(*, scope_id: str) -> RuntimeDeps:
+class _ScopedAuthenticator:
+    def __init__(self, *, scope_id: str) -> None:
+        self._scope_id = scope_id
+
+    async def authenticate(
+        self,
+        *,
+        token: str | None,
+    ) -> Principal:
+        if token is None or not token.strip():
+            raise unauthorized(
+                "missing bearer token",
+                headers={
+                    "WWW-Authenticate": (
+                        'Bearer error="invalid_token", '
+                        'error_description="missing bearer token"'
+                    )
+                },
+            )
+        return Principal(
+            subject=f"user-for-{self._scope_id}",
+            scope_id=self._scope_id,
+            permissions=("metrics:read",),
+        )
+
+    async def healthcheck(self) -> bool:
+        return True
+
+
+async def _build_bearer_status_container(*, scope_id: str) -> RuntimeDeps:
     settings = Settings()
-    settings.auth_mode = AuthMode.SAME_ORIGIN
     settings.jobs_enabled = True
 
     metrics = MetricsCollector(namespace="Tests")
@@ -206,7 +238,7 @@ async def _build_same_origin_status_container(*, scope_id: str) -> RuntimeDeps:
         metrics=metrics,
         cache=cache,
         shared_cache=shared,
-        authenticator=Authenticator(settings=settings, cache=cache),
+        authenticator=_ScopedAuthenticator(scope_id=scope_id),
         transfer_service=StubTransferService(),
         job_repository=repository,
         job_service=service,
@@ -477,12 +509,18 @@ async def test_enqueue_failure_is_not_idempotency_cached() -> None:
     ):
         first = await client.post(
             "/v1/jobs",
-            headers={"Idempotency-Key": "job-failure-key"},
+            headers={
+                **AUTH_HEADERS,
+                "Idempotency-Key": "job-failure-key",
+            },
             json={"job_type": "transform", "payload": {"input": "a"}},
         )
         second = await client.post(
             "/v1/jobs",
-            headers={"Idempotency-Key": "job-failure-key"},
+            headers={
+                **AUTH_HEADERS,
+                "Idempotency-Key": "job-failure-key",
+            },
             json={"job_type": "transform", "payload": {"input": "a"}},
         )
 
@@ -863,7 +901,10 @@ async def test_get_job_status_failure_emits_error_observability(
             base_url="http://testserver",
         ) as client,
     ):
-        response = await client.get("/v1/jobs/job-status-1")
+        response = await client.get(
+            "/v1/jobs/job-status-1",
+            headers=AUTH_HEADERS,
+        )
 
     assert response.status_code == 500
     counters = metrics.counters_snapshot()
@@ -879,7 +920,7 @@ async def test_get_job_status_failure_emits_error_observability(
 async def test_legacy_cancel_route_is_not_exposed() -> None:
     """Verify legacy cancel route is not exposed and returns 404."""
     app = build_test_app(
-        await _build_same_origin_status_container(scope_id="scope-legacy")
+        await _build_bearer_status_container(scope_id="scope-legacy")
     )
     async with (
         app.router.lifespan_context(app),
@@ -908,7 +949,10 @@ async def test_cancel_job_failure_emits_error_observability(
             base_url="http://testserver",
         ) as client,
     ):
-        response = await client.post("/v1/jobs/job-status-1/cancel")
+        response = await client.post(
+            "/v1/jobs/job-status-1/cancel",
+            headers=AUTH_HEADERS,
+        )
 
     assert response.status_code == 500
     counters = metrics.counters_snapshot()
@@ -956,10 +1000,8 @@ async def test_update_job_result_failure_emits_error_observability(
 
 
 @pytest.mark.asyncio
-async def test_get_job_status_accepts_scope_header_same_origin() -> None:
-    container = await _build_same_origin_status_container(
-        scope_id="scope-header"
-    )
+async def test_get_job_status_uses_authenticated_principal_scope() -> None:
+    container = await _build_bearer_status_container(scope_id="scope-header")
     app = build_test_app(container)
     async with (
         app.router.lifespan_context(app),
@@ -970,7 +1012,7 @@ async def test_get_job_status_accepts_scope_header_same_origin() -> None:
     ):
         response = await client.get(
             "/v1/jobs/job-status-1",
-            headers={"X-Session-Id": "scope-header"},
+            headers={"Authorization": "Bearer token-123"},
         )
 
     assert response.status_code == 200
@@ -980,12 +1022,8 @@ async def test_get_job_status_accepts_scope_header_same_origin() -> None:
 
 
 @pytest.mark.asyncio
-async def test_get_job_status_requires_session_scope_in_same_origin_mode() -> (
-    None
-):
-    container = await _build_same_origin_status_container(
-        scope_id="scope-header"
-    )
+async def test_get_job_status_requires_bearer_token() -> None:
+    container = await _build_bearer_status_container(scope_id="scope-header")
     app = build_test_app(container)
     async with (
         app.router.lifespan_context(app),
@@ -999,4 +1037,5 @@ async def test_get_job_status_requires_session_scope_in_same_origin_mode() -> (
     assert response.status_code == 401
     payload = response.json()
     assert payload["error"]["code"] == "unauthorized"
-    assert payload["error"]["message"] == "missing session scope"
+    assert payload["error"]["message"] == "missing bearer token"
+    assert response.headers["WWW-Authenticate"].startswith("Bearer")
