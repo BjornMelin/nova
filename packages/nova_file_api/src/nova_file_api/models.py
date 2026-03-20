@@ -28,7 +28,6 @@ class AuthMode(StrEnum):
 
     SAME_ORIGIN = "same_origin"
     JWT_LOCAL = "jwt_local"
-    JWT_REMOTE = "jwt_remote"
 
 
 class JobsQueueBackend(StrEnum):

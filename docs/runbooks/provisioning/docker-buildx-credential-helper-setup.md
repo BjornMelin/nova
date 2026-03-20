@@ -171,10 +171,6 @@ cd <NOVA_REPO_ROOT>
 DOCKER_BUILDKIT=1 docker buildx build --load \
   -f apps/nova_file_api_service/Dockerfile \
   -t nova-file-api:test .
-
-DOCKER_BUILDKIT=1 docker buildx build --load \
-  -f apps/nova_auth_api_service/Dockerfile \
-  -t nova-auth-api:test .
 ```
 
 Optional runtime smoke checks:
@@ -182,11 +178,6 @@ Optional runtime smoke checks:
 ```bash
 docker run --rm -p 8050:8050 nova-file-api:test
 curl -fsS http://127.0.0.1:8050/v1/health/live
-```
-
-```bash
-docker run --rm -p 8051:8050 nova-auth-api:test
-curl -fsS http://127.0.0.1:8051/v1/health/live
 ```
 
 ## Step 7: Verify Repo-Native Gates

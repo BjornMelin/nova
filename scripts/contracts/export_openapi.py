@@ -9,14 +9,12 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from nova_auth_api.app import create_app as create_auth_app
 from nova_file_api.app import create_app as create_file_app
 
 OpenApiFactory = Callable[[], Any]
 
 OPENAPI_OUTPUTS: dict[str, OpenApiFactory] = {
     "nova-file-api.openapi.json": create_file_app,
-    "nova-auth-api.openapi.json": create_auth_app,
 }
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_OUTPUT_DIR = REPO_ROOT / "packages" / "contracts" / "openapi"

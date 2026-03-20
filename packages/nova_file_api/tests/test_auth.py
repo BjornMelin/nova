@@ -1,9 +1,7 @@
 from __future__ import annotations
 
-from collections.abc import Callable
-from typing import Any, cast
+from typing import Any
 
-import httpx
 import pytest
 from nova_file_api.auth import (
     Authenticator,
@@ -17,7 +15,7 @@ from nova_file_api.cache import (
 from nova_file_api.config import Settings
 from nova_file_api.errors import FileTransferError
 from nova_file_api.models import AuthMode
-from oidc_jwt_verifier import AuthError, JWTVerifier
+from oidc_jwt_verifier import AuthError
 from starlette.requests import Request
 
 
@@ -51,8 +49,12 @@ def _build_cache() -> TwoTierCache:
 
 
 class _VerifierReturningClaims:
-    def verify_access_token(self, token: str) -> dict[str, Any]:
-        del token
+    def __init__(self) -> None:
+        self.tokens: list[str] = []
+        self.closed = False
+
+    async def verify_access_token(self, token: str) -> dict[str, Any]:
+        self.tokens.append(token)
         return {
             "sub": "subject-1",
             "scope_id": "scope-from-token",
@@ -60,90 +62,38 @@ class _VerifierReturningClaims:
             "permissions": ["jobs:enqueue"],
         }
 
-
-class _FailingRemoteAuthClient:
-    def __init__(self, *, timeout: float) -> None:
-        del timeout
-
-    async def __aenter__(self) -> _FailingRemoteAuthClient:
-        return self
-
-    async def __aexit__(
-        self,
-        exc_type: type[BaseException] | None,
-        exc: BaseException | None,
-        tb: Any,
-    ) -> None:
-        del exc_type, exc, tb
-
-    async def post(self, url: str, json: dict[str, Any]) -> httpx.Response:
-        del json
-        request = httpx.Request("POST", url)
-        raise httpx.ConnectError("connect failed", request=request)
-
-
-class _RejectedRemoteAuthClient:
-    def __init__(self, *, timeout: float) -> None:
-        del timeout
-
-    async def __aenter__(self) -> _RejectedRemoteAuthClient:
-        return self
-
-    async def __aexit__(
-        self,
-        exc_type: type[BaseException] | None,
-        exc: BaseException | None,
-        tb: Any,
-    ) -> None:
-        del exc_type, exc, tb
-
-    async def post(self, url: str, json: dict[str, Any]) -> httpx.Response:
-        del url, json
-        return httpx.Response(
-            401,
-            headers={
-                "WWW-Authenticate": (
-                    'Bearer error="invalid_token",'
-                    ' error_description="bad token"'
-                )
-            },
-            json={
-                "error": {
-                    "code": "unauthorized",
-                    "message": "bad token",
-                }
-            },
-        )
+    async def aclose(self) -> None:
+        self.closed = True
 
 
 @pytest.mark.asyncio
-async def test_local_verification_uses_thread_boundary(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+async def test_local_verification_uses_async_verifier_and_cache() -> None:
     settings = Settings()
     settings.auth_mode = AuthMode.JWT_LOCAL
     cache = _build_cache()
     auth = Authenticator(settings=settings, cache=cache)
-    auth._verifier = cast(JWTVerifier, _VerifierReturningClaims())
-
-    call_count = {"count": 0}
-
-    async def _run_sync(
-        func: Callable[[], dict[str, Any]],
-        **_kwargs: Any,
-    ) -> dict[str, Any]:
-        call_count["count"] += 1
-        return func()
-
-    monkeypatch.setattr(
-        "nova_file_api.auth.run_sync",
-        _run_sync,
-    )
+    verifier = _VerifierReturningClaims()
+    auth._verifier = verifier
 
     claims = await auth._verify_local_token(token="token-123")
+    cached_claims = await auth._verify_local_token(token="token-123")
 
     assert claims["sub"] == "subject-1"
-    assert call_count["count"] == 1
+    assert cached_claims == claims
+    assert verifier.tokens == ["token-123"]
+
+
+@pytest.mark.asyncio
+async def test_authenticator_aclose_closes_async_verifier() -> None:
+    settings = Settings()
+    settings.auth_mode = AuthMode.JWT_LOCAL
+    auth = Authenticator(settings=settings, cache=_build_cache())
+    verifier = _VerifierReturningClaims()
+    auth._verifier = verifier
+
+    await auth.aclose()
+
+    assert verifier.closed is True
 
 
 @pytest.mark.asyncio
@@ -295,55 +245,6 @@ async def test_required_permission_is_enforced_from_principal_claims(
         )
     assert exc.value.code == "forbidden"
     assert exc.value.status_code == 403
-
-
-@pytest.mark.asyncio
-async def test_remote_auth_mode_fails_closed_on_http_errors(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    settings = Settings()
-    settings.auth_mode = AuthMode.JWT_REMOTE
-    settings.remote_auth_base_url = "https://auth.example.local"
-    auth = Authenticator(settings=settings, cache=_build_cache())
-
-    monkeypatch.setattr(
-        "nova_file_api.auth.httpx.AsyncClient", _FailingRemoteAuthClient
-    )
-
-    with pytest.raises(FileTransferError) as exc:
-        await auth.authenticate(
-            request=_build_request(
-                headers={"Authorization": "Bearer token-123"}
-            ),
-            session_id=None,
-        )
-    assert exc.value.code == "service_unavailable"
-    assert exc.value.status_code == 503
-
-
-@pytest.mark.asyncio
-async def test_remote_auth_401_propagates_www_authenticate_header(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    settings = Settings()
-    settings.auth_mode = AuthMode.JWT_REMOTE
-    settings.remote_auth_base_url = "https://auth.example.local"
-    auth = Authenticator(settings=settings, cache=_build_cache())
-
-    monkeypatch.setattr(
-        "nova_file_api.auth.httpx.AsyncClient", _RejectedRemoteAuthClient
-    )
-
-    with pytest.raises(FileTransferError) as exc:
-        await auth.authenticate(
-            request=_build_request(
-                headers={"Authorization": "Bearer token-123"}
-            ),
-            session_id=None,
-        )
-    assert exc.value.code == "unauthorized"
-    assert exc.value.status_code == 401
-    assert exc.value.headers.get("WWW-Authenticate", "").startswith("Bearer ")
 
 
 @pytest.mark.parametrize(

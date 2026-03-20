@@ -41,10 +41,11 @@ authentication MUST fail with `401` and message `conflicting session scope`.
 
 Default token mode. Verification uses canonical `oidc-jwt-verifier` policy.
 
-### 1.3 Optional remote auth mode
+### 1.3 Remote auth hard cut
 
-Uses `nova-auth-api` over HTTP. This mode MUST be explicit and fail-closed on
-connectivity or non-success auth responses.
+There is no optional remote auth mode in the active runtime architecture. JWT
+verification happens inside `nova_file_api`, and deploy/release contracts MUST
+not reference `nova-auth-api` or remote-auth runtime configuration.
 
 ## 2. JWT verification and async safety
 

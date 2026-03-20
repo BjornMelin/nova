@@ -55,14 +55,12 @@ directory, then verify downstream consumers against
 - `../contracts/deploy-size-profiles-v1.json`
 - `../contracts/release-artifacts-v1.schema.json`
 - `../../packages/contracts/openapi/nova-file-api.openapi.json`
-- `../../packages/contracts/openapi/nova-auth-api.openapi.json`
 
 ## SDK package status
 
 Release-grade public SDK packages for this wave:
 
 - `../../packages/nova_sdk_py_file/`
-- `../../packages/nova_sdk_py_auth/`
 
 Integration adapter packages retained in-repo for downstream framework wiring:
 
@@ -72,13 +70,11 @@ TypeScript SDK packages retained in-repo as release-grade CodeArtifact
 staged/prod artifacts:
 
 - `../../packages/nova_sdk_file/`
-- `../../packages/nova_sdk_auth/`
 - `../../packages/nova_sdk_fetch/`
 
 R SDK packages retained in-repo as first-class internal release artifacts:
 
 - `../../packages/nova_sdk_r_file/`
-- `../../packages/nova_sdk_r_auth/`
 
 `nova_dash_bridge` is an adapter-only package, not release-grade SDK contract
 authority. It consumes the canonical in-process bridge seam exposed by

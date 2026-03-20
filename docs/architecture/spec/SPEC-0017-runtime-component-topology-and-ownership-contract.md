@@ -2,8 +2,8 @@
 Spec: 0017
 Title: Runtime component topology and ownership contract
 Status: Active
-Version: 2.2
-Date: 2026-03-10
+Version: 2.3
+Date: 2026-03-19
 Related:
   - "[ADR-0023: Hard-cut v1 canonical route surface](../adr/ADR-0023-hard-cut-v1-canonical-route-surface.md)"
   - "[SPEC-0000: HTTP API contract](./SPEC-0000-http-api-contract.md)"
@@ -23,8 +23,7 @@ cross-package boundaries for the Nova monorepo.
 | Path | Canonical ownership |
 | --- | --- |
 | `packages/nova_file_api/` | File-transfer routes, job routes, internal worker result route, capability/release endpoints, health/readiness, metrics summary, transfer/jobs/cache/idempotency/activity orchestration, and canonical ASGI entrypoint |
-| `packages/nova_auth_api/` | Token verify/introspect routes, verifier lifecycle, principal normalization, auth API envelopes, and canonical ASGI entrypoint |
-| `packages/nova_runtime_support/` | Internal shared helpers for request IDs, canonical error-envelope OpenAPI shaping, log redaction, and shared auth claim normalization |
+| `packages/nova_runtime_support/` | Internal shared helpers for request IDs, canonical error-envelope OpenAPI shaping, log redaction, shared auth claim normalization, and async JWT verifier construction |
 | `packages/nova_dash_bridge/` | Dash/Flask/FastAPI integration helpers over canonical Nova contracts |
 | `packages/contracts/` | OpenAPI artifacts, fixtures, and generated-client contract inputs |
 
@@ -46,8 +45,7 @@ cross-package boundaries for the Nova monorepo.
 
 ## 4. Runtime interaction contract
 
-1. `nova_file_api` and `nova_auth_api` may depend on `packages/contracts`
-   artifacts.
+1. `nova_file_api` may depend on `packages/contracts` artifacts.
 2. `nova_dash_bridge` depends on canonical runtime contracts through
    `nova_file_api.public` or generated Python SDK packages, not on handwritten
    contract forks or direct runtime-internal imports.

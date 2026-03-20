@@ -58,15 +58,6 @@ TARGETS = (
         / "nova_sdk_py_file",
         package_name="nova_sdk_py_file",
     ),
-    GenerationTarget(
-        spec_path=OPENAPI_ROOT / "nova-auth-api.openapi.json",
-        output_path=REPO_ROOT
-        / "packages"
-        / "nova_sdk_py_auth"
-        / "src"
-        / "nova_sdk_py_auth",
-        package_name="nova_sdk_py_auth",
-    ),
 )
 
 

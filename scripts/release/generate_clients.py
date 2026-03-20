@@ -115,29 +115,6 @@ TARGETS = (
         r_client_prefix="nova_file",
         catalog_function_name="nova_file_operation_catalog",
     ),
-    GenerationTarget(
-        spec_path=OPENAPI_ROOT / "nova-auth-api.openapi.json",
-        package_name="@nova/sdk-auth",
-        ts_package_root=REPO_ROOT / "packages" / "nova_sdk_auth",
-        client_factory_name="createNovaAuthClient",
-        client_interface_name="NovaAuthClient",
-        client_options_name="NovaAuthClientOptions",
-        r_package_name="nova.sdk.r.auth",
-        r_package_title="Nova SDK R auth client",
-        r_package_description="Generated R client for the Nova auth API.",
-        r_output_path=REPO_ROOT
-        / "packages"
-        / "nova_sdk_r_auth"
-        / "R"
-        / "generated.R",
-        r_client_output_path=REPO_ROOT
-        / "packages"
-        / "nova_sdk_r_auth"
-        / "R"
-        / "client.R",
-        r_client_prefix="nova_auth",
-        catalog_function_name="nova_auth_operation_catalog",
-    ),
 )
 
 _R_PACKAGE_MAINTAINER = (

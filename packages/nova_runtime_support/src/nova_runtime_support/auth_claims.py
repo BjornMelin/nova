@@ -6,7 +6,8 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
-from oidc_jwt_verifier import AuthConfig, JWTVerifier
+from oidc_jwt_verifier import AuthConfig
+from oidc_jwt_verifier.async_verifier import AsyncJWTVerifier
 
 
 @dataclass(frozen=True, slots=True)
@@ -23,43 +24,70 @@ class NormalizedPrincipalClaims:
 InvalidTokenErrorFactory = Callable[[str], Exception]
 
 
-def build_jwt_verifier(
+def build_auth_config(
     *,
     issuer: str | None,
     audience: str | None,
     jwks_url: str | None,
     clock_skew_seconds: int,
-    required_scopes: Sequence[str] = (),
-    required_permissions: Sequence[str] = (),
-) -> JWTVerifier | None:
-    """Build a JWT verifier when required OIDC settings are present.
+) -> AuthConfig | None:
+    """Build verifier config when required OIDC settings are present.
 
     Args:
         issuer: OIDC issuer URL.
         audience: Expected JWT audience.
         jwks_url: JWKS endpoint URL.
         clock_skew_seconds: Allowed verification clock skew in seconds.
-        required_scopes: Required scope values for accepted tokens.
-        required_permissions: Required permission values for accepted tokens.
 
     Returns:
-        A configured ``JWTVerifier`` when issuer, audience, and jwks_url are
-        all set; otherwise ``None``.
+        A configured ``AuthConfig`` when issuer, audience, and jwks_url are all
+        set; otherwise ``None``.
     """
     issuer = _normalized_optional_setting(issuer)
     audience = _normalized_optional_setting(audience)
     jwks_url = _normalized_optional_setting(jwks_url)
     if issuer is None or audience is None or jwks_url is None:
         return None
-    config = AuthConfig(
+    return AuthConfig(
         issuer=issuer,
         audience=audience,
         jwks_url=jwks_url,
-        required_scopes=tuple(required_scopes),
-        required_permissions=tuple(required_permissions),
         leeway_s=clock_skew_seconds,
     )
-    return JWTVerifier(config=config)
+
+
+def build_async_jwt_verifier(
+    *,
+    issuer: str | None,
+    audience: str | None,
+    jwks_url: str | None,
+    clock_skew_seconds: int,
+) -> AsyncJWTVerifier | None:
+    """Build an async JWT verifier when required OIDC settings are present.
+
+    Args:
+        issuer: OIDC issuer URL.
+        audience: Expected JWT audience.
+        jwks_url: JWKS endpoint URL.
+        clock_skew_seconds: Allowed verification clock skew in seconds.
+
+    Returns:
+        A configured ``AsyncJWTVerifier`` when ``build_auth_config(...)``
+        yields a config; otherwise ``None``.
+
+    Raises:
+        Any exception raised by ``build_auth_config(...)`` or
+        ``AsyncJWTVerifier(config=config)``.
+    """
+    config = build_auth_config(
+        issuer=issuer,
+        audience=audience,
+        jwks_url=jwks_url,
+        clock_skew_seconds=clock_skew_seconds,
+    )
+    if config is None:
+        return None
+    return AsyncJWTVerifier(config=config)
 
 
 def normalized_principal_claims(

@@ -22,7 +22,6 @@ one signed source revision.
 2. CodeConnections status is `AVAILABLE`.
 3. Pipeline build stage exports required variables:
    - `FILE_IMAGE_DIGEST`
-   - `AUTH_IMAGE_DIGEST`
    - `PUBLISHED_PACKAGES`
    - `RELEASE_MANIFEST_SHA256`
 
@@ -100,12 +99,10 @@ Acceptance:
 ## Immutable artifact continuity check
 
 Use CodePipeline action execution details and confirm the same digest is used
-for both deployments by auditing the image digest selected by the pipeline
-parameter `DeployImageDigestVariable`:
+for both deployments by auditing the `FILE_IMAGE_DIGEST` exported from
+`ReleaseBuild`:
 
-- `DeployImageDigestVariable` resolves to either `FILE_IMAGE_DIGEST` or
-  `AUTH_IMAGE_DIGEST`.
-- Dev and Prod deploy actions both reference the same selected digest variable.
+- Dev and Prod deploy actions both reference `#{ReleaseBuild.FILE_IMAGE_DIGEST}`.
 
 ```bash
 aws codepipeline list-action-executions \
@@ -116,8 +113,8 @@ aws codepipeline list-action-executions \
 
 Acceptance:
 
-- The selected build output digest (`${DeployImageDigestVariable}`) matches the
-  digest observed in both Dev and Prod CloudFormation deploy actions.
+- The build output digest (`FILE_IMAGE_DIGEST`) matches the digest observed in
+  both Dev and Prod CloudFormation deploy actions.
 - No rebuild occurs after manual approval.
 
 ## Evidence to store

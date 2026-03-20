@@ -2,8 +2,8 @@
 Spec: 0018
 Title: Runtime configuration and startup validation contract
 Status: Active
-Version: 2.4
-Date: 2026-03-17
+Version: 2.5
+Date: 2026-03-19
 Related:
   - "[ADR-0026: Fail-fast runtime configuration and safe auth execution](../adr/ADR-0026-fail-fast-runtime-configuration-and-safe-auth-execution.md)"
   - "[SPEC-0017: Runtime component topology and ownership contract](./SPEC-0017-runtime-component-topology-and-ownership-contract.md)"
@@ -20,16 +20,14 @@ readiness semantics for Nova runtime packages.
 
 1. `packages/nova_file_api/src/nova_file_api/config.py` is the typed
    environment contract for the file API runtime.
-2. `packages/nova_auth_api/src/nova_auth_api/config.py` is the typed
-   environment contract for the auth API runtime.
-3. `packages/nova_dash_bridge/src/nova_dash_bridge/config.py` may define
+2. `packages/nova_dash_bridge/src/nova_dash_bridge/config.py` may define
    adapter-local environment settings only.
-4. `scripts/release/runtime_config_contract.py` is the only allowed curated
+3. `scripts/release/runtime_config_contract.py` is the only allowed curated
    supplement for deploy-template metadata that cannot be inferred from
    `Settings` alone.
-5. `scripts/release/generate_runtime_config_contract.py` must keep the
+4. `scripts/release/generate_runtime_config_contract.py` must keep the
    committed runtime-config JSON and Markdown artifacts current.
-6. Bridge code must not mutate `nova_file_api.Settings()` or recreate runtime
+5. Bridge code must not mutate `nova_file_api.Settings()` or recreate runtime
    authority through ambient settings rewriting.
 
 ## 3. Fail-fast startup rules

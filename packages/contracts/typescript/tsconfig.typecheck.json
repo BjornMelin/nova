@@ -4,7 +4,6 @@
     "rootDir": "../..",
     "baseUrl": ".",
     "paths": {
-      "@nova/sdk-auth/*": ["../../nova_sdk_auth/src/*.ts"],
       "@nova/sdk-fetch/*": ["../../nova_sdk_fetch/src/*.ts"],
       "@nova/sdk-file/*": ["../../nova_sdk_file/src/*.ts"]
     }
@@ -14,11 +13,6 @@
     "../../nova_sdk_fetch/src/client.ts",
     "../../nova_sdk_fetch/src/contracts.ts",
     "../../nova_sdk_fetch/src/url.ts",
-    "../../nova_sdk_auth/src/client.ts",
-    "../../nova_sdk_auth/src/errors.ts",
-    "../../nova_sdk_auth/src/generated/openapi.ts",
-    "../../nova_sdk_auth/src/operations.ts",
-    "../../nova_sdk_auth/src/types.ts",
     "../../nova_sdk_file/src/client.ts",
     "../../nova_sdk_file/src/errors.ts",
     "../../nova_sdk_file/src/generated/openapi.ts",

@@ -7,7 +7,6 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 
 _SERVICE_DOCKERFILES = (
     REPO_ROOT / "apps" / "nova_file_api_service" / "Dockerfile",
-    REPO_ROOT / "apps" / "nova_auth_api_service" / "Dockerfile",
 )
 _ASYNC_TEMPLATE = (
     REPO_ROOT / "infra" / "runtime" / "file_transfer" / "async.yml"
@@ -42,7 +41,6 @@ def test_service_packages_declare_runtime_support_dependency() -> None:
     """Assert service packages declare nova-runtime-support>=0.1.0."""
     package_paths = (
         REPO_ROOT / "packages" / "nova_file_api" / "pyproject.toml",
-        REPO_ROOT / "packages" / "nova_auth_api" / "pyproject.toml",
     )
 
     for package_path in package_paths:

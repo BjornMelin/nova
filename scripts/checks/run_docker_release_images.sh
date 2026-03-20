@@ -24,9 +24,6 @@ fi
 docker buildx build --load \
   -f apps/nova_file_api_service/Dockerfile \
   -t nova-file-api:test .
-docker buildx build --load \
-  -f apps/nova_auth_api_service/Dockerfile \
-  -t nova-auth-api:test .
 uv run pytest -q \
   packages/nova_file_api/tests/test_runtime_security_reliability_gates.py \
   tests/infra/test_workflow_productization_contracts.py \

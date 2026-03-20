@@ -2,14 +2,13 @@
   "name": "nova-typescript-workspace",
   "private": true,
   "scripts": {
-    "build:typescript:sdk-graph": "npm run -w @nova/sdk-fetch build && npm run -w @nova/sdk-file build && npm run -w @nova/sdk-auth build",
+    "build:typescript:sdk-graph": "npm run -w @nova/sdk-fetch build && npm run -w @nova/sdk-file build",
     "codeartifact:npm:endpoint": "python scripts/release/codeartifact_npm.py endpoint",
     "codeartifact:npm:env": "python scripts/release/codeartifact_npm.py env",
     "codeartifact:npm:token": "python scripts/release/codeartifact_npm.py token"
   },
   "workspaces": [
     "packages/contracts/typescript",
-    "packages/nova_sdk_auth",
     "packages/nova_sdk_fetch",
     "packages/nova_sdk_file"
   ]

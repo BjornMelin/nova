@@ -2,8 +2,8 @@
 Spec: 0000
 Title: HTTP API Contract
 Status: Active
-Version: 2.0
-Date: 2026-03-03
+Version: 2.1
+Date: 2026-03-19
 Related:
   - "[ADR-0000: FastAPI service decision](../adr/ADR-0000-fastapi-microservice.md)"
   - "[ADR-0006: Async orchestration with SQS + ECS worker](../adr/ADR-0006-async-orchestration-sqs-ecs-worker.md)"
@@ -31,10 +31,6 @@ Hard-cut state (2026-03-03): runtime contract is canonical `/v1/*` plus
 - API base path: `/v1`
 - Operational summary path: `/metrics/summary`
 - File API request and response bodies use `application/json`.
-- Auth API media types are route-specific:
-  - `POST /v1/token/verify` uses `application/json`.
-  - `POST /v1/token/introspect` accepts `application/json` and
-    `application/x-www-form-urlencoded`.
 
 Only canonical `/v1/*` routes and `/metrics/summary` are part of the active
 runtime contract.
@@ -122,7 +118,6 @@ Supported auth modes:
 
 - same-origin
 - jwt-local
-- jwt-remote (optional, fail-closed)
 
 Same-origin expectations:
 
@@ -178,7 +173,7 @@ Queue publication failures for async enqueue use:
   regeneration; current runtime values are explicit lowercase snake_case
   literals frozen by the runtime packages.
 - SDK-facing semantic tags are the intended grouping model
-  (`transfers`, `jobs`, `platform`, `ops`, `token`, and `health`), while
+  (`transfers`, `jobs`, `platform`, `ops`, and `health`), while
   current runtime schemas may still include implementation-owned tags such as
   `v1`.
 - Custom request-body `$ref` values introduced via OpenAPI overrides MUST

@@ -2,8 +2,8 @@
 Spec: 0016
 Title: Hard-cut v1 route contract and route-literal guardrails
 Status: Active
-Version: 2.0
-Date: 2026-03-03
+Version: 2.1
+Date: 2026-03-19
 Related:
   - "[ADR-0023: Hard cut to a single canonical /v1 API surface](../adr/ADR-0023-hard-cut-v1-canonical-route-surface.md)"
   - "[SPEC-0000: HTTP API Contract](./SPEC-0000-http-api-contract.md)"
@@ -47,13 +47,6 @@ Public runtime routes:
 Internal-only route:
 
 - `POST /v1/internal/jobs/{job_id}/result`
-
-Auth service target routes:
-
-- `POST /v1/token/verify`
-- `POST /v1/token/introspect`
-- `GET /v1/health/live`
-- `GET /v1/health/ready`
 
 Non-canonical runtime paths outside this set MUST return `404`.
 

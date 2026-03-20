@@ -80,11 +80,3 @@ def test_file_openapi_generated_client_smoke(tmp_path: Path) -> None:
         schema_path=_OPENAPI_ROOT / "nova-file-api.openapi.json",
         tmp_path=tmp_path,
     )
-
-
-def test_auth_openapi_generated_client_smoke(tmp_path: Path) -> None:
-    """Generate a Python client from the canonical auth API OpenAPI artifact."""
-    _generate_client_smoke(
-        schema_path=_OPENAPI_ROOT / "nova-auth-api.openapi.json",
-        tmp_path=tmp_path,
-    )

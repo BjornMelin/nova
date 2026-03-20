@@ -6,23 +6,20 @@ import json
 from pathlib import Path
 from typing import Any
 
-from nova_auth_api.models import (
-    ErrorEnvelope as AuthErrorEnvelope,
-)
-from nova_auth_api.models import (
-    TokenVerifyRequest,
-    TokenVerifyResponse,
-)
+import pytest
 from nova_file_api.models import (
+    CapabilitiesResponse,
     EnqueueJobRequest,
     EnqueueJobResponse,
+    ErrorEnvelope,
     InitiateUploadRequest,
     InitiateUploadResponse,
     JobStatusResponse,
+    ReleaseInfoResponse,
+    ResourcePlanResponse,
 )
-from nova_file_api.models import (
-    ErrorEnvelope as FileErrorEnvelope,
-)
+
+from scripts.conformance.validate_lane import validate_lane
 
 FIXTURE_ROOT = Path("packages/contracts/fixtures/v1")
 
@@ -49,23 +46,6 @@ def test_manifest_paths_exist() -> None:
             assert (FIXTURE_ROOT / fixture_path).is_file()
 
 
-def test_auth_verify_fixtures_match_contract_models() -> None:
-    verify_request = {
-        "access_token": "example-token",
-        "required_scopes": ["jobs:enqueue"],
-        "required_permissions": ["jobs:enqueue"],
-    }
-    TokenVerifyRequest.model_validate(verify_request)
-
-    verify_success = _read_json("fixtures/auth/verify.success.json")
-    TokenVerifyResponse.model_validate(verify_success)
-
-    verify_401 = _read_json("fixtures/auth/verify.401.invalid-token.json")
-    verify_403 = _read_json("fixtures/auth/verify.403.insufficient-scope.json")
-    AuthErrorEnvelope.model_validate(verify_401)
-    AuthErrorEnvelope.model_validate(verify_403)
-
-
 def test_transfer_and_jobs_fixtures_match_contract_models() -> None:
     InitiateUploadRequest.model_validate(
         _read_json("fixtures/transfer/initiate.request.json")
@@ -85,4 +65,21 @@ def test_transfer_and_jobs_fixtures_match_contract_models() -> None:
     )
 
     queue_error = _read_json("fixtures/jobs/enqueue.503.queue-unavailable.json")
-    FileErrorEnvelope.model_validate(queue_error)
+    ErrorEnvelope.model_validate(queue_error)
+
+
+def test_v1_api_fixtures_match_contract_models() -> None:
+    CapabilitiesResponse.model_validate(
+        _read_json("fixtures/v1api/capabilities.success.json")
+    )
+    ResourcePlanResponse.model_validate(
+        _read_json("fixtures/v1api/resources.plan.success.json")
+    )
+    ReleaseInfoResponse.model_validate(
+        _read_json("fixtures/v1api/releases.info.success.json")
+    )
+
+
+@pytest.mark.parametrize("lane", ["dash", "shiny", "typescript"])
+def test_validate_lane_contract(lane: str) -> None:
+    validate_lane(lane)

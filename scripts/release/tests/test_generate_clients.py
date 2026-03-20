@@ -95,29 +95,6 @@ def test_public_schema_excludes_internal_job_result_shapes() -> None:
     assert "JobResultUpdateResponse" not in schema_names
 
 
-def test_auth_introspection_collects_all_request_media_types() -> None:
-    """Public auth operations keep all introspection media types."""
-    spec_path = (
-        Path(__file__).resolve().parents[3]
-        / "packages"
-        / "contracts"
-        / "openapi"
-        / "nova-auth-api.openapi.json"
-    )
-    _, operations = _load_operations(spec_path)
-
-    introspect_operation = next(
-        operation
-        for operation in operations
-        if operation.operation_id == "introspect_token"
-    )
-
-    assert introspect_operation.request_content_types == (
-        "application/json",
-        "application/x-www-form-urlencoded",
-    )
-
-
 def test_request_body_ref_requiredness_drives_method_request_signature(
     tmp_path: Path,
 ) -> None:

@@ -1,7 +1,7 @@
 [project]
 name = "nova"
 version = "0.1.0"
-description = "Monorepo runtime for file transfer and auth API services."
+description = "Monorepo runtime for file transfer and bridge integrations."
 readme = "README.md"
 requires-python = ">=3.12,<3.14"
 license = "LicenseRef-Proprietary"
@@ -20,7 +20,6 @@ classifiers = [
   "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 dependencies = [
-  "nova-auth-api",
   "nova-dash-bridge",
   "nova-file-api",
   "nova-runtime-support",
@@ -50,15 +49,12 @@ required-version = "==0.10.10"
 [tool.uv.workspace]
 members = [
   "packages/nova_sdk_py_file",
-  "packages/nova_sdk_py_auth",
-  "packages/nova_auth_api",
   "packages/nova_dash_bridge",
   "packages/nova_file_api",
   "packages/nova_runtime_support",
 ]
 
 [tool.uv.sources]
-nova-auth-api = { workspace = true }
 nova-dash-bridge = { workspace = true }
 nova-file-api = { workspace = true }
 nova-runtime-support = { workspace = true }
@@ -74,22 +70,12 @@ format = "r"
 codeartifact_format = "generic"
 namespace = "nova"
 
-[[tool.nova.release.units]]
-unit_id = "packages/nova_sdk_r_auth"
-path = "packages/nova_sdk_r_auth"
-project_name = "nova.sdk.r.auth"
-dependencies = []
-format = "r"
-codeartifact_format = "generic"
-namespace = "nova"
-
 [tool.pytest.ini_options]
 minversion = "9.0"
 asyncio_mode = "strict"
 asyncio_default_fixture_loop_scope = "function"
 asyncio_default_test_loop_scope = "function"
 testpaths = [
-  "packages/nova_auth_api/tests",
   "packages/nova_file_api/tests",
   "scripts/release/tests",
   "tests/infra",
@@ -136,11 +122,7 @@ ignore = ["D203", "D213", "S101", "TRY301", "TRY003"]
 
 [tool.ruff.lint.per-file-ignores]
 "**/tests/**/*.py" = ["D"]
-"packages/nova_sdk_py_auth/src/**/*.py" = ["D", "E501"]
 "packages/nova_sdk_py_file/src/**/*.py" = ["D", "E501"]
-"packages/nova_auth_api/src/nova_auth_api/operation_ids.py" = ["S105"]
-"packages/nova_auth_api/tests/test_app.py" = ["S105"]
-"packages/nova_auth_api/tests/test_service.py" = ["S106"]
 "packages/nova_file_api/src/nova_file_api/config.py" = ["S105"]
 "packages/nova_file_api/src/nova_file_api/routes/common.py" = ["S105"]
 "packages/nova_file_api/tests/test_activity_dynamo.py" = ["S105"]
@@ -171,11 +153,9 @@ warn_unreachable = true
 pretty = true
 exclude_gitignore = true
 files = [
-  "packages/nova_auth_api/src",
   "packages/nova_dash_bridge/src",
   "packages/nova_file_api/src",
   "packages/nova_runtime_support/src",
-  "packages/nova_sdk_py_auth/src",
   "packages/nova_sdk_py_file/src",
   "scripts/contracts",
   "scripts/release",
@@ -194,11 +174,9 @@ python = ".venv"
 python-version = "3.12"
 root = [
   ".",
-  "packages/nova_auth_api/src",
   "packages/nova_dash_bridge/src",
   "packages/nova_file_api/src",
   "packages/nova_runtime_support/src",
-  "packages/nova_sdk_py_auth/src",
   "packages/nova_sdk_py_file/src",
 ]
 

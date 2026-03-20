@@ -141,8 +141,7 @@ Provisioning, validation, and setup guides are indexed in
    component when copied.
 5. Manual approval must include reviewer identity and timestamp.
 6. Confirm immutable artifact continuity:
-   - Prod promotion uses the same `FILE_IMAGE_DIGEST` and
-     `AUTH_IMAGE_DIGEST` exported from Build/Dev.
+   - Prod promotion uses the same `FILE_IMAGE_DIGEST` exported from Build/Dev.
    - No rebuild occurs between Dev and Prod stages.
 
 ## 5. Rollback guidance
@@ -164,11 +163,9 @@ For each run capture:
 6. Dev and Prod validation evidence links.
 7. Build exported variables:
    - `FILE_IMAGE_DIGEST`
-   - `AUTH_IMAGE_DIGEST`
    - `PUBLISHED_PACKAGES`
    - `RELEASE_MANIFEST_SHA256`
-8. Explicit digest continuity evidence (Dev -> Prod `FILE_IMAGE_DIGEST` and
-   `AUTH_IMAGE_DIGEST` match).
+8. Explicit digest continuity evidence (Dev -> Prod `FILE_IMAGE_DIGEST` match).
 9. Post-deploy route validation artifact link and workflow/job status or log markers.
 10. Consolidate the above into a durable promotion record (for example release PR
     description, internal change ticket, or org-owned artifact store URI); avoid

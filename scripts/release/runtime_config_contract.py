@@ -149,14 +149,7 @@ ENV_JSON_OVERRIDES: tuple[EnvJsonOverrideContract, ...] = (
     ),
     EnvJsonOverrideContract("OIDC_CLOCK_SKEW_SECONDS", "OidcClockSkewSeconds"),
     EnvJsonOverrideContract(
-        "OIDC_VERIFIER_THREAD_TOKENS", "OidcVerifierThreadTokens"
-    ),
-    EnvJsonOverrideContract(
         "BLOCKING_IO_THREAD_TOKENS", "BlockingIoThreadTokens"
-    ),
-    EnvJsonOverrideContract("REMOTE_AUTH_BASE_URL", "RemoteAuthBaseUrl"),
-    EnvJsonOverrideContract(
-        "REMOTE_AUTH_TIMEOUT_SECONDS", "RemoteAuthTimeoutSeconds"
     ),
     EnvJsonOverrideContract(
         "CACHE_REDIS_MAX_CONNECTIONS", "CacheRedisMaxConnections"
@@ -244,16 +237,7 @@ SERVICE_TEMPLATE_ENV: tuple[TemplateEnvContract, ...] = (
     ),
     TemplateEnvContract("OIDC_CLOCK_SKEW_SECONDS", "task parameter", "always"),
     TemplateEnvContract(
-        "OIDC_VERIFIER_THREAD_TOKENS", "task parameter", "always"
-    ),
-    TemplateEnvContract(
         "BLOCKING_IO_THREAD_TOKENS", "task parameter", "always"
-    ),
-    TemplateEnvContract(
-        "REMOTE_AUTH_BASE_URL", "task parameter", "when jwt_remote"
-    ),
-    TemplateEnvContract(
-        "REMOTE_AUTH_TIMEOUT_SECONDS", "task parameter", "always"
     ),
     TemplateEnvContract("FILE_TRANSFER_ENABLED", "stack-derived", "always"),
     TemplateEnvContract("JOBS_ENABLED", "stack-derived", "always"),

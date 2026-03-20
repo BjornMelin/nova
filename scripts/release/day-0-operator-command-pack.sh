@@ -154,19 +154,16 @@ if [ -z "$DEPLOY_IMAGE_DIGEST_VARIABLE" ]; then
     nova-file-api)
       DEPLOY_IMAGE_DIGEST_VARIABLE="FILE_IMAGE_DIGEST"
       ;;
-    nova-auth-api)
-      DEPLOY_IMAGE_DIGEST_VARIABLE="AUTH_IMAGE_DIGEST"
-      ;;
     *)
       echo "Unable to derive DeployImageDigestVariable from NOVA_DEPLOY_SERVICE_NAME=$NOVA_DEPLOY_SERVICE_NAME." >&2
-      echo "Set DEPLOY_IMAGE_DIGEST_VARIABLE to FILE_IMAGE_DIGEST or AUTH_IMAGE_DIGEST." >&2
+      echo "Set DEPLOY_IMAGE_DIGEST_VARIABLE to FILE_IMAGE_DIGEST." >&2
       exit 1
       ;;
   esac
 fi
 
-if [ "$DEPLOY_IMAGE_DIGEST_VARIABLE" != "FILE_IMAGE_DIGEST" ] && [ "$DEPLOY_IMAGE_DIGEST_VARIABLE" != "AUTH_IMAGE_DIGEST" ]; then
-  echo "DEPLOY_IMAGE_DIGEST_VARIABLE must be FILE_IMAGE_DIGEST or AUTH_IMAGE_DIGEST (got: $DEPLOY_IMAGE_DIGEST_VARIABLE)." >&2
+if [ "$DEPLOY_IMAGE_DIGEST_VARIABLE" != "FILE_IMAGE_DIGEST" ]; then
+  echo "DEPLOY_IMAGE_DIGEST_VARIABLE must be FILE_IMAGE_DIGEST (got: $DEPLOY_IMAGE_DIGEST_VARIABLE)." >&2
   exit 1
 fi
 
@@ -291,7 +288,6 @@ aws cloudformation deploy \
     FoundationStackName="$FOUNDATION_STACK_NAME" \
     IamRolesStackName="$IAM_STACK_NAME" \
     FileDockerfilePath="apps/nova_file_api_service/Dockerfile" \
-    AuthDockerfilePath="apps/nova_auth_api_service/Dockerfile" \
     DockerBuildContext="." \
     ReleaseBuildspecPath="buildspecs/buildspec-release.yml" \
     ValidateBuildspecPath="buildspecs/buildspec-deploy-validate.yml"

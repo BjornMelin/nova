@@ -131,28 +131,11 @@ class Settings(BaseSettings):
         ge=0,
         le=120,
     )
-    oidc_verifier_thread_tokens: int = Field(
-        default=40,
-        alias="OIDC_VERIFIER_THREAD_TOKENS",
-        ge=1,
-        le=1000,
-    )
     blocking_io_thread_tokens: int = Field(
         default=80,
         alias="BLOCKING_IO_THREAD_TOKENS",
         ge=1,
         le=1000,
-    )
-
-    remote_auth_base_url: str | None = Field(
-        default=None,
-        alias="REMOTE_AUTH_BASE_URL",
-    )
-    remote_auth_timeout_seconds: float = Field(
-        default=2.0,
-        alias="REMOTE_AUTH_TIMEOUT_SECONDS",
-        gt=0.0,
-        le=10.0,
     )
 
     cache_redis_url: str | None = Field(default=None, alias="CACHE_REDIS_URL")

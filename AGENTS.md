@@ -23,8 +23,6 @@ different.
 - `packages/nova_file_api/`: transfer, jobs, readiness, metrics, ASGI
   entrypoint, worker orchestration, and bearer JWT verification in the target
   architecture (`ADR-0033`, `SPEC-0027`).
-- `packages/nova_auth_api/`: **retired** in the target architecture (superseded
-  `ADR-0005`); may remain in the tree until green-field branch 1 removes it.
 - `packages/nova_dash_bridge/`: Dash/Flask/FastAPI integration adapters over
   the canonical `nova_file_api.public` surface.
 - `packages/nova_runtime_support/`: shared runtime support helpers.
@@ -201,10 +199,6 @@ for p in packages/nova_file_api packages/nova_dash_bridge; do uv build "$p"; don
 ```
 
 Notes:
-
-- Optional until `nova_auth_api` removal lands: also run
-  `uv build packages/nova_auth_api` when touching that package.
-
 - `ty` is the canonical Python type gate for the full repo typing surface.
 - `mypy` remains a required compatibility backstop on its narrower configured
   scope.
@@ -255,7 +249,6 @@ Also run the conformance/client checks mirrored by
 source .venv/bin/activate && uv run python scripts/conformance/check_typescript_module_policy.py
 npm run -w @nova/sdk-fetch build
 npm run -w @nova/sdk-fetch typecheck
-npm run -w @nova/sdk-auth typecheck
 npm run -w @nova/sdk-file typecheck
 npm run -w @nova/contracts-ts-conformance typecheck
 npm run -w @nova/contracts-ts-conformance verify
@@ -294,18 +287,13 @@ source .venv/bin/activate && uv run --with pytest pytest -q \
 ### Service Dockerfiles or release-image build flow
 
 Use this when touching `apps/nova_file_api_service/Dockerfile`,
-`apps/nova_auth_api_service/Dockerfile` (until removed), `buildspecs/buildspec-release.yml`, or
-release-image documentation:
+`buildspecs/buildspec-release.yml`, or release-image documentation:
 
 ```bash
 docker buildx version
 DOCKER_BUILDKIT=1 docker buildx build --load \
   -f apps/nova_file_api_service/Dockerfile \
   -t nova-file-api:test .
-# Optional until auth service image is removed:
-# DOCKER_BUILDKIT=1 docker buildx build --load \
-#   -f apps/nova_auth_api_service/Dockerfile \
-#   -t nova-auth-api:test .
 source .venv/bin/activate && uv run pytest -q \
   packages/nova_file_api/tests/test_runtime_security_reliability_gates.py \
   tests/infra/test_workflow_productization_contracts.py \

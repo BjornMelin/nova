@@ -16,7 +16,6 @@ if str(REPO_ROOT) not in sys.path:
 
 RUNTIME_PREFIXES = (
     "packages/nova_file_api/",
-    "packages/nova_auth_api/",
     "packages/nova_dash_bridge/",
     "packages/nova_runtime_support/",
 )
@@ -35,10 +34,8 @@ CONFORMANCE_GENERATOR_EXACT = {
 CONFORMANCE_REQUIRED_PREFIXES = (
     *RUNTIME_PREFIXES,
     "packages/contracts/",
-    "packages/nova_sdk_auth/",
     "packages/nova_sdk_fetch/",
     "packages/nova_sdk_file/",
-    "packages/nova_sdk_r_auth/",
     "packages/nova_sdk_r_file/",
     "scripts/conformance/",
     "scripts/contracts/",
@@ -54,7 +51,6 @@ CONFORMANCE_REQUIRED_EXACT = {
 CONFORMANCE_OPTIONAL_PREFIXES = (
     *RUNTIME_PREFIXES,
     "packages/contracts/typescript/",
-    "packages/nova_sdk_auth/",
     "packages/nova_sdk_fetch/",
     "packages/nova_sdk_file/",
     "scripts/conformance/",

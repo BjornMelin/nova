@@ -226,7 +226,7 @@ Parameters:
   AuthMode:
     Type: String
     Default: "same_origin"
-    AllowedValues: ["same_origin", "jwt_local", "jwt_remote"]
+    AllowedValues: ["same_origin", "jwt_local"]
   OidcIssuer:
     Type: String
     Default: ""
@@ -246,21 +246,10 @@ Parameters:
     Type: Number
     Default: 0
     MinValue: 0
-  OidcVerifierThreadTokens:
-    Type: Number
-    Default: 40
-    MinValue: 1
   BlockingIoThreadTokens:
     Type: Number
     Default: 80
     MinValue: 1
-  RemoteAuthBaseUrl:
-    Type: String
-    Default: ""
-  RemoteAuthTimeoutSeconds:
-    Type: Number
-    Default: 2.0
-    MinValue: 0
   CacheRedisMaxConnections:
     Type: Number
     Default: 64
@@ -449,13 +438,6 @@ Rules:
         AssertDescription: >-
           IdempotencyEnabled requires FileTransferCacheEnabled to be "true"
           and CacheRedisUrlSecretArn to be configured.
-  JwtRemoteAuthParamsProvided:
-    Assertions:
-      - Assert: !Or
-          - !Not [!Equals [!Ref AuthMode, "jwt_remote"]]
-          - !Not [!Equals [!Ref RemoteAuthBaseUrl, ""]]
-        AssertDescription: >-
-          RemoteAuthBaseUrl is required when AuthMode is "jwt_remote".
   JwtLocalOidcParamsProvided:
     Assertions:
       - Assert: !Or
@@ -703,14 +685,8 @@ Resources:
               Value: !Ref OidcRequiredPermissions
             - Name: OIDC_CLOCK_SKEW_SECONDS
               Value: !Ref OidcClockSkewSeconds
-            - Name: OIDC_VERIFIER_THREAD_TOKENS
-              Value: !Ref OidcVerifierThreadTokens
             - Name: BLOCKING_IO_THREAD_TOKENS
               Value: !Ref BlockingIoThreadTokens
-            - Name: REMOTE_AUTH_BASE_URL
-              Value: !Ref RemoteAuthBaseUrl
-            - Name: REMOTE_AUTH_TIMEOUT_SECONDS
-              Value: !Ref RemoteAuthTimeoutSeconds
             - Name: CACHE_REDIS_MAX_CONNECTIONS
               Value: !Ref CacheRedisMaxConnections
             - Name: CACHE_REDIS_SOCKET_TIMEOUT_SECONDS

@@ -33,20 +33,8 @@
         "env_var": "OIDC_CLOCK_SKEW_SECONDS"
       },
       {
-        "cloudformation_parameter": "OidcVerifierThreadTokens",
-        "env_var": "OIDC_VERIFIER_THREAD_TOKENS"
-      },
-      {
         "cloudformation_parameter": "BlockingIoThreadTokens",
         "env_var": "BLOCKING_IO_THREAD_TOKENS"
-      },
-      {
-        "cloudformation_parameter": "RemoteAuthBaseUrl",
-        "env_var": "REMOTE_AUTH_BASE_URL"
-      },
-      {
-        "cloudformation_parameter": "RemoteAuthTimeoutSeconds",
-        "env_var": "REMOTE_AUTH_TIMEOUT_SECONDS"
       },
       {
         "cloudformation_parameter": "CacheRedisMaxConnections",
@@ -215,25 +203,7 @@
       },
       {
         "condition": "always",
-        "name": "OIDC_VERIFIER_THREAD_TOKENS",
-        "secret": false,
-        "source": "task parameter"
-      },
-      {
-        "condition": "always",
         "name": "BLOCKING_IO_THREAD_TOKENS",
-        "secret": false,
-        "source": "task parameter"
-      },
-      {
-        "condition": "when jwt_remote",
-        "name": "REMOTE_AUTH_BASE_URL",
-        "secret": false,
-        "source": "task parameter"
-      },
-      {
-        "condition": "always",
-        "name": "REMOTE_AUTH_TIMEOUT_SECONDS",
         "secret": false,
         "source": "task parameter"
       },
@@ -948,30 +918,6 @@
       "required": false,
       "secret": false,
       "type_label": "str"
-    },
-    {
-      "default_repr": "40",
-      "env_var": "OIDC_VERIFIER_THREAD_TOKENS",
-      "field_name": "oidc_verifier_thread_tokens",
-      "required": false,
-      "secret": false,
-      "type_label": "int"
-    },
-    {
-      "default_repr": "None",
-      "env_var": "REMOTE_AUTH_BASE_URL",
-      "field_name": "remote_auth_base_url",
-      "required": false,
-      "secret": false,
-      "type_label": "str | None"
-    },
-    {
-      "default_repr": "2.0",
-      "env_var": "REMOTE_AUTH_TIMEOUT_SECONDS",
-      "field_name": "remote_auth_timeout_seconds",
-      "required": false,
-      "secret": false,
-      "type_label": "float"
     }
   ],
   "settings_source": "packages/nova_file_api/src/nova_file_api/config.py",
