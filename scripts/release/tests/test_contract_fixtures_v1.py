@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+import pytest
 from nova_file_api.models import (
     CapabilitiesResponse,
     EnqueueJobRequest,
@@ -17,6 +18,8 @@ from nova_file_api.models import (
     ReleaseInfoResponse,
     ResourcePlanResponse,
 )
+
+from scripts.conformance.validate_lane import validate_lane
 
 FIXTURE_ROOT = Path("packages/contracts/fixtures/v1")
 
@@ -75,3 +78,8 @@ def test_v1_api_fixtures_match_contract_models() -> None:
     ReleaseInfoResponse.model_validate(
         _read_json("fixtures/v1api/releases.info.success.json")
     )
+
+
+@pytest.mark.parametrize("lane", ["dash", "shiny", "typescript"])
+def test_validate_lane_contract(lane: str) -> None:
+    validate_lane(lane)
