@@ -2,8 +2,8 @@
 ADR: 0025
 Title: Runtime monorepo component boundaries and ownership
 Status: Accepted
-Version: 2.1
-Date: 2026-03-10
+Version: 2.2
+Date: 2026-03-19
 Related:
   - "[ADR-0023: Hard-cut v1 canonical route surface](./ADR-0023-hard-cut-v1-canonical-route-surface.md)"
   - "[SPEC-0000: HTTP API contract](../spec/SPEC-0000-http-api-contract.md)"

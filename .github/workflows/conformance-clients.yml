@@ -225,9 +225,7 @@ jobs:
       - name: Build and check generated R SDK packages
         run: |
           set -euo pipefail
-          for package_dir in packages/nova_sdk_r_file; do
-            bash scripts/checks/verify_r_cmd_check.sh "${package_dir}"
-          done
+          bash scripts/checks/verify_r_cmd_check.sh packages/nova_sdk_r_file
 
   typescript-conformance:
     needs:

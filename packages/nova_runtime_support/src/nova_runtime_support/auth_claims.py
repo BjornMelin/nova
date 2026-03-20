@@ -63,7 +63,22 @@ def build_async_jwt_verifier(
     jwks_url: str | None,
     clock_skew_seconds: int,
 ) -> AsyncJWTVerifier | None:
-    """Build an async JWT verifier when required OIDC settings are present."""
+    """Build an async JWT verifier when required OIDC settings are present.
+
+    Args:
+        issuer: OIDC issuer URL.
+        audience: Expected JWT audience.
+        jwks_url: JWKS endpoint URL.
+        clock_skew_seconds: Allowed verification clock skew in seconds.
+
+    Returns:
+        A configured ``AsyncJWTVerifier`` when ``build_auth_config(...)``
+        yields a config; otherwise ``None``.
+
+    Raises:
+        Any exception raised by ``build_auth_config(...)`` or
+        ``AsyncJWTVerifier(config=config)``.
+    """
     config = build_auth_config(
         issuer=issuer,
         audience=audience,

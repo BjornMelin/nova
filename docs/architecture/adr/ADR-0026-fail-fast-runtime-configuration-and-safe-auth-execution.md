@@ -79,7 +79,7 @@ Choose **Option B**.
 6. Any remaining threadpool/offload tuning stays scoped to blocking work that
    still exists outside the async-native JWT path.
 7. Deploy and operator docs must enforce the current strict idempotency
-   contract: `IDEMPOTENCY_ENABLED=true` requires shared Redis claim storage,
+   contract: `IDEMPOTENCY_ENABLED=true` requires a shared Redis claim store,
    and shared-store failures fail closed without an `IDEMPOTENCY_MODE`
    surface.
 8. Deploy scripts, infra tests, and operator docs consume a generated

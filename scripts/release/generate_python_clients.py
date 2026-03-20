@@ -916,7 +916,7 @@ def _patch_auth_sdk(root: Path) -> None:
         "api/token/verify_token.py",
         lambda content: _ensure_module_docstring(
             content,
-            doc="Client helpers for generated auth verification endpoints.",
+            doc="Client helpers for the `/v1/token/verify` endpoint.",
         ),
     )
     _rewrite_file(
