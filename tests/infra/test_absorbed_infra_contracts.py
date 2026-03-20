@@ -983,41 +983,74 @@ def test_cluster_tls_and_blue_green_test_listener_contracts() -> None:
     assert "CodeDeploy" not in text
 
 
-def test_release_buildspec_dual_digest_contracts() -> None:
-    """Release buildspec must publish both workload images and digests."""
+def test_ecs_service_auth_contracts() -> None:
+    """ECS service template must expose only branch-1 auth modes/env vars."""
+    text = _read("infra/runtime/ecs/service.yml")
+
+    for token in [
+        'AllowedValues: ["same_origin", "jwt_local"]',
+        "OidcIssuer:",
+        "OidcAudience:",
+        "OidcJwksUrl:",
+        "- Name: AUTH_MODE",
+        "- Name: OIDC_ISSUER",
+        "- Name: OIDC_AUDIENCE",
+        "- Name: OIDC_JWKS_URL",
+    ]:
+        assert token in text
+
+    for token in [
+        "jwt_remote",
+        "RemoteAuthBaseUrl:",
+        "RemoteAuthTimeoutSeconds:",
+        "JwtRemoteAuthParamsProvided:",
+        "REMOTE_AUTH_BASE_URL",
+        "REMOTE_AUTH_TIMEOUT_SECONDS",
+    ]:
+        assert token not in text
+
+
+def test_release_buildspec_single_digest_contracts() -> None:
+    """Release buildspec must publish the single surviving workload digest."""
     text = _read("buildspecs/buildspec-release.yml")
 
     for token in [
         "FILE_IMAGE_DIGEST",
-        "AUTH_IMAGE_DIGEST",
         "FILE_DOCKERFILE_PATH",
-        "AUTH_DOCKERFILE_PATH",
         'FILE_IMAGE_TAG="file-${IMAGE_TAG}"',
-        'AUTH_IMAGE_TAG="auth-${IMAGE_TAG}"',
         "docker build \\",
         'docker push "${ECR_REPOSITORY_URI}:${FILE_IMAGE_TAG}"',
-        'docker push "${ECR_REPOSITORY_URI}:${AUTH_IMAGE_TAG}"',
         'FILE_IMAGE_DIGEST="${FILE_DIGEST}"',
-        'AUTH_IMAGE_DIGEST="${AUTH_DIGEST}"',
     ]:
         assert token in text
 
-    assert "\n    - IMAGE_DIGEST\n" not in text
+    for token in [
+        "AUTH_IMAGE_DIGEST",
+        "AUTH_DOCKERFILE_PATH",
+        'AUTH_IMAGE_TAG="auth-${IMAGE_TAG}"',
+        'docker push "${ECR_REPOSITORY_URI}:${AUTH_IMAGE_TAG}"',
+        'AUTH_IMAGE_DIGEST="${AUTH_DIGEST}"',
+    ]:
+        assert token not in text
 
 
-def test_pipeline_dual_digest_promotion_contract() -> None:
-    """Pipeline must support selecting the promoted workload digest variable."""
+def test_pipeline_single_digest_promotion_contract() -> None:
+    """Pipeline must promote the file workload digest without a selector."""
     text = _read("infra/nova/nova-ci-cd.yml")
 
     for token in [
-        "DeployImageDigestVariable:",
         "FILE_IMAGE_DIGEST",
-        "AUTH_IMAGE_DIGEST",
-        "UseAuthImageDigestVariable:",
         "#{ReleaseBuild.FILE_IMAGE_DIGEST}",
-        "#{ReleaseBuild.AUTH_IMAGE_DIGEST}",
     ]:
         assert token in text
+
+    for token in [
+        "DeployImageDigestVariable:",
+        "AUTH_IMAGE_DIGEST",
+        "UseAuthImageDigestVariable:",
+        "#{ReleaseBuild.AUTH_IMAGE_DIGEST}",
+    ]:
+        assert token not in text
 
 
 def test_reusable_runtime_workflow_digest_contract() -> None:
