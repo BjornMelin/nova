@@ -9,7 +9,7 @@ branch under `ADR-0015` + `SPEC-0015`.
 ## E2E Validation + Release Closure
 
 Order: 4 of 5
-Parent plan: `docs/plan/PLAN.md`
+Parent plan: `FINAL-PLAN.md` (archived program narrative in this bundle)
 Depends on: `SUBPLAN-0001`, `SUBPLAN-0002`, `SUBPLAN-0003`
 
 ## Persona
@@ -74,4 +74,4 @@ Repositories:
 
 External AWS gate execution path:
 
-- `docs/plan/release/NONPROD-LIVE-VALIDATION-RUNBOOK.md`
+- `docs/runbooks/release/nonprod-live-validation-runbook.md`

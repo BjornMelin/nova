@@ -1,58 +1,56 @@
 # Final Plan (Superseded Notice)
 
+Consolidated archive: this file subsumes the former sibling `PLAN.md` (removed
+during `docs/history` cleanup) so one program narrative remains in the bundle.
+
 > Supersession Notice (2026-02-28)
 >
 > This document is retained for historical context and is non-authoritative where it conflicts with the finalized consolidation architecture.
 >
 > Canonical authority:
-> - docs/architecture/adr/ADR-0013-final-state-sdk-topology-generated-core-plus-thin-adapters.md
-> - docs/architecture/adr/ADR-0014-container-craft-capability-absorption-and-repo-retirement.md
+>
+> - docs/architecture/adr/superseded/ADR-0013-final-state-sdk-topology-generated-core-plus-thin-adapters.md
+> - docs/architecture/adr/superseded/ADR-0014-container-craft-capability-absorption-and-repo-retirement.md
 > - docs/architecture/adr/ADR-0015-nova-api-platform-final-hosting-and-deployment-architecture-2026.md
 > - docs/architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md
-> - docs/architecture/spec/SPEC-0011-multi-language-sdk-architecture-and-package-map.md
+> - docs/architecture/spec/superseded/SPEC-0011-multi-language-sdk-architecture-and-package-map.md
 > - docs/architecture/spec/SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md
-> - docs/history/2026-02-cutover/architecture/spec/SPEC-0013-container-craft-capability-absorption-execution-spec.md
-> - docs/history/2026-02-cutover/architecture/spec/SPEC-0014-container-craft-capability-inventory-and-absorption-map.md
+> - docs/architecture/spec/superseded/SPEC-0013-container-craft-capability-absorption-execution-spec.md
+> - docs/architecture/spec/superseded/SPEC-0014-container-craft-capability-inventory-and-absorption-map.md
 > - docs/architecture/spec/SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md
 > - docs/architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md
 >
 > Status: Reference-only for superseded sections.
 
-## Migration Addendum (2026-03-03)
+## Migration addendum (2026-03-03)
 
-- This file remains historical execution evidence and is non-authoritative for
-  active route contract behavior.
-- Active route authority is hard-cut canonical `/v1/*` + `/metrics/summary`
-  (`ADR-0023`, `SPEC-0000`, `SPEC-0016`).
-- Supersession status: baseline and capability authority in this file is now
-  replaced by active updates in `SPEC-0000`, `SPEC-0003`, `SPEC-0004`,
-  `SPEC-0008`, and `SPEC-0015`.
-- Route namespace supersession: `/api/*`, `/healthz`, and `/readyz` are
-  removed from active runtime contract.
+Non-authoritative for **current** routes: active surface is `/v1/*` +
+`/metrics/summary` (`ADR-0023`, `SPEC-0000`, `SPEC-0016`). Program-era
+`/api/*`, `/healthz`, and `/readyz` below are **historical**. Capability and
+CI/CD narrative here is superseded where `SPEC-0000`, `SPEC-0003`,
+`SPEC-0004`, `SPEC-0008`, and `SPEC-0015` disagree. Target-state deploy blueprint
+(archive): `planning/2026-03-01-adr0015-spec0015-implementation-blueprint.md`.
 
-# Final Hard-Cutover Monorepo Plan: nova Runtime + container-craft Infra
+## Final Hard-Cutover Monorepo Plan: nova Runtime + container-craft Infra
 
 ## Summary
 
-This plan is decision-complete and aligned to your locked choices:
+Decision-complete program: **in-place** nova monorepo (packages
+`nova_file_api`, `nova_auth_api`, `nova_dash_bridge`, `contracts`); **hard
+cutover** (no shims); **dash-pca** migrates in the same release gate; legacy
+runtime repos archived/redirected. External repos stay split (`container-craft`
+infra, `dash-pca` consumer). Audit: no loss of auth/idempotency/async/metrics
+semantics; gaps were topology, naming, and path contract completeness—this plan
+tracked closure.
 
-- Runtime monorepo scope only (not moving full dash-pca into monorepo).
-- Hard cutover (no compatibility shims).
-- In-place restructure of current repo.
-- Repo/package rename now:
-  - Repo identity: nova
-  - Python packages: nova_file_api, nova_auth_api, nova_dash_bridge
-- API hard cutover to functional split paths.
-- dash-pca migration is mandatory in the same release gate.
-- Old runtime repos are archived and redirected after cutover.
+## Anti-entropy principle
 
-  Audit result from current diffs/logs:
+- API control-plane logic remains centralized in the runtime service.
+- `nova-dash-bridge` remains an adapter and migration bridge package.
+- Infra remains in `container-craft`; no duplicate IaC in runtime packages.
+- Step Functions/Lambda stay out of initial release unless a new ADR approves.
 
-- No evidence of losing critical runtime semantics (auth/idempotency/async/metrics).
-- Confirmed divergence is primarily topology/naming/path contract completeness.
-- This plan closes that gap.
-
-## Locked Decisions and Scores
+## Locked decisions and scores
 
 Scoring model:
 
@@ -72,9 +70,8 @@ Scoring model:
 
 ## Public API / Interface Changes (Final)
 
-### HTTP endpoint cutover
-
-Remove old `/api/file-transfer/*` routes and replace with:
+**Historical namespace** (program era; active contract is `/v1/*` per migration
+addendum). Remove `/api/file-transfer/*` in favor of:
 
 - POST /api/transfers/uploads/initiate
 - POST /api/transfers/uploads/sign-parts
@@ -88,6 +85,10 @@ Remove old `/api/file-transfer/*` routes and replace with:
 - GET /healthz
 - GET /readyz
 - GET /metrics/summary
+
+Worker callback `POST /api/jobs/{job_id}/result` (historical): primary auth was
+specified as ECS/Fargate task-role via IMDS, with optional shared-token fallback
+during migration only; not part of the public client contract.
 
 ### Python package cutover
 
@@ -106,23 +107,16 @@ Remove old `/api/file-transfer/*` routes and replace with:
 
 ## Target Monorepo Layout (In-Place)
 
-Create this structure in current repo:
-
-- packages/nova_auth_api/
-- packages/nova_file_api/
-- packages/nova_dash_bridge/
-- packages/contracts/ (OpenAPI artifacts + schema utilities only)
-- docs/architecture/
-- docs/plan/
-
-  Root standardization:
-
-- Root pyproject.toml becomes workspace coordinator.
-- Package-level pyproject.toml files per app/package.
-- Shared lint/type/test policy at root (ruff, mypy, pytest).
-- Max line length 80 and Ruff D docstring rules enforced in source modules.
+- `packages/nova_auth_api/`, `packages/nova_file_api/`,
+  `packages/nova_dash_bridge/`, `packages/contracts/` (OpenAPI + schema utils),
+  `docs/architecture/`, `docs/plan/`
+- Root `pyproject.toml` = workspace coordinator; per-package manifests; shared
+  ruff/mypy/pytest; line length 80 + Ruff D on source modules.
 
 ## Execution Plan (PR-Sized, No Open Decisions Left)
+
+Checkboxes reflect the archive freeze; open items needed **live non-prod AWS**
+and cross-repo sign-off (see Phase 4, PR-0005/0009, Testing §6).
 
 ### PR-0001: Monorepo scaffold + namespace rename baseline
 
@@ -165,14 +159,12 @@ Create this structure in current repo:
 - [x] Preserve legal status transitions and idempotent terminal same-state
   updates.
 - [x] Keep queue lag and worker throughput metrics.
-- [x] Add missing explicit tests:
-- [x] Redis outage fallback behavior.
-- [x] Remote auth fail-closed behavior.
-- [x] Cache metric coverage (hit/miss/fallback counters).
+- [x] Explicit tests added: Redis outage fallback; remote auth fail-closed;
+  cache metrics (hit/miss/fallback).
 
 ### PR-0005: container-craft hard alignment for new path contract
 
-  Repo: ~/repos/work/infra-stack/container-craft
+Repo: `~/repos/work/infra-stack/container-craft`
 
 - [x] Update ALB routing rules for async jobs from `/api/transfers/*` to
   `/api/jobs/*`.
@@ -182,11 +174,10 @@ Create this structure in current repo:
   container-craft platform owner (`@infra-platform`) with target date
   `2026-02-20` before prod cutover.
 - [ ] Health check alignment sign-off completed via
-  `docs/plan/release/NONPROD-LIVE-VALIDATION-RUNBOOK.md`.
+  `docs/runbooks/release/nonprod-live-validation-runbook.md`.
 - [x] Keep/add env mappings for SQS/Redis/DynamoDB backends.
-- [x] Validate retry env contract:
-- [x] `JOBS_SQS_RETRY_MODE`
-- [x] `JOBS_SQS_RETRY_TOTAL_MAX_ATTEMPTS`
+- [x] Validate retry env contract: `JOBS_SQS_RETRY_MODE`,
+  `JOBS_SQS_RETRY_TOTAL_MAX_ATTEMPTS`.
 - [x] Validate least-privilege IAM for S3/KMS/SQS/DynamoDB/Redis.
 
 ### PR-0006: nova_dash_bridge bridge package finalization
@@ -216,8 +207,10 @@ In monorepo docs:
 - [x] Update `docs/architecture/requirements.md` for new endpoint paths and package names.
 - [x] Update `README.md` to reflect new API paths, package names, and cutover guidance.
 - [x] Rewrite `docs/plan/PLAN.md` to final monorepo architecture state.
-- [x] Rewrite `docs/history/2026-03-v1-hard-cut/subplans/SUBPLAN-0001..N.md` to new execution order.
-- [x] Rewrite `docs/history/2026-03-v1-hard-cut/triggers/TRIGGER-0001..N.md` to new names/paths/tools.
+- [x] Rewrite archived subplans under `subplans/` for execution order.
+- [x] Archive note: separate agent `triggers/` stubs were removed during
+  `docs/history` consolidation; historical replay uses `subplans/` and branch
+  names in each subplan header.
 - [x] Update affected ADRs in `docs/architecture/adr/` and SPECs in
   `docs/architecture/spec/` for any route/package contract change.
 - [x] Validate `docs/architecture/traceability.md` links and requirement anchors
@@ -232,11 +225,11 @@ In monorepo docs:
 - [ ] Validate cross-repo E2E path: browser upload -> enqueue -> worker update -> result/download.
 - [ ] Owner + target date recorded for cross-repo E2E validation.
 - [ ] Sign-off recorded for cross-repo E2E validation via
-  `docs/plan/release/NONPROD-LIVE-VALIDATION-RUNBOOK.md`.
+  `docs/runbooks/release/nonprod-live-validation-runbook.md`.
 - [ ] Validate dashboards/alarms and synthetic failure scenarios.
 - [ ] Owner + target date recorded for dashboard/alarm validation.
 - [ ] Sign-off recorded for dashboard/alarm validation via
-  `docs/plan/release/NONPROD-LIVE-VALIDATION-RUNBOOK.md`.
+  `docs/runbooks/release/nonprod-live-validation-runbook.md`.
 - [x] Finalize active documentation cleanup for post-cutover steady state.
 - [x] Publish modular CI/CD provisioning and secrets guide set in `nova` and
   mirrored operator guide set in `container-craft` with action-first and CLI
@@ -247,97 +240,120 @@ In monorepo docs:
   `scripts/release/day-0-operator-command-pack.sh`.
 - [x] Publish release notes with hard-cutover migration checklist.
 - [x] Publish operator runbook for live AWS validation gates:
-  `docs/plan/release/NONPROD-LIVE-VALIDATION-RUNBOOK.md`.
+  `docs/runbooks/release/nonprod-live-validation-runbook.md`.
+
+## Execution phases and checklist status
+
+Phases align with PR-0001–0008 scope order; subplan mapping lists file-level
+execution slices.
+
+### Phase 1: Runtime foundation and contract hardening
+
+- [x] Create FastAPI service skeleton and domain models
+- [x] Implement transfer endpoints and S3 orchestration service
+- [x] Implement error envelope and request-id middleware
+- [x] Implement local JWT and remote auth mode wiring
+- [x] Add idempotency replay handling for initiate and enqueue
+- [x] Add baseline health/readiness/metrics endpoints
+- [x] Add initial unit/integration tests for health and idempotency
+
+### Phase 2: Async jobs, cache, and observability hardening
+
+- [x] Add async job API handlers and queue abstractions
+- [x] Add two-tier cache primitives (local + Redis)
+- [x] Add activity rollup backends (memory + DynamoDB)
+- [x] Add EMF metric emission helper and request logging hardening
+- [x] Remediate enqueue publish failure propagation (`503 queue_unavailable`)
+- [x] Remediate readiness false negatives from feature flags
+- [x] Remediate DynamoDB distinct event-type rollup counting
+- [x] Add fail-fast validation for selected SQS/DynamoDB backends
+- [x] Add durable job repository backend for AWS deployments (DynamoDB)
+- [x] Add explicit queue lag metric integration from worker processing
+
+### Phase 3: Architecture docs alignment
+
+- [x] Update requirements to final architecture decisions
+- [x] Add ADRs/SPECs for async orchestration, cache/idempotency, runtime support,
+  observability stack
+- [x] Update spec/ADR indexes and references
+- [x] Rewrite archived subplans for final execution model
+- [x] Refresh README, PRD, and AGENTS guidance with implementation semantics
+
+### Phase 4: Cross-repo integration and release closure
+
+Hard-cutover release status was blocked until non-prod live validation gates
+completed.
+
+- [x] Align `container-craft` IaC for Redis/SQS/DynamoDB toggles and env mapping
+- [ ] Validate sidecar ALB routing and health-check tuning in non-prod
+- [x] Validate SQS worker path (enqueue -> execute -> status transition)
+- [ ] Validate CloudWatch dashboards and alarms with synthetic failures
+- [x] Finalize migration bridge docs and standalone beta smoke coverage
+- [x] Complete release checklist and versioning across participating repos
+
+External live gate execution reference:
+`docs/runbooks/release/nonprod-live-validation-runbook.md`
+
+## Subplan mapping
+
+- `subplans/SUBPLAN-0001.md`: core runtime and contract hardening
+- `subplans/SUBPLAN-0002.md`: async, cache, and observability
+- `subplans/SUBPLAN-0003.md`: infra and cross-repo integration
+- `subplans/SUBPLAN-0004.md`: E2E validation and release closure
+- `subplans/SUBPLAN-0005.md`: master cross-repo execution tracker
+
+## Quality gates
+
+Required for each implementation slice:
+
+- `source .venv/bin/activate && uv run ruff check .`
+- `source .venv/bin/activate && uv run ruff check . --select I`
+- `source .venv/bin/activate && uv run ruff format .`
+- `source .venv/bin/activate && uv run mypy`
+- `source .venv/bin/activate && uv run pytest -q`
+- `source .venv/bin/activate && uv run pytest -q packages/nova_file_api/tests/test_generated_client_smoke.py`
 
 ## Testing and Acceptance Scenarios
 
-1. Contract and routing
+**1. Contract and routing** — [x] OpenAPI only `/api/transfers/*` and
+`/api/jobs/*` (historical era); [x] no deprecated alias namespace; [x] generated
+client smoke passes.
 
-   - [x] OpenAPI contains only new `/api/transfers/*` and `/api/jobs/*` paths.
-   - [x] No deprecated alias route namespace remains.
-   - [x] Generated client smoke tests pass.
+**2. Security/auth** — [x] JWT invalid issuer/audience/exp/nbf; [x] scopes;
+[x] remote auth fail-closed; [x] logs sanitized (no token/presign/query sig).
 
-2. Security/auth
+**3. Async reliability** — [x] enqueue success path; [x] `503 queue_unavailable`
+on publish failure; [x] failed enqueue not idempotency-cached as success; [x]
+illegal transition `409`; [x] body-less `GET /api/jobs/{job_id}` polling forwards
+`X-Session-Id`.
 
-   - [x] JWT invalid issuer/audience/exp/nbf rejected correctly.
-   - [x] Required scopes/permissions enforced.
-   - [x] Remote auth fail-closed behavior verified.
-   - [x] Logs contain no token/presigned URL/query signature leakage.
+**4. Cache and resilience** — [x] local hit/miss; [x] Redis outage → local-only;
+[x] recovery repopulates shared cache.
 
-3. Async reliability
+**5. Observability/operations** — [x] EMF valid + bounded dimensions; [x] EMF
+top-level (`_aws`, etc.), not JSON-string nested; [x] `/readyz` ignores feature
+flags for pass/fail.
 
-   - [x] Enqueue success path persists and completes.
-   - [x] Queue publish failure returns 503 queue_unavailable.
-   - [x] Failed enqueue is not replayed as success via idempotency.
-   - [x] Invalid worker transition returns 409 conflict.
-   - [x] Same-origin browser polling propagates caller scope on body-less
-     `GET /api/jobs/{job_id}` requests via `X-Session-Id`.
+**6. Cross-repo integration** — [x] `container-craft` routes/env; [x] dash-pca
+passing on new contracts; [ ] non-prod E2E smoke before prod; [ ] owner + target
+date; [ ] sign-off — all tracked in
+`docs/runbooks/release/nonprod-live-validation-runbook.md`.
 
-4. Cache and resilience
+## Assumptions, defaults, and external gates
 
-   - [x] Local cache hit/miss behavior verified.
-   - [x] Redis outage degrades to local-only mode safely.
-   - [x] Recovery path repopulates shared cache correctly.
-
-5. Observability/operations
-
-   - [x] EMF payloads valid and within dimension limits.
-   - [x] EMF fields are emitted as top-level structured log fields (including
-     `_aws`), not nested JSON strings.
-   - [x] `/readyz` excludes feature-flag state from pass/fail logic.
-
-6. Cross-repo integration
-
-   - [x] `container-craft` routes and env mappings align with new API.
-   - [x] dash-pca updated and passing against new contracts.
-   - [ ] End-to-end non-prod smoke succeeds before prod release
-     (tracked via `docs/plan/release/NONPROD-LIVE-VALIDATION-RUNBOOK.md`).
-   - [ ] Owner + target date recorded for non-prod smoke.
-   - [ ] Sign-off recorded for non-prod smoke via
-     `docs/plan/release/NONPROD-LIVE-VALIDATION-RUNBOOK.md`.
-
-## Assumptions and Defaults
-
-- Python 3.12+ and uv workspace flow.
-- ECS/Fargate + ALB sidecar remains canonical runtime deployment.
-- Infra remains separate in `container-craft`.
-- Hard cutover means no compatibility alias routes and no namespace shims.
-- dash-pca migration is release-blocking.
-
-## Remaining External Gates
-
-The following gates require live non-prod AWS access:
-
-- Sidecar ALB route + health-check verification.
-- Cross-repo non-prod E2E smoke.
-- CloudWatch dashboard/alarm synthetic-failure validation.
-
-Execution and evidence checklist:
-
-- `docs/plan/release/NONPROD-LIVE-VALIDATION-RUNBOOK.md`
-
-## Primary Sources to Use During Execution
-
-- FastAPI lifespan/events: <https://fastapi.tiangolo.com/advanced/events/>
-- FastAPI workers: <https://fastapi.tiangolo.com/deployment/server-workers/>
-- FastAPI security: <https://fastapi.tiangolo.com/tutorial/security/>
-- Starlette threadpool: <https://www.starlette.io/threadpool/>
-- AnyIO thread guidance: <https://anyio.readthedocs.io/en/latest/threads.html>
-- OpenAPI spec: <https://spec.openapis.org/oas/latest.html>
-- RFC6750 bearer: <https://datatracker.ietf.org/doc/html/rfc6750>
-- ECS health checks: <https://docs.aws.amazon.com/AmazonECS/latest/developerguide/load-balancer-healthcheck.html>
-- SQS error handling: <https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/handling-request-errors.html>
-- SQS metrics: <https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-available-cloudwatch-metrics.html>
-- SQS SendMessage API: <https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/API_SendMessage.html>
-- CloudWatch EMF spec: <https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch_Embedded_Metric_Format_Specification.html>
-- CloudWatch cardinality: <https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/Application-Signals-Cardinality.html>
-- DynamoDB condition expressions: <https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Expressions.ConditionExpressions.html>
-- DynamoDB UpdateItem API: <https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_UpdateItem.html>
-- Presigned URL guardrails: <https://docs.aws.amazon.com/prescriptive-guidance/latest/presigned-url-best-practices/introduction.html>
-- FastAPI best-practices repo: <https://github.com/zhanymkanov/fastapi-best-practices>
-- FastAPI best-practices AGENTS: <https://raw.githubusercontent.com/zhanymkanov/fastapi-best-practices/master/AGENTS.md>
+- Python 3.12+, uv workspace; ECS/Fargate + ALB sidecar; infra in
+  `container-craft`; hard cutover (no alias shims); dash-pca migration
+  release-blocking.
+- **Live AWS still required at archive:** sidecar ALB + health checks;
+  cross-repo non-prod E2E smoke; CloudWatch dashboard/alarm synthetic failures.
+  Operator path: `docs/runbooks/release/nonprod-live-validation-runbook.md`.
 
 ## Execution Log
+
+Chronological implementation notes (dates, repos, test paths, gate counts, and
+before/after remediations). Per-entry **Source references** sub-bullets point
+at external docs; the same URLs are grouped again under **Source references**
+at the end of this file.
 
 - 2026-02-12: Created monorepo runtime layout:
   `packages/nova_file_api`, `packages/nova_auth_api`,
@@ -360,23 +376,14 @@ Execution and evidence checklist:
   `transfersEndpointBase` and `jobsEndpointBase` defaults.
 - 2026-02-12: Started docs/spec route normalization from legacy
   `/api/transfers/*` to split routes; traceability cleanup in progress.
-- 2026-02-12: Passed required quality gates from monorepo root:
-  - `source .venv/bin/activate && uv run ruff check . --fix`
-  - `source .venv/bin/activate && uv run ruff format .`
-  - `source .venv/bin/activate && uv run mypy`
-  - `source .venv/bin/activate && uv run pytest -q`
-  - Current local result: `26 passed`.
+- 2026-02-12: Local gates (`uv run` from activated `.venv`): `ruff check . --fix`,
+  `ruff format .`, `mypy`, `pytest -q` → **26 passed**.
 - 2026-02-12: Expanded runtime regression coverage:
   - OpenAPI split-route contract tests
   - auth scope/permission enforcement and RFC6750 mapping tests
   - cache fallback and cache metric counter tests
   - logging sanitization and EMF payload tests
-- 2026-02-12: Re-ran required quality gates from monorepo root:
-  - `source .venv/bin/activate && uv run ruff check . --fix`
-  - `source .venv/bin/activate && uv run ruff format .`
-  - `source .venv/bin/activate && uv run mypy`
-  - `source .venv/bin/activate && uv run pytest -q`
-  - Current local result: `45 passed`.
+- 2026-02-12: Same local gate lane → **45 passed**.
 - 2026-02-12: Re-ran external repo gates:
   - `container-craft`: `uv run -- ruff check .`, `uv run -- mypy`,
     `uv run -- pytest -q` (`48 passed`)
@@ -385,47 +392,74 @@ Execution and evidence checklist:
 - 2026-02-12: Validated requirements traceability anchors:
   - checked `60` links across `17` docs files
   - missing anchors: `0`
+- 2026-02-12: Updated plan/ADR/SPEC/subplan docs for locked production
+  architecture and cross-repo execution.
+- 2026-02-12: Migrated ADR/SPEC requirement links to current requirement IDs
+  and removed legacy traceability alias anchors.
+- 2026-02-12: Fixed queue publish error propagation, readiness semantics, and
+  DynamoDB distinct event-type rollups; added tests and fail-fast backend
+  configuration checks.
+- 2026-02-12: Completed full docs hardening pass across README/PRD/AGENTS,
+  requirements, SPECs, ADRs, and subplans using AWS docs + Context7 + Exa
+  research inputs.
+- 2026-02-12: Added worker result-update endpoint contract docs, enforced async
+  job state transition validation (`409 conflict` on invalid transitions), and
+  expanded tests for transition correctness.
+- 2026-02-12: Added explicit worker observability metrics for queue lag and
+  worker update throughput; expanded job-service tests for metric coverage.
 - 2026-02-12: Refactored `nova_dash_bridge.FileTransferService` to delegate
   control-plane transfer operations to `nova_file_api.TransferService`,
   preserving bridge-only policy and export/download helpers.
 - 2026-02-12: Added generated OpenAPI client smoke test:
   `packages/nova_file_api/tests/test_generated_client_smoke.py`
   using `openapi-python-client` generation + compile verification.
-- 2026-02-12: Re-ran runtime quality gates after bridge delegation + client
-  smoke implementation:
-  - `source .venv/bin/activate && uv run ruff check . --fix`
-  - `source .venv/bin/activate && uv run ruff format .`
-  - `source .venv/bin/activate && uv run mypy`
-  - `source .venv/bin/activate && uv run pytest -q`
-  - Current local result: `46 passed`.
+- 2026-02-12: Same local gate lane after bridge delegation + client smoke →
+  **46 passed**.
 - 2026-02-12: Added queue retry/pressure test coverage for `SqsJobPublisher`
   configuration and publish-failure mappings.
 - 2026-02-12: Published release closure artifacts:
-  - `docs/history/2026-02-cutover/release/RELEASE-NOTES-2026-02-12.md`
   - `docs/plan/release/HARD-CUTOVER-CHECKLIST.md`
   - `docs/plan/release/RELEASE-VERSION-MANIFEST.md`
-- 2026-02-12: Re-ran required runtime quality gates:
-  - `source .venv/bin/activate && uv run ruff check . --fix`
-  - `source .venv/bin/activate && uv run ruff format .`
-  - `source .venv/bin/activate && uv run mypy`
-  - `source .venv/bin/activate && uv run pytest -q`
-  - Current local result: `49 passed`.
+- 2026-02-12: Same local gate lane → **49 passed**.
 - 2026-02-12: Re-verified hard-cutover runtime contract exposure:
   - OpenAPI paths include only `/api/transfers/*`, `/api/jobs/*`,
     `/healthz`, `/readyz`, and `/metrics/summary`.
   - Runtime source contains no legacy import/path usage
     (deprecated alias routes and retired package/module names).
-- 2026-02-12: Re-ran generated-client smoke gate:
-  - `source .venv/bin/activate && uv run pytest -q`
-    `packages/nova_file_api/tests/test_generated_client_smoke.py`
-  - Result: `1 passed`.
+- 2026-02-12: Generated-client smoke:
+  `uv run pytest -q packages/nova_file_api/tests/test_generated_client_smoke.py`
+  → **1 passed**.
 - 2026-02-12: Added operator runbook for remaining external live gates:
-  `docs/plan/release/NONPROD-LIVE-VALIDATION-RUNBOOK.md`.
+  `docs/runbooks/release/nonprod-live-validation-runbook.md`.
+- 2026-02-13: Review regression hardening:
+  - Before: async uploader polling called `GET /api/jobs/{job_id}` without
+    same-origin caller-scope headers, causing `401 missing session scope`.
+  - After: browser polling forwards `X-Session-Id` for body-less job status
+    polling and includes regression contract coverage.
+  - Before: EMF payload was emitted under `emf=\"<json string>\"`, which
+    prevented CloudWatch EMF extraction.
+  - After: EMF payload fields (`_aws`, metric value, dimensions) emit as
+    top-level structured log fields.
+  - Added/updated tests:
+    `packages/nova_file_api/tests/test_jobs.py`,
+    `packages/nova_file_api/tests/test_metrics.py`,
+    `packages/nova_file_api/tests/test_dash_bridge_asset_contract.py`.
+  - Source references:
+    - CloudWatch EMF specification:
+      <https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch_Embedded_Metric_Format_Specification.html>
+    - Fetch API request options (`headers`, `credentials`):
+      <https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch>
 - 2026-02-13: Implemented cache/idempotency addendum:
   async cache call-path completion across auth/API/idempotency, explicit
   idempotency claim/commit/discard lifecycle for mutation safety, redis env
   contract normalization to `CACHE_REDIS_*` and `CACHE_KEY_*`, and async
   readiness shared-cache ping wiring.
+  - Added/updated tests: `packages/nova_file_api/tests/test_cache.py`.
+  - Source references:
+    - redis-py asyncio:
+      <https://redis.readthedocs.io/en/stable/examples/asyncio_examples.html>
+    - redis-py retry:
+      <https://redis.readthedocs.io/en/stable/retry.html>
 - 2026-02-23: Review remediation hardening:
   - Before: request-model validation errors returned FastAPI default
     `422 {"detail": ...}` in `nova_file_api` and `nova_auth_api`.
@@ -510,7 +544,17 @@ Execution and evidence checklist:
   - Remaining external gates (manual/non-local):
     Secrets Manager signing secret provisioning, CodeConnections activation, and
     first Dev->Prod promotion evidence capture in
-    `docs/plan/release/NONPROD-LIVE-VALIDATION-RUNBOOK.md`.
+    `docs/runbooks/release/nonprod-live-validation-runbook.md`.
+- 2026-02-24: CI/CD documentation hardening update:
+  - Added modular release/provisioning guides under `docs/plan/release/` (later
+    relocated to `docs/runbooks/provisioning/` and `docs/release/` per current
+    repo layout).
+  - Added mirrored operator docs in `container-craft` for action-first and CLI
+    fallback deployment.
+  - Added day-0 execution checklists in both repos; added
+    `scripts/release/day-0-operator-command-pack.sh`.
+  - Documentation integrity follow-up: local Markdown link validation and
+    required-section conformance (including `## Prerequisites` backfill).
 - 2026-02-24: Release automation correctness remediation:
   - `buildspec-release.yml` now resolves changed publish units from signed
     release commit diff (`HEAD^..HEAD`) and publishes unit paths from
@@ -525,5 +569,64 @@ Execution and evidence checklist:
   - Release docs synchronized:
     `README.md`,
     `docs/architecture/spec/SPEC-0004-ci-cd-and-docs.md`,
-    `docs/plan/release/RELEASE-POLICY.md`,
-    `docs/plan/release/RELEASE-RUNBOOK.md`.
+    `docs/runbooks/release/release-policy.md`,
+    `docs/runbooks/release/release-runbook.md`.
+
+## Source references
+
+Program-level bibliography (same URLs as cited inline in log entries above).
+
+### Framework / OpenAPI / auth
+
+- FastAPI lifespan/events: <https://fastapi.tiangolo.com/advanced/events/>
+- FastAPI workers: <https://fastapi.tiangolo.com/deployment/server-workers/>
+- FastAPI security: <https://fastapi.tiangolo.com/tutorial/security/>
+- FastAPI handling errors: <https://fastapi.tiangolo.com/tutorial/handling-errors/>
+- Starlette threadpool: <https://www.starlette.io/threadpool/>
+- AnyIO thread guidance: <https://anyio.readthedocs.io/en/latest/threads.html>
+- OpenAPI spec: <https://spec.openapis.org/oas/latest.html>
+- RFC6750 bearer: <https://datatracker.ietf.org/doc/html/rfc6750>
+- FastAPI best-practices repo: <https://github.com/zhanymkanov/fastapi-best-practices>
+- FastAPI best-practices AGENTS:
+  <https://raw.githubusercontent.com/zhanymkanov/fastapi-best-practices/master/AGENTS.md>
+
+### Packaging / settings
+
+- PEP 621 (`pyproject.toml` project metadata): <https://peps.python.org/pep-0621/>
+- Hatch metadata configuration:
+  <https://github.com/pypa/hatch/blob/master/docs/config/metadata.md>
+- pydantic-settings docs:
+  <https://github.com/pydantic/pydantic-settings/blob/main/docs/index.md>
+
+### AWS / infrastructure
+
+- ECS health checks:
+  <https://docs.aws.amazon.com/AmazonECS/latest/developerguide/load-balancer-healthcheck.html>
+- Kubernetes readiness/liveness probes:
+  <https://kubernetes.io/docs/concepts/configuration/liveness-readiness-startup-probes/>
+- SQS error handling:
+  <https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/handling-request-errors.html>
+- SQS error handling patterns:
+  <https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/best-practices-error-handling.html>
+- SQS metrics:
+  <https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-available-cloudwatch-metrics.html>
+- SQS SendMessage API:
+  <https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/API_SendMessage.html>
+- AWS SDK retry behavior:
+  <https://docs.aws.amazon.com/general/latest/gr/api-retries.html>
+- CloudWatch EMF spec:
+  <https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch_Embedded_Metric_Format_Specification.html>
+- CloudWatch cardinality:
+  <https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/Application-Signals-Cardinality.html>
+- DynamoDB best practices:
+  <https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/best-practices.html>
+- DynamoDB condition expressions:
+  <https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Expressions.ConditionExpressions.html>
+- DynamoDB UpdateItem API:
+  <https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_UpdateItem.html>
+- DynamoDB atomic counter examples:
+  <https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/example_dynamodb_Scenario_AtomicCounterOperations_section.html>
+- ElastiCache best practices:
+  <https://docs.aws.amazon.com/AmazonElastiCache/latest/dg/BestPractices.html>
+- Presigned URL guardrails:
+  <https://docs.aws.amazon.com/prescriptive-guidance/latest/presigned-url-best-practices/introduction.html>

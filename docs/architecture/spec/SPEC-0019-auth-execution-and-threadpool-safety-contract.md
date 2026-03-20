@@ -18,8 +18,15 @@ code.
 
 ## 2. Canonical auth execution rules
 
-1. Local synchronous JWT verification must run behind a threadpool boundary.
-2. Remote auth remains optional; when enabled it fails closed.
+1. Local synchronous JWT verification must run behind a threadpool boundary
+   **when** verification remains synchronous on async request paths. When JWT
+   verification is async-native in the file API ([ADR-0033](../adr/ADR-0033-single-runtime-auth-authority.md),
+   [ADR-0037](../adr/ADR-0037-async-first-public-surface.md)), this
+   rule applies only to verification paths that are still synchronous.
+2. Remote HTTP calls to a **dedicated auth microservice** are not part of the
+   target architecture (superseded `ADR-0005` / `SPEC-0007`). Any optional
+   remote verification behavior must fail closed if reintroduced temporarily
+   during migration.
 3. Remote auth HTTP calls must reuse a process-scoped async client rather than
    creating a new client per request-path invocation.
 4. Process-scoped remote auth clients must be closed during application

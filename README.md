@@ -19,10 +19,10 @@ Use these entrypoints before drilling into deeper docs:
 ## Runtime Topology
 
 - `packages/nova_file_api/`: transfer, jobs, readiness, metrics, ASGI
-  entrypoint, and worker
-  orchestration
-- `packages/nova_auth_api/`: token verify/introspect semantics and ASGI
-  entrypoint
+  entrypoint, worker orchestration, and **in-process bearer JWT** verification
+  in the target architecture (`ADR-0033`, `SPEC-0027`)
+- `packages/nova_auth_api/`: **retired** in the target architecture (superseded
+  `ADR-0005`); package may remain until green-field branch 1 removes it
 - `packages/nova_dash_bridge/`: Dash/Flask/FastAPI integration adapters over
   `nova_file_api.public`
 - `packages/nova_runtime_support/`: shared runtime support helpers
@@ -39,6 +39,9 @@ Use the canonical authority chain:
 - `docs/architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md`
 - `docs/architecture/spec/SPEC-0000-http-api-contract.md`
 - `docs/architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md`
+- `docs/architecture/spec/SPEC-0027-public-http-contract-revision-and-bearer-auth.md`
+
+Green-field execution router: `docs/plan/greenfield-simplification-program.md`.
 
 For the broader authority pack, use `docs/architecture/README.md`.
 
@@ -51,11 +54,15 @@ Public capabilities:
 
 - transfer orchestration under `/v1/transfers/*`
 - async job control plane under `/v1/jobs*`
-- internal worker result updates at `/v1/internal/jobs/{job_id}/result`
+- worker job completion via **direct persistence** (no public internal HTTP
+  callback in the target architecture; `SPEC-0028`, `ADR-0035`)
 - capability and release endpoints at `/v1/capabilities`,
   `/v1/resources/plan`, and `/v1/releases/info`
 - operational health at `/v1/health/live` and `/v1/health/ready`
 - operational summary at `/metrics/summary`
+
+There is **no** separate `/v1/token/verify` or `/v1/token/introspect` surface in
+the target architecture.
 
 Do not add compatibility aliases or retired legacy route families.
 
@@ -65,7 +72,8 @@ Nova owns the SDK contract surface:
 
 - Python is the release-grade public SDK
 - TypeScript is release-grade within Nova's existing CodeArtifact staged/prod
-  system, but remains generator-owned and subpath-only
+  system, generator-owned and subpath-only, on `openapi-typescript` +
+  `openapi-fetch` per `ADR-0038` / `SPEC-0029`
 - R is a first-class internal release artifact line with real R packages,
   logical format `r`, CodeArtifact generic package transport, and signed
   tarball evidence
@@ -79,7 +87,7 @@ values and semantic tags for public grouping.
 For detailed SDK governance and generation rules, use:
 
 - `docs/standards/repository-engineering-standards.md`
-- `docs/architecture/spec/SPEC-0011-multi-language-sdk-architecture-and-package-map.md`
+- `docs/architecture/spec/SPEC-0029-sdk-architecture-and-artifact-contract.md`
 - `docs/architecture/spec/SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md`
 
 ## Key Runtime Invariants
@@ -98,8 +106,8 @@ For detailed SDK governance and generation rules, use:
   diagnostic check
 - `AUTH_MODE=jwt_local` with incomplete OIDC settings leaves
   `auth_dependency` not-ready
-- `POST /v1/internal/jobs/{job_id}/result` with `status=succeeded` normalizes
-  `error` to `null`
+- terminal worker updates that set `status=succeeded` **must** normalize `error`
+  to `null` (direct persistence path; `SPEC-0028`)
 - malformed worker queue messages are retried through SQS redrive and are not
   acknowledged immediately
 
@@ -138,7 +146,7 @@ Runtime deploy/config drift guard:
   source of truth.
 - `scripts/release/runtime_config_contract.py` adds the curated deploy/template
   metadata that cannot be inferred from `Settings` alone.
-- `docs/plan/release/runtime-config-contract.generated.md` is the generated
+- `docs/release/runtime-config-contract.generated.md` is the generated
   operator-facing matrix. Refresh it with
   `scripts/release/generate_runtime_config_contract.py`.
 
@@ -211,12 +219,12 @@ Use `docs/runbooks/README.md` as the canonical runbook entrypoint.
 
 Key release docs:
 
-- `docs/plan/release/RELEASE-RUNBOOK.md`
-- `docs/plan/release/RELEASE-POLICY.md`
-- `docs/plan/release/NONPROD-LIVE-VALIDATION-RUNBOOK.md`
-- `docs/plan/release/release-promotion-dev-to-prod-guide.md`
-- `docs/plan/release/deploy-runtime-cloudformation-environments-guide.md`
-- `docs/plan/release/docker-buildx-and-credential-helper-setup-guide.md`
+- `docs/runbooks/release/release-runbook.md`
+- `docs/runbooks/release/release-policy.md`
+- `docs/runbooks/release/nonprod-live-validation-runbook.md`
+- `docs/runbooks/release/release-promotion-dev-to-prod.md`
+- `docs/runbooks/provisioning/deploy-runtime-cloudformation-environments.md`
+- `docs/runbooks/provisioning/docker-buildx-credential-helper-setup.md`
 
 The runtime deploy operator now owns the ECS service task role and cache secret
 wiring. Do not supply `TASK_ROLE_ARN`,
@@ -229,7 +237,7 @@ Local service-image verification uses the release-owned Dockerfiles under
 
 See:
 
-- `docs/plan/release/docker-buildx-and-credential-helper-setup-guide.md`
+- `docs/runbooks/provisioning/docker-buildx-credential-helper-setup.md`
 
 ## Historical and Archive Paths
 
@@ -239,4 +247,3 @@ Historical and superseded materials belong under:
 - `docs/history/**`
 - `docs/architecture/adr/superseded/**`
 - `docs/architecture/spec/superseded/**`
-- `docs/plan/HISTORY-INDEX.md`

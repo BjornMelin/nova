@@ -11,10 +11,12 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Literal, cast
 
+from scripts.release.release_paths import RELEASE_VERSION_MANIFEST_PATH
+
 BumpLevel = Literal["major", "minor", "patch"]
 PackageFormat = Literal["pypi", "npm", "r"]
 CodeArtifactFormat = Literal["pypi", "npm", "generic"]
-DEFAULT_MANIFEST_PATH = "docs/plan/release/RELEASE-VERSION-MANIFEST.md"
+DEFAULT_MANIFEST_PATH = RELEASE_VERSION_MANIFEST_PATH
 
 
 @dataclass(frozen=True)

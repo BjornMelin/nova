@@ -1,7 +1,8 @@
 # AGENTS.md (nova runtime)
 
-Nova is the canonical runtime monorepo for the file-transfer API, auth API, and
-their adapter surfaces.
+Nova is the canonical runtime monorepo for the file-transfer API (including
+**in-process bearer JWT** in the target architecture), retired dedicated auth
+service packages, and adapter surfaces.
 
 ## Start Here
 
@@ -20,10 +21,10 @@ different.
 ## Runtime Topology
 
 - `packages/nova_file_api/`: transfer, jobs, readiness, metrics, ASGI
-  entrypoint, and worker
-  orchestration.
-- `packages/nova_auth_api/`: token verify/introspect semantics and ASGI
-  entrypoint.
+  entrypoint, worker orchestration, and bearer JWT verification in the target
+  architecture (`ADR-0033`, `SPEC-0027`).
+- `packages/nova_auth_api/`: **retired** in the target architecture (superseded
+  `ADR-0005`); may remain in the tree until green-field branch 1 removes it.
 - `packages/nova_dash_bridge/`: Dash/Flask/FastAPI integration adapters over
   the canonical `nova_file_api.public` surface.
 - `packages/nova_runtime_support/`: shared runtime support helpers.
@@ -41,7 +42,8 @@ SDK posture:
 - Nova must provide complete public SDKs for Python, TypeScript, and R.
 - Python is the release-grade public SDK surface.
 - TypeScript is release-grade within Nova's existing CodeArtifact staged/prod
-  system while remaining generator-owned and subpath-only.
+  system while remaining generator-owned and subpath-only, using
+  `openapi-typescript` + `openapi-fetch` per `ADR-0038` / `SPEC-0029`.
 - R packages are first-class internal release artifacts with real package
   trees, logical format `r`, CodeArtifact generic transport, and signed tarball
   evidence.
@@ -65,6 +67,12 @@ SDK posture:
   - `docs/architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md`
   - `docs/architecture/spec/SPEC-0000-http-api-contract.md`
   - `docs/architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md`
+  - `docs/architecture/spec/SPEC-0027-public-http-contract-revision-and-bearer-auth.md`
+- Green-field program:
+  - `docs/plan/greenfield-simplification-program.md`
+  - `docs/plan/greenfield-authority-map.md`
+  - `docs/architecture/adr/ADR-0033-single-runtime-auth-authority.md`
+    through `ADR-0041-shared-pure-asgi-middleware-and-errors.md`
 - Product and topology context:
   - `docs/PRD.md`
   - `docs/architecture/adr/ADR-0024-layered-architecture-authority-pack.md`
@@ -88,15 +96,18 @@ SDK posture:
   - `docs/architecture/spec/SPEC-0025-reusable-workflow-integration-contract.md`
   - `docs/architecture/spec/SPEC-0026-ci-cd-iam-least-privilege-matrix.md`
 - SDK and release-artifact governance pack:
-  - `docs/architecture/adr/ADR-0013-final-state-sdk-topology-generated-core-plus-thin-adapters.md`
-  - `docs/architecture/spec/SPEC-0011-multi-language-sdk-architecture-and-package-map.md`
+  - `docs/architecture/adr/ADR-0038-sdk-architecture-by-language.md`
+  - `docs/architecture/spec/SPEC-0029-sdk-architecture-and-artifact-contract.md`
   - `docs/architecture/spec/SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md`
 
 ## Canonical Guardrails
 
 - Public runtime routes are canonical `/v1/*` plus `/metrics/summary`.
-- Auth API routes are `/v1/token/verify`, `/v1/token/introspect`,
-  `/v1/health/live`, and `/v1/health/ready`.
+- Public callers authenticate with **bearer JWT** verified in `nova_file_api`;
+  there is **no** separate `/v1/token/verify` or `/v1/token/introspect` surface
+  in the target architecture (`ADR-0033`, `ADR-0034`, `SPEC-0027`).
+- Operational health for the public service remains at `/v1/health/live` and
+  `/v1/health/ready`.
 - Do not add compatibility aliases or namespace shims such as `/api/*`,
   `/api/v1/*`, `/healthz`, or `/readyz`.
 - `nova_dash_bridge` is an adapter package. It may forward context and call
@@ -118,7 +129,7 @@ Quick route preflight:
 
 ```bash
 source .venv/bin/activate && \
-rg -n "/v1/transfers|/v1/jobs|/v1/internal/jobs|/v1/capabilities|/v1/resources/plan|/v1/releases/info|/v1/token/verify|/v1/token/introspect|/v1/health/live|/v1/health/ready|/metrics/summary" packages docs
+rg -n "/v1/transfers|/v1/jobs|/v1/capabilities|/v1/resources/plan|/v1/releases/info|/v1/health/live|/v1/health/ready|/metrics/summary" packages docs
 ```
 
 ## Runtime Invariants
@@ -140,18 +151,20 @@ rg -n "/v1/transfers|/v1/jobs|/v1/internal/jobs|/v1/capabilities|/v1/resources/p
   `OIDC_JWKS_URL` must fail the `auth_dependency` readiness check.
 - Shared cache only gates readiness when idempotency is enabled; activity-store
   health remains visible but is not readiness-fatal in the current contract.
-- Do not run synchronous JWT verification directly on async event-loop paths;
-  use a threadpool boundary.
-- `POST /v1/internal/jobs/{job_id}/result` with `status=succeeded` must clear
-  `error` to `null`.
+- Prefer **async-native** JWT verification in `nova_file_api` when implemented
+  (`ADR-0033`, `ADR-0037`); any **remaining** synchronous verification on async
+  paths must use a threadpool boundary (`ADR-0026`, `SPEC-0019`).
+- Worker terminal updates that set `status=succeeded` must clear `error` to
+  `null` on the **direct persistence** path (`SPEC-0028`, `ADR-0035`).
 - `JOBS_QUEUE_BACKEND=sqs` with `JOBS_ENABLED=true` requires
   `JOBS_SQS_QUEUE_URL`.
 - `JOBS_REPOSITORY_BACKEND=dynamodb` requires `JOBS_DYNAMODB_TABLE`.
 - DynamoDB-backed job listing requires the
   `scope_id-created_at-index` GSI; do not fall back to `Scan`.
 - `JOBS_RUNTIME_MODE=worker` requires `JOBS_ENABLED=true`,
-  `JOBS_QUEUE_BACKEND=sqs`, `JOBS_SQS_QUEUE_URL`, `JOBS_API_BASE_URL`, and
-  `JOBS_WORKER_UPDATE_TOKEN`.
+  `JOBS_QUEUE_BACKEND=sqs`, and `JOBS_SQS_QUEUE_URL`. HTTP callback settings
+  (`JOBS_API_BASE_URL`, `JOBS_WORKER_UPDATE_TOKEN`) are **not** part of the
+  target architecture once direct persistence is implemented (`SPEC-0028`).
 - Malformed worker queue messages must remain unacked so SQS retry/DLQ policy
   handles poison messages.
 - `ACTIVITY_STORE_BACKEND=dynamodb` requires `ACTIVITY_ROLLUPS_TABLE`.
@@ -184,11 +197,13 @@ source .venv/bin/activate && uv run python scripts/release/generate_runtime_conf
 source .venv/bin/activate && uv run python scripts/release/generate_clients.py --check
 source .venv/bin/activate && uv run python scripts/release/generate_python_clients.py --check
 source .venv/bin/activate && \
-for p in packages/nova_file_api packages/nova_auth_api \
-  packages/nova_dash_bridge; do uv build "$p"; done
+for p in packages/nova_file_api packages/nova_dash_bridge; do uv build "$p"; done
 ```
 
 Notes:
+
+- Optional until `nova_auth_api` removal lands: also run
+  `uv build packages/nova_auth_api` when touching that package.
 
 - `ty` is the canonical Python type gate for the full repo typing surface.
 - `mypy` remains a required compatibility backstop on its narrower configured
@@ -202,7 +217,7 @@ Notes:
 - Runtime config deploy/docs/tests must treat
   `packages/nova_file_api/src/nova_file_api/config.py` plus
   `scripts/release/runtime_config_contract.py` as the source-of-truth pair and
-  keep `docs/plan/release/runtime-config-contract.generated.md` fresh via
+  keep `docs/release/runtime-config-contract.generated.md` fresh via
   `scripts/release/generate_runtime_config_contract.py`.
 - CI also enforces a stronger canonical-route policy guard in
   `.github/workflows/ci.yml`. Use the quick route preflight above before
@@ -279,7 +294,7 @@ source .venv/bin/activate && uv run --with pytest pytest -q \
 ### Service Dockerfiles or release-image build flow
 
 Use this when touching `apps/nova_file_api_service/Dockerfile`,
-`apps/nova_auth_api_service/Dockerfile`, `buildspecs/buildspec-release.yml`, or
+`apps/nova_auth_api_service/Dockerfile` (until removed), `buildspecs/buildspec-release.yml`, or
 release-image documentation:
 
 ```bash
@@ -287,9 +302,10 @@ docker buildx version
 DOCKER_BUILDKIT=1 docker buildx build --load \
   -f apps/nova_file_api_service/Dockerfile \
   -t nova-file-api:test .
-DOCKER_BUILDKIT=1 docker buildx build --load \
-  -f apps/nova_auth_api_service/Dockerfile \
-  -t nova-auth-api:test .
+# Optional until auth service image is removed:
+# DOCKER_BUILDKIT=1 docker buildx build --load \
+#   -f apps/nova_auth_api_service/Dockerfile \
+#   -t nova-auth-api:test .
 source .venv/bin/activate && uv run pytest -q \
   packages/nova_file_api/tests/test_runtime_security_reliability_gates.py \
   tests/infra/test_workflow_productization_contracts.py \
@@ -304,7 +320,7 @@ Notes:
 - Local service-image verification and release builds now require Docker
   BuildKit plus `buildx`.
 - If local Docker hits plugin-path or credential-helper failures, use
-  `docs/plan/release/docker-buildx-and-credential-helper-setup-guide.md`.
+  `docs/runbooks/provisioning/docker-buildx-credential-helper-setup.md`.
 
 ### Downstream route or bridge contract changes
 
@@ -372,4 +388,4 @@ Keep npm registry config repo-local.
 - `docs/plan/PLAN.md`
 - `docs/architecture/adr/index.md`
 - `docs/architecture/spec/index.md`
-- `docs/plan/HISTORY-INDEX.md` when tracing retired or superseded guidance
+- `docs/history/README.md` when tracing retired or superseded program archives

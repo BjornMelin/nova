@@ -30,10 +30,18 @@ Use these in order:
   - `../architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md`
   - `../architecture/spec/SPEC-0000-http-api-contract.md`
   - `../architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md`
-- `../architecture/adr/ADR-0013-final-state-sdk-topology-generated-core-plus-thin-adapters.md` for older SDK topology context that still informs generated-surface review
+- `../architecture/adr/ADR-0038-sdk-architecture-by-language.md`,
+  `../architecture/spec/SPEC-0029-sdk-architecture-and-artifact-contract.md`, and
+  `../architecture/spec/SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md`
+  for current SDK governance (superseded predecessors: `../architecture/adr/index.md`
+  and `../architecture/spec/index.md`)
 - `./repository-engineering-standards.md` for the full gate matrix and documentation sync rules
-- `../plan/release/RELEASE-RUNBOOK.md`
-- `../plan/release/RELEASE-POLICY.md`
+- `../release/README.md` for committed release artifacts (manifest, generated contract)
+- `../runbooks/release/release-runbook.md`
+- `../runbooks/release/release-policy.md`
+- `../runbooks/release/README.md` and `../runbooks/provisioning/README.md` for narrative runbooks
+- Release doc conventions: **Release operator docs profile** in
+  `./repository-engineering-standards.md`
 
 ## Scope
 
@@ -52,5 +60,5 @@ Runtime config drift guard:
 - keep `packages/nova_file_api/src/nova_file_api/config.py` and
   `scripts/release/runtime_config_contract.py` aligned as the source-of-truth
   pair
-- refresh `../plan/release/runtime-config-contract.generated.md` with
+- refresh `../release/runtime-config-contract.generated.md` with
   `scripts/release/generate_runtime_config_contract.py`

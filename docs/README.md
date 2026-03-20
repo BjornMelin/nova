@@ -1,7 +1,7 @@
 # Nova Documentation
 
 Status: Active
-Last reviewed: 2026-03-18
+Last reviewed: 2026-03-19
 
 ## Purpose
 
@@ -34,8 +34,8 @@ Use these when the question is about SDK packaging, release-grade TypeScript,
 or first-class internal R release artifacts:
 
 - `./clients/README.md`
-- `./architecture/adr/ADR-0013-final-state-sdk-topology-generated-core-plus-thin-adapters.md`
-- `./architecture/spec/SPEC-0011-multi-language-sdk-architecture-and-package-map.md`
+- `./architecture/adr/ADR-0038-sdk-architecture-by-language.md`
+- `./architecture/spec/SPEC-0029-sdk-architecture-and-artifact-contract.md`
 - `./architecture/spec/SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md`
 
 ### Standards and engineering workflow
@@ -55,9 +55,14 @@ runtime operations:
 
 - `./runbooks/README.md`
 - `./plan/PLAN.md`
-- `./plan/release/`
-- `./plan/release/runtime-config-contract.generated.md` for the generated
-  runtime env/deploy matrix
+- `./plan/greenfield-simplification-program.md`
+- `./plan/greenfield-authority-map.md`
+- `./runbooks/release/` and `./runbooks/provisioning/` for narrative operator
+  runbooks
+- `./release/` for committed release artifacts (manifest, generated runtime
+  contract markdown)
+- `./release/runtime-config-contract.generated.md` for the generated runtime
+  env/deploy matrix
 
 ### Overview and product context
 
@@ -71,8 +76,7 @@ authority docs:
 
 Use these only for traceability, not as active authority:
 
-- `./history/`
-- `./plan/HISTORY-INDEX.md`
+- `./history/` (see [`./history/README.md`](./history/README.md) for bundles)
 - `./architecture/adr/superseded/`
 - `./architecture/spec/superseded/`
 
@@ -90,7 +94,7 @@ Use these only for traceability, not as active authority:
 - Runtime config docs, deploy scripts, and infra tests must derive their live
   env/override matrix from `packages/nova_file_api/src/nova_file_api/config.py`
   plus `scripts/release/runtime_config_contract.py`, with
-  `./plan/release/runtime-config-contract.generated.md` treated as the
+  `./release/runtime-config-contract.generated.md` treated as the
   operator-facing generated view.
 - Adapter-boundary changes must keep `./architecture/README.md`,
   `./architecture/adr/ADR-0025-runtime-monorepo-component-boundaries-and-ownership.md`,

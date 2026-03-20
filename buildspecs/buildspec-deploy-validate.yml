@@ -32,4 +32,4 @@ phases:
 artifacts:
   files:
     - deploy-validation-report.json
-    - docs/plan/release/RELEASE-VERSION-MANIFEST.md
+    - docs/release/RELEASE-VERSION-MANIFEST.md

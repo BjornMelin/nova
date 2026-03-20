@@ -9,7 +9,7 @@ implementation hardening. Target-state cutover work is tracked by
 ## Async Jobs + Cache + Observability Completion
 
 Order: 2 of 5
-Parent plan: `docs/plan/PLAN.md`
+Parent plan: `FINAL-PLAN.md` (archived program narrative in this bundle)
 Depends on: `SUBPLAN-0001`
 
 ## Persona
@@ -85,11 +85,12 @@ In scope:
 
 ### D. Test expansion
 
-- [x] Add tests for remote auth fail-closed behavior
-- [x] Add tests for Redis outage fallback
-- [x] Add tests for activity rollup summary edge cases
-- [x] Add tests for enqueue publish-failure behavior and idempotency failure path
-- [x] Add tests for readiness behavior with jobs feature disabled
+- [x] Add tests for:
+  - [x] remote auth fail-closed behavior
+  - [x] Redis outage fallback
+  - [x] activity rollup summary edge cases
+  - [x] enqueue publish-failure behavior and idempotency failure path
+  - [x] readiness behavior with jobs feature disabled
 
 ## Acceptance Criteria
 

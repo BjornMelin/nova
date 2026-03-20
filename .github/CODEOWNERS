@@ -7,5 +7,4 @@
 /specs/** @BjornMelin
 /.github/workflows/** @BjornMelin
 
-/docs/plan/release/branch-protection-required-checks.md @BjornMelin
-/docs/plan/release/governance-lock-runbook.md @BjornMelin
+/docs/runbooks/release/governance-lock-and-branch-protection.md @BjornMelin

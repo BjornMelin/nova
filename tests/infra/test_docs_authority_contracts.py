@@ -13,7 +13,7 @@ AGENTS_PATH = REPO_ROOT / "AGENTS.md"
 
 ACTIVE_DOCS_PATHS = (
     DOCS_ROOT / "runbooks",
-    DOCS_ROOT / "plan" / "release",
+    DOCS_ROOT / "release",
     DOCS_ROOT / "architecture" / "adr",
     DOCS_ROOT / "architecture" / "spec",
 )
@@ -38,10 +38,10 @@ LEGACY_ACTIVE_ROUTE_PATTERNS = (
     re.compile(r"/readyz(?:\b|/)"),
 )
 VALIDATION_DOC_PATH = (
-    DOCS_ROOT / "plan" / "release" / "config-values-reference-guide.md"
+    DOCS_ROOT / "runbooks" / "provisioning" / "config-values-reference.md"
 )
 RUNTIME_CONFIG_CONTRACT_DOC_PATH = (
-    DOCS_ROOT / "plan" / "release" / "runtime-config-contract.generated.md"
+    DOCS_ROOT / "release" / "runtime-config-contract.generated.md"
 )
 
 
@@ -144,10 +144,10 @@ def test_release_docs_include_codeartifact_staged_promotion_authority() -> None:
     """Release docs must include staged publish and controlled promotion
     policy."""
     config_values = (
-        DOCS_ROOT / "plan" / "release" / "config-values-reference-guide.md"
+        DOCS_ROOT / "runbooks" / "provisioning" / "config-values-reference.md"
     ).read_text(encoding="utf-8")
     release_policy = (
-        DOCS_ROOT / "plan" / "release" / "RELEASE-POLICY.md"
+        DOCS_ROOT / "runbooks" / "release" / "release-policy.md"
     ).read_text(encoding="utf-8")
 
     for required in [
@@ -175,7 +175,7 @@ def test_release_docs_include_codeartifact_staged_promotion_authority() -> None:
         assert required in release_policy
 
     runbook_text = (
-        DOCS_ROOT / "plan" / "release" / "RELEASE-RUNBOOK.md"
+        DOCS_ROOT / "runbooks" / "release" / "release-runbook.md"
     ).read_text(encoding="utf-8")
     for required in [
         "shared conformance helper",
@@ -223,7 +223,10 @@ def test_worker_lane_runbook_authority_exists() -> None:
 def test_browser_live_validation_checklist_authority_exists() -> None:
     """WS5 browser/live validation checklist must exist with gate contracts."""
     path = (
-        DOCS_ROOT / "plan" / "release" / "BROWSER-LIVE-VALIDATION-CHECKLIST.md"
+        DOCS_ROOT
+        / "runbooks"
+        / "release"
+        / "browser-live-validation-checklist.md"
     )
     assert path.is_file()
     content = path.read_text(encoding="utf-8")
@@ -259,8 +262,10 @@ def test_agents_active_authority_pack_has_final_split() -> None:
         "SPEC-0025-reusable-workflow-integration-contract.md",
         "SPEC-0026-ci-cd-iam-least-privilege-matrix.md",
         "docs/standards/README.md",
-        "/v1/token/verify",
-        "/v1/token/introspect",
+        "ADR-0033-single-runtime-auth-authority.md",
+        "SPEC-0027-public-http-contract-revision-and-bearer-auth.md",
+        "SPEC-0029-sdk-architecture-and-artifact-contract.md",
+        "bearer JWT",
         "uv run ruff check . --select I",
         "uv run ruff format . --check",
     ]:
@@ -289,7 +294,7 @@ def test_agents_includes_workspace_packaging_and_docker_build_rules() -> None:
         "explicit intra-workspace runtime dependencies",
         "Do not rely on root workspace sync/install shape",
         "BuildKit plus `buildx`",
-        "docker-buildx-and-credential-helper-setup-guide.md",
+        "docker-buildx-credential-helper-setup.md",
         "docker buildx version",
         "DOCKER_BUILDKIT=1 docker buildx build --load",
     ]:
@@ -313,6 +318,7 @@ def test_authority_docs_reference_restored_runtime_set() -> None:
             "ADR-0027",
             "ADR-0028",
             "ADR-0029",
+            "ADR-0033",
             "SPEC-0017",
             "SPEC-0018",
             "SPEC-0019",
@@ -320,6 +326,8 @@ def test_authority_docs_reference_restored_runtime_set() -> None:
             "SPEC-0021",
             "SPEC-0022",
             "SPEC-0023",
+            "SPEC-0027",
+            "SPEC-0029",
         ]:
             assert required in text, f"{rel_path} missing {required}"
 
@@ -334,6 +342,7 @@ def test_active_docs_do_not_reference_displaced_deploy_authority_paths() -> (
         "SPEC-0017-cloudformation-module-contract.md",
         "SPEC-0018-reusable-workflow-integration-contract.md",
         "SPEC-0019-ci-cd-iam-least-privilege-and-role-boundary-contract.md",
+        "SPEC-0011-multi-language-sdk-architecture-and-package-map.md",
     ]
 
     violations: list[str] = []
@@ -365,7 +374,7 @@ def test_active_docs_do_not_reference_displaced_deploy_authority_paths() -> (
 
 def test_release_docs_align_validation_path_policy_contract() -> None:
     """Release docs must allow legacy 404 checks in validation assertions."""
-    text = _read("docs/plan/release/config-values-reference-guide.md")
+    text = _read("docs/runbooks/provisioning/config-values-reference.md")
     for required in [
         "validation_legacy_404_paths",
         (
@@ -378,7 +387,7 @@ def test_release_docs_align_validation_path_policy_contract() -> None:
 
 def test_auth0_and_ssm_contract_docs_reference_schema_authority() -> None:
     """Auth0 and SSM authority docs must reference active schema contracts."""
-    auth0_runbook = _read("docs/plan/release/AUTH0-A0DEPLOY-RUNBOOK.md")
+    auth0_runbook = _read("docs/runbooks/release/auth0-a0deploy-runbook.md")
     contracts_readme = _read("docs/contracts/README.md")
     ssm_spec = _read(
         "docs/architecture/spec/SPEC-0023-ssm-runtime-base-url-contract-for-deploy-validation.md"
@@ -410,8 +419,8 @@ def test_release_docs_include_aws_cli_floor_for_codeartifact_npm_login() -> (
 ):
     """Active runbooks must document the AWS CLI floor for npm 10.x."""
     for rel_path in [
-        "docs/plan/release/RELEASE-RUNBOOK.md",
-        "docs/plan/release/config-values-reference-guide.md",
+        "docs/runbooks/release/release-runbook.md",
+        "docs/runbooks/provisioning/config-values-reference.md",
         "docs/runbooks/README.md",
         "README.md",
     ]:

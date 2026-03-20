@@ -9,7 +9,7 @@ runtime/deployment authority.
 ## Infra + Cross-Repo Integration
 
 Order: 3 of 5
-Parent plan: `docs/plan/PLAN.md`
+Parent plan: `FINAL-PLAN.md` (archived program narrative in this bundle)
 Depends on: `SUBPLAN-0001`, `SUBPLAN-0002`
 
 ## Persona
@@ -73,4 +73,4 @@ Repositories:
 
 Live validation evidence should be recorded via:
 
-- `docs/plan/release/NONPROD-LIVE-VALIDATION-RUNBOOK.md`
+- `docs/runbooks/release/nonprod-live-validation-runbook.md`

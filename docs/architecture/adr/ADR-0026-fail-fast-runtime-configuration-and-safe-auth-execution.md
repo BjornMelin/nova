@@ -112,6 +112,16 @@ Choose **Option B**.
 - No deploy-automation IAM document as substitute authority for runtime auth
   execution rules.
 
+## Green-field program supplement
+
+When [ADR-0037](./ADR-0037-async-first-public-surface.md) and
+[ADR-0033](./ADR-0033-single-runtime-auth-authority.md) are fully
+implemented, **async-native** JWT verification on FastAPI paths reduces the
+volume of work that must use threadpool offload. This ADR and
+[SPEC-0019](../spec/SPEC-0019-auth-execution-and-threadpool-safety-contract.md)
+continue to govern **any remaining** synchronous verification or blocking work
+on async handlers until and unless fully eliminated.
+
 ## Changelog
 
 - 2026-03-05: Restored `ADR-0026` to runtime configuration and auth-safety

@@ -66,9 +66,20 @@ def test_runtime_changes_enable_runtime_and_conformance_lanes() -> None:
     assert outputs["docs_only"] == "false"
 
 
+def test_release_artifact_docs_enable_cfn_lane() -> None:
+    """Edits under docs/release/ should route to CFN lane (contract path)."""
+    outputs = _outputs(["docs/release/README.md"])
+
+    assert outputs["run_runtime_ci"] == "false"
+    assert outputs["run_conformance_required"] == "false"
+    assert outputs["run_conformance_optional"] == "false"
+    assert outputs["run_cfn"] == "true"
+    assert outputs["docs_only"] == "true"
+
+
 def test_docs_authority_changes_only_enable_cfn_lane() -> None:
     """Docs authority edits should route to CFN lane only."""
-    outputs = _outputs(["docs/plan/release/RELEASE-RUNBOOK.md"])
+    outputs = _outputs(["docs/runbooks/release/release-runbook.md"])
 
     assert outputs["run_runtime_ci"] == "false"
     assert outputs["run_conformance_required"] == "false"
@@ -90,7 +101,7 @@ def test_prd_changes_enable_only_cfn_lane() -> None:
 
 def test_docs_history_changes_remain_docs_only_without_required_lanes() -> None:
     """Docs history changes should stay docs-only with no required CI lanes."""
-    outputs = _outputs(["docs/history/2026-02-cutover/notes.md"])
+    outputs = _outputs(["docs/history/2026-03-v1-hard-cut/README.md"])
 
     assert outputs["run_runtime_ci"] == "false"
     assert outputs["run_conformance_required"] == "false"
@@ -146,6 +157,7 @@ def test_scope_detector_cli_emits_expected_output_contract(
     )
     _write_repo_file(repo_root, "scripts/ci/detect_workflow_scopes.py")
     _write_repo_file(repo_root, "scripts/release/common.py")
+    _write_repo_file(repo_root, "scripts/release/release_paths.py")
     _ = _run_git(git_executable, repo_root, "init")
     _ = _run_git(git_executable, repo_root, "config", "user.name", "Nova Tests")
     _ = _run_git(

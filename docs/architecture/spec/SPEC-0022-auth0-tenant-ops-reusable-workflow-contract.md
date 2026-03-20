@@ -5,9 +5,13 @@ Status: Active
 Version: 1.0
 Date: 2026-03-04
 Related:
+  - "[ADR-0023: Hard-cut v1 canonical route surface](../adr/ADR-0023-hard-cut-v1-canonical-route-surface.md)"
+  - "[SPEC-0000: HTTP API contract](./SPEC-0000-http-api-contract.md)"
+  - "[SPEC-0016: V1 route namespace and literal guardrails](./SPEC-0016-v1-route-namespace-and-literal-guardrails.md)"
+  - "[requirements.md](../requirements.md)"
   - "[ADR-0028: Auth0 tenant ops reusable workflow API contract](../adr/ADR-0028-auth0-tenant-ops-reusable-workflow-api-contract.md)"
   - "[SPEC-0025: Reusable workflow integration contract](./SPEC-0025-reusable-workflow-integration-contract.md)"
-  - "[docs/plan/release/AUTH0-A0DEPLOY-RUNBOOK.md](../../plan/release/AUTH0-A0DEPLOY-RUNBOOK.md)"
+  - "[docs/runbooks/release/auth0-a0deploy-runbook.md](../../runbooks/release/auth0-a0deploy-runbook.md)"
 ---
 
 ## 1. Scope
@@ -20,7 +24,7 @@ its synchronization with existing tenant-as-code runbook and validator controls.
 1. Reusable workflow contract schema:
    - `docs/contracts/workflow-auth0-tenant-ops-v1.schema.json`
 2. Auth0 runbook authority:
-   - `docs/plan/release/AUTH0-A0DEPLOY-RUNBOOK.md`
+   - `docs/runbooks/release/auth0-a0deploy-runbook.md`
 3. Local validation authority:
    - `scripts/release/validate_auth0_contract.py`
 

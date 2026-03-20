@@ -8,7 +8,7 @@ on:
         required: true
         type: string
       manifest_sha256:
-        description: SHA256 for docs/plan/release/RELEASE-VERSION-MANIFEST.md
+        description: SHA256 for docs/release/RELEASE-VERSION-MANIFEST.md
         required: true
         type: string
       changed_units_json:

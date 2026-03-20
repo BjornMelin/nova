@@ -1,18 +1,22 @@
 # Requirements (nova runtime)
 
 Status: Canonical requirements source
-Last updated: 2026-03-18
+Last updated: 2026-03-19
 
 This document is the source of truth for functional and non-functional
 requirements for the first production release.
 
 ## Architecture State Model
 
-- Current production-target requirements use the `FR-*`, `NFR-*`, and `IR-*`
-  IDs below.
-- Hard-cut route authority is active under `ADR-0023` + `SPEC-0016`.
-- Runtime contract is canonical `/v1/*` plus `/metrics/summary`; non-canonical
-  route families are removed.
+- Current production-target requirements use the `FR-*`, `NFR-*`, `IR-*`, and
+  `GFR-*` IDs below.
+- Hard-cut **path** authority is active under `ADR-0023` + `SPEC-0016`; public
+  **auth and worker persistence** target state is under `ADR-0033` through
+  `ADR-0041`, `SPEC-0027` through `SPEC-0029`, and the
+  [green-field program](../plan/greenfield-simplification-program.md).
+- Runtime URL namespace is canonical `/v1/*` plus `/metrics/summary`; non-canonical
+  route families are removed. “Contract revision” in `SPEC-0027` refers to auth
+  and OpenAPI expression, not a `/v2/*` prefix unless a future ADR introduces it.
 - Runtime API, runtime package ownership, runtime safety, and downstream
   validation authority are synchronized under `ADR-0024`, with runtime
   component/safety governance codified in `ADR-0025`, `ADR-0026`,
@@ -23,12 +27,70 @@ requirements for the first production release.
   `ADR-0032` and `SPEC-0024` through `SPEC-0026`.
 - Superseded ADR/SPEC material is archived only under
   `docs/architecture/adr/superseded/**` and
-  `docs/architecture/spec/superseded/**`.
-- Public SDK policy for this release wave is Python public, TypeScript
-  release-grade within Nova's existing CodeArtifact staged/prod system while
-  remaining generator-owned and subpath-only, and R as a first-class internal
-  release artifact line with real packages, logical format `r`, CodeArtifact
-  generic package transport, and signed tarball evidence.
+  `docs/architecture/spec/superseded/**` (for example superseded `ADR-0005` and
+  `SPEC-0007`).
+- Public SDK policy: Python public; TypeScript release-grade in CodeArtifact
+  (generator-owned, subpath-only, `openapi-typescript` + `openapi-fetch` stack
+  per `ADR-0038` / `SPEC-0029`); R first-class internal release line (`httr2`
+  thin client per `ADR-0038` / `SPEC-0029`).
+
+## Green-field program requirements (GFR)
+
+Normative statements that drive the
+[green-field simplification program](../plan/greenfield-simplification-program.md).
+See also [greenfield-authority-map.md](../plan/greenfield-authority-map.md).
+
+### GFR-R1 — Single public runtime authority
+
+Nova MUST expose one canonical public API runtime. There MUST NOT be a separate
+auth microservice in the target architecture.
+
+### GFR-R2 — Auth context comes from verified claims
+
+Public caller scope, tenant, and permissions MUST be derived from verified JWT
+claims rather than from request-body or custom-header surrogates (`session_id`,
+`X-Session-Id`, `X-Scope-Id`).
+
+### GFR-R3 — Async correctness is mandatory
+
+The API and worker MUST NOT rely on blocking auth or transport operations on
+async event-loop paths when async-native alternatives exist.
+
+### GFR-R4 — Public contract must be explicit
+
+Typed request/response models and a stable public OpenAPI artifact remain
+required.
+
+### GFR-R5 — Worker must not self-call the API
+
+Worker completion and result updates MUST happen through shared code or direct
+persistence primitives, not HTTP callbacks into the API runtime.
+
+### GFR-R6 — SDKs must feel native per language
+
+Python, TypeScript, and R SDKs MUST follow the stacks in `ADR-0038` /
+`SPEC-0029` and active `SPEC-0012` conformance rules. Superseded `SPEC-0011` is
+indexed in [`spec/index.md`](./spec/index.md) (Superseded) for traceability
+only—not implementation authority.
+
+### GFR-R7 — Managed AWS services preferred
+
+Use managed AWS services when they reduce operational burden without violating
+workload needs (`ADR-0039`).
+
+### GFR-R8 — One client artifact family per language
+
+There MUST NOT be auth-only SDK families in the target architecture.
+
+### GFR-R9 — Deterministic build and verification
+
+The repository MUST remain reproducible with `uv`, Ruff, mypy/pytest/`ty`, and
+language-specific SDK checks.
+
+### GFR-R10 — Repo should shrink after every accepted branch
+
+Every green-field branch SHOULD delete obsolete artifacts or enable later
+deletions; the program completes with a full repo rebaseline (`ADR-0040`).
 
 ## Scope
 
@@ -37,9 +99,9 @@ presigned URLs and upload/download metadata. It does not proxy file bytes.
 
 Primary consumers:
 
-- Same-origin sidecar web applications (default)
-- Embedded Python apps through bridge integration
-- Standalone API clients (beta support in initial release)
+- Browser and server clients using bearer JWT against the public file API
+- Embedded Python apps through bridge integration (`nova_dash_bridge`)
+- Standalone API clients
 
 ## Functional Requirements
 
@@ -64,36 +126,17 @@ The service MUST provide:
 - `POST /v1/jobs/{job_id}/cancel`
 - `POST /v1/jobs/{job_id}/retry`
 - `GET /v1/jobs/{job_id}/events`
-- `POST /v1/internal/jobs/{job_id}/result` (worker/internal update path)
+
+Worker completion and terminal job updates MUST use the **direct persistence**
+path (`SPEC-0028`, `ADR-0035`). There MUST NOT be a worker → API HTTP callback
+for job results in the target architecture.
 
 The default async orchestration path MUST be SQS + ECS worker. Step
 Functions/Lambda are out of scope for the initial release.
 
-In same-origin mode, all scope binding follows header precedence:
-
-- `X-Session-Id` has precedence over `X-Scope-Id`.
-- If both headers are present, `X-Scope-Id` is ignored for scope binding.
-
-Body-less scope-bound endpoints (for example polling calls like
-`GET /v1/jobs/{job_id}`) MUST evaluate scope only from headers:
-
-- These endpoints MUST use `X-Session-Id` and may use `X-Scope-Id` only as the fallback
-  when `X-Session-Id` is absent.
-- Header-only scope resolution for these endpoints MUST use:
-  - `session_scope = X-Session-Id` if provided and non-blank;
-  - otherwise `session_scope = X-Scope-Id`.
-- Differing values between `X-Session-Id` and `X-Scope-Id` MUST NOT be treated as
-  an error.
-
-Body-carrying scope-bound endpoints (requests with request body field `session_id`)
-MUST validate body-to-header consistency using the same header names:
-
-- `session_id` in request body MUST be compared to `X-Session-Id` first when both are present.
-- If both `X-Session-Id` and body `session_id` are present but different, the request MUST fail with
-  `422` and `error.message = "conflicting session scope"`.
-- If `X-Session-Id` is absent, but both `X-Scope-Id` and body `session_id` are present
-  but different, the request MUST fail with
-  `401` and `error.message = "conflicting session scope"`.
+Scope binding for job endpoints MUST follow verified **JWT claims** in the
+public file API (`SPEC-0027`, `GFR-R2`). `session_id`, `X-Session-Id`, and
+`X-Scope-Id` MUST NOT be used as public authorization scope carriers.
 
 Enqueue failure semantics for `POST /v1/jobs`:
 
@@ -179,14 +222,12 @@ Current runtime posture:
 
 ### FR-0005: Authentication and authorization
 
-The service MUST support explicit auth modes:
+The service MUST authenticate public callers with **bearer JWT** and MUST derive
+scope, tenant, and permissions from **verified claims** in the file API runtime
+(`ADR-0033`, `ADR-0034`, `SPEC-0027`, `GFR-R2`).
 
-- Same-origin mode
-- Local JWT/OIDC verification mode (default for token mode)
-- Optional remote auth API mode (fail-closed when enabled)
-
-In JWT modes, trusted principal-derived scope MUST override any client-provided
-session scope.
+There MUST NOT be a separate `nova-auth-api` HTTP surface or auth-only SDK
+families in the target architecture.
 
 ### FR-0006: Two-tier caching
 
@@ -219,17 +260,21 @@ MUST be incremented using first-seen marker logic with conditional writes.
 ### FR-0008: OpenAPI contract ownership
 
 OpenAPI 3.1 output from the API implementation MUST be the canonical HTTP
-contract source for docs and client generation.
+contract source for docs and client generation (`ADR-0002`, `ADR-0036`).
 
-Runtime OpenAPI metadata currently follows these rules:
+Runtime OpenAPI metadata MUST follow these rules:
 
 - `operationId` values are unique, stable, and snake_case-aligned to the
   runtime OpenAPI contract tests.
-- public operation tags are semantic group tags only (`transfers`, `jobs`,
-  `platform`, `ops`, `token`, and `health`).
-- custom request-body schema references emitted via OpenAPI overrides MUST
+- Public operation tags are semantic group tags only (`transfers`, `jobs`,
+  `platform`, `ops`, and `health`); the dedicated `token` tag family is retired
+  with the auth service surface.
+- Bearer security schemes MUST be expressed with FastAPI security dependencies
+  so emitted OpenAPI matches runtime behavior (`SPEC-0027`).
+- Custom request-body schema references emitted via OpenAPI overrides MUST
   resolve to named component schemas in the same document and remain contract-
   test verifiable from runtime OpenAPI output.
+- Post-generation schema mutation MUST be minimal (`ADR-0036`).
 
 ### FR-0009: S3 multipart correctness and acceleration compatibility
 
@@ -305,13 +350,15 @@ The service MUST:
 
 ### NFR-0001: Performance and event-loop safety
 
-The service MUST avoid event-loop blocking for synchronous verification code.
-Synchronous JWT verification in async paths MUST run behind a threadpool
-boundary.
-Threadpool offloads for synchronous JWT verification MUST use an explicit
-concurrency limiter (for example, semaphore or AnyIO/Starlette
+The service MUST avoid event-loop blocking for synchronous work on async
+handlers.
+
+JWT verification SHOULD be **async-native** in the file API when implemented
+(`ADR-0033`, `ADR-0037`). Any **remaining** synchronous verification or
+cryptographic work on async paths MUST run behind a threadpool boundary with an
+explicit concurrency limiter (for example, semaphore or AnyIO/Starlette
 `CapacityLimiter`) with a default cap of 40 tokens unless measured resource
-limits require adjustment.
+limits require adjustment (`ADR-0026`, `SPEC-0019`).
 
 ### NFR-0002: Scalability and resilience
 
@@ -352,9 +399,7 @@ gate; `mypy` remains the required compatibility backstop in this phase.
 
 Target implementation PRs MUST update `README.md`, `AGENTS.md`,
 `docs/PRD.md`, `docs/architecture/requirements.md`, affected ADR/SPEC docs,
-and `docs/plan/PLAN.md` in the same change set. Historical pointer files
-(`PRD.md`, `FINAL-PLAN.md`) MUST be updated only when archive location or
-authority links change.
+and `docs/plan/PLAN.md` in the same change set. Historical artifacts (`docs/history/**`, plus the repo-root `FINAL-PLAN.md` pointer) MUST be updated only when archive location or authority links change.
 
 ### NFR-0106: No-shim posture
 
@@ -401,10 +446,12 @@ runtime surfaces.
 Initial AWS dependencies include S3, ECS/Fargate, ALB, SQS, ElastiCache Redis,
 DynamoDB, and CloudWatch.
 
-### IR-0003: Optional remote auth service
+### IR-0003: Auth execution locality
 
-When enabled, remote auth integration MUST target `nova-auth-api` and fail closed
-on auth service errors.
+JWT verification and principal normalization MUST run in the **public file API**
+process (`ADR-0033`). Remote HTTP calls to a dedicated auth microservice are
+**not** part of the target architecture (superseded `ADR-0005` /
+`SPEC-0007`).
 
 ### IR-0004: Browser compatibility for multipart workflows
 
@@ -443,4 +490,5 @@ authority lists or active catalog sections.
 
 - Building a byte-streaming data-plane API.
 - Introducing Step Functions/Lambda orchestration by default.
-- Splitting into microservices beyond file-transfer API + optional auth API.
+- A separate auth microservice or parallel session/header authorization channel
+  for public scope binding (`GFR-R1`, `GFR-R2`).

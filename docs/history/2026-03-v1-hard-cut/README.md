@@ -15,12 +15,18 @@ Current authoritative route and contract sources:
 - `docs/architecture/spec/SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md`
 - `docs/architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md`
 
-Archived records in this bundle:
+## Historical replay (agents and reviewers)
 
-- `PRD.md`
-- `FINAL-PLAN.md`
-- `PLAN.md`
-- `release/evidence-log-2026-03-03-pre-ecs.md`
+Execution sequencing during this program lived in `subplans/SUBPLAN-0001.md`
+through `subplans/SUBPLAN-0005.md`. Each file names the feature branch used at
+the time. There are no separate Codex/agent trigger stubs in this archive.
+
+## Archived records
+
+- `PRD.md` -- archived product framing (trimmed; active product authority is
+  `docs/PRD.md`)
+- `FINAL-PLAN.md` -- consolidated program plan (subsumes the removed sibling
+  `PLAN.md`)
 - `planning/2026-03-01-adr0015-spec0015-implementation-blueprint.md`
 - `subplans/SUBPLAN-0001.md` … `subplans/SUBPLAN-0005.md`
-- `triggers/TRIGGER-0001.md` … `triggers/TRIGGER-0005.md`
+- `release/HARD-CUTOVER-CHECKLIST.md`

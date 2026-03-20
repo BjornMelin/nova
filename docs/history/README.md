@@ -1,25 +1,31 @@
-# Documentation History
+# Documentation history
 
-This directory contains historical records retained for audit and traceability.
+Material under `docs/history/**` is **non-authoritative** for current
+implementation, runtime contracts, and operations. It exists for audit,
+traceability, and understanding past program decisions.
 
-Content under `docs/history/**` is non-authoritative for current
-implementation and operations.
+## Where active authority lives
 
-Use active docs first:
+Use these before historical bundles:
 
-- `README.md`
-- `AGENTS.md`
-- `docs/PRD.md`
-- `docs/architecture/requirements.md`
-- `docs/architecture/adr/index.md`
-- `docs/architecture/spec/index.md`
-- `docs/plan/PLAN.md`
+- [`README.md`](../../README.md) (repository root)
+- [`AGENTS.md`](../../AGENTS.md)
+- [`docs/README.md`](../README.md)
+- [`docs/PRD.md`](../PRD.md)
+- [`docs/architecture/requirements.md`](../architecture/requirements.md)
+- [`docs/architecture/adr/index.md`](../architecture/adr/index.md)
+- [`docs/architecture/spec/index.md`](../architecture/spec/index.md)
+- [`docs/plan/PLAN.md`](../plan/PLAN.md)
 
-Historical bundles:
+Runbooks and release artifacts:
 
-1. `docs/history/2026-03-v1-hard-cut/`
-   - includes archived PRD/PLAN/FINAL-PLAN, planning blueprint, subplans,
-     trigger prompts, and pre-ECS release evidence snapshots.
-2. `docs/history/2026-02-cutover/`
-   - includes cutover archive redirect docs, archived release notes, and
-     archived migration specs (`SPEC-0013`, `SPEC-0014`).
+- [`docs/runbooks/README.md`](../runbooks/README.md)
+- [`docs/release/README.md`](../release/README.md)
+
+## Archive bundles
+
+| Bundle | Contents (summary) |
+| --- | --- |
+| [`2026-03-v1-hard-cut/`](2026-03-v1-hard-cut/README.md) | Archived PRD and consolidated `FINAL-PLAN.md` (former `PLAN.md` merged in), ADR-0015/SPEC-0015 implementation blueprint, five subplans, and release checklist. |
+
+For a file-level manifest, see each bundle’s `README.md`.

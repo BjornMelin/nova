@@ -12,6 +12,13 @@ from nova_file_api.config import Settings
 from pydantic import SecretStr
 from pydantic.fields import FieldInfo
 
+try:
+    from scripts.release.release_paths import RUNTIME_CONFIG_GENERATED_MD_PATH
+except ModuleNotFoundError:  # pragma: no cover - test harness fallback
+    RUNTIME_CONFIG_GENERATED_MD_PATH = (
+        "docs/release/runtime-config-contract.generated.md"
+    )
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -399,9 +406,7 @@ FORBIDDEN_SERVICE_PARAMETERS = (
 )
 WORKER_COMMAND = "nova-file-worker"
 CONTRACT_JSON_PATH = "packages/contracts/fixtures/runtime_config_contract.json"
-CONTRACT_MARKDOWN_PATH = (
-    "docs/plan/release/runtime-config-contract.generated.md"
-)
+CONTRACT_MARKDOWN_PATH = RUNTIME_CONFIG_GENERATED_MD_PATH
 
 
 def _assert_known_runtime_env(env_vars: Iterable[str]) -> None:

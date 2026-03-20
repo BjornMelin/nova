@@ -78,7 +78,7 @@ CFN_PREFIXES = (
     "docs/runbooks/",
     "docs/standards/",
     "docs/contracts/",
-    "docs/plan/release/",
+    "docs/release/",
 )
 CFN_AUTHORITY_DOC_EXACT = {
     "docs/PRD.md",

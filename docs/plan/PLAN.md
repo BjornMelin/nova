@@ -1,45 +1,55 @@
 # Plan Index (Current State)
 
 Status: Active planning and release index
-Last updated: 2026-03-18
+Last updated: 2026-03-19
 
 ## Purpose
 
-This file routes readers to the active planning, release, and history documents.
-For architecture authority, use `../architecture/README.md`.
-For operator runbooks, use `../runbooks/README.md`.
+This file routes readers to active planning and release documents. For
+architecture authority, use `../architecture/README.md`. For operator runbooks,
+use `../runbooks/README.md`. Archived program material lives under
+[`../history/README.md`](../history/README.md) only when you need traceability.
 
 ## Active Planning and Release Entry Points
 
 - `../PRD.md`
 - `../architecture/requirements.md`
+- `./greenfield-simplification-program.md` (canonical green-field program router)
+- `./greenfield-authority-map.md` (ADR/SPEC index map for the program)
+- `./greenfield-evidence/README.md` (supporting audit and scoring **copies**;
+  non-authoritative--see table there for `EXECUTIVE_AUDIT.md`, CSV manifests, and
+  related artifacts)
 - `../runbooks/README.md`
-- `./release/RELEASE-RUNBOOK.md`
-- `./release/RELEASE-POLICY.md`
-- `./release/NONPROD-LIVE-VALIDATION-RUNBOOK.md`
-- `./release/release-promotion-dev-to-prod-guide.md`
-- `./release/deploy-runtime-cloudformation-environments-guide.md`
-- `./release/runtime-config-contract.generated.md`
-- `./release/HARD-CUTOVER-CHECKLIST.md`
-- `./release/RELEASE-VERSION-MANIFEST.md`
+- `../runbooks/release/README.md` (release validation and policy)
+- `../runbooks/provisioning/README.md` (first-time deploy and CI/CD setup)
+- `../release/README.md` (committed release artifacts: manifest, generated runtime contract)
+- `../release/runtime-config-contract.generated.md`
+- `../release/RELEASE-VERSION-MANIFEST.md`
 
-## Supporting Release Guides
+## Supporting release guides
 
-Use these when you need environment setup, operator inputs, or break-glass
-guidance:
+Full catalog: [`../runbooks/README.md`](../runbooks/README.md). Machine-stable
+paths: [`../release/README.md`](../release/README.md).
+Release/provisioning doc conventions: **Release operator docs profile** in
+[`../standards/repository-engineering-standards.md`](../standards/repository-engineering-standards.md).
 
-- `./release/config-values-reference-guide.md`
-- `./release/runtime-config-contract.generated.md`
-- `./release/day-0-operator-checklist.md`
-- `./release/aws-oidc-and-iam-role-setup-guide.md`
-- `./release/aws-secrets-provisioning-guide.md`
-- `./release/github-actions-secrets-and-vars-setup-guide.md`
-- `./release/codeconnections-activation-and-validation-guide.md`
-- `./release/troubleshooting-and-break-glass-guide.md`
-- `./release/documentation-maintenance-guide.md`
+## `docs/plan` directory layout
+
+| Path | Role |
+| --- | --- |
+| `PLAN.md` | This index (active planning + release pointers) |
+| `greenfield-simplification-program.md` | Green-field program narrative and execution router |
+| `greenfield-authority-map.md` | Maps program workstreams to ADRs and SPECs |
+| `greenfield-evidence/` | Non-normative evidence pack copies; index at `greenfield-evidence/README.md` |
 
 ## Current Planning Notes
 
+- Green-field simplification is an active program: single public runtime auth,
+  bearer JWT scope from claims, direct worker persistence, native OpenAPI,
+  shared pure ASGI middleware, async-first `nova_file_api.public`, TS/R/Python
+  SDK stack cuts, infra narrative alignment, and final repo rebaseline. Start
+  at `./greenfield-simplification-program.md` and `../architecture/adr/index.md`
+  (`ADR-0033`–`ADR-0041`) plus `SPEC-0027`–`SPEC-0029`.
 - Active runtime authority is layered across route/API authority, runtime
   topology and safety, downstream validation, and adjacent deploy-governance.
 - `nova_dash_bridge` remains adapter-only and now consumes canonical in-process
@@ -66,11 +76,3 @@ guidance:
   readiness, not a separate documentation model.
 - Repo-local pre-commit hooks now mirror the AGENTS task router, and `ty` is
   now part of the required typing contract enforced by the main quality gates.
-
-## Historical Planning Artifacts
-
-- `./HISTORY-INDEX.md`
-- `../architecture/adr/superseded/`
-- `../architecture/spec/superseded/`
-- `../history/2026-03-v1-hard-cut/`
-- `../history/2026-02-cutover/`

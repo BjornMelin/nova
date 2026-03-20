@@ -51,7 +51,7 @@ package build/check and signed tarball evidence. Those validations remain in
 release automation rather than protected-branch required checks.
 
 Protected branch wiring details are documented in
-`docs/plan/release/branch-protection-required-checks.md`.
+`docs/runbooks/release/governance-lock-and-branch-protection.md`.
 
 Required-check workflows MUST always trigger on pull requests to `main` branch
 protection. Minute reduction is enforced with an initial classifier job and
@@ -91,7 +91,7 @@ Release artifacts MUST include:
 
 - `changed-units.json`
 - `version-plan.json`
-- `docs/plan/release/RELEASE-VERSION-MANIFEST.md`
+- `docs/release/RELEASE-VERSION-MANIFEST.md`
 - immutable deploy artifacts consumed by both Dev and Prod stages
 
 Rules:
@@ -213,7 +213,9 @@ all affected operational docs:
 - `docs/runbooks/README.md` when runbook authority is changed
 - `PRD.md` and `FINAL-PLAN.md` pointers when archive paths or authority links
   change
-- `docs/plan/release/*` runbooks and policy docs
+- `docs/runbooks/release/**` and `docs/runbooks/provisioning/**` runbooks and
+  policy docs, plus committed `docs/release/**` artifacts when those files
+  change
 - `docs/history/**` when archival paths or evidence pointers change
 
 ## 9. Traceability

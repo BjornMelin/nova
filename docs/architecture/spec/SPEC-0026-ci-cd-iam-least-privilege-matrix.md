@@ -4,6 +4,7 @@ Title: CI/CD IAM least-privilege matrix
 Status: Active
 Version: 1.0
 Date: 2026-03-05
+Supersedes: "[SPEC-0019 (superseded): CI/CD IAM least-privilege and role-boundary contract](./superseded/SPEC-0019-ci-cd-iam-least-privilege-and-role-boundary-contract.md)"
 Related:
   - "[ADR-0032: OIDC and IAM role partitioning for deploy automation](../adr/ADR-0032-oidc-and-iam-role-partitioning-for-deploy-automation.md)"
   - "[SPEC-0001: Security model](./SPEC-0001-security-model.md)"

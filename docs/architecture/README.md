@@ -1,12 +1,18 @@
 # Nova Architecture Authority Map
 
 Status: Active
-Last reviewed: 2026-03-18
+Last reviewed: 2026-03-19
 
 ## Purpose
 
 This document routes readers to the correct architecture authority without
 duplicating the full ADR and SPEC catalogs across top-level docs.
+
+**Active-only lists:** Sections below name **in-force** ADRs and SPECs only.
+Superseded predecessors are **not** linked here (to avoid agents or readers
+treating retired docs as current). Find them under `adr/index.md` and
+`spec/index.md` (Superseded tables) and in `adr/superseded/` and
+`spec/superseded/` for traceability.
 
 ## Canonical Runtime Contract Chain
 
@@ -16,6 +22,11 @@ Use this chain first for public runtime contract questions:
 2. `adr/ADR-0023-hard-cut-v1-canonical-route-surface.md`
 3. `spec/SPEC-0000-http-api-contract.md`
 4. `spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md`
+5. `spec/SPEC-0027-public-http-contract-revision-and-bearer-auth.md` (auth and
+   OpenAPI revision; path namespace remains `/v1/*`)
+
+Program router: `../plan/greenfield-simplification-program.md` and
+`../plan/greenfield-authority-map.md`.
 
 ## Active Authority Packs
 
@@ -29,6 +40,21 @@ or removed legacy namespaces.
 - `spec/SPEC-0000-http-api-contract.md`
 - `spec/SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md`
 - `spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md`
+- `spec/SPEC-0027-public-http-contract-revision-and-bearer-auth.md`
+- `spec/SPEC-0028-worker-job-lifecycle-and-direct-result-path.md`
+
+### Green-field simplification authority
+
+Use for target-state cuts: single runtime auth, bearer-only public contract,
+direct worker persistence, native OpenAPI, shared ASGI middleware, async-first
+`nova_file_api.public`, per-language SDK stacks, AWS composite platform, repo
+rebaseline.
+
+- `../plan/greenfield-simplification-program.md`
+- `adr/ADR-0033-single-runtime-auth-authority.md` through
+  `adr/ADR-0041-shared-pure-asgi-middleware-and-errors.md` (see
+  `adr/index.md` for the full table)
+- `spec/SPEC-0029-sdk-architecture-and-artifact-contract.md`
 
 ### Runtime topology, ownership, and safety authority
 
@@ -49,7 +75,7 @@ defined in:
 
 Generated runtime-config matrix:
 
-- `../plan/release/runtime-config-contract.generated.md` is the operator-facing
+- `../release/runtime-config-contract.generated.md` is the operator-facing
   artifact generated from the canonical runtime settings contract. It documents
   current env vars, `ENV_VARS_JSON` support, and ECS template wiring without
   becoming an independent authority.
@@ -71,8 +97,8 @@ or deploy-validation base URL authority.
 Use when the question is about public Python SDK topology, release-grade
 TypeScript, or first-class internal R release artifacts.
 
-- `adr/ADR-0013-final-state-sdk-topology-generated-core-plus-thin-adapters.md`
-- `spec/SPEC-0011-multi-language-sdk-architecture-and-package-map.md`
+- `adr/ADR-0038-sdk-architecture-by-language.md`
+- `spec/SPEC-0029-sdk-architecture-and-artifact-contract.md`
 - `spec/SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md`
 
 ### Adjacent deploy-governance authority
@@ -86,6 +112,7 @@ and workflows must not reintroduce external `TaskRole` or generic execution
 secret override inputs.
 
 - `adr/ADR-0015-nova-api-platform-final-hosting-and-deployment-architecture-2026.md`
+- `adr/ADR-0039-aws-target-platform.md`
 - `adr/ADR-0030-native-cfn-modular-stack-architecture-for-nova-infrastructure-productization.md`
 - `adr/ADR-0031-reusable-github-workflow-api-and-versioning-policy-for-deployment-automation.md`
 - `adr/ADR-0032-oidc-and-iam-role-partitioning-for-deploy-automation.md`

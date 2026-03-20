@@ -41,7 +41,7 @@ release and consumer integration gates.
 ## Related references
 
 - `../clients/post-deploy-validation-integration-guide.md`
-- `../plan/release/RELEASE-POLICY.md`
+- `../runbooks/release/release-policy.md`
 - `../architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md`
 - `../architecture/spec/SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md`
 - `../architecture/spec/SPEC-0000-http-api-contract.md`
