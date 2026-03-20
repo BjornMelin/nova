@@ -76,7 +76,7 @@ def create_file_transfer_blueprint(
     *,
     env_config: FileTransferEnvConfig,
     upload_policy: UploadPolicy,
-    auth_policy: AuthPolicy | None = None,
+    auth_policy: AuthPolicy,
     s3_client_factory: SupportsCreateS3Client | None = None,
     url_prefix: str = "/v1/transfers",
 ) -> Blueprint:
@@ -167,7 +167,7 @@ def register_file_transfer_blueprint(
     *,
     env_config: FileTransferEnvConfig,
     upload_policy: UploadPolicy,
-    auth_policy: AuthPolicy | None = None,
+    auth_policy: AuthPolicy,
     s3_client_factory: SupportsCreateS3Client | None = None,
     url_prefix: str = "/v1/transfers",
 ) -> Blueprint:

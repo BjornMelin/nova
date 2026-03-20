@@ -1,11 +1,15 @@
 from __future__ import annotations
 
-from typing import cast
+from typing import Any, cast
 
 import nova_dash_bridge.service as dash_service_module
 import nova_file_api.public as public_contract
 import pytest
-from nova_dash_bridge.config import FileTransferEnvConfig, UploadPolicy
+from nova_dash_bridge.config import (
+    AuthPolicy,
+    FileTransferEnvConfig,
+    UploadPolicy,
+)
 from nova_dash_bridge.errors import FileTransferError
 from nova_dash_bridge.models import UploadIntrospectionRequest
 from nova_dash_bridge.s3_client import S3Client, SupportsCreateS3Client
@@ -70,6 +74,32 @@ class _FakeCoreTransferService:
         )
 
 
+def _auth_policy() -> AuthPolicy:
+    return AuthPolicy(
+        principal_resolver=lambda _: Principal(
+            subject="user-1",
+            scope_id="scope-1",
+        )
+    )
+
+
+def test_file_transfer_service_requires_auth_policy() -> None:
+    constructor = cast(Any, FileTransferService)
+    with pytest.raises(TypeError, match="auth_policy"):
+        constructor(
+            env_config=FileTransferEnvConfig.model_validate(
+                {
+                    "FILE_TRANSFER_ENABLED": True,
+                    "FILE_TRANSFER_BUCKET": "bucket-a",
+                }
+            ),
+            upload_policy=UploadPolicy(
+                max_upload_bytes=100,
+                allowed_extensions={".csv"},
+            ),
+        )
+
+
 def _service_with_response(
     *,
     monkeypatch: pytest.MonkeyPatch,
@@ -91,6 +121,7 @@ def _service_with_response(
             max_upload_bytes=100,
             allowed_extensions={".csv"},
         ),
+        auth_policy=_auth_policy(),
         s3_client_factory=cast(
             "SupportsCreateS3Client",
             _FakeS3Factory(client=_FakeS3Client(response=response)),

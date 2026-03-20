@@ -2,14 +2,47 @@
 
 from __future__ import annotations
 
+from typing import Any, cast
+
 import nova_dash_bridge.fastapi_integration as fastapi_integration
 import pytest
 from fastapi.testclient import TestClient
-from nova_dash_bridge.config import FileTransferEnvConfig, UploadPolicy
+from nova_dash_bridge.config import (
+    AuthPolicy,
+    FileTransferEnvConfig,
+    UploadPolicy,
+)
 from nova_file_api.public import (
     TRANSFER_ROUTE_PREFIX,
     UPLOADS_INITIATE_ROUTE,
+    Principal,
 )
+
+
+def _auth_policy() -> AuthPolicy:
+    return AuthPolicy(
+        principal_resolver=lambda _: Principal(
+            subject="user-1",
+            scope_id="scope-1",
+        )
+    )
+
+
+def test_create_fastapi_app_requires_auth_policy() -> None:
+    app_factory = cast(Any, fastapi_integration.create_fastapi_app)
+    with pytest.raises(TypeError, match="auth_policy"):
+        app_factory(
+            env_config=FileTransferEnvConfig.model_validate(
+                {
+                    "FILE_TRANSFER_ENABLED": True,
+                    "FILE_TRANSFER_BUCKET": "bucket-a",
+                }
+            ),
+            upload_policy=UploadPolicy(
+                max_upload_bytes=100,
+                allowed_extensions={".csv"},
+            ),
+        )
 
 
 def test_create_fastapi_app_uses_lifespan_startup(
@@ -48,6 +81,7 @@ def test_create_fastapi_app_uses_lifespan_startup(
             max_upload_bytes=100,
             allowed_extensions={".csv"},
         ),
+        auth_policy=_auth_policy(),
     )
 
     with TestClient(app) as client:
@@ -71,6 +105,7 @@ def test_routes_include_transfer_operation_metadata() -> None:
             max_upload_bytes=100,
             allowed_extensions={".csv"},
         ),
+        auth_policy=_auth_policy(),
     )
     with TestClient(app) as client:
         openapi_doc = client.get("/openapi.json").json()
@@ -104,6 +139,7 @@ def test_create_fastapi_app_wraps_request_validation_errors(
             max_upload_bytes=100,
             allowed_extensions={".csv"},
         ),
+        auth_policy=_auth_policy(),
     )
     with TestClient(app) as client:
         response = client.post(

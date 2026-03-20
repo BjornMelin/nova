@@ -24,8 +24,9 @@
         merged[key] = headers[key];
       });
     }
-    if (config && typeof config.authHeader === "string" && config.authHeader) {
-      merged.Authorization = config.authHeader;
+    var authorizationHeader = getAuthorizationHeader(config);
+    if (authorizationHeader) {
+      merged.Authorization = authorizationHeader;
     }
     return merged;
   }
@@ -708,7 +709,6 @@
         root.dataset.transfersEndpointBase || "/v1/transfers",
       jobsEndpointBase: root.dataset.jobsEndpointBase || "/v1/jobs",
       authHeaderElementId: root.dataset.authHeaderElementId || "",
-      authHeader: "",
       maxConcurrency: root.dataset.maxConcurrency || "4",
       signBatchSize: root.dataset.signBatchSize || "",
       resumeNamespace: root.dataset.resumeNamespace || "",
@@ -727,7 +727,6 @@
         parseInt(root.dataset.asyncJobTimeoutMs || "900000", 10) || 900000
       ),
     };
-    config.authHeader = getAuthorizationHeader(config);
     var allowMultiple = root.dataset.multiple === "true";
 
     async function handleFiles(files) {

@@ -124,7 +124,9 @@ def test_asset_reads_bearer_header_from_configured_dom_element() -> None:
 
     assert "function getAuthorizationHeader(config)" in source
     assert 'root.dataset.authHeaderElementId || ""' in source
-    assert "config.authHeader = getAuthorizationHeader(config);" in source
+    assert "var authorizationHeader = getAuthorizationHeader(config);" in source
+    assert "config.authHeader = getAuthorizationHeader(config);" not in source
+    assert 'authHeader: ""' not in source
 
 
 def test_multipart_asset_uses_resume_introspection_state() -> None:

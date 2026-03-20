@@ -175,15 +175,13 @@ class UploadPolicy:
 class AuthPolicy:
     """Authentication hooks for framework integrations."""
 
-    principal_resolver: PrincipalResolver | None = None
+    principal_resolver: PrincipalResolver
 
     def resolve_principal(
         self,
         authorization_header: str | None,
     ) -> Principal:
         """Resolve a trusted principal from the incoming bearer header."""
-        if self.principal_resolver is None:
-            raise ValueError("auth principal_resolver is required")
         principal = self.principal_resolver(authorization_header)
         subject = principal.subject.strip()
         scope_id = principal.scope_id.strip()

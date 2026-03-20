@@ -154,7 +154,7 @@ def create_fastapi_router(
     *,
     env_config: FileTransferEnvConfig,
     upload_policy: UploadPolicy,
-    auth_policy: AuthPolicy | None = None,
+    auth_policy: AuthPolicy,
     s3_client_factory: SupportsCreateS3Client | None = None,
 ) -> Any:
     """Create an APIRouter that serves file transfer contract endpoints.
@@ -162,7 +162,7 @@ def create_fastapi_router(
     Args:
         env_config: Runtime environment configuration.
         upload_policy: Upload constraints and multipart configuration.
-        auth_policy: Optional authorization policy.
+        auth_policy: Authorization policy.
         s3_client_factory: Optional S3 client factory override.
 
     Returns:
@@ -328,7 +328,7 @@ def create_fastapi_app(
     *,
     env_config: FileTransferEnvConfig,
     upload_policy: UploadPolicy,
-    auth_policy: AuthPolicy | None = None,
+    auth_policy: AuthPolicy,
     s3_client_factory: SupportsCreateS3Client | None = None,
 ) -> Any:
     """Create a minimal FastAPI app with file transfer routes registered.
@@ -336,7 +336,7 @@ def create_fastapi_app(
     Args:
         env_config: Runtime environment configuration.
         upload_policy: Upload constraints and multipart configuration.
-        auth_policy: Optional authorization policy.
+        auth_policy: Authorization policy.
         s3_client_factory: Optional S3 client factory override.
 
     Returns:

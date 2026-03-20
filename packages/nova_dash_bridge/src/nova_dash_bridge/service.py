@@ -145,14 +145,14 @@ class FileTransferService:
         *,
         env_config: FileTransferEnvConfig,
         upload_policy: UploadPolicy,
-        auth_policy: AuthPolicy | None = None,
+        auth_policy: AuthPolicy,
         s3_client_factory: SupportsCreateS3Client | None = None,
         logger: logging.Logger | None = None,
     ) -> None:
         """Initialize bridge service dependencies."""
         self._env = env_config
         self._policy = upload_policy
-        self._auth = auth_policy or AuthPolicy()
+        self._auth = auth_policy
         self._factory = s3_client_factory or S3ClientFactory()
         self._logger = logger or logging.getLogger(__name__)
         self._core_config = _core_config_from_bridge(
