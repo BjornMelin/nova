@@ -2,8 +2,8 @@
 Spec: 0024
 Title: CloudFormation module contract
 Status: Active
-Version: 1.3
-Date: 2026-03-17
+Version: 1.4
+Date: 2026-03-20
 Supersedes: "[SPEC-0017 (superseded): CloudFormation module contract](./superseded/SPEC-0017-cloudformation-module-contract.md)"
 Related:
   - "[ADR-0023: Hard-cut v1 canonical route surface](../adr/ADR-0023-hard-cut-v1-canonical-route-surface.md)"
@@ -57,6 +57,10 @@ Additional runtime ECS service contract:
    stack-managed task role must include the AWS-required `ssmmessages`
    session-channel permissions needed by ECS Exec. Operators do not restore
    this behavior through external task-role overrides.
+5. `AuthMode=jwt_local` may remain the template default while `OidcIssuer`,
+   `OidcAudience`, and `OidcJwksUrl` stay blank at template-validation time;
+   incomplete local verifier inputs are enforced by Nova readiness/startup
+   behavior instead of a self-invalidating CloudFormation rule.
 
 ## 4. Inter-stack import/export contract
 

@@ -64,6 +64,10 @@ the target architecture.
 
 Do not add compatibility aliases or retired legacy route families.
 
+`nova_dash_bridge` is an adapter-only seam. Browser and framework integrations
+must forward bearer auth to canonical `/v1/transfers` and `/v1/jobs` routes and
+must not rely on `session_id`, `X-Session-Id`, or `X-Scope-Id` as auth inputs.
+
 ## SDK and OpenAPI Posture
 
 Nova owns the SDK contract surface:
@@ -104,6 +108,9 @@ For detailed SDK governance and generation rules, use:
   diagnostic check
 - `AUTH_MODE=jwt_local` with incomplete OIDC settings leaves
   `auth_dependency` not-ready
+- runtime CloudFormation defaults remain template-validation safe; incomplete
+  `jwt_local` OIDC values fail Nova readiness rather than CloudFormation
+  parameter validation
 - terminal worker updates that set `status=succeeded` **must** normalize `error`
   to `null` (direct persistence path; `SPEC-0028`)
 - malformed worker queue messages are retried through SQS redrive and are not

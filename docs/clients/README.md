@@ -2,7 +2,7 @@
 
 Status: Active
 Owner: nova release architecture
-Last reviewed: 2026-03-18
+Last reviewed: 2026-03-20
 
 ## Purpose
 
@@ -79,6 +79,11 @@ R SDK packages retained in-repo as first-class internal release artifacts:
 `nova_dash_bridge` is an adapter-only package, not release-grade SDK contract
 authority. It consumes the canonical in-process bridge seam exposed by
 `nova_file_api.public`.
+
+Dash and other browser-backed consumers using `nova_dash_bridge` must expose a
+bearer `Authorization` header to the bridge assets for canonical
+`/v1/transfers` and `/v1/jobs` requests. Active consumer docs must not describe
+`session_id`, `X-Session-Id`, or `X-Scope-Id` as public auth/scope inputs.
 
 All of these remain subordinate to the committed Nova OpenAPI contracts.
 TypeScript SDK packages are release-grade within Nova's CodeArtifact

@@ -2,8 +2,8 @@
 Spec: 0018
 Title: Runtime configuration and startup validation contract
 Status: Active
-Version: 2.5
-Date: 2026-03-19
+Version: 2.6
+Date: 2026-03-20
 Related:
   - "[ADR-0026: Fail-fast runtime configuration and safe auth execution](../adr/ADR-0026-fail-fast-runtime-configuration-and-safe-auth-execution.md)"
   - "[SPEC-0017: Runtime component topology and ownership contract](./SPEC-0017-runtime-component-topology-and-ownership-contract.md)"
@@ -69,9 +69,11 @@ Required startup validation:
 10. Runtime configuration aliases that duplicate canonical settings are
    deprecated and must be removed instead of carried forward.
 11. Default runtime posture for file transfer MUST set:
-   - `FILE_TRANSFER_MAX_UPLOAD_BYTES=536_870_912_000`
-   - `FILE_TRANSFER_PRESIGN_UPLOAD_TTL_SECONDS=1800`
-1. Active operator docs and infra tests must consume the generated
+
+    - `FILE_TRANSFER_MAX_UPLOAD_BYTES=536_870_912_000`
+    - `FILE_TRANSFER_PRESIGN_UPLOAD_TTL_SECONDS=1800`
+
+12. Active operator docs and infra tests must consume the generated
     runtime-config contract artifacts instead of maintaining duplicate env-key
     lists by hand.
 
@@ -84,13 +86,16 @@ Required startup validation:
 4. `AUTH_MODE=jwt_local` with incomplete local verifier configuration
    (`OIDC_ISSUER`, `OIDC_AUDIENCE`, or `OIDC_JWKS_URL` missing) fails the
    `auth_dependency` readiness check.
-5. When jobs are disabled, the reported `job_queue` check remains ready instead
+5. Runtime ECS/CloudFormation templates keep their default parameter sets
+   validation-safe; incomplete `jwt_local` OIDC inputs are enforced by Nova
+   readiness/startup behavior, not by template-parameter validation rules.
+6. When jobs are disabled, the reported `job_queue` check remains ready instead
    of making the service unready by feature disablement alone.
-6. Shared cache health remains visible in diagnostics and gates readiness only
+7. Shared cache health remains visible in diagnostics and gates readiness only
    when idempotency is enabled.
-7. Activity-store health remains visible in diagnostics but is not
+8. Activity-store health remains visible in diagnostics but is not
    readiness-fatal in the current contract.
-8. Feature flags do not determine readiness by themselves.
+9. Feature flags do not determine readiness by themselves.
 
 ## 5. Environment and startup ownership
 

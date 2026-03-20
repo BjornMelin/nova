@@ -2,8 +2,8 @@
 Spec: 0021
 Title: Downstream hard-cut integration and consumer validation contract
 Status: Active
-Version: 1.0
-Date: 2026-03-04
+Version: 1.1
+Date: 2026-03-20
 Related:
   - "[ADR-0023: Hard cut to a single canonical /v1 API surface](../adr/ADR-0023-hard-cut-v1-canonical-route-surface.md)"
   - "[SPEC-0000: HTTP API Contract](./SPEC-0000-http-api-contract.md)"
@@ -26,6 +26,10 @@ route authority and cross-repo validation contracts.
    `SPEC-0016` as active runtime routes.
 3. Consumer route configuration defaults in downstream repos must match canonical
    literals.
+4. Browser-backed consumers using `nova_dash_bridge` MUST forward bearer
+   `Authorization` headers to canonical upload/job requests.
+5. Downstream consumers MUST NOT send `session_id`, `X-Session-Id`, or
+   `X-Scope-Id` as Nova public auth/scope inputs.
 
 ## 3. Validation contract
 
@@ -47,12 +51,16 @@ Post-deploy validation contracts MUST include both:
 2. Consumer-facing schema/documentation updates are required in the same change
    set as workflow API contract changes.
 3. Cross-repo conformance evidence for dash/rshiny/react-next is release-gating.
+4. Consumer integration docs must keep the bearer-only bridge contract aligned
+   with `SPEC-0027`.
 
 ## 6. Acceptance criteria
 
 1. Downstream workflow examples pass contract-doc tests.
 2. Consumer route defaults remain canonical-only.
 3. Post-deploy validation artifacts prove canonical and legacy-404 assertions.
+4. Active downstream docs do not describe retired session/header scope carriers
+   as public contract inputs.
 
 ## 7. Traceability
 
