@@ -5,6 +5,9 @@
     "build:typescript:sdk-graph": "npm run -w @nova/sdk-fetch build && npm run -w @nova/sdk-file build",
     "codeartifact:npm:env": "python scripts/release/codeartifact_npm.py env"
   },
+  "devDependencies": {
+    "openapi-typescript": "^7.13.0"
+  },
   "workspaces": [
     "packages/contracts/typescript",
     "packages/nova_sdk_fetch",

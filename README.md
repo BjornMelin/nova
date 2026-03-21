@@ -120,6 +120,12 @@ For detailed SDK governance and generation rules, use:
 
 ## Local Development
 
+Install the root npm toolchain before running generated TypeScript SDK checks:
+
+```bash
+npm ci
+```
+
 Baseline local gates:
 
 ```bash

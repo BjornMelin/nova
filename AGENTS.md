@@ -198,6 +198,7 @@ touched.
 Run:
 
 ```bash
+npm ci
 source .venv/bin/activate && uv lock --check
 source .venv/bin/activate && uv run ruff check .
 source .venv/bin/activate && uv run ruff check . --select I
@@ -220,6 +221,9 @@ Notes:
 - `ty` is the canonical Python type gate for the full repo typing surface.
 - `mypy` remains a required compatibility backstop on its narrower configured
   scope.
+- `scripts/release/generate_clients.py --check` requires the repo-installed
+  root npm toolchain; run `npm ci` before generated TypeScript SDK gates so the
+  local `openapi-typescript` CLI is available without ad hoc network fetches.
 - `pyproject.toml` pins the supported `uv` CLI via
   `[tool.uv].required-version`; keep local tooling, CI, and docs aligned when
   bumping that version.

@@ -56,6 +56,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - name: Install root npm dependencies
+        run: npm ci
       - name: Enforce TypeScript module policy
         run: uv run python scripts/conformance/check_typescript_module_policy.py
       - name: Verify generated TS/R client catalogs
