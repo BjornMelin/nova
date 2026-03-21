@@ -68,8 +68,8 @@ Companion modular setup guides (full index: [README.md](README.md)):
    `npm install --no-progress` and verify the release-grade TypeScript SDK
    subpath contracts, curated exports, and tarball shape before prod
    promotion.
-10. Internal npm package-group policy for `/npm/${CodeArtifactInternalNpmScope}/*` must allow direct
-   publish while blocking both external and internal upstream ingestion.
+10. Internal npm package-group policy for `/npm/nova/*` must allow direct
+    publish while blocking both external and internal upstream ingestion.
 11. Promotion must include and verify `RELEASE_MANIFEST_SHA256`, where the value
    is the actual SHA256 of `docs/release/RELEASE-VERSION-MANIFEST.md`.
 12. Public Python SDK releases must classify OpenAPI tag or `operationId`

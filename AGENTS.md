@@ -174,9 +174,12 @@ rg -n "/v1/transfers|/v1/jobs|/v1/capabilities|/v1/resources/plan|/v1/releases/i
 - DynamoDB-backed job listing requires the
   `scope_id-created_at-index` GSI; do not fall back to `Scan`.
 - `JOBS_RUNTIME_MODE=worker` requires `JOBS_ENABLED=true`,
-  `JOBS_QUEUE_BACKEND=sqs`, and `JOBS_SQS_QUEUE_URL`. HTTP callback settings
-  (`JOBS_API_BASE_URL`, `JOBS_WORKER_UPDATE_TOKEN`) are **not** part of the
-  target architecture once direct persistence is implemented (`SPEC-0028`).
+  `JOBS_QUEUE_BACKEND=sqs`, `JOBS_SQS_QUEUE_URL`,
+  `JOBS_REPOSITORY_BACKEND=dynamodb`, `JOBS_DYNAMODB_TABLE`,
+  `ACTIVITY_STORE_BACKEND=dynamodb`, and `ACTIVITY_ROLLUPS_TABLE`.
+  HTTP callback settings (`JOBS_API_BASE_URL`, `JOBS_WORKER_UPDATE_TOKEN`)
+  are **not** part of the target architecture once direct persistence is
+  implemented (`SPEC-0028`).
 - Malformed worker queue messages must remain unacked so SQS retry/DLQ policy
   handles poison messages.
 - `ACTIVITY_STORE_BACKEND=dynamodb` requires `ACTIVITY_ROLLUPS_TABLE`.
@@ -376,14 +379,15 @@ Keep npm registry config repo-local.
 - Use the generated `.npmrc.codeartifact` for CodeArtifact auth.
 - Run `eval "$(npm run -s codeartifact:npm:env)"` from repo root.
 - `scripts/release/codeartifact_npm.py` writes `.npmrc.codeartifact` and the
-  helper exports `NPM_CONFIG_USERCONFIG` to that path.
+  helper exports `NPM_CONFIG_USERCONFIG` plus `NPM_REGISTRY_URL`.
+- CI and release workflows must use the same explicit `NPM_CONFIG_USERCONFIG`
+  pattern (or an equivalent temp-file variant); do not rely on global npm
+  config mutation.
 - If you switch AWS accounts or CodeArtifact targets, set `AWS_REGION`,
   `CODEARTIFACT_DOMAIN`, and/or `CODEARTIFACT_STAGING_REPOSITORY` before
   running the helper.
-- Do not run `aws codeartifact login --tool npm` on a developer workstation.
-  It rewrites global `~/.npmrc`.
-- npm 10.x requires AWS CLI v2.9.5 or newer when ephemeral CI shells use that
-  command.
+- Do not use `aws codeartifact login --tool npm` in Nova. It rewrites global
+  npm config and is not part of the canonical release path.
 
 ## Deep References
 

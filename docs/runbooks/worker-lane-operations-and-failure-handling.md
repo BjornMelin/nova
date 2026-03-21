@@ -60,17 +60,21 @@ ECS/Fargate workers.
 
 1. Confirm ECS service healthy and task definition current.
 2. Confirm worker task definition command is `nova-file-worker`.
-3. Confirm canonical worker env wiring only:
+3. Confirm canonical worker env wiring:
    - `JOBS_ENABLED=true`
    - `JOBS_RUNTIME_MODE=worker`
    - `JOBS_QUEUE_BACKEND=sqs`
    - `JOBS_SQS_QUEUE_URL`
+   - `JOBS_REPOSITORY_BACKEND=dynamodb`
+   - `JOBS_DYNAMODB_TABLE`
+   - `ACTIVITY_STORE_BACKEND=dynamodb`
+   - `ACTIVITY_ROLLUPS_TABLE`
    - `JOBS_SQS_VISIBILITY_TIMEOUT_SECONDS`
    - `FILE_TRANSFER_BUCKET`
    - `FILE_TRANSFER_UPLOAD_PREFIX`
    - `FILE_TRANSFER_EXPORT_PREFIX`
    - `FILE_TRANSFER_TMP_PREFIX`
-4. Confirm queue URL/ARN/name wiring in worker task env and IAM policy.
+4. Confirm queue and DynamoDB table wiring in worker task env and IAM policy.
 5. Confirm visibility-extension warnings are absent or understood
    (`jobs_worker_visibility_extension_failed`).
 6. Confirm DLQ redrive policy still references active DLQ ARN.

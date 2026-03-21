@@ -60,6 +60,9 @@ Release/provisioning doc conventions: **Release operator docs profile** in
   `SPEC-0021`, `SPEC-0022`, and `SPEC-0023`.
 - Release planning and apply paths must stay synchronized with the active docs
   routers and workflow contracts.
+- Release control-plane planning remains idle-first: foundation and IAM are
+  durable, while `nova-codebuild-release` and `nova-ci-cd` are intended to be
+  recreated for active release work and deleted when idle.
 - Runtime deploy/config planning now uses the generated runtime config contract
   as the live env/override matrix, with `Settings` plus curated deploy
   metadata remaining the underlying authority.

@@ -81,7 +81,8 @@ Provisioning, validation, and setup guides are indexed in
    - `.artifacts/codeartifact-promotion-candidates.json`
    - `.artifacts/npm-publish-report.json` when npm packages participate
 3. Confirm Python package uploads use `twine`, TypeScript package uploads use
-   `aws codeartifact login --tool npm` plus `npm publish --no-progress`, and
+   explicit `NPM_CONFIG_USERCONFIG`-backed CodeArtifact npm config plus
+   `npm publish --no-progress`, and
    R package releases use `R CMD build` and `R CMD check` before tarball
    evidence is stored. The R publish flow writes `.artifacts/r-publish-report.json`,
    uploads the tarball and detached `.sig` as separate CodeArtifact generic
@@ -89,8 +90,11 @@ Provisioning, validation, and setup guides are indexed in
    `published_assets` after upload. The shared conformance helper
    (`scripts/checks/verify_r_cmd_check.sh`) fails the R lane if `R CMD check`
    reports warnings, while using `R CMD check --no-manual` so the lane does
-   not depend on `pdflatex`.
-   When the runner uses npm 10.x, AWS CLI v2.9.5 or newer is required.
+   not depend on `pdflatex`. The npm userconfig step must resolve
+   `@nova:registry` to the staging CodeArtifact endpoint before publish.
+   `Publish Packages` is the canonical manual staging publish workflow for all
+   three artifact lines; Nova does not maintain a separate npm-only publish
+   workflow.
 4. Confirm staged npm smoke installs succeed from
    `CODEARTIFACT_STAGING_REPOSITORY` before prod promotion and validate the
    release-grade TypeScript subpath contracts.
@@ -208,10 +212,10 @@ working tree, run the install in a temporary directory instead of the repo
 root.
 If you need a different account/domain/repository, set `AWS_REGION`,
 `CODEARTIFACT_DOMAIN`, and/or `CODEARTIFACT_STAGING_REPOSITORY` before running
-the helper. Do not run `aws codeartifact login --tool npm` on a workstation
-unless you explicitly intend to rewrite global `~/.npmrc`. CI may still use
-`aws codeartifact login --tool npm` because runners are ephemeral. When the
-runner uses npm 10.x, AWS CLI v2.9.5 or newer is required.
+the helper. CI uses the same explicit `NPM_CONFIG_USERCONFIG` pattern with a
+temporary npmrc file and consumes the helper-exported `NPM_REGISTRY_URL`.
+Do not run `aws codeartifact login --tool npm`; it is not part of Nova's
+canonical npm release path and rewrites global `~/.npmrc`.
 
 ## 8. Local Docker operator rule
 

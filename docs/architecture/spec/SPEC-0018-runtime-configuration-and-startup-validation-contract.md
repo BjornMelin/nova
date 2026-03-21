@@ -46,8 +46,10 @@ Required startup validation:
    - `JOBS_ENABLED=true`
    - `JOBS_QUEUE_BACKEND=sqs`
    - `JOBS_SQS_QUEUE_URL`
-   - any repository/activity-store settings required by the configured worker
-     persistence backends
+   - `JOBS_REPOSITORY_BACKEND=dynamodb`
+   - `JOBS_DYNAMODB_TABLE`
+   - `ACTIVITY_STORE_BACKEND=dynamodb`
+   - `ACTIVITY_ROLLUPS_TABLE`
 5. `ACTIVITY_STORE_BACKEND=dynamodb` requires `ACTIVITY_ROLLUPS_TABLE`.
 6. `IDEMPOTENCY_ENABLED` and `IDEMPOTENCY_TTL_SECONDS` are the current
    idempotency settings surface; the runtime does not define
