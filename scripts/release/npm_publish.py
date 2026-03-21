@@ -5,9 +5,11 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import re
 import shutil
 import subprocess
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -302,42 +304,100 @@ def _validate_packable_npm_artifact(
         ValueError: If the dry-run result is missing the tarball metadata or
             packed file list.
     """
-    dry_run_result = _run_npm_pack(package_dir, dry_run=True)
-    packed_files = _extract_npm_packed_files(dry_run_result, package_dir)
-    if not packed_files:
-        raise ValueError(f"{package_dir}: npm pack dry-run produced no files")
-    if not any(
-        packed_file == "dist" or packed_file.startswith("dist/")
-        for packed_file in packed_files
-    ):
-        raise ValueError(
-            f"{package_dir}: npm pack dry-run did not include any dist/ files"
+    with tempfile.TemporaryDirectory(
+        prefix="npm-pack-",
+        dir=package_dir.parent,
+    ) as temp_dir:
+        npm_env = _build_npm_pack_environment(Path(temp_dir))
+        dry_run_result = _run_npm_pack(
+            package_dir,
+            dry_run=True,
+            env=npm_env,
         )
+        packed_files = _extract_npm_packed_files(dry_run_result, package_dir)
+        if not packed_files:
+            raise ValueError(
+                f"{package_dir}: npm pack dry-run produced no files"
+            )
+        if not any(
+            packed_file == "dist" or packed_file.startswith("dist/")
+            for packed_file in packed_files
+        ):
+            raise ValueError(
+                f"{package_dir}: npm pack dry-run did not include any dist/ "
+                "files"
+            )
 
-    pack_result = _run_npm_pack(package_dir, dry_run=False)
-    dry_run_filename = _extract_npm_pack_filename(dry_run_result, package_dir)
-    pack_filename = _extract_npm_pack_filename(pack_result, package_dir)
-    if dry_run_filename != pack_filename:
-        raise ValueError(
-            f"{package_dir}: npm pack filename changed between dry-run "
-            f"and pack: {dry_run_filename} != {pack_filename}"
+        pack_result = _run_npm_pack(
+            package_dir,
+            dry_run=False,
+            env=npm_env,
         )
-
-    packed_files_from_pack = _extract_npm_packed_files(pack_result, package_dir)
-    if packed_files_from_pack and packed_files_from_pack != packed_files:
-        raise ValueError(
-            f"{package_dir}: npm pack file list changed between dry-run "
-            "and pack"
+        dry_run_filename = _extract_npm_pack_filename(
+            dry_run_result,
+            package_dir,
         )
+        pack_filename = _extract_npm_pack_filename(pack_result, package_dir)
+        if dry_run_filename != pack_filename:
+            raise ValueError(
+                f"{package_dir}: npm pack filename changed between dry-run "
+                f"and pack: {dry_run_filename} != {pack_filename}"
+            )
 
-    filename = pack_filename
-    tarball_path = package_dir / filename
-    if not tarball_path.exists():
-        raise ValueError(f"{package_dir}: npm pack did not create {filename}")
-    return packed_files, tarball_path
+        packed_files_from_pack = _extract_npm_packed_files(
+            pack_result,
+            package_dir,
+        )
+        if packed_files_from_pack and packed_files_from_pack != packed_files:
+            raise ValueError(
+                f"{package_dir}: npm pack file list changed between dry-run "
+                "and pack"
+            )
+
+        filename = pack_filename
+        tarball_path = package_dir / filename
+        if not tarball_path.exists():
+            raise ValueError(
+                f"{package_dir}: npm pack did not create {filename}"
+            )
+        return packed_files, tarball_path
 
 
-def _run_npm_pack(package_dir: Path, *, dry_run: bool) -> list[dict[str, Any]]:
+def _build_npm_pack_environment(temp_dir: Path) -> dict[str, str]:
+    """Return an isolated npm environment rooted in a writable temp dir.
+
+    Args:
+        temp_dir: Writable temporary directory used to isolate npm state.
+
+    Returns:
+        Environment mapping with HOME, npm cache, npm userconfig, and XDG
+        paths rooted under ``temp_dir``.
+    """
+    cache_dir = temp_dir / "cache"
+    xdg_cache_dir = temp_dir / "xdg-cache"
+    xdg_config_dir = temp_dir / "xdg-config"
+    user_config_path = temp_dir / ".npmrc"
+
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    xdg_cache_dir.mkdir(parents=True, exist_ok=True)
+    xdg_config_dir.mkdir(parents=True, exist_ok=True)
+    user_config_path.write_text("", encoding="utf-8")
+
+    env = os.environ.copy()
+    env["HOME"] = str(temp_dir)
+    env["NPM_CONFIG_CACHE"] = str(cache_dir)
+    env["NPM_CONFIG_USERCONFIG"] = str(user_config_path)
+    env["XDG_CACHE_HOME"] = str(xdg_cache_dir)
+    env["XDG_CONFIG_HOME"] = str(xdg_config_dir)
+    return env
+
+
+def _run_npm_pack(
+    package_dir: Path,
+    *,
+    dry_run: bool,
+    env: dict[str, str],
+) -> list[dict[str, Any]]:
     """Run npm pack and return the decoded JSON payload."""
     args = ["npm", "pack", "--json"]
     if dry_run:
@@ -347,6 +407,7 @@ def _run_npm_pack(package_dir: Path, *, dry_run: bool) -> list[dict[str, Any]]:
         cwd=package_dir,
         check=False,
         capture_output=True,
+        env=env,
         text=True,
     )
     if result.returncode != 0:

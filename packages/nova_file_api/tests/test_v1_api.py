@@ -1,8 +1,8 @@
-"""Tests for v1 FastAPI endpoints using TestClient and create_app."""
+"""Tests for v1 FastAPI endpoints using the shared ASGI test harness."""
 
 from __future__ import annotations
 
-from fastapi.testclient import TestClient
+import pytest
 from nova_file_api.activity import MemoryActivityStore
 from nova_file_api.config import Settings
 from nova_file_api.jobs import (
@@ -25,6 +25,7 @@ from .support.app import (
     build_cache_stack,
     build_runtime_deps,
     build_test_app,
+    request_app,
 )
 from .support.doubles import StubAuthenticator, StubTransferService
 
@@ -115,13 +116,13 @@ def _build_v1_deps(
     )
 
 
-def test_v1_health_and_capabilities() -> None:
+@pytest.mark.asyncio
+async def test_v1_health_and_capabilities() -> None:
     """Verifies v1 live/ready health and capability keys are exposed."""
     app = build_test_app(_build_v1_deps(file_transfer_bucket=""))
-    with TestClient(app) as client:
-        live = client.get("/v1/health/live")
-        ready = client.get("/v1/health/ready")
-        caps = client.get("/v1/capabilities")
+    live = await request_app(app, "GET", "/v1/health/live")
+    ready = await request_app(app, "GET", "/v1/health/ready")
+    caps = await request_app(app, "GET", "/v1/capabilities")
 
     assert live.status_code == 200
     assert live.json() == {"ok": True}
@@ -134,75 +135,91 @@ def test_v1_health_and_capabilities() -> None:
     assert {"jobs", "jobs.events.poll", "transfers"}.issubset(cap_keys)
 
 
-def test_v1_upload_introspect_returns_uploaded_parts() -> None:
+@pytest.mark.asyncio
+async def test_v1_upload_introspect_returns_uploaded_parts() -> None:
     """Verify multipart introspection is exposed on the canonical v1 route."""
     deps = _build_v1_deps()
     deps.transfer_service = _IntrospectTransferService()
     app = build_test_app(deps)
-    with TestClient(app) as client:
-        response = client.post(
-            "/v1/transfers/uploads/introspect",
-            headers=AUTH_HEADERS,
-            json={
-                "key": "uploads/scope-1/file.csv",
-                "upload_id": "upload-1",
-            },
-        )
+    response = await request_app(
+        app,
+        "POST",
+        "/v1/transfers/uploads/introspect",
+        headers=AUTH_HEADERS,
+        json={
+            "key": "uploads/scope-1/file.csv",
+            "upload_id": "upload-1",
+        },
+    )
 
     assert response.status_code == 200
     assert response.json()["parts"] == [{"part_number": 1, "etag": '"etag-1"'}]
 
 
-def test_v1_jobs_create_list_get_retry_and_events() -> None:
+@pytest.mark.asyncio
+async def test_v1_jobs_create_list_get_retry_and_events() -> None:
     """Verifies v1 job create/list/get/retry/event lifecycle behavior."""
     app = build_test_app(_build_v1_deps())
-    with TestClient(app) as client:
-        create_resp = client.post(
-            "/v1/jobs",
-            headers=AUTH_HEADERS,
-            json={"job_type": "transform", "payload": {"input": "a"}},
-        )
-        assert create_resp.status_code == 200
-        created = create_resp.json()
-        job_id = created["job_id"]
+    create_resp = await request_app(
+        app,
+        "POST",
+        "/v1/jobs",
+        headers=AUTH_HEADERS,
+        json={"job_type": "transform", "payload": {"input": "a"}},
+    )
+    assert create_resp.status_code == 200
+    created = create_resp.json()
+    job_id = created["job_id"]
 
-        list_resp = client.get("/v1/jobs", headers=AUTH_HEADERS)
-        assert list_resp.status_code == 200
-        assert any(
-            item["job_id"] == job_id for item in list_resp.json()["jobs"]
-        )
+    list_resp = await request_app(
+        app,
+        "GET",
+        "/v1/jobs",
+        headers=AUTH_HEADERS,
+    )
+    assert list_resp.status_code == 200
+    assert any(item["job_id"] == job_id for item in list_resp.json()["jobs"])
 
-        get_resp = client.get(
-            f"/v1/jobs/{job_id}",
-            headers=AUTH_HEADERS,
-        )
-        assert get_resp.status_code == 200
-        assert get_resp.json()["job"]["job_id"] == job_id
+    get_resp = await request_app(
+        app,
+        "GET",
+        f"/v1/jobs/{job_id}",
+        headers=AUTH_HEADERS,
+    )
+    assert get_resp.status_code == 200
+    assert get_resp.json()["job"]["job_id"] == job_id
 
-        retry_resp = client.post(
-            f"/v1/jobs/{job_id}/retry",
-            headers=AUTH_HEADERS,
-        )
-        assert retry_resp.status_code == 409
+    retry_resp = await request_app(
+        app,
+        "POST",
+        f"/v1/jobs/{job_id}/retry",
+        headers=AUTH_HEADERS,
+    )
+    assert retry_resp.status_code == 409
 
-        events_resp = client.get(
-            f"/v1/jobs/{job_id}/events",
-            headers=AUTH_HEADERS,
-        )
-        assert events_resp.status_code == 200
-        events = events_resp.json()["events"]
-        assert len(events) == 1
-        assert events[0]["job_id"] == job_id
+    events_resp = await request_app(
+        app,
+        "GET",
+        f"/v1/jobs/{job_id}/events",
+        headers=AUTH_HEADERS,
+    )
+    assert events_resp.status_code == 200
+    events = events_resp.json()["events"]
+    assert len(events) == 1
+    assert events[0]["job_id"] == job_id
 
 
-def test_v1_resource_plan_and_release_info() -> None:
+@pytest.mark.asyncio
+async def test_v1_resource_plan_and_release_info() -> None:
     """Verifies v1 resource planning plus release metadata contract."""
     app = build_test_app(_build_v1_deps())
-    with TestClient(app) as client:
-        plan = client.post(
-            "/v1/resources/plan", json={"resources": ["jobs", "unknown"]}
-        )
-        info = client.get("/v1/releases/info")
+    plan = await request_app(
+        app,
+        "POST",
+        "/v1/resources/plan",
+        json={"resources": ["jobs", "unknown"]},
+    )
+    info = await request_app(app, "GET", "/v1/releases/info")
 
     assert plan.status_code == 200
     payload = plan.json()
@@ -219,33 +236,40 @@ def test_v1_resource_plan_and_release_info() -> None:
     assert release["environment"]
 
 
-def test_v1_jobs_rejects_blank_idempotency_key() -> None:
+@pytest.mark.asyncio
+async def test_v1_jobs_rejects_blank_idempotency_key() -> None:
     """Verifies v1 jobs reject blank Idempotency-Key header values."""
     app = build_test_app(_build_v1_deps())
-    with TestClient(app) as client:
-        resp = client.post(
-            "/v1/jobs",
-            headers={
-                **AUTH_HEADERS,
-                "Idempotency-Key": "",
-            },
-            json={"job_type": "transform", "payload": {"input": "a"}},
-        )
-        whitespace_resp = client.post(
-            "/v1/jobs",
-            headers={
-                **AUTH_HEADERS,
-                "Idempotency-Key": "   ",
-            },
-            json={"job_type": "transform", "payload": {"input": "a"}},
-        )
+    resp = await request_app(
+        app,
+        "POST",
+        "/v1/jobs",
+        headers={
+            **AUTH_HEADERS,
+            "Idempotency-Key": "",
+        },
+        json={"job_type": "transform", "payload": {"input": "a"}},
+    )
+    whitespace_resp = await request_app(
+        app,
+        "POST",
+        "/v1/jobs",
+        headers={
+            **AUTH_HEADERS,
+            "Idempotency-Key": "   ",
+        },
+        json={"job_type": "transform", "payload": {"input": "a"}},
+    )
     assert resp.status_code == 422
     assert resp.json()["error"]["code"] == "invalid_request"
     assert whitespace_resp.status_code == 422
     assert whitespace_resp.json()["error"]["code"] == "invalid_request"
 
 
-def test_v1_jobs_list_scoped_config_error_returns_internal_error() -> None:
+@pytest.mark.asyncio
+async def test_v1_jobs_list_scoped_config_error_returns_internal_error() -> (
+    None
+):
     """Verify a scoped jobs listing config error returns an internal error."""
     settings = Settings.model_validate(
         {
@@ -274,11 +298,13 @@ def test_v1_jobs_list_scoped_config_error_returns_internal_error() -> None:
     )
 
     app = build_test_app(deps)
-    with TestClient(app, raise_server_exceptions=False) as client:
-        response = client.get(
-            "/v1/jobs",
-            headers=AUTH_HEADERS,
-        )
+    response = await request_app(
+        app,
+        "GET",
+        "/v1/jobs",
+        headers=AUTH_HEADERS,
+        raise_app_exceptions=False,
+    )
 
     assert response.status_code == 500
     payload = response.json()
@@ -286,19 +312,21 @@ def test_v1_jobs_list_scoped_config_error_returns_internal_error() -> None:
     assert payload["error"]["message"] == "unexpected internal error"
 
 
-def test_v1_jobs_rejects_legacy_session_scope_body_fields() -> None:
+@pytest.mark.asyncio
+async def test_v1_jobs_rejects_legacy_session_scope_body_fields() -> None:
     """Public request models reject removed session-scope surrogate fields."""
     app = build_test_app(_build_v1_deps())
-    with TestClient(app) as client:
-        response = client.post(
-            "/v1/jobs",
-            headers=AUTH_HEADERS,
-            json={
-                "job_type": "transform",
-                "payload": {"input": "a"},
-                "session_id": "scope-v1",
-            },
-        )
+    response = await request_app(
+        app,
+        "POST",
+        "/v1/jobs",
+        headers=AUTH_HEADERS,
+        json={
+            "job_type": "transform",
+            "payload": {"input": "a"},
+            "session_id": "scope-v1",
+        },
+    )
 
     assert response.status_code == 422
     payload = response.json()

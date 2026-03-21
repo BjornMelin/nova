@@ -113,10 +113,18 @@ For detailed SDK governance and generation rules, use:
   parameter validation
 - terminal worker updates that set `status=succeeded` **must** normalize `error`
   to `null` (direct persistence path; `SPEC-0028`)
+- `JOBS_RUNTIME_MODE=worker` is the shared-persistence runtime: workers require
+  SQS delivery plus DynamoDB-backed job and activity tables
 - malformed worker queue messages are retried through SQS redrive and are not
   acknowledged immediately
 
 ## Local Development
+
+Install the root npm toolchain before running generated TypeScript SDK checks:
+
+```bash
+npm ci
+```
 
 Baseline local gates:
 
@@ -212,10 +220,14 @@ npm install --no-package-lock
 ```
 
 The helper writes `.npmrc.codeartifact` and sets `NPM_CONFIG_USERCONFIG` so
-other repos stay untouched. npm 10.x requires AWS CLI `v2.9.5 or newer` when
-ephemeral CI shells use `aws codeartifact login --tool npm`. Do not run
-`aws codeartifact login --tool npm` on a developer workstation because it
-rewrites global `~/.npmrc`.
+other repos stay untouched. It also exports `NPM_REGISTRY_URL` for npm publish
+and smoke-test steps. CI uses the same explicit `NPM_CONFIG_USERCONFIG`
+pattern with a temporary npmrc, so Nova does not rely on
+`aws codeartifact login --tool npm` or global `~/.npmrc` mutation.
+
+Release automation note: `Publish Packages` is the manual staging publish
+workflow for Python, TypeScript/npm, and R artifacts, and `Promote Prod` is
+the manual prod promotion workflow for those staged, gate-validated artifacts.
 
 ## Release and Operations
 

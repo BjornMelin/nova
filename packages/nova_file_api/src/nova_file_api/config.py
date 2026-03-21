@@ -5,7 +5,7 @@ from __future__ import annotations
 import importlib.metadata
 import warnings
 
-from pydantic import Field, SecretStr, model_validator
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from nova_file_api.models import (
@@ -24,12 +24,23 @@ _MSG_WORKER_RUNTIME_REQUIRES_SQS_BACKEND = (
 _MSG_WORKER_RUNTIME_REQUIRES_SQS_QUEUE_URL = (
     "JOBS_SQS_QUEUE_URL must be configured when JOBS_RUNTIME_MODE=worker"
 )
-_MSG_WORKER_RUNTIME_REQUIRES_API_BASE_URL = (
-    "JOBS_API_BASE_URL must be configured when JOBS_RUNTIME_MODE=worker"
+_MSG_WORKER_RUNTIME_REQUIRES_DYNAMODB_JOBS_BACKEND = (
+    "JOBS_REPOSITORY_BACKEND must be dynamodb when JOBS_RUNTIME_MODE=worker"
 )
-_MSG_WORKER_RUNTIME_REQUIRES_UPDATE_TOKEN = (
-    "JOBS_WORKER_UPDATE_TOKEN must be configured when JOBS_RUNTIME_MODE=worker"
+_MSG_WORKER_RUNTIME_REQUIRES_JOBS_TABLE = (
+    "JOBS_DYNAMODB_TABLE must be configured when JOBS_RUNTIME_MODE=worker"
 )
+_MSG_WORKER_RUNTIME_REQUIRES_DYNAMODB_ACTIVITY_BACKEND = (
+    "ACTIVITY_STORE_BACKEND must be dynamodb when JOBS_RUNTIME_MODE=worker"
+)
+_MSG_WORKER_RUNTIME_REQUIRES_ACTIVITY_TABLE = (
+    "ACTIVITY_ROLLUPS_TABLE must be configured when JOBS_RUNTIME_MODE=worker"
+)
+
+
+def _is_blank(value: str | None) -> bool:
+    """Return whether an optional environment value is unset or blank."""
+    return value is None or not value.strip()
 
 
 def _default_app_version() -> str:
@@ -280,18 +291,6 @@ class Settings(BaseSettings):
         alias="JOBS_RUNTIME_MODE",
         pattern="^(api|worker)$",
     )
-    jobs_api_base_url: str | None = Field(
-        default=None,
-        alias="JOBS_API_BASE_URL",
-    )
-    jobs_worker_update_token: SecretStr | None = Field(
-        default=None,
-        alias="JOBS_WORKER_UPDATE_TOKEN",
-    )
-    jobs_allow_insecure_missing_worker_token_nonprod: bool = Field(
-        default=False,
-        alias="JOBS_ALLOW_INSECURE_MISSING_WORKER_TOKEN_NONPROD",
-    )
 
     activity_store_backend: ActivityStoreBackend = Field(
         default=ActivityStoreBackend.MEMORY,
@@ -372,19 +371,18 @@ class Settings(BaseSettings):
             raise ValueError(_MSG_WORKER_RUNTIME_REQUIRES_JOBS_ENABLED)
         if self.jobs_queue_backend != JobsQueueBackend.SQS:
             raise ValueError(_MSG_WORKER_RUNTIME_REQUIRES_SQS_BACKEND)
-        queue_url = (self.jobs_sqs_queue_url or "").strip()
-        if not queue_url:
+        if _is_blank(self.jobs_sqs_queue_url):
             raise ValueError(_MSG_WORKER_RUNTIME_REQUIRES_SQS_QUEUE_URL)
-        api_base_url = (self.jobs_api_base_url or "").strip()
-        if not api_base_url:
-            raise ValueError(_MSG_WORKER_RUNTIME_REQUIRES_API_BASE_URL)
-        token = (
-            self.jobs_worker_update_token.get_secret_value()
-            if self.jobs_worker_update_token is not None
-            else ""
-        ).strip()
-        if not token:
-            raise ValueError(_MSG_WORKER_RUNTIME_REQUIRES_UPDATE_TOKEN)
+        if self.jobs_repository_backend != JobsRepositoryBackend.DYNAMODB:
+            raise ValueError(_MSG_WORKER_RUNTIME_REQUIRES_DYNAMODB_JOBS_BACKEND)
+        if _is_blank(self.jobs_dynamodb_table):
+            raise ValueError(_MSG_WORKER_RUNTIME_REQUIRES_JOBS_TABLE)
+        if self.activity_store_backend != ActivityStoreBackend.DYNAMODB:
+            raise ValueError(
+                _MSG_WORKER_RUNTIME_REQUIRES_DYNAMODB_ACTIVITY_BACKEND
+            )
+        if _is_blank(self.activity_rollups_table):
+            raise ValueError(_MSG_WORKER_RUNTIME_REQUIRES_ACTIVITY_TABLE)
         return self
 
     @model_validator(mode="after")

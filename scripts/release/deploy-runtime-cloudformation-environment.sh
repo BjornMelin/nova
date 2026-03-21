@@ -407,7 +407,6 @@ JOBS_QUEUE_NAME="${JOBS_QUEUE_NAME:-${PROJECT:-}-${APPLICATION:-}-${SERVICE_NAME
 JOBS_DEAD_LETTER_QUEUE_NAME="${JOBS_DEAD_LETTER_QUEUE_NAME:-${PROJECT:-}-${APPLICATION:-}-${SERVICE_NAME:-}-${ENVIRONMENT:-}-jobs-dlq}"
 JOBS_TABLE_NAME="${JOBS_TABLE_NAME:-${PROJECT:-}-${APPLICATION:-}-${SERVICE_NAME:-}-${ENVIRONMENT:-}-jobs}"
 ACTIVITY_TABLE_NAME="${ACTIVITY_TABLE_NAME:-${PROJECT:-}-${APPLICATION:-}-${SERVICE_NAME:-}-${ENVIRONMENT:-}-activity}"
-JOBS_REGION="${JOBS_REGION:-$AWS_REGION}"
 JOBS_SQS_VISIBILITY_TIMEOUT_SECONDS="${JOBS_SQS_VISIBILITY_TIMEOUT_SECONDS:-120}"
 if ! [[ "$JOBS_SQS_VISIBILITY_TIMEOUT_SECONDS" =~ ^[0-9]+$ ]]; then
   echo "Error: JOBS_SQS_VISIBILITY_TIMEOUT_SECONDS must be a whole number" >&2
@@ -503,10 +502,6 @@ esac
 
 require_exactly_one_ingress_source
 ensure_runtime_env_json_contract
-
-if [ "$ENABLE_WORKER" = "true" ] && [ "$FILE_TRANSFER_ASYNC_ENABLED" = "true" ]; then
-  require_env JOBS_WORKER_UPDATE_TOKEN_SECRET_ARN
-fi
 
 RUNTIME_BUCKET_NAME="${FILE_TRANSFER_BUCKET_BASE_NAME}-${AWS_REGION}-${AWS_ACCOUNT_ID}"
 ARTIFACT_BUCKET_NAME="$(resolve_artifact_bucket_name)"
@@ -730,10 +725,11 @@ elif [ "$ENABLE_WORKER" = "true" ] && [ "$FILE_TRANSFER_ASYNC_ENABLED" = "true" 
     "DesiredCount=${WORKER_DESIRED_COUNT}" \
     "JobsQueueArn=${JOBS_QUEUE_ARN}" \
     "JobsQueueUrl=${JOBS_QUEUE_URL}" \
-    "JobsRegion=${JOBS_REGION}" \
+    "JobsTableName=${JOBS_TABLE_NAME}" \
+    "JobsTableArn=${JOBS_TABLE_ARN}" \
+    "ActivityTableName=${ACTIVITY_TABLE_NAME}" \
+    "ActivityTableArn=${ACTIVITY_TABLE_ARN}" \
     "JobsVisibilityTimeoutSeconds=${JOBS_SQS_VISIBILITY_TIMEOUT_SECONDS}" \
-    "JobsApiBaseUrl=${SERVICE_BASE_URL}" \
-    "JobsWorkerUpdateTokenSecretArn=${JOBS_WORKER_UPDATE_TOKEN_SECRET_ARN}" \
     "FileTransferBucketName=${RUNTIME_BUCKET_NAME}" \
     "FileTransferUploadPrefix=${FILE_TRANSFER_UPLOAD_PREFIX}" \
     "FileTransferExportPrefix=${FILE_TRANSFER_EXPORT_PREFIX}" \

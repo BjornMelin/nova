@@ -56,3 +56,38 @@ def test_create_file_transfer_blueprint_adds_bearer_challenge_on_401() -> None:
     assert payload["error"]["code"] == "unauthorized"
     assert payload["error"]["message"] == "missing bearer token"
     assert response.headers["WWW-Authenticate"].startswith("Bearer")
+
+
+def test_create_file_transfer_blueprint_rejects_cookie_only_auth() -> None:
+    """File transfer routes should reject cookie-only authentication."""
+    app = Flask(__name__)
+    flask_integration.register_file_transfer_blueprint(
+        app,
+        env_config=FileTransferEnvConfig.model_validate(
+            {
+                "FILE_TRANSFER_ENABLED": True,
+                "FILE_TRANSFER_BUCKET": "bucket-a",
+            }
+        ),
+        upload_policy=UploadPolicy(
+            max_upload_bytes=100,
+            allowed_extensions={".csv"},
+        ),
+        auth_policy=_auth_policy(),
+    )
+
+    with app.test_client() as client:
+        client.set_cookie("pca-nova-auth", "Bearer token-123")
+        response = client.post(
+            "/v1/transfers/uploads/initiate",
+            json={
+                "filename": "report.csv",
+                "content_type": "text/csv",
+                "size_bytes": 1,
+            },
+        )
+
+    assert response.status_code == 401
+    payload = response.get_json()
+    assert payload["error"]["code"] == "unauthorized"
+    assert payload["error"]["message"] == "missing bearer token"

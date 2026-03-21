@@ -134,7 +134,6 @@ jobs:
             "/v1/jobs/{job_id}/cancel"
             "/v1/jobs/{job_id}/retry"
             "/v1/jobs/{job_id}/events"
-            "/v1/internal/jobs/{job_id}/result"
             "/v1/capabilities"
             "/v1/resources/plan"
             "/v1/releases/info"

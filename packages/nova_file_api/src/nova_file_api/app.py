@@ -37,71 +37,83 @@ async def _close_authenticator(*, app: FastAPI) -> None:
         await close_authenticator()
 
 
-def create_app() -> FastAPI:
-    """Create a configured FastAPI application."""
+def create_app(*, settings: Settings | None = None) -> FastAPI:
+    """Create a configured FastAPI application.
+
+    Args:
+        settings: Optional prebuilt settings. When omitted, a new settings
+            object is resolved from the environment.
+
+    Returns:
+        Configured FastAPI application.
+    """
     configure_structlog()
-    settings = Settings()
+    settings = Settings() if settings is None else settings
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-        runtime_settings = app.state.settings
-        session = new_aioboto3_session()
-        s3_config = Config(
-            s3={
-                "use_accelerate_endpoint": (
-                    runtime_settings.file_transfer_use_accelerate_endpoint
-                )
-            }
-        )
-        requires_dynamodb = (
-            runtime_settings.jobs_repository_backend
-            == JobsRepositoryBackend.DYNAMODB
-            or runtime_settings.activity_store_backend
-            == ActivityStoreBackend.DYNAMODB
-        )
-        requires_sqs = (
-            runtime_settings.jobs_enabled
-            and runtime_settings.jobs_queue_backend == JobsQueueBackend.SQS
-            and bool(
-                runtime_settings.jobs_sqs_queue_url
-                and runtime_settings.jobs_sqs_queue_url.strip()
-            )
-        )
-
-        async with AsyncExitStack() as stack:
-            s3_client = await stack.enter_async_context(
-                session.client("s3", config=s3_config)
-            )
-            dynamodb_resource = None
-            if requires_dynamodb:
-                dynamodb_resource = await stack.enter_async_context(
-                    session.resource("dynamodb")
-                )
-            sqs_client = None
-            if requires_sqs:
-                sqs_config = Config(
-                    retries={
-                        "mode": runtime_settings.jobs_sqs_retry_mode,
-                        "total_max_attempts": (
-                            runtime_settings.jobs_sqs_retry_total_max_attempts
-                        ),
+        try:
+            if getattr(app.state, "_skip_runtime_state_initialization", False):
+                yield
+            else:
+                runtime_settings = app.state.settings
+                session = new_aioboto3_session()
+                s3_config = Config(
+                    s3={
+                        "use_accelerate_endpoint": (
+                            runtime_settings.file_transfer_use_accelerate_endpoint
+                        )
                     }
                 )
-                sqs_client = await stack.enter_async_context(
-                    session.client("sqs", config=sqs_config)
+                requires_dynamodb = (
+                    runtime_settings.jobs_repository_backend
+                    == JobsRepositoryBackend.DYNAMODB
+                    or runtime_settings.activity_store_backend
+                    == ActivityStoreBackend.DYNAMODB
+                )
+                requires_sqs = (
+                    runtime_settings.jobs_enabled
+                    and runtime_settings.jobs_queue_backend
+                    == JobsQueueBackend.SQS
+                    and bool(
+                        runtime_settings.jobs_sqs_queue_url
+                        and runtime_settings.jobs_sqs_queue_url.strip()
+                    )
                 )
 
-            initialize_runtime_state(
-                app,
-                settings=runtime_settings,
-                s3_client=s3_client,
-                dynamodb_resource=dynamodb_resource,
-                sqs_client=sqs_client,
-            )
-            try:
-                yield
-            finally:
-                await _close_authenticator(app=app)
+                async with AsyncExitStack() as stack:
+                    s3_client = await stack.enter_async_context(
+                        session.client("s3", config=s3_config)
+                    )
+                    dynamodb_resource = None
+                    if requires_dynamodb:
+                        dynamodb_resource = await stack.enter_async_context(
+                            session.resource("dynamodb")
+                        )
+                    sqs_client = None
+                    if requires_sqs:
+                        sqs_config = Config(
+                            retries={
+                                "mode": runtime_settings.jobs_sqs_retry_mode,
+                                "total_max_attempts": (
+                                    runtime_settings.jobs_sqs_retry_total_max_attempts
+                                ),
+                            }
+                        )
+                        sqs_client = await stack.enter_async_context(
+                            session.client("sqs", config=sqs_config)
+                        )
+
+                    initialize_runtime_state(
+                        app,
+                        settings=runtime_settings,
+                        s3_client=s3_client,
+                        dynamodb_resource=dynamodb_resource,
+                        sqs_client=sqs_client,
+                    )
+                    yield
+        finally:
+            await _close_authenticator(app=app)
 
     app = FastAPI(
         title="nova-file-api",

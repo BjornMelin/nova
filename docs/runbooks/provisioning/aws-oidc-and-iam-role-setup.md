@@ -21,11 +21,12 @@ release workflows and AWS pipeline stages.
 - `${AWS_ACCOUNT_ID}` example: `123456789012`
 - `${PROJECT}` default: `nova`
 - `${APPLICATION}` default: `ci`
-- `${GITHUB_OWNER}` default: `3M-Cloud`
-- `${GITHUB_REPO}` default: `nova`
+- `${GITHUB_OWNER}` target GitHub org or user
+- `${GITHUB_REPO}` target repository name
 - `${MAIN_BRANCH}` default: `main`
 - `${SIGNING_SECRET_ARN}` from secrets provisioning guide
 - `${FOUNDATION_STACK_NAME}` default: `${PROJECT}-${APPLICATION}-nova-foundation`
+- `${CODEARTIFACT_DOMAIN}` example: `cral`
 - `${CODEARTIFACT_STAGING_REPOSITORY}` example: `galaxypy-staging`
 - `${CODEARTIFACT_PROD_REPOSITORY}` example: `galaxypy-prod`
 
@@ -80,6 +81,8 @@ Repository directionality contract:
         MainBranchName="${MAIN_BRANCH}" \
         GitHubOidcProviderArn="${GITHUB_OIDC_PROVIDER_ARN}" \
         ReleaseSigningSecretArn="${SIGNING_SECRET_ARN}" \
+        CodeArtifactDomainName="${CODEARTIFACT_DOMAIN}" \
+        CodeArtifactStagingRepositoryName="${CODEARTIFACT_STAGING_REPOSITORY}" \
         CodeArtifactPromotionSourceRepositoryName="${CODEARTIFACT_STAGING_REPOSITORY}" \
         CodeArtifactPromotionDestinationRepositoryName="${CODEARTIFACT_PROD_REPOSITORY}"
     ```
@@ -107,6 +110,8 @@ Provide these values when deploying `infra/nova/nova-iam-roles.yml`:
 - `RepositoryOwner`
 - `RepositoryName`
 - `MainBranchName`
+- `CodeArtifactDomainName`
+- `CodeArtifactStagingRepositoryName`
 - `CodeArtifactPromotionSourceRepositoryName`
 - `CodeArtifactPromotionDestinationRepositoryName`
 
@@ -121,15 +126,18 @@ Provide these values when deploying `infra/nova/nova-iam-roles.yml`:
      --query 'Stacks[0].Outputs[?OutputKey==`GitHubOIDCReleaseRoleArn`].OutputValue | [0]' \
      --output text
    ```
+
 2. Assume-role policy includes scoped `aud` and `sub` constraints.
 3. Role has only required access to signing secret and no static keys.
 4. Promotion permissions are directional:
    - `codeartifact:ReadFromRepository` scoped to staging source repository.
    - `codeartifact:CopyPackageVersions` scoped to prod destination repository
-     plus required Python and TypeScript SDK package ARNs.
+     plus required Python, TypeScript, and generic R package ARNs.
+   - staged publish permissions cover the staging repository package ARNs for
+     `pypi`, `npm`, and `generic` package formats.
 5. Release/build roles include package-group governance for
    `package-group/${CodeArtifactDomainName}/*` so
-   `/npm/${CodeArtifactInternalNpmScope}/*` blocks upstream ingestion while
+   `/npm/nova/*` blocks upstream ingestion while
    still allowing direct publish.
 6. When `ReleaseValidationTrustedPrincipalArn` is provided, output
    `ReleaseValidationReadRoleArn` exists and is assumable by the trusted

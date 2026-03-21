@@ -26,8 +26,6 @@ from nova_file_api.models import (
     JobEvent,
     JobEventsResponse,
     JobListResponse,
-    JobResultUpdateRequest,
-    JobResultUpdateResponse,
     JobStatusResponse,
     Principal,
 )
@@ -38,14 +36,11 @@ from nova_file_api.operation_ids import (
     LIST_JOB_EVENTS_OPERATION_ID,
     LIST_JOBS_OPERATION_ID,
     RETRY_JOB_OPERATION_ID,
-    UPDATE_JOB_RESULT_OPERATION_ID,
 )
 from nova_file_api.routes.common import (
     IdempotencyKeyHeader,
     JobsLimitQuery,
-    WorkerTokenHeader,
     emit_request_metric,
-    validate_worker_update_token,
     validated_idempotency_key,
 )
 
@@ -188,95 +183,6 @@ async def cancel_job(
             job_id=job_id,
         )
     return JobCancelResponse(job_id=job.job_id, status=job.status)
-
-
-@jobs_router.post(
-    "/internal/jobs/{job_id}/result",
-    operation_id=UPDATE_JOB_RESULT_OPERATION_ID,
-    response_model=JobResultUpdateResponse,
-)
-async def update_job_result(
-    job_id: str,
-    payload: JobResultUpdateRequest,
-    settings: SettingsDep,
-    metrics: MetricsDep,
-    job_service: JobServiceDep,
-    activity_store: ActivityStoreDep,
-    worker_token: WorkerTokenHeader = None,
-) -> JobResultUpdateResponse:
-    """Update job status/result from trusted worker-side processing."""
-    if not settings.jobs_enabled:
-        raise forbidden("jobs API is disabled")
-
-    validate_worker_update_token(
-        settings=settings,
-        worker_token=worker_token,
-    )
-    worker_principal = Principal(
-        subject="system:jobs-worker",
-        scope_id="system:jobs-worker",
-    )
-
-    try:
-        job = await job_service.update_result(
-            job_id=job_id,
-            status=payload.status,
-            result=payload.result,
-            error=payload.error,
-        )
-    except Exception as exc:
-        await _record_job_failure(
-            metrics=metrics,
-            activity_store=activity_store,
-            principal=worker_principal,
-            metric_name="jobs_result_update_failure_total",
-            route_metric="jobs_result_update",
-            log_event="jobs_result_update_request_failed",
-            route_path="/v1/internal/jobs/{job_id}/result",
-            activity_event_type="jobs_result_update_failure",
-            exc=exc,
-            activity_details=(
-                "worker result update failed "
-                f"for job_id={job_id} status={payload.status}"
-            ),
-            extra={"job_id": job_id},
-        )
-        raise
-
-    try:
-        await activity_store.record(
-            principal=worker_principal,
-            event_type="jobs_result_update",
-            details=(
-                "worker result update accepted "
-                f"for job_id={job_id} status={job.status}"
-            ),
-        )
-    except Exception:
-        structlog.get_logger("api").exception(
-            "jobs_result_update_activity_record_failed",
-            job_id=job_id,
-            status=job.status,
-        )
-    try:
-        metrics.incr("jobs_result_update_total")
-        emit_request_metric(
-            metrics=metrics,
-            route="jobs_result_update",
-            status="ok",
-        )
-    except Exception:
-        structlog.get_logger("api").exception(
-            "jobs_result_update_success_side_effects_failed",
-            route="/v1/internal/jobs/{job_id}/result",
-            scope_id=worker_principal.scope_id,
-            job_id=job_id,
-        )
-    return JobResultUpdateResponse(
-        job_id=job.job_id,
-        status=job.status,
-        updated_at=job.updated_at,
-    )
 
 
 @jobs_router.get(

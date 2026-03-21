@@ -107,11 +107,11 @@ phases:
       - REGION="${AWS_REGION:-${AWS_DEFAULT_REGION:-us-east-1}}"
       - ECR_REGISTRY="${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com"
       - |
-        if [ -z "${CODEARTIFACT_DOMAIN:-}" ] || [ -z "${CODEARTIFACT_REPOSITORY:-}" ]; then
-          echo "CODEARTIFACT_DOMAIN and CODEARTIFACT_REPOSITORY are required."
+        if [ -z "${CODEARTIFACT_DOMAIN:-}" ] || [ -z "${CODEARTIFACT_STAGING_REPOSITORY:-}" ]; then
+          echo "CODEARTIFACT_DOMAIN and CODEARTIFACT_STAGING_REPOSITORY are required."
           exit 1
         fi
-      - aws codeartifact login --tool twine --domain "$CODEARTIFACT_DOMAIN" --domain-owner "$ACCOUNT_ID" --repository "$CODEARTIFACT_REPOSITORY"
+      - aws codeartifact login --tool twine --domain "$CODEARTIFACT_DOMAIN" --domain-owner "$ACCOUNT_ID" --repository "$CODEARTIFACT_STAGING_REPOSITORY"
       - |
         if [ -z "${ECR_REPOSITORY_URI:-}" ] && [ -n "${ECR_REPOSITORY_NAME:-}" ]; then
           ECR_REPOSITORY_URI="${ECR_REGISTRY}/${ECR_REPOSITORY_NAME}"

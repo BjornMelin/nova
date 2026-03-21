@@ -53,7 +53,6 @@ runtime contract.
 - `POST /v1/jobs/{job_id}/cancel`
 - `POST /v1/jobs/{job_id}/retry`
 - `GET /v1/jobs/{job_id}/events`
-- `POST /v1/internal/jobs/{job_id}/result` (worker/internal update)
 
 ### 3.3 Capability and release endpoints
 
@@ -81,7 +80,7 @@ Any route outside section 3 is not part of the contract and MUST return `404`.
 - In-memory queue mode MUST honor `process_immediately`; when disabled,
   enqueue returns `pending` and MUST NOT auto-transition to `succeeded`.
 
-`POST /v1/internal/jobs/{job_id}/result` transition semantics:
+Worker result-update transition semantics:
 
 - `pending -> pending|running|succeeded|failed|canceled`
 - `pending -> succeeded` is allowed for atomic worker completion across

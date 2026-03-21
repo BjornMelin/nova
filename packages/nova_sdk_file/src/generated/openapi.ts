@@ -84,26 +84,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/internal/jobs/{job_id}/result": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Update Job Result
-         * @description Update job status/result from trusted worker-side processing.
-         */
-        post: operations["update_job_result"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/v1/jobs": {
         parameters: {
             query?: never;
@@ -623,33 +603,6 @@ export interface components {
             updated_at: string;
         };
         /**
-         * JobResultUpdateRequest
-         * @description Worker/internal request payload for job result updates.
-         */
-        JobResultUpdateRequest: {
-            /** Error */
-            error?: string | null;
-            /** Result */
-            result?: {
-                [key: string]: unknown;
-            } | null;
-            status: components["schemas"]["JobStatus"];
-        } & unknown;
-        /**
-         * JobResultUpdateResponse
-         * @description Response payload for internal job result updates.
-         */
-        JobResultUpdateResponse: {
-            /** Job Id */
-            job_id: string;
-            status: components["schemas"]["JobStatus"];
-            /**
-             * Updated At
-             * Format: date-time
-             */
-            updated_at: string;
-        };
-        /**
          * JobStatus
          * @description Lifecycle status of an async job.
          * @enum {string}
@@ -1001,36 +954,6 @@ export interface operations {
                     "application/json": components["schemas"]["ReadinessResponse"];
                 };
             };
-        };
-    };
-    update_job_result: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Worker-Token"?: string | null;
-            };
-            path: {
-                job_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["JobResultUpdateRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["JobResultUpdateResponse"];
-                };
-            };
-            403: components["responses"]["FileForbiddenResponse"];
-            422: components["responses"]["FileInvalidRequestResponse"];
         };
     };
     list_jobs: {

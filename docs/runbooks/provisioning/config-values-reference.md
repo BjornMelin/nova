@@ -11,11 +11,11 @@ configure CI/CD stacks, and operate Nova release automation.
 
 ## Prerequisites
 
-1. Access to `3M-Cloud/nova` repository.
+1. Access to the target Nova GitHub repository.
 2. Ability to inspect deployed CloudFormation stack outputs.
 3. Existing release stack deployment or planned stack parameter set.
 
-## GitHub repository secrets and vars (`3M-Cloud/nova`)
+## GitHub repository secrets and vars
 
 ### Required secrets
 
@@ -28,9 +28,10 @@ configure CI/CD stacks, and operate Nova release automation.
 
 - `AWS_REGION`
   - default: `us-east-1`
+- `CODEARTIFACT_DOMAIN`
+  - value: CodeArtifact domain used by staged publish and prod promotion
 - `CODEARTIFACT_STAGING_REPOSITORY`
   - value: staged publish repository used by package build and promotion source
-  - required: yes, default: from `CODEARTIFACT_REPOSITORY_NAME` when unset
 - `CODEARTIFACT_PROD_REPOSITORY`
   - value: prod promotion destination repository
 
@@ -38,25 +39,26 @@ configure CI/CD stacks, and operate Nova release automation.
 
 Required keys:
 
+- `GITHUB_OWNER`
+- `GITHUB_REPO`
 - `GITHUB_OIDC_PROVIDER_ARN`
 - `SECRET_NAME` (or resolved `RELEASE_SIGNING_SECRET_ARN`)
 - `NOVA_ARTIFACT_BUCKET_NAME`
-- `AWS_ACCOUNT_ID`
 - `SIGNER_NAME`
 - `SIGNER_EMAIL`
-- `CODEARTIFACT_DOMAIN_NAME`
-- `CODEARTIFACT_REPOSITORY_NAME` (fallback default source for staging repo)
+- `CODEARTIFACT_DOMAIN`
 - `CODEARTIFACT_STAGING_REPOSITORY`
 - `CODEARTIFACT_PROD_REPOSITORY`
-- `ECR_REPOSITORY_ARN`
 
 Required ECR targeting:
 
-- `ECR_REPOSITORY_URI`
-- `ECR_REPOSITORY_NAME`
+- `ECR_REPOSITORY_NAME` (default: `nova-file-api`)
+- `ECR_REPOSITORY_URI` (derived when unset)
+- `ECR_REPOSITORY_ARN` (derived when unset)
 
 Optional keys:
 
+- `AWS_ACCOUNT_ID` (derived from STS when unset)
 - `EXISTING_CONNECTION_ARN`
 - `NOVA_MANUAL_APPROVAL_TOPIC_ARN`
 - `CONNECTION_NAME`
@@ -74,11 +76,21 @@ not the runtime ECS service stack names.
 
 | Key | Required | Default | Consumer |
 | --- | --- | --- | --- |
-| `CODEARTIFACT_REPOSITORY_NAME` | no | `galaxypy` | fallback only (`CODEARTIFACT_STAGING_REPOSITORY`) |
-| `CODEARTIFACT_STAGING_REPOSITORY` | yes | from `CODEARTIFACT_REPOSITORY_NAME` when unset | foundation publish repo + promotion source |
+| `CODEARTIFACT_DOMAIN` | yes | none | foundation export + release/promotion auth |
+| `CODEARTIFACT_STAGING_REPOSITORY` | yes | none | staged publish target + promotion source |
 | `CODEARTIFACT_PROD_REPOSITORY` | yes | none | promotion destination |
+| `GITHUB_OWNER` | yes | none | explicit GitHub org/user target for OIDC trust and repo wiring |
+| `GITHUB_REPO` | yes | none | explicit GitHub repository target for OIDC trust and repo wiring |
+| `AWS_ACCOUNT_ID` | no | derived from `sts get-caller-identity` | ECR ARN/URI synthesis |
 | `EXISTING_CONNECTION_ARN` | no | empty | foundation/codepipeline connection wiring |
 | `NOVA_DEPLOY_SERVICE_NAME` | no | `nova-file-api` | SSM base-url lookup path |
+
+Operator safety contract:
+
+- Set `GITHUB_OWNER` and `GITHUB_REPO` explicitly before running
+  `scripts/release/day-0-operator-command-pack.sh`.
+- The command pack does not infer the target repository from the local checkout
+  or git remotes.
 
 Promotion repository contract:
 
@@ -185,7 +197,7 @@ Critical outputs:
 Release build project requires:
 
 - `CODEARTIFACT_DOMAIN`
-- `CODEARTIFACT_REPOSITORY` (release build publish target)
+- `CODEARTIFACT_STAGING_REPOSITORY` (release build publish target)
 - `ECR_REPOSITORY_URI` or `ECR_REPOSITORY_NAME`
 - `DOCKERFILE_PATH`
 - `DOCKER_BUILD_CONTEXT`
@@ -207,17 +219,25 @@ npm install --no-package-lock
 
 The helper derives the CodeArtifact npm endpoint and auth token from current
 AWS credentials, writes repo-local `.npmrc.codeartifact`, and sets
-`NPM_CONFIG_USERCONFIG` to that file. It honors these variables when set:
+`NPM_CONFIG_USERCONFIG` to that file plus `NPM_REGISTRY_URL` to the resolved
+repository endpoint. It honors these variables when set:
 
 - `AWS_REGION`
 - `CODEARTIFACT_DOMAIN`
 - `CODEARTIFACT_STAGING_REPOSITORY`
 
+Release automation note:
+
+- `Publish Packages` is the manual-gated staging publish workflow for Python,
+  TypeScript/npm, and R artifacts.
+- `Promote Prod` is the manual-gated prod promotion workflow for those staged,
+  gate-validated artifacts.
+
 Do not use `aws codeartifact login --tool npm` for local Nova development on a
 workstation because it rewrites global `~/.npmrc` and can break unrelated
-repositories. CI workflows may still use it because runners are ephemeral. When
-the environment uses npm 10.x, AWS CLI v2.9.5 or newer is required for that
-command.
+repositories. CI and release workflows use the same explicit
+`NPM_CONFIG_USERCONFIG` pattern with a temporary npmrc file instead of global
+npm config mutation.
 
 Exported variables:
 
@@ -285,14 +305,13 @@ Operator/runtime values that now define the large-upload posture:
 - `FILE_TRANSFER_PRESIGN_UPLOAD_TTL_SECONDS=1800`
 - `FILE_TRANSFER_PART_SIZE_BYTES=134217728`
 - `FILE_TRANSFER_USE_ACCELERATE_ENDPOINT=false` by default
-- `JOBS_WORKER_UPDATE_TOKEN_SECRET_ARN` when the worker stack is enabled
 
 Operational notes:
 
 - `FILE_TRANSFER_USE_ACCELERATE_ENDPOINT=true` requires an acceleration-enabled
   bucket whose name is DNS-compliant and contains no periods.
-- Worker token delivery is secret-backed only; stale worker env aliases are not
-  valid inputs.
+- Worker result persistence uses direct shared runtime services; callback token
+  secrets and stale worker env aliases are not valid inputs.
 
 ## References
 

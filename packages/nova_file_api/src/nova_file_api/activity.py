@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-import asyncio
 import hashlib
 import logging
 import re
+import threading
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -101,13 +101,13 @@ class MemoryActivityStore:
 
     _events_per_day: dict[str, dict[str, int]]
     _subjects_per_day: dict[str, set[str]]
-    _lock: asyncio.Lock
+    _lock: threading.Lock
 
     def __init__(self) -> None:
         """Initialize in-memory counters and subject sets."""
         self._events_per_day = defaultdict(lambda: defaultdict(int))
         self._subjects_per_day = defaultdict(set)
-        self._lock = asyncio.Lock()
+        self._lock = threading.Lock()
 
     async def record(
         self,
@@ -138,7 +138,7 @@ class MemoryActivityStore:
                     details=details,
                 ),
             )
-        async with self._lock:
+        with self._lock:
             self._events_per_day[day][event_type] += 1
             self._subjects_per_day[day].add(principal.subject)
 
@@ -150,7 +150,7 @@ class MemoryActivityStore:
             types.
         """
         day = _day_key()
-        async with self._lock:
+        with self._lock:
             day_events = dict(self._events_per_day.get(day, {}))
             active_users_today = len(self._subjects_per_day.get(day, set()))
         total_events = sum(day_events.values())

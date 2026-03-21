@@ -61,7 +61,11 @@ indexes: [`release/README.md`](./release/README.md).
 - Release runbooks define the canonical mixed-package publish path: Python
   distributions publish to CodeArtifact with `twine`, and TypeScript SDK
   packages publish to CodeArtifact npm as generated/private artifacts after
-  staged subpath-contract validation.
+  staged subpath-contract validation. `Publish Packages` is the manual staging
+  publish workflow and `Promote Prod` is the manual prod promotion workflow.
+- Release control-plane cost posture remains idle-first: foundation and IAM are
+  durable, while `nova-codebuild-release` and `nova-ci-cd` should be deleted
+  when they are not actively needed.
 - Runtime deploy runbooks must treat the ECS service task role as repo-managed
   infrastructure owned by `infra/runtime/ecs/service.yml`; do not document or
   require `TASK_ROLE_ARN`, `TASK_EXECUTION_SECRET_ARNS`, or
@@ -71,10 +75,10 @@ indexes: [`release/README.md`](./release/README.md).
   `../release/runtime-config-contract.generated.md`, not to hand-maintained
   duplicates.
 - Local developer npm auth must stay repo-scoped: use
-  `eval "$(npm run -s codeartifact:npm:env)"`, do not run
-  `aws codeartifact login --tool npm` on a workstation, and keep the AWS CLI
-  floor at v2.9.5 or newer when ephemeral CI shells use that command. See
-  [`release/release-runbook.md`](./release/release-runbook.md) for the canonical local flow.
+  `eval "$(npm run -s codeartifact:npm:env)"`, keep `NPM_CONFIG_USERCONFIG`
+  and `NPM_REGISTRY_URL` explicit in both local and CI flows, and do not use
+  `aws codeartifact login --tool npm`. See
+  [`release/release-runbook.md`](./release/release-runbook.md) for the canonical npm release flow.
 
 ## Related Entry Points
 

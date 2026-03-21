@@ -142,7 +142,6 @@ def test_openapi_path_method_tags_are_semantic() -> None:
         "/v1/jobs/{job_id}/cancel": {"post": ["jobs"]},
         "/v1/jobs/{job_id}/retry": {"post": ["jobs"]},
         "/v1/jobs/{job_id}/events": {"get": ["jobs"]},
-        "/v1/internal/jobs/{job_id}/result": {"post": ["jobs"]},
         "/v1/capabilities": {"get": ["platform"]},
         "/v1/resources/plan": {"post": ["platform"]},
         "/v1/releases/info": {"get": ["platform"]},
@@ -213,10 +212,6 @@ def test_openapi_customized_error_and_visibility_contracts() -> None:
         "Service Unavailable - Readiness failed"
     )
 
-    worker_post = payload["paths"]["/v1/internal/jobs/{job_id}/result"]["post"]
-    assert worker_post["x-nova-sdk-visibility"] == "internal"
-    assert worker_post["security"] == [{"X-Worker-Token": []}]
-
 
 def test_openapi_uses_bearer_security_for_public_routes() -> None:
     """Public OpenAPI routes advertise bearer auth."""
@@ -226,6 +221,7 @@ def test_openapi_uses_bearer_security_for_public_routes() -> None:
     security_schemes = payload["components"]["securitySchemes"]
     assert "bearerAuth" in security_schemes
     assert "sessionAuth" not in security_schemes
+    assert "X-Worker-Token" not in security_schemes
     assert security_schemes["bearerAuth"]["type"] == "http"
     assert security_schemes["bearerAuth"]["scheme"] == "bearer"
     assert security_schemes["bearerAuth"]["bearerFormat"] == "JWT"

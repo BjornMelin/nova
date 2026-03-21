@@ -17,8 +17,9 @@ from typing import Any, cast
 REPO_ROOT = Path(__file__).resolve().parents[2]
 OPENAPI_ROOT = REPO_ROOT / "packages" / "contracts" / "openapi"
 HTTP_METHODS = ("get", "post", "put", "patch", "delete", "options", "head")
-OPENAPI_TYPESCRIPT_VERSION = "7.13.0"
-OPENAPI_TYPESCRIPT_PACKAGE = f"openapi-typescript@{OPENAPI_TYPESCRIPT_VERSION}"
+OPENAPI_TYPESCRIPT_CLI = (
+    REPO_ROOT / "node_modules" / ".bin" / "openapi-typescript"
+)
 _PARAM_SEGMENT = re.compile(r"^{([^{}]+)}$")
 _NON_IDENTIFIER = re.compile(r"[^a-z0-9]+")
 _VALID_IDENTIFIER = re.compile(r"^[A-Za-z_$][A-Za-z0-9_$]*$")
@@ -387,10 +388,14 @@ def _assert_unique_operation_ids(
 def _render_typescript_openapi(spec_path: Path) -> str:
     with tempfile.TemporaryDirectory() as tmp_dir:
         output_path = Path(tmp_dir) / "openapi.ts"
+        if not OPENAPI_TYPESCRIPT_CLI.exists():
+            raise RuntimeError(
+                "openapi-typescript generation failed: missing repo-installed "
+                "openapi-typescript CLI at "
+                f"{OPENAPI_TYPESCRIPT_CLI}; run `npm ci` from repo root"
+            )
         command = [
-            "npx",
-            "--yes",
-            OPENAPI_TYPESCRIPT_PACKAGE,
+            str(OPENAPI_TYPESCRIPT_CLI),
             str(spec_path),
             "-o",
             str(output_path),
@@ -406,7 +411,8 @@ def _render_typescript_openapi(spec_path: Path) -> str:
             )
         except FileNotFoundError as exc:
             raise RuntimeError(
-                "openapi-typescript generation failed: missing `npx` command"
+                "openapi-typescript generation failed: missing repo-installed "
+                "CLI; run `npm ci` from repo root"
             ) from exc
         except subprocess.TimeoutExpired as exc:
             stdout = (

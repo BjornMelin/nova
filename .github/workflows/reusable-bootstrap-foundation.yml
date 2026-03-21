@@ -23,10 +23,6 @@ on:
         description: CodeArtifact domain name.
         required: true
         type: string
-      codeartifact_repository_name:
-        description: CodeArtifact repository name.
-        required: true
-        type: string
       ecr_repository_arn:
         description: ECR repository ARN.
         required: true
@@ -101,8 +97,7 @@ jobs:
           PROJECT: ${{ inputs.project }}
           APPLICATION: ${{ inputs.application }}
           ARTIFACT_BUCKET_NAME: ${{ inputs.artifact_bucket_name }}
-          CODEARTIFACT_DOMAIN_NAME: ${{ inputs.codeartifact_domain_name }}
-          CODEARTIFACT_REPOSITORY_NAME: ${{ inputs.codeartifact_repository_name }}
+          CODEARTIFACT_DOMAIN: ${{ inputs.codeartifact_domain_name }}
           ECR_REPOSITORY_ARN: ${{ inputs.ecr_repository_arn }}
           ECR_REPOSITORY_NAME: ${{ inputs.ecr_repository_name }}
           ECR_REPOSITORY_URI: ${{ inputs.ecr_repository_uri }}
@@ -117,8 +112,7 @@ jobs:
             --arg project "$PROJECT" \
             --arg application "$APPLICATION" \
             --arg artifact_bucket_name "$ARTIFACT_BUCKET_NAME" \
-            --arg codeartifact_domain_name "$CODEARTIFACT_DOMAIN_NAME" \
-            --arg codeartifact_repository_name "$CODEARTIFACT_REPOSITORY_NAME" \
+            --arg codeartifact_domain_name "$CODEARTIFACT_DOMAIN" \
             --arg ecr_repository_arn "$ECR_REPOSITORY_ARN" \
             --arg ecr_repository_name "$ECR_REPOSITORY_NAME" \
             --arg ecr_repository_uri "$ECR_REPOSITORY_URI" \
@@ -131,7 +125,6 @@ jobs:
               {"ParameterKey":"Application","ParameterValue":$application},
               {"ParameterKey":"ArtifactBucketName","ParameterValue":$artifact_bucket_name},
               {"ParameterKey":"CodeArtifactDomainName","ParameterValue":$codeartifact_domain_name},
-              {"ParameterKey":"CodeArtifactRepositoryName","ParameterValue":$codeartifact_repository_name},
               {"ParameterKey":"EcrRepositoryArn","ParameterValue":$ecr_repository_arn},
               {"ParameterKey":"EcrRepositoryName","ParameterValue":$ecr_repository_name},
               {"ParameterKey":"EcrRepositoryUri","ParameterValue":$ecr_repository_uri},

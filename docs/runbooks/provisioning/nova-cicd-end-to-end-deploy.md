@@ -53,18 +53,17 @@ Fallback path:
 - `${PROJECT}` default `nova`
 - `${APPLICATION}` default `ci`
 - `${NOVA_REPO_ROOT}` local checkout path for the `nova` repository
-- `${GITHUB_OWNER}` default `3M-Cloud`
-- `${GITHUB_REPO}` default `nova`
-- `${AWS_ACCOUNT_ID}`
+- `${GITHUB_OWNER}` explicit GitHub org or user target
+- `${GITHUB_REPO}` explicit GitHub repository target
+- `${AWS_ACCOUNT_ID}` optional; derived from STS when unset
 - `${SIGNER_NAME}`
 - `${SIGNER_EMAIL}`
-- `${CODEARTIFACT_DOMAIN_NAME}`
-- `${CODEARTIFACT_REPOSITORY_NAME}` (optional fallback for staging default)
+- `${CODEARTIFACT_DOMAIN}`
 - `${CODEARTIFACT_STAGING_REPOSITORY}`
 - `${CODEARTIFACT_PROD_REPOSITORY}` (must differ from staging)
-- `${ECR_REPOSITORY_ARN}`
-- `${ECR_REPOSITORY_NAME}`
-- `${ECR_REPOSITORY_URI}`
+- `${ECR_REPOSITORY_ARN}` optional; derived from ECR describe/create when unset
+- `${ECR_REPOSITORY_NAME}` optional; default `nova-file-api`
+- `${ECR_REPOSITORY_URI}` optional; derived from ECR describe/create when unset
 - `${NOVA_ARTIFACT_BUCKET_NAME}`
 - `${NOVA_DEPLOY_SERVICE_NAME}` (optional, default `nova-file-api`)
 - `${GITHUB_OIDC_PROVIDER_ARN}`
@@ -80,11 +79,14 @@ Export the required values for the Nova operator command pack:
 
 - `AWS_REGION`, `PROJECT`, `APPLICATION`, and `NOVA_DEPLOY_SERVICE_NAME`
 - `DEV_BASE_URL` and `PROD_BASE_URL`
+- `GITHUB_OWNER` and `GITHUB_REPO`
 - `GITHUB_OIDC_PROVIDER_ARN`
 - `SECRET_NAME` / `RELEASE_SIGNING_SECRET_ARN`
 - `NOVA_ARTIFACT_BUCKET_NAME`
-- `ECR_REPOSITORY_URI` and `ECR_REPOSITORY_NAME`
-- `CODEARTIFACT_STAGING_REPOSITORY` (or `CODEARTIFACT_REPOSITORY_NAME` fallback)
+- `AWS_ACCOUNT_ID`, `ECR_REPOSITORY_NAME`, `ECR_REPOSITORY_ARN`, and
+  `ECR_REPOSITORY_URI`
+- `CODEARTIFACT_DOMAIN`
+- `CODEARTIFACT_STAGING_REPOSITORY`
 - `CODEARTIFACT_PROD_REPOSITORY`
 - optional: `EXISTING_CONNECTION_ARN`
 - optional: `NOVA_MANUAL_APPROVAL_TOPIC_ARN`
@@ -95,13 +97,57 @@ Example exports:
 export AWS_REGION="${AWS_REGION:-us-west-2}"
 export PROJECT="${PROJECT:-nova}"
 export APPLICATION="${APPLICATION:-ci}"
+export AWS_ACCOUNT_ID="${AWS_ACCOUNT_ID:-}"
+export GITHUB_OWNER="${GITHUB_OWNER:?set to the target GitHub org or user}"
+export GITHUB_REPO="${GITHUB_REPO:?set to the target GitHub repository}"
 export NOVA_DEPLOY_SERVICE_NAME="${NOVA_DEPLOY_SERVICE_NAME:-nova-file-api}"
 export DEV_BASE_URL="${DEV_BASE_URL:?set to the dev runtime base URL, for example https://nova-file-api.dev.example.com}"
 export PROD_BASE_URL="${PROD_BASE_URL:?set to the prod runtime base URL, for example https://nova-file-api.example.com}"
 ```
 
+The day-0 operator command pack requires an explicit GitHub repository target.
+It does not derive `GITHUB_OWNER` or `GITHUB_REPO` from the local checkout.
+
 Reference details:
 [config-values-reference.md](config-values-reference.md)
+
+### Step 1b: bootstrap STS and ECR values
+
+Use STS to populate the AWS account ID when it is unset, then ensure the ECR
+repository exists and export the repository ARN and URI from AWS rather than
+leaving the foundation step with blank values.
+
+```bash
+if [ -z "${AWS_ACCOUNT_ID:-}" ]; then
+  AWS_ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
+  export AWS_ACCOUNT_ID
+fi
+
+export ECR_REPOSITORY_NAME="${ECR_REPOSITORY_NAME:-nova-file-api}"
+
+if ! aws ecr describe-repositories \
+  --region "${AWS_REGION}" \
+  --repository-names "${ECR_REPOSITORY_NAME}" >/dev/null 2>&1; then
+  aws ecr create-repository \
+    --region "${AWS_REGION}" \
+    --repository-name "${ECR_REPOSITORY_NAME}" >/dev/null
+fi
+
+export ECR_REPOSITORY_ARN="$(
+  aws ecr describe-repositories \
+    --region "${AWS_REGION}" \
+    --repository-names "${ECR_REPOSITORY_NAME}" \
+    --query 'repositories[0].repositoryArn' \
+    --output text
+)"
+export ECR_REPOSITORY_URI="$(
+  aws ecr describe-repositories \
+    --region "${AWS_REGION}" \
+    --repository-names "${ECR_REPOSITORY_NAME}" \
+    --query 'repositories[0].repositoryUri' \
+    --output text
+)"
+```
 
 ### Step 1a: persist canonical service base URLs in SSM
 
@@ -132,8 +178,8 @@ aws cloudformation deploy \
 Set and validate promotion repositories:
 
 ```bash
-export CODEARTIFACT_REPOSITORY_NAME="${CODEARTIFACT_REPOSITORY_NAME:-galaxypy}"
-export CODEARTIFACT_STAGING_REPOSITORY="${CODEARTIFACT_STAGING_REPOSITORY:-${CODEARTIFACT_REPOSITORY_NAME}}"
+export CODEARTIFACT_DOMAIN="${CODEARTIFACT_DOMAIN:?required}"
+export CODEARTIFACT_STAGING_REPOSITORY="${CODEARTIFACT_STAGING_REPOSITORY:?required}"
 export CODEARTIFACT_PROD_REPOSITORY="${CODEARTIFACT_PROD_REPOSITORY:?required}"
 
 if [ "${CODEARTIFACT_STAGING_REPOSITORY}" = "${CODEARTIFACT_PROD_REPOSITORY}" ]; then
@@ -177,8 +223,7 @@ aws cloudformation deploy \
     Project="${PROJECT}" \
     Application="${APPLICATION}" \
     ExistingArtifactBucketName="${NOVA_ARTIFACT_BUCKET_NAME}" \
-    CodeArtifactDomainName="${CODEARTIFACT_DOMAIN_NAME}" \
-    CodeArtifactRepositoryName="${CODEARTIFACT_STAGING_REPOSITORY}" \
+    CodeArtifactDomainName="${CODEARTIFACT_DOMAIN}" \
     EcrRepositoryArn="${ECR_REPOSITORY_ARN}" \
     EcrRepositoryName="${ECR_REPOSITORY_NAME}" \
     EcrRepositoryUri="${ECR_REPOSITORY_URI}" \
@@ -198,16 +243,15 @@ aws cloudformation deploy \
     Application="${APPLICATION}" \
     ExistingArtifactBucketName="" \
     ArtifactBucketName="${NOVA_ARTIFACT_BUCKET_NAME}" \
-    CodeArtifactDomainName="${CODEARTIFACT_DOMAIN_NAME}" \
-    CodeArtifactRepositoryName="${CODEARTIFACT_STAGING_REPOSITORY}" \
+    CodeArtifactDomainName="${CODEARTIFACT_DOMAIN}" \
     EcrRepositoryArn="${ECR_REPOSITORY_ARN}" \
     EcrRepositoryName="${ECR_REPOSITORY_NAME}" \
     EcrRepositoryUri="${ECR_REPOSITORY_URI}" \
     ExistingConnectionArn="${EXISTING_CONNECTION_ARN:-}"
 ```
 
-`CodeArtifactRepositoryName` maps to staged publish storage; promotion to prod is
-controlled by IAM parameters:
+Staged publish storage and prod promotion are controlled by explicit IAM
+parameters:
 `CodeArtifactPromotionSourceRepositoryName` and
 `CodeArtifactPromotionDestinationRepositoryName`.
 
@@ -230,6 +274,11 @@ The command pack deploys stacks in this order:
 2. `${PROJECT}-${APPLICATION}-nova-iam-roles`
 3. `${PROJECT}-${APPLICATION}-nova-codebuild-release`
 4. `${PROJECT}-${APPLICATION}-nova-ci-cd`
+
+The staged publish workflow is already present in GitHub Actions:
+`Publish Packages` manually publishes Python, TypeScript/npm, and R artifacts
+to `CODEARTIFACT_STAGING_REPOSITORY`, and `Promote Prod` manually promotes the
+gated artifacts to `CODEARTIFACT_PROD_REPOSITORY`.
 
 ## Step 4: capture stack outputs
 

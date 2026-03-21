@@ -29,8 +29,8 @@ Async jobs are managed through:
 - `GET /v1/jobs/{job_id}/events`
 
 **Green-field result path:** worker completion and terminal status updates are
-**not** written via `POST /v1/internal/jobs/{job_id}/result`. The worker uses
-shared services/repositories per
+**not** written through an internal HTTP callback route. The worker uses shared
+services/repositories per
 [SPEC-0028](./SPEC-0028-worker-job-lifecycle-and-direct-result-path.md) and
 [ADR-0035](../adr/ADR-0035-worker-direct-result-persistence.md).
 

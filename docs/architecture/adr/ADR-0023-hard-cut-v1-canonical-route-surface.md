@@ -29,8 +29,8 @@ allowed for this release wave.
 
 1. Hard cut now with no sunset window.
 2. Canonical runtime namespace is `/v1/*` with no alternate namespace aliases.
-3. Worker update endpoint is internal-only at
-   `/v1/internal/jobs/{job_id}/result`.
+3. Worker result persistence is in-process only; there is no internal HTTP
+   callback route in the target architecture.
 4. Health/readiness standardize to `/v1/health/live` and
    `/v1/health/ready`.
 5. Observability summary remains non-versioned at `/metrics/summary`.
@@ -51,7 +51,7 @@ allowed for this release wave.
 | --- | ---: |
 | Hard cut now (no sunset window) | 9.35-9.64 |
 | Canonical namespace `/v1/*` | 9.2 |
-| Internal worker endpoint `/v1/internal/jobs/{job_id}/result` | 9.1 |
+| No internal worker HTTP callback route | 9.1 |
 | Health standardization `/v1/health/live`, `/v1/health/ready` | 9.3 |
 | Non-versioned `/metrics/summary` | 9.0 |
 

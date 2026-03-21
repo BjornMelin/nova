@@ -51,17 +51,23 @@ Parameters:
     MinLength: 3
     AllowedPattern: "^https://[^/]+/[0-9]{12}/[A-Za-z0-9_-]+(\\.fifo)?$"
     ConstraintDescription: Must be a valid SQS queue URL with account ID and queue name.
-  JobsRegion:
+  JobsTableName:
     Type: String
+    MinLength: 3
+  JobsTableArn:
+    Type: String
+    AllowedPattern: "^arn:(aws|aws-us-gov|aws-cn):dynamodb:[a-z0-9-]+:[0-9]{12}:table\\/[A-Za-z0-9_.-]+$"
+  ActivityTableName:
+    Type: String
+    MinLength: 3
+  ActivityTableArn:
+    Type: String
+    AllowedPattern: "^arn:(aws|aws-us-gov|aws-cn):dynamodb:[a-z0-9-]+:[0-9]{12}:table\\/[A-Za-z0-9_.-]+$"
   JobsVisibilityTimeoutSeconds:
     Type: Number
     Default: 120
     MinValue: 1
     MaxValue: 43200
-  JobsApiBaseUrl:
-    Type: String
-  JobsWorkerUpdateTokenSecretArn:
-    Type: String
   FileTransferBucketName:
     Type: String
   FileTransferUploadPrefix:
@@ -140,29 +146,6 @@ Resources:
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
 
-  WorkerTaskExecutionSecretsPolicy:
-    Type: AWS::IAM::Policy
-    Properties:
-      PolicyName: !Sub "${Project}-${Application}-${WorkerServiceName}-ecs-task-execution-secrets-${AWS::Region}"
-      PolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          - Effect: Allow
-            Action:
-              - secretsmanager:GetSecretValue
-            Resource:
-              - !Ref JobsWorkerUpdateTokenSecretArn
-          - Effect: Allow
-            Action:
-              - kms:Decrypt
-            Resource: "*"
-            Condition:
-              StringEquals:
-                kms:ViaService:
-                  - !Sub "secretsmanager.${AWS::Region}.${AWS::URLSuffix}"
-      Roles:
-        - !Ref WorkerTaskExecutionRole
-
   WorkerTaskRole:
     Type: AWS::IAM::Role
     Properties:
@@ -211,6 +194,20 @@ Resources:
               - sqs:GetQueueUrl
             Resource:
               - !Ref JobsQueueArn
+          - Sid: WorkerDirectPersistenceDynamoTables
+            Effect: Allow
+            Action:
+              - dynamodb:ConditionCheckItem
+              - dynamodb:DeleteItem
+              - dynamodb:GetItem
+              - dynamodb:PutItem
+              - dynamodb:Query
+              - dynamodb:UpdateItem
+            Resource:
+              - !Ref JobsTableArn
+              - !Sub "${JobsTableArn}/index/*"
+              - !Ref ActivityTableArn
+              - !Sub "${ActivityTableArn}/index/*"
           - Sid: FileTransferS3Objects
             Effect: Allow
             Action:
@@ -261,7 +258,7 @@ Resources:
             - Name: ENVIRONMENT
               Value: !Ref Environment
             - Name: AWS_DEFAULT_REGION
-              Value: !Ref JobsRegion
+              Value: !Ref AWS::Region
             - Name: JOBS_ENABLED
               Value: "true"
             - Name: JOBS_RUNTIME_MODE
@@ -270,10 +267,16 @@ Resources:
               Value: "sqs"
             - Name: JOBS_SQS_QUEUE_URL
               Value: !Ref JobsQueueUrl
+            - Name: JOBS_REPOSITORY_BACKEND
+              Value: "dynamodb"
+            - Name: JOBS_DYNAMODB_TABLE
+              Value: !Ref JobsTableName
+            - Name: ACTIVITY_STORE_BACKEND
+              Value: "dynamodb"
+            - Name: ACTIVITY_ROLLUPS_TABLE
+              Value: !Ref ActivityTableName
             - Name: JOBS_SQS_VISIBILITY_TIMEOUT_SECONDS
               Value: !Ref JobsVisibilityTimeoutSeconds
-            - Name: JOBS_API_BASE_URL
-              Value: !Ref JobsApiBaseUrl
             - Name: FILE_TRANSFER_BUCKET
               Value: !Ref FileTransferBucketName
             - Name: FILE_TRANSFER_UPLOAD_PREFIX
@@ -282,9 +285,6 @@ Resources:
               Value: !Ref FileTransferExportPrefix
             - Name: FILE_TRANSFER_TMP_PREFIX
               Value: !Ref FileTransferTmpPrefix
-          Secrets:
-            - Name: JOBS_WORKER_UPDATE_TOKEN
-              ValueFrom: !Ref JobsWorkerUpdateTokenSecretArn
           LogConfiguration:
             LogDriver: awslogs
             Options:

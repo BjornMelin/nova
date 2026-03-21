@@ -211,6 +211,19 @@ jobs:
           role-to-assume: ${{ env.RELEASE_AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
+      - name: Configure npm CodeArtifact userconfig
+        run: |
+          set -euo pipefail
+          NPM_USERCONFIG_PATH="${RUNNER_TEMP}/nova-codeartifact-staging.npmrc"
+          rm -f "${NPM_USERCONFIG_PATH}"
+          npm_env="$(
+            uv run python scripts/release/codeartifact_npm.py env \
+              --output-path "${NPM_USERCONFIG_PATH}"
+          )" || exit $?
+          eval "${npm_env}"
+          printf 'NPM_CONFIG_USERCONFIG=%s\n' "$NPM_CONFIG_USERCONFIG" >> "$GITHUB_ENV"
+          printf 'NPM_REGISTRY_URL=%s\n' "$NPM_REGISTRY_URL" >> "$GITHUB_ENV"
+
       - name: Configure release signing
         if: steps.release-units.outputs.has_r_units == 'true'
         uses: ./.github/actions/configure-release-signing
@@ -235,33 +248,6 @@ jobs:
               raise SystemExit(0)
           for unit in units:
               subprocess.run(['uv', 'build', unit], check=True)
-          PY
-
-      - name: Verify AWS CLI version for npm CodeArtifact support
-        run: |
-          python - <<'PY'
-          import re
-          import subprocess
-
-          result = subprocess.run(
-              ["aws", "--version"],
-              check=True,
-              text=True,
-              capture_output=True,
-          )
-          version_output = " ".join(
-              part.strip() for part in (result.stderr, result.stdout) if part.strip()
-          )
-          match = re.search(r"aws-cli/(\d+)\.(\d+)\.(\d+)", version_output)
-          if match is None:
-              raise SystemExit(f"Could not parse AWS CLI version: {version_output}")
-          version = tuple(int(part) for part in match.groups())
-          if version < (2, 9, 5):
-              raise SystemExit(
-                  "AWS CLI >= 2.9.5 is required for npm 10 CodeArtifact login, "
-                  f"found {version_output}"
-              )
-          print(f"Using {version_output}")
           PY
 
       - name: Build changed npm packages
@@ -298,13 +284,10 @@ jobs:
       - name: Prepare npm publish artifacts
         run: |
           set -euo pipefail
-          NPM_REGISTRY_URL="$(aws codeartifact get-repository-endpoint \
-            --domain "$CODEARTIFACT_DOMAIN" \
-            --repository "$CODEARTIFACT_STAGING_REPOSITORY" \
-            --format npm \
-            --region "$AWS_REGION" \
-            --query repositoryEndpoint \
-            --output text)"
+          [[ -n "${NPM_REGISTRY_URL:-}" ]] || {
+            echo "NPM_REGISTRY_URL is required for npm publish preparation." >&2
+            exit 1
+          }
           uv run python -m scripts.release.npm_publish \
             --repo-root . \
             --version-plan .artifacts/version-plan.json \
@@ -537,19 +520,18 @@ jobs:
             exit 0
           fi
 
-          NPM_REGISTRY_URL="$(aws codeartifact get-repository-endpoint \
-            --domain "$CODEARTIFACT_DOMAIN" \
-            --repository "$CODEARTIFACT_STAGING_REPOSITORY" \
-            --format npm \
-            --region "$AWS_REGION" \
-            --query repositoryEndpoint \
-            --output text)"
-
-          aws codeartifact login \
-            --tool npm \
-            --domain "$CODEARTIFACT_DOMAIN" \
-            --repository "$CODEARTIFACT_STAGING_REPOSITORY" \
-            --region "$AWS_REGION"
+          [[ -n "${NPM_CONFIG_USERCONFIG:-}" ]] || {
+            echo "NPM_CONFIG_USERCONFIG is required for npm publish." >&2
+            exit 1
+          }
+          [[ -f "${NPM_CONFIG_USERCONFIG}" ]] || {
+            echo "Missing npm user config: ${NPM_CONFIG_USERCONFIG}" >&2
+            exit 1
+          }
+          [[ "$(npm config get @nova:registry)" == "${NPM_REGISTRY_URL}" ]] || {
+            echo "@nova registry must resolve to ${NPM_REGISTRY_URL}" >&2
+            exit 1
+          }
 
           mapfile -t NPM_PUBLISH_DIRS < <(
             uv run python - <<'PY'
@@ -584,13 +566,18 @@ jobs:
           print(payload["version"])
           PY
             )"
-            if npm view "${package_name}@${package_version}" version --registry "$NPM_REGISTRY_URL" >/dev/null 2>&1; then
+            [[ "$package_name" == @nova/* ]] || {
+              echo "Only @nova packages may publish to CodeArtifact: ${package_name}" >&2
+              exit 1
+            }
+            if npm view "${package_name}@${package_version}" \
+              --registry "${NPM_REGISTRY_URL}" version >/dev/null 2>&1; then
               echo "Package ${package_name}@${package_version} already exists in staging; skipping publish."
               continue
             fi
             (
               cd "$publish_dir"
-              npm publish --no-progress --registry "$NPM_REGISTRY_URL"
+              npm publish --no-progress --registry "${NPM_REGISTRY_URL}"
             )
           done
 
@@ -786,13 +773,29 @@ jobs:
       - name: Smoke test npm packages from CodeArtifact staging
         run: |
           set -euo pipefail
+          export NPM_PUBLISH_REPORT_PATH="${PWD}/.artifacts/npm-publish-report.json"
+          [[ -n "${NPM_CONFIG_USERCONFIG:-}" ]] || {
+            echo "NPM_CONFIG_USERCONFIG is required for npm smoke tests." >&2
+            exit 1
+          }
+          [[ -f "${NPM_CONFIG_USERCONFIG}" ]] || {
+            echo "Missing npm user config: ${NPM_CONFIG_USERCONFIG}" >&2
+            exit 1
+          }
+          [[ "$(npm config get @nova:registry)" == "${NPM_REGISTRY_URL}" ]] || {
+            echo "@nova registry must resolve to ${NPM_REGISTRY_URL}" >&2
+            exit 1
+          }
           mapfile -t NPM_INSTALL_SPECS < <(
             uv run python - <<'PY'
           import json
+          import os
           from pathlib import Path
 
           report = json.loads(
-              Path(".artifacts/npm-publish-report.json").read_text(encoding="utf-8")
+              Path(os.environ["NPM_PUBLISH_REPORT_PATH"]).read_text(
+                  encoding="utf-8"
+              )
           )
           for item in report.get("packages", []):
               print(f"{item['package']}@{item['version']}")
@@ -816,10 +819,13 @@ jobs:
           npm install --no-progress "${NPM_INSTALL_SPECS[@]}"
           export NOVA_EXPECTED_NPM_PACKAGES="$(uv run python - <<'PY'
           import json
+          import os
           from pathlib import Path
 
           report = json.loads(
-              Path(".artifacts/npm-publish-report.json").read_text(encoding="utf-8")
+              Path(os.environ["NPM_PUBLISH_REPORT_PATH"]).read_text(
+                  encoding="utf-8"
+              )
           )
           print(
               json.dumps(

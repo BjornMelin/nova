@@ -174,9 +174,12 @@ rg -n "/v1/transfers|/v1/jobs|/v1/capabilities|/v1/resources/plan|/v1/releases/i
 - DynamoDB-backed job listing requires the
   `scope_id-created_at-index` GSI; do not fall back to `Scan`.
 - `JOBS_RUNTIME_MODE=worker` requires `JOBS_ENABLED=true`,
-  `JOBS_QUEUE_BACKEND=sqs`, and `JOBS_SQS_QUEUE_URL`. HTTP callback settings
-  (`JOBS_API_BASE_URL`, `JOBS_WORKER_UPDATE_TOKEN`) are **not** part of the
-  target architecture once direct persistence is implemented (`SPEC-0028`).
+  `JOBS_QUEUE_BACKEND=sqs`, `JOBS_SQS_QUEUE_URL`,
+  `JOBS_REPOSITORY_BACKEND=dynamodb`, `JOBS_DYNAMODB_TABLE`,
+  `ACTIVITY_STORE_BACKEND=dynamodb`, and `ACTIVITY_ROLLUPS_TABLE`.
+  HTTP callback settings (`JOBS_API_BASE_URL`, `JOBS_WORKER_UPDATE_TOKEN`)
+  are **not** part of the target architecture once direct persistence is
+  implemented (`SPEC-0028`).
 - Malformed worker queue messages must remain unacked so SQS retry/DLQ policy
   handles poison messages.
 - `ACTIVITY_STORE_BACKEND=dynamodb` requires `ACTIVITY_ROLLUPS_TABLE`.
@@ -195,6 +198,7 @@ touched.
 Run:
 
 ```bash
+npm ci
 source .venv/bin/activate && uv lock --check
 source .venv/bin/activate && uv run ruff check .
 source .venv/bin/activate && uv run ruff check . --select I
@@ -217,6 +221,9 @@ Notes:
 - `ty` is the canonical Python type gate for the full repo typing surface.
 - `mypy` remains a required compatibility backstop on its narrower configured
   scope.
+- `scripts/release/generate_clients.py --check` requires the repo-installed
+  root npm toolchain; run `npm ci` before generated TypeScript SDK gates so the
+  local `openapi-typescript` CLI is available without ad hoc network fetches.
 - `pyproject.toml` pins the supported `uv` CLI via
   `[tool.uv].required-version`; keep local tooling, CI, and docs aligned when
   bumping that version.
@@ -261,6 +268,7 @@ Also run the conformance/client checks mirrored by
 `.github/workflows/conformance-clients.yml`:
 
 ```bash
+npm ci
 source .venv/bin/activate && uv run python scripts/conformance/check_typescript_module_policy.py
 npm run -w @nova/sdk-fetch build
 npm run -w @nova/sdk-fetch typecheck
@@ -376,14 +384,15 @@ Keep npm registry config repo-local.
 - Use the generated `.npmrc.codeartifact` for CodeArtifact auth.
 - Run `eval "$(npm run -s codeartifact:npm:env)"` from repo root.
 - `scripts/release/codeartifact_npm.py` writes `.npmrc.codeartifact` and the
-  helper exports `NPM_CONFIG_USERCONFIG` to that path.
+  helper exports `NPM_CONFIG_USERCONFIG` plus `NPM_REGISTRY_URL`.
+- CI and release workflows must use the same explicit `NPM_CONFIG_USERCONFIG`
+  pattern (or an equivalent temp-file variant); do not rely on global npm
+  config mutation.
 - If you switch AWS accounts or CodeArtifact targets, set `AWS_REGION`,
   `CODEARTIFACT_DOMAIN`, and/or `CODEARTIFACT_STAGING_REPOSITORY` before
   running the helper.
-- Do not run `aws codeartifact login --tool npm` on a developer workstation.
-  It rewrites global `~/.npmrc`.
-- npm 10.x requires AWS CLI v2.9.5 or newer when ephemeral CI shells use that
-  command.
+- Do not use `aws codeartifact login --tool npm` in Nova. It rewrites global
+  npm config and is not part of the canonical release path.
 
 ## Deep References
 

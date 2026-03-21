@@ -96,6 +96,19 @@ def _collect_named_entries(node: object) -> set[str]:
     return names
 
 
+def _collect_env_values(node: object) -> dict[str, str]:
+    values: dict[str, str] = {}
+    if isinstance(node, list):
+        for item in node:
+            if not isinstance(item, dict):
+                continue
+            name = item.get("Name")
+            value = item.get("Value")
+            if isinstance(name, str) and isinstance(value, str):
+                values[name] = value
+    return values
+
+
 def test_absorbed_template_paths_present() -> None:
     """Absorbed infra templates must exist under Nova-owned paths."""
     required_templates = [
@@ -174,11 +187,9 @@ def test_foundation_exports_and_stack_wiring_contracts() -> None:
         "CreateConnection:",
         "ManualApprovalTopic:",
         "CreateManualApprovalTopic:",
-        "CodeArtifactInternalNpmScope:",
-        "ConstraintDescription: Must be a valid lowercase npm scope without @.",
         "InternalNpmPackageGroup:",
         "AWS::CodeArtifact::PackageGroup",
-        "Pattern: !Sub /npm/${CodeArtifactInternalNpmScope}/*",
+        "Pattern: /npm/nova/*",
         "RestrictionMode: BLOCK",
         "LifecycleConfiguration:",
         "ArtifactBucketLifecyclePolicy",
@@ -189,7 +200,6 @@ def test_foundation_exports_and_stack_wiring_contracts() -> None:
         "ShouldExportConnectionName:",
         "${AWS::StackName}-ArtifactBucketName",
         "${AWS::StackName}-CodeArtifactDomainName",
-        "${AWS::StackName}-CodeArtifactRepositoryName",
         "${AWS::StackName}-EcrRepositoryArn",
         "${AWS::StackName}-EcrRepositoryName",
         "${AWS::StackName}-EcrRepositoryUri",
@@ -203,7 +213,7 @@ def test_foundation_exports_and_stack_wiring_contracts() -> None:
         "FoundationStackName:",
         "${FoundationStackName}-ArtifactBucketName",
         "${FoundationStackName}-CodeArtifactDomainName",
-        "${FoundationStackName}-CodeArtifactRepositoryName",
+        "CodeArtifactStagingRepositoryName:",
         "CodeArtifactPromotionSourceRepositoryName:",
         "CodeArtifactPromotionDestinationRepositoryName:",
         "ConstraintDescription: Must be a valid CodeArtifact repository name.",
@@ -221,7 +231,8 @@ def test_foundation_exports_and_stack_wiring_contracts() -> None:
         "FoundationStackName:",
         "IamRolesStackName:",
         "${FoundationStackName}-CodeArtifactDomainName",
-        "${FoundationStackName}-CodeArtifactRepositoryName",
+        "CodeArtifactStagingRepositoryName:",
+        "CODEARTIFACT_STAGING_REPOSITORY",
         "${FoundationStackName}-EcrRepositoryUri",
         "${FoundationStackName}-EcrRepositoryName",
         "${IamRolesStackName}-CodeBuildReleaseRoleArn",
@@ -396,9 +407,7 @@ def test_iam_scope_constraints_for_release_roles() -> None:
     )
     assert github_role_arn_pattern in github_role_text
     assert "${FoundationStackName}-CodeArtifactDomainName" in github_role_text
-    assert (
-        "${FoundationStackName}-CodeArtifactRepositoryName" in github_role_text
-    )
+    assert "CodeArtifactStagingRepositoryName" in github_role_text
     assert "CodeArtifactPromotionSourceRepositoryName" in github_role_text
     assert "CodeArtifactPromotionDestinationRepositoryName" in github_role_text
     repo_dest_pattern = (
@@ -411,10 +420,23 @@ def test_iam_scope_constraints_for_release_roles() -> None:
     )
     assert repo_dest_pattern in github_role_text
     assert repo_src_pattern in github_role_text
-    assert "${CodeArtifactInternalNpmScope}" in github_role_text
+    assert "/npm/nova/*" in github_role_text
+    assert "/generic/*" in github_role_text
     assert (
         "package/${ResolvedCodeArtifactDomainName}/"
-        "${ResolvedCodeArtifactRepositoryName}/npm/" in github_role_text
+        "${StagingRepositoryName}/npm/" in github_role_text
+    )
+    assert (
+        "package/${ResolvedCodeArtifactDomainName}/"
+        "${StagingRepositoryName}/generic/" in github_role_text
+    )
+    assert (
+        "package/${ResolvedCodeArtifactDomainName}/"
+        "${PromotionSourceRepositoryName}/generic/" in github_role_text
+    )
+    assert (
+        "package/${ResolvedCodeArtifactDomainName}/"
+        "${PromotionDestinationRepositoryName}/generic/" in github_role_text
     )
     assert (
         "package/${ResolvedCodeArtifactDomainName}/"
@@ -494,6 +516,7 @@ def test_runtime_env_and_parameter_contracts() -> None:
     environment = container["Environment"]
     assert isinstance(environment, list)
     env_names = _collect_named_entries(environment)
+    env_values = _collect_env_values(environment)
     expected_worker_env = {
         entry["name"] for entry in contract["worker_template"]["env"]
     }
@@ -501,17 +524,33 @@ def test_runtime_env_and_parameter_contracts() -> None:
     assert set(contract["worker_template"]["forbidden_env_vars"]).isdisjoint(
         env_names
     )
+    expected_worker_literal_values = {
+        entry["name"]: entry["value"]
+        for entry in contract["worker_template"]["env"]
+        if entry.get("source") == "literal"
+        and isinstance(entry.get("value"), str)
+    }
+    assert expected_worker_literal_values.items() <= env_values.items()
 
-    secrets = container["Secrets"]
-    assert isinstance(secrets, list)
-    secret_names = _collect_named_entries(secrets)
     expected_worker_secrets = {
         entry["name"] for entry in contract["worker_template"]["secrets"]
     }
-    assert secret_names == expected_worker_secrets
+    secrets = container.get("Secrets")
+    if expected_worker_secrets:
+        assert isinstance(secrets, list)
+        secret_names = _collect_named_entries(secrets)
+        assert secret_names == expected_worker_secrets
+    else:
+        assert secrets is None
     parameters = worker_template["Parameters"]
     assert isinstance(parameters, dict)
-    assert "JobsWorkerUpdateTokenSecretArn" in parameters
+    assert "JobsTableName" in parameters
+    assert "JobsTableArn" in parameters
+    assert "ActivityTableName" in parameters
+    assert "ActivityTableArn" in parameters
+    assert ("JobsWorkerUpdateTokenSecretArn" in parameters) == bool(
+        expected_worker_secrets
+    )
     assert "WorkerCommand" not in parameters
     assert "SyncProcessingMaxBytes" not in parameters
     assert "TaskRoleArn: !GetAtt WorkerTaskRole.Arn" in worker_text
@@ -542,6 +581,36 @@ def test_runtime_env_and_parameter_contracts() -> None:
     assert isinstance(worker_exec_actions, list)
     assert set(worker_exec_actions) == required_exec_actions
     assert worker_exec_statement["Resource"] == "*"
+
+    worker_task_policy = resources["WorkerTaskPolicy"]
+    assert isinstance(worker_task_policy, dict)
+    worker_task_policy_doc = worker_task_policy["Properties"]["PolicyDocument"]
+    assert isinstance(worker_task_policy_doc, dict)
+    worker_task_statements = worker_task_policy_doc["Statement"]
+    assert isinstance(worker_task_statements, list)
+
+    dynamo_statement = next(
+        statement
+        for statement in worker_task_statements
+        if isinstance(statement, dict)
+        and statement.get("Sid") == "WorkerDirectPersistenceDynamoTables"
+    )
+    dynamo_actions = dynamo_statement["Action"]
+    assert isinstance(dynamo_actions, list)
+    assert set(dynamo_actions) == {
+        "dynamodb:ConditionCheckItem",
+        "dynamodb:DeleteItem",
+        "dynamodb:GetItem",
+        "dynamodb:PutItem",
+        "dynamodb:Query",
+        "dynamodb:UpdateItem",
+    }
+    assert dynamo_statement["Resource"] == [
+        "JobsTableArn",
+        "${JobsTableArn}/index/*",
+        "ActivityTableArn",
+        "${ActivityTableArn}/index/*",
+    ]
 
     service_resources = service_template["Resources"]
     assert isinstance(service_resources, dict)

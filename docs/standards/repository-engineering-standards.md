@@ -158,6 +158,8 @@ Rules for narrative provisioning, release, and validation markdown under
   before touching generated SDK output by hand.
 - Keep `scripts/release/generate_clients.py --check` as the deterministic gate
   for generated TypeScript SDK artifacts.
+- Run `npm ci` before `scripts/release/generate_clients.py --check` so the
+  repo-installed `openapi-typescript` CLI is available without ad hoc fetches.
 - Do not swap or float generator behavior casually; update docs, tests, and
   workflows in the same change if the generation path changes.
 

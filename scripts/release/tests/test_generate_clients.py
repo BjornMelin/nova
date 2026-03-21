@@ -187,10 +187,14 @@ def test_render_typescript_openapi_times_out_with_actionable_error(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Timeouts from openapi-typescript include explicit error context."""
+    monkeypatch.setattr(
+        "scripts.release.generate_clients.OPENAPI_TYPESCRIPT_CLI",
+        Path(__file__),
+    )
 
     def _raise_timeout(*args: object, **kwargs: object) -> object:
         raise subprocess.TimeoutExpired(
-            cmd=["npx", "--yes", "openapi-typescript@7.13.0"],
+            cmd=[str(Path(__file__))],
             timeout=120,
             output="stdout details",
             stderr="stderr details",
@@ -203,6 +207,19 @@ def test_render_typescript_openapi_times_out_with_actionable_error(
     )
 
     with pytest.raises(RuntimeError, match="timed out after 120s"):
+        _render_typescript_openapi(Path("spec.openapi.json"))
+
+
+def test_render_typescript_openapi_requires_repo_installed_cli(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Missing local CLI should fail with an npm bootstrap hint."""
+    monkeypatch.setattr(
+        "scripts.release.generate_clients.OPENAPI_TYPESCRIPT_CLI",
+        Path(__file__).with_name("missing-openapi-typescript"),
+    )
+
+    with pytest.raises(RuntimeError, match="run `npm ci` from repo root"):
         _render_typescript_openapi(Path("spec.openapi.json"))
 
 

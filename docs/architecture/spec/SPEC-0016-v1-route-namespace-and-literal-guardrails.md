@@ -18,7 +18,8 @@ that prevent reintroduction of legacy route entropy.
 ## 2. Canonical route policy
 
 1. Public runtime routes MUST use `/v1/*` except `/metrics/summary`.
-2. Internal worker update route MUST use `/v1/internal/*`.
+2. Worker result persistence MUST use shared runtime services or direct
+   persistence; there is no internal worker callback route.
 3. Any route outside canonical `/v1/*` and `/metrics/summary` MUST NOT be
    exposed.
 
@@ -43,10 +44,6 @@ Public runtime routes:
 - `GET /v1/health/live`
 - `GET /v1/health/ready`
 - `GET /metrics/summary`
-
-Internal-only route:
-
-- `POST /v1/internal/jobs/{job_id}/result`
 
 Non-canonical runtime paths outside this set MUST return `404`.
 
@@ -79,7 +76,7 @@ Non-canonical runtime paths outside this set MUST return `404`.
 2. Non-canonical routes return `404`.
 3. Enqueue failure and readiness invariants are preserved:
    - `queue_unavailable` remains `503` on enqueue publish failures.
-  - readiness remains bucket-sensitive and matches the aggregate readiness
+   - readiness remains bucket-sensitive and matches the aggregate readiness
     contract defined in SPEC-0018 Section 4 (readiness contract).
    - `status=succeeded` worker updates normalize `error=null`.
 4. CI fails on any legacy route reintroduction.

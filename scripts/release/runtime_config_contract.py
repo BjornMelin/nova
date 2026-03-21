@@ -49,6 +49,7 @@ class TemplateEnvContract:
     name: str
     source: str
     condition: str
+    value: str | None = None
     secret: bool = False
 
 
@@ -349,14 +350,37 @@ SERVICE_TEMPLATE_ENV: tuple[TemplateEnvContract, ...] = (
 WORKER_TEMPLATE_ENV: tuple[TemplateEnvContract, ...] = (
     TemplateEnvContract("ENVIRONMENT", "stack parameter", "always"),
     TemplateEnvContract("AWS_DEFAULT_REGION", "stack parameter", "always"),
-    TemplateEnvContract("JOBS_ENABLED", "literal", "always"),
-    TemplateEnvContract("JOBS_RUNTIME_MODE", "literal", "always"),
-    TemplateEnvContract("JOBS_QUEUE_BACKEND", "literal", "always"),
+    TemplateEnvContract("JOBS_ENABLED", "literal", "always", value="true"),
+    TemplateEnvContract(
+        "JOBS_RUNTIME_MODE",
+        "literal",
+        "always",
+        value="worker",
+    ),
+    TemplateEnvContract(
+        "JOBS_QUEUE_BACKEND",
+        "literal",
+        "always",
+        value="sqs",
+    ),
     TemplateEnvContract("JOBS_SQS_QUEUE_URL", "stack parameter", "always"),
+    TemplateEnvContract(
+        "JOBS_REPOSITORY_BACKEND",
+        "literal",
+        "always",
+        value="dynamodb",
+    ),
+    TemplateEnvContract("JOBS_DYNAMODB_TABLE", "stack parameter", "always"),
+    TemplateEnvContract(
+        "ACTIVITY_STORE_BACKEND",
+        "literal",
+        "always",
+        value="dynamodb",
+    ),
+    TemplateEnvContract("ACTIVITY_ROLLUPS_TABLE", "stack parameter", "always"),
     TemplateEnvContract(
         "JOBS_SQS_VISIBILITY_TIMEOUT_SECONDS", "stack parameter", "always"
     ),
-    TemplateEnvContract("JOBS_API_BASE_URL", "stack parameter", "always"),
     TemplateEnvContract("FILE_TRANSFER_BUCKET", "stack parameter", "always"),
     TemplateEnvContract(
         "FILE_TRANSFER_UPLOAD_PREFIX", "stack parameter", "always"
@@ -366,12 +390,6 @@ WORKER_TEMPLATE_ENV: tuple[TemplateEnvContract, ...] = (
     ),
     TemplateEnvContract(
         "FILE_TRANSFER_TMP_PREFIX", "stack parameter", "always"
-    ),
-    TemplateEnvContract(
-        "JOBS_WORKER_UPDATE_TOKEN",
-        "Secrets Manager",
-        "always",
-        secret=True,
     ),
 )
 
@@ -479,6 +497,9 @@ def build_contract_payload() -> dict[str, Any]:
                 "FILE_TRANSFER_JOBS_QUEUE_URL",
                 "FILE_TRANSFER_JOBS_REGION",
                 "APP_SYNC_PROCESSING_MAX_BYTES",
+                "JOBS_ALLOW_INSECURE_MISSING_WORKER_TOKEN_NONPROD",
+                "JOBS_API_BASE_URL",
+                "JOBS_WORKER_UPDATE_TOKEN",
             ],
         },
     }

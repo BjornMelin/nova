@@ -145,289 +145,337 @@
         "condition": "always",
         "name": "AWS_DEFAULT_REGION",
         "secret": false,
-        "source": "stack parameter"
+        "source": "stack parameter",
+        "value": null
       },
       {
         "condition": "always",
         "name": "ENVIRONMENT",
         "secret": false,
-        "source": "task parameter"
+        "source": "task parameter",
+        "value": null
       },
       {
         "condition": "always",
         "name": "NOVA_RUNTIME_PROFILE",
         "secret": false,
-        "source": "task parameter"
+        "source": "task parameter",
+        "value": null
       },
       {
         "condition": "always",
         "name": "AUTH_MODE",
         "secret": false,
-        "source": "task parameter"
+        "source": "task parameter",
+        "value": null
       },
       {
         "condition": "when jwt_local",
         "name": "OIDC_ISSUER",
         "secret": false,
-        "source": "task parameter"
+        "source": "task parameter",
+        "value": null
       },
       {
         "condition": "when jwt_local",
         "name": "OIDC_AUDIENCE",
         "secret": false,
-        "source": "task parameter"
+        "source": "task parameter",
+        "value": null
       },
       {
         "condition": "when jwt_local",
         "name": "OIDC_JWKS_URL",
         "secret": false,
-        "source": "task parameter"
+        "source": "task parameter",
+        "value": null
       },
       {
         "condition": "when jwt_local",
         "name": "OIDC_REQUIRED_SCOPES",
         "secret": false,
-        "source": "task parameter"
+        "source": "task parameter",
+        "value": null
       },
       {
         "condition": "when jwt_local",
         "name": "OIDC_REQUIRED_PERMISSIONS",
         "secret": false,
-        "source": "task parameter"
+        "source": "task parameter",
+        "value": null
       },
       {
         "condition": "always",
         "name": "OIDC_CLOCK_SKEW_SECONDS",
         "secret": false,
-        "source": "task parameter"
+        "source": "task parameter",
+        "value": null
       },
       {
         "condition": "always",
         "name": "BLOCKING_IO_THREAD_TOKENS",
         "secret": false,
-        "source": "task parameter"
+        "source": "task parameter",
+        "value": null
       },
       {
         "condition": "always",
         "name": "FILE_TRANSFER_ENABLED",
         "secret": false,
-        "source": "stack-derived"
+        "source": "stack-derived",
+        "value": null
       },
       {
         "condition": "always",
         "name": "JOBS_ENABLED",
         "secret": false,
-        "source": "stack-derived"
+        "source": "stack-derived",
+        "value": null
       },
       {
         "condition": "always",
         "name": "JOBS_QUEUE_BACKEND",
         "secret": false,
-        "source": "stack-derived"
+        "source": "stack-derived",
+        "value": null
       },
       {
         "condition": "always",
         "name": "JOBS_REPOSITORY_BACKEND",
         "secret": false,
-        "source": "stack-derived"
+        "source": "stack-derived",
+        "value": null
       },
       {
         "condition": "always",
         "name": "JOBS_RUNTIME_MODE",
         "secret": false,
-        "source": "literal"
+        "source": "literal",
+        "value": null
       },
       {
         "condition": "always",
         "name": "ACTIVITY_STORE_BACKEND",
         "secret": false,
-        "source": "stack-derived"
+        "source": "stack-derived",
+        "value": null
       },
       {
         "condition": "always",
         "name": "CACHE_REDIS_MAX_CONNECTIONS",
         "secret": false,
-        "source": "task parameter"
+        "source": "task parameter",
+        "value": null
       },
       {
         "condition": "always",
         "name": "CACHE_REDIS_SOCKET_TIMEOUT_SECONDS",
         "secret": false,
-        "source": "task parameter"
+        "source": "task parameter",
+        "value": null
       },
       {
         "condition": "always",
         "name": "CACHE_REDIS_SOCKET_CONNECT_TIMEOUT_SECONDS",
         "secret": false,
-        "source": "task parameter"
+        "source": "task parameter",
+        "value": null
       },
       {
         "condition": "always",
         "name": "CACHE_REDIS_HEALTH_CHECK_INTERVAL_SECONDS",
         "secret": false,
-        "source": "task parameter"
+        "source": "task parameter",
+        "value": null
       },
       {
         "condition": "always",
         "name": "CACHE_REDIS_RETRY_BASE_SECONDS",
         "secret": false,
-        "source": "task parameter"
+        "source": "task parameter",
+        "value": null
       },
       {
         "condition": "always",
         "name": "CACHE_REDIS_RETRY_CAP_SECONDS",
         "secret": false,
-        "source": "task parameter"
+        "source": "task parameter",
+        "value": null
       },
       {
         "condition": "always",
         "name": "CACHE_REDIS_RETRY_ATTEMPTS",
         "secret": false,
-        "source": "task parameter"
+        "source": "task parameter",
+        "value": null
       },
       {
         "condition": "always",
         "name": "CACHE_REDIS_DECODE_RESPONSES",
         "secret": false,
-        "source": "task parameter"
+        "source": "task parameter",
+        "value": null
       },
       {
         "condition": "always",
         "name": "CACHE_REDIS_PROTOCOL",
         "secret": false,
-        "source": "task parameter"
+        "source": "task parameter",
+        "value": null
       },
       {
         "condition": "always",
         "name": "CACHE_LOCAL_TTL_SECONDS",
         "secret": false,
-        "source": "task parameter"
+        "source": "task parameter",
+        "value": null
       },
       {
         "condition": "always",
         "name": "CACHE_LOCAL_MAX_ENTRIES",
         "secret": false,
-        "source": "task parameter"
+        "source": "task parameter",
+        "value": null
       },
       {
         "condition": "always",
         "name": "CACHE_SHARED_TTL_SECONDS",
         "secret": false,
-        "source": "task parameter"
+        "source": "task parameter",
+        "value": null
       },
       {
         "condition": "always",
         "name": "CACHE_KEY_PREFIX",
         "secret": false,
-        "source": "task parameter"
+        "source": "task parameter",
+        "value": null
       },
       {
         "condition": "always",
         "name": "CACHE_KEY_SCHEMA_VERSION",
         "secret": false,
-        "source": "task parameter"
+        "source": "task parameter",
+        "value": null
       },
       {
         "condition": "always",
         "name": "AUTH_JWT_CACHE_MAX_TTL_SECONDS",
         "secret": false,
-        "source": "task parameter"
+        "source": "task parameter",
+        "value": null
       },
       {
         "condition": "always",
         "name": "IDEMPOTENCY_ENABLED",
         "secret": false,
-        "source": "task parameter"
+        "source": "task parameter",
+        "value": null
       },
       {
         "condition": "always",
         "name": "IDEMPOTENCY_TTL_SECONDS",
         "secret": false,
-        "source": "task parameter"
+        "source": "task parameter",
+        "value": null
       },
       {
         "condition": "always",
         "name": "FILE_TRANSFER_PRESIGN_UPLOAD_TTL_SECONDS",
         "secret": false,
-        "source": "task parameter"
+        "source": "task parameter",
+        "value": null
       },
       {
         "condition": "always",
         "name": "FILE_TRANSFER_PRESIGN_DOWNLOAD_TTL_SECONDS",
         "secret": false,
-        "source": "task parameter"
+        "source": "task parameter",
+        "value": null
       },
       {
         "condition": "always",
         "name": "FILE_TRANSFER_MULTIPART_THRESHOLD_BYTES",
         "secret": false,
-        "source": "task parameter"
+        "source": "task parameter",
+        "value": null
       },
       {
         "condition": "always",
         "name": "FILE_TRANSFER_PART_SIZE_BYTES",
         "secret": false,
-        "source": "task parameter"
+        "source": "task parameter",
+        "value": null
       },
       {
         "condition": "always",
         "name": "FILE_TRANSFER_MAX_CONCURRENCY",
         "secret": false,
-        "source": "task parameter"
+        "source": "task parameter",
+        "value": null
       },
       {
         "condition": "always",
         "name": "FILE_TRANSFER_USE_ACCELERATE_ENDPOINT",
         "secret": false,
-        "source": "task parameter"
+        "source": "task parameter",
+        "value": null
       },
       {
         "condition": "always",
         "name": "FILE_TRANSFER_MAX_UPLOAD_BYTES",
         "secret": false,
-        "source": "task parameter"
+        "source": "task parameter",
+        "value": null
       },
       {
         "condition": "when async enabled",
         "name": "JOBS_SQS_QUEUE_URL",
         "secret": false,
-        "source": "stack output"
+        "source": "stack output",
+        "value": null
       },
       {
         "condition": "when async enabled",
         "name": "JOBS_DYNAMODB_TABLE",
         "secret": false,
-        "source": "stack output"
+        "source": "stack output",
+        "value": null
       },
       {
         "condition": "when async enabled",
         "name": "ACTIVITY_ROLLUPS_TABLE",
         "secret": false,
-        "source": "stack output"
+        "source": "stack output",
+        "value": null
       },
       {
         "condition": "when file transfer enabled",
         "name": "FILE_TRANSFER_BUCKET",
         "secret": false,
-        "source": "stack parameter"
+        "source": "stack parameter",
+        "value": null
       },
       {
         "condition": "when file transfer enabled",
         "name": "FILE_TRANSFER_UPLOAD_PREFIX",
         "secret": false,
-        "source": "stack parameter"
+        "source": "stack parameter",
+        "value": null
       },
       {
         "condition": "when file transfer enabled",
         "name": "FILE_TRANSFER_EXPORT_PREFIX",
         "secret": false,
-        "source": "stack parameter"
+        "source": "stack parameter",
+        "value": null
       },
       {
         "condition": "when file transfer enabled",
         "name": "FILE_TRANSFER_TMP_PREFIX",
         "secret": false,
-        "source": "stack parameter"
+        "source": "stack parameter",
+        "value": null
       }
     ],
     "forbidden_env_vars": [
@@ -450,7 +498,8 @@
         "condition": "when cache enabled",
         "name": "CACHE_REDIS_URL",
         "secret": true,
-        "source": "Secrets Manager"
+        "source": "Secrets Manager",
+        "value": null
       }
     ]
   },
@@ -752,22 +801,6 @@
       "type_label": "int"
     },
     {
-      "default_repr": "False",
-      "env_var": "JOBS_ALLOW_INSECURE_MISSING_WORKER_TOKEN_NONPROD",
-      "field_name": "jobs_allow_insecure_missing_worker_token_nonprod",
-      "required": false,
-      "secret": false,
-      "type_label": "bool"
-    },
-    {
-      "default_repr": "None",
-      "env_var": "JOBS_API_BASE_URL",
-      "field_name": "jobs_api_base_url",
-      "required": false,
-      "secret": false,
-      "type_label": "str | None"
-    },
-    {
       "default_repr": "None",
       "env_var": "JOBS_DYNAMODB_TABLE",
       "field_name": "jobs_dynamodb_table",
@@ -856,14 +889,6 @@
       "type_label": "int"
     },
     {
-      "default_repr": "None",
-      "env_var": "JOBS_WORKER_UPDATE_TOKEN",
-      "field_name": "jobs_worker_update_token",
-      "required": false,
-      "secret": true,
-      "type_label": "SecretStr | None"
-    },
-    {
       "default_repr": "'NovaFileApi'",
       "env_var": "METRICS_NAMESPACE",
       "field_name": "metrics_namespace",
@@ -928,88 +953,117 @@
         "condition": "always",
         "name": "ENVIRONMENT",
         "secret": false,
-        "source": "stack parameter"
+        "source": "stack parameter",
+        "value": null
       },
       {
         "condition": "always",
         "name": "AWS_DEFAULT_REGION",
         "secret": false,
-        "source": "stack parameter"
+        "source": "stack parameter",
+        "value": null
       },
       {
         "condition": "always",
         "name": "JOBS_ENABLED",
         "secret": false,
-        "source": "literal"
+        "source": "literal",
+        "value": "true"
       },
       {
         "condition": "always",
         "name": "JOBS_RUNTIME_MODE",
         "secret": false,
-        "source": "literal"
+        "source": "literal",
+        "value": "worker"
       },
       {
         "condition": "always",
         "name": "JOBS_QUEUE_BACKEND",
         "secret": false,
-        "source": "literal"
+        "source": "literal",
+        "value": "sqs"
       },
       {
         "condition": "always",
         "name": "JOBS_SQS_QUEUE_URL",
         "secret": false,
-        "source": "stack parameter"
+        "source": "stack parameter",
+        "value": null
+      },
+      {
+        "condition": "always",
+        "name": "JOBS_REPOSITORY_BACKEND",
+        "secret": false,
+        "source": "literal",
+        "value": "dynamodb"
+      },
+      {
+        "condition": "always",
+        "name": "JOBS_DYNAMODB_TABLE",
+        "secret": false,
+        "source": "stack parameter",
+        "value": null
+      },
+      {
+        "condition": "always",
+        "name": "ACTIVITY_STORE_BACKEND",
+        "secret": false,
+        "source": "literal",
+        "value": "dynamodb"
+      },
+      {
+        "condition": "always",
+        "name": "ACTIVITY_ROLLUPS_TABLE",
+        "secret": false,
+        "source": "stack parameter",
+        "value": null
       },
       {
         "condition": "always",
         "name": "JOBS_SQS_VISIBILITY_TIMEOUT_SECONDS",
         "secret": false,
-        "source": "stack parameter"
-      },
-      {
-        "condition": "always",
-        "name": "JOBS_API_BASE_URL",
-        "secret": false,
-        "source": "stack parameter"
+        "source": "stack parameter",
+        "value": null
       },
       {
         "condition": "always",
         "name": "FILE_TRANSFER_BUCKET",
         "secret": false,
-        "source": "stack parameter"
+        "source": "stack parameter",
+        "value": null
       },
       {
         "condition": "always",
         "name": "FILE_TRANSFER_UPLOAD_PREFIX",
         "secret": false,
-        "source": "stack parameter"
+        "source": "stack parameter",
+        "value": null
       },
       {
         "condition": "always",
         "name": "FILE_TRANSFER_EXPORT_PREFIX",
         "secret": false,
-        "source": "stack parameter"
+        "source": "stack parameter",
+        "value": null
       },
       {
         "condition": "always",
         "name": "FILE_TRANSFER_TMP_PREFIX",
         "secret": false,
-        "source": "stack parameter"
+        "source": "stack parameter",
+        "value": null
       }
     ],
     "forbidden_env_vars": [
       "FILE_TRANSFER_API_BASE_URL",
       "FILE_TRANSFER_JOBS_QUEUE_URL",
       "FILE_TRANSFER_JOBS_REGION",
-      "APP_SYNC_PROCESSING_MAX_BYTES"
+      "APP_SYNC_PROCESSING_MAX_BYTES",
+      "JOBS_ALLOW_INSECURE_MISSING_WORKER_TOKEN_NONPROD",
+      "JOBS_API_BASE_URL",
+      "JOBS_WORKER_UPDATE_TOKEN"
     ],
-    "secrets": [
-      {
-        "condition": "always",
-        "name": "JOBS_WORKER_UPDATE_TOKEN",
-        "secret": true,
-        "source": "Secrets Manager"
-      }
-    ]
+    "secrets": []
   }
 }

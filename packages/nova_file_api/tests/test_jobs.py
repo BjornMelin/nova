@@ -27,7 +27,6 @@ from nova_file_api.models import (
     JobStatus,
     Principal,
 )
-from pydantic import SecretStr
 
 from .support.app import (
     RuntimeDeps,
@@ -248,13 +247,11 @@ async def _build_bearer_status_container(*, scope_id: str) -> RuntimeDeps:
     )
 
 
-def _build_failing_job_container(
-    *,
-    worker_token: SecretStr | None = None,
-) -> tuple[RuntimeDeps, MetricsCollector, MemoryActivityStore]:
+def _build_failing_job_container() -> tuple[
+    RuntimeDeps, MetricsCollector, MemoryActivityStore
+]:
     settings = Settings()
     settings.jobs_enabled = True
-    settings.jobs_worker_update_token = worker_token
     metrics = MetricsCollector(namespace="Tests")
     shared, cache = build_cache_stack()
     activity_store = MemoryActivityStore()
@@ -816,78 +813,6 @@ async def test_job_service_cancel_conflicts_after_retry_limit() -> None:
 
 
 @pytest.mark.asyncio
-async def test_update_job_result_requires_valid_worker_token() -> None:
-    settings = Settings()
-    settings.jobs_enabled = True
-    settings.jobs_worker_update_token = SecretStr("test-worker-token")
-
-    metrics = MetricsCollector(namespace="Tests")
-    shared, cache = build_cache_stack()
-    repository = MemoryJobRepository()
-    service = JobService(
-        repository=repository,
-        publisher=MemoryJobPublisher(),
-        metrics=metrics,
-    )
-    now = datetime.now(tz=UTC)
-    await repository.create(
-        JobRecord(
-            job_id="job-update-3",
-            job_type="transform",
-            scope_id="scope-1",
-            status=JobStatus.PENDING,
-            payload={"input": "value"},
-            result=None,
-            error=None,
-            created_at=now,
-            updated_at=now,
-        )
-    )
-
-    container = build_runtime_deps(
-        settings=settings,
-        metrics=metrics,
-        cache=cache,
-        shared_cache=shared,
-        authenticator=StubAuthenticator(),
-        transfer_service=StubTransferService(),
-        job_repository=repository,
-        job_service=service,
-        activity_store=MemoryActivityStore(),
-        idempotency_enabled=True,
-        use_in_memory_shared_cache=True,
-    )
-
-    app = build_test_app(container)
-    async with (
-        app.router.lifespan_context(app),
-        httpx.AsyncClient(
-            transport=httpx.ASGITransport(app=app),
-            base_url="http://testserver",
-        ) as client,
-    ):
-        forbidden_response = await client.post(
-            "/v1/internal/jobs/job-update-3/result",
-            headers={"X-Worker-Token": "wrong-token"},
-            json={"status": "running"},
-        )
-        ok_response = await client.post(
-            "/v1/internal/jobs/job-update-3/result",
-            headers={"X-Worker-Token": "test-worker-token"},
-            json={"status": "succeeded", "result": {"accepted": True}},
-        )
-
-    assert forbidden_response.status_code == 403
-    assert forbidden_response.json()["error"]["code"] == "forbidden"
-    assert ok_response.status_code == 200
-    assert ok_response.json()["status"] == "succeeded"
-    activity_summary = await container.activity_store.summary()
-    assert activity_summary["events_total"] == 1
-    assert activity_summary["distinct_event_types"] == 1
-    assert activity_summary["active_users_today"] == 1
-
-
-@pytest.mark.asyncio
 async def test_get_job_status_failure_emits_error_observability(
     capture_emf: CaptureEmf,
 ) -> None:
@@ -958,41 +883,6 @@ async def test_cancel_job_failure_emits_error_observability(
     counters = metrics.counters_snapshot()
     assert counters["jobs_cancel_failure_total"] == 1
     assert {"route": "jobs_cancel", "status": "error"} in emitted_dimensions
-    activity_summary = await activity_store.summary()
-    assert activity_summary["events_total"] == 1
-    assert activity_summary["distinct_event_types"] == 1
-    assert activity_summary["active_users_today"] == 1
-
-
-@pytest.mark.asyncio
-async def test_update_job_result_failure_emits_error_observability(
-    capture_emf: CaptureEmf,
-) -> None:
-    container, metrics, activity_store = _build_failing_job_container(
-        worker_token=SecretStr("test-worker-token")
-    )
-    emitted_dimensions = capture_emf(metrics)
-    app = build_test_app(container)
-    async with (
-        app.router.lifespan_context(app),
-        httpx.AsyncClient(
-            transport=httpx.ASGITransport(app=app, raise_app_exceptions=False),
-            base_url="http://testserver",
-        ) as client,
-    ):
-        response = await client.post(
-            "/v1/internal/jobs/job-update-4/result",
-            headers={"X-Worker-Token": "test-worker-token"},
-            json={"status": "running"},
-        )
-
-    assert response.status_code == 500
-    counters = metrics.counters_snapshot()
-    assert counters["jobs_result_update_failure_total"] == 1
-    assert {
-        "route": "jobs_result_update",
-        "status": "error",
-    } in emitted_dimensions
     activity_summary = await activity_store.summary()
     assert activity_summary["events_total"] == 1
     assert activity_summary["distinct_event_types"] == 1

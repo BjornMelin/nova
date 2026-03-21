@@ -13,7 +13,7 @@ safe operator path.
 
 1. AWS CLI v2 authenticated.
 2. GitHub CLI authenticated.
-3. Repository admin access to `${GITHUB_OWNER}/${GITHUB_REPO}` (default: `3M-Cloud/nova`).
+3. Repository admin access to the target `${GITHUB_OWNER}/${GITHUB_REPO}` pair.
 4. Required environment values prepared.
 5. Runtime stacks already deployed for `dev` and `prod` (see
    [deploy-runtime-cloudformation-environments.md](./deploy-runtime-cloudformation-environments.md)).
@@ -22,21 +22,19 @@ safe operator path.
 ## Inputs
 
 - `${AWS_REGION}` (required, e.g., `us-east-1`)
-- `${AWS_ACCOUNT_ID}` (required, e.g., `123456789012`)
+- `${AWS_ACCOUNT_ID}` (optional; derived from STS when unset)
 - `${PROJECT}` (default `nova`)
 - `${APPLICATION}` (default `ci`)
-- `${GITHUB_OWNER}` (default `3M-Cloud`)
-- `${GITHUB_REPO}` (default `nova`)
+- `${GITHUB_OWNER}` (required; explicit GitHub org or user target)
+- `${GITHUB_REPO}` (required; explicit GitHub repository target)
 - `${EXISTING_CONNECTION_ARN}` (optional, e.g.,
   `arn:aws:codestar-connections:us-east-1:...:connection/xxxxxxxx`)
-- `${CODEARTIFACT_DOMAIN_NAME}` (required)
-- `${CODEARTIFACT_REPOSITORY_NAME}` (optional fallback for staging default)
-- `${CODEARTIFACT_STAGING_REPOSITORY}` (required; defaulted from
-  `${CODEARTIFACT_REPOSITORY_NAME}` by command pack when unset)
+- `${CODEARTIFACT_DOMAIN}` (required)
+- `${CODEARTIFACT_STAGING_REPOSITORY}` (required)
 - `${CODEARTIFACT_PROD_REPOSITORY}` (required; must differ from staging)
-- `${ECR_REPOSITORY_ARN}` (required)
-- `${ECR_REPOSITORY_NAME}` (required)
-- `${ECR_REPOSITORY_URI}` (required)
+- `${ECR_REPOSITORY_NAME}` (optional; default `nova-file-api`)
+- `${ECR_REPOSITORY_URI}` (optional; derived when unset)
+- `${ECR_REPOSITORY_ARN}` (optional; derived when unset)
 - `${SIGNER_NAME}` (required)
 - `${SIGNER_EMAIL}` (required)
 - `${NOVA_ARTIFACT_BUCKET_NAME}` (required)
@@ -47,23 +45,28 @@ safe operator path.
 
 ```bash
 export AWS_REGION="${AWS_REGION:?Set AWS_REGION}"
-export AWS_ACCOUNT_ID="${AWS_ACCOUNT_ID:?Set AWS_ACCOUNT_ID}"
 export PROJECT="${PROJECT:-nova}"
 export APPLICATION="${APPLICATION:-ci}"
-export GITHUB_OWNER="${GITHUB_OWNER:-3M-Cloud}"
-export GITHUB_REPO="${GITHUB_REPO:-nova}"
-export CODEARTIFACT_DOMAIN_NAME="${CODEARTIFACT_DOMAIN_NAME:?Set CODEARTIFACT_DOMAIN_NAME}"
-export CODEARTIFACT_REPOSITORY_NAME="${CODEARTIFACT_REPOSITORY_NAME:-galaxypy}"
-export CODEARTIFACT_STAGING_REPOSITORY="${CODEARTIFACT_STAGING_REPOSITORY:-${CODEARTIFACT_REPOSITORY_NAME}}"
+export GITHUB_OWNER="${GITHUB_OWNER:?Set GITHUB_OWNER}"
+export GITHUB_REPO="${GITHUB_REPO:?Set GITHUB_REPO}"
+export CODEARTIFACT_DOMAIN="${CODEARTIFACT_DOMAIN:?Set CODEARTIFACT_DOMAIN}"
+export CODEARTIFACT_STAGING_REPOSITORY="${CODEARTIFACT_STAGING_REPOSITORY:?Set CODEARTIFACT_STAGING_REPOSITORY}"
 export CODEARTIFACT_PROD_REPOSITORY="${CODEARTIFACT_PROD_REPOSITORY:?Set CODEARTIFACT_PROD_REPOSITORY}"
 export EXISTING_CONNECTION_ARN="${EXISTING_CONNECTION_ARN:-}"
-export ECR_REPOSITORY_ARN="${ECR_REPOSITORY_ARN:?Set ECR_REPOSITORY_ARN}"
-export ECR_REPOSITORY_NAME="${ECR_REPOSITORY_NAME:?Set ECR_REPOSITORY_NAME}"
-export ECR_REPOSITORY_URI="${ECR_REPOSITORY_URI:?Set ECR_REPOSITORY_URI}"
+export ECR_REPOSITORY_NAME="${ECR_REPOSITORY_NAME:-nova-file-api}"
 export NOVA_DEPLOY_SERVICE_NAME="${NOVA_DEPLOY_SERVICE_NAME:-nova-file-api}"
 export SIGNER_NAME="${SIGNER_NAME:?Set SIGNER_NAME}"
 export SIGNER_EMAIL="${SIGNER_EMAIL:?Set SIGNER_EMAIL}"
 export NOVA_ARTIFACT_BUCKET_NAME="${NOVA_ARTIFACT_BUCKET_NAME:?Set NOVA_ARTIFACT_BUCKET_NAME}"
+export GITHUB_OIDC_PROVIDER_ARN="${GITHUB_OIDC_PROVIDER_ARN:?Set GITHUB_OIDC_PROVIDER_ARN}"
+
+if [ -z "${AWS_ACCOUNT_ID:-}" ]; then
+  AWS_ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
+  export AWS_ACCOUNT_ID
+fi
+
+export ECR_REPOSITORY_URI="${ECR_REPOSITORY_URI:-${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPOSITORY_NAME}}"
+export ECR_REPOSITORY_ARN="${ECR_REPOSITORY_ARN:-arn:aws:ecr:${AWS_REGION}:${AWS_ACCOUNT_ID}:repository/${ECR_REPOSITORY_NAME}}"
 
 if [ "${CODEARTIFACT_STAGING_REPOSITORY}" = "${CODEARTIFACT_PROD_REPOSITORY}" ]; then
   echo "CODEARTIFACT_STAGING_REPOSITORY and CODEARTIFACT_PROD_REPOSITORY must differ." >&2
@@ -71,12 +74,19 @@ if [ "${CODEARTIFACT_STAGING_REPOSITORY}" = "${CODEARTIFACT_PROD_REPOSITORY}" ];
 fi
 ```
 
+Explicit targeting guardrail:
+
+- `GITHUB_OWNER` and `GITHUB_REPO` must name the intended production
+  repository before Step 3.
+- `./scripts/release/day-0-operator-command-pack.sh` does not infer the target
+  repo from `origin` or any other checkout metadata.
+
 Required pre-check before Step 3 (replace `nova-file-api` if overridden via
 `NOVA_DEPLOY_SERVICE_NAME`):
 
 ```bash
-aws ssm get-parameter --region "${AWS_REGION}" --name "/${PROJECT}/dev/${NOVA_DEPLOY_SERVICE_NAME}/base-url"
-aws ssm get-parameter --region "${AWS_REGION}" --name "/${PROJECT}/prod/${NOVA_DEPLOY_SERVICE_NAME}/base-url"
+aws ssm get-parameter --region "${AWS_REGION}" --name "/nova/dev/${NOVA_DEPLOY_SERVICE_NAME}/base-url"
+aws ssm get-parameter --region "${AWS_REGION}" --name "/nova/prod/${NOVA_DEPLOY_SERVICE_NAME}/base-url"
 ```
 
 Ownership guardrail:
@@ -123,8 +133,7 @@ aws cloudformation deploy \
     Project="${PROJECT}" \
     Application="${APPLICATION}" \
     "${FOUNDATION_BUCKET_ARGS[@]}" \
-    CodeArtifactDomainName="${CODEARTIFACT_DOMAIN_NAME}" \
-    CodeArtifactRepositoryName="${CODEARTIFACT_STAGING_REPOSITORY}" \
+    CodeArtifactDomainName="${CODEARTIFACT_DOMAIN}" \
     EcrRepositoryArn="${ECR_REPOSITORY_ARN}" \
     EcrRepositoryName="${ECR_REPOSITORY_NAME}" \
     EcrRepositoryUri="${ECR_REPOSITORY_URI}" \
@@ -149,7 +158,7 @@ aws cloudformation describe-stacks --region "${AWS_REGION}" --stack-name "${PROJ
 
 ```bash
 required_secrets=(RELEASE_SIGNING_SECRET_ID RELEASE_AWS_ROLE_ARN)
-required_vars=(AWS_REGION CODEARTIFACT_STAGING_REPOSITORY CODEARTIFACT_PROD_REPOSITORY)
+required_vars=(AWS_REGION CODEARTIFACT_DOMAIN CODEARTIFACT_STAGING_REPOSITORY CODEARTIFACT_PROD_REPOSITORY)
 
 existing_secrets="$(gh secret list --repo "${GITHUB_OWNER}/${GITHUB_REPO}" --json name -q '.[].name')"
 existing_vars="$(gh variable list --repo "${GITHUB_OWNER}/${GITHUB_REPO}" --json name -q '.[].name')"
@@ -187,6 +196,10 @@ gh run watch "${DEPLOY_RUN_ID}" --repo "${GITHUB_OWNER}/${GITHUB_REPO}" --exit-s
 
 aws codepipeline get-pipeline-state --region "${AWS_REGION}" --name "${CODEPIPELINE_NAME}"
 ```
+
+`Publish Packages` is the canonical manual staging publish workflow for Python,
+TypeScript/npm, and R artifacts. `Promote Prod` is the canonical manual prod
+promotion workflow for those staged, gate-validated artifacts.
 
 ### Step 7: Return to idle cost posture after release work
 

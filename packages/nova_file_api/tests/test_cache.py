@@ -84,11 +84,11 @@ def _build_shared_cache(
     *,
     client: AsyncRedisClientProtocol,
 ) -> SharedRedisCache:
-    # Testing-only: inject a mock Redis client via SharedRedisCache._client to
-    # bypass async network initialization and keep cache tests deterministic.
-    shared = SharedRedisCache(url=None)
-    shared._client = cast(Redis, client)
-    return shared
+    # Testing-only: inject a mock Redis client to bypass network initialization.
+    return SharedRedisCache(
+        url=None,
+        client=cast(Redis, cast(object, client)),
+    )
 
 
 @pytest.mark.asyncio

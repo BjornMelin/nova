@@ -22,10 +22,12 @@ Parameters:
     Type: String
     Default: ""
     Description: Optional explicit CodeArtifact domain. If empty, imported from foundation.
-  CodeArtifactRepositoryName:
+  CodeArtifactStagingRepositoryName:
     Type: String
-    Default: ""
-    Description: Optional explicit CodeArtifact repository. If empty, imported from foundation.
+    MinLength: 1
+    AllowedPattern: "^[a-zA-Z0-9][a-zA-Z0-9._-]{0,99}$"
+    ConstraintDescription: Must be a valid CodeArtifact repository name.
+    Description: CodeArtifact staging repository used for release publication.
   EcrRepositoryUri:
     Type: String
     Default: ""
@@ -94,7 +96,6 @@ Conditions:
   HasIamRolesStackName: !Not [!Equals [!Ref IamRolesStackName, ""]]
   HasCodeBuildServiceRoleArn: !Not [!Equals [!Ref CodeBuildServiceRoleArn, ""]]
   HasCodeArtifactDomainName: !Not [!Equals [!Ref CodeArtifactDomainName, ""]]
-  HasCodeArtifactRepositoryName: !Not [!Equals [!Ref CodeArtifactRepositoryName, ""]]
   HasEcrRepositoryUri: !Not [!Equals [!Ref EcrRepositoryUri, ""]]
   HasEcrRepositoryName: !Not [!Equals [!Ref EcrRepositoryName, ""]]
   HasReleaseBuildProjectName: !Not [!Equals [!Ref ReleaseBuildProjectName, ""]]
@@ -113,12 +114,6 @@ Rules:
           - !Not [!Equals [!Ref CodeArtifactDomainName, ""]]
           - !Not [!Equals [!Ref FoundationStackName, ""]]
         AssertDescription: Provide CodeArtifactDomainName or FoundationStackName.
-  RequireCodeArtifactRepositoryInput:
-    Assertions:
-      - Assert: !Or
-          - !Not [!Equals [!Ref CodeArtifactRepositoryName, ""]]
-          - !Not [!Equals [!Ref FoundationStackName, ""]]
-        AssertDescription: Provide CodeArtifactRepositoryName or FoundationStackName.
   RequireEcrRepositoryUriInput:
     Assertions:
       - Assert: !Or
@@ -180,13 +175,9 @@ Resources:
               - !Ref CodeArtifactDomainName
               - !ImportValue
                 Fn::Sub: "${FoundationStackName}-CodeArtifactDomainName"
-          - Name: CODEARTIFACT_REPOSITORY
+          - Name: CODEARTIFACT_STAGING_REPOSITORY
             Type: PLAINTEXT
-            Value: !If
-              - HasCodeArtifactRepositoryName
-              - !Ref CodeArtifactRepositoryName
-              - !ImportValue
-                Fn::Sub: "${FoundationStackName}-CodeArtifactRepositoryName"
+            Value: !Ref CodeArtifactStagingRepositoryName
           - Name: ECR_REPOSITORY_URI
             Type: PLAINTEXT
             Value: !If

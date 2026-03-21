@@ -287,8 +287,7 @@ aws cloudformation deploy \
     Project="${PROJECT}" \
     Application="${APPLICATION}" \
     ExistingArtifactBucketName="${NOVA_ARTIFACT_BUCKET_NAME}" \
-    CodeArtifactDomainName="${NOVA_CODEARTIFACT_DOMAIN_NAME}" \
-    CodeArtifactRepositoryName="${NOVA_CODEARTIFACT_STAGING_REPOSITORY_NAME}" \
+    CodeArtifactDomainName="${CODEARTIFACT_DOMAIN}" \
     EcrRepositoryArn="${NOVA_ECR_REPOSITORY_ARN}" \
     EcrRepositoryName="${NOVA_ECR_REPOSITORY_NAME}" \
     EcrRepositoryUri="${NOVA_ECR_REPOSITORY_URI}" \
@@ -308,8 +307,10 @@ aws cloudformation deploy \
     MainBranchName="main" \
     GitHubOidcProviderArn="${GITHUB_OIDC_PROVIDER_ARN}" \
     ReleaseSigningSecretArn="${RELEASE_SIGNING_SECRET_ARN}" \
-    CodeArtifactPromotionSourceRepositoryName="${NOVA_CODEARTIFACT_STAGING_REPOSITORY_NAME}" \
-    CodeArtifactPromotionDestinationRepositoryName="${NOVA_CODEARTIFACT_PROD_REPOSITORY_NAME}"
+    CodeArtifactDomainName="${CODEARTIFACT_DOMAIN}" \
+    CodeArtifactStagingRepositoryName="${CODEARTIFACT_STAGING_REPOSITORY}" \
+    CodeArtifactPromotionSourceRepositoryName="${CODEARTIFACT_STAGING_REPOSITORY}" \
+    CodeArtifactPromotionDestinationRepositoryName="${CODEARTIFACT_PROD_REPOSITORY}"
 ```
 
 Use equivalent `aws cloudformation deploy` commands for:
