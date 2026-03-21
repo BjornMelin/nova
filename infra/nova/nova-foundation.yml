@@ -18,15 +18,6 @@ Parameters:
   CodeArtifactDomainName:
     Type: String
     MinLength: 1
-  CodeArtifactRepositoryName:
-    Type: String
-    MinLength: 1
-  CodeArtifactInternalNpmScope:
-    Type: String
-    Default: nova
-    MinLength: 1
-    AllowedPattern: "^[a-z0-9][a-z0-9-]*$"
-    ConstraintDescription: Must be a valid lowercase npm scope without @.
   EcrRepositoryArn:
     Type: String
     AllowedPattern: "^arn:(aws|aws-us-gov|aws-cn):ecr:[a-z0-9-]+:[0-9]{12}:repository\\/[A-Za-z0-9._\\/-]+$"
@@ -142,7 +133,7 @@ Resources:
     Properties:
       Description: Internal Nova npm namespace origin controls
       DomainName: !Ref CodeArtifactDomainName
-      Pattern: !Sub /npm/${CodeArtifactInternalNpmScope}/*
+      Pattern: /npm/nova/*
       OriginConfiguration:
         Restrictions:
           Publish:
@@ -170,11 +161,6 @@ Outputs:
     Value: !Ref CodeArtifactDomainName
     Export:
       Name: !Sub "${AWS::StackName}-CodeArtifactDomainName"
-
-  CodeArtifactRepositoryName:
-    Value: !Ref CodeArtifactRepositoryName
-    Export:
-      Name: !Sub "${AWS::StackName}-CodeArtifactRepositoryName"
 
   EcrRepositoryArn:
     Value: !Ref EcrRepositoryArn

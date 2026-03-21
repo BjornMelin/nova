@@ -29,10 +29,12 @@ Parameters:
     Type: String
     Default: ""
     Description: Optional explicit CodeArtifact domain. If empty, imported from foundation.
-  CodeArtifactRepositoryName:
+  CodeArtifactStagingRepositoryName:
     Type: String
-    Default: ""
-    Description: Optional explicit CodeArtifact repository. If empty, imported from foundation.
+    MinLength: 1
+    AllowedPattern: "^[a-zA-Z0-9][a-zA-Z0-9._-]{0,99}$"
+    ConstraintDescription: Must be a valid CodeArtifact repository name.
+    Description: CodeArtifact staging repository used for release publication.
   CodeArtifactPromotionSourceRepositoryName:
     Type: String
     MinLength: 1
@@ -45,12 +47,6 @@ Parameters:
     AllowedPattern: "^[a-zA-Z0-9][a-zA-Z0-9._-]{0,99}$"
     ConstraintDescription: Must be a valid CodeArtifact repository name.
     Description: CodeArtifact destination repository for prod package promotion.
-  CodeArtifactInternalNpmScope:
-    Type: String
-    Default: nova
-    MinLength: 1
-    AllowedPattern: "^[A-Za-z0-9._-]+$"
-    ConstraintDescription: Use letters, numbers, dots, underscores, and hyphens only.
   EcrRepositoryArn:
     Type: String
     Default: ""
@@ -74,7 +70,6 @@ Conditions:
   HasFoundationStackName: !Not [!Equals [!Ref FoundationStackName, ""]]
   HasArtifactBucketName: !Not [!Equals [!Ref ArtifactBucketName, ""]]
   HasCodeArtifactDomainName: !Not [!Equals [!Ref CodeArtifactDomainName, ""]]
-  HasCodeArtifactRepositoryName: !Not [!Equals [!Ref CodeArtifactRepositoryName, ""]]
   HasEcrRepositoryArn: !Not [!Equals [!Ref EcrRepositoryArn, ""]]
   HasExistingConnectionArn: !Not [!Equals [!Ref ExistingConnectionArn, ""]]
   HasManualApprovalTopicArn: !Not [!Equals [!Ref ManualApprovalTopicArn, ""]]
@@ -96,12 +91,6 @@ Rules:
           - !Not [!Equals [!Ref CodeArtifactDomainName, ""]]
           - !Not [!Equals [!Ref FoundationStackName, ""]]
         AssertDescription: Provide CodeArtifactDomainName or FoundationStackName.
-  RequireCodeArtifactRepositoryInput:
-    Assertions:
-      - Assert: !Or
-          - !Not [!Equals [!Ref CodeArtifactRepositoryName, ""]]
-          - !Not [!Equals [!Ref FoundationStackName, ""]]
-        AssertDescription: Provide CodeArtifactRepositoryName or FoundationStackName.
   RequireDistinctCodeArtifactPromotionRepositories:
     Assertions:
       - Assert: !Not
@@ -173,17 +162,13 @@ Resources:
               - codeartifact:GetRepositoryEndpoint
             Resource:
               - !Sub
-                - "arn:${AWS::Partition}:codeartifact:${AWS::Region}:${AWS::AccountId}:repository/${ResolvedCodeArtifactDomainName}/${ResolvedCodeArtifactRepositoryName}"
+                - "arn:${AWS::Partition}:codeartifact:${AWS::Region}:${AWS::AccountId}:repository/${ResolvedCodeArtifactDomainName}/${StagingRepositoryName}"
                 - ResolvedCodeArtifactDomainName: !If
                     - HasCodeArtifactDomainName
                     - !Ref CodeArtifactDomainName
                     - !ImportValue
                       Fn::Sub: "${FoundationStackName}-CodeArtifactDomainName"
-                  ResolvedCodeArtifactRepositoryName: !If
-                    - HasCodeArtifactRepositoryName
-                    - !Ref CodeArtifactRepositoryName
-                    - !ImportValue
-                      Fn::Sub: "${FoundationStackName}-CodeArtifactRepositoryName"
+                  StagingRepositoryName: !Ref CodeArtifactStagingRepositoryName
           - Effect: Allow
             Action:
               - codeartifact:PublishPackageVersion
@@ -191,29 +176,29 @@ Resources:
               - codeartifact:DescribePackageVersion
             Resource:
               - !Sub
-                - "arn:${AWS::Partition}:codeartifact:${AWS::Region}:${AWS::AccountId}:package/${ResolvedCodeArtifactDomainName}/${ResolvedCodeArtifactRepositoryName}/pypi/*"
+                - "arn:${AWS::Partition}:codeartifact:${AWS::Region}:${AWS::AccountId}:package/${ResolvedCodeArtifactDomainName}/${StagingRepositoryName}/pypi/*"
                 - ResolvedCodeArtifactDomainName: !If
                     - HasCodeArtifactDomainName
                     - !Ref CodeArtifactDomainName
                     - !ImportValue
                       Fn::Sub: "${FoundationStackName}-CodeArtifactDomainName"
-                  ResolvedCodeArtifactRepositoryName: !If
-                    - HasCodeArtifactRepositoryName
-                    - !Ref CodeArtifactRepositoryName
-                    - !ImportValue
-                      Fn::Sub: "${FoundationStackName}-CodeArtifactRepositoryName"
+                  StagingRepositoryName: !Ref CodeArtifactStagingRepositoryName
               - !Sub
-                - "arn:${AWS::Partition}:codeartifact:${AWS::Region}:${AWS::AccountId}:package/${ResolvedCodeArtifactDomainName}/${ResolvedCodeArtifactRepositoryName}/npm/${CodeArtifactInternalNpmScope}/*"
+                - "arn:${AWS::Partition}:codeartifact:${AWS::Region}:${AWS::AccountId}:package/${ResolvedCodeArtifactDomainName}/${StagingRepositoryName}/npm/nova/*"
                 - ResolvedCodeArtifactDomainName: !If
                     - HasCodeArtifactDomainName
                     - !Ref CodeArtifactDomainName
                     - !ImportValue
                       Fn::Sub: "${FoundationStackName}-CodeArtifactDomainName"
-                  ResolvedCodeArtifactRepositoryName: !If
-                    - HasCodeArtifactRepositoryName
-                    - !Ref CodeArtifactRepositoryName
+                  StagingRepositoryName: !Ref CodeArtifactStagingRepositoryName
+              - !Sub
+                - "arn:${AWS::Partition}:codeartifact:${AWS::Region}:${AWS::AccountId}:package/${ResolvedCodeArtifactDomainName}/${StagingRepositoryName}/generic/*"
+                - ResolvedCodeArtifactDomainName: !If
+                    - HasCodeArtifactDomainName
+                    - !Ref CodeArtifactDomainName
                     - !ImportValue
-                      Fn::Sub: "${FoundationStackName}-CodeArtifactRepositoryName"
+                      Fn::Sub: "${FoundationStackName}-CodeArtifactDomainName"
+                  StagingRepositoryName: !Ref CodeArtifactStagingRepositoryName
           - Effect: Allow
             Action:
               - codeartifact:ReadFromRepository
@@ -247,7 +232,15 @@ Resources:
                       Fn::Sub: "${FoundationStackName}-CodeArtifactDomainName"
                   PromotionSourceRepositoryName: !Ref CodeArtifactPromotionSourceRepositoryName
               - !Sub
-                - "arn:${AWS::Partition}:codeartifact:${AWS::Region}:${AWS::AccountId}:package/${ResolvedCodeArtifactDomainName}/${PromotionSourceRepositoryName}/npm/${CodeArtifactInternalNpmScope}/*"
+                - "arn:${AWS::Partition}:codeartifact:${AWS::Region}:${AWS::AccountId}:package/${ResolvedCodeArtifactDomainName}/${PromotionSourceRepositoryName}/npm/nova/*"
+                - ResolvedCodeArtifactDomainName: !If
+                    - HasCodeArtifactDomainName
+                    - !Ref CodeArtifactDomainName
+                    - !ImportValue
+                      Fn::Sub: "${FoundationStackName}-CodeArtifactDomainName"
+                  PromotionSourceRepositoryName: !Ref CodeArtifactPromotionSourceRepositoryName
+              - !Sub
+                - "arn:${AWS::Partition}:codeartifact:${AWS::Region}:${AWS::AccountId}:package/${ResolvedCodeArtifactDomainName}/${PromotionSourceRepositoryName}/generic/*"
                 - ResolvedCodeArtifactDomainName: !If
                     - HasCodeArtifactDomainName
                     - !Ref CodeArtifactDomainName
@@ -263,7 +256,15 @@ Resources:
                       Fn::Sub: "${FoundationStackName}-CodeArtifactDomainName"
                   PromotionDestinationRepositoryName: !Ref CodeArtifactPromotionDestinationRepositoryName
               - !Sub
-                - "arn:${AWS::Partition}:codeartifact:${AWS::Region}:${AWS::AccountId}:package/${ResolvedCodeArtifactDomainName}/${PromotionDestinationRepositoryName}/npm/${CodeArtifactInternalNpmScope}/*"
+                - "arn:${AWS::Partition}:codeartifact:${AWS::Region}:${AWS::AccountId}:package/${ResolvedCodeArtifactDomainName}/${PromotionDestinationRepositoryName}/npm/nova/*"
+                - ResolvedCodeArtifactDomainName: !If
+                    - HasCodeArtifactDomainName
+                    - !Ref CodeArtifactDomainName
+                    - !ImportValue
+                      Fn::Sub: "${FoundationStackName}-CodeArtifactDomainName"
+                  PromotionDestinationRepositoryName: !Ref CodeArtifactPromotionDestinationRepositoryName
+              - !Sub
+                - "arn:${AWS::Partition}:codeartifact:${AWS::Region}:${AWS::AccountId}:package/${ResolvedCodeArtifactDomainName}/${PromotionDestinationRepositoryName}/generic/*"
                 - ResolvedCodeArtifactDomainName: !If
                     - HasCodeArtifactDomainName
                     - !Ref CodeArtifactDomainName
@@ -460,17 +461,13 @@ Resources:
               - codeartifact:GetRepositoryEndpoint
             Resource:
               - !Sub
-                - "arn:${AWS::Partition}:codeartifact:${AWS::Region}:${AWS::AccountId}:repository/${ResolvedCodeArtifactDomainName}/${ResolvedCodeArtifactRepositoryName}"
+                - "arn:${AWS::Partition}:codeartifact:${AWS::Region}:${AWS::AccountId}:repository/${ResolvedCodeArtifactDomainName}/${StagingRepositoryName}"
                 - ResolvedCodeArtifactDomainName: !If
                     - HasCodeArtifactDomainName
                     - !Ref CodeArtifactDomainName
                     - !ImportValue
                       Fn::Sub: "${FoundationStackName}-CodeArtifactDomainName"
-                  ResolvedCodeArtifactRepositoryName: !If
-                    - HasCodeArtifactRepositoryName
-                    - !Ref CodeArtifactRepositoryName
-                    - !ImportValue
-                      Fn::Sub: "${FoundationStackName}-CodeArtifactRepositoryName"
+                  StagingRepositoryName: !Ref CodeArtifactStagingRepositoryName
           - Effect: Allow
             Action:
               - codeartifact:PublishPackageVersion
@@ -478,29 +475,29 @@ Resources:
               - codeartifact:DescribePackageVersion
             Resource:
               - !Sub
-                - "arn:${AWS::Partition}:codeartifact:${AWS::Region}:${AWS::AccountId}:package/${ResolvedCodeArtifactDomainName}/${ResolvedCodeArtifactRepositoryName}/pypi/*"
+                - "arn:${AWS::Partition}:codeartifact:${AWS::Region}:${AWS::AccountId}:package/${ResolvedCodeArtifactDomainName}/${StagingRepositoryName}/pypi/*"
                 - ResolvedCodeArtifactDomainName: !If
                     - HasCodeArtifactDomainName
                     - !Ref CodeArtifactDomainName
                     - !ImportValue
                       Fn::Sub: "${FoundationStackName}-CodeArtifactDomainName"
-                  ResolvedCodeArtifactRepositoryName: !If
-                    - HasCodeArtifactRepositoryName
-                    - !Ref CodeArtifactRepositoryName
-                    - !ImportValue
-                      Fn::Sub: "${FoundationStackName}-CodeArtifactRepositoryName"
+                  StagingRepositoryName: !Ref CodeArtifactStagingRepositoryName
               - !Sub
-                - "arn:${AWS::Partition}:codeartifact:${AWS::Region}:${AWS::AccountId}:package/${ResolvedCodeArtifactDomainName}/${ResolvedCodeArtifactRepositoryName}/npm/${CodeArtifactInternalNpmScope}/*"
+                - "arn:${AWS::Partition}:codeartifact:${AWS::Region}:${AWS::AccountId}:package/${ResolvedCodeArtifactDomainName}/${StagingRepositoryName}/npm/nova/*"
                 - ResolvedCodeArtifactDomainName: !If
                     - HasCodeArtifactDomainName
                     - !Ref CodeArtifactDomainName
                     - !ImportValue
                       Fn::Sub: "${FoundationStackName}-CodeArtifactDomainName"
-                  ResolvedCodeArtifactRepositoryName: !If
-                    - HasCodeArtifactRepositoryName
-                    - !Ref CodeArtifactRepositoryName
+                  StagingRepositoryName: !Ref CodeArtifactStagingRepositoryName
+              - !Sub
+                - "arn:${AWS::Partition}:codeartifact:${AWS::Region}:${AWS::AccountId}:package/${ResolvedCodeArtifactDomainName}/${StagingRepositoryName}/generic/*"
+                - ResolvedCodeArtifactDomainName: !If
+                    - HasCodeArtifactDomainName
+                    - !Ref CodeArtifactDomainName
                     - !ImportValue
-                      Fn::Sub: "${FoundationStackName}-CodeArtifactRepositoryName"
+                      Fn::Sub: "${FoundationStackName}-CodeArtifactDomainName"
+                  StagingRepositoryName: !Ref CodeArtifactStagingRepositoryName
           - Effect: Allow
             Action:
               - codeartifact:CreatePackageGroup

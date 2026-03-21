@@ -1,4 +1,4 @@
-"""Repo-local CodeArtifact npm configuration helpers."""
+"""Repo-local CodeArtifact npm configuration helper."""
 
 from __future__ import annotations
 
@@ -18,26 +18,29 @@ def _repo_root() -> Path:
     return Path(__file__).resolve().parents[2]
 
 
+def _first_nonempty_env(*names: str) -> str | None:
+    """Return the first non-empty environment variable from the given names."""
+    for name in names:
+        raw = os.environ.get(name)
+        if not raw:
+            continue
+        stripped = raw.strip()
+        if stripped:
+            return stripped
+    return None
+
+
 def _region() -> str:
-    return (
-        os.environ.get("AWS_REGION")
-        or os.environ.get("NOVA_CODEARTIFACT_REGION")
-        or DEFAULT_REGION
-    )
+    return _first_nonempty_env("AWS_REGION") or DEFAULT_REGION
 
 
 def _domain() -> str:
-    return (
-        os.environ.get("CODEARTIFACT_DOMAIN")
-        or os.environ.get("NOVA_CODEARTIFACT_DOMAIN")
-        or DEFAULT_DOMAIN
-    )
+    return _first_nonempty_env("CODEARTIFACT_DOMAIN") or DEFAULT_DOMAIN
 
 
 def _repository() -> str:
     return (
-        os.environ.get("CODEARTIFACT_STAGING_REPOSITORY")
-        or os.environ.get("NOVA_CODEARTIFACT_NPM_REPOSITORY")
+        _first_nonempty_env("CODEARTIFACT_STAGING_REPOSITORY")
         or DEFAULT_REPOSITORY
     )
 
@@ -62,7 +65,7 @@ def _run_aws(*args: str) -> str:
 
 
 def get_repository_endpoint() -> str:
-    """Return the repo-scoped npm endpoint for the staging repository.
+    """Return the repo-scoped npm endpoint for the configured repository.
 
     Returns:
         Repository endpoint URL with a trailing slash.
@@ -112,21 +115,24 @@ def get_authorization_token() -> str:
     )
 
 
-def write_repo_local_npmrc() -> Path:
-    """Write a repo-local npmrc that scopes `@nova` to CodeArtifact.
+def prepare_npm_environment(
+    *,
+    output_path: Path | None = None,
+) -> tuple[Path, str]:
+    """Write an npmrc that scopes `@nova` to CodeArtifact.
 
     Returns:
-        Path to the generated repo-local npm configuration file.
+        Tuple of generated npm configuration path and registry URL.
 
     Raises:
         OSError: If the file cannot be written or chmod fails.
         RuntimeError: If CodeArtifact endpoint/token lookup fails.
     """
-    repo_root = _repo_root()
+    npmrc_path = output_path or (_repo_root() / ".npmrc.codeartifact")
     endpoint = get_repository_endpoint()
     token = get_authorization_token()
     endpoint_host = endpoint.removeprefix("https://")
-    npmrc_path = repo_root / ".npmrc.codeartifact"
+    npmrc_path.parent.mkdir(parents=True, exist_ok=True)
     npmrc_path.write_text(
         "\n".join(
             [
@@ -139,7 +145,7 @@ def write_repo_local_npmrc() -> Path:
         encoding="utf-8",
     )
     npmrc_path.chmod(0o600)
-    return npmrc_path
+    return npmrc_path, endpoint
 
 
 def parse_args() -> argparse.Namespace:
@@ -152,7 +158,8 @@ def parse_args() -> argparse.Namespace:
         SystemExit: If CLI arguments are invalid.
     """
     parser = argparse.ArgumentParser()
-    parser.add_argument("command", choices=("endpoint", "env", "token"))
+    parser.add_argument("command", choices=("env",))
+    parser.add_argument("--output-path", type=Path, default=None)
     return parser.parse_args()
 
 
@@ -166,15 +173,9 @@ def main() -> int:
         RuntimeError: If CodeArtifact metadata resolution fails.
     """
     args = parse_args()
-    if args.command == "endpoint":
-        print(get_repository_endpoint())
-        return 0
-    if args.command == "token":
-        print(get_authorization_token())
-        return 0
-
-    npmrc_path = write_repo_local_npmrc()
+    npmrc_path, endpoint = prepare_npm_environment(output_path=args.output_path)
     print(f"export NPM_CONFIG_USERCONFIG={shlex.quote(str(npmrc_path))}")
+    print(f"export NPM_REGISTRY_URL={shlex.quote(endpoint)}")
     return 0
 
 
