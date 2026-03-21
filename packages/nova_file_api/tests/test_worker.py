@@ -342,6 +342,7 @@ async def _build_worker_runtime(
     job_id: str = "job-1",
     scope_id: str = "scope-1",
     status: JobStatus = JobStatus.PENDING,
+    error: str | None = None,
 ) -> tuple[MemoryJobRepository, JobService, MemoryActivityStore]:
     repository = MemoryJobRepository()
     service = JobService(
@@ -359,7 +360,7 @@ async def _build_worker_runtime(
             status=status,
             payload={"input": "value"},
             result=None,
-            error=None,
+            error=error,
             created_at=now,
             updated_at=now,
         )
@@ -713,6 +714,87 @@ async def test_worker_acks_terminal_redelivery_without_processing() -> None:
     assert record is not None
     assert record.status == JobStatus.SUCCEEDED
     assert record.error is None
+
+
+@pytest.mark.asyncio
+async def test_worker_acks_early_failed_redelivery_unsupported_job_type() -> (
+    None
+):
+    """Redelivered unsupported-job SQS messages ack when the job is FAILED."""
+    fake_sqs = _FakeSqsClient()
+    transfer_service = _FakeTransferService()
+    repository, job_service, activity_store = await _build_worker_runtime(
+        job_id="job-early-unsupported",
+        status=JobStatus.FAILED,
+        error="unsupported job type: unknown.job",
+    )
+    worker = _build_worker(transfer_service=transfer_service)
+    _attach_runtime_clients(
+        worker=worker,
+        sqs_client=fake_sqs,
+        transfer_service=transfer_service,
+        job_service=job_service,
+        activity_store=activity_store,
+    )
+
+    should_delete = await worker._handle_message(
+        message={
+            "MessageId": "msg-early-unsupported",
+            "ReceiptHandle": "receipt-early-unsupported",
+            "Body": _worker_message_body(
+                job_id="job-early-unsupported",
+                job_type="unknown.job",
+            ),
+            "Attributes": {"ApproximateReceiveCount": "3"},
+        }
+    )
+
+    assert should_delete is True
+    assert transfer_service.calls == []
+    record = await repository.get("job-early-unsupported")
+    assert record is not None
+    assert record.status == JobStatus.FAILED
+    assert record.error == "unsupported job type: unknown.job"
+
+
+@pytest.mark.asyncio
+async def test_worker_acks_early_failed_redelivery_invalid_payload() -> None:
+    """Redelivered invalid-payload SQS messages ack when the job is FAILED."""
+    fake_sqs = _FakeSqsClient()
+    transfer_service = _FakeTransferService()
+    err = "transfer.process payload is missing bucket"
+    repository, job_service, activity_store = await _build_worker_runtime(
+        job_id="job-early-invalid",
+        status=JobStatus.FAILED,
+        error=err,
+    )
+    worker = _build_worker(transfer_service=transfer_service)
+    _attach_runtime_clients(
+        worker=worker,
+        sqs_client=fake_sqs,
+        transfer_service=transfer_service,
+        job_service=job_service,
+        activity_store=activity_store,
+    )
+
+    should_delete = await worker._handle_message(
+        message={
+            "MessageId": "msg-early-invalid",
+            "ReceiptHandle": "receipt-early-invalid",
+            "Body": _worker_message_body(
+                job_id="job-early-invalid",
+                payload={"key": "k", "filename": "f", "size_bytes": 1},
+            ),
+            "Attributes": {"ApproximateReceiveCount": "3"},
+        }
+    )
+
+    assert should_delete is True
+    assert transfer_service.calls == []
+    record = await repository.get("job-early-invalid")
+    assert record is not None
+    assert record.status == JobStatus.FAILED
+    assert record.error == err
 
 
 @pytest.mark.asyncio

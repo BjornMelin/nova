@@ -187,7 +187,17 @@ class JobsWorker:
         job_service: JobService | None = None,
         activity_store: ActivityStore | None = None,
     ) -> None:
-        """Initialize worker configuration and runtime state."""
+        """Initialize worker configuration and runtime state.
+
+        Args:
+            settings: Runtime configuration for queues, storage, and job wiring.
+            transfer_service: Optional transfer executor; built at runtime when
+                omitted.
+            job_service: Optional job domain service; built at runtime when
+                omitted.
+            activity_store: Optional activity recorder; built at runtime when
+                omitted.
+        """
         self._settings = settings
         self._logger = structlog.get_logger("jobs_worker")
         self._stop_requested = False
@@ -224,11 +234,14 @@ class JobsWorker:
                 ),
             }
         )
-        requires_dynamodb = (
+        needs_dynamodb_resource = (
             self._settings.jobs_repository_backend
             == JobsRepositoryBackend.DYNAMODB
-            or self._settings.activity_store_backend
+            and self._job_service is None
+        ) or (
+            self._settings.activity_store_backend
             == ActivityStoreBackend.DYNAMODB
+            and self._activity_store is None
         )
         try:
             async with AsyncExitStack() as stack:
@@ -239,7 +252,7 @@ class JobsWorker:
                     self._session.client("s3", config=s3_config)
                 )
                 dynamodb_resource = None
-                if requires_dynamodb:
+                if needs_dynamodb_resource:
                     dynamodb_resource = await stack.enter_async_context(
                         self._session.resource("dynamodb")
                     )
@@ -548,6 +561,7 @@ class JobsWorker:
                 status=status,
                 result=result,
                 error=error,
+                allow_terminal_conflict=True,
             )
         except _WorkerResultUpdateError as exc:
             self._logger.warning(

@@ -216,10 +216,11 @@ jobs:
           set -euo pipefail
           NPM_USERCONFIG_PATH="${RUNNER_TEMP}/nova-codeartifact-staging.npmrc"
           rm -f "${NPM_USERCONFIG_PATH}"
-          eval "$(
+          npm_env="$(
             uv run python scripts/release/codeartifact_npm.py env \
               --output-path "${NPM_USERCONFIG_PATH}"
-          )"
+          )" || exit $?
+          eval "${npm_env}"
           printf 'NPM_CONFIG_USERCONFIG=%s\n' "$NPM_CONFIG_USERCONFIG" >> "$GITHUB_ENV"
           printf 'NPM_REGISTRY_URL=%s\n' "$NPM_REGISTRY_URL" >> "$GITHUB_ENV"
 
@@ -569,13 +570,14 @@ jobs:
               echo "Only @nova packages may publish to CodeArtifact: ${package_name}" >&2
               exit 1
             }
-            if npm view "${package_name}@${package_version}" version >/dev/null 2>&1; then
+            if npm view "${package_name}@${package_version}" \
+              --registry "${NPM_REGISTRY_URL}" version >/dev/null 2>&1; then
               echo "Package ${package_name}@${package_version} already exists in staging; skipping publish."
               continue
             fi
             (
               cd "$publish_dir"
-              npm publish --no-progress
+              npm publish --no-progress --registry "${NPM_REGISTRY_URL}"
             )
           done
 
