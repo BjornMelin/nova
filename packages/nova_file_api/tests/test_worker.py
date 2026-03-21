@@ -167,6 +167,22 @@ class _ScriptedJobService:
         return await self._fallback.update_result(**kwargs)
 
 
+class _FailingTerminalJobService:
+    """Delegate running updates, then fail terminal updates repeatedly."""
+
+    def __init__(self, *, fallback: JobService) -> None:
+        self._fallback = fallback
+        self.calls: list[JobStatus] = []
+
+    async def update_result(self, **kwargs: Any) -> JobRecord:
+        status = kwargs["status"]
+        assert isinstance(status, JobStatus)
+        self.calls.append(status)
+        if status == JobStatus.RUNNING:
+            return await self._fallback.update_result(**kwargs)
+        raise RuntimeError("unexpected repository failure")
+
+
 class _DeterministicSystemRandom:
     def uniform(self, _lower: float, _upper: float) -> float:
         return 1.0
@@ -562,6 +578,86 @@ async def test_worker_retryable_error_leaves_message_unacked() -> None:
     record = await repository.get("job-2")
     assert record is not None
     assert record.status == JobStatus.RUNNING
+
+
+@pytest.mark.asyncio
+async def test_worker_acks_terminal_redelivery_without_processing() -> None:
+    """Verify terminal job redeliveries do not become poison messages."""
+    fake_sqs = _FakeSqsClient()
+    transfer_service = _FakeTransferService()
+    repository, job_service, activity_store = await _build_worker_runtime(
+        job_id="job-2",
+        status=JobStatus.SUCCEEDED,
+    )
+    worker = _build_worker(transfer_service=transfer_service)
+    _attach_runtime_clients(
+        worker=worker,
+        sqs_client=fake_sqs,
+        transfer_service=transfer_service,
+        job_service=job_service,
+        activity_store=activity_store,
+    )
+
+    should_delete = await worker._handle_message(
+        message={
+            "MessageId": "msg-terminal",
+            "ReceiptHandle": "receipt-terminal",
+            "Body": _worker_message_body(job_id="job-2"),
+            "Attributes": {"ApproximateReceiveCount": "4"},
+        }
+    )
+
+    assert should_delete is True
+    assert transfer_service.calls == []
+    record = await repository.get("job-2")
+    assert record is not None
+    assert record.status == JobStatus.SUCCEEDED
+    assert record.error is None
+
+
+@pytest.mark.asyncio
+async def test_worker_records_generic_result_update_failure() -> None:
+    """Verify unexpected result-update failures are recorded and retried."""
+    fake_sqs = _FakeSqsClient()
+    transfer_service = _FakeTransferService()
+    transfer_service.result = ExportCopyResult(
+        export_key="exports/scope-1/job-2/source.csv",
+        download_filename="source.csv",
+    )
+    repository, job_service, activity_store = await _build_worker_runtime(
+        job_id="job-2"
+    )
+    failing_job_service = _FailingTerminalJobService(fallback=job_service)
+    worker = _build_worker(transfer_service=transfer_service)
+    _attach_runtime_clients(
+        worker=worker,
+        sqs_client=fake_sqs,
+        transfer_service=transfer_service,
+        job_service=cast(JobService, failing_job_service),
+        activity_store=activity_store,
+    )
+
+    should_delete = await worker._handle_message(
+        message={
+            "MessageId": "msg-generic",
+            "ReceiptHandle": "receipt-generic",
+            "Body": _worker_message_body(job_id="job-2"),
+            "Attributes": {"ApproximateReceiveCount": "2"},
+        }
+    )
+
+    assert should_delete is False
+    assert failing_job_service.calls == [
+        JobStatus.RUNNING,
+        JobStatus.SUCCEEDED,
+        JobStatus.SUCCEEDED,
+        JobStatus.SUCCEEDED,
+    ]
+    record = await repository.get("job-2")
+    assert record is not None
+    assert record.status == JobStatus.RUNNING
+    activity_summary = await activity_store.summary()
+    assert activity_summary["events_total"] == 4
 
 
 @pytest.mark.asyncio

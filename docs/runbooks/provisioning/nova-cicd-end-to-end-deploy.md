@@ -61,9 +61,9 @@ Fallback path:
 - `${CODEARTIFACT_DOMAIN}`
 - `${CODEARTIFACT_STAGING_REPOSITORY}`
 - `${CODEARTIFACT_PROD_REPOSITORY}` (must differ from staging)
-- `${ECR_REPOSITORY_ARN}` optional; derived when unset
+- `${ECR_REPOSITORY_ARN}` optional; derived from ECR describe/create when unset
 - `${ECR_REPOSITORY_NAME}` optional; default `nova-file-api`
-- `${ECR_REPOSITORY_URI}` optional; derived when unset
+- `${ECR_REPOSITORY_URI}` optional; derived from ECR describe/create when unset
 - `${NOVA_ARTIFACT_BUCKET_NAME}`
 - `${NOVA_DEPLOY_SERVICE_NAME}` (optional, default `nova-file-api`)
 - `${GITHUB_OIDC_PROVIDER_ARN}`
@@ -83,7 +83,8 @@ Export the required values for the Nova operator command pack:
 - `GITHUB_OIDC_PROVIDER_ARN`
 - `SECRET_NAME` / `RELEASE_SIGNING_SECRET_ARN`
 - `NOVA_ARTIFACT_BUCKET_NAME`
-- `ECR_REPOSITORY_URI` and `ECR_REPOSITORY_NAME`
+- `AWS_ACCOUNT_ID`, `ECR_REPOSITORY_NAME`, `ECR_REPOSITORY_ARN`, and
+  `ECR_REPOSITORY_URI`
 - `CODEARTIFACT_DOMAIN`
 - `CODEARTIFACT_STAGING_REPOSITORY`
 - `CODEARTIFACT_PROD_REPOSITORY`
@@ -96,6 +97,7 @@ Example exports:
 export AWS_REGION="${AWS_REGION:-us-west-2}"
 export PROJECT="${PROJECT:-nova}"
 export APPLICATION="${APPLICATION:-ci}"
+export AWS_ACCOUNT_ID="${AWS_ACCOUNT_ID:-}"
 export GITHUB_OWNER="${GITHUB_OWNER:?set to the target GitHub org or user}"
 export GITHUB_REPO="${GITHUB_REPO:?set to the target GitHub repository}"
 export NOVA_DEPLOY_SERVICE_NAME="${NOVA_DEPLOY_SERVICE_NAME:-nova-file-api}"
@@ -108,6 +110,44 @@ It does not derive `GITHUB_OWNER` or `GITHUB_REPO` from the local checkout.
 
 Reference details:
 [config-values-reference.md](config-values-reference.md)
+
+### Step 1b: bootstrap STS and ECR values
+
+Use STS to populate the AWS account ID when it is unset, then ensure the ECR
+repository exists and export the repository ARN and URI from AWS rather than
+leaving the foundation step with blank values.
+
+```bash
+if [ -z "${AWS_ACCOUNT_ID:-}" ]; then
+  AWS_ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
+  export AWS_ACCOUNT_ID
+fi
+
+export ECR_REPOSITORY_NAME="${ECR_REPOSITORY_NAME:-nova-file-api}"
+
+if ! aws ecr describe-repositories \
+  --region "${AWS_REGION}" \
+  --repository-names "${ECR_REPOSITORY_NAME}" >/dev/null 2>&1; then
+  aws ecr create-repository \
+    --region "${AWS_REGION}" \
+    --repository-name "${ECR_REPOSITORY_NAME}" >/dev/null
+fi
+
+export ECR_REPOSITORY_ARN="$(
+  aws ecr describe-repositories \
+    --region "${AWS_REGION}" \
+    --repository-names "${ECR_REPOSITORY_NAME}" \
+    --query 'repositories[0].repositoryArn' \
+    --output text
+)"
+export ECR_REPOSITORY_URI="$(
+  aws ecr describe-repositories \
+    --region "${AWS_REGION}" \
+    --repository-names "${ECR_REPOSITORY_NAME}" \
+    --query 'repositories[0].repositoryUri' \
+    --output text
+)"
+```
 
 ### Step 1a: persist canonical service base URLs in SSM
 

@@ -38,12 +38,20 @@ the target Nova repository.
     export GITHUB_OWNER="${GITHUB_OWNER:?set to the target GitHub org or user}"
     export GITHUB_REPO="${GITHUB_REPO:?set to the target GitHub repository}"
     export GH_REPO="${GITHUB_OWNER}/${GITHUB_REPO}"
+    export AWS_REGION="${AWS_REGION:-us-east-1}"
+    export PROJECT="${PROJECT:-nova}"
+    export APPLICATION="${APPLICATION:-ci}"
     export RELEASE_SIGNING_SECRET_ID="nova/release/signing-key"
-    export RELEASE_AWS_ROLE_ARN="arn:aws:iam::${AWS_ACCOUNT_ID}:role/nova-ci-github-oidc-release-role"
+    export RELEASE_AWS_ROLE_ARN="$(
+      aws cloudformation describe-stacks \
+        --region "${AWS_REGION}" \
+        --stack-name "${PROJECT}-${APPLICATION}-nova-iam-roles" \
+        --query 'Stacks[0].Outputs[?OutputKey==`GitHubOIDCReleaseRoleArn`].OutputValue | [0]' \
+        --output text
+    )"
     export AUTH0_DOMAIN="your-tenant.us.auth0.com"
     export AUTH0_CLIENT_ID="auth0-machine-client-id"
     export AUTH0_CLIENT_SECRET="auth0-machine-client-secret"
-    export AWS_REGION="us-east-1"
     export CODEARTIFACT_DOMAIN="cral"
     export CODEARTIFACT_STAGING_REPOSITORY="galaxypy-staging"
     export CODEARTIFACT_PROD_REPOSITORY="galaxypy-prod"

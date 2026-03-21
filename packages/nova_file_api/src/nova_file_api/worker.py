@@ -373,12 +373,20 @@ class JobsWorker:
             )
 
         try:
-            await self._publish_result(
+            if await self._publish_result(
                 job_id=worker_message.job_id,
                 status=JobStatus.RUNNING,
                 result=None,
                 error=None,
-            )
+                allow_terminal_conflict=True,
+            ):
+                self._logger.info(
+                    "jobs_worker_terminal_redelivery_acked",
+                    message_id=message_id,
+                    job_id=worker_message.job_id,
+                    receive_count=receive_count,
+                )
+                return True
         except _WorkerResultUpdateError as exc:
             self._logger.warning(
                 "jobs_worker_running_update_not_accepted",
@@ -569,7 +577,8 @@ class JobsWorker:
         status: JobStatus,
         result: dict[str, Any] | None,
         error: str | None,
-    ) -> None:
+        allow_terminal_conflict: bool = False,
+    ) -> bool:
         """Persist worker completion status through shared runtime services."""
         job_service = self._require_job_service()
         last_error: _WorkerResultUpdateError | None = None
@@ -582,6 +591,22 @@ class JobsWorker:
                     error=error,
                 )
             except FileTransferError as exc:
+                if (
+                    allow_terminal_conflict
+                    and self._is_terminal_result_update_conflict(
+                        exc,
+                        requested_status=status,
+                    )
+                ):
+                    self._logger.info(
+                        "jobs_worker_running_update_already_terminal",
+                        job_id=job_id,
+                        current_status=str(
+                            exc.details.get("current_status", "")
+                        ),
+                        requested_status=status.value,
+                    )
+                    return True
                 retryable = exc.status_code in _RETRYABLE_RESULT_STATUS_CODES
                 last_error = _WorkerResultUpdateError(
                     (
@@ -601,6 +626,11 @@ class JobsWorker:
                 if not retryable:
                     raise last_error from exc
             except Exception as exc:
+                await self._record_job_result_update_failure(
+                    job_id=job_id,
+                    status=status,
+                    error_detail=f"{type(exc).__name__}: {exc}",
+                )
                 last_error = _WorkerResultUpdateError(
                     "worker result update failed",
                     retryable=True,
@@ -608,7 +638,7 @@ class JobsWorker:
                 )
             else:
                 await self._record_job_result_update_success(job=job)
-                return
+                return False
             if attempt == _RESULT_UPDATE_MAX_ATTEMPTS:
                 assert last_error is not None
                 raise last_error
@@ -625,6 +655,7 @@ class JobsWorker:
                 delay_seconds=delay_seconds,
             )
             await asyncio.sleep(delay_seconds)
+        return False
 
     async def _delete_message(self, *, message: dict[str, Any]) -> None:
         """Delete handled message from SQS to finalize processing."""
@@ -672,7 +703,7 @@ class JobsWorker:
                 event_type="jobs_result_update",
                 details=(
                     "worker result update accepted "
-                    f"for job_id={job.job_id} status={job.status}"
+                    f"for job_id={job.job_id} status={job.status.value}"
                 ),
             )
         except Exception:
@@ -706,6 +737,26 @@ class JobsWorker:
                 job_id=job_id,
                 status=status.value,
             )
+
+    @staticmethod
+    def _is_terminal_result_update_conflict(
+        exc: FileTransferError,
+        *,
+        requested_status: JobStatus,
+    ) -> bool:
+        """Return whether a conflict means the job is already terminal."""
+        if exc.code != "conflict" or exc.status_code != 409:
+            return False
+        if str(exc.details.get("requested_status", "")).strip() != (
+            requested_status.value
+        ):
+            return False
+        current_status = str(exc.details.get("current_status", "")).strip()
+        return current_status in {
+            JobStatus.SUCCEEDED.value,
+            JobStatus.FAILED.value,
+            JobStatus.CANCELED.value,
+        }
 
 
 def _approximate_receive_count(*, message: dict[str, Any]) -> int | None:
