@@ -42,8 +42,11 @@ def test_publish_packages_workflow_has_staged_gate_contracts() -> None:
         "asset_exists",
         "skipped",
         "No R packages changed; skipping R build/sign.",
-        "aws codeartifact get-repository-endpoint",
-        "aws codeartifact login",
+        "Configure npm CodeArtifact userconfig",
+        "scripts/release/codeartifact_npm.py env",
+        "NPM_CONFIG_USERCONFIG",
+        "NPM_REGISTRY_URL",
+        "@nova:registry",
         "twine upload --repository codeartifact",
         "npm publish --no-progress",
         "Build, check, and sign R packages",
@@ -62,11 +65,20 @@ def test_publish_packages_workflow_has_staged_gate_contracts() -> None:
         "python -m scripts.release.changed_units",
         "python -m scripts.release.version_plan",
         "Compute release artifacts",
+        "--tool npm",
     ]:
         assert forbidden not in text, (
             "Publish workflow must consume immutable artifacts, not "
             f"recompute: {forbidden!r}"
         )
+
+    configure_aws_index = text.index("Configure AWS Credentials (OIDC)")
+    configure_npm_index = text.index("Configure npm CodeArtifact userconfig")
+    npm_install_index = text.index("run: npm ci")
+    assert npm_install_index < configure_aws_index < configure_npm_index, (
+        "npm dependency install must complete before AWS credentials and "
+        "CodeArtifact npm userconfig are configured"
+    )
 
 
 def test_promote_prod_workflow_has_controlled_package_promotion_policy() -> (
