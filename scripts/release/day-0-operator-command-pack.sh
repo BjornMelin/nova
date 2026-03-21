@@ -89,20 +89,17 @@ require_cmd ssh-keygen
 AWS_REGION="${AWS_REGION:-us-east-1}"
 PROJECT="${PROJECT:-nova}"
 APPLICATION="${APPLICATION:-ci}"
-GITHUB_OWNER="${GITHUB_OWNER:-3M-Cloud}"
-GITHUB_REPO="${GITHUB_REPO:-nova}"
 MAIN_BRANCH="${MAIN_BRANCH:-main}"
 SECRET_NAME="${SECRET_NAME:-nova/release/signing-key}"
 NOVA_REPO_ROOT="${NOVA_REPO_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
 CONNECTION_NAME="${CONNECTION_NAME:-nova-codeconnection}"
 EXISTING_CONNECTION_ARN="${EXISTING_CONNECTION_ARN:-}"
-CODEARTIFACT_DOMAIN_NAME="${CODEARTIFACT_DOMAIN_NAME:-cral}"
-CODEARTIFACT_REPOSITORY_NAME="${CODEARTIFACT_REPOSITORY_NAME:-galaxypy}"
-CODEARTIFACT_STAGING_REPOSITORY="${CODEARTIFACT_STAGING_REPOSITORY:-$CODEARTIFACT_REPOSITORY_NAME}"
+CODEARTIFACT_DOMAIN="${CODEARTIFACT_DOMAIN:-}"
+CODEARTIFACT_STAGING_REPOSITORY="${CODEARTIFACT_STAGING_REPOSITORY:-}"
 CODEARTIFACT_PROD_REPOSITORY="${CODEARTIFACT_PROD_REPOSITORY:-}"
 ECR_REPOSITORY_NAME="${ECR_REPOSITORY_NAME:-nova-file-api}"
-ECR_REPOSITORY_URI="${ECR_REPOSITORY_URI:-${AWS_ACCOUNT_ID:-}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPOSITORY_NAME}}"
-ECR_REPOSITORY_ARN="${ECR_REPOSITORY_ARN:-arn:aws:ecr:${AWS_REGION}:${AWS_ACCOUNT_ID:-000000000000}:repository/${ECR_REPOSITORY_NAME}}"
+ECR_REPOSITORY_URI="${ECR_REPOSITORY_URI:-}"
+ECR_REPOSITORY_ARN="${ECR_REPOSITORY_ARN:-}"
 NOVA_RELEASE_BUILD_PROJECT_NAME="${NOVA_RELEASE_BUILD_PROJECT_NAME:-${PROJECT}-${APPLICATION}-nova-release-build}"
 NOVA_DEPLOY_VALIDATE_PROJECT_NAME="${NOVA_DEPLOY_VALIDATE_PROJECT_NAME:-${PROJECT}-${APPLICATION}-nova-deploy-validate}"
 NOVA_DEPLOY_SERVICE_NAME="${NOVA_DEPLOY_SERVICE_NAME:-nova-file-api}"
@@ -114,12 +111,22 @@ TRIGGER_WORKFLOWS="${TRIGGER_WORKFLOWS:-true}"
 TRIGGER_RELEASE_APPLY_DIRECT="${TRIGGER_RELEASE_APPLY_DIRECT:-false}"
 ROTATE_SIGNING_KEY="${ROTATE_SIGNING_KEY:-false}"
 
-require_env AWS_ACCOUNT_ID
 require_env SIGNER_NAME
 require_env SIGNER_EMAIL
 require_env GITHUB_OIDC_PROVIDER_ARN
 require_env NOVA_ARTIFACT_BUCKET_NAME
+require_env GITHUB_OWNER
+require_env GITHUB_REPO
+require_env CODEARTIFACT_DOMAIN
+require_env CODEARTIFACT_STAGING_REPOSITORY
 require_env CODEARTIFACT_PROD_REPOSITORY
+
+if [ -z "${AWS_ACCOUNT_ID:-}" ]; then
+  AWS_ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
+fi
+
+ECR_REPOSITORY_URI="${ECR_REPOSITORY_URI:-${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPOSITORY_NAME}}"
+ECR_REPOSITORY_ARN="${ECR_REPOSITORY_ARN:-arn:aws:ecr:${AWS_REGION}:${AWS_ACCOUNT_ID}:repository/${ECR_REPOSITORY_NAME}}"
 
 if [ "$CODEARTIFACT_STAGING_REPOSITORY" = "$CODEARTIFACT_PROD_REPOSITORY" ]; then
   echo "CODEARTIFACT_STAGING_REPOSITORY and CODEARTIFACT_PROD_REPOSITORY must differ." >&2
@@ -249,8 +256,7 @@ aws cloudformation deploy \
     Application="$APPLICATION" \
     ExistingArtifactBucketName="$FOUNDATION_EXISTING_ARTIFACT_BUCKET_NAME" \
     ArtifactBucketName="$FOUNDATION_ARTIFACT_BUCKET_NAME" \
-    CodeArtifactDomainName="$CODEARTIFACT_DOMAIN_NAME" \
-    CodeArtifactRepositoryName="$CODEARTIFACT_STAGING_REPOSITORY" \
+    CodeArtifactDomainName="$CODEARTIFACT_DOMAIN" \
     EcrRepositoryArn="$ECR_REPOSITORY_ARN" \
     EcrRepositoryName="$ECR_REPOSITORY_NAME" \
     EcrRepositoryUri="$ECR_REPOSITORY_URI" \
@@ -272,6 +278,8 @@ aws cloudformation deploy \
     MainBranchName="$MAIN_BRANCH" \
     GitHubOidcProviderArn="$GITHUB_OIDC_PROVIDER_ARN" \
     ReleaseSigningSecretArn="$RELEASE_SIGNING_SECRET_ARN" \
+    CodeArtifactDomainName="$CODEARTIFACT_DOMAIN" \
+    CodeArtifactStagingRepositoryName="$CODEARTIFACT_STAGING_REPOSITORY" \
     CodeArtifactPromotionSourceRepositoryName="$CODEARTIFACT_STAGING_REPOSITORY" \
     CodeArtifactPromotionDestinationRepositoryName="$CODEARTIFACT_PROD_REPOSITORY" \
     ExistingConnectionArn="$EXISTING_CONNECTION_ARN" \
@@ -287,6 +295,7 @@ aws cloudformation deploy \
     Application="$APPLICATION" \
     FoundationStackName="$FOUNDATION_STACK_NAME" \
     IamRolesStackName="$IAM_STACK_NAME" \
+    CodeArtifactStagingRepositoryName="$CODEARTIFACT_STAGING_REPOSITORY" \
     FileDockerfilePath="apps/nova_file_api_service/Dockerfile" \
     DockerBuildContext="." \
     ReleaseBuildspecPath="buildspecs/buildspec-release.yml" \
@@ -342,6 +351,7 @@ echo "==> Step 6/8: configure GitHub secrets and variable for $GH_REPO"
 gh secret set RELEASE_SIGNING_SECRET_ID --repo "$GH_REPO" --body "$SECRET_NAME"
 gh secret set RELEASE_AWS_ROLE_ARN --repo "$GH_REPO" --body "$RELEASE_AWS_ROLE_ARN"
 gh variable set AWS_REGION --repo "$GH_REPO" --body "$AWS_REGION"
+gh variable set CODEARTIFACT_DOMAIN --repo "$GH_REPO" --body "$CODEARTIFACT_DOMAIN"
 gh variable set CODEARTIFACT_STAGING_REPOSITORY --repo "$GH_REPO" --body "$CODEARTIFACT_STAGING_REPOSITORY"
 gh variable set CODEARTIFACT_PROD_REPOSITORY --repo "$GH_REPO" --body "$CODEARTIFACT_PROD_REPOSITORY"
 

@@ -151,11 +151,15 @@ def test_release_docs_include_codeartifact_staged_promotion_authority() -> None:
     ).read_text(encoding="utf-8")
 
     for required in [
+        "CODEARTIFACT_DOMAIN",
         "CODEARTIFACT_STAGING_REPOSITORY",
         "CODEARTIFACT_PROD_REPOSITORY",
+        "GITHUB_OWNER",
+        "GITHUB_REPO",
         "publish-packages.yml",
         "promote-prod.yml",
         "runtime-config-contract.generated.md",
+        "does not infer the target repository from the local checkout",
     ]:
         assert required in config_values
 
@@ -282,7 +286,7 @@ def test_agents_includes_typescript_sdk_operator_rules() -> None:
         "x-nova-sdk-visibility: internal",
         "scripts/release/generate_clients.py",
         "docs/standards/README.md",
-        "v2.9.5 or newer",
+        "NPM_CONFIG_USERCONFIG",
     ]:
         assert required in text
 
@@ -414,10 +418,8 @@ def test_auth0_and_ssm_contract_docs_reference_schema_authority() -> None:
         assert required in ssm_spec
 
 
-def test_release_docs_include_aws_cli_floor_for_codeartifact_npm_login() -> (
-    None
-):
-    """Active runbooks must document the AWS CLI floor for npm 10.x."""
+def test_release_docs_include_explicit_userconfig_npm_flow() -> None:
+    """Active runbooks must document the explicit npm userconfig flow."""
     for rel_path in [
         "docs/runbooks/release/release-runbook.md",
         "docs/runbooks/provisioning/config-values-reference.md",
@@ -425,4 +427,9 @@ def test_release_docs_include_aws_cli_floor_for_codeartifact_npm_login() -> (
         "README.md",
     ]:
         text = _read(rel_path)
-        assert "v2.9.5 or newer" in text, f"{rel_path} missing AWS CLI floor"
+        assert "NPM_CONFIG_USERCONFIG" in text, (
+            f"{rel_path} missing explicit npm userconfig guidance"
+        )
+        assert "NPM_REGISTRY_URL" in text, (
+            f"{rel_path} missing explicit npm registry guidance"
+        )
