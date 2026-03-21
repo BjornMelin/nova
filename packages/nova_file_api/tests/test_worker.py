@@ -22,7 +22,13 @@ from nova_file_api.jobs import (
     MemoryJobRepository,
 )
 from nova_file_api.metrics import MetricsCollector
-from nova_file_api.models import JobRecord, JobsQueueBackend, JobStatus
+from nova_file_api.models import (
+    ActivityStoreBackend,
+    JobRecord,
+    JobsQueueBackend,
+    JobsRepositoryBackend,
+    JobStatus,
+)
 from nova_file_api.transfer import ExportCopyResult, TransferService
 from nova_file_api.worker import (
     JobsWorker,
@@ -52,9 +58,18 @@ class _AsyncContext:
 class _FakeSession:
     """Expose aioboto3 Session.client API for worker run tests."""
 
-    def __init__(self, *, sqs_client: Any, s3_client: Any) -> None:
+    def __init__(
+        self,
+        *,
+        sqs_client: Any,
+        s3_client: Any,
+        dynamodb_resource: Any | None = None,
+    ) -> None:
         self._sqs_client = sqs_client
         self._s3_client = s3_client
+        self._dynamodb_resource = (
+            object() if dynamodb_resource is None else dynamodb_resource
+        )
 
     def client(self, service_name: str, **kwargs: Any) -> _AsyncContext:
         del kwargs
@@ -63,6 +78,12 @@ class _FakeSession:
         if service_name == "s3":
             return _AsyncContext(self._s3_client)
         raise AssertionError(f"unexpected service name: {service_name}")
+
+    def resource(self, service_name: str, **kwargs: Any) -> _AsyncContext:
+        del kwargs
+        if service_name == "dynamodb":
+            return _AsyncContext(self._dynamodb_resource)
+        raise AssertionError(f"unexpected resource name: {service_name}")
 
 
 class _FakeSqsClient:
@@ -181,14 +202,23 @@ def _worker_message_body(
 
 
 def _worker_settings() -> Settings:
-    return Settings.model_validate(
-        {
-            "JOBS_ENABLED": True,
-            "JOBS_RUNTIME_MODE": "worker",
-            "JOBS_QUEUE_BACKEND": JobsQueueBackend.SQS,
-            "JOBS_SQS_QUEUE_URL": "https://example.local/queue",
-        }
-    )
+    return Settings.model_validate(_worker_settings_env())
+
+
+def _worker_settings_env(**overrides: object) -> dict[str, object]:
+    """Return a valid worker settings payload."""
+    env: dict[str, object] = {
+        "JOBS_ENABLED": True,
+        "JOBS_RUNTIME_MODE": "worker",
+        "JOBS_QUEUE_BACKEND": JobsQueueBackend.SQS,
+        "JOBS_SQS_QUEUE_URL": "https://example.local/queue",
+        "JOBS_REPOSITORY_BACKEND": JobsRepositoryBackend.DYNAMODB,
+        "JOBS_DYNAMODB_TABLE": "jobs-table",
+        "ACTIVITY_STORE_BACKEND": ActivityStoreBackend.DYNAMODB,
+        "ACTIVITY_ROLLUPS_TABLE": "activity-table",
+    }
+    env.update(overrides)
+    return env
 
 
 async def _build_worker_runtime(
@@ -255,17 +285,14 @@ async def test_worker_receive_sqs_settings() -> None:
     fake_sqs = _FakeSqsClient()
     transfer_service = _FakeTransferService()
     settings = Settings.model_validate(
-        {
-            "JOBS_ENABLED": True,
-            "JOBS_RUNTIME_MODE": "worker",
-            "JOBS_QUEUE_BACKEND": JobsQueueBackend.SQS,
-            "JOBS_SQS_QUEUE_URL": (
+        _worker_settings_env(
+            JOBS_SQS_QUEUE_URL=(
                 "https://sqs.us-west-2.amazonaws.com/123456789012/nova-jobs"
             ),
-            "JOBS_SQS_MAX_NUMBER_OF_MESSAGES": 5,
-            "JOBS_SQS_WAIT_TIME_SECONDS": 7,
-            "JOBS_SQS_VISIBILITY_TIMEOUT_SECONDS": 180,
-        }
+            JOBS_SQS_MAX_NUMBER_OF_MESSAGES=5,
+            JOBS_SQS_WAIT_TIME_SECONDS=7,
+            JOBS_SQS_VISIBILITY_TIMEOUT_SECONDS=180,
+        )
     )
     worker = _build_worker(
         settings=settings,
@@ -401,13 +428,9 @@ async def test_worker_extends_visibility_during_long_running_transfer() -> None:
     transfer_service.delay_seconds = 1.2
     _, job_service, activity_store = await _build_worker_runtime(job_id="job-2")
     settings = Settings.model_validate(
-        {
-            "JOBS_ENABLED": True,
-            "JOBS_RUNTIME_MODE": "worker",
-            "JOBS_QUEUE_BACKEND": JobsQueueBackend.SQS,
-            "JOBS_SQS_QUEUE_URL": "https://example.local/queue",
-            "JOBS_SQS_VISIBILITY_TIMEOUT_SECONDS": 1,
-        }
+        _worker_settings_env(
+            JOBS_SQS_VISIBILITY_TIMEOUT_SECONDS=1,
+        )
     )
     worker = _build_worker(
         settings=settings,

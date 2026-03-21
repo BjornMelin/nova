@@ -390,7 +390,9 @@ def test_canonical_runtime_deploy_script_enforces_final_posture() -> None:
     assert '"EnvVars=${ENV_VARS_JSON}"' not in text
     assert '"JobsQueueUrl=${JOBS_QUEUE_URL}"' in text
     assert '"JobsTableName=${JOBS_TABLE_NAME}"' in text
+    assert '"JobsTableArn=${JOBS_TABLE_ARN}"' in text
     assert '"ActivityTableName=${ACTIVITY_TABLE_NAME}"' in text
+    assert '"ActivityTableArn=${ACTIVITY_TABLE_ARN}"' in text
     assert '"CacheRedisUrlSecretArn=${CACHE_URL_SECRET_ARN}"' in text
 
 

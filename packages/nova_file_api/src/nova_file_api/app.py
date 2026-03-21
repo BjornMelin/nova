@@ -37,13 +37,16 @@ async def _close_authenticator(*, app: FastAPI) -> None:
         await close_authenticator()
 
 
-def create_app() -> FastAPI:
+def create_app(*, settings: Settings | None = None) -> FastAPI:
     """Create a configured FastAPI application."""
     configure_structlog()
-    settings = Settings()
+    settings = Settings() if settings is None else settings
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+        if getattr(app.state, "_skip_runtime_state_initialization", False):
+            yield
+            return
         runtime_settings = app.state.settings
         session = new_aioboto3_session()
         s3_config = Config(

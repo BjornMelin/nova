@@ -51,8 +51,18 @@ Parameters:
     MinLength: 3
     AllowedPattern: "^https://[^/]+/[0-9]{12}/[A-Za-z0-9_-]+(\\.fifo)?$"
     ConstraintDescription: Must be a valid SQS queue URL with account ID and queue name.
-  JobsRegion:
+  JobsTableName:
     Type: String
+    MinLength: 3
+  JobsTableArn:
+    Type: String
+    AllowedPattern: "^arn:(aws|aws-us-gov|aws-cn):dynamodb:[a-z0-9-]+:[0-9]{12}:table\\/[A-Za-z0-9_.-]+$"
+  ActivityTableName:
+    Type: String
+    MinLength: 3
+  ActivityTableArn:
+    Type: String
+    AllowedPattern: "^arn:(aws|aws-us-gov|aws-cn):dynamodb:[a-z0-9-]+:[0-9]{12}:table\\/[A-Za-z0-9_.-]+$"
   JobsVisibilityTimeoutSeconds:
     Type: Number
     Default: 120
@@ -184,6 +194,20 @@ Resources:
               - sqs:GetQueueUrl
             Resource:
               - !Ref JobsQueueArn
+          - Sid: WorkerDirectPersistenceDynamoTables
+            Effect: Allow
+            Action:
+              - dynamodb:ConditionCheckItem
+              - dynamodb:DeleteItem
+              - dynamodb:GetItem
+              - dynamodb:PutItem
+              - dynamodb:Query
+              - dynamodb:UpdateItem
+            Resource:
+              - !Ref JobsTableArn
+              - !Sub "${JobsTableArn}/index/*"
+              - !Ref ActivityTableArn
+              - !Sub "${ActivityTableArn}/index/*"
           - Sid: FileTransferS3Objects
             Effect: Allow
             Action:
@@ -234,7 +258,7 @@ Resources:
             - Name: ENVIRONMENT
               Value: !Ref Environment
             - Name: AWS_DEFAULT_REGION
-              Value: !Ref JobsRegion
+              Value: !Ref AWS::Region
             - Name: JOBS_ENABLED
               Value: "true"
             - Name: JOBS_RUNTIME_MODE
@@ -243,6 +267,14 @@ Resources:
               Value: "sqs"
             - Name: JOBS_SQS_QUEUE_URL
               Value: !Ref JobsQueueUrl
+            - Name: JOBS_REPOSITORY_BACKEND
+              Value: "dynamodb"
+            - Name: JOBS_DYNAMODB_TABLE
+              Value: !Ref JobsTableName
+            - Name: ACTIVITY_STORE_BACKEND
+              Value: "dynamodb"
+            - Name: ACTIVITY_ROLLUPS_TABLE
+              Value: !Ref ActivityTableName
             - Name: JOBS_SQS_VISIBILITY_TIMEOUT_SECONDS
               Value: !Ref JobsVisibilityTimeoutSeconds
             - Name: FILE_TRANSFER_BUCKET

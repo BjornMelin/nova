@@ -16,6 +16,14 @@ class MemoryRedisClient:
         """Initialize an empty in-memory Redis-like store."""
         self._data: dict[str, str] = {}
 
+    def replace_string(self, key: str, value: str) -> None:
+        """Set ``key`` to ``value``, overwriting any prior entry.
+
+        Used by tests that need to bypass ``SET``/``NX`` semantics of
+        :meth:`set`.
+        """
+        self._data[key] = value
+
     async def get(self, key: str) -> str | None:
         """Return the value for a key.
 

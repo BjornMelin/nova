@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
+from typing import TypeVar
 
+import httpx
 from fastapi import FastAPI
 from nova_file_api.activity import ActivityStore
 from nova_file_api.app import create_app
@@ -26,6 +29,8 @@ from nova_file_api.jobs import JobRepository
 from nova_file_api.metrics import MetricsCollector
 
 from .redis import MemoryRedisClient
+
+_T = TypeVar("_T")
 
 
 @dataclass(slots=True)
@@ -115,7 +120,9 @@ def build_runtime_deps(
     Returns:
         RuntimeDeps instance ready for build_test_app.
     """
-    resolved_settings = Settings() if settings is None else settings
+    resolved_settings = (
+        Settings.model_validate({}) if settings is None else settings
+    )
     resolved_metrics = (
         MetricsCollector(namespace="Tests") if metrics is None else metrics
     )
@@ -182,28 +189,65 @@ def build_test_app(deps: RuntimeDeps) -> FastAPI:
     """
     from nova_file_api.dependencies import get_settings
 
-    app = create_app()
+    def _override(value: _T) -> Callable[[], Awaitable[_T]]:
+        async def _provider() -> _T:
+            return value
+
+        return _provider
+
+    app = create_app(settings=deps.settings)
+    app.state._skip_runtime_state_initialization = True
     app.state._shared_cache_provider = lambda: deps.shared_cache
     app.state._two_tier_cache_provider = lambda: deps.cache
     app.state._idempotency_store_provider = lambda: deps.idempotency_store
     app.state.shared_cache = deps.shared_cache
     app.state.cache = deps.cache
     app.state.settings = deps.settings
-    app.dependency_overrides[get_settings] = lambda: deps.settings
-    app.dependency_overrides[get_metrics] = lambda: deps.metrics
-    app.dependency_overrides[get_shared_cache] = lambda: deps.shared_cache
-    app.dependency_overrides[get_two_tier_cache] = lambda: deps.cache
-    app.dependency_overrides[get_authenticator] = lambda: deps.authenticator
-    app.dependency_overrides[get_transfer_service] = lambda: (
+    app.dependency_overrides[get_settings] = _override(deps.settings)
+    app.dependency_overrides[get_metrics] = _override(deps.metrics)
+    app.dependency_overrides[get_shared_cache] = _override(deps.shared_cache)
+    app.dependency_overrides[get_two_tier_cache] = _override(deps.cache)
+    app.dependency_overrides[get_authenticator] = _override(deps.authenticator)
+    app.dependency_overrides[get_transfer_service] = _override(
         deps.transfer_service
     )
     if deps.job_repository is not None:
-        app.dependency_overrides[get_job_repository] = lambda: (
+        app.dependency_overrides[get_job_repository] = _override(
             deps.job_repository
         )
-    app.dependency_overrides[get_job_service] = lambda: deps.job_service
-    app.dependency_overrides[get_activity_store] = lambda: deps.activity_store
-    app.dependency_overrides[get_idempotency_store] = lambda: (
+    app.dependency_overrides[get_job_service] = _override(deps.job_service)
+    app.dependency_overrides[get_activity_store] = _override(
+        deps.activity_store
+    )
+    app.dependency_overrides[get_idempotency_store] = _override(
         deps.idempotency_store
     )
     return app
+
+
+async def request_app(
+    app: FastAPI,
+    method: str,
+    path: str,
+    *,
+    headers: dict[str, str] | None = None,
+    json: dict[str, object] | None = None,
+    raise_app_exceptions: bool = True,
+) -> httpx.Response:
+    """Execute one request against a test app within its lifespan."""
+    async with (
+        app.router.lifespan_context(app),
+        httpx.AsyncClient(
+            transport=httpx.ASGITransport(
+                app=app,
+                raise_app_exceptions=raise_app_exceptions,
+            ),
+            base_url="http://testserver",
+        ) as client,
+    ):
+        return await client.request(
+            method,
+            path,
+            headers=headers,
+            json=json,
+        )

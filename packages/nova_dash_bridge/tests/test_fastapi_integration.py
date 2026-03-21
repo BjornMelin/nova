@@ -188,3 +188,33 @@ def test_create_fastapi_app_requires_bearer_auth() -> None:
     assert payload["error"]["code"] == "unauthorized"
     assert payload["error"]["message"] == "missing bearer token"
     assert response.headers["WWW-Authenticate"].startswith("Bearer")
+
+
+def test_create_fastapi_app_rejects_cookie_only_auth() -> None:
+    """Ensure bridge auth does not fall back to ambient browser cookies."""
+    app = fastapi_integration.create_fastapi_app(
+        env_config=FileTransferEnvConfig.model_validate(
+            {
+                "FILE_TRANSFER_ENABLED": True,
+                "FILE_TRANSFER_BUCKET": "bucket-a",
+                "FILE_TRANSFER_THREAD_TOKENS": 12,
+            }
+        ),
+        upload_policy=UploadPolicy(
+            max_upload_bytes=100,
+            allowed_extensions={".csv"},
+        ),
+        auth_policy=_auth_policy(),
+    )
+    with TestClient(app) as client:
+        client.cookies.set("pca-nova-auth", "Bearer token-123")
+        response = client.post(
+            f"{TRANSFER_ROUTE_PREFIX}{UPLOADS_INITIATE_ROUTE}",
+            content="{}",
+            headers={"Content-Type": "application/json"},
+        )
+
+    assert response.status_code == 401
+    payload = response.json()
+    assert payload["error"]["code"] == "unauthorized"
+    assert payload["error"]["message"] == "missing bearer token"

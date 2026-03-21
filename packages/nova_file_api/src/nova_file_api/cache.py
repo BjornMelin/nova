@@ -120,9 +120,17 @@ class SharedRedisCache:
         retry_attempts: int = 2,
         decode_responses: bool = False,
         protocol: int = 2,
+        client: Redis | None = None,
     ) -> None:
-        """Initialize Redis client when URL is configured."""
+        """Initialize Redis client when URL is configured.
+
+        When ``client`` is provided, it is used as the backend and ``url`` is
+        ignored. This supports tests and other explicit wiring.
+        """
         self._client: Redis | None = None
+        if client is not None:
+            self._client = client
+            return
         if not url:
             return
 
@@ -148,6 +156,10 @@ class SharedRedisCache:
     def available(self) -> bool:
         """Return True when Redis backend is configured."""
         return self._client is not None
+
+    def bind_redis_client(self, client: Redis) -> None:
+        """Replace the async Redis backend (tests / explicit wiring)."""
+        self._client = client
 
     async def get_with_status(self, key: str) -> tuple[str | None, str]:
         """Get value and read status from shared backend.

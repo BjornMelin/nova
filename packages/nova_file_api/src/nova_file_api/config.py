@@ -24,6 +24,23 @@ _MSG_WORKER_RUNTIME_REQUIRES_SQS_BACKEND = (
 _MSG_WORKER_RUNTIME_REQUIRES_SQS_QUEUE_URL = (
     "JOBS_SQS_QUEUE_URL must be configured when JOBS_RUNTIME_MODE=worker"
 )
+_MSG_WORKER_RUNTIME_REQUIRES_DYNAMODB_JOBS_BACKEND = (
+    "JOBS_REPOSITORY_BACKEND must be dynamodb when JOBS_RUNTIME_MODE=worker"
+)
+_MSG_WORKER_RUNTIME_REQUIRES_JOBS_TABLE = (
+    "JOBS_DYNAMODB_TABLE must be configured when JOBS_RUNTIME_MODE=worker"
+)
+_MSG_WORKER_RUNTIME_REQUIRES_DYNAMODB_ACTIVITY_BACKEND = (
+    "ACTIVITY_STORE_BACKEND must be dynamodb when JOBS_RUNTIME_MODE=worker"
+)
+_MSG_WORKER_RUNTIME_REQUIRES_ACTIVITY_TABLE = (
+    "ACTIVITY_ROLLUPS_TABLE must be configured when JOBS_RUNTIME_MODE=worker"
+)
+
+
+def _is_blank(value: str | None) -> bool:
+    """Return whether an optional environment value is unset or blank."""
+    return value is None or not value.strip()
 
 
 def _default_app_version() -> str:
@@ -354,9 +371,18 @@ class Settings(BaseSettings):
             raise ValueError(_MSG_WORKER_RUNTIME_REQUIRES_JOBS_ENABLED)
         if self.jobs_queue_backend != JobsQueueBackend.SQS:
             raise ValueError(_MSG_WORKER_RUNTIME_REQUIRES_SQS_BACKEND)
-        queue_url = (self.jobs_sqs_queue_url or "").strip()
-        if not queue_url:
+        if _is_blank(self.jobs_sqs_queue_url):
             raise ValueError(_MSG_WORKER_RUNTIME_REQUIRES_SQS_QUEUE_URL)
+        if self.jobs_repository_backend != JobsRepositoryBackend.DYNAMODB:
+            raise ValueError(_MSG_WORKER_RUNTIME_REQUIRES_DYNAMODB_JOBS_BACKEND)
+        if _is_blank(self.jobs_dynamodb_table):
+            raise ValueError(_MSG_WORKER_RUNTIME_REQUIRES_JOBS_TABLE)
+        if self.activity_store_backend != ActivityStoreBackend.DYNAMODB:
+            raise ValueError(
+                _MSG_WORKER_RUNTIME_REQUIRES_DYNAMODB_ACTIVITY_BACKEND
+            )
+        if _is_blank(self.activity_rollups_table):
+            raise ValueError(_MSG_WORKER_RUNTIME_REQUIRES_ACTIVITY_TABLE)
         return self
 
     @model_validator(mode="after")

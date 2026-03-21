@@ -353,6 +353,10 @@ WORKER_TEMPLATE_ENV: tuple[TemplateEnvContract, ...] = (
     TemplateEnvContract("JOBS_RUNTIME_MODE", "literal", "always"),
     TemplateEnvContract("JOBS_QUEUE_BACKEND", "literal", "always"),
     TemplateEnvContract("JOBS_SQS_QUEUE_URL", "stack parameter", "always"),
+    TemplateEnvContract("JOBS_REPOSITORY_BACKEND", "literal", "always"),
+    TemplateEnvContract("JOBS_DYNAMODB_TABLE", "stack parameter", "always"),
+    TemplateEnvContract("ACTIVITY_STORE_BACKEND", "literal", "always"),
+    TemplateEnvContract("ACTIVITY_ROLLUPS_TABLE", "stack parameter", "always"),
     TemplateEnvContract(
         "JOBS_SQS_VISIBILITY_TIMEOUT_SECONDS", "stack parameter", "always"
     ),
@@ -472,6 +476,8 @@ def build_contract_payload() -> dict[str, Any]:
                 "FILE_TRANSFER_JOBS_QUEUE_URL",
                 "FILE_TRANSFER_JOBS_REGION",
                 "APP_SYNC_PROCESSING_MAX_BYTES",
+                "JOBS_API_BASE_URL",
+                "JOBS_WORKER_UPDATE_TOKEN",
             ],
         },
     }

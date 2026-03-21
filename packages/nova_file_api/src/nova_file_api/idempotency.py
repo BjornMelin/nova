@@ -85,7 +85,9 @@ class IdempotencyStore:
         if not isinstance(entry, dict):
             raise idempotency_conflict("stored idempotency record is invalid")
 
-        expected_hash = _payload_hash(payload=request_payload)
+        expected_hash = idempotency_request_payload_hash(
+            payload=request_payload,
+        )
         _assert_entry_request_hash(entry=entry, expected_hash=expected_hash)
 
         state = entry.get("state")
@@ -123,7 +125,9 @@ class IdempotencyStore:
             scope_id=scope_id,
             idempotency_key=idempotency_key,
         )
-        request_hash = _payload_hash(payload=request_payload)
+        request_hash = idempotency_request_payload_hash(
+            payload=request_payload,
+        )
         claim_payload = {
             "state": _IDEMPOTENCY_STATE_IN_PROGRESS,
             "request_hash": request_hash,
@@ -177,7 +181,9 @@ class IdempotencyStore:
             scope_id=scope_id,
             idempotency_key=idempotency_key,
         )
-        request_hash = _payload_hash(payload=request_payload)
+        request_hash = idempotency_request_payload_hash(
+            payload=request_payload,
+        )
         existing = await self._read_entry(cache_key)
         if existing is not None:
             _assert_entry_request_hash(
@@ -210,7 +216,9 @@ class IdempotencyStore:
             scope_id=scope_id,
             idempotency_key=idempotency_key,
         )
-        request_hash = _payload_hash(payload=request_payload)
+        request_hash = idempotency_request_payload_hash(
+            payload=request_payload,
+        )
         expected_entry = _serialize_entry(
             {
                 "state": _IDEMPOTENCY_STATE_IN_PROGRESS,
@@ -281,8 +289,8 @@ class IdempotencyStore:
         raise _idempotency_unavailable_error(status=status)
 
 
-def _payload_hash(*, payload: dict[str, Any]) -> str:
-    """Return deterministic hash for idempotency conflict checks."""
+def idempotency_request_payload_hash(*, payload: dict[str, Any]) -> str:
+    """SHA-256 hex digest of the JSON-normalized request payload."""
     encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"))
     return sha256(encoded.encode("utf-8")).hexdigest()
 

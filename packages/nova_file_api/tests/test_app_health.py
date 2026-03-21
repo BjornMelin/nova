@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi.testclient import TestClient
+import pytest
 from nova_file_api.activity import MemoryActivityStore
 from nova_file_api.auth import Authenticator
 from nova_file_api.cache import SharedRedisCache
@@ -20,6 +20,7 @@ from .support.app import (
     build_cache_stack,
     build_runtime_deps,
     build_test_app,
+    request_app,
 )
 from .support.doubles import StubAuthenticator, StubTransferService
 
@@ -45,7 +46,7 @@ def _build_deps(
     file_transfer_bucket: str = "test-transfer-bucket",
 ) -> RuntimeDeps:
     """Build in-memory test doubles for readiness and health checks."""
-    settings = Settings()
+    settings = Settings.model_validate({})
     settings.jobs_enabled = jobs_enabled
     settings.file_transfer_bucket = file_transfer_bucket
     metrics = MetricsCollector(namespace="Tests")
@@ -90,20 +91,20 @@ def _rebind_shared_cache_for_readiness(
     )
 
 
-def test_v1_health_live_returns_ok() -> None:
+@pytest.mark.asyncio
+async def test_v1_health_live_returns_ok() -> None:
     """Verify `/v1/health/live` returns 200 with an ok payload."""
     app = build_test_app(_build_deps())
-    with TestClient(app) as client:
-        response = client.get("/v1/health/live")
+    response = await request_app(app, "GET", "/v1/health/live")
     assert response.status_code == 200
     assert response.json() == {"ok": True}
 
 
-def test_v1_health_ready_returns_expected_checks() -> None:
+@pytest.mark.asyncio
+async def test_v1_health_ready_returns_expected_checks() -> None:
     """Verify `/v1/health/ready` exposes expected readiness checks."""
     app = build_test_app(_build_deps())
-    with TestClient(app) as client:
-        response = client.get("/v1/health/ready")
+    response = await request_app(app, "GET", "/v1/health/ready")
     assert response.status_code == 200
     payload = response.json()
     assert payload["ok"] is True
@@ -116,11 +117,11 @@ def test_v1_health_ready_returns_expected_checks() -> None:
     }
 
 
-def test_readyz_stays_ok_when_jobs_are_disabled() -> None:
+@pytest.mark.asyncio
+async def test_readyz_stays_ok_when_jobs_are_disabled() -> None:
     """Verify feature flags do not force readiness false."""
     app = build_test_app(_build_deps(jobs_enabled=False))
-    with TestClient(app) as client:
-        response = client.get("/v1/health/ready")
+    response = await request_app(app, "GET", "/v1/health/ready")
     assert response.status_code == 200
     payload = response.json()
     assert payload["ok"] is True
@@ -133,7 +134,8 @@ def test_readyz_stays_ok_when_jobs_are_disabled() -> None:
     }
 
 
-def test_readyz_does_not_gate_shared_cache_when_idempotency_disabled() -> None:
+@pytest.mark.asyncio
+async def test_readyz_shared_cache_not_gate_when_idempotency_off() -> None:
     """Shared-cache outages stay visible when idempotency is off."""
     deps = _build_deps()
     deps.settings.idempotency_enabled = False
@@ -143,8 +145,7 @@ def test_readyz_does_not_gate_shared_cache_when_idempotency_disabled() -> None:
     )
     app = build_test_app(deps)
 
-    with TestClient(app) as client:
-        response = client.get("/v1/health/ready")
+    response = await request_app(app, "GET", "/v1/health/ready")
 
     assert response.status_code == 200
     payload = response.json()
@@ -158,7 +159,8 @@ def test_readyz_does_not_gate_shared_cache_when_idempotency_disabled() -> None:
     }
 
 
-def test_readyz_fails_when_idempotency_requires_shared_cache() -> None:
+@pytest.mark.asyncio
+async def test_readyz_fails_when_idempotency_requires_shared_cache() -> None:
     """Shared-cache outages fail readiness when idempotency is enabled."""
     deps = _build_deps()
     _rebind_shared_cache_for_readiness(
@@ -167,8 +169,7 @@ def test_readyz_fails_when_idempotency_requires_shared_cache() -> None:
     )
     app = build_test_app(deps)
 
-    with TestClient(app) as client:
-        response = client.get("/v1/health/ready")
+    response = await request_app(app, "GET", "/v1/health/ready")
 
     assert response.status_code == 503
     payload = response.json()
@@ -182,14 +183,14 @@ def test_readyz_fails_when_idempotency_requires_shared_cache() -> None:
     }
 
 
-def test_readyz_reports_activity_store_failures_without_gating() -> None:
+@pytest.mark.asyncio
+async def test_readyz_reports_activity_store_failures_without_gating() -> None:
     """Activity-store degradation should remain diagnostic in readiness."""
     deps = _build_deps()
     deps.activity_store = _FailingActivityStore()
     app = build_test_app(deps)
 
-    with TestClient(app) as client:
-        response = client.get("/v1/health/ready")
+    response = await request_app(app, "GET", "/v1/health/ready")
 
     assert response.status_code == 200
     payload = response.json()
@@ -203,11 +204,11 @@ def test_readyz_reports_activity_store_failures_without_gating() -> None:
     }
 
 
-def test_readyz_fails_when_bucket_is_missing() -> None:
+@pytest.mark.asyncio
+async def test_readyz_fails_when_bucket_is_missing() -> None:
     """Verify readiness fails when FILE_TRANSFER_BUCKET is not configured."""
     app = build_test_app(_build_deps(file_transfer_bucket=""))
-    with TestClient(app) as client:
-        response = client.get("/v1/health/ready")
+    response = await request_app(app, "GET", "/v1/health/ready")
     assert response.status_code == 503
     payload = response.json()
     assert payload["ok"] is False
@@ -220,7 +221,10 @@ def test_readyz_fails_when_bucket_is_missing() -> None:
     }
 
 
-def test_readyz_fails_when_jwt_local_oidc_settings_are_incomplete() -> None:
+@pytest.mark.asyncio
+async def test_readyz_fails_when_jwt_local_oidc_settings_are_incomplete() -> (
+    None
+):
     """Verify jwt_local readiness fails closed without full OIDC config."""
     deps = _build_deps()
     deps.settings.auth_mode = AuthMode.JWT_LOCAL
@@ -233,8 +237,7 @@ def test_readyz_fails_when_jwt_local_oidc_settings_are_incomplete() -> None:
     )
     app = build_test_app(deps)
 
-    with TestClient(app) as client:
-        response = client.get("/v1/health/ready")
+    response = await request_app(app, "GET", "/v1/health/ready")
 
     assert response.status_code == 503
     payload = response.json()
@@ -248,20 +251,22 @@ def test_readyz_fails_when_jwt_local_oidc_settings_are_incomplete() -> None:
     }
 
 
-def test_validation_errors_use_canonical_error_envelope() -> None:
+@pytest.mark.asyncio
+async def test_validation_errors_use_canonical_error_envelope() -> None:
     """Verify request validation failures return the standard error envelope."""
     app = build_test_app(_build_deps())
-    with TestClient(app) as client:
-        response = client.post(
-            "/v1/jobs",
-            headers={
-                **AUTH_HEADERS,
-                "X-Request-Id": "req-transfer-422",
-            },
-            json={
-                "job_type": "",
-            },
-        )
+    response = await request_app(
+        app,
+        "POST",
+        "/v1/jobs",
+        headers={
+            **AUTH_HEADERS,
+            "X-Request-Id": "req-transfer-422",
+        },
+        json={
+            "job_type": "",
+        },
+    )
     assert response.status_code == 422
     payload = response.json()
     assert payload["error"]["code"] == "invalid_request"
