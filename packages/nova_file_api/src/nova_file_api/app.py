@@ -38,7 +38,15 @@ async def _close_authenticator(*, app: FastAPI) -> None:
 
 
 def create_app(*, settings: Settings | None = None) -> FastAPI:
-    """Create a configured FastAPI application."""
+    """Create a configured FastAPI application.
+
+    Args:
+        settings: Optional prebuilt settings. When omitted, a new settings
+            object is resolved from the environment.
+
+    Returns:
+        Configured FastAPI application.
+    """
     configure_structlog()
     settings = Settings() if settings is None else settings
 

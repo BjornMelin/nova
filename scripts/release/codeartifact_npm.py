@@ -19,7 +19,15 @@ def _repo_root() -> Path:
 
 
 def _first_nonempty_env(*names: str) -> str | None:
-    """Return the first non-empty environment variable from the given names."""
+    """Return the first non-empty environment variable from the given names.
+
+    Args:
+        *names: Environment variable names to check in order.
+
+    Returns:
+        The stripped value of the first non-empty variable, or None if all are
+            unset or contain only whitespace.
+    """
     for name in names:
         raw = os.environ.get(name)
         if not raw:
@@ -123,6 +131,10 @@ def prepare_npm_environment(
     output_path: Path | None = None,
 ) -> tuple[Path, str]:
     """Write an npmrc that scopes `@nova` to CodeArtifact.
+
+    Args:
+        output_path: Optional path for the generated npmrc file. Defaults to
+            ``<repo_root>/.npmrc.codeartifact`` when omitted.
 
     Returns:
         Tuple of generated npm configuration path and registry URL.

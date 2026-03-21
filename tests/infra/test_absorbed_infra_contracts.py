@@ -96,6 +96,19 @@ def _collect_named_entries(node: object) -> set[str]:
     return names
 
 
+def _collect_env_values(node: object) -> dict[str, str]:
+    values: dict[str, str] = {}
+    if isinstance(node, list):
+        for item in node:
+            if not isinstance(item, dict):
+                continue
+            name = item.get("Name")
+            value = item.get("Value")
+            if isinstance(name, str) and isinstance(value, str):
+                values[name] = value
+    return values
+
+
 def test_absorbed_template_paths_present() -> None:
     """Absorbed infra templates must exist under Nova-owned paths."""
     required_templates = [
@@ -503,6 +516,7 @@ def test_runtime_env_and_parameter_contracts() -> None:
     environment = container["Environment"]
     assert isinstance(environment, list)
     env_names = _collect_named_entries(environment)
+    env_values = _collect_env_values(environment)
     expected_worker_env = {
         entry["name"] for entry in contract["worker_template"]["env"]
     }
@@ -510,6 +524,13 @@ def test_runtime_env_and_parameter_contracts() -> None:
     assert set(contract["worker_template"]["forbidden_env_vars"]).isdisjoint(
         env_names
     )
+    expected_worker_literal_values = {
+        entry["name"]: entry["value"]
+        for entry in contract["worker_template"]["env"]
+        if entry.get("source") == "literal"
+        and isinstance(entry.get("value"), str)
+    }
+    assert expected_worker_literal_values.items() <= env_values.items()
 
     expected_worker_secrets = {
         entry["name"] for entry in contract["worker_template"]["secrets"]

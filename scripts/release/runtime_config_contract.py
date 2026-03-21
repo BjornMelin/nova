@@ -49,6 +49,7 @@ class TemplateEnvContract:
     name: str
     source: str
     condition: str
+    value: str | None = None
     secret: bool = False
 
 
@@ -349,13 +350,33 @@ SERVICE_TEMPLATE_ENV: tuple[TemplateEnvContract, ...] = (
 WORKER_TEMPLATE_ENV: tuple[TemplateEnvContract, ...] = (
     TemplateEnvContract("ENVIRONMENT", "stack parameter", "always"),
     TemplateEnvContract("AWS_DEFAULT_REGION", "stack parameter", "always"),
-    TemplateEnvContract("JOBS_ENABLED", "literal", "always"),
-    TemplateEnvContract("JOBS_RUNTIME_MODE", "literal", "always"),
-    TemplateEnvContract("JOBS_QUEUE_BACKEND", "literal", "always"),
+    TemplateEnvContract("JOBS_ENABLED", "literal", "always", value="true"),
+    TemplateEnvContract(
+        "JOBS_RUNTIME_MODE",
+        "literal",
+        "always",
+        value="worker",
+    ),
+    TemplateEnvContract(
+        "JOBS_QUEUE_BACKEND",
+        "literal",
+        "always",
+        value="sqs",
+    ),
     TemplateEnvContract("JOBS_SQS_QUEUE_URL", "stack parameter", "always"),
-    TemplateEnvContract("JOBS_REPOSITORY_BACKEND", "literal", "always"),
+    TemplateEnvContract(
+        "JOBS_REPOSITORY_BACKEND",
+        "literal",
+        "always",
+        value="dynamodb",
+    ),
     TemplateEnvContract("JOBS_DYNAMODB_TABLE", "stack parameter", "always"),
-    TemplateEnvContract("ACTIVITY_STORE_BACKEND", "literal", "always"),
+    TemplateEnvContract(
+        "ACTIVITY_STORE_BACKEND",
+        "literal",
+        "always",
+        value="dynamodb",
+    ),
     TemplateEnvContract("ACTIVITY_ROLLUPS_TABLE", "stack parameter", "always"),
     TemplateEnvContract(
         "JOBS_SQS_VISIBILITY_TIMEOUT_SECONDS", "stack parameter", "always"
