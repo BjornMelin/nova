@@ -268,6 +268,7 @@ Also run the conformance/client checks mirrored by
 `.github/workflows/conformance-clients.yml`:
 
 ```bash
+npm ci
 source .venv/bin/activate && uv run python scripts/conformance/check_typescript_module_policy.py
 npm run -w @nova/sdk-fetch build
 npm run -w @nova/sdk-fetch typecheck
