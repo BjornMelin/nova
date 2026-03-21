@@ -31,7 +31,10 @@ def _first_nonempty_env(*names: str) -> str | None:
 
 
 def _region() -> str:
-    return _first_nonempty_env("AWS_REGION") or DEFAULT_REGION
+    return (
+        _first_nonempty_env("AWS_REGION", "AWS_DEFAULT_REGION")
+        or DEFAULT_REGION
+    )
 
 
 def _domain() -> str:

@@ -18,7 +18,8 @@ that prevent reintroduction of legacy route entropy.
 ## 2. Canonical route policy
 
 1. Public runtime routes MUST use `/v1/*` except `/metrics/summary`.
-2. Internal worker update route MUST use `/v1/internal/*`.
+2. Worker result persistence MUST use shared runtime services or direct
+   persistence; there is no internal worker callback route.
 3. Any route outside canonical `/v1/*` and `/metrics/summary` MUST NOT be
    exposed.
 

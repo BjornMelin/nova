@@ -166,6 +166,15 @@ def test_helper_ignores_blank_env_values_and_falls_back_to_defaults(
     assert codeartifact_npm._region() == "us-east-1"
 
 
+def test_helper_uses_aws_default_region_when_aws_region_unset(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("AWS_REGION", raising=False)
+    monkeypatch.setenv("AWS_DEFAULT_REGION", "us-west-1")
+
+    assert codeartifact_npm._region() == "us-west-1"
+
+
 def test_helper_ignores_legacy_repository_alias_and_uses_default(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

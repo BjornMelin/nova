@@ -9,6 +9,7 @@ import pytest
 from botocore.exceptions import ClientError
 from nova_file_api.activity import MemoryActivityStore
 from nova_file_api.config import Settings
+from nova_file_api.dependencies import build_job_repository
 from nova_file_api.errors import (
     FileTransferError,
     invalid_request,
@@ -55,6 +56,103 @@ class _AsyncContext:
         return False
 
 
+class _FakeDynamoTable:
+    """Minimal DynamoDB table fake for worker runtime construction tests."""
+
+    def __init__(self) -> None:
+        self.items: dict[str, dict[str, Any]] = {}
+
+    async def put_item(self, **kwargs: Any) -> dict[str, Any]:
+        item = dict(kwargs["Item"])
+        self.items[str(item["job_id"])] = item
+        return {}
+
+    async def get_item(self, **kwargs: Any) -> dict[str, Any]:
+        key = kwargs["Key"]
+        item = self.items.get(str(key["job_id"]))
+        return {} if item is None else {"Item": dict(item)}
+
+    async def query(self, **kwargs: Any) -> dict[str, Any]:
+        del kwargs
+        return {"Items": []}
+
+
+class _FakeDynamoDbClient:
+    """Minimal DynamoDB client fake for activity-store runtime wiring."""
+
+    def __init__(self) -> None:
+        self._items: dict[tuple[str, str], dict[str, dict[str, str]]] = {}
+
+    async def update_item(
+        self,
+        *,
+        TableName: str,
+        Key: dict[str, dict[str, str]],
+        UpdateExpression: str,
+        ExpressionAttributeNames: dict[str, str],
+        ExpressionAttributeValues: dict[str, dict[str, str]],
+    ) -> dict[str, Any]:
+        del TableName, UpdateExpression
+        pk = Key["pk"]["S"]
+        sk = Key["sk"]["S"]
+        key = (pk, sk)
+        item = self._items.get(key, {"pk": {"S": pk}, "sk": {"S": sk}})
+        updated_at_name = ExpressionAttributeNames["#updated_at"]
+        item[updated_at_name] = ExpressionAttributeValues[":updated_at"]
+        counter_alias = next(
+            alias
+            for alias in ExpressionAttributeNames
+            if alias != "#updated_at"
+        )
+        counter_name = ExpressionAttributeNames[counter_alias]
+        increment = int(
+            next(
+                value["N"]
+                for attr_name, value in ExpressionAttributeValues.items()
+                if attr_name != ":updated_at"
+            )
+        )
+        current_value = int(item.get(counter_name, {"N": "0"})["N"])
+        item[counter_name] = {"N": str(current_value + increment)}
+        self._items[key] = item
+        return {}
+
+    async def put_item(
+        self,
+        *,
+        TableName: str,
+        Item: dict[str, dict[str, str]],
+        ConditionExpression: str,
+    ) -> dict[str, Any]:
+        del TableName, ConditionExpression
+        key = (Item["pk"]["S"], Item["sk"]["S"])
+        self._items[key] = dict(Item)
+        return {}
+
+    async def get_item(
+        self,
+        *,
+        TableName: str,
+        Key: dict[str, dict[str, str]],
+    ) -> dict[str, Any]:
+        del TableName
+        key = (Key["pk"]["S"], Key["sk"]["S"])
+        item = self._items.get(key)
+        return {} if item is None else {"Item": dict(item)}
+
+
+class _FakeDynamoResource:
+    """Expose DynamoDB Table and meta.client fakes for worker tests."""
+
+    def __init__(self) -> None:
+        self._table = _FakeDynamoTable()
+        self.meta = type("Meta", (), {"client": _FakeDynamoDbClient()})()
+
+    def Table(self, table_name: str) -> _FakeDynamoTable:
+        del table_name
+        return self._table
+
+
 class _FakeSession:
     """Expose aioboto3 Session.client API for worker run tests."""
 
@@ -68,7 +166,9 @@ class _FakeSession:
         self._sqs_client = sqs_client
         self._s3_client = s3_client
         self._dynamodb_resource = (
-            object() if dynamodb_resource is None else dynamodb_resource
+            _FakeDynamoResource()
+            if dynamodb_resource is None
+            else dynamodb_resource
         )
 
     def client(self, service_name: str, **kwargs: Any) -> _AsyncContext:
@@ -804,21 +904,36 @@ async def test_worker_run_deletes_message_when_non_retryable_error(
     transfer_service = _FakeTransferService()
     transfer_service.error = invalid_request("source upload object not found")
     settings = _worker_settings()
-    repository, job_service, activity_store = await _build_worker_runtime(
-        job_id="job-2"
+    fake_dynamodb_resource = _FakeDynamoResource()
+    repository = build_job_repository(
+        settings=settings,
+        dynamodb_resource=fake_dynamodb_resource,
+    )
+    now = datetime.now(tz=UTC)
+    await repository.create(
+        JobRecord(
+            job_id="job-2",
+            job_type="transfer.process",
+            scope_id="scope-1",
+            status=JobStatus.PENDING,
+            payload={"input": "value"},
+            result=None,
+            error=None,
+            created_at=now,
+            updated_at=now,
+        )
     )
 
     worker = JobsWorker(
         settings=settings,
         transfer_service=None,
-        job_service=job_service,
-        activity_store=activity_store,
     )
     worker._session = cast(
         Any,
         _FakeSession(
             sqs_client=fake_sqs,
             s3_client=fake_s3_client,
+            dynamodb_resource=fake_dynamodb_resource,
         ),
     )
 

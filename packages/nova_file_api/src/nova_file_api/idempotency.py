@@ -290,7 +290,14 @@ class IdempotencyStore:
 
 
 def idempotency_request_payload_hash(*, payload: dict[str, Any]) -> str:
-    """SHA-256 hex digest of the JSON-normalized request payload."""
+    """SHA-256 hex digest of the JSON-normalized request payload.
+
+    Args:
+        payload: Request payload to normalize and hash.
+
+    Returns:
+        SHA-256 hex digest string.
+    """
     encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"))
     return sha256(encoded.encode("utf-8")).hexdigest()
 

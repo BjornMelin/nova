@@ -9,6 +9,7 @@ from nova_file_api.models import (
     JobsQueueBackend,
     JobsRepositoryBackend,
 )
+from pydantic import ValidationError
 
 
 def _settings() -> Settings:
@@ -34,7 +35,7 @@ def _worker_runtime_env(**overrides: object) -> dict[str, object]:
 
 def test_worker_runtime_requires_dynamodb_jobs_backend() -> None:
     """Worker mode should reject non-DynamoDB job persistence."""
-    with pytest.raises(ValueError, match="JOBS_REPOSITORY_BACKEND"):
+    with pytest.raises(ValidationError, match="JOBS_REPOSITORY_BACKEND"):
         Settings.model_validate(
             _worker_runtime_env(JOBS_REPOSITORY_BACKEND="memory")
         )
@@ -42,13 +43,13 @@ def test_worker_runtime_requires_dynamodb_jobs_backend() -> None:
 
 def test_worker_runtime_requires_jobs_table_name() -> None:
     """Worker mode should fail fast when the jobs table is missing."""
-    with pytest.raises(ValueError, match="JOBS_DYNAMODB_TABLE"):
+    with pytest.raises(ValidationError, match="JOBS_DYNAMODB_TABLE"):
         Settings.model_validate(_worker_runtime_env(JOBS_DYNAMODB_TABLE=""))
 
 
 def test_worker_runtime_requires_dynamodb_activity_backend() -> None:
     """Worker mode should reject non-DynamoDB activity persistence."""
-    with pytest.raises(ValueError, match="ACTIVITY_STORE_BACKEND"):
+    with pytest.raises(ValidationError, match="ACTIVITY_STORE_BACKEND"):
         Settings.model_validate(
             _worker_runtime_env(ACTIVITY_STORE_BACKEND="memory")
         )
@@ -56,7 +57,7 @@ def test_worker_runtime_requires_dynamodb_activity_backend() -> None:
 
 def test_worker_runtime_requires_activity_table_name() -> None:
     """Worker mode should fail fast when the activity table is missing."""
-    with pytest.raises(ValueError, match="ACTIVITY_ROLLUPS_TABLE"):
+    with pytest.raises(ValidationError, match="ACTIVITY_ROLLUPS_TABLE"):
         Settings.model_validate(_worker_runtime_env(ACTIVITY_ROLLUPS_TABLE=""))
 
 

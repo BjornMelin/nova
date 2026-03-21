@@ -234,7 +234,19 @@ async def request_app(
     json: dict[str, object] | None = None,
     raise_app_exceptions: bool = True,
 ) -> httpx.Response:
-    """Execute one request against a test app within its lifespan."""
+    """Execute one request against a test app within its lifespan.
+
+    Args:
+        app: FastAPI test application.
+        method: HTTP method to send.
+        path: Request path for the client call.
+        headers: Optional request headers.
+        json: Optional JSON request body.
+        raise_app_exceptions: Whether to re-raise ASGI app exceptions.
+
+    Returns:
+        HTTP response returned by the test client.
+    """
     async with (
         app.router.lifespan_context(app),
         httpx.AsyncClient(

@@ -476,6 +476,7 @@ def build_contract_payload() -> dict[str, Any]:
                 "FILE_TRANSFER_JOBS_QUEUE_URL",
                 "FILE_TRANSFER_JOBS_REGION",
                 "APP_SYNC_PROCESSING_MAX_BYTES",
+                "JOBS_ALLOW_INSECURE_MISSING_WORKER_TOKEN_NONPROD",
                 "JOBS_API_BASE_URL",
                 "JOBS_WORKER_UPDATE_TOKEN",
             ],

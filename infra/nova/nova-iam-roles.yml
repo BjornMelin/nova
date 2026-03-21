@@ -31,8 +31,8 @@ Parameters:
     Description: Optional explicit CodeArtifact domain. If empty, imported from foundation.
   CodeArtifactStagingRepositoryName:
     Type: String
-    MinLength: 1
-    AllowedPattern: "^[a-zA-Z0-9][a-zA-Z0-9._-]{0,99}$"
+    MinLength: 2
+    AllowedPattern: "^[a-zA-Z0-9][a-zA-Z0-9._-]{1,99}$"
     ConstraintDescription: Must be a valid CodeArtifact repository name.
     Description: CodeArtifact staging repository used for release publication.
   CodeArtifactPromotionSourceRepositoryName:

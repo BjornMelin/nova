@@ -59,6 +59,7 @@ def test_create_file_transfer_blueprint_adds_bearer_challenge_on_401() -> None:
 
 
 def test_create_file_transfer_blueprint_rejects_cookie_only_auth() -> None:
+    """File transfer routes should reject cookie-only authentication."""
     app = Flask(__name__)
     flask_integration.register_file_transfer_blueprint(
         app,

@@ -364,7 +364,15 @@ def _validate_packable_npm_artifact(
 
 
 def _build_npm_pack_environment(temp_dir: Path) -> dict[str, str]:
-    """Return an isolated npm environment rooted in a writable temp dir."""
+    """Return an isolated npm environment rooted in a writable temp dir.
+
+    Args:
+        temp_dir: Writable temporary directory used to isolate npm state.
+
+    Returns:
+        Environment mapping with HOME, npm cache, npm userconfig, and XDG
+        paths rooted under ``temp_dir``.
+    """
     cache_dir = temp_dir / "cache"
     xdg_cache_dir = temp_dir / "xdg-cache"
     xdg_config_dir = temp_dir / "xdg-config"
