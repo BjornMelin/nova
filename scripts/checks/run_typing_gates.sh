@@ -20,7 +20,7 @@ elif [ -n "${TYPING_GATES_SCOPES:-}" ]; then
   # shellcheck disable=SC2206
   ty_scopes=(${TYPING_GATES_SCOPES})
 else
-  ty_scopes=(packages scripts)
+  ty_scopes=("${ROOT}/packages" "${ROOT}/scripts")
 fi
 
 uv run ty check --force-exclude --error-on-warning --output-format concise "${ty_scopes[@]}"
