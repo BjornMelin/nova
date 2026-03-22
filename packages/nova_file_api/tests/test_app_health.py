@@ -271,6 +271,7 @@ async def test_validation_errors_use_canonical_error_envelope() -> None:
     assert response.status_code == 422
     payload = response.json()
     assert payload["error"]["code"] == "invalid_request"
+    assert response.headers["X-Request-Id"] == "req-transfer-422"
     assert payload["error"]["request_id"] == "req-transfer-422"
     assert payload["error"]["details"]["errors"]
 
@@ -318,6 +319,7 @@ async def test_validation_errors_stay_canonical_without_content_type() -> None:
     assert response.status_code == 422
     payload = response.json()
     assert payload["error"]["code"] == "invalid_request"
+    assert response.headers["X-Request-Id"] == "req-missing-ct"
     assert payload["error"]["request_id"] == "req-missing-ct"
     assert payload["error"]["details"]["errors"]
 
@@ -339,5 +341,31 @@ async def test_validation_errors_stay_canonical_for_wrong_content_type() -> (
     assert response.status_code == 422
     payload = response.json()
     assert payload["error"]["code"] == "invalid_request"
+    assert response.headers["X-Request-Id"] == "req-wrong-ct"
     assert payload["error"]["request_id"] == "req-wrong-ct"
     assert payload["error"]["details"]["errors"]
+
+
+@pytest.mark.asyncio
+async def test_success_responses_echo_request_id_header() -> None:
+    """Successful responses should echo caller request IDs in headers."""
+    app = build_test_app(_build_deps())
+    response = await request_app(
+        app,
+        "GET",
+        "/v1/health/live",
+        headers={"X-Request-Id": "req-live-ok"},
+    )
+
+    assert response.status_code == 200
+    assert response.headers["X-Request-Id"] == "req-live-ok"
+
+
+@pytest.mark.asyncio
+async def test_success_responses_generate_request_id_header() -> None:
+    """Successful responses should mint a request ID when none is provided."""
+    app = build_test_app(_build_deps())
+    response = await request_app(app, "GET", "/v1/health/live")
+
+    assert response.status_code == 200
+    assert response.headers["X-Request-Id"]
