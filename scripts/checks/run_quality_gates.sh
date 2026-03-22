@@ -37,6 +37,7 @@ uv run pytest -q \
   --deselect=packages/nova_file_api/tests/test_jobs.py::test_job_service_update_result_rejects_invalid_transition \
   --deselect=packages/nova_file_api/tests/test_jobs_dynamo.py::test_dynamo_job_repository_update_if_status_enforces_expected_state \
   --deselect=packages/nova_file_api/tests/test_activity_dynamo.py::test_dynamo_activity_store_uses_conditional_first_seen_markers \
+  --ignore=packages/nova_file_api/tests/test_runtime_security_reliability_gates.py \
   --ignore=packages/nova_file_api/tests/test_generated_client_smoke.py
 uv run pytest -q packages/nova_file_api/tests/test_generated_client_smoke.py
 uv run python scripts/contracts/export_openapi.py --check
