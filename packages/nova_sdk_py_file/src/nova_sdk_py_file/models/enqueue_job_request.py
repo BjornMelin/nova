@@ -9,7 +9,9 @@ from attrs import define as _attrs_define
 from nova_sdk_py_file.types import UNSET, Unset
 
 if TYPE_CHECKING:
-    from ..models.enqueue_job_request_payload import EnqueueJobRequestPayload
+    from nova_sdk_py_file.models.enqueue_job_request_payload import (
+        EnqueueJobRequestPayload,
+    )
 
 
 T = TypeVar("T", bound="EnqueueJobRequest")
@@ -48,7 +50,7 @@ class EnqueueJobRequest:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.enqueue_job_request_payload import (
+        from nova_sdk_py_file.models.enqueue_job_request_payload import (
             EnqueueJobRequestPayload,
         )
 

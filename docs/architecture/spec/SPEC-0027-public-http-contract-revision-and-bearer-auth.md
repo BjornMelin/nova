@@ -67,7 +67,7 @@ introspection routes described in superseded
   the contract source ([ADR-0002](../adr/ADR-0002-openapi-as-contract-and-sdk-generation.md)).
 - Bearer auth is emitted through FastAPI security dependencies, and public
   non-2xx responses are declared directly through route or router `responses=`
-  metadata ([ADR-0036](../adr/ADR-0036-native-fastapi-openapi-contract.md)).
+  metadata.
 - `operationId` values remain stable and SDK-friendly through explicit route
   `operation_id=` declarations.
 

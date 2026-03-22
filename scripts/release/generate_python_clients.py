@@ -29,7 +29,7 @@ _IGNORED_PREFIXES = (".",)
 _GENERATOR_TIMEOUT_SECONDS = 60
 _FORMATTER_TIMEOUT_SECONDS = 60
 _RELATIVE_IMPORT_RE = re.compile(
-    r"^from (?P<dots>\.+)(?P<module>[a-zA-Z0-9_\.]*) import (?P<names>.+)$"
+    r"^(?P<indent>\s*)from (?P<dots>\.+)(?P<module>[a-zA-Z0-9_\.]*) import (?P<names>.+)$"
 )
 _COMPONENT_REF_RE = re.compile(
     r"^#/components/(?P<section>[^/]+)/(?P<name>.+)$"
@@ -347,8 +347,9 @@ def _rewrite_relative_imports_to_absolute(root: Path) -> None:
             if suffix:
                 absolute_parts.extend(suffix.split("."))
             absolute_target = ".".join(part for part in absolute_parts if part)
+            indent = match.group("indent")
             rewritten.append(
-                f"from {absolute_target} import {match.group('names')}"
+                f"{indent}from {absolute_target} import {match.group('names')}"
             )
             changed = True
         if changed:

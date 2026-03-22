@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any, TypeVar
 from attrs import define as _attrs_define
 
 if TYPE_CHECKING:
-    from ..models.completed_part import CompletedPart
+    from nova_sdk_py_file.models.completed_part import CompletedPart
 
 
 T = TypeVar("T", bound="CompleteUploadRequest")
@@ -51,7 +51,7 @@ class CompleteUploadRequest:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.completed_part import CompletedPart
+        from nova_sdk_py_file.models.completed_part import CompletedPart
 
         d = dict(src_dict)
         key = d.pop("key")

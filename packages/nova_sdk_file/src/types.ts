@@ -49,41 +49,77 @@ type ResultForResponses<TResponses> = {
 }[StatusCodeOf<TResponses>];
 
 /** Named aliases for generated OpenAPI component schemas. */
+/** OpenAPI component schema `AbortUploadRequest`. */
 export type AbortUploadRequest = GeneratedComponents["schemas"]["AbortUploadRequest"];
+/** OpenAPI component schema `AbortUploadResponse`. */
 export type AbortUploadResponse = GeneratedComponents["schemas"]["AbortUploadResponse"];
+/** OpenAPI component schema `CapabilitiesResponse`. */
 export type CapabilitiesResponse = GeneratedComponents["schemas"]["CapabilitiesResponse"];
+/** OpenAPI component schema `CapabilityDescriptor`. */
 export type CapabilityDescriptor = GeneratedComponents["schemas"]["CapabilityDescriptor"];
+/** OpenAPI component schema `CompleteUploadRequest`. */
 export type CompleteUploadRequest = GeneratedComponents["schemas"]["CompleteUploadRequest"];
+/** OpenAPI component schema `CompleteUploadResponse`. */
 export type CompleteUploadResponse = GeneratedComponents["schemas"]["CompleteUploadResponse"];
+/** OpenAPI component schema `CompletedPart`. */
 export type CompletedPart = GeneratedComponents["schemas"]["CompletedPart"];
+/** OpenAPI component schema `EnqueueJobRequest`. */
 export type EnqueueJobRequest = GeneratedComponents["schemas"]["EnqueueJobRequest"];
+/** OpenAPI component schema `EnqueueJobResponse`. */
 export type EnqueueJobResponse = GeneratedComponents["schemas"]["EnqueueJobResponse"];
+/** OpenAPI component schema `ErrorBody`. */
 export type ErrorBody = GeneratedComponents["schemas"]["ErrorBody"];
+/** OpenAPI component schema `ErrorEnvelope`. */
 export type ErrorEnvelope = GeneratedComponents["schemas"]["ErrorEnvelope"];
+/** OpenAPI component schema `HealthResponse`. */
 export type HealthResponse = GeneratedComponents["schemas"]["HealthResponse"];
+/** OpenAPI component schema `InitiateUploadRequest`. */
 export type InitiateUploadRequest = GeneratedComponents["schemas"]["InitiateUploadRequest"];
+/** OpenAPI component schema `InitiateUploadResponse`. */
 export type InitiateUploadResponse = GeneratedComponents["schemas"]["InitiateUploadResponse"];
+/** OpenAPI component schema `JobCancelResponse`. */
 export type JobCancelResponse = GeneratedComponents["schemas"]["JobCancelResponse"];
+/** OpenAPI component schema `JobEvent`. */
 export type JobEvent = GeneratedComponents["schemas"]["JobEvent"];
+/** OpenAPI component schema `JobEventType`. */
 export type JobEventType = GeneratedComponents["schemas"]["JobEventType"];
+/** OpenAPI component schema `JobEventsResponse`. */
 export type JobEventsResponse = GeneratedComponents["schemas"]["JobEventsResponse"];
+/** OpenAPI component schema `JobListResponse`. */
 export type JobListResponse = GeneratedComponents["schemas"]["JobListResponse"];
+/** OpenAPI component schema `JobRecord`. */
 export type JobRecord = GeneratedComponents["schemas"]["JobRecord"];
+/** OpenAPI component schema `JobStatus`. */
 export type JobStatus = GeneratedComponents["schemas"]["JobStatus"];
+/** OpenAPI component schema `JobStatusResponse`. */
 export type JobStatusResponse = GeneratedComponents["schemas"]["JobStatusResponse"];
+/** OpenAPI component schema `MetricsSummaryResponse`. */
 export type MetricsSummaryResponse = GeneratedComponents["schemas"]["MetricsSummaryResponse"];
+/** OpenAPI component schema `PresignDownloadRequest`. */
 export type PresignDownloadRequest = GeneratedComponents["schemas"]["PresignDownloadRequest"];
+/** OpenAPI component schema `PresignDownloadResponse`. */
 export type PresignDownloadResponse = GeneratedComponents["schemas"]["PresignDownloadResponse"];
+/** OpenAPI component schema `ReadinessResponse`. */
 export type ReadinessResponse = GeneratedComponents["schemas"]["ReadinessResponse"];
+/** OpenAPI component schema `ReleaseInfoResponse`. */
 export type ReleaseInfoResponse = GeneratedComponents["schemas"]["ReleaseInfoResponse"];
+/** OpenAPI component schema `ResourcePlanItem`. */
 export type ResourcePlanItem = GeneratedComponents["schemas"]["ResourcePlanItem"];
+/** OpenAPI component schema `ResourcePlanRequest`. */
 export type ResourcePlanRequest = GeneratedComponents["schemas"]["ResourcePlanRequest"];
+/** OpenAPI component schema `ResourcePlanResponse`. */
 export type ResourcePlanResponse = GeneratedComponents["schemas"]["ResourcePlanResponse"];
+/** OpenAPI component schema `SignPartsRequest`. */
 export type SignPartsRequest = GeneratedComponents["schemas"]["SignPartsRequest"];
+/** OpenAPI component schema `SignPartsResponse`. */
 export type SignPartsResponse = GeneratedComponents["schemas"]["SignPartsResponse"];
+/** OpenAPI component schema `UploadIntrospectionRequest`. */
 export type UploadIntrospectionRequest = GeneratedComponents["schemas"]["UploadIntrospectionRequest"];
+/** OpenAPI component schema `UploadIntrospectionResponse`. */
 export type UploadIntrospectionResponse = GeneratedComponents["schemas"]["UploadIntrospectionResponse"];
+/** OpenAPI component schema `UploadStrategy`. */
 export type UploadStrategy = GeneratedComponents["schemas"]["UploadStrategy"];
+/** OpenAPI component schema `UploadedPart`. */
 export type UploadedPart = GeneratedComponents["schemas"]["UploadedPart"];
 
 /** Operation-specific request and response helpers. */

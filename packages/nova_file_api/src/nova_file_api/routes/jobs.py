@@ -38,7 +38,7 @@ from nova_file_api.operation_ids import (
     RETRY_JOB_OPERATION_ID,
 )
 from nova_file_api.routes.common import (
-    AUTH_ERROR_RESPONSES,
+    COMMON_ERROR_RESPONSES,
     IDEMPOTENCY_CONFLICT_RESPONSE,
     JOB_MUTATION_UNAVAILABLE_RESPONSE,
     IdempotencyKeyHeader,
@@ -51,7 +51,7 @@ from nova_file_api.routes.common import (
 jobs_router = APIRouter(
     prefix="/v1",
     tags=["jobs"],
-    responses=merge_openapi_responses(AUTH_ERROR_RESPONSES),
+    responses=merge_openapi_responses(COMMON_ERROR_RESPONSES),
 )
 
 

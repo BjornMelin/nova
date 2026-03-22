@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import cast
 
+import pytest
 from fastapi import FastAPI
 from fastapi.routing import APIRoute
 from nova_file_api.activity import MemoryActivityStore
@@ -21,12 +22,14 @@ from .support.app import (
     build_cache_stack,
     build_runtime_deps,
     build_test_app,
+    request_app,
 )
-from .support.doubles import StubTransferService
+from .support.doubles import StubAuthenticator, StubTransferService
 
 _HTTP_METHODS = frozenset(
     {"get", "post", "put", "patch", "delete", "options", "head", "trace"}
 )
+_AUTH_HEADERS = {"Authorization": "Bearer token-123"}
 _EXPECTED_OPERATION_ID_MAP = {
     "/metrics/summary": {"get": "metrics_summary"},
     "/v1/transfers/uploads/initiate": {"post": "initiate_upload"},
@@ -114,6 +117,34 @@ def _build_openapi_app() -> FastAPI:
             shared_cache=shared,
             cache=cache,
             authenticator=Authenticator(settings=settings, cache=cache),
+            transfer_service=StubTransferService(),
+            job_service=JobService(
+                repository=repository,
+                publisher=MemoryJobPublisher(),
+                metrics=metrics,
+            ),
+            activity_store=MemoryActivityStore(),
+            idempotency_enabled=True,
+            use_in_memory_shared_cache=True,
+        )
+    )
+
+
+def _build_openapi_app_with_stub_auth() -> FastAPI:
+    """App matching OpenAPI tests, using stub bearer auth for HTTP checks."""
+    settings = Settings()
+    settings.jobs_enabled = True
+
+    metrics = MetricsCollector(namespace="Tests")
+    shared, cache = build_cache_stack()
+    repository = MemoryJobRepository()
+    return build_test_app(
+        build_runtime_deps(
+            settings=settings,
+            metrics=metrics,
+            shared_cache=shared,
+            cache=cache,
+            authenticator=StubAuthenticator(),
             transfer_service=StubTransferService(),
             job_service=JobService(
                 repository=repository,
@@ -277,6 +308,75 @@ def test_openapi_route_declared_error_contracts() -> None:
     assert "responses" not in components
     assert "HTTPValidationError" not in components["schemas"]
     assert "ValidationError" not in components["schemas"]
+
+
+@pytest.mark.asyncio
+async def test_initiate_upload_invalid_body_returns_error_envelope() -> None:
+    """Invalid initiate payload returns 422 with the standard envelope."""
+    app = _build_openapi_app_with_stub_auth()
+    response = await request_app(
+        app,
+        "POST",
+        "/v1/transfers/uploads/initiate",
+        headers={
+            **_AUTH_HEADERS,
+            "X-Request-Id": "req-openapi-initiate-422",
+        },
+        json={},
+    )
+    assert response.status_code == 422
+    payload = response.json()
+    assert payload["error"]["code"] == "invalid_request"
+    assert payload["error"]["request_id"] == "req-openapi-initiate-422"
+    assert payload["error"]["details"]["errors"]
+
+
+@pytest.mark.asyncio
+async def test_plan_resources_invalid_body_returns_error_envelope() -> None:
+    """Invalid plan-resources payload returns 422 with the standard envelope."""
+    app = _build_openapi_app_with_stub_auth()
+    response = await request_app(
+        app,
+        "POST",
+        "/v1/resources/plan",
+        headers={
+            **_AUTH_HEADERS,
+            "X-Request-Id": "req-openapi-plan-422",
+        },
+        json={"resources": []},
+    )
+    assert response.status_code == 422
+    payload = response.json()
+    assert payload["error"]["code"] == "invalid_request"
+    assert payload["error"]["request_id"] == "req-openapi-plan-422"
+    assert payload["error"]["details"]["errors"]
+
+
+@pytest.mark.asyncio
+async def test_list_jobs_invalid_limit_returns_error_envelope() -> None:
+    """Invalid jobs list query returns 422 with the standard envelope.
+
+    ``POST /v1/jobs/{job_id}/retry`` declares 422 in OpenAPI but accepts no
+    request body, so malformed JSON is not validated and the handler runs
+    (for example returning 404 for an unknown job). Listing jobs validates the
+    ``limit`` query parameter and exercises the same global
+    ``RequestValidationError`` path for the jobs router.
+    """
+    app = _build_openapi_app_with_stub_auth()
+    response = await request_app(
+        app,
+        "GET",
+        "/v1/jobs?limit=0",
+        headers={
+            **_AUTH_HEADERS,
+            "X-Request-Id": "req-openapi-jobs-limit-422",
+        },
+    )
+    assert response.status_code == 422
+    payload = response.json()
+    assert payload["error"]["code"] == "invalid_request"
+    assert payload["error"]["request_id"] == "req-openapi-jobs-limit-422"
+    assert payload["error"]["details"]["errors"]
 
 
 def test_openapi_error_envelope_schema_preserves_semantic_fields() -> None:

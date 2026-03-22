@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any, TypeVar, cast
 from attrs import define as _attrs_define
 
 if TYPE_CHECKING:
-    from ..models.error_body_details import ErrorBodyDetails
+    from nova_sdk_py_file.models.error_body_details import ErrorBodyDetails
 
 
 T = TypeVar("T", bound="ErrorBody")
@@ -54,7 +54,7 @@ class ErrorBody:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.error_body_details import ErrorBodyDetails
+        from nova_sdk_py_file.models.error_body_details import ErrorBodyDetails
 
         d = dict(src_dict)
         code = d.pop("code")

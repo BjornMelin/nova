@@ -31,7 +31,7 @@ def _response(
     return {"model": model, "description": description}
 
 
-AUTH_ERROR_RESPONSES: OpenApiResponses = {
+UNAUTHORIZED_AND_FORBIDDEN_RESPONSES: OpenApiResponses = {
     "401": _response(
         model=ErrorEnvelope,
         description="Unauthorized - Bearer token is missing or invalid.",
@@ -40,10 +40,6 @@ AUTH_ERROR_RESPONSES: OpenApiResponses = {
         model=ErrorEnvelope,
         description="Forbidden - Caller lacks required scope or permission.",
     ),
-    "422": _response(
-        model=ErrorEnvelope,
-        description="Unprocessable Content - Request validation failed.",
-    ),
 }
 VALIDATION_ERROR_RESPONSE: OpenApiResponses = {
     "422": _response(
@@ -51,8 +47,9 @@ VALIDATION_ERROR_RESPONSE: OpenApiResponses = {
         description="Unprocessable Content - Request validation failed.",
     ),
 }
-UNAUTHORIZED_AND_FORBIDDEN_RESPONSES: OpenApiResponses = {
-    key: value for key, value in AUTH_ERROR_RESPONSES.items() if key != "422"
+COMMON_ERROR_RESPONSES: OpenApiResponses = {
+    **UNAUTHORIZED_AND_FORBIDDEN_RESPONSES,
+    **VALIDATION_ERROR_RESPONSE,
 }
 IDEMPOTENCY_CONFLICT_RESPONSE: OpenApiResponses = {
     "409": _response(
@@ -89,7 +86,14 @@ def merge_openapi_responses(
     """Build a FastAPI-compatible responses mapping from reusable pieces."""
     merged: FastApiResponses = {}
     for response_set in response_sets:
-        merged.update(response_set)
+        for status_code, resp in response_set.items():
+            if status_code in merged:
+                msg = (
+                    f"OpenAPI responses conflict: status {status_code!r} is "
+                    f"already defined when merging response metadata"
+                )
+                raise ValueError(msg)
+            merged[status_code] = dict(resp)
     return merged
 
 

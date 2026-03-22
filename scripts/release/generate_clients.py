@@ -558,6 +558,7 @@ def _render_typescript_types(
 
     for schema_name in schema_names:
         alias_name = _schema_alias_name(schema_name)
+        lines.append(f"/** OpenAPI component schema `{schema_name}`. */")
         lines.append(
             f'export type {alias_name} = GeneratedComponents["schemas"][{json.dumps(schema_name)}];'
         )
