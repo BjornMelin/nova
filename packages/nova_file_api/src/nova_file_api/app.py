@@ -7,13 +7,15 @@ from contextlib import AsyncExitStack, asynccontextmanager
 
 from botocore.config import Config
 from fastapi import FastAPI
-from nova_runtime_support import configure_structlog
+from nova_runtime_support import (
+    RequestContextFastAPI,
+    configure_structlog,
+)
 
 from nova_file_api.aws import new_aioboto3_session
 from nova_file_api.config import Settings
 from nova_file_api.dependencies import initialize_runtime_state
 from nova_file_api.exception_handlers import register_exception_handlers
-from nova_file_api.middleware import request_context_middleware
 from nova_file_api.models import (
     ActivityStoreBackend,
     JobsQueueBackend,
@@ -114,14 +116,13 @@ def create_app(*, settings: Settings | None = None) -> FastAPI:
         finally:
             await _close_authenticator(app=app)
 
-    app = FastAPI(
+    app = RequestContextFastAPI(
         title="nova-file-api",
         version=settings.app_version,
         lifespan=lifespan,
     )
     app.state.settings = settings
 
-    app.middleware("http")(request_context_middleware)
     app.include_router(ops_router)
     app.include_router(transfer_router)
     app.include_router(jobs_router)

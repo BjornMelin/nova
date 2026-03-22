@@ -1,7 +1,7 @@
 # Nova Architecture Authority Map
 
 Status: Active
-Last reviewed: 2026-03-19
+Last reviewed: 2026-03-22
 
 ## Purpose
 
@@ -46,7 +46,8 @@ or removed legacy namespaces.
 ### Green-field simplification authority
 
 Use for target-state cuts: single runtime auth, bearer-only public contract,
-direct worker persistence, native OpenAPI, shared ASGI middleware, async-first
+direct worker persistence, native OpenAPI, shared outer-ASGI request context
+plus shared FastAPI exception registration, async-first
 `nova_file_api.public`, per-language SDK stacks, AWS composite platform, repo
 rebaseline.
 
@@ -64,6 +65,11 @@ execution, threadpool safety, or documentation synchronization.
 Integration boundary: `nova_dash_bridge` consumes `nova_file_api.public` as the
 canonical in-process transfer seam. Normative ownership and boundary rules are
 defined in:
+
+Cross-cutting FastAPI transport authority now lives in
+`packages/nova_runtime_support`: `RequestContextASGIMiddleware`,
+`RequestContextFastAPI`, and `register_fastapi_exception_handlers`. Service
+packages keep only thin domain-error adapters and app assembly.
 
 - `adr/ADR-0024-layered-architecture-authority-pack.md`
 - `adr/ADR-0025-runtime-monorepo-component-boundaries-and-ownership.md`

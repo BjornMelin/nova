@@ -25,7 +25,9 @@ different.
   architecture (`ADR-0033`, `SPEC-0027`).
 - `packages/nova_dash_bridge/`: Dash/Flask/FastAPI integration adapters over
   the canonical `nova_file_api.public` surface.
-- `packages/nova_runtime_support/`: shared runtime support helpers.
+- `packages/nova_runtime_support/`: shared runtime support helpers, including
+  outer-ASGI request context, canonical FastAPI exception registration, log
+  redaction, and shared auth helpers.
 - `packages/contracts/`: OpenAPI artifacts and contract inputs.
 
 Workspace packaging rules:
@@ -109,6 +111,10 @@ SDK posture:
 - Runtime deploy docs must describe `AUTH_MODE=jwt_local` OIDC completeness as
   a Nova readiness/runtime contract. Do not move that enforcement back into
   CloudFormation template validation.
+- FastAPI transport changes must keep `packages/nova_runtime_support` as the
+  single owner of outer-ASGI request context and shared exception registration.
+  `nova_dash_bridge.create_fastapi_router()` stays route-only composition;
+  standalone hosts must install the shared runtime stack explicitly.
 - Downstream consumer docs must not describe `session_id`, `X-Session-Id`, or
   `X-Scope-Id` as valid public auth inputs.
 
@@ -125,6 +131,9 @@ SDK posture:
 - `nova_dash_bridge` is an adapter package. It may forward context and call
   canonical Nova contracts through `nova_file_api.public`, but it must not
   redefine route, auth, or storage authority.
+- FastAPI applications that need canonical Nova request-id propagation and
+  error-envelope behavior must install the shared outer-ASGI request-context
+  wrapper and shared exception registration from `nova_runtime_support`.
 - OpenAPI 3.1 emitted from runtime code is the contract source for docs and SDK
   generation.
 - OpenAPI `operationId` values must remain stable snake_case names, and tags

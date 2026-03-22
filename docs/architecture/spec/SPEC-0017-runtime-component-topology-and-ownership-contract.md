@@ -2,8 +2,8 @@
 Spec: 0017
 Title: Runtime component topology and ownership contract
 Status: Active
-Version: 2.3
-Date: 2026-03-19
+Version: 2.4
+Date: 2026-03-22
 Related:
   - "[ADR-0023: Hard-cut v1 canonical route surface](../adr/ADR-0023-hard-cut-v1-canonical-route-surface.md)"
   - "[SPEC-0000: HTTP API contract](./SPEC-0000-http-api-contract.md)"
@@ -23,7 +23,7 @@ cross-package boundaries for the Nova monorepo.
 | Path | Canonical ownership |
 | --- | --- |
 | `packages/nova_file_api/` | File-transfer routes, job routes, internal worker result route, capability/release endpoints, health/readiness, metrics summary, transfer/jobs/cache/idempotency/activity orchestration, and canonical ASGI entrypoint |
-| `packages/nova_runtime_support/` | Internal shared helpers for request IDs, canonical error-envelope OpenAPI shaping, log redaction, shared auth claim normalization, and async JWT verifier construction |
+| `packages/nova_runtime_support/` | Internal shared helpers for outer-ASGI request context, request-id propagation, canonical FastAPI exception registration, canonical error-envelope shaping, log redaction, shared auth claim normalization, and async JWT verifier construction |
 | `packages/nova_dash_bridge/` | Dash/Flask/FastAPI integration helpers over canonical Nova contracts |
 | `packages/contracts/` | OpenAPI artifacts, fixtures, and generated-client contract inputs |
 
@@ -35,6 +35,7 @@ cross-package boundaries for the Nova monorepo.
    - extract framework request metadata
    - forward headers and request identifiers
    - call canonical Nova services through `nova_file_api.public` or generated clients
+   - compose canonical FastAPI routes with the shared runtime-support transport stack
 3. `nova_dash_bridge` must not:
    - define alternate endpoint paths
    - redefine Nova error envelopes
@@ -49,7 +50,11 @@ cross-package boundaries for the Nova monorepo.
 2. `nova_dash_bridge` depends on canonical runtime contracts through
    `nova_file_api.public` or generated Python SDK packages, not on handwritten
    contract forks or direct runtime-internal imports.
-3. Route literals remain governed by the canonical route-authority specs; this
+3. Standalone FastAPI apps that need canonical Nova request-id/error-envelope
+   behavior must install `nova_runtime_support` request-context and shared
+   exception-registration helpers; `create_fastapi_router()` is route-only
+   composition.
+4. Route literals remain governed by the canonical route-authority specs; this
    spec governs where those routes are implemented and owned.
 
 ## 5. SDK and bridge relationship

@@ -2,9 +2,8 @@
 # mypy: disable-error-code="untyped-decorator"
 
 from contextlib import asynccontextmanager
-from functools import wraps
 from json import JSONDecodeError
-from typing import TYPE_CHECKING, Annotated, Any, Final, cast
+from typing import Annotated, Any, Final, cast
 
 from nova_file_api.public import (
     ABORT_UPLOAD_ROUTE,
@@ -16,7 +15,11 @@ from nova_file_api.public import (
     UPLOADS_INITIATE_ROUTE,
     Principal,
 )
-from nova_runtime_support.http import canonical_error_content
+from nova_runtime_support import (
+    CanonicalErrorSpec,
+    RequestContextFastAPI,
+    register_fastapi_exception_handlers,
+)
 from nova_runtime_support.threading import current_default_thread_limiter
 
 from nova_dash_bridge.config import (
@@ -45,14 +48,6 @@ from nova_dash_bridge.service import (
     coerce_file_transfer_error,
 )
 
-if TYPE_CHECKING:
-    from fastapi import Request
-else:  # pragma: no cover
-    try:
-        from fastapi import Request
-    except ModuleNotFoundError:
-        Request = Any
-
 INITIATE_UPLOAD_OPERATION_ID: Final = "initiate_upload"
 SIGN_UPLOAD_PARTS_OPERATION_ID: Final = "sign_upload_parts"
 INTROSPECT_UPLOAD_OPERATION_ID: Final = "introspect_upload"
@@ -61,76 +56,24 @@ ABORT_UPLOAD_OPERATION_ID: Final = "abort_upload"
 PRESIGN_DOWNLOAD_OPERATION_ID: Final = "presign_download"
 
 
-def _fastapi_imports() -> tuple[
-    type[Any], type[Any], type[Any], Any, type[Any]
-]:
+def _fastapi_imports() -> tuple[type[Any], type[Any], Any]:
     """Load FastAPI symbols only when the optional dependency is installed.
 
     Returns:
-        tuple[type[Any], type[Any], type[Any], Any]: APIRouter,
-        FastAPI, JSONResponse, and run_in_threadpool.
+        tuple[type[Any], type[Any], Any]: APIRouter, FastAPI,
+        and run_in_threadpool.
 
     Raises:
         RuntimeError: If FastAPI optional dependencies are missing.
     """
     try:
         from fastapi import APIRouter, FastAPI
-        from fastapi.exceptions import RequestValidationError
-        from fastapi.responses import JSONResponse
         from starlette.concurrency import run_in_threadpool
     except ModuleNotFoundError as exc:  # pragma: no cover
         raise RuntimeError(
             "FastAPI integration requires optional dependency group `fastapi`"
         ) from exc
-    return (
-        APIRouter,
-        FastAPI,
-        JSONResponse,
-        run_in_threadpool,
-        RequestValidationError,
-    )
-
-
-def _request_id(request: Request) -> str | None:
-    """Read the request identifier header when present.
-
-    Args:
-        request: Incoming FastAPI request.
-
-    Returns:
-        Optional[str]: Header value from ``X-Request-Id`` or ``None``.
-    """
-    headers = getattr(request, "headers", None)
-    if headers is None:
-        return None
-    value = headers.get("X-Request-Id")
-    return value if isinstance(value, str) else None
-
-
-def _error_payload(
-    *,
-    code: str,
-    message: str,
-    details: dict[str, Any],
-    request_id: str | None,
-) -> dict[str, Any]:
-    """Build the canonical error envelope payload.
-
-    Args:
-        code: Stable machine-readable error code.
-        message: Human-readable error message.
-        details: Structured error context.
-        request_id: Correlation ID from request headers.
-
-    Returns:
-        dict[str, Any]: Serialized error payload with top-level ``error``.
-    """
-    return canonical_error_content(
-        code=code,
-        message=message,
-        details=details,
-        request_id=request_id,
-    )
+    return (APIRouter, FastAPI, run_in_threadpool)
 
 
 def _error_headers(err: FileTransferError) -> dict[str, str]:
@@ -157,7 +100,7 @@ def create_fastapi_router(
     auth_policy: AuthPolicy,
     s3_client_factory: SupportsCreateS3Client | None = None,
 ) -> Any:
-    """Create an APIRouter that serves file transfer contract endpoints.
+    """Create route-only FastAPI composition for file transfer endpoints.
 
     Args:
         env_config: Runtime environment configuration.
@@ -167,8 +110,13 @@ def create_fastapi_router(
 
     Returns:
         Any: FastAPI APIRouter containing file transfer routes.
+
+    Notes:
+        This router does not install Nova's canonical request-context or error
+        handling stack. Standalone FastAPI hosts must wrap it with the shared
+        runtime-support transport helpers or use ``create_fastapi_app()``.
     """
-    apirouter, _, json_response, run_in_threadpool, _ = _fastapi_imports()
+    apirouter, _, run_in_threadpool = _fastapi_imports()
     router = apirouter(prefix=TRANSFER_ROUTE_PREFIX, tags=["transfers"])
     service = FileTransferService(
         env_config=env_config,
@@ -200,36 +148,12 @@ def create_fastapi_router(
 
     PrincipalDep = Annotated[Principal, Depends(_resolve_principal)]
 
-    def handle_file_transfer_errors(handler: Any) -> Any:
-        """Wrap route handlers with contract error-envelope responses."""
-
-        @wraps(handler)
-        async def wrapped(request: Request, *args: Any, **kwargs: Any) -> Any:
-            try:
-                return await handler(request, *args, **kwargs)
-            except Exception as exc:
-                err = coerce_file_transfer_error(exc)
-                return json_response(
-                    status_code=int(err.status_code),
-                    content=_error_payload(
-                        code=err.code,
-                        message=err.message,
-                        details=err.details,
-                        request_id=_request_id(request),
-                    ),
-                    headers=_error_headers(err),
-                )
-
-        return wrapped
-
     @router.post(
         UPLOADS_INITIATE_ROUTE,
         operation_id=INITIATE_UPLOAD_OPERATION_ID,
         response_model=InitiateUploadResponse,
     )
-    @handle_file_transfer_errors
     async def initiate_upload(
-        request: Request,
         payload: InitiateUploadRequest,
         principal: PrincipalDep,
     ) -> InitiateUploadResponse:
@@ -248,9 +172,7 @@ def create_fastapi_router(
         operation_id=SIGN_UPLOAD_PARTS_OPERATION_ID,
         response_model=SignPartsResponse,
     )
-    @handle_file_transfer_errors
     async def sign_parts(
-        request: Request,
         payload: SignPartsRequest,
         principal: PrincipalDep,
     ) -> SignPartsResponse:
@@ -269,9 +191,7 @@ def create_fastapi_router(
         operation_id=INTROSPECT_UPLOAD_OPERATION_ID,
         response_model=UploadIntrospectionResponse,
     )
-    @handle_file_transfer_errors
     async def introspect_upload(
-        request: Request,
         payload: UploadIntrospectionRequest,
         principal: PrincipalDep,
     ) -> UploadIntrospectionResponse:
@@ -290,9 +210,7 @@ def create_fastapi_router(
         operation_id=COMPLETE_UPLOAD_OPERATION_ID,
         response_model=CompleteUploadResponse,
     )
-    @handle_file_transfer_errors
     async def complete_upload(
-        request: Request,
         payload: CompleteUploadRequest,
         principal: PrincipalDep,
     ) -> CompleteUploadResponse:
@@ -311,9 +229,7 @@ def create_fastapi_router(
         operation_id=ABORT_UPLOAD_OPERATION_ID,
         response_model=AbortUploadResponse,
     )
-    @handle_file_transfer_errors
     async def abort_upload(
-        request: Request,
         payload: AbortUploadRequest,
         principal: PrincipalDep,
     ) -> AbortUploadResponse:
@@ -332,9 +248,7 @@ def create_fastapi_router(
         operation_id=PRESIGN_DOWNLOAD_OPERATION_ID,
         response_model=PresignDownloadResponse,
     )
-    @handle_file_transfer_errors
     async def presign_download(
-        request: Request,
         payload: PresignDownloadRequest,
         principal: PrincipalDep,
     ) -> PresignDownloadResponse:
@@ -358,7 +272,7 @@ def create_fastapi_app(
     auth_policy: AuthPolicy,
     s3_client_factory: SupportsCreateS3Client | None = None,
 ) -> Any:
-    """Create a minimal FastAPI app with file transfer routes registered.
+    """Create the canonical bridge FastAPI app with shared transport wiring.
 
     Args:
         env_config: Runtime environment configuration.
@@ -369,7 +283,7 @@ def create_fastapi_app(
     Returns:
         Any: FastAPI application instance with mounted transfer routes.
     """
-    _, fastapi, json_response, _, request_validation_error = _fastapi_imports()
+    _fastapi_imports()
 
     @asynccontextmanager
     async def lifespan(_app: Any) -> Any:
@@ -382,51 +296,16 @@ def create_fastapi_app(
         finally:
             _configure_thread_limiter(total_tokens=previous_thread_tokens)
 
-    app = fastapi(lifespan=lifespan)
-
-    @app.exception_handler(FileTransferError)
-    async def handle_file_transfer_error(
-        request: Request,
-        exc: FileTransferError,
-    ) -> Any:
-        err = coerce_file_transfer_error(exc)
-        return json_response(
-            status_code=int(err.status_code),
-            content=_error_payload(
-                code=err.code,
-                message=err.message,
-                details=err.details,
-                request_id=_request_id(request),
-            ),
-            headers=_error_headers(err),
-        )
-
-    @app.exception_handler(request_validation_error)
-    async def handle_request_validation_error(
-        request: Request,
-        exc: Any,
-    ) -> Any:
-        return json_response(
-            status_code=422,
-            content=_error_payload(
-                code="invalid_request",
-                message="request validation failed",
-                details={"errors": exc.errors()},
-                request_id=_request_id(request),
-            ),
-        )
-
-    @app.exception_handler(JSONDecodeError)
-    async def handle_json_decode_error(request: Request, exc: Exception) -> Any:
-        return json_response(
-            status_code=422,
-            content=_error_payload(
-                code="invalid_request",
-                message="request validation failed",
-                details={"reason": str(exc)},
-                request_id=_request_id(request),
-            ),
-        )
+    app = RequestContextFastAPI(lifespan=lifespan)
+    register_fastapi_exception_handlers(
+        app,
+        domain_error_type=FileTransferError,
+        adapt_domain_error=_bridge_error_spec,
+        validation_error_details=_validation_error_details,
+        adapt_unhandled_error=_bridge_unhandled_error_spec,
+        extra_exception_adapters={JSONDecodeError: _json_decode_error_spec},
+        logger_name="nova_dash_bridge.fastapi",
+    )
 
     app.include_router(
         create_fastapi_router(
@@ -437,3 +316,34 @@ def create_fastapi_app(
         ),
     )
     return app
+
+
+def _bridge_error_spec(exc: FileTransferError) -> CanonicalErrorSpec:
+    """Adapt a bridge file-transfer error into the shared transport shape."""
+    return CanonicalErrorSpec(
+        status_code=int(exc.status_code),
+        code=exc.code,
+        message=exc.message,
+        details=exc.details,
+        headers=_error_headers(exc),
+    )
+
+
+def _bridge_unhandled_error_spec(exc: Exception) -> CanonicalErrorSpec:
+    """Coerce unexpected bridge exceptions into canonical transport errors."""
+    return _bridge_error_spec(coerce_file_transfer_error(exc))
+
+
+def _validation_error_details(exc: Any) -> dict[str, object]:
+    """Return public validation details for FastAPI request errors."""
+    return {"errors": exc.errors()}
+
+
+def _json_decode_error_spec(exc: Exception) -> CanonicalErrorSpec:
+    """Return the canonical malformed-JSON transport error."""
+    return CanonicalErrorSpec(
+        status_code=422,
+        code="invalid_request",
+        message="request validation failed",
+        details={"reason": str(exc)},
+    )

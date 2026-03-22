@@ -302,14 +302,16 @@ async def test_v1_jobs_list_scoped_config_error_returns_internal_error() -> (
         app,
         "GET",
         "/v1/jobs",
-        headers=AUTH_HEADERS,
+        headers={**AUTH_HEADERS, "X-Request-Id": "req-v1-500"},
         raise_app_exceptions=False,
     )
 
     assert response.status_code == 500
+    assert response.headers["X-Request-Id"] == "req-v1-500"
     payload = response.json()
     assert payload["error"]["code"] == "internal_error"
     assert payload["error"]["message"] == "unexpected internal error"
+    assert payload["error"]["request_id"] == "req-v1-500"
 
 
 @pytest.mark.asyncio
