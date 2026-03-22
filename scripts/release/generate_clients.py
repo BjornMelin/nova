@@ -552,9 +552,15 @@ def _render_typescript_types(
         "type ResponseBodyOf<TEntry> = TEntry extends { content: infer TContent }",
         "  ? JsonContentOf<TContent>",
         "  : null;",
+        'type DefaultResponseDataOf<TResponses> = "default" extends keyof TResponses',
+        '  ? ResponseBodyOf<TResponses["default"]>',
+        "  : never;",
         "type ResponseDataOf<TResponses, TStatusCodes extends number> = TStatusCodes extends StatusCodeOf<TResponses>",
         "  ? ResponseBodyOf<TResponses[TStatusCodes]>",
         "  : never;",
+        "type ErrorDataOf<TResponses> =",
+        "  | ResponseDataOf<TResponses, ErrorStatusCodeOf<TResponses>>",
+        "  | DefaultResponseDataOf<TResponses>;",
         "",
         "/** Named aliases for generated OpenAPI component schemas. */",
     ]
@@ -587,7 +593,7 @@ def _render_typescript_types(
                 f"/** Union of success response payloads for `{operation.operation_id}`. */",
                 f"export type {base_name}SuccessData = ResponseDataOf<{base_name}Responses, SuccessStatusCodeOf<{base_name}Responses>>;",
                 f"/** Union of non-success response payloads for `{operation.operation_id}`. */",
-                f"export type {base_name}ErrorData = ResponseDataOf<{base_name}Responses, ErrorStatusCodeOf<{base_name}Responses>>;",
+                f"export type {base_name}ErrorData = ErrorDataOf<{base_name}Responses>;",
             ]
         )
         lines.extend(

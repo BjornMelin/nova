@@ -125,7 +125,8 @@ Rules for narrative provisioning, release, and validation markdown under
 - The checked-in `@nova/sdk-file/client` module is a thin wrapper over
   `openapi-fetch`; do not reintroduce a repo-private transport/runtime package.
   Implement auth/header customization and request/response hooks through
-  `openapi-fetch` middleware in `@nova/sdk-file/client`.
+  `openapi-fetch` middleware in `@nova/sdk-file/client`. Handle HTTP status
+  behavior in `onResponse`; `onError` is only for fetch-thrown failures.
 
 ## R Package Rules
 

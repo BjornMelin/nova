@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from typing import cast
 
@@ -88,3 +89,5 @@ def test_public_sdk_types_exclude_wrapper_specific_aliases() -> None:
     source = _load_source_text("nova_sdk_file", "types.ts")
     assert "export type RequestOptions =" not in source
     assert "export type Result =" not in source
+    assert re.search(r"\b\w+RequestOptions\b", source) is None
+    assert re.search(r"\b\w+Result\b", source) is None

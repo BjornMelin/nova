@@ -1,6 +1,6 @@
 interface HttpErrorResult<TError = unknown> {
   readonly data?: never;
-  readonly error: TError;
+  readonly error: TError | undefined;
   readonly response: Response;
 }
 
@@ -20,14 +20,18 @@ type HttpResultLike<TData = unknown, TError = unknown> =
 export class NovaSdkHttpError<TError = unknown> extends Error {
   readonly operationId: string;
   readonly response: Response;
-  readonly error: TError;
+  readonly error: TError | undefined;
 
   /**
    * @param operationId - Stable operation identifier for the failed request.
    * @param response - Raw HTTP response returned by the transport.
    * @param error - OpenAPI-typed error payload from the response body.
    */
-  constructor(operationId: string, response: Response, error: TError) {
+  constructor(
+    operationId: string,
+    response: Response,
+    error: TError | undefined,
+  ) {
     super(`HTTP ${response.status} for ${operationId}`);
     this.name = "NovaSdkHttpError";
     this.operationId = operationId;
@@ -39,7 +43,7 @@ export class NovaSdkHttpError<TError = unknown> extends Error {
     return this.response.status;
   }
 
-  get data(): TError {
+  get data(): TError | undefined {
     return this.error;
   }
 
