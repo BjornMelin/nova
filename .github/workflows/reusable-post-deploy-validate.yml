@@ -48,6 +48,7 @@ permissions:
 jobs:
   post-deploy-validate:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     outputs:
       validation_status: ${{ steps.set-outputs.outputs.validation_status }}
       report_path: ${{ steps.set-outputs.outputs.report_path }}
@@ -58,7 +59,7 @@ jobs:
       VALIDATION_CANONICAL_PATHS: ${{ inputs.validation_canonical_paths }}
       VALIDATION_LEGACY_404_PATHS: ${{ inputs.validation_legacy_404_paths }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # actions/checkout@v4
 
       - name: Validate inputs
         run: |
@@ -94,7 +95,7 @@ jobs:
           echo "artifact_name=${{ inputs.artifact_name }}" >> "$GITHUB_OUTPUT"
 
       - if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # actions/upload-artifact@v4
         with:
           name: ${{ inputs.artifact_name }}
           path: ${{ inputs.report_path }}
