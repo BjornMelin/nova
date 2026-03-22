@@ -470,13 +470,13 @@ export interface components {
             /** Code */
             code: string;
             /** Details */
-            details?: {
+            details: {
                 [key: string]: unknown;
             };
             /** Message */
             message: string;
             /** Request Id */
-            request_id?: string | null;
+            request_id: string | null;
         };
         /**
          * ErrorEnvelope

@@ -59,6 +59,8 @@ Implementation commitments:
 - Keep stable public `operationId` values explicit on route decorators.
 - Delete the file-API OpenAPI mutation layer instead of replacing it with new
   post-processing.
+- Treat `ErrorEnvelope` compatibility as top-level schema name plus on-wire
+  fields, not subordinate helper-component topology.
 - Branch `refactor/api-native-fastapi-openapi`.
 
 ## Related requirements

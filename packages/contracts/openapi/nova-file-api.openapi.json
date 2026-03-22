@@ -254,7 +254,9 @@
         },
         "required": [
           "code",
-          "message"
+          "message",
+          "details",
+          "request_id"
         ],
         "title": "ErrorBody",
         "type": "object"

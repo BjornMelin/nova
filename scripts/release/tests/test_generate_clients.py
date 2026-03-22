@@ -167,6 +167,42 @@ def test_request_body_ref_requiredness_drives_method_request_signature(
     assert required.requires_request is True
 
 
+def test_load_operations_excludes_internal_visibility_operations(
+    tmp_path: Path,
+) -> None:
+    """TypeScript/R catalogs should ignore internal-only operations."""
+    spec_path = tmp_path / "spec.openapi.json"
+    spec_path.write_text(
+        json.dumps(
+            {
+                "openapi": "3.1.0",
+                "paths": {
+                    "/v1/public": {
+                        "get": {
+                            "operationId": "get_public",
+                            "responses": {"200": {"description": "ok"}},
+                        }
+                    },
+                    "/v1/internal": {
+                        "post": {
+                            "operationId": "post_internal",
+                            "x-nova-sdk-visibility": "internal",
+                            "responses": {"202": {"description": "accepted"}},
+                        }
+                    },
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    _, operations = _load_operations(spec_path)
+
+    assert [operation.operation_id for operation in operations] == [
+        "get_public"
+    ]
+
+
 def test_remove_stale_generated_directory_flags_non_empty_directory(
     tmp_path: Path,
 ) -> None:

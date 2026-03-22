@@ -14,6 +14,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, cast
 
+from nova_runtime_support import (
+    SDK_VISIBILITY_EXTENSION,
+    SDK_VISIBILITY_INTERNAL,
+)
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 OPENAPI_ROOT = REPO_ROOT / "packages" / "contracts" / "openapi"
 HTTP_METHODS = ("get", "post", "put", "patch", "delete", "options", "head")
@@ -146,7 +151,10 @@ def _load_operations(spec_path: Path) -> tuple[dict[str, Any], list[Operation]]:
             operation = path_item.get(method)
             if not isinstance(operation, dict):
                 continue
-            if operation.get("x-nova-sdk-visibility") == "internal":
+            if (
+                operation.get(SDK_VISIBILITY_EXTENSION)
+                == SDK_VISIBILITY_INTERNAL
+            ):
                 continue
 
             operation_id = operation.get(

@@ -31,3 +31,8 @@ def test_build_transfer_service_ignores_ambient_settings_env(
     assert isinstance(service, TransferService)
     assert service.settings.jobs_runtime_mode == "api"
     assert service.settings.file_transfer_bucket == "bucket-a"
+
+
+def test_public_surface_keeps_error_envelope_but_not_error_body() -> None:
+    assert hasattr(public, "ErrorEnvelope")
+    assert not hasattr(public, "ErrorBody")

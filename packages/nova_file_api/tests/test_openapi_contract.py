@@ -279,6 +279,36 @@ def test_openapi_route_declared_error_contracts() -> None:
     assert "ValidationError" not in components["schemas"]
 
 
+def test_openapi_error_envelope_schema_preserves_semantic_fields() -> None:
+    """ErrorEnvelope compatibility is defined by wire fields."""
+    app = _build_openapi_app()
+    payload = app.openapi()
+
+    schemas = payload["components"]["schemas"]
+    error_envelope = schemas["ErrorEnvelope"]
+    error_schema = error_envelope["properties"]["error"]
+    if "$ref" in error_schema:
+        schema_name = error_schema["$ref"].rsplit("/", 1)[-1]
+        error_schema = schemas[schema_name]
+
+    assert error_schema["type"] == "object"
+    assert error_schema["additionalProperties"] is False
+    assert set(error_schema["required"]) == {
+        "code",
+        "message",
+        "details",
+        "request_id",
+    }
+    assert error_schema["properties"]["code"]["type"] == "string"
+    assert error_schema["properties"]["message"]["type"] == "string"
+    assert error_schema["properties"]["details"]["type"] == "object"
+    request_id_schema = error_schema["properties"]["request_id"]
+    assert sorted(item["type"] for item in request_id_schema["anyOf"]) == [
+        "null",
+        "string",
+    ]
+
+
 def test_openapi_uses_bearer_security_for_public_routes() -> None:
     """Public OpenAPI routes advertise bearer auth."""
     app = _build_openapi_app()
