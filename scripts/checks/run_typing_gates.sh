@@ -15,11 +15,32 @@ if ! command -v uv >/dev/null 2>&1; then
 fi
 
 if [ "$#" -gt 0 ]; then
-  ty_scopes=("$@")
+  raw_scopes=("$@")
 elif [ -n "${TYPING_GATES_SCOPES:-}" ]; then
   # shellcheck disable=SC2206
-  ty_scopes=(${TYPING_GATES_SCOPES})
+  raw_scopes=(${TYPING_GATES_SCOPES})
 else
+  raw_scopes=("packages" "scripts")
+fi
+
+ty_scopes=()
+for scope in "${raw_scopes[@]}"; do
+  if [ -z "${scope}" ]; then
+    continue
+  fi
+
+  if [[ "${scope}" = /* ]]; then
+    candidate="${scope}"
+  else
+    candidate="${ROOT}/${scope}"
+  fi
+
+  if [ -e "${candidate}" ]; then
+    ty_scopes+=("${candidate}")
+  fi
+done
+
+if [ "${#ty_scopes[@]}" -eq 0 ]; then
   ty_scopes=("${ROOT}/packages" "${ROOT}/scripts")
 fi
 
