@@ -2,8 +2,8 @@
 Spec: 0019
 Title: Auth execution and threadpool safety contract
 Status: Active
-Version: 2.2
-Date: 2026-03-19
+Version: 2.3
+Date: 2026-03-22
 Related:
   - "[ADR-0026: Fail-fast runtime configuration and safe auth execution](../adr/ADR-0026-fail-fast-runtime-configuration-and-safe-auth-execution.md)"
   - "[ADR-0004: Adopt oidc-jwt-verifier as the canonical JWT/OIDC verification engine](../adr/ADR-0004-canonical-oidc-jwt-verifier-adoption.md)"
@@ -43,6 +43,10 @@ Defines how Nova executes in-process auth safely in async runtime code.
    handlers.
 3. Process-wide limiter mutation is not the general-purpose concurrency control
    strategy for the runtime.
+4. FastAPI transfer routes must not call a sync bridge façade via threadpool
+   indirection when the canonical `nova_file_api.public` surface is async-first.
+   Retained blocking work stays at explicit adapter boundaries (for example
+   sync boto3 clients wrapped at the S3 edge or sync-only framework adapters).
 
 ## 4. Package-specific contract
 
@@ -51,6 +55,8 @@ Defines how Nova executes in-process auth safely in async runtime code.
 2. `nova_dash_bridge` may forward auth context and call canonical Nova
    contracts through `nova_file_api.public`, but it must not create divergent
    verification behavior.
+3. `nova_dash_bridge` must not expose bridge-local threadpool token tuning as a
+   FastAPI transfer-surface config contract.
 
 ## 5. Acceptance criteria
 
@@ -59,6 +65,8 @@ Defines how Nova executes in-process auth safely in async runtime code.
 2. Readiness and startup docs do not weaken fail-closed auth behavior.
 3. Runtime safety docs explicitly distinguish async-native verification from
    any remaining blocking work.
+4. Active docs describe direct async FastAPI consumption of
+   `nova_file_api.public` and reserve sync adapters for true sync hosts only.
 
 ## 6. Traceability
 

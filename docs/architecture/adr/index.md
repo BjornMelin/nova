@@ -64,7 +64,7 @@ rebaseline. See [greenfield-authority-map.md](../../plan/greenfield-authority-ma
 | [ADR-0034](./ADR-0034-bearer-jwt-public-auth-contract.md) | Green-field bearer JWT public auth contract | Accepted | 2026-03-19 |
 | [ADR-0035](./ADR-0035-worker-direct-result-persistence.md) | Green-field worker direct result persistence | Accepted | 2026-03-19 |
 | [ADR-0036](./ADR-0036-native-fastapi-openapi-contract.md) | Green-field native FastAPI OpenAPI contract expression | Accepted | 2026-03-19 |
-| [ADR-0037](./ADR-0037-async-first-public-surface.md) | Green-field async-first public surface | Accepted | 2026-03-19 |
+| [ADR-0037](./ADR-0037-async-first-public-surface.md) | Green-field async-first public surface | Accepted | 2026-03-22 |
 | [ADR-0038](./ADR-0038-sdk-architecture-by-language.md) | Green-field SDK architecture by language | Accepted | 2026-03-19 |
 | [ADR-0039](./ADR-0039-aws-target-platform.md) | Green-field AWS target platform | Accepted | 2026-03-19 |
 | [ADR-0040](./ADR-0040-repo-rebaseline-after-cuts.md) | Green-field repo rebaseline after architecture cuts | Accepted | 2026-03-19 |

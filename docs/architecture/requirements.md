@@ -103,7 +103,9 @@ presigned URLs and upload/download metadata. It does not proxy file bytes.
 Primary consumers:
 
 - Browser and server clients using bearer JWT against the public file API
-- Embedded Python apps through bridge integration (`nova_dash_bridge`)
+- Embedded Python apps through bridge integration (`nova_dash_bridge`), where
+  FastAPI hosts consume the async-first `nova_file_api.public` seam directly
+  and sync-only hosts use explicit edge adapters
 - Standalone API clients
 
 ## Functional Requirements
@@ -362,6 +364,9 @@ cryptographic work on async paths MUST run behind a threadpool boundary with an
 explicit concurrency limiter (for example, semaphore or AnyIO/Starlette
 `CapacityLimiter`) with a default cap of 40 tokens unless measured resource
 limits require adjustment (`ADR-0026`, `SPEC-0019`).
+FastAPI transfer routes MUST consume the async-first public seam directly
+instead of round-tripping through a sync bridge façade; any retained sync
+adapters stay scoped to true sync framework edges.
 
 ### NFR-0002: Scalability and resilience
 

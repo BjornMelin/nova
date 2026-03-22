@@ -2,7 +2,7 @@
 Spec: 0017
 Title: Runtime component topology and ownership contract
 Status: Active
-Version: 2.4
+Version: 2.5
 Date: 2026-03-22
 Related:
   - "[ADR-0023: Hard-cut v1 canonical route surface](../adr/ADR-0023-hard-cut-v1-canonical-route-surface.md)"
@@ -36,10 +36,12 @@ cross-package boundaries for the Nova monorepo.
    - forward headers and request identifiers
    - call canonical Nova services through `nova_file_api.public` or generated clients
    - compose canonical FastAPI routes with the shared runtime-support transport stack
+   - retain explicit sync edge adapters for sync-only hosts such as Flask/Dash
 3. `nova_dash_bridge` must not:
    - define alternate endpoint paths
    - redefine Nova error envelopes
    - become the source of truth for auth policy or storage rules
+   - restore sync-over-async indirection for FastAPI request handling
 4. Runtime packages own process bootstrap; release-only service Dockerfiles must
    stay outside workspace package paths so container-only edits do not trigger
    package version planning.
@@ -50,10 +52,11 @@ cross-package boundaries for the Nova monorepo.
 2. `nova_dash_bridge` depends on canonical runtime contracts through
    `nova_file_api.public` or generated Python SDK packages, not on handwritten
    contract forks or direct runtime-internal imports.
+   The canonical in-process transfer seam is async-first.
 3. Standalone FastAPI apps that need canonical Nova request-id/error-envelope
    behavior must install `nova_runtime_support` request-context and shared
    exception-registration helpers; `create_fastapi_router()` is route-only
-   composition.
+   composition and its transfer routes call the async public surface directly.
 4. Route literals remain governed by the canonical route-authority specs; this
    spec governs where those routes are implemented and owned.
 
@@ -82,6 +85,8 @@ cross-package boundaries for the Nova monorepo.
    indexes.
 4. Bridge and runtime-package docs do not claim conflicting route, contract, or
    auth-policy authority.
+5. Bridge docs describe sync wrappers as explicit secondary adapters, not as
+   the canonical public transfer surface.
 
 ## 7. Traceability
 

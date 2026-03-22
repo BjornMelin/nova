@@ -66,6 +66,10 @@ Integration boundary: `nova_dash_bridge` consumes `nova_file_api.public` as the
 canonical in-process transfer seam. Normative ownership and boundary rules are
 defined in:
 
+`nova_file_api.public` is async-first. FastAPI hosts should await that surface
+directly, while explicit sync adapters remain only for sync-only framework
+edges such as Flask/Dash.
+
 Cross-cutting FastAPI transport authority now lives in
 `packages/nova_runtime_support`: `RequestContextASGIMiddleware`,
 `RequestContextFastAPI`, and `register_fastapi_exception_handlers`. Service

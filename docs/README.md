@@ -102,6 +102,12 @@ Use these only for traceability, not as active authority:
   `./architecture/spec/SPEC-0017-runtime-component-topology-and-ownership-contract.md`
   aligned on `nova_dash_bridge -> nova_file_api.public` as the canonical
   in-process seam.
+- Async public-surface changes must also keep
+  `./architecture/adr/ADR-0037-async-first-public-surface.md` and
+  `./architecture/spec/SPEC-0019-auth-execution-and-threadpool-safety-contract.md`
+  aligned on direct async FastAPI consumption, thin sync adapters only at
+  true sync edges, and no bridge-local threadpool tuning config for the
+  FastAPI surface.
 - Cross-cutting FastAPI transport changes must also keep
   `./architecture/adr/ADR-0041-shared-pure-asgi-middleware-and-errors.md`
   aligned with `packages/nova_runtime_support` as the sole authority for

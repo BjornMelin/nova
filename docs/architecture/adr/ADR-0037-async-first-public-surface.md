@@ -2,8 +2,8 @@
 ADR: 0037
 Title: Green-field async-first public surface
 Status: Accepted
-Version: 1.0
-Date: 2026-03-19
+Version: 1.1
+Date: 2026-03-22
 Related:
   - "[ADR-0023: Hard-cut v1 canonical route surface](./ADR-0023-hard-cut-v1-canonical-route-surface.md)"
   - "[SPEC-0000: HTTP API contract](../spec/SPEC-0000-http-api-contract.md)"
@@ -58,6 +58,10 @@ Implementation commitments:
 
 - Convert or expose public entrypoints as async-first APIs consumed by FastAPI.
 - Keep sync adapters minimal and documented for sync-bound consumers only.
+- Keep the public transfer config/factory boundary plain-data; do not expose a
+  public `BaseSettings` synthesis layer for in-process consumers.
+- Remove sync-over-async FastAPI detours and bridge-local threadpool tuning
+  config from the transfer adapter surface.
 - Branch `refactor/public-async-first-surface`.
 
 ## Related requirements
@@ -77,3 +81,6 @@ Implementation commitments:
 
 - 2026-03-19: Canonical ADR ported from green-field pack ADR-0005 (async-first);
   cross-links ADR-0026/SPEC-0019 for threadpool scope.
+- 2026-03-22 (v1.1): Recorded the shipped async-first public transfer config +
+  factory surface, direct FastAPI async bridge path, and explicit sync adapter
+  retention for Flask/Dash only.

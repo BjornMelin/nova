@@ -2,8 +2,8 @@
 Spec: 0029
 Title: SDK architecture and artifact contract
 Status: Active
-Version: 1.1
-Date: 2026-03-19
+Version: 1.2
+Date: 2026-03-22
 Supersedes: "[SPEC-0011: Multi-language SDK architecture and package map (superseded)](./superseded/SPEC-0011-multi-language-sdk-architecture-and-package-map.md)"
 Related:
   - "[ADR-0023: Hard-cut v1 canonical route surface](../adr/ADR-0023-hard-cut-v1-canonical-route-surface.md)"
@@ -81,8 +81,8 @@ remains the authority for conformance, versioning, and compatibility governance.
 
 - One generated public file client package (for example `nova_sdk_py_file`).
 - `nova_dash_bridge` remains a thin adapter: framework glue and header
-  forwarding only; it calls `nova_file_api.public` and must not own route or
-  auth authority.
+  forwarding only; it calls the async-first `nova_file_api.public` seam and
+  must not own route, auth, or alternate in-process contract authority.
 
 ### 7.3 TypeScript
 

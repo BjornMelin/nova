@@ -81,7 +81,10 @@ flowchart LR
 - `nova_dash_bridge` owns:
   - Framework adapters that let Dash/Flask/FastAPI apps consume Nova-style transfer flows without redefining server contracts.
   - Package-local adapter regression tests and architecture-boundary enforcement.
-  - Consumption of the canonical in-process transfer seam through `nova_file_api.public`, not direct runtime internals.
+  - Consumption of the canonical in-process transfer seam through
+    `nova_file_api.public`, not direct runtime internals.
+  - Direct async usage for FastAPI hosts and explicit thin sync adapters only
+    for sync-only hosts such as Flask/Dash.
 - `nova_runtime_support` owns:
   - Shared request-id propagation and streaming-safe ASGI request-context behavior.
   - Shared FastAPI exception registration and canonical error-envelope serialization helpers.
@@ -230,6 +233,8 @@ sequenceDiagram
 - Worker callback with `status=succeeded` must clear `error` to `null`.
 - Presigned URLs, JWTs, and signed query values must not be logged.
 - Synchronous JWT verification must not run directly on async event-loop paths; threadpool boundaries are required.
+- FastAPI transfer handling uses the async-first `nova_file_api.public` seam
+  directly; sync adapters remain explicit edge adapters for sync-only hosts.
 - Config coupling constraints are enforced for backend selections (for example queue/activity backends requiring corresponding resource settings).
 
 ## 9. How to explain Nova in 10 minutes (talk track)
@@ -276,7 +281,9 @@ sequenceDiagram
 - “Where is business logic?”
   - In `packages/nova_file_api` and shared runtime helpers; release-only service Dockerfiles live under `apps/*` so container-only edits stay outside release-managed package paths.
 - “How do Dash clients integrate?”
-  - Through `packages/nova_dash_bridge` adapters, without forking core runtime contracts or importing `nova_file_api` internals directly.
+  - Through `packages/nova_dash_bridge` adapters, without forking core runtime
+    contracts or importing `nova_file_api` internals directly; FastAPI uses
+    the async seam directly and Flask/Dash use the explicit sync edge adapter.
 - “What is the async completion boundary?”
   - Workers update shared runtime services directly; clients read via `/v1/jobs*`.
 
