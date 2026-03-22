@@ -13,7 +13,7 @@ from .config import (
     policy_from_env,
 )
 from .s3_client import S3ClientFactory
-from .service import FileTransferService
+from .service import AsyncFileTransferService, FileTransferService
 
 if TYPE_CHECKING:
     from .dash_integration import FileTransferAssets, S3FileUploader
@@ -98,6 +98,7 @@ def __dir__() -> list[str]:
 
 
 __all__ = [
+    "AsyncFileTransferService",
     "AuthPolicy",
     "FileTransferAssets",
     "FileTransferEnvConfig",

@@ -1,23 +1,24 @@
-"""Bridge service delegating core transfer operations to nova_file_api."""
+"""Bridge services over the canonical Nova transfer runtime."""
 
 from __future__ import annotations
 
 import asyncio
-import logging
 import math
 import re
 import threading
-from collections.abc import Callable, Coroutine
-from contextlib import closing, suppress
+from collections.abc import Awaitable, Callable
+from contextlib import closing
 from pathlib import Path
 from typing import Any, TypeVar, cast
 from urllib.parse import quote_from_bytes
 from uuid import uuid4
 
+from anyio.from_thread import BlockingPortalProvider
 from botocore.exceptions import BotoCoreError, ClientError
 from nova_file_api.public import (
     AbortUploadRequest,
     AbortUploadResponse,
+    AsyncTransferService,
     CompleteUploadRequest,
     CompleteUploadResponse,
     InitiateUploadRequest,
@@ -27,16 +28,13 @@ from nova_file_api.public import (
     Principal,
     SignPartsRequest,
     SignPartsResponse,
-    TransferFacadeConfig,
-    TransferService,
+    TransferConfig,
     UploadIntrospectionRequest,
     UploadIntrospectionResponse,
     UploadStrategy,
     build_transfer_service,
 )
-from nova_file_api.public import (
-    FileTransferError as CoreFileTransferError,
-)
+from nova_file_api.public import FileTransferError as CoreFileTransferError
 
 from nova_dash_bridge.config import (
     AuthPolicy,
@@ -64,11 +62,9 @@ class _AsyncS3ClientAdapter:
     """Expose async S3 methods by delegating to a sync boto3 client."""
 
     def __init__(self, *, client: S3Client) -> None:
-        """Store the bridge-managed sync S3 client."""
         self._client = client
 
     async def generate_presigned_url(self, **kwargs: Any) -> str:
-        """Generate a presigned URL using the sync boto3 client."""
         return str(
             await asyncio.to_thread(
                 self._client.generate_presigned_url,
@@ -76,67 +72,62 @@ class _AsyncS3ClientAdapter:
             )
         )
 
-    async def create_multipart_upload(self, **kwargs: Any) -> dict[str, Any]:
-        """Create a multipart upload with the sync boto3 client."""
+    async def create_multipart_upload(self, **kwargs: Any) -> dict[str, object]:
         return cast(
-            dict[str, Any],
+            dict[str, object],
             await asyncio.to_thread(
                 self._client.create_multipart_upload,
                 **kwargs,
             ),
         )
 
-    async def complete_multipart_upload(self, **kwargs: Any) -> dict[str, Any]:
-        """Complete multipart upload with the sync boto3 client."""
+    async def complete_multipart_upload(
+        self, **kwargs: Any
+    ) -> dict[str, object]:
         return cast(
-            dict[str, Any],
+            dict[str, object],
             await asyncio.to_thread(
                 self._client.complete_multipart_upload,
                 **kwargs,
             ),
         )
 
-    async def abort_multipart_upload(self, **kwargs: Any) -> dict[str, Any]:
-        """Abort multipart upload with the sync boto3 client."""
+    async def abort_multipart_upload(self, **kwargs: Any) -> dict[str, object]:
         return cast(
-            dict[str, Any],
+            dict[str, object],
             await asyncio.to_thread(
                 self._client.abort_multipart_upload,
                 **kwargs,
             ),
         )
 
-    async def head_object(self, **kwargs: Any) -> dict[str, Any]:
-        """Fetch object metadata using the sync boto3 client."""
+    async def head_object(self, **kwargs: Any) -> dict[str, object]:
         return cast(
-            dict[str, Any],
+            dict[str, object],
             await asyncio.to_thread(self._client.head_object, **kwargs),
         )
 
-    async def list_parts(self, **kwargs: Any) -> dict[str, Any]:
-        """List uploaded multipart parts using the sync boto3 client."""
+    async def list_parts(self, **kwargs: Any) -> dict[str, object]:
         return cast(
-            dict[str, Any],
+            dict[str, object],
             await asyncio.to_thread(self._client.list_parts, **kwargs),
         )
 
-    async def copy_object(self, **kwargs: Any) -> dict[str, Any]:
-        """Copy an object using the sync boto3 client."""
+    async def copy_object(self, **kwargs: Any) -> dict[str, object]:
         return cast(
-            dict[str, Any],
+            dict[str, object],
             await asyncio.to_thread(self._client.copy_object, **kwargs),
         )
 
-    async def upload_part_copy(self, **kwargs: Any) -> dict[str, Any]:
-        """Copy a multipart range using the sync boto3 client."""
+    async def upload_part_copy(self, **kwargs: Any) -> dict[str, object]:
         return cast(
-            dict[str, Any],
+            dict[str, object],
             await asyncio.to_thread(self._client.upload_part_copy, **kwargs),
         )
 
 
-class FileTransferService:
-    """Bridge-level service with thin delegation to core transfer runtime."""
+class AsyncFileTransferService:
+    """Async bridge service for FastAPI and other async hosts."""
 
     DEFAULT_MAX_DOWNLOAD_BYTES = 100 * 1024 * 1024
 
@@ -147,24 +138,22 @@ class FileTransferService:
         upload_policy: UploadPolicy,
         auth_policy: AuthPolicy,
         s3_client_factory: SupportsCreateS3Client | None = None,
-        logger: logging.Logger | None = None,
     ) -> None:
-        """Initialize bridge service dependencies."""
+        """Build the async bridge service from explicit bridge policies."""
         self._env = env_config
         self._policy = upload_policy
         self._auth = auth_policy
         self._factory = s3_client_factory or S3ClientFactory()
-        self._logger = logger or logging.getLogger(__name__)
         self._core_config = _core_config_from_bridge(
             env_config=env_config,
             upload_policy=upload_policy,
         )
-        self._core_service: TransferService | None = None
+        self._core_service: AsyncTransferService | None = None
         self._core_service_lock = threading.Lock()
 
     @property
     def part_size_bytes(self) -> int:
-        """Return configured multipart part size."""
+        """Return the effective multipart part size."""
         return (
             self._policy.part_size_bytes
             if self._policy.part_size_bytes is not None
@@ -173,7 +162,7 @@ class FileTransferService:
 
     @property
     def multipart_threshold_bytes(self) -> int:
-        """Return configured multipart threshold."""
+        """Return the size at which uploads switch to multipart mode."""
         return (
             self._policy.multipart_threshold_bytes
             if self._policy.multipart_threshold_bytes is not None
@@ -181,18 +170,16 @@ class FileTransferService:
         )
 
     def ensure_enabled(self) -> None:
-        """Validate file transfer is enabled and minimally configured."""
+        """Fail closed when file transfer support is disabled or incomplete."""
         if not self._env.enabled:
             raise conflict_error("file transfer is not enabled")
         if not self._env.bucket:
             raise internal_error("FILE_TRANSFER_BUCKET is not configured")
 
     def _client(self) -> S3Client:
-        """Return an S3 client from bridge factory configuration."""
         return self._factory.create(self._env)
 
-    def _build_core_service(self) -> TransferService:
-        """Build and cache a core transfer service for repeated bridge calls."""
+    def _build_core_service(self) -> AsyncTransferService:
         service = self._core_service
         if service is not None:
             return service
@@ -207,28 +194,8 @@ class FileTransferService:
         return service
 
     @staticmethod
-    def _run_async(factory: Callable[[], Coroutine[Any, Any, _T]]) -> _T:
-        """Execute one async operation from the synchronous bridge layer."""
-        try:
-            asyncio.get_running_loop()
-        except RuntimeError:
-            loop = asyncio.new_event_loop()
-            try:
-                return loop.run_until_complete(factory())
-            finally:
-                with suppress(Exception):
-                    loop.run_until_complete(loop.shutdown_asyncgens())
-                with suppress(Exception):
-                    loop.run_until_complete(loop.shutdown_default_executor())
-                loop.close()
-        raise RuntimeError(
-            "FileTransferService sync methods cannot run inside an active "
-            "event loop"
-        )
-
-    @staticmethod
     def sanitize_filename(filename: str) -> str:
-        """Return a safe filename for key generation and download headers."""
+        """Return a log-safe filename suitable for S3 object keys."""
         name = Path(filename).name
         stem = Path(name).stem.strip()
         ext = Path(name).suffix.lower()
@@ -239,7 +206,6 @@ class FileTransferService:
 
     @staticmethod
     def _coerce_prefix(prefix: str) -> str:
-        """Normalize key prefixes and reject empty values."""
         raw = prefix.strip()
         if not raw:
             raise FileTransferError(
@@ -253,20 +219,20 @@ class FileTransferService:
         self,
         authorization_header: str | None,
     ) -> Principal:
-        """Resolve a trusted principal from an integration-provided header."""
+        """Resolve a trusted principal from the incoming bearer header."""
         try:
             return self._auth.resolve_principal(authorization_header)
         except ValueError as exc:
             raise unauthorized_error(str(exc)) from exc
 
     def build_upload_key(self, *, scope_id: str, filename: str) -> str:
-        """Build a server-generated upload key."""
+        """Build a scoped upload key for a caller-owned object."""
         safe_name = self.sanitize_filename(filename)
         prefix = self._coerce_prefix(self._env.upload_prefix)
         return f"{prefix}{scope_id}/{uuid4()}/{safe_name}"
 
     def build_export_key(self, *, scope_id: str, filename: str) -> str:
-        """Build a server-generated export key."""
+        """Build a scoped export key for a generated object."""
         safe_name = self.sanitize_filename(filename)
         prefix = self._coerce_prefix(self._env.export_prefix)
         return f"{prefix}{scope_id}/{uuid4()}/{safe_name}"
@@ -278,7 +244,7 @@ class FileTransferService:
         scope_id: str,
         allowed_prefix: str,
     ) -> None:
-        """Validate key stays under allowed prefix and scope."""
+        """Validate that a key stays within the principal scope and prefix."""
         prefix = self._coerce_prefix(allowed_prefix)
         if not key.startswith(prefix):
             raise validation_error("key is outside the allowed prefix")
@@ -287,13 +253,13 @@ class FileTransferService:
             raise validation_error("key is outside the principal scope")
 
     def multipart_part_count(self, *, size_bytes: int) -> int:
-        """Return multipart part count for configured part size."""
+        """Return the multipart part count for the given object size."""
         if size_bytes <= 0:
             return 1
         return math.ceil(size_bytes / float(self.part_size_bytes))
 
     def select_upload_strategy(self, *, size_bytes: int) -> str:
-        """Return upload strategy based on size policy."""
+        """Select the upload strategy for the requested object size."""
         return (
             "multipart"
             if size_bytes >= self.multipart_threshold_bytes
@@ -301,7 +267,7 @@ class FileTransferService:
         )
 
     def validate_upload_request(self, req: InitiateUploadRequest) -> None:
-        """Validate upload request against bridge policy constraints."""
+        """Enforce bridge upload constraints before presigning operations."""
         if req.size_bytes > self._policy.max_upload_bytes:
             raise validation_error("file exceeds maximum allowed upload size")
         ext = Path(req.filename).suffix.lower()
@@ -324,20 +290,17 @@ class FileTransferService:
         ):
             raise validation_error("object too large for configured part size")
 
-    def initiate_upload(
+    async def initiate_upload(
         self,
         req: InitiateUploadRequest,
-        *,
         principal: Principal,
     ) -> InitiateUploadResponse:
-        """Initiate upload and return bridge response contract."""
+        """Initiate an upload via the canonical async Nova service."""
         self.ensure_enabled()
         self.validate_upload_request(req)
-        core_response = self._run_async(
-            lambda: self._build_core_service().initiate_upload(
-                req,
-                principal,
-            )
+        core_response = await self._build_core_service().initiate_upload(
+            req,
+            principal,
         )
         if (
             core_response.strategy == UploadStrategy.SINGLE
@@ -356,59 +319,44 @@ class FileTransferService:
             raise internal_error("missing multipart part size")
         return core_response
 
-    def sign_parts(
+    async def sign_parts(
         self,
         req: SignPartsRequest,
-        *,
         principal: Principal,
     ) -> SignPartsResponse:
-        """Presign multipart upload part URLs."""
+        """Presign multipart part URLs via the canonical async service."""
         self.ensure_enabled()
-        core_response = self._run_async(
-            lambda: self._build_core_service().sign_parts(req, principal)
-        )
-        return core_response
+        return await self._build_core_service().sign_parts(req, principal)
 
-    def introspect_upload(
+    async def introspect_upload(
         self,
         req: UploadIntrospectionRequest,
-        *,
         principal: Principal,
     ) -> UploadIntrospectionResponse:
-        """Inspect uploaded multipart parts for resume flows."""
+        """Return multipart upload state for a caller-owned key."""
         self.ensure_enabled()
-        core_response = self._run_async(
-            lambda: self._build_core_service().introspect_upload(req, principal)
+        return await self._build_core_service().introspect_upload(
+            req,
+            principal,
         )
-        return core_response
 
-    def complete_upload(
+    async def complete_upload(
         self,
         req: CompleteUploadRequest,
-        *,
         principal: Principal,
     ) -> CompleteUploadResponse:
-        """Complete multipart upload and return bridge response."""
+        """Complete a caller-owned multipart upload."""
         self.ensure_enabled()
-        core_response = self._run_async(
-            lambda: self._build_core_service().complete_upload(
-                req,
-                principal,
-            )
-        )
-        return core_response
+        return await self._build_core_service().complete_upload(req, principal)
 
-    def abort_upload(
+    async def abort_upload(
         self,
         req: AbortUploadRequest,
-        *,
         principal: Principal,
     ) -> AbortUploadResponse:
-        """Abort multipart upload and return bridge response."""
+        """Abort a caller-owned multipart upload."""
         self.ensure_enabled()
-        self._run_async(
-            lambda: self._build_core_service().abort_upload(req, principal)
-        )
+        await self._build_core_service().abort_upload(req, principal)
         return AbortUploadResponse()
 
     @classmethod
@@ -418,7 +366,6 @@ class FileTransferService:
         content_disposition: str,
         filename: str,
     ) -> str:
-        """Build safe content-disposition value for downloads."""
         safe_name = cls.sanitize_filename(filename)
         clean_name = "".join(
             char for char in safe_name if 0x20 <= ord(char) <= 0x7E
@@ -430,13 +377,12 @@ class FileTransferService:
             f"filename*=UTF-8''{encoded_name}"
         )
 
-    def presign_download(
+    async def presign_download(
         self,
         req: PresignDownloadRequest,
-        *,
         principal: Principal,
     ) -> PresignDownloadResponse:
-        """Generate presigned GET URL for export objects."""
+        """Presign a scoped download for an export object."""
         self.ensure_enabled()
         self.ensure_key_scoped(
             key=req.key,
@@ -453,18 +399,140 @@ class FileTransferService:
             )
         else:
             disposition = None
-        core_response = self._run_async(
-            lambda: self._build_core_service().presign_download(
-                PresignDownloadRequest(
-                    key=req.key,
-                    content_disposition=disposition,
-                    filename=req.filename,
-                    content_type=None,
-                ),
-                principal,
-            )
+        return await self._build_core_service().presign_download(
+            PresignDownloadRequest(
+                key=req.key,
+                content_disposition=disposition,
+                filename=req.filename,
+                content_type=None,
+            ),
+            principal,
         )
-        return core_response
+
+
+class FileTransferService:
+    """Thin sync adapter over the async bridge service."""
+
+    DEFAULT_MAX_DOWNLOAD_BYTES = (
+        AsyncFileTransferService.DEFAULT_MAX_DOWNLOAD_BYTES
+    )
+
+    def __init__(
+        self,
+        *,
+        env_config: FileTransferEnvConfig,
+        upload_policy: UploadPolicy,
+        auth_policy: AuthPolicy,
+        s3_client_factory: SupportsCreateS3Client | None = None,
+    ) -> None:
+        """Build the explicit sync adapter for sync-only framework hosts."""
+        self._async_service = AsyncFileTransferService(
+            env_config=env_config,
+            upload_policy=upload_policy,
+            auth_policy=auth_policy,
+            s3_client_factory=s3_client_factory,
+        )
+        self._portal_provider = BlockingPortalProvider()
+
+    def _call_async(
+        self,
+        func: Callable[..., Awaitable[_T]],
+        *args: object,
+    ) -> _T:
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            with self._portal_provider as portal:
+                return portal.call(func, *args)
+        raise RuntimeError(
+            "FileTransferService sync methods cannot run inside an active "
+            "event loop"
+        )
+
+    @property
+    def part_size_bytes(self) -> int:
+        """Return the effective multipart part size."""
+        return self._async_service.part_size_bytes
+
+    @property
+    def multipart_threshold_bytes(self) -> int:
+        """Return the size at which uploads switch to multipart mode."""
+        return self._async_service.multipart_threshold_bytes
+
+    def resolve_principal(
+        self,
+        authorization_header: str | None,
+    ) -> Principal:
+        """Resolve a trusted principal from the incoming bearer header."""
+        return self._async_service.resolve_principal(authorization_header)
+
+    def initiate_upload(
+        self,
+        req: InitiateUploadRequest,
+        principal: Principal,
+    ) -> InitiateUploadResponse:
+        """Initiate an upload from a sync host."""
+        return self._call_async(
+            self._async_service.initiate_upload,
+            req,
+            principal,
+        )
+
+    def sign_parts(
+        self,
+        req: SignPartsRequest,
+        principal: Principal,
+    ) -> SignPartsResponse:
+        """Presign multipart part uploads from a sync host."""
+        return self._call_async(self._async_service.sign_parts, req, principal)
+
+    def introspect_upload(
+        self,
+        req: UploadIntrospectionRequest,
+        principal: Principal,
+    ) -> UploadIntrospectionResponse:
+        """Return multipart upload state from a sync host."""
+        return self._call_async(
+            self._async_service.introspect_upload,
+            req,
+            principal,
+        )
+
+    def complete_upload(
+        self,
+        req: CompleteUploadRequest,
+        principal: Principal,
+    ) -> CompleteUploadResponse:
+        """Complete a multipart upload from a sync host."""
+        return self._call_async(
+            self._async_service.complete_upload,
+            req,
+            principal,
+        )
+
+    def abort_upload(
+        self,
+        req: AbortUploadRequest,
+        principal: Principal,
+    ) -> AbortUploadResponse:
+        """Abort a multipart upload from a sync host."""
+        return self._call_async(
+            self._async_service.abort_upload,
+            req,
+            principal,
+        )
+
+    def presign_download(
+        self,
+        req: PresignDownloadRequest,
+        principal: Principal,
+    ) -> PresignDownloadResponse:
+        """Presign an export download from a sync host."""
+        return self._call_async(
+            self._async_service.presign_download,
+            req,
+            principal,
+        )
 
     def put_export_bytes(
         self,
@@ -474,22 +542,25 @@ class FileTransferService:
         data: bytes,
         content_type: str,
     ) -> tuple[str, str]:
-        """Upload generated export bytes and return `(bucket, key)`."""
-        self.ensure_enabled()
+        """Upload export bytes directly through the sync S3 client."""
+        self._async_service.ensure_enabled()
         if not data:
             raise validation_error("data is empty")
-        key = self.build_export_key(scope_id=scope_id, filename=filename)
-        client = self._client()
+        key = self._async_service.build_export_key(
+            scope_id=scope_id,
+            filename=filename,
+        )
+        client = self._async_service._client()
         try:
             client.put_object(
-                Bucket=self._env.bucket,
+                Bucket=self._async_service._env.bucket,
                 Key=key,
                 Body=data,
                 ContentType=content_type,
             )
         except (BotoCoreError, ClientError) as exc:
             raise internal_error("failed to upload export object") from exc
-        return self._env.bucket, key
+        return self._async_service._env.bucket, key
 
     def download_object_bytes(
         self,
@@ -498,14 +569,14 @@ class FileTransferService:
         key: str,
         max_bytes: int | None = DEFAULT_MAX_DOWNLOAD_BYTES,
     ) -> bytes:
-        """Download object bytes for sync processing paths."""
+        """Download an object while enforcing a maximum byte limit."""
         if not bucket:
             raise validation_error("bucket is required")
         if not key:
             raise validation_error("key is required")
         if max_bytes is not None and max_bytes <= 0:
             raise validation_error("max_bytes must be > 0")
-        client = self._client()
+        client = self._async_service._client()
         try:
             response = client.get_object(Bucket=bucket, Key=key)
         except (BotoCoreError, ClientError) as exc:
@@ -565,38 +636,31 @@ def _core_config_from_bridge(
     *,
     env_config: FileTransferEnvConfig,
     upload_policy: UploadPolicy,
-) -> TransferFacadeConfig:
-    """Build public transfer config from bridge env + policy values."""
-    return TransferFacadeConfig(
-        file_transfer_enabled=env_config.enabled,
-        file_transfer_bucket=env_config.bucket,
-        file_transfer_upload_prefix=env_config.upload_prefix,
-        file_transfer_export_prefix=env_config.export_prefix,
-        file_transfer_tmp_prefix=env_config.tmp_prefix,
-        file_transfer_presign_upload_ttl_seconds=(
-            env_config.presign_upload_ttl_seconds
-        ),
-        file_transfer_presign_download_ttl_seconds=(
-            env_config.presign_download_ttl_seconds
-        ),
-        file_transfer_multipart_threshold_bytes=(
+) -> TransferConfig:
+    return TransferConfig(
+        enabled=env_config.enabled,
+        bucket=env_config.bucket,
+        upload_prefix=env_config.upload_prefix,
+        export_prefix=env_config.export_prefix,
+        tmp_prefix=env_config.tmp_prefix,
+        presign_upload_ttl_seconds=env_config.presign_upload_ttl_seconds,
+        presign_download_ttl_seconds=env_config.presign_download_ttl_seconds,
+        multipart_threshold_bytes=(
             upload_policy.multipart_threshold_bytes
             if upload_policy.multipart_threshold_bytes is not None
             else env_config.multipart_threshold_bytes
         ),
-        file_transfer_part_size_bytes=(
+        part_size_bytes=(
             upload_policy.part_size_bytes
             if upload_policy.part_size_bytes is not None
             else env_config.part_size_bytes
         ),
-        file_transfer_max_concurrency=(
+        max_concurrency=(
             upload_policy.max_concurrency
             if upload_policy.max_concurrency is not None
             else env_config.max_concurrency
         ),
-        file_transfer_use_accelerate_endpoint=(
-            env_config.use_accelerate_endpoint
-        ),
+        use_accelerate_endpoint=env_config.use_accelerate_endpoint,
         max_upload_bytes=upload_policy.max_upload_bytes,
     )
 

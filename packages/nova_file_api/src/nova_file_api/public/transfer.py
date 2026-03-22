@@ -3,9 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
-
-from pydantic_settings import BaseSettings, PydanticBaseSettingsSource
+from typing import Any, Protocol
 
 from nova_file_api.config import Settings
 from nova_file_api.errors import FileTransferError
@@ -40,45 +38,113 @@ PRESIGN_DOWNLOAD_ROUTE = "/downloads/presign"
 
 
 @dataclass(slots=True, frozen=True)
-class TransferFacadeConfig:
-    """Typed transfer configuration accepted by adapter-facing factories."""
+class TransferConfig:
+    """Explicit transfer-scoped runtime configuration."""
 
-    file_transfer_enabled: bool
-    file_transfer_bucket: str
-    file_transfer_upload_prefix: str
-    file_transfer_export_prefix: str
-    file_transfer_tmp_prefix: str
-    file_transfer_presign_upload_ttl_seconds: int
-    file_transfer_presign_download_ttl_seconds: int
-    file_transfer_multipart_threshold_bytes: int
-    file_transfer_part_size_bytes: int
-    file_transfer_max_concurrency: int
-    file_transfer_use_accelerate_endpoint: bool
+    enabled: bool
+    bucket: str
+    upload_prefix: str
+    export_prefix: str
+    tmp_prefix: str
+    presign_upload_ttl_seconds: int
+    presign_download_ttl_seconds: int
+    multipart_threshold_bytes: int
+    part_size_bytes: int
+    max_concurrency: int
+    use_accelerate_endpoint: bool
     max_upload_bytes: int
 
 
-def _settings_from_facade_config(config: TransferFacadeConfig) -> Settings:
-    """Materialize canonical runtime settings from public transfer config."""
+class AsyncTransferService(Protocol):
+    """Async transfer operations exposed to adapter consumers."""
 
-    class _FacadeSettings(Settings):
-        @classmethod
-        def settings_customise_sources(
-            cls,
-            settings_cls: type[BaseSettings],
-            init_settings: PydanticBaseSettingsSource,
-            env_settings: PydanticBaseSettingsSource,
-            dotenv_settings: PydanticBaseSettingsSource,
-            file_secret_settings: PydanticBaseSettingsSource,
-        ) -> tuple[PydanticBaseSettingsSource, ...]:
-            del cls
-            del (
-                settings_cls,
-                env_settings,
-                dotenv_settings,
-                file_secret_settings,
-            )
-            return (init_settings,)
+    async def initiate_upload(
+        self,
+        request: InitiateUploadRequest,
+        principal: Principal,
+    ) -> InitiateUploadResponse:
+        """Start an upload for the authenticated principal."""
+        ...
 
+    async def sign_parts(
+        self,
+        request: SignPartsRequest,
+        principal: Principal,
+    ) -> SignPartsResponse:
+        """Presign multipart part uploads for a caller-owned key."""
+        ...
+
+    async def introspect_upload(
+        self,
+        request: UploadIntrospectionRequest,
+        principal: Principal,
+    ) -> UploadIntrospectionResponse:
+        """Inspect multipart upload state for a caller-owned key."""
+        ...
+
+    async def complete_upload(
+        self,
+        request: CompleteUploadRequest,
+        principal: Principal,
+    ) -> CompleteUploadResponse:
+        """Complete a caller-owned multipart upload."""
+        ...
+
+    async def abort_upload(
+        self,
+        request: AbortUploadRequest,
+        principal: Principal,
+    ) -> AbortUploadResponse:
+        """Abort a caller-owned multipart upload."""
+        ...
+
+    async def presign_download(
+        self,
+        request: PresignDownloadRequest,
+        principal: Principal,
+    ) -> PresignDownloadResponse:
+        """Presign a scoped download for the authenticated principal."""
+        ...
+
+
+class TransferStorageClient(Protocol):
+    """Async storage client contract used by the public transfer factory."""
+
+    async def generate_presigned_url(self, **kwargs: Any) -> str:
+        """Generate a presigned S3 URL."""
+        ...
+
+    async def create_multipart_upload(self, **kwargs: Any) -> dict[str, Any]:
+        """Create a multipart upload."""
+        ...
+
+    async def complete_multipart_upload(self, **kwargs: Any) -> dict[str, Any]:
+        """Complete a multipart upload."""
+        ...
+
+    async def abort_multipart_upload(self, **kwargs: Any) -> dict[str, Any]:
+        """Abort a multipart upload."""
+        ...
+
+    async def head_object(self, **kwargs: Any) -> dict[str, Any]:
+        """Read object metadata."""
+        ...
+
+    async def list_parts(self, **kwargs: Any) -> dict[str, Any]:
+        """List uploaded multipart parts."""
+        ...
+
+    async def copy_object(self, **kwargs: Any) -> dict[str, Any]:
+        """Copy an object."""
+        ...
+
+    async def upload_part_copy(self, **kwargs: Any) -> dict[str, Any]:
+        """Copy a multipart upload part."""
+        ...
+
+
+def _settings_from_transfer_config(config: TransferConfig) -> Settings:
+    """Materialize runtime settings from an explicit transfer config."""
     default_values = {
         (
             field.alias
@@ -89,54 +155,39 @@ def _settings_from_facade_config(config: TransferFacadeConfig) -> Settings:
     }
     default_values.update(
         {
-            "FILE_TRANSFER_ENABLED": config.file_transfer_enabled,
-            "FILE_TRANSFER_BUCKET": config.file_transfer_bucket,
-            "FILE_TRANSFER_UPLOAD_PREFIX": config.file_transfer_upload_prefix,
-            "FILE_TRANSFER_EXPORT_PREFIX": config.file_transfer_export_prefix,
-            "FILE_TRANSFER_TMP_PREFIX": config.file_transfer_tmp_prefix,
+            "FILE_TRANSFER_ENABLED": config.enabled,
+            "FILE_TRANSFER_BUCKET": config.bucket,
+            "FILE_TRANSFER_UPLOAD_PREFIX": config.upload_prefix,
+            "FILE_TRANSFER_EXPORT_PREFIX": config.export_prefix,
+            "FILE_TRANSFER_TMP_PREFIX": config.tmp_prefix,
             "FILE_TRANSFER_PRESIGN_UPLOAD_TTL_SECONDS": (
-                config.file_transfer_presign_upload_ttl_seconds
+                config.presign_upload_ttl_seconds
             ),
             "FILE_TRANSFER_PRESIGN_DOWNLOAD_TTL_SECONDS": (
-                config.file_transfer_presign_download_ttl_seconds
+                config.presign_download_ttl_seconds
             ),
             "FILE_TRANSFER_MULTIPART_THRESHOLD_BYTES": (
-                config.file_transfer_multipart_threshold_bytes
+                config.multipart_threshold_bytes
             ),
-            "FILE_TRANSFER_PART_SIZE_BYTES": (
-                config.file_transfer_part_size_bytes
-            ),
-            "FILE_TRANSFER_MAX_CONCURRENCY": (
-                config.file_transfer_max_concurrency
-            ),
+            "FILE_TRANSFER_PART_SIZE_BYTES": config.part_size_bytes,
+            "FILE_TRANSFER_MAX_CONCURRENCY": config.max_concurrency,
             "FILE_TRANSFER_USE_ACCELERATE_ENDPOINT": (
-                config.file_transfer_use_accelerate_endpoint
+                config.use_accelerate_endpoint
             ),
             "FILE_TRANSFER_MAX_UPLOAD_BYTES": config.max_upload_bytes,
         }
     )
-    return _FacadeSettings(**default_values)
+    return Settings(**default_values)
 
 
 def build_transfer_service(
     *,
-    config: TransferFacadeConfig,
-    s3_client: Any,
-) -> TransferService:
-    """Build the canonical transfer service for bridge consumers.
-
-    Args:
-        config: Transfer settings used to materialize runtime configuration.
-        s3_client: S3 client dependency passed through to TransferService.
-
-    Returns:
-        TransferService: Canonical transfer service instance for adapters.
-
-    Raises:
-        ValidationError: If settings derived from config are invalid.
-    """
+    config: TransferConfig,
+    s3_client: TransferStorageClient,
+) -> AsyncTransferService:
+    """Build the canonical async transfer service for adapter consumers."""
     return TransferService(
-        settings=_settings_from_facade_config(config),
+        settings=_settings_from_transfer_config(config),
         s3_client=s3_client,
     )
 
@@ -151,6 +202,7 @@ __all__ = [
     "UPLOADS_INITIATE_ROUTE",
     "AbortUploadRequest",
     "AbortUploadResponse",
+    "AsyncTransferService",
     "CompleteUploadRequest",
     "CompleteUploadResponse",
     "CompletedPart",
@@ -163,8 +215,8 @@ __all__ = [
     "Principal",
     "SignPartsRequest",
     "SignPartsResponse",
-    "TransferFacadeConfig",
-    "TransferService",
+    "TransferConfig",
+    "TransferStorageClient",
     "UploadIntrospectionRequest",
     "UploadIntrospectionResponse",
     "UploadStrategy",

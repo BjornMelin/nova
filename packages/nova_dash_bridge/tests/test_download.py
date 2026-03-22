@@ -11,10 +11,9 @@ from nova_dash_bridge.config import (
     UploadPolicy,
 )
 from nova_dash_bridge.errors import FileTransferError
-from nova_dash_bridge.models import UploadIntrospectionRequest
 from nova_dash_bridge.s3_client import S3Client, SupportsCreateS3Client
 from nova_dash_bridge.service import FileTransferService
-from nova_file_api.public import Principal
+from nova_file_api.public import Principal, UploadIntrospectionRequest
 
 
 class _FakeBody:
@@ -227,7 +226,11 @@ def test_presign_download_preserves_explicit_content_disposition(
         response={},
     )
     fake_core = _FakeCoreTransferService()
-    monkeypatch.setattr(service, "_build_core_service", lambda: fake_core)
+    monkeypatch.setattr(
+        service._async_service,
+        "_build_core_service",
+        lambda: fake_core,
+    )
 
     response = service.presign_download(
         public_contract.PresignDownloadRequest(

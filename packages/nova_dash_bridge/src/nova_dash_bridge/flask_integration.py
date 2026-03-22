@@ -9,6 +9,14 @@ from pathlib import Path
 from typing import Any
 
 from flask import Blueprint, Flask, jsonify, request
+from nova_file_api.public import (
+    AbortUploadRequest,
+    CompleteUploadRequest,
+    InitiateUploadRequest,
+    PresignDownloadRequest,
+    SignPartsRequest,
+    UploadIntrospectionRequest,
+)
 from nova_runtime_support.http import canonical_error_content
 from pydantic import ValidationError
 
@@ -18,14 +26,6 @@ from nova_dash_bridge.config import (
     UploadPolicy,
 )
 from nova_dash_bridge.errors import FileTransferError, validation_error
-from nova_dash_bridge.models import (
-    AbortUploadRequest,
-    CompleteUploadRequest,
-    InitiateUploadRequest,
-    PresignDownloadRequest,
-    SignPartsRequest,
-    UploadIntrospectionRequest,
-)
 from nova_dash_bridge.s3_client import SupportsCreateS3Client
 from nova_dash_bridge.service import (
     FileTransferService,

@@ -71,12 +71,6 @@ class FileTransferEnvConfig(BaseSettings):
         le=32,
         validation_alias="FILE_TRANSFER_MAX_CONCURRENCY",
     )
-    thread_tokens: int = Field(
-        default=80,
-        ge=1,
-        le=1000,
-        validation_alias="FILE_TRANSFER_THREAD_TOKENS",
-    )
     use_accelerate_endpoint: bool = Field(
         default=False,
         validation_alias="FILE_TRANSFER_USE_ACCELERATE_ENDPOINT",
