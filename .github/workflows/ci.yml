@@ -243,7 +243,8 @@ jobs:
           }
           PKGEOF
           npm install --no-package-lock "${GITHUB_WORKSPACE}/.artifacts/npm/"*.tgz
-          node "${GITHUB_WORKSPACE}/scripts/conformance/typescript_sdk_smoke.mjs"
+          cp "${GITHUB_WORKSPACE}/scripts/conformance/typescript_sdk_smoke.mjs" ./smoke.mjs
+          node ./smoke.mjs
 
   dash-conformance:
     needs: classify-changes
