@@ -72,6 +72,10 @@ Canonical FastAPI request-id propagation and error envelopes now come from the
 shared outer-ASGI/request-handler stack in `nova_runtime_support`. Standalone
 FastAPI hosts should use `create_fastapi_app()` or install that shared stack
 themselves; `create_fastapi_router()` is route composition only.
+The canonical in-process transfer seam is now async-first: FastAPI integrations
+await `nova_file_api.public` through `nova_dash_bridge.AsyncFileTransferService`
+directly, while Flask/Dash keep an explicit thin sync adapter layer only where
+the host framework is actually sync-bound.
 
 ## SDK and OpenAPI Posture
 

@@ -2,7 +2,7 @@
 
 Status: Active
 Owner: nova release architecture
-Last reviewed: 2026-03-20
+Last reviewed: 2026-03-22
 
 ## Purpose
 
@@ -78,7 +78,8 @@ R SDK packages retained in-repo as first-class internal release artifacts:
 
 `nova_dash_bridge` is an adapter-only package, not release-grade SDK contract
 authority. It consumes the canonical in-process bridge seam exposed by
-`nova_file_api.public`.
+`nova_file_api.public`. FastAPI hosts use that async-first seam directly,
+while Flask/Dash retain the explicit thin sync adapter only at the sync edge.
 
 Dash and other browser-backed consumers using `nova_dash_bridge` must expose a
 bearer `Authorization` header to the bridge assets for canonical

@@ -11,10 +11,9 @@ from nova_dash_bridge.config import (
     UploadPolicy,
 )
 from nova_dash_bridge.errors import FileTransferError
-from nova_dash_bridge.models import UploadIntrospectionRequest
 from nova_dash_bridge.s3_client import S3Client, SupportsCreateS3Client
 from nova_dash_bridge.service import FileTransferService
-from nova_file_api.public import Principal
+from nova_file_api.public import Principal, UploadIntrospectionRequest
 
 
 class _FakeBody:
@@ -123,11 +122,12 @@ def _service_with_response(
     *,
     monkeypatch: pytest.MonkeyPatch,
     response: dict[str, object],
+    core_service: _FakeCoreTransferService | None = None,
 ) -> FileTransferService:
     monkeypatch.setattr(
         dash_service_module,
         "build_transfer_service",
-        lambda **_: _FakeCoreTransferService(),
+        lambda **_: core_service or _FakeCoreTransferService(),
     )
     return FileTransferService(
         env_config=FileTransferEnvConfig.model_validate(
@@ -222,19 +222,19 @@ def test_introspect_upload_maps_core_response(
 def test_presign_download_preserves_explicit_content_disposition(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    fake_core = _FakeCoreTransferService()
     service = _service_with_response(
         monkeypatch=monkeypatch,
         response={},
+        core_service=fake_core,
     )
-    fake_core = _FakeCoreTransferService()
-    monkeypatch.setattr(service, "_build_core_service", lambda: fake_core)
 
     response = service.presign_download(
         public_contract.PresignDownloadRequest(
             key="exports/scope-1/report.csv",
             content_disposition='inline; filename="custom.csv"',
             filename="fallback.csv",
-            content_type=None,
+            content_type="text/csv",
         ),
         principal=Principal(subject="user-1", scope_id="scope-1"),
     )
@@ -246,3 +246,4 @@ def test_presign_download_preserves_explicit_content_disposition(
         == 'inline; filename="custom.csv"'
     )
     assert fake_core.last_presign_request.filename == "fallback.csv"
+    assert fake_core.last_presign_request.content_type == "text/csv"

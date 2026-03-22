@@ -12,10 +12,14 @@ from nova_dash_bridge.config import (
     FileTransferEnvConfig,
     UploadPolicy,
 )
+from nova_dash_bridge.service import AsyncFileTransferService
 from nova_file_api.public import (
     TRANSFER_ROUTE_PREFIX,
     UPLOADS_INITIATE_ROUTE,
+    InitiateUploadRequest,
+    InitiateUploadResponse,
     Principal,
+    UploadStrategy,
 )
 
 
@@ -45,28 +49,30 @@ def test_create_fastapi_app_requires_auth_policy() -> None:
         )
 
 
-def test_create_fastapi_app_uses_lifespan_startup(
+def test_create_fastapi_app_calls_async_service_directly(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Verify startup configures and shutdown restores thread limiter tokens."""
-    calls: list[int] = []
-    token_var = 40
+    calls: list[tuple[str, str, int]] = []
 
-    class _DummyLimiter:
-        total_tokens = token_var
+    async def _fake_initiate_upload(
+        self: AsyncFileTransferService,
+        payload: InitiateUploadRequest,
+        *,
+        principal: Principal,
+    ) -> InitiateUploadResponse:
+        calls.append((payload.filename, principal.scope_id, payload.size_bytes))
+        return InitiateUploadResponse(
+            strategy=UploadStrategy.SINGLE,
+            bucket="bucket-a",
+            key="uploads/scope-1/report.csv",
+            url="https://example.invalid/upload",
+            expires_in_seconds=900,
+        )
 
     monkeypatch.setattr(
-        fastapi_integration,
-        "current_default_thread_limiter",
-        lambda: _DummyLimiter(),
-    )
-    original_token = token_var
-    calls.append(token_var)
-
-    monkeypatch.setattr(
-        fastapi_integration,
-        "_configure_thread_limiter",
-        lambda *, total_tokens: calls.append(total_tokens),
+        AsyncFileTransferService,
+        "initiate_upload",
+        _fake_initiate_upload,
     )
 
     app = fastapi_integration.create_fastapi_app(
@@ -74,7 +80,6 @@ def test_create_fastapi_app_uses_lifespan_startup(
             {
                 "FILE_TRANSFER_ENABLED": True,
                 "FILE_TRANSFER_BUCKET": "bucket-a",
-                "FILE_TRANSFER_THREAD_TOKENS": 12,
             }
         ),
         upload_policy=UploadPolicy(
@@ -85,15 +90,23 @@ def test_create_fastapi_app_uses_lifespan_startup(
     )
 
     with TestClient(app) as client:
-        assert TRANSFER_ROUTE_PREFIX in client.get("/openapi.json").text
+        response = client.post(
+            f"{TRANSFER_ROUTE_PREFIX}{UPLOADS_INITIATE_ROUTE}",
+            json={
+                "filename": "report.csv",
+                "content_type": "text/csv",
+                "size_bytes": 1,
+            },
+            headers={"Authorization": "Bearer token-123"},
+        )
 
-    assert calls == [original_token, 12, original_token]
-    token_var = calls[-1]
-    assert token_var == original_token
+    assert response.status_code == 200
+    assert calls == [("report.csv", "scope-1", 1)]
 
 
 def test_routes_include_transfer_operation_metadata() -> None:
     """Ensure OpenAPI operation metadata stays stable for transfer endpoints."""
+
     app = fastapi_integration.create_fastapi_app(
         env_config=FileTransferEnvConfig.model_validate(
             {
@@ -132,12 +145,12 @@ def test_create_fastapi_app_wraps_request_validation_errors(
     headers: dict[str, str],
 ) -> None:
     """Ensure malformed bodies are wrapped in canonical error envelopes."""
+
     app = fastapi_integration.create_fastapi_app(
         env_config=FileTransferEnvConfig.model_validate(
             {
                 "FILE_TRANSFER_ENABLED": True,
                 "FILE_TRANSFER_BUCKET": "bucket-a",
-                "FILE_TRANSFER_THREAD_TOKENS": 12,
             }
         ),
         upload_policy=UploadPolicy(
@@ -168,12 +181,12 @@ def test_create_fastapi_app_wraps_request_validation_errors(
 
 def test_create_fastapi_app_requires_bearer_auth() -> None:
     """Ensure missing credentials are rejected before request validation."""
+
     app = fastapi_integration.create_fastapi_app(
         env_config=FileTransferEnvConfig.model_validate(
             {
                 "FILE_TRANSFER_ENABLED": True,
                 "FILE_TRANSFER_BUCKET": "bucket-a",
-                "FILE_TRANSFER_THREAD_TOKENS": 12,
             }
         ),
         upload_policy=UploadPolicy(
@@ -203,12 +216,12 @@ def test_create_fastapi_app_requires_bearer_auth() -> None:
 
 def test_create_fastapi_app_rejects_cookie_only_auth() -> None:
     """Ensure bridge auth does not fall back to ambient browser cookies."""
+
     app = fastapi_integration.create_fastapi_app(
         env_config=FileTransferEnvConfig.model_validate(
             {
                 "FILE_TRANSFER_ENABLED": True,
                 "FILE_TRANSFER_BUCKET": "bucket-a",
-                "FILE_TRANSFER_THREAD_TOKENS": 12,
             }
         ),
         upload_policy=UploadPolicy(
@@ -238,12 +251,12 @@ def test_create_fastapi_app_rejects_cookie_only_auth() -> None:
 
 def test_fastapi_app_generates_request_id_for_validation_errors() -> None:
     """Validation failures should mint and return a request ID when absent."""
+
     app = fastapi_integration.create_fastapi_app(
         env_config=FileTransferEnvConfig.model_validate(
             {
                 "FILE_TRANSFER_ENABLED": True,
                 "FILE_TRANSFER_BUCKET": "bucket-a",
-                "FILE_TRANSFER_THREAD_TOKENS": 12,
             }
         ),
         upload_policy=UploadPolicy(
@@ -273,17 +286,17 @@ def test_create_fastapi_app_wraps_unhandled_errors(
 ) -> None:
     """Unexpected bridge failures should return canonical 500 responses."""
 
-    def _boom(
-        self: fastapi_integration.FileTransferService,
-        payload: fastapi_integration.InitiateUploadRequest,
+    async def _boom(
+        self: AsyncFileTransferService,
+        payload: InitiateUploadRequest,
         *,
         principal: Principal,
-    ) -> fastapi_integration.InitiateUploadResponse:
+    ) -> InitiateUploadResponse:
         del self, payload, principal
         raise RuntimeError("boom")
 
     monkeypatch.setattr(
-        fastapi_integration.FileTransferService,
+        AsyncFileTransferService,
         "initiate_upload",
         _boom,
     )
@@ -292,7 +305,6 @@ def test_create_fastapi_app_wraps_unhandled_errors(
             {
                 "FILE_TRANSFER_ENABLED": True,
                 "FILE_TRANSFER_BUCKET": "bucket-a",
-                "FILE_TRANSFER_THREAD_TOKENS": 12,
             }
         ),
         upload_policy=UploadPolicy(

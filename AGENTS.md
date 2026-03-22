@@ -115,6 +115,9 @@ SDK posture:
   single owner of outer-ASGI request context and shared exception registration.
   `nova_dash_bridge.create_fastapi_router()` stays route-only composition;
   standalone hosts must install the shared runtime stack explicitly.
+- Adapter-surface changes must keep `nova_file_api.public` async-first.
+  FastAPI hosts call that async surface directly; sync wrappers are explicit
+  secondary adapters for true sync hosts such as Flask/Dash only.
 - Downstream consumer docs must not describe `session_id`, `X-Session-Id`, or
   `X-Scope-Id` as valid public auth inputs.
 
@@ -131,6 +134,10 @@ SDK posture:
 - `nova_dash_bridge` is an adapter package. It may forward context and call
   canonical Nova contracts through `nova_file_api.public`, but it must not
   redefine route, auth, or storage authority.
+- `nova_file_api.public` is the canonical in-process transfer contract. Its
+  transfer factory/config surface is plain-data and async-first; do not add
+  public `BaseSettings` synthesis or restore bridge-local sync-over-async
+  threadpool hops for FastAPI.
 - FastAPI applications that need canonical Nova request-id propagation and
   error-envelope behavior must install the shared outer-ASGI request-context
   wrapper and shared exception registration from `nova_runtime_support`.

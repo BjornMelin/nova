@@ -2,7 +2,7 @@
 ADR: 0025
 Title: Runtime monorepo component boundaries and ownership
 Status: Accepted
-Version: 2.3
+Version: 2.4
 Date: 2026-03-22
 Related:
   - "[ADR-0023: Hard-cut v1 canonical route surface](./ADR-0023-hard-cut-v1-canonical-route-surface.md)"
@@ -77,7 +77,9 @@ Choose **Option B**.
 2. `packages/nova_dash_bridge/` may provide framework extraction and glue, but
    it must not redefine Nova API models, endpoint ownership, auth semantics, or
    policy rules. Its canonical in-process dependency surface is
-   `nova_file_api.public`.
+   `nova_file_api.public`, which remains async-first. FastAPI hosts consume
+   that async surface directly; any retained sync wrappers are explicit edge
+   adapters for sync-only hosts.
 3. `packages/nova_runtime_support/` owns shared outer-ASGI request context,
    request-id propagation, and shared FastAPI exception registration. Runtime
    packages may adapt domain errors, but they do not re-implement the
@@ -111,6 +113,9 @@ Choose **Option B**.
 
 - 2026-03-22 (v2.3): Added explicit ownership for shared outer-ASGI transport
   and FastAPI exception registration in `nova_runtime_support`.
+- 2026-03-22 (v2.4): Clarified that `nova_file_api.public` is async-first and
+  that retained sync wrappers in `nova_dash_bridge` are explicit edge adapters
+  rather than a second canonical surface.
 - 2026-03-19 (v2.2): Removed active `nova_auth_api` ownership from the runtime
   boundary contract after the in-process auth cutover landed in `nova_file_api`.
 - 2026-03-10 (v2.1): Consolidated service entrypoints into

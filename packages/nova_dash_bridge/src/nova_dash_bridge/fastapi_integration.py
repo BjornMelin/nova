@@ -1,10 +1,10 @@
 """Optional FastAPI adapter for file transfer endpoints."""
 # mypy: disable-error-code="untyped-decorator"
 
-from contextlib import asynccontextmanager
 from json import JSONDecodeError
-from typing import Annotated, Any, Final, cast
+from typing import Annotated, Any, Final
 
+from anyio import to_thread
 from nova_file_api.public import (
     ABORT_UPLOAD_ROUTE,
     COMPLETE_UPLOAD_ROUTE,
@@ -13,22 +13,6 @@ from nova_file_api.public import (
     SIGN_PARTS_ROUTE,
     TRANSFER_ROUTE_PREFIX,
     UPLOADS_INITIATE_ROUTE,
-    Principal,
-)
-from nova_runtime_support import (
-    CanonicalErrorSpec,
-    RequestContextFastAPI,
-    register_fastapi_exception_handlers,
-)
-from nova_runtime_support.threading import current_default_thread_limiter
-
-from nova_dash_bridge.config import (
-    AuthPolicy,
-    FileTransferEnvConfig,
-    UploadPolicy,
-)
-from nova_dash_bridge.errors import FileTransferError, unauthorized_error
-from nova_dash_bridge.models import (
     AbortUploadRequest,
     AbortUploadResponse,
     CompleteUploadRequest,
@@ -37,14 +21,27 @@ from nova_dash_bridge.models import (
     InitiateUploadResponse,
     PresignDownloadRequest,
     PresignDownloadResponse,
+    Principal,
     SignPartsRequest,
     SignPartsResponse,
     UploadIntrospectionRequest,
     UploadIntrospectionResponse,
 )
+from nova_runtime_support import (
+    CanonicalErrorSpec,
+    RequestContextFastAPI,
+    register_fastapi_exception_handlers,
+)
+
+from nova_dash_bridge.config import (
+    AuthPolicy,
+    FileTransferEnvConfig,
+    UploadPolicy,
+)
+from nova_dash_bridge.errors import FileTransferError, unauthorized_error
 from nova_dash_bridge.s3_client import SupportsCreateS3Client
 from nova_dash_bridge.service import (
-    FileTransferService,
+    AsyncFileTransferService,
     coerce_file_transfer_error,
 )
 
@@ -56,24 +53,15 @@ ABORT_UPLOAD_OPERATION_ID: Final = "abort_upload"
 PRESIGN_DOWNLOAD_OPERATION_ID: Final = "presign_download"
 
 
-def _fastapi_imports() -> tuple[type[Any], type[Any], Any]:
-    """Load FastAPI symbols only when the optional dependency is installed.
-
-    Returns:
-        tuple[type[Any], type[Any], Any]: APIRouter, FastAPI,
-        and run_in_threadpool.
-
-    Raises:
-        RuntimeError: If FastAPI optional dependencies are missing.
-    """
+def _fastapi_imports() -> tuple[type[Any], type[Any]]:
+    """Load FastAPI symbols only when the optional dependency is installed."""
     try:
         from fastapi import APIRouter, FastAPI
-        from starlette.concurrency import run_in_threadpool
     except ModuleNotFoundError as exc:  # pragma: no cover
         raise RuntimeError(
             "FastAPI integration requires optional dependency group `fastapi`"
         ) from exc
-    return (APIRouter, FastAPI, run_in_threadpool)
+    return (APIRouter, FastAPI)
 
 
 def _error_headers(err: FileTransferError) -> dict[str, str]:
@@ -87,12 +75,6 @@ def _error_headers(err: FileTransferError) -> dict[str, str]:
     return headers
 
 
-def _configure_thread_limiter(*, total_tokens: int) -> None:
-    """Configure AnyIO thread tokens before request handling starts."""
-    limiter = current_default_thread_limiter()
-    limiter.total_tokens = total_tokens
-
-
 def create_fastapi_router(
     *,
     env_config: FileTransferEnvConfig,
@@ -100,25 +82,10 @@ def create_fastapi_router(
     auth_policy: AuthPolicy,
     s3_client_factory: SupportsCreateS3Client | None = None,
 ) -> Any:
-    """Create route-only FastAPI composition for file transfer endpoints.
-
-    Args:
-        env_config: Runtime environment configuration.
-        upload_policy: Upload constraints and multipart configuration.
-        auth_policy: Authorization policy.
-        s3_client_factory: Optional S3 client factory override.
-
-    Returns:
-        Any: FastAPI APIRouter containing file transfer routes.
-
-    Notes:
-        This router does not install Nova's canonical request-context or error
-        handling stack. Standalone FastAPI hosts must wrap it with the shared
-        runtime-support transport helpers or use ``create_fastapi_app()``.
-    """
-    apirouter, _, run_in_threadpool = _fastapi_imports()
+    """Create route-only FastAPI composition for file transfer endpoints."""
+    apirouter, _ = _fastapi_imports()
     router = apirouter(prefix=TRANSFER_ROUTE_PREFIX, tags=["transfers"])
-    service = FileTransferService(
+    service = AsyncFileTransferService(
         env_config=env_config,
         upload_policy=upload_policy,
         auth_policy=auth_policy,
@@ -133,7 +100,7 @@ def create_fastapi_router(
         bearerFormat="JWT",
     )
 
-    def _resolve_principal(
+    async def _resolve_principal(
         credentials: Annotated[
             HTTPAuthorizationCredentials | None,
             Security(bearer_auth),
@@ -144,9 +111,10 @@ def create_fastapi_router(
         authorization_header = (
             f"{credentials.scheme} {credentials.credentials.strip()}"
         )
-        return service.resolve_principal(authorization_header)
-
-    PrincipalDep = Annotated[Principal, Depends(_resolve_principal)]
+        return await to_thread.run_sync(
+            service.resolve_principal,
+            authorization_header,
+        )
 
     @router.post(
         UPLOADS_INITIATE_ROUTE,
@@ -155,17 +123,9 @@ def create_fastapi_router(
     )
     async def initiate_upload(
         payload: InitiateUploadRequest,
-        principal: PrincipalDep,
+        principal: Annotated[Principal, Depends(_resolve_principal)],
     ) -> InitiateUploadResponse:
-        """Initiate upload and return single or multipart strategy payload."""
-        return cast(
-            InitiateUploadResponse,
-            await run_in_threadpool(
-                service.initiate_upload,
-                payload,
-                principal=principal,
-            ),
-        )
+        return await service.initiate_upload(payload, principal=principal)
 
     @router.post(
         SIGN_PARTS_ROUTE,
@@ -174,17 +134,9 @@ def create_fastapi_router(
     )
     async def sign_parts(
         payload: SignPartsRequest,
-        principal: PrincipalDep,
+        principal: Annotated[Principal, Depends(_resolve_principal)],
     ) -> SignPartsResponse:
-        """Return presigned multipart part upload URLs."""
-        return cast(
-            SignPartsResponse,
-            await run_in_threadpool(
-                service.sign_parts,
-                payload,
-                principal=principal,
-            ),
-        )
+        return await service.sign_parts(payload, principal=principal)
 
     @router.post(
         INTROSPECT_UPLOAD_ROUTE,
@@ -193,17 +145,9 @@ def create_fastapi_router(
     )
     async def introspect_upload(
         payload: UploadIntrospectionRequest,
-        principal: PrincipalDep,
+        principal: Annotated[Principal, Depends(_resolve_principal)],
     ) -> UploadIntrospectionResponse:
-        """Return uploaded multipart part state for resume flows."""
-        return cast(
-            UploadIntrospectionResponse,
-            await run_in_threadpool(
-                service.introspect_upload,
-                payload,
-                principal=principal,
-            ),
-        )
+        return await service.introspect_upload(payload, principal=principal)
 
     @router.post(
         COMPLETE_UPLOAD_ROUTE,
@@ -212,17 +156,9 @@ def create_fastapi_router(
     )
     async def complete_upload(
         payload: CompleteUploadRequest,
-        principal: PrincipalDep,
+        principal: Annotated[Principal, Depends(_resolve_principal)],
     ) -> CompleteUploadResponse:
-        """Complete multipart upload and return final object metadata."""
-        return cast(
-            CompleteUploadResponse,
-            await run_in_threadpool(
-                service.complete_upload,
-                payload,
-                principal=principal,
-            ),
-        )
+        return await service.complete_upload(payload, principal=principal)
 
     @router.post(
         ABORT_UPLOAD_ROUTE,
@@ -231,17 +167,9 @@ def create_fastapi_router(
     )
     async def abort_upload(
         payload: AbortUploadRequest,
-        principal: PrincipalDep,
+        principal: Annotated[Principal, Depends(_resolve_principal)],
     ) -> AbortUploadResponse:
-        """Abort an active multipart upload."""
-        return cast(
-            AbortUploadResponse,
-            await run_in_threadpool(
-                service.abort_upload,
-                payload,
-                principal=principal,
-            ),
-        )
+        return await service.abort_upload(payload, principal=principal)
 
     @router.post(
         PRESIGN_DOWNLOAD_ROUTE,
@@ -250,17 +178,9 @@ def create_fastapi_router(
     )
     async def presign_download(
         payload: PresignDownloadRequest,
-        principal: PrincipalDep,
+        principal: Annotated[Principal, Depends(_resolve_principal)],
     ) -> PresignDownloadResponse:
-        """Return a presigned download URL for an export object."""
-        return cast(
-            PresignDownloadResponse,
-            await run_in_threadpool(
-                service.presign_download,
-                payload,
-                principal=principal,
-            ),
-        )
+        return await service.presign_download(payload, principal=principal)
 
     return router
 
@@ -272,31 +192,10 @@ def create_fastapi_app(
     auth_policy: AuthPolicy,
     s3_client_factory: SupportsCreateS3Client | None = None,
 ) -> Any:
-    """Create the canonical bridge FastAPI app with shared transport wiring.
-
-    Args:
-        env_config: Runtime environment configuration.
-        upload_policy: Upload constraints and multipart configuration.
-        auth_policy: Authorization policy.
-        s3_client_factory: Optional S3 client factory override.
-
-    Returns:
-        Any: FastAPI application instance with mounted transfer routes.
-    """
+    """Create the canonical bridge FastAPI app with shared transport wiring."""
     _fastapi_imports()
 
-    @asynccontextmanager
-    async def lifespan(_app: Any) -> Any:
-        previous_thread_tokens = int(
-            current_default_thread_limiter().total_tokens
-        )
-        _configure_thread_limiter(total_tokens=env_config.thread_tokens)
-        try:
-            yield
-        finally:
-            _configure_thread_limiter(total_tokens=previous_thread_tokens)
-
-    app = RequestContextFastAPI(lifespan=lifespan)
+    app = RequestContextFastAPI()
     register_fastapi_exception_handlers(
         app,
         domain_error_type=FileTransferError,
