@@ -87,3 +87,6 @@ Release/provisioning doc conventions: **Release operator docs profile** in
   readiness, not a separate documentation model.
 - Repo-local pre-commit hooks now mirror the AGENTS task router, and `ty` is
   now part of the required typing contract enforced by the main quality gates.
+- Required PR/runtime and conformance checks now route through the unified
+  `Nova CI` workflow shell, with `CFN Contract Validate` left separate for
+  infra/docs governance and hosted ruleset reconciliation.

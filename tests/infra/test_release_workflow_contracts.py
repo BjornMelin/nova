@@ -211,7 +211,7 @@ def test_publish_packages_workflow_requires_explicit_release_apply_run_id() -> (
         "release_apply_run_id",
         "required: true",
         "github.ref == 'refs/heads/main'",
-        'version: "0.10.12"',
+        "version-file: pyproject.toml",
     ]:
         assert required in text
 
@@ -292,7 +292,7 @@ def test_post_deploy_validate_workflow_contracts() -> None:
 
     for forbidden in [
         "scripts/release/validate_route_contract.py",
-        "actions/upload-artifact@v4",
+        "actions/upload-artifact@",
     ]:
         assert forbidden not in wrapper_text, (
             f"Wrapper should stay thin and must not include: {forbidden!r}"
@@ -319,7 +319,7 @@ def test_post_deploy_validate_workflow_contracts() -> None:
         "/healthz",
         "/readyz",
         "post-deploy-validation-report.json",
-        "actions/upload-artifact@v4",
+        "actions/upload-artifact@v7",
     ]:
         assert required in reusable_text, (
             f"Missing required reusable contract: {required!r}"
@@ -414,7 +414,7 @@ def test_auth0_tenant_deploy_workflow_contracts() -> None:
         "a0deploy import --input_file",
         "a0deploy export --format yaml",
         "auth0-tenant-ops-report.json",
-        "actions/upload-artifact@v4",
+        "actions/upload-artifact@v7",
     ]:
         assert required in reusable_text, (
             f"Missing required reusable contract: {required!r}"

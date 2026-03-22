@@ -69,7 +69,7 @@ jobs:
       AUTH0_CLIENT_ID: ${{ secrets.auth0_client_id }}
       AUTH0_CLIENT_SECRET: ${{ secrets.auth0_client_secret }}
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # actions/checkout@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # actions/checkout@v6
         with:
           persist-credentials: false
 
@@ -215,7 +215,7 @@ jobs:
           echo "artifact_name=$artifact_name" >> "$GITHUB_OUTPUT"
 
       - if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # actions/upload-artifact@v4
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # actions/upload-artifact@v7
         with:
           name: ${{ steps.set-outputs.outputs.artifact_name }}
           if-no-files-found: ignore

@@ -48,16 +48,16 @@ def test_composite_actions_provide_shared_release_primitives() -> None:
     required_contracts = {
         ".github/actions/setup-python-uv/action.yml": [
             "using: composite",
-            "actions/setup-python@v5",
+            "actions/setup-python@v6",
             "astral-sh/setup-uv@v7",
-            'version: "0.10.12"',
+            "version-file: pyproject.toml",
             "enable-cache: true",
             "prune-cache: true",
             "uv sync",
         ],
         ".github/actions/configure-aws-oidc/action.yml": [
             "using: composite",
-            "aws-actions/configure-aws-credentials@v4",
+            "aws-actions/configure-aws-credentials@v6",
             "role-to-assume",
             "aws-region",
         ],
@@ -192,6 +192,7 @@ def test_cfn_contract_validate_workflow_exists_for_cfn_gates() -> None:
         on_contract = workflow.get(True)
     assert isinstance(on_contract, dict)
     assert "workflow_dispatch" in on_contract
+    assert "merge_group" in on_contract
     assert "paths" not in workflow
     pull_request_on = on_contract.get("pull_request")
     if isinstance(pull_request_on, dict):
@@ -234,17 +235,46 @@ def test_cfn_contract_validate_workflow_exists_for_cfn_gates() -> None:
         assert required in cfn_job_text
 
 
+def test_unified_ci_workflow_exists_for_runtime_and_conformance_gates() -> None:
+    """Phase 2 must keep runtime and conformance checks in one shell."""
+    text = _read(".github/workflows/ci.yml")
+    workflow = yaml.safe_load(text)
+    assert isinstance(workflow, dict)
+    assert workflow.get("name") == "Nova CI"
+
+    on_contract = workflow.get("on")
+    if on_contract is None:
+        on_contract = workflow.get(True)
+    assert isinstance(on_contract, dict)
+    assert "pull_request" in on_contract
+    assert "merge_group" in on_contract
+    assert "push" in on_contract
+
+    jobs = workflow.get("jobs")
+    assert isinstance(jobs, dict)
+    for required in [
+        "classify-changes",
+        "quality-gates",
+        "generated-clients",
+        "typescript-core-packages",
+        "typescript-sdk-smoke",
+        "dash-conformance",
+        "shiny-conformance",
+        "typescript-conformance",
+    ]:
+        assert required in jobs
+    assert "runtime-security-reliability-gates" not in jobs
+
+
 def test_required_ci_workflows_use_scope_classifier_gate() -> None:
     """Required workflows must always trigger and gate heavy jobs by scope."""
     required_workflows: dict[str, _RequiredWorkflowExpectation] = {
         ".github/workflows/ci.yml": {
             "gated_jobs": {
-                "runtime-security-reliability-gates": "run_runtime_ci",
                 "quality-gates": "run_runtime_ci",
-            },
-        },
-        ".github/workflows/conformance-clients.yml": {
-            "gated_jobs": {
+                "generated-clients": "run_generated_clients",
+                "typescript-core-packages": "run_typescript_conformance",
+                "typescript-sdk-smoke": "run_typescript_conformance",
                 "dash-conformance": "run_dash_conformance",
                 "shiny-conformance": "run_shiny_conformance",
                 "typescript-conformance": "run_typescript_conformance",
@@ -308,7 +338,7 @@ def test_required_ci_workflows_use_scope_classifier_gate() -> None:
 
 def test_sdk_conformance_shared_r_check_helper_is_used() -> None:
     """SDK conformance lanes must share the warning-fail R helper."""
-    workflow_text = _read(".github/workflows/conformance-clients.yml")
+    workflow_text = _read(".github/workflows/ci.yml")
     script_text = _read("scripts/checks/run_sdk_conformance.sh")
     helper_text = _read("scripts/checks/verify_r_cmd_check.sh")
 
@@ -328,13 +358,20 @@ def test_reusable_deploy_dev_checks_out_workflow_source_for_local_actions() -> (
         "WORKFLOW_SOURCE_REPOSITORY",
         "WORKFLOW_SOURCE_SHA",
         "github.workflow_sha",
-        "actions/checkout@v4",
+        "actions/checkout@v6",
         "repository: ${{ env.WORKFLOW_SOURCE_REPOSITORY }}",
         "ref: ${{ env.WORKFLOW_SOURCE_SHA }}",
         "uses: ./.github/actions/configure-aws-oidc",
         "uses: ./.github/actions/codepipeline-start",
     ]:
         assert required in text
+
+
+def test_standalone_conformance_clients_workflow_is_removed() -> None:
+    """Phase 2 must unify PR/runtime and conformance under ci.yml."""
+    assert not (
+        REPO_ROOT / ".github/workflows/conformance-clients.yml"
+    ).exists()
 
 
 def test_canonical_runtime_deploy_script_enforces_final_posture() -> None:

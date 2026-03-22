@@ -40,7 +40,7 @@ GENERATED_CLIENTS_EXACT = {
     "package.json",
     "package-lock.json",
     ".npmrc",
-    ".github/workflows/conformance-clients.yml",
+    ".github/workflows/ci.yml",
 } | CONFORMANCE_GENERATOR_EXACT
 DASH_CONFORMANCE_PREFIXES = (
     "packages/nova_dash_bridge/",
@@ -49,7 +49,7 @@ DASH_CONFORMANCE_PREFIXES = (
     "scripts/release/tests/",
 )
 DASH_CONFORMANCE_EXACT = {
-    ".github/workflows/conformance-clients.yml",
+    ".github/workflows/ci.yml",
 } | CONFORMANCE_GENERATOR_EXACT
 SHINY_CONFORMANCE_PREFIXES = (
     "packages/nova_sdk_r_file/",
@@ -58,7 +58,7 @@ SHINY_CONFORMANCE_PREFIXES = (
     "scripts/release/tests/",
 )
 SHINY_CONFORMANCE_EXACT = {
-    ".github/workflows/conformance-clients.yml",
+    ".github/workflows/ci.yml",
 } | CONFORMANCE_GENERATOR_EXACT
 TYPESCRIPT_CONFORMANCE_PREFIXES = (
     "packages/contracts/fixtures/",
@@ -72,7 +72,7 @@ TYPESCRIPT_CONFORMANCE_EXACT = {
     "package.json",
     "package-lock.json",
     ".npmrc",
-    ".github/workflows/conformance-clients.yml",
+    ".github/workflows/ci.yml",
 } | CONFORMANCE_GENERATOR_EXACT
 CFN_PREFIXES = (
     "scripts/ci/",
