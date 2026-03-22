@@ -18,7 +18,8 @@ uv lock --check
 uv run ruff check .
 uv run ruff check . --select I
 uv run ruff format . --check
-uv run ty check --force-exclude --error-on-warning --output-format concise packages scripts
+uv run ty check --force-exclude --error-on-warning --output-format concise \
+  "${ROOT}/packages" "${ROOT}/scripts"
 uv run mypy
 uv run pytest -q \
   packages/nova_file_api/tests/test_runtime_security_reliability_gates.py \

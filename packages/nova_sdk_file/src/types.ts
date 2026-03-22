@@ -36,17 +36,20 @@ type RequestBodyForContentType<T, TContentType extends string> = T extends { req
   : never;
 type ResponsesOf<T> = T extends { responses: infer TResponses } ? TResponses : EmptyObject;
 type StatusCodeOf<TResponses> = Extract<keyof TResponses, number>;
+type SuccessStatusCodeOf<TResponses> = Extract<StatusCodeOf<TResponses>, SuccessStatus>;
+type ErrorStatusCodeOf<TResponses> = Exclude<StatusCodeOf<TResponses>, SuccessStatus>;
 type ResponseBodyOf<TEntry> = TEntry extends { content: infer TContent }
   ? JsonContentOf<TContent>
   : null;
-type ResultForResponses<TResponses> = {
-  [TStatus in StatusCodeOf<TResponses>]: {
-    readonly status: TStatus;
-    readonly ok: TStatus extends SuccessStatus ? true : false;
-    readonly headers: Headers;
-    readonly data: ResponseBodyOf<TResponses[TStatus]>;
-  };
-}[StatusCodeOf<TResponses>];
+type DefaultResponseDataOf<TResponses> = "default" extends keyof TResponses
+  ? ResponseBodyOf<TResponses["default"]>
+  : never;
+type ResponseDataOf<TResponses, TStatusCodes extends number> = TStatusCodes extends StatusCodeOf<TResponses>
+  ? ResponseBodyOf<TResponses[TStatusCodes]>
+  : never;
+type ErrorDataOf<TResponses> =
+  | ResponseDataOf<TResponses, ErrorStatusCodeOf<TResponses>>
+  | DefaultResponseDataOf<TResponses>;
 
 /** Named aliases for generated OpenAPI component schemas. */
 /** OpenAPI component schema `AbortUploadRequest`. */
@@ -133,18 +136,13 @@ export type MetricsSummaryRequestContentType = RequestContentTypesOf<MetricsSumm
 export type MetricsSummaryRequestBody = RequestBodyOf<MetricsSummarySpec>;
 export type MetricsSummaryRequestBodyForContentType<TContentType extends MetricsSummaryRequestContentType> = RequestBodyForContentType<MetricsSummarySpec, TContentType>;
 export type MetricsSummaryResponses = ResponsesOf<MetricsSummarySpec>;
-export type MetricsSummaryResult = ResultForResponses<MetricsSummaryResponses>;
-export type MetricsSummaryResponseData = MetricsSummaryResult["data"];
-export type MetricsSummarySuccessResult = Extract<MetricsSummaryResult, { ok: true }>;
-export type MetricsSummaryErrorResult = Extract<MetricsSummaryResult, { ok: false }>;
-export type MetricsSummarySuccessData = MetricsSummarySuccessResult["data"];
-export type MetricsSummaryErrorData = MetricsSummaryErrorResult["data"];
+/** Union of success response payloads for `metrics_summary`. */
+export type MetricsSummarySuccessData = ResponseDataOf<MetricsSummaryResponses, SuccessStatusCodeOf<MetricsSummaryResponses>>;
+/** Union of non-success response payloads for `metrics_summary`. */
+export type MetricsSummaryErrorData = ErrorDataOf<MetricsSummaryResponses>;
 export type MetricsSummaryResponse200 = ResponseBodyOf<MetricsSummaryResponses[200]>;
 export type MetricsSummaryResponse401 = ResponseBodyOf<MetricsSummaryResponses[401]>;
 export type MetricsSummaryResponse403 = ResponseBodyOf<MetricsSummaryResponses[403]>;
-export interface MetricsSummaryRequestOptions {
-  readonly signal?: AbortSignal;
-}
 
 type GetCapabilitiesSpec = OperationOf<"get_capabilities">;
 export type GetCapabilitiesOperation = GetCapabilitiesSpec;
@@ -155,16 +153,11 @@ export type GetCapabilitiesRequestContentType = RequestContentTypesOf<GetCapabil
 export type GetCapabilitiesRequestBody = RequestBodyOf<GetCapabilitiesSpec>;
 export type GetCapabilitiesRequestBodyForContentType<TContentType extends GetCapabilitiesRequestContentType> = RequestBodyForContentType<GetCapabilitiesSpec, TContentType>;
 export type GetCapabilitiesResponses = ResponsesOf<GetCapabilitiesSpec>;
-export type GetCapabilitiesResult = ResultForResponses<GetCapabilitiesResponses>;
-export type GetCapabilitiesResponseData = GetCapabilitiesResult["data"];
-export type GetCapabilitiesSuccessResult = Extract<GetCapabilitiesResult, { ok: true }>;
-export type GetCapabilitiesErrorResult = Extract<GetCapabilitiesResult, { ok: false }>;
-export type GetCapabilitiesSuccessData = GetCapabilitiesSuccessResult["data"];
-export type GetCapabilitiesErrorData = GetCapabilitiesErrorResult["data"];
+/** Union of success response payloads for `get_capabilities`. */
+export type GetCapabilitiesSuccessData = ResponseDataOf<GetCapabilitiesResponses, SuccessStatusCodeOf<GetCapabilitiesResponses>>;
+/** Union of non-success response payloads for `get_capabilities`. */
+export type GetCapabilitiesErrorData = ErrorDataOf<GetCapabilitiesResponses>;
 export type GetCapabilitiesResponse200 = ResponseBodyOf<GetCapabilitiesResponses[200]>;
-export interface GetCapabilitiesRequestOptions {
-  readonly signal?: AbortSignal;
-}
 
 type HealthLiveSpec = OperationOf<"health_live">;
 export type HealthLiveOperation = HealthLiveSpec;
@@ -175,16 +168,11 @@ export type HealthLiveRequestContentType = RequestContentTypesOf<HealthLiveSpec>
 export type HealthLiveRequestBody = RequestBodyOf<HealthLiveSpec>;
 export type HealthLiveRequestBodyForContentType<TContentType extends HealthLiveRequestContentType> = RequestBodyForContentType<HealthLiveSpec, TContentType>;
 export type HealthLiveResponses = ResponsesOf<HealthLiveSpec>;
-export type HealthLiveResult = ResultForResponses<HealthLiveResponses>;
-export type HealthLiveResponseData = HealthLiveResult["data"];
-export type HealthLiveSuccessResult = Extract<HealthLiveResult, { ok: true }>;
-export type HealthLiveErrorResult = Extract<HealthLiveResult, { ok: false }>;
-export type HealthLiveSuccessData = HealthLiveSuccessResult["data"];
-export type HealthLiveErrorData = HealthLiveErrorResult["data"];
+/** Union of success response payloads for `health_live`. */
+export type HealthLiveSuccessData = ResponseDataOf<HealthLiveResponses, SuccessStatusCodeOf<HealthLiveResponses>>;
+/** Union of non-success response payloads for `health_live`. */
+export type HealthLiveErrorData = ErrorDataOf<HealthLiveResponses>;
 export type HealthLiveResponse200 = ResponseBodyOf<HealthLiveResponses[200]>;
-export interface HealthLiveRequestOptions {
-  readonly signal?: AbortSignal;
-}
 
 type HealthReadySpec = OperationOf<"health_ready">;
 export type HealthReadyOperation = HealthReadySpec;
@@ -195,17 +183,12 @@ export type HealthReadyRequestContentType = RequestContentTypesOf<HealthReadySpe
 export type HealthReadyRequestBody = RequestBodyOf<HealthReadySpec>;
 export type HealthReadyRequestBodyForContentType<TContentType extends HealthReadyRequestContentType> = RequestBodyForContentType<HealthReadySpec, TContentType>;
 export type HealthReadyResponses = ResponsesOf<HealthReadySpec>;
-export type HealthReadyResult = ResultForResponses<HealthReadyResponses>;
-export type HealthReadyResponseData = HealthReadyResult["data"];
-export type HealthReadySuccessResult = Extract<HealthReadyResult, { ok: true }>;
-export type HealthReadyErrorResult = Extract<HealthReadyResult, { ok: false }>;
-export type HealthReadySuccessData = HealthReadySuccessResult["data"];
-export type HealthReadyErrorData = HealthReadyErrorResult["data"];
+/** Union of success response payloads for `health_ready`. */
+export type HealthReadySuccessData = ResponseDataOf<HealthReadyResponses, SuccessStatusCodeOf<HealthReadyResponses>>;
+/** Union of non-success response payloads for `health_ready`. */
+export type HealthReadyErrorData = ErrorDataOf<HealthReadyResponses>;
 export type HealthReadyResponse200 = ResponseBodyOf<HealthReadyResponses[200]>;
 export type HealthReadyResponse503 = ResponseBodyOf<HealthReadyResponses[503]>;
-export interface HealthReadyRequestOptions {
-  readonly signal?: AbortSignal;
-}
 
 type ListJobsSpec = OperationOf<"list_jobs">;
 export type ListJobsOperation = ListJobsSpec;
@@ -216,20 +199,14 @@ export type ListJobsRequestContentType = RequestContentTypesOf<ListJobsSpec>;
 export type ListJobsRequestBody = RequestBodyOf<ListJobsSpec>;
 export type ListJobsRequestBodyForContentType<TContentType extends ListJobsRequestContentType> = RequestBodyForContentType<ListJobsSpec, TContentType>;
 export type ListJobsResponses = ResponsesOf<ListJobsSpec>;
-export type ListJobsResult = ResultForResponses<ListJobsResponses>;
-export type ListJobsResponseData = ListJobsResult["data"];
-export type ListJobsSuccessResult = Extract<ListJobsResult, { ok: true }>;
-export type ListJobsErrorResult = Extract<ListJobsResult, { ok: false }>;
-export type ListJobsSuccessData = ListJobsSuccessResult["data"];
-export type ListJobsErrorData = ListJobsErrorResult["data"];
+/** Union of success response payloads for `list_jobs`. */
+export type ListJobsSuccessData = ResponseDataOf<ListJobsResponses, SuccessStatusCodeOf<ListJobsResponses>>;
+/** Union of non-success response payloads for `list_jobs`. */
+export type ListJobsErrorData = ErrorDataOf<ListJobsResponses>;
 export type ListJobsResponse200 = ResponseBodyOf<ListJobsResponses[200]>;
 export type ListJobsResponse401 = ResponseBodyOf<ListJobsResponses[401]>;
 export type ListJobsResponse403 = ResponseBodyOf<ListJobsResponses[403]>;
 export type ListJobsResponse422 = ResponseBodyOf<ListJobsResponses[422]>;
-export interface ListJobsRequestOptions {
-  readonly query?: ListJobsQueryParams;
-  readonly signal?: AbortSignal;
-}
 
 type CreateJobSpec = OperationOf<"create_job">;
 export type CreateJobOperation = CreateJobSpec;
@@ -240,23 +217,16 @@ export type CreateJobRequestContentType = RequestContentTypesOf<CreateJobSpec>;
 export type CreateJobRequestBody = RequestBodyOf<CreateJobSpec>;
 export type CreateJobRequestBodyForContentType<TContentType extends CreateJobRequestContentType> = RequestBodyForContentType<CreateJobSpec, TContentType>;
 export type CreateJobResponses = ResponsesOf<CreateJobSpec>;
-export type CreateJobResult = ResultForResponses<CreateJobResponses>;
-export type CreateJobResponseData = CreateJobResult["data"];
-export type CreateJobSuccessResult = Extract<CreateJobResult, { ok: true }>;
-export type CreateJobErrorResult = Extract<CreateJobResult, { ok: false }>;
-export type CreateJobSuccessData = CreateJobSuccessResult["data"];
-export type CreateJobErrorData = CreateJobErrorResult["data"];
+/** Union of success response payloads for `create_job`. */
+export type CreateJobSuccessData = ResponseDataOf<CreateJobResponses, SuccessStatusCodeOf<CreateJobResponses>>;
+/** Union of non-success response payloads for `create_job`. */
+export type CreateJobErrorData = ErrorDataOf<CreateJobResponses>;
 export type CreateJobResponse200 = ResponseBodyOf<CreateJobResponses[200]>;
 export type CreateJobResponse401 = ResponseBodyOf<CreateJobResponses[401]>;
 export type CreateJobResponse403 = ResponseBodyOf<CreateJobResponses[403]>;
 export type CreateJobResponse409 = ResponseBodyOf<CreateJobResponses[409]>;
 export type CreateJobResponse422 = ResponseBodyOf<CreateJobResponses[422]>;
 export type CreateJobResponse503 = ResponseBodyOf<CreateJobResponses[503]>;
-export interface CreateJobRequestOptions {
-  readonly headers?: CreateJobHeaders;
-  readonly signal?: AbortSignal;
-  readonly body: CreateJobRequestBody;
-}
 
 type GetJobStatusSpec = OperationOf<"get_job_status">;
 export type GetJobStatusOperation = GetJobStatusSpec;
@@ -267,20 +237,14 @@ export type GetJobStatusRequestContentType = RequestContentTypesOf<GetJobStatusS
 export type GetJobStatusRequestBody = RequestBodyOf<GetJobStatusSpec>;
 export type GetJobStatusRequestBodyForContentType<TContentType extends GetJobStatusRequestContentType> = RequestBodyForContentType<GetJobStatusSpec, TContentType>;
 export type GetJobStatusResponses = ResponsesOf<GetJobStatusSpec>;
-export type GetJobStatusResult = ResultForResponses<GetJobStatusResponses>;
-export type GetJobStatusResponseData = GetJobStatusResult["data"];
-export type GetJobStatusSuccessResult = Extract<GetJobStatusResult, { ok: true }>;
-export type GetJobStatusErrorResult = Extract<GetJobStatusResult, { ok: false }>;
-export type GetJobStatusSuccessData = GetJobStatusSuccessResult["data"];
-export type GetJobStatusErrorData = GetJobStatusErrorResult["data"];
+/** Union of success response payloads for `get_job_status`. */
+export type GetJobStatusSuccessData = ResponseDataOf<GetJobStatusResponses, SuccessStatusCodeOf<GetJobStatusResponses>>;
+/** Union of non-success response payloads for `get_job_status`. */
+export type GetJobStatusErrorData = ErrorDataOf<GetJobStatusResponses>;
 export type GetJobStatusResponse200 = ResponseBodyOf<GetJobStatusResponses[200]>;
 export type GetJobStatusResponse401 = ResponseBodyOf<GetJobStatusResponses[401]>;
 export type GetJobStatusResponse403 = ResponseBodyOf<GetJobStatusResponses[403]>;
 export type GetJobStatusResponse422 = ResponseBodyOf<GetJobStatusResponses[422]>;
-export interface GetJobStatusRequestOptions {
-  readonly pathParams: GetJobStatusPathParams;
-  readonly signal?: AbortSignal;
-}
 
 type CancelJobSpec = OperationOf<"cancel_job">;
 export type CancelJobOperation = CancelJobSpec;
@@ -291,20 +255,14 @@ export type CancelJobRequestContentType = RequestContentTypesOf<CancelJobSpec>;
 export type CancelJobRequestBody = RequestBodyOf<CancelJobSpec>;
 export type CancelJobRequestBodyForContentType<TContentType extends CancelJobRequestContentType> = RequestBodyForContentType<CancelJobSpec, TContentType>;
 export type CancelJobResponses = ResponsesOf<CancelJobSpec>;
-export type CancelJobResult = ResultForResponses<CancelJobResponses>;
-export type CancelJobResponseData = CancelJobResult["data"];
-export type CancelJobSuccessResult = Extract<CancelJobResult, { ok: true }>;
-export type CancelJobErrorResult = Extract<CancelJobResult, { ok: false }>;
-export type CancelJobSuccessData = CancelJobSuccessResult["data"];
-export type CancelJobErrorData = CancelJobErrorResult["data"];
+/** Union of success response payloads for `cancel_job`. */
+export type CancelJobSuccessData = ResponseDataOf<CancelJobResponses, SuccessStatusCodeOf<CancelJobResponses>>;
+/** Union of non-success response payloads for `cancel_job`. */
+export type CancelJobErrorData = ErrorDataOf<CancelJobResponses>;
 export type CancelJobResponse200 = ResponseBodyOf<CancelJobResponses[200]>;
 export type CancelJobResponse401 = ResponseBodyOf<CancelJobResponses[401]>;
 export type CancelJobResponse403 = ResponseBodyOf<CancelJobResponses[403]>;
 export type CancelJobResponse422 = ResponseBodyOf<CancelJobResponses[422]>;
-export interface CancelJobRequestOptions {
-  readonly pathParams: CancelJobPathParams;
-  readonly signal?: AbortSignal;
-}
 
 type ListJobEventsSpec = OperationOf<"list_job_events">;
 export type ListJobEventsOperation = ListJobEventsSpec;
@@ -315,20 +273,14 @@ export type ListJobEventsRequestContentType = RequestContentTypesOf<ListJobEvent
 export type ListJobEventsRequestBody = RequestBodyOf<ListJobEventsSpec>;
 export type ListJobEventsRequestBodyForContentType<TContentType extends ListJobEventsRequestContentType> = RequestBodyForContentType<ListJobEventsSpec, TContentType>;
 export type ListJobEventsResponses = ResponsesOf<ListJobEventsSpec>;
-export type ListJobEventsResult = ResultForResponses<ListJobEventsResponses>;
-export type ListJobEventsResponseData = ListJobEventsResult["data"];
-export type ListJobEventsSuccessResult = Extract<ListJobEventsResult, { ok: true }>;
-export type ListJobEventsErrorResult = Extract<ListJobEventsResult, { ok: false }>;
-export type ListJobEventsSuccessData = ListJobEventsSuccessResult["data"];
-export type ListJobEventsErrorData = ListJobEventsErrorResult["data"];
+/** Union of success response payloads for `list_job_events`. */
+export type ListJobEventsSuccessData = ResponseDataOf<ListJobEventsResponses, SuccessStatusCodeOf<ListJobEventsResponses>>;
+/** Union of non-success response payloads for `list_job_events`. */
+export type ListJobEventsErrorData = ErrorDataOf<ListJobEventsResponses>;
 export type ListJobEventsResponse200 = ResponseBodyOf<ListJobEventsResponses[200]>;
 export type ListJobEventsResponse401 = ResponseBodyOf<ListJobEventsResponses[401]>;
 export type ListJobEventsResponse403 = ResponseBodyOf<ListJobEventsResponses[403]>;
 export type ListJobEventsResponse422 = ResponseBodyOf<ListJobEventsResponses[422]>;
-export interface ListJobEventsRequestOptions {
-  readonly pathParams: ListJobEventsPathParams;
-  readonly signal?: AbortSignal;
-}
 
 type RetryJobSpec = OperationOf<"retry_job">;
 export type RetryJobOperation = RetryJobSpec;
@@ -339,20 +291,14 @@ export type RetryJobRequestContentType = RequestContentTypesOf<RetryJobSpec>;
 export type RetryJobRequestBody = RequestBodyOf<RetryJobSpec>;
 export type RetryJobRequestBodyForContentType<TContentType extends RetryJobRequestContentType> = RequestBodyForContentType<RetryJobSpec, TContentType>;
 export type RetryJobResponses = ResponsesOf<RetryJobSpec>;
-export type RetryJobResult = ResultForResponses<RetryJobResponses>;
-export type RetryJobResponseData = RetryJobResult["data"];
-export type RetryJobSuccessResult = Extract<RetryJobResult, { ok: true }>;
-export type RetryJobErrorResult = Extract<RetryJobResult, { ok: false }>;
-export type RetryJobSuccessData = RetryJobSuccessResult["data"];
-export type RetryJobErrorData = RetryJobErrorResult["data"];
+/** Union of success response payloads for `retry_job`. */
+export type RetryJobSuccessData = ResponseDataOf<RetryJobResponses, SuccessStatusCodeOf<RetryJobResponses>>;
+/** Union of non-success response payloads for `retry_job`. */
+export type RetryJobErrorData = ErrorDataOf<RetryJobResponses>;
 export type RetryJobResponse200 = ResponseBodyOf<RetryJobResponses[200]>;
 export type RetryJobResponse401 = ResponseBodyOf<RetryJobResponses[401]>;
 export type RetryJobResponse403 = ResponseBodyOf<RetryJobResponses[403]>;
 export type RetryJobResponse422 = ResponseBodyOf<RetryJobResponses[422]>;
-export interface RetryJobRequestOptions {
-  readonly pathParams: RetryJobPathParams;
-  readonly signal?: AbortSignal;
-}
 
 type GetReleaseInfoSpec = OperationOf<"get_release_info">;
 export type GetReleaseInfoOperation = GetReleaseInfoSpec;
@@ -363,16 +309,11 @@ export type GetReleaseInfoRequestContentType = RequestContentTypesOf<GetReleaseI
 export type GetReleaseInfoRequestBody = RequestBodyOf<GetReleaseInfoSpec>;
 export type GetReleaseInfoRequestBodyForContentType<TContentType extends GetReleaseInfoRequestContentType> = RequestBodyForContentType<GetReleaseInfoSpec, TContentType>;
 export type GetReleaseInfoResponses = ResponsesOf<GetReleaseInfoSpec>;
-export type GetReleaseInfoResult = ResultForResponses<GetReleaseInfoResponses>;
-export type GetReleaseInfoResponseData = GetReleaseInfoResult["data"];
-export type GetReleaseInfoSuccessResult = Extract<GetReleaseInfoResult, { ok: true }>;
-export type GetReleaseInfoErrorResult = Extract<GetReleaseInfoResult, { ok: false }>;
-export type GetReleaseInfoSuccessData = GetReleaseInfoSuccessResult["data"];
-export type GetReleaseInfoErrorData = GetReleaseInfoErrorResult["data"];
+/** Union of success response payloads for `get_release_info`. */
+export type GetReleaseInfoSuccessData = ResponseDataOf<GetReleaseInfoResponses, SuccessStatusCodeOf<GetReleaseInfoResponses>>;
+/** Union of non-success response payloads for `get_release_info`. */
+export type GetReleaseInfoErrorData = ErrorDataOf<GetReleaseInfoResponses>;
 export type GetReleaseInfoResponse200 = ResponseBodyOf<GetReleaseInfoResponses[200]>;
-export interface GetReleaseInfoRequestOptions {
-  readonly signal?: AbortSignal;
-}
 
 type PlanResourcesSpec = OperationOf<"plan_resources">;
 export type PlanResourcesOperation = PlanResourcesSpec;
@@ -383,18 +324,12 @@ export type PlanResourcesRequestContentType = RequestContentTypesOf<PlanResource
 export type PlanResourcesRequestBody = RequestBodyOf<PlanResourcesSpec>;
 export type PlanResourcesRequestBodyForContentType<TContentType extends PlanResourcesRequestContentType> = RequestBodyForContentType<PlanResourcesSpec, TContentType>;
 export type PlanResourcesResponses = ResponsesOf<PlanResourcesSpec>;
-export type PlanResourcesResult = ResultForResponses<PlanResourcesResponses>;
-export type PlanResourcesResponseData = PlanResourcesResult["data"];
-export type PlanResourcesSuccessResult = Extract<PlanResourcesResult, { ok: true }>;
-export type PlanResourcesErrorResult = Extract<PlanResourcesResult, { ok: false }>;
-export type PlanResourcesSuccessData = PlanResourcesSuccessResult["data"];
-export type PlanResourcesErrorData = PlanResourcesErrorResult["data"];
+/** Union of success response payloads for `plan_resources`. */
+export type PlanResourcesSuccessData = ResponseDataOf<PlanResourcesResponses, SuccessStatusCodeOf<PlanResourcesResponses>>;
+/** Union of non-success response payloads for `plan_resources`. */
+export type PlanResourcesErrorData = ErrorDataOf<PlanResourcesResponses>;
 export type PlanResourcesResponse200 = ResponseBodyOf<PlanResourcesResponses[200]>;
 export type PlanResourcesResponse422 = ResponseBodyOf<PlanResourcesResponses[422]>;
-export interface PlanResourcesRequestOptions {
-  readonly signal?: AbortSignal;
-  readonly body: PlanResourcesRequestBody;
-}
 
 type PresignDownloadSpec = OperationOf<"presign_download">;
 export type PresignDownloadOperation = PresignDownloadSpec;
@@ -405,20 +340,14 @@ export type PresignDownloadRequestContentType = RequestContentTypesOf<PresignDow
 export type PresignDownloadRequestBody = RequestBodyOf<PresignDownloadSpec>;
 export type PresignDownloadRequestBodyForContentType<TContentType extends PresignDownloadRequestContentType> = RequestBodyForContentType<PresignDownloadSpec, TContentType>;
 export type PresignDownloadResponses = ResponsesOf<PresignDownloadSpec>;
-export type PresignDownloadResult = ResultForResponses<PresignDownloadResponses>;
-export type PresignDownloadResponseData = PresignDownloadResult["data"];
-export type PresignDownloadSuccessResult = Extract<PresignDownloadResult, { ok: true }>;
-export type PresignDownloadErrorResult = Extract<PresignDownloadResult, { ok: false }>;
-export type PresignDownloadSuccessData = PresignDownloadSuccessResult["data"];
-export type PresignDownloadErrorData = PresignDownloadErrorResult["data"];
+/** Union of success response payloads for `presign_download`. */
+export type PresignDownloadSuccessData = ResponseDataOf<PresignDownloadResponses, SuccessStatusCodeOf<PresignDownloadResponses>>;
+/** Union of non-success response payloads for `presign_download`. */
+export type PresignDownloadErrorData = ErrorDataOf<PresignDownloadResponses>;
 export type PresignDownloadResponse200 = ResponseBodyOf<PresignDownloadResponses[200]>;
 export type PresignDownloadResponse401 = ResponseBodyOf<PresignDownloadResponses[401]>;
 export type PresignDownloadResponse403 = ResponseBodyOf<PresignDownloadResponses[403]>;
 export type PresignDownloadResponse422 = ResponseBodyOf<PresignDownloadResponses[422]>;
-export interface PresignDownloadRequestOptions {
-  readonly signal?: AbortSignal;
-  readonly body: PresignDownloadRequestBody;
-}
 
 type AbortUploadSpec = OperationOf<"abort_upload">;
 export type AbortUploadOperation = AbortUploadSpec;
@@ -429,20 +358,14 @@ export type AbortUploadRequestContentType = RequestContentTypesOf<AbortUploadSpe
 export type AbortUploadRequestBody = RequestBodyOf<AbortUploadSpec>;
 export type AbortUploadRequestBodyForContentType<TContentType extends AbortUploadRequestContentType> = RequestBodyForContentType<AbortUploadSpec, TContentType>;
 export type AbortUploadResponses = ResponsesOf<AbortUploadSpec>;
-export type AbortUploadResult = ResultForResponses<AbortUploadResponses>;
-export type AbortUploadResponseData = AbortUploadResult["data"];
-export type AbortUploadSuccessResult = Extract<AbortUploadResult, { ok: true }>;
-export type AbortUploadErrorResult = Extract<AbortUploadResult, { ok: false }>;
-export type AbortUploadSuccessData = AbortUploadSuccessResult["data"];
-export type AbortUploadErrorData = AbortUploadErrorResult["data"];
+/** Union of success response payloads for `abort_upload`. */
+export type AbortUploadSuccessData = ResponseDataOf<AbortUploadResponses, SuccessStatusCodeOf<AbortUploadResponses>>;
+/** Union of non-success response payloads for `abort_upload`. */
+export type AbortUploadErrorData = ErrorDataOf<AbortUploadResponses>;
 export type AbortUploadResponse200 = ResponseBodyOf<AbortUploadResponses[200]>;
 export type AbortUploadResponse401 = ResponseBodyOf<AbortUploadResponses[401]>;
 export type AbortUploadResponse403 = ResponseBodyOf<AbortUploadResponses[403]>;
 export type AbortUploadResponse422 = ResponseBodyOf<AbortUploadResponses[422]>;
-export interface AbortUploadRequestOptions {
-  readonly signal?: AbortSignal;
-  readonly body: AbortUploadRequestBody;
-}
 
 type CompleteUploadSpec = OperationOf<"complete_upload">;
 export type CompleteUploadOperation = CompleteUploadSpec;
@@ -453,20 +376,14 @@ export type CompleteUploadRequestContentType = RequestContentTypesOf<CompleteUpl
 export type CompleteUploadRequestBody = RequestBodyOf<CompleteUploadSpec>;
 export type CompleteUploadRequestBodyForContentType<TContentType extends CompleteUploadRequestContentType> = RequestBodyForContentType<CompleteUploadSpec, TContentType>;
 export type CompleteUploadResponses = ResponsesOf<CompleteUploadSpec>;
-export type CompleteUploadResult = ResultForResponses<CompleteUploadResponses>;
-export type CompleteUploadResponseData = CompleteUploadResult["data"];
-export type CompleteUploadSuccessResult = Extract<CompleteUploadResult, { ok: true }>;
-export type CompleteUploadErrorResult = Extract<CompleteUploadResult, { ok: false }>;
-export type CompleteUploadSuccessData = CompleteUploadSuccessResult["data"];
-export type CompleteUploadErrorData = CompleteUploadErrorResult["data"];
+/** Union of success response payloads for `complete_upload`. */
+export type CompleteUploadSuccessData = ResponseDataOf<CompleteUploadResponses, SuccessStatusCodeOf<CompleteUploadResponses>>;
+/** Union of non-success response payloads for `complete_upload`. */
+export type CompleteUploadErrorData = ErrorDataOf<CompleteUploadResponses>;
 export type CompleteUploadResponse200 = ResponseBodyOf<CompleteUploadResponses[200]>;
 export type CompleteUploadResponse401 = ResponseBodyOf<CompleteUploadResponses[401]>;
 export type CompleteUploadResponse403 = ResponseBodyOf<CompleteUploadResponses[403]>;
 export type CompleteUploadResponse422 = ResponseBodyOf<CompleteUploadResponses[422]>;
-export interface CompleteUploadRequestOptions {
-  readonly signal?: AbortSignal;
-  readonly body: CompleteUploadRequestBody;
-}
 
 type InitiateUploadSpec = OperationOf<"initiate_upload">;
 export type InitiateUploadOperation = InitiateUploadSpec;
@@ -477,23 +394,16 @@ export type InitiateUploadRequestContentType = RequestContentTypesOf<InitiateUpl
 export type InitiateUploadRequestBody = RequestBodyOf<InitiateUploadSpec>;
 export type InitiateUploadRequestBodyForContentType<TContentType extends InitiateUploadRequestContentType> = RequestBodyForContentType<InitiateUploadSpec, TContentType>;
 export type InitiateUploadResponses = ResponsesOf<InitiateUploadSpec>;
-export type InitiateUploadResult = ResultForResponses<InitiateUploadResponses>;
-export type InitiateUploadResponseData = InitiateUploadResult["data"];
-export type InitiateUploadSuccessResult = Extract<InitiateUploadResult, { ok: true }>;
-export type InitiateUploadErrorResult = Extract<InitiateUploadResult, { ok: false }>;
-export type InitiateUploadSuccessData = InitiateUploadSuccessResult["data"];
-export type InitiateUploadErrorData = InitiateUploadErrorResult["data"];
+/** Union of success response payloads for `initiate_upload`. */
+export type InitiateUploadSuccessData = ResponseDataOf<InitiateUploadResponses, SuccessStatusCodeOf<InitiateUploadResponses>>;
+/** Union of non-success response payloads for `initiate_upload`. */
+export type InitiateUploadErrorData = ErrorDataOf<InitiateUploadResponses>;
 export type InitiateUploadResponse200 = ResponseBodyOf<InitiateUploadResponses[200]>;
 export type InitiateUploadResponse401 = ResponseBodyOf<InitiateUploadResponses[401]>;
 export type InitiateUploadResponse403 = ResponseBodyOf<InitiateUploadResponses[403]>;
 export type InitiateUploadResponse409 = ResponseBodyOf<InitiateUploadResponses[409]>;
 export type InitiateUploadResponse422 = ResponseBodyOf<InitiateUploadResponses[422]>;
 export type InitiateUploadResponse503 = ResponseBodyOf<InitiateUploadResponses[503]>;
-export interface InitiateUploadRequestOptions {
-  readonly headers?: InitiateUploadHeaders;
-  readonly signal?: AbortSignal;
-  readonly body: InitiateUploadRequestBody;
-}
 
 type IntrospectUploadSpec = OperationOf<"introspect_upload">;
 export type IntrospectUploadOperation = IntrospectUploadSpec;
@@ -504,20 +414,14 @@ export type IntrospectUploadRequestContentType = RequestContentTypesOf<Introspec
 export type IntrospectUploadRequestBody = RequestBodyOf<IntrospectUploadSpec>;
 export type IntrospectUploadRequestBodyForContentType<TContentType extends IntrospectUploadRequestContentType> = RequestBodyForContentType<IntrospectUploadSpec, TContentType>;
 export type IntrospectUploadResponses = ResponsesOf<IntrospectUploadSpec>;
-export type IntrospectUploadResult = ResultForResponses<IntrospectUploadResponses>;
-export type IntrospectUploadResponseData = IntrospectUploadResult["data"];
-export type IntrospectUploadSuccessResult = Extract<IntrospectUploadResult, { ok: true }>;
-export type IntrospectUploadErrorResult = Extract<IntrospectUploadResult, { ok: false }>;
-export type IntrospectUploadSuccessData = IntrospectUploadSuccessResult["data"];
-export type IntrospectUploadErrorData = IntrospectUploadErrorResult["data"];
+/** Union of success response payloads for `introspect_upload`. */
+export type IntrospectUploadSuccessData = ResponseDataOf<IntrospectUploadResponses, SuccessStatusCodeOf<IntrospectUploadResponses>>;
+/** Union of non-success response payloads for `introspect_upload`. */
+export type IntrospectUploadErrorData = ErrorDataOf<IntrospectUploadResponses>;
 export type IntrospectUploadResponse200 = ResponseBodyOf<IntrospectUploadResponses[200]>;
 export type IntrospectUploadResponse401 = ResponseBodyOf<IntrospectUploadResponses[401]>;
 export type IntrospectUploadResponse403 = ResponseBodyOf<IntrospectUploadResponses[403]>;
 export type IntrospectUploadResponse422 = ResponseBodyOf<IntrospectUploadResponses[422]>;
-export interface IntrospectUploadRequestOptions {
-  readonly signal?: AbortSignal;
-  readonly body: IntrospectUploadRequestBody;
-}
 
 type SignUploadPartsSpec = OperationOf<"sign_upload_parts">;
 export type SignUploadPartsOperation = SignUploadPartsSpec;
@@ -528,17 +432,11 @@ export type SignUploadPartsRequestContentType = RequestContentTypesOf<SignUpload
 export type SignUploadPartsRequestBody = RequestBodyOf<SignUploadPartsSpec>;
 export type SignUploadPartsRequestBodyForContentType<TContentType extends SignUploadPartsRequestContentType> = RequestBodyForContentType<SignUploadPartsSpec, TContentType>;
 export type SignUploadPartsResponses = ResponsesOf<SignUploadPartsSpec>;
-export type SignUploadPartsResult = ResultForResponses<SignUploadPartsResponses>;
-export type SignUploadPartsResponseData = SignUploadPartsResult["data"];
-export type SignUploadPartsSuccessResult = Extract<SignUploadPartsResult, { ok: true }>;
-export type SignUploadPartsErrorResult = Extract<SignUploadPartsResult, { ok: false }>;
-export type SignUploadPartsSuccessData = SignUploadPartsSuccessResult["data"];
-export type SignUploadPartsErrorData = SignUploadPartsErrorResult["data"];
+/** Union of success response payloads for `sign_upload_parts`. */
+export type SignUploadPartsSuccessData = ResponseDataOf<SignUploadPartsResponses, SuccessStatusCodeOf<SignUploadPartsResponses>>;
+/** Union of non-success response payloads for `sign_upload_parts`. */
+export type SignUploadPartsErrorData = ErrorDataOf<SignUploadPartsResponses>;
 export type SignUploadPartsResponse200 = ResponseBodyOf<SignUploadPartsResponses[200]>;
 export type SignUploadPartsResponse401 = ResponseBodyOf<SignUploadPartsResponses[401]>;
 export type SignUploadPartsResponse403 = ResponseBodyOf<SignUploadPartsResponses[403]>;
 export type SignUploadPartsResponse422 = ResponseBodyOf<SignUploadPartsResponses[422]>;
-export interface SignUploadPartsRequestOptions {
-  readonly signal?: AbortSignal;
-  readonly body: SignUploadPartsRequestBody;
-}

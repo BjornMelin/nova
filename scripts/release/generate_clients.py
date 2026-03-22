@@ -456,7 +456,13 @@ def _render_operations(operations: list[Operation]) -> str:
             "DO NOT EDIT."
         ),
         "",
-        'import type { OperationDescriptor } from "@nova/sdk-fetch/contracts";',
+        "/** Describes one generated public operation entry in the static catalog. */",
+        "export interface OperationDescriptor {",
+        "  readonly operationId: string;",
+        "  readonly method: string;",
+        "  readonly path: string;",
+        "  readonly summary?: string;",
+        "}",
         "",
         "/** Catalog of generated public operations keyed by operationId. */",
         "export const operations = {",
@@ -541,17 +547,20 @@ def _render_typescript_types(
         "  : never;",
         "type ResponsesOf<T> = T extends { responses: infer TResponses } ? TResponses : EmptyObject;",
         "type StatusCodeOf<TResponses> = Extract<keyof TResponses, number>;",
+        "type SuccessStatusCodeOf<TResponses> = Extract<StatusCodeOf<TResponses>, SuccessStatus>;",
+        "type ErrorStatusCodeOf<TResponses> = Exclude<StatusCodeOf<TResponses>, SuccessStatus>;",
         "type ResponseBodyOf<TEntry> = TEntry extends { content: infer TContent }",
         "  ? JsonContentOf<TContent>",
         "  : null;",
-        "type ResultForResponses<TResponses> = {",
-        "  [TStatus in StatusCodeOf<TResponses>]: {",
-        "    readonly status: TStatus;",
-        "    readonly ok: TStatus extends SuccessStatus ? true : false;",
-        "    readonly headers: Headers;",
-        "    readonly data: ResponseBodyOf<TResponses[TStatus]>;",
-        "  };",
-        "}[StatusCodeOf<TResponses>];",
+        'type DefaultResponseDataOf<TResponses> = "default" extends keyof TResponses',
+        '  ? ResponseBodyOf<TResponses["default"]>',
+        "  : never;",
+        "type ResponseDataOf<TResponses, TStatusCodes extends number> = TStatusCodes extends StatusCodeOf<TResponses>",
+        "  ? ResponseBodyOf<TResponses[TStatusCodes]>",
+        "  : never;",
+        "type ErrorDataOf<TResponses> =",
+        "  | ResponseDataOf<TResponses, ErrorStatusCodeOf<TResponses>>",
+        "  | DefaultResponseDataOf<TResponses>;",
         "",
         "/** Named aliases for generated OpenAPI component schemas. */",
     ]
@@ -581,12 +590,10 @@ def _render_typescript_types(
                 f"export type {base_name}RequestBody = RequestBodyOf<{base_name}Spec>;",
                 f"export type {base_name}RequestBodyForContentType<TContentType extends {base_name}RequestContentType> = RequestBodyForContentType<{base_name}Spec, TContentType>;",
                 f"export type {base_name}Responses = ResponsesOf<{base_name}Spec>;",
-                f"export type {base_name}Result = ResultForResponses<{base_name}Responses>;",
-                f'export type {base_name}ResponseData = {base_name}Result["data"];',
-                f"export type {base_name}SuccessResult = Extract<{base_name}Result, {{ ok: true }}>;",
-                f"export type {base_name}ErrorResult = Extract<{base_name}Result, {{ ok: false }}>;",
-                f'export type {base_name}SuccessData = {base_name}SuccessResult["data"];',
-                f'export type {base_name}ErrorData = {base_name}ErrorResult["data"];',
+                f"/** Union of success response payloads for `{operation.operation_id}`. */",
+                f"export type {base_name}SuccessData = ResponseDataOf<{base_name}Responses, SuccessStatusCodeOf<{base_name}Responses>>;",
+                f"/** Union of non-success response payloads for `{operation.operation_id}`. */",
+                f"export type {base_name}ErrorData = ErrorDataOf<{base_name}Responses>;",
             ]
         )
         lines.extend(
@@ -594,70 +601,8 @@ def _render_typescript_types(
             f"ResponseBodyOf<{base_name}Responses[{status_code}]>;"
             for status_code in operation.response_status_codes
         )
-        lines.extend(_render_request_interface(operation))
-
     lines.append("")
     return "\n".join(lines)
-
-
-def _render_request_interface(operation: Operation) -> list[str]:
-    request_type_name = operation.request_type_name
-    property_lines = _render_request_properties(operation)
-
-    if len(operation.request_content_types) <= 1:
-        lines = [f"export interface {request_type_name} {{"]
-        lines.extend(f"  {line}" for line in property_lines)
-        if operation.has_request_body:
-            optional = "?" if not operation.has_required_request_body else ""
-            lines.append(
-                f"  readonly body{optional}: {_request_body_type_expression(operation)};"
-            )
-        lines.append("}")
-        return lines
-
-    lines = [f"export type {request_type_name} ="]
-    for media_type in operation.request_content_types:
-        lines.append("  | {")
-        lines.extend(f"      {line}" for line in property_lines)
-        lines.append(f"      readonly contentType: {json.dumps(media_type)};")
-        optional = "?" if not operation.has_required_request_body else ""
-        lines.append(
-            f"      readonly body{optional}: "
-            f"{_request_body_type_expression(operation, media_type)};"
-        )
-        lines.append("    }")
-    lines[-1] = f"{lines[-1]};"
-    return lines
-
-
-def _render_request_properties(operation: Operation) -> list[str]:
-    base_name = operation.type_base_name
-    lines: list[str] = []
-    if operation.has_path_params:
-        lines.append(f"readonly pathParams: {base_name}PathParams;")
-    if operation.has_query_params:
-        optional = "?" if not operation.has_required_query_params else ""
-        lines.append(f"readonly query{optional}: {base_name}QueryParams;")
-    if operation.has_header_params:
-        optional = "?" if not operation.has_required_header_params else ""
-        lines.append(f"readonly headers{optional}: {base_name}Headers;")
-    lines.append("readonly signal?: AbortSignal;")
-    return lines
-
-
-def _request_body_type_expression(
-    operation: Operation,
-    media_type: str | None = None,
-) -> str:
-    base_name = operation.type_base_name
-    if media_type is None:
-        return f"{base_name}RequestBody"
-    body_type = (
-        f"{base_name}RequestBodyForContentType<{json.dumps(media_type)}>"
-    )
-    if media_type == "application/x-www-form-urlencoded":
-        return f"{body_type} | URLSearchParams"
-    return body_type
 
 
 def _collect_public_schema_names(
@@ -763,214 +708,6 @@ def _schema_alias_name(schema_name: str) -> str:
     if normalized[0].isdigit():
         normalized = f"Schema_{normalized}"
     return normalized
-
-
-def _render_typescript_errors() -> str:
-    lines = [
-        (
-            "// Code generated by scripts/release/generate_clients.py. "
-            "DO NOT EDIT."
-        ),
-        "",
-        "interface HttpLikeResponse<TData = unknown> {",
-        "  readonly status: number;",
-        "  readonly ok: boolean;",
-        "  readonly headers: Headers;",
-        "  readonly data: TData;",
-        "}",
-        "",
-        "/** Transport-level failure raised before an HTTP response is available. */",
-        "export class NovaSdkTransportError extends Error {",
-        "  readonly operationId: string;",
-        "  override readonly cause: unknown;",
-        "",
-        "  constructor(operationId: string, cause: unknown) {",
-        "    super(`Transport error for ${operationId}`);",
-        '    this.name = "NovaSdkTransportError";',
-        "    this.operationId = operationId;",
-        "    this.cause = cause;",
-        "  }",
-        "}",
-        "",
-        "/** HTTP failure wrapper for callers that prefer throwing over branch handling. */",
-        "export class NovaSdkHttpError<TResponse extends HttpLikeResponse = HttpLikeResponse> extends Error {",
-        "  readonly operationId: string;",
-        "  readonly response: TResponse;",
-        "",
-        "  constructor(operationId: string, response: TResponse) {",
-        "    super(`HTTP ${response.status} for ${operationId}`);",
-        '    this.name = "NovaSdkHttpError";',
-        "    this.operationId = operationId;",
-        "    this.response = response;",
-        "  }",
-        "",
-        "  get status(): number {",
-        "    return this.response.status;",
-        "  }",
-        "",
-        '  get data(): TResponse["data"] {',
-        "    return this.response.data;",
-        "  }",
-        "",
-        "  get headers(): Headers {",
-        "    return this.response.headers;",
-        "  }",
-        "}",
-        "",
-        "/** Throw a typed HTTP error when a response status is not successful. */",
-        "export function assertOkResponse<TResponse extends HttpLikeResponse>(",
-        "  operationId: string,",
-        "  response: TResponse,",
-        "): asserts response is TResponse & { readonly ok: true } {",
-        "  if (!response.ok) {",
-        "    throw new NovaSdkHttpError(operationId, response);",
-        "  }",
-        "}",
-        "",
-    ]
-    return "\n".join(lines)
-
-
-def _render_typescript_client(
-    target: GenerationTarget,
-    operations: list[Operation],
-) -> str:
-    request_imports = ", ".join(
-        f"{operation.request_type_name}, {operation.type_base_name}Result"
-        for operation in operations
-    )
-    lines = [
-        (
-            "// Code generated by scripts/release/generate_clients.py. "
-            "DO NOT EDIT."
-        ),
-        "",
-        'import { createFetchClient } from "@nova/sdk-fetch/client";',
-        (
-            "import type { FetchClientOptions, OperationDescriptor, PathParams, "
-            'QueryParams } from "@nova/sdk-fetch/contracts";'
-        ),
-        'import { normalizeBaseUrl } from "@nova/sdk-fetch/url";',
-        'import { NovaSdkTransportError } from "./errors.js";',
-        'import { operations } from "./operations.js";',
-        f'import type {{ {request_imports} }} from "./types.js";',
-        "",
-        "/**",
-        f" * Options for configuring the generated {target.package_name} client.",
-        " */",
-        f"export interface {target.client_options_name} extends FetchClientOptions {{}}",
-        "",
-        "/**",
-        f" * Generated client surface for the {target.package_name} API.",
-        " */",
-        f"export interface {target.client_interface_name} {{",
-        "  readonly baseUrl: string;",
-    ]
-
-    for operation in operations:
-        base_name = operation.type_base_name
-        request_type = operation.request_type_name
-        result_type = f"{base_name}Result"
-        if operation.requires_request:
-            lines.extend(
-                [
-                    "  /**",
-                    f"   * Invoke the `{operation.operation_id}` operation.",
-                    "   */",
-                    f"  {operation.operation_id}(request: {request_type}): Promise<{result_type}>;",
-                ]
-            )
-        else:
-            lines.extend(
-                [
-                    "  /**",
-                    f"   * Invoke the `{operation.operation_id}` operation.",
-                    "   */",
-                    f"  {operation.operation_id}(request?: {request_type}): Promise<{result_type}>;",
-                ]
-            )
-    lines.extend(
-        [
-            "}",
-            "",
-            "type OperationRequest = {",
-            "  readonly body?: unknown;",
-            "  readonly contentType?: string;",
-            "  readonly headers?: HeadersInit;",
-            "  readonly pathParams?: PathParams;",
-            "  readonly query?: QueryParams;",
-            "  readonly signal?: AbortSignal;",
-            "};",
-            "",
-            "async function executeOperation<TResult>(",
-            "  fetchClient: ReturnType<typeof createFetchClient>,",
-            "  operation: OperationDescriptor,",
-            "  request: OperationRequest = {},",
-            "  defaultContentType?: string,",
-            "): Promise<TResult> {",
-            "  try {",
-            "    return (await fetchClient.request<unknown>(operation, {",
-            "      body: request.body,",
-            "      contentType: request.contentType ?? defaultContentType,",
-            "      headers: request.headers,",
-            "      pathParams: request.pathParams,",
-            "      query: request.query,",
-            "      signal: request.signal,",
-            "    })) as TResult;",
-            "  } catch (error) {",
-            "    throw new NovaSdkTransportError(operation.operationId, error);",
-            "  }",
-            "}",
-            "",
-            "/**",
-            f" * Create a generated client for the {target.package_name} API.",
-            " *",
-            " * @param options - Transport and base URL options for the client.",
-            f" * @returns A configured {target.client_interface_name} instance.",
-            " */",
-            f"export function {target.client_factory_name}(",
-            f"  options: {target.client_options_name},",
-            f"): {target.client_interface_name} {{",
-            "  const fetchClient = createFetchClient(options);",
-            "  const baseUrl = normalizeBaseUrl(options.baseUrl);",
-            "",
-            "  return {",
-            "    baseUrl,",
-        ]
-    )
-
-    for operation in operations:
-        base_name = operation.type_base_name
-        request_type = operation.request_type_name
-        result_type = f"{base_name}Result"
-        if operation.requires_request:
-            signature = f"{operation.operation_id}(request: {request_type})"
-            request_expr = "request"
-        else:
-            signature = f"{operation.operation_id}(request?: {request_type})"
-            request_expr = "request ?? {}"
-        lines.extend(
-            [
-                "    /**",
-                f"     * Invoke the `{operation.operation_id}` operation.",
-                "     */",
-                f"    async {signature}: Promise<{result_type}> {{",
-                f"      return executeOperation<{result_type}>(",
-                "        fetchClient,",
-                f"        operations.{operation.operation_id},",
-                f"        {request_expr} as OperationRequest,",
-                (
-                    f"        {json.dumps(operation.default_request_content_type)},"
-                    if operation.default_request_content_type is not None
-                    else "        undefined,"
-                ),
-                "      );",
-                "    },",
-            ]
-        )
-
-    lines.extend(["  };", "}", ""])
-    return "\n".join(lines)
 
 
 def _r_exported_function_names(prefix: str) -> tuple[str, ...]:
@@ -1875,20 +1612,6 @@ def _generate_target(target: GenerationTarget, *, check: bool) -> list[str]:
         _write_or_check(
             target.ts_package_root / "src" / "types.ts",
             _render_typescript_types(spec, operations),
-            check=check,
-        )
-    )
-    issues.extend(
-        _write_or_check(
-            target.ts_package_root / "src" / "errors.ts",
-            _render_typescript_errors(),
-            check=check,
-        )
-    )
-    issues.extend(
-        _write_or_check(
-            target.ts_package_root / "src" / "client.ts",
-            _render_typescript_client(target, operations),
             check=check,
         )
     )

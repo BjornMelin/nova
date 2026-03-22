@@ -159,18 +159,18 @@ def test_apply_version_updates_changes_npm_package_json(
 ) -> None:
     """Validate npm package.json versions are updated by the release plan."""
     repo_root = tmp_path
-    package_json = repo_root / "packages/nova_sdk_fetch/package.json"
+    package_json = repo_root / "packages/nova_sdk_file/package.json"
     package_json.parent.mkdir(parents=True, exist_ok=True)
     package_json.write_text(
-        '{\n  "name": "@nova/sdk-fetch",\n  "version": "0.1.0"\n}\n',
+        '{\n  "name": "@nova/sdk-file",\n  "version": "0.1.0"\n}\n',
         encoding="utf-8",
     )
 
     units = {
-        "packages/nova_sdk_fetch": common.WorkspaceUnit(
-            unit_id="packages/nova_sdk_fetch",
+        "packages/nova_sdk_file": common.WorkspaceUnit(
+            unit_id="packages/nova_sdk_file",
             path=package_json.parent,
-            project_name="@nova/sdk-fetch",
+            project_name="@nova/sdk-file",
             version="0.1.0",
             dependencies=(),
             package_format="npm",
@@ -180,7 +180,7 @@ def test_apply_version_updates_changes_npm_package_json(
     plan = {
         "units": [
             {
-                "unit_id": "packages/nova_sdk_fetch",
+                "unit_id": "packages/nova_sdk_file",
                 "old_version": "0.1.0",
                 "new_version": "0.1.1",
             }
@@ -194,7 +194,7 @@ def test_apply_version_updates_changes_npm_package_json(
         dry_run=False,
     )
 
-    assert updated == ["packages/nova_sdk_fetch/package.json"]
+    assert updated == ["packages/nova_sdk_file/package.json"]
     assert '"version": "0.1.1"' in package_json.read_text(encoding="utf-8")
 
 

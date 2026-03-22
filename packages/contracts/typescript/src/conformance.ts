@@ -1,7 +1,10 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-import { createNovaFileClient } from "@nova/sdk-file/client";
+import {
+  createNovaFileClient,
+  type NovaFileClientMiddleware,
+} from "@nova/sdk-file/client";
 import {
   NovaSdkHttpError as NovaFileSdkHttpError,
   assertOkResponse as assertFileOkResponse,
@@ -11,7 +14,6 @@ import type {
   CreateJobRequestBody,
   InitiateUploadRequestBody,
 } from "@nova/sdk-file/types";
-import { buildOperationDescriptorUrl, buildOperationUrl } from "@nova/sdk-fetch/url";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -66,10 +68,7 @@ type _NoInternalJobResultUpdateResponseExport = AssertFalse<
 interface MockResponseFixture {
   readonly status: number;
   readonly body: unknown;
-  readonly assertRequest?: (request: {
-    readonly url: string;
-    readonly init: RequestInit | undefined;
-  }) => void;
+  readonly assertRequest?: (request: Request) => Promise<void> | void;
 }
 
 function fixtureRoot(): string {
@@ -99,29 +98,17 @@ function assertErrorEnvelope(value: unknown, code: string): void {
   assert(Boolean(error.request_id), "error.request_id required");
 }
 
-function bodyToString(body: RequestInit["body"] | null | undefined): string {
-  if (typeof body === "string") {
-    return body;
-  }
-  if (body instanceof URLSearchParams) {
-    return body.toString();
-  }
-  throw new Error("expected string or URLSearchParams request body");
+async function requestBodyText(request: Request): Promise<string> {
+  return request.text();
 }
 
 function createFixtureFetch(
   routes: Record<string, MockResponseFixture>,
-): typeof fetch {
-  return async (input, init) => {
-    const url =
-      typeof input === "string"
-        ? input
-        : input instanceof URL
-          ? input.toString()
-          : input.url;
-    const fixture = routes[url];
-    assert(Boolean(fixture), `unexpected request URL: ${url}`);
-    fixture.assertRequest?.({ url, init });
+): (input: Request) => Promise<Response> {
+  return async (input) => {
+    const fixture = routes[input.url];
+    assert(Boolean(fixture), `unexpected request URL: ${input.url}`);
+    await fixture.assertRequest?.(input);
     return new Response(JSON.stringify(fixture.body), {
       status: fixture.status,
       headers: { "content-type": "application/json" },
@@ -153,7 +140,9 @@ async function main(): Promise<void> {
   const capabilitiesFixture = readJson<unknown>(
     manifest.fixtures.v1api.capabilities_success,
   );
-  const planFixture = readJson<unknown>(manifest.fixtures.v1api.resources_plan_success);
+  const planFixture = readJson<unknown>(
+    manifest.fixtures.v1api.resources_plan_success,
+  );
   const expectedPlanPayload = {
     resources: ["jobs", "transfers"],
   };
@@ -162,76 +151,62 @@ async function main(): Promise<void> {
   );
 
   const fileBaseUrl = "https://file.nova.example/";
-  const getJobUrl = buildOperationDescriptorUrl(
-    fileBaseUrl,
-    fileOperations.get_job_status,
-    { job_id: "job-123" },
-  );
-  const createJobUrl = buildOperationDescriptorUrl(
-    fileBaseUrl,
-    fileOperations.create_job,
-  );
-  const initiateUploadUrl = buildOperationDescriptorUrl(
-    fileBaseUrl,
-    fileOperations.initiate_upload,
-  );
-  const capabilitiesUrl = buildOperationDescriptorUrl(
-    fileBaseUrl,
-    fileOperations.get_capabilities,
-  );
-  const planUrl = buildOperationDescriptorUrl(
-    fileBaseUrl,
-    fileOperations.plan_resources,
-  );
-  const releaseUrl = buildOperationDescriptorUrl(
-    fileBaseUrl,
-    fileOperations.get_release_info,
-  );
+  const getJobUrl = "https://file.nova.example/v1/jobs/job-123";
+  const createJobUrl = "https://file.nova.example/v1/jobs";
+  const initiateUploadUrl =
+    "https://file.nova.example/v1/transfers/uploads/initiate";
+  const capabilitiesUrl = "https://file.nova.example/v1/capabilities";
+  const planUrl = "https://file.nova.example/v1/resources/plan";
+  const releaseUrl = "https://file.nova.example/v1/releases/info";
 
-  const fileUrl = buildOperationUrl(
-    "https://nova.example/",
-    fileOperations.get_job_status.path,
-    { job_id: "job-123" },
-    { include: "events" },
+  assert(
+    fileOperations.get_job_status.path === "/v1/jobs/{job_id}",
+    "get_job_status path must remain canonical",
   );
   assert(
-    fileUrl === "https://nova.example/v1/jobs/job-123?include=events",
-    `unexpected file URL: ${fileUrl}`,
+    fileOperations.create_job.method === "POST",
+    "create_job method must remain canonical",
   );
 
-  const descriptorUrl = buildOperationDescriptorUrl(
-    "https://nova.example/",
-    fileOperations.get_job_status,
-    { job_id: "job-123" },
-    { include: "events" },
-  );
-  assert(
-    descriptorUrl === "https://nova.example/v1/jobs/job-123?include=events",
-    `unexpected descriptor URL: ${descriptorUrl}`,
-  );
+  const middleware: NovaFileClientMiddleware = {
+    onRequest({ request }) {
+      const headers = new Headers(request.headers);
+      headers.set("authorization", "Bearer test-token");
+      headers.set("x-request-id", "req-123");
+      return new Request(request, { headers });
+    },
+  };
 
   const fileClient = createNovaFileClient({
     baseUrl: fileBaseUrl,
-    fetchImpl: createFixtureFetch({
+    fetch: createFixtureFetch({
       [getJobUrl]: {
         status: 200,
         body: jobStatusFixture,
-        assertRequest: ({ init }) => {
-          assert(init?.method === "GET", "get_job_status must use GET");
+        assertRequest: (request) => {
+          assert(request.method === "GET", "get_job_status must use GET");
+          assert(
+            request.headers.get("authorization") === "Bearer test-token",
+            "middleware must inject authorization header",
+          );
+          assert(
+            request.headers.get("x-request-id") === "req-123",
+            "middleware must inject request id header",
+          );
         },
       },
       [createJobUrl]: {
         status: 202,
         body: enqueueSuccessFixture,
-        assertRequest: ({ init }) => {
-          assert(init?.method === "POST", "create_job must use POST");
-          const headers = new Headers(init?.headers);
+        assertRequest: async (request) => {
+          assert(request.method === "POST", "create_job must use POST");
           assert(
-            headers.get("content-type")?.startsWith("application/json") ?? false,
+            request.headers.get("content-type")?.startsWith("application/json") ??
+              false,
             "create_job must use application/json content type",
           );
           assert(
-            bodyToString(init?.body) === JSON.stringify(enqueueRequestFixture),
+            (await requestBodyText(request)) === JSON.stringify(enqueueRequestFixture),
             "create_job must send JSON request body",
           );
         },
@@ -239,15 +214,15 @@ async function main(): Promise<void> {
       [initiateUploadUrl]: {
         status: 200,
         body: transferSuccessFixture,
-        assertRequest: ({ init }) => {
-          assert(init?.method === "POST", "initiate_upload must use POST");
-          const headers = new Headers(init?.headers);
+        assertRequest: async (request) => {
+          assert(request.method === "POST", "initiate_upload must use POST");
           assert(
-            headers.get("content-type")?.startsWith("application/json") ?? false,
+            request.headers.get("content-type")?.startsWith("application/json") ??
+              false,
             "initiate_upload must use application/json content type",
           );
           assert(
-            bodyToString(init?.body) === JSON.stringify(transferRequestFixture),
+            (await requestBodyText(request)) === JSON.stringify(transferRequestFixture),
             "initiate_upload must send JSON request body",
           );
         },
@@ -255,23 +230,22 @@ async function main(): Promise<void> {
       [capabilitiesUrl]: {
         status: 200,
         body: capabilitiesFixture,
-        assertRequest: ({ init }) => {
-          assert(init?.method === "GET", "get_capabilities must use GET");
+        assertRequest: (request) => {
+          assert(request.method === "GET", "get_capabilities must use GET");
         },
       },
       [planUrl]: {
         status: 200,
         body: planFixture,
-        assertRequest: ({ init }) => {
-          assert(init?.method === "POST", "plan_resources must use POST");
-          const headers = new Headers(init?.headers);
+        assertRequest: async (request) => {
+          assert(request.method === "POST", "plan_resources must use POST");
           assert(
-            headers.get("content-type")?.toLowerCase().includes("application/json") ??
+            request.headers.get("content-type")?.toLowerCase().includes("application/json") ??
               false,
             "plan_resources must use application/json content type",
           );
           assert(
-            JSON.stringify(JSON.parse(bodyToString(init?.body))) ===
+            JSON.stringify(JSON.parse(await requestBodyText(request))) ===
               JSON.stringify(expectedPlanPayload),
             "plan_resources must send JSON request body",
           );
@@ -280,71 +254,67 @@ async function main(): Promise<void> {
       [releaseUrl]: {
         status: 200,
         body: releaseFixture,
-        assertRequest: ({ init }) => {
-          assert(init?.method === "GET", "get_release_info must use GET");
+        assertRequest: (request) => {
+          assert(request.method === "GET", "get_release_info must use GET");
         },
       },
     }),
+    middleware: [middleware],
   });
-  assert(
-    fileClient.baseUrl === "https://file.nova.example",
-    "file client baseUrl must be normalized",
-  );
 
-  const jobStatusResult = await fileClient.get_job_status({
-    pathParams: { job_id: "job-123" },
+  const jobStatusResult = await fileClient.GET(fileOperations.get_job_status.path, {
+    params: { path: { job_id: "job-123" } },
   });
-  assert(jobStatusResult.ok, "get_job_status fixture must be ok");
   assertFileOkResponse("get_job_status", jobStatusResult);
   assert(
-    typeof asRecord(jobStatusResult.data?.job).job_id === "string",
+    typeof asRecord(jobStatusResult.data.job).job_id === "string",
     "job result must include job_id",
   );
 
-  const createJobResult = await fileClient.create_job({
+  const createJobResult = await fileClient.POST(fileOperations.create_job.path, {
     body: enqueueRequestFixture,
   });
-  assert(createJobResult.ok, "create_job success fixture must be ok");
   assertFileOkResponse("create_job", createJobResult);
 
-  const initiateResult = await fileClient.initiate_upload({
+  const initiateResult = await fileClient.POST(fileOperations.initiate_upload.path, {
     body: transferRequestFixture,
   });
-  assert(initiateResult.ok, "initiate_upload fixture must be ok");
   assertFileOkResponse("initiate_upload", initiateResult);
 
-  const capabilitiesResult = await fileClient.get_capabilities();
-  assert(capabilitiesResult.ok, "get_capabilities fixture must be ok");
+  const capabilitiesResult = await fileClient.GET(
+    fileOperations.get_capabilities.path,
+  );
   assertFileOkResponse("get_capabilities", capabilitiesResult);
 
-  const planResult = await fileClient.plan_resources({
+  const planResult = await fileClient.POST(fileOperations.plan_resources.path, {
     body: expectedPlanPayload,
   });
-  assert(planResult.ok, "plan_resources fixture must be ok");
   assertFileOkResponse("plan_resources", planResult);
 
-  const releaseResult = await fileClient.get_release_info();
-  assert(releaseResult.ok, "get_release_info fixture must be ok");
+  const releaseResult = await fileClient.GET(fileOperations.get_release_info.path);
   assertFileOkResponse("get_release_info", releaseResult);
 
   const queueUnavailableClient = createNovaFileClient({
     baseUrl: fileBaseUrl,
-    fetchImpl: createFixtureFetch({
+    fetch: createFixtureFetch({
       [createJobUrl]: {
         status: 503,
         body: queueUnavailableFixture,
       },
     }),
   });
-  const queueUnavailableResult = await queueUnavailableClient.create_job({
-    body: enqueueRequestFixture,
-  });
+  const queueUnavailableResult = await queueUnavailableClient.POST(
+    fileOperations.create_job.path,
+    {
+      body: enqueueRequestFixture,
+    },
+  );
   assert(
-    !queueUnavailableResult.ok,
-    "create_job queue unavailable fixture must not be ok",
+    queueUnavailableResult.error !== undefined,
+    "create_job queue unavailable fixture must return the error arm",
   );
   assertErrorEnvelope(
-    asRecord(queueUnavailableResult.data).error,
+    asRecord(queueUnavailableResult.error).error,
     "queue_unavailable",
   );
 
@@ -352,17 +322,18 @@ async function main(): Promise<void> {
   try {
     assertFileOkResponse("create_job", queueUnavailableResult);
   } catch (error) {
-    sawFileHttpError = error instanceof NovaFileSdkHttpError;
+    sawFileHttpError =
+      error instanceof NovaFileSdkHttpError && error.status === 503;
   }
   assert(sawFileHttpError, "assertFileOkResponse must throw NovaSdkHttpError");
 
   assert(
     !("update_job_result" in fileOperations),
-    "internal file operation leaked into public SDK",
+    "internal worker operation must stay excluded from public operations",
   );
 }
 
-main().catch((error: unknown) => {
+void main().catch((error: unknown) => {
   console.error(error);
   process.exitCode = 1;
 });

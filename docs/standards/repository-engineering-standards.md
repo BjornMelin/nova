@@ -105,10 +105,9 @@ Rules for narrative provisioning, release, and validation markdown under
 
 ## Generated TypeScript SDK Rules
 
-- Generated TypeScript packages are `@nova/sdk-file` and the shared
-  runtime/helper package `@nova/sdk-fetch`.
-- Generated TypeScript packages are release-grade within Nova's existing
-  CodeArtifact staged/prod system, but they remain generator-owned and
+- Generated TypeScript package is `@nova/sdk-file`.
+- Release-grade packaging for the TypeScript SDK stays within Nova's existing
+  CodeArtifact staged/prod system, while artifacts remain generator-owned and
   subpath-only.
 - Publicly supported imports remain subpath-only. Do not add package-root `"."`
   exports.
@@ -123,8 +122,11 @@ Rules for narrative provisioning, release, and validation markdown under
 - OpenAPI remains the only schema authority for SDK generation.
 - Multi-media request bodies must preserve explicit generated `contentType`
   selection instead of collapsing to JSON-only behavior.
-- Shared transport/runtime logic belongs in `@nova/sdk-fetch` rather than being
-  duplicated per SDK package.
+- The checked-in `@nova/sdk-file/client` module is a thin wrapper over
+  `openapi-fetch`; do not reintroduce a repo-private transport/runtime package.
+  Implement auth/header customization and request/response hooks through
+  `openapi-fetch` middleware in `@nova/sdk-file/client`. Handle HTTP status
+  behavior in `onResponse`; `onError` is only for fetch-thrown failures.
 
 ## R Package Rules
 
@@ -204,9 +206,8 @@ Additional required gates when touching OpenAPI, generated TypeScript SDKs, npm
 packaging, release automation, or SDK docs/contracts:
 
 - `uv run python scripts/conformance/check_typescript_module_policy.py`
-- `npm run -w @nova/sdk-fetch build`
-- `npm run -w @nova/sdk-fetch typecheck`
 - `npm run -w @nova/sdk-file typecheck`
+- `npm run -w @nova/sdk-file build`
 - `npm run -w @nova/contracts-ts-conformance typecheck`
 - `npm run -w @nova/contracts-ts-conformance verify`
 - `uv run pytest -q scripts/release/tests/test_typescript_sdk_contracts.py`

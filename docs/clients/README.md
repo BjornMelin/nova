@@ -66,11 +66,10 @@ Integration adapter packages retained in-repo for downstream framework wiring:
 
 - `../../packages/nova_dash_bridge/`
 
-TypeScript SDK packages retained in-repo as release-grade CodeArtifact
-staged/prod artifacts:
+TypeScript SDK package retained in-repo as a release-grade CodeArtifact
+staged/prod artifact:
 
 - `../../packages/nova_sdk_file/`
-- `../../packages/nova_sdk_fetch/`
 
 R SDK packages retained in-repo as first-class internal release artifacts:
 
@@ -87,7 +86,7 @@ bearer `Authorization` header to the bridge assets for canonical
 `session_id`, `X-Session-Id`, or `X-Scope-Id` as public auth/scope inputs.
 
 All of these remain subordinate to the committed Nova OpenAPI contracts.
-TypeScript SDK packages are release-grade within Nova's CodeArtifact
+TypeScript SDK package is release-grade within Nova's CodeArtifact
 staged/prod flow, remain subpath-only, and do not ship bundled runtime
 validation. R packages are built as real packages, transported through
 CodeArtifact generic packages, and evidenced with signed tarballs rather than a

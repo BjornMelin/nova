@@ -102,22 +102,19 @@ def test_prepare_npm_publish_artifacts_rewrites_internal_versions(
         repo_root / "package.json",
         "{\n"
         '  "private": true,\n'
-        '  "workspaces": [\n'
-        '    "packages/nova_sdk_fetch",\n'
-        '    "packages/nova_sdk_file"\n'
-        "  ]\n"
+        '  "workspaces": ["packages/nova_sdk_core", "packages/nova_sdk_file"]\n'
         "}\n",
     )
     _write_managed_package(
-        repo_root / "packages/nova_sdk_fetch",
-        name="@nova/sdk-fetch",
+        repo_root / "packages/nova_sdk_core",
+        name="@nova/sdk-core",
         version="0.1.0",
     )
     _write_managed_package(
         repo_root / "packages/nova_sdk_file",
         name="@nova/sdk-file",
         version="0.1.0",
-        dependencies={"@nova/sdk-fetch": "file:../nova_sdk_fetch"},
+        dependencies={"@nova/sdk-core": "^0.1.0", "openapi-fetch": "^0.17.0"},
     )
 
     units = common.load_workspace_units(repo_root)
@@ -130,7 +127,7 @@ def test_prepare_npm_publish_artifacts_rewrites_internal_versions(
     version_plan = {
         "units": [
             {
-                "unit_id": "packages/nova_sdk_fetch",
+                "unit_id": "packages/nova_sdk_core",
                 "new_version": "0.2.0",
             },
             {
@@ -152,7 +149,7 @@ def test_prepare_npm_publish_artifacts_rewrites_internal_versions(
     )
 
     assert [item["package"] for item in report["packages"]] == [
-        "@nova/sdk-fetch",
+        "@nova/sdk-core",
         "@nova/sdk-file",
     ]
     assert report["registry_url"] == (
@@ -164,7 +161,8 @@ def test_prepare_npm_publish_artifacts_rewrites_internal_versions(
     )
     prepared_core = json.loads(prepared_core_path.read_text(encoding="utf-8"))
     assert prepared_core["version"] == "0.2.0"
-    assert prepared_core["dependencies"]["@nova/sdk-fetch"] == "0.2.0"
+    assert prepared_core["dependencies"]["@nova/sdk-core"] == "0.2.0"
+    assert prepared_core["dependencies"]["openapi-fetch"] == "^0.17.0"
     assert prepared_core["publishConfig"]["registry"] == (
         "https://cral-099060980393.d.codeartifact.us-east-1.amazonaws.com/npm/"
         "galaxypy-staging/"
@@ -198,10 +196,10 @@ def test_planned_version_map_rejects_duplicate_unit_ids(
     tmp_path: Path,
 ) -> None:
     units = {
-        "packages/nova_sdk_fetch": common.WorkspaceUnit(
-            unit_id="packages/nova_sdk_fetch",
-            path=tmp_path / "packages/nova_sdk_fetch",
-            project_name="@nova/sdk-fetch",
+        "packages/nova_sdk_file": common.WorkspaceUnit(
+            unit_id="packages/nova_sdk_file",
+            path=tmp_path / "packages/nova_sdk_file",
+            project_name="@nova/sdk-file",
             version="0.1.0",
             dependencies=(),
             package_format="npm",
@@ -214,11 +212,11 @@ def test_planned_version_map_rejects_duplicate_unit_ids(
             version_plan={
                 "units": [
                     {
-                        "unit_id": "packages/nova_sdk_fetch",
+                        "unit_id": "packages/nova_sdk_file",
                         "new_version": "0.2.0",
                     },
                     {
-                        "unit_id": "packages/nova_sdk_fetch",
+                        "unit_id": "packages/nova_sdk_file",
                         "new_version": "0.3.0",
                     },
                 ]
@@ -287,7 +285,7 @@ def test_validate_prepared_npm_package_rejects_workspace_specs(
         "{\n"
         '  "name": "@nova/sdk-file",\n'
         '  "version": "0.1.0",\n'
-        '  "dependencies": {"@nova/sdk-fetch": "file:../nova_sdk_fetch"}\n'
+        '  "dependencies": {"openapi-fetch": "file:../vendor/openapi-fetch"}\n'
         "}\n",
         encoding="utf-8",
     )
@@ -300,10 +298,10 @@ def test_planned_version_map_rejects_blank_new_version(
     tmp_path: Path,
 ) -> None:
     units = {
-        "packages/nova_sdk_fetch": common.WorkspaceUnit(
-            unit_id="packages/nova_sdk_fetch",
-            path=tmp_path / "packages/nova_sdk_fetch",
-            project_name="@nova/sdk-fetch",
+        "packages/nova_sdk_file": common.WorkspaceUnit(
+            unit_id="packages/nova_sdk_file",
+            path=tmp_path / "packages/nova_sdk_file",
+            project_name="@nova/sdk-file",
             version="0.1.0",
             dependencies=(),
             package_format="npm",
@@ -316,7 +314,7 @@ def test_planned_version_map_rejects_blank_new_version(
             version_plan={
                 "units": [
                     {
-                        "unit_id": "packages/nova_sdk_fetch",
+                        "unit_id": "packages/nova_sdk_file",
                         "new_version": "",
                     }
                 ]
@@ -329,10 +327,10 @@ def test_planned_version_map_rejects_invalid_semver(
     tmp_path: Path,
 ) -> None:
     units = {
-        "packages/nova_sdk_fetch": common.WorkspaceUnit(
-            unit_id="packages/nova_sdk_fetch",
-            path=tmp_path / "packages/nova_sdk_fetch",
-            project_name="@nova/sdk-fetch",
+        "packages/nova_sdk_file": common.WorkspaceUnit(
+            unit_id="packages/nova_sdk_file",
+            path=tmp_path / "packages/nova_sdk_file",
+            project_name="@nova/sdk-file",
             version="0.1.0",
             dependencies=(),
             package_format="npm",
@@ -345,7 +343,7 @@ def test_planned_version_map_rejects_invalid_semver(
             version_plan={
                 "units": [
                     {
-                        "unit_id": "packages/nova_sdk_fetch",
+                        "unit_id": "packages/nova_sdk_file",
                         "new_version": "latest",
                     }
                 ]
@@ -358,12 +356,12 @@ def test_validate_packable_npm_artifact_rejects_missing_dist_files(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    package_dir = tmp_path / "packages/nova_sdk_fetch"
+    package_dir = tmp_path / "packages/nova_sdk_file"
     package_dir.mkdir(parents=True)
     _write_text(
         package_dir / "package.json",
         "{\n"
-        '  "name": "@nova/sdk-fetch",\n'
+        '  "name": "@nova/sdk-file",\n'
         '  "version": "0.1.0",\n'
         '  "files": ["src"],\n'
         '  "exports": {".": {"default": "./src/index.js"}}\n'
@@ -382,7 +380,7 @@ def test_validate_packable_npm_artifact_rejects_missing_dist_files(
     ) -> subprocess.CompletedProcess[str]:
         del check, capture_output, text
         cwd_path = Path(cwd or ".")
-        filename = "nova-sdk-fetch-0.1.0.tgz"
+        filename = "nova-sdk-file-0.1.0.tgz"
         if "--dry-run" not in args:
             (cwd_path / filename).write_bytes(b"tarball")
         return subprocess.CompletedProcess(

@@ -10,8 +10,12 @@ Subpath exports (no package-root barrel):
 - `@nova/sdk-file/operations`
 - `@nova/sdk-file/types`
 
-The package is transport-focused and does not ship Zod or bundled runtime
-validation helpers.
+`@nova/sdk-file/client` is a thin checked-in wrapper over `openapi-fetch`.
+`createNovaFileClient()` returns the native `GET`, `POST`, `PUT`, `PATCH`,
+`DELETE`, `OPTIONS`, `HEAD`, and `TRACE` methods, and callers use middleware
+for bearer-token or telemetry-header injection.
+
+The package does not ship Zod or bundled runtime validation helpers.
 
 Public `types` exports are curated operation helpers and reachable public
 schemas only; internal worker-only models are intentionally excluded even
