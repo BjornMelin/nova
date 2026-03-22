@@ -36,16 +36,22 @@ defaults:
 jobs:
   apply:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     env:
       AWS_REGION: ${{ inputs.aws_region }}
       RELEASE_AWS_ROLE_ARN: ${{ secrets.release_aws_role_arn }}
       SIGNING_SECRET_ID: ${{ secrets.release_signing_secret_id }}
+      GITHUB_TOKEN: ${{ github.token }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # actions/checkout@v4
         with:
           fetch-depth: 0
           ref: ${{ inputs.checkout_ref }}
+          persist-credentials: false
+
+      - name: Configure authenticated git remote
+        run: git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
 
       - name: Guard checkout ref resolves to origin/main
         run: |

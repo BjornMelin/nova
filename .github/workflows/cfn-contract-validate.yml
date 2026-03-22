@@ -20,13 +20,15 @@ concurrency:
 jobs:
   classify-changes:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     outputs:
       changed_files_json: ${{ steps.scope.outputs.changed_files_json }}
       run_cfn: ${{ steps.scope.outputs.run_cfn }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # actions/checkout@v4
         with:
           fetch-depth: 0
+          persist-credentials: false
       - name: Detect workflow scopes
         id: scope
         env:
@@ -43,11 +45,16 @@ jobs:
     needs: classify-changes
     if: needs.classify-changes.outputs.run_cfn == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Setup Python and uv
         uses: ./.github/actions/setup-python-uv
+        with:
+          save-cache: "false"
 
       - name: Validate CloudFormation syntax and schema
         run: |
@@ -59,7 +66,7 @@ jobs:
       - name: Run infra preflight contract tests
         run: |
           set -euo pipefail
-          uv run --with pytest pytest -q \
+          uv run pytest -q \
             tests/infra/test_absorbed_infra_contracts.py \
             tests/infra/test_ci_scope_detector.py \
             tests/infra/test_release_workflow_contracts.py \

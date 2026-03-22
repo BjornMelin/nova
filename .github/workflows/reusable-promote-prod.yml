@@ -86,6 +86,7 @@ concurrency:
 jobs:
   validate-and-promote-packages:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     env:
       PIPELINE_NAME: ${{ inputs.pipeline_name }}
       AWS_REGION: ${{ inputs.aws_region }}
@@ -104,7 +105,9 @@ jobs:
       EXPECTED_PROMOTION_CANDIDATES_SHA256: ${{ inputs.promotion_candidates_sha256 }}
       EXPECTED_MANIFEST_SHA256: ${{ inputs.manifest_sha256 }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Setup Python and uv
         uses: ./.github/actions/setup-python-uv
@@ -430,9 +433,12 @@ jobs:
   approve-prod-pipeline:
     needs: validate-and-promote-packages
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Configure AWS Credentials (OIDC)
         uses: ./.github/actions/configure-aws-oidc

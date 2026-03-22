@@ -31,31 +31,44 @@ CONFORMANCE_GENERATOR_EXACT = {
     "scripts/release/generate_clients.py",
     "scripts/release/generate_python_clients.py",
 }
-CONFORMANCE_REQUIRED_PREFIXES = (
+GENERATED_CLIENTS_PREFIXES = (
     *RUNTIME_PREFIXES,
     "packages/contracts/",
-    "packages/nova_sdk_fetch/",
-    "packages/nova_sdk_file/",
-    "packages/nova_sdk_r_file/",
-    "scripts/conformance/",
     "scripts/contracts/",
-    "scripts/release/tests/",
 )
-CONFORMANCE_REQUIRED_EXACT = {
+GENERATED_CLIENTS_EXACT = {
     "package.json",
     "package-lock.json",
     ".npmrc",
     ".github/workflows/conformance-clients.yml",
-    ".github/actions/setup-python-uv/action.yml",
 } | CONFORMANCE_GENERATOR_EXACT
-CONFORMANCE_OPTIONAL_PREFIXES = (
-    *RUNTIME_PREFIXES,
+DASH_CONFORMANCE_PREFIXES = (
+    "packages/nova_dash_bridge/",
+    "packages/contracts/fixtures/",
+    "scripts/conformance/",
+    "scripts/release/tests/",
+)
+DASH_CONFORMANCE_EXACT = {
+    ".github/workflows/conformance-clients.yml",
+} | CONFORMANCE_GENERATOR_EXACT
+SHINY_CONFORMANCE_PREFIXES = (
+    "packages/nova_sdk_r_file/",
+    "packages/contracts/fixtures/",
+    "scripts/conformance/",
+    "scripts/release/tests/",
+)
+SHINY_CONFORMANCE_EXACT = {
+    ".github/workflows/conformance-clients.yml",
+} | CONFORMANCE_GENERATOR_EXACT
+TYPESCRIPT_CONFORMANCE_PREFIXES = (
+    "packages/contracts/fixtures/",
     "packages/contracts/typescript/",
     "packages/nova_sdk_fetch/",
     "packages/nova_sdk_file/",
     "scripts/conformance/",
+    "scripts/release/tests/",
 )
-CONFORMANCE_OPTIONAL_EXACT = {
+TYPESCRIPT_CONFORMANCE_EXACT = {
     "package.json",
     "package-lock.json",
     ".npmrc",
@@ -178,19 +191,35 @@ def _build_outputs(changed_files: list[str]) -> dict[str, str]:
         _matches(path, prefixes=RUNTIME_PREFIXES, exact=RUNTIME_EXACT)
         for path in changed_files
     )
-    run_conformance_required = any(
+    run_generated_clients = any(
         _matches(
             path,
-            prefixes=CONFORMANCE_REQUIRED_PREFIXES,
-            exact=CONFORMANCE_REQUIRED_EXACT,
+            prefixes=GENERATED_CLIENTS_PREFIXES,
+            exact=GENERATED_CLIENTS_EXACT,
         )
         for path in changed_files
     )
-    run_conformance_optional = any(
+    run_dash_conformance = any(
         _matches(
             path,
-            prefixes=CONFORMANCE_OPTIONAL_PREFIXES,
-            exact=CONFORMANCE_OPTIONAL_EXACT,
+            prefixes=DASH_CONFORMANCE_PREFIXES,
+            exact=DASH_CONFORMANCE_EXACT,
+        )
+        for path in changed_files
+    )
+    run_shiny_conformance = any(
+        _matches(
+            path,
+            prefixes=SHINY_CONFORMANCE_PREFIXES,
+            exact=SHINY_CONFORMANCE_EXACT,
+        )
+        for path in changed_files
+    )
+    run_typescript_conformance = any(
+        _matches(
+            path,
+            prefixes=TYPESCRIPT_CONFORMANCE_PREFIXES,
+            exact=TYPESCRIPT_CONFORMANCE_EXACT,
         )
         for path in changed_files
     )
@@ -204,8 +233,10 @@ def _build_outputs(changed_files: list[str]) -> dict[str, str]:
         "affected_units_json": json.dumps(affected_units),
         "docs_only": str(docs_only).lower(),
         "run_runtime_ci": str(run_runtime_ci).lower(),
-        "run_conformance_required": str(run_conformance_required).lower(),
-        "run_conformance_optional": str(run_conformance_optional).lower(),
+        "run_generated_clients": str(run_generated_clients).lower(),
+        "run_dash_conformance": str(run_dash_conformance).lower(),
+        "run_shiny_conformance": str(run_shiny_conformance).lower(),
+        "run_typescript_conformance": str(run_typescript_conformance).lower(),
         "run_cfn": str(run_cfn).lower(),
     }
 

@@ -12,8 +12,7 @@ from .helpers import REPO_ROOT, read_repo_file as _read
 
 
 class _RequiredWorkflowExpectation(TypedDict):
-    classifier_output: str
-    gated_jobs: list[str]
+    gated_jobs: dict[str, str]
 
 
 def test_reusable_workflow_call_apis_exist_and_are_callable() -> None:
@@ -239,23 +238,20 @@ def test_required_ci_workflows_use_scope_classifier_gate() -> None:
     """Required workflows must always trigger and gate heavy jobs by scope."""
     required_workflows: dict[str, _RequiredWorkflowExpectation] = {
         ".github/workflows/ci.yml": {
-            "classifier_output": "run_runtime_ci",
-            "gated_jobs": [
-                "runtime-security-reliability-gates",
-                "quality-gates",
-            ],
+            "gated_jobs": {
+                "runtime-security-reliability-gates": "run_runtime_ci",
+                "quality-gates": "run_runtime_ci",
+            },
         },
         ".github/workflows/conformance-clients.yml": {
-            "classifier_output": "run_conformance_required",
-            "gated_jobs": [
-                "dash-conformance",
-                "shiny-conformance",
-                "typescript-conformance",
-            ],
+            "gated_jobs": {
+                "dash-conformance": "run_dash_conformance",
+                "shiny-conformance": "run_shiny_conformance",
+                "typescript-conformance": "run_typescript_conformance",
+            },
         },
         ".github/workflows/cfn-contract-validate.yml": {
-            "classifier_output": "run_cfn",
-            "gated_jobs": ["cfn-and-contracts"],
+            "gated_jobs": {"cfn-and-contracts": "run_cfn"},
         },
     }
 
@@ -280,12 +276,11 @@ def test_required_ci_workflows_use_scope_classifier_gate() -> None:
 
         classifier_outputs = classifier.get("outputs")
         assert isinstance(classifier_outputs, dict)
-        assert expectation["classifier_output"] in classifier_outputs, (
-            f"Missing classifier output {expectation['classifier_output']} in "
-            f"{rel_path}"
-        )
 
-        for job_name in expectation["gated_jobs"]:
+        for job_name, classifier_output in expectation["gated_jobs"].items():
+            assert classifier_output in classifier_outputs, (
+                f"Missing classifier output {classifier_output} in {rel_path}"
+            )
             job = jobs.get(job_name)
             assert isinstance(job, dict), (
                 f"Missing expected gated job {job_name!r} in {rel_path}"
@@ -305,9 +300,9 @@ def test_required_ci_workflows_use_scope_classifier_gate() -> None:
             assert "classify-changes" in condition, (
                 f"Expected {job_name!r} to depend on classifier in {rel_path}"
             )
-            assert expectation["classifier_output"] in condition, (
+            assert classifier_output in condition, (
                 f"Expected {job_name!r} to gate on "
-                f"{expectation['classifier_output']} in {rel_path}"
+                f"{classifier_output} in {rel_path}"
             )
 
 

@@ -25,6 +25,7 @@ jobs:
   publish-staging:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     env:
       AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
       RELEASE_AWS_ROLE_ARN: ${{ secrets.RELEASE_AWS_ROLE_ARN }}
@@ -35,7 +36,7 @@ jobs:
       RELEASE_APPLY_RUN_ID: ${{ inputs.release_apply_run_id }}
     steps:
       - name: Validate release-apply workflow run id
-        uses: actions/github-script@v7
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # actions/github-script@v7
         env:
           EXPECTED_RELEASE_APPLY_WORKFLOW_NAME: Nova Release Apply
           EXPECTED_RELEASE_APPLY_WORKFLOW_PATH: .github/workflows/release-apply.yml
@@ -111,27 +112,23 @@ jobs:
             core.exportVariable("RELEASE_APPLY_RUN_ID", String(run.id));
 
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # actions/checkout@v4
         with:
           fetch-depth: 0
+          persist-credentials: false
           ref: main
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # actions/setup-python@v5
         with:
           python-version: '3.12'
 
       - name: Setup uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9 # astral-sh/setup-uv@v7
         with:
           version: "0.10.12"
           enable-cache: true
           prune-cache: true
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: "22"
 
       - name: Validate required CodeArtifact variables
         run: |
@@ -166,13 +163,42 @@ jobs:
           print(payload["release_commit_sha"])
           PY
           )"
-          git fetch --depth=1 origin "${RELEASE_COMMIT_SHA}"
           git checkout "${RELEASE_COMMIT_SHA}"
 
       - name: Sync
         run: uv sync --locked
 
+      - name: Detect release package formats
+        id: release-formats
+        run: |
+          set -euo pipefail
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          from pathlib import Path
+
+          version_plan = json.loads(
+              Path(".artifacts/version-plan.json").read_text(
+                  encoding="utf-8"
+              )
+          )
+          formats = {
+              item.get("format", "pypi")
+              for item in version_plan.get("units", [])
+          }
+          print(f"has_npm={'true' if 'npm' in formats else 'false'}")
+          print(f"has_r={'true' if 'r' in formats else 'false'}")
+          PY
+
+      - name: Setup Node
+        if: steps.release-formats.outputs.has_npm == 'true'
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: package-lock.json
+
       - name: Install npm workspace dependencies
+        if: steps.release-formats.outputs.has_npm == 'true'
         run: npm ci
 
       - name: Detect changed release units
@@ -206,12 +232,13 @@ jobs:
           PY
 
       - name: Configure AWS Credentials (OIDC)
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@ff717079ee2060e4bcee96c4779b553acc87447c # aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ env.RELEASE_AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Configure npm CodeArtifact userconfig
+        if: steps.release-formats.outputs.has_npm == 'true'
         run: |
           set -euo pipefail
           NPM_USERCONFIG_PATH="${RUNNER_TEMP}/nova-codeartifact-staging.npmrc"
@@ -282,6 +309,7 @@ jobs:
           PY
 
       - name: Prepare npm publish artifacts
+        if: steps.release-formats.outputs.has_npm == 'true'
         run: |
           set -euo pipefail
           [[ -n "${NPM_REGISTRY_URL:-}" ]] || {
@@ -296,14 +324,14 @@ jobs:
             --report-out .artifacts/npm-publish-report.json
 
       - name: Setup R
-        if: steps.release-units.outputs.has_r_units == 'true'
-        uses: r-lib/actions/setup-r@v2
+        if: steps.release-formats.outputs.has_r == 'true'
+        uses: r-lib/actions/setup-r@6f6e5bc62fba3a704f74e7ad7ef7676c5c6a2590 # r-lib/actions/setup-r@v2
         with:
           r-version: "4.3.2"
 
       - name: Install R dependencies for nova.sdk.r.file
         if: contains(fromJson(steps.release-units.outputs.r_unit_ids), 'packages/nova_sdk_r_file')
-        uses: r-lib/actions/setup-r-dependencies@v2
+        uses: r-lib/actions/setup-r-dependencies@6f6e5bc62fba3a704f74e7ad7ef7676c5c6a2590 # r-lib/actions/setup-r-dependencies@v2
         with:
           working-directory: packages/nova_sdk_r_file
 
@@ -918,7 +946,7 @@ jobs:
           node smoke.mjs
 
       - name: Upload package gate artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # actions/upload-artifact@v4
         with:
           name: codeartifact-release-gate-artifacts
           path: .artifacts/

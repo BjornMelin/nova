@@ -79,11 +79,14 @@ permissions:
 jobs:
   bootstrap:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     outputs:
       stack_name: ${{ steps.set_outputs.outputs.stack_name }}
       change_set_name: ${{ steps.deploy.outputs.change-set-name }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Configure AWS Credentials (OIDC)
         uses: ./.github/actions/configure-aws-oidc

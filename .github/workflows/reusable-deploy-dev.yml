@@ -24,6 +24,7 @@ permissions:
 jobs:
   deploy-dev:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - name: Resolve workflow source repository
         shell: bash
@@ -38,10 +39,11 @@ jobs:
           echo "WORKFLOW_SOURCE_SHA=${{ github.workflow_sha }}" >> "$GITHUB_ENV"
 
       - name: Checkout workflow source repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # actions/checkout@v4
         with:
           repository: ${{ env.WORKFLOW_SOURCE_REPOSITORY }}
           ref: ${{ env.WORKFLOW_SOURCE_SHA }}
+          persist-credentials: false
 
       - name: Configure AWS Credentials (OIDC)
         uses: ./.github/actions/configure-aws-oidc

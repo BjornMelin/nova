@@ -114,6 +114,7 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     outputs:
       stack_name: ${{ steps.outputs.outputs.stack_name }}
       change_set_name: ${{ steps.deploy.outputs.change-set-name }}
@@ -121,7 +122,9 @@ jobs:
       validation_report_path: ${{ steps.outputs.outputs.validation_report_path }}
       manifest_sha256: ${{ steps.outputs.outputs.manifest_sha256 }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Configure AWS Credentials (OIDC)
         uses: ./.github/actions/configure-aws-oidc
@@ -248,7 +251,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Upload deploy evidence
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # actions/upload-artifact@v4
         with:
           name: deploy-evidence
           path: .artifacts/deploy-evidence.json

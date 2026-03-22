@@ -55,13 +55,15 @@ def _run_git(git_executable: str, repo_root: Path, *args: str) -> str:
     ).stdout.strip()
 
 
-def test_runtime_changes_enable_runtime_and_conformance_lanes() -> None:
-    """Runtime edits should enable runtime and full conformance lanes only."""
+def test_runtime_changes_enable_runtime_and_generated_client_lanes() -> None:
+    """Runtime edits should enable runtime and generated-client lanes only."""
     outputs = _outputs(["packages/nova_file_api/src/nova_file_api/app.py"])
 
     assert outputs["run_runtime_ci"] == "true"
-    assert outputs["run_conformance_required"] == "true"
-    assert outputs["run_conformance_optional"] == "true"
+    assert outputs["run_generated_clients"] == "true"
+    assert outputs["run_dash_conformance"] == "false"
+    assert outputs["run_shiny_conformance"] == "false"
+    assert outputs["run_typescript_conformance"] == "false"
     assert outputs["run_cfn"] == "false"
     assert outputs["docs_only"] == "false"
 
@@ -71,8 +73,10 @@ def test_release_artifact_docs_enable_cfn_lane() -> None:
     outputs = _outputs(["docs/release/README.md"])
 
     assert outputs["run_runtime_ci"] == "false"
-    assert outputs["run_conformance_required"] == "false"
-    assert outputs["run_conformance_optional"] == "false"
+    assert outputs["run_generated_clients"] == "false"
+    assert outputs["run_dash_conformance"] == "false"
+    assert outputs["run_shiny_conformance"] == "false"
+    assert outputs["run_typescript_conformance"] == "false"
     assert outputs["run_cfn"] == "true"
     assert outputs["docs_only"] == "true"
 
@@ -82,8 +86,10 @@ def test_docs_authority_changes_only_enable_cfn_lane() -> None:
     outputs = _outputs(["docs/runbooks/release/release-runbook.md"])
 
     assert outputs["run_runtime_ci"] == "false"
-    assert outputs["run_conformance_required"] == "false"
-    assert outputs["run_conformance_optional"] == "false"
+    assert outputs["run_generated_clients"] == "false"
+    assert outputs["run_dash_conformance"] == "false"
+    assert outputs["run_shiny_conformance"] == "false"
+    assert outputs["run_typescript_conformance"] == "false"
     assert outputs["run_cfn"] == "true"
     assert outputs["docs_only"] == "true"
 
@@ -93,8 +99,10 @@ def test_prd_changes_enable_only_cfn_lane() -> None:
     outputs = _outputs(["docs/PRD.md"])
 
     assert outputs["run_runtime_ci"] == "false"
-    assert outputs["run_conformance_required"] == "false"
-    assert outputs["run_conformance_optional"] == "false"
+    assert outputs["run_generated_clients"] == "false"
+    assert outputs["run_dash_conformance"] == "false"
+    assert outputs["run_shiny_conformance"] == "false"
+    assert outputs["run_typescript_conformance"] == "false"
     assert outputs["run_cfn"] == "true"
     assert outputs["docs_only"] == "true"
 
@@ -104,8 +112,10 @@ def test_docs_history_changes_remain_docs_only_without_required_lanes() -> None:
     outputs = _outputs(["docs/history/2026-03-v1-hard-cut/README.md"])
 
     assert outputs["run_runtime_ci"] == "false"
-    assert outputs["run_conformance_required"] == "false"
-    assert outputs["run_conformance_optional"] == "false"
+    assert outputs["run_generated_clients"] == "false"
+    assert outputs["run_dash_conformance"] == "false"
+    assert outputs["run_shiny_conformance"] == "false"
+    assert outputs["run_typescript_conformance"] == "false"
     assert outputs["run_cfn"] == "false"
     assert outputs["docs_only"] == "true"
 
@@ -115,8 +125,10 @@ def test_workflow_changes_mark_cfn_and_targeted_ci_lanes() -> None:
     outputs = _outputs([".github/workflows/ci.yml"])
 
     assert outputs["run_runtime_ci"] == "true"
-    assert outputs["run_conformance_required"] == "false"
-    assert outputs["run_conformance_optional"] == "false"
+    assert outputs["run_generated_clients"] == "false"
+    assert outputs["run_dash_conformance"] == "false"
+    assert outputs["run_shiny_conformance"] == "false"
+    assert outputs["run_typescript_conformance"] == "false"
     assert outputs["run_cfn"] == "true"
     affected_units = cast(list[str], json.loads(outputs["affected_units_json"]))
     assert affected_units == []
@@ -136,10 +148,50 @@ def test_generator_entrypoints_enable_conformance_and_cfn_lanes(
     outputs = _outputs([path])
 
     assert outputs["run_runtime_ci"] == "false"
-    assert outputs["run_conformance_required"] == "true"
-    assert outputs["run_conformance_optional"] == "true"
+    assert outputs["run_generated_clients"] == "true"
+    assert outputs["run_dash_conformance"] == "true"
+    assert outputs["run_shiny_conformance"] == "true"
+    assert outputs["run_typescript_conformance"] == "true"
     assert outputs["run_cfn"] == "true"
     assert outputs["docs_only"] == "false"
+
+
+def test_dash_changes_enable_only_dash_conformance_lane() -> None:
+    """Dash edits should only enable Dash conformance on PRs."""
+    outputs = _outputs(
+        ["packages/nova_dash_bridge/src/nova_dash_bridge/app.py"]
+    )
+
+    assert outputs["run_runtime_ci"] == "true"
+    assert outputs["run_generated_clients"] == "true"
+    assert outputs["run_dash_conformance"] == "true"
+    assert outputs["run_shiny_conformance"] == "false"
+    assert outputs["run_typescript_conformance"] == "false"
+    assert outputs["run_cfn"] == "false"
+
+
+def test_r_changes_enable_only_shiny_conformance_lane() -> None:
+    """R SDK edits should only enable the Shiny conformance lane."""
+    outputs = _outputs(["packages/nova_sdk_r_file/DESCRIPTION"])
+
+    assert outputs["run_runtime_ci"] == "false"
+    assert outputs["run_generated_clients"] == "false"
+    assert outputs["run_dash_conformance"] == "false"
+    assert outputs["run_shiny_conformance"] == "true"
+    assert outputs["run_typescript_conformance"] == "false"
+    assert outputs["run_cfn"] == "false"
+
+
+def test_typescript_changes_enable_only_typescript_conformance_lane() -> None:
+    """TypeScript SDK edits should only enable TS conformance on PRs."""
+    outputs = _outputs(["packages/nova_sdk_file/src/client.ts"])
+
+    assert outputs["run_runtime_ci"] == "false"
+    assert outputs["run_generated_clients"] == "false"
+    assert outputs["run_dash_conformance"] == "false"
+    assert outputs["run_shiny_conformance"] == "false"
+    assert outputs["run_typescript_conformance"] == "true"
+    assert outputs["run_cfn"] == "false"
 
 
 def test_scope_detector_cli_emits_expected_output_contract(
@@ -196,6 +248,8 @@ def test_scope_detector_cli_emits_expected_output_contract(
     assert json.loads(outputs["affected_units_json"]) == []
     assert outputs["docs_only"] == "false"
     assert outputs["run_runtime_ci"] == "false"
-    assert outputs["run_conformance_required"] == "false"
-    assert outputs["run_conformance_optional"] == "false"
+    assert outputs["run_generated_clients"] == "false"
+    assert outputs["run_dash_conformance"] == "false"
+    assert outputs["run_shiny_conformance"] == "false"
+    assert outputs["run_typescript_conformance"] == "false"
     assert outputs["run_cfn"] == "false"

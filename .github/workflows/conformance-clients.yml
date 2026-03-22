@@ -20,15 +20,19 @@ concurrency:
 jobs:
   classify-changes:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     outputs:
       changed_files_json: ${{ steps.scope.outputs.changed_files_json }}
       affected_units_json: ${{ steps.scope.outputs.affected_units_json }}
-      run_conformance_required: ${{ steps.scope.outputs.run_conformance_required }}
-      run_conformance_optional: ${{ steps.scope.outputs.run_conformance_optional }}
+      run_generated_clients: ${{ steps.scope.outputs.run_generated_clients }}
+      run_dash_conformance: ${{ steps.scope.outputs.run_dash_conformance }}
+      run_shiny_conformance: ${{ steps.scope.outputs.run_shiny_conformance }}
+      run_typescript_conformance: ${{ steps.scope.outputs.run_typescript_conformance }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # actions/checkout@v4
         with:
           fetch-depth: 0
+          persist-credentials: false
       - name: Detect workflow scopes
         id: scope
         env:
@@ -45,15 +49,18 @@ jobs:
     needs: classify-changes
     if: >-
       github.event_name == 'push' ||
-      needs.classify-changes.outputs.run_conformance_required == 'true' ||
-      needs.classify-changes.outputs.run_conformance_optional == 'true'
+      needs.classify-changes.outputs.run_generated_clients == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: ./.github/actions/setup-python-uv
         with:
           python-version: "3.12"
-      - uses: actions/setup-node@v4
+          save-cache: "false"
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # actions/setup-node@v4
         with:
           node-version: "22"
           cache: npm
@@ -70,21 +77,17 @@ jobs:
         run: uv run python scripts/release/generate_python_clients.py --check
 
   typescript-core-packages:
-    needs:
-      - classify-changes
-      - generated-clients
+    needs: classify-changes
     if: >-
       github.event_name == 'push' ||
-      needs.classify-changes.outputs.run_conformance_optional == 'true'
+      needs.classify-changes.outputs.run_typescript_conformance == 'true'
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        package_name:
-          - "@nova/sdk-fetch"
-          - "@nova/sdk-file"
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # actions/setup-node@v4
         with:
           node-version: "22"
           cache: npm
@@ -93,46 +96,57 @@ jobs:
         run: npm ci
       - name: Build TypeScript SDK dependency graph
         run: npm run build:typescript:sdk-graph
-      - name: Typecheck package
-        run: npm run -w ${{ matrix.package_name }} typecheck
+      - name: Typecheck packages
+        run: |
+          npm run -w @nova/sdk-fetch typecheck
+          npm run -w @nova/sdk-file typecheck
+      - name: Pack TypeScript SDK tarballs
+        run: |
+          set -euo pipefail
+          mkdir -p .artifacts/npm
+          npm pack -w @nova/sdk-fetch --pack-destination .artifacts/npm
+          npm pack -w @nova/sdk-file --pack-destination .artifacts/npm
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # actions/upload-artifact@v4
+        with:
+          name: ts-sdk-tarballs
+          path: .artifacts/npm/*.tgz
+          retention-days: 30
 
   typescript-sdk-smoke:
     needs:
       - classify-changes
-      - generated-clients
+      - typescript-core-packages
     if: >-
       github.event_name == 'push' ||
-      needs.classify-changes.outputs.run_conformance_optional == 'true'
+      needs.classify-changes.outputs.run_typescript_conformance == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # actions/setup-node@v4
         with:
           node-version: "22"
-          cache: npm
-          cache-dependency-path: package-lock.json
-      - name: Build TypeScript SDK packages
-        run: |
-          set -euo pipefail
-          npm ci
-          npm run build:typescript:sdk-graph
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # actions/download-artifact@v4
+        with:
+          name: ts-sdk-tarballs
+          path: .artifacts/npm
       - name: Smoke test TypeScript SDK exports
         run: |
           set -euo pipefail
           tmp_dir="$(mktemp -d)"
           trap 'rm -rf "${tmp_dir}"' EXIT
           cd "${tmp_dir}"
-          cat > package.json <<'EOF'
+          cat > package.json <<'PKGEOF'
           {
             "name": "nova-typescript-sdk-smoke",
             "private": true,
             "type": "module"
           }
-          EOF
-          npm install --no-package-lock \
-            "${GITHUB_WORKSPACE}/packages/nova_sdk_fetch" \
-            "${GITHUB_WORKSPACE}/packages/nova_sdk_file"
-          node --input-type=module <<'EOF'
+          PKGEOF
+          npm install --no-package-lock "${GITHUB_WORKSPACE}/.artifacts/npm/"*.tgz
+          node --input-type=module <<'NODEEOF'
           import { createNovaFileClient } from "@nova/sdk-file/client";
           import { operations as fileOperations } from "@nova/sdk-file/operations";
           import { buildOperationDescriptorUrl, buildOperationUrl } from "@nova/sdk-fetch/url";
@@ -188,42 +202,52 @@ jobs:
           if (!fileResponse.ok || fileResponse.data?.job?.job_id !== "job-123") {
             throw new Error("unexpected file client response");
           }
-          EOF
+          NODEEOF
 
   dash-conformance:
     needs:
       - classify-changes
       - generated-clients
-    if: needs.classify-changes.outputs.run_conformance_required == 'true'
+    if: >-
+      github.event_name == 'push' ||
+      needs.classify-changes.outputs.run_dash_conformance == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: ./.github/actions/setup-python-uv
         with:
           python-version: "3.12"
+          save-cache: "false"
       - name: Validate Dash lane fixtures
         run: uv run python scripts/conformance/validate_lane.py --lane dash
       - name: Validate contract fixtures against runtime models
         run: uv run pytest -q scripts/release/tests/test_contract_fixtures_v1.py
 
   shiny-conformance:
-    needs:
-      - classify-changes
-      - generated-clients
-    if: needs.classify-changes.outputs.run_conformance_required == 'true'
+    needs: classify-changes
+    if: >-
+      github.event_name == 'push' ||
+      needs.classify-changes.outputs.run_shiny_conformance == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: ./.github/actions/setup-python-uv
         with:
           python-version: "3.12"
+          save-cache: "false"
       - name: Validate Shiny lane fixtures
         run: uv run python scripts/conformance/validate_lane.py --lane shiny
-      - uses: r-lib/actions/setup-r@v2
+      - uses: r-lib/actions/setup-r@6f6e5bc62fba3a704f74e7ad7ef7676c5c6a2590 # r-lib/actions/setup-r@v2
         with:
           r-version: "4.3.2"
       - name: Install R dependencies for nova.sdk.r.file
-        uses: r-lib/actions/setup-r-dependencies@v2
+        uses: r-lib/actions/setup-r-dependencies@6f6e5bc62fba3a704f74e7ad7ef7676c5c6a2590 # r-lib/actions/setup-r-dependencies@v2
         with:
           working-directory: packages/nova_sdk_r_file
       - name: Build and check generated R SDK packages
@@ -232,14 +256,17 @@ jobs:
           bash scripts/checks/verify_r_cmd_check.sh packages/nova_sdk_r_file
 
   typescript-conformance:
-    needs:
-      - classify-changes
-      - generated-clients
-    if: needs.classify-changes.outputs.run_conformance_required == 'true'
+    needs: classify-changes
+    if: >-
+      github.event_name == 'push' ||
+      needs.classify-changes.outputs.run_typescript_conformance == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # actions/setup-node@v4
         with:
           node-version: "22"
           cache: npm
@@ -255,5 +282,6 @@ jobs:
       - uses: ./.github/actions/setup-python-uv
         with:
           python-version: "3.12"
+          save-cache: "false"
       - name: Validate TypeScript lane fixtures
         run: uv run python scripts/conformance/validate_lane.py --lane typescript
