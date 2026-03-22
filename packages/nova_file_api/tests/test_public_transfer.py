@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 from typing import Any, cast
 
 import nova_file_api.public as public
@@ -59,7 +58,8 @@ def test_transfer_config_is_keyword_only() -> None:
         )
 
 
-def test_build_transfer_service_ignores_ambient_settings_env(
+@pytest.mark.asyncio
+async def test_build_transfer_service_ignores_ambient_settings_env(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv("JOBS_RUNTIME_MODE", "worker")
@@ -82,15 +82,13 @@ def test_build_transfer_service_ignores_ambient_settings_env(
         s3_client=_FakeTransferStorageClient(),
     )
 
-    response = asyncio.run(
-        service.initiate_upload(
-            public.InitiateUploadRequest(
-                filename="report.csv",
-                content_type="text/csv",
-                size_bytes=1,
-            ),
-            public.Principal(subject="user-1", scope_id="scope-1"),
-        )
+    response = await service.initiate_upload(
+        public.InitiateUploadRequest(
+            filename="report.csv",
+            content_type="text/csv",
+            size_bytes=1,
+        ),
+        public.Principal(subject="user-1", scope_id="scope-1"),
     )
 
     assert response.bucket == "bucket-a"
