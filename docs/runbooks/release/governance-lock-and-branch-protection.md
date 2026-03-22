@@ -182,32 +182,33 @@ RULESET_ID="${RULESET_ID:?Set RULESET_ID (current repo main ruleset id)}"
 
 2. Verify CODEOWNERS snapshot.
 
-```bash
-gh api repos/${OWNER}/${REPO}/contents/.github/CODEOWNERS --jq '{path: .path, sha: .sha}'
-gh api repos/${OWNER}/${REPO}/contents/.github/CODEOWNERS --jq '.content | @base64d' | sha256sum
-```
+   ```bash
+   gh api repos/${OWNER}/${REPO}/contents/.github/CODEOWNERS --jq '{path: .path, sha: .sha}'
+   gh api repos/${OWNER}/${REPO}/contents/.github/CODEOWNERS --jq '.content | @base64d' | sha256sum
+   ```
 
 3. Verify the active ruleset and current required checks.
 
-```bash
-gh api repos/${OWNER}/${REPO}/rulesets
-gh api repos/${OWNER}/${REPO}/rulesets/${RULESET_ID}
-```
+   ```bash
+   gh api repos/${OWNER}/${REPO}/rulesets
+   gh api repos/${OWNER}/${REPO}/rulesets/${RULESET_ID}
+   ```
 
 4. If drift exists, reconcile Part A through the GitHub UI or the optional
    apply snippet after review.
 
 5. Capture evidence.
 
-```bash
-EVIDENCE_DIR="${TMPDIR:-/tmp}/nova-governance-evidence/governance/$(date -u +%Y%m%dT%H%M%SZ)"
-export EVIDENCE_DIR
-mkdir -p "${EVIDENCE_DIR}"
+   ```bash
+   EVIDENCE_DIR="${TMPDIR:-/tmp}/nova-governance-evidence/governance/$(date -u +%Y%m%dT%H%M%SZ)"
+   export EVIDENCE_DIR
+   mkdir -p "${EVIDENCE_DIR}"
 
-gh api repos/${OWNER}/${REPO}/contents/.github/CODEOWNERS --jq '{path: .path, sha: .sha}' > "${EVIDENCE_DIR}/codeowners-snapshot.json"
-gh api repos/${OWNER}/${REPO}/rulesets > "${EVIDENCE_DIR}/rulesets.json"
-gh api repos/${OWNER}/${REPO}/rulesets/${RULESET_ID} > "${EVIDENCE_DIR}/main-ruleset.json"
-sha256sum "${EVIDENCE_DIR}"/* > "${EVIDENCE_DIR}/SHA256SUMS"
+   gh api repos/${OWNER}/${REPO}/contents/.github/CODEOWNERS --jq '{path: .path, sha: .sha}' > "${EVIDENCE_DIR}/codeowners-snapshot.json"
+   gh api repos/${OWNER}/${REPO}/rulesets > "${EVIDENCE_DIR}/rulesets.json"
+   gh api repos/${OWNER}/${REPO}/rulesets/${RULESET_ID} > "${EVIDENCE_DIR}/main-ruleset.json"
+   sha256sum "${EVIDENCE_DIR}"/* > "${EVIDENCE_DIR}/SHA256SUMS"
+   ```
 ```
 
 Do not commit `${EVIDENCE_DIR}`; it is intentionally outside the repository
