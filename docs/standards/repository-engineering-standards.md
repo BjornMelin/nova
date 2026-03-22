@@ -106,8 +106,8 @@ Rules for narrative provisioning, release, and validation markdown under
 ## Generated TypeScript SDK Rules
 
 - Generated TypeScript package is `@nova/sdk-file`.
-- Generated TypeScript package is release-grade within Nova's existing
-  CodeArtifact staged/prod system, but they remain generator-owned and
+- Release-grade packaging for the TypeScript SDK stays within Nova's existing
+  CodeArtifact staged/prod system, while artifacts remain generator-owned and
   subpath-only.
 - Publicly supported imports remain subpath-only. Do not add package-root `"."`
   exports.
