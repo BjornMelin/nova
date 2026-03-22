@@ -45,6 +45,10 @@ artifacts, or documentation synchronization:
 
 - `./standards/README.md`
 - `./standards/repository-engineering-standards.md`
+- `.github/workflows/ci.yml` for the unified runtime, generated-client, and
+  conformance check graph
+- `.github/workflows/cfn-contract-validate.yml` for separate infra/docs
+  contract validation
 - repo-root `.pre-commit-config.yaml` and `scripts/checks/*.sh` for local hook
   enforcement that mirrors the AGENTS task router
 

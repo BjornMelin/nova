@@ -2,7 +2,7 @@
 
 Status: Active
 Owner: nova release architecture
-Last reviewed: 2026-03-17
+Last reviewed: 2026-03-22
 
 ## Purpose
 
@@ -58,6 +58,9 @@ indexes: [`release/README.md`](./release/README.md).
 - Local developer hook bootstrap now uses repo-root pre-commit configuration
   plus `scripts/dev/install_hooks.sh`; `ty` is enforced through the required
   local and CI typing gates inside the standard quality lane.
+- Hosted PR checks are intended to come from the unified `Nova CI` workflow
+  plus `CFN Contract Validate`; the governance runbook tracks the exact ruleset
+  and required-check surface.
 - Release runbooks define the canonical mixed-package publish path: Python
   distributions publish to CodeArtifact with `twine`, and TypeScript SDK
   packages publish to CodeArtifact npm as generated/private artifacts after

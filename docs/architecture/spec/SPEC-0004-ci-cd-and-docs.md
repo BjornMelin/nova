@@ -40,11 +40,12 @@ Every pull request MUST pass:
 - `source .venv/bin/activate && uv run pytest -q`
 - `source .venv/bin/activate && uv run pytest -q packages/nova_file_api/tests/test_generated_client_smoke.py`
 - workspace package/app build verification (`uv build` per workspace unit)
-- cross-framework conformance gate (`.github/workflows/conformance-clients.yml`):
+- unified `Nova CI` workflow gate (`.github/workflows/ci.yml`) covering:
   - `dash-conformance`
   - `shiny-conformance`
   - `typescript-conformance` (release-grade TypeScript SDK client + fixture
     smoke; required check name remains stable)
+  - `generated-clients`
 
 Release workflows also carry the first-class internal R release line via
 package build/check and signed tarball evidence. Those validations remain in
@@ -62,7 +63,8 @@ checks pending.
 
 Canonical flow:
 
-1. `ci.yml` validates code and contracts on PR and main.
+1. `ci.yml` validates runtime, generated-client, and conformance contracts on
+   PR, merge queue, and main.
 2. `release-plan.yml` is a manual entry wrapper on `main` and delegates to
    `reusable-release-plan.yml` to compute `changed-units.json` and
    `version-plan.json`.

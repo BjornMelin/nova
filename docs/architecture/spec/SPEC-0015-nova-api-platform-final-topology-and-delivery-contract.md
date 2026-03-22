@@ -98,7 +98,6 @@ Required workflows in `.github/workflows/`:
 - `reusable-post-deploy-validate.yml`
 - `reusable-deploy-dev.yml`
 - `reusable-promote-prod.yml`
-- `conformance-clients.yml`
 
 `post-deploy-validate.yml` is the manual entrypoint wrapper.
 `reusable-post-deploy-validate.yml` owns the shared `workflow_call` API used by
@@ -106,6 +105,10 @@ Nova and downstream consumer repositories.
 Container image build and push authority lives in CodeBuild via
 `buildspecs/buildspec-release.yml`, not a GitHub Actions image-wrapper
 workflow.
+
+`ci.yml` is the unified protected-branch workflow shell for runtime quality,
+generated-client drift checks, and cross-language conformance lanes. CFN/docs
+authority validation remains separate in `cfn-contract-validate.yml`.
 
 `ci.yml` MUST enforce:
 

@@ -2,12 +2,12 @@ name: Nova CI
 
 on:
   pull_request:
+  merge_group:
+    types:
+      - checks_requested
   push:
     branches:
       - main
-
-permissions:
-  contents: read
 
 defaults:
   run:
@@ -21,14 +21,20 @@ jobs:
   classify-changes:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: read
     outputs:
       changed_files_json: ${{ steps.scope.outputs.changed_files_json }}
       affected_units_json: ${{ steps.scope.outputs.affected_units_json }}
       docs_only: ${{ steps.scope.outputs.docs_only }}
       run_runtime_ci: ${{ steps.scope.outputs.run_runtime_ci }}
+      run_generated_clients: ${{ steps.scope.outputs.run_generated_clients }}
+      run_dash_conformance: ${{ steps.scope.outputs.run_dash_conformance }}
+      run_shiny_conformance: ${{ steps.scope.outputs.run_shiny_conformance }}
+      run_typescript_conformance: ${{ steps.scope.outputs.run_typescript_conformance }}
     steps:
       - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # actions/checkout@v6
         with:
           fetch-depth: 0
           persist-credentials: false
@@ -37,51 +43,24 @@ jobs:
         id: scope
         env:
           EVENT_NAME: ${{ github.event_name }}
-          HEAD_SHA: ${{ github.sha }}
-          BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event.merge_group.head_sha || github.sha }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before }}
         run: |
           python3 scripts/ci/detect_workflow_scopes.py \
             --event-name "${EVENT_NAME}" \
             --head-sha "${HEAD_SHA}" \
             --base-sha "${BASE_SHA}"
 
-  runtime-security-reliability-gates:
-    needs: classify-changes
-    if: needs.classify-changes.outputs.run_runtime_ci == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # actions/checkout@v4
-        with:
-          persist-credentials: false
-
-      - name: Setup Python and uv
-        uses: ./.github/actions/setup-python-uv
-        with:
-          python-version: "3.12"
-          save-cache: "false"
-
-      - name: Runtime/Security/Reliability Gates
-        run: |
-          uv run pytest -q \
-            packages/nova_file_api/tests/test_runtime_security_reliability_gates.py \
-            packages/nova_file_api/tests/test_auth.py::test_local_auth_error_maps_common_jwt_claim_failures \
-            packages/nova_file_api/tests/test_auth.py::test_required_scope_is_enforced_from_principal_claims \
-            packages/nova_file_api/tests/test_container_config.py::test_runtime_state_requires_sqs_queue_url_when_jobs_enabled \
-            packages/nova_file_api/tests/test_jobs.py::test_enqueue_failure_is_not_idempotency_cached \
-            packages/nova_file_api/tests/test_jobs.py::test_job_service_update_result_rejects_invalid_transition \
-            packages/nova_file_api/tests/test_jobs_dynamo.py::test_dynamo_job_repository_update_if_status_enforces_expected_state \
-            packages/nova_file_api/tests/test_activity_dynamo.py::test_dynamo_activity_store_uses_conditional_first_seen_markers
-
   quality-gates:
     needs: classify-changes
     if: needs.classify-changes.outputs.run_runtime_ci == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      contents: read
     steps:
       - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # actions/checkout@v6
         with:
           persist-credentials: false
 
@@ -108,8 +87,30 @@ jobs:
       - name: Mypy
         run: uv run mypy
 
+      - name: Runtime/Security/Reliability Gates
+        run: |
+          uv run pytest -q \
+            packages/nova_file_api/tests/test_runtime_security_reliability_gates.py \
+            packages/nova_file_api/tests/test_auth.py::test_local_auth_error_maps_common_jwt_claim_failures \
+            packages/nova_file_api/tests/test_auth.py::test_required_scope_is_enforced_from_principal_claims \
+            packages/nova_file_api/tests/test_container_config.py::test_runtime_state_requires_sqs_queue_url_when_jobs_enabled \
+            packages/nova_file_api/tests/test_jobs.py::test_enqueue_failure_is_not_idempotency_cached \
+            packages/nova_file_api/tests/test_jobs.py::test_job_service_update_result_rejects_invalid_transition \
+            packages/nova_file_api/tests/test_jobs_dynamo.py::test_dynamo_job_repository_update_if_status_enforces_expected_state \
+            packages/nova_file_api/tests/test_activity_dynamo.py::test_dynamo_activity_store_uses_conditional_first_seen_markers
+
       - name: Pytest
-        run: uv run pytest -q
+        run: |
+          uv run pytest -q \
+            --deselect=packages/nova_file_api/tests/test_auth.py::test_local_auth_error_maps_common_jwt_claim_failures \
+            --deselect=packages/nova_file_api/tests/test_auth.py::test_required_scope_is_enforced_from_principal_claims \
+            --deselect=packages/nova_file_api/tests/test_container_config.py::test_runtime_state_requires_sqs_queue_url_when_jobs_enabled \
+            --deselect=packages/nova_file_api/tests/test_jobs.py::test_enqueue_failure_is_not_idempotency_cached \
+            --deselect=packages/nova_file_api/tests/test_jobs.py::test_job_service_update_result_rejects_invalid_transition \
+            --deselect=packages/nova_file_api/tests/test_jobs_dynamo.py::test_dynamo_job_repository_update_if_status_enforces_expected_state \
+            --deselect=packages/nova_file_api/tests/test_activity_dynamo.py::test_dynamo_activity_store_uses_conditional_first_seen_markers \
+            --ignore=packages/nova_file_api/tests/test_runtime_security_reliability_gates.py \
+            --ignore=packages/nova_file_api/tests/test_generated_client_smoke.py
 
       - name: Generated Client Smoke
         run: |
@@ -129,255 +130,243 @@ jobs:
           done
 
       - name: Canonical Route Policy Guard
+        run: bash scripts/checks/verify_canonical_route_policy.sh
+
+  generated-clients:
+    needs: classify-changes
+    if: >-
+      github.event_name == 'push' ||
+      github.event_name == 'merge_group' ||
+      needs.classify-changes.outputs.run_generated_clients == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-python-uv
+        with:
+          python-version: "3.12"
+          save-cache: "false"
+      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - name: Install root npm dependencies
+        run: npm ci
+      - name: Enforce TypeScript module policy
+        run: uv run python scripts/conformance/check_typescript_module_policy.py
+      - name: Verify generated TS/R client catalogs
+        run: uv run python scripts/release/generate_clients.py --check
+      - name: Verify generated OpenAPI artifacts
+        run: uv run python scripts/contracts/export_openapi.py --check
+      - name: Verify generated Python SDK artifacts
+        run: uv run python scripts/release/generate_python_clients.py --check
+
+  typescript-core-packages:
+    needs: classify-changes
+    if: >-
+      github.event_name == 'push' ||
+      github.event_name == 'merge_group' ||
+      needs.classify-changes.outputs.run_typescript_conformance == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - name: Install package dependencies
+        run: npm ci
+      - name: Build TypeScript SDK dependency graph
+        run: npm run build:typescript:sdk-graph
+      - name: Typecheck packages
         run: |
-          echo "Verifying canonical route references and literals..."
-          REQUIRED_LITERALS=(
-            "/v1/transfers/uploads/initiate"
-            "/v1/transfers/uploads/sign-parts"
-            "/v1/transfers/uploads/complete"
-            "/v1/transfers/uploads/abort"
-            "/v1/transfers/downloads/presign"
-            "/v1/jobs"
-            "/v1/jobs/{job_id}"
-            "/v1/jobs/{job_id}/cancel"
-            "/v1/jobs/{job_id}/retry"
-            "/v1/jobs/{job_id}/events"
-            "/v1/capabilities"
-            "/v1/resources/plan"
-            "/v1/releases/info"
-            "/v1/health/live"
-            "/v1/health/ready"
-            "/metrics/summary"
-          )
-          ROUTE_LITERAL_PATTERN="/v1/jobs/\\{job_id\\}/events"
-          ROUTE_LITERAL_PATTERN_ALT="/jobs/\\{job_id\\}/events"
-          RUNTIME_PATHS=(
-            "packages/nova_file_api/src"
-            "packages/nova_dash_bridge/src"
-          )
-          RG_PATH_EXCLUDES=(
-            --glob '!**/tests/**'
-            --glob '!**/fixtures/**'
-          )
-          if command -v rg >/dev/null 2>&1; then
-            echo "Using rg to validate route references."
-            for literal in "${REQUIRED_LITERALS[@]}"; do
-              found_literal=0
-              literal_candidates=("$literal")
-              if [[ "$literal" == /v1/transfers/* ]]; then
-                literal_candidates+=("${literal#/v1/transfers}")
-              fi
-              if [[ "$literal" == /v1/* ]]; then
-                literal_candidates+=("${literal#/v1}")
-              fi
-              for candidate in "${literal_candidates[@]}"; do
-                if rg -n -F "${RG_PATH_EXCLUDES[@]}" "$candidate" "${RUNTIME_PATHS[@]}" >/dev/null; then
-                  found_literal=1
-                  break
-                fi
-              done
-              if [[ "$found_literal" -ne 1 ]]; then
-                echo "::error::Required canonical route literal not found: $literal"
-                exit 1
-              fi
-            done
-            rg -n "${RG_PATH_EXCLUDES[@]}" "($ROUTE_LITERAL_PATTERN|$ROUTE_LITERAL_PATTERN_ALT)" "${RUNTIME_PATHS[@]}" || { echo "::error::Required regex route literal not found: $ROUTE_LITERAL_PATTERN"; exit 1; }
-            if rg -n "/api/|/healthz|/readyz" \
-              "${RUNTIME_PATHS[@]}"; then
-              echo "::error::Forbidden legacy runtime route references detected."
-              exit 1
-            fi
-          else
-            echo "Using grep to validate route references."
-            for literal in "${REQUIRED_LITERALS[@]}"; do
-              found_literal=0
-              literal_candidates=("$literal")
-              if [[ "$literal" == /v1/transfers/* ]]; then
-                literal_candidates+=("${literal#/v1/transfers}")
-              fi
-              if [[ "$literal" == /v1/* ]]; then
-                literal_candidates+=("${literal#/v1}")
-              fi
-              for candidate in "${literal_candidates[@]}"; do
-                if grep -RIn --fixed-strings \
-                  --exclude-dir=tests \
-                  --exclude-dir=fixtures \
-                  "$candidate" "${RUNTIME_PATHS[@]}" >/dev/null; then
-                  found_literal=1
-                  break
-                fi
-              done
-              if [[ "$found_literal" -ne 1 ]]; then
-                echo "::error::Required canonical route literal not found: $literal"
-                exit 1
-              fi
-            done
-            grep -RInE \
-              --exclude-dir=tests \
-              --exclude-dir=fixtures \
-              "($ROUTE_LITERAL_PATTERN|$ROUTE_LITERAL_PATTERN_ALT)" "${RUNTIME_PATHS[@]}" || { echo "::error::Required regex route literal not found: $ROUTE_LITERAL_PATTERN"; exit 1; }
-            if grep -RInE "/api/|/healthz|/readyz" \
-              "${RUNTIME_PATHS[@]}"; then
-              echo "::error::Forbidden legacy runtime route references detected."
-              exit 1
-            fi
-          fi
-          uv run python - <<'PY'
-          from __future__ import annotations
-          import ast
-          import sys
-          from pathlib import Path
+          npm run -w @nova/sdk-file typecheck
+      - name: Pack TypeScript SDK tarballs
+        run: |
+          set -euo pipefail
+          mkdir -p .artifacts/npm
+          npm pack -w @nova/sdk-file --pack-destination .artifacts/npm
+      - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # actions/upload-artifact@v7
+        with:
+          name: ts-sdk-tarballs
+          path: .artifacts/npm/*.tgz
+          retention-days: 30
 
-          runtime_roots = [
-              Path("packages/nova_file_api/src/nova_file_api"),
-          ]
-          files: list[Path] = []
-          for runtime_root in runtime_roots:
-              routes_dir = runtime_root / "routes"
-              app_file = runtime_root / "app.py"
-              if not app_file.is_file():
-                  print(f"::error::missing runtime app module: {app_file}")
-                  sys.exit(1)
-              if not routes_dir.is_dir():
-                  print(f"::error::missing runtime routes directory: {routes_dir}")
-                  sys.exit(1)
-              files.extend([app_file, *sorted(routes_dir.glob("*.py"))])
-          methods = {
-              "get",
-              "post",
-              "put",
-              "patch",
-              "delete",
-              "options",
-              "head",
-              "api_route",
+  typescript-sdk-smoke:
+    needs:
+      - classify-changes
+      - typescript-core-packages
+    if: >-
+      github.event_name == 'push' ||
+      github.event_name == 'merge_group' ||
+      needs.classify-changes.outputs.run_typescript_conformance == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # actions/setup-node@v6
+        with:
+          node-version: "22"
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # actions/download-artifact@v8
+        with:
+          name: ts-sdk-tarballs
+          path: .artifacts/npm
+      - name: Smoke test TypeScript SDK exports
+        run: |
+          set -euo pipefail
+          tmp_dir="$(mktemp -d)"
+          trap 'rm -rf "${tmp_dir}"' EXIT
+          cd "${tmp_dir}"
+          cat > package.json <<'PKGEOF'
+          {
+            "name": "nova-typescript-sdk-smoke",
+            "private": true,
+            "type": "module"
           }
-          violations: list[str] = []
+          PKGEOF
+          npm install --no-package-lock "${GITHUB_WORKSPACE}/.artifacts/npm/"*.tgz
+          node --input-type=module <<'NODEEOF'
+          import { createNovaFileClient } from "@nova/sdk-file/client";
+          import { operations as fileOperations } from "@nova/sdk-file/operations";
 
-          for file in files:
-              content = file.read_text(encoding="utf-8")
-              tree = ast.parse(content, filename=str(file))
-              prefixes: dict[str, str] = {}
+          if (fileOperations.get_job_status.path !== "/v1/jobs/{job_id}") {
+            throw new Error(`unexpected job-status path: ${fileOperations.get_job_status.path}`);
+          }
 
-              for node in tree.body:
-                  if not isinstance(node, ast.Assign) or len(node.targets) != 1:
-                      continue
-                  target = node.targets[0]
-                  if not isinstance(target, ast.Name):
-                      continue
-                  value = node.value
-                  if not isinstance(value, ast.Call):
-                      continue
-                  if not isinstance(value.func, ast.Name):
-                      continue
-                  if value.func.id != "APIRouter":
-                      continue
-                  for keyword in value.keywords:
-                      if (
-                          keyword.arg == "prefix"
-                          and isinstance(keyword.value, ast.Constant)
-                          and isinstance(keyword.value.value, str)
-                      ):
-                          prefixes[target.id] = keyword.value.value
+          if ("update_job_result" in fileOperations) {
+            throw new Error("internal file operation leaked into public SDK");
+          }
 
-              for node in ast.walk(tree):
-                  if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                      continue
-                  for decorator in node.decorator_list:
-                      if not isinstance(decorator, ast.Call):
-                          continue
-                      func = decorator.func
-                      if not isinstance(func, ast.Attribute):
-                          continue
-                      if func.attr not in methods:
-                          continue
-                      if not isinstance(func.value, ast.Name):
-                          continue
+          const fileClient = createNovaFileClient({
+            baseUrl: "https://nova.example/",
+            fetch: async (input) => {
+              const url = input.url;
+              if (url !== "https://nova.example/v1/jobs/job-123") {
+                throw new Error(`unexpected file client URL: ${url}`);
+              }
+              return new Response(JSON.stringify({
+                job: {
+                  job_id: "job-123",
+                  status: "queued",
+                  created_at: "2026-03-09T00:00:00Z",
+                  updated_at: "2026-03-09T00:00:00Z",
+                  events: [],
+                },
+              }), {
+                status: 200,
+                headers: { "content-type": "application/json" },
+              });
+            },
+          });
+          const fileResponse = await fileClient.GET(fileOperations.get_job_status.path, {
+            params: { path: { job_id: "job-123" } },
+          });
+          if (fileResponse.error || fileResponse.data?.job?.job_id !== "job-123") {
+            throw new Error("unexpected file client response");
+          }
+          NODEEOF
 
-                      route_path: str | None = None
-                      if decorator.args and isinstance(decorator.args[0], ast.Constant):
-                          first_arg = decorator.args[0]
-                          if isinstance(first_arg.value, str):
-                              route_path = first_arg.value
-                      if not route_path:
-                          for keyword in decorator.keywords:
-                              if (
-                                  keyword is not None
-                                  and keyword.arg == "path"
-                                  and isinstance(keyword.value, ast.Constant)
-                                  and isinstance(keyword.value.value, str)
-                              ):
-                                  route_path = keyword.value.value
-                                  break
+  dash-conformance:
+    needs: classify-changes
+    if: >-
+      github.event_name == 'push' ||
+      github.event_name == 'merge_group' ||
+      needs.classify-changes.outputs.run_dash_conformance == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-python-uv
+        with:
+          python-version: "3.12"
+          save-cache: "false"
+      - name: Validate Dash lane fixtures
+        run: uv run python scripts/conformance/validate_lane.py --lane dash
+      - name: Validate contract fixtures against runtime models
+        run: uv run pytest -q scripts/release/tests/test_contract_fixtures_v1.py
 
-                      if not route_path:
-                          continue
+  shiny-conformance:
+    needs: classify-changes
+    if: >-
+      github.event_name == 'push' ||
+      github.event_name == 'merge_group' ||
+      needs.classify-changes.outputs.run_shiny_conformance == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-python-uv
+        with:
+          python-version: "3.12"
+          save-cache: "false"
+      - name: Validate Shiny lane fixtures
+        run: uv run python scripts/conformance/validate_lane.py --lane shiny
+      - uses: r-lib/actions/setup-r@6f6e5bc62fba3a704f74e7ad7ef7676c5c6a2590 # r-lib/actions/setup-r@v2
+        with:
+          r-version: "4.3.2"
+      - name: Install R dependencies for nova.sdk.r.file
+        uses: r-lib/actions/setup-r-dependencies@6f6e5bc62fba3a704f74e7ad7ef7676c5c6a2590 # r-lib/actions/setup-r-dependencies@v2
+        with:
+          working-directory: packages/nova_sdk_r_file
+      - name: Build and check generated R SDK packages
+        run: |
+          set -euo pipefail
+          bash scripts/checks/verify_r_cmd_check.sh packages/nova_sdk_r_file
 
-                      prefix = prefixes.get(func.value.id, "")
-                      full_path = f"{prefix}{route_path}" if prefix else route_path
-                      if (
-                          full_path != "/metrics/summary"
-                          and not full_path.startswith("/v1/")
-                      ):
-                          violations.append(
-                              f"{file}:{node.name}:{func.value.id}:{route_path} -> {full_path}"
-                          )
-
-          if violations:
-              print("::error::Route decorator policy violation detected:")
-              for violation in violations:
-                  print(violation)
-              sys.exit(1)
-          PY
-          uv run python - <<'PY'
-          from __future__ import annotations
-          import sys
-
-          from nova_file_api.app import create_app
-
-          def validate_openapi_paths(schema: dict, app_label: str) -> None:
-              paths = schema.get("paths", {})
-              if not isinstance(paths, dict):
-                  print(
-                      f"::error::{app_label} OpenAPI paths payload is not a mapping."
-                  )
-                  sys.exit(1)
-
-              invalid_paths = [
-                  path
-                  for path in paths
-                  if path != "/metrics/summary" and not path.startswith("/v1/")
-              ]
-              if invalid_paths:
-                  print(
-                      f"::error::{app_label} OpenAPI path policy violation detected:"
-                  )
-                  for path in sorted(invalid_paths):
-                      print(path)
-                  sys.exit(1)
-
-              operation_ids: set[str] = set()
-              duplicates: set[str] = set()
-              for path_methods in paths.values():
-                  if not isinstance(path_methods, dict):
-                      continue
-                  for operation in path_methods.values():
-                      if not isinstance(operation, dict):
-                          continue
-                      operation_id = operation.get("operationId")
-                      if not isinstance(operation_id, str):
-                          continue
-                      if operation_id in operation_ids:
-                          duplicates.add(operation_id)
-                      operation_ids.add(operation_id)
-
-              if duplicates:
-                  print(f"::error::{app_label} Duplicate OpenAPI operationId values detected:")
-                  for operation_id in sorted(duplicates):
-                      print(operation_id)
-                  sys.exit(1)
-
-          validate_openapi_paths(create_app().openapi(), "nova_file_api")
-          PY
-          uv run python scripts/contracts/export_openapi.py --check
-          echo "Canonical route policy guard check passed."
+  typescript-conformance:
+    needs: classify-changes
+    if: >-
+      github.event_name == 'push' ||
+      github.event_name == 'merge_group' ||
+      needs.classify-changes.outputs.run_typescript_conformance == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - name: Install TypeScript conformance dependencies
+        run: npm ci
+      - name: Typecheck TypeScript conformance and generated catalogs
+        run: npm run -w @nova/contracts-ts-conformance typecheck
+      - name: Build TypeScript SDK dependency graph
+        run: npm run build:typescript:sdk-graph
+      - name: Verify TypeScript fixture conformance
+        run: npm run -w @nova/contracts-ts-conformance verify
+      - uses: ./.github/actions/setup-python-uv
+        with:
+          python-version: "3.12"
+          save-cache: "false"
+      - name: Validate TypeScript lane fixtures
+        run: uv run python scripts/conformance/validate_lane.py --lane typescript
