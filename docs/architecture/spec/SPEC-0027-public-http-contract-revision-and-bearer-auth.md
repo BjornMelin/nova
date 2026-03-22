@@ -65,9 +65,11 @@ introspection routes described in superseded
 
 - The public OpenAPI document is generated from runtime code; runtime remains
   the contract source ([ADR-0002](../adr/ADR-0002-openapi-as-contract-and-sdk-generation.md)).
-- Post-generation mutation is **minimized** ([ADR-0036](../adr/ADR-0036-native-fastapi-openapi-contract.md)).
-- `operationId` values remain stable and SDK-friendly; stabilization uses small,
-  explicit hooks only.
+- Bearer auth is emitted through FastAPI security dependencies, and public
+  non-2xx responses are declared directly through route or router `responses=`
+  metadata ([ADR-0036](../adr/ADR-0036-native-fastapi-openapi-contract.md)).
+- `operationId` values remain stable and SDK-friendly through explicit route
+  `operation_id=` declarations.
 
 ## 7. Breaking changes explicitly accepted (green-field program)
 

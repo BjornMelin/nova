@@ -462,16 +462,28 @@ export interface components {
             job_id: string;
             status: components["schemas"]["JobStatus"];
         };
-        /** ErrorEnvelope */
-        ErrorEnvelope: {
-            error: {
-                code: string;
-                details?: Record<string, never>;
-                message: string;
-                request_id?: string | null;
-            } & {
+        /**
+         * ErrorBody
+         * @description Standard API error body.
+         */
+        ErrorBody: {
+            /** Code */
+            code: string;
+            /** Details */
+            details?: {
                 [key: string]: unknown;
             };
+            /** Message */
+            message: string;
+            /** Request Id */
+            request_id?: string | null;
+        };
+        /**
+         * ErrorEnvelope
+         * @description Standard API error envelope.
+         */
+        ErrorEnvelope: {
+            error: components["schemas"]["ErrorBody"];
         };
         /**
          * HealthResponse
@@ -779,85 +791,8 @@ export interface components {
             /** Part Number */
             part_number: number;
         };
-        /** ValidationError */
-        ValidationError: {
-            /** Context */
-            ctx?: Record<string, never>;
-            /** Input */
-            input?: unknown;
-            /** Location */
-            loc: (string | number)[];
-            /** Message */
-            msg: string;
-            /** Error Type */
-            type: string;
-        };
     };
-    responses: {
-        /** @description Canonical forbidden request response. */
-        FileForbiddenResponse: {
-            headers: {
-                [name: string]: unknown;
-            };
-            content: {
-                "application/json": components["schemas"]["ErrorEnvelope"];
-            };
-        };
-        /** @description Canonical idempotency-conflict response. */
-        FileIdempotencyConflictResponse: {
-            headers: {
-                [name: string]: unknown;
-            };
-            content: {
-                "application/json": components["schemas"]["ErrorEnvelope"];
-            };
-        };
-        /** @description Canonical idempotency-unavailable response. */
-        FileIdempotencyUnavailableResponse: {
-            headers: {
-                [name: string]: unknown;
-            };
-            content: {
-                "application/json": components["schemas"]["ErrorEnvelope"];
-            };
-        };
-        /** @description Canonical invalid-request response. */
-        FileInvalidRequestResponse: {
-            headers: {
-                [name: string]: unknown;
-            };
-            content: {
-                "application/json": components["schemas"]["ErrorEnvelope"];
-            };
-        };
-        /** @description Canonical mutation dependency-unavailable response. */
-        FileMutationUnavailableResponse: {
-            headers: {
-                [name: string]: unknown;
-            };
-            content: {
-                "application/json": components["schemas"]["ErrorEnvelope"];
-            };
-        };
-        /** @description Canonical queue unavailable response. */
-        FileQueueUnavailableResponse: {
-            headers: {
-                [name: string]: unknown;
-            };
-            content: {
-                "application/json": components["schemas"]["ErrorEnvelope"];
-            };
-        };
-        /** @description Canonical unauthorized request response. */
-        FileUnauthorizedResponse: {
-            headers: {
-                [name: string]: unknown;
-            };
-            content: {
-                "application/json": components["schemas"]["ErrorEnvelope"];
-            };
-        };
-    };
+    responses: never;
     parameters: never;
     requestBodies: never;
     headers: never;
@@ -883,8 +818,24 @@ export interface operations {
                     "application/json": components["schemas"]["MetricsSummaryResponse"];
                 };
             };
-            401: components["responses"]["FileUnauthorizedResponse"];
-            403: components["responses"]["FileForbiddenResponse"];
+            /** @description Unauthorized - Bearer token is missing or invalid. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden - Caller lacks required scope or permission. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
         };
     };
     get_capabilities: {
@@ -945,7 +896,7 @@ export interface operations {
                     "application/json": components["schemas"]["ReadinessResponse"];
                 };
             };
-            /** @description Service Unavailable - Readiness failed */
+            /** @description Service Unavailable - Readiness failed. */
             503: {
                 headers: {
                     [name: string]: unknown;
@@ -976,9 +927,33 @@ export interface operations {
                     "application/json": components["schemas"]["JobListResponse"];
                 };
             };
-            401: components["responses"]["FileUnauthorizedResponse"];
-            403: components["responses"]["FileForbiddenResponse"];
-            422: components["responses"]["FileInvalidRequestResponse"];
+            /** @description Unauthorized - Bearer token is missing or invalid. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden - Caller lacks required scope or permission. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Unprocessable Content - Request validation failed. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
         };
     };
     create_job: {
@@ -1005,11 +980,51 @@ export interface operations {
                     "application/json": components["schemas"]["EnqueueJobResponse"];
                 };
             };
-            401: components["responses"]["FileUnauthorizedResponse"];
-            403: components["responses"]["FileForbiddenResponse"];
-            409: components["responses"]["FileIdempotencyConflictResponse"];
-            422: components["responses"]["FileInvalidRequestResponse"];
-            503: components["responses"]["FileMutationUnavailableResponse"];
+            /** @description Unauthorized - Bearer token is missing or invalid. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden - Caller lacks required scope or permission. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Conflict - Idempotency request is already in progress. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Unprocessable Content - Request validation failed. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Service Unavailable - Queue publishing or idempotency storage is unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
         };
     };
     get_job_status: {
@@ -1032,9 +1047,33 @@ export interface operations {
                     "application/json": components["schemas"]["JobStatusResponse"];
                 };
             };
-            401: components["responses"]["FileUnauthorizedResponse"];
-            403: components["responses"]["FileForbiddenResponse"];
-            422: components["responses"]["FileInvalidRequestResponse"];
+            /** @description Unauthorized - Bearer token is missing or invalid. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden - Caller lacks required scope or permission. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Unprocessable Content - Request validation failed. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
         };
     };
     cancel_job: {
@@ -1057,9 +1096,33 @@ export interface operations {
                     "application/json": components["schemas"]["JobCancelResponse"];
                 };
             };
-            401: components["responses"]["FileUnauthorizedResponse"];
-            403: components["responses"]["FileForbiddenResponse"];
-            422: components["responses"]["FileInvalidRequestResponse"];
+            /** @description Unauthorized - Bearer token is missing or invalid. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden - Caller lacks required scope or permission. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Unprocessable Content - Request validation failed. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
         };
     };
     list_job_events: {
@@ -1082,9 +1145,33 @@ export interface operations {
                     "application/json": components["schemas"]["JobEventsResponse"];
                 };
             };
-            401: components["responses"]["FileUnauthorizedResponse"];
-            403: components["responses"]["FileForbiddenResponse"];
-            422: components["responses"]["FileInvalidRequestResponse"];
+            /** @description Unauthorized - Bearer token is missing or invalid. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden - Caller lacks required scope or permission. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Unprocessable Content - Request validation failed. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
         };
     };
     retry_job: {
@@ -1107,9 +1194,33 @@ export interface operations {
                     "application/json": components["schemas"]["EnqueueJobResponse"];
                 };
             };
-            401: components["responses"]["FileUnauthorizedResponse"];
-            403: components["responses"]["FileForbiddenResponse"];
-            422: components["responses"]["FileInvalidRequestResponse"];
+            /** @description Unauthorized - Bearer token is missing or invalid. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden - Caller lacks required scope or permission. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Unprocessable Content - Request validation failed. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
         };
     };
     get_release_info: {
@@ -1154,7 +1265,15 @@ export interface operations {
                     "application/json": components["schemas"]["ResourcePlanResponse"];
                 };
             };
-            422: components["responses"]["FileInvalidRequestResponse"];
+            /** @description Unprocessable Content - Request validation failed. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
         };
     };
     presign_download: {
@@ -1179,9 +1298,33 @@ export interface operations {
                     "application/json": components["schemas"]["PresignDownloadResponse"];
                 };
             };
-            401: components["responses"]["FileUnauthorizedResponse"];
-            403: components["responses"]["FileForbiddenResponse"];
-            422: components["responses"]["FileInvalidRequestResponse"];
+            /** @description Unauthorized - Bearer token is missing or invalid. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden - Caller lacks required scope or permission. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Unprocessable Content - Request validation failed. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
         };
     };
     abort_upload: {
@@ -1206,9 +1349,33 @@ export interface operations {
                     "application/json": components["schemas"]["AbortUploadResponse"];
                 };
             };
-            401: components["responses"]["FileUnauthorizedResponse"];
-            403: components["responses"]["FileForbiddenResponse"];
-            422: components["responses"]["FileInvalidRequestResponse"];
+            /** @description Unauthorized - Bearer token is missing or invalid. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden - Caller lacks required scope or permission. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Unprocessable Content - Request validation failed. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
         };
     };
     complete_upload: {
@@ -1233,9 +1400,33 @@ export interface operations {
                     "application/json": components["schemas"]["CompleteUploadResponse"];
                 };
             };
-            401: components["responses"]["FileUnauthorizedResponse"];
-            403: components["responses"]["FileForbiddenResponse"];
-            422: components["responses"]["FileInvalidRequestResponse"];
+            /** @description Unauthorized - Bearer token is missing or invalid. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden - Caller lacks required scope or permission. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Unprocessable Content - Request validation failed. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
         };
     };
     initiate_upload: {
@@ -1262,11 +1453,51 @@ export interface operations {
                     "application/json": components["schemas"]["InitiateUploadResponse"];
                 };
             };
-            401: components["responses"]["FileUnauthorizedResponse"];
-            403: components["responses"]["FileForbiddenResponse"];
-            409: components["responses"]["FileIdempotencyConflictResponse"];
-            422: components["responses"]["FileInvalidRequestResponse"];
-            503: components["responses"]["FileIdempotencyUnavailableResponse"];
+            /** @description Unauthorized - Bearer token is missing or invalid. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden - Caller lacks required scope or permission. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Conflict - Idempotency request is already in progress. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Unprocessable Content - Request validation failed. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Service Unavailable - Idempotency storage is unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
         };
     };
     introspect_upload: {
@@ -1291,9 +1522,33 @@ export interface operations {
                     "application/json": components["schemas"]["UploadIntrospectionResponse"];
                 };
             };
-            401: components["responses"]["FileUnauthorizedResponse"];
-            403: components["responses"]["FileForbiddenResponse"];
-            422: components["responses"]["FileInvalidRequestResponse"];
+            /** @description Unauthorized - Bearer token is missing or invalid. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden - Caller lacks required scope or permission. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Unprocessable Content - Request validation failed. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
         };
     };
     sign_upload_parts: {
@@ -1318,9 +1573,33 @@ export interface operations {
                     "application/json": components["schemas"]["SignPartsResponse"];
                 };
             };
-            401: components["responses"]["FileUnauthorizedResponse"];
-            403: components["responses"]["FileForbiddenResponse"];
-            422: components["responses"]["FileInvalidRequestResponse"];
+            /** @description Unauthorized - Bearer token is missing or invalid. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden - Caller lacks required scope or permission. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Unprocessable Content - Request validation failed. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
         };
     };
 }

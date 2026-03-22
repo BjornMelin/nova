@@ -2,19 +2,95 @@
 
 from __future__ import annotations
 
-from typing import Annotated
+from collections.abc import Mapping
+from typing import Annotated, Any
 
 from fastapi import Header, Query
 
 from nova_file_api.config import Settings
 from nova_file_api.errors import invalid_request
 from nova_file_api.metrics import MetricsCollector
+from nova_file_api.models import ErrorEnvelope, ReadinessResponse
+
+OpenApiResponse = dict[str, Any]
+OpenApiResponses = Mapping[int | str, OpenApiResponse]
+FastApiResponses = dict[int | str, dict[str, Any]]
 
 IdempotencyKeyHeader = Annotated[
     str | None,
     Header(alias="Idempotency-Key"),
 ]
 JobsLimitQuery = Annotated[int, Query(ge=1, le=200)]
+
+
+def _response(
+    *,
+    model: type[object],
+    description: str,
+) -> OpenApiResponse:
+    return {"model": model, "description": description}
+
+
+AUTH_ERROR_RESPONSES: OpenApiResponses = {
+    "401": _response(
+        model=ErrorEnvelope,
+        description="Unauthorized - Bearer token is missing or invalid.",
+    ),
+    "403": _response(
+        model=ErrorEnvelope,
+        description="Forbidden - Caller lacks required scope or permission.",
+    ),
+    "422": _response(
+        model=ErrorEnvelope,
+        description="Unprocessable Content - Request validation failed.",
+    ),
+}
+VALIDATION_ERROR_RESPONSE: OpenApiResponses = {
+    "422": _response(
+        model=ErrorEnvelope,
+        description="Unprocessable Content - Request validation failed.",
+    ),
+}
+UNAUTHORIZED_AND_FORBIDDEN_RESPONSES: OpenApiResponses = {
+    key: value for key, value in AUTH_ERROR_RESPONSES.items() if key != "422"
+}
+IDEMPOTENCY_CONFLICT_RESPONSE: OpenApiResponses = {
+    "409": _response(
+        model=ErrorEnvelope,
+        description="Conflict - Idempotency request is already in progress.",
+    )
+}
+IDEMPOTENCY_UNAVAILABLE_RESPONSE: OpenApiResponses = {
+    "503": _response(
+        model=ErrorEnvelope,
+        description="Service Unavailable - Idempotency storage is unavailable.",
+    )
+}
+JOB_MUTATION_UNAVAILABLE_RESPONSE: OpenApiResponses = {
+    "503": _response(
+        model=ErrorEnvelope,
+        description=(
+            "Service Unavailable - Queue publishing or idempotency storage "
+            "is unavailable."
+        ),
+    )
+}
+READINESS_UNAVAILABLE_RESPONSE: OpenApiResponses = {
+    "503": _response(
+        model=ReadinessResponse,
+        description="Service Unavailable - Readiness failed.",
+    )
+}
+
+
+def merge_openapi_responses(
+    *response_sets: Mapping[int | str, OpenApiResponse],
+) -> FastApiResponses:
+    """Build a FastAPI-compatible responses mapping from reusable pieces."""
+    merged: FastApiResponses = {}
+    for response_set in response_sets:
+        merged.update(response_set)
+    return merged
 
 
 def emit_request_metric(

@@ -34,7 +34,13 @@ from nova_file_api.operation_ids import (
     METRICS_SUMMARY_OPERATION_ID,
     PLAN_RESOURCES_OPERATION_ID,
 )
-from nova_file_api.routes.common import emit_request_metric
+from nova_file_api.routes.common import (
+    READINESS_UNAVAILABLE_RESPONSE,
+    UNAUTHORIZED_AND_FORBIDDEN_RESPONSES,
+    VALIDATION_ERROR_RESPONSE,
+    emit_request_metric,
+    merge_openapi_responses,
+)
 
 ops_router = APIRouter(tags=["ops"])
 platform_router = APIRouter(prefix="/v1", tags=["platform"])
@@ -65,6 +71,7 @@ async def get_capabilities(settings: SettingsDep) -> CapabilitiesResponse:
     "/resources/plan",
     operation_id=PLAN_RESOURCES_OPERATION_ID,
     response_model=ResourcePlanResponse,
+    responses=merge_openapi_responses(VALIDATION_ERROR_RESPONSE),
 )
 async def plan_resources(
     payload: ResourcePlanRequest,
@@ -132,6 +139,7 @@ async def health_live() -> HealthResponse:
     "/v1/health/ready",
     operation_id=HEALTH_READY_OPERATION_ID,
     response_model=ReadinessResponse,
+    responses=merge_openapi_responses(READINESS_UNAVAILABLE_RESPONSE),
 )
 async def health_ready(
     response: Response,
@@ -217,6 +225,7 @@ async def health_ready(
     "/metrics/summary",
     operation_id=METRICS_SUMMARY_OPERATION_ID,
     response_model=MetricsSummaryResponse,
+    responses=merge_openapi_responses(UNAUTHORIZED_AND_FORBIDDEN_RESPONSES),
 )
 async def metrics_summary(
     metrics: MetricsDep,

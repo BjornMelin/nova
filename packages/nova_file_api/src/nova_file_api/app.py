@@ -19,7 +19,6 @@ from nova_file_api.models import (
     JobsQueueBackend,
     JobsRepositoryBackend,
 )
-from nova_file_api.openapi import install_file_api_openapi_overrides
 from nova_file_api.routes import (
     jobs_router,
     ops_router,
@@ -121,7 +120,6 @@ def create_app(*, settings: Settings | None = None) -> FastAPI:
         lifespan=lifespan,
     )
     app.state.settings = settings
-    install_file_api_openapi_overrides(app)
 
     app.middleware("http")(request_context_middleware)
     app.include_router(ops_router)

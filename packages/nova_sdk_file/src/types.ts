@@ -58,6 +58,7 @@ export type CompleteUploadResponse = GeneratedComponents["schemas"]["CompleteUpl
 export type CompletedPart = GeneratedComponents["schemas"]["CompletedPart"];
 export type EnqueueJobRequest = GeneratedComponents["schemas"]["EnqueueJobRequest"];
 export type EnqueueJobResponse = GeneratedComponents["schemas"]["EnqueueJobResponse"];
+export type ErrorBody = GeneratedComponents["schemas"]["ErrorBody"];
 export type ErrorEnvelope = GeneratedComponents["schemas"]["ErrorEnvelope"];
 export type HealthResponse = GeneratedComponents["schemas"]["HealthResponse"];
 export type InitiateUploadRequest = GeneratedComponents["schemas"]["InitiateUploadRequest"];

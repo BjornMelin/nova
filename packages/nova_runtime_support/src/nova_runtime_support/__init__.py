@@ -17,33 +17,19 @@ from nova_runtime_support.logging import configure_structlog
 from nova_runtime_support.openapi import (
     SDK_VISIBILITY_EXTENSION,
     SDK_VISIBILITY_INTERNAL,
-    apply_operation_response_refs,
-    ensure_error_envelope_schema,
-    ensure_error_response_component,
-    install_openapi_customizer,
-    mark_operation_sdk_visibility,
-    prune_validation_error_schemas,
-    replace_validation_error_responses,
 )
 
 __all__ = [
     "SDK_VISIBILITY_EXTENSION",
     "SDK_VISIBILITY_INTERNAL",
     "NormalizedPrincipalClaims",
-    "apply_operation_response_refs",
     "bind_request_id",
     "build_async_jwt_verifier",
     "build_auth_config",
     "canonical_error_content",
     "configure_structlog",
-    "ensure_error_envelope_schema",
-    "ensure_error_response_component",
     "finalize_request_id",
-    "install_openapi_customizer",
-    "mark_operation_sdk_visibility",
     "normalized_principal_claims",
-    "prune_validation_error_schemas",
-    "replace_validation_error_responses",
     "request_id_from_request",
     "unbind_request_id",
 ]

@@ -52,7 +52,7 @@ as non-authoritative playbooks.
 | 1 | `feat/api-inline-async-jwt-auth` | MAJOR | latest main | Inline async JWT in `nova_file_api`; delete dedicated auth service and auth SDKs. |
 | 2 | `feat/api-strip-session-scope-from-public-contract` | MAJOR | branch 1 merged | Remove public `session_id`, `X-Session-Id`, `X-Scope-Id`; scope from JWT claims only. |
 | 3 | `refactor/worker-direct-job-result-updates` | MAJOR | branch 2 merged | Worker updates jobs/activity/metrics via shared services; no internal HTTP callback. |
-| 4 | `refactor/api-native-fastapi-openapi` | MAJOR | branch 3 merged | Native FastAPI OpenAPI expression; minimal post-processing. |
+| 4 | `refactor/api-native-fastapi-openapi` | MAJOR | branch 3 merged | Native FastAPI OpenAPI expression with explicit route `operation_id`s, route-declared `responses=`, and no file-API post-processor. |
 | 5 | `refactor/runtime-pure-asgi-middleware-errors` | MAJOR | branch 4 merged | Shared pure ASGI middleware and error envelope primitives. |
 | 6 | `refactor/public-async-first-surface` | MAJOR | branch 5 merged | `nova_file_api.public` async-first; thin sync adapters only at true sync edges. |
 | 7 | `refactor/sdk-typescript-openapi-fetch` | MAJOR | branch 6 merged | `openapi-typescript` + `openapi-fetch`; remove custom TS fetch runtime package. |
