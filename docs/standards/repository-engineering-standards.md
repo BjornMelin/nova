@@ -2,7 +2,7 @@
 
 Status: Active
 Owner: nova release architecture
-Last reviewed: 2026-03-18
+Last reviewed: 2026-03-22
 
 ## Purpose
 
@@ -57,10 +57,9 @@ Use these authority packs consistently:
 Use the repo workflows as the enforcement map:
 
 - `.github/workflows/ci.yml`
-  - runtime reliability, baseline quality gates, required `ty` plus `mypy`
-    compatibility backstop, canonical-route guard
-- `.github/workflows/conformance-clients.yml`
-  - OpenAPI export, generated SDK checks, TS/R conformance
+  - runtime reliability, baseline quality gates, generated-client checks,
+    TS/R conformance, required `ty` plus `mypy` compatibility backstop,
+    canonical-route guard
 - `.github/workflows/cfn-contract-validate.yml`
   - CloudFormation syntax/schema plus docs/infra contract checks
 

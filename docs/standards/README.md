@@ -2,7 +2,7 @@
 
 Status: Active
 Owner: nova release architecture
-Last reviewed: 2026-03-17
+Last reviewed: 2026-03-22
 
 ## Purpose
 
@@ -48,6 +48,9 @@ Use these in order:
 These standards cover repo engineering workflow, generated artifact rules,
 quality-gate routing, pre-commit hook policy, and documentation
 synchronization. They do not replace the architecture authority docs.
+The active CI layout uses a unified `Nova CI` workflow for runtime,
+generated-client, and conformance checks, plus a separate
+`CFN Contract Validate` workflow for infra/docs governance.
 
 Durable operator inputs must stay synchronized across scripts, templates, and
 docs. For runtime deploys, the ECS service stack now owns the repo-managed task

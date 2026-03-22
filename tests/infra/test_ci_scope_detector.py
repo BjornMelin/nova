@@ -121,14 +121,14 @@ def test_docs_history_changes_remain_docs_only_without_required_lanes() -> None:
 
 
 def test_workflow_changes_mark_cfn_and_targeted_ci_lanes() -> None:
-    """CI workflow changes should trigger runtime and CFN lanes."""
+    """CI workflow changes should trigger the unified workflow shell."""
     outputs = _outputs([".github/workflows/ci.yml"])
 
     assert outputs["run_runtime_ci"] == "true"
-    assert outputs["run_generated_clients"] == "false"
-    assert outputs["run_dash_conformance"] == "false"
-    assert outputs["run_shiny_conformance"] == "false"
-    assert outputs["run_typescript_conformance"] == "false"
+    assert outputs["run_generated_clients"] == "true"
+    assert outputs["run_dash_conformance"] == "true"
+    assert outputs["run_shiny_conformance"] == "true"
+    assert outputs["run_typescript_conformance"] == "true"
     assert outputs["run_cfn"] == "true"
     affected_units = cast(list[str], json.loads(outputs["affected_units_json"]))
     assert affected_units == []

@@ -315,6 +315,32 @@ def test_integration_guide_includes_versioning_policy_references() -> None:
         assert required in text
 
 
+def test_governance_runbook_tracks_unified_required_checks() -> None:
+    """Governance runbook must track the hosted required-check surface."""
+    text = _read(
+        "docs/runbooks/release/governance-lock-and-branch-protection.md"
+    )
+
+    for required in [
+        "repository ruleset",
+        "Nova CI",
+        ".github/workflows/ci.yml",
+        "quality-gates",
+        "generated-clients",
+        "dash-conformance",
+        "shiny-conformance",
+        "typescript-conformance",
+        "cfn-and-contracts",
+    ]:
+        assert required in text
+
+    for forbidden in [
+        "runtime-security-reliability-gates",
+        "conformance-clients.yml",
+    ]:
+        assert forbidden not in text
+
+
 def test_auth0_workflow_schema_matches_reusable_auth0_api() -> None:
     """Auth0 workflow schema must align with reusable workflow_call contract."""
     schema = _read_json(

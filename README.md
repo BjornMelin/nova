@@ -239,6 +239,9 @@ pattern with a temporary npmrc, so Nova does not rely on
 Release automation note: `Publish Packages` is the manual staging publish
 workflow for Python, TypeScript/npm, and R artifacts, and `Promote Prod` is
 the manual prod promotion workflow for those staged, gate-validated artifacts.
+Required PR/runtime and conformance checks now run through the unified
+`Nova CI` workflow, while `CFN Contract Validate` remains the separate
+infra/docs governance workflow.
 
 ## Release and Operations
 

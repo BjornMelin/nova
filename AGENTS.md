@@ -281,7 +281,7 @@ Manual pre-commit hook entrypoints mirror the task router:
 ### OpenAPI, generated SDKs, npm packaging, or SDK docs/contracts
 
 Also run the conformance/client checks mirrored by
-`.github/workflows/conformance-clients.yml`:
+`.github/workflows/ci.yml`:
 
 ```bash
 npm ci

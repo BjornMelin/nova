@@ -61,7 +61,7 @@ Required CI posture:
 
 Nova repository lanes:
 
-- `.github/workflows/conformance-clients.yml`
+- `.github/workflows/ci.yml`
 - `packages/contracts/typescript/src/conformance.ts`
 - `scripts/release/generate_clients.py --check`
 - `scripts/release/generate_python_clients.py --check`
