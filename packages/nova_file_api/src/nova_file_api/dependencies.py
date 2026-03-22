@@ -539,12 +539,6 @@ def get_authenticator(request: Request) -> Authenticator:
     return cast(Authenticator, authenticator)
 
 
-def get_request_id(request: Request) -> str | None:
-    """Return the request-id value from middleware state."""
-    value = getattr(request.state, "request_id", None)
-    return value if isinstance(value, str) else None
-
-
 async def authenticate_principal(
     *,
     authenticator: Authenticator,
