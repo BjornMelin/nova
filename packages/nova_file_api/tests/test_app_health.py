@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import httpx
 import pytest
 from nova_file_api.activity import MemoryActivityStore
 from nova_file_api.auth import Authenticator
@@ -271,4 +272,63 @@ async def test_validation_errors_use_canonical_error_envelope() -> None:
     payload = response.json()
     assert payload["error"]["code"] == "invalid_request"
     assert payload["error"]["request_id"] == "req-transfer-422"
+    assert payload["error"]["details"]["errors"]
+
+
+async def _request_jobs_with_raw_body(
+    *,
+    content: str,
+    headers: dict[str, str],
+) -> httpx.Response:
+    app = build_test_app(_build_deps())
+    async with (
+        app.router.lifespan_context(app),
+        httpx.AsyncClient(
+            transport=httpx.ASGITransport(
+                app=app,
+                raise_app_exceptions=False,
+            ),
+            base_url="http://testserver",
+        ) as client,
+    ):
+        return await client.post(
+            "/v1/jobs",
+            headers=headers,
+            content=content,
+        )
+
+
+@pytest.mark.asyncio
+async def test_validation_errors_stay_canonical_without_content_type() -> None:
+    """Missing content type should still serialize as canonical 422."""
+    response = await _request_jobs_with_raw_body(
+        content='{"job_type":"test","payload":{}}',
+        headers={**AUTH_HEADERS, "X-Request-Id": "req-missing-ct"},
+    )
+
+    assert response.status_code == 422
+    payload = response.json()
+    assert payload["error"]["code"] == "invalid_request"
+    assert payload["error"]["request_id"] == "req-missing-ct"
+    assert payload["error"]["details"]["errors"]
+
+
+@pytest.mark.asyncio
+async def test_validation_errors_stay_canonical_for_wrong_content_type() -> (
+    None
+):
+    """Wrong content type should still serialize as canonical 422."""
+    response = await _request_jobs_with_raw_body(
+        content='{"job_type":"test","payload":{}}',
+        headers={
+            **AUTH_HEADERS,
+            "Content-Type": "text/plain",
+            "X-Request-Id": "req-wrong-ct",
+        },
+    )
+
+    assert response.status_code == 422
+    payload = response.json()
+    assert payload["error"]["code"] == "invalid_request"
+    assert payload["error"]["request_id"] == "req-wrong-ct"
     assert payload["error"]["details"]["errors"]

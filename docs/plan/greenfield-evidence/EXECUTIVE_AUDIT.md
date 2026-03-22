@@ -41,7 +41,7 @@ The independent pass elevated these new or sharpened decisions into the final pl
 
 - Hard-cut the public auth contract to bearer JWT only. Remove `session_id`, `X-Session-Id`, and `X-Scope-Id` semantics from the public API.
 - Delete the worker's internal HTTP callback path and worker token; update job results directly through shared runtime services/repositories.
-- Treat the remaining OpenAPI mutation layer as a code smell to aggressively eliminate via native FastAPI route declarations, security dependencies, `responses=`, and a small `generate_unique_id_function` only if needed.
+- Treat the remaining OpenAPI mutation layer as a code smell to aggressively eliminate via native FastAPI route declarations, security dependencies, route/router `responses=`, and explicit per-route `operation_id` declarations.
 - Explicitly reject OpenAPI Generator's R client for Nova. Its R generator is beta and lacks important auth/schema support, so the right answer is a thin `httr2` package.
 - Rebaseline the entire repo after the architecture cuts. Deleting systems without deleting their release logic, docs, tests, and workflows would leave the repo looking half-refactored.
 
