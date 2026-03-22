@@ -60,6 +60,8 @@ jobs:
       VALIDATION_LEGACY_404_PATHS: ${{ inputs.validation_legacy_404_paths }}
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Validate inputs
         run: |

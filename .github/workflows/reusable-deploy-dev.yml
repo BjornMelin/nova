@@ -43,6 +43,7 @@ jobs:
         with:
           repository: ${{ env.WORKFLOW_SOURCE_REPOSITORY }}
           ref: ${{ env.WORKFLOW_SOURCE_SHA }}
+          persist-credentials: false
 
       - name: Configure AWS Credentials (OIDC)
         uses: ./.github/actions/configure-aws-oidc

@@ -282,6 +282,7 @@ source .venv/bin/activate && uv run python scripts/conformance/check_typescript_
 npm run -w @nova/sdk-fetch build
 npm run -w @nova/sdk-fetch typecheck
 npm run -w @nova/sdk-file typecheck
+npm run -w @nova/sdk-file build
 npm run -w @nova/contracts-ts-conformance typecheck
 npm run -w @nova/contracts-ts-conformance verify
 source .venv/bin/activate && uv run pytest -q scripts/release/tests/test_typescript_sdk_contracts.py

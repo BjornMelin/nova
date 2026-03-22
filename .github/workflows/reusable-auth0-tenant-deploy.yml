@@ -70,6 +70,8 @@ jobs:
       AUTH0_CLIENT_SECRET: ${{ secrets.auth0_client_secret }}
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Setup Python and uv
         uses: ./.github/actions/setup-python-uv

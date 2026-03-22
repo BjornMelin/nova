@@ -28,6 +28,7 @@ jobs:
         with:
           fetch-depth: 0
           ref: ${{ inputs.checkout_ref }}
+          persist-credentials: false
 
       - name: Setup Python and uv
         uses: ./.github/actions/setup-python-uv

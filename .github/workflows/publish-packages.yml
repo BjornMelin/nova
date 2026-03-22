@@ -149,6 +149,8 @@ jobs:
             --output-dir .artifacts
 
       - name: Checkout immutable release commit
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           RELEASE_COMMIT_SHA="$(python - <<'PY'
@@ -163,7 +165,7 @@ jobs:
           print(payload["release_commit_sha"])
           PY
           )"
-          git fetch --depth=1 origin "${RELEASE_COMMIT_SHA}"
+          git fetch --depth=1 "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "${RELEASE_COMMIT_SHA}"
           git checkout "${RELEASE_COMMIT_SHA}"
 
       - name: Sync

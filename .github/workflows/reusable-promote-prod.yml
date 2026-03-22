@@ -106,6 +106,8 @@ jobs:
       EXPECTED_MANIFEST_SHA256: ${{ inputs.manifest_sha256 }}
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Setup Python and uv
         uses: ./.github/actions/setup-python-uv
@@ -435,6 +437,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Configure AWS Credentials (OIDC)
         uses: ./.github/actions/configure-aws-oidc
