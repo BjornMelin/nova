@@ -3,7 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 ROOT=""
-if ! ROOT="$(git -C "${SCRIPT_DIR}" rev-parse --show-toplevel 2>/dev/null)"; then
+if ! ROOT="$(env -u GIT_DIR -u GIT_WORK_TREE git -C "${SCRIPT_DIR}" rev-parse --show-toplevel 2>/dev/null)"; then
   ROOT=""
 fi
 ROOT="${ROOT:-$(cd -- "${SCRIPT_DIR}/../.." && pwd)}"
