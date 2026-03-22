@@ -38,19 +38,31 @@ from nova_file_api.operation_ids import (
     RETRY_JOB_OPERATION_ID,
 )
 from nova_file_api.routes.common import (
+    COMMON_ERROR_RESPONSES,
+    IDEMPOTENCY_CONFLICT_RESPONSE,
+    JOB_MUTATION_UNAVAILABLE_RESPONSE,
     IdempotencyKeyHeader,
     JobsLimitQuery,
     emit_request_metric,
+    merge_openapi_responses,
     validated_idempotency_key,
 )
 
-jobs_router = APIRouter(prefix="/v1", tags=["jobs"])
+jobs_router = APIRouter(
+    prefix="/v1",
+    tags=["jobs"],
+    responses=merge_openapi_responses(COMMON_ERROR_RESPONSES),
+)
 
 
 @jobs_router.post(
     "/jobs",
     operation_id=CREATE_JOB_OPERATION_ID,
     response_model=EnqueueJobResponse,
+    responses=merge_openapi_responses(
+        IDEMPOTENCY_CONFLICT_RESPONSE,
+        JOB_MUTATION_UNAVAILABLE_RESPONSE,
+    ),
 )
 async def create_job(
     payload: EnqueueJobRequest,

@@ -1,6 +1,6 @@
 # nova runtime
 
-![Python](https://img.shields.io/badge/Python-3.12%20%7C%203.13-3776AB?logo=python&logoColor=white) ![FastAPI](https://img.shields.io/badge/FastAPI-0.129%2B-009688?logo=fastapi&logoColor=white) ![OpenAPI](https://img.shields.io/badge/OpenAPI-3.1-6BA539?logo=openapiinitiative&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3.12%20%7C%203.13-3776AB?logo=python&logoColor=white) ![FastAPI](https://img.shields.io/badge/FastAPI-0.135%2B-009688?logo=fastapi&logoColor=white) ![OpenAPI](https://img.shields.io/badge/OpenAPI-3.1-6BA539?logo=openapiinitiative&logoColor=white)
 
 FastAPI control-plane runtime for direct-to-S3 uploads/downloads and async job
 orchestration. The service returns presigned metadata and job state; it does not
@@ -83,8 +83,10 @@ Nova owns the SDK contract surface:
   authority
 
 OpenAPI 3.1 emitted from runtime code is the contract source for docs and SDK
-generation. Runtime contract tests enforce stable snake_case `operationId`
-values and semantic tags for public grouping.
+generation. Public error and readiness responses are declared directly on
+routers and routes with FastAPI `responses=`, while runtime contract tests
+enforce stable snake_case `operationId` values and semantic tags for public
+grouping.
 
 For detailed SDK governance and generation rules, use:
 

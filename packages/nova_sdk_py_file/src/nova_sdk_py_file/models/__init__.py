@@ -20,11 +20,9 @@ from nova_sdk_py_file.models.enqueue_job_request_payload import (
     EnqueueJobRequestPayload,
 )
 from nova_sdk_py_file.models.enqueue_job_response import EnqueueJobResponse
+from nova_sdk_py_file.models.error_body import ErrorBody
+from nova_sdk_py_file.models.error_body_details import ErrorBodyDetails
 from nova_sdk_py_file.models.error_envelope import ErrorEnvelope
-from nova_sdk_py_file.models.error_envelope_error import ErrorEnvelopeError
-from nova_sdk_py_file.models.error_envelope_error_details import (
-    ErrorEnvelopeErrorDetails,
-)
 from nova_sdk_py_file.models.health_response import HealthResponse
 from nova_sdk_py_file.models.initiate_upload_request import (
     InitiateUploadRequest,
@@ -97,9 +95,9 @@ __all__ = (
     "EnqueueJobRequest",
     "EnqueueJobRequestPayload",
     "EnqueueJobResponse",
+    "ErrorBody",
+    "ErrorBodyDetails",
     "ErrorEnvelope",
-    "ErrorEnvelopeError",
-    "ErrorEnvelopeErrorDetails",
     "HealthResponse",
     "InitiateUploadRequest",
     "InitiateUploadResponse",

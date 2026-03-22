@@ -41,7 +41,7 @@ options score **≥ 9.10** under Framework B (see evidence file).
   / [SPEC-0012](../spec/SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md)
   and `AGENTS.md` invariants: no `zod` in generated TS SDKs, no package-root
   `"."` exports, no barrel re-exports, explicit `contentType` for multi-media
-  bodies, `x-nova-sdk-visibility: internal` exclusions.
+  bodies, generator-governed `x-nova-sdk-visibility: internal` exclusions.
 - Execution order: program branches 7–9.
 
 ## Decision

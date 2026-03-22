@@ -37,7 +37,7 @@
       "score": 9.31,
       "semver": "MAJOR",
       "depends_on": "branch 3 merged to main",
-      "decision": "Replace bespoke OpenAPI mutation and operation-id scaffolding with native FastAPI features: `responses`, security dependencies, router metadata, and a custom `generate_unique_id_function` only where required."
+      "decision": "Replace bespoke OpenAPI mutation and operation-id scaffolding with native FastAPI route metadata: explicit `operation_id` declarations, route/router `responses=`, native security dependencies, and no file-API OpenAPI post-processor."
     },
     {
       "order": 5,

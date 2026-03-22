@@ -20,6 +20,17 @@ def test_sanitize_log_value_redacts_presigned_query_signature() -> None:
     assert sanitize_log_value(raw) == "[REDACTED]"
 
 
+def test_sanitize_log_value_redacts_presigned_query_signature_in_bytes() -> (
+    None
+):
+    """Decoded bytes must still run presigned-signature redaction."""
+    raw = (
+        b"https://example.local/object?"
+        b"X-Amz-Credential=abc&X-Amz-Signature=deadbeef"
+    )
+    assert sanitize_log_value(raw) == "[REDACTED]"
+
+
 def test_sanitize_log_value_redacts_nested_sensitive_fields() -> None:
     """Nested URL/token fields should be redacted recursively."""
     payload: dict[str, Any] = {

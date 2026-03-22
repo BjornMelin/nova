@@ -112,8 +112,8 @@ Acceptance:
 
 - `/v1/health/live` is `200`.
 - `/v1/health/ready` is `200`.
-- `/v1/transfers/uploads/initiate` returns contract responses (`401/403/422/400`
-  allowed), but never `404`.
+- `/v1/transfers/uploads/initiate` returns contract responses
+  (`401/403/409/422/503` allowed), but never `404`.
 - Canonical `/v1/jobs*`, `/v1/health/live`, `/v1/health/ready`, and
   `/v1/capabilities` routes return contract responses (non-`404`) during
   dry-run checks.

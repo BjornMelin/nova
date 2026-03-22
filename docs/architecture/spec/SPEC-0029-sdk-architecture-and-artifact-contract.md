@@ -46,8 +46,9 @@ remains the authority for conformance, versioning, and compatibility governance.
   request/response validation helpers to generated TypeScript SDKs.
 - Honor declared request media types with explicit generated `contentType`
   selection for multi-media bodies.
-- Operations marked `x-nova-sdk-visibility: internal` remain excluded from public
-  SDK generation.
+- When present, operations marked `x-nova-sdk-visibility: internal` remain
+  excluded from public SDK generation. This is a generator-governance rule and
+  may be absent from the canonical public file API OpenAPI artifact.
 
 ## 4. Python
 
@@ -110,6 +111,11 @@ Public Python, TypeScript, and R SDKs must support:
 - structured error envelope decoding (`error.code`, `error.message`,
   `error.request_id`)
 - typed request/response payload models
+
+Error compatibility is defined by the `ErrorEnvelope` response schema name and
+the on-wire nested fields under `error`; subordinate component names, `$ref`
+layout, and generator-emitted helper model names are not compatibility
+guarantees.
 
 TypeScript: single-media bodies may use generator-supplied default media types;
 multi-media bodies must expose explicit generated `contentType` selection when

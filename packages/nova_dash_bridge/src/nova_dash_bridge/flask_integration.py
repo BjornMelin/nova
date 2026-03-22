@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from flask import Blueprint, Flask, jsonify, request
+from nova_runtime_support.http import canonical_error_content
 from pydantic import ValidationError
 
 from nova_dash_bridge.config import (
@@ -20,8 +21,6 @@ from nova_dash_bridge.errors import FileTransferError, validation_error
 from nova_dash_bridge.models import (
     AbortUploadRequest,
     CompleteUploadRequest,
-    ErrorBody,
-    ErrorEnvelope,
     InitiateUploadRequest,
     PresignDownloadRequest,
     SignPartsRequest,
@@ -58,16 +57,14 @@ def _error_headers(exc: FileTransferError) -> dict[str, str]:
 
 
 def _error_response(exc: FileTransferError) -> tuple[Any, int, dict[str, str]]:
-    payload = ErrorEnvelope(
-        error=ErrorBody(
-            code=exc.code,
-            message=exc.message,
-            details=exc.details,
-            request_id=_request_id(),
-        )
+    payload = canonical_error_content(
+        code=exc.code,
+        message=exc.message,
+        details=exc.details,
+        request_id=_request_id(),
     )
     return (
-        jsonify(payload.model_dump()),
+        jsonify(payload),
         int(exc.status_code),
         _error_headers(exc),
     )

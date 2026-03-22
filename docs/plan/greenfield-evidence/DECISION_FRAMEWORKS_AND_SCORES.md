@@ -82,7 +82,7 @@ Interpretation:
 | Auth topology | Inline async verifier in file API and delete auth service | 9.70 | [ADR-0033](../../architecture/adr/ADR-0033-single-runtime-auth-authority.md) |
 | Public auth contract | Bearer JWT only; derive scope from claims | 9.35 | [ADR-0034](../../architecture/adr/ADR-0034-bearer-jwt-public-auth-contract.md) |
 | Worker result update path | Direct service/repository updates from worker | 9.35 | [ADR-0035](../../architecture/adr/ADR-0035-worker-direct-result-persistence.md) |
-| OpenAPI and operation-id strategy | Native FastAPI contract features with minimal hooks | 9.10 | [ADR-0036](../../architecture/adr/ADR-0036-native-fastapi-openapi-contract.md) |
+| OpenAPI and operation-id strategy | Native FastAPI contract features with explicit route contract metadata | 9.10 | [ADR-0036](../../architecture/adr/ADR-0036-native-fastapi-openapi-contract.md) |
 | Middleware and error strategy | Shared pure ASGI middleware + shared error registration | 9.15 | [ADR-0041](../../architecture/adr/ADR-0041-shared-pure-asgi-middleware-and-errors.md) |
 | Public Python surface and adapter strategy | Async-first canonical surface + thin sync adapters | 9.35 | [ADR-0037](../../architecture/adr/ADR-0037-async-first-public-surface.md) |
 | TypeScript SDK strategy | openapi-typescript + openapi-fetch | 9.50 | [ADR-0038](../../architecture/adr/ADR-0038-sdk-architecture-by-language.md) |
@@ -130,10 +130,10 @@ Framework: **code_runtime**
 | Option | Native dependency leverage | Entropy / LOC / file reduction | Reliability / performance | Security / operability | DX / maintainability | Implementation tractability | Final /10 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | Keep bespoke schema surgery and path/method registries | 3 | 2 | 6 | 6 | 3 | 8 | 4.10 |
-| Native FastAPI contract features with minimal hooks | 10 | 8 | 9 | 9 | 10 | 7 | 9.10 |
+| Native FastAPI contract features with explicit route contract metadata | 10 | 8 | 9 | 9 | 10 | 7 | 9.10 |
 | Hand-authored static OpenAPI | 4 | 5 | 5 | 7 | 4 | 4 | 4.85 |
 
-**Winner:** `Native FastAPI contract features with minimal hooks` -- **9.10/10**
+**Winner:** `Native FastAPI contract features with explicit route contract metadata` -- **9.10/10**
 
 Native FastAPI declarations win because they align the code with the framework and shrink the custom contract layer dramatically while keeping stable operation IDs possible.
 
@@ -272,7 +272,7 @@ CloudFront + ALB + ECS/Fargate + S3/SQS/DynamoDB is the cleanest combined fit fo
 | Auth topology | Inline async verifier in file API and delete auth service | 9.70 |
 | Public auth contract | Bearer JWT only; derive scope from claims | 9.35 |
 | Worker result update path | Direct service/repository updates from worker | 9.35 |
-| OpenAPI and operation-id strategy | Native FastAPI contract features with minimal hooks | 9.10 |
+| OpenAPI and operation-id strategy | Native FastAPI contract features with explicit route contract metadata | 9.10 |
 | Middleware and error strategy | Shared pure ASGI middleware + shared error registration | 9.15 |
 | Public Python surface and adapter strategy | Async-first canonical surface + thin sync adapters | 9.35 |
 | TypeScript SDK strategy | openapi-typescript + openapi-fetch | 9.50 |

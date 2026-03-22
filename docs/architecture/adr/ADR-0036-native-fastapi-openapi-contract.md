@@ -21,15 +21,14 @@ References:
 ## Summary
 
 OpenAPI and operation identity come primarily from **native FastAPI**
-declarations (`responses=`, models, security dependencies, router metadata), with
-**minimal** post-processing. Hand-authored static OpenAPI as the source of truth
-is out of scope. Winning option: **9.10/10** (Framework A).
+declarations (`responses=`, models, security dependencies, explicit
+`operation_id`, router metadata). Hand-authored static OpenAPI as the source of
+truth is out of scope. Winning option: **9.10/10** (Framework A).
 
 ## Context
 
 - Nova historically patched generated OpenAPI heavily after FastAPI emission.
-- Stable `operationId` values and SDK generation still matter; use framework
-  hooks (for example `generate_unique_id_function`) only where necessary.
+- Stable `operationId` values and SDK generation still matter.
 - [ADR-0002](./ADR-0002-openapi-as-contract-and-sdk-generation.md) remains the
   umbrella “OpenAPI is contract” decision; this ADR narrows **how** the schema
   is produced.
@@ -38,7 +37,8 @@ is out of scope. Winning option: **9.10/10** (Framework A).
 ## Alternatives
 
 - **A:** Keep bespoke schema surgery and path/method registries.
-- **B:** Native FastAPI contract features with minimal hooks.
+- **B:** Native FastAPI contract features with explicit route contract
+  metadata.
 - **C:** Hand-authored static OpenAPI.
 
 ## Decision framework (Framework A)
@@ -46,7 +46,7 @@ is out of scope. Winning option: **9.10/10** (Framework A).
 | Option | Native dependency leverage | Entropy / LOC / file reduction | Reliability / performance | Security / operability | DX / maintainability | Implementation tractability | Final /10 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | A: Keep bespoke schema surgery and path/method registries | 3 | 2 | 6 | 6 | 3 | 8 | 4.10 |
-| **B: Native FastAPI contract features with minimal hooks** | **10** | **8** | **9** | **9** | **10** | **7** | **9.10** |
+| **B: Native FastAPI contract features with explicit route contract metadata** | **10** | **8** | **9** | **9** | **10** | **7** | **9.10** |
 | C: Hand-authored static OpenAPI | 4 | 5 | 5 | 7 | 4 | 4 | 4.85 |
 
 ## Decision
@@ -56,9 +56,11 @@ is out of scope. Winning option: **9.10/10** (Framework A).
 Implementation commitments:
 
 - Express responses, security, and models on routes with FastAPI-native APIs.
-- Retain only minimal OpenAPI mutation that cannot be declared in code.
-- Use a small `generate_unique_id_function` (or equivalent) only if stable
-  operation IDs require it.
+- Keep stable public `operationId` values explicit on route decorators.
+- Delete the file-API OpenAPI mutation layer instead of replacing it with new
+  post-processing.
+- Treat `ErrorEnvelope` compatibility as top-level schema name plus on-wire
+  fields, not subordinate helper-component topology.
 - Branch `refactor/api-native-fastapi-openapi`.
 
 ## Related requirements

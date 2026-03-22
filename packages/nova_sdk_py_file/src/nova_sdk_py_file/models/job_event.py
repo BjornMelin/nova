@@ -13,7 +13,7 @@ from nova_sdk_py_file.models.job_status import JobStatus
 from nova_sdk_py_file.types import UNSET, Unset
 
 if TYPE_CHECKING:
-    from ..models.job_event_data import JobEventData
+    from nova_sdk_py_file.models.job_event_data import JobEventData
 
 
 T = TypeVar("T", bound="JobEvent")
@@ -75,7 +75,7 @@ class JobEvent:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.job_event_data import JobEventData
+        from nova_sdk_py_file.models.job_event_data import JobEventData
 
         d = dict(src_dict)
         event_id = d.pop("event_id")

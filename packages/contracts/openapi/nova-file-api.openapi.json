@@ -1,77 +1,5 @@
 {
   "components": {
-    "responses": {
-      "FileForbiddenResponse": {
-        "content": {
-          "application/json": {
-            "schema": {
-              "$ref": "#/components/schemas/ErrorEnvelope"
-            }
-          }
-        },
-        "description": "Canonical forbidden request response."
-      },
-      "FileIdempotencyConflictResponse": {
-        "content": {
-          "application/json": {
-            "schema": {
-              "$ref": "#/components/schemas/ErrorEnvelope"
-            }
-          }
-        },
-        "description": "Canonical idempotency-conflict response."
-      },
-      "FileIdempotencyUnavailableResponse": {
-        "content": {
-          "application/json": {
-            "schema": {
-              "$ref": "#/components/schemas/ErrorEnvelope"
-            }
-          }
-        },
-        "description": "Canonical idempotency-unavailable response."
-      },
-      "FileInvalidRequestResponse": {
-        "content": {
-          "application/json": {
-            "schema": {
-              "$ref": "#/components/schemas/ErrorEnvelope"
-            }
-          }
-        },
-        "description": "Canonical invalid-request response."
-      },
-      "FileMutationUnavailableResponse": {
-        "content": {
-          "application/json": {
-            "schema": {
-              "$ref": "#/components/schemas/ErrorEnvelope"
-            }
-          }
-        },
-        "description": "Canonical mutation dependency-unavailable response."
-      },
-      "FileQueueUnavailableResponse": {
-        "content": {
-          "application/json": {
-            "schema": {
-              "$ref": "#/components/schemas/ErrorEnvelope"
-            }
-          }
-        },
-        "description": "Canonical queue unavailable response."
-      },
-      "FileUnauthorizedResponse": {
-        "content": {
-          "application/json": {
-            "schema": {
-              "$ref": "#/components/schemas/ErrorEnvelope"
-            }
-          }
-        },
-        "description": "Canonical unauthorized request response."
-      }
-    },
     "schemas": {
       "AbortUploadRequest": {
         "additionalProperties": false,
@@ -295,33 +223,50 @@
         "title": "EnqueueJobResponse",
         "type": "object"
       },
+      "ErrorBody": {
+        "additionalProperties": false,
+        "description": "Standard API error body.",
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "details": {
+            "additionalProperties": true,
+            "title": "Details",
+            "type": "object"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "request_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Request Id"
+          }
+        },
+        "required": [
+          "code",
+          "message",
+          "details",
+          "request_id"
+        ],
+        "title": "ErrorBody",
+        "type": "object"
+      },
       "ErrorEnvelope": {
         "additionalProperties": false,
+        "description": "Standard API error envelope.",
         "properties": {
           "error": {
-            "additionalProperties": true,
-            "properties": {
-              "code": {
-                "type": "string"
-              },
-              "details": {
-                "type": "object"
-              },
-              "message": {
-                "type": "string"
-              },
-              "request_id": {
-                "type": [
-                  "string",
-                  "null"
-                ]
-              }
-            },
-            "required": [
-              "code",
-              "message"
-            ],
-            "type": "object"
+            "$ref": "#/components/schemas/ErrorBody"
           }
         },
         "required": [
@@ -1045,46 +990,6 @@
         ],
         "title": "UploadedPart",
         "type": "object"
-      },
-      "ValidationError": {
-        "properties": {
-          "ctx": {
-            "title": "Context",
-            "type": "object"
-          },
-          "input": {
-            "title": "Input"
-          },
-          "loc": {
-            "items": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "integer"
-                }
-              ]
-            },
-            "title": "Location",
-            "type": "array"
-          },
-          "msg": {
-            "title": "Message",
-            "type": "string"
-          },
-          "type": {
-            "title": "Error Type",
-            "type": "string"
-          }
-        },
-        "required": [
-          "loc",
-          "msg",
-          "type"
-        ],
-        "title": "ValidationError",
-        "type": "object"
       }
     },
     "securitySchemes": {
@@ -1118,10 +1023,24 @@
             "description": "Successful Response"
           },
           "401": {
-            "$ref": "#/components/responses/FileUnauthorizedResponse"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized - Bearer token is missing or invalid."
           },
           "403": {
-            "$ref": "#/components/responses/FileForbiddenResponse"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden - Caller lacks required scope or permission."
           }
         },
         "security": [
@@ -1202,7 +1121,7 @@
                 }
               }
             },
-            "description": "Service Unavailable - Readiness failed"
+            "description": "Service Unavailable - Readiness failed."
           }
         },
         "summary": "Health Ready",
@@ -1241,13 +1160,34 @@
             "description": "Successful Response"
           },
           "401": {
-            "$ref": "#/components/responses/FileUnauthorizedResponse"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized - Bearer token is missing or invalid."
           },
           "403": {
-            "$ref": "#/components/responses/FileForbiddenResponse"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden - Caller lacks required scope or permission."
           },
           "422": {
-            "$ref": "#/components/responses/FileInvalidRequestResponse"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Content - Request validation failed."
           }
         },
         "security": [
@@ -1303,19 +1243,54 @@
             "description": "Successful Response"
           },
           "401": {
-            "$ref": "#/components/responses/FileUnauthorizedResponse"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized - Bearer token is missing or invalid."
           },
           "403": {
-            "$ref": "#/components/responses/FileForbiddenResponse"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden - Caller lacks required scope or permission."
           },
           "409": {
-            "$ref": "#/components/responses/FileIdempotencyConflictResponse"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Conflict - Idempotency request is already in progress."
           },
           "422": {
-            "$ref": "#/components/responses/FileInvalidRequestResponse"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Content - Request validation failed."
           },
           "503": {
-            "$ref": "#/components/responses/FileMutationUnavailableResponse"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Service Unavailable - Queue publishing or idempotency storage is unavailable."
           }
         },
         "security": [
@@ -1356,13 +1331,34 @@
             "description": "Successful Response"
           },
           "401": {
-            "$ref": "#/components/responses/FileUnauthorizedResponse"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized - Bearer token is missing or invalid."
           },
           "403": {
-            "$ref": "#/components/responses/FileForbiddenResponse"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden - Caller lacks required scope or permission."
           },
           "422": {
-            "$ref": "#/components/responses/FileInvalidRequestResponse"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Content - Request validation failed."
           }
         },
         "security": [
@@ -1403,13 +1399,34 @@
             "description": "Successful Response"
           },
           "401": {
-            "$ref": "#/components/responses/FileUnauthorizedResponse"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized - Bearer token is missing or invalid."
           },
           "403": {
-            "$ref": "#/components/responses/FileForbiddenResponse"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden - Caller lacks required scope or permission."
           },
           "422": {
-            "$ref": "#/components/responses/FileInvalidRequestResponse"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Content - Request validation failed."
           }
         },
         "security": [
@@ -1450,13 +1467,34 @@
             "description": "Successful Response"
           },
           "401": {
-            "$ref": "#/components/responses/FileUnauthorizedResponse"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized - Bearer token is missing or invalid."
           },
           "403": {
-            "$ref": "#/components/responses/FileForbiddenResponse"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden - Caller lacks required scope or permission."
           },
           "422": {
-            "$ref": "#/components/responses/FileInvalidRequestResponse"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Content - Request validation failed."
           }
         },
         "security": [
@@ -1497,13 +1535,34 @@
             "description": "Successful Response"
           },
           "401": {
-            "$ref": "#/components/responses/FileUnauthorizedResponse"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized - Bearer token is missing or invalid."
           },
           "403": {
-            "$ref": "#/components/responses/FileForbiddenResponse"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden - Caller lacks required scope or permission."
           },
           "422": {
-            "$ref": "#/components/responses/FileInvalidRequestResponse"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Content - Request validation failed."
           }
         },
         "security": [
@@ -1565,7 +1624,14 @@
             "description": "Successful Response"
           },
           "422": {
-            "$ref": "#/components/responses/FileInvalidRequestResponse"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Content - Request validation failed."
           }
         },
         "summary": "Plan Resources",
@@ -1600,13 +1666,34 @@
             "description": "Successful Response"
           },
           "401": {
-            "$ref": "#/components/responses/FileUnauthorizedResponse"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized - Bearer token is missing or invalid."
           },
           "403": {
-            "$ref": "#/components/responses/FileForbiddenResponse"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden - Caller lacks required scope or permission."
           },
           "422": {
-            "$ref": "#/components/responses/FileInvalidRequestResponse"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Content - Request validation failed."
           }
         },
         "security": [
@@ -1646,13 +1733,34 @@
             "description": "Successful Response"
           },
           "401": {
-            "$ref": "#/components/responses/FileUnauthorizedResponse"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized - Bearer token is missing or invalid."
           },
           "403": {
-            "$ref": "#/components/responses/FileForbiddenResponse"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden - Caller lacks required scope or permission."
           },
           "422": {
-            "$ref": "#/components/responses/FileInvalidRequestResponse"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Content - Request validation failed."
           }
         },
         "security": [
@@ -1692,13 +1800,34 @@
             "description": "Successful Response"
           },
           "401": {
-            "$ref": "#/components/responses/FileUnauthorizedResponse"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized - Bearer token is missing or invalid."
           },
           "403": {
-            "$ref": "#/components/responses/FileForbiddenResponse"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden - Caller lacks required scope or permission."
           },
           "422": {
-            "$ref": "#/components/responses/FileInvalidRequestResponse"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Content - Request validation failed."
           }
         },
         "security": [
@@ -1756,19 +1885,54 @@
             "description": "Successful Response"
           },
           "401": {
-            "$ref": "#/components/responses/FileUnauthorizedResponse"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized - Bearer token is missing or invalid."
           },
           "403": {
-            "$ref": "#/components/responses/FileForbiddenResponse"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden - Caller lacks required scope or permission."
           },
           "409": {
-            "$ref": "#/components/responses/FileIdempotencyConflictResponse"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Conflict - Idempotency request is already in progress."
           },
           "422": {
-            "$ref": "#/components/responses/FileInvalidRequestResponse"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Content - Request validation failed."
           },
           "503": {
-            "$ref": "#/components/responses/FileIdempotencyUnavailableResponse"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Service Unavailable - Idempotency storage is unavailable."
           }
         },
         "security": [
@@ -1808,13 +1972,34 @@
             "description": "Successful Response"
           },
           "401": {
-            "$ref": "#/components/responses/FileUnauthorizedResponse"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized - Bearer token is missing or invalid."
           },
           "403": {
-            "$ref": "#/components/responses/FileForbiddenResponse"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden - Caller lacks required scope or permission."
           },
           "422": {
-            "$ref": "#/components/responses/FileInvalidRequestResponse"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Content - Request validation failed."
           }
         },
         "security": [
@@ -1854,13 +2039,34 @@
             "description": "Successful Response"
           },
           "401": {
-            "$ref": "#/components/responses/FileUnauthorizedResponse"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized - Bearer token is missing or invalid."
           },
           "403": {
-            "$ref": "#/components/responses/FileForbiddenResponse"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden - Caller lacks required scope or permission."
           },
           "422": {
-            "$ref": "#/components/responses/FileInvalidRequestResponse"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Content - Request validation failed."
           }
         },
         "security": [

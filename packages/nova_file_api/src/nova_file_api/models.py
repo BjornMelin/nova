@@ -386,8 +386,8 @@ class ErrorBody(BaseModel):
 
     code: str
     message: str
-    details: dict[str, Any] = Field(default_factory=dict)
-    request_id: str | None = None
+    details: dict[str, Any]
+    request_id: str | None
 
 
 class ErrorEnvelope(BaseModel):

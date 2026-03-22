@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any, TypeVar
 from attrs import define as _attrs_define
 
 if TYPE_CHECKING:
-    from ..models.error_envelope_error import ErrorEnvelopeError
+    from nova_sdk_py_file.models.error_body import ErrorBody
 
 
 T = TypeVar("T", bound="ErrorEnvelope")
@@ -15,12 +15,13 @@ T = TypeVar("T", bound="ErrorEnvelope")
 
 @_attrs_define
 class ErrorEnvelope:
-    """
+    """Standard API error envelope.
+
     Attributes:
-        error (ErrorEnvelopeError):
+        error (ErrorBody): Standard API error body.
     """
 
-    error: ErrorEnvelopeError
+    error: ErrorBody
 
     def to_dict(self) -> dict[str, Any]:
         error = self.error.to_dict()
@@ -37,10 +38,10 @@ class ErrorEnvelope:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.error_envelope_error import ErrorEnvelopeError
+        from nova_sdk_py_file.models.error_body import ErrorBody
 
         d = dict(src_dict)
-        error = ErrorEnvelopeError.from_dict(d.pop("error"))
+        error = ErrorBody.from_dict(d.pop("error"))
 
         error_envelope = cls(
             error=error,

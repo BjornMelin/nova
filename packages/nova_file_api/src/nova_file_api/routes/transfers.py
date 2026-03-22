@@ -40,18 +40,30 @@ from nova_file_api.operation_ids import (
     SIGN_UPLOAD_PARTS_OPERATION_ID,
 )
 from nova_file_api.routes.common import (
+    COMMON_ERROR_RESPONSES,
+    IDEMPOTENCY_CONFLICT_RESPONSE,
+    IDEMPOTENCY_UNAVAILABLE_RESPONSE,
     IdempotencyKeyHeader,
     emit_request_metric,
+    merge_openapi_responses,
     validated_idempotency_key,
 )
 
-transfer_router = APIRouter(prefix="/v1/transfers", tags=["transfers"])
+transfer_router = APIRouter(
+    prefix="/v1/transfers",
+    tags=["transfers"],
+    responses=merge_openapi_responses(COMMON_ERROR_RESPONSES),
+)
 
 
 @transfer_router.post(
     "/uploads/initiate",
     operation_id=INITIATE_UPLOAD_OPERATION_ID,
     response_model=InitiateUploadResponse,
+    responses=merge_openapi_responses(
+        IDEMPOTENCY_CONFLICT_RESPONSE,
+        IDEMPOTENCY_UNAVAILABLE_RESPONSE,
+    ),
 )
 async def initiate_upload(
     payload: InitiateUploadRequest,

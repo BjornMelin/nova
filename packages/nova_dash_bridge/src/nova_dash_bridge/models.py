@@ -7,7 +7,6 @@ AbortUploadResponse = _public.AbortUploadResponse
 CompleteUploadRequest = _public.CompleteUploadRequest
 CompleteUploadResponse = _public.CompleteUploadResponse
 CompletedPart = _public.CompletedPart
-ErrorBody = _public.ErrorBody
 ErrorEnvelope = _public.ErrorEnvelope
 InitiateUploadRequest = _public.InitiateUploadRequest
 InitiateUploadResponse = _public.InitiateUploadResponse
@@ -26,7 +25,6 @@ __all__ = sorted(
         "CompleteUploadRequest",
         "CompleteUploadResponse",
         "CompletedPart",
-        "ErrorBody",
         "ErrorEnvelope",
         "InitiateUploadRequest",
         "InitiateUploadResponse",

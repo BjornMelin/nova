@@ -16,6 +16,7 @@ from nova_file_api.public import (
     UPLOADS_INITIATE_ROUTE,
     Principal,
 )
+from nova_runtime_support.http import canonical_error_content
 from nova_runtime_support.threading import current_default_thread_limiter
 
 from nova_dash_bridge.config import (
@@ -29,8 +30,6 @@ from nova_dash_bridge.models import (
     AbortUploadResponse,
     CompleteUploadRequest,
     CompleteUploadResponse,
-    ErrorBody,
-    ErrorEnvelope,
     InitiateUploadRequest,
     InitiateUploadResponse,
     PresignDownloadRequest,
@@ -126,15 +125,12 @@ def _error_payload(
     Returns:
         dict[str, Any]: Serialized error payload with top-level ``error``.
     """
-    envelope = ErrorEnvelope(
-        error=ErrorBody(
-            code=code,
-            message=message,
-            details=details,
-            request_id=request_id,
-        )
+    return canonical_error_content(
+        code=code,
+        message=message,
+        details=details,
+        request_id=request_id,
     )
-    return envelope.model_dump()
 
 
 def _error_headers(err: FileTransferError) -> dict[str, str]:
