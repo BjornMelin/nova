@@ -98,13 +98,11 @@ jobs:
         run: npm run build:typescript:sdk-graph
       - name: Typecheck packages
         run: |
-          npm run -w @nova/sdk-fetch typecheck
           npm run -w @nova/sdk-file typecheck
       - name: Pack TypeScript SDK tarballs
         run: |
           set -euo pipefail
           mkdir -p .artifacts/npm
-          npm pack -w @nova/sdk-fetch --pack-destination .artifacts/npm
           npm pack -w @nova/sdk-file --pack-destination .artifacts/npm
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # actions/upload-artifact@v4
         with:
@@ -149,26 +147,9 @@ jobs:
           node --input-type=module <<'NODEEOF'
           import { createNovaFileClient } from "@nova/sdk-file/client";
           import { operations as fileOperations } from "@nova/sdk-file/operations";
-          import { buildOperationDescriptorUrl, buildOperationUrl } from "@nova/sdk-fetch/url";
 
-          const fileUrl = buildOperationUrl(
-            "https://nova.example/",
-            "/v1/jobs/{job_id}",
-            { job_id: "job-123" },
-            { include: "events" },
-          );
-          if (fileUrl !== "https://nova.example/v1/jobs/job-123?include=events") {
-            throw new Error(`unexpected file URL: ${fileUrl}`);
-          }
-
-          const descriptorUrl = buildOperationDescriptorUrl(
-            "https://nova.example/",
-            fileOperations.get_job_status,
-            { job_id: "job-123" },
-            { include: "events" },
-          );
-          if (descriptorUrl !== "https://nova.example/v1/jobs/job-123?include=events") {
-            throw new Error(`unexpected descriptor URL: ${descriptorUrl}`);
+          if (fileOperations.get_job_status.path !== "/v1/jobs/{job_id}") {
+            throw new Error(`unexpected job-status path: ${fileOperations.get_job_status.path}`);
           }
 
           if ("update_job_result" in fileOperations) {
@@ -177,8 +158,8 @@ jobs:
 
           const fileClient = createNovaFileClient({
             baseUrl: "https://nova.example/",
-            fetchImpl: async (input) => {
-              const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+            fetch: async (input) => {
+              const url = input.url;
               if (url !== "https://nova.example/v1/jobs/job-123") {
                 throw new Error(`unexpected file client URL: ${url}`);
               }
@@ -196,10 +177,10 @@ jobs:
               });
             },
           });
-          const fileResponse = await fileClient.get_job_status({
-            pathParams: { job_id: "job-123" },
+          const fileResponse = await fileClient.GET(fileOperations.get_job_status.path, {
+            params: { path: { job_id: "job-123" } },
           });
-          if (!fileResponse.ok || fileResponse.data?.job?.job_id !== "job-123") {
+          if (fileResponse.error || fileResponse.data?.job?.job_id !== "job-123") {
             throw new Error("unexpected file client response");
           }
           NODEEOF

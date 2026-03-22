@@ -66,11 +66,10 @@ Integration adapter packages retained in-repo for downstream framework wiring:
 
 - `../../packages/nova_dash_bridge/`
 
-TypeScript SDK packages retained in-repo as release-grade CodeArtifact
-staged/prod artifacts:
+TypeScript SDK package retained in-repo as a release-grade CodeArtifact
+staged/prod artifact:
 
 - `../../packages/nova_sdk_file/`
-- `../../packages/nova_sdk_fetch/`
 
 R SDK packages retained in-repo as first-class internal release artifacts:
 

@@ -11,8 +11,7 @@
     "managed": false
   },
   "dependencies": {
-    "@nova/sdk-file": "file:../../nova_sdk_file",
-    "@nova/sdk-fetch": "file:../../nova_sdk_fetch"
+    "@nova/sdk-file": "file:../../nova_sdk_file"
   },
   "devDependencies": {
     "@types/node": "^22.19.13",

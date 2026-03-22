@@ -31,11 +31,6 @@ def test_public_sdk_packages_use_subpath_only_exports() -> None:
             "./operations",
             "./types",
         },
-        "nova_sdk_fetch": {
-            "./client",
-            "./contracts",
-            "./url",
-        },
     }
     for package_dir_name, expected_subpaths in expected_exports.items():
         package_data = _load_package_json(package_dir_name)
@@ -50,19 +45,19 @@ def test_public_sdk_packages_use_subpath_only_exports() -> None:
 
 def test_typescript_sdk_source_manifests_remain_private() -> None:
     """Source TS SDK manifests stay private until staged publish preparation."""
-    for package_dir_name in ("nova_sdk_fetch", "nova_sdk_file"):
+    for package_dir_name in ("nova_sdk_file",):
         package_data = _load_package_json(package_dir_name)
         assert package_data.get("private") is True
 
 
-def test_public_sdk_packages_remain_validation_free() -> None:
-    """Public TS SDK packages must not bundle Zod or validator dependencies."""
-    for package_dir_name in ("nova_sdk_file",):
-        package_data = _load_package_json(package_dir_name)
-        dependencies = package_data.get("dependencies", {})
-        assert isinstance(dependencies, dict)
-        assert "zod" not in dependencies
-        assert "@nova/sdk-fetch" in dependencies
+def test_public_sdk_packages_depend_on_openapi_fetch_only() -> None:
+    """Public TS SDK packages must use openapi-fetch without custom runtimes."""
+    package_data = _load_package_json("nova_sdk_file")
+    dependencies = package_data.get("dependencies", {})
+    assert isinstance(dependencies, dict)
+    assert "zod" not in dependencies
+    assert dependencies.get("openapi-fetch") == "^0.17.0"
+    assert "@nova/sdk-fetch" not in dependencies
 
 
 def test_public_sdk_types_omit_raw_model_aliases() -> None:
@@ -85,3 +80,10 @@ def test_public_sdk_types_exclude_internal_job_result_aliases() -> None:
     source = _load_source_text("nova_sdk_file", "types.ts")
     assert "export type JobResultUpdateRequest" not in source
     assert "export type JobResultUpdateResponse" not in source
+
+
+def test_public_sdk_types_exclude_wrapper_specific_aliases() -> None:
+    """Public file SDK types must not expose deleted transport-wrapper types."""
+    source = _load_source_text("nova_sdk_file", "types.ts")
+    assert "RequestOptions" not in source
+    assert "Result =" not in source

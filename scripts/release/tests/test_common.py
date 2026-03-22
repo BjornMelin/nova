@@ -40,19 +40,19 @@ def test_load_workspace_units_includes_managed_workspace_units(
         "{\n"
         '  "private": true,\n'
         '  "workspaces": [\n'
-        '    "packages/nova_sdk_fetch",\n'
+        '    "packages/nova_sdk_file",\n'
         '    "packages/contracts/typescript"\n'
         "  ]\n"
         "}\n",
         encoding="utf-8",
     )
-    (repo_root / "packages/nova_sdk_fetch").mkdir(parents=True)
-    (repo_root / "packages/nova_sdk_fetch/package.json").write_text(
+    (repo_root / "packages/nova_sdk_file").mkdir(parents=True)
+    (repo_root / "packages/nova_sdk_file/package.json").write_text(
         "{\n"
-        '  "name": "@nova/sdk-fetch",\n'
+        '  "name": "@nova/sdk-file",\n'
         '  "version": "0.1.0",\n'
         '  "novaRelease": {"managed": true, "namespace": "nova"},\n'
-        '  "dependencies": {"undici": "^7.0.0"}\n'
+        '  "dependencies": {"openapi-fetch": "^0.17.0"}\n'
         "}\n",
         encoding="utf-8",
     )
@@ -75,12 +75,12 @@ def test_load_workspace_units_includes_managed_workspace_units(
 
     assert set(units) == {
         "packages/nova_file_api",
-        "packages/nova_sdk_fetch",
+        "packages/nova_sdk_file",
         "packages/nova_sdk_r_file",
     }
-    assert units["packages/nova_sdk_fetch"].package_format == "npm"
-    assert units["packages/nova_sdk_fetch"].namespace == "nova"
-    assert units["packages/nova_sdk_fetch"].dependencies == ("undici",)
+    assert units["packages/nova_sdk_file"].package_format == "npm"
+    assert units["packages/nova_sdk_file"].namespace == "nova"
+    assert units["packages/nova_sdk_file"].dependencies == ("openapi-fetch",)
     assert units["packages/nova_sdk_r_file"].package_format == "r"
     assert units["packages/nova_sdk_r_file"].codeartifact_format == "generic"
     assert units["packages/nova_sdk_r_file"].namespace == "nova"
@@ -174,21 +174,12 @@ def test_load_workspace_units_rejects_unscoped_managed_npm_packages(
 
 def test_order_units_for_release_respects_internal_dependencies() -> None:
     units = {
-        "packages/nova_sdk_fetch": common.WorkspaceUnit(
-            unit_id="packages/nova_sdk_fetch",
-            path=Path("packages/nova_sdk_fetch"),
-            project_name="@nova/sdk-fetch",
-            version="0.1.0",
-            dependencies=(),
-            package_format="npm",
-            namespace="nova",
-        ),
         "packages/nova_sdk_file": common.WorkspaceUnit(
             unit_id="packages/nova_sdk_file",
             path=Path("packages/nova_sdk_file"),
             project_name="@nova/sdk-file",
             version="0.1.0",
-            dependencies=("@nova/sdk-fetch",),
+            dependencies=(),
             package_format="npm",
             namespace="nova",
         ),
@@ -196,10 +187,7 @@ def test_order_units_for_release_respects_internal_dependencies() -> None:
 
     ordered = common.order_units_for_release(
         units,
-        {"packages/nova_sdk_file", "packages/nova_sdk_fetch"},
+        {"packages/nova_sdk_file"},
     )
 
-    assert ordered == [
-        "packages/nova_sdk_fetch",
-        "packages/nova_sdk_file",
-    ]
+    assert ordered == ["packages/nova_sdk_file"]

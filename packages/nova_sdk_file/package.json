@@ -34,7 +34,7 @@
     "namespace": "nova"
   },
   "dependencies": {
-    "@nova/sdk-fetch": "file:../nova_sdk_fetch"
+    "openapi-fetch": "^0.17.0"
   },
   "devDependencies": {
     "@types/node": "^22.19.13",

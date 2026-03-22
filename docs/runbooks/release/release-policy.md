@@ -60,8 +60,8 @@ Companion modular setup guides (full index: [README.md](README.md)):
 5. Internal package groups must block external upstream ingestion.
 6. Publish to staged channel (`CODEARTIFACT_STAGING_REPOSITORY`) only after manifest, version, and namespace gates pass.
 7. Promotion to prod channel must consume only staged and gate-validated versions via `copy-package-versions`.
-8. Source npm manifests may use repo-local dependency specifiers (for example
-   `file:../nova_sdk_fetch`) for local development, but staged publish
+8. Source npm manifests may use repo-local dependency specifiers when needed
+   for local development, but staged publish
    artifacts must rewrite internal npm dependencies to concrete semver versions
    and remove publish-blocking `private: true`.
 9. Staged npm validation must install from CodeArtifact with

@@ -2,7 +2,7 @@
   "name": "nova-typescript-workspace",
   "private": true,
   "scripts": {
-    "build:typescript:sdk-graph": "npm run -w @nova/sdk-fetch build && npm run -w @nova/sdk-file build",
+    "build:typescript:sdk-graph": "npm run -w @nova/sdk-file build",
     "codeartifact:npm:env": "python scripts/release/codeartifact_npm.py env"
   },
   "devDependencies": {
@@ -10,7 +10,6 @@
   },
   "workspaces": [
     "packages/contracts/typescript",
-    "packages/nova_sdk_fetch",
     "packages/nova_sdk_file"
   ]
 }
