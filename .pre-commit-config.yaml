@@ -67,14 +67,7 @@ repos:
     hooks:
       - id: typing-gates
         name: typing gates
-        entry: /bin/bash
-        args:
-          - -lc
-          - |
-              set -euo pipefail
-              ROOT="${GIT_WORK_TREE:-$(git rev-parse --show-toplevel)}"
-              cd "${ROOT}"
-              scripts/checks/run_typing_gates.sh
+        entry: scripts/checks/run_typing_gates.sh
         language: system
         pass_filenames: false
         stages: [pre-push, manual]

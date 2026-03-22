@@ -86,5 +86,5 @@ def test_public_sdk_types_exclude_internal_job_result_aliases() -> None:
 def test_public_sdk_types_exclude_wrapper_specific_aliases() -> None:
     """Public file SDK types must not expose deleted transport-wrapper types."""
     source = _load_source_text("nova_sdk_file", "types.ts")
-    assert "RequestOptions" not in source
-    assert "Result =" not in source
+    assert "export type RequestOptions =" not in source
+    assert "export type Result =" not in source

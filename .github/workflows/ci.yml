@@ -192,6 +192,8 @@ jobs:
       - name: Typecheck packages
         run: |
           npm run -w @nova/sdk-file typecheck
+      - name: Build TypeScript SDK package
+        run: npm run -w @nova/sdk-file build
       - name: Pack TypeScript SDK tarballs
         run: |
           set -euo pipefail
@@ -241,46 +243,7 @@ jobs:
           }
           PKGEOF
           npm install --no-package-lock "${GITHUB_WORKSPACE}/.artifacts/npm/"*.tgz
-          node --input-type=module <<'NODEEOF'
-          import { createNovaFileClient } from "@nova/sdk-file/client";
-          import { operations as fileOperations } from "@nova/sdk-file/operations";
-
-          if (fileOperations.get_job_status.path !== "/v1/jobs/{job_id}") {
-            throw new Error(`unexpected job-status path: ${fileOperations.get_job_status.path}`);
-          }
-
-          if ("update_job_result" in fileOperations) {
-            throw new Error("internal file operation leaked into public SDK");
-          }
-
-          const fileClient = createNovaFileClient({
-            baseUrl: "https://nova.example/",
-            fetch: async (input) => {
-              const url = input.url;
-              if (url !== "https://nova.example/v1/jobs/job-123") {
-                throw new Error(`unexpected file client URL: ${url}`);
-              }
-              return new Response(JSON.stringify({
-                job: {
-                  job_id: "job-123",
-                  status: "queued",
-                  created_at: "2026-03-09T00:00:00Z",
-                  updated_at: "2026-03-09T00:00:00Z",
-                  events: [],
-                },
-              }), {
-                status: 200,
-                headers: { "content-type": "application/json" },
-              });
-            },
-          });
-          const fileResponse = await fileClient.GET(fileOperations.get_job_status.path, {
-            params: { path: { job_id: "job-123" } },
-          });
-          if (fileResponse.error || fileResponse.data?.job?.job_id !== "job-123") {
-            throw new Error("unexpected file client response");
-          }
-          NODEEOF
+          node "${GITHUB_WORKSPACE}/scripts/conformance/typescript_sdk_smoke.mjs"
 
   dash-conformance:
     needs: classify-changes

@@ -174,12 +174,21 @@ def test_load_workspace_units_rejects_unscoped_managed_npm_packages(
 
 def test_order_units_for_release_respects_internal_dependencies() -> None:
     units = {
+        "packages/nova_dep": common.WorkspaceUnit(
+            unit_id="packages/nova_dep",
+            path=Path("packages/nova_dep"),
+            project_name="@nova/dep",
+            version="0.1.0",
+            dependencies=(),
+            package_format="npm",
+            namespace="nova",
+        ),
         "packages/nova_sdk_file": common.WorkspaceUnit(
             unit_id="packages/nova_sdk_file",
             path=Path("packages/nova_sdk_file"),
             project_name="@nova/sdk-file",
             version="0.1.0",
-            dependencies=(),
+            dependencies=("packages/nova_dep",),
             package_format="npm",
             namespace="nova",
         ),
@@ -187,7 +196,7 @@ def test_order_units_for_release_respects_internal_dependencies() -> None:
 
     ordered = common.order_units_for_release(
         units,
-        {"packages/nova_sdk_file"},
+        {"packages/nova_dep", "packages/nova_sdk_file"},
     )
 
-    assert ordered == ["packages/nova_sdk_file"]
+    assert ordered == ["packages/nova_dep", "packages/nova_sdk_file"]

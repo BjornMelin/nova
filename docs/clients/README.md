@@ -86,7 +86,7 @@ bearer `Authorization` header to the bridge assets for canonical
 `session_id`, `X-Session-Id`, or `X-Scope-Id` as public auth/scope inputs.
 
 All of these remain subordinate to the committed Nova OpenAPI contracts.
-TypeScript SDK packages are release-grade within Nova's CodeArtifact
+TypeScript SDK package is release-grade within Nova's CodeArtifact
 staged/prod flow, remain subpath-only, and do not ship bundled runtime
 validation. R packages are built as real packages, transported through
 CodeArtifact generic packages, and evidenced with signed tarballs rather than a

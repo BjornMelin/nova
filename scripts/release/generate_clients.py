@@ -456,6 +456,7 @@ def _render_operations(operations: list[Operation]) -> str:
             "DO NOT EDIT."
         ),
         "",
+        "/** Describes one generated public operation entry in the static catalog. */",
         "export interface OperationDescriptor {",
         "  readonly operationId: string;",
         "  readonly method: string;",
@@ -583,7 +584,9 @@ def _render_typescript_types(
                 f"export type {base_name}RequestBody = RequestBodyOf<{base_name}Spec>;",
                 f"export type {base_name}RequestBodyForContentType<TContentType extends {base_name}RequestContentType> = RequestBodyForContentType<{base_name}Spec, TContentType>;",
                 f"export type {base_name}Responses = ResponsesOf<{base_name}Spec>;",
+                f"/** Union of success response payloads for `{operation.operation_id}`. */",
                 f"export type {base_name}SuccessData = ResponseDataOf<{base_name}Responses, SuccessStatusCodeOf<{base_name}Responses>>;",
+                f"/** Union of non-success response payloads for `{operation.operation_id}`. */",
                 f"export type {base_name}ErrorData = ResponseDataOf<{base_name}Responses, ErrorStatusCodeOf<{base_name}Responses>>;",
             ]
         )

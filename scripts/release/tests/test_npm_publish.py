@@ -102,14 +102,19 @@ def test_prepare_npm_publish_artifacts_rewrites_internal_versions(
         repo_root / "package.json",
         "{\n"
         '  "private": true,\n'
-        '  "workspaces": ["packages/nova_sdk_file"]\n'
+        '  "workspaces": ["packages/nova_sdk_core", "packages/nova_sdk_file"]\n'
         "}\n",
+    )
+    _write_managed_package(
+        repo_root / "packages/nova_sdk_core",
+        name="@nova/sdk-core",
+        version="0.1.0",
     )
     _write_managed_package(
         repo_root / "packages/nova_sdk_file",
         name="@nova/sdk-file",
         version="0.1.0",
-        dependencies={"openapi-fetch": "^0.17.0"},
+        dependencies={"@nova/sdk-core": "^0.1.0", "openapi-fetch": "^0.17.0"},
     )
 
     units = common.load_workspace_units(repo_root)
@@ -121,6 +126,10 @@ def test_prepare_npm_publish_artifacts_rewrites_internal_versions(
     )
     version_plan = {
         "units": [
+            {
+                "unit_id": "packages/nova_sdk_core",
+                "new_version": "0.2.0",
+            },
             {
                 "unit_id": "packages/nova_sdk_file",
                 "new_version": "0.2.0",
@@ -140,7 +149,8 @@ def test_prepare_npm_publish_artifacts_rewrites_internal_versions(
     )
 
     assert [item["package"] for item in report["packages"]] == [
-        "@nova/sdk-file"
+        "@nova/sdk-core",
+        "@nova/sdk-file",
     ]
     assert report["registry_url"] == (
         "https://cral-099060980393.d.codeartifact.us-east-1.amazonaws.com/npm/"
@@ -151,6 +161,7 @@ def test_prepare_npm_publish_artifacts_rewrites_internal_versions(
     )
     prepared_core = json.loads(prepared_core_path.read_text(encoding="utf-8"))
     assert prepared_core["version"] == "0.2.0"
+    assert prepared_core["dependencies"]["@nova/sdk-core"] == "0.2.0"
     assert prepared_core["dependencies"]["openapi-fetch"] == "^0.17.0"
     assert prepared_core["publishConfig"]["registry"] == (
         "https://cral-099060980393.d.codeartifact.us-east-1.amazonaws.com/npm/"
@@ -174,6 +185,8 @@ def test_prepare_npm_publish_artifacts_rewrites_internal_versions(
         "package.json",
     ]
     assert npm_calls == [
+        ["npm", "pack", "--dry-run", "--json"],
+        ["npm", "pack", "--json"],
         ["npm", "pack", "--dry-run", "--json"],
         ["npm", "pack", "--json"],
     ]
