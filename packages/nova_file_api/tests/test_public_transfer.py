@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from typing import Any, cast
 
 import nova_file_api.public as public
@@ -8,7 +9,8 @@ import pytest
 
 class _FakeTransferStorageClient:
     async def generate_presigned_url(self, **kwargs: object) -> str:
-        raise AssertionError(f"unexpected call: {kwargs}")
+        del kwargs
+        return "https://example.invalid/presigned"
 
     async def create_multipart_upload(
         self, **kwargs: object
@@ -80,9 +82,19 @@ def test_build_transfer_service_ignores_ambient_settings_env(
         s3_client=_FakeTransferStorageClient(),
     )
 
-    service_settings = cast(Any, service).settings
-    assert service_settings.jobs_runtime_mode == "api"
-    assert service_settings.file_transfer_bucket == "bucket-a"
+    response = asyncio.run(
+        service.initiate_upload(
+            public.InitiateUploadRequest(
+                filename="report.csv",
+                content_type="text/csv",
+                size_bytes=1,
+            ),
+            public.Principal(subject="user-1", scope_id="scope-1"),
+        )
+    )
+
+    assert response.bucket == "bucket-a"
+    assert response.url == "https://example.invalid/presigned"
 
 
 def test_public_surface_keeps_error_envelope_but_not_error_body() -> None:

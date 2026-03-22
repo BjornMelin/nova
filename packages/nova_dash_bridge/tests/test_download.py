@@ -122,11 +122,12 @@ def _service_with_response(
     *,
     monkeypatch: pytest.MonkeyPatch,
     response: dict[str, object],
+    core_service: _FakeCoreTransferService | None = None,
 ) -> FileTransferService:
     monkeypatch.setattr(
         dash_service_module,
         "build_transfer_service",
-        lambda **_: _FakeCoreTransferService(),
+        lambda **_: core_service or _FakeCoreTransferService(),
     )
     return FileTransferService(
         env_config=FileTransferEnvConfig.model_validate(
@@ -221,15 +222,11 @@ def test_introspect_upload_maps_core_response(
 def test_presign_download_preserves_explicit_content_disposition(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    fake_core = _FakeCoreTransferService()
     service = _service_with_response(
         monkeypatch=monkeypatch,
         response={},
-    )
-    fake_core = _FakeCoreTransferService()
-    monkeypatch.setattr(
-        service._async_service,
-        "_build_core_service",
-        lambda: fake_core,
+        core_service=fake_core,
     )
 
     response = service.presign_download(
