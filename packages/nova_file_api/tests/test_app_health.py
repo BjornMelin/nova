@@ -280,6 +280,15 @@ async def _request_jobs_with_raw_body(
     content: str,
     headers: dict[str, str],
 ) -> httpx.Response:
+    """POST ``/v1/jobs`` with a raw string body and custom headers.
+
+    Args:
+        content: Serialized request body (e.g. JSON) sent as-is.
+        headers: HTTP headers for the request (must include auth as needed).
+
+    Returns:
+        The ``httpx.Response`` from the ASGI app.
+    """
     app = build_test_app(_build_deps())
     async with (
         app.router.lifespan_context(app),

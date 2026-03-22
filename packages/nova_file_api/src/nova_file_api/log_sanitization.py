@@ -44,7 +44,7 @@ def sanitize_log_value(value: Any) -> Any:
     if isinstance(value, tuple):
         return tuple(sanitize_log_value(item) for item in value)
     if isinstance(value, (bytes, bytearray)):
-        return value.decode("utf-8", errors="replace")
+        value = value.decode("utf-8", errors="replace")
     if isinstance(value, str) and "x-amz-signature=" in value.lower():
         return "[REDACTED]"
     return value
