@@ -13,6 +13,7 @@ from typing import Any, TypeVar, cast
 from urllib.parse import quote_from_bytes
 from uuid import uuid4
 
+from anyio import to_thread
 from anyio.from_thread import BlockingPortalProvider
 from botocore.exceptions import BotoCoreError, ClientError
 from nova_file_api.public import (
@@ -66,7 +67,7 @@ class _AsyncS3ClientAdapter:
 
     async def generate_presigned_url(self, **kwargs: Any) -> str:
         return str(
-            await asyncio.to_thread(
+            await to_thread.run_sync(
                 self._client.generate_presigned_url,
                 **kwargs,
             )
@@ -75,7 +76,7 @@ class _AsyncS3ClientAdapter:
     async def create_multipart_upload(self, **kwargs: Any) -> dict[str, object]:
         return cast(
             dict[str, object],
-            await asyncio.to_thread(
+            await to_thread.run_sync(
                 self._client.create_multipart_upload,
                 **kwargs,
             ),
@@ -86,7 +87,7 @@ class _AsyncS3ClientAdapter:
     ) -> dict[str, object]:
         return cast(
             dict[str, object],
-            await asyncio.to_thread(
+            await to_thread.run_sync(
                 self._client.complete_multipart_upload,
                 **kwargs,
             ),
@@ -95,7 +96,7 @@ class _AsyncS3ClientAdapter:
     async def abort_multipart_upload(self, **kwargs: Any) -> dict[str, object]:
         return cast(
             dict[str, object],
-            await asyncio.to_thread(
+            await to_thread.run_sync(
                 self._client.abort_multipart_upload,
                 **kwargs,
             ),
@@ -104,25 +105,25 @@ class _AsyncS3ClientAdapter:
     async def head_object(self, **kwargs: Any) -> dict[str, object]:
         return cast(
             dict[str, object],
-            await asyncio.to_thread(self._client.head_object, **kwargs),
+            await to_thread.run_sync(self._client.head_object, **kwargs),
         )
 
     async def list_parts(self, **kwargs: Any) -> dict[str, object]:
         return cast(
             dict[str, object],
-            await asyncio.to_thread(self._client.list_parts, **kwargs),
+            await to_thread.run_sync(self._client.list_parts, **kwargs),
         )
 
     async def copy_object(self, **kwargs: Any) -> dict[str, object]:
         return cast(
             dict[str, object],
-            await asyncio.to_thread(self._client.copy_object, **kwargs),
+            await to_thread.run_sync(self._client.copy_object, **kwargs),
         )
 
     async def upload_part_copy(self, **kwargs: Any) -> dict[str, object]:
         return cast(
             dict[str, object],
-            await asyncio.to_thread(self._client.upload_part_copy, **kwargs),
+            await to_thread.run_sync(self._client.upload_part_copy, **kwargs),
         )
 
 
@@ -179,6 +180,15 @@ class AsyncFileTransferService:
     def _client(self) -> S3Client:
         return self._factory.create(self._env)
 
+    @property
+    def bucket(self) -> str:
+        """Return the configured transfer bucket."""
+        return self._env.bucket
+
+    def create_s3_client(self) -> S3Client:
+        """Create a sync S3 client for direct bridge operations."""
+        return self._client()
+
     def _build_core_service(self) -> AsyncTransferService:
         service = self._core_service
         if service is not None:
@@ -188,7 +198,9 @@ class AsyncFileTransferService:
             if service is None:
                 service = build_transfer_service(
                     config=self._core_config,
-                    s3_client=_AsyncS3ClientAdapter(client=self._client()),
+                    s3_client=_AsyncS3ClientAdapter(
+                        client=self.create_s3_client()
+                    ),
                 )
                 self._core_service = service
         return service
@@ -404,7 +416,7 @@ class AsyncFileTransferService:
                 key=req.key,
                 content_disposition=disposition,
                 filename=req.filename,
-                content_type=None,
+                content_type=req.content_type,
             ),
             principal,
         )
@@ -550,17 +562,18 @@ class FileTransferService:
             scope_id=scope_id,
             filename=filename,
         )
-        client = self._async_service._client()
+        client = self._async_service.create_s3_client()
+        bucket = self._async_service.bucket
         try:
             client.put_object(
-                Bucket=self._async_service._env.bucket,
+                Bucket=bucket,
                 Key=key,
                 Body=data,
                 ContentType=content_type,
             )
         except (BotoCoreError, ClientError) as exc:
             raise internal_error("failed to upload export object") from exc
-        return self._async_service._env.bucket, key
+        return bucket, key
 
     def download_object_bytes(
         self,
@@ -576,7 +589,7 @@ class FileTransferService:
             raise validation_error("key is required")
         if max_bytes is not None and max_bytes <= 0:
             raise validation_error("max_bytes must be > 0")
-        client = self._async_service._client()
+        client = self._async_service.create_s3_client()
         try:
             response = client.get_object(Bucket=bucket, Key=key)
         except (BotoCoreError, ClientError) as exc:

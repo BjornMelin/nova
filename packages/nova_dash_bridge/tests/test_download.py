@@ -237,7 +237,7 @@ def test_presign_download_preserves_explicit_content_disposition(
             key="exports/scope-1/report.csv",
             content_disposition='inline; filename="custom.csv"',
             filename="fallback.csv",
-            content_type=None,
+            content_type="text/csv",
         ),
         principal=Principal(subject="user-1", scope_id="scope-1"),
     )
@@ -249,3 +249,4 @@ def test_presign_download_preserves_explicit_content_disposition(
         == 'inline; filename="custom.csv"'
     )
     assert fake_core.last_presign_request.filename == "fallback.csv"
+    assert fake_core.last_presign_request.content_type == "text/csv"

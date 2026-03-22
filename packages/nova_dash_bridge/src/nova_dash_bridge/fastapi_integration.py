@@ -4,6 +4,7 @@
 from json import JSONDecodeError
 from typing import Annotated, Any, Final
 
+from anyio import to_thread
 from nova_file_api.public import (
     ABORT_UPLOAD_ROUTE,
     COMPLETE_UPLOAD_ROUTE,
@@ -110,7 +111,10 @@ def create_fastapi_router(
         authorization_header = (
             f"{credentials.scheme} {credentials.credentials.strip()}"
         )
-        return service.resolve_principal(authorization_header)
+        return await to_thread.run_sync(
+            service.resolve_principal,
+            authorization_header,
+        )
 
     @router.post(
         UPLOADS_INITIATE_ROUTE,

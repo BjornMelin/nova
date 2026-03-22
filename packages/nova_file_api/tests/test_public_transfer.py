@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+from typing import Any, cast
+
 import nova_file_api.public as public
 import pytest
-from nova_file_api.transfer import TransferService
 
 
 class _FakeTransferStorageClient:
@@ -37,6 +38,25 @@ class _FakeTransferStorageClient:
         raise AssertionError(f"unexpected call: {kwargs}")
 
 
+def test_transfer_config_is_keyword_only() -> None:
+    constructor = cast(Any, public.TransferConfig)
+    with pytest.raises(TypeError):
+        constructor(
+            True,
+            "bucket-a",
+            "uploads/",
+            "exports/",
+            "tmp/",
+            900,
+            900,
+            10 * 1024 * 1024,
+            10 * 1024 * 1024,
+            4,
+            False,
+            500 * 1024 * 1024,
+        )
+
+
 def test_build_transfer_service_ignores_ambient_settings_env(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -60,9 +80,9 @@ def test_build_transfer_service_ignores_ambient_settings_env(
         s3_client=_FakeTransferStorageClient(),
     )
 
-    assert isinstance(service, TransferService)
-    assert service.settings.jobs_runtime_mode == "api"
-    assert service.settings.file_transfer_bucket == "bucket-a"
+    service_settings = cast(Any, service).settings
+    assert service_settings.jobs_runtime_mode == "api"
+    assert service_settings.file_transfer_bucket == "bucket-a"
 
 
 def test_public_surface_keeps_error_envelope_but_not_error_body() -> None:

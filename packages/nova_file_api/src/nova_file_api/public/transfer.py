@@ -37,7 +37,7 @@ ABORT_UPLOAD_ROUTE = "/uploads/abort"
 PRESIGN_DOWNLOAD_ROUTE = "/downloads/presign"
 
 
-@dataclass(slots=True, frozen=True)
+@dataclass(slots=True, frozen=True, kw_only=True)
 class TransferConfig:
     """Explicit transfer-scoped runtime configuration."""
 
@@ -145,39 +145,26 @@ class TransferStorageClient(Protocol):
 
 def _settings_from_transfer_config(config: TransferConfig) -> Settings:
     """Materialize runtime settings from an explicit transfer config."""
-    default_values = {
-        (
-            field.alias
-            if isinstance(field.alias, str) and field.alias
-            else field_name
-        ): field.get_default(call_default_factory=True)
-        for field_name, field in Settings.model_fields.items()
-    }
-    default_values.update(
-        {
-            "FILE_TRANSFER_ENABLED": config.enabled,
-            "FILE_TRANSFER_BUCKET": config.bucket,
-            "FILE_TRANSFER_UPLOAD_PREFIX": config.upload_prefix,
-            "FILE_TRANSFER_EXPORT_PREFIX": config.export_prefix,
-            "FILE_TRANSFER_TMP_PREFIX": config.tmp_prefix,
-            "FILE_TRANSFER_PRESIGN_UPLOAD_TTL_SECONDS": (
-                config.presign_upload_ttl_seconds
-            ),
-            "FILE_TRANSFER_PRESIGN_DOWNLOAD_TTL_SECONDS": (
-                config.presign_download_ttl_seconds
-            ),
-            "FILE_TRANSFER_MULTIPART_THRESHOLD_BYTES": (
-                config.multipart_threshold_bytes
-            ),
-            "FILE_TRANSFER_PART_SIZE_BYTES": config.part_size_bytes,
-            "FILE_TRANSFER_MAX_CONCURRENCY": config.max_concurrency,
-            "FILE_TRANSFER_USE_ACCELERATE_ENDPOINT": (
-                config.use_accelerate_endpoint
-            ),
-            "FILE_TRANSFER_MAX_UPLOAD_BYTES": config.max_upload_bytes,
-        }
+    return Settings.model_construct(
+        file_transfer_enabled=config.enabled,
+        file_transfer_bucket=config.bucket,
+        file_transfer_upload_prefix=config.upload_prefix,
+        file_transfer_export_prefix=config.export_prefix,
+        file_transfer_tmp_prefix=config.tmp_prefix,
+        file_transfer_presign_upload_ttl_seconds=(
+            config.presign_upload_ttl_seconds
+        ),
+        file_transfer_presign_download_ttl_seconds=(
+            config.presign_download_ttl_seconds
+        ),
+        file_transfer_multipart_threshold_bytes=(
+            config.multipart_threshold_bytes
+        ),
+        file_transfer_part_size_bytes=config.part_size_bytes,
+        file_transfer_max_concurrency=config.max_concurrency,
+        file_transfer_use_accelerate_endpoint=config.use_accelerate_endpoint,
+        max_upload_bytes=config.max_upload_bytes,
     )
-    return Settings(**default_values)
 
 
 def build_transfer_service(
