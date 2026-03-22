@@ -62,6 +62,7 @@ class RequestContextASGIMiddleware:
         method = request.method
         path = request.url.path
         status_code: int | None = None
+        request_failed = False
 
         async def send_with_request_id(message: Message) -> None:
             nonlocal status_code
@@ -73,19 +74,20 @@ class RequestContextASGIMiddleware:
         try:
             await self.app(scope, receive, send_with_request_id)
         except Exception:
+            request_failed = True
             latency_ms = (perf_counter() - started) * 1000.0
             logger.exception(
                 "request_completed",
                 method=method,
                 path=path,
-                status_code=500,
+                status_code=status_code or 500,
                 outcome="error",
                 latency_ms=round(latency_ms, 3),
                 auth_mode=auth_mode,
             )
             raise
         finally:
-            if status_code is not None:
+            if (not request_failed) and status_code is not None:
                 latency_ms = (perf_counter() - started) * 1000.0
                 logger.info(
                     "request_completed",
@@ -102,6 +104,13 @@ class RequestContextASGIMiddleware:
 class RequestContextFastAPI(FastAPI):
     """FastAPI application wrapper that applies request context at the edge."""
 
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        """Set up shared request-context middleware."""
+        super().__init__(*args, **kwargs)
+        self._request_context_middleware = RequestContextASGIMiddleware(
+            super().__call__,
+        )
+
     async def __call__(
         self,
         scope: Scope,
@@ -109,8 +118,7 @@ class RequestContextFastAPI(FastAPI):
         send: Send,
     ) -> None:
         """Run the FastAPI app inside the shared request-context wrapper."""
-        middleware = RequestContextASGIMiddleware(super().__call__)
-        await middleware(scope, receive, send)
+        await self._request_context_middleware(scope, receive, send)
 
 
 def register_fastapi_exception_handlers[DomainErrorT: Exception](

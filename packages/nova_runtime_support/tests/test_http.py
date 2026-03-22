@@ -6,6 +6,7 @@ from collections.abc import AsyncIterator
 from dataclasses import dataclass
 
 import pytest
+import structlog
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import StreamingResponse
@@ -16,7 +17,7 @@ from nova_runtime_support.http import (
     RequestContextFastAPI,
     register_fastapi_exception_handlers,
 )
-from starlette.types import Message, Receive, Scope, Send
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 
 @dataclass(slots=True)
@@ -211,3 +212,141 @@ def test_shared_middleware_preserves_streaming_responses() -> None:
     assert response.status_code == 200
     assert response.headers["X-Request-Id"]
     assert response.text == "alphabeta"
+
+
+class _LogCapture:
+    """Simple structlog-like collector for middleware logging assertions."""
+
+    def __init__(self) -> None:
+        self.events: list[tuple[str, dict[str, object]]] = []
+
+    def bind_contextvars(self, **kwargs: object) -> None:
+        del kwargs
+
+    def unbind_contextvars(self, *_keys: str) -> None:
+        pass
+
+    def exception(self, message: str, **event: object) -> None:
+        self.events.append(("exception", {"message": message, **event}))
+
+    def info(self, message: str, **event: object) -> None:
+        self.events.append(("info", {"message": message, **event}))
+
+
+def _error_after_start_http_scope() -> Scope:
+    """Return a minimal valid ASGI HTTP scope for middleware unit tests."""
+    return {
+        "type": "http",
+        "asgi": {"version": "3.0", "spec_version": "2.0"},
+        "http_version": "1.1",
+        "method": "GET",
+        "path": "/",
+        "raw_path": b"/",
+        "query_string": b"",
+        "headers": [],
+        "scheme": "http",
+        "client": ("127.0.0.1", 5000),
+        "server": ("testserver", 80),
+    }
+
+
+def _make_receive() -> Receive:
+    async def receive() -> Message:
+        return {"type": "http.request"}
+
+    return receive
+
+
+@pytest.mark.asyncio
+async def test_request_context_middleware_preserves_status_on_post_start_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Preserve observed status for middleware logs after response start."""
+    logger = _LogCapture()
+    app = TestAppErrorAfterStart()
+    middleware = RequestContextASGIMiddleware(app)
+
+    monkeypatch.setattr(structlog, "get_logger", lambda _name: logger)
+    scope = _error_after_start_http_scope()
+
+    async def send(message: Message) -> None:
+        if message["type"] == "http.response.start":
+            assert message["status"] == 200
+
+    with pytest.raises(RuntimeError, match="simulated response failure"):
+        await middleware(scope, _make_receive(), send)
+
+    assert len(logger.events) == 1
+    level, event = logger.events[0]
+    assert level == "exception"
+    assert event["status_code"] == 200
+    assert event["outcome"] == "error"
+
+
+@pytest.mark.asyncio
+async def test_request_context_middleware_skips_info_after_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Log request_completed only in error path for start/exception races."""
+    logger = _LogCapture()
+    app = TestAppErrorAfterStart()
+    middleware = RequestContextASGIMiddleware(app)
+    monkeypatch.setattr(structlog, "get_logger", lambda _name: logger)
+    scope = _error_after_start_http_scope()
+
+    async def send(message: Message) -> None:
+        if message["type"] == "http.response.start":
+            assert message["status"] == 200
+
+    with pytest.raises(RuntimeError, match="simulated response failure"):
+        await middleware(scope, _make_receive(), send)
+
+    assert {entry[0] for entry in logger.events} == {"exception"}
+
+
+def test_request_context_fastapi_initializes_request_context_wrapper_once(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Reuse one ASGI middleware instance in FastAPI constructor."""
+    init_count = 0
+
+    class _CountingMiddleware(RequestContextASGIMiddleware):
+        def __init__(self, app: ASGIApp) -> None:
+            nonlocal init_count
+            init_count += 1
+            super().__init__(app)
+
+    monkeypatch.setattr(
+        "nova_runtime_support.http.RequestContextASGIMiddleware",
+        _CountingMiddleware,
+    )
+    app = RequestContextFastAPI()
+
+    @app.get("/ping")
+    async def ping() -> dict[str, str]:
+        return {"ok": "pong"}
+
+    with TestClient(app) as client:
+        assert client.get("/ping").status_code == 200
+        assert client.get("/ping").status_code == 200
+
+    assert init_count == 1
+
+
+class TestAppErrorAfterStart:
+    """ASGI app that sends response start then raises."""
+
+    async def __call__(
+        self,
+        scope: Scope,
+        receive: Receive,
+        send: Send,
+    ) -> None:
+        del receive
+        await send(
+            {"type": "http.response.start", "status": 200, "headers": []},
+        )
+        await send(
+            {"type": "http.response.body", "body": b"ok", "more_body": False},
+        )
+        raise RuntimeError("simulated response failure")
