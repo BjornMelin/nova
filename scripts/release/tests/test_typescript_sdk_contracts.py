@@ -55,9 +55,10 @@ def test_public_sdk_packages_depend_on_openapi_fetch_only() -> None:
     package_data = _load_package_json("nova_sdk_file")
     dependencies = package_data.get("dependencies", {})
     assert isinstance(dependencies, dict)
-    assert "zod" not in dependencies
-    assert dependencies.get("openapi-fetch") == "^0.17.0"
-    assert "@nova/sdk-fetch" not in dependencies
+    dependency_map = cast(dict[str, object], dependencies)
+    assert "zod" not in dependency_map
+    assert dependency_map.get("openapi-fetch") == "^0.17.0"
+    assert "@nova/sdk-fetch" not in dependency_map
 
 
 def test_public_sdk_types_omit_raw_model_aliases() -> None:
