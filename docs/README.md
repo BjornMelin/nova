@@ -1,7 +1,7 @@
 # Nova Documentation
 
 Status: Active
-Last reviewed: 2026-03-19
+Last reviewed: 2026-03-22
 
 ## Purpose
 
@@ -102,3 +102,7 @@ Use these only for traceability, not as active authority:
   `./architecture/spec/SPEC-0017-runtime-component-topology-and-ownership-contract.md`
   aligned on `nova_dash_bridge -> nova_file_api.public` as the canonical
   in-process seam.
+- Cross-cutting FastAPI transport changes must also keep
+  `./architecture/adr/ADR-0041-shared-pure-asgi-middleware-and-errors.md`
+  aligned with `packages/nova_runtime_support` as the sole authority for
+  shared outer-ASGI request context and exception registration.

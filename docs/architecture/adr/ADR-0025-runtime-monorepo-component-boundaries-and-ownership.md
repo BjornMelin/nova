@@ -2,8 +2,8 @@
 ADR: 0025
 Title: Runtime monorepo component boundaries and ownership
 Status: Accepted
-Version: 2.2
-Date: 2026-03-19
+Version: 2.3
+Date: 2026-03-22
 Related:
   - "[ADR-0023: Hard-cut v1 canonical route surface](./ADR-0023-hard-cut-v1-canonical-route-surface.md)"
   - "[SPEC-0000: HTTP API contract](../spec/SPEC-0000-http-api-contract.md)"
@@ -31,6 +31,9 @@ The runtime now lives in one monorepo, but the architecture only stays legible
 if package ownership remains explicit:
 
 - `packages/nova_file_api/` owns transfer and job control-plane behavior.
+- `packages/nova_runtime_support/` owns shared cross-cutting runtime transport
+  helpers such as outer-ASGI request context and canonical FastAPI exception
+  registration.
 - `packages/nova_dash_bridge/` owns framework integration only.
 - `packages/contracts/` owns OpenAPI artifacts, fixtures, and generated-client
   contract inputs.
@@ -75,8 +78,12 @@ Choose **Option B**.
    it must not redefine Nova API models, endpoint ownership, auth semantics, or
    policy rules. Its canonical in-process dependency surface is
    `nova_file_api.public`.
-3. `packages/contracts/` is the only OpenAPI contract artifact authority.
-4. Deployment workflows and CI/CD contracts belong to separate deploy-governance
+3. `packages/nova_runtime_support/` owns shared outer-ASGI request context,
+   request-id propagation, and shared FastAPI exception registration. Runtime
+   packages may adapt domain errors, but they do not re-implement the
+   cross-cutting transport layer.
+4. `packages/contracts/` is the only OpenAPI contract artifact authority.
+5. Deployment workflows and CI/CD contracts belong to separate deploy-governance
    docs, not this runtime boundary decision.
 
 ## Consequences
@@ -102,6 +109,8 @@ Choose **Option B**.
 
 ## Changelog
 
+- 2026-03-22 (v2.3): Added explicit ownership for shared outer-ASGI transport
+  and FastAPI exception registration in `nova_runtime_support`.
 - 2026-03-19 (v2.2): Removed active `nova_auth_api` ownership from the runtime
   boundary contract after the in-process auth cutover landed in `nova_file_api`.
 - 2026-03-10 (v2.1): Consolidated service entrypoints into

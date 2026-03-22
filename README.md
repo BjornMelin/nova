@@ -23,7 +23,8 @@ Use these entrypoints before drilling into deeper docs:
   in the target architecture (`ADR-0033`, `SPEC-0027`)
 - `packages/nova_dash_bridge/`: Dash/Flask/FastAPI integration adapters over
   `nova_file_api.public`
-- `packages/nova_runtime_support/`: shared runtime support helpers
+- `packages/nova_runtime_support/`: shared runtime support helpers, including
+  outer-ASGI request context and canonical FastAPI exception registration
 - `packages/contracts/`: OpenAPI artifacts and contract fixtures
 
 ## Contract Summary
@@ -67,6 +68,10 @@ Do not add compatibility aliases or retired legacy route families.
 `nova_dash_bridge` is an adapter-only seam. Browser and framework integrations
 must forward bearer auth to canonical `/v1/transfers` and `/v1/jobs` routes and
 must not rely on `session_id`, `X-Session-Id`, or `X-Scope-Id` as auth inputs.
+Canonical FastAPI request-id propagation and error envelopes now come from the
+shared outer-ASGI/request-handler stack in `nova_runtime_support`. Standalone
+FastAPI hosts should use `create_fastapi_app()` or install that shared stack
+themselves; `create_fastapi_router()` is route composition only.
 
 ## SDK and OpenAPI Posture
 

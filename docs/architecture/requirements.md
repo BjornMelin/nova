@@ -1,7 +1,7 @@
 # Requirements (nova runtime)
 
 Status: Canonical requirements source
-Last updated: 2026-03-19
+Last updated: 2026-03-22
 
 This document is the source of truth for functional and non-functional
 requirements for the first production release.
@@ -23,6 +23,9 @@ requirements for the first production release.
   `SPEC-0017`, `SPEC-0018`, and `SPEC-0019`, and downstream validation
   contracts codified in `ADR-0027` through `ADR-0029` and `SPEC-0021` through
   `SPEC-0023`.
+- Shared request-context propagation, request-id parity, and canonical FastAPI
+  exception registration are owned by `nova_runtime_support` via the `ADR-0041`
+  transport cut and reused by FastAPI app factories.
 - Adjacent deploy-governance authority is isolated under `ADR-0030` through
   `ADR-0032` and `SPEC-0024` through `SPEC-0026`.
 - Superseded ADR/SPEC material is archived only under

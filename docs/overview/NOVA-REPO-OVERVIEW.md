@@ -12,7 +12,9 @@ Nova is the canonical runtime monorepo for file-transfer orchestration and in-pr
 - `packages/nova_sdk_r_file`: First-class internal R file SDK package.
 - `packages/nova_dash_bridge`: Integration bridge adapters for Dash/Flask/FastAPI clients over `nova_file_api.public`.
 - `packages/contracts`: Contract artifacts, fixtures, and conformance helpers.
-- `packages/nova_runtime_support`: Shared runtime helpers used by the canonical runtime.
+- `packages/nova_runtime_support`: Shared runtime helpers used by the canonical
+  runtime, including outer-ASGI request context and shared FastAPI exception
+  registration.
 - `infra/nova` and `infra/runtime`: CloudFormation stacks for CI/CD foundation and runtime environments.
 
 ## Read Next
@@ -80,6 +82,10 @@ flowchart LR
   - Framework adapters that let Dash/Flask/FastAPI apps consume Nova-style transfer flows without redefining server contracts.
   - Package-local adapter regression tests and architecture-boundary enforcement.
   - Consumption of the canonical in-process transfer seam through `nova_file_api.public`, not direct runtime internals.
+- `nova_runtime_support` owns:
+  - Shared request-id propagation and streaming-safe ASGI request-context behavior.
+  - Shared FastAPI exception registration and canonical error-envelope serialization helpers.
+  - Cross-cutting runtime primitives reused by `nova_file_api` and `nova_dash_bridge`.
 - `contracts` owns:
   - Test fixtures, schemas, and conformance artifacts used by release and integration checks.
 

@@ -1,7 +1,7 @@
 # Plan Index (Current State)
 
 Status: Active planning and release index
-Last updated: 2026-03-19
+Last updated: 2026-03-22
 
 ## Purpose
 
@@ -50,6 +50,10 @@ Release/provisioning doc conventions: **Release operator docs profile** in
   SDK stack cuts, infra narrative alignment, and final repo rebaseline. Start
   at `./greenfield-simplification-program.md` and `../architecture/adr/index.md`
   (`ADR-0033`–`ADR-0041`) plus `SPEC-0027`–`SPEC-0029`.
+- The shared runtime transport cut now routes canonical FastAPI request-id
+  propagation and exception registration through `packages/nova_runtime_support`.
+  `nova_dash_bridge.create_fastapi_router()` remains route-only composition;
+  `create_fastapi_app()` is the canonical bridge FastAPI surface.
 - Active runtime authority is layered across route/API authority, runtime
   topology and safety, downstream validation, and adjacent deploy-governance.
 - `nova_dash_bridge` remains adapter-only and now consumes canonical in-process
