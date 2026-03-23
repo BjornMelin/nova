@@ -11,7 +11,7 @@ T = TypeVar("T", bound="CapabilityDescriptorDetails")
 
 @_attrs_define
 class CapabilityDescriptorDetails:
-    """ """
+    """Additional capability descriptor fields returned by the API."""
 
     additional_properties: dict[str, Any] = _attrs_field(
         init=False, factory=dict

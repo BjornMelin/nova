@@ -34,7 +34,11 @@ class File:
 
     def to_tuple(self) -> FileTypes:
         """Return a tuple representation that httpx will accept for multipart/form-data"""
-        return self.file_name, self.payload, self.mime_type
+        return (
+            self.file_name,
+            self.payload,
+            self.mime_type,
+        )
 
 
 T = TypeVar("T")

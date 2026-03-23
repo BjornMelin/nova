@@ -2,10 +2,10 @@ from typing import Any
 
 import httpx
 
-from ... import errors
-from ...client import AuthenticatedClient, Client
-from ...models.health_response import HealthResponse
-from ...types import Response
+from nova_sdk_py_file import errors
+from nova_sdk_py_file.client import AuthenticatedClient, Client
+from nova_sdk_py_file.models.health_response import HealthResponse
+from nova_sdk_py_file.types import Response
 
 
 def _get_kwargs() -> dict[str, Any]:
@@ -81,7 +81,7 @@ def sync(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        HealthResponse
+        HealthResponse | None
     """
 
     return sync_detailed(
@@ -125,7 +125,7 @@ async def asyncio(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        HealthResponse
+        HealthResponse | None
     """
 
     return (

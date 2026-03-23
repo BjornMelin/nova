@@ -11,7 +11,7 @@ T = TypeVar("T", bound="EnqueueJobRequestPayload")
 
 @_attrs_define
 class EnqueueJobRequestPayload:
-    """ """
+    """Additional job payload fields included in enqueue requests."""
 
     additional_properties: dict[str, Any] = _attrs_field(
         init=False, factory=dict

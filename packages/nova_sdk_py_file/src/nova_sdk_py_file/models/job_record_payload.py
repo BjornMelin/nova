@@ -11,7 +11,7 @@ T = TypeVar("T", bound="JobRecordPayload")
 
 @_attrs_define
 class JobRecordPayload:
-    """ """
+    """Additional job payload fields returned by the API."""
 
     additional_properties: dict[str, Any] = _attrs_field(
         init=False, factory=dict

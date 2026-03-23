@@ -11,7 +11,7 @@ T = TypeVar("T", bound="ErrorBodyDetails")
 
 @_attrs_define
 class ErrorBodyDetails:
-    """ """
+    """Additional structured details returned with error payloads."""
 
     additional_properties: dict[str, Any] = _attrs_field(
         init=False, factory=dict

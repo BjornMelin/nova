@@ -9,7 +9,7 @@ from typing import (
 
 from attrs import define as _attrs_define
 
-from ..types import UNSET, Unset
+from nova_sdk_py_file.types import UNSET, Unset
 
 T = TypeVar("T", bound="CompleteUploadResponse")
 

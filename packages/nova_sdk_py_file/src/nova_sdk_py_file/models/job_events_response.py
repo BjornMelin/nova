@@ -10,7 +10,7 @@ from typing import (
 from attrs import define as _attrs_define
 
 if TYPE_CHECKING:
-    from ..models.job_event import JobEvent
+    from nova_sdk_py_file.models.job_event import JobEvent
 
 
 T = TypeVar("T", bound="JobEventsResponse")
@@ -54,7 +54,7 @@ class JobEventsResponse:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.job_event import JobEvent
+        from nova_sdk_py_file.models.job_event import JobEvent
 
         d = dict(src_dict)
         events = []

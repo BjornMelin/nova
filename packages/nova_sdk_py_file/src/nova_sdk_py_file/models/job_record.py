@@ -12,12 +12,14 @@ from typing import (
 from attrs import define as _attrs_define
 from dateutil.parser import isoparse
 
-from ..models.job_status import JobStatus
-from ..types import UNSET, Unset
+from nova_sdk_py_file.models.job_status import JobStatus
+from nova_sdk_py_file.types import UNSET, Unset
 
 if TYPE_CHECKING:
-    from ..models.job_record_payload import JobRecordPayload
-    from ..models.job_record_result_details import JobRecordResultDetails
+    from nova_sdk_py_file.models.job_record_payload import JobRecordPayload
+    from nova_sdk_py_file.models.job_record_result_details import (
+        JobRecordResultDetails,
+    )
 
 
 T = TypeVar("T", bound="JobRecord")
@@ -50,7 +52,9 @@ class JobRecord:
     result: JobRecordResultDetails | None | Unset = UNSET
 
     def to_dict(self) -> dict[str, Any]:
-        from ..models.job_record_result_details import JobRecordResultDetails
+        from nova_sdk_py_file.models.job_record_result_details import (
+            JobRecordResultDetails,
+        )
 
         created_at = self.created_at.isoformat()
 
@@ -102,8 +106,10 @@ class JobRecord:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.job_record_payload import JobRecordPayload
-        from ..models.job_record_result_details import JobRecordResultDetails
+        from nova_sdk_py_file.models.job_record_payload import JobRecordPayload
+        from nova_sdk_py_file.models.job_record_result_details import (
+            JobRecordResultDetails,
+        )
 
         d = dict(src_dict)
         created_at = isoparse(d.pop("created_at"))
@@ -136,16 +142,12 @@ class JobRecord:
                 return data
             if isinstance(data, Unset):
                 return data
-            try:
-                if not isinstance(data, Mapping):
-                    raise TypeError()
-                result_data = cast("Mapping[str, Any]", data)
-                result_type_0 = JobRecordResultDetails.from_dict(result_data)
-
-                return result_type_0
-            except (TypeError, ValueError, AttributeError, KeyError):
-                pass
-            return cast(JobRecordResultDetails | None | Unset, data)
+            if not isinstance(data, Mapping):
+                raise TypeError(
+                    "Expected result payload to be a mapping or null"
+                )
+            result_data = cast("Mapping[str, Any]", data)
+            return JobRecordResultDetails.from_dict(result_data)
 
         result = _parse_result(d.pop("result", UNSET))
 

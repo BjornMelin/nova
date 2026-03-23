@@ -85,6 +85,20 @@ class Client:
         """Get a new client matching this one with a new timeout configuration"""
         return evolve(self, timeout=timeout)
 {% endmacro %}{{ builders("Client") }}
+
+{% macro auth_builders(self) %}
+    def with_token(self, token: str) -> "{{ self }}":
+        """Get a new client matching this one with a new token"""
+        return evolve(self, token=token)
+
+    def with_prefix(self, prefix: str) -> "{{ self }}":
+        """Get a new client matching this one with a new authorization prefix"""
+        return evolve(self, prefix=prefix)
+
+    def with_auth_header_name(self, auth_header_name: str) -> "{{ self }}":
+        """Get a new client matching this one with a new auth header name"""
+        return evolve(self, auth_header_name=auth_header_name)
+{% endmacro %}
 {% macro httpx_stuff(name, custom_headers=False) %}
     def set_httpx_client(self, client: httpx.Client) -> "{{ name }}":
         """Manually set the underlying httpx.Client
@@ -111,6 +125,16 @@ class Client:
                 **self._httpx_args,
             )
         return self._client
+
+{% if custom_headers %}
+    def __setattr__(self, name: str, value: Any) -> None:
+        object.__setattr__(self, name, value)
+        if name in {"token", "prefix", "auth_header_name"} and hasattr(
+            self, "_client"
+        ):
+            object.__setattr__(self, "_client", None)
+            object.__setattr__(self, "_async_client", None)
+{% endif %}
 
     def __enter__(self) -> "{{ name }}":
         """Enter a context manager for self.client—you cannot enter twice (see httpx docs)"""
@@ -178,4 +202,5 @@ class AuthenticatedClient:
     {{ declare_attr("auth_header_name") | indent(4) }}
 
 {{ builders("AuthenticatedClient") }}
+{{ auth_builders("AuthenticatedClient") }}
 {{ httpx_stuff("AuthenticatedClient", custom_headers=True) }}

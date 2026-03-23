@@ -119,7 +119,7 @@ def sync_detailed(
 def sync(
     {{ arguments(endpoint) | indent(4) }}
 ) -> {{ return_string }} | None:
-    {{ docstring(endpoint, return_string, is_detailed=false) | indent(4) }}
+    {{ docstring(endpoint, return_type, is_detailed=false) | indent(4) }}
 
     return sync_detailed(
         {{ kwargs(endpoint) }}
@@ -145,7 +145,7 @@ async def asyncio_detailed(
 async def asyncio(
     {{ arguments(endpoint) | indent(4) }}
 ) -> {{ return_string }} | None:
-    {{ docstring(endpoint, return_string, is_detailed=false) | indent(4) }}
+    {{ docstring(endpoint, return_type, is_detailed=false) | indent(4) }}
 
     return (await asyncio_detailed(
         {{ kwargs(endpoint) }}

@@ -2,12 +2,12 @@ from typing import Any
 
 import httpx
 
-from ... import errors
-from ...client import AuthenticatedClient, Client
-from ...models.error_envelope import ErrorEnvelope
-from ...models.sign_parts_request import SignPartsRequest
-from ...models.sign_parts_response import SignPartsResponse
-from ...types import Response
+from nova_sdk_py_file import errors
+from nova_sdk_py_file.client import AuthenticatedClient, Client
+from nova_sdk_py_file.models.error_envelope import ErrorEnvelope
+from nova_sdk_py_file.models.sign_parts_request import SignPartsRequest
+from nova_sdk_py_file.models.sign_parts_response import SignPartsResponse
+from nova_sdk_py_file.types import Response
 
 
 def _get_kwargs(
@@ -117,7 +117,7 @@ def sync(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        ErrorEnvelope | SignPartsResponse
+        ErrorEnvelope | SignPartsResponse | None
     """
 
     return sync_detailed(
@@ -172,7 +172,7 @@ async def asyncio(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        ErrorEnvelope | SignPartsResponse
+        ErrorEnvelope | SignPartsResponse | None
     """
 
     return (

@@ -10,7 +10,7 @@ from typing import (
 from attrs import define as _attrs_define
 
 if TYPE_CHECKING:
-    from ..models.resource_plan_item import ResourcePlanItem
+    from nova_sdk_py_file.models.resource_plan_item import ResourcePlanItem
 
 
 T = TypeVar("T", bound="ResourcePlanResponse")
@@ -44,7 +44,7 @@ class ResourcePlanResponse:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.resource_plan_item import ResourcePlanItem
+        from nova_sdk_py_file.models.resource_plan_item import ResourcePlanItem
 
         d = dict(src_dict)
         plan = []

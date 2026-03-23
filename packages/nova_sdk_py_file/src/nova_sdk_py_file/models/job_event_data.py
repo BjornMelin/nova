@@ -11,7 +11,7 @@ T = TypeVar("T", bound="JobEventData")
 
 @_attrs_define
 class JobEventData:
-    """ """
+    """Additional job event fields returned by the API."""
 
     additional_properties: dict[str, Any] = _attrs_field(
         init=False, factory=dict

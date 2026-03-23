@@ -2,12 +2,12 @@ from typing import Any
 
 import httpx
 
-from ... import errors
-from ...client import AuthenticatedClient, Client
-from ...models.abort_upload_request import AbortUploadRequest
-from ...models.abort_upload_response import AbortUploadResponse
-from ...models.error_envelope import ErrorEnvelope
-from ...types import Response
+from nova_sdk_py_file import errors
+from nova_sdk_py_file.client import AuthenticatedClient, Client
+from nova_sdk_py_file.models.abort_upload_request import AbortUploadRequest
+from nova_sdk_py_file.models.abort_upload_response import AbortUploadResponse
+from nova_sdk_py_file.models.error_envelope import ErrorEnvelope
+from nova_sdk_py_file.types import Response
 
 
 def _get_kwargs(
@@ -117,7 +117,7 @@ def sync(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        AbortUploadResponse | ErrorEnvelope
+        AbortUploadResponse | ErrorEnvelope | None
     """
 
     return sync_detailed(
@@ -172,7 +172,7 @@ async def asyncio(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        AbortUploadResponse | ErrorEnvelope
+        AbortUploadResponse | ErrorEnvelope | None
     """
 
     return (

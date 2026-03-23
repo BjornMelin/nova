@@ -205,6 +205,20 @@ class AuthenticatedClient:
         """Get a new client matching this one with a new timeout configuration"""
         return evolve(self, timeout=timeout)
 
+    def with_token(self, token: str) -> "AuthenticatedClient":
+        """Get a new client matching this one with a new token"""
+        return evolve(self, token=token)
+
+    def with_prefix(self, prefix: str) -> "AuthenticatedClient":
+        """Get a new client matching this one with a new authorization prefix"""
+        return evolve(self, prefix=prefix)
+
+    def with_auth_header_name(
+        self, auth_header_name: str
+    ) -> "AuthenticatedClient":
+        """Get a new client matching this one with a new auth header name"""
+        return evolve(self, auth_header_name=auth_header_name)
+
     def set_httpx_client(self, client: httpx.Client) -> "AuthenticatedClient":
         """Manually set the underlying httpx.Client
 
@@ -230,6 +244,14 @@ class AuthenticatedClient:
                 **self._httpx_args,
             )
         return self._client
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        object.__setattr__(self, name, value)
+        if name in {"token", "prefix", "auth_header_name"} and hasattr(
+            self, "_client"
+        ):
+            object.__setattr__(self, "_client", None)
+            object.__setattr__(self, "_async_client", None)
 
     def __enter__(self) -> "AuthenticatedClient":
         """Enter a context manager for self.client—you cannot enter twice (see httpx docs)"""

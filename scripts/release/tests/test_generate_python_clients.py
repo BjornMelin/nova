@@ -139,15 +139,11 @@ def test_repair_job_record_result_parser_adds_mapping_cast(
     job_record = models_dir / "job_record.py"
     job_record.write_text(
         "        def _parse_result(data: object):\n"
-        "            try:\n"
         "                if not isinstance(data, dict):\n"
         "                    raise TypeError()\n"
         "                result_type_0 = "
-        "JobRecordResultDetails.from_dict(data)\n\n"
-        "                return result_type_0\n"
-        "            except (TypeError, ValueError, AttributeError, "
-        "KeyError):\n"
-        "                pass\n",
+        "JobRecordResultDetails.from_dict(data)\n"
+        '        result = _parse_result(d.pop("result", UNSET))\n',
         encoding="utf-8",
     )
 

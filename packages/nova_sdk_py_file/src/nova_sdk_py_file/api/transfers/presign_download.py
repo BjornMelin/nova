@@ -2,12 +2,16 @@ from typing import Any
 
 import httpx
 
-from ... import errors
-from ...client import AuthenticatedClient, Client
-from ...models.error_envelope import ErrorEnvelope
-from ...models.presign_download_request import PresignDownloadRequest
-from ...models.presign_download_response import PresignDownloadResponse
-from ...types import Response
+from nova_sdk_py_file import errors
+from nova_sdk_py_file.client import AuthenticatedClient, Client
+from nova_sdk_py_file.models.error_envelope import ErrorEnvelope
+from nova_sdk_py_file.models.presign_download_request import (
+    PresignDownloadRequest,
+)
+from nova_sdk_py_file.models.presign_download_response import (
+    PresignDownloadResponse,
+)
+from nova_sdk_py_file.types import Response
 
 
 def _get_kwargs(
@@ -117,7 +121,7 @@ def sync(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        ErrorEnvelope | PresignDownloadResponse
+        ErrorEnvelope | PresignDownloadResponse | None
     """
 
     return sync_detailed(
@@ -172,7 +176,7 @@ async def asyncio(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        ErrorEnvelope | PresignDownloadResponse
+        ErrorEnvelope | PresignDownloadResponse | None
     """
 
     return (

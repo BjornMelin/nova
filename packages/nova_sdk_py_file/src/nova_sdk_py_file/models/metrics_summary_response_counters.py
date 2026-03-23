@@ -11,7 +11,7 @@ T = TypeVar("T", bound="MetricsSummaryResponseCounters")
 
 @_attrs_define
 class MetricsSummaryResponseCounters:
-    """ """
+    """Counter values returned in the metrics summary response."""
 
     additional_properties: dict[str, int] = _attrs_field(
         init=False, factory=dict
@@ -28,8 +28,17 @@ class MetricsSummaryResponseCounters:
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
         metrics_summary_response_counters = cls()
+        additional_properties: dict[str, int] = {}
+        for key, value in d.items():
+            if isinstance(value, bool):
+                raise TypeError(
+                    f"Invalid value for {key!r}: expected int, got bool"
+                )
+            additional_properties[key] = int(value)
 
-        metrics_summary_response_counters.additional_properties = d
+        metrics_summary_response_counters.additional_properties = (
+            additional_properties
+        )
         return metrics_summary_response_counters
 
     @property
