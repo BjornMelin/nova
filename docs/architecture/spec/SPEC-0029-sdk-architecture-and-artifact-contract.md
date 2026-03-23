@@ -104,6 +104,9 @@ remains the authority for conformance, versioning, and compatibility governance.
 - Logical format `r`, CodeArtifact generic transport, tarball plus detached
   `.sig`, with release evidence recording `tarball_sha256` and
   `signature_sha256`.
+- The generated package stays thin: concrete OpenAPI path/query parameters in
+  public wrappers, bearer-token auth through the constructor and request
+  headers, and JSON request/response handling for the current public file API.
 
 ## 8. Required client behaviors
 
@@ -128,7 +131,9 @@ multi-media bodies must expose explicit generated `contentType` selection when
 the wire format would otherwise be ambiguous.
 
 R: preserve OpenAPI-driven wire behavior with package-native constructors,
-namespace generation, and deterministic tarball evidence across releases.
+namespace generation, deterministic tarball evidence across releases, and
+public wrappers that expose concrete OpenAPI path/query parameters rather than
+generic request-bag arguments.
 
 ## 9. Auth contract surface (public SDKs)
 

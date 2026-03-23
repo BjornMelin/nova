@@ -13,17 +13,18 @@ from scripts.release.generate_clients import (
     TARGETS,
     GenerationTarget,
     Operation,
+    OperationParameter,
     _assert_unique_operation_ids,
     _collect_public_schema_names,
     _default_operation_id,
     _load_operations,
-    _remove_stale_generated_directory,
     _render_r_client,
     _render_r_description,
     _render_r_license_text,
     _render_r_namespace,
     _render_r_package_manual,
     _render_typescript_openapi,
+    _validate_generated_directory,
 )
 
 
@@ -51,9 +52,10 @@ def test_assert_unique_operation_ids_fails_on_collision() -> None:
                     summary=None,
                     has_request_body=False,
                     has_required_request_body=False,
-                    has_path_params=True,
-                    has_query_params=False,
-                    has_required_query_params=False,
+                    path_parameters=(
+                        OperationParameter("job_id", required=True),
+                    ),
+                    query_parameters=(),
                     has_header_params=False,
                     has_required_header_params=False,
                     request_content_types=(),
@@ -66,9 +68,10 @@ def test_assert_unique_operation_ids_fails_on_collision() -> None:
                     summary=None,
                     has_request_body=False,
                     has_required_request_body=False,
-                    has_path_params=True,
-                    has_query_params=False,
-                    has_required_query_params=False,
+                    path_parameters=(
+                        OperationParameter("other_id", required=True),
+                    ),
+                    query_parameters=(),
                     has_header_params=False,
                     has_required_header_params=False,
                     request_content_types=(),
@@ -204,7 +207,7 @@ def test_load_operations_excludes_internal_visibility_operations(
     ]
 
 
-def test_remove_stale_generated_directory_flags_non_empty_directory(
+def test_validate_generated_directory_flags_non_empty_directory(
     tmp_path: Path,
 ) -> None:
     """Check-mode should fail when required artifacts are missing."""
@@ -213,7 +216,7 @@ def test_remove_stale_generated_directory_flags_non_empty_directory(
     stale_file = generated_dir / "stale.ts"
     stale_file.write_text("// stale", encoding="utf-8")
 
-    issues = _remove_stale_generated_directory(tmp_path, check=True)
+    issues = _validate_generated_directory(tmp_path, check=True)
 
     assert issues
     assert "missing expected generated SDK artifacts" in issues[0]
@@ -334,6 +337,9 @@ def test_render_r_client_defaults_default_headers_to_null(
     assert "execute_operation" not in client_code
     assert "bearer_token_env" in client_code
     assert "request_performer" not in client_code
+    assert "req_body_json" in client_code
+    assert "content_type = NULL" not in client_code
+    assert "request_content_types = character(0)" not in client_code
 
 
 @pytest.mark.parametrize("target", TARGETS)

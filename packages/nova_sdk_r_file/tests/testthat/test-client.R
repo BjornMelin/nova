@@ -1,38 +1,99 @@
 test_that("constructor resolves explicit and environment bearer tokens", {
-  Sys.setenv(NOVA_FILE_BEARER_TOKEN = "env-token-123")
+  withr::local_envvar(NOVA_FILE_BEARER_TOKEN = "env-token-123")
   env_client <- create_nova_file_client("https://nova.example/")
   expect_equal(env_client$bearer_token, "env-token-123")
   explicit_client <- create_nova_file_client("https://nova.example/", bearer_token = "explicit-token-123")
   expect_equal(explicit_client$bearer_token, "explicit-token-123")
-  Sys.unsetenv("NOVA_FILE_BEARER_TOKEN")
 })
 
 test_that("generated package exports thin endpoint wrappers", {
   exports <- getNamespaceExports("nova.sdk.r.file")
   expect_true("nova_file_create_job" %in% exports)
   expect_true("nova_file_get_job_status" %in% exports)
+  expect_true("nova_file_list_jobs" %in% exports)
   expect_false("nova_file_request_descriptor" %in% exports)
   expect_false("nova_file_execute_operation" %in% exports)
 })
 
-test_that("structured errors preserve Nova error envelope fields", {
-  client <- create_nova_file_client("https://nova.example/", bearer_token = "token-123")
-  error <- tryCatch(
-    stop(
-      structure(
-        list(
-          message = "jobs queue unavailable",
-          call = NULL,
-          code = "queue_unavailable",
-          status = 503L,
-          request_id = "req-jobs-503",
-          details = list(backend = "sqs"),
-          operation_id = "create_job",
-          method = "POST",
-          path = "/v1/jobs"
+test_that("request construction uses concrete params and bearer auth", {
+  observed_request <- NULL
+  mocked_response <- httr2::response(
+    status_code = 200,
+    url = "https://nova.example/v1/jobs/job-123",
+    headers = list(`content-type` = "application/json"),
+    body = charToRaw('{"job_id":"job-123","status":"queued"}')
+  )
+  withr::local_envvar(NOVA_FILE_BEARER_TOKEN = NA_character_)
+  result <- httr2::with_mocked_responses(
+    function(req) {
+      observed_request <<- req
+      mocked_response
+    },
+    {
+      client <- create_nova_file_client("https://nova.example/", bearer_token = "token-123", timeout_seconds = 12)
+      nova_file_get_job_status(client, job_id = "job-123", headers = list(`X-Request-Id` = "req-123"))
+    }
+  )
+  expect_equal(result$job_id, "job-123")
+  expect_equal(result$status, "queued")
+  expect_equal(observed_request$url, "https://nova.example/v1/jobs/job-123")
+  expect_equal(observed_request$method, "GET")
+  expect_true("Authorization" %in% names(observed_request$headers))
+  expect_equal(observed_request$headers$`X-Request-Id`, "req-123")
+  expect_equal(observed_request$options$timeout, 12)
+})
+
+test_that("request construction encodes query params and JSON bodies", {
+  observed_requests <- list()
+  mocked_response <- httr2::response(
+    status_code = 200,
+    url = "https://nova.example/v1/jobs",
+    headers = list(`content-type` = "application/json"),
+    body = charToRaw('{"items":[]}')
+  )
+  httr2::with_mocked_responses(
+    function(req) {
+      observed_requests[[length(observed_requests) + 1L]] <<- req
+      mocked_response
+    },
+    {
+      client <- create_nova_file_client("https://nova.example/", bearer_token = "token-123")
+      nova_file_list_jobs(client, limit = 25)
+      nova_file_create_job(
+        client,
+        body = list(
+          job_type = "transfer.process",
+          payload = list(upload_key = "tenant-acme/sample.csv")
         ),
-        class = c("nova_file_api_error", "error", "condition")
+        headers = list("Idempotency-Key" = "req-123")
       )
+    }
+  )
+  expect_length(observed_requests, 2L)
+  expect_equal(observed_requests[[1]]$method, "GET")
+  expect_equal(observed_requests[[1]]$url, "https://nova.example/v1/jobs?limit=25")
+  expect_equal(observed_requests[[2]]$method, "POST")
+  expect_equal(observed_requests[[2]]$url, "https://nova.example/v1/jobs")
+  expect_equal(observed_requests[[2]]$headers$`Idempotency-Key`, "req-123")
+  expect_equal(observed_requests[[2]]$body$content_type, "application/json")
+  expect_equal(observed_requests[[2]]$body$data$job_type, "transfer.process")
+  expect_equal(observed_requests[[2]]$body$data$payload$upload_key, "tenant-acme/sample.csv")
+})
+
+test_that("structured errors preserve Nova error envelope fields", {
+  mocked_response <- httr2::response(
+    status_code = 503,
+    url = "https://nova.example/v1/jobs",
+    headers = list(`content-type` = "application/json"),
+    body = charToRaw('{"error":{"code":"queue_unavailable","message":"jobs queue unavailable","request_id":"req-jobs-503","details":{"backend":"sqs"}}}')
+  )
+  error <- tryCatch(
+    httr2::with_mocked_responses(
+      function(req) mocked_response,
+      {
+        client <- create_nova_file_client("https://nova.example/", bearer_token = "token-123")
+        nova_file_create_job(client, body = list(job_type = "transfer.process"))
+      }
     ),
     nova_file_api_error = function(error) error
   )

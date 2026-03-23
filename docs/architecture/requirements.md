@@ -76,6 +76,10 @@ Python, TypeScript, and R SDKs MUST follow the stacks in `ADR-0038` /
 indexed in [`spec/index.md`](./spec/index.md) (Superseded) for traceability
 only—not implementation authority.
 
+For the current public file API contract, the R SDK MUST remain a thin `httr2`
+package with concrete OpenAPI parameter signatures, bearer-token auth, and
+JSON request/response handling aligned to the declared public media types.
+
 ### GFR-R7 — Managed AWS services preferred
 
 Use managed AWS services when they reduce operational burden without violating

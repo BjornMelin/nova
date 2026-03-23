@@ -43,8 +43,8 @@ Fixture groups:
 - request shapes
 - response shapes
 - error envelope shapes
-- auth verify happy/failure paths
-- optional introspection enabled/disabled behavior
+- bearer-authenticated file API request paths
+- Nova error-envelope decoding paths
 
 ### 2.2 Language conformance suites
 
@@ -56,8 +56,9 @@ Required CI posture:
   fixture-backed client execution, published artifact drift, and
   subpath/export boundary enforcement
 - R: internal release-artifact gate covering package structure,
-  `scripts/checks/verify_r_cmd_check.sh`, fixture roundtrip, and signed
-  tarball evidence; any `R CMD check` warning blocks merge/release
+  `scripts/checks/verify_r_cmd_check.sh`, fixture roundtrip, concrete wrapper
+  signatures, and signed tarball evidence; any `R CMD check` warning blocks
+  merge/release
 
 Nova repository lanes:
 
@@ -71,13 +72,10 @@ Nova repository lanes:
 Minimum shared scenarios:
 
 1. `verify_token` success with normalized principal shape
-2. `verify_token` `401` with RFC6750-compatible challenge pass-through where
-   available
-3. `verify_token` `403` insufficient authorization
-4. `introspect_token` media-type conformance for every declared public request
-   content type
-5. file transfer initiate/sign/complete roundtrip payload conformance
-6. queue enqueue error envelope (`queue_unavailable`) shape stability
+2. `401` / `403` bearer-auth failure handling against the public file API
+3. file transfer initiate/sign/complete roundtrip payload conformance
+4. queue enqueue error envelope (`queue_unavailable`) shape stability
+5. R wrapper concrete path/query parameter coverage for public operations
 
 ## 3. Versioning and release policy
 
@@ -137,7 +135,9 @@ a public support or publishing contract.
 - TypeScript package APIs must preserve subpath contracts or take a MAJOR bump
   when removing them.
 - R package evolution is internal and must keep the released tarball evidence
-  and exported namespace aligned with the versioned package contract.
+  and exported namespace aligned with the versioned package contract. When Nova
+  chooses to break the internal R surface, prefer a direct cut to the new
+  generated contract over carrying deprecation shims.
 
 ## 5. API/contract governance and compatibility policy
 
@@ -192,4 +192,4 @@ Merge must be blocked if any of the following occur:
 - [FR-0005](../requirements.md#fr-0005-authentication-and-authorization)
 - [FR-0008](../requirements.md#fr-0008-openapi-contract-ownership)
 - [NFR-0004](../requirements.md#nfr-0004-cicd-and-quality-gates)
-- [IR-0003](../requirements.md#ir-0003-optional-remote-auth-service)
+- [GFR-R6](../requirements.md#gfr-r6--sdks-must-feel-native-per-language)

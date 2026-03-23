@@ -73,92 +73,22 @@ nova_file_resolve_path <- function(path, path_params) {
   resolved_path
 }
 
-nova_file_select_content_type <- function(operation_id, request_content_types, content_type) {
-  if (length(request_content_types) == 0L) {
+nova_file_parse_json_response <- function(response) {
+  if (length(httr2::resp_body_raw(response)) == 0L) {
     return(NULL)
   }
-  if (is.null(content_type) || !nzchar(as.character(content_type)[[1]])) {
-    if (length(request_content_types) > 1L) {
-      stop(sprintf("operation %s requires an explicit content_type", operation_id), call. = FALSE)
-    }
-    return(request_content_types[[1L]])
-  }
-  selected_content_type <- as.character(content_type)[[1]]
-  if (!(selected_content_type %in% request_content_types)) {
-    stop(sprintf("unsupported content_type %s for operation %s", selected_content_type, operation_id), call. = FALSE)
-  }
-  selected_content_type
+  httr2::resp_body_json(response, simplifyVector = FALSE, check_type = FALSE)
 }
 
-nova_file_parse_json_body <- function(body) {
-  if (is.null(body) || !nzchar(trimws(body))) {
-    return(NULL)
-  }
-  tryCatch(
-    jsonlite::fromJSON(body, simplifyVector = FALSE),
-    error = function(...) NULL
-  )
+nova_file_parse_success_response <- function(response) {
+  nova_file_parse_json_response(response)
 }
 
-nova_file_parse_success_body <- function(body) {
-  parsed_body <- nova_file_parse_json_body(body)
-  if (is.null(parsed_body)) {
-    if (is.null(body) || !nzchar(trimws(body))) {
-      return(NULL)
-    }
-    return(body)
-  }
-  parsed_body
-}
-
-nova_file_encode_json_body <- function(body) {
-  jsonlite::toJSON(body, auto_unbox = TRUE, null = "null")
-}
-
-nova_file_encode_form_body <- function(body) {
-  if (is.null(body) || length(body) == 0L) {
+nova_file_response_body_text <- function(response) {
+  if (length(httr2::resp_body_raw(response)) == 0L) {
     return("")
   }
-  body <- nova_file_normalize_named_list(body, "body")
-  encode_item <- function(name, value) {
-    if (is.null(value)) {
-      return(character(0))
-    }
-    if (is.list(value) && !inherits(value, "data.frame")) {
-      value <- jsonlite::toJSON(value, auto_unbox = TRUE, null = "null")
-      return(paste0(utils::URLencode(name, reserved = TRUE), "=", utils::URLencode(value, reserved = TRUE)))
-    }
-    values <- as.character(value)
-    if (length(values) == 0L) {
-      return(character(0))
-    }
-    encoded_name <- utils::URLencode(name, reserved = TRUE)
-    vapply(
-      values,
-      function(item) {
-        paste0(encoded_name, "=", utils::URLencode(item, reserved = TRUE))
-      },
-      character(1)
-    )
-  }
-  parts <- character(0)
-  for (name in names(body)) {
-    parts <- c(parts, encode_item(name, body[[name]]))
-  }
-  paste(parts, collapse = "&")
-}
-
-nova_file_encode_request_body <- function(body, content_type) {
-  if (is.null(body)) {
-    return(NULL)
-  }
-  if (identical(content_type, "application/json")) {
-    return(nova_file_encode_json_body(body))
-  }
-  if (identical(content_type, "application/x-www-form-urlencoded")) {
-    return(nova_file_encode_form_body(body))
-  }
-  stop(sprintf("unsupported content_type %s", content_type), call. = FALSE)
+  httr2::resp_body_string(response)
 }
 
 nova_file_default_user_agent <- function() {
@@ -179,14 +109,17 @@ nova_file_bearer_token <- function(token = NULL, env_var = "NOVA_FILE_BEARER_TOK
   env_value
 }
 
-nova_file_decode_error_envelope <- function(body, status = NULL) {
-  parsed_body <- nova_file_parse_json_body(body)
+nova_file_decode_error_envelope <- function(response, status = NULL) {
+  parsed_body <- tryCatch(
+    nova_file_parse_json_response(response),
+    error = function(...) NULL
+  )
   if (!is.list(parsed_body) || is.null(parsed_body$error) || !is.list(parsed_body$error)) {
     fallback_status <- if (is.null(status)) 'unknown' else as.character(status)
-    fallback_message <- if (is.null(body) || !nzchar(trimws(body))) {
+    fallback_message <- if (!nzchar(nova_file_response_body_text(response))) {
       sprintf("HTTP %s response", fallback_status)
     } else {
-      body
+      nova_file_response_body_text(response)
     }
     return(
       list(
@@ -208,6 +141,11 @@ nova_file_decode_error_envelope <- function(body, status = NULL) {
     details = nova_file_null_coalesce(error_body$details, list()),
     request_id = request_id
   )
+}
+
+nova_file_error_body <- function(response) {
+  error <- nova_file_decode_error_envelope(response, status = httr2::resp_status(response))
+  sprintf("[%s] %s", error$code, error$message)
 }
 
 nova_file_error_condition <- function(error, status, operation_id, method, path) {
@@ -254,8 +192,6 @@ nova_file_api_call <- function(
   path_params = NULL,
   query = NULL,
   headers = NULL,
-  content_type = NULL,
-  request_content_types = character(0),
   requires_body = FALSE,
   accepts_body = FALSE
 ) {
@@ -270,7 +206,6 @@ nova_file_api_call <- function(
   }
   merged_headers <- nova_file_prune_null_headers(merged_headers)
   resolved_path <- nova_file_resolve_path(path, path_params)
-  selected_content_type <- nova_file_select_content_type(operation_id, request_content_types, content_type)
   if (is.null(body) && isTRUE(requires_body)) {
     stop(sprintf("operation %s requires a request body", operation_id), call. = FALSE)
   }
@@ -284,34 +219,29 @@ nova_file_api_call <- function(
   }
   http_request <- nova_file_apply_request(http_request, merged_headers, client$bearer_token, client$user_agent)
   http_request <- httr2::req_options(http_request, timeout = client$timeout_seconds)
-  encoded_body <- nova_file_encode_request_body(body, selected_content_type)
-  if (!is.null(encoded_body)) {
-    http_request <- httr2::req_body_raw(http_request, charToRaw(encoded_body))
-    http_request <- do.call(
-      httr2::req_headers,
-      c(
-        list(http_request),
-        list("Content-Type" = selected_content_type)
+  if (!is.null(body)) {
+    http_request <- httr2::req_body_json(http_request, body, auto_unbox = TRUE, null = "null")
+  }
+  http_request <- httr2::req_error(http_request, body = function(resp) {
+    nova_file_error_body(resp)
+  })
+  tryCatch(
+    {
+      response <- httr2::req_perform(http_request)
+      nova_file_parse_success_response(response)
+    },
+    httr2_http = function(cnd) {
+      error <- nova_file_decode_error_envelope(cnd$resp, status = cnd$status)
+      stop(
+        nova_file_error_condition(
+          error = error,
+          status = cnd$status,
+          operation_id = operation_id,
+          method = method,
+          path = resolved_path
+        )
       )
-    )
-  }
-  response <- httr2::req_perform(
-    httr2::req_error(http_request, is_error = function(resp) FALSE)
-  )
-  status <- httr2::resp_status(response)
-  body_text <- httr2::resp_body_string(response)
-  if (status >= 200L && status < 300L) {
-    return(nova_file_parse_success_body(body_text))
-  }
-  error <- nova_file_decode_error_envelope(body_text, status = status)
-  stop(
-    nova_file_error_condition(
-      error = error,
-      status = status,
-      operation_id = operation_id,
-      method = method,
-      path = resolved_path
-    )
+    }
   )
 }
 

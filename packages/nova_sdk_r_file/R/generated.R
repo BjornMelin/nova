@@ -10,8 +10,6 @@ nova_file_metrics_summary <- function(
     method = "GET",
     path = "/metrics/summary",
     headers = headers,
-    content_type = NULL,
-    request_content_types = character(0),
     requires_body = FALSE,
     accepts_body = FALSE
   )
@@ -27,8 +25,6 @@ nova_file_get_capabilities <- function(
     method = "GET",
     path = "/v1/capabilities",
     headers = headers,
-    content_type = NULL,
-    request_content_types = character(0),
     requires_body = FALSE,
     accepts_body = FALSE
   )
@@ -44,8 +40,6 @@ nova_file_health_live <- function(
     method = "GET",
     path = "/v1/health/live",
     headers = headers,
-    content_type = NULL,
-    request_content_types = character(0),
     requires_body = FALSE,
     accepts_body = FALSE
   )
@@ -61,8 +55,6 @@ nova_file_health_ready <- function(
     method = "GET",
     path = "/v1/health/ready",
     headers = headers,
-    content_type = NULL,
-    request_content_types = character(0),
     requires_body = FALSE,
     accepts_body = FALSE
   )
@@ -70,7 +62,7 @@ nova_file_health_ready <- function(
 
 nova_file_list_jobs <- function(
   client,
-  query = NULL,
+  limit = NULL,
   headers = NULL
 ) {
   nova_file_api_call(
@@ -78,10 +70,8 @@ nova_file_list_jobs <- function(
     operation_id = "list_jobs",
     method = "GET",
     path = "/v1/jobs",
-    query = query,
+    query = list(limit = limit),
     headers = headers,
-    content_type = NULL,
-    request_content_types = character(0),
     requires_body = FALSE,
     accepts_body = FALSE
   )
@@ -99,8 +89,6 @@ nova_file_create_job <- function(
     path = "/v1/jobs",
     body = body,
     headers = headers,
-    content_type = "application/json",
-    request_content_types = c("application/json"),
     requires_body = TRUE,
     accepts_body = TRUE
   )
@@ -108,7 +96,7 @@ nova_file_create_job <- function(
 
 nova_file_get_job_status <- function(
   client,
-  path_params,
+  job_id,
   headers = NULL
 ) {
   nova_file_api_call(
@@ -116,10 +104,8 @@ nova_file_get_job_status <- function(
     operation_id = "get_job_status",
     method = "GET",
     path = "/v1/jobs/{job_id}",
-    path_params = path_params,
+    path_params = list(job_id = job_id),
     headers = headers,
-    content_type = NULL,
-    request_content_types = character(0),
     requires_body = FALSE,
     accepts_body = FALSE
   )
@@ -127,7 +113,7 @@ nova_file_get_job_status <- function(
 
 nova_file_cancel_job <- function(
   client,
-  path_params,
+  job_id,
   headers = NULL
 ) {
   nova_file_api_call(
@@ -135,10 +121,8 @@ nova_file_cancel_job <- function(
     operation_id = "cancel_job",
     method = "POST",
     path = "/v1/jobs/{job_id}/cancel",
-    path_params = path_params,
+    path_params = list(job_id = job_id),
     headers = headers,
-    content_type = NULL,
-    request_content_types = character(0),
     requires_body = FALSE,
     accepts_body = FALSE
   )
@@ -146,7 +130,7 @@ nova_file_cancel_job <- function(
 
 nova_file_list_job_events <- function(
   client,
-  path_params,
+  job_id,
   headers = NULL
 ) {
   nova_file_api_call(
@@ -154,10 +138,8 @@ nova_file_list_job_events <- function(
     operation_id = "list_job_events",
     method = "GET",
     path = "/v1/jobs/{job_id}/events",
-    path_params = path_params,
+    path_params = list(job_id = job_id),
     headers = headers,
-    content_type = NULL,
-    request_content_types = character(0),
     requires_body = FALSE,
     accepts_body = FALSE
   )
@@ -165,7 +147,7 @@ nova_file_list_job_events <- function(
 
 nova_file_retry_job <- function(
   client,
-  path_params,
+  job_id,
   headers = NULL
 ) {
   nova_file_api_call(
@@ -173,10 +155,8 @@ nova_file_retry_job <- function(
     operation_id = "retry_job",
     method = "POST",
     path = "/v1/jobs/{job_id}/retry",
-    path_params = path_params,
+    path_params = list(job_id = job_id),
     headers = headers,
-    content_type = NULL,
-    request_content_types = character(0),
     requires_body = FALSE,
     accepts_body = FALSE
   )
@@ -192,8 +172,6 @@ nova_file_get_release_info <- function(
     method = "GET",
     path = "/v1/releases/info",
     headers = headers,
-    content_type = NULL,
-    request_content_types = character(0),
     requires_body = FALSE,
     accepts_body = FALSE
   )
@@ -211,8 +189,6 @@ nova_file_plan_resources <- function(
     path = "/v1/resources/plan",
     body = body,
     headers = headers,
-    content_type = "application/json",
-    request_content_types = c("application/json"),
     requires_body = TRUE,
     accepts_body = TRUE
   )
@@ -230,8 +206,6 @@ nova_file_presign_download <- function(
     path = "/v1/transfers/downloads/presign",
     body = body,
     headers = headers,
-    content_type = "application/json",
-    request_content_types = c("application/json"),
     requires_body = TRUE,
     accepts_body = TRUE
   )
@@ -249,8 +223,6 @@ nova_file_abort_upload <- function(
     path = "/v1/transfers/uploads/abort",
     body = body,
     headers = headers,
-    content_type = "application/json",
-    request_content_types = c("application/json"),
     requires_body = TRUE,
     accepts_body = TRUE
   )
@@ -268,8 +240,6 @@ nova_file_complete_upload <- function(
     path = "/v1/transfers/uploads/complete",
     body = body,
     headers = headers,
-    content_type = "application/json",
-    request_content_types = c("application/json"),
     requires_body = TRUE,
     accepts_body = TRUE
   )
@@ -287,8 +257,6 @@ nova_file_initiate_upload <- function(
     path = "/v1/transfers/uploads/initiate",
     body = body,
     headers = headers,
-    content_type = "application/json",
-    request_content_types = c("application/json"),
     requires_body = TRUE,
     accepts_body = TRUE
   )
@@ -306,8 +274,6 @@ nova_file_introspect_upload <- function(
     path = "/v1/transfers/uploads/introspect",
     body = body,
     headers = headers,
-    content_type = "application/json",
-    request_content_types = c("application/json"),
     requires_body = TRUE,
     accepts_body = TRUE
   )
@@ -325,8 +291,6 @@ nova_file_sign_upload_parts <- function(
     path = "/v1/transfers/uploads/sign-parts",
     body = body,
     headers = headers,
-    content_type = "application/json",
-    request_content_types = c("application/json"),
     requires_body = TRUE,
     accepts_body = TRUE
   )
