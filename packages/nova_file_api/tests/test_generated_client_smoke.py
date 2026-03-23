@@ -21,6 +21,10 @@ if str(_PYTHON_SDK_SRC) not in sys.path:
 
 _client_module = import_module("nova_sdk_py_file.client")
 _errors_module = import_module("nova_sdk_py_file.errors")
+_models_module = import_module("nova_sdk_py_file.models")
+_release_info_module = import_module(
+    "nova_sdk_py_file.api.platform.get_release_info"
+)
 
 AuthenticatedClient = _client_module.AuthenticatedClient
 Client = _client_module.Client
@@ -142,3 +146,52 @@ def test_unexpected_status_message_excludes_response_body() -> None:
 
     assert str(error) == "Unexpected status code: 418"
     assert "very secret body" not in str(error)
+
+
+def test_generated_wrappers_preserve_raw_unexpected_status_codes() -> None:
+    """Generated wrappers should preserve non-IANA status codes."""
+    response = httpx.Response(
+        status_code=499,
+        content=b"gateway aborted request",
+        request=httpx.Request(
+            "GET", "https://nova.example.com/v1/releases/info"
+        ),
+    )
+
+    detailed = _release_info_module._build_response(
+        client=Client(
+            base_url="https://nova.example.com",
+            raise_on_unexpected_status=False,
+        ),
+        response=response,
+    )
+
+    assert detailed.status_code == 499
+    assert isinstance(detailed.status_code, int)
+    assert detailed.parsed is None
+
+
+def test_generated_wrappers_raise_unexpected_status_for_raw_codes() -> None:
+    """Unexpected non-IANA codes should raise the documented SDK error."""
+    response = httpx.Response(
+        status_code=499,
+        content=b"gateway aborted request",
+        request=httpx.Request(
+            "GET", "https://nova.example.com/v1/releases/info"
+        ),
+    )
+
+    with pytest.raises(UnexpectedStatus, match="Unexpected status code: 499"):
+        _release_info_module._build_response(
+            client=Client(
+                base_url="https://nova.example.com",
+                raise_on_unexpected_status=True,
+            ),
+            response=response,
+        )
+
+
+def test_python_sdk_exports_only_the_canonical_job_result_helper() -> None:
+    """The hard-cut helper name should remain canonical in the committed SDK."""
+    assert hasattr(_models_module, "JobRecordResultDetails")
+    assert not hasattr(_models_module, "JobRecordResultType0")
