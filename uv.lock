@@ -970,7 +970,7 @@ requires-dist = [
 
 [[package]]
 name = "nova-sdk-py-file"
-version = "0.1.0"
+version = "1.0.0"
 source = { editable = "packages/nova_sdk_py_file" }
 dependencies = [
     { name = "attrs" },

@@ -1,4 +1,3 @@
-from http import HTTPStatus
 from typing import Any
 from urllib.parse import quote
 
@@ -58,7 +57,7 @@ def _build_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
 ) -> Response[ErrorEnvelope | JobStatusResponse]:
     return Response(
-        status_code=HTTPStatus(response.status_code),
+        status_code=response.status_code,
         content=response.content,
         headers=response.headers,
         parsed=_parse_response(client=client, response=response),

@@ -46,3 +46,7 @@ with client as api_client:
 
 The generated module tree under `src/nova_sdk_py_file/` is deterministic and
 rechecked in CI with `uv run python scripts/release/generate_python_clients.py --check`.
+
+Detailed responses preserve raw integer HTTP status codes, including
+valid proxy or gateway codes outside the IANA enum range. The canonical
+generated helper model name for job results is `JobRecordResultDetails`.
