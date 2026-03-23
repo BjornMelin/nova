@@ -221,6 +221,7 @@ def test_validate_generated_directory_flags_non_empty_directory(
     assert issues
     assert "missing expected generated SDK artifacts" in issues[0]
     assert "openapi.ts" in issues[0]
+    assert any("stale.ts" in issue or "unexpected" in issue for issue in issues)
 
 
 def test_render_typescript_openapi_times_out_with_actionable_error(
@@ -340,6 +341,13 @@ def test_render_r_client_defaults_default_headers_to_null(
     assert "req_body_json" in client_code
     assert "content_type = NULL" not in client_code
     assert "request_content_types = character(0)" not in client_code
+    assert (
+        'any(tolower(names(request_headers)) == "authorization")' in client_code
+    )
+    assert (
+        "duplicated(tolower(names(merged_headers)), fromLast = TRUE)"
+        in client_code
+    )
 
 
 @pytest.mark.parametrize("target", TARGETS)
@@ -348,8 +356,9 @@ def test_render_r_namespace_registers_nova_error_formatter(
 ) -> None:
     """Generated R namespaces must register the Nova error S3 formatter."""
     namespace = _render_r_namespace(target)
+    expected_error_class = f"{target.r_client_prefix}_api_error"
 
-    assert "S3method(conditionMessage,nova_file_api_error)" in namespace
+    assert f"S3method(conditionMessage,{expected_error_class})" in namespace
 
 
 @pytest.mark.parametrize("target", TARGETS)
@@ -358,6 +367,7 @@ def test_render_r_package_manual_documents_usage_arguments(
 ) -> None:
     """Generated R package manuals must document every usage argument."""
     manual = _render_r_package_manual(target)
+    _, operations = _load_operations(target.spec_path)
 
     for argument_name in (
         "base_url",
@@ -370,3 +380,9 @@ def test_render_r_package_manual_documents_usage_arguments(
         "env_var",
     ):
         assert f"\\item{{{argument_name}}}" in manual
+    assert f'"{target.r_client_prefix.upper()}_BEARER_TOKEN"' in manual
+    for operation in operations:
+        assert (
+            f"\\section{{{target.r_client_prefix}_{operation.operation_id}}}"
+            in manual
+        )

@@ -97,12 +97,25 @@ nova_file_default_user_agent <- function() {
 
 nova_file_bearer_token <- function(token = NULL, env_var = "NOVA_FILE_BEARER_TOKEN") {
   if (!is.null(token)) {
-    return(as.character(token)[[1]])
+    token_chr <- as.character(token)
+    if (length(token_chr) == 0L) {
+      return(NULL)
+    }
+    token_value <- token_chr[[1L]]
+    if (is.na(token_value) || !nzchar(token_value)) {
+      return(NULL)
+    }
+    return(token_value)
   }
-  if (is.null(env_var) || !nzchar(as.character(env_var)[[1]])) {
+  env_var_chr <- as.character(env_var)
+  if (length(env_var_chr) == 0L) {
     return(NULL)
   }
-  env_value <- Sys.getenv(as.character(env_var)[[1]], unset = '')
+  env_var_value <- env_var_chr[[1L]]
+  if (is.na(env_var_value) || !nzchar(env_var_value)) {
+    return(NULL)
+  }
+  env_value <- Sys.getenv(env_var_value, unset = '')
   if (!nzchar(env_value)) {
     return(NULL)
   }
@@ -176,7 +189,7 @@ nova_file_apply_request <- function(http_request, request_headers, bearer_token,
   if (!is.null(user_agent) && nzchar(user_agent)) {
     http_request <- httr2::req_user_agent(http_request, user_agent)
   }
-  has_authorization <- "Authorization" %in% names(request_headers)
+  has_authorization <- any(tolower(names(request_headers)) == "authorization")
   if (!is.null(bearer_token) && nzchar(bearer_token) && !has_authorization) {
     http_request <- httr2::req_auth_bearer_token(http_request, bearer_token)
   }
@@ -202,7 +215,7 @@ nova_file_api_call <- function(
   request_headers <- nova_file_normalize_named_list(headers, "headers")
   merged_headers <- c(client$default_headers, request_headers)
   if (length(merged_headers) > 0L) {
-    merged_headers <- merged_headers[!duplicated(names(merged_headers), fromLast = TRUE)]
+    merged_headers <- merged_headers[!duplicated(tolower(names(merged_headers)), fromLast = TRUE)]
   }
   merged_headers <- nova_file_prune_null_headers(merged_headers)
   resolved_path <- nova_file_resolve_path(path, path_params)

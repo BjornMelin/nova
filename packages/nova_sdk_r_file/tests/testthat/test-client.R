@@ -6,6 +6,12 @@ test_that("constructor resolves explicit and environment bearer tokens", {
   expect_equal(explicit_client$bearer_token, "explicit-token-123")
 })
 
+test_that("constructor treats zero-length bearer tokens as absent", {
+  withr::local_envvar(NOVA_FILE_BEARER_TOKEN = NA_character_)
+  client <- create_nova_file_client("https://nova.example/", bearer_token = character(0))
+  expect_null(client$bearer_token)
+})
+
 test_that("generated package exports thin endpoint wrappers", {
   exports <- getNamespaceExports("nova.sdk.r.file")
   expect_true("nova_file_create_job" %in% exports)
@@ -41,6 +47,30 @@ test_that("request construction uses concrete params and bearer auth", {
   expect_true("Authorization" %in% names(observed_request$headers))
   expect_equal(observed_request$headers$`X-Request-Id`, "req-123")
   expect_equal(observed_request$options$timeout, 12)
+})
+
+test_that("lowercase authorization headers suppress bearer injection", {
+  observed_request <- NULL
+  mocked_response <- httr2::response(
+    status_code = 200,
+    url = "https://nova.example/v1/jobs/job-123",
+    headers = list(`content-type` = "application/json"),
+    body = charToRaw('{"job_id":"job-123","status":"queued"}')
+  )
+  result <- httr2::with_mocked_responses(
+    function(req) {
+      observed_request <<- req
+      mocked_response
+    },
+    {
+      client <- create_nova_file_client("https://nova.example/", bearer_token = "token-123")
+      nova_file_get_job_status(client, job_id = "job-123", headers = list(authorization = "Bearer custom"))
+    }
+  )
+  auth_positions <- which(tolower(names(observed_request$headers)) == "authorization")
+  expect_length(auth_positions, 1L)
+  expect_identical(names(observed_request$headers)[auth_positions[[1L]]], "authorization")
+  expect_equal(result$job_id, "job-123")
 })
 
 test_that("request construction encodes query params and JSON bodies", {

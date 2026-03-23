@@ -45,4 +45,233 @@
   The bearer-token helper returns an explicit or environment-derived token, or NULL when none is available.
 }
 
+\section{nova_file_metrics_summary}{
+  \code{nova_file_metrics_summary(client, headers = NULL)}
+
+  Metrics Summary
+
+  \describe{
+    \item{client}{Thin client created by \code{create_nova_file_client()}.}
+    \item{headers}{Optional named list of per-request headers.}
+    \item{Returns}{Parsed JSON response as a named list, or NULL when the response body is empty.}
+  }
+}
+
+\section{nova_file_get_capabilities}{
+  \code{nova_file_get_capabilities(client, headers = NULL)}
+
+  Get Capabilities
+
+  \describe{
+    \item{client}{Thin client created by \code{create_nova_file_client()}.}
+    \item{headers}{Optional named list of per-request headers.}
+    \item{Returns}{Parsed JSON response as a named list, or NULL when the response body is empty.}
+  }
+}
+
+\section{nova_file_health_live}{
+  \code{nova_file_health_live(client, headers = NULL)}
+
+  Health Live
+
+  \describe{
+    \item{client}{Thin client created by \code{create_nova_file_client()}.}
+    \item{headers}{Optional named list of per-request headers.}
+    \item{Returns}{Parsed JSON response as a named list, or NULL when the response body is empty.}
+  }
+}
+
+\section{nova_file_health_ready}{
+  \code{nova_file_health_ready(client, headers = NULL)}
+
+  Health Ready
+
+  \describe{
+    \item{client}{Thin client created by \code{create_nova_file_client()}.}
+    \item{headers}{Optional named list of per-request headers.}
+    \item{Returns}{Parsed JSON response as a named list, or NULL when the response body is empty.}
+  }
+}
+
+\section{nova_file_list_jobs}{
+  \code{nova_file_list_jobs(client, limit = NULL, headers = NULL)}
+
+  List Jobs
+
+  \describe{
+    \item{client}{Thin client created by \code{create_nova_file_client()}.}
+    \item{limit}{Optional query parameter \code{limit}.}
+    \item{headers}{Optional named list of per-request headers.}
+    \item{Returns}{Parsed JSON response as a named list, or NULL when the response body is empty.}
+  }
+}
+
+\section{nova_file_create_job}{
+  \code{nova_file_create_job(client, body, headers = NULL)}
+
+  Create Job
+
+  \describe{
+    \item{client}{Thin client created by \code{create_nova_file_client()}.}
+    \item{body}{Request payload for this operation, encoded as JSON.}
+    \item{headers}{Optional named list of per-request headers.}
+    \item{Returns}{Parsed JSON response as a named list, or NULL when the response body is empty.}
+  }
+}
+
+\section{nova_file_get_job_status}{
+  \code{nova_file_get_job_status(client, job_id, headers = NULL)}
+
+  Get Job Status
+
+  \describe{
+    \item{client}{Thin client created by \code{create_nova_file_client()}.}
+    \item{job_id}{Path parameter \code{job_id}.}
+    \item{headers}{Optional named list of per-request headers.}
+    \item{Returns}{Parsed JSON response as a named list, or NULL when the response body is empty.}
+  }
+}
+
+\section{nova_file_cancel_job}{
+  \code{nova_file_cancel_job(client, job_id, headers = NULL)}
+
+  Cancel Job
+
+  \describe{
+    \item{client}{Thin client created by \code{create_nova_file_client()}.}
+    \item{job_id}{Path parameter \code{job_id}.}
+    \item{headers}{Optional named list of per-request headers.}
+    \item{Returns}{Parsed JSON response as a named list, or NULL when the response body is empty.}
+  }
+}
+
+\section{nova_file_list_job_events}{
+  \code{nova_file_list_job_events(client, job_id, headers = NULL)}
+
+  List Job Events
+
+  \describe{
+    \item{client}{Thin client created by \code{create_nova_file_client()}.}
+    \item{job_id}{Path parameter \code{job_id}.}
+    \item{headers}{Optional named list of per-request headers.}
+    \item{Returns}{Parsed JSON response as a named list, or NULL when the response body is empty.}
+  }
+}
+
+\section{nova_file_retry_job}{
+  \code{nova_file_retry_job(client, job_id, headers = NULL)}
+
+  Retry Job
+
+  \describe{
+    \item{client}{Thin client created by \code{create_nova_file_client()}.}
+    \item{job_id}{Path parameter \code{job_id}.}
+    \item{headers}{Optional named list of per-request headers.}
+    \item{Returns}{Parsed JSON response as a named list, or NULL when the response body is empty.}
+  }
+}
+
+\section{nova_file_get_release_info}{
+  \code{nova_file_get_release_info(client, headers = NULL)}
+
+  Get Release Info
+
+  \describe{
+    \item{client}{Thin client created by \code{create_nova_file_client()}.}
+    \item{headers}{Optional named list of per-request headers.}
+    \item{Returns}{Parsed JSON response as a named list, or NULL when the response body is empty.}
+  }
+}
+
+\section{nova_file_plan_resources}{
+  \code{nova_file_plan_resources(client, body, headers = NULL)}
+
+  Plan Resources
+
+  \describe{
+    \item{client}{Thin client created by \code{create_nova_file_client()}.}
+    \item{body}{Request payload for this operation, encoded as JSON.}
+    \item{headers}{Optional named list of per-request headers.}
+    \item{Returns}{Parsed JSON response as a named list, or NULL when the response body is empty.}
+  }
+}
+
+\section{nova_file_presign_download}{
+  \code{nova_file_presign_download(client, body, headers = NULL)}
+
+  Presign Download
+
+  \describe{
+    \item{client}{Thin client created by \code{create_nova_file_client()}.}
+    \item{body}{Request payload for this operation, encoded as JSON.}
+    \item{headers}{Optional named list of per-request headers.}
+    \item{Returns}{Parsed JSON response as a named list, or NULL when the response body is empty.}
+  }
+}
+
+\section{nova_file_abort_upload}{
+  \code{nova_file_abort_upload(client, body, headers = NULL)}
+
+  Abort Upload
+
+  \describe{
+    \item{client}{Thin client created by \code{create_nova_file_client()}.}
+    \item{body}{Request payload for this operation, encoded as JSON.}
+    \item{headers}{Optional named list of per-request headers.}
+    \item{Returns}{Parsed JSON response as a named list, or NULL when the response body is empty.}
+  }
+}
+
+\section{nova_file_complete_upload}{
+  \code{nova_file_complete_upload(client, body, headers = NULL)}
+
+  Complete Upload
+
+  \describe{
+    \item{client}{Thin client created by \code{create_nova_file_client()}.}
+    \item{body}{Request payload for this operation, encoded as JSON.}
+    \item{headers}{Optional named list of per-request headers.}
+    \item{Returns}{Parsed JSON response as a named list, or NULL when the response body is empty.}
+  }
+}
+
+\section{nova_file_initiate_upload}{
+  \code{nova_file_initiate_upload(client, body, headers = NULL)}
+
+  Initiate Upload
+
+  \describe{
+    \item{client}{Thin client created by \code{create_nova_file_client()}.}
+    \item{body}{Request payload for this operation, encoded as JSON.}
+    \item{headers}{Optional named list of per-request headers.}
+    \item{Returns}{Parsed JSON response as a named list, or NULL when the response body is empty.}
+  }
+}
+
+\section{nova_file_introspect_upload}{
+  \code{nova_file_introspect_upload(client, body, headers = NULL)}
+
+  Introspect Upload
+
+  \describe{
+    \item{client}{Thin client created by \code{create_nova_file_client()}.}
+    \item{body}{Request payload for this operation, encoded as JSON.}
+    \item{headers}{Optional named list of per-request headers.}
+    \item{Returns}{Parsed JSON response as a named list, or NULL when the response body is empty.}
+  }
+}
+
+\section{nova_file_sign_upload_parts}{
+  \code{nova_file_sign_upload_parts(client, body, headers = NULL)}
+
+  Sign Upload Parts
+
+  \describe{
+    \item{client}{Thin client created by \code{create_nova_file_client()}.}
+    \item{body}{Request payload for this operation, encoded as JSON.}
+    \item{headers}{Optional named list of per-request headers.}
+    \item{Returns}{Parsed JSON response as a named list, or NULL when the response body is empty.}
+  }
+}
+
 \keyword{package}
