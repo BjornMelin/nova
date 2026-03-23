@@ -1,42 +1,45 @@
-test_that("operation catalog exposes public operations", {
-  catalog <- nova_file_operation_catalog()
-  expect_true(is.list(catalog))
-  expect_true("create_job" %in% names(catalog))
-  expect_false("update_job_result" %in% names(catalog))
-  expect_identical(catalog$create_job$request_content_types, "application/json")
+test_that("constructor resolves explicit and environment bearer tokens", {
+  Sys.setenv(NOVA_FILE_BEARER_TOKEN = "env-token-123")
+  env_client <- create_nova_file_client("https://nova.example/")
+  expect_equal(env_client$bearer_token, "env-token-123")
+  explicit_client <- create_nova_file_client("https://nova.example/", bearer_token = "explicit-token-123")
+  expect_equal(explicit_client$bearer_token, "explicit-token-123")
+  Sys.unsetenv("NOVA_FILE_BEARER_TOKEN")
 })
 
-test_that("request descriptors resolve paths, query params, and headers", {
-  client <- create_nova_file_client("https://nova.example/", request_performer = function(request) {
-    list(status = 200L, headers = list(), body = '{"job":{"job_id":"job-0001","status":"running"}}', url = request$url)
-  })
-  descriptor <- nova_file_request_descriptor(client, "get_job_status", path_params = list(job_id = "job-123"), query = list(limit = 5), headers = list("Idempotency-Key" = "req-123"))
-  expect_equal(descriptor$url, "https://nova.example/v1/jobs/job-123")
-  expect_equal(descriptor$query$limit, 5)
-  expect_equal(descriptor$headers[["Idempotency-Key"]], "req-123")
-  expect_true(is.null(descriptor$body))
-  expect_equal(descriptor$content_type, NULL)
+test_that("generated package exports thin endpoint wrappers", {
+  exports <- getNamespaceExports("nova.sdk.r.file")
+  expect_true("nova_file_create_job" %in% exports)
+  expect_true("nova_file_get_job_status" %in% exports)
+  expect_false("nova_file_request_descriptor" %in% exports)
+  expect_false("nova_file_execute_operation" %in% exports)
 })
 
-test_that("client methods execute requests and decode success and error envelopes", {
-  captured_requests <- list()
-  client <- create_nova_file_client("https://nova.example/", request_performer = function(request) {
-    captured_requests[[length(captured_requests) + 1L]] <<- request
-    list(status = 200L, headers = list(), body = '{"job_id":"job-0001","status":"pending"}', url = request$url)
-  })
-  result <- client$create_job(body = list(job_type = "transfer.process", payload = list(upload_key = "tenant-acme/sample.csv")), headers = list("Authorization" = "Bearer token-123", "Idempotency-Key" = "req-123"))
-  expect_true(result$ok)
-  expect_equal(result$data$job_id, "job-0001")
-  expect_equal(result$data$status, "pending")
-  expect_equal(captured_requests[[1]]$content_type, "application/json")
-  expect_equal(captured_requests[[1]]$headers[["Idempotency-Key"]], "req-123")
-  expect_equal(captured_requests[[1]]$headers[["Authorization"]], "Bearer token-123")
-  expect_equal(captured_requests[[1]]$body$job_type, "transfer.process")
-
-  failing_client <- create_nova_file_client("https://nova.example/", request_performer = function(request) {
-    list(status = 503L, headers = list(), body = '{"error":{"code":"queue_unavailable","message":"jobs queue unavailable","details":{"backend":"sqs"},"request_id":"req-jobs-503"}}', url = request$url)
-  })
-  error_result <- failing_client$create_job(body = list(job_type = "transfer.process", payload = list(upload_key = "tenant-acme/sample.csv")), headers = list("Authorization" = "Bearer token-123"))
-  expect_false(error_result$ok)
-  expect_equal(error_result$error$error$code, "queue_unavailable")
+test_that("structured errors preserve Nova error envelope fields", {
+  client <- create_nova_file_client("https://nova.example/", bearer_token = "token-123")
+  error <- tryCatch(
+    stop(
+      structure(
+        list(
+          message = "jobs queue unavailable",
+          call = NULL,
+          code = "queue_unavailable",
+          status = 503L,
+          request_id = "req-jobs-503",
+          details = list(backend = "sqs"),
+          operation_id = "create_job",
+          method = "POST",
+          path = "/v1/jobs"
+        ),
+        class = c("nova_file_api_error", "error", "condition")
+      )
+    ),
+    nova_file_api_error = function(error) error
+  )
+  expect_s3_class(error, "nova_file_api_error")
+  expect_equal(error$code, "queue_unavailable")
+  expect_equal(error$status, 503L)
+  expect_equal(error$request_id, "req-jobs-503")
+  expect_equal(error$details$backend, "sqs")
+  expect_equal(conditionMessage(error), "[queue_unavailable] jobs queue unavailable")
 })

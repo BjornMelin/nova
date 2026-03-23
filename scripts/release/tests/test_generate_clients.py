@@ -21,6 +21,7 @@ from scripts.release.generate_clients import (
     _render_r_client,
     _render_r_description,
     _render_r_license_text,
+    _render_r_namespace,
     _render_r_package_manual,
     _render_typescript_openapi,
 )
@@ -329,6 +330,20 @@ def test_render_r_client_defaults_default_headers_to_null(
     client_code = _render_r_client(target)
 
     assert "default_headers = NULL" in client_code
+    assert "request_descriptor" not in client_code
+    assert "execute_operation" not in client_code
+    assert "bearer_token_env" in client_code
+    assert "request_performer" not in client_code
+
+
+@pytest.mark.parametrize("target", TARGETS)
+def test_render_r_namespace_registers_nova_error_formatter(
+    target: GenerationTarget,
+) -> None:
+    """Generated R namespaces must register the Nova error S3 formatter."""
+    namespace = _render_r_namespace(target)
+
+    assert "S3method(conditionMessage,nova_file_api_error)" in namespace
 
 
 @pytest.mark.parametrize("target", TARGETS)
@@ -340,16 +355,12 @@ def test_render_r_package_manual_documents_usage_arguments(
 
     for argument_name in (
         "base_url",
-        "request_performer",
+        "bearer_token",
+        "bearer_token_env",
         "default_headers",
         "timeout_seconds",
-        "client",
-        "operation_id",
-        "body",
-        "path_params",
-        "query",
-        "headers",
-        "content_type",
-        "status",
+        "user_agent",
+        "token",
+        "env_var",
     ):
         assert f"\\item{{{argument_name}}}" in manual
