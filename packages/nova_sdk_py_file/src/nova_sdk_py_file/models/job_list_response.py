@@ -1,13 +1,16 @@
-# ruff: noqa
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    TypeVar,
+)
 
 from attrs import define as _attrs_define
 
 if TYPE_CHECKING:
-    from nova_sdk_py_file.models.job_record import JobRecord
+    from ..models.job_record import JobRecord
 
 
 T = TypeVar("T", bound="JobListResponse")
@@ -41,7 +44,7 @@ class JobListResponse:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from nova_sdk_py_file.models.job_record import JobRecord
+        from ..models.job_record import JobRecord
 
         d = dict(src_dict)
         jobs = []

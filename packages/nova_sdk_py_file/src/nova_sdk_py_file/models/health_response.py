@@ -1,4 +1,3 @@
-# ruff: noqa
 from __future__ import annotations
 
 from collections.abc import Mapping
@@ -20,7 +19,6 @@ class HealthResponse:
     ok: bool
 
     def to_dict(self) -> dict[str, Any]:
-        """Serialize this model to a JSON-compatible dict."""
         ok = self.ok
 
         field_dict: dict[str, Any] = {}
@@ -35,7 +33,6 @@ class HealthResponse:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        """Build this model from a JSON-compatible mapping."""
         d = dict(src_dict)
         ok = d.pop("ok")
 

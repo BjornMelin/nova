@@ -1,17 +1,14 @@
-# ruff: noqa
-"""Shared type helpers used by generated SDK client modules."""
+"""Contains some shared types for properties"""
 
 from collections.abc import Mapping, MutableMapping
+from http import HTTPStatus
 from typing import IO, BinaryIO, Generic, Literal, TypeVar
 
 from attrs import define
 
 
 class Unset:
-    """Sentinel type representing an omitted field value."""
-
     def __bool__(self) -> Literal[False]:
-        """Always evaluate UNSET as False in conditional checks."""
         return False
 
 
@@ -30,14 +27,14 @@ RequestFiles = list[tuple[str, FileTypes]]
 
 @define
 class File:
-    """Container for multipart file upload metadata."""
+    """Contains information for file uploads"""
 
     payload: BinaryIO
     file_name: str | None = None
     mime_type: str | None = None
 
     def to_tuple(self) -> FileTypes:
-        """Build the tuple representation accepted by `httpx` multipart uploads."""
+        """Return a tuple representation that httpx will accept for multipart/form-data"""
         return self.file_name, self.payload, self.mime_type
 
 
@@ -46,9 +43,9 @@ T = TypeVar("T")
 
 @define
 class Response(Generic[T]):
-    """Standard parsed HTTP response wrapper returned by generated helpers."""
+    """A response from an endpoint"""
 
-    status_code: int
+    status_code: HTTPStatus
     content: bytes
     headers: MutableMapping[str, str]
     parsed: T | None

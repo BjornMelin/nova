@@ -1,4 +1,3 @@
-# ruff: noqa
 import ssl
 from typing import Any
 

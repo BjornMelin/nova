@@ -1,19 +1,14 @@
-# ruff: noqa
-"""Client helpers for fetching job status.
-
-Functions in this module use AuthenticatedClient/Client and
-return JobStatusResponse or ErrorEnvelope payloads."""
-
+from http import HTTPStatus
 from typing import Any
 from urllib.parse import quote
 
 import httpx
 
-from nova_sdk_py_file import errors
-from nova_sdk_py_file.client import AuthenticatedClient, Client
-from nova_sdk_py_file.models.error_envelope import ErrorEnvelope
-from nova_sdk_py_file.models.job_status_response import JobStatusResponse
-from nova_sdk_py_file.types import Response
+from ... import errors
+from ...client import AuthenticatedClient, Client
+from ...models.error_envelope import ErrorEnvelope
+from ...models.job_status_response import JobStatusResponse
+from ...types import Response
 
 
 def _get_kwargs(
@@ -61,9 +56,9 @@ def _parse_response(
 
 def _build_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> Response[ErrorEnvelope | JobStatusResponse | None]:
+) -> Response[ErrorEnvelope | JobStatusResponse]:
     return Response(
-        status_code=response.status_code,
+        status_code=HTTPStatus(response.status_code),
         content=response.content,
         headers=response.headers,
         parsed=_parse_response(client=client, response=response),
@@ -74,7 +69,7 @@ def sync_detailed(
     job_id: str,
     *,
     client: AuthenticatedClient,
-) -> Response[ErrorEnvelope | JobStatusResponse | None]:
+) -> Response[ErrorEnvelope | JobStatusResponse]:
     """Get Job Status
 
      Return status for the caller-owned job.
@@ -118,7 +113,7 @@ def sync(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        ErrorEnvelope | JobStatusResponse | None
+        ErrorEnvelope | JobStatusResponse
     """
 
     return sync_detailed(
@@ -131,7 +126,7 @@ async def asyncio_detailed(
     job_id: str,
     *,
     client: AuthenticatedClient,
-) -> Response[ErrorEnvelope | JobStatusResponse | None]:
+) -> Response[ErrorEnvelope | JobStatusResponse]:
     """Get Job Status
 
      Return status for the caller-owned job.
@@ -173,7 +168,7 @@ async def asyncio(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        ErrorEnvelope | JobStatusResponse | None
+        ErrorEnvelope | JobStatusResponse
     """
 
     return (

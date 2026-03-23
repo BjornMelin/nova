@@ -1,18 +1,12 @@
-# ruff: noqa
-"""Client helpers for the `/v1/releases/info` endpoint.
-
-Functions in this module use AuthenticatedClient/Client.
-Undocumented responses raise ``errors.UnexpectedStatus`` only
-when ``client.raise_on_unexpected_status`` is enabled."""
-
+from http import HTTPStatus
 from typing import Any
 
 import httpx
 
-from nova_sdk_py_file import errors
-from nova_sdk_py_file.client import AuthenticatedClient, Client
-from nova_sdk_py_file.models.release_info_response import ReleaseInfoResponse
-from nova_sdk_py_file.types import Response
+from ... import errors
+from ...client import AuthenticatedClient, Client
+from ...models.release_info_response import ReleaseInfoResponse
+from ...types import Response
 
 
 def _get_kwargs() -> dict[str, Any]:
@@ -43,7 +37,7 @@ def _build_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
 ) -> Response[ReleaseInfoResponse]:
     return Response(
-        status_code=response.status_code,
+        status_code=HTTPStatus(response.status_code),
         content=response.content,
         headers=response.headers,
         parsed=_parse_response(client=client, response=response),
@@ -58,14 +52,9 @@ def sync_detailed(
 
      Return service release metadata.
 
-    Args:
-        client (AuthenticatedClient | Client): Configured API client.
-
     Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented
-            status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than
-            Client.timeout.
+        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
+        httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
         Response[ReleaseInfoResponse]
@@ -88,17 +77,12 @@ def sync(
 
      Return service release metadata.
 
-    Args:
-        client (AuthenticatedClient | Client): Configured API client.
-
     Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented
-            status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than
-            Client.timeout.
+        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
+        httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        ReleaseInfoResponse | None
+        ReleaseInfoResponse
     """
 
     return sync_detailed(
@@ -114,14 +98,9 @@ async def asyncio_detailed(
 
      Return service release metadata.
 
-    Args:
-        client (AuthenticatedClient | Client): Configured API client.
-
     Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented
-            status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than
-            Client.timeout.
+        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
+        httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
         Response[ReleaseInfoResponse]
@@ -142,17 +121,12 @@ async def asyncio(
 
      Return service release metadata.
 
-    Args:
-        client (AuthenticatedClient | Client): Configured API client.
-
     Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented
-            status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than
-            Client.timeout.
+        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
+        httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        ReleaseInfoResponse | None
+        ReleaseInfoResponse
     """
 
     return (

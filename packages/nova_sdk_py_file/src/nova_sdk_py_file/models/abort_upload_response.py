@@ -1,4 +1,3 @@
-# ruff: noqa
 from __future__ import annotations
 
 from collections.abc import Mapping
@@ -6,7 +5,7 @@ from typing import Any, TypeVar
 
 from attrs import define as _attrs_define
 
-from nova_sdk_py_file.types import UNSET, Unset
+from ..types import UNSET, Unset
 
 T = TypeVar("T", bound="AbortUploadResponse")
 

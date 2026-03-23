@@ -1,4 +1,3 @@
-# ruff: noqa
 from __future__ import annotations
 
 from collections.abc import Mapping
@@ -12,7 +11,7 @@ T = TypeVar("T", bound="MetricsSummaryResponseLatenciesMs")
 
 @_attrs_define
 class MetricsSummaryResponseLatenciesMs:
-    """Latency metrics map with millisecond values."""
+    """ """
 
     additional_properties: dict[str, float] = _attrs_field(
         init=False, factory=dict
@@ -30,9 +29,7 @@ class MetricsSummaryResponseLatenciesMs:
         d = dict(src_dict)
         metrics_summary_response_latencies_ms = cls()
 
-        metrics_summary_response_latencies_ms.additional_properties = {
-            key: float(value) for key, value in d.items()
-        }
+        metrics_summary_response_latencies_ms.additional_properties = d
         return metrics_summary_response_latencies_ms
 
     @property

@@ -1,20 +1,14 @@
-# ruff: noqa
-"""Client helpers for the `/v1/transfers/uploads/initiate` endpoint."""
-
+from http import HTTPStatus
 from typing import Any
 
 import httpx
 
-from nova_sdk_py_file import errors
-from nova_sdk_py_file.client import AuthenticatedClient, Client
-from nova_sdk_py_file.models.error_envelope import ErrorEnvelope
-from nova_sdk_py_file.models.initiate_upload_request import (
-    InitiateUploadRequest,
-)
-from nova_sdk_py_file.models.initiate_upload_response import (
-    InitiateUploadResponse,
-)
-from nova_sdk_py_file.types import UNSET, Response, Unset
+from ... import errors
+from ...client import AuthenticatedClient, Client
+from ...models.error_envelope import ErrorEnvelope
+from ...models.initiate_upload_request import InitiateUploadRequest
+from ...models.initiate_upload_response import InitiateUploadResponse
+from ...types import UNSET, Response, Unset
 
 
 def _get_kwargs(
@@ -62,11 +56,6 @@ def _parse_response(
 
         return response_409
 
-    if response.status_code == 409:
-        response_409 = ErrorEnvelope.from_dict(response.json())
-
-        return response_409
-
     if response.status_code == 422:
         response_422 = ErrorEnvelope.from_dict(response.json())
 
@@ -87,7 +76,7 @@ def _build_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
 ) -> Response[ErrorEnvelope | InitiateUploadResponse]:
     return Response(
-        status_code=response.status_code,
+        status_code=HTTPStatus(response.status_code),
         content=response.content,
         headers=response.headers,
         parsed=_parse_response(client=client, response=response),
@@ -147,7 +136,7 @@ def sync(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        ErrorEnvelope | InitiateUploadResponse | None
+        ErrorEnvelope | InitiateUploadResponse
     """
 
     return sync_detailed(
@@ -208,7 +197,7 @@ async def asyncio(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        ErrorEnvelope | InitiateUploadResponse | None
+        ErrorEnvelope | InitiateUploadResponse
     """
 
     return (

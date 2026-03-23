@@ -51,7 +51,9 @@ options score **≥ 9.10** under Framework B (see evidence file).
   keeping conformance governance.
 - **Python:** Keep **openapi-python-client**; move customization into generator
   config and small template overrides; delete large post-generation patch
-  scripts where possible.
+  scripts where possible. The committed implementation pins
+  `openapi-python-client==0.28.3` and limits Nova-specific overrides to config
+  plus the minimal `client.py` / `errors.py` template surface.
 - **R:** Ship a thin **httr2**-based package with minimal generated metadata and
   idiomatic helpers; do **not** adopt the beta OpenAPI Generator R client as the
   primary path.

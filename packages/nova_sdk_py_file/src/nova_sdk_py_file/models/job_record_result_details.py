@@ -1,4 +1,3 @@
-# ruff: noqa
 from __future__ import annotations
 
 from collections.abc import Mapping
@@ -7,12 +6,12 @@ from typing import Any, TypeVar
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
-T = TypeVar("T", bound="JobRecordResultType0")
+T = TypeVar("T", bound="JobRecordResultDetails")
 
 
 @_attrs_define
-class JobRecordResultType0:
-    """Additional result metadata for job records."""
+class JobRecordResultDetails:
+    """ """
 
     additional_properties: dict[str, Any] = _attrs_field(
         init=False, factory=dict
@@ -28,10 +27,10 @@ class JobRecordResultType0:
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
-        job_record_result_type_0 = cls()
+        job_record_result_details = cls()
 
-        job_record_result_type_0.additional_properties = d
-        return job_record_result_type_0
+        job_record_result_details.additional_properties = d
+        return job_record_result_details
 
     @property
     def additional_keys(self) -> list[str]:

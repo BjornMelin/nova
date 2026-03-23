@@ -1,17 +1,13 @@
-# ruff: noqa
-"""Client helpers for the `/metrics/summary` endpoint."""
-
+from http import HTTPStatus
 from typing import Any
 
 import httpx
 
-from nova_sdk_py_file import errors
-from nova_sdk_py_file.client import AuthenticatedClient, Client
-from nova_sdk_py_file.models.error_envelope import ErrorEnvelope
-from nova_sdk_py_file.models.metrics_summary_response import (
-    MetricsSummaryResponse,
-)
-from nova_sdk_py_file.types import Response
+from ... import errors
+from ...client import AuthenticatedClient, Client
+from ...models.error_envelope import ErrorEnvelope
+from ...models.metrics_summary_response import MetricsSummaryResponse
+from ...types import Response
 
 
 def _get_kwargs() -> dict[str, Any]:
@@ -52,7 +48,7 @@ def _build_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
 ) -> Response[ErrorEnvelope | MetricsSummaryResponse]:
     return Response(
-        status_code=response.status_code,
+        status_code=HTTPStatus(response.status_code),
         content=response.content,
         headers=response.headers,
         parsed=_parse_response(client=client, response=response),
@@ -97,7 +93,7 @@ def sync(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        ErrorEnvelope | MetricsSummaryResponse | None
+        ErrorEnvelope | MetricsSummaryResponse
     """
 
     return sync_detailed(
@@ -141,7 +137,7 @@ async def asyncio(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        ErrorEnvelope | MetricsSummaryResponse | None
+        ErrorEnvelope | MetricsSummaryResponse
     """
 
     return (

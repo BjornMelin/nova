@@ -1,14 +1,16 @@
-"""Multipart upload introspection response model."""
-
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    TypeVar,
+)
 
 from attrs import define as _attrs_define
 
 if TYPE_CHECKING:
-    from nova_sdk_py_file.models.uploaded_part import UploadedPart
+    from ..models.uploaded_part import UploadedPart
 
 
 T = TypeVar("T", bound="UploadIntrospectionResponse")
@@ -62,7 +64,7 @@ class UploadIntrospectionResponse:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from nova_sdk_py_file.models.uploaded_part import UploadedPart
+        from ..models.uploaded_part import UploadedPart
 
         d = dict(src_dict)
         bucket = d.pop("bucket")
