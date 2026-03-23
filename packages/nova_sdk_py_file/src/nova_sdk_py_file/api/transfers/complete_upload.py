@@ -1,13 +1,9 @@
-# ruff: noqa
-"""Client helpers for the upload completion endpoint and response envelope."""
-
 from typing import Any
 
 import httpx
 
 from nova_sdk_py_file import errors
-from nova_sdk_py_file.client import AuthenticatedClient
-from nova_sdk_py_file.client import Client
+from nova_sdk_py_file.client import AuthenticatedClient, Client
 from nova_sdk_py_file.models.complete_upload_request import (
     CompleteUploadRequest,
 )
@@ -68,7 +64,7 @@ def _parse_response(
 
 def _build_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> Response[CompleteUploadResponse | ErrorEnvelope | None]:
+) -> Response[CompleteUploadResponse | ErrorEnvelope]:
     return Response(
         status_code=response.status_code,
         content=response.content,
@@ -81,20 +77,17 @@ def sync_detailed(
     *,
     client: AuthenticatedClient,
     body: CompleteUploadRequest,
-) -> Response[CompleteUploadResponse | ErrorEnvelope | None]:
+) -> Response[CompleteUploadResponse | ErrorEnvelope]:
     """Complete Upload
 
      Complete multipart upload.
 
     Args:
         body (CompleteUploadRequest): Multipart completion request.
-        client (AuthenticatedClient): Configured API client.
 
     Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented
-            status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than
-            Client.timeout.
+        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
+        httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
         Response[CompleteUploadResponse | ErrorEnvelope]
@@ -122,13 +115,10 @@ def sync(
 
     Args:
         body (CompleteUploadRequest): Multipart completion request.
-        client (AuthenticatedClient): Configured API client.
 
     Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented
-            status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than
-            Client.timeout.
+        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
+        httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
         CompleteUploadResponse | ErrorEnvelope | None
@@ -144,20 +134,17 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
     body: CompleteUploadRequest,
-) -> Response[CompleteUploadResponse | ErrorEnvelope | None]:
+) -> Response[CompleteUploadResponse | ErrorEnvelope]:
     """Complete Upload
 
      Complete multipart upload.
 
     Args:
         body (CompleteUploadRequest): Multipart completion request.
-        client (AuthenticatedClient): Configured API client.
 
     Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented
-            status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than
-            Client.timeout.
+        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
+        httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
         Response[CompleteUploadResponse | ErrorEnvelope]
@@ -183,13 +170,10 @@ async def asyncio(
 
     Args:
         body (CompleteUploadRequest): Multipart completion request.
-        client (AuthenticatedClient): Configured API client.
 
     Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented
-            status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than
-            Client.timeout.
+        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
+        httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
         CompleteUploadResponse | ErrorEnvelope | None

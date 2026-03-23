@@ -53,7 +53,13 @@ remains the authority for conformance, versioning, and compatibility governance.
 ## 4. Python
 
 - Generator: **`openapi-python-client`**.
+- Exact generator pin: **`openapi-python-client==0.28.3`**.
 - Customization lives in generator **config** and **minimal templates**.
+- Committed Python generator assets live under
+  `scripts/release/openapi_python_client/`.
+- The committed package root may retain hand-maintained packaging metadata, but
+  the generated module tree under `packages/nova_sdk_py_file/src/` is owned by
+  `scripts/release/generate_python_clients.py`.
 - Large output patching scripts are not allowed unless clearly justified and
   reviewed.
 

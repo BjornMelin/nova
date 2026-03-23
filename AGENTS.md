@@ -41,6 +41,9 @@ SDK posture:
 
 - Nova must provide complete public SDKs for Python, TypeScript, and R.
 - Python is the release-grade public SDK surface.
+- Python SDK generation is pinned to `openapi-python-client==0.28.3` and uses
+  committed generator config/templates under
+  `scripts/release/openapi_python_client/`.
 - TypeScript is release-grade within Nova's existing CodeArtifact staged/prod
   system while remaining generator-owned and subpath-only, using
   `openapi-typescript` + `openapi-fetch` per `ADR-0038` / `SPEC-0029`.
@@ -59,6 +62,9 @@ SDK posture:
   subpaths.
 - Prefer fixing generator-owned SDK output through runtime OpenAPI producers,
   committed OpenAPI artifacts, or `scripts/release/generate_clients.py`.
+- Prefer fixing generator-owned Python SDK output through OpenAPI producers,
+  committed OpenAPI artifacts, generator config, or the minimal committed
+  templates. Do not reintroduce a large post-generation patch layer.
 
 ## Authority Entry Points
 
@@ -240,6 +246,11 @@ Notes:
 - `scripts/release/generate_clients.py --check` requires the repo-installed
   root npm toolchain; run `npm ci` before generated TypeScript SDK gates so the
   local `openapi-typescript` CLI is available without ad hoc network fetches.
+- `scripts/release/generate_python_clients.py --check` depends on the exact
+  root dev dependency pin `openapi-python-client==0.28.3` plus the committed
+  assets under `scripts/release/openapi_python_client/`. Treat generator-version
+  bumps and template/config changes as coupled updates to docs, tests, and the
+  committed SDK tree.
 - `pyproject.toml` pins the supported `uv` CLI via
   `[tool.uv].required-version`; keep local tooling, CI, and docs aligned when
   bumping that version.

@@ -1,8 +1,11 @@
-# ruff: noqa
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, TypeVar, cast
+from typing import (
+    Any,
+    TypeVar,
+    cast,
+)
 
 from attrs import define as _attrs_define
 
@@ -18,8 +21,8 @@ class CompleteUploadResponse:
     Attributes:
         bucket (str):
         key (str):
-        etag (None | str | Unset): Entity tag for the completed object.
-        version_id (None | str | Unset): Version identifier when bucket versioning is enabled.
+        etag (None | str | Unset):
+        version_id (None | str | Unset):
     """
 
     bucket: str
@@ -66,15 +69,23 @@ class CompleteUploadResponse:
 
         key = d.pop("key")
 
-        def _parse_optional_string(data: object) -> None | str | Unset:
+        def _parse_etag(data: object) -> None | str | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):
                 return data
             return cast(None | str | Unset, data)
 
-        etag = _parse_optional_string(d.pop("etag", UNSET))
-        version_id = _parse_optional_string(d.pop("version_id", UNSET))
+        etag = _parse_etag(d.pop("etag", UNSET))
+
+        def _parse_version_id(data: object) -> None | str | Unset:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            return cast(None | str | Unset, data)
+
+        version_id = _parse_version_id(d.pop("version_id", UNSET))
 
         complete_upload_response = cls(
             bucket=bucket,

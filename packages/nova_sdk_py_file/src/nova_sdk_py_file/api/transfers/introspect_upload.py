@@ -1,5 +1,3 @@
-"""Client helpers for the `/v1/transfers/uploads/introspect` endpoint."""
-
 from typing import Any
 
 import httpx

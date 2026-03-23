@@ -1,4 +1,3 @@
-# ruff: noqa
 from typing import Any
 from urllib.parse import quote
 
@@ -56,7 +55,7 @@ def _parse_response(
 
 def _build_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> Response[ErrorEnvelope | JobEventsResponse | None]:
+) -> Response[ErrorEnvelope | JobEventsResponse]:
     return Response(
         status_code=response.status_code,
         content=response.content,
@@ -69,7 +68,7 @@ def sync_detailed(
     job_id: str,
     *,
     client: AuthenticatedClient,
-) -> Response[ErrorEnvelope | JobEventsResponse | None]:
+) -> Response[ErrorEnvelope | JobEventsResponse]:
     """List Job Events
 
      Return poll events with an SSE-compatible envelope.
@@ -126,7 +125,7 @@ async def asyncio_detailed(
     job_id: str,
     *,
     client: AuthenticatedClient,
-) -> Response[ErrorEnvelope | JobEventsResponse | None]:
+) -> Response[ErrorEnvelope | JobEventsResponse]:
     """List Job Events
 
      Return poll events with an SSE-compatible envelope.

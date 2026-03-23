@@ -197,6 +197,10 @@ Toolchain baseline notes:
 - `pyproject.toml` pins the supported `uv` CLI via
   `[tool.uv].required-version`; keep CI and local bootstrap flows on that
   version unless a repo-wide verification run intentionally bumps it.
+- The root dev dependency group pins `openapi-python-client==0.28.3` for the
+  committed Python SDK generation path. Keep that exact pin, the lockfile,
+  `scripts/release/openapi_python_client/`, and the committed
+  `packages/nova_sdk_py_file` tree aligned in the same change.
 - Pytest defaults to `--import-mode=importlib` and relies on editable workspace
   installs instead of repo-level `pythonpath` injection. Treat any return to a
   global `pythonpath` shim as a regression unless it is backed by a newly

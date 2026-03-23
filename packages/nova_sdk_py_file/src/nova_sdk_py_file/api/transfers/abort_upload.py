@@ -1,6 +1,3 @@
-# ruff: noqa
-"""Client helpers for the `/v1/transfers/uploads/abort` endpoint."""
-
 from typing import Any
 
 import httpx
@@ -120,7 +117,7 @@ def sync(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        AbortUploadResponse | ErrorEnvelope
+        AbortUploadResponse | ErrorEnvelope | None
     """
 
     return sync_detailed(
@@ -175,7 +172,7 @@ async def asyncio(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        AbortUploadResponse | ErrorEnvelope
+        AbortUploadResponse | ErrorEnvelope | None
     """
 
     return (

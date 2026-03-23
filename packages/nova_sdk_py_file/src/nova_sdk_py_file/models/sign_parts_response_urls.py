@@ -1,6 +1,3 @@
-# ruff: noqa
-"""Model for signed multipart part URLs keyed by part number."""
-
 from __future__ import annotations
 
 from collections.abc import Mapping
@@ -14,7 +11,7 @@ T = TypeVar("T", bound="SignPartsResponseUrls")
 
 @_attrs_define
 class SignPartsResponseUrls:
-    """Signed part URL map keyed by part number."""
+    """Signed upload-part URLs returned by the API."""
 
     additional_properties: dict[str, str] = _attrs_field(
         init=False, factory=dict
@@ -31,10 +28,15 @@ class SignPartsResponseUrls:
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
         sign_parts_response_urls = cls()
+        additional_properties: dict[str, str] = {}
+        for key, value in d.items():
+            if not isinstance(value, str):
+                raise TypeError(
+                    f"Invalid value for {key!r}: expected str, got {type(value).__name__}"
+                )
+            additional_properties[key] = value
 
-        sign_parts_response_urls.additional_properties = {
-            key: str(value) for key, value in d.items()
-        }
+        sign_parts_response_urls.additional_properties = additional_properties
         return sign_parts_response_urls
 
     @property
