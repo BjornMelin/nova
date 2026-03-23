@@ -1,6 +1,3 @@
-# ruff: noqa
-"""Client helpers for the `/v1/jobs/{job_id}/retry` endpoint."""
-
 from typing import Any
 from urllib.parse import quote
 
@@ -49,11 +46,6 @@ def _parse_response(
         response_422 = ErrorEnvelope.from_dict(response.json())
 
         return response_422
-
-    if response.status_code == 503:
-        response_503 = ErrorEnvelope.from_dict(response.json())
-
-        return response_503
 
     if client.raise_on_unexpected_status:
         raise errors.UnexpectedStatus(response.status_code, response.content)
@@ -120,7 +112,7 @@ def sync(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        EnqueueJobResponse | ErrorEnvelope
+        EnqueueJobResponse | ErrorEnvelope | None
     """
 
     return sync_detailed(
@@ -175,7 +167,7 @@ async def asyncio(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        EnqueueJobResponse | ErrorEnvelope
+        EnqueueJobResponse | ErrorEnvelope | None
     """
 
     return (

@@ -1,4 +1,3 @@
-# ruff: noqa
 from __future__ import annotations
 
 from collections.abc import Mapping
@@ -12,7 +11,7 @@ T = TypeVar("T", bound="EnqueueJobRequestPayload")
 
 @_attrs_define
 class EnqueueJobRequestPayload:
-    """Typed payload wrapper for enqueue-job requests."""
+    """Additional job payload fields included in enqueue requests."""
 
     additional_properties: dict[str, Any] = _attrs_field(
         init=False, factory=dict

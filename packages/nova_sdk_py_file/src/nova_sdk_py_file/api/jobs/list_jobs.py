@@ -1,6 +1,3 @@
-# ruff: noqa
-"""Client helpers for the `/v1/jobs` listing endpoint."""
-
 from typing import Any
 
 import httpx

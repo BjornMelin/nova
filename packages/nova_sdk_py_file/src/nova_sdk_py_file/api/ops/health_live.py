@@ -1,6 +1,3 @@
-# ruff: noqa
-"""Client helpers for the `/v1/health/live` endpoint."""
-
 from typing import Any
 
 import httpx

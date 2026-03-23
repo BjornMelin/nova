@@ -1,4 +1,3 @@
-# ruff: noqa
 from __future__ import annotations
 
 from collections.abc import Mapping
@@ -22,7 +21,6 @@ class CompletedPart:
     part_number: int
 
     def to_dict(self) -> dict[str, Any]:
-        """Serialize this model to a JSON-compatible dict."""
         etag = self.etag
 
         part_number = self.part_number
@@ -40,7 +38,6 @@ class CompletedPart:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        """Build this model from a JSON-compatible mapping."""
         d = dict(src_dict)
         etag = d.pop("etag")
 

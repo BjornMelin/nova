@@ -1,9 +1,3 @@
-# ruff: noqa
-"""Client helpers for the presign download endpoint.
-
-Functions in this module accept PresignDownloadRequest and
-return PresignDownloadResponse or ErrorEnvelope payloads."""
-
 from typing import Any
 
 import httpx
@@ -70,7 +64,7 @@ def _parse_response(
 
 def _build_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> Response[ErrorEnvelope | PresignDownloadResponse | None]:
+) -> Response[ErrorEnvelope | PresignDownloadResponse]:
     return Response(
         status_code=response.status_code,
         content=response.content,
@@ -83,7 +77,7 @@ def sync_detailed(
     *,
     client: AuthenticatedClient,
     body: PresignDownloadRequest,
-) -> Response[ErrorEnvelope | PresignDownloadResponse | None]:
+) -> Response[ErrorEnvelope | PresignDownloadResponse]:
     """Presign Download
 
      Issue presigned GET URL for caller-scoped key.
@@ -140,7 +134,7 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
     body: PresignDownloadRequest,
-) -> Response[ErrorEnvelope | PresignDownloadResponse | None]:
+) -> Response[ErrorEnvelope | PresignDownloadResponse]:
     """Presign Download
 
      Issue presigned GET URL for caller-scoped key.

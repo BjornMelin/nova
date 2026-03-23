@@ -1,4 +1,3 @@
-# ruff: noqa
 from typing import Any
 
 import httpx
@@ -108,7 +107,7 @@ def sync(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        ErrorEnvelope | ResourcePlanResponse
+        ErrorEnvelope | ResourcePlanResponse | None
     """
 
     return sync_detailed(
@@ -163,7 +162,7 @@ async def asyncio(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        ErrorEnvelope | ResourcePlanResponse
+        ErrorEnvelope | ResourcePlanResponse | None
     """
 
     return (

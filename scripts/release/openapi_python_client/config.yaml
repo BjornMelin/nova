@@ -1,0 +1,7 @@
+project_name_override: nova-sdk-py-file
+package_name_override: nova_sdk_py_file
+post_hooks: []
+class_overrides:
+  JobRecordResultType0:
+    class_name: JobRecordResultDetails
+    module_name: job_record_result_details

@@ -1,6 +1,3 @@
-# ruff: noqa
-"""Client helpers for the `/metrics/summary` endpoint."""
-
 from typing import Any
 
 import httpx

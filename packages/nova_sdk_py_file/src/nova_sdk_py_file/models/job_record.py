@@ -1,9 +1,13 @@
-# ruff: noqa
 from __future__ import annotations
 
 import datetime
 from collections.abc import Mapping
-from typing import TYPE_CHECKING, Any, TypeVar, cast
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    TypeVar,
+    cast,
+)
 
 from attrs import define as _attrs_define
 from dateutil.parser import isoparse
@@ -13,8 +17,8 @@ from nova_sdk_py_file.types import UNSET, Unset
 
 if TYPE_CHECKING:
     from nova_sdk_py_file.models.job_record_payload import JobRecordPayload
-    from nova_sdk_py_file.models.job_record_result_type_0 import (
-        JobRecordResultType0,
+    from nova_sdk_py_file.models.job_record_result_details import (
+        JobRecordResultDetails,
     )
 
 
@@ -34,7 +38,7 @@ class JobRecord:
         status (JobStatus): Lifecycle status of an async job.
         updated_at (datetime.datetime):
         error (None | str | Unset):
-        result (JobRecordResultType0 | None | Unset):
+        result (JobRecordResultDetails | None | Unset):
     """
 
     created_at: datetime.datetime
@@ -45,11 +49,11 @@ class JobRecord:
     status: JobStatus
     updated_at: datetime.datetime
     error: None | str | Unset = UNSET
-    result: JobRecordResultType0 | None | Unset = UNSET
+    result: JobRecordResultDetails | None | Unset = UNSET
 
     def to_dict(self) -> dict[str, Any]:
-        from nova_sdk_py_file.models.job_record_result_type_0 import (
-            JobRecordResultType0,
+        from nova_sdk_py_file.models.job_record_result_details import (
+            JobRecordResultDetails,
         )
 
         created_at = self.created_at.isoformat()
@@ -75,7 +79,7 @@ class JobRecord:
         result: dict[str, Any] | None | Unset
         if isinstance(self.result, Unset):
             result = UNSET
-        elif isinstance(self.result, JobRecordResultType0):
+        elif isinstance(self.result, JobRecordResultDetails):
             result = self.result.to_dict()
         else:
             result = self.result
@@ -103,8 +107,8 @@ class JobRecord:
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         from nova_sdk_py_file.models.job_record_payload import JobRecordPayload
-        from nova_sdk_py_file.models.job_record_result_type_0 import (
-            JobRecordResultType0,
+        from nova_sdk_py_file.models.job_record_result_details import (
+            JobRecordResultDetails,
         )
 
         d = dict(src_dict)
@@ -131,15 +135,19 @@ class JobRecord:
 
         error = _parse_error(d.pop("error", UNSET))
 
-        def _parse_result(data: object) -> JobRecordResultType0 | None | Unset:
+        def _parse_result(
+            data: object,
+        ) -> JobRecordResultDetails | None | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):
                 return data
             if not isinstance(data, Mapping):
-                raise TypeError("result must be a mapping, null, or UNSET")
-            result_data = cast(Mapping[str, Any], data)
-            return JobRecordResultType0.from_dict(result_data)
+                raise TypeError(
+                    "Expected result payload to be a mapping or null"
+                )
+            result_data = cast("Mapping[str, Any]", data)
+            return JobRecordResultDetails.from_dict(result_data)
 
         result = _parse_result(d.pop("result", UNSET))
 

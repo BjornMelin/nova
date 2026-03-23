@@ -1,4 +1,3 @@
-# ruff: noqa
 """Contains all the data models used in inputs/outputs"""
 
 from nova_sdk_py_file.models.abort_upload_request import AbortUploadRequest
@@ -38,8 +37,8 @@ from nova_sdk_py_file.models.job_events_response import JobEventsResponse
 from nova_sdk_py_file.models.job_list_response import JobListResponse
 from nova_sdk_py_file.models.job_record import JobRecord
 from nova_sdk_py_file.models.job_record_payload import JobRecordPayload
-from nova_sdk_py_file.models.job_record_result_type_0 import (
-    JobRecordResultType0,
+from nova_sdk_py_file.models.job_record_result_details import (
+    JobRecordResultDetails,
 )
 from nova_sdk_py_file.models.job_status import JobStatus
 from nova_sdk_py_file.models.job_status_response import JobStatusResponse
@@ -89,9 +88,9 @@ __all__ = (
     "CapabilitiesResponse",
     "CapabilityDescriptor",
     "CapabilityDescriptorDetails",
-    "CompletedPart",
     "CompleteUploadRequest",
     "CompleteUploadResponse",
+    "CompletedPart",
     "EnqueueJobRequest",
     "EnqueueJobRequestPayload",
     "EnqueueJobResponse",
@@ -104,12 +103,12 @@ __all__ = (
     "JobCancelResponse",
     "JobEvent",
     "JobEventData",
-    "JobEventsResponse",
     "JobEventType",
+    "JobEventsResponse",
     "JobListResponse",
     "JobRecord",
     "JobRecordPayload",
-    "JobRecordResultType0",
+    "JobRecordResultDetails",
     "JobStatus",
     "JobStatusResponse",
     "MetricsSummaryResponse",
@@ -127,8 +126,8 @@ __all__ = (
     "SignPartsRequest",
     "SignPartsResponse",
     "SignPartsResponseUrls",
-    "UploadedPart",
     "UploadIntrospectionRequest",
     "UploadIntrospectionResponse",
     "UploadStrategy",
+    "UploadedPart",
 )

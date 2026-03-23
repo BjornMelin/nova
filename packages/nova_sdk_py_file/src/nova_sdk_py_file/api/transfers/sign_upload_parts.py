@@ -1,6 +1,3 @@
-# ruff: noqa
-"""Client helpers for the `/v1/transfers/uploads/sign-parts` endpoint."""
-
 from typing import Any
 
 import httpx
@@ -63,7 +60,7 @@ def _parse_response(
 
 def _build_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> Response[ErrorEnvelope | SignPartsResponse | None]:
+) -> Response[ErrorEnvelope | SignPartsResponse]:
     return Response(
         status_code=response.status_code,
         content=response.content,
@@ -76,14 +73,13 @@ def sync_detailed(
     *,
     client: AuthenticatedClient,
     body: SignPartsRequest,
-) -> Response[ErrorEnvelope | SignPartsResponse | None]:
+) -> Response[ErrorEnvelope | SignPartsResponse]:
     """Sign Upload Parts
 
      Return presigned multipart part URLs.
 
     Args:
         body (SignPartsRequest): Multipart sign-parts request.
-        client (AuthenticatedClient): Configured API client.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -115,7 +111,6 @@ def sync(
 
     Args:
         body (SignPartsRequest): Multipart sign-parts request.
-        client (AuthenticatedClient): Configured API client.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -135,14 +130,13 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
     body: SignPartsRequest,
-) -> Response[ErrorEnvelope | SignPartsResponse | None]:
+) -> Response[ErrorEnvelope | SignPartsResponse]:
     """Sign Upload Parts
 
      Return presigned multipart part URLs.
 
     Args:
         body (SignPartsRequest): Multipart sign-parts request.
-        client (AuthenticatedClient): Configured API client.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -172,7 +166,6 @@ async def asyncio(
 
     Args:
         body (SignPartsRequest): Multipart sign-parts request.
-        client (AuthenticatedClient): Configured API client.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.

@@ -116,6 +116,9 @@ a public support or publishing contract.
   package artifacts.
 - Generated Python and TypeScript artifacts are immutable after release.
 - R package tarballs are immutable after release.
+- Changes to the Python generator pin or committed generator assets
+  (`scripts/release/openapi_python_client/`) require regenerated artifacts,
+  updated docs/tests, and a reviewed lockfile update in the same change.
 
 ## 4. Deprecation policy
 

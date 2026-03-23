@@ -1,9 +1,3 @@
-# ruff: noqa
-"""Client helpers for fetching job status.
-
-Functions in this module use AuthenticatedClient/Client and
-return JobStatusResponse or ErrorEnvelope payloads."""
-
 from typing import Any
 from urllib.parse import quote
 
@@ -61,7 +55,7 @@ def _parse_response(
 
 def _build_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> Response[ErrorEnvelope | JobStatusResponse | None]:
+) -> Response[ErrorEnvelope | JobStatusResponse]:
     return Response(
         status_code=response.status_code,
         content=response.content,
@@ -74,7 +68,7 @@ def sync_detailed(
     job_id: str,
     *,
     client: AuthenticatedClient,
-) -> Response[ErrorEnvelope | JobStatusResponse | None]:
+) -> Response[ErrorEnvelope | JobStatusResponse]:
     """Get Job Status
 
      Return status for the caller-owned job.
@@ -131,7 +125,7 @@ async def asyncio_detailed(
     job_id: str,
     *,
     client: AuthenticatedClient,
-) -> Response[ErrorEnvelope | JobStatusResponse | None]:
+) -> Response[ErrorEnvelope | JobStatusResponse]:
     """Get Job Status
 
      Return status for the caller-owned job.
