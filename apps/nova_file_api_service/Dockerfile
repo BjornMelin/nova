@@ -1,5 +1,6 @@
 # syntax=docker/dockerfile:1.7
-FROM public.ecr.aws/docker/library/python:3.13-slim@sha256:7d8999b140f22939451e00b79c0fd86f13d0bc0577b369f8212fce063101fb2a AS builder
+ARG BASE_IMAGE=public.ecr.aws/docker/library/python:3.13-slim@sha256:7d8999b140f22939451e00b79c0fd86f13d0bc0577b369f8212fce063101fb2a
+FROM ${BASE_IMAGE} AS builder
 
 COPY --from=ghcr.io/astral-sh/uv:0.10.12 /uv /uvx /bin/
 
@@ -39,7 +40,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
       --no-install-package nova-dash-bridge \
       --no-editable
 
-FROM public.ecr.aws/docker/library/python:3.13-slim@sha256:7d8999b140f22939451e00b79c0fd86f13d0bc0577b369f8212fce063101fb2a
+FROM ${BASE_IMAGE}
 
 ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONDONTWRITEBYTECODE=1 \
