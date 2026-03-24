@@ -28,7 +28,7 @@ safe operator path.
 - `${GITHUB_OWNER}` (required; explicit GitHub org or user target)
 - `${GITHUB_REPO}` (required; explicit GitHub repository target)
 - `${EXISTING_CONNECTION_ARN}` (optional, prefer
-  `arn:aws:codeconnections:us-east-1:...:connection/xxxxxxxx`;
+  `arn:aws:codeconnections:us-east-1:…:connection/xxxxxxxx`;
   legacy `codestar-connections` ARNs remain supported only for migrated
   environments)
 - `${CODEARTIFACT_DOMAIN}` (required)

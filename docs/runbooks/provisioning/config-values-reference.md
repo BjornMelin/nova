@@ -59,7 +59,7 @@ Required ECR targeting:
 Optional keys:
 
 - `AWS_ACCOUNT_ID` (derived from STS when unset)
-- `EXISTING_CONNECTION_ARN` (prefer `arn:aws:codeconnections:...`)
+- `EXISTING_CONNECTION_ARN` (prefer `arn:aws:codeconnections:…`)
 - `NOVA_MANUAL_APPROVAL_TOPIC_ARN`
 - `CONNECTION_NAME`
 - `NOVA_RELEASE_BUILD_PROJECT_NAME`

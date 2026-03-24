@@ -9,10 +9,10 @@ Last reviewed: 2026-03-24
 Canonical entrypoint for Nova-path release, deployment, validation, and runtime
 operations runbooks.
 
-For architecture authority and the canonical route chain, use
-`../architecture/README.md`.
-For deeper engineering workflow standards, use `../standards/README.md`.
-For workflow and release schema contracts, use `../contracts/README.md`.
+See `../architecture/README.md` for architecture authority and the canonical
+route chain.
+Consult `../standards/README.md` for deeper engineering workflow standards.
+Reference `../contracts/README.md` for workflow and release schema contracts.
 
 ## Release and Deployment
 

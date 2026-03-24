@@ -72,7 +72,7 @@ Fallback path:
 - `${DEV_BASE_URL}` example `https://nova-file-api.dev.example.com` (published from the runtime edge stack)
 - `${PROD_BASE_URL}` example `https://nova-file-api.example.com` (published from the runtime edge stack)
 - `${EXISTING_CONNECTION_ARN}` (optional; prefer
-  `arn:aws:codeconnections:...`)
+  `arn:aws:codeconnections:…`)
 - `${NOVA_MANUAL_APPROVAL_TOPIC_ARN}` (optional)
 
 ## Step 1: set deployment values
@@ -108,7 +108,7 @@ export PROD_BASE_URL="${PROD_BASE_URL:?set to the prod runtime base URL, for exa
 ```
 
 If you supply `EXISTING_CONNECTION_ARN`, use the current
-`arn:aws:codeconnections:...` form for new or refreshed Nova stack inputs.
+`arn:aws:codeconnections:…` form for new or refreshed Nova stack inputs.
 Legacy `codestar-connections` ARNs should be treated as migration-only inputs.
 
 The day-0 operator command pack requires an explicit GitHub repository target.
