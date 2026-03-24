@@ -8,12 +8,21 @@ Parameters:
   Project:
     Type: String
     MinLength: 2
+    MaxLength: 5
+    AllowedPattern: "^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$"
+    ConstraintDescription: Must be 2-5 characters of lowercase letters, numbers, periods, or hyphens, and cannot start or end with punctuation.
   Application:
     Type: String
     MinLength: 2
+    MaxLength: 9
+    AllowedPattern: "^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$"
+    ConstraintDescription: Must be 2-9 characters of lowercase letters, numbers, periods, or hyphens, and cannot start or end with punctuation.
   Service:
     Type: String
-    MinLength: 1
+    MinLength: 2
+    MaxLength: 13
+    AllowedPattern: "^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$"
+    ConstraintDescription: Must be 2-13 characters of lowercase letters, numbers, periods, or hyphens, and cannot start or end with punctuation.
   LoadBalancerArn:
     Type: String
     AllowedPattern: "^arn:(aws|aws-us-gov|aws-cn):elasticloadbalancing:[a-z0-9-]+:[0-9]{12}:loadbalancer\\/app\\/.+$"

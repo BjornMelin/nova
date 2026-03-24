@@ -34,6 +34,8 @@ It must be executed before CI/CD stack deployment guidance in:
    ECS/CloudFormation roles + service permissions for ECS/ELB/S3/SQS/DynamoDB/KMS.
 5. Route53 update authority for both the internal ALB hosted zone and the
    public service hosted zone used by the CloudFront edge URL.
+6. `AWS_REGION` must be `us-east-1` because the CloudFront edge, CLOUDFRONT-scope
+   WAF, and ACM viewer certificate are deployed there.
 
 ## Required Inputs
 
@@ -61,7 +63,7 @@ Export these values before running commands:
 - `ECS_CLUSTER_NAME`
 - `SERVICE_NAME`
 - `SERVICE_DNS` (example `api.dev.example.com`, the public CloudFront API hostname)
-- `PUBLIC_HOSTED_ZONE_ID` (Route53 hosted zone ID for `SERVICE_DNS` certificate validation and CloudFront alias records)
+- `PUBLIC_HOSTED_ZONE_ID` (Route53 hosted zone ID for `SERVICE_DNS` certificate validation and CloudFront alias records; it must be in the same AWS account as the deployment account because CloudFormation-managed ACM DNS validation can only create validation records in a hosted zone owned by that account)
 - `DOCKER_REPOSITORY_NAME`
 - `IMAGE_DIGEST` (OCI digest, `sha256:...`)
 - `ENV_VARS_JSON` (JSON object string used only for supported non-secret API
