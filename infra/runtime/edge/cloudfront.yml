@@ -82,6 +82,8 @@ Resources:
         ServerSideEncryptionConfiguration:
           - ServerSideEncryptionByDefault:
               SSEAlgorithm: AES256
+      VersioningConfiguration:
+        Status: Enabled
       Tags:
         - Key: Project
           Value: !Ref Project
@@ -156,8 +158,6 @@ Resources:
         HTTPPort: 80
         HTTPSPort: 443
         OriginProtocolPolicy: http-only
-        OriginSSLProtocols:
-          - TLSv1.2
 
   PublicDistribution:
     Type: AWS::CloudFront::Distribution
