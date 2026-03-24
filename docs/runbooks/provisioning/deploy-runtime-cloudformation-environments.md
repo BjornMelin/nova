@@ -2,13 +2,13 @@
 
 Status: Active
 Owner: nova release architecture
-Last reviewed: 2026-03-20
+Last reviewed: 2026-03-24
 
 ## Purpose
 
-Deploy Nova runtime infrastructure stacks in a reproducible order for any AWS
-account/region, then produce the environment base URLs required by CI/CD
-pipeline stacks.
+Deploy Nova runtime infrastructure stacks in a reproducible order, then publish
+the public CloudFront base URLs required by CI/CD pipeline stacks through the
+canonical SSM marker stacks.
 
 Canonical operator path:
 
@@ -32,7 +32,10 @@ It must be executed before CI/CD stack deployment guidance in:
 3. Repository checkout at `${NOVA_REPO_ROOT}`.
 4. Permissions for CloudFormation create/update/execute + IAM pass role for
    ECS/CloudFormation roles + service permissions for ECS/ELB/S3/SQS/DynamoDB/KMS.
-5. Hosted zone ownership or delegated DNS update authority when using ALB DNS.
+5. Route53 update authority for both the internal ALB hosted zone and the
+   public service hosted zone used by the CloudFront edge URL.
+6. `AWS_REGION` must be `us-east-1` because the CloudFront edge, CLOUDFRONT-scope
+   WAF, and ACM viewer certificate are deployed there.
 
 ## Required Inputs
 
@@ -48,18 +51,17 @@ Export these values before running commands:
 - `NOVA_REPO_ROOT`
 - `VPC_ID`
 - `SUBNET_IDS` (comma-delimited subnet IDs used by ECS task ENIs)
-- `ALB_HOSTED_ZONE_NAME` (example `internal.example.com`)
-- `ALB_HOSTED_ZONE_ID` (optional Route53 hosted zone ID for cert DNS validation automation)
-- `ALB_DNS_NAME` (example `api-dev.internal.example.com`)
+- `ALB_HOSTED_ZONE_NAME` (example `internal.example.com`, typically a private hosted zone for the internal ALB origin)
+- `ALB_HOSTED_ZONE_ID` (optional Route53 hosted zone ID for internal ALB cert/DNS automation)
+- `ALB_DNS_NAME` (example `api-dev.internal.example.com`, validated internal ALB origin DNS used by the ALB certificate and the CloudFront origin TLS handshake)
 - `ALB_NAME`
-- `ALB_SCHEME` (`internal` or `internet-facing`, default `internal`)
+- `ALB_SCHEME` (`internal` only, default `internal`)
 - `ENABLE_ALB_ACCESS_LOGS` (`true` or `false`, default `false`)
 - `ALB_LOG_BUCKET` (required only when `ENABLE_ALB_ACCESS_LOGS=true`)
-- `ALB_INGRESS_PREFIX_LIST_ID` or `ALB_INGRESS_CIDR` or
-  `ALB_INGRESS_SOURCE_SG_ID` (exactly one is required)
 - `ECS_CLUSTER_NAME`
 - `SERVICE_NAME`
-- `SERVICE_DNS` (example `${SERVICE_NAME}.${ALB_HOSTED_ZONE_NAME}`)
+- `SERVICE_DNS` (example `api.dev.example.com`, the public CloudFront API hostname)
+- `PUBLIC_HOSTED_ZONE_ID` (Route53 hosted zone ID for `SERVICE_DNS` certificate validation and CloudFront alias records; it must be in the same AWS account as the deployment account because CloudFormation-managed ACM DNS validation can only create validation records in a hosted zone owned by that account)
 - `DOCKER_REPOSITORY_NAME`
 - `IMAGE_DIGEST` (OCI digest, `sha256:...`)
 - `ENV_VARS_JSON` (JSON object string used only for supported non-secret API
@@ -70,13 +72,22 @@ Export these values before running commands:
 - `OWNER_TAG`
 - `ALARM_ACTION_ARN`
 - `ASSIGN_PUBLIC_IP` (`ENABLED` or `DISABLED`, default `DISABLED`)
-- `ECS_INFRASTRUCTURE_ROLE_ARN` (optional override; when unset the operator
-  resolves the ECS infrastructure role from the control-plane IAM stack)
+
+CloudFront ingress contract for the canonical operator script:
+
+Do not export `ALB_INGRESS_PREFIX_LIST_ID`, `ALB_INGRESS_CIDR`, or
+`ALB_INGRESS_SOURCE_SG_ID` when using
+`scripts/release/deploy-runtime-cloudformation-environment.sh`.
+The script resolves the AWS-managed CloudFront origin-facing prefix list
+`com.amazonaws.global.cloudfront.origin-facing` and passes that value as
+`AlbIngressPrefixListId` when deploying the cluster stack.
 
 Network model requirements:
 
-- `ASSIGN_PUBLIC_IP=DISABLED`: use private subnets with NAT or required VPC
-  interface endpoints (for ECR/API dependencies).
+- `ASSIGN_PUBLIC_IP=DISABLED`: use private subnets with the required VPC
+  interface endpoints wherever possible (for example ECR, Logs, Secrets
+  Manager, and `ssmmessages`), adding NAT only when a dependency cannot be
+  satisfied privately.
 - `ASSIGN_PUBLIC_IP=ENABLED`: use subnet/routing that supports direct outbound
   internet egress for task bootstrap.
 
@@ -91,8 +102,9 @@ Deploy in this order for each environment:
 5. `infra/runtime/file_transfer/async.yml`
 6. `infra/runtime/file_transfer/cache.yml` (optional)
 7. `infra/runtime/ecs/service.yml`
-8. `infra/runtime/file_transfer/worker.yml` (optional)
-9. `infra/runtime/observability/ecs-observability-baseline.yml` (recommended)
+8. `infra/runtime/edge/cloudfront.yml`
+9. `infra/runtime/file_transfer/worker.yml` (optional)
+10. `infra/runtime/observability/ecs-observability-baseline.yml` (recommended)
 
 Run the same sequence for `dev`, then `prod`, with environment-specific
 parameters and names.
@@ -120,9 +132,10 @@ The script deploys:
 5. `infra/runtime/file_transfer/async.yml`
 6. `infra/runtime/file_transfer/cache.yml`
 7. `infra/runtime/ecs/service.yml`
-8. `infra/runtime/file_transfer/worker.yml`
-9. `infra/runtime/observability/ecs-observability-baseline.yml`
-10. `infra/nova/deploy/service-base-url-ssm.yml`
+8. `infra/runtime/edge/cloudfront.yml`
+9. `infra/runtime/file_transfer/worker.yml`
+10. `infra/runtime/observability/ecs-observability-baseline.yml`
+11. `infra/nova/deploy/service-base-url-ssm.yml`
 
 and preserves the documented change-set-first flow for each stack.
 
@@ -142,13 +155,20 @@ Worker/file-transfer contract notes:
   env-bundle wiring.
 - The service stack now owns the repo-managed ECS task role directly. Do not
   provide `TASK_ROLE_ARN`.
+- The deploy operator resolves the ECS infrastructure role from the Nova IAM
+  control-plane stack. Do not provide `ECS_INFRASTRUCTURE_ROLE_ARN`.
 - The repo-managed runtime task roles preserve the ECS Exec session-channel
   permissions required when `EnableExecuteCommand` remains enabled; do not
   work around Exec failures by reintroducing external task-role inputs.
+- The script resolves `com.amazonaws.global.cloudfront.origin-facing` and
+  applies it as the ALB ingress prefix list so CloudFront remains the only
+  public ingress path for the API service.
 - Generic execution-role secret overrides are retired. Do not provide
   `TASK_EXECUTION_SECRET_ARNS` or `TASK_EXECUTION_SSM_PARAMETER_ARNS`.
 - Async queue URL/table names and cache secret injection are derived from stack
   outputs, not operator JSON.
+- The public validation base URL is published from the CloudFront edge stack
+  (`PublicBaseUrl`), not from the ECS service stack output.
 - `ENV_VARS_JSON` only supports implemented non-secret API overrides; the
   script rejects unsupported keys, including `IDEMPOTENCY_MODE`, and enforces
   the current strict posture: `IDEMPOTENCY_ENABLED=true` requires
@@ -209,17 +229,23 @@ aws cloudformation wait stack-create-complete \
   --stack-name "${STACK_NAME}"
 ```
 
-## Cluster Stack Ingress Source Contract
+## Cluster Stack Ingress Source Contract (direct template usage)
 
-`infra/runtime/ecs/cluster.yml` now requires exactly one of:
+The reusable `infra/runtime/ecs/cluster.yml` template still requires exactly
+one of:
 
 - `AlbIngressPrefixListId`
 - `AlbIngressCidr`
 - `AlbIngressSourceSecurityGroupId`
 
+Use these lower-level parameters only when you are deploying the cluster stack
+directly and intentionally bypassing the canonical operator script. The
+canonical script does not expose `ALB_INGRESS_*` environment variables and
+always supplies the CloudFront managed prefix list automatically.
+
 Additional cluster controls:
 
-- `LoadBalancerScheme` supports `internal` or `internet-facing`.
+- `LoadBalancerScheme` supports `internal` only.
 - `HostedZoneId` is optional; when provided, ACM validation records can be
   provisioned automatically.
 - `EnableLoadBalancerAccessLogs=true` requires `LoadBalancerLogBucket`.
@@ -276,7 +302,7 @@ aws cloudformation deploy \
     VpcId="${VPC_ID}" \
     SubnetList="${SUBNET_IDS}" \
     AssignPublicIp="${ASSIGN_PUBLIC_IP:-DISABLED}" \
-    EcsInfrastructureRoleArn="${ECS_INFRASTRUCTURE_ROLE_ARN}" \
+    ServiceHostedZoneId="${PUBLIC_HOSTED_ZONE_ID}" \
     ServiceDNS="${SERVICE_DNS}" \
     ListenerRulePriority="100" \
     AlarmArn="${ALARM_ACTION_ARN}" \
@@ -285,22 +311,21 @@ aws cloudformation deploy \
 
 ## Capture Runtime Outputs for CI/CD
 
-After successful service deployment, record base URLs for pipeline validation:
+After successful edge deployment, record base URLs for pipeline validation from
+the runtime edge stack:
 
 ```bash
-DEV_LOAD_BALANCER_DNS="$(aws cloudformation describe-stacks \
+DEV_BASE_URL="$(aws cloudformation describe-stacks \
   --region "${AWS_REGION}" \
-  --stack-name "${PROJECT}-${APPLICATION}-dev-runtime-cluster" \
-  --query "Stacks[0].Outputs[?OutputKey=='LoadBalancerDnsName'].OutputValue | [0]" \
+  --stack-name "${PROJECT}-${APPLICATION}-dev-runtime-edge" \
+  --query "Stacks[0].Outputs[?OutputKey=='PublicBaseUrl'].OutputValue | [0]" \
   --output text)"
-DEV_BASE_URL="https://${DEV_LOAD_BALANCER_DNS}"
 
-PROD_LOAD_BALANCER_DNS="$(aws cloudformation describe-stacks \
+PROD_BASE_URL="$(aws cloudformation describe-stacks \
   --region "${AWS_REGION}" \
-  --stack-name "${PROJECT}-${APPLICATION}-prod-runtime-cluster" \
-  --query "Stacks[0].Outputs[?OutputKey=='LoadBalancerDnsName'].OutputValue | [0]" \
+  --stack-name "${PROJECT}-${APPLICATION}-prod-runtime-edge" \
+  --query "Stacks[0].Outputs[?OutputKey=='PublicBaseUrl'].OutputValue | [0]" \
   --output text)"
-PROD_BASE_URL="https://${PROD_LOAD_BALANCER_DNS}"
 
 echo "DEV_BASE_URL=${DEV_BASE_URL}"
 echo "PROD_BASE_URL=${PROD_BASE_URL}"

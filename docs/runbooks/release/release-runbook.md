@@ -25,7 +25,8 @@ Provisioning, validation, and setup guides are indexed in
 2. Release OIDC role and signing secret are provisioned.
 3. CodeConnections source connection is `AVAILABLE`.
 4. Runtime stacks are deployed for `dev` and `prod`, and validation base URLs
-   are captured from canonical base-url marker stacks:
+   are captured from canonical base-url marker stacks. The marker value is the
+   public CloudFront edge URL published from the runtime edge stack:
    `${PROJECT}-ci-dev-service-base-url` and
    `${PROJECT}-ci-prod-service-base-url`.
 5. Dev and Prod digest-marker deployment stack parameters are configured.
@@ -107,7 +108,8 @@ Provisioning, validation, and setup guides are indexed in
 ### E. Post-deploy route validation gate
 
 1. Trigger `Post Deploy Validate` (`post-deploy-validate.yml`) after deployment.
-2. Supply `validation_base_url` from the canonical marker-derived base URL:
+2. Supply `validation_base_url` from the canonical marker-derived public edge
+   URL:
    `${PROJECT}-ci-<env>-service-base-url`, or read the matching
    `/nova/{env}/{service}/base-url` SSM parameter that the marker stack manages.
 3. Confirm wrapper calls reusable API:
@@ -175,8 +177,8 @@ For each run capture:
     description, internal change ticket, or org-owned artifact store URI); avoid
     duplicating the same pointers in `docs/` unless policy explicitly requires
     it--see `release-policy.md` §6.
-11. Runtime WAF evidence for any internet-facing ALB (`PublicAlbWebAclArn` or
-    equivalent stack output).
+11. Runtime WAF evidence for the public CloudFront distribution (`WebAclArn` or
+    equivalent runtime edge stack output), plus the internal ALB origin linkage.
 12. Immutable release-plan artifact continuity evidence:
     `changed-units.json` and `version-plan.json` consumed by release-apply and
     publish-packages from upstream workflow artifacts, not recomputed locally.

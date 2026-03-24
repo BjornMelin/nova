@@ -1,0 +1,257 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Public CloudFront + WAF edge stack for the Nova runtime API.
+
+Parameters:
+  Environment:
+    Type: String
+    AllowedValues: [dev, prod]
+  Project:
+    Type: String
+    MinLength: 2
+    MaxLength: 5
+    AllowedPattern: "^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$"
+    ConstraintDescription: Must be 2-5 characters of lowercase letters, numbers, periods, or hyphens, and cannot start or end with punctuation.
+  Application:
+    Type: String
+    MinLength: 2
+    MaxLength: 9
+    AllowedPattern: "^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$"
+    ConstraintDescription: Must be 2-9 characters of lowercase letters, numbers, periods, or hyphens, and cannot start or end with punctuation.
+  Service:
+    Type: String
+    MinLength: 2
+    MaxLength: 13
+    AllowedPattern: "^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$"
+    ConstraintDescription: Must be 2-13 characters of lowercase letters, numbers, periods, or hyphens, and cannot start or end with punctuation.
+  LoadBalancerArn:
+    Type: String
+    AllowedPattern: "^arn:(aws|aws-us-gov|aws-cn):elasticloadbalancing:[a-z0-9-]+:[0-9]{12}:loadbalancer\\/app\\/.+$"
+  LoadBalancerDomainName:
+    Type: String
+    MinLength: 1
+  PublicHostedZoneId:
+    Type: String
+    MinLength: 1
+    AllowedPattern: "^Z[A-Z0-9]+$"
+  ServiceDNS:
+    Type: String
+    MinLength: 1
+  CloudFrontPriceClass:
+    Type: String
+    Default: PriceClass_100
+    AllowedValues: [PriceClass_All, PriceClass_200, PriceClass_100]
+  CloudFrontOriginKeepaliveTimeoutSeconds:
+    Type: Number
+    Default: 60
+    MinValue: 1
+    MaxValue: 120
+  CloudFrontOriginReadTimeoutSeconds:
+    Type: Number
+    Default: 30
+    MinValue: 1
+    MaxValue: 120
+  WafRateLimitPerFiveMinutes:
+    Type: Number
+    Default: 2000
+    MinValue: 100
+    MaxValue: 2000000000
+  EnableManagedRuleCommon:
+    Type: String
+    Default: "true"
+    AllowedValues: ["true", "false"]
+
+Conditions:
+  EnableManagedRuleCommonSet: !Equals [!Ref EnableManagedRuleCommon, "true"]
+
+Resources:
+  EdgeCertificate:
+    Type: AWS::CertificateManager::Certificate
+    Properties:
+      DomainName: !Ref ServiceDNS
+      ValidationMethod: DNS
+      DomainValidationOptions:
+        - DomainName: !Ref ServiceDNS
+          HostedZoneId: !Ref PublicHostedZoneId
+
+  CloudFrontAccessLogsBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: !Sub "${Project}-${Application}-${Environment}-${Service}-cloudfront-logs-${AWS::AccountId}"
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerPreferred
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      VersioningConfiguration:
+        Status: Enabled
+      Tags:
+        - Key: Project
+          Value: !Ref Project
+        - Key: Application
+          Value: !Ref Application
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Service
+          Value: !Ref Service
+
+  EdgeWebAcl:
+    Type: AWS::WAFv2::WebACL
+    Properties:
+      Name: !Sub "${Project}-${Application}-${Environment}-${Service}-cloudfront"
+      Scope: CLOUDFRONT
+      DefaultAction:
+        Allow: {}
+      VisibilityConfig:
+        CloudWatchMetricsEnabled: true
+        MetricName: !Sub "${Project}-${Application}-${Environment}-${Service}-cloudfront"
+        SampledRequestsEnabled: true
+      Rules:
+        - Name: rate-limit
+          Priority: 0
+          Action:
+            Block: {}
+          Statement:
+            RateBasedStatement:
+              AggregateKeyType: IP
+              Limit: !Ref WafRateLimitPerFiveMinutes
+          VisibilityConfig:
+            CloudWatchMetricsEnabled: true
+            MetricName: !Sub "${Project}-${Application}-${Environment}-${Service}-cloudfront-rate-limit"
+            SampledRequestsEnabled: true
+        - !If
+          - EnableManagedRuleCommonSet
+          - Name: aws-managed-common
+            Priority: 10
+            OverrideAction:
+              None: {}
+            Statement:
+              ManagedRuleGroupStatement:
+                VendorName: AWS
+                Name: AWSManagedRulesCommonRuleSet
+            VisibilityConfig:
+              CloudWatchMetricsEnabled: true
+              MetricName: !Sub "${Project}-${Application}-${Environment}-${Service}-cloudfront-common"
+              SampledRequestsEnabled: true
+          - !Ref AWS::NoValue
+        - !If
+          - EnableManagedRuleCommonSet
+          - Name: aws-managed-known-bad-inputs
+            Priority: 11
+            OverrideAction:
+              None: {}
+            Statement:
+              ManagedRuleGroupStatement:
+                VendorName: AWS
+                Name: AWSManagedRulesKnownBadInputsRuleSet
+            VisibilityConfig:
+              CloudWatchMetricsEnabled: true
+              MetricName: !Sub "${Project}-${Application}-${Environment}-${Service}-cloudfront-known-bad-inputs"
+              SampledRequestsEnabled: true
+          - !Ref AWS::NoValue
+
+  ApiVpcOrigin:
+    Type: AWS::CloudFront::VpcOrigin
+    Properties:
+      VpcOriginEndpointConfig:
+        Arn: !Ref LoadBalancerArn
+        Name: !Sub "${Project}-${Application}-${Environment}-${Service}-alb-origin"
+        HTTPPort: 80
+        HTTPSPort: 443
+        OriginProtocolPolicy: https-only
+        OriginSSLProtocols:
+          - TLSv1.2
+
+  PublicDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Aliases:
+          - !Ref ServiceDNS
+        Comment: !Sub "Nova ${Environment} public API edge for ${ServiceDNS}"
+        DefaultCacheBehavior:
+          AllowedMethods: [GET, HEAD, OPTIONS, PUT, PATCH, POST, DELETE]
+          CachedMethods: [GET, HEAD]
+          CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad # CloudFront managed policy: CachingDisabled
+          Compress: true
+          OriginRequestPolicyId: 216adef6-5c7f-47e4-b989-5492eafa07d3 # CloudFront managed policy: AllViewer
+          TargetOriginId: private-alb-origin
+          ViewerProtocolPolicy: redirect-to-https
+        Logging:
+          Bucket: !GetAtt CloudFrontAccessLogsBucket.DomainName
+          IncludeCookies: false
+          Prefix: !Sub "${Environment}/${Service}/cloudfront/"
+        Enabled: true
+        HttpVersion: http2and3
+        IPV6Enabled: true
+        Origins:
+          - Id: private-alb-origin
+            DomainName: !Ref LoadBalancerDomainName
+            ConnectionAttempts: 3
+            ConnectionTimeout: 10
+            VpcOriginConfig:
+              OriginKeepaliveTimeout: !Ref CloudFrontOriginKeepaliveTimeoutSeconds
+              OriginReadTimeout: !Ref CloudFrontOriginReadTimeoutSeconds
+              VpcOriginId: !Ref ApiVpcOrigin
+        PriceClass: !Ref CloudFrontPriceClass
+        ViewerCertificate:
+          AcmCertificateArn: !Ref EdgeCertificate
+          MinimumProtocolVersion: TLSv1.2_2021
+          SslSupportMethod: sni-only
+        WebACLId: !GetAtt EdgeWebAcl.Arn
+      Tags:
+        - Key: Project
+          Value: !Ref Project
+        - Key: Application
+          Value: !Ref Application
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Service
+          Value: !Ref Service
+
+  PublicDns:
+    Type: AWS::Route53::RecordSetGroup
+    Properties:
+      HostedZoneId: !Ref PublicHostedZoneId
+      Comment: !Sub "Public CloudFront aliases for ${ServiceDNS}"
+      RecordSets:
+        - Name: !Ref ServiceDNS
+          Type: A
+          AliasTarget:
+            DNSName: !GetAtt PublicDistribution.DomainName
+            HostedZoneId: Z2FDTNDATAQYW2
+        - Name: !Ref ServiceDNS
+          Type: AAAA
+          AliasTarget:
+            DNSName: !GetAtt PublicDistribution.DomainName
+            HostedZoneId: Z2FDTNDATAQYW2
+
+Outputs:
+  PublicBaseUrl:
+    Description: Public CloudFront HTTPS base URL for post-deploy validation and consumers.
+    Value: !Sub "https://${ServiceDNS}"
+    Export:
+      Name: !Sub "${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${Environment}:${Service}:edge:base-url"
+  DistributionId:
+    Description: CloudFront distribution ID.
+    Value: !Ref PublicDistribution
+    Export:
+      Name: !Sub "${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${Environment}:${Service}:edge:distribution:id"
+  DistributionDomainName:
+    Description: CloudFront distribution hostname.
+    Value: !GetAtt PublicDistribution.DomainName
+    Export:
+      Name: !Sub "${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${Environment}:${Service}:edge:distribution:domain"
+  WebAclArn:
+    Description: WAFv2 WebACL ARN bound to the public CloudFront distribution.
+    Value: !GetAtt EdgeWebAcl.Arn
+    Export:
+      Name: !Sub "${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${Environment}:${Service}:edge:waf:arn"

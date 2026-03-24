@@ -34,6 +34,9 @@ Parameters:
   ExistingConnectionArn:
     Type: String
     Default: ""
+    Description: Optional existing connection ARN. Prefer the current
+      arn:aws:codeconnections:* form; legacy codestar-connections ARNs remain
+      supported for migrated environments.
   ManualApprovalTopicArn:
     Type: String
     Default: ""

@@ -5,11 +5,7 @@ on:
     inputs:
       validation_base_url:
         description: Canonical base URL to validate (e.g. https://api.example.com).
-        required: false
-        type: string
-      service_base_url:
-        description: Legacy alias for validation_base_url.
-        required: false
+        required: true
         type: string
       validation_canonical_paths:
         description: Comma-delimited canonical paths that must resolve (non-404 and <500).
@@ -55,24 +51,12 @@ jobs:
       artifact_name: ${{ steps.set-outputs.outputs.artifact_name }}
     env:
       VALIDATION_BASE_URL: ${{ inputs.validation_base_url }}
-      SERVICE_BASE_URL: ${{ inputs.service_base_url }}
       VALIDATION_CANONICAL_PATHS: ${{ inputs.validation_canonical_paths }}
       VALIDATION_LEGACY_404_PATHS: ${{ inputs.validation_legacy_404_paths }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # actions/checkout@v6
         with:
           persist-credentials: false
-
-      - name: Validate inputs
-        run: |
-          set -euo pipefail
-          if [[ -z "${{ inputs.validation_base_url }}" ]] \
-            && [[ -z "${{ inputs.service_base_url }}" ]] \
-            && [[ -z "${{ github.event.inputs.validation_base_url }}" ]] \
-            && [[ -z "${{ github.event.inputs.service_base_url }}" ]]; then
-            echo "Either validation_base_url or service_base_url must be provided." >&2
-            exit 1
-          fi
 
       - id: run-validation
         name: Validate canonical and legacy route contracts

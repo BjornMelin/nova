@@ -399,10 +399,15 @@ def test_canonical_runtime_deploy_script_enforces_final_posture() -> None:
         "TASK_ROLE_ARN",
         "TASK_EXECUTION_SECRET_ARNS",
         "TASK_EXECUTION_SSM_PARAMETER_ARNS",
+        "com.amazonaws.global.cloudfront.origin-facing",
+        "describe-managed-prefix-lists",
+        '"AlbIngressPrefixListId=${CLOUDFRONT_MANAGED_PREFIX_LIST_ID}"',
+        '"LoadBalancerDomainName=${ALB_DNS_NAME}"',
     ]:
         assert required in text
 
     assert "AllowExecutionRoleSecretsWildcard" not in text
+    assert "require_exactly_one_ingress_source" not in text
     assert (
         "ENV_VARS_JSON contains forbidden keys from the runtime contract:"
         in text
@@ -426,6 +431,13 @@ def test_canonical_runtime_deploy_script_enforces_final_posture() -> None:
     assert '"ActivityTableName=${ACTIVITY_TABLE_NAME}"' in text
     assert '"ActivityTableArn=${ACTIVITY_TABLE_ARN}"' in text
     assert '"CacheRedisUrlSecretArn=${CACHE_URL_SECRET_ARN}"' in text
+    assert "LoadBalancerDnsHostname" not in text
+    assert '"AlbIngressPrefixListId=${ALB_INGRESS_PREFIX_LIST_ID}"' not in text
+    assert '"AlbIngressCidr=${ALB_INGRESS_CIDR}"' not in text
+    assert (
+        '"AlbIngressSourceSecurityGroupId=${ALB_INGRESS_SOURCE_SG_ID}"'
+        not in text
+    )
 
 
 def test_runtime_deploy_script_enforces_visibility_and_execute_mode() -> None:

@@ -2,7 +2,7 @@
 
 Status: Active
 Owner: nova release architecture
-Last reviewed: 2026-03-22
+Last reviewed: 2026-03-24
 
 ## Purpose
 
@@ -30,10 +30,9 @@ For SDK governance and repo engineering standards, use:
 
 ## Production-safe pinning
 
-The example workflows above currently show mutable refs (for example `@v1`) in places.
-For release pipelines, prefer immutable refs so downstream deploy validation always
-runs the reviewed workflow version. Use a full commit SHA (preferred) or a fully
-qualified immutable tag.
+Use immutable refs so downstream deploy validation always runs the reviewed
+workflow version. Use a full commit SHA (preferred) or a fully qualified
+immutable tag.
 
 - `dash-minimal-workflow.yml`: `uses: 3M-Cloud/nova/.github/workflows/reusable-post-deploy-validate.yml@655ccab0d071c828045de4a4d3bb441d4349194e`
 - `rshiny-minimal-workflow.yml`: `uses: 3M-Cloud/nova/.github/workflows/reusable-post-deploy-validate.yml@655ccab0d071c828045de4a4d3bb441d4349194e`

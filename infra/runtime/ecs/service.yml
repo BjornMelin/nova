@@ -20,6 +20,10 @@ Parameters:
   Service:
     Type: String
     Description: Name of the ECS service
+  ServiceHostedZoneId:
+    Type: String
+    Default: ""
+    Description: Optional public hosted zone ID used for automated ACM DNS validation of ServiceDNS and canary subdomains.
   EcsClusterName:
     Type: String
   LoadBalancerName:
@@ -46,10 +50,6 @@ Parameters:
     Default: DISABLED
     AllowedValues: [ENABLED, DISABLED]
     Description: awsvpc public IP assignment for ECS tasks.
-  ListenerProtocol:
-    Type: String
-    Default: https
-    AllowedValues: ["https", "http"]
   TargetProtocol:
     Type: String
     Default: http
@@ -459,6 +459,7 @@ Conditions:
     - !Condition EnableFileTransferCache
     - !Condition HasCacheRedisUrlSecretArn
   HasTestTrafficListenerArn: !Not [!Equals [!Ref TestTrafficListenerArn, ""]]
+  HasServiceHostedZoneId: !Not [!Equals [!Ref ServiceHostedZoneId, ""]]
   MonitorAlternateTargetGroup: !Equals [!Ref MonitorEcsService, "true"]
   HasDeploymentRollbackAlarmNamePrimary: !Not
     - !Equals [!Ref DeploymentRollbackAlarmNamePrimary, ""]
@@ -493,7 +494,16 @@ Resources:
     Type: "AWS::CertificateManager::Certificate"
     Properties:
       DomainName: !Sub ${ServiceDNS}
+      SubjectAlternativeNames:
+        - !Sub canary.${ServiceDNS}
       ValidationMethod: DNS
+      DomainValidationOptions: !If
+        - HasServiceHostedZoneId
+        - - DomainName: !Ref ServiceDNS
+            HostedZoneId: !Ref ServiceHostedZoneId
+          - DomainName: !Sub canary.${ServiceDNS}
+            HostedZoneId: !Ref ServiceHostedZoneId
+        - !Ref AWS::NoValue
 
   ListenerCertList:
     Type: AWS::ElasticLoadBalancingV2::ListenerCertificate
@@ -1011,7 +1021,7 @@ Resources:
       Dimensions:
         - Name: "LoadBalancer"
           Value:
-            Fn::ImportValue: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${LoadBalancerId}${LoadBalancerName}:alb:name
+            Fn::ImportValue: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${LoadBalancerId}:${LoadBalancerName}:alb:name
         - Name: "TargetGroup"
           Value: !GetAtt LoadBalancerTargetGroupBlue.TargetGroupFullName
       Statistic: Sum
@@ -1033,7 +1043,7 @@ Resources:
       Dimensions:
         - Name: "LoadBalancer"
           Value:
-            Fn::ImportValue: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${LoadBalancerId}${LoadBalancerName}:alb:name
+            Fn::ImportValue: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${LoadBalancerId}:${LoadBalancerName}:alb:name
         - Name: "TargetGroup"
           Value: !GetAtt LoadBalancerTargetGroupGreen.TargetGroupFullName
       Statistic: Sum
@@ -1055,7 +1065,7 @@ Resources:
       Dimensions:
         - Name: "LoadBalancer"
           Value:
-            Fn::ImportValue: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${LoadBalancerId}${LoadBalancerName}:alb:name
+            Fn::ImportValue: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${LoadBalancerId}:${LoadBalancerName}:alb:name
         - Name: "TargetGroup"
           Value: !GetAtt LoadBalancerTargetGroupBlue.TargetGroupFullName
       Statistic: Sum
@@ -1077,7 +1087,7 @@ Resources:
       Dimensions:
         - Name: "LoadBalancer"
           Value:
-            Fn::ImportValue: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${LoadBalancerId}${LoadBalancerName}:alb:name
+            Fn::ImportValue: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${LoadBalancerId}:${LoadBalancerName}:alb:name
         - Name: "TargetGroup"
           Value: !GetAtt LoadBalancerTargetGroupGreen.TargetGroupFullName
       Statistic: Sum
@@ -1098,7 +1108,7 @@ Resources:
       Dimensions:
         - Name: "LoadBalancer"
           Value:
-            Fn::ImportValue: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${LoadBalancerId}${LoadBalancerName}:alb:name
+            Fn::ImportValue: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${LoadBalancerId}:${LoadBalancerName}:alb:name
         - Name: "TargetGroup"
           Value: !GetAtt LoadBalancerTargetGroupBlue.TargetGroupFullName
       Statistic: Sum
@@ -1120,7 +1130,7 @@ Resources:
       Dimensions:
         - Name: "LoadBalancer"
           Value:
-            Fn::ImportValue: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${LoadBalancerId}${LoadBalancerName}:alb:name
+            Fn::ImportValue: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${LoadBalancerId}:${LoadBalancerName}:alb:name
         - Name: "TargetGroup"
           Value: !GetAtt LoadBalancerTargetGroupGreen.TargetGroupFullName
       Statistic: Sum
@@ -1141,7 +1151,7 @@ Resources:
       Dimensions:
         - Name: "LoadBalancer"
           Value:
-            Fn::ImportValue: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${LoadBalancerId}${LoadBalancerName}:alb:name
+            Fn::ImportValue: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${LoadBalancerId}:${LoadBalancerName}:alb:name
         - Name: "TargetGroup"
           Value: !GetAtt LoadBalancerTargetGroupBlue.TargetGroupFullName
       Statistic: Sum
@@ -1163,7 +1173,7 @@ Resources:
       Dimensions:
         - Name: "LoadBalancer"
           Value:
-            Fn::ImportValue: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${LoadBalancerId}${LoadBalancerName}:alb:name
+            Fn::ImportValue: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${LoadBalancerId}:${LoadBalancerName}:alb:name
         - Name: "TargetGroup"
           Value: !GetAtt LoadBalancerTargetGroupGreen.TargetGroupFullName
       Statistic: Sum
@@ -1184,7 +1194,7 @@ Resources:
       Dimensions:
         - Name: "LoadBalancer"
           Value:
-            Fn::ImportValue: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${LoadBalancerId}${LoadBalancerName}:alb:name
+            Fn::ImportValue: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${LoadBalancerId}:${LoadBalancerName}:alb:name
         - Name: "TargetGroup"
           Value: !GetAtt LoadBalancerTargetGroupBlue.TargetGroupFullName
       Statistic: Sum
@@ -1206,7 +1216,7 @@ Resources:
       Dimensions:
         - Name: "LoadBalancer"
           Value:
-            Fn::ImportValue: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${LoadBalancerId}${LoadBalancerName}:alb:name
+            Fn::ImportValue: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${LoadBalancerId}:${LoadBalancerName}:alb:name
         - Name: "TargetGroup"
           Value: !GetAtt LoadBalancerTargetGroupGreen.TargetGroupFullName
       Statistic: Sum
@@ -1227,7 +1237,7 @@ Resources:
       Dimensions:
         - Name: "LoadBalancer"
           Value:
-            Fn::ImportValue: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${LoadBalancerId}${LoadBalancerName}:alb:name
+            Fn::ImportValue: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${LoadBalancerId}:${LoadBalancerName}:alb:name
         - Name: "TargetGroup"
           Value: !GetAtt LoadBalancerTargetGroupBlue.TargetGroupFullName
       Statistic: Sum
@@ -1249,7 +1259,7 @@ Resources:
       Dimensions:
         - Name: "LoadBalancer"
           Value:
-            Fn::ImportValue: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${LoadBalancerId}${LoadBalancerName}:alb:name
+            Fn::ImportValue: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${LoadBalancerId}:${LoadBalancerName}:alb:name
         - Name: "TargetGroup"
           Value: !GetAtt LoadBalancerTargetGroupGreen.TargetGroupFullName
       Statistic: Sum
@@ -1270,7 +1280,7 @@ Resources:
       Dimensions:
         - Name: "LoadBalancer"
           Value:
-            Fn::ImportValue: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${LoadBalancerId}${LoadBalancerName}:alb:name
+            Fn::ImportValue: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${LoadBalancerId}:${LoadBalancerName}:alb:name
         - Name: "TargetGroup"
           Value: !GetAtt LoadBalancerTargetGroupBlue.TargetGroupFullName
       Statistic: Sum
@@ -1292,7 +1302,7 @@ Resources:
       Dimensions:
         - Name: "LoadBalancer"
           Value:
-            Fn::ImportValue: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${LoadBalancerId}${LoadBalancerName}:alb:name
+            Fn::ImportValue: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${LoadBalancerId}:${LoadBalancerName}:alb:name
         - Name: "TargetGroup"
           Value: !GetAtt LoadBalancerTargetGroupGreen.TargetGroupFullName
       Statistic: Sum
@@ -1315,7 +1325,7 @@ Resources:
           Value: !GetAtt LoadBalancerTargetGroupBlue.TargetGroupFullName
         - Name: "LoadBalancer"
           Value:
-            Fn::ImportValue: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${LoadBalancerId}${LoadBalancerName}:alb:name
+            Fn::ImportValue: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${LoadBalancerId}:${LoadBalancerName}:alb:name
       Statistic: Sum
       Period: !Ref Period
       EvaluationPeriods: !Ref EvaluationPeriods
@@ -1337,7 +1347,7 @@ Resources:
           Value: !GetAtt LoadBalancerTargetGroupGreen.TargetGroupFullName
         - Name: "LoadBalancer"
           Value:
-            Fn::ImportValue: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${LoadBalancerId}${LoadBalancerName}:alb:name
+            Fn::ImportValue: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${LoadBalancerId}:${LoadBalancerName}:alb:name
       Statistic: Sum
       Period: !Ref Period
       EvaluationPeriods: !Ref EvaluationPeriods
@@ -1358,7 +1368,7 @@ Resources:
           Value: !GetAtt LoadBalancerTargetGroupBlue.TargetGroupFullName
         - Name: "LoadBalancer"
           Value:
-            Fn::ImportValue: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${LoadBalancerId}${LoadBalancerName}:alb:name
+            Fn::ImportValue: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${LoadBalancerId}:${LoadBalancerName}:alb:name
       Statistic: Sum
       Period: !Ref Period
       EvaluationPeriods: !Ref EvaluationPeriods
@@ -1380,7 +1390,7 @@ Resources:
           Value: !GetAtt LoadBalancerTargetGroupGreen.TargetGroupFullName
         - Name: "LoadBalancer"
           Value:
-            Fn::ImportValue: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${LoadBalancerId}${LoadBalancerName}:alb:name
+            Fn::ImportValue: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${LoadBalancerId}:${LoadBalancerName}:alb:name
       Statistic: Sum
       Period: !Ref Period
       EvaluationPeriods: !Ref EvaluationPeriods
@@ -1565,11 +1575,6 @@ Resources:
 
 
 Outputs:
-  EcsDnsName:
-    Value: !Sub "${ListenerProtocol}://${ServiceDNS}"
-    Description: DNS of the ecs service
-    Export:
-      Name: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${Service}:ecs:dns
   BlueTargetGroupArn:
     Value: !Ref LoadBalancerTargetGroupBlue
     Description: Blue target-group ARN used by ECS service traffic.

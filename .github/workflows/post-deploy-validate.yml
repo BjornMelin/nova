@@ -5,11 +5,7 @@ on:
     inputs:
       validation_base_url:
         description: Canonical base URL to validate (e.g. https://api.example.com)
-        required: false
-        type: string
-      service_base_url:
-        description: Legacy alias for validation_base_url
-        required: false
+        required: true
         type: string
       validation_canonical_paths:
         description: Comma-delimited canonical paths that must resolve (non-404).
@@ -40,7 +36,6 @@ jobs:
     uses: ./.github/workflows/reusable-post-deploy-validate.yml
     with:
       validation_base_url: ${{ inputs.validation_base_url }}
-      service_base_url: ${{ inputs.service_base_url }}
       validation_canonical_paths: ${{ inputs.validation_canonical_paths }}
       validation_legacy_404_paths: ${{ inputs.validation_legacy_404_paths }}
       report_path: ${{ inputs.report_path }}

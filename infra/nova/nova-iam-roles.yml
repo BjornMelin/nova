@@ -55,6 +55,9 @@ Parameters:
   ExistingConnectionArn:
     Type: String
     Default: ""
+    Description: Optional existing connection ARN. Prefer the current
+      arn:aws:codeconnections:* form; legacy codestar-connections ARNs remain
+      supported for migrated environments.
   ManualApprovalTopicArn:
     Type: String
     Default: ""
@@ -784,6 +787,18 @@ Resources:
               - wafv2:GetWebACLForResource
               - wafv2:ListWebACLs
             Resource: "*"
+          - Sid: ValidationRuntimeCloudFrontRead
+            Effect: Allow
+            Action:
+              - cloudfront:GetDistribution
+              - cloudfront:GetDistributionConfig
+              - cloudfront:GetVpcOrigin
+              - cloudfront:ListDistributions
+              - cloudfront:ListVpcOrigins
+              - cloudfront:ListTagsForResource
+            Resource:
+              - "*"
+              - !Sub "arn:${AWS::Partition}:cloudfront::${AWS::AccountId}:vpcorigin/*"
           - Sid: ValidationRuntimeInfrastructureRoleRead
             Effect: Allow
             Action:

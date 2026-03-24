@@ -68,49 +68,27 @@ SDK posture:
 
 ## Authority Entry Points
 
-- Canonical route chain:
-  - `docs/architecture/requirements.md`
-  - `docs/architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md`
-  - `docs/architecture/spec/SPEC-0000-http-api-contract.md`
-  - `docs/architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md`
-  - `docs/architecture/spec/SPEC-0027-public-http-contract-revision-and-bearer-auth.md`
-- Green-field program:
-  - `docs/plan/greenfield-simplification-program.md`
-  - `docs/plan/greenfield-authority-map.md`
-  - `docs/architecture/adr/ADR-0033-single-runtime-auth-authority.md`
-    through `ADR-0041-shared-pure-asgi-middleware-and-errors.md`
-- Product and topology context:
-  - `docs/PRD.md`
-  - `docs/architecture/adr/ADR-0024-layered-architecture-authority-pack.md`
-  - `docs/architecture/spec/SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md`
-- Runtime topology and safety pack:
-  - `docs/architecture/adr/ADR-0025-runtime-monorepo-component-boundaries-and-ownership.md`
-  - `docs/architecture/adr/ADR-0026-fail-fast-runtime-configuration-and-safe-auth-execution.md`
-  - `docs/architecture/spec/SPEC-0017-runtime-component-topology-and-ownership-contract.md`
-  - `docs/architecture/spec/SPEC-0018-runtime-configuration-and-startup-validation-contract.md`
-  - `docs/architecture/spec/SPEC-0019-auth-execution-and-threadpool-safety-contract.md`
-  - `docs/architecture/spec/SPEC-0020-architecture-authority-pack-and-documentation-synchronization-contract.md`
-- Downstream validation pack:
-  - `docs/architecture/adr/ADR-0027-hard-cut-downstream-integration-and-consumer-contract-enforcement.md`
-  - `docs/architecture/adr/ADR-0028-auth0-tenant-ops-reusable-workflow-api-contract.md`
-  - `docs/architecture/adr/ADR-0029-ssm-runtime-base-url-authority-for-deploy-validation.md`
-  - `docs/architecture/spec/SPEC-0021-downstream-hard-cut-integration-and-consumer-validation-contract.md`
-  - `docs/architecture/spec/SPEC-0022-auth0-tenant-ops-reusable-workflow-contract.md`
-  - `docs/architecture/spec/SPEC-0023-ssm-runtime-base-url-contract-for-deploy-validation.md`
-- Adjacent deploy-governance pack:
-  - `docs/architecture/spec/SPEC-0024-cloudformation-module-contract.md`
-  - `docs/architecture/spec/SPEC-0025-reusable-workflow-integration-contract.md`
-  - `docs/architecture/spec/SPEC-0026-ci-cd-iam-least-privilege-matrix.md`
-- SDK and release-artifact governance pack:
-  - `docs/architecture/adr/ADR-0038-sdk-architecture-by-language.md`
-  - `docs/architecture/spec/SPEC-0029-sdk-architecture-and-artifact-contract.md`
-  - `docs/architecture/spec/SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md`
+Use these routers instead of restating partial authority packs:
+
+- `docs/README.md` for repo-wide documentation routing
+- `docs/architecture/README.md` for the canonical route chain, active
+  architecture authority packs, and deploy-governance pack membership
+- `docs/standards/README.md` and
+  `docs/standards/repository-engineering-standards.md` for docs-sync policy,
+  gate ownership, and deeper operator/developer standards
+- `docs/runbooks/README.md` for operator runbook taxonomy
+- `docs/contracts/README.md` for machine-readable workflow and release schema
+  contracts
+- `docs/plan/PLAN.md` plus the green-field program/router docs for active
+  planning and traceability
+- `docs/history/README.md` for archived material only
 
 ## Docs Sync Rules
 
-- Keep `AGENTS.md`, `README.md`, `docs/README.md`, and the relevant active
-  authority docs aligned in the same change set when runtime contracts or
-  operator workflows change.
+- If behavior, contracts, workflows, or durable routing change, update the
+  current canonical routers and affected authority docs in the same change set.
+  The exact required router set is owned by
+  `docs/standards/repository-engineering-standards.md`.
 - Bridge/browser auth changes must keep downstream guidance aligned on the
   bearer-only `nova_dash_bridge -> nova_file_api.public` seam and canonical
   `/v1/transfers` + `/v1/jobs` routes.
@@ -177,7 +155,8 @@ rg -n "/v1/transfers|/v1/jobs|/v1/capabilities|/v1/resources/plan|/v1/releases/i
 - Failed enqueue responses must not be idempotency replay cached.
 - `IDEMPOTENCY_ENABLED` and `IDEMPOTENCY_TTL_SECONDS` are the current
   idempotency settings surface; do not add or document `IDEMPOTENCY_MODE`.
-- `IDEMPOTENCY_ENABLED=true` requires `CACHE_REDIS_URL`.
+- `IDEMPOTENCY_ENABLED=true` requires `FILE_TRANSFER_CACHE_ENABLED=true` so
+  `CACHE_REDIS_URL` is injected into the runtime task.
 - `/v1/health/ready` returns `503` when a traffic-critical readiness check is
   false.
 - Missing or blank `FILE_TRANSFER_BUCKET` must fail readiness.

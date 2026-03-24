@@ -2,7 +2,7 @@
 
 Status: Active
 Owner: nova release architecture
-Last reviewed: 2026-03-17
+Last reviewed: 2026-03-24
 
 ## Purpose
 
@@ -59,7 +59,7 @@ Required ECR targeting:
 Optional keys:
 
 - `AWS_ACCOUNT_ID` (derived from STS when unset)
-- `EXISTING_CONNECTION_ARN`
+- `EXISTING_CONNECTION_ARN` (prefer `arn:aws:codeconnections:…`)
 - `NOVA_MANUAL_APPROVAL_TOPIC_ARN`
 - `CONNECTION_NAME`
 - `NOVA_RELEASE_BUILD_PROJECT_NAME`
@@ -82,7 +82,7 @@ not the runtime ECS service stack names.
 | `GITHUB_OWNER` | yes | none | explicit GitHub org/user target for OIDC trust and repo wiring |
 | `GITHUB_REPO` | yes | none | explicit GitHub repository target for OIDC trust and repo wiring |
 | `AWS_ACCOUNT_ID` | no | derived from `sts get-caller-identity` | ECR ARN/URI synthesis |
-| `EXISTING_CONNECTION_ARN` | no | empty | foundation/codepipeline connection wiring |
+| `EXISTING_CONNECTION_ARN` | no | empty | foundation/codepipeline connection wiring; prefer the current `codeconnections` ARN namespace |
 | `NOVA_DEPLOY_SERVICE_NAME` | no | `nova-file-api` | SSM base-url lookup path |
 
 Operator safety contract:
@@ -104,7 +104,8 @@ Service base URLs are resolved by the operator command pack from SSM parameters:
 - `/nova/dev/${NOVA_DEPLOY_SERVICE_NAME:-nova-file-api}/base-url`
 - `/nova/prod/${NOVA_DEPLOY_SERVICE_NAME:-nova-file-api}/base-url`
 
-Populate these via `infra/nova/deploy/service-base-url-ssm.yml` before running
+Populate these via `infra/nova/deploy/service-base-url-ssm.yml` using the
+runtime edge stack `PublicBaseUrl` output before running
 `scripts/release/day-0-operator-command-pack.sh`.
 
 ## Runtime stack parameter contract
@@ -127,18 +128,17 @@ Capture and manage these runtime values per environment before CI/CD deploy:
 
 - `VPC_ID`
 - `SUBNET_IDS`
-- `ALB_HOSTED_ZONE_NAME`
-- `ALB_HOSTED_ZONE_ID` (optional)
-- `ALB_DNS_NAME`
+- `ALB_HOSTED_ZONE_NAME` (internal/private ALB origin zone)
+- `ALB_HOSTED_ZONE_ID` (optional internal ALB zone ID)
+- `ALB_DNS_NAME` (validated internal ALB origin DNS name used by the ALB certificate and CloudFront origin TLS validation)
 - `ALB_NAME`
-- `ALB_SCHEME` (`internal` or `internet-facing`)
+- `ALB_SCHEME` (`internal` only)
 - `ENABLE_ALB_ACCESS_LOGS` (`true` or `false`)
 - `ALB_LOG_BUCKET` (required only when access logs are enabled)
-- `ALB_INGRESS_PREFIX_LIST_ID` or `ALB_INGRESS_CIDR` or
-  `ALB_INGRESS_SOURCE_SG_ID` (exactly one)
 - `ECS_CLUSTER_NAME`
 - `SERVICE_NAME`
-- `SERVICE_DNS`
+- `SERVICE_DNS` (public CloudFront API hostname)
+- `PUBLIC_HOSTED_ZONE_ID`
 - `DOCKER_REPOSITORY_NAME`
 - `IMAGE_DIGEST`
 - `ENV_VARS_JSON`
@@ -146,14 +146,26 @@ Capture and manage these runtime values per environment before CI/CD deploy:
   deploy script validates the JSON keys against the generated runtime config
   contract and maps them to explicit ECS environment entries; it is no longer
   passed through as `ENV_DICT`.
-- `ECS_INFRASTRUCTURE_ROLE_ARN` (optional override; otherwise resolved from the
-  control-plane IAM stack)
 - `OWNER_TAG`
 - `ALARM_ACTION_ARN`
 - `ASSIGN_PUBLIC_IP` (`ENABLED` or `DISABLED`)
 
+Canonical CloudFront ingress posture:
+
+The canonical runtime deploy script resolves the AWS-managed CloudFront
+origin-facing prefix list `com.amazonaws.global.cloudfront.origin-facing`
+automatically and passes it to the reusable cluster stack as
+`AlbIngressPrefixListId`.
+Do not set `ALB_INGRESS_PREFIX_LIST_ID`, `ALB_INGRESS_CIDR`, or
+`ALB_INGRESS_SOURCE_SG_ID` when using
+`scripts/release/deploy-runtime-cloudformation-environment.sh`.
+
 Retired runtime deploy inputs:
 
+- `ALB_INGRESS_PREFIX_LIST_ID`
+- `ALB_INGRESS_CIDR`
+- `ALB_INGRESS_SOURCE_SG_ID`
+- `ECS_INFRASTRUCTURE_ROLE_ARN`
 - `TASK_ROLE_ARN`
 - `TASK_EXECUTION_SECRET_ARNS`
 - `TASK_EXECUTION_SSM_PARAMETER_ARNS`
@@ -169,6 +181,8 @@ Default stack names:
 
 - `${project}-${application}-nova-foundation`
 - `${project}-${application}-nova-iam-roles`
+- `${project}-${application}-nova-dev`
+- `${project}-${application}-nova-prod`
 - `${project}-${application}-nova-codebuild-release`
 - `${project}-${application}-nova-ci-cd`
 - `${project}-ci-dev-service-base-url`
@@ -185,6 +199,15 @@ Canonical SSM base-url marker ownership:
 - `/nova/prod/{service}/base-url` is managed only by
   `${project}-ci-prod-service-base-url`.
 - Do not provision additional stacks that manage these same parameter paths.
+
+Canonical image-digest marker ownership:
+
+- `/nova/dev/{service}/image-digest` is managed only by
+  `${project}-${application}-nova-dev`.
+- `/nova/prod/{service}/image-digest` is managed only by
+  `${project}-${application}-nova-prod`.
+- Do not leave production digest parameters orphaned outside CloudFormation
+  stack ownership.
 
 Critical outputs:
 

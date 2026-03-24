@@ -275,15 +275,20 @@ def test_downstream_examples_reference_reusable_post_deploy_workflow() -> None:
         assert "validation_legacy_404_paths:" in text
 
 
-def test_downstream_minimal_workflow_files_exist_and_pin_v1() -> None:
-    """Minimal downstream workflow examples must exist and pin @v1."""
+def test_downstream_minimal_workflow_files_exist_and_use_immutable_pin() -> (
+    None
+):
+    """Minimal downstream workflow examples must use immutable workflow pins."""
     for rel_path in [
         "docs/clients/dash-minimal-workflow.yml",
         "docs/clients/rshiny-minimal-workflow.yml",
         "docs/clients/react-next-minimal-workflow.yml",
     ]:
         text = _read(rel_path)
-        assert "reusable-post-deploy-validate.yml@v1" in text
+        assert (
+            "reusable-post-deploy-validate.yml"
+            "@655ccab0d071c828045de4a4d3bb441d4349194e"
+        ) in text
         assert "validation_base_url: ${{ vars.NOVA_API_BASE_URL }}" in text
 
 
@@ -308,8 +313,8 @@ def test_integration_guide_includes_versioning_policy_references() -> None:
             "docs/architecture/spec/"
             "SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md"
         ),
-        "@v1",
-        "@v1.x.y",
+        "655ccab0d071c828045de4a4d3bb441d4349194e",
+        "Prefer a full commit SHA",
         "5-minute setup flow",
     ]:
         assert required in text

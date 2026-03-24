@@ -2,18 +2,18 @@
 
 Status: Active
 Owner: nova release architecture
-Last reviewed: 2026-03-03
+Last reviewed: 2026-03-24
 
 ## Purpose
 
 Integrate downstream consumer repos with Nova post-deploy route validation
-using the reusable workflow API and WS6/WS8 contract schemas.
+using the reusable workflow API and active Nova contract schemas.
 This guide is designed as a 5-minute setup flow for downstream repos.
 
 ## Inputs
 
 - Reusable workflow reference:
-  `3M-Cloud/nova/.github/workflows/reusable-post-deploy-validate.yml@v1`
+  `3M-Cloud/nova/.github/workflows/reusable-post-deploy-validate.yml@655ccab0d071c828045de4a4d3bb441d4349194e`
 - Required repo variable in consumer repo: `NOVA_API_BASE_URL`
   - Must be an HTTPS base URL.
 - Optional path overrides:
@@ -25,9 +25,8 @@ This guide is designed as a 5-minute setup flow for downstream repos.
 1. Copy one minimal workflow from `examples/workflows/` into your consumer
    repo.
 2. Set `NOVA_API_BASE_URL` in repository variables.
-3. Pin workflow reference to a release tag or commit SHA before production use.
-   - Stable channel: `@v1`
-   - Immutable pin: `@v1.x.y` (or commit SHA) for production pipelines
+3. Keep the reusable workflow pinned to an immutable revision for production
+   use. Prefer a full commit SHA.
 4. Dispatch the workflow after deployment and review uploaded
    `post-deploy-validation-report` artifact.
 

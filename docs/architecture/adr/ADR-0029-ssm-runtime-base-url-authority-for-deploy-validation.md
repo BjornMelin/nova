@@ -14,7 +14,8 @@ Related:
 
 Deploy validation base URLs are governed by an SSM-backed authority contract.
 Operators and automation must source environment base URLs from canonical SSM
-parameter paths and pass those values into deployment validation flows.
+parameter paths, where the stored value is published from the runtime
+CloudFront edge stack, and pass those values into deployment validation flows.
 
 ## Context
 

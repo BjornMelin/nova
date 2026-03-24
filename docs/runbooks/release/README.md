@@ -2,7 +2,7 @@
 
 Status: Active
 Owner: nova release architecture
-Last reviewed: 2026-03-19
+Last reviewed: 2026-03-24
 
 ## Purpose
 
@@ -25,15 +25,8 @@ Parent routers: [`../README.md`](../README.md), [`../../plan/PLAN.md`](../../pla
 
 ## Canonical documentation authority chain
 
-Use this chain for route and HTTP contract authority (link targets instead of
-repeating in every guide):
-
-1. [ADR-0023: Hard cut to canonical /v1 surface](../../architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md)
-2. [SPEC-0000: HTTP API contract](../../architecture/spec/SPEC-0000-http-api-contract.md)
-3. [SPEC-0016: v1 route namespace and literal guardrails](../../architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md)
-4. [requirements.md](../../architecture/requirements.md)
-
-Full architecture map: [`../../architecture/README.md`](../../architecture/README.md).
+For the canonical route chain and active architecture packs, use
+[`../../architecture/README.md`](../../architecture/README.md).
 
 ## Core policy and execution
 
@@ -41,7 +34,7 @@ Full architecture map: [`../../architecture/README.md`](../../architecture/READM
 | --- | --- |
 | [release-policy.md](release-policy.md) | Branching, promotion, security, package rules |
 | [release-runbook.md](release-runbook.md) | Plan/apply workflows, preconditions, execution |
-| [release-promotion-dev-to-prod.md](release-promotion-dev-to-prod.md) | Immutable dev→prod promotion |
+| [release-promotion-dev-to-prod.md](release-promotion-dev-to-prod.md) | Narrow dev→prod promotion addendum |
 
 ## Live validation
 

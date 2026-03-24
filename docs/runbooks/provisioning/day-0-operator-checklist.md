@@ -27,8 +27,10 @@ safe operator path.
 - `${APPLICATION}` (default `ci`)
 - `${GITHUB_OWNER}` (required; explicit GitHub org or user target)
 - `${GITHUB_REPO}` (required; explicit GitHub repository target)
-- `${EXISTING_CONNECTION_ARN}` (optional, e.g.,
-  `arn:aws:codestar-connections:us-east-1:...:connection/xxxxxxxx`)
+- `${EXISTING_CONNECTION_ARN}` (optional, prefer
+  `arn:aws:codeconnections:us-east-1:…:connection/xxxxxxxx`;
+  legacy `codestar-connections` ARNs remain supported only for migrated
+  environments)
 - `${CODEARTIFACT_DOMAIN}` (required)
 - `${CODEARTIFACT_STAGING_REPOSITORY}` (required)
 - `${CODEARTIFACT_PROD_REPOSITORY}` (required; must differ from staging)
@@ -221,6 +223,52 @@ aws cloudformation wait stack-delete-complete \
   --region "${AWS_REGION}" \
   --stack-name "${PROJECT}-${APPLICATION}-nova-codebuild-release"
 ```
+
+Dormant-state reminder:
+
+- The low-cost Nova shell keeps `${PROJECT}-${APPLICATION}-nova-foundation`,
+  `${PROJECT}-${APPLICATION}-nova-iam-roles`, and the digest marker stacks
+  `${PROJECT}-${APPLICATION}-nova-dev` / `${PROJECT}-${APPLICATION}-nova-prod`.
+- Do not keep `nova-ci-cd`, `nova-codebuild-release`, runtime stacks, or
+  base-url marker stacks deployed when the runtime and release control plane
+  are intentionally dormant.
+
+Dormant-state verification:
+
+```bash
+aws codeconnections list-connections --region "${AWS_REGION}"
+
+aws cloudformation describe-stacks \
+  --region "${AWS_REGION}" \
+  --stack-name "${PROJECT}-${APPLICATION}-nova-foundation" \
+  --query 'Stacks[0].Parameters[?ParameterKey==`ExistingConnectionArn`].ParameterValue | [0]' \
+  --output text
+
+aws cloudformation describe-stacks \
+  --region "${AWS_REGION}" \
+  --stack-name "${PROJECT}-${APPLICATION}-nova-iam-roles" \
+  --query 'Stacks[0].Parameters[?ParameterKey==`ExistingConnectionArn`].ParameterValue | [0]' \
+  --output text
+
+aws cloudformation describe-stacks \
+  --region "${AWS_REGION}" \
+  --stack-name "${PROJECT}-${APPLICATION}-nova-prod" \
+  --query 'Stacks[0].Outputs'
+
+aws codebuild list-projects --region "${AWS_REGION}"
+aws codepipeline list-pipelines --region "${AWS_REGION}"
+aws ecs list-clusters --region "${AWS_REGION}"
+aws ssm get-parameter --region "${AWS_REGION}" --name "/nova/dev/${NOVA_DEPLOY_SERVICE_NAME}/image-digest"
+aws ssm get-parameter --region "${AWS_REGION}" --name "/nova/prod/${NOVA_DEPLOY_SERVICE_NAME}/image-digest"
+```
+
+Expected dormant-state result:
+
+- only the current `arn:aws:codeconnections:*` connection ARN remains for Nova
+- `nova-foundation`, `nova-iam-roles`, `nova-dev`, and `nova-prod` exist
+- CodeBuild and CodePipeline control-plane resources remain deleted
+- runtime/base-url stacks remain deleted
+- both digest parameters remain CloudFormation-backed
 
 Recreate them later with `./scripts/release/day-0-operator-command-pack.sh`.
 

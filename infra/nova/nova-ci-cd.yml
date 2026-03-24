@@ -41,6 +41,9 @@ Parameters:
   ExistingConnectionArn:
     Type: String
     Default: ""
+    Description: Optional existing connection ARN. Prefer the current
+      arn:aws:codeconnections:* form; legacy codestar-connections ARNs remain
+      supported for migrated environments.
   CodePipelineServiceRoleArn:
     Type: String
     Default: ""
@@ -272,8 +275,6 @@ Resources:
                 EnvironmentVariables: !Sub >-
                   [{"name":"VALIDATION_BASE_URL",
                   "value":"${DevServiceBaseUrl}","type":"PLAINTEXT"},
-                  {"name":"SERVICE_BASE_URL",
-                  "value":"${DevServiceBaseUrl}","type":"PLAINTEXT"},
                   {"name":"VALIDATION_CANONICAL_PATHS",
                   "value":"${ValidationCanonicalPaths}","type":"PLAINTEXT"},
                   {"name":"VALIDATION_LEGACY_404_PATHS",
@@ -347,8 +348,6 @@ Resources:
                     Fn::Sub: "${CodeBuildStackName}-DeployValidateProjectName"
                 EnvironmentVariables: !Sub >-
                   [{"name":"VALIDATION_BASE_URL",
-                  "value":"${ProdServiceBaseUrl}","type":"PLAINTEXT"},
-                  {"name":"SERVICE_BASE_URL",
                   "value":"${ProdServiceBaseUrl}","type":"PLAINTEXT"},
                   {"name":"VALIDATION_CANONICAL_PATHS",
                   "value":"${ValidationCanonicalPaths}","type":"PLAINTEXT"},

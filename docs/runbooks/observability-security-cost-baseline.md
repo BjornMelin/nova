@@ -30,8 +30,8 @@ Design intent:
 
 AWS references:
 
-- ECS deployment alarms/failure detection: https://docs.aws.amazon.com/AmazonECS/latest/developerguide/deployment-alarm-failure.html
-- CloudFormation deployment alarms on `AWS::ECS::Service`: https://docs.aws.amazon.com/AWSCloudFormation/latest/TemplateReference/aws-properties-ecs-service-deploymentalarms
+- ECS deployment alarms/failure detection: <https://docs.aws.amazon.com/AmazonECS/latest/developerguide/deployment-alarm-failure.html>
+- CloudFormation deployment alarms on `AWS::ECS::Service`: <https://docs.aws.amazon.com/AWSCloudFormation/latest/TemplateReference/aws-properties-ecs-service-deploymentalarms>
 
 ## Log retention policy tiers
 
@@ -70,8 +70,8 @@ No wildcard `sub` patterns are allowed for release role assumption.
 
 Authority references:
 
-- GitHub OIDC on AWS: https://docs.github.com/actions/deployment/security-hardening-your-deployments/configuring-openid-connect-in-amazon-web-services
-- AWS OIDC trust controls: https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_oidc_secure-by-default.html
+- GitHub OIDC on AWS: <https://docs.github.com/actions/deployment/security-hardening-your-deployments/configuring-openid-connect-in-amazon-web-services>
+- AWS OIDC trust controls: <https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_oidc_secure-by-default.html>
 
 ## Right-sizing and autoscaling envelope (baseline)
 
@@ -121,15 +121,22 @@ Prerequisites before rollout:
 `AlarmActionArn` should route to SNS/Lambda escalation targets aligned with org
 budget response policy.
 
+Nova dormant-state guardrail:
+
+- do not create or wire a Nova-specific billing alarm or budget until a
+  dedicated Nova notification target exists
+- do not reuse unrelated project SNS topics as a temporary Nova cost path
+- once a dedicated target exists, keep the alarm/budget rollout in `us-east-1`
+  and follow the repo's dormant release-control-plane posture
+
 References:
 
 - Enable billing alerts + region requirement:
-  https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/gs_monitor_estimated_charges_with_cloudwatch.html
+  <https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/gs_monitor_estimated_charges_with_cloudwatch.html>
 - AWS Billing alarm troubleshooting examples:
-  https://repost.aws/knowledge-center/cloudwatch-estimatedcharges-alarm
+  <https://repost.aws/knowledge-center/cloudwatch-estimatedcharges-alarm>
 
 If/when account-level `AWS::Budgets::Budget` ownership is standardized in this repo, this alarm remains the mandatory service-level threshold hook.
-
 
 ### Batch B1 ECS-native deployment binding contract
 

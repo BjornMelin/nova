@@ -2,7 +2,7 @@
 
 Status: Active
 Owner: nova release architecture
-Last reviewed: 2026-03-22
+Last reviewed: 2026-03-24
 
 ## Purpose
 
@@ -16,26 +16,20 @@ Use these in order:
 1. `../../AGENTS.md`
 2. `../README.md`
 3. `../architecture/README.md`
-4. `../overview/NOVA-REPO-OVERVIEW.md`
-5. `./repository-engineering-standards.md`
-6. relevant ADR/SPEC authority docs for the change you are making
-7. `../runbooks/README.md` when the task affects release or operations
+4. `./repository-engineering-standards.md`
+5. relevant ADR/SPEC authority docs for the change you are making
+6. `../runbooks/README.md` when the task affects release or operations
 
 ## Key Deep References
 
 - `../architecture/README.md` for active authority routing
-- Active documentation must reference the single canonical route authority
-  chain:
-  - `../architecture/requirements.md`
-  - `../architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md`
-  - `../architecture/spec/SPEC-0000-http-api-contract.md`
-  - `../architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md`
 - `../architecture/adr/ADR-0038-sdk-architecture-by-language.md`,
   `../architecture/spec/SPEC-0029-sdk-architecture-and-artifact-contract.md`, and
   `../architecture/spec/SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md`
   for current SDK governance (superseded predecessors: `../architecture/adr/index.md`
   and `../architecture/spec/index.md`)
 - `./repository-engineering-standards.md` for the full gate matrix and documentation sync rules
+- `../contracts/README.md` for workflow, validation, and release schema catalogs
 - `../release/README.md` for committed release artifacts (manifest, generated contract)
 - `../runbooks/release/release-runbook.md`
 - `../runbooks/release/release-policy.md`
@@ -54,9 +48,10 @@ generated-client, and conformance checks, plus a separate
 
 Durable operator inputs must stay synchronized across scripts, templates, and
 docs. For runtime deploys, the ECS service stack now owns the repo-managed task
-role and cache secret injection, so active docs and tests must reject
-`TASK_ROLE_ARN`, `TASK_EXECUTION_SECRET_ARNS`, and
-`TASK_EXECUTION_SSM_PARAMETER_ARNS`.
+role and cache secret injection, and the deploy operator resolves the ECS
+infrastructure role from the Nova IAM control-plane stack, so active docs and
+tests must reject `ECS_INFRASTRUCTURE_ROLE_ARN`, `TASK_ROLE_ARN`,
+`TASK_EXECUTION_SECRET_ARNS`, and `TASK_EXECUTION_SSM_PARAMETER_ARNS`.
 
 Runtime config drift guard:
 

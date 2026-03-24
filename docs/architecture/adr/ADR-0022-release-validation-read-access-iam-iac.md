@@ -16,8 +16,8 @@ References:
 ## Summary
 
 Adopt a dedicated release validation read role in Nova IaC using minimally scoped
-read permissions from CodeConnections, CodeArtifact, CodePipeline, ECS/ELB/WAF,
-CloudFormation, CloudWatch, and runtime infrastructure IAM surfaces.
+read permissions from CodeConnections, CodeArtifact, CodePipeline, CloudFront,
+ECS/ELB/WAF, CloudFormation, CloudWatch, and runtime infrastructure IAM surfaces.
 
 ## Context
 
@@ -108,6 +108,9 @@ Actions codified in `ReleaseValidationReadManagedPolicy`:
   `codepipeline:GetPipeline`, `codepipeline:GetPipelineState`,
   `codepipeline:GetPipelineExecution`.
 - Runtime/infrastructure read: `cloudformation:DescribeStacks`,
+  `cloudfront:GetDistribution`, `cloudfront:GetDistributionConfig`,
+  `cloudfront:GetVpcOrigin`, `cloudfront:ListDistributions`,
+  `cloudfront:ListVpcOrigins`, `cloudfront:ListTagsForResource`,
   `ecs:DescribeClusters`, `ecs:ListClusters`, `ecs:ListServices`,
   `ecs:DescribeServices`, `ecs:DescribeTaskDefinition`,
   `elasticloadbalancing:DescribeListeners`,

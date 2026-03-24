@@ -5,6 +5,6 @@ on:
 
 jobs:
   validate:
-    uses: 3M-Cloud/nova/.github/workflows/reusable-post-deploy-validate.yml@v1
+    uses: 3M-Cloud/nova/.github/workflows/reusable-post-deploy-validate.yml@655ccab0d071c828045de4a4d3bb441d4349194e
     with:
       validation_base_url: ${{ vars.NOVA_API_BASE_URL }}

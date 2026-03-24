@@ -39,14 +39,15 @@ Canonical stack ownership:
 ## 3. Value constraints
 
 1. Base URL values MUST be HTTPS (`https://…`).
-2. Values MUST be environment-appropriate and routable to deployed runtime ALB
-   endpoints.
+2. Values MUST be environment-appropriate and routable to the deployed public
+   CloudFront edge URL for the runtime service.
 3. Non-HTTPS and placeholder endpoints are invalid for release validation gates.
 
 ## 4. CI/CD integration contract
 
 1. Validation workflows and pipeline validation actions MUST use base URLs
-   sourced from SSM authority values (directly or via operator-resolved export).
+   sourced from SSM authority values (directly or via operator-resolved export),
+   where the marker value is published from the runtime edge stack output.
 2. Deploy validation inputs for `DevServiceBaseUrl` and `ProdServiceBaseUrl`
    MUST satisfy HTTPS constraints.
 3. Runbooks and scripts must document how base URLs are sourced and verified.

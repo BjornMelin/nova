@@ -23,6 +23,30 @@ require_env() {
   fi
 }
 
+validate_existing_connection_arn() {
+  local arn="$1"
+
+  if [ -z "$arn" ]; then
+    return 0
+  fi
+
+  case "$arn" in
+    arn:aws*:codeconnections:*:connection/*)
+      return 0
+      ;;
+    arn:aws*:codestar-connections:*:connection/*)
+      echo "WARNING: EXISTING_CONNECTION_ARN uses the legacy codestar-connections ARN form." >&2
+      echo "WARNING: Prefer the current arn:aws:codeconnections:* connection ARN when updating Nova stack inputs." >&2
+      return 0
+      ;;
+    *)
+      echo "EXISTING_CONNECTION_ARN must be empty or a valid CodeConnections connection ARN." >&2
+      echo "Expected arn:aws:codeconnections:<region>:<account>:connection/<id>." >&2
+      exit 1
+      ;;
+  esac
+}
+
 stack_output() {
   local stack_name="$1"
   local output_key="$2"
@@ -132,6 +156,8 @@ if [ "$CODEARTIFACT_STAGING_REPOSITORY" = "$CODEARTIFACT_PROD_REPOSITORY" ]; the
   echo "CODEARTIFACT_STAGING_REPOSITORY and CODEARTIFACT_PROD_REPOSITORY must differ." >&2
   exit 1
 fi
+
+validate_existing_connection_arn "$EXISTING_CONNECTION_ARN"
 
 if [ ! -d "$NOVA_REPO_ROOT" ]; then
   echo "nova repo root not found at: $NOVA_REPO_ROOT" >&2

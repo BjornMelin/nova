@@ -19,6 +19,17 @@ def test_service_dockerfiles_enforce_proxy_headers_and_single_process() -> None:
         content = dockerfile.read_text(encoding="utf-8")
 
         assert content.startswith("# syntax=docker/dockerfile:")
+        assert (
+            "ARG BASE_IMAGE="
+            "public.ecr.aws/docker/library/python:3.13-slim@sha256:"
+            "7d8999b140f22939451e00b79c0fd86f13d0bc0577b369f8212fce063101fb2a"
+        ) in content
+        assert "FROM ${BASE_IMAGE} AS builder" in content
+        assert content.count("FROM ${BASE_IMAGE}") == 2
+        assert (
+            "FROM public.ecr.aws/docker/library/python:3.13-slim\n"
+            not in content
+        )
         assert "COPY --from=ghcr.io/astral-sh/uv:" in content
         assert "--mount=type=cache,target=/root/.cache/uv" in content
         assert '"uvicorn"' in content

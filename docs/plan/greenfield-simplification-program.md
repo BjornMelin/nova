@@ -58,7 +58,7 @@ as non-authoritative playbooks.
 | 7 | `refactor/sdk-typescript-openapi-fetch` | MAJOR | branch 6 merged | `openapi-typescript` + `openapi-fetch`; remove custom TS fetch runtime package. |
 | 8 | `refactor/sdk-python-template-thin` | MAJOR | branch 7 merged | `openapi-python-client` with config + minimal templates; slash patch scripts. |
 | 9 | `refactor/sdk-r-httr2-thin-client` | MAJOR | branch 8 merged | Thin `httr2` R package; reject OpenAPI Generator R beta as primary path. |
-| 10 | `infra/greenfield-ecs-platform` | MAJOR | branch 9 merged | Finalize ECS/Fargate + CloudFront/WAF + ALB + managed data plane narrative in IaC. |
+| 10 | `infra/greenfield-ecs-platform` | MAJOR | branch 9 merged | Finalize CloudFront + WAF public edge, internal ALB origin, ECS/Fargate API + worker, and managed data-plane IaC/documentation truth. |
 | 11 | `chore/repo-rebaseline-ci-release` | MAJOR | branch 10 merged | Rebaseline workspace, locks, CI, release, and docs for the smaller system. |
 
 ## Why this order

@@ -62,10 +62,10 @@ auth channel).
    in [`adr/index.md`](./architecture/adr/index.md) and
    [`spec/index.md`](./architecture/spec/index.md) (Superseded tables) and under
    `adr/superseded/` / `spec/superseded/`—not active authority.
-7. Deployment target-state aligns with `ADR-0015` / `ADR-0039`: ECS/Fargate
-   behind ALB (and CloudFront/WAF ingress as described in platform docs),
-   ECS-native blue/green rollout, CloudWatch alarms, WAF on public ingress, and
-   manifest hash evidence tied to the release manifest.
+7. Deployment target-state aligns with `ADR-0015` / `ADR-0039`: CloudFront +
+   WAF public edge, internal ALB origin, ECS/Fargate API + worker services,
+   ECS-native blue/green rollout for the API, worker rolling deployments,
+   CloudWatch alarms, and manifest hash evidence tied to the release manifest.
 8. `nova_dash_bridge` remains an adapter-only integration surface and consumes
    canonical in-process transfer contracts through `nova_file_api.public`
    (async-first target per `ADR-0037`).

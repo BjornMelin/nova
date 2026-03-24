@@ -1,12 +1,14 @@
 # Nova Architecture Authority Map
 
 Status: Active
-Last reviewed: 2026-03-22
+Last reviewed: 2026-03-24
 
 ## Purpose
 
 This document routes readers to the correct architecture authority without
 duplicating the full ADR and SPEC catalogs across top-level docs.
+Other routers should point here rather than re-listing partial authority packs
+or route-chain fragments.
 
 **Active-only lists:** Sections below name **in-force** ADRs and SPECs only.
 Superseded predecessors are **not** linked here (to avoid agents or readers
@@ -63,8 +65,7 @@ Use when the question is about package boundaries, startup validation, auth
 execution, threadpool safety, or documentation synchronization.
 
 Integration boundary: `nova_dash_bridge` consumes `nova_file_api.public` as the
-canonical in-process transfer seam. Normative ownership and boundary rules are
-defined in:
+canonical in-process transfer seam.
 
 `nova_file_api.public` is async-first. FastAPI hosts should await that surface
 directly, while explicit sync adapters remain only for sync-only framework
@@ -117,9 +118,11 @@ Use when the question is about CloudFormation module boundaries, reusable
 workflows, CI/CD IAM policy, or deployment-control-plane design.
 
 Current deploy-governance baseline: the ECS service runtime stack owns the
-repo-managed task role and cache-secret execution-role policy. Operator docs
-and workflows must not reintroduce external `TaskRole` or generic execution
-secret override inputs.
+repo-managed task role and cache-secret execution-role policy, while the deploy
+operator resolves the ECS infrastructure role from the Nova IAM control-plane
+stack. Operator docs and workflows must not reintroduce external
+`ECS_INFRASTRUCTURE_ROLE_ARN`, `TaskRole`, or generic execution-secret override
+inputs.
 
 - `adr/ADR-0015-nova-api-platform-final-hosting-and-deployment-architecture-2026.md`
 - `adr/ADR-0039-aws-target-platform.md`

@@ -91,8 +91,9 @@ Companion modular setup guides (full index: [README.md](README.md)):
    - `DeploymentConfiguration.Strategy=BLUE_GREEN`
 2. Queue worker services remain ECS rolling deployments with deployment circuit
    breaker protection; they do not use load-balancer traffic shifting.
-3. Public ALB WebACL/WAF association is environment-template specific and must
-   be validated against the deployed runtime stack definitions for each lane.
+3. Public CloudFront WebACL/WAF attachment is environment-template specific and
+   must be validated against the deployed runtime edge stack definitions for
+   each lane.
 
 ## 6. Required release evidence
 
@@ -124,3 +125,11 @@ ledger inside `docs/`). At minimum:
 4. Artifact and log storage should remain self-pruning through the
    CloudFormation lifecycle/retention policies owned by
    `nova-foundation.yml` and `nova-codebuild-release.yml`.
+5. The dormant release-ready shell keeps only `nova-foundation`,
+   `nova-iam-roles`, and the digest marker stacks `nova-dev` / `nova-prod`
+   under CloudFormation management, plus the shared retained resources they
+   reference (artifact bucket, ECR repository, CodeArtifact domain/repositories,
+   release signing secret, and manual approval SNS topic).
+6. Runtime stacks and `/nova/{env}/{service}/base-url` marker stacks must stay
+   deleted while Nova is dormant; recreate them only when the runtime edge
+   and release control plane are intentionally being resumed.

@@ -6,7 +6,8 @@ Last updated: 2026-03-19
 
 ## When to use this vs browser checklist
 
-- **This runbook (NONPROD):** AWS-live integration--CodeConnections, ALB,
+- **This runbook (NONPROD):** AWS-live integration--CodeConnections, CloudFront
+  edge, internal ALB origin,
   CodePipeline/CodeBuild, CloudWatch, cross-repo flows against real accounts.
 - **[browser-live-validation-checklist.md](browser-live-validation-checklist.md):**
   Deterministic browser/`agent-browser` checks against `DASH_BASE_URL` and
@@ -30,7 +31,8 @@ Related setup sequence:
 ## 2. Blocking gates covered
 
 - CodeConnections activation and source event readiness.
-- Sidecar ALB routing and health-check behavior in non-prod AWS.
+- Public CloudFront edge reachability and internal ALB origin routing/health in
+  non-prod AWS.
 - Cross-repo E2E flow:
   browser upload -> jobs enqueue -> worker result -> download.
 - CloudWatch dashboards and alarm behavior under synthetic failure.
@@ -85,7 +87,7 @@ Acceptance:
 
 - Latest signed release commit appears as source revision in execution history.
 
-## 6. Gate B: ALB routing and health
+## 6. Gate B: edge routing and origin health
 
 ### B1. Basic route reachability
 

@@ -7,18 +7,10 @@
 - [Architecture Specifications](../spec/index.md)
 - [Operator Runbooks (canonical)](../../runbooks/README.md)
 
-## Active runtime authority pack
+## Catalog Use
 
-Normative runtime authority is layered across:
-
-- route and HTTP contract authority (`ADR-0023`, `SPEC-0000`, `SPEC-0015`,
-  `SPEC-0016`, `SPEC-0027`)
-- green-field simplification decisions (`ADR-0033` through `ADR-0041`,
-  `SPEC-0028`, `SPEC-0029`, and [green-field program](../../plan/greenfield-simplification-program.md))
-- runtime package ownership and safety authority (`ADR-0025`, `ADR-0026`,
-  `SPEC-0017`, `SPEC-0018`, `SPEC-0019`, `SPEC-0020`)
-- downstream/deploy-validation authority (`ADR-0027` through `ADR-0029`,
-  `SPEC-0021`, `SPEC-0022`, `SPEC-0023`)
+Use [`../README.md`](../README.md) for the narrative authority map and canonical
+route chain. This file is the ADR catalog and status index.
 
 | ADR | Title | Status | Date |
 | --- | --- | --- | --- |

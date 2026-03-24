@@ -14,22 +14,12 @@
       "type": "object",
       "description": "Inputs passed into reusable-post-deploy-validate workflow_call.",
       "additionalProperties": false,
-      "required": [
-        "validation_canonical_paths",
-        "validation_legacy_404_paths",
-        "report_path",
-        "artifact_name"
-      ],
       "properties": {
         "validation_base_url": {
           "type": "string",
           "description": "Preferred base URL. Must be HTTPS when supplied.",
-          "pattern": "^https://.+$"
-        },
-        "service_base_url": {
-          "type": "string",
-          "description": "Legacy alias for validation_base_url. Must be HTTPS when supplied.",
-          "pattern": "^https://.+$"
+          "pattern": "^https://.+$",
+          "minLength": 9
         },
         "validation_canonical_paths": {
           "type": "string",
@@ -52,17 +42,12 @@
           "default": "post-deploy-validation-report"
         }
       },
-      "anyOf": [
-        {
-          "required": [
-            "validation_base_url"
-          ]
-        },
-        {
-          "required": [
-            "service_base_url"
-          ]
-        }
+      "required": [
+        "validation_base_url",
+        "validation_canonical_paths",
+        "validation_legacy_404_paths",
+        "report_path",
+        "artifact_name"
       ]
     },
     "outputs": {

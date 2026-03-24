@@ -10,7 +10,7 @@ Provide a complete deploy sequence for Nova CI/CD resources and first release
 execution after runtime environments are provisioned, with the governing
 authority chain cited for operators.
 
-## References
+## Authority and documentation
 
 - [`../release/README.md#canonical-documentation-authority-chain`](../release/README.md#canonical-documentation-authority-chain)
 
@@ -23,7 +23,8 @@ authority chain cited for operators.
 5. `nova` repository admin rights for secrets/variables configuration.
 6. Runtime stacks are already deployed for `dev` and `prod` per:
    [deploy-runtime-cloudformation-environments.md](deploy-runtime-cloudformation-environments.md)
-7. Canonical base URL SSM parameters exist for both environments:
+7. Canonical base URL SSM parameters exist for both environments and store the
+   public CloudFront edge URL for the runtime service:
    `/nova/dev/{service}/base-url` and `/nova/prod/{service}/base-url`.
 8. Canonical base-url marker stacks are reserved for CI control-plane ownership:
    `${PROJECT}-${APPLICATION}-dev-service-base-url` and
@@ -68,9 +69,10 @@ Fallback path:
 - `${NOVA_DEPLOY_SERVICE_NAME}` (optional, default `nova-file-api`)
 - `${GITHUB_OIDC_PROVIDER_ARN}`
 - `${SECRET_NAME}` or `${RELEASE_SIGNING_SECRET_ARN}`
-- `${DEV_BASE_URL}` example `https://nova-file-api.dev.example.com`
-- `${PROD_BASE_URL}` example `https://nova-file-api.example.com`
-- `${EXISTING_CONNECTION_ARN}` (optional)
+- `${DEV_BASE_URL}` example `https://nova-file-api.dev.example.com` (published from the runtime edge stack)
+- `${PROD_BASE_URL}` example `https://nova-file-api.example.com` (published from the runtime edge stack)
+- `${EXISTING_CONNECTION_ARN}` (optional; prefer
+  `arn:aws:codeconnections:…`)
 - `${NOVA_MANUAL_APPROVAL_TOPIC_ARN}` (optional)
 
 ## Step 1: set deployment values
@@ -104,6 +106,10 @@ export NOVA_DEPLOY_SERVICE_NAME="${NOVA_DEPLOY_SERVICE_NAME:-nova-file-api}"
 export DEV_BASE_URL="${DEV_BASE_URL:?set to the dev runtime base URL, for example https://nova-file-api.dev.example.com}"
 export PROD_BASE_URL="${PROD_BASE_URL:?set to the prod runtime base URL, for example https://nova-file-api.example.com}"
 ```
+
+If you supply `EXISTING_CONNECTION_ARN`, use the current
+`arn:aws:codeconnections:…` form for new or refreshed Nova stack inputs.
+Legacy `codestar-connections` ARNs should be treated as migration-only inputs.
 
 The day-0 operator command pack requires an explicit GitHub repository target.
 It does not derive `GITHUB_OWNER` or `GITHUB_REPO` from the local checkout.
@@ -377,7 +383,7 @@ aws cloudformation wait stack-delete-complete \
 
 Recreate both stacks later by rerunning Step 3.
 
-## References
+## CLI and API references
 
 - CodePipeline get-pipeline-state API:
   <https://docs.aws.amazon.com/cli/latest/reference/codepipeline/get-pipeline-state.html>

@@ -68,15 +68,8 @@ def _args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--base-url",
-        default=(
-            os.getenv("VALIDATION_BASE_URL")
-            or os.getenv("SERVICE_BASE_URL")
-            or ""
-        ).strip(),
-        help=(
-            "Validation base URL. Falls back to "
-            "VALIDATION_BASE_URL/SERVICE_BASE_URL."
-        ),
+        default=(os.getenv("VALIDATION_BASE_URL") or "").strip(),
+        help="Validation base URL. Defaults to VALIDATION_BASE_URL env var.",
     )
     parser.add_argument(
         "--canonical-paths",
@@ -115,9 +108,7 @@ def main() -> int:
     args = _args()
     base = args.base_url.strip().rstrip("/")
     if not base:
-        raise SystemExit(
-            "Provide validation_base_url (preferred) or service_base_url"
-        )
+        raise SystemExit("Provide validation_base_url")
     if not base.startswith("https://"):
         raise SystemExit("Validation base URL must start with https://")
 

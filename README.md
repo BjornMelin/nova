@@ -1,6 +1,6 @@
 # nova runtime
 
-![Python](https://img.shields.io/badge/Python-3.12%20%7C%203.13-3776AB?logo=python&logoColor=white) ![FastAPI](https://img.shields.io/badge/FastAPI-0.135%2B-009688?logo=fastapi&logoColor=white) ![OpenAPI](https://img.shields.io/badge/OpenAPI-3.1-6BA539?logo=openapiinitiative&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3.13-3776AB?logo=python&logoColor=white) ![FastAPI](https://img.shields.io/badge/FastAPI-0.135%2B-009688?logo=fastapi&logoColor=white) ![OpenAPI](https://img.shields.io/badge/OpenAPI-3.1-6BA539?logo=openapiinitiative&logoColor=white)
 
 FastAPI control-plane runtime for direct-to-S3 uploads/downloads and async job
 orchestration. The service returns presigned metadata and job state; it does not
@@ -32,22 +32,12 @@ Use these entrypoints before drilling into deeper docs:
 Active route authority is the hard-cut canonical `/v1/*` surface plus
 `/metrics/summary`.
 
-Use the canonical authority chain:
-
-- `docs/architecture/requirements.md`
-- `docs/architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md`
-- `docs/architecture/spec/SPEC-0000-http-api-contract.md`
-- `docs/architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md`
-- `docs/architecture/spec/SPEC-0027-public-http-contract-revision-and-bearer-auth.md`
+For the canonical route chain, active authority packs, and deploy-governance
+pack, use `docs/architecture/README.md`.
 
 Green-field execution router: `docs/plan/greenfield-simplification-program.md`.
-
-For the broader authority pack, use `docs/architecture/README.md`.
-
-Active runtime topology and safety authority: `ADR-0025`, `ADR-0026`,
-`SPEC-0017`, `SPEC-0018`, `SPEC-0019`, and `SPEC-0020`.
-Active downstream validation authority: `ADR-0027`, `ADR-0028`, `ADR-0029`,
-`SPEC-0021`, `SPEC-0022`, and `SPEC-0023`.
+Machine-readable workflow and release schemas live under
+`docs/contracts/README.md`.
 
 Public capabilities:
 
@@ -261,14 +251,16 @@ Key release docs:
 - `docs/runbooks/provisioning/deploy-runtime-cloudformation-environments.md`
 - `docs/runbooks/provisioning/docker-buildx-credential-helper-setup.md`
 
-The runtime deploy operator now owns the ECS service task role and cache secret
-wiring. Do not supply `TASK_ROLE_ARN`,
+The runtime deploy operator now owns the ECS service task role, cache secret
+wiring, and ECS infrastructure role resolution. Do not supply
+`ECS_INFRASTRUCTURE_ROLE_ARN`, `TASK_ROLE_ARN`,
 `TASK_EXECUTION_SECRET_ARNS`, or `TASK_EXECUTION_SSM_PARAMETER_ARNS`.
 
 ## Local Service Images
 
 Local service-image verification uses the release-owned Dockerfiles under
-`apps/*` and now requires Docker BuildKit plus `buildx`.
+`apps/*`, a digest-pinned Python `3.13-slim` base image, pinned `uv`, and
+Docker BuildKit plus `buildx`.
 
 See:
 
