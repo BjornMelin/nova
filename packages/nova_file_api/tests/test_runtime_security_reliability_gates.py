@@ -21,7 +21,7 @@ def test_service_dockerfiles_enforce_proxy_headers_and_single_process() -> None:
         assert content.startswith("# syntax=docker/dockerfile:")
         assert (
             "public.ecr.aws/docker/library/python:3.13-slim@sha256:"
-            "739e7213785e88c0f702dcdc12c0973afcbd606dbf021a589cab77d6b00b579d"
+            "7d8999b140f22939451e00b79c0fd86f13d0bc0577b369f8212fce063101fb2a"
         ) in content
         assert (
             "FROM public.ecr.aws/docker/library/python:3.13-slim\n"
