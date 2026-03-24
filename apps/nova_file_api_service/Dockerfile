@@ -39,7 +39,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
       --no-install-package nova-dash-bridge \
       --no-editable
 
-FROM public.ecr.aws/docker/library/python:3.13-slim@sha256:739e7213785e88c0f702dcdc12c0973afcbd606dbf021a589cab77d6b00b579d
+FROM public.ecr.aws/docker/library/python:3.13-slim@sha256:7d8999b140f22939451e00b79c0fd86f13d0bc0577b369f8212fce063101fb2a
 
 ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONDONTWRITEBYTECODE=1 \
