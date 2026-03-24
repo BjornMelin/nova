@@ -247,29 +247,16 @@ def test_browser_live_validation_checklist_authority_exists() -> None:
 
 
 def test_agents_active_authority_pack_has_final_split() -> None:
-    """AGENTS authority list must include the final authority split."""
+    """AGENTS must route readers to the canonical authority owners."""
     text = AGENTS_PATH.read_text(encoding="utf-8")
     for required in [
-        "ADR-0025-runtime-monorepo-component-boundaries-and-ownership.md",
-        "ADR-0026-fail-fast-runtime-configuration-and-safe-auth-execution.md",
-        "ADR-0027-hard-cut-downstream-integration-and-consumer-contract-enforcement.md",
-        "ADR-0028-auth0-tenant-ops-reusable-workflow-api-contract.md",
-        "ADR-0029-ssm-runtime-base-url-authority-for-deploy-validation.md",
-        "SPEC-0017-runtime-component-topology-and-ownership-contract.md",
-        "SPEC-0018-runtime-configuration-and-startup-validation-contract.md",
-        "SPEC-0019-auth-execution-and-threadpool-safety-contract.md",
-        "SPEC-0020-architecture-authority-pack-and-documentation-synchronization-contract.md",
-        "SPEC-0021-downstream-hard-cut-integration-and-consumer-validation-contract.md",
-        "SPEC-0022-auth0-tenant-ops-reusable-workflow-contract.md",
-        "SPEC-0023-ssm-runtime-base-url-contract-for-deploy-validation.md",
-        "SPEC-0024-cloudformation-module-contract.md",
-        "SPEC-0025-reusable-workflow-integration-contract.md",
-        "SPEC-0026-ci-cd-iam-least-privilege-matrix.md",
+        "docs/architecture/README.md",
         "docs/standards/README.md",
-        "ADR-0033-single-runtime-auth-authority.md",
-        "SPEC-0027-public-http-contract-revision-and-bearer-auth.md",
-        "SPEC-0029-sdk-architecture-and-artifact-contract.md",
+        "docs/runbooks/README.md",
+        "docs/contracts/README.md",
         "bearer JWT",
+        "FILE_TRANSFER_CACHE_ENABLED=true",
+        "CACHE_REDIS_URL",
         "uv run ruff check . --select I",
         "uv run ruff format . --check",
     ]:
@@ -305,35 +292,69 @@ def test_agents_includes_workspace_packaging_and_docker_build_rules() -> None:
         assert required in text
 
 
-def test_authority_docs_reference_restored_runtime_set() -> None:
-    """Authority docs must reference the restored runtime set."""
-    for rel_path in [
-        "docs/architecture/adr/index.md",
-        "docs/architecture/spec/index.md",
-        "docs/plan/PLAN.md",
-        "docs/runbooks/README.md",
-        "docs/PRD.md",
-        "README.md",
+def test_docs_router_separates_sdk_governance_from_downstream_consumers() -> (
+    None
+):
+    """docs/README must not route SDK readers into downstream docs first."""
+    text = _read("docs/README.md")
+    for required in [
+        "### SDK governance",
+        "### Downstream consumer integration",
+        "### Contract schemas",
+        "./contracts/README.md",
+        "./clients/README.md",
+        "./architecture/spec/SPEC-0029-sdk-architecture-and-artifact-contract.md",
     ]:
-        text = _read(rel_path)
-        for required in [
-            "ADR-0025",
-            "ADR-0026",
-            "ADR-0027",
-            "ADR-0028",
-            "ADR-0029",
-            "ADR-0033",
-            "SPEC-0017",
-            "SPEC-0018",
-            "SPEC-0019",
-            "SPEC-0020",
-            "SPEC-0021",
-            "SPEC-0022",
-            "SPEC-0023",
-            "SPEC-0027",
-            "SPEC-0029",
-        ]:
-            assert required in text, f"{rel_path} missing {required}"
+        assert required in text
+
+
+def test_architecture_router_owns_narrative_authority_map() -> None:
+    """Architecture README must remain the narrative owner of active packs."""
+    architecture_readme = _read("docs/architecture/README.md")
+    adr_index = _read("docs/architecture/adr/index.md")
+    spec_index = _read("docs/architecture/spec/index.md")
+
+    for required in [
+        "SPEC-0027-public-http-contract-revision-and-bearer-auth.md",
+        "ADR-0030-native-cfn-modular-stack-architecture-for-nova-infrastructure-productization.md",
+        "ADR-0039-aws-target-platform.md",
+        "SPEC-0024-cloudformation-module-contract.md",
+        "SPEC-0025-reusable-workflow-integration-contract.md",
+        "SPEC-0026-ci-cd-iam-least-privilege-matrix.md",
+    ]:
+        assert required in architecture_readme
+
+    assert "This file is the ADR catalog and status index." in adr_index
+    assert "This file is the SPEC catalog and status index." in spec_index
+
+
+def test_requirements_defer_router_set_to_standards_doc() -> None:
+    """requirements.md must not own a competing router-update list."""
+    text = _read("docs/architecture/requirements.md")
+    assert "repository-engineering-standards.md" in text
+    assert "current canonical routers and any" in text
+
+
+def test_active_docs_do_not_reference_repo_root_final_plan() -> None:
+    """Active docs must not reference the removed repo-root FINAL-PLAN.md."""
+    violations: list[str] = []
+    for doc in _markdown_targets(
+        (
+            REPO_ROOT / "README.md",
+            REPO_ROOT / "AGENTS.md",
+            DOCS_ROOT,
+        )
+    ):
+        if "history" in doc.parts or "superseded" in doc.parts:
+            continue
+        text = doc.read_text(encoding="utf-8")
+        if "FINAL-PLAN.md" in text:
+            violations.append(str(doc.relative_to(REPO_ROOT)))
+
+    assert not violations, (
+        "Found repo-root FINAL-PLAN.md references in active docs:\n"
+        + "\n".join(violations)
+    )
 
 
 def test_active_docs_do_not_reference_displaced_deploy_authority_paths() -> (
@@ -408,6 +429,7 @@ def test_auth0_and_ssm_contract_docs_reference_schema_authority() -> None:
         "ssm-runtime-base-url-v1.schema.json",
         "SPEC-0022-auth0-tenant-ops-reusable-workflow-contract.md",
         "SPEC-0023-ssm-runtime-base-url-contract-for-deploy-validation.md",
+        "../architecture/requirements.md",
     ]:
         assert required in contracts_readme
 
@@ -423,7 +445,6 @@ def test_release_docs_include_explicit_userconfig_npm_flow() -> None:
     for rel_path in [
         "docs/runbooks/release/release-runbook.md",
         "docs/runbooks/provisioning/config-values-reference.md",
-        "docs/runbooks/README.md",
         "README.md",
     ]:
         text = _read(rel_path)
@@ -433,3 +454,42 @@ def test_release_docs_include_explicit_userconfig_npm_flow() -> None:
         assert "NPM_REGISTRY_URL" in text, (
             f"{rel_path} missing explicit npm registry guidance"
         )
+
+
+def test_clients_docs_use_immutable_reusable_workflow_refs() -> None:
+    """Consumer docs/examples must not recommend mutable @v1 workflow pins."""
+    violations: list[str] = []
+    for doc in (DOCS_ROOT / "clients").rglob("*"):
+        if not doc.is_file() or doc.suffix not in {".md", ".yml"}:
+            continue
+        text = doc.read_text(encoding="utf-8")
+        if "@v1" in text:
+            violations.append(str(doc.relative_to(REPO_ROOT)))
+
+    assert not violations, (
+        "Found mutable @v1 workflow refs in downstream consumer docs:\n"
+        + "\n".join(sorted(violations))
+    )
+
+
+def test_overview_doc_remains_orientation_only() -> None:
+    """Overview doc must not reintroduce stale callback/archive claims."""
+    text = _read("docs/overview/NOVA-REPO-OVERVIEW.md")
+    for forbidden in [
+        "internal worker callback",
+        "Worker callback",
+        "FINAL-PLAN.md",
+    ]:
+        assert forbidden not in text
+
+
+def test_release_promotion_doc_is_addendum_scoped() -> None:
+    """Promotion guide must stay explicitly narrow-scoped."""
+    text = _read("docs/runbooks/release/release-promotion-dev-to-prod.md")
+    for required in [
+        "addendum",
+        "release-runbook.md",
+        "release-policy.md",
+        "Evidence Boundary",
+    ]:
+        assert required in text
