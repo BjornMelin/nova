@@ -459,11 +459,15 @@ def test_release_docs_include_explicit_userconfig_npm_flow() -> None:
 def test_clients_docs_use_immutable_reusable_workflow_refs() -> None:
     """Consumer docs/examples must not recommend mutable @v1 workflow pins."""
     violations: list[str] = []
+    mutable_workflow_ref = re.compile(
+        r"^\s*uses:\s+\S+@v1(?:\s|$)",
+        re.MULTILINE,
+    )
     for doc in (DOCS_ROOT / "clients").rglob("*"):
         if not doc.is_file() or doc.suffix not in {".md", ".yml"}:
             continue
         text = doc.read_text(encoding="utf-8")
-        if "@v1" in text:
+        if mutable_workflow_ref.search(text):
             violations.append(str(doc.relative_to(REPO_ROOT)))
 
     assert not violations, (
