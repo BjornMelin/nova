@@ -259,7 +259,8 @@ wiring, and ECS infrastructure role resolution. Do not supply
 ## Local Service Images
 
 Local service-image verification uses the release-owned Dockerfiles under
-`apps/*`, Python `3.13-slim`, pinned `uv`, and Docker BuildKit plus `buildx`.
+`apps/*`, a digest-pinned Python `3.13-slim` base image, pinned `uv`, and
+Docker BuildKit plus `buildx`.
 
 See:
 
