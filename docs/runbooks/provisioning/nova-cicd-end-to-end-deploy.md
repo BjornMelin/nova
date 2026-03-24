@@ -71,7 +71,8 @@ Fallback path:
 - `${SECRET_NAME}` or `${RELEASE_SIGNING_SECRET_ARN}`
 - `${DEV_BASE_URL}` example `https://nova-file-api.dev.example.com` (published from the runtime edge stack)
 - `${PROD_BASE_URL}` example `https://nova-file-api.example.com` (published from the runtime edge stack)
-- `${EXISTING_CONNECTION_ARN}` (optional)
+- `${EXISTING_CONNECTION_ARN}` (optional; prefer
+  `arn:aws:codeconnections:...`)
 - `${NOVA_MANUAL_APPROVAL_TOPIC_ARN}` (optional)
 
 ## Step 1: set deployment values
@@ -105,6 +106,10 @@ export NOVA_DEPLOY_SERVICE_NAME="${NOVA_DEPLOY_SERVICE_NAME:-nova-file-api}"
 export DEV_BASE_URL="${DEV_BASE_URL:?set to the dev runtime base URL, for example https://nova-file-api.dev.example.com}"
 export PROD_BASE_URL="${PROD_BASE_URL:?set to the prod runtime base URL, for example https://nova-file-api.example.com}"
 ```
+
+If you supply `EXISTING_CONNECTION_ARN`, use the current
+`arn:aws:codeconnections:...` form for new or refreshed Nova stack inputs.
+Legacy `codestar-connections` ARNs should be treated as migration-only inputs.
 
 The day-0 operator command pack requires an explicit GitHub repository target.
 It does not derive `GITHUB_OWNER` or `GITHUB_REPO` from the local checkout.

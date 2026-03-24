@@ -59,7 +59,7 @@ Required ECR targeting:
 Optional keys:
 
 - `AWS_ACCOUNT_ID` (derived from STS when unset)
-- `EXISTING_CONNECTION_ARN`
+- `EXISTING_CONNECTION_ARN` (prefer `arn:aws:codeconnections:...`)
 - `NOVA_MANUAL_APPROVAL_TOPIC_ARN`
 - `CONNECTION_NAME`
 - `NOVA_RELEASE_BUILD_PROJECT_NAME`
@@ -82,7 +82,7 @@ not the runtime ECS service stack names.
 | `GITHUB_OWNER` | yes | none | explicit GitHub org/user target for OIDC trust and repo wiring |
 | `GITHUB_REPO` | yes | none | explicit GitHub repository target for OIDC trust and repo wiring |
 | `AWS_ACCOUNT_ID` | no | derived from `sts get-caller-identity` | ECR ARN/URI synthesis |
-| `EXISTING_CONNECTION_ARN` | no | empty | foundation/codepipeline connection wiring |
+| `EXISTING_CONNECTION_ARN` | no | empty | foundation/codepipeline connection wiring; prefer the current `codeconnections` ARN namespace |
 | `NOVA_DEPLOY_SERVICE_NAME` | no | `nova-file-api` | SSM base-url lookup path |
 
 Operator safety contract:
@@ -170,6 +170,8 @@ Default stack names:
 
 - `${project}-${application}-nova-foundation`
 - `${project}-${application}-nova-iam-roles`
+- `${project}-${application}-nova-dev`
+- `${project}-${application}-nova-prod`
 - `${project}-${application}-nova-codebuild-release`
 - `${project}-${application}-nova-ci-cd`
 - `${project}-ci-dev-service-base-url`
@@ -186,6 +188,15 @@ Canonical SSM base-url marker ownership:
 - `/nova/prod/{service}/base-url` is managed only by
   `${project}-ci-prod-service-base-url`.
 - Do not provision additional stacks that manage these same parameter paths.
+
+Canonical image-digest marker ownership:
+
+- `/nova/dev/{service}/image-digest` is managed only by
+  `${project}-${application}-nova-dev`.
+- `/nova/prod/{service}/image-digest` is managed only by
+  `${project}-${application}-nova-prod`.
+- Do not leave production digest parameters orphaned outside CloudFormation
+  stack ownership.
 
 Critical outputs:
 
