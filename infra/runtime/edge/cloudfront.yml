@@ -64,6 +64,34 @@ Resources:
         - DomainName: !Ref ServiceDNS
           HostedZoneId: !Ref PublicHostedZoneId
 
+  CloudFrontAccessLogsBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: !Sub "${Project}-${Application}-${Environment}-${Service}-cloudfront-logs-${AWS::AccountId}"
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerPreferred
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      Tags:
+        - Key: Project
+          Value: !Ref Project
+        - Key: Application
+          Value: !Ref Application
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Service
+          Value: !Ref Service
+
   EdgeWebAcl:
     Type: AWS::WAFv2::WebACL
     Properties:
@@ -103,6 +131,21 @@ Resources:
               MetricName: !Sub "${Project}-${Application}-${Environment}-${Service}-cloudfront-common"
               SampledRequestsEnabled: true
           - !Ref AWS::NoValue
+        - !If
+          - EnableManagedRuleCommonSet
+          - Name: aws-managed-known-bad-inputs
+            Priority: 11
+            OverrideAction:
+              None: {}
+            Statement:
+              ManagedRuleGroupStatement:
+                VendorName: AWS
+                Name: AWSManagedRulesKnownBadInputsRuleSet
+            VisibilityConfig:
+              CloudWatchMetricsEnabled: true
+              MetricName: !Sub "${Project}-${Application}-${Environment}-${Service}-cloudfront-known-bad-inputs"
+              SampledRequestsEnabled: true
+          - !Ref AWS::NoValue
 
   ApiVpcOrigin:
     Type: AWS::CloudFront::VpcOrigin
@@ -112,7 +155,7 @@ Resources:
         Name: !Sub "${Project}-${Application}-${Environment}-${Service}-alb-origin"
         HTTPPort: 80
         HTTPSPort: 443
-        OriginProtocolPolicy: https-only
+        OriginProtocolPolicy: http-only
         OriginSSLProtocols:
           - TLSv1.2
 
@@ -126,11 +169,15 @@ Resources:
         DefaultCacheBehavior:
           AllowedMethods: [GET, HEAD, OPTIONS, PUT, PATCH, POST, DELETE]
           CachedMethods: [GET, HEAD]
-          CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad
+          CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad # CloudFront managed policy: CachingDisabled
           Compress: true
-          OriginRequestPolicyId: 216adef6-5c7f-47e4-b989-5492eafa07d3
+          OriginRequestPolicyId: 216adef6-5c7f-47e4-b989-5492eafa07d3 # CloudFront managed policy: AllViewer
           TargetOriginId: private-alb-origin
           ViewerProtocolPolicy: redirect-to-https
+        Logging:
+          Bucket: !GetAtt CloudFrontAccessLogsBucket.DomainName
+          IncludeCookies: false
+          Prefix: !Sub "${Environment}/${Service}/cloudfront/"
         Enabled: true
         HttpVersion: http2and3
         IPV6Enabled: true
@@ -181,19 +228,19 @@ Outputs:
     Description: Public CloudFront HTTPS base URL for post-deploy validation and consumers.
     Value: !Sub "https://${ServiceDNS}"
     Export:
-      Name: !Sub "${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${Service}:edge:base-url"
+      Name: !Sub "${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${Environment}:${Service}:edge:base-url"
   DistributionId:
     Description: CloudFront distribution ID.
     Value: !Ref PublicDistribution
     Export:
-      Name: !Sub "${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${Service}:edge:distribution:id"
+      Name: !Sub "${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${Environment}:${Service}:edge:distribution:id"
   DistributionDomainName:
     Description: CloudFront distribution hostname.
     Value: !GetAtt PublicDistribution.DomainName
     Export:
-      Name: !Sub "${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${Service}:edge:distribution:domain"
+      Name: !Sub "${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${Environment}:${Service}:edge:distribution:domain"
   WebAclArn:
     Description: WAFv2 WebACL ARN bound to the public CloudFront distribution.
     Value: !GetAtt EdgeWebAcl.Arn
     Export:
-      Name: !Sub "${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${Service}:edge:waf:arn"
+      Name: !Sub "${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${Environment}:${Service}:edge:waf:arn"

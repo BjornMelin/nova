@@ -58,15 +58,6 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Validate inputs
-        run: |
-          set -euo pipefail
-          if [[ -z "${{ inputs.validation_base_url }}" ]] \
-            && [[ -z "${{ github.event.inputs.validation_base_url }}" ]]; then
-            echo "validation_base_url must be provided." >&2
-            exit 1
-          fi
-
       - id: run-validation
         name: Validate canonical and legacy route contracts
         continue-on-error: true

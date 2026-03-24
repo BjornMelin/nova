@@ -69,7 +69,7 @@ def _args() -> argparse.Namespace:
     parser.add_argument(
         "--base-url",
         default=(os.getenv("VALIDATION_BASE_URL") or "").strip(),
-        help="Validation base URL. Falls back to VALIDATION_BASE_URL.",
+        help="Validation base URL. Defaults to VALIDATION_BASE_URL env var.",
     )
     parser.add_argument(
         "--canonical-paths",

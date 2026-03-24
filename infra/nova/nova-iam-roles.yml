@@ -793,7 +793,9 @@ Resources:
               - cloudfront:ListDistributions
               - cloudfront:ListVpcOrigins
               - cloudfront:ListTagsForResource
-            Resource: "*"
+            Resource:
+              - "*"
+              - !Sub "arn:${AWS::Partition}:cloudfront::${AWS::AccountId}:vpcorigin/*"
           - Sid: ValidationRuntimeInfrastructureRoleRead
             Effect: Allow
             Action:

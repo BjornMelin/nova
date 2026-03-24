@@ -392,4 +392,4 @@ Outputs:
     Value: !GetAtt LoadBalancer.LoadBalancerFullName
     Description: Full name of the application load balancer
     Export:
-      Name: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${LoadBalancerId}${LoadBalancerName}:alb:name
+      Name: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${LoadBalancerId}:${LoadBalancerName}:alb:name
