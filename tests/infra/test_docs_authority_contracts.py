@@ -65,6 +65,14 @@ def _markdown_targets(paths: tuple[Path, ...]) -> list[Path]:
     return sorted(docs)
 
 
+def _section(text: str, start_marker: str, end_marker: str) -> str:
+    start = text.find(start_marker)
+    assert start != -1, f"Missing section marker: {start_marker}"
+    end = text.find(end_marker, start)
+    assert end != -1, f"Missing section terminator: {end_marker}"
+    return text[start:end]
+
+
 def test_canonical_runbook_entrypoint_exists() -> None:
     """Canonical runbook index must exist in Nova docs."""
     assert (DOCS_ROOT / "runbooks" / "README.md").is_file()
@@ -408,6 +416,66 @@ def test_release_docs_align_validation_path_policy_contract() -> None:
         ),
     ]:
         assert required in text
+
+
+def test_runtime_provisioning_docs_lock_cloudfront_ingress_contract() -> None:
+    """Provisioning docs must keep CloudFront-managed ALB ingress canonical."""
+    deploy_text = _read(
+        "docs/runbooks/provisioning/deploy-runtime-cloudformation-environments.md"
+    )
+    required_inputs = _section(
+        deploy_text,
+        "## Required Inputs",
+        "## Reproducible Deployment Sequence",
+    )
+    required_input_lines = [
+        line.strip()
+        for line in required_inputs.splitlines()
+        if line.strip().startswith("- ")
+    ]
+    assert all("ALB_INGRESS_" not in line for line in required_input_lines)
+    for required in [
+        "validated internal ALB origin DNS used by the ALB certificate",
+        "CloudFront origin TLS handshake",
+        "Do not export `ALB_INGRESS_PREFIX_LIST_ID`, `ALB_INGRESS_CIDR`, or",
+        "com.amazonaws.global.cloudfront.origin-facing",
+    ]:
+        assert required in required_inputs
+
+    config_text = _read("docs/runbooks/provisioning/config-values-reference.md")
+    runtime_values = _section(
+        config_text,
+        (
+            "Capture and manage these runtime values per environment before "
+            "CI/CD deploy:"
+        ),
+        "Retired runtime deploy inputs:",
+    )
+    runtime_value_lines = [
+        line.strip()
+        for line in runtime_values.splitlines()
+        if line.strip().startswith("- ")
+    ]
+    assert all("ALB_INGRESS_" not in line for line in runtime_value_lines)
+    for required in [
+        "validated internal ALB origin DNS name used by the ALB certificate",
+        "CloudFront origin TLS validation",
+        "AlbIngressPrefixListId",
+        "scripts/release/deploy-runtime-cloudformation-environment.sh",
+    ]:
+        assert required in runtime_values
+
+    retired_inputs = _section(
+        config_text,
+        "Retired runtime deploy inputs:",
+        "## CloudFormation stack names and outputs",
+    )
+    for retired in [
+        "ALB_INGRESS_PREFIX_LIST_ID",
+        "ALB_INGRESS_CIDR",
+        "ALB_INGRESS_SOURCE_SG_ID",
+    ]:
+        assert retired in retired_inputs
 
 
 def test_auth0_and_ssm_contract_docs_reference_schema_authority() -> None:

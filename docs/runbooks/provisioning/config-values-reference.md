@@ -2,7 +2,7 @@
 
 Status: Active
 Owner: nova release architecture
-Last reviewed: 2026-03-17
+Last reviewed: 2026-03-24
 
 ## Purpose
 
@@ -130,13 +130,11 @@ Capture and manage these runtime values per environment before CI/CD deploy:
 - `SUBNET_IDS`
 - `ALB_HOSTED_ZONE_NAME` (internal/private ALB origin zone)
 - `ALB_HOSTED_ZONE_ID` (optional internal ALB zone ID)
-- `ALB_DNS_NAME` (internal ALB origin DNS name)
+- `ALB_DNS_NAME` (validated internal ALB origin DNS name used by the ALB certificate and CloudFront origin TLS validation)
 - `ALB_NAME`
 - `ALB_SCHEME` (`internal` only)
 - `ENABLE_ALB_ACCESS_LOGS` (`true` or `false`)
 - `ALB_LOG_BUCKET` (required only when access logs are enabled)
-- `ALB_INGRESS_PREFIX_LIST_ID` or `ALB_INGRESS_CIDR` or
-  `ALB_INGRESS_SOURCE_SG_ID` (exactly one)
 - `ECS_CLUSTER_NAME`
 - `SERVICE_NAME`
 - `SERVICE_DNS` (public CloudFront API hostname)
@@ -152,8 +150,21 @@ Capture and manage these runtime values per environment before CI/CD deploy:
 - `ALARM_ACTION_ARN`
 - `ASSIGN_PUBLIC_IP` (`ENABLED` or `DISABLED`)
 
+Canonical CloudFront ingress posture:
+
+The canonical runtime deploy script resolves the AWS-managed CloudFront
+origin-facing prefix list `com.amazonaws.global.cloudfront.origin-facing`
+automatically and passes it to the reusable cluster stack as
+`AlbIngressPrefixListId`.
+Do not set `ALB_INGRESS_PREFIX_LIST_ID`, `ALB_INGRESS_CIDR`, or
+`ALB_INGRESS_SOURCE_SG_ID` when using
+`scripts/release/deploy-runtime-cloudformation-environment.sh`.
+
 Retired runtime deploy inputs:
 
+- `ALB_INGRESS_PREFIX_LIST_ID`
+- `ALB_INGRESS_CIDR`
+- `ALB_INGRESS_SOURCE_SG_ID`
 - `ECS_INFRASTRUCTURE_ROLE_ARN`
 - `TASK_ROLE_ARN`
 - `TASK_EXECUTION_SECRET_ARNS`

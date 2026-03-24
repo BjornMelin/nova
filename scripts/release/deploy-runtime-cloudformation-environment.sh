@@ -185,14 +185,14 @@ delete_stack_if_exists() {
   echo "==> ${stack_name}: deleted"
 }
 
-require_exactly_one_ingress_source() {
-  local count=0
-  [ -n "${ALB_INGRESS_PREFIX_LIST_ID:-}" ] && count=$((count + 1))
-  [ -n "${ALB_INGRESS_CIDR:-}" ] && count=$((count + 1))
-  [ -n "${ALB_INGRESS_SOURCE_SG_ID:-}" ] && count=$((count + 1))
+reject_manual_alb_ingress_overrides() {
+  local manual_sources=()
+  [ -n "${ALB_INGRESS_PREFIX_LIST_ID:-}" ] && manual_sources+=("ALB_INGRESS_PREFIX_LIST_ID")
+  [ -n "${ALB_INGRESS_CIDR:-}" ] && manual_sources+=("ALB_INGRESS_CIDR")
+  [ -n "${ALB_INGRESS_SOURCE_SG_ID:-}" ] && manual_sources+=("ALB_INGRESS_SOURCE_SG_ID")
 
-  if [ "$count" -ne 1 ]; then
-    echo "Provide exactly one of ALB_INGRESS_PREFIX_LIST_ID, ALB_INGRESS_CIDR, or ALB_INGRESS_SOURCE_SG_ID." >&2
+  if [ "${#manual_sources[@]}" -gt 0 ]; then
+    echo "Unsupported runtime deploy override(s): ${manual_sources[*]}. The canonical operator path now resolves the CloudFront managed prefix list and applies it to the ALB ingress automatically." >&2
     exit 1
   fi
 }
@@ -366,6 +366,23 @@ resolve_artifact_bucket_name() {
   printf "%s" ""
 }
 
+resolve_cloudfront_origin_prefix_list_id() {
+  local prefix_list_name="com.amazonaws.global.cloudfront.origin-facing"
+  local prefix_list_id=""
+  prefix_list_id="$(aws ec2 describe-managed-prefix-lists \
+    --region "$AWS_REGION" \
+    --filters "Name=prefix-list-name,Values=${prefix_list_name}" \
+    --query "PrefixLists[0].PrefixListId" \
+    --output text)"
+
+  if [ -z "$prefix_list_id" ] || [ "$prefix_list_id" = "None" ]; then
+    echo "Could not resolve the CloudFront managed prefix list (${prefix_list_name}) in ${AWS_REGION}." >&2
+    exit 1
+  fi
+
+  printf "%s" "$prefix_list_id"
+}
+
 require_cmd aws
 require_cmd jq
 
@@ -504,7 +521,7 @@ case "$RUNTIME_COST_MODE" in
     ;;
 esac
 
-require_exactly_one_ingress_source
+reject_manual_alb_ingress_overrides
 ensure_runtime_env_json_contract
 
 RUNTIME_BUCKET_NAME="${FILE_TRANSFER_BUCKET_BASE_NAME}-${AWS_REGION}-${AWS_ACCOUNT_ID}"
@@ -515,6 +532,7 @@ if [ -n "$ARTIFACT_BUCKET_NAME" ] && [ "$RUNTIME_BUCKET_NAME" = "$ARTIFACT_BUCKE
 fi
 
 ECS_INFRA_ROLE_ARN="$(resolve_ecs_infrastructure_role)"
+CLOUDFRONT_MANAGED_PREFIX_LIST_ID="$(resolve_cloudfront_origin_prefix_list_id)"
 KMS_STACK_NAME="${PROJECT}-${APPLICATION}-${ENVIRONMENT}-runtime-kms"
 ECR_STACK_NAME="${PROJECT}-${APPLICATION}-${ENVIRONMENT}-runtime-ecr"
 CLUSTER_STACK_NAME="${PROJECT}-${APPLICATION}-${ENVIRONMENT}-runtime-cluster"
@@ -558,6 +576,7 @@ cluster_args=(
   "HostedZoneName=${ALB_HOSTED_ZONE_NAME}"
   "VpcId=${VPC_ID}"
   "SubnetList=${SUBNET_IDS}"
+  "AlbIngressPrefixListId=${CLOUDFRONT_MANAGED_PREFIX_LIST_ID}"
   "ImportKmsKeyId=${KMS_KEY_ID_EXPORT}"
   "LoadBalancerDNSName=${ALB_DNS_NAME}"
   "EnableLoadBalancerAccessLogs=${ENABLE_ALB_ACCESS_LOGS}"
@@ -569,15 +588,6 @@ if [ -n "${ALB_HOSTED_ZONE_ID:-}" ]; then
 fi
 if [ -n "${ALB_LOG_BUCKET:-}" ]; then
   cluster_args+=("LoadBalancerLogBucket=${ALB_LOG_BUCKET}")
-fi
-if [ -n "${ALB_INGRESS_PREFIX_LIST_ID:-}" ]; then
-  cluster_args+=("AlbIngressPrefixListId=${ALB_INGRESS_PREFIX_LIST_ID}")
-fi
-if [ -n "${ALB_INGRESS_CIDR:-}" ]; then
-  cluster_args+=("AlbIngressCidr=${ALB_INGRESS_CIDR}")
-fi
-if [ -n "${ALB_INGRESS_SOURCE_SG_ID:-}" ]; then
-  cluster_args+=("AlbIngressSourceSecurityGroupId=${ALB_INGRESS_SOURCE_SG_ID}")
 fi
 
 deploy_stack \
@@ -709,7 +719,6 @@ deploy_stack \
   "${service_args[@]}"
 
 LOAD_BALANCER_ARN="$(stack_output "$CLUSTER_STACK_NAME" LoadBalancerArn)"
-LOAD_BALANCER_HOSTNAME="$(stack_output "$CLUSTER_STACK_NAME" LoadBalancerDnsHostname)"
 
 deploy_stack \
   "$EDGE_STACK_NAME" \
@@ -719,7 +728,7 @@ deploy_stack \
   "Application=${APPLICATION}" \
   "Service=${SERVICE_NAME}" \
   "LoadBalancerArn=${LOAD_BALANCER_ARN}" \
-  "LoadBalancerDomainName=${LOAD_BALANCER_HOSTNAME}" \
+  "LoadBalancerDomainName=${ALB_DNS_NAME}" \
   "PublicHostedZoneId=${PUBLIC_HOSTED_ZONE_ID}" \
   "ServiceDNS=${SERVICE_DNS}"
 
