@@ -69,8 +69,8 @@ Fallback path:
 - `${NOVA_DEPLOY_SERVICE_NAME}` (optional, default `nova-file-api`)
 - `${GITHUB_OIDC_PROVIDER_ARN}`
 - `${SECRET_NAME}` or `${RELEASE_SIGNING_SECRET_ARN}`
-- `${DEV_BASE_URL}` example `https://api.dev.example.com` (published from the runtime edge stack)
-- `${PROD_BASE_URL}` example `https://api.example.com` (published from the runtime edge stack)
+- `${DEV_BASE_URL}` example `https://nova-file-api.dev.example.com` (published from the runtime edge stack)
+- `${PROD_BASE_URL}` example `https://nova-file-api.example.com` (published from the runtime edge stack)
 - `${EXISTING_CONNECTION_ARN}` (optional)
 - `${NOVA_MANUAL_APPROVAL_TOPIC_ARN}` (optional)
 

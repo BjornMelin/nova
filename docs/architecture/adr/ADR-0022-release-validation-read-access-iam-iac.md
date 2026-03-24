@@ -108,6 +108,9 @@ Actions codified in `ReleaseValidationReadManagedPolicy`:
   `codepipeline:GetPipeline`, `codepipeline:GetPipelineState`,
   `codepipeline:GetPipelineExecution`.
 - Runtime/infrastructure read: `cloudformation:DescribeStacks`,
+  `cloudfront:GetDistribution`, `cloudfront:GetDistributionConfig`,
+  `cloudfront:GetVpcOrigin`, `cloudfront:ListDistributions`,
+  `cloudfront:ListVpcOrigins`, `cloudfront:ListTagsForResource`,
   `ecs:DescribeClusters`, `ecs:ListClusters`, `ecs:ListServices`,
   `ecs:DescribeServices`, `ecs:DescribeTaskDefinition`,
   `elasticloadbalancing:DescribeListeners`,

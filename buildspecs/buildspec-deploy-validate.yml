@@ -14,7 +14,11 @@ phases:
 
   pre_build:
     commands:
-      - test -n "${VALIDATION_BASE_URL:-}"
+      - |
+        if [ -z "${VALIDATION_BASE_URL:-}" ]; then
+          echo "ERROR: VALIDATION_BASE_URL is required for deployment validation" >&2
+          exit 1
+        fi
 
   build:
     commands:

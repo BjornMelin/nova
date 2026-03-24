@@ -132,7 +132,7 @@ Capture and manage these runtime values per environment before CI/CD deploy:
 - `ALB_HOSTED_ZONE_ID` (optional internal ALB zone ID)
 - `ALB_DNS_NAME` (internal ALB origin DNS name)
 - `ALB_NAME`
-- `ALB_SCHEME` (`internal` or `internet-facing`)
+- `ALB_SCHEME` (`internal` only)
 - `ENABLE_ALB_ACCESS_LOGS` (`true` or `false`)
 - `ALB_LOG_BUCKET` (required only when access logs are enabled)
 - `ALB_INGRESS_PREFIX_LIST_ID` or `ALB_INGRESS_CIDR` or

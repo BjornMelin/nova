@@ -55,7 +55,7 @@ Export these values before running commands:
 - `ALB_HOSTED_ZONE_ID` (optional Route53 hosted zone ID for internal ALB cert/DNS automation)
 - `ALB_DNS_NAME` (example `api-dev.internal.example.com`, internal ALB origin DNS)
 - `ALB_NAME`
-- `ALB_SCHEME` (`internal` or `internet-facing`, default `internal`)
+- `ALB_SCHEME` (`internal` only, default `internal`)
 - `ENABLE_ALB_ACCESS_LOGS` (`true` or `false`, default `false`)
 - `ALB_LOG_BUCKET` (required only when `ENABLE_ALB_ACCESS_LOGS=true`)
 - `ALB_INGRESS_PREFIX_LIST_ID` or `ALB_INGRESS_CIDR` or
@@ -228,7 +228,7 @@ aws cloudformation wait stack-create-complete \
 
 Additional cluster controls:
 
-- `LoadBalancerScheme` supports `internal` or `internet-facing`.
+- `LoadBalancerScheme` supports `internal` only.
 - `HostedZoneId` is optional; when provided, ACM validation records can be
   provisioned automatically.
 - `EnableLoadBalancerAccessLogs=true` requires `LoadBalancerLogBucket`.

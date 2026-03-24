@@ -21,8 +21,8 @@ Parameters:
   LoadBalancerScheme:
     Type: String
     Default: internal
-    AllowedValues: [internal, internet-facing]
-    Description: ALB scheme. Use internet-facing when endpoints must be public.
+    AllowedValues: [internal]
+    Description: ALB scheme. The runtime origin contract requires an internal ALB.
   HostedZoneName:
     Type: String
   HostedZoneId:

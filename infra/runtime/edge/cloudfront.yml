@@ -166,7 +166,9 @@ Resources:
         Name: !Sub "${Project}-${Application}-${Environment}-${Service}-alb-origin"
         HTTPPort: 80
         HTTPSPort: 443
-        OriginProtocolPolicy: http-only
+        OriginProtocolPolicy: https-only
+        OriginSSLProtocols:
+          - TLSv1.2
 
   PublicDistribution:
     Type: AWS::CloudFront::Distribution
