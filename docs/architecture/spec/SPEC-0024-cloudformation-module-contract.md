@@ -31,7 +31,8 @@ Required stack modules:
 3. `infra/nova/nova-codebuild-release.yml`
 4. `infra/nova/nova-ci-cd.yml`
 5. `infra/nova/deploy/service-base-url-ssm.yml`
-6. runtime stacks under `infra/runtime/**`
+6. runtime stacks under `infra/runtime/**`, including the public edge stack
+   under `infra/runtime/edge/**`
 
 ## 3. Module ownership and responsibilities
 
@@ -42,7 +43,7 @@ Required stack modules:
 | `nova-codebuild-release.yml` | Build/validation CodeBuild projects, retained CloudWatch log groups, and related role bindings |
 | `nova-ci-cd.yml` | CodePipeline stages, artifact wiring, promotion controls, manual approval stage, and an intentionally recreatable idle-state control plane |
 | `infra/nova/deploy/service-base-url-ssm.yml` | Environment-scoped SSM authority values for deploy validation base URLs (`/nova/{env}/{service}/base-url`) |
-| `infra/runtime/**` | Runtime infrastructure (ECS, ALB, WAF, queues, cache, secrets wiring, app parameters, observability) |
+| `infra/runtime/**` | Runtime infrastructure (CloudFront edge, CLOUDFRONT-scope WAF, internal ALB, ECS, queues, cache, secrets wiring, app parameters, observability) |
 
 Additional runtime ECS service contract:
 
@@ -68,7 +69,8 @@ Additional runtime ECS service contract:
 2. Cross-stack values must be explicit via CloudFormation exports/imports.
 3. No module may depend on implicit values from undeclared stacks.
 4. Deploy validation base URLs are sourced from SSM authority paths managed by
-   `infra/nova/deploy/service-base-url-ssm.yml`.
+   `infra/nova/deploy/service-base-url-ssm.yml`, with the value published from
+   the runtime edge stack output rather than the ALB/service stack directly.
 
 ## 5. Template syntax and runtime language contract
 

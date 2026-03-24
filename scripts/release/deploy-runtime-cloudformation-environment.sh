@@ -328,11 +328,6 @@ ensure_runtime_env_json_contract() {
 }
 
 resolve_ecs_infrastructure_role() {
-  if [ -n "${ECS_INFRASTRUCTURE_ROLE_ARN:-}" ]; then
-    printf "%s" "$ECS_INFRASTRUCTURE_ROLE_ARN"
-    return
-  fi
-
   local stack_name="${CONTROL_PLANE_PROJECT}-${CONTROL_PLANE_APPLICATION}-nova-iam-roles"
   if stack_exists "$stack_name"; then
     local role_arn
@@ -348,7 +343,7 @@ resolve_ecs_infrastructure_role() {
     fi
   fi
 
-  echo "Missing ECS_INFRASTRUCTURE_ROLE_ARN and no usable role output found in ${stack_name}." >&2
+  echo "Missing a usable ECS infrastructure role output in ${stack_name}." >&2
   exit 1
 }
 
@@ -428,6 +423,7 @@ require_env ENVIRONMENT
 require_env NOVA_REPO_ROOT
 require_env VPC_ID
 require_env SUBNET_IDS
+require_env PUBLIC_HOSTED_ZONE_ID
 require_env ALB_NAME
 require_env ALB_HOSTED_ZONE_NAME
 require_env ALB_DNS_NAME
@@ -444,6 +440,9 @@ require_env FILE_TRANSFER_CORS_ALLOWED_ORIGINS
 require_env ENV_VARS_JSON
 
 reject_legacy_env \
+  ECS_INFRASTRUCTURE_ROLE_ARN \
+  "The deploy operator now resolves the ECS infrastructure role from the Nova IAM control-plane stack."
+reject_legacy_env \
   TASK_ROLE_ARN \
   "The ECS service stack now owns the repo-managed task role; stop supplying TaskRole overrides."
 reject_legacy_env \
@@ -455,6 +454,11 @@ reject_legacy_env \
 
 if [ "$ENVIRONMENT" != "dev" ] && [ "$ENVIRONMENT" != "prod" ]; then
   echo "ENVIRONMENT must be dev or prod." >&2
+  exit 1
+fi
+
+if [ "$AWS_REGION" != "us-east-1" ]; then
+  echo "AWS_REGION must be us-east-1 because the CloudFront edge, CLOUDFRONT-scope WAF, and ACM viewer certificate are deployed there." >&2
   exit 1
 fi
 
@@ -520,6 +524,7 @@ CACHE_STACK_NAME="${PROJECT}-${APPLICATION}-${ENVIRONMENT}-runtime-cache"
 SERVICE_STACK_NAME="${PROJECT}-${APPLICATION}-${ENVIRONMENT}-runtime-service"
 WORKER_STACK_NAME="${PROJECT}-${APPLICATION}-${ENVIRONMENT}-runtime-worker"
 OBSERVABILITY_STACK_NAME="${PROJECT}-${APPLICATION}-${ENVIRONMENT}-runtime-observability"
+EDGE_STACK_NAME="${PROJECT}-${APPLICATION}-${ENVIRONMENT}-runtime-edge"
 BASE_URL_STACK_NAME="${CONTROL_PLANE_PROJECT}-${CONTROL_PLANE_APPLICATION}-${ENVIRONMENT}-service-base-url"
 
 KMS_KEY_ID_EXPORT="${AWS_ACCOUNT_ID}:${AWS_REGION}:${PROJECT}:KmsKeyId"
@@ -655,6 +660,7 @@ service_args=(
   "Project=${PROJECT}"
   "Application=${APPLICATION}"
   "Service=${SERVICE_NAME}"
+  "ServiceHostedZoneId=${PUBLIC_HOSTED_ZONE_ID}"
   "EcsClusterName=${ECS_CLUSTER_NAME}"
   "LoadBalancerName=${ALB_NAME}"
   "DockerRepoName=${DOCKER_REPOSITORY_NAME}"
@@ -702,7 +708,22 @@ deploy_stack \
   "infra/runtime/ecs/service.yml" \
   "${service_args[@]}"
 
-SERVICE_BASE_URL="$(stack_output "$SERVICE_STACK_NAME" EcsDnsName)"
+LOAD_BALANCER_ARN="$(stack_output "$CLUSTER_STACK_NAME" LoadBalancerArn)"
+LOAD_BALANCER_HOSTNAME="$(stack_output "$CLUSTER_STACK_NAME" LoadBalancerDnsHostname)"
+
+deploy_stack \
+  "$EDGE_STACK_NAME" \
+  "infra/runtime/edge/cloudfront.yml" \
+  "Environment=${ENVIRONMENT}" \
+  "Project=${PROJECT}" \
+  "Application=${APPLICATION}" \
+  "Service=${SERVICE_NAME}" \
+  "LoadBalancerArn=${LOAD_BALANCER_ARN}" \
+  "LoadBalancerDomainName=${LOAD_BALANCER_HOSTNAME}" \
+  "PublicHostedZoneId=${PUBLIC_HOSTED_ZONE_ID}" \
+  "ServiceDNS=${SERVICE_DNS}"
+
+SERVICE_BASE_URL="$(stack_output "$EDGE_STACK_NAME" PublicBaseUrl)"
 
 if [ "$WORKER_STACK_ACTION" = "delete" ]; then
   delete_stack_if_exists "$WORKER_STACK_NAME"

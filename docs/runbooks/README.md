@@ -70,9 +70,10 @@ indexes: [`release/README.md`](./release/README.md).
   durable, while `nova-codebuild-release` and `nova-ci-cd` should be deleted
   when they are not actively needed.
 - Runtime deploy runbooks must treat the ECS service task role as repo-managed
-  infrastructure owned by `infra/runtime/ecs/service.yml`; do not document or
-  require `TASK_ROLE_ARN`, `TASK_EXECUTION_SECRET_ARNS`, or
-  `TASK_EXECUTION_SSM_PARAMETER_ARNS`.
+  infrastructure owned by `infra/runtime/ecs/service.yml`, and the ECS
+  infrastructure role as resolved from the Nova IAM control-plane stack; do not
+  document or require `ECS_INFRASTRUCTURE_ROLE_ARN`, `TASK_ROLE_ARN`,
+  `TASK_EXECUTION_SECRET_ARNS`, or `TASK_EXECUTION_SSM_PARAMETER_ARNS`.
 - Runtime env/override lists in active runbooks must resolve back to the
   generated runtime config contract at
   `../release/runtime-config-contract.generated.md`, not to hand-maintained

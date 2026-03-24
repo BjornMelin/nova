@@ -80,8 +80,10 @@ Release/provisioning doc conventions: **Release operator docs profile** in
   with real packages, logical format `r`, CodeArtifact generic transport, and
   signed tarball evidence.
 - Runtime deploy planning now assumes `infra/runtime/ecs/service.yml` owns the
-  ECS service task role and cache secret injection; operator plans must not
-  depend on `TASK_ROLE_ARN`, `TASK_EXECUTION_SECRET_ARNS`, or
+  ECS service task role and cache secret injection, and the deploy operator
+  resolves the ECS infrastructure role from the Nova IAM control-plane stack;
+  operator plans must not depend on `ECS_INFRASTRUCTURE_ROLE_ARN`,
+  `TASK_ROLE_ARN`, `TASK_EXECUTION_SECRET_ARNS`, or
   `TASK_EXECUTION_SSM_PARAMETER_ARNS`.
 - Stable generated-client and conformance behavior remain part of release
   readiness, not a separate documentation model.

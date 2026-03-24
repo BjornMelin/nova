@@ -51,22 +51,28 @@ This spec does not restate route literals to avoid contract drift.
 
 ### 3.1 Core services
 
-- API service: FastAPI on ECS/Fargate behind ALB.
+- Public edge: CloudFront distribution with CLOUDFRONT-scope WAF.
+- Origin layer: internal ALB reached through a CloudFront VPC origin.
+- API service: FastAPI on ECS/Fargate behind the internal ALB.
 - Worker service(s): ECS/Fargate consuming SQS queues (with DLQ).
 - Optional scheduler path: EventBridge Scheduler -> SQS -> worker.
 
 ### 3.2 Network/security
 
-- Private subnets for ECS tasks.
-- ALB ingress policy by deployment mode (public/private).
+- Private subnets for ECS tasks and the ALB origin.
+- CloudFront is the only public ingress path for the API service.
+- ALB ingress is restricted to the CloudFront-managed prefix list, a pinned
+  CIDR, or an explicit source security group.
 - Least-privilege SGs and IAM task roles.
 - Secrets in Secrets Manager with KMS encryption.
-- WAF attached to public ALB.
+- Bearer JWT verification remains application-authoritative in Nova.
 
 ### 3.3 Reliability/rollback
 
-- Deployment circuit breaker and CloudWatch alarm rollback controls are
-  mandatory.
+- API deployment uses ECS-native blue/green with bake time and CloudWatch alarm
+  rollback controls.
+- Worker deployment uses ECS rolling deploys with deployment circuit breaker
+  protection.
 - Health endpoints are `/v1/health/live` and `/v1/health/ready`.
 
 ## 4. IaC ownership map (required)
@@ -74,11 +80,12 @@ This spec does not restate route literals to avoid contract drift.
 Nova repo must own runtime-deployment IaC for:
 
 1. ECS services/task definitions (API + workers).
-2. ALB/listeners/target groups/WAF association.
+2. CloudFront edge, CLOUDFRONT-scope WAF, ALB/listeners/target groups, and
+   VPC-origin wiring.
 3. Queue and DLQ resources + scaling policies.
 4. Secrets/KMS policy modules.
 5. Observability resources (dashboards/alarms/log groups).
-6. Release promotion stack templates.
+6. Release promotion stack templates and public base-url SSM marker stacks.
 
 ## 5. CI/CD contract
 

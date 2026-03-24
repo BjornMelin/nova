@@ -1,6 +1,6 @@
 # nova runtime
 
-![Python](https://img.shields.io/badge/Python-3.12%20%7C%203.13-3776AB?logo=python&logoColor=white) ![FastAPI](https://img.shields.io/badge/FastAPI-0.135%2B-009688?logo=fastapi&logoColor=white) ![OpenAPI](https://img.shields.io/badge/OpenAPI-3.1-6BA539?logo=openapiinitiative&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3.13-3776AB?logo=python&logoColor=white) ![FastAPI](https://img.shields.io/badge/FastAPI-0.135%2B-009688?logo=fastapi&logoColor=white) ![OpenAPI](https://img.shields.io/badge/OpenAPI-3.1-6BA539?logo=openapiinitiative&logoColor=white)
 
 FastAPI control-plane runtime for direct-to-S3 uploads/downloads and async job
 orchestration. The service returns presigned metadata and job state; it does not
@@ -261,14 +261,15 @@ Key release docs:
 - `docs/runbooks/provisioning/deploy-runtime-cloudformation-environments.md`
 - `docs/runbooks/provisioning/docker-buildx-credential-helper-setup.md`
 
-The runtime deploy operator now owns the ECS service task role and cache secret
-wiring. Do not supply `TASK_ROLE_ARN`,
+The runtime deploy operator now owns the ECS service task role, cache secret
+wiring, and ECS infrastructure role resolution. Do not supply
+`ECS_INFRASTRUCTURE_ROLE_ARN`, `TASK_ROLE_ARN`,
 `TASK_EXECUTION_SECRET_ARNS`, or `TASK_EXECUTION_SSM_PARAMETER_ARNS`.
 
 ## Local Service Images
 
 Local service-image verification uses the release-owned Dockerfiles under
-`apps/*` and now requires Docker BuildKit plus `buildx`.
+`apps/*`, Python `3.13-slim`, pinned `uv`, and Docker BuildKit plus `buildx`.
 
 See:
 

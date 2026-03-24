@@ -374,8 +374,9 @@ adapters stay scoped to true sync framework edges.
 
 ### NFR-0002: Scalability and resilience
 
-The service MUST remain control-plane only and scale horizontally behind ALB on
-ECS/Fargate.
+The service MUST remain control-plane only and scale horizontally behind a
+CloudFront + WAF public edge, with an internal ALB origin and ECS/Fargate API
+and worker services.
 
 Default runtime posture MUST support `500 GiB` single-file uploads and
 multi-TiB aggregate workloads through direct-to-S3 multipart transfer, not API

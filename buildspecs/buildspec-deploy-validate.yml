@@ -8,13 +8,13 @@ env:
 phases:
   install:
     runtime-versions:
-      python: "3.12"
+      python: "3.13"
     commands:
       - python3 --version
 
   pre_build:
     commands:
-      - test -n "${VALIDATION_BASE_URL:-${SERVICE_BASE_URL:-}}"
+      - test -n "${VALIDATION_BASE_URL:-}"
 
   build:
     commands:

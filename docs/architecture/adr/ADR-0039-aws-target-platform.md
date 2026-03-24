@@ -19,8 +19,8 @@ References:
 
 ## Summary
 
-Nova’s target platform is **CloudFront (+ WAF) → ALB → ECS/Fargate** for **API
-and worker** services, with **S3**, **SQS**, **DynamoDB**, secrets/config via
+Nova’s target platform is **CloudFront (+ WAF) → internal ALB → ECS/Fargate**
+for **API and worker** services, with **S3**, **SQS**, **DynamoDB**, secrets/config via
 **Secrets Manager / SSM**, and **ADOT/OpenTelemetry**-style observability. **JWT
 verification stays in-app.** Composite end-to-end architecture scores
 **9.23/10**; DynamoDB scores **9.31/10** under Framework C (see
@@ -38,12 +38,12 @@ verification stays in-app.** Composite end-to-end architecture scores
 
 ## Decision
 
-**Accept** the composite **CloudFront (+ WAF) → ALB → ECS/Fargate** platform
+**Accept** the composite **CloudFront (+ WAF) → internal ALB → ECS/Fargate** platform
 with **S3**, **SQS**, **DynamoDB**, standard secrets/config, and
 ADOT-oriented observability, with **separate** API and worker ECS services.
 **DynamoDB** remains the primary metadata/activity store pattern. **JWT
-verification remains application-authoritative**; edge JWT is optional
-defense-in-depth only.
+verification remains application-authoritative**; ALB JWT is optional
+defense-in-depth only and is not the primary auth contract.
 
 ## Implementation commitments
 
@@ -58,8 +58,8 @@ defense-in-depth only.
 
 ## Consequences
 
-1. **Positive:** ECS blue/green patterns, shared images between API and worker,
-   managed data plane for jobs/activity.
+1. **Positive:** CloudFront edge controls plus ECS blue/green patterns, shared
+   images between API and worker, managed data plane for jobs/activity.
 2. **Trade-offs:** AWS lock-in trade-offs accepted; ECS operations remain
    non-trivial.
 3. **Ongoing:** Cost and capacity reviews; optional API Gateway or edge auth only

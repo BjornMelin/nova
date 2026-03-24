@@ -164,6 +164,8 @@ Release-image Dockerfile contract:
 - Service Dockerfiles remain under `apps/*`; do not move them into workspace
   package paths.
 - Service image builds MUST run with Docker BuildKit enabled.
+- Service image builds MUST target the repo-approved Python `3.13-slim`
+  baseline and use pinned `uv` for reproducible dependency installation.
 - Service Dockerfiles MUST use exec-form single-process `uvicorn` commands and
   may not add `gunicorn` or in-container worker fan-out for the ECS/Fargate API
   services.

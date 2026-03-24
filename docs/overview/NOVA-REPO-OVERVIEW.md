@@ -183,7 +183,7 @@ flowchart TB
 ### Runtime plane (high level)
 
 - Compute: ECS/Fargate services (API + worker roles).
-- Edge and ingress: ALB and WAF integration.
+- Edge and ingress: CloudFront + WAF public edge with an internal ALB origin.
 - Storage/data: S3 (transfer resources), DynamoDB (activity/state patterns), Redis/cache backends.
 - Async: SQS queues with DLQ handling.
 - Security: IAM + KMS-backed encryption posture.
@@ -207,7 +207,8 @@ flowchart LR
     ECS --> REDIS["Redis cache"]
     ECS --> CW["CloudWatch logs and metrics"]
     ECS --> KMS["KMS protected data paths"]
-    ALB["ALB and WAF"] --> ECS
+    EDGE["CloudFront and WAF"] --> ALB["Internal ALB origin"]
+    ALB --> ECS
 ```
 
 ```mermaid
@@ -267,7 +268,7 @@ sequenceDiagram
 
 6. Minutes 8-9: AWS topology and delivery
 
-   - Map services to ECS, SQS, S3, DynamoDB, Redis, ALB/WAF, CloudWatch, KMS.
+   - Map services to ECS, SQS, S3, DynamoDB, Redis, CloudFront/WAF, internal ALB, CloudWatch, KMS.
    - Explain release/promotion posture at high level.
 
 7. Minute 10: Reliability and security guarantees

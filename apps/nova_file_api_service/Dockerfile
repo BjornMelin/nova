@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.7
-FROM public.ecr.aws/docker/library/python:3.12-slim AS builder
+FROM public.ecr.aws/docker/library/python:3.13-slim AS builder
 
 COPY --from=ghcr.io/astral-sh/uv:0.10.12 /uv /uvx /bin/
 
@@ -12,6 +12,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 COPY pyproject.toml uv.lock README.md ./
+COPY packages/nova_dash_bridge/pyproject.toml packages/nova_dash_bridge/README.md ./packages/nova_dash_bridge/
 COPY packages/nova_file_api/pyproject.toml packages/nova_file_api/README.md ./packages/nova_file_api/
 COPY packages/nova_runtime_support/pyproject.toml packages/nova_runtime_support/README.md ./packages/nova_runtime_support/
 
@@ -20,6 +21,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
       --frozen \
       --no-default-groups \
       --package nova-file-api \
+      --no-install-package nova-dash-bridge \
       --no-install-package nova-file-api \
       --no-install-package nova-runtime-support
 
@@ -31,9 +33,10 @@ RUN --mount=type=cache,target=/root/.cache/uv \
       --frozen \
       --no-default-groups \
       --package nova-file-api \
+      --no-install-package nova-dash-bridge \
       --no-editable
 
-FROM public.ecr.aws/docker/library/python:3.12-slim
+FROM public.ecr.aws/docker/library/python:3.13-slim
 
 ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONDONTWRITEBYTECODE=1 \

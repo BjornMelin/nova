@@ -85,7 +85,8 @@ subject must cite the relevant AWS source when it describes:
 3. CloudFormation pre-deployment validation via change sets and
    `DescribeEvents`
 4. `OperationEvents` validation output semantics
-5. WAF rate-based protections on public ALB ingress
+5. WAF rate-based protections on public CloudFront ingress and the internal ALB
+   origin model that the edge forwards into
 
 ## 6. Testable invariants
 

@@ -21,6 +21,7 @@ build_contract_payload = runtime_config_contract.build_contract_payload
 
 RUNTIME_DEPLOYABLE_TEMPLATES = (
     "infra/runtime/ecr.yml",
+    "infra/runtime/edge/cloudfront.yml",
     "infra/runtime/ecs/cluster.yml",
     "infra/runtime/ecs/service.yml",
     "infra/runtime/file_transfer/async.yml",
@@ -1156,7 +1157,6 @@ def test_nova_ci_cd_validation_env_contracts() -> None:
         "ValidationCanonicalPaths:",
         "ValidationLegacy404Paths:",
         '"name":"VALIDATION_BASE_URL"',
-        '"name":"SERVICE_BASE_URL"',
         '"name":"VALIDATION_CANONICAL_PATHS"',
         '"name":"VALIDATION_LEGACY_404_PATHS"',
     ]:
@@ -1185,6 +1185,8 @@ def test_nova_iam_validation_read_contracts() -> None:
         "codepipeline:ListActionExecutions",
         "codepipeline:GetPipeline",
         "cloudformation:DescribeStacks",
+        "cloudfront:GetDistribution",
+        "cloudfront:GetVpcOrigin",
         "ecs:DescribeClusters",
         "elasticloadbalancing:DescribeListeners",
         "elasticloadbalancing:DescribeRules",

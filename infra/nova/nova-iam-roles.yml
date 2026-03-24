@@ -784,6 +784,16 @@ Resources:
               - wafv2:GetWebACLForResource
               - wafv2:ListWebACLs
             Resource: "*"
+          - Sid: ValidationRuntimeCloudFrontRead
+            Effect: Allow
+            Action:
+              - cloudfront:GetDistribution
+              - cloudfront:GetDistributionConfig
+              - cloudfront:GetVpcOrigin
+              - cloudfront:ListDistributions
+              - cloudfront:ListVpcOrigins
+              - cloudfront:ListTagsForResource
+            Resource: "*"
           - Sid: ValidationRuntimeInfrastructureRoleRead
             Effect: Allow
             Action:

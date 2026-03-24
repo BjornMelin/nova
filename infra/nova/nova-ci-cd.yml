@@ -272,8 +272,6 @@ Resources:
                 EnvironmentVariables: !Sub >-
                   [{"name":"VALIDATION_BASE_URL",
                   "value":"${DevServiceBaseUrl}","type":"PLAINTEXT"},
-                  {"name":"SERVICE_BASE_URL",
-                  "value":"${DevServiceBaseUrl}","type":"PLAINTEXT"},
                   {"name":"VALIDATION_CANONICAL_PATHS",
                   "value":"${ValidationCanonicalPaths}","type":"PLAINTEXT"},
                   {"name":"VALIDATION_LEGACY_404_PATHS",
@@ -347,8 +345,6 @@ Resources:
                     Fn::Sub: "${CodeBuildStackName}-DeployValidateProjectName"
                 EnvironmentVariables: !Sub >-
                   [{"name":"VALIDATION_BASE_URL",
-                  "value":"${ProdServiceBaseUrl}","type":"PLAINTEXT"},
-                  {"name":"SERVICE_BASE_URL",
                   "value":"${ProdServiceBaseUrl}","type":"PLAINTEXT"},
                   {"name":"VALIDATION_CANONICAL_PATHS",
                   "value":"${ValidationCanonicalPaths}","type":"PLAINTEXT"},

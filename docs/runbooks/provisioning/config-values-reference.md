@@ -104,7 +104,8 @@ Service base URLs are resolved by the operator command pack from SSM parameters:
 - `/nova/dev/${NOVA_DEPLOY_SERVICE_NAME:-nova-file-api}/base-url`
 - `/nova/prod/${NOVA_DEPLOY_SERVICE_NAME:-nova-file-api}/base-url`
 
-Populate these via `infra/nova/deploy/service-base-url-ssm.yml` before running
+Populate these via `infra/nova/deploy/service-base-url-ssm.yml` using the
+runtime edge stack `PublicBaseUrl` output before running
 `scripts/release/day-0-operator-command-pack.sh`.
 
 ## Runtime stack parameter contract
@@ -127,9 +128,9 @@ Capture and manage these runtime values per environment before CI/CD deploy:
 
 - `VPC_ID`
 - `SUBNET_IDS`
-- `ALB_HOSTED_ZONE_NAME`
-- `ALB_HOSTED_ZONE_ID` (optional)
-- `ALB_DNS_NAME`
+- `ALB_HOSTED_ZONE_NAME` (internal/private ALB origin zone)
+- `ALB_HOSTED_ZONE_ID` (optional internal ALB zone ID)
+- `ALB_DNS_NAME` (internal ALB origin DNS name)
 - `ALB_NAME`
 - `ALB_SCHEME` (`internal` or `internet-facing`)
 - `ENABLE_ALB_ACCESS_LOGS` (`true` or `false`)
@@ -138,7 +139,8 @@ Capture and manage these runtime values per environment before CI/CD deploy:
   `ALB_INGRESS_SOURCE_SG_ID` (exactly one)
 - `ECS_CLUSTER_NAME`
 - `SERVICE_NAME`
-- `SERVICE_DNS`
+- `SERVICE_DNS` (public CloudFront API hostname)
+- `PUBLIC_HOSTED_ZONE_ID`
 - `DOCKER_REPOSITORY_NAME`
 - `IMAGE_DIGEST`
 - `ENV_VARS_JSON`
@@ -146,14 +148,13 @@ Capture and manage these runtime values per environment before CI/CD deploy:
   deploy script validates the JSON keys against the generated runtime config
   contract and maps them to explicit ECS environment entries; it is no longer
   passed through as `ENV_DICT`.
-- `ECS_INFRASTRUCTURE_ROLE_ARN` (optional override; otherwise resolved from the
-  control-plane IAM stack)
 - `OWNER_TAG`
 - `ALARM_ACTION_ARN`
 - `ASSIGN_PUBLIC_IP` (`ENABLED` or `DISABLED`)
 
 Retired runtime deploy inputs:
 
+- `ECS_INFRASTRUCTURE_ROLE_ARN`
 - `TASK_ROLE_ARN`
 - `TASK_EXECUTION_SECRET_ARNS`
 - `TASK_EXECUTION_SSM_PARAMETER_ARNS`

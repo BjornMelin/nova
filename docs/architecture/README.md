@@ -117,9 +117,11 @@ Use when the question is about CloudFormation module boundaries, reusable
 workflows, CI/CD IAM policy, or deployment-control-plane design.
 
 Current deploy-governance baseline: the ECS service runtime stack owns the
-repo-managed task role and cache-secret execution-role policy. Operator docs
-and workflows must not reintroduce external `TaskRole` or generic execution
-secret override inputs.
+repo-managed task role and cache-secret execution-role policy, while the deploy
+operator resolves the ECS infrastructure role from the Nova IAM control-plane
+stack. Operator docs and workflows must not reintroduce external
+`ECS_INFRASTRUCTURE_ROLE_ARN`, `TaskRole`, or generic execution-secret override
+inputs.
 
 - `adr/ADR-0015-nova-api-platform-final-hosting-and-deployment-architecture-2026.md`
 - `adr/ADR-0039-aws-target-platform.md`

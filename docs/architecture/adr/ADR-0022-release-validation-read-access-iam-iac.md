@@ -16,8 +16,8 @@ References:
 ## Summary
 
 Adopt a dedicated release validation read role in Nova IaC using minimally scoped
-read permissions from CodeConnections, CodeArtifact, CodePipeline, ECS/ELB/WAF,
-CloudFormation, CloudWatch, and runtime infrastructure IAM surfaces.
+read permissions from CodeConnections, CodeArtifact, CodePipeline, CloudFront,
+ECS/ELB/WAF, CloudFormation, CloudWatch, and runtime infrastructure IAM surfaces.
 
 ## Context
 

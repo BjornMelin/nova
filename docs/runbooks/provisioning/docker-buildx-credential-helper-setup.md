@@ -192,6 +192,8 @@ source .venv/bin/activate && uv run pytest -q packages/nova_file_api/tests/test_
 ## Notes
 
 - Nova release images remain owned by `apps/*` Dockerfiles.
+- Nova service images now target the Python `3.13-slim` baseline and use pinned
+  `uv` for reproducible dependency installation.
 - Production service containers remain single-process `uvicorn` containers with
   explicit proxy flags.
 - BuildKit is now part of the Nova release-image contract; local Docker must be

@@ -91,8 +91,9 @@ Companion modular setup guides (full index: [README.md](README.md)):
    - `DeploymentConfiguration.Strategy=BLUE_GREEN`
 2. Queue worker services remain ECS rolling deployments with deployment circuit
    breaker protection; they do not use load-balancer traffic shifting.
-3. Public ALB WebACL/WAF association is environment-template specific and must
-   be validated against the deployed runtime stack definitions for each lane.
+3. Public CloudFront WebACL/WAF attachment is environment-template specific and
+   must be validated against the deployed runtime edge stack definitions for
+   each lane.
 
 ## 6. Required release evidence
 

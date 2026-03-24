@@ -280,7 +280,6 @@ def test_post_deploy_validate_workflow_contracts() -> None:
     for required in [
         "uses: ./.github/workflows/reusable-post-deploy-validate.yml",
         "validation_base_url",
-        "service_base_url",
         "validation_canonical_paths",
         "validation_legacy_404_paths",
         "report_path",
@@ -301,7 +300,6 @@ def test_post_deploy_validate_workflow_contracts() -> None:
     for required in [
         "workflow_call:",
         "validation_base_url",
-        "service_base_url",
         "validation_canonical_paths",
         "validation_legacy_404_paths",
         "report_path",
@@ -450,7 +448,6 @@ def test_deploy_validate_buildspec_enforces_route_contracts() -> None:
 
     for required in [
         "VALIDATION_BASE_URL",
-        "SERVICE_BASE_URL",
         "scripts/release/validate_route_contract.py",
         "deploy-validation-report.json",
         "VALIDATION_STATUS",

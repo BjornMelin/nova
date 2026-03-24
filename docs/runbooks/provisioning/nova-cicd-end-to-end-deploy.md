@@ -23,7 +23,8 @@ authority chain cited for operators.
 5. `nova` repository admin rights for secrets/variables configuration.
 6. Runtime stacks are already deployed for `dev` and `prod` per:
    [deploy-runtime-cloudformation-environments.md](deploy-runtime-cloudformation-environments.md)
-7. Canonical base URL SSM parameters exist for both environments:
+7. Canonical base URL SSM parameters exist for both environments and store the
+   public CloudFront edge URL for the runtime service:
    `/nova/dev/{service}/base-url` and `/nova/prod/{service}/base-url`.
 8. Canonical base-url marker stacks are reserved for CI control-plane ownership:
    `${PROJECT}-${APPLICATION}-dev-service-base-url` and
@@ -68,8 +69,8 @@ Fallback path:
 - `${NOVA_DEPLOY_SERVICE_NAME}` (optional, default `nova-file-api`)
 - `${GITHUB_OIDC_PROVIDER_ARN}`
 - `${SECRET_NAME}` or `${RELEASE_SIGNING_SECRET_ARN}`
-- `${DEV_BASE_URL}` example `https://nova-file-api.dev.example.com`
-- `${PROD_BASE_URL}` example `https://nova-file-api.example.com`
+- `${DEV_BASE_URL}` example `https://api.dev.example.com` (published from the runtime edge stack)
+- `${PROD_BASE_URL}` example `https://api.example.com` (published from the runtime edge stack)
 - `${EXISTING_CONNECTION_ARN}` (optional)
 - `${NOVA_MANUAL_APPROVAL_TOPIC_ARN}` (optional)
 

@@ -54,9 +54,10 @@ generated-client, and conformance checks, plus a separate
 
 Durable operator inputs must stay synchronized across scripts, templates, and
 docs. For runtime deploys, the ECS service stack now owns the repo-managed task
-role and cache secret injection, so active docs and tests must reject
-`TASK_ROLE_ARN`, `TASK_EXECUTION_SECRET_ARNS`, and
-`TASK_EXECUTION_SSM_PARAMETER_ARNS`.
+role and cache secret injection, and the deploy operator resolves the ECS
+infrastructure role from the Nova IAM control-plane stack, so active docs and
+tests must reject `ECS_INFRASTRUCTURE_ROLE_ARN`, `TASK_ROLE_ARN`,
+`TASK_EXECUTION_SECRET_ARNS`, and `TASK_EXECUTION_SSM_PARAMETER_ARNS`.
 
 Runtime config drift guard:
 

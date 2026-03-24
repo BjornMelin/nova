@@ -92,8 +92,9 @@ Use these only for traceability, not as active authority:
 - If a doc changes runtime behavior, contracts, or durable operator guidance,
   update the relevant router docs in the same PR.
 - Runtime deploy docs must reflect that the ECS service stack owns the
-  repo-managed task role and cache secret injection; active docs must not
-  require `TASK_ROLE_ARN`, `TASK_EXECUTION_SECRET_ARNS`, or
+  repo-managed task role, cache secret injection, and ECS infrastructure role
+  resolution; active docs must not require `ECS_INFRASTRUCTURE_ROLE_ARN`,
+  `TASK_ROLE_ARN`, `TASK_EXECUTION_SECRET_ARNS`, or
   `TASK_EXECUTION_SSM_PARAMETER_ARNS`.
 - Runtime config docs, deploy scripts, and infra tests must derive their live
   env/override matrix from `packages/nova_file_api/src/nova_file_api/config.py`

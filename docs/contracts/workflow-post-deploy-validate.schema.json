@@ -24,12 +24,8 @@
         "validation_base_url": {
           "type": "string",
           "description": "Preferred base URL. Must be HTTPS when supplied.",
-          "pattern": "^https://.+$"
-        },
-        "service_base_url": {
-          "type": "string",
-          "description": "Legacy alias for validation_base_url. Must be HTTPS when supplied.",
-          "pattern": "^https://.+$"
+          "pattern": "^https://.+$",
+          "minLength": 9
         },
         "validation_canonical_paths": {
           "type": "string",
@@ -52,15 +48,10 @@
           "default": "post-deploy-validation-report"
         }
       },
-      "anyOf": [
+      "allOf": [
         {
           "required": [
             "validation_base_url"
-          ]
-        },
-        {
-          "required": [
-            "service_base_url"
           ]
         }
       ]

@@ -21,11 +21,11 @@ References:
 
 ## Summary
 
-Adopt **standard ECS on Fargate with ALB + GitHub Actions OIDC and Nova-owned
-deployment stacks using the ECS-native blue/green deployment strategy on
-`AWS::ECS::Service`** as the Nova API production final-state architecture.
-Route-surface authority is hard-cut canonical `/v1/*` (plus
-`/metrics/summary`).
+Adopt **CloudFront + WAF public edge, internal ALB origin, standard ECS on
+Fargate, GitHub Actions OIDC, and Nova-owned deployment stacks using the
+ECS-native blue/green deployment strategy on `AWS::ECS::Service`** as the Nova
+API production final-state architecture. Route-surface authority is hard-cut
+canonical `/v1/*` (plus `/metrics/summary`).
 
 ## Context
 
@@ -48,7 +48,7 @@ Nova already converged toward ECS/Fargate and single-repo authority goals during
 | Option | Weighted score (/10) |
 | --- | ---: |
 | A. ECS Express Mode on Fargate | 8.8 |
-| B. Standard ECS/Fargate + ALB + ECS-native blue/green | **9.6** |
+| B. CloudFront + internal ALB + standard ECS/Fargate + ECS-native blue/green | **9.6** |
 | C. EKS | 7.6 |
 | D. App Runner | 8.1 |
 
@@ -60,15 +60,15 @@ Choose **Option B** as production final-state.
 
 ### Required characteristics
 
-1. ECS/Fargate API service behind ALB.
+1. CloudFront + WAF public edge with an internal ALB origin for the ECS/Fargate API service.
 2. Separate ECS/Fargate worker services with SQS orchestration.
 3. ECS-native blue/green deployment with:
    - `DeploymentController.Type=ECS`
    - `DeploymentConfiguration.Strategy=BLUE_GREEN`
    - CloudWatch deployment alarms
    - load-balancer infrastructure role wiring
-4. Public ALB paths use WAFv2 protection with rate-based controls for
-   `/v1/transfers*` and `/v1/jobs*`.
+4. Public CloudFront paths use WAFv2 protection with rate-based controls for
+   `/v1/transfers*` and `/v1/jobs*`, while the ALB remains origin-only.
 5. GitHub Actions with OIDC AWS auth; no long-lived keys.
 6. One-repo IaC authority in `nova` for runtime/deployment path.
 
@@ -83,8 +83,8 @@ Choose **Option B** as production final-state.
 ### Trade-offs
 
 - Slightly more operational surface area than Express Mode-only usage.
-- Requires explicit IaC modules for target groups, listener rules, WAF, alarms,
-  and policy hardening.
+- Requires explicit IaC modules for CloudFront edge resources, target groups,
+  listener rules, WAF, alarms, and policy hardening.
 
 ## Explicit non-decisions
 
@@ -101,3 +101,5 @@ Choose **Option B** as production final-state.
   `ADR-0023` and `SPEC-0016`.
 - 2026-03-05: Replaced CodeDeploy target-state wording with ECS-native
   blue/green deployment authority and WAF-backed public ingress.
+- 2026-03-23: Clarified CloudFront + WAF public edge with an internal ALB origin
+  as the canonical production topology.
