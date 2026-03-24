@@ -341,6 +341,9 @@ def test_render_r_client_defaults_default_headers_to_null(
     assert "req_body_json" in client_code
     assert "content_type = NULL" not in client_code
     assert "request_content_types = character(0)" not in client_code
+    assert "normalize_user_agent" in client_code
+    assert "response = cnd$resp" in client_code
+    assert "parent = class(cnd)" in client_code
     assert (
         'any(tolower(names(request_headers)) == "authorization")' in client_code
     )

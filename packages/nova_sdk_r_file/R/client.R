@@ -122,6 +122,21 @@ nova_file_bearer_token <- function(token = NULL, env_var = "NOVA_FILE_BEARER_TOK
   env_value
 }
 
+nova_file_normalize_user_agent <- function(user_agent = NULL) {
+  if (is.null(user_agent)) {
+    return(NULL)
+  }
+  user_agent_chr <- as.character(user_agent)
+  if (length(user_agent_chr) == 0L) {
+    return(NULL)
+  }
+  user_agent_value <- user_agent_chr[[1L]]
+  if (is.na(user_agent_value) || !nzchar(user_agent_value)) {
+    return(NULL)
+  }
+  user_agent_value
+}
+
 nova_file_decode_error_envelope <- function(response, status = NULL) {
   parsed_body <- tryCatch(
     nova_file_parse_json_response(response),
@@ -161,7 +176,7 @@ nova_file_error_body <- function(response) {
   sprintf("[%s] %s", error$code, error$message)
 }
 
-nova_file_error_condition <- function(error, status, operation_id, method, path) {
+nova_file_error_condition <- function(error, status, operation_id, method, path, response = NULL, parent = NULL) {
   structure(
     list(
       message = error$message,
@@ -172,9 +187,11 @@ nova_file_error_condition <- function(error, status, operation_id, method, path)
       details = error$details,
       operation_id = operation_id,
       method = method,
-      path = path
+      path = path,
+      resp = response,
+      parent = parent
     ),
-    class = c("nova_file_api_error", "error", "condition")
+    class = c("nova_file_api_error", parent, "error", "condition")
   )
 }
 
@@ -251,7 +268,9 @@ nova_file_api_call <- function(
           status = cnd$status,
           operation_id = operation_id,
           method = method,
-          path = resolved_path
+          path = resolved_path,
+          response = cnd$resp,
+          parent = class(cnd)
         )
       )
     }
@@ -276,7 +295,7 @@ create_nova_file_client <- function(
     bearer_token = nova_file_bearer_token(token = bearer_token, env_var = bearer_token_env),
     default_headers = default_headers,
     timeout_seconds = timeout_seconds,
-    user_agent = nova_file_null_coalesce(user_agent, nova_file_default_user_agent())
+    user_agent = nova_file_null_coalesce(nova_file_normalize_user_agent(user_agent), nova_file_default_user_agent())
   )
   class(client) <- c("nova_file_client", "list")
   client

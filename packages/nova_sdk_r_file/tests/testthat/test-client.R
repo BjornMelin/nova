@@ -12,6 +12,13 @@ test_that("constructor treats zero-length bearer tokens as absent", {
   expect_null(client$bearer_token)
 })
 
+test_that("constructor normalizes invalid user agents to the default", {
+  client <- create_nova_file_client("https://nova.example/", user_agent = character(0))
+  expect_equal(client$user_agent, nova_file_default_user_agent())
+  client_na <- create_nova_file_client("https://nova.example/", user_agent = NA_character_)
+  expect_equal(client_na$user_agent, nova_file_default_user_agent())
+})
+
 test_that("generated package exports thin endpoint wrappers", {
   exports <- getNamespaceExports("nova.sdk.r.file")
   expect_true("nova_file_create_job" %in% exports)
@@ -128,9 +135,35 @@ test_that("structured errors preserve Nova error envelope fields", {
     nova_file_api_error = function(error) error
   )
   expect_s3_class(error, "nova_file_api_error")
+  expect_true(inherits(error, "httr2_http"))
   expect_equal(error$code, "queue_unavailable")
   expect_equal(error$status, 503L)
   expect_equal(error$request_id, "req-jobs-503")
   expect_equal(error$details$backend, "sqs")
+  expect_equal(httr2::resp_status(error$resp), 503L)
   expect_equal(conditionMessage(error), "[queue_unavailable] jobs queue unavailable")
+})
+
+test_that("structured errors fall back to raw body text for non-JSON responses", {
+  mocked_response <- httr2::response(
+    status_code = 503,
+    url = "https://nova.example/v1/jobs",
+    headers = list(`content-type` = "text/plain"),
+    body = charToRaw("service unavailable")
+  )
+  error <- tryCatch(
+    httr2::with_mocked_responses(
+      function(req) mocked_response,
+      {
+        client <- create_nova_file_client("https://nova.example/", bearer_token = "token-123")
+        nova_file_create_job(client, body = list(job_type = "transfer.process"))
+      }
+    ),
+    nova_file_api_error = function(error) error
+  )
+  expect_s3_class(error, "nova_file_api_error")
+  expect_true(inherits(error, "httr2_http"))
+  expect_equal(error$code, "http_503")
+  expect_match(conditionMessage(error), "service unavailable", fixed = TRUE)
+  expect_equal(httr2::resp_status(error$resp), 503L)
 })
