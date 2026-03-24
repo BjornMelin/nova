@@ -10,7 +10,7 @@ Provide a complete deploy sequence for Nova CI/CD resources and first release
 execution after runtime environments are provisioned, with the governing
 authority chain cited for operators.
 
-## References
+## Authority and documentation
 
 - [`../release/README.md#canonical-documentation-authority-chain`](../release/README.md#canonical-documentation-authority-chain)
 
@@ -383,7 +383,7 @@ aws cloudformation wait stack-delete-complete \
 
 Recreate both stacks later by rerunning Step 3.
 
-## References
+## CLI and API references
 
 - CodePipeline get-pipeline-state API:
   <https://docs.aws.amazon.com/cli/latest/reference/codepipeline/get-pipeline-state.html>
