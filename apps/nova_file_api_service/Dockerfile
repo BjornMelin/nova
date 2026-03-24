@@ -12,6 +12,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 COPY pyproject.toml uv.lock README.md ./
+# Copy workspace metadata so uv can resolve nova_dash_bridge during build; it is excluded from installation below.
 COPY packages/nova_dash_bridge/pyproject.toml packages/nova_dash_bridge/README.md ./packages/nova_dash_bridge/
 COPY packages/nova_file_api/pyproject.toml packages/nova_file_api/README.md ./packages/nova_file_api/
 COPY packages/nova_runtime_support/pyproject.toml packages/nova_runtime_support/README.md ./packages/nova_runtime_support/
@@ -21,6 +22,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
       --frozen \
       --no-default-groups \
       --package nova-file-api \
+      # Keep nova_dash_bridge out of the image; only its metadata is needed for dependency resolution.
       --no-install-package nova-dash-bridge \
       --no-install-package nova-file-api \
       --no-install-package nova-runtime-support
@@ -33,6 +35,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
       --frozen \
       --no-default-groups \
       --package nova-file-api \
+      # Keep nova_dash_bridge out of the image; only its metadata is needed for dependency resolution.
       --no-install-package nova-dash-bridge \
       --no-editable
 
