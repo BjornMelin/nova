@@ -1,29 +1,21 @@
-# Release Promotion Dev-to-Prod Guide
+# Release Promotion Dev-to-Prod Addendum
 
 Status: Active
 Owner: nova release architecture
-Last reviewed: 2026-03-03
+Last reviewed: 2026-03-24
 
 ## Purpose
 
-Execute and audit a full Dev to Prod promotion using immutable artifacts from
-one signed source revision.
+This guide is a narrow addendum for the Dev to Prod promotion step only.
+Canonical release execution, evidence capture, and durable record policy remain
+owned by `release-runbook.md` and `release-policy.md`.
 
-## Prerequisites
+## Scope
 
-1. `nova-ci-cd` pipeline deployed and source integration active.
-2. Release workflows passing in `3M-Cloud/nova` on `main`.
-3. Operator permissions to approve CodePipeline manual approval actions.
-4. Access to CloudWatch/CodeBuild logs for evidence capture.
-
-## Preconditions
-
-1. Release commit is signed and verified.
-2. CodeConnections status is `AVAILABLE`.
-3. Pipeline build stage exports required variables:
-   - `FILE_IMAGE_DIGEST`
-   - `PUBLISHED_PACKAGES`
-   - `RELEASE_MANIFEST_SHA256`
+- Use this guide after staged publish and Dev validation have already completed.
+- Do not use this file as the primary release runbook.
+- For immutable artifact and package-evidence requirements, defer to
+  `release-runbook.md`.
 
 ## Inputs
 
@@ -35,108 +27,40 @@ one signed source revision.
 - `${VERSION_PLAN_JSON}`
 - `${PROMOTION_CANDIDATES_JSON}`
 
-## Promotion procedure
+## Promotion Procedure
 
-1. Confirm latest pipeline execution and capture execution ID.
-
-    ```bash
-    aws codepipeline list-pipeline-executions \
-      --region "${AWS_REGION}" \
-      --pipeline-name "${CODEPIPELINE_NAME}" \
-      --max-results 5
-
-    PIPELINE_EXECUTION_ID="$(aws codepipeline list-pipeline-executions \
-      --region "${AWS_REGION}" \
-      --pipeline-name "${CODEPIPELINE_NAME}" \
-      --max-results 1 \
-      --query 'pipelineExecutionSummaries[0].pipelineExecutionId' \
-      --output text)"
-    ```
-
-2. Wait for `DeployDev` and `ValidateDev` to succeed.
-
-    ```bash
-    aws codepipeline get-pipeline-state \
-      --region "${AWS_REGION}" \
-      --name "${CODEPIPELINE_NAME}"
-    ```
-
-3. Execute `Promote Prod` workflow dispatch with:
-
-   - `pipeline_name`
+1. Confirm the latest pipeline execution and capture the execution ID.
+2. Confirm `DeployDev` and `ValidateDev` have succeeded before prod promotion.
+3. Dispatch `Promote Prod` with:
    - `manifest_sha256` from `codeartifact-gate-report.json`
-   - `changed_units_json` from staged gate artifact (`changed-units.json`)
-   - `version_plan_json` from staged gate artifact (`version-plan.json`)
-   - `promotion_candidates_json` from `codeartifact-promotion-candidates.json`
-
-4. Workflow re-runs `scripts.release.codeartifact_gate` using provided inputs,
-   validates manifest digest + package namespace/version policy, verifies
-   promotion-candidate payload integrity, then promotes package versions from
-   staging to prod using `copy-package-versions`.
-   Scoped npm candidates carry their namespace explicitly and are promoted with
-   `--namespace` plus the unscoped package component.
-
+   - `changed_units_json` from `changed-units.json`
+   - `version_plan_json` from `version-plan.json`
+   - `promotion_candidates_json` from
+     `codeartifact-promotion-candidates.json`
+4. Confirm package promotion copies from
+   `CODEARTIFACT_STAGING_REPOSITORY` to `CODEARTIFACT_PROD_REPOSITORY`.
 5. Confirm `DeployProd` and `ValidateProd` complete successfully.
 
-## ECS-native blue/green promotion verification (Batch B1)
+## Promotion-Specific Acceptance Checks
 
-After `DeployDev` and `DeployProd`, verify ECS-native deployment controls:
+- The promoted artifact set is sourced from the already gate-validated staged
+  publish outputs.
+- `FILE_IMAGE_DIGEST` continuity is preserved from Dev to Prod.
+- No rebuild occurs between Dev and Prod.
+- Manual approval identity and timestamp are preserved in the workflow/pipeline
+  record.
 
-```bash
-aws ecs describe-services \
-  --region "${AWS_REGION}" \
-  --cluster "${ECS_CLUSTER}" \
-  --services "${ECS_SERVICE}" \
-  --query 'services[0].{deployments:deployments,alarms:deploymentConfiguration.alarms}'
-```
+## Evidence Boundary
 
-Acceptance:
-
-- service deployment posture is blue/green
-- deployment alarms are enabled with rollback alarms bound
-- green target group reaches healthy state before production traffic shift
-
-## Immutable artifact continuity check
-
-Use CodePipeline action execution details and confirm the same digest is used
-for both deployments by auditing the `FILE_IMAGE_DIGEST` exported from
-`ReleaseBuild`:
-
-- Dev and Prod deploy actions both reference `#{ReleaseBuild.FILE_IMAGE_DIGEST}`.
-
-```bash
-aws codepipeline list-action-executions \
-  --region "${AWS_REGION}" \
-  --pipeline-name "${CODEPIPELINE_NAME}" \
-  --filter pipelineExecutionId="${PIPELINE_EXECUTION_ID}"
-```
-
-Acceptance:
-
-- The build output digest (`FILE_IMAGE_DIGEST`) matches the digest observed in
-  both Dev and Prod CloudFormation deploy actions.
-- No rebuild occurs after manual approval.
-
-## Evidence to store
-
-1. release plan workflow URL
-2. release apply workflow URL
-3. verify signature workflow URL
-4. pipeline execution ID
-5. manifest digest used for package promotion gate
-6. package promotion candidates JSON
-7. manual approver and timestamp
-8. digest continuity evidence
-9. validation logs for `/v1/health/live`, `/v1/health/ready`,
-   `/metrics/summary`
-
-Attach the list above to the **promotion PR** (or internal change record) and
-keep workflow run URLs in GitHub Actions history. Gate execution steps live in
-[`nonprod-live-validation-runbook.md`](nonprod-live-validation-runbook.md); policy
-for what counts as durable evidence is [`release-policy.md`](release-policy.md) §6.
+Use `release-runbook.md` for the authoritative evidence checklist and
+`release-policy.md` for durable-pointer policy. This file adds no separate
+evidence requirements beyond the promotion-specific checks above.
 
 ## References
 
+- `release-runbook.md`
+- `release-policy.md`
+- `nonprod-live-validation-runbook.md`
 - CodePipeline manual approvals:
   <https://docs.aws.amazon.com/codepipeline/latest/userguide/approvals-action-add.html>
 - CodePipeline list-action-executions API:

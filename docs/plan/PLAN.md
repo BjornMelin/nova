@@ -1,7 +1,7 @@
-# Plan Index (Current State)
+# Plan Index
 
 Status: Active planning and release index
-Last updated: 2026-03-22
+Last updated: 2026-03-24
 
 ## Purpose
 
@@ -15,10 +15,7 @@ use `../runbooks/README.md`. Archived program material lives under
 - `../PRD.md`
 - `../architecture/requirements.md`
 - `./greenfield-simplification-program.md` (canonical green-field program router)
-- `./greenfield-authority-map.md` (ADR/SPEC index map for the program)
-- `./greenfield-evidence/README.md` (supporting audit and scoring **copies**;
-  non-authoritative--see table there for `EXECUTIVE_AUDIT.md`, CSV manifests, and
-  related artifacts)
+- `./greenfield-authority-map.md` (pack-ID translation and traceability map)
 - `../runbooks/README.md`
 - `../runbooks/release/README.md` (release validation and policy)
 - `../runbooks/provisioning/README.md` (first-time deploy and CI/CD setup)
@@ -26,12 +23,13 @@ use `../runbooks/README.md`. Archived program material lives under
 - `../release/runtime-config-contract.generated.md`
 - `../release/RELEASE-VERSION-MANIFEST.md`
 
-## Supporting release guides
+## Supporting and Traceability Material
 
-Full catalog: [`../runbooks/README.md`](../runbooks/README.md). Machine-stable
-paths: [`../release/README.md`](../release/README.md).
-Release/provisioning doc conventions: **Release operator docs profile** in
-[`../standards/repository-engineering-standards.md`](../standards/repository-engineering-standards.md).
+- `./greenfield-evidence/README.md` (supporting copies and audit artifacts; not
+  active authority)
+- `./r-sdk-finalization-and-downstream-r-consumer-integration.md` (completed
+  wave record)
+- `../history/README.md` (archive entrypoint)
 
 ## `docs/plan` directory layout
 
@@ -39,56 +37,5 @@ Release/provisioning doc conventions: **Release operator docs profile** in
 | --- | --- |
 | `PLAN.md` | This index (active planning + release pointers) |
 | `greenfield-simplification-program.md` | Green-field program narrative and execution router |
-| `greenfield-authority-map.md` | Maps program workstreams to ADRs and SPECs |
+| `greenfield-authority-map.md` | Maps historical pack IDs to canonical Nova ADRs and SPECs |
 | `greenfield-evidence/` | Non-normative evidence pack copies; index at `greenfield-evidence/README.md` |
-
-## Current Planning Notes
-
-- Green-field simplification is an active program: single public runtime auth,
-  bearer JWT scope from claims, direct worker persistence, native OpenAPI,
-  shared pure ASGI middleware, async-first `nova_file_api.public`, TS/R/Python
-  SDK stack cuts, infra narrative alignment, and final repo rebaseline. Start
-  at `./greenfield-simplification-program.md` and `../architecture/adr/index.md`
-  (`ADR-0033`–`ADR-0041`) plus `SPEC-0027`–`SPEC-0029`.
-- The shared runtime transport cut now routes canonical FastAPI request-id
-  propagation and exception registration through `packages/nova_runtime_support`.
-  `nova_dash_bridge.create_fastapi_router()` remains route-only composition;
-  `create_fastapi_app()` is the canonical bridge FastAPI surface.
-- Active runtime authority is layered across route/API authority, runtime
-  topology and safety, downstream validation, and adjacent deploy-governance.
-- `nova_dash_bridge` remains adapter-only and now consumes canonical in-process
-  transfer contracts through `nova_file_api.public`.
-- The transfer seam is now explicitly async-first: FastAPI integrations call
-  the bridge async service directly, while Flask/Dash retain a thin sync
-  adapter that uses AnyIO's shared blocking portal pattern only at the
-  sync edge.
-- Runtime topology and safety authority uses `ADR-0025`, `ADR-0026`,
-  `SPEC-0017`, `SPEC-0018`, `SPEC-0019`, and `SPEC-0020`.
-- Downstream validation authority uses `ADR-0027`, `ADR-0028`, `ADR-0029`,
-  `SPEC-0021`, `SPEC-0022`, and `SPEC-0023`.
-- Release planning and apply paths must stay synchronized with the active docs
-  routers and workflow contracts.
-- Release control-plane planning remains idle-first: foundation and IAM are
-  durable, while `nova-codebuild-release` and `nova-ci-cd` are intended to be
-  recreated for active release work and deleted when idle.
-- Runtime deploy/config planning now uses the generated runtime config contract
-  as the live env/override matrix, with `Settings` plus curated deploy
-  metadata remaining the underlying authority.
-- SDK planning now treats TypeScript as release-grade within Nova's existing
-  CodeArtifact staged/prod system while keeping it generator-owned and
-  subpath-only, and treats R as a first-class internal release artifact line
-  with real packages, logical format `r`, CodeArtifact generic transport, and
-  signed tarball evidence.
-- Runtime deploy planning now assumes `infra/runtime/ecs/service.yml` owns the
-  ECS service task role and cache secret injection, and the deploy operator
-  resolves the ECS infrastructure role from the Nova IAM control-plane stack;
-  operator plans must not depend on `ECS_INFRASTRUCTURE_ROLE_ARN`,
-  `TASK_ROLE_ARN`, `TASK_EXECUTION_SECRET_ARNS`, or
-  `TASK_EXECUTION_SSM_PARAMETER_ARNS`.
-- Stable generated-client and conformance behavior remain part of release
-  readiness, not a separate documentation model.
-- Repo-local pre-commit hooks now mirror the AGENTS task router, and `ty` is
-  now part of the required typing contract enforced by the main quality gates.
-- Required PR/runtime and conformance checks now route through the unified
-  `Nova CI` workflow shell, with `CFN Contract Validate` left separate for
-  infra/docs governance and hosted ruleset reconciliation.

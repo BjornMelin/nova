@@ -1,14 +1,13 @@
-# WS6/WS8 Contract Schemas
+# Workflow and Release Contract Schemas
 
 Status: Active
 Owner: nova release architecture
-Last reviewed: 2026-03-03
+Last reviewed: 2026-03-24
 
 ## Purpose
 
-Provide machine-readable JSON schema contracts for reusable post-deploy
-workflow APIs, downstream size profiles, and release artifacts used by WS6/WS8
-release and consumer integration gates.
+Provide machine-readable JSON schema contracts for reusable workflows,
+downstream size profiles, release artifacts, and deploy-validation records.
 
 ## Schema Set
 
@@ -31,8 +30,7 @@ release and consumer integration gates.
 - `workflow-auth0-tenant-deploy.schema.json`
   - Workflow-specific validation schema for reusable Auth0 tenant ops API.
 - `browser-live-validation-report.schema.json`
-  - WS5 browser/live validation gate artifact contract for dash-pca + Nova
-    (WS5-origin artifact required by WS6/WS8 tooling and compatibility).
+  - Browser/live validation gate artifact contract for dash-pca + Nova.
 - `workflow-auth0-tenant-ops-v1.schema.json`
   - Workflow-specific contract schema for Auth0 tenant operation reusable APIs.
 - `ssm-runtime-base-url-v1.schema.json`
@@ -49,7 +47,7 @@ release and consumer integration gates.
 - `../architecture/spec/SPEC-0021-downstream-hard-cut-integration-and-consumer-validation-contract.md`
 - `../architecture/spec/SPEC-0022-auth0-tenant-ops-reusable-workflow-contract.md`
 - `../architecture/spec/SPEC-0023-ssm-runtime-base-url-contract-for-deploy-validation.md`
-- `../requirements.md`
+- `../architecture/requirements.md`
 
 ## Versioning policy
 

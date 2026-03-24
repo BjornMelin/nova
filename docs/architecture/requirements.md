@@ -410,9 +410,11 @@ gate; `mypy` remains the required compatibility backstop in this phase.
 
 ### NFR-0105: Contract traceability
 
-Target implementation PRs MUST update `README.md`, `AGENTS.md`,
-`docs/PRD.md`, `docs/architecture/requirements.md`, affected ADR/SPEC docs,
-and `docs/plan/PLAN.md` in the same change set. Historical artifacts (`docs/history/**`, plus the repo-root `FINAL-PLAN.md` pointer) MUST be updated only when archive location or authority links change.
+Target implementation PRs MUST update the current canonical routers and any
+affected authority docs in the same change set. The exact router set is owned
+by `docs/standards/repository-engineering-standards.md`. Historical artifacts
+under `docs/history/**` MUST be updated only when archive location or authority
+links change.
 
 ### NFR-0106: No-shim posture
 

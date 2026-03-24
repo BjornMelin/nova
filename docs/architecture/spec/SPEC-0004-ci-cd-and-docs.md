@@ -213,8 +213,8 @@ all affected operational docs:
 - affected `docs/clients/*.md` and `docs/clients/**/*.yml` when downstream
   integration contracts change
 - `docs/runbooks/README.md` when runbook authority is changed
-- `PRD.md` and `FINAL-PLAN.md` pointers when archive paths or authority links
-  change
+- `docs/history/README.md` and any affected archive bundle links when archive
+  paths or authority links change
 - `docs/runbooks/release/**` and `docs/runbooks/provisioning/**` runbooks and
   policy docs, plus committed `docs/release/**` artifacts when those files
   change

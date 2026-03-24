@@ -1,14 +1,14 @@
 # R SDK Finalization and Downstream R Consumer Integration
 
-Status: Active
+Status: Completed wave record
 Owner: Nova release architecture
-Last updated: 2026-03-23
+Last updated: 2026-03-24
 
 ## Purpose
 
-Use this document as the canonical execution checklist for the Nova R SDK
-finalization wave and the downstream `ShinyAbsorberApp` and `UVAbsorbers`
-integration work. Check tasks only after code, tests, and docs are complete.
+This document records the completed Nova R SDK finalization wave and the
+downstream `ShinyAbsorberApp` and `UVAbsorbers` integration work. It is kept
+for traceability, not as an active planning router.
 
 ## Phase 1: Nova execution checklist
 

@@ -2,7 +2,7 @@
 
 Status: Active
 Owner: nova release architecture
-Last reviewed: 2026-03-22
+Last reviewed: 2026-03-24
 
 ## Purpose
 
@@ -12,45 +12,17 @@ Capture durable repo engineering and operator rules that are too detailed for
 ## Reading Order for Fresh Sessions
 
 1. `AGENTS.md`
-2. `README.md`
-3. `docs/README.md`
-4. `docs/architecture/README.md`
-5. `docs/overview/NOVA-REPO-OVERVIEW.md`
-6. `docs/runbooks/README.md` when the task affects release or operations
+2. `docs/README.md`
+3. `docs/architecture/README.md`
+4. `README.md`
+5. `docs/runbooks/README.md` when the task affects release or operations
 
 ## Authority Classification
 
-Use these authority packs consistently:
-
-- runtime API and route authority:
-  - `requirements.md`
-  - `ADR-0023`
-  - `SPEC-0000`
-  - `SPEC-0015`
-  - `SPEC-0016`
-- runtime topology and safety authority:
-  - `ADR-0024`
-  - `ADR-0025`
-  - `ADR-0026`
-  - `SPEC-0017`
-  - `SPEC-0018`
-  - `SPEC-0019`
-  - `SPEC-0020`
-- downstream validation authority:
-  - `ADR-0027`
-  - `ADR-0028`
-  - `ADR-0029`
-  - `SPEC-0021`
-  - `SPEC-0022`
-  - `SPEC-0023`
-- adjacent deploy-governance authority:
-  - `ADR-0015`
-  - `ADR-0030`
-  - `ADR-0031`
-  - `ADR-0032`
-  - `SPEC-0024`
-  - `SPEC-0025`
-  - `SPEC-0026`
+`docs/architecture/README.md` is the sole narrative authority map for active
+architecture packs, the canonical route chain, and deploy-governance pack
+membership. Do not recreate competing pack summaries in other top-level router
+docs.
 
 ## Workflow Mapping
 
@@ -259,6 +231,8 @@ governance:
   - `docs/standards/README.md`
   - `docs/runbooks/README.md`
   - `docs/plan/PLAN.md`
+- If the change affects workflow, validation, or release schema contracts,
+  update `docs/contracts/README.md` in the same PR.
 - Active docs must link only to truthful, existing active authority paths.
 - Historical material belongs under `docs/history/**` or superseded ADR/SPEC
   paths, not in active instructions.

@@ -32,22 +32,12 @@ Use these entrypoints before drilling into deeper docs:
 Active route authority is the hard-cut canonical `/v1/*` surface plus
 `/metrics/summary`.
 
-Use the canonical authority chain:
-
-- `docs/architecture/requirements.md`
-- `docs/architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md`
-- `docs/architecture/spec/SPEC-0000-http-api-contract.md`
-- `docs/architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md`
-- `docs/architecture/spec/SPEC-0027-public-http-contract-revision-and-bearer-auth.md`
+For the canonical route chain, active authority packs, and deploy-governance
+pack, use `docs/architecture/README.md`.
 
 Green-field execution router: `docs/plan/greenfield-simplification-program.md`.
-
-For the broader authority pack, use `docs/architecture/README.md`.
-
-Active runtime topology and safety authority: `ADR-0025`, `ADR-0026`,
-`SPEC-0017`, `SPEC-0018`, `SPEC-0019`, and `SPEC-0020`.
-Active downstream validation authority: `ADR-0027`, `ADR-0028`, `ADR-0029`,
-`SPEC-0021`, `SPEC-0022`, and `SPEC-0023`.
+Machine-readable workflow and release schemas live under
+`docs/contracts/README.md`.
 
 Public capabilities:
 

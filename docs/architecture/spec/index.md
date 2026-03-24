@@ -7,37 +7,11 @@
 - [Reference Links](./REFERENCES.md)
 - [Operator Runbooks (canonical)](../../runbooks/README.md)
 
-## Active SPEC Catalog
+## Catalog Use
 
-Canonical runtime chain:
-[requirements](../requirements.md) ->
-[ADR-0023](../adr/ADR-0023-hard-cut-v1-canonical-route-surface.md) ->
-[SPEC-0000](./SPEC-0000-http-api-contract.md) ->
-[SPEC-0016](./SPEC-0016-v1-route-namespace-and-literal-guardrails.md) ->
-[SPEC-0027](./SPEC-0027-public-http-contract-revision-and-bearer-auth.md)
-(public auth / OpenAPI revision; path namespace remains `/v1/*`).
-
-Green-field worker and SDK overlays (decisions `ADR-0033` through `ADR-0041`):
-[SPEC-0028](./SPEC-0028-worker-job-lifecycle-and-direct-result-path.md),
-[SPEC-0029](./SPEC-0029-sdk-architecture-and-artifact-contract.md), and
-[green-field program](../../plan/greenfield-simplification-program.md).
-
-Runtime package/safety authority is implemented by `SPEC-0017`,
-`SPEC-0018`, and `SPEC-0019` (decisions `ADR-0025`, `ADR-0026`).
-Downstream validation authority is implemented by `SPEC-0021`, `SPEC-0022`,
-and `SPEC-0023` (decisions `ADR-0027`, `ADR-0028`, `ADR-0029`).
-Adjacent deploy-governance authority is implemented by `SPEC-0024`,
-`SPEC-0025`, and `SPEC-0026` (decisions `ADR-0030`, `ADR-0031`, `ADR-0032`),
-superseding the retired filenames
-`SPEC-0017-cloudformation-module-contract.md`,
-`SPEC-0018-reusable-workflow-integration-contract.md`, and
-`SPEC-0019-ci-cd-iam-least-privilege-and-role-boundary-contract.md` under
-[`spec/superseded/`](./superseded/) (traceability only; active `SPEC-0017`–`SPEC-0019`
-identifiers refer to the runtime topology, configuration, and auth-execution
-contracts in the repo root).
-SDK and release-artifact governance authority is implemented by `SPEC-0029`,
-`SPEC-0012`, and decision `ADR-0038` (with `ADR-0013` and `SPEC-0011` retained
-under `superseded/` for traceability only).
+Use [`../README.md`](../README.md) for the narrative authority map and the
+canonical route chain (`requirements -> ADR-0023 -> SPEC-0000 -> SPEC-0016 ->
+SPEC-0027`). This file is the SPEC catalog and status index.
 
 | SPEC | Title | Status | Date |
 | --- | --- | --- | --- |

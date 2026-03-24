@@ -1,7 +1,7 @@
 # Nova Documentation
 
 Status: Active
-Last reviewed: 2026-03-22
+Last reviewed: 2026-03-24
 
 ## Purpose
 
@@ -28,15 +28,30 @@ safety:
 - `./architecture/adr/index.md`
 - `./architecture/spec/index.md`
 
-### SDK and release governance
+### SDK governance
 
 Use these when the question is about SDK packaging, release-grade TypeScript,
 or first-class internal R release artifacts:
 
-- `./clients/README.md`
 - `./architecture/adr/ADR-0038-sdk-architecture-by-language.md`
 - `./architecture/spec/SPEC-0029-sdk-architecture-and-artifact-contract.md`
 - `./architecture/spec/SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md`
+
+### Downstream consumer integration
+
+Use these when the question is about reusable workflows, post-deploy
+validation, or consumer-repo examples:
+
+- `./clients/README.md`
+- `./clients/post-deploy-validation-integration-guide.md`
+
+### Contract schemas
+
+Use these when the question is about machine-readable workflow, validation, or
+release schema contracts:
+
+- `./contracts/README.md`
+- `./contracts/`
 
 ### Standards and engineering workflow
 
@@ -60,7 +75,6 @@ runtime operations:
 - `./runbooks/README.md`
 - `./plan/PLAN.md`
 - `./plan/greenfield-simplification-program.md`
-- `./plan/greenfield-authority-map.md`
 - `./runbooks/release/` and `./runbooks/provisioning/` for narrative operator
   runbooks
 - `./release/` for committed release artifacts (manifest, generated runtime
@@ -90,7 +104,9 @@ Use these only for traceability, not as active authority:
 - Historical material belongs under `docs/history/**` or superseded ADR/SPEC
   paths.
 - If a doc changes runtime behavior, contracts, or durable operator guidance,
-  update the relevant router docs in the same PR.
+  update the current canonical routers and affected authority docs in the same
+  PR. The exact required router set is owned by
+  `./standards/repository-engineering-standards.md`.
 - Runtime deploy docs must reflect that the ECS service stack owns the
   repo-managed task role, cache secret injection, and ECS infrastructure role
   resolution; active docs must not require `ECS_INFRASTRUCTURE_ROLE_ARN`,
