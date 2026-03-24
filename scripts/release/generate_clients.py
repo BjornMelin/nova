@@ -31,6 +31,14 @@ _VALID_IDENTIFIER = re.compile(r"^[A-Za-z_$][A-Za-z0-9_$]*$")
 
 
 @dataclass(frozen=True)
+class OperationParameter:
+    """Single OpenAPI parameter carried into generated client surfaces."""
+
+    name: str
+    required: bool
+
+
+@dataclass(frozen=True)
 class Operation:
     """Single public OpenAPI operation used for generated client artifacts."""
 
@@ -40,13 +48,27 @@ class Operation:
     summary: str | None
     has_request_body: bool
     has_required_request_body: bool
-    has_path_params: bool
-    has_query_params: bool
-    has_required_query_params: bool
+    path_parameters: tuple[OperationParameter, ...]
+    query_parameters: tuple[OperationParameter, ...]
     has_header_params: bool
     has_required_header_params: bool
     request_content_types: tuple[str, ...]
     response_status_codes: tuple[int, ...]
+
+    @property
+    def has_path_params(self) -> bool:
+        """Return whether the operation declares any path parameters."""
+        return len(self.path_parameters) > 0
+
+    @property
+    def has_query_params(self) -> bool:
+        """Return whether the operation declares any query parameters."""
+        return len(self.query_parameters) > 0
+
+    @property
+    def has_required_query_params(self) -> bool:
+        """Return whether any declared query parameter is required."""
+        return any(parameter.required for parameter in self.query_parameters)
 
     @property
     def type_base_name(self) -> str:
@@ -178,10 +200,11 @@ def _load_operations(spec_path: Path) -> tuple[dict[str, Any], list[Operation]]:
                     has_required_request_body=_request_body_required(
                         spec, operation
                     ),
-                    has_path_params=("path" in parameter_index),
-                    has_query_params=("query" in parameter_index),
-                    has_required_query_params=_parameter_group_has_required(
-                        parameter_index.get("query", ()),
+                    path_parameters=_collect_operation_parameters(
+                        parameter_index.get("path", ())
+                    ),
+                    query_parameters=_collect_operation_parameters(
+                        parameter_index.get("query", ())
                     ),
                     has_header_params=("header" in parameter_index),
                     has_required_header_params=_parameter_group_has_required(
@@ -355,6 +378,99 @@ def _parameter_group_has_required(
     return any(
         bool(parameter.get("required", False)) for parameter in parameters
     )
+
+
+def _collect_operation_parameters(
+    parameters: tuple[dict[str, Any], ...],
+) -> tuple[OperationParameter, ...]:
+    return tuple(
+        OperationParameter(
+            name=str(parameter.get("name", "")).strip(),
+            required=bool(parameter.get("required", False)),
+        )
+        for parameter in parameters
+        if str(parameter.get("name", "")).strip()
+    )
+
+
+def _r_parameter_name(name: str) -> str:
+    normalized = _normalize_identifier(name)
+    if not normalized:
+        return "param"
+    if normalized[0].isdigit():
+        return f"param_{normalized}"
+    return normalized
+
+
+def _r_operation_signature(prefix: str, operation: Operation) -> str:
+    parts = ["client"]
+    if operation.has_request_body:
+        parts.append("body")
+    if operation.has_path_params:
+        parts.extend(
+            _r_parameter_name(parameter.name)
+            for parameter in operation.path_parameters
+        )
+    if operation.has_query_params:
+        parts.extend(
+            (
+                _r_parameter_name(parameter.name)
+                if parameter.required
+                else f"{_r_parameter_name(parameter.name)} = NULL"
+            )
+            for parameter in operation.query_parameters
+        )
+    parts.append("headers = NULL")
+    return f"{prefix}_{operation.operation_id}({', '.join(parts)})"
+
+
+def _r_operation_manual_section(prefix: str, operation: Operation) -> list[str]:
+    signature = _r_operation_signature(prefix, operation)
+    description = (
+        operation.summary.strip()
+        if operation.summary is not None and operation.summary.strip()
+        else f"Calls the {operation.method} {operation.path} endpoint."
+    )
+    lines = [
+        f"\\section{{{prefix}_{operation.operation_id}}}{{",
+        f"  \\code{{{signature}}}",
+        "",
+        f"  {description}",
+        "",
+        "  \\describe{",
+        f"    \\item{{client}}{{Thin client created by \\code{{create_{prefix}_client()}}.}}",
+    ]
+    if operation.has_request_body:
+        lines.append(
+            "    \\item{body}{Request payload for this operation, "
+            "encoded as JSON.}"
+        )
+    for parameter in operation.path_parameters:
+        lines.extend(
+            [
+                f"    \\item{{{parameter.name}}}{{Path parameter "
+                f"\\code{{{parameter.name}}}.}}",
+            ]
+        )
+    for parameter in operation.query_parameters:
+        qualifier = "Query" if parameter.required else "Optional query"
+        lines.extend(
+            [
+                f"    \\item{{{parameter.name}}}{{{qualifier} parameter "
+                f"\\code{{{parameter.name}}}.}}",
+            ]
+        )
+    lines.extend(
+        [
+            "    \\item{headers}{Optional named list of per-request headers.}",
+            "    \\item{Returns}{Parsed JSON response as a named list, or "
+            "NULL when the response body is empty.}",
+            "  }",
+            "}",
+            "",
+        ]
+    )
+    return lines
 
 
 def _collect_response_status_codes(operation: dict[str, Any]) -> set[int]:
@@ -710,15 +826,24 @@ def _schema_alias_name(schema_name: str) -> str:
     return normalized
 
 
-def _r_exported_function_names(prefix: str) -> tuple[str, ...]:
+def _r_operation_function_name(prefix: str, operation_id: str) -> str:
+    """Return the exported R function name for one operation."""
+    return f"{prefix}_{operation_id}"
+
+
+def _r_exported_function_names(
+    prefix: str, operations: list[Operation]
+) -> tuple[str, ...]:
     """Return the exported R function names for a client prefix."""
-    return (
+    exports = [
         f"create_{prefix}_client",
-        f"{prefix}_operation_catalog",
-        f"{prefix}_request_descriptor",
-        f"{prefix}_execute_operation",
-        f"{prefix}_decode_error_envelope",
+        f"{prefix}_bearer_token",
+    ]
+    exports.extend(
+        _r_operation_function_name(prefix, operation.operation_id)
+        for operation in operations
     )
+    return tuple(exports)
 
 
 def _r_package_doc_filename(target: GenerationTarget) -> str:
@@ -746,444 +871,376 @@ def _render_r(operations: list[Operation], catalog_function_name: str) -> str:
     lines = [
         "# Code generated by scripts/release/generate_clients.py. DO NOT EDIT.",
         "",
-        f"{catalog_function_name} <- function() {{",
-        "  list(",
     ]
 
-    for index, operation in enumerate(operations):
-        suffix = "," if index < len(operations) - 1 else ""
-        summary_value = (
-            json.dumps(operation.summary) if operation.summary else "NULL"
+    for operation in operations:
+        function_name = _r_operation_function_name(
+            prefix, operation.operation_id
         )
-        request_content_types = (
-            "c("
-            + ", ".join(
-                json.dumps(media_type)
-                for media_type in operation.request_content_types
+        signature_parts = ["client"]
+        call_parts = [
+            "    client = client,",
+            f'    operation_id = "{operation.operation_id}",',
+            f'    method = "{operation.method}",',
+            f'    path = "{operation.path}",',
+        ]
+        if operation.has_request_body:
+            signature_parts.append(
+                "body" if operation.has_required_request_body else "body = NULL"
             )
-            + ")"
-            if operation.request_content_types
-            else "character(0)"
-        )
-        response_status_codes = (
-            "c("
-            + ", ".join(f"{code}L" for code in operation.response_status_codes)
-            + ")"
-            if operation.response_status_codes
-            else "integer(0)"
+            call_parts.append("    body = body,")
+        if operation.has_path_params:
+            path_args = [
+                _r_parameter_name(parameter.name)
+                for parameter in operation.path_parameters
+            ]
+            signature_parts.extend(path_args)
+            path_params = ", ".join(
+                f"{parameter.name} = {_r_parameter_name(parameter.name)}"
+                for parameter in operation.path_parameters
+            )
+            call_parts.append(f"    path_params = list({path_params}),")
+        if operation.has_query_params:
+            signature_parts.extend(
+                (
+                    _r_parameter_name(parameter.name)
+                    if parameter.required
+                    else f"{_r_parameter_name(parameter.name)} = NULL"
+                )
+                for parameter in operation.query_parameters
+            )
+            query_params = ", ".join(
+                f"{parameter.name} = {_r_parameter_name(parameter.name)}"
+                for parameter in operation.query_parameters
+            )
+            call_parts.append(f"    query = list({query_params}),")
+        signature_parts.append("headers = NULL")
+        call_parts.append("    headers = headers,")
+        call_parts.extend(
+            [
+                f"    requires_body = {'TRUE' if operation.has_required_request_body else 'FALSE'},",
+                f"    accepts_body = {'TRUE' if operation.has_request_body else 'FALSE'}",
+            ]
         )
         lines.extend(
             [
-                f'    "{operation.operation_id}" = list(',
-                f'      operation_id = "{operation.operation_id}",',
-                f'      method = "{operation.method}",',
-                f'      path = "{operation.path}",',
-                f"      summary = {summary_value},",
-                f"      has_request_body = {'TRUE' if operation.has_request_body else 'FALSE'},",
-                f"      has_required_request_body = {'TRUE' if operation.has_required_request_body else 'FALSE'},",
-                f"      has_path_params = {'TRUE' if operation.has_path_params else 'FALSE'},",
-                f"      has_query_params = {'TRUE' if operation.has_query_params else 'FALSE'},",
-                f"      has_required_query_params = {'TRUE' if operation.has_required_query_params else 'FALSE'},",
-                f"      has_header_params = {'TRUE' if operation.has_header_params else 'FALSE'},",
-                f"      has_required_header_params = {'TRUE' if operation.has_required_header_params else 'FALSE'},",
-                f"      request_content_types = {request_content_types},",
-                f"      default_request_content_type = {json.dumps(operation.default_request_content_type) if operation.default_request_content_type is not None else 'NULL'},",
-                f"      response_status_codes = {response_status_codes}",
-                f"    ){suffix}",
+                f"{function_name} <- function(",
+                "  " + ",\n  ".join(signature_parts),
+                ") {",
+                f"  {prefix}_api_call(",
+                *call_parts,
+                "  )",
+                "}",
+                "",
             ]
         )
-
-    lines.extend(
-        [
-            "  )",
-            "}",
-            "",
-            f"{prefix}_null_coalesce <- function(value, fallback) {{",
-            "  if (is.null(value)) {",
-            "    fallback",
-            "  } else {",
-            "    value",
-            "  }",
-            "}",
-            "",
-            f"{prefix}_normalize_named_list <- function(value, label) {{",
-            "  if (is.null(value)) {",
-            "    return(list())",
-            "  }",
-            "  if (is.atomic(value) && !is.list(value)) {",
-            "    value <- as.list(value)",
-            "  }",
-            "  if (!is.list(value)) {",
-            '    stop(sprintf("%s must be a named list", label), call. = FALSE)',
-            "  }",
-            "  item_names <- names(value)",
-            "  if (is.null(item_names)) {",
-            '    stop(sprintf("%s must be a named list", label), call. = FALSE)',
-            "  }",
-            "  cleaned <- list()",
-            "  for (index in seq_along(value)) {",
-            "    item_name <- item_names[[index]]",
-            "    if (is.na(item_name) || !nzchar(item_name)) {",
-            '      stop(sprintf("%s names must be non-empty", label), call. = FALSE)',
-            "    }",
-            "    item_value <- value[[index]]",
-            "    if (is.null(item_value)) {",
-            "      next",
-            "    }",
-            "    cleaned[[item_name]] <- item_value",
-            "  }",
-            "  cleaned",
-            "}",
-            "",
-            f"{prefix}_prune_null_headers <- function(value) {{",
-            "  if (length(value) == 0L) {",
-            "    return(value)",
-            "  }",
-            "  value[!vapply(value, is.null, logical(1))]",
-            "}",
-            "",
-            f"{prefix}_normalize_base_url <- function(base_url) {{",
-            "  if (!is.character(base_url) || length(base_url) != 1L || !nzchar(base_url)) {",
-            '    stop("base_url must be a non-empty string", call. = FALSE)',
-            "  }",
-            '  sub("/+$", "", base_url)',
-            "}",
-            "",
-            f"{prefix}_resolve_path <- function(path, path_params) {{",
-            "  resolved_path <- path",
-            "  if (length(path_params) > 0L) {",
-            "    for (param_name in names(path_params)) {",
-            "      resolved_path <- gsub(",
-            '        sprintf("{%s}", param_name),',
-            "        utils::URLencode(as.character(path_params[[param_name]]), reserved = TRUE),",
-            "        resolved_path,",
-            "        fixed = TRUE",
-            "      )",
-            "    }",
-            "  }",
-            "  missing_path_params <- regmatches(",
-            '    resolved_path, gregexpr("\\\\{[^}]+\\\\}", resolved_path, perl = TRUE)',
-            "  )[[1]]",
-            "  if (length(missing_path_params) > 0L) {",
-            '    stop(sprintf("missing path parameter(s): %s", paste(missing_path_params, collapse = ", ")), call. = FALSE)',
-            "  }",
-            "  resolved_path",
-            "}",
-            "",
-            f"{prefix}_select_content_type <- function(operation, content_type) {{",
-            "  available_content_types <- operation$request_content_types",
-            "  if (is.null(content_type) || !nzchar(as.character(content_type)[[1]])) {",
-            "    if (length(available_content_types) == 0L) {",
-            "      return(NULL)",
-            "    }",
-            "    if (length(available_content_types) > 1L) {",
-            '      stop(sprintf("operation %s requires an explicit content_type", operation$operation_id), call. = FALSE)',
-            "    }",
-            "    return(available_content_types[[1L]])",
-            "  }",
-            "  selected_content_type <- as.character(content_type)[[1]]",
-            "  if (!(selected_content_type %in% available_content_types)) {",
-            '    stop(sprintf("unsupported content_type %s for operation %s", selected_content_type, operation$operation_id), call. = FALSE)',
-            "  }",
-            "  selected_content_type",
-            "}",
-            "",
-            f"{prefix}_parse_json_body <- function(body) {{",
-            "  if (is.null(body) || !nzchar(trimws(body))) {",
-            "    return(NULL)",
-            "  }",
-            "  tryCatch(",
-            "    jsonlite::fromJSON(body, simplifyVector = FALSE),",
-            "    error = function(...) NULL",
-            "  )",
-            "}",
-            "",
-            f"{prefix}_encode_json_body <- function(body) {{",
-            '  jsonlite::toJSON(body, auto_unbox = TRUE, null = "null")',
-            "}",
-            "",
-            f"{prefix}_encode_form_body <- function(body) {{",
-            "  if (is.null(body) || length(body) == 0L) {",
-            '    return("")',
-            "  }",
-            f'  body <- {prefix}_normalize_named_list(body, "body")',
-            "  encode_item <- function(name, value) {",
-            "    if (is.null(value)) {",
-            "      return(character(0))",
-            "    }",
-            '    if (is.list(value) && !inherits(value, "data.frame")) {',
-            '      value <- jsonlite::toJSON(value, auto_unbox = TRUE, null = "null")',
-            '      return(paste0(utils::URLencode(name, reserved = TRUE), "=", utils::URLencode(value, reserved = TRUE)))',
-            "    }",
-            "    values <- as.character(value)",
-            "    if (length(values) == 0L) {",
-            "      return(character(0))",
-            "    }",
-            "    encoded_name <- utils::URLencode(name, reserved = TRUE)",
-            "    vapply(",
-            "      values,",
-            "      function(item) {",
-            '        paste0(encoded_name, "=", utils::URLencode(item, reserved = TRUE))',
-            "      },",
-            "      character(1)",
-            "    )",
-            "  }",
-            "  parts <- character(0)",
-            "  for (name in names(body)) {",
-            "    parts <- c(parts, encode_item(name, body[[name]]))",
-            "  }",
-            '  paste(parts, collapse = "&")',
-            "}",
-            "",
-            f"{prefix}_encode_request_body <- function(body, content_type) {{",
-            "  if (is.null(body)) {",
-            "    return(NULL)",
-            "  }",
-            '  if (identical(content_type, "application/json")) {',
-            f"    return({prefix}_encode_json_body(body))",
-            "  }",
-            '  if (identical(content_type, "application/x-www-form-urlencoded")) {',
-            f"    return({prefix}_encode_form_body(body))",
-            "  }",
-            '  stop(sprintf("unsupported content_type %s", content_type), call. = FALSE)',
-            "}",
-            "",
-            f"{prefix}_decode_error_envelope <- function(body, status = NULL) {{",
-            f"  parsed_body <- {prefix}_parse_json_body(body)",
-            "  if (!is.list(parsed_body) || is.null(parsed_body$error) || !is.list(parsed_body$error)) {",
-            "    if (is.null(status)) {",
-            "      return(NULL)",
-            "    }",
-            "    fallback_message <- if (is.null(body) || !nzchar(trimws(body))) {",
-            '      sprintf("HTTP %s response", status)',
-            "    } else {",
-            "      body",
-            "    }",
-            "    return(",
-            "      list(",
-            "        error = list(",
-            '          code = paste0("http_", status),',
-            "          message = fallback_message,",
-            "          details = list(),",
-            "          request_id = NULL",
-            "        )",
-            "      )",
-            "    )",
-            "  }",
-            "  error_body <- parsed_body$error",
-            "  request_id <- error_body$request_id",
-            "  if (length(request_id) == 0L) {",
-            "    request_id <- NULL",
-            "  }",
-            "  list(",
-            "    error = list(",
-            "      code = as.character(error_body$code),",
-            "      message = as.character(error_body$message),",
-            f"      details = {prefix}_null_coalesce(error_body$details, list()),",
-            "      request_id = request_id",
-            "    )",
-            "  )",
-            "}",
-            "",
-        ]
-    )
     return "\n".join(lines)
 
 
 def _render_r_client(target: GenerationTarget) -> str:
     prefix = target.r_client_prefix
     client_constructor = f"create_{prefix}_client"
-    request_descriptor = f"{prefix}_request_descriptor"
-    request_executor = f"{prefix}_execute_operation"
-    default_performer = f"{prefix}_default_request_performer"
+    error_class_name = f"{prefix}_api_error"
     lines = [
         "# Code generated by scripts/release/generate_clients.py. DO NOT EDIT.",
         "",
-        f"{default_performer} <- function(request) {{",
-        "  if (!is.list(request)) {",
-        '    stop("request must be a list", call. = FALSE)',
+        f"{prefix}_null_coalesce <- function(value, fallback) {{",
+        "  if (is.null(value)) {",
+        "    fallback",
+        "  } else {",
+        "    value",
         "  }",
-        "  http_request <- httr2::request(request$url)",
-        "  http_request <- httr2::req_method(http_request, request$method)",
-        "  if (length(request$query) > 0L) {",
-        "    http_request <- do.call(httr2::req_url_query, c(list(http_request), request$query))",
+        "}",
+        "",
+        f"{prefix}_normalize_named_list <- function(value, label) {{",
+        "  if (is.null(value)) {",
+        "    return(list())",
         "  }",
-        "  if (length(request$headers) > 0L) {",
-        "    http_request <- do.call(httr2::req_headers, c(list(http_request), request$headers))",
+        "  if (is.atomic(value) && !is.list(value)) {",
+        "    value <- as.list(value)",
         "  }",
-        "  http_request <- httr2::req_options(http_request, timeout = request$timeout_seconds)",
-        f"  encoded_body <- {prefix}_encode_request_body(request$body, request$content_type)",
-        "  if (!is.null(encoded_body)) {",
-        "    http_request <- httr2::req_body_raw(http_request, charToRaw(encoded_body))",
-        "    http_request <- do.call(",
-        "      httr2::req_headers,",
-        "      c(",
-        "        list(http_request),",
-        '        list("Content-Type" = request$content_type)',
+        "  if (!is.list(value)) {",
+        '    stop(sprintf("%s must be a named list", label), call. = FALSE)',
+        "  }",
+        "  item_names <- names(value)",
+        "  if (is.null(item_names)) {",
+        '    stop(sprintf("%s must be a named list", label), call. = FALSE)',
+        "  }",
+        "  cleaned <- list()",
+        "  for (index in seq_along(value)) {",
+        "    item_name <- item_names[[index]]",
+        "    if (is.na(item_name) || !nzchar(item_name)) {",
+        '      stop(sprintf("%s names must be non-empty", label), call. = FALSE)',
+        "    }",
+        "    item_value <- value[[index]]",
+        "    if (is.null(item_value)) {",
+        "      next",
+        "    }",
+        "    cleaned[[item_name]] <- item_value",
+        "  }",
+        "  cleaned",
+        "}",
+        "",
+        f"{prefix}_prune_null_headers <- function(value) {{",
+        "  if (length(value) == 0L) {",
+        "    return(value)",
+        "  }",
+        "  value[!vapply(value, is.null, logical(1))]",
+        "}",
+        "",
+        f"{prefix}_normalize_base_url <- function(base_url) {{",
+        "  if (!is.character(base_url) || length(base_url) != 1L || !nzchar(base_url)) {",
+        '    stop("base_url must be a non-empty string", call. = FALSE)',
+        "  }",
+        '  sub("/+$", "", base_url)',
+        "}",
+        "",
+        f"{prefix}_resolve_path <- function(path, path_params) {{",
+        f'  path_params <- {prefix}_normalize_named_list(path_params, "path_params")',
+        "  resolved_path <- path",
+        "  if (length(path_params) > 0L) {",
+        "    for (param_name in names(path_params)) {",
+        "      resolved_path <- gsub(",
+        '        sprintf("{%s}", param_name),',
+        "        utils::URLencode(as.character(path_params[[param_name]]), reserved = TRUE),",
+        "        resolved_path,",
+        "        fixed = TRUE",
+        "      )",
+        "    }",
+        "  }",
+        "  missing_path_params <- regmatches(",
+        '    resolved_path, gregexpr("\\\\{[^}]+\\\\}", resolved_path, perl = TRUE)',
+        "  )[[1]]",
+        "  if (length(missing_path_params) > 0L) {",
+        '    stop(sprintf("missing path parameter(s): %s", paste(missing_path_params, collapse = ", ")), call. = FALSE)',
+        "  }",
+        "  resolved_path",
+        "}",
+        "",
+        f"{prefix}_parse_json_response <- function(response) {{",
+        "  if (length(httr2::resp_body_raw(response)) == 0L) {",
+        "    return(NULL)",
+        "  }",
+        "  httr2::resp_body_json(response, simplifyVector = FALSE, check_type = FALSE)",
+        "}",
+        "",
+        f"{prefix}_parse_success_response <- function(response) {{",
+        f"  {prefix}_parse_json_response(response)",
+        "}",
+        "",
+        f"{prefix}_response_body_text <- function(response) {{",
+        "  if (length(httr2::resp_body_raw(response)) == 0L) {",
+        '    return("")',
+        "  }",
+        "  httr2::resp_body_string(response)",
+        "}",
+        "",
+        f"{prefix}_default_user_agent <- function() {{",
+        f'  sprintf("{target.r_package_name}/%s", utils::packageVersion("{target.r_package_name}"))',
+        "}",
+        "",
+        f"{prefix}_bearer_token <- function(token = NULL, env_var = {json.dumps(prefix.upper() + '_BEARER_TOKEN')}) {{",
+        "  if (!is.null(token)) {",
+        "    token_chr <- as.character(token)",
+        "    if (length(token_chr) == 0L) {",
+        "      return(NULL)",
+        "    }",
+        "    token_value <- token_chr[[1L]]",
+        "    if (is.na(token_value) || !nzchar(token_value)) {",
+        "      return(NULL)",
+        "    }",
+        "    return(token_value)",
+        "  }",
+        "  env_var_chr <- as.character(env_var)",
+        "  if (length(env_var_chr) == 0L) {",
+        "    return(NULL)",
+        "  }",
+        "  env_var_value <- env_var_chr[[1L]]",
+        "  if (is.na(env_var_value) || !nzchar(env_var_value)) {",
+        "    return(NULL)",
+        "  }",
+        "  env_value <- Sys.getenv(env_var_value, unset = '')",
+        "  if (!nzchar(env_value)) {",
+        "    return(NULL)",
+        "  }",
+        "  env_value",
+        "}",
+        "",
+        f"{prefix}_normalize_user_agent <- function(user_agent = NULL) {{",
+        "  if (is.null(user_agent)) {",
+        "    return(NULL)",
+        "  }",
+        "  user_agent_chr <- as.character(user_agent)",
+        "  if (length(user_agent_chr) == 0L) {",
+        "    return(NULL)",
+        "  }",
+        "  user_agent_value <- user_agent_chr[[1L]]",
+        "  if (is.na(user_agent_value) || !nzchar(user_agent_value)) {",
+        "    return(NULL)",
+        "  }",
+        "  user_agent_value",
+        "}",
+        "",
+        f"{prefix}_decode_error_envelope <- function(response, status = NULL) {{",
+        "  parsed_body <- tryCatch(",
+        f"    {prefix}_parse_json_response(response),",
+        "    error = function(...) NULL",
+        "  )",
+        "  if (!is.list(parsed_body) || is.null(parsed_body$error) || !is.list(parsed_body$error)) {",
+        "    fallback_status <- if (is.null(status)) 'unknown' else as.character(status)",
+        f"    fallback_message <- if (!nzchar({prefix}_response_body_text(response))) {{",
+        '      sprintf("HTTP %s response", fallback_status)',
+        "    } else {",
+        f"      {prefix}_response_body_text(response)",
+        "    }",
+        "    return(",
+        "      list(",
+        '        code = paste0("http_", fallback_status),',
+        "        message = fallback_message,",
+        "        details = list(),",
+        "        request_id = NULL",
         "      )",
         "    )",
         "  }",
-        "  http_request <- httr2::req_error(http_request, is_error = ~ FALSE)",
-        "  response <- httr2::req_perform(http_request)",
+        "  error_body <- parsed_body$error",
+        "  request_id <- error_body$request_id",
+        "  if (length(request_id) == 0L) {",
+        "    request_id <- NULL",
+        "  }",
         "  list(",
-        "    status = httr2::resp_status(response),",
-        "    headers = httr2::resp_headers(response),",
-        "    body = httr2::resp_body_string(response),",
-        "    url = request$url",
+        "    code = as.character(error_body$code),",
+        "    message = as.character(error_body$message),",
+        f"    details = {prefix}_null_coalesce(error_body$details, list()),",
+        "    request_id = request_id",
         "  )",
         "}",
         "",
-        f"{request_descriptor} <- function(",
+        f"{prefix}_error_body <- function(response) {{",
+        f"  error <- {prefix}_decode_error_envelope(response, status = httr2::resp_status(response))",
+        '  sprintf("[%s] %s", error$code, error$message)',
+        "}",
+        "",
+        f"{prefix}_error_condition <- function(error, status, operation_id, method, path, response = NULL, parent = NULL) {{",
+        "  structure(",
+        "    list(",
+        "      message = error$message,",
+        "      call = NULL,",
+        "      code = error$code,",
+        "      status = status,",
+        "      request_id = error$request_id,",
+        "      details = error$details,",
+        "      operation_id = operation_id,",
+        "      method = method,",
+        "      path = path,",
+        "      resp = response,",
+        "      parent = parent",
+        "    ),",
+        f'    class = c("{error_class_name}", parent, "error", "condition")',
+        "  )",
+        "}",
+        "",
+        f"conditionMessage.{error_class_name} <- function(c) {{",
+        '  sprintf("[%s] %s", c$code, c$message)',
+        "}",
+        "",
+        f"{prefix}_apply_request <- function(http_request, request_headers, bearer_token, user_agent) {{",
+        "  if (length(request_headers) > 0L) {",
+        "    http_request <- do.call(httr2::req_headers, c(list(http_request), request_headers))",
+        "  }",
+        "  if (!is.null(user_agent) && nzchar(user_agent)) {",
+        "    http_request <- httr2::req_user_agent(http_request, user_agent)",
+        "  }",
+        '  has_authorization <- any(tolower(names(request_headers)) == "authorization")',
+        "  if (!is.null(bearer_token) && nzchar(bearer_token) && !has_authorization) {",
+        "    http_request <- httr2::req_auth_bearer_token(http_request, bearer_token)",
+        "  }",
+        "  http_request",
+        "}",
+        "",
+        f"{prefix}_api_call <- function(",
         "  client,",
         "  operation_id,",
+        "  method,",
+        "  path,",
         "  body = NULL,",
         "  path_params = NULL,",
         "  query = NULL,",
         "  headers = NULL,",
-        "  content_type = NULL",
+        "  requires_body = FALSE,",
+        "  accepts_body = FALSE",
         ") {",
-        "  if (!is.list(client) || is.null(client$operations)) {",
-        '    stop("client must be created by the package constructor", call. = FALSE)',
+        f'  if (!inherits(client, "{prefix}_client")) {{',
+        f'    stop("client must be created by create_{prefix}_client()", call. = FALSE)',
         "  }",
-        "  operation <- client$operations[[operation_id]]",
-        "  if (is.null(operation)) {",
-        '    stop(sprintf("unknown operation_id: %s", operation_id), call. = FALSE)',
-        "  }",
-        f'  path_params <- {prefix}_normalize_named_list(path_params, "path_params")',
         f'  query <- {prefix}_normalize_named_list(query, "query")',
         f'  request_headers <- {prefix}_normalize_named_list(headers, "headers")',
         "  merged_headers <- c(client$default_headers, request_headers)",
         "  if (length(merged_headers) > 0L) {",
-        "    merged_headers <- merged_headers[!duplicated(names(merged_headers), fromLast = TRUE)]",
+        "    merged_headers <- merged_headers[!duplicated(tolower(names(merged_headers)), fromLast = TRUE)]",
         "  }",
         f"  merged_headers <- {prefix}_prune_null_headers(merged_headers)",
-        f"  resolved_path <- {prefix}_resolve_path(operation$path, path_params)",
-        f"  selected_content_type <- {prefix}_select_content_type(operation, content_type)",
-        "  if (is.null(body)) {",
-        "    if (isTRUE(operation$has_request_body) && isTRUE(operation$has_required_request_body)) {",
-        '      stop(sprintf("operation %s requires a request body", operation_id), call. = FALSE)',
-        "    }",
-        "  } else if (!isTRUE(operation$has_request_body)) {",
+        f"  resolved_path <- {prefix}_resolve_path(path, path_params)",
+        "  if (is.null(body) && isTRUE(requires_body)) {",
+        '    stop(sprintf("operation %s requires a request body", operation_id), call. = FALSE)',
+        "  }",
+        "  if (!is.null(body) && !isTRUE(accepts_body)) {",
         '    stop(sprintf("operation %s does not accept a request body", operation_id), call. = FALSE)',
         "  }",
-        "  list(",
-        "    operation_id = operation$operation_id,",
-        "    method = operation$method,",
-        "    path = resolved_path,",
-        "    url = paste0(client$base_url, resolved_path),",
-        "    body = body,",
-        "    content_type = selected_content_type,",
-        "    headers = merged_headers,",
-        "    query = query,",
-        "    timeout_seconds = client$timeout_seconds",
-        "  )",
-        "}",
-        "",
-        f"{request_executor} <- function(",
-        "  client,",
-        "  operation_id,",
-        "  body = NULL,",
-        "  path_params = NULL,",
-        "  query = NULL,",
-        "  headers = NULL,",
-        "  content_type = NULL",
-        ") {",
-        f"  request <- {request_descriptor}(",
-        "    client = client,",
-        "    operation_id = operation_id,",
-        "    body = body,",
-        "    path_params = path_params,",
-        "    query = query,",
-        "    headers = headers,",
-        "    content_type = content_type",
-        "  )",
-        "  response <- tryCatch(",
-        "    client$request_performer(request),",
-        "    error = function(error) {",
+        "  http_request <- httr2::request(paste0(client$base_url, resolved_path))",
+        "  http_request <- httr2::req_method(http_request, method)",
+        "  if (length(query) > 0L) {",
+        "    http_request <- do.call(httr2::req_url_query, c(list(http_request), query))",
+        "  }",
+        f"  http_request <- {prefix}_apply_request(http_request, merged_headers, client$bearer_token, client$user_agent)",
+        "  http_request <- httr2::req_options(http_request, timeout = client$timeout_seconds)",
+        "  if (!is.null(body)) {",
+        '    http_request <- httr2::req_body_json(http_request, body, auto_unbox = TRUE, null = "null")',
+        "  }",
+        "  http_request <- httr2::req_error(http_request, body = function(resp) {",
+        f"    {prefix}_error_body(resp)",
+        "  })",
+        "  tryCatch(",
+        "    {",
+        "      response <- httr2::req_perform(http_request)",
+        f"      {prefix}_parse_success_response(response)",
+        "    },",
+        "    httr2_http = function(cnd) {",
+        f"      error <- {prefix}_decode_error_envelope(cnd$resp, status = cnd$status)",
         "      stop(",
-        "        sprintf(",
-        '          "request_performer failed for %s: %s",',
-        "          operation_id,",
-        "          conditionMessage(error)",
-        "        ),",
-        "        call. = FALSE",
+        f"        {prefix}_error_condition(",
+        "          error = error,",
+        "          status = cnd$status,",
+        "          operation_id = operation_id,",
+        "          method = method,",
+        "          path = resolved_path,",
+        "          response = cnd$resp,",
+        "          parent = class(cnd)",
+        "        )",
         "      )",
         "    }",
-        "  )",
-        "  if (!is.list(response) || is.null(response$status)) {",
-        '    stop("request_performer must return a list with status", call. = FALSE)',
-        "  }",
-        "  status <- as.integer(response$status[[1]])",
-        "  if (is.na(status)) {",
-        '    stop("request_performer returned an invalid status code", call. = FALSE)',
-        "  }",
-        "  body_text <- response$body",
-        "  if (is.null(body_text)) {",
-        '    body_text <- ""',
-        "  }",
-        "  ok <- status >= 200L && status < 300L",
-        "  if (ok) {",
-        f"    data <- {prefix}_parse_json_body(body_text)",
-        "    error <- NULL",
-        "  } else {",
-        "    data <- NULL",
-        f"    error <- {prefix}_decode_error_envelope(body_text, status = status)",
-        "  }",
-        "  list(",
-        "    ok = ok,",
-        "    status = status,",
-        "    headers = response$headers,",
-        "    data = data,",
-        "    error = error,",
-        "    request = request,",
-        "    response = response",
         "  )",
         "}",
         "",
         f"{client_constructor} <- function(",
         "  base_url,",
-        f"  request_performer = {default_performer},",
+        "  bearer_token = NULL,",
+        f"  bearer_token_env = {json.dumps(prefix.upper() + '_BEARER_TOKEN')},",
         "  default_headers = NULL,",
-        "  timeout_seconds = 30",
+        "  timeout_seconds = 30,",
+        "  user_agent = NULL",
         ") {",
         f"  base_url <- {prefix}_normalize_base_url(base_url)",
-        "  if (!is.function(request_performer)) {",
-        '    stop("request_performer must be a function", call. = FALSE)',
-        "  }",
         "  if (!is.numeric(timeout_seconds) || length(timeout_seconds) != 1L || is.na(timeout_seconds) || !is.finite(timeout_seconds) || timeout_seconds <= 0) {",
         '    stop("timeout_seconds must be a finite positive number", call. = FALSE)',
         "  }",
         f'  default_headers <- {prefix}_normalize_named_list(default_headers, "default_headers")',
-        f"  operations <- {target.catalog_function_name}()",
         "  client <- list(",
         "    base_url = base_url,",
-        "    request_performer = request_performer,",
+        f"    bearer_token = {prefix}_bearer_token(token = bearer_token, env_var = bearer_token_env),",
         "    default_headers = default_headers,",
         "    timeout_seconds = timeout_seconds,",
-        "    operations = operations",
+        f"    user_agent = {prefix}_null_coalesce({prefix}_normalize_user_agent(user_agent), {prefix}_default_user_agent())",
         "  )",
-        "  for (operation_id in names(operations)) {",
-        "    client[[operation_id]] <- local({",
-        "      bound_operation_id <- operation_id",
-        "      function(",
-        "        body = NULL,",
-        "        path_params = NULL,",
-        "        query = NULL,",
-        "        headers = NULL,",
-        "        content_type = NULL",
-        "      ) {",
-        f"        {request_executor}(",
-        "          client = client,",
-        "          operation_id = bound_operation_id,",
-        "          body = body,",
-        "          path_params = path_params,",
-        "          query = query,",
-        "          headers = headers,",
-        "          content_type = content_type",
-        "        )",
-        "      }",
-        "    })",
-        "  }",
         f'  class(client) <- c("{prefix}_client", "list")',
         "  client",
         "}",
@@ -1207,10 +1264,10 @@ def _render_r_description(target: GenerationTarget) -> str:
         "Roxygen: list(markdown = TRUE)",
         "RoxygenNote: 7.3.2",
         "Imports:",
-        "    httr2,",
-        "    jsonlite",
+        "    httr2",
         "Suggests:",
-        "    testthat (>= 3.0.0)",
+        "    testthat (>= 3.0.0),",
+        "    withr",
         "Config/testthat/edition: 3",
         "",
     ]
@@ -1238,9 +1295,13 @@ def _resolve_r_package_version(package_root: Path) -> str:
 
 
 def _render_r_namespace(target: GenerationTarget) -> str:
-    exports = _r_exported_function_names(target.r_client_prefix)
+    _, operations = _load_operations(target.spec_path)
+    exports = _r_exported_function_names(target.r_client_prefix, operations)
+    error_class_name = f"{target.r_client_prefix}_api_error"
     lines = [
         "# Generated by roxygen2: do not edit by hand",
+        "",
+        f"S3method(conditionMessage,{error_class_name})",
         "",
     ]
     lines.extend(f"export({name})" for name in exports)
@@ -1252,8 +1313,6 @@ def _render_r_readme(
     target: GenerationTarget, operations: list[Operation]
 ) -> str:
     constructor = f"create_{target.r_client_prefix}_client"
-    request_descriptor = f"{target.r_client_prefix}_request_descriptor"
-    operation_catalog = target.catalog_function_name
     lines = [
         f"# `{target.r_package_name}`",
         "",
@@ -1261,14 +1320,15 @@ def _render_r_readme(
         "",
         "This package is generated from committed OpenAPI and is kept in-repo so",
         "Nova release tooling can build and check the real package tree.",
+        "The generated client is intentionally thin and follows the current",
+        "public Nova file API contract: bearer JWT auth, JSON bodies,",
+        "concrete path/query parameters, and plain R list responses.",
         "",
         "## Surface",
         "",
         f"- `{constructor}`",
-        f"- `{operation_catalog}`",
-        f"- `{request_descriptor}`",
-        f"- `{target.r_client_prefix}_execute_operation`",
-        f"- `{target.r_client_prefix}_decode_error_envelope`",
+        f"- `{target.r_client_prefix}_bearer_token`",
+        f"- endpoint wrappers named `{target.r_client_prefix}_<operation_id>`",
         "",
         "## Example",
         "",
@@ -1279,20 +1339,22 @@ def _render_r_readme(
             [
                 "client <- create_nova_file_client(",
                 '  "https://nova.example/",',
-                "  default_headers = list(",
-                '    "Authorization" = "Bearer eyJhbGciOi...",',
-                '    "Idempotency-Key" = "req-123"',
-                "  )",
+                '  bearer_token = "eyJhbGciOi...",',
                 ")",
                 "",
-                "result <- client$create_job(",
+                "result <- nova_file_create_job(",
+                "  client,",
                 "  body = list(",
                 '    job_type = "transfer.process",',
                 '    payload = list(upload_key = "tenant-acme/sample.csv")',
-                "  )",
+                "  ),",
+                '  headers = list("Idempotency-Key" = "req-123")',
                 ")",
-                "result$data$job_id",
-                "result$data$status",
+                "result$job_id",
+                "result$status",
+                "",
+                "jobs <- nova_file_list_jobs(client, limit = 25)",
+                "job <- nova_file_get_job_status(client, job_id = result$job_id)",
             ]
         )
     else:
@@ -1315,11 +1377,11 @@ def _render_r_readme(
 
 
 def _render_r_package_manual(target: GenerationTarget) -> str:
-    exports = _r_exported_function_names(target.r_client_prefix)
+    _, operations = _load_operations(target.spec_path)
+    exports = _r_exported_function_names(target.r_client_prefix, operations)
     constructor = f"create_{target.r_client_prefix}_client"
-    request_descriptor = f"{target.r_client_prefix}_request_descriptor"
-    execute_operation = f"{target.r_client_prefix}_execute_operation"
-    decode_error_envelope = f"{target.r_client_prefix}_decode_error_envelope"
+    bearer_helper = f"{target.r_client_prefix}_bearer_token"
+    bearer_env_var = f"{target.r_client_prefix.upper()}_BEARER_TOKEN"
     package_name = target.r_package_name
     lines = [
         f"\\name{{{package_name}}}",
@@ -1332,34 +1394,34 @@ def _render_r_package_manual(target: GenerationTarget) -> str:
             f"\\title{{{target.r_package_title}}}",
             f"\\description{{{target.r_package_description}}}",
             "\\usage{",
-            f"  {constructor}(base_url, request_performer = {target.r_client_prefix}_default_request_performer, default_headers = NULL, timeout_seconds = 30)",
-            f"  {target.catalog_function_name}()",
-            f"  {request_descriptor}(client, operation_id, body = NULL, path_params = NULL, query = NULL, headers = NULL, content_type = NULL)",
-            f"  {execute_operation}(client, operation_id, body = NULL, path_params = NULL, query = NULL, headers = NULL, content_type = NULL)",
-            f"  {decode_error_envelope}(body, status = NULL)",
+            f'  {constructor}(base_url, bearer_token = NULL, bearer_token_env = "{bearer_env_var}", default_headers = NULL, timeout_seconds = 30, user_agent = NULL)',
+            f'  {bearer_helper}(token = NULL, env_var = "{bearer_env_var}")',
             "}",
             "",
             "\\arguments{",
             "  \\item{base_url}{Base URL for the Nova API, without a trailing slash requirement.}",
-            "  \\item{request_performer}{Function used to execute a prepared request descriptor.}",
+            "  \\item{bearer_token}{Explicit bearer token used for Authorization headers when request headers do not already provide one.}",
+            "  \\item{bearer_token_env}{Environment variable name used as an optional bearer-token fallback.}",
             "  \\item{default_headers}{Named list of default request headers applied to every request.}",
             "  \\item{timeout_seconds}{Positive request timeout in seconds.}",
-            "  \\item{client}{Client instance created by the package constructor.}",
-            "  \\item{operation_id}{Stable Nova operation identifier from the operation catalog.}",
-            "  \\item{body}{Optional request body payload for operations that accept one.}",
-            "  \\item{path_params}{Named list of path parameter values used to resolve templated routes.}",
-            "  \\item{query}{Named list of query-string parameters.}",
-            "  \\item{headers}{Named list of per-request headers merged over default headers.}",
-            "  \\item{content_type}{Explicit request media type for multi-media operations.}",
-            "  \\item{status}{Optional HTTP status code used when decoding an error envelope.}",
+            "  \\item{user_agent}{Optional explicit user agent string.}",
+            "  \\item{token}{Explicit bearer token string.}",
+            "  \\item{env_var}{Environment variable name used to resolve a bearer token.}",
             "}",
             "",
             "\\value{",
-            "  The constructor returns a client object with bound operation methods.",
-            "  The request descriptor returns a structured request list.",
-            "  The executor returns a structured response list with parsed data or error envelopes.",
+            "  The constructor returns a thin client configuration object.",
+            "  The bearer-token helper returns an explicit or environment-derived token, or NULL when none is available.",
             "}",
             "",
+        ]
+    )
+    for operation in operations:
+        lines.extend(
+            _r_operation_manual_section(target.r_client_prefix, operation)
+        )
+    lines.extend(
+        [
             "\\keyword{package}",
             "",
         ]
@@ -1382,95 +1444,185 @@ def _render_r_tests(
 ) -> str:
     prefix = target.r_client_prefix
     constructor = f"create_{prefix}_client"
-    request_descriptor = f"{prefix}_request_descriptor"
     if prefix == "nova_file":
         lines = [
-            'test_that("operation catalog exposes public operations", {',
-            f"  catalog <- {target.catalog_function_name}()",
-            "  expect_true(is.list(catalog))",
-            '  expect_true("create_job" %in% names(catalog))',
-            '  expect_false("update_job_result" %in% names(catalog))',
-            '  expect_identical(catalog$create_job$request_content_types, "application/json")',
+            'test_that("constructor resolves explicit and environment bearer tokens", {',
+            '  withr::local_envvar(NOVA_FILE_BEARER_TOKEN = "env-token-123")',
+            f'  env_client <- {constructor}("https://nova.example/")',
+            '  expect_equal(env_client$bearer_token, "env-token-123")',
+            f'  explicit_client <- {constructor}("https://nova.example/", bearer_token = "explicit-token-123")',
+            '  expect_equal(explicit_client$bearer_token, "explicit-token-123")',
             "})",
             "",
-            'test_that("request descriptors resolve paths, query params, and headers", {',
-            f'  client <- {constructor}("https://nova.example/", request_performer = function(request) {{',
-            '    list(status = 200L, headers = list(), body = \'{"job":{"job_id":"job-0001","status":"running"}}\', url = request$url)',
-            "  })",
-            f'  descriptor <- {request_descriptor}(client, "get_job_status", path_params = list(job_id = "job-123"), query = list(limit = 5), headers = list("Idempotency-Key" = "req-123"))',
-            '  expect_equal(descriptor$url, "https://nova.example/v1/jobs/job-123")',
-            "  expect_equal(descriptor$query$limit, 5)",
-            '  expect_equal(descriptor$headers[["Idempotency-Key"]], "req-123")',
-            "  expect_true(is.null(descriptor$body))",
-            "  expect_equal(descriptor$content_type, NULL)",
+            'test_that("constructor treats zero-length bearer tokens as absent", {',
+            "  withr::local_envvar(NOVA_FILE_BEARER_TOKEN = NA_character_)",
+            f'  client <- {constructor}("https://nova.example/", bearer_token = character(0))',
+            "  expect_null(client$bearer_token)",
             "})",
             "",
-            'test_that("client methods execute requests and decode success and error envelopes", {',
-            "  captured_requests <- list()",
-            f'  client <- {constructor}("https://nova.example/", request_performer = function(request) {{',
-            "    captured_requests[[length(captured_requests) + 1L]] <<- request",
-            '    list(status = 200L, headers = list(), body = \'{"job_id":"job-0001","status":"pending"}\', url = request$url)',
-            "  })",
-            '  result <- client$create_job(body = list(job_type = "transfer.process", payload = list(upload_key = "tenant-acme/sample.csv")), headers = list("Authorization" = "Bearer token-123", "Idempotency-Key" = "req-123"))',
-            "  expect_true(result$ok)",
-            '  expect_equal(result$data$job_id, "job-0001")',
-            '  expect_equal(result$data$status, "pending")',
-            '  expect_equal(captured_requests[[1]]$content_type, "application/json")',
-            '  expect_equal(captured_requests[[1]]$headers[["Idempotency-Key"]], "req-123")',
-            '  expect_equal(captured_requests[[1]]$headers[["Authorization"]], "Bearer token-123")',
-            '  expect_equal(captured_requests[[1]]$body$job_type, "transfer.process")',
+            'test_that("constructor normalizes invalid user agents to the default", {',
+            f'  client <- {constructor}("https://nova.example/", user_agent = character(0))',
+            "  expect_equal(client$user_agent, nova_file_default_user_agent())",
+            f'  client_na <- {constructor}("https://nova.example/", user_agent = NA_character_)',
+            "  expect_equal(client_na$user_agent, nova_file_default_user_agent())",
+            "})",
             "",
-            f'  failing_client <- {constructor}("https://nova.example/", request_performer = function(request) {{',
-            '    list(status = 503L, headers = list(), body = \'{"error":{"code":"queue_unavailable","message":"jobs queue unavailable","details":{"backend":"sqs"},"request_id":"req-jobs-503"}}\', url = request$url)',
-            "  })",
-            '  error_result <- failing_client$create_job(body = list(job_type = "transfer.process", payload = list(upload_key = "tenant-acme/sample.csv")), headers = list("Authorization" = "Bearer token-123"))',
-            "  expect_false(error_result$ok)",
-            '  expect_equal(error_result$error$error$code, "queue_unavailable")',
+            'test_that("generated package exports thin endpoint wrappers", {',
+            '  exports <- getNamespaceExports("nova.sdk.r.file")',
+            '  expect_true("nova_file_create_job" %in% exports)',
+            '  expect_true("nova_file_get_job_status" %in% exports)',
+            '  expect_true("nova_file_list_jobs" %in% exports)',
+            '  expect_false("nova_file_request_descriptor" %in% exports)',
+            '  expect_false("nova_file_execute_operation" %in% exports)',
+            "})",
+            "",
+            'test_that("request construction uses concrete params and bearer auth", {',
+            "  observed_request <- NULL",
+            "  mocked_response <- httr2::response(",
+            "    status_code = 200,",
+            '    url = "https://nova.example/v1/jobs/job-123",',
+            '    headers = list(`content-type` = "application/json"),',
+            '    body = charToRaw(\'{"job_id":"job-123","status":"queued"}\')',
+            "  )",
+            "  withr::local_envvar(NOVA_FILE_BEARER_TOKEN = NA_character_)",
+            "  result <- httr2::with_mocked_responses(",
+            "    function(req) {",
+            "      observed_request <<- req",
+            "      mocked_response",
+            "    },",
+            "    {",
+            f'      client <- {constructor}("https://nova.example/", bearer_token = "token-123", timeout_seconds = 12)',
+            '      nova_file_get_job_status(client, job_id = "job-123", headers = list(`X-Request-Id` = "req-123"))',
+            "    }",
+            "  )",
+            '  expect_equal(result$job_id, "job-123")',
+            '  expect_equal(result$status, "queued")',
+            '  expect_equal(observed_request$url, "https://nova.example/v1/jobs/job-123")',
+            '  expect_equal(observed_request$method, "GET")',
+            '  expect_true("Authorization" %in% names(observed_request$headers))',
+            '  expect_equal(observed_request$headers$`X-Request-Id`, "req-123")',
+            "  expect_equal(observed_request$options$timeout, 12)",
+            "})",
+            "",
+            'test_that("lowercase authorization headers suppress bearer injection", {',
+            "  observed_request <- NULL",
+            "  mocked_response <- httr2::response(",
+            "    status_code = 200,",
+            '    url = "https://nova.example/v1/jobs/job-123",',
+            '    headers = list(`content-type` = "application/json"),',
+            '    body = charToRaw(\'{"job_id":"job-123","status":"queued"}\')',
+            "  )",
+            "  result <- httr2::with_mocked_responses(",
+            "    function(req) {",
+            "      observed_request <<- req",
+            "      mocked_response",
+            "    },",
+            "    {",
+            f'      client <- {constructor}("https://nova.example/", bearer_token = "token-123")',
+            '      nova_file_get_job_status(client, job_id = "job-123", headers = list(authorization = "Bearer custom"))',
+            "    }",
+            "  )",
+            '  auth_positions <- which(tolower(names(observed_request$headers)) == "authorization")',
+            "  expect_length(auth_positions, 1L)",
+            '  expect_identical(names(observed_request$headers)[auth_positions[[1L]]], "authorization")',
+            '  expect_equal(result$job_id, "job-123")',
+            "})",
+            "",
+            'test_that("request construction encodes query params and JSON bodies", {',
+            "  observed_requests <- list()",
+            "  mocked_response <- httr2::response(",
+            "    status_code = 200,",
+            '    url = "https://nova.example/v1/jobs",',
+            '    headers = list(`content-type` = "application/json"),',
+            "    body = charToRaw('{\"items\":[]}')",
+            "  )",
+            "  httr2::with_mocked_responses(",
+            "    function(req) {",
+            "      observed_requests[[length(observed_requests) + 1L]] <<- req",
+            "      mocked_response",
+            "    },",
+            "    {",
+            f'      client <- {constructor}("https://nova.example/", bearer_token = "token-123")',
+            "      nova_file_list_jobs(client, limit = 25)",
+            "      nova_file_create_job(",
+            "        client,",
+            "        body = list(",
+            '          job_type = "transfer.process",',
+            '          payload = list(upload_key = "tenant-acme/sample.csv")',
+            "        ),",
+            '        headers = list("Idempotency-Key" = "req-123")',
+            "      )",
+            "    }",
+            "  )",
+            "  expect_length(observed_requests, 2L)",
+            '  expect_equal(observed_requests[[1]]$method, "GET")',
+            '  expect_equal(observed_requests[[1]]$url, "https://nova.example/v1/jobs?limit=25")',
+            '  expect_equal(observed_requests[[2]]$method, "POST")',
+            '  expect_equal(observed_requests[[2]]$url, "https://nova.example/v1/jobs")',
+            '  expect_equal(observed_requests[[2]]$headers$`Idempotency-Key`, "req-123")',
+            '  expect_equal(observed_requests[[2]]$body$content_type, "application/json")',
+            '  expect_equal(observed_requests[[2]]$body$data$job_type, "transfer.process")',
+            '  expect_equal(observed_requests[[2]]$body$data$payload$upload_key, "tenant-acme/sample.csv")',
+            "})",
+            "",
+            'test_that("structured errors preserve Nova error envelope fields", {',
+            "  mocked_response <- httr2::response(",
+            "    status_code = 503,",
+            '    url = "https://nova.example/v1/jobs",',
+            '    headers = list(`content-type` = "application/json"),',
+            '    body = charToRaw(\'{"error":{"code":"queue_unavailable","message":"jobs queue unavailable","request_id":"req-jobs-503","details":{"backend":"sqs"}}}\')',
+            "  )",
+            "  error <- tryCatch(",
+            "    httr2::with_mocked_responses(",
+            "      function(req) mocked_response,",
+            "      {",
+            f'        client <- {constructor}("https://nova.example/", bearer_token = "token-123")',
+            '        nova_file_create_job(client, body = list(job_type = "transfer.process"))',
+            "      }",
+            "    ),",
+            "    nova_file_api_error = function(error) error",
+            "  )",
+            '  expect_s3_class(error, "nova_file_api_error")',
+            '  expect_true(inherits(error, "httr2_http"))',
+            '  expect_equal(error$code, "queue_unavailable")',
+            "  expect_equal(error$status, 503L)",
+            '  expect_equal(error$request_id, "req-jobs-503")',
+            '  expect_equal(error$details$backend, "sqs")',
+            "  expect_equal(httr2::resp_status(error$resp), 503L)",
+            '  expect_equal(conditionMessage(error), "[queue_unavailable] jobs queue unavailable")',
+            "})",
+            "",
+            'test_that("structured errors fall back to raw body text for non-JSON responses", {',
+            "  mocked_response <- httr2::response(",
+            "    status_code = 503,",
+            '    url = "https://nova.example/v1/jobs",',
+            '    headers = list(`content-type` = "text/plain"),',
+            '    body = charToRaw("service unavailable")',
+            "  )",
+            "  error <- tryCatch(",
+            "    httr2::with_mocked_responses(",
+            "      function(req) mocked_response,",
+            "      {",
+            f'        client <- {constructor}("https://nova.example/", bearer_token = "token-123")',
+            '        nova_file_create_job(client, body = list(job_type = "transfer.process"))',
+            "      }",
+            "    ),",
+            "    nova_file_api_error = function(error) error",
+            "  )",
+            '  expect_s3_class(error, "nova_file_api_error")',
+            '  expect_true(inherits(error, "httr2_http"))',
+            '  expect_equal(error$code, "http_503")',
+            '  expect_match(conditionMessage(error), "service unavailable", fixed = TRUE)',
+            "  expect_equal(httr2::resp_status(error$resp), 503L)",
             "})",
             "",
         ]
     else:
         lines = [
-            'test_that("operation catalog exposes multi-media operations", {',
-            f"  catalog <- {target.catalog_function_name}()",
-            "  expect_true(is.list(catalog))",
-            '  expect_true("introspect_token" %in% names(catalog))',
-            '  expect_identical(catalog$verify_token$request_content_types, "application/json")',
-            '  expect_identical(catalog$introspect_token$request_content_types, c("application/json", "application/x-www-form-urlencoded"))',
-            "})",
-            "",
-            'test_that("request descriptors require explicit content types for multi-media bodies", {',
-            f'  client <- {constructor}("https://nova.example/", request_performer = function(request) {{',
-            '    list(status = 200L, headers = list(), body = \'{"principal":{"subject":"auth0|user-123","scope_id":"tenant-acme","tenant_id":"tenant-acme","scopes":["files:write","jobs:enqueue"],"permissions":["jobs:enqueue","jobs:read"]},"claims":{"iss":"https://example.us.auth0.com/","aud":"nova-file-api","sub":"auth0|user-123","exp":1999999999,"iat":1999999000,"scope":"files:write jobs:enqueue"}}\', url = request$url)',
-            "  })",
-            "  expect_error(",
-            f'    {request_descriptor}(client, "introspect_token", body = list(access_token = "token-123", required_scopes = c("files:write"), required_permissions = character(0))),',
-            '    "requires an explicit content_type"',
-            "  )",
-            f'  json_descriptor <- {request_descriptor}(client, "introspect_token", body = list(access_token = "token-123", required_scopes = c("files:write"), required_permissions = character(0)), content_type = "application/json")',
-            '  expect_equal(json_descriptor$content_type, "application/json")',
-            f'  form_descriptor <- {request_descriptor}(client, "introspect_token", body = list(token = "token-123", required_scopes = c("files:write"), required_permissions = character(0)), content_type = "application/x-www-form-urlencoded")',
-            '  expect_equal(form_descriptor$content_type, "application/x-www-form-urlencoded")',
-            '  expect_equal(form_descriptor$body$token, "token-123")',
-            "})",
-            "",
-            'test_that("client methods execute requests and decode success and error envelopes", {',
-            "  captured_requests <- list()",
-            f'  client <- {constructor}("https://nova.example/", request_performer = function(request) {{',
-            "    captured_requests[[length(captured_requests) + 1L]] <<- request",
-            '    list(status = 200L, headers = list(), body = \'{"principal":{"subject":"auth0|user-123","scope_id":"tenant-acme","tenant_id":"tenant-acme","scopes":["files:write","jobs:enqueue"],"permissions":["jobs:enqueue","jobs:read"]},"claims":{"iss":"https://example.us.auth0.com/","aud":"nova-file-api","sub":"auth0|user-123","exp":1999999999,"iat":1999999000,"scope":"files:write jobs:enqueue"}}\', url = request$url)',
-            "  })",
-            '  result <- client$verify_token(body = list(access_token = "token-123", required_scopes = c("files:write"), required_permissions = character(0)))',
-            "  expect_true(result$ok)",
-            '  expect_equal(result$data$principal$subject, "auth0|user-123")',
-            '  expect_equal(captured_requests[[1]]$body$access_token, "token-123")',
-            "",
-            f'  failing_client <- {constructor}("https://nova.example/", request_performer = function(request) {{',
-            '    list(status = 401L, headers = list(), body = \'{"error":{"code":"invalid_token","message":"token validation failed","details":{},"request_id":"req-auth-401"}}\', url = request$url)',
-            "  })",
-            '  error_result <- failing_client$verify_token(body = list(access_token = "token-123", required_scopes = character(0), required_permissions = character(0)))',
-            "  expect_false(error_result$ok)",
-            '  expect_equal(error_result$error$error$code, "invalid_token")',
+            'test_that("generated auth package exports thin endpoint wrappers", {',
+            '  exports <- getNamespaceExports("nova.sdk.r.auth")',
+            '  expect_true("nova_auth_verify_token" %in% exports)',
+            '  expect_false("nova_auth_request_descriptor" %in% exports)',
             "})",
             "",
         ]

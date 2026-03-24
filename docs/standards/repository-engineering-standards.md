@@ -142,6 +142,12 @@ Rules for narrative provisioning, release, and validation markdown under
   without requiring `pdflatex` on CI or release runners. When regenerating,
   the generator preserves an existing `DESCRIPTION` version instead of
   resetting it.
+- Public R wrappers must expose concrete OpenAPI path/query parameters instead
+  of generic `path_params` / `query` bags. Keep generic escape hatches limited
+  to headers and constructor-level defaults.
+- For the current public file API contract, the generated R runtime stays
+  JSON-only. Do not preserve dead form or multi-media request handling in the R
+  client unless the committed OpenAPI contract actually requires it.
 - R release artifacts are transported through CodeArtifact generic packages and
   must retain signed tarball and detached `.sig` evidence in the release
   workflow.

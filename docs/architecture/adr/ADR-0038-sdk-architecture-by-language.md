@@ -56,7 +56,10 @@ options score **≥ 9.10** under Framework B (see evidence file).
   plus the minimal `client.py` / `errors.py` template surface.
 - **R:** Ship a thin **httr2**-based package with minimal generated metadata and
   idiomatic helpers; do **not** adopt the beta OpenAPI Generator R client as the
-  primary path.
+  primary path. For the current file API, generated R wrappers expose concrete
+  OpenAPI path/query parameters, use JSON request/response handling only for the
+  declared public media types, and keep bearer-auth/header customization in the
+  thin client constructor plus per-call headers.
 
 ## Decision framework (Framework B)
 

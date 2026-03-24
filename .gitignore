@@ -172,6 +172,9 @@ cython_debug/
 node_modules/
 *.tsbuildinfo
 
+# Local R package build/check artifacts
+/*.tar.gz
+/*.Rcheck/
 
 # opensrc - source code for packages
 opensrc/
