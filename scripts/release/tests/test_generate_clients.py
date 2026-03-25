@@ -268,7 +268,7 @@ def test_render_typescript_openapi_requires_repo_installed_cli(
 def test_render_r_description_includes_valid_maintainer_metadata(
     target: GenerationTarget,
 ) -> None:
-    """R DESCRIPTION metadata must include a named maintainer with email."""
+    """R DESCRIPTION metadata must match the generator-owned contract."""
     description = _render_r_description(target)
 
     expected_maintainer = (
@@ -277,6 +277,9 @@ def test_render_r_description_includes_valid_maintainer_metadata(
     )
     assert expected_maintainer in description
     assert "License: file LICENSE" in description
+    assert "RoxygenNote: 7.3.3" in description
+    assert "    testthat (>= 3.2.3)," in description
+    assert "    withr (>= 3.0.2)" in description
 
 
 @pytest.mark.parametrize("target", TARGETS)
