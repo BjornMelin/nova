@@ -120,6 +120,9 @@ Generated runtime config authority:
 - The underlying source of truth is
   `packages/nova_file_api/src/nova_file_api/config.py` plus
   `scripts/release/runtime_config_contract.py`.
+- Runtime settings must declare explicit string `validation_alias` values; the
+  release contract reads `validation_alias` only and does not infer env var
+  names from field names.
 
 Documentation authority:
 [`../release/README.md#canonical-documentation-authority-chain`](../release/README.md#canonical-documentation-authority-chain).

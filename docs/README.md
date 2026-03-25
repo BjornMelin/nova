@@ -122,6 +122,9 @@ Use these only for traceability, not as active authority:
   plus `scripts/release/runtime_config_contract.py`, with
   `./release/runtime-config-contract.generated.md` treated as the
   operator-facing generated view.
+- Runtime settings must keep explicit string `validation_alias` mappings for
+  stable env var names. Release tooling reads `validation_alias` only and must
+  not fall back to `alias` or implicit uppercase field-name derivation.
 - Adapter-boundary changes must keep `./architecture/README.md`,
   `./architecture/adr/ADR-0025-runtime-monorepo-component-boundaries-and-ownership.md`,
   and

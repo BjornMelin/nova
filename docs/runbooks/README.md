@@ -49,6 +49,9 @@ indexes: [`release/README.md`](./release/README.md).
 - Runtime env/override lists in active runbooks must point back to
   `../release/runtime-config-contract.generated.md`, not fork into handwritten
   duplicates.
+- Active runbooks must describe runtime env vars as coming from explicit
+  `Settings.validation_alias` values in `config.py`; release tooling does not
+  read `alias` or infer uppercase names.
 - Use deeper runbooks for execution detail:
   - `release/release-runbook.md` for release execution, the Node 24 LTS npm
     baseline, the current TypeScript 5.x line with TypeScript 6 explicitly

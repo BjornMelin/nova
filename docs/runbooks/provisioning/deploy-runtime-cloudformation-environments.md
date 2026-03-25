@@ -176,6 +176,9 @@ Worker/file-transfer contract notes:
   task definition.
 - The supported override list is generated from the canonical runtime settings
   contract; do not hand-edit duplicate key lists in docs or scripts.
+- Runtime env var names remain stable, but the generator now reads only
+  explicit string `Settings.validation_alias` mappings from `config.py`; it
+  does not use `alias` or implicit uppercase fallback.
 - Canonical worker runtime inputs are `JOBS_*`; stale worker aliases are not
   valid deployment inputs.
 - `AUTH_MODE=jwt_local` without `OIDC_ISSUER`, `OIDC_AUDIENCE`, and

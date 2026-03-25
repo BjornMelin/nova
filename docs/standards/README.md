@@ -62,6 +62,8 @@ Runtime config drift guard:
 - keep `packages/nova_file_api/src/nova_file_api/config.py` and
   `scripts/release/runtime_config_contract.py` aligned as the source-of-truth
   pair
+- require explicit string `validation_alias` values for runtime settings and
+  treat those aliases as the only contract-extraction input
 - refresh `../release/runtime-config-contract.generated.md` with
   `scripts/release/generate_runtime_config_contract.py`
 - treat the current runtime dependency floors as manifest-owned authority:
