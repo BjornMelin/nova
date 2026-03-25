@@ -186,9 +186,8 @@ by themselves; disabled features collapse to ready checks instead of
 introducing failing dependencies.
 
 - Missing or blank `FILE_TRANSFER_BUCKET` MUST fail readiness.
-- `AUTH_MODE=jwt_local` with missing `OIDC_ISSUER`, `OIDC_AUDIENCE`, or
-  `OIDC_JWKS_URL` MUST fail the dedicated `auth_dependency` readiness check on
-  `/v1/health/ready`.
+- Missing `OIDC_ISSUER`, `OIDC_AUDIENCE`, or `OIDC_JWKS_URL` MUST fail the
+  dedicated `auth_dependency` readiness check on `/v1/health/ready`.
 
 ### FR-0003: Key generation and scope enforcement
 

@@ -22,12 +22,6 @@ class UploadStrategy(StrEnum):
     MULTIPART = "multipart"
 
 
-class AuthMode(StrEnum):
-    """Authentication modes supported by the API."""
-
-    JWT_LOCAL = "jwt_local"
-
-
 class JobsQueueBackend(StrEnum):
     """Queue backends available for async jobs."""
 

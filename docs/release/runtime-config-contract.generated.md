@@ -19,7 +19,6 @@ Canonical sources:
 | APP_NAME | app_name | str | no | no | `'nova-file-api'` |
 | APP_VERSION | app_version | str | no | no | `<factory>` |
 | AUTH_JWT_CACHE_MAX_TTL_SECONDS | auth_jwt_cache_max_ttl_seconds | int | no | no | `120` |
-| AUTH_MODE | auth_mode | AuthMode | no | no | `<AuthMode.JWT_LOCAL: 'jwt_local'>` |
 | BLOCKING_IO_THREAD_TOKENS | blocking_io_thread_tokens | int | no | no | `80` |
 | CACHE_KEY_PREFIX | cache_key_prefix | str | no | no | `'nova'` |
 | CACHE_KEY_SCHEMA_VERSION | cache_key_schema_version | int | no | no | `1` |
@@ -74,7 +73,6 @@ Canonical sources:
 
 | ENV_VARS_JSON key | CloudFormation parameter |
 | --- | --- |
-| AUTH_MODE | AuthMode |
 | OIDC_ISSUER | OidcIssuer |
 | OIDC_AUDIENCE | OidcAudience |
 | OIDC_JWKS_URL | OidcJwksUrl |
@@ -117,12 +115,11 @@ Forbidden ENV_VARS_JSON keys:
 | AWS_DEFAULT_REGION | stack parameter | always | no |
 | ENVIRONMENT | task parameter | always | no |
 | NOVA_RUNTIME_PROFILE | task parameter | always | no |
-| AUTH_MODE | task parameter | always | no |
-| OIDC_ISSUER | task parameter | when jwt_local | no |
-| OIDC_AUDIENCE | task parameter | when jwt_local | no |
-| OIDC_JWKS_URL | task parameter | when jwt_local | no |
-| OIDC_REQUIRED_SCOPES | task parameter | when jwt_local | no |
-| OIDC_REQUIRED_PERMISSIONS | task parameter | when jwt_local | no |
+| OIDC_ISSUER | task parameter | always | no |
+| OIDC_AUDIENCE | task parameter | always | no |
+| OIDC_JWKS_URL | task parameter | always | no |
+| OIDC_REQUIRED_SCOPES | task parameter | always | no |
+| OIDC_REQUIRED_PERMISSIONS | task parameter | always | no |
 | OIDC_CLOCK_SKEW_SECONDS | task parameter | always | no |
 | BLOCKING_IO_THREAD_TOKENS | task parameter | always | no |
 | FILE_TRANSFER_ENABLED | stack-derived | always | no |

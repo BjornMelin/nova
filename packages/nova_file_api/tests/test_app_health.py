@@ -14,7 +14,6 @@ from nova_file_api.jobs import (
     MemoryJobRepository,
 )
 from nova_file_api.metrics import MetricsCollector
-from nova_file_api.models import AuthMode
 
 from .support.app import (
     RuntimeDeps,
@@ -223,12 +222,9 @@ async def test_readyz_fails_when_bucket_is_missing() -> None:
 
 
 @pytest.mark.asyncio
-async def test_readyz_fails_when_jwt_local_oidc_settings_are_incomplete() -> (
-    None
-):
-    """Verify jwt_local readiness fails closed without full OIDC config."""
+async def test_readyz_fails_when_oidc_bearer_settings_are_incomplete() -> None:
+    """Verify bearer-verifier readiness fails closed without full OIDC."""
     deps = _build_deps()
-    deps.settings.auth_mode = AuthMode.JWT_LOCAL
     deps.settings.oidc_issuer = "https://issuer.example/"
     deps.settings.oidc_audience = None
     deps.settings.oidc_jwks_url = None

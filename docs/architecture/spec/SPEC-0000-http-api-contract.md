@@ -116,7 +116,8 @@ idempotent retries via `Idempotency-Key` header.
 
 Public runtime expectations:
 
-- `jwt_local` is the active public authentication mode.
+- In-process bearer JWT verification is the active public authentication
+  contract.
 - `Authorization: Bearer <token>` is required.
 - `401` for authentication failures, `403` for authorization failures.
 - `401` MUST include RFC 6750-compatible

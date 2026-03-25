@@ -92,8 +92,8 @@ Use these routers instead of restating partial authority packs:
 - Bridge/browser auth changes must keep downstream guidance aligned on the
   bearer-only `nova_dash_bridge -> nova_file_api.public` seam and canonical
   `/v1/transfers` + `/v1/jobs` routes.
-- Runtime deploy docs must describe `AUTH_MODE=jwt_local` OIDC completeness as
-  a Nova readiness/runtime contract. Do not move that enforcement back into
+- Runtime deploy docs must describe bearer-verifier OIDC completeness as a
+  Nova readiness/runtime contract. Do not move that enforcement back into
   CloudFormation template validation.
 - FastAPI transport changes must keep `packages/nova_runtime_support` as the
   single owner of outer-ASGI request context and shared exception registration.
@@ -159,8 +159,8 @@ rg -n "/v1/transfers|/v1/jobs|/v1/capabilities|/v1/resources/plan|/v1/releases/i
 - `/v1/health/ready` returns `503` when a traffic-critical readiness check is
   false.
 - Missing or blank `FILE_TRANSFER_BUCKET` must fail readiness.
-- `AUTH_MODE=jwt_local` with incomplete `OIDC_ISSUER`, `OIDC_AUDIENCE`, or
-  `OIDC_JWKS_URL` must fail the `auth_dependency` readiness check.
+- Incomplete `OIDC_ISSUER`, `OIDC_AUDIENCE`, or `OIDC_JWKS_URL` must fail the
+  `auth_dependency` readiness check.
 - Shared cache only gates readiness when idempotency is enabled; activity-store
   health remains visible but is not readiness-fatal in the current contract.
 - Prefer **async-native** JWT verification in `nova_file_api` when implemented

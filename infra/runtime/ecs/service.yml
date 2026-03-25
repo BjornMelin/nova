@@ -223,10 +223,6 @@ Parameters:
       CacheRedisUrlSecretArn must be a base Secrets Manager secret ARN without
       json-key or version suffix segments.
     Description: Secrets Manager ARN for the CACHE_REDIS_URL value when cache is enabled.
-  AuthMode:
-    Type: String
-    Default: "jwt_local"
-    AllowedValues: ["jwt_local"]
   OidcIssuer:
     Type: String
     Default: ""
@@ -670,8 +666,6 @@ Resources:
               Value: !Ref RuntimeProfile
             - Name: FILE_TRANSFER_ENABLED
               Value: !Ref FileTransferEnabled
-            - Name: AUTH_MODE
-              Value: !Ref AuthMode
             - Name: OIDC_ISSUER
               Value: !Ref OidcIssuer
             - Name: OIDC_AUDIENCE

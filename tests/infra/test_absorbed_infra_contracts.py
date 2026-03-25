@@ -1058,11 +1058,9 @@ def test_ecs_service_auth_contracts() -> None:
     text = _read("infra/runtime/ecs/service.yml")
 
     for token in [
-        'AllowedValues: ["jwt_local"]',
         "OidcIssuer:",
         "OidcAudience:",
         "OidcJwksUrl:",
-        "- Name: AUTH_MODE",
         "- Name: OIDC_ISSUER",
         "- Name: OIDC_AUDIENCE",
         "- Name: OIDC_JWKS_URL",

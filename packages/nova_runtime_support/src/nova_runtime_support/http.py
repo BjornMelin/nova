@@ -59,7 +59,6 @@ class RequestContextASGIMiddleware:
 
         logger = structlog.get_logger("http")
         started = perf_counter()
-        auth_mode = _auth_mode_value(scope=scope)
         method = request.method
         path = request.url.path
         status_code: int | None = None
@@ -84,7 +83,6 @@ class RequestContextASGIMiddleware:
                 status_code=status_code or 500,
                 outcome="error",
                 latency_ms=round(latency_ms, 3),
-                auth_mode=auth_mode,
             )
             raise
         finally:
@@ -97,7 +95,6 @@ class RequestContextASGIMiddleware:
                     status_code=status_code,
                     outcome="ok" if status_code < 400 else "error",
                     latency_ms=round(latency_ms, 3),
-                    auth_mode=auth_mode,
                 )
             structlog.contextvars.unbind_contextvars("request_id")
 
@@ -268,12 +265,3 @@ def _request_id_from_headers(headers: Headers) -> str:
     if isinstance(request_id, str) and request_id:
         return request_id
     return uuid4().hex
-
-
-def _auth_mode_value(*, scope: Scope) -> str | None:
-    """Read the configured auth mode from ASGI scope when available."""
-    app = scope.get("app")
-    state = getattr(app, "state", None)
-    settings = getattr(state, "settings", None)
-    value = getattr(settings, "auth_mode", None)
-    return None if value is None else str(value)

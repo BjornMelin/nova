@@ -5,10 +5,6 @@
     ],
     "supported_overrides": [
       {
-        "cloudformation_parameter": "AuthMode",
-        "env_var": "AUTH_MODE"
-      },
-      {
         "cloudformation_parameter": "OidcIssuer",
         "env_var": "OIDC_ISSUER"
       },
@@ -164,41 +160,34 @@
       },
       {
         "condition": "always",
-        "name": "AUTH_MODE",
-        "secret": false,
-        "source": "task parameter",
-        "value": null
-      },
-      {
-        "condition": "when jwt_local",
         "name": "OIDC_ISSUER",
         "secret": false,
         "source": "task parameter",
         "value": null
       },
       {
-        "condition": "when jwt_local",
+        "condition": "always",
         "name": "OIDC_AUDIENCE",
         "secret": false,
         "source": "task parameter",
         "value": null
       },
       {
-        "condition": "when jwt_local",
+        "condition": "always",
         "name": "OIDC_JWKS_URL",
         "secret": false,
         "source": "task parameter",
         "value": null
       },
       {
-        "condition": "when jwt_local",
+        "condition": "always",
         "name": "OIDC_REQUIRED_SCOPES",
         "secret": false,
         "source": "task parameter",
         "value": null
       },
       {
-        "condition": "when jwt_local",
+        "condition": "always",
         "name": "OIDC_REQUIRED_PERMISSIONS",
         "secret": false,
         "source": "task parameter",
@@ -543,14 +532,6 @@
       "required": false,
       "secret": false,
       "type_label": "int"
-    },
-    {
-      "default_repr": "<AuthMode.JWT_LOCAL: 'jwt_local'>",
-      "env_var": "AUTH_MODE",
-      "field_name": "auth_mode",
-      "required": false,
-      "secret": false,
-      "type_label": "AuthMode"
     },
     {
       "default_repr": "80",

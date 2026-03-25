@@ -5,7 +5,7 @@ from typing import Any
 import pytest
 from nova_file_api.auth import (
     Authenticator,
-    _local_auth_error,
+    _bearer_auth_error,
 )
 from nova_file_api.cache import (
     LocalTTLCache,
@@ -14,7 +14,6 @@ from nova_file_api.cache import (
 )
 from nova_file_api.config import Settings
 from nova_file_api.errors import FileTransferError
-from nova_file_api.models import AuthMode
 from oidc_jwt_verifier import AuthError
 
 
@@ -45,16 +44,15 @@ class _VerifierReturningClaims:
 
 
 @pytest.mark.asyncio
-async def test_local_verification_uses_async_verifier_and_cache() -> None:
+async def test_bearer_verification_uses_async_verifier_and_cache() -> None:
     settings = Settings()
-    settings.auth_mode = AuthMode.JWT_LOCAL
     cache = _build_cache()
     auth = Authenticator(settings=settings, cache=cache)
     verifier = _VerifierReturningClaims()
     auth._verifier = verifier
 
-    claims = await auth._verify_local_token(token="token-123")
-    cached_claims = await auth._verify_local_token(token="token-123")
+    claims = await auth._verify_bearer_token(token="token-123")
+    cached_claims = await auth._verify_bearer_token(token="token-123")
 
     assert claims["sub"] == "subject-1"
     assert cached_claims == claims
@@ -64,7 +62,6 @@ async def test_local_verification_uses_async_verifier_and_cache() -> None:
 @pytest.mark.asyncio
 async def test_authenticator_aclose_closes_async_verifier() -> None:
     settings = Settings()
-    settings.auth_mode = AuthMode.JWT_LOCAL
     auth = Authenticator(settings=settings, cache=_build_cache())
     verifier = _VerifierReturningClaims()
     auth._verifier = verifier
@@ -79,10 +76,9 @@ async def test_jwt_mode_uses_principal_claim_scope(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     settings = Settings()
-    settings.auth_mode = AuthMode.JWT_LOCAL
     auth = Authenticator(settings=settings, cache=_build_cache())
 
-    async def _fake_verify_local_token(*, token: str) -> dict[str, Any]:
+    async def _fake_verify_bearer_token(*, token: str) -> dict[str, Any]:
         del token
         return {
             "sub": "subject-1",
@@ -90,7 +86,11 @@ async def test_jwt_mode_uses_principal_claim_scope(
             "scope": "uploads:write",
         }
 
-    monkeypatch.setattr(auth, "_verify_local_token", _fake_verify_local_token)
+    monkeypatch.setattr(
+        auth,
+        "_verify_bearer_token",
+        _fake_verify_bearer_token,
+    )
 
     principal = await auth.authenticate(
         token="token-123",
@@ -101,7 +101,6 @@ async def test_jwt_mode_uses_principal_claim_scope(
 @pytest.mark.asyncio
 async def test_authenticate_requires_bearer_token() -> None:
     settings = Settings()
-    settings.auth_mode = AuthMode.JWT_LOCAL
     auth = Authenticator(settings=settings, cache=_build_cache())
 
     with pytest.raises(FileTransferError) as exc:
@@ -128,11 +127,10 @@ async def test_required_scope_is_enforced_from_principal_claims(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     settings = Settings()
-    settings.auth_mode = AuthMode.JWT_LOCAL
     settings.oidc_required_scopes = "uploads:write"
     auth = Authenticator(settings=settings, cache=_build_cache())
 
-    async def _fake_verify_local_token(*, token: str) -> dict[str, Any]:
+    async def _fake_verify_bearer_token(*, token: str) -> dict[str, Any]:
         del token
         return {
             "sub": "subject-1",
@@ -140,7 +138,11 @@ async def test_required_scope_is_enforced_from_principal_claims(
             "scope": "uploads:read",
         }
 
-    monkeypatch.setattr(auth, "_verify_local_token", _fake_verify_local_token)
+    monkeypatch.setattr(
+        auth,
+        "_verify_bearer_token",
+        _fake_verify_bearer_token,
+    )
 
     with pytest.raises(FileTransferError) as exc:
         await auth.authenticate(token="token-123")
@@ -153,11 +155,10 @@ async def test_required_permission_is_enforced_from_principal_claims(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     settings = Settings()
-    settings.auth_mode = AuthMode.JWT_LOCAL
     settings.oidc_required_permissions = "jobs:enqueue"
     auth = Authenticator(settings=settings, cache=_build_cache())
 
-    async def _fake_verify_local_token(*, token: str) -> dict[str, Any]:
+    async def _fake_verify_bearer_token(*, token: str) -> dict[str, Any]:
         del token
         return {
             "sub": "subject-1",
@@ -166,7 +167,11 @@ async def test_required_permission_is_enforced_from_principal_claims(
             "permissions": ["jobs:read"],
         }
 
-    monkeypatch.setattr(auth, "_verify_local_token", _fake_verify_local_token)
+    monkeypatch.setattr(
+        auth,
+        "_verify_bearer_token",
+        _fake_verify_bearer_token,
+    )
 
     with pytest.raises(FileTransferError) as exc:
         await auth.authenticate(token="token-123")
@@ -183,9 +188,11 @@ async def test_required_permission_is_enforced_from_principal_claims(
         "token_not_yet_valid",
     ],
 )
-def test_local_auth_error_maps_common_jwt_claim_failures(code: str) -> None:
+def test_bearer_auth_error_maps_common_jwt_claim_failures(
+    code: str,
+) -> None:
     error = AuthError(code=code, message="claim rejected", status_code=401)
-    mapped = _local_auth_error(exc=error)
+    mapped = _bearer_auth_error(exc=error)
     assert mapped.code == code
     assert mapped.status_code == 401
     header = mapped.headers.get("WWW-Authenticate", "")
@@ -193,14 +200,14 @@ def test_local_auth_error_maps_common_jwt_claim_failures(code: str) -> None:
     assert 'error="invalid_token"' in header
 
 
-def test_local_auth_error_maps_insufficient_scope_to_rfc6750() -> None:
+def test_bearer_auth_error_maps_insufficient_scope_to_rfc6750() -> None:
     error = AuthError(
         code="insufficient_scope",
         message="missing required scopes",
         status_code=403,
         required_scopes=("uploads:write",),
     )
-    mapped = _local_auth_error(exc=error)
+    mapped = _bearer_auth_error(exc=error)
     assert mapped.code == "insufficient_scope"
     assert mapped.status_code == 403
     header = mapped.headers.get("WWW-Authenticate", "")
