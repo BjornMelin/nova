@@ -350,6 +350,22 @@ def test_sdk_conformance_shared_r_check_helper_is_used() -> None:
     assert "R CMD check reported warnings" in helper_text
 
 
+def test_python_compatibility_job_pins_pytest_and_builds_to_python_312() -> (
+    None
+):
+    """Compatibility lane must execute against the synced Python 3.12 env."""
+    workflow = yaml.safe_load(_read(".github/workflows/ci.yml"))
+    assert isinstance(workflow, dict)
+    jobs = workflow.get("jobs")
+    assert isinstance(jobs, dict)
+    job = jobs.get("python-compatibility")
+    assert isinstance(job, dict)
+
+    job_text = yaml.safe_dump(job, sort_keys=False)
+    assert "uv run --python 3.12 pytest -q" in job_text
+    assert "uv build --python 3.12" in job_text
+
+
 def test_reusable_deploy_dev_checks_out_workflow_source_for_local_actions() -> (
     None
 ):

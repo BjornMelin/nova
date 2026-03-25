@@ -5,6 +5,7 @@ Status: Active
 Schema: 1.0
 
 ## Release Metadata
+
 - `base_commit`: `e8eb5a3c1ec8fee6ee32a3c423a628e56597ffd8`
 - `head_commit`: `e8eb5a3c1ec8fee6ee32a3c423a628e56597ffd8`
 - `first_release`: `False`

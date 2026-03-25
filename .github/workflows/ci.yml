@@ -153,7 +153,7 @@ jobs:
           save-cache: "false"
 
       - name: Pytest
-        run: uv run pytest -q
+        run: uv run --python 3.12 pytest -q
 
       - name: Workspace Build
         run: |
@@ -161,7 +161,7 @@ jobs:
             packages/nova_file_api \
             packages/nova_dash_bridge \
             packages/nova_runtime_support; do
-            uv build "$p"
+            uv build --python 3.12 "$p"
           done
 
   generated-clients:

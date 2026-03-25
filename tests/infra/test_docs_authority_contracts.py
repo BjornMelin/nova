@@ -61,12 +61,12 @@ def _markdown_files(base_path: Path) -> list[Path]:
 
 
 def _markdown_targets(paths: tuple[Path, ...]) -> list[Path]:
-    docs: list[Path] = []
+    docs: set[Path] = set()
     for path in paths:
         if path.is_file():
-            docs.append(path)
+            docs.add(path)
         elif path.is_dir():
-            docs.extend(_markdown_files(path))
+            docs.update(_markdown_files(path))
     return sorted(docs)
 
 
@@ -104,6 +104,14 @@ def test_active_docs_do_not_link_to_retired_container_craft_docs() -> None:
         "Found active Nova docs linking to retired container-craft docs:\n"
         + "\n".join(violations)
     )
+
+
+def test_markdown_targets_deduplicate_duplicate_paths(tmp_path: Path) -> None:
+    """Markdown target expansion should not scan the same file twice."""
+    readme = tmp_path / "README.md"
+    readme.write_text("# Temporary readme\n", encoding="utf-8")
+
+    assert _markdown_targets((readme, readme)) == [readme]
 
 
 def test_active_docs_do_not_reference_legacy_runtime_route_literals() -> None:

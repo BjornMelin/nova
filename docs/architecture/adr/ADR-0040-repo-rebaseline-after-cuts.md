@@ -53,6 +53,7 @@ Implementation commitments:
 
 ## Changelog
 
+- 2026-03-19: Canonical ADR ported from green-field pack ADR-0008.
 - 2026-03-24: Removed pack-prompt residue from the active ADR and clarified
   that the rebaseline owns repo-wide living guidance, not `.agents/**`
   execution traces.
@@ -68,5 +69,3 @@ Implementation commitments:
 2. **Trade-offs:** Large diff; disciplined review and full gate runs required.
 3. **Ongoing:** Rebaseline is **blocking** for declaring the green-field program
    complete.
-
-- 2026-03-19: Canonical ADR ported from green-field pack ADR-0008.
