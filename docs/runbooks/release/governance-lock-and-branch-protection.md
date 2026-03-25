@@ -2,7 +2,7 @@
 
 Status: Active
 Owner: nova release architecture
-Last reviewed: 2026-03-22
+Last reviewed: 2026-03-24
 
 ## Purpose
 
@@ -18,7 +18,7 @@ branch ruleset, not classic branch protection.
 
 ### Current hosted policy model
 
-As of 2026-03-22:
+As of 2026-03-24:
 
 - repo visibility is `PRIVATE`
 - classic branch protection for `main` returns `404 Branch not protected`
@@ -33,7 +33,8 @@ Configure the following leaf jobs as required for `main`.
 
 From workflow `Nova CI` (`.github/workflows/ci.yml`):
 
-- `quality-gates`
+- `quality-gates` (Python 3.13 primary lint/type/generation lane)
+- `python-compatibility` (Python 3.12 pytest/build compatibility lane)
 - `generated-clients`
 - `dash-conformance`
 - `shiny-conformance`
@@ -145,6 +146,7 @@ gh api \
         "strict_required_status_checks_policy": true,
         "required_status_checks": [
           { "context": "quality-gates" },
+          { "context": "python-compatibility" },
           { "context": "generated-clients" },
           { "context": "dash-conformance" },
           { "context": "shiny-conformance" },

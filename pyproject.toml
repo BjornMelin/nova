@@ -76,7 +76,9 @@ asyncio_mode = "strict"
 asyncio_default_fixture_loop_scope = "function"
 asyncio_default_test_loop_scope = "function"
 testpaths = [
+  "packages/nova_dash_bridge/tests",
   "packages/nova_file_api/tests",
+  "packages/nova_runtime_support/tests",
   "scripts/release/tests",
   "tests/infra",
 ]

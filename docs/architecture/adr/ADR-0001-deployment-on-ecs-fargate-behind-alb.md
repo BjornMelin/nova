@@ -1,6 +1,6 @@
 ---
 ADR: 0001
-Title: Deploy on ECS Fargate behind ALB with same-origin routing
+Title: Deploy on ECS Fargate behind ALB
 Status: Accepted (partially superseded by ADR-0015, ADR-0023, and ADR-0030)
 Version: 1.3
 Date: 2026-03-05
@@ -17,22 +17,24 @@ References:
 
 ## Summary
 
-Deploy the API as an ECS/Fargate service behind the existing ALB and route
-canonical `/v1/transfers/*` and `/v1/jobs/*` traffic to it. Keep browser
-traffic same-origin with the parent application to avoid CORS/auth integration
-complexity.
+Deploy the API as an ECS/Fargate service behind an ALB and route canonical
+`/v1/transfers/*` and `/v1/jobs/*` traffic to it. This ADR captures the service
+placement decision; the current public ingress posture is now partially
+superseded by the CloudFront + WAF edge described in `ADR-0015`, `ADR-0030`,
+and `ADR-0039`.
 
 ## Context
 
-Nova standardizes ECS/Fargate service deployment, ALB path routing, task roles,
-and environment injection. This service should follow the same pattern for:
+Nova standardizes ECS/Fargate service deployment, ALB-backed service ingress,
+task roles, and environment injection. This service should follow the same
+pattern for:
 
 - predictable operations across environments,
 - shared ingress and TLS posture,
 - minimal frontend integration overhead.
 
-The system must satisfy both health checks and same-origin browser
-consumption.
+The system must satisfy health-check compatibility and stable ingress into the
+Nova runtime service.
 
 ## Alternatives
 
@@ -54,9 +56,11 @@ Choose option A.
 
 Implementation commitments:
 
-- Route `/v1/transfers/*` and `/v1/jobs/*` through the shared ALB.
+- Route `/v1/transfers/*` and `/v1/jobs/*` through the ALB-backed runtime
+  service path.
 - Expose health endpoints compatible with ECS/ALB health-check expectations.
-- Preserve same-origin access patterns for browser clients.
+- Preserve a browser-compatible ingress path while allowing later edge
+  hardening above the ALB layer.
 
 ## Related Requirements
 
@@ -68,9 +72,10 @@ Implementation commitments:
 
 ## Consequences
 
-1. Browser clients avoid CORS preflight and token propagation complexity by remaining
-   on one origin.
-2. The API can scale independently from frontend services while using common ingress.
+1. The API can scale independently while retaining ALB-native health checks and
+   service routing.
+2. Later ingress evolution can layer CloudFront + WAF above the ALB without
+   replacing the ECS/Fargate service decision captured here.
 3. Path-routing and health-check compatibility become deployment gates for every
    environment rollout.
 
@@ -78,6 +83,9 @@ Implementation commitments:
 
 - 2026-03-03: Aligned route-surface references with `ADR-0023` canonical
   `/v1/*` namespace.
-- 2026-02-11: Expanded ADR with deployment constraints, health-check compatibility,
-  and restored container-craft context.
+- 2026-03-24: Clarified that CloudFront + WAF edge posture partially supersedes
+  the earlier same-origin ingress narrative while keeping the ECS/Fargate +
+  ALB service placement decision active.
+- 2026-02-11: Expanded ADR with deployment constraints and health-check
+  compatibility.
 - 2026-02-11: Initial ADR accepted.

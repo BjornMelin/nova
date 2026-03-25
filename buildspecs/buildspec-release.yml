@@ -15,7 +15,7 @@ env:
 phases:
   install:
     runtime-versions:
-      python: "3.12"
+      python: "3.13"
     commands:
       - pip install --upgrade pip
       - pip install 'uv==0.10.12' twine
@@ -23,7 +23,7 @@ phases:
   pre_build:
     commands:
       - set -euo pipefail
-      - uv sync --frozen
+      - uv sync --locked --all-packages --all-extras --dev
       - |
         if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
           RELEASE_HEAD_COMMIT="$(git rev-parse HEAD)"

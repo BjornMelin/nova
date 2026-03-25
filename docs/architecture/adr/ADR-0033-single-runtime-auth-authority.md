@@ -33,7 +33,8 @@ runtime simplification) documented in green-field evidence.
   images, releases, and contracts.
 - Edge-only JWT enforcement is rejected as the **primary** auth layer (see
   green-field evidence §1).
-- Execution order: [greenfield-simplification-program.md](../../plan/greenfield-simplification-program.md) branch 1.
+- Program sequencing is tracked in
+  [greenfield-simplification-program.md](../../plan/greenfield-simplification-program.md).
 
 ## Alternatives
 
@@ -72,8 +73,8 @@ Implementation commitments:
   surfaces from the target architecture.
 - Delete auth-only SDK families and auth-only OpenAPI artifacts; fold any
   remaining token semantics into the file API contract.
-- Follow `.agents/nova_greenfield_codex_pack/prompts/01_feat_api-inline-async-jwt-auth.md`
-  / branch `feat/api-inline-async-jwt-auth`.
+- Implementation is tracked by the green-field simplification program and the
+  active runtime/spec authority set, not by `.agents/**` prompt files.
 
 ## Related requirements
 

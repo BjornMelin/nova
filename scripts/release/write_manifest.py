@@ -9,34 +9,11 @@ from typing import Any
 from . import common
 
 
-def _external_versions_from_manifest(
-    existing_text: str,
-) -> list[tuple[str, str]]:
-    marker = "## Participating External Repositories"
-    if marker not in existing_text:
-        return []
-
-    after = existing_text.split(marker, maxsplit=1)[1]
-    values: list[tuple[str, str]] = []
-    for line in after.splitlines():
-        if line.startswith("#"):
-            break
-        if not line.startswith("- "):
-            continue
-        payload = line.removeprefix("- ").strip()
-        if ":" not in payload:
-            continue
-        name, version = payload.split(":", maxsplit=1)
-        values.append((name.strip().strip("`"), version.strip().strip("`")))
-    return values
-
-
 def render_manifest(
     *,
     units: dict[str, common.WorkspaceUnit],
     changed_report: dict[str, Any],
     version_plan: dict[str, Any],
-    external_versions: list[tuple[str, str]],
 ) -> str:
     """Render markdown release manifest."""
     planned = {
@@ -100,16 +77,6 @@ def render_manifest(
         )
 
     lines.append("")
-    lines.append("## Participating External Repositories")
-    lines.append("")
-    if external_versions:
-        for name, version in external_versions:
-            lines.append(f"- `{name}`: `{version}`")
-    else:
-        lines.append("- `container-craft`: `0.0.0`")
-        lines.append("- `pca_analysis_dash`: `0.2.0`")
-
-    lines.append("")
     return "\n".join(lines)
 
 
@@ -142,17 +109,10 @@ def main() -> int:
     manifest_path = Path(args.manifest_path)
     if not manifest_path.is_absolute():
         manifest_path = repo_root / manifest_path
-    previous = (
-        manifest_path.read_text(encoding="utf-8")
-        if manifest_path.exists()
-        else ""
-    )
-    external_versions = _external_versions_from_manifest(previous)
     text = render_manifest(
         units=units,
         changed_report=changed_report,
         version_plan=version_plan,
-        external_versions=external_versions,
     )
 
     manifest_path.parent.mkdir(parents=True, exist_ok=True)

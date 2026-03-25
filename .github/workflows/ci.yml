@@ -67,7 +67,7 @@ jobs:
       - name: Setup Python and uv
         uses: ./.github/actions/setup-python-uv
         with:
-          python-version: "3.12"
+          python-version: "3.13"
 
       - name: Lock Check
         run: uv lock --check
@@ -125,12 +125,44 @@ jobs:
         run: |
           for p in \
             packages/nova_file_api \
-            packages/nova_dash_bridge; do
+            packages/nova_dash_bridge \
+            packages/nova_runtime_support; do
             uv build "$p"
           done
 
       - name: Canonical Route Policy Guard
         run: bash scripts/checks/verify_canonical_route_policy.sh
+
+  python-compatibility:
+    needs: classify-changes
+    if: needs.classify-changes.outputs.run_runtime_ci == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Setup Python and uv
+        uses: ./.github/actions/setup-python-uv
+        with:
+          python-version: "3.12"
+          save-cache: "false"
+
+      - name: Pytest
+        run: uv run --python 3.12 pytest -q
+
+      - name: Workspace Build
+        run: |
+          for p in \
+            packages/nova_file_api \
+            packages/nova_dash_bridge \
+            packages/nova_runtime_support; do
+            uv build --python 3.12 "$p"
+          done
 
   generated-clients:
     needs: classify-changes
@@ -148,7 +180,7 @@ jobs:
           persist-credentials: false
       - uses: ./.github/actions/setup-python-uv
         with:
-          python-version: "3.12"
+          python-version: "3.13"
           save-cache: "false"
       - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # actions/setup-node@v6
         with:
@@ -262,7 +294,7 @@ jobs:
           persist-credentials: false
       - uses: ./.github/actions/setup-python-uv
         with:
-          python-version: "3.12"
+          python-version: "3.13"
           save-cache: "false"
       - name: Validate Dash lane fixtures
         run: uv run python scripts/conformance/validate_lane.py --lane dash
@@ -285,7 +317,7 @@ jobs:
           persist-credentials: false
       - uses: ./.github/actions/setup-python-uv
         with:
-          python-version: "3.12"
+          python-version: "3.13"
           save-cache: "false"
       - name: Validate Shiny lane fixtures
         run: uv run python scripts/conformance/validate_lane.py --lane shiny
@@ -330,7 +362,7 @@ jobs:
         run: npm run -w @nova/contracts-ts-conformance verify
       - uses: ./.github/actions/setup-python-uv
         with:
-          python-version: "3.12"
+          python-version: "3.13"
           save-cache: "false"
       - name: Validate TypeScript lane fixtures
         run: uv run python scripts/conformance/validate_lane.py --lane typescript

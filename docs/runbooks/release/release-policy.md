@@ -2,7 +2,7 @@
 
 Status: Active
 Owner: nova release architecture
-Last updated: 2026-03-18
+Last updated: 2026-03-24
 
 ## 1. Scope
 
@@ -82,6 +82,9 @@ Companion modular setup guides (full index: [README.md](README.md)):
     the shared R conformance helper fails the lane if `R CMD check` reports
     warnings, while using `R CMD check --no-manual` so release runners do not
     require `pdflatex`.
+14. Release/tooling workflows use Python 3.13 as the primary execution
+    baseline while keeping Python 3.12 pytest/build compatibility for the
+    surviving runtime packages.
 
 ## 5A. Runtime deployment policy
 

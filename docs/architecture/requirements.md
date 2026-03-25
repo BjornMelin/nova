@@ -392,21 +392,32 @@ cover latency, error rate, and queue backlog.
 
 ### NFR-0004: CI/CD and quality gates
 
-Every change MUST pass:
+Nova MUST keep the following canonical verification baseline current and
+documented. Changes MUST pass the applicable baseline subset plus any
+touched-surface add-on gates from `AGENTS.md` and
+`docs/standards/repository-engineering-standards.md`:
 
-- `source .venv/bin/activate && uv lock --check`
-- `source .venv/bin/activate && uv run ruff check .`
-- `source .venv/bin/activate && uv run ruff check . --select I`
-- `source .venv/bin/activate && uv run ruff format . --check`
-- `source .venv/bin/activate && uv run mypy`
-- `source .venv/bin/activate && uv run pytest -q`
-- `source .venv/bin/activate && uv run pytest -q packages/nova_file_api/tests/test_generated_client_smoke.py`
+- `uv sync --locked --all-packages --all-extras --dev`
+- `uv lock --check`
+- `uv run ruff check .`
+- `uv run ruff check . --select I`
+- `uv run ruff format . --check`
+- `uv run ty check --force-exclude --error-on-warning packages scripts`
+- `uv run mypy`
+- `uv run pytest -q`
+- `uv run pytest -q packages/nova_file_api/tests/test_generated_client_smoke.py`
+- `uv run python scripts/contracts/export_openapi.py --check`
+- `uv run python scripts/release/generate_runtime_config_contract.py --check`
+- `uv run python scripts/release/generate_clients.py --check`
+- `uv run python scripts/release/generate_python_clients.py --check`
 - workspace package/app build verification (`uv build` per workspace unit)
 
 The canonical typing gates are
-`source .venv/bin/activate && uv run ty check --force-exclude --error-on-warning packages scripts`
-and `source .venv/bin/activate && uv run mypy`. `ty` is the required full-repo
-gate; `mypy` remains the required compatibility backstop in this phase.
+`uv run ty check --force-exclude --error-on-warning packages scripts`
+and `uv run mypy`. `ty` is the required full-repo gate; `mypy` remains the
+required compatibility backstop in this phase. The primary quality/generation
+lane runs on Python 3.13 (`quality-gates`), with Python 3.12 retained as the
+runtime compatibility lane for surviving packages (`python-compatibility`).
 
 ### NFR-0105: Contract traceability
 
@@ -453,8 +464,8 @@ repository under `infra/nova/**` and `infra/runtime/**`.
 
 ### IR-0001: Sidecar routing model
 
-Default deployment MUST use same-origin ALB path routing for canonical `/v1/*`
-runtime surfaces.
+Default deployment MUST use a public CloudFront + WAF edge with an internal ALB
+origin for canonical `/v1/*` runtime surfaces.
 
 ### IR-0002: AWS service dependencies
 

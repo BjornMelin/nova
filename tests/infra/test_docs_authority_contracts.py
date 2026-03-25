@@ -5,6 +5,8 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+import pytest
+
 from .helpers import REPO_ROOT
 from .helpers import read_repo_file as _read
 
@@ -12,6 +14,11 @@ DOCS_ROOT = REPO_ROOT / "docs"
 AGENTS_PATH = REPO_ROOT / "AGENTS.md"
 
 ACTIVE_DOCS_PATHS = (
+    REPO_ROOT / "README.md",
+    AGENTS_PATH,
+    DOCS_ROOT / "README.md",
+    DOCS_ROOT / "standards",
+    DOCS_ROOT / "plan",
     DOCS_ROOT / "runbooks",
     DOCS_ROOT / "release",
     DOCS_ROOT / "architecture" / "adr",
@@ -37,6 +44,7 @@ LEGACY_ACTIVE_ROUTE_PATTERNS = (
     re.compile(r"/healthz(?:\b|/)"),
     re.compile(r"/readyz(?:\b|/)"),
 )
+URL_CONTEXT_PATTERN = re.compile(r"https?://|www\.")
 VALIDATION_DOC_PATH = (
     DOCS_ROOT / "runbooks" / "provisioning" / "config-values-reference.md"
 )
@@ -56,12 +64,16 @@ def _markdown_files(base_path: Path) -> list[Path]:
 
 
 def _markdown_targets(paths: tuple[Path, ...]) -> list[Path]:
-    docs: list[Path] = []
+    docs: set[Path] = set()
     for path in paths:
+        if not path.exists():
+            raise ValueError(f"Missing configured docs target: {path}")
         if path.is_file():
-            docs.append(path)
+            docs.add(path)
         elif path.is_dir():
-            docs.extend(_markdown_files(path))
+            docs.update(_markdown_files(path))
+        else:
+            raise ValueError(f"Unexpected docs target type: {path}")
     return sorted(docs)
 
 
@@ -71,6 +83,10 @@ def _section(text: str, start_marker: str, end_marker: str) -> str:
     end = text.find(end_marker, start)
     assert end != -1, f"Missing section terminator: {end_marker}"
     return text[start:end]
+
+
+def _context_contains_url(context: str) -> bool:
+    return URL_CONTEXT_PATTERN.search(context) is not None
 
 
 def test_canonical_runbook_entrypoint_exists() -> None:
@@ -88,18 +104,40 @@ def test_active_docs_do_not_link_to_retired_container_craft_docs() -> None:
     """Active Nova docs must not point to retired container-craft docs."""
     violations: list[str] = []
 
-    for base_path in ACTIVE_DOCS_PATHS:
-        for doc in _markdown_files(base_path):
-            text = doc.read_text(encoding="utf-8")
-            for pattern in BANNED_DOC_PATTERNS:
-                if pattern in text:
-                    rel_path = doc.relative_to(REPO_ROOT)
-                    violations.append(f"{rel_path}: {pattern}")
+    for doc in _markdown_targets(ACTIVE_DOCS_PATHS):
+        text = doc.read_text(encoding="utf-8")
+        for pattern in BANNED_DOC_PATTERNS:
+            if pattern in text:
+                rel_path = doc.relative_to(REPO_ROOT)
+                violations.append(f"{rel_path}: {pattern}")
 
     assert not violations, (
         "Found active Nova docs linking to retired container-craft docs:\n"
         + "\n".join(violations)
     )
+
+
+def test_markdown_targets_deduplicate_duplicate_paths(tmp_path: Path) -> None:
+    """Markdown target expansion should not scan the same file twice."""
+    readme = tmp_path / "README.md"
+    readme.write_text("# Temporary readme\n", encoding="utf-8")
+
+    assert _markdown_targets((readme, readme)) == [readme]
+
+
+def test_markdown_targets_raise_for_missing_configured_path() -> None:
+    """Missing configured docs targets must fail loudly."""
+    missing = REPO_ROOT / "docs" / "__missing_target__.md"
+
+    with pytest.raises(ValueError, match="Missing configured docs target"):
+        _markdown_targets((missing,))
+
+
+def test_context_contains_url_requires_actual_url_tokens() -> None:
+    """Legacy-route checks should only ignore genuine URL context."""
+    assert _context_contains_url("See https://nova.example/v1/jobs") is True
+    assert _context_contains_url("Visit www.nova.example/v1/jobs") is True
+    assert _context_contains_url("This text mentions http auth only") is False
 
 
 def test_active_docs_do_not_reference_legacy_runtime_route_literals() -> None:
@@ -116,8 +154,10 @@ def test_active_docs_do_not_reference_legacy_runtime_route_literals() -> None:
 
         for pattern in LEGACY_ACTIVE_ROUTE_PATTERNS:
             for match in pattern.finditer(text):
-                context = text[max(0, match.start() - 24) : match.start()]
-                if "http" in context or "https" in context:
+                context = text[max(0, match.start() - 120) : match.start()]
+                if _context_contains_url(context):
+                    continue
+                if "Do not add compatibility aliases" in context:
                     continue
                 rel_path = doc.relative_to(REPO_ROOT)
                 violations.add(f"{rel_path}: {match.group(0)}")

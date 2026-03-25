@@ -331,6 +331,7 @@ def test_governance_runbook_tracks_unified_required_checks() -> None:
         "Nova CI",
         ".github/workflows/ci.yml",
         "quality-gates",
+        "python-compatibility",
         "generated-clients",
         "dash-conformance",
         "shiny-conformance",

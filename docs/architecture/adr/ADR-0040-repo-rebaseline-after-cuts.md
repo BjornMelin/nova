@@ -12,7 +12,6 @@ Related:
   - "[Green-field simplification program](../../plan/greenfield-simplification-program.md)"
 References:
   - "[manifest.json (pack)](../../plan/greenfield-evidence/manifest.json)"
-  - "[Prompt 11 (pack)](../../../.agents/nova_greenfield_codex_pack/prompts/11_chore_repo-rebaseline-ci-release.md)"
 ---
 
 ## Summary
@@ -29,7 +28,8 @@ and verification commands must match the **smaller** final system.
 - This is the **final** program step; manifest branch score **9.17/10** (order 11)
   is program prioritization weighting, not a substitute for Framework A/B/C
   option tables.
-- Execution order: program branch 11 after branch 10 merges.
+- Program sequencing is tracked in
+  [greenfield-simplification-program.md](../../plan/greenfield-simplification-program.md).
 
 ## Alternatives
 
@@ -49,7 +49,14 @@ Implementation commitments:
   graph.
 - Tighten CI matrix and scripts so gates match the reduced surface.
 - Update `README.md`, `docs/**`, and release helpers for copy-paste accuracy.
-- Branch `chore/repo-rebaseline-ci-release`.
+- Keep the repo’s living guidance aligned to the smaller final system.
+
+## Changelog
+
+- 2026-03-19: Canonical ADR ported from green-field pack ADR-0008.
+- 2026-03-24: Removed pack-prompt residue from the active ADR and clarified
+  that the rebaseline owns repo-wide living guidance, not `.agents/**`
+  execution traces.
 
 ## Related requirements
 
@@ -62,7 +69,3 @@ Implementation commitments:
 2. **Trade-offs:** Large diff; disciplined review and full gate runs required.
 3. **Ongoing:** Rebaseline is **blocking** for declaring the green-field program
    complete.
-
-## Changelog
-
-- 2026-03-19: Canonical ADR ported from green-field pack ADR-0008.

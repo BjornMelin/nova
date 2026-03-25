@@ -2,8 +2,8 @@
 Spec: 0004
 Title: CI/CD and Documentation Automation
 Status: Active
-Version: 1.8
-Date: 2026-03-18
+Version: 1.9
+Date: 2026-03-24
 Related:
   - "[ADR-0002: OpenAPI as contract and SDK generation](../adr/ADR-0002-openapi-as-contract-and-sdk-generation.md)"
   - "[ADR-0011: Hybrid CI/CD with GitHub and AWS promotion](../adr/ADR-0011-cicd-hybrid-github-aws-promotion.md)"
@@ -30,22 +30,36 @@ References:
 
 ## 1. Required quality gates
 
-Every pull request MUST pass:
+Protected-branch CI and operator docs MUST keep the canonical baseline current.
+Changes MUST pass the applicable baseline checks plus any touched-surface
+add-on gates from `AGENTS.md` and
+`docs/standards/repository-engineering-standards.md`.
 
-- `source .venv/bin/activate && uv lock --check`
-- `source .venv/bin/activate && uv run ruff check .`
-- `source .venv/bin/activate && uv run ruff check . --select I`
-- `source .venv/bin/activate && uv run ruff format . --check`
-- `source .venv/bin/activate && uv run mypy`
-- `source .venv/bin/activate && uv run pytest -q`
-- `source .venv/bin/activate && uv run pytest -q packages/nova_file_api/tests/test_generated_client_smoke.py`
+Canonical baseline:
+
+- `uv sync --locked --all-packages --all-extras --dev`
+- `uv lock --check`
+- `uv run ruff check .`
+- `uv run ruff check . --select I`
+- `uv run ruff format . --check`
+- `uv run ty check --force-exclude --error-on-warning packages scripts`
+- `uv run mypy`
+- `uv run pytest -q`
+- `uv run pytest -q packages/nova_file_api/tests/test_generated_client_smoke.py`
+- `uv run python scripts/contracts/export_openapi.py --check`
+- `uv run python scripts/release/generate_runtime_config_contract.py --check`
+- `uv run python scripts/release/generate_clients.py --check`
+- `uv run python scripts/release/generate_python_clients.py --check`
 - workspace package/app build verification (`uv build` per workspace unit)
 - unified `Nova CI` workflow gate (`.github/workflows/ci.yml`) covering:
+  - `quality-gates` (Python 3.13 primary lane)
+  - `python-compatibility` (Python 3.12 pytest/build lane)
+  - `generated-clients`
   - `dash-conformance`
   - `shiny-conformance`
   - `typescript-conformance` (release-grade TypeScript SDK client + fixture
     smoke; required check name remains stable)
-  - `generated-clients`
+- separate `CFN Contract Validate` workflow gate
 
 Release workflows also carry the first-class internal R release line via
 package build/check and signed tarball evidence. Those validations remain in
@@ -205,20 +219,23 @@ particular, whenever CI/CD or release semantics change, the same PR MUST update
 all affected operational docs:
 
 - `README.md`
+- `docs/README.md`
 - `docs/PRD.md`
+- `docs/architecture/README.md`
 - `docs/architecture/requirements.md`
-- affected ADR/SPEC docs
-- `docs/plan/PLAN.md`
-- affected `docs/contracts/*.json` workflow/artifact schemas
-- affected `docs/clients/*.md` and `docs/clients/**/*.yml` when downstream
+- affected ADR/SPEC docs and both architecture indexes
+- `docs/standards/README.md`
+- `docs/standards/repository-engineering-standards.md`
+- `docs/contracts/README.md` and affected `docs/contracts/**` schemas
+- affected `docs/clients/**` docs or workflow examples when downstream
   integration contracts change
+- `docs/plan/PLAN.md`
 - `docs/runbooks/README.md` when runbook authority is changed
+- `docs/runbooks/release/**` and `docs/runbooks/provisioning/**` when release,
+  deploy, or validation behavior changes
+- committed `docs/release/**` artifacts when those files change
 - `docs/history/README.md` and any affected archive bundle links when archive
   paths or authority links change
-- `docs/runbooks/release/**` and `docs/runbooks/provisioning/**` runbooks and
-  policy docs, plus committed `docs/release/**` artifacts when those files
-  change
-- `docs/history/**` when archival paths or evidence pointers change
 
 ## 9. Traceability
 

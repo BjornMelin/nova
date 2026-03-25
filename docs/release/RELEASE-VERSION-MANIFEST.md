@@ -1,12 +1,13 @@
 # Release Version Manifest
 
-Date: 2026-03-15T01:08:20+00:00
+Date: 2026-03-24T20:31:26+00:00
 Status: Active
 Schema: 1.0
 
 ## Release Metadata
-- `base_commit`: `9b4c42c407928a4b45cd321b5857ad70d6f6cf49`
-- `head_commit`: `9b4c42c407928a4b45cd321b5857ad70d6f6cf49`
+
+- `base_commit`: `e8eb5a3c1ec8fee6ee32a3c423a628e56597ffd8`
+- `head_commit`: `e8eb5a3c1ec8fee6ee32a3c423a628e56597ffd8`
 - `first_release`: `False`
 - `global_bump`: `None`
 
@@ -25,6 +26,7 @@ Schema: 1.0
       "project": "nova-file-api",
       "path": "packages/nova_file_api",
       "format": "pypi",
+      "codeartifact_format": "pypi",
       "namespace": null,
       "version": "0.1.0"
     }
@@ -41,8 +43,4 @@ Schema: 1.0
 | `packages/nova_runtime_support` | `nova-runtime-support` | `0.1.0` | no |
 | `packages/nova_sdk_file` | `@nova/sdk-file` | `0.1.0` | no |
 | `packages/nova_sdk_py_file` | `nova-sdk-py-file` | `1.0.0` | no |
-
-## Participating External Repositories
-
-- `container-craft`: `0.0.0`
-- `pca_analysis_dash`: `0.2.0`
+| `packages/nova_sdk_r_file` | `nova.sdk.r.file` | `0.1.0` | no |

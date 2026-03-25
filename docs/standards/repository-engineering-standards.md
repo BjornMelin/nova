@@ -29,9 +29,9 @@ docs.
 Use the repo workflows as the enforcement map:
 
 - `.github/workflows/ci.yml`
-  - runtime reliability, baseline quality gates, generated-client checks,
-    TS/R conformance, required `ty` plus `mypy` compatibility backstop,
-    canonical-route guard
+  - Python 3.13 primary quality/generation lane, Python 3.12 runtime
+    compatibility lane, generated-client checks, TS/R conformance, required
+    `ty` plus `mypy` compatibility backstop, canonical-route guard
 - `.github/workflows/cfn-contract-validate.yml`
   - CloudFormation syntax/schema plus docs/infra contract checks
 
@@ -146,6 +146,7 @@ Rules for narrative provisioning, release, and validation markdown under
 
 Always-run repo baseline:
 
+- `uv sync --locked --all-packages --all-extras --dev`
 - `uv lock --check`
 - `uv run ruff check .`
 - `uv run ruff check . --select I`
@@ -159,7 +160,8 @@ Always-run repo baseline:
 - `uv run python scripts/release/generate_clients.py --check`
 - `uv run python scripts/release/generate_python_clients.py --check`
 - workspace Python build verification for package/app units
-- if `packages/nova_runtime_support` changes, build it explicitly
+- `packages/nova_file_api`, `packages/nova_dash_bridge`, and
+  `packages/nova_runtime_support` build verification
 
 Canonical typing gates:
 
@@ -172,6 +174,10 @@ monorepo.
 
 Toolchain baseline notes:
 
+- Python 3.13 is the primary CI/tooling baseline. Keep Python 3.12
+  compatibility for the surviving runtime packages through the dedicated
+  pytest/build lane unless a deliberate repo-wide support-floor decision
+  removes it.
 - `pyproject.toml` pins the supported `uv` CLI via
   `[tool.uv].required-version`; keep CI and local bootstrap flows on that
   version unless a repo-wide verification run intentionally bumps it.

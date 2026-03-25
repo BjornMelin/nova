@@ -126,24 +126,25 @@ Install the root npm toolchain before running generated TypeScript SDK checks:
 
 ```bash
 npm ci
+uv sync --locked --all-packages --all-extras --dev
 ```
 
 Baseline local gates:
 
 ```bash
-source .venv/bin/activate && uv lock --check
-source .venv/bin/activate && uv run ruff check .
-source .venv/bin/activate && uv run ruff check . --select I
-source .venv/bin/activate && uv run ruff format . --check
-source .venv/bin/activate && uv run ty check --force-exclude --error-on-warning packages scripts
-source .venv/bin/activate && uv run mypy
-source .venv/bin/activate && uv run pytest -q
-source .venv/bin/activate && uv run pytest -q \
+uv lock --check
+uv run ruff check .
+uv run ruff check . --select I
+uv run ruff format . --check
+uv run ty check --force-exclude --error-on-warning packages scripts
+uv run mypy
+uv run pytest -q
+uv run pytest -q \
   packages/nova_file_api/tests/test_generated_client_smoke.py
-source .venv/bin/activate && uv run python scripts/contracts/export_openapi.py --check
-source .venv/bin/activate && uv run python scripts/release/generate_runtime_config_contract.py --check
-source .venv/bin/activate && uv run python scripts/release/generate_clients.py --check
-source .venv/bin/activate && uv run python scripts/release/generate_python_clients.py --check
+uv run python scripts/contracts/export_openapi.py --check
+uv run python scripts/release/generate_runtime_config_contract.py --check
+uv run python scripts/release/generate_clients.py --check
+uv run python scripts/release/generate_python_clients.py --check
 ```
 
 Tooling notes:
@@ -172,8 +173,8 @@ Runtime deploy/config drift guard:
 Canonical typing gates:
 
 ```bash
-source .venv/bin/activate && uv run ty check --force-exclude --error-on-warning packages scripts
-source .venv/bin/activate && uv run mypy
+uv run ty check --force-exclude --error-on-warning packages scripts
+uv run mypy
 ```
 
 `ty` is the required full-repo type gate. `mypy` remains a required
@@ -182,14 +183,7 @@ compatibility backstop on its narrower configured scope.
 Package/app build verification:
 
 ```bash
-source .venv/bin/activate && \
-for p in packages/nova_file_api packages/nova_dash_bridge; do uv build "$p"; done
-```
-
-If you touch `packages/nova_runtime_support`, also run:
-
-```bash
-source .venv/bin/activate && uv build packages/nova_runtime_support
+for p in packages/nova_file_api packages/nova_dash_bridge packages/nova_runtime_support; do uv build "$p"; done
 ```
 
 ## Pre-commit hooks
@@ -197,8 +191,8 @@ source .venv/bin/activate && uv build packages/nova_runtime_support
 Install the repo hooks with:
 
 ```bash
-source .venv/bin/activate && uv sync --locked
-source .venv/bin/activate && uv run pre-commit install --install-hooks \
+uv sync --locked --all-packages --all-extras --dev
+uv run pre-commit install --install-hooks \
   --hook-type pre-commit --hook-type pre-push
 ```
 
@@ -208,11 +202,11 @@ If `uv` is not on your shell `PATH`, install it first, then rerun
 Useful manual hook entrypoints:
 
 ```bash
-source .venv/bin/activate && uv run pre-commit run typing-gates --hook-stage manual -a
-source .venv/bin/activate && uv run pre-commit run quality-gates --hook-stage manual -a
-source .venv/bin/activate && uv run pre-commit run sdk-conformance --hook-stage manual -a
-source .venv/bin/activate && uv run pre-commit run infra-contracts --hook-stage manual -a
-source .venv/bin/activate && uv run pre-commit run docker-release-images --hook-stage manual -a
+uv run pre-commit run typing-gates --hook-stage manual -a
+uv run pre-commit run quality-gates --hook-stage manual -a
+uv run pre-commit run sdk-conformance --hook-stage manual -a
+uv run pre-commit run infra-contracts --hook-stage manual -a
+uv run pre-commit run docker-release-images --hook-stage manual -a
 ```
 
 ## Repo-Local npm / CodeArtifact Auth
@@ -236,7 +230,9 @@ workflow for Python, TypeScript/npm, and R artifacts, and `Promote Prod` is
 the manual prod promotion workflow for those staged, gate-validated artifacts.
 Required PR/runtime and conformance checks now run through the unified
 `Nova CI` workflow, while `CFN Contract Validate` remains the separate
-infra/docs governance workflow.
+infra/docs governance workflow. `Nova CI` runs the primary lint/type/generation
+lane on Python 3.13 and keeps Python 3.12 pytest/build coverage for runtime
+compatibility.
 
 ## Release and Operations
 

@@ -255,6 +255,7 @@ def test_unified_ci_workflow_exists_for_runtime_and_conformance_gates() -> None:
     for required in [
         "classify-changes",
         "quality-gates",
+        "python-compatibility",
         "generated-clients",
         "typescript-core-packages",
         "typescript-sdk-smoke",
@@ -272,6 +273,7 @@ def test_required_ci_workflows_use_scope_classifier_gate() -> None:
         ".github/workflows/ci.yml": {
             "gated_jobs": {
                 "quality-gates": "run_runtime_ci",
+                "python-compatibility": "run_runtime_ci",
                 "generated-clients": "run_generated_clients",
                 "typescript-core-packages": "run_typescript_conformance",
                 "typescript-sdk-smoke": "run_typescript_conformance",
@@ -346,6 +348,22 @@ def test_sdk_conformance_shared_r_check_helper_is_used() -> None:
     assert "scripts/checks/verify_r_cmd_check.sh" in script_text
     assert "--no-manual" in helper_text
     assert "R CMD check reported warnings" in helper_text
+
+
+def test_python_compatibility_job_pins_pytest_and_builds_to_python_312() -> (
+    None
+):
+    """Compatibility lane must execute against the synced Python 3.12 env."""
+    workflow = yaml.safe_load(_read(".github/workflows/ci.yml"))
+    assert isinstance(workflow, dict)
+    jobs = workflow.get("jobs")
+    assert isinstance(jobs, dict)
+    job = jobs.get("python-compatibility")
+    assert isinstance(job, dict)
+
+    job_text = yaml.safe_dump(job, sort_keys=False)
+    assert "uv run --python 3.12 pytest -q" in job_text
+    assert "uv build --python 3.12" in job_text
 
 
 def test_reusable_deploy_dev_checks_out_workflow_source_for_local_actions() -> (

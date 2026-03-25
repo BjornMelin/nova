@@ -5,7 +5,7 @@ Status: Accepted
 Version: 1.0
 Date: 2026-02-12
 Related:
-  - "[ADR-0001: Deploy on ECS Fargate behind ALB with same-origin routing](./ADR-0001-deployment-on-ecs-fargate-behind-alb.md)"
+  - "[ADR-0001: Deploy on ECS Fargate behind ALB](./ADR-0001-deployment-on-ecs-fargate-behind-alb.md)"
   - "[SPEC-0000: HTTP API contract](../spec/SPEC-0000-http-api-contract.md)"
 References:
   - "[FastAPI deployment workers](https://fastapi.tiangolo.com/deployment/server-workers/)"

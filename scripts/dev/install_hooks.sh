@@ -10,7 +10,7 @@ if ! command -v uv >/dev/null 2>&1; then
   exit 1
 fi
 
-uv sync --locked
+uv sync --locked --all-packages --all-extras --dev
 uv run pre-commit install --install-hooks \
   --hook-type pre-commit \
   --hook-type pre-push

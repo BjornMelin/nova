@@ -2,8 +2,8 @@
 Spec: 0020
 Title: Architecture authority pack and documentation synchronization contract
 Status: Active
-Version: 2.0
-Date: 2026-03-05
+Version: 2.1
+Date: 2026-03-24
 Related:
   - "[ADR-0024: Layered runtime authority pack for the Nova monorepo](../adr/ADR-0024-layered-architecture-authority-pack.md)"
   - "[ADR-0030: Native-CFN modular stack architecture for Nova infrastructure productization](../adr/ADR-0030-native-cfn-modular-stack-architecture-for-nova-infrastructure-productization.md)"
@@ -23,23 +23,32 @@ leaving conflicting active guidance behind.
 
 ## 2. Authority classes
 
-Nova architecture documents are divided into three classes:
+Nova architecture and operator guidance is divided into four classes:
 
-1. Active runtime authority
+1. Active narrative router authority
+   - `AGENTS.md`
+   - `README.md`
+   - `docs/README.md`
+   - `docs/architecture/README.md`
+   - `docs/standards/README.md`
+   - `docs/standards/repository-engineering-standards.md`
+   - `docs/runbooks/README.md`
+   - `docs/contracts/README.md`
+   - `docs/plan/PLAN.md`
+2. Active runtime, SDK, and repository-governance authority
    - `docs/PRD.md`
    - `docs/architecture/requirements.md`
    - `ADR-0023` through `ADR-0029`
-   - `ADR-0033` through `ADR-0041` (green-field simplification; see
-     `docs/plan/greenfield-simplification-program.md`)
+   - `ADR-0033` through `ADR-0041`
    - `SPEC-0000`
+   - `SPEC-0004`
+   - `SPEC-0012`
    - `SPEC-0015` through `SPEC-0023`
    - `SPEC-0027` through `SPEC-0029`
-   - `docs/plan/PLAN.md`
-   - `docs/runbooks/README.md`
-2. Adjacent deploy-governance authority
+3. Adjacent deploy-governance authority
    - `ADR-0030` through `ADR-0032`
    - `SPEC-0024` through `SPEC-0026`
-3. Superseded authority
+4. Superseded authority
    - `docs/architecture/adr/superseded/**`
    - `docs/architecture/spec/superseded/**`
    - superseded material is preserved for traceability only and is not active
@@ -53,15 +62,22 @@ green-field program steps, where implementation PRs MUST land docs updates
 together with code per branch merge policy):
 
 1. `AGENTS.md`
-2. `docs/PRD.md`
-3. `docs/architecture/requirements.md`
-4. `docs/architecture/adr/index.md`
-5. `docs/architecture/spec/index.md`
-6. `docs/plan/PLAN.md`
-7. `docs/runbooks/README.md`
-8. affected ADR/SPEC files
-9. affected `docs/runbooks/**`, committed `docs/release/**`, and
-   `docs/contracts/**` files when deploy or reusable workflow contracts change
+2. `README.md`
+3. `docs/README.md`
+4. `docs/PRD.md`
+5. `docs/architecture/README.md`
+6. `docs/architecture/requirements.md`
+7. `docs/standards/README.md`
+8. `docs/standards/repository-engineering-standards.md`
+9. `docs/contracts/README.md`
+10. `docs/architecture/adr/index.md`
+11. `docs/architecture/spec/index.md`
+12. `docs/plan/PLAN.md`
+13. `docs/runbooks/README.md`
+14. affected ADR/SPEC files
+15. affected `docs/runbooks/**`, committed `docs/release/**`,
+    `docs/contracts/**`, and `docs/clients/**` files when deploy, workflow,
+    SDK, or reusable workflow contracts change
 
 ## 4. Superseded-material contract
 
@@ -90,13 +106,17 @@ subject must cite the relevant AWS source when it describes:
 
 ## 6. Testable invariants
 
-1. `AGENTS.md`, `docs/PRD.md`, `docs/plan/PLAN.md`, and
-   `docs/runbooks/README.md` must reference the same active authority set.
+1. `AGENTS.md`, `README.md`, `docs/README.md`,
+   `docs/architecture/README.md`, `docs/standards/README.md`,
+   `docs/plan/PLAN.md`, and `docs/runbooks/README.md` must reference the same
+   active authority set.
 2. `docs/architecture/adr/index.md` and `docs/architecture/spec/index.md` must
    separate active and superseded sections.
-3. Active architecture docs must not use `.agents/plans/` as an execution
+3. Active authority lists and active index sections must not reference
+   `superseded/` paths as current SDK or runtime authority.
+4. Active architecture docs must not use `.agents/plans/` as an execution
    ledger authority.
-4. Active architecture docs must not leave stale subject/title mismatches
+5. Active architecture docs must not leave stale subject/title mismatches
    between filename, title, and referenced purpose.
 
 ## 7. Acceptance criteria

@@ -4,7 +4,7 @@ inputs:
   python-version:
     description: Python version to install.
     required: false
-    default: "3.12"
+    default: "3.13"
   sync-locked:
     description: Whether to pass --locked to uv sync (true/false).
     required: false
@@ -88,4 +88,5 @@ runs:
         fi
 
         SYNC_ARGS+=(--python "$PYTHON_VERSION")
+        SYNC_ARGS+=(--all-packages --all-extras --dev)
         uv sync "${SYNC_ARGS[@]}"

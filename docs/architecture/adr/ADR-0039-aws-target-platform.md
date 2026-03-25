@@ -14,7 +14,7 @@ Related:
   - "[ADR-0001: Deploy on ECS Fargate behind ALB](./ADR-0001-deployment-on-ecs-fargate-behind-alb.md)"
   - "[Green-field simplification program](../../plan/greenfield-simplification-program.md)"
 References:
-  - "[TARGET_ARCHITECTURE (pack)](../../../.agents/nova_greenfield_codex_pack/TARGET_ARCHITECTURE.md)"
+  - "[Green-field target architecture evidence](../../plan/greenfield-evidence/TARGET_ARCHITECTURE.md)"
 ---
 
 ## Summary
@@ -34,7 +34,8 @@ verification stays in-app.** Composite end-to-end architecture scores
 - This ADR **aligns** [ADR-0015](./ADR-0015-nova-api-platform-final-hosting-and-deployment-architecture-2026.md)
   narrative with the green-field composite scoring narrative; it does not
   replace deploy-governance authority ([ADR-0030](./ADR-0030-native-cfn-modular-stack-architecture-for-nova-infrastructure-productization.md)–[ADR-0032](./ADR-0032-oidc-and-iam-role-partitioning-for-deploy-automation.md)).
-- Execution order: program branch 10.
+- Program sequencing is tracked in
+  [greenfield-simplification-program.md](../../plan/greenfield-simplification-program.md).
 
 ## Decision
 
@@ -48,9 +49,8 @@ defense-in-depth only and is not the primary auth contract.
 ## Implementation commitments
 
 - Implement infra and runtime config consistent with the topology described in
-  `.agents/nova_greenfield_codex_pack/TARGET_ARCHITECTURE.md` and
+  the green-field target architecture evidence and
   [SPEC-0015](../spec/SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md).
-- Branch `infra/greenfield-ecs-platform`.
 
 ## Related requirements
 

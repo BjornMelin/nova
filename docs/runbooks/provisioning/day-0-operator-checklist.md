@@ -192,6 +192,13 @@ gh workflow run "Nova Release Apply" --repo "${GITHUB_OWNER}/${GITHUB_REPO}" --r
 APPLY_RUN_ID="$(gh run list --repo "${GITHUB_OWNER}/${GITHUB_REPO}" --workflow "Nova Release Apply" --branch main --limit 1 --json databaseId --jq '.[0].databaseId')"
 gh run watch "${APPLY_RUN_ID}" --repo "${GITHUB_OWNER}/${GITHUB_REPO}" --exit-status
 
+gh workflow run "Publish Packages" \
+  --repo "${GITHUB_OWNER}/${GITHUB_REPO}" \
+  --ref main \
+  -f release_apply_run_id="${APPLY_RUN_ID}"
+PUBLISH_RUN_ID="$(gh run list --repo "${GITHUB_OWNER}/${GITHUB_REPO}" --workflow "Publish Packages" --branch main --limit 1 --json databaseId --jq '.[0].databaseId')"
+gh run watch "${PUBLISH_RUN_ID}" --repo "${GITHUB_OWNER}/${GITHUB_REPO}" --exit-status
+
 gh workflow run "Deploy Dev" --repo "${GITHUB_OWNER}/${GITHUB_REPO}" --ref main -f pipeline_name="${CODEPIPELINE_NAME}"
 DEPLOY_RUN_ID="$(gh run list --repo "${GITHUB_OWNER}/${GITHUB_REPO}" --workflow "Deploy Dev" --branch main --limit 1 --json databaseId --jq '.[0].databaseId')"
 gh run watch "${DEPLOY_RUN_ID}" --repo "${GITHUB_OWNER}/${GITHUB_REPO}" --exit-status
@@ -201,7 +208,18 @@ aws codepipeline get-pipeline-state --region "${AWS_REGION}" --name "${CODEPIPEL
 
 `Publish Packages` is the canonical manual staging publish workflow for Python,
 TypeScript/npm, and R artifacts. `Promote Prod` is the canonical manual prod
-promotion workflow for those staged, gate-validated artifacts.
+promotion workflow for those staged, gate-validated artifacts. Capture the
+successful `APPLY_RUN_ID` and staged-publish evidence, then run `Promote Prod`
+with:
+
+- `pipeline_name`
+- `manifest_sha256`
+- `changed_units_json`
+- `changed_units_sha256`
+- `version_plan_json`
+- `version_plan_sha256`
+- `promotion_candidates_json`
+- `promotion_candidates_sha256`
 
 ### Step 7: Return to idle cost posture after release work
 

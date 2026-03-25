@@ -37,10 +37,10 @@ def test_render_manifest_includes_schema_and_versions() -> None:
         units=units,
         changed_report=changed_report,
         version_plan=version_plan,
-        external_versions=[("container-craft", "0.0.0")],
     )
 
     assert "# Release Version Manifest" in text
     assert "## changed-units.json Schema" in text
     assert "`packages/nova_file_api`" in text
     assert "`0.1.1`" in text
+    assert "## Participating External Repositories" not in text
