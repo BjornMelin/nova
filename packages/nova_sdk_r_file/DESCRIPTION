@@ -7,10 +7,10 @@ Description: Generated R client for the Nova file API.
 License: file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.3.2
+RoxygenNote: 7.3.3
 Imports:
     httr2
 Suggests:
-    testthat (>= 3.0.0),
-    withr
+    testthat (>= 3.2.3),
+    withr (>= 3.0.2)
 Config/testthat/edition: 3

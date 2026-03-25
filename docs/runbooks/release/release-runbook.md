@@ -43,7 +43,10 @@ Provisioning, validation, and setup guides are indexed in
    `R CMD check` on the package release line, and the shared conformance
    helper (`scripts/checks/verify_r_cmd_check.sh`) fails the R lane if
    `R CMD check` reports warnings, while running `R CMD check --no-manual`
-   so runners do not require `pdflatex`.
+   so runners do not require `pdflatex`. Generator-owned `DESCRIPTION`
+   metadata should be refreshed from current CRAN package guidance, but any
+   `Suggests` floor increase must stay at the smallest version proven by the
+   local conformance lane before it is relied on in release automation.
 8. Release-image build environments provide Docker BuildKit plus the `buildx`
    CLI plugin.
 9. IAM roles stack is deployed with promotion repository parameters:

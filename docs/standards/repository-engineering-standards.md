@@ -114,6 +114,10 @@ Rules for narrative provisioning, release, and validation markdown under
   without requiring `pdflatex` on CI or release runners. When regenerating,
   the generator preserves an existing `DESCRIPTION` version instead of
   resetting it.
+- Keep generator-owned R metadata current with the validated CRAN toolchain,
+  but pin dependency floors to the smallest locally verified passing versions
+  instead of assuming the newest CRAN release is already present on release
+  runners.
 - Public R wrappers must expose concrete OpenAPI path/query parameters instead
   of generic `path_params` / `query` bags. Keep generic escape hatches limited
   to headers and constructor-level defaults.
