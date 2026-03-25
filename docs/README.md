@@ -98,6 +98,19 @@ authority docs:
 - `./overview/NOVA-REPO-OVERVIEW.md`
 - `./PRD.md`
 
+### Target-state planning supplements
+
+Use these when planning or executing the green-field v2 hard-cut program. They
+describe the approved target and current implementation gap; they do not by
+themselves replace the current active authority/runtime docs:
+
+- `./architecture/requirements-wave-2.md`
+- `./overview/CANONICAL-TARGET-2026-04.md`
+- `./overview/IMPLEMENTATION-STATUS-MATRIX.md`
+- `./plan/GREENFIELD-WAVE-2-EXECUTION.md`
+- `./contracts/BREAKING-CHANGES-V2.md`
+- `./clients/CLIENT-SDK-CANONICAL-PACKAGES.md`
+
 ### Historical material
 
 Use these only for traceability, not as active authority:

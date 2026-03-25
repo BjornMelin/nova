@@ -1,0 +1,35 @@
+# Requirements — wave 2 canonical Nova
+
+> **Implementation state:** Approved target-state requirements for the wave-2 hard cut.
+
+## Product requirements
+
+- support direct browser/Dash uploads to S3 via presigned and multipart flows
+- support durable async export workflows
+- support Python, TypeScript, and R client apps against one public contract
+- support bearer JWT auth only
+- keep the API control-plane focused; do not proxy large byte streams through the API
+
+## Architecture requirements
+
+- no dedicated auth service
+- no Redis dependency
+- no generic jobs public API
+- no worker callback route
+- one canonical AWS deployment target
+- one canonical SDK package per language
+
+## Repo requirements
+
+- smaller active docs authority set
+- smaller release/generation script surface
+- smaller package surface
+- easier onboarding for client-app developers
+
+## Quality requirements
+
+- typed request/response models
+- explicit error schema
+- deterministic tests
+- async correctness on the request path
+- strong observability in the target platform

@@ -10,10 +10,11 @@ requirements for the first production release.
 
 - Current production-target requirements use the `FR-*`, `NFR-*`, `IR-*`, and
   `GFR-*` IDs below.
-- Hard-cut **path** authority is active under `ADR-0023` + `SPEC-0016`; public
-  **auth and worker persistence** target state is under `ADR-0033` through
-  `ADR-0041`, `SPEC-0027` through `SPEC-0029`, and the
-  [green-field program](../plan/greenfield-simplification-program.md).
+- Hard-cut **path** authority remains active under `ADR-0023` + `SPEC-0016`.
+  Approved wave-2 target-state authority is tracked separately under
+  [requirements-wave-2.md](../requirements-wave-2.md), `ADR-0033` through
+  `ADR-0038`, `SPEC-0027` through `SPEC-0031`, and the
+  [Green-field wave 2 execution plan](../plan/GREENFIELD-WAVE-2-EXECUTION.md).
 - Runtime URL namespace is canonical `/v1/*` plus `/metrics/summary`; non-canonical
   route families are removed. “Contract revision” in `SPEC-0027` refers to auth
   and OpenAPI expression, not a `/v2/*` prefix unless a future ADR introduces it.
@@ -24,19 +25,19 @@ requirements for the first production release.
   contracts codified in `ADR-0027` through `ADR-0029` and `SPEC-0021` through
   `SPEC-0023`.
 - Shared request-context propagation, request-id parity, and canonical FastAPI
-  exception registration are owned by `nova_runtime_support` via the `ADR-0041`
-  transport cut and reused by FastAPI app factories.
+  exception registration remain required runtime behavior; the current baseline
+  implementation details are reflected in the runtime component/safety docs and
+  the approved target-state reset is tracked under `ADR-0038` / `SPEC-0031`.
 - Adjacent deploy-governance authority is isolated under `ADR-0030` through
   `ADR-0032` and `SPEC-0024` through `SPEC-0026`.
 - Superseded ADR/SPEC material is archived only under
   `docs/architecture/adr/superseded/**` and
   `docs/architecture/spec/superseded/**` (for example superseded `ADR-0005` and
   `SPEC-0007`).
-- Public SDK policy: Python public; TypeScript release-grade in CodeArtifact
-  (generator-owned, subpath-only, `openapi-typescript` + `openapi-fetch` stack
-  per `ADR-0038` / `SPEC-0029`, with the active workspace kept on the verified
-  TypeScript 5.x line while TypeScript 6 remains deferred); R first-class
-  internal release line (`httr2` thin client per `ADR-0038` / `SPEC-0029`).
+- Public SDK target-state policy is tracked under `ADR-0037` / `SPEC-0030`,
+  `docs/clients/CLIENT-SDK-CANONICAL-PACKAGES.md`, and
+  [requirements-wave-2.md](../requirements-wave-2.md). Current package names in
+  the repo may still be pre-cut until the implementation branches land.
 
 ## Green-field program requirements (GFR)
 
