@@ -1309,15 +1309,17 @@ def _render_r_namespace(target: GenerationTarget) -> str:
     return "\n".join(lines)
 
 
-def _render_r_readme(
-    target: GenerationTarget, operations: list[Operation]
-) -> str:
-    del operations
-    constructor = f"create_{target.r_client_prefix}_client"
+def _render_r_readme(target: GenerationTarget) -> str:
+    client_prefix = target.r_client_prefix
+    short_prefix = client_prefix.removeprefix("nova_")
+    # TARGETS currently contains only the nova_file R package, so the README
+    # example stays keyed to target metadata rather than per-operation logic.
+    constructor = f"create_{client_prefix}_client"
+    operation_prefix = f"nova_{short_prefix}"
     lines = [
         f"# `{target.r_package_name}`",
         "",
-        f"Generated R client for the Nova {target.r_client_prefix.removeprefix('nova_')} API.",
+        f"Generated R client for the Nova {short_prefix} API.",
         "",
         "This package is generated from committed OpenAPI and is kept in-repo so",
         "Nova release tooling can build and check the real package tree.",
@@ -1337,12 +1339,12 @@ def _render_r_readme(
     ]
     lines.extend(
         [
-            "client <- create_nova_file_client(",
+            f"client <- {constructor}(",
             '  "https://nova.example/",',
             '  bearer_token = "eyJhbGciOi...",',
             ")",
             "",
-            "result <- nova_file_create_job(",
+            f"result <- {operation_prefix}_create_job(",
             "  client,",
             "  body = list(",
             '    job_type = "transfer.process",',
@@ -1353,8 +1355,8 @@ def _render_r_readme(
             "result$job_id",
             "result$status",
             "",
-            "jobs <- nova_file_list_jobs(client, limit = 25)",
-            "job <- nova_file_get_job_status(client, job_id = result$job_id)",
+            f"jobs <- {operation_prefix}_list_jobs(client, limit = 25)",
+            f"job <- {operation_prefix}_get_job_status(client, job_id = result$job_id)",
         ]
     )
     lines.extend(["```", ""])
@@ -1424,15 +1426,18 @@ def _render_r_tests_entrypoint(target: GenerationTarget) -> str:
     return "\n".join(lines)
 
 
-def _render_r_tests(
-    target: GenerationTarget, operations: list[Operation]
-) -> str:
-    del operations
-    prefix = target.r_client_prefix
-    constructor = f"create_{prefix}_client"
+def _render_r_tests(target: GenerationTarget) -> str:
+    client_prefix = target.r_client_prefix
+    short_prefix = client_prefix.removeprefix("nova_")
+    constructor = f"create_{client_prefix}_client"
+    default_user_agent = f"{client_prefix}_default_user_agent()"
+    bearer_env_var = f"NOVA_{short_prefix.upper()}_BEARER_TOKEN"
+    namespace = f"nova.sdk.r.{short_prefix}"
+    operation_prefix = f"nova_{short_prefix}"
+    api_error_class = f"{client_prefix}_api_error"
     lines = [
         'test_that("constructor resolves explicit and environment bearer tokens", {',
-        '  withr::local_envvar(NOVA_FILE_BEARER_TOKEN = "env-token-123")',
+        f'  withr::local_envvar({bearer_env_var} = "env-token-123")',
         f'  env_client <- {constructor}("https://nova.example/")',
         '  expect_equal(env_client$bearer_token, "env-token-123")',
         f'  explicit_client <- {constructor}("https://nova.example/", bearer_token = "explicit-token-123")',
@@ -1440,25 +1445,25 @@ def _render_r_tests(
         "})",
         "",
         'test_that("constructor treats zero-length bearer tokens as absent", {',
-        "  withr::local_envvar(NOVA_FILE_BEARER_TOKEN = NA_character_)",
+        f"  withr::local_envvar({bearer_env_var} = NA_character_)",
         f'  client <- {constructor}("https://nova.example/", bearer_token = character(0))',
         "  expect_null(client$bearer_token)",
         "})",
         "",
         'test_that("constructor normalizes invalid user agents to the default", {',
         f'  client <- {constructor}("https://nova.example/", user_agent = character(0))',
-        "  expect_equal(client$user_agent, nova_file_default_user_agent())",
+        f"  expect_equal(client$user_agent, {default_user_agent})",
         f'  client_na <- {constructor}("https://nova.example/", user_agent = NA_character_)',
-        "  expect_equal(client_na$user_agent, nova_file_default_user_agent())",
+        f"  expect_equal(client_na$user_agent, {default_user_agent})",
         "})",
         "",
         'test_that("generated package exports thin endpoint wrappers", {',
-        '  exports <- getNamespaceExports("nova.sdk.r.file")',
-        '  expect_true("nova_file_create_job" %in% exports)',
-        '  expect_true("nova_file_get_job_status" %in% exports)',
-        '  expect_true("nova_file_list_jobs" %in% exports)',
-        '  expect_false("nova_file_request_descriptor" %in% exports)',
-        '  expect_false("nova_file_execute_operation" %in% exports)',
+        f'  exports <- getNamespaceExports("{namespace}")',
+        f'  expect_true("{operation_prefix}_create_job" %in% exports)',
+        f'  expect_true("{operation_prefix}_get_job_status" %in% exports)',
+        f'  expect_true("{operation_prefix}_list_jobs" %in% exports)',
+        f'  expect_false("{operation_prefix}_request_descriptor" %in% exports)',
+        f'  expect_false("{operation_prefix}_execute_operation" %in% exports)',
         "})",
         "",
         'test_that("request construction uses concrete params and bearer auth", {',
@@ -1469,7 +1474,7 @@ def _render_r_tests(
         '    headers = list(`content-type` = "application/json"),',
         '    body = charToRaw(\'{"job_id":"job-123","status":"queued"}\')',
         "  )",
-        "  withr::local_envvar(NOVA_FILE_BEARER_TOKEN = NA_character_)",
+        f"  withr::local_envvar({bearer_env_var} = NA_character_)",
         "  result <- httr2::with_mocked_responses(",
         "    function(req) {",
         "      observed_request <<- req",
@@ -1477,7 +1482,7 @@ def _render_r_tests(
         "    },",
         "    {",
         f'      client <- {constructor}("https://nova.example/", bearer_token = "token-123", timeout_seconds = 12)',
-        '      nova_file_get_job_status(client, job_id = "job-123", headers = list(`X-Request-Id` = "req-123"))',
+        f'      {operation_prefix}_get_job_status(client, job_id = "job-123", headers = list(`X-Request-Id` = "req-123"))',
         "    }",
         "  )",
         '  expect_equal(result$job_id, "job-123")',
@@ -1504,7 +1509,7 @@ def _render_r_tests(
         "    },",
         "    {",
         f'      client <- {constructor}("https://nova.example/", bearer_token = "token-123")',
-        '      nova_file_get_job_status(client, job_id = "job-123", headers = list(authorization = "Bearer custom"))',
+        f'      {operation_prefix}_get_job_status(client, job_id = "job-123", headers = list(authorization = "Bearer custom"))',
         "    }",
         "  )",
         '  auth_positions <- which(tolower(names(observed_request$headers)) == "authorization")',
@@ -1528,8 +1533,8 @@ def _render_r_tests(
         "    },",
         "    {",
         f'      client <- {constructor}("https://nova.example/", bearer_token = "token-123")',
-        "      nova_file_list_jobs(client, limit = 25)",
-        "      nova_file_create_job(",
+        f"      {operation_prefix}_list_jobs(client, limit = 25)",
+        f"      {operation_prefix}_create_job(",
         "        client,",
         "        body = list(",
         '          job_type = "transfer.process",',
@@ -1562,12 +1567,12 @@ def _render_r_tests(
         "      function(req) mocked_response,",
         "      {",
         f'        client <- {constructor}("https://nova.example/", bearer_token = "token-123")',
-        '        nova_file_create_job(client, body = list(job_type = "transfer.process"))',
+        f'        {operation_prefix}_create_job(client, body = list(job_type = "transfer.process"))',
         "      }",
         "    ),",
-        "    nova_file_api_error = function(error) error",
+        f"    {api_error_class} = function(error) error",
         "  )",
-        '  expect_s3_class(error, "nova_file_api_error")',
+        f'  expect_s3_class(error, "{api_error_class}")',
         '  expect_true(inherits(error, "httr2_http"))',
         '  expect_equal(error$code, "queue_unavailable")',
         "  expect_equal(error$status, 503L)",
@@ -1589,12 +1594,12 @@ def _render_r_tests(
         "      function(req) mocked_response,",
         "      {",
         f'        client <- {constructor}("https://nova.example/", bearer_token = "token-123")',
-        '        nova_file_create_job(client, body = list(job_type = "transfer.process"))',
+        f'        {operation_prefix}_create_job(client, body = list(job_type = "transfer.process"))',
         "      }",
         "    ),",
-        "    nova_file_api_error = function(error) error",
+        f"    {api_error_class} = function(error) error",
         "  )",
-        '  expect_s3_class(error, "nova_file_api_error")',
+        f'  expect_s3_class(error, "{api_error_class}")',
         '  expect_true(inherits(error, "httr2_http"))',
         '  expect_equal(error$code, "http_503")',
         '  expect_match(conditionMessage(error), "service unavailable", fixed = TRUE)',
@@ -1768,7 +1773,7 @@ def _generate_target(target: GenerationTarget, *, check: bool) -> list[str]:
     issues.extend(
         _write_or_check(
             target.r_output_path.parent.parent / "README.md",
-            _render_r_readme(target, operations),
+            _render_r_readme(target),
             check=check,
         )
     )
@@ -1808,7 +1813,7 @@ def _generate_target(target: GenerationTarget, *, check: bool) -> list[str]:
             / "tests"
             / "testthat"
             / "test-client.R",
-            _render_r_tests(target, operations),
+            _render_r_tests(target),
             check=check,
         )
     )

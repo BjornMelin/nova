@@ -115,6 +115,7 @@ def test_poll_async_job_uses_bearer_auth_only() -> None:
     assert "authorizedHeaders(config)" in source
     assert removed_header not in source
     assert 'credentials: "same-origin"' not in source
+    assert 'credentials: "omit"' in source
     assert re.search(
         r"pollAsyncJob\(\s*config,\s*enqueued\.job_id\s*\)",
         source,
