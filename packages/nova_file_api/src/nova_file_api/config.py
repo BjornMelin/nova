@@ -59,251 +59,271 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",
+        validate_by_name=True,
+        validate_by_alias=True,
+        serialize_by_alias=False,
     )
 
-    app_name: str = Field(default="nova-file-api")
+    app_name: str = Field(
+        default="nova-file-api",
+        validation_alias="APP_NAME",
+    )
     app_version: str = Field(
         default_factory=_default_app_version,
-        alias="APP_VERSION",
+        validation_alias="APP_VERSION",
     )
-    environment: str = Field(default="dev", alias="ENVIRONMENT")
+    environment: str = Field(default="dev", validation_alias="ENVIRONMENT")
 
     file_transfer_enabled: bool = Field(
         default=True,
-        alias="FILE_TRANSFER_ENABLED",
+        validation_alias="FILE_TRANSFER_ENABLED",
     )
     file_transfer_bucket: str = Field(
         default="",
-        alias="FILE_TRANSFER_BUCKET",
+        validation_alias="FILE_TRANSFER_BUCKET",
     )
     file_transfer_upload_prefix: str = Field(
         default="uploads/",
-        alias="FILE_TRANSFER_UPLOAD_PREFIX",
+        validation_alias="FILE_TRANSFER_UPLOAD_PREFIX",
     )
     file_transfer_export_prefix: str = Field(
         default="exports/",
-        alias="FILE_TRANSFER_EXPORT_PREFIX",
+        validation_alias="FILE_TRANSFER_EXPORT_PREFIX",
     )
     file_transfer_tmp_prefix: str = Field(
         default="tmp/",
-        alias="FILE_TRANSFER_TMP_PREFIX",
+        validation_alias="FILE_TRANSFER_TMP_PREFIX",
     )
     file_transfer_presign_upload_ttl_seconds: int = Field(
         default=1800,
-        alias="FILE_TRANSFER_PRESIGN_UPLOAD_TTL_SECONDS",
+        validation_alias="FILE_TRANSFER_PRESIGN_UPLOAD_TTL_SECONDS",
         ge=60,
         le=3600,
     )
     file_transfer_presign_download_ttl_seconds: int = Field(
         default=900,
-        alias="FILE_TRANSFER_PRESIGN_DOWNLOAD_TTL_SECONDS",
+        validation_alias="FILE_TRANSFER_PRESIGN_DOWNLOAD_TTL_SECONDS",
         ge=60,
         le=3600,
     )
     file_transfer_multipart_threshold_bytes: int = Field(
         default=100 * 1024 * 1024,
-        alias="FILE_TRANSFER_MULTIPART_THRESHOLD_BYTES",
+        validation_alias="FILE_TRANSFER_MULTIPART_THRESHOLD_BYTES",
         ge=5 * 1024 * 1024,
     )
     file_transfer_part_size_bytes: int = Field(
         default=128 * 1024 * 1024,
-        alias="FILE_TRANSFER_PART_SIZE_BYTES",
+        validation_alias="FILE_TRANSFER_PART_SIZE_BYTES",
         ge=5 * 1024 * 1024,
         le=5 * 1024 * 1024 * 1024,
     )
     file_transfer_max_concurrency: int = Field(
         default=4,
-        alias="FILE_TRANSFER_MAX_CONCURRENCY",
+        validation_alias="FILE_TRANSFER_MAX_CONCURRENCY",
         ge=1,
         le=32,
     )
     file_transfer_use_accelerate_endpoint: bool = Field(
         default=False,
-        alias="FILE_TRANSFER_USE_ACCELERATE_ENDPOINT",
+        validation_alias="FILE_TRANSFER_USE_ACCELERATE_ENDPOINT",
     )
     max_upload_bytes: int = Field(
         default=500 * 1024 * 1024 * 1024,
-        alias="FILE_TRANSFER_MAX_UPLOAD_BYTES",
+        validation_alias="FILE_TRANSFER_MAX_UPLOAD_BYTES",
         ge=1,
     )
 
-    auth_mode: AuthMode = Field(default=AuthMode.JWT_LOCAL, alias="AUTH_MODE")
-    oidc_issuer: str | None = Field(default=None, alias="OIDC_ISSUER")
-    oidc_audience: str | None = Field(default=None, alias="OIDC_AUDIENCE")
-    oidc_jwks_url: str | None = Field(default=None, alias="OIDC_JWKS_URL")
-    oidc_required_scopes: str = Field(default="", alias="OIDC_REQUIRED_SCOPES")
+    auth_mode: AuthMode = Field(
+        default=AuthMode.JWT_LOCAL, validation_alias="AUTH_MODE"
+    )
+    oidc_issuer: str | None = Field(
+        default=None, validation_alias="OIDC_ISSUER"
+    )
+    oidc_audience: str | None = Field(
+        default=None, validation_alias="OIDC_AUDIENCE"
+    )
+    oidc_jwks_url: str | None = Field(
+        default=None, validation_alias="OIDC_JWKS_URL"
+    )
+    oidc_required_scopes: str = Field(
+        default="", validation_alias="OIDC_REQUIRED_SCOPES"
+    )
     oidc_required_permissions: str = Field(
         default="",
-        alias="OIDC_REQUIRED_PERMISSIONS",
+        validation_alias="OIDC_REQUIRED_PERMISSIONS",
     )
     oidc_clock_skew_seconds: int = Field(
         default=0,
-        alias="OIDC_CLOCK_SKEW_SECONDS",
+        validation_alias="OIDC_CLOCK_SKEW_SECONDS",
         ge=0,
         le=120,
     )
     blocking_io_thread_tokens: int = Field(
         default=80,
-        alias="BLOCKING_IO_THREAD_TOKENS",
+        validation_alias="BLOCKING_IO_THREAD_TOKENS",
         ge=1,
         le=1000,
     )
 
-    cache_redis_url: str | None = Field(default=None, alias="CACHE_REDIS_URL")
+    cache_redis_url: str | None = Field(
+        default=None, validation_alias="CACHE_REDIS_URL"
+    )
     cache_redis_max_connections: int = Field(
         default=64,
-        alias="CACHE_REDIS_MAX_CONNECTIONS",
+        validation_alias="CACHE_REDIS_MAX_CONNECTIONS",
         ge=1,
         le=10000,
     )
     cache_redis_socket_timeout_seconds: float = Field(
         default=0.5,
-        alias="CACHE_REDIS_SOCKET_TIMEOUT_SECONDS",
+        validation_alias="CACHE_REDIS_SOCKET_TIMEOUT_SECONDS",
         gt=0.0,
         le=30.0,
     )
     cache_redis_socket_connect_timeout_seconds: float = Field(
         default=0.5,
-        alias="CACHE_REDIS_SOCKET_CONNECT_TIMEOUT_SECONDS",
+        validation_alias="CACHE_REDIS_SOCKET_CONNECT_TIMEOUT_SECONDS",
         gt=0.0,
         le=30.0,
     )
     cache_redis_health_check_interval_seconds: int = Field(
         default=30,
-        alias="CACHE_REDIS_HEALTH_CHECK_INTERVAL_SECONDS",
+        validation_alias="CACHE_REDIS_HEALTH_CHECK_INTERVAL_SECONDS",
         ge=1,
         le=300,
     )
     cache_redis_retry_base_seconds: float = Field(
         default=0.05,
-        alias="CACHE_REDIS_RETRY_BASE_SECONDS",
+        validation_alias="CACHE_REDIS_RETRY_BASE_SECONDS",
         gt=0.0,
         le=5.0,
     )
     cache_redis_retry_cap_seconds: float = Field(
         default=0.5,
-        alias="CACHE_REDIS_RETRY_CAP_SECONDS",
+        validation_alias="CACHE_REDIS_RETRY_CAP_SECONDS",
         gt=0.0,
         le=30.0,
     )
     cache_redis_retry_attempts: int = Field(
         default=2,
-        alias="CACHE_REDIS_RETRY_ATTEMPTS",
+        validation_alias="CACHE_REDIS_RETRY_ATTEMPTS",
         ge=0,
         le=10,
     )
     cache_redis_decode_responses: bool = Field(
         default=False,
-        alias="CACHE_REDIS_DECODE_RESPONSES",
+        validation_alias="CACHE_REDIS_DECODE_RESPONSES",
     )
     cache_redis_protocol: int = Field(
         default=2,
-        alias="CACHE_REDIS_PROTOCOL",
+        validation_alias="CACHE_REDIS_PROTOCOL",
         ge=2,
         le=3,
     )
     cache_local_ttl_seconds: int = Field(
         default=120,
-        alias="CACHE_LOCAL_TTL_SECONDS",
+        validation_alias="CACHE_LOCAL_TTL_SECONDS",
         ge=1,
     )
     cache_local_max_entries: int = Field(
         default=2000,
-        alias="CACHE_LOCAL_MAX_ENTRIES",
+        validation_alias="CACHE_LOCAL_MAX_ENTRIES",
         ge=10,
     )
     cache_shared_ttl_seconds: int = Field(
         default=300,
-        alias="CACHE_SHARED_TTL_SECONDS",
+        validation_alias="CACHE_SHARED_TTL_SECONDS",
         ge=1,
     )
-    cache_key_prefix: str = Field(default="nova", alias="CACHE_KEY_PREFIX")
+    cache_key_prefix: str = Field(
+        default="nova", validation_alias="CACHE_KEY_PREFIX"
+    )
     cache_key_schema_version: int = Field(
         default=1,
-        alias="CACHE_KEY_SCHEMA_VERSION",
+        validation_alias="CACHE_KEY_SCHEMA_VERSION",
         ge=1,
     )
     auth_jwt_cache_max_ttl_seconds: int = Field(
         default=120,
-        alias="AUTH_JWT_CACHE_MAX_TTL_SECONDS",
+        validation_alias="AUTH_JWT_CACHE_MAX_TTL_SECONDS",
         ge=1,
         le=3600,
     )
 
     idempotency_enabled: bool = Field(
         default=True,
-        alias="IDEMPOTENCY_ENABLED",
+        validation_alias="IDEMPOTENCY_ENABLED",
     )
     idempotency_ttl_seconds: int = Field(
         default=900,
-        alias="IDEMPOTENCY_TTL_SECONDS",
+        validation_alias="IDEMPOTENCY_TTL_SECONDS",
         ge=60,
         le=86400,
     )
 
-    jobs_enabled: bool = Field(default=True, alias="JOBS_ENABLED")
+    jobs_enabled: bool = Field(default=True, validation_alias="JOBS_ENABLED")
     jobs_queue_backend: JobsQueueBackend = Field(
         default=JobsQueueBackend.MEMORY,
-        alias="JOBS_QUEUE_BACKEND",
+        validation_alias="JOBS_QUEUE_BACKEND",
     )
     jobs_repository_backend: JobsRepositoryBackend = Field(
         default=JobsRepositoryBackend.MEMORY,
-        alias="JOBS_REPOSITORY_BACKEND",
+        validation_alias="JOBS_REPOSITORY_BACKEND",
     )
     jobs_dynamodb_table: str | None = Field(
         default=None,
-        alias="JOBS_DYNAMODB_TABLE",
+        validation_alias="JOBS_DYNAMODB_TABLE",
     )
     jobs_sqs_queue_url: str | None = Field(
-        default=None, alias="JOBS_SQS_QUEUE_URL"
+        default=None, validation_alias="JOBS_SQS_QUEUE_URL"
     )
     jobs_sqs_retry_mode: str = Field(
         default="standard",
-        alias="JOBS_SQS_RETRY_MODE",
+        validation_alias="JOBS_SQS_RETRY_MODE",
         pattern="^(legacy|standard|adaptive)$",
     )
     jobs_sqs_retry_total_max_attempts: int = Field(
         default=3,
-        alias="JOBS_SQS_RETRY_TOTAL_MAX_ATTEMPTS",
+        validation_alias="JOBS_SQS_RETRY_TOTAL_MAX_ATTEMPTS",
         ge=1,
         le=10,
     )
     jobs_sqs_max_number_of_messages: int = Field(
         default=1,
-        alias="JOBS_SQS_MAX_NUMBER_OF_MESSAGES",
+        validation_alias="JOBS_SQS_MAX_NUMBER_OF_MESSAGES",
         ge=1,
         le=10,
     )
     jobs_sqs_wait_time_seconds: int = Field(
         default=20,
-        alias="JOBS_SQS_WAIT_TIME_SECONDS",
+        validation_alias="JOBS_SQS_WAIT_TIME_SECONDS",
         ge=0,
         le=20,
     )
     jobs_sqs_visibility_timeout_seconds: int = Field(
         default=120,
-        alias="JOBS_SQS_VISIBILITY_TIMEOUT_SECONDS",
+        validation_alias="JOBS_SQS_VISIBILITY_TIMEOUT_SECONDS",
         ge=0,
         le=43200,
     )
     jobs_runtime_mode: str = Field(
         default="api",
-        alias="JOBS_RUNTIME_MODE",
+        validation_alias="JOBS_RUNTIME_MODE",
         pattern="^(api|worker)$",
     )
 
     activity_store_backend: ActivityStoreBackend = Field(
         default=ActivityStoreBackend.MEMORY,
-        alias="ACTIVITY_STORE_BACKEND",
+        validation_alias="ACTIVITY_STORE_BACKEND",
     )
     activity_rollups_table: str | None = Field(
         default=None,
-        alias="ACTIVITY_ROLLUPS_TABLE",
+        validation_alias="ACTIVITY_ROLLUPS_TABLE",
     )
 
     metrics_namespace: str = Field(
         default="NovaFileApi",
-        alias="METRICS_NAMESPACE",
+        validation_alias="METRICS_NAMESPACE",
     )
 
     @property

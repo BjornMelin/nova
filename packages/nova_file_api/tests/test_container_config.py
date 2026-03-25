@@ -35,6 +35,49 @@ def _worker_runtime_env(**overrides: object) -> dict[str, object]:
     return env
 
 
+def test_settings_accept_env_style_keys() -> None:
+    """Settings should accept explicit env-var keys for validation."""
+    settings = Settings.model_validate(
+        {
+            "APP_NAME": "runtime-env-app",
+            "FILE_TRANSFER_BUCKET": "env-bucket",
+        }
+    )
+
+    assert settings.app_name == "runtime-env-app"
+    assert settings.file_transfer_bucket == "env-bucket"
+
+
+def test_settings_accept_field_name_keys() -> None:
+    """Settings should also accept canonical snake_case field names."""
+    settings = Settings.model_validate(
+        {
+            "app_name": "field-name-app",
+            "file_transfer_bucket": "field-bucket",
+        }
+    )
+
+    assert settings.app_name == "field-name-app"
+    assert settings.file_transfer_bucket == "field-bucket"
+
+
+def test_settings_model_dump_uses_field_names() -> None:
+    """Settings serialization should keep snake_case field names."""
+    settings = Settings.model_validate(
+        {
+            "APP_NAME": "serialized-app",
+            "FILE_TRANSFER_BUCKET": "serialized-bucket",
+        }
+    )
+
+    payload = settings.model_dump()
+
+    assert payload["app_name"] == "serialized-app"
+    assert payload["file_transfer_bucket"] == "serialized-bucket"
+    assert "APP_NAME" not in payload
+    assert "FILE_TRANSFER_BUCKET" not in payload
+
+
 def test_worker_runtime_requires_dynamodb_jobs_backend() -> None:
     """Worker mode should reject non-DynamoDB job persistence."""
     with pytest.raises(ValidationError, match="JOBS_REPOSITORY_BACKEND"):

@@ -57,10 +57,14 @@ EXTRA_RUNTIME_ENV_VARS = ("AWS_DEFAULT_REGION", "NOVA_RUNTIME_PROFILE")
 
 
 def _env_var_name(field_name: str, field: FieldInfo) -> str:
-    alias = field.alias
-    if isinstance(alias, str) and alias:
-        return alias
-    return field_name.upper()
+    validation_alias = field.validation_alias
+    if isinstance(validation_alias, str) and validation_alias.strip():
+        return validation_alias
+    raise ValueError(
+        "Runtime setting "
+        f"{field_name} must declare an explicit non-empty string "
+        "validation_alias"
+    )
 
 
 def _annotation_contains(annotation: Any, target: type[object]) -> bool:
@@ -639,6 +643,9 @@ def render_contract_markdown() -> str:
         "- `packages/nova_file_api/src/nova_file_api/config.py` (`Settings`)",
         "- `scripts/release/runtime_config_contract.py` "
         "(curated deploy/template metadata)",
+        "- Runtime env vars are derived only from explicit "
+        "`Settings` `validation_alias` values; `alias` and implicit uppercase "
+        "fallbacks are invalid",
         "",
         "## Canonical runtime settings",
         "",
