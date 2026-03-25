@@ -2,7 +2,7 @@
 
 Status: Active
 Owner: nova release architecture
-Last reviewed: 2026-03-24
+Last reviewed: 2026-03-25
 
 ## Purpose
 
@@ -50,7 +50,8 @@ indexes: [`release/README.md`](./release/README.md).
   `../release/runtime-config-contract.generated.md`, not fork into handwritten
   duplicates.
 - Use deeper runbooks for execution detail:
-  - `release/release-runbook.md` for release execution and npm/CodeArtifact rules
+  - `release/release-runbook.md` for release execution, the Node 24 LTS npm
+    baseline, and npm/CodeArtifact rules
   - `provisioning/deploy-runtime-cloudformation-environments.md` for deploy-input behavior
   - `provisioning/docker-buildx-credential-helper-setup.md` for local Docker repair
 

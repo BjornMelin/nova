@@ -224,6 +224,8 @@ Notes:
 - `scripts/release/generate_clients.py --check` requires the repo-installed
   root npm toolchain; run `npm ci` before generated TypeScript SDK gates so the
   local `openapi-typescript` CLI is available without ad hoc network fetches.
+- Use Node 24 LTS for local npm workspace commands that drive the TypeScript SDK
+  and conformance lanes; CI/release workflows use the same baseline.
 - `scripts/release/generate_python_clients.py --check` depends on the exact
   root dev dependency pin `openapi-python-client==0.28.3` plus the committed
   assets under `scripts/release/openapi_python_client/`. Treat generator-version

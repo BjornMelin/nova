@@ -2,7 +2,7 @@
 
 Status: Active
 Owner: nova release architecture
-Last reviewed: 2026-03-24
+Last reviewed: 2026-03-25
 
 ## Purpose
 
@@ -45,6 +45,8 @@ synchronization. They do not replace the architecture authority docs.
 The active CI layout uses a unified `Nova CI` workflow for runtime,
 generated-client, and conformance checks, plus a separate
 `CFN Contract Validate` workflow for infra/docs governance.
+Node 24 LTS is the current npm/TypeScript SDK tooling baseline for local,
+CI, and release lanes.
 
 Durable operator inputs must stay synchronized across scripts, templates, and
 docs. For runtime deploys, the ECS service stack now owns the repo-managed task
