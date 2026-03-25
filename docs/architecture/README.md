@@ -68,6 +68,18 @@ Use only for traceability:
 - `spec/superseded/`
 - `../history/`
 
+### Adjacent implemented baseline governance
+
+These remain the canonical baseline authority for the current deploy/runtime
+governance layer while wave-2 target-state implementation is still in progress:
+
+- `adr/ADR-0030-native-cfn-modular-stack-architecture-for-nova-infrastructure-productization.md`
+- `adr/ADR-0031-reusable-github-workflow-api-and-versioning-policy-for-deployment-automation.md`
+- `adr/ADR-0032-oidc-and-iam-role-partitioning-for-deploy-automation.md`
+- `spec/SPEC-0024-cloudformation-module-contract.md`
+- `spec/SPEC-0025-reusable-workflow-integration-contract.md`
+- `spec/SPEC-0026-ci-cd-iam-least-privilege-matrix.md`
+
 ## Recommended reading paths
 
 ### Operating or validating the current repo

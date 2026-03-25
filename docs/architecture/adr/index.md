@@ -10,6 +10,8 @@ Last reviewed: 2026-03-25
   not fully implemented yet
 - **Superseded** — traceability only
 
+This file is the ADR catalog and status index.
+
 ## Current implemented baseline
 
 | ADR | Title | Decision status | Implementation state | Date |

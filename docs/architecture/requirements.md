@@ -38,6 +38,8 @@ requirements for the first production release.
   `docs/clients/CLIENT-SDK-CANONICAL-PACKAGES.md`, and
   [requirements-wave-2.md](../requirements-wave-2.md). Current package names in
   the repo may still be pre-cut until the implementation branches land.
+  TypeScript 6 remains deferred until the repo-wide migration updates generated
+  SDK output, conformance fixtures, and release/docs references together.
 
 ## Green-field program requirements (GFR)
 

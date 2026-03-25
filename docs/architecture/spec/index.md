@@ -9,6 +9,8 @@ Last reviewed: 2026-03-25
 - **Accepted, planned** — approved target-state spec for wave-2 implementation
 - **Superseded** — historical / traceability only
 
+This file is the SPEC catalog and status index.
+
 ## Current implemented baseline
 
 | SPEC | Title | Decision status | Implementation state | Date |
