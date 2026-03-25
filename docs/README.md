@@ -36,8 +36,8 @@ safety:
 Use these when the question is about SDK packaging, release-grade TypeScript,
 or first-class internal R release artifacts:
 
-- `./architecture/adr/ADR-0038-sdk-architecture-by-language.md`
-- `./architecture/spec/SPEC-0029-sdk-architecture-and-artifact-contract.md`
+- `./architecture/adr/ADR-0037-sdk-generation-consolidation.md`
+- `./architecture/spec/SPEC-0030-sdk-generation-and-package-layout.md`
 - `./architecture/spec/SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md`
 
 ### Downstream consumer integration
@@ -97,6 +97,19 @@ authority docs:
 
 - `./overview/NOVA-REPO-OVERVIEW.md`
 - `./PRD.md`
+
+### Target-state planning supplements
+
+Use these when planning or executing the green-field v2 hard-cut program. They
+describe the approved target and current implementation gap; they do not by
+themselves replace the current active authority/runtime docs:
+
+- `./architecture/requirements-wave-2.md`
+- `./overview/CANONICAL-TARGET-2026-04.md`
+- `./overview/IMPLEMENTATION-STATUS-MATRIX.md`
+- `./plan/GREENFIELD-WAVE-2-EXECUTION.md`
+- `./contracts/BREAKING-CHANGES-V2.md`
+- `./clients/CLIENT-SDK-CANONICAL-PACKAGES.md`
 
 ### Historical material
 

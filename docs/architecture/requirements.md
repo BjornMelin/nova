@@ -10,13 +10,15 @@ requirements for the first production release.
 
 - Current production-target requirements use the `FR-*`, `NFR-*`, `IR-*`, and
   `GFR-*` IDs below.
-- Hard-cut **path** authority is active under `ADR-0023` + `SPEC-0016`; public
-  **auth and worker persistence** target state is under `ADR-0033` through
-  `ADR-0041`, `SPEC-0027` through `SPEC-0029`, and the
-  [green-field program](../plan/greenfield-simplification-program.md).
+- Hard-cut **path** authority remains active under `ADR-0023` + `SPEC-0016`.
+  Approved wave-2 target-state authority is tracked separately under
+  [requirements-wave-2.md](./requirements-wave-2.md), `ADR-0033` through
+  `ADR-0038`, `SPEC-0027` through `SPEC-0031`, and the
+  [Green-field wave 2 execution plan](../plan/GREENFIELD-WAVE-2-EXECUTION.md).
 - Runtime URL namespace is canonical `/v1/*` plus `/metrics/summary`; non-canonical
-  route families are removed. “Contract revision” in `SPEC-0027` refers to auth
-  and OpenAPI expression, not a `/v2/*` prefix unless a future ADR introduces it.
+  route families are removed. “Public API v2” in `SPEC-0027` is a contract
+  version covering auth model, exports/workflows, and OpenAPI surface changes,
+  not a `/v2/*` runtime prefix unless a future ADR introduces it.
 - Runtime API, runtime package ownership, runtime safety, and downstream
   validation authority are synchronized under `ADR-0024`, with runtime
   component/safety governance codified in `ADR-0025`, `ADR-0026`,
@@ -24,19 +26,21 @@ requirements for the first production release.
   contracts codified in `ADR-0027` through `ADR-0029` and `SPEC-0021` through
   `SPEC-0023`.
 - Shared request-context propagation, request-id parity, and canonical FastAPI
-  exception registration are owned by `nova_runtime_support` via the `ADR-0041`
-  transport cut and reused by FastAPI app factories.
+  exception registration remain required runtime behavior; the current baseline
+  implementation details are reflected in the runtime component/safety docs and
+  the approved target-state reset is tracked under `ADR-0038` / `SPEC-0031`.
 - Adjacent deploy-governance authority is isolated under `ADR-0030` through
   `ADR-0032` and `SPEC-0024` through `SPEC-0026`.
 - Superseded ADR/SPEC material is archived only under
   `docs/architecture/adr/superseded/**` and
   `docs/architecture/spec/superseded/**` (for example superseded `ADR-0005` and
   `SPEC-0007`).
-- Public SDK policy: Python public; TypeScript release-grade in CodeArtifact
-  (generator-owned, subpath-only, `openapi-typescript` + `openapi-fetch` stack
-  per `ADR-0038` / `SPEC-0029`, with the active workspace kept on the verified
-  TypeScript 5.x line while TypeScript 6 remains deferred); R first-class
-  internal release line (`httr2` thin client per `ADR-0038` / `SPEC-0029`).
+- Public SDK target-state policy is tracked under `ADR-0037` / `SPEC-0030`,
+  `docs/clients/CLIENT-SDK-CANONICAL-PACKAGES.md`, and
+  [requirements-wave-2.md](./requirements-wave-2.md). Current package names in
+  the repo may still be pre-cut until the implementation branches land.
+  TypeScript 6 remains deferred until the repo-wide migration updates generated
+  SDK output, conformance fixtures, and release/docs references together.
 
 ## Green-field program requirements (GFR)
 
@@ -44,58 +48,58 @@ Normative statements that drive the
 [green-field simplification program](../plan/greenfield-simplification-program.md).
 See also [greenfield-authority-map.md](../plan/greenfield-authority-map.md).
 
-### GFR-R1 — Single public runtime authority
+### GFR-R1 -- Single public runtime authority
 
 Nova MUST expose one canonical public API runtime. There MUST NOT be a separate
 auth microservice in the target architecture.
 
-### GFR-R2 — Auth context comes from verified claims
+### GFR-R2 -- Auth context comes from verified claims
 
 Public caller scope, tenant, and permissions MUST be derived from verified JWT
 claims rather than from request-body or custom-header surrogates (`session_id`,
 `X-Session-Id`, `X-Scope-Id`).
 
-### GFR-R3 — Async correctness is mandatory
+### GFR-R3 -- Async correctness is mandatory
 
 The API and worker MUST NOT rely on blocking auth or transport operations on
 async event-loop paths when async-native alternatives exist.
 
-### GFR-R4 — Public contract must be explicit
+### GFR-R4 -- Public contract must be explicit
 
 Typed request/response models and a stable public OpenAPI artifact remain
 required.
 
-### GFR-R5 — Worker must not self-call the API
+### GFR-R5 -- Worker must not self-call the API
 
 Worker completion and result updates MUST happen through shared code or direct
 persistence primitives, not HTTP callbacks into the API runtime.
 
-### GFR-R6 — SDKs must feel native per language
+### GFR-R6 -- SDKs must feel native per language
 
-Python, TypeScript, and R SDKs MUST follow the stacks in `ADR-0038` /
-`SPEC-0029` and active `SPEC-0012` conformance rules. Superseded `SPEC-0011` is
+Python, TypeScript, and R SDKs MUST follow the stacks in `ADR-0037` /
+`SPEC-0030` and active `SPEC-0012` conformance rules. Superseded `SPEC-0011` is
 indexed in [`spec/index.md`](./spec/index.md) (Superseded) for traceability
-only—not implementation authority.
+only, not implementation authority.
 
 For the current public file API contract, the R SDK MUST remain a thin `httr2`
 package with concrete OpenAPI parameter signatures, bearer-token auth, and
 JSON request/response handling aligned to the declared public media types.
 
-### GFR-R7 — Managed AWS services preferred
+### GFR-R7 -- Managed AWS services preferred
 
 Use managed AWS services when they reduce operational burden without violating
 workload needs (`ADR-0039`).
 
-### GFR-R8 — One client artifact family per language
+### GFR-R8 -- One client artifact family per language
 
 There MUST NOT be auth-only SDK families in the target architecture.
 
-### GFR-R9 — Deterministic build and verification
+### GFR-R9 -- Deterministic build and verification
 
 The repository MUST remain reproducible with `uv`, Ruff, mypy/pytest/`ty`, and
 language-specific SDK checks.
 
-### GFR-R10 — Repo should shrink after every accepted branch
+### GFR-R10 -- Repo should shrink after every accepted branch
 
 Every green-field branch SHOULD delete obsolete artifacts or enable later
 deletions; the program completes with a full repo rebaseline (`ADR-0040`).

@@ -1,21 +1,19 @@
-# Superseded Architecture Decisions
+# Superseded architecture decisions
 
-Status: Historical architecture decisions
-Last updated: 2026-03-05
+Status: Historical / non-authoritative
+Last reviewed: 2026-03-25
 
-Files in this directory are preserved for traceability only. They are not part
-of the active Nova architecture authority set and must not be referenced as
-current authority from `AGENTS.md`, `docs/PRD.md`,
-`docs/architecture/requirements.md`, `docs/plan/PLAN.md`, or the active
-sections of the ADR index.
+Files in this directory are preserved for traceability only.
 
-When an ADR is moved here:
+## What lives here
 
-- the superseding active ADR/SPEC must be linked from the archived file
-- the ADR index must list it under `Superseded`
-- any active references must be updated in the same change
+1. legacy ADRs that were once implemented and later replaced
+2. **wave-1 target drafts** that were superseded before implementation by the
+   wave-2 target-state ADR/SPEC set
 
-Recent supersession:
+## Rules
 
-- `ADR-0005` (dedicated auth service) → `ADR-0033` (green-field single runtime
-  auth authority)
+- do not cite these as current authority
+- use `../index.md` for the active status index
+- when a draft is superseded before implementation, keep it here with an
+  explicit notice naming the superseding target docs

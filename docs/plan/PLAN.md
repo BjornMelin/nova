@@ -16,6 +16,10 @@ standards and release runbook docs for the authoritative operator details.
 
 - `../PRD.md`
 - `../architecture/requirements.md`
+- `../architecture/requirements-wave-2.md` (approved target-state planning supplement)
+- `./GREENFIELD-WAVE-2-EXECUTION.md` (green-field v2 branch program)
+- `../overview/CANONICAL-TARGET-2026-04.md` (approved target-state overview)
+- `../overview/IMPLEMENTATION-STATUS-MATRIX.md` (current baseline vs target gap tracker)
 - `./greenfield-simplification-program.md` (canonical green-field program router)
 - `./greenfield-authority-map.md` (pack-ID translation and traceability map)
 - `../runbooks/README.md`
@@ -39,6 +43,7 @@ standards and release runbook docs for the authoritative operator details.
 | Path | Role |
 | --- | --- |
 | `PLAN.md` | This index (active planning + release pointers) |
+| `GREENFIELD-WAVE-2-EXECUTION.md` | Branch-ordered execution program for the green-field v2 hard cut |
 | `greenfield-simplification-program.md` | Green-field program narrative and execution router |
 | `greenfield-authority-map.md` | Maps historical pack IDs to canonical Nova ADRs and SPECs |
 | `greenfield-evidence/` | Non-normative evidence pack copies; index at `greenfield-evidence/README.md` |
