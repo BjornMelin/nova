@@ -161,6 +161,14 @@ class SharedRedisCache:
         """Replace the async Redis backend (tests / explicit wiring)."""
         self._client = client
 
+    async def aclose(self) -> None:
+        """Close the configured async Redis backend when present."""
+        client = self._client
+        if client is None:
+            return
+        self._client = None
+        await client.aclose()
+
     async def get_with_status(self, key: str) -> tuple[str | None, str]:
         """Get value and read status from shared backend.
 

@@ -1,12 +1,16 @@
 from __future__ import annotations
 
 import json
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from typing import override
 from unittest.mock import AsyncMock, Mock
 
+import httpx
 import nova_file_api.idempotency as idempotency_module
 import pytest
+from fastapi import FastAPI
 from nova_file_api.activity import MemoryActivityStore
 from nova_file_api.cache import SharedRedisCache, namespaced_cache_key
 from nova_file_api.config import Settings
@@ -170,6 +174,9 @@ class _ErrorRedisClient:
     async def ping(self) -> bool:
         return False
 
+    async def aclose(self) -> None:
+        return None
+
 
 class _ClaimOnlyRedisClient:
     def __init__(self) -> None:
@@ -211,6 +218,23 @@ class _ClaimOnlyRedisClient:
 
     async def ping(self) -> bool:
         return True
+
+    async def aclose(self) -> None:
+        return None
+
+
+@asynccontextmanager
+async def _lifespan_client(
+    app: FastAPI,
+) -> AsyncIterator[httpx.AsyncClient]:
+    async with (
+        app.router.lifespan_context(app),
+        httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app),
+            base_url="http://testserver",
+        ) as client,
+    ):
+        yield client
 
 
 def _shared_cache_with_client(client: object) -> SharedRedisCache:
@@ -290,28 +314,27 @@ async def test_v1_initiate_replays_response_for_same_idempotency_key() -> None:
     """Verify same initiate key+payload replays the cached response."""
     deps, transfer_service, _job_service = _build_deps()
     app = build_test_app(deps)
-    first = await request_app(
-        app,
-        "POST",
-        "/v1/transfers/uploads/initiate",
-        headers={"Idempotency-Key": "upload-key-1"},
-        json={
-            "filename": "sample.csv",
-            "size_bytes": 42,
-            "content_type": "text/csv",
-        },
-    )
-    second = await request_app(
-        app,
-        "POST",
-        "/v1/transfers/uploads/initiate",
-        headers={"Idempotency-Key": "upload-key-1"},
-        json={
-            "filename": "sample.csv",
-            "size_bytes": 42,
-            "content_type": "text/csv",
-        },
-    )
+    async with _lifespan_client(app) as client:
+        first = await client.request(
+            "POST",
+            "/v1/transfers/uploads/initiate",
+            headers={"Idempotency-Key": "upload-key-1"},
+            json={
+                "filename": "sample.csv",
+                "size_bytes": 42,
+                "content_type": "text/csv",
+            },
+        )
+        second = await client.request(
+            "POST",
+            "/v1/transfers/uploads/initiate",
+            headers={"Idempotency-Key": "upload-key-1"},
+            json={
+                "filename": "sample.csv",
+                "size_bytes": 42,
+                "content_type": "text/csv",
+            },
+        )
     assert first.status_code == 200
     assert second.status_code == 200
     assert first.json() == second.json()
@@ -323,28 +346,27 @@ async def test_v1_initiate_rejects_key_reuse_with_different_payload() -> None:
     """Verify key reuse with different initiate payload returns conflict."""
     deps, transfer_service, _job_service = _build_deps()
     app = build_test_app(deps)
-    first = await request_app(
-        app,
-        "POST",
-        "/v1/transfers/uploads/initiate",
-        headers={"Idempotency-Key": "upload-key-2"},
-        json={
-            "filename": "sample.csv",
-            "size_bytes": 42,
-            "content_type": "text/csv",
-        },
-    )
-    second = await request_app(
-        app,
-        "POST",
-        "/v1/transfers/uploads/initiate",
-        headers={"Idempotency-Key": "upload-key-2"},
-        json={
-            "filename": "sample.csv",
-            "size_bytes": 84,
-            "content_type": "text/csv",
-        },
-    )
+    async with _lifespan_client(app) as client:
+        first = await client.request(
+            "POST",
+            "/v1/transfers/uploads/initiate",
+            headers={"Idempotency-Key": "upload-key-2"},
+            json={
+                "filename": "sample.csv",
+                "size_bytes": 42,
+                "content_type": "text/csv",
+            },
+        )
+        second = await client.request(
+            "POST",
+            "/v1/transfers/uploads/initiate",
+            headers={"Idempotency-Key": "upload-key-2"},
+            json={
+                "filename": "sample.csv",
+                "size_bytes": 84,
+                "content_type": "text/csv",
+            },
+        )
     assert first.status_code == 200
     assert second.status_code == 409
     assert second.json()["error"]["code"] == "idempotency_conflict"
@@ -367,24 +389,52 @@ async def test_v1_jobs_allows_missing_idempotency_key_when_enabled() -> None:
 
 
 @pytest.mark.asyncio
-async def test_v1_jobs_replays_response_for_same_idempotency_key() -> None:
-    """Verify identical key+payload replays the cached enqueue response."""
+async def test_request_app_reuses_injected_shared_cache_across_lifespans() -> (
+    None
+):
+    """Verify repeated lifespan cycles on one test app preserve idempotency."""
     deps, _transfer_service, job_service = _build_deps()
     app = build_test_app(deps)
+
     first = await request_app(
         app,
         "POST",
         "/v1/jobs",
-        headers={"Idempotency-Key": "job-key-1"},
+        headers={"Idempotency-Key": "job-key-reentry"},
         json={"job_type": "transform", "payload": {"input": "a"}},
     )
     second = await request_app(
         app,
         "POST",
         "/v1/jobs",
-        headers={"Idempotency-Key": "job-key-1"},
+        headers={"Idempotency-Key": "job-key-reentry"},
         json={"job_type": "transform", "payload": {"input": "a"}},
     )
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert first.json() == second.json()
+    assert job_service.calls == 1
+
+
+@pytest.mark.asyncio
+async def test_v1_jobs_replays_response_for_same_idempotency_key() -> None:
+    """Verify identical key+payload replays the cached enqueue response."""
+    deps, _transfer_service, job_service = _build_deps()
+    app = build_test_app(deps)
+    async with _lifespan_client(app) as client:
+        first = await client.request(
+            "POST",
+            "/v1/jobs",
+            headers={"Idempotency-Key": "job-key-1"},
+            json={"job_type": "transform", "payload": {"input": "a"}},
+        )
+        second = await client.request(
+            "POST",
+            "/v1/jobs",
+            headers={"Idempotency-Key": "job-key-1"},
+            json={"job_type": "transform", "payload": {"input": "a"}},
+        )
     assert first.status_code == 200
     assert second.status_code == 200
     parsed_first = EnqueueJobResponse.model_validate(first.json())
@@ -398,20 +448,19 @@ async def test_v1_jobs_reject_key_reuse_with_different_payload() -> None:
     """Verify same key with different payload returns idempotency conflict."""
     deps, _transfer_service, job_service = _build_deps()
     app = build_test_app(deps)
-    first = await request_app(
-        app,
-        "POST",
-        "/v1/jobs",
-        headers={"Idempotency-Key": "job-key-2"},
-        json={"job_type": "transform", "payload": {"input": "a"}},
-    )
-    second = await request_app(
-        app,
-        "POST",
-        "/v1/jobs",
-        headers={"Idempotency-Key": "job-key-2"},
-        json={"job_type": "transform", "payload": {"input": "b"}},
-    )
+    async with _lifespan_client(app) as client:
+        first = await client.request(
+            "POST",
+            "/v1/jobs",
+            headers={"Idempotency-Key": "job-key-2"},
+            json={"job_type": "transform", "payload": {"input": "a"}},
+        )
+        second = await client.request(
+            "POST",
+            "/v1/jobs",
+            headers={"Idempotency-Key": "job-key-2"},
+            json={"job_type": "transform", "payload": {"input": "b"}},
+        )
     assert first.status_code == 200
     assert second.status_code == 409
     assert second.json()["error"]["code"] == "idempotency_conflict"
@@ -426,20 +475,19 @@ async def test_v1_jobs_failed_enqueue_is_not_idempotency_replayed() -> None:
     deps.job_service = flaky_job_service
     app = build_test_app(deps)
 
-    first = await request_app(
-        app,
-        "POST",
-        "/v1/jobs",
-        headers={"Idempotency-Key": "job-key-failed-enqueue"},
-        json={"job_type": "transform", "payload": {"input": "a"}},
-    )
-    second = await request_app(
-        app,
-        "POST",
-        "/v1/jobs",
-        headers={"Idempotency-Key": "job-key-failed-enqueue"},
-        json={"job_type": "transform", "payload": {"input": "a"}},
-    )
+    async with _lifespan_client(app) as client:
+        first = await client.request(
+            "POST",
+            "/v1/jobs",
+            headers={"Idempotency-Key": "job-key-failed-enqueue"},
+            json={"job_type": "transform", "payload": {"input": "a"}},
+        )
+        second = await client.request(
+            "POST",
+            "/v1/jobs",
+            headers={"Idempotency-Key": "job-key-failed-enqueue"},
+            json={"job_type": "transform", "payload": {"input": "a"}},
+        )
 
     assert first.status_code == 503
     assert first.json()["error"]["code"] == "queue_unavailable"
@@ -490,28 +538,27 @@ async def test_v1_initiate_store_failure_is_not_replayed() -> None:
     )
     app = build_test_app(deps)
 
-    first = await request_app(
-        app,
-        "POST",
-        "/v1/transfers/uploads/initiate",
-        headers={"Idempotency-Key": "upload-key-commit-outage"},
-        json={
-            "filename": "sample.csv",
-            "size_bytes": 42,
-            "content_type": "text/csv",
-        },
-    )
-    second = await request_app(
-        app,
-        "POST",
-        "/v1/transfers/uploads/initiate",
-        headers={"Idempotency-Key": "upload-key-commit-outage"},
-        json={
-            "filename": "sample.csv",
-            "size_bytes": 42,
-            "content_type": "text/csv",
-        },
-    )
+    async with _lifespan_client(app) as client:
+        first = await client.request(
+            "POST",
+            "/v1/transfers/uploads/initiate",
+            headers={"Idempotency-Key": "upload-key-commit-outage"},
+            json={
+                "filename": "sample.csv",
+                "size_bytes": 42,
+                "content_type": "text/csv",
+            },
+        )
+        second = await client.request(
+            "POST",
+            "/v1/transfers/uploads/initiate",
+            headers={"Idempotency-Key": "upload-key-commit-outage"},
+            json={
+                "filename": "sample.csv",
+                "size_bytes": 42,
+                "content_type": "text/csv",
+            },
+        )
 
     assert first.status_code == 503
     assert first.json()["error"]["code"] == "idempotency_unavailable"
@@ -531,20 +578,19 @@ async def test_v1_jobs_store_failure_blocks_duplicate_enqueue() -> None:
     )
     app = build_test_app(deps)
 
-    first = await request_app(
-        app,
-        "POST",
-        "/v1/jobs",
-        headers={"Idempotency-Key": "job-key-commit-outage"},
-        json={"job_type": "transform", "payload": {"input": "a"}},
-    )
-    second = await request_app(
-        app,
-        "POST",
-        "/v1/jobs",
-        headers={"Idempotency-Key": "job-key-commit-outage"},
-        json={"job_type": "transform", "payload": {"input": "a"}},
-    )
+    async with _lifespan_client(app) as client:
+        first = await client.request(
+            "POST",
+            "/v1/jobs",
+            headers={"Idempotency-Key": "job-key-commit-outage"},
+            json={"job_type": "transform", "payload": {"input": "a"}},
+        )
+        second = await client.request(
+            "POST",
+            "/v1/jobs",
+            headers={"Idempotency-Key": "job-key-commit-outage"},
+            json={"job_type": "transform", "payload": {"input": "a"}},
+        )
 
     assert first.status_code == 503
     assert first.json()["error"]["code"] == "idempotency_unavailable"

@@ -28,6 +28,18 @@ from nova_file_api.routes import (
     transfer_router,
 )
 
+_RUNTIME_STATE_KEYS = (
+    "metrics",
+    "shared_cache",
+    "cache",
+    "authenticator",
+    "transfer_service",
+    "job_repository",
+    "job_service",
+    "activity_store",
+    "idempotency_store",
+)
+
 
 async def _close_authenticator(*, app: FastAPI) -> None:
     """Close the app authenticator when it exposes an async close hook."""
@@ -36,6 +48,22 @@ async def _close_authenticator(*, app: FastAPI) -> None:
     )
     if callable(close_authenticator):
         await close_authenticator()
+
+
+async def _close_shared_cache(*, app: FastAPI) -> None:
+    """Close the app shared cache when it exposes an async close hook."""
+    close_shared_cache = getattr(
+        getattr(app.state, "shared_cache", None), "aclose", None
+    )
+    if callable(close_shared_cache):
+        await close_shared_cache()
+
+
+def _clear_runtime_state(*, app: FastAPI) -> None:
+    """Invalidate runtime-owned singletons so the next lifespan rebuilds."""
+    for key in _RUNTIME_STATE_KEYS:
+        if hasattr(app.state, key):
+            setattr(app.state, key, None)
 
 
 def create_app(*, settings: Settings | None = None) -> FastAPI:
@@ -53,8 +81,11 @@ def create_app(*, settings: Settings | None = None) -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+        manage_runtime_state = not getattr(
+            app.state, "_skip_runtime_state_initialization", False
+        )
         try:
-            if getattr(app.state, "_skip_runtime_state_initialization", False):
+            if not manage_runtime_state:
                 yield
             else:
                 runtime_settings = app.state.settings
@@ -114,7 +145,10 @@ def create_app(*, settings: Settings | None = None) -> FastAPI:
                     )
                     yield
         finally:
-            await _close_authenticator(app=app)
+            if manage_runtime_state:
+                await _close_authenticator(app=app)
+                await _close_shared_cache(app=app)
+                _clear_runtime_state(app=app)
 
     app = RequestContextFastAPI(
         title="nova-file-api",

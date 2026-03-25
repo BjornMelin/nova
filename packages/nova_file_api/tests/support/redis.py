@@ -15,6 +15,7 @@ class MemoryRedisClient:
     def __init__(self) -> None:
         """Initialize an empty in-memory Redis-like store."""
         self._data: dict[str, str] = {}
+        self.closed = False
 
     def replace_string(self, key: str, value: str) -> None:
         """Set ``key`` to ``value``, overwriting any prior entry.
@@ -101,6 +102,10 @@ class MemoryRedisClient:
             ``True`` because this in-memory backend is always available.
         """
         return True
+
+    async def aclose(self) -> None:
+        """Record explicit client shutdown for lifecycle tests."""
+        self.closed = True
 
 
 @pytest.fixture

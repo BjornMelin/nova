@@ -202,6 +202,7 @@ def build_test_app(deps: RuntimeDeps) -> FastAPI:
     app.state._idempotency_store_provider = lambda: deps.idempotency_store
     app.state.shared_cache = deps.shared_cache
     app.state.cache = deps.cache
+    app.state.authenticator = deps.authenticator
     app.state.settings = deps.settings
     app.dependency_overrides[get_settings] = _override(deps.settings)
     app.dependency_overrides[get_metrics] = _override(deps.metrics)
