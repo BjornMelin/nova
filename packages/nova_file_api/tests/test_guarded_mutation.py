@@ -4,6 +4,7 @@ from typing import Any
 
 import pytest
 from nova_file_api.guarded_mutation import run_guarded_mutation
+from nova_file_api.idempotency import IdempotencyStore
 from pydantic import BaseModel
 
 
@@ -11,15 +12,23 @@ class _ResponseModel(BaseModel):
     value: str
 
 
-class _FakeIdempotencyStore:
+class _FakeIdempotencyStore(IdempotencyStore):
     def __init__(self) -> None:
-        self.enabled = True
+        self._enabled = True
         self.replay: dict[str, Any] | None = None
         self.claim_result = True
         self.stored_payload: dict[str, Any] | None = None
         self.discard_calls = 0
         self.raise_on_store = False
         self.raise_on_discard = False
+
+    @property
+    def enabled(self) -> bool:
+        return self._enabled
+
+    @enabled.setter
+    def enabled(self, value: bool) -> None:
+        self._enabled = value
 
     async def load_response(self, **_: Any) -> dict[str, Any] | None:
         return self.replay
@@ -57,7 +66,7 @@ async def test_run_guarded_mutation_replays_response() -> None:
         route="/v1/test",
         scope_id="scope-1",
         request_payload={"value": "x"},
-        idempotency_store=store,  # type: ignore[arg-type]
+        idempotency_store=store,
         idempotency_key="abc",
         response_model=_ResponseModel,
         replay_metric=lambda: replayed.append("hit"),
@@ -93,7 +102,7 @@ async def test_replay_metric_failure_is_best_effort() -> None:
         route="/v1/test",
         scope_id="scope-1",
         request_payload={"value": "x"},
-        idempotency_store=store,  # type: ignore[arg-type]
+        idempotency_store=store,
         idempotency_key="abc",
         response_model=_ResponseModel,
         replay_metric=_raise_metric_failure,
@@ -126,7 +135,7 @@ async def test_run_guarded_mutation_discards_claim_on_failure() -> None:
             route="/v1/test",
             scope_id="scope-1",
             request_payload={"value": "x"},
-            idempotency_store=store,  # type: ignore[arg-type]
+            idempotency_store=store,
             idempotency_key="abc",
             response_model=_ResponseModel,
             replay_metric=lambda: None,
@@ -159,7 +168,7 @@ async def test_discard_claim_when_failure_hook_raises() -> None:
             route="/v1/test",
             scope_id="scope-1",
             request_payload={"value": "x"},
-            idempotency_store=store,  # type: ignore[arg-type]
+            idempotency_store=store,
             idempotency_key="abc",
             response_model=_ResponseModel,
             replay_metric=lambda: None,
@@ -191,7 +200,7 @@ async def test_run_guarded_mutation_stores_response_and_runs_success() -> None:
         route="/v1/test",
         scope_id="scope-1",
         request_payload={"value": "x"},
-        idempotency_store=store,  # type: ignore[arg-type]
+        idempotency_store=store,
         idempotency_key="abc",
         response_model=_ResponseModel,
         replay_metric=lambda: None,
@@ -227,7 +236,7 @@ async def test_run_guarded_mutation_disabled_store_skips_claim_flow() -> None:
         route="/v1/test",
         scope_id="scope-1",
         request_payload={"value": "x"},
-        idempotency_store=store,  # type: ignore[arg-type]
+        idempotency_store=store,
         idempotency_key="abc",
         response_model=_ResponseModel,
         replay_metric=lambda: None,
@@ -264,7 +273,7 @@ async def test_claim_false_without_replay_conflicts() -> None:
             route="/v1/test",
             scope_id="scope-1",
             request_payload={"value": "x"},
-            idempotency_store=store,  # type: ignore[arg-type]
+            idempotency_store=store,
             idempotency_key="abc",
             response_model=_ResponseModel,
             replay_metric=lambda: None,
@@ -302,7 +311,7 @@ async def test_run_guarded_mutation_store_failure_raise_preserves_claim() -> (
             route="/v1/test",
             scope_id="scope-1",
             request_payload={"value": "x"},
-            idempotency_store=store,  # type: ignore[arg-type]
+            idempotency_store=store,
             idempotency_key="abc",
             response_model=_ResponseModel,
             replay_metric=lambda: None,

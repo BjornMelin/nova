@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any, cast
+
 import pytest
 from fastapi import FastAPI
 from nova_file_api.config import Settings
@@ -80,7 +82,7 @@ def test_initialize_runtime_state_requires_s3_client() -> None:
     settings = _settings()
     settings.idempotency_enabled = False
     with pytest.raises(TypeError):
-        initialize_runtime_state(  # type: ignore[call-arg]
+        cast(Any, initialize_runtime_state)(
             FastAPI(),
             settings=settings,
         )

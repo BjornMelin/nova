@@ -12,7 +12,11 @@ import nova_file_api.idempotency as idempotency_module
 import pytest
 from fastapi import FastAPI
 from nova_file_api.activity import MemoryActivityStore
-from nova_file_api.cache import SharedRedisCache, namespaced_cache_key
+from nova_file_api.cache import (
+    AsyncRedisClientProtocol,
+    SharedRedisCache,
+    namespaced_cache_key,
+)
 from nova_file_api.config import Settings
 from nova_file_api.dependencies import (
     build_idempotency_store,
@@ -237,9 +241,11 @@ async def _lifespan_client(
         yield client
 
 
-def _shared_cache_with_client(client: object) -> SharedRedisCache:
+def _shared_cache_with_client(
+    client: AsyncRedisClientProtocol,
+) -> SharedRedisCache:
     shared_cache = SharedRedisCache(url=None)
-    shared_cache._client = client  # type: ignore[assignment]
+    shared_cache._client = client
     return shared_cache
 
 

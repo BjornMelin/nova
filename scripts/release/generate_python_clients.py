@@ -113,15 +113,17 @@ def _filter_internal_operations_for_public_sdk(
     for path, path_item in list(paths.items()):
         if not isinstance(path_item, dict):
             continue
-        for method, operation in list(path_item.items()):
+        path_item_mapping = cast("dict[str, object]", path_item)
+        for method, operation in list(path_item_mapping.items()):
             if method not in _HTTP_METHODS or not isinstance(operation, dict):
                 continue
+            operation_mapping = cast("dict[str, object]", operation)
             if (
-                operation.get(SDK_VISIBILITY_EXTENSION)
+                operation_mapping.get(SDK_VISIBILITY_EXTENSION)
                 == SDK_VISIBILITY_INTERNAL
             ):
-                del path_item[method]
-        if not any(method in _HTTP_METHODS for method in path_item):
+                del path_item_mapping[method]
+        if not any(method in _HTTP_METHODS for method in path_item_mapping):
             del paths[path]
     return filtered
 
