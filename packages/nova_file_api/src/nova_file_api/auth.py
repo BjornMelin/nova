@@ -98,7 +98,7 @@ class Authenticator:
 
         verifier = self._verifier
         if verifier is None:
-            raise unauthorized("local jwt mode is misconfigured")
+            raise unauthorized("bearer verifier is misconfigured")
 
         try:
             claims = await verifier.verify_access_token(token)

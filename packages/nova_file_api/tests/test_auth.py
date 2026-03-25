@@ -72,7 +72,7 @@ async def test_authenticator_aclose_closes_async_verifier() -> None:
 
 
 @pytest.mark.asyncio
-async def test_jwt_mode_uses_principal_claim_scope(
+async def test_bearer_auth_uses_principal_claim_scope(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     settings = Settings()
