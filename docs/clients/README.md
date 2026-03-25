@@ -123,8 +123,7 @@ Generator-facing OpenAPI rules that downstream consumers can rely on:
 ## R Shiny consumer baseline
 
 - Authenticate to Nova with bearer JWT only.
-- Do not call or document `nova-auth-api`, `/v1/token/verify`, or
-  `/v1/token/introspect`.
+- Do not call or document retired auth-verification service endpoints.
 - Fail closed on missing `NOVA_API_BASE_URL` / `NOVA_FILE_BEARER_TOKEN` in the
   consumer repo's real bootstrap path.
 - Keep consumer-side wrappers thin and app-owned; Nova remains the HTTP client

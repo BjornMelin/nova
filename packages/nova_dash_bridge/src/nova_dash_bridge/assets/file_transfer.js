@@ -47,8 +47,8 @@
       var response = await fetch(url, {
         method: "POST",
         headers: mergedHeaders,
-        credentials: "same-origin",
         body: JSON.stringify(payload),
+        credentials: "omit",
         signal: controller.signal,
       });
       var data = await response.json().catch(function () {
@@ -88,7 +88,7 @@
       var response = await fetch(url, {
         method: "GET",
         headers: mergedHeaders,
-        credentials: "same-origin",
+        credentials: "omit",
         signal: controller.signal,
       });
       var data = await response.json().catch(function () {
@@ -130,6 +130,7 @@
     try {
       return await fetch(url, {
         method: "PUT",
+        credentials: "omit",
         signal: controller.signal,
         ...options,
       });
