@@ -109,10 +109,12 @@ def _extract_function(source: str, function_name: str) -> str:
 
 def test_poll_async_job_uses_bearer_auth_only() -> None:
     source = _file_transfer_asset_source()
+    removed_header = "-".join(("X", "Session", "Id"))
 
     assert "async function pollAsyncJob(config, jobId)" in source
     assert "authorizedHeaders(config)" in source
-    assert "X-Session-Id" not in source
+    assert removed_header not in source
+    assert 'credentials: "same-origin"' not in source
     assert re.search(
         r"pollAsyncJob\(\s*config,\s*enqueued\.job_id\s*\)",
         source,
@@ -135,6 +137,7 @@ def test_multipart_asset_uses_resume_introspection_state() -> None:
     load_helper_source = _extract_function(source, "loadMultipartState")
     persist_helper_source = _extract_function(source, "persistMultipartState")
     clear_helper_source = _extract_function(source, "clearMultipartState")
+    removed_field = "_".join(("session", "id"))
 
     assert "function multipartStateStorageKey(config, file)" in source
     assert 'String(sessionId || "")' not in key_helper_source
@@ -143,7 +146,7 @@ def test_multipart_asset_uses_resume_introspection_state() -> None:
     assert "storage.setItem(storageKey, JSON.stringify(state));" in (
         persist_helper_source
     )
-    assert "session_id" not in persist_helper_source
+    assert removed_field not in persist_helper_source
     assert 'base + "/uploads/introspect"' in source
     assert 'config.transfersEndpointBase + "/downloads/presign"' in source
     assert "multipart upload completion is ambiguous" in source

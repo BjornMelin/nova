@@ -1,7 +1,7 @@
 # Nova architecture authority map
 
 Status: Active
-Current repository state: **pre-wave-2 implementation baseline**
+Current repository state: **partial wave-2 implementation**
 Last reviewed: 2026-03-25
 
 ## Purpose
@@ -18,10 +18,11 @@ Use it before opening any ADR or SPEC.
 
 ### Current implemented baseline
 
-The current repository still reflects the older architecture family:
+The current repository is in a mixed state: the auth hard cut has landed, while
+other wave-2 tracks are still pending.
 
 - public transfer APIs plus generic jobs
-- dedicated auth-service-era topology and auth package split
+- bearer JWT only, verified in-process in the main API
 - Redis in correctness/idempotency paths
 - ECS/Fargate + ALB + SQS worker as the documented runtime baseline
 

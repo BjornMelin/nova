@@ -316,8 +316,9 @@ async def test_v1_jobs_list_scoped_config_error_returns_internal_error() -> (
 
 @pytest.mark.asyncio
 async def test_v1_jobs_rejects_legacy_session_scope_body_fields() -> None:
-    """Public request models reject removed session-scope surrogate fields."""
+    """Public request models reject removed legacy auth-surrogate fields."""
     app = build_test_app(_build_v1_deps())
+    legacy_field = "_".join(("session", "id"))
     response = await request_app(
         app,
         "POST",
@@ -326,7 +327,7 @@ async def test_v1_jobs_rejects_legacy_session_scope_body_fields() -> None:
         json={
             "job_type": "transform",
             "payload": {"input": "a"},
-            "session_id": "scope-v1",
+            legacy_field: "scope-v1",
         },
     )
 

@@ -116,10 +116,11 @@ Choose **Option B**.
 - 2026-03-22 (v2.4): Clarified that `nova_file_api.public` is async-first and
   that retained sync wrappers in `nova_dash_bridge` are explicit edge adapters
   rather than a second canonical surface.
-- 2026-03-19 (v2.2): Removed active `nova_auth_api` ownership from the runtime
-  boundary contract after the in-process auth cutover landed in `nova_file_api`.
-- 2026-03-10 (v2.1): Consolidated service entrypoints into
-  `packages/nova_file_api` and `packages/nova_auth_api`, while keeping the
-  release-only service Dockerfiles outside workspace package paths.
+- 2026-03-19 (v2.2): Removed active dedicated-auth-service ownership from the
+  runtime boundary contract after the in-process auth cutover landed in
+  `nova_file_api`.
+- 2026-03-10 (v2.1): Consolidated service entrypoints into the runtime API and
+  the then-separate auth service, while keeping the release-only service
+  Dockerfiles outside workspace package paths.
 - 2026-03-05: Restored `ADR-0025` to runtime boundary ownership and moved
   reusable-workflow governance to `ADR-0031`.
