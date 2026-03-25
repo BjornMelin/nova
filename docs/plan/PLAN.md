@@ -22,7 +22,8 @@ standards and release runbook docs for the authoritative operator details.
 - `../runbooks/release/README.md` (release validation and policy)
 - `../runbooks/provisioning/README.md` (first-time deploy and CI/CD setup)
 - `../release/README.md` (committed release artifacts: manifest, generated runtime contract)
-- `../release/runtime-config-contract.generated.md`
+- `../release/runtime-config-contract.generated.md` (env vars come from
+  explicit `Settings.validation_alias` mappings)
 - `../release/RELEASE-VERSION-MANIFEST.md`
 
 ## Supporting and Traceability Material

@@ -90,6 +90,9 @@ Generated runtime-config matrix:
   artifact generated from the canonical runtime settings contract. It documents
   current env vars, `ENV_VARS_JSON` support, and ECS template wiring without
   becoming an independent authority.
+- Runtime env var names come from explicit string `Settings.validation_alias`
+  values in `config.py`; contract tooling must not read `alias` or invent
+  uppercase env names implicitly.
 
 ### Downstream validation authority
 

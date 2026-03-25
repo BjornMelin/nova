@@ -174,6 +174,9 @@ Runtime deploy/config drift guard:
   source of truth.
 - `scripts/release/runtime_config_contract.py` adds the curated deploy/template
   metadata that cannot be inferred from `Settings` alone.
+- Runtime settings must declare explicit string `validation_alias` values for
+  operator-facing env vars. Release tooling reads `validation_alias`, not
+  `alias`, and does not infer env var names from field names.
 - `docs/release/runtime-config-contract.generated.md` is the generated
   operator-facing matrix. Refresh it with
   `scripts/release/generate_runtime_config_contract.py`.

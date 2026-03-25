@@ -250,6 +250,10 @@ Notes:
   `scripts/release/runtime_config_contract.py` as the source-of-truth pair and
   keep `docs/release/runtime-config-contract.generated.md` fresh via
   `scripts/release/generate_runtime_config_contract.py`.
+- Runtime settings in `config.py` must declare explicit string
+  `Field(validation_alias="ENV_VAR")` mappings. Release tooling reads
+  `field.validation_alias` only; do not use `alias=` or implicit uppercase
+  env-name derivation for runtime settings.
 - CI also enforces a stronger canonical-route policy guard in
   `.github/workflows/ci.yml`. Use the quick route preflight above before
   broader edits.

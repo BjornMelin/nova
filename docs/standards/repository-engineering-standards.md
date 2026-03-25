@@ -241,6 +241,9 @@ governance:
   `packages/nova_file_api/src/nova_file_api/config.py` plus
   `scripts/release/runtime_config_contract.py` as authority and keep
   `docs/release/runtime-config-contract.generated.md` fresh.
+- Runtime settings must declare explicit string `Field(validation_alias=…)`
+  env mappings. Contract tooling reads `field.validation_alias` only; do not
+  rely on `alias=` or implicit uppercase fallback.
 - `docs/clients/README.md` is downstream integration guidance only. It must
   remain subordinate to the active authority docs and not become the primary
   SDK release authority.

@@ -85,6 +85,8 @@ Choose **Option B**.
 8. Deploy scripts, infra tests, and operator docs consume a generated
    runtime-config contract artifact derived from the typed runtime settings plus
    the minimal curated deploy metadata required for ECS template wiring.
+9. Runtime settings declare explicit string `validation_alias` values for env
+   names, and release tooling reads `validation_alias` only.
 
 ## Consequences
 
@@ -134,3 +136,6 @@ on async handlers until and unless fully eliminated.
   required deploy/docs/test anti-drift mechanism.
 - 2026-03-19: Updated the ADR for the async-native in-process verifier and the
   retired remote-auth path.
+- 2026-03-25: Tightened the runtime-config contract to require explicit string
+  `validation_alias` mappings and removed implicit env-name derivation from the
+  release tooling path.

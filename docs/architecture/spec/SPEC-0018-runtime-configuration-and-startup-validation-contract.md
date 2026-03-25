@@ -27,7 +27,11 @@ readiness semantics for Nova runtime packages.
    `Settings` alone.
 4. `scripts/release/generate_runtime_config_contract.py` must keep the
    committed runtime-config JSON and Markdown artifacts current.
-5. Bridge code must not mutate `nova_file_api.Settings()` or recreate runtime
+5. Each externally configurable runtime setting must declare one explicit
+   non-empty string `validation_alias`.
+6. Release tooling derives env var names from `field.validation_alias` only and
+   does not fall back to `alias` or `FIELD_NAME.upper()`.
+7. Bridge code must not mutate `nova_file_api.Settings()` or recreate runtime
    authority through ambient settings rewriting.
 
 ## 3. Fail-fast startup rules
