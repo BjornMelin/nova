@@ -351,7 +351,7 @@ def test_docs_router_separates_sdk_governance_from_downstream_consumers() -> (
         "### Contract schemas",
         "./contracts/README.md",
         "./clients/README.md",
-        "./architecture/spec/SPEC-0029-sdk-architecture-and-artifact-contract.md",
+        "./architecture/spec/SPEC-0030-sdk-generation-and-package-layout.md",
     ]:
         assert required in text
 
@@ -363,9 +363,8 @@ def test_architecture_router_owns_narrative_authority_map() -> None:
     spec_index = _read("docs/architecture/spec/index.md")
 
     for required in [
-        "SPEC-0027-public-http-contract-revision-and-bearer-auth.md",
+        "SPEC-0027-public-api-v2.md",
         "ADR-0030-native-cfn-modular-stack-architecture-for-nova-infrastructure-productization.md",
-        "ADR-0039-aws-target-platform.md",
         "SPEC-0024-cloudformation-module-contract.md",
         "SPEC-0025-reusable-workflow-integration-contract.md",
         "SPEC-0026-ci-cd-iam-least-privilege-matrix.md",
@@ -388,13 +387,34 @@ def test_sdk_toolchain_authorities_keep_typescript_six_deferred() -> None:
     standards = _read("docs/standards/repository-engineering-standards.md")
     requirements = _read("docs/architecture/requirements.md")
     sdk_spec = _read(
-        "docs/architecture/spec/SPEC-0029-sdk-architecture-and-artifact-contract.md"
+        "docs/architecture/spec/SPEC-0030-sdk-generation-and-package-layout.md"
     )
 
     assert "TypeScript 5.x" in standards
     assert "TypeScript 6 remains deferred" in standards
     assert "TypeScript 6 remains deferred" in sdk_spec
     assert "TypeScript 6 remains deferred" in requirements
+
+
+def test_wave_one_target_docs_move_to_superseded_with_same_filenames() -> None:
+    """Superseded wave-one target docs stay archived under unchanged names."""
+    for rel_path in [
+        "docs/architecture/adr/superseded/ADR-0033-single-runtime-auth-authority.md",
+        "docs/architecture/adr/superseded/ADR-0034-bearer-jwt-public-auth-contract.md",
+        "docs/architecture/adr/superseded/ADR-0035-worker-direct-result-persistence.md",
+        "docs/architecture/adr/superseded/ADR-0036-native-fastapi-openapi-contract.md",
+        "docs/architecture/adr/superseded/ADR-0037-async-first-public-surface.md",
+        "docs/architecture/adr/superseded/ADR-0038-sdk-architecture-by-language.md",
+        "docs/architecture/adr/superseded/ADR-0039-aws-target-platform.md",
+        "docs/architecture/adr/superseded/ADR-0040-repo-rebaseline-after-cuts.md",
+        "docs/architecture/adr/superseded/ADR-0041-shared-pure-asgi-middleware-and-errors.md",
+        "docs/architecture/spec/superseded/SPEC-0027-public-http-contract-revision-and-bearer-auth.md",
+        "docs/architecture/spec/superseded/SPEC-0028-worker-job-lifecycle-and-direct-result-path.md",
+        "docs/architecture/spec/superseded/SPEC-0029-sdk-architecture-and-artifact-contract.md",
+    ]:
+        assert (REPO_ROOT / rel_path).is_file(), (
+            f"Expected superseded wave-one authority doc to exist: {rel_path}"
+        )
 
 
 def test_root_authorities_capture_runtime_dependency_floor_baseline() -> None:
