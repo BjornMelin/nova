@@ -255,6 +255,7 @@ def test_unified_ci_workflow_exists_for_runtime_and_conformance_gates() -> None:
     for required in [
         "classify-changes",
         "quality-gates",
+        "python-compatibility",
         "generated-clients",
         "typescript-core-packages",
         "typescript-sdk-smoke",
@@ -272,6 +273,7 @@ def test_required_ci_workflows_use_scope_classifier_gate() -> None:
         ".github/workflows/ci.yml": {
             "gated_jobs": {
                 "quality-gates": "run_runtime_ci",
+                "python-compatibility": "run_runtime_ci",
                 "generated-clients": "run_generated_clients",
                 "typescript-core-packages": "run_typescript_conformance",
                 "typescript-sdk-smoke": "run_typescript_conformance",

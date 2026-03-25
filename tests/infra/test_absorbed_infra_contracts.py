@@ -1087,6 +1087,8 @@ def test_release_buildspec_single_digest_contracts() -> None:
     text = _read("buildspecs/buildspec-release.yml")
 
     for token in [
+        'python: "3.13"',
+        "uv sync --locked --all-packages --all-extras --dev",
         "FILE_IMAGE_DIGEST",
         "FILE_DOCKERFILE_PATH",
         'FILE_IMAGE_TAG="file-${IMAGE_TAG}"',
@@ -1097,6 +1099,8 @@ def test_release_buildspec_single_digest_contracts() -> None:
         assert token in text
 
     for token in [
+        'python: "3.12"',
+        "uv sync --frozen",
         "AUTH_IMAGE_DIGEST",
         "AUTH_DOCKERFILE_PATH",
         'AUTH_IMAGE_TAG="auth-${IMAGE_TAG}"',
