@@ -122,7 +122,8 @@ For detailed SDK governance and generation rules, use:
 
 ## Local Development
 
-Install the root npm toolchain before running generated TypeScript SDK checks:
+Install the root npm toolchain with Node 24 LTS before running generated
+TypeScript SDK checks:
 
 ```bash
 npm ci

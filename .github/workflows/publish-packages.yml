@@ -193,7 +193,7 @@ jobs:
         if: steps.release-formats.outputs.has_npm == 'true'
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # actions/setup-node@v6
         with:
-          node-version: "22"
+          node-version: "24"
           cache: npm
           cache-dependency-path: package-lock.json
 

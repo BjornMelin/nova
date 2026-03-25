@@ -1,7 +1,7 @@
 # Plan Index
 
 Status: Active planning and release index
-Last updated: 2026-03-24
+Last updated: 2026-03-25
 
 ## Purpose
 
@@ -9,6 +9,8 @@ This file routes readers to active planning and release documents. For
 architecture authority, use `../architecture/README.md`. For operator runbooks,
 use `../runbooks/README.md`. Archived program material lives under
 [`../history/README.md`](../history/README.md) only when you need traceability.
+The active npm/TypeScript SDK workflow baseline is Node 24 LTS; use the
+standards and release runbook docs for the authoritative operator details.
 
 ## Active Planning and Release Entry Points
 

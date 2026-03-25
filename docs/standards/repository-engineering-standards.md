@@ -2,7 +2,7 @@
 
 Status: Active
 Owner: nova release architecture
-Last reviewed: 2026-03-24
+Last reviewed: 2026-03-25
 
 ## Purpose
 
@@ -181,6 +181,9 @@ Toolchain baseline notes:
 - `pyproject.toml` pins the supported `uv` CLI via
   `[tool.uv].required-version`; keep CI and local bootstrap flows on that
   version unless a repo-wide verification run intentionally bumps it.
+- Node 24 LTS is the primary npm/TypeScript SDK tooling baseline for local
+  `npm ci`, the TypeScript conformance/package lanes in `Nova CI`, and the
+  npm packaging steps in `Publish Packages`.
 - The root dev dependency group pins `openapi-python-client==0.28.3` for the
   committed Python SDK generation path. Keep that exact pin, the lockfile,
   `scripts/release/openapi_python_client/`, and the committed

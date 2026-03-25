@@ -229,6 +229,9 @@ If you need to install workspace dependencies locally, run:
 npm ci
 ```
 
+Use Node 24 LTS for this local npm workspace install so the operator path
+matches the `Nova CI` TypeScript lanes and the `Publish Packages` workflow.
+
 If you only want to validate registry/auth behavior without modifying the repo
 working tree, run the install in a temporary directory instead of the repo
 root.
