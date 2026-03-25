@@ -46,7 +46,9 @@ The active CI layout uses a unified `Nova CI` workflow for runtime,
 generated-client, and conformance checks, plus a separate
 `CFN Contract Validate` workflow for infra/docs governance.
 Node 24 LTS is the current npm/TypeScript SDK tooling baseline for local,
-CI, and release lanes.
+CI, and release lanes. The merged workspace remains on the verified
+TypeScript 5.x line; TypeScript 6 is deferred until a repo-wide verified
+migration lands.
 
 Durable operator inputs must stay synchronized across scripts, templates, and
 docs. For runtime deploys, the ECS service stack now owns the repo-managed task
@@ -62,3 +64,6 @@ Runtime config drift guard:
   pair
 - refresh `../release/runtime-config-contract.generated.md` with
   `scripts/release/generate_runtime_config_contract.py`
+- treat the current runtime dependency floors as manifest-owned authority:
+  `pydantic-settings>=2.13.1` in the surviving runtime packages and
+  `redis>=7.4.0` plus `uvicorn[standard]>=0.42.0` in `nova-file-api`

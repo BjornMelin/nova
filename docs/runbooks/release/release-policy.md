@@ -85,6 +85,10 @@ Companion modular setup guides (full index: [README.md](README.md)):
 14. Release/tooling workflows use Python 3.13 as the primary execution
     baseline while keeping Python 3.12 pytest/build compatibility for the
     surviving runtime packages.
+15. The Node 24 LTS npm baseline continues to run the verified TypeScript 5.x
+    workspace line. TypeScript 6 remains deferred until generated SDK output,
+    conformance fixtures, and release/workflow docs are updated together in a
+    separate verified migration.
 
 ## 5A. Runtime deployment policy
 

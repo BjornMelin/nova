@@ -383,6 +383,32 @@ def test_requirements_defer_router_set_to_standards_doc() -> None:
     assert "current canonical routers and any" in text
 
 
+def test_sdk_toolchain_authorities_keep_typescript_six_deferred() -> None:
+    """Active docs must keep the current TS line explicit and TS 6 deferred."""
+    standards = _read("docs/standards/repository-engineering-standards.md")
+    requirements = _read("docs/architecture/requirements.md")
+    sdk_spec = _read(
+        "docs/architecture/spec/SPEC-0029-sdk-architecture-and-artifact-contract.md"
+    )
+
+    assert "TypeScript 5.x" in standards
+    assert "TypeScript 6 remains deferred" in standards
+    assert "TypeScript 6 remains deferred" in sdk_spec
+    assert "TypeScript 6 remains deferred" in requirements
+
+
+def test_root_authorities_capture_runtime_dependency_floor_baseline() -> None:
+    """Root docs must expose the accepted manifest-owned runtime floors."""
+    readme = _read("README.md")
+    agents = _read("AGENTS.md")
+    standards = _read("docs/standards/repository-engineering-standards.md")
+
+    for text in [readme, agents, standards]:
+        assert "pydantic-settings>=2.13.1" in text
+        assert "redis>=7.4.0" in text
+        assert "uvicorn[standard]>=0.42.0" in text
+
+
 def test_active_docs_do_not_reference_repo_root_final_plan() -> None:
     """Active docs must not reference the removed repo-root FINAL-PLAN.md."""
     violations: list[str] = []

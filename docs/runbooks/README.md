@@ -51,7 +51,8 @@ indexes: [`release/README.md`](./release/README.md).
   duplicates.
 - Use deeper runbooks for execution detail:
   - `release/release-runbook.md` for release execution, the Node 24 LTS npm
-    baseline, and npm/CodeArtifact rules
+    baseline, the current TypeScript 5.x line with TypeScript 6 explicitly
+    deferred, and npm/CodeArtifact rules
   - `provisioning/deploy-runtime-cloudformation-environments.md` for deploy-input behavior
   - `provisioning/docker-buildx-credential-helper-setup.md` for local Docker repair
 

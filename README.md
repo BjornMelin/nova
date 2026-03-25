@@ -153,10 +153,17 @@ Tooling notes:
 - Nova pins the supported `uv` CLI via `[tool.uv].required-version` (currently
   `0.11.1`); keep local tooling and CI on that exact version when changing the
   Python workspace contract.
+- Node 24 LTS is the active npm baseline, but the merged workspace remains on
+  the current verified TypeScript 5.x line. TypeScript 6 is deferred until a
+  dedicated repo-wide migration updates generated SDK outputs, conformance
+  fixtures, and release/workflow docs together.
 - Python SDK generation is pinned to `openapi-python-client==0.28.3` via the
   root dev dependency group and uses committed assets under
   `scripts/release/openapi_python_client/`. If that generator pin changes,
   update the lockfile, committed SDK tree, docs, and regression tests together.
+- Current manifest-owned runtime dependency floors are
+  `pydantic-settings>=2.13.1` in the surviving runtime packages and
+  `redis>=7.4.0` plus `uvicorn[standard]>=0.42.0` in `nova-file-api`.
 - Pytest runs in `--import-mode=importlib` against editable workspace installs.
   Do not reintroduce repo-level `pythonpath` shims unless a new test failure
   proves they are required.

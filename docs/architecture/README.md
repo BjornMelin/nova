@@ -110,7 +110,10 @@ TypeScript, or first-class internal R release artifacts.
 
 The npm/TypeScript workflow baseline for those release lanes is Node 24 LTS and
 is governed by the standards and release runbook docs, not by the ADR/SPEC
-contracts themselves.
+contracts themselves. The active repo baseline stays on the verified
+TypeScript 5.x workspace line; TypeScript 6 remains deferred until a dedicated
+repo-wide migration updates generated SDK output, conformance fixtures, and
+release/workflow docs together.
 
 - `adr/ADR-0038-sdk-architecture-by-language.md`
 - `spec/SPEC-0029-sdk-architecture-and-artifact-contract.md`

@@ -62,6 +62,9 @@ artifacts, or documentation synchronization:
 - `./standards/repository-engineering-standards.md`
 - Node 24 LTS is the current npm/TypeScript SDK tooling baseline; see the
   standards and release runbook authority docs for the durable operator details
+- The active workspace remains on the verified TypeScript 5.x line; TypeScript
+  6 is deferred until a dedicated repo-wide migration updates generated SDKs,
+  conformance fixtures, and release workflow docs together
 - `.github/workflows/ci.yml` for the unified runtime, generated-client, and
   conformance check graph
 - `.github/workflows/cfn-contract-validate.yml` for separate infra/docs

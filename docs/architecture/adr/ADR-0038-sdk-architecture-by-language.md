@@ -48,7 +48,10 @@ options score **≥ 9.10** under Framework B (see evidence file).
 
 - **TypeScript:** Adopt **openapi-typescript** + **openapi-fetch**; remove the
   custom `@nova/sdk-fetch` runtime and bulky bespoke generator glue while
-  keeping conformance governance.
+  keeping conformance governance. The active repo baseline stays on the
+  verified TypeScript 5.x workspace line on Node 24 LTS; TypeScript 6 is
+  deferred until a dedicated repo-wide migration updates generated SDK output,
+  conformance fixtures, and release/workflow docs together.
 - **Python:** Keep **openapi-python-client**; move customization into generator
   config and small template overrides; delete large post-generation patch
   scripts where possible. The committed implementation pins

@@ -38,6 +38,7 @@ downstream size profiles, release artifacts, and deploy-validation records.
 
 ## Related references
 
+- `../standards/repository-engineering-standards.md`
 - `../clients/post-deploy-validation-integration-guide.md`
 - `../runbooks/release/release-policy.md`
 - `../architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md`

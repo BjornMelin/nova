@@ -40,6 +40,10 @@ remains the authority for conformance, versioning, and compatibility governance.
 
 - Type source: **`openapi-typescript`**.
 - Runtime transport: **`openapi-fetch`**.
+- The active repo baseline keeps the npm workspace on the verified TypeScript
+  5.x line under Node 24 LTS. TypeScript 6 remains deferred until a dedicated
+  repo-wide migration updates generated SDK output, conformance fixtures, and
+  release/workflow docs together.
 - **No** repo-private generic fetch runtime package (for example legacy
   `@nova/sdk-fetch` patterns are removed).
 - **Do not** add `zod`, validator packages, validator subpaths, or runtime
