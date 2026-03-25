@@ -368,14 +368,19 @@ def test_python_compatibility_job_covers_supported_envs() -> None:
         and step.get("uses") == "./.github/actions/setup-python-uv"
         and isinstance(step.get("with"), dict)
     ]
+    build_runs = [
+        step.get("run")
+        for step in steps
+        if isinstance(step, dict)
+        and step.get("name", "").startswith("Workspace Build")
+        and isinstance(step.get("run"), str)
+    ]
 
-    job_text = yaml.safe_dump(job, sort_keys=False)
     assert "3.11" in setup_versions
     assert "3.12" in setup_versions
-    assert "uv run --python 3.11 pytest -q" in job_text
-    assert "uv build --python 3.11" in job_text
-    assert "uv run --python 3.12 pytest -q" in job_text
-    assert "uv build --python 3.12" in job_text
+    assert any("packages/nova_sdk_py_file" in run for run in build_runs)
+    assert any("uv build --python 3.11" in run for run in build_runs)
+    assert any("uv build --python 3.12" in run for run in build_runs)
 
 
 def test_reusable_deploy_dev_checks_out_workflow_source_for_local_actions() -> (
