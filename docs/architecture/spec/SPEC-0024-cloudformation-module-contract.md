@@ -58,10 +58,10 @@ Additional runtime ECS service contract:
    stack-managed task role must include the AWS-required `ssmmessages`
    session-channel permissions needed by ECS Exec. Operators do not restore
    this behavior through external task-role overrides.
-5. `AuthMode=jwt_local` may remain the template default while `OidcIssuer`,
-   `OidcAudience`, and `OidcJwksUrl` stay blank at template-validation time;
-   incomplete local verifier inputs are enforced by Nova readiness/startup
-   behavior instead of a self-invalidating CloudFormation rule.
+5. `OidcIssuer`, `OidcAudience`, and `OidcJwksUrl` may stay blank at
+   template-validation time; incomplete in-process bearer-verifier inputs are
+   enforced by Nova readiness/startup behavior instead of a self-invalidating
+   CloudFormation rule.
 
 ## 4. Inter-stack import/export contract
 

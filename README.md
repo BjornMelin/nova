@@ -113,10 +113,9 @@ For detailed SDK governance and generation rules, use:
   `auth_dependency`, and active runtime dependencies; `shared_cache` gates
   readiness only when idempotency is enabled, while `activity_store` remains a
   diagnostic check
-- `AUTH_MODE=jwt_local` with incomplete OIDC settings leaves
-  `auth_dependency` not-ready
+- incomplete bearer-verifier OIDC settings leave `auth_dependency` not-ready
 - runtime CloudFormation defaults remain template-validation safe; incomplete
-  `jwt_local` OIDC values fail Nova readiness rather than CloudFormation
+  OIDC bearer-verifier inputs fail Nova readiness rather than CloudFormation
   parameter validation
 - terminal worker updates that set `status=succeeded` **must** normalize `error`
   to `null` (direct persistence path; `SPEC-0028`)

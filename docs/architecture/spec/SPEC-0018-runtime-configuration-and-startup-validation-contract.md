@@ -82,12 +82,13 @@ Required startup validation:
 2. `/v1/health/ready` reports the current runtime dependency checks and
    returns `503` when any traffic-critical check is false.
 3. Missing or blank `FILE_TRANSFER_BUCKET` fails readiness.
-4. `AUTH_MODE=jwt_local` with incomplete local verifier configuration
-   (`OIDC_ISSUER`, `OIDC_AUDIENCE`, or `OIDC_JWKS_URL` missing) fails the
-   `auth_dependency` readiness check.
+4. Incomplete in-process bearer-verifier configuration (`OIDC_ISSUER`,
+   `OIDC_AUDIENCE`, or `OIDC_JWKS_URL` missing) fails the `auth_dependency`
+   readiness check.
 5. Runtime ECS/CloudFormation templates keep their default parameter sets
-   validation-safe; incomplete `jwt_local` OIDC inputs are enforced by Nova
-   readiness/startup behavior, not by template-parameter validation rules.
+   validation-safe; incomplete bearer-verifier OIDC inputs are enforced by
+   Nova readiness/startup behavior, not by template-parameter validation
+   rules.
 6. When jobs are disabled, the reported `job_queue` check remains ready instead
    of making the service unready by feature disablement alone.
 7. Shared cache health remains visible in diagnostics and gates readiness only

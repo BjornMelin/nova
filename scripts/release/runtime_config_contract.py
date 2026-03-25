@@ -144,7 +144,6 @@ def runtime_setting_contracts() -> tuple[RuntimeSettingContract, ...]:
 
 
 ENV_JSON_OVERRIDES: tuple[EnvJsonOverrideContract, ...] = (
-    EnvJsonOverrideContract("AUTH_MODE", "AuthMode"),
     EnvJsonOverrideContract("OIDC_ISSUER", "OidcIssuer"),
     EnvJsonOverrideContract("OIDC_AUDIENCE", "OidcAudience"),
     EnvJsonOverrideContract("OIDC_JWKS_URL", "OidcJwksUrl"),
@@ -230,15 +229,12 @@ SERVICE_TEMPLATE_ENV: tuple[TemplateEnvContract, ...] = (
     TemplateEnvContract("AWS_DEFAULT_REGION", "stack parameter", "always"),
     TemplateEnvContract("ENVIRONMENT", "task parameter", "always"),
     TemplateEnvContract("NOVA_RUNTIME_PROFILE", "task parameter", "always"),
-    TemplateEnvContract("AUTH_MODE", "task parameter", "always"),
-    TemplateEnvContract("OIDC_ISSUER", "task parameter", "when jwt_local"),
-    TemplateEnvContract("OIDC_AUDIENCE", "task parameter", "when jwt_local"),
-    TemplateEnvContract("OIDC_JWKS_URL", "task parameter", "when jwt_local"),
+    TemplateEnvContract("OIDC_ISSUER", "task parameter", "always"),
+    TemplateEnvContract("OIDC_AUDIENCE", "task parameter", "always"),
+    TemplateEnvContract("OIDC_JWKS_URL", "task parameter", "always"),
+    TemplateEnvContract("OIDC_REQUIRED_SCOPES", "task parameter", "always"),
     TemplateEnvContract(
-        "OIDC_REQUIRED_SCOPES", "task parameter", "when jwt_local"
-    ),
-    TemplateEnvContract(
-        "OIDC_REQUIRED_PERMISSIONS", "task parameter", "when jwt_local"
+        "OIDC_REQUIRED_PERMISSIONS", "task parameter", "always"
     ),
     TemplateEnvContract("OIDC_CLOCK_SKEW_SECONDS", "task parameter", "always"),
     TemplateEnvContract(

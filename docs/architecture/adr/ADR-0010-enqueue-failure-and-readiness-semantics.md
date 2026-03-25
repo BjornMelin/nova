@@ -65,8 +65,8 @@ Implementation commitments:
 - `/v1/health/ready` excludes feature flags from pass/fail aggregation.
 - `/v1/health/ready` treats missing/blank `FILE_TRANSFER_BUCKET` as
   unconfigured.
-- `/v1/health/ready` treats `AUTH_MODE=jwt_local` with incomplete
-  `OIDC_ISSUER`, `OIDC_AUDIENCE`, or `OIDC_JWKS_URL` as unready.
+- `/v1/health/ready` treats incomplete `OIDC_ISSUER`, `OIDC_AUDIENCE`, or
+  `OIDC_JWKS_URL` bearer-verifier inputs as unready.
 - Worker updates with `status = succeeded` always normalize `error` to `null`.
 - DynamoDB rollups increment `distinct_event_types` only when a first-seen
   event-type marker write succeeds.
@@ -78,14 +78,15 @@ Implementation commitments:
 2. Valid deployments with optional features disabled stay ready.
 3. Dashboard rollups become accurate and concurrency-safe.
 4. Startup misconfiguration is detected earlier instead of silently degrading.
-5. Local JWT mode now fails readiness closed when verifier configuration is
-   incomplete, matching JWT/OIDC verifier authority in SPEC-0006.
+5. The in-process bearer verifier now fails readiness closed when OIDC
+   configuration is incomplete, matching JWT/OIDC verifier authority in
+   SPEC-0006.
 
 ## Changelog
 
-- 2026-03-09 (v1.4): Repointed jwt_local readiness verifier authority
+- 2026-03-09 (v1.4): Repointed bearer-verifier readiness authority
   references to SPEC-0006.
-- 2026-03-05 (v1.3): Added `jwt_local` fail-closed readiness semantics.
+- 2026-03-05 (v1.3): Added fail-closed bearer-verifier readiness semantics.
 - 2026-03-03 (v1.2): Canonicalized enqueue and readiness route references to
   `/v1/*` route surface.
 - 2026-02-12 (v1.0): Initial acceptance.

@@ -23,7 +23,7 @@ uv run ty check --force-exclude --error-on-warning --output-format concise \
 uv run mypy
 uv run pytest -q \
   packages/nova_file_api/tests/test_runtime_security_reliability_gates.py \
-  packages/nova_file_api/tests/test_auth.py::test_local_auth_error_maps_common_jwt_claim_failures \
+  packages/nova_file_api/tests/test_auth.py::test_bearer_auth_error_maps_common_jwt_claim_failures \
   packages/nova_file_api/tests/test_auth.py::test_required_scope_is_enforced_from_principal_claims \
   packages/nova_file_api/tests/test_container_config.py::test_runtime_state_requires_sqs_queue_url_when_jobs_enabled \
   packages/nova_file_api/tests/test_jobs.py::test_enqueue_failure_is_not_idempotency_cached \
@@ -31,7 +31,7 @@ uv run pytest -q \
   packages/nova_file_api/tests/test_jobs_dynamo.py::test_dynamo_job_repository_update_if_status_enforces_expected_state \
   packages/nova_file_api/tests/test_activity_dynamo.py::test_dynamo_activity_store_uses_conditional_first_seen_markers
 uv run pytest -q \
-  --deselect=packages/nova_file_api/tests/test_auth.py::test_local_auth_error_maps_common_jwt_claim_failures \
+  --deselect=packages/nova_file_api/tests/test_auth.py::test_bearer_auth_error_maps_common_jwt_claim_failures \
   --deselect=packages/nova_file_api/tests/test_auth.py::test_required_scope_is_enforced_from_principal_claims \
   --deselect=packages/nova_file_api/tests/test_container_config.py::test_runtime_state_requires_sqs_queue_url_when_jobs_enabled \
   --deselect=packages/nova_file_api/tests/test_jobs.py::test_enqueue_failure_is_not_idempotency_cached \

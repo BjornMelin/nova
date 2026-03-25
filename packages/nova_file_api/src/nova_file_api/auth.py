@@ -70,7 +70,7 @@ class Authenticator:
                 },
             )
 
-        claims = await self._verify_local_token(token=normalized_token)
+        claims = await self._verify_bearer_token(token=normalized_token)
 
         principal = _principal_from_claims(claims=claims)
         self._enforce_required_authorization(principal=principal)
@@ -79,7 +79,7 @@ class Authenticator:
     async def healthcheck(self) -> bool:
         """Return readiness of the active auth dependency."""
         return (
-            self._settings.local_oidc_verifier_configured
+            self._settings.oidc_bearer_verifier_configured
             and self._verifier is not None
         )
 
@@ -90,7 +90,7 @@ class Authenticator:
             return
         await verifier.aclose()
 
-    async def _verify_local_token(self, *, token: str) -> dict[str, Any]:
+    async def _verify_bearer_token(self, *, token: str) -> dict[str, Any]:
         cache_key = self._cache.namespaced_key("jwt", token)
         cached = await self._cache.get_json(cache_key)
         if cached is not None:
@@ -98,12 +98,12 @@ class Authenticator:
 
         verifier = self._verifier
         if verifier is None:
-            raise unauthorized("local jwt mode is misconfigured")
+            raise unauthorized("bearer verifier is misconfigured")
 
         try:
             claims = await verifier.verify_access_token(token)
         except AuthError as exc:
-            raise _local_auth_error(exc=exc) from exc
+            raise _bearer_auth_error(exc=exc) from exc
 
         ttl_seconds = _jwt_cache_ttl_seconds(
             claims=claims,
@@ -155,7 +155,7 @@ def _principal_from_claims(*, claims: dict[str, Any]) -> Principal:
     )
 
 
-def _local_auth_error(*, exc: AuthError) -> FileTransferError:
+def _bearer_auth_error(*, exc: AuthError) -> FileTransferError:
     code_value = getattr(exc, "code", "invalid_token")
     message_value = getattr(exc, "message", "token validation failed")
     status_value = getattr(exc, "status_code", 401)

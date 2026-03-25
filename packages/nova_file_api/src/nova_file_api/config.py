@@ -10,7 +10,6 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from nova_file_api.models import (
     ActivityStoreBackend,
-    AuthMode,
     JobsQueueBackend,
     JobsRepositoryBackend,
 )
@@ -133,9 +132,6 @@ class Settings(BaseSettings):
         ge=1,
     )
 
-    auth_mode: AuthMode = Field(
-        default=AuthMode.JWT_LOCAL, validation_alias="AUTH_MODE"
-    )
     oidc_issuer: str | None = Field(
         default=None, validation_alias="OIDC_ISSUER"
     )
@@ -345,8 +341,8 @@ class Settings(BaseSettings):
         )
 
     @property
-    def local_oidc_verifier_configured(self) -> bool:
-        """Return whether jwt_local mode has the required OIDC settings."""
+    def oidc_bearer_verifier_configured(self) -> bool:
+        """Return whether the in-process bearer verifier can be built."""
         return all(
             value is not None and value.strip()
             for value in (
