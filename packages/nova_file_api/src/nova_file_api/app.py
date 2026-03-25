@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import AsyncIterator
 from contextlib import AsyncExitStack, asynccontextmanager
 
+import structlog
 from botocore.config import Config
 from fastapi import FastAPI
 from nova_runtime_support import (
@@ -28,6 +29,7 @@ from nova_file_api.routes import (
     transfer_router,
 )
 
+_LOGGER = structlog.get_logger("nova_file_api.app")
 _RUNTIME_STATE_KEYS = (
     "metrics",
     "shared_cache",
@@ -146,8 +148,16 @@ def create_app(*, settings: Settings | None = None) -> FastAPI:
                     yield
         finally:
             if manage_runtime_state:
-                await _close_authenticator(app=app)
-                await _close_shared_cache(app=app)
+                try:
+                    await _close_authenticator(app=app)
+                except Exception:
+                    _LOGGER.exception(
+                        "runtime_state_authenticator_close_failed"
+                    )
+                try:
+                    await _close_shared_cache(app=app)
+                except Exception:
+                    _LOGGER.exception("runtime_state_shared_cache_close_failed")
                 _clear_runtime_state(app=app)
 
     app = RequestContextFastAPI(

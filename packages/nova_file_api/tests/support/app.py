@@ -135,7 +135,7 @@ def build_runtime_deps(
     if shared_cache is None and cache is None:
         if use_in_memory_shared_cache:
             resolved_shared_cache, resolved_cache = build_cache_stack()
-            resolved_shared_cache._client = MemoryRedisClient()  # type: ignore[assignment]
+            resolved_shared_cache._client = MemoryRedisClient()
         elif idempotency_enabled:
             raise ValueError(
                 "idempotency_enabled requires shared_cache/cache or "
@@ -158,7 +158,7 @@ def build_runtime_deps(
         resolved_shared_cache = shared_cache
         resolved_cache = cache
         if use_in_memory_shared_cache:
-            resolved_shared_cache._client = MemoryRedisClient()  # type: ignore[assignment]
+            resolved_shared_cache._client = MemoryRedisClient()
     resolved_idempotency_store = idempotency_store or build_idempotency_store(
         settings=resolved_settings,
         shared_cache=resolved_shared_cache,
