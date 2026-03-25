@@ -18,7 +18,7 @@ phases:
       python: "3.13"
     commands:
       - pip install --upgrade pip
-      - pip install 'uv==0.10.12' twine
+      - pip install 'uv==0.11.1' twine
 
   pre_build:
     commands:
