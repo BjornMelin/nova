@@ -183,8 +183,9 @@ Toolchain baseline notes:
   pytest/build lane unless a deliberate repo-wide support-floor decision
   removes it.
 - `pyproject.toml` pins the supported `uv` CLI via
-  `[tool.uv].required-version`; keep CI and local bootstrap flows on that
-  version unless a repo-wide verification run intentionally bumps it.
+  `[tool.uv].required-version` (currently `0.11.1`); keep CI and local
+  bootstrap flows on that version unless a repo-wide verification run
+  intentionally bumps it.
 - Node 24 LTS is the primary npm/TypeScript SDK tooling baseline for local
   `npm ci`, the TypeScript conformance/package lanes in `Nova CI`, and the
   npm packaging steps in `Publish Packages`.

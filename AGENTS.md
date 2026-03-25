@@ -232,8 +232,8 @@ Notes:
   bumps and template/config changes as coupled updates to docs, tests, and the
   committed SDK tree.
 - `pyproject.toml` pins the supported `uv` CLI via
-  `[tool.uv].required-version`; keep local tooling, CI, and docs aligned when
-  bumping that version.
+  `[tool.uv].required-version` (currently `0.11.1`); keep local tooling, CI,
+  and docs aligned when bumping that version.
 - Pytest runs in `--import-mode=importlib` against editable workspace installs.
   Do not add repo-level `pythonpath` overrides back unless a newly verified
   import failure requires them.

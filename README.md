@@ -150,9 +150,9 @@ uv run python scripts/release/generate_python_clients.py --check
 
 Tooling notes:
 
-- Nova pins the supported `uv` CLI via `[tool.uv].required-version`; keep local
-  tooling and CI on that exact version when changing the Python workspace
-  contract.
+- Nova pins the supported `uv` CLI via `[tool.uv].required-version` (currently
+  `0.11.1`); keep local tooling and CI on that exact version when changing the
+  Python workspace contract.
 - Python SDK generation is pinned to `openapi-python-client==0.28.3` via the
   root dev dependency group and uses committed assets under
   `scripts/release/openapi_python_client/`. If that generator pin changes,
@@ -256,8 +256,8 @@ wiring, and ECS infrastructure role resolution. Do not supply
 ## Local Service Images
 
 Local service-image verification uses the release-owned Dockerfiles under
-`apps/*`, a digest-pinned Python `3.13-slim` base image, pinned `uv`, and
-Docker BuildKit plus `buildx`.
+`apps/*`, a digest-pinned Python `3.13-slim` base image, pinned `uv 0.11.1`,
+and Docker BuildKit plus `buildx`.
 
 See:
 
