@@ -1,8 +1,13 @@
 from __future__ import annotations
 
+import pytest
 from nova_file_api.config import Settings
+from pydantic.fields import FieldInfo
 
-from scripts.release.runtime_config_contract import runtime_setting_contracts
+from scripts.release.runtime_config_contract import (
+    _env_var_name,
+    runtime_setting_contracts,
+)
 
 
 def test_runtime_settings_define_explicit_string_validation_aliases() -> None:
@@ -28,3 +33,16 @@ def test_runtime_setting_contracts_use_validation_aliases() -> None:
         validation_alias = field.validation_alias
         assert isinstance(validation_alias, str)
         assert contracts_by_field[field_name].env_var == validation_alias
+
+
+def test_env_var_name_strips_validation_alias_whitespace() -> None:
+    field = FieldInfo(annotation=str, validation_alias="APP_NAME ")
+
+    assert _env_var_name("app_name", field) == "APP_NAME"
+
+
+def test_env_var_name_requires_explicit_validation_alias() -> None:
+    field = FieldInfo(annotation=str)
+
+    with pytest.raises(ValueError, match="must declare an explicit"):
+        _env_var_name("app_name", field)

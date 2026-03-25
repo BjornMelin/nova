@@ -59,7 +59,7 @@ EXTRA_RUNTIME_ENV_VARS = ("AWS_DEFAULT_REGION", "NOVA_RUNTIME_PROFILE")
 def _env_var_name(field_name: str, field: FieldInfo) -> str:
     validation_alias = field.validation_alias
     if isinstance(validation_alias, str) and validation_alias.strip():
-        return validation_alias
+        return validation_alias.strip()
     raise ValueError(
         "Runtime setting "
         f"{field_name} must declare an explicit non-empty string "
