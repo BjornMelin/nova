@@ -53,7 +53,7 @@ Canonical baseline:
 - workspace package/app build verification (`uv build` per workspace unit)
 - unified `Nova CI` workflow gate (`.github/workflows/ci.yml`) covering:
   - `quality-gates` (Python 3.13 primary lane)
-  - `python-compatibility` (Python 3.12 pytest/build lane)
+  - `python-compatibility` (Python 3.11 and 3.12 pytest/build lane)
   - `generated-clients`
   - `dash-conformance`
   - `shiny-conformance`

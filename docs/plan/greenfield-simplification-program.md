@@ -132,9 +132,10 @@ The program is complete only when all of the following are true:
 - The canonical public Python surface is async-first (ADR-0037).
 - Generated clients for Python, TypeScript, and R target the final public
   contract cleanly.
-- Infra, docs, CI, and release flow match the smaller system, with Python 3.13
-  as the primary tooling baseline and Python 3.12 kept only as a verified
-  runtime compatibility lane for surviving packages.
+- Infra, docs, CI, and release flow match the smaller system, with Python 3.11
+  as the supported workspace floor, Python 3.13 as the primary tooling
+  baseline, and Python 3.11 plus 3.12 kept as verified runtime compatibility
+  coverage for surviving packages.
 - A new maintainer can understand the repo without a stack of exception docs.
 
 ## If a branch uncovers a better option

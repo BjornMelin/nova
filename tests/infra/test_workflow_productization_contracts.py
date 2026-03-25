@@ -350,20 +350,37 @@ def test_sdk_conformance_shared_r_check_helper_is_used() -> None:
     assert "R CMD check reported warnings" in helper_text
 
 
-def test_python_compatibility_job_pins_pytest_and_builds_to_python_312() -> (
-    None
-):
-    """Compatibility lane must execute against the synced Python 3.12 env."""
+def test_python_compatibility_job_covers_supported_envs() -> None:
+    """Compatibility lane must execute against synced supported envs."""
     workflow = yaml.safe_load(_read(".github/workflows/ci.yml"))
     assert isinstance(workflow, dict)
     jobs = workflow.get("jobs")
     assert isinstance(jobs, dict)
     job = jobs.get("python-compatibility")
     assert isinstance(job, dict)
+    steps = job.get("steps")
+    assert isinstance(steps, list)
 
-    job_text = yaml.safe_dump(job, sort_keys=False)
-    assert "uv run --python 3.12 pytest -q" in job_text
-    assert "uv build --python 3.12" in job_text
+    setup_versions = [
+        step.get("with", {}).get("python-version")
+        for step in steps
+        if isinstance(step, dict)
+        and step.get("uses") == "./.github/actions/setup-python-uv"
+        and isinstance(step.get("with"), dict)
+    ]
+    build_runs = [
+        step.get("run")
+        for step in steps
+        if isinstance(step, dict)
+        and step.get("name", "").startswith("Workspace Build")
+        and isinstance(step.get("run"), str)
+    ]
+
+    assert "3.11" in setup_versions
+    assert "3.12" in setup_versions
+    assert any("packages/nova_sdk_py_file" in run for run in build_runs)
+    assert any("uv build --python 3.11" in run for run in build_runs)
+    assert any("uv build --python 3.12" in run for run in build_runs)
 
 
 def test_reusable_deploy_dev_checks_out_workflow_source_for_local_actions() -> (

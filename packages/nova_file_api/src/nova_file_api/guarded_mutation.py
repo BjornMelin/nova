@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
-from typing import Any, Literal
+from typing import Any, Literal, TypeVar
 
 import structlog
 from pydantic import BaseModel
@@ -11,8 +11,10 @@ from pydantic import BaseModel
 from nova_file_api.errors import idempotency_conflict
 from nova_file_api.idempotency import IdempotencyStore
 
+ResponseModelT = TypeVar("ResponseModelT", bound=BaseModel)
 
-async def run_guarded_mutation[ResponseModelT: BaseModel](
+
+async def run_guarded_mutation(
     *,
     route: str,
     scope_id: str,

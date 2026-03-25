@@ -149,18 +149,38 @@ jobs:
       - name: Setup Python and uv
         uses: ./.github/actions/setup-python-uv
         with:
-          python-version: "3.12"
+          python-version: "3.11"
           save-cache: "false"
 
-      - name: Pytest
-        run: uv run --python 3.12 pytest -q
+      - name: Pytest (Python 3.11)
+        run: uv run --python 3.11 pytest -q
 
-      - name: Workspace Build
+      - name: Workspace Build (Python 3.11)
         run: |
           for p in \
             packages/nova_file_api \
             packages/nova_dash_bridge \
-            packages/nova_runtime_support; do
+            packages/nova_runtime_support \
+            packages/nova_sdk_py_file; do
+            uv build --python 3.11 "$p"
+          done
+
+      - name: Setup Python and uv (Python 3.12)
+        uses: ./.github/actions/setup-python-uv
+        with:
+          python-version: "3.12"
+          save-cache: "false"
+
+      - name: Pytest (Python 3.12)
+        run: uv run --python 3.12 pytest -q
+
+      - name: Workspace Build (Python 3.12)
+        run: |
+          for p in \
+            packages/nova_file_api \
+            packages/nova_dash_bridge \
+            packages/nova_runtime_support \
+            packages/nova_sdk_py_file; do
             uv build --python 3.12 "$p"
           done
 

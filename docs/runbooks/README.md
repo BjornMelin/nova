@@ -8,6 +8,9 @@ Last reviewed: 2026-03-25
 
 Canonical entrypoint for Nova-path release, deployment, validation, and runtime
 operations runbooks.
+Operator tooling should assume Python 3.13 as the default local and primary
+quality baseline, but active runtime package support begins at Python 3.11 and
+the hosted compatibility lane covers Python 3.11 plus 3.12.
 
 See `../architecture/README.md` for architecture authority and the canonical
 route chain.

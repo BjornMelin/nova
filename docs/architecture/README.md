@@ -9,6 +9,9 @@ This document routes readers to the correct architecture authority without
 duplicating the full ADR and SPEC catalogs across top-level docs.
 Other routers should point here rather than re-listing partial authority packs
 or route-chain fragments.
+Python support baseline: workspace packages support Python 3.11+, default local
+tooling and the primary lint/type/generation lane stay on Python 3.13, and the
+hosted compatibility lane proves Python 3.11 plus 3.12 pytest/build coverage.
 
 **Active-only lists:** Sections below name **in-force** ADRs and SPECs only.
 Superseded predecessors are **not** linked here (to avoid agents or readers

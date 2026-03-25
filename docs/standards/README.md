@@ -8,6 +8,9 @@ Last reviewed: 2026-03-25
 
 Canonical entrypoint for repo engineering standards that are too detailed for
 `AGENTS.md` but still durable across sessions.
+Workspace packages support Python 3.11+, while the default developer and
+primary quality baseline remains Python 3.13 with compatibility coverage on
+Python 3.11 and 3.12.
 
 ## Read This After `AGENTS.md`
 

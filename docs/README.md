@@ -7,6 +7,9 @@ Last reviewed: 2026-03-25
 
 This is the repo-wide documentation router. Start here when you need to find
 the right authority document quickly without scanning the entire `docs/` tree.
+Minimum supported Python version for workspace packages is 3.11; default local
+tooling and the primary quality lane stay on Python 3.13, while compatibility
+coverage now spans Python 3.11 and 3.12.
 
 ## Reading Order for Fresh Sessions
 

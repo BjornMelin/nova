@@ -417,8 +417,9 @@ The canonical typing gates are
 `uv run ty check --force-exclude --error-on-warning packages scripts`
 and `uv run mypy`. `ty` is the required full-repo gate; `mypy` remains the
 required compatibility backstop in this phase. The primary quality/generation
-lane runs on Python 3.13 (`quality-gates`), with Python 3.12 retained as the
-runtime compatibility lane for surviving packages (`python-compatibility`).
+lane runs on Python 3.13 (`quality-gates`). Workspace packages support Python
+3.11+, and `python-compatibility` retains Python 3.11 plus 3.12 pytest/build
+coverage for surviving packages.
 
 ### NFR-0105: Contract traceability
 

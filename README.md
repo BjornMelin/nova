@@ -1,10 +1,15 @@
 # nova runtime
 
-![Python](https://img.shields.io/badge/Python-3.13-3776AB?logo=python&logoColor=white) ![FastAPI](https://img.shields.io/badge/FastAPI-0.135%2B-009688?logo=fastapi&logoColor=white) ![OpenAPI](https://img.shields.io/badge/OpenAPI-3.1-6BA539?logo=openapiinitiative&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white) ![FastAPI](https://img.shields.io/badge/FastAPI-0.135%2B-009688?logo=fastapi&logoColor=white) ![OpenAPI](https://img.shields.io/badge/OpenAPI-3.1-6BA539?logo=openapiinitiative&logoColor=white)
 
 FastAPI control-plane runtime for direct-to-S3 uploads/downloads and async job
 orchestration. The service returns presigned metadata and job state; it does not
 proxy file bytes.
+
+Minimum supported Python version for workspace packages is 3.11. Default local
+development plus the primary lint/type/generation lane stay on Python 3.13, and
+the hosted compatibility lane now proves pytest/build behavior on Python 3.11
+and 3.12.
 
 ## Start Here
 
@@ -242,8 +247,8 @@ the manual prod promotion workflow for those staged, gate-validated artifacts.
 Required PR/runtime and conformance checks now run through the unified
 `Nova CI` workflow, while `CFN Contract Validate` remains the separate
 infra/docs governance workflow. `Nova CI` runs the primary lint/type/generation
-lane on Python 3.13 and keeps Python 3.12 pytest/build coverage for runtime
-compatibility.
+lane on Python 3.13 and keeps Python 3.11 plus 3.12 pytest/build coverage for
+runtime compatibility.
 
 ## Release and Operations
 
