@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from hashlib import sha256
 from inspect import isawaitable
 from threading import RLock
-from typing import Any, cast
+from typing import Any, Protocol, cast
 
 from redis.asyncio import Redis
 from redis.backoff import ExponentialWithJitterBackoff
@@ -31,6 +31,38 @@ class _Entry:
 
     value: str
     expires_at: float
+
+
+class _AsyncRedisClientProtocol(Protocol):
+    """Protocol for the async Redis client surface used by shared caches."""
+
+    async def get(self, key: str) -> str | bytes | None: ...
+
+    async def set(
+        self,
+        *,
+        name: str,
+        value: str,
+        ex: int,
+        nx: bool = False,
+    ) -> bool: ...
+
+    async def delete(self, key: str) -> int: ...
+
+    async def eval(
+        self,
+        script: str,
+        numkeys: int,
+        key: str,
+        expected_value: str,
+    ) -> int: ...
+
+    async def ping(self) -> bool: ...
+
+    async def aclose(self) -> None: ...
+
+
+AsyncRedisClientProtocol = _AsyncRedisClientProtocol
 
 
 def namespaced_cache_key(
@@ -120,14 +152,14 @@ class SharedRedisCache:
         retry_attempts: int = 2,
         decode_responses: bool = False,
         protocol: int = 2,
-        client: Redis | None = None,
+        client: AsyncRedisClientProtocol | None = None,
     ) -> None:
         """Initialize Redis client when URL is configured.
 
         When ``client`` is provided, it is used as the backend and ``url`` is
         ignored. This supports tests and other explicit wiring.
         """
-        self._client: Redis | None = None
+        self._client: AsyncRedisClientProtocol | None = None
         if client is not None:
             self._client = client
             return
@@ -141,25 +173,37 @@ class SharedRedisCache:
             ),
             retries=retry_attempts,
         )
-        self._client = Redis.from_url(
-            url,
-            max_connections=max_connections,
-            socket_timeout=socket_timeout_seconds,
-            socket_connect_timeout=socket_connect_timeout_seconds,
-            health_check_interval=health_check_interval_seconds,
-            retry=retry,
-            decode_responses=decode_responses,
-            protocol=protocol,
+        redis_client: AsyncRedisClientProtocol = cast(
+            AsyncRedisClientProtocol,
+            Redis.from_url(
+                url,
+                max_connections=max_connections,
+                socket_timeout=socket_timeout_seconds,
+                socket_connect_timeout=socket_connect_timeout_seconds,
+                health_check_interval=health_check_interval_seconds,
+                retry=retry,
+                decode_responses=decode_responses,
+                protocol=protocol,
+            ),
         )
+        self._client = redis_client
 
     @property
     def available(self) -> bool:
         """Return True when Redis backend is configured."""
         return self._client is not None
 
-    def bind_redis_client(self, client: Redis) -> None:
+    def bind_redis_client(self, client: AsyncRedisClientProtocol) -> None:
         """Replace the async Redis backend (tests / explicit wiring)."""
         self._client = client
+
+    async def aclose(self) -> None:
+        """Close the configured async Redis backend when present."""
+        client = self._client
+        if client is None:
+            return
+        self._client = None
+        await client.aclose()
 
     async def get_with_status(self, key: str) -> tuple[str | None, str]:
         """Get value and read status from shared backend.
@@ -184,7 +228,6 @@ class SharedRedisCache:
                 return None, "error"
         if isinstance(raw, str):
             return raw, "hit"
-        return None, "error"
 
     async def set_with_status(
         self,
@@ -254,18 +297,14 @@ class SharedRedisCache:
             )
         except RedisError:
             return "error"
-        deleted_count = cast(int, deleted)
-        return "ok" if deleted_count == 1 else "mismatch"
+        return "ok" if deleted == 1 else "mismatch"
 
     async def ping(self) -> bool:
         """Return backend health when configured."""
         if self._client is None:
             return True
         try:
-            ping_result = self._client.ping()
-            if isinstance(ping_result, bool):
-                return ping_result
-            return bool(await ping_result)
+            return bool(await self._client.ping())
         except RedisError:
             return False
 
