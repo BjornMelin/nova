@@ -1,7 +1,7 @@
 # Nova Architecture Authority Map
 
 Status: Active
-Last reviewed: 2026-03-24
+Last reviewed: 2026-03-25
 
 ## Purpose
 
@@ -107,6 +107,10 @@ or deploy-validation base URL authority.
 
 Use when the question is about public Python SDK topology, release-grade
 TypeScript, or first-class internal R release artifacts.
+
+The npm/TypeScript workflow baseline for those release lanes is Node 24 LTS and
+is governed by the standards and release runbook docs, not by the ADR/SPEC
+contracts themselves.
 
 - `adr/ADR-0038-sdk-architecture-by-language.md`
 - `spec/SPEC-0029-sdk-architecture-and-artifact-contract.md`

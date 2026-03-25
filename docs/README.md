@@ -1,7 +1,7 @@
 # Nova Documentation
 
 Status: Active
-Last reviewed: 2026-03-24
+Last reviewed: 2026-03-25
 
 ## Purpose
 
@@ -60,6 +60,8 @@ artifacts, or documentation synchronization:
 
 - `./standards/README.md`
 - `./standards/repository-engineering-standards.md`
+- Node 24 LTS is the current npm/TypeScript SDK tooling baseline; see the
+  standards and release runbook authority docs for the durable operator details
 - `.github/workflows/ci.yml` for the unified runtime, generated-client, and
   conformance check graph
 - `.github/workflows/cfn-contract-validate.yml` for separate infra/docs
