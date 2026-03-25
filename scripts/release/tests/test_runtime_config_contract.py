@@ -1,3 +1,5 @@
+"""Tests for the runtime config contract helper and env var naming."""
+
 from __future__ import annotations
 
 import pytest
@@ -36,12 +38,14 @@ def test_runtime_setting_contracts_use_validation_aliases() -> None:
 
 
 def test_env_var_name_strips_validation_alias_whitespace() -> None:
+    """Ensure validation_alias whitespace is stripped when deriving env vars."""
     field = FieldInfo(annotation=str, validation_alias="APP_NAME ")
 
     assert _env_var_name("app_name", field) == "APP_NAME"
 
 
 def test_env_var_name_requires_explicit_validation_alias() -> None:
+    """Verify a missing validation_alias raises ValueError."""
     field = FieldInfo(annotation=str)
 
     with pytest.raises(ValueError, match="must declare an explicit"):
