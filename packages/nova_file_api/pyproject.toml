@@ -7,7 +7,7 @@ name = "nova-file-api"
 version = "0.5.0"
 description = "FastAPI control-plane for file transfer and async jobs."
 readme = "README.md"
-requires-python = ">=3.12,<3.14"
+requires-python = ">=3.11,<3.14"
 dependencies = [
   "anyio>=4.11.0",
   "aioboto3>=15.5.0,<16",

@@ -257,9 +257,10 @@ Notes:
 - CI also enforces a stronger canonical-route policy guard in
   `.github/workflows/ci.yml`. Use the quick route preflight above before
   broader edits.
+- Minimum supported Python version for workspace packages is 3.11.
 - CI defaults to Python 3.13 for the primary lint/type/generation lane and
-  keeps a Python 3.12 pytest/build compatibility lane for the surviving
-  runtime packages.
+  keeps Python 3.11 plus 3.12 pytest/build compatibility coverage for the
+  surviving runtime packages.
 
 ### Pre-commit hooks
 

@@ -4,7 +4,6 @@ import json
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
-from typing import override
 from unittest.mock import AsyncMock, Mock
 
 import httpx
@@ -125,7 +124,6 @@ class _StubTransferService:
 class _FailFirstEnqueueJobService(_StubJobService):
     calls: int
 
-    @override
     async def enqueue(
         self,
         *,

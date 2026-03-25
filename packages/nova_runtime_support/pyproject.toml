@@ -7,7 +7,7 @@ name = "nova-runtime-support"
 version = "0.1.0"
 description = "Internal shared runtime helpers for Nova services."
 readme = "README.md"
-requires-python = ">=3.12,<3.14"
+requires-python = ">=3.11,<3.14"
 dependencies = [
   "fastapi>=0.135.2",
   "oidc-jwt-verifier>=0.1.5",

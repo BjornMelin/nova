@@ -9,7 +9,7 @@ import threading
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Protocol
+from typing import Protocol, TypeAlias
 
 from botocore.exceptions import BotoCoreError, ClientError
 
@@ -17,9 +17,9 @@ from nova_file_api.models import Principal
 
 logger = logging.getLogger(__name__)
 
-type DynamoAttributeValue = dict[str, str]
-type DynamoItem = dict[str, DynamoAttributeValue]
-type DynamoKey = DynamoItem
+DynamoAttributeValue: TypeAlias = dict[str, str]
+DynamoItem: TypeAlias = dict[str, DynamoAttributeValue]
+DynamoKey: TypeAlias = DynamoItem
 
 
 class ActivityStore(Protocol):

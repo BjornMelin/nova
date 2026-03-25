@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from time import perf_counter
-from typing import Any
+from typing import Any, TypeVar
 from uuid import uuid4
 
 import structlog
@@ -18,6 +18,7 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 ExceptionAdapter = Callable[[Exception], "CanonicalErrorSpec"]
 ValidationDetailsAdapter = Callable[[RequestValidationError], Mapping[str, Any]]
+DomainErrorT = TypeVar("DomainErrorT", bound=Exception)
 
 _REQUEST_ID_HEADER = "X-Request-Id"
 
@@ -121,7 +122,7 @@ class RequestContextFastAPI(FastAPI):
         await self._request_context_middleware(scope, receive, send)
 
 
-def register_fastapi_exception_handlers[DomainErrorT: Exception](
+def register_fastapi_exception_handlers(
     app: FastAPI,
     *,
     domain_error_type: type[DomainErrorT],

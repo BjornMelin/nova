@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
-from typing import Any, Protocol
+from typing import Any, Protocol, TypeAlias
 
 import boto3
 from botocore.config import Config
 
 from nova_dash_bridge.config import FileTransferEnvConfig
 
-type S3Client = Any
+S3Client: TypeAlias = Any
 
 __all__ = ["S3Client", "S3ClientFactory", "SupportsCreateS3Client"]
 

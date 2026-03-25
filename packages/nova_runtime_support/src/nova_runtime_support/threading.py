@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from typing import TypeVar
 
 from anyio.abc import CapacityLimiter
 from anyio.to_thread import (
@@ -12,8 +13,10 @@ from anyio.to_thread import (
     run_sync as anyio_run_sync,
 )
 
+T = TypeVar("T")
 
-async def run_sync[T](
+
+async def run_sync(
     func: Callable[[], T],
     /,
     limiter: CapacityLimiter | None = None,

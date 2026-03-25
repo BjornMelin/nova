@@ -34,7 +34,7 @@ Configure the following leaf jobs as required for `main`.
 From workflow `Nova CI` (`.github/workflows/ci.yml`):
 
 - `quality-gates` (Python 3.13 primary lint/type/generation lane)
-- `python-compatibility` (Python 3.12 pytest/build compatibility lane)
+- `python-compatibility` (Python 3.11 and 3.12 pytest/build compatibility lane)
 - `generated-clients`
 - `dash-conformance`
 - `shiny-conformance`

@@ -3,7 +3,7 @@ name = "nova"
 version = "0.1.0"
 description = "Monorepo runtime for file transfer and bridge integrations."
 readme = "README.md"
-requires-python = ">=3.12,<3.14"
+requires-python = ">=3.11,<3.14"
 license = "LicenseRef-Proprietary"
 authors = [{ name = "3M Cloud" }]
 maintainers = [
@@ -14,6 +14,7 @@ classifiers = [
   "Intended Audience :: Developers",
   "Operating System :: OS Independent",
   "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
   "Topic :: Internet :: WWW/HTTP",
@@ -94,7 +95,7 @@ filterwarnings = [
 
 [tool.ruff]
 line-length = 80
-target-version = "py312"
+target-version = "py311"
 exclude = [
   ".git",
   ".venv",
@@ -153,7 +154,7 @@ convention = "google"
 docstring-code-format = true
 
 [tool.mypy]
-python_version = "3.12"
+python_version = "3.11"
 strict = true
 warn_unused_ignores = true
 warn_redundant_casts = true
@@ -180,7 +181,7 @@ ignore_missing_imports = true
 
 [tool.ty.environment]
 python = ".venv"
-python-version = "3.12"
+python-version = "3.11"
 root = [
   ".",
   "packages/nova_dash_bridge/src",

@@ -29,9 +29,9 @@ docs.
 Use the repo workflows as the enforcement map:
 
 - `.github/workflows/ci.yml`
-  - Python 3.13 primary quality/generation lane, Python 3.12 runtime
-    compatibility lane, generated-client checks, TS/R conformance, required
-    `ty` plus `mypy` compatibility backstop, canonical-route guard
+  - Python 3.13 primary quality/generation lane, Python 3.11 and 3.12 runtime
+    compatibility coverage, generated-client checks, TS/R conformance,
+    required `ty` plus `mypy` compatibility backstop, canonical-route guard
 - `.github/workflows/cfn-contract-validate.yml`
   - CloudFormation syntax/schema plus docs/infra contract checks
 
@@ -178,10 +178,11 @@ monorepo.
 
 Toolchain baseline notes:
 
-- Python 3.13 is the primary CI/tooling baseline. Keep Python 3.12
+- Workspace packages support Python 3.11+.
+- Python 3.13 is the primary CI/tooling baseline. Keep Python 3.11 and 3.12
   compatibility for the surviving runtime packages through the dedicated
   pytest/build lane unless a deliberate repo-wide support-floor decision
-  removes it.
+  removes either lane.
 - `pyproject.toml` pins the supported `uv` CLI via
   `[tool.uv].required-version` (currently `0.11.1`); keep CI and local
   bootstrap flows on that version unless a repo-wide verification run
