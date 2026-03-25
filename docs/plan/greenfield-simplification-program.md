@@ -1,7 +1,7 @@
 # Green-field simplification program
 
 Status: Active program index
-Last updated: 2026-03-19
+Last updated: 2026-03-24
 
 Canonical authority for **decisions** lives in
 [ADR-0033](../architecture/adr/ADR-0033-single-runtime-auth-authority.md)
@@ -101,21 +101,23 @@ Commands must remain runnable or be updated deliberately when artifact flow
 changes:
 
 ```bash
-uv sync --locked --all-extras --dev
+uv sync --locked --all-packages --all-extras --dev
+uv lock --check
 uv run ruff check .
+uv run ruff check . --select I
 uv run ruff format . --check
-uv run mypy .
+uv run ty check --force-exclude --error-on-warning packages scripts
+uv run mypy
 uv run pytest -q
 uv run python scripts/contracts/export_openapi.py --check
+uv run python scripts/release/generate_runtime_config_contract.py --check
 uv run python scripts/release/generate_clients.py --check
 uv run python scripts/release/generate_python_clients.py --check
+for p in packages/nova_file_api packages/nova_dash_bridge packages/nova_runtime_support; do uv build "$p"; done
 npm run -w @nova/sdk-file build
 npm run -w @nova/sdk-file typecheck
 bash scripts/checks/verify_r_cmd_check.sh packages/nova_sdk_r_file
 ```
-
-(Exact package names and npm workspace targets may change during branch 7–11;
-update this block when they do.)
 
 ## Program-level definition of done
 
@@ -130,7 +132,9 @@ The program is complete only when all of the following are true:
 - The canonical public Python surface is async-first (ADR-0037).
 - Generated clients for Python, TypeScript, and R target the final public
   contract cleanly.
-- Infra, docs, CI, and release flow match the smaller system.
+- Infra, docs, CI, and release flow match the smaller system, with Python 3.13
+  as the primary tooling baseline and Python 3.12 kept only as a verified
+  runtime compatibility lane for surviving packages.
 - A new maintainer can understand the repo without a stack of exception docs.
 
 ## If a branch uncovers a better option
@@ -152,5 +156,7 @@ Breaking changes are allowed; discipline still matters:
 
 ## Changelog
 
+- 2026-03-24: Refreshed the global verification baseline after branch 11
+  rebaseline completion.
 - 2026-03-19: Canonicalized from `.agents/nova_greenfield_codex_pack` with Nova
   ADR/SPEC cross-links.

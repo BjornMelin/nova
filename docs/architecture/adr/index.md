@@ -39,9 +39,12 @@ boundaries, but are not part of the active runtime API authority layer.
 These identifiers are canonical for SDK topology and release-artifact
 governance, separate from the runtime authority pack.
 
-- `ADR-0038` (canonical SDK stacks; supersedes [ADR-0013](./superseded/ADR-0013-final-state-sdk-topology-generated-core-plus-thin-adapters.md))
-- `SPEC-0029` (successor to superseded [SPEC-0011](../spec/superseded/SPEC-0011-multi-language-sdk-architecture-and-package-map.md))
-- `SPEC-0012`
+- [ADR-0038](./ADR-0038-sdk-architecture-by-language.md)
+- [SPEC-0029](../spec/SPEC-0029-sdk-architecture-and-artifact-contract.md)
+- [SPEC-0012](../spec/SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md)
+
+Superseded predecessors remain available only in the superseded ADR/SPEC trees
+and are not active authority.
 
 ## Green-field simplification authority (2026)
 
@@ -70,7 +73,7 @@ operator-authority entrypoint identifiers.
 | ADR | Title | Status | Date |
 | --- | --- | --- | --- |
 | [ADR-0000](./ADR-0000-fastapi-microservice.md) | Implement the File Transfer API as a FastAPI service | Accepted | 2026-02-11 |
-| [ADR-0001](./ADR-0001-deployment-on-ecs-fargate-behind-alb.md) | Deploy on ECS Fargate behind ALB with same-origin routing | Accepted (partially superseded) | 2026-03-05 |
+| [ADR-0001](./ADR-0001-deployment-on-ecs-fargate-behind-alb.md) | Deploy on ECS Fargate behind ALB | Accepted (partially superseded) | 2026-03-05 |
 | [ADR-0002](./ADR-0002-openapi-as-contract-and-sdk-generation.md) | Treat OpenAPI as the contract and generate client SDKs from it | Accepted | 2026-02-11 |
 | [ADR-0003](./ADR-0003-api-docs-site-mkdocs-material-plus-scalar.md) | API documentation site uses MkDocs Material and Scalar API Reference | Accepted | 2026-02-11 |
 | [ADR-0004](./ADR-0004-canonical-oidc-jwt-verifier-adoption.md) | Adopt oidc-jwt-verifier as the canonical JWT/OIDC verification engine | Accepted | 2026-02-12 |

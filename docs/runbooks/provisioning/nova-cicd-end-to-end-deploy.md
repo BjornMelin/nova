@@ -96,7 +96,7 @@ Export the required values for the Nova operator command pack:
 Example exports:
 
 ```bash
-export AWS_REGION="${AWS_REGION:-us-west-2}"
+export AWS_REGION="${AWS_REGION:-us-east-1}"
 export PROJECT="${PROJECT:-nova}"
 export APPLICATION="${APPLICATION:-ci}"
 export AWS_ACCOUNT_ID="${AWS_ACCOUNT_ID:-}"
@@ -113,6 +113,9 @@ Legacy `codestar-connections` ARNs should be treated as migration-only inputs.
 
 The day-0 operator command pack requires an explicit GitHub repository target.
 It does not derive `GITHUB_OWNER` or `GITHUB_REPO` from the local checkout.
+
+Nova operator guidance assumes `us-east-1` unless a higher-priority active
+runbook or environment-specific deployment decision overrides it.
 
 Reference details:
 [config-values-reference.md](config-values-reference.md)
@@ -285,6 +288,25 @@ The staged publish workflow is already present in GitHub Actions:
 `Publish Packages` manually publishes Python, TypeScript/npm, and R artifacts
 to `CODEARTIFACT_STAGING_REPOSITORY`, and `Promote Prod` manually promotes the
 gated artifacts to `CODEARTIFACT_PROD_REPOSITORY`.
+
+Operator evidence flow after `Nova Release Apply`:
+
+1. Capture the successful `release_apply_run_id`.
+2. Run `Publish Packages` from `main` with that `release_apply_run_id`.
+3. Retain staged gate artifacts:
+   - `changed-units.json`
+   - `version-plan.json`
+   - `codeartifact-gate-report.json`
+   - `codeartifact-promotion-candidates.json`
+4. Run `Promote Prod` with:
+   - `pipeline_name`
+   - `manifest_sha256`
+   - `changed_units_json`
+   - `changed_units_sha256`
+   - `version_plan_json`
+   - `version_plan_sha256`
+   - `promotion_candidates_json`
+   - `promotion_candidates_sha256`
 
 ## Step 4: capture stack outputs
 

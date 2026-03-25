@@ -185,8 +185,9 @@ curl -fsS http://127.0.0.1:8050/v1/health/live
 After Docker is fixed, re-run the focused repo checks:
 
 ```bash
-source .venv/bin/activate && uv lock --check
-source .venv/bin/activate && uv run pytest -q packages/nova_file_api/tests/test_runtime_security_reliability_gates.py
+uv sync --locked --all-packages --all-extras --dev
+uv lock --check
+uv run pytest -q packages/nova_file_api/tests/test_runtime_security_reliability_gates.py
 ```
 
 ## Notes

@@ -88,7 +88,7 @@ For each branch:
 These commands should remain runnable or be updated deliberately if a branch changes artifact flow:
 
 ```bash
-uv sync --locked --all-extras --dev
+uv sync --locked --all-packages --all-extras --dev
 uv run ruff check .
 uv run ruff format . --check
 uv run mypy .

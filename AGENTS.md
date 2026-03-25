@@ -140,7 +140,6 @@ Use these routers instead of restating partial authority packs:
 Quick route preflight:
 
 ```bash
-source .venv/bin/activate && \
 rg -n "/v1/transfers|/v1/jobs|/v1/capabilities|/v1/resources/plan|/v1/releases/info|/v1/health/live|/v1/health/ready|/metrics/summary" packages docs
 ```
 
@@ -200,21 +199,21 @@ Run:
 
 ```bash
 npm ci
-source .venv/bin/activate && uv lock --check
-source .venv/bin/activate && uv run ruff check .
-source .venv/bin/activate && uv run ruff check . --select I
-source .venv/bin/activate && uv run ruff format . --check
-source .venv/bin/activate && uv run ty check --force-exclude --error-on-warning packages scripts
-source .venv/bin/activate && uv run mypy
-source .venv/bin/activate && uv run pytest -q
-source .venv/bin/activate && uv run pytest -q \
+uv sync --locked --all-packages --all-extras --dev
+uv lock --check
+uv run ruff check .
+uv run ruff check . --select I
+uv run ruff format . --check
+uv run ty check --force-exclude --error-on-warning packages scripts
+uv run mypy
+uv run pytest -q
+uv run pytest -q \
   packages/nova_file_api/tests/test_generated_client_smoke.py
-source .venv/bin/activate && uv run python scripts/contracts/export_openapi.py --check
-source .venv/bin/activate && uv run python scripts/release/generate_runtime_config_contract.py --check
-source .venv/bin/activate && uv run python scripts/release/generate_clients.py --check
-source .venv/bin/activate && uv run python scripts/release/generate_python_clients.py --check
-source .venv/bin/activate && \
-for p in packages/nova_file_api packages/nova_dash_bridge; do uv build "$p"; done
+uv run python scripts/contracts/export_openapi.py --check
+uv run python scripts/release/generate_runtime_config_contract.py --check
+uv run python scripts/release/generate_clients.py --check
+uv run python scripts/release/generate_python_clients.py --check
+for p in packages/nova_file_api packages/nova_dash_bridge packages/nova_runtime_support; do uv build "$p"; done
 ```
 
 Notes:
@@ -244,16 +243,17 @@ Notes:
 - CI also enforces a stronger canonical-route policy guard in
   `.github/workflows/ci.yml`. Use the quick route preflight above before
   broader edits.
-- If you touch `packages/nova_runtime_support`, also run:
-  `source .venv/bin/activate && uv build packages/nova_runtime_support`
+- CI defaults to Python 3.13 for the primary lint/type/generation lane and
+  keeps a Python 3.12 pytest/build compatibility lane for the surviving
+  runtime packages.
 
 ### Pre-commit hooks
 
 Install repo hooks with:
 
 ```bash
-source .venv/bin/activate && uv sync --locked
-source .venv/bin/activate && uv run pre-commit install --install-hooks \
+uv sync --locked --all-packages --all-extras --dev
+uv run pre-commit install --install-hooks \
   --hook-type pre-commit --hook-type pre-push
 ```
 
@@ -275,12 +275,13 @@ Also run the conformance/client checks mirrored by
 
 ```bash
 npm ci
-source .venv/bin/activate && uv run python scripts/conformance/check_typescript_module_policy.py
+uv sync --locked --all-packages --all-extras --dev
+uv run python scripts/conformance/check_typescript_module_policy.py
 npm run -w @nova/sdk-file typecheck
 npm run -w @nova/sdk-file build
 npm run -w @nova/contracts-ts-conformance typecheck
 npm run -w @nova/contracts-ts-conformance verify
-source .venv/bin/activate && uv run pytest -q scripts/release/tests/test_typescript_sdk_contracts.py
+uv run pytest -q scripts/release/tests/test_typescript_sdk_contracts.py
 ```
 
 ### R package artifacts, release packaging, or R SDK docs/contracts
@@ -288,7 +289,7 @@ source .venv/bin/activate && uv run pytest -q scripts/release/tests/test_typescr
 Also run the shared R conformance entrypoint:
 
 ```bash
-source .venv/bin/activate && bash scripts/checks/run_sdk_conformance.sh
+bash scripts/checks/run_sdk_conformance.sh
 ```
 
 Notes:
@@ -304,8 +305,9 @@ Use the docs/infra contract checks mirrored by
 `.github/workflows/cfn-contract-validate.yml`:
 
 ```bash
-source .venv/bin/activate && uv run --with cfn-lint==1.46.0 cfn-lint infra/nova/*.yml infra/nova/deploy/*.yml infra/runtime/**/*.yml
-source .venv/bin/activate && uv run --with pytest pytest -q \
+uv sync --locked --all-packages --all-extras --dev
+uv run --with cfn-lint==1.46.0 cfn-lint infra/nova/*.yml infra/nova/deploy/*.yml infra/runtime/**/*.yml
+uv run --with pytest pytest -q \
   tests/infra/test_absorbed_infra_contracts.py \
   tests/infra/test_workflow_productization_contracts.py \
   tests/infra/test_workflow_contract_docs.py \
@@ -322,7 +324,7 @@ docker buildx version
 DOCKER_BUILDKIT=1 docker buildx build --load \
   -f apps/nova_file_api_service/Dockerfile \
   -t nova-file-api:test .
-source .venv/bin/activate && uv run pytest -q \
+uv run pytest -q \
   packages/nova_file_api/tests/test_runtime_security_reliability_gates.py \
   tests/infra/test_workflow_productization_contracts.py \
   tests/infra/test_workflow_contract_docs.py \

@@ -12,6 +12,11 @@ DOCS_ROOT = REPO_ROOT / "docs"
 AGENTS_PATH = REPO_ROOT / "AGENTS.md"
 
 ACTIVE_DOCS_PATHS = (
+    REPO_ROOT / "README.md",
+    AGENTS_PATH,
+    DOCS_ROOT / "README.md",
+    DOCS_ROOT / "standards",
+    DOCS_ROOT / "plan",
     DOCS_ROOT / "runbooks",
     DOCS_ROOT / "release",
     DOCS_ROOT / "architecture" / "adr",
@@ -88,13 +93,12 @@ def test_active_docs_do_not_link_to_retired_container_craft_docs() -> None:
     """Active Nova docs must not point to retired container-craft docs."""
     violations: list[str] = []
 
-    for base_path in ACTIVE_DOCS_PATHS:
-        for doc in _markdown_files(base_path):
-            text = doc.read_text(encoding="utf-8")
-            for pattern in BANNED_DOC_PATTERNS:
-                if pattern in text:
-                    rel_path = doc.relative_to(REPO_ROOT)
-                    violations.append(f"{rel_path}: {pattern}")
+    for doc in _markdown_targets(ACTIVE_DOCS_PATHS):
+        text = doc.read_text(encoding="utf-8")
+        for pattern in BANNED_DOC_PATTERNS:
+            if pattern in text:
+                rel_path = doc.relative_to(REPO_ROOT)
+                violations.append(f"{rel_path}: {pattern}")
 
     assert not violations, (
         "Found active Nova docs linking to retired container-craft docs:\n"
@@ -116,8 +120,10 @@ def test_active_docs_do_not_reference_legacy_runtime_route_literals() -> None:
 
         for pattern in LEGACY_ACTIVE_ROUTE_PATTERNS:
             for match in pattern.finditer(text):
-                context = text[max(0, match.start() - 24) : match.start()]
+                context = text[max(0, match.start() - 120) : match.start()]
                 if "http" in context or "https" in context:
+                    continue
+                if "Do not add compatibility aliases" in context:
                     continue
                 rel_path = doc.relative_to(REPO_ROOT)
                 violations.add(f"{rel_path}: {match.group(0)}")

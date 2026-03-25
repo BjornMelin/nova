@@ -2,13 +2,18 @@
 
 Status: Active
 Owner: nova release architecture
-Last reviewed: 2026-03-19
+Last reviewed: 2026-03-24
 
 ## Purpose
 
 First-time and ongoing **AWS / GitHub / local workstation** setup for Nova
 release and CI/CD. Execute in roughly this order; then use
 [`../release/README.md`](../release/README.md) for release and validation.
+
+Before running day-0 or end-to-end flows, read:
+
+- [config-values-reference.md](config-values-reference.md)
+- [github-actions-secrets-and-vars.md](github-actions-secrets-and-vars.md)
 
 ## Recommended order
 
@@ -23,6 +28,7 @@ release and CI/CD. Execute in roughly this order; then use
 | Doc | Role |
 | --- | --- |
 | [config-values-reference.md](config-values-reference.md) | GitHub secrets/vars, command-pack keys, stack outputs |
+| [github-actions-secrets-and-vars.md](github-actions-secrets-and-vars.md) | Canonical GitHub repository secret/variable setup for Nova release automation |
 
 Route/API documentation authority:
 [`../release/README.md#canonical-documentation-authority-chain`](../release/README.md#canonical-documentation-authority-chain).

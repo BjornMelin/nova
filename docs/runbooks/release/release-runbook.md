@@ -2,7 +2,7 @@
 
 Status: Active
 Owner: nova release architecture
-Last updated: 2026-03-18
+Last updated: 2026-03-24
 
 ## 1. Purpose
 
@@ -21,7 +21,11 @@ Provisioning, validation, and setup guides are indexed in
 
 ## 2. Preconditions
 
-1. `main` is green on CI (`ci.yml`).
+1. `main` is green on the required hosted checks defined in
+   `governance-lock-and-branch-protection.md`: the `Nova CI` leaf jobs
+   (`quality-gates`, `python-compatibility`, `generated-clients`,
+   `dash-conformance`, `shiny-conformance`, `typescript-conformance`) and
+   `CFN Contract Validate` (`cfn-and-contracts`).
 2. Release OIDC role and signing secret are provisioned.
 3. CodeConnections source connection is `AVAILABLE`.
 4. Runtime stacks are deployed for `dev` and `prod`, and validation base URLs
@@ -45,6 +49,10 @@ Provisioning, validation, and setup guides are indexed in
 9. IAM roles stack is deployed with promotion repository parameters:
    - `CodeArtifactPromotionSourceRepositoryName`
    - `CodeArtifactPromotionDestinationRepositoryName`
+10. GitHub and local release tooling are expected to resolve the workspace with
+    `uv sync --locked --all-packages --all-extras --dev`. Local/operator
+    release tooling runs on Python 3.13; Python 3.12 remains the hosted
+    pytest/build compatibility evidence lane for surviving runtime packages.
 
 ## 3. GitHub release execution
 
@@ -74,8 +82,10 @@ Provisioning, validation, and setup guides are indexed in
 
 ### D. Package staged publish gate
 
-1. Trigger `Publish Packages` manually from `main` with the successful
-   `Nova Release Apply` run id.
+1. Trigger `Publish Packages` manually from `main` with:
+   - `release_apply_run_id` set to the successful `Nova Release Apply` run id
+   - `expected_manifest_sha256` set to the manifest SHA from the signed
+     release state when prompted
 2. Confirm `scripts.release.codeartifact_gate` generated:
    - `.artifacts/r-publish-report.json`
    - `.artifacts/codeartifact-gate-report.json`
@@ -104,6 +114,12 @@ Provisioning, validation, and setup guides are indexed in
    release evidence.
 6. Confirm promotion copies from `CODEARTIFACT_STAGING_REPOSITORY` to
    `CODEARTIFACT_PROD_REPOSITORY`.
+7. Record these staged-publish inputs and outputs as durable evidence:
+   - `release_apply_run_id`
+   - `RELEASE_MANIFEST_SHA256`
+   - `changed-units.json`
+   - `version-plan.json`
+   - `codeartifact-promotion-candidates.json`
 
 ### E. Post-deploy route validation gate
 
@@ -137,10 +153,14 @@ Provisioning, validation, and setup guides are indexed in
    - DeployProd
    - ValidateProd
 3. Run `Promote Prod` workflow with:
+   - `pipeline_name` from the CI/CD stack output
    - `manifest_sha256` from `codeartifact-gate-report.json`
    - `changed_units_json` from staged gate artifact (`changed-units.json`)
+   - `changed_units_sha256` from the staged canonical payload
    - `version_plan_json` from staged gate artifact (`version-plan.json`)
+   - `version_plan_sha256` from the staged canonical payload
    - `promotion_candidates_json` from `codeartifact-promotion-candidates.json`
+   - `promotion_candidates_sha256` from the staged canonical payload
 4. Confirm package promotion uses `aws codeartifact copy-package-versions` from
    `CODEARTIFACT_STAGING_REPOSITORY` to `CODEARTIFACT_PROD_REPOSITORY`.
    Scoped npm packages must provide `--namespace` and the unscoped package

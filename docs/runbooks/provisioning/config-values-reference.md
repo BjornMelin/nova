@@ -116,7 +116,7 @@ Generated runtime config authority:
   current runtime env vars, `ENV_VARS_JSON` supported overrides, and ECS
   template wiring.
 - Regenerate it with
-  `source .venv/bin/activate && uv run python scripts/release/generate_runtime_config_contract.py`.
+  `uv run python scripts/release/generate_runtime_config_contract.py`.
 - The underlying source of truth is
   `packages/nova_file_api/src/nova_file_api/config.py` plus
   `scripts/release/runtime_config_contract.py`.
