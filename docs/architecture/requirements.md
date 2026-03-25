@@ -34,8 +34,9 @@ requirements for the first production release.
   `SPEC-0007`).
 - Public SDK policy: Python public; TypeScript release-grade in CodeArtifact
   (generator-owned, subpath-only, `openapi-typescript` + `openapi-fetch` stack
-  per `ADR-0038` / `SPEC-0029`); R first-class internal release line (`httr2`
-  thin client per `ADR-0038` / `SPEC-0029`).
+  per `ADR-0038` / `SPEC-0029`, with the active workspace kept on the verified
+  TypeScript 5.x line while TypeScript 6 remains deferred); R first-class
+  internal release line (`httr2` thin client per `ADR-0038` / `SPEC-0029`).
 
 ## Green-field program requirements (GFR)
 

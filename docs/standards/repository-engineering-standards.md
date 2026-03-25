@@ -189,10 +189,18 @@ Toolchain baseline notes:
 - Node 24 LTS is the primary npm/TypeScript SDK tooling baseline for local
   `npm ci`, the TypeScript conformance/package lanes in `Nova CI`, and the
   npm packaging steps in `Publish Packages`.
+- The current npm workspace, generated SDKs, and conformance fixtures stay on
+  the verified TypeScript 5.x line. TypeScript 6 remains deferred until a
+  repo-wide migration updates `package-lock.json`, generated SDK outputs,
+  conformance fixtures, and release/workflow docs in one verified change set.
 - The root dev dependency group pins `openapi-python-client==0.28.3` for the
   committed Python SDK generation path. Keep that exact pin, the lockfile,
   `scripts/release/openapi_python_client/`, and the committed
   `packages/nova_sdk_py_file` tree aligned in the same change.
+- Current runtime dependency floors are manifest-owned authority:
+  `pydantic-settings>=2.13.1` in `nova-file-api` and `nova-dash-bridge`, plus
+  `redis>=7.4.0` and `uvicorn[standard]>=0.42.0` in `nova-file-api`. If those
+  floors move, update docs, lockfiles, and verification guidance together.
 - Pytest defaults to `--import-mode=importlib` and relies on editable workspace
   installs instead of repo-level `pythonpath` injection. Treat any return to a
   global `pythonpath` shim as a regression unless it is backed by a newly

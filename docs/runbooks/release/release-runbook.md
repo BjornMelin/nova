@@ -56,6 +56,8 @@ Provisioning, validation, and setup guides are indexed in
     `uv sync --locked --all-packages --all-extras --dev`. Local/operator
     release tooling runs on Python 3.13; Python 3.12 remains the hosted
     pytest/build compatibility evidence lane for surviving runtime packages.
+    The npm workspace remains on the verified TypeScript 5.x line on Node 24
+    LTS; TypeScript 6 is deferred until a dedicated repo-wide migration lands.
 
 ## 3. GitHub release execution
 
