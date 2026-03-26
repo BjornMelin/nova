@@ -28,6 +28,11 @@ def test_asset_keeps_bearer_only_auth_contract() -> None:
     assert "X-Session-Id" not in source
     assert "session_id" not in source
     assert 'credentials: "same-origin"' not in source
+    # `source` is file_transfer.js: three fetch helpers (postJson, getJson,
+    # putWithTimeout) each embed exactly one credentials: "omit" so API JSON
+    # and presigned PUTs stay bearer-only (no cookie/session creds). The
+    # count guardrails that invariant if a helper is duplicated
+    # or one drops omit.
     assert source.count('credentials: "omit"') >= 3
 
 

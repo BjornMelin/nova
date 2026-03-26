@@ -15,7 +15,8 @@ Capture durable repo engineering and operator rules that are too detailed for
 2. `docs/README.md`
 3. `docs/architecture/README.md`
 4. `README.md`
-5. `docs/runbooks/README.md` when the task affects release or operations
+5. `docs/standards/README.md`
+6. `docs/runbooks/README.md` when the task affects release or operations
 
 ## Authority Classification
 

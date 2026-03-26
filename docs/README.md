@@ -5,19 +5,21 @@ Last reviewed: 2026-03-25
 
 ## Purpose
 
-This is the repo-wide documentation router. Start here when you need to find
-the right authority document quickly without scanning the entire `docs/` tree.
+After [AGENTS.md](../AGENTS.md) (repo rules, commands, and guardrails), use this
+file to pick the right authority document without scanning the entire `docs/`
+tree.
 Minimum supported Python version for workspace packages is 3.11; default local
 tooling and the primary quality lane stay on Python 3.13, while compatibility
 coverage now spans Python 3.11 and 3.12.
 
 ## Reading Order for Fresh Sessions
 
-1. `../AGENTS.md`
-2. `./architecture/README.md`
-3. `../README.md`
-4. `./standards/README.md`
-5. `./runbooks/README.md` when the task affects release or operations
+1. `../AGENTS.md` — entry point for agents and contributors
+2. `./README.md` — this documentation map (you are here after step 1)
+3. `./architecture/README.md`
+4. `../README.md`
+5. `./standards/README.md`
+6. `./runbooks/README.md` when the task affects release or operations
 
 ## Documentation Map
 

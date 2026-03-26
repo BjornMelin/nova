@@ -10,8 +10,14 @@ import re
 
 import yaml
 
-from .helpers import REPO_ROOT, load_repo_module, section_text
-from .helpers import read_repo_file as _read
+from .helpers import (
+    REPO_ROOT,
+    load_repo_module,
+    section_text,
+)
+from .helpers import (
+    read_repo_file as _read,
+)
 
 runtime_config_contract = load_repo_module(
     "tests.infra.runtime_config_contract",
