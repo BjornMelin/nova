@@ -71,13 +71,16 @@ async def _service_with_record() -> tuple[
 
 
 def _workflow_input() -> ExportWorkflowInput:
+    now = datetime.now(tz=UTC)
     return ExportWorkflowInput(
         export_id="export-1",
         scope_id="scope-1",
         source_key="uploads/scope-1/source.csv",
         filename="source.csv",
         request_id="req-1",
-        created_at=datetime.now(tz=UTC).isoformat(),
+        status=ExportStatus.QUEUED,
+        created_at=now.isoformat(),
+        updated_at=now.isoformat(),
     )
 
 

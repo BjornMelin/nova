@@ -9,7 +9,7 @@ import structlog
 from nova_file_api.config import Settings
 
 from nova_workflows.models import ExportWorkflowInput
-from nova_workflows.runtime import workflow_services
+from nova_workflows.runtime import export_services, workflow_services
 from nova_workflows.tasks import (
     copy_export,
     fail_export,
@@ -24,7 +24,12 @@ def validate_export_handler(
     event: dict[str, Any],
     _context: object,
 ) -> dict[str, Any]:
-    """Lambda handler for validating an export workflow input."""
+    """Validate export input and let model validation errors propagate.
+
+    ValidationError raised by _validate_export via model_validate is
+    intentionally not caught here so Step Functions catchers can handle
+    malformed input.
+    """
     return asyncio.run(_validate_export(event=event))
 
 
@@ -59,7 +64,7 @@ async def _validate_export(*, event: dict[str, Any]) -> dict[str, Any]:
         export_id=workflow_input.export_id,
         request_id=workflow_input.request_id,
     )
-    async with workflow_services() as services:
+    async with export_services() as services:
         result = await validate_export(
             workflow_input=workflow_input,
             export_service=services.export_service,
@@ -92,7 +97,7 @@ async def _finalize_export(*, event: dict[str, Any]) -> dict[str, Any]:
         export_id=workflow_input.export_id,
         request_id=workflow_input.request_id,
     )
-    async with workflow_services() as services:
+    async with export_services() as services:
         result = await finalize_export(
             workflow_input=workflow_input,
             export_service=services.export_service,
@@ -108,7 +113,7 @@ async def _fail_export(*, event: dict[str, Any]) -> dict[str, Any]:
         request_id=workflow_input.request_id,
         error=workflow_input.error,
     )
-    async with workflow_services() as services:
+    async with export_services() as services:
         result = await fail_export(
             workflow_input=workflow_input,
             export_service=services.export_service,

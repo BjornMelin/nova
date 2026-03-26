@@ -482,7 +482,9 @@ class StepFunctionsExportPublisher:
             "source_key": export.source_key,
             "filename": export.filename,
             "request_id": export.request_id,
+            "status": export.status.value,
             "created_at": export.created_at.isoformat(),
+            "updated_at": export.updated_at.isoformat(),
         }
         try:
             await self.stepfunctions_client.start_execution(

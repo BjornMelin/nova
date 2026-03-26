@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from datetime import UTC, datetime
 from typing import Any
 
@@ -73,7 +74,15 @@ async def test_step_functions_publisher_starts_execution() -> None:
     client = publisher.stepfunctions_client
     assert isinstance(client, _FakeStepFunctionsClient)
     assert client.start_calls
-    assert client.start_calls[0]["name"] == "export-1"
-    assert (
-        client.start_calls[0]["stateMachineArn"] == publisher.state_machine_arn
-    )
+    start_call = client.start_calls[0]
+    payload = json.loads(start_call["input"])
+    assert start_call["name"] == "export-1"
+    assert start_call["stateMachineArn"] == publisher.state_machine_arn
+    assert payload["export_id"] == "export-1"
+    assert payload["scope_id"] == "scope-1"
+    assert payload["source_key"] == "uploads/scope-1/source.csv"
+    assert payload["filename"] == "source.csv"
+    assert payload["request_id"] == "req-1"
+    assert payload["status"] == ExportStatus.QUEUED.value
+    assert payload["created_at"] == now.isoformat()
+    assert payload["updated_at"] == now.isoformat()

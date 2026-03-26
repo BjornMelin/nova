@@ -9,7 +9,7 @@ description = "Canonical serverless CDK app for Nova."
 readme = "README.md"
 requires-python = ">=3.11,<3.14"
 dependencies = [
-  "aws-cdk-lib>=2.186.0,<3",
+  "aws-cdk-lib>=2.189.0,<3",
   "constructs>=10.4.2,<11",
 ]
 

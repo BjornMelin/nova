@@ -51,7 +51,8 @@ WORKDIR /app
 
 RUN useradd --create-home --shell /bin/bash appuser
 
-COPY --from=public.ecr.aws/awsguru/aws-lambda-adapter:1.0.0-rc1 /lambda-adapter /opt/extensions/lambda-adapter
+# Pin the stable adapter release for the production Lambda Web Adapter path.
+COPY --from=public.ecr.aws/awsguru/aws-lambda-adapter:v0.9.1 /lambda-adapter /opt/extensions/lambda-adapter
 
 COPY --from=builder --chown=appuser:appuser /app/.venv /app/.venv
 

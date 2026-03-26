@@ -332,7 +332,10 @@ def build_export_publisher(
 
     Raises:
         ValueError: When JOBS_SQS_QUEUE_URL is missing for SQS backend with
-            jobs enabled, or sqs_client is missing when required.
+            jobs enabled, or sqs_client is missing when required, or when
+            JOBS_STEP_FUNCTIONS_STATE_MACHINE_ARN is missing for Step
+            Functions backend with jobs enabled, or stepfunctions_client is
+            missing when required.
     """
     if settings.jobs_queue_backend == JobsQueueBackend.SQS:
         queue_url = (

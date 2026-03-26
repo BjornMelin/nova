@@ -27,6 +27,50 @@ class WorkflowServices:
     transfer_service: TransferService
 
 
+@dataclass(slots=True)
+class ExportServices:
+    """Materialized export service used by workflow validation handlers."""
+
+    export_service: ExportService
+
+
+def _build_export_service(
+    *,
+    resolved_settings: Settings,
+    dynamodb_resource: object,
+) -> ExportService:
+    """Build the export service from shared runtime dependencies."""
+    metrics = build_metrics(settings=resolved_settings)
+    repository = build_export_repository(
+        settings=resolved_settings,
+        dynamodb_resource=dynamodb_resource,
+    )
+    return build_export_service(
+        export_repository=repository,
+        export_publisher=MemoryExportPublisher(process_immediately=False),
+        metrics=metrics,
+    )
+
+
+@asynccontextmanager
+async def export_services(
+    *,
+    settings: Settings | None = None,
+) -> AsyncIterator[ExportServices]:
+    """Build the export service without the S3 transfer dependency."""
+    resolved_settings = Settings() if settings is None else settings
+    session = new_aioboto3_session()
+    async with AsyncExitStack() as stack:
+        dynamodb_resource = await stack.enter_async_context(
+            session.resource("dynamodb")
+        )
+        export_service = _build_export_service(
+            resolved_settings=resolved_settings,
+            dynamodb_resource=dynamodb_resource,
+        )
+        yield ExportServices(export_service=export_service)
+
+
 @asynccontextmanager
 async def workflow_services(
     *,
@@ -49,15 +93,9 @@ async def workflow_services(
         dynamodb_resource = await stack.enter_async_context(
             session.resource("dynamodb")
         )
-        metrics = build_metrics(settings=resolved_settings)
-        repository = build_export_repository(
-            settings=resolved_settings,
+        export_service = _build_export_service(
+            resolved_settings=resolved_settings,
             dynamodb_resource=dynamodb_resource,
-        )
-        export_service = build_export_service(
-            export_repository=repository,
-            export_publisher=MemoryExportPublisher(process_immediately=False),
-            metrics=metrics,
         )
         transfer_service = build_transfer_service(
             settings=resolved_settings,

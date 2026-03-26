@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from nova_file_api.models import ExportOutput
+from nova_file_api.models import ExportOutput, ExportStatus
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -40,7 +40,9 @@ class ExportWorkflowInput(BaseModel):
     source_key: str = Field(min_length=1, max_length=2048)
     filename: str = Field(min_length=1, max_length=512)
     request_id: str | None = Field(default=None, max_length=256)
+    status: ExportStatus
     created_at: str = Field(min_length=1, max_length=128)
+    updated_at: str = Field(min_length=1, max_length=128)
     output: WorkflowOutput | None = None
     error: str | None = Field(default=None, max_length=256)
     cause: str | None = Field(default=None, max_length=4000)

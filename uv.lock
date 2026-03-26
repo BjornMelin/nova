@@ -1134,7 +1134,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "aws-cdk-lib", specifier = ">=2.186.0,<3" },
+    { name = "aws-cdk-lib", specifier = ">=2.189.0,<3" },
     { name = "constructs", specifier = ">=10.4.2,<11" },
 ]
 

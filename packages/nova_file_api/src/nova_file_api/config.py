@@ -35,6 +35,10 @@ _MSG_WORKER_RUNTIME_REQUIRES_DYNAMODB_ACTIVITY_BACKEND = (
 _MSG_WORKER_RUNTIME_REQUIRES_ACTIVITY_TABLE = (
     "ACTIVITY_ROLLUPS_TABLE must be configured when JOBS_RUNTIME_MODE=worker"
 )
+_MSG_STEP_FUNCTIONS_REQUIRES_STATE_MACHINE_ARN = (
+    "JOBS_STEP_FUNCTIONS_STATE_MACHINE_ARN must be configured when "
+    "JOBS_QUEUE_BACKEND=stepfunctions and JOBS_ENABLED=true"
+)
 
 
 def _is_blank(value: str | None) -> bool:
@@ -325,6 +329,18 @@ class Settings(BaseSettings):
             stacklevel=2,
         )
         return self.default_required_permissions
+
+    @model_validator(mode="after")
+    def validate_step_functions_settings(self) -> Settings:
+        """Validate required settings for the Step Functions backend."""
+        if (
+            not self.jobs_enabled
+            or self.jobs_queue_backend != JobsQueueBackend.STEP_FUNCTIONS
+        ):
+            return self
+        if _is_blank(self.jobs_step_functions_state_machine_arn):
+            raise ValueError(_MSG_STEP_FUNCTIONS_REQUIRES_STATE_MACHINE_ARN)
+        return self
 
     @model_validator(mode="after")
     def validate_worker_runtime_settings(self) -> Settings:

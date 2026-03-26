@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import json
+import os
+from pathlib import Path
 from typing import Any
 
 from aws_cdk import Duration, RemovalPolicy, Stack
@@ -19,6 +22,57 @@ from aws_cdk import aws_stepfunctions as sfn
 from aws_cdk import aws_stepfunctions_tasks as tasks
 from aws_cdk import aws_wafv2 as wafv2
 from constructs import Construct
+
+REPO_ROOT = Path(__file__).resolve().parents[4]
+
+
+def _parse_allowed_origins(raw: object | None) -> list[str]:
+    """Normalize configured CORS origins into a non-empty string list."""
+    if raw is None:
+        return []
+    if isinstance(raw, str):
+        value = raw.strip()
+        if not value:
+            return []
+        if value.startswith("["):
+            try:
+                parsed = json.loads(value)
+            except ValueError:
+                parsed = value
+            else:
+                raw = parsed
+                if not isinstance(raw, list):
+                    raise TypeError(
+                        "allowed_origins must decode to a JSON list when "
+                        "supplied as JSON"
+                    )
+        else:
+            return [
+                origin
+                for origin in (item.strip() for item in value.split(","))
+                if origin
+            ]
+    if isinstance(raw, (list, tuple)):
+        origins = [str(origin).strip() for origin in raw if str(origin).strip()]
+        if origins:
+            return origins
+        return []
+    raise TypeError("allowed_origins must be a string or a list of strings")
+
+
+def _required_context_value(
+    scope: Construct,
+    *,
+    key: str,
+) -> str:
+    """Return one required non-blank CDK context value."""
+    value = scope.node.try_get_context(key)
+    if isinstance(value, str) and value.strip():
+        return value.strip()
+    raise ValueError(
+        f"Missing required CDK context value: {key}. "
+        "Pass -c jwt_issuer=... -c jwt_audience=... -c jwt_jwks_url=..."
+    )
 
 
 class NovaServerlessStack(Stack):
@@ -86,6 +140,30 @@ class NovaServerlessStack(Stack):
             removal_policy=RemovalPolicy.RETAIN,
         )
 
+        deployment_environment = (
+            str(
+                self.node.try_get_context("environment")
+                or os.environ.get("ENVIRONMENT")
+                or "dev"
+            )
+            .strip()
+            .lower()
+        )
+        allowed_origins = _parse_allowed_origins(
+            self.node.try_get_context("allowed_origins")
+            or os.environ.get("STACK_ALLOWED_ORIGINS")
+        )
+        if not allowed_origins:
+            if deployment_environment in {"prod", "production"}:
+                raise ValueError(
+                    "allowed_origins must be configured for production "
+                    "deployments"
+                )
+            allowed_origins = ["*"]
+        oidc_issuer = _required_context_value(self, key="jwt_issuer")
+        oidc_audience = _required_context_value(self, key="jwt_audience")
+        oidc_jwks_url = _required_context_value(self, key="jwt_jwks_url")
+
         file_bucket = s3.Bucket(
             self,
             "FileTransferBucket",
@@ -103,7 +181,7 @@ class NovaServerlessStack(Stack):
                         s3.HttpMethods.POST,
                         s3.HttpMethods.HEAD,
                     ],
-                    allowed_origins=["*"],
+                    allowed_origins=allowed_origins,
                     exposed_headers=["ETag"],
                 )
             ],
@@ -119,6 +197,9 @@ class NovaServerlessStack(Stack):
             "JOBS_DYNAMODB_TABLE": export_table.table_name,
             "ACTIVITY_STORE_BACKEND": "dynamodb",
             "ACTIVITY_ROLLUPS_TABLE": activity_table.table_name,
+            "OIDC_ISSUER": oidc_issuer,
+            "OIDC_AUDIENCE": oidc_audience,
+            "OIDC_JWKS_URL": oidc_jwks_url,
         }
 
         task_env = {
@@ -138,7 +219,7 @@ class NovaServerlessStack(Stack):
             self,
             "ValidateExportFunction",
             code=lambda_.DockerImageCode.from_image_asset(
-                directory=".",
+                directory=str(REPO_ROOT),
                 file="apps/nova_workflows_tasks/Dockerfile",
                 cmd=["nova_workflows.handlers.validate_export_handler"],
             ),
@@ -150,7 +231,7 @@ class NovaServerlessStack(Stack):
             self,
             "CopyExportFunction",
             code=lambda_.DockerImageCode.from_image_asset(
-                directory=".",
+                directory=str(REPO_ROOT),
                 file="apps/nova_workflows_tasks/Dockerfile",
                 cmd=["nova_workflows.handlers.copy_export_handler"],
             ),
@@ -162,7 +243,7 @@ class NovaServerlessStack(Stack):
             self,
             "FinalizeExportFunction",
             code=lambda_.DockerImageCode.from_image_asset(
-                directory=".",
+                directory=str(REPO_ROOT),
                 file="apps/nova_workflows_tasks/Dockerfile",
                 cmd=["nova_workflows.handlers.finalize_export_handler"],
             ),
@@ -174,7 +255,7 @@ class NovaServerlessStack(Stack):
             self,
             "FailExportFunction",
             code=lambda_.DockerImageCode.from_image_asset(
-                directory=".",
+                directory=str(REPO_ROOT),
                 file="apps/nova_workflows_tasks/Dockerfile",
                 cmd=["nova_workflows.handlers.fail_export_handler"],
             ),
@@ -192,6 +273,17 @@ class NovaServerlessStack(Stack):
             self,
             "PersistWorkflowFailure",
             lambda_function=fail_fn,
+            payload=sfn.TaskInput.from_object(
+                {
+                    "export_id": sfn.JsonPath.string_at("$.export_id"),
+                    "scope_id": sfn.JsonPath.string_at("$.scope_id"),
+                    "source_key": sfn.JsonPath.string_at("$.source_key"),
+                    "filename": sfn.JsonPath.string_at("$.filename"),
+                    "created_at": sfn.JsonPath.string_at("$.created_at"),
+                    "error": sfn.JsonPath.string_at("$.workflow_error.Error"),
+                    "cause": sfn.JsonPath.string_at("$.workflow_error.Cause"),
+                }
+            ),
             payload_response_only=True,
         ).next(sfn.Fail(self, "WorkflowFailed"))
 
@@ -221,7 +313,7 @@ class NovaServerlessStack(Stack):
             self,
             "ExportWorkflowLogs",
             retention=logs.RetentionDays.ONE_MONTH,
-            removal_policy=RemovalPolicy.DESTROY,
+            removal_policy=RemovalPolicy.RETAIN,
         )
         state_machine = sfn.StateMachine(
             self,
@@ -244,7 +336,7 @@ class NovaServerlessStack(Stack):
             self,
             "NovaApiFunction",
             code=lambda_.DockerImageCode.from_image_asset(
-                directory=".",
+                directory=str(REPO_ROOT),
                 file="apps/nova_file_api_service/Dockerfile",
             ),
             architecture=lambda_.Architecture.ARM_64,
@@ -278,40 +370,33 @@ class NovaServerlessStack(Stack):
             create_default_stage=True,
         )
 
-        issuer = self.node.try_get_context("jwt_issuer")
-        audience = self.node.try_get_context("jwt_audience")
-        authorizer = None
-        if issuer and audience:
-            authorizer = apigwv2_authorizers.HttpJwtAuthorizer(
-                "NovaJwtAuthorizer",
-                issuer,
-                jwt_audience=[audience],
-            )
-
-        if authorizer is None:
-            http_api.add_routes(
-                path="/v1/{proxy+}",
-                methods=[apigwv2.HttpMethod.ANY],
-                integration=integration,
-            )
-            http_api.add_routes(
-                path="/v1",
-                methods=[apigwv2.HttpMethod.ANY],
-                integration=integration,
-            )
-        else:
-            http_api.add_routes(
-                path="/v1/{proxy+}",
-                methods=[apigwv2.HttpMethod.ANY],
-                integration=integration,
-                authorizer=authorizer,
-            )
-            http_api.add_routes(
-                path="/v1",
-                methods=[apigwv2.HttpMethod.ANY],
-                integration=integration,
-                authorizer=authorizer,
-            )
+        authorizer = apigwv2_authorizers.HttpJwtAuthorizer(
+            "NovaJwtAuthorizer",
+            oidc_issuer,
+            jwt_audience=[oidc_audience],
+        )
+        http_api.add_routes(
+            path="/v1/health/live",
+            methods=[apigwv2.HttpMethod.GET],
+            integration=integration,
+        )
+        http_api.add_routes(
+            path="/v1/health/ready",
+            methods=[apigwv2.HttpMethod.GET],
+            integration=integration,
+        )
+        http_api.add_routes(
+            path="/v1/{proxy+}",
+            methods=[apigwv2.HttpMethod.ANY],
+            integration=integration,
+            authorizer=authorizer,
+        )
+        http_api.add_routes(
+            path="/v1",
+            methods=[apigwv2.HttpMethod.ANY],
+            integration=integration,
+            authorizer=authorizer,
+        )
         http_api.add_routes(
             path="/",
             methods=[apigwv2.HttpMethod.ANY],
@@ -355,8 +440,9 @@ class NovaServerlessStack(Stack):
             ],
         )
 
+        stack_region = self.region
         api_origin = origins.HttpOrigin(
-            f"{http_api.api_id}.execute-api.{self.region}.{Stack.of(self).url_suffix}",
+            f"{http_api.api_id}.execute-api.{stack_region}.{Stack.of(self).url_suffix}",
         )
         distribution = cloudfront.Distribution(
             self,
