@@ -224,11 +224,21 @@ Useful manual hook entrypoints:
 
 ```bash
 uv run pre-commit run typing-gates --hook-stage manual -a
-uv run pre-commit run quality-gates --hook-stage manual -a
 uv run pre-commit run sdk-conformance --hook-stage manual -a
 uv run pre-commit run infra-contracts --hook-stage manual -a
 uv run pre-commit run docker-release-images --hook-stage manual -a
 ```
+
+For focused local pytest reruns, use the repo markers:
+
+```bash
+uv run pytest -q -m runtime_gate
+uv run pytest -q -m "not runtime_gate and not generated_smoke"
+uv run pytest -q -m generated_smoke
+```
+
+Async pytest coverage now uses AnyIO's built-in pytest plugin pinned to the
+`asyncio` backend. Prefer `@pytest.mark.anyio` over `@pytest.mark.asyncio`.
 
 ## Repo-Local npm / CodeArtifact Auth
 

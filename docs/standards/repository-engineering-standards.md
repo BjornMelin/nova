@@ -38,7 +38,6 @@ Use the repo workflows as the enforcement map:
 Repo-local enforcement complements CI:
 
 - root `.pre-commit-config.yaml`
-- `scripts/checks/run_quality_gates.sh`
 - `scripts/checks/run_sdk_conformance.sh`
 - `scripts/checks/run_infra_contracts.sh`
 - `scripts/checks/run_docker_release_images.sh`
@@ -206,6 +205,13 @@ Toolchain baseline notes:
   installs instead of repo-level `pythonpath` injection. Treat any return to a
   global `pythonpath` shim as a regression unless it is backed by a newly
   reproduced import failure.
+- Async pytest coverage uses AnyIO's built-in pytest plugin pinned to the
+  `asyncio` backend through the repo root `conftest.py`; prefer
+  `@pytest.mark.anyio` over `@pytest.mark.asyncio`.
+- Focused local reruns use the repo markers:
+  - `uv run pytest -q -m runtime_gate`
+  - `uv run pytest -q -m "not runtime_gate and not generated_smoke"`
+  - `uv run pytest -q -m generated_smoke`
 
 Additional required gates when touching OpenAPI, generated TypeScript SDKs, npm
 packaging, release automation, or SDK docs/contracts:
@@ -272,12 +278,28 @@ governance:
 - `typing-gates` runs at `pre-push`.
 - Manual hooks mirror the AGENTS task router:
   - `typing-gates`
-  - `quality-gates`
   - `sdk-conformance`
   - `infra-contracts`
   - `docker-release-images`
 - `ty` is enforced in the required local and CI typing gates. It does not need
   a separate branch-protection context because it is part of `quality-gates`.
+
+## Repo-Local npm and CodeArtifact Auth
+
+- Keep npm registry auth repo-scoped. Use the committed repo-root `.npmrc` for
+  defaults and the generated `.npmrc.codeartifact` for temporary auth.
+- Run `eval "$(npm run -s codeartifact:npm:env)"` from the repo root before
+  npm publish/smoke-test flows that need CodeArtifact credentials.
+- `scripts/release/codeartifact_npm.py` writes `.npmrc.codeartifact` and
+  exports `NPM_CONFIG_USERCONFIG` plus `NPM_REGISTRY_URL`.
+- CI and release workflows must use the same explicit `NPM_CONFIG_USERCONFIG`
+  pattern or an equivalent temporary npmrc path. Do not rely on global
+  `~/.npmrc` mutation.
+- If the AWS account or CodeArtifact target changes, set `AWS_REGION`,
+  `CODEARTIFACT_DOMAIN`, and/or `CODEARTIFACT_STAGING_REPOSITORY` before
+  running the helper.
+- Do not use `aws codeartifact login --tool npm` in Nova. It rewrites global
+  npm config and is outside the canonical release path.
 
 ## Downstream and Retirement Spot Checks
 

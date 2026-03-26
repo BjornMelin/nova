@@ -216,51 +216,23 @@ uv run python scripts/release/generate_python_clients.py --check
 for p in packages/nova_file_api packages/nova_dash_bridge packages/nova_runtime_support; do uv build "$p"; done
 ```
 
-Notes:
+Long-form gate expansion, toolchain baselines, focused pytest marker reruns,
+manual hook policy, and SDK/runtime dependency-floor guidance are owned by
+`docs/standards/repository-engineering-standards.md`.
 
-- `ty` is the canonical Python type gate for the full repo typing surface.
-- `mypy` remains a required compatibility backstop on its narrower configured
-  scope.
-- `scripts/release/generate_clients.py --check` requires the repo-installed
-  root npm toolchain; run `npm ci` before generated TypeScript SDK gates so the
-  local `openapi-typescript` CLI is available without ad hoc network fetches.
-- Use Node 24 LTS for local npm workspace commands that drive the TypeScript SDK
-  and conformance lanes; CI/release workflows use the same baseline. The active
-  workspace remains on the verified TypeScript 5.x line; TypeScript 6 is
-  deferred until a dedicated repo-wide migration updates generated SDK output,
-  conformance fixtures, and release/workflow docs together.
-- `scripts/release/generate_python_clients.py --check` depends on the exact
-  root dev dependency pin `openapi-python-client==0.28.3` plus the committed
-  assets under `scripts/release/openapi_python_client/`. Treat generator-version
-  bumps and template/config changes as coupled updates to docs, tests, and the
-  committed SDK tree.
-- `pyproject.toml` pins the supported `uv` CLI via
-  `[tool.uv].required-version` (currently `0.11.1`); keep local tooling, CI,
-  and docs aligned when bumping that version.
-- Current manifest-owned runtime dependency floors are
-  `pydantic-settings>=2.13.1` in the surviving runtime packages and
-  `redis>=7.4.0` plus `uvicorn[standard]>=0.42.0` in
-  `packages/nova_file_api`. If those floors move, update docs, lockfiles, and
-  verification guidance in the same change.
-- Pytest runs in `--import-mode=importlib` against editable workspace installs.
-  Do not add repo-level `pythonpath` overrides back unless a newly verified
-  import failure requires them.
-- Runtime config deploy/docs/tests must treat
+Keep these repo-specific invariants in mind while using that matrix:
+
+- `ty` is the canonical full-repo Python type gate; `mypy` remains the
+  compatibility backstop.
+- Current manifest-owned runtime dependency floors stay explicit in this file:
+  `pydantic-settings>=2.13.1` in the surviving runtime packages, plus
+  `redis>=7.4.0` and `uvicorn[standard]>=0.42.0` in `nova-file-api`.
+- Runtime config authority is the pair
   `packages/nova_file_api/src/nova_file_api/config.py` plus
-  `scripts/release/runtime_config_contract.py` as the source-of-truth pair and
-  keep `docs/release/runtime-config-contract.generated.md` fresh via
-  `scripts/release/generate_runtime_config_contract.py`.
-- Runtime settings in `config.py` must declare explicit string
-  `Field(validation_alias="ENV_VAR")` mappings. Release tooling reads
-  `field.validation_alias` only; do not use `alias=` or implicit uppercase
-  env-name derivation for runtime settings.
-- CI also enforces a stronger canonical-route policy guard in
-  `.github/workflows/ci.yml`. Use the quick route preflight above before
-  broader edits.
-- Minimum supported Python version for workspace packages is 3.11.
-- CI defaults to Python 3.13 for the primary lint/type/generation lane and
-  keeps Python 3.11 plus 3.12 pytest/build compatibility coverage for the
-  surviving runtime packages.
+  `scripts/release/runtime_config_contract.py`, with
+  `docs/release/runtime-config-contract.generated.md` as the generated
+  operator-facing view.
+- Use the quick route preflight above before broad runtime route edits.
 
 ### Pre-commit hooks
 
@@ -275,85 +247,40 @@ uv run pre-commit install --install-hooks \
 If `uv` is not on `PATH`, install it first, then rerun
 `scripts/dev/install_hooks.sh`.
 
-Manual pre-commit hook entrypoints mirror the task router:
-
-- `uv run pre-commit run typing-gates --hook-stage manual -a`
-- `uv run pre-commit run quality-gates --hook-stage manual -a`
-- `uv run pre-commit run sdk-conformance --hook-stage manual -a`
-- `uv run pre-commit run infra-contracts --hook-stage manual -a`
-- `uv run pre-commit run docker-release-images --hook-stage manual -a`
+Manual hook entrypoints and focused pytest marker reruns are documented in
+`docs/standards/repository-engineering-standards.md`.
 
 ### OpenAPI, generated SDKs, npm packaging, or SDK docs/contracts
 
-Also run the conformance/client checks mirrored by
-`.github/workflows/ci.yml`:
-
-```bash
-npm ci
-uv sync --locked --all-packages --all-extras --dev
-uv run python scripts/conformance/check_typescript_module_policy.py
-npm run -w @nova/sdk-file typecheck
-npm run -w @nova/sdk-file build
-npm run -w @nova/contracts-ts-conformance typecheck
-npm run -w @nova/contracts-ts-conformance verify
-uv run pytest -q scripts/release/tests/test_typescript_sdk_contracts.py
-```
+Also run the SDK/conformance expansion lanes from
+`docs/standards/repository-engineering-standards.md`.
 
 ### R package artifacts, release packaging, or R SDK docs/contracts
 
-Also run the shared R conformance entrypoint:
-
-```bash
-bash scripts/checks/run_sdk_conformance.sh
-```
-
-Notes:
-
-- `scripts/checks/run_sdk_conformance.sh` wraps
-  `scripts/checks/verify_r_cmd_check.sh`.
-- The helper parses `00check.log` and fails the lane when `R CMD check`
-  reports warnings.
+Also run the R package and release-artifact conformance lanes from
+`docs/standards/repository-engineering-standards.md`.
 
 ### Infra, workflows, or docs governance
 
-Use the docs/infra contract checks mirrored by
-`.github/workflows/cfn-contract-validate.yml`:
-
-```bash
-uv sync --locked --all-packages --all-extras --dev
-uv run --with cfn-lint==1.46.0 cfn-lint infra/nova/*.yml infra/nova/deploy/*.yml infra/runtime/**/*.yml
-uv run --with pytest pytest -q \
-  tests/infra/test_absorbed_infra_contracts.py \
-  tests/infra/test_workflow_productization_contracts.py \
-  tests/infra/test_workflow_contract_docs.py \
-  tests/infra/test_docs_authority_contracts.py
-```
+Use the infra/docs governance expansion lanes from
+`docs/standards/repository-engineering-standards.md`.
 
 ### Service Dockerfiles or release-image build flow
 
-Use this when touching `apps/nova_file_api_service/Dockerfile`,
-`buildspecs/buildspec-release.yml`, or release-image documentation:
+Use the release-image expansion lane from
+`docs/standards/repository-engineering-standards.md`. Release-owned service
+Dockerfiles stay under `apps/*`, and local image verification requires Docker
+BuildKit plus `buildx`. Keep the canonical local commands:
 
 ```bash
 docker buildx version
 DOCKER_BUILDKIT=1 docker buildx build --load \
   -f apps/nova_file_api_service/Dockerfile \
   -t nova-file-api:test .
-uv run pytest -q \
-  packages/nova_file_api/tests/test_runtime_security_reliability_gates.py \
-  tests/infra/test_workflow_productization_contracts.py \
-  tests/infra/test_workflow_contract_docs.py \
-  tests/infra/test_docs_authority_contracts.py
 ```
 
-Notes:
-
-- Release-owned service Dockerfiles stay under `apps/*`; do not move them into
-  workspace package paths.
-- Local service-image verification and release builds now require Docker
-  BuildKit plus `buildx`.
-- If local Docker hits plugin-path or credential-helper failures, use
-  `docs/runbooks/provisioning/docker-buildx-credential-helper-setup.md`.
+If the local Docker toolchain fails, use
+`docs/runbooks/provisioning/docker-buildx-credential-helper-setup.md`.
 
 ### Downstream route or bridge contract changes
 
@@ -367,29 +294,10 @@ rg -n "/v1/transfers|/v1/jobs|nova_dash_bridge|nova_file_api" \
 
 ## Documentation Rules
 
-If behavior, contracts, workflows, or durable repo instructions change, update
-the relevant docs in the same PR.
-
-Minimum router set:
-
-- `AGENTS.md`
-- `README.md`
-- `docs/README.md`
-- `docs/architecture/README.md`
-- `docs/standards/README.md`
-- `docs/runbooks/README.md`
-- `docs/plan/PLAN.md`
-
-Then update affected authority docs:
-
-- `docs/PRD.md`
-- `docs/architecture/requirements.md`
-- affected ADRs and SPECs
-- affected `docs/contracts/**`, `docs/clients/**`, and release docs
-- history/superseded docs only when archive location or authority status changes
-
-Use `docs/standards/repository-engineering-standards.md` for the full gate
-matrix and deeper documentation synchronization rules.
+`docs/standards/repository-engineering-standards.md` owns the full docs-sync
+policy, minimum router set, and contract-doc update matrix. When behavior,
+contracts, workflows, or durable repo instructions change, update those router
+docs and the affected authority docs in the same PR.
 
 Historical retirement spot check:
 
@@ -400,21 +308,12 @@ rg -n "container-craft" README.md docs/architecture docs/plan docs/runbooks \
 
 ## Local npm / CodeArtifact Rule
 
-Keep npm registry config repo-local.
-
-- Use the committed repo-root `.npmrc` for defaults.
-- Use the generated `.npmrc.codeartifact` for CodeArtifact auth.
-- Run `eval "$(npm run -s codeartifact:npm:env)"` from repo root.
-- `scripts/release/codeartifact_npm.py` writes `.npmrc.codeartifact` and the
-  helper exports `NPM_CONFIG_USERCONFIG` plus `NPM_REGISTRY_URL`.
-- CI and release workflows must use the same explicit `NPM_CONFIG_USERCONFIG`
-  pattern (or an equivalent temp-file variant); do not rely on global npm
-  config mutation.
-- If you switch AWS accounts or CodeArtifact targets, set `AWS_REGION`,
-  `CODEARTIFACT_DOMAIN`, and/or `CODEARTIFACT_STAGING_REPOSITORY` before
-  running the helper.
-- Do not use `aws codeartifact login --tool npm` in Nova. It rewrites global
-  npm config and is not part of the canonical release path.
+`docs/standards/repository-engineering-standards.md` owns the full repo-local
+npm and CodeArtifact auth policy. Keep npm auth repo-scoped through the
+committed `.npmrc`, the generated `.npmrc.codeartifact`, and
+`npm run -s codeartifact:npm:env`. CI and release workflows must keep the
+explicit `NPM_CONFIG_USERCONFIG` pattern; do not rely on global npm config
+mutation.
 
 ## Deep References
 
