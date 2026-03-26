@@ -721,7 +721,7 @@
       "env_var": "JOBS_STEP_FUNCTIONS_STATE_MACHINE_ARN",
       "field_name": "jobs_step_functions_state_machine_arn",
       "required": false,
-      "required_when": null,
+      "required_when": "when JOBS_QUEUE_BACKEND=stepfunctions and JOBS_ENABLED=true",
       "secret": false,
       "type_label": "str | None"
     },

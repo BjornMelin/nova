@@ -107,7 +107,15 @@ def test_serverless_stack_maps_caught_errors_for_failure_handler() -> None:
     """Workflow failures must reach the fail handler as top-level fields."""
     template = _template()
     definition_text = _state_machine_definition_text(template)
+    resource = json.loads(definition_text)
+    definition_fragment = "".join(
+        part
+        for part in resource["Properties"]["DefinitionString"]["Fn::Join"][1]
+        if isinstance(part, str)
+    )
 
-    assert "$.workflow_error.Error" in definition_text
-    assert "$.workflow_error.Cause" in definition_text
-    assert "$.workflow_error" in definition_text
+    assert "$.workflow_error.Error" in definition_fragment
+    assert "$.workflow_error.Cause" in definition_fragment
+    assert "$.workflow_error" in definition_fragment
+    assert '"status":"failed"' in definition_fragment
+    assert '"updated_at.$":"$.updated_at"' in definition_fragment

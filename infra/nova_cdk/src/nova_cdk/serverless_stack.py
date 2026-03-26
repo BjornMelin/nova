@@ -279,7 +279,9 @@ class NovaServerlessStack(Stack):
                     "scope_id": sfn.JsonPath.string_at("$.scope_id"),
                     "source_key": sfn.JsonPath.string_at("$.source_key"),
                     "filename": sfn.JsonPath.string_at("$.filename"),
+                    "status": "failed",
                     "created_at": sfn.JsonPath.string_at("$.created_at"),
+                    "updated_at": sfn.JsonPath.string_at("$.updated_at"),
                     "error": sfn.JsonPath.string_at("$.workflow_error.Error"),
                     "cause": sfn.JsonPath.string_at("$.workflow_error.Cause"),
                 }
