@@ -7,7 +7,7 @@ from typing import Any, cast
 import pytest
 from nova_file_api.activity import MemoryActivityStore
 from nova_file_api.config import Settings
-from nova_file_api.errors import upstream_s3_error
+from nova_file_api.errors import FileTransferError, upstream_s3_error
 from nova_file_api.exports import (
     ExportService,
     MemoryExportPublisher,
@@ -148,6 +148,76 @@ async def _attach_runtime(
     worker._runtime_export_service = export_service
     worker._runtime_activity_store = activity_store
     return sqs_client
+
+
+@pytest.mark.asyncio
+async def test_export_repository_update_if_status_enforces_expected_state() -> (
+    None
+):
+    repository = MemoryExportRepository()
+    now = datetime.now(tz=UTC)
+    record = ExportRecord(
+        export_id="export-state-1",
+        scope_id="scope-1",
+        request_id=None,
+        source_key="uploads/scope-1/source.csv",
+        filename="source.csv",
+        status=ExportStatus.QUEUED,
+        output=None,
+        error=None,
+        created_at=now,
+        updated_at=now,
+    )
+    await repository.create(record)
+
+    validating = record.model_copy(
+        update={
+            "status": ExportStatus.VALIDATING,
+            "updated_at": datetime.now(tz=UTC),
+        }
+    )
+    assert await repository.update_if_status(
+        record=validating,
+        expected_status=ExportStatus.QUEUED,
+    )
+
+    finalized = validating.model_copy(
+        update={
+            "status": ExportStatus.FINALIZING,
+            "updated_at": datetime.now(tz=UTC),
+        }
+    )
+    assert not await repository.update_if_status(
+        record=finalized,
+        expected_status=ExportStatus.QUEUED,
+    )
+
+
+@pytest.mark.asyncio
+async def test_export_service_update_status_rejects_invalid_transition() -> (
+    None
+):
+    repository, export_service, _activity_store = await _build_worker_runtime(
+        export_id="export-invalid-1",
+        status=ExportStatus.FAILED,
+    )
+
+    with pytest.raises(FileTransferError) as exc_info:
+        await export_service.update_status(
+            export_id="export-invalid-1",
+            status=ExportStatus.SUCCEEDED,
+            output=ExportOutput(
+                key="exports/scope-1/export-invalid-1/source.csv",
+                download_filename="source.csv",
+            ),
+            error=None,
+        )
+
+    assert exc_info.value.code == "conflict"
+    assert exc_info.value.status_code == 409
+    latest = await repository.get("export-invalid-1")
+    assert latest is not None
+    assert latest.status == ExportStatus.FAILED
 
 
 @pytest.mark.asyncio
