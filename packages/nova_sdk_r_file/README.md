@@ -22,17 +22,17 @@ client <- create_nova_file_client(
   bearer_token = "eyJhbGciOi...",
 )
 
-result <- nova_file_create_job(
+result <- nova_file_create_export(
   client,
   body = list(
-    job_type = "transfer.process",
-    payload = list(upload_key = "tenant-acme/sample.csv")
+    source_key = "uploads/scope-1/source.csv",
+    filename = "source.csv"
   ),
   headers = list("Idempotency-Key" = "req-123")
 )
-result$job_id
+result$export_id
 result$status
 
-jobs <- nova_file_list_jobs(client, limit = 25)
-job <- nova_file_get_job_status(client, job_id = result$job_id)
+exports <- nova_file_list_exports(client, limit = 25)
+export <- nova_file_get_export(client, export_id = result$export_id)
 ```

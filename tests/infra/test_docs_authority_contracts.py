@@ -288,7 +288,7 @@ def test_browser_live_validation_checklist_authority_exists() -> None:
         "ValidateDev",
         "ValidateProd",
         "/v1/transfers",
-        "/v1/jobs",
+        "/v1/exports",
         "browser-live-validation-report.schema.json",
     ]:
         assert required in content

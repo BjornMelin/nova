@@ -2,8 +2,9 @@
 
 ![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white) ![FastAPI](https://img.shields.io/badge/FastAPI-0.135%2B-009688?logo=fastapi&logoColor=white) ![OpenAPI](https://img.shields.io/badge/OpenAPI-3.1-6BA539?logo=openapiinitiative&logoColor=white)
 
-FastAPI control-plane runtime for direct-to-S3 uploads/downloads and async job
-orchestration. The service returns presigned metadata and job state; it does not
+FastAPI control-plane runtime for direct-to-S3 uploads/downloads and durable
+export workflow orchestration. The service returns presigned metadata and export
+state; it does not
 proxy file bytes.
 
 Minimum supported Python version for workspace packages is 3.11. Default local
@@ -23,7 +24,7 @@ Use these entrypoints before drilling into deeper docs:
 
 ## Runtime Topology
 
-- `packages/nova_file_api/`: transfer, jobs, readiness, metrics, ASGI
+- `packages/nova_file_api/`: transfer, export workflows, readiness, metrics, ASGI
   entrypoint, worker orchestration, and **in-process bearer JWT** verification
   in the target architecture (`ADR-0033`, `SPEC-0027`)
 - `packages/nova_dash_bridge/`: Dash/Flask/FastAPI integration adapters over
@@ -47,9 +48,9 @@ Machine-readable workflow and release schemas live under
 Public capabilities:
 
 - transfer orchestration under `/v1/transfers/*`
-- async job control plane under `/v1/jobs*`
-- worker job completion via **direct persistence** (no public internal HTTP
-  callback in the target architecture; `SPEC-0028`, `ADR-0035`)
+- export workflow control plane under `/v1/exports*`
+- worker export completion via **direct persistence** (no public internal HTTP
+  callback route; `SPEC-0028`, `ADR-0035`)
 - capability and release endpoints at `/v1/capabilities`,
   `/v1/resources/plan`, and `/v1/releases/info`
 - operational health at `/v1/health/live` and `/v1/health/ready`
@@ -61,7 +62,7 @@ the target architecture.
 Do not add compatibility aliases or retired legacy route families.
 
 `nova_dash_bridge` is an adapter-only seam. Browser and framework integrations
-must forward bearer auth to canonical `/v1/transfers` and `/v1/jobs` routes and
+must forward bearer auth to canonical `/v1/transfers` and `/v1/exports` routes and
 must not rely on `session_id`, `X-Session-Id`, or `X-Scope-Id` as auth inputs.
 Canonical FastAPI request-id propagation and error envelopes now come from the
 shared outer-ASGI/request-handler stack in `nova_runtime_support`. Standalone
@@ -101,7 +102,7 @@ For detailed SDK governance and generation rules, use:
 
 ## Key Runtime Invariants
 
-- `POST /v1/jobs` publish failures return `503` with
+- `POST /v1/exports` publish failures return `503` with
   `error.code = "queue_unavailable"`
 - idempotent mutation entrypoints use `IDEMPOTENCY_ENABLED` plus bounded TTL
   settings; when enabled, Nova requires a shared Redis claim storage and returns
@@ -120,7 +121,7 @@ For detailed SDK governance and generation rules, use:
 - terminal worker updates that set `status=succeeded` **must** normalize `error`
   to `null` (direct persistence path; `SPEC-0028`)
 - `JOBS_RUNTIME_MODE=worker` is the shared-persistence runtime: workers require
-  SQS delivery plus DynamoDB-backed job and activity tables
+  SQS delivery plus DynamoDB-backed export and activity tables
 - malformed worker queue messages are retried through SQS redrive and are not
   acknowledged immediately
 

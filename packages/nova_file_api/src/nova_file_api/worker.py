@@ -1,4 +1,4 @@
-"""SQS worker entrypoint for async job execution."""
+"""SQS worker entrypoint for export workflow execution."""
 
 from __future__ import annotations
 
@@ -21,18 +21,18 @@ from nova_file_api.aws import new_aioboto3_session
 from nova_file_api.config import Settings
 from nova_file_api.dependencies import (
     build_activity_store,
-    build_job_publisher,
-    build_job_repository,
-    build_job_service,
+    build_export_publisher,
+    build_export_repository,
+    build_export_service,
     build_metrics,
 )
 from nova_file_api.errors import FileTransferError
-from nova_file_api.jobs import JobService
+from nova_file_api.exports import ExportService
 from nova_file_api.models import (
-    TRANSFER_PROCESS_JOB_TYPE,
     ActivityStoreBackend,
+    ExportOutput,
+    ExportStatus,
     JobsRepositoryBackend,
-    JobStatus,
     Principal,
 )
 from nova_file_api.transfer import ExportCopyResult, TransferService
@@ -47,25 +47,25 @@ _MIN_VISIBILITY_EXTENSION_INTERVAL_SECONDS = 0.5
 _VISIBILITY_EXTENSION_RETRY_DELAY_SECONDS = 1.0
 _SQS_VISIBILITY_TIMEOUT_MAX_SECONDS = 43_200
 _WORKER_PRINCIPAL = Principal(
-    subject="system:jobs-worker",
-    scope_id="system:jobs-worker",
+    subject="system:exports-worker",
+    scope_id="system:exports-worker",
 )
 
 _T = TypeVar("_T")
 
 
 @dataclass(slots=True, frozen=True)
-class WorkerJobMessage:
+class WorkerExportMessage:
     """Normalized queue payload consumed by the worker loop."""
 
-    job_id: str
-    job_type: str
+    export_id: str
     scope_id: str
-    payload: dict[str, Any]
+    source_key: str
+    filename: str
     created_at: datetime
 
     @classmethod
-    def from_body(cls, *, body: str) -> WorkerJobMessage:
+    def from_body(cls, *, body: str) -> WorkerExportMessage:
         """Parse and validate an SQS message body payload.
 
         Args:
@@ -75,89 +75,34 @@ class WorkerJobMessage:
             Parsed and validated worker job message.
 
         Raises:
-            TypeError: If the parsed message body or ``payload`` field is not
-                a JSON object.
-            ValueError: If required fields (``job_id``, ``job_type``, or
-                ``scope_id``) are missing, if result-update fields are present,
-                or if ``created_at`` is invalid.
+            ValueError: If required fields are missing or ``created_at`` is
+                invalid.
         """
         raw = json.loads(body)
         if not isinstance(raw, dict):
             raise TypeError("message body must be an object")
-        if {"status", "result", "error"} & raw.keys():
-            raise ValueError(
-                "message body must not contain result-update fields"
-            )
-        job_id = str(raw.get("job_id", "")).strip()
-        if not job_id:
-            raise ValueError("message body is missing job_id")
-        job_type = str(raw.get("job_type", "")).strip()
-        if not job_type:
-            raise ValueError("message body is missing job_type")
+        export_id = str(raw.get("export_id", "")).strip()
+        if not export_id:
+            raise ValueError("message body is missing export_id")
         scope_id = str(raw.get("scope_id", "")).strip()
         if not scope_id:
             raise ValueError("message body is missing scope_id")
-        payload = raw.get("payload")
-        if payload is None:
-            payload = {}
-        if not isinstance(payload, dict):
-            raise TypeError("message body payload must be an object")
+        source_key = str(raw.get("source_key", "")).strip()
+        if not source_key:
+            raise ValueError("message body is missing source_key")
+        filename = str(raw.get("filename", "")).strip()
+        if not filename:
+            raise ValueError("message body is missing filename")
         try:
             created_at = _parse_iso8601(str(raw.get("created_at", "")).strip())
         except ValueError as exc:
             raise ValueError("message body created_at is invalid") from exc
         return cls(
-            job_id=job_id,
-            job_type=job_type,
+            export_id=export_id,
             scope_id=scope_id,
-            payload=payload,
-            created_at=created_at,
-        )
-
-
-@dataclass(slots=True, frozen=True)
-class TransferProcessPayload:
-    """Payload required for the canonical transfer.process worker job."""
-
-    bucket: str
-    key: str
-    filename: str
-    size_bytes: int
-    content_type: str | None
-
-    @classmethod
-    def from_raw(cls, raw: dict[str, Any]) -> TransferProcessPayload:
-        """Parse and validate a transfer.process payload."""
-        bucket = str(raw.get("bucket", "")).strip()
-        if not bucket:
-            raise ValueError("transfer.process payload is missing bucket")
-        key = str(raw.get("key", "")).strip()
-        if not key:
-            raise ValueError("transfer.process payload is missing key")
-        filename = str(raw.get("filename", "")).strip()
-        if not filename:
-            raise ValueError("transfer.process payload is missing filename")
-        raw_size_bytes = raw.get("size_bytes")
-        if not isinstance(raw_size_bytes, int) or raw_size_bytes <= 0:
-            raise ValueError(
-                "transfer.process payload size_bytes must be a positive integer"
-            )
-        raw_content_type = raw.get("content_type")
-        content_type: str | None
-        if raw_content_type is None:
-            content_type = None
-        elif isinstance(raw_content_type, str):
-            content_type = raw_content_type.strip() or None
-        else:
-            raise ValueError(
-                "transfer.process payload content_type must be a string or null"
-            )
-        return cls(
-            bucket=bucket,
-            key=key,
+            source_key=source_key,
             filename=filename,
-            size_bytes=raw_size_bytes,
-            content_type=content_type,
+            created_at=created_at,
         )
 
 
@@ -184,7 +129,7 @@ class JobsWorker:
         *,
         settings: Settings,
         transfer_service: TransferService | None = None,
-        job_service: JobService | None = None,
+        export_service: ExportService | None = None,
         activity_store: ActivityStore | None = None,
     ) -> None:
         """Initialize worker configuration and runtime state.
@@ -193,21 +138,21 @@ class JobsWorker:
             settings: Runtime configuration for queues, storage, and job wiring.
             transfer_service: Optional transfer executor; built at runtime when
                 omitted.
-            job_service: Optional job domain service; built at runtime when
-                omitted.
+            export_service: Optional export domain service; built at runtime
+                when omitted.
             activity_store: Optional activity recorder; built at runtime when
                 omitted.
         """
         self._settings = settings
-        self._logger = structlog.get_logger("jobs_worker")
+        self._logger = structlog.get_logger("exports_worker")
         self._stop_requested = False
         self._queue_url = (settings.jobs_sqs_queue_url or "").strip()
         self._session = new_aioboto3_session()
         self._transfer_service = transfer_service
-        self._job_service = job_service
+        self._export_service = export_service
         self._activity_store = activity_store
         self._runtime_transfer_service: TransferService | None = None
-        self._runtime_job_service: JobService | None = None
+        self._runtime_export_service: ExportService | None = None
         self._runtime_activity_store: ActivityStore | None = None
         self._sqs: Any | None = None
 
@@ -215,7 +160,7 @@ class JobsWorker:
         """Run the worker receive/process/ack loop until shutdown signal."""
         self._install_signal_handlers()
         self._logger.info(
-            "jobs_worker_started",
+            "exports_worker_started",
             queue_url=self._queue_url,
             queue_backend=self._settings.jobs_queue_backend.value,
         )
@@ -237,7 +182,7 @@ class JobsWorker:
         needs_dynamodb_resource = (
             self._settings.jobs_repository_backend
             == JobsRepositoryBackend.DYNAMODB
-            and self._job_service is None
+            and self._export_service is None
         ) or (
             self._settings.activity_store_backend
             == ActivityStoreBackend.DYNAMODB
@@ -265,15 +210,15 @@ class JobsWorker:
                         s3_client=s3_client,
                     )
                 )
-                self._runtime_job_service = (
-                    self._job_service
-                    if self._job_service is not None
-                    else build_job_service(
-                        job_repository=build_job_repository(
+                self._runtime_export_service = (
+                    self._export_service
+                    if self._export_service is not None
+                    else build_export_service(
+                        export_repository=build_export_repository(
                             settings=self._settings,
                             dynamodb_resource=dynamodb_resource,
                         ),
-                        job_publisher=build_job_publisher(
+                        export_publisher=build_export_publisher(
                             settings=self._settings,
                             sqs_client=sqs_client,
                         ),
@@ -301,9 +246,9 @@ class JobsWorker:
         finally:
             self._sqs = None
             self._runtime_transfer_service = None
-            self._runtime_job_service = None
+            self._runtime_export_service = None
             self._runtime_activity_store = None
-            self._logger.info("jobs_worker_stopped")
+            self._logger.info("exports_worker_stopped")
         return 0
 
     def _install_signal_handlers(self) -> None:
@@ -320,7 +265,7 @@ class JobsWorker:
     def _handle_stop_signal(self, signum: int, _frame: Any) -> None:
         """Mark worker loop for shutdown when an OS signal is received."""
         self._stop_requested = True
-        self._logger.info("jobs_worker_stop_requested", signal=signum)
+        self._logger.info("exports_worker_stop_requested", signal=signum)
 
     async def _receive_messages(self) -> list[dict[str, Any]]:
         """Receive one poll batch from SQS with long polling enabled."""
@@ -337,7 +282,7 @@ class JobsWorker:
             )
         except (ClientError, BotoCoreError) as exc:
             self._logger.exception(
-                "jobs_worker_receive_failed",
+                "exports_worker_receive_failed",
                 error_type=type(exc).__name__,
             )
             await asyncio.sleep(_RECEIVE_ERROR_BACKOFF_SECONDS)
@@ -353,58 +298,36 @@ class JobsWorker:
         body = str(message.get("Body", ""))
         receive_count = _approximate_receive_count(message=message)
         try:
-            worker_message = WorkerJobMessage.from_body(body=body)
+            worker_message = WorkerExportMessage.from_body(body=body)
         except (json.JSONDecodeError, ValueError, TypeError) as exc:
             self._logger.warning(
-                "jobs_worker_invalid_message",
+                "exports_worker_invalid_message",
                 message_id=message_id,
                 receive_count=receive_count,
                 error_detail=str(exc),
             )
             return False
 
-        if worker_message.job_type != TRANSFER_PROCESS_JOB_TYPE:
-            return await self._publish_terminal_result(
-                message_id=message_id,
-                receive_count=receive_count,
-                job_id=worker_message.job_id,
-                status=JobStatus.FAILED,
-                result=None,
-                error=f"unsupported job type: {worker_message.job_type}",
-            )
-
-        try:
-            payload = TransferProcessPayload.from_raw(worker_message.payload)
-        except ValueError as exc:
-            return await self._publish_terminal_result(
-                message_id=message_id,
-                receive_count=receive_count,
-                job_id=worker_message.job_id,
-                status=JobStatus.FAILED,
-                result=None,
-                error=str(exc),
-            )
-
         try:
             if await self._publish_result(
-                job_id=worker_message.job_id,
-                status=JobStatus.RUNNING,
-                result=None,
+                export_id=worker_message.export_id,
+                status=ExportStatus.VALIDATING,
+                output=None,
                 error=None,
                 allow_terminal_conflict=True,
             ):
                 self._logger.info(
-                    "jobs_worker_terminal_redelivery_acked",
+                    "exports_worker_terminal_redelivery_acked",
                     message_id=message_id,
-                    job_id=worker_message.job_id,
+                    export_id=worker_message.export_id,
                     receive_count=receive_count,
                 )
                 return True
         except _WorkerResultUpdateError as exc:
             self._logger.warning(
-                "jobs_worker_running_update_not_accepted",
+                "exports_worker_validating_update_not_accepted",
                 message_id=message_id,
-                job_id=worker_message.job_id,
+                export_id=worker_message.export_id,
                 receive_count=receive_count,
                 retryable=exc.retryable,
                 status_code=exc.status_code,
@@ -416,19 +339,27 @@ class JobsWorker:
         async def _execute_and_publish() -> bool:
             try:
                 transfer_service = self._require_transfer_service()
+                if await self._publish_result(
+                    export_id=worker_message.export_id,
+                    status=ExportStatus.COPYING,
+                    output=None,
+                    error=None,
+                    allow_terminal_conflict=True,
+                ):
+                    return True
                 export = await transfer_service.copy_upload_to_export(
-                    source_bucket=payload.bucket,
-                    source_key=payload.key,
+                    source_bucket=self._settings.file_transfer_bucket,
+                    source_key=worker_message.source_key,
                     scope_id=worker_message.scope_id,
-                    job_id=worker_message.job_id,
-                    filename=payload.filename,
+                    export_id=worker_message.export_id,
+                    filename=worker_message.filename,
                 )
             except FileTransferError as exc:
                 if exc.status_code >= 500:
                     self._logger.warning(
-                        "jobs_worker_execution_retryable_failure",
+                        "exports_worker_execution_retryable_failure",
                         message_id=message_id,
-                        job_id=worker_message.job_id,
+                        export_id=worker_message.export_id,
                         receive_count=receive_count,
                         error_code=exc.code,
                         error_detail=exc.message,
@@ -437,24 +368,32 @@ class JobsWorker:
                 return await self._publish_terminal_result(
                     message_id=message_id,
                     receive_count=receive_count,
-                    job_id=worker_message.job_id,
-                    status=JobStatus.FAILED,
-                    result=None,
+                    export_id=worker_message.export_id,
+                    status=ExportStatus.FAILED,
+                    output=None,
                     error=exc.message,
                 )
 
+            if await self._publish_result(
+                export_id=worker_message.export_id,
+                status=ExportStatus.FINALIZING,
+                output=_success_output_from_export(export=export),
+                error=None,
+                allow_terminal_conflict=True,
+            ):
+                return True
             return await self._publish_terminal_result(
                 message_id=message_id,
                 receive_count=receive_count,
-                job_id=worker_message.job_id,
-                status=JobStatus.SUCCEEDED,
-                result=_success_result_from_export(export=export),
+                export_id=worker_message.export_id,
+                status=ExportStatus.SUCCEEDED,
+                output=_success_output_from_export(export=export),
                 error=None,
             )
 
         return await self._run_with_visibility_extension(
             message=message,
-            job_id=worker_message.job_id,
+            job_id=worker_message.export_id,
             operation=_execute_and_publish,
         )
 
@@ -530,13 +469,13 @@ class JobsWorker:
                     exc, ClientError
                 ) and _is_visibility_timeout_ceiling_error(exc):
                     self._logger.warning(
-                        "jobs_worker_visibility_extension_ceiling_reached",
+                        "exports_worker_visibility_extension_ceiling_reached",
                         job_id=job_id,
                         max_visibility_seconds=_SQS_VISIBILITY_TIMEOUT_MAX_SECONDS,
                     )
                     return
                 self._logger.warning(
-                    "jobs_worker_visibility_extension_failed",
+                    "exports_worker_visibility_extension_failed",
                     job_id=job_id,
                     error_type=type(exc).__name__,
                 )
@@ -549,25 +488,25 @@ class JobsWorker:
         *,
         message_id: str,
         receive_count: int | None,
-        job_id: str,
-        status: JobStatus,
-        result: dict[str, Any] | None,
+        export_id: str,
+        status: ExportStatus,
+        output: ExportOutput | None,
         error: str | None,
     ) -> bool:
-        """Publish a terminal worker result and report delete eligibility."""
+        """Publish a terminal export update and report delete eligibility."""
         try:
             await self._publish_result(
-                job_id=job_id,
+                export_id=export_id,
                 status=status,
-                result=result,
+                output=output,
                 error=error,
                 allow_terminal_conflict=True,
             )
         except _WorkerResultUpdateError as exc:
             self._logger.warning(
-                "jobs_worker_result_update_not_accepted",
+                "exports_worker_result_update_not_accepted",
                 message_id=message_id,
-                job_id=job_id,
+                export_id=export_id,
                 receive_count=receive_count,
                 retryable=exc.retryable,
                 status_code=exc.status_code,
@@ -576,9 +515,9 @@ class JobsWorker:
             )
             return False
         self._logger.info(
-            "jobs_worker_message_completed",
+            "exports_worker_message_completed",
             message_id=message_id,
-            job_id=job_id,
+            export_id=export_id,
             receive_count=receive_count,
             status=status.value,
         )
@@ -587,21 +526,21 @@ class JobsWorker:
     async def _publish_result(
         self,
         *,
-        job_id: str,
-        status: JobStatus,
-        result: dict[str, Any] | None,
+        export_id: str,
+        status: ExportStatus,
+        output: ExportOutput | None,
         error: str | None,
         allow_terminal_conflict: bool = False,
     ) -> bool:
-        """Persist worker completion status through shared runtime services."""
-        job_service = self._require_job_service()
+        """Persist worker status through shared runtime services."""
+        export_service = self._require_export_service()
         last_error: _WorkerResultUpdateError | None = None
         for attempt in range(1, _RESULT_UPDATE_MAX_ATTEMPTS + 1):
             try:
-                job = await job_service.update_result(
-                    job_id=job_id,
+                export = await export_service.update_status(
+                    export_id=export_id,
                     status=status,
-                    result=result,
+                    output=output,
                     error=error,
                 )
             except FileTransferError as exc:
@@ -613,8 +552,8 @@ class JobsWorker:
                     )
                 ):
                     self._logger.info(
-                        "jobs_worker_running_update_already_terminal",
-                        job_id=job_id,
+                        "exports_worker_update_already_terminal",
+                        export_id=export_id,
                         current_status=str(
                             exc.details.get("current_status", "")
                         ),
@@ -633,7 +572,7 @@ class JobsWorker:
                     error_type=exc.code,
                 )
                 await self._record_job_result_update_failure(
-                    job_id=job_id,
+                    export_id=export_id,
                     status=status,
                     error_detail=exc.message,
                 )
@@ -641,7 +580,7 @@ class JobsWorker:
                     raise last_error from exc
             except Exception as exc:
                 await self._record_job_result_update_failure(
-                    job_id=job_id,
+                    export_id=export_id,
                     status=status,
                     error_detail=f"{type(exc).__name__}: {exc}",
                 )
@@ -651,15 +590,15 @@ class JobsWorker:
                     error_type=type(exc).__name__,
                 )
             else:
-                await self._record_job_result_update_success(job=job)
+                await self._record_job_result_update_success(export=export)
                 return False
             if attempt == _RESULT_UPDATE_MAX_ATTEMPTS:
                 assert last_error is not None
                 raise last_error
             delay_seconds = _result_update_retry_delay_seconds(attempt=attempt)
             self._logger.warning(
-                "jobs_worker_result_update_retrying",
-                job_id=job_id,
+                "exports_worker_result_update_retrying",
+                export_id=export_id,
                 status=status.value,
                 attempt=attempt,
                 max_attempts=_RESULT_UPDATE_MAX_ATTEMPTS,
@@ -676,7 +615,7 @@ class JobsWorker:
         sqs_client = self._require_sqs()
         receipt_handle = str(message.get("ReceiptHandle", "")).strip()
         if not receipt_handle:
-            self._logger.warning("jobs_worker_missing_receipt_handle")
+            self._logger.warning("exports_worker_missing_receipt_handle")
             return
         try:
             await sqs_client.delete_message(
@@ -685,7 +624,7 @@ class JobsWorker:
             )
         except (ClientError, BotoCoreError) as exc:
             self._logger.exception(
-                "jobs_worker_delete_failed",
+                "exports_worker_delete_failed",
                 error_type=type(exc).__name__,
             )
 
@@ -699,56 +638,57 @@ class JobsWorker:
             raise RuntimeError("worker transfer service is not initialized")
         return self._runtime_transfer_service
 
-    def _require_job_service(self) -> JobService:
-        if self._runtime_job_service is None:
-            raise RuntimeError("worker job service is not initialized")
-        return self._runtime_job_service
+    def _require_export_service(self) -> ExportService:
+        if self._runtime_export_service is None:
+            raise RuntimeError("worker export service is not initialized")
+        return self._runtime_export_service
 
     def _require_activity_store(self) -> ActivityStore:
         if self._runtime_activity_store is None:
             raise RuntimeError("worker activity store is not initialized")
         return self._runtime_activity_store
 
-    async def _record_job_result_update_success(self, *, job: Any) -> None:
+    async def _record_job_result_update_success(self, *, export: Any) -> None:
         """Emit the worker result-update activity event best-effort."""
         try:
             await self._require_activity_store().record(
                 principal=_WORKER_PRINCIPAL,
-                event_type="jobs_result_update",
+                event_type="exports_result_update",
                 details=(
                     "worker result update accepted "
-                    f"for job_id={job.job_id} status={job.status.value}"
+                    f"for export_id={export.export_id} "
+                    f"status={export.status.value}"
                 ),
             )
         except Exception:
             self._logger.exception(
-                "jobs_result_update_activity_record_failed",
-                job_id=job.job_id,
-                status=job.status.value,
+                "exports_result_update_activity_record_failed",
+                export_id=export.export_id,
+                status=export.status.value,
             )
 
     async def _record_job_result_update_failure(
         self,
         *,
-        job_id: str,
-        status: JobStatus,
+        export_id: str,
+        status: ExportStatus,
         error_detail: str,
     ) -> None:
         """Emit the worker result-update failure event best-effort."""
         try:
             await self._require_activity_store().record(
                 principal=_WORKER_PRINCIPAL,
-                event_type="jobs_result_update_failure",
+                event_type="exports_result_update_failure",
                 details=(
                     "worker result update failed "
-                    f"for job_id={job_id} status={status.value}: "
+                    f"for export_id={export_id} status={status.value}: "
                     f"{error_detail}"
                 ),
             )
         except Exception:
             self._logger.exception(
-                "jobs_result_update_failure_activity_record_failed",
-                job_id=job_id,
+                "exports_result_update_failure_activity_record_failed",
+                export_id=export_id,
                 status=status.value,
             )
 
@@ -756,9 +696,9 @@ class JobsWorker:
     def _is_terminal_result_update_conflict(
         exc: FileTransferError,
         *,
-        requested_status: JobStatus,
+        requested_status: ExportStatus,
     ) -> bool:
-        """Return whether a conflict means the job is already terminal."""
+        """Return whether a conflict means the export is already terminal."""
         if exc.code != "conflict" or exc.status_code != 409:
             return False
         if str(exc.details.get("requested_status", "")).strip() != (
@@ -767,9 +707,9 @@ class JobsWorker:
             return False
         current_status = str(exc.details.get("current_status", "")).strip()
         return current_status in {
-            JobStatus.SUCCEEDED.value,
-            JobStatus.FAILED.value,
-            JobStatus.CANCELED.value,
+            ExportStatus.SUCCEEDED.value,
+            ExportStatus.FAILED.value,
+            ExportStatus.CANCELLED.value,
         }
 
 
@@ -819,14 +759,14 @@ def _is_visibility_timeout_ceiling_error(exc: ClientError) -> bool:
     )
 
 
-def _success_result_from_export(
+def _success_output_from_export(
     *,
     export: ExportCopyResult,
-) -> dict[str, Any]:
-    return {
-        "export_key": export.export_key,
-        "download_filename": export.download_filename,
-    }
+) -> ExportOutput:
+    return ExportOutput(
+        key=export.export_key,
+        download_filename=export.download_filename,
+    )
 
 
 async def main() -> int:

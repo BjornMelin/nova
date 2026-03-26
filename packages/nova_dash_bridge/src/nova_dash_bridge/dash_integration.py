@@ -37,14 +37,6 @@ def _normalize_allowed_extensions(allowed_extensions: set[str]) -> set[str]:
     return normalized
 
 
-def _normalize_async_job_type(async_job_type: str) -> str:
-    """Return a non-empty async job type string."""
-    value = async_job_type.strip()
-    if not value:
-        raise ValueError("async_job_type must be a non-empty string")
-    return value
-
-
 def _validate_non_negative(
     *,
     value: int,
@@ -89,15 +81,14 @@ def S3FileUploader(
     allowed_extensions: set[str],
     multiple: bool = False,
     transfers_endpoint_base: str = "/v1/transfers",
-    jobs_endpoint_base: str = "/v1/jobs",
+    exports_endpoint_base: str = "/v1/exports",
     auth_header_element_id: str = "",
     max_concurrency: int = 4,
     sign_batch_size: int | None = None,
-    async_jobs_enabled: bool = False,
-    async_job_type: str = "process_upload",
-    async_job_min_bytes: int = 0,
-    async_job_poll_interval_ms: int = 2000,
-    async_job_timeout_ms: int = 900000,
+    async_exports_enabled: bool = False,
+    async_export_min_bytes: int = 0,
+    async_export_poll_interval_ms: int = 2000,
+    async_export_timeout_ms: int = 900000,
 ) -> html.Div:
     """Render a Dash uploader shell driven by package JavaScript.
 
@@ -107,22 +98,20 @@ def S3FileUploader(
         allowed_extensions: Allowed upload extensions.
         multiple: Whether multiple file uploads are allowed.
         transfers_endpoint_base: Base path for transfer endpoints.
-        jobs_endpoint_base: Base path for async job endpoints.
+        exports_endpoint_base: Base path for async export endpoints.
         auth_header_element_id: DOM element id containing bearer auth
             header text.
         max_concurrency: Multipart upload worker concurrency.
         sign_batch_size: Optional multipart sign batch size override.
-        async_jobs_enabled: Toggle async background job flow.
-        async_job_type: Job type name for enqueue requests.
-        async_job_min_bytes: Minimum size to use async flow.
-        async_job_poll_interval_ms: Poll interval for async job status.
-        async_job_timeout_ms: Poll timeout for async job completion.
+        async_exports_enabled: Toggle async export workflow initiation.
+        async_export_min_bytes: Minimum size to use async flow.
+        async_export_poll_interval_ms: Poll interval for async export status.
+        async_export_timeout_ms: Poll timeout for async export completion.
 
     Returns:
         html.Div: Upload component shell for browser-side runtime.
     """
     accepted = _normalize_allowed_extensions(allowed_extensions)
-    normalized_job_type = _normalize_async_job_type(async_job_type)
     max_bytes = _validate_positive(value=max_bytes, field_name="max_bytes")
     max_concurrency = _validate_positive(
         value=max_concurrency,
@@ -140,16 +129,16 @@ def S3FileUploader(
                 f"min(16, 2 * max_concurrency) ({sign_batch_cap})"
             )
     min_bytes = _validate_non_negative(
-        value=async_job_min_bytes,
-        field_name="async_job_min_bytes",
+        value=async_export_min_bytes,
+        field_name="async_export_min_bytes",
     )
     poll_interval_ms = _validate_positive(
-        value=async_job_poll_interval_ms,
-        field_name="async_job_poll_interval_ms",
+        value=async_export_poll_interval_ms,
+        field_name="async_export_poll_interval_ms",
     )
     timeout_ms = _validate_positive(
-        value=async_job_timeout_ms,
-        field_name="async_job_timeout_ms",
+        value=async_export_timeout_ms,
+        field_name="async_export_timeout_ms",
     )
     accept_value = ",".join(sorted(accepted))
     return html.Div(
@@ -175,7 +164,7 @@ def S3FileUploader(
             dict[str, Any],
             {
                 "data-transfers-endpoint-base": transfers_endpoint_base,
-                "data-jobs-endpoint-base": jobs_endpoint_base,
+                "data-exports-endpoint-base": exports_endpoint_base,
                 "data-auth-header-element-id": auth_header_element_id,
                 "data-dropzone-id": f"{component_id}-dropzone",
                 "data-input-id": f"{component_id}-input",
@@ -189,11 +178,12 @@ def S3FileUploader(
                 "data-max-bytes": str(max_bytes),
                 "data-accept": accept_value,
                 "data-multiple": str(multiple).lower(),
-                "data-async-jobs-enabled": str(async_jobs_enabled).lower(),
-                "data-async-job-type": normalized_job_type,
-                "data-async-job-min-bytes": str(min_bytes),
-                "data-async-job-poll-interval-ms": str(poll_interval_ms),
-                "data-async-job-timeout-ms": str(timeout_ms),
+                "data-async-exports-enabled": str(
+                    async_exports_enabled
+                ).lower(),
+                "data-async-export-min-bytes": str(min_bytes),
+                "data-async-export-poll-interval-ms": str(poll_interval_ms),
+                "data-async-export-timeout-ms": str(timeout_ms),
             },
         ),
     )

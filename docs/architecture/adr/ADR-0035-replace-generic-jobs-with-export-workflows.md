@@ -24,7 +24,7 @@ actually needs to expose.
 
 ## Context
 
-- The current baseline still exposes a generic `job_type` plus arbitrary payload
+- The current baseline still exposes a generic typed string plus arbitrary payload
   contract.
 - In practice, the system has one meaningful async workload family for external
   consumers: exports derived from uploaded content.

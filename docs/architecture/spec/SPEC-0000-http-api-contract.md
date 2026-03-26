@@ -47,12 +47,12 @@ runtime contract.
 
 ### 3.2 Async jobs
 
-- `POST /v1/jobs`
-- `GET /v1/jobs`
-- `GET /v1/jobs/{job_id}`
-- `POST /v1/jobs/{job_id}/cancel`
-- `POST /v1/jobs/{job_id}/retry`
-- `GET /v1/jobs/{job_id}/events`
+- `POST /v1/exports`
+- `GET /v1/exports`
+- `GET /v1/exports/{export_id}`
+- `POST /v1/exports/{export_id}/cancel`
+- `POST /v1/exports/{export_id}`
+- `GET /v1/exports/{export_id}`
 
 ### 3.3 Capability and release endpoints
 
@@ -72,7 +72,7 @@ Any route outside section 3 is not part of the contract and MUST return `404`.
 
 ## 5. Job semantics
 
-`POST /v1/jobs` failure semantics:
+`POST /v1/exports` failure semantics:
 
 - Queue publish failure MUST return `503`.
 - Queue publish failure MUST return `error.code = "queue_unavailable"`.
@@ -94,7 +94,7 @@ Worker result-update transition semantics:
 
 ## 6. Idempotency requirements
 
-`POST /v1/transfers/uploads/initiate` and `POST /v1/jobs` MUST support
+`POST /v1/transfers/uploads/initiate` and `POST /v1/exports` MUST support
 idempotent retries via `Idempotency-Key` header.
 
 - Repeated request with same key and same payload MUST replay the original

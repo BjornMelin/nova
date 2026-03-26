@@ -343,7 +343,7 @@ class TransferService:
         source_bucket: str,
         source_key: str,
         scope_id: str,
-        job_id: str,
+        export_id: str,
         filename: str,
     ) -> ExportCopyResult:
         """Copy a caller-scoped upload object into the export prefix.
@@ -352,7 +352,8 @@ class TransferService:
             source_bucket: Bucket containing the upload object to export.
             source_key: Caller-scoped upload object key to copy.
             scope_id: Caller scope identifier used for ownership validation.
-            job_id: Job identifier used to namespace the export object key.
+            export_id: Export identifier used to namespace the export object
+                key.
             filename: Download filename to preserve in the export result.
 
         Returns:
@@ -384,7 +385,7 @@ class TransferService:
         )
         export_key = self._new_export_key(
             scope_id=scope_id,
-            job_id=job_id,
+            export_id=export_id,
             filename=download_filename,
         )
         source_size_bytes = _require_non_negative_int(
@@ -685,18 +686,18 @@ class TransferService:
         self,
         *,
         scope_id: str,
-        job_id: str,
+        export_id: str,
         filename: str,
     ) -> str:
         """Build an export object key for a pre-sanitized download filename."""
-        stable_job_id = "".join(
+        stable_export_id = "".join(
             character
-            for character in job_id.strip()
+            for character in export_id.strip()
             if character.isalnum() or character in {"-", "_"}
         )
-        if not stable_job_id:
-            stable_job_id = uuid4().hex
-        return f"{self._export_prefix}{scope_id}/{stable_job_id}/{filename}"
+        if not stable_export_id:
+            stable_export_id = uuid4().hex
+        return f"{self._export_prefix}{scope_id}/{stable_export_id}/{filename}"
 
     def _assert_upload_scope(self, *, key: str, scope_id: str) -> None:
         expected_prefix = f"{self._upload_prefix}{scope_id}/"

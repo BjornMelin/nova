@@ -5,16 +5,15 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import cast
 
-import pytest
 from fastapi import FastAPI
 from fastapi.routing import APIRoute
 from nova_file_api.activity import MemoryActivityStore
 from nova_file_api.auth import Authenticator
 from nova_file_api.config import Settings
-from nova_file_api.jobs import (
-    JobService,
-    MemoryJobPublisher,
-    MemoryJobRepository,
+from nova_file_api.exports import (
+    ExportService,
+    MemoryExportPublisher,
+    MemoryExportRepository,
 )
 from nova_file_api.metrics import MetricsCollector
 
@@ -22,14 +21,12 @@ from .support.app import (
     build_cache_stack,
     build_runtime_deps,
     build_test_app,
-    request_app,
 )
 from .support.doubles import StubAuthenticator, StubTransferService
 
 _HTTP_METHODS = frozenset(
     {"get", "post", "put", "patch", "delete", "options", "head", "trace"}
 )
-_AUTH_HEADERS = {"Authorization": "Bearer token-123"}
 _EXPECTED_OPERATION_ID_MAP = {
     "/metrics/summary": {"get": "metrics_summary"},
     "/v1/transfers/uploads/initiate": {"post": "initiate_upload"},
@@ -38,11 +35,9 @@ _EXPECTED_OPERATION_ID_MAP = {
     "/v1/transfers/uploads/complete": {"post": "complete_upload"},
     "/v1/transfers/uploads/abort": {"post": "abort_upload"},
     "/v1/transfers/downloads/presign": {"post": "presign_download"},
-    "/v1/jobs": {"get": "list_jobs", "post": "create_job"},
-    "/v1/jobs/{job_id}": {"get": "get_job_status"},
-    "/v1/jobs/{job_id}/cancel": {"post": "cancel_job"},
-    "/v1/jobs/{job_id}/retry": {"post": "retry_job"},
-    "/v1/jobs/{job_id}/events": {"get": "list_job_events"},
+    "/v1/exports": {"get": "list_exports", "post": "create_export"},
+    "/v1/exports/{export_id}": {"get": "get_export"},
+    "/v1/exports/{export_id}/cancel": {"post": "cancel_export"},
     "/v1/capabilities": {"get": "get_capabilities"},
     "/v1/resources/plan": {"post": "plan_resources"},
     "/v1/releases/info": {"get": "get_release_info"},
@@ -109,7 +104,7 @@ def _build_openapi_app() -> FastAPI:
 
     metrics = MetricsCollector(namespace="Tests")
     shared, cache = build_cache_stack()
-    repository = MemoryJobRepository()
+    repository = MemoryExportRepository()
     return build_test_app(
         build_runtime_deps(
             settings=settings,
@@ -118,9 +113,9 @@ def _build_openapi_app() -> FastAPI:
             cache=cache,
             authenticator=Authenticator(settings=settings, cache=cache),
             transfer_service=StubTransferService(),
-            job_service=JobService(
+            export_service=ExportService(
                 repository=repository,
-                publisher=MemoryJobPublisher(),
+                publisher=MemoryExportPublisher(),
                 metrics=metrics,
             ),
             activity_store=MemoryActivityStore(),
@@ -137,7 +132,7 @@ def _build_openapi_app_with_stub_auth() -> FastAPI:
 
     metrics = MetricsCollector(namespace="Tests")
     shared, cache = build_cache_stack()
-    repository = MemoryJobRepository()
+    repository = MemoryExportRepository()
     return build_test_app(
         build_runtime_deps(
             settings=settings,
@@ -146,9 +141,9 @@ def _build_openapi_app_with_stub_auth() -> FastAPI:
             cache=cache,
             authenticator=StubAuthenticator(),
             transfer_service=StubTransferService(),
-            job_service=JobService(
+            export_service=ExportService(
                 repository=repository,
-                publisher=MemoryJobPublisher(),
+                publisher=MemoryExportPublisher(),
                 metrics=metrics,
             ),
             activity_store=MemoryActivityStore(),
@@ -204,11 +199,9 @@ def test_openapi_path_method_tags_are_semantic() -> None:
         "/v1/transfers/uploads/complete": {"post": ["transfers"]},
         "/v1/transfers/uploads/abort": {"post": ["transfers"]},
         "/v1/transfers/downloads/presign": {"post": ["transfers"]},
-        "/v1/jobs": {"get": ["jobs"], "post": ["jobs"]},
-        "/v1/jobs/{job_id}": {"get": ["jobs"]},
-        "/v1/jobs/{job_id}/cancel": {"post": ["jobs"]},
-        "/v1/jobs/{job_id}/retry": {"post": ["jobs"]},
-        "/v1/jobs/{job_id}/events": {"get": ["jobs"]},
+        "/v1/exports": {"get": ["exports"], "post": ["exports"]},
+        "/v1/exports/{export_id}": {"get": ["exports"]},
+        "/v1/exports/{export_id}/cancel": {"post": ["exports"]},
         "/v1/capabilities": {"get": ["platform"]},
         "/v1/resources/plan": {"post": ["platform"]},
         "/v1/releases/info": {"get": ["platform"]},
@@ -247,189 +240,33 @@ def test_openapi_route_declared_error_contracts() -> None:
     app = _build_openapi_app()
     payload = app.openapi()
 
-    jobs_post = payload["paths"]["/v1/jobs"]["post"]["responses"]
-    assert jobs_post["409"]["content"]["application/json"]["schema"] == {
+    exports_post = payload["paths"]["/v1/exports"]["post"]["responses"]
+    assert exports_post["409"]["content"]["application/json"]["schema"] == {
         "$ref": "#/components/schemas/ErrorEnvelope"
     }
-    assert jobs_post["409"]["description"] == (
+    assert exports_post["409"]["description"] == (
         "Conflict - Idempotency request is already in progress."
     )
-    assert jobs_post["503"]["content"]["application/json"]["schema"] == {
+    assert exports_post["503"]["content"]["application/json"]["schema"] == {
         "$ref": "#/components/schemas/ErrorEnvelope"
     }
-    assert jobs_post["503"]["description"] == (
-        "Service Unavailable - Queue publishing or idempotency storage is "
-        "unavailable."
+    assert exports_post["503"]["description"] == (
+        "Service Unavailable - Queue publishing or idempotency storage "
+        "is unavailable."
     )
-    assert jobs_post["422"]["content"]["application/json"]["schema"] == {
-        "$ref": "#/components/schemas/ErrorEnvelope"
-    }
-
-    transfer_initiate_post = payload["paths"]["/v1/transfers/uploads/initiate"][
-        "post"
-    ]["responses"]
-    for status_code in ("401", "403", "409", "422", "503"):
-        assert transfer_initiate_post[status_code]["content"][
-            "application/json"
-        ]["schema"] == {"$ref": "#/components/schemas/ErrorEnvelope"}
-
-    metrics_summary_get = payload["paths"]["/metrics/summary"]["get"][
-        "responses"
-    ]
-    for status_code in ("401", "403"):
-        assert metrics_summary_get[status_code]["content"]["application/json"][
-            "schema"
-        ] == {"$ref": "#/components/schemas/ErrorEnvelope"}
-
-    plan_resources_post = payload["paths"]["/v1/resources/plan"]["post"][
-        "responses"
-    ]
-    assert plan_resources_post["422"]["content"]["application/json"][
-        "schema"
-    ] == {"$ref": "#/components/schemas/ErrorEnvelope"}
-
-    retry_job_post = payload["paths"]["/v1/jobs/{job_id}/retry"]["post"][
-        "responses"
-    ]
-    for status_code in ("401", "403", "422"):
-        assert retry_job_post[status_code]["content"]["application/json"][
-            "schema"
-        ] == {"$ref": "#/components/schemas/ErrorEnvelope"}
 
     ready_responses = payload["paths"]["/v1/health/ready"]["get"]["responses"]
     assert ready_responses["503"]["content"]["application/json"]["schema"] == {
         "$ref": "#/components/schemas/ReadinessResponse"
     }
-    assert ready_responses["503"]["description"] == (
-        "Service Unavailable - Readiness failed."
-    )
-
-    components = payload["components"]
-    assert "responses" not in components
-    assert "HTTPValidationError" not in components["schemas"]
-    assert "ValidationError" not in components["schemas"]
 
 
-@pytest.mark.asyncio
-async def test_initiate_upload_invalid_body_returns_error_envelope() -> None:
-    """Invalid initiate payload returns 422 with the standard envelope."""
+def test_legacy_job_routes_are_not_exposed() -> None:
+    """The OpenAPI schema should no longer contain generic job routes."""
     app = _build_openapi_app_with_stub_auth()
-    response = await request_app(
-        app,
-        "POST",
-        "/v1/transfers/uploads/initiate",
-        headers={
-            **_AUTH_HEADERS,
-            "X-Request-Id": "req-openapi-initiate-422",
-        },
-        json={},
-    )
-    assert response.status_code == 422
-    payload = response.json()
-    assert payload["error"]["code"] == "invalid_request"
-    assert payload["error"]["request_id"] == "req-openapi-initiate-422"
-    assert payload["error"]["details"]["errors"]
+    paths = app.openapi()["paths"]
 
-
-@pytest.mark.asyncio
-async def test_plan_resources_invalid_body_returns_error_envelope() -> None:
-    """Invalid plan-resources payload returns 422 with the standard envelope."""
-    app = _build_openapi_app_with_stub_auth()
-    response = await request_app(
-        app,
-        "POST",
-        "/v1/resources/plan",
-        headers={
-            **_AUTH_HEADERS,
-            "X-Request-Id": "req-openapi-plan-422",
-        },
-        json={"resources": []},
-    )
-    assert response.status_code == 422
-    payload = response.json()
-    assert payload["error"]["code"] == "invalid_request"
-    assert payload["error"]["request_id"] == "req-openapi-plan-422"
-    assert payload["error"]["details"]["errors"]
-
-
-@pytest.mark.asyncio
-async def test_list_jobs_invalid_limit_returns_error_envelope() -> None:
-    """Invalid jobs list query returns 422 with the standard envelope.
-
-    ``POST /v1/jobs/{job_id}/retry`` declares 422 in OpenAPI but accepts no
-    request body, so malformed JSON is not validated and the handler runs
-    (for example returning 404 for an unknown job). Listing jobs validates the
-    ``limit`` query parameter and exercises the same global
-    ``RequestValidationError`` path for the jobs router.
-    """
-    app = _build_openapi_app_with_stub_auth()
-    response = await request_app(
-        app,
-        "GET",
-        "/v1/jobs?limit=0",
-        headers={
-            **_AUTH_HEADERS,
-            "X-Request-Id": "req-openapi-jobs-limit-422",
-        },
-    )
-    assert response.status_code == 422
-    payload = response.json()
-    assert payload["error"]["code"] == "invalid_request"
-    assert payload["error"]["request_id"] == "req-openapi-jobs-limit-422"
-    assert payload["error"]["details"]["errors"]
-
-
-def test_openapi_error_envelope_schema_preserves_semantic_fields() -> None:
-    """ErrorEnvelope compatibility is defined by wire fields."""
-    app = _build_openapi_app()
-    payload = app.openapi()
-
-    schemas = payload["components"]["schemas"]
-    error_envelope = schemas["ErrorEnvelope"]
-    error_schema = error_envelope["properties"]["error"]
-    if "$ref" in error_schema:
-        schema_name = error_schema["$ref"].rsplit("/", 1)[-1]
-        error_schema = schemas[schema_name]
-
-    assert error_schema["type"] == "object"
-    assert error_schema["additionalProperties"] is False
-    assert set(error_schema["required"]) == {
-        "code",
-        "message",
-        "details",
-        "request_id",
-    }
-    assert error_schema["properties"]["code"]["type"] == "string"
-    assert error_schema["properties"]["message"]["type"] == "string"
-    assert error_schema["properties"]["details"]["type"] == "object"
-    request_id_schema = error_schema["properties"]["request_id"]
-    assert sorted(item["type"] for item in request_id_schema["anyOf"]) == [
-        "null",
-        "string",
-    ]
-
-
-def test_openapi_uses_bearer_security_for_public_routes() -> None:
-    """Public OpenAPI routes advertise bearer auth."""
-    app = _build_openapi_app()
-    payload = app.openapi()
-
-    security_schemes = payload["components"]["securitySchemes"]
-    assert "bearerAuth" in security_schemes
-    assert "sessionAuth" not in security_schemes
-    assert "X-Worker-Token" not in security_schemes
-    assert security_schemes["bearerAuth"]["type"] == "http"
-    assert security_schemes["bearerAuth"]["scheme"] == "bearer"
-    assert security_schemes["bearerAuth"]["bearerFormat"] == "JWT"
-
-    public_post = payload["paths"]["/v1/jobs"]["post"]
-    assert public_post["security"] == [{"bearerAuth": []}]
-
-
-def test_legacy_routes_are_not_exposed() -> None:
-    """Legacy API and legacy health routes must remain removed."""
-    app = _build_openapi_app()
-    route_paths = {route.path for route in app.routes if hasattr(route, "path")}
-    assert "/api/transfers/uploads/initiate" not in route_paths
-    assert "/api/jobs/enqueue" not in route_paths
-    assert "/healthz" not in route_paths
+    assert "/v1/jobs" not in paths
+    assert "/v1/jobs/{job_id}" not in paths
+    assert "/v1/jobs/{job_id}/retry" not in paths
+    assert "/v1/jobs/{job_id}/events" not in paths

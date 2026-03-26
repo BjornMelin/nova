@@ -134,12 +134,12 @@ The service MUST provide:
 
 The service MUST provide:
 
-- `POST /v1/jobs`
-- `GET /v1/jobs`
-- `GET /v1/jobs/{job_id}`
-- `POST /v1/jobs/{job_id}/cancel`
-- `POST /v1/jobs/{job_id}/retry`
-- `GET /v1/jobs/{job_id}/events`
+- `POST /v1/exports`
+- `GET /v1/exports`
+- `GET /v1/exports/{export_id}`
+- `POST /v1/exports/{export_id}/cancel`
+- `POST /v1/exports/{export_id}`
+- `GET /v1/exports/{export_id}`
 
 Worker completion and terminal job updates MUST use the **direct persistence**
 path (`SPEC-0028`, `ADR-0035`). There MUST NOT be a worker → API HTTP callback
@@ -152,7 +152,7 @@ Scope binding for job endpoints MUST follow verified **JWT claims** in the
 public file API (`SPEC-0027`, `GFR-R2`). `session_id`, `X-Session-Id`, and
 `X-Scope-Id` MUST NOT be used as public authorization scope carriers.
 
-Enqueue failure semantics for `POST /v1/jobs`:
+Enqueue failure semantics for `POST /v1/exports`:
 
 - On queue publish failure:
   - Return HTTP `503` with `error.code = "queue_unavailable"`.
@@ -203,7 +203,7 @@ The service MUST:
 
 ### FR-0004: Idempotency for mutation entrypoints
 
-`POST /v1/transfers/uploads/initiate` and `POST /v1/jobs` create endpoints MUST
+`POST /v1/transfers/uploads/initiate` and `POST /v1/exports` create endpoints MUST
 support idempotent retries using the `Idempotency-Key` header.
 
 Failed enqueue responses (`503 queue_unavailable`) MUST NOT be replay-cached as
@@ -326,7 +326,7 @@ The hard-cut route policy MUST enforce:
 
 Downstream consumer repositories and integration examples MUST:
 
-- use canonical `/v1/transfers` and `/v1/jobs` route families only
+- use canonical `/v1/transfers` and `/v1/exports` route families only
 - use reusable post-deploy validation contracts that assert canonical
   non-`404` behavior
 - assert explicit legacy route `404` behavior for removed routes

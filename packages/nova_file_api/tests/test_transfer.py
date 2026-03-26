@@ -175,7 +175,7 @@ async def test_copy_upload_to_export_toctou_missing_source_is_invalid() -> None:
             source_bucket=settings.file_transfer_bucket,
             source_key="uploads/scope-1/source.csv",
             scope_id="scope-1",
-            job_id="job-1",
+            export_id="job-1",
             filename="source.csv",
         )
 
@@ -200,7 +200,7 @@ async def test_copy_upload_to_export_copy_error_is_upstream_s3_error() -> None:
             source_bucket=settings.file_transfer_bucket,
             source_key="uploads/scope-1/source.csv",
             scope_id="scope-1",
-            job_id="job-1",
+            export_id="job-1",
             filename="source.csv",
         )
 
@@ -228,7 +228,7 @@ async def test_copy_upload_to_export_client_error_maps_to_upstream() -> None:
             source_bucket=settings.file_transfer_bucket,
             source_key="uploads/scope-1/source.csv",
             scope_id="scope-1",
-            job_id="job-1",
+            export_id="job-1",
             filename="source.csv",
         )
 
@@ -417,7 +417,7 @@ async def test_copy_upload_to_export_uses_multipart_copy_above_5_gb() -> None:
         source_bucket=settings.file_transfer_bucket,
         source_key="uploads/scope-1/source.csv",
         scope_id="scope-1",
-        job_id="job-1",
+        export_id="job-1",
         filename="source.csv",
     )
 
@@ -475,7 +475,7 @@ async def test_copy_upload_to_export_aborts_failed_multipart_copy() -> None:
             source_bucket=settings.file_transfer_bucket,
             source_key="uploads/scope-1/source.csv",
             scope_id="scope-1",
-            job_id="job-1",
+            export_id="job-1",
             filename="source.csv",
         )
 
@@ -501,7 +501,7 @@ async def test_large_copy_missing_source_is_invalid() -> None:
             source_bucket=settings.file_transfer_bucket,
             source_key="uploads/scope-1/source.csv",
             scope_id="scope-1",
-            job_id="job-1",
+            export_id="job-1",
             filename="source.csv",
         )
 

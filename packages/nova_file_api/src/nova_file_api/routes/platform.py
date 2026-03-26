@@ -8,7 +8,7 @@ from fastapi import APIRouter, Response
 from nova_file_api.dependencies import (
     ActivityStoreDep,
     AuthenticatorDep,
-    JobServiceDep,
+    ExportServiceDep,
     MetricsDep,
     PrincipalDep,
     SettingsDep,
@@ -54,9 +54,9 @@ platform_router = APIRouter(prefix="/v1", tags=["platform"])
 async def get_capabilities(settings: SettingsDep) -> CapabilitiesResponse:
     """Expose runtime capability declarations."""
     capabilities = [
-        CapabilityDescriptor(key="jobs", enabled=settings.jobs_enabled),
+        CapabilityDescriptor(key="exports", enabled=settings.jobs_enabled),
         CapabilityDescriptor(
-            key="jobs.events.poll",
+            key="exports.status.poll",
             enabled=settings.jobs_enabled,
         ),
         CapabilityDescriptor(
@@ -78,7 +78,7 @@ async def plan_resources(
     settings: SettingsDep,
 ) -> ResourcePlanResponse:
     """Plan supportability for requested resource keys."""
-    available = {"jobs", "transfers", "downloads", "uploads"}
+    available = {"exports", "transfers", "downloads", "uploads"}
     plan = [
         ResourcePlanItem(
             resource=resource,
@@ -90,9 +90,9 @@ async def plan_resources(
     if not settings.jobs_enabled:
         plan = [
             item.model_copy(
-                update={"supported": False, "reason": "jobs_disabled"}
+                update={"supported": False, "reason": "exports_disabled"}
             )
-            if item.resource == "jobs"
+            if item.resource == "exports"
             else item
             for item in plan
         ]
@@ -145,7 +145,7 @@ async def health_ready(
     response: Response,
     settings: SettingsDep,
     shared_cache: SharedCacheDep,
-    job_service: JobServiceDep,
+    export_service: ExportServiceDep,
     activity_store: ActivityStoreDep,
     authenticator: AuthenticatorDep,
 ) -> ReadinessResponse:
@@ -162,26 +162,26 @@ async def health_ready(
         shared_cache_ready = False
 
     if settings.jobs_enabled:
-        job_queue = True
+        export_runtime = True
         try:
-            publisher_ok = await job_service.publisher.healthcheck()
+            publisher_ok = await export_service.publisher.healthcheck()
         except Exception:
             logger.exception(
-                "v1_health_ready_job_queue_healthcheck_failed",
+                "v1_health_ready_export_queue_healthcheck_failed",
                 route="/v1/health/ready",
             )
             publisher_ok = False
         try:
-            repository_ok = await job_service.repository.healthcheck()
+            repository_ok = await export_service.repository.healthcheck()
         except Exception:
             logger.exception(
-                "v1_health_ready_job_repository_healthcheck_failed",
+                "v1_health_ready_export_repository_healthcheck_failed",
                 route="/v1/health/ready",
             )
             repository_ok = False
-        job_queue = publisher_ok and repository_ok
+        export_runtime = publisher_ok and repository_ok
     else:
-        job_queue = True
+        export_runtime = True
 
     try:
         activity_store_ready = await activity_store.healthcheck()
@@ -204,14 +204,14 @@ async def health_ready(
     checks = {
         "bucket_configured": bool(settings.file_transfer_bucket.strip()),
         "shared_cache": shared_cache_ready,
-        "job_queue": job_queue,
+        "export_runtime": export_runtime,
         "activity_store": activity_store_ready,
         "auth_dependency": auth_dependency,
     }
     required_checks: tuple[str, ...] = (
         "bucket_configured",
         "auth_dependency",
-        "job_queue",
+        "export_runtime",
     )
     if settings.idempotency_enabled:
         required_checks = (*required_checks, "shared_cache")

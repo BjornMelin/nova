@@ -1,0 +1,10 @@
+{
+  "error": {
+    "code": "queue_unavailable",
+    "message": "export creation failed because queue publish failed",
+    "request_id": "req-exports-503",
+    "details": {
+      "backend": "sqs"
+    }
+  }
+}

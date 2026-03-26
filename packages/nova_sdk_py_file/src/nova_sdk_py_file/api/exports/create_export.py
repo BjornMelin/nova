@@ -1,36 +1,44 @@
 from typing import Any
-from urllib.parse import quote
 
 import httpx
 
 from nova_sdk_py_file import errors
 from nova_sdk_py_file.client import AuthenticatedClient, Client
+from nova_sdk_py_file.models.create_export_request import CreateExportRequest
 from nova_sdk_py_file.models.error_envelope import ErrorEnvelope
-from nova_sdk_py_file.models.job_cancel_response import JobCancelResponse
-from nova_sdk_py_file.types import Response
+from nova_sdk_py_file.models.export_resource import ExportResource
+from nova_sdk_py_file.types import UNSET, Response, Unset
 
 
 def _get_kwargs(
-    job_id: str,
+    *,
+    body: CreateExportRequest,
+    idempotency_key: None | str | Unset = UNSET,
 ) -> dict[str, Any]:
+    headers: dict[str, Any] = {}
+    if not isinstance(idempotency_key, Unset):
+        headers["Idempotency-Key"] = idempotency_key
 
     _kwargs: dict[str, Any] = {
         "method": "post",
-        "url": "/v1/jobs/{job_id}/cancel".format(
-            job_id=quote(str(job_id), safe=""),
-        ),
+        "url": "/v1/exports",
     }
 
+    _kwargs["json"] = body.to_dict()
+
+    headers["Content-Type"] = "application/json"
+
+    _kwargs["headers"] = headers
     return _kwargs
 
 
 def _parse_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> ErrorEnvelope | JobCancelResponse | None:
-    if response.status_code == 200:
-        response_200 = JobCancelResponse.from_dict(response.json())
+) -> ErrorEnvelope | ExportResource | None:
+    if response.status_code == 201:
+        response_201 = ExportResource.from_dict(response.json())
 
-        return response_200
+        return response_201
 
     if response.status_code == 401:
         response_401 = ErrorEnvelope.from_dict(response.json())
@@ -42,10 +50,20 @@ def _parse_response(
 
         return response_403
 
+    if response.status_code == 409:
+        response_409 = ErrorEnvelope.from_dict(response.json())
+
+        return response_409
+
     if response.status_code == 422:
         response_422 = ErrorEnvelope.from_dict(response.json())
 
         return response_422
+
+    if response.status_code == 503:
+        response_503 = ErrorEnvelope.from_dict(response.json())
+
+        return response_503
 
     if client.raise_on_unexpected_status:
         raise errors.UnexpectedStatus(response.status_code, response.content)
@@ -55,7 +73,7 @@ def _parse_response(
 
 def _build_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> Response[ErrorEnvelope | JobCancelResponse]:
+) -> Response[ErrorEnvelope | ExportResource]:
     return Response(
         status_code=response.status_code,
         content=response.content,
@@ -65,27 +83,30 @@ def _build_response(
 
 
 def sync_detailed(
-    job_id: str,
     *,
     client: AuthenticatedClient,
-) -> Response[ErrorEnvelope | JobCancelResponse]:
-    """Cancel Job
+    body: CreateExportRequest,
+    idempotency_key: None | str | Unset = UNSET,
+) -> Response[ErrorEnvelope | ExportResource]:
+    """Create Export
 
-     Cancel a caller-owned non-terminal job.
+     Create an explicit export workflow resource.
 
     Args:
-        job_id (str):
+        idempotency_key (None | str | Unset):
+        body (CreateExportRequest): Request payload for export creation.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[ErrorEnvelope | JobCancelResponse]
+        Response[ErrorEnvelope | ExportResource]
     """
 
     kwargs = _get_kwargs(
-        job_id=job_id,
+        body=body,
+        idempotency_key=idempotency_key,
     )
 
     response = client.get_httpx_client().request(
@@ -96,53 +117,59 @@ def sync_detailed(
 
 
 def sync(
-    job_id: str,
     *,
     client: AuthenticatedClient,
-) -> ErrorEnvelope | JobCancelResponse | None:
-    """Cancel Job
+    body: CreateExportRequest,
+    idempotency_key: None | str | Unset = UNSET,
+) -> ErrorEnvelope | ExportResource | None:
+    """Create Export
 
-     Cancel a caller-owned non-terminal job.
+     Create an explicit export workflow resource.
 
     Args:
-        job_id (str):
+        idempotency_key (None | str | Unset):
+        body (CreateExportRequest): Request payload for export creation.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        ErrorEnvelope | JobCancelResponse | None
+        ErrorEnvelope | ExportResource | None
     """
 
     return sync_detailed(
-        job_id=job_id,
         client=client,
+        body=body,
+        idempotency_key=idempotency_key,
     ).parsed
 
 
 async def asyncio_detailed(
-    job_id: str,
     *,
     client: AuthenticatedClient,
-) -> Response[ErrorEnvelope | JobCancelResponse]:
-    """Cancel Job
+    body: CreateExportRequest,
+    idempotency_key: None | str | Unset = UNSET,
+) -> Response[ErrorEnvelope | ExportResource]:
+    """Create Export
 
-     Cancel a caller-owned non-terminal job.
+     Create an explicit export workflow resource.
 
     Args:
-        job_id (str):
+        idempotency_key (None | str | Unset):
+        body (CreateExportRequest): Request payload for export creation.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[ErrorEnvelope | JobCancelResponse]
+        Response[ErrorEnvelope | ExportResource]
     """
 
     kwargs = _get_kwargs(
-        job_id=job_id,
+        body=body,
+        idempotency_key=idempotency_key,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -151,28 +178,31 @@ async def asyncio_detailed(
 
 
 async def asyncio(
-    job_id: str,
     *,
     client: AuthenticatedClient,
-) -> ErrorEnvelope | JobCancelResponse | None:
-    """Cancel Job
+    body: CreateExportRequest,
+    idempotency_key: None | str | Unset = UNSET,
+) -> ErrorEnvelope | ExportResource | None:
+    """Create Export
 
-     Cancel a caller-owned non-terminal job.
+     Create an explicit export workflow resource.
 
     Args:
-        job_id (str):
+        idempotency_key (None | str | Unset):
+        body (CreateExportRequest): Request payload for export creation.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        ErrorEnvelope | JobCancelResponse | None
+        ErrorEnvelope | ExportResource | None
     """
 
     return (
         await asyncio_detailed(
-            job_id=job_id,
             client=client,
+            body=body,
+            idempotency_key=idempotency_key,
         )
     ).parsed

@@ -22,6 +22,30 @@ export const operations = {
     path: "/v1/capabilities",
     summary: "Get Capabilities",
   },
+  "list_exports": {
+    operationId: "list_exports",
+    method: "GET",
+    path: "/v1/exports",
+    summary: "List Exports",
+  },
+  "create_export": {
+    operationId: "create_export",
+    method: "POST",
+    path: "/v1/exports",
+    summary: "Create Export",
+  },
+  "get_export": {
+    operationId: "get_export",
+    method: "GET",
+    path: "/v1/exports/{export_id}",
+    summary: "Get Export",
+  },
+  "cancel_export": {
+    operationId: "cancel_export",
+    method: "POST",
+    path: "/v1/exports/{export_id}/cancel",
+    summary: "Cancel Export",
+  },
   "health_live": {
     operationId: "health_live",
     method: "GET",
@@ -33,42 +57,6 @@ export const operations = {
     method: "GET",
     path: "/v1/health/ready",
     summary: "Health Ready",
-  },
-  "list_jobs": {
-    operationId: "list_jobs",
-    method: "GET",
-    path: "/v1/jobs",
-    summary: "List Jobs",
-  },
-  "create_job": {
-    operationId: "create_job",
-    method: "POST",
-    path: "/v1/jobs",
-    summary: "Create Job",
-  },
-  "get_job_status": {
-    operationId: "get_job_status",
-    method: "GET",
-    path: "/v1/jobs/{job_id}",
-    summary: "Get Job Status",
-  },
-  "cancel_job": {
-    operationId: "cancel_job",
-    method: "POST",
-    path: "/v1/jobs/{job_id}/cancel",
-    summary: "Cancel Job",
-  },
-  "list_job_events": {
-    operationId: "list_job_events",
-    method: "GET",
-    path: "/v1/jobs/{job_id}/events",
-    summary: "List Job Events",
-  },
-  "retry_job": {
-    operationId: "retry_job",
-    method: "POST",
-    path: "/v1/jobs/{job_id}/retry",
-    summary: "Retry Job",
   },
   "get_release_info": {
     operationId: "get_release_info",

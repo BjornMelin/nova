@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nova/contracts/fixtures/v1/schemas/exports-success.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "export_id",
+    "source_key",
+    "filename",
+    "status",
+    "output",
+    "error",
+    "created_at",
+    "updated_at"
+  ],
+  "properties": {
+    "export_id": { "type": "string" },
+    "source_key": { "type": "string" },
+    "filename": { "type": "string" },
+    "status": {
+      "type": "string",
+      "enum": [
+        "queued",
+        "validating",
+        "copying",
+        "finalizing",
+        "succeeded",
+        "failed",
+        "cancelled"
+      ]
+    },
+    "output": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["key", "download_filename"],
+      "properties": {
+        "key": { "type": "string" },
+        "download_filename": { "type": "string" }
+      }
+    },
+    "error": { "type": ["string", "null"] },
+    "created_at": { "type": "string", "format": "date-time" },
+    "updated_at": { "type": "string", "format": "date-time" }
+  }
+}

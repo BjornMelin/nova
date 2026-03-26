@@ -68,7 +68,7 @@ Choose **Option B**.
 ### Required characteristics
 
 1. `packages/nova_file_api/` owns:
-   - canonical `/v1/transfers/*` and `/v1/jobs*` runtime behavior
+   - canonical `/v1/transfers/*` and `/v1/exports*` runtime behavior
    - capability, release-info, liveness, readiness, and metrics handlers
    - transfer, jobs, cache, idempotency, and activity orchestration
    - in-process bearer JWT verification and principal mapping

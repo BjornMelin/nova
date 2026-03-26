@@ -212,105 +212,88 @@ class PresignDownloadResponse(BaseModel):
     expires_in_seconds: int
 
 
-class EnqueueJobRequest(BaseModel):
-    """Request payload for job enqueue endpoint."""
+class CreateExportRequest(BaseModel):
+    """Request payload for export creation."""
 
     model_config = ConfigDict(extra="forbid")
 
-    job_type: str = Field(min_length=1, max_length=128)
-    payload: dict[str, Any] = Field(default_factory=dict)
+    source_key: str = Field(min_length=1, max_length=2048)
+    filename: str = Field(min_length=1, max_length=512)
 
 
-TRANSFER_PROCESS_JOB_TYPE = "transfer.process"
+class ExportStatus(StrEnum):
+    """Lifecycle status of an export workflow."""
 
-
-class JobStatus(StrEnum):
-    """Lifecycle status of an async job."""
-
-    PENDING = "pending"
-    RUNNING = "running"
+    QUEUED = "queued"
+    VALIDATING = "validating"
+    COPYING = "copying"
+    FINALIZING = "finalizing"
     SUCCEEDED = "succeeded"
     FAILED = "failed"
-    CANCELED = "canceled"
+    CANCELLED = "cancelled"
 
 
-class JobRecord(BaseModel):
-    """Persistent job representation."""
+class ExportOutput(BaseModel):
+    """Completed export output metadata."""
 
     model_config = ConfigDict(extra="forbid")
 
-    job_id: str
-    job_type: str
+    key: str = Field(min_length=1, max_length=2048)
+    download_filename: str = Field(min_length=1, max_length=512)
+
+
+class ExportRecord(BaseModel):
+    """Internal export workflow persistence record."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    export_id: str
     scope_id: str
-    status: JobStatus
-    payload: dict[str, Any]
-    result: dict[str, Any] | None = None
+    request_id: str | None = None
+    source_key: str = Field(min_length=1, max_length=2048)
+    filename: str = Field(min_length=1, max_length=512)
+    status: ExportStatus
+    output: ExportOutput | None = None
     error: str | None = None
     created_at: datetime
     updated_at: datetime
 
 
-class EnqueueJobResponse(BaseModel):
-    """Response payload for enqueue endpoint."""
+class ExportResource(BaseModel):
+    """Public export workflow resource."""
 
     model_config = ConfigDict(extra="forbid")
 
-    job_id: str
-    status: JobStatus
+    export_id: str
+    source_key: str = Field(min_length=1, max_length=2048)
+    filename: str = Field(min_length=1, max_length=512)
+    status: ExportStatus
+    output: ExportOutput | None = None
+    error: str | None = None
+    created_at: datetime
+    updated_at: datetime
+
+    @classmethod
+    def from_record(cls, record: ExportRecord) -> ExportResource:
+        """Project an internal record to the public export resource shape."""
+        return cls(
+            export_id=record.export_id,
+            source_key=record.source_key,
+            filename=record.filename,
+            status=record.status,
+            output=record.output,
+            error=record.error,
+            created_at=record.created_at,
+            updated_at=record.updated_at,
+        )
 
 
-class JobStatusResponse(BaseModel):
-    """Response payload for status endpoint."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    job: JobRecord
-
-
-class JobCancelResponse(BaseModel):
-    """Response payload for cancel endpoint."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    job_id: str
-    status: JobStatus
-
-
-class JobListResponse(BaseModel):
-    """Response payload for job listing endpoint."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    jobs: list[JobRecord] = Field(max_length=200)
-
-
-class JobEventType(StrEnum):
-    """Event kinds emitted by the v1 job events contract."""
-
-    SNAPSHOT = "snapshot"
-
-
-class JobEvent(BaseModel):
-    """Single event entry for a job event stream/poll response."""
+class ExportListResponse(BaseModel):
+    """Response payload for export listing endpoint."""
 
     model_config = ConfigDict(extra="forbid")
 
-    event_id: str
-    job_id: str
-    status: JobStatus
-    event_type: JobEventType = JobEventType.SNAPSHOT
-    timestamp: datetime
-    data: dict[str, Any] = Field(default_factory=dict)
-
-
-class JobEventsResponse(BaseModel):
-    """Polling/SSE-compatible events response envelope."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    job_id: str
-    events: list[JobEvent] = Field(max_length=1000)
-    next_cursor: str
+    exports: list[ExportResource] = Field(max_length=200)
 
 
 class CapabilityDescriptor(BaseModel):

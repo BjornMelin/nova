@@ -16,16 +16,16 @@ from nova_file_api.dependencies import (
     build_idempotency_store,
     get_activity_store,
     get_authenticator,
+    get_export_repository,
+    get_export_service,
     get_idempotency_store,
-    get_job_repository,
-    get_job_service,
     get_metrics,
     get_shared_cache,
     get_transfer_service,
     get_two_tier_cache,
 )
+from nova_file_api.exports import ExportRepository
 from nova_file_api.idempotency import IdempotencyStore
-from nova_file_api.jobs import JobRepository
 from nova_file_api.metrics import MetricsCollector
 
 from .redis import MemoryRedisClient
@@ -38,7 +38,7 @@ class RuntimeDeps:
     """
     Container for test doubles installed via FastAPI dependency overrides.
 
-    All fields are required except job_repository, which is optional.
+    All fields are required except export_repository, which is optional.
     """
 
     settings: Settings
@@ -47,10 +47,10 @@ class RuntimeDeps:
     cache: TwoTierCache
     authenticator: object
     transfer_service: object
-    job_service: object
+    export_service: object
     activity_store: ActivityStore
     idempotency_store: IdempotencyStore
-    job_repository: JobRepository | None = None
+    export_repository: ExportRepository | None = None
 
 
 def build_cache_stack(
@@ -86,7 +86,7 @@ def build_runtime_deps(
     *,
     authenticator: object,
     transfer_service: object,
-    job_service: object,
+    export_service: object,
     activity_store: ActivityStore,
     settings: Settings | None = None,
     metrics: MetricsCollector | None = None,
@@ -96,7 +96,7 @@ def build_runtime_deps(
     use_in_memory_shared_cache: bool = False,
     idempotency_enabled: bool = True,
     idempotency_ttl_seconds: int = 300,
-    job_repository: JobRepository | None = None,
+    export_repository: ExportRepository | None = None,
 ) -> RuntimeDeps:
     """
     Build a runtime dependency graph for route tests.
@@ -104,7 +104,7 @@ def build_runtime_deps(
     Args:
         authenticator: Auth implementation to inject.
         transfer_service: Transfer service implementation.
-        job_service: Job service implementation.
+        export_service: Export service implementation.
         activity_store: Activity store implementation.
         settings: Optional settings; defaults to Settings().
         metrics: Optional metrics; defaults to MetricsCollector.
@@ -115,7 +115,7 @@ def build_runtime_deps(
         idempotency_store: Idempotency store; built from cache if None.
         idempotency_enabled: Whether idempotency is enabled when building store.
         idempotency_ttl_seconds: TTL for idempotency store when building.
-        job_repository: Optional job repository override.
+        export_repository: Optional export repository override.
 
     Returns:
         RuntimeDeps instance ready for build_test_app.
@@ -170,10 +170,10 @@ def build_runtime_deps(
         cache=resolved_cache,
         authenticator=authenticator,
         transfer_service=transfer_service,
-        job_service=job_service,
+        export_service=export_service,
         activity_store=activity_store,
         idempotency_store=resolved_idempotency_store,
-        job_repository=job_repository,
+        export_repository=export_repository,
     )
 
 
@@ -212,11 +212,13 @@ def build_test_app(deps: RuntimeDeps) -> FastAPI:
     app.dependency_overrides[get_transfer_service] = _override(
         deps.transfer_service
     )
-    if deps.job_repository is not None:
-        app.dependency_overrides[get_job_repository] = _override(
-            deps.job_repository
+    if deps.export_repository is not None:
+        app.dependency_overrides[get_export_repository] = _override(
+            deps.export_repository
         )
-    app.dependency_overrides[get_job_service] = _override(deps.job_service)
+    app.dependency_overrides[get_export_service] = _override(
+        deps.export_service
+    )
     app.dependency_overrides[get_activity_store] = _override(
         deps.activity_store
     )

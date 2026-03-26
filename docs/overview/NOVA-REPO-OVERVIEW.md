@@ -13,11 +13,11 @@ operator authority live elsewhere.
 
 Nova is the canonical runtime monorepo for file-transfer orchestration and
 in-process bearer JWT verification. It provides a control plane for transfer
-and async job workflows and does not proxy file bytes through the API layer.
+and async export workflows and does not proxy file bytes through the API layer.
 
 ## Monorepo Map
 
-- `packages/nova_file_api`: canonical `/v1/*` transfer and jobs runtime
+- `packages/nova_file_api`: canonical `/v1/*` transfer and export-workflow runtime
 - `packages/nova_dash_bridge`: Dash/Flask/FastAPI adapters over
   `nova_file_api.public`
 - `packages/nova_runtime_support`: shared outer-ASGI request context and
@@ -35,7 +35,7 @@ and async job workflows and does not proxy file bytes through the API layer.
 - Requests enter `nova_file_api` on the canonical `/v1/*` surface.
 - Bearer JWT verification, validation, idempotency, and service orchestration
   happen in-process.
-- Async jobs publish to queue backends and workers write terminal state through
+- Async export workflows publish to queue backends and workers write terminal state through
   the direct-persistence path.
 - Health and observability surfaces remain:
   - `/v1/health/live`
@@ -44,7 +44,7 @@ and async job workflows and does not proxy file bytes through the API layer.
 
 ## Package Responsibilities
 
-- `nova_file_api` owns runtime endpoints, auth, job lifecycle, and readiness.
+- `nova_file_api` owns runtime endpoints, auth, export workflow lifecycle, and readiness.
 - `nova_dash_bridge` owns framework adapters and consumes
   `nova_file_api.public` as the in-process seam.
 - `nova_runtime_support` owns shared request-id propagation and shared FastAPI

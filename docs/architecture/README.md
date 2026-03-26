@@ -18,10 +18,10 @@ Use it before opening any ADR or SPEC.
 
 ### Current implemented baseline
 
-The current repository is in a mixed state: the auth hard cut has landed, while
-other wave-2 tracks are still pending.
+The current repository is in a mixed state: the auth hard cut and export
+workflow hard cut have landed, while other wave-2 tracks are still pending.
 
-- public transfer APIs plus generic jobs
+- public transfer APIs plus explicit export workflows
 - bearer JWT only, verified in-process in the main API
 - Redis in correctness/idempotency paths
 - ECS/Fargate + ALB + SQS worker as the documented runtime baseline

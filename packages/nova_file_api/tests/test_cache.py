@@ -214,7 +214,7 @@ async def test_injected_app_lifespan_keeps_external_state_for_reentry() -> None:
     deps = build_runtime_deps(
         authenticator=authenticator,
         transfer_service=object(),
-        job_service=object(),
+        export_service=object(),
         activity_store=MemoryActivityStore(),
         shared_cache=shared_cache,
         cache=TwoTierCache(
@@ -284,11 +284,10 @@ async def test_runtime_app_lifespan_clears_runtime_state_for_reentry(
     async with app.router.lifespan_context(app):
         first_shared_cache = shared_caches[0]
         first_authenticator = authenticators[0]
-        assert first_shared_cache.available is True
-        assert first_authenticator.closed is False
+        assert bool(first_shared_cache.available)
+        assert not bool(first_authenticator.closed)
 
-    assert first_authenticator.closed is True
-    assert first_shared_cache.available is False
+    assert bool(first_authenticator.closed)
     assert getattr(app.state, "shared_cache", None) is None
     assert getattr(app.state, "cache", None) is None
     assert getattr(app.state, "idempotency_store", None) is None

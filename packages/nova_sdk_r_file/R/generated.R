@@ -30,6 +30,74 @@ nova_file_get_capabilities <- function(
   )
 }
 
+nova_file_list_exports <- function(
+  client,
+  limit = NULL,
+  headers = NULL
+) {
+  nova_file_api_call(
+    client = client,
+    operation_id = "list_exports",
+    method = "GET",
+    path = "/v1/exports",
+    query = list(limit = limit),
+    headers = headers,
+    requires_body = FALSE,
+    accepts_body = FALSE
+  )
+}
+
+nova_file_create_export <- function(
+  client,
+  body,
+  headers = NULL
+) {
+  nova_file_api_call(
+    client = client,
+    operation_id = "create_export",
+    method = "POST",
+    path = "/v1/exports",
+    body = body,
+    headers = headers,
+    requires_body = TRUE,
+    accepts_body = TRUE
+  )
+}
+
+nova_file_get_export <- function(
+  client,
+  export_id,
+  headers = NULL
+) {
+  nova_file_api_call(
+    client = client,
+    operation_id = "get_export",
+    method = "GET",
+    path = "/v1/exports/{export_id}",
+    path_params = list(export_id = export_id),
+    headers = headers,
+    requires_body = FALSE,
+    accepts_body = FALSE
+  )
+}
+
+nova_file_cancel_export <- function(
+  client,
+  export_id,
+  headers = NULL
+) {
+  nova_file_api_call(
+    client = client,
+    operation_id = "cancel_export",
+    method = "POST",
+    path = "/v1/exports/{export_id}/cancel",
+    path_params = list(export_id = export_id),
+    headers = headers,
+    requires_body = FALSE,
+    accepts_body = FALSE
+  )
+}
+
 nova_file_health_live <- function(
   client,
   headers = NULL
@@ -54,108 +122,6 @@ nova_file_health_ready <- function(
     operation_id = "health_ready",
     method = "GET",
     path = "/v1/health/ready",
-    headers = headers,
-    requires_body = FALSE,
-    accepts_body = FALSE
-  )
-}
-
-nova_file_list_jobs <- function(
-  client,
-  limit = NULL,
-  headers = NULL
-) {
-  nova_file_api_call(
-    client = client,
-    operation_id = "list_jobs",
-    method = "GET",
-    path = "/v1/jobs",
-    query = list(limit = limit),
-    headers = headers,
-    requires_body = FALSE,
-    accepts_body = FALSE
-  )
-}
-
-nova_file_create_job <- function(
-  client,
-  body,
-  headers = NULL
-) {
-  nova_file_api_call(
-    client = client,
-    operation_id = "create_job",
-    method = "POST",
-    path = "/v1/jobs",
-    body = body,
-    headers = headers,
-    requires_body = TRUE,
-    accepts_body = TRUE
-  )
-}
-
-nova_file_get_job_status <- function(
-  client,
-  job_id,
-  headers = NULL
-) {
-  nova_file_api_call(
-    client = client,
-    operation_id = "get_job_status",
-    method = "GET",
-    path = "/v1/jobs/{job_id}",
-    path_params = list(job_id = job_id),
-    headers = headers,
-    requires_body = FALSE,
-    accepts_body = FALSE
-  )
-}
-
-nova_file_cancel_job <- function(
-  client,
-  job_id,
-  headers = NULL
-) {
-  nova_file_api_call(
-    client = client,
-    operation_id = "cancel_job",
-    method = "POST",
-    path = "/v1/jobs/{job_id}/cancel",
-    path_params = list(job_id = job_id),
-    headers = headers,
-    requires_body = FALSE,
-    accepts_body = FALSE
-  )
-}
-
-nova_file_list_job_events <- function(
-  client,
-  job_id,
-  headers = NULL
-) {
-  nova_file_api_call(
-    client = client,
-    operation_id = "list_job_events",
-    method = "GET",
-    path = "/v1/jobs/{job_id}/events",
-    path_params = list(job_id = job_id),
-    headers = headers,
-    requires_body = FALSE,
-    accepts_body = FALSE
-  )
-}
-
-nova_file_retry_job <- function(
-  client,
-  job_id,
-  headers = NULL
-) {
-  nova_file_api_call(
-    client = client,
-    operation_id = "retry_job",
-    method = "POST",
-    path = "/v1/jobs/{job_id}/retry",
-    path_params = list(job_id = job_id),
     headers = headers,
     requires_body = FALSE,
     accepts_body = FALSE

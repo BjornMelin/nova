@@ -44,6 +44,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/exports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Exports
+         * @description List caller-owned exports with most recent first.
+         */
+        get: operations["list_exports"];
+        put?: never;
+        /**
+         * Create Export
+         * @description Create an explicit export workflow resource.
+         */
+        post: operations["create_export"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/exports/{export_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Export
+         * @description Return the caller-owned export resource.
+         */
+        get: operations["get_export"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/exports/{export_id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cancel Export
+         * @description Cancel a caller-owned non-terminal export.
+         */
+        post: operations["cancel_export"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/health/live": {
         parameters: {
             query?: never;
@@ -78,110 +142,6 @@ export interface paths {
         get: operations["health_ready"];
         put?: never;
         post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/jobs": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List Jobs
-         * @description List caller-owned jobs with most recent first.
-         */
-        get: operations["list_jobs"];
-        put?: never;
-        /**
-         * Create Job
-         * @description Enqueue async processing job and return job id.
-         */
-        post: operations["create_job"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/jobs/{job_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Job Status
-         * @description Return status for the caller-owned job.
-         */
-        get: operations["get_job_status"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/jobs/{job_id}/cancel": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Cancel Job
-         * @description Cancel a caller-owned non-terminal job.
-         */
-        post: operations["cancel_job"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/jobs/{job_id}/events": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List Job Events
-         * @description Return poll events with an SSE-compatible envelope.
-         */
-        get: operations["list_job_events"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/jobs/{job_id}/retry": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Retry Job
-         * @description Retry a terminal failed or canceled job.
-         */
-        post: operations["retry_job"];
         delete?: never;
         options?: never;
         head?: never;
@@ -442,25 +402,14 @@ export interface components {
             part_number: number;
         };
         /**
-         * EnqueueJobRequest
-         * @description Request payload for job enqueue endpoint.
+         * CreateExportRequest
+         * @description Request payload for export creation.
          */
-        EnqueueJobRequest: {
-            /** Job Type */
-            job_type: string;
-            /** Payload */
-            payload?: {
-                [key: string]: unknown;
-            };
-        };
-        /**
-         * EnqueueJobResponse
-         * @description Response payload for enqueue endpoint.
-         */
-        EnqueueJobResponse: {
-            /** Job Id */
-            job_id: string;
-            status: components["schemas"]["JobStatus"];
+        CreateExportRequest: {
+            /** Filename */
+            filename: string;
+            /** Source Key */
+            source_key: string;
         };
         /**
          * ErrorBody
@@ -485,6 +434,56 @@ export interface components {
         ErrorEnvelope: {
             error: components["schemas"]["ErrorBody"];
         };
+        /**
+         * ExportListResponse
+         * @description Response payload for export listing endpoint.
+         */
+        ExportListResponse: {
+            /** Exports */
+            exports: components["schemas"]["ExportResource"][];
+        };
+        /**
+         * ExportOutput
+         * @description Completed export output metadata.
+         */
+        ExportOutput: {
+            /** Download Filename */
+            download_filename: string;
+            /** Key */
+            key: string;
+        };
+        /**
+         * ExportResource
+         * @description Public export workflow resource.
+         */
+        ExportResource: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Error */
+            error?: string | null;
+            /** Export Id */
+            export_id: string;
+            /** Filename */
+            filename: string;
+            output?: components["schemas"]["ExportOutput"] | null;
+            /** Source Key */
+            source_key: string;
+            status: components["schemas"]["ExportStatus"];
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /**
+         * ExportStatus
+         * @description Lifecycle status of an export workflow.
+         * @enum {string}
+         */
+        ExportStatus: "queued" | "validating" | "copying" | "finalizing" | "succeeded" | "failed" | "cancelled";
         /**
          * HealthResponse
          * @description Health endpoint response body.
@@ -523,109 +522,6 @@ export interface components {
             upload_id?: string | null;
             /** Url */
             url?: string | null;
-        };
-        /**
-         * JobCancelResponse
-         * @description Response payload for cancel endpoint.
-         */
-        JobCancelResponse: {
-            /** Job Id */
-            job_id: string;
-            status: components["schemas"]["JobStatus"];
-        };
-        /**
-         * JobEvent
-         * @description Single event entry for a job event stream/poll response.
-         */
-        JobEvent: {
-            /** Data */
-            data?: {
-                [key: string]: unknown;
-            };
-            /** Event Id */
-            event_id: string;
-            /** @default snapshot */
-            event_type: components["schemas"]["JobEventType"];
-            /** Job Id */
-            job_id: string;
-            status: components["schemas"]["JobStatus"];
-            /**
-             * Timestamp
-             * Format: date-time
-             */
-            timestamp: string;
-        };
-        /**
-         * JobEventType
-         * @description Event kinds emitted by the v1 job events contract.
-         * @enum {string}
-         */
-        JobEventType: "snapshot";
-        /**
-         * JobEventsResponse
-         * @description Polling/SSE-compatible events response envelope.
-         */
-        JobEventsResponse: {
-            /** Events */
-            events: components["schemas"]["JobEvent"][];
-            /** Job Id */
-            job_id: string;
-            /** Next Cursor */
-            next_cursor: string;
-        };
-        /**
-         * JobListResponse
-         * @description Response payload for job listing endpoint.
-         */
-        JobListResponse: {
-            /** Jobs */
-            jobs: components["schemas"]["JobRecord"][];
-        };
-        /**
-         * JobRecord
-         * @description Persistent job representation.
-         */
-        JobRecord: {
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-            /** Error */
-            error?: string | null;
-            /** Job Id */
-            job_id: string;
-            /** Job Type */
-            job_type: string;
-            /** Payload */
-            payload: {
-                [key: string]: unknown;
-            };
-            /** Result */
-            result?: {
-                [key: string]: unknown;
-            } | null;
-            /** Scope Id */
-            scope_id: string;
-            status: components["schemas"]["JobStatus"];
-            /**
-             * Updated At
-             * Format: date-time
-             */
-            updated_at: string;
-        };
-        /**
-         * JobStatus
-         * @description Lifecycle status of an async job.
-         * @enum {string}
-         */
-        JobStatus: "pending" | "running" | "succeeded" | "failed" | "canceled";
-        /**
-         * JobStatusResponse
-         * @description Response payload for status endpoint.
-         */
-        JobStatusResponse: {
-            job: components["schemas"]["JobRecord"];
         };
         /**
          * MetricsSummaryResponse
@@ -858,56 +754,7 @@ export interface operations {
             };
         };
     };
-    health_live: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HealthResponse"];
-                };
-            };
-        };
-    };
-    health_ready: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ReadinessResponse"];
-                };
-            };
-            /** @description Service Unavailable - Readiness failed. */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ReadinessResponse"];
-                };
-            };
-        };
-    };
-    list_jobs: {
+    list_exports: {
         parameters: {
             query?: {
                 limit?: number;
@@ -924,7 +771,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["JobListResponse"];
+                    "application/json": components["schemas"]["ExportListResponse"];
                 };
             };
             /** @description Unauthorized - Bearer token is missing or invalid. */
@@ -956,7 +803,7 @@ export interface operations {
             };
         };
     };
-    create_job: {
+    create_export: {
         parameters: {
             query?: never;
             header?: {
@@ -967,17 +814,17 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["EnqueueJobRequest"];
+                "application/json": components["schemas"]["CreateExportRequest"];
             };
         };
         responses: {
             /** @description Successful Response */
-            200: {
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["EnqueueJobResponse"];
+                    "application/json": components["schemas"]["ExportResource"];
                 };
             };
             /** @description Unauthorized - Bearer token is missing or invalid. */
@@ -1027,12 +874,12 @@ export interface operations {
             };
         };
     };
-    get_job_status: {
+    get_export: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                job_id: string;
+                export_id: string;
             };
             cookie?: never;
         };
@@ -1044,7 +891,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["JobStatusResponse"];
+                    "application/json": components["schemas"]["ExportResource"];
                 };
             };
             /** @description Unauthorized - Bearer token is missing or invalid. */
@@ -1076,12 +923,12 @@ export interface operations {
             };
         };
     };
-    cancel_job: {
+    cancel_export: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                job_id: string;
+                export_id: string;
             };
             cookie?: never;
         };
@@ -1093,7 +940,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["JobCancelResponse"];
+                    "application/json": components["schemas"]["ExportResource"];
                 };
             };
             /** @description Unauthorized - Bearer token is missing or invalid. */
@@ -1125,13 +972,11 @@ export interface operations {
             };
         };
     };
-    list_job_events: {
+    health_live: {
         parameters: {
             query?: never;
             header?: never;
-            path: {
-                job_id: string;
-            };
+            path?: never;
             cookie?: never;
         };
         requestBody?: never;
@@ -1142,45 +987,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["JobEventsResponse"];
-                };
-            };
-            /** @description Unauthorized - Bearer token is missing or invalid. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Forbidden - Caller lacks required scope or permission. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Unprocessable Content - Request validation failed. */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
+                    "application/json": components["schemas"]["HealthResponse"];
                 };
             };
         };
     };
-    retry_job: {
+    health_ready: {
         parameters: {
             query?: never;
             header?: never;
-            path: {
-                job_id: string;
-            };
+            path?: never;
             cookie?: never;
         };
         requestBody?: never;
@@ -1191,34 +1007,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["EnqueueJobResponse"];
+                    "application/json": components["schemas"]["ReadinessResponse"];
                 };
             };
-            /** @description Unauthorized - Bearer token is missing or invalid. */
-            401: {
+            /** @description Service Unavailable - Readiness failed. */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Forbidden - Caller lacks required scope or permission. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Unprocessable Content - Request validation failed. */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
+                    "application/json": components["schemas"]["ReadinessResponse"];
                 };
             };
         };

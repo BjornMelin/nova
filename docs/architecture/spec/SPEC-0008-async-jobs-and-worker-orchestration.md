@@ -21,12 +21,12 @@ References:
 
 Async jobs are managed through:
 
-- `POST /v1/jobs`
-- `GET /v1/jobs`
-- `GET /v1/jobs/{job_id}`
-- `POST /v1/jobs/{job_id}/cancel`
-- `POST /v1/jobs/{job_id}/retry`
-- `GET /v1/jobs/{job_id}/events`
+- `POST /v1/exports`
+- `GET /v1/exports`
+- `GET /v1/exports/{export_id}`
+- `POST /v1/exports/{export_id}/cancel`
+- `POST /v1/exports/{export_id}`
+- `GET /v1/exports/{export_id}`
 
 **Green-field result path:** worker completion and terminal status updates are
 **not** written through an internal HTTP callback route. The worker uses shared
@@ -45,16 +45,16 @@ for authorization scope.
 Canonical request/response schemas are owned by SPEC-0000 and the OpenAPI
 contract generated from runtime implementation. For async additions:
 
-- `POST /v1/jobs/{job_id}/retry`
+- `POST /v1/exports/{export_id}`
   - Request body: empty object (`{}`).
   - Response: `JobStatusResponse` for the updated job record.
   - Errors: shared error envelope with `401/403/404/409/500` semantics aligned
     with SPEC-0000.
-- `GET /v1/jobs/{job_id}/events`
+- `GET /v1/exports/{export_id}`
   - Request body: none; optional query params `cursor` and `limit`.
-  - Response: `JobEventsResponse` containing `job_id`, `next_cursor`, and
+  - Response: `JobEventsResponse` containing `export_id`, `next_cursor`, and
     `events[]`.
-  - Event item shape: `JobEvent` with `event_id`, `job_id`, `status`,
+  - Event item shape: `JobEvent` with `event_id`, `export_id`, `status`,
     `timestamp`, and optional `data` and `event_type` fields.
   - Errors: shared error envelope with `401/403/404/500` semantics aligned with
     SPEC-0000.
@@ -123,7 +123,7 @@ Invalid transitions MUST fail with `409` (`error.code = "conflict"`).
 
 ## 5. Idempotency
 
-`POST /v1/jobs` MUST support `Idempotency-Key` replay behavior.
+`POST /v1/exports` MUST support `Idempotency-Key` replay behavior.
 
 Failed enqueue responses (`queue_unavailable`) MUST NOT be replay-cached.
 
@@ -157,8 +157,8 @@ configuration surface once the direct persistence path is implemented
 - 2026-03-11 (v1.9): Added heartbeat-based SQS visibility-extension
   requirement for long-running worker operations.
 - 2026-03-03 (v1.8): Canonicalized job route documentation to `/v1/*`, added
-  `/v1/jobs/{job_id}/retry` and `/v1/jobs/{job_id}/events` endpoint contract
+  `/v1/exports/{export_id}` and `/v1/exports/{export_id}` endpoint contract
   details, and updated internal worker callback route to
-  `/v1/internal/jobs/{job_id}/result`.
+  the internal worker callback route.
 - 2026-03-02 (v1.7): Added worker-lane DLQ redrive and autoscaling invariants
   for async job workers.

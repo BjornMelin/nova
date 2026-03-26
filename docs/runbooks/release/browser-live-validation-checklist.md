@@ -105,7 +105,7 @@ agent-browser trace stop
 
 Pass:
 
-- Requests include canonical `/v1/transfers` and `/v1/jobs`.
+- Requests include canonical `/v1/transfers` and `/v1/exports`.
 - No active legacy namespace route usage.
 - No critical unhandled exceptions affecting user flow.
 
