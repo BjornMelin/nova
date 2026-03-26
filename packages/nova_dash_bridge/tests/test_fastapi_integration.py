@@ -12,6 +12,7 @@ from nova_dash_bridge.config import (
     FileTransferEnvConfig,
     UploadPolicy,
 )
+from nova_dash_bridge.s3_client import SupportsCreateS3Client
 from nova_dash_bridge.service import AsyncFileTransferService
 from nova_file_api.public import (
     TRANSFER_ROUTE_PREFIX,
@@ -166,7 +167,10 @@ def test_create_fastapi_app_requires_async_s3_factory() -> None:
                 allowed_extensions={".csv"},
             ),
             auth_policy=_auth_policy(),
-            s3_client_factory=_SyncOnlyS3Factory(),
+            s3_client_factory=cast(
+                "SupportsCreateS3Client",
+                _SyncOnlyS3Factory(),
+            ),
         )
 
 
