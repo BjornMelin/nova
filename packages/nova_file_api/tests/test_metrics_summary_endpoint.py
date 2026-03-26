@@ -48,13 +48,15 @@ async def _request_metrics_summary(
     permissions: tuple[str, ...],
 ) -> httpx.Response:
     """Create a test app and return one /metrics/summary response."""
-    settings = Settings()
+    settings = Settings.model_validate(
+        {"IDEMPOTENCY_DYNAMODB_TABLE": "test-idempotency"}
+    )
 
     metrics = MetricsCollector(namespace="Tests")
     metrics.incr("requests_total")
     metrics.observe_ms("exports_create_ms", 12.345)
 
-    shared_cache, cache = build_cache_stack()
+    cache = build_cache_stack()
     export_repository = MemoryExportRepository()
     export_service = ExportService(
         repository=export_repository,
@@ -71,14 +73,12 @@ async def _request_metrics_summary(
         build_runtime_deps(
             settings=settings,
             metrics=metrics,
-            shared_cache=shared_cache,
             cache=cache,
             authenticator=_StubAuthenticator(permissions=permissions),
             transfer_service=StubTransferService(),
             export_service=export_service,
             activity_store=activity_store,
             idempotency_enabled=True,
-            use_in_memory_shared_cache=True,
         )
     )
     async with (

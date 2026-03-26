@@ -5,7 +5,10 @@ from typing import Any, cast
 import pytest
 from fastapi import FastAPI
 from nova_file_api.config import Settings
-from nova_file_api.dependencies import initialize_runtime_state
+from nova_file_api.dependencies import (
+    build_idempotency_store,
+    initialize_runtime_state,
+)
 from nova_file_api.models import (
     ActivityStoreBackend,
     JobsQueueBackend,
@@ -13,10 +16,17 @@ from nova_file_api.models import (
 )
 from pydantic import ValidationError
 
+from .support.dynamodb import MemoryDynamoResource
+
 
 def _settings() -> Settings:
     """Return environment-isolated default settings for config tests."""
-    return Settings.model_validate({})
+    return Settings.model_validate(
+        {
+            "IDEMPOTENCY_ENABLED": False,
+            "IDEMPOTENCY_DYNAMODB_TABLE": "test-idempotency",
+        }
+    )
 
 
 def _worker_runtime_env(**overrides: object) -> dict[str, object]:
@@ -41,11 +51,13 @@ def test_settings_accept_env_style_keys() -> None:
         {
             "APP_NAME": "runtime-env-app",
             "FILE_TRANSFER_BUCKET": "env-bucket",
+            "IDEMPOTENCY_DYNAMODB_TABLE": "test-idempotency",
         }
     )
 
     assert settings.app_name == "runtime-env-app"
     assert settings.file_transfer_bucket == "env-bucket"
+    assert settings.idempotency_dynamodb_table == "test-idempotency"
 
 
 def test_settings_accept_field_name_keys() -> None:
@@ -54,11 +66,14 @@ def test_settings_accept_field_name_keys() -> None:
         {
             "app_name": "field-name-app",
             "file_transfer_bucket": "field-bucket",
+            "idempotency_enabled": False,
+            "idempotency_dynamodb_table": "test-idempotency",
         }
     )
 
     assert settings.app_name == "field-name-app"
     assert settings.file_transfer_bucket == "field-bucket"
+    assert settings.idempotency_dynamodb_table == "test-idempotency"
 
 
 def test_settings_model_dump_uses_field_names() -> None:
@@ -67,6 +82,7 @@ def test_settings_model_dump_uses_field_names() -> None:
         {
             "APP_NAME": "serialized-app",
             "FILE_TRANSFER_BUCKET": "serialized-bucket",
+            "IDEMPOTENCY_DYNAMODB_TABLE": "test-idempotency",
         }
     )
 
@@ -74,8 +90,26 @@ def test_settings_model_dump_uses_field_names() -> None:
 
     assert payload["app_name"] == "serialized-app"
     assert payload["file_transfer_bucket"] == "serialized-bucket"
+    assert payload["idempotency_dynamodb_table"] == "test-idempotency"
     assert "APP_NAME" not in payload
     assert "FILE_TRANSFER_BUCKET" not in payload
+
+
+def test_build_idempotency_store_strips_table_name() -> None:
+    """Configured idempotency table names should be trimmed before use."""
+    settings = Settings.model_validate(
+        {
+            "IDEMPOTENCY_ENABLED": True,
+            "IDEMPOTENCY_DYNAMODB_TABLE": "  test-idempotency  ",
+        }
+    )
+
+    store = build_idempotency_store(
+        settings=settings,
+        dynamodb_resource=MemoryDynamoResource(),
+    )
+
+    assert store.table_name == "test-idempotency"
 
 
 def test_worker_runtime_requires_dynamodb_jobs_backend() -> None:
@@ -224,13 +258,13 @@ def test_initialize_runtime_state_requires_sqs_client_when_jobs_enabled() -> (
         )
 
 
-def test_runtime_state_requires_shared_cache_when_idempotency_enabled() -> None:
-    """Idempotency-enabled startup must require shared-cache configuration."""
+def test_runtime_state_requires_dynamodb_resource_for_idempotency() -> None:
+    """Idempotency-enabled startup must require a DynamoDB resource."""
     settings = _settings()
     settings.idempotency_enabled = True
-    settings.cache_redis_url = None
+    settings.idempotency_dynamodb_table = "test-idempotency"
 
-    with pytest.raises(ValueError, match="CACHE_REDIS_URL"):
+    with pytest.raises(ValueError, match="dynamodb_resource must be provided"):
         initialize_runtime_state(
             FastAPI(), settings=settings, s3_client=object()
         )

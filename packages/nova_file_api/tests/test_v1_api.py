@@ -97,11 +97,12 @@ def _build_v1_deps(
         {
             "jobs_enabled": True,
             "file_transfer_bucket": file_transfer_bucket,
+            "idempotency_dynamodb_table": "test-idempotency",
         }
     )
 
     metrics = MetricsCollector(namespace="Tests")
-    shared, cache = build_cache_stack()
+    cache = build_cache_stack()
     repository = MemoryExportRepository()
     export_service = ExportService(
         repository=repository,
@@ -113,14 +114,12 @@ def _build_v1_deps(
     return build_runtime_deps(
         settings=settings,
         metrics=metrics,
-        shared_cache=shared,
         cache=cache,
         authenticator=StubAuthenticator(),
         transfer_service=StubTransferService(),
         export_service=export_service,
         activity_store=MemoryActivityStore(),
         idempotency_enabled=True,
-        use_in_memory_shared_cache=True,
     )
 
 
@@ -282,9 +281,14 @@ async def test_v1_exports_list_scoped_config_error_returns_internal_error() -> (
     None
 ):
     """Verify a scoped export listing config error returns an internal error."""
-    settings = Settings.model_validate({"JOBS_ENABLED": True})
+    settings = Settings.model_validate(
+        {
+            "jobs_enabled": True,
+            "idempotency_dynamodb_table": "test-idempotency",
+        }
+    )
     metrics = MetricsCollector(namespace="Tests")
-    shared, cache = build_cache_stack()
+    cache = build_cache_stack()
     repository: ExportRepository = _FailingListExportRepository()
     export_service = ExportService(
         repository=repository,
@@ -294,7 +298,6 @@ async def test_v1_exports_list_scoped_config_error_returns_internal_error() -> (
     deps = build_runtime_deps(
         settings=settings,
         metrics=metrics,
-        shared_cache=shared,
         cache=cache,
         authenticator=StubAuthenticator(),
         transfer_service=StubTransferService(),

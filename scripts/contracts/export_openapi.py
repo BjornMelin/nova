@@ -10,8 +10,9 @@ from pathlib import Path
 from typing import Any
 
 from nova_file_api.app import create_app as create_file_app
+from nova_file_api.config import Settings
 
-OpenApiFactory = Callable[[], Any]
+OpenApiFactory = Callable[..., Any]
 
 OPENAPI_OUTPUTS: dict[str, OpenApiFactory] = {
     "nova-file-api.openapi.json": create_file_app,
@@ -28,7 +29,9 @@ def _render_openapi() -> dict[str, str]:
     """
     rendered: dict[str, str] = {}
     for name, app_factory in OPENAPI_OUTPUTS.items():
-        schema = app_factory().openapi()
+        schema = app_factory(
+            settings=Settings.model_validate({"IDEMPOTENCY_ENABLED": False})
+        ).openapi()
         rendered[name] = json.dumps(schema, indent=2, sort_keys=True) + "\n"
     return rendered
 

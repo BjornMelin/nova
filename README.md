@@ -110,13 +110,14 @@ For detailed SDK governance and generation rules, use:
 - `POST /v1/exports` publish failures return `503` with
   `error.code = "queue_unavailable"`
 - idempotent mutation entrypoints use `IDEMPOTENCY_ENABLED` plus bounded TTL
-  settings; when enabled, Nova requires a shared Redis claim storage and returns
-  `503` with `error.code = "idempotency_unavailable"` if that shared store is
-  unavailable; if execution succeeded before replay persistence failed, Nova
-  keeps the existing claim so retries with the same key do not re-run the
-  mutation
+  settings plus API-runtime `IDEMPOTENCY_DYNAMODB_TABLE`; when API-side
+  idempotency is enabled, Nova uses DynamoDB-backed claim/replay storage with
+  explicit expiration filtering and returns `503` with
+  `error.code = "idempotency_unavailable"` if that store is unavailable; if
+  execution succeeded before replay persistence failed, Nova keeps the existing
+  in-progress claim so retries with the same key do not re-run the mutation
 - `/v1/health/ready` gates traffic on `bucket_configured`,
-  `auth_dependency`, and active runtime dependencies; `shared_cache` gates
+  `auth_dependency`, and active runtime dependencies; `idempotency_store` gates
   readiness only when idempotency is enabled, while `activity_store` remains a
   diagnostic check
 - incomplete bearer-verifier OIDC settings leave `auth_dependency` not-ready
@@ -173,7 +174,7 @@ Tooling notes:
   update the lockfile, committed SDK tree, docs, and regression tests together.
 - Current manifest-owned runtime dependency floors are
   `pydantic-settings>=2.13.1` in the surviving runtime packages and
-  `redis>=7.4.0` plus `uvicorn[standard]>=0.42.0` in `nova-file-api`.
+  `uvicorn[standard]>=0.42.0` in `nova-file-api`.
 - Pytest runs in `--import-mode=importlib` against editable workspace installs.
   Do not reintroduce repo-level `pythonpath` shims unless a new test failure
   proves they are required.
@@ -278,8 +279,8 @@ Key release docs:
 - `docs/runbooks/provisioning/deploy-runtime-cloudformation-environments.md`
 - `docs/runbooks/provisioning/docker-buildx-credential-helper-setup.md`
 
-The runtime deploy operator now owns the ECS service task role, cache secret
-wiring, and ECS infrastructure role resolution. Do not supply
+The runtime deploy operator now owns the ECS service task role and ECS
+infrastructure role resolution. Do not supply
 `ECS_INFRASTRUCTURE_ROLE_ARN`, `TASK_ROLE_ARN`,
 `TASK_EXECUTION_SECRET_ARNS`, or `TASK_EXECUTION_SSM_PARAMETER_ARNS`.
 

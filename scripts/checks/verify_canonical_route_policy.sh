@@ -209,6 +209,7 @@ from __future__ import annotations
 import sys
 
 from nova_file_api.app import create_app
+from nova_file_api.config import Settings
 
 
 def validate_openapi_paths(schema: dict, app_label: str) -> None:
@@ -248,7 +249,12 @@ def validate_openapi_paths(schema: dict, app_label: str) -> None:
         sys.exit(1)
 
 
-validate_openapi_paths(create_app().openapi(), "nova_file_api")
+validate_openapi_paths(
+    create_app(
+        settings=Settings.model_validate({"IDEMPOTENCY_ENABLED": False})
+    ).openapi(),
+    "nova_file_api",
+)
 PY
 uv run python scripts/contracts/export_openapi.py --check
 echo "Canonical route policy guard check passed."

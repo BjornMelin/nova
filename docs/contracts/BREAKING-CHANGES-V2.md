@@ -22,6 +22,13 @@ This file records the intentional hard cuts in the second green-field program.
 ## Runtime/infrastructure
 
 - Delete Redis as a required runtime dependency.
+- Delete `CACHE_REDIS_URL` and the `CACHE_REDIS_*` runtime/deploy surface.
+- Delete `CACHE_SHARED_TTL_SECONDS`; distributed cache semantics are no longer part of the canonical runtime.
+- Require `IDEMPOTENCY_DYNAMODB_TABLE` for API runtimes when idempotency is
+  enabled.
+- Require `IdempotencyTableName` and `FileTransferIdempotencyTableArn` in ECS/service deploy wiring.
+- Treat `IDEMPOTENCY_DYNAMODB_TABLE` as stack-derived rather than operator-supplied JSON.
+- Rename readiness diagnostic `shared_cache` to `idempotency_store`.
 - Replace ECS/worker-first target architecture with HTTP API + Lambda + Step Functions as the canonical AWS deployment shape.
 
 ## SDK/package layout

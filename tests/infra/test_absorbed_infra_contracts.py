@@ -31,7 +31,6 @@ RUNTIME_DEPLOYABLE_TEMPLATES = (
     "infra/runtime/ecs/cluster.yml",
     "infra/runtime/ecs/service.yml",
     "infra/runtime/file_transfer/async.yml",
-    "infra/runtime/file_transfer/cache.yml",
     "infra/runtime/file_transfer/s3.yml",
     "infra/runtime/file_transfer/worker.yml",
     "infra/runtime/kms.yml",
@@ -633,13 +632,16 @@ def test_runtime_env_and_parameter_contracts() -> None:
         service_env_names
     )
 
-    service_secrets = service_container["Secrets"]
-    assert isinstance(service_secrets, list)
-    service_secret_names = _collect_named_entries(service_secrets)
     expected_service_secrets = {
         entry["name"] for entry in contract["service_template"]["secrets"]
     }
-    assert service_secret_names == expected_service_secrets
+    service_secrets = service_container.get("Secrets")
+    if expected_service_secrets:
+        assert isinstance(service_secrets, list)
+        service_secret_names = _collect_named_entries(service_secrets)
+        assert service_secret_names == expected_service_secrets
+    else:
+        assert service_secrets is None
 
     service_parameters = service_template["Parameters"]
     assert isinstance(service_parameters, dict)
@@ -650,7 +652,8 @@ def test_runtime_env_and_parameter_contracts() -> None:
     assert "JobsQueueUrl" in service_parameters
     assert "JobsTableName" in service_parameters
     assert "ActivityTableName" in service_parameters
-    assert "CacheRedisUrlSecretArn" in service_parameters
+    assert "IdempotencyTableName" in service_parameters
+    assert "FileTransferIdempotencyTableArn" in service_parameters
     assert "TaskRoleArn: !GetAtt ECSTaskRole.Arn" in service_text
     assert "TaskRoleArn: !Ref TaskRole" not in service_text
 
@@ -663,50 +666,7 @@ def test_runtime_env_and_parameter_contracts() -> None:
     assert "AppSecretKeySecret" not in service_resources
     assert "ECSTaskPolicy" not in service_resources
 
-    execution_policy = service_resources["EcsTaskExecutionSecretsPolicy"]
-    assert isinstance(execution_policy, dict)
-    execution_policy_doc = execution_policy["Properties"]["PolicyDocument"]
-    assert isinstance(execution_policy_doc, dict)
-    execution_statements = execution_policy_doc["Statement"]
-    assert isinstance(execution_statements, list)
-    execution_actions = {
-        action
-        for statement in execution_statements
-        if isinstance(statement, dict)
-        for action in (
-            statement.get("Action", [])
-            if isinstance(statement.get("Action"), list)
-            else [statement.get("Action")]
-        )
-        if isinstance(action, str)
-    }
-    assert execution_actions == {
-        "secretsmanager:GetSecretValue",
-        "kms:Decrypt",
-    }
-    assert "ssm:GetParameters" not in execution_actions
-    for statement in execution_statements:
-        if not isinstance(statement, dict):
-            continue
-        actions = statement.get("Action", [])
-        if isinstance(actions, str):
-            actions = [actions]
-        resource = statement.get("Resource")
-        if "secretsmanager:GetSecretValue" in actions:
-            assert resource == ["CacheRedisUrlSecretArn"]
-            continue
-        if "kms:Decrypt" in actions:
-            assert resource == "*"
-            condition = statement.get("Condition")
-            assert isinstance(condition, dict)
-            kms_via_service = "secretsmanager.${AWS::Region}.${AWS::URLSuffix}"
-            assert condition == {
-                "StringEquals": {"kms:ViaService": kms_via_service}
-            }
-            continue
-        assert resource not in {None, "*"}
-        if isinstance(resource, (list, str)):
-            assert "*" not in resource
+    assert "EcsTaskExecutionSecretsPolicy" not in service_resources
 
     service_exec_policy = service_resources["EcsExecTaskPolicy"]
     assert isinstance(service_exec_policy, dict)
@@ -727,6 +687,7 @@ def test_runtime_env_and_parameter_contracts() -> None:
     for policy_name in [
         "FileTransferTaskPolicy",
         "FileTransferAsyncTaskPolicy",
+        "IdempotencyTaskPolicy",
     ]:
         policy = service_resources[policy_name]
         assert isinstance(policy, dict)
@@ -784,21 +745,15 @@ def test_runtime_env_and_parameter_contracts() -> None:
 
     assert "FileTransferAsyncParamsProvided:" in service_text
     assert "FileTransferAsyncRuntimeParamsProvided:" in service_text
-    assert "FileTransferCacheParamsProvided:" in service_text
-    assert "FileTransferCacheSecretProvided:" in service_text
-    assert "IdempotencyRequiresSharedCache:" in service_text
+    assert "IdempotencyTableProvided:" in service_text
     assert (
         "FileTransferJobsQueueArn, FileTransferJobsTableArn, and"
         in service_text
     )
     assert "JobsQueueUrl, JobsTableName, and ActivityTableName" in service_text
-    assert "CacheRedisUrlSecretArn is required" in service_text
     assert (
-        'IdempotencyEnabled requires FileTransferCacheEnabled to be "true"'
+        "IdempotencyEnabled requires FileTransferIdempotencyTableArn and"
         in service_text
-    )
-    assert (
-        "FileTransferCacheSecurityGroupExportName is required" in service_text
     )
     assert "AllowExecutionRoleSecretsWildcard" not in ecr_text
     assert (
@@ -850,18 +805,6 @@ def test_runtime_templates_do_not_contain_jinja_markers() -> None:
         "Found Jinja markers in deployable runtime templates:\n"
         + "\n".join(violations)
     )
-
-
-def test_cache_template_uses_native_dynamic_reference_syntax() -> None:
-    """Cache template must keep native CFN dynamic references."""
-    cache_text = _read("infra/runtime/file_transfer/cache.yml")
-
-    assert (
-        "{{resolve:secretsmanager:${FileTransferCacheAuthTokenSecret}:SecretString}}"
-        in cache_text
-    )
-    assert "{{ '{{' }}" not in cache_text
-    assert "{{ '}}' }}" not in cache_text
 
 
 def test_ecs_service_desired_count_and_profile_wiring_contract() -> None:

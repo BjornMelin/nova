@@ -9,7 +9,7 @@ import structlog
 from pydantic import BaseModel
 
 from nova_file_api.errors import idempotency_conflict
-from nova_file_api.idempotency import IdempotencyStore
+from nova_file_api.idempotency import IdempotencyClaim, IdempotencyStore
 
 ResponseModelT = TypeVar("ResponseModelT", bound=BaseModel)
 
@@ -57,7 +57,7 @@ async def run_guarded_mutation(
         Exception: Errors from execute and, when configured, store_response.
     """
     logger = structlog.get_logger("api")
-    claimed_idempotency = False
+    idempotency_claim: IdempotencyClaim | None = None
     idempotency_enabled = (
         idempotency_key is not None and idempotency_store.enabled
     )
@@ -84,14 +84,9 @@ async def run_guarded_mutation(
             )
 
     async def _discard_claim_best_effort() -> None:
-        assert idempotency_key is not None
+        assert idempotency_claim is not None
         try:
-            await idempotency_store.discard_claim(
-                route=route,
-                scope_id=scope_id,
-                idempotency_key=idempotency_key,
-                request_payload=request_payload,
-            )
+            await idempotency_store.discard_claim(claim=idempotency_claim)
         except Exception as discard_exc:
             logger.exception(
                 "guarded_mutation_discard_claim_failed",
@@ -114,13 +109,13 @@ async def run_guarded_mutation(
             _emit_replay_metric_best_effort()
             return response_model.model_validate(replay)
 
-        claimed_idempotency = await idempotency_store.claim_request(
+        idempotency_claim = await idempotency_store.claim_request(
             route=route,
             scope_id=scope_id,
             idempotency_key=idempotency_key,
             request_payload=request_payload,
         )
-        if not claimed_idempotency:
+        if idempotency_claim is None:
             replay = await idempotency_store.load_response(
                 route=route,
                 scope_id=scope_id,
@@ -141,18 +136,16 @@ async def run_guarded_mutation(
         if (
             idempotency_enabled
             and idempotency_key is not None
-            and claimed_idempotency
+            and idempotency_claim is not None
         ):
             await _discard_claim_best_effort()
         raise
 
     if idempotency_enabled and idempotency_key is not None:
+        assert idempotency_claim is not None
         try:
             await idempotency_store.store_response(
-                route=route,
-                scope_id=scope_id,
-                idempotency_key=idempotency_key,
-                request_payload=request_payload,
+                claim=idempotency_claim,
                 response_payload=response.model_dump(mode="json"),
             )
         except Exception:

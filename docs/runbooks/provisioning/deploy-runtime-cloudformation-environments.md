@@ -17,7 +17,7 @@ Canonical operator path:
 - The script applies the same change-set-first sequence documented here and
   requires `RUNTIME_COST_MODE` (`standard|saver|paused`) to select runtime
   cost posture before applying related override defaults (`AssignPublicIp=DISABLED`,
-  async queue wiring, and cache-enabled file-transfer service deployment).
+  async queue wiring, and file-transfer service deployment).
 
 ## Scope
 
@@ -100,11 +100,10 @@ Deploy in this order for each environment:
 3. `infra/runtime/ecs/cluster.yml`
 4. `infra/runtime/file_transfer/s3.yml`
 5. `infra/runtime/file_transfer/async.yml`
-6. `infra/runtime/file_transfer/cache.yml` (optional)
-7. `infra/runtime/ecs/service.yml`
-8. `infra/runtime/edge/cloudfront.yml`
-9. `infra/runtime/file_transfer/worker.yml` (optional)
-10. `infra/runtime/observability/ecs-observability-baseline.yml` (recommended)
+6. `infra/runtime/ecs/service.yml`
+7. `infra/runtime/edge/cloudfront.yml`
+8. `infra/runtime/file_transfer/worker.yml` (optional)
+9. `infra/runtime/observability/ecs-observability-baseline.yml` (recommended)
 
 Run the same sequence for `dev`, then `prod`, with environment-specific
 parameters and names.
@@ -130,12 +129,11 @@ The script deploys:
 3. `infra/runtime/ecs/cluster.yml`
 4. `infra/runtime/file_transfer/s3.yml`
 5. `infra/runtime/file_transfer/async.yml`
-6. `infra/runtime/file_transfer/cache.yml`
-7. `infra/runtime/ecs/service.yml`
-8. `infra/runtime/edge/cloudfront.yml`
-9. `infra/runtime/file_transfer/worker.yml`
-10. `infra/runtime/observability/ecs-observability-baseline.yml`
-11. `infra/nova/deploy/service-base-url-ssm.yml`
+6. `infra/runtime/ecs/service.yml`
+7. `infra/runtime/edge/cloudfront.yml`
+8. `infra/runtime/file_transfer/worker.yml`
+9. `infra/runtime/observability/ecs-observability-baseline.yml`
+10. `infra/nova/deploy/service-base-url-ssm.yml`
 
 and preserves the documented change-set-first flow for each stack.
 
@@ -170,10 +168,12 @@ Worker/file-transfer contract notes:
 - The public validation base URL is published from the CloudFront edge stack
   (`PublicBaseUrl`), not from the ECS service stack output.
 - `ENV_VARS_JSON` only supports implemented non-secret API overrides; the
-  script rejects unsupported keys, including `IDEMPOTENCY_MODE`, and enforces
-  the current strict posture: `IDEMPOTENCY_ENABLED=true` requires
-  `FILE_TRANSFER_CACHE_ENABLED=true` so `CACHE_REDIS_URL` is injected into the
-  task definition.
+  script rejects unsupported keys, including `IDEMPOTENCY_MODE` and
+  `IDEMPOTENCY_DYNAMODB_TABLE`. `IDEMPOTENCY_DYNAMODB_TABLE` is stack-derived:
+  when `IDEMPOTENCY_ENABLED=true`, the deploy flow passes
+  `IdempotencyTableName` and `FileTransferIdempotencyTableArn` to the service
+  stack, and the task definition injects `IDEMPOTENCY_DYNAMODB_TABLE` into the
+  API container environment.
 - The supported override list is generated from the canonical runtime settings
   contract; do not hand-edit duplicate key lists in docs or scripts.
 - Runtime env var names remain stable, but the generator now reads only
@@ -286,6 +286,10 @@ aws cloudformation deploy \
 - `AssignPublicIp` defaults to `DISABLED`; use `ENABLED` only when required by
   subnet/network architecture.
 - If `FileTransferEnabled=true`, `FileTransferBucketName` must be provided.
+- When `IDEMPOTENCY_ENABLED=true`, pass async-stack outputs
+  `IdempotencyTableName` and `FileTransferIdempotencyTableArn` into the service
+  stack; the task definition then injects `IDEMPOTENCY_DYNAMODB_TABLE` into the
+  API container environment.
 
 ```bash
 aws cloudformation deploy \
@@ -309,7 +313,9 @@ aws cloudformation deploy \
     ServiceDNS="${SERVICE_DNS}" \
     ListenerRulePriority="100" \
     AlarmArn="${ALARM_ACTION_ARN}" \
-    Owner="${OWNER_TAG}"
+    Owner="${OWNER_TAG}" \
+    IdempotencyTableName="${IDEMPOTENCY_TABLE_NAME}" \
+    FileTransferIdempotencyTableArn="${IDEMPOTENCY_TABLE_ARN}"
 ```
 
 ## Capture Runtime Outputs for CI/CD

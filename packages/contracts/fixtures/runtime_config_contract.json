@@ -1,7 +1,8 @@
 {
   "env_vars_json": {
     "forbidden_keys": [
-      "IDEMPOTENCY_MODE"
+      "IDEMPOTENCY_MODE",
+      "IDEMPOTENCY_DYNAMODB_TABLE"
     ],
     "supported_overrides": [
       {
@@ -33,52 +34,12 @@
         "env_var": "BLOCKING_IO_THREAD_TOKENS"
       },
       {
-        "cloudformation_parameter": "CacheRedisMaxConnections",
-        "env_var": "CACHE_REDIS_MAX_CONNECTIONS"
-      },
-      {
-        "cloudformation_parameter": "CacheRedisSocketTimeoutSeconds",
-        "env_var": "CACHE_REDIS_SOCKET_TIMEOUT_SECONDS"
-      },
-      {
-        "cloudformation_parameter": "CacheRedisSocketConnectTimeoutSeconds",
-        "env_var": "CACHE_REDIS_SOCKET_CONNECT_TIMEOUT_SECONDS"
-      },
-      {
-        "cloudformation_parameter": "CacheRedisHealthCheckIntervalSeconds",
-        "env_var": "CACHE_REDIS_HEALTH_CHECK_INTERVAL_SECONDS"
-      },
-      {
-        "cloudformation_parameter": "CacheRedisRetryBaseSeconds",
-        "env_var": "CACHE_REDIS_RETRY_BASE_SECONDS"
-      },
-      {
-        "cloudformation_parameter": "CacheRedisRetryCapSeconds",
-        "env_var": "CACHE_REDIS_RETRY_CAP_SECONDS"
-      },
-      {
-        "cloudformation_parameter": "CacheRedisRetryAttempts",
-        "env_var": "CACHE_REDIS_RETRY_ATTEMPTS"
-      },
-      {
-        "cloudformation_parameter": "CacheRedisDecodeResponses",
-        "env_var": "CACHE_REDIS_DECODE_RESPONSES"
-      },
-      {
-        "cloudformation_parameter": "CacheRedisProtocol",
-        "env_var": "CACHE_REDIS_PROTOCOL"
-      },
-      {
         "cloudformation_parameter": "CacheLocalTtlSeconds",
         "env_var": "CACHE_LOCAL_TTL_SECONDS"
       },
       {
         "cloudformation_parameter": "CacheLocalMaxEntries",
         "env_var": "CACHE_LOCAL_MAX_ENTRIES"
-      },
-      {
-        "cloudformation_parameter": "CacheSharedTtlSeconds",
-        "env_var": "CACHE_SHARED_TTL_SECONDS"
       },
       {
         "cloudformation_parameter": "CacheKeyPrefix",
@@ -251,69 +212,6 @@
       },
       {
         "condition": "always",
-        "name": "CACHE_REDIS_MAX_CONNECTIONS",
-        "secret": false,
-        "source": "task parameter",
-        "value": null
-      },
-      {
-        "condition": "always",
-        "name": "CACHE_REDIS_SOCKET_TIMEOUT_SECONDS",
-        "secret": false,
-        "source": "task parameter",
-        "value": null
-      },
-      {
-        "condition": "always",
-        "name": "CACHE_REDIS_SOCKET_CONNECT_TIMEOUT_SECONDS",
-        "secret": false,
-        "source": "task parameter",
-        "value": null
-      },
-      {
-        "condition": "always",
-        "name": "CACHE_REDIS_HEALTH_CHECK_INTERVAL_SECONDS",
-        "secret": false,
-        "source": "task parameter",
-        "value": null
-      },
-      {
-        "condition": "always",
-        "name": "CACHE_REDIS_RETRY_BASE_SECONDS",
-        "secret": false,
-        "source": "task parameter",
-        "value": null
-      },
-      {
-        "condition": "always",
-        "name": "CACHE_REDIS_RETRY_CAP_SECONDS",
-        "secret": false,
-        "source": "task parameter",
-        "value": null
-      },
-      {
-        "condition": "always",
-        "name": "CACHE_REDIS_RETRY_ATTEMPTS",
-        "secret": false,
-        "source": "task parameter",
-        "value": null
-      },
-      {
-        "condition": "always",
-        "name": "CACHE_REDIS_DECODE_RESPONSES",
-        "secret": false,
-        "source": "task parameter",
-        "value": null
-      },
-      {
-        "condition": "always",
-        "name": "CACHE_REDIS_PROTOCOL",
-        "secret": false,
-        "source": "task parameter",
-        "value": null
-      },
-      {
-        "condition": "always",
         "name": "CACHE_LOCAL_TTL_SECONDS",
         "secret": false,
         "source": "task parameter",
@@ -322,13 +220,6 @@
       {
         "condition": "always",
         "name": "CACHE_LOCAL_MAX_ENTRIES",
-        "secret": false,
-        "source": "task parameter",
-        "value": null
-      },
-      {
-        "condition": "always",
-        "name": "CACHE_SHARED_TTL_SECONDS",
         "secret": false,
         "source": "task parameter",
         "value": null
@@ -366,6 +257,13 @@
         "name": "IDEMPOTENCY_TTL_SECONDS",
         "secret": false,
         "source": "task parameter",
+        "value": null
+      },
+      {
+        "condition": "when API idempotency enabled",
+        "name": "IDEMPOTENCY_DYNAMODB_TABLE",
+        "secret": false,
+        "source": "stack output",
         "value": null
       },
       {
@@ -482,15 +380,7 @@
       "TaskExecutionSecretArns",
       "TaskExecutionSsmParameterArns"
     ],
-    "secrets": [
-      {
-        "condition": "when cache enabled",
-        "name": "CACHE_REDIS_URL",
-        "secret": true,
-        "source": "Secrets Manager",
-        "value": null
-      }
-    ]
+    "secrets": []
   },
   "settings": [
     {
@@ -498,6 +388,7 @@
       "env_var": "ACTIVITY_ROLLUPS_TABLE",
       "field_name": "activity_rollups_table",
       "required": false,
+      "required_when": null,
       "secret": false,
       "type_label": "str | None"
     },
@@ -506,6 +397,7 @@
       "env_var": "ACTIVITY_STORE_BACKEND",
       "field_name": "activity_store_backend",
       "required": false,
+      "required_when": null,
       "secret": false,
       "type_label": "ActivityStoreBackend"
     },
@@ -514,6 +406,7 @@
       "env_var": "APP_NAME",
       "field_name": "app_name",
       "required": false,
+      "required_when": null,
       "secret": false,
       "type_label": "str"
     },
@@ -522,6 +415,7 @@
       "env_var": "APP_VERSION",
       "field_name": "app_version",
       "required": false,
+      "required_when": null,
       "secret": false,
       "type_label": "str"
     },
@@ -530,6 +424,7 @@
       "env_var": "AUTH_JWT_CACHE_MAX_TTL_SECONDS",
       "field_name": "auth_jwt_cache_max_ttl_seconds",
       "required": false,
+      "required_when": null,
       "secret": false,
       "type_label": "int"
     },
@@ -538,6 +433,7 @@
       "env_var": "BLOCKING_IO_THREAD_TOKENS",
       "field_name": "blocking_io_thread_tokens",
       "required": false,
+      "required_when": null,
       "secret": false,
       "type_label": "int"
     },
@@ -546,6 +442,7 @@
       "env_var": "CACHE_KEY_PREFIX",
       "field_name": "cache_key_prefix",
       "required": false,
+      "required_when": null,
       "secret": false,
       "type_label": "str"
     },
@@ -554,6 +451,7 @@
       "env_var": "CACHE_KEY_SCHEMA_VERSION",
       "field_name": "cache_key_schema_version",
       "required": false,
+      "required_when": null,
       "secret": false,
       "type_label": "int"
     },
@@ -562,6 +460,7 @@
       "env_var": "CACHE_LOCAL_MAX_ENTRIES",
       "field_name": "cache_local_max_entries",
       "required": false,
+      "required_when": null,
       "secret": false,
       "type_label": "int"
     },
@@ -570,94 +469,7 @@
       "env_var": "CACHE_LOCAL_TTL_SECONDS",
       "field_name": "cache_local_ttl_seconds",
       "required": false,
-      "secret": false,
-      "type_label": "int"
-    },
-    {
-      "default_repr": "False",
-      "env_var": "CACHE_REDIS_DECODE_RESPONSES",
-      "field_name": "cache_redis_decode_responses",
-      "required": false,
-      "secret": false,
-      "type_label": "bool"
-    },
-    {
-      "default_repr": "30",
-      "env_var": "CACHE_REDIS_HEALTH_CHECK_INTERVAL_SECONDS",
-      "field_name": "cache_redis_health_check_interval_seconds",
-      "required": false,
-      "secret": false,
-      "type_label": "int"
-    },
-    {
-      "default_repr": "64",
-      "env_var": "CACHE_REDIS_MAX_CONNECTIONS",
-      "field_name": "cache_redis_max_connections",
-      "required": false,
-      "secret": false,
-      "type_label": "int"
-    },
-    {
-      "default_repr": "2",
-      "env_var": "CACHE_REDIS_PROTOCOL",
-      "field_name": "cache_redis_protocol",
-      "required": false,
-      "secret": false,
-      "type_label": "int"
-    },
-    {
-      "default_repr": "2",
-      "env_var": "CACHE_REDIS_RETRY_ATTEMPTS",
-      "field_name": "cache_redis_retry_attempts",
-      "required": false,
-      "secret": false,
-      "type_label": "int"
-    },
-    {
-      "default_repr": "0.05",
-      "env_var": "CACHE_REDIS_RETRY_BASE_SECONDS",
-      "field_name": "cache_redis_retry_base_seconds",
-      "required": false,
-      "secret": false,
-      "type_label": "float"
-    },
-    {
-      "default_repr": "0.5",
-      "env_var": "CACHE_REDIS_RETRY_CAP_SECONDS",
-      "field_name": "cache_redis_retry_cap_seconds",
-      "required": false,
-      "secret": false,
-      "type_label": "float"
-    },
-    {
-      "default_repr": "0.5",
-      "env_var": "CACHE_REDIS_SOCKET_CONNECT_TIMEOUT_SECONDS",
-      "field_name": "cache_redis_socket_connect_timeout_seconds",
-      "required": false,
-      "secret": false,
-      "type_label": "float"
-    },
-    {
-      "default_repr": "0.5",
-      "env_var": "CACHE_REDIS_SOCKET_TIMEOUT_SECONDS",
-      "field_name": "cache_redis_socket_timeout_seconds",
-      "required": false,
-      "secret": false,
-      "type_label": "float"
-    },
-    {
-      "default_repr": "None",
-      "env_var": "CACHE_REDIS_URL",
-      "field_name": "cache_redis_url",
-      "required": false,
-      "secret": false,
-      "type_label": "str | None"
-    },
-    {
-      "default_repr": "300",
-      "env_var": "CACHE_SHARED_TTL_SECONDS",
-      "field_name": "cache_shared_ttl_seconds",
-      "required": false,
+      "required_when": null,
       "secret": false,
       "type_label": "int"
     },
@@ -666,6 +478,7 @@
       "env_var": "ENVIRONMENT",
       "field_name": "environment",
       "required": false,
+      "required_when": null,
       "secret": false,
       "type_label": "str"
     },
@@ -674,6 +487,7 @@
       "env_var": "FILE_TRANSFER_BUCKET",
       "field_name": "file_transfer_bucket",
       "required": false,
+      "required_when": null,
       "secret": false,
       "type_label": "str"
     },
@@ -682,6 +496,7 @@
       "env_var": "FILE_TRANSFER_ENABLED",
       "field_name": "file_transfer_enabled",
       "required": false,
+      "required_when": null,
       "secret": false,
       "type_label": "bool"
     },
@@ -690,6 +505,7 @@
       "env_var": "FILE_TRANSFER_EXPORT_PREFIX",
       "field_name": "file_transfer_export_prefix",
       "required": false,
+      "required_when": null,
       "secret": false,
       "type_label": "str"
     },
@@ -698,6 +514,7 @@
       "env_var": "FILE_TRANSFER_MAX_CONCURRENCY",
       "field_name": "file_transfer_max_concurrency",
       "required": false,
+      "required_when": null,
       "secret": false,
       "type_label": "int"
     },
@@ -706,6 +523,7 @@
       "env_var": "FILE_TRANSFER_MAX_UPLOAD_BYTES",
       "field_name": "max_upload_bytes",
       "required": false,
+      "required_when": null,
       "secret": false,
       "type_label": "int"
     },
@@ -714,6 +532,7 @@
       "env_var": "FILE_TRANSFER_MULTIPART_THRESHOLD_BYTES",
       "field_name": "file_transfer_multipart_threshold_bytes",
       "required": false,
+      "required_when": null,
       "secret": false,
       "type_label": "int"
     },
@@ -722,6 +541,7 @@
       "env_var": "FILE_TRANSFER_PART_SIZE_BYTES",
       "field_name": "file_transfer_part_size_bytes",
       "required": false,
+      "required_when": null,
       "secret": false,
       "type_label": "int"
     },
@@ -730,6 +550,7 @@
       "env_var": "FILE_TRANSFER_PRESIGN_DOWNLOAD_TTL_SECONDS",
       "field_name": "file_transfer_presign_download_ttl_seconds",
       "required": false,
+      "required_when": null,
       "secret": false,
       "type_label": "int"
     },
@@ -738,6 +559,7 @@
       "env_var": "FILE_TRANSFER_PRESIGN_UPLOAD_TTL_SECONDS",
       "field_name": "file_transfer_presign_upload_ttl_seconds",
       "required": false,
+      "required_when": null,
       "secret": false,
       "type_label": "int"
     },
@@ -746,6 +568,7 @@
       "env_var": "FILE_TRANSFER_TMP_PREFIX",
       "field_name": "file_transfer_tmp_prefix",
       "required": false,
+      "required_when": null,
       "secret": false,
       "type_label": "str"
     },
@@ -754,6 +577,7 @@
       "env_var": "FILE_TRANSFER_UPLOAD_PREFIX",
       "field_name": "file_transfer_upload_prefix",
       "required": false,
+      "required_when": null,
       "secret": false,
       "type_label": "str"
     },
@@ -762,14 +586,25 @@
       "env_var": "FILE_TRANSFER_USE_ACCELERATE_ENDPOINT",
       "field_name": "file_transfer_use_accelerate_endpoint",
       "required": false,
+      "required_when": null,
       "secret": false,
       "type_label": "bool"
+    },
+    {
+      "default_repr": "None",
+      "env_var": "IDEMPOTENCY_DYNAMODB_TABLE",
+      "field_name": "idempotency_dynamodb_table",
+      "required": false,
+      "required_when": "when API idempotency enabled and JOBS_RUNTIME_MODE!=worker",
+      "secret": false,
+      "type_label": "str | None"
     },
     {
       "default_repr": "True",
       "env_var": "IDEMPOTENCY_ENABLED",
       "field_name": "idempotency_enabled",
       "required": false,
+      "required_when": null,
       "secret": false,
       "type_label": "bool"
     },
@@ -778,6 +613,7 @@
       "env_var": "IDEMPOTENCY_TTL_SECONDS",
       "field_name": "idempotency_ttl_seconds",
       "required": false,
+      "required_when": null,
       "secret": false,
       "type_label": "int"
     },
@@ -786,6 +622,7 @@
       "env_var": "JOBS_DYNAMODB_TABLE",
       "field_name": "jobs_dynamodb_table",
       "required": false,
+      "required_when": null,
       "secret": false,
       "type_label": "str | None"
     },
@@ -794,6 +631,7 @@
       "env_var": "JOBS_ENABLED",
       "field_name": "jobs_enabled",
       "required": false,
+      "required_when": null,
       "secret": false,
       "type_label": "bool"
     },
@@ -802,6 +640,7 @@
       "env_var": "JOBS_QUEUE_BACKEND",
       "field_name": "jobs_queue_backend",
       "required": false,
+      "required_when": null,
       "secret": false,
       "type_label": "JobsQueueBackend"
     },
@@ -810,6 +649,7 @@
       "env_var": "JOBS_REPOSITORY_BACKEND",
       "field_name": "jobs_repository_backend",
       "required": false,
+      "required_when": null,
       "secret": false,
       "type_label": "JobsRepositoryBackend"
     },
@@ -818,6 +658,7 @@
       "env_var": "JOBS_RUNTIME_MODE",
       "field_name": "jobs_runtime_mode",
       "required": false,
+      "required_when": null,
       "secret": false,
       "type_label": "str"
     },
@@ -826,6 +667,7 @@
       "env_var": "JOBS_SQS_MAX_NUMBER_OF_MESSAGES",
       "field_name": "jobs_sqs_max_number_of_messages",
       "required": false,
+      "required_when": null,
       "secret": false,
       "type_label": "int"
     },
@@ -834,6 +676,7 @@
       "env_var": "JOBS_SQS_QUEUE_URL",
       "field_name": "jobs_sqs_queue_url",
       "required": false,
+      "required_when": null,
       "secret": false,
       "type_label": "str | None"
     },
@@ -842,6 +685,7 @@
       "env_var": "JOBS_SQS_RETRY_MODE",
       "field_name": "jobs_sqs_retry_mode",
       "required": false,
+      "required_when": null,
       "secret": false,
       "type_label": "str"
     },
@@ -850,6 +694,7 @@
       "env_var": "JOBS_SQS_RETRY_TOTAL_MAX_ATTEMPTS",
       "field_name": "jobs_sqs_retry_total_max_attempts",
       "required": false,
+      "required_when": null,
       "secret": false,
       "type_label": "int"
     },
@@ -858,6 +703,7 @@
       "env_var": "JOBS_SQS_VISIBILITY_TIMEOUT_SECONDS",
       "field_name": "jobs_sqs_visibility_timeout_seconds",
       "required": false,
+      "required_when": null,
       "secret": false,
       "type_label": "int"
     },
@@ -866,6 +712,7 @@
       "env_var": "JOBS_SQS_WAIT_TIME_SECONDS",
       "field_name": "jobs_sqs_wait_time_seconds",
       "required": false,
+      "required_when": null,
       "secret": false,
       "type_label": "int"
     },
@@ -874,6 +721,7 @@
       "env_var": "METRICS_NAMESPACE",
       "field_name": "metrics_namespace",
       "required": false,
+      "required_when": null,
       "secret": false,
       "type_label": "str"
     },
@@ -882,6 +730,7 @@
       "env_var": "OIDC_AUDIENCE",
       "field_name": "oidc_audience",
       "required": false,
+      "required_when": null,
       "secret": false,
       "type_label": "str | None"
     },
@@ -890,6 +739,7 @@
       "env_var": "OIDC_CLOCK_SKEW_SECONDS",
       "field_name": "oidc_clock_skew_seconds",
       "required": false,
+      "required_when": null,
       "secret": false,
       "type_label": "int"
     },
@@ -898,6 +748,7 @@
       "env_var": "OIDC_ISSUER",
       "field_name": "oidc_issuer",
       "required": false,
+      "required_when": null,
       "secret": false,
       "type_label": "str | None"
     },
@@ -906,6 +757,7 @@
       "env_var": "OIDC_JWKS_URL",
       "field_name": "oidc_jwks_url",
       "required": false,
+      "required_when": null,
       "secret": false,
       "type_label": "str | None"
     },
@@ -914,6 +766,7 @@
       "env_var": "OIDC_REQUIRED_PERMISSIONS",
       "field_name": "oidc_required_permissions",
       "required": false,
+      "required_when": null,
       "secret": false,
       "type_label": "str"
     },
@@ -922,6 +775,7 @@
       "env_var": "OIDC_REQUIRED_SCOPES",
       "field_name": "oidc_required_scopes",
       "required": false,
+      "required_when": null,
       "secret": false,
       "type_label": "str"
     }

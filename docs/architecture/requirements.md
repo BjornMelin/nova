@@ -219,8 +219,9 @@ Current runtime posture:
 
 - `IDEMPOTENCY_ENABLED` and `IDEMPOTENCY_TTL_SECONDS` are the active
   configuration surface; the runtime does not expose `IDEMPOTENCY_MODE`.
-- `IDEMPOTENCY_ENABLED=true` requires `CACHE_REDIS_URL` and a shared Redis
-  claim store for duplicate prevention across instances.
+- API-runtime `IDEMPOTENCY_ENABLED=true` requires
+  `IDEMPOTENCY_DYNAMODB_TABLE` and a DynamoDB-backed claim store for duplicate
+  prevention across instances.
 - Shared idempotency store failures MUST fail closed with `503` and
   `error.code = "idempotency_unavailable"`.
 - If a mutation succeeds but the replay record cannot be committed, Nova MUST
@@ -230,8 +231,8 @@ Current runtime posture:
   reuse the same `Idempotency-Key`; minting a new key after that response risks
   creating a duplicate mutation.
 - Missing `Idempotency-Key` remains allowed; blank keys are invalid.
-- Active operator docs and deploy automation MUST enforce the shared-cache
-  requirement without introducing a mode matrix.
+- Active operator docs and deploy automation MUST enforce the shared
+  idempotency-store requirement without introducing a mode matrix.
 
 ### FR-0005: Authentication and authorization
 
@@ -242,16 +243,17 @@ scope, tenant, and permissions from **verified claims** in the file API runtime
 There MUST NOT be a separate `nova-auth-api` HTTP surface or auth-only SDK
 families in the target architecture.
 
-### FR-0006: Two-tier caching
+### FR-0006: Local caching and shared correctness state
 
-The service MUST support a two-tier cache model:
+The service MUST support a single cache tier plus shared correctness state:
 
 - Local in-process TTL cache
-- Shared Redis cache used as the distributed cache tier when
-  `CACHE_REDIS_URL` is configured
+- No distributed cache tier in the canonical runtime; shared correctness state
+  lives in DynamoDB
 
-Shared cache keys MUST be namespaced and schema-versioned, and JWT cache TTL
-MUST be bounded by token expiration (`exp`) with configured max TTL caps.
+Shared cache keys MUST be namespaced and schema-versioned, shared correctness
+state MUST be persisted and reconciled via DynamoDB, and JWT cache TTL MUST be
+bounded by token expiration (`exp`) with configured max TTL caps.
 
 ### FR-0007: Observability and analytics
 
@@ -356,7 +358,7 @@ The service MUST:
 
 - Never log presigned URLs, query signatures, or bearer tokens.
 - Enforce strict JWT validation with issuer/audience/alg checks.
-- Use least-privilege IAM for S3/SQS/DynamoDB/Redis integration.
+- Use least-privilege IAM for S3/SQS/DynamoDB integration.
 - Emit `WWW-Authenticate: Bearer ...` on JWT/OIDC `401` responses per RFC
   6750; header generation failures MUST fail closed by surfacing an auth error
   or using a deterministic secure fallback challenge.
@@ -474,8 +476,8 @@ origin for canonical `/v1/*` runtime surfaces.
 
 ### IR-0002: AWS service dependencies
 
-Initial AWS dependencies include S3, ECS/Fargate, ALB, SQS, ElastiCache Redis,
-DynamoDB, and CloudWatch.
+Initial AWS dependencies include S3, ECS/Fargate, ALB, SQS, DynamoDB, and
+CloudWatch.
 
 ### IR-0003: Auth execution locality
 

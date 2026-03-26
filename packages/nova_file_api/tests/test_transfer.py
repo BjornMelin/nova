@@ -19,6 +19,15 @@ from nova_file_api.transfer import TransferService
 from nova_file_api.transfer_config import transfer_config_from_settings
 
 
+def _settings(**overrides: object) -> Settings:
+    values: dict[str, object] = {
+        "IDEMPOTENCY_ENABLED": False,
+        "IDEMPOTENCY_DYNAMODB_TABLE": "test-idempotency",
+    }
+    values.update(overrides)
+    return Settings.model_validate(values)
+
+
 class _FakeS3Client:
     def __init__(self) -> None:
         self.calls: list[dict[str, Any]] = []
@@ -118,7 +127,7 @@ class _FakeS3Client:
 @pytest.fixture
 def _service() -> tuple[TransferService, _FakeS3Client]:
     fake_s3 = _FakeS3Client()
-    service = _transfer_service(settings=Settings(), s3_client=fake_s3)
+    service = _transfer_service(settings=_settings(), s3_client=fake_s3)
     return service, fake_s3
 
 
@@ -185,7 +194,7 @@ async def test_presign_download_uses_filename_fallback_when_disposition_missing(
 
 @pytest.mark.anyio
 async def test_copy_upload_to_export_toctou_missing_source_is_invalid() -> None:
-    settings = Settings()
+    settings = _settings()
     fake_s3 = _FakeS3Client()
     service = _transfer_service(settings=settings, s3_client=fake_s3)
 
@@ -213,7 +222,7 @@ async def test_copy_upload_to_export_toctou_missing_source_is_invalid() -> None:
 
 @pytest.mark.anyio
 async def test_copy_upload_to_export_copy_error_is_upstream_s3_error() -> None:
-    settings = Settings()
+    settings = _settings()
     fake_s3 = _FakeS3Client()
     service = _transfer_service(settings=settings, s3_client=fake_s3)
 
@@ -238,7 +247,7 @@ async def test_copy_upload_to_export_copy_error_is_upstream_s3_error() -> None:
 
 @pytest.mark.anyio
 async def test_copy_upload_to_export_client_error_maps_to_upstream() -> None:
-    settings = Settings()
+    settings = _settings()
     fake_s3 = _FakeS3Client()
     service = _transfer_service(settings=settings, s3_client=fake_s3)
 
@@ -266,7 +275,7 @@ async def test_copy_upload_to_export_client_error_maps_to_upstream() -> None:
 
 @pytest.mark.anyio
 async def test_introspect_upload_lists_parts_across_pages() -> None:
-    settings = Settings()
+    settings = _settings()
     fake_s3 = _FakeS3Client()
     service = _transfer_service(settings=settings, s3_client=fake_s3)
     fake_s3.expected_part_markers = [None, 1]
@@ -303,7 +312,7 @@ async def test_introspect_upload_lists_parts_across_pages() -> None:
 
 @pytest.mark.anyio
 async def test_complete_upload_verifies_listed_parts_and_object_size() -> None:
-    settings = Settings()
+    settings = _settings()
     fake_s3 = _FakeS3Client()
     service = _transfer_service(settings=settings, s3_client=fake_s3)
     fake_s3.list_parts_responses = [
@@ -338,7 +347,7 @@ async def test_complete_upload_verifies_listed_parts_and_object_size() -> None:
 
 @pytest.mark.anyio
 async def test_complete_upload_succeeds_when_post_check_fails() -> None:
-    settings = Settings()
+    settings = _settings()
     fake_s3 = _FakeS3Client()
     service = _transfer_service(settings=settings, s3_client=fake_s3)
     fake_s3.list_parts_responses = [
@@ -370,7 +379,7 @@ async def test_complete_upload_succeeds_when_post_check_fails() -> None:
 
 @pytest.mark.anyio
 async def test_complete_upload_rejects_missing_part() -> None:
-    settings = Settings()
+    settings = _settings()
     fake_s3 = _FakeS3Client()
     service = _transfer_service(settings=settings, s3_client=fake_s3)
     fake_s3.list_parts_responses = [
@@ -396,7 +405,7 @@ async def test_complete_upload_rejects_missing_part() -> None:
 
 @pytest.mark.anyio
 async def test_complete_upload_rejects_duplicate_part_numbers() -> None:
-    settings = Settings()
+    settings = _settings()
     fake_s3 = _FakeS3Client()
     service = _transfer_service(settings=settings, s3_client=fake_s3)
     fake_s3.list_parts_responses = [
@@ -427,8 +436,8 @@ async def test_complete_upload_rejects_duplicate_part_numbers() -> None:
 
 @pytest.mark.anyio
 async def test_copy_upload_to_export_uses_multipart_copy_above_5_gb() -> None:
-    settings = Settings.model_validate(
-        {"FILE_TRANSFER_PART_SIZE_BYTES": 128 * 1024 * 1024}
+    settings = _settings(
+        FILE_TRANSFER_PART_SIZE_BYTES=128 * 1024 * 1024,
     )
     fake_s3 = _FakeS3Client()
     service = _transfer_service(settings=settings, s3_client=fake_s3)
@@ -486,8 +495,8 @@ async def test_copy_upload_to_export_uses_multipart_copy_above_5_gb() -> None:
 
 @pytest.mark.anyio
 async def test_copy_upload_to_export_aborts_failed_multipart_copy() -> None:
-    settings = Settings.model_validate(
-        {"FILE_TRANSFER_PART_SIZE_BYTES": 128 * 1024 * 1024}
+    settings = _settings(
+        FILE_TRANSFER_PART_SIZE_BYTES=128 * 1024 * 1024,
     )
     fake_s3 = _FakeS3Client()
     fake_s3.copy_error = ClientError(
@@ -514,11 +523,9 @@ async def test_copy_upload_to_export_aborts_failed_multipart_copy() -> None:
 async def test_copy_upload_to_export_limits_multipart_copy_concurrency() -> (
     None
 ):
-    settings = Settings.model_validate(
-        {
-            "FILE_TRANSFER_PART_SIZE_BYTES": 2_000_000_000,
-            "FILE_TRANSFER_MAX_CONCURRENCY": 2,
-        }
+    settings = _settings(
+        FILE_TRANSFER_PART_SIZE_BYTES=2_000_000_000,
+        FILE_TRANSFER_MAX_CONCURRENCY=2,
     )
     fake_s3 = _FakeS3Client()
     fake_s3.upload_part_copy_wait_event = asyncio.Event()
@@ -555,8 +562,8 @@ async def test_copy_upload_to_export_limits_multipart_copy_concurrency() -> (
 
 @pytest.mark.anyio
 async def test_large_copy_missing_source_is_invalid() -> None:
-    settings = Settings.model_validate(
-        {"FILE_TRANSFER_PART_SIZE_BYTES": 128 * 1024 * 1024}
+    settings = _settings(
+        FILE_TRANSFER_PART_SIZE_BYTES=128 * 1024 * 1024,
     )
     fake_s3 = _FakeS3Client()
     fake_s3.copy_error = ClientError(

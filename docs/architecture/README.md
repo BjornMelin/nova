@@ -23,7 +23,7 @@ workflow hard cut have landed, while other wave-2 tracks are still pending.
 
 - public transfer APIs plus explicit export workflows
 - bearer JWT only, verified in-process in the main API
-- Redis in correctness/idempotency paths
+- DynamoDB-backed idempotency with explicit expiration filtering
 - ECS/Fargate + ALB + SQS worker as the documented runtime baseline
 
 For current reality, use:

@@ -4,7 +4,7 @@ from typing import Any
 
 import pytest
 from nova_file_api.guarded_mutation import run_guarded_mutation
-from nova_file_api.idempotency import IdempotencyStore
+from nova_file_api.idempotency import IdempotencyClaim, IdempotencyStore
 from pydantic import BaseModel
 
 
@@ -14,11 +14,18 @@ class _ResponseModel(BaseModel):
 
 class _FakeIdempotencyStore(IdempotencyStore):
     def __init__(self) -> None:
+        owner_value = "claim-owner"
         self._enabled = True
         self.replay: dict[str, Any] | None = None
-        self.claim_result = True
+        self.claim_result: IdempotencyClaim | None = IdempotencyClaim(
+            cache_key="cache-key",
+            owner_token=owner_value,
+            request_hash="request-hash",
+        )
         self.stored_payload: dict[str, Any] | None = None
+        self.stored_claim: IdempotencyClaim | None = None
         self.discard_calls = 0
+        self.discarded_claims: list[IdempotencyClaim] = []
         self.raise_on_store = False
         self.raise_on_discard = False
 
@@ -33,17 +40,32 @@ class _FakeIdempotencyStore(IdempotencyStore):
     async def load_response(self, **_: Any) -> dict[str, Any] | None:
         return self.replay
 
-    async def claim_request(self, **_: Any) -> bool:
+    async def claim_request(
+        self,
+        *,
+        route: str,
+        scope_id: str,
+        idempotency_key: str,
+        request_payload: dict[str, Any],
+    ) -> IdempotencyClaim | None:
+        del route, scope_id, idempotency_key, request_payload
         return self.claim_result
 
-    async def store_response(self, **kwargs: Any) -> None:
+    async def store_response(
+        self,
+        *,
+        claim: IdempotencyClaim,
+        response_payload: dict[str, Any],
+    ) -> None:
+        self.stored_claim = claim
         if self.raise_on_store:
             raise RuntimeError("store failed")
-        self.stored_payload = kwargs["response_payload"]
+        self.stored_payload = response_payload
 
-    async def discard_claim(self, **_: Any) -> None:
+    async def discard_claim(self, *, claim: IdempotencyClaim) -> None:
         if self.raise_on_discard:
             raise RuntimeError("discard failed")
+        self.discarded_claims.append(claim)
         self.discard_calls += 1
 
 
@@ -148,6 +170,7 @@ async def test_run_guarded_mutation_discards_claim_on_failure() -> None:
 
     assert failures == ["boom"]
     assert store.discard_calls == 1
+    assert store.discarded_claims == [store.claim_result]
 
 
 @pytest.mark.anyio
@@ -180,6 +203,7 @@ async def test_discard_claim_when_failure_hook_raises() -> None:
         )
 
     assert store.discard_calls == 1
+    assert store.discarded_claims == [store.claim_result]
 
 
 @pytest.mark.anyio
@@ -214,13 +238,14 @@ async def test_run_guarded_mutation_stores_response_and_runs_success() -> None:
     assert result.value == "fresh"
     assert completed == ["fresh"]
     assert store.stored_payload == {"value": "fresh"}
+    assert store.stored_claim == store.claim_result
 
 
 @pytest.mark.anyio
 async def test_run_guarded_mutation_disabled_store_skips_claim_flow() -> None:
     store = _FakeIdempotencyStore()
     store.enabled = False
-    store.claim_result = False
+    store.claim_result = None
     completed: list[str] = []
 
     async def _execute() -> _ResponseModel:
@@ -253,9 +278,9 @@ async def test_run_guarded_mutation_disabled_store_skips_claim_flow() -> None:
 
 
 @pytest.mark.anyio
-async def test_claim_false_without_replay_conflicts() -> None:
+async def test_claim_none_without_replay_conflicts() -> None:
     store = _FakeIdempotencyStore()
-    store.claim_result = False
+    store.claim_result = None
     failures: list[str] = []
     successes: list[str] = []
 
@@ -325,3 +350,4 @@ async def test_run_guarded_mutation_store_failure_raise_preserves_claim() -> (
 
     assert failures == []
     assert store.discard_calls == 0
+    assert store.stored_claim == store.claim_result

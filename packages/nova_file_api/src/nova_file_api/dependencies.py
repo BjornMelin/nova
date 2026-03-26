@@ -19,7 +19,7 @@ from nova_file_api.activity import (
     MemoryActivityStore,
 )
 from nova_file_api.auth import Authenticator
-from nova_file_api.cache import LocalTTLCache, SharedRedisCache, TwoTierCache
+from nova_file_api.cache import LocalTTLCache, TwoTierCache
 from nova_file_api.config import Settings
 from nova_file_api.exports import (
     DynamoExportRepository,
@@ -32,7 +32,12 @@ from nova_file_api.exports import (
     SqsClient,
     SqsExportPublisher,
 )
-from nova_file_api.idempotency import IdempotencyStore
+from nova_file_api.idempotency import (
+    DynamoResource as IdempotencyDynamoResource,
+)
+from nova_file_api.idempotency import (
+    IdempotencyStore,
+)
 from nova_file_api.metrics import MetricsCollector
 from nova_file_api.models import (
     ActivityStoreBackend,
@@ -56,8 +61,9 @@ _MSG_ACTIVITY_ROLLUPS_TABLE_REQUIRED = (
     "ACTIVITY_ROLLUPS_TABLE must be configured when "
     "ACTIVITY_STORE_BACKEND=dynamodb"
 )
-_MSG_IDEMPOTENCY_REQUIRES_SHARED_CACHE = (
-    "CACHE_REDIS_URL must be configured when IDEMPOTENCY_ENABLED=true"
+_MSG_IDEMPOTENCY_REQUIRES_DYNAMODB_TABLE = (
+    "IDEMPOTENCY_DYNAMODB_TABLE must be configured when "
+    "IDEMPOTENCY_ENABLED=true"
 )
 _MSG_S3_CLIENT_REQUIRED = "s3_client must be provided"
 _MSG_DYNAMODB_RESOURCE_REQUIRED = (
@@ -76,48 +82,6 @@ _BEARER_AUTH = HTTPBearer(
         "are derived from verified claims."
     ),
 )
-
-
-def _resolve_shared_cache(
-    *,
-    app: FastAPI,
-    settings: Settings,
-) -> SharedRedisCache:
-    """Resolve the shared cache from providers, state, or fresh settings."""
-    shared_cache_provider = getattr(app.state, "_shared_cache_provider", None)
-    prebuilt_shared_cache = (
-        shared_cache_provider() if callable(shared_cache_provider) else None
-    )
-    if isinstance(prebuilt_shared_cache, SharedRedisCache):
-        return prebuilt_shared_cache
-
-    existing_shared_cache = getattr(app.state, "shared_cache", None)
-    if isinstance(existing_shared_cache, SharedRedisCache):
-        return existing_shared_cache
-
-    return build_shared_cache(settings=settings)
-
-
-def _cache_uses_shared_cache(
-    cache: object,
-    *,
-    shared_cache: SharedRedisCache,
-) -> bool:
-    """Return whether a cache instance is bound to the resolved shared cache."""
-    return isinstance(cache, TwoTierCache) and (
-        getattr(cache, "_shared", None) is shared_cache
-    )
-
-
-def _idempotency_store_uses_shared_cache(
-    store: object,
-    *,
-    shared_cache: SharedRedisCache,
-) -> bool:
-    """Return whether a store instance uses the resolved shared cache."""
-    return isinstance(store, IdempotencyStore) and (
-        getattr(store, "_shared_cache", None) is shared_cache
-    )
 
 
 def initialize_runtime_state(
@@ -148,22 +112,17 @@ def initialize_runtime_state(
         raise ValueError(_MSG_S3_CLIENT_REQUIRED)
 
     metrics = build_metrics(settings=settings)
-    shared_cache = _resolve_shared_cache(app=app, settings=settings)
 
     cache_provider = getattr(app.state, "_two_tier_cache_provider", None)
     prebuilt_cache = cache_provider() if callable(cache_provider) else None
     existing_cache = getattr(app.state, "cache", None)
     cache: TwoTierCache
-    if _cache_uses_shared_cache(prebuilt_cache, shared_cache=shared_cache):
-        cache = cast(TwoTierCache, prebuilt_cache)
-    elif _cache_uses_shared_cache(existing_cache, shared_cache=shared_cache):
-        cache = cast(TwoTierCache, existing_cache)
+    if isinstance(prebuilt_cache, TwoTierCache):
+        cache = prebuilt_cache
+    elif isinstance(existing_cache, TwoTierCache):
+        cache = existing_cache
     else:
-        cache = build_two_tier_cache(
-            settings=settings,
-            metrics=metrics,
-            shared_cache=shared_cache,
-        )
+        cache = build_two_tier_cache(settings=settings, metrics=metrics)
     export_repository = build_export_repository(
         settings=settings,
         dynamodb_resource=dynamodb_resource,
@@ -179,7 +138,6 @@ def initialize_runtime_state(
 
     app.state.settings = settings
     app.state.metrics = metrics
-    app.state.shared_cache = shared_cache
     app.state.cache = cache
     app.state.authenticator = build_authenticator(
         settings=settings,
@@ -205,20 +163,14 @@ def initialize_runtime_state(
         else None
     )
     existing_idempotency_store = getattr(app.state, "idempotency_store", None)
-    if _idempotency_store_uses_shared_cache(
-        prebuilt_idempotency_store,
-        shared_cache=shared_cache,
-    ):
-        idempotency_store = cast(IdempotencyStore, prebuilt_idempotency_store)
-    elif _idempotency_store_uses_shared_cache(
-        existing_idempotency_store,
-        shared_cache=shared_cache,
-    ):
-        idempotency_store = cast(IdempotencyStore, existing_idempotency_store)
+    if isinstance(prebuilt_idempotency_store, IdempotencyStore):
+        idempotency_store = prebuilt_idempotency_store
+    elif isinstance(existing_idempotency_store, IdempotencyStore):
+        idempotency_store = existing_idempotency_store
     else:
         idempotency_store = build_idempotency_store(
             settings=settings,
-            shared_cache=shared_cache,
+            dynamodb_resource=dynamodb_resource,
         )
     app.state.idempotency_store = idempotency_store
 
@@ -228,49 +180,25 @@ def build_metrics(*, settings: Settings) -> MetricsCollector:
     return MetricsCollector(namespace=settings.metrics_namespace)
 
 
-def build_shared_cache(*, settings: Settings) -> SharedRedisCache:
-    """Create the shared Redis cache wrapper."""
-    return SharedRedisCache(
-        url=settings.cache_redis_url,
-        max_connections=settings.cache_redis_max_connections,
-        socket_timeout_seconds=settings.cache_redis_socket_timeout_seconds,
-        socket_connect_timeout_seconds=(
-            settings.cache_redis_socket_connect_timeout_seconds
-        ),
-        health_check_interval_seconds=(
-            settings.cache_redis_health_check_interval_seconds
-        ),
-        retry_base_seconds=settings.cache_redis_retry_base_seconds,
-        retry_cap_seconds=settings.cache_redis_retry_cap_seconds,
-        retry_attempts=settings.cache_redis_retry_attempts,
-        decode_responses=settings.cache_redis_decode_responses,
-        protocol=settings.cache_redis_protocol,
-    )
-
-
 def build_two_tier_cache(
     *,
     settings: Settings,
     metrics: MetricsCollector,
-    shared_cache: SharedRedisCache,
 ) -> TwoTierCache:
-    """Create the two-tier cache used by auth and general cached lookups.
+    """Create the local runtime cache used by auth and cached lookups.
 
     Args:
         settings: Resolved runtime settings.
         metrics: Metrics collector for cache instrumentation.
-        shared_cache: Shared Redis cache for the second tier.
 
     Returns:
-        The configured two-tier cache.
+        The configured runtime cache.
     """
     return TwoTierCache(
         local=LocalTTLCache(
             ttl_seconds=settings.cache_local_ttl_seconds,
             max_entries=settings.cache_local_max_entries,
         ),
-        shared=shared_cache,
-        shared_ttl_seconds=settings.cache_shared_ttl_seconds,
         key_prefix=settings.cache_key_prefix,
         key_schema_version=settings.cache_key_schema_version,
         metric_incr=metrics.incr,
@@ -280,25 +208,33 @@ def build_two_tier_cache(
 def build_idempotency_store(
     *,
     settings: Settings,
-    shared_cache: SharedRedisCache,
+    dynamodb_resource: object | None,
 ) -> IdempotencyStore:
     """Create the idempotency store.
 
     Args:
         settings: Resolved runtime settings.
-        shared_cache: Shared Redis cache for idempotency entries.
+        dynamodb_resource: DynamoDB resource when idempotency is enabled.
 
     Returns:
         The configured idempotency store.
 
     Raises:
-        ValueError: When settings.idempotency_enabled is true but
-            shared_cache.available is false.
+        ValueError: When idempotency is enabled but the table name or DynamoDB
+            resource is missing.
     """
-    if settings.idempotency_enabled and not shared_cache.available:
-        raise ValueError(_MSG_IDEMPOTENCY_REQUIRES_SHARED_CACHE)
+    table_name = (settings.idempotency_dynamodb_table or "").strip()
+    if settings.idempotency_enabled:
+        if not table_name:
+            raise ValueError(_MSG_IDEMPOTENCY_REQUIRES_DYNAMODB_TABLE)
+        if dynamodb_resource is None:
+            raise ValueError(_MSG_DYNAMODB_RESOURCE_REQUIRED)
     return IdempotencyStore(
-        shared_cache=shared_cache,
+        table_name=table_name or None,
+        dynamodb_resource=cast(
+            IdempotencyDynamoResource | None,
+            dynamodb_resource,
+        ),
         enabled=settings.idempotency_enabled,
         ttl_seconds=settings.idempotency_ttl_seconds,
         key_prefix=settings.cache_key_prefix,
@@ -481,14 +417,6 @@ def get_metrics(request: Request) -> MetricsCollector:
     return cast(MetricsCollector, metrics)
 
 
-def get_shared_cache(request: Request) -> SharedRedisCache:
-    """Return the shared cache from app state."""
-    shared_cache = getattr(request.app.state, "shared_cache", None)
-    if shared_cache is None:
-        raise TypeError(_APPLICATION_STATE_NOT_INITIALIZED)
-    return cast(SharedRedisCache, shared_cache)
-
-
 def get_two_tier_cache(request: Request) -> TwoTierCache:
     """Return the two-tier cache from app state."""
     cache = getattr(request.app.state, "cache", None)
@@ -572,7 +500,6 @@ async def get_principal(
 
 SettingsDep = Annotated[Settings, Depends(get_settings)]
 MetricsDep = Annotated[MetricsCollector, Depends(get_metrics)]
-SharedCacheDep = Annotated[SharedRedisCache, Depends(get_shared_cache)]
 TwoTierCacheDep = Annotated[TwoTierCache, Depends(get_two_tier_cache)]
 TransferServiceDep = Annotated[TransferService, Depends(get_transfer_service)]
 ExportRepositoryDep = Annotated[

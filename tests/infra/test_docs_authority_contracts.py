@@ -295,8 +295,8 @@ def test_agents_active_authority_pack_has_final_split() -> None:
         "docs/runbooks/README.md",
         "docs/contracts/README.md",
         "bearer JWT",
-        "FILE_TRANSFER_CACHE_ENABLED=true",
-        "CACHE_REDIS_URL",
+        "IDEMPOTENCY_DYNAMODB_TABLE",
+        "idempotency_store",
         "uv run ruff check . --select I",
         "uv run ruff format . --check",
     ]:
@@ -417,7 +417,6 @@ def test_root_authorities_capture_runtime_dependency_floor_baseline() -> None:
 
     for text in [readme, agents, standards]:
         assert "pydantic-settings>=2.13.1" in text
-        assert "redis>=7.4.0" in text
         assert "uvicorn[standard]>=0.42.0" in text
 
 

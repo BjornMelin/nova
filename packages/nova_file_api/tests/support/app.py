@@ -10,7 +10,7 @@ import httpx
 from fastapi import FastAPI
 from nova_file_api.activity import ActivityStore
 from nova_file_api.app import create_app
-from nova_file_api.cache import LocalTTLCache, SharedRedisCache, TwoTierCache
+from nova_file_api.cache import LocalTTLCache, TwoTierCache
 from nova_file_api.config import Settings
 from nova_file_api.dependencies import (
     build_idempotency_store,
@@ -20,7 +20,6 @@ from nova_file_api.dependencies import (
     get_export_service,
     get_idempotency_store,
     get_metrics,
-    get_shared_cache,
     get_transfer_service,
     get_two_tier_cache,
 )
@@ -28,22 +27,18 @@ from nova_file_api.exports import ExportRepository
 from nova_file_api.idempotency import IdempotencyStore
 from nova_file_api.metrics import MetricsCollector
 
-from .redis import MemoryRedisClient
+from .dynamodb import MemoryDynamoResource
 
 _T = TypeVar("_T")
+_TEST_IDEMPOTENCY_TABLE = "test-idempotency"
 
 
 @dataclass(slots=True)
 class RuntimeDeps:
-    """
-    Container for test doubles installed via FastAPI dependency overrides.
-
-    All fields are required except export_repository, which is optional.
-    """
+    """Container for test doubles installed via FastAPI dependency overrides."""
 
     settings: Settings
     metrics: MetricsCollector
-    shared_cache: SharedRedisCache
     cache: TwoTierCache
     authenticator: object
     transfer_service: object
@@ -51,35 +46,21 @@ class RuntimeDeps:
     activity_store: ActivityStore
     idempotency_store: IdempotencyStore
     export_repository: ExportRepository | None = None
+    dynamodb_resource: MemoryDynamoResource | None = None
 
 
 def build_cache_stack(
     *,
     ttl_seconds: int = 60,
     max_entries: int = 128,
-    shared_ttl_seconds: int = 60,
-) -> tuple[SharedRedisCache, TwoTierCache]:
-    """
-    Build a two-tier cache stack used by API-style tests.
-
-    Args:
-        ttl_seconds: Local cache TTL in seconds.
-        max_entries: Maximum entries in the local cache.
-        shared_ttl_seconds: Shared cache TTL in seconds.
-
-    Returns:
-        Tuple of (shared_cache, two_tier_cache).
-    """
-    shared_cache = SharedRedisCache(url=None)
-    cache = TwoTierCache(
+) -> TwoTierCache:
+    """Build a local cache stack used by API-style tests."""
+    return TwoTierCache(
         local=LocalTTLCache(
             ttl_seconds=ttl_seconds,
             max_entries=max_entries,
-        ),
-        shared=shared_cache,
-        shared_ttl_seconds=shared_ttl_seconds,
+        )
     )
-    return shared_cache, cache
 
 
 def build_runtime_deps(
@@ -90,83 +71,44 @@ def build_runtime_deps(
     activity_store: ActivityStore,
     settings: Settings | None = None,
     metrics: MetricsCollector | None = None,
-    shared_cache: SharedRedisCache | None = None,
     cache: TwoTierCache | None = None,
     idempotency_store: IdempotencyStore | None = None,
-    use_in_memory_shared_cache: bool = False,
     idempotency_enabled: bool = True,
     idempotency_ttl_seconds: int = 300,
     export_repository: ExportRepository | None = None,
+    dynamodb_resource: MemoryDynamoResource | None = None,
 ) -> RuntimeDeps:
-    """
-    Build a runtime dependency graph for route tests.
-
-    Args:
-        authenticator: Auth implementation to inject.
-        transfer_service: Transfer service implementation.
-        export_service: Export service implementation.
-        activity_store: Activity store implementation.
-        settings: Optional settings; defaults to Settings().
-        metrics: Optional metrics; defaults to MetricsCollector.
-        shared_cache: Shared cache; built via build_cache_stack if None.
-        cache: Two-tier cache; built via build_cache_stack if None.
-        use_in_memory_shared_cache: If ``True``, build an in-memory cache stack
-            for tests.
-        idempotency_store: Idempotency store; built from cache if None.
-        idempotency_enabled: Whether idempotency is enabled when building store.
-        idempotency_ttl_seconds: TTL for idempotency store when building.
-        export_repository: Optional export repository override.
-
-    Returns:
-        RuntimeDeps instance ready for build_test_app.
-    """
+    """Build a runtime dependency graph for route tests."""
     resolved_settings = (
-        Settings.model_validate({}) if settings is None else settings
+        Settings.model_validate(
+            {"IDEMPOTENCY_DYNAMODB_TABLE": _TEST_IDEMPOTENCY_TABLE}
+        )
+        if settings is None
+        else settings
     )
     resolved_metrics = (
         MetricsCollector(namespace="Tests") if metrics is None else metrics
     )
+    resolved_cache = build_cache_stack() if cache is None else cache
+    resolved_dynamodb = (
+        MemoryDynamoResource()
+        if dynamodb_resource is None
+        else dynamodb_resource
+    )
+
     resolved_settings.idempotency_enabled = idempotency_enabled
     resolved_settings.idempotency_ttl_seconds = idempotency_ttl_seconds
-    if (shared_cache is None) != (cache is None):
-        raise ValueError(
-            "shared_cache and cache must both be provided or both be None"
-        )
-    if shared_cache is None and cache is None:
-        if use_in_memory_shared_cache:
-            resolved_shared_cache, resolved_cache = build_cache_stack()
-            resolved_shared_cache._client = MemoryRedisClient()
-        elif idempotency_enabled:
-            raise ValueError(
-                "idempotency_enabled requires shared_cache/cache or "
-                "use_in_memory_shared_cache in tests; cache_redis_url is not "
-                f"auto-bound here ({resolved_settings.cache_redis_url!r})"
-            )
-        else:
-            resolved_shared_cache = SharedRedisCache(url=None)
-            resolved_cache = TwoTierCache(
-                local=LocalTTLCache(
-                    ttl_seconds=60,
-                    max_entries=128,
-                ),
-                shared=resolved_shared_cache,
-                shared_ttl_seconds=60,
-            )
-    else:
-        assert shared_cache is not None
-        assert cache is not None
-        resolved_shared_cache = shared_cache
-        resolved_cache = cache
-        if use_in_memory_shared_cache:
-            resolved_shared_cache._client = MemoryRedisClient()
+    if not (resolved_settings.idempotency_dynamodb_table or "").strip():
+        resolved_settings.idempotency_dynamodb_table = _TEST_IDEMPOTENCY_TABLE
+
     resolved_idempotency_store = idempotency_store or build_idempotency_store(
         settings=resolved_settings,
-        shared_cache=resolved_shared_cache,
+        dynamodb_resource=resolved_dynamodb,
     )
+
     return RuntimeDeps(
         settings=resolved_settings,
         metrics=resolved_metrics,
-        shared_cache=resolved_shared_cache,
         cache=resolved_cache,
         authenticator=authenticator,
         transfer_service=transfer_service,
@@ -174,19 +116,12 @@ def build_runtime_deps(
         activity_store=activity_store,
         idempotency_store=resolved_idempotency_store,
         export_repository=export_repository,
+        dynamodb_resource=resolved_dynamodb,
     )
 
 
 def build_test_app(deps: RuntimeDeps) -> FastAPI:
-    """
-    Create a FastAPI app with dependency overrides from the given deps.
-
-    Args:
-        deps: Runtime dependency container with test doubles.
-
-    Returns:
-        Configured FastAPI app instance.
-    """
+    """Create a FastAPI app with dependency overrides from the given deps."""
     from nova_file_api.dependencies import get_settings
 
     def _override(value: _T) -> Callable[[], Awaitable[_T]]:
@@ -197,16 +132,13 @@ def build_test_app(deps: RuntimeDeps) -> FastAPI:
 
     app = create_app(settings=deps.settings)
     app.state._skip_runtime_state_initialization = True
-    app.state._shared_cache_provider = lambda: deps.shared_cache
     app.state._two_tier_cache_provider = lambda: deps.cache
     app.state._idempotency_store_provider = lambda: deps.idempotency_store
-    app.state.shared_cache = deps.shared_cache
     app.state.cache = deps.cache
     app.state.authenticator = deps.authenticator
     app.state.settings = deps.settings
     app.dependency_overrides[get_settings] = _override(deps.settings)
     app.dependency_overrides[get_metrics] = _override(deps.metrics)
-    app.dependency_overrides[get_shared_cache] = _override(deps.shared_cache)
     app.dependency_overrides[get_two_tier_cache] = _override(deps.cache)
     app.dependency_overrides[get_authenticator] = _override(deps.authenticator)
     app.dependency_overrides[get_transfer_service] = _override(
@@ -237,19 +169,7 @@ async def request_app(
     json: dict[str, object] | None = None,
     raise_app_exceptions: bool = True,
 ) -> httpx.Response:
-    """Execute one request against a test app within its lifespan.
-
-    Args:
-        app: FastAPI test application.
-        method: HTTP method to send.
-        path: Request path for the client call.
-        headers: Optional request headers.
-        json: Optional JSON request body.
-        raise_app_exceptions: Whether to re-raise ASGI app exceptions.
-
-    Returns:
-        HTTP response returned by the test client.
-    """
+    """Execute one request against a test app within its lifespan."""
     async with (
         app.router.lifespan_context(app),
         httpx.AsyncClient(

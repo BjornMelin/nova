@@ -194,15 +194,11 @@ Parameters:
     Default: ""
     AllowedPattern: "^$|^arn:(aws|aws-us-gov|aws-cn):dynamodb:[a-z0-9-]+:[0-9]{12}:table\\/[A-Za-z0-9_.-]+$"
     Description: Async activity table ARN (required when FileTransferAsyncEnabled is true).
-  FileTransferCacheEnabled:
-    Type: String
-    Default: "false"
-    AllowedValues: ["true", "false"]
-    Description: Allow service SG ingress to managed cache SG on Redis TLS port.
-  FileTransferCacheSecurityGroupExportName:
+  FileTransferIdempotencyTableArn:
     Type: String
     Default: ""
-    Description: Export name for the managed cache security group ID.
+    AllowedPattern: "^$|^arn:(aws|aws-us-gov|aws-cn):dynamodb:[a-z0-9-]+:[0-9]{12}:table\\/[A-Za-z0-9_.-]+$"
+    Description: Idempotency table ARN (required when IdempotencyEnabled is true).
   JobsQueueUrl:
     Type: String
     Default: ""
@@ -215,14 +211,11 @@ Parameters:
     Type: String
     Default: ""
     Description: Runtime DynamoDB activity table name injected into the API service when async is enabled.
-  CacheRedisUrlSecretArn:
+  IdempotencyTableName:
     Type: String
     Default: ""
-    AllowedPattern: "^$|^arn:(aws|aws-us-gov|aws-cn):secretsmanager:[a-z0-9-]+:[0-9]{12}:secret:[A-Za-z0-9/_+=.@-]+$"
-    ConstraintDescription: >-
-      CacheRedisUrlSecretArn must be a base Secrets Manager secret ARN without
-      json-key or version suffix segments.
-    Description: Secrets Manager ARN for the CACHE_REDIS_URL value when cache is enabled.
+    AllowedPattern: "^$|^[A-Za-z0-9_.-]+$"
+    Description: Runtime DynamoDB idempotency table name injected when idempotency is enabled.
   OidcIssuer:
     Type: String
     Default: ""
@@ -246,43 +239,6 @@ Parameters:
     Type: Number
     Default: 80
     MinValue: 1
-  CacheRedisMaxConnections:
-    Type: Number
-    Default: 64
-    MinValue: 1
-  CacheRedisSocketTimeoutSeconds:
-    Type: Number
-    Default: 0.5
-    MinValue: 0
-  CacheRedisSocketConnectTimeoutSeconds:
-    Type: Number
-    Default: 0.5
-    MinValue: 0
-  CacheRedisHealthCheckIntervalSeconds:
-    Type: Number
-    Default: 30
-    MinValue: 0
-  CacheRedisRetryBaseSeconds:
-    Type: Number
-    Default: 0.05
-    MinValue: 0
-  CacheRedisRetryCapSeconds:
-    Type: Number
-    Default: 0.5
-    MinValue: 0
-  CacheRedisRetryAttempts:
-    Type: Number
-    Default: 2
-    MinValue: 0
-  CacheRedisDecodeResponses:
-    Type: String
-    Default: "false"
-    AllowedValues: ["true", "false"]
-  CacheRedisProtocol:
-    Type: Number
-    Default: 2
-    MinValue: 2
-    MaxValue: 3
   CacheLocalTtlSeconds:
     Type: Number
     Default: 120
@@ -291,10 +247,6 @@ Parameters:
     Type: Number
     Default: 2000
     MinValue: 1
-  CacheSharedTtlSeconds:
-    Type: Number
-    Default: 300
-    MinValue: 0
   CacheKeyPrefix:
     Type: String
     Default: "nova"
@@ -407,33 +359,16 @@ Rules:
         AssertDescription: >-
           JobsQueueUrl, JobsTableName, and ActivityTableName are required
           when FileTransferAsyncEnabled is "true".
-  FileTransferCacheParamsProvided:
-    Assertions:
-      - Assert: !Or
-          - !Equals [!Ref FileTransferCacheEnabled, "false"]
-          - !Not
-              - !Equals [!Ref FileTransferCacheSecurityGroupExportName, ""]
-        AssertDescription: >-
-          FileTransferCacheSecurityGroupExportName is required when
-          FileTransferCacheEnabled is "true".
-  FileTransferCacheSecretProvided:
-    Assertions:
-      - Assert: !Or
-          - !Equals [!Ref FileTransferCacheEnabled, "false"]
-          - !Not [!Equals [!Ref CacheRedisUrlSecretArn, ""]]
-        AssertDescription: >-
-          CacheRedisUrlSecretArn is required when FileTransferCacheEnabled is
-          "true".
-  IdempotencyRequiresSharedCache:
+  IdempotencyTableProvided:
     Assertions:
       - Assert: !Or
           - !Equals [!Ref IdempotencyEnabled, "false"]
           - !And
-              - !Equals [!Ref FileTransferCacheEnabled, "true"]
-              - !Not [!Equals [!Ref CacheRedisUrlSecretArn, ""]]
+              - !Not [!Equals [!Ref FileTransferIdempotencyTableArn, ""]]
+              - !Not [!Equals [!Ref IdempotencyTableName, ""]]
         AssertDescription: >-
-          IdempotencyEnabled requires FileTransferCacheEnabled to be "true"
-          and CacheRedisUrlSecretArn to be configured.
+          IdempotencyEnabled requires FileTransferIdempotencyTableArn and
+          IdempotencyTableName to be configured.
   BlueGreenTrafficControlParamsProvided:
     Assertions:
       - Assert: !Not [!Equals [!Ref EcsInfrastructureRoleArn, ""]]
@@ -449,11 +384,7 @@ Conditions:
     - !Condition EnableFileTransfer
     - !Condition HasFileTransferBucketName
   EnableFileTransferAsync: !Equals [!Ref FileTransferAsyncEnabled, "true"]
-  EnableFileTransferCache: !Equals [!Ref FileTransferCacheEnabled, "true"]
-  HasCacheRedisUrlSecretArn: !Not [!Equals [!Ref CacheRedisUrlSecretArn, ""]]
-  EnableFileTransferCacheWithSecretArn: !And
-    - !Condition EnableFileTransferCache
-    - !Condition HasCacheRedisUrlSecretArn
+  EnableIdempotency: !Equals [!Ref IdempotencyEnabled, "true"]
   HasTestTrafficListenerArn: !Not [!Equals [!Ref TestTrafficListenerArn, ""]]
   HasServiceHostedZoneId: !Not [!Equals [!Ref ServiceHostedZoneId, ""]]
   MonitorAlternateTargetGroup: !Equals [!Ref MonitorEcsService, "true"]
@@ -598,20 +529,6 @@ Resources:
           SourceSecurityGroupId:
             Fn::ImportValue: !Sub ${AWS::AccountId}:${AWS::Region}:${Project}:${Application}:${LoadBalancerId}:${LoadBalancerName}:alb:sg
 
-  FileTransferCacheIngressFromService:
-    Condition: EnableFileTransferCache
-    Type: AWS::EC2::SecurityGroupIngress
-    Properties:
-      Description: !Sub >-
-        Allow ${Project}-${Application}-${Service} ECS tasks to connect to
-        managed file-transfer cache.
-      GroupId:
-        Fn::ImportValue: !Ref FileTransferCacheSecurityGroupExportName
-      IpProtocol: tcp
-      FromPort: 6379
-      ToPort: 6379
-      SourceSecurityGroupId: !Ref ContainerSecurityGroup
-
   DefaultLogGroup:
     Type: AWS::Logs::LogGroup
     UpdateReplacePolicy: Delete
@@ -619,31 +536,6 @@ Resources:
     Properties:
       LogGroupName: !Sub "${Project}-${Application}/${Service}/ecs"
       RetentionInDays: 30
-
-  EcsTaskExecutionSecretsPolicy:
-    Condition: EnableFileTransferCacheWithSecretArn
-    Type: AWS::IAM::Policy
-    Properties:
-      PolicyName: !Sub "${Project}-${Application}-${Service}-ecs-task-execution-secrets-${AWS::Region}"
-      PolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          - Effect: Allow
-            Action:
-              - secretsmanager:GetSecretValue
-            Resource:
-              - !Ref CacheRedisUrlSecretArn
-          - Effect: Allow
-            Action:
-              - kms:Decrypt
-            # KMS key ARNs are not known at template authoring time;
-            # ViaService limits usage to Secrets Manager.
-            Resource: "*"
-            Condition:
-              StringEquals:
-                kms:ViaService: !Sub "secretsmanager.${AWS::Region}.${AWS::URLSuffix}"
-      Roles:
-        - !Sub "${Project}-${Application}-${Service}-ecs-task-execution-${AWS::Region}"
 
   TaskDefinition:
     Type: AWS::ECS::TaskDefinition
@@ -680,30 +572,10 @@ Resources:
               Value: !Ref OidcClockSkewSeconds
             - Name: BLOCKING_IO_THREAD_TOKENS
               Value: !Ref BlockingIoThreadTokens
-            - Name: CACHE_REDIS_MAX_CONNECTIONS
-              Value: !Ref CacheRedisMaxConnections
-            - Name: CACHE_REDIS_SOCKET_TIMEOUT_SECONDS
-              Value: !Ref CacheRedisSocketTimeoutSeconds
-            - Name: CACHE_REDIS_SOCKET_CONNECT_TIMEOUT_SECONDS
-              Value: !Ref CacheRedisSocketConnectTimeoutSeconds
-            - Name: CACHE_REDIS_HEALTH_CHECK_INTERVAL_SECONDS
-              Value: !Ref CacheRedisHealthCheckIntervalSeconds
-            - Name: CACHE_REDIS_RETRY_BASE_SECONDS
-              Value: !Ref CacheRedisRetryBaseSeconds
-            - Name: CACHE_REDIS_RETRY_CAP_SECONDS
-              Value: !Ref CacheRedisRetryCapSeconds
-            - Name: CACHE_REDIS_RETRY_ATTEMPTS
-              Value: !Ref CacheRedisRetryAttempts
-            - Name: CACHE_REDIS_DECODE_RESPONSES
-              Value: !Ref CacheRedisDecodeResponses
-            - Name: CACHE_REDIS_PROTOCOL
-              Value: !Ref CacheRedisProtocol
             - Name: CACHE_LOCAL_TTL_SECONDS
               Value: !Ref CacheLocalTtlSeconds
             - Name: CACHE_LOCAL_MAX_ENTRIES
               Value: !Ref CacheLocalMaxEntries
-            - Name: CACHE_SHARED_TTL_SECONDS
-              Value: !Ref CacheSharedTtlSeconds
             - Name: CACHE_KEY_PREFIX
               Value: !Ref CacheKeyPrefix
             - Name: CACHE_KEY_SCHEMA_VERSION
@@ -714,6 +586,11 @@ Resources:
               Value: !Ref IdempotencyEnabled
             - Name: IDEMPOTENCY_TTL_SECONDS
               Value: !Ref IdempotencyTtlSeconds
+            - !If
+              - EnableIdempotency
+              - Name: IDEMPOTENCY_DYNAMODB_TABLE
+                Value: !Ref IdempotencyTableName
+              - !Ref AWS::NoValue
             - Name: FILE_TRANSFER_PRESIGN_UPLOAD_TTL_SECONDS
               Value: !Ref FileTransferPresignUploadTtlSeconds
             - Name: FILE_TRANSFER_PRESIGN_DOWNLOAD_TTL_SECONDS
@@ -773,13 +650,6 @@ Resources:
               - Name: FILE_TRANSFER_TMP_PREFIX
                 Value: !Ref FileTransferTmpPrefix
               - !Ref AWS::NoValue
-          Secrets:
-            - !If
-              - EnableFileTransferCache
-              - Name: CACHE_REDIS_URL
-                ValueFrom: !Ref CacheRedisUrlSecretArn
-              - !Ref AWS::NoValue
-
           LogConfiguration:
             LogDriver: awslogs
             Options:
@@ -980,6 +850,27 @@ Resources:
               - !Sub "${FileTransferJobsTableArn}/index/*"
               - !Ref FileTransferActivityTableArn
               - !Sub "${FileTransferActivityTableArn}/index/*"
+      Roles:
+        - !Ref ECSTaskRole
+
+  IdempotencyTaskPolicy:
+    Condition: EnableIdempotency
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: !Sub "${Project}-${Application}-${Service}-ecs-task-idempotency"
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: IdempotencyDynamoTable
+            Effect: Allow
+            Action:
+              - dynamodb:ConditionCheckItem
+              - dynamodb:DeleteItem
+              - dynamodb:GetItem
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+            Resource:
+              - !Ref FileTransferIdempotencyTableArn
       Roles:
         - !Ref ECSTaskRole
 

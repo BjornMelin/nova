@@ -32,7 +32,6 @@ from nova_file_api.routes import (
 _LOGGER = structlog.get_logger("nova_file_api.app")
 _RUNTIME_STATE_KEYS = (
     "metrics",
-    "shared_cache",
     "cache",
     "authenticator",
     "transfer_service",
@@ -50,15 +49,6 @@ async def _close_authenticator(*, app: FastAPI) -> None:
     )
     if callable(close_authenticator):
         await close_authenticator()
-
-
-async def _close_shared_cache(*, app: FastAPI) -> None:
-    """Close the app shared cache when it exposes an async close hook."""
-    close_shared_cache = getattr(
-        getattr(app.state, "shared_cache", None), "aclose", None
-    )
-    if callable(close_shared_cache):
-        await close_shared_cache()
 
 
 def _clear_runtime_state(*, app: FastAPI) -> None:
@@ -100,7 +90,8 @@ def create_app(*, settings: Settings | None = None) -> FastAPI:
                     }
                 )
                 requires_dynamodb = (
-                    runtime_settings.jobs_repository_backend
+                    runtime_settings.idempotency_enabled
+                    or runtime_settings.jobs_repository_backend
                     == JobsRepositoryBackend.DYNAMODB
                     or runtime_settings.activity_store_backend
                     == ActivityStoreBackend.DYNAMODB
@@ -155,10 +146,9 @@ def create_app(*, settings: Settings | None = None) -> FastAPI:
                         "runtime_state_authenticator_close_failed"
                     )
                 try:
-                    await _close_shared_cache(app=app)
+                    _clear_runtime_state(app=app)
                 except Exception:
-                    _LOGGER.exception("runtime_state_shared_cache_close_failed")
-                _clear_runtime_state(app=app)
+                    _LOGGER.exception("runtime_state_clear_failed")
 
     app = RequestContextFastAPI(
         title="nova-file-api",
