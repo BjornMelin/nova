@@ -78,13 +78,13 @@ def create_fastapi_router(
     """Create route-only FastAPI composition for file transfer endpoints."""
     if auth_policy.async_principal_resolver is None:
         raise TypeError(
-            "FastAPI integration requires auth_policy.async_principal_resolver"
+            "FastAPI integration requires auth_policy.async_principal_resolver "
+            "for async auth resolution"
         )
-    sync_factory = s3_client_factory or None
     if (
         async_s3_client_factory is None
-        and sync_factory is not None
-        and not callable(getattr(sync_factory, "create_async", None))
+        and s3_client_factory is not None
+        and not callable(getattr(s3_client_factory, "create_async", None))
     ):
         raise TypeError(
             "FastAPI integration requires async_s3_client_factory or "

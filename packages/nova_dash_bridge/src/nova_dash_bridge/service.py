@@ -391,6 +391,16 @@ class FileTransferService:
         s3_client_factory: SupportsCreateS3Client | None = None,
     ) -> None:
         """Build the explicit sync adapter for sync-only framework hosts."""
+        if s3_client_factory is not None and not callable(
+            getattr(s3_client_factory, "create_async", None)
+        ):
+            raise ValueError(
+                "FileTransferService uses AsyncFileTransferService and "
+                "requires an async-capable s3_client_factory with "
+                "create_async(). "
+                "Provide a factory compatible with AsyncFileTransferService "
+                "or use a true async client adapter."
+            )
         self._async_service = AsyncFileTransferService(
             env_config=env_config,
             upload_policy=upload_policy,

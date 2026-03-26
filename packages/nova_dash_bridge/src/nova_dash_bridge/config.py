@@ -180,8 +180,9 @@ class AuthPolicy:
             and self.async_principal_resolver is None
         ):
             raise TypeError(
-                "AuthPolicy requires principal_resolver or "
-                "async_principal_resolver"
+                "AuthPolicy requires principal_resolver for sync integrations "
+                "(Flask/Dash/FileTransferService) or async_principal_resolver "
+                "for async integrations"
             )
 
     def resolve_principal(
@@ -191,7 +192,11 @@ class AuthPolicy:
         """Resolve a trusted principal from the incoming bearer header."""
         resolver = self.principal_resolver
         if resolver is None:
-            raise TypeError("sync principal resolver is not configured")
+            raise TypeError(
+                "AuthPolicy requires principal_resolver for sync integrations "
+                "(Flask/Dash/FileTransferService); provide "
+                "principal_resolver or use an adapter"
+            )
         principal = resolver(authorization_header)
         return self._validated_principal(principal)
 

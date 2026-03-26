@@ -24,12 +24,22 @@ Canonical adapter endpoint alignment:
 Minimal usage:
 
 ```python
-from nova_dash_bridge import create_fastapi_router
+from nova_dash_bridge import AuthPolicy, create_fastapi_router
+
+
+class _AsyncS3Factory:
+    def create_async(self, _env):  # returns an async S3 client context manager
+        # replace with your async create_async() implementation
+        raise NotImplementedError
 
 router = create_fastapi_router(
     env_config=env_config,
     upload_policy=upload_policy,
-    auth_policy=auth_policy,
+    auth_policy=AuthPolicy(
+        async_principal_resolver=resolve_principal_async,  # async callable
+    ),
+    # FastAPI requires async callables
+    async_s3_client_factory=_AsyncS3Factory(),  # must expose create_async()
 )
 ```
 

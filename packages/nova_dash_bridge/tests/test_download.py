@@ -198,7 +198,41 @@ def test_download_closes_stream_when_content_length_exceeds_limit(
     assert body.read_calls == 0
 
 
-def test_download_supports_sync_only_s3_factory() -> None:
+def test_download_supports_sync_only_s3_factory_rejected() -> None:
+    with pytest.raises(
+        ValueError,
+        match=r"create_async\(\)",
+    ):
+        FileTransferService(
+            env_config=FileTransferEnvConfig.model_validate(
+                {
+                    "FILE_TRANSFER_ENABLED": True,
+                    "FILE_TRANSFER_BUCKET": "bucket-a",
+                }
+            ),
+            upload_policy=UploadPolicy(
+                max_upload_bytes=100,
+                allowed_extensions={".csv"},
+            ),
+            auth_policy=_auth_policy(),
+            s3_client_factory=cast(
+                "SupportsCreateS3Client",
+                _SyncOnlyS3Factory(
+                    client=cast(
+                        "S3Client",
+                        _FakeS3Client(
+                            response={
+                                "ContentLength": None,
+                                "Body": _FakeBody(),
+                            }
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+
+def test_download_supports_sync_client_factory() -> None:
     body = _FakeBody(chunks=[b"hello"])
     service = FileTransferService(
         env_config=FileTransferEnvConfig.model_validate(
@@ -214,7 +248,7 @@ def test_download_supports_sync_only_s3_factory() -> None:
         auth_policy=_auth_policy(),
         s3_client_factory=cast(
             "SupportsCreateS3Client",
-            _SyncOnlyS3Factory(
+            _FakeS3Factory(
                 client=cast(
                     "S3Client",
                     _FakeS3Client(

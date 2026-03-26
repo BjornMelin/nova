@@ -47,6 +47,12 @@ def _sync_only_auth_policy() -> AuthPolicy:
     )
 
 
+class _SyncOnlyS3Factory:
+    def create(self, _env: FileTransferEnvConfig) -> object:
+        del _env
+        return cast(Any, object())
+
+
 def test_create_fastapi_app_requires_auth_policy() -> None:
     app_factory = cast(Any, fastapi_integration.create_fastapi_app)
     with pytest.raises(TypeError, match="auth_policy"):
@@ -139,6 +145,28 @@ def test_create_fastapi_app_requires_async_auth_policy(
                 allowed_extensions={".csv"},
             ),
             auth_policy=_sync_only_auth_policy(),
+        )
+
+
+def test_create_fastapi_app_requires_async_s3_factory() -> None:
+    with pytest.raises(
+        TypeError,
+        match=r"requires async_s3_client_factory or s3_client_factory with "
+        r"create_async",
+    ):
+        fastapi_integration.create_fastapi_app(
+            env_config=FileTransferEnvConfig.model_validate(
+                {
+                    "FILE_TRANSFER_ENABLED": True,
+                    "FILE_TRANSFER_BUCKET": "bucket-a",
+                }
+            ),
+            upload_policy=UploadPolicy(
+                max_upload_bytes=100,
+                allowed_extensions={".csv"},
+            ),
+            auth_policy=_auth_policy(),
+            s3_client_factory=_SyncOnlyS3Factory(),
         )
 
 
