@@ -406,9 +406,15 @@ export interface components {
          * @description Request payload for export creation.
          */
         CreateExportRequest: {
-            /** Filename */
+            /**
+             * Filename
+             * @description Client-facing filename to preserve in the export.
+             */
             filename: string;
-            /** Source Key */
+            /**
+             * Source Key
+             * @description Storage key of the source object to export.
+             */
             source_key: string;
         };
         /**
@@ -447,9 +453,15 @@ export interface components {
          * @description Completed export output metadata.
          */
         ExportOutput: {
-            /** Download Filename */
+            /**
+             * Download Filename
+             * @description Filename presented to clients when downloading.
+             */
             download_filename: string;
-            /** Key */
+            /**
+             * Key
+             * @description Storage key for the exported object.
+             */
             key: string;
         };
         /**
@@ -912,6 +924,15 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorEnvelope"];
                 };
             };
+            /** @description Not Found - Export resource was not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
             /** @description Unprocessable Content - Request validation failed. */
             422: {
                 headers: {
@@ -954,6 +975,15 @@ export interface operations {
             };
             /** @description Forbidden - Caller lacks required scope or permission. */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Not Found - Export resource was not found. */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

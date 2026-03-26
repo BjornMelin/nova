@@ -1462,6 +1462,7 @@ def _render_r_tests(target: GenerationTarget) -> str:
         f'  expect_true("{operation_prefix}_create_export" %in% exports)',
         f'  expect_true("{operation_prefix}_get_export" %in% exports)',
         f'  expect_true("{operation_prefix}_list_exports" %in% exports)',
+        f'  expect_true("{operation_prefix}_cancel_export" %in% exports)',
         f'  expect_false("{operation_prefix}_request_descriptor" %in% exports)',
         f'  expect_false("{operation_prefix}_execute_operation" %in% exports)',
         "})",

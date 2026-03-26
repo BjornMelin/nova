@@ -241,6 +241,10 @@ def test_openapi_route_declared_error_contracts() -> None:
     payload = app.openapi()
 
     exports_post = payload["paths"]["/v1/exports"]["post"]["responses"]
+    assert exports_post["201"]["content"]["application/json"]["schema"] == {
+        "$ref": "#/components/schemas/ExportResource"
+    }
+    assert exports_post["201"]["description"] == "Successful Response"
     assert exports_post["409"]["content"]["application/json"]["schema"] == {
         "$ref": "#/components/schemas/ErrorEnvelope"
     }
@@ -260,6 +264,19 @@ def test_openapi_route_declared_error_contracts() -> None:
         "$ref": "#/components/schemas/ReadinessResponse"
     }
 
+    get_export_responses = payload["paths"]["/v1/exports/{export_id}"]["get"][
+        "responses"
+    ]
+    assert get_export_responses["404"]["content"]["application/json"][
+        "schema"
+    ] == {"$ref": "#/components/schemas/ErrorEnvelope"}
+    cancel_export_responses = payload["paths"][
+        "/v1/exports/{export_id}/cancel"
+    ]["post"]["responses"]
+    assert cancel_export_responses["404"]["content"]["application/json"][
+        "schema"
+    ] == {"$ref": "#/components/schemas/ErrorEnvelope"}
+
 
 def test_legacy_job_routes_are_not_exposed() -> None:
     """The OpenAPI schema should no longer contain generic job routes."""
@@ -270,3 +287,4 @@ def test_legacy_job_routes_are_not_exposed() -> None:
     assert "/v1/jobs/{job_id}" not in paths
     assert "/v1/jobs/{job_id}/retry" not in paths
     assert "/v1/jobs/{job_id}/events" not in paths
+    assert "/v1/jobs/{job_id}/cancel" not in paths

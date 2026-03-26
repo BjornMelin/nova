@@ -22,6 +22,7 @@ from nova_file_api.idempotency import IdempotencyStore
 from nova_file_api.metrics import MetricsCollector
 from nova_file_api.models import (
     CreateExportRequest,
+    ErrorEnvelope,
     ExportListResponse,
     ExportResource,
     Principal,
@@ -95,6 +96,12 @@ async def create_export(
     "/exports/{export_id}",
     operation_id=GET_EXPORT_OPERATION_ID,
     response_model=ExportResource,
+    responses={
+        404: {
+            "model": ErrorEnvelope,
+            "description": "Not Found - Export resource was not found.",
+        }
+    },
 )
 async def get_export(
     export_id: str,
@@ -161,6 +168,12 @@ async def list_exports(
     "/exports/{export_id}/cancel",
     operation_id=CANCEL_EXPORT_OPERATION_ID,
     response_model=ExportResource,
+    responses={
+        404: {
+            "model": ErrorEnvelope,
+            "description": "Not Found - Export resource was not found.",
+        }
+    },
 )
 async def cancel_export(
     export_id: str,
@@ -321,22 +334,23 @@ async def _record_export_failure(
     extra: dict[str, object] | None = None,
 ) -> None:
     """Record canonical metrics, logs, and activity for export failures."""
-    metrics.incr(metric_name)
-    emit_request_metric(metrics=metrics, route=route_metric, status="error")
-    log_fields: dict[str, object] = {
-        "route": route_path,
-        "scope_id": principal.scope_id,
-        "error": type(exc).__name__,
-        "error_detail": str(exc),
-    }
-    if extra:
-        log_fields.update(extra)
-    structlog.get_logger("api").exception(log_event, **log_fields)
     try:
+        error_name = type(exc).__name__
+        metrics.incr(metric_name)
+        emit_request_metric(metrics=metrics, route=route_metric, status="error")
+        log_fields: dict[str, object] = {
+            "route": route_path,
+            "scope_id": principal.scope_id,
+            "error": error_name,
+            "error_detail": error_name,
+        }
+        if extra:
+            log_fields.update(extra)
+        structlog.get_logger("api").exception(log_event, **log_fields)
         await activity_store.record(
             principal=principal,
             event_type=activity_event_type,
-            details=activity_details or str(exc),
+            details=activity_details or error_name,
         )
     except Exception:
         structlog.get_logger("api").exception(

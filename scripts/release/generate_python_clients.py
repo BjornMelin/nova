@@ -397,6 +397,152 @@ def _repair_generated_python_package(root: Path, package_name: str) -> None:
         )
 
     _rewrite_file(
+        "models/create_export_request.py",
+        pattern=(
+            r'^(?:"""Create-export request model for the public '
+            r'Python SDK\."""\n\n)+'
+            r"from __future__ import annotations\n\n"
+        ),
+        replacement=(
+            '"""Create-export request model for the public Python SDK."""\n\n'
+            "from __future__ import annotations\n\n"
+        ),
+        flags=re.MULTILINE,
+    )
+    _rewrite_file(
+        "models/create_export_request.py",
+        pattern=r"\Afrom __future__ import annotations\n\n",
+        replacement=(
+            '"""Create-export request model for the public Python SDK."""\n\n'
+            "from __future__ import annotations\n\n"
+        ),
+    )
+    _rewrite_file(
+        "models/create_export_request.py",
+        pattern=(
+            r"class CreateExportRequest:\n"
+            r'    """Request payload for export creation\.\n\n'
+            r"    Attributes:\n"
+            r"        filename \(str\):\n"
+            r"        source_key \(str\):\n"
+            r'    """\n'
+        ),
+        replacement=(
+            "class CreateExportRequest:\n"
+            '    """Request payload for creating an export.\n\n'
+            "    Attributes:\n"
+            "        filename (str): Client-facing filename to preserve in the "
+            "export.\n"
+            "        source_key (str): Storage key of the source object to "
+            "export.\n"
+            '    """\n'
+        ),
+        flags=re.MULTILINE,
+    )
+    _rewrite_file(
+        "models/create_export_request.py",
+        pattern=(
+            r"    def to_dict\(self\) -> dict\[str, Any\]:\n"
+            r"        filename = self\.filename\n"
+        ),
+        replacement=(
+            "    def to_dict(self) -> dict[str, Any]:\n"
+            '        """Serialize the request payload to a JSON-compatible '
+            'mapping."""\n'
+            "        filename = self.filename\n"
+        ),
+        flags=re.MULTILINE,
+    )
+    _rewrite_file(
+        "models/create_export_request.py",
+        pattern=(
+            r"    def from_dict\(cls: type\[T\], "
+            r"src_dict: Mapping\[str, Any\]\) -> T:\n"
+            r"        d = dict\(src_dict\)\n"
+        ),
+        replacement=(
+            "    def from_dict(cls: type[T], src_dict: Mapping[str, "
+            "Any]) -> T:\n"
+            '        """Deserialize the request payload from a '
+            'JSON-compatible mapping."""\n'
+            "        d = dict(src_dict)\n"
+        ),
+        flags=re.MULTILINE,
+    )
+    _rewrite_file(
+        "models/export_output.py",
+        pattern=(
+            r'^(?:"""Export-output metadata model for the public '
+            r'Python SDK\."""\n\n)+'
+            r"from __future__ import annotations\n\n"
+        ),
+        replacement=(
+            '"""Export-output metadata model for the public Python SDK."""\n\n'
+            "from __future__ import annotations\n\n"
+        ),
+        flags=re.MULTILINE,
+    )
+    _rewrite_file(
+        "models/export_output.py",
+        pattern=r"\Afrom __future__ import annotations\n\n",
+        replacement=(
+            '"""Export-output metadata model for the public Python SDK."""\n\n'
+            "from __future__ import annotations\n\n"
+        ),
+    )
+    _rewrite_file(
+        "models/export_output.py",
+        pattern=(
+            r"class ExportOutput:\n"
+            r'    """Completed export output metadata\.\n\n'
+            r"    Attributes:\n"
+            r"        download_filename \(str\):\n"
+            r"        key \(str\):\n"
+            r'    """\n'
+        ),
+        replacement=(
+            "class ExportOutput:\n"
+            '    """Completed export output metadata.\n\n'
+            "    Attributes:\n"
+            "        download_filename (str): Filename presented to clients "
+            "when downloading.\n"
+            "        key (str): Storage key for the exported object.\n"
+            '    """\n'
+        ),
+        flags=re.MULTILINE,
+    )
+    _rewrite_file(
+        "models/export_output.py",
+        pattern=(
+            r"    def to_dict\(self\) -> dict\[str, Any\]:\n"
+            r"        download_filename = self\.download_filename\n"
+        ),
+        replacement=(
+            "    def to_dict(self) -> dict[str, Any]:\n"
+            '        """Serialize the export output to a JSON-compatible '
+            'mapping."""\n'
+            "        download_filename = self.download_filename\n"
+        ),
+        flags=re.MULTILINE,
+    )
+    _rewrite_file(
+        "models/export_output.py",
+        pattern=(
+            r"    def from_dict\(cls: type\[T\], "
+            r"src_dict: Mapping\[str, Any\]\) -> T:\n"
+            r"        d = dict\(src_dict\)\n"
+        ),
+        replacement=(
+            "    def from_dict(cls: type[T], src_dict: Mapping[str, "
+            "Any]) -> T:\n"
+            '        """Deserialize the export output from a '
+            'JSON-compatible mapping."""\n'
+            "        d = dict(src_dict)\n"
+        ),
+        flags=re.MULTILINE,
+    )
+
+    _rewrite_file(
         "models/metrics_summary_response_activity.py",
         pattern=(
             r"        metrics_summary_response_activity = cls\(\)\n"

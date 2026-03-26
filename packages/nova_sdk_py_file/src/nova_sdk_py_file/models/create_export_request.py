@@ -1,3 +1,5 @@
+"""Create-export request model for the public Python SDK."""
+
 from __future__ import annotations
 
 from collections.abc import Mapping
@@ -13,14 +15,15 @@ class CreateExportRequest:
     """Request payload for export creation.
 
     Attributes:
-        filename (str):
-        source_key (str):
+        filename (str): Client-facing filename to preserve in the export.
+        source_key (str): Storage key of the source object to export.
     """
 
     filename: str
     source_key: str
 
     def to_dict(self) -> dict[str, Any]:
+        """Serialize the request payload to a JSON-compatible mapping."""
         filename = self.filename
 
         source_key = self.source_key
@@ -38,6 +41,7 @@ class CreateExportRequest:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
+        """Deserialize the request payload from a JSON-compatible mapping."""
         d = dict(src_dict)
         filename = d.pop("filename")
 

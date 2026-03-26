@@ -187,12 +187,14 @@
         "description": "Request payload for export creation.",
         "properties": {
           "filename": {
+            "description": "Client-facing filename to preserve in the export.",
             "maxLength": 512,
             "minLength": 1,
             "title": "Filename",
             "type": "string"
           },
           "source_key": {
+            "description": "Storage key of the source object to export.",
             "maxLength": 2048,
             "minLength": 1,
             "title": "Source Key",
@@ -282,12 +284,14 @@
         "description": "Completed export output metadata.",
         "properties": {
           "download_filename": {
+            "description": "Filename presented to clients when downloading.",
             "maxLength": 512,
             "minLength": 1,
             "title": "Download Filename",
             "type": "string"
           },
           "key": {
+            "description": "Storage key for the exported object.",
             "maxLength": 2048,
             "minLength": 1,
             "title": "Key",
@@ -1192,6 +1196,16 @@
             },
             "description": "Forbidden - Caller lacks required scope or permission."
           },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found - Export resource was not found."
+          },
           "422": {
             "content": {
               "application/json": {
@@ -1259,6 +1273,16 @@
               }
             },
             "description": "Forbidden - Caller lacks required scope or permission."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found - Export resource was not found."
           },
           "422": {
             "content": {

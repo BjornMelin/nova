@@ -84,6 +84,7 @@ async def _build_worker_runtime(
     export_id: str = "export-1",
     status: ExportStatus = ExportStatus.QUEUED,
     output: ExportOutput | None = None,
+    error: str | None = None,
 ) -> tuple[MemoryExportRepository, ExportService, MemoryActivityStore]:
     repository = MemoryExportRepository()
     metrics = MetricsCollector(namespace="Tests")
@@ -102,7 +103,7 @@ async def _build_worker_runtime(
             filename="source.csv",
             status=status,
             output=output,
-            error=None,
+            error=error,
             created_at=now,
             updated_at=now,
         )
@@ -244,7 +245,8 @@ async def test_worker_invalid_message_is_not_deleted() -> None:
 async def test_worker_executes_export_and_marks_success() -> None:
     transfer_service = _FakeTransferService()
     repository, export_service, activity_store = await _build_worker_runtime(
-        export_id="export-2"
+        export_id="export-2",
+        error="previous error",
     )
     worker = _build_worker(transfer_service=transfer_service)
     await _attach_runtime(
@@ -267,6 +269,7 @@ async def test_worker_executes_export_and_marks_success() -> None:
     assert record is not None
     assert record.status == ExportStatus.SUCCEEDED
     assert record.output is not None
+    assert record.error is None
     assert record.output.key.endswith("/export-2/source.csv")
     assert transfer_service.calls[0]["export_id"] == "export-2"
 
@@ -308,6 +311,7 @@ async def test_worker_resumes_from_copying_state_after_retry() -> None:
     repository, export_service, activity_store = await _build_worker_runtime(
         export_id="export-5",
         status=ExportStatus.COPYING,
+        error="previous error",
     )
     worker = _build_worker(transfer_service=transfer_service)
     await _attach_runtime(
@@ -330,6 +334,7 @@ async def test_worker_resumes_from_copying_state_after_retry() -> None:
     assert record is not None
     assert record.status == ExportStatus.SUCCEEDED
     assert record.output is not None
+    assert record.error is None
     assert transfer_service.calls[0]["export_id"] == "export-5"
 
 

@@ -24,13 +24,15 @@ if (requireFileSdk && (!fileOperations || !createFileClient)) {
   throw new Error("@nova/sdk-file smoke import did not load expected entrypoints");
 }
 
-if (
-  fileOperations &&
-  fileOperations.get_export.path !== "/v1/exports/{export_id}"
-) {
-  throw new Error(
-    `unexpected export path: ${fileOperations.get_export.path}`,
-  );
+if (fileOperations) {
+  if (!fileOperations.get_export) {
+    throw new Error("missing expected operation: get_export");
+  }
+  if (fileOperations.get_export.path !== "/v1/exports/{export_id}") {
+    throw new Error(
+      `unexpected export path: ${fileOperations.get_export.path}`,
+    );
+  }
 }
 
 if ("update_job_result" in (fileOperations ?? {})) {

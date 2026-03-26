@@ -20,6 +20,8 @@
       "create_request": "fixtures/exports/create.request.json",
       "create_success": "fixtures/exports/create.success.json",
       "get_success": "fixtures/exports/get.success.json",
+      "list_success": "fixtures/exports/list.success.json",
+      "cancel_success": "fixtures/exports/cancel.success.json",
       "create_503_queue_unavailable": "fixtures/exports/create.503.queue-unavailable.json"
     },
     "v1api": {

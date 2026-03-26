@@ -288,6 +288,7 @@ async def test_runtime_app_lifespan_clears_runtime_state_for_reentry(
         assert not bool(first_authenticator.closed)
 
     assert bool(first_authenticator.closed)
+    assert first_shared_cache.available is False
     assert getattr(app.state, "shared_cache", None) is None
     assert getattr(app.state, "cache", None) is None
     assert getattr(app.state, "idempotency_store", None) is None

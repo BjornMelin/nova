@@ -24,6 +24,7 @@ test_that("generated package exports thin endpoint wrappers", {
   expect_true("nova_file_create_export" %in% exports)
   expect_true("nova_file_get_export" %in% exports)
   expect_true("nova_file_list_exports" %in% exports)
+  expect_true("nova_file_cancel_export" %in% exports)
   expect_false("nova_file_request_descriptor" %in% exports)
   expect_false("nova_file_execute_operation" %in% exports)
 })

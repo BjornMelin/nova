@@ -11,6 +11,7 @@ from nova_file_api.models import (
     CapabilitiesResponse,
     CreateExportRequest,
     ErrorEnvelope,
+    ExportListResponse,
     ExportResource,
     InitiateUploadRequest,
     InitiateUploadResponse,
@@ -82,6 +83,8 @@ def validate_lane(lane: str) -> None:
     CreateExportRequest.model_validate(_read_json(exports["create_request"]))
     ExportResource.model_validate(_read_json(exports["create_success"]))
     ExportResource.model_validate(_read_json(exports["get_success"]))
+    ExportListResponse.model_validate(_read_json(exports["list_success"]))
+    ExportResource.model_validate(_read_json(exports["cancel_success"]))
     ErrorEnvelope.model_validate(
         _read_json(exports["create_503_queue_unavailable"])
     )

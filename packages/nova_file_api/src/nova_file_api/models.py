@@ -217,8 +217,16 @@ class CreateExportRequest(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    source_key: str = Field(min_length=1, max_length=2048)
-    filename: str = Field(min_length=1, max_length=512)
+    source_key: str = Field(
+        min_length=1,
+        max_length=2048,
+        description="Storage key of the source object to export.",
+    )
+    filename: str = Field(
+        min_length=1,
+        max_length=512,
+        description="Client-facing filename to preserve in the export.",
+    )
 
 
 class ExportStatus(StrEnum):
@@ -238,8 +246,16 @@ class ExportOutput(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    key: str = Field(min_length=1, max_length=2048)
-    download_filename: str = Field(min_length=1, max_length=512)
+    key: str = Field(
+        min_length=1,
+        max_length=2048,
+        description="Storage key for the exported object.",
+    )
+    download_filename: str = Field(
+        min_length=1,
+        max_length=512,
+        description="Filename presented to clients when downloading.",
+    )
 
 
 class ExportRecord(BaseModel):

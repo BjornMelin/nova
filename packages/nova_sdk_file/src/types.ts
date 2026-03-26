@@ -203,6 +203,7 @@ export type GetExportErrorData = ErrorDataOf<GetExportResponses>;
 export type GetExportResponse200 = ResponseBodyOf<GetExportResponses[200]>;
 export type GetExportResponse401 = ResponseBodyOf<GetExportResponses[401]>;
 export type GetExportResponse403 = ResponseBodyOf<GetExportResponses[403]>;
+export type GetExportResponse404 = ResponseBodyOf<GetExportResponses[404]>;
 export type GetExportResponse422 = ResponseBodyOf<GetExportResponses[422]>;
 
 type CancelExportSpec = OperationOf<"cancel_export">;
@@ -221,6 +222,7 @@ export type CancelExportErrorData = ErrorDataOf<CancelExportResponses>;
 export type CancelExportResponse200 = ResponseBodyOf<CancelExportResponses[200]>;
 export type CancelExportResponse401 = ResponseBodyOf<CancelExportResponses[401]>;
 export type CancelExportResponse403 = ResponseBodyOf<CancelExportResponses[403]>;
+export type CancelExportResponse404 = ResponseBodyOf<CancelExportResponses[404]>;
 export type CancelExportResponse422 = ResponseBodyOf<CancelExportResponses[422]>;
 
 type HealthLiveSpec = OperationOf<"health_live">;

@@ -1,3 +1,5 @@
+"""Export-output metadata model for the public Python SDK."""
+
 from __future__ import annotations
 
 from collections.abc import Mapping
@@ -13,14 +15,15 @@ class ExportOutput:
     """Completed export output metadata.
 
     Attributes:
-        download_filename (str):
-        key (str):
+        download_filename (str): Filename presented to clients when downloading.
+        key (str): Storage key for the exported object.
     """
 
     download_filename: str
     key: str
 
     def to_dict(self) -> dict[str, Any]:
+        """Serialize the export output to a JSON-compatible mapping."""
         download_filename = self.download_filename
 
         key = self.key
@@ -38,6 +41,7 @@ class ExportOutput:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
+        """Deserialize the export output from a JSON-compatible mapping."""
         d = dict(src_dict)
         download_filename = d.pop("download_filename")
 

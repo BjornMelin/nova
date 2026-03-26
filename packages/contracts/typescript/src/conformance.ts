@@ -27,6 +27,8 @@ interface Manifest {
       create_request: string;
       create_success: string;
       get_success: string;
+      list_success: string;
+      cancel_success: string;
       create_503_queue_unavailable: string;
     };
     v1api: {
@@ -106,7 +108,7 @@ function createFixtureFetch(
   routes: Record<string, MockResponseFixture>,
 ): (input: Request) => Promise<Response> {
   return async (input) => {
-    const fixture = routes[input.url];
+    const fixture = routes[`${input.method} ${input.url}`] ?? routes[input.url];
     assert(Boolean(fixture), `unexpected request URL: ${input.url}`);
     await fixture.assertRequest?.(input);
     return new Response(JSON.stringify(fixture.body), {
@@ -131,11 +133,17 @@ async function main(): Promise<void> {
   const createExportSuccessFixture = readJson<unknown>(
     manifest.fixtures.exports.create_success,
   );
+  const cancelExportSuccessFixture = readJson<unknown>(
+    manifest.fixtures.exports.cancel_success,
+  );
   const queueUnavailableFixture = readJson<unknown>(
     manifest.fixtures.exports.create_503_queue_unavailable,
   );
   const getExportSuccessFixture = readJson<unknown>(
     manifest.fixtures.exports.get_success,
+  );
+  const listExportSuccessFixture = readJson<unknown>(
+    manifest.fixtures.exports.list_success,
   );
   const capabilitiesFixture = readJson<unknown>(
     manifest.fixtures.v1api.capabilities_success,
@@ -153,6 +161,9 @@ async function main(): Promise<void> {
   const fileBaseUrl = "https://file.nova.example/";
   const getExportUrl = "https://file.nova.example/v1/exports/export-123";
   const createExportUrl = "https://file.nova.example/v1/exports";
+  const listExportUrl = "https://file.nova.example/v1/exports";
+  const cancelExportUrl =
+    "https://file.nova.example/v1/exports/export-123/cancel";
   const initiateUploadUrl =
     "https://file.nova.example/v1/transfers/uploads/initiate";
   const capabilitiesUrl = "https://file.nova.example/v1/capabilities";
@@ -166,6 +177,14 @@ async function main(): Promise<void> {
   assert(
     fileOperations.create_export.method === "POST",
     "create_export method must remain canonical",
+  );
+  assert(
+    fileOperations.list_exports.path === "/v1/exports",
+    "list_exports path must remain canonical",
+  );
+  assert(
+    fileOperations.cancel_export.path === "/v1/exports/{export_id}/cancel",
+    "cancel_export path must remain canonical",
   );
 
   const middleware: NovaFileClientMiddleware = {
@@ -195,7 +214,7 @@ async function main(): Promise<void> {
           );
         },
       },
-      [createExportUrl]: {
+      [`POST ${createExportUrl}`]: {
         status: 201,
         body: createExportSuccessFixture,
         assertRequest: async (request) => {
@@ -209,6 +228,20 @@ async function main(): Promise<void> {
             (await requestBodyText(request)) === JSON.stringify(createExportRequestFixture),
             "create_export must send JSON request body",
           );
+        },
+      },
+      [`GET ${listExportUrl}`]: {
+        status: 200,
+        body: listExportSuccessFixture,
+        assertRequest: (request) => {
+          assert(request.method === "GET", "list_exports must use GET");
+        },
+      },
+      [`POST ${cancelExportUrl}`]: {
+        status: 200,
+        body: cancelExportSuccessFixture,
+        assertRequest: (request) => {
+          assert(request.method === "POST", "cancel_export must use POST");
         },
       },
       [initiateUploadUrl]: {
@@ -275,6 +308,21 @@ async function main(): Promise<void> {
     body: createExportRequestFixture,
   });
   assertFileOkResponse("create_export", createExportResult);
+
+  const listExportResult = await fileClient.GET(fileOperations.list_exports.path);
+  assertFileOkResponse("list_exports", listExportResult);
+  assert(
+    Array.isArray(asRecord(listExportResult.data).exports),
+    "list_exports must return an exports array",
+  );
+
+  const cancelExportResult = await fileClient.POST(
+    fileOperations.cancel_export.path,
+    {
+      params: { path: { export_id: "export-123" } },
+    },
+  );
+  assertFileOkResponse("cancel_export", cancelExportResult);
 
   const initiateResult = await fileClient.POST(fileOperations.initiate_upload.path, {
     body: transferRequestFixture,
