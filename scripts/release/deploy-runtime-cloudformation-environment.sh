@@ -10,7 +10,6 @@ set -euo pipefail
 # - RUNTIME_COST_MODE is required and selects standard, saver, or paused posture
 # - AssignPublicIp=DISABLED
 # - FileTransferAsyncEnabled=true
-# - FileTransferCacheEnabled=true
 # - ECS service stack owns the task role and cache-secret wiring
 
 require_cmd() {
@@ -317,14 +316,6 @@ ensure_runtime_env_json_contract() {
     exit 1
   fi
 
-  local effective_idempotency_enabled="true"
-  if json_field_present "IDEMPOTENCY_ENABLED"; then
-    effective_idempotency_enabled="$(json_field_value "IDEMPOTENCY_ENABLED")"
-  fi
-  if [ "$effective_idempotency_enabled" = "true" ] && [ "$FILE_TRANSFER_CACHE_ENABLED" != "true" ]; then
-    echo "IDEMPOTENCY_ENABLED=true requires FILE_TRANSFER_CACHE_ENABLED=true so CACHE_REDIS_URL is injected into the runtime task." >&2
-    exit 1
-  fi
 }
 
 resolve_ecs_infrastructure_role() {
@@ -397,7 +388,6 @@ ASSIGN_PUBLIC_IP="${ASSIGN_PUBLIC_IP:-DISABLED}"
 API_RUNTIME_PROFILE="${API_RUNTIME_PROFILE:-standard}"
 API_LISTENER_RULE_PRIORITY="${API_LISTENER_RULE_PRIORITY:-100}"
 FILE_TRANSFER_ASYNC_ENABLED="${FILE_TRANSFER_ASYNC_ENABLED:-true}"
-FILE_TRANSFER_CACHE_ENABLED="${FILE_TRANSFER_CACHE_ENABLED:-true}"
 WORKER_DESIRED_COUNT="${WORKER_DESIRED_COUNT:-1}"
 WORKER_MIN_TASK_COUNT="${WORKER_MIN_TASK_COUNT:-1}"
 WORKER_MAX_TASK_COUNT="${WORKER_MAX_TASK_COUNT:-20}"
@@ -419,6 +409,7 @@ JOBS_QUEUE_NAME="${JOBS_QUEUE_NAME:-${PROJECT:-}-${APPLICATION:-}-${SERVICE_NAME
 JOBS_DEAD_LETTER_QUEUE_NAME="${JOBS_DEAD_LETTER_QUEUE_NAME:-${PROJECT:-}-${APPLICATION:-}-${SERVICE_NAME:-}-${ENVIRONMENT:-}-jobs-dlq}"
 JOBS_TABLE_NAME="${JOBS_TABLE_NAME:-${PROJECT:-}-${APPLICATION:-}-${SERVICE_NAME:-}-${ENVIRONMENT:-}-jobs}"
 ACTIVITY_TABLE_NAME="${ACTIVITY_TABLE_NAME:-${PROJECT:-}-${APPLICATION:-}-${SERVICE_NAME:-}-${ENVIRONMENT:-}-activity}"
+IDEMPOTENCY_TABLE_NAME="${IDEMPOTENCY_TABLE_NAME:-${PROJECT:-}-${APPLICATION:-}-${SERVICE_NAME:-}-${ENVIRONMENT:-}-idempotency}"
 JOBS_SQS_VISIBILITY_TIMEOUT_SECONDS="${JOBS_SQS_VISIBILITY_TIMEOUT_SECONDS:-120}"
 if ! [[ "$JOBS_SQS_VISIBILITY_TIMEOUT_SECONDS" =~ ^[0-9]+$ ]]; then
   echo "Error: JOBS_SQS_VISIBILITY_TIMEOUT_SECONDS must be a whole number" >&2
@@ -430,8 +421,6 @@ if [ "$JOBS_SQS_VISIBILITY_TIMEOUT_SECONDS" -lt 1 ] || [ "$JOBS_SQS_VISIBILITY_T
 fi
 JOBS_MESSAGE_RETENTION_SECONDS="${JOBS_MESSAGE_RETENTION_SECONDS:-345600}"
 JOBS_MAX_RECEIVE_COUNT="${JOBS_MAX_RECEIVE_COUNT:-5}"
-FILE_TRANSFER_CACHE_CLUSTER_NAME="${FILE_TRANSFER_CACHE_CLUSTER_NAME:-${PROJECT:-}-${APPLICATION:-}-${SERVICE_NAME:-}-${ENVIRONMENT:-}}"
-FILE_TRANSFER_CACHE_URL_SECRET_NAME="${FILE_TRANSFER_CACHE_URL_SECRET_NAME:-/${PROJECT:-}/${APPLICATION:-}/${SERVICE_NAME:-}/${ENVIRONMENT:-}/file-transfer-cache}"
 
 require_env AWS_ACCOUNT_ID
 require_env PROJECT
@@ -538,7 +527,6 @@ ECR_STACK_NAME="${PROJECT}-${APPLICATION}-${ENVIRONMENT}-runtime-ecr"
 CLUSTER_STACK_NAME="${PROJECT}-${APPLICATION}-${ENVIRONMENT}-runtime-cluster"
 BUCKET_STACK_NAME="${PROJECT}-${APPLICATION}-${ENVIRONMENT}-runtime-file-transfer"
 ASYNC_STACK_NAME="${PROJECT}-${APPLICATION}-${ENVIRONMENT}-runtime-async"
-CACHE_STACK_NAME="${PROJECT}-${APPLICATION}-${ENVIRONMENT}-runtime-cache"
 SERVICE_STACK_NAME="${PROJECT}-${APPLICATION}-${ENVIRONMENT}-runtime-service"
 WORKER_STACK_NAME="${PROJECT}-${APPLICATION}-${ENVIRONMENT}-runtime-worker"
 OBSERVABILITY_STACK_NAME="${PROJECT}-${APPLICATION}-${ENVIRONMENT}-runtime-observability"
@@ -547,7 +535,6 @@ BASE_URL_STACK_NAME="${CONTROL_PLANE_PROJECT}-${CONTROL_PLANE_APPLICATION}-${ENV
 
 KMS_KEY_ID_EXPORT="${AWS_ACCOUNT_ID}:${AWS_REGION}:${PROJECT}:KmsKeyId"
 KMS_KEY_ARN_EXPORT="${AWS_ACCOUNT_ID}:${AWS_REGION}:${PROJECT}:KmsKeyArn"
-CACHE_SG_EXPORT_NAME="${PROJECT}:${APPLICATION}:${SERVICE_NAME}:${ENVIRONMENT}:file-transfer-cache:sg-id"
 
 echo "==> Deploy runtime foundations"
 deploy_stack \
@@ -618,26 +605,11 @@ if [ "$FILE_TRANSFER_ASYNC_ENABLED" = "true" ]; then
     "JobsDeadLetterQueueName=${JOBS_DEAD_LETTER_QUEUE_NAME}" \
     "JobsTableName=${JOBS_TABLE_NAME}" \
     "ActivityTableName=${ACTIVITY_TABLE_NAME}" \
+    "IdempotencyTableName=${IDEMPOTENCY_TABLE_NAME}" \
     "JobsVisibilityTimeoutSeconds=${JOBS_SQS_VISIBILITY_TIMEOUT_SECONDS}" \
     "JobsMessageRetentionSeconds=${JOBS_MESSAGE_RETENTION_SECONDS}" \
     "JobsMaxReceiveCount=${JOBS_MAX_RECEIVE_COUNT}" \
     "AlarmNotificationTopicArn=${ALARM_ACTION_ARN}"
-fi
-
-if [ "$FILE_TRANSFER_CACHE_ENABLED" = "true" ]; then
-  KMS_KEY_ARN="$(stack_output "$KMS_STACK_NAME" KmsKeyArn)"
-  deploy_stack \
-    "$CACHE_STACK_NAME" \
-    "infra/runtime/file_transfer/cache.yml" \
-    "Project=${PROJECT}" \
-    "Application=${APPLICATION}" \
-    "Service=${SERVICE_NAME}" \
-    "Environment=${ENVIRONMENT}" \
-    "VpcId=${VPC_ID}" \
-    "SubnetList=${SUBNET_IDS}" \
-    "CacheClusterName=${FILE_TRANSFER_CACHE_CLUSTER_NAME}" \
-    "CacheUrlSecretName=${FILE_TRANSFER_CACHE_URL_SECRET_NAME}" \
-    "CacheSecretsKmsKeyArn=${KMS_KEY_ARN}"
 fi
 
 JOBS_QUEUE_ARN=""
@@ -646,6 +618,8 @@ JOBS_TABLE_NAME=""
 JOBS_TABLE_ARN=""
 ACTIVITY_TABLE_NAME=""
 ACTIVITY_TABLE_ARN=""
+IDEMPOTENCY_TABLE_NAME=""
+IDEMPOTENCY_TABLE_ARN=""
 if [ "$FILE_TRANSFER_ASYNC_ENABLED" = "true" ]; then
   JOBS_QUEUE_ARN="$(stack_output "$ASYNC_STACK_NAME" JobsQueueArn)"
   JOBS_QUEUE_URL="$(stack_output "$ASYNC_STACK_NAME" JobsQueueUrl)"
@@ -653,11 +627,8 @@ if [ "$FILE_TRANSFER_ASYNC_ENABLED" = "true" ]; then
   JOBS_TABLE_ARN="$(stack_output "$ASYNC_STACK_NAME" JobsTableArn)"
   ACTIVITY_TABLE_NAME="$(stack_output "$ASYNC_STACK_NAME" ActivityTableName)"
   ACTIVITY_TABLE_ARN="$(stack_output "$ASYNC_STACK_NAME" ActivityTableArn)"
-fi
-
-CACHE_URL_SECRET_ARN=""
-if [ "$FILE_TRANSFER_CACHE_ENABLED" = "true" ]; then
-  CACHE_URL_SECRET_ARN="$(stack_output "$CACHE_STACK_NAME" CacheUrlSecretArn)"
+  IDEMPOTENCY_TABLE_NAME="$(stack_output "$ASYNC_STACK_NAME" IdempotencyTableName)"
+  IDEMPOTENCY_TABLE_ARN="$(stack_output "$ASYNC_STACK_NAME" IdempotencyTableArn)"
 fi
 
 TEST_TRAFFIC_LISTENER_ARN=""
@@ -698,12 +669,11 @@ service_args=(
   "FileTransferJobsQueueArn=${JOBS_QUEUE_ARN}"
   "FileTransferJobsTableArn=${JOBS_TABLE_ARN}"
   "FileTransferActivityTableArn=${ACTIVITY_TABLE_ARN}"
-  "FileTransferCacheEnabled=${FILE_TRANSFER_CACHE_ENABLED}"
-  "FileTransferCacheSecurityGroupExportName=${CACHE_SG_EXPORT_NAME}"
+  "FileTransferIdempotencyTableArn=${IDEMPOTENCY_TABLE_ARN}"
   "JobsQueueUrl=${JOBS_QUEUE_URL}"
   "JobsTableName=${JOBS_TABLE_NAME}"
   "ActivityTableName=${ACTIVITY_TABLE_NAME}"
-  "CacheRedisUrlSecretArn=${CACHE_URL_SECRET_ARN}"
+  "IdempotencyTableName=${IDEMPOTENCY_TABLE_NAME}"
 )
 
 while IFS=$'\t' read -r json_field parameter_name; do

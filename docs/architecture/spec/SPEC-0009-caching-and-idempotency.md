@@ -5,49 +5,47 @@ Status: Active
 Version: 1.3
 Date: 2026-03-16
 Related:
-  - "[ADR-0007: Two-tier cache and idempotency store](../adr/ADR-0007-two-tier-cache-and-idempotency-store.md)"
+  - "[ADR-0036: DynamoDB idempotency and transient state, no Redis](../adr/ADR-0036-dynamodb-idempotency-no-redis.md)"
   - "[SPEC-0006: JWT/OIDC verification and principal mapping](./SPEC-0006-jwt-oidc-verification-and-principal-mapping.md)"
   - "[SPEC-0000: HTTP API contract](./SPEC-0000-http-api-contract.md)"
 References:
-  - "[ElastiCache best practices](https://docs.aws.amazon.com/AmazonElastiCache/latest/dg/BestPractices.html)"
-  - "[redis-py asyncio examples](https://redis.readthedocs.io/en/stable/examples/asyncio_examples.html)"
-  - "[redis-py retry helpers](https://redis.readthedocs.io/en/stable/retry.html)"
+  - "[Using time to live (TTL) in DynamoDB](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/TTL.html)"
+  - "[Working with expired items and time to live (TTL)](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ttl-expired-items.html)"
 ---
 
-## 1. Two-tier cache architecture
+## 1. Cache architecture
 
-- Tier 1: local in-process TTL cache
-- Tier 2: shared Redis cache (optional)
+- Local in-process TTL cache for correctness-neutral hot paths such as JWT
+  verification result caching
 
-Read path: local first, then shared cache fallback.
-Write path: local + shared cache best effort.
+Read path: local cache only.
+Write path: local cache only.
 
-Shared keys are namespaced and schema-versioned (`CACHE_KEY_PREFIX`,
+Cache keys are namespaced and schema-versioned (`CACHE_KEY_PREFIX`,
 `CACHE_KEY_SCHEMA_VERSION`) to support safe key evolution and cutover.
 
 ## 2. Primary cache use cases
 
 - JWT verification result caching
 - Auth metadata hot-path caching
-- Shared Redis-backed idempotency claim and replay storage
+- DynamoDB-backed idempotency claim and replay storage
 
 JWT cache entries MUST use TTL derived from token expiration (`exp`) with
 configured upper bounds.
 
 ## 3. Resilience behavior
 
-- Shared Redis failures MUST not fail request processing by default.
-- General cache behavior MAY degrade to local-only operation when the shared
-  cache is unavailable.
+- Local cache is an optimization only and MUST NOT be treated as authoritative
+  shared state.
 - Mutation idempotency correctness MUST NOT degrade to local-only claim
   handling when idempotency is enabled.
-- Readiness should surface shared cache health for operators.
+- Readiness should surface idempotency-store health for operators.
 
 ## 4. Idempotency policy
 
 For protected mutation endpoints:
 
-- `IDEMPOTENCY_ENABLED=true` requires `CACHE_REDIS_URL`.
+- `IDEMPOTENCY_ENABLED=true` requires `IDEMPOTENCY_DYNAMODB_TABLE`.
 - Missing `Idempotency-Key` is allowed; blank keys are invalid.
 - Bind replay records to route + caller scope + key.
 - Reject key reuse with different payload (`idempotency_conflict`).
@@ -55,6 +53,8 @@ For protected mutation endpoints:
   - `in_progress` claim before execution
   - `committed` after success response
   - claim discard on failure path
+- Treat `expires_at` as an application-level validity boundary because DynamoDB
+  TTL deletion is eventual.
 - Shared idempotency-store failures MUST fail closed with `503` and
   `error.code = "idempotency_unavailable"`.
 - If execution succeeds but commit persistence fails, the runtime MUST keep the

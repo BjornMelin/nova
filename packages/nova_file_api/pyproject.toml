@@ -17,7 +17,6 @@ dependencies = [
   "oidc-jwt-verifier>=0.1.5",
   "pydantic>=2.12.5",
   "pydantic-settings>=2.13.1",
-  "redis>=7.4.0",
   "structlog>=25.5.0",
   "uvicorn[standard]>=0.42.0",
 ]

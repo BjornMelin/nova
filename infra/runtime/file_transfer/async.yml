@@ -29,6 +29,9 @@ Parameters:
   ActivityTableName:
     Type: String
     MinLength: 3
+  IdempotencyTableName:
+    Type: String
+    MinLength: 3
 
   JobsVisibilityTimeoutSeconds:
     Type: Number
@@ -166,6 +169,36 @@ Resources:
         - Key: Environment
           Value: !Ref Environment
 
+  IdempotencyTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      TableName: !Ref IdempotencyTableName
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: idempotency_key
+          AttributeType: S
+      KeySchema:
+        - AttributeName: idempotency_key
+          KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: expires_at
+        Enabled: true
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      SSESpecification:
+        SSEEnabled: true
+      Tags:
+        - Key: Project
+          Value: !Ref Project
+        - Key: Application
+          Value: !Ref Application
+        - Key: Service
+          Value: !Ref Service
+        - Key: Environment
+          Value: !Ref Environment
+
   JobsQueueDepthAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
@@ -225,3 +258,7 @@ Outputs:
     Value: !Ref ActivityTable
   ActivityTableArn:
     Value: !GetAtt ActivityTable.Arn
+  IdempotencyTableName:
+    Value: !Ref IdempotencyTable
+  IdempotencyTableArn:
+    Value: !GetAtt IdempotencyTable.Arn

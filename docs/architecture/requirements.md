@@ -219,8 +219,8 @@ Current runtime posture:
 
 - `IDEMPOTENCY_ENABLED` and `IDEMPOTENCY_TTL_SECONDS` are the active
   configuration surface; the runtime does not expose `IDEMPOTENCY_MODE`.
-- `IDEMPOTENCY_ENABLED=true` requires `CACHE_REDIS_URL` and a shared Redis
-  claim store for duplicate prevention across instances.
+- `IDEMPOTENCY_ENABLED=true` requires `IDEMPOTENCY_DYNAMODB_TABLE` and a
+  DynamoDB-backed claim store for duplicate prevention across instances.
 - Shared idempotency store failures MUST fail closed with `503` and
   `error.code = "idempotency_unavailable"`.
 - If a mutation succeeds but the replay record cannot be committed, Nova MUST
@@ -247,8 +247,8 @@ families in the target architecture.
 The service MUST support a two-tier cache model:
 
 - Local in-process TTL cache
-- Shared Redis cache used as the distributed cache tier when
-  `CACHE_REDIS_URL` is configured
+- No distributed cache tier in the canonical runtime; shared correctness state
+  lives in DynamoDB
 
 Shared cache keys MUST be namespaced and schema-versioned, and JWT cache TTL
 MUST be bounded by token expiration (`exp`) with configured max TTL caps.
@@ -356,7 +356,7 @@ The service MUST:
 
 - Never log presigned URLs, query signatures, or bearer tokens.
 - Enforce strict JWT validation with issuer/audience/alg checks.
-- Use least-privilege IAM for S3/SQS/DynamoDB/Redis integration.
+- Use least-privilege IAM for S3/SQS/DynamoDB integration.
 - Emit `WWW-Authenticate: Bearer ...` on JWT/OIDC `401` responses per RFC
   6750; header generation failures MUST fail closed by surfacing an auth error
   or using a deterministic secure fallback challenge.
@@ -474,7 +474,7 @@ origin for canonical `/v1/*` runtime surfaces.
 
 ### IR-0002: AWS service dependencies
 
-Initial AWS dependencies include S3, ECS/Fargate, ALB, SQS, ElastiCache Redis,
+Initial AWS dependencies include S3, ECS/Fargate, ALB, SQS, DynamoDB,
 DynamoDB, and CloudWatch.
 
 ### IR-0003: Auth execution locality

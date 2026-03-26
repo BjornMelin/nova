@@ -99,17 +99,20 @@ def _route_operation_id_map(app: FastAPI) -> dict[str, dict[str, str]]:
 
 def _build_openapi_app() -> FastAPI:
     """Build the file API app without real external dependencies."""
-    settings = Settings()
-    settings.jobs_enabled = True
+    settings = Settings.model_validate(
+        {
+            "JOBS_ENABLED": True,
+            "IDEMPOTENCY_DYNAMODB_TABLE": "test-idempotency",
+        }
+    )
 
     metrics = MetricsCollector(namespace="Tests")
-    shared, cache = build_cache_stack()
+    cache = build_cache_stack()
     repository = MemoryExportRepository()
     return build_test_app(
         build_runtime_deps(
             settings=settings,
             metrics=metrics,
-            shared_cache=shared,
             cache=cache,
             authenticator=Authenticator(settings=settings, cache=cache),
             transfer_service=StubTransferService(),
@@ -120,24 +123,26 @@ def _build_openapi_app() -> FastAPI:
             ),
             activity_store=MemoryActivityStore(),
             idempotency_enabled=True,
-            use_in_memory_shared_cache=True,
         )
     )
 
 
 def _build_openapi_app_with_stub_auth() -> FastAPI:
     """App matching OpenAPI tests, using stub bearer auth for HTTP checks."""
-    settings = Settings()
-    settings.jobs_enabled = True
+    settings = Settings.model_validate(
+        {
+            "JOBS_ENABLED": True,
+            "IDEMPOTENCY_DYNAMODB_TABLE": "test-idempotency",
+        }
+    )
 
     metrics = MetricsCollector(namespace="Tests")
-    shared, cache = build_cache_stack()
+    cache = build_cache_stack()
     repository = MemoryExportRepository()
     return build_test_app(
         build_runtime_deps(
             settings=settings,
             metrics=metrics,
-            shared_cache=shared,
             cache=cache,
             authenticator=StubAuthenticator(),
             transfer_service=StubTransferService(),
@@ -148,7 +153,6 @@ def _build_openapi_app_with_stub_auth() -> FastAPI:
             ),
             activity_store=MemoryActivityStore(),
             idempotency_enabled=True,
-            use_in_memory_shared_cache=True,
         )
     )
 

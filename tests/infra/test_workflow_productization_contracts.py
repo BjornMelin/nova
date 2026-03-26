@@ -419,7 +419,6 @@ def test_canonical_runtime_deploy_script_enforces_final_posture() -> None:
         "infra/runtime/ecs/cluster.yml",
         "infra/runtime/file_transfer/s3.yml",
         "infra/runtime/file_transfer/async.yml",
-        "infra/runtime/file_transfer/cache.yml",
         "infra/runtime/ecs/service.yml",
         "infra/runtime/file_transfer/worker.yml",
         "infra/runtime/observability/ecs-observability-baseline.yml",
@@ -428,7 +427,6 @@ def test_canonical_runtime_deploy_script_enforces_final_posture() -> None:
         "--change-set-name",
         "AssignPublicIp=DISABLED",
         "FileTransferAsyncEnabled=true",
-        "FileTransferCacheEnabled=true",
         "Runtime file-transfer bucket must not reuse the CI artifact bucket",
         "Unsupported legacy environment variable:",
         "TASK_ROLE_ARN",
@@ -447,10 +445,6 @@ def test_canonical_runtime_deploy_script_enforces_final_posture() -> None:
         "ENV_VARS_JSON contains forbidden keys from the runtime contract:"
         in text
     )
-    assert (
-        "IDEMPOTENCY_ENABLED=true requires FILE_TRANSFER_CACHE_ENABLED=true"
-        in text
-    )
     assert '[ -n "${!name+x}" ]' in text
     assert "require_env TASK_ROLE_ARN" not in text
     assert '"TaskRole=${TASK_ROLE_ARN}"' not in text
@@ -465,7 +459,8 @@ def test_canonical_runtime_deploy_script_enforces_final_posture() -> None:
     assert '"JobsTableArn=${JOBS_TABLE_ARN}"' in text
     assert '"ActivityTableName=${ACTIVITY_TABLE_NAME}"' in text
     assert '"ActivityTableArn=${ACTIVITY_TABLE_ARN}"' in text
-    assert '"CacheRedisUrlSecretArn=${CACHE_URL_SECRET_ARN}"' in text
+    assert '"IdempotencyTableName=${IDEMPOTENCY_TABLE_NAME}"' in text
+    assert '"FileTransferIdempotencyTableArn=${IDEMPOTENCY_TABLE_ARN}"' in text
     assert "LoadBalancerDnsHostname" not in text
     assert '"AlbIngressPrefixListId=${ALB_INGRESS_PREFIX_LIST_ID}"' not in text
     assert '"AlbIngressCidr=${ALB_INGRESS_CIDR}"' not in text

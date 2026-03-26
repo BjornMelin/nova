@@ -33,52 +33,12 @@
         "env_var": "BLOCKING_IO_THREAD_TOKENS"
       },
       {
-        "cloudformation_parameter": "CacheRedisMaxConnections",
-        "env_var": "CACHE_REDIS_MAX_CONNECTIONS"
-      },
-      {
-        "cloudformation_parameter": "CacheRedisSocketTimeoutSeconds",
-        "env_var": "CACHE_REDIS_SOCKET_TIMEOUT_SECONDS"
-      },
-      {
-        "cloudformation_parameter": "CacheRedisSocketConnectTimeoutSeconds",
-        "env_var": "CACHE_REDIS_SOCKET_CONNECT_TIMEOUT_SECONDS"
-      },
-      {
-        "cloudformation_parameter": "CacheRedisHealthCheckIntervalSeconds",
-        "env_var": "CACHE_REDIS_HEALTH_CHECK_INTERVAL_SECONDS"
-      },
-      {
-        "cloudformation_parameter": "CacheRedisRetryBaseSeconds",
-        "env_var": "CACHE_REDIS_RETRY_BASE_SECONDS"
-      },
-      {
-        "cloudformation_parameter": "CacheRedisRetryCapSeconds",
-        "env_var": "CACHE_REDIS_RETRY_CAP_SECONDS"
-      },
-      {
-        "cloudformation_parameter": "CacheRedisRetryAttempts",
-        "env_var": "CACHE_REDIS_RETRY_ATTEMPTS"
-      },
-      {
-        "cloudformation_parameter": "CacheRedisDecodeResponses",
-        "env_var": "CACHE_REDIS_DECODE_RESPONSES"
-      },
-      {
-        "cloudformation_parameter": "CacheRedisProtocol",
-        "env_var": "CACHE_REDIS_PROTOCOL"
-      },
-      {
         "cloudformation_parameter": "CacheLocalTtlSeconds",
         "env_var": "CACHE_LOCAL_TTL_SECONDS"
       },
       {
         "cloudformation_parameter": "CacheLocalMaxEntries",
         "env_var": "CACHE_LOCAL_MAX_ENTRIES"
-      },
-      {
-        "cloudformation_parameter": "CacheSharedTtlSeconds",
-        "env_var": "CACHE_SHARED_TTL_SECONDS"
       },
       {
         "cloudformation_parameter": "CacheKeyPrefix",
@@ -99,6 +59,10 @@
       {
         "cloudformation_parameter": "IdempotencyTtlSeconds",
         "env_var": "IDEMPOTENCY_TTL_SECONDS"
+      },
+      {
+        "cloudformation_parameter": "IdempotencyDynamoDbTable",
+        "env_var": "IDEMPOTENCY_DYNAMODB_TABLE"
       },
       {
         "cloudformation_parameter": "FileTransferPresignUploadTtlSeconds",
@@ -251,69 +215,6 @@
       },
       {
         "condition": "always",
-        "name": "CACHE_REDIS_MAX_CONNECTIONS",
-        "secret": false,
-        "source": "task parameter",
-        "value": null
-      },
-      {
-        "condition": "always",
-        "name": "CACHE_REDIS_SOCKET_TIMEOUT_SECONDS",
-        "secret": false,
-        "source": "task parameter",
-        "value": null
-      },
-      {
-        "condition": "always",
-        "name": "CACHE_REDIS_SOCKET_CONNECT_TIMEOUT_SECONDS",
-        "secret": false,
-        "source": "task parameter",
-        "value": null
-      },
-      {
-        "condition": "always",
-        "name": "CACHE_REDIS_HEALTH_CHECK_INTERVAL_SECONDS",
-        "secret": false,
-        "source": "task parameter",
-        "value": null
-      },
-      {
-        "condition": "always",
-        "name": "CACHE_REDIS_RETRY_BASE_SECONDS",
-        "secret": false,
-        "source": "task parameter",
-        "value": null
-      },
-      {
-        "condition": "always",
-        "name": "CACHE_REDIS_RETRY_CAP_SECONDS",
-        "secret": false,
-        "source": "task parameter",
-        "value": null
-      },
-      {
-        "condition": "always",
-        "name": "CACHE_REDIS_RETRY_ATTEMPTS",
-        "secret": false,
-        "source": "task parameter",
-        "value": null
-      },
-      {
-        "condition": "always",
-        "name": "CACHE_REDIS_DECODE_RESPONSES",
-        "secret": false,
-        "source": "task parameter",
-        "value": null
-      },
-      {
-        "condition": "always",
-        "name": "CACHE_REDIS_PROTOCOL",
-        "secret": false,
-        "source": "task parameter",
-        "value": null
-      },
-      {
-        "condition": "always",
         "name": "CACHE_LOCAL_TTL_SECONDS",
         "secret": false,
         "source": "task parameter",
@@ -322,13 +223,6 @@
       {
         "condition": "always",
         "name": "CACHE_LOCAL_MAX_ENTRIES",
-        "secret": false,
-        "source": "task parameter",
-        "value": null
-      },
-      {
-        "condition": "always",
-        "name": "CACHE_SHARED_TTL_SECONDS",
         "secret": false,
         "source": "task parameter",
         "value": null
@@ -366,6 +260,13 @@
         "name": "IDEMPOTENCY_TTL_SECONDS",
         "secret": false,
         "source": "task parameter",
+        "value": null
+      },
+      {
+        "condition": "when idempotency enabled",
+        "name": "IDEMPOTENCY_DYNAMODB_TABLE",
+        "secret": false,
+        "source": "stack output",
         "value": null
       },
       {
@@ -482,15 +383,7 @@
       "TaskExecutionSecretArns",
       "TaskExecutionSsmParameterArns"
     ],
-    "secrets": [
-      {
-        "condition": "when cache enabled",
-        "name": "CACHE_REDIS_URL",
-        "secret": true,
-        "source": "Secrets Manager",
-        "value": null
-      }
-    ]
+    "secrets": []
   },
   "settings": [
     {
@@ -569,94 +462,6 @@
       "default_repr": "120",
       "env_var": "CACHE_LOCAL_TTL_SECONDS",
       "field_name": "cache_local_ttl_seconds",
-      "required": false,
-      "secret": false,
-      "type_label": "int"
-    },
-    {
-      "default_repr": "False",
-      "env_var": "CACHE_REDIS_DECODE_RESPONSES",
-      "field_name": "cache_redis_decode_responses",
-      "required": false,
-      "secret": false,
-      "type_label": "bool"
-    },
-    {
-      "default_repr": "30",
-      "env_var": "CACHE_REDIS_HEALTH_CHECK_INTERVAL_SECONDS",
-      "field_name": "cache_redis_health_check_interval_seconds",
-      "required": false,
-      "secret": false,
-      "type_label": "int"
-    },
-    {
-      "default_repr": "64",
-      "env_var": "CACHE_REDIS_MAX_CONNECTIONS",
-      "field_name": "cache_redis_max_connections",
-      "required": false,
-      "secret": false,
-      "type_label": "int"
-    },
-    {
-      "default_repr": "2",
-      "env_var": "CACHE_REDIS_PROTOCOL",
-      "field_name": "cache_redis_protocol",
-      "required": false,
-      "secret": false,
-      "type_label": "int"
-    },
-    {
-      "default_repr": "2",
-      "env_var": "CACHE_REDIS_RETRY_ATTEMPTS",
-      "field_name": "cache_redis_retry_attempts",
-      "required": false,
-      "secret": false,
-      "type_label": "int"
-    },
-    {
-      "default_repr": "0.05",
-      "env_var": "CACHE_REDIS_RETRY_BASE_SECONDS",
-      "field_name": "cache_redis_retry_base_seconds",
-      "required": false,
-      "secret": false,
-      "type_label": "float"
-    },
-    {
-      "default_repr": "0.5",
-      "env_var": "CACHE_REDIS_RETRY_CAP_SECONDS",
-      "field_name": "cache_redis_retry_cap_seconds",
-      "required": false,
-      "secret": false,
-      "type_label": "float"
-    },
-    {
-      "default_repr": "0.5",
-      "env_var": "CACHE_REDIS_SOCKET_CONNECT_TIMEOUT_SECONDS",
-      "field_name": "cache_redis_socket_connect_timeout_seconds",
-      "required": false,
-      "secret": false,
-      "type_label": "float"
-    },
-    {
-      "default_repr": "0.5",
-      "env_var": "CACHE_REDIS_SOCKET_TIMEOUT_SECONDS",
-      "field_name": "cache_redis_socket_timeout_seconds",
-      "required": false,
-      "secret": false,
-      "type_label": "float"
-    },
-    {
-      "default_repr": "None",
-      "env_var": "CACHE_REDIS_URL",
-      "field_name": "cache_redis_url",
-      "required": false,
-      "secret": false,
-      "type_label": "str | None"
-    },
-    {
-      "default_repr": "300",
-      "env_var": "CACHE_SHARED_TTL_SECONDS",
-      "field_name": "cache_shared_ttl_seconds",
       "required": false,
       "secret": false,
       "type_label": "int"
@@ -764,6 +569,14 @@
       "required": false,
       "secret": false,
       "type_label": "bool"
+    },
+    {
+      "default_repr": "None",
+      "env_var": "IDEMPOTENCY_DYNAMODB_TABLE",
+      "field_name": "idempotency_dynamodb_table",
+      "required": false,
+      "secret": false,
+      "type_label": "str | None"
     },
     {
       "default_repr": "True",

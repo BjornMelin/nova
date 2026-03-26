@@ -131,13 +131,12 @@ rg -n "/v1/transfers|/v1/jobs|/v1/capabilities|/v1/resources/plan|/v1/releases/i
 ### HTTP errors and idempotency
 
 - `POST /v1/jobs`: queue publish failure → `503`, `error.code = "queue_unavailable"`.
-- Idempotent mutations need a shared Redis claim store; store failure → `503`,
+- Idempotent mutations use DynamoDB-backed claim/replay storage with explicit
+  expiration filtering; store failure → `503`,
   `error.code = "idempotency_unavailable"` (no silent local fallback).
 - Do not cache failed enqueue responses for idempotency replay.
-- Idempotency env: `IDEMPOTENCY_ENABLED`, `IDEMPOTENCY_TTL_SECONDS` only; do not
-  add or document `IDEMPOTENCY_MODE`.
-- `IDEMPOTENCY_ENABLED=true` implies `FILE_TRANSFER_CACHE_ENABLED=true` so
-  `CACHE_REDIS_URL` is available to the task.
+- Idempotency env: `IDEMPOTENCY_ENABLED`, `IDEMPOTENCY_TTL_SECONDS`,
+  `IDEMPOTENCY_DYNAMODB_TABLE`; do not add or document `IDEMPOTENCY_MODE`.
 
 ### Readiness and auth
 
@@ -145,8 +144,8 @@ rg -n "/v1/transfers|/v1/jobs|/v1/capabilities|/v1/resources/plan|/v1/releases/i
 - Missing or blank `FILE_TRANSFER_BUCKET` fails readiness.
 - Incomplete `OIDC_ISSUER`, `OIDC_AUDIENCE`, or `OIDC_JWKS_URL` fails the
   `auth_dependency` readiness check.
-- Shared cache gates readiness only when idempotency is enabled; activity-store
-  health is visible but not readiness-fatal.
+- `idempotency_store` gates readiness only when idempotency is enabled;
+  activity-store health is visible but not readiness-fatal.
 - Prefer async JWT verification in `nova_file_api` (`ADR-0033`, `ADR-0037`);
   any sync verification on async paths uses a threadpool (`ADR-0026`,
   `SPEC-0019`).
@@ -215,8 +214,7 @@ for p in packages/nova_file_api packages/nova_dash_bridge packages/nova_runtime_
 
 - `ty` is the full-repo type gate; `mypy` is the compatibility backstop.
 - Runtime dependency floors include `pydantic-settings>=2.13.1` (relevant
-  packages), plus `redis>=7.4.0` and `uvicorn[standard]>=0.42.0` in
-  `nova-file-api`.
+  packages) and `uvicorn[standard]>=0.42.0` in `nova-file-api`.
 - Runtime config: [packages/nova_file_api/src/nova_file_api/config.py](packages/nova_file_api/src/nova_file_api/config.py) and
   [scripts/release/runtime_config_contract.py](scripts/release/runtime_config_contract.py);
   generated operator view:

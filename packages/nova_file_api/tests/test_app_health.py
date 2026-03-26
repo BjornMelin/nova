@@ -1,12 +1,12 @@
 from __future__ import annotations
 
+from typing import cast
+
 import httpx
 import pytest
 from nova_file_api.activity import MemoryActivityStore
 from nova_file_api.auth import Authenticator
-from nova_file_api.cache import SharedRedisCache
 from nova_file_api.config import Settings
-from nova_file_api.dependencies import build_two_tier_cache
 from nova_file_api.exports import (
     ExportService,
     MemoryExportPublisher,
@@ -27,11 +27,10 @@ from .support.doubles import StubAuthenticator, StubTransferService
 AUTH_HEADERS = {"Authorization": "Bearer token-123"}
 
 
-class _FailingSharedCache(SharedRedisCache):
-    def __init__(self) -> None:
-        super().__init__(url=None)
+class _FailingIdempotencyStore:
+    enabled = True
 
-    async def ping(self) -> bool:
+    async def healthcheck(self) -> bool:
         return False
 
 
@@ -46,11 +45,13 @@ def _build_deps(
     file_transfer_bucket: str = "test-transfer-bucket",
 ) -> RuntimeDeps:
     """Build in-memory test doubles for readiness and health checks."""
-    settings = Settings.model_validate({})
+    settings = Settings.model_validate(
+        {"IDEMPOTENCY_DYNAMODB_TABLE": "test-idempotency"}
+    )
     settings.jobs_enabled = jobs_enabled
     settings.file_transfer_bucket = file_transfer_bucket
     metrics = MetricsCollector(namespace="Tests")
-    shared, cache = build_cache_stack()
+    cache = build_cache_stack()
     export_service = ExportService(
         repository=MemoryExportRepository(),
         publisher=MemoryExportPublisher(),
@@ -59,36 +60,22 @@ def _build_deps(
     return build_runtime_deps(
         settings=settings,
         metrics=metrics,
-        shared_cache=shared,
         cache=cache,
         authenticator=StubAuthenticator(),
         transfer_service=StubTransferService(),
         export_service=export_service,
         activity_store=MemoryActivityStore(),
         idempotency_enabled=True,
-        use_in_memory_shared_cache=True,
     )
 
 
-def _rebind_shared_cache_for_readiness(
+def _replace_idempotency_store_for_readiness(
     *,
     deps: RuntimeDeps,
-    shared_cache: SharedRedisCache,
+    idempotency_store: _FailingIdempotencyStore,
 ) -> None:
-    """Rebind cache and idempotency store to a replacement shared cache."""
-    deps.shared_cache = shared_cache
-    deps.cache = build_two_tier_cache(
-        settings=deps.settings,
-        metrics=deps.metrics,
-        shared_cache=shared_cache,
-    )
-    deps.idempotency_store = IdempotencyStore(
-        shared_cache=shared_cache,
-        enabled=deps.settings.idempotency_enabled,
-        ttl_seconds=deps.settings.idempotency_ttl_seconds,
-        key_prefix=deps.settings.cache_key_prefix,
-        key_schema_version=deps.settings.cache_key_schema_version,
-    )
+    """Replace the runtime idempotency store used by readiness checks."""
+    deps.idempotency_store = cast(IdempotencyStore, idempotency_store)
 
 
 @pytest.mark.anyio
@@ -110,7 +97,7 @@ async def test_v1_health_ready_returns_expected_checks() -> None:
     assert payload["ok"] is True
     assert payload["checks"] == {
         "bucket_configured": True,
-        "shared_cache": True,
+        "idempotency_store": True,
         "export_runtime": True,
         "activity_store": True,
         "auth_dependency": True,
@@ -127,7 +114,7 @@ async def test_readyz_stays_ok_when_jobs_are_disabled() -> None:
     assert payload["ok"] is True
     assert payload["checks"] == {
         "bucket_configured": True,
-        "shared_cache": True,
+        "idempotency_store": True,
         "export_runtime": True,
         "activity_store": True,
         "auth_dependency": True,
@@ -135,13 +122,13 @@ async def test_readyz_stays_ok_when_jobs_are_disabled() -> None:
 
 
 @pytest.mark.anyio
-async def test_readyz_shared_cache_not_gate_when_idempotency_off() -> None:
-    """Shared-cache outages stay visible when idempotency is off."""
+async def test_readyz_idempotency_store_not_gate_when_idempotency_off() -> None:
+    """Idempotency-store outages stay visible when idempotency is off."""
     deps = _build_deps()
     deps.settings.idempotency_enabled = False
-    _rebind_shared_cache_for_readiness(
+    _replace_idempotency_store_for_readiness(
         deps=deps,
-        shared_cache=_FailingSharedCache(),
+        idempotency_store=_FailingIdempotencyStore(),
     )
     app = build_test_app(deps)
 
@@ -152,7 +139,7 @@ async def test_readyz_shared_cache_not_gate_when_idempotency_off() -> None:
     assert payload["ok"] is True
     assert payload["checks"] == {
         "bucket_configured": True,
-        "shared_cache": False,
+        "idempotency_store": False,
         "export_runtime": True,
         "activity_store": True,
         "auth_dependency": True,
@@ -160,12 +147,12 @@ async def test_readyz_shared_cache_not_gate_when_idempotency_off() -> None:
 
 
 @pytest.mark.anyio
-async def test_readyz_fails_when_idempotency_requires_shared_cache() -> None:
-    """Shared-cache outages fail readiness when idempotency is enabled."""
+async def test_readyz_fails_when_idempotency_requires_store() -> None:
+    """Idempotency-store outages fail readiness when idempotency is enabled."""
     deps = _build_deps()
-    _rebind_shared_cache_for_readiness(
+    _replace_idempotency_store_for_readiness(
         deps=deps,
-        shared_cache=_FailingSharedCache(),
+        idempotency_store=_FailingIdempotencyStore(),
     )
     app = build_test_app(deps)
 
@@ -176,7 +163,7 @@ async def test_readyz_fails_when_idempotency_requires_shared_cache() -> None:
     assert payload["ok"] is False
     assert payload["checks"] == {
         "bucket_configured": True,
-        "shared_cache": False,
+        "idempotency_store": False,
         "export_runtime": True,
         "activity_store": True,
         "auth_dependency": True,
@@ -197,7 +184,7 @@ async def test_readyz_reports_activity_store_failures_without_gating() -> None:
     assert payload["ok"] is True
     assert payload["checks"] == {
         "bucket_configured": True,
-        "shared_cache": True,
+        "idempotency_store": True,
         "export_runtime": True,
         "activity_store": False,
         "auth_dependency": True,
@@ -214,7 +201,7 @@ async def test_readyz_fails_when_bucket_is_missing() -> None:
     assert payload["ok"] is False
     assert payload["checks"] == {
         "bucket_configured": False,
-        "shared_cache": True,
+        "idempotency_store": True,
         "export_runtime": True,
         "activity_store": True,
         "auth_dependency": True,
@@ -241,7 +228,7 @@ async def test_readyz_fails_when_oidc_bearer_settings_are_incomplete() -> None:
     assert payload["ok"] is False
     assert payload["checks"] == {
         "bucket_configured": True,
-        "shared_cache": True,
+        "idempotency_store": True,
         "export_runtime": True,
         "activity_store": True,
         "auth_dependency": False,

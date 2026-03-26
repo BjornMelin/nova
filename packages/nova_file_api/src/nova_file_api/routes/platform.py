@@ -9,10 +9,10 @@ from nova_file_api.dependencies import (
     ActivityStoreDep,
     AuthenticatorDep,
     ExportServiceDep,
+    IdempotencyStoreDep,
     MetricsDep,
     PrincipalDep,
     SettingsDep,
-    SharedCacheDep,
 )
 from nova_file_api.errors import forbidden
 from nova_file_api.models import (
@@ -143,7 +143,7 @@ async def health_live() -> HealthResponse:
 async def health_ready(
     response: Response,
     settings: SettingsDep,
-    shared_cache: SharedCacheDep,
+    idempotency_store: IdempotencyStoreDep,
     export_service: ExportServiceDep,
     activity_store: ActivityStoreDep,
     authenticator: AuthenticatorDep,
@@ -152,13 +152,13 @@ async def health_ready(
     logger = structlog.get_logger("api")
 
     try:
-        shared_cache_ready = await shared_cache.ping()
+        idempotency_store_ready = await idempotency_store.healthcheck()
     except Exception:
         logger.exception(
-            "v1_health_ready_shared_cache_ping_failed",
+            "v1_health_ready_idempotency_store_healthcheck_failed",
             route="/v1/health/ready",
         )
-        shared_cache_ready = False
+        idempotency_store_ready = False
 
     if settings.jobs_enabled:
         export_runtime = True
@@ -202,7 +202,7 @@ async def health_ready(
 
     checks = {
         "bucket_configured": bool(settings.file_transfer_bucket.strip()),
-        "shared_cache": shared_cache_ready,
+        "idempotency_store": idempotency_store_ready,
         "export_runtime": export_runtime,
         "activity_store": activity_store_ready,
         "auth_dependency": auth_dependency,
@@ -213,7 +213,7 @@ async def health_ready(
         "export_runtime",
     )
     if settings.idempotency_enabled:
-        required_checks = (*required_checks, "shared_cache")
+        required_checks = (*required_checks, "idempotency_store")
     is_ready = all(checks[name] for name in required_checks)
     if not is_ready:
         response.status_code = 503

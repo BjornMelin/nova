@@ -16,7 +16,12 @@ from pydantic import ValidationError
 
 def _settings() -> Settings:
     """Return environment-isolated default settings for config tests."""
-    return Settings.model_validate({})
+    return Settings.model_validate(
+        {
+            "IDEMPOTENCY_ENABLED": False,
+            "IDEMPOTENCY_DYNAMODB_TABLE": "test-idempotency",
+        }
+    )
 
 
 def _worker_runtime_env(**overrides: object) -> dict[str, object]:
@@ -41,6 +46,7 @@ def test_settings_accept_env_style_keys() -> None:
         {
             "APP_NAME": "runtime-env-app",
             "FILE_TRANSFER_BUCKET": "env-bucket",
+            "IDEMPOTENCY_DYNAMODB_TABLE": "test-idempotency",
         }
     )
 
@@ -54,6 +60,8 @@ def test_settings_accept_field_name_keys() -> None:
         {
             "app_name": "field-name-app",
             "file_transfer_bucket": "field-bucket",
+            "idempotency_enabled": False,
+            "idempotency_dynamodb_table": "test-idempotency",
         }
     )
 
@@ -67,6 +75,7 @@ def test_settings_model_dump_uses_field_names() -> None:
         {
             "APP_NAME": "serialized-app",
             "FILE_TRANSFER_BUCKET": "serialized-bucket",
+            "IDEMPOTENCY_DYNAMODB_TABLE": "test-idempotency",
         }
     )
 
@@ -224,13 +233,13 @@ def test_initialize_runtime_state_requires_sqs_client_when_jobs_enabled() -> (
         )
 
 
-def test_runtime_state_requires_shared_cache_when_idempotency_enabled() -> None:
-    """Idempotency-enabled startup must require shared-cache configuration."""
+def test_runtime_state_requires_dynamodb_resource_for_idempotency() -> None:
+    """Idempotency-enabled startup must require a DynamoDB resource."""
     settings = _settings()
     settings.idempotency_enabled = True
-    settings.cache_redis_url = None
+    settings.idempotency_dynamodb_table = "test-idempotency"
 
-    with pytest.raises(ValueError, match="CACHE_REDIS_URL"):
+    with pytest.raises(ValueError, match="dynamodb_resource must be provided"):
         initialize_runtime_state(
             FastAPI(), settings=settings, s3_client=object()
         )

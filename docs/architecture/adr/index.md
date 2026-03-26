@@ -22,7 +22,7 @@ This file is the ADR catalog and status index.
 | [ADR-0003](./ADR-0003-api-docs-site-mkdocs-material-plus-scalar.md) | API documentation site uses MkDocs Material and Scalar API Reference | Accepted | Implemented baseline | 2026-02-11 |
 | [ADR-0004](./ADR-0004-canonical-oidc-jwt-verifier-adoption.md) | Adopt oidc-jwt-verifier as the canonical JWT/OIDC verification engine | Accepted | Implemented baseline | 2026-02-12 |
 | [ADR-0006](./ADR-0006-async-orchestration-sqs-ecs-worker.md) | Use SQS + ECS worker for initial async orchestration | Accepted | Implemented baseline | 2026-02-12 |
-| [ADR-0007](./ADR-0007-two-tier-cache-and-idempotency-store.md) | Adopt two-tier cache with idempotency replay storage | Accepted | Implemented baseline | 2026-02-13 |
+| [ADR-0007](./superseded/ADR-0007-two-tier-cache-and-idempotency-store.md) | Historical two-tier cache with Redis-backed idempotency replay storage | Superseded | Historical only | 2026-02-13 |
 | [ADR-0008](./ADR-0008-runtime-support-levels-sidecar-embedded-standalone.md) | Runtime support levels: sidecar GA, embedded bridge, standalone beta | Accepted | Implemented baseline | 2026-02-12 |
 | [ADR-0009](./ADR-0009-observability-analytics-emf-dynamodb-cloudwatch.md) | Observability stack: EMF metrics, DynamoDB rollups, CloudWatch dashboards | Accepted | Implemented baseline | 2026-02-12 |
 | [ADR-0010](./ADR-0010-enqueue-failure-and-readiness-semantics.md) | Fail enqueue on queue publish errors and scope readiness to critical dependencies | Accepted | Implemented baseline | 2026-03-09 |
@@ -48,7 +48,7 @@ This file is the ADR catalog and status index.
 | [ADR-0033](./ADR-0033-canonical-serverless-platform.md) | Canonical serverless platform | Accepted | Planned target | 2026-03-25 |
 | [ADR-0034](./ADR-0034-eliminate-auth-service-and-session-auth.md) | Eliminate auth service and session auth | Accepted | Planned target | 2026-03-25 |
 | [ADR-0035](./ADR-0035-replace-generic-jobs-with-export-workflows.md) | Replace generic jobs with export workflows | Accepted | Planned target | 2026-03-25 |
-| [ADR-0036](./ADR-0036-dynamodb-idempotency-no-redis.md) | DynamoDB idempotency and transient state, no Redis | Accepted | Planned target | 2026-03-25 |
+| [ADR-0036](./ADR-0036-dynamodb-idempotency-no-redis.md) | DynamoDB idempotency and transient state, no Redis | Accepted | Implemented baseline | 2026-03-25 |
 | [ADR-0037](./ADR-0037-sdk-generation-consolidation.md) | Consolidate SDK generation and package layout | Accepted | Planned target | 2026-03-25 |
 | [ADR-0038](./ADR-0038-docs-authority-reset.md) | Reset docs authority | Accepted | Applied to docs pack / code still planned | 2026-03-25 |
 

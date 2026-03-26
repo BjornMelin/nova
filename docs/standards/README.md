@@ -71,4 +71,4 @@ Runtime config drift guard:
   `scripts/release/generate_runtime_config_contract.py`
 - treat the current runtime dependency floors as manifest-owned authority:
   `pydantic-settings>=2.13.1` in the surviving runtime packages and
-  `redis>=7.4.0` plus `uvicorn[standard]>=0.42.0` in `nova-file-api`
+  `uvicorn[standard]>=0.42.0` in `nova-file-api`

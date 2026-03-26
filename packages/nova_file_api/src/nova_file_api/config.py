@@ -161,61 +161,6 @@ class Settings(BaseSettings):
         le=1000,
     )
 
-    cache_redis_url: str | None = Field(
-        default=None, validation_alias="CACHE_REDIS_URL"
-    )
-    cache_redis_max_connections: int = Field(
-        default=64,
-        validation_alias="CACHE_REDIS_MAX_CONNECTIONS",
-        ge=1,
-        le=10000,
-    )
-    cache_redis_socket_timeout_seconds: float = Field(
-        default=0.5,
-        validation_alias="CACHE_REDIS_SOCKET_TIMEOUT_SECONDS",
-        gt=0.0,
-        le=30.0,
-    )
-    cache_redis_socket_connect_timeout_seconds: float = Field(
-        default=0.5,
-        validation_alias="CACHE_REDIS_SOCKET_CONNECT_TIMEOUT_SECONDS",
-        gt=0.0,
-        le=30.0,
-    )
-    cache_redis_health_check_interval_seconds: int = Field(
-        default=30,
-        validation_alias="CACHE_REDIS_HEALTH_CHECK_INTERVAL_SECONDS",
-        ge=1,
-        le=300,
-    )
-    cache_redis_retry_base_seconds: float = Field(
-        default=0.05,
-        validation_alias="CACHE_REDIS_RETRY_BASE_SECONDS",
-        gt=0.0,
-        le=5.0,
-    )
-    cache_redis_retry_cap_seconds: float = Field(
-        default=0.5,
-        validation_alias="CACHE_REDIS_RETRY_CAP_SECONDS",
-        gt=0.0,
-        le=30.0,
-    )
-    cache_redis_retry_attempts: int = Field(
-        default=2,
-        validation_alias="CACHE_REDIS_RETRY_ATTEMPTS",
-        ge=0,
-        le=10,
-    )
-    cache_redis_decode_responses: bool = Field(
-        default=False,
-        validation_alias="CACHE_REDIS_DECODE_RESPONSES",
-    )
-    cache_redis_protocol: int = Field(
-        default=2,
-        validation_alias="CACHE_REDIS_PROTOCOL",
-        ge=2,
-        le=3,
-    )
     cache_local_ttl_seconds: int = Field(
         default=120,
         validation_alias="CACHE_LOCAL_TTL_SECONDS",
@@ -225,11 +170,6 @@ class Settings(BaseSettings):
         default=2000,
         validation_alias="CACHE_LOCAL_MAX_ENTRIES",
         ge=10,
-    )
-    cache_shared_ttl_seconds: int = Field(
-        default=300,
-        validation_alias="CACHE_SHARED_TTL_SECONDS",
-        ge=1,
     )
     cache_key_prefix: str = Field(
         default="nova", validation_alias="CACHE_KEY_PREFIX"
@@ -255,6 +195,10 @@ class Settings(BaseSettings):
         validation_alias="IDEMPOTENCY_TTL_SECONDS",
         ge=60,
         le=86400,
+    )
+    idempotency_dynamodb_table: str | None = Field(
+        default=None,
+        validation_alias="IDEMPOTENCY_DYNAMODB_TABLE",
     )
 
     jobs_enabled: bool = Field(default=True, validation_alias="JOBS_ENABLED")
@@ -409,5 +353,19 @@ class Settings(BaseSettings):
             raise ValueError(
                 "FILE_TRANSFER_MAX_UPLOAD_BYTES must be less than or equal to "
                 "FILE_TRANSFER_PART_SIZE_BYTES * 10000"
+            )
+        return self
+
+    @model_validator(mode="after")
+    def validate_idempotency_settings(self) -> Settings:
+        """Require DynamoDB table wiring for API-side idempotency."""
+        if (
+            self.idempotency_enabled
+            and self.jobs_runtime_mode != "worker"
+            and _is_blank(self.idempotency_dynamodb_table)
+        ):
+            raise ValueError(
+                "IDEMPOTENCY_DYNAMODB_TABLE must be configured when "
+                "IDEMPOTENCY_ENABLED=true"
             )
         return self

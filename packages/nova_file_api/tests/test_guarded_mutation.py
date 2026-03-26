@@ -4,7 +4,7 @@ from typing import Any
 
 import pytest
 from nova_file_api.guarded_mutation import run_guarded_mutation
-from nova_file_api.idempotency import IdempotencyStore
+from nova_file_api.idempotency import IdempotencyClaim, IdempotencyStore
 from pydantic import BaseModel
 
 
@@ -14,9 +14,14 @@ class _ResponseModel(BaseModel):
 
 class _FakeIdempotencyStore(IdempotencyStore):
     def __init__(self) -> None:
+        owner_value = "claim-owner"
         self._enabled = True
         self.replay: dict[str, Any] | None = None
-        self.claim_result = True
+        self.claim_result: IdempotencyClaim | None = IdempotencyClaim(
+            cache_key="cache-key",
+            owner_token=owner_value,
+            request_hash="request-hash",
+        )
         self.stored_payload: dict[str, Any] | None = None
         self.discard_calls = 0
         self.raise_on_store = False
@@ -33,7 +38,7 @@ class _FakeIdempotencyStore(IdempotencyStore):
     async def load_response(self, **_: Any) -> dict[str, Any] | None:
         return self.replay
 
-    async def claim_request(self, **_: Any) -> bool:
+    async def claim_request(self, **_: Any) -> IdempotencyClaim | None:
         return self.claim_result
 
     async def store_response(self, **kwargs: Any) -> None:
@@ -220,7 +225,7 @@ async def test_run_guarded_mutation_stores_response_and_runs_success() -> None:
 async def test_run_guarded_mutation_disabled_store_skips_claim_flow() -> None:
     store = _FakeIdempotencyStore()
     store.enabled = False
-    store.claim_result = False
+    store.claim_result = None
     completed: list[str] = []
 
     async def _execute() -> _ResponseModel:
@@ -255,7 +260,7 @@ async def test_run_guarded_mutation_disabled_store_skips_claim_flow() -> None:
 @pytest.mark.anyio
 async def test_claim_false_without_replay_conflicts() -> None:
     store = _FakeIdempotencyStore()
-    store.claim_result = False
+    store.claim_result = None
     failures: list[str] = []
     successes: list[str] = []
 

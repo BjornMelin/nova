@@ -2,11 +2,19 @@
 
 from __future__ import annotations
 
+import asyncio
+import inspect
 import json
+import time
+from collections.abc import Awaitable, Callable, Mapping
+from dataclasses import dataclass, field
 from hashlib import sha256
-from typing import Any
+from typing import Any, Protocol, cast
+from uuid import uuid4
 
-from nova_file_api.cache import SharedRedisCache, namespaced_cache_key
+from botocore.exceptions import ClientError
+
+from nova_file_api.cache import namespaced_cache_key
 from nova_file_api.errors import (
     idempotency_conflict,
     idempotency_unavailable,
@@ -16,37 +24,71 @@ _IDEMPOTENCY_STATE_IN_PROGRESS = "in_progress"
 _IDEMPOTENCY_STATE_COMMITTED = "committed"
 
 
+class DynamoTable(Protocol):
+    """Subset of DynamoDB table operations used by idempotency storage."""
+
+    async def put_item(self, **kwargs: object) -> Mapping[str, object]:
+        """Create or replace an item."""
+
+    async def get_item(self, **kwargs: object) -> Mapping[str, object]:
+        """Read a single item by key."""
+
+    async def update_item(self, **kwargs: object) -> Mapping[str, object]:
+        """Update an item conditionally."""
+
+    async def delete_item(self, **kwargs: object) -> Mapping[str, object]:
+        """Delete an item conditionally."""
+
+
+class DynamoResource(Protocol):
+    """Subset of DynamoDB resource operations used by idempotency storage."""
+
+    def Table(self, table_name: str) -> DynamoTable | Awaitable[DynamoTable]:
+        """Return table object or awaitable table object."""
+
+
+def _as_dynamo_table(table: object) -> DynamoTable:
+    """Validate and cast a DynamoDB table-like object."""
+    invalid_methods: list[str] = []
+    for method_name in ("put_item", "get_item", "update_item", "delete_item"):
+        method = getattr(table, method_name, None)
+        if not callable(method):
+            invalid_methods.append(method_name)
+    if invalid_methods:
+        methods = ", ".join(invalid_methods)
+        raise TypeError(
+            "dynamodb resource returned an invalid table object; "
+            f"missing or non-callable: {methods}"
+        )
+    return cast(DynamoTable, table)
+
+
+@dataclass(frozen=True, slots=True)
+class IdempotencyClaim:
+    """Ownership token for an in-progress idempotent mutation."""
+
+    cache_key: str
+    owner_token: str
+    request_hash: str
+
+
+@dataclass(slots=True)
 class IdempotencyStore:
     """Store and replay idempotent endpoint responses."""
 
-    def __init__(
-        self,
-        *,
-        shared_cache: SharedRedisCache,
-        enabled: bool,
-        ttl_seconds: int,
-        key_prefix: str,
-        key_schema_version: int,
-    ) -> None:
-        """Initialize idempotency storage.
+    table_name: str | None
+    dynamodb_resource: DynamoResource | None
+    enabled: bool
+    ttl_seconds: int
+    key_prefix: str
+    key_schema_version: int
+    _clock: Callable[[], float] = field(default=time.time, repr=False)
+    _table: DynamoTable | None = field(default=None, init=False, repr=False)
+    _table_lock: asyncio.Lock = field(init=False, repr=False)
 
-        Args:
-            shared_cache: Shared claim/persist backend for idempotency entries.
-            enabled: Whether idempotency checks are active.
-            ttl_seconds: TTL for stored idempotent responses.
-            key_prefix: Shared cache namespace prefix.
-            key_schema_version: Shared cache key schema version.
-        """
-        self._shared_cache = shared_cache
-        self._enabled = enabled
-        self._ttl_seconds = ttl_seconds
-        self._key_prefix = key_prefix
-        self._key_schema_version = key_schema_version
-
-    @property
-    def enabled(self) -> bool:
-        """Return whether idempotency checks are enabled for this store."""
-        return self._enabled
+    def __post_init__(self) -> None:
+        """Initialize the lazy table resolver."""
+        self._table_lock = asyncio.Lock()
 
     async def load_response(
         self,
@@ -56,37 +98,22 @@ class IdempotencyStore:
         idempotency_key: str,
         request_payload: dict[str, Any],
     ) -> dict[str, Any] | None:
-        """Load stored response for a matching idempotency request.
-
-        Args:
-            route: Request route key.
-            scope_id: Caller scope ID.
-            idempotency_key: Client-provided idempotency key.
-            request_payload: Request payload for conflict detection.
-
-        Returns:
-            Stored response payload when a compatible prior request exists.
-
-        Raises:
-            FileTransferError: If the same key was used with a different
-                payload.
-        """
-        if not self._enabled:
+        """Load stored response for a matching idempotency request."""
+        if not self.enabled:
             return None
 
-        cache_key = self._entry_cache_key(
-            route=route,
-            scope_id=scope_id,
-            idempotency_key=idempotency_key,
+        entry = await self._read_entry(
+            self._entry_cache_key(
+                route=route,
+                scope_id=scope_id,
+                idempotency_key=idempotency_key,
+            )
         )
-        entry = await self._read_entry(cache_key)
         if entry is None:
             return None
-        if not isinstance(entry, dict):
-            raise idempotency_conflict("stored idempotency record is invalid")
 
         expected_hash = idempotency_request_payload_hash(
-            payload=request_payload,
+            payload=request_payload
         )
         _assert_entry_request_hash(entry=entry, expected_hash=expected_hash)
 
@@ -110,45 +137,39 @@ class IdempotencyStore:
         scope_id: str,
         idempotency_key: str,
         request_payload: dict[str, Any],
-    ) -> bool:
-        """Claim an idempotency key for in-progress request execution.
-
-        Returns:
-            ``True`` when claim is acquired and caller should execute work.
-            ``False`` when an existing committed record should be replayed.
-        """
-        if not self._enabled:
-            return False
+    ) -> IdempotencyClaim | None:
+        """Claim an idempotency key for in-progress request execution."""
+        if not self.enabled:
+            return None
 
         cache_key = self._entry_cache_key(
             route=route,
             scope_id=scope_id,
             idempotency_key=idempotency_key,
         )
-        request_hash = idempotency_request_payload_hash(
-            payload=request_payload,
-        )
-        claim_payload = {
-            "state": _IDEMPOTENCY_STATE_IN_PROGRESS,
-            "request_hash": request_hash,
-        }
-        created = await self._write_entry_if_absent(
+        request_hash = idempotency_request_payload_hash(payload=request_payload)
+        claim = IdempotencyClaim(
             cache_key=cache_key,
-            payload=claim_payload,
+            owner_token=str(uuid4()),
+            request_hash=request_hash,
         )
-        if created:
-            return True
+
+        if await self._create_claim_if_absent_or_expired(claim=claim):
+            return claim
 
         existing = await self._read_entry(cache_key)
         if existing is None:
-            raise idempotency_conflict("stored idempotency record is invalid")
-        if not isinstance(existing, dict):
-            raise idempotency_conflict("stored idempotency record is invalid")
+            return await self.claim_request(
+                route=route,
+                scope_id=scope_id,
+                idempotency_key=idempotency_key,
+                request_payload=request_payload,
+            )
 
         _assert_entry_request_hash(entry=existing, expected_hash=request_hash)
         state = existing.get("state")
         if state == _IDEMPOTENCY_STATE_COMMITTED:
-            return False
+            return None
         if state == _IDEMPOTENCY_STATE_IN_PROGRESS:
             raise idempotency_conflict(
                 "idempotency request is already in progress"
@@ -158,80 +179,147 @@ class IdempotencyStore:
     async def store_response(
         self,
         *,
-        route: str,
-        scope_id: str,
-        idempotency_key: str,
-        request_payload: dict[str, Any],
+        claim: IdempotencyClaim,
         response_payload: dict[str, Any],
     ) -> None:
-        """Persist response for an idempotent mutation request.
-
-        Args:
-            route: Request route key.
-            scope_id: Caller scope ID.
-            idempotency_key: Client-provided idempotency key.
-            request_payload: Request payload that produced the response.
-            response_payload: Response payload to replay on retries.
-        """
-        if not self._enabled:
+        """Persist response for an idempotent mutation request."""
+        if not self.enabled:
             return
 
-        cache_key = self._entry_cache_key(
-            route=route,
-            scope_id=scope_id,
-            idempotency_key=idempotency_key,
-        )
-        request_hash = idempotency_request_payload_hash(
-            payload=request_payload,
-        )
-        existing = await self._read_entry(cache_key)
-        if existing is not None:
-            _assert_entry_request_hash(
-                entry=existing,
-                expected_hash=request_hash,
+        table = await self._resolve_table()
+        now_seconds = int(self._clock())
+        try:
+            await table.update_item(
+                Key={"idempotency_key": claim.cache_key},
+                UpdateExpression=(
+                    "SET #state = :committed, #response = :response, "
+                    "expires_at = :expires_at"
+                ),
+                ConditionExpression=(
+                    "attribute_exists(idempotency_key) "
+                    "AND #state = :in_progress "
+                    "AND request_hash = :request_hash "
+                    "AND owner_token = :owner_token"
+                ),
+                ExpressionAttributeNames={
+                    "#state": "state",
+                    "#response": "response",
+                },
+                ExpressionAttributeValues={
+                    ":committed": _IDEMPOTENCY_STATE_COMMITTED,
+                    ":in_progress": _IDEMPOTENCY_STATE_IN_PROGRESS,
+                    ":request_hash": claim.request_hash,
+                    ":owner_token": claim.owner_token,
+                    ":response": response_payload,
+                    ":expires_at": now_seconds + self.ttl_seconds,
+                },
             )
+        except ClientError as exc:
+            if _is_conditional_check_failed(exc):
+                raise _idempotency_unavailable_error(
+                    message="idempotency record changed before response commit"
+                ) from exc
+            raise _idempotency_unavailable_error(
+                message="idempotency store is unavailable"
+            ) from exc
 
-        await self._write_entry(
-            cache_key=cache_key,
-            payload={
-                "state": _IDEMPOTENCY_STATE_COMMITTED,
-                "request_hash": request_hash,
-                "response": response_payload,
-            },
-        )
+    async def discard_claim(self, *, claim: IdempotencyClaim) -> None:
+        """Delete in-progress idempotency claim after failed execution."""
+        if not self.enabled:
+            return
 
-    async def discard_claim(
+        table = await self._resolve_table()
+        try:
+            await table.delete_item(
+                Key={"idempotency_key": claim.cache_key},
+                ConditionExpression=(
+                    "#state = :in_progress "
+                    "AND request_hash = :request_hash "
+                    "AND owner_token = :owner_token"
+                ),
+                ExpressionAttributeNames={"#state": "state"},
+                ExpressionAttributeValues={
+                    ":in_progress": _IDEMPOTENCY_STATE_IN_PROGRESS,
+                    ":request_hash": claim.request_hash,
+                    ":owner_token": claim.owner_token,
+                },
+            )
+        except ClientError as exc:
+            if _is_conditional_check_failed(exc):
+                return
+            raise _idempotency_unavailable_error(
+                message="idempotency store is unavailable"
+            ) from exc
+
+    async def healthcheck(self) -> bool:
+        """Return backend health when enabled."""
+        if not self.enabled:
+            return True
+        try:
+            table = await self._resolve_table()
+            await table.get_item(Key={"idempotency_key": "__health_check__"})
+        except Exception:
+            return False
+        return True
+
+    async def _resolve_table(self) -> DynamoTable:
+        if self._table is not None:
+            return self._table
+        if self.table_name is None or self.dynamodb_resource is None:
+            raise _idempotency_unavailable_error(
+                message="idempotency store is not configured"
+            )
+        async with self._table_lock:
+            if self._table is None:
+                table_obj = self.dynamodb_resource.Table(self.table_name)
+                if inspect.isawaitable(table_obj):
+                    table_obj = await table_obj
+                self._table = _as_dynamo_table(table_obj)
+        assert self._table is not None
+        return self._table
+
+    async def _read_entry(self, cache_key: str) -> dict[str, Any] | None:
+        table = await self._resolve_table()
+        try:
+            response = await table.get_item(Key={"idempotency_key": cache_key})
+        except ClientError as exc:
+            raise _idempotency_unavailable_error(
+                message="idempotency store is unavailable"
+            ) from exc
+        item = response.get("Item")
+        if item is None:
+            return None
+        return _parse_entry(item, now_seconds=int(self._clock()))
+
+    async def _create_claim_if_absent_or_expired(
         self,
         *,
-        route: str,
-        scope_id: str,
-        idempotency_key: str,
-        request_payload: dict[str, Any],
-    ) -> None:
-        """Delete in-progress idempotency claim after failed execution."""
-        if not self._enabled:
-            return
-        cache_key = self._entry_cache_key(
-            route=route,
-            scope_id=scope_id,
-            idempotency_key=idempotency_key,
-        )
-        request_hash = idempotency_request_payload_hash(
-            payload=request_payload,
-        )
-        expected_entry = _serialize_entry(
-            {
-                "state": _IDEMPOTENCY_STATE_IN_PROGRESS,
-                "request_hash": request_hash,
-            }
-        )
-        status = await self._shared_cache.delete_with_status(
-            cache_key,
-            expected_value=expected_entry,
-        )
-        if status in {"ok", "mismatch"}:
-            return
-        raise _idempotency_unavailable_error(status=status)
+        claim: IdempotencyClaim,
+    ) -> bool:
+        table = await self._resolve_table()
+        now_seconds = int(self._clock())
+        try:
+            await table.put_item(
+                Item={
+                    "idempotency_key": claim.cache_key,
+                    "state": _IDEMPOTENCY_STATE_IN_PROGRESS,
+                    "request_hash": claim.request_hash,
+                    "owner_token": claim.owner_token,
+                    "expires_at": now_seconds + self.ttl_seconds,
+                },
+                ConditionExpression=(
+                    "attribute_not_exists(idempotency_key) "
+                    "OR expires_at <= :now"
+                ),
+                ExpressionAttributeValues={":now": now_seconds},
+            )
+        except ClientError as exc:
+            if _is_conditional_check_failed(exc):
+                return False
+            raise _idempotency_unavailable_error(
+                message="idempotency store is unavailable"
+            ) from exc
+        return True
 
     def _entry_cache_key(
         self,
@@ -244,86 +332,54 @@ class IdempotencyStore:
         return namespaced_cache_key(
             namespace="idempotency",
             raw=raw,
-            key_prefix=self._key_prefix,
-            key_schema_version=self._key_schema_version,
+            key_prefix=self.key_prefix,
+            key_schema_version=self.key_schema_version,
         )
-
-    async def _read_entry(self, cache_key: str) -> dict[str, Any] | None:
-        raw_value, status = await self._shared_cache.get_with_status(cache_key)
-        if status == "miss":
-            return None
-        if status == "hit" and raw_value is not None:
-            return _parse_entry(raw_value)
-        raise _idempotency_unavailable_error(status=status)
-
-    async def _write_entry_if_absent(
-        self,
-        *,
-        cache_key: str,
-        payload: dict[str, Any],
-    ) -> bool:
-        status = await self._shared_cache.set_if_absent_with_status(
-            cache_key,
-            _serialize_entry(payload),
-            ttl_seconds=self._ttl_seconds,
-        )
-        if status == "created":
-            return True
-        if status == "exists":
-            return False
-        raise _idempotency_unavailable_error(status=status)
-
-    async def _write_entry(
-        self,
-        *,
-        cache_key: str,
-        payload: dict[str, Any],
-    ) -> None:
-        status = await self._shared_cache.set_with_status(
-            cache_key,
-            _serialize_entry(payload),
-            ttl_seconds=self._ttl_seconds,
-        )
-        if status == "ok":
-            return
-        raise _idempotency_unavailable_error(status=status)
 
 
 def idempotency_request_payload_hash(*, payload: dict[str, Any]) -> str:
-    """SHA-256 hex digest of the JSON-normalized request payload.
-
-    Args:
-        payload: Request payload to normalize and hash.
-
-    Returns:
-        SHA-256 hex digest string.
-    """
+    """SHA-256 hex digest of the JSON-normalized request payload."""
     encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"))
     return sha256(encoded.encode("utf-8")).hexdigest()
 
 
-def _serialize_entry(payload: dict[str, Any]) -> str:
-    return json.dumps(payload, sort_keys=True, separators=(",", ":"))
-
-
-def _parse_entry(raw_value: str) -> dict[str, Any]:
-    try:
-        parsed = json.loads(raw_value)
-    except json.JSONDecodeError as exc:
-        raise idempotency_conflict(
-            "stored idempotency record is invalid"
-        ) from exc
-    if not isinstance(parsed, dict):
+def _parse_entry(
+    item: object,
+    *,
+    now_seconds: int,
+) -> dict[str, Any] | None:
+    if not isinstance(item, dict):
         raise idempotency_conflict("stored idempotency record is invalid")
-    return parsed
+    parsed_item = cast(dict[str, Any], item)
 
+    expires_at = parsed_item.get("expires_at")
+    if not isinstance(expires_at, (int, float)):
+        raise idempotency_conflict("stored idempotency record is invalid")
+    if int(expires_at) <= now_seconds:
+        return None
 
-def _idempotency_unavailable_error(*, status: str) -> Exception:
-    if status == "disabled":
-        message = "shared idempotency store is not configured"
-    else:
-        message = "shared idempotency store is unavailable"
-    return idempotency_unavailable(message)
+    request_hash = parsed_item.get("request_hash")
+    state = parsed_item.get("state")
+    owner_token = parsed_item.get("owner_token")
+    if not isinstance(request_hash, str):
+        raise idempotency_conflict("stored idempotency record is invalid")
+    if not isinstance(state, str):
+        raise idempotency_conflict("stored idempotency record is invalid")
+    if owner_token is not None and not isinstance(owner_token, str):
+        raise idempotency_conflict("stored idempotency record is invalid")
+
+    entry: dict[str, Any] = {
+        "state": state,
+        "request_hash": request_hash,
+        "owner_token": owner_token,
+        "expires_at": int(expires_at),
+    }
+    response_payload = parsed_item.get("response")
+    if response_payload is not None:
+        if not isinstance(response_payload, dict):
+            raise idempotency_conflict("stored idempotency response is invalid")
+        entry["response"] = response_payload
+    return entry
 
 
 def _assert_entry_request_hash(
@@ -331,10 +387,19 @@ def _assert_entry_request_hash(
     entry: dict[str, Any],
     expected_hash: str,
 ) -> None:
-    seen_hash = entry.get("request_hash")
-    if not isinstance(seen_hash, str):
+    request_hash = entry.get("request_hash")
+    if not isinstance(request_hash, str):
         raise idempotency_conflict("stored idempotency record is invalid")
-    if seen_hash != expected_hash:
+    if request_hash != expected_hash:
         raise idempotency_conflict(
             "idempotency key was already used with a different request",
         )
+
+
+def _is_conditional_check_failed(exc: ClientError) -> bool:
+    error_code = str(exc.response.get("Error", {}).get("Code", ""))
+    return error_code == "ConditionalCheckFailedException"
+
+
+def _idempotency_unavailable_error(*, message: str) -> Exception:
+    return idempotency_unavailable(message)

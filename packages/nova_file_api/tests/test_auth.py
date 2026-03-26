@@ -9,7 +9,6 @@ from nova_file_api.auth import (
 )
 from nova_file_api.cache import (
     LocalTTLCache,
-    SharedRedisCache,
     TwoTierCache,
 )
 from nova_file_api.config import Settings
@@ -17,11 +16,18 @@ from nova_file_api.errors import FileTransferError
 from oidc_jwt_verifier import AuthError
 
 
+def _settings() -> Settings:
+    return Settings.model_validate(
+        {
+            "IDEMPOTENCY_ENABLED": False,
+            "IDEMPOTENCY_DYNAMODB_TABLE": "test-idempotency",
+        }
+    )
+
+
 def _build_cache() -> TwoTierCache:
     return TwoTierCache(
         local=LocalTTLCache(ttl_seconds=60, max_entries=128),
-        shared=SharedRedisCache(url=None),
-        shared_ttl_seconds=60,
     )
 
 
@@ -45,7 +51,7 @@ class _VerifierReturningClaims:
 
 @pytest.mark.anyio
 async def test_bearer_verification_uses_async_verifier_and_cache() -> None:
-    settings = Settings()
+    settings = _settings()
     cache = _build_cache()
     auth = Authenticator(settings=settings, cache=cache)
     verifier = _VerifierReturningClaims()
@@ -61,7 +67,7 @@ async def test_bearer_verification_uses_async_verifier_and_cache() -> None:
 
 @pytest.mark.anyio
 async def test_authenticator_aclose_closes_async_verifier() -> None:
-    settings = Settings()
+    settings = _settings()
     auth = Authenticator(settings=settings, cache=_build_cache())
     verifier = _VerifierReturningClaims()
     auth._verifier = verifier
@@ -75,7 +81,7 @@ async def test_authenticator_aclose_closes_async_verifier() -> None:
 async def test_bearer_auth_uses_principal_claim_scope(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    settings = Settings()
+    settings = _settings()
     auth = Authenticator(settings=settings, cache=_build_cache())
 
     async def _fake_verify_bearer_token(*, token: str) -> dict[str, Any]:
@@ -100,7 +106,7 @@ async def test_bearer_auth_uses_principal_claim_scope(
 
 @pytest.mark.anyio
 async def test_authenticate_requires_bearer_token() -> None:
-    settings = Settings()
+    settings = _settings()
     auth = Authenticator(settings=settings, cache=_build_cache())
 
     with pytest.raises(FileTransferError) as exc:
@@ -127,7 +133,7 @@ def test_file_transfer_error_initializes_exception_message() -> None:
 async def test_required_scope_is_enforced_from_principal_claims(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    settings = Settings()
+    settings = _settings()
     settings.oidc_required_scopes = "uploads:write"
     auth = Authenticator(settings=settings, cache=_build_cache())
 
@@ -155,7 +161,7 @@ async def test_required_scope_is_enforced_from_principal_claims(
 async def test_required_permission_is_enforced_from_principal_claims(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    settings = Settings()
+    settings = _settings()
     settings.oidc_required_permissions = "jobs:enqueue"
     auth = Authenticator(settings=settings, cache=_build_cache())
 

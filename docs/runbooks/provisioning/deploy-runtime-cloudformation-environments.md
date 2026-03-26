@@ -172,8 +172,9 @@ Worker/file-transfer contract notes:
 - `ENV_VARS_JSON` only supports implemented non-secret API overrides; the
   script rejects unsupported keys, including `IDEMPOTENCY_MODE`, and enforces
   the current strict posture: `IDEMPOTENCY_ENABLED=true` requires
-  `FILE_TRANSFER_CACHE_ENABLED=true` so `CACHE_REDIS_URL` is injected into the
-  task definition.
+  `IDEMPOTENCY_DYNAMODB_TABLE`, and the deploy flow injects
+  `IdempotencyTableName` plus `FileTransferIdempotencyTableArn` into the task
+  definition.
 - The supported override list is generated from the canonical runtime settings
   contract; do not hand-edit duplicate key lists in docs or scripts.
 - Runtime env var names remain stable, but the generator now reads only

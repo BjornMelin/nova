@@ -155,39 +155,8 @@ ENV_JSON_OVERRIDES: tuple[EnvJsonOverrideContract, ...] = (
     EnvJsonOverrideContract(
         "BLOCKING_IO_THREAD_TOKENS", "BlockingIoThreadTokens"
     ),
-    EnvJsonOverrideContract(
-        "CACHE_REDIS_MAX_CONNECTIONS", "CacheRedisMaxConnections"
-    ),
-    EnvJsonOverrideContract(
-        "CACHE_REDIS_SOCKET_TIMEOUT_SECONDS",
-        "CacheRedisSocketTimeoutSeconds",
-    ),
-    EnvJsonOverrideContract(
-        "CACHE_REDIS_SOCKET_CONNECT_TIMEOUT_SECONDS",
-        "CacheRedisSocketConnectTimeoutSeconds",
-    ),
-    EnvJsonOverrideContract(
-        "CACHE_REDIS_HEALTH_CHECK_INTERVAL_SECONDS",
-        "CacheRedisHealthCheckIntervalSeconds",
-    ),
-    EnvJsonOverrideContract(
-        "CACHE_REDIS_RETRY_BASE_SECONDS", "CacheRedisRetryBaseSeconds"
-    ),
-    EnvJsonOverrideContract(
-        "CACHE_REDIS_RETRY_CAP_SECONDS", "CacheRedisRetryCapSeconds"
-    ),
-    EnvJsonOverrideContract(
-        "CACHE_REDIS_RETRY_ATTEMPTS", "CacheRedisRetryAttempts"
-    ),
-    EnvJsonOverrideContract(
-        "CACHE_REDIS_DECODE_RESPONSES", "CacheRedisDecodeResponses"
-    ),
-    EnvJsonOverrideContract("CACHE_REDIS_PROTOCOL", "CacheRedisProtocol"),
     EnvJsonOverrideContract("CACHE_LOCAL_TTL_SECONDS", "CacheLocalTtlSeconds"),
     EnvJsonOverrideContract("CACHE_LOCAL_MAX_ENTRIES", "CacheLocalMaxEntries"),
-    EnvJsonOverrideContract(
-        "CACHE_SHARED_TTL_SECONDS", "CacheSharedTtlSeconds"
-    ),
     EnvJsonOverrideContract("CACHE_KEY_PREFIX", "CacheKeyPrefix"),
     EnvJsonOverrideContract(
         "CACHE_KEY_SCHEMA_VERSION", "CacheKeySchemaVersion"
@@ -197,6 +166,9 @@ ENV_JSON_OVERRIDES: tuple[EnvJsonOverrideContract, ...] = (
     ),
     EnvJsonOverrideContract("IDEMPOTENCY_ENABLED", "IdempotencyEnabled"),
     EnvJsonOverrideContract("IDEMPOTENCY_TTL_SECONDS", "IdempotencyTtlSeconds"),
+    EnvJsonOverrideContract(
+        "IDEMPOTENCY_DYNAMODB_TABLE", "IdempotencyDynamoDbTable"
+    ),
     EnvJsonOverrideContract(
         "FILE_TRANSFER_PRESIGN_UPLOAD_TTL_SECONDS",
         "FileTransferPresignUploadTtlSeconds",
@@ -246,38 +218,8 @@ SERVICE_TEMPLATE_ENV: tuple[TemplateEnvContract, ...] = (
     TemplateEnvContract("JOBS_REPOSITORY_BACKEND", "stack-derived", "always"),
     TemplateEnvContract("JOBS_RUNTIME_MODE", "literal", "always"),
     TemplateEnvContract("ACTIVITY_STORE_BACKEND", "stack-derived", "always"),
-    TemplateEnvContract(
-        "CACHE_REDIS_MAX_CONNECTIONS", "task parameter", "always"
-    ),
-    TemplateEnvContract(
-        "CACHE_REDIS_SOCKET_TIMEOUT_SECONDS", "task parameter", "always"
-    ),
-    TemplateEnvContract(
-        "CACHE_REDIS_SOCKET_CONNECT_TIMEOUT_SECONDS",
-        "task parameter",
-        "always",
-    ),
-    TemplateEnvContract(
-        "CACHE_REDIS_HEALTH_CHECK_INTERVAL_SECONDS",
-        "task parameter",
-        "always",
-    ),
-    TemplateEnvContract(
-        "CACHE_REDIS_RETRY_BASE_SECONDS", "task parameter", "always"
-    ),
-    TemplateEnvContract(
-        "CACHE_REDIS_RETRY_CAP_SECONDS", "task parameter", "always"
-    ),
-    TemplateEnvContract(
-        "CACHE_REDIS_RETRY_ATTEMPTS", "task parameter", "always"
-    ),
-    TemplateEnvContract(
-        "CACHE_REDIS_DECODE_RESPONSES", "task parameter", "always"
-    ),
-    TemplateEnvContract("CACHE_REDIS_PROTOCOL", "task parameter", "always"),
     TemplateEnvContract("CACHE_LOCAL_TTL_SECONDS", "task parameter", "always"),
     TemplateEnvContract("CACHE_LOCAL_MAX_ENTRIES", "task parameter", "always"),
-    TemplateEnvContract("CACHE_SHARED_TTL_SECONDS", "task parameter", "always"),
     TemplateEnvContract("CACHE_KEY_PREFIX", "task parameter", "always"),
     TemplateEnvContract("CACHE_KEY_SCHEMA_VERSION", "task parameter", "always"),
     TemplateEnvContract(
@@ -285,6 +227,11 @@ SERVICE_TEMPLATE_ENV: tuple[TemplateEnvContract, ...] = (
     ),
     TemplateEnvContract("IDEMPOTENCY_ENABLED", "task parameter", "always"),
     TemplateEnvContract("IDEMPOTENCY_TTL_SECONDS", "task parameter", "always"),
+    TemplateEnvContract(
+        "IDEMPOTENCY_DYNAMODB_TABLE",
+        "stack output",
+        "when idempotency enabled",
+    ),
     TemplateEnvContract(
         "FILE_TRANSFER_PRESIGN_UPLOAD_TTL_SECONDS",
         "task parameter",
@@ -340,9 +287,6 @@ SERVICE_TEMPLATE_ENV: tuple[TemplateEnvContract, ...] = (
         "FILE_TRANSFER_TMP_PREFIX",
         "stack parameter",
         "when file transfer enabled",
-    ),
-    TemplateEnvContract(
-        "CACHE_REDIS_URL", "Secrets Manager", "when cache enabled", secret=True
     ),
 )
 

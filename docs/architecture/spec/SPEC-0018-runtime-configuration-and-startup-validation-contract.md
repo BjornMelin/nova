@@ -58,12 +58,12 @@ Required startup validation:
 6. `IDEMPOTENCY_ENABLED` and `IDEMPOTENCY_TTL_SECONDS` are the current
    idempotency settings surface; the runtime does not define
    `IDEMPOTENCY_MODE`.
-7. `IDEMPOTENCY_ENABLED=true` requires `CACHE_REDIS_URL` and shared Redis
-   claim storage for duplicate prevention across instances.
+7. `IDEMPOTENCY_ENABLED=true` requires `IDEMPOTENCY_DYNAMODB_TABLE` and
+   DynamoDB-backed claim storage for duplicate prevention across instances.
 8. Shared idempotency-store failures return `503` with
    `error.code = "idempotency_unavailable"`; mutation correctness does not
    fall back to local-only claim handling.
-9. Deploy and operator docs must enforce the shared-cache requirement without
+9. Deploy and operator docs must enforce the DynamoDB-table requirement without
    adding a mode matrix.
 10. Runtime configuration aliases that duplicate canonical settings are
    deprecated and must be removed instead of carried forward.
@@ -91,8 +91,8 @@ Required startup validation:
    rules.
 6. When jobs are disabled, the reported `job_queue` check remains ready instead
    of making the service unready by feature disablement alone.
-7. Shared cache health remains visible in diagnostics and gates readiness only
-   when idempotency is enabled.
+7. `idempotency_store` health remains visible in diagnostics and gates
+   readiness only when idempotency is enabled.
 8. Activity-store health remains visible in diagnostics but is not
    readiness-fatal in the current contract.
 9. Feature flags do not determine readiness by themselves.
@@ -108,7 +108,7 @@ Required startup validation:
 ## 6. Acceptance criteria
 
 1. Runtime docs reference this spec for backend-coupling rules.
-2. Active docs state the current shared-idempotency and scoped-readiness
+2. Active docs state the current DynamoDB-backed idempotency and scoped-readiness
    contract and do not claim an unimplemented `IDEMPOTENCY_MODE`.
 3. Bridge and adapter docs do not claim separate runtime startup contracts.
 4. Runtime deploy/docs/tests share a single generated env/override matrix.
