@@ -71,12 +71,6 @@ repos:
         language: system
         pass_filenames: false
         stages: [pre-push, manual]
-      - id: quality-gates
-        name: quality gates
-        entry: scripts/checks/run_quality_gates.sh
-        language: system
-        pass_filenames: false
-        stages: [manual]
       - id: sdk-conformance
         name: sdk conformance
         entry: scripts/checks/run_sdk_conformance.sh

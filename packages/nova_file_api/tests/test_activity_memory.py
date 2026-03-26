@@ -25,7 +25,7 @@ def _principal(*, subject: str) -> Principal:
     )
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_memory_activity_store_thread_safe_record_and_summary() -> None:
     """Verify concurrent readers and writers observe consistent memory state."""
     store = MemoryActivityStore()

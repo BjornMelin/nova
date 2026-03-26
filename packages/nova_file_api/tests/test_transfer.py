@@ -137,7 +137,7 @@ def _principal() -> Principal:
     return Principal(subject="user-1", scope_id="scope-1")
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_presign_download_preserves_explicit_content_disposition(
     _service: tuple[TransferService, _FakeS3Client],
 ) -> None:
@@ -160,7 +160,7 @@ async def test_presign_download_preserves_explicit_content_disposition(
     assert "ResponseContentType" not in params
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_presign_download_uses_filename_fallback_when_disposition_missing(
     _service: tuple[TransferService, _FakeS3Client],
 ) -> None:
@@ -183,7 +183,7 @@ async def test_presign_download_uses_filename_fallback_when_disposition_missing(
     )
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_copy_upload_to_export_toctou_missing_source_is_invalid() -> None:
     settings = Settings()
     fake_s3 = _FakeS3Client()
@@ -211,7 +211,7 @@ async def test_copy_upload_to_export_toctou_missing_source_is_invalid() -> None:
     assert str(exc_info.value) == "source upload object not found"
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_copy_upload_to_export_copy_error_is_upstream_s3_error() -> None:
     settings = Settings()
     fake_s3 = _FakeS3Client()
@@ -236,7 +236,7 @@ async def test_copy_upload_to_export_copy_error_is_upstream_s3_error() -> None:
     assert str(exc_info.value) == "failed to copy upload object to export key"
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_copy_upload_to_export_client_error_maps_to_upstream() -> None:
     settings = Settings()
     fake_s3 = _FakeS3Client()
@@ -264,7 +264,7 @@ async def test_copy_upload_to_export_client_error_maps_to_upstream() -> None:
     assert str(exc_info.value) == "failed to copy upload object to export key"
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_introspect_upload_lists_parts_across_pages() -> None:
     settings = Settings()
     fake_s3 = _FakeS3Client()
@@ -301,7 +301,7 @@ async def test_introspect_upload_lists_parts_across_pages() -> None:
     ]
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_complete_upload_verifies_listed_parts_and_object_size() -> None:
     settings = Settings()
     fake_s3 = _FakeS3Client()
@@ -336,7 +336,7 @@ async def test_complete_upload_verifies_listed_parts_and_object_size() -> None:
     ]
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_complete_upload_succeeds_when_post_check_fails() -> None:
     settings = Settings()
     fake_s3 = _FakeS3Client()
@@ -368,7 +368,7 @@ async def test_complete_upload_succeeds_when_post_check_fails() -> None:
     assert fake_s3.complete_calls[0]["UploadId"] == "upload-1"
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_complete_upload_rejects_missing_part() -> None:
     settings = Settings()
     fake_s3 = _FakeS3Client()
@@ -394,7 +394,7 @@ async def test_complete_upload_rejects_missing_part() -> None:
     assert str(exc_info.value) == "multipart upload part is missing"
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_complete_upload_rejects_duplicate_part_numbers() -> None:
     settings = Settings()
     fake_s3 = _FakeS3Client()
@@ -425,7 +425,7 @@ async def test_complete_upload_rejects_duplicate_part_numbers() -> None:
     assert fake_s3.complete_calls == []
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_copy_upload_to_export_uses_multipart_copy_above_5_gb() -> None:
     settings = Settings.model_validate(
         {"FILE_TRANSFER_PART_SIZE_BYTES": 128 * 1024 * 1024}
@@ -484,7 +484,7 @@ async def test_copy_upload_to_export_uses_multipart_copy_above_5_gb() -> None:
     assert fake_s3.complete_calls[-1]["UploadId"] == fake_s3.multipart_upload_id
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_copy_upload_to_export_aborts_failed_multipart_copy() -> None:
     settings = Settings.model_validate(
         {"FILE_TRANSFER_PART_SIZE_BYTES": 128 * 1024 * 1024}
@@ -510,7 +510,7 @@ async def test_copy_upload_to_export_aborts_failed_multipart_copy() -> None:
     assert len(fake_s3.abort_calls) == 1
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_copy_upload_to_export_limits_multipart_copy_concurrency() -> (
     None
 ):
@@ -553,7 +553,7 @@ async def test_copy_upload_to_export_limits_multipart_copy_concurrency() -> (
                 await copy_task
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_large_copy_missing_source_is_invalid() -> None:
     settings = Settings.model_validate(
         {"FILE_TRANSFER_PART_SIZE_BYTES": 128 * 1024 * 1024}

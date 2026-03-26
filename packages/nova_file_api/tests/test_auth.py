@@ -43,7 +43,7 @@ class _VerifierReturningClaims:
         self.closed = True
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_bearer_verification_uses_async_verifier_and_cache() -> None:
     settings = Settings()
     cache = _build_cache()
@@ -59,7 +59,7 @@ async def test_bearer_verification_uses_async_verifier_and_cache() -> None:
     assert verifier.tokens == ["token-123"]
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_authenticator_aclose_closes_async_verifier() -> None:
     settings = Settings()
     auth = Authenticator(settings=settings, cache=_build_cache())
@@ -71,7 +71,7 @@ async def test_authenticator_aclose_closes_async_verifier() -> None:
     assert verifier.closed is True
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_bearer_auth_uses_principal_claim_scope(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -98,7 +98,7 @@ async def test_bearer_auth_uses_principal_claim_scope(
     assert principal.scope_id == "scope-from-token"
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_authenticate_requires_bearer_token() -> None:
     settings = Settings()
     auth = Authenticator(settings=settings, cache=_build_cache())
@@ -122,7 +122,8 @@ def test_file_transfer_error_initializes_exception_message() -> None:
     assert exc.args == ("invalid payload",)
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
+@pytest.mark.runtime_gate
 async def test_required_scope_is_enforced_from_principal_claims(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -150,7 +151,7 @@ async def test_required_scope_is_enforced_from_principal_claims(
     assert exc.value.status_code == 403
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_required_permission_is_enforced_from_principal_claims(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -188,6 +189,7 @@ async def test_required_permission_is_enforced_from_principal_claims(
         "token_not_yet_valid",
     ],
 )
+@pytest.mark.runtime_gate
 def test_bearer_auth_error_maps_common_jwt_claim_failures(
     code: str,
 ) -> None:

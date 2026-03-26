@@ -32,7 +32,6 @@ dev = [
   "openapi-python-client==0.28.3",
   "pre-commit>=4.3.0",
   "pytest>=9.0.2",
-  "pytest-asyncio>=1.3.0",
   "ruff>=0.15.7",
   "ty>=0.0.25",
   "types-PyYAML>=6.0.12.20250915",
@@ -73,15 +72,18 @@ namespace = "nova"
 
 [tool.pytest.ini_options]
 minversion = "9.0"
-asyncio_mode = "strict"
-asyncio_default_fixture_loop_scope = "function"
-asyncio_default_test_loop_scope = "function"
+strict_parametrization_ids = true
+strict_xfail = true
 testpaths = [
   "packages/nova_dash_bridge/tests",
   "packages/nova_file_api/tests",
   "packages/nova_runtime_support/tests",
   "scripts/release/tests",
   "tests/infra",
+]
+markers = [
+  "generated_smoke: generated client smoke tests that run as a dedicated lane",
+  "runtime_gate: critical runtime, security, and reliability gate subset",
 ]
 addopts = [
   "-ra",

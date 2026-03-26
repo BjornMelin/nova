@@ -104,7 +104,7 @@ def _build_shared_cache(
     return SharedRedisCache(url=None, client=client)
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_two_tier_cache_reports_hit_and_miss_counters() -> None:
     metrics = MetricsCollector(namespace="Tests")
     shared = _build_shared_cache(client=_DictRedisClient())
@@ -135,7 +135,7 @@ async def test_two_tier_cache_reports_hit_and_miss_counters() -> None:
     assert counters["cache_miss_total"] == 1
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_two_tier_cache_reports_shared_fallback_when_redis_errors() -> (
     None
 ):
@@ -156,7 +156,7 @@ async def test_two_tier_cache_reports_shared_fallback_when_redis_errors() -> (
     assert counters["cache_shared_fallback_total"] == 2
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_shared_cache_delete_with_status_checks_expected_value() -> None:
     client = _DictRedisClient()
     shared = _build_shared_cache(client=client)
@@ -186,7 +186,7 @@ async def test_shared_cache_delete_with_status_checks_expected_value() -> None:
     assert await shared.get_with_status("idempotency-key") == (None, "miss")
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_shared_cache_aclose_closes_bound_client() -> None:
     client = _DictRedisClient()
     shared = _build_shared_cache(client=client)
@@ -197,7 +197,7 @@ async def test_shared_cache_aclose_closes_bound_client() -> None:
     assert shared.available is False
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_shared_cache_aclose_is_noop_when_disabled() -> None:
     shared = SharedRedisCache(url=None)
 
@@ -206,7 +206,7 @@ async def test_shared_cache_aclose_is_noop_when_disabled() -> None:
     assert shared.available is False
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_injected_app_lifespan_keeps_external_state_for_reentry() -> None:
     authenticator = _TrackableAuthenticator()
     shared_client = _DictRedisClient()
@@ -237,7 +237,7 @@ async def test_injected_app_lifespan_keeps_external_state_for_reentry() -> None:
         assert shared_cache.available is True
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_runtime_app_lifespan_clears_runtime_state_for_reentry(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -321,7 +321,7 @@ class _ExplodingSharedCache(SharedRedisCache):
         raise RuntimeError("simulated shared cache close failure")
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_runtime_app_lifespan_clears_runtime_state_when_cleanup_fails(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

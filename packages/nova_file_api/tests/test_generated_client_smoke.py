@@ -15,6 +15,7 @@ _SUBPROCESS_TIMEOUT_SECONDS = 30
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 _OPENAPI_ROOT = _REPO_ROOT / "packages" / "contracts" / "openapi"
 _PYTHON_SDK_SRC = _REPO_ROOT / "packages" / "nova_sdk_py_file" / "src"
+pytestmark = pytest.mark.generated_smoke
 
 if str(_PYTHON_SDK_SRC) not in sys.path:
     sys.path.insert(0, str(_PYTHON_SDK_SRC))
@@ -32,8 +33,10 @@ UnexpectedStatus = _errors_module.UnexpectedStatus
 
 
 def _generate_client_smoke(*, schema_path: Path, tmp_path: Path) -> None:
-    if importlib.util.find_spec("openapi_python_client") is None:
-        pytest.skip("openapi_python_client dependency is not installed")
+    assert importlib.util.find_spec("openapi_python_client") is not None, (
+        "openapi_python_client must be installed for generated client smoke "
+        "tests"
+    )
 
     output_path = tmp_path / schema_path.stem
 

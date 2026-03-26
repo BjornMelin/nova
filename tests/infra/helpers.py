@@ -52,3 +52,12 @@ def load_repo_module(module_name: str, rel_path: str) -> ModuleType:
         sys.modules.pop(module_name, None)
         raise
     return module
+
+
+def section_text(text: str, start_marker: str, end_marker: str) -> str:
+    """Return the text between two required section markers."""
+    start = text.find(start_marker)
+    assert start != -1, f"Missing section marker: {start_marker}"
+    end = text.find(end_marker, start)
+    assert end != -1, f"Missing section terminator: {end_marker}"
+    return text[start:end]

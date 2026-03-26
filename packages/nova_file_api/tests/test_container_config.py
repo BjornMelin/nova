@@ -106,6 +106,7 @@ def test_worker_runtime_requires_activity_table_name() -> None:
         Settings.model_validate(_worker_runtime_env(ACTIVITY_ROLLUPS_TABLE=""))
 
 
+@pytest.mark.runtime_gate
 def test_runtime_state_requires_sqs_queue_url_when_jobs_enabled() -> None:
     """Raise ValueError if JOBS_SQS_QUEUE_URL missing with SQS jobs enabled."""
     settings = _settings()

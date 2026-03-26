@@ -47,7 +47,7 @@ class _FakeIdempotencyStore(IdempotencyStore):
         self.discard_calls += 1
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_run_guarded_mutation_replays_response() -> None:
     store = _FakeIdempotencyStore()
     store.replay = {"value": "cached"}
@@ -81,7 +81,7 @@ async def test_run_guarded_mutation_replays_response() -> None:
     assert replayed == ["hit"]
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_replay_metric_failure_is_best_effort() -> None:
     store = _FakeIdempotencyStore()
     store.replay = {"value": "cached"}
@@ -116,7 +116,7 @@ async def test_replay_metric_failure_is_best_effort() -> None:
     assert result.value == "cached"
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_run_guarded_mutation_discards_claim_on_failure() -> None:
     store = _FakeIdempotencyStore()
     failures: list[str] = []
@@ -150,7 +150,7 @@ async def test_run_guarded_mutation_discards_claim_on_failure() -> None:
     assert store.discard_calls == 1
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_discard_claim_when_failure_hook_raises() -> None:
     store = _FakeIdempotencyStore()
 
@@ -182,7 +182,7 @@ async def test_discard_claim_when_failure_hook_raises() -> None:
     assert store.discard_calls == 1
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_run_guarded_mutation_stores_response_and_runs_success() -> None:
     store = _FakeIdempotencyStore()
     completed: list[str] = []
@@ -216,7 +216,7 @@ async def test_run_guarded_mutation_stores_response_and_runs_success() -> None:
     assert store.stored_payload == {"value": "fresh"}
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_run_guarded_mutation_disabled_store_skips_claim_flow() -> None:
     store = _FakeIdempotencyStore()
     store.enabled = False
@@ -252,7 +252,7 @@ async def test_run_guarded_mutation_disabled_store_skips_claim_flow() -> None:
     assert store.stored_payload is None
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_claim_false_without_replay_conflicts() -> None:
     store = _FakeIdempotencyStore()
     store.claim_result = False
@@ -289,7 +289,7 @@ async def test_claim_false_without_replay_conflicts() -> None:
     assert store.discard_calls == 0
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_run_guarded_mutation_store_failure_raise_preserves_claim() -> (
     None
 ):

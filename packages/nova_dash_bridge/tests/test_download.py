@@ -347,7 +347,7 @@ def test_presign_download_preserves_explicit_content_disposition(
     assert fake_core.last_presign_request.content_type == "text/csv"
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_async_service_rejects_sync_only_s3_factory() -> None:
     service = AsyncFileTransferService(
         env_config=FileTransferEnvConfig.model_validate(

@@ -3,7 +3,10 @@ from __future__ import annotations
 import tomllib
 from pathlib import Path
 
+import pytest
+
 REPO_ROOT = Path(__file__).resolve().parents[3]
+pytestmark = pytest.mark.runtime_gate
 
 _SERVICE_DOCKERFILES = (
     REPO_ROOT / "apps" / "nova_file_api_service" / "Dockerfile",
