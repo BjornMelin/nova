@@ -91,7 +91,7 @@ def _rebind_shared_cache_for_readiness(
     )
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_v1_health_live_returns_ok() -> None:
     """Verify `/v1/health/live` returns 200 with an ok payload."""
     app = build_test_app(_build_deps())
@@ -100,7 +100,7 @@ async def test_v1_health_live_returns_ok() -> None:
     assert response.json() == {"ok": True}
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_v1_health_ready_returns_expected_checks() -> None:
     """Verify `/v1/health/ready` exposes expected readiness checks."""
     app = build_test_app(_build_deps())
@@ -117,7 +117,7 @@ async def test_v1_health_ready_returns_expected_checks() -> None:
     }
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_readyz_stays_ok_when_jobs_are_disabled() -> None:
     """Verify feature flags do not force readiness false."""
     app = build_test_app(_build_deps(jobs_enabled=False))
@@ -134,7 +134,7 @@ async def test_readyz_stays_ok_when_jobs_are_disabled() -> None:
     }
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_readyz_shared_cache_not_gate_when_idempotency_off() -> None:
     """Shared-cache outages stay visible when idempotency is off."""
     deps = _build_deps()
@@ -159,7 +159,7 @@ async def test_readyz_shared_cache_not_gate_when_idempotency_off() -> None:
     }
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_readyz_fails_when_idempotency_requires_shared_cache() -> None:
     """Shared-cache outages fail readiness when idempotency is enabled."""
     deps = _build_deps()
@@ -183,7 +183,7 @@ async def test_readyz_fails_when_idempotency_requires_shared_cache() -> None:
     }
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_readyz_reports_activity_store_failures_without_gating() -> None:
     """Activity-store degradation should remain diagnostic in readiness."""
     deps = _build_deps()
@@ -204,7 +204,7 @@ async def test_readyz_reports_activity_store_failures_without_gating() -> None:
     }
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_readyz_fails_when_bucket_is_missing() -> None:
     """Verify readiness fails when FILE_TRANSFER_BUCKET is not configured."""
     app = build_test_app(_build_deps(file_transfer_bucket=""))
@@ -221,7 +221,7 @@ async def test_readyz_fails_when_bucket_is_missing() -> None:
     }
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_readyz_fails_when_oidc_bearer_settings_are_incomplete() -> None:
     """Verify bearer-verifier readiness fails closed without full OIDC."""
     deps = _build_deps()
@@ -248,7 +248,7 @@ async def test_readyz_fails_when_oidc_bearer_settings_are_incomplete() -> None:
     }
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_validation_errors_use_canonical_error_envelope() -> None:
     """Verify request validation failures return the standard error envelope."""
     app = build_test_app(_build_deps())
@@ -304,7 +304,7 @@ async def _request_exports_with_raw_body(
         )
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_validation_errors_stay_canonical_without_content_type() -> None:
     """Missing content type should still serialize as canonical 422."""
     response = await _request_exports_with_raw_body(
@@ -320,7 +320,7 @@ async def test_validation_errors_stay_canonical_without_content_type() -> None:
     assert payload["error"]["details"]["errors"]
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_validation_errors_stay_canonical_for_wrong_content_type() -> (
     None
 ):
@@ -342,7 +342,7 @@ async def test_validation_errors_stay_canonical_for_wrong_content_type() -> (
     assert payload["error"]["details"]["errors"]
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_success_responses_echo_request_id_header() -> None:
     """Successful responses should echo caller request IDs in headers."""
     app = build_test_app(_build_deps())
@@ -357,7 +357,7 @@ async def test_success_responses_echo_request_id_header() -> None:
     assert response.headers["X-Request-Id"] == "req-live-ok"
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_success_responses_generate_request_id_header() -> None:
     """Successful responses should mint a request ID when none is provided."""
     app = build_test_app(_build_deps())

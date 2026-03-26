@@ -166,7 +166,7 @@ def _expected_principal_fingerprint(*, subject: str) -> str:
     return hashlib.sha256(subject.encode("utf-8")).hexdigest()[:16]
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_dynamo_activity_store_uses_injected_client_without_boto3() -> (
     None
 ):
@@ -183,7 +183,7 @@ async def test_dynamo_activity_store_uses_injected_client_without_boto3() -> (
     assert summary["events_total"] == 1
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_dynamo_activity_summary_counts_repeat_event_once() -> None:
     store = DynamoActivityStore(
         table_name="activity-rollups",
@@ -205,7 +205,7 @@ async def test_dynamo_activity_summary_counts_repeat_event_once() -> None:
     assert summary["distinct_event_types"] == 1
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_dynamo_activity_summary_counts_new_event_types_and_users() -> (
     None
 ):
@@ -233,7 +233,8 @@ async def test_dynamo_activity_summary_counts_new_event_types_and_users() -> (
     assert summary["distinct_event_types"] == 2
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
+@pytest.mark.runtime_gate
 async def test_dynamo_activity_store_uses_conditional_first_seen_markers() -> (
     None
 ):
@@ -259,7 +260,7 @@ async def test_dynamo_activity_store_uses_conditional_first_seen_markers() -> (
     )
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_dynamo_activity_record_logs_counter_failures_and_hides_principal(
     caplog: LogCaptureFixture,
 ) -> None:
@@ -294,7 +295,7 @@ async def test_dynamo_activity_record_logs_counter_failures_and_hides_principal(
     )
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_dynamo_activity_record_user_marker_error_logs_warning(
     caplog: LogCaptureFixture,
 ) -> None:
@@ -328,7 +329,7 @@ async def test_dynamo_activity_record_user_marker_error_logs_warning(
     assert "user-2" not in warning_records[0].getMessage()
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_dynamo_activity_record_event_type_increment_failure_logged(
     caplog: LogCaptureFixture,
 ) -> None:

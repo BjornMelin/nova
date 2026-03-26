@@ -19,6 +19,7 @@ from nova_runtime_support.http import (
     register_fastapi_exception_handlers,
 )
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
+from structlog.testing import CapturingLogger
 
 
 @dataclass(slots=True)
@@ -115,7 +116,7 @@ def _build_test_app() -> FastAPI:
     return app
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_request_context_middleware_passthroughs_non_http() -> None:
     """Non-HTTP scopes should pass through untouched."""
     messages: list[Scope] = []
@@ -241,25 +242,6 @@ def test_canonical_error_spec_from_error_adds_default_bearer_header() -> None:
     assert spec.headers["WWW-Authenticate"].startswith("Bearer ")
 
 
-class _LogCapture:
-    """Simple structlog-like collector for middleware logging assertions."""
-
-    def __init__(self) -> None:
-        self.events: list[tuple[str, dict[str, object]]] = []
-
-    def bind_contextvars(self, **kwargs: object) -> None:
-        del kwargs
-
-    def unbind_contextvars(self, *_keys: str) -> None:
-        pass
-
-    def exception(self, message: str, **event: object) -> None:
-        self.events.append(("exception", {"message": message, **event}))
-
-    def info(self, message: str, **event: object) -> None:
-        self.events.append(("info", {"message": message, **event}))
-
-
 def _error_after_start_http_scope() -> Scope:
     """Return a minimal valid ASGI HTTP scope for middleware unit tests."""
     return {
@@ -284,12 +266,12 @@ def _make_receive() -> Receive:
     return receive
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_request_context_middleware_preserves_status_on_post_start_error(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Preserve observed status for middleware logs after response start."""
-    logger = _LogCapture()
+    logger = CapturingLogger()
     app = TestAppErrorAfterStart()
     middleware = RequestContextASGIMiddleware(app)
 
@@ -303,19 +285,19 @@ async def test_request_context_middleware_preserves_status_on_post_start_error(
     with pytest.raises(RuntimeError, match="simulated response failure"):
         await middleware(scope, _make_receive(), send)
 
-    assert len(logger.events) == 1
-    level, event = logger.events[0]
-    assert level == "exception"
-    assert event["status_code"] == 200
-    assert event["outcome"] == "error"
+    assert len(logger.calls) == 1
+    log_call = logger.calls[0]
+    assert log_call.method_name == "exception"
+    assert log_call.kwargs["status_code"] == 200
+    assert log_call.kwargs["outcome"] == "error"
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_request_context_middleware_skips_info_after_error(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Log request_completed only in error path for start/exception races."""
-    logger = _LogCapture()
+    logger = CapturingLogger()
     app = TestAppErrorAfterStart()
     middleware = RequestContextASGIMiddleware(app)
     monkeypatch.setattr(structlog, "get_logger", lambda _name: logger)
@@ -328,7 +310,7 @@ async def test_request_context_middleware_skips_info_after_error(
     with pytest.raises(RuntimeError, match="simulated response failure"):
         await middleware(scope, _make_receive(), send)
 
-    assert {entry[0] for entry in logger.events} == {"exception"}
+    assert {call.method_name for call in logger.calls} == {"exception"}
 
 
 def test_request_context_fastapi_initializes_request_context_wrapper_once(

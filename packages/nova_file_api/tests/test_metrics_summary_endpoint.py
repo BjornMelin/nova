@@ -94,7 +94,7 @@ async def _request_metrics_summary(
         )
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_metrics_summary_rejects_missing_permission() -> None:
     """Bearer-authenticated metrics summary requires metrics:read."""
     response = await _request_metrics_summary(permissions=())
@@ -104,7 +104,7 @@ async def test_metrics_summary_rejects_missing_permission() -> None:
     assert payload["error"]["message"] == "missing metrics:read permission"
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_metrics_summary_allows_metrics_permission() -> None:
     """Bearer-authenticated metrics summary succeeds with metrics:read."""
     response = await _request_metrics_summary(

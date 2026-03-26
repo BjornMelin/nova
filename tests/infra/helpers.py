@@ -52,3 +52,27 @@ def load_repo_module(module_name: str, rel_path: str) -> ModuleType:
         sys.modules.pop(module_name, None)
         raise
     return module
+
+
+def section_text(text: str, start_marker: str, end_marker: str) -> str:
+    """Extract a substring from a template between two literal markers.
+
+    Args:
+        text: Full file or block content to search.
+        start_marker: Substring marking the inclusive start of the section.
+        end_marker: Substring searched for after ``start_marker``; the returned
+            slice ends before this marker.
+
+    Returns:
+        The substring of ``text`` from ``start_marker`` through the character
+        before the first ``end_marker`` after ``start_marker``.
+
+    Raises:
+        AssertionError: If ``start_marker`` or ``end_marker`` is not found at
+            the expected positions (enforced via assertions below).
+    """
+    start = text.find(start_marker)
+    assert start != -1, f"Missing section marker: {start_marker}"
+    end = text.find(end_marker, start)
+    assert end != -1, f"Missing section terminator: {end_marker}"
+    return text[start:end]

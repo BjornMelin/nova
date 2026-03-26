@@ -151,7 +151,8 @@ async def _attach_runtime(
     return sqs_client
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
+@pytest.mark.runtime_gate
 async def test_export_repository_update_if_status_enforces_expected_state() -> (
     None
 ):
@@ -194,7 +195,8 @@ async def test_export_repository_update_if_status_enforces_expected_state() -> (
     )
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
+@pytest.mark.runtime_gate
 async def test_export_service_update_status_rejects_invalid_transition() -> (
     None
 ):
@@ -221,7 +223,7 @@ async def test_export_service_update_status_rejects_invalid_transition() -> (
     assert latest.status == ExportStatus.FAILED
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_worker_invalid_message_is_not_deleted() -> None:
     transfer_service = _FakeTransferService()
     repository, export_service, activity_store = await _build_worker_runtime()
@@ -241,7 +243,7 @@ async def test_worker_invalid_message_is_not_deleted() -> None:
     assert await repository.get("export-1") is not None
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_worker_executes_export_and_marks_success() -> None:
     transfer_service = _FakeTransferService()
     repository, export_service, activity_store = await _build_worker_runtime(
@@ -274,7 +276,7 @@ async def test_worker_executes_export_and_marks_success() -> None:
     assert transfer_service.calls[0]["export_id"] == "export-2"
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_worker_retryable_error_leaves_message_unacked() -> None:
     transfer_service = _FakeTransferService()
     transfer_service.error = upstream_s3_error(
@@ -305,7 +307,7 @@ async def test_worker_retryable_error_leaves_message_unacked() -> None:
     assert record.status == ExportStatus.COPYING
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_worker_resumes_from_copying_state_after_retry() -> None:
     transfer_service = _FakeTransferService()
     repository, export_service, activity_store = await _build_worker_runtime(
@@ -338,7 +340,7 @@ async def test_worker_resumes_from_copying_state_after_retry() -> None:
     assert transfer_service.calls[0]["export_id"] == "export-5"
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_worker_resumes_from_finalizing_state_without_recopied() -> None:
     transfer_service = _FakeTransferService()
     repository, export_service, activity_store = await _build_worker_runtime(
@@ -373,7 +375,7 @@ async def test_worker_resumes_from_finalizing_state_without_recopied() -> None:
     assert transfer_service.calls == []
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_worker_acks_terminal_redelivery_without_reprocessing() -> None:
     transfer_service = _FakeTransferService()
     repository, export_service, activity_store = await _build_worker_runtime(

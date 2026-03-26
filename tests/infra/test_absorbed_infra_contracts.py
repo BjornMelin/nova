@@ -10,8 +10,14 @@ import re
 
 import yaml
 
-from .helpers import REPO_ROOT, load_repo_module
-from .helpers import read_repo_file as _read
+from .helpers import (
+    REPO_ROOT,
+    load_repo_module,
+    section_text,
+)
+from .helpers import (
+    read_repo_file as _read,
+)
 
 runtime_config_contract = load_repo_module(
     "tests.infra.runtime_config_contract",
@@ -56,14 +62,6 @@ yaml.add_multi_constructor(
     _construct_cfn_tag,
     Loader=_CfnYamlLoader,
 )
-
-
-def _section(text: str, start_marker: str, end_marker: str) -> str:
-    start = text.find(start_marker)
-    assert start != -1, f"Missing section marker: {start_marker}"
-    end = text.find(end_marker, start)
-    assert end != -1, f"Missing section terminator: {end_marker}"
-    return text[start:end]
 
 
 def _default_number_from_block(block: str) -> int:
@@ -887,12 +885,12 @@ def test_worker_autoscaling_parameter_bounds_contract() -> None:
     """Worker autoscaling defaults must preserve min <= max."""
     worker_text = _read("infra/runtime/file_transfer/worker.yml")
 
-    min_block = _section(
+    min_block = section_text(
         worker_text,
         "  WorkerMinTaskCount:\n",
         "  WorkerMaxTaskCount:\n",
     )
-    max_block = _section(
+    max_block = section_text(
         worker_text,
         "  WorkerMaxTaskCount:\n",
         "  WorkerScaleOutQueueDepthTarget:\n",

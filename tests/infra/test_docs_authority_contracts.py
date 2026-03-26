@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from .helpers import REPO_ROOT
+from .helpers import REPO_ROOT, section_text
 from .helpers import read_repo_file as _read
 
 DOCS_ROOT = REPO_ROOT / "docs"
@@ -75,14 +75,6 @@ def _markdown_targets(paths: tuple[Path, ...]) -> list[Path]:
         else:
             raise ValueError(f"Unexpected docs target type: {path}")
     return sorted(docs)
-
-
-def _section(text: str, start_marker: str, end_marker: str) -> str:
-    start = text.find(start_marker)
-    assert start != -1, f"Missing section marker: {start_marker}"
-    end = text.find(end_marker, start)
-    assert end != -1, f"Missing section terminator: {end_marker}"
-    return text[start:end]
 
 
 def _context_contains_url(context: str) -> bool:
@@ -509,7 +501,7 @@ def test_runtime_provisioning_docs_lock_cloudfront_ingress_contract() -> None:
     deploy_text = _read(
         "docs/runbooks/provisioning/deploy-runtime-cloudformation-environments.md"
     )
-    required_inputs = _section(
+    required_inputs = section_text(
         deploy_text,
         "## Required Inputs",
         "## Reproducible Deployment Sequence",
@@ -529,7 +521,7 @@ def test_runtime_provisioning_docs_lock_cloudfront_ingress_contract() -> None:
         assert required in required_inputs
 
     config_text = _read("docs/runbooks/provisioning/config-values-reference.md")
-    runtime_values = _section(
+    runtime_values = section_text(
         config_text,
         (
             "Capture and manage these runtime values per environment before "
@@ -551,7 +543,7 @@ def test_runtime_provisioning_docs_lock_cloudfront_ingress_contract() -> None:
     ]:
         assert required in runtime_values
 
-    retired_inputs = _section(
+    retired_inputs = section_text(
         config_text,
         "Retired runtime deploy inputs:",
         "## CloudFormation stack names and outputs",

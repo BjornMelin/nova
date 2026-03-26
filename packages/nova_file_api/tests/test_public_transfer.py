@@ -58,7 +58,7 @@ def test_transfer_config_is_keyword_only() -> None:
         )
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_build_transfer_service_ignores_ambient_settings_env(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

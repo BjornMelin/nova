@@ -38,7 +38,9 @@ if [[ ! -d "${package_dir_abs}" ]]; then
   exit 1
 fi
 
-package_name="$(sed -n 's/^Package: //p' "${package_dir_abs}/DESCRIPTION" | head -n 1)"
+package_name="$(
+  sed -n 's/^Package: //p' "${package_dir_abs}/DESCRIPTION" | head -n 1
+)"
 if [[ -z "${package_name}" ]]; then
   echo "${package_dir_abs}/DESCRIPTION is missing a Package field" >&2
   exit 1
@@ -55,8 +57,9 @@ cp -R "${package_dir_abs}" "${work_package_dir}"
 cd "${tmp_dir}"
 
 R CMD build "${work_package_dir}"
-
-tarball="$(find . -maxdepth 1 -name "${package_name}_*.tar.gz" -print | sort | tail -n 1)"
+tarball="$(
+  find . -maxdepth 1 -name "${package_name}_*.tar.gz" -print | sort | tail -n 1
+)"
 if [[ -z "${tarball}" ]]; then
   echo "Unable to locate built tarball for ${package_name}" >&2
   exit 1

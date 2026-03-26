@@ -309,7 +309,7 @@ def _build_deps(
     return deps, transfer_service, export_service
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_v1_initiate_allows_missing_idempotency_key_when_enabled() -> (
     None
 ):
@@ -330,7 +330,7 @@ async def test_v1_initiate_allows_missing_idempotency_key_when_enabled() -> (
     assert transfer_service.calls == 1
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_v1_initiate_replays_response_for_same_idempotency_key() -> None:
     """Verify same initiate key+payload replays the cached response."""
     deps, transfer_service, _job_service = _build_deps()
@@ -362,7 +362,7 @@ async def test_v1_initiate_replays_response_for_same_idempotency_key() -> None:
     assert transfer_service.calls == 1
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_v1_initiate_rejects_key_reuse_with_different_payload() -> None:
     """Verify key reuse with different initiate payload returns conflict."""
     deps, transfer_service, _job_service = _build_deps()
@@ -394,7 +394,7 @@ async def test_v1_initiate_rejects_key_reuse_with_different_payload() -> None:
     assert transfer_service.calls == 1
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_v1_exports_allow_missing_idempotency_key_when_enabled() -> None:
     """Verify `/v1/exports` accepts requests without Idempotency-Key."""
     deps, _transfer_service, export_service = _build_deps()
@@ -409,7 +409,7 @@ async def test_v1_exports_allow_missing_idempotency_key_when_enabled() -> None:
     assert export_service.calls == 1
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_request_app_reuses_injected_shared_cache_across_lifespans() -> (
     None
 ):
@@ -438,7 +438,7 @@ async def test_request_app_reuses_injected_shared_cache_across_lifespans() -> (
     assert export_service.calls == 1
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_v1_exports_replay_response_for_same_idempotency_key() -> None:
     """Verify identical key+payload replays the cached export response."""
     deps, _transfer_service, export_service = _build_deps()
@@ -464,7 +464,7 @@ async def test_v1_exports_replay_response_for_same_idempotency_key() -> None:
     assert export_service.calls == 1
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_v1_exports_reject_key_reuse_with_different_payload() -> None:
     """Verify same key with different payload returns idempotency conflict."""
     deps, _transfer_service, export_service = _build_deps()
@@ -488,7 +488,8 @@ async def test_v1_exports_reject_key_reuse_with_different_payload() -> None:
     assert export_service.calls == 1
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
+@pytest.mark.runtime_gate
 async def test_v1_exports_failed_create_is_not_idempotency_replayed() -> None:
     """
     A failed export create must not be replay-cached by idempotency middleware.
@@ -520,7 +521,7 @@ async def test_v1_exports_failed_create_is_not_idempotency_replayed() -> None:
     assert flaky_export_service.calls == 2
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_v1_initiate_fails_closed_shared_claim_store_unavailable() -> (
     None
 ):
@@ -550,7 +551,7 @@ async def test_v1_initiate_fails_closed_shared_claim_store_unavailable() -> (
     assert transfer_service.calls == 0
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_v1_initiate_store_failure_is_not_replayed() -> None:
     """Commit-store outages must block duplicate execution."""
     deps, transfer_service, _job_service = _build_deps()
@@ -590,7 +591,7 @@ async def test_v1_initiate_store_failure_is_not_replayed() -> None:
     assert transfer_service.calls == 1
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_v1_exports_store_failure_blocks_duplicate_create() -> None:
     """Commit-store outages must not re-run a successful export create."""
     deps, _transfer_service, export_service = _build_deps()
@@ -622,7 +623,7 @@ async def test_v1_exports_store_failure_blocks_duplicate_create() -> None:
     assert export_service.calls == 1
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_shared_idempotency_store_prevents_duplicate_claims() -> None:
     """Separate store instances sharing Redis must not both claim one key."""
     shared_cache = _shared_cache_with_client(_DictRedisClient())
@@ -664,7 +665,7 @@ async def test_shared_idempotency_store_prevents_duplicate_claims() -> None:
         )
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_claim_request_conflicts_when_claim_entry_expires_before_read(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -706,7 +707,7 @@ async def test_claim_request_conflicts_when_claim_entry_expires_before_read(
     assert_request_hash.assert_not_called()
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_discard_claim_keeps_newer_owner_when_claim_was_replaced() -> (
     None
 ):

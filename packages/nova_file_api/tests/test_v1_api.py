@@ -124,7 +124,7 @@ def _build_v1_deps(
     )
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_v1_health_and_capabilities() -> None:
     """Verifies v1 live/ready health and capability keys are exposed."""
     app = build_test_app(_build_v1_deps(file_transfer_bucket=""))
@@ -144,7 +144,7 @@ async def test_v1_health_and_capabilities() -> None:
     assert {"exports", "exports.status.poll", "transfers"}.issubset(cap_keys)
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_v1_upload_introspect_returns_uploaded_parts() -> None:
     """Verify multipart introspection is exposed on the canonical v1 route."""
     deps = _build_v1_deps()
@@ -165,7 +165,7 @@ async def test_v1_upload_introspect_returns_uploaded_parts() -> None:
     assert response.json()["parts"] == [{"part_number": 1, "etag": '"etag-1"'}]
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_v1_exports_create_list_and_get() -> None:
     """Verify the explicit export workflow resource lifecycle."""
     app = build_test_app(_build_v1_deps())
@@ -202,7 +202,7 @@ async def test_v1_exports_create_list_and_get() -> None:
     assert get_resp.json()["export_id"] == export_id
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_v1_exports_cancel_non_terminal_resource() -> None:
     """Verify canceling a queued export returns the cancelled resource."""
     app = build_test_app(_build_v1_deps(process_immediately=False))
@@ -226,7 +226,7 @@ async def test_v1_exports_cancel_non_terminal_resource() -> None:
     assert cancel_resp.json()["status"] == "cancelled"
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_v1_resource_plan_and_release_info() -> None:
     """Verifies v1 resource planning plus release metadata contract."""
     app = build_test_app(_build_v1_deps())
@@ -253,7 +253,7 @@ async def test_v1_resource_plan_and_release_info() -> None:
     assert release["environment"]
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_v1_exports_reject_blank_idempotency_key() -> None:
     """Verifies v1 exports reject blank Idempotency-Key header values."""
     app = build_test_app(_build_v1_deps())
@@ -277,7 +277,7 @@ async def test_v1_exports_reject_blank_idempotency_key() -> None:
     assert whitespace_resp.json()["error"]["code"] == "invalid_request"
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_v1_exports_list_scoped_config_error_returns_internal_error() -> (
     None
 ):
@@ -321,7 +321,7 @@ async def test_v1_exports_list_scoped_config_error_returns_internal_error() -> (
     assert payload["error"]["request_id"] == "req-v1-500"
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_v1_exports_reject_legacy_session_scope_body_fields() -> None:
     """Public request models reject removed legacy auth-surrogate fields."""
     app = build_test_app(_build_v1_deps())
