@@ -170,11 +170,11 @@ Worker/file-transfer contract notes:
 - The public validation base URL is published from the CloudFront edge stack
   (`PublicBaseUrl`), not from the ECS service stack output.
 - `ENV_VARS_JSON` only supports implemented non-secret API overrides; the
-  script rejects unsupported keys, including `IDEMPOTENCY_MODE`, and enforces
-  the current strict posture: `IDEMPOTENCY_ENABLED=true` requires
-  `IDEMPOTENCY_DYNAMODB_TABLE`, and the deploy flow injects
-  `IdempotencyTableName` plus `FileTransferIdempotencyTableArn` into the task
-  definition.
+  script rejects unsupported keys, including `IDEMPOTENCY_MODE` and
+  `IDEMPOTENCY_DYNAMODB_TABLE`. `IDEMPOTENCY_DYNAMODB_TABLE` is stack-derived:
+  the deploy flow injects `IdempotencyTableName` plus
+  `FileTransferIdempotencyTableArn` into the task definition when
+  `IDEMPOTENCY_ENABLED=true`.
 - The supported override list is generated from the canonical runtime settings
   contract; do not hand-edit duplicate key lists in docs or scripts.
 - Runtime env var names remain stable, but the generator now reads only

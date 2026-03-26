@@ -77,7 +77,6 @@ Canonical sources:
 | AUTH_JWT_CACHE_MAX_TTL_SECONDS | AuthJwtCacheMaxTtlSeconds |
 | IDEMPOTENCY_ENABLED | IdempotencyEnabled |
 | IDEMPOTENCY_TTL_SECONDS | IdempotencyTtlSeconds |
-| IDEMPOTENCY_DYNAMODB_TABLE | IdempotencyDynamoDbTable |
 | FILE_TRANSFER_PRESIGN_UPLOAD_TTL_SECONDS | FileTransferPresignUploadTtlSeconds |
 | FILE_TRANSFER_PRESIGN_DOWNLOAD_TTL_SECONDS | FileTransferPresignDownloadTtlSeconds |
 | FILE_TRANSFER_MULTIPART_THRESHOLD_BYTES | FileTransferMultipartThresholdBytes |
@@ -87,7 +86,7 @@ Canonical sources:
 | FILE_TRANSFER_MAX_UPLOAD_BYTES | FileTransferMaxUploadBytes |
 
 Forbidden ENV_VARS_JSON keys:
-`IDEMPOTENCY_MODE`
+`IDEMPOTENCY_MODE`, `IDEMPOTENCY_DYNAMODB_TABLE`
 
 ## Service template environment contract
 

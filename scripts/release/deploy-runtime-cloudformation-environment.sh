@@ -593,43 +593,31 @@ deploy_stack \
   "KmsAlias=${KMS_ALIAS}" \
   "CorsAllowedOrigins=${FILE_TRANSFER_CORS_ALLOWED_ORIGINS}"
 
-if [ "$FILE_TRANSFER_ASYNC_ENABLED" = "true" ]; then
-  deploy_stack \
-    "$ASYNC_STACK_NAME" \
-    "infra/runtime/file_transfer/async.yml" \
-    "Project=${PROJECT}" \
-    "Application=${APPLICATION}" \
-    "Service=${SERVICE_NAME}" \
-    "Environment=${ENVIRONMENT}" \
-    "JobsQueueName=${JOBS_QUEUE_NAME}" \
-    "JobsDeadLetterQueueName=${JOBS_DEAD_LETTER_QUEUE_NAME}" \
-    "JobsTableName=${JOBS_TABLE_NAME}" \
-    "ActivityTableName=${ACTIVITY_TABLE_NAME}" \
-    "IdempotencyTableName=${IDEMPOTENCY_TABLE_NAME}" \
-    "JobsVisibilityTimeoutSeconds=${JOBS_SQS_VISIBILITY_TIMEOUT_SECONDS}" \
-    "JobsMessageRetentionSeconds=${JOBS_MESSAGE_RETENTION_SECONDS}" \
-    "JobsMaxReceiveCount=${JOBS_MAX_RECEIVE_COUNT}" \
-    "AlarmNotificationTopicArn=${ALARM_ACTION_ARN}"
-fi
+deploy_stack \
+  "$ASYNC_STACK_NAME" \
+  "infra/runtime/file_transfer/async.yml" \
+  "Project=${PROJECT}" \
+  "Application=${APPLICATION}" \
+  "Service=${SERVICE_NAME}" \
+  "Environment=${ENVIRONMENT}" \
+  "JobsQueueName=${JOBS_QUEUE_NAME}" \
+  "JobsDeadLetterQueueName=${JOBS_DEAD_LETTER_QUEUE_NAME}" \
+  "JobsTableName=${JOBS_TABLE_NAME}" \
+  "ActivityTableName=${ACTIVITY_TABLE_NAME}" \
+  "IdempotencyTableName=${IDEMPOTENCY_TABLE_NAME}" \
+  "JobsVisibilityTimeoutSeconds=${JOBS_SQS_VISIBILITY_TIMEOUT_SECONDS}" \
+  "JobsMessageRetentionSeconds=${JOBS_MESSAGE_RETENTION_SECONDS}" \
+  "JobsMaxReceiveCount=${JOBS_MAX_RECEIVE_COUNT}" \
+  "AlarmNotificationTopicArn=${ALARM_ACTION_ARN}"
 
-JOBS_QUEUE_ARN=""
-JOBS_QUEUE_URL=""
-JOBS_TABLE_NAME=""
-JOBS_TABLE_ARN=""
-ACTIVITY_TABLE_NAME=""
-ACTIVITY_TABLE_ARN=""
-IDEMPOTENCY_TABLE_NAME=""
-IDEMPOTENCY_TABLE_ARN=""
-if [ "$FILE_TRANSFER_ASYNC_ENABLED" = "true" ]; then
-  JOBS_QUEUE_ARN="$(stack_output "$ASYNC_STACK_NAME" JobsQueueArn)"
-  JOBS_QUEUE_URL="$(stack_output "$ASYNC_STACK_NAME" JobsQueueUrl)"
-  JOBS_TABLE_NAME="$(stack_output "$ASYNC_STACK_NAME" JobsTableName)"
-  JOBS_TABLE_ARN="$(stack_output "$ASYNC_STACK_NAME" JobsTableArn)"
-  ACTIVITY_TABLE_NAME="$(stack_output "$ASYNC_STACK_NAME" ActivityTableName)"
-  ACTIVITY_TABLE_ARN="$(stack_output "$ASYNC_STACK_NAME" ActivityTableArn)"
-  IDEMPOTENCY_TABLE_NAME="$(stack_output "$ASYNC_STACK_NAME" IdempotencyTableName)"
-  IDEMPOTENCY_TABLE_ARN="$(stack_output "$ASYNC_STACK_NAME" IdempotencyTableArn)"
-fi
+JOBS_QUEUE_ARN="$(stack_output "$ASYNC_STACK_NAME" JobsQueueArn)"
+JOBS_QUEUE_URL="$(stack_output "$ASYNC_STACK_NAME" JobsQueueUrl)"
+JOBS_TABLE_NAME="$(stack_output "$ASYNC_STACK_NAME" JobsTableName)"
+JOBS_TABLE_ARN="$(stack_output "$ASYNC_STACK_NAME" JobsTableArn)"
+ACTIVITY_TABLE_NAME="$(stack_output "$ASYNC_STACK_NAME" ActivityTableName)"
+ACTIVITY_TABLE_ARN="$(stack_output "$ASYNC_STACK_NAME" ActivityTableArn)"
+IDEMPOTENCY_TABLE_NAME="$(stack_output "$ASYNC_STACK_NAME" IdempotencyTableName)"
+IDEMPOTENCY_TABLE_ARN="$(stack_output "$ASYNC_STACK_NAME" IdempotencyTableArn)"
 
 TEST_TRAFFIC_LISTENER_ARN=""
 if [ "$ENABLE_BLUE_GREEN_TEST_LISTENER" = "true" ]; then

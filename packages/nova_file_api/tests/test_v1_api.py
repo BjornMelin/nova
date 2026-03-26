@@ -283,8 +283,8 @@ async def test_v1_exports_list_scoped_config_error_returns_internal_error() -> (
     """Verify a scoped export listing config error returns an internal error."""
     settings = Settings.model_validate(
         {
-            "JOBS_ENABLED": True,
-            "IDEMPOTENCY_DYNAMODB_TABLE": "test-idempotency",
+            "jobs_enabled": True,
+            "idempotency_dynamodb_table": "test-idempotency",
         }
     )
     metrics = MetricsCollector(namespace="Tests")

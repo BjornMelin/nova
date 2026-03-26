@@ -154,27 +154,26 @@ class IdempotencyStore:
             request_hash=request_hash,
         )
 
-        if await self._create_claim_if_absent_or_expired(claim=claim):
-            return claim
+        while True:
+            if await self._create_claim_if_absent_or_expired(claim=claim):
+                return claim
 
-        existing = await self._read_entry(cache_key)
-        if existing is None:
-            return await self.claim_request(
-                route=route,
-                scope_id=scope_id,
-                idempotency_key=idempotency_key,
-                request_payload=request_payload,
-            )
+            existing = await self._read_entry(cache_key)
+            if existing is None:
+                await asyncio.sleep(0)
+                continue
 
-        _assert_entry_request_hash(entry=existing, expected_hash=request_hash)
-        state = existing.get("state")
-        if state == _IDEMPOTENCY_STATE_COMMITTED:
-            return None
-        if state == _IDEMPOTENCY_STATE_IN_PROGRESS:
-            raise idempotency_conflict(
-                "idempotency request is already in progress"
+            _assert_entry_request_hash(
+                entry=existing, expected_hash=request_hash
             )
-        raise idempotency_conflict("stored idempotency record is invalid")
+            state = existing.get("state")
+            if state == _IDEMPOTENCY_STATE_COMMITTED:
+                return None
+            if state == _IDEMPOTENCY_STATE_IN_PROGRESS:
+                raise idempotency_conflict(
+                    "idempotency request is already in progress"
+                )
+            raise idempotency_conflict("stored idempotency record is invalid")
 
     async def store_response(
         self,

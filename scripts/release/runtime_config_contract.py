@@ -167,9 +167,6 @@ ENV_JSON_OVERRIDES: tuple[EnvJsonOverrideContract, ...] = (
     EnvJsonOverrideContract("IDEMPOTENCY_ENABLED", "IdempotencyEnabled"),
     EnvJsonOverrideContract("IDEMPOTENCY_TTL_SECONDS", "IdempotencyTtlSeconds"),
     EnvJsonOverrideContract(
-        "IDEMPOTENCY_DYNAMODB_TABLE", "IdempotencyDynamoDbTable"
-    ),
-    EnvJsonOverrideContract(
         "FILE_TRANSFER_PRESIGN_UPLOAD_TTL_SECONDS",
         "FileTransferPresignUploadTtlSeconds",
     ),
@@ -339,7 +336,10 @@ WORKER_TEMPLATE_ENV: tuple[TemplateEnvContract, ...] = (
 
 
 FORBIDDEN_ENV_VARS = ("ENV", "ENV_DICT", "AUTH_APP_SECRET")
-FORBIDDEN_ENV_JSON_KEYS = ("IDEMPOTENCY_MODE",)
+FORBIDDEN_ENV_JSON_KEYS = (
+    "IDEMPOTENCY_MODE",
+    "IDEMPOTENCY_DYNAMODB_TABLE",
+)
 FORBIDDEN_SERVICE_PARAMETERS = (
     "EnvVars",
     "UseLegacyEnvDict",

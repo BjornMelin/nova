@@ -20,6 +20,21 @@ def _conditional_check_failed() -> ClientError:
 class MemoryDynamoTable:
     """Deterministic in-memory table for idempotency records."""
 
+    _PUT_CONDITION = (
+        "attribute_not_exists(idempotency_key) OR expires_at <= :now"
+    )
+    _UPDATE_CONDITION = (
+        "attribute_exists(idempotency_key) "
+        "AND #state = :in_progress "
+        "AND request_hash = :request_hash "
+        "AND owner_token = :owner_token"
+    )
+    _DELETE_CONDITION = (
+        "#state = :in_progress "
+        "AND request_hash = :request_hash "
+        "AND owner_token = :owner_token"
+    )
+
     def __init__(self) -> None:
         self._items: dict[str, dict[str, Any]] = {}
 
@@ -40,10 +55,9 @@ class MemoryDynamoTable:
         assert isinstance(item_key, str)
         existing = self._items.get(item_key)
 
-        if (
-            condition
-            == "attribute_not_exists(idempotency_key) OR expires_at <= :now"
-        ):
+        if condition is not None and condition != self._PUT_CONDITION:
+            raise ValueError(f"unsupported ConditionExpression: {condition!r}")
+        if condition == self._PUT_CONDITION:
             now = values[":now"]
             assert isinstance(now, int)
             if existing is not None and int(existing["expires_at"]) > now:
@@ -54,10 +68,13 @@ class MemoryDynamoTable:
 
     async def update_item(self, **kwargs: object) -> dict[str, object]:
         key = cast(dict[str, Any], kwargs["Key"])
+        condition = kwargs.get("ConditionExpression")
         values = cast(dict[str, Any], kwargs["ExpressionAttributeValues"])
         item_key = key["idempotency_key"]
         assert isinstance(item_key, str)
         existing = self._items.get(item_key)
+        if condition is not None and condition != self._UPDATE_CONDITION:
+            raise ValueError(f"unsupported ConditionExpression: {condition!r}")
         if existing is None:
             raise _conditional_check_failed()
         if existing.get("state") != values[":in_progress"]:
@@ -76,10 +93,13 @@ class MemoryDynamoTable:
 
     async def delete_item(self, **kwargs: object) -> dict[str, object]:
         key = cast(dict[str, Any], kwargs["Key"])
+        condition = kwargs.get("ConditionExpression")
         values = cast(dict[str, Any], kwargs["ExpressionAttributeValues"])
         item_key = key["idempotency_key"]
         assert isinstance(item_key, str)
         existing = self._items.get(item_key)
+        if condition is not None and condition != self._DELETE_CONDITION:
+            raise ValueError(f"unsupported ConditionExpression: {condition!r}")
         if existing is None:
             raise _conditional_check_failed()
         if existing.get("state") != values[":in_progress"]:

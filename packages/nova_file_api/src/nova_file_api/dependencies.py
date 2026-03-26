@@ -223,13 +223,14 @@ def build_idempotency_store(
         ValueError: When idempotency is enabled but the table name or DynamoDB
             resource is missing.
     """
+    table_name = (settings.idempotency_dynamodb_table or "").strip()
     if settings.idempotency_enabled:
-        if not (settings.idempotency_dynamodb_table or "").strip():
+        if not table_name:
             raise ValueError(_MSG_IDEMPOTENCY_REQUIRES_DYNAMODB_TABLE)
         if dynamodb_resource is None:
             raise ValueError(_MSG_DYNAMODB_RESOURCE_REQUIRED)
     return IdempotencyStore(
-        table_name=settings.idempotency_dynamodb_table,
+        table_name=table_name or None,
         dynamodb_resource=cast(
             IdempotencyDynamoResource | None,
             dynamodb_resource,

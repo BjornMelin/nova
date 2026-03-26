@@ -474,8 +474,8 @@ origin for canonical `/v1/*` runtime surfaces.
 
 ### IR-0002: AWS service dependencies
 
-Initial AWS dependencies include S3, ECS/Fargate, ALB, SQS, DynamoDB,
-DynamoDB, and CloudWatch.
+Initial AWS dependencies include S3, ECS/Fargate, ALB, SQS, DynamoDB, and
+CloudWatch.
 
 ### IR-0003: Auth execution locality
 

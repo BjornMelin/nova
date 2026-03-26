@@ -168,6 +168,19 @@ def _idempotency_store(
 
 
 @pytest.mark.anyio
+async def test_memory_dynamo_table_rejects_unknown_condition_expression() -> (
+    None
+):
+    table = MemoryDynamoTable()
+
+    with pytest.raises(ValueError, match="unsupported ConditionExpression"):
+        await table.put_item(
+            Item={"idempotency_key": "claim-1"},
+            ConditionExpression="attribute_exists(idempotency_key)",
+        )
+
+
+@pytest.mark.anyio
 async def test_v1_initiate_replays_response_for_same_idempotency_key() -> None:
     transfer_service = _StubTransferService()
     app = build_test_app(
@@ -377,10 +390,15 @@ async def test_expired_items_are_filtered_before_replay() -> None:
     resource = MemoryDynamoResource()
     store = _idempotency_store(resource=resource, clock=lambda: 1_000.0)
     table = resource.Table("test-idempotency")
+    response_key = store._entry_cache_key(
+        route="/v1/exports",
+        scope_id="scope-1",
+        idempotency_key="expired-entry",
+    )
     table.put_raw(
-        "expired-entry",
+        response_key,
         {
-            "idempotency_key": "expired-entry",
+            "idempotency_key": response_key,
             "state": "committed",
             "request_hash": idempotency_request_payload_hash(
                 payload=EXPORT_REQUEST

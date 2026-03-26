@@ -5,13 +5,18 @@ from typing import Any, cast
 import pytest
 from fastapi import FastAPI
 from nova_file_api.config import Settings
-from nova_file_api.dependencies import initialize_runtime_state
+from nova_file_api.dependencies import (
+    build_idempotency_store,
+    initialize_runtime_state,
+)
 from nova_file_api.models import (
     ActivityStoreBackend,
     JobsQueueBackend,
     JobsRepositoryBackend,
 )
 from pydantic import ValidationError
+
+from .support.dynamodb import MemoryDynamoResource
 
 
 def _settings() -> Settings:
@@ -85,6 +90,23 @@ def test_settings_model_dump_uses_field_names() -> None:
     assert payload["file_transfer_bucket"] == "serialized-bucket"
     assert "APP_NAME" not in payload
     assert "FILE_TRANSFER_BUCKET" not in payload
+
+
+def test_build_idempotency_store_strips_table_name() -> None:
+    """Configured idempotency table names should be trimmed before use."""
+    settings = Settings.model_validate(
+        {
+            "IDEMPOTENCY_ENABLED": True,
+            "IDEMPOTENCY_DYNAMODB_TABLE": "  test-idempotency  ",
+        }
+    )
+
+    store = build_idempotency_store(
+        settings=settings,
+        dynamodb_resource=MemoryDynamoResource(),
+    )
+
+    assert store.table_name == "test-idempotency"
 
 
 def test_worker_runtime_requires_dynamodb_jobs_backend() -> None:

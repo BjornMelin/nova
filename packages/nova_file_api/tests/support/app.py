@@ -98,7 +98,8 @@ def build_runtime_deps(
 
     resolved_settings.idempotency_enabled = idempotency_enabled
     resolved_settings.idempotency_ttl_seconds = idempotency_ttl_seconds
-    resolved_settings.idempotency_dynamodb_table = _TEST_IDEMPOTENCY_TABLE
+    if not (resolved_settings.idempotency_dynamodb_table or "").strip():
+        resolved_settings.idempotency_dynamodb_table = _TEST_IDEMPOTENCY_TABLE
 
     resolved_idempotency_store = idempotency_store or build_idempotency_store(
         settings=resolved_settings,

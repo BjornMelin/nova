@@ -1,7 +1,8 @@
 {
   "env_vars_json": {
     "forbidden_keys": [
-      "IDEMPOTENCY_MODE"
+      "IDEMPOTENCY_MODE",
+      "IDEMPOTENCY_DYNAMODB_TABLE"
     ],
     "supported_overrides": [
       {
@@ -59,10 +60,6 @@
       {
         "cloudformation_parameter": "IdempotencyTtlSeconds",
         "env_var": "IDEMPOTENCY_TTL_SECONDS"
-      },
-      {
-        "cloudformation_parameter": "IdempotencyDynamoDbTable",
-        "env_var": "IDEMPOTENCY_DYNAMODB_TABLE"
       },
       {
         "cloudformation_parameter": "FileTransferPresignUploadTtlSeconds",
