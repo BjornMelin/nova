@@ -120,20 +120,19 @@ class ExportResource:
 
         error = _parse_error(d.pop("error", UNSET))
 
-        def _parse_output(data: object) -> ExportOutput | None | Unset:
+        def _parse_output(
+            data: object,
+        ) -> ExportOutput | None | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):
                 return data
-            try:
-                if not isinstance(data, dict):
-                    raise TypeError()
-                output_type_0 = ExportOutput.from_dict(data)
-
-                return output_type_0
-            except (TypeError, ValueError, AttributeError, KeyError):
-                pass
-            return cast(ExportOutput | None | Unset, data)
+            if not isinstance(data, Mapping):
+                raise TypeError(
+                    "Expected output payload to be a mapping or null"
+                )
+            output_data = cast("Mapping[str, Any]", data)
+            return ExportOutput.from_dict(output_data)
 
         output = _parse_output(d.pop("output", UNSET))
 

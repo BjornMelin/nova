@@ -268,6 +268,47 @@ def _repair_job_record_result_parser(root: Path) -> None:
     path.write_text(updated, encoding="utf-8")
 
 
+def _repair_export_resource_output_parser(root: Path) -> None:
+    path = root / "models" / "export_resource.py"
+    if not path.exists():
+        return
+
+    content = path.read_text(encoding="utf-8")
+    old = (
+        r"(?s)        def _parse_output\("
+        r".*?        output = _parse_output\(d.pop\(\"output\", UNSET\)\)\n"
+    )
+    new = (
+        "        def _parse_output(\n"
+        "            data: object,\n"
+        "        ) -> ExportOutput | None | Unset:\n"
+        "            if data is None:\n"
+        "                return data\n"
+        "            if isinstance(data, Unset):\n"
+        "                return data\n"
+        "            if not isinstance(data, Mapping):\n"
+        "                raise TypeError(\n"
+        '                    "Expected output payload to be a mapping or "\n'
+        '                    "null"\n'
+        "                )\n"
+        '            output_data = cast("Mapping[str, Any]", data)\n'
+        "            return ExportOutput.from_dict(output_data)\n"
+        "\n"
+        '        output = _parse_output(d.pop("output", UNSET))\n'
+    )
+    pattern = re.compile(old)
+    updated, count = pattern.subn(new, content, count=1)
+    if count == 0:
+        if new in content:
+            return
+        raise RuntimeError(
+            "expected ExportResource output parser snippet not found in "
+            f"{path.relative_to(root)}"
+        )
+
+    path.write_text(updated, encoding="utf-8")
+
+
 _RELATIVE_IMPORT_RE = re.compile(
     r"^(\s*)from (\.+)([\w\.]*) import (.+)$", re.MULTILINE
 )
@@ -670,6 +711,7 @@ def _generate_target(target: GenerationTarget, temp_root: Path) -> Path:
         ) from exc
 
     _repair_job_record_result_parser(destination)
+    _repair_export_resource_output_parser(destination)
     _repair_generated_python_package(destination, target.package_name)
     _run_generated_ruff(destination)
     _repair_job_record_result_parser(destination)

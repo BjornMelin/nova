@@ -143,7 +143,7 @@ async def _attach_runtime(
 ) -> _FakeSqsClient:
     sqs_client = _FakeSqsClient()
     worker._sqs = sqs_client
-    worker._runtime_transfer_service = transfer_service  # type: ignore[assignment]
+    worker._runtime_transfer_service = cast(TransferService, transfer_service)
     worker._runtime_export_service = export_service
     worker._runtime_activity_store = activity_store
     return sqs_client
