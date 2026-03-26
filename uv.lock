@@ -1032,9 +1032,11 @@ dash = [
 ]
 fastapi = [
     { name = "fastapi" },
+    { name = "nova-runtime-support" },
 ]
 flask = [
     { name = "flask" },
+    { name = "nova-runtime-support" },
 ]
 
 [package.metadata]
@@ -1043,6 +1045,8 @@ requires-dist = [
     { name = "fastapi", marker = "extra == 'fastapi'", specifier = ">=0.135.2,<0.300.0" },
     { name = "flask", marker = "extra == 'flask'", specifier = ">=3.1.2,<4.0.0" },
     { name = "nova-file-api", editable = "packages/nova_file_api" },
+    { name = "nova-runtime-support", marker = "extra == 'fastapi'", editable = "packages/nova_runtime_support" },
+    { name = "nova-runtime-support", marker = "extra == 'flask'", editable = "packages/nova_runtime_support" },
     { name = "pydantic", specifier = ">=2.12.5" },
     { name = "pydantic-settings", specifier = ">=2.13.1" },
 ]

@@ -71,7 +71,10 @@ themselves; `create_fastapi_router()` is route composition only.
 The canonical in-process transfer seam is now async-first: FastAPI integrations
 await `nova_file_api.public` through `nova_dash_bridge.AsyncFileTransferService`
 directly, while Flask/Dash keep an explicit thin sync adapter layer only where
-the host framework is actually sync-bound.
+the host framework is actually sync-bound. FastAPI bridge integrations must
+provide async auth resolution and an async-capable S3 factory path; sync-only
+auth resolvers and sync-only S3 factories remain valid only at explicit sync
+adapter edges such as `FileTransferService`.
 
 ## SDK and OpenAPI Posture
 

@@ -76,6 +76,20 @@ def create_fastapi_router(
     async_s3_client_factory: SupportsCreateAsyncS3Client | None = None,
 ) -> Any:
     """Create route-only FastAPI composition for file transfer endpoints."""
+    if auth_policy.async_principal_resolver is None:
+        raise TypeError(
+            "FastAPI integration requires auth_policy.async_principal_resolver"
+        )
+    sync_factory = s3_client_factory or None
+    if (
+        async_s3_client_factory is None
+        and sync_factory is not None
+        and not callable(getattr(sync_factory, "create_async", None))
+    ):
+        raise TypeError(
+            "FastAPI integration requires async_s3_client_factory or "
+            "s3_client_factory with create_async()"
+        )
     apirouter, _ = _fastapi_imports()
     router = apirouter(prefix=TRANSFER_ROUTE_PREFIX, tags=["transfers"])
     service = AsyncFileTransferService(
@@ -105,7 +119,9 @@ def create_fastapi_router(
         authorization_header = (
             f"{credentials.scheme} {credentials.credentials.strip()}"
         )
-        return service.resolve_principal(authorization_header)
+        return await service.resolve_principal_async(
+            authorization_header,
+        )
 
     @router.post(
         UPLOADS_INITIATE_ROUTE,

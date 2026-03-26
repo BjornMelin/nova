@@ -13,9 +13,19 @@ from nova_dash_bridge.config import (
     UploadPolicy,
 )
 from nova_dash_bridge.errors import FileTransferError
-from nova_dash_bridge.s3_client import S3Client, SupportsCreateS3Client
-from nova_dash_bridge.service import FileTransferService
-from nova_file_api.public import Principal, UploadIntrospectionRequest
+from nova_dash_bridge.s3_client import (
+    S3Client,
+    SupportsCreateS3Client,
+)
+from nova_dash_bridge.service import (
+    AsyncFileTransferService,
+    FileTransferService,
+)
+from nova_file_api.public import (
+    InitiateUploadRequest,
+    Principal,
+    UploadIntrospectionRequest,
+)
 
 
 class _FakeBody:
@@ -101,6 +111,14 @@ class _FakeCoreTransferService:
         )
 
 
+class _SyncOnlyS3Factory:
+    def __init__(self, *, client: S3Client) -> None:
+        self._client = client
+
+    def create(self, _env: FileTransferEnvConfig) -> S3Client:
+        return cast("S3Client", self._client)
+
+
 def _auth_policy() -> AuthPolicy:
     return AuthPolicy(
         principal_resolver=lambda _: Principal(
@@ -180,6 +198,43 @@ def test_download_closes_stream_when_content_length_exceeds_limit(
     assert body.read_calls == 0
 
 
+def test_download_supports_sync_only_s3_factory() -> None:
+    body = _FakeBody(chunks=[b"hello"])
+    service = FileTransferService(
+        env_config=FileTransferEnvConfig.model_validate(
+            {
+                "FILE_TRANSFER_ENABLED": True,
+                "FILE_TRANSFER_BUCKET": "bucket-a",
+            }
+        ),
+        upload_policy=UploadPolicy(
+            max_upload_bytes=100,
+            allowed_extensions={".csv"},
+        ),
+        auth_policy=_auth_policy(),
+        s3_client_factory=cast(
+            "SupportsCreateS3Client",
+            _SyncOnlyS3Factory(
+                client=cast(
+                    "S3Client",
+                    _FakeS3Client(
+                        response={"ContentLength": None, "Body": body}
+                    ),
+                )
+            ),
+        ),
+    )
+
+    assert (
+        service.download_object_bytes(
+            bucket="bucket-a",
+            key="exports/object.csv",
+            max_bytes=10,
+        )
+        == b"hello"
+    )
+
+
 def test_download_closes_stream_on_chunked_oversize_early_exit(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -256,3 +311,40 @@ def test_presign_download_preserves_explicit_content_disposition(
     )
     assert fake_core.last_presign_request.filename == "fallback.csv"
     assert fake_core.last_presign_request.content_type == "text/csv"
+
+
+@pytest.mark.asyncio
+async def test_async_service_rejects_sync_only_s3_factory() -> None:
+    service = AsyncFileTransferService(
+        env_config=FileTransferEnvConfig.model_validate(
+            {
+                "FILE_TRANSFER_ENABLED": True,
+                "FILE_TRANSFER_BUCKET": "bucket-a",
+            }
+        ),
+        upload_policy=UploadPolicy(
+            max_upload_bytes=100,
+            allowed_extensions={".csv"},
+        ),
+        auth_policy=_auth_policy(),
+        s3_client_factory=cast(
+            "SupportsCreateS3Client",
+            _SyncOnlyS3Factory(
+                client=cast("S3Client", _FakeS3Client(response={})),
+            ),
+        ),
+    )
+
+    with pytest.raises(
+        TypeError,
+        match="requires async_s3_client_factory or s3_client_factory "
+        "with create_async",
+    ):
+        await service.initiate_upload(
+            InitiateUploadRequest(
+                filename="report.csv",
+                content_type="text/csv",
+                size_bytes=1,
+            ),
+            Principal(subject="user-1", scope_id="scope-1"),
+        )

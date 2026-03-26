@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ast
+import tomllib
 from pathlib import Path
 
 _ALLOWED_PREFIX = "nova_file_api.public"
@@ -40,3 +41,12 @@ def test_bridge_only_imports_public_nova_file_api_modules() -> None:
                 )
 
     assert violations == []
+
+
+def test_fastapi_and_flask_extras_declare_runtime_support_dependency() -> None:
+    pyproject = Path(__file__).resolve().parents[1] / "pyproject.toml"
+    project = tomllib.loads(pyproject.read_text(encoding="utf-8"))["project"]
+    extras = project["optional-dependencies"]
+
+    assert "nova-runtime-support>=0.1.0" in extras["fastapi"]
+    assert "nova-runtime-support>=0.1.0" in extras["flask"]

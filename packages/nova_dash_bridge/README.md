@@ -11,6 +11,9 @@ Runtime shape:
   bridge-local threadpool tuning config for FastAPI.
 - `create_fastapi_router()` is route composition only; shared request-context
   and exception-registration behavior comes from `nova_runtime_support`.
+- FastAPI integrations require async auth resolution and an async-capable S3
+  factory path; sync-only auth and sync-only S3 factories belong only on the
+  explicit sync adapter surface.
 
 Canonical adapter endpoint alignment:
 

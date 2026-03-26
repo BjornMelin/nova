@@ -77,6 +77,7 @@ class AsyncFileTransferService:
         self._policy = upload_policy
         self._auth = auth_policy
         self._sync_factory = s3_client_factory or S3ClientFactory()
+        self._async_factory: SupportsCreateAsyncS3Client | None
         if async_s3_client_factory is not None:
             self._async_factory = async_s3_client_factory
         elif callable(getattr(self._sync_factory, "create_async", None)):
@@ -85,7 +86,7 @@ class AsyncFileTransferService:
                 self._sync_factory,
             )
         else:
-            self._async_factory = S3ClientFactory()
+            self._async_factory = None
         self._core_config = _core_config_from_bridge(
             env_config=env_config,
             upload_policy=upload_policy,
@@ -133,7 +134,13 @@ class AsyncFileTransferService:
         self,
     ) -> AsyncIterator[AsyncTransferService]:
         """Build the async transfer core with a real async S3 client."""
-        async with self._async_factory.create_async(self._env) as s3_client:
+        async_factory = self._async_factory
+        if async_factory is None:
+            raise TypeError(
+                "AsyncFileTransferService requires async_s3_client_factory or "
+                "s3_client_factory with create_async()"
+            )
+        async with async_factory.create_async(self._env) as s3_client:
             yield build_transfer_service(
                 config=self._core_config,
                 s3_client=s3_client,
@@ -168,6 +175,18 @@ class AsyncFileTransferService:
         """Resolve a trusted principal from the incoming bearer header."""
         try:
             return self._auth.resolve_principal(authorization_header)
+        except ValueError as exc:
+            raise unauthorized_error(str(exc)) from exc
+
+    async def resolve_principal_async(
+        self,
+        authorization_header: str | None,
+    ) -> Principal:
+        """Resolve a trusted principal from the incoming bearer header."""
+        try:
+            return await self._auth.resolve_principal_async(
+                authorization_header
+            )
         except ValueError as exc:
             raise unauthorized_error(str(exc)) from exc
 

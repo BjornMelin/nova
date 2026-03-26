@@ -37,27 +37,27 @@ _OPTIONAL_EXPORTS: dict[str, tuple[str, tuple[str, ...], str]] = {
     ),
     "create_fastapi_app": (
         "nova_dash_bridge.fastapi_integration",
-        ("fastapi", "starlette"),
+        ("fastapi", "starlette", "nova_runtime_support"),
         "fastapi",
     ),
     "create_fastapi_router": (
         "nova_dash_bridge.fastapi_integration",
-        ("fastapi", "starlette"),
+        ("fastapi", "starlette", "nova_runtime_support"),
         "fastapi",
     ),
     "create_file_transfer_blueprint": (
         "nova_dash_bridge.flask_integration",
-        ("flask",),
+        ("flask", "nova_runtime_support"),
         "flask",
     ),
     "register_file_transfer_assets": (
         "nova_dash_bridge.flask_integration",
-        ("flask",),
+        ("flask", "nova_runtime_support"),
         "flask",
     ),
     "register_file_transfer_blueprint": (
         "nova_dash_bridge.flask_integration",
-        ("flask",),
+        ("flask", "nova_runtime_support"),
         "flask",
     ),
 }

@@ -87,7 +87,10 @@ authority. It consumes the canonical in-process bridge seam exposed by
 `nova_file_api.public`. FastAPI hosts use that async-first seam directly,
 while Flask/Dash retain the explicit thin sync adapter only at the sync edge.
 `create_fastapi_router()` is route-only composition and does not trampoline
-through a sync bridge facade on the request path.
+through a sync bridge facade on the request path. FastAPI bridge integrations
+must provide async auth resolution and an async-capable S3 factory path;
+sync-only auth and sync-only S3 clients remain supported only through the
+explicit sync adapter surface.
 
 Dash and other browser-backed consumers using `nova_dash_bridge` must expose a
 bearer `Authorization` header to the bridge assets for canonical
