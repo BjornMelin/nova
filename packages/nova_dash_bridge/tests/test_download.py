@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from typing import Any, cast
 
 import nova_dash_bridge.service as dash_service_module
@@ -47,6 +49,13 @@ class _FakeS3Factory:
 
     def create(self, _env: FileTransferEnvConfig) -> S3Client:
         return cast("S3Client", self._client)
+
+    @asynccontextmanager
+    async def create_async(
+        self,
+        _env: FileTransferEnvConfig,
+    ) -> AsyncIterator[S3Client]:
+        yield cast("S3Client", object())
 
 
 class _FakeCoreTransferService:

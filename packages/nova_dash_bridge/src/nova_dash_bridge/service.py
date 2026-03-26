@@ -5,15 +5,13 @@ from __future__ import annotations
 import asyncio
 import math
 import re
-import threading
-from collections.abc import Awaitable, Callable
-from contextlib import closing
+from collections.abc import AsyncIterator, Awaitable, Callable
+from contextlib import asynccontextmanager, closing
 from pathlib import Path
-from typing import Any, TypeVar, cast
+from typing import TypeVar, cast
 from urllib.parse import quote_from_bytes
 from uuid import uuid4
 
-from anyio import to_thread
 from anyio.from_thread import BlockingPortalProvider
 from botocore.exceptions import BotoCoreError, ClientError
 from nova_file_api.public import (
@@ -52,79 +50,12 @@ from nova_dash_bridge.errors import (
 from nova_dash_bridge.s3_client import (
     S3Client,
     S3ClientFactory,
+    SupportsCreateAsyncS3Client,
     SupportsCreateS3Client,
 )
 
 _INVALID_FILENAME_RE = re.compile(r"[^A-Za-z0-9._-]+")
 _T = TypeVar("_T")
-
-
-class _AsyncS3ClientAdapter:
-    """Expose async S3 methods by delegating to a sync boto3 client."""
-
-    def __init__(self, *, client: S3Client) -> None:
-        self._client = client
-
-    async def generate_presigned_url(self, **kwargs: Any) -> str:
-        return str(
-            await to_thread.run_sync(
-                self._client.generate_presigned_url,
-                **kwargs,
-            )
-        )
-
-    async def create_multipart_upload(self, **kwargs: Any) -> dict[str, object]:
-        return cast(
-            dict[str, object],
-            await to_thread.run_sync(
-                self._client.create_multipart_upload,
-                **kwargs,
-            ),
-        )
-
-    async def complete_multipart_upload(
-        self, **kwargs: Any
-    ) -> dict[str, object]:
-        return cast(
-            dict[str, object],
-            await to_thread.run_sync(
-                self._client.complete_multipart_upload,
-                **kwargs,
-            ),
-        )
-
-    async def abort_multipart_upload(self, **kwargs: Any) -> dict[str, object]:
-        return cast(
-            dict[str, object],
-            await to_thread.run_sync(
-                self._client.abort_multipart_upload,
-                **kwargs,
-            ),
-        )
-
-    async def head_object(self, **kwargs: Any) -> dict[str, object]:
-        return cast(
-            dict[str, object],
-            await to_thread.run_sync(self._client.head_object, **kwargs),
-        )
-
-    async def list_parts(self, **kwargs: Any) -> dict[str, object]:
-        return cast(
-            dict[str, object],
-            await to_thread.run_sync(self._client.list_parts, **kwargs),
-        )
-
-    async def copy_object(self, **kwargs: Any) -> dict[str, object]:
-        return cast(
-            dict[str, object],
-            await to_thread.run_sync(self._client.copy_object, **kwargs),
-        )
-
-    async def upload_part_copy(self, **kwargs: Any) -> dict[str, object]:
-        return cast(
-            dict[str, object],
-            await to_thread.run_sync(self._client.upload_part_copy, **kwargs),
-        )
 
 
 class AsyncFileTransferService:
@@ -139,18 +70,26 @@ class AsyncFileTransferService:
         upload_policy: UploadPolicy,
         auth_policy: AuthPolicy,
         s3_client_factory: SupportsCreateS3Client | None = None,
+        async_s3_client_factory: SupportsCreateAsyncS3Client | None = None,
     ) -> None:
         """Build the async bridge service from explicit bridge policies."""
         self._env = env_config
         self._policy = upload_policy
         self._auth = auth_policy
-        self._factory = s3_client_factory or S3ClientFactory()
+        self._sync_factory = s3_client_factory or S3ClientFactory()
+        if async_s3_client_factory is not None:
+            self._async_factory = async_s3_client_factory
+        elif callable(getattr(self._sync_factory, "create_async", None)):
+            self._async_factory = cast(
+                SupportsCreateAsyncS3Client,
+                self._sync_factory,
+            )
+        else:
+            self._async_factory = S3ClientFactory()
         self._core_config = _core_config_from_bridge(
             env_config=env_config,
             upload_policy=upload_policy,
         )
-        self._core_service: AsyncTransferService | None = None
-        self._core_service_lock = threading.Lock()
 
     @property
     def part_size_bytes(self) -> int:
@@ -178,7 +117,7 @@ class AsyncFileTransferService:
             raise internal_error("FILE_TRANSFER_BUCKET is not configured")
 
     def _client(self) -> S3Client:
-        return self._factory.create(self._env)
+        return self._sync_factory.create(self._env)
 
     @property
     def bucket(self) -> str:
@@ -189,21 +128,16 @@ class AsyncFileTransferService:
         """Create a sync S3 client for direct bridge operations."""
         return self._client()
 
-    def _build_core_service(self) -> AsyncTransferService:
-        service = self._core_service
-        if service is not None:
-            return service
-        with self._core_service_lock:
-            service = self._core_service
-            if service is None:
-                service = build_transfer_service(
-                    config=self._core_config,
-                    s3_client=_AsyncS3ClientAdapter(
-                        client=self.create_s3_client()
-                    ),
-                )
-                self._core_service = service
-        return service
+    @asynccontextmanager
+    async def _core_service_context(
+        self,
+    ) -> AsyncIterator[AsyncTransferService]:
+        """Build the async transfer core with a real async S3 client."""
+        async with self._async_factory.create_async(self._env) as s3_client:
+            yield build_transfer_service(
+                config=self._core_config,
+                s3_client=s3_client,
+            )
 
     @staticmethod
     def sanitize_filename(filename: str) -> str:
@@ -310,10 +244,8 @@ class AsyncFileTransferService:
         """Initiate an upload via the canonical async Nova service."""
         self.ensure_enabled()
         self.validate_upload_request(req)
-        core_response = await self._build_core_service().initiate_upload(
-            req,
-            principal,
-        )
+        async with self._core_service_context() as core_service:
+            core_response = await core_service.initiate_upload(req, principal)
         if (
             core_response.strategy == UploadStrategy.SINGLE
             and core_response.url is None
@@ -338,7 +270,8 @@ class AsyncFileTransferService:
     ) -> SignPartsResponse:
         """Presign multipart part URLs via the canonical async service."""
         self.ensure_enabled()
-        return await self._build_core_service().sign_parts(req, principal)
+        async with self._core_service_context() as core_service:
+            return await core_service.sign_parts(req, principal)
 
     async def introspect_upload(
         self,
@@ -347,10 +280,8 @@ class AsyncFileTransferService:
     ) -> UploadIntrospectionResponse:
         """Return multipart upload state for a caller-owned key."""
         self.ensure_enabled()
-        return await self._build_core_service().introspect_upload(
-            req,
-            principal,
-        )
+        async with self._core_service_context() as core_service:
+            return await core_service.introspect_upload(req, principal)
 
     async def complete_upload(
         self,
@@ -359,7 +290,8 @@ class AsyncFileTransferService:
     ) -> CompleteUploadResponse:
         """Complete a caller-owned multipart upload."""
         self.ensure_enabled()
-        return await self._build_core_service().complete_upload(req, principal)
+        async with self._core_service_context() as core_service:
+            return await core_service.complete_upload(req, principal)
 
     async def abort_upload(
         self,
@@ -368,7 +300,8 @@ class AsyncFileTransferService:
     ) -> AbortUploadResponse:
         """Abort a caller-owned multipart upload."""
         self.ensure_enabled()
-        await self._build_core_service().abort_upload(req, principal)
+        async with self._core_service_context() as core_service:
+            await core_service.abort_upload(req, principal)
         return AbortUploadResponse()
 
     @classmethod
@@ -411,15 +344,16 @@ class AsyncFileTransferService:
             )
         else:
             disposition = None
-        return await self._build_core_service().presign_download(
-            PresignDownloadRequest(
-                key=req.key,
-                content_disposition=disposition,
-                filename=req.filename,
-                content_type=req.content_type,
-            ),
-            principal,
-        )
+        async with self._core_service_context() as core_service:
+            return await core_service.presign_download(
+                PresignDownloadRequest(
+                    key=req.key,
+                    content_disposition=disposition,
+                    filename=req.filename,
+                    content_type=req.content_type,
+                ),
+                principal,
+            )
 
 
 class FileTransferService:

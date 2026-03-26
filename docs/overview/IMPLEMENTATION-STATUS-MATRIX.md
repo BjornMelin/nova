@@ -9,6 +9,7 @@ Use this file to keep current-baseline truth and target-state direction separate
 | --- | --- | --- | --- |
 | Public auth | bearer JWT only, verified in-process | bearer JWT only | `docs/architecture/adr/ADR-0034-*`, `docs/architecture/spec/SPEC-0027-*` |
 | Transport / OpenAPI expression | shared pure-ASGI request context, centralized FastAPI exception registration, native route-declared OpenAPI responses, no file-API schema post-processor | same shape retained while broader wave-2 API/platform work continues | `docs/architecture/spec/SPEC-0027-*`, `docs/architecture/adr/superseded/ADR-0041-*`, `README.md` |
+| Bridge/public surface | `nova_file_api.public` is async-first; FastAPI consumes it directly through `nova_dash_bridge.AsyncFileTransferService`; retained sync adapters stay isolated to true sync hosts such as Flask/Dash | same async-first surface retained while broader wave-2 API/platform work continues | `README.md`, `docs/clients/README.md`, `docs/architecture/spec/SPEC-0017-*`, `docs/architecture/spec/SPEC-0019-*` |
 | Async contract | explicit export workflows | explicit export workflows | `ADR-0035`, `SPEC-0028` |
 | Internal async completion | workflow-native state, no callback route | workflow-native state, no callback route | `ADR-0035`, `SPEC-0028` |
 | Idempotency/state | Redis still in correctness path | DynamoDB, explicit expiration filtering, optional local hot cache only | `ADR-0036`, `SPEC-0029` |

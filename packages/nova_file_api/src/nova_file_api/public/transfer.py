@@ -2,10 +2,8 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import Any, Protocol
 
-from nova_file_api.config import Settings
 from nova_file_api.errors import FileTransferError
 from nova_file_api.models import (
     AbortUploadRequest,
@@ -27,6 +25,7 @@ from nova_file_api.models import (
     UploadStrategy,
 )
 from nova_file_api.transfer import TransferService
+from nova_file_api.transfer_config import TransferConfig
 
 TRANSFER_ROUTE_PREFIX = "/v1/transfers"
 UPLOADS_INITIATE_ROUTE = "/uploads/initiate"
@@ -35,24 +34,6 @@ INTROSPECT_UPLOAD_ROUTE = "/uploads/introspect"
 COMPLETE_UPLOAD_ROUTE = "/uploads/complete"
 ABORT_UPLOAD_ROUTE = "/uploads/abort"
 PRESIGN_DOWNLOAD_ROUTE = "/downloads/presign"
-
-
-@dataclass(slots=True, frozen=True, kw_only=True)
-class TransferConfig:
-    """Explicit transfer-scoped runtime configuration."""
-
-    enabled: bool
-    bucket: str
-    upload_prefix: str
-    export_prefix: str
-    tmp_prefix: str
-    presign_upload_ttl_seconds: int
-    presign_download_ttl_seconds: int
-    multipart_threshold_bytes: int
-    part_size_bytes: int
-    max_concurrency: int
-    use_accelerate_endpoint: bool
-    max_upload_bytes: int
 
 
 class AsyncTransferService(Protocol):
@@ -143,30 +124,6 @@ class TransferStorageClient(Protocol):
         ...
 
 
-def _settings_from_transfer_config(config: TransferConfig) -> Settings:
-    """Materialize runtime settings from an explicit transfer config."""
-    return Settings.model_construct(
-        file_transfer_enabled=config.enabled,
-        file_transfer_bucket=config.bucket,
-        file_transfer_upload_prefix=config.upload_prefix,
-        file_transfer_export_prefix=config.export_prefix,
-        file_transfer_tmp_prefix=config.tmp_prefix,
-        file_transfer_presign_upload_ttl_seconds=(
-            config.presign_upload_ttl_seconds
-        ),
-        file_transfer_presign_download_ttl_seconds=(
-            config.presign_download_ttl_seconds
-        ),
-        file_transfer_multipart_threshold_bytes=(
-            config.multipart_threshold_bytes
-        ),
-        file_transfer_part_size_bytes=config.part_size_bytes,
-        file_transfer_max_concurrency=config.max_concurrency,
-        file_transfer_use_accelerate_endpoint=config.use_accelerate_endpoint,
-        max_upload_bytes=config.max_upload_bytes,
-    )
-
-
 def build_transfer_service(
     *,
     config: TransferConfig,
@@ -174,7 +131,7 @@ def build_transfer_service(
 ) -> AsyncTransferService:
     """Build the canonical async transfer service for adapter consumers."""
     return TransferService(
-        settings=_settings_from_transfer_config(config),
+        config=config,
         s3_client=s3_client,
     )
 

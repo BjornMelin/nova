@@ -4,7 +4,6 @@
 from json import JSONDecodeError
 from typing import Annotated, Any, Final
 
-from anyio import to_thread
 from nova_file_api.public import (
     ABORT_UPLOAD_ROUTE,
     COMPLETE_UPLOAD_ROUTE,
@@ -40,7 +39,10 @@ from nova_dash_bridge.config import (
     UploadPolicy,
 )
 from nova_dash_bridge.errors import FileTransferError, unauthorized_error
-from nova_dash_bridge.s3_client import SupportsCreateS3Client
+from nova_dash_bridge.s3_client import (
+    SupportsCreateAsyncS3Client,
+    SupportsCreateS3Client,
+)
 from nova_dash_bridge.service import (
     AsyncFileTransferService,
     coerce_file_transfer_error,
@@ -71,6 +73,7 @@ def create_fastapi_router(
     upload_policy: UploadPolicy,
     auth_policy: AuthPolicy,
     s3_client_factory: SupportsCreateS3Client | None = None,
+    async_s3_client_factory: SupportsCreateAsyncS3Client | None = None,
 ) -> Any:
     """Create route-only FastAPI composition for file transfer endpoints."""
     apirouter, _ = _fastapi_imports()
@@ -80,6 +83,7 @@ def create_fastapi_router(
         upload_policy=upload_policy,
         auth_policy=auth_policy,
         s3_client_factory=s3_client_factory,
+        async_s3_client_factory=async_s3_client_factory,
     )
     from fastapi import Depends, Security
     from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -101,10 +105,7 @@ def create_fastapi_router(
         authorization_header = (
             f"{credentials.scheme} {credentials.credentials.strip()}"
         )
-        return await to_thread.run_sync(
-            service.resolve_principal,
-            authorization_header,
-        )
+        return service.resolve_principal(authorization_header)
 
     @router.post(
         UPLOADS_INITIATE_ROUTE,
@@ -181,6 +182,7 @@ def create_fastapi_app(
     upload_policy: UploadPolicy,
     auth_policy: AuthPolicy,
     s3_client_factory: SupportsCreateS3Client | None = None,
+    async_s3_client_factory: SupportsCreateAsyncS3Client | None = None,
 ) -> Any:
     """Create the canonical bridge FastAPI app with shared transport wiring."""
     _fastapi_imports()
@@ -202,6 +204,7 @@ def create_fastapi_app(
             upload_policy=upload_policy,
             auth_policy=auth_policy,
             s3_client_factory=s3_client_factory,
+            async_s3_client_factory=async_s3_client_factory,
         ),
     )
     return app
