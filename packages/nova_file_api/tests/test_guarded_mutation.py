@@ -40,19 +40,32 @@ class _FakeIdempotencyStore(IdempotencyStore):
     async def load_response(self, **_: Any) -> dict[str, Any] | None:
         return self.replay
 
-    async def claim_request(self, **_: Any) -> IdempotencyClaim | None:
+    async def claim_request(
+        self,
+        *,
+        route: str,
+        scope_id: str,
+        idempotency_key: str,
+        request_payload: dict[str, Any],
+    ) -> IdempotencyClaim | None:
+        del route, scope_id, idempotency_key, request_payload
         return self.claim_result
 
-    async def store_response(self, **kwargs: Any) -> None:
-        self.stored_claim = kwargs["claim"]
+    async def store_response(
+        self,
+        *,
+        claim: IdempotencyClaim,
+        response_payload: dict[str, Any],
+    ) -> None:
+        self.stored_claim = claim
         if self.raise_on_store:
             raise RuntimeError("store failed")
-        self.stored_payload = kwargs["response_payload"]
+        self.stored_payload = response_payload
 
-    async def discard_claim(self, **kwargs: Any) -> None:
+    async def discard_claim(self, *, claim: IdempotencyClaim) -> None:
         if self.raise_on_discard:
             raise RuntimeError("discard failed")
-        self.discarded_claims.append(kwargs["claim"])
+        self.discarded_claims.append(claim)
         self.discard_calls += 1
 
 

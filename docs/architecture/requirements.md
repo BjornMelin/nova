@@ -243,16 +243,17 @@ scope, tenant, and permissions from **verified claims** in the file API runtime
 There MUST NOT be a separate `nova-auth-api` HTTP surface or auth-only SDK
 families in the target architecture.
 
-### FR-0006: Two-tier caching
+### FR-0006: Local caching and shared correctness state
 
-The service MUST support a two-tier cache model:
+The service MUST support a single cache tier plus shared correctness state:
 
 - Local in-process TTL cache
 - No distributed cache tier in the canonical runtime; shared correctness state
   lives in DynamoDB
 
-Shared cache keys MUST be namespaced and schema-versioned, and JWT cache TTL
-MUST be bounded by token expiration (`exp`) with configured max TTL caps.
+Shared cache keys MUST be namespaced and schema-versioned, shared correctness
+state MUST be persisted and reconciled via DynamoDB, and JWT cache TTL MUST be
+bounded by token expiration (`exp`) with configured max TTL caps.
 
 ### FR-0007: Observability and analytics
 
