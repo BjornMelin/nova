@@ -18,7 +18,7 @@ Runtime shape:
 Canonical adapter endpoint alignment:
 
 - Transfer routes: `/v1/transfers/*`
-- Export routes: `/v1/exports*`
+- Export routes: `/v1/exports/*`
 - Legacy `/api/*` route families are not part of the runtime contract.
 
 Minimal usage:

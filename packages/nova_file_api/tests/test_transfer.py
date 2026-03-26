@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 from typing import Any
 
 import pytest
@@ -533,15 +534,23 @@ async def test_copy_upload_to_export_limits_multipart_copy_concurrency() -> (
             filename="source.csv",
         )
     )
-    for _ in range(100):
-        if fake_s3.max_upload_part_copy_in_flight >= 2:
-            break
-        await asyncio.sleep(0)
+    try:
+        for _ in range(100):
+            if fake_s3.max_upload_part_copy_in_flight >= 2:
+                break
+            await asyncio.sleep(0)
 
-    assert fake_s3.max_upload_part_copy_in_flight == 2
-    fake_s3.upload_part_copy_wait_event.set()
-    await copy_task
-    assert len(fake_s3.upload_part_copy_calls) == 3
+        assert fake_s3.max_upload_part_copy_in_flight == 2
+        fake_s3.upload_part_copy_wait_event.set()
+        await copy_task
+        assert len(fake_s3.upload_part_copy_calls) == 3
+    finally:
+        if not fake_s3.upload_part_copy_wait_event.is_set():
+            fake_s3.upload_part_copy_wait_event.set()
+        if not copy_task.done():
+            copy_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await copy_task
 
 
 @pytest.mark.asyncio

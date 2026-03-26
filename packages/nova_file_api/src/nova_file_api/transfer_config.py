@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
-from nova_file_api.config import Settings
+if TYPE_CHECKING:
+    from nova_file_api.config import Settings
 
 
 @dataclass(slots=True, frozen=True, kw_only=True)
@@ -26,7 +28,14 @@ class TransferConfig:
 
 
 def transfer_config_from_settings(settings: Settings) -> TransferConfig:
-    """Project the runtime settings object onto transfer-specific config."""
+    """Project the runtime settings object onto transfer-specific config.
+
+    Args:
+        settings: Runtime settings that provide the file transfer fields.
+
+    Returns:
+        TransferConfig: Plain transfer-scoped configuration for service setup.
+    """
     return TransferConfig(
         enabled=settings.file_transfer_enabled,
         bucket=settings.file_transfer_bucket,

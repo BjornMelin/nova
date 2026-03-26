@@ -65,7 +65,7 @@ class _FakeS3Factory:
         self,
         _env: FileTransferEnvConfig,
     ) -> AsyncIterator[S3Client]:
-        yield cast("S3Client", object())
+        yield cast("S3Client", self._client)
 
 
 class _FakeCoreTransferService:
