@@ -107,17 +107,17 @@ def _extract_function(source: str, function_name: str) -> str:
     raise AssertionError(f"failed to parse function body for {function_name}")
 
 
-def test_poll_async_job_uses_bearer_auth_only() -> None:
+def test_poll_async_export_uses_bearer_auth_only() -> None:
     source = _file_transfer_asset_source()
     removed_header = "-".join(("X", "Session", "Id"))
 
-    assert "async function pollAsyncJob(config, jobId)" in source
+    assert "async function pollAsyncExport(config, exportId)" in source
     assert "authorizedHeaders(config)" in source
     assert removed_header not in source
     assert 'credentials: "same-origin"' not in source
     assert 'credentials: "omit"' in source
     assert re.search(
-        r"pollAsyncJob\(\s*config,\s*enqueued\.job_id\s*\)",
+        r"pollAsyncExport\(\s*config,\s*createdExport\.export_id\s*\)",
         source,
     )
 

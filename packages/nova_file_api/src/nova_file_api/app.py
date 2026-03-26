@@ -23,7 +23,7 @@ from nova_file_api.models import (
     JobsRepositoryBackend,
 )
 from nova_file_api.routes import (
-    jobs_router,
+    exports_router,
     ops_router,
     platform_router,
     transfer_router,
@@ -36,8 +36,8 @@ _RUNTIME_STATE_KEYS = (
     "cache",
     "authenticator",
     "transfer_service",
-    "job_repository",
-    "job_service",
+    "export_repository",
+    "export_service",
     "activity_store",
     "idempotency_store",
 )
@@ -169,7 +169,7 @@ def create_app(*, settings: Settings | None = None) -> FastAPI:
 
     app.include_router(ops_router)
     app.include_router(transfer_router)
-    app.include_router(jobs_router)
+    app.include_router(exports_router)
     app.include_router(platform_router)
     register_exception_handlers(app)
 

@@ -105,8 +105,8 @@ class StubTransferService:
         source_bucket: str,
         source_key: str,
         scope_id: str,
-        job_id: str,
+        export_id: str,
         filename: str,
     ) -> ExportCopyResult:
-        del source_bucket, source_key, scope_id, job_id, filename
+        del source_bucket, source_key, scope_id, export_id, filename
         raise AssertionError("copy_upload_to_export should be stubbed per test")

@@ -268,6 +268,47 @@ def _repair_job_record_result_parser(root: Path) -> None:
     path.write_text(updated, encoding="utf-8")
 
 
+def _repair_export_resource_output_parser(root: Path) -> None:
+    path = root / "models" / "export_resource.py"
+    if not path.exists():
+        return
+
+    content = path.read_text(encoding="utf-8")
+    old = (
+        r"(?s)        def _parse_output\("
+        r".*?        output = _parse_output\(d.pop\(\"output\", UNSET\)\)\n"
+    )
+    new = (
+        "        def _parse_output(\n"
+        "            data: object,\n"
+        "        ) -> ExportOutput | None | Unset:\n"
+        "            if data is None:\n"
+        "                return data\n"
+        "            if isinstance(data, Unset):\n"
+        "                return data\n"
+        "            if not isinstance(data, Mapping):\n"
+        "                raise TypeError(\n"
+        '                    "Expected output payload to be a mapping or "\n'
+        '                    "null"\n'
+        "                )\n"
+        '            output_data = cast("Mapping[str, Any]", data)\n'
+        "            return ExportOutput.from_dict(output_data)\n"
+        "\n"
+        '        output = _parse_output(d.pop("output", UNSET))\n'
+    )
+    pattern = re.compile(old)
+    updated, count = pattern.subn(new, content, count=1)
+    if count == 0:
+        if new in content:
+            return
+        raise RuntimeError(
+            "expected ExportResource output parser snippet not found in "
+            f"{path.relative_to(root)}"
+        )
+
+    path.write_text(updated, encoding="utf-8")
+
+
 _RELATIVE_IMPORT_RE = re.compile(
     r"^(\s*)from (\.+)([\w\.]*) import (.+)$", re.MULTILINE
 )
@@ -354,6 +395,152 @@ def _repair_generated_python_package(root: Path, package_name: str) -> None:
             pattern=r'    """\s*"""',
             replacement=f'    """{docstring}"""',
         )
+
+    _rewrite_file(
+        "models/create_export_request.py",
+        pattern=(
+            r'^(?:"""Create-export request model for the public '
+            r'Python SDK\."""\n\n)+'
+            r"from __future__ import annotations\n\n"
+        ),
+        replacement=(
+            '"""Create-export request model for the public Python SDK."""\n\n'
+            "from __future__ import annotations\n\n"
+        ),
+        flags=re.MULTILINE,
+    )
+    _rewrite_file(
+        "models/create_export_request.py",
+        pattern=r"\Afrom __future__ import annotations\n\n",
+        replacement=(
+            '"""Create-export request model for the public Python SDK."""\n\n'
+            "from __future__ import annotations\n\n"
+        ),
+    )
+    _rewrite_file(
+        "models/create_export_request.py",
+        pattern=(
+            r"class CreateExportRequest:\n"
+            r'    """Request payload for export creation\.\n\n'
+            r"    Attributes:\n"
+            r"        filename \(str\):\n"
+            r"        source_key \(str\):\n"
+            r'    """\n'
+        ),
+        replacement=(
+            "class CreateExportRequest:\n"
+            '    """Request payload for creating an export.\n\n'
+            "    Attributes:\n"
+            "        filename (str): Client-facing filename to preserve in the "
+            "export.\n"
+            "        source_key (str): Storage key of the source object to "
+            "export.\n"
+            '    """\n'
+        ),
+        flags=re.MULTILINE,
+    )
+    _rewrite_file(
+        "models/create_export_request.py",
+        pattern=(
+            r"    def to_dict\(self\) -> dict\[str, Any\]:\n"
+            r"        filename = self\.filename\n"
+        ),
+        replacement=(
+            "    def to_dict(self) -> dict[str, Any]:\n"
+            '        """Serialize the request payload to a JSON-compatible '
+            'mapping."""\n'
+            "        filename = self.filename\n"
+        ),
+        flags=re.MULTILINE,
+    )
+    _rewrite_file(
+        "models/create_export_request.py",
+        pattern=(
+            r"    def from_dict\(cls: type\[T\], "
+            r"src_dict: Mapping\[str, Any\]\) -> T:\n"
+            r"        d = dict\(src_dict\)\n"
+        ),
+        replacement=(
+            "    def from_dict(cls: type[T], src_dict: Mapping[str, "
+            "Any]) -> T:\n"
+            '        """Deserialize the request payload from a '
+            'JSON-compatible mapping."""\n'
+            "        d = dict(src_dict)\n"
+        ),
+        flags=re.MULTILINE,
+    )
+    _rewrite_file(
+        "models/export_output.py",
+        pattern=(
+            r'^(?:"""Export-output metadata model for the public '
+            r'Python SDK\."""\n\n)+'
+            r"from __future__ import annotations\n\n"
+        ),
+        replacement=(
+            '"""Export-output metadata model for the public Python SDK."""\n\n'
+            "from __future__ import annotations\n\n"
+        ),
+        flags=re.MULTILINE,
+    )
+    _rewrite_file(
+        "models/export_output.py",
+        pattern=r"\Afrom __future__ import annotations\n\n",
+        replacement=(
+            '"""Export-output metadata model for the public Python SDK."""\n\n'
+            "from __future__ import annotations\n\n"
+        ),
+    )
+    _rewrite_file(
+        "models/export_output.py",
+        pattern=(
+            r"class ExportOutput:\n"
+            r'    """Completed export output metadata\.\n\n'
+            r"    Attributes:\n"
+            r"        download_filename \(str\):\n"
+            r"        key \(str\):\n"
+            r'    """\n'
+        ),
+        replacement=(
+            "class ExportOutput:\n"
+            '    """Completed export output metadata.\n\n'
+            "    Attributes:\n"
+            "        download_filename (str): Filename presented to clients "
+            "when downloading.\n"
+            "        key (str): Storage key for the exported object.\n"
+            '    """\n'
+        ),
+        flags=re.MULTILINE,
+    )
+    _rewrite_file(
+        "models/export_output.py",
+        pattern=(
+            r"    def to_dict\(self\) -> dict\[str, Any\]:\n"
+            r"        download_filename = self\.download_filename\n"
+        ),
+        replacement=(
+            "    def to_dict(self) -> dict[str, Any]:\n"
+            '        """Serialize the export output to a JSON-compatible '
+            'mapping."""\n'
+            "        download_filename = self.download_filename\n"
+        ),
+        flags=re.MULTILINE,
+    )
+    _rewrite_file(
+        "models/export_output.py",
+        pattern=(
+            r"    def from_dict\(cls: type\[T\], "
+            r"src_dict: Mapping\[str, Any\]\) -> T:\n"
+            r"        d = dict\(src_dict\)\n"
+        ),
+        replacement=(
+            "    def from_dict(cls: type[T], src_dict: Mapping[str, "
+            "Any]) -> T:\n"
+            '        """Deserialize the export output from a '
+            'JSON-compatible mapping."""\n'
+            "        d = dict(src_dict)\n"
+        ),
+        flags=re.MULTILINE,
+    )
 
     _rewrite_file(
         "models/metrics_summary_response_activity.py",
@@ -670,6 +857,7 @@ def _generate_target(target: GenerationTarget, temp_root: Path) -> Path:
         ) from exc
 
     _repair_job_record_result_parser(destination)
+    _repair_export_resource_output_parser(destination)
     _repair_generated_python_package(destination, target.package_name)
     _run_generated_ruff(destination)
     _repair_job_record_result_parser(destination)

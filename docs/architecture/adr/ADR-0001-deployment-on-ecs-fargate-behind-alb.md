@@ -18,7 +18,7 @@ References:
 ## Summary
 
 Deploy the API as an ECS/Fargate service behind an ALB and route canonical
-`/v1/transfers/*` and `/v1/jobs/*` traffic to it. This ADR captures the service
+`/v1/transfers/*` and `/v1/exports/*` traffic to it. This ADR captures the service
 placement decision; the current public ingress posture is now partially
 superseded by the CloudFront + WAF edge described in `ADR-0015`, `ADR-0030`,
 and `ADR-0039`.
@@ -56,7 +56,7 @@ Choose option A.
 
 Implementation commitments:
 
-- Route `/v1/transfers/*` and `/v1/jobs/*` through the ALB-backed runtime
+- Route `/v1/transfers/*` and `/v1/exports/*` through the ALB-backed runtime
   service path.
 - Expose health endpoints compatible with ECS/ALB health-check expectations.
 - Preserve a browser-compatible ingress path while allowing later edge

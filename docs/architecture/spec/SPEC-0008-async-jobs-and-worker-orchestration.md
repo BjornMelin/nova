@@ -21,12 +21,10 @@ References:
 
 Async jobs are managed through:
 
-- `POST /v1/jobs`
-- `GET /v1/jobs`
-- `GET /v1/jobs/{job_id}`
-- `POST /v1/jobs/{job_id}/cancel`
-- `POST /v1/jobs/{job_id}/retry`
-- `GET /v1/jobs/{job_id}/events`
+- `POST /v1/exports`
+- `GET /v1/exports`
+- `GET /v1/exports/{export_id}`
+- `POST /v1/exports/{export_id}/cancel`
 
 **Green-field result path:** worker completion and terminal status updates are
 **not** written through an internal HTTP callback route. The worker uses shared
@@ -43,43 +41,48 @@ for authorization scope.
 ### 1.1 Endpoint payload contracts
 
 Canonical request/response schemas are owned by SPEC-0000 and the OpenAPI
-contract generated from runtime implementation. For async additions:
+contract generated from runtime implementation. For export workflow routes:
 
-- `POST /v1/jobs/{job_id}/retry`
-  - Request body: empty object (`{}`).
-  - Response: `JobStatusResponse` for the updated job record.
-  - Errors: shared error envelope with `401/403/404/409/500` semantics aligned
-    with SPEC-0000.
-- `GET /v1/jobs/{job_id}/events`
-  - Request body: none; optional query params `cursor` and `limit`.
-  - Response: `JobEventsResponse` containing `job_id`, `next_cursor`, and
-    `events[]`.
-  - Event item shape: `JobEvent` with `event_id`, `job_id`, `status`,
-    `timestamp`, and optional `data` and `event_type` fields.
-  - Errors: shared error envelope with `401/403/404/500` semantics aligned with
-    SPEC-0000.
+- `POST /v1/exports`
+  - Request body: `CreateExportRequest`.
+  - Response: `ExportResource` with `201 Created`.
+  - Errors: shared error envelope with `401/403/404/409/422/500` semantics
+    aligned with SPEC-0000.
+- `GET /v1/exports`
+  - Request body: none; optional query param `limit`.
+  - Response: `ExportListResponse` containing `exports[]`.
+- `GET /v1/exports/{export_id}`
+  - Request body: none.
+  - Response: `ExportResource`.
+- `POST /v1/exports/{export_id}/cancel`
+  - Request body: none.
+  - Response: `ExportResource`.
 
 ## 2. Job state model
 
 States:
 
-- `pending`
-- `running`
+- `queued`
+- `validating`
+- `copying`
+- `finalizing`
 - `succeeded`
 - `failed`
-- `canceled`
+- `cancelled`
 
 Ownership is scope-bound. Status and cancel operations MUST enforce caller scope.
 
 Worker status updates MUST enforce legal transitions:
 
-- `pending -> pending|running|succeeded|failed|canceled`
-  - `pending -> succeeded` is allowed for atomic worker completion across
+- `queued -> queued|validating|succeeded|failed|cancelled`
+  - `queued -> succeeded` is allowed for atomic worker completion across
     backends.
   - in-memory `process_immediately` simulation currently transitions through
-    `pending -> running -> succeeded`.
-- `running -> running|succeeded|failed|canceled`
-- terminal states (`succeeded|failed|canceled`) allow same-state idempotent
+    `queued -> validating -> copying -> finalizing -> succeeded`.
+- `validating -> validating|copying|succeeded|failed|cancelled`
+- `copying -> copying|finalizing|succeeded|failed|cancelled`
+- `finalizing -> finalizing|succeeded|failed|cancelled`
+- terminal states (`succeeded|failed|cancelled`) allow same-state idempotent
   updates only.
 - `status = succeeded` updates MUST clear `error` to `null`.
 
@@ -88,7 +91,7 @@ Invalid transitions MUST fail with `409` (`error.code = "conflict"`).
 ## 3. Orchestration backends
 
 - Local/dev default: in-memory publisher simulation.
-- `MemoryJobPublisher(process_immediately=False)` MUST preserve `pending`
+- `MemoryExportPublisher(process_immediately=False)` MUST preserve `queued`
   state after enqueue (no auto-complete simulation).
 - AWS default: SQS queue publisher and ECS worker consumers.
 
@@ -113,17 +116,17 @@ Invalid transitions MUST fail with `409` (`error.code = "conflict"`).
   window is exhausted.
 - Non-retryable failures SHOULD transition to `failed` with structured error
   details.
-- First worker transition from `pending` MUST record queue lag metric
-  (`jobs_queue_lag_ms`).
+- First worker transition from `queued` MUST record queue lag metric
+  (`exports_queue_lag_ms`).
 - Worker result-update calls MUST increment throughput counters
-  (`jobs_worker_result_updates_total` and per-status counters).
+  (`exports_status_updates_total` and per-status counters).
 - Worker ECS desired-count autoscaling MUST be target-tracked from queue depth
   and queue age metrics (`ApproximateNumberOfMessagesVisible`,
   `ApproximateAgeOfOldestMessage`) to prevent backlog growth under burst load.
 
 ## 5. Idempotency
 
-`POST /v1/jobs` MUST support `Idempotency-Key` replay behavior.
+`POST /v1/exports` MUST support `Idempotency-Key` replay behavior.
 
 Failed enqueue responses (`queue_unavailable`) MUST NOT be replay-cached.
 
@@ -157,8 +160,8 @@ configuration surface once the direct persistence path is implemented
 - 2026-03-11 (v1.9): Added heartbeat-based SQS visibility-extension
   requirement for long-running worker operations.
 - 2026-03-03 (v1.8): Canonicalized job route documentation to `/v1/*`, added
-  `/v1/jobs/{job_id}/retry` and `/v1/jobs/{job_id}/events` endpoint contract
+  `/v1/exports/{export_id}` and `/v1/exports/{export_id}` endpoint contract
   details, and updated internal worker callback route to
-  `/v1/internal/jobs/{job_id}/result`.
+  the internal worker callback route.
 - 2026-03-02 (v1.7): Added worker-lane DLQ redrive and autoscaling invariants
   for async job workers.

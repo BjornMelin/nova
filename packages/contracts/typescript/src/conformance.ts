@@ -11,7 +11,7 @@ import {
 } from "@nova/sdk-file/errors";
 import { operations as fileOperations } from "@nova/sdk-file/operations";
 import type {
-  CreateJobRequestBody,
+  CreateExportRequestBody,
   InitiateUploadRequestBody,
 } from "@nova/sdk-file/types";
 
@@ -23,11 +23,13 @@ interface Manifest {
       initiate_request: string;
       initiate_success: string;
     };
-    jobs: {
-      enqueue_request: string;
-      enqueue_success: string;
-      status_success: string;
-      enqueue_503_queue_unavailable: string;
+    exports: {
+      create_request: string;
+      create_success: string;
+      get_success: string;
+      list_success: string;
+      cancel_success: string;
+      create_503_queue_unavailable: string;
     };
     v1api: {
       capabilities_success: string;
@@ -106,7 +108,7 @@ function createFixtureFetch(
   routes: Record<string, MockResponseFixture>,
 ): (input: Request) => Promise<Response> {
   return async (input) => {
-    const fixture = routes[input.url];
+    const fixture = routes[`${input.method} ${input.url}`] ?? routes[input.url];
     assert(Boolean(fixture), `unexpected request URL: ${input.url}`);
     await fixture.assertRequest?.(input);
     return new Response(JSON.stringify(fixture.body), {
@@ -125,17 +127,23 @@ async function main(): Promise<void> {
   const transferSuccessFixture = readJson<unknown>(
     manifest.fixtures.transfer.initiate_success,
   );
-  const enqueueRequestFixture = readJson<CreateJobRequestBody>(
-    manifest.fixtures.jobs.enqueue_request,
+  const createExportRequestFixture = readJson<CreateExportRequestBody>(
+    manifest.fixtures.exports.create_request,
   );
-  const enqueueSuccessFixture = readJson<unknown>(
-    manifest.fixtures.jobs.enqueue_success,
+  const createExportSuccessFixture = readJson<unknown>(
+    manifest.fixtures.exports.create_success,
+  );
+  const cancelExportSuccessFixture = readJson<unknown>(
+    manifest.fixtures.exports.cancel_success,
   );
   const queueUnavailableFixture = readJson<unknown>(
-    manifest.fixtures.jobs.enqueue_503_queue_unavailable,
+    manifest.fixtures.exports.create_503_queue_unavailable,
   );
-  const jobStatusFixture = readJson<unknown>(
-    manifest.fixtures.jobs.status_success,
+  const getExportSuccessFixture = readJson<unknown>(
+    manifest.fixtures.exports.get_success,
+  );
+  const listExportSuccessFixture = readJson<unknown>(
+    manifest.fixtures.exports.list_success,
   );
   const capabilitiesFixture = readJson<unknown>(
     manifest.fixtures.v1api.capabilities_success,
@@ -144,15 +152,18 @@ async function main(): Promise<void> {
     manifest.fixtures.v1api.resources_plan_success,
   );
   const expectedPlanPayload = {
-    resources: ["jobs", "transfers"],
+    resources: ["exports", "transfers"],
   };
   const releaseFixture = readJson<unknown>(
     manifest.fixtures.v1api.releases_info_success,
   );
 
   const fileBaseUrl = "https://file.nova.example/";
-  const getJobUrl = "https://file.nova.example/v1/jobs/job-123";
-  const createJobUrl = "https://file.nova.example/v1/jobs";
+  const getExportUrl = "https://file.nova.example/v1/exports/export-123";
+  const createExportUrl = "https://file.nova.example/v1/exports";
+  const listExportUrl = "https://file.nova.example/v1/exports";
+  const cancelExportUrl =
+    "https://file.nova.example/v1/exports/export-123/cancel";
   const initiateUploadUrl =
     "https://file.nova.example/v1/transfers/uploads/initiate";
   const capabilitiesUrl = "https://file.nova.example/v1/capabilities";
@@ -160,12 +171,20 @@ async function main(): Promise<void> {
   const releaseUrl = "https://file.nova.example/v1/releases/info";
 
   assert(
-    fileOperations.get_job_status.path === "/v1/jobs/{job_id}",
-    "get_job_status path must remain canonical",
+    fileOperations.get_export.path === "/v1/exports/{export_id}",
+    "get_export path must remain canonical",
   );
   assert(
-    fileOperations.create_job.method === "POST",
-    "create_job method must remain canonical",
+    fileOperations.create_export.method === "POST",
+    "create_export method must remain canonical",
+  );
+  assert(
+    fileOperations.list_exports.path === "/v1/exports",
+    "list_exports path must remain canonical",
+  );
+  assert(
+    fileOperations.cancel_export.path === "/v1/exports/{export_id}/cancel",
+    "cancel_export path must remain canonical",
   );
 
   const middleware: NovaFileClientMiddleware = {
@@ -180,11 +199,11 @@ async function main(): Promise<void> {
   const fileClient = createNovaFileClient({
     baseUrl: fileBaseUrl,
     fetch: createFixtureFetch({
-      [getJobUrl]: {
+      [getExportUrl]: {
         status: 200,
-        body: jobStatusFixture,
+        body: getExportSuccessFixture,
         assertRequest: (request) => {
-          assert(request.method === "GET", "get_job_status must use GET");
+          assert(request.method === "GET", "get_export must use GET");
           assert(
             request.headers.get("authorization") === "Bearer test-token",
             "middleware must inject authorization header",
@@ -195,20 +214,34 @@ async function main(): Promise<void> {
           );
         },
       },
-      [createJobUrl]: {
-        status: 202,
-        body: enqueueSuccessFixture,
+      [`POST ${createExportUrl}`]: {
+        status: 201,
+        body: createExportSuccessFixture,
         assertRequest: async (request) => {
-          assert(request.method === "POST", "create_job must use POST");
+          assert(request.method === "POST", "create_export must use POST");
           assert(
             request.headers.get("content-type")?.startsWith("application/json") ??
               false,
-            "create_job must use application/json content type",
+            "create_export must use application/json content type",
           );
           assert(
-            (await requestBodyText(request)) === JSON.stringify(enqueueRequestFixture),
-            "create_job must send JSON request body",
+            (await requestBodyText(request)) === JSON.stringify(createExportRequestFixture),
+            "create_export must send JSON request body",
           );
+        },
+      },
+      [`GET ${listExportUrl}`]: {
+        status: 200,
+        body: listExportSuccessFixture,
+        assertRequest: (request) => {
+          assert(request.method === "GET", "list_exports must use GET");
+        },
+      },
+      [`POST ${cancelExportUrl}`]: {
+        status: 200,
+        body: cancelExportSuccessFixture,
+        assertRequest: (request) => {
+          assert(request.method === "POST", "cancel_export must use POST");
         },
       },
       [initiateUploadUrl]: {
@@ -262,19 +295,34 @@ async function main(): Promise<void> {
     middleware: [middleware],
   });
 
-  const jobStatusResult = await fileClient.GET(fileOperations.get_job_status.path, {
-    params: { path: { job_id: "job-123" } },
+  const getExportResult = await fileClient.GET(fileOperations.get_export.path, {
+    params: { path: { export_id: "export-123" } },
   });
-  assertFileOkResponse("get_job_status", jobStatusResult);
+  assertFileOkResponse("get_export", getExportResult);
   assert(
-    typeof asRecord(jobStatusResult.data.job).job_id === "string",
-    "job result must include job_id",
+    typeof asRecord(getExportResult.data).export_id === "string",
+    "export result must include export_id",
   );
 
-  const createJobResult = await fileClient.POST(fileOperations.create_job.path, {
-    body: enqueueRequestFixture,
+  const createExportResult = await fileClient.POST(fileOperations.create_export.path, {
+    body: createExportRequestFixture,
   });
-  assertFileOkResponse("create_job", createJobResult);
+  assertFileOkResponse("create_export", createExportResult);
+
+  const listExportResult = await fileClient.GET(fileOperations.list_exports.path);
+  assertFileOkResponse("list_exports", listExportResult);
+  assert(
+    Array.isArray(asRecord(listExportResult.data).exports),
+    "list_exports must return an exports array",
+  );
+
+  const cancelExportResult = await fileClient.POST(
+    fileOperations.cancel_export.path,
+    {
+      params: { path: { export_id: "export-123" } },
+    },
+  );
+  assertFileOkResponse("cancel_export", cancelExportResult);
 
   const initiateResult = await fileClient.POST(fileOperations.initiate_upload.path, {
     body: transferRequestFixture,
@@ -297,21 +345,21 @@ async function main(): Promise<void> {
   const queueUnavailableClient = createNovaFileClient({
     baseUrl: fileBaseUrl,
     fetch: createFixtureFetch({
-      [createJobUrl]: {
+      [createExportUrl]: {
         status: 503,
         body: queueUnavailableFixture,
       },
     }),
   });
   const queueUnavailableResult = await queueUnavailableClient.POST(
-    fileOperations.create_job.path,
+    fileOperations.create_export.path,
     {
-      body: enqueueRequestFixture,
+      body: createExportRequestFixture,
     },
   );
   assert(
     queueUnavailableResult.error !== undefined,
-    "create_job queue unavailable fixture must return the error arm",
+    "create_export queue unavailable fixture must return the error arm",
   );
   assertErrorEnvelope(
     asRecord(queueUnavailableResult.error).error,
@@ -320,13 +368,17 @@ async function main(): Promise<void> {
 
   let sawFileHttpError = false;
   try {
-    assertFileOkResponse("create_job", queueUnavailableResult);
+    assertFileOkResponse("create_export", queueUnavailableResult);
   } catch (error) {
     sawFileHttpError =
       error instanceof NovaFileSdkHttpError && error.status === 503;
   }
   assert(sawFileHttpError, "assertFileOkResponse must throw NovaSdkHttpError");
 
+  assert(
+    !("create_job" in fileOperations),
+    "legacy generic job operation must stay excluded from public operations",
+  );
   assert(
     !("update_job_result" in fileOperations),
     "internal worker operation must stay excluded from public operations",

@@ -100,10 +100,10 @@ curl -sS -o /dev/null -w "%{http_code}\n" \
   -X POST "${NONPROD_API_BASE_URL}/v1/transfers/uploads/initiate" \
   -H "Content-Type: application/json" -d '{}'
 curl -sS -o /dev/null -w "%{http_code}\n" \
-  -X POST "${NONPROD_API_BASE_URL}/v1/jobs" \
+  -X POST "${NONPROD_API_BASE_URL}/v1/exports" \
   -H "Content-Type: application/json" -d '{}'
 curl -sS -o /dev/null -w "%{http_code}\n" \
-  "${NONPROD_API_BASE_URL}/v1/jobs/nonprod-smoke/events"
+  "${NONPROD_API_BASE_URL}/v1/exports?limit=1"
 curl -sS -o /dev/null -w "%{http_code}\n" \
   "${NONPROD_API_BASE_URL}/v1/capabilities"
 curl -sS -o /dev/null -w "%{http_code}\n" \
@@ -116,7 +116,7 @@ Acceptance:
 - `/v1/health/ready` is `200`.
 - `/v1/transfers/uploads/initiate` returns contract responses
   (`401/403/409/422/503` allowed), but never `404`.
-- Canonical `/v1/jobs*`, `/v1/health/live`, `/v1/health/ready`, and
+- Canonical `/v1/exports*`, `/v1/health/live`, `/v1/health/ready`, and
   `/v1/capabilities` routes return contract responses (non-`404`) during
   dry-run checks.
 - `/metrics/summary` returns a contract response (non-`404`) during dry-run
@@ -181,7 +181,7 @@ for command-level browser validation and artifact capture.
 
 1. Open `NONPROD_DASH_URL`.
 2. Upload supported file (`.csv` or `.xlsx`) via async uploader.
-3. Confirm `POST /v1/jobs` is called and `job_id` is returned.
+3. Confirm `POST /v1/exports` is called and `export_id` is returned.
 4. Confirm polling reaches terminal `succeeded`.
 5. Confirm generated output/download path works.
 

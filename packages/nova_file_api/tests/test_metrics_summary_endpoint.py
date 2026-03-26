@@ -7,10 +7,10 @@ import pytest
 from nova_file_api.activity import MemoryActivityStore
 from nova_file_api.config import Settings
 from nova_file_api.errors import unauthorized
-from nova_file_api.jobs import (
-    JobService,
-    MemoryJobPublisher,
-    MemoryJobRepository,
+from nova_file_api.exports import (
+    ExportService,
+    MemoryExportPublisher,
+    MemoryExportRepository,
 )
 from nova_file_api.metrics import MetricsCollector
 from nova_file_api.models import Principal
@@ -52,19 +52,19 @@ async def _request_metrics_summary(
 
     metrics = MetricsCollector(namespace="Tests")
     metrics.incr("requests_total")
-    metrics.observe_ms("jobs_enqueue_ms", 12.345)
+    metrics.observe_ms("exports_create_ms", 12.345)
 
     shared_cache, cache = build_cache_stack()
-    job_repository = MemoryJobRepository()
-    job_service = JobService(
-        repository=job_repository,
-        publisher=MemoryJobPublisher(),
+    export_repository = MemoryExportRepository()
+    export_service = ExportService(
+        repository=export_repository,
+        publisher=MemoryExportPublisher(),
         metrics=metrics,
     )
     activity_store = MemoryActivityStore()
     await activity_store.record(
         principal=Principal(subject="caller-1", scope_id="scope-1"),
-        event_type="jobs_enqueue",
+        event_type="exports_create",
     )
 
     app = build_test_app(
@@ -75,7 +75,7 @@ async def _request_metrics_summary(
             cache=cache,
             authenticator=_StubAuthenticator(permissions=permissions),
             transfer_service=StubTransferService(),
-            job_service=job_service,
+            export_service=export_service,
             activity_store=activity_store,
             idempotency_enabled=True,
             use_in_memory_shared_cache=True,
@@ -113,5 +113,5 @@ async def test_metrics_summary_allows_metrics_permission() -> None:
     assert response.status_code == 200
     payload = response.json()
     assert payload["counters"]["requests_total"] == 1
-    assert payload["latencies_ms"]["jobs_enqueue_ms"] == 12.345
+    assert payload["latencies_ms"]["exports_create_ms"] == 12.345
     assert payload["activity"]["events_total"] == 1

@@ -89,7 +89,7 @@ while Flask/Dash retain the explicit thin sync adapter only at the sync edge.
 
 Dash and other browser-backed consumers using `nova_dash_bridge` must expose a
 bearer `Authorization` header to the bridge assets for canonical
-`/v1/transfers` and `/v1/jobs` requests. Active consumer docs must not describe
+`/v1/transfers` and `/v1/exports` requests. Active consumer docs must not describe
 `session_id`, `X-Session-Id`, or `X-Scope-Id` as public auth/scope inputs.
 
 All of these remain subordinate to the committed Nova OpenAPI contracts.

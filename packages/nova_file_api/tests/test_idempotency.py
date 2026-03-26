@@ -28,10 +28,10 @@ from nova_file_api.idempotency import (
 )
 from nova_file_api.metrics import MetricsCollector
 from nova_file_api.models import (
-    EnqueueJobResponse,
+    ExportRecord,
+    ExportResource,
+    ExportStatus,
     InitiateUploadResponse,
-    JobRecord,
-    JobStatus,
     Principal,
     UploadStrategy,
 )
@@ -45,6 +45,19 @@ from .support.app import (
     request_app,
 )
 from .support.redis import MemoryRedisClient as _DictRedisClient
+
+EXPORT_REQUEST: dict[str, object] = {
+    "source_key": "uploads/scope-1/source.csv",
+    "filename": "source.csv",
+}
+EXPORT_REQUEST_ALT_A: dict[str, object] = {
+    "source_key": "uploads/scope-1/source-a.csv",
+    "filename": "source.csv",
+}
+EXPORT_REQUEST_ALT_B: dict[str, object] = {
+    "source_key": "uploads/scope-1/source-b.csv",
+    "filename": "source.csv",
+}
 
 
 class _StubAuthenticator:
@@ -63,39 +76,41 @@ class _StubAuthenticator:
         )
 
 
-class _StubJobService:
+class _StubExportService:
     calls: int
 
     def __init__(self) -> None:
         self.calls = 0
 
-    async def enqueue(
+    async def create(
         self,
         *,
-        job_type: str,
-        payload: dict[str, object],
+        source_key: str,
+        filename: str,
         scope_id: str,
-    ) -> JobRecord:
+        request_id: str | None = None,
+    ) -> ExportRecord:
         self.calls += 1
         now = datetime.now(tz=UTC)
-        return JobRecord(
-            job_id=f"job-{self.calls}",
-            job_type=job_type,
+        return ExportRecord(
+            export_id=f"export-{self.calls}",
             scope_id=scope_id,
-            status=JobStatus.PENDING,
-            payload=payload,
-            result=None,
+            request_id=request_id,
+            source_key=source_key,
+            filename=filename,
+            status=ExportStatus.QUEUED,
+            output=None,
             error=None,
             created_at=now,
             updated_at=now,
         )
 
-    async def get(self, *, job_id: str, scope_id: str) -> JobRecord:
-        del job_id, scope_id
+    async def get(self, *, export_id: str, scope_id: str) -> ExportRecord:
+        del export_id, scope_id
         raise RuntimeError("not used by this test")
 
-    async def cancel(self, *, job_id: str, scope_id: str) -> JobRecord:
-        del job_id, scope_id
+    async def cancel(self, *, export_id: str, scope_id: str) -> ExportRecord:
+        del export_id, scope_id
         raise RuntimeError("not used by this test")
 
 
@@ -121,25 +136,27 @@ class _StubTransferService:
         )
 
 
-class _FailFirstEnqueueJobService(_StubJobService):
+class _FailFirstCreateExportService(_StubExportService):
     calls: int
 
-    async def enqueue(
+    async def create(
         self,
         *,
-        job_type: str,
-        payload: dict[str, object],
+        source_key: str,
+        filename: str,
         scope_id: str,
-    ) -> JobRecord:
+        request_id: str | None = None,
+    ) -> ExportRecord:
         if self.calls == 0:
             self.calls += 1
             raise queue_unavailable(
-                "job enqueue failed because queue unavailable"
+                "export create failed because queue unavailable"
             )
-        return await super().enqueue(
-            job_type=job_type,
-            payload=payload,
+        return await super().create(
+            source_key=source_key,
+            filename=filename,
             scope_id=scope_id,
+            request_id=request_id,
         )
 
 
@@ -269,14 +286,14 @@ def _build_deps(
     *,
     idempotency_enabled: bool = True,
     use_in_memory_shared_cache: bool = True,
-) -> tuple[RuntimeDeps, _StubTransferService, _StubJobService]:
+) -> tuple[RuntimeDeps, _StubTransferService, _StubExportService]:
     settings = Settings.model_validate({})
     settings.idempotency_enabled = idempotency_enabled
     settings.jobs_enabled = True
     metrics = MetricsCollector(namespace="Tests")
     shared, cache = build_cache_stack()
     transfer_service = _StubTransferService()
-    job_service = _StubJobService()
+    export_service = _StubExportService()
     deps = build_runtime_deps(
         settings=settings,
         metrics=metrics,
@@ -284,12 +301,12 @@ def _build_deps(
         cache=cache,
         authenticator=_StubAuthenticator(),
         transfer_service=transfer_service,
-        job_service=job_service,
+        export_service=export_service,
         activity_store=MemoryActivityStore(),
         idempotency_enabled=idempotency_enabled,
         use_in_memory_shared_cache=use_in_memory_shared_cache,
     )
-    return deps, transfer_service, job_service
+    return deps, transfer_service, export_service
 
 
 @pytest.mark.asyncio
@@ -378,18 +395,18 @@ async def test_v1_initiate_rejects_key_reuse_with_different_payload() -> None:
 
 
 @pytest.mark.asyncio
-async def test_v1_jobs_allows_missing_idempotency_key_when_enabled() -> None:
-    """Verify `/v1/jobs` accepts requests without Idempotency-Key."""
-    deps, _transfer_service, job_service = _build_deps()
+async def test_v1_exports_allow_missing_idempotency_key_when_enabled() -> None:
+    """Verify `/v1/exports` accepts requests without Idempotency-Key."""
+    deps, _transfer_service, export_service = _build_deps()
     app = build_test_app(deps)
     response = await request_app(
         app,
         "POST",
-        "/v1/jobs",
-        json={"job_type": "transform", "payload": {"input": "a"}},
+        "/v1/exports",
+        json=EXPORT_REQUEST,
     )
-    assert response.status_code == 200
-    assert job_service.calls == 1
+    assert response.status_code == 201
+    assert export_service.calls == 1
 
 
 @pytest.mark.asyncio
@@ -397,108 +414,110 @@ async def test_request_app_reuses_injected_shared_cache_across_lifespans() -> (
     None
 ):
     """Verify repeated lifespan cycles on one test app preserve idempotency."""
-    deps, _transfer_service, job_service = _build_deps()
+    deps, _transfer_service, export_service = _build_deps()
     app = build_test_app(deps)
 
     first = await request_app(
         app,
         "POST",
-        "/v1/jobs",
-        headers={"Idempotency-Key": "job-key-reentry"},
-        json={"job_type": "transform", "payload": {"input": "a"}},
+        "/v1/exports",
+        headers={"Idempotency-Key": "export-key-reentry"},
+        json=EXPORT_REQUEST,
     )
     second = await request_app(
         app,
         "POST",
-        "/v1/jobs",
-        headers={"Idempotency-Key": "job-key-reentry"},
-        json={"job_type": "transform", "payload": {"input": "a"}},
+        "/v1/exports",
+        headers={"Idempotency-Key": "export-key-reentry"},
+        json=EXPORT_REQUEST,
     )
 
-    assert first.status_code == 200
-    assert second.status_code == 200
+    assert first.status_code == 201
+    assert second.status_code == 201
     assert first.json() == second.json()
-    assert job_service.calls == 1
+    assert export_service.calls == 1
 
 
 @pytest.mark.asyncio
-async def test_v1_jobs_replays_response_for_same_idempotency_key() -> None:
-    """Verify identical key+payload replays the cached enqueue response."""
-    deps, _transfer_service, job_service = _build_deps()
+async def test_v1_exports_replay_response_for_same_idempotency_key() -> None:
+    """Verify identical key+payload replays the cached export response."""
+    deps, _transfer_service, export_service = _build_deps()
     app = build_test_app(deps)
     async with _lifespan_client(app) as client:
         first = await client.request(
             "POST",
-            "/v1/jobs",
-            headers={"Idempotency-Key": "job-key-1"},
-            json={"job_type": "transform", "payload": {"input": "a"}},
+            "/v1/exports",
+            headers={"Idempotency-Key": "export-key-1"},
+            json=EXPORT_REQUEST,
         )
         second = await client.request(
             "POST",
-            "/v1/jobs",
-            headers={"Idempotency-Key": "job-key-1"},
-            json={"job_type": "transform", "payload": {"input": "a"}},
+            "/v1/exports",
+            headers={"Idempotency-Key": "export-key-1"},
+            json=EXPORT_REQUEST,
         )
-    assert first.status_code == 200
-    assert second.status_code == 200
-    parsed_first = EnqueueJobResponse.model_validate(first.json())
-    parsed_second = EnqueueJobResponse.model_validate(second.json())
+    assert first.status_code == 201
+    assert second.status_code == 201
+    parsed_first = ExportResource.model_validate(first.json())
+    parsed_second = ExportResource.model_validate(second.json())
     assert parsed_first == parsed_second
-    assert job_service.calls == 1
+    assert export_service.calls == 1
 
 
 @pytest.mark.asyncio
-async def test_v1_jobs_reject_key_reuse_with_different_payload() -> None:
+async def test_v1_exports_reject_key_reuse_with_different_payload() -> None:
     """Verify same key with different payload returns idempotency conflict."""
-    deps, _transfer_service, job_service = _build_deps()
+    deps, _transfer_service, export_service = _build_deps()
     app = build_test_app(deps)
     async with _lifespan_client(app) as client:
         first = await client.request(
             "POST",
-            "/v1/jobs",
-            headers={"Idempotency-Key": "job-key-2"},
-            json={"job_type": "transform", "payload": {"input": "a"}},
+            "/v1/exports",
+            headers={"Idempotency-Key": "export-key-2"},
+            json=EXPORT_REQUEST_ALT_A,
         )
         second = await client.request(
             "POST",
-            "/v1/jobs",
-            headers={"Idempotency-Key": "job-key-2"},
-            json={"job_type": "transform", "payload": {"input": "b"}},
+            "/v1/exports",
+            headers={"Idempotency-Key": "export-key-2"},
+            json=EXPORT_REQUEST_ALT_B,
         )
-    assert first.status_code == 200
+    assert first.status_code == 201
     assert second.status_code == 409
     assert second.json()["error"]["code"] == "idempotency_conflict"
-    assert job_service.calls == 1
+    assert export_service.calls == 1
 
 
 @pytest.mark.asyncio
-async def test_v1_jobs_failed_enqueue_is_not_idempotency_replayed() -> None:
-    """A failed enqueue must not be replay-cached by idempotency middleware."""
-    deps, _transfer_service, _job_service = _build_deps()
-    flaky_job_service = _FailFirstEnqueueJobService()
-    deps.job_service = flaky_job_service
+async def test_v1_exports_failed_create_is_not_idempotency_replayed() -> None:
+    """
+    A failed export create must not be replay-cached by idempotency middleware.
+    """
+    deps, _transfer_service, _export_service = _build_deps()
+    flaky_export_service = _FailFirstCreateExportService()
+    deps.export_service = flaky_export_service
     app = build_test_app(deps)
 
     async with _lifespan_client(app) as client:
         first = await client.request(
             "POST",
-            "/v1/jobs",
-            headers={"Idempotency-Key": "job-key-failed-enqueue"},
-            json={"job_type": "transform", "payload": {"input": "a"}},
+            "/v1/exports",
+            headers={"Idempotency-Key": "export-key-failed-create"},
+            json=EXPORT_REQUEST,
         )
         second = await client.request(
             "POST",
-            "/v1/jobs",
-            headers={"Idempotency-Key": "job-key-failed-enqueue"},
-            json={"job_type": "transform", "payload": {"input": "a"}},
+            "/v1/exports",
+            headers={"Idempotency-Key": "export-key-failed-create"},
+            json=EXPORT_REQUEST,
         )
 
     assert first.status_code == 503
     assert first.json()["error"]["code"] == "queue_unavailable"
-    assert second.status_code == 200
-    parsed = EnqueueJobResponse.model_validate(second.json())
-    assert parsed.job_id == "job-2"
-    assert flaky_job_service.calls == 2
+    assert second.status_code == 201
+    parsed = ExportResource.model_validate(second.json())
+    assert parsed.export_id == "export-2"
+    assert flaky_export_service.calls == 2
 
 
 @pytest.mark.asyncio
@@ -572,9 +591,9 @@ async def test_v1_initiate_store_failure_is_not_replayed() -> None:
 
 
 @pytest.mark.asyncio
-async def test_v1_jobs_store_failure_blocks_duplicate_enqueue() -> None:
-    """Commit-store outages must not re-run a successful enqueue."""
-    deps, _transfer_service, job_service = _build_deps()
+async def test_v1_exports_store_failure_blocks_duplicate_create() -> None:
+    """Commit-store outages must not re-run a successful export create."""
+    deps, _transfer_service, export_service = _build_deps()
     flaky_shared_cache = _shared_cache_with_client(_ClaimOnlyRedisClient())
     _replace_shared_cache(
         deps=deps,
@@ -585,22 +604,22 @@ async def test_v1_jobs_store_failure_blocks_duplicate_enqueue() -> None:
     async with _lifespan_client(app) as client:
         first = await client.request(
             "POST",
-            "/v1/jobs",
-            headers={"Idempotency-Key": "job-key-commit-outage"},
-            json={"job_type": "transform", "payload": {"input": "a"}},
+            "/v1/exports",
+            headers={"Idempotency-Key": "export-key-commit-outage"},
+            json=EXPORT_REQUEST,
         )
         second = await client.request(
             "POST",
-            "/v1/jobs",
-            headers={"Idempotency-Key": "job-key-commit-outage"},
-            json={"job_type": "transform", "payload": {"input": "a"}},
+            "/v1/exports",
+            headers={"Idempotency-Key": "export-key-commit-outage"},
+            json=EXPORT_REQUEST,
         )
 
     assert first.status_code == 503
     assert first.json()["error"]["code"] == "idempotency_unavailable"
     assert second.status_code == 409
     assert second.json()["error"]["code"] == "idempotency_conflict"
-    assert job_service.calls == 1
+    assert export_service.calls == 1
 
 
 @pytest.mark.asyncio
@@ -623,21 +642,24 @@ async def test_shared_idempotency_store_prevents_duplicate_claims() -> None:
     )
 
     first_claim = await first_store.claim_request(
-        route="/v1/jobs",
+        route="/v1/exports",
         scope_id="scope-1",
-        idempotency_key="job-key-shared",
-        request_payload={"job_type": "transform", "payload": {"input": "a"}},
+        idempotency_key="export-key-shared",
+        request_payload={
+            "source_key": "uploads/scope-1/source.csv",
+            "filename": "source.csv",
+        },
     )
 
     assert first_claim is True
     with pytest.raises(Exception, match="already in progress"):
         _ = await second_store.claim_request(
-            route="/v1/jobs",
+            route="/v1/exports",
             scope_id="scope-1",
-            idempotency_key="job-key-shared",
+            idempotency_key="export-key-shared",
             request_payload={
-                "job_type": "transform",
-                "payload": {"input": "a"},
+                "source_key": "uploads/scope-1/source.csv",
+                "filename": "source.csv",
             },
         )
 
@@ -672,12 +694,12 @@ async def test_claim_request_conflicts_when_claim_entry_expires_before_read(
 
     with pytest.raises(Exception, match="stored idempotency record is invalid"):
         _ = await store.claim_request(
-            route="/v1/jobs",
+            route="/v1/exports",
             scope_id="scope-1",
-            idempotency_key="job-key-expired-claim",
+            idempotency_key="export-key-expired-claim",
             request_payload={
-                "job_type": "transform",
-                "payload": {"input": "a"},
+                "source_key": "uploads/scope-1/source.csv",
+                "filename": "source.csv",
             },
         )
 
@@ -698,20 +720,26 @@ async def test_discard_claim_keeps_newer_owner_when_claim_was_replaced() -> (
         key_prefix="nova",
         key_schema_version=1,
     )
-    first_payload = {"job_type": "transform", "payload": {"input": "a"}}
-    second_payload = {"job_type": "transform", "payload": {"input": "b"}}
+    first_payload = {
+        "source_key": "uploads/scope-1/source-a.csv",
+        "filename": "source.csv",
+    }
+    second_payload = {
+        "source_key": "uploads/scope-1/source-b.csv",
+        "filename": "source.csv",
+    }
 
     claimed = await store.claim_request(
-        route="/v1/jobs",
+        route="/v1/exports",
         scope_id="scope-1",
-        idempotency_key="job-key-replaced-claim",
+        idempotency_key="export-key-replaced-claim",
         request_payload=first_payload,
     )
     assert claimed is True
 
     cache_key = namespaced_cache_key(
         namespace="idempotency",
-        raw="/v1/jobs|scope-1|job-key-replaced-claim",
+        raw="/v1/exports|scope-1|export-key-replaced-claim",
         key_prefix="nova",
         key_schema_version=1,
     )
@@ -730,9 +758,9 @@ async def test_discard_claim_keeps_newer_owner_when_claim_was_replaced() -> (
     )
 
     await store.discard_claim(
-        route="/v1/jobs",
+        route="/v1/exports",
         scope_id="scope-1",
-        idempotency_key="job-key-replaced-claim",
+        idempotency_key="export-key-replaced-claim",
         request_payload=first_payload,
     )
 

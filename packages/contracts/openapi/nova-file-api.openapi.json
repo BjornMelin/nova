@@ -182,45 +182,30 @@
         "title": "CompletedPart",
         "type": "object"
       },
-      "EnqueueJobRequest": {
+      "CreateExportRequest": {
         "additionalProperties": false,
-        "description": "Request payload for job enqueue endpoint.",
+        "description": "Request payload for export creation.",
         "properties": {
-          "job_type": {
-            "maxLength": 128,
+          "filename": {
+            "description": "Client-facing filename to preserve in the export.",
+            "maxLength": 512,
             "minLength": 1,
-            "title": "Job Type",
+            "title": "Filename",
             "type": "string"
           },
-          "payload": {
-            "additionalProperties": true,
-            "title": "Payload",
-            "type": "object"
+          "source_key": {
+            "description": "Storage key of the source object to export.",
+            "maxLength": 2048,
+            "minLength": 1,
+            "title": "Source Key",
+            "type": "string"
           }
         },
         "required": [
-          "job_type"
+          "source_key",
+          "filename"
         ],
-        "title": "EnqueueJobRequest",
-        "type": "object"
-      },
-      "EnqueueJobResponse": {
-        "additionalProperties": false,
-        "description": "Response payload for enqueue endpoint.",
-        "properties": {
-          "job_id": {
-            "title": "Job Id",
-            "type": "string"
-          },
-          "status": {
-            "$ref": "#/components/schemas/JobStatus"
-          }
-        },
-        "required": [
-          "job_id",
-          "status"
-        ],
-        "title": "EnqueueJobResponse",
+        "title": "CreateExportRequest",
         "type": "object"
       },
       "ErrorBody": {
@@ -274,6 +259,131 @@
         ],
         "title": "ErrorEnvelope",
         "type": "object"
+      },
+      "ExportListResponse": {
+        "additionalProperties": false,
+        "description": "Response payload for export listing endpoint.",
+        "properties": {
+          "exports": {
+            "items": {
+              "$ref": "#/components/schemas/ExportResource"
+            },
+            "maxItems": 200,
+            "title": "Exports",
+            "type": "array"
+          }
+        },
+        "required": [
+          "exports"
+        ],
+        "title": "ExportListResponse",
+        "type": "object"
+      },
+      "ExportOutput": {
+        "additionalProperties": false,
+        "description": "Completed export output metadata.",
+        "properties": {
+          "download_filename": {
+            "description": "Filename presented to clients when downloading.",
+            "maxLength": 512,
+            "minLength": 1,
+            "title": "Download Filename",
+            "type": "string"
+          },
+          "key": {
+            "description": "Storage key for the exported object.",
+            "maxLength": 2048,
+            "minLength": 1,
+            "title": "Key",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "download_filename"
+        ],
+        "title": "ExportOutput",
+        "type": "object"
+      },
+      "ExportResource": {
+        "additionalProperties": false,
+        "description": "Public export workflow resource.",
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "export_id": {
+            "title": "Export Id",
+            "type": "string"
+          },
+          "filename": {
+            "maxLength": 512,
+            "minLength": 1,
+            "title": "Filename",
+            "type": "string"
+          },
+          "output": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ExportOutput"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "source_key": {
+            "maxLength": 2048,
+            "minLength": 1,
+            "title": "Source Key",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ExportStatus"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "export_id",
+          "source_key",
+          "filename",
+          "status",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "ExportResource",
+        "type": "object"
+      },
+      "ExportStatus": {
+        "description": "Lifecycle status of an export workflow.",
+        "enum": [
+          "queued",
+          "validating",
+          "copying",
+          "finalizing",
+          "succeeded",
+          "failed",
+          "cancelled"
+        ],
+        "title": "ExportStatus",
+        "type": "string"
       },
       "HealthResponse": {
         "additionalProperties": false,
@@ -385,216 +495,6 @@
           "expires_in_seconds"
         ],
         "title": "InitiateUploadResponse",
-        "type": "object"
-      },
-      "JobCancelResponse": {
-        "additionalProperties": false,
-        "description": "Response payload for cancel endpoint.",
-        "properties": {
-          "job_id": {
-            "title": "Job Id",
-            "type": "string"
-          },
-          "status": {
-            "$ref": "#/components/schemas/JobStatus"
-          }
-        },
-        "required": [
-          "job_id",
-          "status"
-        ],
-        "title": "JobCancelResponse",
-        "type": "object"
-      },
-      "JobEvent": {
-        "additionalProperties": false,
-        "description": "Single event entry for a job event stream/poll response.",
-        "properties": {
-          "data": {
-            "additionalProperties": true,
-            "title": "Data",
-            "type": "object"
-          },
-          "event_id": {
-            "title": "Event Id",
-            "type": "string"
-          },
-          "event_type": {
-            "$ref": "#/components/schemas/JobEventType",
-            "default": "snapshot"
-          },
-          "job_id": {
-            "title": "Job Id",
-            "type": "string"
-          },
-          "status": {
-            "$ref": "#/components/schemas/JobStatus"
-          },
-          "timestamp": {
-            "format": "date-time",
-            "title": "Timestamp",
-            "type": "string"
-          }
-        },
-        "required": [
-          "event_id",
-          "job_id",
-          "status",
-          "timestamp"
-        ],
-        "title": "JobEvent",
-        "type": "object"
-      },
-      "JobEventType": {
-        "description": "Event kinds emitted by the v1 job events contract.",
-        "enum": [
-          "snapshot"
-        ],
-        "title": "JobEventType",
-        "type": "string"
-      },
-      "JobEventsResponse": {
-        "additionalProperties": false,
-        "description": "Polling/SSE-compatible events response envelope.",
-        "properties": {
-          "events": {
-            "items": {
-              "$ref": "#/components/schemas/JobEvent"
-            },
-            "maxItems": 1000,
-            "title": "Events",
-            "type": "array"
-          },
-          "job_id": {
-            "title": "Job Id",
-            "type": "string"
-          },
-          "next_cursor": {
-            "title": "Next Cursor",
-            "type": "string"
-          }
-        },
-        "required": [
-          "job_id",
-          "events",
-          "next_cursor"
-        ],
-        "title": "JobEventsResponse",
-        "type": "object"
-      },
-      "JobListResponse": {
-        "additionalProperties": false,
-        "description": "Response payload for job listing endpoint.",
-        "properties": {
-          "jobs": {
-            "items": {
-              "$ref": "#/components/schemas/JobRecord"
-            },
-            "maxItems": 200,
-            "title": "Jobs",
-            "type": "array"
-          }
-        },
-        "required": [
-          "jobs"
-        ],
-        "title": "JobListResponse",
-        "type": "object"
-      },
-      "JobRecord": {
-        "additionalProperties": false,
-        "description": "Persistent job representation.",
-        "properties": {
-          "created_at": {
-            "format": "date-time",
-            "title": "Created At",
-            "type": "string"
-          },
-          "error": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Error"
-          },
-          "job_id": {
-            "title": "Job Id",
-            "type": "string"
-          },
-          "job_type": {
-            "title": "Job Type",
-            "type": "string"
-          },
-          "payload": {
-            "additionalProperties": true,
-            "title": "Payload",
-            "type": "object"
-          },
-          "result": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Result"
-          },
-          "scope_id": {
-            "title": "Scope Id",
-            "type": "string"
-          },
-          "status": {
-            "$ref": "#/components/schemas/JobStatus"
-          },
-          "updated_at": {
-            "format": "date-time",
-            "title": "Updated At",
-            "type": "string"
-          }
-        },
-        "required": [
-          "job_id",
-          "job_type",
-          "scope_id",
-          "status",
-          "payload",
-          "created_at",
-          "updated_at"
-        ],
-        "title": "JobRecord",
-        "type": "object"
-      },
-      "JobStatus": {
-        "description": "Lifecycle status of an async job.",
-        "enum": [
-          "pending",
-          "running",
-          "succeeded",
-          "failed",
-          "canceled"
-        ],
-        "title": "JobStatus",
-        "type": "string"
-      },
-      "JobStatusResponse": {
-        "additionalProperties": false,
-        "description": "Response payload for status endpoint.",
-        "properties": {
-          "job": {
-            "$ref": "#/components/schemas/JobRecord"
-          }
-        },
-        "required": [
-          "job"
-        ],
-        "title": "JobStatusResponse",
         "type": "object"
       },
       "MetricsSummaryResponse": {
@@ -1076,64 +976,10 @@
         ]
       }
     },
-    "/v1/health/live": {
+    "/v1/exports": {
       "get": {
-        "description": "Return liveness status.",
-        "operationId": "health_live",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HealthResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "summary": "Health Live",
-        "tags": [
-          "ops"
-        ]
-      }
-    },
-    "/v1/health/ready": {
-      "get": {
-        "description": "Return readiness checks for traffic-critical dependencies.",
-        "operationId": "health_ready",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ReadinessResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ReadinessResponse"
-                }
-              }
-            },
-            "description": "Service Unavailable - Readiness failed."
-          }
-        },
-        "summary": "Health Ready",
-        "tags": [
-          "ops"
-        ]
-      }
-    },
-    "/v1/jobs": {
-      "get": {
-        "description": "List caller-owned jobs with most recent first.",
-        "operationId": "list_jobs",
+        "description": "List caller-owned exports with most recent first.",
+        "operationId": "list_exports",
         "parameters": [
           {
             "in": "query",
@@ -1153,7 +999,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobListResponse"
+                  "$ref": "#/components/schemas/ExportListResponse"
                 }
               }
             },
@@ -1195,14 +1041,14 @@
             "bearerAuth": []
           }
         ],
-        "summary": "List Jobs",
+        "summary": "List Exports",
         "tags": [
-          "jobs"
+          "exports"
         ]
       },
       "post": {
-        "description": "Enqueue async processing job and return job id.",
-        "operationId": "create_job",
+        "description": "Create an explicit export workflow resource.",
+        "operationId": "create_export",
         "parameters": [
           {
             "in": "header",
@@ -1225,18 +1071,18 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/EnqueueJobRequest"
+                "$ref": "#/components/schemas/CreateExportRequest"
               }
             }
           },
           "required": true
         },
         "responses": {
-          "200": {
+          "201": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/EnqueueJobResponse"
+                  "$ref": "#/components/schemas/ExportResource"
                 }
               }
             },
@@ -1298,23 +1144,23 @@
             "bearerAuth": []
           }
         ],
-        "summary": "Create Job",
+        "summary": "Create Export",
         "tags": [
-          "jobs"
+          "exports"
         ]
       }
     },
-    "/v1/jobs/{job_id}": {
+    "/v1/exports/{export_id}": {
       "get": {
-        "description": "Return status for the caller-owned job.",
-        "operationId": "get_job_status",
+        "description": "Return the caller-owned export resource.",
+        "operationId": "get_export",
         "parameters": [
           {
             "in": "path",
-            "name": "job_id",
+            "name": "export_id",
             "required": true,
             "schema": {
-              "title": "Job Id",
+              "title": "Export Id",
               "type": "string"
             }
           }
@@ -1324,7 +1170,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobStatusResponse"
+                  "$ref": "#/components/schemas/ExportResource"
                 }
               }
             },
@@ -1350,6 +1196,16 @@
             },
             "description": "Forbidden - Caller lacks required scope or permission."
           },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found - Export resource was not found."
+          },
           "422": {
             "content": {
               "application/json": {
@@ -1366,23 +1222,23 @@
             "bearerAuth": []
           }
         ],
-        "summary": "Get Job Status",
+        "summary": "Get Export",
         "tags": [
-          "jobs"
+          "exports"
         ]
       }
     },
-    "/v1/jobs/{job_id}/cancel": {
+    "/v1/exports/{export_id}/cancel": {
       "post": {
-        "description": "Cancel a caller-owned non-terminal job.",
-        "operationId": "cancel_job",
+        "description": "Cancel a caller-owned non-terminal export.",
+        "operationId": "cancel_export",
         "parameters": [
           {
             "in": "path",
-            "name": "job_id",
+            "name": "export_id",
             "required": true,
             "schema": {
-              "title": "Job Id",
+              "title": "Export Id",
               "type": "string"
             }
           }
@@ -1392,7 +1248,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobCancelResponse"
+                  "$ref": "#/components/schemas/ExportResource"
                 }
               }
             },
@@ -1418,6 +1274,16 @@
             },
             "description": "Forbidden - Caller lacks required scope or permission."
           },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found - Export resource was not found."
+          },
           "422": {
             "content": {
               "application/json": {
@@ -1434,145 +1300,63 @@
             "bearerAuth": []
           }
         ],
-        "summary": "Cancel Job",
+        "summary": "Cancel Export",
         "tags": [
-          "jobs"
+          "exports"
         ]
       }
     },
-    "/v1/jobs/{job_id}/events": {
+    "/v1/health/live": {
       "get": {
-        "description": "Return poll events with an SSE-compatible envelope.",
-        "operationId": "list_job_events",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "job_id",
-            "required": true,
-            "schema": {
-              "title": "Job Id",
-              "type": "string"
-            }
-          }
-        ],
+        "description": "Return liveness status.",
+        "operationId": "health_live",
         "responses": {
           "200": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobEventsResponse"
+                  "$ref": "#/components/schemas/HealthResponse"
                 }
               }
             },
             "description": "Successful Response"
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Unauthorized - Bearer token is missing or invalid."
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Forbidden - Caller lacks required scope or permission."
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Unprocessable Content - Request validation failed."
           }
         },
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "summary": "List Job Events",
+        "summary": "Health Live",
         "tags": [
-          "jobs"
+          "ops"
         ]
       }
     },
-    "/v1/jobs/{job_id}/retry": {
-      "post": {
-        "description": "Retry a terminal failed or canceled job.",
-        "operationId": "retry_job",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "job_id",
-            "required": true,
-            "schema": {
-              "title": "Job Id",
-              "type": "string"
-            }
-          }
-        ],
+    "/v1/health/ready": {
+      "get": {
+        "description": "Return readiness checks for traffic-critical dependencies.",
+        "operationId": "health_ready",
         "responses": {
           "200": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/EnqueueJobResponse"
+                  "$ref": "#/components/schemas/ReadinessResponse"
                 }
               }
             },
             "description": "Successful Response"
           },
-          "401": {
+          "503": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
+                  "$ref": "#/components/schemas/ReadinessResponse"
                 }
               }
             },
-            "description": "Unauthorized - Bearer token is missing or invalid."
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Forbidden - Caller lacks required scope or permission."
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Unprocessable Content - Request validation failed."
+            "description": "Service Unavailable - Readiness failed."
           }
         },
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "summary": "Retry Job",
+        "summary": "Health Ready",
         "tags": [
-          "jobs"
+          "ops"
         ]
       }
     },

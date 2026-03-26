@@ -301,13 +301,13 @@ Validation URLs:
 
 - `${DEV_BASE_URL}/v1/transfers/uploads/initiate`
 - `${DEV_BASE_URL}/metrics/summary`
-- `${DEV_BASE_URL}/v1/jobs`
+- `${DEV_BASE_URL}/v1/exports`
 - `${DEV_BASE_URL}/v1/health/live`
 - `${DEV_BASE_URL}/v1/health/ready`
 - `${DEV_BASE_URL}/v1/capabilities`
 - `${PROD_BASE_URL}/v1/transfers/uploads/initiate`
 - `${PROD_BASE_URL}/metrics/summary`
-- `${PROD_BASE_URL}/v1/jobs`
+- `${PROD_BASE_URL}/v1/exports`
 - `${PROD_BASE_URL}/v1/health/live`
 - `${PROD_BASE_URL}/v1/health/ready`
 - `${PROD_BASE_URL}/v1/capabilities`

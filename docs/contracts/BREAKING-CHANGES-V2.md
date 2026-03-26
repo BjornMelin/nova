@@ -16,7 +16,7 @@ This file records the intentional hard cuts in the second green-field program.
 
 ## Internal API
 
-- Delete `/v1/internal/jobs/{job_id}/result`.
+- Delete the internal worker callback route.
 - Delete worker callback semantics.
 
 ## Runtime/infrastructure

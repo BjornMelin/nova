@@ -1,24 +1,31 @@
 from typing import Any
-from urllib.parse import quote
 
 import httpx
 
 from nova_sdk_py_file import errors
 from nova_sdk_py_file.client import AuthenticatedClient, Client
 from nova_sdk_py_file.models.error_envelope import ErrorEnvelope
-from nova_sdk_py_file.models.job_events_response import JobEventsResponse
-from nova_sdk_py_file.types import Response
+from nova_sdk_py_file.models.export_list_response import ExportListResponse
+from nova_sdk_py_file.types import UNSET, Response, Unset
 
 
 def _get_kwargs(
-    job_id: str,
+    *,
+    limit: int | Unset = 50,
 ) -> dict[str, Any]:
+
+    params: dict[str, Any] = {}
+
+    params["limit"] = limit
+
+    params = {
+        k: v for k, v in params.items() if v is not UNSET and v is not None
+    }
 
     _kwargs: dict[str, Any] = {
         "method": "get",
-        "url": "/v1/jobs/{job_id}/events".format(
-            job_id=quote(str(job_id), safe=""),
-        ),
+        "url": "/v1/exports",
+        "params": params,
     }
 
     return _kwargs
@@ -26,9 +33,9 @@ def _get_kwargs(
 
 def _parse_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> ErrorEnvelope | JobEventsResponse | None:
+) -> ErrorEnvelope | ExportListResponse | None:
     if response.status_code == 200:
-        response_200 = JobEventsResponse.from_dict(response.json())
+        response_200 = ExportListResponse.from_dict(response.json())
 
         return response_200
 
@@ -55,7 +62,7 @@ def _parse_response(
 
 def _build_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> Response[ErrorEnvelope | JobEventsResponse]:
+) -> Response[ErrorEnvelope | ExportListResponse]:
     return Response(
         status_code=response.status_code,
         content=response.content,
@@ -65,27 +72,27 @@ def _build_response(
 
 
 def sync_detailed(
-    job_id: str,
     *,
     client: AuthenticatedClient,
-) -> Response[ErrorEnvelope | JobEventsResponse]:
-    """List Job Events
+    limit: int | Unset = 50,
+) -> Response[ErrorEnvelope | ExportListResponse]:
+    """List Exports
 
-     Return poll events with an SSE-compatible envelope.
+     List caller-owned exports with most recent first.
 
     Args:
-        job_id (str):
+        limit (int | Unset):  Default: 50.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[ErrorEnvelope | JobEventsResponse]
+        Response[ErrorEnvelope | ExportListResponse]
     """
 
     kwargs = _get_kwargs(
-        job_id=job_id,
+        limit=limit,
     )
 
     response = client.get_httpx_client().request(
@@ -96,53 +103,53 @@ def sync_detailed(
 
 
 def sync(
-    job_id: str,
     *,
     client: AuthenticatedClient,
-) -> ErrorEnvelope | JobEventsResponse | None:
-    """List Job Events
+    limit: int | Unset = 50,
+) -> ErrorEnvelope | ExportListResponse | None:
+    """List Exports
 
-     Return poll events with an SSE-compatible envelope.
+     List caller-owned exports with most recent first.
 
     Args:
-        job_id (str):
+        limit (int | Unset):  Default: 50.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        ErrorEnvelope | JobEventsResponse | None
+        ErrorEnvelope | ExportListResponse | None
     """
 
     return sync_detailed(
-        job_id=job_id,
         client=client,
+        limit=limit,
     ).parsed
 
 
 async def asyncio_detailed(
-    job_id: str,
     *,
     client: AuthenticatedClient,
-) -> Response[ErrorEnvelope | JobEventsResponse]:
-    """List Job Events
+    limit: int | Unset = 50,
+) -> Response[ErrorEnvelope | ExportListResponse]:
+    """List Exports
 
-     Return poll events with an SSE-compatible envelope.
+     List caller-owned exports with most recent first.
 
     Args:
-        job_id (str):
+        limit (int | Unset):  Default: 50.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[ErrorEnvelope | JobEventsResponse]
+        Response[ErrorEnvelope | ExportListResponse]
     """
 
     kwargs = _get_kwargs(
-        job_id=job_id,
+        limit=limit,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -151,28 +158,28 @@ async def asyncio_detailed(
 
 
 async def asyncio(
-    job_id: str,
     *,
     client: AuthenticatedClient,
-) -> ErrorEnvelope | JobEventsResponse | None:
-    """List Job Events
+    limit: int | Unset = 50,
+) -> ErrorEnvelope | ExportListResponse | None:
+    """List Exports
 
-     Return poll events with an SSE-compatible envelope.
+     List caller-owned exports with most recent first.
 
     Args:
-        job_id (str):
+        limit (int | Unset):  Default: 50.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        ErrorEnvelope | JobEventsResponse | None
+        ErrorEnvelope | ExportListResponse | None
     """
 
     return (
         await asyncio_detailed(
-            job_id=job_id,
             client=client,
+            limit=limit,
         )
     ).parsed

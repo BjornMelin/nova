@@ -5,15 +5,16 @@ from __future__ import annotations
 import pytest
 from nova_file_api.activity import MemoryActivityStore
 from nova_file_api.config import Settings
-from nova_file_api.jobs import (
-    JobService,
-    MemoryJobPublisher,
-    MemoryJobRepository,
+from nova_file_api.exports import (
+    ExportRepository,
+    ExportService,
+    MemoryExportPublisher,
+    MemoryExportRepository,
 )
 from nova_file_api.metrics import MetricsCollector
 from nova_file_api.models import (
-    JobRecord,
-    JobStatus,
+    ExportRecord,
+    ExportStatus,
     Principal,
     UploadedPart,
     UploadIntrospectionRequest,
@@ -30,6 +31,10 @@ from .support.app import (
 from .support.doubles import StubAuthenticator, StubTransferService
 
 AUTH_HEADERS = {"Authorization": "Bearer token-123"}
+EXPORT_REQUEST: dict[str, object] = {
+    "source_key": "uploads/scope-1/source.csv",
+    "filename": "source.csv",
+}
 
 
 class _IntrospectTransferService(StubTransferService):
@@ -48,23 +53,23 @@ class _IntrospectTransferService(StubTransferService):
         )
 
 
-class _FailingListJobRepository:
-    async def create(self, record: JobRecord) -> None:
+class _FailingListExportRepository:
+    async def create(self, record: ExportRecord) -> None:
         del record
         raise AssertionError("not expected in list-only test")
 
-    async def get(self, job_id: str) -> JobRecord | None:
-        del job_id
+    async def get(self, export_id: str) -> ExportRecord | None:
+        del export_id
         return None
 
-    async def update(self, record: JobRecord) -> None:
+    async def update(self, record: ExportRecord) -> None:
         del record
 
     async def update_if_status(
         self,
         *,
-        record: JobRecord,
-        expected_status: JobStatus,
+        record: ExportRecord,
+        expected_status: ExportStatus,
     ) -> bool:
         del record, expected_status
         return False
@@ -74,9 +79,9 @@ class _FailingListJobRepository:
         *,
         scope_id: str,
         limit: int,
-    ) -> list[JobRecord]:
+    ) -> list[ExportRecord]:
         del scope_id, limit
-        raise RuntimeError("jobs table is not configured for scoped listing")
+        raise RuntimeError("exports table is not configured for scoped listing")
 
     async def healthcheck(self) -> bool:
         return True
@@ -85,6 +90,7 @@ class _FailingListJobRepository:
 def _build_v1_deps(
     *,
     file_transfer_bucket: str = "test-transfer-bucket",
+    process_immediately: bool = True,
 ) -> RuntimeDeps:
     """Build an in-memory dependency set for v1 route tests."""
     settings = Settings.model_validate(
@@ -96,10 +102,12 @@ def _build_v1_deps(
 
     metrics = MetricsCollector(namespace="Tests")
     shared, cache = build_cache_stack()
-    repository = MemoryJobRepository()
-    job_service = JobService(
+    repository = MemoryExportRepository()
+    export_service = ExportService(
         repository=repository,
-        publisher=MemoryJobPublisher(),
+        publisher=MemoryExportPublisher(
+            process_immediately=process_immediately
+        ),
         metrics=metrics,
     )
     return build_runtime_deps(
@@ -109,7 +117,7 @@ def _build_v1_deps(
         cache=cache,
         authenticator=StubAuthenticator(),
         transfer_service=StubTransferService(),
-        job_service=job_service,
+        export_service=export_service,
         activity_store=MemoryActivityStore(),
         idempotency_enabled=True,
         use_in_memory_shared_cache=True,
@@ -130,9 +138,10 @@ async def test_v1_health_and_capabilities() -> None:
     ready_payload = ready.json()
     assert ready_payload["ok"] is False
     assert ready_payload["checks"]["bucket_configured"] is False
+    assert ready_payload["checks"]["export_runtime"] is True
     assert caps.status_code == 200
     cap_keys = {entry["key"] for entry in caps.json()["capabilities"]}
-    assert {"jobs", "jobs.events.poll", "transfers"}.issubset(cap_keys)
+    assert {"exports", "exports.status.poll", "transfers"}.issubset(cap_keys)
 
 
 @pytest.mark.asyncio
@@ -157,56 +166,64 @@ async def test_v1_upload_introspect_returns_uploaded_parts() -> None:
 
 
 @pytest.mark.asyncio
-async def test_v1_jobs_create_list_get_retry_and_events() -> None:
-    """Verifies v1 job create/list/get/retry/event lifecycle behavior."""
+async def test_v1_exports_create_list_and_get() -> None:
+    """Verify the explicit export workflow resource lifecycle."""
     app = build_test_app(_build_v1_deps())
     create_resp = await request_app(
         app,
         "POST",
-        "/v1/jobs",
+        "/v1/exports",
         headers=AUTH_HEADERS,
-        json={"job_type": "transform", "payload": {"input": "a"}},
+        json=EXPORT_REQUEST,
     )
-    assert create_resp.status_code == 200
+    assert create_resp.status_code == 201
     created = create_resp.json()
-    job_id = created["job_id"]
+    export_id = created["export_id"]
+    assert created["status"] == "succeeded"
 
     list_resp = await request_app(
         app,
         "GET",
-        "/v1/jobs",
+        "/v1/exports",
         headers=AUTH_HEADERS,
     )
     assert list_resp.status_code == 200
-    assert any(item["job_id"] == job_id for item in list_resp.json()["jobs"])
+    assert any(
+        item["export_id"] == export_id for item in list_resp.json()["exports"]
+    )
 
     get_resp = await request_app(
         app,
         "GET",
-        f"/v1/jobs/{job_id}",
+        f"/v1/exports/{export_id}",
         headers=AUTH_HEADERS,
     )
     assert get_resp.status_code == 200
-    assert get_resp.json()["job"]["job_id"] == job_id
+    assert get_resp.json()["export_id"] == export_id
 
-    retry_resp = await request_app(
+
+@pytest.mark.asyncio
+async def test_v1_exports_cancel_non_terminal_resource() -> None:
+    """Verify canceling a queued export returns the cancelled resource."""
+    app = build_test_app(_build_v1_deps(process_immediately=False))
+    create_resp = await request_app(
         app,
         "POST",
-        f"/v1/jobs/{job_id}/retry",
+        "/v1/exports",
         headers=AUTH_HEADERS,
+        json=EXPORT_REQUEST,
     )
-    assert retry_resp.status_code == 409
+    export_id = create_resp.json()["export_id"]
 
-    events_resp = await request_app(
+    cancel_resp = await request_app(
         app,
-        "GET",
-        f"/v1/jobs/{job_id}/events",
+        "POST",
+        f"/v1/exports/{export_id}/cancel",
         headers=AUTH_HEADERS,
     )
-    assert events_resp.status_code == 200
-    events = events_resp.json()["events"]
-    assert len(events) == 1
-    assert events[0]["job_id"] == job_id
+
+    assert cancel_resp.status_code == 200
+    assert cancel_resp.json()["status"] == "cancelled"
 
 
 @pytest.mark.asyncio
@@ -217,7 +234,7 @@ async def test_v1_resource_plan_and_release_info() -> None:
         app,
         "POST",
         "/v1/resources/plan",
-        json={"resources": ["jobs", "unknown"]},
+        json={"resources": ["exports", "unknown"]},
     )
     info = await request_app(app, "GET", "/v1/releases/info")
 
@@ -237,28 +254,22 @@ async def test_v1_resource_plan_and_release_info() -> None:
 
 
 @pytest.mark.asyncio
-async def test_v1_jobs_rejects_blank_idempotency_key() -> None:
-    """Verifies v1 jobs reject blank Idempotency-Key header values."""
+async def test_v1_exports_reject_blank_idempotency_key() -> None:
+    """Verifies v1 exports reject blank Idempotency-Key header values."""
     app = build_test_app(_build_v1_deps())
     resp = await request_app(
         app,
         "POST",
-        "/v1/jobs",
-        headers={
-            **AUTH_HEADERS,
-            "Idempotency-Key": "",
-        },
-        json={"job_type": "transform", "payload": {"input": "a"}},
+        "/v1/exports",
+        headers={**AUTH_HEADERS, "Idempotency-Key": ""},
+        json=EXPORT_REQUEST,
     )
     whitespace_resp = await request_app(
         app,
         "POST",
-        "/v1/jobs",
-        headers={
-            **AUTH_HEADERS,
-            "Idempotency-Key": "   ",
-        },
-        json={"job_type": "transform", "payload": {"input": "a"}},
+        "/v1/exports",
+        headers={**AUTH_HEADERS, "Idempotency-Key": "   "},
+        json=EXPORT_REQUEST,
     )
     assert resp.status_code == 422
     assert resp.json()["error"]["code"] == "invalid_request"
@@ -267,22 +278,17 @@ async def test_v1_jobs_rejects_blank_idempotency_key() -> None:
 
 
 @pytest.mark.asyncio
-async def test_v1_jobs_list_scoped_config_error_returns_internal_error() -> (
+async def test_v1_exports_list_scoped_config_error_returns_internal_error() -> (
     None
 ):
-    """Verify a scoped jobs listing config error returns an internal error."""
-    settings = Settings.model_validate(
-        {
-            "JOBS_ENABLED": True,
-        }
-    )
-
+    """Verify a scoped export listing config error returns an internal error."""
+    settings = Settings.model_validate({"JOBS_ENABLED": True})
     metrics = MetricsCollector(namespace="Tests")
     shared, cache = build_cache_stack()
-    repository = _FailingListJobRepository()
-    job_service = JobService(
+    repository: ExportRepository = _FailingListExportRepository()
+    export_service = ExportService(
         repository=repository,
-        publisher=MemoryJobPublisher(),
+        publisher=MemoryExportPublisher(),
         metrics=metrics,
     )
     deps = build_runtime_deps(
@@ -292,16 +298,17 @@ async def test_v1_jobs_list_scoped_config_error_returns_internal_error() -> (
         cache=cache,
         authenticator=StubAuthenticator(),
         transfer_service=StubTransferService(),
-        job_service=job_service,
+        export_service=export_service,
         activity_store=MemoryActivityStore(),
         idempotency_enabled=False,
+        export_repository=repository,
     )
 
     app = build_test_app(deps)
     response = await request_app(
         app,
         "GET",
-        "/v1/jobs",
+        "/v1/exports",
         headers={**AUTH_HEADERS, "X-Request-Id": "req-v1-500"},
         raise_app_exceptions=False,
     )
@@ -315,18 +322,18 @@ async def test_v1_jobs_list_scoped_config_error_returns_internal_error() -> (
 
 
 @pytest.mark.asyncio
-async def test_v1_jobs_rejects_legacy_session_scope_body_fields() -> None:
+async def test_v1_exports_reject_legacy_session_scope_body_fields() -> None:
     """Public request models reject removed legacy auth-surrogate fields."""
     app = build_test_app(_build_v1_deps())
     legacy_field = "_".join(("session", "id"))
     response = await request_app(
         app,
         "POST",
-        "/v1/jobs",
+        "/v1/exports",
         headers=AUTH_HEADERS,
         json={
-            "job_type": "transform",
-            "payload": {"input": "a"},
+            "source_key": "uploads/scope-1/source.csv",
+            "filename": "source.csv",
             legacy_field: "scope-v1",
         },
     )

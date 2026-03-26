@@ -1,1 +1,1 @@
-{"capabilities":[{"key":"jobs","enabled":true,"details":{}},{"key":"jobs.events.poll","enabled":true,"details":{}},{"key":"transfers","enabled":true,"details":{}}]}
+{"capabilities":[{"key":"exports","enabled":true,"details":{}},{"key":"exports.status.poll","enabled":true,"details":{}},{"key":"transfers","enabled":true,"details":{}}]}

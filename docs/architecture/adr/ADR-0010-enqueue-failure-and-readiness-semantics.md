@@ -58,10 +58,10 @@ Choose option B.
 
 Implementation commitments:
 
-- Queue publish failures for `POST /v1/jobs` return `503` and
+- Queue publish failures for `POST /v1/exports` return `503` and
   `error.code = "queue_unavailable"`.
-- Job records created before publish are transitioned to `failed` when publish
-  fails.
+- Export records created before publish are transitioned to `failed` when
+  publish fails.
 - `/v1/health/ready` excludes feature flags from pass/fail aggregation.
 - `/v1/health/ready` treats missing/blank `FILE_TRANSFER_BUCKET` as
   unconfigured.

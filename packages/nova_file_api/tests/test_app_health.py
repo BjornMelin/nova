@@ -7,12 +7,12 @@ from nova_file_api.auth import Authenticator
 from nova_file_api.cache import SharedRedisCache
 from nova_file_api.config import Settings
 from nova_file_api.dependencies import build_two_tier_cache
-from nova_file_api.idempotency import IdempotencyStore
-from nova_file_api.jobs import (
-    JobService,
-    MemoryJobPublisher,
-    MemoryJobRepository,
+from nova_file_api.exports import (
+    ExportService,
+    MemoryExportPublisher,
+    MemoryExportRepository,
 )
+from nova_file_api.idempotency import IdempotencyStore
 from nova_file_api.metrics import MetricsCollector
 
 from .support.app import (
@@ -51,9 +51,9 @@ def _build_deps(
     settings.file_transfer_bucket = file_transfer_bucket
     metrics = MetricsCollector(namespace="Tests")
     shared, cache = build_cache_stack()
-    job_service = JobService(
-        repository=MemoryJobRepository(),
-        publisher=MemoryJobPublisher(),
+    export_service = ExportService(
+        repository=MemoryExportRepository(),
+        publisher=MemoryExportPublisher(),
         metrics=metrics,
     )
     return build_runtime_deps(
@@ -63,7 +63,7 @@ def _build_deps(
         cache=cache,
         authenticator=StubAuthenticator(),
         transfer_service=StubTransferService(),
-        job_service=job_service,
+        export_service=export_service,
         activity_store=MemoryActivityStore(),
         idempotency_enabled=True,
         use_in_memory_shared_cache=True,
@@ -111,7 +111,7 @@ async def test_v1_health_ready_returns_expected_checks() -> None:
     assert payload["checks"] == {
         "bucket_configured": True,
         "shared_cache": True,
-        "job_queue": True,
+        "export_runtime": True,
         "activity_store": True,
         "auth_dependency": True,
     }
@@ -128,7 +128,7 @@ async def test_readyz_stays_ok_when_jobs_are_disabled() -> None:
     assert payload["checks"] == {
         "bucket_configured": True,
         "shared_cache": True,
-        "job_queue": True,
+        "export_runtime": True,
         "activity_store": True,
         "auth_dependency": True,
     }
@@ -153,7 +153,7 @@ async def test_readyz_shared_cache_not_gate_when_idempotency_off() -> None:
     assert payload["checks"] == {
         "bucket_configured": True,
         "shared_cache": False,
-        "job_queue": True,
+        "export_runtime": True,
         "activity_store": True,
         "auth_dependency": True,
     }
@@ -177,7 +177,7 @@ async def test_readyz_fails_when_idempotency_requires_shared_cache() -> None:
     assert payload["checks"] == {
         "bucket_configured": True,
         "shared_cache": False,
-        "job_queue": True,
+        "export_runtime": True,
         "activity_store": True,
         "auth_dependency": True,
     }
@@ -198,7 +198,7 @@ async def test_readyz_reports_activity_store_failures_without_gating() -> None:
     assert payload["checks"] == {
         "bucket_configured": True,
         "shared_cache": True,
-        "job_queue": True,
+        "export_runtime": True,
         "activity_store": False,
         "auth_dependency": True,
     }
@@ -215,7 +215,7 @@ async def test_readyz_fails_when_bucket_is_missing() -> None:
     assert payload["checks"] == {
         "bucket_configured": False,
         "shared_cache": True,
-        "job_queue": True,
+        "export_runtime": True,
         "activity_store": True,
         "auth_dependency": True,
     }
@@ -242,7 +242,7 @@ async def test_readyz_fails_when_oidc_bearer_settings_are_incomplete() -> None:
     assert payload["checks"] == {
         "bucket_configured": True,
         "shared_cache": True,
-        "job_queue": True,
+        "export_runtime": True,
         "activity_store": True,
         "auth_dependency": False,
     }
@@ -255,13 +255,13 @@ async def test_validation_errors_use_canonical_error_envelope() -> None:
     response = await request_app(
         app,
         "POST",
-        "/v1/jobs",
+        "/v1/exports",
         headers={
             **AUTH_HEADERS,
             "X-Request-Id": "req-transfer-422",
         },
         json={
-            "job_type": "",
+            "source_key": "",
         },
     )
     assert response.status_code == 422
@@ -272,12 +272,12 @@ async def test_validation_errors_use_canonical_error_envelope() -> None:
     assert payload["error"]["details"]["errors"]
 
 
-async def _request_jobs_with_raw_body(
+async def _request_exports_with_raw_body(
     *,
     content: str,
     headers: dict[str, str],
 ) -> httpx.Response:
-    """POST ``/v1/jobs`` with a raw string body and custom headers.
+    """POST ``/v1/exports`` with a raw string body and custom headers.
 
     Args:
         content: Serialized request body (e.g. JSON) sent as-is.
@@ -298,7 +298,7 @@ async def _request_jobs_with_raw_body(
         ) as client,
     ):
         return await client.post(
-            "/v1/jobs",
+            "/v1/exports",
             headers=headers,
             content=content,
         )
@@ -307,8 +307,8 @@ async def _request_jobs_with_raw_body(
 @pytest.mark.asyncio
 async def test_validation_errors_stay_canonical_without_content_type() -> None:
     """Missing content type should still serialize as canonical 422."""
-    response = await _request_jobs_with_raw_body(
-        content='{"job_type":"test","payload":{}}',
+    response = await _request_exports_with_raw_body(
+        content='{"source_key":"uploads/scope-1/source.csv","filename":"source.csv"}',
         headers={**AUTH_HEADERS, "X-Request-Id": "req-missing-ct"},
     )
 
@@ -325,8 +325,8 @@ async def test_validation_errors_stay_canonical_for_wrong_content_type() -> (
     None
 ):
     """Wrong content type should still serialize as canonical 422."""
-    response = await _request_jobs_with_raw_body(
-        content='{"job_type":"test","payload":{}}',
+    response = await _request_exports_with_raw_body(
+        content='{"source_key":"uploads/scope-1/source.csv","filename":"source.csv"}',
         headers={
             **AUTH_HEADERS,
             "Content-Type": "text/plain",

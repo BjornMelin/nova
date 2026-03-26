@@ -1,6 +1,0 @@
-{
-  "job_type": "transfer.process",
-  "payload": {
-    "upload_key": "tenant-acme/sample.csv"
-  }
-}

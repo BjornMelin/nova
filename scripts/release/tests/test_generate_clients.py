@@ -94,7 +94,7 @@ def test_public_schema_excludes_internal_job_result_shapes() -> None:
 
     schema_names = _collect_public_schema_names(spec, operations)
 
-    assert "EnqueueJobRequest" in schema_names
+    assert "CreateExportRequest" in schema_names
     assert "JobResultUpdateRequest" not in schema_names
     assert "JobResultUpdateResponse" not in schema_names
 

@@ -7,7 +7,7 @@ Audience: Product, Engineering, Platform Operations
 ## 1. Product Goal
 
 Deliver one production-ready API control-plane contract for file transfer and
-async jobs with zero route-surface ambiguity, **one public runtime** for JWT
+async export workflows with zero route-surface ambiguity, **one public runtime** for JWT
 verification, and **claim-derived** caller scope (no parallel session/header
 auth channel).
 
@@ -34,14 +34,14 @@ auth channel).
   `SPEC-0029` while honoring active `SPEC-0012` (predecessor package-map detail,
   if needed for archaeology only:
   [`spec/index.md`](./architecture/spec/index.md) → Superseded `SPEC-0011`).
-- Worker job completion uses **direct persistence**, not an internal HTTP
+- Worker export completion uses **direct persistence**, not an internal HTTP
   callback (`SPEC-0028`, `ADR-0035`).
 - Release promotion evidence is complete for non-prod validation and dev→prod
   promotion controls.
 
 ## 3. Product Requirements
 
-1. Runtime capabilities remain available for transfer orchestration, async job
+1. Runtime capabilities remain available for transfer orchestration, async export
    control plane, capability/release discovery, health/readiness, and metrics.
 2. Runtime semantics preserve queue failure behavior (`503 queue_unavailable`),
    aggregate readiness contract (including bucket and OIDC failure checks),
@@ -80,7 +80,7 @@ In scope:
 - Canonical `/v1/*` runtime contract stewardship.
 - Green-field simplification program execution and documentation
   (`docs/plan/greenfield-simplification-program.md`).
-- Async job and transfer orchestration reliability requirements.
+- Async export and transfer orchestration reliability requirements.
 - CI/CD and release governance alignment with active Nova docs.
 
 Out of scope:

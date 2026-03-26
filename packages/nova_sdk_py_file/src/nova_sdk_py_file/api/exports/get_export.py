@@ -6,18 +6,18 @@ import httpx
 from nova_sdk_py_file import errors
 from nova_sdk_py_file.client import AuthenticatedClient, Client
 from nova_sdk_py_file.models.error_envelope import ErrorEnvelope
-from nova_sdk_py_file.models.job_status_response import JobStatusResponse
+from nova_sdk_py_file.models.export_resource import ExportResource
 from nova_sdk_py_file.types import Response
 
 
 def _get_kwargs(
-    job_id: str,
+    export_id: str,
 ) -> dict[str, Any]:
 
     _kwargs: dict[str, Any] = {
         "method": "get",
-        "url": "/v1/jobs/{job_id}".format(
-            job_id=quote(str(job_id), safe=""),
+        "url": "/v1/exports/{export_id}".format(
+            export_id=quote(str(export_id), safe=""),
         ),
     }
 
@@ -26,9 +26,9 @@ def _get_kwargs(
 
 def _parse_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> ErrorEnvelope | JobStatusResponse | None:
+) -> ErrorEnvelope | ExportResource | None:
     if response.status_code == 200:
-        response_200 = JobStatusResponse.from_dict(response.json())
+        response_200 = ExportResource.from_dict(response.json())
 
         return response_200
 
@@ -41,6 +41,11 @@ def _parse_response(
         response_403 = ErrorEnvelope.from_dict(response.json())
 
         return response_403
+
+    if response.status_code == 404:
+        response_404 = ErrorEnvelope.from_dict(response.json())
+
+        return response_404
 
     if response.status_code == 422:
         response_422 = ErrorEnvelope.from_dict(response.json())
@@ -55,7 +60,7 @@ def _parse_response(
 
 def _build_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> Response[ErrorEnvelope | JobStatusResponse]:
+) -> Response[ErrorEnvelope | ExportResource]:
     return Response(
         status_code=response.status_code,
         content=response.content,
@@ -65,27 +70,27 @@ def _build_response(
 
 
 def sync_detailed(
-    job_id: str,
+    export_id: str,
     *,
     client: AuthenticatedClient,
-) -> Response[ErrorEnvelope | JobStatusResponse]:
-    """Get Job Status
+) -> Response[ErrorEnvelope | ExportResource]:
+    """Get Export
 
-     Return status for the caller-owned job.
+     Return the caller-owned export resource.
 
     Args:
-        job_id (str):
+        export_id (str):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[ErrorEnvelope | JobStatusResponse]
+        Response[ErrorEnvelope | ExportResource]
     """
 
     kwargs = _get_kwargs(
-        job_id=job_id,
+        export_id=export_id,
     )
 
     response = client.get_httpx_client().request(
@@ -96,53 +101,53 @@ def sync_detailed(
 
 
 def sync(
-    job_id: str,
+    export_id: str,
     *,
     client: AuthenticatedClient,
-) -> ErrorEnvelope | JobStatusResponse | None:
-    """Get Job Status
+) -> ErrorEnvelope | ExportResource | None:
+    """Get Export
 
-     Return status for the caller-owned job.
+     Return the caller-owned export resource.
 
     Args:
-        job_id (str):
+        export_id (str):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        ErrorEnvelope | JobStatusResponse | None
+        ErrorEnvelope | ExportResource | None
     """
 
     return sync_detailed(
-        job_id=job_id,
+        export_id=export_id,
         client=client,
     ).parsed
 
 
 async def asyncio_detailed(
-    job_id: str,
+    export_id: str,
     *,
     client: AuthenticatedClient,
-) -> Response[ErrorEnvelope | JobStatusResponse]:
-    """Get Job Status
+) -> Response[ErrorEnvelope | ExportResource]:
+    """Get Export
 
-     Return status for the caller-owned job.
+     Return the caller-owned export resource.
 
     Args:
-        job_id (str):
+        export_id (str):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[ErrorEnvelope | JobStatusResponse]
+        Response[ErrorEnvelope | ExportResource]
     """
 
     kwargs = _get_kwargs(
-        job_id=job_id,
+        export_id=export_id,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -151,28 +156,28 @@ async def asyncio_detailed(
 
 
 async def asyncio(
-    job_id: str,
+    export_id: str,
     *,
     client: AuthenticatedClient,
-) -> ErrorEnvelope | JobStatusResponse | None:
-    """Get Job Status
+) -> ErrorEnvelope | ExportResource | None:
+    """Get Export
 
-     Return status for the caller-owned job.
+     Return the caller-owned export resource.
 
     Args:
-        job_id (str):
+        export_id (str):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        ErrorEnvelope | JobStatusResponse | None
+        ErrorEnvelope | ExportResource | None
     """
 
     return (
         await asyncio_detailed(
-            job_id=job_id,
+            export_id=export_id,
             client=client,
         )
     ).parsed

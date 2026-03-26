@@ -21,18 +21,18 @@ from nova_file_api.activity import (
 from nova_file_api.auth import Authenticator
 from nova_file_api.cache import LocalTTLCache, SharedRedisCache, TwoTierCache
 from nova_file_api.config import Settings
-from nova_file_api.idempotency import IdempotencyStore
-from nova_file_api.jobs import (
-    DynamoJobRepository,
+from nova_file_api.exports import (
+    DynamoExportRepository,
     DynamoResource,
-    JobPublisher,
-    JobRepository,
-    JobService,
-    MemoryJobPublisher,
-    MemoryJobRepository,
+    ExportPublisher,
+    ExportRepository,
+    ExportService,
+    MemoryExportPublisher,
+    MemoryExportRepository,
     SqsClient,
-    SqsJobPublisher,
+    SqsExportPublisher,
 )
+from nova_file_api.idempotency import IdempotencyStore
 from nova_file_api.metrics import MetricsCollector
 from nova_file_api.models import (
     ActivityStoreBackend,
@@ -163,11 +163,11 @@ def initialize_runtime_state(
             metrics=metrics,
             shared_cache=shared_cache,
         )
-    job_repository = build_job_repository(
+    export_repository = build_export_repository(
         settings=settings,
         dynamodb_resource=dynamodb_resource,
     )
-    job_publisher = build_job_publisher(
+    export_publisher = build_export_publisher(
         settings=settings,
         sqs_client=sqs_client,
     )
@@ -188,10 +188,10 @@ def initialize_runtime_state(
         settings=settings,
         s3_client=s3_client,
     )
-    app.state.job_repository = job_repository
-    app.state.job_service = build_job_service(
-        job_repository=job_repository,
-        job_publisher=job_publisher,
+    app.state.export_repository = export_repository
+    app.state.export_service = build_export_service(
+        export_repository=export_repository,
+        export_publisher=export_publisher,
         metrics=metrics,
     )
     app.state.activity_store = activity_store
@@ -323,12 +323,12 @@ def build_transfer_service(
     return TransferService(settings=settings, s3_client=s3_client)
 
 
-def build_job_repository(
+def build_export_repository(
     *,
     settings: Settings,
     dynamodb_resource: object | None,
-) -> JobRepository:
-    """Create the configured job repository.
+) -> ExportRepository:
+    """Create the configured export repository.
 
     Args:
         settings: Resolved runtime settings.
@@ -336,7 +336,7 @@ def build_job_repository(
             DynamoDB.
 
     Returns:
-        The configured job repository.
+        The configured export repository.
 
     Raises:
         ValueError: When JOBS_DYNAMODB_TABLE is missing for DynamoDB backend,
@@ -352,26 +352,26 @@ def build_job_repository(
             raise ValueError(_MSG_JOBS_DYNAMODB_TABLE_REQUIRED)
         if dynamodb_resource is None:
             raise ValueError(_MSG_DYNAMODB_RESOURCE_REQUIRED)
-        return DynamoJobRepository(
+        return DynamoExportRepository(
             table_name=jobs_table,
             dynamodb_resource=cast(DynamoResource, dynamodb_resource),
         )
-    return MemoryJobRepository()
+    return MemoryExportRepository()
 
 
-def build_job_publisher(
+def build_export_publisher(
     *,
     settings: Settings,
     sqs_client: object | None,
-) -> JobPublisher:
-    """Create the configured job publisher.
+) -> ExportPublisher:
+    """Create the configured export publisher.
 
     Args:
         settings: Resolved runtime settings.
         sqs_client: SQS client when queue backend is SQS and jobs enabled.
 
     Returns:
-        The configured job publisher.
+        The configured export publisher.
 
     Raises:
         ValueError: When JOBS_SQS_QUEUE_URL is missing for SQS backend with
@@ -388,32 +388,34 @@ def build_job_publisher(
         if settings.jobs_enabled and queue_url:
             if sqs_client is None:
                 raise ValueError(_MSG_SQS_CLIENT_REQUIRED)
-            return SqsJobPublisher(
+            return SqsExportPublisher(
                 queue_url=queue_url,
                 sqs_client=cast(SqsClient, sqs_client),
             )
-    return MemoryJobPublisher()
+    return MemoryExportPublisher(
+        export_prefix=settings.file_transfer_export_prefix
+    )
 
 
-def build_job_service(
+def build_export_service(
     *,
-    job_repository: JobRepository,
-    job_publisher: JobPublisher,
+    export_repository: ExportRepository,
+    export_publisher: ExportPublisher,
     metrics: MetricsCollector,
-) -> JobService:
-    """Create the job service.
+) -> ExportService:
+    """Create the export service.
 
     Args:
-        job_repository: Configured job repository.
-        job_publisher: Configured job publisher.
-        metrics: Metrics collector for job instrumentation.
+        export_repository: Configured export repository.
+        export_publisher: Configured export publisher.
+        metrics: Metrics collector for export instrumentation.
 
     Returns:
-        The configured job service.
+        The configured export service.
     """
-    return JobService(
-        repository=job_repository,
-        publisher=job_publisher,
+    return ExportService(
+        repository=export_repository,
+        publisher=export_publisher,
         metrics=metrics,
     )
 
@@ -499,20 +501,20 @@ def get_transfer_service(request: Request) -> TransferService:
     return cast(TransferService, transfer_service)
 
 
-def get_job_repository(request: Request) -> JobRepository:
-    """Return the job repository from app state."""
-    job_repository = getattr(request.app.state, "job_repository", None)
-    if job_repository is None:
+def get_export_repository(request: Request) -> ExportRepository:
+    """Return the export repository from app state."""
+    export_repository = getattr(request.app.state, "export_repository", None)
+    if export_repository is None:
         raise TypeError(_APPLICATION_STATE_NOT_INITIALIZED)
-    return cast(JobRepository, job_repository)
+    return cast(ExportRepository, export_repository)
 
 
-def get_job_service(request: Request) -> JobService:
-    """Return the job service from app state."""
-    job_service = getattr(request.app.state, "job_service", None)
-    if job_service is None:
+def get_export_service(request: Request) -> ExportService:
+    """Return the export service from app state."""
+    export_service = getattr(request.app.state, "export_service", None)
+    if export_service is None:
         raise TypeError(_APPLICATION_STATE_NOT_INITIALIZED)
-    return cast(JobService, job_service)
+    return cast(ExportService, export_service)
 
 
 def get_activity_store(request: Request) -> ActivityStore:
@@ -569,8 +571,10 @@ MetricsDep = Annotated[MetricsCollector, Depends(get_metrics)]
 SharedCacheDep = Annotated[SharedRedisCache, Depends(get_shared_cache)]
 TwoTierCacheDep = Annotated[TwoTierCache, Depends(get_two_tier_cache)]
 TransferServiceDep = Annotated[TransferService, Depends(get_transfer_service)]
-JobRepositoryDep = Annotated[JobRepository, Depends(get_job_repository)]
-JobServiceDep = Annotated[JobService, Depends(get_job_service)]
+ExportRepositoryDep = Annotated[
+    ExportRepository, Depends(get_export_repository)
+]
+ExportServiceDep = Annotated[ExportService, Depends(get_export_service)]
 ActivityStoreDep = Annotated[ActivityStore, Depends(get_activity_store)]
 IdempotencyStoreDep = Annotated[
     IdempotencyStore,

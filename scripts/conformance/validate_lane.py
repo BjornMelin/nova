@@ -9,12 +9,12 @@ from typing import Any
 
 from nova_file_api.models import (
     CapabilitiesResponse,
-    EnqueueJobRequest,
-    EnqueueJobResponse,
+    CreateExportRequest,
     ErrorEnvelope,
+    ExportListResponse,
+    ExportResource,
     InitiateUploadRequest,
     InitiateUploadResponse,
-    JobStatusResponse,
     ReleaseInfoResponse,
     ResourcePlanResponse,
 )
@@ -71,7 +71,7 @@ def validate_lane(lane: str) -> None:
     manifest = _validate_manifest_and_fixtures()
 
     transfer = manifest["fixtures"]["transfer"]
-    jobs = manifest["fixtures"]["jobs"]
+    exports = manifest["fixtures"]["exports"]
     v1api = manifest["fixtures"]["v1api"]
 
     InitiateUploadRequest.model_validate(
@@ -80,11 +80,13 @@ def validate_lane(lane: str) -> None:
     InitiateUploadResponse.model_validate(
         _read_json(transfer["initiate_success"])
     )
-    EnqueueJobRequest.model_validate(_read_json(jobs["enqueue_request"]))
-    EnqueueJobResponse.model_validate(_read_json(jobs["enqueue_success"]))
-    JobStatusResponse.model_validate(_read_json(jobs["status_success"]))
+    CreateExportRequest.model_validate(_read_json(exports["create_request"]))
+    ExportResource.model_validate(_read_json(exports["create_success"]))
+    ExportResource.model_validate(_read_json(exports["get_success"]))
+    ExportListResponse.model_validate(_read_json(exports["list_success"]))
+    ExportResource.model_validate(_read_json(exports["cancel_success"]))
     ErrorEnvelope.model_validate(
-        _read_json(jobs["enqueue_503_queue_unavailable"])
+        _read_json(exports["create_503_queue_unavailable"])
     )
     CapabilitiesResponse.model_validate(
         _read_json(v1api["capabilities_success"])

@@ -20,7 +20,7 @@ IdempotencyKeyHeader = Annotated[
     str | None,
     Header(alias="Idempotency-Key"),
 ]
-JobsLimitQuery = Annotated[int, Query(ge=1, le=200)]
+ExportsLimitQuery = Annotated[int, Query(ge=1, le=200)]
 
 
 def _response(
@@ -63,7 +63,7 @@ IDEMPOTENCY_UNAVAILABLE_RESPONSE: OpenApiResponses = {
         description="Service Unavailable - Idempotency storage is unavailable.",
     )
 }
-JOB_MUTATION_UNAVAILABLE_RESPONSE: OpenApiResponses = {
+EXPORT_MUTATION_UNAVAILABLE_RESPONSE: OpenApiResponses = {
     "503": _response(
         model=ErrorEnvelope,
         description=(

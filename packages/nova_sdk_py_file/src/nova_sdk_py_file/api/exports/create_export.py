@@ -4,40 +4,41 @@ import httpx
 
 from nova_sdk_py_file import errors
 from nova_sdk_py_file.client import AuthenticatedClient, Client
+from nova_sdk_py_file.models.create_export_request import CreateExportRequest
 from nova_sdk_py_file.models.error_envelope import ErrorEnvelope
-from nova_sdk_py_file.models.job_list_response import JobListResponse
+from nova_sdk_py_file.models.export_resource import ExportResource
 from nova_sdk_py_file.types import UNSET, Response, Unset
 
 
 def _get_kwargs(
     *,
-    limit: int | Unset = 50,
+    body: CreateExportRequest,
+    idempotency_key: None | str | Unset = UNSET,
 ) -> dict[str, Any]:
-
-    params: dict[str, Any] = {}
-
-    params["limit"] = limit
-
-    params = {
-        k: v for k, v in params.items() if v is not UNSET and v is not None
-    }
+    headers: dict[str, Any] = {}
+    if not isinstance(idempotency_key, Unset):
+        headers["Idempotency-Key"] = idempotency_key
 
     _kwargs: dict[str, Any] = {
-        "method": "get",
-        "url": "/v1/jobs",
-        "params": params,
+        "method": "post",
+        "url": "/v1/exports",
     }
 
+    _kwargs["json"] = body.to_dict()
+
+    headers["Content-Type"] = "application/json"
+
+    _kwargs["headers"] = headers
     return _kwargs
 
 
 def _parse_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> ErrorEnvelope | JobListResponse | None:
-    if response.status_code == 200:
-        response_200 = JobListResponse.from_dict(response.json())
+) -> ErrorEnvelope | ExportResource | None:
+    if response.status_code == 201:
+        response_201 = ExportResource.from_dict(response.json())
 
-        return response_200
+        return response_201
 
     if response.status_code == 401:
         response_401 = ErrorEnvelope.from_dict(response.json())
@@ -49,10 +50,20 @@ def _parse_response(
 
         return response_403
 
+    if response.status_code == 409:
+        response_409 = ErrorEnvelope.from_dict(response.json())
+
+        return response_409
+
     if response.status_code == 422:
         response_422 = ErrorEnvelope.from_dict(response.json())
 
         return response_422
+
+    if response.status_code == 503:
+        response_503 = ErrorEnvelope.from_dict(response.json())
+
+        return response_503
 
     if client.raise_on_unexpected_status:
         raise errors.UnexpectedStatus(response.status_code, response.content)
@@ -62,7 +73,7 @@ def _parse_response(
 
 def _build_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> Response[ErrorEnvelope | JobListResponse]:
+) -> Response[ErrorEnvelope | ExportResource]:
     return Response(
         status_code=response.status_code,
         content=response.content,
@@ -74,25 +85,28 @@ def _build_response(
 def sync_detailed(
     *,
     client: AuthenticatedClient,
-    limit: int | Unset = 50,
-) -> Response[ErrorEnvelope | JobListResponse]:
-    """List Jobs
+    body: CreateExportRequest,
+    idempotency_key: None | str | Unset = UNSET,
+) -> Response[ErrorEnvelope | ExportResource]:
+    """Create Export
 
-     List caller-owned jobs with most recent first.
+     Create an explicit export workflow resource.
 
     Args:
-        limit (int | Unset):  Default: 50.
+        idempotency_key (None | str | Unset):
+        body (CreateExportRequest): Request payload for export creation.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[ErrorEnvelope | JobListResponse]
+        Response[ErrorEnvelope | ExportResource]
     """
 
     kwargs = _get_kwargs(
-        limit=limit,
+        body=body,
+        idempotency_key=idempotency_key,
     )
 
     response = client.get_httpx_client().request(
@@ -105,51 +119,57 @@ def sync_detailed(
 def sync(
     *,
     client: AuthenticatedClient,
-    limit: int | Unset = 50,
-) -> ErrorEnvelope | JobListResponse | None:
-    """List Jobs
+    body: CreateExportRequest,
+    idempotency_key: None | str | Unset = UNSET,
+) -> ErrorEnvelope | ExportResource | None:
+    """Create Export
 
-     List caller-owned jobs with most recent first.
+     Create an explicit export workflow resource.
 
     Args:
-        limit (int | Unset):  Default: 50.
+        idempotency_key (None | str | Unset):
+        body (CreateExportRequest): Request payload for export creation.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        ErrorEnvelope | JobListResponse | None
+        ErrorEnvelope | ExportResource | None
     """
 
     return sync_detailed(
         client=client,
-        limit=limit,
+        body=body,
+        idempotency_key=idempotency_key,
     ).parsed
 
 
 async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
-    limit: int | Unset = 50,
-) -> Response[ErrorEnvelope | JobListResponse]:
-    """List Jobs
+    body: CreateExportRequest,
+    idempotency_key: None | str | Unset = UNSET,
+) -> Response[ErrorEnvelope | ExportResource]:
+    """Create Export
 
-     List caller-owned jobs with most recent first.
+     Create an explicit export workflow resource.
 
     Args:
-        limit (int | Unset):  Default: 50.
+        idempotency_key (None | str | Unset):
+        body (CreateExportRequest): Request payload for export creation.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[ErrorEnvelope | JobListResponse]
+        Response[ErrorEnvelope | ExportResource]
     """
 
     kwargs = _get_kwargs(
-        limit=limit,
+        body=body,
+        idempotency_key=idempotency_key,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -160,26 +180,29 @@ async def asyncio_detailed(
 async def asyncio(
     *,
     client: AuthenticatedClient,
-    limit: int | Unset = 50,
-) -> ErrorEnvelope | JobListResponse | None:
-    """List Jobs
+    body: CreateExportRequest,
+    idempotency_key: None | str | Unset = UNSET,
+) -> ErrorEnvelope | ExportResource | None:
+    """Create Export
 
-     List caller-owned jobs with most recent first.
+     Create an explicit export workflow resource.
 
     Args:
-        limit (int | Unset):  Default: 50.
+        idempotency_key (None | str | Unset):
+        body (CreateExportRequest): Request payload for export creation.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        ErrorEnvelope | JobListResponse | None
+        ErrorEnvelope | ExportResource | None
     """
 
     return (
         await asyncio_detailed(
             client=client,
-            limit=limit,
+            body=body,
+            idempotency_key=idempotency_key,
         )
     ).parsed

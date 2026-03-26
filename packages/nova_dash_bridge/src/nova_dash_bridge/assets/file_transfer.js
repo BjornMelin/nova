@@ -391,77 +391,73 @@
     };
   }
 
-  function shouldUseAsyncJobs(config, fileSize) {
+  function shouldUseAsyncExports(config, fileSize) {
     return (
-      config.asyncJobsEnabled &&
-      Number.isFinite(config.asyncJobMinBytes) &&
-      fileSize >= config.asyncJobMinBytes
+      config.asyncExportsEnabled &&
+      Number.isFinite(config.asyncExportMinBytes) &&
+      fileSize >= config.asyncExportMinBytes
     );
   }
 
-  async function enqueueAsyncJob(config, uploadResult) {
-    var jobsBase = config.jobsEndpointBase.replace(/\/$/, "");
+  async function createAsyncExport(config, uploadResult) {
+    var exportsBase = config.exportsEndpointBase.replace(/\/$/, "");
     var idempotencyKey =
-      "job-enqueue:" + uploadResult.bucket + ":" + uploadResult.key;
-    var enqueuePayload = {
-      job_type: config.asyncJobType,
-      payload: {
-        bucket: uploadResult.bucket,
-        key: uploadResult.key,
-        filename: uploadResult.filename,
-        size_bytes: uploadResult.size_bytes,
-        content_type: uploadResult.content_type,
-      },
+      "export-create:" + uploadResult.bucket + ":" + uploadResult.key;
+    var createPayload = {
+      source_key: uploadResult.key,
+      filename: uploadResult.filename,
     };
     return postJson(
-      jobsBase,
-      enqueuePayload,
+      exportsBase,
+      createPayload,
       authorizedHeaders(config, { "Idempotency-Key": idempotencyKey })
     );
   }
 
-  async function pollAsyncJob(config, jobId) {
+  async function pollAsyncExport(config, exportId) {
     var startedMs = Date.now();
-    var jobsBase = config.jobsEndpointBase.replace(/\/$/, "");
+    var exportsBase = config.exportsEndpointBase.replace(/\/$/, "");
     while (true) {
-      var response = await getJson(
-        jobsBase + "/" + encodeURIComponent(jobId),
+      var exportResource = await getJson(
+        exportsBase + "/" + encodeURIComponent(exportId),
         authorizedHeaders(config)
       );
-      var job = response && response.job ? response.job : {};
-      var status = job.status || "";
+      var status = exportResource.status || "";
       if (
         status === "succeeded" ||
         status === "failed" ||
-        status === "canceled"
+        status === "cancelled"
       ) {
-        return job;
+        return exportResource;
       }
-      if (Date.now() - startedMs > config.asyncJobTimeoutMs) {
+      if (Date.now() - startedMs > config.asyncExportTimeoutMs) {
         throw new Error(
-          "job status polling timed out after " +
-            config.asyncJobTimeoutMs +
+          "export status polling timed out after " +
+            config.asyncExportTimeoutMs +
             "ms"
         );
       }
-      await sleep(config.asyncJobPollIntervalMs);
+      await sleep(config.asyncExportPollIntervalMs);
     }
   }
 
-  async function maybePresignExportDownload(config, uploadResult, job) {
-    var result = job && typeof job.result === "object" ? job.result : null;
-    if (!result) return null;
-    if (typeof result.export_key !== "string" || !result.export_key) {
+  async function maybePresignExportDownload(config, exportResource) {
+    var output =
+      exportResource && typeof exportResource.output === "object"
+        ? exportResource.output
+        : null;
+    if (!output) return null;
+    if (typeof output.key !== "string" || !output.key) {
       return null;
     }
     var requestPayload = {
-      key: result.export_key,
+      key: output.key,
     };
     if (
-      typeof result.download_filename === "string" &&
-      result.download_filename
+      typeof output.download_filename === "string" &&
+      output.download_filename
     ) {
-      requestPayload.filename = result.download_filename;
+      requestPayload.filename = output.download_filename;
     }
     var response = await postJson(
       config.transfersEndpointBase + "/downloads/presign",
@@ -470,7 +466,7 @@
     );
     if (response && typeof response.url === "string" && response.url) {
       return {
-        key: result.export_key,
+        key: output.key,
         url: response.url,
         expires_in_seconds: response.expires_in_seconds,
       };
@@ -637,48 +633,51 @@
     }
     setProgress(config.progressStoreId, 100, "Upload complete");
 
-    if (!shouldUseAsyncJobs(config, file.size)) {
+    if (!shouldUseAsyncExports(config, file.size)) {
       return uploadResult;
     }
 
     setProgress(
       config.progressStoreId,
       100,
-      "Upload complete. Queueing processing job…"
+      "Upload complete. Creating export…"
     );
-    var enqueued = await enqueueAsyncJob(config, uploadResult);
-    if (!enqueued || typeof enqueued.job_id !== "string" || !enqueued.job_id) {
-      throw new Error("jobs enqueue response did not include a job_id");
+    var createdExport = await createAsyncExport(config, uploadResult);
+    if (
+      !createdExport ||
+      typeof createdExport.export_id !== "string" ||
+      !createdExport.export_id
+    ) {
+      throw new Error("export create response did not include an export_id");
     }
 
     setProgress(
       config.progressStoreId,
       100,
-      "Processing in background. Waiting for job result…"
+      "Processing in background. Waiting for export result…"
     );
-    var job = await pollAsyncJob(
+    var exportResource = await pollAsyncExport(
       config,
-      enqueued.job_id
+      createdExport.export_id
     );
-    if (job.status === "failed" || job.status === "canceled") {
+    if (
+      exportResource.status === "failed" ||
+      exportResource.status === "cancelled"
+    ) {
       var errorMessage =
-        typeof job.error === "string" && job.error
-          ? job.error
-          : "background processing " + job.status;
+        typeof exportResource.error === "string" && exportResource.error
+          ? exportResource.error
+          : "background processing " + exportResource.status;
       throw new Error(errorMessage);
     }
 
-    var download = await maybePresignExportDownload(
-      config,
-      uploadResult,
-      job
-    );
+    var download = await maybePresignExportDownload(config, exportResource);
     setProgress(config.progressStoreId, 100, "Processing complete");
     return {
       ...uploadResult,
-      job_id: enqueued.job_id,
-      job_status: job.status,
-      job_result: job.result || null,
+      export_id: createdExport.export_id,
+      export_status: exportResource.status,
+      export_output: exportResource.output || null,
       download: download,
     };
   }
@@ -708,7 +707,7 @@
     var config = {
       transfersEndpointBase:
         root.dataset.transfersEndpointBase || "/v1/transfers",
-      jobsEndpointBase: root.dataset.jobsEndpointBase || "/v1/jobs",
+      exportsEndpointBase: root.dataset.exportsEndpointBase || "/v1/exports",
       authHeaderElementId: root.dataset.authHeaderElementId || "",
       maxConcurrency: root.dataset.maxConcurrency || "4",
       signBatchSize: root.dataset.signBatchSize || "",
@@ -716,16 +715,15 @@
       maxBytes: parseInt(root.dataset.maxBytes || "0", 10),
       resultStoreId: root.dataset.resultStoreId || "",
       progressStoreId: root.dataset.progressStoreId || "",
-      asyncJobsEnabled: root.dataset.asyncJobsEnabled === "true",
-      asyncJobType: root.dataset.asyncJobType || "process_upload",
-      asyncJobMinBytes: parseInt(root.dataset.asyncJobMinBytes || "0", 10),
-      asyncJobPollIntervalMs: Math.max(
+      asyncExportsEnabled: root.dataset.asyncExportsEnabled === "true",
+      asyncExportMinBytes: parseInt(root.dataset.asyncExportMinBytes || "0", 10),
+      asyncExportPollIntervalMs: Math.max(
         100,
-        parseInt(root.dataset.asyncJobPollIntervalMs || "2000", 10) || 2000
+        parseInt(root.dataset.asyncExportPollIntervalMs || "2000", 10) || 2000
       ),
-      asyncJobTimeoutMs: Math.max(
+      asyncExportTimeoutMs: Math.max(
         1000,
-        parseInt(root.dataset.asyncJobTimeoutMs || "900000", 10) || 900000
+        parseInt(root.dataset.asyncExportTimeoutMs || "900000", 10) || 900000
       ),
     };
     var allowMultiple = root.dataset.multiple === "true";

@@ -94,7 +94,7 @@ Why it wins:
 | Option | Weighted total | Score / 10 |
 | --- | --- | --- |
 | Explicit export workflow resources and typed state transitions | 112 / 115 | 9.74 |
-| Generic jobs with `job_type` + payload | 58 / 115 | 5.04 |
+| Generic jobs with free-form type + payload | 58 / 115 | 5.04 |
 | Internal callback workflow lifecycle | 36 / 115 | 3.13 |
 
 ### Winner

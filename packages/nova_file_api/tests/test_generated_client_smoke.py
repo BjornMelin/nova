@@ -191,7 +191,7 @@ def test_generated_wrappers_raise_unexpected_status_for_raw_codes() -> None:
         )
 
 
-def test_python_sdk_exports_only_the_canonical_job_result_helper() -> None:
-    """The hard-cut helper name should remain canonical in the committed SDK."""
-    assert hasattr(_models_module, "JobRecordResultDetails")
-    assert not hasattr(_models_module, "JobRecordResultType0")
+def test_python_sdk_exports_the_canonical_export_output_model() -> None:
+    """The committed SDK should expose the explicit export output shape."""
+    assert hasattr(_models_module, "ExportOutput")
+    assert not any(name.startswith("Enqueue") for name in dir(_models_module))

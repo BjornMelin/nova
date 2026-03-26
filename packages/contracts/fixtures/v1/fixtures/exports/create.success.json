@@ -1,0 +1,10 @@
+{
+  "export_id": "export-123",
+  "source_key": "uploads/scope-1/source.csv",
+  "filename": "source.csv",
+  "status": "queued",
+  "output": null,
+  "error": null,
+  "created_at": "2026-03-25T00:00:00Z",
+  "updated_at": "2026-03-25T00:00:00Z"
+}

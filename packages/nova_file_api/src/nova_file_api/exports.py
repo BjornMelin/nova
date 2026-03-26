@@ -1,4 +1,4 @@
-"""Async job APIs and queue abstractions."""
+"""Export workflow services and queue abstractions."""
 
 from __future__ import annotations
 
@@ -15,62 +15,51 @@ from botocore.exceptions import BotoCoreError, ClientError
 
 from nova_file_api.errors import conflict, not_found, queue_unavailable
 from nova_file_api.metrics import MetricsCollector
-from nova_file_api.models import JobRecord, JobStatus
+from nova_file_api.models import ExportOutput, ExportRecord, ExportStatus
 
 JsonObject = dict[str, object]
 
 
-class JobRepository(Protocol):
-    """Persist and retrieve job records."""
+class ExportRepository(Protocol):
+    """Persist and retrieve export workflow records."""
 
-    async def create(self, record: JobRecord) -> None:
-        """Persist a new job record."""
+    async def create(self, record: ExportRecord) -> None:
+        """Persist a new export record."""
 
-    async def get(self, job_id: str) -> JobRecord | None:
-        """Return job record by id if present."""
+    async def get(self, export_id: str) -> ExportRecord | None:
+        """Return export record by id if present."""
 
-    async def update(self, record: JobRecord) -> None:
-        """Replace a job record."""
+    async def update(self, record: ExportRecord) -> None:
+        """Replace an export record."""
 
     async def update_if_status(
         self,
         *,
-        record: JobRecord,
-        expected_status: JobStatus,
+        record: ExportRecord,
+        expected_status: ExportStatus,
     ) -> bool:
         """Replace record only when current status matches expected value."""
 
     async def list_for_scope(
         self, *, scope_id: str, limit: int
-    ) -> list[JobRecord]:
-        """List jobs visible to the provided caller scope.
-
-        Args:
-            scope_id: Caller scope identifier used for ownership filtering.
-            limit: Maximum number of records to return, newest first.
-
-        Returns:
-            list[JobRecord]: Caller-owned records sorted by most recent first.
-
-        Raises:
-            ValueError: If ``limit`` is not a positive integer.
-        """
+    ) -> list[ExportRecord]:
+        """List exports visible to the provided caller scope."""
 
     async def healthcheck(self) -> bool:
         """Return readiness of the backing storage dependency."""
 
 
-class JobPublisher(Protocol):
-    """Queue interface for background job dispatch."""
+class ExportPublisher(Protocol):
+    """Queue interface for background export dispatch."""
 
-    async def publish(self, *, job: JobRecord) -> None:
-        """Publish job record to background queue."""
+    async def publish(self, *, export: ExportRecord) -> None:
+        """Publish export record to background queue."""
 
     async def post_publish(
         self,
         *,
-        job: JobRecord,
-        repository: JobRepository,
+        export: ExportRecord,
+        repository: ExportRepository,
         metrics: MetricsCollector,
     ) -> None:
         """Run optional post-publish handling."""
@@ -112,18 +101,7 @@ class SqsClient(Protocol):
 
 
 def _as_dynamo_table(table: object) -> DynamoTable:
-    """Validate and cast a DynamoDB table-like object.
-
-    Args:
-        table: Candidate table object returned by the DynamoDB resource.
-
-    Returns:
-        The same object cast to ``DynamoTable`` once required methods exist.
-
-    Raises:
-        TypeError: Raised when ``put_item``, ``get_item``, or ``query`` is
-            missing or not callable.
-    """
+    """Validate and cast a DynamoDB table-like object."""
     invalid_methods: list[str] = []
     for method_name in ("put_item", "get_item", "query"):
         method = getattr(table, method_name, None)
@@ -139,21 +117,21 @@ def _as_dynamo_table(table: object) -> DynamoTable:
 
 
 @dataclass(slots=True)
-class JobPublishError(Exception):
-    """Raised when queue publish fails and enqueue cannot proceed."""
+class ExportPublishError(Exception):
+    """Raised when queue publish fails and export creation cannot proceed."""
 
     details: dict[str, str]
 
     def __post_init__(self) -> None:
-        """Provide a stable Exception message for logging surfaces."""
+        """Seed a stable Exception message for logging surfaces."""
         Exception.__init__(self, "queue publish failed")
 
 
 @dataclass(slots=True)
-class MemoryJobRepository:
-    """In-memory job record repository."""
+class MemoryExportRepository:
+    """In-memory export record repository."""
 
-    _records: dict[str, JobRecord]
+    _records: dict[str, ExportRecord]
     _lock: asyncio.Lock = field(init=False, repr=False)
 
     def __init__(self) -> None:
@@ -161,81 +139,58 @@ class MemoryJobRepository:
         self._records = {}
         self._lock = asyncio.Lock()
 
-    async def create(self, record: JobRecord) -> None:
-        """Persist a new in-memory job record.
-
-        Args:
-            record: Job record to persist.
-        """
+    async def create(self, record: ExportRecord) -> None:
+        """Persist a new in-memory export record."""
         async with self._lock:
-            self._records[record.job_id] = record
+            self._records[record.export_id] = record
 
-    async def get(self, job_id: str) -> JobRecord | None:
-        """Return a job record by ID when present.
-
-        Args:
-            job_id: Unique job identifier.
-        """
+    async def get(self, export_id: str) -> ExportRecord | None:
+        """Return an export record by id when present."""
         async with self._lock:
-            return self._records.get(job_id)
+            return self._records.get(export_id)
 
-    async def update(self, record: JobRecord) -> None:
-        """Replace an existing job record.
-
-        Args:
-            record: Updated job record.
-        """
+    async def update(self, record: ExportRecord) -> None:
+        """Replace an existing export record."""
         async with self._lock:
-            self._records[record.job_id] = record
+            self._records[record.export_id] = record
 
     async def update_if_status(
         self,
         *,
-        record: JobRecord,
-        expected_status: JobStatus,
+        record: ExportRecord,
+        expected_status: ExportStatus,
     ) -> bool:
         """Replace record only when current status matches expected value."""
         async with self._lock:
-            current = self._records.get(record.job_id)
-            if current is None:
+            current = self._records.get(record.export_id)
+            if current is None or current.status != expected_status:
                 return False
-            if current.status != expected_status:
-                return False
-            self._records[record.job_id] = record
+            self._records[record.export_id] = record
             return True
 
     async def list_for_scope(
         self, *, scope_id: str, limit: int
-    ) -> list[JobRecord]:
-        """List caller-scoped jobs newest-first.
-
-        Args:
-            scope_id: Caller scope identifier used for ownership filtering.
-            limit: Maximum number of records to return, newest first.
-
-        Returns:
-            list[JobRecord]: Caller-owned records sorted by most recent first.
-
-        Raises:
-            ValueError: If ``limit`` is not a positive integer.
-        """
+    ) -> list[ExportRecord]:
+        """List caller-scoped exports newest-first."""
         if limit <= 0:
             raise ValueError("limit must be greater than zero")
         async with self._lock:
             records = [
-                r for r in self._records.values() if r.scope_id == scope_id
+                record
+                for record in self._records.values()
+                if record.scope_id == scope_id
             ]
-        records.sort(key=lambda r: r.created_at, reverse=True)
+        records.sort(key=lambda record: record.created_at, reverse=True)
         return records[:limit]
 
     async def healthcheck(self) -> bool:
-        """Report readiness for in-memory storage (always ready)."""
+        """Report readiness for in-memory storage."""
         return True
 
 
 @dataclass(slots=True)
-class DynamoJobRepository:
-    """DynamoDB-backed job record repository."""
+class DynamoExportRepository:
+    """DynamoDB-backed export record repository."""
 
     table_name: str
     dynamodb_resource: DynamoResource
@@ -243,33 +198,33 @@ class DynamoJobRepository:
     _table_lock: asyncio.Lock = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
-        """Initialize lazy table resolver."""
+        """Initialize the lazy table resolver."""
         self._table_lock = asyncio.Lock()
 
-    async def create(self, record: JobRecord) -> None:
-        """Persist a new job record."""
+    async def create(self, record: ExportRecord) -> None:
+        """Persist a new export record."""
         table = await self._resolve_table()
         await table.put_item(Item=_record_to_item(record))
 
-    async def get(self, job_id: str) -> JobRecord | None:
-        """Return job record by id when present."""
+    async def get(self, export_id: str) -> ExportRecord | None:
+        """Return an export record by id when present."""
         table = await self._resolve_table()
-        response = await table.get_item(Key={"job_id": job_id})
+        response = await table.get_item(Key={"export_id": export_id})
         item = response.get("Item")
         if item is None:
             return None
         return _item_to_record(cast(JsonObject, item))
 
-    async def update(self, record: JobRecord) -> None:
-        """Replace an existing job record."""
+    async def update(self, record: ExportRecord) -> None:
+        """Replace an existing export record."""
         table = await self._resolve_table()
         await table.put_item(Item=_record_to_item(record))
 
     async def update_if_status(
         self,
         *,
-        record: JobRecord,
-        expected_status: JobStatus,
+        record: ExportRecord,
+        expected_status: ExportStatus,
     ) -> bool:
         """Replace record only when current status matches expected value."""
         table = await self._resolve_table()
@@ -277,7 +232,7 @@ class DynamoJobRepository:
             await table.put_item(
                 Item=_record_to_item(record),
                 ConditionExpression=(
-                    "attribute_exists(job_id) AND #status = :expected_status"
+                    "attribute_exists(export_id) AND #status = :expected_status"
                 ),
                 ExpressionAttributeNames={"#status": "status"},
                 ExpressionAttributeValues={
@@ -293,19 +248,8 @@ class DynamoJobRepository:
 
     async def list_for_scope(
         self, *, scope_id: str, limit: int
-    ) -> list[JobRecord]:
-        """List caller-scoped jobs newest-first.
-
-        Args:
-            scope_id: Caller scope identifier used for ownership filtering.
-            limit: Maximum number of records to return, newest first.
-
-        Returns:
-            list[JobRecord]: Caller-owned records sorted by most recent first.
-
-        Raises:
-            ValueError: If ``limit`` is not a positive integer.
-        """
+    ) -> list[ExportRecord]:
+        """List caller-scoped exports newest-first."""
         if limit <= 0:
             raise ValueError("limit must be greater than zero")
 
@@ -342,13 +286,14 @@ class DynamoJobRepository:
                         )
                     ):
                         raise RuntimeError(
-                            "jobs table requires the scope_id-created_at-index "
-                            "global secondary index for scoped listing"
+                            "exports table requires the "
+                            "scope_id-created_at-index global secondary "
+                            "index for scoped listing"
                         ) from exc
                     raise
                 if error_code == "ResourceNotFoundException":
                     raise RuntimeError(
-                        "jobs table is not configured for scoped listing"
+                        "exports table is not configured for scoped listing"
                     ) from exc
                 raise
             items.extend(cast(list[JsonObject], response.get("Items", [])))
@@ -376,50 +321,71 @@ class DynamoJobRepository:
         """Return True when the DynamoDB table is reachable."""
         try:
             table = await self._resolve_table()
-            await table.get_item(Key={"job_id": "__health_check__"})
+            await table.get_item(Key={"export_id": "__health_check__"})
         except (ClientError, BotoCoreError):
             return False
         return True
 
 
 @dataclass(slots=True)
-class MemoryJobPublisher:
-    """In-memory queue that can process jobs immediately."""
+class MemoryExportPublisher:
+    """In-memory queue that can process exports immediately."""
 
+    export_prefix: str = "exports/"
     process_immediately: bool = True
 
-    async def publish(self, *, job: JobRecord) -> None:
-        """Publish a job in memory.
-
-        Args:
-            job: Job record to publish.
-        """
-        del job
+    async def publish(self, *, export: ExportRecord) -> None:
+        """Publish an export in memory."""
+        del export
         return
 
     async def post_publish(
         self,
         *,
-        job: JobRecord,
-        repository: JobRepository,
+        export: ExportRecord,
+        repository: ExportRepository,
         metrics: MetricsCollector,
     ) -> None:
-        """Simulate immediate worker execution in local-memory mode."""
+        """Simulate immediate export completion in local-memory mode."""
         if not self.process_immediately:
             return
-        running = job.model_copy(
-            update={"status": JobStatus.RUNNING, "updated_at": _utc_now()}
-        )
-        await repository.update(running)
-        done = running.model_copy(
+        validating = export.model_copy(
             update={
-                "status": JobStatus.SUCCEEDED,
-                "result": {"accepted": True, "mode": "memory"},
+                "status": ExportStatus.VALIDATING,
+                "updated_at": _utc_now(),
+            }
+        )
+        await repository.update(validating)
+        copying = validating.model_copy(
+            update={
+                "status": ExportStatus.COPYING,
+                "updated_at": _utc_now(),
+            }
+        )
+        await repository.update(copying)
+        output = ExportOutput(
+            key=_export_object_key(
+                export=copying,
+                export_prefix=self.export_prefix,
+            ),
+            download_filename=copying.filename,
+        )
+        finalizing = copying.model_copy(
+            update={
+                "status": ExportStatus.FINALIZING,
+                "output": output,
+                "updated_at": _utc_now(),
+            }
+        )
+        await repository.update(finalizing)
+        done = finalizing.model_copy(
+            update={
+                "status": ExportStatus.SUCCEEDED,
                 "updated_at": _utc_now(),
             }
         )
         await repository.update(done)
-        metrics.incr("jobs_succeeded")
+        metrics.incr("exports_succeeded")
 
     async def healthcheck(self) -> bool:
         """Return readiness for the memory-backed publisher."""
@@ -427,24 +393,20 @@ class MemoryJobPublisher:
 
 
 @dataclass(slots=True)
-class SqsJobPublisher:
+class SqsExportPublisher:
     """SQS-backed queue publisher."""
 
     queue_url: str
     sqs_client: SqsClient
 
-    async def publish(self, *, job: JobRecord) -> None:
-        """Publish a job payload to SQS.
-
-        Args:
-            job: Job record to send.
-        """
+    async def publish(self, *, export: ExportRecord) -> None:
+        """Publish an export payload to SQS."""
         payload = {
-            "job_id": job.job_id,
-            "job_type": job.job_type,
-            "scope_id": job.scope_id,
-            "payload": job.payload,
-            "created_at": job.created_at.isoformat(),
+            "export_id": export.export_id,
+            "scope_id": export.scope_id,
+            "source_key": export.source_key,
+            "filename": export.filename,
+            "created_at": export.created_at.isoformat(),
         }
         try:
             await self.sqs_client.send_message(
@@ -454,7 +416,7 @@ class SqsJobPublisher:
                 ),
             )
         except ClientError as exc:
-            raise JobPublishError(
+            raise ExportPublishError(
                 details={
                     "error_type": "ClientError",
                     "error_code": str(
@@ -463,7 +425,7 @@ class SqsJobPublisher:
                 }
             ) from exc
         except BotoCoreError as exc:
-            raise JobPublishError(
+            raise ExportPublishError(
                 details={
                     "error_type": type(exc).__name__,
                     "error_code": "BotoCoreError",
@@ -473,12 +435,12 @@ class SqsJobPublisher:
     async def post_publish(
         self,
         *,
-        job: JobRecord,
-        repository: JobRepository,
+        export: ExportRecord,
+        repository: ExportRepository,
         metrics: MetricsCollector,
     ) -> None:
-        """SQS mode performs work asynchronously; no local follow-up."""
-        del job, repository, metrics
+        """SQS mode performs work asynchronously with no local follow-up."""
+        del export, repository, metrics
         return
 
     async def healthcheck(self) -> bool:
@@ -494,82 +456,93 @@ class SqsJobPublisher:
 
 
 @dataclass(slots=True)
-class JobService:
-    """Job orchestration service for enqueue/status/cancel endpoints."""
+class ExportService:
+    """Export orchestration service for create/status/cancel endpoints."""
 
-    repository: JobRepository
-    publisher: JobPublisher
+    repository: ExportRepository
+    publisher: ExportPublisher
     metrics: MetricsCollector
 
-    async def enqueue(
+    async def create(
         self,
         *,
-        job_type: str,
-        payload: JsonObject,
+        source_key: str,
+        filename: str,
         scope_id: str,
-    ) -> JobRecord:
-        """Create and enqueue a job record."""
+        request_id: str | None = None,
+    ) -> ExportRecord:
+        """Create and enqueue an export workflow record."""
         now = _utc_now()
-        record = JobRecord(
-            job_id=uuid4().hex,
-            job_type=job_type,
+        record = ExportRecord(
+            export_id=uuid4().hex,
             scope_id=scope_id,
-            status=JobStatus.PENDING,
-            payload=payload,
-            result=None,
+            request_id=request_id,
+            source_key=source_key,
+            filename=filename,
+            status=ExportStatus.QUEUED,
+            output=None,
             error=None,
             created_at=now,
             updated_at=now,
         )
         await self.repository.create(record)
         try:
-            await self.publisher.publish(job=record)
-        except JobPublishError as exc:
+            await self.publisher.publish(export=record)
+        except ExportPublishError as exc:
             failed = record.model_copy(
                 update={
-                    "status": JobStatus.FAILED,
+                    "status": ExportStatus.FAILED,
                     "error": "queue_unavailable",
                     "updated_at": _utc_now(),
                 }
             )
             await self.repository.update(failed)
-            self.metrics.incr("jobs_publish_failed")
+            self.metrics.incr("exports_publish_failed")
             raise queue_unavailable(
-                "job enqueue failed because queue publish failed",
+                "export creation failed because queue publish failed",
                 details=exc.details,
             ) from exc
 
-        self.metrics.incr("jobs_enqueued")
+        self.metrics.incr("exports_created")
         await self.publisher.post_publish(
-            job=record,
+            export=record,
             repository=self.repository,
             metrics=self.metrics,
         )
 
-        return (await self.repository.get(record.job_id)) or record
+        return (await self.repository.get(record.export_id)) or record
 
-    async def get(self, *, job_id: str, scope_id: str) -> JobRecord:
-        """Return job by id when owned by caller scope."""
-        record = await self.repository.get(job_id)
-        if record is None:
-            raise not_found("job not found")
-        if record.scope_id != scope_id:
-            raise not_found("job not found")
+    async def get(self, *, export_id: str, scope_id: str) -> ExportRecord:
+        """Return export by id when owned by caller scope."""
+        record = await self.repository.get(export_id)
+        if record is None or record.scope_id != scope_id:
+            raise not_found("export not found")
         return record
 
-    async def cancel(self, *, job_id: str, scope_id: str) -> JobRecord:
-        """Cancel non-terminal job when owned by caller."""
+    async def list_for_scope(
+        self, *, scope_id: str, limit: int = 50
+    ) -> list[ExportRecord]:
+        """List exports for caller scope, newest first."""
+        if limit <= 0:
+            raise ValueError("limit must be greater than zero")
+        return await self.repository.list_for_scope(
+            scope_id=scope_id,
+            limit=limit,
+        )
+
+    async def cancel(self, *, export_id: str, scope_id: str) -> ExportRecord:
+        """Cancel a non-terminal export when owned by the caller."""
         for _ in range(MAX_CANCEL_RETRIES):
-            record = await self.get(job_id=job_id, scope_id=scope_id)
+            record = await self.get(export_id=export_id, scope_id=scope_id)
             if record.status in {
-                JobStatus.SUCCEEDED,
-                JobStatus.FAILED,
-                JobStatus.CANCELED,
+                ExportStatus.SUCCEEDED,
+                ExportStatus.FAILED,
+                ExportStatus.CANCELLED,
             }:
                 return record
             updated = record.model_copy(
                 update={
-                    "status": JobStatus.CANCELED,
+                    "status": ExportStatus.CANCELLED,
                     "updated_at": _utc_now(),
                 }
             )
@@ -578,83 +551,34 @@ class JobService:
                 expected_status=record.status,
             )
             if updated_ok:
-                self.metrics.incr("jobs_canceled")
+                self.metrics.incr("exports_cancelled")
                 return updated
         raise conflict(
             "cancel failed after max retries",
             details={
-                "job_id": job_id,
+                "export_id": export_id,
                 "scope_id": scope_id,
                 "max_retries": MAX_CANCEL_RETRIES,
             },
         )
 
-    async def list_for_scope(
-        self, *, scope_id: str, limit: int = 50
-    ) -> list[JobRecord]:
-        """List jobs for caller scope, newest first.
-
-        Args:
-            scope_id: Caller scope identifier used for ownership filtering.
-            limit: Maximum number of records to return, newest first.
-
-        Returns:
-            list[JobRecord]: Caller-owned records sorted by most recent first.
-
-        Raises:
-            ValueError: If ``limit`` is not a positive integer.
-        """
-        if limit <= 0:
-            raise ValueError("limit must be greater than zero")
-        return await self.repository.list_for_scope(
-            scope_id=scope_id, limit=limit
-        )
-
-    async def retry(self, *, job_id: str, scope_id: str) -> JobRecord:
-        """Retry a failed/canceled job by creating a new pending record.
-
-        Args:
-            job_id: Identifier of the terminal job to retry.
-            scope_id: Caller scope identifier for ownership enforcement.
-
-        Returns:
-            JobRecord: Newly enqueued pending retry job.
-
-        Raises:
-            HTTPException: If the source job is not failed/canceled.
-        """
-        original = await self.get(job_id=job_id, scope_id=scope_id)
-        if original.status not in {JobStatus.FAILED, JobStatus.CANCELED}:
-            raise conflict(
-                "job retry is only allowed from failed or canceled states",
-                details={
-                    "job_id": job_id,
-                    "current_status": original.status.value,
-                },
-            )
-        return await self.enqueue(
-            job_type=original.job_type,
-            payload=original.payload,
-            scope_id=scope_id,
-        )
-
-    async def update_result(
+    async def update_status(
         self,
         *,
-        job_id: str,
-        status: JobStatus,
-        result: JsonObject | None,
-        error: str | None,
-    ) -> JobRecord:
-        """Update job result/status from worker-side processing."""
-        record = await self.repository.get(job_id)
+        export_id: str,
+        status: ExportStatus,
+        output: ExportOutput | None = None,
+        error: str | None = None,
+    ) -> ExportRecord:
+        """Update export output/status from worker-side processing."""
+        record = await self.repository.get(export_id)
         if record is None:
-            raise not_found("job not found")
+            raise not_found("export not found")
         if not _is_valid_transition(current=record.status, target=status):
             raise conflict(
-                "invalid job state transition",
+                "invalid export state transition",
                 details={
-                    "job_id": job_id,
+                    "export_id": export_id,
                     "current_status": record.status.value,
                     "requested_status": status.value,
                 },
@@ -666,18 +590,22 @@ class JobService:
             "updated_at": now,
         }
         queue_lag_ms: float | None = None
-        if record.status == JobStatus.PENDING and status != JobStatus.PENDING:
+        if (
+            record.status == ExportStatus.QUEUED
+            and status != ExportStatus.QUEUED
+        ):
             queue_lag_ms = _queue_lag_ms(created_at=record.created_at, now=now)
-        if result is not None:
-            update_payload["result"] = result
+        if output is not None:
+            update_payload["output"] = output
         if error is not None:
             update_payload["error"] = error
-        if status == JobStatus.SUCCEEDED:
-            if result is None:
-                update_payload["result"] = record.result or {}
+        if status == ExportStatus.SUCCEEDED:
+            if output is None and record.output is None:
+                raise conflict("export output is required for succeeded status")
+            update_payload["output"] = output or record.output
             update_payload["error"] = None
-        if status == JobStatus.FAILED and error is None:
-            update_payload["error"] = record.error or "worker_failed"
+        if status == ExportStatus.FAILED and error is None:
+            update_payload["error"] = record.error or "export_failed"
 
         updated = record.model_copy(update=update_payload)
         updated_ok = await self.repository.update_if_status(
@@ -685,33 +613,33 @@ class JobService:
             expected_status=record.status,
         )
         if not updated_ok:
-            latest = await self.repository.get(job_id)
+            latest = await self.repository.get(export_id)
             if latest is None:
-                raise not_found("job not found")
+                raise not_found("export not found")
             if latest.status == status:
                 return latest
             raise conflict(
-                "invalid job state transition",
+                "invalid export state transition",
                 details={
-                    "job_id": job_id,
+                    "export_id": export_id,
                     "current_status": latest.status.value,
                     "requested_status": status.value,
                 },
             )
 
         if queue_lag_ms is not None:
-            self.metrics.observe_ms("jobs_queue_lag_ms", queue_lag_ms)
+            self.metrics.observe_ms("exports_queue_lag_ms", queue_lag_ms)
             self.metrics.emit_emf(
-                metric_name="jobs_queue_lag_ms",
+                metric_name="exports_queue_lag_ms",
                 value=queue_lag_ms,
                 unit="Milliseconds",
-                dimensions={"source": "worker_result_update"},
+                dimensions={"source": "export_status_update"},
             )
-        self.metrics.incr(f"jobs_{status.value}")
-        self.metrics.incr("jobs_worker_result_updates_total")
-        self.metrics.incr(f"jobs_worker_result_updates_{status.value}")
+        self.metrics.incr(f"exports_{status.value}")
+        self.metrics.incr("exports_status_updates_total")
+        self.metrics.incr(f"exports_status_updates_{status.value}")
         self.metrics.emit_emf(
-            metric_name="jobs_worker_result_updates_total",
+            metric_name="exports_status_updates_total",
             value=1,
             unit="Count",
             dimensions={"status": status.value},
@@ -735,37 +663,62 @@ def _queue_lag_ms(*, created_at: datetime, now: datetime) -> float:
     return max(0.0, lag_ms)
 
 
-_ALLOWED_TRANSITIONS: dict[JobStatus, set[JobStatus]] = {
-    JobStatus.PENDING: {
-        JobStatus.PENDING,
-        JobStatus.RUNNING,
-        JobStatus.SUCCEEDED,
-        JobStatus.FAILED,
-        JobStatus.CANCELED,
+_ALLOWED_TRANSITIONS: dict[ExportStatus, set[ExportStatus]] = {
+    ExportStatus.QUEUED: {
+        ExportStatus.QUEUED,
+        ExportStatus.VALIDATING,
+        ExportStatus.FAILED,
+        ExportStatus.CANCELLED,
     },
-    JobStatus.RUNNING: {
-        JobStatus.RUNNING,
-        JobStatus.SUCCEEDED,
-        JobStatus.FAILED,
-        JobStatus.CANCELED,
+    ExportStatus.VALIDATING: {
+        ExportStatus.VALIDATING,
+        ExportStatus.COPYING,
+        ExportStatus.FAILED,
+        ExportStatus.CANCELLED,
     },
-    JobStatus.SUCCEEDED: {JobStatus.SUCCEEDED},
-    JobStatus.FAILED: {JobStatus.FAILED},
-    JobStatus.CANCELED: {JobStatus.CANCELED},
+    ExportStatus.COPYING: {
+        ExportStatus.COPYING,
+        ExportStatus.FINALIZING,
+        ExportStatus.FAILED,
+        ExportStatus.CANCELLED,
+    },
+    ExportStatus.FINALIZING: {
+        ExportStatus.FINALIZING,
+        ExportStatus.SUCCEEDED,
+        ExportStatus.FAILED,
+        ExportStatus.CANCELLED,
+    },
+    ExportStatus.SUCCEEDED: {ExportStatus.SUCCEEDED},
+    ExportStatus.FAILED: {ExportStatus.FAILED},
+    ExportStatus.CANCELLED: {ExportStatus.CANCELLED},
 }
 MAX_CANCEL_RETRIES = 8
 
 
-def _is_valid_transition(*, current: JobStatus, target: JobStatus) -> bool:
+def _is_valid_transition(
+    *, current: ExportStatus, target: ExportStatus
+) -> bool:
     """Return whether a status transition is allowed."""
     return target in _ALLOWED_TRANSITIONS[current]
 
 
-def _record_to_item(record: JobRecord) -> JsonObject:
-    """Serialize JobRecord to DynamoDB-friendly item."""
+def _export_object_key(
+    *,
+    export: ExportRecord,
+    export_prefix: str,
+) -> str:
+    normalized_prefix = export_prefix.strip().strip("/") or "exports"
+    return (
+        f"{normalized_prefix}/{export.scope_id}/"
+        f"{export.export_id}/{export.filename}"
+    )
+
+
+def _record_to_item(record: ExportRecord) -> JsonObject:
+    """Serialize ExportRecord to DynamoDB-friendly item."""
     return cast(JsonObject, record.model_dump(mode="json"))
 
 
-def _item_to_record(item: JsonObject) -> JobRecord:
-    """Deserialize DynamoDB item to JobRecord."""
-    return JobRecord.model_validate(item)
+def _item_to_record(item: JsonObject) -> ExportRecord:
+    """Deserialize DynamoDB item to ExportRecord."""
+    return ExportRecord.model_validate(item)

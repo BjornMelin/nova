@@ -9,12 +9,11 @@ from typing import Any
 import pytest
 from nova_file_api.models import (
     CapabilitiesResponse,
-    EnqueueJobRequest,
-    EnqueueJobResponse,
+    CreateExportRequest,
     ErrorEnvelope,
+    ExportResource,
     InitiateUploadRequest,
     InitiateUploadResponse,
-    JobStatusResponse,
     ReleaseInfoResponse,
     ResourcePlanResponse,
 )
@@ -46,7 +45,7 @@ def test_manifest_paths_exist() -> None:
             assert (FIXTURE_ROOT / fixture_path).is_file()
 
 
-def test_transfer_and_jobs_fixtures_match_contract_models() -> None:
+def test_transfer_and_exports_fixtures_match_contract_models() -> None:
     InitiateUploadRequest.model_validate(
         _read_json("fixtures/transfer/initiate.request.json")
     )
@@ -54,17 +53,19 @@ def test_transfer_and_jobs_fixtures_match_contract_models() -> None:
         _read_json("fixtures/transfer/initiate.success.json")
     )
 
-    EnqueueJobRequest.model_validate(
-        _read_json("fixtures/jobs/enqueue.request.json")
+    CreateExportRequest.model_validate(
+        _read_json("fixtures/exports/create.request.json")
     )
-    EnqueueJobResponse.model_validate(
-        _read_json("fixtures/jobs/enqueue.success.json")
+    ExportResource.model_validate(
+        _read_json("fixtures/exports/create.success.json")
     )
-    JobStatusResponse.model_validate(
-        _read_json("fixtures/jobs/status.success.json")
+    ExportResource.model_validate(
+        _read_json("fixtures/exports/get.success.json")
     )
 
-    queue_error = _read_json("fixtures/jobs/enqueue.503.queue-unavailable.json")
+    queue_error = _read_json(
+        "fixtures/exports/create.503.queue-unavailable.json"
+    )
     ErrorEnvelope.model_validate(queue_error)
 
 

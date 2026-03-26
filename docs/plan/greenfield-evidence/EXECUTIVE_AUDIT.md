@@ -65,7 +65,7 @@ Public request bodies in `packages/nova_file_api/src/nova_file_api/models.py` ca
 
 ### 3) Worker self-calls the API
 
-`packages/nova_file_api/src/nova_file_api/worker.py` posts result updates to `/v1/internal/jobs/{job_id}/result` using `httpx`. The API route then immediately calls the job service. That is an internal network hop whose only job is to bridge code that already lives in the same package.
+`packages/nova_file_api/src/nova_file_api/worker.py` used to post result updates through an internal callback route using `httpx`. The API route then immediately called the job service. That was an internal network hop whose only job was to bridge code that already lived in the same package.
 
 ### 4) OpenAPI emission is over-customized
 

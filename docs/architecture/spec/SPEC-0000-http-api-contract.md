@@ -47,12 +47,10 @@ runtime contract.
 
 ### 3.2 Async jobs
 
-- `POST /v1/jobs`
-- `GET /v1/jobs`
-- `GET /v1/jobs/{job_id}`
-- `POST /v1/jobs/{job_id}/cancel`
-- `POST /v1/jobs/{job_id}/retry`
-- `GET /v1/jobs/{job_id}/events`
+- `POST /v1/exports`
+- `GET /v1/exports`
+- `GET /v1/exports/{export_id}`
+- `POST /v1/exports/{export_id}/cancel`
 
 ### 3.3 Capability and release endpoints
 
@@ -70,31 +68,33 @@ runtime contract.
 
 Any route outside section 3 is not part of the contract and MUST return `404`.
 
-## 5. Job semantics
+## 5. Export workflow semantics
 
-`POST /v1/jobs` failure semantics:
+`POST /v1/exports` failure semantics:
 
 - Queue publish failure MUST return `503`.
 - Queue publish failure MUST return `error.code = "queue_unavailable"`.
 - Failed enqueue attempts MUST NOT be replay-cached by idempotency storage.
 - In-memory queue mode MUST honor `process_immediately`; when disabled,
-  enqueue returns `pending` and MUST NOT auto-transition to `succeeded`.
+  enqueue returns `queued` and MUST NOT auto-transition to `succeeded`.
 
 Worker result-update transition semantics:
 
-- `pending -> pending|running|succeeded|failed|canceled`
-- `pending -> succeeded` is allowed for atomic worker completion across
+- `queued -> queued|validating|succeeded|failed|cancelled`
+- `queued -> succeeded` is allowed for atomic worker completion across
   backends; in-memory `process_immediately` simulation currently transitions
-  via `running` before `succeeded`.
-- `running -> running|succeeded|failed|canceled`
-- terminal states (`succeeded|failed|canceled`) allow same-state idempotent
+  via `validating -> copying -> finalizing -> succeeded`.
+- `validating -> validating|copying|succeeded|failed|cancelled`
+- `copying -> copying|finalizing|succeeded|failed|cancelled`
+- `finalizing -> finalizing|succeeded|failed|cancelled`
+- terminal states (`succeeded|failed|cancelled`) allow same-state idempotent
   updates only.
 - `status = succeeded` updates MUST clear `error` to `null`.
 - invalid transition MUST return `409` with `error.code = "conflict"`.
 
 ## 6. Idempotency requirements
 
-`POST /v1/transfers/uploads/initiate` and `POST /v1/jobs` MUST support
+`POST /v1/transfers/uploads/initiate` and `POST /v1/exports` MUST support
 idempotent retries via `Idempotency-Key` header.
 
 - Repeated request with same key and same payload MUST replay the original

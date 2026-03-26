@@ -369,7 +369,7 @@ def test_python_compatibility_job_covers_supported_envs() -> None:
         and isinstance(step.get("with"), dict)
     ]
     build_runs = [
-        step.get("run")
+        str(step["run"])
         for step in steps
         if isinstance(step, dict)
         and step.get("name", "").startswith("Workspace Build")
