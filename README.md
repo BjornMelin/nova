@@ -279,8 +279,8 @@ Key release docs:
 - `docs/runbooks/provisioning/deploy-runtime-cloudformation-environments.md`
 - `docs/runbooks/provisioning/docker-buildx-credential-helper-setup.md`
 
-The runtime deploy operator now owns the ECS service task role, cache secret
-wiring, and ECS infrastructure role resolution. Do not supply
+The runtime deploy operator now owns the ECS service task role and ECS
+infrastructure role resolution. Do not supply
 `ECS_INFRASTRUCTURE_ROLE_ARN`, `TASK_ROLE_ARN`,
 `TASK_EXECUTION_SECRET_ARNS`, or `TASK_EXECUTION_SSM_PARAMETER_ARNS`.
 

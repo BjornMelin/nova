@@ -31,7 +31,6 @@ Cache keys are namespaced and schema-versioned (`CACHE_KEY_PREFIX`,
 
 - JWT verification result caching
 - Auth metadata hot-path caching
-- DynamoDB-backed idempotency claim and replay storage
 
 JWT cache entries MUST use TTL derived from token expiration (`exp`) with
 configured upper bounds.
@@ -48,6 +47,8 @@ configured upper bounds.
 
 For protected mutation endpoints:
 
+- DynamoDB-backed idempotency claim and replay storage is correctness state,
+  not a cache use case.
 - API-runtime `IDEMPOTENCY_ENABLED=true` requires
   `IDEMPOTENCY_DYNAMODB_TABLE`.
 - Missing `Idempotency-Key` is allowed; blank keys are invalid.

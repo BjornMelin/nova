@@ -32,6 +32,7 @@ class RuntimeSettingContract:
     default_repr: str
     required: bool
     secret: bool
+    required_when: str | None = None
 
 
 @dataclass(frozen=True)
@@ -129,17 +130,25 @@ def runtime_setting_contracts() -> tuple[RuntimeSettingContract, ...]:
     Raises:
         None.
     """
-    contracts = [
-        RuntimeSettingContract(
-            field_name=field_name,
-            env_var=_env_var_name(field_name, field),
-            type_label=_type_label(field.annotation),
-            default_repr=_default_repr(field),
-            required=field.is_required(),
-            secret=_annotation_contains(field.annotation, SecretStr),
+    contracts = []
+    for field_name, field in Settings.model_fields.items():
+        env_var = _env_var_name(field_name, field)
+        required_when = None
+        if env_var == "IDEMPOTENCY_DYNAMODB_TABLE":
+            required_when = (
+                "when API idempotency enabled and JOBS_RUNTIME_MODE!=worker"
+            )
+        contracts.append(
+            RuntimeSettingContract(
+                field_name=field_name,
+                env_var=env_var,
+                type_label=_type_label(field.annotation),
+                default_repr=_default_repr(field),
+                required=field.is_required(),
+                secret=_annotation_contains(field.annotation, SecretStr),
+                required_when=required_when,
+            )
         )
-        for field_name, field in Settings.model_fields.items()
-    ]
     return tuple(sorted(contracts, key=lambda contract: contract.env_var))
 
 
@@ -495,17 +504,19 @@ def _join_backticked(values: Iterable[str]) -> str:
 
 def _render_settings_table(settings: list[dict[str, Any]]) -> str:
     rows = [
-        "| Env Var | Field | Type | Required | Secret | Default |",
-        "| --- | --- | --- | --- | --- | --- |",
+        "| Env Var | Field | Type | Required | Required When | Secret | "
+        "Default |",
+        "| --- | --- | --- | --- | --- | --- | --- |",
     ]
     rows.extend(
         (
             "| {env_var} | {field_name} | {type_label} | {required} | "
-            "{secret} | `{default_repr}` |".format(
+            "{required_when} | {secret} | `{default_repr}` |".format(
                 env_var=setting["env_var"],
                 field_name=setting["field_name"],
                 type_label=_md_cell(setting["type_label"]),
                 required="yes" if setting["required"] else "no",
+                required_when=_md_cell(setting.get("required_when") or "-"),
                 secret="yes" if setting["secret"] else "no",
                 default_repr=_md_cell(setting["default_repr"]),
             )

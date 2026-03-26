@@ -172,9 +172,10 @@ Worker/file-transfer contract notes:
 - `ENV_VARS_JSON` only supports implemented non-secret API overrides; the
   script rejects unsupported keys, including `IDEMPOTENCY_MODE` and
   `IDEMPOTENCY_DYNAMODB_TABLE`. `IDEMPOTENCY_DYNAMODB_TABLE` is stack-derived:
-  the deploy flow injects `IdempotencyTableName` plus
-  `FileTransferIdempotencyTableArn` into the API task definition when
-  `IDEMPOTENCY_ENABLED=true`.
+  when `IDEMPOTENCY_ENABLED=true`, the deploy flow passes
+  `IdempotencyTableName` and `FileTransferIdempotencyTableArn` to the service
+  stack, and the task definition injects `IDEMPOTENCY_DYNAMODB_TABLE` into the
+  API container environment.
 - The supported override list is generated from the canonical runtime settings
   contract; do not hand-edit duplicate key lists in docs or scripts.
 - Runtime env var names remain stable, but the generator now reads only

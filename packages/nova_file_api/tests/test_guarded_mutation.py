@@ -265,7 +265,7 @@ async def test_run_guarded_mutation_disabled_store_skips_claim_flow() -> None:
 
 
 @pytest.mark.anyio
-async def test_claim_false_without_replay_conflicts() -> None:
+async def test_claim_none_without_replay_conflicts() -> None:
     store = _FakeIdempotencyStore()
     store.claim_result = None
     failures: list[str] = []

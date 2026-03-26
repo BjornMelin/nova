@@ -12,52 +12,52 @@ Canonical sources:
 
 ## Canonical runtime settings
 
-| Env Var | Field | Type | Required | Secret | Default |
-| --- | --- | --- | --- | --- | --- |
-| ACTIVITY_ROLLUPS_TABLE | activity_rollups_table | str \| None | no | no | `None` |
-| ACTIVITY_STORE_BACKEND | activity_store_backend | ActivityStoreBackend | no | no | `<ActivityStoreBackend.MEMORY: 'memory'>` |
-| APP_NAME | app_name | str | no | no | `'nova-file-api'` |
-| APP_VERSION | app_version | str | no | no | `<factory>` |
-| AUTH_JWT_CACHE_MAX_TTL_SECONDS | auth_jwt_cache_max_ttl_seconds | int | no | no | `120` |
-| BLOCKING_IO_THREAD_TOKENS | blocking_io_thread_tokens | int | no | no | `80` |
-| CACHE_KEY_PREFIX | cache_key_prefix | str | no | no | `'nova'` |
-| CACHE_KEY_SCHEMA_VERSION | cache_key_schema_version | int | no | no | `1` |
-| CACHE_LOCAL_MAX_ENTRIES | cache_local_max_entries | int | no | no | `2000` |
-| CACHE_LOCAL_TTL_SECONDS | cache_local_ttl_seconds | int | no | no | `120` |
-| ENVIRONMENT | environment | str | no | no | `'dev'` |
-| FILE_TRANSFER_BUCKET | file_transfer_bucket | str | no | no | `''` |
-| FILE_TRANSFER_ENABLED | file_transfer_enabled | bool | no | no | `True` |
-| FILE_TRANSFER_EXPORT_PREFIX | file_transfer_export_prefix | str | no | no | `'exports/'` |
-| FILE_TRANSFER_MAX_CONCURRENCY | file_transfer_max_concurrency | int | no | no | `4` |
-| FILE_TRANSFER_MAX_UPLOAD_BYTES | max_upload_bytes | int | no | no | `536870912000` |
-| FILE_TRANSFER_MULTIPART_THRESHOLD_BYTES | file_transfer_multipart_threshold_bytes | int | no | no | `104857600` |
-| FILE_TRANSFER_PART_SIZE_BYTES | file_transfer_part_size_bytes | int | no | no | `134217728` |
-| FILE_TRANSFER_PRESIGN_DOWNLOAD_TTL_SECONDS | file_transfer_presign_download_ttl_seconds | int | no | no | `900` |
-| FILE_TRANSFER_PRESIGN_UPLOAD_TTL_SECONDS | file_transfer_presign_upload_ttl_seconds | int | no | no | `1800` |
-| FILE_TRANSFER_TMP_PREFIX | file_transfer_tmp_prefix | str | no | no | `'tmp/'` |
-| FILE_TRANSFER_UPLOAD_PREFIX | file_transfer_upload_prefix | str | no | no | `'uploads/'` |
-| FILE_TRANSFER_USE_ACCELERATE_ENDPOINT | file_transfer_use_accelerate_endpoint | bool | no | no | `False` |
-| IDEMPOTENCY_DYNAMODB_TABLE | idempotency_dynamodb_table | str \| None | no | no | `None` |
-| IDEMPOTENCY_ENABLED | idempotency_enabled | bool | no | no | `True` |
-| IDEMPOTENCY_TTL_SECONDS | idempotency_ttl_seconds | int | no | no | `900` |
-| JOBS_DYNAMODB_TABLE | jobs_dynamodb_table | str \| None | no | no | `None` |
-| JOBS_ENABLED | jobs_enabled | bool | no | no | `True` |
-| JOBS_QUEUE_BACKEND | jobs_queue_backend | JobsQueueBackend | no | no | `<JobsQueueBackend.MEMORY: 'memory'>` |
-| JOBS_REPOSITORY_BACKEND | jobs_repository_backend | JobsRepositoryBackend | no | no | `<JobsRepositoryBackend.MEMORY: 'memory'>` |
-| JOBS_RUNTIME_MODE | jobs_runtime_mode | str | no | no | `'api'` |
-| JOBS_SQS_MAX_NUMBER_OF_MESSAGES | jobs_sqs_max_number_of_messages | int | no | no | `1` |
-| JOBS_SQS_QUEUE_URL | jobs_sqs_queue_url | str \| None | no | no | `None` |
-| JOBS_SQS_RETRY_MODE | jobs_sqs_retry_mode | str | no | no | `'standard'` |
-| JOBS_SQS_RETRY_TOTAL_MAX_ATTEMPTS | jobs_sqs_retry_total_max_attempts | int | no | no | `3` |
-| JOBS_SQS_VISIBILITY_TIMEOUT_SECONDS | jobs_sqs_visibility_timeout_seconds | int | no | no | `120` |
-| JOBS_SQS_WAIT_TIME_SECONDS | jobs_sqs_wait_time_seconds | int | no | no | `20` |
-| METRICS_NAMESPACE | metrics_namespace | str | no | no | `'NovaFileApi'` |
-| OIDC_AUDIENCE | oidc_audience | str \| None | no | no | `None` |
-| OIDC_CLOCK_SKEW_SECONDS | oidc_clock_skew_seconds | int | no | no | `0` |
-| OIDC_ISSUER | oidc_issuer | str \| None | no | no | `None` |
-| OIDC_JWKS_URL | oidc_jwks_url | str \| None | no | no | `None` |
-| OIDC_REQUIRED_PERMISSIONS | oidc_required_permissions | str | no | no | `''` |
-| OIDC_REQUIRED_SCOPES | oidc_required_scopes | str | no | no | `''` |
+| Env Var | Field | Type | Required | Required When | Secret | Default |
+| --- | --- | --- | --- | --- | --- | --- |
+| ACTIVITY_ROLLUPS_TABLE | activity_rollups_table | str \| None | no | - | no | `None` |
+| ACTIVITY_STORE_BACKEND | activity_store_backend | ActivityStoreBackend | no | - | no | `<ActivityStoreBackend.MEMORY: 'memory'>` |
+| APP_NAME | app_name | str | no | - | no | `'nova-file-api'` |
+| APP_VERSION | app_version | str | no | - | no | `<factory>` |
+| AUTH_JWT_CACHE_MAX_TTL_SECONDS | auth_jwt_cache_max_ttl_seconds | int | no | - | no | `120` |
+| BLOCKING_IO_THREAD_TOKENS | blocking_io_thread_tokens | int | no | - | no | `80` |
+| CACHE_KEY_PREFIX | cache_key_prefix | str | no | - | no | `'nova'` |
+| CACHE_KEY_SCHEMA_VERSION | cache_key_schema_version | int | no | - | no | `1` |
+| CACHE_LOCAL_MAX_ENTRIES | cache_local_max_entries | int | no | - | no | `2000` |
+| CACHE_LOCAL_TTL_SECONDS | cache_local_ttl_seconds | int | no | - | no | `120` |
+| ENVIRONMENT | environment | str | no | - | no | `'dev'` |
+| FILE_TRANSFER_BUCKET | file_transfer_bucket | str | no | - | no | `''` |
+| FILE_TRANSFER_ENABLED | file_transfer_enabled | bool | no | - | no | `True` |
+| FILE_TRANSFER_EXPORT_PREFIX | file_transfer_export_prefix | str | no | - | no | `'exports/'` |
+| FILE_TRANSFER_MAX_CONCURRENCY | file_transfer_max_concurrency | int | no | - | no | `4` |
+| FILE_TRANSFER_MAX_UPLOAD_BYTES | max_upload_bytes | int | no | - | no | `536870912000` |
+| FILE_TRANSFER_MULTIPART_THRESHOLD_BYTES | file_transfer_multipart_threshold_bytes | int | no | - | no | `104857600` |
+| FILE_TRANSFER_PART_SIZE_BYTES | file_transfer_part_size_bytes | int | no | - | no | `134217728` |
+| FILE_TRANSFER_PRESIGN_DOWNLOAD_TTL_SECONDS | file_transfer_presign_download_ttl_seconds | int | no | - | no | `900` |
+| FILE_TRANSFER_PRESIGN_UPLOAD_TTL_SECONDS | file_transfer_presign_upload_ttl_seconds | int | no | - | no | `1800` |
+| FILE_TRANSFER_TMP_PREFIX | file_transfer_tmp_prefix | str | no | - | no | `'tmp/'` |
+| FILE_TRANSFER_UPLOAD_PREFIX | file_transfer_upload_prefix | str | no | - | no | `'uploads/'` |
+| FILE_TRANSFER_USE_ACCELERATE_ENDPOINT | file_transfer_use_accelerate_endpoint | bool | no | - | no | `False` |
+| IDEMPOTENCY_DYNAMODB_TABLE | idempotency_dynamodb_table | str \| None | no | when API idempotency enabled and JOBS_RUNTIME_MODE!=worker | no | `None` |
+| IDEMPOTENCY_ENABLED | idempotency_enabled | bool | no | - | no | `True` |
+| IDEMPOTENCY_TTL_SECONDS | idempotency_ttl_seconds | int | no | - | no | `900` |
+| JOBS_DYNAMODB_TABLE | jobs_dynamodb_table | str \| None | no | - | no | `None` |
+| JOBS_ENABLED | jobs_enabled | bool | no | - | no | `True` |
+| JOBS_QUEUE_BACKEND | jobs_queue_backend | JobsQueueBackend | no | - | no | `<JobsQueueBackend.MEMORY: 'memory'>` |
+| JOBS_REPOSITORY_BACKEND | jobs_repository_backend | JobsRepositoryBackend | no | - | no | `<JobsRepositoryBackend.MEMORY: 'memory'>` |
+| JOBS_RUNTIME_MODE | jobs_runtime_mode | str | no | - | no | `'api'` |
+| JOBS_SQS_MAX_NUMBER_OF_MESSAGES | jobs_sqs_max_number_of_messages | int | no | - | no | `1` |
+| JOBS_SQS_QUEUE_URL | jobs_sqs_queue_url | str \| None | no | - | no | `None` |
+| JOBS_SQS_RETRY_MODE | jobs_sqs_retry_mode | str | no | - | no | `'standard'` |
+| JOBS_SQS_RETRY_TOTAL_MAX_ATTEMPTS | jobs_sqs_retry_total_max_attempts | int | no | - | no | `3` |
+| JOBS_SQS_VISIBILITY_TIMEOUT_SECONDS | jobs_sqs_visibility_timeout_seconds | int | no | - | no | `120` |
+| JOBS_SQS_WAIT_TIME_SECONDS | jobs_sqs_wait_time_seconds | int | no | - | no | `20` |
+| METRICS_NAMESPACE | metrics_namespace | str | no | - | no | `'NovaFileApi'` |
+| OIDC_AUDIENCE | oidc_audience | str \| None | no | - | no | `None` |
+| OIDC_CLOCK_SKEW_SECONDS | oidc_clock_skew_seconds | int | no | - | no | `0` |
+| OIDC_ISSUER | oidc_issuer | str \| None | no | - | no | `None` |
+| OIDC_JWKS_URL | oidc_jwks_url | str \| None | no | - | no | `None` |
+| OIDC_REQUIRED_PERMISSIONS | oidc_required_permissions | str | no | - | no | `''` |
+| OIDC_REQUIRED_SCOPES | oidc_required_scopes | str | no | - | no | `''` |
 
 ## Generated ENV_VARS_JSON support matrix
 

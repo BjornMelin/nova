@@ -231,8 +231,8 @@ Current runtime posture:
   reuse the same `Idempotency-Key`; minting a new key after that response risks
   creating a duplicate mutation.
 - Missing `Idempotency-Key` remains allowed; blank keys are invalid.
-- Active operator docs and deploy automation MUST enforce the shared-cache
-  requirement without introducing a mode matrix.
+- Active operator docs and deploy automation MUST enforce the shared
+  idempotency-store requirement without introducing a mode matrix.
 
 ### FR-0005: Authentication and authorization
 
