@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+import contextlib
 from typing import Any
 
 import pytest
@@ -14,6 +16,7 @@ from nova_file_api.models import (
     UploadIntrospectionRequest,
 )
 from nova_file_api.transfer import TransferService
+from nova_file_api.transfer_config import transfer_config_from_settings
 
 
 class _FakeS3Client:
@@ -29,6 +32,9 @@ class _FakeS3Client:
         self.list_parts_responses: list[dict[str, Any] | Exception] = []
         self.expected_part_markers: list[int | None] = []
         self.multipart_upload_id = "upload-id"
+        self.upload_part_copy_wait_event: asyncio.Event | None = None
+        self.max_upload_part_copy_in_flight = 0
+        self._upload_part_copy_in_flight = 0
 
     async def generate_presigned_url(
         self,
@@ -67,11 +73,21 @@ class _FakeS3Client:
 
     async def upload_part_copy(self, **kwargs: Any) -> dict[str, Any]:
         self.upload_part_copy_calls.append(kwargs)
-        if self.copy_error is not None:
-            raise self.copy_error
-        return {
-            "CopyPartResult": {"ETag": f"etag-{kwargs['PartNumber']}"},
-        }
+        self._upload_part_copy_in_flight += 1
+        self.max_upload_part_copy_in_flight = max(
+            self.max_upload_part_copy_in_flight,
+            self._upload_part_copy_in_flight,
+        )
+        try:
+            if self.upload_part_copy_wait_event is not None:
+                await self.upload_part_copy_wait_event.wait()
+            if self.copy_error is not None:
+                raise self.copy_error
+            return {
+                "CopyPartResult": {"ETag": f"etag-{kwargs['PartNumber']}"},
+            }
+        finally:
+            self._upload_part_copy_in_flight -= 1
 
     async def list_parts(self, **kwargs: Any) -> dict[str, Any]:
         self.calls.append({"list_parts": kwargs})
@@ -102,8 +118,19 @@ class _FakeS3Client:
 @pytest.fixture
 def _service() -> tuple[TransferService, _FakeS3Client]:
     fake_s3 = _FakeS3Client()
-    service = TransferService(settings=Settings(), s3_client=fake_s3)
+    service = _transfer_service(settings=Settings(), s3_client=fake_s3)
     return service, fake_s3
+
+
+def _transfer_service(
+    *,
+    settings: Settings,
+    s3_client: _FakeS3Client,
+) -> TransferService:
+    return TransferService(
+        config=transfer_config_from_settings(settings),
+        s3_client=s3_client,
+    )
 
 
 def _principal() -> Principal:
@@ -160,7 +187,7 @@ async def test_presign_download_uses_filename_fallback_when_disposition_missing(
 async def test_copy_upload_to_export_toctou_missing_source_is_invalid() -> None:
     settings = Settings()
     fake_s3 = _FakeS3Client()
-    service = TransferService(settings=settings, s3_client=fake_s3)
+    service = _transfer_service(settings=settings, s3_client=fake_s3)
 
     fake_s3.head_responses = [
         {"LastModified": "2024-01-01T00:00:00Z", "ContentLength": 42},
@@ -188,7 +215,7 @@ async def test_copy_upload_to_export_toctou_missing_source_is_invalid() -> None:
 async def test_copy_upload_to_export_copy_error_is_upstream_s3_error() -> None:
     settings = Settings()
     fake_s3 = _FakeS3Client()
-    service = TransferService(settings=settings, s3_client=fake_s3)
+    service = _transfer_service(settings=settings, s3_client=fake_s3)
 
     fake_s3.head_responses = [
         {"LastModified": "2024-01-01T00:00:00Z", "ContentLength": 42},
@@ -213,7 +240,7 @@ async def test_copy_upload_to_export_copy_error_is_upstream_s3_error() -> None:
 async def test_copy_upload_to_export_client_error_maps_to_upstream() -> None:
     settings = Settings()
     fake_s3 = _FakeS3Client()
-    service = TransferService(settings=settings, s3_client=fake_s3)
+    service = _transfer_service(settings=settings, s3_client=fake_s3)
 
     fake_s3.head_responses = [
         {"LastModified": "2024-01-01T00:00:00Z", "ContentLength": 42},
@@ -241,7 +268,7 @@ async def test_copy_upload_to_export_client_error_maps_to_upstream() -> None:
 async def test_introspect_upload_lists_parts_across_pages() -> None:
     settings = Settings()
     fake_s3 = _FakeS3Client()
-    service = TransferService(settings=settings, s3_client=fake_s3)
+    service = _transfer_service(settings=settings, s3_client=fake_s3)
     fake_s3.expected_part_markers = [None, 1]
     fake_s3.list_parts_responses = [
         {
@@ -278,7 +305,7 @@ async def test_introspect_upload_lists_parts_across_pages() -> None:
 async def test_complete_upload_verifies_listed_parts_and_object_size() -> None:
     settings = Settings()
     fake_s3 = _FakeS3Client()
-    service = TransferService(settings=settings, s3_client=fake_s3)
+    service = _transfer_service(settings=settings, s3_client=fake_s3)
     fake_s3.list_parts_responses = [
         {
             "Parts": [
@@ -313,7 +340,7 @@ async def test_complete_upload_verifies_listed_parts_and_object_size() -> None:
 async def test_complete_upload_succeeds_when_post_check_fails() -> None:
     settings = Settings()
     fake_s3 = _FakeS3Client()
-    service = TransferService(settings=settings, s3_client=fake_s3)
+    service = _transfer_service(settings=settings, s3_client=fake_s3)
     fake_s3.list_parts_responses = [
         {
             "Parts": [
@@ -345,7 +372,7 @@ async def test_complete_upload_succeeds_when_post_check_fails() -> None:
 async def test_complete_upload_rejects_missing_part() -> None:
     settings = Settings()
     fake_s3 = _FakeS3Client()
-    service = TransferService(settings=settings, s3_client=fake_s3)
+    service = _transfer_service(settings=settings, s3_client=fake_s3)
     fake_s3.list_parts_responses = [
         {
             "Parts": [{"PartNumber": 1, "ETag": '"etag-1"', "Size": 3}],
@@ -371,7 +398,7 @@ async def test_complete_upload_rejects_missing_part() -> None:
 async def test_complete_upload_rejects_duplicate_part_numbers() -> None:
     settings = Settings()
     fake_s3 = _FakeS3Client()
-    service = TransferService(settings=settings, s3_client=fake_s3)
+    service = _transfer_service(settings=settings, s3_client=fake_s3)
     fake_s3.list_parts_responses = [
         {
             "Parts": [{"PartNumber": 1, "ETag": '"etag-1"', "Size": 3}],
@@ -404,7 +431,7 @@ async def test_copy_upload_to_export_uses_multipart_copy_above_5_gb() -> None:
         {"FILE_TRANSFER_PART_SIZE_BYTES": 128 * 1024 * 1024}
     )
     fake_s3 = _FakeS3Client()
-    service = TransferService(settings=settings, s3_client=fake_s3)
+    service = _transfer_service(settings=settings, s3_client=fake_s3)
     fake_s3.head_responses = [
         {
             "ContentLength": 5_000_000_001,
@@ -467,7 +494,7 @@ async def test_copy_upload_to_export_aborts_failed_multipart_copy() -> None:
         error_response={"Error": {"Code": "AccessDenied"}},
         operation_name="UploadPartCopy",
     )
-    service = TransferService(settings=settings, s3_client=fake_s3)
+    service = _transfer_service(settings=settings, s3_client=fake_s3)
     fake_s3.head_responses = [{"ContentLength": 5_000_000_001}]
 
     with pytest.raises(FileTransferError) as exc_info:
@@ -484,6 +511,49 @@ async def test_copy_upload_to_export_aborts_failed_multipart_copy() -> None:
 
 
 @pytest.mark.asyncio
+async def test_copy_upload_to_export_limits_multipart_copy_concurrency() -> (
+    None
+):
+    settings = Settings.model_validate(
+        {
+            "FILE_TRANSFER_PART_SIZE_BYTES": 2_000_000_000,
+            "FILE_TRANSFER_MAX_CONCURRENCY": 2,
+        }
+    )
+    fake_s3 = _FakeS3Client()
+    fake_s3.upload_part_copy_wait_event = asyncio.Event()
+    fake_s3.head_responses = [{"ContentLength": 5_000_000_001}]
+    service = _transfer_service(settings=settings, s3_client=fake_s3)
+
+    copy_task = asyncio.create_task(
+        service.copy_upload_to_export(
+            source_bucket=settings.file_transfer_bucket,
+            source_key="uploads/scope-1/source.csv",
+            scope_id="scope-1",
+            export_id="job-1",
+            filename="source.csv",
+        )
+    )
+    try:
+        for _ in range(100):
+            if fake_s3.max_upload_part_copy_in_flight >= 2:
+                break
+            await asyncio.sleep(0)
+
+        assert fake_s3.max_upload_part_copy_in_flight == 2
+        fake_s3.upload_part_copy_wait_event.set()
+        await copy_task
+        assert len(fake_s3.upload_part_copy_calls) == 3
+    finally:
+        if not fake_s3.upload_part_copy_wait_event.is_set():
+            fake_s3.upload_part_copy_wait_event.set()
+        if not copy_task.done():
+            copy_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await copy_task
+
+
+@pytest.mark.asyncio
 async def test_large_copy_missing_source_is_invalid() -> None:
     settings = Settings.model_validate(
         {"FILE_TRANSFER_PART_SIZE_BYTES": 128 * 1024 * 1024}
@@ -493,7 +563,7 @@ async def test_large_copy_missing_source_is_invalid() -> None:
         error_response={"Error": {"Code": "NoSuchKey"}},
         operation_name="UploadPartCopy",
     )
-    service = TransferService(settings=settings, s3_client=fake_s3)
+    service = _transfer_service(settings=settings, s3_client=fake_s3)
     fake_s3.head_responses = [{"ContentLength": 5_000_000_001}]
 
     with pytest.raises(FileTransferError) as exc_info:

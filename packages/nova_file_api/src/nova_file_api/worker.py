@@ -36,6 +36,7 @@ from nova_file_api.models import (
     Principal,
 )
 from nova_file_api.transfer import ExportCopyResult, TransferService
+from nova_file_api.transfer_config import transfer_config_from_settings
 
 _RECEIVE_ERROR_BACKOFF_SECONDS = 2.0
 _RESULT_UPDATE_MAX_ATTEMPTS = 3
@@ -206,7 +207,7 @@ class JobsWorker:
                     self._transfer_service
                     if self._transfer_service is not None
                     else TransferService(
-                        settings=self._settings,
+                        config=transfer_config_from_settings(self._settings),
                         s3_client=s3_client,
                     )
                 )

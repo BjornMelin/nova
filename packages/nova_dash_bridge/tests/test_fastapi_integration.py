@@ -12,6 +12,7 @@ from nova_dash_bridge.config import (
     FileTransferEnvConfig,
     UploadPolicy,
 )
+from nova_dash_bridge.s3_client import SupportsCreateS3Client
 from nova_dash_bridge.service import AsyncFileTransferService
 from nova_file_api.public import (
     TRANSFER_ROUTE_PREFIX,
@@ -24,12 +25,33 @@ from nova_file_api.public import (
 
 
 def _auth_policy() -> AuthPolicy:
+    async def _resolve_principal_async(
+        _authorization_header: str | None,
+    ) -> Principal:
+        return Principal(subject="user-1", scope_id="scope-1")
+
     return AuthPolicy(
         principal_resolver=lambda _: Principal(
             subject="user-1",
             scope_id="scope-1",
-        )
+        ),
+        async_principal_resolver=_resolve_principal_async,
     )
+
+
+def _sync_only_auth_policy() -> AuthPolicy:
+    return AuthPolicy(
+        principal_resolver=lambda _: Principal(
+            subject="user-1",
+            scope_id="scope-1",
+        ),
+    )
+
+
+class _SyncOnlyS3Factory:
+    def create(self, _env: FileTransferEnvConfig) -> object:
+        del _env
+        return cast(Any, object())
 
 
 def test_create_fastapi_app_requires_auth_policy() -> None:
@@ -102,6 +124,117 @@ def test_create_fastapi_app_calls_async_service_directly(
 
     assert response.status_code == 200
     assert calls == [("report.csv", "scope-1", 1)]
+
+
+def test_create_fastapi_app_requires_async_auth_policy(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    del monkeypatch
+    with pytest.raises(
+        TypeError,
+        match=r"auth_policy\.async_principal_resolver",
+    ):
+        fastapi_integration.create_fastapi_app(
+            env_config=FileTransferEnvConfig.model_validate(
+                {
+                    "FILE_TRANSFER_ENABLED": True,
+                    "FILE_TRANSFER_BUCKET": "bucket-a",
+                }
+            ),
+            upload_policy=UploadPolicy(
+                max_upload_bytes=100,
+                allowed_extensions={".csv"},
+            ),
+            auth_policy=_sync_only_auth_policy(),
+        )
+
+
+def test_create_fastapi_app_requires_async_s3_factory() -> None:
+    with pytest.raises(
+        TypeError,
+        match=r"requires async_s3_client_factory or s3_client_factory with "
+        r"create_async",
+    ):
+        fastapi_integration.create_fastapi_app(
+            env_config=FileTransferEnvConfig.model_validate(
+                {
+                    "FILE_TRANSFER_ENABLED": True,
+                    "FILE_TRANSFER_BUCKET": "bucket-a",
+                }
+            ),
+            upload_policy=UploadPolicy(
+                max_upload_bytes=100,
+                allowed_extensions={".csv"},
+            ),
+            auth_policy=_auth_policy(),
+            s3_client_factory=cast(
+                "SupportsCreateS3Client",
+                _SyncOnlyS3Factory(),
+            ),
+        )
+
+
+def test_create_fastapi_app_uses_async_auth_resolution(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    auth_headers: list[str] = []
+
+    async def _resolve_principal_async(
+        authorization_header: str | None,
+    ) -> Principal:
+        auth_headers.append(authorization_header or "")
+        return Principal(subject="user-1", scope_id="scope-1")
+
+    async def _fake_initiate_upload(
+        self: AsyncFileTransferService,
+        payload: InitiateUploadRequest,
+        *,
+        principal: Principal,
+    ) -> InitiateUploadResponse:
+        del self, payload, principal
+        return InitiateUploadResponse(
+            strategy=UploadStrategy.SINGLE,
+            bucket="bucket-a",
+            key="uploads/scope-1/report.csv",
+            url="https://example.invalid/upload",
+            expires_in_seconds=900,
+        )
+
+    monkeypatch.setattr(
+        AsyncFileTransferService,
+        "initiate_upload",
+        _fake_initiate_upload,
+    )
+
+    app = fastapi_integration.create_fastapi_app(
+        env_config=FileTransferEnvConfig.model_validate(
+            {
+                "FILE_TRANSFER_ENABLED": True,
+                "FILE_TRANSFER_BUCKET": "bucket-a",
+            }
+        ),
+        upload_policy=UploadPolicy(
+            max_upload_bytes=100,
+            allowed_extensions={".csv"},
+        ),
+        auth_policy=AuthPolicy(
+            async_principal_resolver=_resolve_principal_async
+        ),
+    )
+
+    with TestClient(app) as client:
+        response = client.post(
+            f"{TRANSFER_ROUTE_PREFIX}{UPLOADS_INITIATE_ROUTE}",
+            json={
+                "filename": "report.csv",
+                "content_type": "text/csv",
+                "size_bytes": 1,
+            },
+            headers={"Authorization": "Bearer token-123"},
+        )
+
+    assert response.status_code == 200
+    assert auth_headers == ["Bearer token-123"]
 
 
 def test_routes_include_transfer_operation_metadata() -> None:

@@ -9,6 +9,7 @@ description = "Dash and framework adapters for nova APIs."
 readme = "README.md"
 requires-python = ">=3.11,<3.14"
 dependencies = [
+  "aioboto3>=15.5.0,<16",
   "nova-file-api>=0.1.0",
   "pydantic>=2.12.5",
   "pydantic-settings>=2.13.1",
@@ -16,8 +17,14 @@ dependencies = [
 
 [project.optional-dependencies]
 dash = ["dash>=3.2.0,<5.0.0"]
-fastapi = ["fastapi>=0.135.2,<0.300.0"]
-flask = ["flask>=3.1.2,<4.0.0"]
+fastapi = [
+  "fastapi>=0.135.2,<0.300.0",
+  "nova-runtime-support>=0.1.0",
+]
+flask = [
+  "flask>=3.1.2,<4.0.0",
+  "nova-runtime-support>=0.1.0",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/nova_dash_bridge"]

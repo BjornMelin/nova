@@ -46,7 +46,9 @@ and async export workflows and does not proxy file bytes through the API layer.
 
 - `nova_file_api` owns runtime endpoints, auth, export workflow lifecycle, and readiness.
 - `nova_dash_bridge` owns framework adapters and consumes
-  `nova_file_api.public` as the in-process seam.
+  `nova_file_api.public` as the in-process seam. FastAPI integrations await
+  that async surface directly, while Flask/Dash keep explicit sync adapters at
+  the true sync edge only.
 - `nova_runtime_support` owns shared request-id propagation and shared FastAPI
   exception registration.
 - `packages/contracts` owns committed OpenAPI and reusable workflow schema

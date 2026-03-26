@@ -41,6 +41,7 @@ from nova_file_api.models import (
     Principal,
 )
 from nova_file_api.transfer import TransferService
+from nova_file_api.transfer_config import transfer_config_from_settings
 
 _APPLICATION_STATE_NOT_INITIALIZED = "application state is not initialized"
 _MSG_JOBS_DYNAMODB_TABLE_REQUIRED = (
@@ -320,7 +321,10 @@ def build_transfer_service(
     s3_client: object,
 ) -> TransferService:
     """Create the transfer service."""
-    return TransferService(settings=settings, s3_client=s3_client)
+    return TransferService(
+        config=transfer_config_from_settings(settings),
+        s3_client=s3_client,
+    )
 
 
 def build_export_repository(

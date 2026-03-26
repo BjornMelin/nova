@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping
+from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -11,6 +11,7 @@ from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 PrincipalResolver = Callable[[str | None], Principal]
+AsyncPrincipalResolver = Callable[[str | None], Awaitable[Principal]]
 
 
 class FileTransferEnvConfig(BaseSettings):
@@ -169,14 +170,50 @@ class UploadPolicy:
 class AuthPolicy:
     """Authentication hooks for framework integrations."""
 
-    principal_resolver: PrincipalResolver
+    principal_resolver: PrincipalResolver | None = None
+    async_principal_resolver: AsyncPrincipalResolver | None = None
+
+    def __post_init__(self) -> None:
+        """Require at least one auth resolution path."""
+        if (
+            self.principal_resolver is None
+            and self.async_principal_resolver is None
+        ):
+            raise TypeError(
+                "AuthPolicy requires principal_resolver for sync integrations "
+                "(Flask/Dash/FileTransferService) or async_principal_resolver "
+                "for async integrations"
+            )
 
     def resolve_principal(
         self,
         authorization_header: str | None,
     ) -> Principal:
         """Resolve a trusted principal from the incoming bearer header."""
-        principal = self.principal_resolver(authorization_header)
+        resolver = self.principal_resolver
+        if resolver is None:
+            raise TypeError(
+                "AuthPolicy requires principal_resolver for sync integrations "
+                "(Flask/Dash/FileTransferService); provide "
+                "principal_resolver or use an adapter"
+            )
+        principal = resolver(authorization_header)
+        return self._validated_principal(principal)
+
+    async def resolve_principal_async(
+        self,
+        authorization_header: str | None,
+    ) -> Principal:
+        """Resolve a trusted principal from the incoming bearer header."""
+        resolver = self.async_principal_resolver
+        if resolver is None:
+            raise TypeError("async principal resolver is not configured")
+        principal = await resolver(authorization_header)
+        return self._validated_principal(principal)
+
+    @staticmethod
+    def _validated_principal(principal: Principal) -> Principal:
+        """Normalize a resolved principal and fail on blank identities."""
         subject = principal.subject.strip()
         scope_id = principal.scope_id.strip()
         if not subject or not scope_id:

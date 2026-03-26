@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import math
 from contextlib import suppress
@@ -12,7 +13,6 @@ from uuid import uuid4
 
 from botocore.exceptions import BotoCoreError, ClientError
 
-from nova_file_api.config import Settings
 from nova_file_api.errors import (
     FileTransferError,
     invalid_request,
@@ -35,6 +35,7 @@ from nova_file_api.models import (
     UploadIntrospectionResponse,
     UploadStrategy,
 )
+from nova_file_api.transfer_config import TransferConfig
 
 _COPY_OBJECT_MAX_BYTES = 5_000_000_000
 _MAX_MULTIPART_PARTS = 10_000
@@ -57,26 +58,20 @@ class TransferService:
     def __init__(
         self,
         *,
-        settings: Settings,
+        config: TransferConfig,
         s3_client: Any,
     ) -> None:
         """Initialize transfer service and S3 client.
 
         Args:
-            settings: Runtime settings for transfer behavior.
+            config: Transfer-specific runtime configuration.
             s3_client: Prebuilt async S3 client.
         """
-        self.settings = settings
+        self.config = config
         self._s3 = s3_client
-        self._upload_prefix = _normalize_prefix(
-            self.settings.file_transfer_upload_prefix
-        )
-        self._export_prefix = _normalize_prefix(
-            self.settings.file_transfer_export_prefix
-        )
-        self._tmp_prefix = _normalize_prefix(
-            self.settings.file_transfer_tmp_prefix
-        )
+        self._upload_prefix = _normalize_prefix(self.config.upload_prefix)
+        self._export_prefix = _normalize_prefix(self.config.export_prefix)
+        self._tmp_prefix = _normalize_prefix(self.config.tmp_prefix)
 
     async def initiate_upload(
         self,
@@ -84,12 +79,12 @@ class TransferService:
         principal: Principal,
     ) -> InitiateUploadResponse:
         """Initiate single or multipart upload based on policy."""
-        if request.size_bytes > self.settings.max_upload_bytes:
+        if request.size_bytes > self.config.max_upload_bytes:
             raise invalid_request(
                 "file size exceeds configured upload limit",
                 details={
                     "size_bytes": request.size_bytes,
-                    "max_upload_bytes": self.settings.max_upload_bytes,
+                    "max_upload_bytes": self.config.max_upload_bytes,
                 },
             )
 
@@ -98,10 +93,7 @@ class TransferService:
             filename=request.filename,
         )
 
-        if (
-            request.size_bytes
-            < self.settings.file_transfer_multipart_threshold_bytes
-        ):
+        if request.size_bytes < self.config.multipart_threshold_bytes:
             return await self._single_upload_response(
                 key=key,
                 content_type=request.content_type,
@@ -125,20 +117,16 @@ class TransferService:
             urls[part_number] = await self._generate_presigned_url(
                 operation="upload_part",
                 params={
-                    "Bucket": self.settings.file_transfer_bucket,
+                    "Bucket": self.config.bucket,
                     "Key": request.key,
                     "UploadId": request.upload_id,
                     "PartNumber": part_number,
                 },
-                expires_in=(
-                    self.settings.file_transfer_presign_upload_ttl_seconds
-                ),
+                expires_in=self.config.presign_upload_ttl_seconds,
             )
 
         return SignPartsResponse(
-            expires_in_seconds=(
-                self.settings.file_transfer_presign_upload_ttl_seconds
-            ),
+            expires_in_seconds=self.config.presign_upload_ttl_seconds,
             urls=urls,
         )
 
@@ -169,10 +157,10 @@ class TransferService:
         part_size_bytes = (
             uploaded_parts[0][2]
             if uploaded_parts
-            else self.settings.file_transfer_part_size_bytes
+            else self.config.part_size_bytes
         )
         return UploadIntrospectionResponse(
-            bucket=self.settings.file_transfer_bucket,
+            bucket=self.config.bucket,
             key=request.key,
             upload_id=request.upload_id,
             part_size_bytes=part_size_bytes,
@@ -232,7 +220,7 @@ class TransferService:
 
         try:
             result = await self._s3.complete_multipart_upload(
-                Bucket=self.settings.file_transfer_bucket,
+                Bucket=self.config.bucket,
                 Key=request.key,
                 UploadId=request.upload_id,
                 MultipartUpload={"Parts": parts},
@@ -246,7 +234,7 @@ class TransferService:
         # do not turn a successful completion into a retry-unsafe error.
         try:
             completed_object = await self._head_object(
-                bucket=self.settings.file_transfer_bucket,
+                bucket=self.config.bucket,
                 key=request.key,
                 missing_message="completed multipart upload object not found",
                 failure_message="failed to inspect completed multipart upload",
@@ -266,7 +254,7 @@ class TransferService:
             _LOGGER.warning(
                 "multipart_completion_verification_failed",
                 extra={
-                    "bucket": self.settings.file_transfer_bucket,
+                    "bucket": self.config.bucket,
                     "key": request.key,
                     "expected_size_bytes": expected_size_bytes,
                 },
@@ -274,7 +262,7 @@ class TransferService:
             )
 
         return CompleteUploadResponse(
-            bucket=self.settings.file_transfer_bucket,
+            bucket=self.config.bucket,
             key=request.key,
             etag=_opt_str(result.get("ETag")),
             version_id=_opt_str(result.get("VersionId")),
@@ -290,7 +278,7 @@ class TransferService:
 
         try:
             await self._s3.abort_multipart_upload(
-                Bucket=self.settings.file_transfer_bucket,
+                Bucket=self.config.bucket,
                 Key=request.key,
                 UploadId=request.upload_id,
             )
@@ -308,7 +296,7 @@ class TransferService:
         self._assert_read_scope(key=request.key, scope_id=principal.scope_id)
 
         params: dict[str, Any] = {
-            "Bucket": self.settings.file_transfer_bucket,
+            "Bucket": self.config.bucket,
             "Key": request.key,
         }
         # Precedence: explicit disposition first, then filename fallback.
@@ -325,16 +313,14 @@ class TransferService:
         url = await self._generate_presigned_url(
             operation="get_object",
             params=params,
-            expires_in=self.settings.file_transfer_presign_download_ttl_seconds,
+            expires_in=self.config.presign_download_ttl_seconds,
         )
 
         return PresignDownloadResponse(
-            bucket=self.settings.file_transfer_bucket,
+            bucket=self.config.bucket,
             key=request.key,
             url=url,
-            expires_in_seconds=(
-                self.settings.file_transfer_presign_download_ttl_seconds
-            ),
+            expires_in_seconds=self.config.presign_download_ttl_seconds,
         )
 
     async def copy_upload_to_export(
@@ -365,17 +351,17 @@ class TransferService:
             FileTransferError: ``upstream_s3_error`` for retryable S3
                 infra failures.
         """
-        if source_bucket != self.settings.file_transfer_bucket:
+        if source_bucket != self.config.bucket:
             raise invalid_request(
                 "bucket does not match configured transfer bucket",
                 details={
                     "bucket": source_bucket,
-                    "expected_bucket": self.settings.file_transfer_bucket,
+                    "expected_bucket": self.config.bucket,
                 },
             )
         self._assert_upload_scope(key=source_key, scope_id=scope_id)
         source_object = await self._head_object(
-            bucket=self.settings.file_transfer_bucket,
+            bucket=self.config.bucket,
             key=source_key,
             missing_message="source upload object not found",
             failure_message="failed to inspect source upload object",
@@ -395,9 +381,9 @@ class TransferService:
         try:
             if source_size_bytes <= _COPY_OBJECT_MAX_BYTES:
                 await self._s3.copy_object(
-                    Bucket=self.settings.file_transfer_bucket,
+                    Bucket=self.config.bucket,
                     CopySource={
-                        "Bucket": self.settings.file_transfer_bucket,
+                        "Bucket": self.config.bucket,
                         "Key": source_key,
                     },
                     Key=export_key,
@@ -433,7 +419,7 @@ class TransferService:
         content_type: str | None,
     ) -> InitiateUploadResponse:
         params: dict[str, Any] = {
-            "Bucket": self.settings.file_transfer_bucket,
+            "Bucket": self.config.bucket,
             "Key": key,
         }
         if content_type:
@@ -442,17 +428,15 @@ class TransferService:
         url = await self._generate_presigned_url(
             operation="put_object",
             params=params,
-            expires_in=self.settings.file_transfer_presign_upload_ttl_seconds,
+            expires_in=self.config.presign_upload_ttl_seconds,
         )
 
         return InitiateUploadResponse(
             strategy=UploadStrategy.SINGLE,
-            bucket=self.settings.file_transfer_bucket,
+            bucket=self.config.bucket,
             key=key,
             url=url,
-            expires_in_seconds=(
-                self.settings.file_transfer_presign_upload_ttl_seconds
-            ),
+            expires_in_seconds=self.config.presign_upload_ttl_seconds,
         )
 
     async def _multipart_upload_response(
@@ -462,7 +446,7 @@ class TransferService:
         content_type: str | None,
     ) -> InitiateUploadResponse:
         kwargs: dict[str, Any] = {
-            "Bucket": self.settings.file_transfer_bucket,
+            "Bucket": self.config.bucket,
             "Key": key,
         }
         if content_type:
@@ -480,13 +464,11 @@ class TransferService:
 
         return InitiateUploadResponse(
             strategy=UploadStrategy.MULTIPART,
-            bucket=self.settings.file_transfer_bucket,
+            bucket=self.config.bucket,
             key=key,
             upload_id=upload_id,
-            part_size_bytes=self.settings.file_transfer_part_size_bytes,
-            expires_in_seconds=(
-                self.settings.file_transfer_presign_upload_ttl_seconds
-            ),
+            part_size_bytes=self.config.part_size_bytes,
+            expires_in_seconds=self.config.presign_upload_ttl_seconds,
         )
 
     async def _generate_presigned_url(
@@ -516,7 +498,7 @@ class TransferService:
         part_number_marker: int | None = None
         while True:
             kwargs: dict[str, Any] = {
-                "Bucket": self.settings.file_transfer_bucket,
+                "Bucket": self.config.bucket,
                 "Key": key,
                 "UploadId": upload_id,
                 "MaxParts": 1000,
@@ -601,11 +583,11 @@ class TransferService:
         upload_id: str | None = None
         part_size_bytes = _multipart_copy_part_size_bytes(
             source_size_bytes=source_size_bytes,
-            preferred_part_size_bytes=self.settings.file_transfer_part_size_bytes,
+            preferred_part_size_bytes=self.config.part_size_bytes,
         )
         try:
             create_upload_kwargs = _multipart_copy_create_upload_kwargs(
-                bucket=self.settings.file_transfer_bucket,
+                bucket=self.config.bucket,
                 key=export_key,
                 source_object=source_object,
             )
@@ -619,45 +601,61 @@ class TransferService:
                 )
 
             completed_parts: list[dict[str, Any]] = []
-            part_number = 1
-            start_byte = 0
-            while start_byte < source_size_bytes:
-                end_byte = min(
-                    source_size_bytes - 1,
-                    start_byte + part_size_bytes - 1,
+            ranges = [
+                (
+                    part_number,
+                    start_byte,
+                    min(
+                        source_size_bytes - 1,
+                        start_byte + part_size_bytes - 1,
+                    ),
                 )
-                response = await self._s3.upload_part_copy(
-                    Bucket=self.settings.file_transfer_bucket,
-                    CopySource={
-                        "Bucket": self.settings.file_transfer_bucket,
-                        "Key": source_key,
-                    },
-                    CopySourceRange=f"bytes={start_byte}-{end_byte}",
-                    Key=export_key,
-                    PartNumber=part_number,
-                    UploadId=upload_id,
+                for part_number, start_byte in enumerate(
+                    range(0, source_size_bytes, part_size_bytes),
+                    start=1,
                 )
-                completed_parts.append(
-                    {
-                        "ETag": _copy_part_etag(response),
-                        "PartNumber": part_number,
-                    }
+            ]
+            for start_index in range(
+                0,
+                len(ranges),
+                self.config.max_concurrency,
+            ):
+                batch = ranges[
+                    start_index : start_index + self.config.max_concurrency
+                ]
+                completed_parts.extend(
+                    await asyncio.gather(
+                        *[
+                            self._copy_multipart_export_part(
+                                source_key=source_key,
+                                export_key=export_key,
+                                upload_id=upload_id,
+                                part_number=part_number,
+                                start_byte=start_byte,
+                                end_byte=end_byte,
+                            )
+                            for part_number, start_byte, end_byte in batch
+                        ]
+                    )
                 )
-                start_byte = end_byte + 1
-                part_number += 1
 
             await self._s3.complete_multipart_upload(
-                Bucket=self.settings.file_transfer_bucket,
+                Bucket=self.config.bucket,
                 Key=export_key,
                 UploadId=upload_id,
-                MultipartUpload={"Parts": completed_parts},
+                MultipartUpload={
+                    "Parts": sorted(
+                        completed_parts,
+                        key=lambda item: int(item["PartNumber"]),
+                    )
+                },
             )
         except ClientError as exc:
             error_code = str(exc.response.get("Error", {}).get("Code", ""))
             if upload_id is not None:
                 with suppress(ClientError, BotoCoreError):
                     await self._s3.abort_multipart_upload(
-                        Bucket=self.settings.file_transfer_bucket,
+                        Bucket=self.config.bucket,
                         Key=export_key,
                         UploadId=upload_id,
                     )
@@ -670,13 +668,40 @@ class TransferService:
             if upload_id is not None:
                 with suppress(ClientError, BotoCoreError):
                     await self._s3.abort_multipart_upload(
-                        Bucket=self.settings.file_transfer_bucket,
+                        Bucket=self.config.bucket,
                         Key=export_key,
                         UploadId=upload_id,
                     )
             raise upstream_s3_error(
                 "failed to copy upload object to export key"
             ) from exc
+
+    async def _copy_multipart_export_part(
+        self,
+        *,
+        source_key: str,
+        export_key: str,
+        upload_id: str,
+        part_number: int,
+        start_byte: int,
+        end_byte: int,
+    ) -> dict[str, Any]:
+        """Copy one multipart export range and return the completion payload."""
+        response = await self._s3.upload_part_copy(
+            Bucket=self.config.bucket,
+            CopySource={
+                "Bucket": self.config.bucket,
+                "Key": source_key,
+            },
+            CopySourceRange=f"bytes={start_byte}-{end_byte}",
+            Key=export_key,
+            PartNumber=part_number,
+            UploadId=upload_id,
+        )
+        return {
+            "ETag": _copy_part_etag(response),
+            "PartNumber": part_number,
+        }
 
     def _new_upload_key(self, *, scope_id: str, filename: str) -> str:
         safe = _sanitize_filename(filename)
