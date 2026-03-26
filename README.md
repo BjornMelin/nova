@@ -110,12 +110,12 @@ For detailed SDK governance and generation rules, use:
 - `POST /v1/exports` publish failures return `503` with
   `error.code = "queue_unavailable"`
 - idempotent mutation entrypoints use `IDEMPOTENCY_ENABLED` plus bounded TTL
-  settings plus `IDEMPOTENCY_DYNAMODB_TABLE`; when enabled, Nova uses
-  DynamoDB-backed claim/replay storage with explicit expiration filtering and
-  returns `503` with `error.code = "idempotency_unavailable"` if that store is
-  unavailable; if execution succeeded before replay persistence failed, Nova
-  keeps the existing in-progress claim so retries with the same key do not
-  re-run the mutation
+  settings plus API-runtime `IDEMPOTENCY_DYNAMODB_TABLE`; when API-side
+  idempotency is enabled, Nova uses DynamoDB-backed claim/replay storage with
+  explicit expiration filtering and returns `503` with
+  `error.code = "idempotency_unavailable"` if that store is unavailable; if
+  execution succeeded before replay persistence failed, Nova keeps the existing
+  in-progress claim so retries with the same key do not re-run the mutation
 - `/v1/health/ready` gates traffic on `bucket_configured`,
   `auth_dependency`, and active runtime dependencies; `idempotency_store` gates
   readiness only when idempotency is enabled, while `activity_store` remains a

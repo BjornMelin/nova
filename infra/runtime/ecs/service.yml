@@ -214,6 +214,7 @@ Parameters:
   IdempotencyTableName:
     Type: String
     Default: ""
+    AllowedPattern: "^$|^[A-Za-z0-9_.-]+$"
     Description: Runtime DynamoDB idempotency table name injected when idempotency is enabled.
   OidcIssuer:
     Type: String

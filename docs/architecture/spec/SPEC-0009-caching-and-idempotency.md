@@ -47,7 +47,8 @@ configured upper bounds.
 
 For protected mutation endpoints:
 
-- `IDEMPOTENCY_ENABLED=true` requires `IDEMPOTENCY_DYNAMODB_TABLE`.
+- API-runtime `IDEMPOTENCY_ENABLED=true` requires
+  `IDEMPOTENCY_DYNAMODB_TABLE`.
 - Missing `Idempotency-Key` is allowed; blank keys are invalid.
 - Bind replay records to route + caller scope + key.
 - Reject key reuse with different payload (`idempotency_conflict`).

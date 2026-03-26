@@ -219,8 +219,9 @@ Current runtime posture:
 
 - `IDEMPOTENCY_ENABLED` and `IDEMPOTENCY_TTL_SECONDS` are the active
   configuration surface; the runtime does not expose `IDEMPOTENCY_MODE`.
-- `IDEMPOTENCY_ENABLED=true` requires `IDEMPOTENCY_DYNAMODB_TABLE` and a
-  DynamoDB-backed claim store for duplicate prevention across instances.
+- API-runtime `IDEMPOTENCY_ENABLED=true` requires
+  `IDEMPOTENCY_DYNAMODB_TABLE` and a DynamoDB-backed claim store for duplicate
+  prevention across instances.
 - Shared idempotency store failures MUST fail closed with `503` and
   `error.code = "idempotency_unavailable"`.
 - If a mutation succeeds but the replay record cannot be committed, Nova MUST

@@ -23,7 +23,9 @@ class _FakeIdempotencyStore(IdempotencyStore):
             request_hash="request-hash",
         )
         self.stored_payload: dict[str, Any] | None = None
+        self.stored_claim: IdempotencyClaim | None = None
         self.discard_calls = 0
+        self.discarded_claims: list[IdempotencyClaim] = []
         self.raise_on_store = False
         self.raise_on_discard = False
 
@@ -42,13 +44,15 @@ class _FakeIdempotencyStore(IdempotencyStore):
         return self.claim_result
 
     async def store_response(self, **kwargs: Any) -> None:
+        self.stored_claim = kwargs["claim"]
         if self.raise_on_store:
             raise RuntimeError("store failed")
         self.stored_payload = kwargs["response_payload"]
 
-    async def discard_claim(self, **_: Any) -> None:
+    async def discard_claim(self, **kwargs: Any) -> None:
         if self.raise_on_discard:
             raise RuntimeError("discard failed")
+        self.discarded_claims.append(kwargs["claim"])
         self.discard_calls += 1
 
 
@@ -153,6 +157,7 @@ async def test_run_guarded_mutation_discards_claim_on_failure() -> None:
 
     assert failures == ["boom"]
     assert store.discard_calls == 1
+    assert store.discarded_claims == [store.claim_result]
 
 
 @pytest.mark.anyio
@@ -185,6 +190,7 @@ async def test_discard_claim_when_failure_hook_raises() -> None:
         )
 
     assert store.discard_calls == 1
+    assert store.discarded_claims == [store.claim_result]
 
 
 @pytest.mark.anyio
@@ -219,6 +225,7 @@ async def test_run_guarded_mutation_stores_response_and_runs_success() -> None:
     assert result.value == "fresh"
     assert completed == ["fresh"]
     assert store.stored_payload == {"value": "fresh"}
+    assert store.stored_claim == store.claim_result
 
 
 @pytest.mark.anyio
@@ -330,3 +337,4 @@ async def test_run_guarded_mutation_store_failure_raise_preserves_claim() -> (
 
     assert failures == []
     assert store.discard_calls == 0
+    assert store.stored_claim == store.claim_result

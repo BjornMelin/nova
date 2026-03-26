@@ -58,8 +58,9 @@ Required startup validation:
 6. `IDEMPOTENCY_ENABLED` and `IDEMPOTENCY_TTL_SECONDS` are the current
    idempotency settings surface; the runtime does not define
    `IDEMPOTENCY_MODE`.
-7. `IDEMPOTENCY_ENABLED=true` requires `IDEMPOTENCY_DYNAMODB_TABLE` and
-   DynamoDB-backed claim storage for duplicate prevention across instances.
+7. API-runtime `IDEMPOTENCY_ENABLED=true` requires
+   `IDEMPOTENCY_DYNAMODB_TABLE` and DynamoDB-backed claim storage for
+   duplicate prevention across instances.
 8. Shared idempotency-store failures return `503` with
    `error.code = "idempotency_unavailable"`; mutation correctness does not
    fall back to local-only claim handling.

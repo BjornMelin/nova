@@ -57,6 +57,7 @@ def test_settings_accept_env_style_keys() -> None:
 
     assert settings.app_name == "runtime-env-app"
     assert settings.file_transfer_bucket == "env-bucket"
+    assert settings.idempotency_dynamodb_table == "test-idempotency"
 
 
 def test_settings_accept_field_name_keys() -> None:
@@ -72,6 +73,7 @@ def test_settings_accept_field_name_keys() -> None:
 
     assert settings.app_name == "field-name-app"
     assert settings.file_transfer_bucket == "field-bucket"
+    assert settings.idempotency_dynamodb_table == "test-idempotency"
 
 
 def test_settings_model_dump_uses_field_names() -> None:
@@ -88,6 +90,7 @@ def test_settings_model_dump_uses_field_names() -> None:
 
     assert payload["app_name"] == "serialized-app"
     assert payload["file_transfer_bucket"] == "serialized-bucket"
+    assert payload["idempotency_dynamodb_table"] == "test-idempotency"
     assert "APP_NAME" not in payload
     assert "FILE_TRANSFER_BUCKET" not in payload
 

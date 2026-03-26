@@ -227,7 +227,7 @@ SERVICE_TEMPLATE_ENV: tuple[TemplateEnvContract, ...] = (
     TemplateEnvContract(
         "IDEMPOTENCY_DYNAMODB_TABLE",
         "stack output",
-        "when idempotency enabled",
+        "when API idempotency enabled",
     ),
     TemplateEnvContract(
         "FILE_TRANSFER_PRESIGN_UPLOAD_TTL_SECONDS",

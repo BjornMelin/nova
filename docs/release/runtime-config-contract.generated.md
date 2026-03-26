@@ -115,7 +115,7 @@ Forbidden ENV_VARS_JSON keys:
 | AUTH_JWT_CACHE_MAX_TTL_SECONDS | task parameter | always | no |
 | IDEMPOTENCY_ENABLED | task parameter | always | no |
 | IDEMPOTENCY_TTL_SECONDS | task parameter | always | no |
-| IDEMPOTENCY_DYNAMODB_TABLE | stack output | when idempotency enabled | no |
+| IDEMPOTENCY_DYNAMODB_TABLE | stack output | when API idempotency enabled | no |
 | FILE_TRANSFER_PRESIGN_UPLOAD_TTL_SECONDS | task parameter | always | no |
 | FILE_TRANSFER_PRESIGN_DOWNLOAD_TTL_SECONDS | task parameter | always | no |
 | FILE_TRANSFER_MULTIPART_THRESHOLD_BYTES | task parameter | always | no |

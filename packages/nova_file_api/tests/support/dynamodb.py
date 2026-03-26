@@ -39,6 +39,18 @@ class MemoryDynamoTable:
         self._items: dict[str, dict[str, Any]] = {}
 
     async def get_item(self, **kwargs: object) -> dict[str, object]:
+        """Return a copy of the stored item for the requested key.
+
+        Args:
+            **kwargs: DynamoDB-style keyword arguments containing ``Key``.
+
+        Returns:
+            dict[str, object]: ``{"Item": ...}`` when the key exists, otherwise
+                an empty mapping.
+
+        Raises:
+            AssertionError: If ``Key["idempotency_key"]`` is not a string.
+        """
         key = cast(dict[str, Any], kwargs["Key"])
         item_key = key["idempotency_key"]
         assert isinstance(item_key, str)
@@ -46,6 +58,20 @@ class MemoryDynamoTable:
         return {"Item": deepcopy(item)} if item is not None else {}
 
     async def put_item(self, **kwargs: object) -> dict[str, object]:
+        """Store a new item while honoring the supported conditional write.
+
+        Args:
+            **kwargs: DynamoDB-style keyword arguments containing ``Item`` and
+                optional condition metadata.
+
+        Returns:
+            dict[str, object]: An empty mapping to mirror boto3 responses.
+
+        Raises:
+            AssertionError: If ``Item["idempotency_key"]`` is not a string.
+            ClientError: If the supported conditional write fails.
+            ValueError: If the requested condition expression is unsupported.
+        """
         item = cast(dict[str, Any], kwargs["Item"])
         condition = kwargs.get("ConditionExpression")
         values = cast(
@@ -67,6 +93,20 @@ class MemoryDynamoTable:
         return {}
 
     async def update_item(self, **kwargs: object) -> dict[str, object]:
+        """Commit an in-progress idempotency record.
+
+        Args:
+            **kwargs: DynamoDB-style keyword arguments containing ``Key`` plus
+                the supported conditional update payload.
+
+        Returns:
+            dict[str, object]: An empty mapping to mirror boto3 responses.
+
+        Raises:
+            AssertionError: If ``Key["idempotency_key"]`` is not a string.
+            ClientError: If the conditional update fails.
+            ValueError: If the requested condition expression is unsupported.
+        """
         key = cast(dict[str, Any], kwargs["Key"])
         condition = kwargs.get("ConditionExpression")
         values = cast(dict[str, Any], kwargs["ExpressionAttributeValues"])
@@ -92,6 +132,20 @@ class MemoryDynamoTable:
         return {}
 
     async def delete_item(self, **kwargs: object) -> dict[str, object]:
+        """Delete an in-progress claim when the ownership check still matches.
+
+        Args:
+            **kwargs: DynamoDB-style keyword arguments containing ``Key`` plus
+                the supported conditional delete payload.
+
+        Returns:
+            dict[str, object]: An empty mapping to mirror boto3 responses.
+
+        Raises:
+            AssertionError: If ``Key["idempotency_key"]`` is not a string.
+            ClientError: If the conditional delete fails.
+            ValueError: If the requested condition expression is unsupported.
+        """
         key = cast(dict[str, Any], kwargs["Key"])
         condition = kwargs.get("ConditionExpression")
         values = cast(dict[str, Any], kwargs["ExpressionAttributeValues"])
@@ -113,11 +167,26 @@ class MemoryDynamoTable:
         return {}
 
     def put_raw(self, key: str, item: dict[str, Any]) -> None:
-        """Install raw state for focused tests."""
+        """Install a raw item for focused test setup.
+
+        Args:
+            key: Table key used to store the raw item.
+            item: Raw DynamoDB item payload to persist.
+
+        Returns:
+            None.
+        """
         self._items[key] = deepcopy(item)
 
     def get_raw(self, key: str) -> dict[str, Any] | None:
-        """Return raw state for focused assertions."""
+        """Return the raw item stored for focused assertions.
+
+        Args:
+            key: Table key to fetch.
+
+        Returns:
+            dict[str, Any] | None: A deep copy of the stored item, if present.
+        """
         item = self._items.get(key)
         return deepcopy(item) if item is not None else None
 
@@ -133,5 +202,13 @@ class MemoryDynamoResource:
         self._tables = {} if tables is None else tables
 
     def Table(self, table_name: str) -> MemoryDynamoTable:
+        """Return the named in-memory table, creating it on first access.
+
+        Args:
+            table_name: Name of the requested DynamoDB table.
+
+        Returns:
+            MemoryDynamoTable: Existing or newly created in-memory table.
+        """
         table = self._tables.setdefault(table_name, MemoryDynamoTable())
         return table

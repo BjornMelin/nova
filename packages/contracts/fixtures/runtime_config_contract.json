@@ -260,7 +260,7 @@
         "value": null
       },
       {
-        "condition": "when idempotency enabled",
+        "condition": "when API idempotency enabled",
         "name": "IDEMPOTENCY_DYNAMODB_TABLE",
         "secret": false,
         "source": "stack output",

@@ -173,7 +173,7 @@ Worker/file-transfer contract notes:
   script rejects unsupported keys, including `IDEMPOTENCY_MODE` and
   `IDEMPOTENCY_DYNAMODB_TABLE`. `IDEMPOTENCY_DYNAMODB_TABLE` is stack-derived:
   the deploy flow injects `IdempotencyTableName` plus
-  `FileTransferIdempotencyTableArn` into the task definition when
+  `FileTransferIdempotencyTableArn` into the API task definition when
   `IDEMPOTENCY_ENABLED=true`.
 - The supported override list is generated from the canonical runtime settings
   contract; do not hand-edit duplicate key lists in docs or scripts.
