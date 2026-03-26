@@ -30,6 +30,7 @@ indexes: [`release/README.md`](./release/README.md).
 6. [Release policy](release/release-policy.md)
 7. [Release promotion addendum](release/release-promotion-dev-to-prod.md)
 8. [Runtime config contract](../release/runtime-config-contract.generated.md) (generated; [`docs/release/`](../release/README.md))
+9. [Canonical serverless operations](RUNBOOK-SERVERLESS-OPERATIONS.md)
 
 ## Validation and Governance
 
@@ -55,6 +56,10 @@ indexes: [`release/README.md`](./release/README.md).
 - Active runbooks must describe runtime env vars as coming from explicit
   `Settings.validation_alias` values in `config.py`; release tooling does not
   read `alias` or infer uppercase names.
+- `RUNBOOK-SERVERLESS-OPERATIONS.md` plus `infra/nova_cdk/README.md` are the
+  canonical path for new serverless environments.
+- ECS/CloudFormation provisioning runbooks remain only for legacy environments
+  that still depend on the older platform shape.
 - Use deeper runbooks for execution detail:
   - `release/release-runbook.md` for release execution, the Node 24 LTS npm
     baseline, the current TypeScript 5.x line with TypeScript 6 explicitly

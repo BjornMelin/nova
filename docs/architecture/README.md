@@ -1,7 +1,7 @@
 # Nova architecture authority map
 
 Status: Active
-Current repository state: **partial wave-2 implementation**
+Current repository state: **mixed wave-2 implementation with serverless platform components landed**
 Last reviewed: 2026-03-25
 
 ## Purpose
@@ -18,13 +18,18 @@ Use it before opening any ADR or SPEC.
 
 ### Current implemented baseline
 
-The current repository is in a mixed state: the auth hard cut and export
-workflow hard cut have landed, while other wave-2 tracks are still pending.
+The current repository is in a mixed state: the auth hard cut, export
+workflow hard cut, and canonical serverless platform package/IaC components
+have landed, while legacy ECS-era deployment assets remain in-tree for older
+environments until the final docs/archive cleanup completes.
 
 - public transfer APIs plus explicit export workflows
 - bearer JWT only, verified in-process in the main API
 - DynamoDB-backed idempotency with explicit expiration filtering
-- ECS/Fargate + ALB + SQS worker as the documented runtime baseline
+- HTTP API + Lambda Web Adapter + Step Functions Standard as the canonical
+  newly landed runtime path
+- legacy ECS/Fargate + ALB + SQS worker assets retained only as non-canonical
+  migration leftovers
 
 For current reality, use:
 

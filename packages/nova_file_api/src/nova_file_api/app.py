@@ -105,6 +105,17 @@ def create_app(*, settings: Settings | None = None) -> FastAPI:
                         and runtime_settings.jobs_sqs_queue_url.strip()
                     )
                 )
+                requires_stepfunctions = (
+                    runtime_settings.jobs_enabled
+                    and runtime_settings.jobs_queue_backend
+                    == JobsQueueBackend.STEP_FUNCTIONS
+                    and bool(
+                        runtime_settings.jobs_step_functions_state_machine_arn
+                        and (
+                            runtime_settings.jobs_step_functions_state_machine_arn.strip()
+                        )
+                    )
+                )
 
                 async with AsyncExitStack() as stack:
                     s3_client = await stack.enter_async_context(
@@ -128,13 +139,26 @@ def create_app(*, settings: Settings | None = None) -> FastAPI:
                         sqs_client = await stack.enter_async_context(
                             session.client("sqs", config=sqs_config)
                         )
+                    stepfunctions_client = None
+                    if requires_stepfunctions:
+                        stepfunctions_client = await stack.enter_async_context(
+                            session.client("stepfunctions")
+                        )
+
+                    runtime_state_kwargs = {
+                        "settings": runtime_settings,
+                        "s3_client": s3_client,
+                        "dynamodb_resource": dynamodb_resource,
+                        "sqs_client": sqs_client,
+                    }
+                    if stepfunctions_client is not None:
+                        runtime_state_kwargs["stepfunctions_client"] = (
+                            stepfunctions_client
+                        )
 
                     initialize_runtime_state(
                         app,
-                        settings=runtime_settings,
-                        s3_client=s3_client,
-                        dynamodb_resource=dynamodb_resource,
-                        sqs_client=sqs_client,
+                        **runtime_state_kwargs,
                     )
                     yield
         finally:

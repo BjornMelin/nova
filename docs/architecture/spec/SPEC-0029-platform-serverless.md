@@ -17,8 +17,10 @@ References:
 
 ## 1. Purpose
 
-Define the approved target-state runtime platform for Nova after the wave-2
-hard cut.
+Define the canonical serverless runtime platform for Nova after the wave-2
+hard cut. The repo now carries first-class workflow handlers and CDK
+infrastructure for this shape, while legacy ECS/CloudFormation assets remain
+only for environments not yet cut over.
 
 ## 2. Runtime topology
 

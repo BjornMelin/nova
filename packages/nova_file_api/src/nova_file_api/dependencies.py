@@ -31,6 +31,8 @@ from nova_file_api.exports import (
     MemoryExportRepository,
     SqsClient,
     SqsExportPublisher,
+    StepFunctionsClient,
+    StepFunctionsExportPublisher,
 )
 from nova_file_api.idempotency import (
     DynamoResource as IdempotencyDynamoResource,
@@ -73,6 +75,14 @@ _MSG_SQS_CLIENT_REQUIRED = (
     "sqs_client must be provided when JOBS_QUEUE_BACKEND=sqs and "
     "JOBS_ENABLED=true"
 )
+_MSG_STEP_FUNCTIONS_STATE_MACHINE_ARN_REQUIRED = (
+    "JOBS_STEP_FUNCTIONS_STATE_MACHINE_ARN must be configured when "
+    "JOBS_QUEUE_BACKEND=stepfunctions and JOBS_ENABLED=true"
+)
+_MSG_STEP_FUNCTIONS_CLIENT_REQUIRED = (
+    "stepfunctions_client must be provided when "
+    "JOBS_QUEUE_BACKEND=stepfunctions and JOBS_ENABLED=true"
+)
 _BEARER_AUTH = HTTPBearer(
     auto_error=False,
     scheme_name="bearerAuth",
@@ -91,6 +101,7 @@ def initialize_runtime_state(
     s3_client: object,
     dynamodb_resource: object | None = None,
     sqs_client: object | None = None,
+    stepfunctions_client: object | None = None,
 ) -> None:
     """Build and attach runtime singletons to application state.
 
@@ -100,6 +111,8 @@ def initialize_runtime_state(
         s3_client: Configured S3 client used by transfer services.
         dynamodb_resource: Optional DynamoDB resource for DynamoDB backends.
         sqs_client: Optional SQS client for queue-backed jobs.
+        stepfunctions_client: Optional Step Functions client for workflow-
+            backed export dispatch.
 
     Returns:
         None.
@@ -130,6 +143,7 @@ def initialize_runtime_state(
     export_publisher = build_export_publisher(
         settings=settings,
         sqs_client=sqs_client,
+        stepfunctions_client=stepfunctions_client,
     )
     activity_store = build_activity_store(
         settings=settings,
@@ -303,12 +317,15 @@ def build_export_publisher(
     *,
     settings: Settings,
     sqs_client: object | None,
+    stepfunctions_client: object | None,
 ) -> ExportPublisher:
     """Create the configured export publisher.
 
     Args:
         settings: Resolved runtime settings.
         sqs_client: SQS client when queue backend is SQS and jobs enabled.
+        stepfunctions_client: Step Functions client when queue backend is
+            Step Functions and jobs are enabled.
 
     Returns:
         The configured export publisher.
@@ -331,6 +348,24 @@ def build_export_publisher(
             return SqsExportPublisher(
                 queue_url=queue_url,
                 sqs_client=cast(SqsClient, sqs_client),
+            )
+    if settings.jobs_queue_backend == JobsQueueBackend.STEP_FUNCTIONS:
+        state_machine_arn = (
+            settings.jobs_step_functions_state_machine_arn.strip()
+            if settings.jobs_step_functions_state_machine_arn
+            else None
+        )
+        if settings.jobs_enabled and not state_machine_arn:
+            raise ValueError(_MSG_STEP_FUNCTIONS_STATE_MACHINE_ARN_REQUIRED)
+        if settings.jobs_enabled and state_machine_arn:
+            if stepfunctions_client is None:
+                raise ValueError(_MSG_STEP_FUNCTIONS_CLIENT_REQUIRED)
+            return StepFunctionsExportPublisher(
+                state_machine_arn=state_machine_arn,
+                stepfunctions_client=cast(
+                    StepFunctionsClient,
+                    stepfunctions_client,
+                ),
             )
     return MemoryExportPublisher(
         export_prefix=settings.file_transfer_export_prefix

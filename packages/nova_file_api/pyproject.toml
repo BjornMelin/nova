@@ -21,9 +21,6 @@ dependencies = [
   "uvicorn[standard]>=0.42.0",
 ]
 
-[project.scripts]
-nova-file-worker = "nova_file_api.worker:cli"
-
 [tool.fastapi]
 entrypoint = "nova_file_api.main:app"
 

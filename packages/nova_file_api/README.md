@@ -1,6 +1,6 @@
 # nova-file-api
 
-FastAPI control-plane package for file transfers and async jobs in the Nova runtime.
+FastAPI control-plane package for file transfers and export workflows in the Nova runtime.
 
 ## Process entrypoint
 
@@ -17,12 +17,10 @@ Primary contract endpoints:
 - `POST /v1/transfers/uploads/complete`
 - `POST /v1/transfers/uploads/abort`
 - `POST /v1/transfers/downloads/presign`
-- `POST /v1/jobs`
-- `GET /v1/jobs`
-- `GET /v1/jobs/{job_id}`
-- `POST /v1/jobs/{job_id}/cancel`
-- `POST /v1/jobs/{job_id}/retry`
-- `GET /v1/jobs/{job_id}/events` (poll response shape compatible with SSE consumers)
+- `POST /v1/exports`
+- `GET /v1/exports`
+- `GET /v1/exports/{export_id}`
+- `POST /v1/exports/{export_id}/cancel`
 - `GET /v1/capabilities`
 - `POST /v1/resources/plan`
 - `GET /v1/releases/info`

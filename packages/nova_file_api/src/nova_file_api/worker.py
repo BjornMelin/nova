@@ -222,6 +222,7 @@ class JobsWorker:
                         export_publisher=build_export_publisher(
                             settings=self._settings,
                             sqs_client=sqs_client,
+                            stepfunctions_client=None,
                         ),
                         metrics=build_metrics(settings=self._settings),
                     )

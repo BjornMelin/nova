@@ -43,12 +43,15 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 FROM ${BASE_IMAGE}
 
 ENV PATH="/app/.venv/bin:$PATH" \
+    AWS_LWA_PORT=8050 \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
 RUN useradd --create-home --shell /bin/bash appuser
+
+COPY --from=public.ecr.aws/awsguru/aws-lambda-adapter:1.0.0-rc1 /lambda-adapter /opt/extensions/lambda-adapter
 
 COPY --from=builder --chown=appuser:appuser /app/.venv /app/.venv
 

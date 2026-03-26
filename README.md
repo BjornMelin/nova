@@ -27,11 +27,14 @@ Use these entrypoints before drilling into deeper docs:
 - `packages/nova_file_api/`: transfer, export workflows, readiness, metrics, ASGI
   entrypoint, worker orchestration, and **in-process bearer JWT** verification
   in the target architecture (`ADR-0033`, `SPEC-0027`)
+- `packages/nova_workflows/`: Step Functions task handlers for the canonical
+  export workflow runtime
 - `packages/nova_dash_bridge/`: Dash/Flask/FastAPI integration adapters over
   `nova_file_api.public`
 - `packages/nova_runtime_support/`: shared runtime support helpers, including
   outer-ASGI request context and canonical FastAPI exception registration
 - `packages/contracts/`: OpenAPI artifacts and contract fixtures
+- `infra/nova_cdk/`: canonical CDK v2 Python app for the serverless AWS runtime
 
 ## Contract Summary
 
@@ -283,6 +286,11 @@ The runtime deploy operator now owns the ECS service task role and ECS
 infrastructure role resolution. Do not supply
 `ECS_INFRASTRUCTURE_ROLE_ARN`, `TASK_ROLE_ARN`,
 `TASK_EXECUTION_SECRET_ARNS`, or `TASK_EXECUTION_SSM_PARAMETER_ARNS`.
+
+Canonical serverless packaging now lives in `infra/nova_cdk/` and
+`apps/nova_workflows_tasks/Dockerfile`. The older ECS/CloudFormation operator
+path remains only for legacy environments and is no longer the target runtime
+for new deployments.
 
 ## Local Service Images
 
