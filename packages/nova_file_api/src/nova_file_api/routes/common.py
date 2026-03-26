@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
 from typing import Annotated, Any
 
 from fastapi import Header, Query
@@ -13,8 +12,7 @@ from nova_file_api.metrics import MetricsCollector
 from nova_file_api.models import ErrorEnvelope, ReadinessResponse
 
 OpenApiResponse = dict[str, Any]
-OpenApiResponses = Mapping[int | str, OpenApiResponse]
-FastApiResponses = dict[int | str, dict[str, Any]]
+OpenApiResponses = dict[int | str, OpenApiResponse]
 
 IdempotencyKeyHeader = Annotated[
     str | None,
@@ -78,23 +76,6 @@ READINESS_UNAVAILABLE_RESPONSE: OpenApiResponses = {
         description="Service Unavailable - Readiness failed.",
     )
 }
-
-
-def merge_openapi_responses(
-    *response_sets: Mapping[int | str, OpenApiResponse],
-) -> FastApiResponses:
-    """Build a FastAPI-compatible responses mapping from reusable pieces."""
-    merged: FastApiResponses = {}
-    for response_set in response_sets:
-        for status_code, resp in response_set.items():
-            if status_code in merged:
-                msg = (
-                    f"OpenAPI responses conflict: status {status_code!r} is "
-                    f"already defined when merging response metadata"
-                )
-                raise ValueError(msg)
-            merged[status_code] = dict(resp)
-    return merged
 
 
 def emit_request_metric(

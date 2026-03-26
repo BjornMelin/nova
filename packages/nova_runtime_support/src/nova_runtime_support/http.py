@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from time import perf_counter
-from typing import Any, TypeVar
+from typing import Any, Protocol, TypeVar
 from uuid import uuid4
 
 import structlog
@@ -32,6 +32,14 @@ class CanonicalErrorSpec:
     message: str
     details: Mapping[str, Any] = field(default_factory=dict)
     headers: Mapping[str, str] = field(default_factory=dict)
+
+
+class CanonicalErrorLike(Protocol):
+    """Structural contract for domain errors already shaped for the envelope."""
+
+    status_code: int
+    code: str
+    message: str
 
 
 class RequestContextASGIMiddleware:
@@ -177,6 +185,26 @@ def register_fastapi_exception_handlers(
             request=request,
             spec=adapt_unhandled_error(exc),
         )
+
+
+def canonical_error_spec_from_error(
+    exc: CanonicalErrorLike,
+) -> CanonicalErrorSpec:
+    """Build a canonical transport spec from a domain error object."""
+    details = getattr(exc, "details", {})
+    headers = dict(getattr(exc, "headers", {}))
+    if int(exc.status_code) == 401 and "WWW-Authenticate" not in headers:
+        headers["WWW-Authenticate"] = (
+            'Bearer error="invalid_token", '
+            'error_description="missing bearer token"'
+        )
+    return CanonicalErrorSpec(
+        status_code=int(exc.status_code),
+        code=exc.code,
+        message=exc.message,
+        details=details,
+        headers=headers,
+    )
 
 
 def _register_extra_exception_handler(

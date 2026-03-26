@@ -30,6 +30,7 @@ from nova_file_api.public import (
 from nova_runtime_support import (
     CanonicalErrorSpec,
     RequestContextFastAPI,
+    canonical_error_spec_from_error,
     register_fastapi_exception_handlers,
 )
 
@@ -62,17 +63,6 @@ def _fastapi_imports() -> tuple[type[Any], type[Any]]:
             "FastAPI integration requires optional dependency group `fastapi`"
         ) from exc
     return (APIRouter, FastAPI)
-
-
-def _error_headers(err: FileTransferError) -> dict[str, str]:
-    """Return response headers for canonical bridge file-transfer errors."""
-    headers = dict(getattr(err, "headers", {}))
-    if int(err.status_code) == 401 and "WWW-Authenticate" not in headers:
-        headers["WWW-Authenticate"] = (
-            'Bearer error="invalid_token", '
-            'error_description="missing bearer token"'
-        )
-    return headers
 
 
 def create_fastapi_router(
@@ -199,7 +189,7 @@ def create_fastapi_app(
     register_fastapi_exception_handlers(
         app,
         domain_error_type=FileTransferError,
-        adapt_domain_error=_bridge_error_spec,
+        adapt_domain_error=canonical_error_spec_from_error,
         validation_error_details=_validation_error_details,
         adapt_unhandled_error=_bridge_unhandled_error_spec,
         extra_exception_adapters={JSONDecodeError: _json_decode_error_spec},
@@ -217,20 +207,9 @@ def create_fastapi_app(
     return app
 
 
-def _bridge_error_spec(exc: FileTransferError) -> CanonicalErrorSpec:
-    """Adapt a bridge file-transfer error into the shared transport shape."""
-    return CanonicalErrorSpec(
-        status_code=int(exc.status_code),
-        code=exc.code,
-        message=exc.message,
-        details=exc.details,
-        headers=_error_headers(exc),
-    )
-
-
 def _bridge_unhandled_error_spec(exc: Exception) -> CanonicalErrorSpec:
     """Coerce unexpected bridge exceptions into canonical transport errors."""
-    return _bridge_error_spec(coerce_file_transfer_error(exc))
+    return canonical_error_spec_from_error(coerce_file_transfer_error(exc))
 
 
 def _validation_error_details(exc: Any) -> dict[str, object]:

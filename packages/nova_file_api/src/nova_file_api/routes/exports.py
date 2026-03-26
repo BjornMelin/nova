@@ -40,14 +40,13 @@ from nova_file_api.routes.common import (
     ExportsLimitQuery,
     IdempotencyKeyHeader,
     emit_request_metric,
-    merge_openapi_responses,
     validated_idempotency_key,
 )
 
 exports_router = APIRouter(
     prefix="/v1",
     tags=["exports"],
-    responses=merge_openapi_responses(COMMON_ERROR_RESPONSES),
+    responses=COMMON_ERROR_RESPONSES,
 )
 
 
@@ -56,9 +55,8 @@ exports_router = APIRouter(
     operation_id=CREATE_EXPORT_OPERATION_ID,
     response_model=ExportResource,
     status_code=status.HTTP_201_CREATED,
-    responses=merge_openapi_responses(
-        IDEMPOTENCY_CONFLICT_RESPONSE,
-        EXPORT_MUTATION_UNAVAILABLE_RESPONSE,
+    responses=(
+        IDEMPOTENCY_CONFLICT_RESPONSE | EXPORT_MUTATION_UNAVAILABLE_RESPONSE
     ),
 )
 async def create_export(

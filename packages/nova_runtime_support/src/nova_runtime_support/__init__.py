@@ -11,6 +11,7 @@ from nova_runtime_support.http import (
     RequestContextASGIMiddleware,
     RequestContextFastAPI,
     canonical_error_content,
+    canonical_error_spec_from_error,
     register_fastapi_exception_handlers,
     request_id_from_request,
 )
@@ -30,6 +31,7 @@ __all__ = [
     "build_async_jwt_verifier",
     "build_auth_config",
     "canonical_error_content",
+    "canonical_error_spec_from_error",
     "configure_structlog",
     "normalized_principal_claims",
     "register_fastapi_exception_handlers",
