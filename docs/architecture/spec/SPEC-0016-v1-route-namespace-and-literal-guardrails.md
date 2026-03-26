@@ -36,8 +36,6 @@ Public runtime routes:
 - `GET /v1/exports`
 - `GET /v1/exports/{export_id}`
 - `POST /v1/exports/{export_id}/cancel`
-- `POST /v1/exports/{export_id}`
-- `GET /v1/exports/{export_id}`
 - `GET /v1/capabilities`
 - `POST /v1/resources/plan`
 - `GET /v1/releases/info`

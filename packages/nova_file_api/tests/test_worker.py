@@ -14,7 +14,7 @@ from nova_file_api.exports import (
     MemoryExportRepository,
 )
 from nova_file_api.metrics import MetricsCollector
-from nova_file_api.models import ExportRecord, ExportStatus
+from nova_file_api.models import ExportOutput, ExportRecord, ExportStatus
 from nova_file_api.transfer import ExportCopyResult, TransferService
 from nova_file_api.worker import JobsWorker
 
@@ -83,6 +83,7 @@ async def _build_worker_runtime(
     *,
     export_id: str = "export-1",
     status: ExportStatus = ExportStatus.QUEUED,
+    output: ExportOutput | None = None,
 ) -> tuple[MemoryExportRepository, ExportService, MemoryActivityStore]:
     repository = MemoryExportRepository()
     metrics = MetricsCollector(namespace="Tests")
@@ -100,7 +101,7 @@ async def _build_worker_runtime(
             source_key="uploads/scope-1/source.csv",
             filename="source.csv",
             status=status,
-            output=None,
+            output=output,
             error=None,
             created_at=now,
             updated_at=now,
@@ -229,6 +230,72 @@ async def test_worker_retryable_error_leaves_message_unacked() -> None:
     assert should_delete is False
     assert record is not None
     assert record.status == ExportStatus.COPYING
+
+
+@pytest.mark.asyncio
+async def test_worker_resumes_from_copying_state_after_retry() -> None:
+    transfer_service = _FakeTransferService()
+    repository, export_service, activity_store = await _build_worker_runtime(
+        export_id="export-5",
+        status=ExportStatus.COPYING,
+    )
+    worker = _build_worker(transfer_service=transfer_service)
+    await _attach_runtime(
+        worker=worker,
+        transfer_service=transfer_service,
+        export_service=export_service,
+        activity_store=activity_store,
+    )
+
+    should_delete = await worker._handle_message(
+        message={
+            "MessageId": "msg-5",
+            "ReceiptHandle": "rh-5",
+            "Body": _worker_message_body(export_id="export-5"),
+        }
+    )
+
+    record = await repository.get("export-5")
+    assert should_delete is True
+    assert record is not None
+    assert record.status == ExportStatus.SUCCEEDED
+    assert record.output is not None
+    assert transfer_service.calls[0]["export_id"] == "export-5"
+
+
+@pytest.mark.asyncio
+async def test_worker_resumes_from_finalizing_state_without_recopied() -> None:
+    transfer_service = _FakeTransferService()
+    repository, export_service, activity_store = await _build_worker_runtime(
+        export_id="export-6",
+        status=ExportStatus.FINALIZING,
+        output=ExportOutput(
+            key="exports/scope-1/export-6/source.csv",
+            download_filename="source.csv",
+        ),
+    )
+    worker = _build_worker(transfer_service=transfer_service)
+    await _attach_runtime(
+        worker=worker,
+        transfer_service=transfer_service,
+        export_service=export_service,
+        activity_store=activity_store,
+    )
+
+    should_delete = await worker._handle_message(
+        message={
+            "MessageId": "msg-6",
+            "ReceiptHandle": "rh-6",
+            "Body": _worker_message_body(export_id="export-6"),
+        }
+    )
+
+    record = await repository.get("export-6")
+    assert should_delete is True
+    assert record is not None
+    assert record.status == ExportStatus.SUCCEEDED
+    assert record.output is not None
+    assert transfer_service.calls == []
 
 
 @pytest.mark.asyncio

@@ -103,7 +103,7 @@ curl -sS -o /dev/null -w "%{http_code}\n" \
   -X POST "${NONPROD_API_BASE_URL}/v1/exports" \
   -H "Content-Type: application/json" -d '{}'
 curl -sS -o /dev/null -w "%{http_code}\n" \
-  "${NONPROD_API_BASE_URL}/v1/exports/nonprod-smoke/events"
+  "${NONPROD_API_BASE_URL}/v1/exports?limit=1"
 curl -sS -o /dev/null -w "%{http_code}\n" \
   "${NONPROD_API_BASE_URL}/v1/capabilities"
 curl -sS -o /dev/null -w "%{http_code}\n" \

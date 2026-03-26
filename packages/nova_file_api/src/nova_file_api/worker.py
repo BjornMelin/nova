@@ -308,35 +308,7 @@ class JobsWorker:
             )
             return False
 
-        try:
-            if await self._publish_result(
-                export_id=worker_message.export_id,
-                status=ExportStatus.VALIDATING,
-                output=None,
-                error=None,
-                allow_terminal_conflict=True,
-            ):
-                self._logger.info(
-                    "exports_worker_terminal_redelivery_acked",
-                    message_id=message_id,
-                    export_id=worker_message.export_id,
-                    receive_count=receive_count,
-                )
-                return True
-        except _WorkerResultUpdateError as exc:
-            self._logger.warning(
-                "exports_worker_validating_update_not_accepted",
-                message_id=message_id,
-                export_id=worker_message.export_id,
-                receive_count=receive_count,
-                retryable=exc.retryable,
-                status_code=exc.status_code,
-                error_type=exc.error_type,
-                error_detail=str(exc),
-            )
-            return False
-
-        async def _execute_and_publish() -> bool:
+        async def _execute_copy_and_finalize() -> bool:
             try:
                 transfer_service = self._require_transfer_service()
                 if await self._publish_result(
@@ -391,10 +363,96 @@ class JobsWorker:
                 error=None,
             )
 
+        try:
+            if await self._publish_result(
+                export_id=worker_message.export_id,
+                status=ExportStatus.VALIDATING,
+                output=None,
+                error=None,
+                allow_terminal_conflict=True,
+            ):
+                self._logger.info(
+                    "exports_worker_terminal_redelivery_acked",
+                    message_id=message_id,
+                    export_id=worker_message.export_id,
+                    receive_count=receive_count,
+                )
+                return True
+        except _WorkerResultUpdateError as exc:
+            self._logger.warning(
+                "exports_worker_validating_update_not_accepted",
+                message_id=message_id,
+                export_id=worker_message.export_id,
+                receive_count=receive_count,
+                retryable=exc.retryable,
+                status_code=exc.status_code,
+                error_type=exc.error_type,
+                error_detail=str(exc),
+            )
+            if exc.status_code != 409:
+                return False
+            try:
+                current_export = await self._require_export_service().get(
+                    export_id=worker_message.export_id,
+                    scope_id=worker_message.scope_id,
+                )
+            except FileTransferError as lookup_exc:
+                self._logger.warning(
+                    "exports_worker_resume_lookup_failed",
+                    message_id=message_id,
+                    export_id=worker_message.export_id,
+                    receive_count=receive_count,
+                    error_type=type(lookup_exc).__name__,
+                    error_detail=str(lookup_exc),
+                )
+                return False
+            if current_export.status in {
+                ExportStatus.SUCCEEDED,
+                ExportStatus.FAILED,
+                ExportStatus.CANCELLED,
+            }:
+                self._logger.info(
+                    "exports_worker_terminal_redelivery_acked",
+                    message_id=message_id,
+                    export_id=worker_message.export_id,
+                    receive_count=receive_count,
+                )
+                return True
+            if current_export.status == ExportStatus.FINALIZING:
+                if current_export.output is None:
+                    self._logger.warning(
+                        "exports_worker_resume_missing_output",
+                        message_id=message_id,
+                        export_id=worker_message.export_id,
+                        receive_count=receive_count,
+                    )
+                    return False
+                return await self._publish_terminal_result(
+                    message_id=message_id,
+                    receive_count=receive_count,
+                    export_id=worker_message.export_id,
+                    status=ExportStatus.SUCCEEDED,
+                    output=current_export.output,
+                    error=None,
+                )
+            if current_export.status != ExportStatus.COPYING:
+                self._logger.warning(
+                    "exports_worker_unexpected_resume_state",
+                    message_id=message_id,
+                    export_id=worker_message.export_id,
+                    receive_count=receive_count,
+                    current_status=current_export.status.value,
+                )
+                return False
+            return await self._run_with_visibility_extension(
+                message=message,
+                job_id=worker_message.export_id,
+                operation=_execute_copy_and_finalize,
+            )
         return await self._run_with_visibility_extension(
             message=message,
             job_id=worker_message.export_id,
-            operation=_execute_and_publish,
+            operation=_execute_copy_and_finalize,
         )
 
     async def _run_with_visibility_extension(
