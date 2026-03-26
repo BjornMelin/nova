@@ -43,9 +43,7 @@ files unless a directory-local rule is durable and materially different.
 | [packages/nova_runtime_support/](packages/nova_runtime_support/) | Outer-ASGI request context, shared FastAPI exception registration, log redaction, shared auth helpers. |
 | [packages/contracts/](packages/contracts/) | OpenAPI artifacts and contract inputs. |
 
-**Packaging:** Each runtime package must declare intra-workspace runtime
-dependencies in its own `pyproject.toml`. Do not treat root workspace
-sync/install as a production contract.
+**Packaging:** Each runtime package must declare explicit intra-workspace runtime dependencies in its own `pyproject.toml`. Do not rely on root workspace sync/install shape as a production contract.
 
 ## SDK and OpenAPI
 
@@ -61,6 +59,17 @@ generator config, and minimal templates — **not** large post-generation patche
 [Generated TypeScript SDK Rules](docs/standards/repository-engineering-standards.md#generated-typescript-sdk-rules),
 [R Package Rules](docs/standards/repository-engineering-standards.md#r-package-rules), and
 [Generator Ownership Rules](docs/standards/repository-engineering-standards.md#generator-ownership-rules).
+
+TypeScript SDK operator rules that must remain true:
+
+- public packages must not expose package-root `"."` exports
+- TypeScript SDK packages stay generator-owned and subpath-only
+- internal-only surfaces require `x-nova-sdk-visibility: internal`
+- generate and validate TypeScript SDK outputs through
+  `scripts/release/generate_clients.py`
+- publish and install paths must preserve the CodeArtifact staged/prod split
+- npm auth lanes must set `NPM_CONFIG_USERCONFIG`
+- keep `docs/standards/README.md` aligned when these rules change
 
 ## Documentation and behavior changes
 
@@ -94,7 +103,8 @@ and update matrix are defined in
 - Callers authenticate with **bearer JWT** verified in `nova_file_api`. There
   is no `/v1/token/verify` or `/v1/token/introspect` (`ADR-0033`, `ADR-0034`,
   `SPEC-0027`).
-- Do not add aliases such as `/api/*`, `/api/v1/*`, `/healthz`, `/readyz`.
+- Do not add compatibility aliases for legacy API-prefixed routes or shorthand
+  health/readiness endpoints.
 - `nova_dash_bridge` forwards context and calls `nova_file_api.public`; it does
   not redefine routes, auth, or storage.
 - `nova_file_api.public` is the in-process transfer API: plain-data factory/config,
@@ -234,6 +244,8 @@ DOCKER_BUILDKIT=1 docker buildx build --load \
   -f apps/nova_file_api_service/Dockerfile \
   -t nova-file-api:test .
 ```
+
+This local image-build contract requires BuildKit plus `buildx`.
 
 If Docker auth to registries fails, see
 [docs/runbooks/provisioning/docker-buildx-credential-helper-setup.md](docs/runbooks/provisioning/docker-buildx-credential-helper-setup.md).
