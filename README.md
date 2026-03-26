@@ -92,7 +92,9 @@ OpenAPI 3.1 emitted from runtime code is the contract source for docs and SDK
 generation. Public error and readiness responses are declared directly on
 routers and routes with FastAPI `responses=`, while runtime contract tests
 enforce stable snake_case `operationId` values and semantic tags for public
-grouping.
+grouping. The file API no longer carries a service-local OpenAPI post-processor;
+shared runtime transport helpers and native FastAPI route metadata are the
+canonical source of emitted schema behavior.
 
 For detailed SDK governance and generation rules, use:
 

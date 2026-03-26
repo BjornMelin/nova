@@ -15,6 +15,7 @@ from nova_runtime_support.http import (
     CanonicalErrorSpec,
     RequestContextASGIMiddleware,
     RequestContextFastAPI,
+    canonical_error_spec_from_error,
     register_fastapi_exception_handlers,
 )
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
@@ -23,6 +24,18 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 @dataclass(slots=True)
 class DemoError(Exception):
     """Test exception used to exercise shared handler registration."""
+
+    code: str
+    message: str
+    status_code: int
+
+    def __post_init__(self) -> None:
+        Exception.__init__(self, self.message)
+
+
+@dataclass(slots=True)
+class _BareUnauthorizedError(Exception):
+    """Minimal error shape for shared transport adapter tests."""
 
     code: str
     message: str
@@ -212,6 +225,20 @@ def test_shared_middleware_preserves_streaming_responses() -> None:
     assert response.status_code == 200
     assert response.headers["X-Request-Id"]
     assert response.text == "alphabeta"
+
+
+def test_canonical_error_spec_from_error_adds_default_bearer_header() -> None:
+    """Shared transport adapter should fail closed for 401 auth errors."""
+    spec = canonical_error_spec_from_error(
+        _BareUnauthorizedError(
+            code="unauthorized",
+            message="missing bearer token",
+            status_code=401,
+        )
+    )
+
+    assert spec.status_code == 401
+    assert spec.headers["WWW-Authenticate"].startswith("Bearer ")
 
 
 class _LogCapture:

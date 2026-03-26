@@ -6,6 +6,7 @@ from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 from nova_runtime_support import (
     CanonicalErrorSpec,
+    canonical_error_spec_from_error,
     register_fastapi_exception_handlers,
 )
 
@@ -18,21 +19,10 @@ def register_exception_handlers(app: FastAPI) -> None:
     register_fastapi_exception_handlers(
         app,
         domain_error_type=FileTransferError,
-        adapt_domain_error=_file_transfer_error_spec,
+        adapt_domain_error=canonical_error_spec_from_error,
         validation_error_details=_validation_error_details,
         adapt_unhandled_error=_unhandled_error_spec,
         logger_name="errors",
-    )
-
-
-def _file_transfer_error_spec(exc: FileTransferError) -> CanonicalErrorSpec:
-    """Adapt a file-API domain error into the shared transport shape."""
-    return CanonicalErrorSpec(
-        status_code=exc.status_code,
-        code=exc.code,
-        message=exc.message,
-        details=exc.details,
-        headers=exc.headers,
     )
 
 
@@ -46,4 +36,4 @@ def _validation_error_details(
 def _unhandled_error_spec(_: Exception) -> CanonicalErrorSpec:
     """Return the canonical internal-error transport payload."""
     err = internal_error("unexpected internal error")
-    return _file_transfer_error_spec(err)
+    return canonical_error_spec_from_error(err)

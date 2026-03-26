@@ -45,14 +45,13 @@ from nova_file_api.routes.common import (
     IDEMPOTENCY_UNAVAILABLE_RESPONSE,
     IdempotencyKeyHeader,
     emit_request_metric,
-    merge_openapi_responses,
     validated_idempotency_key,
 )
 
 transfer_router = APIRouter(
     prefix="/v1/transfers",
     tags=["transfers"],
-    responses=merge_openapi_responses(COMMON_ERROR_RESPONSES),
+    responses=COMMON_ERROR_RESPONSES,
 )
 
 
@@ -60,10 +59,7 @@ transfer_router = APIRouter(
     "/uploads/initiate",
     operation_id=INITIATE_UPLOAD_OPERATION_ID,
     response_model=InitiateUploadResponse,
-    responses=merge_openapi_responses(
-        IDEMPOTENCY_CONFLICT_RESPONSE,
-        IDEMPOTENCY_UNAVAILABLE_RESPONSE,
-    ),
+    responses=IDEMPOTENCY_CONFLICT_RESPONSE | IDEMPOTENCY_UNAVAILABLE_RESPONSE,
 )
 async def initiate_upload(
     payload: InitiateUploadRequest,

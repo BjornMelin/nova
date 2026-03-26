@@ -278,6 +278,18 @@ def test_openapi_route_declared_error_contracts() -> None:
     ] == {"$ref": "#/components/schemas/ErrorEnvelope"}
 
 
+def test_openapi_uses_bearer_security_scheme_only() -> None:
+    """OpenAPI should expose only the native bearer security scheme."""
+    app = _build_openapi_app()
+    payload = app.openapi()
+
+    security_schemes = payload["components"]["securitySchemes"]
+    assert "bearerAuth" in security_schemes
+    assert "sessionAuth" not in security_schemes
+    assert security_schemes["bearerAuth"]["type"] == "http"
+    assert security_schemes["bearerAuth"]["scheme"] == "bearer"
+
+
 def test_legacy_job_routes_are_not_exposed() -> None:
     """The OpenAPI schema should no longer contain generic job routes."""
     app = _build_openapi_app_with_stub_auth()
