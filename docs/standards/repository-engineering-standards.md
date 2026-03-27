@@ -104,8 +104,8 @@ Rules for narrative provisioning, release, and validation markdown under
 
 - R SDK packages are first-class internal release artifacts, not deferred
   generated catalogs.
-- The package line is `nova.sdk.r.file`, with repository path under
-  `packages/nova_sdk_r_file/`.
+- The package line is `nova`, with repository path under
+  `packages/nova_sdk_r/`.
 - R packages use real package scaffolds, `logical format r`, generator-owned
   output from `scripts/release/generate_clients.py`, testthat coverage, and
   verification through the shared `scripts/checks/verify_r_cmd_check.sh`

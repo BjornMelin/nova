@@ -60,7 +60,8 @@ Implementation commitments:
   semantic tags so generated client groupings remain ergonomic.
 - Use `@hey-api/openapi-ts` with the generated fetch client for TypeScript
   consumption.
-- Use OpenAPI Generator for R client generation when R SDK artifacts are required.
+- Use a thin `httr2` wrapper when R SDK artifacts are required; do not treat
+  OpenAPI Generator as the canonical R client strategy.
 - Keep Python generated-client smoke verification via
   `openapi-python-client`.
 - Keep custom request-body `$ref` entries resolvable within emitted component

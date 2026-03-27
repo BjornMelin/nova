@@ -1,9 +1,9 @@
-Package: nova.sdk.r.file
+Package: nova
 Type: Package
-Title: Nova SDK R file client
+Title: Nova R client
 Version: 0.1.0
 Authors@R: person("Nova SDK Team", email = "sdk@nova.invalid", role = c("aut", "cre"))
-Description: Generated R client for the Nova file API.
+Description: Thin httr2 client for the Nova public API.
 License: file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)

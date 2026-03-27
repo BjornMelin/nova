@@ -66,9 +66,9 @@ nova-workflows = { workspace = true }
 [tool.nova.release]
 
 [[tool.nova.release.units]]
-unit_id = "packages/nova_sdk_r_file"
-path = "packages/nova_sdk_r_file"
-project_name = "nova.sdk.r.file"
+unit_id = "packages/nova_sdk_r"
+path = "packages/nova_sdk_r"
+project_name = "nova"
 dependencies = []
 format = "r"
 codeartifact_format = "generic"

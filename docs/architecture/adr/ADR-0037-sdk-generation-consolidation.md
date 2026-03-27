@@ -57,6 +57,7 @@ thin `httr2` wrapper for R.
 Implementation commitments:
 
 - Rename the canonical SDK package directories to the target names.
+- Publish the canonical R package as `nova` from `packages/nova_sdk_r`.
 - Delete auth SDK packages and `packages/nova_sdk_fetch`.
 - Keep release tooling generator-oriented and language-specific rather than
   patch-heavy and package-split aware.

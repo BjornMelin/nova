@@ -91,21 +91,21 @@ TARGETS = (
     GenerationTarget(
         spec_path=OPENAPI_ROOT / "nova-file-api.openapi.json",
         ts_package_root=REPO_ROOT / "packages" / "nova_sdk_ts",
-        r_package_name="nova.sdk.r.file",
-        r_package_title="Nova SDK R file client",
-        r_package_description="Generated R client for the Nova file API.",
+        r_package_name="nova",
+        r_package_title="Nova R client",
+        r_package_description="Thin httr2 client for the Nova public API.",
         r_output_path=REPO_ROOT
         / "packages"
-        / "nova_sdk_r_file"
+        / "nova_sdk_r"
         / "R"
         / "generated.R",
         r_client_output_path=REPO_ROOT
         / "packages"
-        / "nova_sdk_r_file"
+        / "nova_sdk_r"
         / "R"
         / "client.R",
-        r_client_prefix="nova_file",
-        catalog_function_name="nova_file_operation_catalog",
+        r_client_prefix="nova",
+        catalog_function_name="nova_operation_catalog",
     ),
 )
 
@@ -1089,7 +1089,11 @@ def _render_r_client(target: GenerationTarget) -> str:
         "  if (!is.character(base_url) || length(base_url) != 1L || !nzchar(base_url)) {",
         '    stop("base_url must be a non-empty string", call. = FALSE)',
         "  }",
-        '  sub("/+$", "", base_url)',
+        '  trimmed <- sub("/+$", "", base_url)',
+        "  if (!nzchar(trimmed)) {",
+        '    stop("base_url must remain usable after trimming trailing slashes", call. = FALSE)',
+        "  }",
+        "  trimmed",
         "}",
         "",
         f"{prefix}_resolve_path <- function(path, path_params) {{",
@@ -1183,16 +1187,17 @@ def _render_r_client(target: GenerationTarget) -> str:
         f"    {prefix}_parse_json_response(response),",
         "    error = function(...) NULL",
         "  )",
+        "  fallback_status <- if (is.null(status)) 'unknown' else as.character(status)",
+        '  fallback_code <- paste0("http_", fallback_status)',
+        f"  fallback_message <- if (!nzchar({prefix}_response_body_text(response))) {{",
+        '    sprintf("HTTP %s response", fallback_status)',
+        "  } else {",
+        f"    {prefix}_response_body_text(response)",
+        "  }",
         "  if (!is.list(parsed_body) || is.null(parsed_body$error) || !is.list(parsed_body$error)) {",
-        "    fallback_status <- if (is.null(status)) 'unknown' else as.character(status)",
-        f"    fallback_message <- if (!nzchar({prefix}_response_body_text(response))) {{",
-        '      sprintf("HTTP %s response", fallback_status)',
-        "    } else {",
-        f"      {prefix}_response_body_text(response)",
-        "    }",
         "    return(",
         "      list(",
-        '        code = paste0("http_", fallback_status),',
+        "        code = fallback_code,",
         "        message = fallback_message,",
         "        details = list(),",
         "        request_id = NULL",
@@ -1204,9 +1209,27 @@ def _render_r_client(target: GenerationTarget) -> str:
         "  if (length(request_id) == 0L) {",
         "    request_id <- NULL",
         "  }",
+        "  error_code <- error_body$code",
+        "  if (length(error_code) == 0L) {",
+        "    error_code <- fallback_code",
+        "  } else {",
+        "    error_code <- as.character(error_code[[1L]])",
+        "    if (is.na(error_code) || !nzchar(error_code)) {",
+        "      error_code <- fallback_code",
+        "    }",
+        "  }",
+        "  error_message <- error_body$message",
+        "  if (length(error_message) == 0L) {",
+        "    error_message <- fallback_message",
+        "  } else {",
+        "    error_message <- as.character(error_message[[1L]])",
+        "    if (is.na(error_message) || !nzchar(error_message)) {",
+        "      error_message <- fallback_message",
+        "    }",
+        "  }",
         "  list(",
-        "    code = as.character(error_body$code),",
-        "    message = as.character(error_body$message),",
+        "    code = error_code,",
+        "    message = error_message,",
         f"    details = {prefix}_null_coalesce(error_body$details, list()),",
         "    request_id = request_id",
         "  )",
@@ -1408,21 +1431,18 @@ def _render_r_namespace(target: GenerationTarget) -> str:
 
 def _render_r_readme(target: GenerationTarget) -> str:
     client_prefix = target.r_client_prefix
-    short_prefix = client_prefix.removeprefix("nova_")
-    # TARGETS currently contains only the nova_file R package, so the README
-    # example stays keyed to target metadata rather than per-operation logic.
     constructor = f"create_{client_prefix}_client"
-    operation_prefix = f"nova_{short_prefix}"
+    operation_prefix = client_prefix
     lines = [
         f"# `{target.r_package_name}`",
         "",
-        f"Generated R client for the Nova {short_prefix} API.",
+        f"{target.r_package_description}",
         "",
         "This package is generated from committed OpenAPI and is kept in-repo so",
         "Nova release tooling can build and check the real package tree.",
         "The generated client is intentionally thin and follows the current",
-        "public Nova file API contract: bearer JWT auth, JSON bodies,",
-        "concrete path/query parameters, and plain R list responses.",
+        "public Nova API contract: bearer JWT auth, JSON bodies, concrete",
+        "path/query parameters, and plain R list responses.",
         "",
         "## Surface",
         "",
@@ -1438,7 +1458,7 @@ def _render_r_readme(target: GenerationTarget) -> str:
         [
             f"client <- {constructor}(",
             '  "https://nova.example/",',
-            '  bearer_token = "eyJhbGciOi...",',
+            '  bearer_token = "eyJhbGciOi…",',
             ")",
             "",
             f"result <- {operation_prefix}_create_export(",
@@ -1525,12 +1545,11 @@ def _render_r_tests_entrypoint(target: GenerationTarget) -> str:
 
 def _render_r_tests(target: GenerationTarget) -> str:
     client_prefix = target.r_client_prefix
-    short_prefix = client_prefix.removeprefix("nova_")
     constructor = f"create_{client_prefix}_client"
     default_user_agent = f"{client_prefix}_default_user_agent()"
-    bearer_env_var = f"NOVA_{short_prefix.upper()}_BEARER_TOKEN"
-    namespace = f"nova.sdk.r.{short_prefix}"
-    operation_prefix = f"nova_{short_prefix}"
+    bearer_env_var = f"{client_prefix.upper()}_BEARER_TOKEN"
+    namespace = target.r_package_name
+    operation_prefix = client_prefix
     api_error_class = f"{client_prefix}_api_error"
     lines = [
         'test_that("constructor resolves explicit and environment bearer tokens", {',
@@ -1545,6 +1564,10 @@ def _render_r_tests(target: GenerationTarget) -> str:
         f"  withr::local_envvar({bearer_env_var} = NA_character_)",
         f'  client <- {constructor}("https://nova.example/", bearer_token = character(0))',
         "  expect_null(client$bearer_token)",
+        "})",
+        "",
+        'test_that("constructor rejects unusable base URLs after trimming", {',
+        f'  expect_error({constructor}("/"), "base_url must remain usable after trimming trailing slashes", fixed = TRUE)',
         "})",
         "",
         'test_that("constructor normalizes invalid user agents to the default", {',
@@ -1678,6 +1701,28 @@ def _render_r_tests(target: GenerationTarget) -> str:
         '  expect_equal(error$details$backend, "sqs")',
         "  expect_equal(httr2::resp_status(error$resp), 503L)",
         '  expect_equal(conditionMessage(error), "[queue_unavailable] export creation failed because queue publish failed")',
+        "})",
+        "",
+        'test_that("structured errors fall back when code or message is missing", {',
+        "  mocked_response <- httr2::response(",
+        "    status_code = 503,",
+        '    url = "https://nova.example/v1/exports",',
+        '    headers = list(`content-type` = "application/json"),',
+        '    body = charToRaw(\'{"error":{"details":{"backend":"sqs"}}}\')',
+        "  )",
+        "  error <- tryCatch(",
+        "    httr2::with_mocked_responses(",
+        "      function(req) mocked_response,",
+        "      {",
+        f'        client <- {constructor}("https://nova.example/", bearer_token = "token-123")',
+        f'        {operation_prefix}_create_export(client, body = list(source_key = "uploads/scope-1/source.csv", filename = "source.csv"))',
+        "      }",
+        "    ),",
+        f"    {api_error_class} = function(error) error",
+        "  )",
+        f'  expect_s3_class(error, "{api_error_class}")',
+        '  expect_equal(error$code, "http_503")',
+        '  expect_match(conditionMessage(error), "http_503", fixed = TRUE)',
         "})",
         "",
         'test_that("structured errors fall back to raw body text for non-JSON responses", {',

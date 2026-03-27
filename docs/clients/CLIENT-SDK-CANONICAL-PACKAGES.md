@@ -20,7 +20,8 @@
 ## R
 
 - Canonical source package directory: `packages/nova_sdk_r`
-- Published R package name: finalize in branch 09; do not preserve the old split file/auth naming
+- Published R package name: `nova`
+- Exported surface: `create_nova_client()`, `nova_bearer_token()`, and `nova_<operation_id>()`
 - Strategy: thin `httr2` wrapper package
 - No OpenAPI Generator R output in the canonical repo
 

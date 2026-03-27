@@ -122,6 +122,7 @@ Repository package paths:
 
 Current status:
 
+- Later consolidated into `nova` at `packages/nova_sdk_r/`.
 - first-class internal release artifact line
 - real package scaffolds with logical format `r`
 - transported through CodeArtifact generic packages as a tarball plus

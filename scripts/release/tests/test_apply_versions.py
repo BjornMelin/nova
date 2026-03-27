@@ -41,7 +41,7 @@ def _write_description(path: Path, name: str, version: str) -> None:
 def _write_release_pyproject(
     path: Path,
     unit_id: str,
-    project_name: str = "nova.sdk.r.file",
+    project_name: str = "nova",
 ) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
@@ -113,18 +113,18 @@ def test_apply_version_updates_changes_r_description(
     pyproject = repo_root / "pyproject.toml"
     _write_release_pyproject(
         pyproject,
-        "packages/nova_sdk_r_file",
-        project_name="nova.sdk.r.file",
+        "packages/nova_sdk_r",
+        project_name="nova",
     )
     original_pyproject = pyproject.read_text(encoding="utf-8")
-    description = repo_root / "packages/nova_sdk_r_file/DESCRIPTION"
-    _write_description(description, "nova.sdk.r.file", "0.1.0")
+    description = repo_root / "packages/nova_sdk_r/DESCRIPTION"
+    _write_description(description, "nova", "0.1.0")
 
     units = {
-        "packages/nova_sdk_r_file": common.WorkspaceUnit(
-            unit_id="packages/nova_sdk_r_file",
+        "packages/nova_sdk_r": common.WorkspaceUnit(
+            unit_id="packages/nova_sdk_r",
             path=description.parent,
-            project_name="nova.sdk.r.file",
+            project_name="nova",
             version="0.1.0",
             dependencies=(),
             package_format="r",
@@ -135,7 +135,7 @@ def test_apply_version_updates_changes_r_description(
     plan = {
         "units": [
             {
-                "unit_id": "packages/nova_sdk_r_file",
+                "unit_id": "packages/nova_sdk_r",
                 "old_version": "0.1.0",
                 "new_version": "0.1.1",
             }
@@ -149,7 +149,7 @@ def test_apply_version_updates_changes_r_description(
         dry_run=False,
     )
 
-    assert updated == ["packages/nova_sdk_r_file/DESCRIPTION"]
+    assert updated == ["packages/nova_sdk_r/DESCRIPTION"]
     assert pyproject.read_text(encoding="utf-8") == original_pyproject
     assert "Version: 0.1.1" in description.read_text(encoding="utf-8")
 

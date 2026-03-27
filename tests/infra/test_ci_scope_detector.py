@@ -172,7 +172,7 @@ def test_dash_changes_enable_only_dash_conformance_lane() -> None:
 
 def test_r_changes_enable_only_shiny_conformance_lane() -> None:
     """R SDK edits should only enable the Shiny conformance lane."""
-    outputs = _outputs(["packages/nova_sdk_r_file/DESCRIPTION"])
+    outputs = _outputs(["packages/nova_sdk_r/DESCRIPTION"])
 
     assert outputs["run_runtime_ci"] == "false"
     assert outputs["run_generated_clients"] == "false"

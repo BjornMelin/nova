@@ -80,19 +80,19 @@ def _create_test_workspace_with_r(root: Path) -> Path:
         "[tool.uv]\n\n"
         "[tool.nova.release]\n"
         "\n[[tool.nova.release.units]]\n"
-        'unit_id = "packages/nova_sdk_r_file"\n'
-        'path = "packages/nova_sdk_r_file"\n'
-        'project_name = "nova.sdk.r.file"\n'
+        'unit_id = "packages/nova_sdk_r"\n'
+        'path = "packages/nova_sdk_r"\n'
+        'project_name = "nova"\n'
         "dependencies = []\n"
         'format = "r"\n'
         'codeartifact_format = "generic"\n'
         'namespace = "nova"\n',
         encoding="utf-8",
     )
-    unit_dir = repo_root / "packages" / "nova_sdk_r_file"
+    unit_dir = repo_root / "packages" / "nova_sdk_r"
     unit_dir.mkdir(parents=True)
     unit_dir.joinpath("DESCRIPTION").write_text(
-        "Package: nova.sdk.r.file\nVersion: 0.2.0\n",
+        "Package: nova\nVersion: 0.2.0\n",
         encoding="utf-8",
     )
     return repo_root
@@ -111,15 +111,13 @@ def _write_r_publish_report(path: Path, *, unit_id: str) -> None:
             "packages": [
                 {
                     "unit_id": unit_id,
-                    "package": "nova.sdk.r.file",
+                    "package": "nova",
                     "version": "0.2.0",
                     "format": "r",
                     "codeartifact_format": "generic",
                     "namespace": "nova",
-                    "tarball_path": f"{unit_id}/nova.sdk.r.file_0.2.0.tar.gz",
-                    "signature_path": (
-                        f"{unit_id}/nova.sdk.r.file_0.2.0.tar.gz.sig"
-                    ),
+                    "tarball_path": f"{unit_id}/nova_0.2.0.tar.gz",
+                    "signature_path": f"{unit_id}/nova_0.2.0.tar.gz.sig",
                     "tarball_sha256": "a" * 64,
                     "signature_sha256": "b" * 64,
                 }
@@ -517,7 +515,7 @@ Schema: 1.0
 
 | Unit | Package | Version | Changed |
 | --- | --- | --- | --- |
-| `packages/nova_sdk_r_file` | `nova.sdk.r.file` | `0.2.0` | yes |
+| `packages/nova_sdk_r` | `nova` | `0.2.0` | yes |
 """
     manifest = tmp_path / "manifest.md"
     manifest.write_text(manifest_text, encoding="utf-8")
@@ -526,7 +524,7 @@ Schema: 1.0
     _write_json(
         changed_units,
         {
-            "changed_units": [{"unit_id": "packages/nova_sdk_r_file"}],
+            "changed_units": [{"unit_id": "packages/nova_sdk_r"}],
             "base_commit": "abc",
             "head_commit": "def",
             "first_release": False,
@@ -540,7 +538,7 @@ Schema: 1.0
             "global_bump": "patch",
             "units": [
                 {
-                    "unit_id": "packages/nova_sdk_r_file",
+                    "unit_id": "packages/nova_sdk_r",
                     "format": "r",
                     "codeartifact_format": "generic",
                     "namespace": "nova",
@@ -550,9 +548,7 @@ Schema: 1.0
         },
     )
     r_publish_report = tmp_path / "r-publish-report.json"
-    _write_r_publish_report(
-        r_publish_report, unit_id="packages/nova_sdk_r_file"
-    )
+    _write_r_publish_report(r_publish_report, unit_id="packages/nova_sdk_r")
 
     report = codeartifact_gate.validate_release_gates(
         repo_root=repo_root,
@@ -568,9 +564,9 @@ Schema: 1.0
             "format": "r",
             "codeartifact_format": "generic",
             "namespace": "nova",
-            "package": "nova.sdk.r.file",
+            "package": "nova",
             "version": "0.2.0",
-            "unit_id": "packages/nova_sdk_r_file",
+            "unit_id": "packages/nova_sdk_r",
             "tarball_sha256": "a" * 64,
             "signature_sha256": "b" * 64,
         }
@@ -590,7 +586,7 @@ Schema: 1.0
 
 | Unit | Package | Version | Changed |
 | --- | --- | --- | --- |
-| `packages/nova_sdk_r_file` | `nova.sdk.r.file` | `0.2.0` | yes |
+| `packages/nova_sdk_r` | `nova` | `0.2.0` | yes |
 """
     manifest = tmp_path / "manifest.md"
     manifest.write_text(manifest_text, encoding="utf-8")
@@ -599,7 +595,7 @@ Schema: 1.0
     _write_json(
         changed_units,
         {
-            "changed_units": [{"unit_id": "packages/nova_sdk_r_file"}],
+            "changed_units": [{"unit_id": "packages/nova_sdk_r"}],
             "base_commit": "abc",
             "head_commit": "def",
             "first_release": False,
@@ -613,7 +609,7 @@ Schema: 1.0
             "global_bump": "patch",
             "units": [
                 {
-                    "unit_id": "packages/nova_sdk_r_file",
+                    "unit_id": "packages/nova_sdk_r",
                     "format": "r",
                     "codeartifact_format": "generic",
                     "namespace": "nova",
@@ -630,33 +626,29 @@ Schema: 1.0
             "generated_at": "2026-03-09T00:00:00Z",
             "packages": [
                 {
-                    "unit_id": "packages/nova_sdk_r_file",
-                    "package": "nova.sdk.r.file",
+                    "unit_id": "packages/nova_sdk_r",
+                    "package": "nova",
                     "version": "0.2.0",
                     "format": "r",
                     "codeartifact_format": "generic",
                     "namespace": "nova",
-                    "tarball_path": (
-                        "packages/nova_sdk_r_file/nova.sdk.r.file_0.2.0.tar.gz"
-                    ),
+                    "tarball_path": "packages/nova_sdk_r/nova_0.2.0.tar.gz",
                     "signature_path": (
-                        "packages/nova_sdk_r_file/nova.sdk.r.file_0.2.0.tar.gz.sig"
+                        "packages/nova_sdk_r/nova_0.2.0.tar.gz.sig"
                     ),
                     "tarball_sha256": "a" * 64,
                     "signature_sha256": "b" * 64,
                 },
                 {
-                    "unit_id": "packages/nova_sdk_r_file",
-                    "package": "nova.sdk.r.file",
+                    "unit_id": "packages/nova_sdk_r",
+                    "package": "nova",
                     "version": "0.2.0",
                     "format": "r",
                     "codeartifact_format": "generic",
                     "namespace": "nova",
-                    "tarball_path": (
-                        "packages/nova_sdk_r_file/nova.sdk.r.file_0.2.0.tar.gz"
-                    ),
+                    "tarball_path": "packages/nova_sdk_r/nova_0.2.0.tar.gz",
                     "signature_path": (
-                        "packages/nova_sdk_r_file/nova.sdk.r.file_0.2.0.tar.gz.sig"
+                        "packages/nova_sdk_r/nova_0.2.0.tar.gz.sig"
                     ),
                     "tarball_sha256": "c" * 64,
                     "signature_sha256": "d" * 64,
@@ -768,7 +760,7 @@ Schema: 1.0
 
 | Unit | Package | Version | Changed |
 | --- | --- | --- | --- |
-| `packages/nova_sdk_r_file` | `nova.sdk.r.file` | `0.2.0` | yes |
+| `packages/nova_sdk_r` | `nova` | `0.2.0` | yes |
 """
     manifest = tmp_path / "manifest.md"
     manifest.write_text(manifest_text, encoding="utf-8")
@@ -777,7 +769,7 @@ Schema: 1.0
     _write_json(
         changed_units,
         {
-            "changed_units": [{"unit_id": "packages/nova_sdk_r_file"}],
+            "changed_units": [{"unit_id": "packages/nova_sdk_r"}],
             "base_commit": "abc",
             "head_commit": "def",
             "first_release": False,
@@ -791,7 +783,7 @@ Schema: 1.0
             "global_bump": "patch",
             "units": [
                 {
-                    "unit_id": "packages/nova_sdk_r_file",
+                    "unit_id": "packages/nova_sdk_r",
                     "format": "r",
                     "codeartifact_format": "generic",
                     "namespace": "nova",

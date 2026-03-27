@@ -19,9 +19,9 @@ def test_load_workspace_units_includes_managed_workspace_units(
         'members = ["packages/nova_file_api"]\n'
         "\n[tool.nova.release]\n"
         "\n[[tool.nova.release.units]]\n"
-        'unit_id = "packages/nova_sdk_r_file"\n'
-        'path = "packages/nova_sdk_r_file"\n'
-        'project_name = "nova.sdk.r.file"\n'
+        'unit_id = "packages/nova_sdk_r"\n'
+        'path = "packages/nova_sdk_r"\n'
+        'project_name = "nova"\n'
         "dependencies = []\n"
         'format = "r"\n'
         'codeartifact_format = "generic"\n'
@@ -65,9 +65,9 @@ def test_load_workspace_units_includes_managed_workspace_units(
         "}\n",
         encoding="utf-8",
     )
-    (repo_root / "packages/nova_sdk_r_file").mkdir(parents=True)
-    (repo_root / "packages/nova_sdk_r_file/DESCRIPTION").write_text(
-        "Package: nova.sdk.r.file\nVersion: 0.1.0\n",
+    (repo_root / "packages/nova_sdk_r").mkdir(parents=True)
+    (repo_root / "packages/nova_sdk_r/DESCRIPTION").write_text(
+        "Package: nova\nVersion: 0.1.0\n",
         encoding="utf-8",
     )
 
@@ -76,15 +76,16 @@ def test_load_workspace_units_includes_managed_workspace_units(
     assert set(units) == {
         "packages/nova_file_api",
         "packages/nova_sdk_ts",
-        "packages/nova_sdk_r_file",
+        "packages/nova_sdk_r",
     }
     assert units["packages/nova_sdk_ts"].package_format == "npm"
     assert units["packages/nova_sdk_ts"].namespace == "nova"
     assert units["packages/nova_sdk_ts"].dependencies == ()
-    assert units["packages/nova_sdk_r_file"].package_format == "r"
-    assert units["packages/nova_sdk_r_file"].codeartifact_format == "generic"
-    assert units["packages/nova_sdk_r_file"].namespace == "nova"
-    assert units["packages/nova_sdk_r_file"].version == "0.1.0"
+    assert units["packages/nova_sdk_r"].project_name == "nova"
+    assert units["packages/nova_sdk_r"].package_format == "r"
+    assert units["packages/nova_sdk_r"].codeartifact_format == "generic"
+    assert units["packages/nova_sdk_r"].namespace == "nova"
+    assert units["packages/nova_sdk_r"].version == "0.1.0"
 
 
 def test_load_workspace_units_rejects_r_registry_versions(
@@ -97,9 +98,9 @@ def test_load_workspace_units_rejects_r_registry_versions(
         "members = []\n"
         "\n[tool.nova.release]\n"
         "\n[[tool.nova.release.units]]\n"
-        'unit_id = "packages/nova_sdk_r_file"\n'
-        'path = "packages/nova_sdk_r_file"\n'
-        'project_name = "nova.sdk.r.file"\n'
+        'unit_id = "packages/nova_sdk_r"\n'
+        'path = "packages/nova_sdk_r"\n'
+        'project_name = "nova"\n'
         'version = "0.1.0"\n'
         "dependencies = []\n"
         'format = "r"\n'
@@ -107,9 +108,9 @@ def test_load_workspace_units_rejects_r_registry_versions(
         'namespace = "nova"\n',
         encoding="utf-8",
     )
-    (repo_root / "packages/nova_sdk_r_file").mkdir(parents=True)
-    (repo_root / "packages/nova_sdk_r_file/DESCRIPTION").write_text(
-        "Package: nova.sdk.r.file\nVersion: 0.1.0\n",
+    (repo_root / "packages/nova_sdk_r").mkdir(parents=True)
+    (repo_root / "packages/nova_sdk_r/DESCRIPTION").write_text(
+        "Package: nova\nVersion: 0.1.0\n",
         encoding="utf-8",
     )
 
@@ -127,18 +128,18 @@ def test_load_workspace_units_rejects_r_unit_id_path_mismatch(
         "members = []\n"
         "\n[tool.nova.release]\n"
         "\n[[tool.nova.release.units]]\n"
-        'unit_id = "packages/nova_sdk_r_file"\n'
-        'path = "packages/nova_sdk_r_file_renamed"\n'
-        'project_name = "nova.sdk.r.file"\n'
+        'unit_id = "packages/nova_sdk_r"\n'
+        'path = "packages/nova_sdk_r_renamed"\n'
+        'project_name = "nova"\n'
         "dependencies = []\n"
         'format = "r"\n'
         'codeartifact_format = "generic"\n'
         'namespace = "nova"\n',
         encoding="utf-8",
     )
-    (repo_root / "packages/nova_sdk_r_file_renamed").mkdir(parents=True)
-    (repo_root / "packages/nova_sdk_r_file_renamed/DESCRIPTION").write_text(
-        "Package: nova.sdk.r.file\nVersion: 0.1.0\n",
+    (repo_root / "packages/nova_sdk_r_renamed").mkdir(parents=True)
+    (repo_root / "packages/nova_sdk_r_renamed/DESCRIPTION").write_text(
+        "Package: nova\nVersion: 0.1.0\n",
         encoding="utf-8",
     )
 

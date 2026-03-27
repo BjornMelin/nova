@@ -25,7 +25,7 @@ and async export workflows and does not proxy file bytes through the API layer.
 - `packages/nova_sdk_py`: release-grade public Python SDK
 - `packages/nova_sdk_ts`: release-grade TypeScript SDK in the CodeArtifact
   staged/prod flow
-- `packages/nova_sdk_r_file`: first-class internal R SDK package
+- `packages/nova_sdk_r`: first-class internal R SDK package
 - `packages/contracts`: OpenAPI artifacts, workflow schemas, and conformance
   helpers
 - `infra/nova` and `infra/runtime`: CI/CD, IAM, and runtime CloudFormation

@@ -55,7 +55,7 @@ Nova currently duplicates auth behavior across:
 - `packages/nova_auth_api/src/nova_auth_api/service.py`
 - `packages/nova_sdk_auth/`
 - `packages/nova_sdk_py_auth/`
-- `packages/nova_sdk_r_auth/`
+- the legacy split R auth package
 
 The file API still supports multiple auth modes, including remote verification over HTTP. The auth API separately verifies JWTs with a sync verifier. This is duplicated code, duplicated release surface, duplicated CI surface, and duplicated operational surface.
 
@@ -108,9 +108,9 @@ Largest package clusters:
 | nova_auth_api | 23 | 1587 |
 | nova_sdk_py_auth | 26 | 1557 |
 | nova_sdk_auth | 8 | 795 |
-| nova_sdk_r_file | 9 | 785 |
+| legacy R file package | 9 | 785 |
 | nova_runtime_support | 9 | 697 |
-| nova_sdk_r_auth | 9 | 557 |
+| legacy R auth package | 9 | 557 |
 | nova_sdk_fetch | 6 | 376 |
 
 Guaranteed deletions from the final plan:

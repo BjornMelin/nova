@@ -52,7 +52,7 @@ DASH_CONFORMANCE_EXACT = {
     ".github/workflows/ci.yml",
 } | CONFORMANCE_GENERATOR_EXACT
 SHINY_CONFORMANCE_PREFIXES = (
-    "packages/nova_sdk_r_file/",
+    "packages/nova_sdk_r/",
     "packages/contracts/fixtures/",
     "scripts/conformance/",
     "scripts/release/tests/",
