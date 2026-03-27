@@ -43,12 +43,16 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 FROM ${BASE_IMAGE}
 
 ENV PATH="/app/.venv/bin:$PATH" \
+    AWS_LWA_PORT=8050 \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
 RUN useradd --create-home --shell /bin/bash appuser
+
+# Pin the stable adapter release for the production Lambda Web Adapter path.
+COPY --from=public.ecr.aws/awsguru/aws-lambda-adapter:v0.9.1 /lambda-adapter /opt/extensions/lambda-adapter
 
 COPY --from=builder --chown=appuser:appuser /app/.venv /app/.venv
 

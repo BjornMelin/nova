@@ -1,5 +1,9 @@
 # Deploy Runtime CloudFormation Environments Guide
 
+> Legacy environment note: this runbook remains only for ECS/CloudFormation
+> environments that have not yet moved to the canonical serverless runtime in
+> `infra/nova_cdk/`.
+
 Status: Active
 Owner: nova release architecture
 Last reviewed: 2026-03-24

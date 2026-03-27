@@ -62,6 +62,8 @@ Implementation commitments:
 - Add first-class workflow and CDK/IaC components that match the new runtime.
 - Remove ECS/worker/Redis assumptions from the target-state architecture and
   release flow as later branches land.
+- The repo implementation for this branch introduces `packages/nova_workflows`
+  and `infra/nova_cdk` as the concrete canonical platform entrypoints.
 
 ## Related Requirements
 

@@ -27,6 +27,7 @@ class JobsQueueBackend(StrEnum):
 
     MEMORY = "memory"
     SQS = "sqs"
+    STEP_FUNCTIONS = "stepfunctions"
 
 
 class JobsRepositoryBackend(StrEnum):

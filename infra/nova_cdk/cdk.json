@@ -1,0 +1,3 @@
+{
+  "app": "uv run --package nova-cdk python app.py"
+}

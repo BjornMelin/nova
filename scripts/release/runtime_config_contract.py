@@ -138,6 +138,10 @@ def runtime_setting_contracts() -> tuple[RuntimeSettingContract, ...]:
             required_when = (
                 "when API idempotency enabled and JOBS_RUNTIME_MODE!=worker"
             )
+        elif env_var == "JOBS_STEP_FUNCTIONS_STATE_MACHINE_ARN":
+            required_when = (
+                "when JOBS_QUEUE_BACKEND=stepfunctions and JOBS_ENABLED=true"
+            )
         contracts.append(
             RuntimeSettingContract(
                 field_name=field_name,

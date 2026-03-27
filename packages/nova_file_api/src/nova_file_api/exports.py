@@ -100,6 +100,18 @@ class SqsClient(Protocol):
         """Read queue attributes for health checks."""
 
 
+class StepFunctionsClient(Protocol):
+    """Subset of Step Functions client operations used by publishers."""
+
+    async def start_execution(self, **kwargs: object) -> Mapping[str, object]:
+        """Start a workflow execution."""
+
+    async def describe_state_machine(
+        self, **kwargs: object
+    ) -> Mapping[str, object]:
+        """Read state machine metadata for health checks."""
+
+
 def _as_dynamo_table(table: object) -> DynamoTable:
     """Validate and cast a DynamoDB table-like object."""
     invalid_methods: list[str] = []
@@ -449,6 +461,74 @@ class SqsExportPublisher:
             await self.sqs_client.get_queue_attributes(
                 QueueUrl=self.queue_url,
                 AttributeNames=["QueueArn"],
+            )
+        except (ClientError, BotoCoreError):
+            return False
+        return True
+
+
+@dataclass(slots=True)
+class StepFunctionsExportPublisher:
+    """Step Functions-backed workflow dispatcher."""
+
+    state_machine_arn: str
+    stepfunctions_client: StepFunctionsClient
+
+    async def publish(self, *, export: ExportRecord) -> None:
+        """Start a Step Functions execution for the export."""
+        payload = {
+            "export_id": export.export_id,
+            "scope_id": export.scope_id,
+            "source_key": export.source_key,
+            "filename": export.filename,
+            "request_id": export.request_id,
+            "status": export.status.value,
+            "created_at": export.created_at.isoformat(),
+            "updated_at": export.updated_at.isoformat(),
+        }
+        try:
+            await self.stepfunctions_client.start_execution(
+                stateMachineArn=self.state_machine_arn,
+                name=export.export_id,
+                input=json.dumps(
+                    payload,
+                    separators=(",", ":"),
+                    sort_keys=True,
+                ),
+            )
+        except ClientError as exc:
+            raise ExportPublishError(
+                details={
+                    "error_type": "ClientError",
+                    "error_code": str(
+                        exc.response.get("Error", {}).get("Code", "Unknown")
+                    ),
+                }
+            ) from exc
+        except BotoCoreError as exc:
+            raise ExportPublishError(
+                details={
+                    "error_type": type(exc).__name__,
+                    "error_code": "BotoCoreError",
+                }
+            ) from exc
+
+    async def post_publish(
+        self,
+        *,
+        export: ExportRecord,
+        repository: ExportRepository,
+        metrics: MetricsCollector,
+    ) -> None:
+        """Step Functions mode performs work asynchronously."""
+        del export, repository, metrics
+        return
+
+    async def healthcheck(self) -> bool:
+        """Return whether the state machine metadata can be fetched."""
+        try:
+            await self.stepfunctions_client.describe_state_machine(
+                stateMachineArn=self.state_machine_arn
             )
         except (ClientError, BotoCoreError):
             return False

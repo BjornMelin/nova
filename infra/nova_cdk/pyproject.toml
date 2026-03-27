@@ -1,0 +1,17 @@
+[build-system]
+requires = ["hatchling>=1.27.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "nova-cdk"
+version = "0.1.0"
+description = "Canonical serverless CDK app for Nova."
+readme = "README.md"
+requires-python = ">=3.11,<3.14"
+dependencies = [
+  "aws-cdk-lib>=2.189.0,<3",
+  "constructs>=10.4.2,<11",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/nova_cdk"]

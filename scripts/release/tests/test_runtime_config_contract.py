@@ -50,3 +50,18 @@ def test_env_var_name_requires_explicit_validation_alias() -> None:
 
     with pytest.raises(ValueError, match="must declare an explicit"):
         _env_var_name("app_name", field)
+
+
+def test_step_functions_state_machine_arn_is_conditionally_required() -> None:
+    """Step Functions runtime wiring should be reflected in the contract."""
+    contracts_by_field = {
+        contract.field_name: contract
+        for contract in runtime_setting_contracts()
+    }
+
+    assert (
+        contracts_by_field[
+            "jobs_step_functions_state_machine_arn"
+        ].required_when
+        == "when JOBS_QUEUE_BACKEND=stepfunctions and JOBS_ENABLED=true"
+    )

@@ -51,6 +51,7 @@ Canonical sources:
 | JOBS_SQS_RETRY_TOTAL_MAX_ATTEMPTS | jobs_sqs_retry_total_max_attempts | int | no | - | no | `3` |
 | JOBS_SQS_VISIBILITY_TIMEOUT_SECONDS | jobs_sqs_visibility_timeout_seconds | int | no | - | no | `120` |
 | JOBS_SQS_WAIT_TIME_SECONDS | jobs_sqs_wait_time_seconds | int | no | - | no | `20` |
+| JOBS_STEP_FUNCTIONS_STATE_MACHINE_ARN | jobs_step_functions_state_machine_arn | str \| None | no | when JOBS_QUEUE_BACKEND=stepfunctions and JOBS_ENABLED=true | no | `None` |
 | METRICS_NAMESPACE | metrics_namespace | str | no | - | no | `'NovaFileApi'` |
 | OIDC_AUDIENCE | oidc_audience | str \| None | no | - | no | `None` |
 | OIDC_CLOCK_SKEW_SECONDS | oidc_clock_skew_seconds | int | no | - | no | `0` |

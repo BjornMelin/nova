@@ -30,6 +30,7 @@ This file records the intentional hard cuts in the second green-field program.
 - Treat `IDEMPOTENCY_DYNAMODB_TABLE` as stack-derived rather than operator-supplied JSON.
 - Rename readiness diagnostic `shared_cache` to `idempotency_store`.
 - Replace ECS/worker-first target architecture with HTTP API + Lambda + Step Functions as the canonical AWS deployment shape.
+- Add `packages/nova_workflows` and `infra/nova_cdk` as first-class canonical platform components.
 
 ## SDK/package layout
 
