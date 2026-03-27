@@ -9,10 +9,10 @@ from typing import (
 
 from attrs import define as _attrs_define
 
-from ..types import UNSET, Unset
+from nova_sdk_py.types import UNSET, Unset
 
 if TYPE_CHECKING:
-    from ..models.capability_descriptor_details import (
+    from nova_sdk_py.models.capability_descriptor_details import (
         CapabilityDescriptorDetails,
     )
 
@@ -58,7 +58,7 @@ class CapabilityDescriptor:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.capability_descriptor_details import (
+        from nova_sdk_py.models.capability_descriptor_details import (
             CapabilityDescriptorDetails,
         )
 

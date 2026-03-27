@@ -3,11 +3,11 @@ from urllib.parse import quote
 
 import httpx
 
-from ... import errors
-from ...client import AuthenticatedClient, Client
-from ...models.error_envelope import ErrorEnvelope
-from ...models.export_resource import ExportResource
-from ...types import Response
+from nova_sdk_py import errors
+from nova_sdk_py.client import AuthenticatedClient, Client
+from nova_sdk_py.models.error_envelope import ErrorEnvelope
+from nova_sdk_py.models.export_resource import ExportResource
+from nova_sdk_py.types import Response
 
 
 def _get_kwargs(

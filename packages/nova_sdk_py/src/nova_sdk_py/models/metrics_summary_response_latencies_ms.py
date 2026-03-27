@@ -11,7 +11,11 @@ T = TypeVar("T", bound="MetricsSummaryResponseLatenciesMs")
 
 @_attrs_define
 class MetricsSummaryResponseLatenciesMs:
-    """ """
+    """Named latency metrics reported by the metrics summary endpoint in milliseconds.
+
+    Attributes:
+        additional_properties (dict[str, float]): Latency values keyed by name.
+    """
 
     additional_properties: dict[str, float] = _attrs_field(
         init=False, factory=dict
@@ -28,8 +32,17 @@ class MetricsSummaryResponseLatenciesMs:
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
         metrics_summary_response_latencies_ms = cls()
+        additional_properties: dict[str, float] = {}
+        for key, value in d.items():
+            if isinstance(value, bool):
+                raise TypeError(
+                    f"Invalid value for {key!r}: expected float, got bool"
+                )
+            additional_properties[key] = float(value)
 
-        metrics_summary_response_latencies_ms.additional_properties = d
+        metrics_summary_response_latencies_ms.additional_properties = (
+            additional_properties
+        )
         return metrics_summary_response_latencies_ms
 
     @property

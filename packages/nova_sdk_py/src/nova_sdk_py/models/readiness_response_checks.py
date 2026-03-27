@@ -11,7 +11,11 @@ T = TypeVar("T", bound="ReadinessResponseChecks")
 
 @_attrs_define
 class ReadinessResponseChecks:
-    """ """
+    """Named readiness check results reported by the readiness endpoint.
+
+    Attributes:
+        additional_properties (dict[str, bool]): Readiness statuses keyed by check name.
+    """
 
     additional_properties: dict[str, bool] = _attrs_field(
         init=False, factory=dict
@@ -28,8 +32,17 @@ class ReadinessResponseChecks:
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
         readiness_response_checks = cls()
+        additional_properties: dict[str, bool] = {}
+        for key, value in d.items():
+            if not isinstance(value, bool):
+                raise TypeError(
+                    f"Invalid value for {key!r}: "
+                    "expected bool, "
+                    f"got {type(value).__name__}"
+                )
+            additional_properties[key] = value
 
-        readiness_response_checks.additional_properties = d
+        readiness_response_checks.additional_properties = additional_properties
         return readiness_response_checks
 
     @property

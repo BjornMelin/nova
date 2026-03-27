@@ -32,6 +32,10 @@ _FORMATTER_TIMEOUT_SECONDS = 60
 _HTTP_METHODS = frozenset(
     {"get", "post", "put", "patch", "delete", "options", "head", "trace"}
 )
+_RELATIVE_IMPORT_RE = re.compile(
+    r"^(?P<indent>\s*)from (?P<dots>\.+)"
+    r"(?P<module>[A-Za-z0-9_.]*) import (?P<symbols>.+)$"
+)
 
 
 @dataclass(frozen=True)
@@ -283,14 +287,63 @@ def _rewrite_file(
         count=count,
         flags=flags,
     )
-    if replaced and updated != content:
+    if replaced == 0:
+        raise RuntimeError(
+            f"expected rewrite pattern not found in {path.relative_to(root)}"
+        )
+    if updated != content:
         path.write_text(updated, encoding="utf-8")
+
+
+def _rewrite_relative_imports(root: Path, package_name: str) -> None:
+    for path in root.rglob("*.py"):
+        rel_path = path.relative_to(root)
+        if _should_ignore(rel_path):
+            continue
+
+        content = path.read_text(encoding="utf-8")
+        updated_lines: list[str] = []
+        changed = False
+        package_parts = (package_name, *rel_path.parent.parts)
+
+        for line in content.splitlines(keepends=True):
+            line_body = line[:-1] if line.endswith("\n") else line
+            newline = "\n" if line.endswith("\n") else ""
+            match = _RELATIVE_IMPORT_RE.match(line_body)
+            if not match:
+                updated_lines.append(line)
+                continue
+
+            dots = len(match.group("dots"))
+            module = match.group("module")
+            symbols = match.group("symbols")
+            keep_levels = len(package_parts) - (dots - 1)
+            if keep_levels < 1:
+                raise RuntimeError(
+                    "relative import escaped package root in "
+                    f"{rel_path}: {line_body}"
+                )
+
+            absolute_parts = list(package_parts[:keep_levels])
+            if module:
+                absolute_parts.extend(module.split("."))
+
+            updated_line = (
+                f"{match.group('indent')}from "
+                f"{'.'.join(absolute_parts)} import {symbols}{newline}"
+            )
+            if updated_line != line:
+                changed = True
+            updated_lines.append(updated_line)
+
+        if changed:
+            path.write_text("".join(updated_lines), encoding="utf-8")
 
 
 def _repair_generated_python_package(root: Path) -> None:
     typed_additional_properties = {
         "models/metrics_summary_response_activity.py": (
-            r"        metrics_summary_response_activity = cls\(\)\n"
+            r"        metrics_summary_response_activity = cls\(\s*\)\n"
             r"\s*metrics_summary_response_activity\.additional_properties = d\n"
             r"\s*return metrics_summary_response_activity\n",
             "        metrics_summary_response_activity = cls()\n"
@@ -310,7 +363,7 @@ def _repair_generated_python_package(root: Path) -> None:
             "        return metrics_summary_response_activity\n",
         ),
         "models/metrics_summary_response_counters.py": (
-            r"        metrics_summary_response_counters = cls\(\)\n"
+            r"        metrics_summary_response_counters = cls\(\s*\)\n"
             r"\s*metrics_summary_response_counters\.additional_properties = d\n"
             r"\s*return metrics_summary_response_counters\n",
             "        metrics_summary_response_counters = cls()\n"
@@ -330,7 +383,7 @@ def _repair_generated_python_package(root: Path) -> None:
             "        return metrics_summary_response_counters\n",
         ),
         "models/metrics_summary_response_latencies_ms.py": (
-            r"        metrics_summary_response_latencies_ms = cls\(\)\n"
+            r"        metrics_summary_response_latencies_ms = cls\(\s*\)\n"
             r"\s*metrics_summary_response_latencies_ms\."
             r"additional_properties = d\n"
             r"\s*return metrics_summary_response_latencies_ms\n",
@@ -351,7 +404,7 @@ def _repair_generated_python_package(root: Path) -> None:
             "        return metrics_summary_response_latencies_ms\n",
         ),
         "models/readiness_response_checks.py": (
-            r"        readiness_response_checks = cls\(\)\n"
+            r"        readiness_response_checks = cls\(\s*\)\n"
             r"\s*readiness_response_checks\.additional_properties = d\n"
             r"\s*return readiness_response_checks\n",
             "        readiness_response_checks = cls()\n"
@@ -369,19 +422,13 @@ def _repair_generated_python_package(root: Path) -> None:
             "        return readiness_response_checks\n",
         ),
         "models/sign_parts_response_urls.py": (
-            r"        sign_parts_response_urls = cls\(\)\n"
+            r"        sign_parts_response_urls = cls\(\s*\)\n"
             r"\s*sign_parts_response_urls\.additional_properties = d\n"
             r"\s*return sign_parts_response_urls\n",
             "        sign_parts_response_urls = cls()\n"
-            "        additional_properties: dict[str, str] = {}\n"
-            "        for key, value in d.items():\n"
-            "            if not isinstance(value, str):\n"
-            "                raise TypeError(\n"
-            '                    f"Invalid value for {key!r}: "\n'
-            '                    "expected str, "\n'
-            '                    f"got {type(value).__name__}"\n'
-            "                )\n"
-            "            additional_properties[key] = value\n\n"
+            "        additional_properties: dict[str, str] = {\n"
+            "            str(key): str(value) for key, value in d.items()\n"
+            "        }\n\n"
             "        sign_parts_response_urls.additional_properties = "
             "additional_properties\n"
             "        return sign_parts_response_urls\n",
@@ -399,6 +446,72 @@ def _repair_generated_python_package(root: Path) -> None:
             flags=re.MULTILINE,
         )
 
+    docstring_replacements = {
+        "models/capability_descriptor_details.py": (
+            '    """Additional free-form metadata attached to a capability '
+            "descriptor.\n\n"
+            "    Attributes:\n"
+            "        additional_properties (dict[str, Any]): Opaque capability "
+            "metadata returned by the API.\n"
+            '    """\n'
+        ),
+        "models/error_body_details.py": (
+            '    """Additional structured data attached to an '
+            "error body.\n\n"
+            "    Attributes:\n"
+            "        additional_properties (dict[str, Any]): Extra error "
+            "details returned by the API.\n"
+            '    """\n'
+        ),
+        "models/metrics_summary_response_activity.py": (
+            '    """Named activity counters reported by the metrics summary '
+            "endpoint.\n\n"
+            "    Attributes:\n"
+            "        additional_properties (dict[str, int]): Activity counts "
+            "keyed by name.\n"
+            '    """\n'
+        ),
+        "models/metrics_summary_response_counters.py": (
+            '    """Named aggregate counters reported by the '
+            "metrics summary endpoint.\n\n"
+            "    Attributes:\n"
+            "        additional_properties (dict[str, int]): Counter values "
+            "keyed by name.\n"
+            '    """\n'
+        ),
+        "models/metrics_summary_response_latencies_ms.py": (
+            '    """Named latency metrics reported by the metrics summary '
+            "endpoint in milliseconds.\n\n"
+            "    Attributes:\n"
+            "        additional_properties (dict[str, float]): Latency values "
+            "keyed by name.\n"
+            '    """\n'
+        ),
+        "models/readiness_response_checks.py": (
+            '    """Named readiness check results reported by the '
+            "readiness endpoint.\n\n"
+            "    Attributes:\n"
+            "        additional_properties (dict[str, bool]): Readiness "
+            "statuses keyed by check name.\n"
+            '    """\n'
+        ),
+        "models/sign_parts_response_urls.py": (
+            '    """Signed upload-part URLs keyed by part number.\n\n'
+            "    Attributes:\n"
+            "        additional_properties (dict[str, str]): Signed URL "
+            "strings keyed by the part identifier returned by the API.\n"
+            '    """\n'
+        ),
+    }
+    for relative_path, replacement in docstring_replacements.items():
+        _rewrite_file(
+            root,
+            relative_path,
+            pattern=r"    \"\"\"\s*\"\"\"\n",
+            replacement=replacement,
+            count=1,
+        )
+
     _rewrite_file(
         root,
         "models/presign_download_response.py",
@@ -414,6 +527,20 @@ def _repair_generated_python_package(root: Path) -> None:
         "models/presign_download_response.py",
         pattern=r"    url: str\n",
         replacement="    url: str = _attrs_field(repr=False)\n",
+        count=1,
+    )
+    _rewrite_file(
+        root,
+        "__init__.py",
+        pattern=(
+            r"from nova_sdk_py\.client import AuthenticatedClient, "
+            r"Client\n"
+        ),
+        replacement=(
+            "# ruff: noqa: I001\n"
+            "from nova_sdk_py.client import AuthenticatedClient\n"
+            "from nova_sdk_py.client import Client\n"
+        ),
         count=1,
     )
 
@@ -529,6 +656,7 @@ def _generate_target(target: GenerationTarget, temp_root: Path) -> Path:
         ) from exc
 
     _repair_export_resource_output_parser(destination)
+    _rewrite_relative_imports(destination, target.package_name)
     _repair_generated_python_package(destination)
     _run_generated_ruff(destination)
     return destination

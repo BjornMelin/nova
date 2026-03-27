@@ -2,12 +2,12 @@ from typing import Any
 
 import httpx
 
-from ... import errors
-from ...client import AuthenticatedClient, Client
-from ...models.error_envelope import ErrorEnvelope
-from ...models.presign_download_request import PresignDownloadRequest
-from ...models.presign_download_response import PresignDownloadResponse
-from ...types import Response
+from nova_sdk_py import errors
+from nova_sdk_py.client import AuthenticatedClient, Client
+from nova_sdk_py.models.error_envelope import ErrorEnvelope
+from nova_sdk_py.models.presign_download_request import PresignDownloadRequest
+from nova_sdk_py.models.presign_download_response import PresignDownloadResponse
+from nova_sdk_py.types import Response
 
 
 def _get_kwargs(

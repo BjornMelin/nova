@@ -11,7 +11,11 @@ T = TypeVar("T", bound="ErrorBodyDetails")
 
 @_attrs_define
 class ErrorBodyDetails:
-    """ """
+    """Additional structured data attached to an error body.
+
+    Attributes:
+        additional_properties (dict[str, Any]): Extra error details returned by the API.
+    """
 
     additional_properties: dict[str, Any] = _attrs_field(
         init=False, factory=dict

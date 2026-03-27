@@ -2,12 +2,12 @@ from typing import Any
 
 import httpx
 
-from ... import errors
-from ...client import AuthenticatedClient, Client
-from ...models.complete_upload_request import CompleteUploadRequest
-from ...models.complete_upload_response import CompleteUploadResponse
-from ...models.error_envelope import ErrorEnvelope
-from ...types import Response
+from nova_sdk_py import errors
+from nova_sdk_py.client import AuthenticatedClient, Client
+from nova_sdk_py.models.complete_upload_request import CompleteUploadRequest
+from nova_sdk_py.models.complete_upload_response import CompleteUploadResponse
+from nova_sdk_py.models.error_envelope import ErrorEnvelope
+from nova_sdk_py.types import Response
 
 
 def _get_kwargs(

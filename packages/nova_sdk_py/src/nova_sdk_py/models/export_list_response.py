@@ -10,7 +10,7 @@ from typing import (
 from attrs import define as _attrs_define
 
 if TYPE_CHECKING:
-    from ..models.export_resource import ExportResource
+    from nova_sdk_py.models.export_resource import ExportResource
 
 
 T = TypeVar("T", bound="ExportListResponse")
@@ -44,7 +44,7 @@ class ExportListResponse:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.export_resource import ExportResource
+        from nova_sdk_py.models.export_resource import ExportResource
 
         d = dict(src_dict)
         exports = []
