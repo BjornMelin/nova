@@ -40,6 +40,9 @@ This file records the intentional hard cuts in the second green-field program.
 - Rename the legacy file-only Python SDK package/import surface to
   `packages/nova_sdk_py` / `nova_sdk_py`.
 - Rename the TypeScript package from `@nova/sdk-file` to `@nova/sdk`.
+- Rename the legacy file-only R SDK package to `packages/nova_sdk_r` and `nova`,
+  and rename the exported constructor/helper/wrapper surface to
+  `create_nova_client`, `nova_bearer_token`, and `nova_<operation_id>`.
 - Delete `@nova/sdk-fetch`.
 
 ## Docs/governance

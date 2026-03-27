@@ -116,7 +116,7 @@ uv run python scripts/release/generate_python_clients.py --check
 for p in packages/nova_file_api packages/nova_dash_bridge packages/nova_runtime_support; do uv build "$p"; done
 npm run -w @nova/sdk build
 npm run -w @nova/sdk typecheck
-bash scripts/checks/verify_r_cmd_check.sh packages/nova_sdk_r_file
+bash scripts/checks/verify_r_cmd_check.sh packages/nova_sdk_r
 ```
 
 ## Program-level definition of done

@@ -72,13 +72,13 @@ staged/prod artifact:
 
 R SDK packages retained in-repo as first-class internal release artifacts:
 
-- `../../packages/nova_sdk_r_file/`
+- `../../packages/nova_sdk_r/`
 
-Downstream R and Shiny consumers should treat `nova.sdk.r.file` as the only
+Downstream R and Shiny consumers should treat `nova` as the only
 canonical Nova HTTP client surface in this wave. Use
-`create_nova_file_client(base_url, bearer_token = NULL, bearer_token_env =
-"NOVA_FILE_BEARER_TOKEN", ...)` plus the generated
-`nova_file_<operation_id>()` wrappers. App-specific convenience helpers belong
+`create_nova_client(base_url, bearer_token = NULL, bearer_token_env =
+"NOVA_BEARER_TOKEN", ...)` plus the generated
+`nova_<operation_id>()` wrappers. App-specific convenience helpers belong
 in consumer repos; they must not recreate a second SDK or a retired auth-verify
 contract.
 
@@ -129,7 +129,7 @@ Generator-facing OpenAPI rules that downstream consumers can rely on:
 
 - Authenticate to Nova with bearer JWT only.
 - Do not call or document retired auth-verification service endpoints.
-- Fail closed on missing `NOVA_API_BASE_URL` / `NOVA_FILE_BEARER_TOKEN` in the
+- Fail closed on missing `NOVA_API_BASE_URL` / `NOVA_BEARER_TOKEN` in the
   consumer repo's real bootstrap path.
 - Keep consumer-side wrappers thin and app-owned; Nova remains the HTTP client
   and contract authority.

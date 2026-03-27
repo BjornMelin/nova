@@ -1,28 +1,28 @@
-# `nova.sdk.r.file`
+# `nova`
 
-Generated R client for the Nova file API.
+Thin httr2 client for the Nova public API.
 
 This package is generated from committed OpenAPI and is kept in-repo so
 Nova release tooling can build and check the real package tree.
 The generated client is intentionally thin and follows the current
-public Nova file API contract: bearer JWT auth, JSON bodies,
-concrete path/query parameters, and plain R list responses.
+public Nova API contract: bearer JWT auth, JSON bodies, concrete
+path/query parameters, and plain R list responses.
 
 ## Surface
 
-- `create_nova_file_client`
-- `nova_file_bearer_token`
-- endpoint wrappers named `nova_file_<operation_id>`
+- `create_nova_client`
+- `nova_bearer_token`
+- endpoint wrappers named `nova_<operation_id>`
 
 ## Example
 
 ```r
-client <- create_nova_file_client(
+client <- create_nova_client(
   "https://nova.example/",
   bearer_token = "eyJhbGciOi...",
 )
 
-result <- nova_file_create_export(
+result <- nova_create_export(
   client,
   body = list(
     source_key = "uploads/scope-1/source.csv",
@@ -33,6 +33,6 @@ result <- nova_file_create_export(
 result$export_id
 result$status
 
-exports <- nova_file_list_exports(client, limit = 25)
-export <- nova_file_get_export(client, export_id = result$export_id)
+exports <- nova_list_exports(client, limit = 25)
+export <- nova_get_export(client, export_id = result$export_id)
 ```

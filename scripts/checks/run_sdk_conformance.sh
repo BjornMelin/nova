@@ -27,4 +27,4 @@ npm run -w @nova/contracts-ts-conformance verify
 uv run python scripts/release/generate_clients.py --check
 uv run pytest -q scripts/release/tests/test_typescript_sdk_contracts.py
 
-bash scripts/checks/verify_r_cmd_check.sh packages/nova_sdk_r_file
+bash scripts/checks/verify_r_cmd_check.sh packages/nova_sdk_r

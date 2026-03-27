@@ -49,6 +49,8 @@ TypeScript, Python, and R.
 
 - implementation: thin `httr2` wrapper package
 - package dir: `packages/nova_sdk_r`
+- published package name: `nova`
+- exported surface: `create_nova_client()`, `nova_bearer_token()`, and `nova_<operation_id>()`
 - do not use OpenAPI Generator R as the canonical path
 
 ## 6. Release rule

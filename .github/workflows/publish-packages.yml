@@ -329,11 +329,11 @@ jobs:
         with:
           r-version: "4.3.2"
 
-      - name: Install R dependencies for nova.sdk.r.file
-        if: contains(fromJson(steps.release-units.outputs.r_unit_ids), 'packages/nova_sdk_r_file')
+      - name: Install R dependencies for nova
+        if: contains(fromJson(steps.release-units.outputs.r_unit_ids), 'packages/nova_sdk_r')
         uses: r-lib/actions/setup-r-dependencies@6f6e5bc62fba3a704f74e7ad7ef7676c5c6a2590 # r-lib/actions/setup-r-dependencies@v2
         with:
-          working-directory: packages/nova_sdk_r_file
+          working-directory: packages/nova_sdk_r
 
       - name: Build, check, and sign R packages
         if: steps.release-units.outputs.has_r_units == 'true'

@@ -112,13 +112,13 @@ Current status:
 
 ### 3.4 First-class internal R packages
 
-- `nova.sdk.r.file` (real R package exposing generated client bindings/models)
-- `nova.sdk.r.auth` (real R package exposing generated auth bindings/models)
+- legacy file-only R package (real R package exposing generated client bindings/models)
+- legacy auth-only R package (real R package exposing generated auth bindings/models)
 
 Repository package paths:
 
-- `packages/nova_sdk_r_file/`
-- `packages/nova_sdk_r_auth/`
+- legacy file-only R package path
+- legacy auth-only R package path
 
 Current status:
 
