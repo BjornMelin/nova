@@ -37,6 +37,8 @@ This file records the intentional hard cuts in the second green-field program.
 - Delete auth SDK packages.
 - Delete the dedicated auth service package family.
 - Rename file-only SDK packages to unified Nova SDK package names.
+- Rename the legacy file-only Python SDK package/import surface to
+  `packages/nova_sdk_py` / `nova_sdk_py`.
 - Rename the TypeScript package from `@nova/sdk-file` to `@nova/sdk`.
 - Delete `@nova/sdk-fetch`.
 

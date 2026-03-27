@@ -9,7 +9,7 @@ members = [
     "nova-dash-bridge",
     "nova-file-api",
     "nova-runtime-support",
-    "nova-sdk-py-file",
+    "nova-sdk-py",
     "nova-workflows",
 ]
 
@@ -1225,9 +1225,9 @@ requires-dist = [
 ]
 
 [[package]]
-name = "nova-sdk-py-file"
+name = "nova-sdk-py"
 version = "1.0.0"
-source = { editable = "packages/nova_sdk_py_file" }
+source = { editable = "packages/nova_sdk_py" }
 dependencies = [
     { name = "attrs" },
     { name = "httpx" },

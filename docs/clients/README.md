@@ -59,7 +59,7 @@ directory, then verify downstream consumers against
 
 Release-grade public SDK packages for this wave:
 
-- `../../packages/nova_sdk_py_file/`
+- `../../packages/nova_sdk_py/`
 
 Integration adapter packages retained in-repo for downstream framework wiring:
 

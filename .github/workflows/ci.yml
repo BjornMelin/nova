@@ -143,7 +143,7 @@ jobs:
             packages/nova_file_api \
             packages/nova_dash_bridge \
             packages/nova_runtime_support \
-            packages/nova_sdk_py_file; do
+            packages/nova_sdk_py; do
             uv build --python 3.11 "$p"
           done
 
@@ -162,7 +162,7 @@ jobs:
             packages/nova_file_api \
             packages/nova_dash_bridge \
             packages/nova_runtime_support \
-            packages/nova_sdk_py_file; do
+            packages/nova_sdk_py; do
             uv build --python 3.12 "$p"
           done
 

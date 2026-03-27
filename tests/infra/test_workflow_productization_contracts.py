@@ -378,7 +378,7 @@ def test_python_compatibility_job_covers_supported_envs() -> None:
 
     assert "3.11" in setup_versions
     assert "3.12" in setup_versions
-    assert any("packages/nova_sdk_py_file" in run for run in build_runs)
+    assert any("packages/nova_sdk_py" in run for run in build_runs)
     assert any("uv build --python 3.11" in run for run in build_runs)
     assert any("uv build --python 3.12" in run for run in build_runs)
 

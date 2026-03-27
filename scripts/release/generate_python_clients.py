@@ -11,7 +11,6 @@ import shutil
 import subprocess
 import sys
 from dataclasses import dataclass
-from functools import partial
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any, cast
@@ -33,6 +32,10 @@ _FORMATTER_TIMEOUT_SECONDS = 60
 _HTTP_METHODS = frozenset(
     {"get", "post", "put", "patch", "delete", "options", "head", "trace"}
 )
+_RELATIVE_IMPORT_RE = re.compile(
+    r"^(?P<indent>\s*)from (?P<dots>\.+)"
+    r"(?P<module>[A-Za-z0-9_.]*) import (?P<symbols>.+)$"
+)
 
 
 @dataclass(frozen=True)
@@ -48,13 +51,9 @@ TARGETS = (
     GenerationTarget(
         spec_path=OPENAPI_ROOT / "nova-file-api.openapi.json",
         output_path=(
-            REPO_ROOT
-            / "packages"
-            / "nova_sdk_py_file"
-            / "src"
-            / "nova_sdk_py_file"
+            REPO_ROOT / "packages" / "nova_sdk_py" / "src" / "nova_sdk_py"
         ),
-        package_name="nova_sdk_py_file",
+        package_name="nova_sdk_py",
     ),
 )
 
@@ -227,47 +226,6 @@ def _write_temp_spec(*, spec: dict[str, Any], destination: Path) -> Path:
     return destination
 
 
-def _repair_job_record_result_parser(root: Path) -> None:
-    path = root / "models" / "job_record.py"
-    if not path.exists():
-        return
-
-    content = path.read_text(encoding="utf-8")
-    old = (
-        r"(?s)        def _parse_result\("
-        r".*?        result = _parse_result\(d.pop\(\"result\", UNSET\)\)\n"
-    )
-    new = (
-        "        def _parse_result(\n"
-        "            data: object,\n"
-        "        ) -> JobRecordResultDetails | None | Unset:\n"
-        "            if data is None:\n"
-        "                return data\n"
-        "            if isinstance(data, Unset):\n"
-        "                return data\n"
-        "            if not isinstance(data, Mapping):\n"
-        "                raise TypeError(\n"
-        '                    "Expected result payload to be a mapping or "\n'
-        '                    "null"\n'
-        "                )\n"
-        '            result_data = cast("Mapping[str, Any]", data)\n'
-        "            return JobRecordResultDetails.from_dict(result_data)\n"
-        "\n"
-        '        result = _parse_result(d.pop("result", UNSET))\n'
-    )
-    pattern = re.compile(old)
-    updated, count = pattern.subn(new, content, count=1)
-    if count == 0:
-        if new in content:
-            return
-        raise RuntimeError(
-            "expected JobRecord result parser snippet not found in "
-            f"{path.relative_to(root)}"
-        )
-
-    path.write_text(updated, encoding="utf-8")
-
-
 def _repair_export_resource_output_parser(root: Path) -> None:
     path = root / "models" / "export_resource.py"
     if not path.exists():
@@ -309,247 +267,94 @@ def _repair_export_resource_output_parser(root: Path) -> None:
     path.write_text(updated, encoding="utf-8")
 
 
-_RELATIVE_IMPORT_RE = re.compile(
-    r"^(\s*)from (\.+)([\w\.]*) import (.+)$", re.MULTILINE
-)
+def _rewrite_file(
+    root: Path,
+    relative_path: str,
+    *,
+    pattern: str,
+    replacement: str,
+    flags: int = 0,
+    count: int = 1,
+    already_applied_pattern: str | None = None,
+) -> None:
+    path = root / relative_path
+    if not path.exists():
+        return
+    content = path.read_text(encoding="utf-8")
+    if replacement in content:
+        return
+    if already_applied_pattern and re.search(
+        already_applied_pattern,
+        content,
+        flags=flags,
+    ):
+        return
+    updated, replaced = re.subn(
+        pattern,
+        replacement,
+        content,
+        count=count,
+        flags=flags,
+    )
+    if replaced == 0:
+        raise RuntimeError(
+            f"expected rewrite pattern not found in {path.relative_to(root)}"
+        )
+    if updated != content:
+        path.write_text(updated, encoding="utf-8")
 
 
 def _rewrite_relative_imports(root: Path, package_name: str) -> None:
-    def _absolute_module_name(path: Path, dot_count: int, suffix: str) -> str:
-        package_segments = list(path.relative_to(root).parent.parts)
-        levels_up = dot_count - 1
-        if levels_up > 0:
-            keep = max(0, len(package_segments) - levels_up)
-            package_segments = package_segments[:keep]
-        module_segments = package_segments + ([suffix] if suffix else [])
-        if module_segments:
-            return ".".join([package_name, *module_segments])
-        return package_name
-
-    def _replacement(path: Path, match: re.Match[str]) -> str:
-        indent = match.group(1)
-        dots = len(match.group(2))
-        suffix = match.group(3)
-        imported = match.group(4)
-        absolute = _absolute_module_name(path, dots, suffix)
-        return f"{indent}from {absolute} import {imported}"
-
     for path in root.rglob("*.py"):
+        rel_path = path.relative_to(root)
+        if _should_ignore(rel_path):
+            continue
+
         content = path.read_text(encoding="utf-8")
-        new_content = _RELATIVE_IMPORT_RE.sub(
-            partial(_replacement, path),
-            content,
-        )
-        if new_content != content:
-            path.write_text(new_content, encoding="utf-8")
+        updated_lines: list[str] = []
+        changed = False
+        package_parts = (package_name, *rel_path.parent.parts)
+
+        for line in content.splitlines(keepends=True):
+            line_body = line[:-1] if line.endswith("\n") else line
+            newline = "\n" if line.endswith("\n") else ""
+            match = _RELATIVE_IMPORT_RE.match(line_body)
+            if not match:
+                updated_lines.append(line)
+                continue
+
+            dots = len(match.group("dots"))
+            module = match.group("module")
+            symbols = match.group("symbols")
+            keep_levels = len(package_parts) - (dots - 1)
+            if keep_levels < 1:
+                raise RuntimeError(
+                    "relative import escaped package root in "
+                    f"{rel_path}: {line_body}"
+                )
+
+            absolute_parts = list(package_parts[:keep_levels])
+            if module:
+                absolute_parts.extend(module.split("."))
+
+            updated_line = (
+                f"{match.group('indent')}from "
+                f"{'.'.join(absolute_parts)} import {symbols}{newline}"
+            )
+            if updated_line != line:
+                changed = True
+            updated_lines.append(updated_line)
+
+        if changed:
+            path.write_text("".join(updated_lines), encoding="utf-8")
 
 
-def _repair_generated_python_package(root: Path, package_name: str) -> None:
-    _rewrite_relative_imports(root, package_name)
-
-    def _rewrite_file(
-        relative_path: str,
-        *,
-        pattern: str,
-        replacement: str,
-        flags: int = 0,
-        count: int = 1,
-    ) -> None:
-        path = root / relative_path
-        if not path.exists():
-            return
-        content = path.read_text(encoding="utf-8")
-        updated, replaced = re.subn(
-            pattern,
-            replacement,
-            content,
-            count=count,
-            flags=flags,
-        )
-        if replaced and updated != content:
-            path.write_text(updated, encoding="utf-8")
-
-    simple_docs = {
-        "models/job_record_payload.py": (
-            "Additional job payload fields returned by the API."
-        ),
-        "models/job_event_data.py": (
-            "Additional job event fields returned by the API."
-        ),
-        "models/enqueue_job_request_payload.py": (
-            "Additional job payload fields included in enqueue requests."
-        ),
-        "models/error_body_details.py": (
-            "Additional structured details returned with error payloads."
-        ),
-        "models/capability_descriptor_details.py": (
-            "Additional capability descriptor fields returned by the API."
-        ),
-        "models/job_record_result_details.py": (
-            "Additional job result details returned by the API."
-        ),
-    }
-    for relative_path, docstring in simple_docs.items():
-        _rewrite_file(
-            relative_path,
-            pattern=r'    """\s*"""',
-            replacement=f'    """{docstring}"""',
-        )
-
-    _rewrite_file(
-        "models/create_export_request.py",
-        pattern=(
-            r'^(?:"""Create-export request model for the public '
-            r'Python SDK\."""\n\n)+'
-            r"from __future__ import annotations\n\n"
-        ),
-        replacement=(
-            '"""Create-export request model for the public Python SDK."""\n\n'
-            "from __future__ import annotations\n\n"
-        ),
-        flags=re.MULTILINE,
-    )
-    _rewrite_file(
-        "models/create_export_request.py",
-        pattern=r"\Afrom __future__ import annotations\n\n",
-        replacement=(
-            '"""Create-export request model for the public Python SDK."""\n\n'
-            "from __future__ import annotations\n\n"
-        ),
-    )
-    _rewrite_file(
-        "models/create_export_request.py",
-        pattern=(
-            r"class CreateExportRequest:\n"
-            r'    """Request payload for export creation\.\n\n'
-            r"    Attributes:\n"
-            r"        filename \(str\):\n"
-            r"        source_key \(str\):\n"
-            r'    """\n'
-        ),
-        replacement=(
-            "class CreateExportRequest:\n"
-            '    """Request payload for creating an export.\n\n'
-            "    Attributes:\n"
-            "        filename (str): Client-facing filename to preserve in the "
-            "export.\n"
-            "        source_key (str): Storage key of the source object to "
-            "export.\n"
-            '    """\n'
-        ),
-        flags=re.MULTILINE,
-    )
-    _rewrite_file(
-        "models/create_export_request.py",
-        pattern=(
-            r"    def to_dict\(self\) -> dict\[str, Any\]:\n"
-            r"        filename = self\.filename\n"
-        ),
-        replacement=(
-            "    def to_dict(self) -> dict[str, Any]:\n"
-            '        """Serialize the request payload to a JSON-compatible '
-            'mapping."""\n'
-            "        filename = self.filename\n"
-        ),
-        flags=re.MULTILINE,
-    )
-    _rewrite_file(
-        "models/create_export_request.py",
-        pattern=(
-            r"    def from_dict\(cls: type\[T\], "
-            r"src_dict: Mapping\[str, Any\]\) -> T:\n"
-            r"        d = dict\(src_dict\)\n"
-        ),
-        replacement=(
-            "    def from_dict(cls: type[T], src_dict: Mapping[str, "
-            "Any]) -> T:\n"
-            '        """Deserialize the request payload from a '
-            'JSON-compatible mapping."""\n'
-            "        d = dict(src_dict)\n"
-        ),
-        flags=re.MULTILINE,
-    )
-    _rewrite_file(
-        "models/export_output.py",
-        pattern=(
-            r'^(?:"""Export-output metadata model for the public '
-            r'Python SDK\."""\n\n)+'
-            r"from __future__ import annotations\n\n"
-        ),
-        replacement=(
-            '"""Export-output metadata model for the public Python SDK."""\n\n'
-            "from __future__ import annotations\n\n"
-        ),
-        flags=re.MULTILINE,
-    )
-    _rewrite_file(
-        "models/export_output.py",
-        pattern=r"\Afrom __future__ import annotations\n\n",
-        replacement=(
-            '"""Export-output metadata model for the public Python SDK."""\n\n'
-            "from __future__ import annotations\n\n"
-        ),
-    )
-    _rewrite_file(
-        "models/export_output.py",
-        pattern=(
-            r"class ExportOutput:\n"
-            r'    """Completed export output metadata\.\n\n'
-            r"    Attributes:\n"
-            r"        download_filename \(str\):\n"
-            r"        key \(str\):\n"
-            r'    """\n'
-        ),
-        replacement=(
-            "class ExportOutput:\n"
-            '    """Completed export output metadata.\n\n'
-            "    Attributes:\n"
-            "        download_filename (str): Filename presented to clients "
-            "when downloading.\n"
-            "        key (str): Storage key for the exported object.\n"
-            '    """\n'
-        ),
-        flags=re.MULTILINE,
-    )
-    _rewrite_file(
-        "models/export_output.py",
-        pattern=(
-            r"    def to_dict\(self\) -> dict\[str, Any\]:\n"
-            r"        download_filename = self\.download_filename\n"
-        ),
-        replacement=(
-            "    def to_dict(self) -> dict[str, Any]:\n"
-            '        """Serialize the export output to a JSON-compatible '
-            'mapping."""\n'
-            "        download_filename = self.download_filename\n"
-        ),
-        flags=re.MULTILINE,
-    )
-    _rewrite_file(
-        "models/export_output.py",
-        pattern=(
-            r"    def from_dict\(cls: type\[T\], "
-            r"src_dict: Mapping\[str, Any\]\) -> T:\n"
-            r"        d = dict\(src_dict\)\n"
-        ),
-        replacement=(
-            "    def from_dict(cls: type[T], src_dict: Mapping[str, "
-            "Any]) -> T:\n"
-            '        """Deserialize the export output from a '
-            'JSON-compatible mapping."""\n'
-            "        d = dict(src_dict)\n"
-        ),
-        flags=re.MULTILINE,
-    )
-
-    _rewrite_file(
-        "models/metrics_summary_response_activity.py",
-        pattern=(
-            r"        metrics_summary_response_activity = cls\(\)\n"
+def _repair_generated_python_package(root: Path) -> None:
+    typed_additional_properties = {
+        "models/metrics_summary_response_activity.py": (
+            r"        metrics_summary_response_activity = cls\(\s*\)\n"
             r"\s*metrics_summary_response_activity\.additional_properties = d\n"
-            r"\s*return metrics_summary_response_activity\n"
-        ),
-        replacement=(
+            r"\s*return metrics_summary_response_activity\n",
             "        metrics_summary_response_activity = cls()\n"
             "        additional_properties: dict[str, int] = {}\n"
             "        for key, value in d.items():\n"
@@ -564,18 +369,12 @@ def _repair_generated_python_package(root: Path, package_name: str) -> None:
             "additional_properties = (\n"
             "            additional_properties\n"
             "        )\n"
-            "        return metrics_summary_response_activity\n"
+            "        return metrics_summary_response_activity\n",
         ),
-        flags=re.MULTILINE,
-    )
-    _rewrite_file(
-        "models/metrics_summary_response_counters.py",
-        pattern=(
-            r"        metrics_summary_response_counters = cls\(\)\n"
+        "models/metrics_summary_response_counters.py": (
+            r"        metrics_summary_response_counters = cls\(\s*\)\n"
             r"\s*metrics_summary_response_counters\.additional_properties = d\n"
-            r"\s*return metrics_summary_response_counters\n"
-        ),
-        replacement=(
+            r"\s*return metrics_summary_response_counters\n",
             "        metrics_summary_response_counters = cls()\n"
             "        additional_properties: dict[str, int] = {}\n"
             "        for key, value in d.items():\n"
@@ -590,19 +389,13 @@ def _repair_generated_python_package(root: Path, package_name: str) -> None:
             "additional_properties = (\n"
             "            additional_properties\n"
             "        )\n"
-            "        return metrics_summary_response_counters\n"
+            "        return metrics_summary_response_counters\n",
         ),
-        flags=re.MULTILINE,
-    )
-    _rewrite_file(
-        "models/metrics_summary_response_latencies_ms.py",
-        pattern=(
-            r"        metrics_summary_response_latencies_ms = cls\(\)\n"
-            r"\s*metrics_summary_response_latencies_ms."
+        "models/metrics_summary_response_latencies_ms.py": (
+            r"        metrics_summary_response_latencies_ms = cls\(\s*\)\n"
+            r"\s*metrics_summary_response_latencies_ms\."
             r"additional_properties = d\n"
-            r"\s*return metrics_summary_response_latencies_ms\n"
-        ),
-        replacement=(
+            r"\s*return metrics_summary_response_latencies_ms\n",
             "        metrics_summary_response_latencies_ms = cls()\n"
             "        additional_properties: dict[str, float] = {}\n"
             "        for key, value in d.items():\n"
@@ -617,18 +410,12 @@ def _repair_generated_python_package(root: Path, package_name: str) -> None:
             "additional_properties = (\n"
             "            additional_properties\n"
             "        )\n"
-            "        return metrics_summary_response_latencies_ms\n"
+            "        return metrics_summary_response_latencies_ms\n",
         ),
-        flags=re.MULTILINE,
-    )
-    _rewrite_file(
-        "models/readiness_response_checks.py",
-        pattern=(
-            r"        readiness_response_checks = cls\(\)\n"
+        "models/readiness_response_checks.py": (
+            r"        readiness_response_checks = cls\(\s*\)\n"
             r"\s*readiness_response_checks\.additional_properties = d\n"
-            r"\s*return readiness_response_checks\n"
-        ),
-        replacement=(
+            r"\s*return readiness_response_checks\n",
             "        readiness_response_checks = cls()\n"
             "        additional_properties: dict[str, bool] = {}\n"
             "        for key, value in d.items():\n"
@@ -641,35 +428,101 @@ def _repair_generated_python_package(root: Path, package_name: str) -> None:
             "            additional_properties[key] = value\n\n"
             "        readiness_response_checks.additional_properties = "
             "additional_properties\n"
-            "        return readiness_response_checks\n"
+            "        return readiness_response_checks\n",
         ),
-        flags=re.MULTILINE,
-    )
-    _rewrite_file(
-        "models/sign_parts_response_urls.py",
-        pattern=(
-            r"        sign_parts_response_urls = cls\(\)\n"
+        "models/sign_parts_response_urls.py": (
+            r"        sign_parts_response_urls = cls\(\s*\)\n"
             r"\s*sign_parts_response_urls\.additional_properties = d\n"
-            r"\s*return sign_parts_response_urls\n"
-        ),
-        replacement=(
+            r"\s*return sign_parts_response_urls\n",
             "        sign_parts_response_urls = cls()\n"
-            "        additional_properties: dict[str, str] = {}\n"
-            "        for key, value in d.items():\n"
-            "            if not isinstance(value, str):\n"
-            "                raise TypeError(\n"
-            '                    f"Invalid value for {key!r}: "\n'
-            '                    "expected str, "\n'
-            '                    f"got {type(value).__name__}"\n'
-            "                )\n"
-            "            additional_properties[key] = value\n\n"
+            "        additional_properties: dict[str, str] = {\n"
+            "            str(key): str(value) for key, value in d.items()\n"
+            "        }\n\n"
             "        sign_parts_response_urls.additional_properties = "
             "additional_properties\n"
-            "        return sign_parts_response_urls\n"
+            "        return sign_parts_response_urls\n",
         ),
-        flags=re.MULTILINE,
-    )
+    }
+    for relative_path, (
+        pattern,
+        replacement,
+    ) in typed_additional_properties.items():
+        _rewrite_file(
+            root,
+            relative_path,
+            pattern=pattern,
+            replacement=replacement,
+            flags=re.MULTILINE,
+        )
+
+    docstring_replacements = {
+        "models/capability_descriptor_details.py": (
+            '    """Additional free-form metadata attached to a capability '
+            "descriptor.\n\n"
+            "    Attributes:\n"
+            "        additional_properties (dict[str, Any]): Opaque capability "
+            "metadata returned by the API.\n"
+            '    """\n'
+        ),
+        "models/error_body_details.py": (
+            '    """Additional structured data attached to an '
+            "error body.\n\n"
+            "    Attributes:\n"
+            "        additional_properties (dict[str, Any]): Extra error "
+            "details returned by the API.\n"
+            '    """\n'
+        ),
+        "models/metrics_summary_response_activity.py": (
+            '    """Named activity counters reported by the metrics summary '
+            "endpoint.\n\n"
+            "    Attributes:\n"
+            "        additional_properties (dict[str, int]): Activity counts "
+            "keyed by name.\n"
+            '    """\n'
+        ),
+        "models/metrics_summary_response_counters.py": (
+            '    """Named aggregate counters reported by the '
+            "metrics summary endpoint.\n\n"
+            "    Attributes:\n"
+            "        additional_properties (dict[str, int]): Counter values "
+            "keyed by name.\n"
+            '    """\n'
+        ),
+        "models/metrics_summary_response_latencies_ms.py": (
+            '    """Named latency metrics reported by the metrics summary '
+            "endpoint in milliseconds.\n\n"
+            "    Attributes:\n"
+            "        additional_properties (dict[str, float]): Latency values "
+            "keyed by name.\n"
+            '    """\n'
+        ),
+        "models/readiness_response_checks.py": (
+            '    """Named readiness check results reported by the '
+            "readiness endpoint.\n\n"
+            "    Attributes:\n"
+            "        additional_properties (dict[str, bool]): Readiness "
+            "statuses keyed by check name.\n"
+            '    """\n'
+        ),
+        "models/sign_parts_response_urls.py": (
+            '    """Signed upload-part URLs keyed by part number.\n\n'
+            "    Attributes:\n"
+            "        additional_properties (dict[str, str]): Signed URL "
+            "strings keyed by the part identifier returned by the API.\n"
+            '    """\n'
+        ),
+    }
+    for relative_path, replacement in docstring_replacements.items():
+        _rewrite_file(
+            root,
+            relative_path,
+            pattern=r"    \"\"\"\s*\"\"\"\n",
+            replacement=replacement,
+            count=1,
+        )
+
     _rewrite_file(
+        root,
         "models/presign_download_response.py",
         pattern=r"from attrs import define as _attrs_define\n",
         replacement=(
@@ -679,71 +532,35 @@ def _repair_generated_python_package(root: Path, package_name: str) -> None:
         count=1,
     )
     _rewrite_file(
+        root,
         "models/presign_download_response.py",
         pattern=r"    url: str\n",
         replacement="    url: str = _attrs_field(repr=False)\n",
         count=1,
     )
     _rewrite_file(
-        "models/resource_plan_request.py",
+        root,
+        "__init__.py",
         pattern=(
-            r"from typing \(\n"
-            r"    Any,\n"
-            r"    TypeVar,\n"
-            r"    cast,\n"
-            r"\)\n"
+            r"(?:"
+            r"from nova_sdk_py\.client import AuthenticatedClient, Client\n"
+            r"|"
+            r"from nova_sdk_py\.client import AuthenticatedClient\n"
+            r"from nova_sdk_py\.client import Client\n"
+            r")"
         ),
-        replacement="from typing import Any, TypeVar, cast\n",
-    )
-    _rewrite_file(
-        "models/presign_download_request.py",
-        pattern=(
-            r"from typing \(\n"
-            r"    Any,\n"
-            r"    TypeVar,\n"
-            r"    cast,\n"
-            r"\)\n"
+        replacement=(
+            "# ruff: noqa: I001\n"
+            "from nova_sdk_py.client import AuthenticatedClient\n"
+            "from nova_sdk_py.client import Client\n"
         ),
-        replacement="from typing import Any, TypeVar, cast\n",
-    )
-    _rewrite_file(
-        "models/job_list_response.py",
-        pattern=(
-            r"from typing \(\n"
-            r"    TYPE_CHECKING,\n"
-            r"    Any,\n"
-            r"    TypeVar,\n"
-            r"\)\n"
+        count=1,
+        already_applied_pattern=(
+            r"# ruff: noqa: I001\n"
+            r"from nova_sdk_py\.client import AuthenticatedClient\n"
+            r"from nova_sdk_py\.client import Client\n"
         ),
-        replacement="from typing import TYPE_CHECKING, Any, TypeVar\n",
     )
-
-    authoritative_paths = [
-        "models/job_record.py",
-        "models/job_record_payload.py",
-        "models/job_event_data.py",
-        "models/enqueue_job_request_payload.py",
-        "models/error_body_details.py",
-        "models/capability_descriptor_details.py",
-        "models/job_record_result_details.py",
-        "models/metrics_summary_response_activity.py",
-        "models/metrics_summary_response_counters.py",
-        "models/metrics_summary_response_latencies_ms.py",
-        "models/readiness_response_checks.py",
-        "models/sign_parts_response_urls.py",
-        "models/presign_download_response.py",
-    ]
-    checked_in_root = (
-        REPO_ROOT / "packages" / "nova_sdk_py_file" / "src" / "nova_sdk_py_file"
-    )
-    for relative_path in authoritative_paths:
-        source = checked_in_root / relative_path
-        target = root / relative_path
-        if not source.exists() or not target.exists():
-            continue
-        source_bytes = source.read_bytes()
-        if target.read_bytes() != source_bytes:
-            target.write_bytes(source_bytes)
 
 
 def _run_command(*, command: list[str], timeout: int, description: str) -> None:
@@ -856,12 +673,10 @@ def _generate_target(target: GenerationTarget, temp_root: Path) -> Path:
             f"{target.spec_path}:\nstdout:\n{stdout}\nstderr:\n{stderr}"
         ) from exc
 
-    _repair_job_record_result_parser(destination)
     _repair_export_resource_output_parser(destination)
-    _repair_generated_python_package(destination, target.package_name)
+    _rewrite_relative_imports(destination, target.package_name)
+    _repair_generated_python_package(destination)
     _run_generated_ruff(destination)
-    _repair_job_record_result_parser(destination)
-    _repair_generated_python_package(destination, target.package_name)
     return destination
 
 

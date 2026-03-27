@@ -13,7 +13,8 @@ from scripts.release.generate_python_clients import (
     TARGETS,
     _filter_internal_operations_for_public_sdk,
     _generate_target,
-    _repair_job_record_result_parser,
+    _repair_export_resource_output_parser,
+    _repair_generated_python_package,
 )
 
 
@@ -108,7 +109,7 @@ def test_generate_target_invokes_generator_with_config_and_templates(
     generation_target = TARGETS[0]
     target = _generate_target(target=generation_target, temp_root=tmp_path)
 
-    assert target == tmp_path / "nova_sdk_py_file"
+    assert target == tmp_path / "nova_sdk_py"
     assert formatted_roots == [target]
     assert len(commands) == 1
     command, _timeout, description = commands[0]
@@ -130,28 +131,165 @@ def test_generate_target_invokes_generator_with_config_and_templates(
     assert "--fail-on-warning" in command
 
 
-def test_repair_job_record_result_parser_adds_mapping_cast(
+def test_repair_export_resource_output_parser_adds_mapping_cast(
     tmp_path: Path,
 ) -> None:
-    """The residual ty fix should stay narrow and idempotent."""
+    """The nullable export-output parser fix should stay narrow."""
     models_dir = tmp_path / "models"
     models_dir.mkdir()
-    job_record = models_dir / "job_record.py"
-    job_record.write_text(
-        "        def _parse_result(data: object):\n"
+    export_resource = models_dir / "export_resource.py"
+    export_resource.write_text(
+        "        def _parse_output(data: object):\n"
         "                if not isinstance(data, dict):\n"
         "                    raise TypeError()\n"
-        "                result_type_0 = "
-        "JobRecordResultDetails.from_dict(data)\n"
-        '        result = _parse_result(d.pop("result", UNSET))\n',
+        "                output_type_0 = ExportOutput.from_dict(data)\n"
+        '        output = _parse_output(d.pop("output", UNSET))\n',
         encoding="utf-8",
     )
 
-    _repair_job_record_result_parser(tmp_path)
-    first_pass = job_record.read_text(encoding="utf-8")
-    _repair_job_record_result_parser(tmp_path)
-    second_pass = job_record.read_text(encoding="utf-8")
+    _repair_export_resource_output_parser(tmp_path)
+    first_pass = export_resource.read_text(encoding="utf-8")
+    _repair_export_resource_output_parser(tmp_path)
+    second_pass = export_resource.read_text(encoding="utf-8")
 
     assert "if not isinstance(data, Mapping):" in first_pass
-    assert 'result_data = cast("Mapping[str, Any]", data)' in first_pass
+    assert 'output_data = cast("Mapping[str, Any]", data)' in first_pass
+    assert "return ExportOutput.from_dict(output_data)" in first_pass
     assert first_pass == second_pass
+
+
+def test_repair_generated_python_package_preserves_typed_maps_and_redacted_repr(
+    tmp_path: Path,
+) -> None:
+    """Residual package repairs should stay limited to current schema quirks."""
+    models_dir = tmp_path / "models"
+    models_dir.mkdir()
+    (models_dir / "metrics_summary_response_activity.py").write_text(
+        "class MetricsSummaryResponseActivity:\n"
+        '    """ """\n\n'
+        "        metrics_summary_response_activity = cls()\n"
+        "        metrics_summary_response_activity.additional_properties = d\n"
+        "        return metrics_summary_response_activity\n",
+        encoding="utf-8",
+    )
+    (models_dir / "readiness_response_checks.py").write_text(
+        "class ReadinessResponseChecks:\n"
+        '    """ """\n\n'
+        "        readiness_response_checks = cls()\n"
+        "        readiness_response_checks.additional_properties = d\n"
+        "        return readiness_response_checks\n",
+        encoding="utf-8",
+    )
+    (models_dir / "sign_parts_response_urls.py").write_text(
+        "class SignPartsResponseUrls:\n"
+        '    """ """\n\n'
+        "        sign_parts_response_urls = cls()\n"
+        "        sign_parts_response_urls.additional_properties = d\n"
+        "        return sign_parts_response_urls\n",
+        encoding="utf-8",
+    )
+    (models_dir / "presign_download_response.py").write_text(
+        "from attrs import define as _attrs_define\n\n"
+        "@_attrs_define\n"
+        "class PresignDownloadResponse:\n"
+        "    url: str\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "__init__.py").write_text(
+        '"""A client library for accessing nova-file-api"""\n'
+        "from nova_sdk_py.client import AuthenticatedClient, Client\n\n"
+        "__all__ = (\n"
+        '    "AuthenticatedClient",\n'
+        '    "Client",\n'
+        ")\n",
+        encoding="utf-8",
+    )
+
+    _repair_generated_python_package(tmp_path)
+    first_pass = {
+        path.name: path.read_text(encoding="utf-8")
+        for path in (
+            models_dir / "metrics_summary_response_activity.py",
+            models_dir / "readiness_response_checks.py",
+            models_dir / "sign_parts_response_urls.py",
+            models_dir / "presign_download_response.py",
+            tmp_path / "__init__.py",
+        )
+    }
+    _repair_generated_python_package(tmp_path)
+    second_pass = {
+        path.name: path.read_text(encoding="utf-8")
+        for path in (
+            models_dir / "metrics_summary_response_activity.py",
+            models_dir / "readiness_response_checks.py",
+            models_dir / "sign_parts_response_urls.py",
+            models_dir / "presign_download_response.py",
+            tmp_path / "__init__.py",
+        )
+    }
+
+    activity = first_pass["metrics_summary_response_activity.py"]
+    readiness = first_pass["readiness_response_checks.py"]
+    sign_parts = first_pass["sign_parts_response_urls.py"]
+    presign = first_pass["presign_download_response.py"]
+    package_init = first_pass["__init__.py"]
+
+    assert "additional_properties: dict[str, int] = {}" in activity
+    assert (
+        "Named activity counters reported by the metrics summary endpoint."
+        in activity
+    )
+    assert "additional_properties: dict[str, bool] = {}" in readiness
+    assert (
+        "Named readiness check results reported by the readiness endpoint."
+        in readiness
+    )
+    assert "str(key): str(value) for key, value in d.items()" in sign_parts
+    assert "Signed upload-part URLs keyed by part number." in sign_parts
+    assert "from attrs import field as _attrs_field" in presign
+    assert "url: str = _attrs_field(repr=False)" in presign
+    assert "# ruff: noqa: I001" in package_init
+    assert (
+        "from nova_sdk_py.client import AuthenticatedClient\n"
+        "from nova_sdk_py.client import Client\n"
+    ) in package_init
+    assert first_pass == second_pass
+
+
+@pytest.mark.parametrize(
+    "initial_imports",
+    [
+        "from nova_sdk_py.client import AuthenticatedClient, Client\n",
+        (
+            "from nova_sdk_py.client import AuthenticatedClient\n"
+            "from nova_sdk_py.client import Client\n"
+        ),
+    ],
+)
+def test_repair_generated_python_package_normalizes_package_init_imports(
+    tmp_path: Path,
+    initial_imports: str,
+) -> None:
+    """Package init rewrites should normalize raw and partial import layouts."""
+    package_init = tmp_path / "__init__.py"
+    package_init.write_text(
+        '"""A client library for accessing nova-file-api"""\n'
+        f"{initial_imports}\n"
+        "__all__ = (\n"
+        '    "AuthenticatedClient",\n'
+        '    "Client",\n'
+        ")\n",
+        encoding="utf-8",
+    )
+
+    _repair_generated_python_package(tmp_path)
+    first_pass = package_init.read_text(encoding="utf-8")
+    _repair_generated_python_package(tmp_path)
+    second_pass = package_init.read_text(encoding="utf-8")
+
+    assert first_pass == second_pass
+    assert "# ruff: noqa: I001" in first_pass
+    assert (
+        "from nova_sdk_py.client import AuthenticatedClient\n"
+        "from nova_sdk_py.client import Client\n"
+    ) in first_pass
