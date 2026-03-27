@@ -26,7 +26,7 @@ The Nova refactor program is not only about correctness; it is about reducing th
 | Hotspot | Files | Nonblank LOC | Why it is expensive |
 | --- | --- | --- | --- |
 | `packages/nova_file_api` | 58 | 12911 | largest runtime package; currently also carries auth, OpenAPI customizations, worker HTTP callback, and public surface glue |
-| `packages/nova_sdk_py_file` | 77 | 5058 | large generated Python client plus generator coupling |
+| `packages/nova_sdk_py` | 77 | 5058 | large generated Python client plus generator coupling |
 | `packages/contracts` | 39 | 4854 | contract artifacts + fixtures that must match runtime reality |
 | `packages/nova_dash_bridge` | 19 | 3136 | adapter complexity from sync/async inversion |
 | `scripts/release/generate_python_clients.py` | 1 | 2,487 | large bespoke patch script |

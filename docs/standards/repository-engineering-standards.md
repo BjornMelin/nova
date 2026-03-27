@@ -197,7 +197,7 @@ Toolchain baseline notes:
 - The root dev dependency group pins `openapi-python-client==0.28.3` for the
   committed Python SDK generation path. Keep that exact pin, the lockfile,
   `scripts/release/openapi_python_client/`, and the committed
-  `packages/nova_sdk_py_file` tree aligned in the same change.
+  `packages/nova_sdk_py` tree aligned in the same change.
 - Current runtime dependency floors are manifest-owned authority:
   `pydantic-settings>=2.13.1` in `nova-file-api` and `nova-dash-bridge`, plus
   `uvicorn[standard]>=0.42.0` in `nova-file-api`. If those

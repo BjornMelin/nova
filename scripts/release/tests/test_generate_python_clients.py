@@ -13,7 +13,8 @@ from scripts.release.generate_python_clients import (
     TARGETS,
     _filter_internal_operations_for_public_sdk,
     _generate_target,
-    _repair_job_record_result_parser,
+    _repair_export_resource_output_parser,
+    _repair_generated_python_package,
 )
 
 
@@ -108,7 +109,7 @@ def test_generate_target_invokes_generator_with_config_and_templates(
     generation_target = TARGETS[0]
     target = _generate_target(target=generation_target, temp_root=tmp_path)
 
-    assert target == tmp_path / "nova_sdk_py_file"
+    assert target == tmp_path / "nova_sdk_py"
     assert formatted_roots == [target]
     assert len(commands) == 1
     command, _timeout, description = commands[0]
@@ -130,28 +131,82 @@ def test_generate_target_invokes_generator_with_config_and_templates(
     assert "--fail-on-warning" in command
 
 
-def test_repair_job_record_result_parser_adds_mapping_cast(
+def test_repair_export_resource_output_parser_adds_mapping_cast(
     tmp_path: Path,
 ) -> None:
-    """The residual ty fix should stay narrow and idempotent."""
+    """The nullable export-output parser fix should stay narrow."""
     models_dir = tmp_path / "models"
     models_dir.mkdir()
-    job_record = models_dir / "job_record.py"
-    job_record.write_text(
-        "        def _parse_result(data: object):\n"
+    export_resource = models_dir / "export_resource.py"
+    export_resource.write_text(
+        "        def _parse_output(data: object):\n"
         "                if not isinstance(data, dict):\n"
         "                    raise TypeError()\n"
-        "                result_type_0 = "
-        "JobRecordResultDetails.from_dict(data)\n"
-        '        result = _parse_result(d.pop("result", UNSET))\n',
+        "                output_type_0 = ExportOutput.from_dict(data)\n"
+        '        output = _parse_output(d.pop("output", UNSET))\n',
         encoding="utf-8",
     )
 
-    _repair_job_record_result_parser(tmp_path)
-    first_pass = job_record.read_text(encoding="utf-8")
-    _repair_job_record_result_parser(tmp_path)
-    second_pass = job_record.read_text(encoding="utf-8")
+    _repair_export_resource_output_parser(tmp_path)
+    first_pass = export_resource.read_text(encoding="utf-8")
+    _repair_export_resource_output_parser(tmp_path)
+    second_pass = export_resource.read_text(encoding="utf-8")
 
     assert "if not isinstance(data, Mapping):" in first_pass
-    assert 'result_data = cast("Mapping[str, Any]", data)' in first_pass
+    assert 'output_data = cast("Mapping[str, Any]", data)' in first_pass
+    assert "return ExportOutput.from_dict(output_data)" in first_pass
     assert first_pass == second_pass
+
+
+def test_repair_generated_python_package_preserves_typed_maps_and_redacted_repr(
+    tmp_path: Path,
+) -> None:
+    """Residual package repairs should stay limited to current schema quirks."""
+    models_dir = tmp_path / "models"
+    models_dir.mkdir()
+    (models_dir / "metrics_summary_response_activity.py").write_text(
+        "        metrics_summary_response_activity = cls()\n"
+        "        metrics_summary_response_activity.additional_properties = d\n"
+        "        return metrics_summary_response_activity\n",
+        encoding="utf-8",
+    )
+    (models_dir / "readiness_response_checks.py").write_text(
+        "        readiness_response_checks = cls()\n"
+        "        readiness_response_checks.additional_properties = d\n"
+        "        return readiness_response_checks\n",
+        encoding="utf-8",
+    )
+    (models_dir / "sign_parts_response_urls.py").write_text(
+        "        sign_parts_response_urls = cls()\n"
+        "        sign_parts_response_urls.additional_properties = d\n"
+        "        return sign_parts_response_urls\n",
+        encoding="utf-8",
+    )
+    (models_dir / "presign_download_response.py").write_text(
+        "from attrs import define as _attrs_define\n\n"
+        "@_attrs_define\n"
+        "class PresignDownloadResponse:\n"
+        "    url: str\n",
+        encoding="utf-8",
+    )
+
+    _repair_generated_python_package(tmp_path)
+
+    activity = (models_dir / "metrics_summary_response_activity.py").read_text(
+        encoding="utf-8"
+    )
+    readiness = (models_dir / "readiness_response_checks.py").read_text(
+        encoding="utf-8"
+    )
+    sign_parts = (models_dir / "sign_parts_response_urls.py").read_text(
+        encoding="utf-8"
+    )
+    presign = (models_dir / "presign_download_response.py").read_text(
+        encoding="utf-8"
+    )
+
+    assert "additional_properties: dict[str, int] = {}" in activity
+    assert "additional_properties: dict[str, bool] = {}" in readiness
+    assert "additional_properties: dict[str, str] = {}" in sign_parts
+    assert "from attrs import field as _attrs_field" in presign
+    assert "url: str = _attrs_field(repr=False)" in presign

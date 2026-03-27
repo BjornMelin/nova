@@ -14,17 +14,17 @@ import pytest
 _SUBPROCESS_TIMEOUT_SECONDS = 30
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 _OPENAPI_ROOT = _REPO_ROOT / "packages" / "contracts" / "openapi"
-_PYTHON_SDK_SRC = _REPO_ROOT / "packages" / "nova_sdk_py_file" / "src"
+_PYTHON_SDK_SRC = _REPO_ROOT / "packages" / "nova_sdk_py" / "src"
 pytestmark = pytest.mark.generated_smoke
 
 if str(_PYTHON_SDK_SRC) not in sys.path:
     sys.path.insert(0, str(_PYTHON_SDK_SRC))
 
-_client_module = import_module("nova_sdk_py_file.client")
-_errors_module = import_module("nova_sdk_py_file.errors")
-_models_module = import_module("nova_sdk_py_file.models")
+_client_module = import_module("nova_sdk_py.client")
+_errors_module = import_module("nova_sdk_py.errors")
+_models_module = import_module("nova_sdk_py.models")
 _release_info_module = import_module(
-    "nova_sdk_py_file.api.platform.get_release_info"
+    "nova_sdk_py.api.platform.get_release_info"
 )
 
 AuthenticatedClient = _client_module.AuthenticatedClient

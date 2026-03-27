@@ -62,7 +62,7 @@ remains the authority for conformance, versioning, and compatibility governance.
 - Committed Python generator assets live under
   `scripts/release/openapi_python_client/`.
 - The committed package root may retain hand-maintained packaging metadata, but
-  the generated module tree under `packages/nova_sdk_py_file/src/` is owned by
+  the generated module tree under `packages/nova_sdk_py/src/` is owned by
   `scripts/release/generate_python_clients.py`.
 - Large output patching scripts are not allowed unless clearly justified and
   reviewed.
@@ -89,7 +89,7 @@ remains the authority for conformance, versioning, and compatibility governance.
 
 ### 7.2 Python
 
-- One generated public file client package (for example `nova_sdk_py_file`).
+- One generated public Python client package (for example `nova_sdk_py`).
 - `nova_dash_bridge` remains a thin adapter: framework glue and header
   forwarding only; it calls the async-first `nova_file_api.public` seam and
   must not own route, auth, or alternate in-process contract authority.
