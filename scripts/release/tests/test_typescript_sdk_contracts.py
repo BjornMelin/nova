@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import cast
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
+TS_PACKAGE_DIR = "nova_sdk_ts"
 
 
 def _load_package_json(package_dir_name: str) -> dict[str, object]:
@@ -25,41 +26,33 @@ def _load_source_text(package_dir_name: str, file_name: str) -> str:
 
 def test_public_sdk_packages_use_subpath_only_exports() -> None:
     """Public TS SDK packages must expose explicit subpaths only."""
-    expected_exports = {
-        "nova_sdk_file": {
-            "./client",
-            "./errors",
-            "./operations",
-            "./types",
-        },
-    }
-    for package_dir_name, expected_subpaths in expected_exports.items():
-        package_data = _load_package_json(package_dir_name)
-        assert "main" not in package_data
-        assert "module" not in package_data
-        assert "types" not in package_data
-        exports = package_data.get("exports")
-        assert isinstance(exports, dict)
-        assert "." not in exports
-        assert set(exports) == expected_subpaths
+    package_data = _load_package_json(TS_PACKAGE_DIR)
+    assert package_data.get("name") == "@nova/sdk"
+    assert "main" not in package_data
+    assert "module" not in package_data
+    assert "types" not in package_data
+    exports = package_data.get("exports")
+    assert isinstance(exports, dict)
+    assert "." not in exports
+    assert set(exports) == {"./client", "./sdk", "./types"}
 
 
 def test_typescript_sdk_source_manifests_remain_private() -> None:
     """Source TS SDK manifests stay private until staged publish preparation."""
-    for package_dir_name in ("nova_sdk_file",):
-        package_data = _load_package_json(package_dir_name)
-        assert package_data.get("private") is True
+    package_data = _load_package_json(TS_PACKAGE_DIR)
+    assert package_data.get("private") is True
 
 
-def test_public_sdk_packages_depend_on_openapi_fetch_only() -> None:
-    """Public TS SDK packages must use openapi-fetch without custom runtimes."""
-    package_data = _load_package_json("nova_sdk_file")
+def test_public_sdk_package_is_runtime_lean() -> None:
+    """Public TS SDK package must stay free of the deleted runtime stack."""
+    package_data = _load_package_json(TS_PACKAGE_DIR)
     dependencies = package_data.get("dependencies", {})
     assert isinstance(dependencies, dict)
     dependency_map = cast(dict[str, object], dependencies)
     assert "zod" not in dependency_map
-    assert dependency_map.get("openapi-fetch") == "^0.17.0"
     assert "@nova/sdk-fetch" not in dependency_map
+    assert "openapi-fetch" not in dependency_map
+    assert "@hey-api/client-fetch" not in dependency_map
 
 
 def test_public_sdk_types_omit_raw_model_aliases() -> None:
@@ -71,23 +64,41 @@ def test_public_sdk_types_omit_raw_model_aliases() -> None:
         "export type OperationId =",
     )
 
-    for package_dir_name in ("nova_sdk_file",):
-        source = _load_source_text(package_dir_name, "types.ts")
-        for banned_export in banned_exports:
-            assert banned_export not in source
+    source = _load_source_text(TS_PACKAGE_DIR, "client/types.gen.ts")
+    for banned_export in banned_exports:
+        assert banned_export not in source
 
 
 def test_public_sdk_types_exclude_internal_job_result_aliases() -> None:
     """Public file SDK types must exclude worker-only job result aliases."""
-    source = _load_source_text("nova_sdk_file", "types.ts")
+    source = _load_source_text(TS_PACKAGE_DIR, "client/types.gen.ts")
     assert "export type JobResultUpdateRequest" not in source
     assert "export type JobResultUpdateResponse" not in source
 
 
 def test_public_sdk_types_exclude_wrapper_specific_aliases() -> None:
     """Public file SDK types must not expose deleted transport-wrapper types."""
-    source = _load_source_text("nova_sdk_file", "types.ts")
+    source = _load_source_text(TS_PACKAGE_DIR, "client/types.gen.ts")
     assert "export type RequestOptions =" not in source
     assert "export type Result =" not in source
     assert re.search(r"\b\w+RequestOptions\b", source) is None
     assert re.search(r"\b\w+Result\b", source) is None
+
+
+def test_public_sdk_generated_tree_has_no_index_barrels() -> None:
+    """Generator post-processing must remove index.ts barrels from src tree."""
+    index_files = sorted(
+        path.relative_to(REPO_ROOT / "packages" / TS_PACKAGE_DIR).as_posix()
+        for path in (REPO_ROOT / "packages" / TS_PACKAGE_DIR / "src").rglob(
+            "index.ts"
+        )
+    )
+    assert index_files == []
+
+
+def test_public_sdk_exposes_generated_sdk_functions_only() -> None:
+    """SDK module must export only public generated operations."""
+    source = _load_source_text(TS_PACKAGE_DIR, "client/sdk.gen.ts")
+    assert "export const getExport" in source
+    assert "export const createExport" in source
+    assert "export const updateJobResult" not in source

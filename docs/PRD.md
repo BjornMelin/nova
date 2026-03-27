@@ -22,7 +22,7 @@ auth channel).
 - One truthful active operator authority graph across runtime API, SDK, and
   deploy-validation governance, including the
   [green-field program](./plan/greenfield-simplification-program.md) and
-  `ADR-0033`–`ADR-0041` / `SPEC-0027`–`SPEC-0029`.
+  `ADR-0033`–`ADR-0041` / `SPEC-0027`–`SPEC-0030`.
 - One generated runtime-config matrix for deploy/docs/test consumers, backed by
   the typed settings model rather than duplicated env-key lists.
 - Superseded ADR/SPEC material is quarantined outside the active authority set
@@ -30,8 +30,8 @@ auth channel).
 - Stable generated-client and conformance behavior against current OpenAPI.
 - Ergonomic SDK-facing OpenAPI identifiers and semantic generator groupings
   remain stable across regeneration.
-- TypeScript SDKs use `openapi-typescript` + `openapi-fetch` per `ADR-0038` /
-  `SPEC-0029` while honoring active `SPEC-0012` (predecessor package-map detail,
+- TypeScript SDKs use `@hey-api/openapi-ts` with the generated fetch client per
+  `ADR-0037` / `SPEC-0030` while honoring active `SPEC-0012` (predecessor package-map detail,
   if needed for archaeology only:
   [`spec/index.md`](./architecture/spec/index.md) → Superseded `SPEC-0011`).
 - Worker export completion uses **direct persistence**, not an internal HTTP
@@ -56,7 +56,7 @@ auth channel).
 5. Documentation authority remains singular and unambiguous across README,
    PRD, requirements, ADR/SPEC, plan, and runbooks, synchronized per
    `SPEC-0020` (including green-field branch merge policy).
-6. Public SDK productization follows `ADR-0038`, `SPEC-0029`, and `SPEC-0012`
+6. Public SDK productization follows `ADR-0037`, `SPEC-0030`, and `SPEC-0012`
    (Python public; TypeScript CodeArtifact staged/prod; R internal first-class
    line). Superseded predecessors (`ADR-0013`, `SPEC-0011`, etc.) are listed only
    in [`adr/index.md`](./architecture/adr/index.md) and
@@ -104,7 +104,7 @@ Out of scope:
 
 1. Active docs reference the canonical chain including `ADR-0023`,
    `SPEC-0000`, `SPEC-0016`, `requirements.md`, and the green-field overlays
-   `SPEC-0027`–`SPEC-0029` / `ADR-0033`–`ADR-0041` where relevant.
+   `SPEC-0027`–`SPEC-0030` / `ADR-0033`–`ADR-0041` where relevant.
 2. Active plan/runbook docs reference
    `docs/plan/greenfield-simplification-program.md` when scope touches the
    program.
@@ -153,8 +153,7 @@ Out of scope:
 - `docs/architecture/adr/ADR-0035-worker-direct-result-persistence.md`
 - `docs/architecture/adr/ADR-0036-native-fastapi-openapi-contract.md`
 - `docs/architecture/adr/ADR-0041-shared-pure-asgi-middleware-and-errors.md`
-- `docs/architecture/adr/ADR-0037-async-first-public-surface.md`
-- `docs/architecture/adr/ADR-0038-sdk-architecture-by-language.md`
+- `docs/architecture/adr/ADR-0037-sdk-generation-consolidation.md`
 - `docs/architecture/adr/ADR-0039-aws-target-platform.md`
 - `docs/architecture/adr/ADR-0040-repo-rebaseline-after-cuts.md`
 - `docs/architecture/spec/SPEC-0000-http-api-contract.md`
@@ -169,7 +168,7 @@ Out of scope:
 - `docs/architecture/spec/SPEC-0023-ssm-runtime-base-url-contract-for-deploy-validation.md`
 - `docs/architecture/spec/SPEC-0027-public-http-contract-revision-and-bearer-auth.md`
 - `docs/architecture/spec/SPEC-0028-worker-job-lifecycle-and-direct-result-path.md`
-- `docs/architecture/spec/SPEC-0029-sdk-architecture-and-artifact-contract.md`
+- `docs/architecture/spec/SPEC-0030-sdk-generation-and-package-layout.md`
 - `docs/standards/README.md`
 - `docs/plan/PLAN.md`
 - `docs/runbooks/README.md`

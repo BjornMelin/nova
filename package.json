@@ -2,14 +2,15 @@
   "name": "nova-typescript-workspace",
   "private": true,
   "scripts": {
-    "build:typescript:sdk-graph": "npm run -w @nova/sdk-file build",
+    "build:typescript:sdk-graph": "npm run -w @nova/sdk build",
+    "openapi-ts": "openapi-ts --file openapi-ts.config.ts",
     "codeartifact:npm:env": "python scripts/release/codeartifact_npm.py env"
   },
   "devDependencies": {
-    "openapi-typescript": "^7.13.0"
+    "@hey-api/openapi-ts": "0.94.4"
   },
   "workspaces": [
     "packages/contracts/typescript",
-    "packages/nova_sdk_file"
+    "packages/nova_sdk_ts"
   ]
 }

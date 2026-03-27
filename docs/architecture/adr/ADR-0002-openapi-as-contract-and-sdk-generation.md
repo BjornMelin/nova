@@ -12,8 +12,8 @@ Related:
 References:
   - "[OpenAPI Specification](https://spec.openapis.org/oas/latest.html)"
   - "[FastAPI OpenAPI URL configuration](https://fastapi.tiangolo.com/tutorial/metadata/#openapi-url)"
-  - "[openapi-typescript](https://github.com/openapi-ts/openapi-typescript)"
-  - "[openapi-fetch](https://openapi-ts.dev/openapi-fetch/)"
+  - "[Hey API openapi-ts](https://github.com/hey-api/openapi-ts)"
+  - "[Hey API fetch client docs](https://heyapi.dev/openapi-ts/clients/fetch)"
   - "[OpenAPI Generator](https://openapi-generator.tech/)"
 ---
 
@@ -58,7 +58,8 @@ Implementation commitments:
 - Generate and publish OpenAPI from service code.
 - Keep SDK-facing `operationId` values stable, unique snake_case names and use
   semantic tags so generated client groupings remain ergonomic.
-- Use `openapi-typescript` and `openapi-fetch` for TypeScript consumption.
+- Use `@hey-api/openapi-ts` with the generated fetch client for TypeScript
+  consumption.
 - Use OpenAPI Generator for R client generation when R SDK artifacts are required.
 - Keep Python generated-client smoke verification via
   `openapi-python-client`.

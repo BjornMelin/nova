@@ -23,7 +23,7 @@ and async export workflows and does not proxy file bytes through the API layer.
 - `packages/nova_runtime_support`: shared outer-ASGI request context and
   FastAPI exception registration
 - `packages/nova_sdk_py_file`: release-grade public Python SDK
-- `packages/nova_sdk_file`: release-grade TypeScript SDK in the CodeArtifact
+- `packages/nova_sdk_ts`: release-grade TypeScript SDK in the CodeArtifact
   staged/prod flow
 - `packages/nova_sdk_r_file`: first-class internal R SDK package
 - `packages/contracts`: OpenAPI artifacts, workflow schemas, and conformance

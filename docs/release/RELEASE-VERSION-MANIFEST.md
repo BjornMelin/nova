@@ -41,6 +41,6 @@ Schema: 1.0
 | `packages/nova_dash_bridge` | `nova-dash-bridge` | `0.3.1` | no |
 | `packages/nova_file_api` | `nova-file-api` | `0.5.0` | no |
 | `packages/nova_runtime_support` | `nova-runtime-support` | `0.1.0` | no |
-| `packages/nova_sdk_file` | `@nova/sdk-file` | `0.1.0` | no |
+| `packages/nova_sdk_ts` | `@nova/sdk` | `0.1.0` | no |
 | `packages/nova_sdk_py_file` | `nova-sdk-py-file` | `1.0.0` | no |
 | `packages/nova_sdk_r_file` | `nova.sdk.r.file` | `0.1.0` | no |

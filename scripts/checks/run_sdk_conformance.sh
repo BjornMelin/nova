@@ -20,8 +20,8 @@ if ! command -v R >/dev/null 2>&1; then
 fi
 
 uv run python scripts/conformance/check_typescript_module_policy.py
-npm run -w @nova/sdk-file typecheck
-npm run -w @nova/sdk-file build
+npm run -w @nova/sdk typecheck
+npm run -w @nova/sdk build
 npm run -w @nova/contracts-ts-conformance typecheck
 npm run -w @nova/contracts-ts-conformance verify
 uv run python scripts/release/generate_clients.py --check

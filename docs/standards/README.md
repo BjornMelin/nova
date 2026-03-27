@@ -26,8 +26,8 @@ Use these in order:
 ## Key Deep References
 
 - `../architecture/README.md` for active authority routing
-- `../architecture/adr/ADR-0038-sdk-architecture-by-language.md`,
-  `../architecture/spec/SPEC-0029-sdk-architecture-and-artifact-contract.md`, and
+- `../architecture/adr/ADR-0037-sdk-generation-consolidation.md`,
+  `../architecture/spec/SPEC-0030-sdk-generation-and-package-layout.md`, and
   `../architecture/spec/SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md`
   for current SDK governance (superseded predecessors: `../architecture/adr/index.md`
   and `../architecture/spec/index.md`)

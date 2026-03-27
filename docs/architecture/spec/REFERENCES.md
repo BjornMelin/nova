@@ -14,7 +14,7 @@
 ## OpenAPI and SDK generation
 
 - [OpenAPI Specification](https://spec.openapis.org/oas/latest.html)
-- [openapi-typescript documentation](https://openapi-ts.dev/introduction)
+- [Hey API openapi-ts documentation](https://heyapi.dev/openapi-ts/get-started)
 - [Node.js package entry points / exports](https://nodejs.org/api/packages.html#package-entry-points)
 
 ## AWS transfer and infrastructure

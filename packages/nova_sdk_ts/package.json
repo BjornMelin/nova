@@ -1,0 +1,37 @@
+{
+  "name": "@nova/sdk",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    "./client": {
+      "types": "./dist/client/client.gen.d.ts",
+      "default": "./dist/client/client.gen.js"
+    },
+    "./sdk": {
+      "types": "./dist/client/sdk.gen.d.ts",
+      "default": "./dist/client/sdk.gen.js"
+    },
+    "./types": {
+      "types": "./dist/client/types.gen.d.ts",
+      "default": "./dist/client/types.gen.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "novaRelease": {
+    "managed": true,
+    "namespace": "nova"
+  },
+  "devDependencies": {
+    "@types/node": "^24.9.2",
+    "typescript": "^5.9.2"
+  }
+}

@@ -46,8 +46,8 @@ Route namespace policy:
 ### TypeScript lanes
 
 1. Import fixture JSON as test fixtures.
-2. Exercise generated `@nova/sdk-file/client` methods against fixture-backed
-   mock fetch implementations.
+2. Exercise generated `@nova/sdk/client` configuration plus `@nova/sdk/sdk`
+   operations against fixture-backed mock fetch implementations.
 3. Assert runtime handling for:
    - `create.503.queue-unavailable`
 

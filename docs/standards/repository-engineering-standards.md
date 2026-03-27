@@ -77,7 +77,7 @@ Rules for narrative provisioning, release, and validation markdown under
 
 ## Generated TypeScript SDK Rules
 
-- Generated TypeScript package is `@nova/sdk-file`.
+- Generated TypeScript package is `@nova/sdk`.
 - Release-grade packaging for the TypeScript SDK stays within Nova's existing
   CodeArtifact staged/prod system, while artifacts remain generator-owned and
   subpath-only.
@@ -94,11 +94,11 @@ Rules for narrative provisioning, release, and validation markdown under
 - OpenAPI remains the only schema authority for SDK generation.
 - Multi-media request bodies must preserve explicit generated `contentType`
   selection instead of collapsing to JSON-only behavior.
-- The checked-in `@nova/sdk-file/client` module is a thin wrapper over
-  `openapi-fetch`; do not reintroduce a repo-private transport/runtime package.
-  Implement auth/header customization and request/response hooks through
-  `openapi-fetch` middleware in `@nova/sdk-file/client`. Handle HTTP status
-  behavior in `onResponse`; `onError` is only for fetch-thrown failures.
+- The checked-in `@nova/sdk/client` module is the generator-owned Hey API fetch
+  client instance; do not reintroduce a repo-private transport/runtime package.
+- Configure auth/header customization through `client.setConfig()` and request
+  interceptors on `@nova/sdk/client`, and call generated operations from
+  `@nova/sdk/sdk`.
 
 ## R Package Rules
 
@@ -142,7 +142,7 @@ Rules for narrative provisioning, release, and validation markdown under
 - Keep `scripts/release/generate_clients.py --check` as the deterministic gate
   for generated TypeScript SDK artifacts.
 - Run `npm ci` before `scripts/release/generate_clients.py --check` so the
-  repo-installed `openapi-typescript` CLI is available without ad hoc fetches.
+  repo-installed `@hey-api/openapi-ts` CLI is available without ad hoc fetches.
 - Do not swap or float generator behavior casually; update docs, tests, and
   workflows in the same change if the generation path changes.
 
@@ -218,8 +218,8 @@ Additional required gates when touching OpenAPI, generated TypeScript SDKs, npm
 packaging, release automation, or SDK docs/contracts:
 
 - `uv run python scripts/conformance/check_typescript_module_policy.py`
-- `npm run -w @nova/sdk-file typecheck`
-- `npm run -w @nova/sdk-file build`
+- `npm run -w @nova/sdk typecheck`
+- `npm run -w @nova/sdk build`
 - `npm run -w @nova/contracts-ts-conformance typecheck`
 - `npm run -w @nova/contracts-ts-conformance verify`
 - `uv run pytest -q scripts/release/tests/test_typescript_sdk_contracts.py`

@@ -15,7 +15,7 @@ release-policy docs.
 For SDK governance and repo engineering standards, use:
 
 - `../standards/README.md`
-- `../architecture/spec/SPEC-0029-sdk-architecture-and-artifact-contract.md`
+- `../architecture/spec/SPEC-0030-sdk-generation-and-package-layout.md`
 - `../architecture/spec/SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md`
 
 ## Contents
@@ -68,7 +68,7 @@ Integration adapter packages retained in-repo for downstream framework wiring:
 TypeScript SDK package retained in-repo as a release-grade CodeArtifact
 staged/prod artifact:
 
-- `../../packages/nova_sdk_file/`
+- `../../packages/nova_sdk_ts/`
 
 R SDK packages retained in-repo as first-class internal release artifacts:
 

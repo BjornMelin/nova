@@ -3,49 +3,44 @@ import assert from "node:assert/strict";
 const expectedPackages = new Set(
   JSON.parse(process.env.NOVA_EXPECTED_NPM_PACKAGES ?? "[]"),
 );
-const requireFileSdk =
-  expectedPackages.size === 0 || expectedPackages.has("@nova/sdk-file");
+const requireTsSdk = expectedPackages.size === 0 || expectedPackages.has("@nova/sdk");
 
-let fileOperations = null;
-let createFileClient = null;
+let sdkModule = null;
+let clientModule = null;
 
 try {
-  ({ operations: fileOperations } = await import("@nova/sdk-file/operations"));
-  ({ createNovaFileClient: createFileClient } = await import(
-    "@nova/sdk-file/client"
-  ));
+  sdkModule = await import("@nova/sdk/sdk");
+  clientModule = await import("@nova/sdk/client");
 } catch (error) {
-  if (requireFileSdk) {
+  if (requireTsSdk) {
     throw error;
   }
 }
 
-if (requireFileSdk && (!fileOperations || !createFileClient)) {
-  throw new Error("@nova/sdk-file smoke import did not load expected entrypoints");
+if (requireTsSdk && (!sdkModule || !clientModule)) {
+  throw new Error("@nova/sdk smoke import did not load expected entrypoints");
 }
 
-if (fileOperations) {
-  if (!fileOperations.get_export) {
-    throw new Error("missing expected operation: get_export");
+if (sdkModule) {
+  if (!sdkModule.getExport) {
+    throw new Error("missing expected SDK function: getExport");
   }
-  if (fileOperations.get_export.path !== "/v1/exports/{export_id}") {
-    throw new Error(
-      `unexpected export path: ${fileOperations.get_export.path}`,
-    );
+  if ("updateJobResult" in sdkModule) {
+    throw new Error("internal file operation leaked into published SDK");
   }
 }
 
-if ("update_job_result" in (fileOperations ?? {})) {
-  throw new Error("internal file operation leaked into published SDK");
-}
+if (clientModule && sdkModule) {
+  const { client } = clientModule;
+  const { getExport } = sdkModule;
 
-if (createFileClient && fileOperations) {
-  const fileClient = createFileClient({
+  client.setConfig({
+    auth: async () => "test-token",
     baseUrl: "https://nova.example/",
     fetch: async (input) => {
       const url = input.url;
       if (url !== "https://nova.example/v1/exports/export-123") {
-        throw new Error(`unexpected file client URL: ${url}`);
+        throw new Error(`unexpected SDK request URL: ${url}`);
       }
       return new Response(
         JSON.stringify({
@@ -68,19 +63,20 @@ if (createFileClient && fileOperations) {
       );
     },
   });
-  const fileResponse = await fileClient.GET(fileOperations.get_export.path, {
-    params: { path: { export_id: "export-123" } },
+
+  const response = await getExport({
+    path: { export_id: "export-123" },
   });
-  if (fileResponse.error) {
-    throw new Error("unexpected file client response error");
+  if (response.error) {
+    throw new Error("unexpected SDK response error");
   }
   assert.equal(
-    fileResponse.data?.export_id,
+    response.data?.export_id,
     "export-123",
     "SDK contract changed: expected data.export_id",
   );
   assert.equal(
-    fileResponse.data?.output?.key,
+    response.data?.output?.key,
     "exports/scope-1/export-123/source.csv",
     "SDK contract changed: expected data.output.key",
   );

@@ -56,17 +56,14 @@ def _create_test_workspace_with_npm(root: Path) -> Path:
         encoding="utf-8",
     )
     (repo_root / "package.json").write_text(
-        "{\n"
-        '  "private": true,\n'
-        '  "workspaces": ["packages/nova_sdk_file"]\n'
-        "}\n",
+        '{\n  "private": true,\n  "workspaces": ["packages/nova_sdk_ts"]\n}\n',
         encoding="utf-8",
     )
-    unit_dir = repo_root / "packages" / "nova_sdk_file"
+    unit_dir = repo_root / "packages" / "nova_sdk_ts"
     unit_dir.mkdir(parents=True)
     unit_dir.joinpath("package.json").write_text(
         "{\n"
-        '  "name": "@nova/sdk-file",\n'
+        '  "name": "@nova/sdk",\n'
         '  "version": "0.2.0",\n'
         '  "novaRelease": {"managed": true, "namespace": "nova"}\n'
         "}\n",
@@ -453,7 +450,7 @@ Schema: 1.0
 
 | Unit | Package | Version | Changed |
 | --- | --- | --- | --- |
-| `packages/nova_sdk_file` | `@nova/sdk-file` | `0.2.0` | yes |
+| `packages/nova_sdk_ts` | `@nova/sdk` | `0.2.0` | yes |
 """
     manifest = tmp_path / "manifest.md"
     manifest.write_text(manifest_text, encoding="utf-8")
@@ -462,7 +459,7 @@ Schema: 1.0
     _write_json(
         changed_units,
         {
-            "changed_units": [{"unit_id": "packages/nova_sdk_file"}],
+            "changed_units": [{"unit_id": "packages/nova_sdk_ts"}],
             "base_commit": "abc",
             "head_commit": "def",
             "first_release": False,
@@ -476,7 +473,7 @@ Schema: 1.0
             "global_bump": "patch",
             "units": [
                 {
-                    "unit_id": "packages/nova_sdk_file",
+                    "unit_id": "packages/nova_sdk_ts",
                     "format": "npm",
                     "codeartifact_format": "npm",
                     "namespace": "nova",
@@ -499,9 +496,9 @@ Schema: 1.0
             "format": "npm",
             "codeartifact_format": "npm",
             "namespace": "nova",
-            "package": "@nova/sdk-file",
+            "package": "@nova/sdk",
             "version": "0.2.0",
-            "unit_id": "packages/nova_sdk_file",
+            "unit_id": "packages/nova_sdk_ts",
         }
     ]
 
@@ -694,7 +691,7 @@ Schema: 1.0
 
 | Unit | Package | Version | Changed |
 | --- | --- | --- | --- |
-| `packages/nova_sdk_file` | `@nova/sdk-file` | `0.2.0` | yes |
+| `packages/nova_sdk_ts` | `@nova/sdk` | `0.2.0` | yes |
 """
     manifest = tmp_path / "manifest.md"
     manifest.write_text(manifest_text, encoding="utf-8")
@@ -703,7 +700,7 @@ Schema: 1.0
     _write_json(
         changed_units,
         {
-            "changed_units": [{"unit_id": "packages/nova_sdk_file"}],
+            "changed_units": [{"unit_id": "packages/nova_sdk_ts"}],
             "base_commit": "abc",
             "head_commit": "def",
             "first_release": False,
@@ -717,7 +714,7 @@ Schema: 1.0
             "global_bump": "patch",
             "units": [
                 {
-                    "unit_id": "packages/nova_sdk_file",
+                    "unit_id": "packages/nova_sdk_ts",
                     "format": "npm",
                     "codeartifact_format": "npm",
                     "namespace": "nova",
@@ -750,9 +747,9 @@ Schema: 1.0
             "format": "npm",
             "codeartifact_format": "npm",
             "namespace": "nova",
-            "package": "@nova/sdk-file",
+            "package": "@nova/sdk",
             "version": "0.2.0",
-            "unit_id": "packages/nova_sdk_file",
+            "unit_id": "packages/nova_sdk_ts",
         }
     ]
 
