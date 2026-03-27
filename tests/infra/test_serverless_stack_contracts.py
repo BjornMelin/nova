@@ -77,7 +77,9 @@ def test_serverless_stack_passes_oidc_env_to_api_lambda() -> None:
         environment = resource["Properties"].get("Environment")
         if not isinstance(environment, dict):
             continue
-        variables = environment["Variables"]
+        variables = environment.get("Variables")
+        if not isinstance(variables, dict):
+            continue
         if "JOBS_STEP_FUNCTIONS_STATE_MACHINE_ARN" in variables:
             api_function_env = variables
             break

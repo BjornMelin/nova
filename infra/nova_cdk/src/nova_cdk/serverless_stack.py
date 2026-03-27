@@ -53,9 +53,11 @@ def _parse_allowed_origins(raw: object | None) -> list[str]:
                 if origin
             ]
     if isinstance(raw, (list, tuple)):
-        origins = [str(origin).strip() for origin in raw if str(origin).strip()]
-        if origins:
-            return origins
+        parsed_origins = [
+            str(origin).strip() for origin in raw if str(origin).strip()
+        ]
+        if parsed_origins:
+            return parsed_origins
         return []
     raise TypeError("allowed_origins must be a string or a list of strings")
 
