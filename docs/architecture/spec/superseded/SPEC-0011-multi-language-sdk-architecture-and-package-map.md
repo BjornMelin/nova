@@ -112,16 +112,17 @@ Current status:
 
 ### 3.4 First-class internal R packages
 
-- legacy file-only R package (real R package exposing generated client bindings/models)
-- legacy auth-only R package (real R package exposing generated auth bindings/models)
+- `nova.sdk.r.file` (real R package exposing generated client bindings/models)
+- `nova.sdk.r.auth` (real R package exposing generated auth bindings/models)
 
 Repository package paths:
 
-- legacy file-only R package path
-- legacy auth-only R package path
+- `packages/nova_sdk_r_file/`
+- `packages/nova_sdk_r_auth/`
 
 Current status:
 
+- Later consolidated into `nova` at `packages/nova_sdk_r/`.
 - first-class internal release artifact line
 - real package scaffolds with logical format `r`
 - transported through CodeArtifact generic packages as a tarball plus

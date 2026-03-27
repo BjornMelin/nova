@@ -48,7 +48,11 @@ nova_normalize_base_url <- function(base_url) {
   if (!is.character(base_url) || length(base_url) != 1L || !nzchar(base_url)) {
     stop("base_url must be a non-empty string", call. = FALSE)
   }
-  sub("/+$", "", base_url)
+  trimmed <- sub("/+$", "", base_url)
+  if (!nzchar(trimmed)) {
+    stop("base_url must remain usable after trimming trailing slashes", call. = FALSE)
+  }
+  trimmed
 }
 
 nova_resolve_path <- function(path, path_params) {
@@ -142,16 +146,17 @@ nova_decode_error_envelope <- function(response, status = NULL) {
     nova_parse_json_response(response),
     error = function(...) NULL
   )
+  fallback_status <- if (is.null(status)) 'unknown' else as.character(status)
+  fallback_code <- paste0("http_", fallback_status)
+  fallback_message <- if (!nzchar(nova_response_body_text(response))) {
+    sprintf("HTTP %s response", fallback_status)
+  } else {
+    nova_response_body_text(response)
+  }
   if (!is.list(parsed_body) || is.null(parsed_body$error) || !is.list(parsed_body$error)) {
-    fallback_status <- if (is.null(status)) 'unknown' else as.character(status)
-    fallback_message <- if (!nzchar(nova_response_body_text(response))) {
-      sprintf("HTTP %s response", fallback_status)
-    } else {
-      nova_response_body_text(response)
-    }
     return(
       list(
-        code = paste0("http_", fallback_status),
+        code = fallback_code,
         message = fallback_message,
         details = list(),
         request_id = NULL
@@ -163,9 +168,27 @@ nova_decode_error_envelope <- function(response, status = NULL) {
   if (length(request_id) == 0L) {
     request_id <- NULL
   }
+  error_code <- error_body$code
+  if (length(error_code) == 0L) {
+    error_code <- fallback_code
+  } else {
+    error_code <- as.character(error_code[[1L]])
+    if (is.na(error_code) || !nzchar(error_code)) {
+      error_code <- fallback_code
+    }
+  }
+  error_message <- error_body$message
+  if (length(error_message) == 0L) {
+    error_message <- fallback_message
+  } else {
+    error_message <- as.character(error_message[[1L]])
+    if (is.na(error_message) || !nzchar(error_message)) {
+      error_message <- fallback_message
+    }
+  }
   list(
-    code = as.character(error_body$code),
-    message = as.character(error_body$message),
+    code = error_code,
+    message = error_message,
     details = nova_null_coalesce(error_body$details, list()),
     request_id = request_id
   )

@@ -19,7 +19,7 @@ path/query parameters, and plain R list responses.
 ```r
 client <- create_nova_client(
   "https://nova.example/",
-  bearer_token = "eyJhbGciOi...",
+  bearer_token = "eyJhbGciOi…",
 )
 
 result <- nova_create_export(

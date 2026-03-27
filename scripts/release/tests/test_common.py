@@ -81,8 +81,10 @@ def test_load_workspace_units_includes_managed_workspace_units(
     assert units["packages/nova_sdk_ts"].package_format == "npm"
     assert units["packages/nova_sdk_ts"].namespace == "nova"
     assert units["packages/nova_sdk_ts"].dependencies == ()
+    assert units["packages/nova_sdk_r"].project_name == "nova"
     assert units["packages/nova_sdk_r"].package_format == "r"
     assert units["packages/nova_sdk_r"].codeartifact_format == "generic"
+    assert units["packages/nova_sdk_r"].project_name == "nova"
     assert units["packages/nova_sdk_r"].namespace == "nova"
     assert units["packages/nova_sdk_r"].version == "0.1.0"
 

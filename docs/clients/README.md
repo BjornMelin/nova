@@ -77,7 +77,7 @@ R SDK packages retained in-repo as first-class internal release artifacts:
 Downstream R and Shiny consumers should treat `nova` as the only
 canonical Nova HTTP client surface in this wave. Use
 `create_nova_client(base_url, bearer_token = NULL, bearer_token_env =
-"NOVA_BEARER_TOKEN", ...)` plus the generated
+"NOVA_BEARER_TOKEN", …)` plus the generated
 `nova_<operation_id>()` wrappers. App-specific convenience helpers belong
 in consumer repos; they must not recreate a second SDK or a retired auth-verify
 contract.

@@ -12,6 +12,10 @@ test_that("constructor treats zero-length bearer tokens as absent", {
   expect_null(client$bearer_token)
 })
 
+test_that("constructor rejects unusable base URLs after trimming", {
+  expect_error(create_nova_client("/"), "base_url must remain usable after trimming trailing slashes", fixed = TRUE)
+})
+
 test_that("constructor normalizes invalid user agents to the default", {
   client <- create_nova_client("https://nova.example/", user_agent = character(0))
   expect_equal(client$user_agent, nova_default_user_agent())
@@ -143,6 +147,28 @@ test_that("structured errors preserve Nova error envelope fields", {
   expect_equal(error$details$backend, "sqs")
   expect_equal(httr2::resp_status(error$resp), 503L)
   expect_equal(conditionMessage(error), "[queue_unavailable] export creation failed because queue publish failed")
+})
+
+test_that("structured errors fall back when code or message is missing", {
+  mocked_response <- httr2::response(
+    status_code = 503,
+    url = "https://nova.example/v1/exports",
+    headers = list(`content-type` = "application/json"),
+    body = charToRaw('{"error":{"details":{"backend":"sqs"}}}')
+  )
+  error <- tryCatch(
+    httr2::with_mocked_responses(
+      function(req) mocked_response,
+      {
+        client <- create_nova_client("https://nova.example/", bearer_token = "token-123")
+        nova_create_export(client, body = list(source_key = "uploads/scope-1/source.csv", filename = "source.csv"))
+      }
+    ),
+    nova_api_error = function(error) error
+  )
+  expect_s3_class(error, "nova_api_error")
+  expect_equal(error$code, "http_503")
+  expect_match(conditionMessage(error), "http_503", fixed = TRUE)
 })
 
 test_that("structured errors fall back to raw body text for non-JSON responses", {
