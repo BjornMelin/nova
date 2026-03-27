@@ -275,11 +275,20 @@ def _rewrite_file(
     replacement: str,
     flags: int = 0,
     count: int = 1,
+    already_applied_pattern: str | None = None,
 ) -> None:
     path = root / relative_path
     if not path.exists():
         return
     content = path.read_text(encoding="utf-8")
+    if replacement in content:
+        return
+    if already_applied_pattern and re.search(
+        already_applied_pattern,
+        content,
+        flags=flags,
+    ):
+        return
     updated, replaced = re.subn(
         pattern,
         replacement,
@@ -533,8 +542,12 @@ def _repair_generated_python_package(root: Path) -> None:
         root,
         "__init__.py",
         pattern=(
-            r"from nova_sdk_py\.client import AuthenticatedClient, "
-            r"Client\n"
+            r"(?:"
+            r"from nova_sdk_py\.client import AuthenticatedClient, Client\n"
+            r"|"
+            r"from nova_sdk_py\.client import AuthenticatedClient\n"
+            r"from nova_sdk_py\.client import Client\n"
+            r")"
         ),
         replacement=(
             "# ruff: noqa: I001\n"
@@ -542,6 +555,11 @@ def _repair_generated_python_package(root: Path) -> None:
             "from nova_sdk_py.client import Client\n"
         ),
         count=1,
+        already_applied_pattern=(
+            r"# ruff: noqa: I001\n"
+            r"from nova_sdk_py\.client import AuthenticatedClient\n"
+            r"from nova_sdk_py\.client import Client\n"
+        ),
     )
 
 
