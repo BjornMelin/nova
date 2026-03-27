@@ -7,6 +7,9 @@ const outputPath =
   process.env.NOVA_OPENAPI_TS_OUTPUT ??
   "./packages/nova_sdk_ts/src/client";
 
+/**
+ * Hey API OpenAPI TypeScript generator configuration for Nova's SDK output.
+ */
 export default defineConfig({
   input,
   output: {

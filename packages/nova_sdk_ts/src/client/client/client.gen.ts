@@ -66,8 +66,7 @@ export const createClient = (config: Config = {}): Client => {
   };
 
   const request: Client['request'] = async (options) => {
-    // @ts-expect-error
-    const { opts, url } = await beforeRequest(options);
+    const { opts, url } = await beforeRequest(options as RequestOptions);
     const requestInit: ReqInit = {
       redirect: 'follow',
       ...opts,

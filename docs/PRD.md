@@ -153,7 +153,6 @@ Out of scope:
 - `docs/architecture/adr/ADR-0035-worker-direct-result-persistence.md`
 - `docs/architecture/adr/ADR-0036-native-fastapi-openapi-contract.md`
 - `docs/architecture/adr/ADR-0041-shared-pure-asgi-middleware-and-errors.md`
-- `docs/architecture/adr/ADR-0037-async-first-public-surface.md`
 - `docs/architecture/adr/ADR-0037-sdk-generation-consolidation.md`
 - `docs/architecture/adr/ADR-0039-aws-target-platform.md`
 - `docs/architecture/adr/ADR-0040-repo-rebaseline-after-cuts.md`

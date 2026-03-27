@@ -3,7 +3,7 @@
   "private": true,
   "scripts": {
     "build:typescript:sdk-graph": "npm run -w @nova/sdk build",
-    "openapi-ts": "openapi-ts --config openapi-ts.config.ts",
+    "openapi-ts": "openapi-ts --file openapi-ts.config.ts",
     "codeartifact:npm:env": "python scripts/release/codeartifact_npm.py env"
   },
   "devDependencies": {

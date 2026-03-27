@@ -667,11 +667,7 @@ def _run_openapi_ts(
             f"missing committed openapi-ts config at {OPENAPI_TS_CONFIG}"
         )
 
-    command = [
-        str(OPENAPI_TS_CLI),
-        "--file",
-        str(OPENAPI_TS_CONFIG),
-    ]
+    command = ["npm", "run", "openapi-ts"]
     env = os.environ | {
         "NOVA_OPENAPI_TS_INPUT": str(input_spec_path),
         "NOVA_OPENAPI_TS_OUTPUT": str(output_path),
@@ -783,30 +779,52 @@ def _remove_legacy_typescript_artifacts(package_root: Path) -> None:
 def _postprocess_generated_typescript_sdk(output_root: Path) -> None:
     top_level_client = output_root / "client.gen.ts"
     top_level_sdk = output_root / "sdk.gen.ts"
+    implementation_client = output_root / "client" / "client.gen.ts"
     internal_index = output_root / "client" / "index.ts"
+    utils_path = output_root / "client" / "utils.gen.ts"
 
     client_source = top_level_client.read_text(encoding="utf-8")
+    client_import_pattern = (
+        "import { type ClientOptions, type Config, createClient, "
+        "createConfig } from './client';"
+    )
+    ts_expect_error_pattern = "    // @ts-expect-error\n    const { opts, url } = await beforeRequest(options);\n"
     client_source = client_source.replace(
-        (
-            "import { type ClientOptions, type Config, createClient, "
-            "createConfig } from './client';"
-        ),
+        client_import_pattern,
         (
             "import { createClient } from './client/client.gen';\n"
             "import type { ClientOptions, Config } from './client/types.gen';\n"
             "import { createConfig } from './client/utils.gen';"
         ),
     )
+    client_source = client_source.replace(
+        ts_expect_error_pattern,
+        "    const { opts, url } = await beforeRequest(options);\n",
+    )
+    if (
+        client_import_pattern in client_source
+        or ts_expect_error_pattern in client_source
+    ):
+        raise RuntimeError(
+            "_postprocess_generated_typescript_sdk failed for top_level_client: "
+            "expected replacement patterns were not found"
+        )
     top_level_client.write_text(client_source, encoding="utf-8")
 
     sdk_source = top_level_sdk.read_text(encoding="utf-8")
+    sdk_import_pattern = "import type { Client, Options as Options2, TDataShape } from './client';"
     sdk_source = sdk_source.replace(
-        "import type { Client, Options as Options2, TDataShape } from './client';",
+        sdk_import_pattern,
         (
             "import type { Client, Options as Options2, TDataShape } "
             "from './client/types.gen';"
         ),
     )
+    if sdk_import_pattern in sdk_source:
+        raise RuntimeError(
+            "_postprocess_generated_typescript_sdk failed for top_level_sdk: "
+            "expected replacement patterns were not found"
+        )
     top_level_sdk.write_text(sdk_source, encoding="utf-8")
 
     if internal_index.exists():
@@ -817,7 +835,7 @@ def _postprocess_generated_typescript_sdk(output_root: Path) -> None:
     )
     for path in sorted(output_root.rglob("*.ts")):
         source = path.read_text(encoding="utf-8")
-        source = import_pattern.sub(
+        source, replacements = import_pattern.subn(
             lambda match: (
                 f"{match.group('prefix')}{match.group('path')}.js"
                 f"{match.group('suffix')}"
@@ -826,7 +844,47 @@ def _postprocess_generated_typescript_sdk(output_root: Path) -> None:
             ),
             source,
         )
+        if (
+            replacements == 0
+            and re.search(r"\bfrom\s+[\'\"]\.{1,2}/", source) is not None
+        ):
+            raise RuntimeError(
+                "_postprocess_generated_typescript_sdk import rewrite failed for "
+                f"{path}: expected relative import rewrites were not applied"
+            )
         path.write_text(source, encoding="utf-8")
+
+    if implementation_client.exists():
+        impl_source = implementation_client.read_text(encoding="utf-8")
+        impl_pattern = "    // @ts-expect-error\n    const { opts, url } = await beforeRequest(options);\n"
+        impl_source = impl_source.replace(
+            impl_pattern,
+            "    const { opts, url } = await beforeRequest(options as RequestOptions);\n",
+        )
+        if impl_pattern in impl_source:
+            raise RuntimeError(
+                "_postprocess_generated_typescript_sdk failed for implementation "
+                "client.gen.ts: expected ts-expect-error replacement was not found"
+            )
+        implementation_client.write_text(impl_source, encoding="utf-8")
+
+    if utils_path.exists():
+        utils_source = utils_path.read_text(encoding="utf-8")
+        utils_signature_pattern = (
+            "export const getParseAs = (contentType: string | null): "
+            "Exclude<Config['parseAs'], 'auto'> => {"
+        )
+        utils_source = utils_source.replace(
+            utils_signature_pattern,
+            "export const getParseAs = (contentType: string | null): "
+            "Exclude<Config['parseAs'], 'auto'> | undefined => {",
+        )
+        if utils_signature_pattern in utils_source:
+            raise RuntimeError(
+                "_postprocess_generated_typescript_sdk failed for utils.gen.ts: "
+                "expected getParseAs signature replacement was not found"
+            )
+        utils_path.write_text(utils_source, encoding="utf-8")
 
 
 def _generate_or_check_typescript_sdk(

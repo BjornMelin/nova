@@ -144,7 +144,7 @@ Why it wins:
 | --- | --- | --- |
 | `@hey-api/openapi-ts` generated SDKs | 100 / 105 | 9.52 |
 | `openapi-typescript` + `openapi-fetch` + custom glue | 77 / 105 | 7.33 |
-| Current bespoke `@nova/sdk` predecessor runtime glue | 49 / 105 | 4.67 |
+| Legacy bespoke runtime glue (pre-`@nova/sdk`) | 49 / 105 | 4.67 |
 
 ### Winner
 
