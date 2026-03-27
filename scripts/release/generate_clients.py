@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -22,12 +23,17 @@ from nova_runtime_support import (
 REPO_ROOT = Path(__file__).resolve().parents[2]
 OPENAPI_ROOT = REPO_ROOT / "packages" / "contracts" / "openapi"
 HTTP_METHODS = ("get", "post", "put", "patch", "delete", "options", "head")
-OPENAPI_TYPESCRIPT_CLI = (
-    REPO_ROOT / "node_modules" / ".bin" / "openapi-typescript"
-)
+OPENAPI_TS_CLI = REPO_ROOT / "node_modules" / ".bin" / "openapi-ts"
+OPENAPI_TS_CONFIG = REPO_ROOT / "openapi-ts.config.ts"
 _PARAM_SEGMENT = re.compile(r"^{([^{}]+)}$")
 _NON_IDENTIFIER = re.compile(r"[^a-z0-9]+")
-_VALID_IDENTIFIER = re.compile(r"^[A-Za-z_$][A-Za-z0-9_$]*$")
+_LEGACY_TS_ARTIFACTS = (
+    Path("src") / "client.ts",
+    Path("src") / "errors.ts",
+    Path("src") / "operations.ts",
+    Path("src") / "types.ts",
+    Path("src") / "generated",
+)
 
 
 @dataclass(frozen=True)
@@ -65,51 +71,13 @@ class Operation:
         """Return whether the operation declares any query parameters."""
         return len(self.query_parameters) > 0
 
-    @property
-    def has_required_query_params(self) -> bool:
-        """Return whether any declared query parameter is required."""
-        return any(parameter.required for parameter in self.query_parameters)
-
-    @property
-    def type_base_name(self) -> str:
-        """Return the PascalCase type prefix for the operation."""
-        return "".join(
-            part.capitalize() for part in self.operation_id.split("_")
-        )
-
-    @property
-    def request_type_name(self) -> str:
-        """Return the request-options type name for the operation."""
-        return f"{self.type_base_name}RequestOptions"
-
-    @property
-    def requires_request(self) -> bool:
-        """Return whether the generated client method must take a request object."""
-        return (
-            (self.has_request_body and self.has_required_request_body)
-            or self.has_path_params
-            or self.has_required_query_params
-            or self.has_required_header_params
-        )
-
-    @property
-    def default_request_content_type(self) -> str | None:
-        """Return the only request content type when there is exactly one."""
-        if len(self.request_content_types) != 1:
-            return None
-        return self.request_content_types[0]
-
 
 @dataclass(frozen=True)
 class GenerationTarget:
     """Output targets for one committed OpenAPI document."""
 
     spec_path: Path
-    package_name: str
     ts_package_root: Path
-    client_factory_name: str
-    client_interface_name: str
-    client_options_name: str
     r_package_name: str
     r_package_title: str
     r_package_description: str
@@ -122,11 +90,7 @@ class GenerationTarget:
 TARGETS = (
     GenerationTarget(
         spec_path=OPENAPI_ROOT / "nova-file-api.openapi.json",
-        package_name="@nova/sdk-file",
-        ts_package_root=REPO_ROOT / "packages" / "nova_sdk_file",
-        client_factory_name="createNovaFileClient",
-        client_interface_name="NovaFileClient",
-        client_options_name="NovaFileClientOptions",
+        ts_package_root=REPO_ROOT / "packages" / "nova_sdk_ts",
         r_package_name="nova.sdk.r.file",
         r_package_title="Nova SDK R file client",
         r_package_description="Generated R client for the Nova file API.",
@@ -509,300 +473,6 @@ def _assert_unique_operation_ids(
         )
 
 
-def _render_typescript_openapi(spec_path: Path) -> str:
-    with tempfile.TemporaryDirectory() as tmp_dir:
-        output_path = Path(tmp_dir) / "openapi.ts"
-        if not OPENAPI_TYPESCRIPT_CLI.exists():
-            raise RuntimeError(
-                "openapi-typescript generation failed: missing repo-installed "
-                "openapi-typescript CLI at "
-                f"{OPENAPI_TYPESCRIPT_CLI}; run `npm ci` from repo root"
-            )
-        command = [
-            str(OPENAPI_TYPESCRIPT_CLI),
-            str(spec_path),
-            "-o",
-            str(output_path),
-        ]
-        try:
-            result = subprocess.run(
-                command,
-                cwd=REPO_ROOT,
-                check=False,
-                text=True,
-                capture_output=True,
-                timeout=120,
-            )
-        except FileNotFoundError as exc:
-            raise RuntimeError(
-                "openapi-typescript generation failed: missing repo-installed "
-                "CLI; run `npm ci` from repo root"
-            ) from exc
-        except subprocess.TimeoutExpired as exc:
-            stdout = (
-                exc.stdout.strip()
-                if isinstance(exc.stdout, str)
-                else str(exc.stdout or "").strip()
-            )
-            stderr = (
-                exc.stderr.strip()
-                if isinstance(exc.stderr, str)
-                else str(exc.stderr or "").strip()
-            )
-            details = stderr or stdout or "no output captured"
-            raise RuntimeError(
-                "openapi-typescript generation timed out after 120s for "
-                f"{spec_path} using command {' '.join(command)}: {details}"
-            ) from exc
-        if result.returncode != 0:
-            stderr = result.stderr.strip()
-            stdout = result.stdout.strip()
-            details = stderr or stdout or "no output captured"
-            raise RuntimeError(
-                "openapi-typescript generation command failed for "
-                f"{spec_path}: {details}"
-            )
-        return output_path.read_text(encoding="utf-8")
-
-
-def _render_operations(operations: list[Operation]) -> str:
-    lines = [
-        (
-            "// Code generated by scripts/release/generate_clients.py. "
-            "DO NOT EDIT."
-        ),
-        "",
-        "/** Describes one generated public operation entry in the static catalog. */",
-        "export interface OperationDescriptor {",
-        "  readonly operationId: string;",
-        "  readonly method: string;",
-        "  readonly path: string;",
-        "  readonly summary?: string;",
-        "}",
-        "",
-        "/** Catalog of generated public operations keyed by operationId. */",
-        "export const operations = {",
-    ]
-
-    for operation in operations:
-        summary_line = (
-            f"    summary: {json.dumps(operation.summary)},"
-            if operation.summary
-            else None
-        )
-        lines.extend(
-            [
-                f"  {json.dumps(operation.operation_id)}: {{",
-                f"    operationId: {json.dumps(operation.operation_id)},",
-                f"    method: {json.dumps(operation.method)},",
-                f"    path: {json.dumps(operation.path)},",
-            ]
-        )
-        if summary_line is not None:
-            lines.append(summary_line)
-        lines.append("  },")
-
-    lines.extend(
-        [
-            "} as const satisfies Record<string, OperationDescriptor>;",
-            "",
-            "/** Union of all generated public operation identifiers. */",
-            "export type OperationId = keyof typeof operations;",
-            "/** Static type representing the generated public operations catalog. */",
-            "export type GeneratedOperationCatalog = typeof operations;",
-            "",
-        ]
-    )
-    return "\n".join(lines)
-
-
-def _render_typescript_types(
-    spec: dict[str, Any],
-    operations: list[Operation],
-) -> str:
-    schema_names = _collect_public_schema_names(spec, operations)
-    lines = [
-        (
-            "// Code generated by scripts/release/generate_clients.py. "
-            "DO NOT EDIT."
-        ),
-        "",
-        "import type {",
-        "  components as GeneratedComponents,",
-        "  operations as GeneratedOperations,",
-        '} from "./generated/openapi.js";',
-        "",
-        "type EmptyObject = Record<string, never>;",
-        "type SuccessStatus = 200 | 201 | 202 | 203 | 204 | 205 | 206 | 207 | 208 | 226;",
-        "type Simplify<T> = { [K in keyof T]: T[K] } & {};",
-        "type OperationOf<TId extends keyof GeneratedOperations> = GeneratedOperations[TId];",
-        "type ParametersOf<T> = T extends { parameters: infer TParameters } ? TParameters : EmptyObject;",
-        'type FieldOf<TParameters, TKey extends "query" | "header" | "path"> = TParameters extends { [K in TKey]?: infer TValue }',
-        "  ? [TValue] extends [never]",
-        "    ? EmptyObject",
-        "    : TValue",
-        "  : EmptyObject;",
-        "type ContentOf<TContent, TMediaType extends string> = TContent extends Record<PropertyKey, unknown>",
-        "  ? TMediaType extends keyof TContent",
-        "    ? TContent[TMediaType]",
-        "    : never",
-        "  : never;",
-        "type JsonContentOf<TContent> = TContent extends Record<PropertyKey, unknown>",
-        '  ? "application/json" extends keyof TContent',
-        '    ? TContent["application/json"]',
-        "    : null",
-        "  : null;",
-        "type RequestContentTypesOf<T> = T extends { requestBody: { content: infer TContent } }",
-        "  ? Extract<keyof TContent, string>",
-        "  : never;",
-        "type RequestBodyOf<T> = T extends { requestBody: { content: infer TContent } }",
-        "  ? ContentOf<TContent, RequestContentTypesOf<T>>",
-        "  : never;",
-        "type RequestBodyForContentType<T, TContentType extends string> = T extends { requestBody: { content: infer TContent } }",
-        "  ? ContentOf<TContent, TContentType>",
-        "  : never;",
-        "type ResponsesOf<T> = T extends { responses: infer TResponses } ? TResponses : EmptyObject;",
-        "type StatusCodeOf<TResponses> = Extract<keyof TResponses, number>;",
-        "type SuccessStatusCodeOf<TResponses> = Extract<StatusCodeOf<TResponses>, SuccessStatus>;",
-        "type ErrorStatusCodeOf<TResponses> = Exclude<StatusCodeOf<TResponses>, SuccessStatus>;",
-        "type ResponseBodyOf<TEntry> = TEntry extends { content: infer TContent }",
-        "  ? JsonContentOf<TContent>",
-        "  : null;",
-        'type DefaultResponseDataOf<TResponses> = "default" extends keyof TResponses',
-        '  ? ResponseBodyOf<TResponses["default"]>',
-        "  : never;",
-        "type ResponseDataOf<TResponses, TStatusCodes extends number> = TStatusCodes extends StatusCodeOf<TResponses>",
-        "  ? ResponseBodyOf<TResponses[TStatusCodes]>",
-        "  : never;",
-        "type ErrorDataOf<TResponses> =",
-        "  | ResponseDataOf<TResponses, ErrorStatusCodeOf<TResponses>>",
-        "  | DefaultResponseDataOf<TResponses>;",
-        "",
-        "/** Named aliases for generated OpenAPI component schemas. */",
-    ]
-
-    for schema_name in schema_names:
-        alias_name = _schema_alias_name(schema_name)
-        lines.append(f"/** OpenAPI component schema `{schema_name}`. */")
-        lines.append(
-            f'export type {alias_name} = GeneratedComponents["schemas"][{json.dumps(schema_name)}];'
-        )
-
-    lines.extend(
-        ["", "/** Operation-specific request and response helpers. */"]
-    )
-
-    for operation in operations:
-        base_name = operation.type_base_name
-        lines.extend(
-            [
-                "",
-                f"type {base_name}Spec = OperationOf<{json.dumps(operation.operation_id)}>;",
-                f"export type {base_name}Operation = {base_name}Spec;",
-                f'export type {base_name}PathParams = Simplify<FieldOf<ParametersOf<{base_name}Spec>, "path">>;',
-                f'export type {base_name}QueryParams = Simplify<FieldOf<ParametersOf<{base_name}Spec>, "query">>;',
-                f'export type {base_name}Headers = Simplify<FieldOf<ParametersOf<{base_name}Spec>, "header">>;',
-                f"export type {base_name}RequestContentType = RequestContentTypesOf<{base_name}Spec>;",
-                f"export type {base_name}RequestBody = RequestBodyOf<{base_name}Spec>;",
-                f"export type {base_name}RequestBodyForContentType<TContentType extends {base_name}RequestContentType> = RequestBodyForContentType<{base_name}Spec, TContentType>;",
-                f"export type {base_name}Responses = ResponsesOf<{base_name}Spec>;",
-                f"/** Union of success response payloads for `{operation.operation_id}`. */",
-                f"export type {base_name}SuccessData = ResponseDataOf<{base_name}Responses, SuccessStatusCodeOf<{base_name}Responses>>;",
-                f"/** Union of non-success response payloads for `{operation.operation_id}`. */",
-                f"export type {base_name}ErrorData = ErrorDataOf<{base_name}Responses>;",
-            ]
-        )
-        lines.extend(
-            f"export type {base_name}Response{status_code} = "
-            f"ResponseBodyOf<{base_name}Responses[{status_code}]>;"
-            for status_code in operation.response_status_codes
-        )
-    lines.append("")
-    return "\n".join(lines)
-
-
-def _collect_public_schema_names(
-    spec: dict[str, Any],
-    operations: list[Operation],
-) -> list[str]:
-    paths = spec.get("paths")
-    if not isinstance(paths, dict):
-        return []
-
-    reachable_schema_names: set[str] = set()
-    visited_refs: set[str] = set()
-    for operation in operations:
-        path_item = paths.get(operation.path)
-        if not isinstance(path_item, dict):
-            continue
-        raw_operation = path_item.get(operation.method.lower())
-        if not isinstance(raw_operation, dict):
-            continue
-        _walk_for_public_schema_refs(
-            spec,
-            raw_operation,
-            reachable_schema_names,
-            visited_refs,
-        )
-        _walk_for_public_schema_refs(
-            spec,
-            path_item.get("parameters"),
-            reachable_schema_names,
-            visited_refs,
-        )
-        _walk_for_public_schema_refs(
-            spec,
-            raw_operation.get("parameters"),
-            reachable_schema_names,
-            visited_refs,
-        )
-    return sorted(reachable_schema_names)
-
-
-def _walk_for_public_schema_refs(
-    spec: dict[str, Any],
-    node: Any,
-    reachable_schema_names: set[str],
-    visited_refs: set[str],
-) -> None:
-    if isinstance(node, list):
-        for item in node:
-            _walk_for_public_schema_refs(
-                spec,
-                item,
-                reachable_schema_names,
-                visited_refs,
-            )
-        return
-
-    if not isinstance(node, dict):
-        return
-
-    ref = node.get("$ref")
-    if isinstance(ref, str):
-        if ref in visited_refs:
-            return
-        visited_refs.add(ref)
-        if ref.startswith("#/components/schemas/"):
-            reachable_schema_names.add(ref.rsplit("/", 1)[-1])
-        resolved = _resolve_local_ref(spec, ref)
-        _walk_for_public_schema_refs(
-            spec,
-            resolved,
-            reachable_schema_names,
-            visited_refs,
-        )
-        return
-
-    for value in node.values():
-        _walk_for_public_schema_refs(
-            spec,
-            value,
-            reachable_schema_names,
-            visited_refs,
-        )
-
-
 def _resolve_local_ref(spec: dict[str, Any], ref: str) -> Any:
     if not ref.startswith("#/"):
         raise ValueError(f"Unsupported OpenAPI reference: {ref!r}")
@@ -815,15 +485,384 @@ def _resolve_local_ref(spec: dict[str, Any], ref: str) -> Any:
     return current
 
 
-def _schema_alias_name(schema_name: str) -> str:
-    if _VALID_IDENTIFIER.fullmatch(schema_name):
-        return schema_name
-    normalized = re.sub(r"[^A-Za-z0-9_$]+", "_", schema_name).strip("_")
-    if not normalized:
-        normalized = "GeneratedSchema"
-    if normalized[0].isdigit():
-        normalized = f"Schema_{normalized}"
-    return normalized
+def _clone_json_compatible(value: Any) -> Any:
+    return json.loads(json.dumps(value))
+
+
+def _collect_component_refs(
+    node: Any,
+    refs: set[tuple[str, str]],
+) -> None:
+    if isinstance(node, list):
+        for item in node:
+            _collect_component_refs(item, refs)
+        return
+
+    if not isinstance(node, dict):
+        return
+
+    ref = node.get("$ref")
+    if isinstance(ref, str) and ref.startswith("#/components/"):
+        parts = ref.split("/")
+        if len(parts) >= 4:
+            refs.add((parts[2], parts[3]))
+
+    for value in node.values():
+        _collect_component_refs(value, refs)
+
+
+def _collect_security_scheme_names(node: Any) -> set[str]:
+    names: set[str] = set()
+    if not isinstance(node, list):
+        return names
+    for requirement in node:
+        if isinstance(requirement, dict):
+            names.update(
+                str(name)
+                for name in requirement
+                if isinstance(name, str) and name
+            )
+    return names
+
+
+def _build_public_paths(
+    spec: dict[str, Any],
+) -> tuple[dict[str, Any], set[tuple[str, str]], set[str]]:
+    paths = spec.get("paths")
+    if not isinstance(paths, dict):
+        raise TypeError("OpenAPI spec missing paths object")
+
+    public_paths: dict[str, Any] = {}
+    refs: set[tuple[str, str]] = set()
+    security_scheme_names = _collect_security_scheme_names(spec.get("security"))
+
+    for path, path_item in paths.items():
+        if not isinstance(path, str) or not isinstance(path_item, dict):
+            continue
+        public_path_item: dict[str, Any] = {}
+        has_public_operation = False
+
+        for method, operation in path_item.items():
+            if method not in HTTP_METHODS:
+                continue
+            if not isinstance(operation, dict):
+                continue
+            if (
+                operation.get(SDK_VISIBILITY_EXTENSION)
+                == SDK_VISIBILITY_INTERNAL
+            ):
+                continue
+            has_public_operation = True
+            cloned_operation = _clone_json_compatible(operation)
+            public_path_item[method] = cloned_operation
+            _collect_component_refs(cloned_operation, refs)
+            security_scheme_names.update(
+                _collect_security_scheme_names(operation.get("security"))
+            )
+
+        if not has_public_operation:
+            continue
+
+        for key, value in path_item.items():
+            if key in HTTP_METHODS:
+                continue
+            cloned_value = _clone_json_compatible(value)
+            public_path_item[key] = cloned_value
+            _collect_component_refs(cloned_value, refs)
+            if key == "security":
+                security_scheme_names.update(
+                    _collect_security_scheme_names(value)
+                )
+
+        public_paths[path] = public_path_item
+
+    return public_paths, refs, security_scheme_names
+
+
+def _build_public_components(
+    spec: dict[str, Any],
+    *,
+    refs: set[tuple[str, str]],
+    security_scheme_names: set[str],
+) -> dict[str, Any]:
+    components = spec.get("components")
+    if not isinstance(components, dict):
+        return {}
+
+    public_components: dict[str, dict[str, Any]] = {}
+    pending = list(refs)
+    visited: set[tuple[str, str]] = set()
+
+    while pending:
+        component_kind, component_name = pending.pop()
+        if (component_kind, component_name) in visited:
+            continue
+        visited.add((component_kind, component_name))
+
+        component_group = components.get(component_kind)
+        if not isinstance(component_group, dict):
+            raise TypeError(
+                f"Missing OpenAPI component group {component_kind!r}"
+            )
+        component_value = component_group.get(component_name)
+        if component_value is None:
+            raise ValueError(
+                "Missing referenced OpenAPI component "
+                f"#/components/{component_kind}/{component_name}"
+            )
+        cloned_value = _clone_json_compatible(component_value)
+        public_components.setdefault(component_kind, {})[component_name] = (
+            cloned_value
+        )
+
+        nested_refs: set[tuple[str, str]] = set()
+        _collect_component_refs(cloned_value, nested_refs)
+        pending.extend(sorted(nested_refs - visited))
+
+    if security_scheme_names:
+        security_schemes = components.get("securitySchemes")
+        if isinstance(security_schemes, dict):
+            for name in sorted(security_scheme_names):
+                value = security_schemes.get(name)
+                if value is not None:
+                    public_components.setdefault("securitySchemes", {})[
+                        name
+                    ] = _clone_json_compatible(value)
+
+    return public_components
+
+
+def _build_public_openapi_spec(spec: dict[str, Any]) -> dict[str, Any]:
+    public_paths, refs, security_scheme_names = _build_public_paths(spec)
+    public_spec = {
+        key: _clone_json_compatible(value)
+        for key, value in spec.items()
+        if key not in {"paths", "components"}
+    }
+    public_spec["paths"] = public_paths
+
+    public_components = _build_public_components(
+        spec,
+        refs=refs,
+        security_scheme_names=security_scheme_names,
+    )
+    if public_components:
+        public_spec["components"] = public_components
+
+    return public_spec
+
+
+def _run_openapi_ts(
+    *,
+    input_spec_path: Path,
+    output_path: Path,
+) -> None:
+    if not OPENAPI_TS_CLI.exists():
+        raise RuntimeError(
+            "@hey-api/openapi-ts generation failed: missing repo-installed "
+            f"CLI at {OPENAPI_TS_CLI}; run `npm ci` from repo root"
+        )
+    if not OPENAPI_TS_CONFIG.exists():
+        raise RuntimeError(
+            f"missing committed openapi-ts config at {OPENAPI_TS_CONFIG}"
+        )
+
+    command = [
+        str(OPENAPI_TS_CLI),
+        "--file",
+        str(OPENAPI_TS_CONFIG),
+    ]
+    env = os.environ | {
+        "NOVA_OPENAPI_TS_INPUT": str(input_spec_path),
+        "NOVA_OPENAPI_TS_OUTPUT": str(output_path),
+    }
+    try:
+        result = subprocess.run(
+            command,
+            cwd=REPO_ROOT,
+            check=False,
+            text=True,
+            capture_output=True,
+            timeout=120,
+            env=env,
+        )
+    except FileNotFoundError as exc:
+        raise RuntimeError(
+            "@hey-api/openapi-ts generation failed: missing repo-installed "
+            "CLI; run `npm ci` from repo root"
+        ) from exc
+    except subprocess.TimeoutExpired as exc:
+        stdout = (
+            exc.stdout.strip()
+            if isinstance(exc.stdout, str)
+            else str(exc.stdout or "").strip()
+        )
+        stderr = (
+            exc.stderr.strip()
+            if isinstance(exc.stderr, str)
+            else str(exc.stderr or "").strip()
+        )
+        details = stderr or stdout or "no output captured"
+        raise RuntimeError(
+            "@hey-api/openapi-ts generation timed out after 120s for "
+            f"{input_spec_path} using command {' '.join(command)}: {details}"
+        ) from exc
+    if result.returncode != 0:
+        stderr = result.stderr.strip()
+        stdout = result.stdout.strip()
+        details = stderr or stdout or "no output captured"
+        raise RuntimeError(
+            "@hey-api/openapi-ts generation command failed for "
+            f"{input_spec_path}: {details}"
+        )
+
+
+def _typescript_generated_files(root: Path) -> dict[str, str]:
+    if not root.exists():
+        return {}
+    return {
+        path.relative_to(root).as_posix(): path.read_text(encoding="utf-8")
+        for path in sorted(root.rglob("*"))
+        if path.is_file()
+    }
+
+
+def _check_typescript_generated_output(
+    package_root: Path,
+    *,
+    expected_root: Path,
+) -> list[str]:
+    issues: list[str] = []
+    actual_root = package_root / "src" / "client"
+    if not actual_root.exists():
+        issues.append(f"missing generated SDK directory: {actual_root}")
+        return issues
+
+    expected_files = _typescript_generated_files(expected_root)
+    actual_files = _typescript_generated_files(actual_root)
+    missing = sorted(set(expected_files) - set(actual_files))
+    extra = sorted(set(actual_files) - set(expected_files))
+    stale = sorted(
+        path
+        for path in expected_files
+        if path in actual_files and actual_files[path] != expected_files[path]
+    )
+    if missing:
+        issues.append(
+            "missing expected generated SDK artifacts in "
+            f"{actual_root}: {', '.join(missing)}"
+        )
+    if extra:
+        issues.append(
+            "unexpected generated SDK artifacts in "
+            f"{actual_root}: {', '.join(extra)}"
+        )
+    issues.extend(
+        f"stale generated client artifact: {actual_root / rel_path}"
+        for rel_path in stale
+    )
+
+    for legacy_path in _LEGACY_TS_ARTIFACTS:
+        absolute_path = package_root / legacy_path
+        if absolute_path.exists():
+            issues.append(
+                f"obsolete TypeScript SDK artifact still present: {absolute_path}"
+            )
+    return issues
+
+
+def _remove_legacy_typescript_artifacts(package_root: Path) -> None:
+    for legacy_path in _LEGACY_TS_ARTIFACTS:
+        absolute_path = package_root / legacy_path
+        if absolute_path.is_dir():
+            shutil.rmtree(absolute_path)
+        elif absolute_path.exists():
+            absolute_path.unlink()
+
+
+def _postprocess_generated_typescript_sdk(output_root: Path) -> None:
+    top_level_client = output_root / "client.gen.ts"
+    top_level_sdk = output_root / "sdk.gen.ts"
+    internal_index = output_root / "client" / "index.ts"
+
+    client_source = top_level_client.read_text(encoding="utf-8")
+    client_source = client_source.replace(
+        (
+            "import { type ClientOptions, type Config, createClient, "
+            "createConfig } from './client';"
+        ),
+        (
+            "import { createClient } from './client/client.gen';\n"
+            "import type { ClientOptions, Config } from './client/types.gen';\n"
+            "import { createConfig } from './client/utils.gen';"
+        ),
+    )
+    top_level_client.write_text(client_source, encoding="utf-8")
+
+    sdk_source = top_level_sdk.read_text(encoding="utf-8")
+    sdk_source = sdk_source.replace(
+        "import type { Client, Options as Options2, TDataShape } from './client';",
+        (
+            "import type { Client, Options as Options2, TDataShape } "
+            "from './client/types.gen';"
+        ),
+    )
+    top_level_sdk.write_text(sdk_source, encoding="utf-8")
+
+    if internal_index.exists():
+        internal_index.unlink()
+
+    import_pattern = re.compile(
+        r'(?P<prefix>\bfrom\s+[\'"])(?P<path>\.{1,2}/[^\'"]+?)(?P<suffix>[\'"])'
+    )
+    for path in sorted(output_root.rglob("*.ts")):
+        source = path.read_text(encoding="utf-8")
+        source = import_pattern.sub(
+            lambda match: (
+                f"{match.group('prefix')}{match.group('path')}.js"
+                f"{match.group('suffix')}"
+                if not match.group("path").endswith(".js")
+                else match.group(0)
+            ),
+            source,
+        )
+        path.write_text(source, encoding="utf-8")
+
+
+def _generate_or_check_typescript_sdk(
+    target: GenerationTarget,
+    *,
+    spec: dict[str, Any],
+    check: bool,
+) -> list[str]:
+    public_spec = _build_public_openapi_spec(spec)
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        tmp_root = Path(tmp_dir)
+        input_spec_path = tmp_root / "nova-file-api.public.openapi.json"
+        output_path = tmp_root / "client"
+        input_spec_path.write_text(
+            json.dumps(public_spec, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        _run_openapi_ts(
+            input_spec_path=input_spec_path, output_path=output_path
+        )
+        _postprocess_generated_typescript_sdk(output_path)
+
+        if check:
+            return _check_typescript_generated_output(
+                target.ts_package_root,
+                expected_root=output_path,
+            )
+
+        package_root = target.ts_package_root
+        generated_root = package_root / "src" / "client"
+        shutil.rmtree(generated_root, ignore_errors=True)
+        generated_root.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copytree(output_path, generated_root)
+        _remove_legacy_typescript_artifacts(package_root)
+        shutil.rmtree(package_root / "dist", ignore_errors=True)
+    return []
 
 
 def _r_operation_function_name(prefix: str, operation_id: str) -> str:
@@ -1678,76 +1717,12 @@ def _write_or_check(path: Path, content: str, *, check: bool) -> list[str]:
     return issues
 
 
-def _validate_generated_directory(
-    package_root: Path, *, check: bool
-) -> list[str]:
-    generated_dir = package_root / "src" / "generated"
-    expected_files = {"openapi.ts"}
-
-    if not check:
-        if generated_dir.exists():
-            shutil.rmtree(generated_dir)
-        generated_dir.mkdir(parents=True, exist_ok=True)
-        return []
-
-    if not generated_dir.exists():
-        return [f"missing generated SDK directory: {generated_dir}"]
-
-    current_file_names = {
-        item.name for item in generated_dir.iterdir() if item.is_file()
-    }
-    missing = sorted(expected_files - current_file_names)
-    extra = sorted(current_file_names - expected_files)
-    issues: list[str] = []
-    if missing:
-        issues.append(
-            "missing expected generated SDK artifacts in "
-            f"{generated_dir}: {', '.join(missing)}"
-        )
-    if extra:
-        issues.append(
-            "unexpected generated SDK artifacts in "
-            f"{generated_dir}: {', '.join(extra)}"
-        )
-    return issues
-
-
-def _remove_stale_generated_directory(
-    package_root: Path, *, check: bool
-) -> list[str]:
-    """Backward-compatible alias for legacy test/import paths."""
-    return _validate_generated_directory(package_root, check=check)
-
-
 def _generate_target(target: GenerationTarget, *, check: bool) -> list[str]:
     spec, operations = _load_operations(target.spec_path)
-    issues: list[str] = []
-    issues.extend(
-        _validate_generated_directory(
-            target.ts_package_root,
-            check=check,
-        )
-    )
-    issues.extend(
-        _write_or_check(
-            target.ts_package_root / "src" / "generated" / "openapi.ts",
-            _render_typescript_openapi(target.spec_path),
-            check=check,
-        )
-    )
-    issues.extend(
-        _write_or_check(
-            target.ts_package_root / "src" / "operations.ts",
-            _render_operations(operations),
-            check=check,
-        )
-    )
-    issues.extend(
-        _write_or_check(
-            target.ts_package_root / "src" / "types.ts",
-            _render_typescript_types(spec, operations),
-            check=check,
-        )
+    issues = _generate_or_check_typescript_sdk(
+        target,
+        spec=spec,
+        check=check,
     )
     issues.extend(_validate_r_package_tree(target, check=check))
     issues.extend(

@@ -63,7 +63,7 @@ SHINY_CONFORMANCE_EXACT = {
 TYPESCRIPT_CONFORMANCE_PREFIXES = (
     "packages/contracts/fixtures/",
     "packages/contracts/typescript/",
-    "packages/nova_sdk_file/",
+    "packages/nova_sdk_ts/",
     "scripts/conformance/",
     "scripts/release/tests/",
 )

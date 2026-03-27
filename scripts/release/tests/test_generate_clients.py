@@ -15,7 +15,8 @@ from scripts.release.generate_clients import (
     Operation,
     OperationParameter,
     _assert_unique_operation_ids,
-    _collect_public_schema_names,
+    _build_public_openapi_spec,
+    _check_typescript_generated_output,
     _default_operation_id,
     _load_operations,
     _render_r_client,
@@ -23,8 +24,7 @@ from scripts.release.generate_clients import (
     _render_r_license_text,
     _render_r_namespace,
     _render_r_package_manual,
-    _render_typescript_openapi,
-    _validate_generated_directory,
+    _run_openapi_ts,
 )
 
 
@@ -81,8 +81,8 @@ def test_assert_unique_operation_ids_fails_on_collision() -> None:
         )
 
 
-def test_public_schema_excludes_internal_job_result_shapes() -> None:
-    """Public schema aliases exclude internal worker-only models."""
+def test_public_spec_excludes_internal_job_result_shapes() -> None:
+    """Public OpenAPI spec excludes internal worker-only models."""
     spec_path = (
         Path(__file__).resolve().parents[3]
         / "packages"
@@ -91,18 +91,23 @@ def test_public_schema_excludes_internal_job_result_shapes() -> None:
         / "nova-file-api.openapi.json"
     )
     spec, operations = _load_operations(spec_path)
+    public_spec = _build_public_openapi_spec(spec)
+    public_components = public_spec.get("components", {})
+    assert isinstance(public_components, dict)
+    public_schemas = public_components.get("schemas", {})
+    assert isinstance(public_schemas, dict)
 
-    schema_names = _collect_public_schema_names(spec, operations)
+    operation_ids = {operation.operation_id for operation in operations}
+    assert "create_export" in operation_ids
+    assert "CreateExportRequest" in public_schemas
+    assert "JobResultUpdateRequest" not in public_schemas
+    assert "JobResultUpdateResponse" not in public_schemas
 
-    assert "CreateExportRequest" in schema_names
-    assert "JobResultUpdateRequest" not in schema_names
-    assert "JobResultUpdateResponse" not in schema_names
 
-
-def test_request_body_ref_requiredness_drives_method_request_signature(
+def test_request_body_ref_requiredness_is_preserved_for_r_generation(
     tmp_path: Path,
 ) -> None:
-    """Optional requestBody refs stay optional, required refs stay required."""
+    """Optional requestBody refs still drive requiredness metadata."""
     spec_path = tmp_path / "spec.openapi.json"
     spec_path.write_text(
         json.dumps(
@@ -163,12 +168,10 @@ def test_request_body_ref_requiredness_drives_method_request_signature(
     optional = by_id["post_optional"]
     assert optional.has_request_body is True
     assert optional.has_required_request_body is False
-    assert optional.requires_request is False
 
     required = by_id["post_required"]
     assert required.has_request_body is True
     assert required.has_required_request_body is True
-    assert required.requires_request is True
 
 
 def test_load_operations_excludes_internal_visibility_operations(
@@ -207,29 +210,50 @@ def test_load_operations_excludes_internal_visibility_operations(
     ]
 
 
-def test_validate_generated_directory_flags_non_empty_directory(
+def test_check_typescript_generated_output_flags_drift_and_legacy_files(
     tmp_path: Path,
 ) -> None:
-    """Check-mode should fail when required artifacts are missing."""
-    generated_dir = tmp_path / "src" / "generated"
-    generated_dir.mkdir(parents=True)
-    stale_file = generated_dir / "stale.ts"
-    stale_file.write_text("// stale", encoding="utf-8")
+    """Check-mode should fail on drift and leftover legacy TS files."""
+    expected_root = tmp_path / "expected"
+    actual_package_root = tmp_path / "package"
+    (expected_root / "core").mkdir(parents=True)
+    (actual_package_root / "src" / "client" / "core").mkdir(parents=True)
+    (expected_root / "sdk.gen.ts").write_text("// fresh", encoding="utf-8")
+    (expected_root / "core" / "utils.gen.ts").write_text(
+        "// missing",
+        encoding="utf-8",
+    )
+    (actual_package_root / "src" / "client" / "sdk.gen.ts").write_text(
+        "// stale",
+        encoding="utf-8",
+    )
+    (actual_package_root / "src" / "client.ts").write_text(
+        "// legacy",
+        encoding="utf-8",
+    )
 
-    issues = _validate_generated_directory(tmp_path, check=True)
+    issues = _check_typescript_generated_output(
+        actual_package_root,
+        expected_root=expected_root,
+    )
 
     assert issues
-    assert "missing expected generated SDK artifacts" in issues[0]
-    assert "openapi.ts" in issues[0]
-    assert any("stale.ts" in issue or "unexpected" in issue for issue in issues)
+    assert any(
+        "missing expected generated SDK artifacts" in issue for issue in issues
+    )
+    assert any("sdk.gen.ts" in issue for issue in issues)
+    assert any(
+        "obsolete TypeScript SDK artifact still present" in issue
+        for issue in issues
+    )
 
 
-def test_render_typescript_openapi_times_out_with_actionable_error(
+def test_run_openapi_ts_times_out_with_actionable_error(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Timeouts from openapi-typescript include explicit error context."""
+    """Timeouts from @hey-api/openapi-ts include explicit error context."""
     monkeypatch.setattr(
-        "scripts.release.generate_clients.OPENAPI_TYPESCRIPT_CLI",
+        "scripts.release.generate_clients.OPENAPI_TS_CLI",
         Path(__file__),
     )
 
@@ -248,20 +272,26 @@ def test_render_typescript_openapi_times_out_with_actionable_error(
     )
 
     with pytest.raises(RuntimeError, match="timed out after 120s"):
-        _render_typescript_openapi(Path("spec.openapi.json"))
+        _run_openapi_ts(
+            input_spec_path=Path("spec.openapi.json"),
+            output_path=Path("generated"),
+        )
 
 
-def test_render_typescript_openapi_requires_repo_installed_cli(
+def test_run_openapi_ts_requires_repo_installed_cli(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Missing local CLI should fail with an npm bootstrap hint."""
     monkeypatch.setattr(
-        "scripts.release.generate_clients.OPENAPI_TYPESCRIPT_CLI",
-        Path(__file__).with_name("missing-openapi-typescript"),
+        "scripts.release.generate_clients.OPENAPI_TS_CLI",
+        Path(__file__).with_name("missing-openapi-ts"),
     )
 
     with pytest.raises(RuntimeError, match="run `npm ci` from repo root"):
-        _render_typescript_openapi(Path("spec.openapi.json"))
+        _run_openapi_ts(
+            input_spec_path=Path("spec.openapi.json"),
+            output_path=Path("generated"),
+        )
 
 
 @pytest.mark.parametrize("target", TARGETS)

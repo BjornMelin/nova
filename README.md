@@ -85,8 +85,8 @@ Nova owns the SDK contract surface:
 
 - Python is the release-grade public SDK
 - TypeScript is release-grade within Nova's existing CodeArtifact staged/prod
-  system, generator-owned and subpath-only, on `openapi-typescript` +
-  `openapi-fetch` per `ADR-0038` / `SPEC-0029`
+  system, generator-owned and subpath-only, on `@hey-api/openapi-ts` with the
+  generated fetch client per `ADR-0037` / `SPEC-0030`
 - R is a first-class internal release artifact line with real R packages,
   logical format `r`, CodeArtifact generic package transport, signed tarball
   evidence, and a thin `httr2` client surface with concrete OpenAPI parameter
@@ -105,7 +105,7 @@ canonical source of emitted schema behavior.
 For detailed SDK governance and generation rules, use:
 
 - `docs/standards/repository-engineering-standards.md`
-- `docs/architecture/spec/SPEC-0029-sdk-architecture-and-artifact-contract.md`
+- `docs/architecture/spec/SPEC-0030-sdk-generation-and-package-layout.md`
 - `docs/architecture/spec/SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md`
 
 ## Key Runtime Invariants

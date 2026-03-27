@@ -1,19 +1,21 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
+import { client } from "@nova/sdk/client";
 import {
-  createNovaFileClient,
-  type NovaFileClientMiddleware,
-} from "@nova/sdk-file/client";
-import {
-  NovaSdkHttpError as NovaFileSdkHttpError,
-  assertOkResponse as assertFileOkResponse,
-} from "@nova/sdk-file/errors";
-import { operations as fileOperations } from "@nova/sdk-file/operations";
+  cancelExport,
+  createExport,
+  getCapabilities,
+  getExport,
+  getReleaseInfo,
+  initiateUpload,
+  listExports,
+  planResources,
+} from "@nova/sdk/sdk";
 import type {
-  CreateExportRequestBody,
-  InitiateUploadRequestBody,
-} from "@nova/sdk-file/types";
+  CreateExportData,
+  InitiateUploadData,
+} from "@nova/sdk/types";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -40,38 +42,45 @@ interface Manifest {
 }
 
 interface ErrorEnvelope {
-  code: string;
-  message: string;
-  request_id: string;
+  error: {
+    code: string;
+    details: JsonRecord;
+    message: string;
+    request_id: string | null;
+  };
 }
-
-type AssertFalse<T extends false> = T;
-type FileTypeModule = typeof import("@nova/sdk-file/types");
-
-type _NoFileComponentsExport = AssertFalse<
-  "Components" extends keyof FileTypeModule ? true : false
->;
-type _NoFilePathsExport = AssertFalse<
-  "Paths" extends keyof FileTypeModule ? true : false
->;
-type _NoFileOperationsExport = AssertFalse<
-  "Operations" extends keyof FileTypeModule ? true : false
->;
-type _NoFileOperationIdExport = AssertFalse<
-  "OperationId" extends keyof FileTypeModule ? true : false
->;
-type _NoInternalJobResultUpdateRequestExport = AssertFalse<
-  "JobResultUpdateRequest" extends keyof FileTypeModule ? true : false
->;
-type _NoInternalJobResultUpdateResponseExport = AssertFalse<
-  "JobResultUpdateResponse" extends keyof FileTypeModule ? true : false
->;
 
 interface MockResponseFixture {
   readonly status: number;
   readonly body: unknown;
   readonly assertRequest?: (request: Request) => Promise<void> | void;
 }
+
+type AssertFalse<T extends false> = T;
+type SdkTypeModule = typeof import("@nova/sdk/types");
+type SdkModule = typeof import("@nova/sdk/sdk");
+
+type _NoRawTypesComponentsExport = AssertFalse<
+  "Components" extends keyof SdkTypeModule ? true : false
+>;
+type _NoRawTypesPathsExport = AssertFalse<
+  "Paths" extends keyof SdkTypeModule ? true : false
+>;
+type _NoRawTypesOperationsExport = AssertFalse<
+  "Operations" extends keyof SdkTypeModule ? true : false
+>;
+type _NoRawTypesOperationIdExport = AssertFalse<
+  "OperationId" extends keyof SdkTypeModule ? true : false
+>;
+type _NoInternalJobResultRequestExport = AssertFalse<
+  "JobResultUpdateRequest" extends keyof SdkTypeModule ? true : false
+>;
+type _NoInternalJobResultResponseExport = AssertFalse<
+  "JobResultUpdateResponse" extends keyof SdkTypeModule ? true : false
+>;
+type _NoInternalUpdateJobResultOperation = AssertFalse<
+  "updateJobResult" extends keyof SdkModule ? true : false
+>;
 
 function fixtureRoot(): string {
   return resolve(process.cwd(), "..", "fixtures", "v1");
@@ -94,10 +103,11 @@ function asRecord(value: unknown): JsonRecord {
 }
 
 function assertErrorEnvelope(value: unknown, code: string): void {
-  const error = asRecord(value) as unknown as ErrorEnvelope;
-  assert(error.code === code, `error.code must be ${code}`);
-  assert(Boolean(error.message), "error.message required");
-  assert(Boolean(error.request_id), "error.request_id required");
+  const envelope = asRecord(value) as unknown as ErrorEnvelope;
+  assert(Boolean(envelope.error), "error envelope must include error");
+  assert(envelope.error.code === code, `error.code must be ${code}`);
+  assert(Boolean(envelope.error.message), "error.message required");
+  assert(Boolean(envelope.error.request_id), "error.request_id required");
 }
 
 async function requestBodyText(request: Request): Promise<string> {
@@ -105,12 +115,21 @@ async function requestBodyText(request: Request): Promise<string> {
 }
 
 function createFixtureFetch(
-  routes: Record<string, MockResponseFixture>,
-): (input: Request) => Promise<Response> {
+  routes: Record<string, MockResponseFixture | MockResponseFixture[]>,
+): typeof fetch {
   return async (input) => {
-    const fixture = routes[`${input.method} ${input.url}`] ?? routes[input.url];
-    assert(Boolean(fixture), `unexpected request URL: ${input.url}`);
-    await fixture.assertRequest?.(input);
+    const request =
+      input instanceof Request ? input : new Request(input);
+    const route =
+      routes[`${request.method} ${request.url}`] ?? routes[request.url];
+    if (!route) {
+      throw new Error(`unexpected request URL: ${request.url}`);
+    }
+    const fixture = Array.isArray(route) ? route.shift() : route;
+    if (!fixture) {
+      throw new Error(`unexpected request URL: ${request.url}`);
+    }
+    await fixture.assertRequest?.(request);
     return new Response(JSON.stringify(fixture.body), {
       status: fixture.status,
       headers: { "content-type": "application/json" },
@@ -121,13 +140,13 @@ function createFixtureFetch(
 async function main(): Promise<void> {
   const manifest = readJson<Manifest>("manifest.json");
 
-  const transferRequestFixture = readJson<InitiateUploadRequestBody>(
+  const transferRequestFixture = readJson<InitiateUploadData["body"]>(
     manifest.fixtures.transfer.initiate_request,
   );
   const transferSuccessFixture = readJson<unknown>(
     manifest.fixtures.transfer.initiate_success,
   );
-  const createExportRequestFixture = readJson<CreateExportRequestBody>(
+  const createExportRequestFixture = readJson<CreateExportData["body"]>(
     manifest.fixtures.exports.create_request,
   );
   const createExportSuccessFixture = readJson<unknown>(
@@ -170,93 +189,80 @@ async function main(): Promise<void> {
   const planUrl = "https://file.nova.example/v1/resources/plan";
   const releaseUrl = "https://file.nova.example/v1/releases/info";
 
-  assert(
-    fileOperations.get_export.path === "/v1/exports/{export_id}",
-    "get_export path must remain canonical",
-  );
-  assert(
-    fileOperations.create_export.method === "POST",
-    "create_export method must remain canonical",
-  );
-  assert(
-    fileOperations.list_exports.path === "/v1/exports",
-    "list_exports path must remain canonical",
-  );
-  assert(
-    fileOperations.cancel_export.path === "/v1/exports/{export_id}/cancel",
-    "cancel_export path must remain canonical",
-  );
-
-  const middleware: NovaFileClientMiddleware = {
-    onRequest({ request }) {
-      const headers = new Headers(request.headers);
-      headers.set("authorization", "Bearer test-token");
-      headers.set("x-request-id", "req-123");
-      return new Request(request, { headers });
-    },
-  };
-
-  const fileClient = createNovaFileClient({
+  client.setConfig({
+    auth: async () => "test-token",
     baseUrl: fileBaseUrl,
     fetch: createFixtureFetch({
       [getExportUrl]: {
         status: 200,
         body: getExportSuccessFixture,
         assertRequest: (request) => {
-          assert(request.method === "GET", "get_export must use GET");
+          assert(request.method === "GET", "getExport must use GET");
           assert(
             request.headers.get("authorization") === "Bearer test-token",
-            "middleware must inject authorization header",
+            "auth config must inject authorization header",
           );
           assert(
             request.headers.get("x-request-id") === "req-123",
-            "middleware must inject request id header",
+            "request interceptor must inject request id header",
           );
         },
       },
-      [`POST ${createExportUrl}`]: {
-        status: 201,
-        body: createExportSuccessFixture,
-        assertRequest: async (request) => {
-          assert(request.method === "POST", "create_export must use POST");
-          assert(
-            request.headers.get("content-type")?.startsWith("application/json") ??
-              false,
-            "create_export must use application/json content type",
-          );
-          assert(
-            (await requestBodyText(request)) === JSON.stringify(createExportRequestFixture),
-            "create_export must send JSON request body",
-          );
+      [`POST ${createExportUrl}`]: [
+        {
+          status: 201,
+          body: createExportSuccessFixture,
+          assertRequest: async (request) => {
+            assert(request.method === "POST", "createExport must use POST");
+            assert(
+              request.headers.get("content-type")?.startsWith("application/json") ??
+                false,
+              "createExport must use application/json content type",
+            );
+            assert(
+              request.headers.get("idempotency-key") === "idem-123",
+              "createExport must preserve Idempotency-Key header",
+            );
+            assert(
+              (await requestBodyText(request)) ===
+                JSON.stringify(createExportRequestFixture),
+              "createExport must send JSON request body",
+            );
+          },
         },
-      },
+        {
+          status: 503,
+          body: queueUnavailableFixture,
+        },
+      ],
       [`GET ${listExportUrl}`]: {
         status: 200,
         body: listExportSuccessFixture,
         assertRequest: (request) => {
-          assert(request.method === "GET", "list_exports must use GET");
+          assert(request.method === "GET", "listExports must use GET");
         },
       },
       [`POST ${cancelExportUrl}`]: {
         status: 200,
         body: cancelExportSuccessFixture,
         assertRequest: (request) => {
-          assert(request.method === "POST", "cancel_export must use POST");
+          assert(request.method === "POST", "cancelExport must use POST");
         },
       },
       [initiateUploadUrl]: {
         status: 200,
         body: transferSuccessFixture,
         assertRequest: async (request) => {
-          assert(request.method === "POST", "initiate_upload must use POST");
+          assert(request.method === "POST", "initiateUpload must use POST");
           assert(
             request.headers.get("content-type")?.startsWith("application/json") ??
               false,
-            "initiate_upload must use application/json content type",
+            "initiateUpload must use application/json content type",
           );
           assert(
-            (await requestBodyText(request)) === JSON.stringify(transferRequestFixture),
-            "initiate_upload must send JSON request body",
+            (await requestBodyText(request)) ===
+              JSON.stringify(transferRequestFixture),
+            "initiateUpload must send JSON request body",
           );
         },
       },
@@ -264,23 +270,23 @@ async function main(): Promise<void> {
         status: 200,
         body: capabilitiesFixture,
         assertRequest: (request) => {
-          assert(request.method === "GET", "get_capabilities must use GET");
+          assert(request.method === "GET", "getCapabilities must use GET");
         },
       },
       [planUrl]: {
         status: 200,
         body: planFixture,
         assertRequest: async (request) => {
-          assert(request.method === "POST", "plan_resources must use POST");
+          assert(request.method === "POST", "planResources must use POST");
           assert(
-            request.headers.get("content-type")?.toLowerCase().includes("application/json") ??
+            request.headers.get("content-type")?.includes("application/json") ??
               false,
-            "plan_resources must use application/json content type",
+            "planResources must use application/json content type",
           );
           assert(
             JSON.stringify(JSON.parse(await requestBodyText(request))) ===
               JSON.stringify(expectedPlanPayload),
-            "plan_resources must send JSON request body",
+            "planResources must send JSON request body",
           );
         },
       },
@@ -288,104 +294,88 @@ async function main(): Promise<void> {
         status: 200,
         body: releaseFixture,
         assertRequest: (request) => {
-          assert(request.method === "GET", "get_release_info must use GET");
+          assert(request.method === "GET", "getReleaseInfo must use GET");
         },
       },
     }),
-    middleware: [middleware],
   });
 
-  const getExportResult = await fileClient.GET(fileOperations.get_export.path, {
-    params: { path: { export_id: "export-123" } },
+  client.interceptors.request.use(async (request: Request) => {
+    const headers = new Headers(request.headers);
+    headers.set("x-request-id", "req-123");
+    return new Request(request, { headers });
   });
-  assertFileOkResponse("get_export", getExportResult);
+
+  const getExportResult = await getExport({
+    path: { export_id: "export-123" },
+  });
+  assert(!getExportResult.error, "getExport should not return an error");
   assert(
-    typeof asRecord(getExportResult.data).export_id === "string",
-    "export result must include export_id",
+    asRecord(getExportResult.data).export_id === "export-123",
+    "getExport must return export_id",
   );
 
-  const createExportResult = await fileClient.POST(fileOperations.create_export.path, {
+  const createExportResult = await createExport({
     body: createExportRequestFixture,
+    headers: { "Idempotency-Key": "idem-123" },
   });
-  assertFileOkResponse("create_export", createExportResult);
+  assert(!createExportResult.error, "createExport should not return an error");
 
-  const listExportResult = await fileClient.GET(fileOperations.list_exports.path);
-  assertFileOkResponse("list_exports", listExportResult);
+  const listExportsResult = await listExports();
+  assert(!listExportsResult.error, "listExports should not return an error");
   assert(
-    Array.isArray(asRecord(listExportResult.data).exports),
-    "list_exports must return an exports array",
+    Array.isArray(asRecord(listExportsResult.data).exports),
+    "listExports must return an exports array",
   );
 
-  const cancelExportResult = await fileClient.POST(
-    fileOperations.cancel_export.path,
-    {
-      params: { path: { export_id: "export-123" } },
-    },
+  const cancelExportResult = await cancelExport({
+    path: { export_id: "export-123" },
+  });
+  assert(
+    !cancelExportResult.error,
+    "cancelExport should not return an error",
   );
-  assertFileOkResponse("cancel_export", cancelExportResult);
 
-  const initiateResult = await fileClient.POST(fileOperations.initiate_upload.path, {
+  const initiateUploadResult = await initiateUpload({
     body: transferRequestFixture,
   });
-  assertFileOkResponse("initiate_upload", initiateResult);
-
-  const capabilitiesResult = await fileClient.GET(
-    fileOperations.get_capabilities.path,
+  assert(
+    !initiateUploadResult.error,
+    "initiateUpload should not return an error",
   );
-  assertFileOkResponse("get_capabilities", capabilitiesResult);
+  assert(
+    asRecord(initiateUploadResult.data).strategy === "single",
+    "initiateUpload must preserve strategy field",
+  );
 
-  const planResult = await fileClient.POST(fileOperations.plan_resources.path, {
+  const capabilitiesResult = await getCapabilities();
+  assert(
+    !capabilitiesResult.error,
+    "getCapabilities should not return an error",
+  );
+
+  const planResourcesResult = await planResources({
     body: expectedPlanPayload,
   });
-  assertFileOkResponse("plan_resources", planResult);
+  assert(
+    !planResourcesResult.error,
+    "planResources should not return an error",
+  );
 
-  const releaseResult = await fileClient.GET(fileOperations.get_release_info.path);
-  assertFileOkResponse("get_release_info", releaseResult);
+  const releaseInfoResult = await getReleaseInfo();
+  assert(
+    !releaseInfoResult.error,
+    "getReleaseInfo should not return an error",
+  );
 
-  const queueUnavailableClient = createNovaFileClient({
-    baseUrl: fileBaseUrl,
-    fetch: createFixtureFetch({
-      [createExportUrl]: {
-        status: 503,
-        body: queueUnavailableFixture,
-      },
-    }),
+  const queueUnavailableResult = await createExport({
+    body: createExportRequestFixture,
   });
-  const queueUnavailableResult = await queueUnavailableClient.POST(
-    fileOperations.create_export.path,
-    {
-      body: createExportRequestFixture,
-    },
-  );
   assert(
-    queueUnavailableResult.error !== undefined,
-    "create_export queue unavailable fixture must return the error arm",
+    Boolean(queueUnavailableResult.error),
+    "createExport must surface queue_unavailable errors",
   );
-  assertErrorEnvelope(
-    asRecord(queueUnavailableResult.error).error,
-    "queue_unavailable",
-  );
-
-  let sawFileHttpError = false;
-  try {
-    assertFileOkResponse("create_export", queueUnavailableResult);
-  } catch (error) {
-    sawFileHttpError =
-      error instanceof NovaFileSdkHttpError && error.status === 503;
-  }
-  assert(sawFileHttpError, "assertFileOkResponse must throw NovaSdkHttpError");
-
-  assert(
-    !("create_job" in fileOperations),
-    "legacy generic job operation must stay excluded from public operations",
-  );
-  assert(
-    !("update_job_result" in fileOperations),
-    "internal worker operation must stay excluded from public operations",
-  );
+  assertErrorEnvelope(queueUnavailableResult.error, "queue_unavailable");
 }
 
-void main().catch((error: unknown) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+await main();

@@ -184,7 +184,7 @@ def test_r_changes_enable_only_shiny_conformance_lane() -> None:
 
 def test_typescript_changes_enable_only_typescript_conformance_lane() -> None:
     """TypeScript SDK edits should only enable TS conformance on PRs."""
-    outputs = _outputs(["packages/nova_sdk_file/src/client.ts"])
+    outputs = _outputs(["packages/nova_sdk_ts/src/client/sdk.gen.ts"])
 
     assert outputs["run_runtime_ci"] == "false"
     assert outputs["run_generated_clients"] == "false"
