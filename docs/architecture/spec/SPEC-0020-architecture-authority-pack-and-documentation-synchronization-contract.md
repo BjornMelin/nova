@@ -1,7 +1,7 @@
 ---
 Spec: 0020
 Title: Architecture authority pack and documentation synchronization contract
-Status: Active
+Status: Historical / traceability only
 Version: 2.1
 Date: 2026-03-24
 Related:
@@ -14,6 +14,11 @@ Related:
   - "[SPEC-0025: Reusable workflow integration contract](./SPEC-0025-reusable-workflow-integration-contract.md)"
   - "[SPEC-0026: CI/CD IAM least-privilege matrix](./SPEC-0026-ci-cd-iam-least-privilege-matrix.md)"
 ---
+
+> Historical traceability note: this document is preserved for pre-reset
+> authority references only. It is not part of the active wave-2 authority
+> surface; current docs-authority ownership lives in `ADR-0038` and
+> `SPEC-0031`.
 
 ## 1. Scope
 

@@ -55,7 +55,7 @@ parallel session/header auth channel).
    approval before prod.
 5. Documentation authority remains singular and unambiguous across README,
    PRD, requirements, ADR/SPEC, plan, and runbooks, synchronized per
-   `SPEC-0020` (including green-field branch merge policy).
+   `ADR-0038` and `SPEC-0031` (including green-field branch merge policy).
 6. Public SDK productization follows `ADR-0037`, `SPEC-0030`, and `SPEC-0012`
    (Python public; TypeScript CodeArtifact staged/prod; R internal first-class
    line). Superseded predecessors (`ADR-0013`, `SPEC-0011`, etc.) are listed only
@@ -111,7 +111,7 @@ Out of scope:
 3. Historical artifacts are discoverable only through history indexes,
    archive paths, or the dedicated superseded ADR/SPEC directories.
 4. Contract and release docs stay synchronized in the same change set as
-   behavioral changes (`SPEC-0020`).
+   behavioral changes (`ADR-0038`, `SPEC-0031`).
 5. Downstream integration contracts, Auth0 workflow contracts, and SSM base URL
    authority contracts remain aligned with active ADR/SPEC and test guardrails.
 6. Auth0 tenant import/export paths are fail-fast and cannot mutate tenants when
@@ -159,7 +159,6 @@ Out of scope:
 - `docs/architecture/spec/SPEC-0017-runtime-component-topology-and-ownership-contract.md`
 - `docs/architecture/spec/SPEC-0018-runtime-configuration-and-startup-validation-contract.md`
 - `docs/architecture/spec/SPEC-0019-auth-execution-and-threadpool-safety-contract.md`
-- `docs/architecture/spec/SPEC-0020-architecture-authority-pack-and-documentation-synchronization-contract.md`
 - `docs/architecture/spec/SPEC-0021-downstream-hard-cut-integration-and-consumer-validation-contract.md`
 - `docs/architecture/spec/SPEC-0022-auth0-tenant-ops-reusable-workflow-contract.md`
 - `docs/architecture/spec/SPEC-0023-ssm-runtime-base-url-contract-for-deploy-validation.md`

@@ -11,7 +11,6 @@ Related:
   - "[requirements.md](../requirements.md)"
   - "[ADR-0029: SSM runtime base URL authority for deploy validation](../adr/ADR-0029-ssm-runtime-base-url-authority-for-deploy-validation.md)"
   - "[SPEC-0024: CloudFormation module contract](./SPEC-0024-cloudformation-module-contract.md)"
-  - "[SPEC-0020: Rollout and validation strategy](./SPEC-0020-architecture-authority-pack-and-documentation-synchronization-contract.md)"
 ---
 
 ## 1. Scope

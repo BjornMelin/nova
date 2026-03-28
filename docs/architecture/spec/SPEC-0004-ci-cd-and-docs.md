@@ -15,7 +15,7 @@ Related:
   - "[SPEC-0016: v1 route namespace and literal guardrails](./SPEC-0016-v1-route-namespace-and-literal-guardrails.md)"
   - "[requirements.md](../requirements.md)"
   - "[SPEC-0025: Reusable workflow integration contract](./SPEC-0025-reusable-workflow-integration-contract.md)"
-  - "[SPEC-0020: Architecture authority pack and documentation synchronization contract](./SPEC-0020-architecture-authority-pack-and-documentation-synchronization-contract.md)"
+  - "[SPEC-0031: Docs and tests authority reset](./SPEC-0031-docs-and-tests-authority-reset.md)"
 References:
   - "[GitHub Actions](https://docs.github.com/actions)"
   - "[GitHub commit signature verification](https://docs.github.com/en/authentication/managing-commit-signature-verification/about-commit-signature-verification)"

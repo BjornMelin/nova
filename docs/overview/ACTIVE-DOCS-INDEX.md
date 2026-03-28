@@ -9,7 +9,6 @@
 - `docs/README.md`
 - `docs/architecture/README.md`
 - `docs/overview/IMPLEMENTATION-STATUS-MATRIX.md`
-- `docs/overview/CANONICAL-TARGET-2026-04.md`
 - `docs/overview/DEPENDENCY-LEVERAGE-AUDIT.md`
 - `docs/overview/ENTROPY-REDUCTION-LEDGER.md`
 - `docs/contracts/README.md`

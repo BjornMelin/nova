@@ -23,6 +23,6 @@ bearer-only auth, DynamoDB-backed idempotency, unified SDK packages, and
 ## Where to read next
 
 - `IMPLEMENTATION-STATUS-MATRIX.md`
-- `CANONICAL-TARGET-2026-04.md`
+- `ACTIVE-DOCS-INDEX.md`
 - `../architecture/README.md`
 - `../runbooks/README.md`

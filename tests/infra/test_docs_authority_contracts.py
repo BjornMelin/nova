@@ -30,6 +30,11 @@ def test_active_docs_index_tracks_canonical_surface() -> None:
     ]:
         assert required in text
 
+    for forbidden in [
+        "docs/overview/CANONICAL-TARGET-2026-04.md",
+    ]:
+        assert forbidden not in text
+
 
 def test_root_authority_routers_point_to_canonical_indexes() -> None:
     """Root routers must direct readers through the canonical authority map."""
@@ -61,6 +66,41 @@ def test_root_authority_routers_point_to_canonical_indexes() -> None:
         "../history/",
     ]:
         assert required in architecture_router
+
+    for forbidden in [
+        "./overview/CANONICAL-TARGET-2026-04.md",
+    ]:
+        assert forbidden not in docs_router
+
+
+def test_spec_index_keeps_spec_0020_out_of_active_authority() -> None:
+    """SPEC-0020 must stay traceability-only after the docs reset."""
+    text = _read("docs/architecture/spec/index.md")
+    spec_0020_link = (
+        "| [SPEC-0020]("
+        "./SPEC-0020-architecture-authority-pack-and-documentation-"
+        "synchronization-contract.md) "
+    )
+    spec_0020_title = (
+        "| Architecture authority pack and documentation "
+        "synchronization contract "
+    )
+    spec_0020_historical_state = (
+        "| Historical traceability | Preserved for pre-reset references only | "
+        "2026-03-24 |"
+    )
+
+    assert (
+        "## Historical / traceability-only specs still preserved in place"
+        in text
+    )
+    assert (
+        spec_0020_link + spec_0020_title + spec_0020_historical_state
+    ) in text
+    assert (
+        spec_0020_link + spec_0020_title + "| Active | Active baseline |"
+        not in text
+    )
 
 
 def test_active_plan_directory_is_pruned_to_current_indexes() -> None:

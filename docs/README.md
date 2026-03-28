@@ -30,7 +30,6 @@ material out of the default path.
 
 ## Active architecture/program authority
 
-- `./overview/CANONICAL-TARGET-2026-04.md`
 - `./architecture/requirements-wave-2.md`
 - `./architecture/adr/ADR-0033-canonical-serverless-platform.md`
 - `./architecture/adr/ADR-0034-eliminate-auth-service-and-session-auth.md`

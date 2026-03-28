@@ -18,7 +18,6 @@ Last reviewed: 2026-03-28
 | [SPEC-0017](./SPEC-0017-runtime-component-topology-and-ownership-contract.md) | Runtime component topology and ownership contract | Active | Active baseline | 2026-03-05 |
 | [SPEC-0018](./SPEC-0018-runtime-configuration-and-startup-validation-contract.md) | Runtime configuration and startup validation contract | Active | Active baseline | 2026-03-05 |
 | [SPEC-0019](./SPEC-0019-auth-execution-and-threadpool-safety-contract.md) | Auth execution and threadpool safety contract | Active | Active baseline | 2026-03-05 |
-| [SPEC-0020](./SPEC-0020-architecture-authority-pack-and-documentation-synchronization-contract.md) | Architecture authority pack and documentation synchronization contract | Active | Active baseline | 2026-03-05 |
 | [SPEC-0021](./SPEC-0021-downstream-hard-cut-integration-and-consumer-validation-contract.md) | Downstream hard-cut integration and consumer validation contract | Active | Active baseline | 2026-03-04 |
 | [SPEC-0022](./SPEC-0022-auth0-tenant-ops-reusable-workflow-contract.md) | Auth0 tenant ops reusable workflow contract | Active | Active baseline | 2026-03-04 |
 | [SPEC-0027](./SPEC-0027-public-api-v2.md) | Public API v2 | Accepted | Active baseline | 2026-03-25 |
@@ -26,6 +25,12 @@ Last reviewed: 2026-03-28
 | [SPEC-0029](./SPEC-0029-platform-serverless.md) | Canonical serverless platform | Accepted | Active baseline | 2026-03-25 |
 | [SPEC-0030](./SPEC-0030-sdk-generation-and-package-layout.md) | SDK generation and package layout | Accepted | Active baseline | 2026-03-25 |
 | [SPEC-0031](./SPEC-0031-docs-and-tests-authority-reset.md) | Docs and tests authority reset | Accepted | Active baseline | 2026-03-25 |
+
+## Historical / traceability-only specs still preserved in place
+
+| SPEC | Title | Decision status | Implementation state | Date |
+| --- | --- | --- | --- | --- |
+| [SPEC-0020](./SPEC-0020-architecture-authority-pack-and-documentation-synchronization-contract.md) | Architecture authority pack and documentation synchronization contract | Historical traceability | Preserved for pre-reset references only | 2026-03-24 |
 
 ## Historical / superseded
 

@@ -23,7 +23,7 @@ Related:
   - "[SPEC-0017: Runtime component topology and ownership contract](../spec/SPEC-0017-runtime-component-topology-and-ownership-contract.md)"
   - "[SPEC-0018: Runtime configuration and startup validation contract](../spec/SPEC-0018-runtime-configuration-and-startup-validation-contract.md)"
   - "[SPEC-0019: Auth execution and threadpool safety contract](../spec/SPEC-0019-auth-execution-and-threadpool-safety-contract.md)"
-  - "[SPEC-0020: Architecture authority pack and documentation synchronization contract](../spec/SPEC-0020-architecture-authority-pack-and-documentation-synchronization-contract.md)"
+  - "[SPEC-0031: Docs and tests authority reset](../spec/SPEC-0031-docs-and-tests-authority-reset.md)"
   - "[SPEC-0021: Downstream hard-cut integration and consumer validation contract](../spec/SPEC-0021-downstream-hard-cut-integration-and-consumer-validation-contract.md)"
   - "[SPEC-0022: Auth0 tenant ops reusable workflow contract](../spec/SPEC-0022-auth0-tenant-ops-reusable-workflow-contract.md)"
   - "[SPEC-0023: SSM runtime base-url contract for deploy validation](../spec/SPEC-0023-ssm-runtime-base-url-contract-for-deploy-validation.md)"
