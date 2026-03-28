@@ -1,6 +1,8 @@
 > **Superseded target draft**
 >
-> This draft was superseded before implementation by the wave-2 program. The concrete refactor remains tracked in `.agents/AUDIT_DELIVERABLES/prompts/03_refactor_api_pure_asgi_middleware_and_native_openapi.md`.
+> This draft was superseded before implementation by the wave-2 program.
+> See `ADR-0038-docs-authority-reset.md` and
+> `docs/plan/GREENFIELD-WAVE-2-EXECUTION.md` for the surviving tracked route.
 
 ---
 ADR: 0041

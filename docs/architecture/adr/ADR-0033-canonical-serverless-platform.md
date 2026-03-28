@@ -1,7 +1,6 @@
-# ADR-0033 — Canonical serverless platform
+# ADR-0033 -- Canonical serverless platform
 
 > **Implementation state:** Approved target-state ADR. This decision is accepted for implementation but is not yet fully reflected in the current repository/runtime.
-
 
 ## Status
 Accepted
@@ -25,12 +24,15 @@ The attached repo still centers ECS/Fargate, Redis, SQS, and a custom worker cal
 ## Rejected options
 
 ### ECS/Fargate + ALB + SQS worker
+
 Good for steady traffic and long-lived services, but unnecessarily expensive and operationally heavy for Nova’s control-plane shape.
 
 ### Lambda durable functions
+
 Promising, but still newer and narrower in maturity/region/runtime coverage than Step Functions Standard.
 
 ### App Runner
+
 Operationally lighter than ECS, but weaker fit for the broader workflow/orchestration shape.
 
 ## Consequences

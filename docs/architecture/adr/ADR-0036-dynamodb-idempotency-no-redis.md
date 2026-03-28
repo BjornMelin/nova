@@ -1,7 +1,6 @@
-# ADR-0036 — DynamoDB idempotency and transient state, no Redis
+# ADR-0036 -- DynamoDB idempotency and transient state, no Redis
 
 > **Implementation state:** Approved target-state ADR. The current codebase still includes Redis-backed correctness paths; this ADR defines the hard cut away from them.
-
 
 ## Status
 Accepted

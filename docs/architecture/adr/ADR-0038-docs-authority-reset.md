@@ -1,7 +1,6 @@
-# ADR-0038 — Reset docs authority
+# ADR-0038 -- Reset docs authority
 
 > **Implementation state:** Approved target-state ADR. This pack applies the documentation-side reset now, while code and CI alignment remain part of the branch program.
-
 
 ## Status
 Accepted

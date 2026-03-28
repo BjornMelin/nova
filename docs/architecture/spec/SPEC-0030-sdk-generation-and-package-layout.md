@@ -1,7 +1,6 @@
-# SPEC-0030 — SDK generation and package layout
+# SPEC-0030 -- SDK generation and package layout
 
 > **Implementation state:** Approved target-state SPEC. Current package names/layout may still reflect the pre-cut tree.
-
 
 ## Goals
 

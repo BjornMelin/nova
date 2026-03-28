@@ -1,7 +1,6 @@
-# SPEC-0027 — Public API v2
+# SPEC-0027 -- Public API v2
 
 > **Implementation state:** Approved target-state SPEC. It is the implementation target for the next public-contract hard cut, not the already-deployed baseline.
-
 
 ## Summary
 
@@ -18,6 +17,7 @@ Public API v2 exposes only explicit transfer and export workflow resources under
 ## Resource model
 
 ### Uploads / transfers
+
 - create upload intent
 - create multipart upload intent
 - sign multipart parts
@@ -26,6 +26,7 @@ Public API v2 exposes only explicit transfer and export workflow resources under
 - abort multipart upload
 
 ### Exports
+
 - create export
 - get export
 - list exports

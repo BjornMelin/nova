@@ -1,7 +1,6 @@
-# Requirements — wave 2 canonical Nova
+# Requirements -- wave 2 canonical Nova
 
 > **Implementation state:** Approved target-state requirements for the wave-2 hard cut.
-
 
 ## Product requirements
 

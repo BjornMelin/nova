@@ -1,6 +1,6 @@
 > **Superseded target draft**
 >
-> This draft was superseded before implementation by `SPEC-0028-export-workflow-state-machine.md`.
+> This draft was superseded before implementation by `../SPEC-0028-export-workflow-state-machine.md`.
 
 ---
 Spec: 0028

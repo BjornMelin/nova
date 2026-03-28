@@ -18,7 +18,7 @@ historical bundles blur together.
 4. `../README.md`
 5. `./standards/README.md`
 6. `./runbooks/README.md` for current operations
-7. `.agents/AUDIT_DELIVERABLES/README_RUN_ORDER.md` for branch execution
+7. `./plan/GREENFIELD-WAVE-2-EXECUTION.md` for branch execution
 
 ## Current implemented baseline
 
@@ -49,7 +49,6 @@ Use these when you are planning or implementing the hard-cut modernization:
 - `./architecture/spec/SPEC-0030-sdk-generation-and-package-layout.md`
 - `./architecture/spec/SPEC-0031-docs-and-tests-authority-reset.md`
 - `./plan/GREENFIELD-WAVE-2-EXECUTION.md`
-- `.agents/AUDIT_DELIVERABLES/`
 
 ## Current authority indexes
 
@@ -78,6 +77,6 @@ Use only for audit trail or traceability:
   authority.
 - Current operations use the current implemented runbooks until the migration
   branches land.
-- Implementation branches use the approved target-state ADR/SPEC set and the
-  `.agents/AUDIT_DELIVERABLES/` prompts.
+- Implementation branches use the approved target-state ADR/SPEC set and
+  `./plan/GREENFIELD-WAVE-2-EXECUTION.md`.
 - When a branch lands, update status language so docs keep matching reality.

@@ -19,10 +19,10 @@ Related:
   - "[SPEC-0011: Multi-language SDK architecture and package map (superseded)](../spec/superseded/SPEC-0011-multi-language-sdk-architecture-and-package-map.md)"
   - "[SPEC-0012: SDK conformance, versioning, and compatibility governance](../spec/SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md)"
   - "[ADR-0033: Green-field single runtime auth authority](./ADR-0033-single-runtime-auth-authority.md)"
-  - "[Green-field simplification program](../../plan/greenfield-simplification-program.md)"
+  - "[Green-field simplification program](../../../history/2026-03-greenfield-wave-1-superseded/greenfield-simplification-program.md)"
 References:
-  - "[Green-field evidence (Framework B)](../../plan/greenfield-evidence/DECISION_FRAMEWORKS_AND_SCORES.md)"
-  - "[Rejected and deferred options](../../plan/greenfield-evidence/REJECTED_AND_DEFERRED_OPTIONS.md)"
+  - "[Green-field evidence (Framework B)](../../../history/2026-03-greenfield-wave-1-superseded/greenfield-evidence/DECISION_FRAMEWORKS_AND_SCORES.md)"
+  - "[Rejected and deferred options](../../../history/2026-03-greenfield-wave-1-superseded/greenfield-evidence/REJECTED_AND_DEFERRED_OPTIONS.md)"
 ---
 
 ## Summary

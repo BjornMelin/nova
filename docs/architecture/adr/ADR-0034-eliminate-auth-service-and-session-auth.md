@@ -1,7 +1,6 @@
-# ADR-0034 — Eliminate auth service and session auth
+# ADR-0034 -- Eliminate auth service and session auth
 
 > **Implementation state:** Approved target-state ADR. The current codebase still carries legacy auth-service and session-style seams; this ADR defines their removal.
-
 
 ## Status
 Accepted

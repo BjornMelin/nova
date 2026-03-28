@@ -77,7 +77,7 @@ Rules for narrative provisioning, release, and validation markdown under
 
 ## Generated TypeScript SDK Rules
 
-- Generated TypeScript package is `@nova/sdk-file`.
+- Generated TypeScript package is `@nova/sdk`.
 - Release-grade packaging for the TypeScript SDK stays within Nova's existing
   CodeArtifact staged/prod system, while artifacts remain generator-owned and
   subpath-only.
@@ -94,18 +94,18 @@ Rules for narrative provisioning, release, and validation markdown under
 - OpenAPI remains the only schema authority for SDK generation.
 - Multi-media request bodies must preserve explicit generated `contentType`
   selection instead of collapsing to JSON-only behavior.
-- The checked-in `@nova/sdk-file/client` module is a thin wrapper over
-  `openapi-fetch`; do not reintroduce a repo-private transport/runtime package.
-  Implement auth/header customization and request/response hooks through
-  `openapi-fetch` middleware in `@nova/sdk-file/client`. Handle HTTP status
-  behavior in `onResponse`; `onError` is only for fetch-thrown failures.
+- The checked-in `@nova/sdk/client` module is the generator-owned Hey API fetch
+  client instance; do not reintroduce a repo-private transport/runtime package.
+- Configure auth/header customization through `client.setConfig()` and request
+  interceptors on `@nova/sdk/client`, and call generated operations from
+  `@nova/sdk/sdk`.
 
 ## R Package Rules
 
 - R SDK packages are first-class internal release artifacts, not deferred
   generated catalogs.
-- The package line is `nova.sdk.r.file`, with repository path under
-  `packages/nova_sdk_r_file/`.
+- The package line is `nova`, with repository path under
+  `packages/nova_sdk_r/`.
 - R packages use real package scaffolds, `logical format r`, generator-owned
   output from `scripts/release/generate_clients.py`, testthat coverage, and
   verification through the shared `scripts/checks/verify_r_cmd_check.sh`
@@ -142,7 +142,7 @@ Rules for narrative provisioning, release, and validation markdown under
 - Keep `scripts/release/generate_clients.py --check` as the deterministic gate
   for generated TypeScript SDK artifacts.
 - Run `npm ci` before `scripts/release/generate_clients.py --check` so the
-  repo-installed `openapi-typescript` CLI is available without ad hoc fetches.
+  repo-installed `@hey-api/openapi-ts` CLI is available without ad hoc fetches.
 - Do not swap or float generator behavior casually; update docs, tests, and
   workflows in the same change if the generation path changes.
 
@@ -197,10 +197,10 @@ Toolchain baseline notes:
 - The root dev dependency group pins `openapi-python-client==0.28.3` for the
   committed Python SDK generation path. Keep that exact pin, the lockfile,
   `scripts/release/openapi_python_client/`, and the committed
-  `packages/nova_sdk_py_file` tree aligned in the same change.
+  `packages/nova_sdk_py` tree aligned in the same change.
 - Current runtime dependency floors are manifest-owned authority:
   `pydantic-settings>=2.13.1` in `nova-file-api` and `nova-dash-bridge`, plus
-  `redis>=7.4.0` and `uvicorn[standard]>=0.42.0` in `nova-file-api`. If those
+  `uvicorn[standard]>=0.42.0` in `nova-file-api`. If those
   floors move, update docs, lockfiles, and verification guidance together.
 - Pytest defaults to `--import-mode=importlib` and relies on editable workspace
   installs instead of repo-level `pythonpath` injection. Treat any return to a
@@ -211,8 +211,8 @@ Additional required gates when touching OpenAPI, generated TypeScript SDKs, npm
 packaging, release automation, or SDK docs/contracts:
 
 - `uv run python scripts/conformance/check_typescript_module_policy.py`
-- `npm run -w @nova/sdk-file typecheck`
-- `npm run -w @nova/sdk-file build`
+- `npm run -w @nova/sdk typecheck`
+- `npm run -w @nova/sdk build`
 - `npm run -w @nova/contracts-ts-conformance typecheck`
 - `npm run -w @nova/contracts-ts-conformance verify`
 - `uv run pytest -q scripts/release/tests/test_typescript_sdk_contracts.py`

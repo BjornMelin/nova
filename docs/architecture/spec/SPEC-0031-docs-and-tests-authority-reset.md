@@ -1,7 +1,6 @@
-# SPEC-0031 — Docs and tests authority reset
+# SPEC-0031 -- Docs and tests authority reset
 
 > **Implementation state:** Approved target-state SPEC. This docs pack applies the docs side immediately; code/tests remain to be aligned by the implementation branches.
-
 
 ## Problem
 

@@ -1,6 +1,6 @@
 # AGENTS.md (nova)
 
-Nova is in a **pre-wave-2** state. This file separates three things that had
+Nova is in a **mixed wave-2** state. This file separates three things that had
 become mixed together in the repo docs:
 
 1. the **current implemented baseline**
@@ -15,7 +15,7 @@ become mixed together in the repo docs:
 4. `README.md`
 5. `docs/standards/README.md`
 6. `docs/runbooks/README.md` for live operations
-7. `.agents/AUDIT_DELIVERABLES/README_RUN_ORDER.md` for implementation work
+7. `docs/plan/GREENFIELD-WAVE-2-EXECUTION.md` for implementation work
 
 ## State model
 
@@ -26,11 +26,11 @@ the wave-2 branches are implemented and merged.
 
 Baseline examples:
 
-- ECS/Fargate + ALB + SQS worker remains the documented deployed shape
-- dedicated auth-service-era artifacts still exist
-- generic jobs remain part of the public async contract
-- Redis still appears in correctness paths
-- split SDK/package layout still exists
+- public transfer APIs plus explicit export workflows are implemented
+- bearer JWT verification runs in-process in the main API
+- DynamoDB-backed idempotency is the correctness path
+- HTTP API + Lambda Web Adapter + Step Functions Standard components have landed
+- legacy ECS-era deployment assets remain only for older environments
 
 ### Approved target-state program
 
@@ -50,7 +50,6 @@ Target-state authority:
 - `docs/architecture/spec/SPEC-0030-sdk-generation-and-package-layout.md`
 - `docs/architecture/spec/SPEC-0031-docs-and-tests-authority-reset.md`
 - `docs/plan/GREENFIELD-WAVE-2-EXECUTION.md`
-- `.agents/AUDIT_DELIVERABLES/prompts/*`
 
 ### Historical / superseded
 
@@ -75,9 +74,9 @@ Never treat these as active authority:
 
 When using Codex or another implementation agent:
 
-1. open `.agents/AUDIT_DELIVERABLES/README_RUN_ORDER.md`
-2. open `.agents/AUDIT_DELIVERABLES/EXECUTIVE_AUDIT_V2.md`
-3. open the prompt for the current branch
+1. open `docs/plan/GREENFIELD-WAVE-2-EXECUTION.md`
+2. open `docs/overview/CANONICAL-TARGET-2026-04.md`
+3. open the current branch prompt or task description
 4. use `docs/overview/IMPLEMENTATION-STATUS-MATRIX.md` to confirm the delta
 5. use `docs/architecture/spec/REFERENCES.md` for official external references
 

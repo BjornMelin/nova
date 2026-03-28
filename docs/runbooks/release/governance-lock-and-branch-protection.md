@@ -34,7 +34,12 @@ Configure the following leaf jobs as required for `main`.
 From workflow `Nova CI` (`.github/workflows/ci.yml`):
 
 - `quality-gates` (Python 3.13 primary lint/type/generation lane)
-- `python-compatibility` (Python 3.11 and 3.12 pytest/build compatibility lane)
+- `pytest-runtime-gates`
+- `pytest-primary`
+- `pytest-generated-smoke`
+- `pytest-compatibility-3.11`
+- `pytest-compatibility-3.12`
+- `python-compatibility` (build/packaging compatibility lane)
 - `generated-clients`
 - `dash-conformance`
 - `shiny-conformance`
@@ -146,6 +151,11 @@ gh api \
         "strict_required_status_checks_policy": true,
         "required_status_checks": [
           { "context": "quality-gates" },
+          { "context": "pytest-runtime-gates" },
+          { "context": "pytest-primary" },
+          { "context": "pytest-generated-smoke" },
+          { "context": "pytest-compatibility-3.11" },
+          { "context": "pytest-compatibility-3.12" },
           { "context": "python-compatibility" },
           { "context": "generated-clients" },
           { "context": "dash-conformance" },

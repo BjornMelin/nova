@@ -6,7 +6,6 @@ from .helpers import REPO_ROOT
 from .helpers import read_repo_file as _read
 
 DOCS_ROOT = REPO_ROOT / "docs"
-AUDIT_ROOT = REPO_ROOT / ".agents" / "AUDIT_DELIVERABLES"
 
 
 def test_active_docs_index_tracks_small_canonical_surface() -> None:
@@ -30,7 +29,6 @@ def test_active_docs_index_tracks_small_canonical_surface() -> None:
         "docs/history/",
         "docs/architecture/adr/superseded/",
         "docs/architecture/spec/superseded/",
-        ".agents/AUDIT_DELIVERABLES/",
     ]:
         assert required in text
 
@@ -47,7 +45,6 @@ def test_root_authority_routers_point_to_current_indexes() -> None:
             "docs/README.md",
             "docs/architecture/README.md",
             "docs/overview/IMPLEMENTATION-STATUS-MATRIX.md",
-            ".agents/AUDIT_DELIVERABLES/README_RUN_ORDER.md",
         ]:
             assert required in text
 
@@ -56,18 +53,19 @@ def test_root_authority_routers_point_to_current_indexes() -> None:
         "## Approved target-state program",
         "## Historical / superseded",
         "./overview/ACTIVE-DOCS-INDEX.md",
-        ".agents/AUDIT_DELIVERABLES/",
     ]:
         assert required in docs_router
 
     for required in [
-        "pre-wave-2 implementation baseline",
+        (
+            "mixed wave-2 implementation with serverless platform "
+            "components landed"
+        ),
         "adr/ADR-0033-canonical-serverless-platform.md",
         "adr/ADR-0038-docs-authority-reset.md",
         "spec/SPEC-0027-public-api-v2.md",
         "spec/SPEC-0031-docs-and-tests-authority-reset.md",
         "../history/",
-        ".agents/AUDIT_DELIVERABLES/EXECUTIVE_AUDIT_V2.md",
     ]:
         assert required in architecture_router
 
@@ -120,21 +118,6 @@ def test_superseded_wave_one_docs_keep_original_filenames() -> None:
         "docs/architecture/spec/superseded/SPEC-0029-sdk-architecture-and-artifact-contract.md",
     ]:
         assert (REPO_ROOT / rel_path).is_file(), rel_path
-
-
-def test_audit_deliverables_entrypoints_exist_for_branch_execution() -> None:
-    """Branch-execution docs kept in-repo must exist at the referenced paths."""
-    for rel_path in [
-        AUDIT_ROOT / "README_RUN_ORDER.md",
-        AUDIT_ROOT / "EXECUTIVE_AUDIT_V2.md",
-        AUDIT_ROOT / "decision-matrices.md",
-        AUDIT_ROOT / "findings" / "audit-findings-ledger.md",
-        AUDIT_ROOT / "findings" / "repo-size-ledger.md",
-        AUDIT_ROOT
-        / "prompts"
-        / "10_refactor_docs_authority_reset_and_archive_prune.md",
-    ]:
-        assert rel_path.is_file(), rel_path
 
 
 def test_contracts_readme_tracks_current_schemas() -> None:

@@ -1,7 +1,6 @@
-# ADR-0035 — Replace generic jobs with export workflows
+# ADR-0035 -- Replace generic jobs with export workflows
 
 > **Implementation state:** Approved target-state ADR. The current codebase still exposes generic jobs and callback-style workflow seams; this ADR defines their replacement.
-
 
 ## Status
 Accepted

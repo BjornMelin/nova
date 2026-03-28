@@ -16,8 +16,6 @@ Last reviewed: 2026-03-25
 - `GREENFIELD-WAVE-2-EXECUTION.md`
 - `../architecture/requirements-wave-2.md`
 - `../overview/CANONICAL-TARGET-2026-04.md`
-- `.agents/AUDIT_DELIVERABLES/README_RUN_ORDER.md`
-- `.agents/AUDIT_DELIVERABLES/EXECUTIVE_AUDIT_V2.md`
 
 ## Archived wave-1 material
 

@@ -8,7 +8,7 @@ Last reviewed: 2026-03-25
 Give new readers a fast mental model of the repository **without** pretending
 that the approved target-state program has already landed.
 
-## One sentence summary
+## One-sentence summary
 
 Nova is currently a transfer-control and async-jobs monorepo on an older
 ECS/SQS/Redis/auth-service-oriented baseline, with an approved wave-2 program

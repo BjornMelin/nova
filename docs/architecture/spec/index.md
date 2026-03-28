@@ -5,9 +5,9 @@ Last reviewed: 2026-03-25
 
 ## Status model
 
-- **Implemented** — reflected in the current repository and current runbooks
-- **Accepted, planned** — approved target-state spec for wave-2 implementation
-- **Superseded** — historical / traceability only
+- **Implemented** -- reflected in the current repository and current runbooks
+- **Accepted, planned** -- approved target-state spec for wave-2 implementation
+- **Superseded** -- historical / traceability only
 
 ## Current implemented baseline
 

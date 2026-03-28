@@ -1,7 +1,7 @@
 # Nova architecture authority map
 
 Status: Active
-Current repository state: **pre-wave-2 implementation baseline**
+Current repository state: **mixed wave-2 implementation with serverless platform components landed**
 Last reviewed: 2026-03-25
 
 ## Purpose
@@ -18,12 +18,18 @@ Use it before opening any ADR or SPEC.
 
 ### Current implemented baseline
 
-The current repository still reflects the older architecture family:
+The current repository is in a mixed state: the auth hard cut, export
+workflow hard cut, and canonical serverless platform package/IaC components
+have landed, while legacy ECS-era deployment assets remain in-tree for older
+environments until the final docs/archive cleanup completes.
 
-- public transfer APIs plus generic jobs
-- dedicated auth-service-era topology and auth package split
-- Redis in correctness/idempotency paths
-- ECS/Fargate + ALB + SQS worker as the documented runtime baseline
+- public transfer APIs plus explicit export workflows
+- bearer JWT only, verified in-process in the main API
+- DynamoDB-backed idempotency with explicit expiration filtering
+- HTTP API + Lambda Web Adapter + Step Functions Standard as the canonical
+  newly landed runtime path
+- legacy ECS/Fargate + ALB + SQS worker assets retained only as non-canonical
+  migration leftovers
 
 For current reality, use:
 
@@ -68,6 +74,18 @@ Use only for traceability:
 - `spec/superseded/`
 - `../history/`
 
+### Adjacent implemented baseline governance
+
+These remain the canonical baseline authority for the current deploy/runtime
+governance layer while wave-2 target-state implementation is still in progress:
+
+- `adr/ADR-0030-native-cfn-modular-stack-architecture-for-nova-infrastructure-productization.md`
+- `adr/ADR-0031-reusable-github-workflow-api-and-versioning-policy-for-deployment-automation.md`
+- `adr/ADR-0032-oidc-and-iam-role-partitioning-for-deploy-automation.md`
+- `spec/SPEC-0024-cloudformation-module-contract.md`
+- `spec/SPEC-0025-reusable-workflow-integration-contract.md`
+- `spec/SPEC-0026-ci-cd-iam-least-privilege-matrix.md`
+
 ## Recommended reading paths
 
 ### Operating or validating the current repo
@@ -84,8 +102,8 @@ Use only for traceability:
 2. `../overview/CANONICAL-TARGET-2026-04.md`
 3. target-state ADRs (`ADR-0033` through `ADR-0038`)
 4. target-state SPECs (`SPEC-0027` through `SPEC-0031`)
-5. `.agents/AUDIT_DELIVERABLES/EXECUTIVE_AUDIT_V2.md`
-6. `.agents/AUDIT_DELIVERABLES/prompts/<current-branch>.md`
+5. `../overview/CANONICAL-TARGET-2026-04.md`
+6. `../plan/GREENFIELD-WAVE-2-EXECUTION.md`
 
 ## Important rule
 

@@ -12,62 +12,53 @@ Canonical sources:
 
 ## Canonical runtime settings
 
-| Env Var | Field | Type | Required | Secret | Default |
-| --- | --- | --- | --- | --- | --- |
-| ACTIVITY_ROLLUPS_TABLE | activity_rollups_table | str \| None | no | no | `None` |
-| ACTIVITY_STORE_BACKEND | activity_store_backend | ActivityStoreBackend | no | no | `<ActivityStoreBackend.MEMORY: 'memory'>` |
-| APP_NAME | app_name | str | no | no | `'nova-file-api'` |
-| APP_VERSION | app_version | str | no | no | `<factory>` |
-| AUTH_JWT_CACHE_MAX_TTL_SECONDS | auth_jwt_cache_max_ttl_seconds | int | no | no | `120` |
-| BLOCKING_IO_THREAD_TOKENS | blocking_io_thread_tokens | int | no | no | `80` |
-| CACHE_KEY_PREFIX | cache_key_prefix | str | no | no | `'nova'` |
-| CACHE_KEY_SCHEMA_VERSION | cache_key_schema_version | int | no | no | `1` |
-| CACHE_LOCAL_MAX_ENTRIES | cache_local_max_entries | int | no | no | `2000` |
-| CACHE_LOCAL_TTL_SECONDS | cache_local_ttl_seconds | int | no | no | `120` |
-| CACHE_REDIS_DECODE_RESPONSES | cache_redis_decode_responses | bool | no | no | `False` |
-| CACHE_REDIS_HEALTH_CHECK_INTERVAL_SECONDS | cache_redis_health_check_interval_seconds | int | no | no | `30` |
-| CACHE_REDIS_MAX_CONNECTIONS | cache_redis_max_connections | int | no | no | `64` |
-| CACHE_REDIS_PROTOCOL | cache_redis_protocol | int | no | no | `2` |
-| CACHE_REDIS_RETRY_ATTEMPTS | cache_redis_retry_attempts | int | no | no | `2` |
-| CACHE_REDIS_RETRY_BASE_SECONDS | cache_redis_retry_base_seconds | float | no | no | `0.05` |
-| CACHE_REDIS_RETRY_CAP_SECONDS | cache_redis_retry_cap_seconds | float | no | no | `0.5` |
-| CACHE_REDIS_SOCKET_CONNECT_TIMEOUT_SECONDS | cache_redis_socket_connect_timeout_seconds | float | no | no | `0.5` |
-| CACHE_REDIS_SOCKET_TIMEOUT_SECONDS | cache_redis_socket_timeout_seconds | float | no | no | `0.5` |
-| CACHE_REDIS_URL | cache_redis_url | str \| None | no | no | `None` |
-| CACHE_SHARED_TTL_SECONDS | cache_shared_ttl_seconds | int | no | no | `300` |
-| ENVIRONMENT | environment | str | no | no | `'dev'` |
-| FILE_TRANSFER_BUCKET | file_transfer_bucket | str | no | no | `''` |
-| FILE_TRANSFER_ENABLED | file_transfer_enabled | bool | no | no | `True` |
-| FILE_TRANSFER_EXPORT_PREFIX | file_transfer_export_prefix | str | no | no | `'exports/'` |
-| FILE_TRANSFER_MAX_CONCURRENCY | file_transfer_max_concurrency | int | no | no | `4` |
-| FILE_TRANSFER_MAX_UPLOAD_BYTES | max_upload_bytes | int | no | no | `536870912000` |
-| FILE_TRANSFER_MULTIPART_THRESHOLD_BYTES | file_transfer_multipart_threshold_bytes | int | no | no | `104857600` |
-| FILE_TRANSFER_PART_SIZE_BYTES | file_transfer_part_size_bytes | int | no | no | `134217728` |
-| FILE_TRANSFER_PRESIGN_DOWNLOAD_TTL_SECONDS | file_transfer_presign_download_ttl_seconds | int | no | no | `900` |
-| FILE_TRANSFER_PRESIGN_UPLOAD_TTL_SECONDS | file_transfer_presign_upload_ttl_seconds | int | no | no | `1800` |
-| FILE_TRANSFER_TMP_PREFIX | file_transfer_tmp_prefix | str | no | no | `'tmp/'` |
-| FILE_TRANSFER_UPLOAD_PREFIX | file_transfer_upload_prefix | str | no | no | `'uploads/'` |
-| FILE_TRANSFER_USE_ACCELERATE_ENDPOINT | file_transfer_use_accelerate_endpoint | bool | no | no | `False` |
-| IDEMPOTENCY_ENABLED | idempotency_enabled | bool | no | no | `True` |
-| IDEMPOTENCY_TTL_SECONDS | idempotency_ttl_seconds | int | no | no | `900` |
-| JOBS_DYNAMODB_TABLE | jobs_dynamodb_table | str \| None | no | no | `None` |
-| JOBS_ENABLED | jobs_enabled | bool | no | no | `True` |
-| JOBS_QUEUE_BACKEND | jobs_queue_backend | JobsQueueBackend | no | no | `<JobsQueueBackend.MEMORY: 'memory'>` |
-| JOBS_REPOSITORY_BACKEND | jobs_repository_backend | JobsRepositoryBackend | no | no | `<JobsRepositoryBackend.MEMORY: 'memory'>` |
-| JOBS_RUNTIME_MODE | jobs_runtime_mode | str | no | no | `'api'` |
-| JOBS_SQS_MAX_NUMBER_OF_MESSAGES | jobs_sqs_max_number_of_messages | int | no | no | `1` |
-| JOBS_SQS_QUEUE_URL | jobs_sqs_queue_url | str \| None | no | no | `None` |
-| JOBS_SQS_RETRY_MODE | jobs_sqs_retry_mode | str | no | no | `'standard'` |
-| JOBS_SQS_RETRY_TOTAL_MAX_ATTEMPTS | jobs_sqs_retry_total_max_attempts | int | no | no | `3` |
-| JOBS_SQS_VISIBILITY_TIMEOUT_SECONDS | jobs_sqs_visibility_timeout_seconds | int | no | no | `120` |
-| JOBS_SQS_WAIT_TIME_SECONDS | jobs_sqs_wait_time_seconds | int | no | no | `20` |
-| METRICS_NAMESPACE | metrics_namespace | str | no | no | `'NovaFileApi'` |
-| OIDC_AUDIENCE | oidc_audience | str \| None | no | no | `None` |
-| OIDC_CLOCK_SKEW_SECONDS | oidc_clock_skew_seconds | int | no | no | `0` |
-| OIDC_ISSUER | oidc_issuer | str \| None | no | no | `None` |
-| OIDC_JWKS_URL | oidc_jwks_url | str \| None | no | no | `None` |
-| OIDC_REQUIRED_PERMISSIONS | oidc_required_permissions | str | no | no | `''` |
-| OIDC_REQUIRED_SCOPES | oidc_required_scopes | str | no | no | `''` |
+| Env Var | Field | Type | Required | Required When | Secret | Default |
+| --- | --- | --- | --- | --- | --- | --- |
+| ACTIVITY_ROLLUPS_TABLE | activity_rollups_table | str \| None | no | - | no | `None` |
+| ACTIVITY_STORE_BACKEND | activity_store_backend | ActivityStoreBackend | no | - | no | `<ActivityStoreBackend.MEMORY: 'memory'>` |
+| APP_NAME | app_name | str | no | - | no | `'nova-file-api'` |
+| APP_VERSION | app_version | str | no | - | no | `<factory>` |
+| AUTH_JWT_CACHE_MAX_TTL_SECONDS | auth_jwt_cache_max_ttl_seconds | int | no | - | no | `120` |
+| BLOCKING_IO_THREAD_TOKENS | blocking_io_thread_tokens | int | no | - | no | `80` |
+| CACHE_KEY_PREFIX | cache_key_prefix | str | no | - | no | `'nova'` |
+| CACHE_KEY_SCHEMA_VERSION | cache_key_schema_version | int | no | - | no | `1` |
+| CACHE_LOCAL_MAX_ENTRIES | cache_local_max_entries | int | no | - | no | `2000` |
+| CACHE_LOCAL_TTL_SECONDS | cache_local_ttl_seconds | int | no | - | no | `120` |
+| ENVIRONMENT | environment | str | no | - | no | `'dev'` |
+| FILE_TRANSFER_BUCKET | file_transfer_bucket | str | no | - | no | `''` |
+| FILE_TRANSFER_ENABLED | file_transfer_enabled | bool | no | - | no | `True` |
+| FILE_TRANSFER_EXPORT_PREFIX | file_transfer_export_prefix | str | no | - | no | `'exports/'` |
+| FILE_TRANSFER_MAX_CONCURRENCY | file_transfer_max_concurrency | int | no | - | no | `4` |
+| FILE_TRANSFER_MAX_UPLOAD_BYTES | max_upload_bytes | int | no | - | no | `536870912000` |
+| FILE_TRANSFER_MULTIPART_THRESHOLD_BYTES | file_transfer_multipart_threshold_bytes | int | no | - | no | `104857600` |
+| FILE_TRANSFER_PART_SIZE_BYTES | file_transfer_part_size_bytes | int | no | - | no | `134217728` |
+| FILE_TRANSFER_PRESIGN_DOWNLOAD_TTL_SECONDS | file_transfer_presign_download_ttl_seconds | int | no | - | no | `900` |
+| FILE_TRANSFER_PRESIGN_UPLOAD_TTL_SECONDS | file_transfer_presign_upload_ttl_seconds | int | no | - | no | `1800` |
+| FILE_TRANSFER_TMP_PREFIX | file_transfer_tmp_prefix | str | no | - | no | `'tmp/'` |
+| FILE_TRANSFER_UPLOAD_PREFIX | file_transfer_upload_prefix | str | no | - | no | `'uploads/'` |
+| FILE_TRANSFER_USE_ACCELERATE_ENDPOINT | file_transfer_use_accelerate_endpoint | bool | no | - | no | `False` |
+| IDEMPOTENCY_DYNAMODB_TABLE | idempotency_dynamodb_table | str \| None | no | when API idempotency enabled and JOBS_RUNTIME_MODE!=worker | no | `None` |
+| IDEMPOTENCY_ENABLED | idempotency_enabled | bool | no | - | no | `True` |
+| IDEMPOTENCY_TTL_SECONDS | idempotency_ttl_seconds | int | no | - | no | `900` |
+| JOBS_DYNAMODB_TABLE | jobs_dynamodb_table | str \| None | no | - | no | `None` |
+| JOBS_ENABLED | jobs_enabled | bool | no | - | no | `True` |
+| JOBS_QUEUE_BACKEND | jobs_queue_backend | JobsQueueBackend | no | - | no | `<JobsQueueBackend.MEMORY: 'memory'>` |
+| JOBS_REPOSITORY_BACKEND | jobs_repository_backend | JobsRepositoryBackend | no | - | no | `<JobsRepositoryBackend.MEMORY: 'memory'>` |
+| JOBS_RUNTIME_MODE | jobs_runtime_mode | str | no | - | no | `'api'` |
+| JOBS_SQS_MAX_NUMBER_OF_MESSAGES | jobs_sqs_max_number_of_messages | int | no | - | no | `1` |
+| JOBS_SQS_QUEUE_URL | jobs_sqs_queue_url | str \| None | no | - | no | `None` |
+| JOBS_SQS_RETRY_MODE | jobs_sqs_retry_mode | str | no | - | no | `'standard'` |
+| JOBS_SQS_RETRY_TOTAL_MAX_ATTEMPTS | jobs_sqs_retry_total_max_attempts | int | no | - | no | `3` |
+| JOBS_SQS_VISIBILITY_TIMEOUT_SECONDS | jobs_sqs_visibility_timeout_seconds | int | no | - | no | `120` |
+| JOBS_SQS_WAIT_TIME_SECONDS | jobs_sqs_wait_time_seconds | int | no | - | no | `20` |
+| JOBS_STEP_FUNCTIONS_STATE_MACHINE_ARN | jobs_step_functions_state_machine_arn | str \| None | no | when JOBS_QUEUE_BACKEND=stepfunctions and JOBS_ENABLED=true | no | `None` |
+| METRICS_NAMESPACE | metrics_namespace | str | no | - | no | `'NovaFileApi'` |
+| OIDC_AUDIENCE | oidc_audience | str \| None | no | - | no | `None` |
+| OIDC_CLOCK_SKEW_SECONDS | oidc_clock_skew_seconds | int | no | - | no | `0` |
+| OIDC_ISSUER | oidc_issuer | str \| None | no | - | no | `None` |
+| OIDC_JWKS_URL | oidc_jwks_url | str \| None | no | - | no | `None` |
+| OIDC_REQUIRED_PERMISSIONS | oidc_required_permissions | str | no | - | no | `''` |
+| OIDC_REQUIRED_SCOPES | oidc_required_scopes | str | no | - | no | `''` |
 
 ## Generated ENV_VARS_JSON support matrix
 
@@ -80,18 +71,8 @@ Canonical sources:
 | OIDC_REQUIRED_PERMISSIONS | OidcRequiredPermissions |
 | OIDC_CLOCK_SKEW_SECONDS | OidcClockSkewSeconds |
 | BLOCKING_IO_THREAD_TOKENS | BlockingIoThreadTokens |
-| CACHE_REDIS_MAX_CONNECTIONS | CacheRedisMaxConnections |
-| CACHE_REDIS_SOCKET_TIMEOUT_SECONDS | CacheRedisSocketTimeoutSeconds |
-| CACHE_REDIS_SOCKET_CONNECT_TIMEOUT_SECONDS | CacheRedisSocketConnectTimeoutSeconds |
-| CACHE_REDIS_HEALTH_CHECK_INTERVAL_SECONDS | CacheRedisHealthCheckIntervalSeconds |
-| CACHE_REDIS_RETRY_BASE_SECONDS | CacheRedisRetryBaseSeconds |
-| CACHE_REDIS_RETRY_CAP_SECONDS | CacheRedisRetryCapSeconds |
-| CACHE_REDIS_RETRY_ATTEMPTS | CacheRedisRetryAttempts |
-| CACHE_REDIS_DECODE_RESPONSES | CacheRedisDecodeResponses |
-| CACHE_REDIS_PROTOCOL | CacheRedisProtocol |
 | CACHE_LOCAL_TTL_SECONDS | CacheLocalTtlSeconds |
 | CACHE_LOCAL_MAX_ENTRIES | CacheLocalMaxEntries |
-| CACHE_SHARED_TTL_SECONDS | CacheSharedTtlSeconds |
 | CACHE_KEY_PREFIX | CacheKeyPrefix |
 | CACHE_KEY_SCHEMA_VERSION | CacheKeySchemaVersion |
 | AUTH_JWT_CACHE_MAX_TTL_SECONDS | AuthJwtCacheMaxTtlSeconds |
@@ -106,7 +87,7 @@ Canonical sources:
 | FILE_TRANSFER_MAX_UPLOAD_BYTES | FileTransferMaxUploadBytes |
 
 Forbidden ENV_VARS_JSON keys:
-`IDEMPOTENCY_MODE`
+`IDEMPOTENCY_MODE`, `IDEMPOTENCY_DYNAMODB_TABLE`
 
 ## Service template environment contract
 
@@ -128,23 +109,14 @@ Forbidden ENV_VARS_JSON keys:
 | JOBS_REPOSITORY_BACKEND | stack-derived | always | no |
 | JOBS_RUNTIME_MODE | literal | always | no |
 | ACTIVITY_STORE_BACKEND | stack-derived | always | no |
-| CACHE_REDIS_MAX_CONNECTIONS | task parameter | always | no |
-| CACHE_REDIS_SOCKET_TIMEOUT_SECONDS | task parameter | always | no |
-| CACHE_REDIS_SOCKET_CONNECT_TIMEOUT_SECONDS | task parameter | always | no |
-| CACHE_REDIS_HEALTH_CHECK_INTERVAL_SECONDS | task parameter | always | no |
-| CACHE_REDIS_RETRY_BASE_SECONDS | task parameter | always | no |
-| CACHE_REDIS_RETRY_CAP_SECONDS | task parameter | always | no |
-| CACHE_REDIS_RETRY_ATTEMPTS | task parameter | always | no |
-| CACHE_REDIS_DECODE_RESPONSES | task parameter | always | no |
-| CACHE_REDIS_PROTOCOL | task parameter | always | no |
 | CACHE_LOCAL_TTL_SECONDS | task parameter | always | no |
 | CACHE_LOCAL_MAX_ENTRIES | task parameter | always | no |
-| CACHE_SHARED_TTL_SECONDS | task parameter | always | no |
 | CACHE_KEY_PREFIX | task parameter | always | no |
 | CACHE_KEY_SCHEMA_VERSION | task parameter | always | no |
 | AUTH_JWT_CACHE_MAX_TTL_SECONDS | task parameter | always | no |
 | IDEMPOTENCY_ENABLED | task parameter | always | no |
 | IDEMPOTENCY_TTL_SECONDS | task parameter | always | no |
+| IDEMPOTENCY_DYNAMODB_TABLE | stack output | when API idempotency enabled | no |
 | FILE_TRANSFER_PRESIGN_UPLOAD_TTL_SECONDS | task parameter | always | no |
 | FILE_TRANSFER_PRESIGN_DOWNLOAD_TTL_SECONDS | task parameter | always | no |
 | FILE_TRANSFER_MULTIPART_THRESHOLD_BYTES | task parameter | always | no |
@@ -159,7 +131,6 @@ Forbidden ENV_VARS_JSON keys:
 | FILE_TRANSFER_UPLOAD_PREFIX | stack parameter | when file transfer enabled | no |
 | FILE_TRANSFER_EXPORT_PREFIX | stack parameter | when file transfer enabled | no |
 | FILE_TRANSFER_TMP_PREFIX | stack parameter | when file transfer enabled | no |
-| CACHE_REDIS_URL | Secrets Manager | when cache enabled | yes |
 
 Forbidden service env vars:
 `ENV`, `ENV_DICT`, `AUTH_APP_SECRET`

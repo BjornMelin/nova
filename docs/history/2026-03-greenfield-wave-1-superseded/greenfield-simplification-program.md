@@ -4,13 +4,13 @@ Status: Active program index
 Last updated: 2026-03-24
 
 Canonical authority for **decisions** lives in
-[ADR-0033](../architecture/adr/ADR-0033-single-runtime-auth-authority.md)
+[ADR-0033](../../architecture/adr/superseded/ADR-0033-single-runtime-auth-authority.md)
 through
-[ADR-0041](../architecture/adr/ADR-0041-shared-pure-asgi-middleware-and-errors.md)
+[ADR-0041](../../architecture/adr/superseded/ADR-0041-shared-pure-asgi-middleware-and-errors.md)
 and
-[SPEC-0027](../architecture/spec/SPEC-0027-public-http-contract-revision-and-bearer-auth.md)
+[SPEC-0027](../../architecture/spec/superseded/SPEC-0027-public-http-contract-revision-and-bearer-auth.md)
 through
-[SPEC-0029](../architecture/spec/SPEC-0029-sdk-architecture-and-artifact-contract.md).
+[SPEC-0029](../../architecture/spec/superseded/SPEC-0029-sdk-architecture-and-artifact-contract.md).
 This document is the **execution router**: branch order, merge policy, and
 definition of done.
 

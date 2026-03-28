@@ -23,20 +23,22 @@ Read in this order:
 2. `docs/README.md`
 3. `docs/architecture/README.md`
 4. `docs/overview/IMPLEMENTATION-STATUS-MATRIX.md`
-5. `.agents/AUDIT_DELIVERABLES/README_RUN_ORDER.md` when you are executing the
+5. `docs/plan/GREENFIELD-WAVE-2-EXECUTION.md` when you are executing the
    wave-2 implementation branches
 
 ## Current implemented baseline
 
-Before the wave-2 branches are executed and merged, the repository still
-contains or assumes the following baseline characteristics:
+The current repository is already partway through the wave-2 hard cut. The
+implemented baseline today includes:
 
-- FastAPI control plane plus a broader microservice / worker / queue topology
-- dedicated auth-service-era artifacts still exist in the baseline
-- generic jobs as the async public contract
-- Redis still appears in correctness/idempotency paths
-- ECS/Fargate + ALB + SQS worker remain the current documented platform baseline
-- split SDK/package layout is still present in the pre-cut tree
+- public transfer APIs plus explicit export workflows
+- bearer JWT only, verified in-process in the main API
+- DynamoDB-backed idempotency with explicit expiration filtering
+- HTTP API + Lambda Web Adapter + Step Functions Standard as the canonical
+  newly landed runtime path
+- legacy ECS/Fargate + ALB + SQS worker assets retained only as non-canonical
+  migration leftovers
+- unified SDK package directories for TypeScript, Python, and R
 
 Use the current implemented runbooks under `docs/runbooks/provisioning/` and
 `docs/runbooks/release/` for live operations until the target migration lands.
@@ -69,16 +71,16 @@ Primary target-state references:
 
 ### Current baseline packages
 
-The pre-wave-2 repo still includes a broader package shape than the final target
-and may include:
+The current repo layout includes:
 
 - `packages/nova_file_api`
-- `packages/nova_auth_api`
+- `packages/nova_workflows`
 - `packages/nova_dash_bridge`
 - `packages/nova_runtime_support`
-- file/auth-specific SDK packages
-- `packages/nova_sdk_fetch`
-- infra stacks aligned to the ECS baseline
+- `packages/nova_sdk_ts`
+- `packages/nova_sdk_py`
+- `packages/nova_sdk_r`
+- `infra/nova_cdk`
 
 ### Target package layout
 
@@ -103,5 +105,3 @@ See `docs/overview/CANONICAL-TARGET-2026-04.md` and
   baseline facts with target-state decisions.
 - Treat `docs/history/**` and `docs/architecture/*/superseded/**` as
   traceability-only.
-- Treat `.agents/AUDIT_DELIVERABLES/` as implementation-program documentation,
-  not live operator authority.

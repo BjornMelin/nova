@@ -5,10 +5,10 @@ Last reviewed: 2026-03-25
 
 ## Status model
 
-- **Implemented** — reflected in the current repository and current runbooks
-- **Accepted, planned** — approved target-state decision for the wave-2 hard cut;
+- **Implemented** -- reflected in the current repository and current runbooks
+- **Accepted, planned** -- approved target-state decision for the wave-2 hard cut;
   not fully implemented yet
-- **Superseded** — traceability only
+- **Superseded** -- traceability only
 
 ## Current implemented baseline
 

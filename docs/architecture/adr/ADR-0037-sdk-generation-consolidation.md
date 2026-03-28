@@ -1,7 +1,6 @@
-# ADR-0037 — Consolidate SDK generation and package layout
+# ADR-0037 -- Consolidate SDK generation and package layout
 
 > **Implementation state:** Approved target-state ADR. The current repo may still contain split SDK packages and bespoke TS runtime glue until the implementation branches land.
-
 
 ## Status
 Accepted
