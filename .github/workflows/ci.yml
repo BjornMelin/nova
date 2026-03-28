@@ -378,18 +378,21 @@ jobs:
           save-cache: "false"
 
       - name: Download runtime gate coverage data
+        continue-on-error: true
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # actions/download-artifact@v8
         with:
           name: pytest-runtime-gates-coverage-data
           path: .artifacts/coverage/runtime
 
       - name: Download primary coverage data
+        continue-on-error: true
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # actions/download-artifact@v8
         with:
           name: pytest-primary-coverage-data
           path: .artifacts/coverage/primary
 
       - name: Download generated smoke coverage data
+        continue-on-error: true
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # actions/download-artifact@v8
         with:
           name: pytest-generated-smoke-coverage-data
