@@ -1,7 +1,3 @@
-> **Superseded target draft**
->
-> This draft was superseded before implementation by `../SPEC-0028-export-workflow-state-machine.md`.
-
 ---
 Spec: 0028
 Title: Worker job lifecycle and direct result path
@@ -14,6 +10,11 @@ Related:
   - "[SPEC-0000: HTTP API contract](./SPEC-0000-http-api-contract.md)"
   - "[requirements.md](../requirements.md)"
 ---
+
+> **Superseded target draft**
+>
+> This draft was superseded before implementation. Use the active wave-2
+> target-state SPEC set instead of this file for current authority.
 
 ## 1. Purpose
 

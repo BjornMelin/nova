@@ -21,8 +21,8 @@ become mixed together in the repo docs:
 
 ### Current implemented baseline
 
-Use this when operating, debugging, or validating the repository **before**
-the wave-2 branches are implemented and merged.
+Use this when operating, debugging, or validating the repository in its
+current mixed-wave-2 state.
 
 Baseline examples:
 

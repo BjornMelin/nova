@@ -1,7 +1,3 @@
-> **Superseded target draft**
->
-> This draft was superseded before implementation by the wave-2 target authority, primarily `ADR-0034-eliminate-auth-service-and-session-auth.md`.
-
 ---
 ADR: 0033
 Title: Green-field single runtime auth authority
@@ -21,6 +17,11 @@ Related:
 References:
   - "[Rejected and deferred options (pack copy)](../../../history/2026-03-greenfield-wave-1-superseded/greenfield-evidence/REJECTED_AND_DEFERRED_OPTIONS.md)"
 ---
+
+> **Superseded target draft**
+>
+> This draft was superseded before implementation. Use the active wave-2
+> target-state ADR/SPEC set instead of this file for current authority.
 
 ## Summary
 

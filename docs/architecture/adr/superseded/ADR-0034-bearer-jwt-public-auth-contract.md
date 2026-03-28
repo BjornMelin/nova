@@ -1,7 +1,3 @@
-> **Superseded target draft**
->
-> This draft was superseded before implementation by the wave-2 auth + public API set (`ADR-0034`, `ADR-0035`, `SPEC-0027`).
-
 ---
 ADR: 0034
 Title: Green-field bearer JWT public auth contract
@@ -19,6 +15,11 @@ Related:
 References:
   - "[Green-field evidence (Framework A)](../../../history/2026-03-greenfield-wave-1-superseded/greenfield-evidence/DECISION_FRAMEWORKS_AND_SCORES.md)"
 ---
+
+> **Superseded target draft**
+>
+> This draft was superseded before implementation. Use the active wave-2
+> target-state ADR/SPEC set instead of this file for current authority.
 
 ## Summary
 

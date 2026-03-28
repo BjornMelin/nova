@@ -25,6 +25,8 @@
 
 - implementation: thin `httr2` wrapper package
 - package dir: `packages/nova_sdk_r`
+- installed package: `nova`
+- exported helpers remain part of the public package surface
 
 ## Release rule
 

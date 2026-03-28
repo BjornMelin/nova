@@ -92,8 +92,8 @@ Required startup validation:
    rules.
 6. When jobs are disabled, the reported `job_queue` check remains ready instead
    of making the service unready by feature disablement alone.
-7. Shared cache health remains visible in diagnostics and gates readiness only
-   when idempotency is enabled.
+7. `idempotency_store` health remains visible in diagnostics and gates
+   readiness only when idempotency is enabled.
 8. Activity-store health remains visible in diagnostics but is not
    readiness-fatal in the current contract.
 9. Feature flags do not determine readiness by themselves.
