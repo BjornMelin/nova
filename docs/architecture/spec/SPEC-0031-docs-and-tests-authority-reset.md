@@ -1,55 +1,25 @@
----
-Spec: 0031
-Title: Docs and tests authority reset
-Status: Active
-Version: 1.0
-Date: 2026-03-25
-Supersedes: ""
-Related:
-  - "[requirements-wave-2.md](../requirements-wave-2.md)"
-  - "[ADR-0038: Reset docs authority](../adr/ADR-0038-docs-authority-reset.md)"
-  - "[Active docs index](../../overview/ACTIVE-DOCS-INDEX.md)"
-  - "[Green-field wave 2 execution plan](../../plan/GREENFIELD-WAVE-2-EXECUTION.md)"
-References:
-  - "[Breaking changes v2](../../contracts/BREAKING-CHANGES-V2.md)"
-  - "[Dependency leverage audit](../../overview/DEPENDENCY-LEVERAGE-AUDIT.md)"
----
+# SPEC-0031 -- Docs and tests authority reset
 
-## 1. Purpose
+> **Implementation state:** Implemented on the current branch docs/test surface, with only remaining truth-model cleanup still pending.
 
-Define the approved target-state rules for the active docs surface and for the
-tests that exist to protect docs/governance behavior.
+## Problem
 
-## 2. Problem
+The repo has too many active docs and too many tests whose only job is to enforce that sprawl.
 
-The repo accumulated too many active docs and too many tests whose primary job
-was to police that sprawl rather than protect executable behavior or live
-contracts.
-
-## 3. Decision
+## Decision
 
 Keep a smaller active authority set and archive or delete the rest.
 
-## 4. Active docs classes
+## Active docs classes
 
-- current overview and active indexes
+- current overview
 - active ADRs
 - active specs
 - active runbooks
 - active SDK/client docs
-- implementation prompts only when intentionally retained for branch execution
+- implementation prompts if intentionally retained
 
-## 5. Test rule
+## Test rule
 
-- keep tests that protect executable behavior
-- keep tests that protect current public contract compatibility
-- keep tests that protect SDK generation correctness
-- keep tests that protect platform safety
-- delete or archive tests whose primary purpose is enforcing legacy
-  planning/history surfaces
-
-## 6. Traceability
-
-- [Repo requirements](../requirements-wave-2.md#repo-requirements)
-- [Quality requirements](../requirements-wave-2.md#quality-requirements)
-- [Architecture requirements](../requirements-wave-2.md#architecture-requirements)
+Keep tests that protect executable behaviour, contract compatibility for the current API, SDK generation correctness, and platform safety.
+Delete or archive tests whose primary purpose is to enforce legacy planning/history surfaces.

@@ -20,7 +20,7 @@ route authority and cross-repo validation contracts.
 
 ## 2. Canonical downstream route contract
 
-1. Consumer integrations MUST target canonical `/v1/transfers` and `/v1/exports`
+1. Consumer integrations MUST target canonical `/v1/transfers` and `/v1/jobs`
    route families.
 2. Consumer integrations MUST NOT reference legacy route families forbidden by
    `SPEC-0016` as active runtime routes.

@@ -1,6 +1,7 @@
 # Runbook — canonical serverless operations
 
-> **Implementation state:** Canonical operational runbook for the serverless runtime. Use the retained ECS/CloudFormation runbooks only for legacy environments that have not been cut over yet.
+> **Implementation state:** Target-state operational runbook. Do not use it as the current production runbook until the platform migration lands.
+
 
 ## Core runtime
 
@@ -36,10 +37,3 @@
 - provisioned concurrency only after measuring need
 - route-level JWT authorizers in API Gateway where it reduces noise before the app
 - app-level authorization remains the source of truth
-
-## Repo entrypoints
-
-- `infra/nova_cdk/` is the canonical IaC source.
-- `packages/nova_workflows/` owns the workflow task handlers.
-- `apps/nova_file_api_service/Dockerfile` is the shared API image used for the
-  Lambda Web Adapter path.

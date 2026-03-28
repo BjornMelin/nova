@@ -68,7 +68,7 @@ Choose **Option B** as production final-state.
    - CloudWatch deployment alarms
    - load-balancer infrastructure role wiring
 4. Public CloudFront paths use WAFv2 protection with rate-based controls for
-   `/v1/transfers*` and `/v1/exports*`, while the ALB remains origin-only.
+   `/v1/transfers*` and `/v1/jobs*`, while the ALB remains origin-only.
 5. GitHub Actions with OIDC AWS auth; no long-lived keys.
 6. One-repo IaC authority in `nova` for runtime/deployment path.
 

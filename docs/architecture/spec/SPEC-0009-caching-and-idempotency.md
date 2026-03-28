@@ -5,7 +5,6 @@ Status: Active
 Version: 1.3
 Date: 2026-03-16
 Related:
-  - "[ADR-0023: Hard-cut v1 canonical route surface](../adr/ADR-0023-hard-cut-v1-canonical-route-surface.md)"
   - "[ADR-0036: DynamoDB idempotency and transient state, no Redis](../adr/ADR-0036-dynamodb-idempotency-no-redis.md)"
   - "[SPEC-0006: JWT/OIDC verification and principal mapping](./SPEC-0006-jwt-oidc-verification-and-principal-mapping.md)"
   - "[SPEC-0000: HTTP API contract](./SPEC-0000-http-api-contract.md)"

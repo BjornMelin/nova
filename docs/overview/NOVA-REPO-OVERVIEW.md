@@ -1,66 +1,44 @@
-# Nova Runtime Repository Overview
+# Nova repository overview
 
-Status: Active
-Last reviewed: 2026-03-24
+Status: Active orientation doc
+Last reviewed: 2026-03-25
 
 ## Purpose
 
-Provide a short mental model for new readers before they move into the
-canonical authority docs. This file is orientation only; architecture and
-operator authority live elsewhere.
+Give new readers a fast mental model of the repository **without** pretending
+that every legacy asset has already been retired.
 
-## What Nova Is
+## One-sentence summary
 
-Nova is the canonical runtime monorepo for file-transfer orchestration and
-in-process bearer JWT verification. It provides a control plane for transfer
-and async export workflows and does not proxy file bytes through the API layer.
+Nova is currently a mixed-wave-2 transfer and export-workflow control-plane
+monorepo with bearer-only auth, DynamoDB-backed idempotency, consolidated SDK
+packages, and serverless platform components already landed, while some
+ECS-era assets remain in-tree as non-canonical leftovers.
 
-## Monorepo Map
+## Current implemented baseline
 
-- `packages/nova_file_api`: canonical `/v1/*` transfer and export-workflow runtime
-- `packages/nova_dash_bridge`: Dash/Flask/FastAPI adapters over
-  `nova_file_api.public`
-- `packages/nova_runtime_support`: shared outer-ASGI request context and
-  FastAPI exception registration
-- `packages/nova_sdk_py`: release-grade public Python SDK
-- `packages/nova_sdk_ts`: release-grade TypeScript SDK in the CodeArtifact
-  staged/prod flow
-- `packages/nova_sdk_r`: first-class internal R SDK package
-- `packages/contracts`: OpenAPI artifacts, workflow schemas, and conformance
-  helpers
-- `infra/nova` and `infra/runtime`: CI/CD, IAM, and runtime CloudFormation
+The current baseline now centers:
 
-## Runtime Flow at a Glance
+- transfer APIs plus explicit export workflows
+- bearer JWT only, verified in-process in the main API
+- DynamoDB-backed idempotency with explicit expiration filtering
+- HTTP API + Lambda Web Adapter + Step Functions Standard platform components
+- unified SDK packages for TypeScript, Python, and R
+- legacy ECS/Fargate + ALB + SQS worker assets retained only as non-canonical leftovers
 
-- Requests enter `nova_file_api` on the canonical `/v1/*` surface.
-- Bearer JWT verification, validation, idempotency, and service orchestration
-  happen in-process.
-- Async export workflows publish to queue backends and workers write terminal state through
-  the direct-persistence path.
-- Health and observability surfaces remain:
-  - `/v1/health/live`
-  - `/v1/health/ready`
-  - `/metrics/summary`
+## Approved target-state program
 
-## Package Responsibilities
+The target state moves Nova to:
 
-- `nova_file_api` owns runtime endpoints, auth, export workflow lifecycle, and readiness.
-- `nova_dash_bridge` owns framework adapters and consumes
-  `nova_file_api.public` as the in-process seam. FastAPI integrations await
-  that async surface directly, while Flask/Dash keep explicit sync adapters at
-  the true sync edge only.
-- `nova_runtime_support` owns shared request-id propagation and shared FastAPI
-  exception registration.
-- `packages/contracts` owns committed OpenAPI and reusable workflow schema
-  artifacts.
-- The SDK packages own the generated client surfaces and release artifacts for
-  their respective languages.
+- full retirement of legacy ECS-era assets and duplicate docs surfaces
+- one fully canonical serverless control-plane posture across docs, runbooks,
+  and implementation
+- no residual pre-wave-2 package, auth, or idempotency assumptions in active
+  operator or developer docs
 
-## Read Next
+## Where to read next
 
-- `AGENTS.md` for the durable operator contract
-- `docs/README.md` for task-based documentation routing
-- `docs/architecture/README.md` for canonical architecture authority
-- `docs/standards/README.md` for engineering workflow and docs-sync policy
-- `docs/runbooks/README.md` for deployment, release, and validation runbooks
-- `docs/history/README.md` for archived plans and superseded material
+- `IMPLEMENTATION-STATUS-MATRIX.md`
+- `CANONICAL-TARGET-2026-04.md`
+- `../architecture/README.md`
+- `../plan/GREENFIELD-WAVE-2-EXECUTION.md`

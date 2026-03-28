@@ -1,7 +1,11 @@
+> **Superseded target draft**
+>
+> This draft was superseded before implementation by `ADR-0038-docs-authority-reset.md`, `SPEC-0031-docs-and-tests-authority-reset.md`, and the wave-2 execution plan.
+
 ---
 ADR: 0040
 Title: Green-field repo rebaseline after architecture cuts
-Status: Accepted
+Status: Superseded
 Version: 1.0
 Date: 2026-03-19
 Related:

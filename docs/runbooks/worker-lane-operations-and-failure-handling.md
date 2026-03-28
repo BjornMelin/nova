@@ -1,9 +1,5 @@
 # Worker Lane Operations and Failure Handling
 
-> Legacy environment note: this runbook applies only to retained ECS/SQS worker
-> deployments. The canonical export runtime now uses Step Functions task
-> handlers in `packages/nova_workflows/`.
-
 Status: Active
 Owner: nova release architecture
 Last reviewed: 2026-03-11

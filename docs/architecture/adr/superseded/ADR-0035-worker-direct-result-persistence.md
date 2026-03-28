@@ -1,7 +1,11 @@
+> **Superseded target draft**
+>
+> This draft was superseded before implementation by the explicit export-workflow model in `ADR-0035` / `SPEC-0028`.
+
 ---
 ADR: 0035
 Title: Green-field worker direct result persistence
-Status: Accepted
+Status: Superseded
 Version: 1.0
 Date: 2026-03-19
 Related:

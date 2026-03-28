@@ -1,75 +1,40 @@
-# Nova Operator Runbooks
+# Nova operator runbooks
 
 Status: Active
-Owner: nova release architecture
+Current repository state: **mixed wave-2 implementation with legacy runtime leftovers**
 Last reviewed: 2026-03-25
 
 ## Purpose
 
-Canonical entrypoint for Nova-path release, deployment, validation, and runtime
-operations runbooks.
-Operator tooling should assume Python 3.13 as the default local and primary
-quality baseline, but active runtime package support begins at Python 3.11 and
-the hosted compatibility lane covers Python 3.11 plus 3.12.
+Route operators and implementation agents to the correct operational docs
+without confusing current live runbooks with future target-state runbooks.
 
-See `../architecture/README.md` for architecture authority and the canonical
-route chain.
-Consult `../standards/README.md` for deeper engineering workflow standards.
-Reference `../contracts/README.md` for workflow and release schema contracts.
+## Current live operations
 
-## Release and Deployment
+These remain authoritative for the current repo/platform shape, including the
+mixed-wave-2 baseline and any still-running legacy environments:
 
-Provisioning indexes: [`provisioning/README.md`](./provisioning/README.md). Release
-indexes: [`release/README.md`](./release/README.md).
+- `provisioning/README.md`
+- `release/README.md`
+- `provisioning/deploy-runtime-cloudformation-environments.md`
+- `provisioning/nova-cicd-end-to-end-deploy.md`
+- `release/release-runbook.md`
+- `release/release-policy.md`
+- `worker-lane-operations-and-failure-handling.md`
+- `observability-security-cost-baseline.md`
 
-1. [Deploy runtime CloudFormation environments](provisioning/deploy-runtime-cloudformation-environments.md)
-2. [Day-0 operator checklist](provisioning/day-0-operator-checklist.md)
-3. [Docker Buildx and credential-helper setup](provisioning/docker-buildx-credential-helper-setup.md)
-4. [Deploy Nova CI/CD end-to-end](provisioning/nova-cicd-end-to-end-deploy.md)
-5. [Release runbook](release/release-runbook.md)
-6. [Release policy](release/release-policy.md)
-7. [Release promotion addendum](release/release-promotion-dev-to-prod.md)
-8. [Runtime config contract](../release/runtime-config-contract.generated.md) (generated; [`docs/release/`](../release/README.md))
-9. [Canonical serverless operations](RUNBOOK-SERVERLESS-OPERATIONS.md)
+## Target-state operational guidance
 
-## Validation and Governance
+Use this for the landed serverless platform components and for planning the
+remaining legacy-runtime retirement work:
 
-1. [Non-prod live validation runbook](release/nonprod-live-validation-runbook.md)
-2. [Browser live validation checklist](release/browser-live-validation-checklist.md)
-3. [Governance lock and branch protection](release/governance-lock-and-branch-protection.md)
-4. [Auth0 CLI + a0deploy runbook](release/auth0-a0deploy-runbook.md)
-5. [Troubleshooting and break-glass](release/troubleshooting-and-break-glass.md)
+- `RUNBOOK-SERVERLESS-OPERATIONS.md`
 
-## Runtime Operations
+## Rules
 
-1. [Worker lane operations and failure handling](./worker-lane-operations-and-failure-handling.md)
-2. [Observability, security, and cost baseline](./observability-security-cost-baseline.md)
-
-## Runbook Guardrails
-
-- Active Nova operator instructions must resolve to paths under root `docs/**`.
-- Historical references are allowed only under `docs/history/**` (see
-  [`../history/README.md`](../history/README.md) for bundle index).
-- Runtime env/override lists in active runbooks must point back to
-  `../release/runtime-config-contract.generated.md`, not fork into handwritten
-  duplicates.
-- Active runbooks must describe runtime env vars as coming from explicit
-  `Settings.validation_alias` values in `config.py`; release tooling does not
-  read `alias` or infer uppercase names.
-- `RUNBOOK-SERVERLESS-OPERATIONS.md` plus `infra/nova_cdk/README.md` are the
-  canonical path for new serverless environments.
-- ECS/CloudFormation provisioning runbooks remain only for legacy environments
-  that still depend on the older platform shape.
-- Use deeper runbooks for execution detail:
-  - `release/release-runbook.md` for release execution, the Node 24 LTS npm
-    baseline, the current TypeScript 5.x line with TypeScript 6 explicitly
-    deferred, and npm/CodeArtifact rules
-  - `provisioning/deploy-runtime-cloudformation-environments.md` for deploy-input behavior
-  - `provisioning/docker-buildx-credential-helper-setup.md` for local Docker repair
-
-## Related Entry Points
-
-- `../README.md`
-- `../architecture/README.md`
-- `../standards/README.md`
-- `../plan/PLAN.md`
+- current live operations follow the current implemented runbooks for both the
+  landed serverless components and any still-active legacy environments
+- serverless operational guidance is no longer future-state-only; it is part
+  of the current mixed baseline
+- after the migration, move ECS-centric runbooks to history or mark them
+  superseded in the same branch that changes the live platform

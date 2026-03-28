@@ -1,7 +1,7 @@
 ---
 ADR: 0033
 Title: Green-field single runtime auth authority
-Status: Accepted
+Status: Superseded
 Version: 1.0
 Date: 2026-03-19
 Supersedes: "[ADR-0005: Add dedicated nova-auth-api service (superseded)](./superseded/ADR-0005-add-dedicated-nova-auth-api-service.md)"
@@ -12,11 +12,16 @@ Related:
   - "[requirements.md](../requirements.md)"
   - "[ADR-0034: Green-field bearer JWT public auth contract](./ADR-0034-bearer-jwt-public-auth-contract.md)"
   - "[SPEC-0027: Public HTTP contract revision and bearer auth](../spec/SPEC-0027-public-http-contract-revision-and-bearer-auth.md)"
-  - "[Green-field simplification program](../../plan/greenfield-simplification-program.md)"
-  - "[Green-field evidence (Framework A)](../../plan/greenfield-evidence/DECISION_FRAMEWORKS_AND_SCORES.md)"
+  - "[Green-field simplification program](../../../history/2026-03-greenfield-wave-1-superseded/greenfield-simplification-program.md)"
+  - "[Green-field evidence (Framework A)](../../../history/2026-03-greenfield-wave-1-superseded/greenfield-evidence/DECISION_FRAMEWORKS_AND_SCORES.md)"
 References:
-  - "[Rejected and deferred options (pack copy)](../../plan/greenfield-evidence/REJECTED_AND_DEFERRED_OPTIONS.md)"
+  - "[Rejected and deferred options (pack copy)](../../../history/2026-03-greenfield-wave-1-superseded/greenfield-evidence/REJECTED_AND_DEFERRED_OPTIONS.md)"
 ---
+
+> **Superseded target draft**
+>
+> This draft was superseded before implementation. Use the active wave-2
+> target-state ADR/SPEC set instead of this file for current authority.
 
 ## Summary
 
@@ -34,7 +39,7 @@ runtime simplification) documented in green-field evidence.
 - Edge-only JWT enforcement is rejected as the **primary** auth layer (see
   green-field evidence §1).
 - Program sequencing is tracked in
-  [greenfield-simplification-program.md](../../plan/greenfield-simplification-program.md).
+  [greenfield-simplification-program.md](../../../history/2026-03-greenfield-wave-1-superseded/greenfield-simplification-program.md).
 
 ## Alternatives
 

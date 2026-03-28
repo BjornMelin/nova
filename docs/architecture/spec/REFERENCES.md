@@ -1,47 +1,90 @@
-# References
+# External references for the current docs + wave-2 program
 
-## FastAPI and Python runtime
+These are the primary official or upstream references used to shape the current
+docs pack and the approved target-state program.
 
-- [FastAPI best practices repository](https://github.com/zhanymkanov/fastapi-best-practices)
-- [FastAPI best practices README (raw)](https://raw.githubusercontent.com/zhanymkanov/fastapi-best-practices/8fbaf55763e7a1fb08d974ceece69fb321642e1d/README.md)
-- [FastAPI best practices AGENTS (raw)](https://raw.githubusercontent.com/zhanymkanov/fastapi-best-practices/8fbaf55763e7a1fb08d974ceece69fb321642e1d/AGENTS.md)
-- [FastAPI lifespan events](https://fastapi.tiangolo.com/advanced/events/)
-- [FastAPI workers and deployment](https://fastapi.tiangolo.com/deployment/server-workers/)
-- [Starlette threadpool behavior](https://www.starlette.io/threadpool/)
-- [AnyIO thread guidance](https://anyio.readthedocs.io/en/latest/threads.html)
-- [FastAPI error handling](https://fastapi.tiangolo.com/tutorial/handling-errors/)
+## FastAPI and Starlette
 
-## OpenAPI and SDK generation
+- FastAPI lifespan events:
+  <https://fastapi.tiangolo.com/advanced/events/>
+- FastAPI security overview:
+  <https://fastapi.tiangolo.com/tutorial/security/>
+- FastAPI bearer/JWT tutorial examples:
+  <https://fastapi.tiangolo.com/tutorial/security/oauth2-jwt/>
+- Starlette middleware docs and `BaseHTTPMiddleware` limitations:
+  <https://www.starlette.io/middleware/>
 
-- [OpenAPI Specification](https://spec.openapis.org/oas/latest.html)
-- [Hey API openapi-ts documentation](https://heyapi.dev/openapi-ts/get-started)
-- [Node.js package entry points / exports](https://nodejs.org/api/packages.html#package-entry-points)
+## JWT verification
 
-## AWS transfer and infrastructure
+- `oidc-jwt-verifier` docs home:
+  <https://oidc-jwt-verifier.bjornmelin.io/>
+- `oidc-jwt-verifier` API reference:
+  <https://oidc-jwt-verifier.bjornmelin.io/reference/>
+- `oidc-jwt-verifier` GitHub repository:
+  <https://github.com/BjornMelin/oidc-jwt-verifier>
 
-- [AWS S3 multipart limits](https://docs.aws.amazon.com/AmazonS3/latest/userguide/qfacts.html)
-- [AWS S3 multipart overview](https://docs.aws.amazon.com/AmazonS3/latest/userguide/mpuoverview.html)
-- [AWS S3 Transfer Acceleration](https://docs.aws.amazon.com/AmazonS3/latest/userguide/transfer-acceleration.html)
-- [AWS presigned URL guardrails (Aug 2025)](https://docs.aws.amazon.com/prescriptive-guidance/latest/presigned-url-best-practices/introduction.html)
-- [AWS ECS load balancer health checks](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/load-balancer-healthcheck.html)
-- [Kubernetes liveness/readiness/startup probes](https://kubernetes.io/docs/concepts/configuration/liveness-readiness-startup-probes/)
-- [CloudWatch EMF specification](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch_Embedded_Metric_Format_Specification.html)
-- [CloudWatch cardinality guidance](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/Application-Signals-Cardinality.html)
-- [DynamoDB best practices](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/best-practices.html)
-- [DynamoDB UpdateItem API reference](https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_UpdateItem.html)
-- [DynamoDB condition expressions](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Expressions.ConditionExpressions.html)
-- [DynamoDB atomic counter operations](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/example_dynamodb_Scenario_AtomicCounterOperations_section.html)
-- [ElastiCache best practices](https://docs.aws.amazon.com/AmazonElastiCache/latest/dg/BestPractices.html)
-- [Amazon SQS handling request errors](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/handling-request-errors.html)
-- [Amazon SQS error handling and problematic messages](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/best-practices-error-handling.html)
-- [Amazon SQS SendMessage API reference](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/API_SendMessage.html)
-- [Amazon SQS available CloudWatch metrics](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-available-cloudwatch-metrics.html)
-- [AWS SDK retry behavior and modes](https://docs.aws.amazon.com/general/latest/gr/api-retries.html)
+## AWS platform
 
-## Auth and standards
+- Choose between API Gateway HTTP APIs and REST APIs:
+  <https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-vs-rest.html>
+- API Gateway HTTP APIs overview:
+  <https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api.html>
+- Step Functions workflow types:
+  <https://docs.aws.amazon.com/step-functions/latest/dg/choosing-workflow-type.html>
+- Step Functions overview / Standard workflow duration and exactly-once semantics:
+  <https://docs.aws.amazon.com/step-functions/latest/dg/welcome.html>
+- Step Functions best practices:
+  <https://docs.aws.amazon.com/step-functions/latest/dg/sfn-best-practices.html>
+- DynamoDB TTL:
+  <https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/TTL.html>
+- Working with expired DynamoDB TTL items:
+  <https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ttl-expired-items.html>
+- Lambda runtimes:
+  <https://docs.aws.amazon.com/lambda/latest/dg/lambda-runtimes.html>
+- Python Lambda container images:
+  <https://docs.aws.amazon.com/lambda/latest/dg/python-image.html>
+- Lambda response streaming:
+  <https://docs.aws.amazon.com/lambda/latest/dg/configuration-response-streaming.html>
+- AWS Lambda Web Adapter:
+  <https://github.com/awslabs/aws-lambda-web-adapter>
+- AWS Lambda Web Adapter FastAPI example:
+  <https://github.com/awslabs/aws-lambda-web-adapter/blob/main/examples/fastapi/README.md>
 
-- [oidc-jwt-verifier (PyPI)](https://pypi.org/project/oidc-jwt-verifier/)
-- [oidc-jwt-verifier source](https://github.com/BjornMelin/oidc-jwt-verifier)
-- [RFC 6750 Bearer Token Usage](https://datatracker.ietf.org/doc/html/rfc6750)
-- [RFC 7662 OAuth Token Introspection](https://www.rfc-editor.org/rfc/rfc7662)
-- [RFC 8725 JWT Best Current Practices](https://datatracker.ietf.org/doc/html/rfc8725)
+## TypeScript SDK generation
+
+- openapi-ts roadmap discussion noting `openapi-fetch` maintenance mode:
+  <https://github.com/openapi-ts/openapi-typescript/discussions/2559>
+- Hey API / `@hey-api/openapi-ts` get started:
+  <https://heyapi.dev/openapi-ts/get-started>
+- Hey API clients overview:
+  <https://heyapi.dev/openapi-ts/clients>
+- Hey API fetch client:
+  <https://heyapi.dev/openapi-ts/clients/fetch>
+- Hey API output:
+  <https://heyapi.dev/openapi-ts/output>
+- Hey API migration notes:
+  <https://heyapi.dev/openapi-ts/migrating>
+
+## Python SDK generation
+
+- `openapi-python-client` PyPI:
+  <https://pypi.org/project/openapi-python-client/>
+- `openapi-python-client` GitHub repository:
+  <https://github.com/openapi-generators/openapi-python-client>
+- `openapi-python-client` changelog:
+  <https://github.com/openapi-generators/openapi-python-client/blob/main/CHANGELOG.md>
+
+## R client strategy
+
+- `httr2` home:
+  <https://httr2.r-lib.org/>
+- `httr2` package index:
+  <https://httr2.r-lib.org/reference/index.html>
+- `httr2` wrapping APIs article:
+  <https://httr2.r-lib.org/articles/wrapping-apis.html>
+- `httr2` changelog:
+  <https://httr2.r-lib.org/news/index.html>
+- `httr` status page (superseded in favor of `httr2`):
+  <https://httr.r-lib.org/>
+- OpenAPI Generator R generator docs:
+  <https://openapi-generator.tech/docs/generators/r/>

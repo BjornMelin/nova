@@ -1,7 +1,11 @@
+> **Superseded target draft**
+>
+> This draft was superseded before implementation by `ADR-0037-sdk-generation-consolidation.md` and `SPEC-0030-sdk-generation-and-package-layout.md`.
+
 ---
 ADR: 0038
 Title: Green-field SDK architecture by language
-Status: Accepted
+Status: Superseded
 Version: 1.0
 Date: 2026-03-19
 Supersedes: "[ADR-0013: Final-state SDK topology (superseded)](./superseded/ADR-0013-final-state-sdk-topology-generated-core-plus-thin-adapters.md)"
@@ -15,10 +19,10 @@ Related:
   - "[SPEC-0011: Multi-language SDK architecture and package map (superseded)](../spec/superseded/SPEC-0011-multi-language-sdk-architecture-and-package-map.md)"
   - "[SPEC-0012: SDK conformance, versioning, and compatibility governance](../spec/SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md)"
   - "[ADR-0033: Green-field single runtime auth authority](./ADR-0033-single-runtime-auth-authority.md)"
-  - "[Green-field simplification program](../../plan/greenfield-simplification-program.md)"
+  - "[Green-field simplification program](../../../history/2026-03-greenfield-wave-1-superseded/greenfield-simplification-program.md)"
 References:
-  - "[Green-field evidence (Framework B)](../../plan/greenfield-evidence/DECISION_FRAMEWORKS_AND_SCORES.md)"
-  - "[Rejected and deferred options](../../plan/greenfield-evidence/REJECTED_AND_DEFERRED_OPTIONS.md)"
+  - "[Green-field evidence (Framework B)](../../../history/2026-03-greenfield-wave-1-superseded/greenfield-evidence/DECISION_FRAMEWORKS_AND_SCORES.md)"
+  - "[Rejected and deferred options](../../../history/2026-03-greenfield-wave-1-superseded/greenfield-evidence/REJECTED_AND_DEFERRED_OPTIONS.md)"
 ---
 
 ## Summary

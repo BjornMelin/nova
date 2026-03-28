@@ -55,7 +55,7 @@ Nova currently duplicates auth behavior across:
 - `packages/nova_auth_api/src/nova_auth_api/service.py`
 - `packages/nova_sdk_auth/`
 - `packages/nova_sdk_py_auth/`
-- the legacy split R auth package
+- `packages/nova_sdk_r_auth/`
 
 The file API still supports multiple auth modes, including remote verification over HTTP. The auth API separately verifies JWTs with a sync verifier. This is duplicated code, duplicated release surface, duplicated CI surface, and duplicated operational surface.
 
@@ -65,7 +65,7 @@ Public request bodies in `packages/nova_file_api/src/nova_file_api/models.py` ca
 
 ### 3) Worker self-calls the API
 
-`packages/nova_file_api/src/nova_file_api/worker.py` used to post result updates through an internal callback route using `httpx`. The API route then immediately called the job service. That was an internal network hop whose only job was to bridge code that already lived in the same package.
+`packages/nova_file_api/src/nova_file_api/worker.py` posts result updates to `/v1/internal/jobs/{job_id}/result` using `httpx`. The API route then immediately calls the job service. That is an internal network hop whose only job is to bridge code that already lives in the same package.
 
 ### 4) OpenAPI emission is over-customized
 
@@ -108,9 +108,9 @@ Largest package clusters:
 | nova_auth_api | 23 | 1587 |
 | nova_sdk_py_auth | 26 | 1557 |
 | nova_sdk_auth | 8 | 795 |
-| legacy R file package | 9 | 785 |
+| nova_sdk_r_file | 9 | 785 |
 | nova_runtime_support | 9 | 697 |
-| legacy R auth package | 9 | 557 |
+| nova_sdk_r_auth | 9 | 557 |
 | nova_sdk_fetch | 6 | 376 |
 
 Guaranteed deletions from the final plan:

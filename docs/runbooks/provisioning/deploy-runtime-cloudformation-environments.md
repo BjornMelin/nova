@@ -1,9 +1,5 @@
 # Deploy Runtime CloudFormation Environments Guide
 
-> Legacy environment note: this runbook remains only for ECS/CloudFormation
-> environments that have not yet moved to the canonical serverless runtime in
-> `infra/nova_cdk/`.
-
 Status: Active
 Owner: nova release architecture
 Last reviewed: 2026-03-24
@@ -21,7 +17,7 @@ Canonical operator path:
 - The script applies the same change-set-first sequence documented here and
   requires `RUNTIME_COST_MODE` (`standard|saver|paused`) to select runtime
   cost posture before applying related override defaults (`AssignPublicIp=DISABLED`,
-  async queue wiring, and file-transfer service deployment).
+  async queue wiring, and cache-enabled file-transfer service deployment).
 
 ## Scope
 
@@ -290,10 +286,6 @@ aws cloudformation deploy \
 - `AssignPublicIp` defaults to `DISABLED`; use `ENABLED` only when required by
   subnet/network architecture.
 - If `FileTransferEnabled=true`, `FileTransferBucketName` must be provided.
-- When `IDEMPOTENCY_ENABLED=true`, pass async-stack outputs
-  `IdempotencyTableName` and `FileTransferIdempotencyTableArn` into the service
-  stack; the task definition then injects `IDEMPOTENCY_DYNAMODB_TABLE` into the
-  API container environment.
 
 ```bash
 aws cloudformation deploy \
@@ -317,9 +309,7 @@ aws cloudformation deploy \
     ServiceDNS="${SERVICE_DNS}" \
     ListenerRulePriority="100" \
     AlarmArn="${ALARM_ACTION_ARN}" \
-    Owner="${OWNER_TAG}" \
-    IdempotencyTableName="${IDEMPOTENCY_TABLE_NAME}" \
-    FileTransferIdempotencyTableArn="${IDEMPOTENCY_TABLE_ARN}"
+    Owner="${OWNER_TAG}"
 ```
 
 ## Capture Runtime Outputs for CI/CD

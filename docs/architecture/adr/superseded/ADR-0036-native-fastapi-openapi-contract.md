@@ -1,7 +1,11 @@
+> **Superseded target draft**
+>
+> This draft was superseded before implementation by the smaller wave-2 target-state docs set.
+
 ---
 ADR: 0036
 Title: Green-field native FastAPI OpenAPI contract expression
-Status: Accepted
+Status: Superseded
 Version: 1.0
 Date: 2026-03-19
 Related:

@@ -102,8 +102,7 @@ governance layer while wave-2 target-state implementation is still in progress:
 2. `../overview/CANONICAL-TARGET-2026-04.md`
 3. target-state ADRs (`ADR-0033` through `ADR-0038`)
 4. target-state SPECs (`SPEC-0027` through `SPEC-0031`)
-5. `docs/overview/CANONICAL-TARGET-2026-04.md`
-6. `docs/plan/GREENFIELD-WAVE-2-EXECUTION.md`
+5. `../plan/GREENFIELD-WAVE-2-EXECUTION.md`
 
 ## Important rule
 

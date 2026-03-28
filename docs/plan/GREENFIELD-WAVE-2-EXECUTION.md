@@ -2,6 +2,7 @@
 
 > **Implementation state:** Active implementation program for the approved wave-2 hard cut.
 
+
 ## Goal
 
 Complete the second hard-cut modernization of Nova after the first wave was either not applied to the attached repo or was partially lost.

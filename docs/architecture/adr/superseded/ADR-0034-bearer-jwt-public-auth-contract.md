@@ -1,7 +1,7 @@
 ---
 ADR: 0034
 Title: Green-field bearer JWT public auth contract
-Status: Accepted
+Status: Superseded
 Version: 1.0
 Date: 2026-03-19
 Related:
@@ -11,10 +11,15 @@ Related:
   - "[requirements.md](../requirements.md)"
   - "[ADR-0033: Green-field single runtime auth authority](./ADR-0033-single-runtime-auth-authority.md)"
   - "[SPEC-0027: Public HTTP contract revision and bearer auth](../spec/SPEC-0027-public-http-contract-revision-and-bearer-auth.md)"
-  - "[Green-field simplification program](../../plan/greenfield-simplification-program.md)"
+  - "[Green-field simplification program](../../../history/2026-03-greenfield-wave-1-superseded/greenfield-simplification-program.md)"
 References:
-  - "[Green-field evidence (Framework A)](../../plan/greenfield-evidence/DECISION_FRAMEWORKS_AND_SCORES.md)"
+  - "[Green-field evidence (Framework A)](../../../history/2026-03-greenfield-wave-1-superseded/greenfield-evidence/DECISION_FRAMEWORKS_AND_SCORES.md)"
 ---
+
+> **Superseded target draft**
+>
+> This draft was superseded before implementation. Use the active wave-2
+> target-state ADR/SPEC set instead of this file for current authority.
 
 ## Summary
 

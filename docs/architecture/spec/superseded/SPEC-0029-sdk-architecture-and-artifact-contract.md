@@ -1,7 +1,11 @@
+> **Superseded target draft**
+>
+> This draft was superseded before implementation by `SPEC-0030-sdk-generation-and-package-layout.md`.
+
 ---
 Spec: 0029
 Title: SDK architecture and artifact contract
-Status: Active
+Status: Superseded
 Version: 1.2
 Date: 2026-03-22
 Supersedes: "[SPEC-0011: Multi-language SDK architecture and package map (superseded)](./superseded/SPEC-0011-multi-language-sdk-architecture-and-package-map.md)"
@@ -62,7 +66,7 @@ remains the authority for conformance, versioning, and compatibility governance.
 - Committed Python generator assets live under
   `scripts/release/openapi_python_client/`.
 - The committed package root may retain hand-maintained packaging metadata, but
-  the generated module tree under `packages/nova_sdk_py/src/` is owned by
+  the generated module tree under `packages/nova_sdk_py_file/src/` is owned by
   `scripts/release/generate_python_clients.py`.
 - Large output patching scripts are not allowed unless clearly justified and
   reviewed.
@@ -89,7 +93,7 @@ remains the authority for conformance, versioning, and compatibility governance.
 
 ### 7.2 Python
 
-- One generated public Python client package (for example `nova_sdk_py`).
+- One generated public file client package (for example `nova_sdk_py_file`).
 - `nova_dash_bridge` remains a thin adapter: framework glue and header
   forwarding only; it calls the async-first `nova_file_api.public` seam and
   must not own route, auth, or alternate in-process contract authority.

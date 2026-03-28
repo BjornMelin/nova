@@ -1,312 +1,107 @@
-# nova runtime
-
-![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white) ![FastAPI](https://img.shields.io/badge/FastAPI-0.135%2B-009688?logo=fastapi&logoColor=white) ![OpenAPI](https://img.shields.io/badge/OpenAPI-3.1-6BA539?logo=openapiinitiative&logoColor=white)
-
-FastAPI control-plane runtime for direct-to-S3 uploads/downloads and durable
-export workflow orchestration. The service returns presigned metadata and export
-state; it does not
-proxy file bytes.
-
-Minimum supported Python version for workspace packages is 3.11. Default local
-development plus the primary lint/type/generation lane stay on Python 3.13, and
-the hosted compatibility lane now proves pytest/build behavior on Python 3.11
-and 3.12.
-
-## Start Here
-
-Use these entrypoints before drilling into deeper docs:
-
-- `AGENTS.md`: fresh-session operator guardrails and required checks
-- `docs/README.md`: repo-wide documentation router
-- `docs/architecture/README.md`: canonical architecture authority map
-- `docs/standards/README.md`: deeper engineering standards and gate matrix
-- `docs/runbooks/README.md`: release and operational runbooks
-
-## Runtime Topology
-
-- `packages/nova_file_api/`: transfer, export workflows, readiness, metrics, ASGI
-  entrypoint, worker orchestration, and **in-process bearer JWT** verification
-  in the target architecture (`ADR-0033`, `SPEC-0027`)
-- `packages/nova_workflows/`: Step Functions task handlers for the canonical
-  export workflow runtime
-- `packages/nova_dash_bridge/`: Dash/Flask/FastAPI integration adapters over
-  `nova_file_api.public`
-- `packages/nova_runtime_support/`: shared runtime support helpers, including
-  outer-ASGI request context and canonical FastAPI exception registration
-- `packages/contracts/`: OpenAPI artifacts and contract fixtures
-- `infra/nova_cdk/`: canonical CDK v2 Python app for the serverless AWS runtime
-
-## Contract Summary
-
-Active route authority is the hard-cut canonical `/v1/*` surface plus
-`/metrics/summary`.
-
-For the canonical route chain, active authority packs, and deploy-governance
-pack, use `docs/architecture/README.md`.
-
-Green-field execution router: `docs/plan/greenfield-simplification-program.md`.
-Machine-readable workflow and release schemas live under
-`docs/contracts/README.md`.
-
-Public capabilities:
-
-- transfer orchestration under `/v1/transfers/*`
-- export workflow control plane under `/v1/exports*`
-- worker export completion via **direct persistence** (no public internal HTTP
-  callback route; `SPEC-0028`, `ADR-0035`)
-- capability and release endpoints at `/v1/capabilities`,
-  `/v1/resources/plan`, and `/v1/releases/info`
-- operational health at `/v1/health/live` and `/v1/health/ready`
-- operational summary at `/metrics/summary`
-
-There is **no** separate `/v1/token/verify` or `/v1/token/introspect` surface in
-the target architecture.
-
-Do not add compatibility aliases or retired legacy route families.
-
-`nova_dash_bridge` is an adapter-only seam. Browser and framework integrations
-must forward bearer auth to canonical `/v1/transfers` and `/v1/exports` routes and
-must not rely on `session_id`, `X-Session-Id`, or `X-Scope-Id` as auth inputs.
-Canonical FastAPI request-id propagation and error envelopes now come from the
-shared outer-ASGI/request-handler stack in `nova_runtime_support`. Standalone
-FastAPI hosts should use `create_fastapi_app()` or install that shared stack
-themselves; `create_fastapi_router()` is route composition only.
-The canonical in-process transfer seam is now async-first: FastAPI integrations
-await `nova_file_api.public` through `nova_dash_bridge.AsyncFileTransferService`
-directly, while Flask/Dash keep an explicit thin sync adapter layer only where
-the host framework is actually sync-bound. FastAPI bridge integrations must
-provide async auth resolution and an async-capable S3 factory path; sync-only
-auth resolvers and sync-only S3 factories remain valid only at explicit sync
-adapter edges such as `FileTransferService`.
-
-## SDK and OpenAPI Posture
-
-Nova owns the SDK contract surface:
-
-- Python is the release-grade public SDK
-- TypeScript is release-grade within Nova's existing CodeArtifact staged/prod
-  system, generator-owned and subpath-only, on `@hey-api/openapi-ts` with the
-  generated fetch client per `ADR-0037` / `SPEC-0030`
-- R is a first-class internal release artifact line with real R packages,
-  logical format `r`, CodeArtifact generic package transport, signed tarball
-  evidence, and a thin `httr2` client surface with concrete OpenAPI parameter
-  signatures
-- `docs/clients/README.md` stays secondary and is not the primary SDK release
-  authority
-
-OpenAPI 3.1 emitted from runtime code is the contract source for docs and SDK
-generation. Public error and readiness responses are declared directly on
-routers and routes with FastAPI `responses=`, while runtime contract tests
-enforce stable snake_case `operationId` values and semantic tags for public
-grouping. The file API no longer carries a service-local OpenAPI post-processor;
-shared runtime transport helpers and native FastAPI route metadata are the
-canonical source of emitted schema behavior.
-
-For detailed SDK governance and generation rules, use:
-
-- `docs/standards/repository-engineering-standards.md`
-- `docs/architecture/spec/SPEC-0030-sdk-generation-and-package-layout.md`
-- `docs/architecture/spec/SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md`
-
-## Key Runtime Invariants
-
-- `POST /v1/exports` publish failures return `503` with
-  `error.code = "queue_unavailable"`
-- idempotent mutation entrypoints use `IDEMPOTENCY_ENABLED` plus bounded TTL
-  settings plus API-runtime `IDEMPOTENCY_DYNAMODB_TABLE`; when API-side
-  idempotency is enabled, Nova uses DynamoDB-backed claim/replay storage with
-  explicit expiration filtering and returns `503` with
-  `error.code = "idempotency_unavailable"` if that store is unavailable; if
-  execution succeeded before replay persistence failed, Nova keeps the existing
-  in-progress claim so retries with the same key do not re-run the mutation
-- `/v1/health/ready` gates traffic on `bucket_configured`,
-  `auth_dependency`, and active runtime dependencies; `idempotency_store` gates
-  readiness only when idempotency is enabled, while `activity_store` remains a
-  diagnostic check
-- incomplete bearer-verifier OIDC settings leave `auth_dependency` not-ready
-- runtime CloudFormation defaults remain template-validation safe; incomplete
-  OIDC bearer-verifier inputs fail Nova readiness rather than CloudFormation
-  parameter validation
-- terminal worker updates that set `status=succeeded` **must** normalize `error`
-  to `null` (direct persistence path; `SPEC-0028`)
-- `JOBS_RUNTIME_MODE=worker` is the shared-persistence runtime: workers require
-  SQS delivery plus DynamoDB-backed export and activity tables
-- malformed worker queue messages are retried through SQS redrive and are not
-  acknowledged immediately
-
-## Local Development
-
-Install the root npm toolchain with Node 24 LTS before running generated
-TypeScript SDK checks:
-
-```bash
-npm ci
-uv sync --locked --all-packages --all-extras --dev
-```
-
-Baseline local gates:
-
-```bash
-uv lock --check
-uv run ruff check .
-uv run ruff check . --select I
-uv run ruff format . --check
-uv run ty check --force-exclude --error-on-warning packages scripts
-uv run mypy
-uv run pytest -q
-uv run pytest -q \
-  packages/nova_file_api/tests/test_generated_client_smoke.py
-uv run python scripts/contracts/export_openapi.py --check
-uv run python scripts/release/generate_runtime_config_contract.py --check
-uv run python scripts/release/generate_clients.py --check
-uv run python scripts/release/generate_python_clients.py --check
-```
-
-Tooling notes:
-
-- Nova pins the supported `uv` CLI via `[tool.uv].required-version` (currently
-  `0.11.1`); keep local tooling and CI on that exact version when changing the
-  Python workspace contract.
-- Node 24 LTS is the active npm baseline, but the merged workspace remains on
-  the current verified TypeScript 5.x line. TypeScript 6 is deferred until a
-  dedicated repo-wide migration updates generated SDK outputs, conformance
-  fixtures, and release/workflow docs together.
-- Python SDK generation is pinned to `openapi-python-client==0.28.3` via the
-  root dev dependency group and uses committed assets under
-  `scripts/release/openapi_python_client/`. If that generator pin changes,
-  update the lockfile, committed SDK tree, docs, and regression tests together.
-- Current manifest-owned runtime dependency floors are
-  `pydantic-settings>=2.13.1` in the surviving runtime packages and
-  `uvicorn[standard]>=0.42.0` in `nova-file-api`.
-- Pytest runs in `--import-mode=importlib` against editable workspace installs.
-  Do not reintroduce repo-level `pythonpath` shims unless a new test failure
-  proves they are required.
-
-Runtime deploy/config drift guard:
-
-- `packages/nova_file_api/src/nova_file_api/config.py` is the typed runtime
-  source of truth.
-- `scripts/release/runtime_config_contract.py` adds the curated deploy/template
-  metadata that cannot be inferred from `Settings` alone.
-- Runtime settings must declare explicit string `validation_alias` values for
-  operator-facing env vars. Release tooling reads `validation_alias`, not
-  `alias`, and does not infer env var names from field names.
-- `docs/release/runtime-config-contract.generated.md` is the generated
-  operator-facing matrix. Refresh it with
-  `scripts/release/generate_runtime_config_contract.py`.
-
-Canonical typing gates:
-
-```bash
-uv run ty check --force-exclude --error-on-warning packages scripts
-uv run mypy
-```
-
-`ty` is the required full-repo type gate. `mypy` remains a required
-compatibility backstop on its narrower configured scope.
-
-Package/app build verification:
-
-```bash
-for p in packages/nova_file_api packages/nova_dash_bridge packages/nova_runtime_support; do uv build "$p"; done
-```
-
-## Pre-commit hooks
-
-Install the repo hooks with:
-
-```bash
-uv sync --locked --all-packages --all-extras --dev
-uv run pre-commit install --install-hooks \
-  --hook-type pre-commit --hook-type pre-push
-```
-
-If `uv` is not on your shell `PATH`, install it first, then rerun
-`scripts/dev/install_hooks.sh`.
-
-Useful manual hook entrypoints:
-
-```bash
-uv run pre-commit run typing-gates --hook-stage manual -a
-uv run pre-commit run sdk-conformance --hook-stage manual -a
-uv run pre-commit run infra-contracts --hook-stage manual -a
-uv run pre-commit run docker-release-images --hook-stage manual -a
-```
-
-For focused local pytest reruns, use the repo markers:
-
-```bash
-uv run pytest -q -m runtime_gate
-uv run pytest -q -m "not runtime_gate and not generated_smoke"
-uv run pytest -q -m generated_smoke
-```
-
-Async pytest coverage now uses AnyIO's built-in pytest plugin pinned to the
-`asyncio` backend. Prefer `@pytest.mark.anyio` over `@pytest.mark.asyncio`.
-
-## Repo-Local npm / CodeArtifact Auth
-
-Keep npm auth repo-scoped:
-
-```bash
-cd <NOVA_REPO_ROOT>
-eval "$(npm run -s codeartifact:npm:env)"
-npm install --no-package-lock
-```
-
-The helper writes `.npmrc.codeartifact` and sets `NPM_CONFIG_USERCONFIG` so
-other repos stay untouched. It also exports `NPM_REGISTRY_URL` for npm publish
-and smoke-test steps. CI uses the same explicit `NPM_CONFIG_USERCONFIG`
-pattern with a temporary npmrc, so Nova does not rely on
-`aws codeartifact login --tool npm` or global `~/.npmrc` mutation.
-
-Release automation note: `Publish Packages` is the manual staging publish
-workflow for Python, TypeScript/npm, and R artifacts, and `Promote Prod` is
-the manual prod promotion workflow for those staged, gate-validated artifacts.
-Required PR/runtime and conformance checks now run through the unified
-`Nova CI` workflow, while `CFN Contract Validate` remains the separate
-infra/docs governance workflow. `Nova CI` runs the primary lint/type/generation
-lane on Python 3.13 and keeps Python 3.11 plus 3.12 pytest/build coverage for
-runtime compatibility.
-
-## Release and Operations
-
-Use `docs/runbooks/README.md` as the canonical runbook entrypoint.
-
-Key release docs:
-
-- `docs/runbooks/release/release-runbook.md`
-- `docs/runbooks/release/release-policy.md`
-- `docs/runbooks/release/nonprod-live-validation-runbook.md`
-- `docs/runbooks/release/release-promotion-dev-to-prod.md`
-- `docs/runbooks/provisioning/deploy-runtime-cloudformation-environments.md`
-- `docs/runbooks/provisioning/docker-buildx-credential-helper-setup.md`
-
-The runtime deploy operator now owns the ECS service task role and ECS
-infrastructure role resolution. Do not supply
-`ECS_INFRASTRUCTURE_ROLE_ARN`, `TASK_ROLE_ARN`,
-`TASK_EXECUTION_SECRET_ARNS`, or `TASK_EXECUTION_SSM_PARAMETER_ARNS`.
-
-Canonical serverless packaging now lives in `infra/nova_cdk/` and
-`apps/nova_workflows_tasks/Dockerfile`. The older ECS/CloudFormation operator
-path remains only for legacy environments and is no longer the target runtime
-for new deployments.
-
-## Local Service Images
-
-Local service-image verification uses the release-owned Dockerfiles under
-`apps/*`, a digest-pinned Python `3.13-slim` base image, pinned `uv 0.11.1`,
-and Docker BuildKit plus `buildx`.
-
-See:
-
-- `docs/runbooks/provisioning/docker-buildx-credential-helper-setup.md`
-
-## Historical and Archive Paths
-
-Active docs stay under the root `docs/**` tree.
-Historical and superseded materials belong under:
-
-- `docs/history/**`
-- `docs/architecture/adr/superseded/**`
-- `docs/architecture/spec/superseded/**`
+# nova
+
+![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white) ![FastAPI](https://img.shields.io/badge/FastAPI-0.135.2%2B-009688?logo=fastapi&logoColor=white) ![OpenAPI](https://img.shields.io/badge/OpenAPI-3.1-6BA539?logo=openapiinitiative&logoColor=white)
+
+Nova is a file-transfer and export control-plane monorepo.
+
+This docs-alignment pack is intentionally honest about state:
+
+- the **current implemented baseline** is now a mixed wave-2 repository state
+  with export workflows, in-process bearer JWT, DynamoDB-backed idempotency,
+  consolidated SDK packages, and serverless platform components already landed
+- the **approved target** remains the fully retired end state with legacy
+  ECS-era assets and duplicate documentation paths removed from active use
+
+Use this README as orientation only. It does **not** replace the architecture
+authority docs.
+
+## Start here
+
+Read in this order:
+
+1. `AGENTS.md`
+2. `docs/README.md`
+3. `docs/architecture/README.md`
+4. `docs/overview/IMPLEMENTATION-STATUS-MATRIX.md`
+5. `docs/plan/GREENFIELD-WAVE-2-EXECUTION.md` when you are executing the
+   wave-2 implementation branches
+
+## Current implemented baseline
+
+The current repository is already partway through the wave-2 hard cut. The
+implemented baseline today includes:
+
+- public transfer APIs plus explicit export workflows
+- bearer JWT only, verified in-process in the main API
+- DynamoDB-backed idempotency with explicit expiration filtering
+- HTTP API + Lambda Web Adapter + Step Functions Standard as the canonical
+  newly landed runtime path
+- legacy ECS/Fargate + ALB + SQS worker assets retained only as non-canonical
+  migration leftovers
+- unified SDK package directories for TypeScript, Python, and R
+
+Use the current implemented runbooks under `docs/runbooks/provisioning/` and
+`docs/runbooks/release/` for live operations until the target migration lands.
+
+## Approved target after wave 2
+
+The approved hard-cut target is:
+
+- bearer JWT only
+- no dedicated auth service
+- explicit export workflow resources instead of generic jobs
+- DynamoDB instead of Redis in the canonical runtime
+- API Gateway HTTP API + Lambda Web Adapter + Step Functions Standard as the
+  canonical AWS deployment shape
+- one canonical SDK package per language
+- a smaller, clearer active docs authority surface
+
+Primary target-state references:
+
+- `docs/overview/CANONICAL-TARGET-2026-04.md`
+- `docs/architecture/adr/ADR-0033-canonical-serverless-platform.md`
+- `docs/architecture/adr/ADR-0034-eliminate-auth-service-and-session-auth.md`
+- `docs/architecture/adr/ADR-0035-replace-generic-jobs-with-export-workflows.md`
+- `docs/architecture/adr/ADR-0036-dynamodb-idempotency-no-redis.md`
+- `docs/architecture/adr/ADR-0037-sdk-generation-consolidation.md`
+- `docs/architecture/adr/ADR-0038-docs-authority-reset.md`
+- `docs/plan/GREENFIELD-WAVE-2-EXECUTION.md`
+
+## Package orientation
+
+### Current baseline packages
+
+The current repo layout includes:
+
+- `packages/nova_file_api`
+- `packages/nova_workflows`
+- `packages/nova_dash_bridge`
+- `packages/nova_runtime_support`
+- `packages/nova_sdk_ts`
+- `packages/nova_sdk_py`
+- `packages/nova_sdk_r`
+- `infra/nova_cdk`
+
+### Target package layout
+
+The approved target package map is:
+
+- `packages/nova_file_api`
+- `packages/nova_workflows`
+- `packages/nova_runtime_support`
+- `packages/nova_dash_bridge`
+- `packages/nova_sdk_ts`
+- `packages/nova_sdk_py`
+- `packages/nova_sdk_r`
+- `infra/nova_cdk`
+
+See `docs/overview/CANONICAL-TARGET-2026-04.md` and
+`docs/clients/CLIENT-SDK-CANONICAL-PACKAGES.md`.
+
+## Documentation rules
+
+- Use `docs/architecture/README.md` as the router for architecture authority.
+- Use `docs/overview/IMPLEMENTATION-STATUS-MATRIX.md` to avoid mixing current
+  baseline facts with target-state decisions.
+- Treat `docs/history/**` and `docs/architecture/*/superseded/**` as
+  traceability-only.

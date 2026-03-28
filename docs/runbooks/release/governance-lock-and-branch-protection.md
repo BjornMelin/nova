@@ -33,12 +33,13 @@ Configure the following leaf jobs as required for `main`.
 
 From workflow `Nova CI` (`.github/workflows/ci.yml`):
 
-- `quality-gates` (Python 3.13 lint/type/generation lane)
-- `pytest-runtime-gates` (Python 3.13 critical runtime/security/reliability pytest lane)
-- `pytest-primary` (Python 3.13 primary pytest lane)
-- `pytest-generated-smoke` (Python 3.13 generated-client smoke pytest lane)
-- `pytest-compatibility-3.11` (Python 3.11 pytest/build compatibility lane)
-- `pytest-compatibility-3.12` (Python 3.12 pytest/build compatibility lane)
+- `quality-gates` (Python 3.13 primary lint/type/generation lane)
+- `pytest-runtime-gates`
+- `pytest-primary`
+- `pytest-generated-smoke`
+- `pytest-compatibility-3.11`
+- `pytest-compatibility-3.12`
+- `python-compatibility` (build/packaging compatibility lane)
 - `generated-clients`
 - `dash-conformance`
 - `shiny-conformance`
@@ -51,7 +52,6 @@ From workflow `CFN Contract Validate` (`.github/workflows/cfn-contract-validate.
 Do not require:
 
 - `classify-changes`
-- `pytest-report`
 - `typescript-core-packages`
 - `typescript-sdk-smoke`
 
@@ -156,6 +156,7 @@ gh api \
           { "context": "pytest-generated-smoke" },
           { "context": "pytest-compatibility-3.11" },
           { "context": "pytest-compatibility-3.12" },
+          { "context": "python-compatibility" },
           { "context": "generated-clients" },
           { "context": "dash-conformance" },
           { "context": "shiny-conformance" },

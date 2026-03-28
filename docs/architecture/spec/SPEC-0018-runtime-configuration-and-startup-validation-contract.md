@@ -109,7 +109,7 @@ Required startup validation:
 ## 6. Acceptance criteria
 
 1. Runtime docs reference this spec for backend-coupling rules.
-2. Active docs state the current DynamoDB-backed idempotency and scoped-readiness
+2. Active docs state the current shared-idempotency and scoped-readiness
    contract and do not claim an unimplemented `IDEMPOTENCY_MODE`.
 3. Bridge and adapter docs do not claim separate runtime startup contracts.
 4. Runtime deploy/docs/tests share a single generated env/override matrix.

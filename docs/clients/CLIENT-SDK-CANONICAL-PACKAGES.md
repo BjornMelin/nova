@@ -2,6 +2,7 @@
 
 > **Implementation state:** Approved target-state client/package plan. Current package names in the repo may still be pre-cut.
 
+
 ## TypeScript
 
 - Package name: `@nova/sdk`
@@ -11,17 +12,15 @@
 
 ## Python
 
-- Distribution package name: `nova-sdk-py`
-- Import package name: `nova_sdk_py`
+- Package name: `nova-sdk-py` (or `nova_sdk_py` import package)
 - Source package directory: `packages/nova_sdk_py`
 - Generator: `openapi-python-client`
 - Output rule: thin templates/config, no huge patch step
 
 ## R
 
-- Canonical source package directory: `packages/nova_sdk_r`
-- Published R package name: `nova`
-- Exported surface: `create_nova_client()`, `nova_bearer_token()`, and `nova_<operation_id>()`
+- Package name: `novaR` or `nova` based on CRAN naming choice
+- Source package directory: `packages/nova_sdk_r`
 - Strategy: thin `httr2` wrapper package
 - No OpenAPI Generator R output in the canonical repo
 

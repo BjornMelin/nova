@@ -1,7 +1,13 @@
+> **Superseded target draft**
+>
+> This draft was superseded before implementation by the wave-2 program.
+> See `ADR-0038-docs-authority-reset.md` and
+> `docs/plan/GREENFIELD-WAVE-2-EXECUTION.md` for the surviving tracked route.
+
 ---
 ADR: 0041
 Title: Green-field shared pure ASGI middleware and errors
-Status: Accepted
+Status: Superseded
 Version: 1.1
 Date: 2026-03-22
 Related:
