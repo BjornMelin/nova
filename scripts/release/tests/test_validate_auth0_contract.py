@@ -48,10 +48,19 @@ def _create_repo_fixture(
 
 
 def test_run_validation_passes_for_valid_overlay(
-    tmp_path: Path,
+    repo_root: Path,
     write_text: Callable[[Path, str], None],
 ) -> None:
-    repo_root = _create_repo_fixture(tmp_path, write_text)
+    """Accept a valid Auth0 overlay fixture.
+
+    Args:
+        repo_root: Synthetic repository root for the validation inputs.
+        write_text: Helper that writes fixture files into the temp repo.
+
+    Returns:
+        None.
+    """
+    repo_root = _create_repo_fixture(repo_root, write_text)
 
     errors = validate_auth0_contract.run_validation(repo_root)
 
@@ -59,10 +68,19 @@ def test_run_validation_passes_for_valid_overlay(
 
 
 def test_run_validation_fails_for_missing_mapping_token(
-    tmp_path: Path,
+    repo_root: Path,
     write_text: Callable[[Path, str], None],
 ) -> None:
-    repo_root = _create_repo_fixture(tmp_path, write_text)
+    """Reject overlays whose mappings omit required tenant tokens.
+
+    Args:
+        repo_root: Synthetic repository root for the validation inputs.
+        write_text: Helper that writes fixture files into the temp repo.
+
+    Returns:
+        None.
+    """
+    repo_root = _create_repo_fixture(repo_root, write_text)
     write_text(
         repo_root / "infra/auth0/mappings/dev.json",
         '{"WEB_CALLBACK_URL": "https://dev.example.com/callback"}\n',
@@ -75,10 +93,19 @@ def test_run_validation_fails_for_missing_mapping_token(
 
 
 def test_run_validation_fails_for_delete_guard_override(
-    tmp_path: Path,
+    repo_root: Path,
     write_text: Callable[[Path, str], None],
 ) -> None:
-    repo_root = _create_repo_fixture(tmp_path, write_text)
+    """Reject overlays that disable the delete-safety guard.
+
+    Args:
+        repo_root: Synthetic repository root for the validation inputs.
+        write_text: Helper that writes fixture files into the temp repo.
+
+    Returns:
+        None.
+    """
+    repo_root = _create_repo_fixture(repo_root, write_text)
     write_text(
         repo_root / "infra/auth0/env/dev.env.example",
         "\n".join(

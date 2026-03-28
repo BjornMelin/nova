@@ -11,13 +11,27 @@ import pytest
 
 @pytest.fixture
 def repo_root(tmp_path: Path) -> Path:
-    """Return a synthetic repository root under the test temp dir."""
-    return tmp_path / "repo"
+    """Return an existing synthetic repository root.
+
+    Args:
+        tmp_path: Pytest-provided temporary directory for the test.
+
+    Returns:
+        Path to the created synthetic repository root.
+    """
+    root = tmp_path / "repo"
+    root.mkdir(parents=True, exist_ok=True)
+    return root
 
 
 @pytest.fixture
 def write_text() -> Callable[[Path, str], None]:
-    """Write UTF-8 text after creating the parent directory."""
+    """Build a helper that writes UTF-8 text with parent directories created.
+
+    Returns:
+        Callable that writes UTF-8 text to a path after ensuring its parent
+        directory exists.
+    """
 
     def _write(path: Path, text: str) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -28,7 +42,12 @@ def write_text() -> Callable[[Path, str], None]:
 
 @pytest.fixture
 def completed_process() -> Callable[..., subprocess.CompletedProcess[str]]:
-    """Build a completed subprocess result with text IO defaults."""
+    """Build subprocess results with text-mode defaults.
+
+    Returns:
+        Callable that constructs CompletedProcess[str] instances with default
+        stdout and stderr values.
+    """
 
     def _completed_process(
         *,

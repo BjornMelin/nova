@@ -236,7 +236,16 @@ def test_runtime_state_validates_required_dependencies(
     runtime_kwargs: dict[str, object],
     expected_match: str,
 ) -> None:
-    """Runtime-state initialization should fail fast on missing dependencies."""
+    """Fail fast when runtime dependencies required by settings are absent.
+
+    Args:
+        overrides: Settings overrides applied before initialization.
+        runtime_kwargs: Keyword args forwarded to initialize_runtime_state.
+        expected_match: Regex expected in the raised ValueError message.
+
+    Raises:
+        ValueError: Raised when required runtime dependencies are missing.
+    """
     settings = _settings()
     for field_name, value in overrides.items():
         setattr(settings, field_name, value)

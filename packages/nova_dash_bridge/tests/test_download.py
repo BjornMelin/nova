@@ -201,6 +201,7 @@ def test_download_closes_stream_when_download_exceeds_limit(
     response: dict[str, object],
     expected_read_calls: int,
 ) -> None:
+    """Close the response body for both oversize download failure modes."""
     body = cast(_FakeBody, response["Body"])
     service = _service_with_response(
         monkeypatch=monkeypatch,

@@ -157,6 +157,7 @@ async def test_authenticate_enforces_required_claims_from_principal(
     settings_update: tuple[str, str],
     claims: dict[str, Any],
 ) -> None:
+    """Reject tokens that omit required scopes or permissions."""
     settings = _settings()
     setattr(settings, settings_update[0], settings_update[1])
     auth = Authenticator(settings=settings, cache=_build_cache())

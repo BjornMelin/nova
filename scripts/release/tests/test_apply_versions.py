@@ -72,6 +72,15 @@ def test_apply_version_updates_changes_only_planned_units(
     tmp_path: Path,
     write_text: Callable[[Path, str], None],
 ) -> None:
+    """Update only the workspace unit included in the version plan.
+
+    Args:
+        tmp_path: Temporary repo root used for the synthetic workspace.
+        write_text: Helper that writes fixture files into the temp repo.
+
+    Returns:
+        None.
+    """
     repo_root = tmp_path
     file_api = repo_root / "packages/nova_file_api/pyproject.toml"
     dash = repo_root / "packages/nova_dash_bridge/pyproject.toml"
@@ -120,6 +129,15 @@ def test_apply_version_updates_changes_r_description(
     tmp_path: Path,
     write_text: Callable[[Path, str], None],
 ) -> None:
+    """Apply release-plan updates to R DESCRIPTION files only.
+
+    Args:
+        tmp_path: Temporary repo root used for the synthetic workspace.
+        write_text: Helper that writes fixture files into the temp repo.
+
+    Returns:
+        None.
+    """
     repo_root = tmp_path
     pyproject = repo_root / "pyproject.toml"
     _write_release_pyproject(
@@ -214,6 +232,15 @@ def test_apply_version_updates_rejects_unknown_unit_id(
     tmp_path: Path,
     write_text: Callable[[Path, str], None],
 ) -> None:
+    """Reject version-plan entries that do not map to known workspace units.
+
+    Args:
+        tmp_path: Temporary repo root used for the synthetic workspace.
+        write_text: Helper that writes fixture files into the temp repo.
+
+    Returns:
+        None.
+    """
     repo_root = tmp_path
     file_api = repo_root / "packages/nova_file_api/pyproject.toml"
     _write_pyproject(write_text, file_api, "nova-file-api", "0.1.0")
@@ -248,6 +275,15 @@ def test_apply_version_updates_rejects_invalid_version_format(
     tmp_path: Path,
     write_text: Callable[[Path, str], None],
 ) -> None:
+    """Reject release plans that specify non-semver target versions.
+
+    Args:
+        tmp_path: Temporary repo root used for the synthetic workspace.
+        write_text: Helper that writes fixture files into the temp repo.
+
+    Returns:
+        None.
+    """
     repo_root = tmp_path
     file_api = repo_root / "packages/nova_file_api/pyproject.toml"
     _write_pyproject(write_text, file_api, "nova-file-api", "0.1.0")

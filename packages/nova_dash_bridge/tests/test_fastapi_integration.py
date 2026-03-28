@@ -141,6 +141,7 @@ def test_create_fastapi_app_calls_async_service_directly(
 
 
 def test_create_fastapi_app_requires_async_auth_policy() -> None:
+    """Reject sync-only auth policies for async FastAPI bridge wiring."""
     with pytest.raises(
         TypeError,
         match=r"auth_policy\.async_principal_resolver",

@@ -151,8 +151,9 @@ jobs:
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # actions/upload-artifact@v7
         with:
           name: pytest-runtime-gates-coverage-data
-          path: reports/coverage/.coverage.runtime
+          path: reports/coverage/.coverage.runtime*
           if-no-files-found: ignore
+          include-hidden-files: true
           retention-days: 7
 
   pytest-primary:
@@ -202,8 +203,9 @@ jobs:
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # actions/upload-artifact@v7
         with:
           name: pytest-primary-coverage-data
-          path: reports/coverage/.coverage.primary
+          path: reports/coverage/.coverage.primary*
           if-no-files-found: ignore
+          include-hidden-files: true
           retention-days: 7
 
   pytest-generated-smoke:
@@ -254,8 +256,9 @@ jobs:
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # actions/upload-artifact@v7
         with:
           name: pytest-generated-smoke-coverage-data
-          path: reports/coverage/.coverage.generated-smoke
+          path: reports/coverage/.coverage.generated-smoke*
           if-no-files-found: ignore
+          include-hidden-files: true
           retention-days: 7
 
   pytest-compatibility-311:

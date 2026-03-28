@@ -79,8 +79,9 @@ def default_template_bundle() -> _DefaultTemplateBundle:
             break
 
     assert api_function_env is not None
-    definition_text = _state_machine_definition_text(template)
-    resource = json.loads(definition_text)
+    state_machines = template.find_resources("AWS::StepFunctions::StateMachine")
+    assert len(state_machines) == 1
+    resource = next(iter(state_machines.values()))
     definition_fragment = "".join(
         part
         for part in resource["Properties"]["DefinitionString"]["Fn::Join"][1]
