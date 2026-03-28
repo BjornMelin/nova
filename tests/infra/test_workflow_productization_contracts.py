@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from typing import TypedDict
 
+import pytest
 import yaml
 
 from .helpers import REPO_ROOT, read_repo_file as _read
@@ -228,6 +229,7 @@ def test_cfn_contract_validate_workflow_exists_for_cfn_gates() -> None:
         "test_absorbed_infra_contracts.py",
         "test_ci_scope_detector.py",
         "test_release_workflow_contracts.py",
+        "test_serverless_stack_contracts.py",
         "test_workflow_productization_contracts.py",
         "test_workflow_contract_docs.py",
         "test_docs_authority_contracts.py",
@@ -255,7 +257,12 @@ def test_unified_ci_workflow_exists_for_runtime_and_conformance_gates() -> None:
     for required in [
         "classify-changes",
         "quality-gates",
-        "python-compatibility",
+        "pytest-runtime-gates",
+        "pytest-primary",
+        "pytest-generated-smoke",
+        "pytest-compatibility-311",
+        "pytest-compatibility-312",
+        "pytest-report",
         "generated-clients",
         "typescript-core-packages",
         "typescript-sdk-smoke",
@@ -273,7 +280,12 @@ def test_required_ci_workflows_use_scope_classifier_gate() -> None:
         ".github/workflows/ci.yml": {
             "gated_jobs": {
                 "quality-gates": "run_runtime_ci",
-                "python-compatibility": "run_runtime_ci",
+                "pytest-runtime-gates": "run_runtime_ci",
+                "pytest-primary": "run_runtime_ci",
+                "pytest-generated-smoke": "run_runtime_ci",
+                "pytest-compatibility-311": "run_runtime_ci",
+                "pytest-compatibility-312": "run_runtime_ci",
+                "pytest-report": "run_runtime_ci",
                 "generated-clients": "run_generated_clients",
                 "typescript-core-packages": "run_typescript_conformance",
                 "typescript-sdk-smoke": "run_typescript_conformance",
@@ -350,13 +362,31 @@ def test_sdk_conformance_shared_r_check_helper_is_used() -> None:
     assert "R CMD check reported warnings" in helper_text
 
 
-def test_python_compatibility_job_covers_supported_envs() -> None:
-    """Compatibility lane must execute against synced supported envs."""
+@pytest.mark.parametrize(
+    ("job_name", "python_version"),
+    [
+        pytest.param(
+            "pytest-compatibility-311",
+            "3.11",
+            id="compatibility-3.11",
+        ),
+        pytest.param(
+            "pytest-compatibility-312",
+            "3.12",
+            id="compatibility-3.12",
+        ),
+    ],
+)
+def test_python_compatibility_jobs_cover_supported_envs(
+    job_name: str,
+    python_version: str,
+) -> None:
+    """Compatibility lanes must stay isolated per supported runtime."""
     workflow = yaml.safe_load(_read(".github/workflows/ci.yml"))
     assert isinstance(workflow, dict)
     jobs = workflow.get("jobs")
     assert isinstance(jobs, dict)
-    job = jobs.get("python-compatibility")
+    job = jobs.get(job_name)
     assert isinstance(job, dict)
     steps = job.get("steps")
     assert isinstance(steps, list)
@@ -368,6 +398,13 @@ def test_python_compatibility_job_covers_supported_envs() -> None:
         and step.get("uses") == "./.github/actions/setup-python-uv"
         and isinstance(step.get("with"), dict)
     ]
+    pytest_runs = [
+        str(step["run"])
+        for step in steps
+        if isinstance(step, dict)
+        and step.get("name", "").startswith("Pytest")
+        and isinstance(step.get("run"), str)
+    ]
     build_runs = [
         str(step["run"])
         for step in steps
@@ -376,11 +413,52 @@ def test_python_compatibility_job_covers_supported_envs() -> None:
         and isinstance(step.get("run"), str)
     ]
 
-    assert "3.11" in setup_versions
-    assert "3.12" in setup_versions
+    assert python_version in setup_versions
+    assert any(
+        f"uv run --python {python_version} pytest -q" in run
+        for run in pytest_runs
+    )
+    assert any(
+        f"compatibility-{python_version}.xml" in run for run in pytest_runs
+    )
     assert any("packages/nova_sdk_py" in run for run in build_runs)
-    assert any("uv build --python 3.11" in run for run in build_runs)
-    assert any("uv build --python 3.12" in run for run in build_runs)
+    assert any(
+        f"uv build --python {python_version}" in run for run in build_runs
+    )
+
+
+def test_pytest_jobs_emit_junit_and_report_artifacts() -> None:
+    """Primary pytest lanes must publish machine-readable test artifacts."""
+    workflow = yaml.safe_load(_read(".github/workflows/ci.yml"))
+    assert isinstance(workflow, dict)
+    jobs = workflow.get("jobs")
+    assert isinstance(jobs, dict)
+
+    for job_name in [
+        "pytest-runtime-gates",
+        "pytest-primary",
+        "pytest-generated-smoke",
+        "pytest-compatibility-311",
+        "pytest-compatibility-312",
+    ]:
+        job = jobs.get(job_name)
+        assert isinstance(job, dict)
+        job_text = yaml.safe_dump(job, sort_keys=False)
+        assert "--junitxml=" in job_text
+        assert "actions/upload-artifact@" in job_text
+
+    report_job = jobs.get("pytest-report")
+    assert isinstance(report_job, dict)
+    report_text = yaml.safe_dump(report_job, sort_keys=False)
+    for required in [
+        "pytest-runtime-gates-coverage-data",
+        "pytest-primary-coverage-data",
+        "pytest-generated-smoke-coverage-data",
+        "coverage combine",
+        "coverage xml",
+        "pytest-report-coverage",
+    ]:
+        assert required in report_text
 
 
 def test_reusable_deploy_dev_checks_out_workflow_source_for_local_actions() -> (

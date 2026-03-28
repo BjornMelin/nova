@@ -87,18 +87,6 @@ jobs:
       - name: Mypy
         run: uv run mypy
 
-      - name: Runtime/Security/Reliability Gates
-        run: |
-          uv run pytest -q -m runtime_gate
-
-      - name: Pytest
-        run: |
-          uv run pytest -q -m "not runtime_gate and not generated_smoke"
-
-      - name: Generated Client Smoke
-        run: |
-          uv run pytest -q -m generated_smoke
-
       - name: Runtime Config Contract
         run: |
           uv run python scripts/release/generate_runtime_config_contract.py --check
@@ -115,7 +103,59 @@ jobs:
       - name: Canonical Route Policy Guard
         run: bash scripts/checks/verify_canonical_route_policy.sh
 
-  python-compatibility:
+  pytest-runtime-gates:
+    needs: classify-changes
+    if: needs.classify-changes.outputs.run_runtime_ci == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Setup Python and uv
+        uses: ./.github/actions/setup-python-uv
+        with:
+          python-version: "3.13"
+          save-cache: "false"
+
+      - name: Run pytest runtime gates
+        run: |
+          mkdir -p reports/junit reports/coverage
+          COVERAGE_FILE=reports/coverage/.coverage.runtime \
+            uv run pytest -q -m runtime_gate \
+            --junitxml=reports/junit/runtime-gates.xml \
+            --cov=packages/nova_dash_bridge/src \
+            --cov=packages/nova_file_api/src \
+            --cov=packages/nova_runtime_support/src \
+            --cov=packages/nova_workflows/src \
+            --cov=infra/nova_cdk/src \
+            --cov=scripts/release \
+            --cov-branch \
+            --cov-report=
+
+      - name: Upload runtime gate JUnit
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # actions/upload-artifact@v7
+        with:
+          name: pytest-runtime-gates-junit
+          path: reports/junit/runtime-gates.xml
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Upload runtime gate coverage data
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # actions/upload-artifact@v7
+        with:
+          name: pytest-runtime-gates-coverage-data
+          path: reports/coverage/.coverage.runtime
+          if-no-files-found: ignore
+          retention-days: 7
+
+  pytest-primary:
     needs: classify-changes
     if: needs.classify-changes.outputs.run_runtime_ci == 'true'
     runs-on: ubuntu-latest
@@ -131,11 +171,118 @@ jobs:
       - name: Setup Python and uv
         uses: ./.github/actions/setup-python-uv
         with:
-          python-version: "3.11"
+          python-version: "3.13"
+
+      - name: Run pytest primary
+        run: |
+          mkdir -p reports/junit reports/coverage
+          COVERAGE_FILE=reports/coverage/.coverage.primary \
+            uv run pytest -q -m "not runtime_gate and not generated_smoke" \
+            --junitxml=reports/junit/primary.xml \
+            --cov=packages/nova_dash_bridge/src \
+            --cov=packages/nova_file_api/src \
+            --cov=packages/nova_runtime_support/src \
+            --cov=packages/nova_workflows/src \
+            --cov=infra/nova_cdk/src \
+            --cov=scripts/release \
+            --cov-branch \
+            --cov-report=
+
+      - name: Upload primary JUnit
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # actions/upload-artifact@v7
+        with:
+          name: pytest-primary-junit
+          path: reports/junit/primary.xml
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Upload primary coverage data
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # actions/upload-artifact@v7
+        with:
+          name: pytest-primary-coverage-data
+          path: reports/coverage/.coverage.primary
+          if-no-files-found: ignore
+          retention-days: 7
+
+  pytest-generated-smoke:
+    needs: classify-changes
+    if: needs.classify-changes.outputs.run_runtime_ci == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Setup Python and uv
+        uses: ./.github/actions/setup-python-uv
+        with:
+          python-version: "3.13"
           save-cache: "false"
 
+      - name: Run pytest generated smoke
+        run: |
+          mkdir -p reports/junit reports/coverage
+          COVERAGE_FILE=reports/coverage/.coverage.generated-smoke \
+            uv run pytest -q -m generated_smoke \
+            --junitxml=reports/junit/generated-smoke.xml \
+            --cov=packages/nova_dash_bridge/src \
+            --cov=packages/nova_file_api/src \
+            --cov=packages/nova_runtime_support/src \
+            --cov=packages/nova_workflows/src \
+            --cov=infra/nova_cdk/src \
+            --cov=scripts/release \
+            --cov-branch \
+            --cov-report=
+
+      - name: Upload generated smoke JUnit
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # actions/upload-artifact@v7
+        with:
+          name: pytest-generated-smoke-junit
+          path: reports/junit/generated-smoke.xml
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Upload generated smoke coverage data
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # actions/upload-artifact@v7
+        with:
+          name: pytest-generated-smoke-coverage-data
+          path: reports/coverage/.coverage.generated-smoke
+          if-no-files-found: ignore
+          retention-days: 7
+
+  pytest-compatibility-311:
+    name: pytest-compatibility-3.11
+    needs: classify-changes
+    if: needs.classify-changes.outputs.run_runtime_ci == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Setup Python and uv
+        uses: ./.github/actions/setup-python-uv
+        with:
+          python-version: "3.11"
+          cache-suffix: py311
+
       - name: Pytest (Python 3.11)
-        run: uv run --python 3.11 pytest -q
+        run: |
+          mkdir -p reports/junit
+          uv run --python 3.11 pytest -q \
+            --junitxml=reports/junit/compatibility-3.11.xml
 
       - name: Workspace Build (Python 3.11)
         run: |
@@ -147,14 +294,40 @@ jobs:
             uv build --python 3.11 "$p"
           done
 
-      - name: Setup Python and uv (Python 3.12)
+      - name: Upload compatibility 3.11 JUnit
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # actions/upload-artifact@v7
+        with:
+          name: pytest-compatibility-3.11-junit
+          path: reports/junit/compatibility-3.11.xml
+          if-no-files-found: ignore
+          retention-days: 7
+
+  pytest-compatibility-312:
+    name: pytest-compatibility-3.12
+    needs: classify-changes
+    if: needs.classify-changes.outputs.run_runtime_ci == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Setup Python and uv
         uses: ./.github/actions/setup-python-uv
         with:
           python-version: "3.12"
-          save-cache: "false"
+          cache-suffix: py312
 
       - name: Pytest (Python 3.12)
-        run: uv run --python 3.12 pytest -q
+        run: |
+          mkdir -p reports/junit
+          uv run --python 3.12 pytest -q \
+            --junitxml=reports/junit/compatibility-3.12.xml
 
       - name: Workspace Build (Python 3.12)
         run: |
@@ -165,6 +338,80 @@ jobs:
             packages/nova_sdk_py; do
             uv build --python 3.12 "$p"
           done
+
+      - name: Upload compatibility 3.12 JUnit
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # actions/upload-artifact@v7
+        with:
+          name: pytest-compatibility-3.12-junit
+          path: reports/junit/compatibility-3.12.xml
+          if-no-files-found: ignore
+          retention-days: 7
+
+  pytest-report:
+    needs:
+      - classify-changes
+      - pytest-runtime-gates
+      - pytest-primary
+      - pytest-generated-smoke
+    if: needs.classify-changes.outputs.run_runtime_ci == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Setup Python and uv
+        uses: ./.github/actions/setup-python-uv
+        with:
+          python-version: "3.13"
+          save-cache: "false"
+
+      - name: Download runtime gate coverage data
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # actions/download-artifact@v8
+        with:
+          name: pytest-runtime-gates-coverage-data
+          path: .artifacts/coverage/runtime
+
+      - name: Download primary coverage data
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # actions/download-artifact@v8
+        with:
+          name: pytest-primary-coverage-data
+          path: .artifacts/coverage/primary
+
+      - name: Download generated smoke coverage data
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # actions/download-artifact@v8
+        with:
+          name: pytest-generated-smoke-coverage-data
+          path: .artifacts/coverage/generated-smoke
+
+      - name: Combine coverage reports
+        run: |
+          mkdir -p reports/coverage
+          uv run coverage combine \
+            .artifacts/coverage/runtime \
+            .artifacts/coverage/primary \
+            .artifacts/coverage/generated-smoke
+          uv run coverage xml -o reports/coverage/coverage.xml
+          uv run coverage report | tee reports/coverage/summary.txt
+          {
+            echo '## Pytest Coverage Summary'
+            echo
+            cat reports/coverage/summary.txt
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Upload merged coverage report
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # actions/upload-artifact@v7
+        with:
+          name: pytest-report-coverage
+          path: reports/coverage
+          if-no-files-found: ignore
+          retention-days: 7
 
   generated-clients:
     needs: classify-changes
@@ -199,6 +446,8 @@ jobs:
         run: uv run python scripts/contracts/export_openapi.py --check
       - name: Verify generated Python SDK artifacts
         run: uv run python scripts/release/generate_python_clients.py --check
+      - name: Run TypeScript SDK pytest contracts
+        run: uv run pytest -q scripts/release/tests/test_typescript_sdk_contracts.py
 
   typescript-core-packages:
     needs: classify-changes
