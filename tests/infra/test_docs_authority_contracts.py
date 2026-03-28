@@ -104,7 +104,7 @@ def test_spec_index_keeps_spec_0020_out_of_active_authority() -> None:
 
 
 def test_active_plan_directory_is_pruned_to_current_indexes() -> None:
-    """The plan directory should contain only historical entrypoints."""
+    """The plan directory should contain the current historical entrypoints."""
     plan_files = {
         path.name for path in (DOCS_ROOT / "plan").iterdir() if path.is_file()
     }

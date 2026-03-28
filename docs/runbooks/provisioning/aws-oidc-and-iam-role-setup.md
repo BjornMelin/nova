@@ -57,6 +57,9 @@ aws iam create-open-id-connect-provider \
 4. Verify the role trust policy is scoped to the target repo and branch.
 
 ```bash
+export RELEASE_AWS_ROLE_ARN="${RELEASE_AWS_ROLE_ARN:?set RELEASE_AWS_ROLE_ARN}"
+ROLE_NAME="${RELEASE_AWS_ROLE_ARN##*/}"
+
 aws iam get-role \
   --role-name "${ROLE_NAME}" \
   --query 'Role.AssumeRolePolicyDocument.Statement'

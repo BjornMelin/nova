@@ -43,11 +43,7 @@
         }
       },
       "required": [
-        "validation_base_url",
-        "validation_canonical_paths",
-        "validation_legacy_404_paths",
-        "report_path",
-        "artifact_name"
+        "validation_base_url"
       ]
     },
     "outputs": {

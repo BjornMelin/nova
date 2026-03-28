@@ -230,7 +230,7 @@ Additional required gates when touching infra, workflow contracts, or docs
 governance:
 
 - `bash scripts/checks/run_infra_contracts.sh`
-- `uv run --with pytest pytest -q tests/infra/test_absorbed_infra_contracts.py tests/infra/test_workflow_productization_contracts.py tests/infra/test_workflow_contract_docs.py tests/infra/test_docs_authority_contracts.py`
+- `uv run --with pytest pytest -q tests/infra/test_ci_scope_detector.py tests/infra/test_release_workflow_contracts.py tests/infra/test_serverless_stack_contracts.py tests/infra/test_workflow_contract_docs.py tests/infra/test_docs_authority_contracts.py`
 
 ## Documentation Synchronization Rules
 

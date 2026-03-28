@@ -10,6 +10,16 @@ Execute the canonical Nova package-release flow: selective version planning,
 signed release application, staged package publication, prod package
 promotion, and optional post-deploy route validation.
 
+## 1A. Authority / references
+
+- `docs/architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md`
+- `docs/architecture/spec/SPEC-0000-http-api-contract.md`
+- `docs/architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md`
+- `docs/architecture/requirements-wave-2.md`
+- `docs/plan/GREENFIELD-WAVE-2-EXECUTION.md`
+- `docs/architecture/adr/ADR-0033-canonical-serverless-platform.md` through `docs/architecture/adr/ADR-0038-docs-authority-reset.md`
+- `docs/architecture/spec/SPEC-0027-public-api-v2.md` through `docs/architecture/spec/SPEC-0031-docs-and-tests-authority-reset.md`
+
 ## 2. Preconditions
 
 1. `main` is green on the required hosted checks in
@@ -41,7 +51,7 @@ promotion, and optional post-deploy route validation.
    - checks out the selected `main` commit SHA
    - applies versions from the version plan
    - writes `docs/release/RELEASE-VERSION-MANIFEST.md`
-   - creates a signed release commit on `main`
+   - creates a signed release commit on `main`.
 
 ### C. Signature gate
 

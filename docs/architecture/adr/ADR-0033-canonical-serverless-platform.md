@@ -11,8 +11,8 @@ Adopt **CloudFront + WAF → API Gateway HTTP API → Lambda (FastAPI via Lambda
 
 ## Context
 
-The active repository baseline uses the canonical serverless platform end to
-end. Nova’s real workload is a direct-to-S3 transfer control plane with durable
+The active repository baseline uses the canonical serverless platform end-to-
+end. Nova's real workload is a direct-to-S3 transfer control plane with durable
 async export processing, not a byte-streaming API.
 
 ## Why this wins

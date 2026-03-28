@@ -94,9 +94,14 @@ def test_post_deploy_validate_schema_matches_reusable_workflow() -> None:
     workflow_outputs = workflow_call["outputs"]
     schema_inputs = schema["properties"]["inputs"]["properties"]
     schema_outputs = schema["properties"]["outputs"]["properties"]
+    workflow_required_inputs = {
+        key for key, value in workflow_inputs.items() if value["required"]
+    }
+    schema_required_inputs = set(schema["properties"]["inputs"]["required"])
 
-    assert set(workflow_inputs).issubset(set(schema_inputs))
-    assert set(workflow_outputs).issubset(set(schema_outputs))
+    assert set(workflow_inputs) == set(schema_inputs)
+    assert set(workflow_outputs) == set(schema_outputs)
+    assert workflow_required_inputs == schema_required_inputs
 
 
 def test_downstream_examples_reference_reusable_post_deploy_workflow() -> None:
@@ -153,6 +158,11 @@ def test_auth0_workflow_schema_matches_reusable_auth0_api() -> None:
     workflow_outputs = workflow_call["outputs"]
     schema_inputs = schema["properties"]["inputs"]["properties"]
     schema_outputs = schema["properties"]["outputs"]["properties"]
+    workflow_required_inputs = {
+        key for key, value in workflow_inputs.items() if value["required"]
+    }
+    schema_required_inputs = set(schema["properties"]["inputs"]["required"])
 
-    assert set(workflow_inputs).issubset(set(schema_inputs))
-    assert set(workflow_outputs).issubset(set(schema_outputs))
+    assert set(workflow_inputs) == set(schema_inputs)
+    assert set(workflow_outputs) == set(schema_outputs)
+    assert workflow_required_inputs == schema_required_inputs
