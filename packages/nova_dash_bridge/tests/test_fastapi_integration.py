@@ -58,6 +58,7 @@ class _SyncOnlyS3Factory:
 
 
 def _env_config() -> FileTransferEnvConfig:
+    """Return a fixed file-transfer environment for test isolation."""
     return FileTransferEnvConfig.model_validate(
         {
             "FILE_TRANSFER_ENABLED": True,
@@ -67,6 +68,7 @@ def _env_config() -> FileTransferEnvConfig:
 
 
 def _upload_policy() -> UploadPolicy:
+    """Return a fixed upload policy for test isolation."""
     return UploadPolicy(
         max_upload_bytes=100,
         allowed_extensions={".csv"},
@@ -79,6 +81,7 @@ def _create_fastapi_app(
     s3_client_factory: SupportsCreateS3Client | None = None,
     async_s3_client_factory: SupportsCreateAsyncS3Client | None = None,
 ) -> Any:
+    """Create a FastAPI app with test defaults and optional overrides."""
     return fastapi_integration.create_fastapi_app(
         env_config=_env_config(),
         upload_policy=_upload_policy(),

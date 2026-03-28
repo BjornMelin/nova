@@ -68,6 +68,7 @@ jobs:
         uses: ./.github/actions/setup-python-uv
         with:
           python-version: "3.13"
+          save-cache: "false"
 
       - name: Lock Check
         run: uv lock --check
