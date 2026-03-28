@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from dataclasses import dataclass
 
 import pytest
 from aws_cdk import App, Environment
@@ -21,6 +22,13 @@ _BASE_CONTEXT = {
     "jwt_audience": "api://nova",
     "jwt_jwks_url": "https://issuer.example.com/.well-known/jwks.json",
 }
+
+
+@dataclass(frozen=True)
+class _DefaultTemplateBundle:
+    api_function_env: dict[str, str]
+    routes: dict[str, dict[str, object]]
+    definition_fragment: str
 
 
 def _template(
@@ -52,23 +60,13 @@ def _state_machine_definition_text(template: Template) -> str:
     return json.dumps(next(iter(resources.values())), sort_keys=True)
 
 
-@pytest.mark.parametrize(
-    "missing_key",
-    ["jwt_issuer", "jwt_audience", "jwt_jwks_url"],
-)
-def test_serverless_stack_requires_complete_oidc_context(
-    missing_key: str,
-) -> None:
-    """Serverless synth must fail closed on incomplete OIDC wiring."""
-    context = dict(_BASE_CONTEXT)
-    context.pop(missing_key)
+@pytest.fixture(scope="module")
+def default_template_bundle() -> _DefaultTemplateBundle:
+    """Synthesize the default stack once for the positive-path assertions.
 
-    with pytest.raises(ValueError, match=missing_key):
-        _template(context=context)
-
-
-def test_serverless_stack_passes_oidc_env_to_api_lambda() -> None:
-    """API Lambda must receive the in-process OIDC verifier settings."""
+    Returns:
+        _DefaultTemplateBundle: Cached template-derived values for assertions.
+    """
     template = _template()
     functions = template.find_resources("AWS::Lambda::Function")
 
@@ -85,16 +83,73 @@ def test_serverless_stack_passes_oidc_env_to_api_lambda() -> None:
             break
 
     assert api_function_env is not None
+    state_machines = template.find_resources("AWS::StepFunctions::StateMachine")
+    assert len(state_machines) == 1
+    resource = next(iter(state_machines.values()))
+    definition_fragment = "".join(
+        part
+        for part in resource["Properties"]["DefinitionString"]["Fn::Join"][1]
+        if isinstance(part, str)
+    )
+
+    return _DefaultTemplateBundle(
+        api_function_env=api_function_env,
+        routes=_route_properties(template),
+        definition_fragment=definition_fragment,
+    )
+
+
+@pytest.mark.parametrize(
+    "missing_key",
+    ["jwt_issuer", "jwt_audience", "jwt_jwks_url"],
+)
+def test_serverless_stack_requires_complete_oidc_context(
+    missing_key: str,
+) -> None:
+    """Serverless synth must fail closed on incomplete OIDC wiring.
+
+    Args:
+        missing_key: Required OIDC context key removed for the test case.
+
+    Raises:
+        ValueError: Raised when the stack context omits required OIDC data.
+    """
+    context = dict(_BASE_CONTEXT)
+    context.pop(missing_key)
+
+    with pytest.raises(ValueError, match=missing_key):
+        _template(context=context)
+
+
+def test_serverless_stack_passes_oidc_env_to_api_lambda(
+    default_template_bundle: _DefaultTemplateBundle,
+) -> None:
+    """API Lambda must receive the in-process OIDC verifier settings.
+
+    Args:
+        default_template_bundle: Cached serverless template data for assertions.
+
+    Returns:
+        None.
+    """
+    api_function_env = default_template_bundle.api_function_env
     assert api_function_env["OIDC_ISSUER"] == _BASE_CONTEXT["jwt_issuer"]
     assert api_function_env["OIDC_AUDIENCE"] == _BASE_CONTEXT["jwt_audience"]
     assert api_function_env["OIDC_JWKS_URL"] == _BASE_CONTEXT["jwt_jwks_url"]
 
 
-def test_serverless_stack_keeps_health_routes_public() -> None:
-    """Health probes must stay unauthenticated while /v1 stays JWT-protected."""
-    template = _template()
-    routes = _route_properties(template)
+def test_serverless_stack_keeps_health_routes_public(
+    default_template_bundle: _DefaultTemplateBundle,
+) -> None:
+    """Keep health probes public while the `/v1` API remains JWT-protected.
 
+    Args:
+        default_template_bundle: Cached serverless template data for assertions.
+
+    Returns:
+        None.
+    """
+    routes = default_template_bundle.routes
     assert routes["GET /v1/health/live"]["AuthorizationType"] == "NONE"
     assert routes["GET /v1/health/ready"]["AuthorizationType"] == "NONE"
     assert routes["ANY /v1"]["AuthorizationType"] == "JWT"
@@ -105,17 +160,18 @@ def test_serverless_stack_keeps_health_routes_public() -> None:
     assert "AuthorizerId" in routes["ANY /v1/{proxy+}"]
 
 
-def test_serverless_stack_maps_caught_errors_for_failure_handler() -> None:
-    """Workflow failures must reach the fail handler as top-level fields."""
-    template = _template()
-    definition_text = _state_machine_definition_text(template)
-    resource = json.loads(definition_text)
-    definition_fragment = "".join(
-        part
-        for part in resource["Properties"]["DefinitionString"]["Fn::Join"][1]
-        if isinstance(part, str)
-    )
+def test_serverless_stack_maps_caught_errors_for_failure_handler(
+    default_template_bundle: _DefaultTemplateBundle,
+) -> None:
+    """Route workflow failure fields to the fail handler input payload.
 
+    Args:
+        default_template_bundle: Cached serverless template data for assertions.
+
+    Returns:
+        None.
+    """
+    definition_fragment = default_template_bundle.definition_fragment
     assert "$.workflow_error.Error" in definition_fragment
     assert "$.workflow_error.Cause" in definition_fragment
     assert "$.workflow_error" in definition_fragment

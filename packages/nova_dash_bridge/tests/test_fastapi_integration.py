@@ -12,7 +12,10 @@ from nova_dash_bridge.config import (
     FileTransferEnvConfig,
     UploadPolicy,
 )
-from nova_dash_bridge.s3_client import SupportsCreateS3Client
+from nova_dash_bridge.s3_client import (
+    SupportsCreateAsyncS3Client,
+    SupportsCreateS3Client,
+)
 from nova_dash_bridge.service import AsyncFileTransferService
 from nova_file_api.public import (
     TRANSFER_ROUTE_PREFIX,
@@ -54,20 +57,46 @@ class _SyncOnlyS3Factory:
         return cast(Any, object())
 
 
+def _env_config() -> FileTransferEnvConfig:
+    """Return a fixed file-transfer environment for test isolation."""
+    return FileTransferEnvConfig.model_validate(
+        {
+            "FILE_TRANSFER_ENABLED": True,
+            "FILE_TRANSFER_BUCKET": "bucket-a",
+        }
+    )
+
+
+def _upload_policy() -> UploadPolicy:
+    """Return a fixed upload policy for test isolation."""
+    return UploadPolicy(
+        max_upload_bytes=100,
+        allowed_extensions={".csv"},
+    )
+
+
+def _create_fastapi_app(
+    *,
+    auth_policy: AuthPolicy | None = None,
+    s3_client_factory: SupportsCreateS3Client | None = None,
+    async_s3_client_factory: SupportsCreateAsyncS3Client | None = None,
+) -> Any:
+    """Create a FastAPI app with test defaults and optional overrides."""
+    return fastapi_integration.create_fastapi_app(
+        env_config=_env_config(),
+        upload_policy=_upload_policy(),
+        auth_policy=(_auth_policy() if auth_policy is None else auth_policy),
+        s3_client_factory=s3_client_factory,
+        async_s3_client_factory=async_s3_client_factory,
+    )
+
+
 def test_create_fastapi_app_requires_auth_policy() -> None:
     app_factory = cast(Any, fastapi_integration.create_fastapi_app)
     with pytest.raises(TypeError, match="auth_policy"):
         app_factory(
-            env_config=FileTransferEnvConfig.model_validate(
-                {
-                    "FILE_TRANSFER_ENABLED": True,
-                    "FILE_TRANSFER_BUCKET": "bucket-a",
-                }
-            ),
-            upload_policy=UploadPolicy(
-                max_upload_bytes=100,
-                allowed_extensions={".csv"},
-            ),
+            env_config=_env_config(),
+            upload_policy=_upload_policy(),
         )
 
 
@@ -97,19 +126,7 @@ def test_create_fastapi_app_calls_async_service_directly(
         _fake_initiate_upload,
     )
 
-    app = fastapi_integration.create_fastapi_app(
-        env_config=FileTransferEnvConfig.model_validate(
-            {
-                "FILE_TRANSFER_ENABLED": True,
-                "FILE_TRANSFER_BUCKET": "bucket-a",
-            }
-        ),
-        upload_policy=UploadPolicy(
-            max_upload_bytes=100,
-            allowed_extensions={".csv"},
-        ),
-        auth_policy=_auth_policy(),
-    )
+    app = _create_fastapi_app()
 
     with TestClient(app) as client:
         response = client.post(
@@ -126,25 +143,15 @@ def test_create_fastapi_app_calls_async_service_directly(
     assert calls == [("report.csv", "scope-1", 1)]
 
 
-def test_create_fastapi_app_requires_async_auth_policy(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    del monkeypatch
+def test_create_fastapi_app_requires_async_auth_policy() -> None:
+    """Reject sync-only auth policies for async FastAPI bridge wiring."""
     with pytest.raises(
         TypeError,
         match=r"auth_policy\.async_principal_resolver",
     ):
         fastapi_integration.create_fastapi_app(
-            env_config=FileTransferEnvConfig.model_validate(
-                {
-                    "FILE_TRANSFER_ENABLED": True,
-                    "FILE_TRANSFER_BUCKET": "bucket-a",
-                }
-            ),
-            upload_policy=UploadPolicy(
-                max_upload_bytes=100,
-                allowed_extensions={".csv"},
-            ),
+            env_config=_env_config(),
+            upload_policy=_upload_policy(),
             auth_policy=_sync_only_auth_policy(),
         )
 
@@ -156,16 +163,8 @@ def test_create_fastapi_app_requires_async_s3_factory() -> None:
         r"create_async",
     ):
         fastapi_integration.create_fastapi_app(
-            env_config=FileTransferEnvConfig.model_validate(
-                {
-                    "FILE_TRANSFER_ENABLED": True,
-                    "FILE_TRANSFER_BUCKET": "bucket-a",
-                }
-            ),
-            upload_policy=UploadPolicy(
-                max_upload_bytes=100,
-                allowed_extensions={".csv"},
-            ),
+            env_config=_env_config(),
+            upload_policy=_upload_policy(),
             auth_policy=_auth_policy(),
             s3_client_factory=cast(
                 "SupportsCreateS3Client",
@@ -206,20 +205,10 @@ def test_create_fastapi_app_uses_async_auth_resolution(
         _fake_initiate_upload,
     )
 
-    app = fastapi_integration.create_fastapi_app(
-        env_config=FileTransferEnvConfig.model_validate(
-            {
-                "FILE_TRANSFER_ENABLED": True,
-                "FILE_TRANSFER_BUCKET": "bucket-a",
-            }
-        ),
-        upload_policy=UploadPolicy(
-            max_upload_bytes=100,
-            allowed_extensions={".csv"},
-        ),
+    app = _create_fastapi_app(
         auth_policy=AuthPolicy(
             async_principal_resolver=_resolve_principal_async
-        ),
+        )
     )
 
     with TestClient(app) as client:
@@ -240,19 +229,7 @@ def test_create_fastapi_app_uses_async_auth_resolution(
 def test_routes_include_transfer_operation_metadata() -> None:
     """Ensure OpenAPI operation metadata stays stable for transfer endpoints."""
 
-    app = fastapi_integration.create_fastapi_app(
-        env_config=FileTransferEnvConfig.model_validate(
-            {
-                "FILE_TRANSFER_ENABLED": True,
-                "FILE_TRANSFER_BUCKET": "bucket-a",
-            }
-        ),
-        upload_policy=UploadPolicy(
-            max_upload_bytes=100,
-            allowed_extensions={".csv"},
-        ),
-        auth_policy=_auth_policy(),
-    )
+    app = _create_fastapi_app()
     with TestClient(app) as client:
         openapi_doc = client.get("/openapi.json").json()
 
@@ -279,19 +256,7 @@ def test_create_fastapi_app_wraps_request_validation_errors(
 ) -> None:
     """Ensure malformed bodies are wrapped in canonical error envelopes."""
 
-    app = fastapi_integration.create_fastapi_app(
-        env_config=FileTransferEnvConfig.model_validate(
-            {
-                "FILE_TRANSFER_ENABLED": True,
-                "FILE_TRANSFER_BUCKET": "bucket-a",
-            }
-        ),
-        upload_policy=UploadPolicy(
-            max_upload_bytes=100,
-            allowed_extensions={".csv"},
-        ),
-        auth_policy=_auth_policy(),
-    )
+    app = _create_fastapi_app()
     with TestClient(app) as client:
         response = client.post(
             f"{TRANSFER_ROUTE_PREFIX}{UPLOADS_INITIATE_ROUTE}",
@@ -315,19 +280,7 @@ def test_create_fastapi_app_wraps_request_validation_errors(
 def test_create_fastapi_app_requires_bearer_auth() -> None:
     """Ensure missing credentials are rejected before request validation."""
 
-    app = fastapi_integration.create_fastapi_app(
-        env_config=FileTransferEnvConfig.model_validate(
-            {
-                "FILE_TRANSFER_ENABLED": True,
-                "FILE_TRANSFER_BUCKET": "bucket-a",
-            }
-        ),
-        upload_policy=UploadPolicy(
-            max_upload_bytes=100,
-            allowed_extensions={".csv"},
-        ),
-        auth_policy=_auth_policy(),
-    )
+    app = _create_fastapi_app()
     with TestClient(app) as client:
         response = client.post(
             f"{TRANSFER_ROUTE_PREFIX}{UPLOADS_INITIATE_ROUTE}",
@@ -350,19 +303,7 @@ def test_create_fastapi_app_requires_bearer_auth() -> None:
 def test_create_fastapi_app_rejects_cookie_only_auth() -> None:
     """Ensure bridge auth does not fall back to ambient browser cookies."""
 
-    app = fastapi_integration.create_fastapi_app(
-        env_config=FileTransferEnvConfig.model_validate(
-            {
-                "FILE_TRANSFER_ENABLED": True,
-                "FILE_TRANSFER_BUCKET": "bucket-a",
-            }
-        ),
-        upload_policy=UploadPolicy(
-            max_upload_bytes=100,
-            allowed_extensions={".csv"},
-        ),
-        auth_policy=_auth_policy(),
-    )
+    app = _create_fastapi_app()
     with TestClient(app) as client:
         client.cookies.set("pca-nova-auth", "Bearer token-123")
         response = client.post(
@@ -385,19 +326,7 @@ def test_create_fastapi_app_rejects_cookie_only_auth() -> None:
 def test_fastapi_app_generates_request_id_for_validation_errors() -> None:
     """Validation failures should mint and return a request ID when absent."""
 
-    app = fastapi_integration.create_fastapi_app(
-        env_config=FileTransferEnvConfig.model_validate(
-            {
-                "FILE_TRANSFER_ENABLED": True,
-                "FILE_TRANSFER_BUCKET": "bucket-a",
-            }
-        ),
-        upload_policy=UploadPolicy(
-            max_upload_bytes=100,
-            allowed_extensions={".csv"},
-        ),
-        auth_policy=_auth_policy(),
-    )
+    app = _create_fastapi_app()
     with TestClient(app) as client:
         response = client.post(
             f"{TRANSFER_ROUTE_PREFIX}{UPLOADS_INITIATE_ROUTE}",
@@ -433,19 +362,7 @@ def test_create_fastapi_app_wraps_unhandled_errors(
         "initiate_upload",
         _boom,
     )
-    app = fastapi_integration.create_fastapi_app(
-        env_config=FileTransferEnvConfig.model_validate(
-            {
-                "FILE_TRANSFER_ENABLED": True,
-                "FILE_TRANSFER_BUCKET": "bucket-a",
-            }
-        ),
-        upload_policy=UploadPolicy(
-            max_upload_bytes=100,
-            allowed_extensions={".csv"},
-        ),
-        auth_policy=_auth_policy(),
-    )
+    app = _create_fastapi_app()
     with TestClient(app, raise_server_exceptions=False) as client:
         response = client.post(
             f"{TRANSFER_ROUTE_PREFIX}{UPLOADS_INITIATE_ROUTE}",

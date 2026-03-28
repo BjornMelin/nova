@@ -146,6 +146,20 @@ def _principal() -> Principal:
     return Principal(subject="user-1", scope_id="scope-1")
 
 
+def _copy_upload_error_case(
+    *,
+    error: Exception,
+) -> tuple[TransferService, Settings, _FakeS3Client]:
+    settings = _settings()
+    fake_s3 = _FakeS3Client()
+    service = _transfer_service(settings=settings, s3_client=fake_s3)
+    fake_s3.head_responses = [
+        {"LastModified": "2024-01-01T00:00:00Z", "ContentLength": 42},
+    ]
+    fake_s3.copy_error = error
+    return service, settings, fake_s3
+
+
 @pytest.mark.anyio
 async def test_presign_download_preserves_explicit_content_disposition(
     _service: tuple[TransferService, _FakeS3Client],
@@ -192,19 +206,57 @@ async def test_presign_download_uses_filename_fallback_when_disposition_missing(
     )
 
 
+@pytest.mark.parametrize(
+    ("copy_error", "expected_code", "expected_status", "expected_message"),
+    [
+        pytest.param(
+            ClientError(
+                error_response={"Error": {"Code": "NoSuchKey"}},
+                operation_name="CopyObject",
+            ),
+            "invalid_request",
+            422,
+            "source upload object not found",
+            id="no-such-key-is-invalid-request",
+        ),
+        pytest.param(
+            BotoCoreError(),
+            "upstream_s3_error",
+            502,
+            "failed to copy upload object to export key",
+            id="botocore-error-maps-upstream",
+        ),
+        pytest.param(
+            ClientError(
+                error_response={"Error": {"Code": "AccessDenied"}},
+                operation_name="CopyObject",
+            ),
+            "upstream_s3_error",
+            502,
+            "failed to copy upload object to export key",
+            id="client-error-maps-upstream",
+        ),
+    ],
+)
 @pytest.mark.anyio
-async def test_copy_upload_to_export_toctou_missing_source_is_invalid() -> None:
-    settings = _settings()
-    fake_s3 = _FakeS3Client()
-    service = _transfer_service(settings=settings, s3_client=fake_s3)
+async def test_copy_upload_to_export_error_mapping(
+    copy_error: Exception,
+    expected_code: str,
+    expected_status: int,
+    expected_message: str,
+) -> None:
+    """Verify copy failures map to the expected public error envelope.
 
-    fake_s3.head_responses = [
-        {"LastModified": "2024-01-01T00:00:00Z", "ContentLength": 42},
-    ]
-    fake_s3.copy_error = ClientError(
-        error_response={"Error": {"Code": "NoSuchKey"}},
-        operation_name="CopyObject",
-    )
+    Args:
+        copy_error: Exception raised by the fake copy implementation.
+        expected_code: Expected FileTransferError.code value.
+        expected_status: Expected FileTransferError.status_code value.
+        expected_message: Expected rendered error message text.
+
+    Returns:
+        None.
+    """
+    service, settings, _fake_s3 = _copy_upload_error_case(error=copy_error)
 
     with pytest.raises(FileTransferError) as exc_info:
         await service.copy_upload_to_export(
@@ -215,62 +267,9 @@ async def test_copy_upload_to_export_toctou_missing_source_is_invalid() -> None:
             filename="source.csv",
         )
 
-    assert exc_info.value.code == "invalid_request"
-    assert exc_info.value.status_code == 422
-    assert str(exc_info.value) == "source upload object not found"
-
-
-@pytest.mark.anyio
-async def test_copy_upload_to_export_copy_error_is_upstream_s3_error() -> None:
-    settings = _settings()
-    fake_s3 = _FakeS3Client()
-    service = _transfer_service(settings=settings, s3_client=fake_s3)
-
-    fake_s3.head_responses = [
-        {"LastModified": "2024-01-01T00:00:00Z", "ContentLength": 42},
-    ]
-    fake_s3.copy_error = BotoCoreError()
-
-    with pytest.raises(FileTransferError) as exc_info:
-        await service.copy_upload_to_export(
-            source_bucket=settings.file_transfer_bucket,
-            source_key="uploads/scope-1/source.csv",
-            scope_id="scope-1",
-            export_id="job-1",
-            filename="source.csv",
-        )
-
-    assert exc_info.value.code == "upstream_s3_error"
-    assert exc_info.value.status_code == 502
-    assert str(exc_info.value) == "failed to copy upload object to export key"
-
-
-@pytest.mark.anyio
-async def test_copy_upload_to_export_client_error_maps_to_upstream() -> None:
-    settings = _settings()
-    fake_s3 = _FakeS3Client()
-    service = _transfer_service(settings=settings, s3_client=fake_s3)
-
-    fake_s3.head_responses = [
-        {"LastModified": "2024-01-01T00:00:00Z", "ContentLength": 42},
-    ]
-    fake_s3.copy_error = ClientError(
-        error_response={"Error": {"Code": "AccessDenied"}},
-        operation_name="CopyObject",
-    )
-
-    with pytest.raises(FileTransferError) as exc_info:
-        await service.copy_upload_to_export(
-            source_bucket=settings.file_transfer_bucket,
-            source_key="uploads/scope-1/source.csv",
-            scope_id="scope-1",
-            export_id="job-1",
-            filename="source.csv",
-        )
-
-    assert exc_info.value.code == "upstream_s3_error"
-    assert exc_info.value.status_code == 502
-    assert str(exc_info.value) == "failed to copy upload object to export key"
+    assert exc_info.value.code == expected_code
+    assert exc_info.value.status_code == expected_status
+    assert str(exc_info.value) == expected_message
 
 
 @pytest.mark.anyio

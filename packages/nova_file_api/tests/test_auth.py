@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import Any
+from unittest.mock import AsyncMock
 
 import pytest
 from nova_file_api.auth import (
@@ -84,23 +85,20 @@ async def test_bearer_auth_uses_principal_claim_scope(
     settings = _settings()
     auth = Authenticator(settings=settings, cache=_build_cache())
 
-    async def _fake_verify_bearer_token(*, token: str) -> dict[str, Any]:
-        del token
-        return {
+    verify_bearer_token = AsyncMock(
+        return_value={
             "sub": "subject-1",
             "scope_id": "scope-from-token",
             "scope": "uploads:write",
         }
-
-    monkeypatch.setattr(
-        auth,
-        "_verify_bearer_token",
-        _fake_verify_bearer_token,
     )
+    monkeypatch.setattr(auth, "_verify_bearer_token", verify_bearer_token)
 
     principal = await auth.authenticate(
         token="token-123",
     )
+
+    verify_bearer_token.assert_awaited_once_with(token="token-123")
     assert principal.scope_id == "scope-from-token"
 
 
@@ -128,60 +126,48 @@ def test_file_transfer_error_initializes_exception_message() -> None:
     assert exc.args == ("invalid payload",)
 
 
+@pytest.mark.parametrize(
+    ("settings_update", "claims"),
+    [
+        pytest.param(
+            ("oidc_required_scopes", "uploads:write"),
+            {
+                "sub": "subject-1",
+                "scope_id": "scope-from-token",
+                "scope": "uploads:read",
+            },
+            id="missing-required-scope",
+        ),
+        pytest.param(
+            ("oidc_required_permissions", "jobs:enqueue"),
+            {
+                "sub": "subject-1",
+                "scope_id": "scope-from-token",
+                "scope": "uploads:write",
+                "permissions": ["jobs:read"],
+            },
+            id="missing-required-permission",
+        ),
+    ],
+)
 @pytest.mark.anyio
 @pytest.mark.runtime_gate
-async def test_required_scope_is_enforced_from_principal_claims(
+async def test_authenticate_enforces_required_claims_from_principal(
     monkeypatch: pytest.MonkeyPatch,
+    settings_update: tuple[str, str],
+    claims: dict[str, Any],
 ) -> None:
+    """Reject tokens that omit required scopes or permissions."""
     settings = _settings()
-    settings.oidc_required_scopes = "uploads:write"
+    setattr(settings, settings_update[0], settings_update[1])
     auth = Authenticator(settings=settings, cache=_build_cache())
-
-    async def _fake_verify_bearer_token(*, token: str) -> dict[str, Any]:
-        del token
-        return {
-            "sub": "subject-1",
-            "scope_id": "scope-from-token",
-            "scope": "uploads:read",
-        }
-
-    monkeypatch.setattr(
-        auth,
-        "_verify_bearer_token",
-        _fake_verify_bearer_token,
-    )
+    verify_bearer_token = AsyncMock(return_value=claims)
+    monkeypatch.setattr(auth, "_verify_bearer_token", verify_bearer_token)
 
     with pytest.raises(FileTransferError) as exc:
         await auth.authenticate(token="token-123")
-    assert exc.value.code == "forbidden"
-    assert exc.value.status_code == 403
 
-
-@pytest.mark.anyio
-async def test_required_permission_is_enforced_from_principal_claims(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    settings = _settings()
-    settings.oidc_required_permissions = "jobs:enqueue"
-    auth = Authenticator(settings=settings, cache=_build_cache())
-
-    async def _fake_verify_bearer_token(*, token: str) -> dict[str, Any]:
-        del token
-        return {
-            "sub": "subject-1",
-            "scope_id": "scope-from-token",
-            "scope": "uploads:write",
-            "permissions": ["jobs:read"],
-        }
-
-    monkeypatch.setattr(
-        auth,
-        "_verify_bearer_token",
-        _fake_verify_bearer_token,
-    )
-
-    with pytest.raises(FileTransferError) as exc:
-        await auth.authenticate(token="token-123")
+    verify_bearer_token.assert_awaited_once_with(token="token-123")
     assert exc.value.code == "forbidden"
     assert exc.value.status_code == 403
 

@@ -213,6 +213,11 @@ Toolchain baseline notes:
   - `uv run pytest -q -m runtime_gate`
   - `uv run pytest -q -m "not runtime_gate and not generated_smoke"`
   - `uv run pytest -q -m generated_smoke`
+- Hosted pytest lanes emit JUnit XML artifacts for every lane. The optional
+  `pytest-report` job merges the Python 3.13 coverage data from
+  `pytest-runtime-gates`, `pytest-primary`, and `pytest-generated-smoke` into a
+  report-only coverage artifact; coverage is informational and not a fail-under
+  gate in the current posture.
 
 Additional required gates when touching OpenAPI, generated TypeScript SDKs, npm
 packaging, release automation, or SDK docs/contracts:
