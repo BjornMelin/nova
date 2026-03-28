@@ -15,6 +15,10 @@ Related:
 Defines the canonical runtime route set after hard cut and the CI guardrails
 that prevent reintroduction of legacy route entropy.
 
+This file protects the **current implemented baseline** route set. The
+approved export-resource replacement remains target-state authority under
+`SPEC-0027` and `SPEC-0028` until that cut is implemented.
+
 ## 2. Canonical route policy
 
 1. Public runtime routes MUST use `/v1/*` except `/metrics/summary`.
@@ -46,6 +50,10 @@ Public runtime routes:
 - `GET /metrics/summary`
 
 Non-canonical runtime paths outside this set MUST return `404`.
+
+When the export-resource hard cut lands, update this section in the same change
+set that promotes `SPEC-0027` and `SPEC-0028` from target-state to current
+baseline authority.
 
 ## 4. CI guardrail requirements
 

@@ -26,6 +26,10 @@ related async jobs. The API does not transfer object bytes.
 Hard-cut state (2026-03-03): runtime contract is canonical `/v1/*` plus
 `/metrics/summary`.
 
+This document is the **current implemented baseline** contract. The approved
+target-state export-resource overlay lives in `SPEC-0027` and `SPEC-0028` and
+does not replace the baseline route set until that hard cut lands.
+
 ## 2. Base paths and media type
 
 - API base path: `/v1`
@@ -47,12 +51,17 @@ runtime contract.
 
 ### 3.2 Async jobs
 
+Current implemented baseline routes:
+
 - `POST /v1/jobs`
 - `GET /v1/jobs`
 - `GET /v1/jobs/{job_id}`
 - `POST /v1/jobs/{job_id}/cancel`
 - `POST /v1/jobs/{job_id}/retry`
 - `GET /v1/jobs/{job_id}/events`
+
+Planned target-state export resources are tracked separately in `SPEC-0027`
+and `SPEC-0028`.
 
 ### 3.3 Capability and release endpoints
 
