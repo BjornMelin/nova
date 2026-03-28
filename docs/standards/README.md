@@ -46,8 +46,11 @@ These standards cover repo engineering workflow, generated artifact rules,
 quality-gate routing, pre-commit hook policy, and documentation
 synchronization. They do not replace the architecture authority docs.
 The active CI layout uses a unified `Nova CI` workflow for runtime,
-generated-client, and conformance checks, plus a separate
-`CFN Contract Validate` workflow for infra/docs governance.
+generated-client, and conformance checks. Within that workflow, `quality-gates`
+owns lint/type/generation checks, dedicated `pytest-*` jobs own Python test
+execution, and a non-required `pytest-report` job publishes merged report-only
+coverage. `CFN Contract Validate` remains the separate infra/docs governance
+workflow.
 Node 24 LTS is the current npm/TypeScript SDK tooling baseline for local,
 CI, and release lanes. The merged workspace remains on the verified
 TypeScript 5.x line; TypeScript 6 is deferred until a repo-wide verified

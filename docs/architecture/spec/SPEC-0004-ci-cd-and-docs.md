@@ -52,13 +52,19 @@ Canonical baseline:
 - `uv run python scripts/release/generate_python_clients.py --check`
 - workspace package/app build verification (`uv build` per workspace unit)
 - unified `Nova CI` workflow gate (`.github/workflows/ci.yml`) covering:
-  - `quality-gates` (Python 3.13 primary lane)
-  - `python-compatibility` (Python 3.11 and 3.12 pytest/build lane)
+  - `quality-gates` (Python 3.13 lint/type/generation lane)
+  - `pytest-runtime-gates` (Python 3.13 critical runtime/security/reliability
+    pytest lane)
+  - `pytest-primary` (Python 3.13 primary pytest lane)
+  - `pytest-generated-smoke` (Python 3.13 generated-client smoke pytest lane)
+  - `pytest-compatibility-3.11` (Python 3.11 pytest/build lane)
+  - `pytest-compatibility-3.12` (Python 3.12 pytest/build lane)
   - `generated-clients`
   - `dash-conformance`
   - `shiny-conformance`
   - `typescript-conformance` (release-grade TypeScript SDK client + fixture
     smoke; required check name remains stable)
+  - optional `pytest-report` coverage aggregation/artifact lane
 - separate `CFN Contract Validate` workflow gate
 
 Release workflows also carry the first-class internal R release line via
