@@ -252,6 +252,9 @@ async def test_copy_upload_to_export_error_mapping(
         expected_code: Expected FileTransferError.code value.
         expected_status: Expected FileTransferError.status_code value.
         expected_message: Expected rendered error message text.
+
+    Returns:
+        None.
     """
     service, settings, _fake_s3 = _copy_upload_error_case(error=copy_error)
 

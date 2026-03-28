@@ -188,7 +188,15 @@ def test_apply_version_updates_changes_npm_package_json(
     tmp_path: Path,
     write_text: Callable[[Path, str], None],
 ) -> None:
-    """Validate npm package.json versions are updated by the release plan."""
+    """Validate npm package.json versions are updated by the release plan.
+
+    Args:
+        tmp_path: Temporary repo root used for the synthetic workspace.
+        write_text: Helper that writes fixture files into the temp repo.
+
+    Returns:
+        None.
+    """
     repo_root = tmp_path
     package_json = repo_root / "packages/nova_sdk_ts/package.json"
     write_text(

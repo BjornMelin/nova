@@ -62,7 +62,11 @@ def _state_machine_definition_text(template: Template) -> str:
 
 @pytest.fixture(scope="module")
 def default_template_bundle() -> _DefaultTemplateBundle:
-    """Synthesize the default stack once for the positive-path assertions."""
+    """Synthesize the default stack once for the positive-path assertions.
+
+    Returns:
+        _DefaultTemplateBundle: Cached template-derived values for assertions.
+    """
     template = _template()
     functions = template.find_resources("AWS::Lambda::Function")
 
@@ -102,7 +106,14 @@ def default_template_bundle() -> _DefaultTemplateBundle:
 def test_serverless_stack_requires_complete_oidc_context(
     missing_key: str,
 ) -> None:
-    """Serverless synth must fail closed on incomplete OIDC wiring."""
+    """Serverless synth must fail closed on incomplete OIDC wiring.
+
+    Args:
+        missing_key: Required OIDC context key removed for the test case.
+
+    Raises:
+        ValueError: Raised when the stack context omits required OIDC data.
+    """
     context = dict(_BASE_CONTEXT)
     context.pop(missing_key)
 
@@ -113,7 +124,14 @@ def test_serverless_stack_requires_complete_oidc_context(
 def test_serverless_stack_passes_oidc_env_to_api_lambda(
     default_template_bundle: _DefaultTemplateBundle,
 ) -> None:
-    """API Lambda must receive the in-process OIDC verifier settings."""
+    """API Lambda must receive the in-process OIDC verifier settings.
+
+    Args:
+        default_template_bundle: Cached serverless template data for assertions.
+
+    Returns:
+        None.
+    """
     api_function_env = default_template_bundle.api_function_env
     assert api_function_env["OIDC_ISSUER"] == _BASE_CONTEXT["jwt_issuer"]
     assert api_function_env["OIDC_AUDIENCE"] == _BASE_CONTEXT["jwt_audience"]
@@ -123,7 +141,14 @@ def test_serverless_stack_passes_oidc_env_to_api_lambda(
 def test_serverless_stack_keeps_health_routes_public(
     default_template_bundle: _DefaultTemplateBundle,
 ) -> None:
-    """Health probes must stay unauthenticated while /v1 stays JWT-protected."""
+    """Keep health probes public while the `/v1` API remains JWT-protected.
+
+    Args:
+        default_template_bundle: Cached serverless template data for assertions.
+
+    Returns:
+        None.
+    """
     routes = default_template_bundle.routes
     assert routes["GET /v1/health/live"]["AuthorizationType"] == "NONE"
     assert routes["GET /v1/health/ready"]["AuthorizationType"] == "NONE"
@@ -138,7 +163,14 @@ def test_serverless_stack_keeps_health_routes_public(
 def test_serverless_stack_maps_caught_errors_for_failure_handler(
     default_template_bundle: _DefaultTemplateBundle,
 ) -> None:
-    """Workflow failures must reach the fail handler as top-level fields."""
+    """Route workflow failure fields to the fail handler input payload.
+
+    Args:
+        default_template_bundle: Cached serverless template data for assertions.
+
+    Returns:
+        None.
+    """
     definition_fragment = default_template_bundle.definition_fragment
     assert "$.workflow_error.Error" in definition_fragment
     assert "$.workflow_error.Cause" in definition_fragment

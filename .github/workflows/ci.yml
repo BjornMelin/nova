@@ -357,7 +357,9 @@ jobs:
       - pytest-runtime-gates
       - pytest-primary
       - pytest-generated-smoke
-    if: needs.classify-changes.outputs.run_runtime_ci == 'true'
+    if: >-
+      always() &&
+      needs.classify-changes.outputs.run_runtime_ci == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -434,6 +436,8 @@ jobs:
         with:
           python-version: "3.13"
           save-cache: "false"
+      - name: Run TypeScript SDK pytest contracts
+        run: uv run pytest -q scripts/release/tests/test_typescript_sdk_contracts.py
       - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # actions/setup-node@v6
         with:
           node-version: "24"
@@ -449,8 +453,6 @@ jobs:
         run: uv run python scripts/contracts/export_openapi.py --check
       - name: Verify generated Python SDK artifacts
         run: uv run python scripts/release/generate_python_clients.py --check
-      - name: Run TypeScript SDK pytest contracts
-        run: uv run pytest -q scripts/release/tests/test_typescript_sdk_contracts.py
 
   typescript-core-packages:
     needs: classify-changes

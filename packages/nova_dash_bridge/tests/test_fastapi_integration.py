@@ -82,7 +82,7 @@ def _create_fastapi_app(
     return fastapi_integration.create_fastapi_app(
         env_config=_env_config(),
         upload_policy=_upload_policy(),
-        auth_policy=auth_policy or _auth_policy(),
+        auth_policy=(_auth_policy() if auth_policy is None else auth_policy),
         s3_client_factory=s3_client_factory,
         async_s3_client_factory=async_s3_client_factory,
     )
