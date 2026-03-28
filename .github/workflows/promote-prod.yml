@@ -3,10 +3,6 @@ name: Promote Prod
 on:
   workflow_dispatch:
     inputs:
-      pipeline_name:
-        description: AWS CodePipeline name
-        required: true
-        type: string
       manifest_sha256:
         description: SHA256 for docs/release/RELEASE-VERSION-MANIFEST.md
         required: true
@@ -59,7 +55,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: promote-prod-${{ github.ref }}-${{ inputs.pipeline_name }}
+  group: promote-prod-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -67,7 +63,6 @@ jobs:
     if: github.ref == 'refs/heads/main'
     uses: ./.github/workflows/reusable-promote-prod.yml
     with:
-      pipeline_name: ${{ inputs.pipeline_name }}
       manifest_sha256: ${{ inputs.manifest_sha256 }}
       changed_units_json: ${{ inputs.changed_units_json }}
       changed_units_path: ${{ inputs.changed_units_path }}

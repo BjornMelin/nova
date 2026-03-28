@@ -1,6 +1,6 @@
 # SPEC-0029 -- Canonical serverless platform
 
-> **Implementation state:** Implemented in-repo for the current baseline, while legacy ECS-era deployments and docs remain to be retired.
+> **Implementation state:** Implemented in-repo for the active canonical baseline.
 
 ## Runtime
 

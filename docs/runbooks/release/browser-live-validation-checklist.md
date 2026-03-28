@@ -4,13 +4,12 @@ Status: Active
 Owner: Release Architecture + Platform Operations
 Last updated: 2026-03-19
 
-## When to use this vs NONPROD runbook
+## When to use this checklist
 
 - **This checklist:** Scripted browser validation (`agent-browser`) for
   dash + Nova URLs, route contract JSON, and non-mutating smoke steps.
-- **[nonprod-live-validation-runbook.md](nonprod-live-validation-runbook.md):**
-  Broader AWS control-plane and pipeline gates. Run both when certifying a
-  release to prod.
+- Use this checklist when you need browser-level evidence after deploying the
+  canonical serverless stack.
 
 ## Authority / Related Documents
 
@@ -105,7 +104,7 @@ agent-browser trace stop
 
 Pass:
 
-- Requests include canonical `/v1/transfers` and `/v1/jobs`.
+- Requests include canonical `/v1/transfers` and `/v1/exports`.
 - No active legacy namespace route usage.
 - No critical unhandled exceptions affecting user flow.
 

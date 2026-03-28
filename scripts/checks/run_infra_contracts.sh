@@ -9,12 +9,9 @@ if ! command -v uv >/dev/null 2>&1; then
   exit 1
 fi
 
-uv run --with cfn-lint==1.46.0 cfn-lint \
-  infra/nova/*.yml \
-  infra/nova/deploy/*.yml \
-  infra/runtime/**/*.yml
 uv run --with pytest pytest -q \
-  tests/infra/test_absorbed_infra_contracts.py \
-  tests/infra/test_workflow_productization_contracts.py \
+  tests/infra/test_ci_scope_detector.py \
+  tests/infra/test_release_workflow_contracts.py \
+  tests/infra/test_serverless_stack_contracts.py \
   tests/infra/test_workflow_contract_docs.py \
   tests/infra/test_docs_authority_contracts.py

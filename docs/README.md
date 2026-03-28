@@ -1,14 +1,13 @@
 # Nova documentation router
 
 Status: Active
-Current repository state: **mixed wave-2 implementation baseline**
-Last reviewed: 2026-03-25
+Current repository state: **canonical wave-2 serverless baseline**
+Last reviewed: 2026-03-28
 
 ## Purpose
 
-This file routes readers to the right documentation set without letting
-pre-implementation baseline facts, approved target-state decisions, and
-historical bundles blur together.
+This file routes readers to the active canonical docs set and keeps historical
+material out of the default path.
 
 ## Read in order
 
@@ -17,23 +16,19 @@ historical bundles blur together.
 3. `./overview/IMPLEMENTATION-STATUS-MATRIX.md`
 4. `../README.md`
 5. `./standards/README.md`
-6. `./runbooks/README.md` for current operations
-7. `./plan/GREENFIELD-WAVE-2-EXECUTION.md` for branch execution
+6. `./runbooks/README.md`
 
-## Current implemented baseline
-
-Use these when you need the truth about the repository as currently
-implemented:
+## Active canonical docs
 
 - `./architecture/README.md`
 - `./overview/IMPLEMENTATION-STATUS-MATRIX.md`
-- `./runbooks/README.md`
+- `./overview/ACTIVE-DOCS-INDEX.md`
 - `./contracts/README.md`
-- `./overview/NOVA-REPO-OVERVIEW.md`
+- `./runbooks/README.md`
+- `./clients/README.md`
+- `./release/README.md`
 
-## Approved target-state program
-
-Use these when you are planning or implementing the hard-cut modernization:
+## Active architecture/program authority
 
 - `./overview/CANONICAL-TARGET-2026-04.md`
 - `./architecture/requirements-wave-2.md`
@@ -48,35 +43,16 @@ Use these when you are planning or implementing the hard-cut modernization:
 - `./architecture/spec/SPEC-0029-platform-serverless.md`
 - `./architecture/spec/SPEC-0030-sdk-generation-and-package-layout.md`
 - `./architecture/spec/SPEC-0031-docs-and-tests-authority-reset.md`
-- `./plan/GREENFIELD-WAVE-2-EXECUTION.md`
-
-## Current authority indexes
-
-- `./architecture/adr/index.md`
-- `./architecture/spec/index.md`
-- `./overview/ACTIVE-DOCS-INDEX.md`
-
-## Supporting references
-
-- `./architecture/spec/REFERENCES.md`
-- `./overview/DEPENDENCY-LEVERAGE-AUDIT.md`
-- `./overview/ENTROPY-REDUCTION-LEDGER.md`
-- `./standards/DECISION-FRAMEWORKS-GREENFIELD-2026.md`
 
 ## Historical / superseded
-
-Use only for audit trail or traceability:
 
 - `./history/README.md`
 - `./architecture/adr/superseded/`
 - `./architecture/spec/superseded/`
+- `./plan/PLAN.md`
 
 ## Rules
 
-- Never treat `docs/history/**` or superseded ADR/SPEC paths as current
-  authority.
-- Current operations use the current implemented runbooks for the mixed-wave-2
-  baseline and any remaining legacy environments.
-- Implementation branches use the approved target-state ADR/SPEC set and
-  `./plan/GREENFIELD-WAVE-2-EXECUTION.md`.
-- When a branch lands, update status language so docs keep matching reality.
+- Do not treat archived history or superseded ADR/SPEC material as current authority.
+- Do not describe ECS/Fargate, runtime worker stacks, or split SDK packages as live repo surfaces.
+- Keep docs aligned to the active package graph, GitHub workflows, and `infra/nova_cdk`.

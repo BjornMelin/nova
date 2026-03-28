@@ -39,9 +39,6 @@ This guide is designed as a 5-minute setup flow for downstream repos.
   `docs/contracts/release-artifacts-v1.schema.json#/$defs/post_deploy_validation_report`.
 - Workflow input/output shape matches
   `docs/contracts/workflow-post-deploy-validate.schema.json`.
-- Shared reusable deployment API contracts remain aligned with
-  `docs/contracts/reusable-workflow-inputs-v1.schema.json` and
-  `docs/contracts/reusable-workflow-outputs-v1.schema.json#/$defs/validation_report_output`.
 - Browser live-gate artifacts (WS5) follow
   `docs/contracts/browser-live-validation-report.schema.json`.
 
@@ -60,7 +57,6 @@ This guide is designed as a 5-minute setup flow for downstream repos.
 ## References
 
 - `docs/contracts/README.md`
-- `docs/contracts/deploy-size-profiles-v1.json`
 - `docs/contracts/workflow-auth0-tenant-deploy.schema.json`
 - `docs/contracts/browser-live-validation-report.schema.json`
 - GitHub reusable workflow docs:

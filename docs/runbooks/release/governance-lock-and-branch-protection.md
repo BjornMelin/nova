@@ -39,7 +39,6 @@ From workflow `Nova CI` (`.github/workflows/ci.yml`):
 - `pytest-generated-smoke`
 - `pytest-compatibility-3.11`
 - `pytest-compatibility-3.12`
-- `python-compatibility` (build/packaging compatibility lane)
 - `generated-clients`
 - `dash-conformance`
 - `shiny-conformance`
@@ -156,7 +155,6 @@ gh api \
           { "context": "pytest-generated-smoke" },
           { "context": "pytest-compatibility-3.11" },
           { "context": "pytest-compatibility-3.12" },
-          { "context": "python-compatibility" },
           { "context": "generated-clients" },
           { "context": "dash-conformance" },
           { "context": "shiny-conformance" },

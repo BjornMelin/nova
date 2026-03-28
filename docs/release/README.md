@@ -4,7 +4,7 @@ Status: Active
 Last reviewed: 2026-03-24
 
 This directory holds **machine-stable files** consumed by release automation,
-CodeBuild, and contract checks. Operator procedures live under
+GitHub workflows, and contract checks. Operator procedures live under
 [`../runbooks/release/README.md`](../runbooks/release/README.md) and
 [`../runbooks/provisioning/README.md`](../runbooks/provisioning/README.md).
 
