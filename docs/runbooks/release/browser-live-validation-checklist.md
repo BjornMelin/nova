@@ -105,7 +105,7 @@ agent-browser trace stop
 
 Pass:
 
-- Requests include canonical `/v1/transfers` and `/v1/exports`.
+- Requests include canonical `/v1/transfers` and `/v1/jobs`.
 - No active legacy namespace route usage.
 - No critical unhandled exceptions affecting user flow.
 
@@ -116,7 +116,7 @@ Pass:
 - Required environment scoping:
   - `ENVIRONMENT=dev` (or approved staging sandbox).
   - Optional isolation prefix: `BROWSER_LIVE_SCOPE` (defaults to `$RUN_ID`).
-  - If your tenant supports it, pass the scope through `E2E_UPLOAD_FILE` metadata or URL query args so created export artifacts are discoverable and removable.
+  - If your tenant supports it, pass the scope through `E2E_UPLOAD_FILE` metadata or URL query args so created jobs/data are discoverable and removable.
 
 ```bash
 export BROWSER_LIVE_SCOPE="${BROWSER_LIVE_SCOPE:-$RUN_ID}"
@@ -164,7 +164,7 @@ echo "RUN_ID=${RUN_ID}" >> "$OUT/run-metadata.txt"
 echo "BROWSER_LIVE_SCOPE=${BROWSER_LIVE_SCOPE}" >> "$OUT/run-metadata.txt"
 
 # Best-effort cleanup: if tenant-specific cleanup endpoint is configured,
-# remove run-scoped export artifacts before leaving the env.
+# remove run-scoped job artifacts before leaving the env.
 if [ -n "${BROWSER_LIVE_CLEANUP_URL:-}" ]; then
   curl -fsS -X POST "${BROWSER_LIVE_CLEANUP_URL}" \
     -H "Content-Type: application/json" \

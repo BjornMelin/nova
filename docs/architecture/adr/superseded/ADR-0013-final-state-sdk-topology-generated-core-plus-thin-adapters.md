@@ -61,8 +61,8 @@ Implementation commitments:
 
 - Canonical SDK generation inputs are Nova OpenAPI artifacts only.
 - Public release-grade SDK packages for this wave are:
-  - the legacy split Python file SDK package
-  - the legacy split Python auth SDK package
+  - `nova_sdk_py_file`
+  - `nova_sdk_py_auth`
 - `nova_dash_bridge` remains a thin Python integration adapter over canonical
   Nova contracts, using `nova_file_api.public` as its in-process runtime seam.
 - `@nova/sdk-file`, `@nova/sdk-auth`, and `@nova/sdk-fetch` remain

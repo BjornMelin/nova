@@ -1,7 +1,11 @@
+> **Superseded target draft**
+>
+> This draft was superseded before implementation by the wave-2 target authority, primarily `ADR-0034-eliminate-auth-service-and-session-auth.md`.
+
 ---
 ADR: 0033
 Title: Green-field single runtime auth authority
-Status: Accepted
+Status: Superseded
 Version: 1.0
 Date: 2026-03-19
 Supersedes: "[ADR-0005: Add dedicated nova-auth-api service (superseded)](./superseded/ADR-0005-add-dedicated-nova-auth-api-service.md)"

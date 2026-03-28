@@ -1,7 +1,11 @@
+> **Superseded target draft**
+>
+> This draft was superseded before implementation by `ADR-0033-canonical-serverless-platform.md` and `SPEC-0029-platform-serverless.md`.
+
 ---
 ADR: 0039
 Title: Green-field AWS target platform
-Status: Accepted
+Status: Superseded
 Version: 1.0
 Date: 2026-03-19
 Related:

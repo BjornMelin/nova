@@ -10,7 +10,7 @@ through
 and
 [SPEC-0027](../architecture/spec/SPEC-0027-public-http-contract-revision-and-bearer-auth.md)
 through
-[SPEC-0030](../architecture/spec/SPEC-0030-sdk-generation-and-package-layout.md).
+[SPEC-0029](../architecture/spec/SPEC-0029-sdk-architecture-and-artifact-contract.md).
 This document is the **execution router**: branch order, merge policy, and
 definition of done.
 
@@ -38,7 +38,7 @@ as non-authoritative playbooks.
       -> 4 native FastAPI contract / OpenAPI
         -> 5 shared pure-ASGI middleware + errors
           -> 6 async-first public surface
-            -> 7 TS SDK on Hey API
+            -> 7 TS SDK on openapi-fetch
               -> 8 Python SDK thin templates
                 -> 9 R SDK thin httr2 client
                   -> 10 infra simplification onto final platform
@@ -55,7 +55,7 @@ as non-authoritative playbooks.
 | 4 | `refactor/api-native-fastapi-openapi` | MAJOR | branch 3 merged | Native FastAPI OpenAPI expression with explicit route `operation_id`s, route-declared `responses=`, and no file-API post-processor. |
 | 5 | `refactor/runtime-pure-asgi-middleware-errors` | MAJOR | branch 4 merged | Shared pure ASGI request-context middleware, shared FastAPI exception registration, and canonical request-id/error-envelope parity. |
 | 6 | `refactor/public-async-first-surface` | MAJOR | branch 5 merged | `nova_file_api.public` async-first; thin sync adapters only at true sync edges. |
-| 7 | `refactor/sdk-typescript-hey-api` | MAJOR | branch 6 merged | `@hey-api/openapi-ts`; remove custom TS fetch runtime package and unify on `@nova/sdk`. |
+| 7 | `refactor/sdk-typescript-openapi-fetch` | MAJOR | branch 6 merged | `openapi-typescript` + `openapi-fetch`; remove custom TS fetch runtime package. |
 | 8 | `refactor/sdk-python-template-thin` | MAJOR | branch 7 merged | `openapi-python-client` with config + minimal templates; slash patch scripts. |
 | 9 | `refactor/sdk-r-httr2-thin-client` | MAJOR | branch 8 merged | Thin `httr2` R package; reject OpenAPI Generator R beta as primary path. |
 | 10 | `infra/greenfield-ecs-platform` | MAJOR | branch 9 merged | Finalize CloudFront + WAF public edge, internal ALB origin, ECS/Fargate API + worker, and managed data-plane IaC/documentation truth. |
@@ -114,9 +114,9 @@ uv run python scripts/release/generate_runtime_config_contract.py --check
 uv run python scripts/release/generate_clients.py --check
 uv run python scripts/release/generate_python_clients.py --check
 for p in packages/nova_file_api packages/nova_dash_bridge packages/nova_runtime_support; do uv build "$p"; done
-npm run -w @nova/sdk build
-npm run -w @nova/sdk typecheck
-bash scripts/checks/verify_r_cmd_check.sh packages/nova_sdk_r
+npm run -w @nova/sdk-file build
+npm run -w @nova/sdk-file typecheck
+bash scripts/checks/verify_r_cmd_check.sh packages/nova_sdk_r_file
 ```
 
 ## Program-level definition of done
@@ -127,7 +127,7 @@ The program is complete only when all of the following are true:
 - Public `session_id` / header scope surrogates for auth are removed.
 - Worker HTTP result callback to the API is removed.
 - The custom TypeScript fetch runtime package is removed (replaced by
-  ecosystem-native Hey API generation per ADR-0037 / SPEC-0030).
+  ecosystem-native stack per ADR-0038).
 - Remaining OpenAPI customization is small and justified (ADR-0036).
 - The canonical public Python surface is async-first (ADR-0037).
 - Generated clients for Python, TypeScript, and R target the final public

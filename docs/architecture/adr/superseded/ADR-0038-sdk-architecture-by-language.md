@@ -1,7 +1,11 @@
+> **Superseded target draft**
+>
+> This draft was superseded before implementation by `ADR-0037-sdk-generation-consolidation.md` and `SPEC-0030-sdk-generation-and-package-layout.md`.
+
 ---
 ADR: 0038
 Title: Green-field SDK architecture by language
-Status: Accepted
+Status: Superseded
 Version: 1.0
 Date: 2026-03-19
 Supersedes: "[ADR-0013: Final-state SDK topology (superseded)](./superseded/ADR-0013-final-state-sdk-topology-generated-core-plus-thin-adapters.md)"

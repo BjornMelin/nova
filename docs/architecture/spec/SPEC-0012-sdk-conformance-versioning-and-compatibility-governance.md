@@ -71,7 +71,7 @@ Nova repository lanes:
 
 Minimum shared scenarios:
 
-1. bearer-principal success with normalized principal shape
+1. `verify_token` success with normalized principal shape
 2. `401` / `403` bearer-auth failure handling against the public file API
 3. file transfer initiate/sign/complete roundtrip payload conformance
 4. queue enqueue error envelope (`queue_unavailable`) shape stability

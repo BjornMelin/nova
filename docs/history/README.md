@@ -1,31 +1,23 @@
 # Documentation history
 
-Material under `docs/history/**` is **non-authoritative** for current
-implementation, runtime contracts, and operations. It exists for audit,
-traceability, and understanding past program decisions.
+Historical material under `docs/history/**` is **non-authoritative**. It exists
+for traceability only.
 
-## Where active authority lives
+## Current active entrypoints
 
-Use these before historical bundles:
+Use these before opening history bundles:
 
-- [`README.md`](../../README.md) (repository root)
-- [`AGENTS.md`](../../AGENTS.md)
-- [`docs/README.md`](../README.md)
-- [`docs/PRD.md`](../PRD.md)
-- [`docs/architecture/requirements.md`](../architecture/requirements.md)
-- [`docs/architecture/adr/index.md`](../architecture/adr/index.md)
-- [`docs/architecture/spec/index.md`](../architecture/spec/index.md)
-- [`docs/plan/PLAN.md`](../plan/PLAN.md)
-
-Runbooks and release artifacts:
-
-- [`docs/runbooks/README.md`](../runbooks/README.md)
-- [`docs/release/README.md`](../release/README.md)
+- `../../README.md`
+- `../../AGENTS.md`
+- `../README.md`
+- `../architecture/README.md`
+- `../overview/IMPLEMENTATION-STATUS-MATRIX.md`
+- `../plan/PLAN.md`
+- `../runbooks/README.md`
 
 ## Archive bundles
 
-| Bundle | Contents (summary) |
+| Bundle | Summary |
 | --- | --- |
-| [`2026-03-v1-hard-cut/`](2026-03-v1-hard-cut/README.md) | Archived PRD and consolidated `FINAL-PLAN.md` (former `PLAN.md` merged in), ADR-0015/SPEC-0015 implementation blueprint, five subplans, and release checklist. |
-
-For a file-level manifest, see each bundle’s `README.md`.
+| [`2026-03-v1-hard-cut/`](2026-03-v1-hard-cut/README.md) | Earlier consolidated hard-cut planning bundle retained for history. |
+| [`2026-03-greenfield-wave-1-superseded/`](2026-03-greenfield-wave-1-superseded/README.md) | Wave-1 green-field planning/evidence set that was superseded before implementation by the wave-2 target-state program. |

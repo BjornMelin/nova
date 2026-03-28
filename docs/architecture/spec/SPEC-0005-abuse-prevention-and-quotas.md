@@ -29,7 +29,7 @@ Control-plane endpoints are cheap individually but can be abused to:
 
 Primary control SHOULD be infrastructure-level:
 
-- AWS WAF rate-based rules on `/v1/transfers*` and `/v1/exports*`.
+- AWS WAF rate-based rules on `/v1/transfers/*` and `/v1/jobs/*`.
 - Worker result persistence does not traverse the public HTTP surface and is
   therefore outside the WAF-managed route family entirely.
 

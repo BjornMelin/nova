@@ -1,7 +1,11 @@
+> **Superseded target draft**
+>
+> This draft was superseded before implementation by the wave-2 program and prompt set.
+
 ---
 ADR: 0037
 Title: Green-field async-first public surface
-Status: Accepted
+Status: Superseded
 Version: 1.1
 Date: 2026-03-22
 Related:

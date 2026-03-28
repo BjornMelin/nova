@@ -1,7 +1,11 @@
+> **Superseded target draft**
+>
+> This draft was superseded before implementation by `SPEC-0027-public-api-v2.md`.
+
 ---
 Spec: 0027
 Title: Public HTTP contract revision and bearer auth
-Status: Active
+Status: Superseded
 Version: 1.0
 Date: 2026-03-19
 Supersedes: "[SPEC-0007: Auth API contract (superseded)](./superseded/SPEC-0007-auth-api-contract.md)"

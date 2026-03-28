@@ -104,9 +104,9 @@ now requires `RUNTIME_COST_MODE`:
 When runtime availability can be sacrificed to stop spend immediately, use
 `RUNTIME_COST_MODE=paused` and converge both `dev` and `prod`.
 
-If the idempotency table name or ARN changes, force a new ECS deployment so
-running tasks reload the updated `IDEMPOTENCY_DYNAMODB_TABLE` contract. Without
-a forced deployment, existing tasks keep the previous runtime wiring.
+If `CacheUrlSecretArn` rotates to a new secret value under the same ARN, force
+a new ECS deployment after rotation so running tasks reload `CACHE_REDIS_URL`.
+Without a forced deployment, existing tasks keep the previous secret value.
 
 ## Cost hook
 

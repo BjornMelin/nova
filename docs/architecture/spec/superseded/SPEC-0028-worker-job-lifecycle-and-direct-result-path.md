@@ -1,7 +1,11 @@
+> **Superseded target draft**
+>
+> This draft was superseded before implementation by `SPEC-0028-export-workflow-state-machine.md`.
+
 ---
 Spec: 0028
 Title: Worker job lifecycle and direct result path
-Status: Active
+Status: Superseded
 Version: 1.0
 Date: 2026-03-19
 Related:

@@ -26,6 +26,7 @@
 - `docs/contracts/BREAKING-CHANGES-V2.md`
 - `docs/runbooks/RUNBOOK-SERVERLESS-OPERATIONS.md`
 - `docs/standards/DECISION-FRAMEWORKS-GREENFIELD-2026.md`
+- `.agents/AUDIT_DELIVERABLES/` when intentionally kept in-repo for branch execution
 
 ## Not active by default
 

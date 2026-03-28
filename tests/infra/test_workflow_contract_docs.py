@@ -331,11 +331,7 @@ def test_governance_runbook_tracks_unified_required_checks() -> None:
         "Nova CI",
         ".github/workflows/ci.yml",
         "quality-gates",
-        "pytest-runtime-gates",
-        "pytest-primary",
-        "pytest-generated-smoke",
-        "pytest-compatibility-3.11",
-        "pytest-compatibility-3.12",
+        "python-compatibility",
         "generated-clients",
         "dash-conformance",
         "shiny-conformance",
@@ -344,11 +340,15 @@ def test_governance_runbook_tracks_unified_required_checks() -> None:
     ]:
         assert required in text
 
-    for forbidden in [
-        "runtime-security-reliability-gates",
-        "conformance-clients.yml",
+    for required in [
+        "Do not require:",
+        "classify-changes",
+        "typescript-core-packages",
+        "typescript-sdk-smoke",
     ]:
-        assert forbidden not in text
+        assert required in text
+
+    assert "conformance-clients.yml" not in text
 
 
 def test_auth0_workflow_schema_matches_reusable_auth0_api() -> None:

@@ -1,62 +1,34 @@
----
-Spec: 0029
-Title: Canonical serverless platform
-Status: Active
-Version: 1.0
-Date: 2026-03-25
-Supersedes: "[SPEC-0029: SDK architecture and artifact contract (superseded)](./superseded/SPEC-0029-sdk-architecture-and-artifact-contract.md)"
-Related:
-  - "[requirements-wave-2.md](../requirements-wave-2.md)"
-  - "[ADR-0033: Canonical serverless platform](../adr/ADR-0033-canonical-serverless-platform.md)"
-  - "[ADR-0036: DynamoDB idempotency and transient state, no Redis](../adr/ADR-0036-dynamodb-idempotency-no-redis.md)"
-  - "[RUNBOOK-SERVERLESS-OPERATIONS.md](../../runbooks/RUNBOOK-SERVERLESS-OPERATIONS.md)"
-References:
-  - "[Canonical target state (2026-04)](../../overview/CANONICAL-TARGET-2026-04.md)"
-  - "[Breaking changes v2](../../contracts/BREAKING-CHANGES-V2.md)"
----
+# SPEC-0029 — Canonical serverless platform
 
-## 1. Purpose
+> **Implementation state:** Approved target-state SPEC. Current deployments may still be ECS/SQS/Redis until migration completes.
 
-Define the canonical serverless runtime platform for Nova after the wave-2
-hard cut. The repo now carries first-class workflow handlers and CDK
-infrastructure for this shape, while legacy ECS/CloudFormation assets remain
-only for environments not yet cut over.
 
-## 2. Runtime topology
+## Runtime
 
 - CloudFront + WAF
 - API Gateway HTTP API
-- Lambda using FastAPI via Lambda Web Adapter
+- Lambda (FastAPI via Lambda Web Adapter, Python 3.13, arm64)
 - Step Functions Standard
 - DynamoDB
 - S3
-- CloudWatch plus tracing/telemetry
+- CloudWatch / tracing
 
-## 3. IaC requirements
+## IaC
 
-- the canonical infrastructure code lives in `infra/nova_cdk`
-- the CDK app uses Python and models the API, workflow, storage, and
-  observability surface as one coherent target platform
+- CDK v2 in Python under `infra/nova_cdk`
 
-## 4. Network and security rules
+## Network/security
 
-- no public application subnets are required for the control plane
+- no public application subnets required for the control plane
 - use IAM roles and temporary credentials everywhere
-- use Secrets Manager / Parameter Store for config and secrets
-- use KMS encryption at rest
-- use route-level JWT authorizers in API Gateway where they materially reduce
-  noise before the app
+- secrets/config in Secrets Manager / Parameter Store
+- KMS encryption at rest
+- route-level JWT authorizers in API Gateway where valuable
 
-## 5. Operational defaults
+## Operational defaults
 
-- reserved concurrency for blast-radius control
+- reserved concurrency for blast radius
 - provisioned concurrency only when justified by measured latency
 - structured JSON logs
-- correlation IDs across API and workflow boundaries
-- RED metrics, saturation, and workflow failure metrics
-
-## 6. Traceability
-
-- [Architecture requirements](../requirements-wave-2.md#architecture-requirements)
-- [Repo requirements](../requirements-wave-2.md#repo-requirements)
-- [Quality requirements](../requirements-wave-2.md#quality-requirements)
+- correlation IDs
+- RED metrics + saturation + workflow failure metrics

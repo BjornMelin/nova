@@ -1,66 +1,44 @@
-# Nova Runtime Repository Overview
+# Nova repository overview
 
-Status: Active
-Last reviewed: 2026-03-24
+Status: Active orientation doc
+Last reviewed: 2026-03-25
 
 ## Purpose
 
-Provide a short mental model for new readers before they move into the
-canonical authority docs. This file is orientation only; architecture and
-operator authority live elsewhere.
+Give new readers a fast mental model of the repository **without** pretending
+that the approved target-state program has already landed.
 
-## What Nova Is
+## One sentence summary
 
-Nova is the canonical runtime monorepo for file-transfer orchestration and
-in-process bearer JWT verification. It provides a control plane for transfer
-and async export workflows and does not proxy file bytes through the API layer.
+Nova is currently a transfer-control and async-jobs monorepo on an older
+ECS/SQS/Redis/auth-service-oriented baseline, with an approved wave-2 program
+that will hard-cut it into a smaller bearer-only transfer + export-workflow
+control plane.
 
-## Monorepo Map
+## Current implemented baseline
 
-- `packages/nova_file_api`: canonical `/v1/*` transfer and export-workflow runtime
-- `packages/nova_dash_bridge`: Dash/Flask/FastAPI adapters over
-  `nova_file_api.public`
-- `packages/nova_runtime_support`: shared outer-ASGI request context and
-  FastAPI exception registration
-- `packages/nova_sdk_py`: release-grade public Python SDK
-- `packages/nova_sdk_ts`: release-grade TypeScript SDK in the CodeArtifact
-  staged/prod flow
-- `packages/nova_sdk_r`: first-class internal R SDK package
-- `packages/contracts`: OpenAPI artifacts, workflow schemas, and conformance
-  helpers
-- `infra/nova` and `infra/runtime`: CI/CD, IAM, and runtime CloudFormation
+The current baseline still centers:
 
-## Runtime Flow at a Glance
+- transfer APIs plus generic jobs
+- dedicated auth-service-era artifacts
+- ECS/Fargate + ALB + SQS worker topology
+- Redis in correctness/idempotency paths
+- split SDK/package layout
 
-- Requests enter `nova_file_api` on the canonical `/v1/*` surface.
-- Bearer JWT verification, validation, idempotency, and service orchestration
-  happen in-process.
-- Async export workflows publish to queue backends and workers write terminal state through
-  the direct-persistence path.
-- Health and observability surfaces remain:
-  - `/v1/health/live`
-  - `/v1/health/ready`
-  - `/metrics/summary`
+## Approved target-state program
 
-## Package Responsibilities
+The target state moves Nova to:
 
-- `nova_file_api` owns runtime endpoints, auth, export workflow lifecycle, and readiness.
-- `nova_dash_bridge` owns framework adapters and consumes
-  `nova_file_api.public` as the in-process seam. FastAPI integrations await
-  that async surface directly, while Flask/Dash keep explicit sync adapters at
-  the true sync edge only.
-- `nova_runtime_support` owns shared request-id propagation and shared FastAPI
-  exception registration.
-- `packages/contracts` owns committed OpenAPI and reusable workflow schema
-  artifacts.
-- The SDK packages own the generated client surfaces and release artifacts for
-  their respective languages.
+- bearer JWT only
+- explicit export workflows
+- API Gateway HTTP API + Lambda Web Adapter + Step Functions Standard
+- DynamoDB + S3 as the durable core
+- one canonical SDK package per language
+- much smaller docs authority
 
-## Read Next
+## Where to read next
 
-- `AGENTS.md` for the durable operator contract
-- `docs/README.md` for task-based documentation routing
-- `docs/architecture/README.md` for canonical architecture authority
-- `docs/standards/README.md` for engineering workflow and docs-sync policy
-- `docs/runbooks/README.md` for deployment, release, and validation runbooks
-- `docs/history/README.md` for archived plans and superseded material
+- `IMPLEMENTATION-STATUS-MATRIX.md`
+- `CANONICAL-TARGET-2026-04.md`
+- `../architecture/README.md`
+- `../plan/GREENFIELD-WAVE-2-EXECUTION.md`

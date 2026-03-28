@@ -98,7 +98,7 @@ uv run python scripts/release/generate_clients.py --check
 uv run python scripts/release/generate_python_clients.py --check
 npm run -w @nova/sdk-file build
 npm run -w @nova/sdk-file typecheck
-bash scripts/checks/verify_r_cmd_check.sh packages/nova_sdk_r
+bash scripts/checks/verify_r_cmd_check.sh packages/nova_sdk_r_file
 ```
 
 ## Program-level definition of done

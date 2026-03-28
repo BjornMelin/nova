@@ -68,9 +68,9 @@ Choose **Option B**.
 ### Required characteristics
 
 1. `packages/nova_file_api/` owns:
-   - canonical `/v1/transfers/*` and `/v1/exports*` runtime behavior
+   - canonical `/v1/transfers/*` and `/v1/jobs*` runtime behavior
    - capability, release-info, liveness, readiness, and metrics handlers
-   - transfer, exports, cache, idempotency, and activity orchestration
+   - transfer, jobs, cache, idempotency, and activity orchestration
    - in-process bearer JWT verification and principal mapping
    - the canonical `nova_file_api.main:app` process entrypoint consumed by the
      release-only file-service Dockerfile under `apps/`
@@ -116,11 +116,10 @@ Choose **Option B**.
 - 2026-03-22 (v2.4): Clarified that `nova_file_api.public` is async-first and
   that retained sync wrappers in `nova_dash_bridge` are explicit edge adapters
   rather than a second canonical surface.
-- 2026-03-19 (v2.2): Removed active dedicated-auth-service ownership from the
-  runtime boundary contract after the in-process auth cutover landed in
-  `nova_file_api`.
-- 2026-03-10 (v2.1): Consolidated service entrypoints into the runtime API and
-  the then-separate auth service, while keeping the release-only service
-  Dockerfiles outside workspace package paths.
+- 2026-03-19 (v2.2): Removed active `nova_auth_api` ownership from the runtime
+  boundary contract after the in-process auth cutover landed in `nova_file_api`.
+- 2026-03-10 (v2.1): Consolidated service entrypoints into
+  `packages/nova_file_api` and `packages/nova_auth_api`, while keeping the
+  release-only service Dockerfiles outside workspace package paths.
 - 2026-03-05: Restored `ADR-0025` to runtime boundary ownership and moved
   reusable-workflow governance to `ADR-0031`.

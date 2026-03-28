@@ -7,16 +7,14 @@ Use this file to keep current-baseline truth and target-state direction separate
 
 | Area | Current implemented baseline | Approved target state | Primary docs |
 | --- | --- | --- | --- |
-| Public auth | bearer JWT only, verified in-process | bearer JWT only | `docs/architecture/adr/ADR-0034-*`, `docs/architecture/spec/SPEC-0027-*` |
-| Transport / OpenAPI expression | shared pure-ASGI request context, centralized FastAPI exception registration, native route-declared OpenAPI responses, no file-API schema post-processor | same shape retained while broader wave-2 API/platform work continues | `docs/architecture/spec/SPEC-0027-*`, `docs/architecture/adr/superseded/ADR-0041-*`, `README.md` |
-| Bridge/public surface | `nova_file_api.public` is async-first; FastAPI consumes it directly through `nova_dash_bridge.AsyncFileTransferService` with async auth resolution and async-capable S3 clients; retained sync adapters stay isolated to true sync hosts such as Flask/Dash | same async-first surface retained while broader wave-2 API/platform work continues | `README.md`, `docs/clients/README.md`, `docs/architecture/spec/SPEC-0017-*`, `docs/architecture/spec/SPEC-0019-*` |
-| Async contract | explicit export workflows | explicit export workflows | `ADR-0035`, `SPEC-0028` |
-| Internal async completion | workflow-native state, no callback route | workflow-native state, no callback route | `ADR-0035`, `SPEC-0028` |
-| Idempotency/state | DynamoDB-backed idempotency with explicit expiration filtering; no Redis runtime dependency | DynamoDB, explicit expiration filtering, optional local hot cache only | `ADR-0036`, `SPEC-0029` |
-| AWS runtime | HTTP API + Lambda Web Adapter + Step Functions Standard is now implemented in-repo via `packages/nova_workflows` and `infra/nova_cdk`; legacy ECS/Fargate + ALB + SQS CloudFormation assets remain only for non-canonical environments | HTTP API + Lambda Web Adapter + Step Functions Standard | `ADR-0033`, `SPEC-0029` |
-| SDK layout | canonical TypeScript package is `packages/nova_sdk_ts` published as `@nova/sdk`; canonical Python package is `packages/nova_sdk_py` published/imported as `nova-sdk-py` / `nova_sdk_py`; canonical R package is `packages/nova_sdk_r` published as `nova`; TS generation uses `@hey-api/openapi-ts`, Python generation uses `openapi-python-client`, and R stays a thin `httr2` wrapper | one package per language, Hey API / openapi-python-client / httr2 | `ADR-0037`, `SPEC-0030`, `docs/clients/CLIENT-SDK-CANONICAL-PACKAGES.md` |
+| Public auth | mixed / auth-service-era seams still present | bearer JWT only | `docs/architecture/adr/ADR-0034-*`, `docs/architecture/spec/SPEC-0027-*` |
+| Async contract | generic jobs | explicit export workflows | `ADR-0035`, `SPEC-0028` |
+| Internal async completion | callback-style worker path | workflow-native state, no callback route | `ADR-0035`, `SPEC-0028` |
+| Idempotency/state | Redis still in correctness path | DynamoDB, explicit expiration filtering, optional local hot cache only | `ADR-0036`, `SPEC-0029` |
+| AWS runtime | ECS/Fargate + ALB + SQS worker | HTTP API + Lambda Web Adapter + Step Functions Standard | `ADR-0033`, `SPEC-0029` |
+| SDK layout | split file/auth packages, bespoke TS runtime glue | one package per language, Hey API / openapi-python-client / httr2 | `ADR-0037`, `SPEC-0030`, `docs/clients/CLIENT-SDK-CANONICAL-PACKAGES.md` |
 | Docs authority | wide, partially contradictory, wave-1 drift present | small active set, wave-1 archived/superseded | `ADR-0038`, `SPEC-0031`, `docs/overview/ACTIVE-DOCS-INDEX.md` |
-| Operations | serverless runbook and CDK app are the canonical path for new environments; retained ECS/CloudFormation runbooks apply only to legacy environments not yet cut over | serverless runbook is the active target for ongoing cutover work | `docs/runbooks/README.md`, `docs/runbooks/RUNBOOK-SERVERLESS-OPERATIONS.md`, `infra/nova_cdk/README.md` |
+| Operations | current provisioning/release runbooks are still authoritative for live systems | serverless runbook is target-state only until migration lands | `docs/runbooks/README.md`, `docs/runbooks/RUNBOOK-SERVERLESS-OPERATIONS.md` |
 
 ## Rule
 

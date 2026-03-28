@@ -1,7 +1,11 @@
+> **Superseded target draft**
+>
+> This draft was superseded before implementation by the wave-2 program. The concrete refactor remains tracked in `.agents/AUDIT_DELIVERABLES/prompts/03_refactor_api_pure_asgi_middleware_and_native_openapi.md`.
+
 ---
 ADR: 0041
 Title: Green-field shared pure ASGI middleware and errors
-Status: Accepted
+Status: Superseded
 Version: 1.1
 Date: 2026-03-22
 Related:

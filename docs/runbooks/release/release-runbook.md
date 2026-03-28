@@ -23,11 +23,9 @@ Provisioning, validation, and setup guides are indexed in
 
 1. `main` is green on the required hosted checks defined in
    `governance-lock-and-branch-protection.md`: the `Nova CI` leaf jobs
-   (`quality-gates`, `pytest-runtime-gates`, `pytest-primary`,
-   `pytest-generated-smoke`, `pytest-compatibility-3.11`,
-   `pytest-compatibility-3.12`, `generated-clients`, `dash-conformance`,
-   `shiny-conformance`, `typescript-conformance`) and `CFN Contract Validate`
-   (`cfn-and-contracts`).
+   (`quality-gates`, `python-compatibility`, `generated-clients`,
+   `dash-conformance`, `shiny-conformance`, `typescript-conformance`) and
+   `CFN Contract Validate` (`cfn-and-contracts`).
 2. Release OIDC role and signing secret are provisioned.
 3. CodeConnections source connection is `AVAILABLE`.
 4. Runtime stacks are deployed for `dev` and `prod`, and validation base URLs
