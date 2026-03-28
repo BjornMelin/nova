@@ -154,18 +154,99 @@ def test_step_functions_backend_requires_state_machine_arn() -> None:
         )
 
 
+@pytest.mark.parametrize(
+    ("overrides", "runtime_kwargs", "expected_match"),
+    [
+        pytest.param(
+            {
+                "idempotency_enabled": False,
+                "jobs_enabled": True,
+                "jobs_queue_backend": JobsQueueBackend.SQS,
+                "jobs_sqs_queue_url": None,
+            },
+            {},
+            "JOBS_SQS_QUEUE_URL",
+            id="jobs-enabled-requires-queue-url",
+        ),
+        pytest.param(
+            {
+                "idempotency_enabled": False,
+                "activity_store_backend": ActivityStoreBackend.DYNAMODB,
+                "activity_rollups_table": None,
+            },
+            {"dynamodb_resource": object()},
+            "ACTIVITY_ROLLUPS_TABLE",
+            id="activity-dynamodb-requires-rollups-table",
+        ),
+        pytest.param(
+            {
+                "idempotency_enabled": False,
+                "jobs_repository_backend": JobsRepositoryBackend.DYNAMODB,
+                "jobs_dynamodb_table": None,
+            },
+            {"dynamodb_resource": object()},
+            "JOBS_DYNAMODB_TABLE",
+            id="jobs-dynamodb-requires-table",
+        ),
+        pytest.param(
+            {
+                "idempotency_enabled": False,
+                "jobs_repository_backend": JobsRepositoryBackend.DYNAMODB,
+                "jobs_dynamodb_table": "jobs-table",
+            },
+            {},
+            "dynamodb_resource must be provided",
+            id="jobs-dynamodb-requires-resource",
+        ),
+        pytest.param(
+            {
+                "idempotency_enabled": False,
+                "activity_store_backend": ActivityStoreBackend.DYNAMODB,
+                "activity_rollups_table": "activity-rollups",
+            },
+            {},
+            "dynamodb_resource must be provided",
+            id="activity-dynamodb-requires-resource",
+        ),
+        pytest.param(
+            {
+                "idempotency_enabled": False,
+                "jobs_enabled": True,
+                "jobs_queue_backend": JobsQueueBackend.SQS,
+                "jobs_sqs_queue_url": "https://example.local/queue",
+            },
+            {},
+            "sqs_client must be provided",
+            id="sqs-enabled-requires-client",
+        ),
+        pytest.param(
+            {
+                "idempotency_enabled": True,
+                "idempotency_dynamodb_table": "test-idempotency",
+            },
+            {},
+            "dynamodb_resource must be provided",
+            id="idempotency-requires-resource",
+        ),
+    ],
+)
 @pytest.mark.runtime_gate
-def test_runtime_state_requires_sqs_queue_url_when_jobs_enabled() -> None:
-    """Raise ValueError if JOBS_SQS_QUEUE_URL missing with SQS jobs enabled."""
+def test_runtime_state_validates_required_dependencies(
+    overrides: dict[str, object],
+    runtime_kwargs: dict[str, object],
+    expected_match: str,
+) -> None:
+    """Runtime-state initialization should fail fast on missing dependencies."""
     settings = _settings()
-    settings.idempotency_enabled = False
-    settings.jobs_enabled = True
-    settings.jobs_queue_backend = JobsQueueBackend.SQS
-    settings.jobs_sqs_queue_url = None
+    for field_name, value in overrides.items():
+        setattr(settings, field_name, value)
 
-    with pytest.raises(ValueError, match="JOBS_SQS_QUEUE_URL"):
+    with pytest.raises(ValueError, match=expected_match):
         initialize_runtime_state(
-            FastAPI(), settings=settings, s3_client=object()
+            FastAPI(),
+            settings=settings,
+            s3_client=object(),
+            **runtime_kwargs,
         )
 
 
@@ -191,94 +272,3 @@ def test_runtime_state_allows_missing_sqs_url_when_jobs_disabled() -> None:
     app = FastAPI()
     initialize_runtime_state(app, settings=settings, s3_client=object())
     assert app.state.settings.jobs_enabled is False
-
-
-def test_runtime_state_requires_rollup_table_for_dynamodb_backend() -> None:
-    """Raise ValueError when ACTIVITY_ROLLUPS_TABLE missing for DynamoDB."""
-    settings = _settings()
-    settings.idempotency_enabled = False
-    settings.activity_store_backend = ActivityStoreBackend.DYNAMODB
-    settings.activity_rollups_table = None
-
-    with pytest.raises(ValueError, match="ACTIVITY_ROLLUPS_TABLE"):
-        initialize_runtime_state(
-            FastAPI(),
-            settings=settings,
-            s3_client=object(),
-            dynamodb_resource=object(),
-        )
-
-
-def test_runtime_state_requires_jobs_table_for_dynamodb_repository() -> None:
-    """Raise ValueError when JOBS_DYNAMODB_TABLE missing for DynamoDB."""
-    settings = _settings()
-    settings.idempotency_enabled = False
-    settings.jobs_repository_backend = JobsRepositoryBackend.DYNAMODB
-    settings.jobs_dynamodb_table = None
-
-    with pytest.raises(ValueError, match="JOBS_DYNAMODB_TABLE"):
-        initialize_runtime_state(
-            FastAPI(),
-            settings=settings,
-            s3_client=object(),
-            dynamodb_resource=object(),
-        )
-
-
-def test_runtime_state_requires_dynamodb_resource_for_jobs_backend() -> None:
-    """DynamoDB job backends should fail when no resource is injected."""
-    settings = _settings()
-    settings.idempotency_enabled = False
-    settings.jobs_repository_backend = JobsRepositoryBackend.DYNAMODB
-    settings.jobs_dynamodb_table = "jobs-table"
-    with pytest.raises(
-        ValueError,
-        match="dynamodb_resource must be provided",
-    ):
-        initialize_runtime_state(
-            FastAPI(), settings=settings, s3_client=object()
-        )
-
-
-def test_runtime_state_requires_dynamodb_resource_for_activity_backend() -> (
-    None
-):
-    """DynamoDB activity backends should fail when no resource is injected."""
-    settings = _settings()
-    settings.idempotency_enabled = False
-    settings.activity_store_backend = ActivityStoreBackend.DYNAMODB
-    settings.activity_rollups_table = "activity-rollups"
-    with pytest.raises(
-        ValueError,
-        match="dynamodb_resource must be provided",
-    ):
-        initialize_runtime_state(
-            FastAPI(), settings=settings, s3_client=object()
-        )
-
-
-def test_initialize_runtime_state_requires_sqs_client_when_jobs_enabled() -> (
-    None
-):
-    """SQS job queue should fail when queue URL exists but client is missing."""
-    settings = _settings()
-    settings.idempotency_enabled = False
-    settings.jobs_enabled = True
-    settings.jobs_queue_backend = JobsQueueBackend.SQS
-    settings.jobs_sqs_queue_url = "https://example.local/queue"
-    with pytest.raises(ValueError, match="sqs_client must be provided"):
-        initialize_runtime_state(
-            FastAPI(), settings=settings, s3_client=object()
-        )
-
-
-def test_runtime_state_requires_dynamodb_resource_for_idempotency() -> None:
-    """Idempotency-enabled startup must require a DynamoDB resource."""
-    settings = _settings()
-    settings.idempotency_enabled = True
-    settings.idempotency_dynamodb_table = "test-idempotency"
-
-    with pytest.raises(ValueError, match="dynamodb_resource must be provided"):
-        initialize_runtime_state(
-            FastAPI(), settings=settings, s3_client=object()
-        )

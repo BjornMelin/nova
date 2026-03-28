@@ -128,20 +128,28 @@ def _auth_policy() -> AuthPolicy:
     )
 
 
+def _env_config() -> FileTransferEnvConfig:
+    return FileTransferEnvConfig.model_validate(
+        {
+            "FILE_TRANSFER_ENABLED": True,
+            "FILE_TRANSFER_BUCKET": "bucket-a",
+        }
+    )
+
+
+def _upload_policy() -> UploadPolicy:
+    return UploadPolicy(
+        max_upload_bytes=100,
+        allowed_extensions={".csv"},
+    )
+
+
 def test_file_transfer_service_requires_auth_policy() -> None:
     constructor = cast(Any, FileTransferService)
     with pytest.raises(TypeError, match="auth_policy"):
         constructor(
-            env_config=FileTransferEnvConfig.model_validate(
-                {
-                    "FILE_TRANSFER_ENABLED": True,
-                    "FILE_TRANSFER_BUCKET": "bucket-a",
-                }
-            ),
-            upload_policy=UploadPolicy(
-                max_upload_bytes=100,
-                allowed_extensions={".csv"},
-            ),
+            env_config=_env_config(),
+            upload_policy=_upload_policy(),
         )
 
 
@@ -157,16 +165,8 @@ def _service_with_response(
         lambda **_: core_service or _FakeCoreTransferService(),
     )
     return FileTransferService(
-        env_config=FileTransferEnvConfig.model_validate(
-            {
-                "FILE_TRANSFER_ENABLED": True,
-                "FILE_TRANSFER_BUCKET": "bucket-a",
-            }
-        ),
-        upload_policy=UploadPolicy(
-            max_upload_bytes=100,
-            allowed_extensions={".csv"},
-        ),
+        env_config=_env_config(),
+        upload_policy=_upload_policy(),
         auth_policy=_auth_policy(),
         s3_client_factory=cast(
             "SupportsCreateS3Client",
@@ -175,16 +175,36 @@ def _service_with_response(
     )
 
 
-def test_download_closes_stream_when_content_length_exceeds_limit(
+@pytest.mark.parametrize(
+    ("response", "expected_read_calls"),
+    [
+        pytest.param(
+            {
+                "ContentLength": 11,
+                "Body": _FakeBody(),
+            },
+            0,
+            id="content-length-precheck",
+        ),
+        pytest.param(
+            {
+                "ContentLength": None,
+                "Body": _FakeBody(chunks=[b"abcde", b"fghij", b"k"]),
+            },
+            3,
+            id="chunked-read-overflow",
+        ),
+    ],
+)
+def test_download_closes_stream_when_download_exceeds_limit(
     monkeypatch: pytest.MonkeyPatch,
+    response: dict[str, object],
+    expected_read_calls: int,
 ) -> None:
-    body = _FakeBody()
+    body = cast(_FakeBody, response["Body"])
     service = _service_with_response(
         monkeypatch=monkeypatch,
-        response={
-            "ContentLength": 11,
-            "Body": body,
-        },
+        response=response,
     )
 
     with pytest.raises(FileTransferError, match="maximum download size"):
@@ -195,7 +215,7 @@ def test_download_closes_stream_when_content_length_exceeds_limit(
         )
 
     assert body.closed is True
-    assert body.read_calls == 0
+    assert body.read_calls == expected_read_calls
 
 
 def test_download_supports_sync_only_s3_factory_rejected() -> None:
@@ -204,16 +224,8 @@ def test_download_supports_sync_only_s3_factory_rejected() -> None:
         match=r"create_async\(\)",
     ):
         FileTransferService(
-            env_config=FileTransferEnvConfig.model_validate(
-                {
-                    "FILE_TRANSFER_ENABLED": True,
-                    "FILE_TRANSFER_BUCKET": "bucket-a",
-                }
-            ),
-            upload_policy=UploadPolicy(
-                max_upload_bytes=100,
-                allowed_extensions={".csv"},
-            ),
+            env_config=_env_config(),
+            upload_policy=_upload_policy(),
             auth_policy=_auth_policy(),
             s3_client_factory=cast(
                 "SupportsCreateS3Client",
@@ -235,16 +247,8 @@ def test_download_supports_sync_only_s3_factory_rejected() -> None:
 def test_download_supports_sync_client_factory() -> None:
     body = _FakeBody(chunks=[b"hello"])
     service = FileTransferService(
-        env_config=FileTransferEnvConfig.model_validate(
-            {
-                "FILE_TRANSFER_ENABLED": True,
-                "FILE_TRANSFER_BUCKET": "bucket-a",
-            }
-        ),
-        upload_policy=UploadPolicy(
-            max_upload_bytes=100,
-            allowed_extensions={".csv"},
-        ),
+        env_config=_env_config(),
+        upload_policy=_upload_policy(),
         auth_policy=_auth_policy(),
         s3_client_factory=cast(
             "SupportsCreateS3Client",
@@ -267,29 +271,6 @@ def test_download_supports_sync_client_factory() -> None:
         )
         == b"hello"
     )
-
-
-def test_download_closes_stream_on_chunked_oversize_early_exit(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    body = _FakeBody(chunks=[b"abcde", b"fghij", b"k"])
-    service = _service_with_response(
-        monkeypatch=monkeypatch,
-        response={
-            "ContentLength": None,
-            "Body": body,
-        },
-    )
-
-    with pytest.raises(FileTransferError, match="maximum download size"):
-        service.download_object_bytes(
-            bucket="bucket-a",
-            key="exports/object.csv",
-            max_bytes=10,
-        )
-
-    assert body.closed is True
-    assert body.read_calls == 3
 
 
 def test_introspect_upload_maps_core_response(
@@ -350,16 +331,8 @@ def test_presign_download_preserves_explicit_content_disposition(
 @pytest.mark.anyio
 async def test_async_service_rejects_sync_only_s3_factory() -> None:
     service = AsyncFileTransferService(
-        env_config=FileTransferEnvConfig.model_validate(
-            {
-                "FILE_TRANSFER_ENABLED": True,
-                "FILE_TRANSFER_BUCKET": "bucket-a",
-            }
-        ),
-        upload_policy=UploadPolicy(
-            max_upload_bytes=100,
-            allowed_extensions={".csv"},
-        ),
+        env_config=_env_config(),
+        upload_policy=_upload_policy(),
         auth_policy=_auth_policy(),
         s3_client_factory=cast(
             "SupportsCreateS3Client",

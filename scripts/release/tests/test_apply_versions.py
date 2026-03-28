@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
@@ -9,9 +10,14 @@ import pytest
 from scripts.release import apply_versions, common
 
 
-def _write_pyproject(path: Path, name: str, version: str) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(
+def _write_pyproject(
+    write_text: Callable[[Path, str], None],
+    path: Path,
+    name: str,
+    version: str,
+) -> None:
+    write_text(
+        path,
         "\n".join(
             [
                 "[project]",
@@ -20,13 +26,17 @@ def _write_pyproject(path: Path, name: str, version: str) -> None:
             ]
         )
         + "\n",
-        encoding="utf-8",
     )
 
 
-def _write_description(path: Path, name: str, version: str) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(
+def _write_description(
+    write_text: Callable[[Path, str], None],
+    path: Path,
+    name: str,
+    version: str,
+) -> None:
+    write_text(
+        path,
         "\n".join(
             [
                 f"Package: {name}",
@@ -34,17 +44,17 @@ def _write_description(path: Path, name: str, version: str) -> None:
             ]
         )
         + "\n",
-        encoding="utf-8",
     )
 
 
 def _write_release_pyproject(
+    write_text: Callable[[Path, str], None],
     path: Path,
     unit_id: str,
     project_name: str = "nova",
 ) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(
+    write_text(
+        path,
         "[tool.uv]\n\n"
         "[tool.nova.release]\n"
         "\n[[tool.nova.release.units]]\n"
@@ -55,18 +65,18 @@ def _write_release_pyproject(
         'format = "r"\n'
         'codeartifact_format = "generic"\n'
         'namespace = "nova"\n',
-        encoding="utf-8",
     )
 
 
 def test_apply_version_updates_changes_only_planned_units(
     tmp_path: Path,
+    write_text: Callable[[Path, str], None],
 ) -> None:
     repo_root = tmp_path
     file_api = repo_root / "packages/nova_file_api/pyproject.toml"
     dash = repo_root / "packages/nova_dash_bridge/pyproject.toml"
-    _write_pyproject(file_api, "nova-file-api", "0.1.0")
-    _write_pyproject(dash, "nova-dash-bridge", "0.1.0")
+    _write_pyproject(write_text, file_api, "nova-file-api", "0.1.0")
+    _write_pyproject(write_text, dash, "nova-dash-bridge", "0.1.0")
 
     units = {
         "packages/nova_file_api": common.WorkspaceUnit(
@@ -108,17 +118,19 @@ def test_apply_version_updates_changes_only_planned_units(
 
 def test_apply_version_updates_changes_r_description(
     tmp_path: Path,
+    write_text: Callable[[Path, str], None],
 ) -> None:
     repo_root = tmp_path
     pyproject = repo_root / "pyproject.toml"
     _write_release_pyproject(
+        write_text,
         pyproject,
         "packages/nova_sdk_r",
         project_name="nova",
     )
     original_pyproject = pyproject.read_text(encoding="utf-8")
     description = repo_root / "packages/nova_sdk_r/DESCRIPTION"
-    _write_description(description, "nova", "0.1.0")
+    _write_description(write_text, description, "nova", "0.1.0")
 
     units = {
         "packages/nova_sdk_r": common.WorkspaceUnit(
@@ -156,14 +168,14 @@ def test_apply_version_updates_changes_r_description(
 
 def test_apply_version_updates_changes_npm_package_json(
     tmp_path: Path,
+    write_text: Callable[[Path, str], None],
 ) -> None:
     """Validate npm package.json versions are updated by the release plan."""
     repo_root = tmp_path
     package_json = repo_root / "packages/nova_sdk_ts/package.json"
-    package_json.parent.mkdir(parents=True, exist_ok=True)
-    package_json.write_text(
+    write_text(
+        package_json,
         '{\n  "name": "@nova/sdk",\n  "version": "0.1.0"\n}\n',
-        encoding="utf-8",
     )
 
     units = {
@@ -198,10 +210,13 @@ def test_apply_version_updates_changes_npm_package_json(
     assert '"version": "0.1.1"' in package_json.read_text(encoding="utf-8")
 
 
-def test_apply_version_updates_rejects_unknown_unit_id(tmp_path: Path) -> None:
+def test_apply_version_updates_rejects_unknown_unit_id(
+    tmp_path: Path,
+    write_text: Callable[[Path, str], None],
+) -> None:
     repo_root = tmp_path
     file_api = repo_root / "packages/nova_file_api/pyproject.toml"
-    _write_pyproject(file_api, "nova-file-api", "0.1.0")
+    _write_pyproject(write_text, file_api, "nova-file-api", "0.1.0")
     units = {
         "packages/nova_file_api": common.WorkspaceUnit(
             unit_id="packages/nova_file_api",
@@ -231,10 +246,11 @@ def test_apply_version_updates_rejects_unknown_unit_id(tmp_path: Path) -> None:
 
 def test_apply_version_updates_rejects_invalid_version_format(
     tmp_path: Path,
+    write_text: Callable[[Path, str], None],
 ) -> None:
     repo_root = tmp_path
     file_api = repo_root / "packages/nova_file_api/pyproject.toml"
-    _write_pyproject(file_api, "nova-file-api", "0.1.0")
+    _write_pyproject(write_text, file_api, "nova-file-api", "0.1.0")
     units = {
         "packages/nova_file_api": common.WorkspaceUnit(
             unit_id="packages/nova_file_api",
