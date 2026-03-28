@@ -1,13 +1,13 @@
 # Engineering standards
 
 Status: Active
-Current repository state: **pre-wave-2 implementation baseline**
+Current repository state: **mixed wave-2 implementation baseline**
 Last reviewed: 2026-03-25
 
 ## Purpose
 
 Route readers to engineering workflow standards while keeping current-baseline
-rules separate from target-state decision frameworks.
+rules separate from remaining legacy-retirement and target-state cleanup work.
 
 ## Read after `AGENTS.md`
 
@@ -19,8 +19,8 @@ rules separate from target-state decision frameworks.
 
 ## Current baseline standards
 
-The current repository still follows the existing engineering workflow until the
-rebaseline branch lands. Use:
+The current repository follows the engineering workflow already reflected in the
+tracked code, workflows, and docs. Use:
 
 - `repository-engineering-standards.md`
 - current CI/workflow files in `.github/workflows/`
@@ -28,7 +28,7 @@ rebaseline branch lands. Use:
 
 ## Target-state planning standards
 
-Use these when reasoning about the wave-2 hard cut:
+Use these when reasoning about remaining wave-2 cleanup and legacy retirement:
 
 - `DECISION-FRAMEWORKS-GREENFIELD-2026.md`
 - `../overview/DEPENDENCY-LEVERAGE-AUDIT.md`
@@ -36,5 +36,6 @@ Use these when reasoning about the wave-2 hard cut:
 
 ## Rule
 
-Do not back-port target-state assumptions into current-baseline verification
-commands unless the matching branch actually changes the repo/tooling.
+Do not reintroduce pre-wave-2 package, runtime, or CI assumptions into current
+verification commands. Keep standards aligned to the repo as currently
+implemented.

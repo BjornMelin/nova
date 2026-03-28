@@ -1,7 +1,7 @@
 # Nova documentation router
 
 Status: Active
-Current repository state: **pre-wave-2 implementation baseline**
+Current repository state: **mixed wave-2 implementation baseline**
 Last reviewed: 2026-03-25
 
 ## Purpose
@@ -22,8 +22,8 @@ historical bundles blur together.
 
 ## Current implemented baseline
 
-Use these when you need the truth about the repository **before** the wave-2
-implementation branches land:
+Use these when you need the truth about the repository as currently
+implemented:
 
 - `./architecture/README.md`
 - `./overview/IMPLEMENTATION-STATUS-MATRIX.md`
@@ -75,8 +75,8 @@ Use only for audit trail or traceability:
 
 - Never treat `docs/history/**` or superseded ADR/SPEC paths as current
   authority.
-- Current operations use the current implemented runbooks until the migration
-  branches land.
+- Current operations use the current implemented runbooks for the mixed-wave-2
+  baseline and any remaining legacy environments.
 - Implementation branches use the approved target-state ADR/SPEC set and
   `./plan/GREENFIELD-WAVE-2-EXECUTION.md`.
 - When a branch lands, update status language so docs keep matching reality.

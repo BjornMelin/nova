@@ -1,6 +1,6 @@
 # SPEC-0028 -- Export workflow state machine
 
-> **Implementation state:** Approved target-state SPEC. It defines the explicit export resource model Codex should implement.
+> **Implementation state:** Implemented in the current repository baseline as the active export workflow model.
 
 ## Summary
 

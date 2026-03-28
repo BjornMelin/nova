@@ -6,35 +6,35 @@ Last reviewed: 2026-03-25
 ## Purpose
 
 Give new readers a fast mental model of the repository **without** pretending
-that the approved target-state program has already landed.
+that every legacy asset has already been retired.
 
 ## One-sentence summary
 
-Nova is currently a transfer-control and async-jobs monorepo on an older
-ECS/SQS/Redis/auth-service-oriented baseline, with an approved wave-2 program
-that will hard-cut it into a smaller bearer-only transfer + export-workflow
-control plane.
+Nova is currently a mixed-wave-2 transfer and export-workflow control-plane
+monorepo with bearer-only auth, DynamoDB-backed idempotency, consolidated SDK
+packages, and serverless platform components already landed, while some
+ECS-era assets remain in-tree as non-canonical leftovers.
 
 ## Current implemented baseline
 
-The current baseline still centers:
+The current baseline now centers:
 
-- transfer APIs plus generic jobs
-- dedicated auth-service-era artifacts
-- ECS/Fargate + ALB + SQS worker topology
-- Redis in correctness/idempotency paths
-- split SDK/package layout
+- transfer APIs plus explicit export workflows
+- bearer JWT only, verified in-process in the main API
+- DynamoDB-backed idempotency with explicit expiration filtering
+- HTTP API + Lambda Web Adapter + Step Functions Standard platform components
+- unified SDK packages for TypeScript, Python, and R
+- legacy ECS/Fargate + ALB + SQS worker assets retained only as non-canonical leftovers
 
 ## Approved target-state program
 
 The target state moves Nova to:
 
-- bearer JWT only
-- explicit export workflows
-- API Gateway HTTP API + Lambda Web Adapter + Step Functions Standard
-- DynamoDB + S3 as the durable core
-- one canonical SDK package per language
-- much smaller docs authority
+- full retirement of legacy ECS-era assets and duplicate docs surfaces
+- one fully canonical serverless control-plane posture across docs, runbooks,
+  and implementation
+- no residual pre-wave-2 package, auth, or idempotency assumptions in active
+  operator or developer docs
 
 ## Where to read next
 

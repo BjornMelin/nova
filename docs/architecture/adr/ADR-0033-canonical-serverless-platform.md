@@ -1,6 +1,6 @@
 # ADR-0033 -- Canonical serverless platform
 
-> **Implementation state:** Approved target-state ADR. This decision is accepted for implementation but is not yet fully reflected in the current repository/runtime.
+> **Implementation state:** Implemented in the current repository baseline, with legacy ECS-era deploy assets still present as non-canonical leftovers.
 
 ## Status
 Accepted
@@ -11,7 +11,11 @@ Adopt **CloudFront + WAF → API Gateway HTTP API → Lambda (FastAPI via Lambda
 
 ## Context
 
-The attached repo still centers ECS/Fargate, Redis, SQS, and a custom worker callback model. Nova’s real workload is a direct-to-S3 transfer control plane with durable async export processing, not a byte-streaming API.
+The current repository already includes the canonical serverless platform
+components and supporting package/IaC surfaces, but still carries legacy
+ECS-era deploy assets and runbooks that have not yet been fully retired.
+Nova’s real workload is a direct-to-S3 transfer control plane with durable
+async export processing, not a byte-streaming API.
 
 ## Why this wins
 
@@ -37,6 +41,7 @@ Operationally lighter than ECS, but weaker fit for the broader workflow/orchestr
 
 ## Consequences
 
-- add `infra/nova_cdk`
-- add `packages/nova_workflows`
-- remove the ECS/worker/Redis model from canonical docs and release flows
+- keep `infra/nova_cdk` as the canonical platform IaC surface
+- keep `packages/nova_workflows` as the workflow/runtime implementation seam
+- retire the remaining ECS/worker/Redis model from active docs, runbooks, and
+  release flows

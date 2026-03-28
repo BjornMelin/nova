@@ -1,6 +1,6 @@
 # SPEC-0030 -- SDK generation and package layout
 
-> **Implementation state:** Approved target-state SPEC. Current package names/layout may still reflect the pre-cut tree.
+> **Implementation state:** Implemented in the current repository baseline as the active SDK generation and package layout contract.
 
 ## Goals
 

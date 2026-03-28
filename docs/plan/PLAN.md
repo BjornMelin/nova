@@ -1,7 +1,7 @@
 # Plan index
 
 Status: Active
-Current repository state: **pre-wave-2 implementation baseline**
+Current repository state: **mixed wave-2 implementation baseline**
 Last reviewed: 2026-03-25
 
 ## Use this file for
@@ -9,6 +9,7 @@ Last reviewed: 2026-03-25
 - the current implementation-program router
 - links to the approved wave-2 execution plan
 - links to archived wave-1 planning material
+- remaining truth-model cleanup needed to finish the docs authority reset
 
 ## Active planning entrypoints
 

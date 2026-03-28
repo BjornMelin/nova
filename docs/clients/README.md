@@ -1,7 +1,7 @@
 # Client and downstream integration docs
 
 Status: Active
-Current repository state: **pre-wave-2 implementation baseline**
+Current repository state: **mixed wave-2 implementation baseline**
 Last reviewed: 2026-03-25
 
 ## Current baseline consumer docs
@@ -21,11 +21,11 @@ For the canonical package map that implementation agents should follow, use:
 
 - `CLIENT-SDK-CANONICAL-PACKAGES.md`
 
-That file supersedes the older split file/auth SDK posture as the implementation
-target, but the current repository may still carry the older packages until the
-branch program lands.
+That file reflects the canonical package map already landed in the current repo;
+client examples and downstream workflow docs should continue to align to those
+packages rather than the older split file/auth SDK posture.
 
 ## Rule
 
-Do not confuse current downstream workflow examples with the future canonical
-SDK package layout.
+Do not confuse current downstream workflow examples with retired split-package
+assumptions. The canonical SDK package layout is now the active baseline.

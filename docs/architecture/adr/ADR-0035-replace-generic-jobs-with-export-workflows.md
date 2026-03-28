@@ -1,17 +1,20 @@
 # ADR-0035 -- Replace generic jobs with export workflows
 
-> **Implementation state:** Approved target-state ADR. The current codebase still exposes generic jobs and callback-style workflow seams; this ADR defines their replacement.
+> **Implementation state:** Implemented in the current repository baseline, with only legacy references and retirement cleanup still pending.
 
 ## Status
 Accepted
 
 ## Decision
 
-Delete the generic jobs public API and replace it with explicit export workflow resources and typed state transitions.
+Keep the generic jobs public API removed and use explicit export workflow
+resources with typed state transitions as the active contract.
 
 ## Context
 
-The attached repo still exposes a general `job_type` + payload API even though the worker effectively supports a single real workload pattern. The worker also posts results back through an internal callback route.
+The current repository already exposes explicit export workflow resources and
+no longer depends on an internal callback route for active API behavior, but
+legacy references still need to stay retired.
 
 ## Why this wins
 
@@ -23,7 +26,8 @@ The attached repo still exposes a general `job_type` + payload API even though t
 
 ## Consequences
 
-- delete generic jobs routes and models from the public contract
-- delete `/v1/internal/jobs/{job_id}/result`
-- replace worker callback lifecycle with orchestration-native state transitions
-- fix the Dash async-path bug by removing the stringly-typed job name seam
+- keep generic jobs routes and models out of the active public contract
+- keep `/v1/internal/jobs/{job_id}/result` retired from active behavior
+- keep orchestration-native state transitions as the canonical lifecycle
+- keep the Dash async-path aligned to export workflows rather than a stringly
+  typed job name seam

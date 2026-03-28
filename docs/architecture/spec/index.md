@@ -36,16 +36,17 @@ Last reviewed: 2026-03-25
 | [SPEC-0024](./SPEC-0024-cloudformation-module-contract.md) | CloudFormation module contract | Active | Implemented baseline | 2026-03-05 |
 | [SPEC-0025](./SPEC-0025-reusable-workflow-integration-contract.md) | Reusable workflow integration contract | Active | Implemented baseline | 2026-03-05 |
 | [SPEC-0026](./SPEC-0026-ci-cd-iam-least-privilege-matrix.md) | CI/CD IAM least-privilege matrix | Active | Implemented baseline | 2026-03-05 |
+| [SPEC-0027](./SPEC-0027-public-api-v2.md) | Public API v2 | Accepted | Implemented baseline | 2026-03-25 |
+| [SPEC-0028](./SPEC-0028-export-workflow-state-machine.md) | Export workflow state machine | Accepted | Implemented baseline | 2026-03-25 |
+| [SPEC-0029](./SPEC-0029-platform-serverless.md) | Canonical serverless platform | Accepted | Implemented in repo; legacy deploy docs remain | 2026-03-25 |
+| [SPEC-0030](./SPEC-0030-sdk-generation-and-package-layout.md) | SDK generation and package layout | Accepted | Implemented baseline | 2026-03-25 |
+| [SPEC-0031](./SPEC-0031-docs-and-tests-authority-reset.md) | Docs and tests authority reset | Accepted | Implemented on branch docs surface | 2026-03-25 |
 
-## Approved target-state program
+## Remaining target-state cleanup
 
-| SPEC | Title | Decision status | Implementation state | Date |
-| --- | --- | --- | --- | --- |
-| [SPEC-0027](./SPEC-0027-public-api-v2.md) | Public API v2 | Accepted | Planned target | 2026-03-25 |
-| [SPEC-0028](./SPEC-0028-export-workflow-state-machine.md) | Export workflow state machine | Accepted | Planned target | 2026-03-25 |
-| [SPEC-0029](./SPEC-0029-platform-serverless.md) | Canonical serverless platform | Accepted | Planned target | 2026-03-25 |
-| [SPEC-0030](./SPEC-0030-sdk-generation-and-package-layout.md) | SDK generation and package layout | Accepted | Planned target | 2026-03-25 |
-| [SPEC-0031](./SPEC-0031-docs-and-tests-authority-reset.md) | Docs and tests authority reset | Accepted | Applied to docs pack / code still planned | 2026-03-25 |
+The wave-2 specs above are already reflected in the current repo baseline.
+Remaining work is cleanup: retiring stale legacy docs/assets and finishing the
+last truth-model alignment across the active documentation routers.
 
 ## Superseded
 

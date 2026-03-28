@@ -1,6 +1,6 @@
 # SPEC-0027 -- Public API v2
 
-> **Implementation state:** Approved target-state SPEC. It is the implementation target for the next public-contract hard cut, not the already-deployed baseline.
+> **Implementation state:** Implemented in the current repository baseline as the active public API contract.
 
 ## Summary
 

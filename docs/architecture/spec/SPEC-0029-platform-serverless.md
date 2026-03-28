@@ -1,6 +1,6 @@
 # SPEC-0029 -- Canonical serverless platform
 
-> **Implementation state:** Approved target-state SPEC. Current deployments may still be ECS/SQS/Redis until migration completes.
+> **Implementation state:** Implemented in-repo for the current baseline, while legacy ECS-era deployments and docs remain to be retired.
 
 ## Runtime
 

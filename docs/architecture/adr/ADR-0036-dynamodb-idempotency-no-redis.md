@@ -1,17 +1,21 @@
 # ADR-0036 -- DynamoDB idempotency and transient state, no Redis
 
-> **Implementation state:** Approved target-state ADR. The current codebase still includes Redis-backed correctness paths; this ADR defines the hard cut away from them.
+> **Implementation state:** Implemented in the current repository baseline, with only residual Redis-era references and legacy assets still requiring cleanup.
 
 ## Status
 Accepted
 
 ## Decision
 
-Use DynamoDB as the durable persistence layer for idempotency and workflow state. Remove Redis from the canonical runtime. If local hot-cache behaviour is useful, keep it as an in-process optimization only.
+Use DynamoDB as the durable persistence layer for idempotency and workflow
+state. Keep Redis out of the canonical runtime. If local hot-cache behaviour
+is useful, keep it as an in-process optimization only.
 
 ## Context
 
-The attached repo still treats Redis as part of the correctness path for shared claim/replay behaviour.
+The current repository already uses DynamoDB-backed idempotency as the active
+correctness path; the remaining cleanup is to eliminate stale Redis-era docs
+and legacy assets from active surfaces.
 
 ## Why this wins
 
@@ -27,6 +31,7 @@ DynamoDB TTL deletion is eventual, so code must treat expiration as an applicati
 
 ## Consequences
 
-- delete Redis URL/config/runtime contract
-- delete cache-specific infra and docs from the canonical path
-- simplify idempotency tests and startup validation
+- keep Redis URL/config/runtime contract out of active docs and runtime truth
+- retire cache-specific legacy infra/docs from the canonical path
+- keep idempotency tests and startup validation aligned to DynamoDB-backed
+  requirements

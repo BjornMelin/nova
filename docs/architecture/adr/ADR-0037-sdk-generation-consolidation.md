@@ -1,6 +1,6 @@
 # ADR-0037 -- Consolidate SDK generation and package layout
 
-> **Implementation state:** Approved target-state ADR. The current repo may still contain split SDK packages and bespoke TS runtime glue until the implementation branches land.
+> **Implementation state:** Implemented in the current repository baseline, with stale split-package references still requiring cleanup from active docs/examples.
 
 ## Status
 Accepted
@@ -13,11 +13,14 @@ Adopt one canonical SDK package per language:
 - Python: `packages/nova_sdk_py` using `openapi-python-client`
 - R: `packages/nova_sdk_r` using a thin `httr2` wrapper
 
-Delete auth SDK packages and delete `packages/nova_sdk_fetch`.
+Keep auth SDK packages and `packages/nova_sdk_fetch` out of the active package
+surface.
 
 ## Context
 
-The attached repo still carries split auth/file SDK packages and a bespoke TypeScript runtime package.
+The current repository already uses one SDK package per language, but some
+docs/examples still need retirement cleanup so they stop describing the older
+split auth/file package posture.
 
 ## Why this wins
 
@@ -28,6 +31,6 @@ The attached repo still carries split auth/file SDK packages and a bespoke TypeS
 
 ## Consequences
 
-- rename packages
-- simplify release scripts
-- simplify examples and docs
+- keep canonical package names in release scripts, examples, and docs
+- keep release scripts small and aligned to generator-owned outputs
+- retire stale split-package references from examples and supporting docs

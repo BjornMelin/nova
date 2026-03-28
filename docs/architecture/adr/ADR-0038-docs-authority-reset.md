@@ -1,6 +1,6 @@
 # ADR-0038 -- Reset docs authority
 
-> **Implementation state:** Approved target-state ADR. This pack applies the documentation-side reset now, while code and CI alignment remain part of the branch program.
+> **Implementation state:** Implemented on the current branch docs/test surface, with only remaining truth-model cleanup still pending.
 
 ## Status
 Accepted

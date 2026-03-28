@@ -38,17 +38,19 @@ Last reviewed: 2026-03-25
 | [ADR-0030](./ADR-0030-native-cfn-modular-stack-architecture-for-nova-infrastructure-productization.md) | Native-CFN modular stack architecture for Nova infrastructure productization | Accepted | Implemented baseline | 2026-03-05 |
 | [ADR-0031](./ADR-0031-reusable-github-workflow-api-and-versioning-policy-for-deployment-automation.md) | Reusable GitHub workflow API and versioning policy for deployment automation | Accepted | Implemented baseline | 2026-03-05 |
 | [ADR-0032](./ADR-0032-oidc-and-iam-role-partitioning-for-deploy-automation.md) | OIDC and IAM role partitioning for deploy automation | Accepted | Implemented baseline | 2026-03-05 |
+| [ADR-0033](./ADR-0033-canonical-serverless-platform.md) | Canonical serverless platform | Accepted | Implemented in repo; legacy ECS assets remain | 2026-03-25 |
+| [ADR-0034](./ADR-0034-eliminate-auth-service-and-session-auth.md) | Eliminate auth service and session auth | Accepted | Implemented baseline | 2026-03-25 |
+| [ADR-0035](./ADR-0035-replace-generic-jobs-with-export-workflows.md) | Replace generic jobs with export workflows | Accepted | Implemented baseline | 2026-03-25 |
+| [ADR-0036](./ADR-0036-dynamodb-idempotency-no-redis.md) | DynamoDB idempotency and transient state, no Redis | Accepted | Implemented baseline | 2026-03-25 |
+| [ADR-0037](./ADR-0037-sdk-generation-consolidation.md) | Consolidate SDK generation and package layout | Accepted | Implemented baseline | 2026-03-25 |
+| [ADR-0038](./ADR-0038-docs-authority-reset.md) | Reset docs authority | Accepted | Implemented on branch docs surface | 2026-03-25 |
 
-## Approved target-state program
+## Remaining target-state cleanup
 
-| ADR | Title | Decision status | Implementation state | Date |
-| --- | --- | --- | --- | --- |
-| [ADR-0033](./ADR-0033-canonical-serverless-platform.md) | Canonical serverless platform | Accepted | Planned target | 2026-03-25 |
-| [ADR-0034](./ADR-0034-eliminate-auth-service-and-session-auth.md) | Eliminate auth service and session auth | Accepted | Planned target | 2026-03-25 |
-| [ADR-0035](./ADR-0035-replace-generic-jobs-with-export-workflows.md) | Replace generic jobs with export workflows | Accepted | Planned target | 2026-03-25 |
-| [ADR-0036](./ADR-0036-dynamodb-idempotency-no-redis.md) | DynamoDB idempotency and transient state, no Redis | Accepted | Planned target | 2026-03-25 |
-| [ADR-0037](./ADR-0037-sdk-generation-consolidation.md) | Consolidate SDK generation and package layout | Accepted | Planned target | 2026-03-25 |
-| [ADR-0038](./ADR-0038-docs-authority-reset.md) | Reset docs authority | Accepted | Applied to docs pack / code still planned | 2026-03-25 |
+The wave-2 architecture decisions above are already reflected in the current
+repo baseline. Remaining work is legacy-retirement cleanup: removing stale
+ECS-era assets, stale docs, and any duplicate authority surfaces that still
+describe the pre-wave-2 world as active truth.
 
 ## Superseded
 

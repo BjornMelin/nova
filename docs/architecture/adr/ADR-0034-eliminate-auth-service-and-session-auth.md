@@ -1,17 +1,21 @@
 # ADR-0034 -- Eliminate auth service and session auth
 
-> **Implementation state:** Approved target-state ADR. The current codebase still carries legacy auth-service and session-style seams; this ADR defines their removal.
+> **Implementation state:** Implemented in the current repository baseline, with only legacy references/assets still requiring retirement.
 
 ## Status
 Accepted
 
 ## Decision
 
-Use **bearer JWT only** for all public API access. Verify JWTs in-process in the main API with an async verifier. Delete the dedicated auth service and all auth SDK packages.
+Use **bearer JWT only** for all public API access. Verify JWTs in-process in
+the main API with an async verifier. Keep the dedicated auth service and auth
+SDK packages removed from the active public surface.
 
 ## Context
 
-The attached repo still carries three auth modes and a dedicated auth microservice, plus session-style public auth semantics that complicate clients, OpenAPI, and platform topology.
+The current repository has already moved the active public contract to bearer
+JWT only, but legacy references and superseded artifacts still need to stay
+out of active docs and operator paths.
 
 ## Why this wins
 
@@ -29,8 +33,7 @@ The attached repo still carries three auth modes and a dedicated auth microservi
 
 ## Consequences
 
-- delete `packages/nova_auth_api`
-- delete `packages/nova_sdk_auth`
-- delete `packages/nova_sdk_py_auth`
-- delete `packages/nova_sdk_r_auth`
-- remove `JWT_REMOTE`, `SAME_ORIGIN`, `X-Session-Id`, body `session_id`, and `X-Scope-Id`
+- keep `packages/nova_auth_api` and auth-specific SDK packages out of the
+  active package/runtime contract
+- keep `JWT_REMOTE`, `SAME_ORIGIN`, `X-Session-Id`, body `session_id`, and
+  `X-Scope-Id` out of the public auth contract and active docs

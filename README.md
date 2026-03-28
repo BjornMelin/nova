@@ -6,11 +6,11 @@ Nova is a file-transfer and export control-plane monorepo.
 
 This docs-alignment pack is intentionally honest about state:
 
-- the **current implemented baseline** is still the pre-wave-2 repository shape
-  (ECS/SQS/Redis/generic-jobs/auth-service era)
-- the **approved target** is the wave-2 hard cut documented under
-  `docs/architecture/adr/ADR-0033` through `ADR-0038` and
-  `docs/architecture/spec/SPEC-0027` through `SPEC-0031`
+- the **current implemented baseline** is now a mixed wave-2 repository state
+  with export workflows, in-process bearer JWT, DynamoDB-backed idempotency,
+  consolidated SDK packages, and serverless platform components already landed
+- the **approved target** remains the fully retired end state with legacy
+  ECS-era assets and duplicate documentation paths removed from active use
 
 Use this README as orientation only. It does **not** replace the architecture
 authority docs.
