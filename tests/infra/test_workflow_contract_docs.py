@@ -95,7 +95,9 @@ def test_post_deploy_validate_schema_matches_reusable_workflow() -> None:
     schema_inputs = schema["properties"]["inputs"]["properties"]
     schema_outputs = schema["properties"]["outputs"]["properties"]
     workflow_required_inputs = {
-        key for key, value in workflow_inputs.items() if value["required"]
+        key
+        for key, value in workflow_inputs.items()
+        if value.get("required", False)
     }
     schema_required_inputs = set(schema["properties"]["inputs"]["required"])
 
@@ -159,7 +161,9 @@ def test_auth0_workflow_schema_matches_reusable_auth0_api() -> None:
     schema_inputs = schema["properties"]["inputs"]["properties"]
     schema_outputs = schema["properties"]["outputs"]["properties"]
     workflow_required_inputs = {
-        key for key, value in workflow_inputs.items() if value["required"]
+        key
+        for key, value in workflow_inputs.items()
+        if value.get("required", False)
     }
     schema_required_inputs = set(schema["properties"]["inputs"]["required"])
 

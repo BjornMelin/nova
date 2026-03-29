@@ -69,6 +69,10 @@ promotion, and optional post-deploy route validation.
    - runs `scripts.release.codeartifact_gate`
    - publishes only to `CODEARTIFACT_STAGING_REPOSITORY`
    - smoke-tests staged npm packages when npm artifacts are present
+4. Confirm gate validation succeeds:
+   - `scripts.release.codeartifact_gate` verifies manifest SHA256, changed units, and version plan inputs
+   - failures raise `GateError` and fail the job non-zero
+   - successful runs produce `codeartifact-gate-report.json` and `codeartifact-promotion-candidates.json`
 
 ### E. Promote staged packages to prod
 
@@ -84,6 +88,10 @@ promotion, and optional post-deploy route validation.
 3. Confirm the workflow validates input digests and copies staged package
    versions from `CODEARTIFACT_STAGING_REPOSITORY` to
    `CODEARTIFACT_PROD_REPOSITORY`.
+4. Confirm promotion validation succeeds:
+   - the workflow re-runs `scripts.release.codeartifact_gate` to verify digest integrity
+   - digest mismatches fail with a `sha256 mismatch` error
+   - successful runs produce `validated-promotion-candidates.json`
 
 ### F. Optional post-deploy route validation
 
@@ -103,6 +111,10 @@ Capture durable pointers for:
 5. `Promote Prod` workflow run
 6. `Post Deploy Validate` workflow run when used
 7. `RELEASE-VERSION-MANIFEST.md` SHA continuity through publish and promotion
+8. Gate validation artifacts:
+   - `codeartifact-gate-report.json`
+   - `codeartifact-promotion-candidates.json`
+   - `validated-promotion-candidates.json`
 
 ## 5. Rollback guidance
 
