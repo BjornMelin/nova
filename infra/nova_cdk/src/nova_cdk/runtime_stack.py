@@ -1,15 +1,16 @@
-"""CDK stack for the canonical Nova serverless runtime."""
+# mypy: disable-error-code=import-not-found
+
+"""CDK stack for the canonical Nova runtime."""
 
 from __future__ import annotations
 
 import json
 import os
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from aws_cdk import Aws, Duration, RemovalPolicy, Stack
-from aws_cdk import aws_apigateway as apigw
-from aws_cdk import aws_certificatemanager as acm
+from aws_cdk import Duration, RemovalPolicy, Stack
 from aws_cdk import aws_cloudwatch as cloudwatch
 from aws_cdk import aws_dynamodb as dynamodb
 from aws_cdk import aws_lambda as lambda_
@@ -17,8 +18,9 @@ from aws_cdk import aws_logs as logs
 from aws_cdk import aws_s3 as s3
 from aws_cdk import aws_stepfunctions as sfn
 from aws_cdk import aws_stepfunctions_tasks as tasks
-from aws_cdk import aws_wafv2 as wafv2
 from constructs import Construct
+
+from .ingress import create_regional_rest_ingress
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
 
@@ -32,55 +34,29 @@ def _parse_allowed_origins(raw: object | None) -> list[str]:
         if not value:
             return []
         if value.startswith("["):
-            try:
-                parsed = json.loads(value)
-            except ValueError:
-                parsed = value
-            else:
-                raw = parsed
-                if not isinstance(raw, list):
-                    raise TypeError(
-                        "allowed_origins must decode to a JSON list when "
-                        "supplied as JSON"
-                    )
-        else:
-            return [
-                origin
-                for origin in (item.strip() for item in value.split(","))
-                if origin
-            ]
-    if isinstance(raw, (list, tuple)):
-        parsed_origins = [
-            str(origin).strip() for origin in raw if str(origin).strip()
+            parsed = json.loads(value)
+            if not isinstance(parsed, list):
+                raise TypeError(
+                    "allowed_origins JSON input must decode to a list."
+                )
+            return _parse_allowed_origins(parsed)
+        return [
+            origin
+            for origin in (item.strip() for item in value.split(","))
+            if origin
         ]
-        if parsed_origins:
-            return parsed_origins
-        return []
+    if isinstance(raw, (list, tuple)):
+        return [str(origin).strip() for origin in raw if str(origin).strip()]
     raise TypeError("allowed_origins must be a string or a list of strings")
 
 
-def _required_context_value(
+def _required_context_or_env_value(
     scope: Construct,
     *,
+    env_var: str,
     key: str,
 ) -> str:
-    """Return one required non-blank CDK context value."""
-    value = scope.node.try_get_context(key)
-    if isinstance(value, str) and value.strip():
-        return value.strip()
-    raise ValueError(
-        f"Missing required CDK context value: {key}. "
-        "Pass -c jwt_issuer=... -c jwt_audience=... -c jwt_jwks_url=..."
-    )
-
-
-def _optional_context_or_env_value(
-    scope: Construct,
-    *,
-    key: str,
-    env_var: str,
-) -> str | None:
-    """Return one optional context/env string after trimming blanks."""
+    """Return one required non-blank context or environment value."""
     raw = scope.node.try_get_context(key)
     if not isinstance(raw, str):
         raw = os.environ.get(env_var)
@@ -88,7 +64,7 @@ def _optional_context_or_env_value(
         value = raw.strip()
         if value:
             return value
-    return None
+    raise ValueError(f"Missing required value for {key}.")
 
 
 def _stage_name_for_environment(deployment_environment: str) -> str:
@@ -98,8 +74,95 @@ def _stage_name_for_environment(deployment_environment: str) -> str:
     return deployment_environment
 
 
-class NovaServerlessStack(Stack):
-    """Provision the canonical Nova serverless platform."""
+def _point_in_time_recovery() -> dynamodb.PointInTimeRecoverySpecification:
+    """Return the canonical PITR setting for runtime DynamoDB tables."""
+    return dynamodb.PointInTimeRecoverySpecification(
+        point_in_time_recovery_enabled=True
+    )
+
+
+def _runtime_log_group(
+    scope: Construct,
+    *,
+    function_name: str,
+) -> logs.LogGroup:
+    """Create the retained one-month log group for one Lambda function."""
+    return logs.LogGroup(
+        scope,
+        f"{function_name}Logs",
+        retention=logs.RetentionDays.ONE_MONTH,
+        removal_policy=RemovalPolicy.RETAIN,
+    )
+
+
+@dataclass(frozen=True)
+class RuntimeStackInputs:
+    """Carry canonical runtime inputs resolved from context and environment."""
+
+    allowed_origins: list[str]
+    api_domain_name: str
+    certificate_arn: str
+    deployment_environment: str
+    oidc_audience: str
+    oidc_issuer: str
+    oidc_jwks_url: str
+
+    @classmethod
+    def from_scope(cls, scope: Construct) -> RuntimeStackInputs:
+        """Resolve the canonical runtime inputs for the stack."""
+        deployment_environment = (
+            str(
+                scope.node.try_get_context("environment")
+                or os.environ.get("ENVIRONMENT")
+                or "dev"
+            )
+            .strip()
+            .lower()
+        )
+        allowed_origins = _parse_allowed_origins(
+            scope.node.try_get_context("allowed_origins")
+            or os.environ.get("STACK_ALLOWED_ORIGINS")
+        )
+        if not allowed_origins:
+            if deployment_environment in {"prod", "production"}:
+                raise ValueError(
+                    "allowed_origins must be configured for production "
+                    "deployments."
+                )
+            allowed_origins = ["*"]
+        return cls(
+            allowed_origins=allowed_origins,
+            api_domain_name=_required_context_or_env_value(
+                scope,
+                env_var="API_DOMAIN_NAME",
+                key="api_domain_name",
+            ),
+            certificate_arn=_required_context_or_env_value(
+                scope,
+                env_var="CERTIFICATE_ARN",
+                key="certificate_arn",
+            ),
+            deployment_environment=deployment_environment,
+            oidc_audience=_required_context_or_env_value(
+                scope,
+                env_var="JWT_AUDIENCE",
+                key="jwt_audience",
+            ),
+            oidc_issuer=_required_context_or_env_value(
+                scope,
+                env_var="JWT_ISSUER",
+                key="jwt_issuer",
+            ),
+            oidc_jwks_url=_required_context_or_env_value(
+                scope,
+                env_var="JWT_JWKS_URL",
+                key="jwt_jwks_url",
+            ),
+        )
+
+
+class NovaRuntimeStack(Stack):
+    """Provision the canonical Nova runtime platform."""
 
     def __init__(
         self,
@@ -107,8 +170,9 @@ class NovaServerlessStack(Stack):
         construct_id: str,
         **kwargs: Any,
     ) -> None:
-        """Initialize the serverless stack and all primary runtime resources."""
+        """Initialize the runtime stack and its primary resources."""
         super().__init__(scope, construct_id, **kwargs)
+        inputs = RuntimeStackInputs.from_scope(self)
 
         export_table = dynamodb.Table(
             self,
@@ -118,7 +182,7 @@ class NovaServerlessStack(Stack):
                 type=dynamodb.AttributeType.STRING,
             ),
             billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
-            point_in_time_recovery=True,
+            point_in_time_recovery_specification=_point_in_time_recovery(),
             removal_policy=RemovalPolicy.RETAIN,
         )
         export_table.add_global_secondary_index(
@@ -146,7 +210,7 @@ class NovaServerlessStack(Stack):
                 type=dynamodb.AttributeType.STRING,
             ),
             billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
-            point_in_time_recovery=True,
+            point_in_time_recovery_specification=_point_in_time_recovery(),
             removal_policy=RemovalPolicy.RETAIN,
         )
 
@@ -159,33 +223,9 @@ class NovaServerlessStack(Stack):
             ),
             billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
             time_to_live_attribute="expires_at",
-            point_in_time_recovery=True,
+            point_in_time_recovery_specification=_point_in_time_recovery(),
             removal_policy=RemovalPolicy.RETAIN,
         )
-
-        deployment_environment = (
-            str(
-                self.node.try_get_context("environment")
-                or os.environ.get("ENVIRONMENT")
-                or "dev"
-            )
-            .strip()
-            .lower()
-        )
-        allowed_origins = _parse_allowed_origins(
-            self.node.try_get_context("allowed_origins")
-            or os.environ.get("STACK_ALLOWED_ORIGINS")
-        )
-        if not allowed_origins:
-            if deployment_environment in {"prod", "production"}:
-                raise ValueError(
-                    "allowed_origins must be configured for production "
-                    "deployments"
-                )
-            allowed_origins = ["*"]
-        oidc_issuer = _required_context_value(self, key="jwt_issuer")
-        oidc_audience = _required_context_value(self, key="jwt_audience")
-        oidc_jwks_url = _required_context_value(self, key="jwt_jwks_url")
 
         file_bucket = s3.Bucket(
             self,
@@ -204,7 +244,7 @@ class NovaServerlessStack(Stack):
                         s3.HttpMethods.POST,
                         s3.HttpMethods.HEAD,
                     ],
-                    allowed_origins=allowed_origins,
+                    allowed_origins=inputs.allowed_origins,
                     exposed_headers=["ETag"],
                 )
             ],
@@ -220,17 +260,15 @@ class NovaServerlessStack(Stack):
             "JOBS_DYNAMODB_TABLE": export_table.table_name,
             "ACTIVITY_STORE_BACKEND": "dynamodb",
             "ACTIVITY_ROLLUPS_TABLE": activity_table.table_name,
-            "OIDC_ISSUER": oidc_issuer,
-            "OIDC_AUDIENCE": oidc_audience,
-            "OIDC_JWKS_URL": oidc_jwks_url,
+            "OIDC_ISSUER": inputs.oidc_issuer,
+            "OIDC_AUDIENCE": inputs.oidc_audience,
+            "OIDC_JWKS_URL": inputs.oidc_jwks_url,
         }
-
         task_env = {
             **common_env,
             "IDEMPOTENCY_ENABLED": "false",
             "JOBS_QUEUE_BACKEND": "memory",
         }
-
         workflow_fn_props = {
             "architecture": lambda_.Architecture.ARM_64,
             "timeout": Duration.minutes(5),
@@ -247,7 +285,10 @@ class NovaServerlessStack(Stack):
                 cmd=["nova_workflows.handlers.validate_export_handler"],
             ),
             environment=task_env,
-            log_retention=logs.RetentionDays.ONE_MONTH,
+            log_group=_runtime_log_group(
+                self,
+                function_name="ValidateExportFunction",
+            ),
             **workflow_fn_props,
         )
         copy_fn = lambda_.DockerImageFunction(
@@ -259,7 +300,10 @@ class NovaServerlessStack(Stack):
                 cmd=["nova_workflows.handlers.copy_export_handler"],
             ),
             environment=task_env,
-            log_retention=logs.RetentionDays.ONE_MONTH,
+            log_group=_runtime_log_group(
+                self,
+                function_name="CopyExportFunction",
+            ),
             **workflow_fn_props,
         )
         finalize_fn = lambda_.DockerImageFunction(
@@ -271,7 +315,10 @@ class NovaServerlessStack(Stack):
                 cmd=["nova_workflows.handlers.finalize_export_handler"],
             ),
             environment=task_env,
-            log_retention=logs.RetentionDays.ONE_MONTH,
+            log_group=_runtime_log_group(
+                self,
+                function_name="FinalizeExportFunction",
+            ),
             **workflow_fn_props,
         )
         fail_fn = lambda_.DockerImageFunction(
@@ -283,7 +330,10 @@ class NovaServerlessStack(Stack):
                 cmd=["nova_workflows.handlers.fail_export_handler"],
             ),
             environment=task_env,
-            log_retention=logs.RetentionDays.ONE_MONTH,
+            log_group=_runtime_log_group(
+                self,
+                function_name="FailExportFunction",
+            ),
             **workflow_fn_props,
         )
 
@@ -377,7 +427,10 @@ class NovaServerlessStack(Stack):
                     state_machine.state_machine_arn
                 ),
             },
-            log_retention=logs.RetentionDays.ONE_MONTH,
+            log_group=_runtime_log_group(
+                self,
+                function_name="NovaApiFunction",
+            ),
         )
         file_bucket.grant_read_write(api_function)
         export_table.grant_read_write_data(api_function)
@@ -385,139 +438,15 @@ class NovaServerlessStack(Stack):
         idempotency_table.grant_read_write_data(api_function)
         state_machine.grant_start_execution(api_function)
 
-        stage_name = _stage_name_for_environment(deployment_environment)
-        api_custom_domain_name = _optional_context_or_env_value(
+        ingress = create_regional_rest_ingress(
             self,
-            key="api_custom_domain_name",
-            env_var="API_CUSTOM_DOMAIN_NAME",
-        )
-        api_certificate_arn = _optional_context_or_env_value(
-            self,
-            key="api_certificate_arn",
-            env_var="API_CERTIFICATE_ARN",
-        )
-        if bool(api_custom_domain_name) != bool(api_certificate_arn):
-            raise ValueError(
-                "api_custom_domain_name and api_certificate_arn must be "
-                "supplied "
-                "together when configuring the optional API Gateway custom "
-                "domain."
-            )
-
-        access_log_group = logs.LogGroup(
-            self,
-            "NovaApiAccessLogs",
-            retention=logs.RetentionDays.ONE_MONTH,
-            removal_policy=RemovalPolicy.RETAIN,
-        )
-        access_log_format = apigw.AccessLogFormat.custom(
-            json.dumps(
-                {
-                    "requestId": "$context.requestId",
-                    "ip": "$context.identity.sourceIp",
-                    "requestTime": "$context.requestTime",
-                    "httpMethod": "$context.httpMethod",
-                    "resourcePath": "$context.resourcePath",
-                    "status": "$context.status",
-                    "responseLength": "$context.responseLength",
-                },
-                separators=(",", ":"),
-            )
-        )
-        integration = apigw.LambdaIntegration(
-            api_function,
-            proxy=True,
-        )
-        rest_api = apigw.RestApi(
-            self,
-            "NovaRestApi",
-            disable_execute_api_endpoint=False,
-            endpoint_types=[apigw.EndpointType.REGIONAL],
-            deploy_options=apigw.StageOptions(
-                access_log_destination=apigw.LogGroupLogDestination(
-                    access_log_group
-                ),
-                access_log_format=access_log_format,
-                data_trace_enabled=False,
-                logging_level=apigw.MethodLoggingLevel.ERROR,
-                metrics_enabled=True,
-                stage_name=stage_name,
-                tracing_enabled=True,
+            api_domain_name=inputs.api_domain_name,
+            api_handler=api_function,
+            certificate_arn=inputs.certificate_arn,
+            stage_name=_stage_name_for_environment(
+                inputs.deployment_environment
             ),
         )
-        rest_api.node.try_remove_child("Endpoint")
-        rest_api.root.add_method("ANY", integration)
-        rest_api.root.add_proxy(
-            any_method=True,
-            default_integration=integration,
-        )
-
-        web_acl = wafv2.CfnWebACL(
-            self,
-            "NovaRestApiWebAcl",
-            default_action=wafv2.CfnWebACL.DefaultActionProperty(allow={}),
-            scope="REGIONAL",
-            visibility_config=wafv2.CfnWebACL.VisibilityConfigProperty(
-                cloud_watch_metrics_enabled=True,
-                metric_name="nova-rest-api-waf",
-                sampled_requests_enabled=True,
-            ),
-            rules=[
-                wafv2.CfnWebACL.RuleProperty(
-                    name="AWSManagedCommonRuleSet",
-                    priority=1,
-                    override_action=wafv2.CfnWebACL.OverrideActionProperty(
-                        none={}
-                    ),
-                    statement=wafv2.CfnWebACL.StatementProperty(
-                        managed_rule_group_statement=wafv2.CfnWebACL.ManagedRuleGroupStatementProperty(
-                            vendor_name="AWS",
-                            name="AWSManagedRulesCommonRuleSet",
-                        )
-                    ),
-                    visibility_config=wafv2.CfnWebACL.VisibilityConfigProperty(
-                        cloud_watch_metrics_enabled=True,
-                        metric_name="nova-rest-api-managed-common",
-                        sampled_requests_enabled=True,
-                    ),
-                )
-            ],
-        )
-        wafv2.CfnWebACLAssociation(
-            self,
-            "NovaRestApiWebAclAssociation",
-            resource_arn=(
-                f"arn:{Aws.PARTITION}:apigateway:{Aws.REGION}::/restapis/"
-                f"{rest_api.rest_api_id}/stages/{stage_name}"
-            ),
-            web_acl_arn=web_acl.attr_arn,
-        )
-
-        if (
-            api_custom_domain_name is not None
-            and api_certificate_arn is not None
-        ):
-            certificate = acm.Certificate.from_certificate_arn(
-                self,
-                "NovaApiCertificate",
-                api_certificate_arn,
-            )
-            domain_name = apigw.DomainName(
-                self,
-                "NovaCustomDomain",
-                certificate=certificate,
-                domain_name=api_custom_domain_name,
-                endpoint_type=apigw.EndpointType.REGIONAL,
-                security_policy=apigw.SecurityPolicy.TLS_1_2,
-            )
-            apigw.BasePathMapping(
-                self,
-                "NovaCustomDomainMapping",
-                attach_to_stage=True,
-                domain_name=domain_name,
-                rest_api=rest_api,
-                stage=rest_api.deployment_stage,
-            )
 
         cloudwatch.Alarm(
             self,
@@ -557,28 +486,39 @@ class NovaServerlessStack(Stack):
         cloudwatch.Alarm(
             self,
             "ExportsTableThrottlesAlarm",
-            metric=export_table.metric_throttled_requests(
-                period=Duration.minutes(5)
+            metric=cloudwatch.MathExpression(
+                expression="get_item + put_item + query",
+                period=Duration.minutes(5),
+                using_metrics={
+                    "get_item": (
+                        export_table.metric_throttled_requests_for_operation(
+                            "GetItem",
+                            period=Duration.minutes(5),
+                        )
+                    ),
+                    "put_item": (
+                        export_table.metric_throttled_requests_for_operation(
+                            "PutItem",
+                            period=Duration.minutes(5),
+                        )
+                    ),
+                    "query": (
+                        export_table.metric_throttled_requests_for_operation(
+                            "Query",
+                            period=Duration.minutes(5),
+                        )
+                    ),
+                },
             ),
             threshold=1,
             evaluation_periods=1,
             alarm_description="Alarm when export table requests throttle.",
         )
 
-        regional_base_url = (
-            f"https://{rest_api.rest_api_id}.execute-api."
-            f"{Aws.REGION}.{Stack.of(self).url_suffix}/{stage_name}"
-        )
-        public_base_url = (
-            f"https://{api_custom_domain_name}"
-            if api_custom_domain_name is not None
-            else regional_base_url
-        )
         self.export_value(
-            api_custom_domain_name or "",
-            name="NovaCustomDomainName",
+            ingress.public_base_url,
+            name="NovaPublicBaseUrl",
         )
-        self.export_value(public_base_url, name="NovaPublicBaseUrl")
         self.export_value(
             state_machine.state_machine_arn,
             name="NovaExportWorkflowStateMachineArn",
