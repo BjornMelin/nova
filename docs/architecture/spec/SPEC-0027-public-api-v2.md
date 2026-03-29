@@ -11,7 +11,7 @@ Public API v2 exposes only explicit transfer and export workflow resources under
 - bearer JWT only
 - no session-based auth
 - no same-origin auth contract
-- optional route-level JWT authorizer in API Gateway
+- Regional REST API ingress provides transport, WAF, and logging only.
 - app-level authorization remains authoritative
 
 ## Resource model

@@ -7,7 +7,7 @@ Accepted
 
 ## Decision
 
-Adopt **CloudFront + WAF → API Gateway HTTP API → Lambda (FastAPI via Lambda Web Adapter) → Step Functions Standard / DynamoDB / S3** as the canonical AWS runtime.
+Adopt **regional API Gateway REST API + stage-bound WAF → Lambda (FastAPI via Lambda Web Adapter) → Step Functions Standard / DynamoDB / S3** as the canonical AWS runtime.
 
 ## Context
 

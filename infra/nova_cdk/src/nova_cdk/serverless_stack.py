@@ -7,12 +7,9 @@ import os
 from pathlib import Path
 from typing import Any
 
-from aws_cdk import Duration, RemovalPolicy, Stack
-from aws_cdk import aws_apigatewayv2 as apigwv2
-from aws_cdk import aws_apigatewayv2_authorizers as apigwv2_authorizers
-from aws_cdk import aws_apigatewayv2_integrations as apigwv2_integrations
-from aws_cdk import aws_cloudfront as cloudfront
-from aws_cdk import aws_cloudfront_origins as origins
+from aws_cdk import Aws, Duration, RemovalPolicy, Stack
+from aws_cdk import aws_apigateway as apigw
+from aws_cdk import aws_certificatemanager as acm
 from aws_cdk import aws_cloudwatch as cloudwatch
 from aws_cdk import aws_dynamodb as dynamodb
 from aws_cdk import aws_lambda as lambda_
@@ -75,6 +72,30 @@ def _required_context_value(
         f"Missing required CDK context value: {key}. "
         "Pass -c jwt_issuer=... -c jwt_audience=... -c jwt_jwks_url=..."
     )
+
+
+def _optional_context_or_env_value(
+    scope: Construct,
+    *,
+    key: str,
+    env_var: str,
+) -> str | None:
+    """Return one optional context/env string after trimming blanks."""
+    raw = scope.node.try_get_context(key)
+    if not isinstance(raw, str):
+        raw = os.environ.get(env_var)
+    if isinstance(raw, str):
+        value = raw.strip()
+        if value:
+            return value
+    return None
+
+
+def _stage_name_for_environment(deployment_environment: str) -> str:
+    """Normalize environment values into a stable API Gateway stage name."""
+    if deployment_environment in {"prod", "production"}:
+        return "prod"
+    return deployment_environment
 
 
 class NovaServerlessStack(Stack):
@@ -364,62 +385,81 @@ class NovaServerlessStack(Stack):
         idempotency_table.grant_read_write_data(api_function)
         state_machine.grant_start_execution(api_function)
 
-        integration = apigwv2_integrations.HttpLambdaIntegration(
-            "NovaApiIntegration",
-            api_function,
-        )
-        http_api = apigwv2.HttpApi(
+        stage_name = _stage_name_for_environment(deployment_environment)
+        api_custom_domain_name = _optional_context_or_env_value(
             self,
-            "NovaHttpApi",
-            create_default_stage=True,
+            key="api_custom_domain_name",
+            env_var="API_CUSTOM_DOMAIN_NAME",
         )
+        api_certificate_arn = _optional_context_or_env_value(
+            self,
+            key="api_certificate_arn",
+            env_var="API_CERTIFICATE_ARN",
+        )
+        if bool(api_custom_domain_name) != bool(api_certificate_arn):
+            raise ValueError(
+                "api_custom_domain_name and api_certificate_arn must be "
+                "supplied "
+                "together when configuring the optional API Gateway custom "
+                "domain."
+            )
 
-        authorizer = apigwv2_authorizers.HttpJwtAuthorizer(
-            "NovaJwtAuthorizer",
-            oidc_issuer,
-            jwt_audience=[oidc_audience],
+        access_log_group = logs.LogGroup(
+            self,
+            "NovaApiAccessLogs",
+            retention=logs.RetentionDays.ONE_MONTH,
+            removal_policy=RemovalPolicy.RETAIN,
         )
-        http_api.add_routes(
-            path="/v1/health/live",
-            methods=[apigwv2.HttpMethod.GET],
-            integration=integration,
+        access_log_format = apigw.AccessLogFormat.custom(
+            json.dumps(
+                {
+                    "requestId": "$context.requestId",
+                    "ip": "$context.identity.sourceIp",
+                    "requestTime": "$context.requestTime",
+                    "httpMethod": "$context.httpMethod",
+                    "resourcePath": "$context.resourcePath",
+                    "status": "$context.status",
+                    "responseLength": "$context.responseLength",
+                },
+                separators=(",", ":"),
+            )
         )
-        http_api.add_routes(
-            path="/v1/health/ready",
-            methods=[apigwv2.HttpMethod.GET],
-            integration=integration,
+        integration = apigw.LambdaIntegration(
+            api_function,
+            proxy=True,
         )
-        http_api.add_routes(
-            path="/v1/{proxy+}",
-            methods=[apigwv2.HttpMethod.ANY],
-            integration=integration,
-            authorizer=authorizer,
+        rest_api = apigw.RestApi(
+            self,
+            "NovaRestApi",
+            disable_execute_api_endpoint=False,
+            endpoint_types=[apigw.EndpointType.REGIONAL],
+            deploy_options=apigw.StageOptions(
+                access_log_destination=apigw.LogGroupLogDestination(
+                    access_log_group
+                ),
+                access_log_format=access_log_format,
+                data_trace_enabled=False,
+                logging_level=apigw.MethodLoggingLevel.ERROR,
+                metrics_enabled=True,
+                stage_name=stage_name,
+                tracing_enabled=True,
+            ),
         )
-        http_api.add_routes(
-            path="/v1",
-            methods=[apigwv2.HttpMethod.ANY],
-            integration=integration,
-            authorizer=authorizer,
-        )
-        http_api.add_routes(
-            path="/",
-            methods=[apigwv2.HttpMethod.ANY],
-            integration=integration,
-        )
-        http_api.add_routes(
-            path="/metrics/summary",
-            methods=[apigwv2.HttpMethod.GET],
-            integration=integration,
+        rest_api.node.try_remove_child("Endpoint")
+        rest_api.root.add_method("ANY", integration)
+        rest_api.root.add_proxy(
+            any_method=True,
+            default_integration=integration,
         )
 
         web_acl = wafv2.CfnWebACL(
             self,
-            "NovaCloudFrontWebAcl",
+            "NovaRestApiWebAcl",
             default_action=wafv2.CfnWebACL.DefaultActionProperty(allow={}),
-            scope="CLOUDFRONT",
+            scope="REGIONAL",
             visibility_config=wafv2.CfnWebACL.VisibilityConfigProperty(
                 cloud_watch_metrics_enabled=True,
-                metric_name="nova-cloudfront-waf",
+                metric_name="nova-rest-api-waf",
                 sampled_requests_enabled=True,
             ),
             rules=[
@@ -437,32 +477,47 @@ class NovaServerlessStack(Stack):
                     ),
                     visibility_config=wafv2.CfnWebACL.VisibilityConfigProperty(
                         cloud_watch_metrics_enabled=True,
-                        metric_name="nova-managed-common",
+                        metric_name="nova-rest-api-managed-common",
                         sampled_requests_enabled=True,
                     ),
                 )
             ],
         )
-
-        stack_region = self.region
-        api_origin = origins.HttpOrigin(
-            f"{http_api.api_id}.execute-api.{stack_region}.{Stack.of(self).url_suffix}",
-        )
-        distribution = cloudfront.Distribution(
+        wafv2.CfnWebACLAssociation(
             self,
-            "NovaDistribution",
-            default_behavior=cloudfront.BehaviorOptions(
-                origin=api_origin,
-                viewer_protocol_policy=(
-                    cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS
-                ),
-                cache_policy=cloudfront.CachePolicy.CACHING_DISABLED,
-                origin_request_policy=(
-                    cloudfront.OriginRequestPolicy.ALL_VIEWER_EXCEPT_HOST_HEADER
-                ),
+            "NovaRestApiWebAclAssociation",
+            resource_arn=(
+                f"arn:{Aws.PARTITION}:apigateway:{Aws.REGION}::/restapis/"
+                f"{rest_api.rest_api_id}/stages/{stage_name}"
             ),
-            web_acl_id=web_acl.attr_arn,
+            web_acl_arn=web_acl.attr_arn,
         )
+
+        if (
+            api_custom_domain_name is not None
+            and api_certificate_arn is not None
+        ):
+            certificate = acm.Certificate.from_certificate_arn(
+                self,
+                "NovaApiCertificate",
+                api_certificate_arn,
+            )
+            domain_name = apigw.DomainName(
+                self,
+                "NovaCustomDomain",
+                certificate=certificate,
+                domain_name=api_custom_domain_name,
+                endpoint_type=apigw.EndpointType.REGIONAL,
+                security_policy=apigw.SecurityPolicy.TLS_1_2,
+            )
+            apigw.BasePathMapping(
+                self,
+                "NovaCustomDomainMapping",
+                attach_to_stage=True,
+                domain_name=domain_name,
+                rest_api=rest_api,
+                stage=rest_api.deployment_stage,
+            )
 
         cloudwatch.Alarm(
             self,
@@ -510,11 +565,20 @@ class NovaServerlessStack(Stack):
             alarm_description="Alarm when export table requests throttle.",
         )
 
-        self.export_value(http_api.api_endpoint, name="NovaHttpApiEndpoint")
-        self.export_value(
-            distribution.domain_name,
-            name="NovaDistributionDomainName",
+        regional_base_url = (
+            f"https://{rest_api.rest_api_id}.execute-api."
+            f"{Aws.REGION}.{Stack.of(self).url_suffix}/{stage_name}"
         )
+        public_base_url = (
+            f"https://{api_custom_domain_name}"
+            if api_custom_domain_name is not None
+            else regional_base_url
+        )
+        self.export_value(
+            api_custom_domain_name or "",
+            name="NovaCustomDomainName",
+        )
+        self.export_value(public_base_url, name="NovaPublicBaseUrl")
         self.export_value(
             state_machine.state_machine_arn,
             name="NovaExportWorkflowStateMachineArn",

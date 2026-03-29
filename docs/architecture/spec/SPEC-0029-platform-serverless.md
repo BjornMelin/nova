@@ -4,8 +4,8 @@
 
 ## Runtime
 
-- CloudFront + WAF
-- API Gateway HTTP API
+- API Gateway REST API (regional)
+- AWS WAF (regional, API stage association)
 - Lambda (FastAPI via Lambda Web Adapter, Python 3.13, arm64)
 - Step Functions Standard
 - DynamoDB
@@ -22,7 +22,8 @@
 - use IAM roles and temporary credentials everywhere
 - secrets/config in Secrets Manager / Parameter Store
 - KMS encryption at rest
-- route-level JWT authorizers in API Gateway where valuable
+- WAF and stage logging at the API Gateway ingress
+- bearer JWT verification remains in-process in the application
 
 ## Operational defaults
 

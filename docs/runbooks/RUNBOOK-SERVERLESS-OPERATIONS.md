@@ -5,12 +5,12 @@
 
 ## Core runtime
 
-- API Gateway HTTP API
+- API Gateway REST API (regional)
 - Lambda (FastAPI via Lambda Web Adapter)
 - Step Functions Standard
 - DynamoDB
 - S3
-- CloudFront + WAF
+- AWS WAF attached to the API stage
 - CloudWatch / X-Ray / OpenTelemetry-compatible telemetry
 
 ## Health model
@@ -35,5 +35,5 @@
 - arm64 for Lambda unless blocked
 - reserved concurrency for blast-radius control
 - provisioned concurrency only after measuring need
-- route-level JWT authorizers in API Gateway where it reduces noise before the app
+- API Gateway stage access/execution logging enabled for ingress diagnostics
 - app-level authorization remains the source of truth

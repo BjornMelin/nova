@@ -39,7 +39,8 @@ Canonical stack ownership:
 
 1. Base URL values MUST be HTTPS (`https://…`).
 2. Values MUST be environment-appropriate and routable to the deployed public
-   CloudFront edge URL for the runtime service.
+   REST API URL for the runtime service, preferring the configured custom domain
+   when one exists and otherwise the regional stage URL.
 3. Non-HTTPS and placeholder endpoints are invalid for release validation gates.
 
 ## 4. CI/CD integration contract

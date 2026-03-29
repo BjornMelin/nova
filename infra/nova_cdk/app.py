@@ -18,11 +18,6 @@ if not account or not region:
         "CDK account and region must be provided via -c account=... "
         "-c region=... or CDK_DEFAULT_ACCOUNT/CDK_DEFAULT_REGION."
     )
-if region != "us-east-1":
-    raise ValueError(
-        "NovaServerlessStack must be synthesized in us-east-1 because "
-        "CloudFront WAF resources are regional there."
-    )
 
 NovaServerlessStack(
     app,
