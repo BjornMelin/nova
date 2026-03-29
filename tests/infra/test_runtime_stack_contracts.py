@@ -1,0 +1,158 @@
+# mypy: disable-error-code=import-not-found
+
+"""Contract tests for the canonical Nova runtime CDK stack."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Any
+
+import pytest
+from aws_cdk import App, Environment
+from aws_cdk.assertions import Template
+
+from .helpers import load_repo_package_module
+
+_RUNTIME_STACK_MODULE = load_repo_package_module(
+    "nova_cdk.runtime_stack",
+    "infra/nova_cdk/src",
+)
+NovaRuntimeStack = _RUNTIME_STACK_MODULE.NovaRuntimeStack
+
+
+def _context_for_region(region: str) -> dict[str, str]:
+    """Return the minimum valid stack context for one region."""
+    return {
+        "api_domain_name": "api.dev.example.com",
+        "certificate_arn": (
+            f"arn:aws:acm:{region}:111111111111:"
+            "certificate/12345678-1234-1234-1234-123456789012"
+        ),
+        "jwt_audience": "api://nova",
+        "jwt_issuer": "https://issuer.example.com/",
+        "jwt_jwks_url": "https://issuer.example.com/.well-known/jwks.json",
+    }
+
+
+@dataclass(frozen=True)
+class _TemplateBundle:
+    """Hold the template fragments used by runtime contract tests."""
+
+    api_function_env: dict[str, str]
+    definition_fragment: str
+    outputs: dict[str, Any]
+    resources: dict[str, Any]
+
+
+def _template(
+    *,
+    context: dict[str, str] | None = None,
+    region: str = "us-west-2",
+) -> Template:
+    """Synthesize the runtime stack to a template for assertions."""
+    app = App(context=context or _context_for_region(region))
+    stack = NovaRuntimeStack(
+        app,
+        "RuntimeContractStack",
+        env=Environment(account="111111111111", region=region),
+    )
+    return Template.from_stack(stack)
+
+
+def _resources_of_type(
+    resources: dict[str, Any],
+    type_name: str,
+) -> dict[str, dict[str, Any]]:
+    """Return all template resources of one CloudFormation type."""
+    return {
+        logical_id: resource
+        for logical_id, resource in resources.items()
+        if resource["Type"] == type_name
+    }
+
+
+def _api_function_env(resources: dict[str, Any]) -> dict[str, str]:
+    """Return the API Lambda environment block from the synthesized template."""
+    functions = _resources_of_type(resources, "AWS::Lambda::Function")
+    for resource in functions.values():
+        variables = (
+            resource["Properties"].get("Environment", {}).get("Variables")
+        )
+        if isinstance(variables, dict) and (
+            "JOBS_STEP_FUNCTIONS_STATE_MACHINE_ARN" in variables
+        ):
+            return variables
+    raise AssertionError("Could not locate the API Lambda environment block")
+
+
+def _definition_fragment(resources: dict[str, Any]) -> str:
+    """Return the rendered Step Functions JSON fragment for assertions."""
+    state_machines = _resources_of_type(
+        resources,
+        "AWS::StepFunctions::StateMachine",
+    )
+    assert len(state_machines) == 1
+    resource = next(iter(state_machines.values()))
+    return "".join(
+        part
+        for part in resource["Properties"]["DefinitionString"]["Fn::Join"][1]
+        if isinstance(part, str)
+    )
+
+
+def _build_bundle(
+    *,
+    context: dict[str, str] | None = None,
+    region: str = "us-west-2",
+) -> _TemplateBundle:
+    """Build a reusable template bundle for runtime assertions."""
+    template_json = _template(context=context, region=region).to_json()
+    resources = template_json["Resources"]
+    return _TemplateBundle(
+        api_function_env=_api_function_env(resources),
+        definition_fragment=_definition_fragment(resources),
+        outputs=template_json["Outputs"],
+        resources=resources,
+    )
+
+
+@pytest.mark.parametrize(
+    "missing_key",
+    [
+        "api_domain_name",
+        "certificate_arn",
+        "jwt_audience",
+        "jwt_issuer",
+        "jwt_jwks_url",
+    ],
+)
+def test_runtime_stack_requires_complete_context(missing_key: str) -> None:
+    """Runtime synth must fail closed on incomplete stack inputs."""
+    context = _context_for_region("us-west-2")
+    context.pop(missing_key)
+
+    with pytest.raises(ValueError, match=missing_key):
+        _template(context=context)
+
+
+def test_runtime_stack_passes_oidc_env_to_api_lambda() -> None:
+    """API Lambda must receive the in-process OIDC verifier settings."""
+    bundle = _build_bundle()
+    api_function_env = bundle.api_function_env
+    assert api_function_env["OIDC_ISSUER"] == "https://issuer.example.com/"
+    assert api_function_env["OIDC_AUDIENCE"] == "api://nova"
+    assert (
+        api_function_env["OIDC_JWKS_URL"]
+        == "https://issuer.example.com/.well-known/jwks.json"
+    )
+
+
+def test_runtime_stack_maps_caught_errors_for_failure_handler() -> None:
+    """Route workflow failure fields to the fail handler input payload."""
+    bundle = _build_bundle()
+    definition_fragment = bundle.definition_fragment
+    assert "$.workflow_error.Error" in definition_fragment
+    assert "$.workflow_error.Cause" in definition_fragment
+    assert "$.workflow_error" in definition_fragment
+    assert '"status":"failed"' in definition_fragment
+    assert '"updated_at.$":"$.updated_at"' in definition_fragment

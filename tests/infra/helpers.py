@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib
 import importlib.util
 import sys
 from pathlib import Path
@@ -52,6 +53,33 @@ def load_repo_module(module_name: str, rel_path: str) -> ModuleType:
         sys.modules.pop(module_name, None)
         raise
     return module
+
+
+def load_repo_package_module(
+    module_name: str,
+    package_root_rel_path: str,
+) -> ModuleType:
+    """Import a repository package module after adding its root to ``sys.path``.
+
+    Args:
+        module_name: Importable package module path.
+        package_root_rel_path: Repository-relative package root directory.
+
+    Returns:
+        The imported module object.
+
+    Raises:
+        FileNotFoundError: If the package root does not exist.
+    """
+    package_root = REPO_ROOT / package_root_rel_path
+    if not package_root.is_dir():
+        raise FileNotFoundError(
+            f"Expected package root to exist: {package_root}"
+        )
+    package_root_text = str(package_root)
+    if package_root_text not in sys.path:
+        sys.path.insert(0, package_root_text)
+    return importlib.import_module(module_name)
 
 
 def section_text(text: str, start_marker: str, end_marker: str) -> str:
