@@ -11,7 +11,9 @@ Public API v2 exposes only explicit transfer and export workflow resources under
 - bearer JWT only
 - no session-based auth
 - no same-origin auth contract
-- Regional REST API ingress provides transport, WAF, and logging only.
+- Regional REST API ingress provides transport, direct Regional WAF, one
+  canonical custom domain, and logging only. The default `execute-api`
+  endpoint is disabled.
 - app-level authorization remains authoritative
 
 ## Resource model

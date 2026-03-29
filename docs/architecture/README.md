@@ -16,7 +16,7 @@ The active architecture baseline is:
 - bearer JWT only
 - explicit export workflow resources
 - DynamoDB-backed idempotency/state
-- Regional REST API + Lambda Web Adapter + Step Functions Standard
+- Regional REST API + direct Regional WAF + one canonical custom domain
 - unified SDK package layout
 - `infra/nova_cdk` as the only active infrastructure implementation path
 
@@ -43,13 +43,9 @@ small canonical wave-2 authority core:
 - `adr/index.md`
 - `spec/index.md`
 - `adr/ADR-0011-cicd-hybrid-github-aws-promotion.md`
-- `adr/ADR-0029-ssm-runtime-base-url-authority-for-deploy-validation.md`
-- `adr/ADR-0030-native-cfn-modular-stack-architecture-for-nova-infrastructure-productization.md`
 - `adr/ADR-0031-reusable-github-workflow-api-and-versioning-policy-for-deployment-automation.md`
 - `adr/ADR-0032-oidc-and-iam-role-partitioning-for-deploy-automation.md`
 - `spec/SPEC-0004-ci-cd-and-docs.md`
-- `spec/SPEC-0023-ssm-runtime-base-url-contract-for-deploy-validation.md`
-- `spec/SPEC-0024-cloudformation-module-contract.md`
 - `spec/SPEC-0025-reusable-workflow-integration-contract.md`
 - `spec/SPEC-0026-ci-cd-iam-least-privilege-matrix.md`
 
@@ -74,3 +70,5 @@ Older deploy-governance and ECS-era material may remain in history for audit
 purposes, but it is not part of the active architecture surface. Current
 supporting docs stay at the root `adr/` and `spec/` levels; superseded docs
 live under `adr/superseded/` and `spec/superseded/`.
+Do not reintroduce CloudFront as a compensating API ingress layer or treat the
+default `execute-api` hostname as an active public endpoint.

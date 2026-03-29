@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from .helpers import REPO_ROOT
 from .helpers import read_repo_file as _read
 
 DOCS_ROOT = REPO_ROOT / "docs"
 
 
-def _repo_paths(*paths: str) -> list:
+def _repo_paths(*paths: str) -> list[Path]:
     """Build absolute repo paths from repo-relative strings."""
     return [REPO_ROOT / path for path in paths]
 
@@ -30,7 +32,6 @@ def test_active_docs_index_tracks_canonical_surface() -> None:
         "docs/release/README.md",
         "docs/plan/GREENFIELD-WAVE-2-EXECUTION.md",
         "docs/architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md",
-        "docs/architecture/spec/SPEC-0000-http-api-contract.md",
         "docs/architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md",
         "docs/architecture/requirements-wave-2.md",
         "docs/architecture/adr/ADR-0033` through `ADR-0038",

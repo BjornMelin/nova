@@ -50,7 +50,7 @@ This guide is designed as a 5-minute setup flow for downstream repos.
   (SemVer and compatibility governance)
 - `docs/release/RELEASE-VERSION-MANIFEST.md` (release artifact evidence)
 - `docs/architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md` (route canonicalization authority)
-- `docs/architecture/spec/SPEC-0000-http-api-contract.md` (baseline API authority)
+- `docs/architecture/spec/SPEC-0027-public-api-v2.md` (active API authority)
 - `docs/architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md` (v1 route namespace contract)
 - `docs/architecture/requirements.md` (runtime and operational requirements baseline)
 

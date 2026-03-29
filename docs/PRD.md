@@ -63,9 +63,9 @@ parallel session/header auth channel).
    [`spec/index.md`](./architecture/spec/index.md) (Superseded tables) and under
    `adr/superseded/` / `spec/superseded/`—not active authority.
 7. Deployment target-state aligns with `ADR-0033` / `SPEC-0029`: regional API
-   Gateway REST API with stage-bound WAF, Lambda (FastAPI via Lambda Web
-   Adapter), Step Functions Standard, DynamoDB, S3, and CloudWatch-backed
-   observability with least-privilege IAM.
+   Gateway REST API with direct Regional WAF, one canonical custom domain,
+   Lambda (FastAPI via Lambda Web Adapter), Step Functions Standard, DynamoDB,
+   S3, and CloudWatch-backed observability with least-privilege IAM.
 8. `nova_dash_bridge` remains an adapter-only integration surface and consumes
    canonical in-process transfer contracts through `nova_file_api.public` as
    the async-first in-process seam.
@@ -103,7 +103,7 @@ Out of scope:
 ## 6. Acceptance Criteria
 
 1. Active docs reference the canonical chain including `ADR-0023`,
-   `SPEC-0000`, `SPEC-0016`, `requirements.md`, and the green-field overlays
+   `SPEC-0016`, `SPEC-0027`, `requirements.md`, and the green-field overlays
    `SPEC-0027`–`SPEC-0031` / `ADR-0033`–`ADR-0038` where relevant.
 2. Active plan/runbook docs reference
    `docs/plan/GREENFIELD-WAVE-2-EXECUTION.md` when scope touches the
@@ -146,14 +146,12 @@ Out of scope:
 - `docs/architecture/adr/ADR-0026-fail-fast-runtime-configuration-and-safe-auth-execution.md`
 - `docs/architecture/adr/ADR-0027-hard-cut-downstream-integration-and-consumer-contract-enforcement.md`
 - `docs/architecture/adr/ADR-0028-auth0-tenant-ops-reusable-workflow-api-contract.md`
-- `docs/architecture/adr/ADR-0029-ssm-runtime-base-url-authority-for-deploy-validation.md`
 - `docs/architecture/adr/ADR-0033-canonical-serverless-platform.md`
 - `docs/architecture/adr/ADR-0034-eliminate-auth-service-and-session-auth.md`
 - `docs/architecture/adr/ADR-0035-replace-generic-jobs-with-export-workflows.md`
 - `docs/architecture/adr/ADR-0036-dynamodb-idempotency-no-redis.md`
 - `docs/architecture/adr/ADR-0037-sdk-generation-consolidation.md`
 - `docs/architecture/adr/ADR-0038-docs-authority-reset.md`
-- `docs/architecture/spec/SPEC-0000-http-api-contract.md`
 - `docs/architecture/spec/superseded/SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md`
 - `docs/architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md`
 - `docs/architecture/spec/SPEC-0017-runtime-component-topology-and-ownership-contract.md`
@@ -161,7 +159,6 @@ Out of scope:
 - `docs/architecture/spec/SPEC-0019-auth-execution-and-threadpool-safety-contract.md`
 - `docs/architecture/spec/SPEC-0021-downstream-hard-cut-integration-and-consumer-validation-contract.md`
 - `docs/architecture/spec/SPEC-0022-auth0-tenant-ops-reusable-workflow-contract.md`
-- `docs/architecture/spec/SPEC-0023-ssm-runtime-base-url-contract-for-deploy-validation.md`
 - `docs/architecture/spec/SPEC-0027-public-api-v2.md`
 - `docs/architecture/spec/SPEC-0028-export-workflow-state-machine.md`
 - `docs/architecture/spec/SPEC-0029-platform-serverless.md`

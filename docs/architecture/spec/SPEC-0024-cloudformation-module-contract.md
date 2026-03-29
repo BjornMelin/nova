@@ -1,8 +1,8 @@
 ---
 Spec: 0024
-Title: CloudFormation module contract
-Status: Active
-Version: 1.4
+Title: Historical CloudFormation module contract
+Status: Historical
+Version: 1.5
 Date: 2026-03-20
 Supersedes: "[SPEC-0017 (superseded): CloudFormation module contract](./superseded/SPEC-0017-cloudformation-module-contract.md)"
 Related:
@@ -19,12 +19,14 @@ Related:
 
 ## 1. Scope
 
-Defines the required module structure and inter-stack contract for Nova native
-CloudFormation templates.
+Records the retired native-CloudFormation module structure that existed before
+the repo converged on `infra/nova_cdk` plus CI marker stacks. The active
+infrastructure authority now lives in `ADR-0033`, `SPEC-0023`, and
+`SPEC-0029`.
 
 ## 2. Canonical stack modules
 
-Required stack modules:
+Historical stack modules:
 
 1. `infra/nova/nova-foundation.yml`
 2. `infra/nova/nova-iam-roles.yml`
@@ -35,6 +37,9 @@ Required stack modules:
    under `infra/runtime/edge/**`
 
 ## 3. Module ownership and responsibilities
+
+These ownership rules are historical traceability only. They do not describe
+the current repo-owned infrastructure surface.
 
 | Module | Required responsibilities |
 | --- | --- |
@@ -65,10 +70,14 @@ Additional runtime ECS service contract:
 
 ## 4. Inter-stack import/export contract
 
+This contract is historical. The active deploy-validation base-url authority
+is defined by `SPEC-0023`, and the active runtime ingress lives in
+`infra/nova_cdk`.
+
 1. Foundation outputs are imported by IAM, CodeBuild, and CI/CD stacks.
 2. Cross-stack values must be explicit via CloudFormation exports/imports.
 3. No module may depend on implicit values from undeclared stacks.
-4. Deploy validation base URLs are sourced from SSM authority paths managed by
+4. Deploy validation base URLs were sourced from SSM authority paths managed by
    `infra/nova/deploy/service-base-url-ssm.yml`, with the value published from
    the runtime edge stack output rather than the ALB/service stack directly.
 

@@ -4,7 +4,7 @@
 
 ## Runtime
 
-- API Gateway REST API (regional)
+- API Gateway REST API (regional) with one canonical custom domain
 - AWS WAF (regional, API stage association)
 - Lambda (FastAPI via Lambda Web Adapter, Python 3.13, arm64)
 - Step Functions Standard
@@ -23,6 +23,8 @@
 - secrets/config in Secrets Manager / Parameter Store
 - KMS encryption at rest
 - WAF and stage logging at the API Gateway ingress
+- disable the default `execute-api` endpoint and publish only the custom-domain
+  base URL
 - bearer JWT verification remains in-process in the application
 
 ## Operational defaults

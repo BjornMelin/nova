@@ -1,22 +1,20 @@
 ---
 ADR: 0029
 Title: SSM runtime base URL authority for deploy validation
-Status: Accepted
-Version: 1.1
+Status: Historical
+Version: 1.2
 Date: 2026-03-05
 Related:
-  - "[ADR-0030: Native-CFN modular stack architecture for Nova infrastructure productization](./ADR-0030-native-cfn-modular-stack-architecture-for-nova-infrastructure-productization.md)"
-  - "[SPEC-0023: SSM runtime base-url contract for deploy validation](../spec/SPEC-0023-ssm-runtime-base-url-contract-for-deploy-validation.md)"
-  - "[SPEC-0024: CloudFormation module contract](../spec/SPEC-0024-cloudformation-module-contract.md)"
+  - "[ADR-0033: Canonical serverless platform](./ADR-0033-canonical-serverless-platform.md)"
+  - "[SPEC-0023: Historical SSM runtime base-url contract for deploy validation](../spec/SPEC-0023-ssm-runtime-base-url-contract-for-deploy-validation.md)"
 ---
 
 ## Summary
 
-Deploy validation base URLs are governed by an SSM-backed authority contract.
-Operators and automation must source environment base URLs from canonical SSM
-parameter paths, where the stored value is published from the canonical REST
-API/custom-domain output surface, and pass those values into deployment
-validation flows.
+Records a historical decision to source deploy-validation base URLs from
+SSM-backed marker stacks. The active release workflow now accepts the runtime
+base URL explicitly, and the authenticated AWS account audited for this branch
+does not contain `/nova/*/base-url` parameters.
 
 ## Context
 
@@ -25,13 +23,14 @@ ad-hoc URL entry allows placeholder values and undermines gate evidence quality.
 
 ## Decision
 
-1. Runtime validation base URLs are SSM-governed authority values.
+1. Runtime validation base URLs were intended to be SSM-governed authority
+   values.
 2. Environment base URLs passed to CI/CD and validation workflows must be HTTPS
    and environment-scoped (`dev`/`prod`).
 3. Release/runbook evidence must include provenance of base URL values used for
    validation gates.
 4. Template and runbook contracts must stay synchronized for base URL sourcing.
-5. Base-url parameters are single-owner resources managed only by the canonical
+5. Base-url parameters were single-owner resources managed only by the canonical
    CI control-plane marker stacks:
    `${PROJECT}-ci-dev-service-base-url` and
    `${PROJECT}-ci-prod-service-base-url`.

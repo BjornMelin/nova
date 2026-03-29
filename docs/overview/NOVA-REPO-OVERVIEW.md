@@ -31,7 +31,6 @@ bearer-only auth, DynamoDB-backed idempotency, unified SDK packages, and
 ## Canonical authority chain
 
 - `../architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md`
-- `../architecture/spec/SPEC-0000-http-api-contract.md`
 - `../architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md`
 - `../architecture/requirements-wave-2.md`
 - `../architecture/adr/ADR-0033-canonical-serverless-platform.md` through `../architecture/adr/ADR-0038-docs-authority-reset.md`

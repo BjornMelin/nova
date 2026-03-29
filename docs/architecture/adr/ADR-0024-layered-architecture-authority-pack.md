@@ -16,8 +16,7 @@ Related:
   - "[ADR-0026: Fail-fast runtime configuration and safe auth execution](./ADR-0026-fail-fast-runtime-configuration-and-safe-auth-execution.md)"
   - "[ADR-0027: Hard-cut downstream integration and consumer contract enforcement](./ADR-0027-hard-cut-downstream-integration-and-consumer-contract-enforcement.md)"
   - "[ADR-0028: Auth0 tenant ops reusable workflow API contract](./ADR-0028-auth0-tenant-ops-reusable-workflow-api-contract.md)"
-  - "[ADR-0029: SSM runtime base URL authority for deploy validation](./ADR-0029-ssm-runtime-base-url-authority-for-deploy-validation.md)"
-  - "[SPEC-0000: HTTP API Contract](../spec/SPEC-0000-http-api-contract.md)"
+  - "[ADR-0033: Canonical serverless platform](./ADR-0033-canonical-serverless-platform.md)"
   - "[SPEC-0015: Nova API platform final topology and delivery contract](../spec/superseded/SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md)"
   - "[SPEC-0016: Hard-cut v1 route contract and route-literal guardrails](../spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md)"
   - "[SPEC-0017: Runtime component topology and ownership contract](../spec/SPEC-0017-runtime-component-topology-and-ownership-contract.md)"
@@ -26,7 +25,7 @@ Related:
   - "[SPEC-0031: Docs and tests authority reset](../spec/SPEC-0031-docs-and-tests-authority-reset.md)"
   - "[SPEC-0021: Downstream hard-cut integration and consumer validation contract](../spec/SPEC-0021-downstream-hard-cut-integration-and-consumer-validation-contract.md)"
   - "[SPEC-0022: Auth0 tenant ops reusable workflow contract](../spec/SPEC-0022-auth0-tenant-ops-reusable-workflow-contract.md)"
-  - "[SPEC-0023: SSM runtime base-url contract for deploy validation](../spec/SPEC-0023-ssm-runtime-base-url-contract-for-deploy-validation.md)"
+  - "[SPEC-0027: Public API v2](../spec/SPEC-0027-public-api-v2.md)"
 ---
 
 ## Summary
@@ -80,17 +79,17 @@ Choose **Option B**.
 1. Active runtime authority includes:
    - `docs/PRD.md`
    - `docs/architecture/requirements.md`
-   - `ADR-0023` through `ADR-0029`
-   - `SPEC-0000`
-   - `SPEC-0015` through `SPEC-0023`
+   - `ADR-0023`, `ADR-0025` through `ADR-0028`, and `ADR-0033` through `ADR-0038`
+   - `SPEC-0016` through `SPEC-0022` and `SPEC-0027` through `SPEC-0031`
    - `docs/plan/PLAN.md`
    - `docs/runbooks/README.md`
 2. Runtime package boundary, startup validation, and auth-execution rules are
    owned by `ADR-0025`, `ADR-0026`, `SPEC-0017`, `SPEC-0018`, and `SPEC-0019`.
 3. Downstream validation and reusable consumer contracts remain in
-   `ADR-0027` through `ADR-0029` and `SPEC-0021` through `SPEC-0023`.
+   `ADR-0027` through `ADR-0028` and `SPEC-0021`, `SPEC-0022`, and
+   `SPEC-0025`.
 4. Adjacent deploy-governance authority is limited to `ADR-0030` through
-   `ADR-0032` and `SPEC-0024` through `SPEC-0026`.
+   `ADR-0032` and `SPEC-0004`, `SPEC-0025`, and `SPEC-0026`.
 5. README, AGENTS, PRD, requirements, plan, runbooks, standards docs, and
    indexes must all reference the same active runtime authority pack in the
    same change.

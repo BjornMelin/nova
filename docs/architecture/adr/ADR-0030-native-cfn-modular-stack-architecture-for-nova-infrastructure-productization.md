@@ -1,8 +1,8 @@
 ---
 ADR: 0030
 Title: Native-CFN modular stack architecture for Nova infrastructure productization
-Status: Accepted
-Version: 1.0
+Status: Historical
+Version: 1.1
 Date: 2026-03-05
 Related:
   - "[ADR-0011: Hybrid CI/CD with GitHub CI and AWS-native Dev to Prod promotion](./ADR-0011-cicd-hybrid-github-aws-promotion.md)"
@@ -12,9 +12,8 @@ Related:
 
 ## Summary
 
-Nova infrastructure is standardized on native CloudFormation templates only,
-with explicit module boundaries and import/export contracts across foundation,
-IAM, CodeBuild, CI/CD, runtime, and SSM authority stacks.
+Records the retired native-CloudFormation productization strategy that
+preceded the current `infra/nova_cdk` runtime baseline.
 
 ## Context
 
@@ -43,7 +42,7 @@ Threshold policy: only options `>= 9.0` are accepted.
 
 ## Decision
 
-Choose **Option B**.
+Historical decision: choose **Option B**.
 
 ### Required characteristics
 

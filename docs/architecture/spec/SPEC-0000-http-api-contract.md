@@ -1,9 +1,12 @@
 ---
 Spec: 0000
-Title: HTTP API Contract
-Status: Active
-Version: 2.2
+Title: Historical public API baseline before the export hard cut
+Status: Historical
+Version: 2.3
 Date: 2026-03-20
+Superseded-by:
+  - "[SPEC-0016: Hard-cut v1 route namespace and route-literal guardrails](./SPEC-0016-v1-route-namespace-and-literal-guardrails.md)"
+  - "[SPEC-0027: Public API v2](./SPEC-0027-public-api-v2.md)"
 Related:
   - "[ADR-0000: FastAPI service decision](../adr/ADR-0000-fastapi-microservice.md)"
   - "[ADR-0006: Async orchestration with SQS + ECS worker](../adr/superseded/ADR-0006-async-orchestration-sqs-ecs-worker.md)"
@@ -20,15 +23,12 @@ References:
 
 ## 1. Scope
 
-Defines the external control-plane API for file-transfer orchestration and
-related async jobs. The API does not transfer object bytes.
+Records the pre-export-hard-cut control-plane contract for historical
+traceability. The active public runtime authority now lives in `SPEC-0016`
+and `SPEC-0027`.
 
-Hard-cut state (2026-03-03): runtime contract is canonical `/v1/*` plus
-`/metrics/summary`.
-
-This document is the **current implemented baseline** contract. The approved
-target-state export-resource overlay lives in `SPEC-0027` and `SPEC-0028` and
-does not replace the baseline route set until that hard cut lands.
+This document is not part of the active authority set and should not be used
+for current runtime, release, or operator decisions.
 
 ## 2. Base paths and media type
 
@@ -51,7 +51,7 @@ runtime contract.
 
 ### 3.2 Async jobs
 
-Current implemented baseline routes:
+Historical baseline routes:
 
 - `POST /v1/jobs`
 - `GET /v1/jobs`
@@ -60,8 +60,7 @@ Current implemented baseline routes:
 - `POST /v1/jobs/{job_id}/retry`
 - `GET /v1/jobs/{job_id}/events`
 
-Planned target-state export resources are tracked separately in `SPEC-0027`
-and `SPEC-0028`.
+Current export-resource authority is tracked in `SPEC-0027` and `SPEC-0028`.
 
 ### 3.3 Capability and release endpoints
 

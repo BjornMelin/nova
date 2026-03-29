@@ -18,5 +18,7 @@ operations docs for the canonical repo.
 ## Rules
 
 - Active runbooks must describe only the surviving GitHub workflow surface and `infra/nova_cdk`.
+- Active runbooks must treat the Regional REST API custom domain as the only
+  intended public base URL for the runtime.
 - Deleted deploy-runtime CloudFormation, ECS worker, and CodePipeline/CodeBuild control-plane paths are not active operator procedures.
 - Historical or break-glass material belongs under `docs/history/` if retained for traceability.

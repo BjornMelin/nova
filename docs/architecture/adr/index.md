@@ -27,15 +27,12 @@ Last reviewed: 2026-03-29
 | [ADR-0009](./ADR-0009-observability-analytics-emf-dynamodb-cloudwatch.md) | Observability stack: EMF metrics, DynamoDB rollups, CloudWatch dashboards | Accepted | Active supporting current-state doc | 2026-02-12 |
 | [ADR-0010](./ADR-0010-enqueue-failure-and-readiness-semantics.md) | Fail enqueue on queue publish errors and scope readiness to critical dependencies | Accepted | Active supporting current-state doc | 2026-03-09 |
 | [ADR-0011](./ADR-0011-cicd-hybrid-github-aws-promotion.md) | Hybrid CI/CD with GitHub CI and AWS-native Dev to Prod promotion | Accepted | Active supporting current-state doc | 2026-03-05 |
-| [ADR-0022](./ADR-0022-release-validation-read-access-iam-iac.md) | Codify release validation read access in Nova IaC | Accepted | Active supporting current-state doc | 2026-03-02 |
 | [ADR-0023](./ADR-0023-hard-cut-v1-canonical-route-surface.md) | Hard cut to a single canonical /v1 API surface | Accepted | Active supporting current-state doc | 2026-03-03 |
 | [ADR-0024](./ADR-0024-layered-architecture-authority-pack.md) | Layered runtime authority pack for the Nova monorepo | Accepted | Active supporting current-state doc | 2026-03-05 |
 | [ADR-0025](./ADR-0025-runtime-monorepo-component-boundaries-and-ownership.md) | Runtime monorepo component boundaries and ownership | Accepted | Active supporting current-state doc | 2026-03-22 |
 | [ADR-0026](./ADR-0026-fail-fast-runtime-configuration-and-safe-auth-execution.md) | Fail-fast runtime configuration and safe auth execution | Accepted | Active supporting current-state doc | 2026-03-20 |
 | [ADR-0027](./ADR-0027-hard-cut-downstream-integration-and-consumer-contract-enforcement.md) | Hard-cut downstream integration and consumer contract enforcement | Accepted | Active supporting current-state doc | 2026-03-04 |
 | [ADR-0028](./ADR-0028-auth0-tenant-ops-reusable-workflow-api-contract.md) | Auth0 tenant ops reusable workflow API contract | Accepted | Active supporting current-state doc | 2026-03-04 |
-| [ADR-0029](./ADR-0029-ssm-runtime-base-url-authority-for-deploy-validation.md) | SSM runtime base URL authority for deploy validation | Accepted | Active supporting current-state doc | 2026-03-05 |
-| [ADR-0030](./ADR-0030-native-cfn-modular-stack-architecture-for-nova-infrastructure-productization.md) | Native-CFN modular stack architecture for Nova infrastructure productization | Accepted | Active supporting current-state doc | 2026-03-05 |
 | [ADR-0031](./ADR-0031-reusable-github-workflow-api-and-versioning-policy-for-deployment-automation.md) | Reusable GitHub workflow API and versioning policy for deployment automation | Accepted | Active supporting current-state doc | 2026-03-09 |
 | [ADR-0032](./ADR-0032-oidc-and-iam-role-partitioning-for-deploy-automation.md) | OIDC and IAM role partitioning for deploy automation | Accepted | Active supporting current-state doc | 2026-03-03 |
 
@@ -44,8 +41,11 @@ Last reviewed: 2026-03-29
 | ADR | Title | Decision status | Implementation state | Date |
 | --- | --- | --- | --- | --- |
 | [ADR-0001](./superseded/ADR-0001-deployment-on-ecs-fargate-behind-alb.md) | Deploy on ECS Fargate behind ALB | Superseded | Historical traceability only | 2026-03-05 |
+| [ADR-0022](./ADR-0022-release-validation-read-access-iam-iac.md) | Codify release validation read access in Nova IaC | Historical | Historical traceability only | 2026-03-02 |
+| [ADR-0029](./ADR-0029-ssm-runtime-base-url-authority-for-deploy-validation.md) | SSM runtime base URL authority for deploy validation | Historical | Historical traceability only | 2026-03-05 |
 | [ADR-0006](./superseded/ADR-0006-async-orchestration-sqs-ecs-worker.md) | Use SQS + ECS worker for initial async orchestration | Superseded | Historical traceability only | 2026-02-12 |
 | [ADR-0012](./superseded/ADR-0012-no-lambda-runtime-scope.md) | Preserve ECS and SQS runtime scope and exclude Lambda orchestration | Superseded | Historical traceability only | 2026-02-24 |
 | [ADR-0015](./superseded/ADR-0015-nova-api-platform-final-hosting-and-deployment-architecture-2026.md) | Nova API platform final hosting and deployment architecture (2026) | Superseded | Historical traceability only | 2026-03-03 |
+| [ADR-0030](./ADR-0030-native-cfn-modular-stack-architecture-for-nova-infrastructure-productization.md) | Native-CFN modular stack architecture for Nova infrastructure productization | Historical | Historical traceability only | 2026-03-05 |
 
 Additional superseded ADRs remain under `./superseded/`.
