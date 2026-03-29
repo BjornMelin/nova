@@ -1167,6 +1167,8 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "aws-cdk-lib" },
+    { name = "constructs" },
     { name = "mypy" },
     { name = "openapi-python-client" },
     { name = "pre-commit" },
@@ -1188,6 +1190,8 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "aws-cdk-lib", specifier = ">=2.189.0,<3" },
+    { name = "constructs", specifier = ">=10.4.2,<11" },
     { name = "mypy", specifier = ">=1.19.1" },
     { name = "openapi-python-client", specifier = "==0.28.3" },
     { name = "pre-commit", specifier = ">=4.3.0" },

@@ -29,6 +29,8 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+  "aws-cdk-lib>=2.189.0,<3",
+  "constructs>=10.4.2,<11",
   "mypy>=1.19.1",
   "openapi-python-client==0.28.3",
   "pre-commit>=4.3.0",
@@ -46,7 +48,7 @@ Documentation = "https://github.com/3M-Cloud/nova/tree/main/docs"
 
 [tool.uv]
 default-groups = ["dev"]
-required-version = "==0.11.1"
+required-version = "==0.11.2"
 
 [tool.uv.workspace]
 members = [
@@ -206,6 +208,10 @@ ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = ["dash", "dash.*", "flask", "flask.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["aws_cdk", "aws_cdk.*", "constructs"]
 ignore_missing_imports = true
 
 [tool.ty.environment]
