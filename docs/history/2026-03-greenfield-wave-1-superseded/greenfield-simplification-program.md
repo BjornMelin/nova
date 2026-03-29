@@ -84,7 +84,7 @@ For each branch:
 3. Open a PR to `main`.
 4. Do not start the next branch until the PR is merged and `main` is green.
 5. If facts change, update ADRs, SPECs, this file, and downstream prompts in the
-   same change set where practical ([SPEC-0020](../architecture/spec/SPEC-0020-architecture-authority-pack-and-documentation-synchronization-contract.md)).
+   same change set where practical ([SPEC-0020](../architecture/spec/superseded/SPEC-0020-architecture-authority-pack-and-documentation-synchronization-contract.md)).
 
 ## Mandatory reviewer questions
 

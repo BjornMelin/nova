@@ -8,6 +8,11 @@ from .helpers import read_repo_file as _read
 DOCS_ROOT = REPO_ROOT / "docs"
 
 
+def _repo_paths(*paths: str) -> list:
+    """Build absolute repo paths from repo-relative strings."""
+    return [REPO_ROOT / path for path in paths]
+
+
 def test_active_docs_index_tracks_canonical_surface() -> None:
     """The active-docs index must define the reduced canonical surface."""
     text = _read("docs/overview/ACTIVE-DOCS-INDEX.md")
@@ -32,6 +37,11 @@ def test_active_docs_index_tracks_canonical_surface() -> None:
         "docs/architecture/spec/SPEC-0027` through `SPEC-0031",
         "docs/history/",
         "docs/plan/PLAN.md",
+        "## Active supporting docs",
+        "docs/architecture/adr/index.md",
+        "docs/architecture/spec/index.md",
+        "docs/architecture/adr/ADR-0011-cicd-hybrid-github-aws-promotion.md",
+        "docs/architecture/spec/SPEC-0004-ci-cd-and-docs.md",
     ]:
         assert required in text
 
@@ -59,6 +69,7 @@ def test_root_authority_routers_point_to_canonical_indexes() -> None:
     for required in [
         "## Active canonical docs",
         "## Active architecture/program authority",
+        "## Active supporting architecture/program docs",
         "## Historical / superseded",
         "./overview/ACTIVE-DOCS-INDEX.md",
     ]:
@@ -79,33 +90,46 @@ def test_root_authority_routers_point_to_canonical_indexes() -> None:
 
 
 def test_spec_index_keeps_spec_0020_out_of_active_authority() -> None:
-    """SPEC-0020 must stay traceability-only after the docs reset."""
+    """SPEC-0020 must live under superseded rather than the root index path."""
     text = _read("docs/architecture/spec/index.md")
-    spec_0020_link = (
-        "| [SPEC-0020]("
+    assert "## Active supporting specs" in text
+    assert "## Historical / superseded specs" in text
+    assert (
         "./SPEC-0020-architecture-authority-pack-and-documentation-"
-        "synchronization-contract.md) "
+        "synchronization-contract.md"
+    ) not in text
+    assert (
+        "./superseded/SPEC-0020-architecture-authority-pack-and-"
+        "documentation-synchronization-contract.md"
+    ) in text
+
+
+def test_moved_superseded_docs_live_only_in_archive_dirs() -> None:
+    """Moved superseded docs must no longer remain at root ADR/SPEC paths."""
+    moved_root_paths = _repo_paths(
+        "docs/architecture/adr/ADR-0001-deployment-on-ecs-fargate-behind-alb.md",
+        "docs/architecture/adr/ADR-0006-async-orchestration-sqs-ecs-worker.md",
+        "docs/architecture/adr/ADR-0012-no-lambda-runtime-scope.md",
+        "docs/architecture/adr/ADR-0015-nova-api-platform-final-hosting-and-deployment-architecture-2026.md",
+        "docs/architecture/spec/SPEC-0008-async-jobs-and-worker-orchestration.md",
+        "docs/architecture/spec/SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md",
+        "docs/architecture/spec/SPEC-0020-architecture-authority-pack-and-documentation-synchronization-contract.md",
     )
-    spec_0020_title = (
-        "| Architecture authority pack and documentation "
-        "synchronization contract "
-    )
-    spec_0020_historical_state = (
-        "| Historical traceability | Preserved for pre-reset references only | "
-        "2026-03-24 |"
+    moved_superseded_paths = _repo_paths(
+        "docs/architecture/adr/superseded/ADR-0001-deployment-on-ecs-fargate-behind-alb.md",
+        "docs/architecture/adr/superseded/ADR-0006-async-orchestration-sqs-ecs-worker.md",
+        "docs/architecture/adr/superseded/ADR-0012-no-lambda-runtime-scope.md",
+        "docs/architecture/adr/superseded/ADR-0015-nova-api-platform-final-hosting-and-deployment-architecture-2026.md",
+        "docs/architecture/spec/superseded/SPEC-0008-async-jobs-and-worker-orchestration.md",
+        "docs/architecture/spec/superseded/SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md",
+        "docs/architecture/spec/superseded/SPEC-0020-architecture-authority-pack-and-documentation-synchronization-contract.md",
     )
 
-    assert (
-        "## Historical / traceability-only specs still preserved in place"
-        in text
-    )
-    assert (
-        spec_0020_link + spec_0020_title + spec_0020_historical_state
-    ) in text
-    assert (
-        spec_0020_link + spec_0020_title + "| Active | Active baseline |"
-        not in text
-    )
+    for path in moved_root_paths:
+        assert not path.exists(), path
+
+    for path in moved_superseded_paths:
+        assert path.exists(), path
 
 
 def test_active_plan_directory_is_pruned_to_current_indexes() -> None:

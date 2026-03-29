@@ -2,7 +2,7 @@
 
 Status: Active
 Current repository state: **canonical wave-2 serverless baseline**
-Last reviewed: 2026-03-28
+Last reviewed: 2026-03-29
 
 ## Purpose
 
@@ -16,7 +16,7 @@ The active architecture baseline is:
 - bearer JWT only
 - explicit export workflow resources
 - DynamoDB-backed idempotency/state
-- HTTP API + Lambda Web Adapter + Step Functions Standard
+- Regional REST API + Lambda Web Adapter + Step Functions Standard
 - unified SDK package layout
 - `infra/nova_cdk` as the only active infrastructure implementation path
 
@@ -34,6 +34,24 @@ Use these documents for active architecture decisions and implementation:
 - `spec/SPEC-0029-platform-serverless.md`
 - `spec/SPEC-0030-sdk-generation-and-package-layout.md`
 - `spec/SPEC-0031-docs-and-tests-authority-reset.md`
+
+## Active supporting current-state docs
+
+These docs remain current and useful even though they are not part of the
+small canonical wave-2 authority core:
+
+- `adr/index.md`
+- `spec/index.md`
+- `adr/ADR-0011-cicd-hybrid-github-aws-promotion.md`
+- `adr/ADR-0029-ssm-runtime-base-url-authority-for-deploy-validation.md`
+- `adr/ADR-0030-native-cfn-modular-stack-architecture-for-nova-infrastructure-productization.md`
+- `adr/ADR-0031-reusable-github-workflow-api-and-versioning-policy-for-deployment-automation.md`
+- `adr/ADR-0032-oidc-and-iam-role-partitioning-for-deploy-automation.md`
+- `spec/SPEC-0004-ci-cd-and-docs.md`
+- `spec/SPEC-0023-ssm-runtime-base-url-contract-for-deploy-validation.md`
+- `spec/SPEC-0024-cloudformation-module-contract.md`
+- `spec/SPEC-0025-reusable-workflow-integration-contract.md`
+- `spec/SPEC-0026-ci-cd-iam-least-privilege-matrix.md`
 
 ## Supporting indexes
 
@@ -53,4 +71,6 @@ Use only for traceability:
 ## Important rule
 
 Older deploy-governance and ECS-era material may remain in history for audit
-purposes, but it is not part of the active architecture surface.
+purposes, but it is not part of the active architecture surface. Current
+supporting docs stay at the root `adr/` and `spec/` levels; superseded docs
+live under `adr/superseded/` and `spec/superseded/`.

@@ -5,9 +5,9 @@ Status: Accepted (umbrella decision; detailed authority delegated to ADR-0030 th
 Version: 1.2
 Date: 2026-03-05
 Related:
-  - "[ADR-0001: Deployment on ECS Fargate behind ALB](./ADR-0001-deployment-on-ecs-fargate-behind-alb.md)"
+  - "[ADR-0001: Deployment on ECS Fargate behind ALB](./superseded/ADR-0001-deployment-on-ecs-fargate-behind-alb.md)"
   - "[ADR-0002: OpenAPI as contract and SDK generation](./ADR-0002-openapi-as-contract-and-sdk-generation.md)"
-  - "[ADR-0012: No Lambda runtime scope for release orchestration](./ADR-0012-no-lambda-runtime-scope.md)"
+  - "[ADR-0012: No Lambda runtime scope for release orchestration](./superseded/ADR-0012-no-lambda-runtime-scope.md)"
   - "[SPEC-0004: CI/CD and documentation automation](../spec/SPEC-0004-ci-cd-and-docs.md)"
   - "[ADR-0030: Native-CFN modular stack architecture for Nova infrastructure productization](./ADR-0030-native-cfn-modular-stack-architecture-for-nova-infrastructure-productization.md)"
   - "[ADR-0031: Reusable GitHub workflow API and versioning policy for deployment automation](./ADR-0031-reusable-github-workflow-api-and-versioning-policy-for-deployment-automation.md)"
@@ -39,7 +39,7 @@ maintenance and immutable artifact guarantees.
   too much deployment authority in repo workflows and weakens AWS-native
   promotion control boundaries for operations teams.
 - Related docs: [SPEC-0004](../spec/SPEC-0004-ci-cd-and-docs.md),
-  [ADR-0012](./ADR-0012-no-lambda-runtime-scope.md), and
+  [ADR-0012](./superseded/ADR-0012-no-lambda-runtime-scope.md), and
   [requirements](../requirements.md).
 
 ## Alternatives

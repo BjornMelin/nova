@@ -1,15 +1,16 @@
 ---
 ADR: 0015
 Title: Nova API platform final hosting and deployment architecture (2026)
-Status: Accepted
+Status: Superseded
+Superseded-by: "[ADR-0033: Canonical serverless platform](../ADR-0033-canonical-serverless-platform.md)"
 Version: 1.3
 Date: 2026-03-03
 Related:
-  - "[ADR-0011: Hybrid CI/CD with GitHub and AWS promotion](./ADR-0011-cicd-hybrid-github-aws-promotion.md)"
+  - "[ADR-0011: Hybrid CI/CD with GitHub and AWS promotion](../ADR-0011-cicd-hybrid-github-aws-promotion.md)"
   - "[ADR-0012: Preserve ECS and SQS runtime scope](./ADR-0012-no-lambda-runtime-scope.md)"
-  - "[ADR-0023: Hard cut to a single canonical /v1 API surface](./ADR-0023-hard-cut-v1-canonical-route-surface.md)"
-  - "[SPEC-0015: Nova API platform final topology and delivery contract](../spec/SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md)"
-  - "[SPEC-0016: v1 route namespace and literal guardrails](../spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md)"
+  - "[ADR-0023: Hard cut to a single canonical /v1 API surface](../ADR-0023-hard-cut-v1-canonical-route-surface.md)"
+  - "[SPEC-0015: Nova API platform final topology and delivery contract](../../spec/superseded/SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md)"
+  - "[SPEC-0016: v1 route namespace and literal guardrails](../../spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md)"
 References:
   - "[Amazon ECS Express Mode overview](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/express-service-overview.html)"
   - "[Best practices for Amazon ECS Express Mode services](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/express-service-best-practices.html)"
@@ -21,11 +22,9 @@ References:
 
 ## Summary
 
-Adopt **CloudFront + WAF public edge, internal ALB origin, standard ECS on
-Fargate, GitHub Actions OIDC, and Nova-owned deployment stacks using the
-ECS-native blue/green deployment strategy on `AWS::ECS::Service`** as the Nova
-API production final-state architecture. Route-surface authority is hard-cut
-canonical `/v1/*` (plus `/metrics/summary`).
+Historical traceability note: the ECS/CloudFront topology captured here was
+superseded for the active runtime baseline by `ADR-0033` / `SPEC-0029`.
+CloudFront is not the current Nova API ingress.
 
 ## Context
 

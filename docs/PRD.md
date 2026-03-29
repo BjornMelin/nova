@@ -62,8 +62,8 @@ parallel session/header auth channel).
    in [`adr/index.md`](./architecture/adr/index.md) and
    [`spec/index.md`](./architecture/spec/index.md) (Superseded tables) and under
    `adr/superseded/` / `spec/superseded/`—not active authority.
-7. Deployment target-state aligns with `ADR-0033` / `SPEC-0029`: CloudFront +
-   WAF public edge, API Gateway HTTP API, Lambda (FastAPI via Lambda Web
+7. Deployment target-state aligns with `ADR-0033` / `SPEC-0029`: regional API
+   Gateway REST API with stage-bound WAF, Lambda (FastAPI via Lambda Web
    Adapter), Step Functions Standard, DynamoDB, S3, and CloudWatch-backed
    observability with least-privilege IAM.
 8. `nova_dash_bridge` remains an adapter-only integration surface and consumes
@@ -154,7 +154,7 @@ Out of scope:
 - `docs/architecture/adr/ADR-0037-sdk-generation-consolidation.md`
 - `docs/architecture/adr/ADR-0038-docs-authority-reset.md`
 - `docs/architecture/spec/SPEC-0000-http-api-contract.md`
-- `docs/architecture/spec/SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md`
+- `docs/architecture/spec/superseded/SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md`
 - `docs/architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md`
 - `docs/architecture/spec/SPEC-0017-runtime-component-topology-and-ownership-contract.md`
 - `docs/architecture/spec/SPEC-0018-runtime-configuration-and-startup-validation-contract.md`

@@ -1,21 +1,25 @@
 ---
 Spec: 0008
 Title: Async Jobs and Worker Orchestration
-Status: Active
+Status: Superseded
+Superseded-by: "[SPEC-0028: Export workflow state machine](../SPEC-0028-export-workflow-state-machine.md)"
 Version: 2.0
 Date: 2026-03-19
 Related:
-  - "[ADR-0023: Hard-cut v1 canonical route surface](../adr/ADR-0023-hard-cut-v1-canonical-route-surface.md)"
-  - "[ADR-0035: Green-field worker direct result persistence](../adr/ADR-0035-worker-direct-result-persistence.md)"
-  - "[SPEC-0028: Worker job lifecycle and direct result path](./SPEC-0028-worker-job-lifecycle-and-direct-result-path.md)"
-  - "[SPEC-0027: Public HTTP contract revision and bearer auth](./SPEC-0027-public-http-contract-revision-and-bearer-auth.md)"
-  - "[SPEC-0000: HTTP API contract](./SPEC-0000-http-api-contract.md)"
-  - "[SPEC-0016: v1 route namespace and literal guardrails](./SPEC-0016-v1-route-namespace-and-literal-guardrails.md)"
-  - "[requirements.md](../requirements.md)"
+  - "[ADR-0023: Hard-cut v1 canonical route surface](../../adr/ADR-0023-hard-cut-v1-canonical-route-surface.md)"
+  - "[ADR-0035: Replace generic jobs with export workflows](../../adr/ADR-0035-replace-generic-jobs-with-export-workflows.md)"
+  - "[SPEC-0028: Export workflow state machine](../SPEC-0028-export-workflow-state-machine.md)"
+  - "[SPEC-0027: Public API v2](../SPEC-0027-public-api-v2.md)"
+  - "[SPEC-0000: HTTP API contract](../SPEC-0000-http-api-contract.md)"
+  - "[SPEC-0016: v1 route namespace and literal guardrails](../SPEC-0016-v1-route-namespace-and-literal-guardrails.md)"
+  - "[requirements.md](../../requirements.md)"
 References:
   - "[Amazon SQS Developer Guide](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/welcome.html)"
   - "[Amazon ECS Developer Guide](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/Welcome.html)"
 ---
+
+> Historical traceability note: this generic-jobs/ECS worker contract was
+> superseded by the explicit export workflow model in `SPEC-0028`.
 
 ## 1. API surface
 
@@ -31,12 +35,12 @@ Async jobs are managed through:
 **Green-field result path:** worker completion and terminal status updates are
 **not** written through an internal HTTP callback route. The worker uses shared
 services/repositories per
-[SPEC-0028](./SPEC-0028-worker-job-lifecycle-and-direct-result-path.md) and
-[ADR-0035](../adr/ADR-0035-worker-direct-result-persistence.md).
+[SPEC-0028](../SPEC-0028-export-workflow-state-machine.md) and
+[ADR-0035](../../adr/ADR-0035-replace-generic-jobs-with-export-workflows.md).
 
 **Scope binding:** caller scope for job operations is derived from **verified JWT
 claims** in the public file API runtime per
-[SPEC-0027](./SPEC-0027-public-http-contract-revision-and-bearer-auth.md).
+[SPEC-0027](../SPEC-0027-public-api-v2.md).
 `session_id`, `X-Session-Id`, and `X-Scope-Id` are **not** public contract inputs
 for authorization scope.
 

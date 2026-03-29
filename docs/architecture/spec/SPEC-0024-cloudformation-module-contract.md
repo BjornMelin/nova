@@ -13,7 +13,7 @@ Related:
   - "[ADR-0030: Native-CFN modular stack architecture for Nova infrastructure productization](../adr/ADR-0030-native-cfn-modular-stack-architecture-for-nova-infrastructure-productization.md)"
   - "[ADR-0029: SSM runtime base URL authority for deploy validation](../adr/ADR-0029-ssm-runtime-base-url-authority-for-deploy-validation.md)"
   - "[SPEC-0004: CI/CD and documentation automation](./SPEC-0004-ci-cd-and-docs.md)"
-  - "[SPEC-0015: Nova API platform final topology and delivery contract](./SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md)"
+  - "[SPEC-0015: Nova API platform final topology and delivery contract](./superseded/SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md)"
   - "[SPEC-0023: SSM runtime base-url contract for deploy validation](./SPEC-0023-ssm-runtime-base-url-contract-for-deploy-validation.md)"
 ---
 
@@ -43,7 +43,7 @@ Required stack modules:
 | `nova-codebuild-release.yml` | Build/validation CodeBuild projects, retained CloudWatch log groups, and related role bindings |
 | `nova-ci-cd.yml` | CodePipeline stages, artifact wiring, promotion controls, manual approval stage, and an intentionally recreatable idle-state control plane |
 | `infra/nova/deploy/service-base-url-ssm.yml` | Environment-scoped SSM authority values for deploy validation base URLs (`/nova/{env}/{service}/base-url`) |
-| `infra/runtime/**` | Runtime infrastructure (CloudFront edge, CLOUDFRONT-scope WAF, internal ALB, ECS, queues, cache, secrets wiring, app parameters, observability) |
+| `infra/runtime/**` | Historical ECS/CloudFront runtime infrastructure retained for traceability only; the active runtime ingress now lives in `infra/nova_cdk` |
 
 Additional runtime ECS service contract:
 

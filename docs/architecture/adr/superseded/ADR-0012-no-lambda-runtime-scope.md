@@ -1,19 +1,24 @@
 ---
 ADR: 0012
 Title: Preserve ECS and SQS runtime scope and exclude Lambda orchestration
-Status: Accepted
+Status: Superseded
+Superseded-by: "[ADR-0033: Canonical serverless platform](../ADR-0033-canonical-serverless-platform.md)"
 Version: 1.1
 Date: 2026-02-24
 Related:
   - "[ADR-0001: Deployment on ECS Fargate behind ALB](./ADR-0001-deployment-on-ecs-fargate-behind-alb.md)"
   - "[ADR-0006: Async orchestration SQS + ECS worker](./ADR-0006-async-orchestration-sqs-ecs-worker.md)"
-  - "[ADR-0011: Hybrid CI/CD with GitHub and AWS promotion](./ADR-0011-cicd-hybrid-github-aws-promotion.md)"
-  - "[SPEC-0008: Async jobs and worker orchestration](../spec/SPEC-0008-async-jobs-and-worker-orchestration.md)"
+  - "[ADR-0011: Hybrid CI/CD with GitHub and AWS promotion](../ADR-0011-cicd-hybrid-github-aws-promotion.md)"
+  - "[SPEC-0008: Async jobs and worker orchestration](../../spec/superseded/SPEC-0008-async-jobs-and-worker-orchestration.md)"
 References:
   - "[AWS Lambda developer guide](https://docs.aws.amazon.com/lambda/latest/dg/welcome.html)"
   - "[Amazon ECS best practices for IAM roles](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/security-iam-roles.html)"
   - "[AWS Well-Architected reliability pillar](https://docs.aws.amazon.com/wellarchitected/latest/reliability-pillar/welcome.html)"
 ---
+
+> Historical traceability note: this “no Lambda runtime” decision is preserved
+> only as pre-wave-2 context. The active repo baseline now uses Lambda and Step
+> Functions via `ADR-0033`.
 
 ## Summary
 
@@ -31,8 +36,8 @@ to avoid introducing a second runtime control plane during hard cutover.
   increases IAM surface, deployment permutations, and incident triage complexity
   without proportional release value.
 - Related docs: [ADR-0006](./ADR-0006-async-orchestration-sqs-ecs-worker.md),
-  [SPEC-0008](../spec/SPEC-0008-async-jobs-and-worker-orchestration.md), and
-  [requirements](../requirements.md).
+  [SPEC-0008](../../spec/superseded/SPEC-0008-async-jobs-and-worker-orchestration.md),
+  and [requirements](../../requirements.md).
 
 ## Alternatives
 

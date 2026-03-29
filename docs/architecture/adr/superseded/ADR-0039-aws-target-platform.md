@@ -14,7 +14,7 @@ Related:
   - "[SPEC-0016: V1 route namespace and literal guardrails](../spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md)"
   - "[requirements.md](../requirements.md)"
   - "[ADR-0015: Nova API platform final hosting and deployment architecture (2026)](./ADR-0015-nova-api-platform-final-hosting-and-deployment-architecture-2026.md)"
-  - "[SPEC-0015: Nova API platform final topology and delivery contract](../spec/SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md)"
+  - "[SPEC-0015: Nova API platform final topology and delivery contract](../../spec/superseded/SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md)"
   - "[ADR-0001: Deploy on ECS Fargate behind ALB](./ADR-0001-deployment-on-ecs-fargate-behind-alb.md)"
   - "[Green-field simplification program](../../plan/greenfield-simplification-program.md)"
 References:
@@ -54,7 +54,7 @@ defense-in-depth only and is not the primary auth contract.
 
 - Implement infra and runtime config consistent with the topology described in
   the green-field target architecture evidence and
-  [SPEC-0015](../spec/SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md).
+  [SPEC-0015](../../spec/superseded/SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md).
 
 ## Related requirements
 

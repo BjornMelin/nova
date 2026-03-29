@@ -7,8 +7,8 @@ Date: 2026-02-28
 Superseded-by: "[ADR-0024: Layered runtime authority pack for the Nova monorepo](../ADR-0024-layered-architecture-authority-pack.md)"
 Related:
   - "[ADR-0011: Hybrid CI/CD with GitHub and AWS promotion](../ADR-0011-cicd-hybrid-github-aws-promotion.md)"
-  - "[ADR-0012: No Lambda runtime scope](../ADR-0012-no-lambda-runtime-scope.md)"
-  - "[ADR-0015: Nova API platform final hosting and deployment architecture (2026)](../ADR-0015-nova-api-platform-final-hosting-and-deployment-architecture-2026.md)"
+  - "[ADR-0012: No Lambda runtime scope](./ADR-0012-no-lambda-runtime-scope.md)"
+  - "[ADR-0015: Nova API platform final hosting and deployment architecture (2026)](./ADR-0015-nova-api-platform-final-hosting-and-deployment-architecture-2026.md)"
   - "[ADR-0023: Hard cut to a single canonical /v1 API surface](../ADR-0023-hard-cut-v1-canonical-route-surface.md)"
   - "[ADR-0024: Layered runtime authority pack for the Nova monorepo](../ADR-0024-layered-architecture-authority-pack.md)"
   - "[ADR-0025: Reusable GitHub workflow API and versioning policy (superseded predecessor)](./ADR-0025-reusable-workflow-api-and-versioning-policy.md)"

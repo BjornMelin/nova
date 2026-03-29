@@ -1,17 +1,21 @@
 ---
 ADR: 0006
 Title: Use SQS + ECS worker for initial async orchestration
-Status: Accepted
+Status: Superseded
+Superseded-by: "[ADR-0035: Replace generic jobs with export workflows](../ADR-0035-replace-generic-jobs-with-export-workflows.md)"
 Version: 1.1
 Date: 2026-02-12
 Related:
   - "[ADR-0001: Deploy on ECS Fargate behind ALB](./ADR-0001-deployment-on-ecs-fargate-behind-alb.md)"
-  - "[ADR-0010: Enqueue failure and readiness semantics](./ADR-0010-enqueue-failure-and-readiness-semantics.md)"
-  - "[SPEC-0008: Async jobs and worker orchestration](../spec/SPEC-0008-async-jobs-and-worker-orchestration.md)"
+  - "[ADR-0010: Enqueue failure and readiness semantics](../ADR-0010-enqueue-failure-and-readiness-semantics.md)"
+  - "[SPEC-0008: Async jobs and worker orchestration](../../spec/superseded/SPEC-0008-async-jobs-and-worker-orchestration.md)"
 References:
   - "[Amazon SQS Developer Guide](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/welcome.html)"
   - "[Amazon ECS Developer Guide](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/Welcome.html)"
 ---
+
+> Historical traceability note: this ECS/SQS worker model was superseded by the
+> explicit export-workflow baseline in `ADR-0035` and `SPEC-0028`.
 
 ## Summary
 

@@ -1,18 +1,19 @@
 ---
 Spec: 0020
 Title: Architecture authority pack and documentation synchronization contract
-Status: Historical / traceability only
+Status: Superseded
+Superseded-by: "[SPEC-0031: Docs and tests authority reset](../SPEC-0031-docs-and-tests-authority-reset.md)"
 Version: 2.1
 Date: 2026-03-24
 Related:
-  - "[ADR-0024: Layered runtime authority pack for the Nova monorepo](../adr/ADR-0024-layered-architecture-authority-pack.md)"
-  - "[ADR-0030: Native-CFN modular stack architecture for Nova infrastructure productization](../adr/ADR-0030-native-cfn-modular-stack-architecture-for-nova-infrastructure-productization.md)"
-  - "[ADR-0031: Reusable GitHub workflow API and versioning policy for deployment automation](../adr/ADR-0031-reusable-github-workflow-api-and-versioning-policy-for-deployment-automation.md)"
-  - "[ADR-0032: OIDC and IAM role partitioning for deploy automation](../adr/ADR-0032-oidc-and-iam-role-partitioning-for-deploy-automation.md)"
+  - "[ADR-0024: Layered runtime authority pack for the Nova monorepo](../../adr/ADR-0024-layered-architecture-authority-pack.md)"
+  - "[ADR-0030: Native-CFN modular stack architecture for Nova infrastructure productization](../../adr/ADR-0030-native-cfn-modular-stack-architecture-for-nova-infrastructure-productization.md)"
+  - "[ADR-0031: Reusable GitHub workflow API and versioning policy for deployment automation](../../adr/ADR-0031-reusable-github-workflow-api-and-versioning-policy-for-deployment-automation.md)"
+  - "[ADR-0032: OIDC and IAM role partitioning for deploy automation](../../adr/ADR-0032-oidc-and-iam-role-partitioning-for-deploy-automation.md)"
   - "[SPEC-0015: Nova API platform final topology and delivery contract](./SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md)"
-  - "[SPEC-0024: CloudFormation module contract](./SPEC-0024-cloudformation-module-contract.md)"
-  - "[SPEC-0025: Reusable workflow integration contract](./SPEC-0025-reusable-workflow-integration-contract.md)"
-  - "[SPEC-0026: CI/CD IAM least-privilege matrix](./SPEC-0026-ci-cd-iam-least-privilege-matrix.md)"
+  - "[SPEC-0024: CloudFormation module contract](../SPEC-0024-cloudformation-module-contract.md)"
+  - "[SPEC-0025: Reusable workflow integration contract](../SPEC-0025-reusable-workflow-integration-contract.md)"
+  - "[SPEC-0026: CI/CD IAM least-privilege matrix](../SPEC-0026-ci-cd-iam-least-privilege-matrix.md)"
 ---
 
 > Historical traceability note: this document is preserved for pre-reset
@@ -106,8 +107,8 @@ subject must cite the relevant AWS source when it describes:
 3. CloudFormation pre-deployment validation via change sets and
    `DescribeEvents`
 4. `OperationEvents` validation output semantics
-5. WAF rate-based protections on public CloudFront ingress and the internal ALB
-   origin model that the edge forwards into
+5. WAF rate-based protections on the public regional REST API ingress and the
+   direct Lambda-backed control-plane model behind it
 
 ## 6. Testable invariants
 

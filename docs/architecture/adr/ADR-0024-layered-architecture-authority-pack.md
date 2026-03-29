@@ -18,7 +18,7 @@ Related:
   - "[ADR-0028: Auth0 tenant ops reusable workflow API contract](./ADR-0028-auth0-tenant-ops-reusable-workflow-api-contract.md)"
   - "[ADR-0029: SSM runtime base URL authority for deploy validation](./ADR-0029-ssm-runtime-base-url-authority-for-deploy-validation.md)"
   - "[SPEC-0000: HTTP API Contract](../spec/SPEC-0000-http-api-contract.md)"
-  - "[SPEC-0015: Nova API platform final topology and delivery contract](../spec/SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md)"
+  - "[SPEC-0015: Nova API platform final topology and delivery contract](../spec/superseded/SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md)"
   - "[SPEC-0016: Hard-cut v1 route contract and route-literal guardrails](../spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md)"
   - "[SPEC-0017: Runtime component topology and ownership contract](../spec/SPEC-0017-runtime-component-topology-and-ownership-contract.md)"
   - "[SPEC-0018: Runtime configuration and startup validation contract](../spec/SPEC-0018-runtime-configuration-and-startup-validation-contract.md)"
