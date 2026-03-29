@@ -41,6 +41,7 @@ The release role behind `RELEASE_AWS_ROLE_ARN` must allow:
 - `docs/architecture/requirements-wave-2.md`
 - `docs/architecture/adr/ADR-0033-canonical-serverless-platform.md` through `docs/architecture/adr/ADR-0038-docs-authority-reset.md`
 - `docs/architecture/spec/SPEC-0027-public-api-v2.md` through `docs/architecture/spec/SPEC-0031-docs-and-tests-authority-reset.md`
+- `docs/plan/GREENFIELD-WAVE-2-EXECUTION.md`
 - `RELEASE_AWS_ROLE_ARN` and the release role trust policy govern the OIDC setup described below
 
 ## Step-by-step commands
