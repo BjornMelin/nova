@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import time
-from typing import Any, Protocol
+from typing import Any, Protocol, runtime_checkable
 
 from nova_runtime_support import (
     build_async_jwt_verifier,
@@ -19,6 +19,14 @@ from nova_file_api.errors import (
     unauthorized,
 )
 from nova_file_api.models import Principal
+
+
+@runtime_checkable
+class SupportsAuthenticatorAsyncClose(Protocol):
+    """Structural interface for app-level authenticator async cleanup."""
+
+    async def aclose(self) -> None:
+        """Release authenticator-owned async resources."""
 
 
 class AccessTokenVerifier(Protocol):
@@ -78,10 +86,7 @@ class Authenticator:
 
     async def healthcheck(self) -> bool:
         """Return readiness of the active auth dependency."""
-        return (
-            self._settings.oidc_bearer_verifier_configured
-            and self._verifier is not None
-        )
+        return self._verifier is not None
 
     async def aclose(self) -> None:
         """Close verifier-owned async resources when configured."""

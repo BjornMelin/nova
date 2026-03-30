@@ -8,7 +8,6 @@ from typing import cast
 from fastapi import FastAPI
 from fastapi.routing import APIRoute
 from nova_file_api.activity import MemoryActivityStore
-from nova_file_api.auth import Authenticator
 from nova_file_api.config import Settings
 from nova_file_api.exports import (
     ExportService,
@@ -114,7 +113,7 @@ def _build_openapi_app() -> FastAPI:
             settings=settings,
             metrics=metrics,
             cache=cache,
-            authenticator=Authenticator(settings=settings, cache=cache),
+            authenticator=StubAuthenticator(),
             transfer_service=StubTransferService(),
             export_service=ExportService(
                 repository=repository,
@@ -237,6 +236,17 @@ def test_openapi_schema_generation_smoke() -> None:
     schema = app.openapi()
     assert isinstance(schema, dict)
     assert schema.get("openapi") == "3.1.0"
+
+
+def test_openapi_declares_bearer_auth_scheme() -> None:
+    """OpenAPI should keep the canonical bearer security scheme."""
+    app = _build_openapi_app()
+    schema = app.openapi()
+    security_schemes = schema["components"]["securitySchemes"]
+    bearer_auth = security_schemes["bearerAuth"]
+    assert bearer_auth["type"] == "http"
+    assert bearer_auth["scheme"] == "bearer"
+    assert bearer_auth["bearerFormat"] == "JWT"
 
 
 def test_openapi_route_declared_error_contracts() -> None:

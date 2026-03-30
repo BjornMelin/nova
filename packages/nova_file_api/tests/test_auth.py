@@ -79,6 +79,18 @@ async def test_authenticator_aclose_closes_async_verifier() -> None:
 
 
 @pytest.mark.anyio
+async def test_authenticator_healthcheck_reflects_verifier_presence() -> None:
+    settings = _settings()
+    auth = Authenticator(settings=settings, cache=_build_cache())
+
+    assert await auth.healthcheck() is False
+
+    auth._verifier = _VerifierReturningClaims()
+
+    assert await auth.healthcheck() is True
+
+
+@pytest.mark.anyio
 async def test_bearer_auth_uses_principal_claim_scope(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

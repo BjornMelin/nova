@@ -4,15 +4,19 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 from contextlib import AsyncExitStack, asynccontextmanager
+from typing import Any, cast
 
 import structlog
 from botocore.config import Config
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from nova_runtime_support import (
     RequestContextFastAPI,
     configure_structlog,
 )
+from starlette.middleware import Middleware
 
+from nova_file_api.auth import SupportsAuthenticatorAsyncClose
 from nova_file_api.aws import new_aioboto3_session
 from nova_file_api.config import Settings
 from nova_file_api.dependencies import initialize_runtime_state
@@ -40,15 +44,23 @@ _RUNTIME_STATE_KEYS = (
     "activity_store",
     "idempotency_store",
 )
+_CORS_ALLOWED_HEADERS = [
+    "Authorization",
+    "Content-Type",
+    "Idempotency-Key",
+    "X-Request-Id",
+]
+_CORS_ALLOWED_METHODS = ["GET", "POST", "OPTIONS"]
+_CORS_EXPOSE_HEADERS = ["ETag", "X-Request-Id"]
 
 
 async def _close_authenticator(*, app: FastAPI) -> None:
     """Close the app authenticator when it exposes an async close hook."""
-    close_authenticator = getattr(
-        getattr(app.state, "authenticator", None), "aclose", None
-    )
-    if callable(close_authenticator):
-        await close_authenticator()
+    authenticator = getattr(app.state, "authenticator", None)
+    if authenticator is None:
+        return
+    if isinstance(authenticator, SupportsAuthenticatorAsyncClose):
+        await authenticator.aclose()
 
 
 def _clear_runtime_state(*, app: FastAPI) -> None:
@@ -56,6 +68,23 @@ def _clear_runtime_state(*, app: FastAPI) -> None:
     for key in _RUNTIME_STATE_KEYS:
         if hasattr(app.state, key):
             setattr(app.state, key, None)
+
+
+def _cors_middleware(*, settings: Settings) -> list[Middleware]:
+    """Build CORS middleware when allowed origins are configured."""
+    allowed_origins = list(settings.resolved_cors_allowed_origins)
+    if not allowed_origins:
+        return []
+    return [
+        Middleware(
+            cast(Any, CORSMiddleware),
+            allow_origins=allowed_origins,
+            allow_credentials=False,
+            allow_methods=_CORS_ALLOWED_METHODS,
+            allow_headers=_CORS_ALLOWED_HEADERS,
+            expose_headers=_CORS_EXPOSE_HEADERS,
+        ),
+    ]
 
 
 def create_app(*, settings: Settings | None = None) -> FastAPI:
@@ -178,6 +207,7 @@ def create_app(*, settings: Settings | None = None) -> FastAPI:
         title="nova-file-api",
         version=settings.app_version,
         lifespan=lifespan,
+        middleware=_cors_middleware(settings=settings),
     )
     app.state.settings = settings
 

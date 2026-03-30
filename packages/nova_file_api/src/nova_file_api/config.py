@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import importlib.metadata
-import warnings
+import json
 
-from pydantic import Field, model_validator
+from pydantic import AliasChoices, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from nova_file_api.models import (
@@ -39,6 +39,15 @@ _MSG_STEP_FUNCTIONS_REQUIRES_STATE_MACHINE_ARN = (
     "JOBS_STEP_FUNCTIONS_STATE_MACHINE_ARN must be configured when "
     "JOBS_QUEUE_BACKEND=stepfunctions and JOBS_ENABLED=true"
 )
+_MSG_PRODUCTION_CORS_REQUIRES_ALLOWED_ORIGINS = (
+    "ALLOWED_ORIGINS must be configured for production deployments"
+)
+_DEFAULT_DEV_CORS_ALLOWED_ORIGINS = (
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:8050",
+    "http://127.0.0.1:8050",
+)
 
 
 def _is_blank(value: str | None) -> bool:
@@ -52,6 +61,31 @@ def _default_app_version() -> str:
         return importlib.metadata.version("nova-file-api")
     except importlib.metadata.PackageNotFoundError:
         return "0.0.0"
+
+
+def _parse_string_tuple(value: object) -> tuple[str, ...]:
+    """Normalize JSON or comma-delimited inputs into a tuple of strings."""
+    if value is None:
+        return ()
+    if isinstance(value, str):
+        stripped = value.strip()
+        if not stripped:
+            return ()
+        if stripped.startswith("["):
+            parsed = json.loads(stripped)
+            if not isinstance(parsed, list):
+                raise TypeError("JSON input must decode to a list of strings.")
+            return _parse_string_tuple(parsed)
+        return tuple(
+            item
+            for item in (part.strip() for part in stripped.split(","))
+            if item
+        )
+    if isinstance(value, (list, tuple, set, frozenset)):
+        return tuple(
+            item for item in (str(part).strip() for part in value) if item
+        )
+    raise TypeError("value must be a string or a list of strings")
 
 
 class Settings(BaseSettings):
@@ -76,6 +110,13 @@ class Settings(BaseSettings):
         validation_alias="APP_VERSION",
     )
     environment: str = Field(default="dev", validation_alias="ENVIRONMENT")
+    cors_allowed_origins: tuple[str, ...] = Field(
+        default=(),
+        validation_alias=AliasChoices(
+            "ALLOWED_ORIGINS",
+            "STACK_ALLOWED_ORIGINS",
+        ),
+    )
 
     file_transfer_enabled: bool = Field(
         default=True,
@@ -274,6 +315,15 @@ class Settings(BaseSettings):
         validation_alias="METRICS_NAMESPACE",
     )
 
+    @field_validator("cors_allowed_origins", mode="before")
+    @classmethod
+    def validate_cors_allowed_origins(
+        cls,
+        value: object,
+    ) -> tuple[str, ...]:
+        """Normalize configured CORS origins into a stable tuple."""
+        return _parse_string_tuple(value)
+
     @property
     def default_required_scopes(self) -> tuple[str, ...]:
         """Return configured default required scopes as a tuple."""
@@ -305,30 +355,24 @@ class Settings(BaseSettings):
         )
 
     @property
-    def required_scopes(self) -> tuple[str, ...]:
-        """Backward-compatible alias for default_required_scopes."""
-        warnings.warn(
-            (
-                "Settings.required_scopes is deprecated; "
-                "use default_required_scopes"
-            ),
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return self.default_required_scopes
+    def resolved_cors_allowed_origins(self) -> tuple[str, ...]:
+        """Return configured browser origins or explicit local defaults."""
+        if self.cors_allowed_origins:
+            return self.cors_allowed_origins
+        environment = self.environment.strip().lower()
+        if environment in {"dev", "development", "local", "test"}:
+            return _DEFAULT_DEV_CORS_ALLOWED_ORIGINS
+        return ()
 
-    @property
-    def required_permissions(self) -> tuple[str, ...]:
-        """Backward-compatible alias for default_required_permissions."""
-        warnings.warn(
-            (
-                "Settings.required_permissions is deprecated; "
-                "use default_required_permissions"
-            ),
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return self.default_required_permissions
+    @model_validator(mode="after")
+    def validate_cors_settings(self) -> Settings:
+        """Require explicit origins when running a production environment."""
+        if (
+            self.environment.strip().lower() in {"prod", "production"}
+            and not self.resolved_cors_allowed_origins
+        ):
+            raise ValueError(_MSG_PRODUCTION_CORS_REQUIRES_ALLOWED_ORIGINS)
+        return self
 
     @model_validator(mode="after")
     def validate_step_functions_settings(self) -> Settings:
