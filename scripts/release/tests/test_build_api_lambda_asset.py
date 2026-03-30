@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import zipfile
 from pathlib import Path
 
 import pytest
@@ -63,3 +64,19 @@ def test_build_asset_invokes_expected_uv_commands_and_installs_built_wheels(
     assert "nova-file-api-0.1.0-py3-none-any.whl" in wheel_args[0]
     assert "nova-runtime-support-0.1.0-py3-none-any.whl" in wheel_args[1]
     assert not pycache_dir.exists()
+
+
+def test_write_zip_archive_normalizes_member_metadata(tmp_path: Path) -> None:
+    source_dir = tmp_path / "source"
+    source_dir.mkdir(parents=True, exist_ok=True)
+    file_path = source_dir / "payload.txt"
+    file_path.write_text("payload", encoding="utf-8")
+    output_zip = tmp_path / "artifact.zip"
+
+    module._write_zip_archive(source_dir=source_dir, output_zip=output_zip)
+
+    with zipfile.ZipFile(output_zip, mode="r") as archive:
+        info = archive.getinfo("payload.txt")
+        assert info.date_time == (1980, 1, 1, 0, 0, 0)
+        assert info.compress_type == zipfile.ZIP_DEFLATED
+        assert ((info.external_attr >> 16) & 0o777777) == 0o100644

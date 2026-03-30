@@ -12,6 +12,6 @@ fi
 uv run --with pytest pytest -q \
   tests/infra/test_ci_scope_detector.py \
   tests/infra/test_release_workflow_contracts.py \
-  tests/infra/test_serverless_stack_contracts.py \
+  tests/infra/test_runtime_stack_contracts.py \
   tests/infra/test_workflow_contract_docs.py \
   tests/infra/test_docs_authority_contracts.py

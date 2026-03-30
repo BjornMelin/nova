@@ -12,6 +12,11 @@ on:
         required: false
         default: release-apply-artifacts
         type: string
+      release_apply_repo:
+        description: Repository that owns the immutable release-apply artifacts.
+        required: false
+        default: ""
+        type: string
       api_domain_name:
         description: Canonical public API domain for the runtime deploy.
         required: true
@@ -105,6 +110,7 @@ on:
         value: ${{ jobs.deploy-runtime.outputs.stack_name }}
 
 permissions:
+  actions: read
   id-token: write
   contents: read
   attestations: write
@@ -127,19 +133,38 @@ jobs:
       release_commit_sha: ${{ steps.release-commit.outputs.release_commit_sha }}
       stack_name: ${{ steps.emit-deploy-output.outputs.stack_name }}
     steps:
+      - name: Resolve workflow source repository
+        id: workflow-source
+        run: |
+          set -euo pipefail
+          workflow_ref="${GITHUB_WORKFLOW_REF}"
+          workflow_repo="${workflow_ref%%/.github/workflows/*}"
+          if [[ -z "${workflow_repo}" || "${workflow_repo}" == "${workflow_ref}" ]]; then
+            echo "Unable to parse workflow repository from GITHUB_WORKFLOW_REF=${workflow_ref}" >&2
+            exit 1
+          fi
+          echo "workflow_repo=${workflow_repo}" >> "$GITHUB_OUTPUT"
+
       - name: Checkout workflow source
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # actions/checkout@v6
         with:
+          repository: ${{ steps.workflow-source.outputs.workflow_repo }}
+          ref: ${{ github.workflow_sha }}
           fetch-depth: 0
           persist-credentials: false
 
       - name: Download immutable release-apply artifacts
         env:
           GITHUB_TOKEN: ${{ github.token }}
+          INPUT_RELEASE_APPLY_REPO: ${{ inputs.release_apply_repo }}
         run: |
           set -euo pipefail
+          release_apply_repo="${INPUT_RELEASE_APPLY_REPO}"
+          if [[ -z "${release_apply_repo}" ]]; then
+            release_apply_repo="${GITHUB_REPOSITORY}"
+          fi
           python -m scripts.release.download_run_artifact \
-            --repo "${{ github.repository }}" \
+            --repo "${release_apply_repo}" \
             --run-id "${{ inputs.release_apply_run_id }}" \
             --artifact-name "${{ inputs.release_apply_artifact_name }}" \
             --output-dir .artifacts/release-apply

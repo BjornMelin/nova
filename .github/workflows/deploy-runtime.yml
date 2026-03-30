@@ -39,6 +39,7 @@ on:
         type: string
 
 permissions:
+  actions: read
   id-token: write
   contents: read
   attestations: write
@@ -54,6 +55,7 @@ jobs:
     with:
       release_apply_run_id: ${{ inputs.release_apply_run_id }}
       release_apply_artifact_name: ${{ inputs.release_apply_artifact_name }}
+      release_apply_repo: ${{ github.repository }}
       deploy_output_artifact_name: ${{ inputs.deploy_output_artifact_name }}
       api_domain_name: ${{ vars.RUNTIME_API_DOMAIN_NAME }}
       certificate_arn: ${{ vars.RUNTIME_CERTIFICATE_ARN }}

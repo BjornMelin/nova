@@ -7,7 +7,7 @@ inputs:
   role-session-name:
     description: Optional role session name for CloudTrail provenance.
     required: false
-    default: ""
+    default: nova-github-oidc
   aws-region:
     description: AWS region for the session.
     required: false

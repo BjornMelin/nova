@@ -59,6 +59,7 @@ on:
         value: ${{ jobs.post-deploy-validate.outputs.artifact_name }}
 
 permissions:
+  actions: read
   contents: read
 
 jobs:
@@ -70,8 +71,22 @@ jobs:
       report_path: ${{ steps.set-outputs.outputs.report_path }}
       artifact_name: ${{ steps.set-outputs.outputs.artifact_name }}
     steps:
+      - name: Resolve workflow source repository
+        id: workflow-source
+        run: |
+          set -euo pipefail
+          workflow_ref="${GITHUB_WORKFLOW_REF}"
+          workflow_repo="${workflow_ref%%/.github/workflows/*}"
+          if [[ -z "${workflow_repo}" || "${workflow_repo}" == "${workflow_ref}" ]]; then
+            echo "Unable to parse workflow repository from GITHUB_WORKFLOW_REF=${workflow_ref}" >&2
+            exit 1
+          fi
+          echo "workflow_repo=${workflow_repo}" >> "$GITHUB_OUTPUT"
+
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # actions/checkout@v6
         with:
+          repository: ${{ steps.workflow-source.outputs.workflow_repo }}
+          ref: ${{ github.workflow_sha }}
           persist-credentials: false
 
       - name: Setup Python
@@ -124,17 +139,7 @@ jobs:
           if [[ -n "${INPUT_DEPLOY_OUTPUT_JSON}" ]]; then
             source_count=$((source_count + 1))
             deploy_output_path=".artifacts/deploy-output/deploy-output-inline.json"
-            uv run python - <<'PY'
-            import json
-            import os
-            from pathlib import Path
-
-            payload = json.loads(os.environ["INPUT_DEPLOY_OUTPUT_JSON"])
-            Path(".artifacts/deploy-output/deploy-output-inline.json").write_text(
-                json.dumps(payload, indent=2, sort_keys=True) + "\n",
-                encoding="utf-8",
-            )
-            PY
+            uv run python -c 'import json, os; from pathlib import Path; payload = json.loads(os.environ["INPUT_DEPLOY_OUTPUT_JSON"]); Path(".artifacts/deploy-output/deploy-output-inline.json").write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")'
           fi
 
           if [[ -n "${INPUT_DEPLOY_OUTPUT_PATH}" ]]; then

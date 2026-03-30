@@ -116,7 +116,13 @@ def _write_zip_archive(*, source_dir: Path, output_zip: Path) -> None:
     ) as archive:
         for path in sorted(source_dir.rglob("*")):
             if path.is_file():
-                archive.write(path, arcname=path.relative_to(source_dir))
+                archive_entry = zipfile.ZipInfo(
+                    filename=path.relative_to(source_dir).as_posix(),
+                    date_time=(1980, 1, 1, 0, 0, 0),
+                )
+                archive_entry.compress_type = zipfile.ZIP_DEFLATED
+                archive_entry.external_attr = 0o100644 << 16
+                archive.writestr(archive_entry, path.read_bytes())
 
 
 def main() -> int:

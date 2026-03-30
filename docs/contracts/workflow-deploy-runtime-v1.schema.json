@@ -69,6 +69,11 @@
           "minLength": 1,
           "type": "string"
         },
+        "release_apply_repo": {
+          "default": "",
+          "pattern": "^$|^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$",
+          "type": "string"
+        },
         "release_apply_run_id": {
           "pattern": "^[1-9][0-9]*$",
           "type": "string"
