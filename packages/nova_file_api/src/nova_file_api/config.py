@@ -72,7 +72,13 @@ def _parse_string_tuple(value: object) -> tuple[str, ...]:
         if not stripped:
             return ()
         if stripped.startswith("["):
-            parsed = json.loads(stripped)
+            try:
+                parsed = json.loads(stripped)
+            except json.JSONDecodeError as exc:
+                raise ValueError(
+                    "ALLOWED_ORIGINS must be valid JSON when provided "
+                    "as a list string."
+                ) from exc
             if not isinstance(parsed, list):
                 raise TypeError("JSON input must decode to a list of strings.")
             return _parse_string_tuple(parsed)

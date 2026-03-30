@@ -76,6 +76,7 @@ TYPESCRIPT_CONFORMANCE_EXACT = {
 CFN_PREFIXES = (
     "scripts/ci/",
     "infra/",
+    "buildspecs/",
     ".github/workflows/",
     ".github/actions/",
     "tests/infra/",

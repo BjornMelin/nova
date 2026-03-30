@@ -71,14 +71,20 @@
           ]
         },
         {
-          "required": [
-            "deploy_output_json"
-          ]
+          "required": ["deploy_output_json"],
+          "properties": {
+            "deploy_output_json": {
+              "minLength": 1
+            }
+          }
         },
         {
-          "required": [
-            "deploy_output_path"
-          ]
+          "required": ["deploy_output_path"],
+          "properties": {
+            "deploy_output_path": {
+              "minLength": 1
+            }
+          }
         }
       ]
     },
