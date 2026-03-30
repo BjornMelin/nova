@@ -53,10 +53,9 @@ promotion, and optional post-deploy route validation.
    - applies versions from the version plan
    - writes `docs/release/RELEASE-VERSION-MANIFEST.md`
    - creates a signed release commit locally from `main`
+   - pushes the signed release commit to `main`
    - rebuilds the public API Lambda zip from that exact signed release commit
    - uploads the zip to `RELEASE_ARTIFACT_BUCKET`
-   - pushes the signed release commit to `main` only after the immutable API
-     artifact upload succeeds
    - writes `.artifacts/api-lambda-artifact.json`
    - uploads `release-apply-artifacts`.
 
@@ -129,7 +128,6 @@ Capture durable pointers for:
    - `api-lambda-artifact.json`
    - S3 key under
      `runtime/nova-file-api/<release_commit_sha>/<artifact_sha256>/nova-file-api-lambda.zip`
-   - `validated-promotion-candidates.json`
 
 ## 5. Rollback guidance
 

@@ -52,4 +52,6 @@ Treat these as traceability only:
 - Do not reintroduce auth-service, session-auth, generic-job, Redis, ECS/Fargate, or split-SDK assumptions into active code, CI, docs, or release workflows.
 - Keep `infra/nova_cdk` as the only active infrastructure path.
 - Keep package release automation aligned to the unified package graph only.
+- Keep the public API Lambda packaging flow in `reusable-release-apply.yml`; CDK must consume explicit `API_LAMBDA_ARTIFACT_BUCKET`, `API_LAMBDA_ARTIFACT_KEY`, and `API_LAMBDA_ARTIFACT_SHA256` inputs instead of rebuilding the API package locally.
 - If code, contracts, package layout, CI, or runbooks change, update the corresponding active docs in the same branch.
+- Keep `AGENTS.md`, `infra/nova_cdk/README.md`, `docs/runbooks/release/release-runbook.md`, and `docs/runbooks/provisioning/github-actions-secrets-and-vars.md` aligned when release/runtime packaging or deploy inputs change.

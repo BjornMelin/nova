@@ -12,7 +12,7 @@ Related:
 
 - API Gateway REST API (regional) with one canonical custom domain
 - AWS WAF (regional, API stage association)
-- Lambda (FastAPI via native handler, Python 3.13, arm64)
+- Lambda (FastAPI via native handler, zip-packaged, Python 3.13, arm64)
 - Step Functions Standard
 - DynamoDB
 - S3
@@ -21,6 +21,8 @@ Related:
 ## IaC
 
 - CDK v2 in Python under `infra/nova_cdk`
+- public API Lambda artifact built by release automation and consumed through
+  explicit artifact coordinates in CDK
 
 ## Network/security
 
@@ -32,6 +34,8 @@ Related:
 - disable the default `execute-api` endpoint and publish only the custom-domain
   base URL
 - bearer JWT verification remains in-process in the application
+- browser CORS remains an explicit allowed-origins contract across API and S3
+  browser flows
 
 ## Operational defaults
 

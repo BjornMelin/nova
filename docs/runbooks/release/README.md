@@ -15,6 +15,11 @@ Committed release artifacts:
 - [`../../release/RELEASE-VERSION-MANIFEST.md`](../../release/RELEASE-VERSION-MANIFEST.md)
 - [`../../release/runtime-config-contract.generated.md`](../../release/runtime-config-contract.generated.md)
 
+The public API Lambda zip is not a committed repo artifact. `Nova Release Apply`
+builds it as an immutable deploy artifact, uploads it to
+`RELEASE_ARTIFACT_BUCKET`, and records the handoff in
+`api-lambda-artifact.json`.
+
 ## Core release docs
 
 | Doc | Role |

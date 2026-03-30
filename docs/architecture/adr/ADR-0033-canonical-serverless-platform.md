@@ -17,9 +17,9 @@ Related:
 ## Decision
 
 Adopt **regional API Gateway REST API + direct Regional WAF + one canonical
-custom domain → Lambda (FastAPI via native handler) → Step Functions
-Standard / DynamoDB / S3** as the canonical AWS runtime, with the default
-`execute-api` endpoint disabled.
+custom domain → Lambda (FastAPI via native handler, zip-packaged) → Step
+Functions Standard / DynamoDB / S3** as the canonical AWS runtime, with the
+default `execute-api` endpoint disabled.
 
 ## Context
 
@@ -53,4 +53,6 @@ Operationally lighter than ECS, but weaker fit for the broader workflow/orchestr
 
 - keep `infra/nova_cdk` as the canonical platform IaC surface
 - keep `packages/nova_workflows` as the workflow/runtime implementation seam
+- keep public API packaging in release automation and have CDK consume explicit
+  immutable artifact metadata instead of rebuilding the API package locally
 - keep active docs, runbooks, and release flows aligned to the serverless/CDK surface only
