@@ -13,6 +13,7 @@ jobs:
     uses: ./.github/workflows/reusable-release-apply.yml
     with:
       checkout_ref: ${{ github.sha }}
+      release_artifact_bucket: ${{ vars.RELEASE_ARTIFACT_BUCKET }}
       aws_region: ${{ vars.AWS_REGION || 'us-east-1' }}
     secrets:
       release_aws_role_arn: ${{ secrets.RELEASE_AWS_ROLE_ARN }}

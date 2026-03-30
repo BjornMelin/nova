@@ -43,7 +43,10 @@ def _build_access_log_format() -> apigw.AccessLogFormat:
     )
 
 
-def _managed_web_acl_rules() -> list[wafv2.CfnWebACL.RuleProperty]:
+def _managed_web_acl_rules(
+    *,
+    rate_limit: int,
+) -> list[wafv2.CfnWebACL.RuleProperty]:
     """Return the baseline regional WAF rules for the public REST ingress."""
     return [
         wafv2.CfnWebACL.RuleProperty(
@@ -61,7 +64,24 @@ def _managed_web_acl_rules() -> list[wafv2.CfnWebACL.RuleProperty]:
                 metric_name="nova-rest-api-managed-common",
                 sampled_requests_enabled=True,
             ),
-        )
+        ),
+        wafv2.CfnWebACL.RuleProperty(
+            name="NovaRateLimitByIp",
+            priority=2,
+            action=wafv2.CfnWebACL.RuleActionProperty(block={}),
+            statement=wafv2.CfnWebACL.StatementProperty(
+                rate_based_statement=wafv2.CfnWebACL.RateBasedStatementProperty(
+                    aggregate_key_type="IP",
+                    evaluation_window_sec=300,
+                    limit=rate_limit,
+                )
+            ),
+            visibility_config=wafv2.CfnWebACL.VisibilityConfigProperty(
+                cloud_watch_metrics_enabled=True,
+                metric_name="nova-rest-api-rate-limit",
+                sampled_requests_enabled=True,
+            ),
+        ),
     ]
 
 
@@ -72,6 +92,9 @@ def create_regional_rest_ingress(
     api_handler: lambda_.IFunction,
     certificate_arn: str,
     stage_name: str,
+    throttling_burst_limit: int,
+    throttling_rate_limit: float,
+    waf_rate_limit: int,
 ) -> IngressResources:
     """Create the canonical public REST ingress for the Nova runtime."""
     access_log_group = logs.LogGroup(
@@ -83,6 +106,7 @@ def create_regional_rest_ingress(
     rest_api = apigw.RestApi(
         scope,
         "NovaRestApi",
+        cloud_watch_role=True,
         disable_execute_api_endpoint=True,
         endpoint_types=[apigw.EndpointType.REGIONAL],
         deploy_options=apigw.StageOptions(
@@ -94,6 +118,8 @@ def create_regional_rest_ingress(
             logging_level=apigw.MethodLoggingLevel.ERROR,
             metrics_enabled=True,
             stage_name=stage_name,
+            throttling_burst_limit=throttling_burst_limit,
+            throttling_rate_limit=throttling_rate_limit,
             tracing_enabled=True,
         ),
     )
@@ -117,7 +143,7 @@ def create_regional_rest_ingress(
         scope,
         "NovaRestApiWebAcl",
         default_action=wafv2.CfnWebACL.DefaultActionProperty(allow={}),
-        rules=_managed_web_acl_rules(),
+        rules=_managed_web_acl_rules(rate_limit=waf_rate_limit),
         scope="REGIONAL",
         visibility_config=wafv2.CfnWebACL.VisibilityConfigProperty(
             cloud_watch_metrics_enabled=True,

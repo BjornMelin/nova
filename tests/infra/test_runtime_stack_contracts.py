@@ -24,6 +24,18 @@ def _context_for_region(region: str) -> dict[str, str]:
     """Return the minimum valid stack context for one region."""
     return {
         "api_domain_name": "api.dev.example.com",
+        "api_lambda_artifact_bucket": (
+            "nova-ci-artifacts-111111111111-us-east-1"
+        ),
+        "api_lambda_artifact_key": (
+            "runtime/nova-file-api/"
+            "01234567-89ab-cdef-0123-456789abcdef/"
+            "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef/"
+            "nova-file-api-lambda.zip"
+        ),
+        "api_lambda_artifact_sha256": (
+            "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+        ),
         "certificate_arn": (
             f"arn:aws:acm:{region}:111111111111:"
             "certificate/12345678-1234-1234-1234-123456789012"
@@ -120,6 +132,9 @@ def _build_bundle(
     "missing_key",
     [
         "api_domain_name",
+        "api_lambda_artifact_bucket",
+        "api_lambda_artifact_key",
+        "api_lambda_artifact_sha256",
         "certificate_arn",
         "jwt_audience",
         "jwt_issuer",
@@ -156,3 +171,45 @@ def test_runtime_stack_maps_caught_errors_for_failure_handler() -> None:
     assert "$.workflow_error" in definition_fragment
     assert '"status":"failed"' in definition_fragment
     assert '"updated_at.$":"$.updated_at"' in definition_fragment
+
+
+def test_runtime_stack_packages_api_lambda_as_native_zip() -> None:
+    """API Lambda should use zip packaging and the native handler."""
+    bundle = _build_bundle()
+    functions = _resources_of_type(bundle.resources, "AWS::Lambda::Function")
+    api_resource = next(
+        resource
+        for resource in functions.values()
+        if (
+            resource["Properties"]
+            .get("Environment", {})
+            .get("Variables", {})
+            .get("JOBS_STEP_FUNCTIONS_STATE_MACHINE_ARN")
+        )
+    )
+    props = api_resource["Properties"]
+    assert props["Handler"] == "nova_file_api.lambda_handler.handler"
+    assert props["Runtime"] == "python3.13"
+    assert props["ReservedConcurrentExecutions"] == 25
+    assert "S3Bucket" in props["Code"]
+    assert (
+        props["Code"]["S3Key"]
+        == _context_for_region("us-west-2")["api_lambda_artifact_key"]
+    )
+    assert "ImageUri" not in props.get("Code", {})
+    assert (
+        props["Environment"]["Variables"]["API_RELEASE_ARTIFACT_SHA256"]
+        == _context_for_region("us-west-2")["api_lambda_artifact_sha256"]
+    )
+
+
+def test_runtime_stack_adds_s3_abort_incomplete_multipart_lifecycle() -> None:
+    """The transfer bucket should abort incomplete multipart uploads."""
+    bundle = _build_bundle()
+    buckets = _resources_of_type(bundle.resources, "AWS::S3::Bucket")
+    assert buckets
+    bucket_props = next(iter(buckets.values()))["Properties"]
+    rules = bucket_props["LifecycleConfiguration"]["Rules"]
+    assert (
+        rules[0]["AbortIncompleteMultipartUpload"]["DaysAfterInitiation"] == 7
+    )

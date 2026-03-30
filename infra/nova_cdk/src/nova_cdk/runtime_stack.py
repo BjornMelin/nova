@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -67,6 +68,54 @@ def _required_context_or_env_value(
     raise ValueError(f"Missing required value for {key}.")
 
 
+def _numeric_context_or_env_value(
+    scope: Construct,
+    *,
+    env_var: str,
+    key: str,
+    default: int | float,
+    allow_float: bool = False,
+    minimum: int | float = 1,
+) -> int | float:
+    """Return one validated numeric context or environment value."""
+    raw = scope.node.try_get_context(key)
+    if raw is None:
+        raw = os.environ.get(env_var)
+    if raw is None:
+        return default
+    if isinstance(raw, str):
+        value_text = raw.strip()
+        if not value_text:
+            return default
+        value: int | float = (
+            float(value_text) if allow_float else int(value_text)
+        )
+    elif isinstance(raw, (int, float)):
+        value = float(raw) if allow_float else int(raw)
+    else:
+        raise TypeError(f"{key} must be numeric.")
+    if value < minimum:
+        raise ValueError(f"{key} must be >= {minimum}.")
+    return value
+
+
+def _sha256_context_or_env_value(
+    scope: Construct,
+    *,
+    env_var: str,
+    key: str,
+) -> str:
+    """Return one required lowercase SHA-256 digest from context or env."""
+    value = _required_context_or_env_value(
+        scope,
+        env_var=env_var,
+        key=key,
+    )
+    if not re.fullmatch(r"[0-9a-f]{64}", value):
+        raise ValueError(f"{key} must be a lowercase 64-character SHA-256.")
+    return value
+
+
 def _stage_name_for_environment(deployment_environment: str) -> str:
     """Normalize environment values into a stable API Gateway stage name."""
     if deployment_environment in {"prod", "production"}:
@@ -100,12 +149,16 @@ class RuntimeStackInputs:
     """Carry canonical runtime inputs resolved from context and environment."""
 
     allowed_origins: list[str]
+    api_reserved_concurrency: int
+    api_stage_throttling_burst_limit: int
+    api_stage_throttling_rate_limit: float
     api_domain_name: str
     certificate_arn: str
     deployment_environment: str
     oidc_audience: str
     oidc_issuer: str
     oidc_jwks_url: str
+    waf_rate_limit: int
 
     @classmethod
     def from_scope(cls, scope: Construct) -> RuntimeStackInputs:
@@ -132,6 +185,31 @@ class RuntimeStackInputs:
             allowed_origins = ["*"]
         return cls(
             allowed_origins=allowed_origins,
+            api_reserved_concurrency=int(
+                _numeric_context_or_env_value(
+                    scope,
+                    env_var="API_RESERVED_CONCURRENCY",
+                    key="api_reserved_concurrency",
+                    default=25,
+                )
+            ),
+            api_stage_throttling_burst_limit=int(
+                _numeric_context_or_env_value(
+                    scope,
+                    env_var="API_STAGE_THROTTLING_BURST_LIMIT",
+                    key="api_stage_throttling_burst_limit",
+                    default=100,
+                )
+            ),
+            api_stage_throttling_rate_limit=float(
+                _numeric_context_or_env_value(
+                    scope,
+                    env_var="API_STAGE_THROTTLING_RATE_LIMIT",
+                    key="api_stage_throttling_rate_limit",
+                    default=50,
+                    allow_float=True,
+                )
+            ),
             api_domain_name=_required_context_or_env_value(
                 scope,
                 env_var="API_DOMAIN_NAME",
@@ -157,6 +235,15 @@ class RuntimeStackInputs:
                 scope,
                 env_var="JWT_JWKS_URL",
                 key="jwt_jwks_url",
+            ),
+            waf_rate_limit=int(
+                _numeric_context_or_env_value(
+                    scope,
+                    env_var="WAF_RATE_LIMIT",
+                    key="waf_rate_limit",
+                    default=2000,
+                    minimum=100,
+                )
             ),
         )
 
@@ -234,6 +321,13 @@ class NovaRuntimeStack(Stack):
             enforce_ssl=True,
             block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
             versioned=True,
+            lifecycle_rules=[
+                s3.LifecycleRule(
+                    abort_incomplete_multipart_upload_after=Duration.days(7),
+                    enabled=True,
+                    id="abort-incomplete-multipart-uploads",
+                )
+            ],
             removal_policy=RemovalPolicy.RETAIN,
             cors=[
                 s3.CorsRule(
@@ -255,6 +349,7 @@ class NovaRuntimeStack(Stack):
             "FILE_TRANSFER_UPLOAD_PREFIX": "uploads/",
             "FILE_TRANSFER_EXPORT_PREFIX": "exports/",
             "FILE_TRANSFER_TMP_PREFIX": "tmp/",
+            "ALLOWED_ORIGINS": json.dumps(inputs.allowed_origins),
             "JOBS_ENABLED": "true",
             "JOBS_REPOSITORY_BACKEND": "dynamodb",
             "JOBS_DYNAMODB_TABLE": export_table.table_name,
@@ -407,15 +502,39 @@ class NovaRuntimeStack(Stack):
             timeout=Duration.minutes(15),
         )
 
-        api_function = lambda_.DockerImageFunction(
+        api_lambda_artifact_bucket_name = _required_context_or_env_value(
+            self,
+            env_var="API_LAMBDA_ARTIFACT_BUCKET",
+            key="api_lambda_artifact_bucket",
+        )
+        api_lambda_artifact_key = _required_context_or_env_value(
+            self,
+            env_var="API_LAMBDA_ARTIFACT_KEY",
+            key="api_lambda_artifact_key",
+        )
+        api_lambda_artifact_sha256 = _sha256_context_or_env_value(
+            self,
+            env_var="API_LAMBDA_ARTIFACT_SHA256",
+            key="api_lambda_artifact_sha256",
+        )
+        api_lambda_artifact_bucket = s3.Bucket.from_bucket_name(
+            self,
+            "ApiLambdaArtifactBucket",
+            api_lambda_artifact_bucket_name,
+        )
+
+        api_function = lambda_.Function(
             self,
             "NovaApiFunction",
-            code=lambda_.DockerImageCode.from_image_asset(
-                directory=str(REPO_ROOT),
-                file="apps/nova_file_api_service/Dockerfile",
+            runtime=lambda_.Runtime.PYTHON_3_13,
+            handler="nova_file_api.lambda_handler.handler",
+            code=lambda_.Code.from_bucket(
+                api_lambda_artifact_bucket,
+                api_lambda_artifact_key,
             ),
             architecture=lambda_.Architecture.ARM_64,
             memory_size=2048,
+            reserved_concurrent_executions=inputs.api_reserved_concurrency,
             timeout=Duration.seconds(29),
             tracing=lambda_.Tracing.ACTIVE,
             environment={
@@ -426,6 +545,7 @@ class NovaRuntimeStack(Stack):
                 "JOBS_STEP_FUNCTIONS_STATE_MACHINE_ARN": (
                     state_machine.state_machine_arn
                 ),
+                "API_RELEASE_ARTIFACT_SHA256": api_lambda_artifact_sha256,
             },
             log_group=_runtime_log_group(
                 self,
@@ -446,6 +566,9 @@ class NovaRuntimeStack(Stack):
             stage_name=_stage_name_for_environment(
                 inputs.deployment_environment
             ),
+            throttling_burst_limit=inputs.api_stage_throttling_burst_limit,
+            throttling_rate_limit=inputs.api_stage_throttling_rate_limit,
+            waf_rate_limit=inputs.waf_rate_limit,
         )
 
         cloudwatch.Alarm(

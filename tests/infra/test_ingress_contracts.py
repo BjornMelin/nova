@@ -24,6 +24,18 @@ def _context_for_region(region: str) -> dict[str, str]:
     """Return the minimum valid ingress context for one region."""
     return {
         "api_domain_name": "api.dev.example.com",
+        "api_lambda_artifact_bucket": (
+            "nova-ci-artifacts-111111111111-us-east-1"
+        ),
+        "api_lambda_artifact_key": (
+            "runtime/nova-file-api/"
+            "01234567-89ab-cdef-0123-456789abcdef/"
+            "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef/"
+            "nova-file-api-lambda.zip"
+        ),
+        "api_lambda_artifact_sha256": (
+            "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+        ),
         "certificate_arn": (
             f"arn:aws:acm:{region}:111111111111:"
             "certificate/12345678-1234-1234-1234-123456789012"
@@ -101,6 +113,8 @@ def test_runtime_stack_configures_stage_logging_hooks() -> None:
             "LoggingLevel": "ERROR",
             "MetricsEnabled": True,
             "ResourcePath": "/*",
+            "ThrottlingBurstLimit": 100,
+            "ThrottlingRateLimit": 50,
         }
     ]
     access_log_setting = stage_props["AccessLogSetting"]
@@ -108,6 +122,17 @@ def test_runtime_stack_configures_stage_logging_hooks() -> None:
     assert '"requestId":"$context.requestId"' in access_log_setting["Format"]
     assert '"httpMethod":"$context.httpMethod"' in access_log_setting["Format"]
     assert stage_props["TracingEnabled"] is True
+
+
+def test_runtime_stack_provisions_apigateway_cloudwatch_account_role() -> None:
+    """API Gateway execution logging must own a CloudWatch role."""
+    resources = _template_json()["Resources"]
+    accounts = _resources_of_type(resources, "AWS::ApiGateway::Account")
+    roles = _resources_of_type(resources, "AWS::IAM::Role")
+    assert len(accounts) == 1
+    assert roles
+    account_props = next(iter(accounts.values()))["Properties"]
+    assert "CloudWatchRoleArn" in account_props
 
 
 def test_runtime_stack_associates_regional_waf_to_api_stage() -> None:
@@ -120,6 +145,9 @@ def test_runtime_stack_associates_regional_waf_to_api_stage() -> None:
     assert (
         web_acl_props["VisibilityConfig"]["MetricName"] == "nova-rest-api-waf"
     )
+    rule_names = [rule["Name"] for rule in web_acl_props["Rules"]]
+    assert "AWSManagedCommonRuleSet" in rule_names
+    assert "NovaRateLimitByIp" in rule_names
 
     associations = _resources_of_type(
         resources,
@@ -203,6 +231,42 @@ def test_runtime_stack_keeps_proxy_ingress_and_required_route_contract() -> (
         "/v1/transfers/uploads/initiate",
     }
     assert required_paths.issubset(paths)
+
+
+def test_runtime_stack_shares_allowed_origins_between_api_and_bucket() -> None:
+    """Lambda and S3 should receive the same browser-origin contract."""
+    allowed_origins = ["https://app.dev.example.com", "http://localhost:3000"]
+    resources = _template_json(
+        context={
+            **_context_for_region("us-west-2"),
+            "allowed_origins": json.dumps(allowed_origins),
+        }
+    )["Resources"]
+
+    lambda_functions = _resources_of_type(resources, "AWS::Lambda::Function")
+    api_functions = [
+        resource["Properties"]
+        for resource in lambda_functions.values()
+        if (
+            resource["Properties"]
+            .get("Environment", {})
+            .get("Variables", {})
+            .get("JOBS_STEP_FUNCTIONS_STATE_MACHINE_ARN")
+        )
+    ]
+    assert api_functions
+    assert any(
+        function["Environment"]["Variables"]["ALLOWED_ORIGINS"]
+        == json.dumps(allowed_origins)
+        for function in api_functions
+    )
+
+    buckets = _resources_of_type(resources, "AWS::S3::Bucket")
+    file_bucket = next(iter(buckets.values()))["Properties"]
+    assert (
+        file_bucket["CorsConfiguration"]["CorsRules"][0]["AllowedOrigins"]
+        == allowed_origins
+    )
 
 
 @pytest.mark.parametrize("region", ["us-west-2", "eu-west-1"])

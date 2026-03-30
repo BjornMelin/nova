@@ -84,7 +84,7 @@ def test_build_changed_units_report_ignores_dockerfile_only_changes() -> None:
 
     report = changed_units.build_changed_units_report(
         units=units,
-        changed_files=["apps/nova_file_api_service/Dockerfile"],
+        changed_files=["apps/nova_workflows_tasks/Dockerfile"],
         base_commit="abc",
         head_commit="def",
         first_release=False,

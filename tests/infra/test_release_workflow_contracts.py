@@ -90,11 +90,16 @@ def test_promote_prod_workflow_promotes_packages_only() -> None:
 def test_release_apply_workflow_is_manual_wrapper_to_reusable_api() -> None:
     """Release apply wrapper must stay manual and delegate to shared API."""
     release_apply_text = _read(".github/workflows/release-apply.yml")
+    reusable_release_apply_text = _read(
+        ".github/workflows/reusable-release-apply.yml"
+    )
 
     for required in [
         "uses: ./.github/workflows/reusable-release-apply.yml",
         "checkout_ref:",
+        "release_artifact_bucket:",
         "release_signing_secret_id",
+        "RELEASE_ARTIFACT_BUCKET",
         "workflow_dispatch",
         "github.ref == 'refs/heads/main'",
     ]:
@@ -106,6 +111,36 @@ def test_release_apply_workflow_is_manual_wrapper_to_reusable_api() -> None:
         "workflow_run:",
     ]:
         assert forbidden not in release_apply_text
+
+    for required in [
+        "release-apply-artifacts",
+        "release-apply-metadata.json",
+        "api-lambda-artifact.json",
+        "build_api_lambda_asset.py",
+        "RELEASE_ARTIFACT_BUCKET",
+        "aws s3 cp",
+        "artifact_bucket",
+        "artifact_key",
+        "artifact_sha256",
+        "release_commit_created",
+        "Push signed release commit",
+    ]:
+        assert required in reusable_release_apply_text
+
+    commit_index = reusable_release_apply_text.index(
+        "- name: Commit release changes"
+    )
+    build_index = reusable_release_apply_text.index(
+        "- name: Build immutable API Lambda artifact"
+    )
+    publish_index = reusable_release_apply_text.index(
+        "- name: Publish immutable API Lambda artifact"
+    )
+    push_index = reusable_release_apply_text.index(
+        "- name: Push signed release commit"
+    )
+
+    assert commit_index < build_index < publish_index < push_index
 
 
 def test_release_plan_workflow_is_wrapper_to_reusable_api() -> None:

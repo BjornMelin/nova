@@ -22,10 +22,10 @@ if ! docker buildx version >/dev/null 2>&1; then
 fi
 
 docker buildx build --load \
-  -f apps/nova_file_api_service/Dockerfile \
-  -t nova-file-api:test .
+  -f apps/nova_workflows_tasks/Dockerfile \
+  -t nova-workflows-tasks:test .
 uv run pytest -q \
   packages/nova_file_api/tests/test_runtime_security_reliability_gates.py \
-  tests/infra/test_workflow_productization_contracts.py \
+  tests/infra/test_runtime_stack_contracts.py \
   tests/infra/test_workflow_contract_docs.py \
   tests/infra/test_docs_authority_contracts.py
