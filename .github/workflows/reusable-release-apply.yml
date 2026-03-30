@@ -146,12 +146,6 @@ jobs:
           uv run python scripts/release/build_api_lambda_asset.py \
             --output-zip .artifacts/nova-file-api-lambda.zip
 
-      - name: Push signed release commit
-        if: steps.release_commit.outputs.release_commit_created == 'true'
-        run: |
-          set -euo pipefail
-          git push origin HEAD:main
-
       - name: Publish immutable API Lambda artifact
         id: api_lambda_artifact
         run: |
@@ -213,6 +207,12 @@ jobs:
             echo "artifact_key=${API_LAMBDA_ARTIFACT_KEY}"
             echo "artifact_sha256=${API_LAMBDA_ARTIFACT_SHA256}"
           } >> "$GITHUB_OUTPUT"
+
+      - name: Push signed release commit
+        if: steps.release_commit.outputs.release_commit_created == 'true'
+        run: |
+          set -euo pipefail
+          git push origin HEAD:main
 
       - name: Write release-apply artifact metadata
         run: |

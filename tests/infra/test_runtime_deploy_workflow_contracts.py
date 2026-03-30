@@ -45,6 +45,7 @@ def test_reusable_deploy_runtime_uses_immutable_release_inputs() -> None:
         "workflow_call:",
         "release_apply_run_id",
         "release_apply_artifact_name",
+        "release_apply_repo",
         "runtime_cfn_execution_role_arn",
         "actions: read",
         "hosted_zone_id",
@@ -67,6 +68,10 @@ def test_reusable_deploy_runtime_uses_immutable_release_inputs() -> None:
         "public_base_url",
         "runtime_version",
         "release_commit_sha",
+        (
+            "release_apply_repo must be empty or match the workflow source "
+            "repository"
+        ),
     ]:
         assert required in text
 

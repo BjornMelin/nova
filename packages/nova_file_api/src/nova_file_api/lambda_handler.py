@@ -29,6 +29,17 @@ def create_lambda_handler(
     return Mangum(resolved_app, lifespan=lifespan)
 
 
+_DEFAULT_HANDLER: Mangum | None = None
+
+
+def _get_default_handler() -> Mangum:
+    """Return the cached canonical Lambda handler."""
+    global _DEFAULT_HANDLER
+    if _DEFAULT_HANDLER is None:
+        _DEFAULT_HANDLER = create_lambda_handler()
+    return _DEFAULT_HANDLER
+
+
 def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
     """Handle one AWS Lambda proxy event with the canonical FastAPI adapter.
 
@@ -39,4 +50,4 @@ def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
     Returns:
         API Gateway-compatible response payload emitted by Mangum.
     """
-    return create_lambda_handler()(event, context)
+    return _get_default_handler()(event, context)

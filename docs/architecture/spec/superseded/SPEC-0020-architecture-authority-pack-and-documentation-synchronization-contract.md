@@ -48,7 +48,7 @@ Nova architecture and operator guidance is divided into four classes:
    - `SPEC-0027` through `SPEC-0029`
 3. Adjacent deploy-governance authority
    - `ADR-0030` through `ADR-0032`
-   - `SPEC-0024` through `SPEC-0026`
+   - `SPEC-0023` through `SPEC-0026`
 4. Superseded authority
    - `docs/architecture/adr/superseded/**`
    - `docs/architecture/spec/superseded/**`

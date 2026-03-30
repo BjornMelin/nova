@@ -61,6 +61,7 @@
         },
         "release_apply_repo": {
           "default": "",
+          "description": "Repository that owns the immutable release-apply artifacts; when provided, it must match the workflow source repository.",
           "pattern": "^$|^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$",
           "type": "string"
         },

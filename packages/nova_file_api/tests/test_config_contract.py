@@ -17,6 +17,24 @@ def test_parse_string_tuple_reports_clear_allowed_origins_json_error() -> None:
         _parse_string_tuple("[not-json")
 
 
+def test_parse_string_tuple_reports_iterable_string_type_error() -> None:
+    expected_message = (
+        "iterable input must contain only strings "
+        r"\(list, tuple, set, or frozenset\)"
+    )
+    with pytest.raises(TypeError, match=expected_message):
+        _parse_string_tuple(["https://app.example.com", 1])
+
+
+def test_parse_string_tuple_reports_supported_iterable_types() -> None:
+    expected_message = (
+        "value must be a string or an iterable of strings "
+        r"\(list, tuple, set, or frozenset\)"
+    )
+    with pytest.raises(TypeError, match=expected_message):
+        _parse_string_tuple(123)
+
+
 def test_resolved_cors_allowed_origins_uses_dev_defaults_without_stack_fallback(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

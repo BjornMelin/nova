@@ -140,7 +140,7 @@ def test_release_apply_workflow_is_manual_wrapper_to_reusable_api() -> None:
         "- name: Publish immutable API Lambda artifact"
     )
 
-    assert commit_index < build_index < push_index < publish_index
+    assert commit_index < build_index < publish_index < push_index
 
 
 def test_release_plan_workflow_is_wrapper_to_reusable_api() -> None:

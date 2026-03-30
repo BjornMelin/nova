@@ -5,17 +5,17 @@ Status: Superseded
 Version: 1.1
 Date: 2026-03-22
 Related:
-  - "[ADR-0023: Hard-cut v1 canonical route surface](./ADR-0023-hard-cut-v1-canonical-route-surface.md)"
-  - "[SPEC-0000: HTTP API contract](../spec/superseded/SPEC-0000-http-api-contract.md)"
-  - "[SPEC-0016: V1 route namespace and literal guardrails](../spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md)"
-  - "[requirements.md](../requirements.md)"
+  - "[ADR-0023: Hard-cut v1 canonical route surface](../ADR-0023-hard-cut-v1-canonical-route-surface.md)"
+  - "[SPEC-0000: HTTP API contract](../../spec/superseded/SPEC-0000-http-api-contract.md)"
+  - "[SPEC-0016: V1 route namespace and literal guardrails](../../spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md)"
+  - "[requirements.md](../../requirements.md)"
   - "[ADR-0041: Green-field shared pure ASGI middleware and errors](./ADR-0041-shared-pure-asgi-middleware-and-errors.md)"
-  - "[SPEC-0027: Public HTTP contract revision and bearer auth](../spec/SPEC-0027-public-http-contract-revision-and-bearer-auth.md)"
-  - "[ADR-0026: Fail-fast runtime configuration and safe auth execution](./ADR-0026-fail-fast-runtime-configuration-and-safe-auth-execution.md)"
-  - "[SPEC-0019: Auth execution and threadpool safety contract](../spec/SPEC-0019-auth-execution-and-threadpool-safety-contract.md)"
-  - "[Green-field simplification program](../../plan/greenfield-simplification-program.md)"
+  - "[SPEC-0027: Public HTTP contract revision and bearer auth](../../spec/SPEC-0027-public-api-v2.md)"
+  - "[ADR-0026: Fail-fast runtime configuration and safe auth execution](../ADR-0026-fail-fast-runtime-configuration-and-safe-auth-execution.md)"
+  - "[SPEC-0019: Auth execution and threadpool safety contract](../../spec/SPEC-0019-auth-execution-and-threadpool-safety-contract.md)"
+  - "[Green-field simplification program](../../../history/2026-03-greenfield-wave-1-superseded/greenfield-simplification-program.md)"
 References:
-  - "[Green-field evidence (Framework A)](../../plan/greenfield-evidence/DECISION_FRAMEWORKS_AND_SCORES.md)"
+  - "[Green-field evidence (Framework A)](../../../history/2026-03-greenfield-wave-1-superseded/greenfield-evidence/DECISION_FRAMEWORKS_AND_SCORES.md)"
 ---
 
 ## Summary
@@ -30,8 +30,8 @@ A).
 - The transfer core is async-native; sync façades over async internals add
   thread-pool churn.
 - When JWT verification becomes async-native in-process ([ADR-0033](./ADR-0033-single-runtime-auth-authority.md)),
-  [ADR-0026](./ADR-0026-fail-fast-runtime-configuration-and-safe-auth-execution.md)
-  / [SPEC-0019](../spec/SPEC-0019-auth-execution-and-threadpool-safety-contract.md)
+  [ADR-0026](../ADR-0026-fail-fast-runtime-configuration-and-safe-auth-execution.md)
+  / [SPEC-0019](../../spec/SPEC-0019-auth-execution-and-threadpool-safety-contract.md)
   apply to **remaining** sync work only (not to async-safe JWT on the event
   loop).
 - Execution order: program branch 6.
@@ -66,8 +66,8 @@ Implementation commitments:
 
 ## Related requirements
 
-- [GFR-R3](../requirements.md#gfr-r3--async-correctness-is-mandatory)
-- [GFR-R6](../requirements.md#gfr-r6--sdks-must-feel-native-per-language)
+- [GFR-R3](../../requirements.md#gfr-r3--async-correctness-is-mandatory)
+- [GFR-R6](../../requirements.md#gfr-r6--sdks-must-feel-native-per-language)
 
 ## Consequences
 
