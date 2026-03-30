@@ -101,7 +101,7 @@ export const healthReady = <ThrowOnError extends boolean = false>(options?: Opti
 /**
  * Get Release Info
  *
- * Return service release metadata.
+ * Return public release metadata for browser and deploy canaries.
  */
 export const getReleaseInfo = <ThrowOnError extends boolean = false>(options?: Options<GetReleaseInfoData, ThrowOnError>) => (options?.client ?? client).get<GetReleaseInfoResponses, unknown, ThrowOnError>({ url: '/v1/releases/info', ...options });
 

@@ -49,7 +49,7 @@ def sync_detailed(
 ) -> Response[ReleaseInfoResponse]:
     """Get Release Info
 
-     Return service release metadata.
+     Return public release metadata for browser and deploy canaries.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -74,7 +74,7 @@ def sync(
 ) -> ReleaseInfoResponse | None:
     """Get Release Info
 
-     Return service release metadata.
+     Return public release metadata for browser and deploy canaries.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -95,7 +95,7 @@ async def asyncio_detailed(
 ) -> Response[ReleaseInfoResponse]:
     """Get Release Info
 
-     Return service release metadata.
+     Return public release metadata for browser and deploy canaries.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -118,7 +118,7 @@ async def asyncio(
 ) -> ReleaseInfoResponse | None:
     """Get Release Info
 
-     Return service release metadata.
+     Return public release metadata for browser and deploy canaries.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
