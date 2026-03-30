@@ -5,7 +5,7 @@
   "description": "Authoritative runtime deployment artifact emitted by the deploy-runtime workflow.",
   "properties": {
     "api_lambda_artifact": {
-      "additionalProperties": true,
+      "additionalProperties": false,
       "properties": {
         "artifact_bucket": {
           "minLength": 1,
@@ -91,7 +91,7 @@
       "type": "string"
     },
     "stack_id": {
-      "minLength": 1,
+      "pattern": "^arn:aws:cloudformation:[a-z0-9-]+:\\d{12}:stack/.+$",
       "type": "string"
     },
     "stack_name": {

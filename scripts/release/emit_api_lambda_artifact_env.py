@@ -16,7 +16,17 @@ _REQUIRED_FIELDS = {
 
 
 def _load_manifest(path: Path) -> dict[str, Any]:
-    """Load one API Lambda artifact manifest from disk."""
+    """Load one API Lambda artifact manifest from disk.
+
+    Args:
+        path: Absolute path to the manifest JSON file.
+
+    Returns:
+        Parsed manifest payload.
+
+    Raises:
+        TypeError: If the manifest root payload is not a JSON object.
+    """
     payload = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(payload, dict):
         raise TypeError("API Lambda artifact manifest must be a JSON object.")
@@ -24,7 +34,14 @@ def _load_manifest(path: Path) -> dict[str, Any]:
 
 
 def main() -> int:
-    """Print shell-safe exports for CDK artifact inputs."""
+    """Print shell-safe exports for CDK artifact inputs.
+
+    Returns:
+        Zero when the manifest is valid and all exports were emitted.
+
+    Raises:
+        ValueError: If a required manifest field is missing or blank.
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument("--manifest-path", required=True)
     args = parser.parse_args()

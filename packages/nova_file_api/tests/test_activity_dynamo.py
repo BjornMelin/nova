@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+from datetime import UTC, datetime
 from decimal import Decimal
 from types import SimpleNamespace
 from typing import Any, cast
@@ -234,8 +235,9 @@ async def test_dynamo_activity_summary_accepts_decimal_counters() -> None:
         table_name="activity-rollups",
         dynamodb_resource=_FakeDynamoDbResource(table),
     )
-    table._items[("ROLLUP#2026-03-30", "SUMMARY")] = {
-        "pk": "ROLLUP#2026-03-30",
+    day_key = datetime.now(tz=UTC).strftime("%Y-%m-%d")
+    table._items[(f"ROLLUP#{day_key}", "SUMMARY")] = {
+        "pk": f"ROLLUP#{day_key}",
         "sk": "SUMMARY",
         "events_total": Decimal("3"),
         "active_users_today": Decimal("2"),
@@ -248,6 +250,31 @@ async def test_dynamo_activity_summary_accepts_decimal_counters() -> None:
         "events_total": 3,
         "active_users_today": 2,
         "distinct_event_types": 1,
+    }
+
+
+@pytest.mark.anyio
+async def test_dynamo_activity_summary_ignores_malformed_counters() -> None:
+    day_key = datetime.now(tz=UTC).strftime("%Y-%m-%d")
+    table = _FakeDynamoDbTable()
+    store = DynamoActivityStore(
+        table_name="activity-rollups",
+        dynamodb_resource=_FakeDynamoDbResource(table),
+    )
+    table._items[(f"ROLLUP#{day_key}", "SUMMARY")] = {
+        "pk": f"ROLLUP#{day_key}",
+        "sk": "SUMMARY",
+        "events_total": Decimal("NaN"),
+        "active_users_today": "3.5",
+        "distinct_event_types": object(),
+    }
+
+    summary = await store.summary()
+
+    assert summary == {
+        "events_total": 0,
+        "active_users_today": 0,
+        "distinct_event_types": 0,
     }
 
 

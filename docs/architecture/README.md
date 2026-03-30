@@ -22,6 +22,11 @@ The active architecture baseline is:
 
 Use these documents for active architecture decisions and implementation:
 
+- `adr/ADR-0023-hard-cut-v1-canonical-route-surface.md`
+- `spec/SPEC-0000-http-api-contract.md`
+- `spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md`
+- `requirements.md`
+- `../plan/GREENFIELD-WAVE-2-EXECUTION.md`
 - `requirements-wave-2.md`
 - `adr/ADR-0033-canonical-serverless-platform.md`
 - `adr/ADR-0034-eliminate-auth-service-and-session-auth.md`

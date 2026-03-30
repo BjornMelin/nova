@@ -17,6 +17,7 @@
 - `docs/release/README.md`
 - `docs/plan/GREENFIELD-WAVE-2-EXECUTION.md`
 - `docs/architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md`
+- `docs/architecture/spec/SPEC-0000-http-api-contract.md`
 - `docs/architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md`
 - `docs/architecture/requirements-wave-2.md`
 - `docs/architecture/adr/ADR-0033` through `ADR-0038`

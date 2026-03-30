@@ -402,6 +402,15 @@
       "type_label": "ActivityStoreBackend"
     },
     {
+      "default_repr": "()",
+      "env_var": "ALLOWED_ORIGINS",
+      "field_name": "cors_allowed_origins",
+      "required": false,
+      "required_when": null,
+      "secret": false,
+      "type_label": "tuple[str, Ellipsis]"
+    },
+    {
       "default_repr": "'nova-file-api'",
       "env_var": "APP_NAME",
       "field_name": "app_name",

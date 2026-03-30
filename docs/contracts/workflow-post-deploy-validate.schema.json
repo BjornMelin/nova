@@ -64,17 +64,26 @@
           "default": "post-deploy-validation-report"
         }
       },
-      "anyOf": [
+      "oneOf": [
         {
-          "required": [
-            "deploy_run_id"
-          ]
+          "required": ["deploy_run_id"],
+          "properties": {
+            "deploy_output_json": {
+              "maxLength": 0
+            },
+            "deploy_output_path": {
+              "maxLength": 0
+            }
+          }
         },
         {
           "required": ["deploy_output_json"],
           "properties": {
             "deploy_output_json": {
               "minLength": 1
+            },
+            "deploy_output_path": {
+              "maxLength": 0
             }
           }
         },
@@ -83,6 +92,9 @@
           "properties": {
             "deploy_output_path": {
               "minLength": 1
+            },
+            "deploy_output_json": {
+              "maxLength": 0
             }
           }
         }

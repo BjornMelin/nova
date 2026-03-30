@@ -16,6 +16,15 @@ canonical serverless CDK stack.
 3. [github-actions-secrets-and-vars.md](github-actions-secrets-and-vars.md)
 4. [`../../../infra/nova_cdk/README.md`](../../../infra/nova_cdk/README.md)
 
+## Authority / references
+
+- `../../architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md`
+- `../../architecture/spec/SPEC-0000-http-api-contract.md`
+- `../../architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md`
+- `../../architecture/spec/SPEC-0027-public-api-v2.md`
+- `../../architecture/requirements.md`
+- `../../plan/GREENFIELD-WAVE-2-EXECUTION.md`
+
 ## Rule
 
 Use `infra/nova_cdk` for infrastructure deployment and synth/diff guidance.

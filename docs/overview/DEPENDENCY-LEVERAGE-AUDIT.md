@@ -2,6 +2,15 @@
 
 > **Implementation state:** Active target-state audit input for the implementation program.
 
+## Authority / references
+
+- `../architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md`
+- `../architecture/spec/SPEC-0000-http-api-contract.md`
+- `../architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md`
+- `../architecture/spec/SPEC-0027-public-api-v2.md`
+- `../architecture/requirements.md`
+- `../plan/GREENFIELD-WAVE-2-EXECUTION.md`
+
 ## Principle
 
 Delete repo code whenever an upstream dependency or native platform capability can replace it cleanly without increasing hidden complexity.
@@ -14,7 +23,7 @@ Use the async verifier and FastAPI/Starlette integration helpers instead of a de
 
 ### FastAPI native OpenAPI/security/features
 
-Use `Security(...)`, `response_model=...`, and `responses={...}` instead of hand-editing OpenAPI.
+Use `Security(…)`, `response_model=…`, and `responses={…}` instead of hand-editing OpenAPI.
 
 ### Regional REST API throttling + AWS WAF
 

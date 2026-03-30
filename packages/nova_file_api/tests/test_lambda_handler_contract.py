@@ -60,7 +60,7 @@ def _build_handler() -> Any:
             idempotency_enabled=True,
         )
     )
-    return create_lambda_handler(app=app, lifespan="off")
+    return create_lambda_handler(app=app)
 
 
 def _rest_api_event(

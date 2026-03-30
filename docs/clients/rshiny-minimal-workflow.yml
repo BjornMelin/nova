@@ -9,7 +9,7 @@ on:
 
 jobs:
   validate:
-    uses: 3M-Cloud/nova/.github/workflows/reusable-post-deploy-validate.yml@<pin-to-an-immutable-revision>
+    uses: 3M-Cloud/nova/.github/workflows/reusable-post-deploy-validate.yml@REPLACE_WITH_IMMUTABLE_SHA
     with:
       deploy_repo: 3M-Cloud/nova
       deploy_run_id: ${{ inputs.nova_deploy_run_id }}

@@ -31,6 +31,11 @@ path.
 
 ## Active architecture/program authority
 
+- `./architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md`
+- `./architecture/spec/SPEC-0000-http-api-contract.md`
+- `./architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md`
+- `./architecture/requirements.md`
+- `./plan/GREENFIELD-WAVE-2-EXECUTION.md`
 - `./architecture/requirements-wave-2.md`
 - `./architecture/adr/ADR-0033-canonical-serverless-platform.md`
 - `./architecture/adr/ADR-0034-eliminate-auth-service-and-session-auth.md`

@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import importlib.metadata
 import json
+import os
 
-from pydantic import AliasChoices, Field, field_validator, model_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from nova_file_api.models import (
@@ -63,6 +64,17 @@ def _default_app_version() -> str:
         return "0.0.0"
 
 
+def _env_value_or_none(name: str) -> str | None:
+    """Return one non-blank environment variable value when configured."""
+    value = os.environ.get(name)
+    if value is None:
+        return None
+    stripped = value.strip()
+    if not stripped:
+        return None
+    return stripped
+
+
 def _parse_string_tuple(value: object) -> tuple[str, ...]:
     """Normalize JSON or comma-delimited inputs into a tuple of strings."""
     if value is None:
@@ -88,9 +100,9 @@ def _parse_string_tuple(value: object) -> tuple[str, ...]:
             if item
         )
     if isinstance(value, (list, tuple, set, frozenset)):
-        return tuple(
-            item for item in (str(part).strip() for part in value) if item
-        )
+        if any(not isinstance(part, str) for part in value):
+            raise TypeError("list input must contain only strings")
+        return tuple(item for item in (part.strip() for part in value) if item)
     raise TypeError("value must be a string or a list of strings")
 
 
@@ -101,6 +113,7 @@ class Settings(BaseSettings):
         env_file=".env",
         env_file_encoding="utf-8",
         case_sensitive=False,
+        env_ignore_empty=True,
         extra="ignore",
         validate_by_name=True,
         validate_by_alias=True,
@@ -118,10 +131,7 @@ class Settings(BaseSettings):
     environment: str = Field(default="dev", validation_alias="ENVIRONMENT")
     cors_allowed_origins: tuple[str, ...] = Field(
         default=(),
-        validation_alias=AliasChoices(
-            "ALLOWED_ORIGINS",
-            "STACK_ALLOWED_ORIGINS",
-        ),
+        validation_alias="ALLOWED_ORIGINS",
     )
 
     file_transfer_enabled: bool = Field(
@@ -365,6 +375,9 @@ class Settings(BaseSettings):
         """Return configured browser origins or explicit local defaults."""
         if self.cors_allowed_origins:
             return self.cors_allowed_origins
+        stack_allowed_origins = _env_value_or_none("STACK_ALLOWED_ORIGINS")
+        if stack_allowed_origins is not None:
+            return _parse_string_tuple(stack_allowed_origins)
         environment = self.environment.strip().lower()
         if environment in {"dev", "development", "local", "test"}:
             return _DEFAULT_DEV_CORS_ALLOWED_ORIGINS

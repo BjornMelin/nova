@@ -17,6 +17,15 @@ Fixed constraints:
 4. Post-deploy route validation is optional and independent of package
    promotion.
 
+## 1A. Authority / references
+
+- `docs/architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md`
+- `docs/architecture/spec/SPEC-0000-http-api-contract.md`
+- `docs/architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md`
+- `docs/architecture/spec/SPEC-0027-public-api-v2.md`
+- `docs/architecture/requirements.md`
+- `docs/plan/GREENFIELD-WAVE-2-EXECUTION.md`
+
 ## 2. Security policy
 
 1. GitHub workflows assume AWS roles using OIDC only.

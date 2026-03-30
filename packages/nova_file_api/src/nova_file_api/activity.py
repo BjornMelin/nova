@@ -504,8 +504,9 @@ def _ttl_for_days(days: int) -> str:
 def _coerce_counter(*, item: Mapping[str, Any], key: str) -> int:
     """Return one integer counter from one DynamoDB resource item."""
     value = item.get(key, 0)
-    if isinstance(value, (int, Decimal)):
-        return int(value)
-    if isinstance(value, str):
-        return int(value)
+    if isinstance(value, (int, Decimal, str)):
+        try:
+            return int(value)
+        except (TypeError, ValueError, OverflowError):
+            return 0
     return 0

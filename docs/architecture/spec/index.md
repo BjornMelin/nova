@@ -3,6 +3,13 @@
 Status: Active index
 Last reviewed: 2026-03-29
 
+## Canonical architecture authority chain
+
+- [ADR-0023](../adr/ADR-0023-hard-cut-v1-canonical-route-surface.md)
+- [SPEC-0000](./SPEC-0000-http-api-contract.md)
+- [SPEC-0016](./SPEC-0016-v1-route-namespace-and-literal-guardrails.md)
+- [requirements.md](../requirements.md)
+
 ## Active canonical specs
 
 | SPEC | Title | Decision status | Implementation state | Date |
