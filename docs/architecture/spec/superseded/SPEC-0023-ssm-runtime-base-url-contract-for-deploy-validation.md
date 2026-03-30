@@ -13,10 +13,10 @@ Related:
 
 ## 1. Scope
 
-Records the retired SSM-based base-url contract for deploy validation. The
-current workflow surface accepts the validation base URL explicitly, and the
-authenticated AWS account audited for this branch does not contain
-`/nova/*/base-url` parameters.
+This file records the retired SSM-based base-url contract for deploy validation.
+The current post-deploy validation path now resolves targets from the
+deploy-output
+authority artifacts instead of explicit runtime base URLs.
 
 ## 2. Canonical SSM parameter path contract
 

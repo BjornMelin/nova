@@ -16,10 +16,6 @@ References:
   - "[AWS Well-Architected reliability pillar](https://docs.aws.amazon.com/wellarchitected/latest/reliability-pillar/welcome.html)"
 ---
 
-> Historical traceability note: this “no Lambda runtime” decision is preserved
-> only as pre-wave-2 context. The active repo baseline now uses Lambda and Step
-> Functions via `ADR-0033`.
-
 ## Summary
 
 Runtime request handling and async job execution remain ECS/Fargate plus SQS

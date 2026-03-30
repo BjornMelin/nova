@@ -6,7 +6,7 @@ Last reviewed: 2026-03-29
 ## Canonical architecture authority chain
 
 - [ADR-0023](../adr/ADR-0023-hard-cut-v1-canonical-route-surface.md)
-- [SPEC-0000](./SPEC-0000-http-api-contract.md)
+- [SPEC-0000](./superseded/SPEC-0000-http-api-contract.md)
 - [SPEC-0016](./SPEC-0016-v1-route-namespace-and-literal-guardrails.md)
 - [requirements.md](../requirements.md)
 
@@ -47,10 +47,10 @@ Last reviewed: 2026-03-29
 | SPEC | Title | Decision status | Implementation state | Date |
 | --- | --- | --- | --- | --- |
 | [SPEC-0008](./superseded/SPEC-0008-async-jobs-and-worker-orchestration.md) | Async Jobs and Worker Orchestration | Superseded | Historical traceability only | 2026-03-19 |
-| [SPEC-0000](./SPEC-0000-http-api-contract.md) | Historical public API baseline before the export hard cut | Historical | Historical traceability only | 2026-03-20 |
+| [SPEC-0000](./superseded/SPEC-0000-http-api-contract.md) | Historical public API baseline before the export hard cut | Historical | Historical traceability only | 2026-03-20 |
 | [SPEC-0015](./superseded/SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md) | Nova API platform final topology and delivery contract | Superseded | Historical traceability only | 2026-03-03 |
 | [SPEC-0020](./superseded/SPEC-0020-architecture-authority-pack-and-documentation-synchronization-contract.md) | Architecture authority pack and documentation synchronization contract | Superseded | Historical traceability only | 2026-03-24 |
-| [SPEC-0023](./SPEC-0023-ssm-runtime-base-url-contract-for-deploy-validation.md) | Historical SSM runtime base-url contract for deploy validation | Historical | Historical traceability only | 2026-03-05 |
+| [SPEC-0023](./superseded/SPEC-0023-ssm-runtime-base-url-contract-for-deploy-validation.md) | Historical SSM runtime base-url contract for deploy validation | Historical | Historical traceability only | 2026-03-05 |
 | [SPEC-0024](./SPEC-0024-cloudformation-module-contract.md) | Historical CloudFormation module contract | Historical | Historical traceability only | 2026-03-20 |
 
 Additional superseded specs remain under `./superseded/`.

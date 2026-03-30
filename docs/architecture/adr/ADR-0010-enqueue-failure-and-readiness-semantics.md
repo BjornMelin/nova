@@ -5,7 +5,7 @@ Status: Accepted
 Version: 1.4
 Date: 2026-03-09
 Related:
-  - "[SPEC-0000: HTTP API contract](../spec/SPEC-0000-http-api-contract.md)"
+  - "[SPEC-0000: HTTP API contract](../spec/superseded/SPEC-0000-http-api-contract.md)"
   - "[SPEC-0003: Observability](../spec/SPEC-0003-observability.md)"
   - "[SPEC-0006: JWT/OIDC verification and principal mapping](../spec/SPEC-0006-jwt-oidc-verification-and-principal-mapping.md)"
   - "[SPEC-0008: Async jobs and worker orchestration](../spec/superseded/SPEC-0008-async-jobs-and-worker-orchestration.md)"

@@ -6,7 +6,7 @@ Version: 2.1
 Date: 2026-03-19
 Related:
   - "[ADR-0023: Hard cut to a single canonical /v1 API surface](../adr/ADR-0023-hard-cut-v1-canonical-route-surface.md)"
-  - "[SPEC-0000: HTTP API Contract](./SPEC-0000-http-api-contract.md)"
+  - "[SPEC-0000: HTTP API Contract](./superseded/SPEC-0000-http-api-contract.md)"
 ---
 
 ## 1. Scope

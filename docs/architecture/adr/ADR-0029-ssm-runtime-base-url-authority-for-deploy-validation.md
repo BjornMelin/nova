@@ -6,7 +6,7 @@ Version: 1.2
 Date: 2026-03-05
 Related:
   - "[ADR-0033: Canonical serverless platform](./ADR-0033-canonical-serverless-platform.md)"
-  - "[SPEC-0023: Historical SSM runtime base-url contract for deploy validation](../spec/SPEC-0023-ssm-runtime-base-url-contract-for-deploy-validation.md)"
+  - "[SPEC-0023: Historical SSM runtime base-url contract for deploy validation](../spec/superseded/SPEC-0023-ssm-runtime-base-url-contract-for-deploy-validation.md)"
 ---
 
 ## Summary

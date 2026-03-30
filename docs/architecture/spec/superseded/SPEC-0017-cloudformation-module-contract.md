@@ -7,14 +7,14 @@ Version: 1.2
 Date: 2026-03-05
 Related:
   - "[ADR-0023: Hard cut to a single canonical /v1 API surface](../../adr/ADR-0023-hard-cut-v1-canonical-route-surface.md)"
-  - "[SPEC-0000: HTTP API Contract](../SPEC-0000-http-api-contract.md)"
+  - "[SPEC-0000: HTTP API Contract](./SPEC-0000-http-api-contract.md)"
   - "[SPEC-0016: Hard-cut v1 route contract and route-literal guardrails](../SPEC-0016-v1-route-namespace-and-literal-guardrails.md)"
   - "[requirements.md](../../requirements.md)"
-  - "[ADR-0030: Native-CFN modular stack architecture for Nova infrastructure productization](../../adr/ADR-0030-native-cfn-modular-stack-architecture-for-nova-infrastructure-productization.md)"
+  - "[ADR-0030: Native-CFN modular stack architecture for Nova infrastructure productization](../../adr/superseded/ADR-0030-native-cfn-modular-stack-architecture-for-nova-infrastructure-productization.md)"
   - "[ADR-0029: SSM runtime base URL authority for deploy validation](../../adr/ADR-0029-ssm-runtime-base-url-authority-for-deploy-validation.md)"
   - "[SPEC-0004: CI/CD and documentation automation](../SPEC-0004-ci-cd-and-docs.md)"
   - "[SPEC-0015: Nova API platform final topology and delivery contract](./SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md)"
-  - "[SPEC-0023: SSM runtime base-url contract for deploy validation](../SPEC-0023-ssm-runtime-base-url-contract-for-deploy-validation.md)"
+  - "[SPEC-0023: SSM runtime base-url contract for deploy validation](./SPEC-0023-ssm-runtime-base-url-contract-for-deploy-validation.md)"
 ---
 
 ## 1. Scope

@@ -55,7 +55,7 @@ signing, and CodeArtifact promotion do not belong in the runtime deploy role.
 ## Authority / references
 
 - `docs/architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md`
-- `docs/architecture/spec/SPEC-0000-http-api-contract.md`
+- `docs/architecture/spec/superseded/SPEC-0000-http-api-contract.md`
 - `docs/architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md`
 - `docs/architecture/spec/SPEC-0027-public-api-v2.md`
 - `docs/architecture/requirements.md`

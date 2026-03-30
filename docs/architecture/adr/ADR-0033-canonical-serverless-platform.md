@@ -5,7 +5,7 @@ Status: Implemented
 Version: 1.0
 Date: 2026-03-25
 Related:
-  - "[SPEC-0000: Historical public API baseline before the export hard cut](../spec/SPEC-0000-http-api-contract.md)"
+  - "[SPEC-0000: Historical public API baseline before the export hard cut](../spec/superseded/SPEC-0000-http-api-contract.md)"
   - "[SPEC-0016: Hard-cut v1 route contract and route-literal guardrails](../spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md)"
   - "[SPEC-0029: Canonical serverless platform](../spec/SPEC-0029-platform-serverless.md)"
   - "[ADR-0023: Hard cut to a single canonical /v1 API surface](./ADR-0023-hard-cut-v1-canonical-route-surface.md)"
@@ -15,6 +15,8 @@ Related:
   - "[ADR-0037: Consolidate SDK generation and package layout](./ADR-0037-sdk-generation-consolidation.md)"
   - "[ADR-0038: Reset docs authority](./ADR-0038-docs-authority-reset.md)"
   - "[requirements.md](../requirements.md)"
+  - "[requirements-wave-2.md](../requirements-wave-2.md)"
+  - "[GREENFIELD-WAVE-2-EXECUTION.md](../plan/GREENFIELD-WAVE-2-EXECUTION.md)"
 ---
 
 ## Decision

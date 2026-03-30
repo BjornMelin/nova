@@ -7,7 +7,7 @@ Version: 2.1
 Date: 2026-03-24
 Related:
   - "[ADR-0024: Layered runtime authority pack for the Nova monorepo](../../adr/ADR-0024-layered-architecture-authority-pack.md)"
-  - "[ADR-0030: Native-CFN modular stack architecture for Nova infrastructure productization](../../adr/ADR-0030-native-cfn-modular-stack-architecture-for-nova-infrastructure-productization.md)"
+  - "[ADR-0030: Native-CFN modular stack architecture for Nova infrastructure productization](../../adr/superseded/ADR-0030-native-cfn-modular-stack-architecture-for-nova-infrastructure-productization.md)"
   - "[ADR-0031: Reusable GitHub workflow API and versioning policy for deployment automation](../../adr/ADR-0031-reusable-github-workflow-api-and-versioning-policy-for-deployment-automation.md)"
   - "[ADR-0032: OIDC and IAM role partitioning for deploy automation](../../adr/ADR-0032-oidc-and-iam-role-partitioning-for-deploy-automation.md)"
   - "[SPEC-0015: Nova API platform final topology and delivery contract](./SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md)"
@@ -15,11 +15,6 @@ Related:
   - "[SPEC-0025: Reusable workflow integration contract](../SPEC-0025-reusable-workflow-integration-contract.md)"
   - "[SPEC-0026: CI/CD IAM least-privilege matrix](../SPEC-0026-ci-cd-iam-least-privilege-matrix.md)"
 ---
-
-> Historical traceability note: this document is preserved for pre-reset
-> authority references only. It is not part of the active wave-2 authority
-> surface; current docs-authority ownership lives in `ADR-0038` and
-> `SPEC-0031`.
 
 ## 1. Scope
 
@@ -49,7 +44,7 @@ Nova architecture and operator guidance is divided into four classes:
    - `SPEC-0000`
    - `SPEC-0004`
    - `SPEC-0012`
-   - `SPEC-0015` through `SPEC-0023`
+   - `SPEC-0015` through `SPEC-0022`
    - `SPEC-0027` through `SPEC-0029`
 3. Adjacent deploy-governance authority
    - `ADR-0030` through `ADR-0032`
@@ -107,8 +102,8 @@ subject must cite the relevant AWS source when it describes:
 3. CloudFormation pre-deployment validation via change sets and
    `DescribeEvents`
 4. `OperationEvents` validation output semantics
-5. WAF rate-based protections on the public regional REST API ingress and the
-   direct Lambda-backed control-plane model behind it
+5. [HISTORICAL] WAF rate-based protections on the public regional REST API
+   ingress and the direct Lambda-backed control-plane model behind it
 
 ## 6. Testable invariants
 

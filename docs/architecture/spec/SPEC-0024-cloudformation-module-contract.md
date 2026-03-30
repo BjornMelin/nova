@@ -7,22 +7,23 @@ Date: 2026-03-20
 Supersedes: "[SPEC-0017 (superseded): CloudFormation module contract](./superseded/SPEC-0017-cloudformation-module-contract.md)"
 Related:
   - "[ADR-0023: Hard-cut v1 canonical route surface](../adr/ADR-0023-hard-cut-v1-canonical-route-surface.md)"
-  - "[SPEC-0000: HTTP API contract](./SPEC-0000-http-api-contract.md)"
+  - "[SPEC-0000: HTTP API contract](./superseded/SPEC-0000-http-api-contract.md)"
   - "[SPEC-0016: V1 route namespace and literal guardrails](./SPEC-0016-v1-route-namespace-and-literal-guardrails.md)"
   - "[requirements.md](../requirements.md)"
-  - "[ADR-0030: Native-CFN modular stack architecture for Nova infrastructure productization](../adr/ADR-0030-native-cfn-modular-stack-architecture-for-nova-infrastructure-productization.md)"
+  - "[ADR-0030: Native-CFN modular stack architecture for Nova infrastructure productization](../adr/superseded/ADR-0030-native-cfn-modular-stack-architecture-for-nova-infrastructure-productization.md)"
   - "[ADR-0029: SSM runtime base URL authority for deploy validation](../adr/ADR-0029-ssm-runtime-base-url-authority-for-deploy-validation.md)"
   - "[SPEC-0004: CI/CD and documentation automation](./SPEC-0004-ci-cd-and-docs.md)"
   - "[SPEC-0015: Nova API platform final topology and delivery contract](./superseded/SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md)"
-  - "[SPEC-0023: SSM runtime base-url contract for deploy validation](./SPEC-0023-ssm-runtime-base-url-contract-for-deploy-validation.md)"
+  - "[SPEC-0023: SSM runtime base-url contract for deploy validation](./superseded/SPEC-0023-ssm-runtime-base-url-contract-for-deploy-validation.md)"
 ---
 
 ## 1. Scope
 
 Records the retired native-CloudFormation module structure that existed before
-the repo converged on `infra/nova_cdk` plus CI marker stacks. The active
-infrastructure authority now lives in `ADR-0033`, `SPEC-0023`, and
-`SPEC-0029`.
+the repo converged on `infra/nova_cdk` plus CI marker stacks. Historical
+deploy-validation base-url authority for this era was defined by
+`ADR-0029` and `SPEC-0023`; current infrastructure authority now lives in
+`ADR-0033` and `SPEC-0029`.
 
 ## 2. Canonical stack modules
 
@@ -70,9 +71,10 @@ Additional runtime ECS service contract:
 
 ## 4. Inter-stack import/export contract
 
-This contract is historical. The active deploy-validation base-url authority
-is defined by `SPEC-0023`, and the active runtime ingress lives in
-`infra/nova_cdk`.
+This contract is historical. Historical deploy-validation base-url authority
+was defined by `SPEC-0023` and `ADR-0029`; current runtime ingress lives in
+`infra/nova_cdk` and post-deploy validation targets resolve from
+`deploy-output` authority.
 
 1. Foundation outputs are imported by IAM, CodeBuild, and CI/CD stacks.
 2. Cross-stack values must be explicit via CloudFormation exports/imports.

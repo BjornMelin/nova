@@ -19,7 +19,7 @@ canonical serverless CDK stack.
 ## Authority / references
 
 - `../../architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md`
-- `../../architecture/spec/SPEC-0000-http-api-contract.md`
+- `../../architecture/spec/superseded/SPEC-0000-http-api-contract.md`
 - `../../architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md`
 - `../../architecture/spec/SPEC-0027-public-api-v2.md`
 - `../../architecture/requirements.md`

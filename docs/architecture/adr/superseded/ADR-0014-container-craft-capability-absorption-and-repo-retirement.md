@@ -13,7 +13,7 @@ Related:
   - "[ADR-0024: Layered runtime authority pack for the Nova monorepo](../ADR-0024-layered-architecture-authority-pack.md)"
   - "[ADR-0025: Reusable GitHub workflow API and versioning policy (superseded predecessor)](./ADR-0025-reusable-workflow-api-and-versioning-policy.md)"
   - "[ADR-0026: OIDC and IAM role partitioning for deploy automation (superseded predecessor)](./ADR-0026-oidc-iam-role-partitioning-for-deploy-automation.md)"
-  - "[ADR-0030: Native-CFN modular stack architecture for Nova infrastructure productization](../ADR-0030-native-cfn-modular-stack-architecture-for-nova-infrastructure-productization.md)"
+  - "[ADR-0030: Native-CFN modular stack architecture for Nova infrastructure productization](./ADR-0030-native-cfn-modular-stack-architecture-for-nova-infrastructure-productization.md)"
   - "[ADR-0031: Reusable GitHub workflow API and versioning policy for deployment automation](../ADR-0031-reusable-github-workflow-api-and-versioning-policy-for-deployment-automation.md)"
   - "[ADR-0032: OIDC and IAM role partitioning for deploy automation](../ADR-0032-oidc-and-iam-role-partitioning-for-deploy-automation.md)"
   - "[SPEC-0004: CI/CD and documentation automation](../../spec/SPEC-0004-ci-cd-and-docs.md)"

@@ -11,7 +11,7 @@ Current authoritative route and contract sources:
 
 - `docs/architecture/requirements.md`
 - `docs/architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md`
-- `docs/architecture/spec/SPEC-0000-http-api-contract.md`
+- `docs/architecture/spec/superseded/SPEC-0000-http-api-contract.md`
 - `docs/architecture/spec/superseded/SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md`
 - `docs/architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md`
 

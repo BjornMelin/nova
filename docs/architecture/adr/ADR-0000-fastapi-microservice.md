@@ -7,7 +7,7 @@ Date: 2026-02-11
 Related:
   - "[ADR-0001: Deploy on ECS Fargate behind ALB](./superseded/ADR-0001-deployment-on-ecs-fargate-behind-alb.md)"
   - "[ADR-0002: Treat OpenAPI as the contract and generate client SDKs from it](./ADR-0002-openapi-as-contract-and-sdk-generation.md)"
-  - "[SPEC-0000: HTTP API contract](../spec/SPEC-0000-http-api-contract.md)"
+  - "[SPEC-0000: HTTP API contract](../spec/superseded/SPEC-0000-http-api-contract.md)"
 References:
   - "[FastAPI deployment concepts](https://fastapi.tiangolo.com/deployment/concepts/)"
   - "[FastAPI metadata and docs URLs](https://fastapi.tiangolo.com/tutorial/metadata/)"

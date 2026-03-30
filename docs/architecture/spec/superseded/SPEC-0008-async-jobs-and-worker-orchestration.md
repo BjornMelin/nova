@@ -10,7 +10,7 @@ Related:
   - "[ADR-0035: Replace generic jobs with export workflows](../../adr/ADR-0035-replace-generic-jobs-with-export-workflows.md)"
   - "[SPEC-0028: Export workflow state machine](../SPEC-0028-export-workflow-state-machine.md)"
   - "[SPEC-0027: Public API v2](../SPEC-0027-public-api-v2.md)"
-  - "[SPEC-0000: HTTP API contract](../SPEC-0000-http-api-contract.md)"
+  - "[SPEC-0000: HTTP API contract](./SPEC-0000-http-api-contract.md)"
   - "[SPEC-0016: v1 route namespace and literal guardrails](../SPEC-0016-v1-route-namespace-and-literal-guardrails.md)"
   - "[requirements.md](../../requirements.md)"
 References:

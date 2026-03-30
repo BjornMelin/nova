@@ -8,7 +8,7 @@ Date: 2026-03-03
 Related:
   - "[ADR-0015: Nova API platform final hosting and deployment architecture (2026)](../../adr/superseded/ADR-0015-nova-api-platform-final-hosting-and-deployment-architecture-2026.md)"
   - "[ADR-0023: Hard cut to a single canonical /v1 API surface](../../adr/ADR-0023-hard-cut-v1-canonical-route-surface.md)"
-  - "[SPEC-0000: HTTP API Contract](../SPEC-0000-http-api-contract.md)"
+  - "[SPEC-0000: HTTP API Contract](./SPEC-0000-http-api-contract.md)"
   - "[SPEC-0016: Hard-cut v1 route contract and route-literal guardrails](../SPEC-0016-v1-route-namespace-and-literal-guardrails.md)"
   - "[requirements.md](../../requirements.md)"
   - "[ADR-0024: Layered runtime authority pack for the Nova monorepo](../../adr/ADR-0024-layered-architecture-authority-pack.md)"
@@ -19,7 +19,7 @@ Related:
   - "[SPEC-0026: CI/CD IAM least-privilege matrix](../SPEC-0026-ci-cd-iam-least-privilege-matrix.md)"
   - "[SPEC-0021: Downstream hard-cut integration and consumer validation contract](../SPEC-0021-downstream-hard-cut-integration-and-consumer-validation-contract.md)"
   - "[SPEC-0022: Auth0 tenant ops reusable workflow contract](../SPEC-0022-auth0-tenant-ops-reusable-workflow-contract.md)"
-  - "[SPEC-0023: SSM runtime base-url contract for deploy validation](../SPEC-0023-ssm-runtime-base-url-contract-for-deploy-validation.md)"
+  - "[SPEC-0023: SSM runtime base-url contract for deploy validation](./SPEC-0023-ssm-runtime-base-url-contract-for-deploy-validation.md)"
   - "[SPEC-0003: Observability](../SPEC-0003-observability.md)"
   - "[SPEC-0004: CI/CD and documentation automation](../SPEC-0004-ci-cd-and-docs.md)"
   - "[SPEC-0008: Async jobs and worker orchestration](./SPEC-0008-async-jobs-and-worker-orchestration.md)"
@@ -40,12 +40,6 @@ Constraints:
 2. No compatibility shims/back-compat wrappers unless ADR-approved >=9.0.
 3. Production-grade controls are mandatory in dev/prod with
    environment-appropriate sizing.
-
-Historical traceability note:
-
-This ECS/CloudFront topology is retained for traceability only. The active
-runtime ingress baseline is the regional REST API documented in `ADR-0033` and
-`SPEC-0029`.
 
 ## 2. Route contract authority
 

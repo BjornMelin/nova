@@ -275,6 +275,22 @@ async def test_v1_release_info_includes_cors_header_for_allowed_origin() -> (
 
 
 @pytest.mark.anyio
+async def test_v1_release_info_disallowed_origin_no_cors_header() -> None:
+    """Release info should not expose CORS origin for an untrusted domain."""
+    app = build_test_app(_build_v1_deps())
+
+    response = await request_app(
+        app,
+        "GET",
+        "/v1/releases/info",
+        headers={"Origin": "https://evil.example.com"},
+    )
+
+    assert response.status_code == 200
+    assert response.headers.get("access-control-allow-origin") in (None, "null")
+
+
+@pytest.mark.anyio
 async def test_v1_exports_reject_blank_idempotency_key() -> None:
     """Verifies v1 exports reject blank Idempotency-Key header values."""
     app = build_test_app(_build_v1_deps())

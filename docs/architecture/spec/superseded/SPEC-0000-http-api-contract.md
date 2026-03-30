@@ -5,17 +5,17 @@ Status: Historical
 Version: 2.3
 Date: 2026-03-20
 Superseded-by:
-  - "[SPEC-0016: Hard-cut v1 route namespace and route-literal guardrails](./SPEC-0016-v1-route-namespace-and-literal-guardrails.md)"
-  - "[SPEC-0027: Public API v2](./SPEC-0027-public-api-v2.md)"
+  - "[SPEC-0016: Hard-cut v1 route namespace and route-literal guardrails](../SPEC-0016-v1-route-namespace-and-literal-guardrails.md)"
+  - "[SPEC-0027: Public API v2](../SPEC-0027-public-api-v2.md)"
 Related:
-  - "[ADR-0000: FastAPI service decision](../adr/ADR-0000-fastapi-microservice.md)"
-  - "[ADR-0006: Async orchestration with SQS + ECS worker](../adr/superseded/ADR-0006-async-orchestration-sqs-ecs-worker.md)"
-  - "[ADR-0023: Hard cut to a single canonical /v1 API surface](../adr/ADR-0023-hard-cut-v1-canonical-route-surface.md)"
-  - "[SPEC-0015: Nova API platform final topology and delivery contract](./superseded/SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md)"
-  - "[SPEC-0016: Hard-cut v1 route contract and route-literal guardrails](./SPEC-0016-v1-route-namespace-and-literal-guardrails.md)"
-  - "[SPEC-0001: Security model](./SPEC-0001-security-model.md)"
-  - "[SPEC-0008: Async jobs and worker orchestration](./superseded/SPEC-0008-async-jobs-and-worker-orchestration.md)"
-  - "[SPEC-0009: Caching and idempotency](./SPEC-0009-caching-and-idempotency.md)"
+  - "[ADR-0000: FastAPI service decision](../../adr/ADR-0000-fastapi-microservice.md)"
+  - "[ADR-0006: Async orchestration with SQS + ECS worker](../../adr/superseded/ADR-0006-async-orchestration-sqs-ecs-worker.md)"
+  - "[ADR-0023: Hard cut to a single canonical /v1 API surface](../../adr/ADR-0023-hard-cut-v1-canonical-route-surface.md)"
+  - "[SPEC-0015: Nova API platform final topology and delivery contract](../SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md)"
+  - "[SPEC-0016: Hard-cut v1 route contract and route-literal guardrails](../SPEC-0016-v1-route-namespace-and-literal-guardrails.md)"
+  - "[SPEC-0001: Security model](../SPEC-0001-security-model.md)"
+  - "[SPEC-0008: Async jobs and worker orchestration](../SPEC-0008-async-jobs-and-worker-orchestration.md)"
+  - "[SPEC-0009: Caching and idempotency](../SPEC-0009-caching-and-idempotency.md)"
 References:
   - "[OpenAPI Specification](https://spec.openapis.org/oas/latest.html)"
   - "[RFC 6750 Bearer Token Usage](https://datatracker.ietf.org/doc/html/rfc6750)"

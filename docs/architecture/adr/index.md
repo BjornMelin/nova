@@ -46,6 +46,6 @@ Last reviewed: 2026-03-29
 | [ADR-0006](./superseded/ADR-0006-async-orchestration-sqs-ecs-worker.md) | Use SQS + ECS worker for initial async orchestration | Superseded | Historical traceability only | 2026-02-12 |
 | [ADR-0012](./superseded/ADR-0012-no-lambda-runtime-scope.md) | Preserve ECS and SQS runtime scope and exclude Lambda orchestration | Superseded | Historical traceability only | 2026-02-24 |
 | [ADR-0015](./superseded/ADR-0015-nova-api-platform-final-hosting-and-deployment-architecture-2026.md) | Nova API platform final hosting and deployment architecture (2026) | Superseded | Historical traceability only | 2026-03-03 |
-| [ADR-0030](./ADR-0030-native-cfn-modular-stack-architecture-for-nova-infrastructure-productization.md) | Native-CFN modular stack architecture for Nova infrastructure productization | Historical | Historical traceability only | 2026-03-05 |
+| [ADR-0030](./superseded/ADR-0030-native-cfn-modular-stack-architecture-for-nova-infrastructure-productization.md) | Native-CFN modular stack architecture for Nova infrastructure productization | Superseded | Historical traceability only | 2026-03-05 |
 
 Additional superseded ADRs remain under `./superseded/`.
