@@ -1,7 +1,3 @@
-> **Superseded target draft**
->
-> This draft was superseded before implementation by `ADR-0037-sdk-generation-consolidation.md` and `SPEC-0030-sdk-generation-and-package-layout.md`.
-
 ---
 ADR: 0038
 Title: Green-field SDK architecture by language
@@ -24,6 +20,9 @@ References:
   - "[Green-field evidence (Framework B)](../../../history/2026-03-greenfield-wave-1-superseded/greenfield-evidence/DECISION_FRAMEWORKS_AND_SCORES.md)"
   - "[Rejected and deferred options](../../../history/2026-03-greenfield-wave-1-superseded/greenfield-evidence/REJECTED_AND_DEFERRED_OPTIONS.md)"
 ---
+> **Superseded target draft**
+>
+> This draft was superseded before implementation by `ADR-0037-sdk-generation-consolidation.md` and `SPEC-0030-sdk-generation-and-package-layout.md`.
 
 ## Summary
 

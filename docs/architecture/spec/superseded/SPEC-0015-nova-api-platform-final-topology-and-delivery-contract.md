@@ -14,7 +14,7 @@ Related:
   - "[ADR-0024: Layered runtime authority pack for the Nova monorepo](../../adr/ADR-0024-layered-architecture-authority-pack.md)"
   - "[ADR-0031: Reusable GitHub workflow API and versioning policy for deployment automation](../../adr/ADR-0031-reusable-github-workflow-api-and-versioning-policy-for-deployment-automation.md)"
   - "[ADR-0032: OIDC and IAM role partitioning for deploy automation](../../adr/ADR-0032-oidc-and-iam-role-partitioning-for-deploy-automation.md)"
-  - "[SPEC-0024: CloudFormation module contract](../SPEC-0024-cloudformation-module-contract.md)"
+  - "[SPEC-0024: CloudFormation module contract](./SPEC-0024-cloudformation-module-contract.md)"
   - "[SPEC-0025: Reusable workflow integration contract](../SPEC-0025-reusable-workflow-integration-contract.md)"
   - "[SPEC-0026: CI/CD IAM least-privilege matrix](../SPEC-0026-ci-cd-iam-least-privilege-matrix.md)"
   - "[SPEC-0021: Downstream hard-cut integration and consumer validation contract](../SPEC-0021-downstream-hard-cut-integration-and-consumer-validation-contract.md)"

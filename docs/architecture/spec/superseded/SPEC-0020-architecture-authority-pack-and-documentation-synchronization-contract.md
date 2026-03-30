@@ -11,7 +11,7 @@ Related:
   - "[ADR-0031: Reusable GitHub workflow API and versioning policy for deployment automation](../../adr/ADR-0031-reusable-github-workflow-api-and-versioning-policy-for-deployment-automation.md)"
   - "[ADR-0032: OIDC and IAM role partitioning for deploy automation](../../adr/ADR-0032-oidc-and-iam-role-partitioning-for-deploy-automation.md)"
   - "[SPEC-0015: Nova API platform final topology and delivery contract](./SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md)"
-  - "[SPEC-0024: CloudFormation module contract](../SPEC-0024-cloudformation-module-contract.md)"
+  - "[SPEC-0024: CloudFormation module contract](./SPEC-0024-cloudformation-module-contract.md)"
   - "[SPEC-0025: Reusable workflow integration contract](../SPEC-0025-reusable-workflow-integration-contract.md)"
   - "[SPEC-0026: CI/CD IAM least-privilege matrix](../SPEC-0026-ci-cd-iam-least-privilege-matrix.md)"
 ---

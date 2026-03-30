@@ -1,7 +1,3 @@
-> **Superseded target draft**
->
-> This draft was superseded before implementation by `SPEC-0027-public-api-v2.md`.
-
 ---
 Spec: 0027
 Title: Public HTTP contract revision and bearer auth
@@ -19,6 +15,10 @@ Related:
   - "[SPEC-0016: v1 route namespace and literal guardrails](./SPEC-0016-v1-route-namespace-and-literal-guardrails.md)"
   - "[requirements.md](../requirements.md)"
 ---
+
+> **Superseded target draft**
+>
+> This draft was superseded before implementation by `SPEC-0027-public-api-v2.md`.
 
 ## 1. Purpose
 

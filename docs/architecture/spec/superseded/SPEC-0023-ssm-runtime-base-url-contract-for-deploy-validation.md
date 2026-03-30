@@ -1,14 +1,14 @@
 ---
 Spec: 0023
 Title: Historical SSM runtime base-url contract for deploy validation
-Status: Historical
+Status: Superseded
 Version: 1.2
 Date: 2026-03-05
 Related:
-  - "[ADR-0023: Hard cut to a single canonical /v1 API surface](../adr/ADR-0023-hard-cut-v1-canonical-route-surface.md)"
-  - "[SPEC-0016: Hard-cut v1 route contract and route-literal guardrails](./SPEC-0016-v1-route-namespace-and-literal-guardrails.md)"
-  - "[requirements.md](../requirements.md)"
-  - "[ADR-0029: Historical SSM runtime base URL authority for deploy validation](../adr/ADR-0029-ssm-runtime-base-url-authority-for-deploy-validation.md)"
+  - "[ADR-0023: Hard cut to a single canonical /v1 API surface](../../adr/ADR-0023-hard-cut-v1-canonical-route-surface.md)"
+  - "[SPEC-0016: Hard-cut v1 route contract and route-literal guardrails](../SPEC-0016-v1-route-namespace-and-literal-guardrails.md)"
+  - "[requirements.md](../../requirements.md)"
+  - "[ADR-0029: Historical SSM runtime base URL authority for deploy validation](../../adr/ADR-0029-ssm-runtime-base-url-authority-for-deploy-validation.md)"
 ---
 
 ## 1. Scope
@@ -72,6 +72,6 @@ Release evidence MUST include:
 
 ## 7. Traceability
 
-- [FR-0013](../requirements.md#fr-0013-ssm-runtime-base-url-authority-for-deploy-validation)
-- [NFR-0109](../requirements.md#nfr-0109-runtime-base-url-integrity-and-provenance)
-- [IR-0013](../requirements.md#ir-0013-ssm-base-url-source-of-truth-for-release-validation)
+- [FR-0013](../../requirements.md#fr-0013-ssm-runtime-base-url-authority-for-deploy-validation)
+- [NFR-0109](../../requirements.md#nfr-0109-runtime-base-url-integrity-and-provenance)
+- [IR-0013](../../requirements.md#ir-0013-ssm-base-url-source-of-truth-for-release-validation)

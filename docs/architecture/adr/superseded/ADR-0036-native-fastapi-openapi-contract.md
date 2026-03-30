@@ -1,7 +1,3 @@
-> **Superseded target draft**
->
-> This draft was superseded before implementation by the smaller wave-2 target-state docs set.
-
 ---
 ADR: 0036
 Title: Green-field native FastAPI OpenAPI contract expression
@@ -10,7 +6,7 @@ Version: 1.0
 Date: 2026-03-19
 Related:
   - "[ADR-0023: Hard-cut v1 canonical route surface](./ADR-0023-hard-cut-v1-canonical-route-surface.md)"
-  - "[SPEC-0000: HTTP API contract](../spec/superseded/SPEC-0000-http-api-contract.md)"
+  - "[SPEC-0000: HTTP API contract](../../spec/superseded/SPEC-0000-http-api-contract.md)"
   - "[SPEC-0016: V1 route namespace and literal guardrails](../spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md)"
   - "[requirements.md](../requirements.md)"
   - "[ADR-0041: Green-field shared pure ASGI middleware and errors](./ADR-0041-shared-pure-asgi-middleware-and-errors.md)"

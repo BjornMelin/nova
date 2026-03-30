@@ -5,8 +5,9 @@ Status: Implemented
 Version: 1.0
 Date: 2026-03-25
 Related:
-  - "[SPEC-0000: Historical public API baseline before the export hard cut](../spec/superseded/SPEC-0000-http-api-contract.md)"
   - "[SPEC-0016: Hard-cut v1 route contract and route-literal guardrails](../spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md)"
+  - "[SPEC-0027: Public API v2](../spec/SPEC-0027-public-api-v2.md)"
+  - "[SPEC-0028: Export workflow state machine](../spec/SPEC-0028-export-workflow-state-machine.md)"
   - "[SPEC-0029: Canonical serverless platform](../spec/SPEC-0029-platform-serverless.md)"
   - "[ADR-0023: Hard cut to a single canonical /v1 API surface](./ADR-0023-hard-cut-v1-canonical-route-surface.md)"
   - "[ADR-0034: Eliminate auth service and session auth](./ADR-0034-eliminate-auth-service-and-session-auth.md)"

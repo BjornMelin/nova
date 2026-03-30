@@ -1,7 +1,3 @@
-> **Superseded target draft**
->
-> This draft was superseded before implementation by `ADR-0033-canonical-serverless-platform.md` and `SPEC-0029-platform-serverless.md`.
-
 ---
 ADR: 0039
 Title: Green-field AWS target platform
@@ -10,7 +6,7 @@ Version: 1.0
 Date: 2026-03-19
 Related:
   - "[ADR-0023: Hard-cut v1 canonical route surface](./ADR-0023-hard-cut-v1-canonical-route-surface.md)"
-  - "[SPEC-0000: HTTP API contract](../spec/superseded/SPEC-0000-http-api-contract.md)"
+  - "[SPEC-0000: HTTP API contract](../../spec/superseded/SPEC-0000-http-api-contract.md)"
   - "[SPEC-0016: V1 route namespace and literal guardrails](../spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md)"
   - "[requirements.md](../requirements.md)"
   - "[ADR-0015: Nova API platform final hosting and deployment architecture (2026)](./ADR-0015-nova-api-platform-final-hosting-and-deployment-architecture-2026.md)"
@@ -20,6 +16,10 @@ Related:
 References:
   - "[Green-field target architecture evidence](../../plan/greenfield-evidence/TARGET_ARCHITECTURE.md)"
 ---
+
+> **Superseded target draft**
+>
+> This draft was superseded before implementation by `ADR-0033-canonical-serverless-platform.md` and `SPEC-0029-platform-serverless.md`.
 
 ## Summary
 

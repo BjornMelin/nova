@@ -9,10 +9,10 @@ Related:
   - "[ADR-0011: Hybrid CI/CD with GitHub and AWS promotion](../adr/ADR-0011-cicd-hybrid-github-aws-promotion.md)"
   - "[ADR-0031: Reusable GitHub workflow API and versioning policy for deployment automation](../adr/ADR-0031-reusable-github-workflow-api-and-versioning-policy-for-deployment-automation.md)"
   - "[ADR-0032: OIDC and IAM role partitioning for deploy automation](../adr/ADR-0032-oidc-and-iam-role-partitioning-for-deploy-automation.md)"
+  - "[ADR-0033: Canonical serverless platform](../adr/ADR-0033-canonical-serverless-platform.md)"
   - "[ADR-0023: Hard cut v1 canonical route surface](../adr/ADR-0023-hard-cut-v1-canonical-route-surface.md)"
-  - "[ADR-0012: No Lambda runtime scope](../adr/superseded/ADR-0012-no-lambda-runtime-scope.md)"
-  - "[SPEC-0000: HTTP API contract](./superseded/SPEC-0000-http-api-contract.md)"
   - "[SPEC-0016: v1 route namespace and literal guardrails](./SPEC-0016-v1-route-namespace-and-literal-guardrails.md)"
+  - "[SPEC-0029: Canonical serverless platform](./SPEC-0029-platform-serverless.md)"
   - "[requirements.md](../requirements.md)"
   - "[SPEC-0025: Reusable workflow integration contract](./SPEC-0025-reusable-workflow-integration-contract.md)"
   - "[SPEC-0031: Docs and tests authority reset](./SPEC-0031-docs-and-tests-authority-reset.md)"
@@ -123,6 +123,10 @@ The public API Lambda artifact contract is:
   `architecture`, `artifact_bucket`, `artifact_key`, `artifact_sha256`,
   `built_at`
 - no dependency on S3 object versioning
+- consumers MUST validate the manifest field set before use via
+  `scripts/release/emit_api_lambda_artifact_env.py`
+- consumers MUST verify `artifact_sha256` against the downloaded zip bytes
+  before treating the manifest as authoritative
 
 Rules:
 
@@ -165,7 +169,8 @@ Secrets policy:
      through CodeArtifact npm repositories.
    - R package artifacts MUST be built, checked, and stored as signed tarball
      evidence plus CodeArtifact generic packages.
-2. Build and push remaining workflow-task container image artifacts and export immutable digest when applicable.
+2. Build and push workflow-task container image artifacts, excluding the public
+   API Lambda native zip artifact, and export immutable digest when applicable.
 3. Produce deploy artifacts consumed by both Dev and Prod promotion stages.
 4. Export build variables:
    - `FILE_IMAGE_DIGEST` (only when a workflow-task image is part of the release)
@@ -187,13 +192,16 @@ Default build target values:
 - `DOCKER_BUILDKIT=1`
 - Docker CLI with `buildx` available in the release-build environment
 
-Release-image Dockerfile contract:
+Workflow-task container image Dockerfile contract:
 
-- Remaining workflow-task Dockerfiles stay under `apps/*`; do not move them
+- Workflow-task Dockerfiles stay under `apps/*`; do not move them
   into workspace package paths.
 - Workflow-task image builds MUST run with Docker BuildKit enabled.
 - Workflow-task image builds MUST target the AWS Lambda Python 3.13 base image
   and use pinned `uv` for reproducible dependency installation.
+
+Public API Lambda artifact contract:
+
 - The public API Lambda is a native zip package built from a repo-owned custom
   asset command; it is not a release container image.
 

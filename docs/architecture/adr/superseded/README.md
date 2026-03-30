@@ -1,7 +1,7 @@
 # Superseded architecture decisions
 
 Status: Historical / non-authoritative
-Last reviewed: 2026-03-25
+Last reviewed: 2026-03-30
 
 Files in this directory are preserved for traceability only.
 

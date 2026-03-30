@@ -1,20 +1,20 @@
 ---
 Spec: 0024
 Title: Historical CloudFormation module contract
-Status: Historical
+Status: Superseded
 Version: 1.5
 Date: 2026-03-20
-Supersedes: "[SPEC-0017 (superseded): CloudFormation module contract](./superseded/SPEC-0017-cloudformation-module-contract.md)"
+Supersedes: "[SPEC-0017 (superseded): CloudFormation module contract](./SPEC-0017-cloudformation-module-contract.md)"
 Related:
-  - "[ADR-0023: Hard-cut v1 canonical route surface](../adr/ADR-0023-hard-cut-v1-canonical-route-surface.md)"
-  - "[SPEC-0000: HTTP API contract](./superseded/SPEC-0000-http-api-contract.md)"
-  - "[SPEC-0016: V1 route namespace and literal guardrails](./SPEC-0016-v1-route-namespace-and-literal-guardrails.md)"
-  - "[requirements.md](../requirements.md)"
-  - "[ADR-0030: Native-CFN modular stack architecture for Nova infrastructure productization](../adr/superseded/ADR-0030-native-cfn-modular-stack-architecture-for-nova-infrastructure-productization.md)"
-  - "[ADR-0029: SSM runtime base URL authority for deploy validation](../adr/ADR-0029-ssm-runtime-base-url-authority-for-deploy-validation.md)"
-  - "[SPEC-0004: CI/CD and documentation automation](./SPEC-0004-ci-cd-and-docs.md)"
-  - "[SPEC-0015: Nova API platform final topology and delivery contract](./superseded/SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md)"
-  - "[SPEC-0023: SSM runtime base-url contract for deploy validation](./superseded/SPEC-0023-ssm-runtime-base-url-contract-for-deploy-validation.md)"
+  - "[ADR-0023: Hard-cut v1 canonical route surface](../../adr/ADR-0023-hard-cut-v1-canonical-route-surface.md)"
+  - "[SPEC-0000: HTTP API contract](./SPEC-0000-http-api-contract.md)"
+  - "[SPEC-0016: V1 route namespace and literal guardrails](../SPEC-0016-v1-route-namespace-and-literal-guardrails.md)"
+  - "[requirements.md](../../requirements.md)"
+  - "[ADR-0030: Native-CFN modular stack architecture for Nova infrastructure productization](../../adr/superseded/ADR-0030-native-cfn-modular-stack-architecture-for-nova-infrastructure-productization.md)"
+  - "[ADR-0029: SSM runtime base URL authority for deploy validation](../../adr/ADR-0029-ssm-runtime-base-url-authority-for-deploy-validation.md)"
+  - "[SPEC-0004: CI/CD and documentation automation](../SPEC-0004-ci-cd-and-docs.md)"
+  - "[SPEC-0015: Nova API platform final topology and delivery contract](./SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md)"
+  - "[SPEC-0023: SSM runtime base-url contract for deploy validation](./SPEC-0023-ssm-runtime-base-url-contract-for-deploy-validation.md)"
 ---
 
 ## 1. Scope
@@ -116,7 +116,7 @@ was defined by `SPEC-0023` and `ADR-0029`; current runtime ingress lives in
 
 ## 8. Traceability
 
-- [NFR-0105](../requirements.md#nfr-0105-contract-traceability)
-- [NFR-0106](../requirements.md#nfr-0106-no-shim-posture)
-- [IR-0000](../requirements.md#ir-0000-nova-local-runtime-and-release-authority)
-- [FR-0013](../requirements.md#fr-0013-ssm-runtime-base-url-authority-for-deploy-validation)
+- [NFR-0105](../../requirements.md#nfr-0105-contract-traceability)
+- [NFR-0106](../../requirements.md#nfr-0106-no-shim-posture)
+- [IR-0000](../../requirements.md#ir-0000-nova-local-runtime-and-release-authority)
+- [FR-0013](../../requirements.md#fr-0013-ssm-runtime-base-url-authority-for-deploy-validation)

@@ -50,6 +50,6 @@ Last reviewed: 2026-03-29
 | [SPEC-0015](./superseded/SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md) | Nova API platform final topology and delivery contract | Superseded | Historical traceability only | 2026-03-03 |
 | [SPEC-0020](./superseded/SPEC-0020-architecture-authority-pack-and-documentation-synchronization-contract.md) | Architecture authority pack and documentation synchronization contract | Superseded | Historical traceability only | 2026-03-24 |
 | [SPEC-0023](./superseded/SPEC-0023-ssm-runtime-base-url-contract-for-deploy-validation.md) | Historical SSM runtime base-url contract for deploy validation | Historical | Historical traceability only | 2026-03-05 |
-| [SPEC-0024](./SPEC-0024-cloudformation-module-contract.md) | Historical CloudFormation module contract | Historical | Historical traceability only | 2026-03-20 |
+| [SPEC-0024](./superseded/SPEC-0024-cloudformation-module-contract.md) | Historical CloudFormation module contract | Historical | Historical traceability only | 2026-03-20 |
 
 Additional superseded specs remain under `./superseded/`.

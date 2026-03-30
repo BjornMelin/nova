@@ -1,12 +1,12 @@
 ---
 ADR: 0030
 Title: Native-CFN modular stack architecture for Nova infrastructure productization
-Status: Historical
+Status: Superseded
 Version: 1.1
 Date: 2026-03-05
 Related:
   - "[ADR-0011: Hybrid CI/CD with GitHub CI and AWS-native Dev to Prod promotion](./ADR-0011-cicd-hybrid-github-aws-promotion.md)"
-  - "[SPEC-0024: CloudFormation module contract](../spec/SPEC-0024-cloudformation-module-contract.md)"
+  - "[SPEC-0024: CloudFormation module contract](../../spec/superseded/SPEC-0024-cloudformation-module-contract.md)"
   - "[SPEC-0004: CI/CD and documentation automation](../spec/SPEC-0004-ci-cd-and-docs.md)"
 ---
 

@@ -8,10 +8,11 @@ Related:
   - "[ADR-0023: Hard cut to a single canonical /v1 API surface](../adr/ADR-0023-hard-cut-v1-canonical-route-surface.md)"
   - "[ADR-0033: Canonical serverless platform](../adr/ADR-0033-canonical-serverless-platform.md)"
   - "[ADR-0034: Eliminate auth service and session auth](../adr/ADR-0034-eliminate-auth-service-and-session-auth.md)"
-  - "[SPEC-0000: HTTP API Contract](./superseded/SPEC-0000-http-api-contract.md)"
   - "[SPEC-0016: V1 route namespace and literal guardrails](./SPEC-0016-v1-route-namespace-and-literal-guardrails.md)"
+  - "[SPEC-0028: Export workflow state machine](./SPEC-0028-export-workflow-state-machine.md)"
+  - "[SPEC-0029: Canonical serverless platform](./SPEC-0029-platform-serverless.md)"
   - "[requirements.md](../requirements.md)"
-  - "[GREENFIELD WAVE 2 Execution](../plan/GREENFIELD-WAVE-2-EXECUTION.md)"
+  - "[GREENFIELD WAVE 2 Execution](../../plan/GREENFIELD-WAVE-2-EXECUTION.md)"
 ---
 
 ## Summary

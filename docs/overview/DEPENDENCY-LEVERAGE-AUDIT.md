@@ -11,7 +11,6 @@
 - `../architecture/adr/ADR-0036-dynamodb-idempotency-no-redis.md`
 - `../architecture/adr/ADR-0037-sdk-generation-consolidation.md`
 - `../architecture/adr/ADR-0038-docs-authority-reset.md`
-- `../architecture/spec/superseded/SPEC-0000-http-api-contract.md`
 - `../architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md`
 - `../architecture/spec/SPEC-0027-public-api-v2.md`
 - `../architecture/spec/SPEC-0028-export-workflow-state-machine.md`

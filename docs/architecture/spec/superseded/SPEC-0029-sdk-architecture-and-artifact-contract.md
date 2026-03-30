@@ -1,7 +1,3 @@
-> **Superseded target draft**
->
-> This draft was superseded before implementation by `SPEC-0030-sdk-generation-and-package-layout.md`.
-
 ---
 Spec: 0029
 Title: SDK architecture and artifact contract
@@ -18,6 +14,10 @@ Related:
   - "[ADR-0013: Final-state SDK topology (superseded)](../adr/superseded/ADR-0013-final-state-sdk-topology-generated-core-plus-thin-adapters.md)"
   - "[SPEC-0012: SDK conformance, versioning, and compatibility governance](./SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md)"
 ---
+
+> **Superseded target draft**
+>
+> This draft was superseded before implementation by `SPEC-0030-sdk-generation-and-package-layout.md`.
 
 ## 1. Purpose
 

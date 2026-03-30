@@ -1,7 +1,7 @@
 ---
 Spec: 0000
 Title: Historical public API baseline before the export hard cut
-Status: Historical
+Status: Superseded
 Version: 2.3
 Date: 2026-03-20
 Superseded-by:

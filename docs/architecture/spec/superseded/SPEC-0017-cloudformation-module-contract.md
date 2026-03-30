@@ -2,7 +2,7 @@
 Spec: 0017
 Title: CloudFormation module contract
 Status: Superseded
-Superseded-by: "[SPEC-0024: CloudFormation module contract](../SPEC-0024-cloudformation-module-contract.md)"
+Superseded-by: "[SPEC-0024: CloudFormation module contract](./SPEC-0024-cloudformation-module-contract.md)"
 Version: 1.2
 Date: 2026-03-05
 Related:
@@ -20,7 +20,7 @@ Related:
 ## 1. Scope
 
 This specification was superseded by
-[SPEC-0024](../SPEC-0024-cloudformation-module-contract.md). The active
+[SPEC-0024](./SPEC-0024-cloudformation-module-contract.md). The active
 `SPEC-0017` identifier now refers to
 [runtime component topology](../SPEC-0017-runtime-component-topology-and-ownership-contract.md).
 

@@ -6,7 +6,7 @@ Version: 1.1
 Date: 2026-03-20
 Related:
   - "[ADR-0023: Hard cut to a single canonical /v1 API surface](../adr/ADR-0023-hard-cut-v1-canonical-route-surface.md)"
-  - "[SPEC-0000: HTTP API Contract](./superseded/SPEC-0000-http-api-contract.md)"
+  - "[SPEC-0027: Public API v2](./SPEC-0027-public-api-v2.md)"
   - "[ADR-0027: Hard-cut downstream integration and consumer contract enforcement](../adr/ADR-0027-hard-cut-downstream-integration-and-consumer-contract-enforcement.md)"
   - "[SPEC-0016: Hard-cut v1 route contract and route-literal guardrails](./SPEC-0016-v1-route-namespace-and-literal-guardrails.md)"
   - "[requirements.md](../requirements.md)"

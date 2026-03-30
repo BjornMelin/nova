@@ -11,11 +11,6 @@ Related:
   - "[requirements.md](../requirements.md)"
 ---
 
-> **Superseded target draft**
->
-> This draft was superseded before implementation. Use the active wave-2
-> target-state SPEC set instead of this file for current authority.
-
 ## 1. Purpose
 
 Define the **target** worker and job lifecycle after removing the internal HTTP
