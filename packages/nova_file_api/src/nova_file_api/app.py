@@ -10,10 +10,6 @@ import structlog
 from botocore.config import Config
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from nova_runtime_support import (
-    RequestContextFastAPI,
-    configure_structlog,
-)
 from starlette.middleware import Middleware
 
 from nova_file_api.auth import SupportsAuthenticatorAsyncClose
@@ -31,6 +27,10 @@ from nova_file_api.routes import (
     ops_router,
     platform_router,
     transfer_router,
+)
+from nova_runtime_support import (
+    RequestContextFastAPI,
+    configure_structlog,
 )
 
 _LOGGER = structlog.get_logger("nova_file_api.app")

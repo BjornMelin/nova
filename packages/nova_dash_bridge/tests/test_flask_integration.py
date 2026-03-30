@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-import nova_dash_bridge.flask_integration as flask_integration
 from flask import Flask
+
+import nova_dash_bridge.flask_integration as flask_integration
 from nova_dash_bridge.config import (
     AuthPolicy,
     FileTransferEnvConfig,

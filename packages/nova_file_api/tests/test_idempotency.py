@@ -5,6 +5,7 @@ from typing import Any
 
 import pytest
 from botocore.exceptions import ClientError
+
 from nova_file_api.activity import MemoryActivityStore
 from nova_file_api.errors import queue_unavailable
 from nova_file_api.idempotency import (

@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import pytest
-from nova_file_api.config import Settings
 from pydantic.fields import FieldInfo
 
+from nova_file_api.config import Settings
 from scripts.release.runtime_config_contract import (
     _env_var_name,
     runtime_setting_contracts,

@@ -5,10 +5,6 @@ from __future__ import annotations
 import time
 from typing import Any, Protocol, runtime_checkable
 
-from nova_runtime_support import (
-    build_async_jwt_verifier,
-    normalized_principal_claims,
-)
 from oidc_jwt_verifier import AuthError
 
 from nova_file_api.cache import TwoTierCache
@@ -19,6 +15,10 @@ from nova_file_api.errors import (
     unauthorized,
 )
 from nova_file_api.models import Principal
+from nova_runtime_support import (
+    build_async_jwt_verifier,
+    normalized_principal_claims,
+)
 
 
 @runtime_checkable
@@ -34,9 +34,11 @@ class AccessTokenVerifier(Protocol):
 
     async def verify_access_token(self, token: str) -> dict[str, Any]:
         """Verify one access token and return decoded claims."""
+        ...
 
     async def aclose(self) -> None:
         """Release verifier-owned async resources."""
+        ...
 
 
 class Authenticator:

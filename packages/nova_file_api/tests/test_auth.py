@@ -4,6 +4,8 @@ from typing import Any
 from unittest.mock import AsyncMock
 
 import pytest
+from oidc_jwt_verifier import AuthError
+
 from nova_file_api.auth import (
     Authenticator,
     _bearer_auth_error,
@@ -14,7 +16,6 @@ from nova_file_api.cache import (
 )
 from nova_file_api.config import Settings
 from nova_file_api.errors import FileTransferError
-from oidc_jwt_verifier import AuthError
 
 
 def _settings() -> Settings:

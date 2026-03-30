@@ -3,9 +3,10 @@ from __future__ import annotations
 from typing import Any
 
 import pytest
+from pydantic import BaseModel
+
 from nova_file_api.guarded_mutation import run_guarded_mutation
 from nova_file_api.idempotency import IdempotencyClaim, IdempotencyStore
-from pydantic import BaseModel
 
 
 class _ResponseModel(BaseModel):

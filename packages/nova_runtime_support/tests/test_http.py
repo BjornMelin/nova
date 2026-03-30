@@ -11,6 +11,9 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import StreamingResponse
 from fastapi.testclient import TestClient
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
+from structlog.testing import CapturingLogger
+
 from nova_runtime_support.http import (
     CanonicalErrorSpec,
     RequestContextASGIMiddleware,
@@ -18,8 +21,6 @@ from nova_runtime_support.http import (
     canonical_error_spec_from_error,
     register_fastapi_exception_handlers,
 )
-from starlette.types import ASGIApp, Message, Receive, Scope, Send
-from structlog.testing import CapturingLogger
 
 
 @dataclass(slots=True)

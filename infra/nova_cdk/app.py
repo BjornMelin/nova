@@ -5,6 +5,7 @@
 import os
 
 from aws_cdk import App, Environment
+
 from nova_cdk.runtime_stack import NovaRuntimeStack
 
 app = App()

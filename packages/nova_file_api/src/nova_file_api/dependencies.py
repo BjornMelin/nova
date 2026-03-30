@@ -15,10 +15,8 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from nova_file_api.activity import (
     ActivityStore,
     DynamoActivityStore,
-    MemoryActivityStore,
-)
-from nova_file_api.activity import (
     DynamoResource as ActivityDynamoResource,
+    MemoryActivityStore,
 )
 from nova_file_api.auth import Authenticator
 from nova_file_api.cache import LocalTTLCache, TwoTierCache
@@ -38,8 +36,6 @@ from nova_file_api.exports import (
 )
 from nova_file_api.idempotency import (
     DynamoResource as IdempotencyDynamoResource,
-)
-from nova_file_api.idempotency import (
     IdempotencyStore,
 )
 from nova_file_api.metrics import MetricsCollector

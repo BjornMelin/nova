@@ -125,6 +125,8 @@ omit = [
 [tool.ruff]
 line-length = 80
 target-version = "py311"
+# Monorepo layout: repo root (scripts.*), workspace packages, CDK app.
+src = [".", "packages/*/src", "infra/nova_cdk/src"]
 exclude = [
   ".git",
   ".venv",
@@ -179,6 +181,10 @@ ignore = ["D203", "D213", "S101", "TRY301", "TRY003"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
+
+# Ref: https://docs.astral.sh/ruff/settings/#lintisort
+[tool.ruff.lint.isort]
+combine-as-imports = true
 
 [tool.ruff.format]
 docstring-code-format = true

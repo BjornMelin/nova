@@ -4,9 +4,10 @@ from __future__ import annotations
 
 from typing import Any, cast
 
-import nova_dash_bridge.fastapi_integration as fastapi_integration
 import pytest
 from fastapi.testclient import TestClient
+
+import nova_dash_bridge.fastapi_integration as fastapi_integration
 from nova_dash_bridge.config import (
     AuthPolicy,
     FileTransferEnvConfig,

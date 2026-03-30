@@ -4,8 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from .helpers import REPO_ROOT
-from .helpers import read_repo_file as _read
+from .helpers import REPO_ROOT, read_repo_file as _read
 
 DOCS_ROOT = REPO_ROOT / "docs"
 

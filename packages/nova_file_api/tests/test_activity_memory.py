@@ -4,12 +4,11 @@ import asyncio
 import threading
 from concurrent.futures import (
     ThreadPoolExecutor,
-)
-from concurrent.futures import (
     TimeoutError as FutureTimeout,
 )
 
 import pytest
+
 from nova_file_api.activity import MemoryActivityStore
 from nova_file_api.models import Principal
 
