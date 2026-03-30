@@ -1,9 +1,16 @@
-# ADR-0035 -- Replace generic jobs with export workflows
+---
+ADR: 0035
+Title: Replace generic jobs with export workflows
+Status: Implemented
+Version: 1.0
+Date: 2026-03-25
+Related:
+  - "[ADR-0033: Canonical serverless platform](./ADR-0033-canonical-serverless-platform.md)"
+  - "[SPEC-0028: Export workflow state machine](../spec/SPEC-0028-export-workflow-state-machine.md)"
+  - "[ADR-0036: DynamoDB idempotency and transient state, no Redis](./ADR-0036-dynamodb-idempotency-no-redis.md)"
+---
 
 > **Implementation state:** Implemented in the current repository baseline, with only legacy references and retirement cleanup still pending.
-
-## Status
-Accepted
 
 ## Decision
 

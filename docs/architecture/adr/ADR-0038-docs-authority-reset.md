@@ -1,9 +1,15 @@
-# ADR-0038 -- Reset docs authority
+---
+ADR: 0038
+Title: Reset docs authority
+Status: Implemented
+Version: 1.0
+Date: 2026-03-25
+Related:
+  - "[ADR-0033: Canonical serverless platform](./ADR-0033-canonical-serverless-platform.md)"
+  - "[SPEC-0031: Docs and tests authority reset](../spec/SPEC-0031-docs-and-tests-authority-reset.md)"
+---
 
 > **Implementation state:** Implemented on the current branch docs/test surface, with only remaining truth-model cleanup still pending.
-
-## Status
-Accepted
 
 ## Decision
 

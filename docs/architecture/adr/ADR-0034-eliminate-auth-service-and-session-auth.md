@@ -1,9 +1,16 @@
-# ADR-0034 -- Eliminate auth service and session auth
+---
+ADR: 0034
+Title: Eliminate auth service and session auth
+Status: Implemented
+Version: 1.0
+Date: 2026-03-25
+Related:
+  - "[ADR-0033: Canonical serverless platform](./ADR-0033-canonical-serverless-platform.md)"
+  - "[SPEC-0027: Public API v2](../spec/SPEC-0027-public-api-v2.md)"
+  - "[ADR-0037: Consolidate SDK generation and package layout](./ADR-0037-sdk-generation-consolidation.md)"
+---
 
 > **Implementation state:** Implemented in the current repository baseline, with only legacy references/assets still requiring retirement.
-
-## Status
-Accepted
 
 ## Decision
 

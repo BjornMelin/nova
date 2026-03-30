@@ -1,9 +1,16 @@
-# ADR-0037 -- Consolidate SDK generation and package layout
+---
+ADR: 0037
+Title: Consolidate SDK generation and package layout
+Status: Implemented
+Version: 1.0
+Date: 2026-03-25
+Related:
+  - "[ADR-0033: Canonical serverless platform](./ADR-0033-canonical-serverless-platform.md)"
+  - "[SPEC-0030: SDK generation and package layout](../spec/SPEC-0030-sdk-generation-and-package-layout.md)"
+  - "[ADR-0034: Eliminate auth service and session auth](./ADR-0034-eliminate-auth-service-and-session-auth.md)"
+---
 
 > **Implementation state:** Implemented in the current repository baseline, with stale split-package references still requiring cleanup from active docs/examples.
-
-## Status
-Accepted
 
 ## Decision
 

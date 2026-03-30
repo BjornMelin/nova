@@ -1,6 +1,13 @@
-# SPEC-0027 -- Public API v2
-
-> **Implementation state:** Implemented in the current repository baseline as the active public API contract.
+---
+SPEC: 0027
+Title: Public API v2
+Status: Implemented
+Version: 1.0
+Date: 2026-03-25
+Related:
+  - "[ADR-0033: Canonical serverless platform](../adr/ADR-0033-canonical-serverless-platform.md)"
+  - "[ADR-0034: Eliminate auth service and session auth](../adr/ADR-0034-eliminate-auth-service-and-session-auth.md)"
+---
 
 ## Summary
 

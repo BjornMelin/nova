@@ -10,6 +10,8 @@ Related:
   - "[ADR-0034: Eliminate auth service and session auth](./ADR-0034-eliminate-auth-service-and-session-auth.md)"
   - "[ADR-0035: Replace generic jobs with export workflows](./ADR-0035-replace-generic-jobs-with-export-workflows.md)"
   - "[ADR-0036: DynamoDB idempotency and transient state, no Redis](./ADR-0036-dynamodb-idempotency-no-redis.md)"
+  - "[ADR-0037: Consolidate SDK generation and package layout](./ADR-0037-sdk-generation-consolidation.md)"
+  - "[ADR-0038: Reset docs authority](./ADR-0038-docs-authority-reset.md)"
 ---
 
 ## Decision
