@@ -26,6 +26,7 @@ runtime deployment automation.
 - `${MAIN_BRANCH}` default `main`
 - `${SIGNING_SECRET_ARN}`
 - `${RELEASE_ARTIFACT_BUCKET_ARN}`
+- `${RUNTIME_CFN_EXECUTION_ROLE_ARN}`
 
 ## Required role capabilities
 
@@ -54,8 +55,10 @@ signing, and CodeArtifact promotion do not belong in the runtime deploy role.
 ## Authority / references
 
 - `docs/architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md`
+- `docs/architecture/spec/SPEC-0000-http-api-contract.md`
 - `docs/architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md`
 - `docs/architecture/spec/SPEC-0027-public-api-v2.md`
+- `docs/architecture/requirements.md`
 - `docs/architecture/requirements-wave-2.md`
 - `docs/architecture/adr/ADR-0033-canonical-serverless-platform.md` through `docs/architecture/adr/ADR-0038-docs-authority-reset.md`
 - `docs/architecture/spec/SPEC-0027-public-api-v2.md` through `docs/architecture/spec/SPEC-0031-docs-and-tests-authority-reset.md`

@@ -46,6 +46,7 @@ npx aws-cdk deploy \
 For synth-only verification without the CDK CLI, run the app directly:
 
 ```bash
+cd infra/nova_cdk
 CDK_DEFAULT_ACCOUNT=111111111111 \
 CDK_DEFAULT_REGION=us-west-2 \
 ENVIRONMENT=dev \
@@ -65,6 +66,7 @@ uv run --package nova-cdk python app.py
 ## Configuration
 
 - Provide `-c account=... -c region=...` or set
+  `cd infra/nova_cdk` first, then provide `-c account=… -c region=…` or set
   `CDK_DEFAULT_ACCOUNT`/`CDK_DEFAULT_REGION` before synth or deploy.
 - Provide `jwt_issuer`, `jwt_audience`, and `jwt_jwks_url` for every synth,
   diff, and deploy. The serverless runtime is bearer-JWT-only and fails

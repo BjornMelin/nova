@@ -7,7 +7,6 @@ Date: 2026-03-19
 Related:
   - "[ADR-0023: Hard cut to a single canonical /v1 API surface](../adr/ADR-0023-hard-cut-v1-canonical-route-surface.md)"
   - "[SPEC-0000: HTTP API Contract](./SPEC-0000-http-api-contract.md)"
-  - "[SPEC-0015: Nova API platform final topology and delivery contract](./superseded/SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md)"
 ---
 
 ## 1. Scope
