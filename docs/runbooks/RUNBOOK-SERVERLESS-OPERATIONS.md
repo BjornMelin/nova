@@ -5,7 +5,7 @@
 ## Core runtime
 
 - API Gateway REST API (regional) behind one canonical custom domain
-- Lambda (FastAPI via Lambda Web Adapter)
+- Lambda (FastAPI via native handler, zip-packaged API runtime)
 - Step Functions Standard
 - DynamoDB
 - S3

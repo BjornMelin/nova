@@ -64,7 +64,7 @@ parallel session/header auth channel).
    `adr/superseded/` / `spec/superseded/`—not active authority.
 7. Deployment target-state aligns with `ADR-0033` / `SPEC-0029`: regional API
    Gateway REST API with direct Regional WAF, one canonical custom domain,
-   Lambda (FastAPI via Lambda Web Adapter), Step Functions Standard, DynamoDB,
+   Lambda (FastAPI via native handler), Step Functions Standard, DynamoDB,
    S3, and CloudWatch-backed observability with least-privilege IAM.
 8. `nova_dash_bridge` remains an adapter-only integration surface and consumes
    canonical in-process transfer contracts through `nova_file_api.public` as

@@ -1,12 +1,18 @@
-# SPEC-0029 -- Canonical serverless platform
-
-> **Implementation state:** Implemented in-repo for the active canonical baseline.
+---
+SPEC: 0029
+Title: Canonical serverless platform
+Status: Implemented
+Version: 1.0
+Date: 2026-03-25
+Related:
+  - "[ADR-0033: Canonical serverless platform](../adr/ADR-0033-canonical-serverless-platform.md)"
+---
 
 ## Runtime
 
 - API Gateway REST API (regional) with one canonical custom domain
 - AWS WAF (regional, API stage association)
-- Lambda (FastAPI via Lambda Web Adapter, Python 3.13, arm64)
+- Lambda (FastAPI via native handler, Python 3.13, arm64)
 - Step Functions Standard
 - DynamoDB
 - S3

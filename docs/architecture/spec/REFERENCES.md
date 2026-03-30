@@ -27,8 +27,14 @@ docs pack and the approved target-state program.
 
 - Choose between API Gateway HTTP APIs and REST APIs:
   <https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-vs-rest.html>
-- API Gateway HTTP APIs overview:
-  <https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api.html>
+- Throttle requests to your REST APIs:
+  <https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-request-throttling.html>
+- Set up CloudWatch logging for REST APIs:
+  <https://docs.aws.amazon.com/apigateway/latest/developerguide/set-up-logging.html>
+- Use AWS WAF to protect REST APIs in API Gateway:
+  <https://docs.aws.amazon.com/apigateway/latest/developerguide/apigateway-control-access-aws-waf.html>
+- Disable the default endpoint for REST APIs:
+  <https://docs.aws.amazon.com/apigateway/latest/developerguide/rest-api-disable-default-endpoint.html>
 - Step Functions workflow types:
   <https://docs.aws.amazon.com/step-functions/latest/dg/choosing-workflow-type.html>
 - Step Functions overview / Standard workflow duration and exactly-once semantics:
@@ -41,14 +47,20 @@ docs pack and the approved target-state program.
   <https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ttl-expired-items.html>
 - Lambda runtimes:
   <https://docs.aws.amazon.com/lambda/latest/dg/lambda-runtimes.html>
+- Lambda zip deployment packages:
+  <https://docs.aws.amazon.com/lambda/latest/dg/configuration-function-zip.html>
+- Python Lambda zip packaging:
+  <https://docs.aws.amazon.com/lambda/latest/dg/python-package.html>
 - Python Lambda container images:
   <https://docs.aws.amazon.com/lambda/latest/dg/python-image.html>
+- Lambda reserved concurrency:
+  <https://docs.aws.amazon.com/lambda/latest/dg/configuration-concurrency.html>
 - Lambda response streaming:
   <https://docs.aws.amazon.com/lambda/latest/dg/configuration-response-streaming.html>
-- AWS Lambda Web Adapter:
-  <https://github.com/awslabs/aws-lambda-web-adapter>
-- AWS Lambda Web Adapter FastAPI example:
-  <https://github.com/awslabs/aws-lambda-web-adapter/blob/main/examples/fastapi/README.md>
+- Mangum:
+  <https://github.com/Kludex/mangum>
+- AWS CDK Lambda construct library:
+  <https://docs.aws.amazon.com/cdk/api/v2/python/aws_cdk.aws_lambda/README.html>
 
 ## TypeScript SDK generation
 

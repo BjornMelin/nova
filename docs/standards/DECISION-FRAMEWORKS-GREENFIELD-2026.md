@@ -2,7 +2,6 @@
 
 > **Implementation state:** Decision frameworks used for the approved wave-2 architecture and repo simplification program.
 
-
 All scores use custom weights specialized to Nova’s actual workload rather than the default generic template.
 
 Scores are normalized to 10.0.
@@ -21,7 +20,7 @@ Scores are normalized to 10.0.
 ### Weights
 
 | Criterion | Weight |
-|---|---:|
+| --- | --- |
 | Reliability + durability | 5 |
 | Operability | 5 |
 | Cost efficiency | 5 |
@@ -34,15 +33,15 @@ Scores are normalized to 10.0.
 ### Options
 
 | Option | Weighted total | Score / 10 |
-|---|---:|---:|
-| API Gateway HTTP API + Lambda Web Adapter FastAPI + Step Functions Standard | 158 / 170 | 9.29 |
+| --- | --- | --- |
+| API Gateway REST API + native FastAPI Lambda handler + Step Functions Standard | 158 / 170 | 9.29 |
 | ALB + ECS/Fargate + SQS worker | 141 / 170 | 8.29 |
-| API Gateway HTTP API + Lambda durable functions | 136 / 170 | 8.00 |
+| API Gateway REST API + Lambda durable functions | 136 / 170 | 8.00 |
 | App Runner + SQS worker | 115 / 170 | 6.76 |
 
 ### Winner
 
-**API Gateway HTTP API + Lambda Web Adapter FastAPI + Step Functions Standard**
+**API Gateway REST API + native FastAPI Lambda handler + Step Functions Standard**
 
 Why it wins:
 
@@ -68,7 +67,7 @@ Why it wins:
 ### Options
 
 | Option | Weighted total | Score / 10 |
-|---|---:|---:|
+| --- | --- | --- |
 | Bearer JWT only, verified in-process with async verifier, optional edge JWT authorizer | 111 / 115 | 9.65 |
 | Dedicated remote auth service | 54 / 115 | 4.70 |
 | Hybrid same-origin + remote/local JWT | 34 / 115 | 2.96 |
@@ -82,7 +81,7 @@ Why it wins:
 ### Weights
 
 | Criterion | Weight |
-|---|---:|
+| --- | --- |
 | Contract explicitness | 5 |
 | DX / client ergonomics | 4 |
 | Type safety | 4 |
@@ -93,7 +92,7 @@ Why it wins:
 ### Options
 
 | Option | Weighted total | Score / 10 |
-|---|---:|---:|
+| --- | --- | --- |
 | Explicit export workflow resources and typed state transitions | 112 / 115 | 9.74 |
 | Generic jobs with `job_type` + payload | 58 / 115 | 5.04 |
 | Internal callback workflow lifecycle | 36 / 115 | 3.13 |
@@ -107,7 +106,7 @@ Why it wins:
 ### Weights
 
 | Criterion | Weight |
-|---|---:|
+| --- | --- |
 | Correctness under retries | 5 |
 | Infra simplicity | 4 |
 | Cost | 4 |
@@ -118,7 +117,7 @@ Why it wins:
 ### Options
 
 | Option | Weighted total | Score / 10 |
-|---|---:|---:|
+| --- | --- | --- |
 | DynamoDB persistence with explicit expiration filtering and optional local hot cache | 107 / 115 | 9.30 |
 | Redis + local TTL + DynamoDB hybrid | 73 / 115 | 6.35 |
 | Redis only | 75 / 115 | 6.52 |
@@ -132,7 +131,7 @@ Why it wins:
 ### Weights
 
 | Criterion | Weight |
-|---|---:|
+| --- | --- |
 | Generator maturity | 5 |
 | Runtime maintenance burden | 5 |
 | Client ergonomics | 4 |
@@ -142,7 +141,7 @@ Why it wins:
 ### Options
 
 | Option | Weighted total | Score / 10 |
-|---|---:|---:|
+| --- | --- | --- |
 | `@hey-api/openapi-ts` generated SDKs | 100 / 105 | 9.52 |
 | `openapi-typescript` + `openapi-fetch` + custom glue | 77 / 105 | 7.33 |
 | Current bespoke `@nova/sdk-fetch` runtime | 49 / 105 | 4.67 |
@@ -156,7 +155,7 @@ Why it wins:
 ### Weights
 
 | Criterion | Weight |
-|---|---:|
+| --- | --- |
 | Maintenance burden | 5 |
 | Template control | 4 |
 | Output typing quality | 4 |
@@ -166,7 +165,7 @@ Why it wins:
 ### Options
 
 | Option | Weighted total | Score / 10 |
-|---|---:|---:|
+| --- | --- | --- |
 | `openapi-python-client` with minimal templates/config | 87 / 95 | 9.16 |
 | OpenAPI Generator Python | 71 / 95 | 7.47 |
 | Handwritten Python SDK | 55 / 95 | 5.79 |
@@ -180,7 +179,7 @@ Why it wins:
 ### Weights
 
 | Criterion | Weight |
-|---|---:|
+| --- | --- |
 | Maintainability | 5 |
 | Shiny / API ergonomics | 4 |
 | Auth/fetch flexibility | 4 |
@@ -190,7 +189,7 @@ Why it wins:
 ### Options
 
 | Option | Weighted total | Score / 10 |
-|---|---:|---:|
+| --- | --- | --- |
 | Thin `httr2` package | 101 / 105 | 9.61 |
 | OpenAPI Generator R package | 46 / 105 | 4.38 |
 | Handwritten base-R HTTP helpers | 57 / 105 | 5.43 |
@@ -204,7 +203,7 @@ Why it wins:
 ### Weights
 
 | Criterion | Weight |
-|---|---:|
+| --- | --- |
 | Drift reduction | 5 |
 | Contributor signal-to-noise | 5 |
 | Test ROI | 4 |
@@ -214,7 +213,7 @@ Why it wins:
 ### Options
 
 | Option | Weighted total | Score / 10 |
-|---|---:|---:|
+| --- | --- | --- |
 | Canonical small active set + archive everything else | 94 / 100 | 9.40 |
 | Keep current broad active docs authority surface | 41 / 100 | 4.10 |
 

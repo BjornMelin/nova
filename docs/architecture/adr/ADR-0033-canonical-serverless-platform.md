@@ -1,14 +1,21 @@
-# ADR-0033 -- Canonical serverless platform
-
-> **Implementation state:** Implemented in the active canonical repository baseline.
-
-## Status
-Accepted
+---
+ADR: 0033
+Title: Canonical serverless platform
+Status: Implemented
+Version: 1.0
+Date: 2026-03-25
+Related:
+  - "[SPEC-0029: Canonical serverless platform](../spec/SPEC-0029-platform-serverless.md)"
+  - "[ADR-0023: Hard cut to a single canonical /v1 API surface](./ADR-0023-hard-cut-v1-canonical-route-surface.md)"
+  - "[ADR-0034: Eliminate auth service and session auth](./ADR-0034-eliminate-auth-service-and-session-auth.md)"
+  - "[ADR-0035: Replace generic jobs with export workflows](./ADR-0035-replace-generic-jobs-with-export-workflows.md)"
+  - "[ADR-0036: DynamoDB idempotency and transient state, no Redis](./ADR-0036-dynamodb-idempotency-no-redis.md)"
+---
 
 ## Decision
 
 Adopt **regional API Gateway REST API + direct Regional WAF + one canonical
-custom domain → Lambda (FastAPI via Lambda Web Adapter) → Step Functions
+custom domain → Lambda (FastAPI via native handler) → Step Functions
 Standard / DynamoDB / S3** as the canonical AWS runtime, with the default
 `execute-api` endpoint disabled.
 
