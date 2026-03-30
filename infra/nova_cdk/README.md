@@ -65,9 +65,9 @@ uv run --package nova-cdk python app.py
 
 ## Configuration
 
-- Provide `-c account=... -c region=...` or set
-  `cd infra/nova_cdk` first, then provide `-c account=… -c region=…` or set
-  `CDK_DEFAULT_ACCOUNT`/`CDK_DEFAULT_REGION` before synth or deploy.
+- For synth, diff, and deploy, either `cd infra/nova_cdk` and pass
+  `-c account=… -c region=…` to `npx aws-cdk`, or set
+  `CDK_DEFAULT_ACCOUNT`/`CDK_DEFAULT_REGION` before running synth/diff/deploy.
 - Provide `jwt_issuer`, `jwt_audience`, and `jwt_jwks_url` for every synth,
   diff, and deploy. The serverless runtime is bearer-JWT-only and fails
   closed on incomplete OIDC verifier wiring.

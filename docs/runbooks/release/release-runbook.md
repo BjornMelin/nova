@@ -13,15 +13,22 @@ validation.
 
 ## 1A. Authority / references
 
-- `docs/architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md`
-- `docs/architecture/spec/superseded/SPEC-0000-http-api-contract.md`
-- `docs/architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md`
-- `docs/architecture/spec/SPEC-0027-public-api-v2.md`
-- `docs/architecture/requirements.md`
-- `docs/architecture/requirements-wave-2.md`
-- `docs/plan/GREENFIELD-WAVE-2-EXECUTION.md`
-- `docs/architecture/adr/ADR-0033-canonical-serverless-platform.md` through `docs/architecture/adr/ADR-0038-docs-authority-reset.md`
-- `docs/architecture/spec/SPEC-0027-public-api-v2.md` through `docs/architecture/spec/SPEC-0031-docs-and-tests-authority-reset.md`
+1. `docs/architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md`
+2. `docs/architecture/spec/superseded/SPEC-0000-http-api-contract.md`
+3. `docs/architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md`
+4. `docs/architecture/requirements.md`
+5. `docs/plan/GREENFIELD-WAVE-2-EXECUTION.md`
+6. `docs/architecture/adr/ADR-0033-canonical-serverless-platform.md`
+7. `docs/architecture/adr/ADR-0034-eliminate-auth-service-and-session-auth.md`
+8. `docs/architecture/adr/ADR-0035-replace-generic-jobs-with-export-workflows.md`
+9. `docs/architecture/adr/ADR-0036-dynamodb-idempotency-no-redis.md`
+10. `docs/architecture/adr/ADR-0037-sdk-generation-consolidation.md`
+11. `docs/architecture/adr/ADR-0038-docs-authority-reset.md`
+12. `docs/architecture/spec/SPEC-0027-public-api-v2.md`
+13. `docs/architecture/spec/SPEC-0028-export-workflow-state-machine.md`
+14. `docs/architecture/spec/SPEC-0029-platform-serverless.md`
+15. `docs/architecture/spec/SPEC-0030-sdk-generation-and-package-layout.md`
+16. `docs/architecture/spec/SPEC-0031-docs-and-tests-authority-reset.md`
 
 ## 2. Preconditions
 
@@ -154,22 +161,22 @@ validation.
 Capture durable pointers for:
 
 1. `Nova Release Plan` workflow run
-2. `Nova Release Apply` workflow run
-3. `Verify Release Signature` workflow run
-4. `Deploy Runtime` workflow run
-5. `Publish Packages` workflow run
-6. `Promote Prod` workflow run
-7. `Post Deploy Validate` workflow run when used
-8. `RELEASE-VERSION-MANIFEST.md` SHA continuity through publish and promotion
-9. Gate validation artifacts:
+1. `Nova Release Apply` workflow run
+1. `Verify Release Signature` workflow run
+1. `Deploy Runtime` workflow run
+1. `Publish Packages` workflow run
+1. `Promote Prod` workflow run
+1. `Post Deploy Validate` workflow run when used
+1. `RELEASE-VERSION-MANIFEST.md` SHA continuity through publish and promotion
+1. Gate validation artifacts:
    - `codeartifact-gate-report.json`
    - `codeartifact-promotion-candidates.json`
-10. API deploy artifact evidence:
+1. API deploy artifact evidence:
    - `api-lambda-artifact.json`
    - `release-apply-metadata.json`
    - S3 key under
      `runtime/nova-file-api/<release_commit_sha>/<artifact_sha256>/nova-file-api-lambda.zip`
-11. Runtime deploy authority evidence:
+1. Runtime deploy authority evidence:
    - `deploy-output.json`
    - `deploy-output.sha256`
    - `post-deploy-validation-report.json`

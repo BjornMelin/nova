@@ -11,6 +11,7 @@ Related:
   - "[SPEC-0000: HTTP API Contract](./superseded/SPEC-0000-http-api-contract.md)"
   - "[SPEC-0016: V1 route namespace and literal guardrails](./SPEC-0016-v1-route-namespace-and-literal-guardrails.md)"
   - "[requirements.md](../requirements.md)"
+  - "[GREENFIELD WAVE 2 Execution](../plan/GREENFIELD-WAVE-2-EXECUTION.md)"
 ---
 
 ## Summary

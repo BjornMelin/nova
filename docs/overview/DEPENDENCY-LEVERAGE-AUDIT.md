@@ -5,9 +5,19 @@
 ## Authority / references
 
 - `../architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md`
+- `../architecture/adr/ADR-0033-canonical-serverless-platform.md`
+- `../architecture/adr/ADR-0034-eliminate-auth-service-and-session-auth.md`
+- `../architecture/adr/ADR-0035-replace-generic-jobs-with-export-workflows.md`
+- `../architecture/adr/ADR-0036-dynamodb-idempotency-no-redis.md`
+- `../architecture/adr/ADR-0037-sdk-generation-consolidation.md`
+- `../architecture/adr/ADR-0038-docs-authority-reset.md`
 - `../architecture/spec/superseded/SPEC-0000-http-api-contract.md`
 - `../architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md`
 - `../architecture/spec/SPEC-0027-public-api-v2.md`
+- `../architecture/spec/SPEC-0028-export-workflow-state-machine.md`
+- `../architecture/spec/SPEC-0029-platform-serverless.md`
+- `../architecture/spec/SPEC-0030-sdk-generation-and-package-layout.md`
+- `../architecture/spec/SPEC-0031-docs-and-tests-authority-reset.md`
 - `../architecture/requirements.md`
 - `../plan/GREENFIELD-WAVE-2-EXECUTION.md`
 
