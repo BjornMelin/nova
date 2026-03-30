@@ -213,7 +213,7 @@ def test_runtime_stack_enables_waf_cloudwatch_logging() -> None:
         for field in logging_props["RedactedFields"]
     }
     assert redacted_headers == {"authorization", "cookie"}
-    assert logging_props["LoggingFilter"]["defaultBehavior"] == "DROP"
+    assert logging_props["LoggingFilter"]["DefaultBehavior"] == "DROP"
     assert len(logging_props["LogDestinationConfigs"]) == 1
     assert "Fn::GetAtt" in logging_props["LogDestinationConfigs"][0]
 

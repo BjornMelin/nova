@@ -129,15 +129,15 @@ def test_runtime_stack_filters_waf_logs_to_security_relevant_actions() -> None:
     logging_props = next(iter(logging_configs.values()))["Properties"]
 
     logging_filter = logging_props["LoggingFilter"]
-    assert logging_filter["defaultBehavior"] == "DROP"
-    assert logging_filter["filters"] == [
+    assert logging_filter["DefaultBehavior"] == "DROP"
+    assert logging_filter["Filters"] == [
         {
-            "behavior": "KEEP",
-            "conditions": [
-                {"actionCondition": {"action": "BLOCK"}},
-                {"actionCondition": {"action": "COUNT"}},
+            "Behavior": "KEEP",
+            "Conditions": [
+                {"ActionCondition": {"Action": "BLOCK"}},
+                {"ActionCondition": {"Action": "COUNT"}},
             ],
-            "requirement": "MEETS_ANY",
+            "Requirement": "MEETS_ANY",
         }
     ]
 

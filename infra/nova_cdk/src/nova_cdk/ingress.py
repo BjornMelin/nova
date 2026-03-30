@@ -237,43 +237,29 @@ def create_regional_rest_ingress(
         scope,
         "NovaRestApiWebAclLogging",
         log_destination_configs=[waf_log_group.log_group_arn],
-        logging_filter=wafv2.CfnLoggingConfiguration.LoggingFilterProperty(
-            default_behavior="DROP",
-            filters=[
-                wafv2.CfnLoggingConfiguration.FilterProperty(
-                    behavior="KEEP",
-                    conditions=[
-                        wafv2.CfnLoggingConfiguration.ConditionProperty(
-                            action_condition=wafv2.CfnLoggingConfiguration.ActionConditionProperty(
-                                action="BLOCK"
-                            )
-                        ),
-                        wafv2.CfnLoggingConfiguration.ConditionProperty(
-                            action_condition=wafv2.CfnLoggingConfiguration.ActionConditionProperty(
-                                action="COUNT"
-                            )
-                        ),
-                    ],
-                    requirement="MEETS_ANY",
-                )
-            ],
-        ),
         resource_arn=web_acl.attr_arn,
-        redacted_fields=[
-            wafv2.CfnLoggingConfiguration.FieldToMatchProperty(
-                single_header=(
-                    wafv2.CfnLoggingConfiguration.SingleHeaderProperty(
-                        name="authorization"
-                    )
-                )
-            ),
-            wafv2.CfnLoggingConfiguration.FieldToMatchProperty(
-                single_header=(
-                    wafv2.CfnLoggingConfiguration.SingleHeaderProperty(
-                        name="cookie"
-                    )
-                )
-            ),
+    )
+    waf_logging.add_property_override(
+        "LoggingFilter",
+        {
+            "DefaultBehavior": "DROP",
+            "Filters": [
+                {
+                    "Behavior": "KEEP",
+                    "Conditions": [
+                        {"ActionCondition": {"Action": "BLOCK"}},
+                        {"ActionCondition": {"Action": "COUNT"}},
+                    ],
+                    "Requirement": "MEETS_ANY",
+                }
+            ],
+        },
+    )
+    waf_logging.add_property_override(
+        "RedactedFields",
+        [
+            {"SingleHeader": {"Name": "authorization"}},
+            {"SingleHeader": {"Name": "cookie"}},
         ],
     )
     waf_logging.node.add_dependency(web_acl)
