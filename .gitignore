@@ -9,6 +9,7 @@ __pycache__/
 # Distribution / packaging
 .Python
 build/
+cdk.out/
 develop-eggs/
 dist/
 downloads/
@@ -184,6 +185,8 @@ opensrc/
 skills-lock.json
 /.artifacts/
 .tmp/
+infra/nova_cdk/cdk.out/
+infra/nova_cdk/cdk.context.json
 
 # Auth0 export snapshots
 infra/auth0/output/
