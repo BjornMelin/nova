@@ -72,9 +72,8 @@ validation.
    - writes `docs/release/RELEASE-VERSION-MANIFEST.md`
    - creates a signed release commit locally from `main`
    - rebuilds the public API Lambda zip from that exact signed release commit
+   - pushes the signed release commit to `main`
    - uploads the zip to `RELEASE_ARTIFACT_BUCKET`
-   - pushes the signed release commit to `main` only after the immutable
-     artifact upload succeeds
    - writes `.artifacts/api-lambda-artifact.json`
    - uploads `release-apply-artifacts`.
 

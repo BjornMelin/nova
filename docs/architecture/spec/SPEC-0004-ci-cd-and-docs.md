@@ -90,9 +90,9 @@ Canonical flow:
 5. `reusable-release-apply.yml` applies selective versions, writes release
    manifest, updates `uv.lock`, creates a signed release commit from `main`
    only, builds the public API Lambda zip from that exact local signed commit,
-   uploads that zip plus `api-lambda-artifact.json` to
-   `RELEASE_ARTIFACT_BUCKET`, and advances `main` only after immutable artifact
-   publication succeeds.
+   pushes the signed release commit to `main`, then uploads that zip plus
+   `api-lambda-artifact.json` to `RELEASE_ARTIFACT_BUCKET` before artifact
+   publication completes.
 6. AWS CodePipeline source action consumes signed commit through CodeConnections.
 7. AWS CodeBuild/buildspec release stages own container image build/push
    authority; GitHub does not carry a separate image-wrapper workflow.
