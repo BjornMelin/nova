@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import importlib.metadata
 import json
-import os
 
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -64,17 +63,6 @@ def _default_app_version() -> str:
         return "0.0.0"
 
 
-def _env_value_or_none(name: str) -> str | None:
-    """Return one non-blank environment variable value when configured."""
-    value = os.environ.get(name)
-    if value is None:
-        return None
-    stripped = value.strip()
-    if not stripped:
-        return None
-    return stripped
-
-
 def _parse_string_tuple(value: object) -> tuple[str, ...]:
     """Normalize JSON or comma-delimited inputs into a tuple of strings."""
     if value is None:
@@ -101,7 +89,10 @@ def _parse_string_tuple(value: object) -> tuple[str, ...]:
         )
     if isinstance(value, (list, tuple, set, frozenset)):
         if any(not isinstance(part, str) for part in value):
-            raise TypeError("list input must contain only strings")
+            raise TypeError(
+                "iterable input must contain only strings "
+                "(list, tuple, set, or frozenset)"
+            )
         return tuple(
             item
             for item in (
@@ -109,7 +100,10 @@ def _parse_string_tuple(value: object) -> tuple[str, ...]:
             )
             if item
         )
-    raise TypeError("value must be a string or a list of strings")
+    raise TypeError(
+        "value must be a string or an iterable of strings "
+        "(list, tuple, set, or frozenset)"
+    )
 
 
 class Settings(BaseSettings):

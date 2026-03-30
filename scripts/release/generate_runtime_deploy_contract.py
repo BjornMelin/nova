@@ -170,6 +170,11 @@ def build_workflow_deploy_runtime_schema() -> dict[str, Any]:
                         "type": "string",
                         "pattern": "^$|^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$",
                         "default": "",
+                        "description": (
+                            "Repository that owns the immutable release-apply "
+                            "artifacts; when provided, it must match the "
+                            "workflow source repository."
+                        ),
                     },
                     "api_domain_name": {"type": "string", "minLength": 1},
                     "certificate_arn": {

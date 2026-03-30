@@ -20,6 +20,7 @@ Fixed constraints:
 ## 1A. Authority / references
 
 - `docs/architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md`
+- `docs/architecture/spec/superseded/SPEC-0000-http-api-contract.md`
 - `docs/architecture/adr/ADR-0033-canonical-serverless-platform.md`
 - `docs/architecture/adr/ADR-0034-eliminate-auth-service-and-session-auth.md`
 - `docs/architecture/adr/ADR-0035-replace-generic-jobs-with-export-workflows.md`

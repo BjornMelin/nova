@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import asyncio
+import importlib
 import json
 from contextlib import contextmanager
 from typing import Any
+from unittest.mock import Mock, patch
 
 from nova_file_api.activity import MemoryActivityStore
 from nova_file_api.config import Settings
@@ -101,6 +103,44 @@ def _rest_api_event(
 def _normalized_headers(payload: dict[str, Any]) -> dict[str, str]:
     headers = payload.get("headers") or {}
     return {str(key).lower(): str(value) for key, value in headers.items()}
+
+
+def test_default_lambda_handler_builds_canonical_app_once() -> None:
+    """Module import should build the canonical handler only once."""
+    import nova_file_api.lambda_handler as lambda_handler
+
+    importlib.reload(lambda_handler)
+    original_default_handler = lambda_handler._DEFAULT_HANDLER
+    lambda_handler._DEFAULT_HANDLER = None
+
+    handler_mock = Mock(return_value={"statusCode": 200, "body": ""})
+    try:
+        with (
+            patch.object(
+                lambda_handler,
+                "create_app",
+                return_value=object(),
+            ) as create_app,
+            patch.object(
+                lambda_handler,
+                "Mangum",
+                return_value=handler_mock,
+            ) as mangum,
+        ):
+            lambda_handler.handler(
+                _rest_api_event(method="GET", path="/v1/health/live"),
+                {},
+            )
+            lambda_handler.handler(
+                _rest_api_event(method="GET", path="/v1/health/live"),
+                {},
+            )
+
+            assert create_app.call_count == 1
+            mangum.assert_called_once()
+            assert handler_mock.call_count == 2
+    finally:
+        lambda_handler._DEFAULT_HANDLER = original_default_handler
 
 
 def test_native_lambda_handler_serves_public_release_info() -> None:
