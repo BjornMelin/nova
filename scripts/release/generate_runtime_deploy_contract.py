@@ -66,7 +66,12 @@ def build_deploy_output_schema() -> dict[str, Any]:
             "deploy_run_attempt": {"type": "integer", "minimum": 1},
             "deploy_workflow_ref": {"type": "string", "minLength": 1},
             "stack_name": {"type": "string", "minLength": 1},
-            "stack_id": {"type": "string", "minLength": 1},
+            "stack_id": {
+                "type": "string",
+                "pattern": (
+                    "^arn:aws:cloudformation:[a-z0-9-]+:\\d{12}:stack/.+$"
+                ),
+            },
             "region": {"type": "string", "pattern": "^[a-z]{2}-[a-z]+-\\d+$"},
             "environment": {"type": "string", "minLength": 1},
             "runtime_name": {"type": "string", "minLength": 1},
@@ -93,7 +98,7 @@ def build_deploy_output_schema() -> dict[str, Any]:
             },
             "api_lambda_artifact": {
                 "type": "object",
-                "additionalProperties": True,
+                "additionalProperties": False,
                 "required": [
                     "artifact_bucket",
                     "artifact_key",
@@ -161,6 +166,11 @@ def build_workflow_deploy_runtime_schema() -> dict[str, Any]:
                         "minLength": 1,
                         "default": "release-apply-artifacts",
                     },
+                    "release_apply_repo": {
+                        "type": "string",
+                        "pattern": "^$|^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$",
+                        "default": "",
+                    },
                     "api_domain_name": {"type": "string", "minLength": 1},
                     "certificate_arn": {
                         "type": "string",
@@ -201,16 +211,6 @@ def build_workflow_deploy_runtime_schema() -> dict[str, Any]:
                         "type": "string",
                         "minLength": 1,
                         "default": "deploy-runtime-output",
-                    },
-                    "deploy_output_path": {
-                        "type": "string",
-                        "pattern": "^[^\\s]+\\.json$",
-                        "default": ".artifacts/deploy-output.json",
-                    },
-                    "deploy_output_sha256_path": {
-                        "type": "string",
-                        "pattern": "^[^\\s]+\\.(sha256|txt)$",
-                        "default": ".artifacts/deploy-output.sha256",
                     },
                     "runtime_cfn_execution_role_arn": {
                         "type": "string",

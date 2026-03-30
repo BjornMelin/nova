@@ -29,16 +29,6 @@
           "minLength": 1,
           "type": "string"
         },
-        "deploy_output_path": {
-          "default": ".artifacts/deploy-output.json",
-          "pattern": "^[^\\s]+\\.json$",
-          "type": "string"
-        },
-        "deploy_output_sha256_path": {
-          "default": ".artifacts/deploy-output.sha256",
-          "pattern": "^[^\\s]+\\.(sha256|txt)$",
-          "type": "string"
-        },
         "environment_name": {
           "default": "dev",
           "minLength": 1,

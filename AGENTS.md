@@ -12,7 +12,8 @@ Use this file to keep active authority small and explicit.
 4. `README.md`
 5. `docs/standards/README.md`
 6. `docs/runbooks/README.md`
-7. `docs/plan/PLAN.md` for program-history context only
+7. `docs/plan/GREENFIELD-WAVE-2-EXECUTION.md`
+8. `docs/plan/PLAN.md` for program-history context only
 
 ## Active canonical authority
 
