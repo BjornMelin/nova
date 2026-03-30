@@ -18,9 +18,9 @@ canonical serverless CDK stack.
 
 ## Authority / references
 
-- `../../architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md`
-- `../../architecture/spec/superseded/SPEC-0000-http-api-contract.md`
-- `../../architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md`
+- `../../architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md` (canonical route-surface authority)
+- `../../architecture/spec/superseded/SPEC-0000-http-api-contract.md` (historical API baseline reference for hard-cut context)
+- `../../architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md` (active route-surface guardrails)
 - `../../architecture/spec/SPEC-0027-public-api-v2.md`
 - `../../architecture/requirements.md`
 - `../../plan/GREENFIELD-WAVE-2-EXECUTION.md`

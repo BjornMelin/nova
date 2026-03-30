@@ -54,15 +54,11 @@ signing, and CodeArtifact promotion do not belong in the runtime deploy role.
 
 ## Authority / references
 
-- `docs/architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md`
-- `docs/architecture/spec/superseded/SPEC-0000-http-api-contract.md`
-- `docs/architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md`
-- `docs/architecture/spec/SPEC-0027-public-api-v2.md`
+- `docs/architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md` (canonical route-surface authority)
+- `docs/architecture/spec/superseded/SPEC-0000-http-api-contract.md` (historical API baseline reference for hard-cut context)
+- `docs/architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md` (active route-surface guardrails)
 - `docs/architecture/requirements.md`
-- `docs/architecture/requirements-wave-2.md`
-- `docs/architecture/adr/ADR-0033-canonical-serverless-platform.md` through `docs/architecture/adr/ADR-0038-docs-authority-reset.md`
-- `docs/architecture/spec/SPEC-0027-public-api-v2.md` through `docs/architecture/spec/SPEC-0031-docs-and-tests-authority-reset.md`
-- `docs/plan/GREENFIELD-WAVE-2-EXECUTION.md`
+- `docs/plan/GREENFIELD-WAVE-2-EXECUTION.md` (active canonical wave-2 overlay)
 - `RELEASE_AWS_ROLE_ARN` and `RUNTIME_DEPLOY_AWS_ROLE_ARN` govern the OIDC
   setup described below
 
