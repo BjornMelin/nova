@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from functools import lru_cache
 from typing import Any, Literal
 
 from fastapi import FastAPI
@@ -30,18 +29,8 @@ def create_lambda_handler(
     return Mangum(resolved_app, lifespan=lifespan)
 
 
-@lru_cache
-def _cached_handler() -> Mangum:
-    """Cache the Lambda adapter for execution-environment reuse.
-
-    Returns:
-        One cached Mangum adapter bound to the canonical FastAPI app.
-    """
-    return create_lambda_handler()
-
-
 def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
-    """Handle one AWS Lambda proxy event with the cached FastAPI adapter.
+    """Handle one AWS Lambda proxy event with the canonical FastAPI adapter.
 
     Args:
         event: Lambda proxy event payload from API Gateway.
@@ -50,4 +39,4 @@ def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
     Returns:
         API Gateway-compatible response payload emitted by Mangum.
     """
-    return _cached_handler()(event, context)
+    return create_lambda_handler()(event, context)

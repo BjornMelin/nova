@@ -88,8 +88,8 @@ def _parse_string_tuple(value: object) -> tuple[str, ...]:
                 parsed = json.loads(stripped)
             except json.JSONDecodeError as exc:
                 raise ValueError(
-                    "ALLOWED_ORIGINS must be valid JSON when provided "
-                    "as a list string."
+                    "ALLOWED_ORIGINS must be a valid JSON array or "
+                    "comma-delimited string."
                 ) from exc
             if not isinstance(parsed, list):
                 raise TypeError("JSON input must decode to a list of strings.")
@@ -381,9 +381,6 @@ class Settings(BaseSettings):
         """Return configured browser origins or explicit local defaults."""
         if self.cors_allowed_origins:
             return self.cors_allowed_origins
-        stack_allowed_origins = _env_value_or_none("STACK_ALLOWED_ORIGINS")
-        if stack_allowed_origins is not None:
-            return _parse_string_tuple(stack_allowed_origins)
         environment = self.environment.strip().lower()
         if environment in {"dev", "development", "local", "test"}:
             return _DEFAULT_DEV_CORS_ALLOWED_ORIGINS
