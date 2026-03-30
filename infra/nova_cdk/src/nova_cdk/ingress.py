@@ -4,72 +4,64 @@
 
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass
 
 from aws_cdk import (
     Aws,
-)
-from aws_cdk import (
     aws_apigateway as apigw,
-)
-from aws_cdk import (
     aws_certificatemanager as acm,
-)
-from aws_cdk import (
     aws_lambda as lambda_,
-)
-from aws_cdk import (
-    aws_logs as logs,
-)
-from aws_cdk import (
     aws_route53 as route53,
-)
-from aws_cdk import (
     aws_route53_targets as route53_targets,
-)
-from aws_cdk import (
     aws_wafv2 as wafv2,
 )
 from constructs import Construct
+
+from .observability import (
+    build_api_access_log_format,
+    create_api_access_log_group,
+    create_waf_log_group,
+)
 
 
 @dataclass(frozen=True)
 class IngressResources:
     """Describe the public ingress resources exposed by the runtime stack."""
 
+    access_log_group_name: str
     public_base_url: str
     rest_api: apigw.RestApi
     stage_name: str
-
-
-def _build_access_log_format() -> apigw.AccessLogFormat:
-    """Return the canonical JSON access-log format for REST API stages."""
-    return apigw.AccessLogFormat.custom(
-        json.dumps(
-            {
-                "requestId": "$context.requestId",
-                "ip": "$context.identity.sourceIp",
-                "requestTime": "$context.requestTime",
-                "httpMethod": "$context.httpMethod",
-                "resourcePath": "$context.resourcePath",
-                "status": "$context.status",
-                "responseLength": "$context.responseLength",
-            },
-            separators=(",", ":"),
-        )
-    )
+    waf_log_group_name: str
+    web_acl_arn: str
 
 
 def _managed_web_acl_rules(
     *,
+    write_rate_limit: int,
     rate_limit: int,
 ) -> list[wafv2.CfnWebACL.RuleProperty]:
     """Return the baseline regional WAF rules for the public REST ingress."""
     return [
         wafv2.CfnWebACL.RuleProperty(
-            name="AWSManagedCommonRuleSet",
+            name="AWSManagedRulesAmazonIpReputationList",
             priority=1,
+            override_action=wafv2.CfnWebACL.OverrideActionProperty(none={}),
+            statement=wafv2.CfnWebACL.StatementProperty(
+                managed_rule_group_statement=wafv2.CfnWebACL.ManagedRuleGroupStatementProperty(
+                    vendor_name="AWS",
+                    name="AWSManagedRulesAmazonIpReputationList",
+                )
+            ),
+            visibility_config=wafv2.CfnWebACL.VisibilityConfigProperty(
+                cloud_watch_metrics_enabled=True,
+                metric_name="nova-rest-api-ip-reputation",
+                sampled_requests_enabled=True,
+            ),
+        ),
+        wafv2.CfnWebACL.RuleProperty(
+            name="AWSManagedRulesCommonRuleSet",
+            priority=2,
             override_action=wafv2.CfnWebACL.OverrideActionProperty(none={}),
             statement=wafv2.CfnWebACL.StatementProperty(
                 managed_rule_group_statement=wafv2.CfnWebACL.ManagedRuleGroupStatementProperty(
@@ -84,8 +76,57 @@ def _managed_web_acl_rules(
             ),
         ),
         wafv2.CfnWebACL.RuleProperty(
+            name="AWSManagedRulesKnownBadInputsRuleSet",
+            priority=3,
+            override_action=wafv2.CfnWebACL.OverrideActionProperty(none={}),
+            statement=wafv2.CfnWebACL.StatementProperty(
+                managed_rule_group_statement=wafv2.CfnWebACL.ManagedRuleGroupStatementProperty(
+                    vendor_name="AWS",
+                    name="AWSManagedRulesKnownBadInputsRuleSet",
+                )
+            ),
+            visibility_config=wafv2.CfnWebACL.VisibilityConfigProperty(
+                cloud_watch_metrics_enabled=True,
+                metric_name="nova-rest-api-known-bad-inputs",
+                sampled_requests_enabled=True,
+            ),
+        ),
+        wafv2.CfnWebACL.RuleProperty(
+            name="NovaWritePathRateLimitByIp",
+            priority=10,
+            action=wafv2.CfnWebACL.RuleActionProperty(block={}),
+            statement=wafv2.CfnWebACL.StatementProperty(
+                rate_based_statement=wafv2.CfnWebACL.RateBasedStatementProperty(
+                    aggregate_key_type="IP",
+                    evaluation_window_sec=300,
+                    limit=write_rate_limit,
+                    scope_down_statement=wafv2.CfnWebACL.StatementProperty(
+                        regex_match_statement=wafv2.CfnWebACL.RegexMatchStatementProperty(
+                            field_to_match=wafv2.CfnWebACL.FieldToMatchProperty(
+                                uri_path={}
+                            ),
+                            regex_string=(
+                                "^/v1/(exports($|/.*)|transfers/uploads($|/.*))"
+                            ),
+                            text_transformations=[
+                                wafv2.CfnWebACL.TextTransformationProperty(
+                                    priority=0,
+                                    type="NONE",
+                                )
+                            ],
+                        )
+                    ),
+                )
+            ),
+            visibility_config=wafv2.CfnWebACL.VisibilityConfigProperty(
+                cloud_watch_metrics_enabled=True,
+                metric_name="nova-rest-api-write-path-rate-limit",
+                sampled_requests_enabled=True,
+            ),
+        ),
+        wafv2.CfnWebACL.RuleProperty(
             name="NovaRateLimitByIp",
-            priority=2,
+            priority=11,
             action=wafv2.CfnWebACL.RuleActionProperty(block={}),
             statement=wafv2.CfnWebACL.StatementProperty(
                 rate_based_statement=wafv2.CfnWebACL.RateBasedStatementProperty(
@@ -114,12 +155,12 @@ def create_regional_rest_ingress(
     throttling_burst_limit: int,
     throttling_rate_limit: float,
     waf_rate_limit: int,
+    waf_write_rate_limit: int,
 ) -> IngressResources:
     """Create the canonical public REST ingress for the Nova runtime."""
-    access_log_group = logs.LogGroup(
+    access_log_group = create_api_access_log_group(
         scope,
-        "NovaApiAccessLogs",
-        retention=logs.RetentionDays.ONE_MONTH,
+        stage_name=stage_name,
     )
     integration = apigw.LambdaIntegration(api_handler, proxy=True)
     rest_api = apigw.RestApi(
@@ -132,7 +173,7 @@ def create_regional_rest_ingress(
             access_log_destination=apigw.LogGroupLogDestination(
                 access_log_group
             ),
-            access_log_format=_build_access_log_format(),
+            access_log_format=build_api_access_log_format(),
             data_trace_enabled=False,
             logging_level=apigw.MethodLoggingLevel.ERROR,
             metrics_enabled=True,
@@ -180,7 +221,10 @@ def create_regional_rest_ingress(
         scope,
         "NovaRestApiWebAcl",
         default_action=wafv2.CfnWebACL.DefaultActionProperty(allow={}),
-        rules=_managed_web_acl_rules(rate_limit=waf_rate_limit),
+        rules=_managed_web_acl_rules(
+            rate_limit=waf_rate_limit,
+            write_rate_limit=waf_write_rate_limit,
+        ),
         scope="REGIONAL",
         visibility_config=wafv2.CfnWebACL.VisibilityConfigProperty(
             cloud_watch_metrics_enabled=True,
@@ -188,6 +232,52 @@ def create_regional_rest_ingress(
             sampled_requests_enabled=True,
         ),
     )
+    waf_log_group = create_waf_log_group(scope, stage_name=stage_name)
+    waf_logging = wafv2.CfnLoggingConfiguration(
+        scope,
+        "NovaRestApiWebAclLogging",
+        log_destination_configs=[waf_log_group.log_group_arn],
+        logging_filter=wafv2.CfnLoggingConfiguration.LoggingFilterProperty(
+            default_behavior="DROP",
+            filters=[
+                wafv2.CfnLoggingConfiguration.FilterProperty(
+                    behavior="KEEP",
+                    conditions=[
+                        wafv2.CfnLoggingConfiguration.ConditionProperty(
+                            action_condition=wafv2.CfnLoggingConfiguration.ActionConditionProperty(
+                                action="BLOCK"
+                            )
+                        ),
+                        wafv2.CfnLoggingConfiguration.ConditionProperty(
+                            action_condition=wafv2.CfnLoggingConfiguration.ActionConditionProperty(
+                                action="COUNT"
+                            )
+                        ),
+                    ],
+                    requirement="MEETS_ANY",
+                )
+            ],
+        ),
+        resource_arn=web_acl.attr_arn,
+        redacted_fields=[
+            wafv2.CfnLoggingConfiguration.FieldToMatchProperty(
+                single_header=(
+                    wafv2.CfnLoggingConfiguration.SingleHeaderProperty(
+                        name="authorization"
+                    )
+                )
+            ),
+            wafv2.CfnLoggingConfiguration.FieldToMatchProperty(
+                single_header=(
+                    wafv2.CfnLoggingConfiguration.SingleHeaderProperty(
+                        name="cookie"
+                    )
+                )
+            ),
+        ],
+    )
+    waf_logging.node.add_dependency(web_acl)
+    waf_logging.node.add_dependency(waf_log_group)
     web_acl_association = wafv2.CfnWebACLAssociation(
         scope,
         "NovaRestApiWebAclAssociation",
@@ -200,7 +290,10 @@ def create_regional_rest_ingress(
     web_acl_association.node.add_dependency(rest_api.deployment_stage)
 
     return IngressResources(
+        access_log_group_name=access_log_group.log_group_name,
         public_base_url=f"https://{api_domain_name}",
         rest_api=rest_api,
         stage_name=stage_name,
+        waf_log_group_name=waf_log_group.log_group_name,
+        web_acl_arn=web_acl.attr_arn,
     )

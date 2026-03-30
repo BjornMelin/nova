@@ -105,11 +105,34 @@ eval "$(uv run python scripts/release/emit_api_lambda_artifact_env.py \
   for incident response and revalidation.
 - Optional ingress safeguard overrides:
   `api_reserved_concurrency`,
+  `workflow_reserved_concurrency`,
   `api_stage_throttling_rate_limit`,
   `api_stage_throttling_burst_limit`,
-  and `waf_rate_limit`.
-- The API Lambda defaults to no reserved concurrency outside prod and `25` in
-  prod unless `api_reserved_concurrency`/`API_RESERVED_CONCURRENCY` is set
-  explicitly.
+  `waf_rate_limit`,
+  and `waf_write_rate_limit`.
+- Reserved concurrency defaults are intentionally bounded: the API Lambda uses
+  `5` outside prod and `25` in prod, and each workflow task Lambda uses `2`
+  outside prod and `10` in prod unless the corresponding context/env override
+  is set explicitly.
+- The transfer bucket aborts incomplete multipart uploads after 7 days and
+  expires transient `tmp/` objects after 3 days. Durable `exports/` objects
+  are retained.
+- The Regional REST ingress emits JSON access logs to
+  `/aws/apigateway/nova-rest-api-access-{stage}` and WAF logs to
+  `aws-waf-logs-nova-rest-api-{stage}` with 90-day retention.
+- The WAF uses AWS managed IP-reputation/common/bad-inputs rule groups plus two
+  rate rules: a general per-IP ceiling (`waf_rate_limit`, default `2000` over
+  5 minutes) and a stricter write-path ceiling (`waf_write_rate_limit`,
+  default `500` over 5 minutes) scoped to `/v1/exports` and
+  `/v1/transfers/uploads`.
+- The stack exports `NovaAlarmTopicArn`, `NovaApiAccessLogGroupName`, and
+  `NovaWafLogGroupName`; all runtime alarms publish to the SNS topic
+  `nova-runtime-alarms-{environment}`. Operators can set
+  `alarm_notification_emails` / `ALARM_NOTIFICATION_EMAILS` to create email
+  subscriptions at deploy time, or attach PagerDuty, Chatbot, and EventBridge
+  fan-out without changing the stack.
+- WAF logs redact the `Authorization` and `Cookie` headers before delivery to
+  CloudWatch Logs and keep only `BLOCK` / `COUNT` decisions to concentrate the
+  security signal.
 - The stack exports one canonical `NovaPublicBaseUrl`, which always points at
   the configured custom domain.
