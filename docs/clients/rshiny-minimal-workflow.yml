@@ -2,9 +2,14 @@ name: RShiny Minimal Nova Deploy Validate
 
 on:
   workflow_dispatch:
+    inputs:
+      nova_deploy_run_id:
+        required: true
+        type: string
 
 jobs:
   validate:
-    uses: 3M-Cloud/nova/.github/workflows/reusable-post-deploy-validate.yml@655ccab0d071c828045de4a4d3bb441d4349194e
+    uses: 3M-Cloud/nova/.github/workflows/reusable-post-deploy-validate.yml@<pin-to-an-immutable-revision>
     with:
-      validation_base_url: ${{ vars.NOVA_API_BASE_URL }}
+      deploy_repo: 3M-Cloud/nova
+      deploy_run_id: ${{ inputs.nova_deploy_run_id }}

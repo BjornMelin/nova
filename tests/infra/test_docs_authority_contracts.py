@@ -148,6 +148,8 @@ def test_contracts_readme_tracks_current_schemas() -> None:
 
     for required in [
         "release-artifacts-v1.schema.json",
+        "deploy-output-authority-v2.schema.json",
+        "workflow-deploy-runtime-v1.schema.json",
         "workflow-post-deploy-validate.schema.json",
         "workflow-auth0-tenant-deploy.schema.json",
         "workflow-auth0-tenant-ops-v1.schema.json",

@@ -9,6 +9,8 @@ Last reviewed: 2026-03-25
 These schemas remain the current machine-readable baseline contract artifacts:
 
 - `release-artifacts-v1.schema.json`
+- `deploy-output-authority-v2.schema.json`
+- `workflow-deploy-runtime-v1.schema.json`
 - `workflow-post-deploy-validate.schema.json`
 - `workflow-auth0-tenant-deploy.schema.json`
 - `browser-live-validation-report.schema.json`
@@ -23,6 +25,6 @@ hard cuts and already-landed contract changes across the wave-2 program.
 
 ## Rule
 
-Keep only schemas that describe surviving release, validation, and Auth0
-automation surfaces. Do not retain machine-readable contracts for deleted
-deploy-runtime or release-control-plane paths.
+Keep only schemas that describe surviving release, runtime deploy, validation,
+and Auth0 automation surfaces. Do not retain machine-readable contracts for
+deleted CodePipeline/CodeBuild or other removed control-plane paths.

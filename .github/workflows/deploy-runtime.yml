@@ -1,0 +1,81 @@
+name: Deploy Runtime
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_apply_run_id:
+        description: Workflow run id that produced release-apply artifacts.
+        required: true
+        type: string
+      release_apply_artifact_name:
+        description: Artifact name containing immutable release-apply outputs.
+        required: false
+        default: release-apply-artifacts
+        type: string
+      deploy_output_artifact_name:
+        description: Uploaded artifact name for deploy-output authority files.
+        required: false
+        default: deploy-runtime-output
+        type: string
+      validation_canonical_paths:
+        description: Comma-delimited canonical paths that must resolve.
+        required: false
+        default: /v1/health/live,/v1/health/ready,/metrics/summary,/v1/capabilities,/v1/releases/info
+        type: string
+      validation_legacy_404_paths:
+        description: Comma-delimited legacy paths that must return 404.
+        required: false
+        default: /healthz,/readyz,/api/transfers/uploads/initiate,/api/jobs,/api/v1/transfers/uploads/initiate
+        type: string
+      report_path:
+        description: JSON report output path.
+        required: false
+        default: post-deploy-validation-report.json
+        type: string
+      artifact_name:
+        description: Uploaded artifact name for validation output.
+        required: false
+        default: post-deploy-validation-report
+        type: string
+
+permissions:
+  id-token: write
+  contents: read
+  attestations: write
+
+concurrency:
+  group: deploy-runtime-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  deploy-runtime:
+    if: github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/reusable-deploy-runtime.yml
+    with:
+      release_apply_run_id: ${{ inputs.release_apply_run_id }}
+      release_apply_artifact_name: ${{ inputs.release_apply_artifact_name }}
+      deploy_output_artifact_name: ${{ inputs.deploy_output_artifact_name }}
+      api_domain_name: ${{ vars.RUNTIME_API_DOMAIN_NAME }}
+      certificate_arn: ${{ vars.RUNTIME_CERTIFICATE_ARN }}
+      hosted_zone_id: ${{ vars.RUNTIME_HOSTED_ZONE_ID }}
+      hosted_zone_name: ${{ vars.RUNTIME_HOSTED_ZONE_NAME }}
+      jwt_issuer: ${{ vars.RUNTIME_JWT_ISSUER }}
+      jwt_audience: ${{ vars.RUNTIME_JWT_AUDIENCE }}
+      jwt_jwks_url: ${{ vars.RUNTIME_JWT_JWKS_URL }}
+      runtime_cfn_execution_role_arn: ${{ vars.RUNTIME_CFN_EXECUTION_ROLE_ARN }}
+      aws_region: ${{ vars.AWS_REGION || 'us-east-1' }}
+      environment_name: ${{ vars.RUNTIME_ENVIRONMENT || 'dev' }}
+      allowed_origins: ${{ vars.RUNTIME_ALLOWED_ORIGINS || '' }}
+    secrets:
+      runtime_deploy_aws_role_arn: ${{ secrets.RUNTIME_DEPLOY_AWS_ROLE_ARN }}
+
+  post-deploy-validate:
+    needs: deploy-runtime
+    uses: ./.github/workflows/reusable-post-deploy-validate.yml
+    with:
+      deploy_run_id: ${{ github.run_id }}
+      deploy_artifact_name: ${{ needs.deploy-runtime.outputs.deploy_output_artifact_name }}
+      validation_canonical_paths: ${{ inputs.validation_canonical_paths }}
+      validation_legacy_404_paths: ${{ inputs.validation_legacy_404_paths }}
+      report_path: ${{ inputs.report_path }}
+      artifact_name: ${{ inputs.artifact_name }}

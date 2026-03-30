@@ -3,9 +3,19 @@ name: Post Deploy Validate
 on:
   workflow_dispatch:
     inputs:
-      validation_base_url:
-        description: Canonical base URL to validate (e.g. https://api.example.com)
+      deploy_run_id:
+        description: Workflow run id that produced the authoritative deploy-output artifact.
         required: true
+        type: string
+      deploy_repo:
+        description: Repository that owns the deploy-output artifact (owner/repo).
+        required: false
+        default: ""
+        type: string
+      deploy_artifact_name:
+        description: Artifact name containing deploy-output.json and deploy-output.sha256.
+        required: false
+        default: deploy-runtime-output
         type: string
       validation_canonical_paths:
         description: Comma-delimited canonical paths that must resolve (non-404).
@@ -35,7 +45,9 @@ jobs:
   post-deploy-validate:
     uses: ./.github/workflows/reusable-post-deploy-validate.yml
     with:
-      validation_base_url: ${{ inputs.validation_base_url }}
+      deploy_run_id: ${{ inputs.deploy_run_id }}
+      deploy_repo: ${{ inputs.deploy_repo }}
+      deploy_artifact_name: ${{ inputs.deploy_artifact_name }}
       validation_canonical_paths: ${{ inputs.validation_canonical_paths }}
       validation_legacy_404_paths: ${{ inputs.validation_legacy_404_paths }}
       report_path: ${{ inputs.report_path }}

@@ -32,6 +32,8 @@ def test_contract_schema_files_exist_and_are_valid_json() -> None:
     """Kept workflow/release schema files must exist and parse cleanly."""
     for rel_path in [
         "docs/contracts/release-artifacts-v1.schema.json",
+        "docs/contracts/deploy-output-authority-v2.schema.json",
+        "docs/contracts/workflow-deploy-runtime-v1.schema.json",
         "docs/contracts/workflow-post-deploy-validate.schema.json",
         "docs/contracts/workflow-auth0-tenant-deploy.schema.json",
         "docs/contracts/workflow-auth0-tenant-ops-v1.schema.json",
@@ -99,7 +101,34 @@ def test_post_deploy_validate_schema_matches_reusable_workflow() -> None:
         for key, value in workflow_inputs.items()
         if value.get("required", False)
     }
-    schema_required_inputs = set(schema["properties"]["inputs"]["required"])
+    schema_required_inputs = set(
+        schema["properties"]["inputs"].get("required", [])
+    )
+
+    assert set(workflow_inputs) == set(schema_inputs)
+    assert set(workflow_outputs) == set(schema_outputs)
+    assert workflow_required_inputs == schema_required_inputs
+
+
+def test_deploy_runtime_schema_matches_reusable_workflow() -> None:
+    """The deploy-runtime schema must match the reusable workflow API."""
+    schema = _read_json("docs/contracts/workflow-deploy-runtime-v1.schema.json")
+    workflow_call = _load_workflow_call(
+        ".github/workflows/reusable-deploy-runtime.yml"
+    )
+
+    workflow_inputs = workflow_call["inputs"]
+    workflow_outputs = workflow_call["outputs"]
+    schema_inputs = schema["properties"]["inputs"]["properties"]
+    schema_outputs = schema["properties"]["outputs"]["properties"]
+    workflow_required_inputs = {
+        key
+        for key, value in workflow_inputs.items()
+        if value.get("required", False)
+    }
+    schema_required_inputs = set(
+        schema["properties"]["inputs"].get("required", [])
+    )
 
     assert set(workflow_inputs) == set(schema_inputs)
     assert set(workflow_outputs) == set(schema_outputs)
@@ -119,7 +148,8 @@ def test_downstream_examples_reference_reusable_post_deploy_workflow() -> None:
     ]:
         text = _read(rel_path)
         assert workflow_ref in text
-        assert "validation_base_url: ${{ vars.NOVA_API_BASE_URL }}" in text
+        assert "deploy_repo: 3M-Cloud/nova" in text
+        assert "deploy_run_id: ${{ inputs.nova_deploy_run_id }}" in text
 
 
 def test_integration_guide_references_surviving_contract_docs() -> None:
@@ -128,8 +158,9 @@ def test_integration_guide_references_surviving_contract_docs() -> None:
 
     for required in [
         "reusable-post-deploy-validate.yml",
+        "docs/contracts/deploy-output-authority-v2.schema.json",
+        "docs/contracts/workflow-deploy-runtime-v1.schema.json",
         "docs/contracts/workflow-post-deploy-validate.schema.json",
-        "docs/contracts/workflow-auth0-tenant-deploy.schema.json",
         "docs/contracts/browser-live-validation-report.schema.json",
         "docs/contracts/release-artifacts-v1.schema.json",
         "docs/runbooks/release/release-policy.md",
@@ -143,6 +174,7 @@ def test_integration_guide_references_surviving_contract_docs() -> None:
         "reusable-workflow-outputs-v1.schema.json",
         "deploy-size-profiles-v1.json",
         "ssm-runtime-base-url-v1.schema.json",
+        "NOVA_API_BASE_URL",
     ]:
         assert forbidden not in text
 
@@ -165,7 +197,9 @@ def test_auth0_workflow_schema_matches_reusable_auth0_api() -> None:
         for key, value in workflow_inputs.items()
         if value.get("required", False)
     }
-    schema_required_inputs = set(schema["properties"]["inputs"]["required"])
+    schema_required_inputs = set(
+        schema["properties"]["inputs"].get("required", [])
+    )
 
     assert set(workflow_inputs) == set(schema_inputs)
     assert set(workflow_outputs) == set(schema_outputs)

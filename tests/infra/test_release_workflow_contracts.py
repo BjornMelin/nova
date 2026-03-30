@@ -166,13 +166,15 @@ def test_release_plan_workflow_is_wrapper_to_reusable_api() -> None:
 
 
 def test_post_deploy_validate_workflow_contracts() -> None:
-    """Post-deploy validation remains a thin route-contract wrapper."""
+    """Post-deploy validation must resolve deploy-output authority first."""
     wrapper_text = _read(".github/workflows/post-deploy-validate.yml")
     reusable_text = _read(".github/workflows/reusable-post-deploy-validate.yml")
 
     for required in [
         "uses: ./.github/workflows/reusable-post-deploy-validate.yml",
-        "validation_base_url",
+        "deploy_run_id",
+        "deploy_repo",
+        "deploy_artifact_name",
         "validation_canonical_paths",
         "validation_legacy_404_paths",
         "report_path",
@@ -183,8 +185,10 @@ def test_post_deploy_validate_workflow_contracts() -> None:
     for required in [
         "workflow_call:",
         "validation_status",
-        "VALIDATION_BASE_URL",
-        "scripts/release/validate_route_contract.py",
+        "deploy_output_json",
+        "deploy_output_path",
+        "scripts.release.download_run_artifact",
+        "scripts/release/validate_runtime_release.py",
         "post-deploy-validation-report.json",
     ]:
         assert required in reusable_text
@@ -196,7 +200,6 @@ def test_deleted_deploy_runtime_surface_is_absent() -> None:
         ".github/workflows/deploy-dev.yml",
         ".github/workflows/reusable-bootstrap-foundation.yml",
         ".github/workflows/reusable-deploy-dev.yml",
-        ".github/workflows/reusable-deploy-runtime.yml",
         "buildspecs/buildspec-release.yml",
         "buildspecs/buildspec-deploy-validate.yml",
     ]:

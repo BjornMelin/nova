@@ -26,7 +26,7 @@ Playwright pytest e2e by certifying environment-integrated behavior.
 
 - `ENVIRONMENT` (`dev` or `prod`)
 - `DASH_BASE_URL` (HTTPS)
-- `NOVA_BASE_URL` (HTTPS)
+- `NOVA_DEPLOY_OUTPUT_PATH` (path to authoritative `deploy-output.json`)
 - `E2E_UPLOAD_FILE` (stable fixture)
 - optional auth inputs:
   - `AUTH_ENABLED` (`true`/`false`)
@@ -48,8 +48,8 @@ mkdir -p "$OUT"
 ### C01: Canonical route contract preflight
 
 ```bash
-python3 scripts/release/validate_route_contract.py \
-  --base-url "$NOVA_BASE_URL" \
+python3 scripts/release/validate_runtime_release.py \
+  --deploy-output-path "$NOVA_DEPLOY_OUTPUT_PATH" \
   --report-path "$OUT/nova-route-contract.json"
 ```
 

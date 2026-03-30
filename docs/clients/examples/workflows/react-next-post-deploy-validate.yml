@@ -2,14 +2,20 @@ name: React Next Post Deploy Validate
 
 on:
   workflow_dispatch:
+    inputs:
+      nova_deploy_run_id:
+        description: Nova Deploy Runtime workflow run id to validate.
+        required: true
+        type: string
 
 permissions:
   contents: read
 
 jobs:
   validate:
-    uses: 3M-Cloud/nova/.github/workflows/reusable-post-deploy-validate.yml@655ccab0d071c828045de4a4d3bb441d4349194e
+    uses: 3M-Cloud/nova/.github/workflows/reusable-post-deploy-validate.yml@<pin-to-an-immutable-revision>
     with:
-      validation_base_url: ${{ vars.NOVA_API_BASE_URL }}
+      deploy_repo: 3M-Cloud/nova
+      deploy_run_id: ${{ inputs.nova_deploy_run_id }}
       validation_canonical_paths: /v1/health/live,/v1/health/ready,/metrics/summary,/v1/capabilities,/v1/releases/info
       validation_legacy_404_paths: /healthz,/readyz,/api/transfers/uploads/initiate,/api/jobs,/api/v1/transfers/uploads/initiate

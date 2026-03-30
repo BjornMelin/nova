@@ -4,6 +4,10 @@ inputs:
   role-to-assume:
     description: IAM role ARN to assume via OIDC.
     required: true
+  role-session-name:
+    description: Optional role session name for CloudTrail provenance.
+    required: false
+    default: ""
   aws-region:
     description: AWS region for the session.
     required: false
@@ -15,4 +19,5 @@ runs:
       uses: aws-actions/configure-aws-credentials@8df5847569e6427dd6c4fb1cf565c83acfa8afa7 # aws-actions/configure-aws-credentials@v6
       with:
         role-to-assume: ${{ inputs.role-to-assume }}
+        role-session-name: ${{ inputs.role-session-name }}
         aws-region: ${{ inputs.aws-region }}

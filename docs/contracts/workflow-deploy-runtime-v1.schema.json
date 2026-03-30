@@ -1,0 +1,149 @@
+{
+  "$id": "https://3m-cloud.github.io/nova/docs/contracts/workflow-deploy-runtime-v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Contract for reusable deploy-runtime workflow inputs and outputs.",
+  "properties": {
+    "inputs": {
+      "additionalProperties": false,
+      "properties": {
+        "allowed_origins": {
+          "default": "",
+          "type": "string"
+        },
+        "api_domain_name": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "aws_region": {
+          "default": "us-east-1",
+          "pattern": "^[a-z]{2}-[a-z]+-\\d+$",
+          "type": "string"
+        },
+        "certificate_arn": {
+          "pattern": "^arn:[^\\s]+:acm:[^\\s]+$",
+          "type": "string"
+        },
+        "deploy_output_artifact_name": {
+          "default": "deploy-runtime-output",
+          "minLength": 1,
+          "type": "string"
+        },
+        "deploy_output_path": {
+          "default": ".artifacts/deploy-output.json",
+          "pattern": "^[^\\s]+\\.json$",
+          "type": "string"
+        },
+        "deploy_output_sha256_path": {
+          "default": ".artifacts/deploy-output.sha256",
+          "pattern": "^[^\\s]+\\.(sha256|txt)$",
+          "type": "string"
+        },
+        "environment_name": {
+          "default": "dev",
+          "minLength": 1,
+          "type": "string"
+        },
+        "hosted_zone_id": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "hosted_zone_name": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "jwt_audience": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "jwt_issuer": {
+          "pattern": "^https://.+$",
+          "type": "string"
+        },
+        "jwt_jwks_url": {
+          "pattern": "^https://.+$",
+          "type": "string"
+        },
+        "release_apply_artifact_name": {
+          "default": "release-apply-artifacts",
+          "minLength": 1,
+          "type": "string"
+        },
+        "release_apply_run_id": {
+          "pattern": "^[1-9][0-9]*$",
+          "type": "string"
+        },
+        "runtime_cfn_execution_role_arn": {
+          "pattern": "^arn:[^\\s]+:iam::\\d{12}:role/.+$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "release_apply_run_id",
+        "api_domain_name",
+        "certificate_arn",
+        "hosted_zone_id",
+        "hosted_zone_name",
+        "jwt_issuer",
+        "jwt_audience",
+        "jwt_jwks_url",
+        "runtime_cfn_execution_role_arn"
+      ],
+      "type": "object"
+    },
+    "outputs": {
+      "additionalProperties": false,
+      "properties": {
+        "deploy_output_artifact_name": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "deploy_output_path": {
+          "pattern": "^[^\\s]+\\.json$",
+          "type": "string"
+        },
+        "deploy_output_sha256": {
+          "pattern": "^[A-Fa-f0-9]{64}$",
+          "type": "string"
+        },
+        "deploy_output_sha256_path": {
+          "pattern": "^[^\\s]+\\.(sha256|txt)$",
+          "type": "string"
+        },
+        "public_base_url": {
+          "pattern": "^https://.+$",
+          "type": "string"
+        },
+        "release_commit_sha": {
+          "pattern": "^[A-Fa-f0-9]{40}$",
+          "type": "string"
+        },
+        "runtime_version": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "stack_name": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "deploy_output_artifact_name",
+        "deploy_output_path",
+        "deploy_output_sha256_path",
+        "deploy_output_sha256",
+        "public_base_url",
+        "runtime_version",
+        "release_commit_sha",
+        "stack_name"
+      ],
+      "type": "object"
+    }
+  },
+  "required": [
+    "inputs",
+    "outputs"
+  ],
+  "title": "Reusable Deploy Runtime workflow_call contract",
+  "type": "object"
+}
