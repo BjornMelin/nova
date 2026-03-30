@@ -46,6 +46,7 @@ def test_reusable_deploy_runtime_uses_immutable_release_inputs() -> None:
         "release_apply_run_id",
         "release_apply_artifact_name",
         "runtime_cfn_execution_role_arn",
+        "actions: read",
         "hosted_zone_id",
         "hosted_zone_name",
         "Setup Node",
@@ -76,6 +77,8 @@ def test_reusable_deploy_runtime_uses_immutable_release_inputs() -> None:
         "reusable-deploy-dev",
     ]:
         assert forbidden not in text
+
+    assert '--role-arn "${{ inputs.runtime_cfn_execution_role_arn }}"' in text
 
     download_index = text.index("Download immutable release-apply artifacts")
     checkout_index = text.index("Checkout immutable release commit")

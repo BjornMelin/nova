@@ -175,6 +175,7 @@ def test_post_deploy_validate_workflow_contracts() -> None:
         "deploy_run_id",
         "deploy_repo",
         "deploy_artifact_name",
+        "actions: read",
         "validation_canonical_paths",
         "validation_legacy_404_paths",
         "report_path",

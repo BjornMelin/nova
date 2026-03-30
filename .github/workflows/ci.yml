@@ -406,7 +406,7 @@ jobs:
             .artifacts/coverage/runtime \
             .artifacts/coverage/primary \
             .artifacts/coverage/generated-smoke; do
-            if [[ -d "${coverage_dir}" ]] && compgen -G "${coverage_dir}/*" > /dev/null; then
+            if [[ -d "${coverage_dir}" ]] && find "${coverage_dir}" -maxdepth 1 -type f | grep -q .; then
               coverage_inputs+=("${coverage_dir}")
             fi
           done
