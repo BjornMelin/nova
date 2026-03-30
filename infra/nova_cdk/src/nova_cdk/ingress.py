@@ -12,6 +12,8 @@ from aws_cdk import aws_apigateway as apigw
 from aws_cdk import aws_certificatemanager as acm
 from aws_cdk import aws_lambda as lambda_
 from aws_cdk import aws_logs as logs
+from aws_cdk import aws_route53 as route53
+from aws_cdk import aws_route53_targets as route53_targets
 from aws_cdk import aws_wafv2 as wafv2
 from constructs import Construct
 
@@ -91,6 +93,7 @@ def create_regional_rest_ingress(
     api_domain_name: str,
     api_handler: lambda_.IFunction,
     certificate_arn: str,
+    hosted_zone: route53.IHostedZone,
     stage_name: str,
     throttling_burst_limit: int,
     throttling_rate_limit: float,
@@ -131,12 +134,30 @@ def create_regional_rest_ingress(
         "NovaApiCertificate",
         certificate_arn,
     )
-    rest_api.add_domain_name(
+    custom_domain = rest_api.add_domain_name(
         "NovaCustomDomain",
         certificate=certificate,
         domain_name=api_domain_name,
         endpoint_type=apigw.EndpointType.REGIONAL,
         security_policy=apigw.SecurityPolicy.TLS_1_2,
+    )
+    route53.ARecord(
+        scope,
+        "NovaApiAliasRecord",
+        zone=hosted_zone,
+        record_name=api_domain_name,
+        target=route53.RecordTarget.from_alias(
+            route53_targets.ApiGatewayDomain(custom_domain)
+        ),
+    )
+    route53.AaaaRecord(
+        scope,
+        "NovaApiAliasRecordIpv6",
+        zone=hosted_zone,
+        record_name=api_domain_name,
+        target=route53.RecordTarget.from_alias(
+            route53_targets.ApiGatewayDomain(custom_domain)
+        ),
     )
 
     web_acl = wafv2.CfnWebACL(
@@ -151,7 +172,7 @@ def create_regional_rest_ingress(
             sampled_requests_enabled=True,
         ),
     )
-    wafv2.CfnWebACLAssociation(
+    web_acl_association = wafv2.CfnWebACLAssociation(
         scope,
         "NovaRestApiWebAclAssociation",
         resource_arn=(
@@ -160,6 +181,7 @@ def create_regional_rest_ingress(
         ),
         web_acl_arn=web_acl.attr_arn,
     )
+    web_acl_association.node.add_dependency(rest_api.deployment_stage)
 
     return IngressResources(
         public_base_url=f"https://{api_domain_name}",

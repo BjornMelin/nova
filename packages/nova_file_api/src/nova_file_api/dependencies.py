@@ -15,8 +15,10 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from nova_file_api.activity import (
     ActivityStore,
     DynamoActivityStore,
-    DynamoDbClientProtocol,
     MemoryActivityStore,
+)
+from nova_file_api.activity import (
+    DynamoResource as ActivityDynamoResource,
 )
 from nova_file_api.auth import Authenticator
 from nova_file_api.cache import LocalTTLCache, TwoTierCache
@@ -429,12 +431,7 @@ def build_activity_store(
             raise ValueError(_MSG_DYNAMODB_RESOURCE_REQUIRED)
         return DynamoActivityStore(
             table_name=rollups_table,
-            ddb_client=cast(
-                DynamoDbClientProtocol,
-                _dynamodb_client_from_resource(
-                    dynamodb_resource=dynamodb_resource
-                ),
-            ),
+            dynamodb_resource=cast(ActivityDynamoResource, dynamodb_resource),
         )
     return MemoryActivityStore()
 
@@ -551,10 +548,3 @@ IdempotencyStoreDep = Annotated[
 ]
 AuthenticatorDep = Annotated[Authenticator, Depends(get_authenticator)]
 PrincipalDep = Annotated[Principal, Depends(get_principal)]
-
-
-def _dynamodb_client_from_resource(*, dynamodb_resource: object) -> object:
-    meta = getattr(dynamodb_resource, "meta", None)
-    if meta is not None and hasattr(meta, "client"):
-        return meta.client
-    return dynamodb_resource

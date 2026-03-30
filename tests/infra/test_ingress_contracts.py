@@ -40,6 +40,8 @@ def _context_for_region(region: str) -> dict[str, str]:
             f"arn:aws:acm:{region}:111111111111:"
             "certificate/12345678-1234-1234-1234-123456789012"
         ),
+        "hosted_zone_id": "Z1234567890EXAMPLE",
+        "hosted_zone_name": "example.com",
         "jwt_audience": "api://nova",
         "jwt_issuer": "https://issuer.example.com/",
         "jwt_jwks_url": "https://issuer.example.com/.well-known/jwks.json",
@@ -154,12 +156,23 @@ def test_runtime_stack_associates_regional_waf_to_api_stage() -> None:
         "AWS::WAFv2::WebACLAssociation",
     )
     assert len(associations) == 1
+    association_logical_id, association_resource = next(
+        iter(associations.items())
+    )
+    del association_logical_id
     association_text = json.dumps(
-        next(iter(associations.values()))["Properties"],
+        association_resource["Properties"],
         sort_keys=True,
     )
     assert "/restapis/" in association_text
     assert "/stages/dev" in association_text
+    stage_logical_id = next(
+        iter(_resources_of_type(resources, "AWS::ApiGateway::Stage"))
+    )
+    depends_on = association_resource.get("DependsOn", [])
+    if isinstance(depends_on, str):
+        depends_on = [depends_on]
+    assert stage_logical_id in depends_on
 
 
 def test_runtime_stack_exports_one_canonical_public_base_url() -> None:
@@ -195,6 +208,22 @@ def test_runtime_stack_creates_regional_custom_domain_mapping() -> None:
         "AWS::ApiGateway::BasePathMapping",
     )
     assert len(mappings) == 1
+
+    record_sets = _resources_of_type(resources, "AWS::Route53::RecordSet")
+    assert len(record_sets) == 2
+    for resource in record_sets.values():
+        props = resource["Properties"]
+        assert props["HostedZoneId"] == "Z1234567890EXAMPLE"
+        assert props["Name"] == "api.dev.example.com."
+        alias_target = props["AliasTarget"]
+        assert alias_target["DNSName"]["Fn::GetAtt"] == [
+            "NovaRestApiNovaCustomDomainD36BCF34",
+            "RegionalDomainName",
+        ]
+        assert alias_target["HostedZoneId"]["Fn::GetAtt"] == [
+            "NovaRestApiNovaCustomDomainD36BCF34",
+            "RegionalHostedZoneId",
+        ]
 
 
 def test_runtime_stack_keeps_proxy_ingress_and_required_route_contract() -> (

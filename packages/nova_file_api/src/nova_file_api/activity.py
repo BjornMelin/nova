@@ -2,24 +2,24 @@
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
+import inspect
 import logging
 import re
 import threading
 from collections import defaultdict
+from collections.abc import Awaitable, Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Protocol, TypeAlias
+from decimal import Decimal
+from typing import Any, Protocol, cast
 
 from botocore.exceptions import BotoCoreError, ClientError
 
 from nova_file_api.models import Principal
 
 logger = logging.getLogger(__name__)
-
-DynamoAttributeValue: TypeAlias = dict[str, str]
-DynamoItem: TypeAlias = dict[str, DynamoAttributeValue]
-DynamoKey: TypeAlias = DynamoItem
 
 
 class ActivityStore(Protocol):
@@ -63,36 +63,40 @@ class ActivityStore(Protocol):
         """
 
 
-class DynamoDbClientProtocol(Protocol):
-    """Subset of DynamoDB client methods used by rollup storage."""
+class DynamoTable(Protocol):
+    """Subset of DynamoDB table operations used by activity rollups."""
 
-    async def update_item(
-        self,
-        *,
-        TableName: str,
-        Key: DynamoKey,
-        UpdateExpression: str,
-        ExpressionAttributeNames: dict[str, str],
-        ExpressionAttributeValues: DynamoItem,
-    ) -> object:
+    async def update_item(self, **kwargs: object) -> Mapping[str, object]:
         """Update a DynamoDB item."""
 
-    async def put_item(
-        self,
-        *,
-        TableName: str,
-        Item: DynamoItem,
-        ConditionExpression: str,
-    ) -> object:
+    async def put_item(self, **kwargs: object) -> Mapping[str, object]:
         """Put a DynamoDB item."""
 
-    async def get_item(
-        self,
-        *,
-        TableName: str,
-        Key: DynamoKey,
-    ) -> dict[str, DynamoItem]:
+    async def get_item(self, **kwargs: object) -> Mapping[str, object]:
         """Get a DynamoDB item."""
+
+
+class DynamoResource(Protocol):
+    """Subset of DynamoDB resource operations used by activity rollups."""
+
+    def Table(self, table_name: str) -> DynamoTable | Awaitable[DynamoTable]:
+        """Return one table object or an awaitable table object."""
+
+
+def _as_dynamo_table(table: object) -> DynamoTable:
+    """Validate and cast a DynamoDB table-like object."""
+    invalid_methods: list[str] = []
+    for method_name in ("update_item", "put_item", "get_item"):
+        method = getattr(table, method_name, None)
+        if not callable(method):
+            invalid_methods.append(method_name)
+    if invalid_methods:
+        methods = ", ".join(invalid_methods)
+        raise TypeError(
+            "dynamodb resource returned an invalid table object; "
+            f"missing or non-callable: {methods}"
+        )
+    return cast(DynamoTable, table)
 
 
 @dataclass(slots=True)
@@ -176,16 +180,18 @@ class DynamoActivityStore:
         self,
         *,
         table_name: str,
-        ddb_client: DynamoDbClientProtocol,
+        dynamodb_resource: DynamoResource,
     ) -> None:
         """Create a rollup store bound to the configured table.
 
         Args:
             table_name: DynamoDB table name for activity rollups.
-            ddb_client: Injected async DynamoDB client.
+            dynamodb_resource: Injected async DynamoDB resource.
         """
         self._table_name = table_name
-        self._ddb: DynamoDbClientProtocol = ddb_client
+        self._dynamodb_resource = dynamodb_resource
+        self._table: DynamoTable | None = None
+        self._table_lock = asyncio.Lock()
 
     async def record(
         self,
@@ -216,25 +222,27 @@ class DynamoActivityStore:
             table=self._table_name,
             details=details,
         )
-        summary_key = {"pk": {"S": f"ROLLUP#{day}"}, "sk": {"S": "SUMMARY"}}
-        user_marker_key = {
-            "pk": {"S": f"USERDAY#{day}"},
-            "sk": {"S": principal.subject},
-        }
+        summary_key = {"pk": f"ROLLUP#{day}", "sk": "SUMMARY"}
+        user_marker_key = {"pk": f"USERDAY#{day}", "sk": principal.subject}
         event_rollup_key = {
-            "pk": {"S": f"ROLLUP#{day}"},
-            "sk": {"S": f"EVENT#{event_type}"},
+            "pk": f"ROLLUP#{day}",
+            "sk": f"EVENT#{event_type}",
         }
         event_type_marker_key = {
-            "pk": {"S": f"EVENTTYPEDAY#{day}"},
-            "sk": {"S": event_type},
+            "pk": f"EVENTTYPEDAY#{day}",
+            "sk": event_type,
         }
+        table = await self._resolve_table()
         try:
             await self._increment_counter(
-                key=event_rollup_key, counter_name="event_count"
+                table=table,
+                key=event_rollup_key,
+                counter_name="event_count",
             )
             await self._increment_counter(
-                key=summary_key, counter_name="events_total"
+                table=table,
+                key=summary_key,
+                counter_name="events_total",
             )
         except (ClientError, BotoCoreError) as exc:
             logger.warning(
@@ -246,7 +254,8 @@ class DynamoActivityStore:
 
         try:
             user_was_new = await self._write_marker_if_absent(
-                key=user_marker_key
+                table=table,
+                key=user_marker_key,
             )
         except (ClientError, BotoCoreError) as exc:
             logger.warning(
@@ -259,7 +268,9 @@ class DynamoActivityStore:
         if user_was_new:
             try:
                 await self._increment_counter(
-                    key=summary_key, counter_name="active_users_today"
+                    table=table,
+                    key=summary_key,
+                    counter_name="active_users_today",
                 )
             except (ClientError, BotoCoreError) as exc:
                 logger.warning(
@@ -270,7 +281,8 @@ class DynamoActivityStore:
 
         try:
             event_type_was_new = await self._write_marker_if_absent(
-                key=event_type_marker_key
+                table=table,
+                key=event_type_marker_key,
             )
         except (ClientError, BotoCoreError) as exc:
             logger.warning(
@@ -283,7 +295,9 @@ class DynamoActivityStore:
         if event_type_was_new:
             try:
                 await self._increment_counter(
-                    key=summary_key, counter_name="distinct_event_types"
+                    table=table,
+                    key=summary_key,
+                    counter_name="distinct_event_types",
                 )
             except (ClientError, BotoCoreError) as exc:
                 logger.warning(
@@ -301,9 +315,9 @@ class DynamoActivityStore:
         """
         day = _day_key()
         try:
-            response = await self._ddb.get_item(
-                TableName=self._table_name,
-                Key={"pk": {"S": f"ROLLUP#{day}"}, "sk": {"S": "SUMMARY"}},
+            table = await self._resolve_table()
+            response = await table.get_item(
+                Key={"pk": f"ROLLUP#{day}", "sk": "SUMMARY"}
             )
         except (ClientError, BotoCoreError):
             return {
@@ -312,19 +326,24 @@ class DynamoActivityStore:
                 "distinct_event_types": 0,
             }
         item = response.get("Item")
-        if item is None:
+        if not isinstance(item, Mapping):
             return {
                 "events_total": 0,
                 "active_users_today": 0,
                 "distinct_event_types": 0,
             }
+        typed_item = cast(Mapping[str, Any], item)
         return {
-            "events_total": int(item.get("events_total", {"N": "0"})["N"]),
-            "active_users_today": int(
-                item.get("active_users_today", {"N": "0"})["N"]
+            "events_total": _coerce_counter(
+                item=typed_item, key="events_total"
             ),
-            "distinct_event_types": int(
-                item.get("distinct_event_types", {"N": "0"})["N"]
+            "active_users_today": _coerce_counter(
+                item=typed_item,
+                key="active_users_today",
+            ),
+            "distinct_event_types": _coerce_counter(
+                item=typed_item,
+                key="distinct_event_types",
             ),
         }
 
@@ -335,23 +354,29 @@ class DynamoActivityStore:
             True when the health probe query succeeds, otherwise False.
         """
         try:
-            await self._ddb.get_item(
-                TableName=self._table_name,
-                Key={"pk": {"S": "ROLLUP#health"}, "sk": {"S": "SUMMARY"}},
+            table = await self._resolve_table()
+            await table.get_item(Key={"pk": "ROLLUP#health", "sk": "SUMMARY"})
+        except (ClientError, BotoCoreError) as exc:
+            logger.warning(
+                "activity store healthcheck failed",
+                extra={
+                    "table": self._table_name,
+                    "error_type": exc.__class__.__name__,
+                },
+                exc_info=exc,
             )
-        except (ClientError, BotoCoreError):
             return False
         return True
 
     async def _increment_counter(
         self,
         *,
-        key: dict[str, dict[str, str]],
+        table: DynamoTable,
+        key: dict[str, str],
         counter_name: str,
     ) -> None:
         """Increment one numeric counter on the target item."""
-        await self._ddb.update_item(
-            TableName=self._table_name,
+        await table.update_item(
             Key=key,
             UpdateExpression=(
                 "SET #updated_at = :updated_at ADD #counter :increment"
@@ -361,24 +386,24 @@ class DynamoActivityStore:
                 "#updated_at": "updated_at",
             },
             ExpressionAttributeValues={
-                ":increment": {"N": "1"},
-                ":updated_at": {"S": _iso_now()},
+                ":increment": 1,
+                ":updated_at": _iso_now(),
             },
         )
 
     async def _write_marker_if_absent(
         self,
         *,
-        key: dict[str, dict[str, str]],
+        table: DynamoTable,
+        key: dict[str, str],
     ) -> bool:
         """Write a marker item only if absent, returning True on creation."""
         try:
-            await self._ddb.put_item(
-                TableName=self._table_name,
+            await table.put_item(
                 Item={
                     **key,
-                    "expires_at": {"N": _ttl_for_days(2)},
-                    "created_at": {"S": _iso_now()},
+                    "expires_at": int(_ttl_for_days(2)),
+                    "created_at": _iso_now(),
                 },
                 ConditionExpression="attribute_not_exists(pk)",
             )
@@ -389,6 +414,19 @@ class DynamoActivityStore:
             raise
         else:
             return True
+
+    async def _resolve_table(self) -> DynamoTable:
+        """Resolve and memoize one table object from the configured resource."""
+        if self._table is not None:
+            return self._table
+        async with self._table_lock:
+            if self._table is None:
+                table_obj = self._dynamodb_resource.Table(self._table_name)
+                if inspect.isawaitable(table_obj):
+                    table_obj = await table_obj
+                self._table = _as_dynamo_table(table_obj)
+        assert self._table is not None
+        return self._table
 
 
 def _record_log_context(
@@ -461,3 +499,13 @@ def _iso_now() -> str:
 def _ttl_for_days(days: int) -> str:
     ttl = int(datetime.now(tz=UTC).timestamp()) + (days * 24 * 60 * 60)
     return str(ttl)
+
+
+def _coerce_counter(*, item: Mapping[str, Any], key: str) -> int:
+    """Return one integer counter from one DynamoDB resource item."""
+    value = item.get(key, 0)
+    if isinstance(value, (int, Decimal)):
+        return int(value)
+    if isinstance(value, str):
+        return int(value)
+    return 0

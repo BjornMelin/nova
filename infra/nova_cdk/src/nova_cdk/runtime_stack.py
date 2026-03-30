@@ -14,8 +14,10 @@ from typing import Any
 from aws_cdk import Duration, RemovalPolicy, Stack
 from aws_cdk import aws_cloudwatch as cloudwatch
 from aws_cdk import aws_dynamodb as dynamodb
+from aws_cdk import aws_iam as iam
 from aws_cdk import aws_lambda as lambda_
 from aws_cdk import aws_logs as logs
+from aws_cdk import aws_route53 as route53
 from aws_cdk import aws_s3 as s3
 from aws_cdk import aws_stepfunctions as sfn
 from aws_cdk import aws_stepfunctions_tasks as tasks
@@ -123,6 +125,13 @@ def _stage_name_for_environment(deployment_environment: str) -> str:
     return deployment_environment
 
 
+def _default_api_reserved_concurrency(deployment_environment: str) -> int:
+    """Return a safe default reserved concurrency for one environment."""
+    if deployment_environment in {"prod", "production"}:
+        return 25
+    return 0
+
+
 def _point_in_time_recovery() -> dynamodb.PointInTimeRecoverySpecification:
     """Return the canonical PITR setting for runtime DynamoDB tables."""
     return dynamodb.PointInTimeRecoverySpecification(
@@ -149,12 +158,14 @@ class RuntimeStackInputs:
     """Carry canonical runtime inputs resolved from context and environment."""
 
     allowed_origins: list[str]
-    api_reserved_concurrency: int
+    api_reserved_concurrency: int | None
     api_stage_throttling_burst_limit: int
     api_stage_throttling_rate_limit: float
     api_domain_name: str
     certificate_arn: str
     deployment_environment: str
+    hosted_zone_id: str
+    hosted_zone_name: str
     oidc_audience: str
     oidc_issuer: str
     oidc_jwks_url: str
@@ -183,16 +194,34 @@ class RuntimeStackInputs:
                     "deployments."
                 )
             allowed_origins = ["*"]
+        raw_reserved_concurrency = scope.node.try_get_context(
+            "api_reserved_concurrency"
+        )
+        if raw_reserved_concurrency is None:
+            raw_reserved_concurrency = os.environ.get(
+                "API_RESERVED_CONCURRENCY"
+            )
+        api_reserved_concurrency: int | None
+        if raw_reserved_concurrency is None or (
+            isinstance(raw_reserved_concurrency, str)
+            and not raw_reserved_concurrency.strip()
+        ):
+            default_reserved_concurrency = _default_api_reserved_concurrency(
+                deployment_environment
+            )
+            api_reserved_concurrency = (
+                default_reserved_concurrency
+                if default_reserved_concurrency > 0
+                else None
+            )
+        else:
+            parsed_reserved_concurrency = int(raw_reserved_concurrency)
+            if parsed_reserved_concurrency < 1:
+                raise ValueError("api_reserved_concurrency must be >= 1.")
+            api_reserved_concurrency = parsed_reserved_concurrency
         return cls(
             allowed_origins=allowed_origins,
-            api_reserved_concurrency=int(
-                _numeric_context_or_env_value(
-                    scope,
-                    env_var="API_RESERVED_CONCURRENCY",
-                    key="api_reserved_concurrency",
-                    default=25,
-                )
-            ),
+            api_reserved_concurrency=api_reserved_concurrency,
             api_stage_throttling_burst_limit=int(
                 _numeric_context_or_env_value(
                     scope,
@@ -221,6 +250,16 @@ class RuntimeStackInputs:
                 key="certificate_arn",
             ),
             deployment_environment=deployment_environment,
+            hosted_zone_id=_required_context_or_env_value(
+                scope,
+                env_var="HOSTED_ZONE_ID",
+                key="hosted_zone_id",
+            ),
+            hosted_zone_name=_required_context_or_env_value(
+                scope,
+                env_var="HOSTED_ZONE_NAME",
+                key="hosted_zone_name",
+            ),
             oidc_audience=_required_context_or_env_value(
                 scope,
                 env_var="JWT_AUDIENCE",
@@ -523,21 +562,18 @@ class NovaRuntimeStack(Stack):
             api_lambda_artifact_bucket_name,
         )
 
-        api_function = lambda_.Function(
-            self,
-            "NovaApiFunction",
-            runtime=lambda_.Runtime.PYTHON_3_13,
-            handler="nova_file_api.lambda_handler.handler",
-            code=lambda_.Code.from_bucket(
+        api_function_kwargs: dict[str, Any] = {
+            "runtime": lambda_.Runtime.PYTHON_3_13,
+            "handler": "nova_file_api.lambda_handler.handler",
+            "code": lambda_.Code.from_bucket(
                 api_lambda_artifact_bucket,
                 api_lambda_artifact_key,
             ),
-            architecture=lambda_.Architecture.ARM_64,
-            memory_size=2048,
-            reserved_concurrent_executions=inputs.api_reserved_concurrency,
-            timeout=Duration.seconds(29),
-            tracing=lambda_.Tracing.ACTIVE,
-            environment={
+            "architecture": lambda_.Architecture.ARM_64,
+            "memory_size": 2048,
+            "timeout": Duration.seconds(29),
+            "tracing": lambda_.Tracing.ACTIVE,
+            "environment": {
                 **common_env,
                 "IDEMPOTENCY_ENABLED": "true",
                 "IDEMPOTENCY_DYNAMODB_TABLE": idempotency_table.table_name,
@@ -547,22 +583,44 @@ class NovaRuntimeStack(Stack):
                 ),
                 "API_RELEASE_ARTIFACT_SHA256": api_lambda_artifact_sha256,
             },
-            log_group=_runtime_log_group(
+            "log_group": _runtime_log_group(
                 self,
                 function_name="NovaApiFunction",
             ),
+        }
+        if inputs.api_reserved_concurrency is not None:
+            api_function_kwargs["reserved_concurrent_executions"] = (
+                inputs.api_reserved_concurrency
+            )
+
+        api_function = lambda_.Function(
+            self,
+            "NovaApiFunction",
+            **api_function_kwargs,
         )
         file_bucket.grant_read_write(api_function)
         export_table.grant_read_write_data(api_function)
         activity_table.grant_read_write_data(api_function)
         idempotency_table.grant_read_write_data(api_function)
         state_machine.grant_start_execution(api_function)
+        api_function.add_to_role_policy(
+            iam.PolicyStatement(
+                actions=["states:DescribeStateMachine"],
+                resources=[state_machine.state_machine_arn],
+            )
+        )
 
         ingress = create_regional_rest_ingress(
             self,
             api_domain_name=inputs.api_domain_name,
             api_handler=api_function,
             certificate_arn=inputs.certificate_arn,
+            hosted_zone=route53.HostedZone.from_hosted_zone_attributes(
+                self,
+                "NovaHostedZone",
+                hosted_zone_id=inputs.hosted_zone_id,
+                zone_name=inputs.hosted_zone_name,
+            ),
             stage_name=_stage_name_for_environment(
                 inputs.deployment_environment
             ),

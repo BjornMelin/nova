@@ -40,6 +40,8 @@ def _context_for_region(region: str) -> dict[str, str]:
             f"arn:aws:acm:{region}:111111111111:"
             "certificate/12345678-1234-1234-1234-123456789012"
         ),
+        "hosted_zone_id": "Z1234567890EXAMPLE",
+        "hosted_zone_name": "example.com",
         "jwt_audience": "api://nova",
         "jwt_issuer": "https://issuer.example.com/",
         "jwt_jwks_url": "https://issuer.example.com/.well-known/jwks.json",
@@ -136,6 +138,8 @@ def _build_bundle(
         "api_lambda_artifact_key",
         "api_lambda_artifact_sha256",
         "certificate_arn",
+        "hosted_zone_id",
+        "hosted_zone_name",
         "jwt_audience",
         "jwt_issuer",
         "jwt_jwks_url",
@@ -190,7 +194,7 @@ def test_runtime_stack_packages_api_lambda_as_native_zip() -> None:
     props = api_resource["Properties"]
     assert props["Handler"] == "nova_file_api.lambda_handler.handler"
     assert props["Runtime"] == "python3.13"
-    assert props["ReservedConcurrentExecutions"] == 25
+    assert "ReservedConcurrentExecutions" not in props
     assert "S3Bucket" in props["Code"]
     assert (
         props["Code"]["S3Key"]
@@ -201,6 +205,40 @@ def test_runtime_stack_packages_api_lambda_as_native_zip() -> None:
         props["Environment"]["Variables"]["API_RELEASE_ARTIFACT_SHA256"]
         == _context_for_region("us-west-2")["api_lambda_artifact_sha256"]
     )
+
+    policies = _resources_of_type(bundle.resources, "AWS::IAM::Policy")
+    policy_fragments = [
+        str(resource["Properties"]["PolicyDocument"])
+        for resource in policies.values()
+    ]
+    assert any(
+        "states:DescribeStateMachine" in fragment
+        for fragment in policy_fragments
+    )
+
+
+def test_runtime_stack_uses_higher_reserved_concurrency_default_in_prod() -> (
+    None
+):
+    """Prod stacks should retain the bounded higher concurrency default."""
+    context = {
+        **_context_for_region("us-west-2"),
+        "environment": "prod",
+        "allowed_origins": '["https://app.example.com"]',
+    }
+    bundle = _build_bundle(context=context)
+    functions = _resources_of_type(bundle.resources, "AWS::Lambda::Function")
+    api_resource = next(
+        resource
+        for resource in functions.values()
+        if (
+            resource["Properties"]
+            .get("Environment", {})
+            .get("Variables", {})
+            .get("JOBS_STEP_FUNCTIONS_STATE_MACHINE_ARN")
+        )
+    )
+    assert api_resource["Properties"]["ReservedConcurrentExecutions"] == 25
 
 
 def test_runtime_stack_adds_s3_abort_incomplete_multipart_lifecycle() -> None:
