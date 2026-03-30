@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from functools import lru_cache
-from typing import Any, Literal, cast
+from typing import Any, Literal
 
 from fastapi import FastAPI
 from mangum import Mangum
@@ -50,4 +50,4 @@ def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
     Returns:
         API Gateway-compatible response payload emitted by Mangum.
     """
-    return cast(dict[str, Any], _cached_handler()(event, context))
+    return _cached_handler()(event, context)

@@ -102,7 +102,13 @@ def _parse_string_tuple(value: object) -> tuple[str, ...]:
     if isinstance(value, (list, tuple, set, frozenset)):
         if any(not isinstance(part, str) for part in value):
             raise TypeError("list input must contain only strings")
-        return tuple(item for item in (part.strip() for part in value) if item)
+        return tuple(
+            item
+            for item in (
+                part.strip() for part in value if isinstance(part, str)
+            )
+            if item
+        )
     raise TypeError("value must be a string or a list of strings")
 
 
