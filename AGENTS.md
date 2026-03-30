@@ -21,7 +21,7 @@ The active implementation and operating baseline is the same canonical system:
 - bearer JWT only
 - explicit export workflow resources under `/v1/exports`
 - DynamoDB-backed idempotency/state
-- HTTP API + Lambda Web Adapter + Step Functions Standard
+- Regional REST API + native Lambda handler + Step Functions Standard
 - unified SDK package layout for TypeScript, Python, and R
 - `infra/nova_cdk` as the only active infrastructure implementation surface
 

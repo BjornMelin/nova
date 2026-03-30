@@ -28,7 +28,8 @@ promotion, and optional post-deploy route validation.
    GitHub.
 3. `AWS_REGION`, `CODEARTIFACT_DOMAIN`,
    `CODEARTIFACT_STAGING_REPOSITORY`, and
-   `CODEARTIFACT_PROD_REPOSITORY` are configured in GitHub repository
+   `CODEARTIFACT_PROD_REPOSITORY`, and `RELEASE_ARTIFACT_BUCKET` are
+   configured in GitHub repository
    variables.
 4. Staging and prod CodeArtifact repositories already exist and are distinct.
 5. If the release includes npm packages, Node 24 LTS is available.
@@ -51,7 +52,13 @@ promotion, and optional post-deploy route validation.
    - checks out the selected `main` commit SHA
    - applies versions from the version plan
    - writes `docs/release/RELEASE-VERSION-MANIFEST.md`
-   - creates a signed release commit on `main`.
+   - creates a signed release commit locally from `main`
+   - rebuilds the public API Lambda zip from that exact signed release commit
+   - uploads the zip to `RELEASE_ARTIFACT_BUCKET`
+   - pushes the signed release commit to `main` only after the immutable API
+     artifact upload succeeds
+   - writes `.artifacts/api-lambda-artifact.json`
+   - uploads `release-apply-artifacts`.
 
 ### C. Signature gate
 
@@ -118,6 +125,10 @@ Capture durable pointers for:
 8. Gate validation artifacts:
    - `codeartifact-gate-report.json`
    - `codeartifact-promotion-candidates.json`
+9. API deploy artifact evidence:
+   - `api-lambda-artifact.json`
+   - S3 key under
+     `runtime/nova-file-api/<release_commit_sha>/<artifact_sha256>/nova-file-api-lambda.zip`
    - `validated-promotion-candidates.json`
 
 ## 5. Rollback guidance

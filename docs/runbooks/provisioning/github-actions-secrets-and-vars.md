@@ -60,6 +60,7 @@ gh variable set AWS_REGION --repo "${GH_REPO}" --body "${AWS_REGION}"
 gh variable set CODEARTIFACT_DOMAIN --repo "${GH_REPO}" --body "${CODEARTIFACT_DOMAIN}"
 gh variable set CODEARTIFACT_STAGING_REPOSITORY --repo "${GH_REPO}" --body "${CODEARTIFACT_STAGING_REPOSITORY}"
 gh variable set CODEARTIFACT_PROD_REPOSITORY --repo "${GH_REPO}" --body "${CODEARTIFACT_PROD_REPOSITORY}"
+gh variable set RELEASE_ARTIFACT_BUCKET --repo "${GH_REPO}" --body "${RELEASE_ARTIFACT_BUCKET}"
 ```
 
 ## Consumed by
