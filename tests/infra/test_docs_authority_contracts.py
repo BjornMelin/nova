@@ -115,6 +115,7 @@ def test_moved_superseded_docs_live_only_in_archive_dirs() -> None:
         "docs/architecture/spec/SPEC-0008-async-jobs-and-worker-orchestration.md",
         "docs/architecture/spec/SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md",
         "docs/architecture/spec/SPEC-0020-architecture-authority-pack-and-documentation-synchronization-contract.md",
+        "docs/architecture/spec/SPEC-0024-cloudformation-module-contract.md",
     )
     moved_superseded_paths = _repo_paths(
         "docs/architecture/adr/superseded/ADR-0001-deployment-on-ecs-fargate-behind-alb.md",
@@ -124,6 +125,7 @@ def test_moved_superseded_docs_live_only_in_archive_dirs() -> None:
         "docs/architecture/spec/superseded/SPEC-0008-async-jobs-and-worker-orchestration.md",
         "docs/architecture/spec/superseded/SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md",
         "docs/architecture/spec/superseded/SPEC-0020-architecture-authority-pack-and-documentation-synchronization-contract.md",
+        "docs/architecture/spec/superseded/SPEC-0024-cloudformation-module-contract.md",
     )
 
     for path in moved_root_paths:
