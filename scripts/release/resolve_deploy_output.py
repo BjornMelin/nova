@@ -131,7 +131,10 @@ def _normalize_api_lambda_artifact(payload: dict[str, Any]) -> dict[str, Any]:
     if len(artifact_sha256) != 64:
         raise ValueError("artifact_sha256 must be a 64-character digest")
 
-    normalized = dict(payload)
+    normalized = {
+        field_name: str(payload[field_name]).strip()
+        for field_name in _REQUIRED_API_LAMBDA_FIELDS
+    }
     normalized["artifact_sha256"] = artifact_sha256
     return normalized
 

@@ -85,6 +85,8 @@ def test_resolve_deploy_output_builds_and_verifies_authority_payload(
         "package_name": "nova-file-api",
         "package_version": "0.5.0",
         "release_commit_sha": "a" * 40,
+        "runtime": "python3.13",
+        "built_at": "2026-03-30T00:00:00+00:00",
     }
     payload = _RESOLVER.build_deploy_output(
         api_lambda_artifact=api_lambda_artifact,
@@ -124,6 +126,17 @@ def test_resolve_deploy_output_builds_and_verifies_authority_payload(
         payload["stack_outputs"]["NovaPublicBaseUrl"]
         == "https://api.example.com"
     )
+    expected_artifact_key = (
+        "runtime/nova-file-api/abc/def/nova-file-api-lambda.zip"
+    )
+    assert payload["api_lambda_artifact"] == {
+        "artifact_bucket": "nova-artifacts",
+        "artifact_key": expected_artifact_key,
+        "artifact_sha256": "1" * 64,
+        "package_name": "nova-file-api",
+        "package_version": "0.5.0",
+        "release_commit_sha": "a" * 40,
+    }
 
     deploy_output_path = tmp_path / "deploy-output.json"
     deploy_output_path.write_text(

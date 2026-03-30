@@ -42,6 +42,23 @@ def test_build_asset_invokes_expected_uv_commands_and_installs_built_wheels(
     assert captured_commands[1][:3] == ("uv", "pip", "install")
     assert captured_commands[1][3] == "--target"
     assert captured_commands[1][4] == str(output_dir)
+    assert "--python-version" in captured_commands[1]
+    assert (
+        captured_commands[1][captured_commands[1].index("--python-version") + 1]
+        == module._PYTHON_VERSION
+    )
+    assert "--python-platform" in captured_commands[1]
+    assert (
+        captured_commands[1][
+            captured_commands[1].index("--python-platform") + 1
+        ]
+        == module._PYTHON_PLATFORM
+    )
+    assert "--only-binary" in captured_commands[1]
+    assert (
+        captured_commands[1][captured_commands[1].index("--only-binary") + 1]
+        == ":all:"
+    )
     assert captured_commands[2][:4] == (
         "uv",
         "build",
@@ -58,6 +75,16 @@ def test_build_asset_invokes_expected_uv_commands_and_installs_built_wheels(
     final_install = captured_commands[4]
     assert final_install[:3] == ("uv", "pip", "install")
     assert "--no-deps" in final_install
+    assert "--python-version" in final_install
+    assert (
+        final_install[final_install.index("--python-version") + 1]
+        == module._PYTHON_VERSION
+    )
+    assert "--python-platform" in final_install
+    assert (
+        final_install[final_install.index("--python-platform") + 1]
+        == module._PYTHON_PLATFORM
+    )
     wheel_args = [value for value in final_install if value.endswith(".whl")]
     assert len(wheel_args) == 2
     assert wheel_args == sorted(wheel_args)
