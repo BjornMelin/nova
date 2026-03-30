@@ -6,8 +6,8 @@ Version: 1.2
 Date: 2026-03-11
 Related:
   - "[ADR-0023: Hard-cut v1 canonical route surface](../adr/ADR-0023-hard-cut-v1-canonical-route-surface.md)"
-  - "[SPEC-0000: HTTP API contract](./SPEC-0000-http-api-contract.md)"
   - "[SPEC-0016: v1 route namespace and literal guardrails](./SPEC-0016-v1-route-namespace-and-literal-guardrails.md)"
+  - "[SPEC-0027: Public API v2](./SPEC-0027-public-api-v2.md)"
   - "[requirements.md](../requirements.md)"
 References:
   - "[Amazon S3 multipart upload overview](https://docs.aws.amazon.com/AmazonS3/latest/userguide/mpuoverview.html)"
@@ -24,8 +24,8 @@ Service behavior MUST enforce AWS multipart constraints:
 - part size: 5 MiB to 5 GiB (except last part may be smaller)
 - complete request MUST include per-part `ETag` values
 
-Validation failures should return contract error envelopes (see
-[SPEC-0000](./SPEC-0000-http-api-contract.md)).
+Validation failures should return contract error envelopes consistent with
+[SPEC-0027](./SPEC-0027-public-api-v2.md).
 
 ## 2. Strategy selection
 

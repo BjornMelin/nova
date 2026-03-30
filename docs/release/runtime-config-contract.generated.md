@@ -16,6 +16,7 @@ Canonical sources:
 | --- | --- | --- | --- | --- | --- | --- |
 | ACTIVITY_ROLLUPS_TABLE | activity_rollups_table | str \| None | no | - | no | `None` |
 | ACTIVITY_STORE_BACKEND | activity_store_backend | ActivityStoreBackend | no | - | no | `<ActivityStoreBackend.MEMORY: 'memory'>` |
+| ALLOWED_ORIGINS | cors_allowed_origins | tuple[str, Ellipsis] | no | - | no | `()` |
 | APP_NAME | app_name | str | no | - | no | `'nova-file-api'` |
 | APP_VERSION | app_version | str | no | - | no | `<factory>` |
 | AUTH_JWT_CACHE_MAX_TTL_SECONDS | auth_jwt_cache_max_ttl_seconds | int | no | - | no | `120` |

@@ -8,7 +8,7 @@ Superseded-by: "[ADR-0031: Reusable GitHub workflow API and versioning policy fo
 Related:
   - "[requirements.md](../../requirements.md)"
   - "[ADR-0023: Hard-cut v1 canonical route surface](../ADR-0023-hard-cut-v1-canonical-route-surface.md)"
-  - "[SPEC-0000: HTTP API contract](../../spec/SPEC-0000-http-api-contract.md)"
+  - "[SPEC-0000: HTTP API contract](../../spec/superseded/SPEC-0000-http-api-contract.md)"
   - "[SPEC-0016: Hard-cut v1 route contract and route-literal guardrails](../../spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md)"
   - "[ADR-0011: Hybrid CI/CD with GitHub CI and AWS-native Dev to Prod promotion](../ADR-0011-cicd-hybrid-github-aws-promotion.md)"
   - "[SPEC-0018: Reusable workflow integration contract](../../spec/superseded/SPEC-0018-reusable-workflow-integration-contract.md)"

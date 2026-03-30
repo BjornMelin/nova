@@ -6,11 +6,10 @@ Version: 1.0
 Date: 2026-02-12
 Related:
   - "[ADR-0023: Hard-cut v1 canonical route surface](../adr/ADR-0023-hard-cut-v1-canonical-route-surface.md)"
-  - "[SPEC-0000: HTTP API contract](./SPEC-0000-http-api-contract.md)"
   - "[SPEC-0016: V1 route namespace and literal guardrails](./SPEC-0016-v1-route-namespace-and-literal-guardrails.md)"
   - "[requirements.md](../requirements.md)"
   - "[SPEC-0001: Security model](./SPEC-0001-security-model.md)"
-  - "[SPEC-0027: Public HTTP contract revision and bearer auth](./SPEC-0027-public-http-contract-revision-and-bearer-auth.md)"
+  - "[SPEC-0027: Public API v2](./SPEC-0027-public-api-v2.md)"
   - "[ADR-0004: Canonical OIDC verifier adoption](../adr/ADR-0004-canonical-oidc-jwt-verifier-adoption.md)"
 References:
   - "[oidc-jwt-verifier source](https://github.com/BjornMelin/oidc-jwt-verifier)"

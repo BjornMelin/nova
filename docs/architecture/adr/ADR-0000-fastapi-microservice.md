@@ -5,9 +5,10 @@ Status: Accepted
 Version: 1.1
 Date: 2026-02-11
 Related:
-  - "[ADR-0001: Deploy on ECS Fargate behind ALB](./ADR-0001-deployment-on-ecs-fargate-behind-alb.md)"
   - "[ADR-0002: Treat OpenAPI as the contract and generate client SDKs from it](./ADR-0002-openapi-as-contract-and-sdk-generation.md)"
-  - "[SPEC-0000: HTTP API contract](../spec/SPEC-0000-http-api-contract.md)"
+  - "[ADR-0023: Hard cut to a single canonical /v1 API surface](./ADR-0023-hard-cut-v1-canonical-route-surface.md)"
+  - "[SPEC-0016: V1 route namespace and literal guardrails](../spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md)"
+  - "[SPEC-0027: Public API v2](../spec/SPEC-0027-public-api-v2.md)"
 References:
   - "[FastAPI deployment concepts](https://fastapi.tiangolo.com/deployment/concepts/)"
   - "[FastAPI metadata and docs URLs](https://fastapi.tiangolo.com/tutorial/metadata/)"

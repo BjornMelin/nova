@@ -1,6 +1,13 @@
-# SPEC-0030 -- SDK generation and package layout
-
-> **Implementation state:** Implemented in the current repository baseline as the active SDK generation and package layout contract.
+---
+SPEC: 0030
+Title: SDK generation and package layout
+Status: Implemented
+Version: 1.0
+Date: 2026-03-25
+Related:
+  - "[ADR-0033: Canonical serverless platform](../adr/ADR-0033-canonical-serverless-platform.md)"
+  - "[ADR-0037: Consolidate SDK generation and package layout](../adr/ADR-0037-sdk-generation-consolidation.md)"
+---
 
 ## Goals
 

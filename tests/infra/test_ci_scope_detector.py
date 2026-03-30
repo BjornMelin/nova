@@ -120,6 +120,19 @@ def test_docs_history_changes_remain_docs_only_without_required_lanes() -> None:
     assert outputs["docs_only"] == "true"
 
 
+def test_buildspec_changes_enable_cfn_lane() -> None:
+    """Buildspec edits should route through CFN/workflow contract checks."""
+    outputs = _outputs(["buildspecs/buildspec-release.yml"])
+
+    assert outputs["run_runtime_ci"] == "false"
+    assert outputs["run_generated_clients"] == "false"
+    assert outputs["run_dash_conformance"] == "false"
+    assert outputs["run_shiny_conformance"] == "false"
+    assert outputs["run_typescript_conformance"] == "false"
+    assert outputs["run_cfn"] == "true"
+    assert outputs["docs_only"] == "false"
+
+
 def test_workflow_changes_mark_cfn_and_targeted_ci_lanes() -> None:
     """CI workflow changes should trigger the unified workflow shell."""
     outputs = _outputs([".github/workflows/ci.yml"])

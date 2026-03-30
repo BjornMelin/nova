@@ -5,9 +5,9 @@ Status: Accepted
 Version: 1.0
 Date: 2026-03-03
 Related:
-  - "[ADR-0015: Nova API platform final hosting and deployment architecture (2026)](./ADR-0015-nova-api-platform-final-hosting-and-deployment-architecture-2026.md)"
-  - "[SPEC-0000: HTTP API Contract](../spec/SPEC-0000-http-api-contract.md)"
-  - "[SPEC-0015: Nova API platform final topology and delivery contract](../spec/SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md)"
+  - "[ADR-0015: Nova API platform final hosting and deployment architecture (2026)](./superseded/ADR-0015-nova-api-platform-final-hosting-and-deployment-architecture-2026.md)"
+  - "[SPEC-0000: HTTP API Contract](../spec/superseded/SPEC-0000-http-api-contract.md)"
+  - "[SPEC-0015: Nova API platform final topology and delivery contract](../spec/superseded/SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md)"
   - "[SPEC-0016: v1 route namespace and literal guardrails](../spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md)"
   - "[RFC 9745: The Deprecation HTTP Response Header Field](https://www.rfc-editor.org/rfc/rfc9745.html)"
   - "[RFC 8594: The Sunset HTTP Header Field](https://www.rfc-editor.org/rfc/rfc8594.html)"

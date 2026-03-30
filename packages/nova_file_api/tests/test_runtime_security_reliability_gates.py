@@ -8,69 +8,63 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[3]
 pytestmark = pytest.mark.runtime_gate
 
-_SERVICE_DOCKERFILES = (
-    REPO_ROOT / "apps" / "nova_file_api_service" / "Dockerfile",
+_API_DOCKERFILE = REPO_ROOT / "apps" / "nova_file_api_service" / "Dockerfile"
+_WORKFLOW_TASK_DOCKERFILE = (
+    REPO_ROOT / "apps" / "nova_workflows_tasks" / "Dockerfile"
 )
-_ASYNC_TEMPLATE = (
-    REPO_ROOT / "infra" / "runtime" / "file_transfer" / "async.yml"
+_API_ASSET_BUILDER = (
+    REPO_ROOT / "scripts" / "release" / "build_api_lambda_asset.py"
 )
-_RELEASE_BUILDSPEC = REPO_ROOT / "buildspecs" / "buildspec-release.yml"
+_DOCKER_RELEASE_GATE = (
+    REPO_ROOT / "scripts" / "checks" / "run_docker_release_images.sh"
+)
+_RELEASE_APPLY_WORKFLOW = (
+    REPO_ROOT / ".github" / "workflows" / "reusable-release-apply.yml"
+)
 
 
-def test_service_dockerfiles_enforce_proxy_headers_and_single_process() -> None:
-    for dockerfile in _SERVICE_DOCKERFILES:
-        content = dockerfile.read_text(encoding="utf-8")
-
-        assert content.startswith("# syntax=docker/dockerfile:")
-        assert (
-            "ARG BASE_IMAGE="
-            "public.ecr.aws/docker/library/python:3.13-slim@sha256:"
-            "7d8999b140f22939451e00b79c0fd86f13d0bc0577b369f8212fce063101fb2a"
-        ) in content
-        assert "FROM ${BASE_IMAGE} AS builder" in content
-        assert content.count("FROM ${BASE_IMAGE}") == 2
-        assert (
-            "FROM public.ecr.aws/docker/library/python:3.13-slim\n"
-            not in content
-        )
-        assert "COPY --from=ghcr.io/astral-sh/uv:" in content
-        assert "--mount=type=cache,target=/root/.cache/uv" in content
-        assert '"uvicorn"' in content
-        assert "--proxy-headers" in content
-        assert "--forwarded-allow-ips=*" in content
-        assert "HEALTHCHECK" in content
-        assert "--workers" not in content
-        assert "gunicorn" not in content.lower()
-        assert "pip install --no-cache-dir uv==" not in content
+def test_api_runtime_uses_zip_packaging_instead_of_service_dockerfile() -> None:
+    """The public API runtime should no longer ship as a Docker image."""
+    assert not _API_DOCKERFILE.exists()
+    assert _API_ASSET_BUILDER.exists()
 
 
-def test_release_buildspec_requires_buildkit() -> None:
-    """Assert the release buildspec requires BuildKit for Docker builds."""
-    content = _RELEASE_BUILDSPEC.read_text(encoding="utf-8")
-    assert 'DOCKER_BUILDKIT: "1"' in content
-    assert "DOCKER_BUILDKIT" in content
+def test_release_apply_workflow_owns_api_lambda_packaging() -> None:
+    """Immutable release artifacts should own API Lambda packaging."""
+    content = _RELEASE_APPLY_WORKFLOW.read_text(encoding="utf-8")
+
+    assert "build_api_lambda_asset.py" in content
+    assert "--output-zip .artifacts/nova-file-api-lambda.zip" in content
+    assert "api-lambda-artifact.json" in content
+    assert "release-apply-artifacts" in content
+    assert "aws s3 cp" in content
 
 
-def test_service_packages_declare_runtime_support_dependency() -> None:
-    """Assert service packages declare nova-runtime-support>=0.1.0."""
-    package_paths = (
-        REPO_ROOT / "packages" / "nova_file_api" / "pyproject.toml",
-    )
+def test_workflow_task_dockerfile_remains_lambda_native() -> None:
+    """Remaining workflow-task builds should stay on Lambda base images."""
+    content = _WORKFLOW_TASK_DOCKERFILE.read_text(encoding="utf-8")
 
-    for package_path in package_paths:
-        payload = tomllib.loads(package_path.read_text(encoding="utf-8"))
-        dependencies = payload["project"]["dependencies"]
-        assert "nova-runtime-support>=0.1.0" in dependencies
+    assert content.startswith("# syntax=docker/dockerfile:")
+    assert "FROM public.ecr.aws/lambda/python:3.13" in content
+    assert "COPY --from=ghcr.io/astral-sh/uv:" in content
+    assert '"uvicorn"' not in content
+    assert "lambda-adapter" not in content
 
 
-def test_async_template_enforces_dlq_redrive_and_retention_safety() -> None:
-    content = _ASYNC_TEMPLATE.read_text(encoding="utf-8")
+def test_docker_release_gate_targets_workflow_tasks_only() -> None:
+    """Release-image verification should no longer reference the API image."""
+    content = _DOCKER_RELEASE_GATE.read_text(encoding="utf-8")
 
-    assert "JobsDeadLetterQueue:" in content
-    assert "MessageRetentionPeriod: 1209600" in content
-    assert "JobsMessageRetentionSeconds:" in content
-    assert "MaxValue: 1209599" in content
+    assert "apps/nova_workflows_tasks/Dockerfile" in content
+    assert "apps/nova_file_api_service/Dockerfile" not in content
+    assert "test_workflow_productization_contracts.py" not in content
 
-    assert "RedrivePolicy:" in content
-    assert "deadLetterTargetArn: !GetAtt JobsDeadLetterQueue.Arn" in content
-    assert "maxReceiveCount: !Ref JobsMaxReceiveCount" in content
+
+def test_service_packages_declare_native_runtime_dependencies() -> None:
+    """Assert service packages declare native runtime dependencies."""
+    package_path = REPO_ROOT / "packages" / "nova_file_api" / "pyproject.toml"
+
+    payload = tomllib.loads(package_path.read_text(encoding="utf-8"))
+    dependencies = payload["project"]["dependencies"]
+    assert "nova-runtime-support>=0.1.0" in dependencies
+    assert "mangum>=0.21.0" in dependencies

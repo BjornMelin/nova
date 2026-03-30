@@ -7,7 +7,7 @@ Date: 2026-02-12
 Related:
   - "[ADR-0000: Implement the File Transfer API as a FastAPI service](./ADR-0000-fastapi-microservice.md)"
   - "[ADR-0003: API documentation site uses MkDocs Material and Scalar API Reference](./ADR-0003-api-docs-site-mkdocs-material-plus-scalar.md)"
-  - "[SPEC-0000: HTTP API contract](../spec/SPEC-0000-http-api-contract.md)"
+  - "[SPEC-0000: HTTP API contract](../spec/superseded/SPEC-0000-http-api-contract.md)"
   - "[SPEC-0004: CI/CD and documentation automation](../spec/SPEC-0004-ci-cd-and-docs.md)"
 References:
   - "[OpenAPI Specification](https://spec.openapis.org/oas/latest.html)"

@@ -116,7 +116,7 @@ async def plan_resources(
     response_model=ReleaseInfoResponse,
 )
 async def get_release_info(settings: SettingsDep) -> ReleaseInfoResponse:
-    """Return service release metadata."""
+    """Return public release metadata for browser and deploy canaries."""
     return ReleaseInfoResponse(
         name=settings.app_name,
         version=settings.app_version,

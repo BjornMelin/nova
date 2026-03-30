@@ -1,0 +1,168 @@
+---
+Spec: 0008
+Title: Async Jobs and Worker Orchestration
+Status: Superseded
+Superseded-by: "[SPEC-0028: Export workflow state machine](../SPEC-0028-export-workflow-state-machine.md)"
+Version: 2.0
+Date: 2026-03-19
+Related:
+  - "[ADR-0023: Hard-cut v1 canonical route surface](../../adr/ADR-0023-hard-cut-v1-canonical-route-surface.md)"
+  - "[ADR-0035: Replace generic jobs with export workflows](../../adr/ADR-0035-replace-generic-jobs-with-export-workflows.md)"
+  - "[SPEC-0028: Export workflow state machine](../SPEC-0028-export-workflow-state-machine.md)"
+  - "[SPEC-0027: Public API v2](../SPEC-0027-public-api-v2.md)"
+  - "[SPEC-0000: HTTP API contract](./SPEC-0000-http-api-contract.md)"
+  - "[SPEC-0016: v1 route namespace and literal guardrails](../SPEC-0016-v1-route-namespace-and-literal-guardrails.md)"
+  - "[requirements.md](../../requirements.md)"
+References:
+  - "[Amazon SQS Developer Guide](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/welcome.html)"
+  - "[Amazon ECS Developer Guide](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/Welcome.html)"
+---
+
+> Historical traceability note: this generic-jobs/ECS worker contract was
+> superseded by the explicit export workflow model in `SPEC-0028`.
+
+## 1. API surface
+
+Async jobs are managed through:
+
+- `POST /v1/jobs`
+- `GET /v1/jobs`
+- `GET /v1/jobs/{job_id}`
+- `POST /v1/jobs/{job_id}/cancel`
+- `POST /v1/jobs/{job_id}/retry`
+- `GET /v1/jobs/{job_id}/events`
+
+**Green-field result path:** worker completion and terminal status updates are
+**not** written through an internal HTTP callback route. The worker uses shared
+services/repositories per
+[SPEC-0028](../SPEC-0028-export-workflow-state-machine.md) and
+[ADR-0035](../../adr/ADR-0035-replace-generic-jobs-with-export-workflows.md).
+
+**Scope binding:** caller scope for job operations is derived from **verified JWT
+claims** in the public file API runtime per
+[SPEC-0027](../SPEC-0027-public-api-v2.md).
+`session_id`, `X-Session-Id`, and `X-Scope-Id` are **not** public contract inputs
+for authorization scope.
+
+### 1.1 Endpoint payload contracts
+
+Canonical request/response schemas are owned by SPEC-0000 and the OpenAPI
+contract generated from runtime implementation. For async additions:
+
+- `POST /v1/jobs/{job_id}/retry`
+  - Request body: empty object (`{}`).
+  - Response: `JobStatusResponse` for the updated job record.
+  - Errors: shared error envelope with `401/403/404/409/500` semantics aligned
+    with SPEC-0000.
+- `GET /v1/jobs/{job_id}/events`
+  - Request body: none; optional query params `cursor` and `limit`.
+  - Response: `JobEventsResponse` containing `job_id`, `next_cursor`, and
+    `events[]`.
+  - Event item shape: `JobEvent` with `event_id`, `job_id`, `status`,
+    `timestamp`, and optional `data` and `event_type` fields.
+  - Errors: shared error envelope with `401/403/404/500` semantics aligned with
+    SPEC-0000.
+
+## 2. Job state model
+
+States:
+
+- `pending`
+- `running`
+- `succeeded`
+- `failed`
+- `canceled`
+
+Ownership is scope-bound. Status and cancel operations MUST enforce caller scope.
+
+Worker status updates MUST enforce legal transitions:
+
+- `pending -> pending|running|succeeded|failed|canceled`
+  - `pending -> succeeded` is allowed for atomic worker completion across
+    backends.
+  - in-memory `process_immediately` simulation currently transitions through
+    `pending -> running -> succeeded`.
+- `running -> running|succeeded|failed|canceled`
+- terminal states (`succeeded|failed|canceled`) allow same-state idempotent
+  updates only.
+- `status = succeeded` updates MUST clear `error` to `null`.
+
+Invalid transitions MUST fail with `409` (`error.code = "conflict"`).
+
+## 3. Orchestration backends
+
+- Local/dev default: in-memory publisher simulation.
+- `MemoryJobPublisher(process_immediately=False)` MUST preserve `pending`
+  state after enqueue (no auto-complete simulation).
+- AWS default: SQS queue publisher and ECS worker consumers.
+
+## 4. Failure and retry model
+
+- Enqueue SHOULD acknowledge quickly and defer work to workers.
+- On queue publish failure:
+  - MUST return `503` with `error.code = "queue_unavailable"`.
+  - MUST NOT return success responses.
+  - MUST mark created job records as `failed`.
+  - SHOULD increment a publish-failure metric for operators.
+- Worker retry policy SHOULD be driven by queue semantics.
+- Queue topology MUST include a dedicated dead-letter queue (DLQ) and source
+  queue `RedrivePolicy.maxReceiveCount` so terminal poison messages leave the
+  hot queue deterministically.
+- Long-running worker operations MUST extend message visibility before half of
+  the configured timeout elapses instead of relying only on static
+  `VisibilityTimeout` sizing.
+- Long-running worker operations MUST NOT rely on visibility extensions beyond
+  the SQS 12-hour (43,200 second) ceiling from the original receive; work that
+  may exceed that cap MUST checkpoint, split, re-enqueue, or fail before the
+  window is exhausted.
+- Non-retryable failures SHOULD transition to `failed` with structured error
+  details.
+- First worker transition from `pending` MUST record queue lag metric
+  (`jobs_queue_lag_ms`).
+- Worker result-update calls MUST increment throughput counters
+  (`jobs_worker_result_updates_total` and per-status counters).
+- Worker ECS desired-count autoscaling MUST be target-tracked from queue depth
+  and queue age metrics (`ApproximateNumberOfMessagesVisible`,
+  `ApproximateAgeOfOldestMessage`) to prevent backlog growth under burst load.
+
+## 5. Idempotency
+
+`POST /v1/jobs` MUST support `Idempotency-Key` replay behavior.
+
+Failed enqueue responses (`queue_unavailable`) MUST NOT be replay-cached.
+
+## 6. Backend selection and startup validation
+
+- `JOBS_QUEUE_BACKEND` controls queue backend selection.
+- `JOBS_REPOSITORY_BACKEND` controls job state persistence backend.
+- If `JOBS_QUEUE_BACKEND=sqs` and `JOBS_ENABLED=true`, startup MUST fail when
+  `JOBS_SQS_QUEUE_URL` is not configured.
+- If `JOBS_REPOSITORY_BACKEND=dynamodb`, startup MUST fail when
+  `JOBS_DYNAMODB_TABLE` is not configured.
+- SQS publisher retry behavior SHOULD be configurable using:
+  - `JOBS_SQS_RETRY_MODE`
+  - `JOBS_SQS_RETRY_TOTAL_MAX_ATTEMPTS`
+
+HTTP callback tokens for worker result posts are **not** part of the target
+configuration surface once the direct persistence path is implemented
+([SPEC-0028](./SPEC-0028-worker-job-lifecycle-and-direct-result-path.md)).
+
+## 7. Traceability
+
+- [FR-0001](../requirements.md#fr-0001-async-job-endpoints-and-orchestration)
+- [FR-0004](../requirements.md#fr-0004-idempotency-for-mutation-entrypoints)
+- [NFR-0002](../requirements.md#nfr-0002-scalability-and-resilience)
+
+## Changelog
+
+- 2026-03-19 (v2.0): Aligned public job surface and scope binding with green-field
+  ADR/SPEC chain; removed internal HTTP result callback and session/header scope
+  rules from the target contract (see SPEC-0027/SPEC-0028).
+- 2026-03-11 (v1.9): Added heartbeat-based SQS visibility-extension
+  requirement for long-running worker operations.
+- 2026-03-03 (v1.8): Canonicalized job route documentation to `/v1/*`, added
+  `/v1/jobs/{job_id}/retry` and `/v1/jobs/{job_id}/events` endpoint contract
+  details, and updated internal worker callback route to
+  `/v1/internal/jobs/{job_id}/result`.
+- 2026-03-02 (v1.7): Added worker-lane DLQ redrive and autoscaling invariants
+  for async job workers.

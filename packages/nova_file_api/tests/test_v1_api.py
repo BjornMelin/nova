@@ -98,6 +98,7 @@ def _build_v1_deps(
             "jobs_enabled": True,
             "file_transfer_bucket": file_transfer_bucket,
             "idempotency_dynamodb_table": "test-idempotency",
+            "cors_allowed_origins": ["https://app.example.com"],
         }
     )
 
@@ -250,6 +251,43 @@ async def test_v1_resource_plan_and_release_info() -> None:
     assert release["version"]
     assert isinstance(release["environment"], str)
     assert release["environment"]
+
+
+@pytest.mark.anyio
+async def test_v1_release_info_includes_cors_header_for_allowed_origin() -> (
+    None
+):
+    """Release info should emit the configured browser origin header."""
+    app = build_test_app(_build_v1_deps())
+
+    response = await request_app(
+        app,
+        "GET",
+        "/v1/releases/info",
+        headers={"Origin": "https://app.example.com"},
+    )
+
+    assert response.status_code == 200
+    assert (
+        response.headers["access-control-allow-origin"]
+        == "https://app.example.com"
+    )
+
+
+@pytest.mark.anyio
+async def test_v1_release_info_disallowed_origin_no_cors_header() -> None:
+    """Release info should not expose CORS origin for an untrusted domain."""
+    app = build_test_app(_build_v1_deps())
+
+    response = await request_app(
+        app,
+        "GET",
+        "/v1/releases/info",
+        headers={"Origin": "https://evil.example.com"},
+    )
+
+    assert response.status_code == 200
+    assert response.headers.get("access-control-allow-origin") in (None, "null")
 
 
 @pytest.mark.anyio

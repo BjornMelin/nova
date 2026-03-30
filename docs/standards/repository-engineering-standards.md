@@ -184,7 +184,7 @@ Toolchain baseline notes:
   pytest/build lane unless a deliberate repo-wide support-floor decision
   removes either lane.
 - `pyproject.toml` pins the supported `uv` CLI via
-  `[tool.uv].required-version` (currently `0.11.1`); keep CI and local
+  `[tool.uv].required-version` (currently `0.11.2`); keep CI and local
   bootstrap flows on that version unless a repo-wide verification run
   intentionally bumps it.
 - Node 24 LTS is the primary npm/TypeScript SDK tooling baseline for local
@@ -229,8 +229,8 @@ or R SDK docs/contracts:
 Additional required gates when touching infra, workflow contracts, or docs
 governance:
 
-- `uv run --with cfn-lint==1.46.0 cfn-lint infra/nova/*.yml infra/nova/deploy/*.yml infra/runtime/**/*.yml`
-- `uv run --with pytest pytest -q tests/infra/test_absorbed_infra_contracts.py tests/infra/test_workflow_productization_contracts.py tests/infra/test_workflow_contract_docs.py tests/infra/test_docs_authority_contracts.py`
+- `bash scripts/checks/run_infra_contracts.sh`
+- `uv run --with pytest pytest -q tests/infra/test_ci_scope_detector.py tests/infra/test_release_workflow_contracts.py tests/infra/test_serverless_stack_contracts.py tests/infra/test_workflow_contract_docs.py tests/infra/test_docs_authority_contracts.py`
 
 ## Documentation Synchronization Rules
 

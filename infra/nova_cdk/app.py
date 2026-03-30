@@ -1,9 +1,11 @@
+# mypy: disable-error-code=import-not-found
+
 """CDK application entrypoint for the canonical Nova serverless stack."""
 
 import os
 
 from aws_cdk import App, Environment
-from nova_cdk.serverless_stack import NovaServerlessStack
+from nova_cdk.runtime_stack import NovaRuntimeStack
 
 app = App()
 
@@ -18,15 +20,10 @@ if not account or not region:
         "CDK account and region must be provided via -c account=... "
         "-c region=... or CDK_DEFAULT_ACCOUNT/CDK_DEFAULT_REGION."
     )
-if region != "us-east-1":
-    raise ValueError(
-        "NovaServerlessStack must be synthesized in us-east-1 because "
-        "CloudFront WAF resources are regional there."
-    )
 
-NovaServerlessStack(
+NovaRuntimeStack(
     app,
-    "NovaServerlessStack",
+    "NovaRuntimeStack",
     env=Environment(
         account=account,
         region=region,

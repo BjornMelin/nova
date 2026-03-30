@@ -2,7 +2,6 @@
 
 > **Implementation state:** Approved target-state overview. It describes where Nova is going, not what is fully implemented today.
 
-
 ## System summary
 
 Nova becomes a small control-plane API for direct-to-S3 transfer flows plus durable export orchestration.
@@ -41,11 +40,9 @@ Nova becomes a small control-plane API for direct-to-S3 transfer flows plus dura
 ```text
 Browser / Dash / TS / Python / R clients
         |
-    CloudFront + WAF
+ API Gateway REST API + WAF (regional stage association)
         |
- API Gateway HTTP API (JWT authorizer for coarse route auth)
-        |
- Lambda (FastAPI via Lambda Web Adapter, arm64, Python 3.13)
+ Lambda (FastAPI via native Lambda handler, zip-packaged, arm64, Python 3.13, bearer auth in-process)
         |
   DynamoDB + S3 + Step Functions Standard + CloudWatch + X-Ray/OTel
         |

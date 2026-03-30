@@ -4,11 +4,20 @@ Status: Active
 Last reviewed: 2026-03-24
 
 This directory holds **machine-stable files** consumed by release automation,
-CodeBuild, and contract checks. Operator procedures live under
+GitHub workflows, and contract checks. Operator procedures live under
 [`../runbooks/release/README.md`](../runbooks/release/README.md) and
 [`../runbooks/provisioning/README.md`](../runbooks/provisioning/README.md).
 
 Canonical path constants: [`scripts/release/release_paths.py`](../../scripts/release/release_paths.py).
+
+## Authority / references
+
+- `../architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md`
+- `../architecture/spec/superseded/SPEC-0000-http-api-contract.md`
+- `../architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md`
+- `../architecture/spec/SPEC-0027-public-api-v2.md`
+- `../architecture/requirements.md`
+- `../plan/GREENFIELD-WAVE-2-EXECUTION.md`
 
 ## Files
 

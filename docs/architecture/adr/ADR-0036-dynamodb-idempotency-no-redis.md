@@ -1,9 +1,16 @@
-# ADR-0036 -- DynamoDB idempotency and transient state, no Redis
+---
+ADR: 0036
+Title: DynamoDB idempotency and transient state, no Redis
+Status: Implemented
+Version: 1.0
+Date: 2026-03-25
+Related:
+  - "[ADR-0033: Canonical serverless platform](./ADR-0033-canonical-serverless-platform.md)"
+  - "[SPEC-0029: Canonical serverless platform](../spec/SPEC-0029-platform-serverless.md)"
+  - "[ADR-0035: Replace generic jobs with export workflows](./ADR-0035-replace-generic-jobs-with-export-workflows.md)"
+---
 
 > **Implementation state:** Implemented in the current repository baseline, with only residual Redis-era references and legacy assets still requiring cleanup.
-
-## Status
-Accepted
 
 ## Decision
 

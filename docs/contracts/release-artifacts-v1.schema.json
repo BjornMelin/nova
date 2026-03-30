@@ -695,6 +695,29 @@
         }
       }
     },
+    "runtime_release_info": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "version",
+        "environment"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "environment": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
     "post_deploy_validation_report": {
       "type": "object",
       "additionalProperties": false,
@@ -748,6 +771,20 @@
           "items": {
             "type": "string"
           }
+        },
+        "deploy_output_sha256": {
+          "$ref": "#/$defs/sha256_digest"
+        },
+        "release_commit_sha": {
+          "type": "string",
+          "pattern": "^[A-Fa-f0-9]{40}$"
+        },
+        "runtime_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "release_info": {
+          "$ref": "#/$defs/runtime_release_info"
         },
         "auth_target": {
           "$ref": "#/$defs/post_deploy_validation_target"

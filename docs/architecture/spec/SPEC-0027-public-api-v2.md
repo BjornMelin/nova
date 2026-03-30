@@ -1,6 +1,19 @@
-# SPEC-0027 -- Public API v2
-
-> **Implementation state:** Implemented in the current repository baseline as the active public API contract.
+---
+SPEC: 0027
+Title: Public API v2
+Status: Implemented
+Version: 1.0
+Date: 2026-03-25
+Related:
+  - "[ADR-0023: Hard cut to a single canonical /v1 API surface](../adr/ADR-0023-hard-cut-v1-canonical-route-surface.md)"
+  - "[ADR-0033: Canonical serverless platform](../adr/ADR-0033-canonical-serverless-platform.md)"
+  - "[ADR-0034: Eliminate auth service and session auth](../adr/ADR-0034-eliminate-auth-service-and-session-auth.md)"
+  - "[SPEC-0016: V1 route namespace and literal guardrails](./SPEC-0016-v1-route-namespace-and-literal-guardrails.md)"
+  - "[SPEC-0028: Export workflow state machine](./SPEC-0028-export-workflow-state-machine.md)"
+  - "[SPEC-0029: Canonical serverless platform](./SPEC-0029-platform-serverless.md)"
+  - "[requirements.md](../requirements.md)"
+  - "[GREENFIELD WAVE 2 Execution](../../plan/GREENFIELD-WAVE-2-EXECUTION.md)"
+---
 
 ## Summary
 
@@ -11,7 +24,9 @@ Public API v2 exposes only explicit transfer and export workflow resources under
 - bearer JWT only
 - no session-based auth
 - no same-origin auth contract
-- optional route-level JWT authorizer in API Gateway
+- Regional REST API ingress provides transport, direct Regional WAF, one
+  canonical custom domain, and logging only. The default `execute-api`
+  endpoint is disabled.
 - app-level authorization remains authoritative
 
 ## Resource model
@@ -42,5 +57,5 @@ Public API v2 exposes only explicit transfer and export workflow resources under
 ## OpenAPI rules
 
 - no hand-built auth/session security schemes
-- use native FastAPI `Security` and `responses=...`
+- use native FastAPI `Security` and `responses=…`
 - keep only minimal OpenAPI post-processing if a real generator gap remains

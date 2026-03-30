@@ -1,6 +1,13 @@
-# SPEC-0028 -- Export workflow state machine
-
-> **Implementation state:** Implemented in the current repository baseline as the active export workflow model.
+---
+SPEC: 0028
+Title: Export workflow state machine
+Status: Implemented
+Version: 1.0
+Date: 2026-03-25
+Related:
+  - "[ADR-0033: Canonical serverless platform](../adr/ADR-0033-canonical-serverless-platform.md)"
+  - "[ADR-0035: Replace generic jobs with export workflows](../adr/ADR-0035-replace-generic-jobs-with-export-workflows.md)"
+---
 
 ## Summary
 

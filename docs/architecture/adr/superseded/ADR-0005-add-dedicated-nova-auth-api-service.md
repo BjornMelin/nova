@@ -6,7 +6,7 @@ Superseded-by: "[ADR-0033: Green-field single runtime auth authority](../ADR-003
 Version: 1.2
 Date: 2026-03-05
 Related:
-  - "[ADR-0001: Deploy on ECS Fargate behind ALB with same-origin routing](../ADR-0001-deployment-on-ecs-fargate-behind-alb.md)"
+  - "[ADR-0001: Deploy on ECS Fargate behind ALB with same-origin routing](./ADR-0001-deployment-on-ecs-fargate-behind-alb.md)"
   - "[ADR-0004: Adopt oidc-jwt-verifier as the canonical JWT/OIDC verification engine](../ADR-0004-canonical-oidc-jwt-verifier-adoption.md)"
   - "[SPEC-0007: Auth API contract (superseded)](../spec/superseded/SPEC-0007-auth-api-contract.md)"
 References:

@@ -45,7 +45,7 @@ class EnvJsonOverrideContract:
 
 @dataclass(frozen=True)
 class TemplateEnvContract:
-    """Environment or secret value expected in an ECS task definition."""
+    """Environment or secret value expected in a deployed runtime template."""
 
     name: str
     source: str

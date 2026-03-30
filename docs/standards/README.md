@@ -1,13 +1,13 @@
 # Engineering standards
 
 Status: Active
-Current repository state: **mixed wave-2 implementation baseline**
-Last reviewed: 2026-03-25
+Current repository state: **canonical wave-2 serverless baseline**
+Last reviewed: 2026-03-28
 
 ## Purpose
 
-Route readers to engineering workflow standards while keeping current-baseline
-rules separate from remaining legacy-retirement and target-state cleanup work.
+Route readers to the engineering workflow standards that govern the active repo
+surface.
 
 ## Read after `AGENTS.md`
 
@@ -15,27 +15,27 @@ rules separate from remaining legacy-retirement and target-state cleanup work.
 2. `../README.md`
 3. `../architecture/README.md`
 4. `./repository-engineering-standards.md`
-5. `./DECISION-FRAMEWORKS-GREENFIELD-2026.md` for the wave-2 decision logic
+5. `./DECISION-FRAMEWORKS-GREENFIELD-2026.md`
 
-## Current baseline standards
-
-The current repository follows the engineering workflow already reflected in the
-tracked code, workflows, and docs. Use:
+## Active standards
 
 - `repository-engineering-standards.md`
 - current CI/workflow files in `.github/workflows/`
-- current release runbooks
+- current release and provisioning runbooks
 
-## Target-state planning standards
+## Authority / references
 
-Use these when reasoning about remaining wave-2 cleanup and legacy retirement:
-
-- `DECISION-FRAMEWORKS-GREENFIELD-2026.md`
-- `../overview/DEPENDENCY-LEVERAGE-AUDIT.md`
-- `../overview/ENTROPY-REDUCTION-LEDGER.md`
+- `../architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md`
+- `../architecture/spec/superseded/SPEC-0000-http-api-contract.md`
+- `../architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md`
+- `../architecture/spec/SPEC-0027-public-api-v2.md`
+- `../architecture/requirements.md`
+- `../plan/GREENFIELD-WAVE-2-EXECUTION.md`
 
 ## Rule
 
-Do not reintroduce pre-wave-2 package, runtime, or CI assumptions into current
-verification commands. Keep standards aligned to the repo as currently
-implemented.
+Keep standards aligned to the active package graph, the surviving GitHub
+workflow surface, and `infra/nova_cdk`. Do not preserve deleted deploy-runtime
+or release-control-plane assumptions in active verification commands from the
+legacy ECS/CloudFormation-era deploy-runtime or release-control-plane surfaces
+(not the current `deploy-runtime.yml` workflow).

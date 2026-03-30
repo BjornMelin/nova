@@ -8,8 +8,8 @@ Superseded-by: "[ADR-0024: Layered runtime authority pack for the Nova monorepo]
 Related:
   - "[ADR-0011: Hybrid CI/CD with GitHub and AWS promotion](../ADR-0011-cicd-hybrid-github-aws-promotion.md)"
   - "[ADR-0014: container-craft absorption and repo retirement](./ADR-0014-container-craft-capability-absorption-and-repo-retirement.md)"
-  - "[ADR-0015: Nova API platform final hosting and deployment architecture (2026)](../ADR-0015-nova-api-platform-final-hosting-and-deployment-architecture-2026.md)"
-  - "[ADR-0030: Native-CFN modular stack architecture for Nova infrastructure productization](../ADR-0030-native-cfn-modular-stack-architecture-for-nova-infrastructure-productization.md)"
+  - "[ADR-0015: Nova API platform final hosting and deployment architecture (2026)](./ADR-0015-nova-api-platform-final-hosting-and-deployment-architecture-2026.md)"
+  - "[ADR-0030: Native-CFN modular stack architecture for Nova infrastructure productization](./ADR-0030-native-cfn-modular-stack-architecture-for-nova-infrastructure-productization.md)"
   - "[ADR-0031: Reusable GitHub workflow API and versioning policy for deployment automation](../ADR-0031-reusable-github-workflow-api-and-versioning-policy-for-deployment-automation.md)"
   - "[ADR-0032: OIDC and IAM role partitioning for deploy automation](../ADR-0032-oidc-and-iam-role-partitioning-for-deploy-automation.md)"
   - "[Governance lock and branch protection](../../../runbooks/release/governance-lock-and-branch-protection.md)"

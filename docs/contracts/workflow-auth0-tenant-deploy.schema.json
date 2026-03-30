@@ -14,8 +14,7 @@
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "environment",
-        "mode"
+        "environment"
       ],
       "properties": {
         "environment": {

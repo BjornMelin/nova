@@ -1,6 +1,8 @@
-"""Documentation authority contract tests for the reduced canonical docs set."""
+"""Documentation authority contract tests for the canonical docs set."""
 
 from __future__ import annotations
+
+from pathlib import Path
 
 from .helpers import REPO_ROOT
 from .helpers import read_repo_file as _read
@@ -8,33 +10,50 @@ from .helpers import read_repo_file as _read
 DOCS_ROOT = REPO_ROOT / "docs"
 
 
-def test_active_docs_index_tracks_small_canonical_surface() -> None:
-    """The active-docs index must define the reduced authority set."""
+def _repo_paths(*paths: str) -> list[Path]:
+    """Build absolute repo paths from repo-relative strings."""
+    return [REPO_ROOT / path for path in paths]
+
+
+def test_active_docs_index_tracks_canonical_surface() -> None:
+    """The active-docs index must define the reduced canonical surface."""
     text = _read("docs/overview/ACTIVE-DOCS-INDEX.md")
 
     for required in [
-        "## Active current/baseline docs",
-        "## Active target-state docs",
-        "## Not active by default",
+        "## Active canonical docs",
         "README.md",
         "AGENTS.md",
         "docs/README.md",
         "docs/architecture/README.md",
-        "docs/architecture/requirements.md",
         "docs/overview/IMPLEMENTATION-STATUS-MATRIX.md",
+        "docs/contracts/README.md",
+        "docs/runbooks/README.md",
+        "docs/clients/README.md",
+        "docs/release/README.md",
+        "docs/plan/GREENFIELD-WAVE-2-EXECUTION.md",
+        "docs/architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md",
+        "docs/architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md",
         "docs/architecture/requirements-wave-2.md",
-        "docs/architecture/adr/ADR-0033",
+        "docs/architecture/adr/ADR-0033` through `ADR-0038",
         "docs/architecture/spec/SPEC-0027` through `SPEC-0031",
-        "docs/contracts/BREAKING-CHANGES-V2.md",
         "docs/history/",
-        "docs/architecture/adr/superseded/",
-        "docs/architecture/spec/superseded/",
+        "docs/plan/PLAN.md",
+        "## Active supporting docs",
+        "docs/architecture/adr/index.md",
+        "docs/architecture/spec/index.md",
+        "docs/architecture/adr/ADR-0011-cicd-hybrid-github-aws-promotion.md",
+        "docs/architecture/spec/SPEC-0004-ci-cd-and-docs.md",
     ]:
         assert required in text
 
+    for forbidden in [
+        "docs/overview/CANONICAL-TARGET-2026-04.md",
+    ]:
+        assert forbidden not in text
 
-def test_root_authority_routers_point_to_current_indexes() -> None:
-    """Root routers must direct readers through the reduced authority map."""
+
+def test_root_authority_routers_point_to_canonical_indexes() -> None:
+    """Root routers must direct readers through the canonical authority map."""
     readme = _read("README.md")
     agents = _read("AGENTS.md")
     docs_router = _read("docs/README.md")
@@ -49,94 +68,108 @@ def test_root_authority_routers_point_to_current_indexes() -> None:
             assert required in text
 
     for required in [
-        "## Current implemented baseline",
-        "## Approved target-state program",
+        "## Active canonical docs",
+        "## Active architecture/program authority",
+        "## Active supporting architecture/program docs",
         "## Historical / superseded",
         "./overview/ACTIVE-DOCS-INDEX.md",
     ]:
         assert required in docs_router
 
     for required in [
-        (
-            "mixed wave-2 implementation with serverless platform "
-            "components landed"
-        ),
+        "canonical wave-2 serverless baseline",
         "adr/ADR-0033-canonical-serverless-platform.md",
-        "adr/ADR-0038-docs-authority-reset.md",
-        "spec/SPEC-0027-public-api-v2.md",
         "spec/SPEC-0031-docs-and-tests-authority-reset.md",
         "../history/",
     ]:
         assert required in architecture_router
 
+    for forbidden in [
+        "./overview/CANONICAL-TARGET-2026-04.md",
+    ]:
+        assert forbidden not in docs_router
+
+
+def test_spec_index_keeps_spec_0020_out_of_active_authority() -> None:
+    """SPEC-0020 must live under superseded rather than the root index path."""
+    text = _read("docs/architecture/spec/index.md")
+    assert "## Active supporting specs" in text
+    assert "## Historical / superseded specs" in text
+    assert (
+        "./SPEC-0020-architecture-authority-pack-and-documentation-"
+        "synchronization-contract.md"
+    ) not in text
+    assert (
+        "./superseded/SPEC-0020-architecture-authority-pack-and-"
+        "documentation-synchronization-contract.md"
+    ) in text
+
+
+def test_moved_superseded_docs_live_only_in_archive_dirs() -> None:
+    """Moved superseded docs must no longer remain at root ADR/SPEC paths."""
+    moved_root_paths = _repo_paths(
+        "docs/architecture/adr/ADR-0001-deployment-on-ecs-fargate-behind-alb.md",
+        "docs/architecture/adr/ADR-0006-async-orchestration-sqs-ecs-worker.md",
+        "docs/architecture/adr/ADR-0012-no-lambda-runtime-scope.md",
+        "docs/architecture/adr/ADR-0015-nova-api-platform-final-hosting-and-deployment-architecture-2026.md",
+        "docs/architecture/spec/SPEC-0008-async-jobs-and-worker-orchestration.md",
+        "docs/architecture/spec/SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md",
+        "docs/architecture/spec/SPEC-0020-architecture-authority-pack-and-documentation-synchronization-contract.md",
+        "docs/architecture/spec/SPEC-0024-cloudformation-module-contract.md",
+    )
+    moved_superseded_paths = _repo_paths(
+        "docs/architecture/adr/superseded/ADR-0001-deployment-on-ecs-fargate-behind-alb.md",
+        "docs/architecture/adr/superseded/ADR-0006-async-orchestration-sqs-ecs-worker.md",
+        "docs/architecture/adr/superseded/ADR-0012-no-lambda-runtime-scope.md",
+        "docs/architecture/adr/superseded/ADR-0015-nova-api-platform-final-hosting-and-deployment-architecture-2026.md",
+        "docs/architecture/spec/superseded/SPEC-0008-async-jobs-and-worker-orchestration.md",
+        "docs/architecture/spec/superseded/SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md",
+        "docs/architecture/spec/superseded/SPEC-0020-architecture-authority-pack-and-documentation-synchronization-contract.md",
+        "docs/architecture/spec/superseded/SPEC-0024-cloudformation-module-contract.md",
+    )
+
+    for path in moved_root_paths:
+        assert not path.exists(), path
+
+    for path in moved_superseded_paths:
+        assert path.exists(), path
+
 
 def test_active_plan_directory_is_pruned_to_current_indexes() -> None:
-    """The active plan directory should contain only current entrypoints."""
+    """The plan directory should contain the current historical entrypoints."""
     plan_files = {
         path.name for path in (DOCS_ROOT / "plan").iterdir() if path.is_file()
     }
 
     assert plan_files == {"GREENFIELD-WAVE-2-EXECUTION.md", "PLAN.md"}
-    assert not (
-        DOCS_ROOT / "plan" / "greenfield-simplification-program.md"
-    ).exists()
-    assert not (DOCS_ROOT / "plan" / "greenfield-authority-map.md").exists()
-    assert not (DOCS_ROOT / "plan" / "greenfield-evidence").exists()
-
-
-def test_wave_one_material_moves_to_history_bundle() -> None:
-    """Wave-one planning/evidence must live under history."""
-    history_bundle = (
-        DOCS_ROOT / "history" / "2026-03-greenfield-wave-1-superseded"
-    )
-    assert history_bundle.is_dir()
-
-    for rel_path in [
-        "greenfield-authority-map.md",
-        "greenfield-simplification-program.md",
-        "r-sdk-finalization-and-downstream-r-consumer-integration.md",
-        "greenfield-evidence/EXECUTIVE_AUDIT.md",
-        "greenfield-evidence/IMPLEMENTATION_PROGRAM.md",
-    ]:
-        assert (history_bundle / rel_path).is_file(), rel_path
-
-
-def test_superseded_wave_one_docs_keep_original_filenames() -> None:
-    """Superseded wave-one authority docs must keep their original names."""
-    for rel_path in [
-        "docs/architecture/adr/superseded/ADR-0033-single-runtime-auth-authority.md",
-        "docs/architecture/adr/superseded/ADR-0034-bearer-jwt-public-auth-contract.md",
-        "docs/architecture/adr/superseded/ADR-0035-worker-direct-result-persistence.md",
-        "docs/architecture/adr/superseded/ADR-0036-native-fastapi-openapi-contract.md",
-        "docs/architecture/adr/superseded/ADR-0037-async-first-public-surface.md",
-        "docs/architecture/adr/superseded/ADR-0038-sdk-architecture-by-language.md",
-        "docs/architecture/adr/superseded/ADR-0039-aws-target-platform.md",
-        "docs/architecture/adr/superseded/ADR-0040-repo-rebaseline-after-cuts.md",
-        "docs/architecture/adr/superseded/ADR-0041-shared-pure-asgi-middleware-and-errors.md",
-        "docs/architecture/spec/superseded/SPEC-0027-public-http-contract-revision-and-bearer-auth.md",
-        "docs/architecture/spec/superseded/SPEC-0028-worker-job-lifecycle-and-direct-result-path.md",
-        "docs/architecture/spec/superseded/SPEC-0029-sdk-architecture-and-artifact-contract.md",
-    ]:
-        assert (REPO_ROOT / rel_path).is_file(), rel_path
 
 
 def test_contracts_readme_tracks_current_schemas() -> None:
-    """Contracts router should distinguish current schemas from v2 cuts."""
+    """Contracts router should track the surviving machine-readable schemas."""
     text = _read("docs/contracts/README.md")
 
     for required in [
-        "reusable-workflow-inputs-v1.schema.json",
-        "reusable-workflow-outputs-v1.schema.json",
+        "release-artifacts-v1.schema.json",
+        "deploy-output-authority-v2.schema.json",
+        "workflow-deploy-runtime-v1.schema.json",
         "workflow-post-deploy-validate.schema.json",
+        "workflow-auth0-tenant-deploy.schema.json",
         "workflow-auth0-tenant-ops-v1.schema.json",
-        "ssm-runtime-base-url-v1.schema.json",
+        "browser-live-validation-report.schema.json",
         "BREAKING-CHANGES-V2.md",
-        "current baseline",
     ]:
         assert required in text
 
+    for forbidden in [
+        "reusable-workflow-inputs-v1.schema.json",
+        "reusable-workflow-outputs-v1.schema.json",
+        "deploy-size-profiles-v1.json",
+        "ssm-runtime-base-url-v1.schema.json",
+    ]:
+        assert forbidden not in text
 
-def test_active_docs_do_not_reference_removed_repo_root_final_plan() -> None:
+
+def test_active_docs_do_not_reference_removed_root_final_plan() -> None:
     """Active docs must not point back to the removed root FINAL-PLAN.md."""
     violations: list[str] = []
 

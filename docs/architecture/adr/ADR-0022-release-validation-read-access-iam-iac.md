@@ -1,8 +1,8 @@
 ---
 ADR: 0022
 Title: Codify release validation read access in Nova IaC
-Status: Accepted
-Version: 1.0
+Status: Historical
+Version: 1.1
 Date: 2026-03-02
 Related:
   - "[ADR-0011: Hybrid CI/CD with GitHub and AWS promotion](./ADR-0011-cicd-hybrid-github-aws-promotion.md)"
@@ -15,22 +15,22 @@ References:
 
 ## Summary
 
-Adopt a dedicated release validation read role in Nova IaC using minimally scoped
-read permissions from CodeConnections, CodeArtifact, CodePipeline, CloudFront,
-ECS/ELB/WAF, CloudFormation, CloudWatch, and runtime infrastructure IAM surfaces.
+Records a historical decision to add a dedicated release-validation read role
+to the now-retired native-CloudFormation IaC surface. The active release flow
+no longer uses that role as an active authority contract.
 
 ## Context
 
 Validation runs were blocked by denied IAM actions from the current operator
-context. The target-state read surface now centers on:
+context. At the time, the target-state read surface centered on:
 
 - `codeconnections:GetConnection`
 - `codepipeline:ListPipelineExecutions`
 - `codepipeline:ListPipelines`
 - `wafv2:GetWebACLForResource`
 
-Nova required a reproducible, auditable, least-privilege path in-repo
-(final-state) instead of ad-hoc/manual grants.
+Nova required a reproducible, auditable, least-privilege path in-repo instead
+of ad-hoc/manual grants.
 
 ## Decision drivers (weighted)
 
@@ -82,7 +82,9 @@ Key implications used in policy design:
 
 ## Decision
 
-Adopt **Option 1**: codify a dedicated release validation read role in `infra/nova/nova-iam-roles.yml`, created when `ReleaseValidationTrustedPrincipalArn` is provided.
+Historical decision: adopt **Option 1** and codify a dedicated release
+validation read role in `infra/nova/nova-iam-roles.yml`, created when
+`ReleaseValidationTrustedPrincipalArn` is provided.
 
 Policy stance:
 

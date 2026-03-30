@@ -2,8 +2,8 @@
 
 Status: **Historical snapshot** (2026-03-01). Non-authoritative for current
 operations--verify live posture against
-[ADR-0015](../../../architecture/adr/ADR-0015-nova-api-platform-final-hosting-and-deployment-architecture-2026.md),
-[SPEC-0015](../../../architecture/spec/SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md),
+[ADR-0015](../../../architecture/adr/superseded/ADR-0015-nova-api-platform-final-hosting-and-deployment-architecture-2026.md),
+[SPEC-0015](../../../architecture/spec/superseded/SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md),
 and [requirements](../../../architecture/requirements.md).
 
 **Also see:** [Runbooks index](../../../runbooks/README.md)

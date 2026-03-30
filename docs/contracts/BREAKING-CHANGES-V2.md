@@ -2,8 +2,16 @@
 
 > **Implementation state:** Approved hard-cut change record for the wave-2 program.
 
-
 This file records the intentional hard cuts in the second green-field program.
+
+## Authority / references
+
+- `../architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md`
+- `../architecture/spec/superseded/SPEC-0000-http-api-contract.md`
+- `../architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md`
+- `../architecture/spec/SPEC-0027-public-api-v2.md`
+- `../architecture/requirements.md`
+- `../plan/GREENFIELD-WAVE-2-EXECUTION.md`
 
 ## Public API
 
@@ -22,7 +30,7 @@ This file records the intentional hard cuts in the second green-field program.
 ## Runtime/infrastructure
 
 - Delete Redis as a required runtime dependency.
-- Replace ECS/worker-first target architecture with HTTP API + Lambda + Step Functions as the canonical AWS deployment shape.
+- Replace ECS/worker-first target architecture with Regional REST API + direct Regional WAF + native Lambda handler + Step Functions as the canonical AWS deployment shape.
 
 ## SDK/package layout
 

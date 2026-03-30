@@ -7,7 +7,7 @@ Date: 2026-02-12
 Related:
   - "[ADR-0010: Enqueue failure and readiness semantics](./ADR-0010-enqueue-failure-and-readiness-semantics.md)"
   - "[SPEC-0010: Observability analytics and activity rollups](../spec/SPEC-0010-observability-analytics-and-activity-rollups.md)"
-  - "[ADR-0001: ECS/Fargate deployment behind ALB](./ADR-0001-deployment-on-ecs-fargate-behind-alb.md)"
+  - "[ADR-0001: ECS/Fargate deployment behind ALB](./superseded/ADR-0001-deployment-on-ecs-fargate-behind-alb.md)"
 References:
   - "[CloudWatch EMF specification](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch_Embedded_Metric_Format_Specification.html)"
   - "[CloudWatch cardinality guidance](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/Application-Signals-Cardinality.html)"

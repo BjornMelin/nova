@@ -1,11 +1,8 @@
 # AGENTS.md (nova)
 
-Nova is in a **mixed wave-2** state. This file separates three things that had
-become mixed together in the repo docs:
+Nova is now in the **canonical wave-2 serverless baseline**.
 
-1. the **current implemented baseline**
-2. the **approved target-state program**
-3. **historical / superseded** material
+Use this file to keep active authority small and explicit.
 
 ## Read in order
 
@@ -14,29 +11,22 @@ become mixed together in the repo docs:
 3. `docs/overview/IMPLEMENTATION-STATUS-MATRIX.md`
 4. `README.md`
 5. `docs/standards/README.md`
-6. `docs/runbooks/README.md` for live operations
-7. `docs/plan/GREENFIELD-WAVE-2-EXECUTION.md` for implementation work
+6. `docs/runbooks/README.md`
+7. `docs/plan/GREENFIELD-WAVE-2-EXECUTION.md`
+8. `docs/plan/PLAN.md` for program-history context only
 
-## State model
+## Active canonical authority
 
-### Current implemented baseline
+The active implementation and operating baseline is the same canonical system:
 
-Use this when operating, debugging, or validating the repository in its
-current mixed-wave-2 state.
+- bearer JWT only
+- explicit export workflow resources under `/v1/exports`
+- DynamoDB-backed idempotency/state
+- Regional REST API + native Lambda handler + Step Functions Standard
+- unified SDK package layout for TypeScript, Python, and R
+- `infra/nova_cdk` as the only active infrastructure implementation surface
 
-Baseline examples:
-
-- public transfer APIs plus explicit export workflows are implemented
-- bearer JWT verification runs in-process in the main API
-- DynamoDB-backed idempotency is the correctness path
-- HTTP API + Lambda Web Adapter + Step Functions Standard components have landed
-- legacy ECS-era deployment assets remain only for older environments
-
-### Approved target-state program
-
-Use this when planning or implementing the hard-cut modernization branches.
-
-Target-state authority:
+Primary active authority:
 
 - `docs/architecture/adr/ADR-0033-canonical-serverless-platform.md`
 - `docs/architecture/adr/ADR-0034-eliminate-auth-service-and-session-auth.md`
@@ -49,11 +39,10 @@ Target-state authority:
 - `docs/architecture/spec/SPEC-0029-platform-serverless.md`
 - `docs/architecture/spec/SPEC-0030-sdk-generation-and-package-layout.md`
 - `docs/architecture/spec/SPEC-0031-docs-and-tests-authority-reset.md`
-- `docs/plan/GREENFIELD-WAVE-2-EXECUTION.md`
 
-### Historical / superseded
+## Historical / superseded
 
-Never treat these as active authority:
+Treat these as traceability only:
 
 - `docs/history/**`
 - `docs/architecture/adr/superseded/**`
@@ -61,27 +50,9 @@ Never treat these as active authority:
 
 ## Core laws
 
-- Do not mix current-baseline facts and target-state decisions in the same
-  implementation note without naming which state you mean.
-- When implementing branches, the target-state ADR/SPEC set wins over older
-  wave-1 drafts.
-- When operating current environments, the existing provisioning/release
-  runbooks win until the migration actually lands.
-- Do not resurrect session auth, remote auth verification services, generic
-  public jobs, Redis-backed correctness paths, or bespoke TS runtime glue.
-
-## Prompt execution
-
-When using Codex or another implementation agent:
-
-1. open `docs/plan/GREENFIELD-WAVE-2-EXECUTION.md`
-2. open `docs/overview/CANONICAL-TARGET-2026-04.md`
-3. open the current branch prompt or task description
-4. use `docs/overview/IMPLEMENTATION-STATUS-MATRIX.md` to confirm the delta
-5. use `docs/architecture/spec/REFERENCES.md` for official external references
-
-## Documentation update rule
-
-If you change code, contracts, package layout, or platform shape in a branch,
-update the corresponding active current/target docs in the same branch. Keep
-status and implementation-state language accurate.
+- Do not reintroduce auth-service, session-auth, generic-job, Redis, ECS/Fargate, or split-SDK assumptions into active code, CI, docs, or release workflows.
+- Keep `infra/nova_cdk` as the only active infrastructure path.
+- Keep package release automation aligned to the unified package graph only.
+- Keep the public API Lambda packaging flow in `reusable-release-apply.yml`; CDK must consume explicit `API_LAMBDA_ARTIFACT_BUCKET`, `API_LAMBDA_ARTIFACT_KEY`, and `API_LAMBDA_ARTIFACT_SHA256` inputs instead of rebuilding the API package locally.
+- If code, contracts, package layout, CI, or runbooks change, update the corresponding active docs in the same branch.
+- Keep `AGENTS.md`, `infra/nova_cdk/README.md`, `docs/runbooks/release/release-runbook.md`, and `docs/runbooks/provisioning/github-actions-secrets-and-vars.md` aligned when release/runtime packaging or deploy inputs change.

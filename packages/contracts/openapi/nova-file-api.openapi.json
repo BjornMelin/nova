@@ -1362,7 +1362,7 @@
     },
     "/v1/releases/info": {
       "get": {
-        "description": "Return service release metadata.",
+        "description": "Return public release metadata for browser and deploy canaries.",
         "operationId": "get_release_info",
         "responses": {
           "200": {

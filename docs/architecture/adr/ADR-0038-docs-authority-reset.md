@@ -1,9 +1,19 @@
-# ADR-0038 -- Reset docs authority
+---
+ADR: 0038
+Title: Reset docs authority
+Status: Implemented
+Version: 1.0
+Date: 2026-03-25
+Related:
+  - "[ADR-0033: Canonical serverless platform](./ADR-0033-canonical-serverless-platform.md)"
+  - "[ADR-0023: Hard cut to a single canonical /v1 API surface](./ADR-0023-hard-cut-v1-canonical-route-surface.md)"
+  - "[SPEC-0016: Hard-cut v1 route contract and route-literal guardrails](../spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md)"
+  - "[requirements.md](../requirements.md)"
+  - "[spec/index.md](../spec/index.md)"
+  - "[SPEC-0031: Docs and tests authority reset](../spec/SPEC-0031-docs-and-tests-authority-reset.md)"
+---
 
 > **Implementation state:** Implemented on the current branch docs/test surface, with only remaining truth-model cleanup still pending.
-
-## Status
-Accepted
 
 ## Decision
 

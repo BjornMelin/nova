@@ -15,11 +15,33 @@
       "description": "Inputs passed into reusable-post-deploy-validate workflow_call.",
       "additionalProperties": false,
       "properties": {
-        "validation_base_url": {
+        "deploy_run_id": {
           "type": "string",
-          "description": "Preferred base URL. Must be HTTPS when supplied.",
-          "pattern": "^https://.+$",
-          "minLength": 9
+          "description": "Workflow run id that produced the authoritative deploy-output artifact.",
+          "pattern": "^[1-9][0-9]*$"
+        },
+        "deploy_repo": {
+          "type": "string",
+          "description": "Repository that owns the deploy-output artifact.",
+          "pattern": "^$|^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$",
+          "default": ""
+        },
+        "deploy_artifact_name": {
+          "type": "string",
+          "description": "Artifact name containing deploy-output.json and deploy-output.sha256.",
+          "default": "deploy-runtime-output",
+          "minLength": 1
+        },
+        "deploy_output_json": {
+          "type": "string",
+          "description": "Optional inline deploy-output JSON payload.",
+          "default": ""
+        },
+        "deploy_output_path": {
+          "type": "string",
+          "description": "Optional workspace path to a pre-fetched deploy-output JSON file.",
+          "pattern": "^$|^[^\\s]+\\.json$",
+          "default": ""
         },
         "validation_canonical_paths": {
           "type": "string",
@@ -42,12 +64,40 @@
           "default": "post-deploy-validation-report"
         }
       },
-      "required": [
-        "validation_base_url",
-        "validation_canonical_paths",
-        "validation_legacy_404_paths",
-        "report_path",
-        "artifact_name"
+      "oneOf": [
+        {
+          "required": ["deploy_run_id"],
+          "properties": {
+            "deploy_output_json": {
+              "maxLength": 0
+            },
+            "deploy_output_path": {
+              "maxLength": 0
+            }
+          }
+        },
+        {
+          "required": ["deploy_output_json"],
+          "properties": {
+            "deploy_output_json": {
+              "minLength": 1
+            },
+            "deploy_output_path": {
+              "maxLength": 0
+            }
+          }
+        },
+        {
+          "required": ["deploy_output_path"],
+          "properties": {
+            "deploy_output_path": {
+              "minLength": 1
+            },
+            "deploy_output_json": {
+              "maxLength": 0
+            }
+          }
+        }
       ]
     },
     "outputs": {
@@ -77,6 +127,5 @@
         }
       }
     }
-  },
-  "$defs": {}
+  }
 }

@@ -401,12 +401,23 @@ jobs:
       - name: Combine coverage reports
         run: |
           mkdir -p reports/coverage
-          uv run coverage combine \
+          coverage_inputs=()
+          for coverage_dir in \
             .artifacts/coverage/runtime \
             .artifacts/coverage/primary \
-            .artifacts/coverage/generated-smoke
-          uv run coverage xml -o reports/coverage/coverage.xml
-          uv run coverage report | tee reports/coverage/summary.txt
+            .artifacts/coverage/generated-smoke; do
+            if [[ -d "${coverage_dir}" ]] && find "${coverage_dir}" -maxdepth 1 -type f | grep -q .; then
+              coverage_inputs+=("${coverage_dir}")
+            fi
+          done
+          if [[ "${#coverage_inputs[@]}" -gt 0 ]]; then
+            uv run coverage combine "${coverage_inputs[@]}"
+            uv run coverage xml -o reports/coverage/coverage.xml
+            uv run coverage report | tee reports/coverage/summary.txt
+          else
+            printf 'No coverage artifacts were downloaded.\n' \
+              | tee reports/coverage/summary.txt
+          fi
           {
             echo '## Pytest Coverage Summary'
             echo

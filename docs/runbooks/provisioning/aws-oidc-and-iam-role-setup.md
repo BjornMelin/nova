@@ -2,49 +2,76 @@
 
 Status: Active
 Owner: nova release architecture
-Last reviewed: 2026-03-05
+Last reviewed: 2026-03-29
 
 ## Purpose
 
-Configure GitHub OIDC federation and deploy the Nova IAM role stack consumed by
-release workflows and AWS pipeline stages.
+Configure the AWS IAM roles that GitHub Actions uses for Nova release and
+runtime deployment automation.
 
 ## Prerequisites
 
-1. AWS CLI configured to target deployment account.
-2. Permission to manage IAM providers and roles.
-3. `nova` deployment templates available at `infra/nova/**`.
+1. AWS CLI configured for the target account.
+2. Permission to manage IAM OIDC providers and IAM roles.
+3. A CodeArtifact domain and the staging/prod repositories already exist.
+4. The runtime account already has the CDK bootstrap resources and any
+   environment-scoped CloudFormation execution roles required by deploy.
 
 ## Inputs
 
-- `${AWS_REGION}` example: `us-east-1`
-- `${AWS_ACCOUNT_ID}` example: `123456789012`
-- `${PROJECT}` default: `nova`
-- `${APPLICATION}` default: `ci`
-- `${GITHUB_OWNER}` target GitHub org or user
-- `${GITHUB_REPO}` target repository name
-- `${MAIN_BRANCH}` default: `main`
-- `${SIGNING_SECRET_ARN}` from secrets provisioning guide
-- `${FOUNDATION_STACK_NAME}` default: `${PROJECT}-${APPLICATION}-nova-foundation`
-- `${CODEARTIFACT_DOMAIN}` example: `cral`
-- `${CODEARTIFACT_STAGING_REPOSITORY}` example: `galaxypy-staging`
-- `${CODEARTIFACT_PROD_REPOSITORY}` example: `galaxypy-prod`
+- `${AWS_REGION}` default `us-east-1`
+- `${AWS_ACCOUNT_ID}`
+- `${GITHUB_OWNER}`
+- `${GITHUB_REPO}`
+- `${MAIN_BRANCH}` default `main`
+- `${SIGNING_SECRET_ARN}`
+- `${RELEASE_ARTIFACT_BUCKET_ARN}`
+- `${RUNTIME_CFN_EXECUTION_ROLE_ARN}`
 
-Repository directionality contract:
+## Required role capabilities
 
-- Staging repo is the promotion source.
-- Prod repo is the promotion destination.
-- Source and destination repositories must not be identical.
+The release role behind `RELEASE_AWS_ROLE_ARN` must allow:
+
+- CodeArtifact publish/read/copy for the configured staging and prod repos
+- Secrets Manager read for the release signing secret
+- STS assume-role via GitHub OIDC with `aud=sts.amazonaws.com`
+- repository-scoped `sub` conditions for `repo:${GITHUB_OWNER}/${GITHUB_REPO}:ref:refs/heads/${MAIN_BRANCH}`
+
+The runtime deploy role behind `RUNTIME_DEPLOY_AWS_ROLE_ARN` must allow:
+
+- STS assume-role via GitHub OIDC with `aud=sts.amazonaws.com`
+- repository-scoped `sub` conditions for `repo:${GITHUB_OWNER}/${GITHUB_REPO}:ref:refs/heads/${MAIN_BRANCH}`
+- GitHub-specific `repository`, `ref`, and `job_workflow_ref` trust conditions for
+  `.github/workflows/reusable-deploy-runtime.yml@refs/heads/${MAIN_BRANCH}`
+- CloudFormation deploy/update/describe access for `NovaRuntimeStack`
+- `ssm:GetParameter` for `/cdk-bootstrap/hnb659fds/version`
+- `sts:AssumeRole` for the CDK bootstrap deploy, file-publishing, and
+  image-publishing roles in the target account/region
+- scoped `iam:PassRole` only for approved CloudFormation execution roles used by the runtime stack
+
+Keep the release role and runtime deploy role separate. Package publication,
+signing, and CodeArtifact promotion do not belong in the runtime deploy role.
+
+## Authority / references
+
+- `docs/architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md` (canonical route-surface authority)
+- `docs/architecture/spec/superseded/SPEC-0000-http-api-contract.md` (historical API baseline reference for hard-cut context)
+- `docs/architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md` (active route-surface guardrails)
+- `docs/architecture/requirements.md`
+- `docs/plan/GREENFIELD-WAVE-2-EXECUTION.md` (active canonical wave-2 overlay)
+- `RELEASE_AWS_ROLE_ARN` and `RUNTIME_DEPLOY_AWS_ROLE_ARN` govern the OIDC
+  setup described below
 
 ## Step-by-step commands
 
-1. Check if GitHub OIDC provider already exists.
+1. Ensure the GitHub OIDC provider exists.
 
     ```bash
-    aws iam list-open-id-connect-providers --query 'OpenIDConnectProviderList[].Arn'
+    aws iam list-open-id-connect-providers \
+      --query 'OpenIDConnectProviderList[].Arn'
     ```
 
-2. If missing, create provider.
+2. If missing, create it.
 
     ```bash
     aws iam create-open-id-connect-provider \
@@ -53,103 +80,46 @@ Repository directionality contract:
       --thumbprint-list 6938fd4d98bab03faadb97b34396831e3780aea1
     ```
 
-3. Capture provider ARN.
+3. Create or update the release role using your account’s preferred IAM/IaC
+   mechanism, then capture its ARN as `RELEASE_AWS_ROLE_ARN`.
 
-    ```bash
-    GITHUB_OIDC_PROVIDER_ARN="$(aws iam list-open-id-connect-providers \
-      --query 'OpenIDConnectProviderList[?contains(Arn, `token.actions.githubusercontent.com`) == `true`].Arn | [0]' \
-      --output text)"
-    echo "${GITHUB_OIDC_PROVIDER_ARN}"
-    ```
+4. Create or update the runtime deploy role using your account’s preferred
+   IAM/IaC mechanism, then capture its ARN as `RUNTIME_DEPLOY_AWS_ROLE_ARN`.
 
-4. Deploy IAM role stack from `infra/nova/nova-iam-roles.yml`.
+5. Provision or choose the CloudFormation execution role used for runtime stack
+   updates, then capture its ARN as `RUNTIME_CFN_EXECUTION_ROLE_ARN`.
 
-    ```bash
-    FOUNDATION_STACK_NAME="${FOUNDATION_STACK_NAME:-${PROJECT}-${APPLICATION}-nova-foundation}"
+6. Verify both role trust policies are scoped to the target repo and branch.
 
-    aws cloudformation deploy \
-      --region "${AWS_REGION}" \
-      --stack-name "${PROJECT}-${APPLICATION}-nova-iam-roles" \
-      --template-file infra/nova/nova-iam-roles.yml \
-      --capabilities CAPABILITY_NAMED_IAM \
-      --parameter-overrides \
-        Project="${PROJECT}" \
-        Application="${APPLICATION}" \
-        FoundationStackName="${FOUNDATION_STACK_NAME}" \
-        RepositoryOwner="${GITHUB_OWNER}" \
-        RepositoryName="${GITHUB_REPO}" \
-        MainBranchName="${MAIN_BRANCH}" \
-        GitHubOidcProviderArn="${GITHUB_OIDC_PROVIDER_ARN}" \
-        ReleaseSigningSecretArn="${SIGNING_SECRET_ARN}" \
-        CodeArtifactDomainName="${CODEARTIFACT_DOMAIN}" \
-        CodeArtifactStagingRepositoryName="${CODEARTIFACT_STAGING_REPOSITORY}" \
-        CodeArtifactPromotionSourceRepositoryName="${CODEARTIFACT_STAGING_REPOSITORY}" \
-        CodeArtifactPromotionDestinationRepositoryName="${CODEARTIFACT_PROD_REPOSITORY}"
-    ```
+```bash
+export RELEASE_AWS_ROLE_ARN="${RELEASE_AWS_ROLE_ARN:?set RELEASE_AWS_ROLE_ARN}"
+export RUNTIME_DEPLOY_AWS_ROLE_ARN="${RUNTIME_DEPLOY_AWS_ROLE_ARN:?set RUNTIME_DEPLOY_AWS_ROLE_ARN}"
+export RUNTIME_CFN_EXECUTION_ROLE_ARN="${RUNTIME_CFN_EXECUTION_ROLE_ARN:?set RUNTIME_CFN_EXECUTION_ROLE_ARN}"
+RELEASE_ROLE_NAME="${RELEASE_AWS_ROLE_ARN##*/}"
+RUNTIME_ROLE_NAME="${RUNTIME_DEPLOY_AWS_ROLE_ARN##*/}"
 
-5. Validate OIDC trust on deployed release role (post stack deploy).
+aws iam get-role \
+  --role-name "${RELEASE_ROLE_NAME}" \
+  --query 'Role.AssumeRolePolicyDocument.Statement'
 
-    ```bash
-    aws iam get-role \
-      --role-name "${PROJECT}-${APPLICATION}-github-oidc-release-role" \
-      --query 'Role.AssumeRolePolicyDocument.Statement'
-    ```
+aws iam get-role \
+  --role-name "${RUNTIME_ROLE_NAME}" \
+  --query 'Role.AssumeRolePolicyDocument.Statement'
 
-Expected policy conditions:
-
-- `token.actions.githubusercontent.com:aud = sts.amazonaws.com`
-- `token.actions.githubusercontent.com:sub = repo:${GITHUB_OWNER}/${GITHUB_REPO}:ref:refs/heads/${MAIN_BRANCH}`
-
-## Required role-stack parameters
-
-Provide these values when deploying `infra/nova/nova-iam-roles.yml`:
-
-- `GitHubOidcProviderArn`
-- `ReleaseSigningSecretArn`
-- `FoundationStackName` (or explicit artifact/CodeArtifact/ECR overrides)
-- `RepositoryOwner`
-- `RepositoryName`
-- `MainBranchName`
-- `CodeArtifactDomainName`
-- `CodeArtifactStagingRepositoryName`
-- `CodeArtifactPromotionSourceRepositoryName`
-- `CodeArtifactPromotionDestinationRepositoryName`
+aws iam get-role \
+  --role-name "${RUNTIME_CFN_EXECUTION_ROLE_ARN##*/}" \
+  --query 'Role.AssumeRolePolicyDocument.Statement'
+```
 
 ## Acceptance checks
 
-1. `GitHubOIDCReleaseRoleArn` output exists:
-
-   ```bash
-   aws cloudformation describe-stacks \
-     --region "${AWS_REGION}" \
-     --stack-name "${PROJECT}-${APPLICATION}-nova-iam-roles" \
-     --query 'Stacks[0].Outputs[?OutputKey==`GitHubOIDCReleaseRoleArn`].OutputValue | [0]' \
-     --output text
-   ```
-
-2. Assume-role policy includes scoped `aud` and `sub` constraints.
-3. Role has only required access to signing secret and no static keys.
-4. Promotion permissions are directional:
-   - `codeartifact:ReadFromRepository` scoped to staging source repository.
-   - `codeartifact:CopyPackageVersions` scoped to prod destination repository
-     plus required Python, TypeScript, and generic R package ARNs.
-   - staged publish permissions cover the staging repository package ARNs for
-     `pypi`, `npm`, and `generic` package formats.
-5. Release/build roles include package-group governance for
-   `package-group/${CodeArtifactDomainName}/*` so
-   `/npm/nova/*` blocks upstream ingestion while
-   still allowing direct publish.
-6. When `ReleaseValidationTrustedPrincipalArn` is provided, output
-   `ReleaseValidationReadRoleArn` exists and is assumable by the trusted
-   principal.
-
-## References
-
-- IAM OIDC provider creation:
-  <https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_create_oidc.html>
-- OIDC secure-by-default guidance:
-  <https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_oidc_secure-by-default.html>
-- GitHub OIDC in AWS:
-  <https://docs.github.com/en/actions/how-tos/secure-your-work/security-harden-deployments/oidc-in-aws>
-- IAM get-role API:
-  <https://docs.aws.amazon.com/cli/latest/reference/iam/get-role.html>
+1. Both role trust policies include `aud` and repo/branch-scoped `sub`
+   conditions.
+2. The release role can read the signing secret and access the configured
+   CodeArtifact repositories without broader wildcard permissions than
+   necessary.
+3. The runtime deploy role can deploy `NovaRuntimeStack`, read the immutable
+   release manifest, assume only the required CDK bootstrap roles, and only
+   pass approved CloudFormation execution roles.
+4. The runtime execution role is trusted only by CloudFormation and owns the
+   Route 53/API Gateway/WAF/Lambda/Step Functions mutations for the runtime stack.

@@ -1,7 +1,7 @@
 # Superseded specifications
 
 Status: Historical / non-authoritative
-Last reviewed: 2026-03-25
+Last reviewed: 2026-03-30
 
 This directory preserves superseded specs for traceability.
 

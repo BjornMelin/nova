@@ -9,13 +9,13 @@ Related:
   - "[ADR-0011: Hybrid CI/CD with GitHub and AWS promotion](../adr/ADR-0011-cicd-hybrid-github-aws-promotion.md)"
   - "[ADR-0031: Reusable GitHub workflow API and versioning policy for deployment automation](../adr/ADR-0031-reusable-github-workflow-api-and-versioning-policy-for-deployment-automation.md)"
   - "[ADR-0032: OIDC and IAM role partitioning for deploy automation](../adr/ADR-0032-oidc-and-iam-role-partitioning-for-deploy-automation.md)"
+  - "[ADR-0033: Canonical serverless platform](../adr/ADR-0033-canonical-serverless-platform.md)"
   - "[ADR-0023: Hard cut v1 canonical route surface](../adr/ADR-0023-hard-cut-v1-canonical-route-surface.md)"
-  - "[ADR-0012: No Lambda runtime scope](../adr/ADR-0012-no-lambda-runtime-scope.md)"
-  - "[SPEC-0000: HTTP API contract](./SPEC-0000-http-api-contract.md)"
   - "[SPEC-0016: v1 route namespace and literal guardrails](./SPEC-0016-v1-route-namespace-and-literal-guardrails.md)"
+  - "[SPEC-0029: Canonical serverless platform](./SPEC-0029-platform-serverless.md)"
   - "[requirements.md](../requirements.md)"
   - "[SPEC-0025: Reusable workflow integration contract](./SPEC-0025-reusable-workflow-integration-contract.md)"
-  - "[SPEC-0020: Architecture authority pack and documentation synchronization contract](./SPEC-0020-architecture-authority-pack-and-documentation-synchronization-contract.md)"
+  - "[SPEC-0031: Docs and tests authority reset](./SPEC-0031-docs-and-tests-authority-reset.md)"
 References:
   - "[GitHub Actions](https://docs.github.com/actions)"
   - "[GitHub commit signature verification](https://docs.github.com/en/authentication/managing-commit-signature-verification/about-commit-signature-verification)"
@@ -88,8 +88,11 @@ Canonical flow:
    consumes immutable `release-apply` artifacts from an explicit
    `release_apply_run_id`.
 5. `reusable-release-apply.yml` applies selective versions, writes release
-   manifest,
-   updates `uv.lock`, and commits signed release metadata from `main` only.
+   manifest, updates `uv.lock`, creates a signed release commit from `main`
+   only, builds the public API Lambda zip from that exact local signed commit,
+   uploads that zip plus `api-lambda-artifact.json` to
+   `RELEASE_ARTIFACT_BUCKET`, and advances `main` only after immutable artifact
+   publication succeeds.
 6. AWS CodePipeline source action consumes signed commit through CodeConnections.
 7. AWS CodeBuild/buildspec release stages own container image build/push
    authority; GitHub does not carry a separate image-wrapper workflow.
@@ -108,7 +111,22 @@ Release artifacts MUST include:
 - `changed-units.json`
 - `version-plan.json`
 - `docs/release/RELEASE-VERSION-MANIFEST.md`
+- `api-lambda-artifact.json`
 - immutable deploy artifacts consumed by both Dev and Prod stages
+
+The public API Lambda artifact contract is:
+
+- content-addressed S3 key:
+  `runtime/nova-file-api/<release_commit_sha>/<artifact_sha256>/nova-file-api-lambda.zip`
+- required manifest fields:
+  `release_commit_sha`, `package_name`, `package_version`, `runtime`,
+  `architecture`, `artifact_bucket`, `artifact_key`, `artifact_sha256`,
+  `built_at`
+- no dependency on S3 object versioning
+- consumers MUST validate the manifest field set before use via
+  `scripts/release/emit_api_lambda_artifact_env.py`
+- consumers MUST verify `artifact_sha256` against the downloaded zip bytes
+  before treating the manifest as authoritative
 
 Rules:
 
@@ -151,10 +169,11 @@ Secrets policy:
      through CodeArtifact npm repositories.
    - R package artifacts MUST be built, checked, and stored as signed tarball
      evidence plus CodeArtifact generic packages.
-2. Build and push container image artifacts and export immutable digest.
+2. Build and push workflow-task container image artifacts, excluding the public
+   API Lambda native zip artifact, and export immutable digest when applicable.
 3. Produce deploy artifacts consumed by both Dev and Prod promotion stages.
 4. Export build variables:
-   - `FILE_IMAGE_DIGEST`
+   - `FILE_IMAGE_DIGEST` (only when a workflow-task image is part of the release)
    - `PUBLISHED_PACKAGES`
    - `RELEASE_MANIFEST_SHA256`
    - `CHANGED_UNITS`
@@ -164,25 +183,27 @@ Required CodeBuild environment inputs:
 - `CODEARTIFACT_DOMAIN`
 - `CODEARTIFACT_STAGING_REPOSITORY` (build publish target / promotion source)
 - `CODEARTIFACT_PROD_REPOSITORY` (promotion destination authority)
-- `ECR_REPOSITORY_URI` or `ECR_REPOSITORY_NAME`
+- `ECR_REPOSITORY_URI` or `ECR_REPOSITORY_NAME` when a workflow-task image build is required
 
 Default build target values:
 
-- `FILE_DOCKERFILE_PATH=apps/nova_file_api_service/Dockerfile`
+- `FILE_DOCKERFILE_PATH=apps/nova_workflows_tasks/Dockerfile`
 - `DOCKER_BUILD_CONTEXT=.`
 - `DOCKER_BUILDKIT=1`
 - Docker CLI with `buildx` available in the release-build environment
 
-Release-image Dockerfile contract:
+Workflow-task container image Dockerfile contract:
 
-- Service Dockerfiles remain under `apps/*`; do not move them into workspace
-  package paths.
-- Service image builds MUST run with Docker BuildKit enabled.
-- Service image builds MUST target the repo-approved Python `3.13-slim`
-  baseline and use pinned `uv` for reproducible dependency installation.
-- Service Dockerfiles MUST use exec-form single-process `uvicorn` commands and
-  may not add `gunicorn` or in-container worker fan-out for the ECS/Fargate API
-  services.
+- Workflow-task Dockerfiles stay under `apps/*`; do not move them
+  into workspace package paths.
+- Workflow-task image builds MUST run with Docker BuildKit enabled.
+- Workflow-task image builds MUST target the AWS Lambda Python 3.13 base image
+  and use pinned `uv` for reproducible dependency installation.
+
+Public API Lambda artifact contract:
+
+- The public API Lambda is a native zip package built from a repo-owned custom
+  asset command; it is not a release container image.
 
 ## 6. AWS promotion and deployment controls
 

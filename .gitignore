@@ -200,3 +200,7 @@ infra/auth0/env/*
 .yarnrc
 .yarnrc.*
 !/.yarnrc.yml.template
+
+GPT54_PRO_REVIEW_PROMPT.md
+nova-release-rebaseline.zip
+PR-*.diff

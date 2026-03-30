@@ -11,7 +11,7 @@ Related:
   - "[ADR-0013: Final-state SDK topology (superseded)](../../adr/superseded/ADR-0013-final-state-sdk-topology-generated-core-plus-thin-adapters.md)"
   - "[ADR-0038: Green-field SDK architecture by language](../../adr/ADR-0038-sdk-architecture-by-language.md)"
   - "[ADR-0002: OpenAPI as contract and SDK generation](../../adr/ADR-0002-openapi-as-contract-and-sdk-generation.md)"
-  - "[SPEC-0000: HTTP API contract](../SPEC-0000-http-api-contract.md)"
+  - "[SPEC-0000: HTTP API contract](./SPEC-0000-http-api-contract.md)"
   - "[SPEC-0016: Hard-cut v1 route contract and route-literal guardrails](../SPEC-0016-v1-route-namespace-and-literal-guardrails.md)"
   - "[SPEC-0027: Public HTTP contract revision and bearer auth](../SPEC-0027-public-http-contract-revision-and-bearer-auth.md)"
   - "[Plan Master](../../../plan/PLAN.md)"

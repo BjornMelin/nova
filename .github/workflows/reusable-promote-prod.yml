@@ -3,10 +3,6 @@ name: Reusable Promote Prod
 on:
   workflow_call:
     inputs:
-      pipeline_name:
-        description: AWS CodePipeline name.
-        required: true
-        type: string
       manifest_sha256:
         description: SHA256 for docs/release/RELEASE-VERSION-MANIFEST.md.
         required: true
@@ -80,7 +76,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: reusable-promote-prod-${{ inputs.pipeline_name }}-${{ inputs.aws_region }}
+  group: reusable-promote-prod-${{ github.ref }}-${{ inputs.aws_region }}
   cancel-in-progress: false
 
 jobs:
@@ -88,7 +84,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
-      PIPELINE_NAME: ${{ inputs.pipeline_name }}
       AWS_REGION: ${{ inputs.aws_region }}
       RELEASE_AWS_ROLE_ARN: ${{ secrets.release_aws_role_arn }}
       CODEARTIFACT_DOMAIN: ${{ inputs.codeartifact_domain }}
@@ -169,7 +164,6 @@ jobs:
             fi
           }
 
-          require_nonempty "pipeline_name" "$PIPELINE_NAME"
           require_nonempty "CODEARTIFACT_DOMAIN" "$CODEARTIFACT_DOMAIN"
           require_nonempty "CODEARTIFACT_STAGING_REPOSITORY" "$CODEARTIFACT_STAGING_REPOSITORY"
           require_nonempty "CODEARTIFACT_PROD_REPOSITORY" "$CODEARTIFACT_PROD_REPOSITORY"
@@ -429,25 +423,3 @@ jobs:
                       f'{json.dumps(failed)}'
                   )
           PY
-
-  approve-prod-pipeline:
-    needs: validate-and-promote-packages
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-    steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # actions/checkout@v6
-        with:
-          persist-credentials: false
-
-      - name: Configure AWS Credentials (OIDC)
-        uses: ./.github/actions/configure-aws-oidc
-        with:
-          role-to-assume: ${{ secrets.release_aws_role_arn }}
-          aws-region: ${{ inputs.aws_region }}
-
-      - name: Approve prod promotion stage
-        uses: ./.github/actions/codepipeline-approve
-        with:
-          pipeline-name: ${{ inputs.pipeline_name }}
-          aws-region: ${{ inputs.aws_region }}

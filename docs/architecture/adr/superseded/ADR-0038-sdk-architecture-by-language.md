@@ -1,7 +1,3 @@
-> **Superseded target draft**
->
-> This draft was superseded before implementation by `ADR-0037-sdk-generation-consolidation.md` and `SPEC-0030-sdk-generation-and-package-layout.md`.
-
 ---
 ADR: 0038
 Title: Green-field SDK architecture by language
@@ -11,7 +7,7 @@ Date: 2026-03-19
 Supersedes: "[ADR-0013: Final-state SDK topology (superseded)](./superseded/ADR-0013-final-state-sdk-topology-generated-core-plus-thin-adapters.md)"
 Related:
   - "[ADR-0023: Hard-cut v1 canonical route surface](./ADR-0023-hard-cut-v1-canonical-route-surface.md)"
-  - "[SPEC-0000: HTTP API contract](../spec/SPEC-0000-http-api-contract.md)"
+  - "[SPEC-0000: HTTP API contract](../spec/superseded/SPEC-0000-http-api-contract.md)"
   - "[SPEC-0016: V1 route namespace and literal guardrails](../spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md)"
   - "[requirements.md](../requirements.md)"
   - "[SPEC-0029: SDK architecture and artifact contract](../spec/SPEC-0029-sdk-architecture-and-artifact-contract.md)"
@@ -24,6 +20,9 @@ References:
   - "[Green-field evidence (Framework B)](../../../history/2026-03-greenfield-wave-1-superseded/greenfield-evidence/DECISION_FRAMEWORKS_AND_SCORES.md)"
   - "[Rejected and deferred options](../../../history/2026-03-greenfield-wave-1-superseded/greenfield-evidence/REJECTED_AND_DEFERRED_OPTIONS.md)"
 ---
+> **Superseded target draft**
+>
+> This draft was superseded before implementation by `ADR-0037-sdk-generation-consolidation.md` and `SPEC-0030-sdk-generation-and-package-layout.md`.
 
 ## Summary
 

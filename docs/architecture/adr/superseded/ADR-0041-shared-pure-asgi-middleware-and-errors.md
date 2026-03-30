@@ -1,9 +1,3 @@
-> **Superseded target draft**
->
-> This draft was superseded before implementation by the wave-2 program.
-> See `ADR-0038-docs-authority-reset.md` and
-> `docs/plan/GREENFIELD-WAVE-2-EXECUTION.md` for the surviving tracked route.
-
 ---
 ADR: 0041
 Title: Green-field shared pure ASGI middleware and errors
@@ -12,7 +6,7 @@ Version: 1.1
 Date: 2026-03-22
 Related:
   - "[ADR-0023: Hard-cut v1 canonical route surface](./ADR-0023-hard-cut-v1-canonical-route-surface.md)"
-  - "[SPEC-0000: HTTP API contract](../spec/SPEC-0000-http-api-contract.md)"
+  - "[SPEC-0000: HTTP API contract](../../spec/superseded/SPEC-0000-http-api-contract.md)"
   - "[SPEC-0016: V1 route namespace and literal guardrails](../spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md)"
   - "[requirements.md](../requirements.md)"
   - "[ADR-0036: Green-field native FastAPI OpenAPI contract expression](./ADR-0036-native-fastapi-openapi-contract.md)"
@@ -22,6 +16,12 @@ References:
   - "[Green-field evidence (Framework A)](../../plan/greenfield-evidence/DECISION_FRAMEWORKS_AND_SCORES.md)"
   - "[Change impact map](../../plan/greenfield-evidence/CHANGE_IMPACT_MAP.md)"
 ---
+
+> **Superseded target draft**
+>
+> This draft was superseded before implementation by the wave-2 program.
+> See `ADR-0038-docs-authority-reset.md` and
+> `docs/plan/GREENFIELD-WAVE-2-EXECUTION.md` for the surviving tracked route.
 
 ## Summary
 

@@ -7,7 +7,7 @@ Date: 2026-03-19
 Supersedes: "[ADR-0005: Add dedicated nova-auth-api service (superseded)](./superseded/ADR-0005-add-dedicated-nova-auth-api-service.md)"
 Related:
   - "[ADR-0023: Hard-cut v1 canonical route surface](./ADR-0023-hard-cut-v1-canonical-route-surface.md)"
-  - "[SPEC-0000: HTTP API contract](../spec/SPEC-0000-http-api-contract.md)"
+  - "[SPEC-0000: HTTP API contract](../../spec/superseded/SPEC-0000-http-api-contract.md)"
   - "[SPEC-0016: V1 route namespace and literal guardrails](../spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md)"
   - "[requirements.md](../requirements.md)"
   - "[ADR-0034: Green-field bearer JWT public auth contract](./ADR-0034-bearer-jwt-public-auth-contract.md)"

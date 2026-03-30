@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.7
 FROM public.ecr.aws/lambda/python:3.13
 
-COPY --from=ghcr.io/astral-sh/uv:0.11.1 /uv /uvx /bin/
+COPY --from=ghcr.io/astral-sh/uv:0.11.2 /uv /uvx /bin/
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \

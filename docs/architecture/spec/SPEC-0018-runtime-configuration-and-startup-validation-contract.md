@@ -8,7 +8,6 @@ Related:
   - "[ADR-0026: Fail-fast runtime configuration and safe auth execution](../adr/ADR-0026-fail-fast-runtime-configuration-and-safe-auth-execution.md)"
   - "[SPEC-0017: Runtime component topology and ownership contract](./SPEC-0017-runtime-component-topology-and-ownership-contract.md)"
   - "[SPEC-0001: Security model](./SPEC-0001-security-model.md)"
-  - "[SPEC-0008: Async jobs and worker orchestration](./SPEC-0008-async-jobs-and-worker-orchestration.md)"
 ---
 
 ## 1. Scope

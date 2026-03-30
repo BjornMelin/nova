@@ -6,7 +6,15 @@ FastAPI control-plane package for file transfers and export workflows in the Nov
 
 Besides the public factory function `create_app()`, the package exposes a
 module-level ASGI app at `nova_file_api.main:app` (implemented in `main.py`)
-which is the canonical process-manager and container entrypoint.
+for local development and tooling. The production Lambda entrypoint is
+`nova_file_api.lambda_handler.handler`, which adapts the same FastAPI app
+through a native Lambda proxy handler instead of an in-function web server.
+
+## Browser contract
+
+Browser-accessible origins are configured with `ALLOWED_ORIGINS` (JSON array or
+comma-delimited string). In local development, the app falls back to explicit
+localhost origins for common browser ports.
 
 ## API surface
 
