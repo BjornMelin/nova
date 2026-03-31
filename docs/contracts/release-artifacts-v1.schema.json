@@ -671,6 +671,9 @@
           "type": "string",
           "enum": [
             "canonical",
+            "cors_preflight",
+            "protected",
+            "execute_api_disabled",
             "legacy_404"
           ]
         },
@@ -724,11 +727,20 @@
       "required": [
         "timestamp_utc",
         "base_url",
+        "execute_api_endpoint",
         "canonical_paths",
+        "protected_paths",
         "legacy_404_paths",
+        "cors_preflight_path",
+        "cors_allowed_origins",
+        "cors_origin",
         "checks",
         "status",
-        "failures"
+        "failures",
+        "deploy_output_sha256",
+        "release_commit_sha",
+        "runtime_version",
+        "release_info"
       ],
       "properties": {
         "timestamp_utc": {
@@ -739,11 +751,22 @@
           "type": "string",
           "pattern": "^https://.+$"
         },
+        "execute_api_endpoint": {
+          "type": "string",
+          "pattern": "^https://.+\\.execute-api\\..+$"
+        },
         "canonical_paths": {
           "type": "array",
           "items": {
             "type": "string",
             "pattern": "^/[^\\s]*$"
+          }
+        },
+        "protected_paths": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Z]+\\s+/[^\\s]*$"
           }
         },
         "legacy_404_paths": {
@@ -752,6 +775,22 @@
             "type": "string",
             "pattern": "^/[^\\s]*$"
           }
+        },
+        "cors_preflight_path": {
+          "type": "string",
+          "pattern": "^/[^\\s]*$"
+        },
+        "cors_allowed_origins": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "cors_origin": {
+          "type": "string",
+          "pattern": "^https?://.+$"
         },
         "checks": {
           "type": "array",
@@ -785,60 +824,6 @@
         },
         "release_info": {
           "$ref": "#/$defs/runtime_release_info"
-        },
-        "auth_target": {
-          "$ref": "#/$defs/post_deploy_validation_target"
-        }
-      }
-    },
-    "post_deploy_validation_target": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "base_url",
-        "canonical_paths",
-        "legacy_404_paths",
-        "checks",
-        "status",
-        "failures"
-      ],
-      "properties": {
-        "base_url": {
-          "type": "string",
-          "pattern": "^https://.+$"
-        },
-        "canonical_paths": {
-          "type": "array",
-          "items": {
-            "type": "string",
-            "pattern": "^/[^\\s]*$"
-          }
-        },
-        "legacy_404_paths": {
-          "type": "array",
-          "items": {
-            "type": "string",
-            "pattern": "^/[^\\s]*$"
-          }
-        },
-        "checks": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/route_check"
-          }
-        },
-        "status": {
-          "type": "string",
-          "enum": [
-            "passed",
-            "failed"
-          ]
-        },
-        "failures": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
         }
       }
     },

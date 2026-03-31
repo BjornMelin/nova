@@ -18,14 +18,29 @@ on:
         default: deploy-runtime-output
         type: string
       validation_canonical_paths:
-        description: Comma-delimited canonical paths that must resolve.
+        description: Comma-delimited public canonical paths that must return 200.
         required: false
-        default: /v1/health/live,/v1/health/ready,/metrics/summary,/v1/capabilities,/v1/releases/info
+        default: /v1/health/live,/v1/health/ready,/v1/capabilities,/v1/releases/info
+        type: string
+      validation_protected_paths:
+        description: Comma-delimited 'METHOD /path' auth-gate probes.
+        required: false
+        default: POST /v1/exports
         type: string
       validation_legacy_404_paths:
         description: Comma-delimited legacy paths that must return 404.
         required: false
         default: /healthz,/readyz,/api/transfers/uploads/initiate,/api/jobs,/api/v1/transfers/uploads/initiate
+        type: string
+      validation_cors_preflight_path:
+        description: Protected path used for browser CORS preflight validation.
+        required: false
+        default: /v1/exports
+        type: string
+      validation_cors_origin:
+        description: Optional origin override used for browser CORS preflight validation.
+        required: false
+        default: ""
         type: string
       report_path:
         description: JSON report output path.
@@ -78,6 +93,9 @@ jobs:
       deploy_run_id: ${{ github.run_id }}
       deploy_artifact_name: ${{ needs.deploy-runtime.outputs.deploy_output_artifact_name }}
       validation_canonical_paths: ${{ inputs.validation_canonical_paths }}
+      validation_protected_paths: ${{ inputs.validation_protected_paths }}
       validation_legacy_404_paths: ${{ inputs.validation_legacy_404_paths }}
+      validation_cors_preflight_path: ${{ inputs.validation_cors_preflight_path }}
+      validation_cors_origin: ${{ inputs.validation_cors_origin }}
       report_path: ${{ inputs.report_path }}
       artifact_name: ${{ inputs.artifact_name }}

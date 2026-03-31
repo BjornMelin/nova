@@ -21,6 +21,40 @@ _DEPLOY_OUTPUT_PATH = _CONTRACTS_DIR / "deploy-output-authority-v2.schema.json"
 _WORKFLOW_SCHEMA_PATH = (
     _CONTRACTS_DIR / "workflow-deploy-runtime-v1.schema.json"
 )
+_STACK_OUTPUT_PROPERTIES: dict[str, dict[str, object]] = {
+    "NovaAlarmTopicArn": {
+        "type": "string",
+        "pattern": "^arn:aws:sns:[a-z0-9-]+:\\d{12}:.+$",
+    },
+    "NovaApiAccessLogGroupName": {
+        "type": "string",
+        "pattern": "^/aws/apigateway/.+$",
+    },
+    "NovaExportWorkflowStateMachineArn": {
+        "type": "string",
+        "pattern": "^arn:aws:states:[a-z0-9-]+:\\d{12}:stateMachine:.+$",
+    },
+    "NovaExportsTableName": {
+        "type": "string",
+        "minLength": 1,
+    },
+    "NovaIdempotencyTableName": {
+        "type": "string",
+        "minLength": 1,
+    },
+    "NovaPublicBaseUrl": {
+        "type": "string",
+        "pattern": "^https://.+$",
+    },
+    "NovaRestApiEndpoint": {
+        "type": "string",
+        "pattern": "^https://.+\\.execute-api\\..+$",
+    },
+    "NovaWafLogGroupName": {
+        "type": "string",
+        "pattern": "^aws-waf-logs-.+$",
+    },
+}
 
 
 def build_deploy_output_schema() -> dict[str, Any]:
@@ -52,6 +86,8 @@ def build_deploy_output_schema() -> dict[str, Any]:
             "runtime_version",
             "release_commit_sha",
             "public_base_url",
+            "execute_api_endpoint",
+            "cors_allowed_origins",
             "stack_outputs",
             "api_lambda_artifact",
         ],
@@ -84,17 +120,21 @@ def build_deploy_output_schema() -> dict[str, Any]:
                 "type": "string",
                 "pattern": "^https://.+$",
             },
+            "execute_api_endpoint": {
+                "type": "string",
+                "pattern": "^https://.+\\.execute-api\\..+$",
+            },
+            "cors_allowed_origins": {
+                "type": "array",
+                "minItems": 1,
+                "items": {"type": "string", "minLength": 1},
+            },
             "stack_outputs": {
                 "type": "object",
                 "minProperties": 1,
-                "additionalProperties": {"type": "string", "minLength": 1},
-                "required": ["NovaPublicBaseUrl"],
-                "properties": {
-                    "NovaPublicBaseUrl": {
-                        "type": "string",
-                        "pattern": "^https://.+$",
-                    }
-                },
+                "additionalProperties": False,
+                "required": ["NovaPublicBaseUrl", "NovaRestApiEndpoint"],
+                "properties": _STACK_OUTPUT_PROPERTIES,
             },
             "api_lambda_artifact": {
                 "type": "object",

@@ -18,9 +18,24 @@ on:
         default: deploy-runtime-output
         type: string
       validation_canonical_paths:
-        description: Comma-delimited canonical paths that must resolve (non-404).
+        description: Comma-delimited public canonical paths that must satisfy runtime truth checks.
         required: false
-        default: /v1/health/live,/v1/health/ready,/metrics/summary,/v1/capabilities,/v1/releases/info
+        default: /v1/health/live,/v1/health/ready,/v1/capabilities,/v1/releases/info
+        type: string
+      validation_protected_paths:
+        description: Comma-delimited 'METHOD /path' auth-gate probes.
+        required: false
+        default: POST /v1/exports
+        type: string
+      validation_cors_preflight_path:
+        description: Protected path used for browser CORS preflight validation.
+        required: false
+        default: /v1/exports
+        type: string
+      validation_cors_origin:
+        description: Optional origin override used for browser CORS preflight validation.
+        required: false
+        default: ""
         type: string
       validation_legacy_404_paths:
         description: Comma-delimited legacy paths that must return 404.
@@ -50,6 +65,9 @@ jobs:
       deploy_repo: ${{ inputs.deploy_repo }}
       deploy_artifact_name: ${{ inputs.deploy_artifact_name }}
       validation_canonical_paths: ${{ inputs.validation_canonical_paths }}
+      validation_protected_paths: ${{ inputs.validation_protected_paths }}
+      validation_cors_preflight_path: ${{ inputs.validation_cors_preflight_path }}
+      validation_cors_origin: ${{ inputs.validation_cors_origin }}
       validation_legacy_404_paths: ${{ inputs.validation_legacy_404_paths }}
       report_path: ${{ inputs.report_path }}
       artifact_name: ${{ inputs.artifact_name }}

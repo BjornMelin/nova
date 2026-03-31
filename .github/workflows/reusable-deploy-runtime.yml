@@ -313,6 +313,7 @@ jobs:
             --stack-name NovaRuntimeStack \
             --region "${{ inputs.aws_region }}" \
             --environment-name "${{ inputs.environment_name }}" \
+            --allowed-origins '${{ inputs.allowed_origins }}' \
             --repository "${{ github.repository }}" \
             --deploy-run-id "${{ github.run_id }}" \
             --deploy-run-attempt "${{ github.run_attempt }}" \
