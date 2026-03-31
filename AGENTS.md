@@ -61,3 +61,22 @@ Treat these as traceability only:
 - Keep `deploy-output.json` as the only published runtime authority artifact; downstream validation and runtime consumers must derive the canonical public base URL from it instead of free-text base URL configuration.
 - If code, contracts, package layout, CI, or runbooks change, update the corresponding active docs in the same branch.
 - Keep `AGENTS.md`, `infra/nova_cdk/README.md`, `docs/runbooks/release/release-runbook.md`, and `docs/runbooks/provisioning/github-actions-secrets-and-vars.md` aligned when release/runtime packaging or deploy inputs change.
+
+## Verification defaults
+
+- Use `uv sync --locked --all-packages --all-extras --dev` for repo-wide verification. The shorter `uv sync --locked --all-extras --dev` is not the canonical Nova monorepo setup.
+- For local/CI-equivalent pytest verification, prefer the split lanes from `Nova CI`:
+  - `uv run pytest -q -m runtime_gate`
+  - `uv run pytest -q -m "not runtime_gate and not generated_smoke"`
+  - `uv run pytest -q -m generated_smoke`
+- Treat the split pytest lanes above as the canonical verification shape for this repo. Do not replace them with a single `uv run pytest -q` command in docs, prompts, or checklists unless the repo explicitly re-standardizes on a monolithic lane.
+- Use the repo-native CDK entrypoint:
+  - `npx aws-cdk@2.1107.0 synth --app "uv run --package nova-cdk python infra/nova_cdk/app.py" …`
+- CDK synth/diff/deploy must include the full required runtime stack inputs, not just account/region/JWT/domain/cert. Always provide:
+  - `hosted_zone_id`
+  - `hosted_zone_name`
+  - `api_lambda_artifact_bucket`
+  - `api_lambda_artifact_key`
+  - `api_lambda_artifact_sha256`
+- The API Lambda `Code.fromBucket()` warning about missing `objectVersion` is intentionally acknowledged in `infra/nova_cdk/app.py`. Nova relies on immutable content-addressed artifact keys plus SHA256/deploy-output provenance instead of threading S3 object versions through the CDK contract.
+- After runtime deploys or live AWS cleanup, rebuild or fetch the authoritative deploy-output artifact and run `scripts/release/validate_runtime_release.py` against it. Treat deploy-output-bound post-deploy validation as the source of truth for runtime version, execute-api disablement, CORS, and reserved concurrency.

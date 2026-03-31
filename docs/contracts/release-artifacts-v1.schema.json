@@ -721,6 +721,60 @@
         }
       }
     },
+    "concurrency_check": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "function_group",
+        "function_logical_id",
+        "function_name",
+        "expected_reserved_concurrency",
+        "actual_reserved_concurrency",
+        "ok"
+      ],
+      "properties": {
+        "function_group": {
+          "type": "string",
+          "enum": [
+            "api",
+            "workflow"
+          ]
+        },
+        "function_logical_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "function_name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "expected_reserved_concurrency": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "actual_reserved_concurrency": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "ok": {
+          "type": "boolean"
+        }
+      }
+    },
     "post_deploy_validation_report": {
       "type": "object",
       "additionalProperties": false,
@@ -735,6 +789,7 @@
         "cors_allowed_origins",
         "cors_origin",
         "checks",
+        "concurrency_checks",
         "status",
         "failures",
         "deploy_output_sha256",
@@ -796,6 +851,12 @@
           "type": "array",
           "items": {
             "$ref": "#/$defs/route_check"
+          }
+        },
+        "concurrency_checks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/concurrency_check"
           }
         },
         "status": {

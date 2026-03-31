@@ -157,12 +157,14 @@ Always-run repo baseline:
 - `uv run ruff format . --check`
 - `uv run ty check --force-exclude --error-on-warning packages scripts`
 - `uv run mypy`
-- `uv run pytest -q`
-- `uv run pytest -q packages/nova_file_api/tests/test_generated_client_smoke.py`
+- `uv run pytest -q -m runtime_gate`
+- `uv run pytest -q -m "not runtime_gate and not generated_smoke"`
+- `uv run pytest -q -m generated_smoke`
 - `uv run python scripts/contracts/export_openapi.py --check`
 - `uv run python scripts/release/generate_runtime_config_contract.py --check`
 - `uv run python scripts/release/generate_clients.py --check`
 - `uv run python scripts/release/generate_python_clients.py --check`
+- `npx aws-cdk@2.1107.0 synth --app "uv run --package nova-cdk python infra/nova_cdk/app.py" …`
 - workspace Python build verification for package/app units
 - `packages/nova_file_api`, `packages/nova_dash_bridge`, and
   `packages/nova_runtime_support` build verification
@@ -200,7 +202,7 @@ Toolchain baseline notes:
   `packages/nova_sdk_py` tree aligned in the same change.
 - Current runtime dependency floors are manifest-owned authority:
   `pydantic-settings>=2.13.1` in `nova-file-api` and `nova-dash-bridge`, plus
-  `uvicorn[standard]>=0.42.0` in `nova-file-api`. If those
+  `mangum>=0.21.0` in `nova-file-api`. If those
   floors move, update docs, lockfiles, and verification guidance together.
 - Pytest defaults to `--import-mode=importlib` and relies on editable workspace
   installs instead of repo-level `pythonpath` injection. Treat any return to a

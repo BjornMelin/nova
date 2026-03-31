@@ -75,6 +75,7 @@ def test_release_artifact_schema_contract_covers_required_gate_payloads() -> (
         "version_plan",
         "codeartifact_gate_report",
         "promotion_candidate",
+        "concurrency_check",
         "post_deploy_validation_report",
         "route_check",
         "browser_live_validation_report",
@@ -189,6 +190,42 @@ def test_integration_guide_references_surviving_contract_docs() -> None:
         "requirements-wave-2.md",
     ]:
         assert forbidden not in text
+
+
+def test_verification_authority_docs_match_repo_native_contract() -> None:
+    """Tracked verification docs should use the repo-native gate commands."""
+    expected_sync = "uv sync --locked --all-packages --all-extras --dev"
+    expected_synth = (
+        'npx aws-cdk@2.1107.0 synth --app "uv run --package nova-cdk '
+        'python infra/nova_cdk/app.py"'
+    )
+    expected_pytest_lanes = [
+        "uv run pytest -q -m runtime_gate",
+        'uv run pytest -q -m "not runtime_gate and not generated_smoke"',
+        "uv run pytest -q -m generated_smoke",
+    ]
+
+    pytest_authority_paths = [
+        "AGENTS.md",
+        "docs/standards/repository-engineering-standards.md",
+        "docs/architecture/spec/SPEC-0004-ci-cd-and-docs.md",
+    ]
+    synth_authority_paths = [
+        "docs/runbooks/release/release-runbook.md",
+        "infra/nova_cdk/README.md",
+    ]
+
+    for rel_path in [*pytest_authority_paths, *synth_authority_paths]:
+        text = _read(rel_path)
+        assert expected_sync in text, rel_path
+        assert expected_synth in text, rel_path
+        assert "uv run --package nova-cdk cdk synth" not in text, rel_path
+
+    for rel_path in pytest_authority_paths:
+        text = _read(rel_path)
+        for lane in expected_pytest_lanes:
+            assert lane in text, rel_path
+        assert "- `uv run pytest -q`" not in text, rel_path
 
 
 def test_auth0_workflow_schema_matches_reusable_auth0_api() -> None:

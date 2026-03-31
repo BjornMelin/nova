@@ -54,6 +54,21 @@ validation.
 6. If the release includes R packages, runners provide the R toolchain needed
    for `R CMD build` and `R CMD check`.
 
+## 2A. Canonical local verification commands
+
+When validating release and runtime changes locally before pushing, use the
+tracked repo-native commands:
+
+- `uv sync --locked --all-packages --all-extras --dev`
+- `uv run pytest -q -m runtime_gate`
+- `uv run pytest -q -m "not runtime_gate and not generated_smoke"`
+- `uv run pytest -q -m generated_smoke`
+- `npx aws-cdk@2.1107.0 synth --app "uv run --package nova-cdk python infra/nova_cdk/app.py" …`
+
+Do not treat a monolithic `uv run pytest -q` invocation or the legacy
+package-scoped CDK synth entrypoint as the canonical Nova verification shape.
+The split pytest lanes and repo-root CDK entrypoint are the active authority.
+
 ## 3. GitHub release execution
 
 ### A. Plan
@@ -106,8 +121,9 @@ validation.
    - `deploy-output.sha256` matches the canonical JSON payload
    - `post-deploy-validation-report.json` binds validation to the same
      deploy-output digest and runtime version and proves health, protected auth
-     behavior, browser CORS preflight, execute-api disablement, and legacy-path
-     404 drift against the canonical public base URL
+     behavior, browser CORS preflight, execute-api disablement, reserved
+     concurrency truth for the API and workflow Lambdas, and legacy-path 404
+     drift against the canonical public base URL
 
 ### E. Publish staged packages
 

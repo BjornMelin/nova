@@ -238,3 +238,26 @@ def test_release_docs_describe_runtime_truth_validation() -> None:
     assert "runtime validation" in release_readme
     assert "protected auth" in release_runbook
     assert "browser CORS preflight" in release_runbook
+
+
+def test_cdk_docs_and_entrypoint_capture_bucket_warning_acknowledgement() -> (
+    None
+):
+    """The CDK app should acknowledge the scoped S3 bucket code warning."""
+    app_text = _read("infra/nova_cdk/app.py")
+    cdk_readme = _read("infra/nova_cdk/README.md")
+
+    assert "Annotations.of(app).acknowledge_warning(" in app_text
+    assert (
+        "@aws-cdk/aws-lambda:codeFromBucketObjectVersionNotSpecified"
+        in app_text
+    )
+    assert "immutable content-addressed API Lambda artifact keys" in app_text
+
+    for required in [
+        "Code.fromBucket()` without `objectVersion`",
+        "immutable artifact key plus",
+        "api_lambda_artifact_sha256",
+        "warning is acknowledged at the app level",
+    ]:
+        assert required in cdk_readme

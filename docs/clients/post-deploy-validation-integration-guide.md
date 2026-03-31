@@ -62,6 +62,8 @@ This guide is designed as a 5-minute setup flow for downstream repos.
   is the only intended public ingress.
 - `/v1/health/live` and `/v1/health/ready` return `200`.
 - At least one protected route returns `401` or `403` without a bearer token.
+- Reserved concurrency matches the deploy environment policy for the API Lambda
+  and workflow task Lambdas.
 - Browser CORS preflight on the protected export route returns the expected
   allow-origin, allow-methods, and allow-headers contract.
 - Browser live-gate artifacts (WS5) follow
