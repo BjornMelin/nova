@@ -9,6 +9,7 @@ import json
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 if __package__ in {None, ""}:
     import sys
@@ -39,9 +40,92 @@ _REQUIRED_DEPLOY_OUTPUT_FIELDS = (
     "runtime_version",
     "release_commit_sha",
     "public_base_url",
+    "execute_api_endpoint",
+    "cors_allowed_origins",
     "stack_outputs",
     "api_lambda_artifact",
 )
+_AUTHORITATIVE_STACK_OUTPUT_KEYS = (
+    "NovaAlarmTopicArn",
+    "NovaApiAccessLogGroupName",
+    "NovaExportWorkflowStateMachineArn",
+    "NovaExportsTableName",
+    "NovaIdempotencyTableName",
+    "NovaPublicBaseUrl",
+    "NovaRestApiEndpoint",
+    "NovaWafLogGroupName",
+)
+
+
+def _canonical_output_key(raw_key: str) -> str:
+    """Normalize CloudFormation output names into authority keys."""
+    key = raw_key.strip()
+    if key.startswith("ExportNova"):
+        return key.removeprefix("Export")
+    if key.startswith("NovaRestApiEndpoint"):
+        return "NovaRestApiEndpoint"
+    return key
+
+
+def _validate_allowed_origin(entry: object) -> str:
+    """Validate one allowed origin token and return the normalized string."""
+    if not isinstance(entry, str):
+        raise TypeError(f"invalid allowed_origin: {entry}")
+
+    origin = entry.strip()
+    if origin == "*":
+        return origin
+
+    parsed = urlsplit(origin)
+    if (
+        parsed.scheme not in {"http", "https"}
+        or not parsed.netloc
+        or parsed.path
+        or parsed.query
+        or parsed.fragment
+    ):
+        raise ValueError(f"invalid allowed_origin: {entry}")
+    return origin
+
+
+def _normalize_allowed_origins(
+    *,
+    raw_value: str,
+    environment_name: str,
+) -> list[str]:
+    """Normalize deploy-time CORS origins into the emitted authority list."""
+    stripped = raw_value.strip()
+    if not stripped:
+        if environment_name.lower() == "prod":
+            raise ValueError(
+                "allowed_origins must be configured for production "
+                "deploy output"
+            )
+        return ["*"]
+
+    if stripped.startswith("["):
+        try:
+            parsed = json.loads(stripped)
+        except json.JSONDecodeError as exc:
+            raise ValueError(
+                f"allowed_origins JSON is malformed: {exc}"
+            ) from exc
+        if not isinstance(parsed, list):
+            raise TypeError("allowed_origins JSON input must decode to a list")
+        origins = []
+        for origin in parsed:
+            if isinstance(origin, str) and not origin.strip():
+                continue
+            origins.append(_validate_allowed_origin(origin))
+    else:
+        origins = [
+            _validate_allowed_origin(origin)
+            for origin in (part.strip() for part in stripped.split(","))
+            if origin
+        ]
+    if not origins:
+        raise ValueError("allowed_origins resolved to an empty list")
+    return origins
 
 
 def _load_json_object(path: Path) -> dict[str, Any]:
@@ -110,8 +194,28 @@ def _normalize_stack_outputs(
                 "CloudFormation output "
                 f"{key!r} must resolve to a non-empty string"
             )
-        outputs[key.strip()] = value.strip()
+        canonical_key = _canonical_output_key(key)
+        if canonical_key not in _AUTHORITATIVE_STACK_OUTPUT_KEYS:
+            continue
+        normalized_value = value.strip()
+        if canonical_key == "NovaRestApiEndpoint":
+            normalized_value = normalized_value.rstrip("/")
+        outputs[canonical_key] = normalized_value
+    if "NovaPublicBaseUrl" not in outputs:
+        raise ValueError(
+            "CloudFormation outputs must include NovaPublicBaseUrl"
+        )
     return outputs
+
+
+def _execute_api_endpoint_from_outputs(outputs: dict[str, str]) -> str:
+    """Return the disabled default execute-api endpoint from stack outputs."""
+    endpoint = outputs.get("NovaRestApiEndpoint", "").strip()
+    if not endpoint.startswith("https://") or ".execute-api." not in endpoint:
+        raise ValueError(
+            "CloudFormation outputs must include NovaRestApiEndpoint"
+        )
+    return endpoint.rstrip("/")
 
 
 def _normalize_api_lambda_artifact(payload: dict[str, Any]) -> dict[str, Any]:
@@ -145,6 +249,7 @@ def build_deploy_output(
     stack_name: str,
     region: str,
     environment_name: str,
+    allowed_origins: str,
     repository: str,
     deploy_run_id: int,
     deploy_run_attempt: int,
@@ -159,6 +264,11 @@ def build_deploy_output(
         raise ValueError(
             "NovaPublicBaseUrl output must be an HTTPS URL in deploy output"
         )
+    execute_api_endpoint = _execute_api_endpoint_from_outputs(outputs)
+    cors_allowed_origins = _normalize_allowed_origins(
+        raw_value=allowed_origins,
+        environment_name=environment_name,
+    )
 
     deploy_output: dict[str, Any] = {
         "schema_version": "2.0",
@@ -174,6 +284,8 @@ def build_deploy_output(
         "runtime_version": normalized_artifact["package_version"],
         "release_commit_sha": normalized_artifact["release_commit_sha"],
         "public_base_url": public_base_url,
+        "execute_api_endpoint": execute_api_endpoint,
+        "cors_allowed_origins": cors_allowed_origins,
         "stack_outputs": outputs,
         "api_lambda_artifact": normalized_artifact,
     }
@@ -220,6 +332,27 @@ def load_deploy_output(
         "https://"
     ):
         raise ValueError("public_base_url must be an HTTPS URL")
+    execute_api_endpoint = payload.get("execute_api_endpoint")
+    if (
+        not isinstance(execute_api_endpoint, str)
+        or not execute_api_endpoint.startswith("https://")
+        or ".execute-api." not in execute_api_endpoint
+    ):
+        raise ValueError(
+            "execute_api_endpoint must be an HTTPS execute-api URL"
+        )
+    cors_allowed_origins = payload.get("cors_allowed_origins")
+    if (
+        not isinstance(cors_allowed_origins, list)
+        or not cors_allowed_origins
+        or any(
+            not isinstance(origin, str) or not origin.strip()
+            for origin in cors_allowed_origins
+        )
+    ):
+        raise ValueError(
+            "cors_allowed_origins must be a non-empty list of strings"
+        )
 
     runtime_version = payload.get("runtime_version")
     if not isinstance(runtime_version, str) or not runtime_version.strip():
@@ -228,10 +361,22 @@ def load_deploy_output(
     stack_outputs = payload.get("stack_outputs")
     if not isinstance(stack_outputs, dict) or not stack_outputs:
         raise ValueError("stack_outputs must be a non-empty object")
+    unknown_output_keys = sorted(
+        set(stack_outputs) - set(_AUTHORITATIVE_STACK_OUTPUT_KEYS)
+    )
+    if unknown_output_keys:
+        raise ValueError(
+            "stack_outputs contains non-authoritative keys: "
+            + ", ".join(unknown_output_keys)
+        )
 
     if stack_outputs.get("NovaPublicBaseUrl") != public_base_url:
         raise ValueError(
             "stack_outputs.NovaPublicBaseUrl must match public_base_url"
+        )
+    if stack_outputs.get("NovaRestApiEndpoint") != execute_api_endpoint:
+        raise ValueError(
+            "stack_outputs.NovaRestApiEndpoint must match execute_api_endpoint"
         )
 
     api_lambda_artifact = payload.get("api_lambda_artifact")
@@ -272,6 +417,7 @@ def _parse_args() -> argparse.Namespace:
     build.add_argument("--stack-name", required=True)
     build.add_argument("--region", required=True)
     build.add_argument("--environment-name", required=True)
+    build.add_argument("--allowed-origins", required=False, default="")
     build.add_argument("--repository", required=True)
     build.add_argument("--deploy-run-id", required=True, type=int)
     build.add_argument("--deploy-run-attempt", required=True, type=int)
@@ -305,6 +451,7 @@ def _run_build(args: argparse.Namespace) -> int:
         stack_name=args.stack_name,
         region=args.region,
         environment_name=args.environment_name,
+        allowed_origins=args.allowed_origins,
         repository=args.repository,
         deploy_run_id=args.deploy_run_id,
         deploy_run_attempt=args.deploy_run_attempt,

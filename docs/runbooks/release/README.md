@@ -6,7 +6,7 @@ Last reviewed: 2026-03-28
 
 ## Purpose
 
-Canonical operator docs for package release execution, route validation,
+Canonical operator docs for package release execution, runtime validation,
 governance, and auditability.
 
 Committed release artifacts:

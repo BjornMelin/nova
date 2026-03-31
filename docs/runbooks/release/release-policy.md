@@ -14,13 +14,12 @@ Fixed constraints:
 2. Release plan/apply/publish/promote flows are manual GitHub workflow
    dispatches.
 3. Prod package promotion consumes staged, gate-validated artifacts only.
-4. Post-deploy route validation is optional and independent of package
+4. Post-deploy runtime validation is optional and independent of package
    promotion.
 
 ## 1A. Authority / references
 
 - `docs/architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md`
-- `docs/architecture/spec/superseded/SPEC-0000-http-api-contract.md`
 - `docs/architecture/adr/ADR-0033-canonical-serverless-platform.md`
 - `docs/architecture/adr/ADR-0034-eliminate-auth-service-and-session-auth.md`
 - `docs/architecture/adr/ADR-0035-replace-generic-jobs-with-export-workflows.md`
@@ -68,5 +67,5 @@ Each release cycle must retain durable pointers for:
 
 - release plan/apply/publish/promote workflow runs
 - manifest SHA continuity
-- post-deploy validation evidence when that workflow is used
+- post-deploy runtime validation evidence when that workflow is used
 - the PR or internal ticket that approved the release

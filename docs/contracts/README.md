@@ -9,7 +9,8 @@ Last reviewed: 2026-03-25
 These schemas remain the current machine-readable baseline contract artifacts:
 
 - `release-artifacts-v1.schema.json`
-- `deploy-output-authority-v2.schema.json`
+- `deploy-output-authority-v2.schema.json` (published runtime provenance and
+  canonical public base URL authority)
 - `workflow-deploy-runtime-v1.schema.json`
 - `workflow-post-deploy-validate.schema.json`
 - `workflow-auth0-tenant-deploy.schema.json`
@@ -28,3 +29,6 @@ hard cuts and already-landed contract changes across the wave-2 program.
 Keep only schemas that describe surviving release, runtime deploy, validation,
 and Auth0 automation surfaces. Do not retain machine-readable contracts for
 deleted CodePipeline/CodeBuild or other removed control-plane paths.
+Do not treat execute-api hostnames as public runtime authority. When an
+execute-api endpoint appears in deploy-output, it exists only to prove that the
+default endpoint is blocked.

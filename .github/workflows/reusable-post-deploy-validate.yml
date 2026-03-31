@@ -28,14 +28,29 @@ on:
         default: ""
         type: string
       validation_canonical_paths:
-        description: Comma-delimited canonical paths that must resolve (non-404 and <500).
+        description: Comma-delimited public canonical paths that must satisfy runtime truth checks.
         required: false
-        default: /v1/health/live,/v1/health/ready,/metrics/summary,/v1/capabilities,/v1/releases/info
+        default: /v1/health/live,/v1/health/ready,/v1/capabilities,/v1/releases/info
+        type: string
+      validation_protected_paths:
+        description: Comma-delimited auth-gate probes in METHOD /path form.
+        required: false
+        default: POST /v1/exports
         type: string
       validation_legacy_404_paths:
         description: Comma-delimited legacy paths that must return 404.
         required: false
         default: /healthz,/readyz,/api/transfers/uploads/initiate,/api/jobs,/api/v1/transfers/uploads/initiate
+        type: string
+      validation_cors_preflight_path:
+        description: Protected path used for browser CORS preflight validation.
+        required: false
+        default: /v1/exports
+        type: string
+      validation_cors_origin:
+        description: Origin used when validating browser CORS preflight behavior.
+        required: false
+        default: ""
         type: string
       report_path:
         description: JSON report output path in the workflow workspace.
@@ -49,7 +64,7 @@ on:
         type: string
     outputs:
       validation_status:
-        description: Validation status from route contract checks (passed|failed).
+        description: Validation status from deploy-output-bound runtime truth checks (passed|failed).
         value: ${{ jobs.post-deploy-validate.outputs.validation_status }}
       report_path:
         description: Report path used when writing the JSON validation output.
@@ -176,7 +191,10 @@ jobs:
           validation_args=(
             --deploy-output-path "${{ steps.prepare-deploy-output.outputs.deploy_output_path }}"
             --canonical-paths "${{ inputs.validation_canonical_paths }}"
+            --protected-paths "${{ inputs.validation_protected_paths }}"
             --legacy-404-paths "${{ inputs.validation_legacy_404_paths }}"
+            --cors-preflight-path "${{ inputs.validation_cors_preflight_path }}"
+            --cors-origin "${{ inputs.validation_cors_origin }}"
             --report-path "${{ inputs.report_path }}"
           )
           if [[ -n "${{ steps.prepare-deploy-output.outputs.deploy_output_sha256_path }}" ]]; then
@@ -206,8 +224,8 @@ jobs:
           name: ${{ inputs.artifact_name }}
           path: ${{ inputs.report_path }}
 
-      - name: Fail job when route validation fails
+      - name: Fail job when runtime truth validation fails
         if: steps.run-validation.outcome != 'success'
         run: |
-          echo "Post-deploy validation failed." >&2
+          echo "Post-deploy runtime validation failed." >&2
           exit 1

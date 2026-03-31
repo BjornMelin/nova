@@ -31,12 +31,7 @@ path.
 
 ## Active architecture/program authority
 
-- `./architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md`
-- `./architecture/spec/superseded/SPEC-0000-http-api-contract.md`
-- `./architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md`
-- `./architecture/requirements.md`
 - `./plan/GREENFIELD-WAVE-2-EXECUTION.md`
-- `./architecture/requirements-wave-2.md`
 - `./architecture/adr/ADR-0033-canonical-serverless-platform.md`
 - `./architecture/adr/ADR-0034-eliminate-auth-service-and-session-auth.md`
 - `./architecture/adr/ADR-0035-replace-generic-jobs-with-export-workflows.md`
@@ -48,14 +43,20 @@ path.
 - `./architecture/spec/SPEC-0029-platform-serverless.md`
 - `./architecture/spec/SPEC-0030-sdk-generation-and-package-layout.md`
 - `./architecture/spec/SPEC-0031-docs-and-tests-authority-reset.md`
+- `./contracts/deploy-output-authority-v2.schema.json`
+- `./contracts/workflow-post-deploy-validate.schema.json`
+- `./runbooks/release/release-runbook.md`
+- `../infra/nova_cdk/README.md`
 
 ## Active supporting architecture/program docs
 
 - `./architecture/adr/index.md`
 - `./architecture/spec/index.md`
+- `./architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md`
 - `./architecture/adr/ADR-0011-cicd-hybrid-github-aws-promotion.md`
 - `./architecture/adr/ADR-0031-reusable-github-workflow-api-and-versioning-policy-for-deployment-automation.md`
 - `./architecture/adr/ADR-0032-oidc-and-iam-role-partitioning-for-deploy-automation.md`
+- `./architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md`
 - `./architecture/spec/SPEC-0004-ci-cd-and-docs.md`
 - `./architecture/spec/SPEC-0025-reusable-workflow-integration-contract.md`
 - `./architecture/spec/SPEC-0026-ci-cd-iam-least-privilege-matrix.md`
@@ -72,4 +73,5 @@ path.
 - Do not treat archived history or superseded ADR/SPEC material as current authority.
 - Do not move active supporting docs into `superseded/` only because they are not part of the small canonical wave-2 authority set.
 - Do not describe ECS/Fargate, runtime worker stacks, or split SDK packages as live repo surfaces.
+- Do not treat free-text base URL configuration as runtime authority when a deploy-output artifact is available.
 - Keep docs aligned to the active package graph, GitHub workflows, and `infra/nova_cdk`.

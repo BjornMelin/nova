@@ -12,19 +12,21 @@ Canonical path constants: [`scripts/release/release_paths.py`](../../scripts/rel
 
 ## Authority / references
 
-- `../architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md`
-- `../architecture/spec/superseded/SPEC-0000-http-api-contract.md`
-- `../architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md`
-- `../architecture/spec/SPEC-0027-public-api-v2.md`
-- `../architecture/requirements.md`
+- `../AGENTS.md`
+- `../overview/IMPLEMENTATION-STATUS-MATRIX.md`
 - `../plan/GREENFIELD-WAVE-2-EXECUTION.md`
+- `../architecture/adr/ADR-0033-canonical-serverless-platform.md`
+- `../architecture/adr/ADR-0038-docs-authority-reset.md`
+- `../architecture/spec/SPEC-0027-public-api-v2.md`
+- `../architecture/spec/SPEC-0029-platform-serverless.md`
+- `../architecture/spec/SPEC-0031-docs-and-tests-authority-reset.md`
 
 ## Files
 
 | File | Role |
 | --- | --- |
 | [`RELEASE-VERSION-MANIFEST.md`](RELEASE-VERSION-MANIFEST.md) | Selective per-unit versions for the canonical Nova monorepo release graph; SHA256 gates promotion |
-| [`runtime-config-contract.generated.md`](runtime-config-contract.generated.md) | Operator-facing env/deploy matrix; **do not edit** -- run `uv run python scripts/release/generate_runtime_config_contract.py` |
+| [`runtime-config-contract.generated.md`](runtime-config-contract.generated.md) | Generator-owned deploy/runtime contract for living Lambda surfaces only; **do not edit** -- run `uv run python scripts/release/generate_runtime_config_contract.py` |
 
 JSON fixture for the same contract: `packages/contracts/fixtures/runtime_config_contract.json` (also generator-owned).
 

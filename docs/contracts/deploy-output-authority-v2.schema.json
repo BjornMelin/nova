@@ -46,6 +46,14 @@
       "format": "date-time",
       "type": "string"
     },
+    "cors_allowed_origins": {
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
     "deploy_run_attempt": {
       "minimum": 1,
       "type": "integer"
@@ -60,6 +68,10 @@
     },
     "environment": {
       "minLength": 1,
+      "type": "string"
+    },
+    "execute_api_endpoint": {
+      "pattern": "^https://.+\\.execute-api\\..+$",
       "type": "string"
     },
     "public_base_url": {
@@ -99,19 +111,45 @@
       "type": "string"
     },
     "stack_outputs": {
-      "additionalProperties": {
-        "minLength": 1,
-        "type": "string"
-      },
+      "additionalProperties": false,
       "minProperties": 1,
       "properties": {
+        "NovaAlarmTopicArn": {
+          "pattern": "^arn:aws:sns:[a-z0-9-]+:\\d{12}:.+$",
+          "type": "string"
+        },
+        "NovaApiAccessLogGroupName": {
+          "pattern": "^/aws/apigateway/.+$",
+          "type": "string"
+        },
+        "NovaExportWorkflowStateMachineArn": {
+          "pattern": "^arn:aws:states:[a-z0-9-]+:\\d{12}:stateMachine:.+$",
+          "type": "string"
+        },
+        "NovaExportsTableName": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "NovaIdempotencyTableName": {
+          "minLength": 1,
+          "type": "string"
+        },
         "NovaPublicBaseUrl": {
           "pattern": "^https://.+$",
+          "type": "string"
+        },
+        "NovaRestApiEndpoint": {
+          "pattern": "^https://.+\\.execute-api\\..+$",
+          "type": "string"
+        },
+        "NovaWafLogGroupName": {
+          "pattern": "^aws-waf-logs-.+$",
           "type": "string"
         }
       },
       "required": [
-        "NovaPublicBaseUrl"
+        "NovaPublicBaseUrl",
+        "NovaRestApiEndpoint"
       ],
       "type": "object"
     }
@@ -130,6 +168,8 @@
     "runtime_version",
     "release_commit_sha",
     "public_base_url",
+    "execute_api_endpoint",
+    "cors_allowed_origins",
     "stack_outputs",
     "api_lambda_artifact"
   ],
