@@ -198,7 +198,7 @@ def _record_check(
 
 
 def _json_body() -> bytes:
-    """Return the minimal JSON request body used for auth-gate checks."""
+    """Return the minimal JSON request body used for `/v1/exports` checks."""
     return json.dumps(
         {
             "source_key": "uploads/runtime-validation/source.csv",

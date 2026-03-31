@@ -50,7 +50,7 @@
         },
         "validation_protected_paths": {
           "type": "string",
-          "pattern": "^[A-Z]+\\s+/.+",
+          "pattern": "^(?:[A-Z]+\\s+/[^,]+)(?:\\s*,\\s*[A-Z]+\\s+/[^,]+)*$",
           "description": "Comma-delimited auth-gate probes in METHOD /path form.",
           "default": "POST /v1/exports"
         },

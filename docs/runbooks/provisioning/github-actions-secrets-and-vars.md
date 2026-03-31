@@ -18,6 +18,8 @@ Nova release workflows.
 - `docs/plan/GREENFIELD-WAVE-2-EXECUTION.md`
 - `docs/architecture/adr/ADR-0033-canonical-serverless-platform.md` through `docs/architecture/adr/ADR-0038-docs-authority-reset.md` (active deployment and docs authority block)
 - `docs/architecture/spec/SPEC-0027-public-api-v2.md` through `docs/architecture/spec/SPEC-0031-docs-and-tests-authority-reset.md` (active API and docs authority block)
+- `docs/contracts/deploy-output-authority-v2.schema.json`
+- `docs/contracts/workflow-post-deploy-validate.schema.json`
 
 ## Required repository secrets
 

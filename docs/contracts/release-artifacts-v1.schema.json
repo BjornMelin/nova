@@ -823,7 +823,14 @@
           "minLength": 1
         },
         "release_info": {
-          "$ref": "#/$defs/runtime_release_info"
+          "anyOf": [
+            {
+              "$ref": "#/$defs/runtime_release_info"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       }
     },

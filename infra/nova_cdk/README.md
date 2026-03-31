@@ -105,6 +105,9 @@ eval "$(uv run python scripts/release/emit_api_lambda_artifact_env.py \
   execution role and the CDK bootstrap publishing roles, and writes
   `deploy-output.json` plus `deploy-output.sha256` as the authoritative
   runtime deploy artifact.
+- The active machine-readable contract sources for runtime deploy and
+  post-deploy validation are `docs/contracts/deploy-output-authority-v2.schema.json`
+  and `docs/contracts/workflow-post-deploy-validate.schema.json`.
 - Post-deploy validation should consume `deploy-output.json`, not a manually
   entered base URL. The deploy-output artifact binds the release commit SHA,
   runtime version, `NovaPublicBaseUrl`, stack name, region, and stack outputs

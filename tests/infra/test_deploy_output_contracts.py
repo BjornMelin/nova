@@ -8,6 +8,7 @@ from argparse import Namespace
 from pathlib import Path
 from typing import Any
 
+import pytest
 from pytest import MonkeyPatch
 
 from .helpers import load_repo_module, read_repo_file as _read
@@ -188,6 +189,15 @@ def test_resolve_deploy_output_builds_and_verifies_authority_payload(
     assert digest == _canonical_sha256(payload)
 
 
+def test_normalize_allowed_origins_rejects_malformed_json() -> None:
+    """Malformed JSON input must fail with a clear validation error."""
+    with pytest.raises(ValueError, match="allowed_origins JSON is malformed"):
+        _RESOLVER._normalize_allowed_origins(
+            raw_value='["https://app.example.com"',
+            environment_name="prod",
+        )
+
+
 def test_validate_runtime_release_binds_report_to_deploy_output(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
@@ -357,3 +367,154 @@ def test_validate_runtime_release_binds_report_to_deploy_output(
         "cors_preflight",
         "execute_api_disabled",
     }
+
+
+def test_validate_runtime_release_keeps_failed_report_schema_valid(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Failed validation still needs to emit a schema-valid report."""
+    payload = {
+        "schema_version": "2.0",
+        "captured_at": "2026-03-29T00:00:00+00:00",
+        "repository": "3M-Cloud/nova",
+        "deploy_run_id": 123,
+        "deploy_run_attempt": 1,
+        "deploy_workflow_ref": (
+            "3M-Cloud/nova/.github/workflows/deploy-runtime.yml@refs/heads/main"
+        ),
+        "stack_name": "NovaRuntimeStack",
+        "region": "us-east-1",
+        "environment": "prod",
+        "runtime_name": "nova-file-api",
+        "runtime_version": "0.5.0",
+        "release_commit_sha": "b" * 40,
+        "public_base_url": "https://api.example.com",
+        "execute_api_endpoint": (
+            "https://example.execute-api.us-east-1.amazonaws.com/dev"
+        ),
+        "cors_allowed_origins": ["https://app.example.com"],
+        "stack_outputs": {
+            "NovaPublicBaseUrl": "https://api.example.com",
+            "NovaRestApiEndpoint": (
+                "https://example.execute-api.us-east-1.amazonaws.com/dev"
+            ),
+            "NovaApiAccessLogGroupName": (
+                "/aws/apigateway/nova-rest-api-access-dev"
+            ),
+        },
+        "api_lambda_artifact": {
+            "artifact_bucket": "nova-artifacts",
+            "artifact_key": (
+                "runtime/nova-file-api/abc/def/nova-file-api-lambda.zip"
+            ),
+            "artifact_sha256": "2" * 64,
+            "package_name": "nova-file-api",
+            "package_version": "0.5.0",
+            "release_commit_sha": "b" * 40,
+        },
+    }
+    deploy_output_path = tmp_path / "deploy-output.json"
+    deploy_output_path.write_text(
+        json.dumps(payload, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    digest = _canonical_sha256(payload)
+    sha256_path = tmp_path / "deploy-output.sha256"
+    sha256_path.write_text(
+        f"{digest}  {deploy_output_path.name}\n",
+        encoding="utf-8",
+    )
+    report_path = tmp_path / "validation-report.json"
+
+    def fake_request(
+        url: str,
+        *,
+        method: str = "GET",
+        headers: dict[str, str] | None = None,
+        body: bytes | None = None,
+    ) -> Any:
+        del body
+        if url.startswith("https://example.execute-api.") and url.endswith(
+            "/v1/releases/info"
+        ):
+            return _VALIDATOR.RequestResult(
+                status_code=403,
+                headers={},
+                body=b"{}",
+                error=None,
+            )
+        if url.endswith("/v1/releases/info"):
+            return _VALIDATOR.RequestResult(
+                status_code=500,
+                headers={},
+                body=b"{}",
+                error=None,
+            )
+        if method == "OPTIONS" and url.endswith("/v1/exports"):
+            return _VALIDATOR.RequestResult(
+                status_code=200,
+                headers={
+                    "access-control-allow-origin": (headers or {}).get(
+                        "Origin", ""
+                    ),
+                    "access-control-allow-methods": "GET, POST, OPTIONS",
+                    "access-control-allow-headers": (
+                        "Authorization, Content-Type, Idempotency-Key, "
+                        "X-Request-Id"
+                    ),
+                },
+                body=b"OK",
+                error=None,
+            )
+        if url.endswith("/v1/exports"):
+            return _VALIDATOR.RequestResult(
+                status_code=401,
+                headers={
+                    "access-control-allow-origin": (headers or {}).get(
+                        "Origin", ""
+                    )
+                },
+                body=b"{}",
+                error=None,
+            )
+        if url.endswith("/healthz") or url.endswith("/readyz"):
+            return _VALIDATOR.RequestResult(
+                status_code=404,
+                headers={},
+                body=b"{}",
+                error=None,
+            )
+        return _VALIDATOR.RequestResult(
+            status_code=200,
+            headers={},
+            body=b"{}",
+            error=None,
+        )
+
+    monkeypatch.setattr(_VALIDATOR, "_request", fake_request)
+    monkeypatch.setattr(
+        _VALIDATOR,
+        "_args",
+        lambda: Namespace(
+            deploy_output_path=str(deploy_output_path),
+            deploy_output_sha256_path=str(sha256_path),
+            canonical_paths=(
+                "/v1/health/live,/v1/health/ready,"
+                "/v1/capabilities,/v1/releases/info"
+            ),
+            protected_paths="POST /v1/exports",
+            legacy_404_paths="/healthz,/readyz",
+            cors_preflight_path="/v1/exports",
+            cors_origin="",
+            report_path=str(report_path),
+        ),
+    )
+
+    with pytest.raises(SystemExit, match="Validation failed:"):
+        _VALIDATOR.main()
+
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    assert report["status"] == "failed"
+    assert report["release_info"] is None
+    assert report["deploy_output_sha256"] == digest

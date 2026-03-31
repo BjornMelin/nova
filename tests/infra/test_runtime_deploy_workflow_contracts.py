@@ -63,7 +63,7 @@ def test_reusable_deploy_runtime_uses_immutable_release_inputs() -> None:
         "ENABLE_RESERVED_CONCURRENCY",
         "npx aws-cdk@2.1107.0 deploy",
         "resolve_deploy_output.py build",
-        "--allowed-origins",
+        "--allowed-origins '${{ inputs.allowed_origins }}'",
         "resolve_deploy_output.py emit",
         "deploy-output.sha256",
         "actions/attest@v4",

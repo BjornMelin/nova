@@ -82,7 +82,12 @@ def _normalize_allowed_origins(
         return ["*"]
 
     if stripped.startswith("["):
-        parsed = json.loads(stripped)
+        try:
+            parsed = json.loads(stripped)
+        except json.JSONDecodeError as exc:
+            raise ValueError(
+                f"allowed_origins JSON is malformed: {exc}"
+            ) from exc
         if not isinstance(parsed, list):
             raise TypeError("allowed_origins JSON input must decode to a list")
         origins = [
