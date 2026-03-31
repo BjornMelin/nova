@@ -8,9 +8,10 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, get_args, get_origin
 
-from nova_file_api.config import Settings
 from pydantic import SecretStr
 from pydantic.fields import FieldInfo
+
+from nova_file_api.config import Settings
 
 try:
     from scripts.release.release_paths import RUNTIME_CONFIG_GENERATED_MD_PATH

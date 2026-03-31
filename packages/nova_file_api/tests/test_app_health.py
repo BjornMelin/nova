@@ -4,6 +4,7 @@ from typing import cast
 
 import httpx
 import pytest
+
 from nova_file_api.activity import MemoryActivityStore
 from nova_file_api.auth import Authenticator
 from nova_file_api.config import Settings

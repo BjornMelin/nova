@@ -9,8 +9,7 @@ from pathlib import Path
 
 from pytest import MonkeyPatch
 
-from .helpers import load_repo_module
-from .helpers import read_repo_file as _read
+from .helpers import load_repo_module, read_repo_file as _read
 
 _GENERATOR = load_repo_module(
     "runtime_deploy_contract_generator",

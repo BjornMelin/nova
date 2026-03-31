@@ -4,9 +4,10 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Any, cast
 
+import pytest
+
 import nova_dash_bridge.service as dash_service_module
 import nova_file_api.public as public_contract
-import pytest
 from nova_dash_bridge.config import (
     AuthPolicy,
     FileTransferEnvConfig,

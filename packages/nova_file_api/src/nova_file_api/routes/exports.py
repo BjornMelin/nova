@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import structlog
 from fastapi import APIRouter, Request, status
-from nova_runtime_support import request_id_from_request
 
 from nova_file_api.activity import ActivityStore
 from nova_file_api.dependencies import (
@@ -42,6 +41,7 @@ from nova_file_api.routes.common import (
     emit_request_metric,
     validated_idempotency_key,
 )
+from nova_runtime_support import request_id_from_request
 
 exports_router = APIRouter(
     prefix="/v1",

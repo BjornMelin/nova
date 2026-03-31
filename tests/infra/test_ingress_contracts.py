@@ -122,7 +122,21 @@ def test_runtime_stack_configures_stage_logging_hooks() -> None:
     access_log_setting = stage_props["AccessLogSetting"]
     assert "DestinationArn" in access_log_setting
     assert '"requestId":"$context.requestId"' in access_log_setting["Format"]
+    assert (
+        '"extendedRequestId":"$context.extendedRequestId"'
+        in access_log_setting["Format"]
+    )
+    assert '"domainName":"$context.domainName"' in access_log_setting["Format"]
     assert '"httpMethod":"$context.httpMethod"' in access_log_setting["Format"]
+    assert '"protocol":"$context.protocol"' in access_log_setting["Format"]
+    assert (
+        '"responseLatency":"$context.responseLatency"'
+        in access_log_setting["Format"]
+    )
+    assert (
+        '"userAgent":"$context.identity.userAgent"'
+        in access_log_setting["Format"]
+    )
     assert stage_props["TracingEnabled"] is True
 
 
@@ -148,8 +162,36 @@ def test_runtime_stack_associates_regional_waf_to_api_stage() -> None:
         web_acl_props["VisibilityConfig"]["MetricName"] == "nova-rest-api-waf"
     )
     rule_names = [rule["Name"] for rule in web_acl_props["Rules"]]
-    assert "AWSManagedCommonRuleSet" in rule_names
+    assert "AWSManagedRulesAmazonIpReputationList" in rule_names
+    assert "AWSManagedRulesCommonRuleSet" in rule_names
+    assert "AWSManagedRulesKnownBadInputsRuleSet" in rule_names
+    assert "NovaWritePathRateLimitByIp" in rule_names
     assert "NovaRateLimitByIp" in rule_names
+    write_rule = next(
+        rule
+        for rule in web_acl_props["Rules"]
+        if rule["Name"] == "NovaWritePathRateLimitByIp"
+    )
+    assert write_rule["Statement"]["RateBasedStatement"]["Limit"] == 500
+    scope_down = write_rule["Statement"]["RateBasedStatement"][
+        "ScopeDownStatement"
+    ]
+    statements = scope_down["AndStatement"]["Statements"]
+    assert len(statements) == 2
+    uri_match = next(
+        statement["RegexMatchStatement"]
+        for statement in statements
+        if "UriPath" in statement["RegexMatchStatement"]["FieldToMatch"]
+    )
+    method_match = next(
+        statement["RegexMatchStatement"]
+        for statement in statements
+        if "Method" in statement["RegexMatchStatement"]["FieldToMatch"]
+    )
+    assert uri_match["RegexString"] == (
+        "^/v1/(exports($|/.*)|transfers/uploads($|/.*))"
+    )
+    assert method_match["RegexString"] == "^(POST|PUT|PATCH|DELETE)$"
 
     associations = _resources_of_type(
         resources,
@@ -173,6 +215,40 @@ def test_runtime_stack_associates_regional_waf_to_api_stage() -> None:
     if isinstance(depends_on, str):
         depends_on = [depends_on]
     assert stage_logical_id in depends_on
+
+
+def test_runtime_stack_enables_waf_cloudwatch_logging() -> None:
+    """The web ACL should emit logs to a named CloudWatch log group."""
+    resources = _template_json()["Resources"]
+    logging_configs = _resources_of_type(
+        resources,
+        "AWS::WAFv2::LoggingConfiguration",
+    )
+    assert len(logging_configs) == 1
+    logging_props = next(iter(logging_configs.values()))["Properties"]
+    redacted_headers = {
+        (field["SingleHeader"].get("name") or field["SingleHeader"].get("Name"))
+        for field in logging_props["RedactedFields"]
+    }
+    assert redacted_headers == {"authorization", "cookie"}
+    assert logging_props["LoggingFilter"]["DefaultBehavior"] == "DROP"
+    assert len(logging_props["LogDestinationConfigs"]) == 1
+    destination = logging_props["LogDestinationConfigs"][0]
+    assert "Fn::GetAtt" in destination or "Fn::Join" in destination
+
+    log_groups = _resources_of_type(resources, "Custom::LogRetention")
+    waf_log_group = next(
+        resource
+        for resource in log_groups.values()
+        if resource["Properties"]
+        .get("LogGroupName", "")
+        .startswith("aws-waf-logs-")
+    )
+    assert (
+        waf_log_group["Properties"]["LogGroupName"]
+        == "aws-waf-logs-nova-rest-api-dev"
+    )
+    assert waf_log_group["Properties"]["RetentionInDays"] == 90
 
 
 def test_runtime_stack_exports_one_canonical_public_base_url() -> None:

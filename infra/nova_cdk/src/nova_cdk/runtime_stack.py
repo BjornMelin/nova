@@ -11,19 +11,33 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from aws_cdk import Duration, RemovalPolicy, Stack
-from aws_cdk import aws_cloudwatch as cloudwatch
-from aws_cdk import aws_dynamodb as dynamodb
-from aws_cdk import aws_iam as iam
-from aws_cdk import aws_lambda as lambda_
-from aws_cdk import aws_logs as logs
-from aws_cdk import aws_route53 as route53
-from aws_cdk import aws_s3 as s3
-from aws_cdk import aws_stepfunctions as sfn
-from aws_cdk import aws_stepfunctions_tasks as tasks
+from aws_cdk import (
+    Duration,
+    RemovalPolicy,
+    Stack,
+    aws_cloudwatch as cloudwatch,
+    aws_dynamodb as dynamodb,
+    aws_iam as iam,
+    aws_lambda as lambda_,
+    aws_logs as logs,
+    aws_route53 as route53,
+    aws_s3 as s3,
+    aws_stepfunctions as sfn,
+    aws_stepfunctions_tasks as tasks,
+)
 from constructs import Construct
 
+from .concurrency import (
+    default_api_reserved_concurrency,
+    default_workflow_reserved_concurrency,
+    is_production_environment,
+)
+from .iam import (
+    grant_copy_export_permissions,
+    grant_export_status_permissions,
+)
 from .ingress import create_regional_rest_ingress
+from .observability import add_alarm_actions, create_alarm_topic
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
 
@@ -120,16 +134,97 @@ def _sha256_context_or_env_value(
 
 def _stage_name_for_environment(deployment_environment: str) -> str:
     """Normalize environment values into a stable API Gateway stage name."""
-    if deployment_environment in {"prod", "production"}:
+    if is_production_environment(deployment_environment):
         return "prod"
     return deployment_environment
 
 
-def _default_api_reserved_concurrency(deployment_environment: str) -> int:
-    """Return a safe default reserved concurrency for one environment."""
-    if deployment_environment in {"prod", "production"}:
-        return 25
-    return 0
+def _optional_context_or_env_value(
+    scope: Construct,
+    *,
+    env_var: str,
+    key: str,
+) -> object | None:
+    """Return one optional context or environment value."""
+    raw: object | None = scope.node.try_get_context(key)
+    if raw is None:
+        raw = os.environ.get(env_var)
+    return raw
+
+
+def _parse_bool_flag(
+    raw: object,
+    *,
+    key: str,
+) -> bool:
+    """Return one normalized boolean flag value."""
+    if isinstance(raw, bool):
+        return raw
+    if isinstance(raw, str):
+        value = raw.strip().lower()
+        if value in {"1", "true", "yes", "on"}:
+            return True
+        if value in {"0", "false", "no", "off"}:
+            return False
+    raise ValueError(f"{key} must be a boolean value.")
+
+
+def _reserved_concurrency_enabled(
+    scope: Construct,
+    *,
+    deployment_environment: str,
+) -> bool:
+    """Return whether Lambda reserved concurrency should be configured."""
+    raw = _optional_context_or_env_value(
+        scope,
+        env_var="ENABLE_RESERVED_CONCURRENCY",
+        key="enable_reserved_concurrency",
+    )
+    enabled = (
+        True
+        if raw is None
+        else _parse_bool_flag(raw, key="enable_reserved_concurrency")
+    )
+    if is_production_environment(deployment_environment) and not enabled:
+        raise ValueError(
+            "enable_reserved_concurrency cannot be false for production "
+            "deployments."
+        )
+    return enabled
+
+
+def _reserved_concurrency_context_or_env_value(
+    scope: Construct,
+    *,
+    env_var: str,
+    key: str,
+    default: int,
+) -> int:
+    """Return one bounded reserved concurrency value."""
+    raw = scope.node.try_get_context(key)
+    if raw is None:
+        raw = os.environ.get(env_var)
+    if raw is None or (isinstance(raw, str) and not raw.strip()):
+        return default
+    value = int(raw)
+    if value < 1:
+        raise ValueError(f"{key} must be >= 1.")
+    return value
+
+
+def _reserved_concurrency_override_present(
+    scope: Construct,
+    *,
+    env_var: str,
+    key: str,
+) -> bool:
+    """Return whether one explicit reserved-concurrency override is set."""
+    raw = _optional_context_or_env_value(
+        scope,
+        env_var=env_var,
+        key=key,
+    )
+    return not (raw is None or (isinstance(raw, str) and not raw.strip()))
 
 
 def _point_in_time_recovery() -> dynamodb.PointInTimeRecoverySpecification:
@@ -164,12 +259,15 @@ class RuntimeStackInputs:
     api_domain_name: str
     certificate_arn: str
     deployment_environment: str
+    enable_reserved_concurrency: bool
     hosted_zone_id: str
     hosted_zone_name: str
     oidc_audience: str
     oidc_issuer: str
     oidc_jwks_url: str
     waf_rate_limit: int
+    waf_write_rate_limit: int
+    workflow_reserved_concurrency: int | None
 
     @classmethod
     def from_scope(cls, scope: Construct) -> RuntimeStackInputs:
@@ -188,40 +286,46 @@ class RuntimeStackInputs:
             or os.environ.get("STACK_ALLOWED_ORIGINS")
         )
         if not allowed_origins:
-            if deployment_environment in {"prod", "production"}:
+            if is_production_environment(deployment_environment):
                 raise ValueError(
                     "allowed_origins must be configured for production "
                     "deployments."
                 )
             allowed_origins = ["*"]
-        raw_reserved_concurrency = scope.node.try_get_context(
-            "api_reserved_concurrency"
+        enable_reserved_concurrency = _reserved_concurrency_enabled(
+            scope,
+            deployment_environment=deployment_environment,
         )
-        if raw_reserved_concurrency is None:
-            raw_reserved_concurrency = os.environ.get(
-                "API_RESERVED_CONCURRENCY"
+        if not enable_reserved_concurrency and (
+            _reserved_concurrency_override_present(
+                scope,
+                env_var="API_RESERVED_CONCURRENCY",
+                key="api_reserved_concurrency",
             )
-        api_reserved_concurrency: int | None
-        if raw_reserved_concurrency is None or (
-            isinstance(raw_reserved_concurrency, str)
-            and not raw_reserved_concurrency.strip()
+            or _reserved_concurrency_override_present(
+                scope,
+                env_var="WORKFLOW_RESERVED_CONCURRENCY",
+                key="workflow_reserved_concurrency",
+            )
         ):
-            default_reserved_concurrency = _default_api_reserved_concurrency(
-                deployment_environment
+            raise ValueError(
+                "Reserved concurrency overrides cannot be set when "
+                "enable_reserved_concurrency is false."
             )
-            api_reserved_concurrency = (
-                default_reserved_concurrency
-                if default_reserved_concurrency > 0
-                else None
-            )
-        else:
-            parsed_reserved_concurrency = int(raw_reserved_concurrency)
-            if parsed_reserved_concurrency < 1:
-                raise ValueError("api_reserved_concurrency must be >= 1.")
-            api_reserved_concurrency = parsed_reserved_concurrency
         return cls(
             allowed_origins=allowed_origins,
-            api_reserved_concurrency=api_reserved_concurrency,
+            api_reserved_concurrency=(
+                _reserved_concurrency_context_or_env_value(
+                    scope,
+                    env_var="API_RESERVED_CONCURRENCY",
+                    key="api_reserved_concurrency",
+                    default=default_api_reserved_concurrency(
+                        deployment_environment
+                    ),
+                )
+                if enable_reserved_concurrency
+                else None
+            ),
             api_stage_throttling_burst_limit=int(
                 _numeric_context_or_env_value(
                     scope,
@@ -250,6 +354,7 @@ class RuntimeStackInputs:
                 key="certificate_arn",
             ),
             deployment_environment=deployment_environment,
+            enable_reserved_concurrency=enable_reserved_concurrency,
             hosted_zone_id=_required_context_or_env_value(
                 scope,
                 env_var="HOSTED_ZONE_ID",
@@ -283,6 +388,27 @@ class RuntimeStackInputs:
                     default=2000,
                     minimum=100,
                 )
+            ),
+            waf_write_rate_limit=int(
+                _numeric_context_or_env_value(
+                    scope,
+                    env_var="WAF_WRITE_RATE_LIMIT",
+                    key="waf_write_rate_limit",
+                    default=500,
+                    minimum=100,
+                )
+            ),
+            workflow_reserved_concurrency=(
+                _reserved_concurrency_context_or_env_value(
+                    scope,
+                    env_var="WORKFLOW_RESERVED_CONCURRENCY",
+                    key="workflow_reserved_concurrency",
+                    default=default_workflow_reserved_concurrency(
+                        deployment_environment
+                    ),
+                )
+                if enable_reserved_concurrency
+                else None
             ),
         )
 
@@ -365,7 +491,13 @@ class NovaRuntimeStack(Stack):
                     abort_incomplete_multipart_upload_after=Duration.days(7),
                     enabled=True,
                     id="abort-incomplete-multipart-uploads",
-                )
+                ),
+                s3.LifecycleRule(
+                    enabled=True,
+                    expiration=Duration.days(3),
+                    id="expire-transient-workflow-artifacts",
+                    prefix="tmp/",
+                ),
             ],
             removal_policy=RemovalPolicy.RETAIN,
             cors=[
@@ -383,15 +515,18 @@ class NovaRuntimeStack(Stack):
             ],
         )
 
-        common_env = {
+        workflow_common_env = {
             "FILE_TRANSFER_BUCKET": file_bucket.bucket_name,
             "FILE_TRANSFER_UPLOAD_PREFIX": "uploads/",
             "FILE_TRANSFER_EXPORT_PREFIX": "exports/",
             "FILE_TRANSFER_TMP_PREFIX": "tmp/",
-            "ALLOWED_ORIGINS": json.dumps(inputs.allowed_origins),
             "JOBS_ENABLED": "true",
             "JOBS_REPOSITORY_BACKEND": "dynamodb",
             "JOBS_DYNAMODB_TABLE": export_table.table_name,
+        }
+        common_env = {
+            **workflow_common_env,
+            "ALLOWED_ORIGINS": json.dumps(inputs.allowed_origins),
             "ACTIVITY_STORE_BACKEND": "dynamodb",
             "ACTIVITY_ROLLUPS_TABLE": activity_table.table_name,
             "OIDC_ISSUER": inputs.oidc_issuer,
@@ -399,7 +534,7 @@ class NovaRuntimeStack(Stack):
             "OIDC_JWKS_URL": inputs.oidc_jwks_url,
         }
         task_env = {
-            **common_env,
+            **workflow_common_env,
             "IDEMPOTENCY_ENABLED": "false",
             "JOBS_QUEUE_BACKEND": "memory",
         }
@@ -409,6 +544,10 @@ class NovaRuntimeStack(Stack):
             "memory_size": 1024,
             "tracing": lambda_.Tracing.ACTIVE,
         }
+        if inputs.workflow_reserved_concurrency is not None:
+            workflow_fn_props["reserved_concurrent_executions"] = (
+                inputs.workflow_reserved_concurrency
+            )
 
         validate_fn = lambda_.DockerImageFunction(
             self,
@@ -471,12 +610,27 @@ class NovaRuntimeStack(Stack):
             **workflow_fn_props,
         )
 
-        for function in (validate_fn, copy_fn, finalize_fn, fail_fn):
-            file_bucket.grant_read_write(function)
-            export_table.grant_read_write_data(function)
-            activity_table.grant_read_write_data(function)
+        grant_export_status_permissions(
+            function=validate_fn,
+            export_table=export_table,
+        )
+        grant_export_status_permissions(
+            function=finalize_fn,
+            export_table=export_table,
+        )
+        grant_export_status_permissions(
+            function=fail_fn,
+            export_table=export_table,
+        )
+        grant_copy_export_permissions(
+            function=copy_fn,
+            export_table=export_table,
+            file_bucket=file_bucket,
+            export_prefix="exports/",
+            upload_prefix="uploads/",
+        )
 
-        workflow_failure = tasks.LambdaInvoke(
+        workflow_failure_task = tasks.LambdaInvoke(
             self,
             "PersistWorkflowFailure",
             lambda_function=fail_fn,
@@ -494,27 +648,64 @@ class NovaRuntimeStack(Stack):
                 }
             ),
             payload_response_only=True,
-        ).next(sfn.Fail(self, "WorkflowFailed"))
+            retry_on_service_exceptions=False,
+        )
+        workflow_failure = workflow_failure_task.next(
+            sfn.Fail(self, "WorkflowFailed")
+        )
 
         validate_task = tasks.LambdaInvoke(
             self,
             "ValidateExport",
             lambda_function=validate_fn,
             payload_response_only=True,
+            retry_on_service_exceptions=False,
         )
         copy_task = tasks.LambdaInvoke(
             self,
             "CopyExport",
             lambda_function=copy_fn,
             payload_response_only=True,
+            retry_on_service_exceptions=False,
         )
         finalize_task = tasks.LambdaInvoke(
             self,
             "FinalizeExport",
             lambda_function=finalize_fn,
             payload_response_only=True,
+            retry_on_service_exceptions=False,
         )
 
+        for task in (
+            validate_task,
+            copy_task,
+            finalize_task,
+            workflow_failure_task,
+        ):
+            task.add_retry(
+                errors=[
+                    "Lambda.ClientExecutionTimeoutException",
+                    "Lambda.ServiceException",
+                    "Lambda.AWSLambdaException",
+                    "Lambda.SdkClientException",
+                    "Lambda.TooManyRequestsException",
+                    "Lambda.Unknown",
+                    "Sandbox.Timedout",
+                ],
+                interval=Duration.seconds(2),
+                max_attempts=4,
+                backoff_rate=2,
+                max_delay=Duration.seconds(30),
+                jitter_strategy=sfn.JitterType.FULL,
+            )
+            task.add_retry(
+                errors=[sfn.Errors.TIMEOUT],
+                interval=Duration.seconds(5),
+                max_attempts=2,
+                backoff_rate=2,
+                max_delay=Duration.seconds(30),
+                jitter_strategy=sfn.JitterType.FULL,
+            )
         for task in (validate_task, copy_task, finalize_task):
             task.add_catch(workflow_failure, result_path="$.workflow_error")
 
@@ -627,44 +818,101 @@ class NovaRuntimeStack(Stack):
             throttling_burst_limit=inputs.api_stage_throttling_burst_limit,
             throttling_rate_limit=inputs.api_stage_throttling_rate_limit,
             waf_rate_limit=inputs.waf_rate_limit,
+            waf_write_rate_limit=inputs.waf_write_rate_limit,
         )
 
-        cloudwatch.Alarm(
+        alarm_topic = create_alarm_topic(
+            self,
+            deployment_environment=inputs.deployment_environment,
+        )
+        api_lambda_errors_alarm = cloudwatch.Alarm(
             self,
             "ApiLambdaErrorsAlarm",
             metric=api_function.metric_errors(period=Duration.minutes(5)),
             threshold=1,
             evaluation_periods=1,
             alarm_description="Alarm when the API Lambda records errors.",
+            treat_missing_data=cloudwatch.TreatMissingData.NOT_BREACHING,
         )
-        cloudwatch.Alarm(
+        api_lambda_throttles_alarm = cloudwatch.Alarm(
             self,
-            "ApiLambdaLatencyAlarm",
-            metric=api_function.metric_duration(
+            "ApiLambdaThrottlesAlarm",
+            metric=api_function.metric_throttles(
+                period=Duration.minutes(5),
+            ),
+            threshold=1,
+            evaluation_periods=1,
+            alarm_description="Alarm when the API Lambda throttles.",
+            treat_missing_data=cloudwatch.TreatMissingData.NOT_BREACHING,
+        )
+        api_gateway_5xx_alarm = cloudwatch.Alarm(
+            self,
+            "ApiGateway5xxAlarm",
+            metric=ingress.rest_api.metric_server_error(
+                period=Duration.minutes(5),
+            ),
+            threshold=1,
+            evaluation_periods=1,
+            alarm_description="Alarm when the public REST API returns 5xx.",
+            treat_missing_data=cloudwatch.TreatMissingData.NOT_BREACHING,
+        )
+        api_latency_alarm = cloudwatch.Alarm(
+            self,
+            "ApiGatewayLatencyAlarm",
+            metric=ingress.rest_api.metric_latency(
                 period=Duration.minutes(5),
                 statistic="p95",
             ),
             threshold=5000,
             evaluation_periods=1,
-            alarm_description="Alarm when API Lambda p95 duration exceeds 5s.",
+            alarm_description="Alarm when REST API p95 latency exceeds 5s.",
+            treat_missing_data=cloudwatch.TreatMissingData.NOT_BREACHING,
         )
-        cloudwatch.Alarm(
+        workflow_task_throttles_alarm = cloudwatch.Alarm(
+            self,
+            "WorkflowTaskThrottlesAlarm",
+            metric=cloudwatch.MathExpression(
+                expression="validate + copy + finalize + fail",
+                period=Duration.minutes(5),
+                using_metrics={
+                    "validate": validate_fn.metric_throttles(
+                        period=Duration.minutes(5)
+                    ),
+                    "copy": copy_fn.metric_throttles(
+                        period=Duration.minutes(5)
+                    ),
+                    "finalize": finalize_fn.metric_throttles(
+                        period=Duration.minutes(5)
+                    ),
+                    "fail": fail_fn.metric_throttles(
+                        period=Duration.minutes(5)
+                    ),
+                },
+            ),
+            threshold=1,
+            evaluation_periods=1,
+            alarm_description="Alarm when workflow task Lambdas throttle.",
+            treat_missing_data=cloudwatch.TreatMissingData.NOT_BREACHING,
+        )
+        export_workflow_failures_alarm = cloudwatch.Alarm(
             self,
             "ExportWorkflowFailuresAlarm",
             metric=state_machine.metric_failed(period=Duration.minutes(5)),
             threshold=1,
             evaluation_periods=1,
             alarm_description="Alarm when export workflow executions fail.",
+            treat_missing_data=cloudwatch.TreatMissingData.NOT_BREACHING,
         )
-        cloudwatch.Alarm(
+        export_workflow_timeouts_alarm = cloudwatch.Alarm(
             self,
             "ExportWorkflowTimeoutsAlarm",
             metric=state_machine.metric_timed_out(period=Duration.minutes(5)),
             threshold=1,
             evaluation_periods=1,
             alarm_description="Alarm when export workflow executions time out.",
+            treat_missing_data=cloudwatch.TreatMissingData.NOT_BREACHING,
         )
-        cloudwatch.Alarm(
+        exports_table_throttles_alarm = cloudwatch.Alarm(
             self,
             "ExportsTableThrottlesAlarm",
             metric=cloudwatch.MathExpression(
@@ -694,6 +942,20 @@ class NovaRuntimeStack(Stack):
             threshold=1,
             evaluation_periods=1,
             alarm_description="Alarm when export table requests throttle.",
+            treat_missing_data=cloudwatch.TreatMissingData.NOT_BREACHING,
+        )
+        add_alarm_actions(
+            alarms=[
+                api_gateway_5xx_alarm,
+                api_latency_alarm,
+                api_lambda_errors_alarm,
+                api_lambda_throttles_alarm,
+                export_workflow_failures_alarm,
+                export_workflow_timeouts_alarm,
+                exports_table_throttles_alarm,
+                workflow_task_throttles_alarm,
+            ],
+            topic=alarm_topic,
         )
 
         self.export_value(
@@ -704,8 +966,17 @@ class NovaRuntimeStack(Stack):
             state_machine.state_machine_arn,
             name="NovaExportWorkflowStateMachineArn",
         )
+        self.export_value(alarm_topic.topic_arn, name="NovaAlarmTopicArn")
+        self.export_value(
+            ingress.access_log_group_name,
+            name="NovaApiAccessLogGroupName",
+        )
         self.export_value(export_table.table_name, name="NovaExportsTableName")
         self.export_value(
             idempotency_table.table_name,
             name="NovaIdempotencyTableName",
+        )
+        self.export_value(
+            ingress.waf_log_group_name,
+            name="NovaWafLogGroupName",
         )

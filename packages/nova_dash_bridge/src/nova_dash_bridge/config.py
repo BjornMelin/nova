@@ -6,9 +6,10 @@ from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass, field
 from typing import Any
 
-from nova_file_api.public import Principal
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from nova_file_api.public import Principal
 
 PrincipalResolver = Callable[[str | None], Principal]
 AsyncPrincipalResolver = Callable[[str | None], Awaitable[Principal]]

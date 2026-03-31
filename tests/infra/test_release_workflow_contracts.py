@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-from .helpers import REPO_ROOT
-from .helpers import read_repo_file as _read
+from .helpers import REPO_ROOT, read_repo_file as _read
 
 
 def test_publish_packages_workflow_has_staged_gate_contracts() -> None:

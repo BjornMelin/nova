@@ -99,6 +99,25 @@ def _api_function_env(resources: dict[str, Any]) -> dict[str, str]:
     raise AssertionError("Could not locate the API Lambda environment block")
 
 
+def _workflow_function_resources(
+    resources: dict[str, Any],
+) -> dict[str, dict[str, Any]]:
+    """Return workflow Lambda resources keyed by logical id."""
+    functions = _resources_of_type(resources, "AWS::Lambda::Function")
+    return {
+        logical_id: resource
+        for logical_id, resource in functions.items()
+        if logical_id.startswith(
+            (
+                "ValidateExportFunction",
+                "CopyExportFunction",
+                "FinalizeExportFunction",
+                "FailExportFunction",
+            )
+        )
+    }
+
+
 def _definition_fragment(resources: dict[str, Any]) -> str:
     """Return the rendered Step Functions JSON fragment for assertions."""
     state_machines = _resources_of_type(
@@ -175,6 +194,10 @@ def test_runtime_stack_maps_caught_errors_for_failure_handler() -> None:
     assert "$.workflow_error" in definition_fragment
     assert '"status":"failed"' in definition_fragment
     assert '"updated_at.$":"$.updated_at"' in definition_fragment
+    assert '"JitterStrategy":"FULL"' in definition_fragment
+    assert '"MaxDelaySeconds":30' in definition_fragment
+    assert '"Lambda.TooManyRequestsException"' in definition_fragment
+    assert '"States.Timeout"' in definition_fragment
 
 
 def test_runtime_stack_packages_api_lambda_as_native_zip() -> None:
@@ -194,7 +217,7 @@ def test_runtime_stack_packages_api_lambda_as_native_zip() -> None:
     props = api_resource["Properties"]
     assert props["Handler"] == "nova_file_api.lambda_handler.handler"
     assert props["Runtime"] == "python3.13"
-    assert "ReservedConcurrentExecutions" not in props
+    assert props["ReservedConcurrentExecutions"] == 5
     assert "S3Bucket" in props["Code"]
     assert (
         props["Code"]["S3Key"]
@@ -215,6 +238,34 @@ def test_runtime_stack_packages_api_lambda_as_native_zip() -> None:
         "states:DescribeStateMachine" in fragment
         for fragment in policy_fragments
     )
+
+
+def test_non_prod_can_disable_reserved_concurrency() -> None:
+    """Non-prod stacks may omit reservations in low-quota accounts."""
+    context = {
+        **_context_for_region("us-west-2"),
+        "enable_reserved_concurrency": "false",
+    }
+    bundle = _build_bundle(context=context)
+    functions = _resources_of_type(bundle.resources, "AWS::Lambda::Function")
+    for resource in functions.values():
+        assert "ReservedConcurrentExecutions" not in resource["Properties"]
+
+
+def test_prod_cannot_disable_reserved_concurrency() -> None:
+    """Prod stacks must not disable reserved concurrency."""
+    context = {
+        **_context_for_region("us-west-2"),
+        "environment": "prod",
+        "allowed_origins": '["https://app.example.com"]',
+        "enable_reserved_concurrency": "false",
+    }
+
+    with pytest.raises(
+        ValueError,
+        match="enable_reserved_concurrency cannot be false",
+    ):
+        _template(context=context)
 
 
 def test_runtime_stack_uses_higher_reserved_concurrency_default_in_prod() -> (
@@ -241,13 +292,34 @@ def test_runtime_stack_uses_higher_reserved_concurrency_default_in_prod() -> (
     assert api_resource["Properties"]["ReservedConcurrentExecutions"] == 25
 
 
+def test_runtime_stack_sets_workflow_reserved_concurrency_defaults() -> None:
+    """Workflow task Lambdas should use bounded reserved concurrency."""
+    bundle = _build_bundle()
+    workflow_functions = _workflow_function_resources(bundle.resources)
+    assert workflow_functions
+    assert {
+        resource["Properties"]["ReservedConcurrentExecutions"]
+        for resource in workflow_functions.values()
+    } == {2}
+
+
 def test_runtime_stack_adds_s3_abort_incomplete_multipart_lifecycle() -> None:
-    """The transfer bucket should abort incomplete multipart uploads."""
+    """The transfer bucket should enforce lifecycle cleanup controls."""
     bundle = _build_bundle()
     buckets = _resources_of_type(bundle.resources, "AWS::S3::Bucket")
     assert buckets
     bucket_props = next(iter(buckets.values()))["Properties"]
     rules = bucket_props["LifecycleConfiguration"]["Rules"]
+    rules_by_id = {rule["Id"]: rule for rule in rules}
     assert (
-        rules[0]["AbortIncompleteMultipartUpload"]["DaysAfterInitiation"] == 7
+        rules_by_id["abort-incomplete-multipart-uploads"][
+            "AbortIncompleteMultipartUpload"
+        ]["DaysAfterInitiation"]
+        == 7
     )
+    assert rules_by_id["expire-transient-workflow-artifacts"] == {
+        "ExpirationInDays": 3,
+        "Id": "expire-transient-workflow-artifacts",
+        "Prefix": "tmp/",
+        "Status": "Enabled",
+    }
