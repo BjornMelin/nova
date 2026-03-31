@@ -208,3 +208,8 @@ infra/auth0/env/*
 GPT54_PRO_REVIEW_PROMPT.md
 nova-release-rebaseline.zip
 PR-*.diff
+reducing-entropy.zip
+clean-code.zip
+fastapi.zip
+fastapi-code-review.zip
+nova.zip
