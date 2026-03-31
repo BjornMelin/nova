@@ -247,7 +247,7 @@ npx aws-cdk@2.1107.0 synth --app "uv run --package nova-cdk python infra/nova_cd
 
 ## Release and deployment model
 
-Nova uses a GitHub workflow driven release and deploy pipeline.
+Nova uses a GitHub workflow-driven release and deploy pipeline.
 
 ### High-level flow
 
