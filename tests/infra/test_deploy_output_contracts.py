@@ -88,6 +88,17 @@ def test_deploy_output_schema_covers_authoritative_fields() -> None:
     assert props["stack_outputs"]["additionalProperties"] is False
 
 
+def test_post_deploy_report_allows_localhost_cors_origin() -> None:
+    """Validation reports must accept HTTPS production and localhost dev."""
+    schema = json.loads(
+        _read("docs/contracts/release-artifacts-v1.schema.json")
+    )
+    report_schema = schema["$defs"]["post_deploy_validation_report"]
+    assert report_schema["properties"]["cors_origin"]["pattern"] == (
+        "^(?:https://.+|http://localhost(?::\\d+)?)$"
+    )
+
+
 def test_resolve_deploy_output_builds_and_verifies_authority_payload(
     tmp_path: Path,
 ) -> None:

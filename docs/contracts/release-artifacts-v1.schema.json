@@ -790,7 +790,7 @@
         },
         "cors_origin": {
           "type": "string",
-          "pattern": "^https?://.+$"
+          "pattern": "^(?:https://.+|http://localhost(?::\\d+)?)$"
         },
         "checks": {
           "type": "array",
