@@ -4,7 +4,29 @@ Canonical CDK v2 Python app for the Nova serverless runtime.
 
 ## Local commands
 
-If you have the AWS CDK CLI installed, run:
+From the repository root, use the canonical repo-native verification shape:
+
+```bash
+uv sync --locked --all-packages --all-extras --dev
+uv run pytest -q -m runtime_gate
+uv run pytest -q -m "not runtime_gate and not generated_smoke"
+uv run pytest -q -m generated_smoke
+npx aws-cdk@2.1107.0 synth --app "uv run --package nova-cdk python infra/nova_cdk/app.py" \
+  -c account=111111111111 \
+  -c region=us-west-2 \
+  -c api_domain_name=api.dev.example.com \
+  -c hosted_zone_id=Z1234567890EXAMPLE \
+  -c hosted_zone_name=example.com \
+  -c api_lambda_artifact_bucket=nova-ci-artifacts-111111111111-us-east-1 \
+  -c api_lambda_artifact_key=runtime/nova-file-api/example/example/nova-file-api-lambda.zip \
+  -c api_lambda_artifact_sha256=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef \
+  -c certificate_arn=arn:aws:acm:us-west-2:111111111111:certificate/00000000-0000-0000-0000-000000000000 \
+  -c jwt_issuer=https://issuer.example.com/ \
+  -c jwt_audience=api://nova \
+  -c jwt_jwks_url=https://issuer.example.com/.well-known/jwks.json
+```
+
+If you want manual CDK CLI commands after the repo-wide sync, run:
 
 ```bash
 cd infra/nova_cdk

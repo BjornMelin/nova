@@ -44,12 +44,14 @@ Canonical baseline:
 - `uv run ruff format . --check`
 - `uv run ty check --force-exclude --error-on-warning packages scripts`
 - `uv run mypy`
-- `uv run pytest -q`
-- `uv run pytest -q packages/nova_file_api/tests/test_generated_client_smoke.py`
+- `uv run pytest -q -m runtime_gate`
+- `uv run pytest -q -m "not runtime_gate and not generated_smoke"`
+- `uv run pytest -q -m generated_smoke`
 - `uv run python scripts/contracts/export_openapi.py --check`
 - `uv run python scripts/release/generate_runtime_config_contract.py --check`
 - `uv run python scripts/release/generate_clients.py --check`
 - `uv run python scripts/release/generate_python_clients.py --check`
+- `npx aws-cdk@2.1107.0 synth --app "uv run --package nova-cdk python infra/nova_cdk/app.py" ...`
 - workspace package/app build verification (`uv build` per workspace unit)
 - unified `Nova CI` workflow gate (`.github/workflows/ci.yml`) covering:
   - `quality-gates` (Python 3.13 primary lane)
