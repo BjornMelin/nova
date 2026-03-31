@@ -1,82 +1,179 @@
-# AGENTS.md (nova)
+# AGENTS.md
 
-Nova is now in the **canonical wave-2 serverless baseline**.
+## Purpose
 
-Use this file to keep active authority small and explicit.
+Durable, repo-wide rules for AI coding agents in Nova. Practical and tied to
+this repository. Narrower rules belong next to the package they govern.
 
-## Read in order
+**Session entrypoint:** Continue with `docs/README.md` (router), then the
+ordered list below—not `docs/history/**` or `docs/architecture/*/superseded/**`
+(traceability only; not authority).
+
+## What Nova is
+
+Typed control plane for direct-to-S3 uploads/downloads, multipart flows, and
+durable export workflows; OpenAPI + generated SDKs (TS, Python, R). Nova is not
+the bulk data plane. Product and API detail: `README.md`.
+
+## Read first
 
 1. `docs/README.md`
 2. `docs/architecture/README.md`
 3. `docs/overview/IMPLEMENTATION-STATUS-MATRIX.md`
 4. `README.md`
-5. `docs/standards/README.md`
-6. `docs/runbooks/README.md`
-7. `docs/plan/GREENFIELD-WAVE-2-EXECUTION.md`
-8. `docs/plan/PLAN.md` for program-history context only
+5. `docs/standards/repository-engineering-standards.md`
+6. `docs/runbooks/README.md` — if deploy, release, operations, or AWS
+7. `docs/clients/README.md` — if SDKs or downstream integration examples
 
-## Active canonical authority
+## Repo truth and hard bans
 
-The active implementation and operating baseline is the same canonical system:
+**Current implementation (treat as true):**
 
-- bearer JWT only
-- explicit export workflow resources under `/v1/exports`
-- DynamoDB-backed idempotency/state
-- Regional REST API + repo-owned Lambda entrypoint + Step Functions Standard
-- unified SDK package layout for TypeScript, Python, and R
-- `infra/nova_cdk` as the only active infrastructure implementation surface
+- Public API: `/v1/*`. Auth: bearer JWT only, in-process.
+- Exports: `/v1/exports`. Idempotency and workflow state: DynamoDB.
+- API runtime: FastAPI in `packages/nova_file_api` (repo Lambda entrypoint).
+- Workflows: Step Functions + `packages/nova_workflows` task handlers.
+- IaC: `infra/nova_cdk` only. SDKs: one package per language (TS, Py, R).
+- Deployed base URL and release provenance: `deploy-output.json` (not manual
+  or free-text config when that artifact exists).
 
-Primary active authority:
+**Never reintroduce** (code, docs, CI, prompts, reviews):
 
-- `docs/architecture/adr/ADR-0033-canonical-serverless-platform.md`
-- `docs/architecture/adr/ADR-0034-eliminate-auth-service-and-session-auth.md`
-- `docs/architecture/adr/ADR-0035-replace-generic-jobs-with-export-workflows.md`
-- `docs/architecture/adr/ADR-0036-dynamodb-idempotency-no-redis.md`
-- `docs/architecture/adr/ADR-0037-sdk-generation-consolidation.md`
-- `docs/architecture/adr/ADR-0038-docs-authority-reset.md`
-- `docs/architecture/spec/SPEC-0027-public-api-v2.md`
-- `docs/architecture/spec/SPEC-0028-export-workflow-state-machine.md`
-- `docs/architecture/spec/SPEC-0029-platform-serverless.md`
-- `docs/architecture/spec/SPEC-0030-sdk-generation-and-package-layout.md`
-- `docs/architecture/spec/SPEC-0031-docs-and-tests-authority-reset.md`
-- `docs/contracts/deploy-output-authority-v2.schema.json`
-- `docs/contracts/workflow-post-deploy-validate.schema.json`
-- `docs/runbooks/release/release-runbook.md`
-- `infra/nova_cdk/README.md`
+- Session / same-origin auth or a dedicated auth service
+- Generic jobs APIs, internal callback routes, or non-export workflow semantics
+  where explicit `/v1/exports` is the model
+- Redis-backed correctness or idempotency
+- ECS/Fargate as primary runtime; CloudFront as compensating public API ingress
+- Lambda Web Adapter or uvicorn-in-Lambda for the public API runtime
+- Split SDK packages (e.g. file/auth split), or package-root barrel exports on
+  `@nova/sdk`
+- Hand-editing generated SDKs or generated docs as the primary fix (fix
+  OpenAPI, templates, or generators; see **Commands** for `--check` gates)
 
-## Historical / superseded
+## Repo map
 
-Treat these as traceability only:
+| Path | Role |
+| --- | --- |
+| `packages/nova_file_api` | API, auth, transfer + export routes, Lambda entry |
+| `packages/nova_workflows` | Step Functions tasks, workflow logic |
+| `packages/nova_runtime_support` | Shared runtime helpers |
+| `packages/nova_dash_bridge` | Dash / Flask / FastAPI integration |
+| `packages/contracts` | OpenAPI artifacts, fixtures, TS conformance assets |
+| `packages/nova_sdk_{ts,py,r}` | Generated public clients |
+| `infra/nova_cdk` | Canonical CDK app |
+| `apps/nova_workflows_tasks` | Workflow task Lambda image build context |
+| `scripts/contracts` | Contract export and checks |
+| `scripts/release` | Release generation, packaging, deploy-output helpers |
+| `tests/infra` | Infra, docs-authority, deployment contract tests |
+| `.github/workflows` | CI, release, publish, deploy, post-deploy validation |
 
-- `docs/history/**`
-- `docs/architecture/adr/superseded/**`
-- `docs/architecture/spec/superseded/**`
+## Working rules
 
-## Core laws
+1. **Plan first** when cross-package, architecture-affecting, infra/release,
+   contract or SDK generation, or ambiguous enough that blind edits are risky.
+   Narrow fixes: proceed.
 
-- Do not reintroduce auth-service, session-auth, generic-job, Redis, ECS/Fargate, or split-SDK assumptions into active code, CI, docs, or release workflows.
-- Keep `infra/nova_cdk` as the only active infrastructure path.
-- Keep package release automation aligned to the unified package graph only.
-- Keep the public API Lambda packaging flow in `reusable-release-apply.yml`; CDK must consume explicit `API_LAMBDA_ARTIFACT_BUCKET`, `API_LAMBDA_ARTIFACT_KEY`, and `API_LAMBDA_ARTIFACT_SHA256` inputs instead of rebuilding the API package locally.
-- Keep `deploy-output.json` as the only published runtime authority artifact; downstream validation and runtime consumers must derive the canonical public base URL from it instead of free-text base URL configuration.
-- If code, contracts, package layout, CI, or runbooks change, update the corresponding active docs in the same branch.
-- Keep `AGENTS.md`, `infra/nova_cdk/README.md`, `docs/runbooks/release/release-runbook.md`, and `docs/runbooks/provisioning/github-actions-secrets-and-vars.md` aligned when release/runtime packaging or deploy inputs change.
+2. **Smallest coherent change** — buildable and testable; preserve public
+   behavior unless a breaking change is explicit; behavior changes ship with
+   tests in the same branch.
 
-## Verification defaults
+3. **Fix sources** — wrong generated output → OpenAPI, generator/templates,
+   runtime, infra, or release metadata first. Manual edits only where a file
+   is intentionally hand-maintained.
 
-- Use `uv sync --locked --all-packages --all-extras --dev` for repo-wide verification. The shorter `uv sync --locked --all-extras --dev` is not the canonical Nova monorepo setup.
-- For local/CI-equivalent pytest verification, prefer the split lanes from `Nova CI`:
-  - `uv run pytest -q -m runtime_gate`
-  - `uv run pytest -q -m "not runtime_gate and not generated_smoke"`
-  - `uv run pytest -q -m generated_smoke`
-- Treat the split pytest lanes above as the canonical verification shape for this repo. Do not replace them with a single `uv run pytest -q` command in docs, prompts, or checklists unless the repo explicitly re-standardizes on a monolithic lane.
-- Use the repo-native CDK entrypoint:
-  - `npx aws-cdk@2.1107.0 synth --app "uv run --package nova-cdk python infra/nova_cdk/app.py" …`
-- CDK synth/diff/deploy must include the full required runtime stack inputs, not just account/region/JWT/domain/cert. Always provide:
-  - `hosted_zone_id`
-  - `hosted_zone_name`
-  - `api_lambda_artifact_bucket`
-  - `api_lambda_artifact_key`
-  - `api_lambda_artifact_sha256`
-- The API Lambda `Code.fromBucket()` warning about missing `objectVersion` is intentionally acknowledged in `infra/nova_cdk/app.py`. Nova relies on immutable content-addressed artifact keys plus SHA256/deploy-output provenance instead of threading S3 object versions through the CDK contract.
-- After runtime deploys or live AWS cleanup, rebuild or fetch the authoritative deploy-output artifact and run `scripts/release/validate_runtime_release.py` against it. Treat deploy-output-bound post-deploy validation as the source of truth for runtime version, execute-api disablement, CORS, and reserved concurrency.
+4. **Docs** — If behavior, contracts, workflows, commands, inputs, layout, or
+   operator steps change, update the same branch. Use `docs/README.md` and
+   `docs/overview/ACTIVE-DOCS-INDEX.md` to find surfaces; always reassess
+   `docs/overview/IMPLEMENTATION-STATUS-MATRIX.md`, root `README.md`, and
+   `infra/nova_cdk/README.md` for platform shifts. Update `AGENTS.md` when
+   global agent truth changes.
+
+5. **Toolchain** — `uv` for Python env and commands; Python 3.11 syntax;
+   Ruff, mypy, ty, pytest as configured. **`npm ci` only** when touching the TS
+   workspace, TS SDK output, or TS conformance. No overlapping toolchains
+   without a strong repo-specific reason.
+
+## Commands
+
+Run from repository root unless the task needs otherwise.
+
+### Bootstrap
+
+```bash
+uv sync --locked --all-packages --all-extras --dev
+# npm ci  — only if TS workspace / TS SDK / TS conformance is in scope
+```
+
+### Python verification
+
+```bash
+uv lock --check
+uv run ruff check . && uv run ruff check . --select I && uv run ruff format . --check
+uv run ty check --force-exclude --error-on-warning packages scripts
+uv run mypy
+uv run pytest -q -m runtime_gate
+uv run pytest -q -m "not runtime_gate and not generated_smoke"
+uv run pytest -q -m generated_smoke
+```
+
+### Contracts and generators
+
+```bash
+uv run python scripts/contracts/export_openapi.py --check
+uv run python scripts/release/generate_runtime_config_contract.py --check
+uv run python scripts/release/generate_clients.py --check
+uv run python scripts/release/generate_python_clients.py --check
+```
+
+### TypeScript SDK and conformance (after `npm ci` when needed)
+
+```bash
+npm run build:typescript:sdk-graph
+npm run -w @nova/sdk typecheck && npm run -w @nova/sdk build
+npm run -w @nova/contracts-ts-conformance typecheck
+npm run -w @nova/contracts-ts-conformance verify
+uv run pytest -q scripts/release/tests/test_typescript_sdk_contracts.py
+uv run python scripts/conformance/check_typescript_module_policy.py
+```
+
+### Infra
+
+```bash
+bash scripts/checks/run_infra_contracts.sh
+```
+
+Full CDK `synth` / `-c` context: `infra/nova_cdk/README.md` (repo-native
+`uv run --package nova-cdk python infra/nova_cdk/app.py` entrypoint).
+
+## Task routing
+
+| Topic | Start here |
+| --- | --- |
+| Architecture / current truth | `docs/architecture/README.md`, `docs/overview/IMPLEMENTATION-STATUS-MATRIX.md`, `docs/overview/ACTIVE-DOCS-INDEX.md` |
+| Public API / runtime | `packages/nova_file_api`, `packages/nova_runtime_support`, `packages/contracts/openapi/nova-file-api.openapi.json`, SPEC-0027, SPEC-0029 |
+| Workflows | `packages/nova_workflows`, SPEC-0028, `infra/nova_cdk/src/nova_cdk/runtime_stack.py` |
+| SDKs / clients | `packages/contracts`, `packages/nova_sdk_ts`, `packages/nova_sdk_py`, `packages/nova_sdk_r`, `scripts/release/generate_clients.py`, `scripts/release/generate_python_clients.py`, `docs/clients/README.md` |
+| Release / deploy automation | `.github/workflows/`, `docs/runbooks/release/`, `docs/runbooks/release/release-runbook.md`, `docs/contracts/deploy-output-authority-v2.schema.json`, `docs/contracts/workflow-post-deploy-validate.schema.json`, `infra/nova_cdk/README.md` |
+
+Specs live under `docs/architecture/spec/` (e.g. `SPEC-0027-public-api-v2.md`).
+
+**Public SDK surface:** OpenAPI is authority. Do not add internal-only
+operations, bespoke transport layers, or bundled validation helpers to the
+generated TS SDK. `generate_clients.py --check` and
+`generate_python_clients.py --check` are deterministic gates.
+
+## Review and done
+
+- **Review:** Correctness, security, contract stability, release integrity, and
+  operator truth over style. High priority: auth, authorization, CORS,
+  deploy-output provenance, execute-api posture, reserved concurrency, release
+  digest regressions. **P1:** missing tests or docs for changed behavior;
+  wrong paths, stale architecture, or broken commands in active docs; generator
+  or contract drift when sources changed but outputs did not. Skip nitpicking
+  what Ruff, ty, mypy, or existing contract tests already enforce unless that
+  gate is missing or bypassed.
+
+- **Done:** Matches repo truth above; verification run or explicitly deferred;
+  tests updated for behavior changes; contracts and generated outputs updated
+  when sources changed; no retired assumption reintroduced; active docs remain
+  truthful.
