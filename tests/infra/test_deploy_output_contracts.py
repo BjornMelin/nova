@@ -6,6 +6,7 @@ import hashlib
 import json
 from argparse import Namespace
 from pathlib import Path
+from typing import Any
 
 from pytest import MonkeyPatch
 
@@ -58,17 +59,32 @@ def test_deploy_output_schema_covers_authoritative_fields() -> None:
         _read("docs/contracts/deploy-output-authority-v2.schema.json")
     )
     props = schema["properties"]
+    stack_output_props = props["stack_outputs"]["properties"]
 
     for required in [
         "release_commit_sha",
         "runtime_version",
         "public_base_url",
+        "execute_api_endpoint",
+        "cors_allowed_origins",
         "stack_name",
         "region",
         "stack_outputs",
         "api_lambda_artifact",
     ]:
         assert required in props
+
+    assert set(stack_output_props) == {
+        "NovaAlarmTopicArn",
+        "NovaApiAccessLogGroupName",
+        "NovaExportWorkflowStateMachineArn",
+        "NovaExportsTableName",
+        "NovaIdempotencyTableName",
+        "NovaPublicBaseUrl",
+        "NovaRestApiEndpoint",
+        "NovaWafLogGroupName",
+    }
+    assert props["stack_outputs"]["additionalProperties"] is False
 
 
 def test_resolve_deploy_output_builds_and_verifies_authority_payload(
@@ -92,6 +108,7 @@ def test_resolve_deploy_output_builds_and_verifies_authority_payload(
         stack_name="NovaRuntimeStack",
         region="us-east-1",
         environment_name="prod",
+        allowed_origins='["https://app.example.com"]',
         repository="3M-Cloud/nova",
         deploy_run_id=123,
         deploy_run_attempt=1,
@@ -112,6 +129,12 @@ def test_resolve_deploy_output_builds_and_verifies_authority_payload(
                         "arn:aws:states:us-east-1:1:stateMachine:test"
                     ),
                 },
+                {
+                    "OutputKey": "NovaRestApiEndpointADC846BC",
+                    "OutputValue": (
+                        "https://example.execute-api.us-east-1.amazonaws.com/dev/"
+                    ),
+                },
             ],
             "StackId": (
                 "arn:aws:cloudformation:us-east-1:1:stack/NovaRuntimeStack/abc"
@@ -120,10 +143,18 @@ def test_resolve_deploy_output_builds_and_verifies_authority_payload(
     )
 
     assert payload["public_base_url"] == "https://api.example.com"
+    assert (
+        payload["execute_api_endpoint"]
+        == "https://example.execute-api.us-east-1.amazonaws.com/dev"
+    )
+    assert payload["cors_allowed_origins"] == ["https://app.example.com"]
     assert payload["runtime_version"] == "0.5.0"
     assert (
         payload["stack_outputs"]["NovaPublicBaseUrl"]
         == "https://api.example.com"
+    )
+    assert payload["stack_outputs"]["NovaRestApiEndpoint"] == (
+        "https://example.execute-api.us-east-1.amazonaws.com/dev"
     )
     expected_artifact_key = (
         "runtime/nova-file-api/abc/def/nova-file-api-lambda.zip"
@@ -161,7 +192,7 @@ def test_validate_runtime_release_binds_report_to_deploy_output(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
 ) -> None:
-    """Validation report must retain deploy-output provenance."""
+    """Validation report must retain deploy-output provenance and auth truth."""
     payload = {
         "schema_version": "2.0",
         "captured_at": "2026-03-29T00:00:00+00:00",
@@ -178,8 +209,18 @@ def test_validate_runtime_release_binds_report_to_deploy_output(
         "runtime_version": "0.5.0",
         "release_commit_sha": "b" * 40,
         "public_base_url": "https://api.example.com",
+        "execute_api_endpoint": (
+            "https://example.execute-api.us-east-1.amazonaws.com/dev"
+        ),
+        "cors_allowed_origins": ["https://app.example.com"],
         "stack_outputs": {
             "NovaPublicBaseUrl": "https://api.example.com",
+            "NovaRestApiEndpoint": (
+                "https://example.execute-api.us-east-1.amazonaws.com/dev"
+            ),
+            "NovaApiAccessLogGroupName": (
+                "/aws/apigateway/nova-rest-api-access-dev"
+            ),
         },
         "api_lambda_artifact": {
             "artifact_bucket": "nova-artifacts",
@@ -205,21 +246,78 @@ def test_validate_runtime_release_binds_report_to_deploy_output(
     )
     report_path = tmp_path / "validation-report.json"
 
-    def fake_fetch(url: str) -> tuple[int | None, bytes | None, str | None]:
+    def fake_request(
+        url: str,
+        *,
+        method: str = "GET",
+        headers: dict[str, str] | None = None,
+        body: bytes | None = None,
+    ) -> Any:
+        del body
+        if url.startswith("https://example.execute-api.") and url.endswith(
+            "/v1/releases/info"
+        ):
+            return _VALIDATOR.RequestResult(
+                status_code=403,
+                headers={},
+                body=b'{"message":"Forbidden"}',
+                error=None,
+            )
         if url.endswith("/v1/releases/info"):
-            body = json.dumps(
-                {
-                    "name": "nova-file-api",
-                    "version": "0.5.0",
-                    "environment": "prod",
-                }
-            ).encode("utf-8")
-            return 200, body, None
+            return _VALIDATOR.RequestResult(
+                status_code=200,
+                headers={},
+                body=json.dumps(
+                    {
+                        "name": "nova-file-api",
+                        "version": "0.5.0",
+                        "environment": "prod",
+                    }
+                ).encode("utf-8"),
+                error=None,
+            )
+        if method == "OPTIONS" and url.endswith("/v1/exports"):
+            return _VALIDATOR.RequestResult(
+                status_code=200,
+                headers={
+                    "access-control-allow-origin": (headers or {}).get(
+                        "Origin", ""
+                    ),
+                    "access-control-allow-methods": "GET, POST, OPTIONS",
+                    "access-control-allow-headers": (
+                        "Authorization, Content-Type, Idempotency-Key, "
+                        "X-Request-Id"
+                    ),
+                },
+                body=b"OK",
+                error=None,
+            )
+        if url.endswith("/v1/exports"):
+            return _VALIDATOR.RequestResult(
+                status_code=401,
+                headers={
+                    "access-control-allow-origin": (headers or {}).get(
+                        "Origin", ""
+                    )
+                },
+                body=b"{}",
+                error=None,
+            )
         if url.endswith("/healthz") or url.endswith("/readyz"):
-            return 404, b"{}", None
-        return 200, b"{}", None
+            return _VALIDATOR.RequestResult(
+                status_code=404,
+                headers={},
+                body=b"{}",
+                error=None,
+            )
+        return _VALIDATOR.RequestResult(
+            status_code=200,
+            headers={},
+            body=b"{}",
+            error=None,
+        )
 
-    monkeypatch.setattr(_VALIDATOR, "_fetch", fake_fetch)
+    monkeypatch.setattr(_VALIDATOR, "_request", fake_request)
     monkeypatch.setattr(
         _VALIDATOR,
         "_args",
@@ -227,10 +325,13 @@ def test_validate_runtime_release_binds_report_to_deploy_output(
             deploy_output_path=str(deploy_output_path),
             deploy_output_sha256_path=str(sha256_path),
             canonical_paths=(
-                "/v1/health/live,/v1/health/ready,/metrics/summary,"
+                "/v1/health/live,/v1/health/ready,"
                 "/v1/capabilities,/v1/releases/info"
             ),
+            protected_paths="POST /v1/exports",
             legacy_404_paths="/healthz,/readyz",
+            cors_preflight_path="/v1/exports",
+            cors_origin="",
             report_path=str(report_path),
         ),
     )
@@ -242,3 +343,17 @@ def test_validate_runtime_release_binds_report_to_deploy_output(
     assert report["release_commit_sha"] == "b" * 40
     assert report["runtime_version"] == "0.5.0"
     assert report["release_info"]["version"] == "0.5.0"
+    assert report["execute_api_endpoint"] == (
+        "https://example.execute-api.us-east-1.amazonaws.com/dev"
+    )
+    assert report["protected_paths"] == ["POST /v1/exports"]
+    assert report["cors_preflight_path"] == "/v1/exports"
+    assert report["cors_allowed_origins"] == ["https://app.example.com"]
+    assert report["cors_origin"] == "https://app.example.com"
+    assert {check["kind"] for check in report["checks"]} == {
+        "canonical",
+        "protected",
+        "legacy_404",
+        "cors_preflight",
+        "execute_api_disabled",
+    }

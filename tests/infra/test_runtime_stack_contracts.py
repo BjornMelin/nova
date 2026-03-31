@@ -201,7 +201,7 @@ def test_runtime_stack_maps_caught_errors_for_failure_handler() -> None:
 
 
 def test_runtime_stack_packages_api_lambda_as_native_zip() -> None:
-    """API Lambda should use zip packaging and the native handler."""
+    """API Lambda should use zip packaging and the repo-owned entrypoint."""
     bundle = _build_bundle()
     functions = _resources_of_type(bundle.resources, "AWS::Lambda::Function")
     api_resource = next(

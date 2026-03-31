@@ -165,6 +165,15 @@ def test_integration_guide_references_surviving_contract_docs() -> None:
         "docs/runbooks/release/release-policy.md",
         "Prefer a full commit SHA",
         "5-minute setup flow",
+        "validation_protected_paths",
+        "validation_cors_preflight_path",
+        "validation_cors_origin",
+        "/v1/releases/info",
+        "/v1/health/live",
+        "/v1/health/ready",
+        "`execute-api` endpoint returns `403`",
+        "401` or `403`",
+        "CORS preflight",
     ]:
         assert required in text
 
@@ -173,7 +182,8 @@ def test_integration_guide_references_surviving_contract_docs() -> None:
         "reusable-workflow-outputs-v1.schema.json",
         "deploy-size-profiles-v1.json",
         "ssm-runtime-base-url-v1.schema.json",
-        "NOVA_API_BASE_URL",
+        "ADR-0023-hard-cut-v1-canonical-route-surface.md",
+        "requirements-wave-2.md",
     ]:
         assert forbidden not in text
 

@@ -30,23 +30,31 @@ def test_active_docs_index_tracks_canonical_surface() -> None:
         "docs/clients/README.md",
         "docs/release/README.md",
         "docs/plan/GREENFIELD-WAVE-2-EXECUTION.md",
-        "docs/architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md",
-        "docs/architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md",
-        "docs/architecture/requirements-wave-2.md",
         "docs/architecture/adr/ADR-0033` through `ADR-0038",
         "docs/architecture/spec/SPEC-0027` through `SPEC-0031",
+        "docs/contracts/deploy-output-authority-v2.schema.json",
+        "docs/contracts/workflow-post-deploy-validate.schema.json",
+        "docs/runbooks/release/release-runbook.md",
+        "infra/nova_cdk/README.md",
+        "docs/architecture/adr/index.md",
+        "docs/architecture/spec/index.md",
+        "docs/architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md",
+        "docs/architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md",
+        "docs/architecture/adr/ADR-0011-cicd-hybrid-github-aws-promotion.md",
+        "docs/architecture/spec/SPEC-0004-ci-cd-and-docs.md",
         "docs/history/",
         "docs/plan/PLAN.md",
         "## Active supporting docs",
-        "docs/architecture/adr/index.md",
-        "docs/architecture/spec/index.md",
-        "docs/architecture/adr/ADR-0011-cicd-hybrid-github-aws-promotion.md",
-        "docs/architecture/spec/SPEC-0004-ci-cd-and-docs.md",
     ]:
         assert required in text
 
     for forbidden in [
         "docs/overview/CANONICAL-TARGET-2026-04.md",
+        "docs/architecture/spec/superseded/SPEC-0000-http-api-contract.md",
+        "docs/overview/DEPENDENCY-LEVERAGE-AUDIT.md",
+        "docs/overview/ENTROPY-REDUCTION-LEDGER.md",
+        "docs/standards/DECISION-FRAMEWORKS-GREENFIELD-2026.md",
+        "docs/architecture/requirements-wave-2.md",
     ]:
         assert forbidden not in text
 
@@ -72,6 +80,8 @@ def test_root_authority_routers_point_to_canonical_indexes() -> None:
         "## Active supporting architecture/program docs",
         "## Historical / superseded",
         "./overview/ACTIVE-DOCS-INDEX.md",
+        "./contracts/deploy-output-authority-v2.schema.json",
+        "./runbooks/release/release-runbook.md",
     ]:
         assert required in docs_router
 
@@ -80,11 +90,14 @@ def test_root_authority_routers_point_to_canonical_indexes() -> None:
         "adr/ADR-0033-canonical-serverless-platform.md",
         "spec/SPEC-0031-docs-and-tests-authority-reset.md",
         "../history/",
+        "deploy-output authority",
+        "../contracts/deploy-output-authority-v2.schema.json",
     ]:
         assert required in architecture_router
 
     for forbidden in [
         "./overview/CANONICAL-TARGET-2026-04.md",
+        "SPEC-0000-http-api-contract.md",
     ]:
         assert forbidden not in docs_router
 
@@ -184,3 +197,44 @@ def test_active_docs_do_not_reference_removed_root_final_plan() -> None:
             violations.append(str(relative))
 
     assert not violations, "\n".join(violations)
+
+
+def test_active_routers_do_not_promote_superseded_http_api_authority() -> None:
+    """Active routers should not point readers at superseded HTTP API docs."""
+    for rel_path in [
+        "docs/README.md",
+        "docs/architecture/README.md",
+        "docs/release/README.md",
+        "docs/runbooks/release/release-policy.md",
+        "docs/runbooks/release/release-runbook.md",
+        "docs/runbooks/provisioning/github-actions-secrets-and-vars.md",
+    ]:
+        assert "SPEC-0000-http-api-contract.md" not in _read(rel_path), rel_path
+
+
+def test_consumer_docs_treat_deploy_output_as_runtime_authority() -> None:
+    """Consumer docs should prefer deploy-output over free-text URLs."""
+    clients_readme = _read("docs/clients/README.md")
+    integration_guide = _read(
+        "docs/clients/post-deploy-validation-integration-guide.md"
+    )
+
+    assert "deploy-output.json" in clients_readme
+    assert "NOVA_API_BASE_URL" in clients_readme
+    assert "deploy-output.json" in integration_guide
+    assert (
+        "Validation resolves its target from the authoritative deploy-output "
+        "artifact" in integration_guide
+    )
+    assert "manually configured" in integration_guide
+    assert "`NOVA_API_BASE_URL`" in integration_guide
+
+
+def test_release_docs_describe_runtime_truth_validation() -> None:
+    """Release docs should describe provenance-aware runtime validation."""
+    release_readme = _read("docs/runbooks/release/README.md")
+    release_runbook = _read("docs/runbooks/release/release-runbook.md")
+
+    assert "runtime validation" in release_readme
+    assert "protected auth" in release_runbook
+    assert "browser CORS preflight" in release_runbook

@@ -176,7 +176,10 @@ def test_post_deploy_validate_workflow_contracts() -> None:
         "deploy_artifact_name",
         "actions: read",
         "validation_canonical_paths",
+        "validation_protected_paths",
         "validation_legacy_404_paths",
+        "validation_cors_preflight_path",
+        "validation_cors_origin",
         "report_path",
         "artifact_name",
     ]:
@@ -190,6 +193,8 @@ def test_post_deploy_validate_workflow_contracts() -> None:
         "scripts.release.download_run_artifact",
         "scripts/release/validate_runtime_release.py",
         "post-deploy-validation-report.json",
+        "POST /v1/exports",
+        "Post-deploy runtime validation failed.",
     ]:
         assert required in reusable_text
 
