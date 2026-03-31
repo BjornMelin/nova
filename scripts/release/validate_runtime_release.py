@@ -40,6 +40,11 @@ DEFAULT_LEGACY_404 = (
 )
 DEFAULT_CORS_PREFLIGHT_PATH = "/v1/exports"
 DEFAULT_CORS_ORIGIN = "http://localhost:3000"
+_REPORT_SCHEMA_PATH = (
+    Path(__file__).resolve().parents[2]
+    / "docs/contracts/release-artifacts-v1.schema.json"
+)
+REPORT_SCHEMA = json.loads(_REPORT_SCHEMA_PATH.read_text(encoding="utf-8"))
 _RELEASE_INFO_PATH = "/v1/releases/info"
 _EXACT_CANONICAL_STATUS_CODES: dict[str, set[int]] = {
     "/v1/health/live": {200},
@@ -162,6 +167,11 @@ def _parse_release_info(payload: bytes | None, *, url: str) -> dict[str, Any]:
     if not isinstance(parsed, dict):
         raise TypeError(f"Release info payload must be a JSON object: {url}")
     return parsed
+
+
+def load_report_schema() -> dict[str, Any]:
+    """Load the canonical post-deploy validation report schema."""
+    return REPORT_SCHEMA["$defs"]["post_deploy_validation_report"]
 
 
 def _record_check(
@@ -363,6 +373,46 @@ def main() -> int:
     release_info_body = release_info_result.body
     release_info_status = release_info_result.status_code
     release_info_error = release_info_result.error
+    release_info: dict[str, Any] | None = None
+    release_info_ok = release_info_error is None and release_info_status == 200
+    if release_info_error is None and release_info_status == 200:
+        try:
+            release_info = _parse_release_info(
+                release_info_body,
+                url=f"{base_url}{_RELEASE_INFO_PATH}",
+            )
+            expected_version = str(deploy_output["runtime_version"])
+            actual_version = str(release_info.get("version", "")).strip()
+            expected_name = str(deploy_output["runtime_name"])
+            actual_name = str(release_info.get("name", "")).strip()
+            expected_environment = str(deploy_output["environment"])
+            actual_environment = str(
+                release_info.get("environment", "")
+            ).strip()
+            release_info_ok = (
+                actual_version == expected_version
+                and actual_name == expected_name
+                and actual_environment == expected_environment
+            )
+            if actual_version != expected_version:
+                failures.append(
+                    "runtime version mismatch: "
+                    f"expected {expected_version}, got {actual_version}"
+                )
+            if actual_name != expected_name:
+                failures.append(
+                    "runtime name mismatch: "
+                    f"expected {expected_name}, got {actual_name}"
+                )
+            if actual_environment != expected_environment:
+                failures.append(
+                    "runtime environment mismatch: "
+                    f"expected {expected_environment}, got {actual_environment}"
+                )
+        except (TypeError, ValueError) as exc:
+            failures.append(str(exc))
+            release_info_ok = False
+
     _record_check(
         checks=checks,
         failures=failures,
@@ -373,42 +423,8 @@ def main() -> int:
             "status == 200 and payload matches deploy-output runtime identity"
         ),
         result=release_info_result,
-        ok=release_info_error is None and release_info_status == 200,
+        ok=release_info_ok,
     )
-    release_info: dict[str, Any] | None = None
-    if release_info_error is None and release_info_status == 200:
-        try:
-            release_info = _parse_release_info(
-                release_info_body,
-                url=f"{base_url}{_RELEASE_INFO_PATH}",
-            )
-        except ValueError as exc:
-            failures.append(str(exc))
-
-    if release_info is not None:
-        expected_version = str(deploy_output["runtime_version"])
-        actual_version = str(release_info.get("version", "")).strip()
-        if actual_version != expected_version:
-            failures.append(
-                "runtime version mismatch: "
-                f"expected {expected_version}, got {actual_version}"
-            )
-
-        expected_name = str(deploy_output["runtime_name"])
-        actual_name = str(release_info.get("name", "")).strip()
-        if actual_name != expected_name:
-            failures.append(
-                "runtime name mismatch: "
-                f"expected {expected_name}, got {actual_name}"
-            )
-
-        expected_environment = str(deploy_output["environment"])
-        actual_environment = str(release_info.get("environment", "")).strip()
-        if actual_environment != expected_environment:
-            failures.append(
-                "runtime environment mismatch: "
-                f"expected {expected_environment}, got {actual_environment}"
-            )
 
     for path in canonical_paths:
         if path == _RELEASE_INFO_PATH:

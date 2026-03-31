@@ -61,7 +61,7 @@
         },
         "validation_cors_preflight_path": {
           "type": "string",
-          "pattern": "^/.+",
+          "pattern": "^/[^,\\s]+$",
           "description": "Protected path used for browser CORS preflight validation.",
           "default": "/v1/exports"
         },

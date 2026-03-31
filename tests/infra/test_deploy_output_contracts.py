@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from argparse import Namespace
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -36,6 +38,127 @@ def _canonical_sha256(payload: dict[str, object]) -> str:
         sort_keys=True,
     )
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def _validate_schema(
+    instance: Any,
+    schema: dict[str, Any],
+    *,
+    defs: dict[str, Any],
+    path: str = "$",
+) -> None:
+    """Validate a JSON instance against the checked-in report schema subset."""
+    if "$ref" in schema:
+        ref = schema["$ref"]
+        assert ref.startswith("#/$defs/"), f"{path}: unsupported ref {ref!r}"
+        _validate_schema(
+            instance,
+            defs[ref.removeprefix("#/$defs/")],
+            defs=defs,
+            path=path,
+        )
+        return
+
+    for combinator in ("anyOf", "oneOf"):
+        if combinator not in schema:
+            continue
+        branches = schema[combinator]
+        errors: list[AssertionError] = []
+        for branch in branches:
+            try:
+                _validate_schema(instance, branch, defs=defs, path=path)
+            except AssertionError as exc:
+                errors.append(exc)
+            else:
+                return
+        raise AssertionError(
+            f"{path}: no {combinator} branch matched; "
+            f"last error: {errors[-1] if errors else 'none'}"
+        )
+
+    schema_type = schema.get("type")
+    if schema_type == "object":
+        assert isinstance(instance, dict), f"{path}: expected object"
+        required = schema.get("required", [])
+        for key in required:
+            assert key in instance, f"{path}: missing required key {key!r}"
+        properties = schema.get("properties", {})
+        if schema.get("additionalProperties") is False:
+            unexpected = sorted(set(instance) - set(properties))
+            assert not unexpected, f"{path}: unexpected keys {unexpected!r}"
+        for key, value in instance.items():
+            if key in properties:
+                _validate_schema(
+                    value,
+                    properties[key],
+                    defs=defs,
+                    path=f"{path}.{key}",
+                )
+        return
+
+    if schema_type == "array":
+        assert isinstance(instance, list), f"{path}: expected array"
+        min_items = schema.get("minItems")
+        if min_items is not None:
+            assert len(instance) >= min_items, (
+                f"{path}: expected at least {min_items} items"
+            )
+        items = schema.get("items")
+        if items is not None:
+            for index, value in enumerate(instance):
+                _validate_schema(
+                    value,
+                    items,
+                    defs=defs,
+                    path=f"{path}[{index}]",
+                )
+        return
+
+    if schema_type == "string":
+        assert isinstance(instance, str), f"{path}: expected string"
+        min_length = schema.get("minLength")
+        if min_length is not None:
+            assert len(instance) >= min_length, (
+                f"{path}: expected string length >= {min_length}"
+            )
+        pattern = schema.get("pattern")
+        if pattern is not None:
+            assert re.fullmatch(pattern, instance), (
+                f"{path}: value {instance!r} does not match {pattern!r}"
+            )
+        if schema.get("format") == "date-time":
+            datetime.fromisoformat(instance.replace("Z", "+00:00"))
+        if "enum" in schema:
+            assert instance in schema["enum"], (
+                f"{path}: value {instance!r} is not in {schema['enum']!r}"
+            )
+        if "const" in schema:
+            assert instance == schema["const"], (
+                f"{path}: expected constant {schema['const']!r}"
+            )
+        return
+
+    if schema_type == "integer":
+        assert isinstance(instance, int) and not isinstance(instance, bool), (
+            f"{path}: expected integer"
+        )
+        minimum = schema.get("minimum")
+        if minimum is not None:
+            assert instance >= minimum, f"{path}: expected >= {minimum}"
+        return
+
+    if schema_type == "boolean":
+        assert isinstance(instance, bool), f"{path}: expected boolean"
+        return
+
+    if schema_type == "null":
+        assert instance is None, f"{path}: expected null"
+        return
+
+    if schema_type is None:
+        return
+
+    raise AssertionError(f"{path}: unsupported schema type {schema_type!r}")
 
 
 def test_runtime_deploy_contract_generator_is_in_sync() -> None:
@@ -206,6 +329,35 @@ def test_normalize_allowed_origins_rejects_malformed_json() -> None:
         _RESOLVER._normalize_allowed_origins(
             raw_value='["https://app.example.com"',
             environment_name="prod",
+        )
+
+
+@pytest.mark.parametrize(
+    ("raw_value", "exc_type", "match"),
+    [
+        (
+            "app.example.com",
+            ValueError,
+            "invalid allowed_origin: app.example.com",
+        ),
+        ("[1]", TypeError, "invalid allowed_origin: 1"),
+        (
+            "https://app.example.com/path",
+            ValueError,
+            "invalid allowed_origin: https://app.example.com/path",
+        ),
+    ],
+)
+def test_normalize_allowed_origins_rejects_invalid_origins(
+    raw_value: str,
+    exc_type: type[Exception],
+    match: str,
+) -> None:
+    """Bare hostnames and non-origin values must fail normalization."""
+    with pytest.raises(exc_type, match=match):
+        _RESOLVER._normalize_allowed_origins(
+            raw_value=raw_value,
+            environment_name="dev",
         )
 
 
@@ -526,6 +678,11 @@ def test_validate_runtime_release_keeps_failed_report_schema_valid(
         _VALIDATOR.main()
 
     report = json.loads(report_path.read_text(encoding="utf-8"))
+    _validate_schema(
+        report,
+        _VALIDATOR.load_report_schema(),
+        defs=_VALIDATOR.REPORT_SCHEMA["$defs"],
+    )
     assert report["status"] == "failed"
     assert report["release_info"] is None
     assert report["deploy_output_sha256"] == digest

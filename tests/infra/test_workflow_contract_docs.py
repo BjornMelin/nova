@@ -107,6 +107,9 @@ def test_post_deploy_validate_schema_matches_reusable_workflow() -> None:
     assert set(workflow_inputs) == set(schema_inputs)
     assert set(workflow_outputs) == set(schema_outputs)
     assert workflow_required_inputs == schema_required_inputs
+    assert schema_inputs["validation_cors_preflight_path"]["pattern"] == (
+        "^/[^,\\s]+$"
+    )
 
 
 def test_deploy_runtime_schema_matches_reusable_workflow() -> None:

@@ -9,6 +9,7 @@ import json
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 if __package__ in {None, ""}:
     import sys
@@ -66,6 +67,27 @@ def _canonical_output_key(raw_key: str) -> str:
     return key
 
 
+def _validate_allowed_origin(entry: object) -> str:
+    """Validate one allowed origin token and return the normalized string."""
+    if not isinstance(entry, str):
+        raise TypeError(f"invalid allowed_origin: {entry}")
+
+    origin = entry.strip()
+    if origin == "*":
+        return origin
+
+    parsed = urlsplit(origin)
+    if (
+        parsed.scheme not in {"http", "https"}
+        or not parsed.netloc
+        or parsed.path
+        or parsed.query
+        or parsed.fragment
+    ):
+        raise ValueError(f"invalid allowed_origin: {entry}")
+    return origin
+
+
 def _normalize_allowed_origins(
     *,
     raw_value: str,
@@ -90,12 +112,14 @@ def _normalize_allowed_origins(
             ) from exc
         if not isinstance(parsed, list):
             raise TypeError("allowed_origins JSON input must decode to a list")
-        origins = [
-            str(origin).strip() for origin in parsed if str(origin).strip()
-        ]
+        origins = []
+        for origin in parsed:
+            if isinstance(origin, str) and not origin.strip():
+                continue
+            origins.append(_validate_allowed_origin(origin))
     else:
         origins = [
-            origin
+            _validate_allowed_origin(origin)
             for origin in (part.strip() for part in stripped.split(","))
             if origin
         ]
