@@ -1,4 +1,198 @@
 {
+  "api_lambda_environment": {
+    "env": [
+      {
+        "condition": "always",
+        "name": "FILE_TRANSFER_BUCKET",
+        "source": "stack resource",
+        "value": null
+      },
+      {
+        "condition": "always",
+        "name": "FILE_TRANSFER_UPLOAD_PREFIX",
+        "source": "literal",
+        "value": "uploads/"
+      },
+      {
+        "condition": "always",
+        "name": "FILE_TRANSFER_EXPORT_PREFIX",
+        "source": "literal",
+        "value": "exports/"
+      },
+      {
+        "condition": "always",
+        "name": "FILE_TRANSFER_TMP_PREFIX",
+        "source": "literal",
+        "value": "tmp/"
+      },
+      {
+        "condition": "always",
+        "name": "JOBS_ENABLED",
+        "source": "literal",
+        "value": "true"
+      },
+      {
+        "condition": "always",
+        "name": "JOBS_REPOSITORY_BACKEND",
+        "source": "literal",
+        "value": "dynamodb"
+      },
+      {
+        "condition": "always",
+        "name": "JOBS_DYNAMODB_TABLE",
+        "source": "stack resource",
+        "value": null
+      },
+      {
+        "condition": "always",
+        "name": "ALLOWED_ORIGINS",
+        "source": "CDK deploy input",
+        "value": null
+      },
+      {
+        "condition": "always",
+        "name": "ACTIVITY_STORE_BACKEND",
+        "source": "literal",
+        "value": "dynamodb"
+      },
+      {
+        "condition": "always",
+        "name": "ACTIVITY_ROLLUPS_TABLE",
+        "source": "stack resource",
+        "value": null
+      },
+      {
+        "condition": "always",
+        "name": "OIDC_ISSUER",
+        "source": "CDK deploy input",
+        "value": null
+      },
+      {
+        "condition": "always",
+        "name": "OIDC_AUDIENCE",
+        "source": "CDK deploy input",
+        "value": null
+      },
+      {
+        "condition": "always",
+        "name": "OIDC_JWKS_URL",
+        "source": "CDK deploy input",
+        "value": null
+      },
+      {
+        "condition": "always",
+        "name": "IDEMPOTENCY_ENABLED",
+        "source": "literal",
+        "value": "true"
+      },
+      {
+        "condition": "always",
+        "name": "IDEMPOTENCY_DYNAMODB_TABLE",
+        "source": "stack resource",
+        "value": null
+      },
+      {
+        "condition": "always",
+        "name": "JOBS_QUEUE_BACKEND",
+        "source": "literal",
+        "value": "stepfunctions"
+      },
+      {
+        "condition": "always",
+        "name": "JOBS_STEP_FUNCTIONS_STATE_MACHINE_ARN",
+        "source": "stack resource",
+        "value": null
+      },
+      {
+        "condition": "always",
+        "name": "API_RELEASE_ARTIFACT_SHA256",
+        "source": "release-apply artifact manifest",
+        "value": null
+      }
+    ],
+    "forbidden_env_vars": [
+      "ENV",
+      "ENV_DICT",
+      "AUTH_APP_SECRET",
+      "JOBS_SQS_QUEUE_URL",
+      "JOBS_RUNTIME_MODE",
+      "NOVA_RUNTIME_PROFILE"
+    ]
+  },
+  "deploy_inputs": [
+    {
+      "description": "S3 bucket containing the immutable API Lambda zip.",
+      "name": "API_LAMBDA_ARTIFACT_BUCKET",
+      "required": true,
+      "source": "release-apply artifact manifest"
+    },
+    {
+      "description": "S3 key for the immutable API Lambda zip.",
+      "name": "API_LAMBDA_ARTIFACT_KEY",
+      "required": true,
+      "source": "release-apply artifact manifest"
+    },
+    {
+      "description": "SHA256 digest for the immutable API Lambda zip.",
+      "name": "API_LAMBDA_ARTIFACT_SHA256",
+      "required": true,
+      "source": "release-apply artifact manifest"
+    },
+    {
+      "description": "Canonical public custom domain for the Regional REST API.",
+      "name": "api_domain_name",
+      "required": true,
+      "source": "CDK context / deploy-runtime input"
+    },
+    {
+      "description": "Regional ACM certificate used by the API custom domain.",
+      "name": "certificate_arn",
+      "required": true,
+      "source": "CDK context / deploy-runtime input"
+    },
+    {
+      "description": "Route 53 hosted zone id that owns the API alias record.",
+      "name": "hosted_zone_id",
+      "required": true,
+      "source": "CDK context / deploy-runtime input"
+    },
+    {
+      "description": "Route 53 hosted zone name that owns the API alias record.",
+      "name": "hosted_zone_name",
+      "required": true,
+      "source": "CDK context / deploy-runtime input"
+    },
+    {
+      "description": "OIDC issuer URL injected into the API Lambda.",
+      "name": "jwt_issuer",
+      "required": true,
+      "source": "CDK context / deploy-runtime input"
+    },
+    {
+      "description": "OIDC audience injected into the API Lambda.",
+      "name": "jwt_audience",
+      "required": true,
+      "source": "CDK context / deploy-runtime input"
+    },
+    {
+      "description": "OIDC JWKS URL injected into the API Lambda.",
+      "name": "jwt_jwks_url",
+      "required": true,
+      "source": "CDK context / deploy-runtime input"
+    },
+    {
+      "description": "Optional browser origin allowlist serialized into ALLOWED_ORIGINS.",
+      "name": "allowed_origins",
+      "required": false,
+      "source": "CDK context / deploy-runtime input"
+    },
+    {
+      "description": "Optional toggle for non-production reserved concurrency.",
+      "name": "enable_reserved_concurrency",
+      "required": false,
+      "source": "CDK context / deploy-runtime input"
+    }
+  ],
   "env_vars_json": {
     "forbidden_keys": [
       "IDEMPOTENCY_MODE",
@@ -92,296 +286,10 @@
     ]
   },
   "extra_runtime_env_vars": [
-    "AWS_DEFAULT_REGION",
-    "NOVA_RUNTIME_PROFILE"
+    "API_RELEASE_ARTIFACT_SHA256",
+    "AWS_DEFAULT_REGION"
   ],
-  "schema_version": 1,
-  "service_template": {
-    "env": [
-      {
-        "condition": "always",
-        "name": "AWS_DEFAULT_REGION",
-        "secret": false,
-        "source": "stack parameter",
-        "value": null
-      },
-      {
-        "condition": "always",
-        "name": "ENVIRONMENT",
-        "secret": false,
-        "source": "task parameter",
-        "value": null
-      },
-      {
-        "condition": "always",
-        "name": "NOVA_RUNTIME_PROFILE",
-        "secret": false,
-        "source": "task parameter",
-        "value": null
-      },
-      {
-        "condition": "always",
-        "name": "OIDC_ISSUER",
-        "secret": false,
-        "source": "task parameter",
-        "value": null
-      },
-      {
-        "condition": "always",
-        "name": "OIDC_AUDIENCE",
-        "secret": false,
-        "source": "task parameter",
-        "value": null
-      },
-      {
-        "condition": "always",
-        "name": "OIDC_JWKS_URL",
-        "secret": false,
-        "source": "task parameter",
-        "value": null
-      },
-      {
-        "condition": "always",
-        "name": "OIDC_REQUIRED_SCOPES",
-        "secret": false,
-        "source": "task parameter",
-        "value": null
-      },
-      {
-        "condition": "always",
-        "name": "OIDC_REQUIRED_PERMISSIONS",
-        "secret": false,
-        "source": "task parameter",
-        "value": null
-      },
-      {
-        "condition": "always",
-        "name": "OIDC_CLOCK_SKEW_SECONDS",
-        "secret": false,
-        "source": "task parameter",
-        "value": null
-      },
-      {
-        "condition": "always",
-        "name": "BLOCKING_IO_THREAD_TOKENS",
-        "secret": false,
-        "source": "task parameter",
-        "value": null
-      },
-      {
-        "condition": "always",
-        "name": "FILE_TRANSFER_ENABLED",
-        "secret": false,
-        "source": "stack-derived",
-        "value": null
-      },
-      {
-        "condition": "always",
-        "name": "JOBS_ENABLED",
-        "secret": false,
-        "source": "stack-derived",
-        "value": null
-      },
-      {
-        "condition": "always",
-        "name": "JOBS_QUEUE_BACKEND",
-        "secret": false,
-        "source": "stack-derived",
-        "value": null
-      },
-      {
-        "condition": "always",
-        "name": "JOBS_REPOSITORY_BACKEND",
-        "secret": false,
-        "source": "stack-derived",
-        "value": null
-      },
-      {
-        "condition": "always",
-        "name": "JOBS_RUNTIME_MODE",
-        "secret": false,
-        "source": "literal",
-        "value": null
-      },
-      {
-        "condition": "always",
-        "name": "ACTIVITY_STORE_BACKEND",
-        "secret": false,
-        "source": "stack-derived",
-        "value": null
-      },
-      {
-        "condition": "always",
-        "name": "CACHE_LOCAL_TTL_SECONDS",
-        "secret": false,
-        "source": "task parameter",
-        "value": null
-      },
-      {
-        "condition": "always",
-        "name": "CACHE_LOCAL_MAX_ENTRIES",
-        "secret": false,
-        "source": "task parameter",
-        "value": null
-      },
-      {
-        "condition": "always",
-        "name": "CACHE_KEY_PREFIX",
-        "secret": false,
-        "source": "task parameter",
-        "value": null
-      },
-      {
-        "condition": "always",
-        "name": "CACHE_KEY_SCHEMA_VERSION",
-        "secret": false,
-        "source": "task parameter",
-        "value": null
-      },
-      {
-        "condition": "always",
-        "name": "AUTH_JWT_CACHE_MAX_TTL_SECONDS",
-        "secret": false,
-        "source": "task parameter",
-        "value": null
-      },
-      {
-        "condition": "always",
-        "name": "IDEMPOTENCY_ENABLED",
-        "secret": false,
-        "source": "task parameter",
-        "value": null
-      },
-      {
-        "condition": "always",
-        "name": "IDEMPOTENCY_TTL_SECONDS",
-        "secret": false,
-        "source": "task parameter",
-        "value": null
-      },
-      {
-        "condition": "when API idempotency enabled",
-        "name": "IDEMPOTENCY_DYNAMODB_TABLE",
-        "secret": false,
-        "source": "stack output",
-        "value": null
-      },
-      {
-        "condition": "always",
-        "name": "FILE_TRANSFER_PRESIGN_UPLOAD_TTL_SECONDS",
-        "secret": false,
-        "source": "task parameter",
-        "value": null
-      },
-      {
-        "condition": "always",
-        "name": "FILE_TRANSFER_PRESIGN_DOWNLOAD_TTL_SECONDS",
-        "secret": false,
-        "source": "task parameter",
-        "value": null
-      },
-      {
-        "condition": "always",
-        "name": "FILE_TRANSFER_MULTIPART_THRESHOLD_BYTES",
-        "secret": false,
-        "source": "task parameter",
-        "value": null
-      },
-      {
-        "condition": "always",
-        "name": "FILE_TRANSFER_PART_SIZE_BYTES",
-        "secret": false,
-        "source": "task parameter",
-        "value": null
-      },
-      {
-        "condition": "always",
-        "name": "FILE_TRANSFER_MAX_CONCURRENCY",
-        "secret": false,
-        "source": "task parameter",
-        "value": null
-      },
-      {
-        "condition": "always",
-        "name": "FILE_TRANSFER_USE_ACCELERATE_ENDPOINT",
-        "secret": false,
-        "source": "task parameter",
-        "value": null
-      },
-      {
-        "condition": "always",
-        "name": "FILE_TRANSFER_MAX_UPLOAD_BYTES",
-        "secret": false,
-        "source": "task parameter",
-        "value": null
-      },
-      {
-        "condition": "when async enabled",
-        "name": "JOBS_SQS_QUEUE_URL",
-        "secret": false,
-        "source": "stack output",
-        "value": null
-      },
-      {
-        "condition": "when async enabled",
-        "name": "JOBS_DYNAMODB_TABLE",
-        "secret": false,
-        "source": "stack output",
-        "value": null
-      },
-      {
-        "condition": "when async enabled",
-        "name": "ACTIVITY_ROLLUPS_TABLE",
-        "secret": false,
-        "source": "stack output",
-        "value": null
-      },
-      {
-        "condition": "when file transfer enabled",
-        "name": "FILE_TRANSFER_BUCKET",
-        "secret": false,
-        "source": "stack parameter",
-        "value": null
-      },
-      {
-        "condition": "when file transfer enabled",
-        "name": "FILE_TRANSFER_UPLOAD_PREFIX",
-        "secret": false,
-        "source": "stack parameter",
-        "value": null
-      },
-      {
-        "condition": "when file transfer enabled",
-        "name": "FILE_TRANSFER_EXPORT_PREFIX",
-        "secret": false,
-        "source": "stack parameter",
-        "value": null
-      },
-      {
-        "condition": "when file transfer enabled",
-        "name": "FILE_TRANSFER_TMP_PREFIX",
-        "secret": false,
-        "source": "stack parameter",
-        "value": null
-      }
-    ],
-    "forbidden_env_vars": [
-      "ENV",
-      "ENV_DICT",
-      "AUTH_APP_SECRET"
-    ],
-    "forbidden_parameters": [
-      "EnvVars",
-      "UseLegacyEnvDict",
-      "TaskRole",
-      "UseLegacyTaskRolePolicy",
-      "GenerateAppSecretKey",
-      "AppSecretEnvVarName",
-      "TaskExecutionSecretArns",
-      "TaskExecutionSsmParameterArns"
-    ],
-    "secrets": []
-  },
+  "schema_version": 2,
   "settings": [
     {
       "default_repr": "None",
@@ -604,7 +512,7 @@
       "env_var": "IDEMPOTENCY_DYNAMODB_TABLE",
       "field_name": "idempotency_dynamodb_table",
       "required": false,
-      "required_when": "when API idempotency enabled and JOBS_RUNTIME_MODE!=worker",
+      "required_when": "when IDEMPOTENCY_ENABLED=true in the API Lambda",
       "secret": false,
       "type_label": "str | None"
     },
@@ -730,7 +638,7 @@
       "env_var": "JOBS_STEP_FUNCTIONS_STATE_MACHINE_ARN",
       "field_name": "jobs_step_functions_state_machine_arn",
       "required": false,
-      "required_when": "when JOBS_QUEUE_BACKEND=stepfunctions and JOBS_ENABLED=true",
+      "required_when": "when JOBS_ENABLED=true and JOBS_QUEUE_BACKEND=stepfunctions in the API Lambda",
       "secret": false,
       "type_label": "str | None"
     },
@@ -799,124 +707,81 @@
     }
   ],
   "settings_source": "packages/nova_file_api/src/nova_file_api/config.py",
-  "worker_template": {
-    "command": "nova-file-worker",
+  "workflow_task_environment": {
     "env": [
       {
         "condition": "always",
-        "name": "ENVIRONMENT",
-        "secret": false,
-        "source": "stack parameter",
+        "name": "FILE_TRANSFER_BUCKET",
+        "source": "stack resource",
         "value": null
       },
       {
         "condition": "always",
-        "name": "AWS_DEFAULT_REGION",
-        "secret": false,
-        "source": "stack parameter",
-        "value": null
+        "name": "FILE_TRANSFER_UPLOAD_PREFIX",
+        "source": "literal",
+        "value": "uploads/"
+      },
+      {
+        "condition": "always",
+        "name": "FILE_TRANSFER_EXPORT_PREFIX",
+        "source": "literal",
+        "value": "exports/"
+      },
+      {
+        "condition": "always",
+        "name": "FILE_TRANSFER_TMP_PREFIX",
+        "source": "literal",
+        "value": "tmp/"
       },
       {
         "condition": "always",
         "name": "JOBS_ENABLED",
-        "secret": false,
         "source": "literal",
         "value": "true"
       },
       {
         "condition": "always",
-        "name": "JOBS_RUNTIME_MODE",
-        "secret": false,
-        "source": "literal",
-        "value": "worker"
-      },
-      {
-        "condition": "always",
-        "name": "JOBS_QUEUE_BACKEND",
-        "secret": false,
-        "source": "literal",
-        "value": "sqs"
-      },
-      {
-        "condition": "always",
-        "name": "JOBS_SQS_QUEUE_URL",
-        "secret": false,
-        "source": "stack parameter",
-        "value": null
-      },
-      {
-        "condition": "always",
         "name": "JOBS_REPOSITORY_BACKEND",
-        "secret": false,
         "source": "literal",
         "value": "dynamodb"
       },
       {
         "condition": "always",
         "name": "JOBS_DYNAMODB_TABLE",
-        "secret": false,
-        "source": "stack parameter",
+        "source": "stack resource",
         "value": null
       },
       {
         "condition": "always",
-        "name": "ACTIVITY_STORE_BACKEND",
-        "secret": false,
+        "name": "IDEMPOTENCY_ENABLED",
         "source": "literal",
-        "value": "dynamodb"
+        "value": "false"
       },
       {
         "condition": "always",
-        "name": "ACTIVITY_ROLLUPS_TABLE",
-        "secret": false,
-        "source": "stack parameter",
-        "value": null
-      },
-      {
-        "condition": "always",
-        "name": "JOBS_SQS_VISIBILITY_TIMEOUT_SECONDS",
-        "secret": false,
-        "source": "stack parameter",
-        "value": null
-      },
-      {
-        "condition": "always",
-        "name": "FILE_TRANSFER_BUCKET",
-        "secret": false,
-        "source": "stack parameter",
-        "value": null
-      },
-      {
-        "condition": "always",
-        "name": "FILE_TRANSFER_UPLOAD_PREFIX",
-        "secret": false,
-        "source": "stack parameter",
-        "value": null
-      },
-      {
-        "condition": "always",
-        "name": "FILE_TRANSFER_EXPORT_PREFIX",
-        "secret": false,
-        "source": "stack parameter",
-        "value": null
-      },
-      {
-        "condition": "always",
-        "name": "FILE_TRANSFER_TMP_PREFIX",
-        "secret": false,
-        "source": "stack parameter",
-        "value": null
+        "name": "JOBS_QUEUE_BACKEND",
+        "source": "literal",
+        "value": "memory"
       }
     ],
     "forbidden_env_vars": [
-      "FILE_TRANSFER_API_BASE_URL",
-      "FILE_TRANSFER_JOBS_QUEUE_URL",
-      "FILE_TRANSFER_JOBS_REGION",
-      "APP_SYNC_PROCESSING_MAX_BYTES",
-      "JOBS_ALLOW_INSECURE_MISSING_WORKER_TOKEN_NONPROD",
-      "JOBS_API_BASE_URL",
-      "JOBS_WORKER_UPDATE_TOKEN"
+      "ACTIVITY_STORE_BACKEND",
+      "ACTIVITY_ROLLUPS_TABLE",
+      "ALLOWED_ORIGINS",
+      "API_RELEASE_ARTIFACT_SHA256",
+      "IDEMPOTENCY_DYNAMODB_TABLE",
+      "JOBS_RUNTIME_MODE",
+      "JOBS_SQS_QUEUE_URL",
+      "NOVA_RUNTIME_PROFILE",
+      "OIDC_AUDIENCE",
+      "OIDC_ISSUER",
+      "OIDC_JWKS_URL"
     ],
-    "secrets": []
+    "handlers": [
+      "nova_workflows.handlers.validate_export_handler",
+      "nova_workflows.handlers.copy_export_handler",
+      "nova_workflows.handlers.finalize_export_handler",
+      "nova_workflows.handlers.fail_export_handler"
+    ]
   }
 }

@@ -1,4 +1,4 @@
-"""Canonical runtime-config contract metadata for Nova release tooling."""
+"""Canonical runtime and deploy contract metadata for Nova release tooling."""
 
 from __future__ import annotations
 
@@ -45,17 +45,29 @@ class EnvJsonOverrideContract:
 
 
 @dataclass(frozen=True)
-class TemplateEnvContract:
-    """Environment or secret value expected in a deployed runtime template."""
+class DeployInputContract:
+    """Context or environment input consumed by infra or workflows."""
+
+    name: str
+    source: str
+    required: bool
+    description: str
+
+
+@dataclass(frozen=True)
+class RuntimeEnvContract:
+    """Environment variable expected in a deployed Lambda runtime."""
 
     name: str
     source: str
     condition: str
     value: str | None = None
-    secret: bool = False
 
 
-EXTRA_RUNTIME_ENV_VARS = ("AWS_DEFAULT_REGION", "NOVA_RUNTIME_PROFILE")
+EXTRA_RUNTIME_ENV_VARS = (
+    "API_RELEASE_ARTIFACT_SHA256",
+    "AWS_DEFAULT_REGION",
+)
 
 
 def _env_var_name(field_name: str, field: FieldInfo) -> str:
@@ -100,9 +112,6 @@ def _type_label(annotation: Any) -> str:
         inner = ", ".join(_type_label(arg) for arg in get_args(annotation))
         return f"dict[{inner}]"
 
-    if origin is type(None):
-        return "None"
-
     args = [_type_label(arg) for arg in get_args(annotation)]
     if len(args) == 2 and "None" in args:
         non_none = next(arg for arg in args if arg != "None")
@@ -122,26 +131,17 @@ def _default_repr(field: FieldInfo) -> str:
 
 
 def runtime_setting_contracts() -> tuple[RuntimeSettingContract, ...]:
-    """Return the runtime settings contract derived from ``Settings``.
-
-    Returns:
-        tuple[RuntimeSettingContract, ...]: Sorted runtime setting contract
-            entries derived from the canonical ``Settings`` model.
-
-    Raises:
-        None.
-    """
+    """Return the runtime settings contract derived from ``Settings``."""
     contracts = []
     for field_name, field in Settings.model_fields.items():
         env_var = _env_var_name(field_name, field)
         required_when = None
         if env_var == "IDEMPOTENCY_DYNAMODB_TABLE":
-            required_when = (
-                "when API idempotency enabled and JOBS_RUNTIME_MODE!=worker"
-            )
+            required_when = "when IDEMPOTENCY_ENABLED=true in the API Lambda"
         elif env_var == "JOBS_STEP_FUNCTIONS_STATE_MACHINE_ARN":
             required_when = (
-                "when JOBS_QUEUE_BACKEND=stepfunctions and JOBS_ENABLED=true"
+                "when JOBS_ENABLED=true and JOBS_QUEUE_BACKEND=stepfunctions "
+                "in the API Lambda"
             )
         contracts.append(
             RuntimeSettingContract(
@@ -207,164 +207,162 @@ ENV_JSON_OVERRIDES: tuple[EnvJsonOverrideContract, ...] = (
     ),
 )
 
-
-SERVICE_TEMPLATE_ENV: tuple[TemplateEnvContract, ...] = (
-    TemplateEnvContract("AWS_DEFAULT_REGION", "stack parameter", "always"),
-    TemplateEnvContract("ENVIRONMENT", "task parameter", "always"),
-    TemplateEnvContract("NOVA_RUNTIME_PROFILE", "task parameter", "always"),
-    TemplateEnvContract("OIDC_ISSUER", "task parameter", "always"),
-    TemplateEnvContract("OIDC_AUDIENCE", "task parameter", "always"),
-    TemplateEnvContract("OIDC_JWKS_URL", "task parameter", "always"),
-    TemplateEnvContract("OIDC_REQUIRED_SCOPES", "task parameter", "always"),
-    TemplateEnvContract(
-        "OIDC_REQUIRED_PERMISSIONS", "task parameter", "always"
+DEPLOY_INPUTS: tuple[DeployInputContract, ...] = (
+    DeployInputContract(
+        "API_LAMBDA_ARTIFACT_BUCKET",
+        "release-apply artifact manifest",
+        True,
+        "S3 bucket containing the immutable API Lambda zip.",
     ),
-    TemplateEnvContract("OIDC_CLOCK_SKEW_SECONDS", "task parameter", "always"),
-    TemplateEnvContract(
-        "BLOCKING_IO_THREAD_TOKENS", "task parameter", "always"
+    DeployInputContract(
+        "API_LAMBDA_ARTIFACT_KEY",
+        "release-apply artifact manifest",
+        True,
+        "S3 key for the immutable API Lambda zip.",
     ),
-    TemplateEnvContract("FILE_TRANSFER_ENABLED", "stack-derived", "always"),
-    TemplateEnvContract("JOBS_ENABLED", "stack-derived", "always"),
-    TemplateEnvContract("JOBS_QUEUE_BACKEND", "stack-derived", "always"),
-    TemplateEnvContract("JOBS_REPOSITORY_BACKEND", "stack-derived", "always"),
-    TemplateEnvContract("JOBS_RUNTIME_MODE", "literal", "always"),
-    TemplateEnvContract("ACTIVITY_STORE_BACKEND", "stack-derived", "always"),
-    TemplateEnvContract("CACHE_LOCAL_TTL_SECONDS", "task parameter", "always"),
-    TemplateEnvContract("CACHE_LOCAL_MAX_ENTRIES", "task parameter", "always"),
-    TemplateEnvContract("CACHE_KEY_PREFIX", "task parameter", "always"),
-    TemplateEnvContract("CACHE_KEY_SCHEMA_VERSION", "task parameter", "always"),
-    TemplateEnvContract(
-        "AUTH_JWT_CACHE_MAX_TTL_SECONDS", "task parameter", "always"
+    DeployInputContract(
+        "API_LAMBDA_ARTIFACT_SHA256",
+        "release-apply artifact manifest",
+        True,
+        "SHA256 digest for the immutable API Lambda zip.",
     ),
-    TemplateEnvContract("IDEMPOTENCY_ENABLED", "task parameter", "always"),
-    TemplateEnvContract("IDEMPOTENCY_TTL_SECONDS", "task parameter", "always"),
-    TemplateEnvContract(
-        "IDEMPOTENCY_DYNAMODB_TABLE",
-        "stack output",
-        "when API idempotency enabled",
+    DeployInputContract(
+        "api_domain_name",
+        "CDK context / deploy-runtime input",
+        True,
+        "Canonical public custom domain for the Regional REST API.",
     ),
-    TemplateEnvContract(
-        "FILE_TRANSFER_PRESIGN_UPLOAD_TTL_SECONDS",
-        "task parameter",
-        "always",
+    DeployInputContract(
+        "certificate_arn",
+        "CDK context / deploy-runtime input",
+        True,
+        "Regional ACM certificate used by the API custom domain.",
     ),
-    TemplateEnvContract(
-        "FILE_TRANSFER_PRESIGN_DOWNLOAD_TTL_SECONDS",
-        "task parameter",
-        "always",
+    DeployInputContract(
+        "hosted_zone_id",
+        "CDK context / deploy-runtime input",
+        True,
+        "Route 53 hosted zone id that owns the API alias record.",
     ),
-    TemplateEnvContract(
-        "FILE_TRANSFER_MULTIPART_THRESHOLD_BYTES",
-        "task parameter",
-        "always",
+    DeployInputContract(
+        "hosted_zone_name",
+        "CDK context / deploy-runtime input",
+        True,
+        "Route 53 hosted zone name that owns the API alias record.",
     ),
-    TemplateEnvContract(
-        "FILE_TRANSFER_PART_SIZE_BYTES", "task parameter", "always"
+    DeployInputContract(
+        "jwt_issuer",
+        "CDK context / deploy-runtime input",
+        True,
+        "OIDC issuer URL injected into the API Lambda.",
     ),
-    TemplateEnvContract(
-        "FILE_TRANSFER_MAX_CONCURRENCY", "task parameter", "always"
+    DeployInputContract(
+        "jwt_audience",
+        "CDK context / deploy-runtime input",
+        True,
+        "OIDC audience injected into the API Lambda.",
     ),
-    TemplateEnvContract(
-        "FILE_TRANSFER_USE_ACCELERATE_ENDPOINT",
-        "task parameter",
-        "always",
+    DeployInputContract(
+        "jwt_jwks_url",
+        "CDK context / deploy-runtime input",
+        True,
+        "OIDC JWKS URL injected into the API Lambda.",
     ),
-    TemplateEnvContract(
-        "FILE_TRANSFER_MAX_UPLOAD_BYTES", "task parameter", "always"
+    DeployInputContract(
+        "allowed_origins",
+        "CDK context / deploy-runtime input",
+        False,
+        "Optional browser origin allowlist serialized into ALLOWED_ORIGINS.",
     ),
-    TemplateEnvContract(
-        "JOBS_SQS_QUEUE_URL", "stack output", "when async enabled"
-    ),
-    TemplateEnvContract(
-        "JOBS_DYNAMODB_TABLE", "stack output", "when async enabled"
-    ),
-    TemplateEnvContract(
-        "ACTIVITY_ROLLUPS_TABLE", "stack output", "when async enabled"
-    ),
-    TemplateEnvContract(
-        "FILE_TRANSFER_BUCKET", "stack parameter", "when file transfer enabled"
-    ),
-    TemplateEnvContract(
-        "FILE_TRANSFER_UPLOAD_PREFIX",
-        "stack parameter",
-        "when file transfer enabled",
-    ),
-    TemplateEnvContract(
-        "FILE_TRANSFER_EXPORT_PREFIX",
-        "stack parameter",
-        "when file transfer enabled",
-    ),
-    TemplateEnvContract(
-        "FILE_TRANSFER_TMP_PREFIX",
-        "stack parameter",
-        "when file transfer enabled",
+    DeployInputContract(
+        "enable_reserved_concurrency",
+        "CDK context / deploy-runtime input",
+        False,
+        "Optional toggle for non-production reserved concurrency.",
     ),
 )
 
-
-WORKER_TEMPLATE_ENV: tuple[TemplateEnvContract, ...] = (
-    TemplateEnvContract("ENVIRONMENT", "stack parameter", "always"),
-    TemplateEnvContract("AWS_DEFAULT_REGION", "stack parameter", "always"),
-    TemplateEnvContract("JOBS_ENABLED", "literal", "always", value="true"),
-    TemplateEnvContract(
-        "JOBS_RUNTIME_MODE",
-        "literal",
+API_LAMBDA_ENV: tuple[RuntimeEnvContract, ...] = (
+    RuntimeEnvContract("FILE_TRANSFER_BUCKET", "stack resource", "always"),
+    RuntimeEnvContract(
+        "FILE_TRANSFER_UPLOAD_PREFIX", "literal", "always", "uploads/"
+    ),
+    RuntimeEnvContract(
+        "FILE_TRANSFER_EXPORT_PREFIX", "literal", "always", "exports/"
+    ),
+    RuntimeEnvContract("FILE_TRANSFER_TMP_PREFIX", "literal", "always", "tmp/"),
+    RuntimeEnvContract("JOBS_ENABLED", "literal", "always", "true"),
+    RuntimeEnvContract(
+        "JOBS_REPOSITORY_BACKEND", "literal", "always", "dynamodb"
+    ),
+    RuntimeEnvContract("JOBS_DYNAMODB_TABLE", "stack resource", "always"),
+    RuntimeEnvContract("ALLOWED_ORIGINS", "CDK deploy input", "always"),
+    RuntimeEnvContract(
+        "ACTIVITY_STORE_BACKEND", "literal", "always", "dynamodb"
+    ),
+    RuntimeEnvContract("ACTIVITY_ROLLUPS_TABLE", "stack resource", "always"),
+    RuntimeEnvContract("OIDC_ISSUER", "CDK deploy input", "always"),
+    RuntimeEnvContract("OIDC_AUDIENCE", "CDK deploy input", "always"),
+    RuntimeEnvContract("OIDC_JWKS_URL", "CDK deploy input", "always"),
+    RuntimeEnvContract("IDEMPOTENCY_ENABLED", "literal", "always", "true"),
+    RuntimeEnvContract(
+        "IDEMPOTENCY_DYNAMODB_TABLE", "stack resource", "always"
+    ),
+    RuntimeEnvContract(
+        "JOBS_QUEUE_BACKEND", "literal", "always", "stepfunctions"
+    ),
+    RuntimeEnvContract(
+        "JOBS_STEP_FUNCTIONS_STATE_MACHINE_ARN",
+        "stack resource",
         "always",
-        value="worker",
     ),
-    TemplateEnvContract(
-        "JOBS_QUEUE_BACKEND",
-        "literal",
+    RuntimeEnvContract(
+        "API_RELEASE_ARTIFACT_SHA256",
+        "release-apply artifact manifest",
         "always",
-        value="sqs",
-    ),
-    TemplateEnvContract("JOBS_SQS_QUEUE_URL", "stack parameter", "always"),
-    TemplateEnvContract(
-        "JOBS_REPOSITORY_BACKEND",
-        "literal",
-        "always",
-        value="dynamodb",
-    ),
-    TemplateEnvContract("JOBS_DYNAMODB_TABLE", "stack parameter", "always"),
-    TemplateEnvContract(
-        "ACTIVITY_STORE_BACKEND",
-        "literal",
-        "always",
-        value="dynamodb",
-    ),
-    TemplateEnvContract("ACTIVITY_ROLLUPS_TABLE", "stack parameter", "always"),
-    TemplateEnvContract(
-        "JOBS_SQS_VISIBILITY_TIMEOUT_SECONDS", "stack parameter", "always"
-    ),
-    TemplateEnvContract("FILE_TRANSFER_BUCKET", "stack parameter", "always"),
-    TemplateEnvContract(
-        "FILE_TRANSFER_UPLOAD_PREFIX", "stack parameter", "always"
-    ),
-    TemplateEnvContract(
-        "FILE_TRANSFER_EXPORT_PREFIX", "stack parameter", "always"
-    ),
-    TemplateEnvContract(
-        "FILE_TRANSFER_TMP_PREFIX", "stack parameter", "always"
     ),
 )
 
+WORKFLOW_TASK_ENV: tuple[RuntimeEnvContract, ...] = (
+    RuntimeEnvContract("FILE_TRANSFER_BUCKET", "stack resource", "always"),
+    RuntimeEnvContract(
+        "FILE_TRANSFER_UPLOAD_PREFIX", "literal", "always", "uploads/"
+    ),
+    RuntimeEnvContract(
+        "FILE_TRANSFER_EXPORT_PREFIX", "literal", "always", "exports/"
+    ),
+    RuntimeEnvContract("FILE_TRANSFER_TMP_PREFIX", "literal", "always", "tmp/"),
+    RuntimeEnvContract("JOBS_ENABLED", "literal", "always", "true"),
+    RuntimeEnvContract(
+        "JOBS_REPOSITORY_BACKEND", "literal", "always", "dynamodb"
+    ),
+    RuntimeEnvContract("JOBS_DYNAMODB_TABLE", "stack resource", "always"),
+    RuntimeEnvContract("IDEMPOTENCY_ENABLED", "literal", "always", "false"),
+    RuntimeEnvContract("JOBS_QUEUE_BACKEND", "literal", "always", "memory"),
+)
 
-FORBIDDEN_ENV_VARS = ("ENV", "ENV_DICT", "AUTH_APP_SECRET")
-FORBIDDEN_ENV_JSON_KEYS = (
-    "IDEMPOTENCY_MODE",
+FORBIDDEN_ENV_JSON_KEYS = ("IDEMPOTENCY_MODE", "IDEMPOTENCY_DYNAMODB_TABLE")
+API_LAMBDA_FORBIDDEN_ENV_VARS = (
+    "ENV",
+    "ENV_DICT",
+    "AUTH_APP_SECRET",
+    "JOBS_SQS_QUEUE_URL",
+    "JOBS_RUNTIME_MODE",
+    "NOVA_RUNTIME_PROFILE",
+)
+WORKFLOW_TASK_FORBIDDEN_ENV_VARS = (
+    "ACTIVITY_STORE_BACKEND",
+    "ACTIVITY_ROLLUPS_TABLE",
+    "ALLOWED_ORIGINS",
+    "API_RELEASE_ARTIFACT_SHA256",
     "IDEMPOTENCY_DYNAMODB_TABLE",
+    "JOBS_RUNTIME_MODE",
+    "JOBS_SQS_QUEUE_URL",
+    "NOVA_RUNTIME_PROFILE",
+    "OIDC_AUDIENCE",
+    "OIDC_ISSUER",
+    "OIDC_JWKS_URL",
 )
-FORBIDDEN_SERVICE_PARAMETERS = (
-    "EnvVars",
-    "UseLegacyEnvDict",
-    "TaskRole",
-    "UseLegacyTaskRolePolicy",
-    "GenerateAppSecretKey",
-    "AppSecretEnvVarName",
-    "TaskExecutionSecretArns",
-    "TaskExecutionSsmParameterArns",
-)
-WORKER_COMMAND = "nova-file-worker"
 CONTRACT_JSON_PATH = "packages/contracts/fixtures/runtime_config_contract.json"
 CONTRACT_MARKDOWN_PATH = RUNTIME_CONFIG_GENERATED_MD_PATH
 
@@ -394,8 +392,8 @@ def _assert_non_secret_runtime_env(env_vars: Iterable[str]) -> None:
         )
 
 
-_assert_known_runtime_env(contract.name for contract in SERVICE_TEMPLATE_ENV)
-_assert_known_runtime_env(contract.name for contract in WORKER_TEMPLATE_ENV)
+_assert_known_runtime_env(contract.name for contract in API_LAMBDA_ENV)
+_assert_known_runtime_env(contract.name for contract in WORKFLOW_TASK_ENV)
 _assert_known_runtime_env(override.env_var for override in ENV_JSON_OVERRIDES)
 _assert_non_secret_runtime_env(
     override.env_var for override in ENV_JSON_OVERRIDES
@@ -403,99 +401,50 @@ _assert_non_secret_runtime_env(
 
 
 def build_contract_payload() -> dict[str, Any]:
-    """Build the full runtime-config contract payload.
-
-    Returns:
-        dict[str, Any]: Canonical runtime-config contract payload for JSON and
-            Markdown renderers.
-
-    Raises:
-        None.
-    """
-    settings_contracts = runtime_setting_contracts()
+    """Build the full runtime-config contract payload."""
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "settings_source": "packages/nova_file_api/src/nova_file_api/config.py",
         "extra_runtime_env_vars": list(EXTRA_RUNTIME_ENV_VARS),
-        "settings": [asdict(contract) for contract in settings_contracts],
+        "settings": [
+            asdict(contract) for contract in runtime_setting_contracts()
+        ],
         "env_vars_json": {
             "supported_overrides": [
                 asdict(override) for override in ENV_JSON_OVERRIDES
             ],
             "forbidden_keys": list(FORBIDDEN_ENV_JSON_KEYS),
         },
-        "service_template": {
-            "env": [
-                asdict(contract)
-                for contract in SERVICE_TEMPLATE_ENV
-                if not contract.secret
-            ],
-            "secrets": [
-                asdict(contract)
-                for contract in SERVICE_TEMPLATE_ENV
-                if contract.secret
-            ],
-            "forbidden_env_vars": list(FORBIDDEN_ENV_VARS),
-            "forbidden_parameters": list(FORBIDDEN_SERVICE_PARAMETERS),
+        "deploy_inputs": [asdict(item) for item in DEPLOY_INPUTS],
+        "api_lambda_environment": {
+            "env": [asdict(contract) for contract in API_LAMBDA_ENV],
+            "forbidden_env_vars": list(API_LAMBDA_FORBIDDEN_ENV_VARS),
         },
-        "worker_template": {
-            "command": WORKER_COMMAND,
-            "env": [
-                asdict(contract)
-                for contract in WORKER_TEMPLATE_ENV
-                if not contract.secret
+        "workflow_task_environment": {
+            "handlers": [
+                "nova_workflows.handlers.validate_export_handler",
+                "nova_workflows.handlers.copy_export_handler",
+                "nova_workflows.handlers.finalize_export_handler",
+                "nova_workflows.handlers.fail_export_handler",
             ],
-            "secrets": [
-                asdict(contract)
-                for contract in WORKER_TEMPLATE_ENV
-                if contract.secret
-            ],
-            "forbidden_env_vars": [
-                "FILE_TRANSFER_API_BASE_URL",
-                "FILE_TRANSFER_JOBS_QUEUE_URL",
-                "FILE_TRANSFER_JOBS_REGION",
-                "APP_SYNC_PROCESSING_MAX_BYTES",
-                "JOBS_ALLOW_INSECURE_MISSING_WORKER_TOKEN_NONPROD",
-                "JOBS_API_BASE_URL",
-                "JOBS_WORKER_UPDATE_TOKEN",
-            ],
+            "env": [asdict(contract) for contract in WORKFLOW_TASK_ENV],
+            "forbidden_env_vars": list(WORKFLOW_TASK_FORBIDDEN_ENV_VARS),
         },
     }
 
 
 def contract_json_path() -> Path:
-    """Return the canonical generated JSON artifact path.
-
-    Returns:
-        Path: Repository-relative path to the generated JSON artifact.
-
-    Raises:
-        None.
-    """
+    """Return the canonical generated JSON artifact path."""
     return REPO_ROOT / CONTRACT_JSON_PATH
 
 
 def contract_markdown_path() -> Path:
-    """Return the canonical generated Markdown artifact path.
-
-    Returns:
-        Path: Repository-relative path to the generated Markdown artifact.
-
-    Raises:
-        None.
-    """
+    """Return the canonical generated Markdown artifact path."""
     return REPO_ROOT / CONTRACT_MARKDOWN_PATH
 
 
 def render_contract_json() -> str:
-    """Render the canonical contract JSON artifact.
-
-    Returns:
-        str: Serialized contract payload with stable indentation.
-
-    Raises:
-        None.
-    """
+    """Render the canonical contract JSON artifact."""
     return json.dumps(build_contract_payload(), indent=2, sort_keys=True) + "\n"
 
 
@@ -509,8 +458,10 @@ def _join_backticked(values: Iterable[str]) -> str:
 
 def _render_settings_table(settings: list[dict[str, Any]]) -> str:
     rows = [
-        "| Env Var | Field | Type | Required | Required When | Secret | "
-        "Default |",
+        (
+            "| Env Var | Field | Type | Required | Required When | Secret | "
+            "Default |"
+        ),
         "| --- | --- | --- | --- | --- | --- | --- |",
     ]
     rows.extend(
@@ -527,25 +478,6 @@ def _render_settings_table(settings: list[dict[str, Any]]) -> str:
             )
         )
         for setting in settings
-    )
-    return "\n".join(rows)
-
-
-def _render_template_table(entries: list[dict[str, Any]]) -> str:
-    rows = [
-        "| Name | Source | Condition | Secret |",
-        "| --- | --- | --- | --- |",
-    ]
-    rows.extend(
-        (
-            "| {name} | {source} | {condition} | {secret} |".format(
-                name=_md_cell(entry["name"]),
-                source=_md_cell(entry["source"]),
-                condition=_md_cell(entry["condition"]),
-                secret="yes" if entry["secret"] else "no",
-            )
-        )
-        for entry in entries
     )
     return "\n".join(rows)
 
@@ -569,22 +501,47 @@ def _render_env_json_table(entries: list[dict[str, Any]]) -> str:
     return "\n".join(rows)
 
 
+def _render_deploy_inputs_table(entries: list[dict[str, Any]]) -> str:
+    rows = [
+        "| Input | Source | Required | Description |",
+        "| --- | --- | --- | --- |",
+    ]
+    rows.extend(
+        (
+            "| {name} | {source} | {required} | {description} |".format(
+                name=_md_cell(entry["name"]),
+                source=_md_cell(entry["source"]),
+                required="yes" if entry["required"] else "no",
+                description=_md_cell(entry["description"]),
+            )
+        )
+        for entry in entries
+    )
+    return "\n".join(rows)
+
+
+def _render_env_table(entries: list[dict[str, Any]]) -> str:
+    rows = [
+        "| Name | Source | Condition | Value |",
+        "| --- | --- | --- | --- |",
+    ]
+    rows.extend(
+        (
+            "| {name} | {source} | {condition} | {value} |".format(
+                name=_md_cell(entry["name"]),
+                source=_md_cell(entry["source"]),
+                condition=_md_cell(entry["condition"]),
+                value=_md_cell(entry.get("value") or "-"),
+            )
+        )
+        for entry in entries
+    )
+    return "\n".join(rows)
+
+
 def render_contract_markdown() -> str:
-    """Render the generated operator-facing Markdown summary.
-
-    Returns:
-        str: Operator-facing Markdown summary for the runtime-config contract.
-
-    Raises:
-        None.
-    """
+    """Render the generated operator-facing Markdown summary."""
     payload = build_contract_payload()
-    service_env = payload["service_template"]["env"]
-    service_secrets = payload["service_template"]["secrets"]
-    worker_env = payload["worker_template"]["env"]
-    worker_secrets = payload["worker_template"]["secrets"]
-    env_json = payload["env_vars_json"]["supported_overrides"]
-
     sections = [
         "# Runtime Config Contract",
         "",
@@ -597,8 +554,10 @@ def render_contract_markdown() -> str:
         "",
         "Canonical sources:",
         "- `packages/nova_file_api/src/nova_file_api/config.py` (`Settings`)",
+        "- `infra/nova_cdk/src/nova_cdk/runtime_stack.py` "
+        "(deployed Lambda environment wiring)",
         "- `scripts/release/runtime_config_contract.py` "
-        "(curated deploy/template metadata)",
+        "(curated deploy/runtime metadata)",
         "- Runtime env vars are derived only from explicit "
         "`Settings` `validation_alias` values; `alias` and implicit uppercase "
         "fallbacks are invalid",
@@ -609,33 +568,37 @@ def render_contract_markdown() -> str:
         "",
         "## Generated ENV_VARS_JSON support matrix",
         "",
-        _render_env_json_table(env_json),
+        _render_env_json_table(payload["env_vars_json"]["supported_overrides"]),
         "",
         "Forbidden ENV_VARS_JSON keys:",
         _join_backticked(payload["env_vars_json"]["forbidden_keys"]),
         "",
-        "## Service template environment contract",
+        "## Runtime deploy inputs",
         "",
-        _render_template_table(service_env + service_secrets),
+        _render_deploy_inputs_table(payload["deploy_inputs"]),
         "",
-        "Forbidden service env vars:",
-        _join_backticked(payload["service_template"]["forbidden_env_vars"]),
+        "## API Lambda environment contract",
         "",
-        "Forbidden service parameters:",
-        _join_backticked(payload["service_template"]["forbidden_parameters"]),
+        _render_env_table(payload["api_lambda_environment"]["env"]),
         "",
-        "## Worker template environment contract",
+        "Forbidden API Lambda env vars:",
+        _join_backticked(
+            payload["api_lambda_environment"]["forbidden_env_vars"]
+        ),
         "",
-        _render_template_table(worker_env + worker_secrets),
+        "## Workflow task Lambda environment contract",
         "",
-        "Worker command:",
-        f"`{payload['worker_template']['command']}`",
+        "Task handlers:",
+        _join_backticked(payload["workflow_task_environment"]["handlers"]),
         "",
-        "Forbidden worker env vars:",
-        _join_backticked(payload["worker_template"]["forbidden_env_vars"]),
+        _render_env_table(payload["workflow_task_environment"]["env"]),
         "",
-        "Generated extra runtime env vars that are intentionally outside "
-        "`Settings`:",
+        "Forbidden workflow task env vars:",
+        _join_backticked(
+            payload["workflow_task_environment"]["forbidden_env_vars"]
+        ),
+        "",
+        "Generated extra runtime env vars intentionally outside `Settings`:",
         _join_backticked(payload["extra_runtime_env_vars"]),
         "",
     ]

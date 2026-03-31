@@ -8,6 +8,7 @@ from pydantic.fields import FieldInfo
 from nova_file_api.config import Settings
 from scripts.release.runtime_config_contract import (
     _env_var_name,
+    build_contract_payload,
     runtime_setting_contracts,
 )
 
@@ -59,9 +60,41 @@ def test_step_functions_state_machine_arn_is_conditionally_required() -> None:
         for contract in runtime_setting_contracts()
     }
 
-    assert (
-        contracts_by_field[
-            "jobs_step_functions_state_machine_arn"
-        ].required_when
-        == "when JOBS_QUEUE_BACKEND=stepfunctions and JOBS_ENABLED=true"
+    assert contracts_by_field[
+        "jobs_step_functions_state_machine_arn"
+    ].required_when == (
+        "when JOBS_ENABLED=true and JOBS_QUEUE_BACKEND=stepfunctions "
+        "in the API Lambda"
     )
+
+
+def test_runtime_contract_only_describes_living_lambda_surfaces() -> None:
+    """Generated payload should not preserve deleted template contracts."""
+    payload = build_contract_payload()
+
+    assert "service_template" not in payload
+    assert "worker_template" not in payload
+    assert "deploy_inputs" in payload
+    assert "api_lambda_environment" in payload
+    assert "workflow_task_environment" in payload
+
+
+def test_runtime_contract_tracks_api_release_digest_and_stepfunctions_env() -> (
+    None
+):
+    """API Lambda env contract should include live deploy/runtime bindings."""
+    payload = build_contract_payload()
+    api_env = {
+        entry["name"] for entry in payload["api_lambda_environment"]["env"]
+    }
+    workflow_env = {
+        entry["name"] for entry in payload["workflow_task_environment"]["env"]
+    }
+
+    assert "API_RELEASE_ARTIFACT_SHA256" in api_env
+    assert "JOBS_STEP_FUNCTIONS_STATE_MACHINE_ARN" in api_env
+    assert "OIDC_ISSUER" in api_env
+    assert "ALLOWED_ORIGINS" in api_env
+    assert "JOBS_QUEUE_BACKEND" in workflow_env
+    assert "JOBS_DYNAMODB_TABLE" in workflow_env
+    assert "JOBS_SQS_QUEUE_URL" not in workflow_env
