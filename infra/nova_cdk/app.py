@@ -4,7 +4,7 @@
 
 import os
 
-from aws_cdk import App, Environment
+from aws_cdk import Annotations, App, Environment
 
 from nova_cdk.runtime_stack import NovaRuntimeStack
 
@@ -29,6 +29,13 @@ NovaRuntimeStack(
         account=account,
         region=region,
     ),
+)
+
+Annotations.of(app).acknowledge_warning(
+    "@aws-cdk/aws-lambda:codeFromBucketObjectVersionNotSpecified",
+    "Nova uses immutable content-addressed API Lambda artifact keys plus "
+    "deploy-output SHA256 provenance, so objectVersion is intentionally not "
+    "threaded through the CDK surface.",
 )
 
 app.synth()

@@ -87,6 +87,10 @@ uv run --package nova-cdk python app.py
   `api_lambda_artifact_sha256` for every synth, diff, and deploy. CDK consumes
   an immutable API Lambda zip artifact from the release pipeline and no longer
   builds the API package locally at synth time.
+- The API Lambda continues to use `Code.fromBucket()` without `objectVersion`.
+  This is intentional: Nova treats the immutable artifact key plus
+  `api_lambda_artifact_sha256` and deploy-output provenance as the source of
+  truth, and the scoped CDK warning is acknowledged at the app level.
 - Configure `allowed_origins` via CDK context or `STACK_ALLOWED_ORIGINS` for
   production deployments; local and dev stacks default to `*`.
 - `Nova Release Apply` publishes the API Lambda zip to

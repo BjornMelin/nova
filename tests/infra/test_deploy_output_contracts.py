@@ -493,6 +493,28 @@ def test_validate_runtime_release_binds_report_to_deploy_output(
     monkeypatch.setattr(_VALIDATOR, "_request", fake_request)
     monkeypatch.setattr(
         _VALIDATOR,
+        "_validate_reserved_concurrency",
+        lambda *, deploy_output, failures: [
+            _VALIDATOR.ConcurrencyCheck(
+                function_group="api",
+                function_logical_id="NovaApiFunctionF531316A",
+                function_name="nova-api",
+                expected_reserved_concurrency=5,
+                actual_reserved_concurrency=5,
+                ok=True,
+            ),
+            _VALIDATOR.ConcurrencyCheck(
+                function_group="workflow",
+                function_logical_id="ValidateExportFunctionE0F66E1E",
+                function_name="validate-export",
+                expected_reserved_concurrency=2,
+                actual_reserved_concurrency=2,
+                ok=True,
+            ),
+        ],
+    )
+    monkeypatch.setattr(
+        _VALIDATOR,
         "_args",
         lambda: Namespace(
             deploy_output_path=str(deploy_output_path),
@@ -523,6 +545,24 @@ def test_validate_runtime_release_binds_report_to_deploy_output(
     assert report["cors_preflight_path"] == "/v1/exports"
     assert report["cors_allowed_origins"] == ["https://app.example.com"]
     assert report["cors_origin"] == "https://app.example.com"
+    assert report["concurrency_checks"] == [
+        {
+            "function_group": "api",
+            "function_logical_id": "NovaApiFunctionF531316A",
+            "function_name": "nova-api",
+            "expected_reserved_concurrency": 5,
+            "actual_reserved_concurrency": 5,
+            "ok": True,
+        },
+        {
+            "function_group": "workflow",
+            "function_logical_id": "ValidateExportFunctionE0F66E1E",
+            "function_name": "validate-export",
+            "expected_reserved_concurrency": 2,
+            "actual_reserved_concurrency": 2,
+            "ok": True,
+        },
+    ]
     assert {check["kind"] for check in report["checks"]} == {
         "canonical",
         "protected",
@@ -658,6 +698,20 @@ def test_validate_runtime_release_keeps_failed_report_schema_valid(
     monkeypatch.setattr(_VALIDATOR, "_request", fake_request)
     monkeypatch.setattr(
         _VALIDATOR,
+        "_validate_reserved_concurrency",
+        lambda *, deploy_output, failures: [
+            _VALIDATOR.ConcurrencyCheck(
+                function_group="api",
+                function_logical_id="NovaApiFunctionF531316A",
+                function_name="nova-api",
+                expected_reserved_concurrency=5,
+                actual_reserved_concurrency=None,
+                ok=False,
+            )
+        ],
+    )
+    monkeypatch.setattr(
+        _VALIDATOR,
         "_args",
         lambda: Namespace(
             deploy_output_path=str(deploy_output_path),
@@ -686,3 +740,13 @@ def test_validate_runtime_release_keeps_failed_report_schema_valid(
     assert report["status"] == "failed"
     assert report["release_info"] is None
     assert report["deploy_output_sha256"] == digest
+    assert report["concurrency_checks"] == [
+        {
+            "function_group": "api",
+            "function_logical_id": "NovaApiFunctionF531316A",
+            "function_name": "nova-api",
+            "expected_reserved_concurrency": 5,
+            "actual_reserved_concurrency": None,
+            "ok": False,
+        }
+    ]

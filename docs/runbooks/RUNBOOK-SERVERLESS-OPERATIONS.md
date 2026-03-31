@@ -60,6 +60,8 @@
   in prod
 - workflow task Lambda reserved concurrency defaults when enabled: `2` outside
   prod, `10` in prod
+- post-deploy validation treats reserved concurrency as deployed truth and
+  fails if the live API/workflow Lambdas drift from those defaults
 - provisioned concurrency only after measuring need
 - API Gateway stage access/execution logging enabled for ingress diagnostics
 - API access logs are emitted to

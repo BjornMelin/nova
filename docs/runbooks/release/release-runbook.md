@@ -106,8 +106,9 @@ validation.
    - `deploy-output.sha256` matches the canonical JSON payload
    - `post-deploy-validation-report.json` binds validation to the same
      deploy-output digest and runtime version and proves health, protected auth
-     behavior, browser CORS preflight, execute-api disablement, and legacy-path
-     404 drift against the canonical public base URL
+     behavior, browser CORS preflight, execute-api disablement, reserved
+     concurrency truth for the API and workflow Lambdas, and legacy-path 404
+     drift against the canonical public base URL
 
 ### E. Publish staged packages
 

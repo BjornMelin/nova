@@ -75,6 +75,7 @@ def test_release_artifact_schema_contract_covers_required_gate_payloads() -> (
         "version_plan",
         "codeartifact_gate_report",
         "promotion_candidate",
+        "concurrency_check",
         "post_deploy_validation_report",
         "route_check",
         "browser_live_validation_report",
@@ -189,6 +190,32 @@ def test_integration_guide_references_surviving_contract_docs() -> None:
         "requirements-wave-2.md",
     ]:
         assert forbidden not in text
+
+
+def test_prompt_pack_verification_commands_match_repo_native_contract() -> None:
+    """Canonical Nova prompt pack should use the repo-native gate commands."""
+    expected_sync = "uv sync --locked --all-packages --all-extras --dev"
+    expected_synth = (
+        'npx aws-cdk@2.1107.0 synth --app "uv run --package nova-cdk '
+        'python infra/nova_cdk/app.py"'
+    )
+
+    for rel_path in [
+        ".agents/nova_codex_prompt_pack/prompts/01-public-ingress-hard-cut.md",
+        (
+            ".agents/nova_codex_prompt_pack/prompts/"
+            "04-security-observability-capacity-iam.md"
+        ),
+        (
+            ".agents/nova_codex_prompt_pack/prompts/"
+            "99-final-critical-review-and-finish.md"
+        ),
+        ".agents/nova_codex_prompt_pack/NOVA_CODEX_PROMPT_PACK.md",
+    ]:
+        text = _read(rel_path)
+        assert expected_sync in text, rel_path
+        assert expected_synth in text, rel_path
+        assert "uv run --package nova-cdk cdk synth" not in text, rel_path
 
 
 def test_auth0_workflow_schema_matches_reusable_auth0_api() -> None:

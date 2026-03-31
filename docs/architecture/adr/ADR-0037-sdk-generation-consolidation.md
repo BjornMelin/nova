@@ -10,7 +10,7 @@ Related:
   - "[ADR-0034: Eliminate auth service and session auth](./ADR-0034-eliminate-auth-service-and-session-auth.md)"
 ---
 
-> **Implementation state:** Implemented in the current repository baseline, with stale split-package references still requiring cleanup from active docs/examples.
+> **Implementation state:** Implemented in the current repository baseline. Active docs, examples, and release automation now use the canonical one-package-per-language surface.
 
 ## Decision
 
@@ -25,9 +25,8 @@ surface.
 
 ## Context
 
-The current repository already uses one SDK package per language, but some
-docs/examples still need retirement cleanup so they stop describing the older
-split auth/file package posture.
+The current repository already uses one SDK package per language and the active
+docs/examples now describe only that canonical package posture.
 
 ## Why this wins
 
@@ -40,4 +39,4 @@ split auth/file package posture.
 
 - keep canonical package names in release scripts, examples, and docs
 - keep release scripts small and aligned to generator-owned outputs
-- retire stale split-package references from examples and supporting docs
+- keep stale split-package references out of active docs and supporting examples

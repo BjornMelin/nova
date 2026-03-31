@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import subprocess
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -58,6 +59,19 @@ _CORS_ALLOWED_HEADERS = {
     "content-type",
     "idempotency-key",
 }
+_STANDARD_LAMBDA_ACCOUNT_CONCURRENCY = 1000
+_PRODUCTION_ENVIRONMENTS = {"prod", "production"}
+_API_RESERVED_CONCURRENCY_DEFAULTS = {True: 25, False: 5}
+_WORKFLOW_RESERVED_CONCURRENCY_DEFAULTS = {True: 10, False: 2}
+_FUNCTION_LOGICAL_ID_PREFIXES = {
+    "api": ("NovaApiFunction",),
+    "workflow": (
+        "ValidateExportFunction",
+        "CopyExportFunction",
+        "FinalizeExportFunction",
+        "FailExportFunction",
+    ),
+}
 
 
 @dataclass(frozen=True)
@@ -73,6 +87,18 @@ class RouteCheck:
 
 
 @dataclass(frozen=True)
+class ConcurrencyCheck:
+    """Reserved-concurrency validation result for one Lambda function."""
+
+    function_group: str
+    function_logical_id: str
+    function_name: str
+    expected_reserved_concurrency: int | None
+    actual_reserved_concurrency: int | None
+    ok: bool
+
+
+@dataclass(frozen=True)
 class RequestResult:
     """HTTP response data used by runtime validation checks."""
 
@@ -80,6 +106,203 @@ class RequestResult:
     headers: dict[str, str]
     body: bytes | None
     error: str | None
+
+
+def _aws_cli_json(*args: str) -> Any:
+    """Run one AWS CLI command and return its JSON payload."""
+    result = subprocess.run(
+        ["aws", *args],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        stderr = result.stderr.strip()
+        raise RuntimeError(
+            f"aws {' '.join(args)} failed: {stderr or 'unknown error'}"
+        )
+    stdout = result.stdout.strip()
+    if not stdout:
+        return {}
+    try:
+        return json.loads(stdout)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(
+            f"aws {' '.join(args)} returned invalid JSON"
+        ) from exc
+
+
+def _is_production_environment(environment_name: str) -> bool:
+    """Return whether one environment name maps to production."""
+    return environment_name.strip().casefold() in _PRODUCTION_ENVIRONMENTS
+
+
+def _account_concurrency_limit(*, region: str) -> int:
+    """Return the Lambda regional account concurrency limit."""
+    payload = _aws_cli_json(
+        "lambda", "get-account-settings", "--region", region
+    )
+    limit = (
+        payload.get("AccountLimit", {}).get("ConcurrentExecutions")
+        if isinstance(payload, dict)
+        else None
+    )
+    if not isinstance(limit, int):
+        raise TypeError(
+            "aws lambda get-account-settings did not return "
+            "AccountLimit.ConcurrentExecutions"
+        )
+    return limit
+
+
+def _expected_reserved_concurrency(
+    *,
+    environment_name: str,
+    account_concurrency_limit: int,
+) -> tuple[int | None, int | None]:
+    """Return expected API and workflow reservations for one deploy."""
+    is_production = _is_production_environment(environment_name)
+    if not is_production and (
+        account_concurrency_limit < _STANDARD_LAMBDA_ACCOUNT_CONCURRENCY
+    ):
+        return None, None
+    return (
+        _API_RESERVED_CONCURRENCY_DEFAULTS[is_production],
+        _WORKFLOW_RESERVED_CONCURRENCY_DEFAULTS[is_production],
+    )
+
+
+def _stack_function_names(
+    *,
+    stack_name: str,
+    region: str,
+) -> dict[str, str]:
+    """Return logical-to-physical names for runtime Lambda resources."""
+    payload = _aws_cli_json(
+        "cloudformation",
+        "list-stack-resources",
+        "--stack-name",
+        stack_name,
+        "--region",
+        region,
+    )
+    resources = (
+        payload.get("StackResourceSummaries", [])
+        if isinstance(payload, dict)
+        else []
+    )
+    if not isinstance(resources, list):
+        raise TypeError("CloudFormation stack resources payload is malformed")
+
+    names: dict[str, str] = {}
+    for resource in resources:
+        if not isinstance(resource, dict):
+            continue
+        if resource.get("ResourceType") != "AWS::Lambda::Function":
+            continue
+        logical_id = resource.get("LogicalResourceId")
+        physical_id = resource.get("PhysicalResourceId")
+        if isinstance(logical_id, str) and isinstance(physical_id, str):
+            names[logical_id] = physical_id
+    return names
+
+
+def _lookup_function_name(
+    function_names: dict[str, str],
+    *,
+    logical_id_prefix: str,
+) -> tuple[str, str]:
+    """Return the logical and physical name for one resource prefix."""
+    matches = [
+        (logical_id, function_name)
+        for logical_id, function_name in function_names.items()
+        if logical_id.startswith(logical_id_prefix)
+    ]
+    if len(matches) != 1:
+        raise RuntimeError(
+            "Expected exactly one Lambda resource for prefix "
+            f"{logical_id_prefix!r}, found {len(matches)}"
+        )
+    return matches[0]
+
+
+def _reserved_concurrency_for_function(
+    *,
+    function_name: str,
+    region: str,
+) -> int | None:
+    """Return one function's configured reserved concurrency, if any."""
+    payload = _aws_cli_json(
+        "lambda",
+        "get-function-concurrency",
+        "--function-name",
+        function_name,
+        "--region",
+        region,
+    )
+    if not isinstance(payload, dict):
+        raise TypeError(
+            "aws lambda get-function-concurrency returned malformed JSON"
+        )
+    reserved = payload.get("ReservedConcurrentExecutions")
+    if reserved is None:
+        return None
+    if not isinstance(reserved, int):
+        raise TypeError(
+            "ReservedConcurrentExecutions must be an integer when present"
+        )
+    return reserved
+
+
+def _validate_reserved_concurrency(
+    *,
+    deploy_output: dict[str, Any],
+    failures: list[str],
+) -> list[ConcurrencyCheck]:
+    """Validate reserved-concurrency truth for deployed runtime Lambdas."""
+    region = str(deploy_output["region"])
+    stack_name = str(deploy_output["stack_name"])
+    environment_name = str(deploy_output["environment"])
+    account_concurrency_limit = _account_concurrency_limit(region=region)
+    expected_api, expected_workflow = _expected_reserved_concurrency(
+        environment_name=environment_name,
+        account_concurrency_limit=account_concurrency_limit,
+    )
+    function_names = _stack_function_names(
+        stack_name=stack_name,
+        region=region,
+    )
+
+    checks: list[ConcurrencyCheck] = []
+    for group, prefixes in _FUNCTION_LOGICAL_ID_PREFIXES.items():
+        expected = expected_api if group == "api" else expected_workflow
+        for prefix in prefixes:
+            logical_id, function_name = _lookup_function_name(
+                function_names,
+                logical_id_prefix=prefix,
+            )
+            actual = _reserved_concurrency_for_function(
+                function_name=function_name,
+                region=region,
+            )
+            ok = actual == expected
+            checks.append(
+                ConcurrencyCheck(
+                    function_group=group,
+                    function_logical_id=logical_id,
+                    function_name=function_name,
+                    expected_reserved_concurrency=expected,
+                    actual_reserved_concurrency=actual,
+                    ok=ok,
+                )
+            )
+            if not ok:
+                failures.append(
+                    "reserved concurrency mismatch for "
+                    f"{logical_id} ({function_name}): expected "
+                    f"{expected!r}, got {actual!r}"
+                )
+    return checks
 
 
 def _parse_paths(value: str) -> list[str]:
@@ -510,6 +733,10 @@ def main() -> int:
         checks=checks,
         failures=failures,
     )
+    concurrency_checks = _validate_reserved_concurrency(
+        deploy_output=deploy_output,
+        failures=failures,
+    )
 
     for path in legacy_paths:
         result = _request(base_url + path)
@@ -537,6 +764,7 @@ def main() -> int:
         "cors_allowed_origins": cors_allowed_origins,
         "cors_origin": cors_origin,
         "checks": [asdict(check) for check in checks],
+        "concurrency_checks": [asdict(check) for check in concurrency_checks],
         "status": "failed" if failures else "passed",
         "failures": failures,
         "deploy_output_sha256": deploy_output_sha256,
