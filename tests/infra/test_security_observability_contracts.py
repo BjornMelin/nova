@@ -4,10 +4,18 @@
 
 from __future__ import annotations
 
+import pytest
+
 from .helpers import (
+    load_repo_package_module,
     resources_of_type,
     runtime_stack_context_for_region,
     runtime_stack_template_json,
+)
+
+_OBSERVABILITY_MODULE = load_repo_package_module(
+    "nova_cdk.observability",
+    "infra/nova_cdk/src",
 )
 
 
@@ -75,6 +83,15 @@ def test_runtime_stack_wires_alarm_actions_to_one_sns_topic() -> None:
 
     custom_resources = resources_of_type(resources, "Custom::AWS")
     assert not custom_resources
+
+
+def test_alarm_notification_email_parser_rejects_malformed_json() -> None:
+    """Malformed JSON email input should raise a user-facing TypeError."""
+    with pytest.raises(
+        TypeError,
+        match=(r"alarm_notification_emails JSON input is malformed\."),
+    ):
+        _OBSERVABILITY_MODULE._parse_alarm_notification_emails("[malformed")
 
 
 def test_runtime_stack_adds_alarm_topic_email_subscriptions() -> None:

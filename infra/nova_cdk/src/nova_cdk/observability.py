@@ -39,7 +39,12 @@ def _parse_alarm_notification_emails(raw: object | None) -> list[str]:
         if not value:
             return []
         if value.startswith("["):
-            parsed = json.loads(value)
+            try:
+                parsed = json.loads(value)
+            except json.JSONDecodeError as exc:
+                raise TypeError(
+                    "alarm_notification_emails JSON input is malformed."
+                ) from exc
             if not isinstance(parsed, list):
                 raise TypeError(
                     "alarm_notification_emails JSON input must decode "
