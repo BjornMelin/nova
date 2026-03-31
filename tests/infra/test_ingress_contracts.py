@@ -173,7 +173,12 @@ def test_runtime_stack_associates_regional_waf_to_api_stage() -> None:
         if rule["Name"] == "NovaWritePathRateLimitByIp"
     )
     assert write_rule["Statement"]["RateBasedStatement"]["Limit"] == 500
-    assert "RegexMatchStatement" in json.dumps(write_rule, sort_keys=True)
+    scope_down = write_rule["Statement"]["RateBasedStatement"][
+        "ScopeDownStatement"
+    ]
+    assert scope_down["RegexMatchStatement"]["RegexString"] == (
+        "^/v1/(exports($|/.*)|transfers/uploads($|/.*))"
+    )
 
     associations = _resources_of_type(
         resources,

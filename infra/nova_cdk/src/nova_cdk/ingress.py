@@ -17,7 +17,7 @@ from aws_cdk import (
 )
 from constructs import Construct
 
-from .observability import (
+from nova_cdk.observability import (
     build_api_access_log_format,
     create_api_access_log_group,
     create_waf_log_group,

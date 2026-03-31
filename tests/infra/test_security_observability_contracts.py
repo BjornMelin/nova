@@ -4,84 +4,24 @@
 
 from __future__ import annotations
 
-from typing import Any, cast
-
-from aws_cdk import App, Environment
-from aws_cdk.assertions import Template
-
-from .helpers import load_repo_package_module
-
-_RUNTIME_STACK_MODULE = load_repo_package_module(
-    "nova_cdk.runtime_stack",
-    "infra/nova_cdk/src",
+from .helpers import (
+    resources_of_type,
+    runtime_stack_context_for_region,
+    runtime_stack_template_json,
 )
-NovaRuntimeStack = _RUNTIME_STACK_MODULE.NovaRuntimeStack
-
-
-def _context_for_region(region: str) -> dict[str, str]:
-    """Return the minimum valid stack context for one region."""
-    return {
-        "api_domain_name": "api.dev.example.com",
-        "api_lambda_artifact_bucket": (
-            "nova-ci-artifacts-111111111111-us-east-1"
-        ),
-        "api_lambda_artifact_key": (
-            "runtime/nova-file-api/"
-            "01234567-89ab-cdef-0123-456789abcdef/"
-            "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef/"
-            "nova-file-api-lambda.zip"
-        ),
-        "api_lambda_artifact_sha256": (
-            "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
-        ),
-        "certificate_arn": (
-            f"arn:aws:acm:{region}:111111111111:"
-            "certificate/12345678-1234-1234-1234-123456789012"
-        ),
-        "hosted_zone_id": "Z1234567890EXAMPLE",
-        "hosted_zone_name": "example.com",
-        "jwt_audience": "api://nova",
-        "jwt_issuer": "https://issuer.example.com/",
-        "jwt_jwks_url": "https://issuer.example.com/.well-known/jwks.json",
-    }
-
-
-def _template_json(
-    *,
-    context: dict[str, str] | None = None,
-    region: str = "us-west-2",
-) -> dict[str, Any]:
-    """Return the synthesized template JSON for one stack context."""
-    app = App(context=context or _context_for_region(region))
-    stack = NovaRuntimeStack(
-        app,
-        "SecurityObservabilityContractStack",
-        env=Environment(account="111111111111", region=region),
-    )
-    return cast(dict[str, Any], Template.from_stack(stack).to_json())
-
-
-def _resources_of_type(
-    resources: dict[str, Any],
-    type_name: str,
-) -> dict[str, dict[str, Any]]:
-    """Return all template resources of one CloudFormation type."""
-    return {
-        logical_id: resource
-        for logical_id, resource in resources.items()
-        if resource["Type"] == type_name
-    }
 
 
 def test_runtime_stack_wires_alarm_actions_to_one_sns_topic() -> None:
     """Every runtime alarm should publish to the shared SNS alert topic."""
-    template_json = _template_json()
+    template_json = runtime_stack_template_json(
+        stack_name="SecurityObservabilityContractStack"
+    )
     resources = template_json["Resources"]
 
-    alarms = _resources_of_type(resources, "AWS::CloudWatch::Alarm")
+    alarms = resources_of_type(resources, "AWS::CloudWatch::Alarm")
 
     assert alarms
-    topics = _resources_of_type(resources, "AWS::SNS::Topic")
+    topics = resources_of_type(resources, "AWS::SNS::Topic")
     assert len(topics) == 1
     topic_logical_id = next(iter(topics))
     topic_output = template_json["Outputs"]["ExportNovaAlarmTopicArn"]["Value"]
@@ -95,7 +35,7 @@ def test_runtime_stack_wires_alarm_actions_to_one_sns_topic() -> None:
     assert "ExportNovaAlarmTopicArn" in outputs
     assert "ExportNovaApiAccessLogGroupName" in outputs
     assert "ExportNovaWafLogGroupName" in outputs
-    log_groups = _resources_of_type(resources, "Custom::LogRetention")
+    log_groups = resources_of_type(resources, "Custom::LogRetention")
     assert any(
         resource["Properties"].get("LogGroupName")
         == "/aws/apigateway/nova-rest-api-access-dev"
@@ -121,7 +61,7 @@ def test_runtime_stack_wires_alarm_actions_to_one_sns_topic() -> None:
         "nova-runtime-alarms-dev"
     )
 
-    topic_policies = _resources_of_type(resources, "AWS::SNS::TopicPolicy")
+    topic_policies = resources_of_type(resources, "AWS::SNS::TopicPolicy")
     assert len(topic_policies) == 1
     policy_document = next(iter(topic_policies.values()))["Properties"][
         "PolicyDocument"
@@ -133,21 +73,22 @@ def test_runtime_stack_wires_alarm_actions_to_one_sns_topic() -> None:
         for statement in statements
     )
 
-    custom_resources = _resources_of_type(resources, "Custom::AWS")
+    custom_resources = resources_of_type(resources, "Custom::AWS")
     assert not custom_resources
 
 
 def test_runtime_stack_adds_alarm_topic_email_subscriptions() -> None:
     """Alarm notification emails synthesize native SNS subscriptions."""
-    resources = _template_json(
+    resources = runtime_stack_template_json(
         context={
-            **_context_for_region("us-west-2"),
+            **runtime_stack_context_for_region("us-west-2"),
             "alarm_notification_emails": (
                 '["ops@example.com","dev@example.com"]'
             ),
-        }
+        },
+        stack_name="SecurityObservabilityContractStackWithEmail",
     )["Resources"]
-    subscriptions = _resources_of_type(resources, "AWS::SNS::Subscription")
+    subscriptions = resources_of_type(resources, "AWS::SNS::Subscription")
     assert len(subscriptions) == 2
     endpoints = {
         resource["Properties"]["Endpoint"]
@@ -161,8 +102,10 @@ def test_runtime_stack_adds_alarm_topic_email_subscriptions() -> None:
 
 def test_runtime_stack_filters_waf_logs_to_security_relevant_actions() -> None:
     """WAF logs: security-relevant actions; secrets redacted."""
-    resources = _template_json()["Resources"]
-    logging_configs = _resources_of_type(
+    resources = runtime_stack_template_json(
+        stack_name="SecurityObservabilityContractWafStack"
+    )["Resources"]
+    logging_configs = resources_of_type(
         resources,
         "AWS::WAFv2::LoggingConfiguration",
     )
@@ -182,12 +125,19 @@ def test_runtime_stack_filters_waf_logs_to_security_relevant_actions() -> None:
         }
     ]
 
-    log_groups = _resources_of_type(resources, "Custom::LogRetention")
+    log_groups = resources_of_type(resources, "Custom::LogRetention")
     api_access_log_group = next(
-        resource
-        for resource in log_groups.values()
-        if resource["Properties"]
-        .get("LogGroupName", "")
-        .startswith("/aws/apigateway/nova-rest-api-access-")
+        (
+            resource
+            for resource in log_groups.values()
+            if resource["Properties"]
+            .get("LogGroupName", "")
+            .startswith("/aws/apigateway/nova-rest-api-access-")
+        ),
+        None,
+    )
+    assert api_access_log_group is not None, (
+        "Expected API access log group with prefix "
+        "'/aws/apigateway/nova-rest-api-access-' not found"
     )
     assert api_access_log_group["Properties"]["RetentionInDays"] == 90

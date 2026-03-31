@@ -12,6 +12,8 @@ npx aws-cdk synth \
   -c account=111111111111 \
   -c region=us-west-2 \
   -c api_domain_name=api.dev.example.com \
+  -c hosted_zone_id=Z1234567890EXAMPLE \
+  -c hosted_zone_name=example.com \
   -c api_lambda_artifact_bucket=nova-ci-artifacts-111111111111-us-east-1 \
   -c api_lambda_artifact_key=runtime/nova-file-api/example/example/nova-file-api-lambda.zip \
   -c api_lambda_artifact_sha256=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef \
@@ -23,6 +25,8 @@ npx aws-cdk diff \
   -c account=111111111111 \
   -c region=us-west-2 \
   -c api_domain_name=api.dev.example.com \
+  -c hosted_zone_id=Z1234567890EXAMPLE \
+  -c hosted_zone_name=example.com \
   -c api_lambda_artifact_bucket=nova-ci-artifacts-111111111111-us-east-1 \
   -c api_lambda_artifact_key=runtime/nova-file-api/example/example/nova-file-api-lambda.zip \
   -c api_lambda_artifact_sha256=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef \
@@ -34,6 +38,8 @@ npx aws-cdk deploy \
   -c account=111111111111 \
   -c region=us-west-2 \
   -c api_domain_name=api.dev.example.com \
+  -c hosted_zone_id=Z1234567890EXAMPLE \
+  -c hosted_zone_name=example.com \
   -c api_lambda_artifact_bucket=nova-ci-artifacts-111111111111-us-east-1 \
   -c api_lambda_artifact_key=runtime/nova-file-api/example/example/nova-file-api-lambda.zip \
   -c api_lambda_artifact_sha256=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef \

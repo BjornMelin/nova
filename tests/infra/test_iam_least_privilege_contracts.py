@@ -7,71 +7,10 @@ from __future__ import annotations
 import json
 from typing import Any, cast
 
-from aws_cdk import App, Environment
-from aws_cdk.assertions import Template
-
-from .helpers import load_repo_package_module
-
-_RUNTIME_STACK_MODULE = load_repo_package_module(
-    "nova_cdk.runtime_stack",
-    "infra/nova_cdk/src",
+from .helpers import (
+    resources_of_type,
+    runtime_stack_template_json,
 )
-NovaRuntimeStack = _RUNTIME_STACK_MODULE.NovaRuntimeStack
-
-
-def _context_for_region(region: str) -> dict[str, str]:
-    """Return the minimum valid stack context for one region."""
-    return {
-        "api_domain_name": "api.dev.example.com",
-        "api_lambda_artifact_bucket": (
-            "nova-ci-artifacts-111111111111-us-east-1"
-        ),
-        "api_lambda_artifact_key": (
-            "runtime/nova-file-api/"
-            "01234567-89ab-cdef-0123-456789abcdef/"
-            "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef/"
-            "nova-file-api-lambda.zip"
-        ),
-        "api_lambda_artifact_sha256": (
-            "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
-        ),
-        "certificate_arn": (
-            f"arn:aws:acm:{region}:111111111111:"
-            "certificate/12345678-1234-1234-1234-123456789012"
-        ),
-        "hosted_zone_id": "Z1234567890EXAMPLE",
-        "hosted_zone_name": "example.com",
-        "jwt_audience": "api://nova",
-        "jwt_issuer": "https://issuer.example.com/",
-        "jwt_jwks_url": "https://issuer.example.com/.well-known/jwks.json",
-    }
-
-
-def _template_json(
-    *,
-    context: dict[str, str] | None = None,
-    region: str = "us-west-2",
-) -> dict[str, Any]:
-    """Return the synthesized template JSON for one stack context."""
-    app = App(context=context or _context_for_region(region))
-    stack = NovaRuntimeStack(
-        app,
-        "IamContractStack",
-        env=Environment(account="111111111111", region=region),
-    )
-    return cast(dict[str, Any], Template.from_stack(stack).to_json())
-
-
-def _resources_of_type(
-    resources: dict[str, Any],
-    type_name: str,
-) -> dict[str, dict[str, Any]]:
-    """Return all template resources of one CloudFormation type."""
-    return {
-        logical_id: resource
-        for logical_id, resource in resources.items()
-        if resource["Type"] == type_name
-    }
 
 
 def _policy_document_for_prefix(
@@ -80,14 +19,17 @@ def _policy_document_for_prefix(
     prefix: str,
 ) -> dict[str, Any]:
     """Return the inline policy document for one logical-id prefix."""
-    policies = _resources_of_type(resources, "AWS::IAM::Policy")
-    logical_id, resource = next(
-        (logical_id, resource)
-        for logical_id, resource in policies.items()
-        if logical_id.startswith(prefix)
+    policies = resources_of_type(resources, "AWS::IAM::Policy")
+    match = next(
+        (
+            resource
+            for logical_id, resource in policies.items()
+            if logical_id.startswith(prefix)
+        ),
+        None,
     )
-    del logical_id
-    return cast(dict[str, Any], resource["Properties"]["PolicyDocument"])
+    assert match is not None, f"No policy found with prefix '{prefix}'"
+    return cast(dict[str, Any], match["Properties"]["PolicyDocument"])
 
 
 def _all_actions(policy_document: dict[str, Any]) -> set[str]:
@@ -104,7 +46,9 @@ def _all_actions(policy_document: dict[str, Any]) -> set[str]:
 
 def test_status_only_workflow_roles_do_not_keep_s3_or_activity_access() -> None:
     """Validate/finalize/fail roles: DynamoDB export status only."""
-    resources = _template_json()["Resources"]
+    resources = runtime_stack_template_json(stack_name="IamContractStack")[
+        "Resources"
+    ]
     allowed_actions = {
         "dynamodb:DescribeTable",
         "dynamodb:GetItem",
@@ -129,7 +73,9 @@ def test_status_only_workflow_roles_do_not_keep_s3_or_activity_access() -> None:
 
 def test_copy_workflow_role_is_scoped_to_upload_and_export_prefixes() -> None:
     """Copy role: narrow S3 prefixes only; no activity table."""
-    resources = _template_json()["Resources"]
+    resources = runtime_stack_template_json(stack_name="IamContractStackCopy")[
+        "Resources"
+    ]
     policy_document = _policy_document_for_prefix(
         resources,
         prefix="CopyExportFunctionServiceRoleDefaultPolicy",
@@ -147,8 +93,10 @@ def test_copy_workflow_role_is_scoped_to_upload_and_export_prefixes() -> None:
 
 def test_workflow_lambdas_drop_unused_activity_env() -> None:
     """Workflow task Lambdas should not carry unused activity-store settings."""
-    resources = _template_json()["Resources"]
-    functions = _resources_of_type(resources, "AWS::Lambda::Function")
+    resources = runtime_stack_template_json(
+        stack_name="IamContractStackWorkflowEnv"
+    )["Resources"]
+    functions = resources_of_type(resources, "AWS::Lambda::Function")
     workflow_functions = [
         resource["Properties"]
         for logical_id, resource in functions.items()

@@ -29,7 +29,15 @@ def grant_export_status_permissions(
     *,
     export_table: dynamodb.ITable,
 ) -> None:
-    """Grant the minimum DynamoDB access needed for export status updates."""
+    """Grant DynamoDB permissions required for export status writes.
+
+    Args:
+        function: Lambda function receiving the inline policy statement.
+        export_table: DynamoDB table that stores export status records.
+
+    Returns:
+        None.
+    """
     function.add_to_role_policy(
         iam.PolicyStatement(
             actions=_EXPORT_STATUS_ACTIONS,
@@ -46,7 +54,18 @@ def grant_copy_export_permissions(
     upload_prefix: str,
     export_prefix: str,
 ) -> None:
-    """Grant only the export-table and S3 object access needed by copy tasks."""
+    """Grant DynamoDB and S3 object permissions required by copy tasks.
+
+    Args:
+        function: Lambda function receiving the inline policy statements.
+        export_table: DynamoDB table that stores export status records.
+        file_bucket: S3 bucket containing upload and export object prefixes.
+        upload_prefix: Prefix from which copy tasks read source objects.
+        export_prefix: Prefix to which copy tasks write exported objects.
+
+    Returns:
+        None.
+    """
     grant_export_status_permissions(function, export_table=export_table)
     function.add_to_role_policy(
         iam.PolicyStatement(
