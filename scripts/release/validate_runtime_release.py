@@ -60,6 +60,7 @@ _CORS_ALLOWED_HEADERS = {
     "idempotency-key",
 }
 _STANDARD_LAMBDA_ACCOUNT_CONCURRENCY = 1000
+_AWS_CLI_TIMEOUT_SECONDS = 30
 _PRODUCTION_ENVIRONMENTS = {"prod", "production"}
 _API_RESERVED_CONCURRENCY_DEFAULTS = {True: 25, False: 5}
 _WORKFLOW_RESERVED_CONCURRENCY_DEFAULTS = {True: 10, False: 2}
@@ -110,12 +111,25 @@ class RequestResult:
 
 def _aws_cli_json(*args: str) -> Any:
     """Run one AWS CLI command and return its JSON payload."""
-    result = subprocess.run(
-        ["aws", *args],
-        check=False,
-        capture_output=True,
-        text=True,
-    )
+    command = ["aws", "--no-cli-pager"]
+    if "--output" not in args:
+        command.extend(["--output", "json"])
+    command.extend(args)
+    try:
+        result = subprocess.run(  # noqa: S603 - fixed argv, no shell
+            command,
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=_AWS_CLI_TIMEOUT_SECONDS,
+        )
+    except FileNotFoundError as exc:
+        raise RuntimeError("aws CLI is not installed or not on PATH") from exc
+    except subprocess.TimeoutExpired as exc:
+        raise RuntimeError(
+            "aws CLI command timed out after "
+            f"{_AWS_CLI_TIMEOUT_SECONDS} seconds: aws {' '.join(args)}"
+        ) from exc
     if result.returncode != 0:
         stderr = result.stderr.strip()
         raise RuntimeError(
@@ -733,10 +747,14 @@ def main() -> int:
         checks=checks,
         failures=failures,
     )
-    concurrency_checks = _validate_reserved_concurrency(
-        deploy_output=deploy_output,
-        failures=failures,
-    )
+    try:
+        concurrency_checks = _validate_reserved_concurrency(
+            deploy_output=deploy_output,
+            failures=failures,
+        )
+    except Exception as exc:
+        failures.append(f"reserved concurrency validation failed: {exc!r}")
+        concurrency_checks = []
 
     for path in legacy_paths:
         result = _request(base_url + path)

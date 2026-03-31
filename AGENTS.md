@@ -71,7 +71,7 @@ Treat these as traceability only:
   - `uv run pytest -q -m generated_smoke`
 - Treat the split pytest lanes above as the canonical verification shape for this repo. Do not replace them with a single `uv run pytest -q` command in docs, prompts, or checklists unless the repo explicitly re-standardizes on a monolithic lane.
 - Use the repo-native CDK entrypoint:
-  - `npx aws-cdk@2.1107.0 synth --app "uv run --package nova-cdk python infra/nova_cdk/app.py" ...`
+  - `npx aws-cdk@2.1107.0 synth --app "uv run --package nova-cdk python infra/nova_cdk/app.py" …`
 - CDK synth/diff/deploy must include the full required runtime stack inputs, not just account/region/JWT/domain/cert. Always provide:
   - `hosted_zone_id`
   - `hosted_zone_name`

@@ -63,7 +63,7 @@ tracked repo-native commands:
 - `uv run pytest -q -m runtime_gate`
 - `uv run pytest -q -m "not runtime_gate and not generated_smoke"`
 - `uv run pytest -q -m generated_smoke`
-- `npx aws-cdk@2.1107.0 synth --app "uv run --package nova-cdk python infra/nova_cdk/app.py" ...`
+- `npx aws-cdk@2.1107.0 synth --app "uv run --package nova-cdk python infra/nova_cdk/app.py" …`
 
 Do not treat a monolithic `uv run pytest -q` invocation or the legacy
 package-scoped CDK synth entrypoint as the canonical Nova verification shape.

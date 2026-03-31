@@ -177,7 +177,7 @@ ignore = ["D203", "D213", "S101", "TRY301", "TRY003"]
 "scripts/release/generate_clients.py" = ["S603"]
 "scripts/release/generate_python_clients.py" = ["S603"]
 "scripts/release/tests/test_download_run_artifact.py" = ["S106"]
-"scripts/release/validate_runtime_release.py" = ["S310", "S603", "S607"]
+"scripts/release/validate_runtime_release.py" = ["S310"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"

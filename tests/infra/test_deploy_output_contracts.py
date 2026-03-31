@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import subprocess
 from argparse import Namespace
 from datetime import datetime
 from pathlib import Path
@@ -499,16 +500,16 @@ def test_validate_runtime_release_binds_report_to_deploy_output(
                 function_group="api",
                 function_logical_id="NovaApiFunctionF531316A",
                 function_name="nova-api",
-                expected_reserved_concurrency=5,
-                actual_reserved_concurrency=5,
+                expected_reserved_concurrency=25,
+                actual_reserved_concurrency=25,
                 ok=True,
             ),
             _VALIDATOR.ConcurrencyCheck(
                 function_group="workflow",
                 function_logical_id="ValidateExportFunctionE0F66E1E",
                 function_name="validate-export",
-                expected_reserved_concurrency=2,
-                actual_reserved_concurrency=2,
+                expected_reserved_concurrency=10,
+                actual_reserved_concurrency=10,
                 ok=True,
             ),
         ],
@@ -550,16 +551,16 @@ def test_validate_runtime_release_binds_report_to_deploy_output(
             "function_group": "api",
             "function_logical_id": "NovaApiFunctionF531316A",
             "function_name": "nova-api",
-            "expected_reserved_concurrency": 5,
-            "actual_reserved_concurrency": 5,
+            "expected_reserved_concurrency": 25,
+            "actual_reserved_concurrency": 25,
             "ok": True,
         },
         {
             "function_group": "workflow",
             "function_logical_id": "ValidateExportFunctionE0F66E1E",
             "function_name": "validate-export",
-            "expected_reserved_concurrency": 2,
-            "actual_reserved_concurrency": 2,
+            "expected_reserved_concurrency": 10,
+            "actual_reserved_concurrency": 10,
             "ok": True,
         },
     ]
@@ -704,7 +705,7 @@ def test_validate_runtime_release_keeps_failed_report_schema_valid(
                 function_group="api",
                 function_logical_id="NovaApiFunctionF531316A",
                 function_name="nova-api",
-                expected_reserved_concurrency=5,
+                expected_reserved_concurrency=25,
                 actual_reserved_concurrency=None,
                 ok=False,
             )
@@ -745,8 +746,216 @@ def test_validate_runtime_release_keeps_failed_report_schema_valid(
             "function_group": "api",
             "function_logical_id": "NovaApiFunctionF531316A",
             "function_name": "nova-api",
-            "expected_reserved_concurrency": 5,
+            "expected_reserved_concurrency": 25,
             "actual_reserved_concurrency": None,
             "ok": False,
         }
     ]
+
+
+def test_aws_cli_json_forces_json_output_and_timeout(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """AWS CLI wrapper should force JSON output and a bounded timeout."""
+
+    def fake_run(
+        command: list[str],
+        *,
+        check: bool,
+        capture_output: bool,
+        text: bool,
+        timeout: int,
+    ) -> Any:
+        assert command[:5] == [
+            "aws",
+            "--no-cli-pager",
+            "--output",
+            "json",
+            "lambda",
+        ]
+        assert check is False
+        assert capture_output is True
+        assert text is True
+        assert timeout == _VALIDATOR._AWS_CLI_TIMEOUT_SECONDS
+
+        class Result:
+            returncode = 0
+            stdout = '{"ReservedConcurrentExecutions": 0}'
+            stderr = ""
+
+        return Result()
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    assert _VALIDATOR._aws_cli_json(
+        "lambda",
+        "get-function-concurrency",
+        "--function-name",
+        "nova-api",
+    ) == {"ReservedConcurrentExecutions": 0}
+
+
+def test_validate_runtime_release_emits_report_when_concurrency_lookup_raises(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Concurrency lookup errors should not suppress the report artifact."""
+    payload = {
+        "schema_version": "2.0",
+        "captured_at": "2026-03-29T00:00:00+00:00",
+        "repository": "BjornMelin/nova",
+        "deploy_run_id": 123,
+        "deploy_run_attempt": 1,
+        "deploy_workflow_ref": (
+            "BjornMelin/nova/.github/workflows/deploy-runtime.yml@refs/heads/main"
+        ),
+        "stack_name": "NovaRuntimeStack",
+        "region": "us-east-1",
+        "environment": "prod",
+        "runtime_name": "nova-file-api",
+        "runtime_version": "0.5.0",
+        "release_commit_sha": "b" * 40,
+        "public_base_url": "https://api.example.com",
+        "execute_api_endpoint": (
+            "https://example.execute-api.us-east-1.amazonaws.com/dev"
+        ),
+        "cors_allowed_origins": ["https://app.example.com"],
+        "stack_outputs": {
+            "NovaPublicBaseUrl": "https://api.example.com",
+            "NovaRestApiEndpoint": (
+                "https://example.execute-api.us-east-1.amazonaws.com/dev"
+            ),
+        },
+        "api_lambda_artifact": {
+            "artifact_bucket": "nova-artifacts",
+            "artifact_key": (
+                "runtime/nova-file-api/abc/def/nova-file-api-lambda.zip"
+            ),
+            "artifact_sha256": "2" * 64,
+            "package_name": "nova-file-api",
+            "package_version": "0.5.0",
+            "release_commit_sha": "b" * 40,
+        },
+    }
+    deploy_output_path = tmp_path / "deploy-output.json"
+    deploy_output_path.write_text(
+        json.dumps(payload, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    sha256_path = tmp_path / "deploy-output.sha256"
+    sha256_path.write_text(
+        f"{_canonical_sha256(payload)}  {deploy_output_path.name}\n",
+        encoding="utf-8",
+    )
+    report_path = tmp_path / "validation-report.json"
+
+    def fake_request(
+        url: str,
+        *,
+        method: str = "GET",
+        headers: dict[str, str] | None = None,
+        body: bytes | None = None,
+    ) -> Any:
+        del body
+        if url.startswith("https://example.execute-api.") and url.endswith(
+            "/v1/releases/info"
+        ):
+            return _VALIDATOR.RequestResult(
+                status_code=403,
+                headers={},
+                body=b"{}",
+                error=None,
+            )
+        if url.endswith("/v1/releases/info"):
+            return _VALIDATOR.RequestResult(
+                status_code=200,
+                headers={},
+                body=json.dumps(
+                    {
+                        "name": "nova-file-api",
+                        "version": "0.5.0",
+                        "environment": "prod",
+                    }
+                ).encode("utf-8"),
+                error=None,
+            )
+        if method == "OPTIONS" and url.endswith("/v1/exports"):
+            return _VALIDATOR.RequestResult(
+                status_code=200,
+                headers={
+                    "access-control-allow-origin": (headers or {}).get(
+                        "Origin", ""
+                    ),
+                    "access-control-allow-methods": "GET, POST, OPTIONS",
+                    "access-control-allow-headers": (
+                        "Authorization, Content-Type, Idempotency-Key"
+                    ),
+                },
+                body=b"OK",
+                error=None,
+            )
+        if url.endswith("/v1/exports"):
+            return _VALIDATOR.RequestResult(
+                status_code=401,
+                headers={
+                    "access-control-allow-origin": (headers or {}).get(
+                        "Origin", ""
+                    )
+                },
+                body=b"{}",
+                error=None,
+            )
+        if url.endswith("/healthz") or url.endswith("/readyz"):
+            return _VALIDATOR.RequestResult(
+                status_code=404,
+                headers={},
+                body=b"{}",
+                error=None,
+            )
+        return _VALIDATOR.RequestResult(
+            status_code=200,
+            headers={},
+            body=b"{}",
+            error=None,
+        )
+
+    monkeypatch.setattr(_VALIDATOR, "_request", fake_request)
+    monkeypatch.setattr(
+        _VALIDATOR,
+        "_validate_reserved_concurrency",
+        lambda *, deploy_output, failures: (_ for _ in ()).throw(
+            RuntimeError("boom")
+        ),
+    )
+    monkeypatch.setattr(
+        _VALIDATOR,
+        "_args",
+        lambda: Namespace(
+            deploy_output_path=str(deploy_output_path),
+            deploy_output_sha256_path=str(sha256_path),
+            canonical_paths=(
+                "/v1/health/live,/v1/health/ready,"
+                "/v1/capabilities,/v1/releases/info"
+            ),
+            protected_paths="POST /v1/exports",
+            legacy_404_paths="/healthz,/readyz",
+            cors_preflight_path="/v1/exports",
+            cors_origin="",
+            report_path=str(report_path),
+        ),
+    )
+
+    with pytest.raises(SystemExit, match="Validation failed:"):
+        _VALIDATOR.main()
+
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    _validate_schema(
+        report,
+        _VALIDATOR.load_report_schema(),
+        defs=_VALIDATOR.REPORT_SCHEMA["$defs"],
+    )
+    assert report["concurrency_checks"] == []
+    assert any(
+        "reserved concurrency validation failed" in failure
+        for failure in report["failures"]
+    )
