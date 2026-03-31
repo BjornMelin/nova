@@ -57,7 +57,10 @@ def test_reusable_deploy_runtime_uses_immutable_release_inputs() -> None:
         "scripts.release.download_run_artifact",
         "emit_api_lambda_artifact_env.py",
         "aws sts get-caller-identity",
+        "aws lambda get-account-settings",
         "aws cloudformation describe-stacks",
+        "Determine reserved concurrency mode",
+        "ENABLE_RESERVED_CONCURRENCY",
         "npx aws-cdk@2.1107.0 deploy",
         "resolve_deploy_output.py build",
         "resolve_deploy_output.py emit",
@@ -87,6 +90,9 @@ def test_reusable_deploy_runtime_uses_immutable_release_inputs() -> None:
 
     download_index = text.index("Download immutable release-apply artifacts")
     checkout_index = text.index("Checkout immutable release commit")
+    reserved_concurrency_mode_index = text.index(
+        "Determine reserved concurrency mode"
+    )
     deploy_index = text.index("Deploy runtime stack with CDK")
     output_index = text.index("Build deploy-output authority artifact")
     upload_index = text.index("Upload deploy-output authority artifact")
@@ -94,6 +100,7 @@ def test_reusable_deploy_runtime_uses_immutable_release_inputs() -> None:
     assert (
         download_index
         < checkout_index
+        < reserved_concurrency_mode_index
         < deploy_index
         < output_index
         < upload_index

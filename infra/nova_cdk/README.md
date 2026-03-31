@@ -104,16 +104,24 @@ eval "$(uv run python scripts/release/emit_api_lambda_artifact_env.py \
   runtime version, `NovaPublicBaseUrl`, stack name, region, and stack outputs
   for incident response and revalidation.
 - Optional ingress safeguard overrides:
+  `enable_reserved_concurrency`,
   `api_reserved_concurrency`,
   `workflow_reserved_concurrency`,
   `api_stage_throttling_rate_limit`,
   `api_stage_throttling_burst_limit`,
   `waf_rate_limit`,
   and `waf_write_rate_limit`.
-- Reserved concurrency defaults are intentionally bounded: the API Lambda uses
-  `5` outside prod and `25` in prod, and each workflow task Lambda uses `2`
-  outside prod and `10` in prod unless the corresponding context/env override
-  is set explicitly.
+- Reserved concurrency defaults are intentionally bounded when enabled: the API
+  Lambda uses `5` outside prod and `25` in prod, and each workflow task Lambda
+  uses `2` outside prod and `10` in prod unless the corresponding context/env
+  override is set explicitly.
+- `enable_reserved_concurrency` / `ENABLE_RESERVED_CONCURRENCY` defaults to
+  `true`. Production deploys fail closed if it is set to `false`.
+- The canonical `Deploy Runtime` workflow auto-disables reserved concurrency
+  only for non-prod accounts that still use a reduced Lambda regional quota
+  profile. Manual low-quota non-prod deploys should set
+  `ENABLE_RESERVED_CONCURRENCY=false` explicitly before running
+  `npx aws-cdk deploy`.
 - The transfer bucket aborts incomplete multipart uploads after 7 days and
   expires transient `tmp/` objects after 3 days. Durable `exports/` objects
   are retained.

@@ -27,6 +27,11 @@ from aws_cdk import (
 )
 from constructs import Construct
 
+from .concurrency import (
+    default_api_reserved_concurrency,
+    default_workflow_reserved_concurrency,
+    is_production_environment,
+)
 from .iam import (
     grant_copy_export_permissions,
     grant_export_status_permissions,
@@ -129,23 +134,63 @@ def _sha256_context_or_env_value(
 
 def _stage_name_for_environment(deployment_environment: str) -> str:
     """Normalize environment values into a stable API Gateway stage name."""
-    if deployment_environment in {"prod", "production"}:
+    if is_production_environment(deployment_environment):
         return "prod"
     return deployment_environment
 
 
-def _default_api_reserved_concurrency(deployment_environment: str) -> int:
-    """Return a safe default reserved concurrency for one environment."""
-    if deployment_environment in {"prod", "production"}:
-        return 25
-    return 5
+def _optional_context_or_env_value(
+    scope: Construct,
+    *,
+    env_var: str,
+    key: str,
+) -> object | None:
+    """Return one optional context or environment value."""
+    raw: object | None = scope.node.try_get_context(key)
+    if raw is None:
+        raw = os.environ.get(env_var)
+    return raw
 
 
-def _default_workflow_reserved_concurrency(deployment_environment: str) -> int:
-    """Return a safe default reserved concurrency for workflow task Lambdas."""
-    if deployment_environment in {"prod", "production"}:
-        return 10
-    return 2
+def _parse_bool_flag(
+    raw: object,
+    *,
+    key: str,
+) -> bool:
+    """Return one normalized boolean flag value."""
+    if isinstance(raw, bool):
+        return raw
+    if isinstance(raw, str):
+        value = raw.strip().lower()
+        if value in {"1", "true", "yes", "on"}:
+            return True
+        if value in {"0", "false", "no", "off"}:
+            return False
+    raise ValueError(f"{key} must be a boolean value.")
+
+
+def _reserved_concurrency_enabled(
+    scope: Construct,
+    *,
+    deployment_environment: str,
+) -> bool:
+    """Return whether Lambda reserved concurrency should be configured."""
+    raw = _optional_context_or_env_value(
+        scope,
+        env_var="ENABLE_RESERVED_CONCURRENCY",
+        key="enable_reserved_concurrency",
+    )
+    enabled = (
+        True
+        if raw is None
+        else _parse_bool_flag(raw, key="enable_reserved_concurrency")
+    )
+    if is_production_environment(deployment_environment) and not enabled:
+        raise ValueError(
+            "enable_reserved_concurrency cannot be false for production "
+            "deployments."
+        )
+    return enabled
 
 
 def _reserved_concurrency_context_or_env_value(
@@ -165,6 +210,21 @@ def _reserved_concurrency_context_or_env_value(
     if value < 1:
         raise ValueError(f"{key} must be >= 1.")
     return value
+
+
+def _reserved_concurrency_override_present(
+    scope: Construct,
+    *,
+    env_var: str,
+    key: str,
+) -> bool:
+    """Return whether one explicit reserved-concurrency override is set."""
+    raw = _optional_context_or_env_value(
+        scope,
+        env_var=env_var,
+        key=key,
+    )
+    return not (raw is None or (isinstance(raw, str) and not raw.strip()))
 
 
 def _point_in_time_recovery() -> dynamodb.PointInTimeRecoverySpecification:
@@ -193,12 +253,13 @@ class RuntimeStackInputs:
     """Carry canonical runtime inputs resolved from context and environment."""
 
     allowed_origins: list[str]
-    api_reserved_concurrency: int
+    api_reserved_concurrency: int | None
     api_stage_throttling_burst_limit: int
     api_stage_throttling_rate_limit: float
     api_domain_name: str
     certificate_arn: str
     deployment_environment: str
+    enable_reserved_concurrency: bool
     hosted_zone_id: str
     hosted_zone_name: str
     oidc_audience: str
@@ -206,7 +267,7 @@ class RuntimeStackInputs:
     oidc_jwks_url: str
     waf_rate_limit: int
     waf_write_rate_limit: int
-    workflow_reserved_concurrency: int
+    workflow_reserved_concurrency: int | None
 
     @classmethod
     def from_scope(cls, scope: Construct) -> RuntimeStackInputs:
@@ -225,21 +286,45 @@ class RuntimeStackInputs:
             or os.environ.get("STACK_ALLOWED_ORIGINS")
         )
         if not allowed_origins:
-            if deployment_environment in {"prod", "production"}:
+            if is_production_environment(deployment_environment):
                 raise ValueError(
                     "allowed_origins must be configured for production "
                     "deployments."
                 )
             allowed_origins = ["*"]
-        return cls(
-            allowed_origins=allowed_origins,
-            api_reserved_concurrency=_reserved_concurrency_context_or_env_value(
+        enable_reserved_concurrency = _reserved_concurrency_enabled(
+            scope,
+            deployment_environment=deployment_environment,
+        )
+        if not enable_reserved_concurrency and (
+            _reserved_concurrency_override_present(
                 scope,
                 env_var="API_RESERVED_CONCURRENCY",
                 key="api_reserved_concurrency",
-                default=_default_api_reserved_concurrency(
-                    deployment_environment
-                ),
+            )
+            or _reserved_concurrency_override_present(
+                scope,
+                env_var="WORKFLOW_RESERVED_CONCURRENCY",
+                key="workflow_reserved_concurrency",
+            )
+        ):
+            raise ValueError(
+                "Reserved concurrency overrides cannot be set when "
+                "enable_reserved_concurrency is false."
+            )
+        return cls(
+            allowed_origins=allowed_origins,
+            api_reserved_concurrency=(
+                _reserved_concurrency_context_or_env_value(
+                    scope,
+                    env_var="API_RESERVED_CONCURRENCY",
+                    key="api_reserved_concurrency",
+                    default=default_api_reserved_concurrency(
+                        deployment_environment
+                    ),
+                )
+                if enable_reserved_concurrency
+                else None
             ),
             api_stage_throttling_burst_limit=int(
                 _numeric_context_or_env_value(
@@ -269,6 +354,7 @@ class RuntimeStackInputs:
                 key="certificate_arn",
             ),
             deployment_environment=deployment_environment,
+            enable_reserved_concurrency=enable_reserved_concurrency,
             hosted_zone_id=_required_context_or_env_value(
                 scope,
                 env_var="HOSTED_ZONE_ID",
@@ -317,10 +403,12 @@ class RuntimeStackInputs:
                     scope,
                     env_var="WORKFLOW_RESERVED_CONCURRENCY",
                     key="workflow_reserved_concurrency",
-                    default=_default_workflow_reserved_concurrency(
+                    default=default_workflow_reserved_concurrency(
                         deployment_environment
                     ),
                 )
+                if enable_reserved_concurrency
+                else None
             ),
         )
 
@@ -454,11 +542,12 @@ class NovaRuntimeStack(Stack):
             "architecture": lambda_.Architecture.ARM_64,
             "timeout": Duration.minutes(5),
             "memory_size": 1024,
-            "reserved_concurrent_executions": (
-                inputs.workflow_reserved_concurrency
-            ),
             "tracing": lambda_.Tracing.ACTIVE,
         }
+        if inputs.workflow_reserved_concurrency is not None:
+            workflow_fn_props["reserved_concurrent_executions"] = (
+                inputs.workflow_reserved_concurrency
+            )
 
         validate_fn = lambda_.DockerImageFunction(
             self,

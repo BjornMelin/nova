@@ -152,7 +152,14 @@ def test_workflow_lambdas_drop_unused_activity_env() -> None:
     workflow_functions = [
         resource["Properties"]
         for logical_id, resource in functions.items()
-        if logical_id != "NovaApiFunctionF531316A"
+        if logical_id.startswith(
+            (
+                "ValidateExportFunction",
+                "CopyExportFunction",
+                "FinalizeExportFunction",
+                "FailExportFunction",
+            )
+        )
     ]
     assert workflow_functions
     for props in workflow_functions:

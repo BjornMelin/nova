@@ -215,9 +215,10 @@ def test_runtime_stack_enables_waf_cloudwatch_logging() -> None:
     assert redacted_headers == {"authorization", "cookie"}
     assert logging_props["LoggingFilter"]["DefaultBehavior"] == "DROP"
     assert len(logging_props["LogDestinationConfigs"]) == 1
-    assert "Fn::GetAtt" in logging_props["LogDestinationConfigs"][0]
+    destination = logging_props["LogDestinationConfigs"][0]
+    assert "Fn::GetAtt" in destination or "Fn::Join" in destination
 
-    log_groups = _resources_of_type(resources, "AWS::Logs::LogGroup")
+    log_groups = _resources_of_type(resources, "Custom::LogRetention")
     waf_log_group = next(
         resource
         for resource in log_groups.values()

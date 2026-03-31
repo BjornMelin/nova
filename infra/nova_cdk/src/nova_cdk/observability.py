@@ -7,20 +7,29 @@ from __future__ import annotations
 import json
 import os
 from collections.abc import Sequence
+from dataclasses import dataclass
 
 from aws_cdk import (
-    RemovalPolicy,
+    Aws,
     aws_apigateway as apigw,
     aws_cloudwatch as cloudwatch,
     aws_cloudwatch_actions as cloudwatch_actions,
     aws_iam as iam,
     aws_logs as logs,
     aws_sns as sns,
-    aws_sns_subscriptions as sns_subscriptions,
+    custom_resources as custom_resources,
 )
 from constructs import Construct
 
 _SECURITY_LOG_RETENTION = logs.RetentionDays.THREE_MONTHS
+
+
+@dataclass(frozen=True)
+class NamedLogGroup:
+    """Describe one named log group ensured via CDK retention management."""
+
+    dependency: logs.LogRetention
+    log_group: logs.ILogGroup
 
 
 def _parse_alarm_notification_emails(raw: object | None) -> list[str]:
@@ -86,20 +95,56 @@ def create_alarm_topic(
     scope: Construct,
     *,
     deployment_environment: str,
-) -> sns.Topic:
-    """Create the canonical SNS topic used by runtime alarms."""
-    topic = sns.Topic(
+) -> sns.ITopic:
+    """Ensure the canonical SNS topic used by runtime alarms exists."""
+    topic_name = f"nova-runtime-alarms-{deployment_environment}"
+    topic_arn = (
+        f"arn:{Aws.PARTITION}:sns:{Aws.REGION}:{Aws.ACCOUNT_ID}:{topic_name}"
+    )
+    custom_resources.AwsCustomResource(
+        scope,
+        "NovaAlarmTopicEnsure",
+        on_create=custom_resources.AwsSdkCall(
+            service="SNS",
+            action="createTopic",
+            parameters={"Name": topic_name},
+            physical_resource_id=custom_resources.PhysicalResourceId.of(
+                topic_name
+            ),
+        ),
+        on_update=custom_resources.AwsSdkCall(
+            service="SNS",
+            action="createTopic",
+            parameters={"Name": topic_name},
+            physical_resource_id=custom_resources.PhysicalResourceId.of(
+                topic_name
+            ),
+        ),
+        policy=custom_resources.AwsCustomResourcePolicy.from_sdk_calls(
+            resources=custom_resources.AwsCustomResourcePolicy.ANY_RESOURCE
+        ),
+        install_latest_aws_sdk=False,
+    )
+    topic = sns.Topic.from_topic_arn(
         scope,
         "NovaAlarmTopic",
-        display_name=f"Nova runtime alarms ({deployment_environment})",
-        topic_name=f"nova-runtime-alarms-{deployment_environment}",
+        topic_arn=topic_arn,
     )
-    for email in _alarm_notification_emails(scope):
-        topic.add_subscription(
-            sns_subscriptions.EmailSubscription(email_address=email)
+    for index, email in enumerate(_alarm_notification_emails(scope), start=1):
+        sns.Subscription(
+            scope,
+            f"NovaAlarmTopicEmailSubscription{index}",
+            endpoint=email,
+            protocol=sns.SubscriptionProtocol.EMAIL,
+            topic=topic,
         )
-    topic.apply_removal_policy(RemovalPolicy.RETAIN)
-    topic.grant_publish(iam.ServicePrincipal("cloudwatch.amazonaws.com"))
+    topic.add_to_resource_policy(
+        iam.PolicyStatement(
+            actions=["sns:Publish"],
+            principals=[iam.ServicePrincipal("cloudwatch.amazonaws.com")],
+            resources=[topic.topic_arn],
+        )
+    )
     return topic
 
 
@@ -107,14 +152,22 @@ def create_api_access_log_group(
     scope: Construct,
     *,
     stage_name: str,
-) -> logs.LogGroup:
-    """Create the retained API Gateway access-log group."""
-    return logs.LogGroup(
+) -> NamedLogGroup:
+    """Ensure the named API Gateway access-log group exists with retention."""
+    log_group_name = f"/aws/apigateway/nova-rest-api-access-{stage_name}"
+    retention = logs.LogRetention(
         scope,
-        "NovaApiAccessLogs",
-        log_group_name=f"/aws/apigateway/nova-rest-api-access-{stage_name}",
+        "NovaApiAccessLogsRetention",
+        log_group_name=log_group_name,
         retention=_SECURITY_LOG_RETENTION,
-        removal_policy=RemovalPolicy.RETAIN,
+    )
+    return NamedLogGroup(
+        dependency=retention,
+        log_group=logs.LogGroup.from_log_group_name(
+            scope,
+            "NovaApiAccessLogs",
+            log_group_name,
+        ),
     )
 
 
@@ -122,14 +175,22 @@ def create_waf_log_group(
     scope: Construct,
     *,
     stage_name: str,
-) -> logs.LogGroup:
-    """Create the retained WAF log group with the required AWS prefix."""
-    return logs.LogGroup(
+) -> NamedLogGroup:
+    """Ensure the named WAF log group exists with retention."""
+    log_group_name = f"aws-waf-logs-nova-rest-api-{stage_name}"
+    retention = logs.LogRetention(
         scope,
-        "NovaWafLogs",
-        log_group_name=f"aws-waf-logs-nova-rest-api-{stage_name}",
+        "NovaWafLogsRetention",
+        log_group_name=log_group_name,
         retention=_SECURITY_LOG_RETENTION,
-        removal_policy=RemovalPolicy.RETAIN,
+    )
+    return NamedLogGroup(
+        dependency=retention,
+        log_group=logs.LogGroup.from_log_group_name(
+            scope,
+            "NovaWafLogs",
+            log_group_name,
+        ),
     )
 
 

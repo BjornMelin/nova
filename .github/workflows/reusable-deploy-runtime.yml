@@ -243,12 +243,41 @@ jobs:
             printf 'API_LAMBDA_ARTIFACT_SHA256=%s\n' "$API_LAMBDA_ARTIFACT_SHA256"
           } >> "$GITHUB_ENV"
 
+      - name: Determine reserved concurrency mode
+        env:
+          DEPLOY_ENVIRONMENT: ${{ inputs.environment_name }}
+        run: |
+          set -euo pipefail
+          concurrency_limit="$(
+            aws lambda get-account-settings \
+              --region "${{ inputs.aws_region }}" \
+              --query 'AccountLimit.ConcurrentExecutions' \
+              --output text
+          )"
+          enable_reserved_concurrency=true
+          if [[ "${DEPLOY_ENVIRONMENT,,}" =~ ^(prod|production)$ ]]; then
+            if (( concurrency_limit < 1000 )); then
+              echo "Production runtime deploys require Lambda account concurrency >= 1000, but ${concurrency_limit} is currently applied in ${{
+                inputs.aws_region
+              }}." >&2
+              exit 1
+            fi
+          elif (( concurrency_limit < 1000 )); then
+            enable_reserved_concurrency=false
+          fi
+          {
+            echo "ENABLE_RESERVED_CONCURRENCY=${enable_reserved_concurrency}"
+            echo "LAMBDA_ACCOUNT_CONCURRENCY=${concurrency_limit}"
+          } >> "$GITHUB_ENV"
+          echo "Resolved reserved concurrency mode: ${enable_reserved_concurrency} (account concurrency=${concurrency_limit})"
+
       - name: Deploy runtime stack with CDK
         env:
           API_DOMAIN_NAME: ${{ inputs.api_domain_name }}
           CERTIFICATE_ARN: ${{ inputs.certificate_arn }}
           CDK_DEFAULT_ACCOUNT: ${{ steps.aws-account.outputs.account_id }}
           CDK_DEFAULT_REGION: ${{ inputs.aws_region }}
+          ENABLE_RESERVED_CONCURRENCY: ${{ env.ENABLE_RESERVED_CONCURRENCY }}
           ENVIRONMENT: ${{ inputs.environment_name }}
           HOSTED_ZONE_ID: ${{ inputs.hosted_zone_id }}
           HOSTED_ZONE_NAME: ${{ inputs.hosted_zone_name }}

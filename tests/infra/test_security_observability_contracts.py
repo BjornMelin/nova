@@ -79,43 +79,47 @@ def test_runtime_stack_wires_alarm_actions_to_one_sns_topic() -> None:
     template_json = _template_json()
     resources = template_json["Resources"]
 
-    topics = _resources_of_type(resources, "AWS::SNS::Topic")
     alarms = _resources_of_type(resources, "AWS::CloudWatch::Alarm")
 
-    assert len(topics) == 1
-    topic_logical_id = next(iter(topics))
-    topic_props = next(iter(topics.values()))["Properties"]
-    assert topic_props["TopicName"] == "nova-runtime-alarms-dev"
-
     assert alarms
+    topic_output = template_json["Outputs"]["ExportNovaAlarmTopicArn"]["Value"]
+    assert "nova-runtime-alarms-dev" in json.dumps(
+        topic_output,
+        sort_keys=True,
+    )
     for resource in alarms.values():
         alarm_actions = resource["Properties"]["AlarmActions"]
         assert alarm_actions
-        assert json.dumps(alarm_actions, sort_keys=True).count(topic_logical_id)
+        assert "nova-runtime-alarms-dev" in json.dumps(
+            alarm_actions,
+            sort_keys=True,
+        )
 
     outputs = template_json["Outputs"]
     assert "ExportNovaAlarmTopicArn" in outputs
     assert "ExportNovaApiAccessLogGroupName" in outputs
     assert "ExportNovaWafLogGroupName" in outputs
-    log_groups = _resources_of_type(resources, "AWS::Logs::LogGroup")
-    access_log_group_logical_id = next(
-        logical_id
-        for logical_id, resource in log_groups.items()
-        if resource["Properties"].get("LogGroupName")
+    log_groups = _resources_of_type(resources, "Custom::LogRetention")
+    assert any(
+        resource["Properties"].get("LogGroupName")
+        == "/aws/apigateway/nova-rest-api-access-dev"
+        and resource["Properties"].get("RetentionInDays") == 90
+        for resource in log_groups.values()
+    )
+    assert any(
+        resource["Properties"].get("LogGroupName")
+        == "aws-waf-logs-nova-rest-api-dev"
+        and resource["Properties"].get("RetentionInDays") == 90
+        for resource in log_groups.values()
+    )
+    assert (
+        outputs["ExportNovaApiAccessLogGroupName"]["Value"]
         == "/aws/apigateway/nova-rest-api-access-dev"
     )
-    waf_log_group_logical_id = next(
-        logical_id
-        for logical_id, resource in log_groups.items()
-        if resource["Properties"].get("LogGroupName")
+    assert (
+        outputs["ExportNovaWafLogGroupName"]["Value"]
         == "aws-waf-logs-nova-rest-api-dev"
     )
-    assert outputs["ExportNovaApiAccessLogGroupName"]["Value"] == {
-        "Ref": access_log_group_logical_id
-    }
-    assert outputs["ExportNovaWafLogGroupName"]["Value"] == {
-        "Ref": waf_log_group_logical_id
-    }
 
 
 def test_runtime_stack_filters_waf_logs_to_security_relevant_actions() -> None:
@@ -141,7 +145,7 @@ def test_runtime_stack_filters_waf_logs_to_security_relevant_actions() -> None:
         }
     ]
 
-    log_groups = _resources_of_type(resources, "AWS::Logs::LogGroup")
+    log_groups = _resources_of_type(resources, "Custom::LogRetention")
     api_access_log_group = next(
         resource
         for resource in log_groups.values()

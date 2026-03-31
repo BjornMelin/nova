@@ -171,7 +171,7 @@ def create_regional_rest_ingress(
         endpoint_types=[apigw.EndpointType.REGIONAL],
         deploy_options=apigw.StageOptions(
             access_log_destination=apigw.LogGroupLogDestination(
-                access_log_group
+                access_log_group.log_group
             ),
             access_log_format=build_api_access_log_format(),
             data_trace_enabled=False,
@@ -183,6 +183,7 @@ def create_regional_rest_ingress(
             tracing_enabled=True,
         ),
     )
+    rest_api.deployment_stage.node.add_dependency(access_log_group.dependency)
     rest_api.root.add_method("ANY", integration)
     rest_api.root.add_proxy(any_method=True, default_integration=integration)
 
@@ -236,7 +237,7 @@ def create_regional_rest_ingress(
     waf_logging = wafv2.CfnLoggingConfiguration(
         scope,
         "NovaRestApiWebAclLogging",
-        log_destination_configs=[waf_log_group.log_group_arn],
+        log_destination_configs=[waf_log_group.log_group.log_group_arn],
         resource_arn=web_acl.attr_arn,
     )
     waf_logging.add_property_override(
@@ -263,7 +264,7 @@ def create_regional_rest_ingress(
         ],
     )
     waf_logging.node.add_dependency(web_acl)
-    waf_logging.node.add_dependency(waf_log_group)
+    waf_logging.node.add_dependency(waf_log_group.dependency)
     web_acl_association = wafv2.CfnWebACLAssociation(
         scope,
         "NovaRestApiWebAclAssociation",
@@ -276,10 +277,10 @@ def create_regional_rest_ingress(
     web_acl_association.node.add_dependency(rest_api.deployment_stage)
 
     return IngressResources(
-        access_log_group_name=access_log_group.log_group_name,
+        access_log_group_name=access_log_group.log_group.log_group_name,
         public_base_url=f"https://{api_domain_name}",
         rest_api=rest_api,
         stage_name=stage_name,
-        waf_log_group_name=waf_log_group.log_group_name,
+        waf_log_group_name=waf_log_group.log_group.log_group_name,
         web_acl_arn=web_acl.attr_arn,
     )

@@ -39,7 +39,9 @@ Related:
 
 ## Operational defaults
 
-- reserved concurrency for blast radius
+- reserved concurrency for blast radius in production and standard-quota
+  environments; reduced-quota non-prod accounts may intentionally omit
+  reservations at deploy time
 - provisioned concurrency only when justified by measured latency
 - structured JSON logs
 - correlation IDs

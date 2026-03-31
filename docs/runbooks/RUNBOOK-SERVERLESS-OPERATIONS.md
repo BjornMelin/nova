@@ -51,10 +51,15 @@
 ## Operational defaults
 
 - arm64 for Lambda unless blocked
-- reserved concurrency for blast-radius control
-- API Lambda reserved concurrency defaults: `5` outside prod, `25` in prod
-- workflow task Lambda reserved concurrency defaults: `2` outside prod, `10`
+- reserved concurrency for blast-radius control in production and in
+  standard-quota non-prod accounts
+- production deploys fail closed if reserved concurrency cannot be applied
+- non-prod deploys with reduced Lambda regional quotas may intentionally omit
+  reservations and rely on the account concurrency cap plus ingress throttles
+- API Lambda reserved concurrency defaults when enabled: `5` outside prod, `25`
   in prod
+- workflow task Lambda reserved concurrency defaults when enabled: `2` outside
+  prod, `10` in prod
 - provisioned concurrency only after measuring need
 - API Gateway stage access/execution logging enabled for ingress diagnostics
 - API access logs are emitted to

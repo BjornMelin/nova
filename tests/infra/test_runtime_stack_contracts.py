@@ -107,7 +107,14 @@ def _workflow_function_resources(
     return {
         logical_id: resource
         for logical_id, resource in functions.items()
-        if logical_id != "NovaApiFunctionF531316A"
+        if logical_id.startswith(
+            (
+                "ValidateExportFunction",
+                "CopyExportFunction",
+                "FinalizeExportFunction",
+                "FailExportFunction",
+            )
+        )
     }
 
 
@@ -231,6 +238,34 @@ def test_runtime_stack_packages_api_lambda_as_native_zip() -> None:
         "states:DescribeStateMachine" in fragment
         for fragment in policy_fragments
     )
+
+
+def test_non_prod_can_disable_reserved_concurrency() -> None:
+    """Non-prod stacks may omit reservations in low-quota accounts."""
+    context = {
+        **_context_for_region("us-west-2"),
+        "enable_reserved_concurrency": "false",
+    }
+    bundle = _build_bundle(context=context)
+    functions = _resources_of_type(bundle.resources, "AWS::Lambda::Function")
+    for resource in functions.values():
+        assert "ReservedConcurrentExecutions" not in resource["Properties"]
+
+
+def test_prod_cannot_disable_reserved_concurrency() -> None:
+    """Prod stacks must not disable reserved concurrency."""
+    context = {
+        **_context_for_region("us-west-2"),
+        "environment": "prod",
+        "allowed_origins": '["https://app.example.com"]',
+        "enable_reserved_concurrency": "false",
+    }
+
+    with pytest.raises(
+        ValueError,
+        match="enable_reserved_concurrency cannot be false",
+    ):
+        _template(context=context)
 
 
 def test_runtime_stack_uses_higher_reserved_concurrency_default_in_prod() -> (
