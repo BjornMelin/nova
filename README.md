@@ -24,6 +24,7 @@ The active repo baseline is the final wave-2 system:
 - async-first Dash/browser bridge in `packages/nova_dash_bridge`
 - one SDK package per language: `packages/nova_sdk_ts`, `packages/nova_sdk_py`, `packages/nova_sdk_r`
 - canonical infrastructure in `infra/nova_cdk`
+- repo-owned Lambda entrypoint in `packages/nova_file_api/src/nova_file_api/lambda_handler.py`
 - bearer JWT only
 - explicit export workflows, not generic jobs
 - DynamoDB + S3 + Step Functions as the durable runtime substrate
@@ -42,6 +43,10 @@ The active repo baseline is the final wave-2 system:
 ## Release and validation
 
 - Package release workflows live under `.github/workflows/`.
+- Runtime deployment authority is published through `deploy-runtime-output`
+  artifacts: `deploy-output.json` and `deploy-output.sha256`.
+- Post-deploy runtime validation derives the canonical public base URL from
+  that deploy-output artifact instead of manual base URL configuration.
 - Machine-stable release artifacts live under `docs/release/`.
 - Serverless infrastructure guidance starts in `infra/nova_cdk/README.md`.
 

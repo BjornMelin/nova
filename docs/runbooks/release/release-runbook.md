@@ -13,22 +13,22 @@ validation.
 
 ## 1A. Authority / references
 
-1. `docs/architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md`
-2. `docs/architecture/spec/superseded/SPEC-0000-http-api-contract.md`
-3. `docs/architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md`
-4. `docs/architecture/requirements.md`
-5. `docs/plan/GREENFIELD-WAVE-2-EXECUTION.md`
-6. `docs/architecture/adr/ADR-0033-canonical-serverless-platform.md`
-7. `docs/architecture/adr/ADR-0034-eliminate-auth-service-and-session-auth.md`
-8. `docs/architecture/adr/ADR-0035-replace-generic-jobs-with-export-workflows.md`
-9. `docs/architecture/adr/ADR-0036-dynamodb-idempotency-no-redis.md`
-10. `docs/architecture/adr/ADR-0037-sdk-generation-consolidation.md`
-11. `docs/architecture/adr/ADR-0038-docs-authority-reset.md`
-12. `docs/architecture/spec/SPEC-0027-public-api-v2.md`
-13. `docs/architecture/spec/SPEC-0028-export-workflow-state-machine.md`
-14. `docs/architecture/spec/SPEC-0029-platform-serverless.md`
-15. `docs/architecture/spec/SPEC-0030-sdk-generation-and-package-layout.md`
-16. `docs/architecture/spec/SPEC-0031-docs-and-tests-authority-reset.md`
+1. `docs/overview/IMPLEMENTATION-STATUS-MATRIX.md`
+2. `docs/plan/GREENFIELD-WAVE-2-EXECUTION.md`
+3. `docs/architecture/adr/ADR-0033-canonical-serverless-platform.md`
+4. `docs/architecture/adr/ADR-0034-eliminate-auth-service-and-session-auth.md`
+5. `docs/architecture/adr/ADR-0035-replace-generic-jobs-with-export-workflows.md`
+6. `docs/architecture/adr/ADR-0036-dynamodb-idempotency-no-redis.md`
+7. `docs/architecture/adr/ADR-0037-sdk-generation-consolidation.md`
+8. `docs/architecture/adr/ADR-0038-docs-authority-reset.md`
+9. `docs/architecture/spec/SPEC-0027-public-api-v2.md`
+10. `docs/architecture/spec/SPEC-0028-export-workflow-state-machine.md`
+11. `docs/architecture/spec/SPEC-0029-platform-serverless.md`
+12. `docs/architecture/spec/SPEC-0030-sdk-generation-and-package-layout.md`
+13. `docs/architecture/spec/SPEC-0031-docs-and-tests-authority-reset.md`
+14. `docs/contracts/deploy-output-authority-v2.schema.json`
+15. `docs/contracts/workflow-post-deploy-validate.schema.json`
+16. `infra/nova_cdk/README.md`
 
 ## 2. Preconditions
 
@@ -101,10 +101,13 @@ validation.
    - runs post-deploy validation against that deploy-output artifact
 4. Confirm deploy-output authority succeeds:
    - `deploy-output.json` includes the release commit SHA, runtime version,
-     `NovaPublicBaseUrl`, stack name, region, and stack outputs
+     canonical public base URL, disabled execute-api endpoint, CORS origin
+     authority, stack name, region, and stack outputs
    - `deploy-output.sha256` matches the canonical JSON payload
    - `post-deploy-validation-report.json` binds validation to the same
-     deploy-output digest and runtime version
+     deploy-output digest and runtime version and proves health, protected auth
+     behavior, browser CORS preflight, execute-api disablement, and legacy-path
+     404 drift against the canonical public base URL
 
 ### E. Publish staged packages
 

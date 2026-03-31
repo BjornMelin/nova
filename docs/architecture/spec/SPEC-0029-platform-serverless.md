@@ -12,7 +12,7 @@ Related:
 
 - API Gateway REST API (regional) with one canonical custom domain
 - AWS WAF (regional, API stage association)
-- Lambda (FastAPI via native handler, zip-packaged, Python 3.13, arm64)
+- Lambda (FastAPI via the repo-owned Lambda entrypoint, Mangum-backed, zip-packaged, Python 3.13, arm64)
 - Step Functions Standard
 - DynamoDB
 - S3
@@ -23,6 +23,9 @@ Related:
 - CDK v2 in Python under `infra/nova_cdk`
 - public API Lambda artifact built by release automation and consumed through
   explicit artifact coordinates in CDK
+- runtime deployment publishes `deploy-output.json` / `deploy-output.sha256`
+  as the only downstream authority for the custom-domain base URL and release
+  provenance
 
 ## Network/security
 
@@ -46,3 +49,6 @@ Related:
 - structured JSON logs
 - correlation IDs
 - RED metrics + saturation + workflow failure metrics
+- post-deploy validation must prove release identity, readiness, protected
+  auth behavior, browser CORS preflight, and legacy-path 404 drift against the
+  deploy-output artifact

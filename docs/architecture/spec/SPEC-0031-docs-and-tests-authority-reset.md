@@ -9,7 +9,7 @@ Related:
   - "[ADR-0038: Reset docs authority](../adr/ADR-0038-docs-authority-reset.md)"
 ---
 
-> **Implementation state:** Implemented on the current branch docs/test surface, with only remaining truth-model cleanup still pending.
+> **Implementation state:** Implemented on the current branch docs/test surface.
 
 ## Problem
 
@@ -18,6 +18,9 @@ The repo has too many active docs and too many tests whose only job is to enforc
 ## Decision
 
 Keep a smaller active authority set and archive or delete the rest.
+Keep active validation and contract tests focused on production truth for the
+implemented wave-2 platform rather than primarily enforcing deleted-surface
+absence.
 
 ## Active docs classes
 
@@ -32,3 +35,5 @@ Keep a smaller active authority set and archive or delete the rest.
 
 Keep tests that protect executable behaviour, contract compatibility for the current API, SDK generation correctness, and platform safety.
 Delete or archive tests whose primary purpose is to enforce legacy planning/history surfaces.
+Require active docs routers and downstream guides to point at deploy-output
+authority for runtime base URL and deployed release provenance.

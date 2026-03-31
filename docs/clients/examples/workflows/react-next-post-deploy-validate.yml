@@ -17,5 +17,5 @@ jobs:
     with:
       deploy_repo: 3M-Cloud/nova
       deploy_run_id: ${{ inputs.nova_deploy_run_id }}
-      validation_canonical_paths: /v1/health/live,/v1/health/ready,/metrics/summary,/v1/capabilities,/v1/releases/info
+      validation_canonical_paths: /v1/health/live,/v1/health/ready,/v1/capabilities,/v1/releases/info
       validation_legacy_404_paths: /healthz,/readyz,/api/transfers/uploads/initiate,/api/jobs,/api/v1/transfers/uploads/initiate

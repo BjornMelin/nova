@@ -22,7 +22,7 @@ The active implementation and operating baseline is the same canonical system:
 - bearer JWT only
 - explicit export workflow resources under `/v1/exports`
 - DynamoDB-backed idempotency/state
-- Regional REST API + native Lambda handler + Step Functions Standard
+- Regional REST API + repo-owned Lambda entrypoint + Step Functions Standard
 - unified SDK package layout for TypeScript, Python, and R
 - `infra/nova_cdk` as the only active infrastructure implementation surface
 
@@ -39,6 +39,10 @@ Primary active authority:
 - `docs/architecture/spec/SPEC-0029-platform-serverless.md`
 - `docs/architecture/spec/SPEC-0030-sdk-generation-and-package-layout.md`
 - `docs/architecture/spec/SPEC-0031-docs-and-tests-authority-reset.md`
+- `docs/contracts/deploy-output-authority-v2.schema.json`
+- `docs/contracts/workflow-post-deploy-validate.schema.json`
+- `docs/runbooks/release/release-runbook.md`
+- `infra/nova_cdk/README.md`
 
 ## Historical / superseded
 
@@ -54,5 +58,6 @@ Treat these as traceability only:
 - Keep `infra/nova_cdk` as the only active infrastructure path.
 - Keep package release automation aligned to the unified package graph only.
 - Keep the public API Lambda packaging flow in `reusable-release-apply.yml`; CDK must consume explicit `API_LAMBDA_ARTIFACT_BUCKET`, `API_LAMBDA_ARTIFACT_KEY`, and `API_LAMBDA_ARTIFACT_SHA256` inputs instead of rebuilding the API package locally.
+- Keep `deploy-output.json` as the only published runtime authority artifact; downstream validation and runtime consumers must derive the canonical public base URL from it instead of free-text base URL configuration.
 - If code, contracts, package layout, CI, or runbooks change, update the corresponding active docs in the same branch.
 - Keep `AGENTS.md`, `infra/nova_cdk/README.md`, `docs/runbooks/release/release-runbook.md`, and `docs/runbooks/provisioning/github-actions-secrets-and-vars.md` aligned when release/runtime packaging or deploy inputs change.

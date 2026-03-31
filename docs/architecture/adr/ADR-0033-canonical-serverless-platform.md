@@ -16,14 +16,14 @@ Related:
   - "[ADR-0037: Consolidate SDK generation and package layout](./ADR-0037-sdk-generation-consolidation.md)"
   - "[ADR-0038: Reset docs authority](./ADR-0038-docs-authority-reset.md)"
   - "[requirements.md](../requirements.md)"
-  - "[requirements-wave-2.md](../requirements-wave-2.md)"
   - "[GREENFIELD-WAVE-2-EXECUTION.md](../plan/GREENFIELD-WAVE-2-EXECUTION.md)"
 ---
 
 ## Decision
 
 Adopt **regional API Gateway REST API + direct Regional WAF + one canonical
-custom domain → Lambda (FastAPI via native handler, zip-packaged) → Step
+custom domain → Lambda (FastAPI via the repo-owned Lambda entrypoint,
+Mangum-backed, zip-packaged) → Step
 Functions Standard / DynamoDB / S3** as the canonical AWS runtime, with the
 default `execute-api` endpoint disabled.
 
@@ -61,4 +61,6 @@ Operationally lighter than ECS, but weaker fit for the broader workflow/orchestr
 - keep `packages/nova_workflows` as the workflow/runtime implementation seam
 - keep public API packaging in release automation and have CDK consume explicit
   immutable artifact metadata instead of rebuilding the API package locally
+- keep `deploy-output.json` / `deploy-output.sha256` as the published runtime
+  authority for the custom-domain base URL and deployed release provenance
 - keep active docs, runbooks, and release flows aligned to the serverless/CDK surface only

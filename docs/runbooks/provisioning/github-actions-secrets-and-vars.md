@@ -12,7 +12,6 @@ Nova release workflows.
 ## Authority / references
 
 - `docs/architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md` (canonical route-surface authority)
-- `docs/architecture/spec/superseded/SPEC-0000-http-api-contract.md` (historical API baseline reference for hard-cut context)
 - `docs/architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md` (active route-surface guardrails)
 - `docs/architecture/spec/SPEC-0027-public-api-v2.md`
 - `docs/architecture/requirements.md`

@@ -30,7 +30,7 @@ This file records the intentional hard cuts in the second green-field program.
 ## Runtime/infrastructure
 
 - Delete Redis as a required runtime dependency.
-- Replace ECS/worker-first target architecture with Regional REST API + direct Regional WAF + native Lambda handler + Step Functions as the canonical AWS deployment shape.
+- Replace ECS/worker-first target architecture with Regional REST API + direct Regional WAF + the repo-owned Lambda entrypoint + Step Functions as the canonical AWS deployment shape.
 
 ## SDK/package layout
 
