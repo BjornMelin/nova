@@ -920,12 +920,19 @@ def test_validate_runtime_release_emits_report_when_concurrency_lookup_raises(
         )
 
     monkeypatch.setattr(_VALIDATOR, "_request", fake_request)
+
+    def raise_concurrency_error(
+        *,
+        deploy_output: dict[str, Any],
+        failures: list[str],
+    ) -> list[_VALIDATOR.ConcurrencyCheck]:
+        del deploy_output, failures
+        raise RuntimeError("boom")
+
     monkeypatch.setattr(
         _VALIDATOR,
         "_validate_reserved_concurrency",
-        lambda *, deploy_output, failures: (_ for _ in ()).throw(
-            RuntimeError("boom")
-        ),
+        raise_concurrency_error,
     )
     monkeypatch.setattr(
         _VALIDATOR,
