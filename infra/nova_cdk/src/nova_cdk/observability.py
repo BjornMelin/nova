@@ -10,14 +10,12 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 
 from aws_cdk import (
-    Aws,
     aws_apigateway as apigw,
     aws_cloudwatch as cloudwatch,
     aws_cloudwatch_actions as cloudwatch_actions,
     aws_iam as iam,
     aws_logs as logs,
     aws_sns as sns,
-    custom_resources as custom_resources,
 )
 from constructs import Construct
 
@@ -98,37 +96,17 @@ def create_alarm_topic(
 ) -> sns.ITopic:
     """Ensure the canonical SNS topic used by runtime alarms exists."""
     topic_name = f"nova-runtime-alarms-{deployment_environment}"
-    topic_arn = (
-        f"arn:{Aws.PARTITION}:sns:{Aws.REGION}:{Aws.ACCOUNT_ID}:{topic_name}"
-    )
-    custom_resources.AwsCustomResource(
-        scope,
-        "NovaAlarmTopicEnsure",
-        on_create=custom_resources.AwsSdkCall(
-            service="SNS",
-            action="createTopic",
-            parameters={"Name": topic_name},
-            physical_resource_id=custom_resources.PhysicalResourceId.of(
-                topic_name
-            ),
-        ),
-        on_update=custom_resources.AwsSdkCall(
-            service="SNS",
-            action="createTopic",
-            parameters={"Name": topic_name},
-            physical_resource_id=custom_resources.PhysicalResourceId.of(
-                topic_name
-            ),
-        ),
-        policy=custom_resources.AwsCustomResourcePolicy.from_sdk_calls(
-            resources=custom_resources.AwsCustomResourcePolicy.ANY_RESOURCE
-        ),
-        install_latest_aws_sdk=False,
-    )
-    topic = sns.Topic.from_topic_arn(
+    topic = sns.Topic(
         scope,
         "NovaAlarmTopic",
-        topic_arn=topic_arn,
+        topic_name=topic_name,
+    )
+    topic.add_to_resource_policy(
+        iam.PolicyStatement(
+            actions=["sns:Publish"],
+            principals=[iam.ServicePrincipal("cloudwatch.amazonaws.com")],
+            resources=[topic.topic_arn],
+        )
     )
     for index, email in enumerate(_alarm_notification_emails(scope), start=1):
         sns.Subscription(
@@ -138,13 +116,6 @@ def create_alarm_topic(
             protocol=sns.SubscriptionProtocol.EMAIL,
             topic=topic,
         )
-    topic.add_to_resource_policy(
-        iam.PolicyStatement(
-            actions=["sns:Publish"],
-            principals=[iam.ServicePrincipal("cloudwatch.amazonaws.com")],
-            resources=[topic.topic_arn],
-        )
-    )
     return topic
 
 

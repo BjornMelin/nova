@@ -4,7 +4,6 @@
 
 from __future__ import annotations
 
-import json
 from typing import Any, cast
 
 from aws_cdk import App, Environment
@@ -82,18 +81,15 @@ def test_runtime_stack_wires_alarm_actions_to_one_sns_topic() -> None:
     alarms = _resources_of_type(resources, "AWS::CloudWatch::Alarm")
 
     assert alarms
+    topics = _resources_of_type(resources, "AWS::SNS::Topic")
+    assert len(topics) == 1
+    topic_logical_id = next(iter(topics))
     topic_output = template_json["Outputs"]["ExportNovaAlarmTopicArn"]["Value"]
-    assert "nova-runtime-alarms-dev" in json.dumps(
-        topic_output,
-        sort_keys=True,
-    )
+    assert topic_output == {"Ref": topic_logical_id}
     for resource in alarms.values():
         alarm_actions = resource["Properties"]["AlarmActions"]
         assert alarm_actions
-        assert "nova-runtime-alarms-dev" in json.dumps(
-            alarm_actions,
-            sort_keys=True,
-        )
+        assert alarm_actions == [{"Ref": topic_logical_id}]
 
     outputs = template_json["Outputs"]
     assert "ExportNovaAlarmTopicArn" in outputs
@@ -120,6 +116,47 @@ def test_runtime_stack_wires_alarm_actions_to_one_sns_topic() -> None:
         outputs["ExportNovaWafLogGroupName"]["Value"]
         == "aws-waf-logs-nova-rest-api-dev"
     )
+
+    assert next(iter(topics.values()))["Properties"]["TopicName"] == (
+        "nova-runtime-alarms-dev"
+    )
+
+    topic_policies = _resources_of_type(resources, "AWS::SNS::TopicPolicy")
+    assert len(topic_policies) == 1
+    policy_document = next(iter(topic_policies.values()))["Properties"][
+        "PolicyDocument"
+    ]
+    statements = policy_document["Statement"]
+    assert any(
+        statement["Principal"]["Service"] == "cloudwatch.amazonaws.com"
+        and statement["Action"] == "sns:Publish"
+        for statement in statements
+    )
+
+    custom_resources = _resources_of_type(resources, "Custom::AWS")
+    assert not custom_resources
+
+
+def test_runtime_stack_adds_alarm_topic_email_subscriptions() -> None:
+    """Alarm notification emails synthesize native SNS subscriptions."""
+    resources = _template_json(
+        context={
+            **_context_for_region("us-west-2"),
+            "alarm_notification_emails": (
+                '["ops@example.com","dev@example.com"]'
+            ),
+        }
+    )["Resources"]
+    subscriptions = _resources_of_type(resources, "AWS::SNS::Subscription")
+    assert len(subscriptions) == 2
+    endpoints = {
+        resource["Properties"]["Endpoint"]
+        for resource in subscriptions.values()
+    }
+    assert endpoints == {"ops@example.com", "dev@example.com"}
+    for resource in subscriptions.values():
+        assert resource["Properties"]["Protocol"] == "email"
+        assert "Ref" in resource["Properties"]["TopicArn"]
 
 
 def test_runtime_stack_filters_waf_logs_to_security_relevant_actions() -> None:
