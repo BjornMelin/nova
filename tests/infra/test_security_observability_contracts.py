@@ -9,7 +9,6 @@ import pytest
 from .helpers import (
     load_repo_package_module,
     resources_of_type,
-    runtime_stack_context_for_region,
     runtime_stack_template_json,
 )
 
@@ -98,7 +97,6 @@ def test_runtime_stack_adds_alarm_topic_email_subscriptions() -> None:
     """Alarm notification emails synthesize native SNS subscriptions."""
     resources = runtime_stack_template_json(
         context={
-            **runtime_stack_context_for_region("us-west-2"),
             "alarm_notification_emails": (
                 '["ops@example.com","dev@example.com"]'
             ),

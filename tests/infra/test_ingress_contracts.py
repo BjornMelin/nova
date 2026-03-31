@@ -176,9 +176,22 @@ def test_runtime_stack_associates_regional_waf_to_api_stage() -> None:
     scope_down = write_rule["Statement"]["RateBasedStatement"][
         "ScopeDownStatement"
     ]
-    assert scope_down["RegexMatchStatement"]["RegexString"] == (
+    statements = scope_down["AndStatement"]["Statements"]
+    assert len(statements) == 2
+    uri_match = next(
+        statement["RegexMatchStatement"]
+        for statement in statements
+        if "UriPath" in statement["RegexMatchStatement"]["FieldToMatch"]
+    )
+    method_match = next(
+        statement["RegexMatchStatement"]
+        for statement in statements
+        if "Method" in statement["RegexMatchStatement"]["FieldToMatch"]
+    )
+    assert uri_match["RegexString"] == (
         "^/v1/(exports($|/.*)|transfers/uploads($|/.*))"
     )
+    assert method_match["RegexString"] == "^(POST|PUT|PATCH|DELETE)$"
 
     associations = _resources_of_type(
         resources,

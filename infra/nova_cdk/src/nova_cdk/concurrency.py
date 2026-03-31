@@ -23,7 +23,8 @@ def is_production_environment(deployment_environment: str) -> bool:
         True when the normalized environment name maps to a production
         environment; otherwise False.
     """
-    return deployment_environment.strip().casefold() in PRODUCTION_ENVIRONMENTS
+    normalized_environment = deployment_environment.strip().casefold()
+    return normalized_environment in PRODUCTION_ENVIRONMENTS
 
 
 def default_api_reserved_concurrency(deployment_environment: str) -> int:
@@ -63,7 +64,7 @@ def low_quota_account_disables_reserved_concurrency(
 
     Args:
         account_concurrency_limit: Regional Lambda concurrency quota for the
-            target AWS account.
+            target account.
 
     Returns:
         True when the account quota is below Nova's standard concurrency

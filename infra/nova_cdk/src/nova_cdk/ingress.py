@@ -101,18 +101,40 @@ def _managed_web_acl_rules(
                     evaluation_window_sec=300,
                     limit=write_rate_limit,
                     scope_down_statement=wafv2.CfnWebACL.StatementProperty(
-                        regex_match_statement=wafv2.CfnWebACL.RegexMatchStatementProperty(
-                            field_to_match=wafv2.CfnWebACL.FieldToMatchProperty(
-                                uri_path={}
-                            ),
-                            regex_string=(
-                                "^/v1/(exports($|/.*)|transfers/uploads($|/.*))"
-                            ),
-                            text_transformations=[
-                                wafv2.CfnWebACL.TextTransformationProperty(
-                                    priority=0,
-                                    type="NONE",
-                                )
+                        and_statement=wafv2.CfnWebACL.AndStatementProperty(
+                            statements=[
+                                wafv2.CfnWebACL.StatementProperty(
+                                    regex_match_statement=wafv2.CfnWebACL.RegexMatchStatementProperty(
+                                        field_to_match=wafv2.CfnWebACL.FieldToMatchProperty(
+                                            uri_path={}
+                                        ),
+                                        regex_string=(
+                                            "^/v1/(exports($|/.*)|transfers/uploads($|/.*))"
+                                        ),
+                                        text_transformations=[
+                                            wafv2.CfnWebACL.TextTransformationProperty(
+                                                priority=0,
+                                                type="NONE",
+                                            )
+                                        ],
+                                    )
+                                ),
+                                wafv2.CfnWebACL.StatementProperty(
+                                    regex_match_statement=wafv2.CfnWebACL.RegexMatchStatementProperty(
+                                        field_to_match=wafv2.CfnWebACL.FieldToMatchProperty(
+                                            method={}
+                                        ),
+                                        regex_string=(
+                                            "^(POST|PUT|PATCH|DELETE)$"
+                                        ),
+                                        text_transformations=[
+                                            wafv2.CfnWebACL.TextTransformationProperty(
+                                                priority=0,
+                                                type="NONE",
+                                            )
+                                        ],
+                                    )
+                                ),
                             ],
                         )
                     ),
@@ -157,7 +179,25 @@ def create_regional_rest_ingress(
     waf_rate_limit: int,
     waf_write_rate_limit: int,
 ) -> IngressResources:
-    """Create the canonical public REST ingress for the Nova runtime."""
+    """Create the canonical public REST ingress for the Nova runtime.
+
+    Args:
+        scope: CDK construct scope that owns the ingress resources.
+        api_domain_name: Custom domain name bound to the Regional REST API.
+        api_handler: Lambda function invoked by the API Gateway integration.
+        certificate_arn: ACM certificate ARN for the custom domain.
+        hosted_zone: Route 53 hosted zone that owns ``api_domain_name``.
+        stage_name: Deployed API Gateway stage name.
+        throttling_burst_limit: API Gateway stage burst limit.
+        throttling_rate_limit: API Gateway steady-state rate limit.
+        waf_rate_limit: Per-IP WAF rate limit across all requests.
+        waf_write_rate_limit: Per-IP WAF rate limit for write-path requests.
+
+    Returns:
+        ``IngressResources`` describing the provisioned REST API, custom
+        domain URL, stage name, access-log group name, WAF log-group name,
+        and Web ACL ARN.
+    """
     access_log_group = create_api_access_log_group(
         scope,
         stage_name=stage_name,

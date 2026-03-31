@@ -161,12 +161,16 @@ def runtime_stack_template_json(
     Returns:
         The synthesized runtime stack template rendered as JSON.
     """
+    merged_context = {
+        **runtime_stack_context_for_region(region),
+        **(context or {}),
+    }
     runtime_stack_module = load_repo_package_module(
         "nova_cdk.runtime_stack",
         "infra/nova_cdk/src",
     )
     nova_runtime_stack = runtime_stack_module.NovaRuntimeStack
-    app = App(context=context or runtime_stack_context_for_region(region))
+    app = App(context=merged_context)
     stack = nova_runtime_stack(
         app,
         stack_name,
