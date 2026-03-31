@@ -8,7 +8,7 @@ import json
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
@@ -171,7 +171,9 @@ def _parse_release_info(payload: bytes | None, *, url: str) -> dict[str, Any]:
 
 def load_report_schema() -> dict[str, Any]:
     """Load the canonical post-deploy validation report schema."""
-    return REPORT_SCHEMA["$defs"]["post_deploy_validation_report"]
+    return cast(
+        dict[str, Any], REPORT_SCHEMA["$defs"]["post_deploy_validation_report"]
+    )
 
 
 def _record_check(
