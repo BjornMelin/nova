@@ -127,7 +127,7 @@ Nova is not responsible for:
 | `packages/nova_file_api` | Public FastAPI control plane | Canonical API and Lambda entrypoint |
 | `packages/nova_workflows` | Export workflow handlers | Step Functions task and workflow logic |
 | `packages/nova_runtime_support` | Shared runtime helpers | Request context, auth claims, logging, OpenAPI helpers |
-| `packages/nova_dash_bridge` | Downstream framework bridge | Dash, Flask, and FastAPI integration helpers |
+| `packages/nova_dash_bridge` | Downstream browser/Dash bridge | Packaged uploader assets and Dash components |
 | `packages/nova_sdk_ts` | Generated TypeScript SDK | Published as `@nova/sdk` with subpath exports |
 | `packages/nova_sdk_py` | Generated Python SDK | Published as `nova-sdk-py` |
 | `packages/nova_sdk_r` | Thin R SDK | `httr2`-style client package |
@@ -146,7 +146,7 @@ Nova currently ships or maintains:
 - TypeScript SDK: `@nova/sdk`
 - Python SDK: `nova-sdk-py`
 - R SDK: `nova`
-- Dash/Flask/FastAPI bridge helpers in `nova-dash-bridge`
+- Dash/browser helpers in `nova-dash-bridge`
 
 Downstream guidance and examples live in:
 

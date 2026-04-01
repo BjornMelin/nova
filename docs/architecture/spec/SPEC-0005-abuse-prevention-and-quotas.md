@@ -2,8 +2,8 @@
 Spec: 0005
 Title: Abuse Prevention and Quotas
 Status: Active
-Version: 1.3
-Date: 2026-03-11
+Version: 1.4
+Date: 2026-03-31
 Related:
   - "[ADR-0023: Hard-cut v1 canonical route surface](../adr/ADR-0023-hard-cut-v1-canonical-route-surface.md)"
   - "[SPEC-0016: v1 route namespace and literal guardrails](./SPEC-0016-v1-route-namespace-and-literal-guardrails.md)"
@@ -29,7 +29,7 @@ Control-plane endpoints are cheap individually but can be abused to:
 
 Primary control SHOULD be infrastructure-level:
 
-- AWS WAF rate-based rules on `/v1/transfers/*` and `/v1/jobs/*`.
+- AWS WAF rate-based rules on `/v1/transfers/*` and `/v1/exports*`.
 - Worker result persistence does not traverse the public HTTP surface and is
   therefore outside the WAF-managed route family entirely.
 

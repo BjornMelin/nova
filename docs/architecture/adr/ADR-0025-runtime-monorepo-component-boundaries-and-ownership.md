@@ -23,7 +23,7 @@ Nova runtime ownership is package-first. Runtime packages own request handling,
 orchestration, auth, worker logic, and process entrypoints; release-only
 service Dockerfiles stay outside workspace package paths so container changes do
 not masquerade as package releases. The Dash bridge remains an adapter over
-canonical Nova contracts instead of a second runtime authority.
+canonical Nova HTTP contracts instead of a second runtime authority.
 
 ## Context
 
@@ -68,18 +68,16 @@ Choose **Option B**.
 ### Required characteristics
 
 1. `packages/nova_file_api/` owns:
-   - canonical `/v1/transfers/*` and `/v1/jobs*` runtime behavior
+   - canonical `/v1/transfers/*` and `/v1/exports*` runtime behavior
    - capability, release-info, liveness, readiness, and metrics handlers
-   - transfer, jobs, cache, idempotency, and activity orchestration
+   - transfer, export, cache, idempotency, and activity orchestration
    - in-process bearer JWT verification and principal mapping
    - the canonical `nova_file_api.main:app` process entrypoint consumed by the
      release-only file-service Dockerfile under `apps/`
-2. `packages/nova_dash_bridge/` may provide framework extraction and glue, but
-   it must not redefine Nova API models, endpoint ownership, auth semantics, or
-   policy rules. Its canonical in-process dependency surface is
-   `nova_file_api.public`, which remains async-first. FastAPI hosts consume
-   that async surface directly; any retained sync wrappers are explicit edge
-   adapters for sync-only hosts.
+2. `packages/nova_dash_bridge/` may provide packaged browser assets and Dash
+   component glue, but it must not redefine Nova API models, endpoint
+   ownership, auth semantics, or policy rules. It consumes the canonical Nova
+   HTTP contract instead of keeping an in-process bridge seam alive.
 3. `packages/nova_runtime_support/` owns shared outer-ASGI request context,
    request-id propagation, and shared FastAPI exception registration. Runtime
    packages may adapt domain errors, but they do not re-implement the
@@ -93,8 +91,8 @@ Choose **Option B**.
 ### Positive
 
 - Code review can reject duplicate runtime authority at package boundaries.
-- Bridge refactors have a clear target: reuse the `nova_file_api.public`
-  contract surface instead of runtime internals.
+- Bridge refactors have a clear target: reuse the canonical Nova HTTP contract
+  instead of runtime internals.
 - Runtime docs map directly to the repository layout operators see on disk.
 
 ### Trade-offs
@@ -113,8 +111,10 @@ Choose **Option B**.
 
 - 2026-03-22 (v2.3): Added explicit ownership for shared outer-ASGI transport
   and FastAPI exception registration in `nova_runtime_support`.
-- 2026-03-22 (v2.4): Clarified that `nova_file_api.public` is async-first and
-  that retained sync wrappers in `nova_dash_bridge` are explicit edge adapters
+- 2026-03-31 (v2.5): Hard-cut `nova_dash_bridge` to browser/Dash helpers only
+  and removed the retired in-process bridge seam.
+- 2026-03-22 (v2.4): Clarified that the former bridge seam was async-first and
+  that retained sync wrappers in `nova_dash_bridge` were explicit edge adapters
   rather than a second canonical surface.
 - 2026-03-19 (v2.2): Removed active `nova_auth_api` ownership from the runtime
   boundary contract after the in-process auth cutover landed in `nova_file_api`.

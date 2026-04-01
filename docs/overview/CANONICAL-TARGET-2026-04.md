@@ -29,7 +29,7 @@ Nova becomes a small control-plane API for direct-to-S3 transfer flows plus dura
 - `packages/nova_file_api` — the public FastAPI control-plane API
 - `packages/nova_workflows` — Step Functions task handlers and orchestration logic
 - `packages/nova_runtime_support` — shared middleware, errors, settings, telemetry helpers
-- `packages/nova_dash_bridge` — async-first Dash/browser helpers only
+- `packages/nova_dash_bridge` — browser/Dash helpers only
 - `packages/nova_sdk_ts` — generated TS SDK
 - `packages/nova_sdk_py` — generated Python SDK
 - `packages/nova_sdk_r` — thin httr2 R client

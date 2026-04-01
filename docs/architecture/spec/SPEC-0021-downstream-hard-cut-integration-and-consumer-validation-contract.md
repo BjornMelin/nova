@@ -20,14 +20,14 @@ route authority and cross-repo validation contracts.
 
 ## 2. Canonical downstream route contract
 
-1. Consumer integrations MUST target canonical `/v1/transfers` and `/v1/jobs`
+1. Consumer integrations MUST target canonical `/v1/transfers` and `/v1/exports`
    route families.
 2. Consumer integrations MUST NOT reference legacy route families forbidden by
    `SPEC-0016` as active runtime routes.
 3. Consumer route configuration defaults in downstream repos must match canonical
    literals.
 4. Browser-backed consumers using `nova_dash_bridge` MUST forward bearer
-   `Authorization` headers to canonical upload/job requests.
+   `Authorization` headers to canonical transfer/export requests.
 5. Downstream consumers MUST NOT send `session_id`, `X-Session-Id`, or
    `X-Scope-Id` as Nova public auth/scope inputs.
 
