@@ -2,8 +2,8 @@
 Spec: 0016
 Title: Hard-cut v1 route contract and route-literal guardrails
 Status: Active
-Version: 2.1
-Date: 2026-03-19
+Version: 2.2
+Date: 2026-03-31
 Related:
   - "[ADR-0023: Hard cut to a single canonical /v1 API surface](../adr/ADR-0023-hard-cut-v1-canonical-route-surface.md)"
   - "[SPEC-0000: HTTP API Contract](./superseded/SPEC-0000-http-api-contract.md)"
@@ -15,8 +15,8 @@ Defines the canonical runtime route set after hard cut and the CI guardrails
 that prevent reintroduction of legacy route entropy.
 
 This file protects the **current implemented baseline** route set. The
-approved export-resource replacement remains target-state authority under
-`SPEC-0027` and `SPEC-0028` until that cut is implemented.
+implemented export-resource baseline under `SPEC-0027` and `SPEC-0028` is the
+current route authority for async workflow behavior.
 
 ## 2. Canonical route policy
 
@@ -32,15 +32,14 @@ Public runtime routes:
 
 - `POST /v1/transfers/uploads/initiate`
 - `POST /v1/transfers/uploads/sign-parts`
+- `POST /v1/transfers/uploads/introspect`
 - `POST /v1/transfers/uploads/complete`
 - `POST /v1/transfers/uploads/abort`
 - `POST /v1/transfers/downloads/presign`
-- `POST /v1/jobs`
-- `GET /v1/jobs`
-- `GET /v1/jobs/{job_id}`
-- `POST /v1/jobs/{job_id}/cancel`
-- `POST /v1/jobs/{job_id}/retry`
-- `GET /v1/jobs/{job_id}/events`
+- `POST /v1/exports`
+- `GET /v1/exports`
+- `GET /v1/exports/{export_id}`
+- `POST /v1/exports/{export_id}/cancel`
 - `GET /v1/capabilities`
 - `POST /v1/resources/plan`
 - `GET /v1/releases/info`
@@ -49,10 +48,7 @@ Public runtime routes:
 - `GET /metrics/summary`
 
 Non-canonical runtime paths outside this set MUST return `404`.
-
-When the export-resource hard cut lands, update this section in the same change
-set that promotes `SPEC-0027` and `SPEC-0028` from target-state to current
-baseline authority.
+Retired `/v1/jobs*` routes MUST return `404`.
 
 ## 4. CI guardrail requirements
 
@@ -64,14 +60,16 @@ baseline authority.
 3. Route decorator structural checks in runtime router modules and app
    factories so resolved runtime paths are only `/v1/*` or
    `/metrics/summary`.
-4. Failure on runtime source references to non-canonical route literals.
+4. Failure on runtime source references to non-canonical route literals,
+   including retired `/v1/jobs*` families.
 5. Unique OpenAPI `operationId` values.
 
 ## 5. Contract fixture and conformance requirements
 
 1. `packages/contracts/fixtures/v1/README.md` MUST reference canonical
    `/v1/*` routes only.
-2. Dash/Shiny/TypeScript conformance lane checks MUST align to v1 route
+2. Dash/Shiny/TypeScript conformance lane checks MUST align to canonical
+   transfer/export route
    literals and schema fixtures. The TypeScript lane MUST exercise the
    validation-free generated SDK clients against fixture-backed mock fetches.
 3. Generated-client smoke tests MUST remain green against the canonical route
@@ -81,8 +79,8 @@ baseline authority.
 
 1. Runtime exposes only canonical routes in section 3.
 2. Non-canonical routes return `404`.
-3. Enqueue failure and readiness invariants are preserved:
-   - `queue_unavailable` remains `503` on enqueue publish failures.
+3. Export creation and readiness invariants are preserved:
+   - `queue_unavailable` remains `503` on export enqueue publish failures.
    - readiness remains bucket-sensitive and matches the aggregate readiness
     contract defined in SPEC-0018 Section 4 (readiness contract).
    - `status=succeeded` worker updates normalize `error=null`.

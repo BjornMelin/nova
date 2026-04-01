@@ -43,20 +43,18 @@ Defines how Nova executes in-process auth safely in async runtime code.
    handlers.
 3. Process-wide limiter mutation is not the general-purpose concurrency control
    strategy for the runtime.
-4. FastAPI transfer routes must not call a sync bridge façade via threadpool
-   indirection when the canonical `nova_file_api.public` surface is async-first.
-   Retained blocking work stays at explicit adapter boundaries (for example
-   sync boto3 clients wrapped at the S3 edge or sync-only framework adapters).
+4. The bridge package must not reintroduce server-side sync-over-async transfer
+   adapters. Embedded FastAPI/Flask transfer surfaces are retired; browser
+   helpers forward bearer auth to the canonical Nova HTTP API instead.
 
 ## 4. Package-specific contract
 
 1. `nova_file_api` owns in-process JWT verification, principal mapping, and
    authorization semantics.
-2. `nova_dash_bridge` may forward auth context and call canonical Nova
-   contracts through `nova_file_api.public`, but it must not create divergent
-   verification behavior.
+2. `nova_dash_bridge` may forward auth context into canonical Nova HTTP
+   requests, but it must not create divergent verification behavior.
 3. `nova_dash_bridge` must not expose bridge-local threadpool token tuning as a
-   FastAPI transfer-surface config contract.
+   transfer-surface config contract.
 
 ## 5. Acceptance criteria
 
@@ -65,8 +63,8 @@ Defines how Nova executes in-process auth safely in async runtime code.
 2. Readiness and startup docs do not weaken fail-closed auth behavior.
 3. Runtime safety docs explicitly distinguish async-native verification from
    any remaining blocking work.
-4. Active docs describe direct async FastAPI consumption of
-   `nova_file_api.public` and reserve sync adapters for true sync hosts only.
+4. Active docs describe bearer-only browser/Dash forwarding and do not
+   reintroduce bridge-owned server adapters.
 
 ## 6. Traceability
 

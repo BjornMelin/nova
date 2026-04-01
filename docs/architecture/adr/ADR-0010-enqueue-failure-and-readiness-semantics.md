@@ -2,8 +2,8 @@
 ADR: 0010
 Title: Fail enqueue on queue publish errors and scope readiness to critical dependencies
 Status: Accepted
-Version: 1.4
-Date: 2026-03-09
+Version: 1.5
+Date: 2026-03-31
 Related:
   - "[SPEC-0003: Observability](../spec/SPEC-0003-observability.md)"
   - "[SPEC-0006: JWT/OIDC verification and principal mapping](../spec/SPEC-0006-jwt-oidc-verification-and-principal-mapping.md)"
@@ -57,10 +57,10 @@ Choose option B.
 
 Implementation commitments:
 
-- Queue publish failures for `POST /v1/jobs` return `503` and
+- Queue publish failures for `POST /v1/exports` return `503` and
   `error.code = "queue_unavailable"`.
-- Job records created before publish are transitioned to `failed` when publish
-  fails.
+- Export records created before publish are transitioned to `failed` when
+  publish fails.
 - `/v1/health/ready` excludes feature flags from pass/fail aggregation.
 - `/v1/health/ready` treats missing/blank `FILE_TRANSFER_BUCKET` as
   unconfigured.
@@ -83,6 +83,8 @@ Implementation commitments:
 
 ## Changelog
 
+- 2026-03-31 (v1.5): Canonicalized export enqueue route and record terminology
+  to match the implemented `/v1/exports` baseline.
 - 2026-03-09 (v1.4): Repointed bearer-verifier readiness authority
   references to SPEC-0006.
 - 2026-03-05 (v1.3): Added fail-closed bearer-verifier readiness semantics.

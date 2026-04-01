@@ -55,7 +55,7 @@ if command -v rg >/dev/null 2>&1; then
     echo "::error::Required regex route literal not found: $ROUTE_LITERAL_PATTERN"
     exit 1
   }
-  if rg -n "/api/|/healthz|/readyz" "${RUNTIME_PATHS[@]}"; then
+  if rg -n "/api/|/healthz|/readyz|/v1/jobs($|[^[:alnum:]_])|/v1/jobs/" "${RUNTIME_PATHS[@]}"; then
     echo "::error::Forbidden legacy runtime route references detected."
     exit 1
   fi
@@ -91,7 +91,7 @@ else
       echo "::error::Required regex route literal not found: $ROUTE_LITERAL_PATTERN"
       exit 1
     }
-  if grep -RInE "/api/|/healthz|/readyz" "${RUNTIME_PATHS[@]}"; then
+  if grep -RInE "/api/|/healthz|/readyz|/v1/jobs($|[^[:alnum:]_])|/v1/jobs/" "${RUNTIME_PATHS[@]}"; then
     echo "::error::Forbidden legacy runtime route references detected."
     exit 1
   fi
@@ -191,6 +191,11 @@ for file in files:
 
             prefix = prefixes.get(func.value.id, "")
             full_path = f"{prefix}{route_path}" if prefix else route_path
+            if full_path.startswith("/v1/jobs"):
+                violations.append(
+                    f"{file}:{node.name}:{func.value.id}:{route_path} -> retired {full_path}"
+                )
+                continue
             if full_path != "/metrics/summary" and not full_path.startswith("/v1/"):
                 violations.append(
                     f"{file}:{node.name}:{func.value.id}:{route_path} -> {full_path}"
@@ -216,6 +221,13 @@ def validate_openapi_paths(schema: dict, app_label: str) -> None:
     paths = schema.get("paths", {})
     if not isinstance(paths, dict):
         print(f"::error::{app_label} OpenAPI paths payload is not a mapping.")
+        sys.exit(1)
+
+    retired_paths = [path for path in paths if path.startswith("/v1/jobs")]
+    if retired_paths:
+        print(f"::error::{app_label} retired /v1/jobs OpenAPI paths detected:")
+        for path in sorted(retired_paths):
+            print(path)
         sys.exit(1)
 
     invalid_paths = [

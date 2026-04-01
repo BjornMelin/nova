@@ -19,8 +19,8 @@ readiness semantics for Nova runtime packages.
 
 1. `packages/nova_file_api/src/nova_file_api/config.py` is the typed
    environment contract for the file API runtime.
-2. `packages/nova_dash_bridge/src/nova_dash_bridge/config.py` may define
-   adapter-local environment settings only.
+2. `packages/nova_dash_bridge/` does not define a separate runtime environment
+   contract; browser/Dash helpers are configured explicitly by the host app.
 3. `scripts/release/runtime_config_contract.py` is the only allowed curated
    supplement for deploy-template metadata that cannot be inferred from
    `Settings` alone.
@@ -105,7 +105,8 @@ Required startup validation:
 1. Runtime docs reference this spec for backend-coupling rules.
 2. Active docs state the current shared-idempotency and scoped-readiness
    contract and do not claim an unimplemented `IDEMPOTENCY_MODE`.
-3. Bridge and adapter docs do not claim separate runtime startup contracts.
+3. Bridge and adapter docs do not claim separate runtime startup contracts or
+   bridge-local env settings.
 4. Runtime deploy/docs/tests share a single generated env/override matrix.
 
 ## 7. Traceability

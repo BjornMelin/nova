@@ -66,9 +66,8 @@ parallel session/header auth channel).
    Gateway REST API with direct Regional WAF, one canonical custom domain,
    Lambda (FastAPI via native handler), Step Functions Standard, DynamoDB,
    S3, and CloudWatch-backed observability with least-privilege IAM.
-8. `nova_dash_bridge` remains an adapter-only integration surface and consumes
-   canonical in-process transfer contracts through `nova_file_api.public` as
-   the async-first in-process seam.
+8. `nova_dash_bridge` remains a browser/Dash helper surface and consumes the
+   canonical Nova HTTP API contract instead of a bridge-owned in-process seam.
 9. Runtime deploy/operator surfaces must share one generated env/override
    contract derived from the typed runtime settings plus minimal curated
    template metadata.

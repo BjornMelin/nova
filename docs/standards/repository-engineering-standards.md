@@ -2,7 +2,7 @@
 
 Status: Active
 Owner: nova release architecture
-Last reviewed: 2026-03-25
+Last reviewed: 2026-03-31
 
 ## Purpose
 
@@ -201,8 +201,7 @@ Toolchain baseline notes:
   `scripts/release/openapi_python_client/`, and the committed
   `packages/nova_sdk_py` tree aligned in the same change.
 - Current runtime dependency floors are manifest-owned authority:
-  `pydantic-settings>=2.13.1` in `nova-file-api` and `nova-dash-bridge`, plus
-  `mangum>=0.21.0` in `nova-file-api`. If those
+  `pydantic-settings>=2.13.1` and `mangum>=0.21.0` in `nova-file-api`. If those
   floors move, update docs, lockfiles, and verification guidance together.
 - Pytest defaults to `--import-mode=importlib` and relies on editable workspace
   installs instead of repo-level `pythonpath` injection. Treat any return to a
@@ -288,7 +287,7 @@ downstream consumer:
 
 ```bash
 export DASH_PCA_REPO=/path/to/dash-pca
-rg -n "/v1/transfers|/v1/jobs|nova_dash_bridge|nova_file_api" \
+rg -n "/v1/transfers|/v1/exports|nova_dash_bridge|nova_file_api" \
   "${DASH_PCA_REPO:?set DASH_PCA_REPO to your dash-pca checkout}"
 ```
 
