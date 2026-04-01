@@ -40,19 +40,14 @@ invalid.
 
 Required startup validation:
 
-1. `JOBS_QUEUE_BACKEND=sqs` with `JOBS_ENABLED=true` requires
-   `JOBS_SQS_QUEUE_URL`.
-2. `JOBS_REPOSITORY_BACKEND=dynamodb` requires `JOBS_DYNAMODB_TABLE`.
-3. DynamoDB-backed scoped job listing requires the jobs table GSI
+1. `EXPORTS_ENABLED=true` requires `EXPORTS_DYNAMODB_TABLE`.
+2. `EXPORTS_ENABLED=true` in the API Lambda requires
+   `EXPORT_WORKFLOW_STATE_MACHINE_ARN`.
+3. Workflow-task runtime startup also requires `EXPORTS_DYNAMODB_TABLE`; the
+   shared workflow runtime does not fall back to `MemoryExportRepository()`
+   when the exports table is blank.
+4. DynamoDB-backed scoped export listing requires the exports table GSI
    `scope_id-created_at-index`; the runtime does not fall back to `Scan`.
-4. `JOBS_RUNTIME_MODE=worker` requires:
-   - `JOBS_ENABLED=true`
-   - `JOBS_QUEUE_BACKEND=sqs`
-   - `JOBS_SQS_QUEUE_URL`
-   - `JOBS_REPOSITORY_BACKEND=dynamodb`
-   - `JOBS_DYNAMODB_TABLE`
-   - `ACTIVITY_STORE_BACKEND=dynamodb`
-   - `ACTIVITY_ROLLUPS_TABLE`
 5. `ACTIVITY_STORE_BACKEND=dynamodb` requires `ACTIVITY_ROLLUPS_TABLE`.
 6. `IDEMPOTENCY_ENABLED` and `IDEMPOTENCY_TTL_SECONDS` are the current
    idempotency settings surface; the runtime does not define
@@ -89,8 +84,8 @@ Required startup validation:
    validation-safe; incomplete bearer-verifier OIDC inputs are enforced by
    Nova readiness/startup behavior, not by template-parameter validation
    rules.
-6. When jobs are disabled, the reported `job_queue` check remains ready instead
-   of making the service unready by feature disablement alone.
+6. When exports are disabled, the reported `export_runtime` check remains ready
+   instead of making the service unready by feature disablement alone.
 7. `idempotency_store` health remains visible in diagnostics and gates
    readiness only when idempotency is enabled.
 8. Activity-store health remains visible in diagnostics but is not

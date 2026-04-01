@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from nova_runtime_support.export_transfer import ExportTransferConfig
@@ -62,6 +62,18 @@ class WorkflowSettings(BaseSettings):
         default=None,
         validation_alias="EXPORTS_DYNAMODB_TABLE",
     )
+
+    @model_validator(mode="after")
+    def validate_exports_dynamodb_table(self) -> WorkflowSettings:
+        """Require durable export state storage when exports are enabled."""
+        if self.exports_enabled and not (
+            self.exports_dynamodb_table and self.exports_dynamodb_table.strip()
+        ):
+            raise ValueError(
+                "EXPORTS_DYNAMODB_TABLE must be configured when "
+                "EXPORTS_ENABLED=true"
+            )
+        return self
 
 
 def export_transfer_config_from_settings(

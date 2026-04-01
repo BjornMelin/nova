@@ -13,8 +13,6 @@ from nova_runtime_support.aws import new_aioboto3_session
 from nova_runtime_support.export_runtime import (
     DynamoExportRepository,
     DynamoResource,
-    ExportRepository,
-    MemoryExportRepository,
     WorkflowExportStateService,
 )
 from nova_runtime_support.export_transfer import S3ExportTransferService
@@ -45,14 +43,15 @@ def _build_export_service(
     dynamodb_resource: object,
 ) -> WorkflowExportStateService:
     table_name = (resolved_settings.exports_dynamodb_table or "").strip()
-    repository: ExportRepository
-    if table_name:
-        repository = DynamoExportRepository(
-            table_name=table_name,
-            dynamodb_resource=cast(DynamoResource, dynamodb_resource),
+    if not table_name:
+        raise ValueError(
+            "EXPORTS_DYNAMODB_TABLE must be configured when "
+            "EXPORTS_ENABLED=true"
         )
-    else:
-        repository = MemoryExportRepository()
+    repository = DynamoExportRepository(
+        table_name=table_name,
+        dynamodb_resource=cast(DynamoResource, dynamodb_resource),
+    )
     return WorkflowExportStateService(repository=repository)
 
 
