@@ -206,10 +206,12 @@ infra/auth0/env/*
 !/.yarnrc.yml.template
 
 GPT54_PRO_REVIEW_PROMPT.md
+GPT54_PRO_CROSS_REPO_FINALIZATION_PROMPT.md
+finalization-files.zip
 nova-release-rebaseline.zip
 PR-*.diff
 reducing-entropy.zip
 clean-code.zip
 fastapi.zip
 fastapi-code-review.zip
-nova.zip
+nova*.zip
