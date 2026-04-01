@@ -13,7 +13,7 @@ _FORBIDDEN_ROOT = "nova_file_api"
 _FORBIDDEN_PREFIX = _FORBIDDEN_ROOT + "."
 
 
-def test_bridge_has_no_runtime_package_imports() -> None:
+def test_bridge_has_no_nova_file_api_imports() -> None:
     package_root = (
         Path(__file__).resolve().parents[1] / "src" / "nova_dash_bridge"
     )
