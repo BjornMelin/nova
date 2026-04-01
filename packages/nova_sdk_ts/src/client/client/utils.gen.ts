@@ -65,7 +65,7 @@ export const createQuerySerializer = <T = unknown>({
 /**
  * Infers parseAs value from provided Content-Type header.
  */
-export const getParseAs = (contentType: string | null): Exclude<Config['parseAs'], 'auto'> | undefined => {
+export const getParseAs = (contentType: string | null): Exclude<Config['parseAs'], 'auto'> => {
   if (!contentType) {
     // If no Content-Type header is provided, the best we can do is return the raw response body,
     // which is effectively the same as the 'stream' option.
