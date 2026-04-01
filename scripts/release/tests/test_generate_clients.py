@@ -9,21 +9,25 @@ from pathlib import Path
 
 import pytest
 
-from scripts.release.generate_clients import (
+from scripts.release.r_sdk import (
+    _render_r_client,
+    _render_r_description,
+    _render_r_license_text,
+    _render_r_namespace,
+    _render_r_package_manual,
+)
+from scripts.release.sdk_common import (
     TARGETS,
     GenerationTarget,
     Operation,
     OperationParameter,
     _assert_unique_operation_ids,
     _build_public_openapi_spec,
-    _check_typescript_generated_output,
     _default_operation_id,
     _load_operations,
-    _render_r_client,
-    _render_r_description,
-    _render_r_license_text,
-    _render_r_namespace,
-    _render_r_package_manual,
+)
+from scripts.release.typescript_sdk import (
+    _check_typescript_generated_output,
     _run_openapi_ts,
 )
 
@@ -253,7 +257,7 @@ def test_run_openapi_ts_times_out_with_actionable_error(
 ) -> None:
     """Timeouts from @hey-api/openapi-ts include explicit error context."""
     monkeypatch.setattr(
-        "scripts.release.generate_clients.OPENAPI_TS_CLI",
+        "scripts.release.typescript_sdk.OPENAPI_TS_CLI",
         Path(__file__),
     )
 
@@ -283,7 +287,7 @@ def test_run_openapi_ts_requires_repo_installed_cli(
 ) -> None:
     """Missing local CLI should fail with an npm bootstrap hint."""
     monkeypatch.setattr(
-        "scripts.release.generate_clients.OPENAPI_TS_CLI",
+        "scripts.release.typescript_sdk.OPENAPI_TS_CLI",
         Path(__file__).with_name("missing-openapi-ts"),
     )
 

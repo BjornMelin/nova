@@ -85,15 +85,22 @@ def test_public_sdk_types_exclude_wrapper_specific_aliases() -> None:
     assert re.search(r"\b\w+Result\b", source) is None
 
 
-def test_public_sdk_generated_tree_has_no_index_barrels() -> None:
-    """Generator post-processing must remove index.ts barrels from src tree."""
-    index_files = sorted(
-        path.relative_to(REPO_ROOT / "packages" / TS_PACKAGE_DIR).as_posix()
-        for path in (REPO_ROOT / "packages" / TS_PACKAGE_DIR / "src").rglob(
-            "index.ts"
-        )
-    )
-    assert index_files == []
+def test_public_sdk_omits_top_level_entry_barrels() -> None:
+    """Public TS entrypoints stay on explicit subpaths, not root barrels."""
+    package_root = REPO_ROOT / "packages" / TS_PACKAGE_DIR / "src"
+    assert not (package_root / "index.ts").exists()
+    assert not (package_root / "client" / "index.ts").exists()
+
+
+def test_public_sdk_top_level_modules_use_esm_specifiers() -> None:
+    """Top-level generated modules must use explicit ESM import specifiers."""
+    client_source = _load_source_text(TS_PACKAGE_DIR, "client/client.gen.ts")
+    sdk_source = _load_source_text(TS_PACKAGE_DIR, "client/sdk.gen.ts")
+
+    assert "./client/index.js" in client_source
+    assert "./types.gen.js" in client_source
+    assert "./client.gen.js" in sdk_source
+    assert "./types.gen.js" in sdk_source
 
 
 def test_public_sdk_exposes_generated_sdk_functions_only() -> None:
