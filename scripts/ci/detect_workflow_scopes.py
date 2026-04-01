@@ -28,8 +28,12 @@ RUNTIME_EXACT = {
     ".github/actions/setup-python-uv/action.yml",
 }
 CONFORMANCE_GENERATOR_EXACT = {
+    "openapi-ts.config.ts",
     "scripts/release/generate_clients.py",
     "scripts/release/generate_python_clients.py",
+    "scripts/release/r_sdk.py",
+    "scripts/release/sdk_common.py",
+    "scripts/release/typescript_sdk.py",
 }
 GENERATED_CLIENTS_PREFIXES = (
     *RUNTIME_PREFIXES,
@@ -96,6 +100,7 @@ CFN_EXACT = {
     "README.md",
     "docs/README.md",
     "docs/plan/PLAN.md",
+    "openapi-ts.config.ts",
 } | CFN_AUTHORITY_DOC_EXACT
 DOC_ONLY_PREFIXES = ("docs/",)
 DOC_ONLY_EXACT = {"AGENTS.md", "README.md"}

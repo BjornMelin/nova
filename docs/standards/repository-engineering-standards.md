@@ -83,7 +83,11 @@ Rules for narrative provisioning, release, and validation markdown under
   subpath-only.
 - Publicly supported imports remain subpath-only. Do not add package-root `"."`
   exports.
-- Do not create `index.ts` files or re-export barrels.
+- Do not create hand-authored public `index.ts` entrypoints or re-export
+  barrels.
+- The only allowed active `index.ts` is the generator-owned internal scaffold at
+  `packages/nova_sdk_ts/src/client/client/index.ts`; it is not part of the
+  public import surface and should only re-export generated client internals.
 - `types` surfaces stay curated; do not expose raw whole-spec aliases or
   internal-only worker models.
 - Internal/admin operations marked with `x-nova-sdk-visibility: internal` stay
@@ -302,7 +306,8 @@ rg -n "container-craft" README.md docs/architecture docs/plan docs/runbooks \
 ## Do Not Reintroduce
 
 - stale authority filenames in active docs
-- package-root exports or barrels for generated TypeScript SDKs
+- package-root exports, public entrypoint barrels, or hand-authored public
+  `index.ts` files for generated TypeScript SDKs
 - runtime validation libraries in generated TypeScript SDK packages
 - internal-only operations or models in generated SDK surfaces
 - JSON-only shortcuts for operations that declare multiple request media types

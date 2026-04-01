@@ -14,6 +14,9 @@ export default defineConfig({
   input,
   output: {
     entryFile: false,
+    module: {
+      extension: '.js',
+    },
     path: outputPath,
   },
   plugins: [
