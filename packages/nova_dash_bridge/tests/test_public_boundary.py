@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import ast
+import importlib.util
 import tomllib
 from pathlib import Path
+
+import pytest
 
 import nova_dash_bridge
 
@@ -59,10 +62,27 @@ def test_public_exports_are_browser_only() -> None:
         "S3FileUploader",
         "__version__",
     ]
-    assert hasattr(nova_dash_bridge, "FileTransferAssets")
-    assert hasattr(nova_dash_bridge, "S3FileUploader")
-    assert not hasattr(nova_dash_bridge, "create_fastapi_app")
-    assert not hasattr(nova_dash_bridge, "create_fastapi_router")
-    assert not hasattr(nova_dash_bridge, "create_file_transfer_blueprint")
-    assert not hasattr(nova_dash_bridge, "register_file_transfer_assets")
-    assert not hasattr(nova_dash_bridge, "register_file_transfer_blueprint")
+    exported_names = dir(nova_dash_bridge)
+    assert "FileTransferAssets" in exported_names
+    assert "S3FileUploader" in exported_names
+    assert "create_fastapi_app" not in exported_names
+    assert "create_fastapi_router" not in exported_names
+    assert "create_file_transfer_blueprint" not in exported_names
+    assert "register_file_transfer_assets" not in exported_names
+    assert "register_file_transfer_blueprint" not in exported_names
+
+    if importlib.util.find_spec("dash") is None:
+        with pytest.raises(
+            ModuleNotFoundError,
+            match=r"Install with `pip install nova-dash-bridge\[dash\]`\.",
+        ):
+            _ = nova_dash_bridge.FileTransferAssets
+        with pytest.raises(
+            ModuleNotFoundError,
+            match=r"Install with `pip install nova-dash-bridge\[dash\]`\.",
+        ):
+            _ = nova_dash_bridge.S3FileUploader
+        return
+
+    assert callable(nova_dash_bridge.FileTransferAssets)
+    assert callable(nova_dash_bridge.S3FileUploader)
