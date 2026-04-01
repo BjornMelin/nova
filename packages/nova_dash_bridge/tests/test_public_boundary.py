@@ -37,9 +37,17 @@ def test_bridge_does_not_import_nova_file_api_modules() -> None:
                 )
 
     if violations:
+        max_shown = 10
+        shown_violations = violations[:max_shown]
+        summary = "\n".join(shown_violations)
+        if len(violations) > max_shown:
+            summary += (
+                f"\n... and {len(violations) - max_shown} more violations"
+            )
         pytest.xfail(
             "Phase 2 bridge cut pending: nova_dash_bridge still imports "
-            "nova_file_api.public."
+            "nova_file_api.public.\n"
+            f"{summary}"
         )
     assert violations == []
 

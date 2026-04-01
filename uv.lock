@@ -1318,12 +1318,14 @@ version = "0.1.0"
 source = { editable = "packages/nova_workflows" }
 dependencies = [
     { name = "nova-runtime-support" },
+    { name = "pydantic" },
     { name = "structlog" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "nova-runtime-support", editable = "packages/nova_runtime_support" },
+    { name = "pydantic", specifier = ">=2.12.5" },
     { name = "structlog", specifier = ">=25.5.0" },
 ]
 
