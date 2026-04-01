@@ -7,8 +7,10 @@ from pydantic import ValidationError
 
 from nova_runtime_support.export_runtime import (
     DynamoExportRepository,
+    NoopExportMetrics,
     WorkflowExportStateService,
 )
+from nova_runtime_support.metrics import MetricsCollector
 from nova_runtime_support.workflow_config import WorkflowSettings
 from nova_runtime_support.workflow_runtime import _build_export_service
 
@@ -34,6 +36,7 @@ def test_build_export_service_uses_dynamo_repository() -> None:
             {
                 "EXPORTS_ENABLED": True,
                 "EXPORTS_DYNAMODB_TABLE": "exports-table",
+                "METRICS_NAMESPACE": "WorkflowTests",
             }
         ),
         dynamodb_resource=object(),
@@ -41,6 +44,9 @@ def test_build_export_service_uses_dynamo_repository() -> None:
 
     assert isinstance(service, WorkflowExportStateService)
     assert isinstance(service.repository, DynamoExportRepository)
+    assert isinstance(service.metrics, MetricsCollector)
+    assert not isinstance(service.metrics, NoopExportMetrics)
+    assert service.metrics._namespace == "WorkflowTests"
 
 
 def test_build_export_service_rejects_blank_exports_table() -> None:

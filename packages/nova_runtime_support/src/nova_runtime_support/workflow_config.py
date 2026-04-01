@@ -62,6 +62,10 @@ class WorkflowSettings(BaseSettings):
         default=None,
         validation_alias="EXPORTS_DYNAMODB_TABLE",
     )
+    metrics_namespace: str = Field(
+        default="NovaFileApi",
+        validation_alias="METRICS_NAMESPACE",
+    )
 
     @model_validator(mode="after")
     def validate_exports_dynamodb_table(self) -> WorkflowSettings:

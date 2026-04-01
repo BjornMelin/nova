@@ -37,6 +37,7 @@ from nova_runtime_support.http import (
     request_id_from_request,
 )
 from nova_runtime_support.logging import configure_structlog
+from nova_runtime_support.metrics import MetricsCollector
 from nova_runtime_support.openapi import (
     SDK_VISIBILITY_EXTENSION,
     SDK_VISIBILITY_INTERNAL,
@@ -67,6 +68,7 @@ __all__ = [
     "ExportTransferService",
     "MemoryExportPublisher",
     "MemoryExportRepository",
+    "MetricsCollector",
     "NoopExportMetrics",
     "NormalizedPrincipalClaims",
     "RequestContextASGIMiddleware",

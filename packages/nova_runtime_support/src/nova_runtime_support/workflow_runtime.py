@@ -16,6 +16,7 @@ from nova_runtime_support.export_runtime import (
     WorkflowExportStateService,
 )
 from nova_runtime_support.export_transfer import S3ExportTransferService
+from nova_runtime_support.metrics import MetricsCollector
 from nova_runtime_support.workflow_config import (
     WorkflowSettings,
     export_transfer_config_from_settings,
@@ -52,7 +53,10 @@ def _build_export_service(
         table_name=table_name,
         dynamodb_resource=cast(DynamoResource, dynamodb_resource),
     )
-    return WorkflowExportStateService(repository=repository)
+    return WorkflowExportStateService(
+        repository=repository,
+        metrics=MetricsCollector(namespace=resolved_settings.metrics_namespace),
+    )
 
 
 @asynccontextmanager
