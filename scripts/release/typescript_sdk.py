@@ -41,7 +41,15 @@ _GET_PARSE_AS_SIGNATURE_WITH_UNDEFINED = (
 
 
 def _postprocess_typescript_generated_output(root: Path) -> None:
-    """Normalize generated TS SDK output to repo-owned expectations."""
+    """Normalize generated TS SDK output to repo-owned expectations.
+
+    Args:
+        root: Root directory containing generated client files.
+
+    Raises:
+        RuntimeError: Raised when the expected `getParseAs` signature is
+            missing from the generated output.
+    """
     utils_path = root / "client" / "utils.gen.ts"
     if not utils_path.exists():
         return
