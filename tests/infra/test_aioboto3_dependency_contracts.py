@@ -10,9 +10,6 @@ _ROOT_LOCK = REPO_ROOT / "uv.lock"
 _FILE_API_PYPROJECT = (
     REPO_ROOT / "packages" / "nova_file_api" / "pyproject.toml"
 )
-_DASH_BRIDGE_PYPROJECT = (
-    REPO_ROOT / "packages" / "nova_dash_bridge" / "pyproject.toml"
-)
 _EXPECTED_AIOBOTO3_VERSION = "15.5.0"
 _EXPECTED_AIOBOTOCORE_VERSION = "2.25.1"
 
@@ -33,14 +30,12 @@ def _lock_package_versions() -> dict[str, str]:
     }
 
 
-def test_runtime_packages_require_current_aioboto3_release_floor() -> None:
-    """Runtime packages should require the current reviewed aioboto3 line."""
+def test_file_api_requires_current_aioboto3_release_floor() -> None:
+    """The file API runtime keeps the reviewed aioboto3 dependency floor."""
     file_api_dependencies = _dependency_strings(_FILE_API_PYPROJECT)
-    dash_bridge_dependencies = _dependency_strings(_DASH_BRIDGE_PYPROJECT)
     expected_dependency = f"aioboto3>={_EXPECTED_AIOBOTO3_VERSION},<16"
 
     assert expected_dependency in file_api_dependencies
-    assert expected_dependency in dash_bridge_dependencies
 
 
 def test_uv_lock_resolves_upstream_supported_aioboto3_stack() -> None:
