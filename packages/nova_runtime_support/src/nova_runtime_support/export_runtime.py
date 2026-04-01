@@ -65,6 +65,38 @@ class NoopExportMetrics:
         del metric_name, value, unit, dimensions
 
 
+@dataclass(slots=True)
+class ExportStatusLookupError(LookupError):
+    """Raised when an export record is missing during status updates."""
+
+    export_id: str
+
+    def __post_init__(self) -> None:
+        """Populate a stable exception message for adapters."""
+        Exception.__init__(self, "export not found")
+
+
+@dataclass(slots=True)
+class ExportStatusTransitionError(ValueError):
+    """Raised when an export status transition is invalid."""
+
+    export_id: str
+    requested_status: ExportStatus
+    current_status: ExportStatus | None = None
+
+    def __post_init__(self) -> None:
+        """Populate a stable exception message for adapters."""
+        Exception.__init__(self, "invalid export state transition")
+
+
+class ExportStatusOutputRequiredError(ValueError):
+    """Raised when a succeeded export transition lacks output."""
+
+    def __init__(self) -> None:
+        """Populate a stable exception message for adapters."""
+        super().__init__("export output is required for succeeded status")
+
+
 class ExportRepository(Protocol):
     """Persist and retrieve export workflow records."""
 
@@ -510,68 +542,14 @@ class WorkflowExportStateService:
         error: str | None = None,
     ) -> ExportRecord:
         """Persist a workflow-side export status transition."""
-        record = await self.repository.get(export_id)
-        if record is None:
-            raise LookupError("export not found")
-        if not _is_valid_transition(current=record.status, target=status):
-            raise ValueError("invalid export state transition")
-
-        now = _utc_now()
-        update_payload: dict[str, object] = {
-            "status": status,
-            "updated_at": now,
-        }
-        queue_lag_ms: float | None = None
-        if (
-            record.status == ExportStatus.QUEUED
-            and status != ExportStatus.QUEUED
-        ):
-            queue_lag_ms = _queue_lag_ms(created_at=record.created_at, now=now)
-        if output is not None:
-            update_payload["output"] = output
-        if error is not None:
-            update_payload["error"] = error
-        if status == ExportStatus.SUCCEEDED:
-            if output is None and record.output is None:
-                raise ValueError(
-                    "export output is required for succeeded status"
-                )
-            update_payload["output"] = output or record.output
-            update_payload["error"] = None
-        if status == ExportStatus.FAILED and error is None:
-            update_payload["error"] = record.error or "export_failed"
-
-        updated = record.model_copy(update=update_payload)
-        updated_ok = await self.repository.update_if_status(
-            record=updated,
-            expected_status=record.status,
+        return await update_export_status_shared(
+            repository=self.repository,
+            metrics=self.metrics,
+            export_id=export_id,
+            status=status,
+            output=output,
+            error=error,
         )
-        if not updated_ok:
-            latest = await self.repository.get(export_id)
-            if latest is None:
-                raise LookupError("export not found")
-            if latest.status == status:
-                return latest
-            raise ValueError("invalid export state transition")
-
-        if queue_lag_ms is not None:
-            self.metrics.observe_ms("exports_queue_lag_ms", queue_lag_ms)
-            self.metrics.emit_emf(
-                metric_name="exports_queue_lag_ms",
-                value=queue_lag_ms,
-                unit="Milliseconds",
-                dimensions={"source": "export_status_update"},
-            )
-        self.metrics.incr(f"exports_{status.value}")
-        self.metrics.incr("exports_status_updates_total")
-        self.metrics.incr(f"exports_status_updates_{status.value}")
-        self.metrics.emit_emf(
-            metric_name="exports_status_updates_total",
-            value=1,
-            unit="Count",
-            dimensions={"status": status.value},
-        )
-        return updated
 
 
 def utc_now() -> datetime:
@@ -608,6 +586,83 @@ def export_object_key(
 ) -> str:
     """Return the storage key used for memory-mode export completion."""
     return _export_object_key(export=export, export_prefix=export_prefix)
+
+
+async def update_export_status_shared(
+    *,
+    repository: ExportRepository,
+    metrics: ExportMetrics,
+    export_id: str,
+    status: ExportStatus,
+    output: ExportOutput | None = None,
+    error: str | None = None,
+) -> ExportRecord:
+    """Persist a status transition with shared validation and metrics."""
+    record = await repository.get(export_id)
+    if record is None:
+        raise ExportStatusLookupError(export_id=export_id)
+    if not _is_valid_transition(current=record.status, target=status):
+        raise ExportStatusTransitionError(
+            export_id=export_id,
+            current_status=record.status,
+            requested_status=status,
+        )
+
+    now = _utc_now()
+    update_payload: dict[str, object] = {
+        "status": status,
+        "updated_at": now,
+    }
+    queue_lag_ms: float | None = None
+    if record.status == ExportStatus.QUEUED and status != ExportStatus.QUEUED:
+        queue_lag_ms = _queue_lag_ms(created_at=record.created_at, now=now)
+    if output is not None:
+        update_payload["output"] = output
+    if error is not None:
+        update_payload["error"] = error
+    if status == ExportStatus.SUCCEEDED:
+        if output is None and record.output is None:
+            raise ExportStatusOutputRequiredError()
+        update_payload["output"] = output or record.output
+        update_payload["error"] = None
+    if status == ExportStatus.FAILED and error is None:
+        update_payload["error"] = record.error or "export_failed"
+
+    updated = record.model_copy(update=update_payload)
+    updated_ok = await repository.update_if_status(
+        record=updated,
+        expected_status=record.status,
+    )
+    if not updated_ok:
+        latest = await repository.get(export_id)
+        if latest is None:
+            raise ExportStatusLookupError(export_id=export_id)
+        if latest.status == status:
+            return latest
+        raise ExportStatusTransitionError(
+            export_id=export_id,
+            current_status=latest.status,
+            requested_status=status,
+        )
+
+    if queue_lag_ms is not None:
+        metrics.observe_ms("exports_queue_lag_ms", queue_lag_ms)
+        metrics.emit_emf(
+            metric_name="exports_queue_lag_ms",
+            value=queue_lag_ms,
+            unit="Milliseconds",
+            dimensions={"source": "export_status_update"},
+        )
+    metrics.incr(f"exports_{status.value}")
+    metrics.incr("exports_status_updates_total")
+    metrics.incr(f"exports_status_updates_{status.value}")
+    metrics.emit_emf(
+        metric_name="exports_status_updates_total",
+        value=1,
+        unit="Count",
+        dimensions={"status": status.value},
+    )
+    return updated
 
 
 def _utc_now() -> datetime:

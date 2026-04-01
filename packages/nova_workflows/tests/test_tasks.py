@@ -7,7 +7,6 @@ import pytest
 
 from nova_runtime_support.export_models import ExportRecord, ExportStatus
 from nova_runtime_support.export_runtime import (
-    MemoryExportPublisher,
     MemoryExportRepository,
     NoopExportMetrics,
     WorkflowExportStateService,
@@ -55,7 +54,6 @@ async def _service_with_record() -> tuple[
         repository=repository,
         metrics=NoopExportMetrics(),
     )
-    publisher = MemoryExportPublisher(process_immediately=False)
     now = datetime.now(tz=UTC)
     record = ExportRecord(
         export_id="export-1",
@@ -70,7 +68,6 @@ async def _service_with_record() -> tuple[
         updated_at=now,
     )
     await repository.create(record)
-    await publisher.publish(export=record)
     return repository, service
 
 

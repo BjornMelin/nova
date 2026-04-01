@@ -2,16 +2,24 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
+
 import pytest
 from pydantic import ValidationError
 
+from nova_runtime_support.export_models import ExportRecord, ExportStatus
 from nova_runtime_support.export_runtime import (
     DynamoExportRepository,
+    MemoryExportRepository,
     NoopExportMetrics,
     WorkflowExportStateService,
+    update_export_status_shared,
 )
 from nova_runtime_support.metrics import MetricsCollector
-from nova_runtime_support.workflow_config import WorkflowSettings
+from nova_runtime_support.workflow_config import (
+    WorkflowSettings,
+    export_transfer_config_from_settings,
+)
 from nova_runtime_support.workflow_runtime import _build_export_service
 
 
@@ -67,4 +75,91 @@ def test_build_export_service_rejects_blank_exports_table() -> None:
         _build_export_service(
             resolved_settings=settings,
             dynamodb_resource=object(),
+        )
+
+
+def test_export_transfer_config_strips_bucket() -> None:
+    settings = WorkflowSettings.model_validate(
+        {
+            "EXPORTS_ENABLED": False,
+            "FILE_TRANSFER_BUCKET": "  workflow-bucket  ",
+        }
+    )
+
+    config = export_transfer_config_from_settings(settings)
+
+    assert config.bucket == "workflow-bucket"
+
+
+def test_export_transfer_config_rejects_blank_bucket() -> None:
+    settings = WorkflowSettings.model_validate(
+        {
+            "EXPORTS_ENABLED": False,
+            "FILE_TRANSFER_BUCKET": "   ",
+        }
+    )
+
+    with pytest.raises(ValueError, match="FILE_TRANSFER_BUCKET"):
+        export_transfer_config_from_settings(settings)
+
+
+@pytest.mark.anyio
+async def test_update_export_status_shared_preserves_terminal_metrics() -> None:
+    repository = MemoryExportRepository()
+    metrics = MetricsCollector(namespace="Tests")
+    now = datetime.now(tz=UTC)
+    await repository.create(
+        ExportRecord(
+            export_id="export-1",
+            scope_id="scope-1",
+            request_id="req-1",
+            source_key="uploads/scope-1/source.csv",
+            filename="source.csv",
+            status=ExportStatus.QUEUED,
+            output=None,
+            error=None,
+            created_at=now,
+            updated_at=now,
+        )
+    )
+
+    updated = await update_export_status_shared(
+        repository=repository,
+        metrics=metrics,
+        export_id="export-1",
+        status=ExportStatus.FAILED,
+    )
+
+    assert updated.error == "export_failed"
+    assert metrics.counters_snapshot()["exports_failed"] == 1
+    assert metrics.counters_snapshot()["exports_status_updates_total"] == 1
+
+
+@pytest.mark.anyio
+async def test_update_export_status_shared_requires_output_for_success() -> (
+    None
+):
+    repository = MemoryExportRepository()
+    now = datetime.now(tz=UTC)
+    await repository.create(
+        ExportRecord(
+            export_id="export-1",
+            scope_id="scope-1",
+            request_id="req-1",
+            source_key="uploads/scope-1/source.csv",
+            filename="source.csv",
+            status=ExportStatus.FINALIZING,
+            output=None,
+            error=None,
+            created_at=now,
+            updated_at=now,
+        )
+    )
+
+    with pytest.raises(ValueError, match="export output is required"):
+        await update_export_status_shared(
+            repository=repository,
+            metrics=NoopExportMetrics(),
+            export_id="export-1",
+            status=ExportStatus.SUCCEEDED,
         )

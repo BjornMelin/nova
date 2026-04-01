@@ -15,11 +15,15 @@ from nova_runtime_support.export_models import (
 from nova_runtime_support.export_runtime import (
     DynamoExportRepository,
     ExportPublishError,
+    ExportStatusLookupError,
+    ExportStatusOutputRequiredError,
+    ExportStatusTransitionError,
     MemoryExportPublisher,
     MemoryExportRepository,
     NoopExportMetrics,
     StepFunctionsExportPublisher,
     WorkflowExportStateService,
+    update_export_status_shared,
 )
 from nova_runtime_support.export_transfer import (
     ExportCopyResult,
@@ -64,6 +68,9 @@ __all__ = [
     "ExportRecord",
     "ExportServices",
     "ExportStatus",
+    "ExportStatusLookupError",
+    "ExportStatusOutputRequiredError",
+    "ExportStatusTransitionError",
     "ExportTransferConfig",
     "ExportTransferService",
     "MemoryExportPublisher",
@@ -89,5 +96,6 @@ __all__ = [
     "normalized_principal_claims",
     "register_fastapi_exception_handlers",
     "request_id_from_request",
+    "update_export_status_shared",
     "workflow_services",
 ]

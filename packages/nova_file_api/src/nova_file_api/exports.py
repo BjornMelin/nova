@@ -19,12 +19,14 @@ from nova_runtime_support.export_runtime import (
     ExportPublisher,
     ExportPublishError,
     ExportRepository,
+    ExportStatusLookupError,
+    ExportStatusOutputRequiredError,
+    ExportStatusTransitionError,
     MemoryExportPublisher,
     MemoryExportRepository,
     StepFunctionsClient,
     StepFunctionsExportPublisher,
-    export_status_transition_allowed,
-    queue_lag_ms,
+    update_export_status_shared,
     utc_now,
 )
 
@@ -145,83 +147,32 @@ class ExportService:
         error: str | None = None,
     ) -> ExportRecord:
         """Update export output/status from workflow-side processing."""
-        record = await self.repository.get(export_id)
-        if record is None:
-            raise not_found("export not found")
-        if not export_status_transition_allowed(
-            current=record.status,
-            target=status,
-        ):
+        try:
+            return await update_export_status_shared(
+                repository=self.repository,
+                metrics=self.metrics,
+                export_id=export_id,
+                status=status,
+                output=output,
+                error=error,
+            )
+        except ExportStatusLookupError as exc:
+            raise not_found("export not found") from exc
+        except ExportStatusOutputRequiredError as exc:
             raise conflict(
-                "invalid export state transition",
-                details={
-                    "export_id": export_id,
-                    "current_status": record.status.value,
-                    "requested_status": status.value,
-                },
-            )
-
-        now = _utc_now()
-        update_payload: dict[str, object] = {
-            "status": status,
-            "updated_at": now,
-        }
-        queued_lag_ms: float | None = None
-        if (
-            record.status == ExportStatus.QUEUED
-            and status != ExportStatus.QUEUED
-        ):
-            queued_lag_ms = queue_lag_ms(created_at=record.created_at, now=now)
-        if output is not None:
-            update_payload["output"] = output
-        if error is not None:
-            update_payload["error"] = error
-        if status == ExportStatus.SUCCEEDED:
-            if output is None and record.output is None:
-                raise conflict("export output is required for succeeded status")
-            update_payload["output"] = output or record.output
-            update_payload["error"] = None
-        if status == ExportStatus.FAILED and error is None:
-            update_payload["error"] = record.error or "export_failed"
-
-        updated = record.model_copy(update=update_payload)
-        updated_ok = await self.repository.update_if_status(
-            record=updated,
-            expected_status=record.status,
-        )
-        if not updated_ok:
-            latest = await self.repository.get(export_id)
-            if latest is None:
-                raise not_found("export not found")
-            if latest.status == status:
-                return latest
+                str(exc),
+            ) from exc
+        except ExportStatusTransitionError as exc:
+            details = {
+                "export_id": exc.export_id,
+                "requested_status": exc.requested_status.value,
+            }
+            if exc.current_status is not None:
+                details["current_status"] = exc.current_status.value
             raise conflict(
-                "invalid export state transition",
-                details={
-                    "export_id": export_id,
-                    "current_status": latest.status.value,
-                    "requested_status": status.value,
-                },
-            )
-
-        if queued_lag_ms is not None:
-            self.metrics.observe_ms("exports_queue_lag_ms", queued_lag_ms)
-            self.metrics.emit_emf(
-                metric_name="exports_queue_lag_ms",
-                value=queued_lag_ms,
-                unit="Milliseconds",
-                dimensions={"source": "export_status_update"},
-            )
-        self.metrics.incr(f"exports_{status.value}")
-        self.metrics.incr("exports_status_updates_total")
-        self.metrics.incr(f"exports_status_updates_{status.value}")
-        self.metrics.emit_emf(
-            metric_name="exports_status_updates_total",
-            value=1,
-            unit="Count",
-            dimensions={"status": status.value},
-        )
-        return updated
+                str(exc),
+                details=details,
+            ) from exc
 
 
 def _utc_now() -> datetime:

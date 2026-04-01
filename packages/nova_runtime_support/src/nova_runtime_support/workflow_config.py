@@ -83,9 +83,22 @@ class WorkflowSettings(BaseSettings):
 def export_transfer_config_from_settings(
     settings: WorkflowSettings,
 ) -> ExportTransferConfig:
-    """Project workflow settings onto the export-copy transfer seam."""
+    """Project workflow settings onto the export-copy transfer seam.
+
+    Args:
+        settings: Resolved workflow runtime settings.
+
+    Returns:
+        Export transfer configuration derived from workflow settings.
+
+    Raises:
+        ValueError: If the configured transfer bucket is blank after trimming.
+    """
+    bucket = settings.file_transfer_bucket.strip()
+    if not bucket:
+        raise ValueError("FILE_TRANSFER_BUCKET must be configured")
     return ExportTransferConfig(
-        bucket=settings.file_transfer_bucket,
+        bucket=bucket,
         upload_prefix=settings.file_transfer_upload_prefix,
         export_prefix=settings.file_transfer_export_prefix,
         tmp_prefix=settings.file_transfer_tmp_prefix,
