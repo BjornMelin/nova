@@ -30,6 +30,36 @@ _LEGACY_TS_ARTIFACTS = (
     Path("src") / "types.ts",
     Path("src") / "generated",
 )
+_GET_PARSE_AS_SIGNATURE = (
+    "export const getParseAs = (contentType: string | null): "
+    "Exclude<Config['parseAs'], 'auto'> => {"
+)
+_GET_PARSE_AS_SIGNATURE_WITH_UNDEFINED = (
+    "export const getParseAs = (contentType: string | null): "
+    "Exclude<Config['parseAs'], 'auto'> | undefined => {"
+)
+
+
+def _postprocess_typescript_generated_output(root: Path) -> None:
+    """Normalize generated TS SDK output to repo-owned expectations."""
+    utils_path = root / "client" / "utils.gen.ts"
+    if not utils_path.exists():
+        return
+
+    text = utils_path.read_text(encoding="utf-8")
+    if _GET_PARSE_AS_SIGNATURE not in text:
+        raise RuntimeError(
+            "unexpected generated TypeScript SDK output: "
+            f"missing {_GET_PARSE_AS_SIGNATURE!r} in {utils_path}"
+        )
+
+    updated = text.replace(
+        _GET_PARSE_AS_SIGNATURE,
+        _GET_PARSE_AS_SIGNATURE_WITH_UNDEFINED,
+        1,
+    )
+    if updated != text:
+        utils_path.write_text(updated, encoding="utf-8")
 
 
 def _run_openapi_ts(
@@ -64,8 +94,9 @@ def _run_openapi_ts(
         )
     except FileNotFoundError as exc:
         raise RuntimeError(
-            "@hey-api/openapi-ts generation failed: missing repo-installed "
-            "CLI; run `npm ci` from repo root"
+            "@hey-api/openapi-ts generation failed: unable to invoke "
+            f"command {' '.join(command)}; ensure Node/npm are installed "
+            "and that `npm` is available on PATH"
         ) from exc
     except subprocess.TimeoutExpired as exc:
         stdout = (
@@ -176,6 +207,7 @@ def generate_or_check_typescript_sdk(
         _run_openapi_ts(
             input_spec_path=input_spec_path, output_path=output_path
         )
+        _postprocess_typescript_generated_output(output_path)
 
         if check:
             return _check_typescript_generated_output(

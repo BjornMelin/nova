@@ -114,6 +114,7 @@ def test_public_sdk_top_level_modules_use_esm_specifiers() -> None:
     assert "./client/index.js" in client_source
     assert "./types.gen.js" in client_source
     assert "./client.gen.js" in sdk_source
+    assert "./client/index.js" in sdk_source
     assert "./types.gen.js" in sdk_source
 
 

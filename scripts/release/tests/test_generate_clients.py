@@ -28,6 +28,7 @@ from scripts.release.sdk_common import (
 )
 from scripts.release.typescript_sdk import (
     _check_typescript_generated_output,
+    _postprocess_typescript_generated_output,
     _run_openapi_ts,
 )
 
@@ -250,6 +251,29 @@ def test_check_typescript_generated_output_flags_drift_and_legacy_files(
         "obsolete TypeScript SDK artifact still present" in issue
         for issue in issues
     )
+
+
+def test_postprocess_typescript_generated_output_allows_undefined_parse_as(
+    tmp_path: Path,
+) -> None:
+    """Generated TS output keeps the repo-owned getParseAs contract."""
+    generated_root = tmp_path / "client"
+    utils_path = generated_root / "client" / "utils.gen.ts"
+    utils_path.parent.mkdir(parents=True)
+    utils_path.write_text(
+        (
+            "export const getParseAs = (contentType: string | null): "
+            "Exclude<Config['parseAs'], 'auto'> => {\n"
+            "  return;\n"
+            "}\n"
+        ),
+        encoding="utf-8",
+    )
+
+    _postprocess_typescript_generated_output(generated_root)
+
+    source = utils_path.read_text(encoding="utf-8")
+    assert "Exclude<Config['parseAs'], 'auto'> | undefined" in source
 
 
 def test_run_openapi_ts_times_out_with_actionable_error(
