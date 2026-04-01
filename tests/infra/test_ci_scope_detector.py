@@ -150,8 +150,12 @@ def test_workflow_changes_mark_cfn_and_targeted_ci_lanes() -> None:
 @pytest.mark.parametrize(
     "path",
     [
+        "openapi-ts.config.ts",
         "scripts/release/generate_clients.py",
         "scripts/release/generate_python_clients.py",
+        "scripts/release/r_sdk.py",
+        "scripts/release/sdk_common.py",
+        "scripts/release/typescript_sdk.py",
     ],
 )
 def test_generator_entrypoints_enable_conformance_and_cfn_lanes(

@@ -1,14 +1,17 @@
 # Canonical client package layout
 
-> **Implementation state:** Approved target-state client/package plan. Current package names in the repo may still be pre-cut.
-
-
 ## TypeScript
 
 - Package name: `@nova/sdk`
 - Source package directory: `packages/nova_sdk_ts`
 - Generator: `@hey-api/openapi-ts`
 - Client style: generated fetch client
+- Public imports:
+  - `@nova/sdk/client`
+  - `@nova/sdk/sdk`
+  - `@nova/sdk/types`
+- Internal generated scaffold files may exist under the bundled client tree;
+  they are not public API.
 
 ## Python
 
@@ -19,7 +22,7 @@
 
 ## R
 
-- Package name: `novaR` or `nova` based on CRAN naming choice
+- Package name: `nova`
 - Source package directory: `packages/nova_sdk_r`
 - Strategy: thin `httr2` wrapper package
 - No OpenAPI Generator R output in the canonical repo
