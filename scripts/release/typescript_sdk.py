@@ -75,6 +75,27 @@ def _run_openapi_ts(
     input_spec_path: Path,
     output_path: Path,
 ) -> None:
+    """Run the @hey-api/openapi-ts generator for the provided OpenAPI spec.
+
+    Args:
+        input_spec_path: Path to the generated public OpenAPI JSON file.
+        output_path: Path where the TypeScript SDK output directory should be
+            written.
+
+    Raises:
+        RuntimeError: Raised when the `openapi-ts` CLI binary is missing at
+            ``OPENAPI_TS_CLI``.
+        RuntimeError: Raised when the committed
+            ``OPENAPI_TS_CONFIG`` file is missing.
+        RuntimeError: Raised when the command invocation fails because
+            `npm` is unavailable or not on ``PATH`` (wrapped
+            `FileNotFoundError`).
+        RuntimeError: Raised when generation exceeds the 120-second timeout
+            (`subprocess.TimeoutExpired`) and includes captured stdout/stderr
+            details.
+        RuntimeError: Raised when the command exits non-zero and includes
+            captured stdout/stderr details in the message.
+    """
     if not OPENAPI_TS_CLI.exists():
         raise RuntimeError(
             "@hey-api/openapi-ts generation failed: missing repo-installed "
@@ -202,7 +223,28 @@ def generate_or_check_typescript_sdk(
     spec: dict[str, Any],
     check: bool,
 ) -> list[str]:
-    """Generate or verify the committed TypeScript SDK tree."""
+    """Generate or verify the committed TypeScript SDK tree.
+
+    Args:
+        target: Generation target containing the TypeScript package root.
+        spec: OpenAPI specification object, serialized and reduced to the public
+            spec before SDK generation.
+        check: If ``True``, compare generated output with committed artifacts
+            and return mismatches; if ``False``, replace committed SDK output.
+
+    Returns:
+        A list of mismatched file/path entries when ``check`` is ``True``;
+            otherwise an empty list.
+
+    Raises:
+        OSError: Raised by ``tempfile`` or file-system write/read operations.
+        (TypeError, ValueError): Raised on JSON serialization or decoding
+            failures.
+        RuntimeError: Raised from ``_run_openapi_ts`` if generation
+            prerequisites or command execution fail.
+        OSError: Raised by ``shutil`` operations when copying/removing
+            artifacts.
+    """
     public_spec = _build_public_openapi_spec(spec)
     with tempfile.TemporaryDirectory() as tmp_dir:
         tmp_root = Path(tmp_dir)
