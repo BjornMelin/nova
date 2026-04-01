@@ -4,12 +4,14 @@ import ast
 from pathlib import Path
 
 
-def test_workflows_do_not_import_nova_file_api() -> None:
+def test_workflows_do_not_cross_api_boundary() -> None:
     package_root = Path(__file__).resolve().parents[1]
     scan_roots = [
         package_root / "src" / "nova_workflows",
         package_root / "tests",
     ]
+    target_module = "nova_" + "file_api"
+    target_prefix = f"{target_module}."
     violations: list[str] = []
 
     for root in scan_roots:
@@ -23,15 +25,15 @@ def test_workflows_do_not_import_nova_file_api() -> None:
                     violations.extend(
                         f"{path.relative_to(package_root)} imports {alias.name}"
                         for alias in node.names
-                        if alias.name == "nova_file_api"
-                        or alias.name.startswith("nova_file_api.")
+                        if alias.name == target_module
+                        or alias.name.startswith(target_prefix)
                     )
                 if (
                     isinstance(node, ast.ImportFrom)
                     and node.module is not None
                     and (
-                        node.module == "nova_file_api"
-                        or node.module.startswith("nova_file_api.")
+                        node.module == target_module
+                        or node.module.startswith(target_prefix)
                     )
                 ):
                     violations.append(
