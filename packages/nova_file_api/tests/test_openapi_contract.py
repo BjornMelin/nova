@@ -101,7 +101,7 @@ def _build_openapi_app() -> FastAPI:
     """Build the file API app without real external dependencies."""
     settings = Settings.model_validate(
         {
-            "JOBS_ENABLED": True,
+            "EXPORTS_ENABLED": True,
             "IDEMPOTENCY_DYNAMODB_TABLE": "test-idempotency",
         }
     )
@@ -131,7 +131,7 @@ def _build_openapi_app_with_stub_auth() -> FastAPI:
     """App matching OpenAPI tests, using stub bearer auth for HTTP checks."""
     settings = Settings.model_validate(
         {
-            "JOBS_ENABLED": True,
+            "EXPORTS_ENABLED": True,
             "IDEMPOTENCY_DYNAMODB_TABLE": "test-idempotency",
         }
     )

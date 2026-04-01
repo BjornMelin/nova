@@ -42,14 +42,14 @@ class _FailingActivityStore(MemoryActivityStore):
 
 def _build_deps(
     *,
-    jobs_enabled: bool = True,
+    exports_enabled: bool = True,
     file_transfer_bucket: str = "test-transfer-bucket",
 ) -> RuntimeDeps:
     """Build in-memory test doubles for readiness and health checks."""
     settings = Settings.model_validate(
         {"IDEMPOTENCY_DYNAMODB_TABLE": "test-idempotency"}
     )
-    settings.jobs_enabled = jobs_enabled
+    settings.exports_enabled = exports_enabled
     settings.file_transfer_bucket = file_transfer_bucket
     metrics = MetricsCollector(namespace="Tests")
     cache = build_cache_stack()
@@ -106,9 +106,9 @@ async def test_v1_health_ready_returns_expected_checks() -> None:
 
 
 @pytest.mark.anyio
-async def test_readyz_stays_ok_when_jobs_are_disabled() -> None:
+async def test_readyz_stays_ok_when_exports_are_disabled() -> None:
     """Verify feature flags do not force readiness false."""
-    app = build_test_app(_build_deps(jobs_enabled=False))
+    app = build_test_app(_build_deps(exports_enabled=False))
     response = await request_app(app, "GET", "/v1/health/ready")
     assert response.status_code == 200
     payload = response.json()

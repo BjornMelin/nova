@@ -4,18 +4,13 @@ from typing import Any, cast
 
 import pytest
 from fastapi import FastAPI
-from pydantic import ValidationError
 
 from nova_file_api.config import Settings
 from nova_file_api.dependencies import (
     build_idempotency_store,
     initialize_runtime_state,
 )
-from nova_file_api.models import (
-    ActivityStoreBackend,
-    JobsQueueBackend,
-    JobsRepositoryBackend,
-)
+from nova_file_api.models import ActivityStoreBackend
 
 from .support.dynamodb import MemoryDynamoResource
 
@@ -24,26 +19,11 @@ def _settings() -> Settings:
     """Return environment-isolated default settings for config tests."""
     return Settings.model_validate(
         {
+            "EXPORTS_ENABLED": False,
             "IDEMPOTENCY_ENABLED": False,
             "IDEMPOTENCY_DYNAMODB_TABLE": "test-idempotency",
         }
     )
-
-
-def _worker_runtime_env(**overrides: object) -> dict[str, object]:
-    """Return a valid worker-runtime environment payload for Settings."""
-    env: dict[str, object] = {
-        "JOBS_ENABLED": True,
-        "JOBS_RUNTIME_MODE": "worker",
-        "JOBS_QUEUE_BACKEND": JobsQueueBackend.SQS,
-        "JOBS_SQS_QUEUE_URL": "https://example.local/queue",
-        "JOBS_REPOSITORY_BACKEND": JobsRepositoryBackend.DYNAMODB,
-        "JOBS_DYNAMODB_TABLE": "jobs-table",
-        "ACTIVITY_STORE_BACKEND": ActivityStoreBackend.DYNAMODB,
-        "ACTIVITY_ROLLUPS_TABLE": "activity-table",
-    }
-    env.update(overrides)
-    return env
 
 
 def test_settings_accept_env_style_keys() -> None:
@@ -113,61 +93,51 @@ def test_build_idempotency_store_strips_table_name() -> None:
     assert store.table_name == "test-idempotency"
 
 
-def test_worker_runtime_requires_dynamodb_jobs_backend() -> None:
-    """Worker mode should reject non-DynamoDB job persistence."""
-    with pytest.raises(ValidationError, match="JOBS_REPOSITORY_BACKEND"):
-        Settings.model_validate(
-            _worker_runtime_env(JOBS_REPOSITORY_BACKEND="memory")
-        )
-
-
-def test_worker_runtime_requires_jobs_table_name() -> None:
-    """Worker mode should fail fast when the jobs table is missing."""
-    with pytest.raises(ValidationError, match="JOBS_DYNAMODB_TABLE"):
-        Settings.model_validate(_worker_runtime_env(JOBS_DYNAMODB_TABLE=""))
-
-
-def test_worker_runtime_requires_dynamodb_activity_backend() -> None:
-    """Worker mode should reject non-DynamoDB activity persistence."""
-    with pytest.raises(ValidationError, match="ACTIVITY_STORE_BACKEND"):
-        Settings.model_validate(
-            _worker_runtime_env(ACTIVITY_STORE_BACKEND="memory")
-        )
-
-
-def test_worker_runtime_requires_activity_table_name() -> None:
-    """Worker mode should fail fast when the activity table is missing."""
-    with pytest.raises(ValidationError, match="ACTIVITY_ROLLUPS_TABLE"):
-        Settings.model_validate(_worker_runtime_env(ACTIVITY_ROLLUPS_TABLE=""))
-
-
-def test_step_functions_backend_requires_state_machine_arn() -> None:
-    """Step Functions mode should fail fast when the ARN is missing."""
-    with pytest.raises(
-        ValidationError, match="JOBS_STEP_FUNCTIONS_STATE_MACHINE_ARN"
-    ):
-        Settings.model_validate(
-            {
-                "IDEMPOTENCY_ENABLED": False,
-                "JOBS_ENABLED": True,
-                "JOBS_QUEUE_BACKEND": JobsQueueBackend.STEP_FUNCTIONS,
-            }
-        )
-
-
 @pytest.mark.parametrize(
     ("overrides", "runtime_kwargs", "expected_match"),
     [
         pytest.param(
             {
                 "idempotency_enabled": False,
-                "jobs_enabled": True,
-                "jobs_queue_backend": JobsQueueBackend.SQS,
-                "jobs_sqs_queue_url": None,
+                "exports_enabled": True,
+                "exports_dynamodb_table": None,
+            },
+            {"dynamodb_resource": object()},
+            "EXPORTS_DYNAMODB_TABLE",
+            id="exports-enabled-requires-table",
+        ),
+        pytest.param(
+            {
+                "idempotency_enabled": False,
+                "exports_enabled": True,
+                "exports_dynamodb_table": "exports-table",
             },
             {},
-            "JOBS_SQS_QUEUE_URL",
-            id="jobs-enabled-requires-queue-url",
+            "dynamodb_resource must be provided",
+            id="exports-enabled-requires-resource",
+        ),
+        pytest.param(
+            {
+                "idempotency_enabled": False,
+                "exports_enabled": True,
+                "exports_dynamodb_table": "exports-table",
+            },
+            {"dynamodb_resource": object()},
+            "EXPORT_WORKFLOW_STATE_MACHINE_ARN",
+            id="exports-enabled-requires-state-machine",
+        ),
+        pytest.param(
+            {
+                "idempotency_enabled": False,
+                "exports_enabled": True,
+                "exports_dynamodb_table": "exports-table",
+                "export_workflow_state_machine_arn": (
+                    "arn:aws:states:us-east-1:123456789012:stateMachine:nova"
+                ),
+            },
+            {"dynamodb_resource": object()},
+            "stepfunctions_client must be provided",
+            id="exports-enabled-requires-stepfunctions-client",
         ),
         pytest.param(
             {
@@ -182,43 +152,12 @@ def test_step_functions_backend_requires_state_machine_arn() -> None:
         pytest.param(
             {
                 "idempotency_enabled": False,
-                "jobs_repository_backend": JobsRepositoryBackend.DYNAMODB,
-                "jobs_dynamodb_table": None,
-            },
-            {"dynamodb_resource": object()},
-            "JOBS_DYNAMODB_TABLE",
-            id="jobs-dynamodb-requires-table",
-        ),
-        pytest.param(
-            {
-                "idempotency_enabled": False,
-                "jobs_repository_backend": JobsRepositoryBackend.DYNAMODB,
-                "jobs_dynamodb_table": "jobs-table",
-            },
-            {},
-            "dynamodb_resource must be provided",
-            id="jobs-dynamodb-requires-resource",
-        ),
-        pytest.param(
-            {
-                "idempotency_enabled": False,
                 "activity_store_backend": ActivityStoreBackend.DYNAMODB,
                 "activity_rollups_table": "activity-rollups",
             },
             {},
             "dynamodb_resource must be provided",
             id="activity-dynamodb-requires-resource",
-        ),
-        pytest.param(
-            {
-                "idempotency_enabled": False,
-                "jobs_enabled": True,
-                "jobs_queue_backend": JobsQueueBackend.SQS,
-                "jobs_sqs_queue_url": "https://example.local/queue",
-            },
-            {},
-            "sqs_client must be provided",
-            id="sqs-enabled-requires-client",
         ),
         pytest.param(
             {
@@ -237,16 +176,7 @@ def test_runtime_state_validates_required_dependencies(
     runtime_kwargs: dict[str, object],
     expected_match: str,
 ) -> None:
-    """Fail fast when runtime dependencies required by settings are absent.
-
-    Args:
-        overrides: Settings overrides applied before initialization.
-        runtime_kwargs: Keyword args forwarded to initialize_runtime_state.
-        expected_match: Regex expected in the raised ValueError message.
-
-    Raises:
-        ValueError: Raised when required runtime dependencies are missing.
-    """
+    """Fail fast when runtime dependencies required by settings are absent."""
     settings = _settings()
     for field_name, value in overrides.items():
         setattr(settings, field_name, value)
@@ -271,14 +201,12 @@ def test_initialize_runtime_state_requires_s3_client() -> None:
         )
 
 
-def test_runtime_state_allows_missing_sqs_url_when_jobs_disabled() -> None:
-    """Allow missing SQS queue URL when jobs are disabled."""
+def test_exports_disabled_allow_missing_workflow_runtime() -> None:
+    """Allow missing export workflow wiring when exports are disabled."""
     settings = _settings()
     settings.idempotency_enabled = False
-    settings.jobs_enabled = False
-    settings.jobs_queue_backend = JobsQueueBackend.SQS
-    settings.jobs_sqs_queue_url = None
+    settings.exports_enabled = False
 
     app = FastAPI()
     initialize_runtime_state(app, settings=settings, s3_client=object())
-    assert app.state.settings.jobs_enabled is False
+    assert app.state.settings.exports_enabled is False

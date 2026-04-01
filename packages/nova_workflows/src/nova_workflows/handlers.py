@@ -7,7 +7,7 @@ from typing import Any
 
 import structlog
 
-from nova_file_api.config import Settings
+from nova_runtime_support.workflow_config import WorkflowSettings
 from nova_workflows.models import ExportWorkflowInput
 from nova_workflows.runtime import export_services, workflow_services
 from nova_workflows.tasks import (
@@ -79,7 +79,7 @@ async def _copy_export(*, event: dict[str, Any]) -> dict[str, Any]:
         export_id=workflow_input.export_id,
         request_id=workflow_input.request_id,
     )
-    settings = Settings()
+    settings = WorkflowSettings()
     async with workflow_services(settings=settings) as services:
         result = await copy_export(
             workflow_input=workflow_input,

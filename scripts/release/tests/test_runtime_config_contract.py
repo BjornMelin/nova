@@ -60,11 +60,9 @@ def test_step_functions_state_machine_arn_is_conditionally_required() -> None:
         for contract in runtime_setting_contracts()
     }
 
-    assert contracts_by_field[
-        "jobs_step_functions_state_machine_arn"
-    ].required_when == (
-        "when JOBS_ENABLED=true and JOBS_QUEUE_BACKEND=stepfunctions "
-        "in the API Lambda"
+    assert (
+        contracts_by_field["export_workflow_state_machine_arn"].required_when
+        == "when EXPORTS_ENABLED=true in the API Lambda"
     )
 
 
@@ -92,9 +90,9 @@ def test_runtime_contract_tracks_api_release_digest_and_stepfunctions_env() -> (
     }
 
     assert "API_RELEASE_ARTIFACT_SHA256" in api_env
-    assert "JOBS_STEP_FUNCTIONS_STATE_MACHINE_ARN" in api_env
+    assert "EXPORT_WORKFLOW_STATE_MACHINE_ARN" in api_env
     assert "OIDC_ISSUER" in api_env
     assert "ALLOWED_ORIGINS" in api_env
-    assert "JOBS_QUEUE_BACKEND" in workflow_env
-    assert "JOBS_DYNAMODB_TABLE" in workflow_env
-    assert "JOBS_SQS_QUEUE_URL" not in workflow_env
+    assert "EXPORTS_ENABLED" in workflow_env
+    assert "EXPORTS_DYNAMODB_TABLE" in workflow_env
+    assert "EXPORT_WORKFLOW_STATE_MACHINE_ARN" not in workflow_env

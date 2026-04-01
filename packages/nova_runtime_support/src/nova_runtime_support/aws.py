@@ -1,4 +1,4 @@
-"""AWS SDK runtime helpers."""
+"""AWS SDK runtime helpers shared across Nova packages."""
 
 from __future__ import annotations
 

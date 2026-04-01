@@ -27,6 +27,9 @@ Canonical sources:
 | CACHE_LOCAL_MAX_ENTRIES | cache_local_max_entries | int | no | - | no | `2000` |
 | CACHE_LOCAL_TTL_SECONDS | cache_local_ttl_seconds | int | no | - | no | `120` |
 | ENVIRONMENT | environment | str | no | - | no | `'dev'` |
+| EXPORTS_DYNAMODB_TABLE | exports_dynamodb_table | str \| None | no | - | no | `None` |
+| EXPORTS_ENABLED | exports_enabled | bool | no | - | no | `True` |
+| EXPORT_WORKFLOW_STATE_MACHINE_ARN | export_workflow_state_machine_arn | str \| None | no | when EXPORTS_ENABLED=true in the API Lambda | no | `None` |
 | FILE_TRANSFER_BUCKET | file_transfer_bucket | str | no | - | no | `''` |
 | FILE_TRANSFER_ENABLED | file_transfer_enabled | bool | no | - | no | `True` |
 | FILE_TRANSFER_EXPORT_PREFIX | file_transfer_export_prefix | str | no | - | no | `'exports/'` |
@@ -42,18 +45,6 @@ Canonical sources:
 | IDEMPOTENCY_DYNAMODB_TABLE | idempotency_dynamodb_table | str \| None | no | when IDEMPOTENCY_ENABLED=true in the API Lambda | no | `None` |
 | IDEMPOTENCY_ENABLED | idempotency_enabled | bool | no | - | no | `True` |
 | IDEMPOTENCY_TTL_SECONDS | idempotency_ttl_seconds | int | no | - | no | `900` |
-| JOBS_DYNAMODB_TABLE | jobs_dynamodb_table | str \| None | no | - | no | `None` |
-| JOBS_ENABLED | jobs_enabled | bool | no | - | no | `True` |
-| JOBS_QUEUE_BACKEND | jobs_queue_backend | JobsQueueBackend | no | - | no | `<JobsQueueBackend.MEMORY: 'memory'>` |
-| JOBS_REPOSITORY_BACKEND | jobs_repository_backend | JobsRepositoryBackend | no | - | no | `<JobsRepositoryBackend.MEMORY: 'memory'>` |
-| JOBS_RUNTIME_MODE | jobs_runtime_mode | str | no | - | no | `'api'` |
-| JOBS_SQS_MAX_NUMBER_OF_MESSAGES | jobs_sqs_max_number_of_messages | int | no | - | no | `1` |
-| JOBS_SQS_QUEUE_URL | jobs_sqs_queue_url | str \| None | no | - | no | `None` |
-| JOBS_SQS_RETRY_MODE | jobs_sqs_retry_mode | str | no | - | no | `'standard'` |
-| JOBS_SQS_RETRY_TOTAL_MAX_ATTEMPTS | jobs_sqs_retry_total_max_attempts | int | no | - | no | `3` |
-| JOBS_SQS_VISIBILITY_TIMEOUT_SECONDS | jobs_sqs_visibility_timeout_seconds | int | no | - | no | `120` |
-| JOBS_SQS_WAIT_TIME_SECONDS | jobs_sqs_wait_time_seconds | int | no | - | no | `20` |
-| JOBS_STEP_FUNCTIONS_STATE_MACHINE_ARN | jobs_step_functions_state_machine_arn | str \| None | no | when JOBS_ENABLED=true and JOBS_QUEUE_BACKEND=stepfunctions in the API Lambda | no | `None` |
 | METRICS_NAMESPACE | metrics_namespace | str | no | - | no | `'NovaFileApi'` |
 | OIDC_AUDIENCE | oidc_audience | str \| None | no | - | no | `None` |
 | OIDC_CLOCK_SKEW_SECONDS | oidc_clock_skew_seconds | int | no | - | no | `0` |
@@ -116,9 +107,8 @@ Forbidden ENV_VARS_JSON keys:
 | FILE_TRANSFER_UPLOAD_PREFIX | literal | always | uploads/ |
 | FILE_TRANSFER_EXPORT_PREFIX | literal | always | exports/ |
 | FILE_TRANSFER_TMP_PREFIX | literal | always | tmp/ |
-| JOBS_ENABLED | literal | always | true |
-| JOBS_REPOSITORY_BACKEND | literal | always | dynamodb |
-| JOBS_DYNAMODB_TABLE | stack resource | always | - |
+| EXPORTS_ENABLED | literal | always | true |
+| EXPORTS_DYNAMODB_TABLE | stack resource | always | - |
 | ALLOWED_ORIGINS | CDK deploy input | always | - |
 | ACTIVITY_STORE_BACKEND | literal | always | dynamodb |
 | ACTIVITY_ROLLUPS_TABLE | stack resource | always | - |
@@ -127,12 +117,11 @@ Forbidden ENV_VARS_JSON keys:
 | OIDC_JWKS_URL | CDK deploy input | always | - |
 | IDEMPOTENCY_ENABLED | literal | always | true |
 | IDEMPOTENCY_DYNAMODB_TABLE | stack resource | always | - |
-| JOBS_QUEUE_BACKEND | literal | always | stepfunctions |
-| JOBS_STEP_FUNCTIONS_STATE_MACHINE_ARN | stack resource | always | - |
+| EXPORT_WORKFLOW_STATE_MACHINE_ARN | stack resource | always | - |
 | API_RELEASE_ARTIFACT_SHA256 | release-apply artifact manifest | always | - |
 
 Forbidden API Lambda env vars:
-`ENV`, `ENV_DICT`, `AUTH_APP_SECRET`, `JOBS_SQS_QUEUE_URL`, `JOBS_RUNTIME_MODE`, `NOVA_RUNTIME_PROFILE`
+`ENV`, `ENV_DICT`, `AUTH_APP_SECRET`, `NOVA_RUNTIME_PROFILE`
 
 ## Workflow task Lambda environment contract
 
@@ -145,14 +134,12 @@ Task handlers:
 | FILE_TRANSFER_UPLOAD_PREFIX | literal | always | uploads/ |
 | FILE_TRANSFER_EXPORT_PREFIX | literal | always | exports/ |
 | FILE_TRANSFER_TMP_PREFIX | literal | always | tmp/ |
-| JOBS_ENABLED | literal | always | true |
-| JOBS_REPOSITORY_BACKEND | literal | always | dynamodb |
-| JOBS_DYNAMODB_TABLE | stack resource | always | - |
+| EXPORTS_ENABLED | literal | always | true |
+| EXPORTS_DYNAMODB_TABLE | stack resource | always | - |
 | IDEMPOTENCY_ENABLED | literal | always | false |
-| JOBS_QUEUE_BACKEND | literal | always | memory |
 
 Forbidden workflow task env vars:
-`ACTIVITY_STORE_BACKEND`, `ACTIVITY_ROLLUPS_TABLE`, `ALLOWED_ORIGINS`, `API_RELEASE_ARTIFACT_SHA256`, `IDEMPOTENCY_DYNAMODB_TABLE`, `JOBS_RUNTIME_MODE`, `JOBS_SQS_QUEUE_URL`, `NOVA_RUNTIME_PROFILE`, `OIDC_AUDIENCE`, `OIDC_ISSUER`, `OIDC_JWKS_URL`
+`ACTIVITY_STORE_BACKEND`, `ACTIVITY_ROLLUPS_TABLE`, `ALLOWED_ORIGINS`, `API_RELEASE_ARTIFACT_SHA256`, `EXPORT_WORKFLOW_STATE_MACHINE_ARN`, `IDEMPOTENCY_DYNAMODB_TABLE`, `NOVA_RUNTIME_PROFILE`, `OIDC_AUDIENCE`, `OIDC_ISSUER`, `OIDC_JWKS_URL`
 
 Generated extra runtime env vars intentionally outside `Settings`:
 `API_RELEASE_ARTIFACT_SHA256`, `AWS_DEFAULT_REGION`

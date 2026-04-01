@@ -9,7 +9,7 @@ import pytest
 from nova_file_api.config import Settings
 from nova_file_api.dependencies import build_export_publisher
 from nova_file_api.exports import StepFunctionsExportPublisher
-from nova_file_api.models import ExportRecord, ExportStatus, JobsQueueBackend
+from nova_file_api.models import ExportRecord, ExportStatus
 
 
 class _FakeStepFunctionsClient:
@@ -31,9 +31,8 @@ async def test_build_export_publisher_supports_step_functions_backend() -> None:
     settings = Settings.model_validate(
         {
             "IDEMPOTENCY_DYNAMODB_TABLE": "idempotency-table",
-            "JOBS_ENABLED": True,
-            "JOBS_QUEUE_BACKEND": JobsQueueBackend.STEP_FUNCTIONS,
-            "JOBS_STEP_FUNCTIONS_STATE_MACHINE_ARN": (
+            "EXPORTS_ENABLED": True,
+            "EXPORT_WORKFLOW_STATE_MACHINE_ARN": (
                 "arn:aws:states:us-east-1:123456789012:stateMachine:nova"
             ),
         }
@@ -42,7 +41,6 @@ async def test_build_export_publisher_supports_step_functions_backend() -> None:
 
     publisher = build_export_publisher(
         settings=settings,
-        sqs_client=None,
         stepfunctions_client=fake_client,
     )
 

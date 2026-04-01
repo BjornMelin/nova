@@ -96,7 +96,7 @@ def _build_v1_deps(
     """Build an in-memory dependency set for v1 route tests."""
     settings = Settings.model_validate(
         {
-            "jobs_enabled": True,
+            "exports_enabled": True,
             "file_transfer_bucket": file_transfer_bucket,
             "idempotency_dynamodb_table": "test-idempotency",
             "cors_allowed_origins": ["https://app.example.com"],
@@ -322,7 +322,7 @@ async def test_v1_exports_list_scoped_config_error_returns_internal_error() -> (
     """Verify a scoped export listing config error returns an internal error."""
     settings = Settings.model_validate(
         {
-            "jobs_enabled": True,
+            "exports_enabled": True,
             "idempotency_dynamodb_table": "test-idempotency",
         }
     )

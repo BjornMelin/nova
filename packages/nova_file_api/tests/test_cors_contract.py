@@ -26,7 +26,7 @@ from .support.doubles import StubAuthenticator, StubTransferService
 def _build_app() -> FastAPI:
     settings = Settings.model_validate(
         {
-            "jobs_enabled": True,
+            "exports_enabled": True,
             "idempotency_dynamodb_table": "test-idempotency",
             "cors_allowed_origins": ["https://app.example.com"],
             "environment": "prod",

@@ -6,6 +6,27 @@ from nova_runtime_support.auth_claims import (
     build_auth_config,
     normalized_principal_claims,
 )
+from nova_runtime_support.aws import new_aioboto3_session
+from nova_runtime_support.export_models import (
+    ExportOutput,
+    ExportRecord,
+    ExportStatus,
+)
+from nova_runtime_support.export_runtime import (
+    DynamoExportRepository,
+    ExportPublishError,
+    MemoryExportPublisher,
+    MemoryExportRepository,
+    NoopExportMetrics,
+    StepFunctionsExportPublisher,
+    WorkflowExportStateService,
+)
+from nova_runtime_support.export_transfer import (
+    ExportCopyResult,
+    ExportTransferConfig,
+    ExportTransferService,
+    S3ExportTransferService,
+)
 from nova_runtime_support.http import (
     CanonicalErrorSpec,
     RequestContextASGIMiddleware,
@@ -20,20 +41,51 @@ from nova_runtime_support.openapi import (
     SDK_VISIBILITY_EXTENSION,
     SDK_VISIBILITY_INTERNAL,
 )
+from nova_runtime_support.workflow_config import (
+    WorkflowSettings,
+    export_transfer_config_from_settings,
+)
+from nova_runtime_support.workflow_runtime import (
+    ExportServices,
+    WorkflowServices,
+    export_services,
+    workflow_services,
+)
 
 __all__ = [
     "SDK_VISIBILITY_EXTENSION",
     "SDK_VISIBILITY_INTERNAL",
     "CanonicalErrorSpec",
+    "DynamoExportRepository",
+    "ExportCopyResult",
+    "ExportOutput",
+    "ExportPublishError",
+    "ExportRecord",
+    "ExportServices",
+    "ExportStatus",
+    "ExportTransferConfig",
+    "ExportTransferService",
+    "MemoryExportPublisher",
+    "MemoryExportRepository",
+    "NoopExportMetrics",
     "NormalizedPrincipalClaims",
     "RequestContextASGIMiddleware",
     "RequestContextFastAPI",
+    "S3ExportTransferService",
+    "StepFunctionsExportPublisher",
+    "WorkflowExportStateService",
+    "WorkflowServices",
+    "WorkflowSettings",
     "build_async_jwt_verifier",
     "build_auth_config",
     "canonical_error_content",
     "canonical_error_spec_from_error",
     "configure_structlog",
+    "export_services",
+    "export_transfer_config_from_settings",
+    "new_aioboto3_session",
     "normalized_principal_claims",
     "register_fastapi_exception_handlers",
     "request_id_from_request",
+    "workflow_services",
 ]

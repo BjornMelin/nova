@@ -2,16 +2,19 @@
 
 from __future__ import annotations
 
-from nova_file_api.exports import ExportService
-from nova_file_api.models import ExportOutput, ExportStatus
-from nova_file_api.transfer import ExportCopyResult, TransferService
+from nova_runtime_support.export_models import ExportOutput, ExportStatus
+from nova_runtime_support.export_runtime import WorkflowExportStateService
+from nova_runtime_support.export_transfer import (
+    ExportCopyResult,
+    ExportTransferService,
+)
 from nova_workflows.models import ExportWorkflowInput, WorkflowOutput
 
 
 async def validate_export(
     *,
     workflow_input: ExportWorkflowInput,
-    export_service: ExportService,
+    export_service: WorkflowExportStateService,
 ) -> ExportWorkflowInput:
     """Mark an export as validating and pass the workflow input through."""
     await export_service.update_status(
@@ -26,8 +29,8 @@ async def validate_export(
 async def copy_export(
     *,
     workflow_input: ExportWorkflowInput,
-    export_service: ExportService,
-    transfer_service: TransferService,
+    export_service: WorkflowExportStateService,
+    transfer_service: ExportTransferService,
     file_transfer_bucket: str,
 ) -> ExportWorkflowInput:
     """Copy upload content to the export location and return workflow output."""
@@ -56,7 +59,7 @@ async def copy_export(
 async def finalize_export(
     *,
     workflow_input: ExportWorkflowInput,
-    export_service: ExportService,
+    export_service: WorkflowExportStateService,
 ) -> ExportWorkflowInput:
     """Persist the finalizing and succeeded states for the export."""
     if workflow_input.output is None:
@@ -80,7 +83,7 @@ async def finalize_export(
 async def fail_export(
     *,
     workflow_input: ExportWorkflowInput,
-    export_service: ExportService,
+    export_service: WorkflowExportStateService,
 ) -> ExportWorkflowInput:
     """Persist workflow failure status and error detail."""
     await export_service.update_status(

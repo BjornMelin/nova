@@ -1275,15 +1275,23 @@ name = "nova-runtime-support"
 version = "0.1.0"
 source = { editable = "packages/nova_runtime_support" }
 dependencies = [
+    { name = "aioboto3" },
+    { name = "botocore" },
     { name = "fastapi" },
     { name = "oidc-jwt-verifier" },
+    { name = "pydantic" },
+    { name = "pydantic-settings" },
     { name = "structlog" },
 ]
 
 [package.metadata]
 requires-dist = [
+    { name = "aioboto3", specifier = ">=15.5.0,<16" },
+    { name = "botocore", specifier = ">=1.40.0,<2" },
     { name = "fastapi", specifier = ">=0.135.2" },
     { name = "oidc-jwt-verifier", specifier = ">=0.1.5" },
+    { name = "pydantic", specifier = ">=2.12.5" },
+    { name = "pydantic-settings", specifier = ">=2.13.1" },
     { name = "structlog", specifier = ">=25.5.0" },
 ]
 
@@ -1309,13 +1317,13 @@ name = "nova-workflows"
 version = "0.1.0"
 source = { editable = "packages/nova_workflows" }
 dependencies = [
-    { name = "nova-file-api" },
+    { name = "nova-runtime-support" },
     { name = "structlog" },
 ]
 
 [package.metadata]
 requires-dist = [
-    { name = "nova-file-api", editable = "packages/nova_file_api" },
+    { name = "nova-runtime-support", editable = "packages/nova_runtime_support" },
     { name = "structlog", specifier = ">=25.5.0" },
 ]
 

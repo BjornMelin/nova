@@ -38,7 +38,7 @@ def _event_loop() -> Any:
 def _build_handler() -> Any:
     settings = Settings.model_validate(
         {
-            "jobs_enabled": True,
+            "exports_enabled": True,
             "idempotency_dynamodb_table": "test-idempotency",
             "cors_allowed_origins": ["https://app.example.com"],
         }

@@ -53,10 +53,10 @@ platform_router = APIRouter(prefix="/v1", tags=["platform"])
 async def get_capabilities(settings: SettingsDep) -> CapabilitiesResponse:
     """Expose runtime capability declarations."""
     capabilities = [
-        CapabilityDescriptor(key="exports", enabled=settings.jobs_enabled),
+        CapabilityDescriptor(key="exports", enabled=settings.exports_enabled),
         CapabilityDescriptor(
             key="exports.status.poll",
-            enabled=settings.jobs_enabled,
+            enabled=settings.exports_enabled,
         ),
         CapabilityDescriptor(
             key="transfers",
@@ -86,7 +86,7 @@ async def plan_resources(
         )
         for resource in payload.resources
     ]
-    if not settings.jobs_enabled:
+    if not settings.exports_enabled:
         plan = [
             item.model_copy(
                 update={"supported": False, "reason": "exports_disabled"}
@@ -160,7 +160,7 @@ async def health_ready(
         )
         idempotency_store_ready = False
 
-    if settings.jobs_enabled:
+    if settings.exports_enabled:
         export_runtime = True
         try:
             publisher_ok = await export_service.publisher.healthcheck()

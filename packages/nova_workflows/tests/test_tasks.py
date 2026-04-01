@@ -5,14 +5,17 @@ from typing import cast
 
 import pytest
 
-from nova_file_api.exports import (
-    ExportService,
+from nova_runtime_support.export_models import ExportRecord, ExportStatus
+from nova_runtime_support.export_runtime import (
     MemoryExportPublisher,
     MemoryExportRepository,
+    NoopExportMetrics,
+    WorkflowExportStateService,
 )
-from nova_file_api.metrics import MetricsCollector
-from nova_file_api.models import ExportRecord, ExportStatus
-from nova_file_api.transfer import ExportCopyResult, TransferService
+from nova_runtime_support.export_transfer import (
+    ExportCopyResult,
+    ExportTransferService,
+)
 from nova_workflows.models import ExportWorkflowInput, WorkflowOutput
 from nova_workflows.tasks import (
     copy_export,
@@ -45,29 +48,29 @@ class _FakeTransferService:
 
 async def _service_with_record() -> tuple[
     MemoryExportRepository,
-    ExportService,
+    WorkflowExportStateService,
 ]:
     repository = MemoryExportRepository()
-    service = ExportService(
+    service = WorkflowExportStateService(
         repository=repository,
-        publisher=MemoryExportPublisher(process_immediately=False),
-        metrics=MetricsCollector(namespace="Tests"),
+        metrics=NoopExportMetrics(),
     )
+    publisher = MemoryExportPublisher(process_immediately=False)
     now = datetime.now(tz=UTC)
-    await repository.create(
-        ExportRecord(
-            export_id="export-1",
-            scope_id="scope-1",
-            request_id="req-1",
-            source_key="uploads/scope-1/source.csv",
-            filename="source.csv",
-            status=ExportStatus.QUEUED,
-            output=None,
-            error=None,
-            created_at=now,
-            updated_at=now,
-        )
+    record = ExportRecord(
+        export_id="export-1",
+        scope_id="scope-1",
+        request_id="req-1",
+        source_key="uploads/scope-1/source.csv",
+        filename="source.csv",
+        status=ExportStatus.QUEUED,
+        output=None,
+        error=None,
+        created_at=now,
+        updated_at=now,
     )
+    await repository.create(record)
+    await publisher.publish(export=record)
     return repository, service
 
 
@@ -99,7 +102,7 @@ async def test_validate_copy_finalize_workflow_tasks() -> None:
     copied = await copy_export(
         workflow_input=workflow_input,
         export_service=export_service,
-        transfer_service=cast(TransferService, _FakeTransferService()),
+        transfer_service=cast(ExportTransferService, _FakeTransferService()),
         file_transfer_bucket="test-bucket",
     )
     assert copied.output == WorkflowOutput(

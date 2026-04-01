@@ -63,7 +63,7 @@ def test_transfer_config_is_keyword_only() -> None:
 async def test_build_transfer_service_ignores_ambient_settings_env(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("JOBS_RUNTIME_MODE", "worker")
+    monkeypatch.setenv("EXPORTS_ENABLED", "false")
 
     service = public.build_transfer_service(
         config=public.TransferConfig(

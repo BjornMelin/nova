@@ -9,7 +9,7 @@ description = "Step Functions task handlers for Nova export workflows."
 readme = "README.md"
 requires-python = ">=3.11,<3.14"
 dependencies = [
-  "nova-file-api>=0.5.0",
+  "nova-runtime-support>=0.1.0",
   "structlog>=25.5.0",
 ]
 
