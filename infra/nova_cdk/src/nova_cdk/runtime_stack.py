@@ -520,9 +520,8 @@ class NovaRuntimeStack(Stack):
             "FILE_TRANSFER_UPLOAD_PREFIX": "uploads/",
             "FILE_TRANSFER_EXPORT_PREFIX": "exports/",
             "FILE_TRANSFER_TMP_PREFIX": "tmp/",
-            "JOBS_ENABLED": "true",
-            "JOBS_REPOSITORY_BACKEND": "dynamodb",
-            "JOBS_DYNAMODB_TABLE": export_table.table_name,
+            "EXPORTS_ENABLED": "true",
+            "EXPORTS_DYNAMODB_TABLE": export_table.table_name,
         }
         common_env = {
             **workflow_common_env,
@@ -536,7 +535,6 @@ class NovaRuntimeStack(Stack):
         task_env = {
             **workflow_common_env,
             "IDEMPOTENCY_ENABLED": "false",
-            "JOBS_QUEUE_BACKEND": "memory",
         }
         workflow_fn_props = {
             "architecture": lambda_.Architecture.ARM_64,
@@ -768,8 +766,7 @@ class NovaRuntimeStack(Stack):
                 **common_env,
                 "IDEMPOTENCY_ENABLED": "true",
                 "IDEMPOTENCY_DYNAMODB_TABLE": idempotency_table.table_name,
-                "JOBS_QUEUE_BACKEND": "stepfunctions",
-                "JOBS_STEP_FUNCTIONS_STATE_MACHINE_ARN": (
+                "EXPORT_WORKFLOW_STATE_MACHINE_ARN": (
                     state_machine.state_machine_arn
                 ),
                 "API_RELEASE_ARTIFACT_SHA256": api_lambda_artifact_sha256,

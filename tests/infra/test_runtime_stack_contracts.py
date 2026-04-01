@@ -93,7 +93,7 @@ def _api_function_env(resources: dict[str, Any]) -> dict[str, str]:
             resource["Properties"].get("Environment", {}).get("Variables")
         )
         if isinstance(variables, dict) and (
-            "JOBS_STEP_FUNCTIONS_STATE_MACHINE_ARN" in variables
+            "EXPORT_WORKFLOW_STATE_MACHINE_ARN" in variables
         ):
             return variables
     raise AssertionError("Could not locate the API Lambda environment block")
@@ -211,7 +211,7 @@ def test_runtime_stack_packages_api_lambda_as_native_zip() -> None:
             resource["Properties"]
             .get("Environment", {})
             .get("Variables", {})
-            .get("JOBS_STEP_FUNCTIONS_STATE_MACHINE_ARN")
+            .get("EXPORT_WORKFLOW_STATE_MACHINE_ARN")
         )
     )
     props = api_resource["Properties"]
@@ -286,7 +286,7 @@ def test_runtime_stack_uses_higher_reserved_concurrency_default_in_prod() -> (
             resource["Properties"]
             .get("Environment", {})
             .get("Variables", {})
-            .get("JOBS_STEP_FUNCTIONS_STATE_MACHINE_ARN")
+            .get("EXPORT_WORKFLOW_STATE_MACHINE_ARN")
         )
     )
     assert api_resource["Properties"]["ReservedConcurrentExecutions"] == 25

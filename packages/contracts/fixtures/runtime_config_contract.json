@@ -27,19 +27,13 @@
       },
       {
         "condition": "always",
-        "name": "JOBS_ENABLED",
+        "name": "EXPORTS_ENABLED",
         "source": "literal",
         "value": "true"
       },
       {
         "condition": "always",
-        "name": "JOBS_REPOSITORY_BACKEND",
-        "source": "literal",
-        "value": "dynamodb"
-      },
-      {
-        "condition": "always",
-        "name": "JOBS_DYNAMODB_TABLE",
+        "name": "EXPORTS_DYNAMODB_TABLE",
         "source": "stack resource",
         "value": null
       },
@@ -93,13 +87,7 @@
       },
       {
         "condition": "always",
-        "name": "JOBS_QUEUE_BACKEND",
-        "source": "literal",
-        "value": "stepfunctions"
-      },
-      {
-        "condition": "always",
-        "name": "JOBS_STEP_FUNCTIONS_STATE_MACHINE_ARN",
+        "name": "EXPORT_WORKFLOW_STATE_MACHINE_ARN",
         "source": "stack resource",
         "value": null
       },
@@ -114,8 +102,6 @@
       "ENV",
       "ENV_DICT",
       "AUTH_APP_SECRET",
-      "JOBS_SQS_QUEUE_URL",
-      "JOBS_RUNTIME_MODE",
       "NOVA_RUNTIME_PROFILE"
     ]
   },
@@ -400,6 +386,33 @@
       "type_label": "str"
     },
     {
+      "default_repr": "None",
+      "env_var": "EXPORTS_DYNAMODB_TABLE",
+      "field_name": "exports_dynamodb_table",
+      "required": false,
+      "required_when": null,
+      "secret": false,
+      "type_label": "str | None"
+    },
+    {
+      "default_repr": "True",
+      "env_var": "EXPORTS_ENABLED",
+      "field_name": "exports_enabled",
+      "required": false,
+      "required_when": null,
+      "secret": false,
+      "type_label": "bool"
+    },
+    {
+      "default_repr": "None",
+      "env_var": "EXPORT_WORKFLOW_STATE_MACHINE_ARN",
+      "field_name": "export_workflow_state_machine_arn",
+      "required": false,
+      "required_when": "when EXPORTS_ENABLED=true in the API Lambda",
+      "secret": false,
+      "type_label": "str | None"
+    },
+    {
       "default_repr": "''",
       "env_var": "FILE_TRANSFER_BUCKET",
       "field_name": "file_transfer_bucket",
@@ -535,114 +548,6 @@
       "type_label": "int"
     },
     {
-      "default_repr": "None",
-      "env_var": "JOBS_DYNAMODB_TABLE",
-      "field_name": "jobs_dynamodb_table",
-      "required": false,
-      "required_when": null,
-      "secret": false,
-      "type_label": "str | None"
-    },
-    {
-      "default_repr": "True",
-      "env_var": "JOBS_ENABLED",
-      "field_name": "jobs_enabled",
-      "required": false,
-      "required_when": null,
-      "secret": false,
-      "type_label": "bool"
-    },
-    {
-      "default_repr": "<JobsQueueBackend.MEMORY: 'memory'>",
-      "env_var": "JOBS_QUEUE_BACKEND",
-      "field_name": "jobs_queue_backend",
-      "required": false,
-      "required_when": null,
-      "secret": false,
-      "type_label": "JobsQueueBackend"
-    },
-    {
-      "default_repr": "<JobsRepositoryBackend.MEMORY: 'memory'>",
-      "env_var": "JOBS_REPOSITORY_BACKEND",
-      "field_name": "jobs_repository_backend",
-      "required": false,
-      "required_when": null,
-      "secret": false,
-      "type_label": "JobsRepositoryBackend"
-    },
-    {
-      "default_repr": "'api'",
-      "env_var": "JOBS_RUNTIME_MODE",
-      "field_name": "jobs_runtime_mode",
-      "required": false,
-      "required_when": null,
-      "secret": false,
-      "type_label": "str"
-    },
-    {
-      "default_repr": "1",
-      "env_var": "JOBS_SQS_MAX_NUMBER_OF_MESSAGES",
-      "field_name": "jobs_sqs_max_number_of_messages",
-      "required": false,
-      "required_when": null,
-      "secret": false,
-      "type_label": "int"
-    },
-    {
-      "default_repr": "None",
-      "env_var": "JOBS_SQS_QUEUE_URL",
-      "field_name": "jobs_sqs_queue_url",
-      "required": false,
-      "required_when": null,
-      "secret": false,
-      "type_label": "str | None"
-    },
-    {
-      "default_repr": "'standard'",
-      "env_var": "JOBS_SQS_RETRY_MODE",
-      "field_name": "jobs_sqs_retry_mode",
-      "required": false,
-      "required_when": null,
-      "secret": false,
-      "type_label": "str"
-    },
-    {
-      "default_repr": "3",
-      "env_var": "JOBS_SQS_RETRY_TOTAL_MAX_ATTEMPTS",
-      "field_name": "jobs_sqs_retry_total_max_attempts",
-      "required": false,
-      "required_when": null,
-      "secret": false,
-      "type_label": "int"
-    },
-    {
-      "default_repr": "120",
-      "env_var": "JOBS_SQS_VISIBILITY_TIMEOUT_SECONDS",
-      "field_name": "jobs_sqs_visibility_timeout_seconds",
-      "required": false,
-      "required_when": null,
-      "secret": false,
-      "type_label": "int"
-    },
-    {
-      "default_repr": "20",
-      "env_var": "JOBS_SQS_WAIT_TIME_SECONDS",
-      "field_name": "jobs_sqs_wait_time_seconds",
-      "required": false,
-      "required_when": null,
-      "secret": false,
-      "type_label": "int"
-    },
-    {
-      "default_repr": "None",
-      "env_var": "JOBS_STEP_FUNCTIONS_STATE_MACHINE_ARN",
-      "field_name": "jobs_step_functions_state_machine_arn",
-      "required": false,
-      "required_when": "when JOBS_ENABLED=true and JOBS_QUEUE_BACKEND=stepfunctions in the API Lambda",
-      "secret": false,
-      "type_label": "str | None"
-    },
-    {
       "default_repr": "'NovaFileApi'",
       "env_var": "METRICS_NAMESPACE",
       "field_name": "metrics_namespace",
@@ -735,19 +640,13 @@
       },
       {
         "condition": "always",
-        "name": "JOBS_ENABLED",
+        "name": "EXPORTS_ENABLED",
         "source": "literal",
         "value": "true"
       },
       {
         "condition": "always",
-        "name": "JOBS_REPOSITORY_BACKEND",
-        "source": "literal",
-        "value": "dynamodb"
-      },
-      {
-        "condition": "always",
-        "name": "JOBS_DYNAMODB_TABLE",
+        "name": "EXPORTS_DYNAMODB_TABLE",
         "source": "stack resource",
         "value": null
       },
@@ -756,12 +655,6 @@
         "name": "IDEMPOTENCY_ENABLED",
         "source": "literal",
         "value": "false"
-      },
-      {
-        "condition": "always",
-        "name": "JOBS_QUEUE_BACKEND",
-        "source": "literal",
-        "value": "memory"
       }
     ],
     "forbidden_env_vars": [
@@ -769,9 +662,8 @@
       "ACTIVITY_ROLLUPS_TABLE",
       "ALLOWED_ORIGINS",
       "API_RELEASE_ARTIFACT_SHA256",
+      "EXPORT_WORKFLOW_STATE_MACHINE_ARN",
       "IDEMPOTENCY_DYNAMODB_TABLE",
-      "JOBS_RUNTIME_MODE",
-      "JOBS_SQS_QUEUE_URL",
       "NOVA_RUNTIME_PROFILE",
       "OIDC_AUDIENCE",
       "OIDC_ISSUER",

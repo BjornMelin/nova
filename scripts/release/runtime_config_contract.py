@@ -138,11 +138,8 @@ def runtime_setting_contracts() -> tuple[RuntimeSettingContract, ...]:
         required_when = None
         if env_var == "IDEMPOTENCY_DYNAMODB_TABLE":
             required_when = "when IDEMPOTENCY_ENABLED=true in the API Lambda"
-        elif env_var == "JOBS_STEP_FUNCTIONS_STATE_MACHINE_ARN":
-            required_when = (
-                "when JOBS_ENABLED=true and JOBS_QUEUE_BACKEND=stepfunctions "
-                "in the API Lambda"
-            )
+        elif env_var == "EXPORT_WORKFLOW_STATE_MACHINE_ARN":
+            required_when = "when EXPORTS_ENABLED=true in the API Lambda"
         contracts.append(
             RuntimeSettingContract(
                 field_name=field_name,
@@ -291,11 +288,8 @@ API_LAMBDA_ENV: tuple[RuntimeEnvContract, ...] = (
         "FILE_TRANSFER_EXPORT_PREFIX", "literal", "always", "exports/"
     ),
     RuntimeEnvContract("FILE_TRANSFER_TMP_PREFIX", "literal", "always", "tmp/"),
-    RuntimeEnvContract("JOBS_ENABLED", "literal", "always", "true"),
-    RuntimeEnvContract(
-        "JOBS_REPOSITORY_BACKEND", "literal", "always", "dynamodb"
-    ),
-    RuntimeEnvContract("JOBS_DYNAMODB_TABLE", "stack resource", "always"),
+    RuntimeEnvContract("EXPORTS_ENABLED", "literal", "always", "true"),
+    RuntimeEnvContract("EXPORTS_DYNAMODB_TABLE", "stack resource", "always"),
     RuntimeEnvContract("ALLOWED_ORIGINS", "CDK deploy input", "always"),
     RuntimeEnvContract(
         "ACTIVITY_STORE_BACKEND", "literal", "always", "dynamodb"
@@ -309,10 +303,7 @@ API_LAMBDA_ENV: tuple[RuntimeEnvContract, ...] = (
         "IDEMPOTENCY_DYNAMODB_TABLE", "stack resource", "always"
     ),
     RuntimeEnvContract(
-        "JOBS_QUEUE_BACKEND", "literal", "always", "stepfunctions"
-    ),
-    RuntimeEnvContract(
-        "JOBS_STEP_FUNCTIONS_STATE_MACHINE_ARN",
+        "EXPORT_WORKFLOW_STATE_MACHINE_ARN",
         "stack resource",
         "always",
     ),
@@ -332,13 +323,9 @@ WORKFLOW_TASK_ENV: tuple[RuntimeEnvContract, ...] = (
         "FILE_TRANSFER_EXPORT_PREFIX", "literal", "always", "exports/"
     ),
     RuntimeEnvContract("FILE_TRANSFER_TMP_PREFIX", "literal", "always", "tmp/"),
-    RuntimeEnvContract("JOBS_ENABLED", "literal", "always", "true"),
-    RuntimeEnvContract(
-        "JOBS_REPOSITORY_BACKEND", "literal", "always", "dynamodb"
-    ),
-    RuntimeEnvContract("JOBS_DYNAMODB_TABLE", "stack resource", "always"),
+    RuntimeEnvContract("EXPORTS_ENABLED", "literal", "always", "true"),
+    RuntimeEnvContract("EXPORTS_DYNAMODB_TABLE", "stack resource", "always"),
     RuntimeEnvContract("IDEMPOTENCY_ENABLED", "literal", "always", "false"),
-    RuntimeEnvContract("JOBS_QUEUE_BACKEND", "literal", "always", "memory"),
 )
 
 FORBIDDEN_ENV_JSON_KEYS = ("IDEMPOTENCY_MODE", "IDEMPOTENCY_DYNAMODB_TABLE")
@@ -346,8 +333,6 @@ API_LAMBDA_FORBIDDEN_ENV_VARS = (
     "ENV",
     "ENV_DICT",
     "AUTH_APP_SECRET",
-    "JOBS_SQS_QUEUE_URL",
-    "JOBS_RUNTIME_MODE",
     "NOVA_RUNTIME_PROFILE",
 )
 WORKFLOW_TASK_FORBIDDEN_ENV_VARS = (
@@ -355,9 +340,8 @@ WORKFLOW_TASK_FORBIDDEN_ENV_VARS = (
     "ACTIVITY_ROLLUPS_TABLE",
     "ALLOWED_ORIGINS",
     "API_RELEASE_ARTIFACT_SHA256",
+    "EXPORT_WORKFLOW_STATE_MACHINE_ARN",
     "IDEMPOTENCY_DYNAMODB_TABLE",
-    "JOBS_RUNTIME_MODE",
-    "JOBS_SQS_QUEUE_URL",
     "NOVA_RUNTIME_PROFILE",
     "OIDC_AUDIENCE",
     "OIDC_ISSUER",

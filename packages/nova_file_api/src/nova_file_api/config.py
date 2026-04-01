@@ -8,37 +8,8 @@ import json
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from nova_file_api.models import (
-    ActivityStoreBackend,
-    JobsQueueBackend,
-    JobsRepositoryBackend,
-)
+from nova_file_api.models import ActivityStoreBackend
 
-_MSG_WORKER_RUNTIME_REQUIRES_JOBS_ENABLED = (
-    "JOBS_ENABLED must be true when JOBS_RUNTIME_MODE=worker"
-)
-_MSG_WORKER_RUNTIME_REQUIRES_SQS_BACKEND = (
-    "JOBS_QUEUE_BACKEND must be sqs when JOBS_RUNTIME_MODE=worker"
-)
-_MSG_WORKER_RUNTIME_REQUIRES_SQS_QUEUE_URL = (
-    "JOBS_SQS_QUEUE_URL must be configured when JOBS_RUNTIME_MODE=worker"
-)
-_MSG_WORKER_RUNTIME_REQUIRES_DYNAMODB_JOBS_BACKEND = (
-    "JOBS_REPOSITORY_BACKEND must be dynamodb when JOBS_RUNTIME_MODE=worker"
-)
-_MSG_WORKER_RUNTIME_REQUIRES_JOBS_TABLE = (
-    "JOBS_DYNAMODB_TABLE must be configured when JOBS_RUNTIME_MODE=worker"
-)
-_MSG_WORKER_RUNTIME_REQUIRES_DYNAMODB_ACTIVITY_BACKEND = (
-    "ACTIVITY_STORE_BACKEND must be dynamodb when JOBS_RUNTIME_MODE=worker"
-)
-_MSG_WORKER_RUNTIME_REQUIRES_ACTIVITY_TABLE = (
-    "ACTIVITY_ROLLUPS_TABLE must be configured when JOBS_RUNTIME_MODE=worker"
-)
-_MSG_STEP_FUNCTIONS_REQUIRES_STATE_MACHINE_ARN = (
-    "JOBS_STEP_FUNCTIONS_STATE_MACHINE_ARN must be configured when "
-    "JOBS_QUEUE_BACKEND=stepfunctions and JOBS_ENABLED=true"
-)
 _MSG_PRODUCTION_CORS_REQUIRES_ALLOWED_ORIGINS = (
     "ALLOWED_ORIGINS must be configured for production deployments"
 )
@@ -262,59 +233,17 @@ class Settings(BaseSettings):
         validation_alias="IDEMPOTENCY_DYNAMODB_TABLE",
     )
 
-    jobs_enabled: bool = Field(default=True, validation_alias="JOBS_ENABLED")
-    jobs_queue_backend: JobsQueueBackend = Field(
-        default=JobsQueueBackend.MEMORY,
-        validation_alias="JOBS_QUEUE_BACKEND",
+    exports_enabled: bool = Field(
+        default=True,
+        validation_alias="EXPORTS_ENABLED",
     )
-    jobs_repository_backend: JobsRepositoryBackend = Field(
-        default=JobsRepositoryBackend.MEMORY,
-        validation_alias="JOBS_REPOSITORY_BACKEND",
-    )
-    jobs_dynamodb_table: str | None = Field(
+    exports_dynamodb_table: str | None = Field(
         default=None,
-        validation_alias="JOBS_DYNAMODB_TABLE",
+        validation_alias="EXPORTS_DYNAMODB_TABLE",
     )
-    jobs_sqs_queue_url: str | None = Field(
-        default=None, validation_alias="JOBS_SQS_QUEUE_URL"
-    )
-    jobs_step_functions_state_machine_arn: str | None = Field(
+    export_workflow_state_machine_arn: str | None = Field(
         default=None,
-        validation_alias="JOBS_STEP_FUNCTIONS_STATE_MACHINE_ARN",
-    )
-    jobs_sqs_retry_mode: str = Field(
-        default="standard",
-        validation_alias="JOBS_SQS_RETRY_MODE",
-        pattern="^(legacy|standard|adaptive)$",
-    )
-    jobs_sqs_retry_total_max_attempts: int = Field(
-        default=3,
-        validation_alias="JOBS_SQS_RETRY_TOTAL_MAX_ATTEMPTS",
-        ge=1,
-        le=10,
-    )
-    jobs_sqs_max_number_of_messages: int = Field(
-        default=1,
-        validation_alias="JOBS_SQS_MAX_NUMBER_OF_MESSAGES",
-        ge=1,
-        le=10,
-    )
-    jobs_sqs_wait_time_seconds: int = Field(
-        default=20,
-        validation_alias="JOBS_SQS_WAIT_TIME_SECONDS",
-        ge=0,
-        le=20,
-    )
-    jobs_sqs_visibility_timeout_seconds: int = Field(
-        default=120,
-        validation_alias="JOBS_SQS_VISIBILITY_TIMEOUT_SECONDS",
-        ge=0,
-        le=43200,
-    )
-    jobs_runtime_mode: str = Field(
-        default="api",
-        validation_alias="JOBS_RUNTIME_MODE",
-        pattern="^(api|worker)$",
+        validation_alias="EXPORT_WORKFLOW_STATE_MACHINE_ARN",
     )
 
     activity_store_backend: ActivityStoreBackend = Field(
@@ -391,41 +320,6 @@ class Settings(BaseSettings):
         return self
 
     @model_validator(mode="after")
-    def validate_step_functions_settings(self) -> Settings:
-        """Validate required settings for the Step Functions backend."""
-        if (
-            not self.jobs_enabled
-            or self.jobs_queue_backend != JobsQueueBackend.STEP_FUNCTIONS
-        ):
-            return self
-        if _is_blank(self.jobs_step_functions_state_machine_arn):
-            raise ValueError(_MSG_STEP_FUNCTIONS_REQUIRES_STATE_MACHINE_ARN)
-        return self
-
-    @model_validator(mode="after")
-    def validate_worker_runtime_settings(self) -> Settings:
-        """Validate required settings when the worker runtime is enabled."""
-        if self.jobs_runtime_mode != "worker":
-            return self
-        if not self.jobs_enabled:
-            raise ValueError(_MSG_WORKER_RUNTIME_REQUIRES_JOBS_ENABLED)
-        if self.jobs_queue_backend != JobsQueueBackend.SQS:
-            raise ValueError(_MSG_WORKER_RUNTIME_REQUIRES_SQS_BACKEND)
-        if _is_blank(self.jobs_sqs_queue_url):
-            raise ValueError(_MSG_WORKER_RUNTIME_REQUIRES_SQS_QUEUE_URL)
-        if self.jobs_repository_backend != JobsRepositoryBackend.DYNAMODB:
-            raise ValueError(_MSG_WORKER_RUNTIME_REQUIRES_DYNAMODB_JOBS_BACKEND)
-        if _is_blank(self.jobs_dynamodb_table):
-            raise ValueError(_MSG_WORKER_RUNTIME_REQUIRES_JOBS_TABLE)
-        if self.activity_store_backend != ActivityStoreBackend.DYNAMODB:
-            raise ValueError(
-                _MSG_WORKER_RUNTIME_REQUIRES_DYNAMODB_ACTIVITY_BACKEND
-            )
-        if _is_blank(self.activity_rollups_table):
-            raise ValueError(_MSG_WORKER_RUNTIME_REQUIRES_ACTIVITY_TABLE)
-        return self
-
-    @model_validator(mode="after")
     def validate_multipart_upload_capacity(self) -> Settings:
         """Ensure max upload bytes can be represented with multipart parts."""
         max_supported_upload_bytes = self.file_transfer_part_size_bytes * 10_000
@@ -439,10 +333,8 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def validate_idempotency_settings(self) -> Settings:
         """Require DynamoDB table wiring for API-side idempotency."""
-        if (
-            self.idempotency_enabled
-            and self.jobs_runtime_mode != "worker"
-            and _is_blank(self.idempotency_dynamodb_table)
+        if self.idempotency_enabled and _is_blank(
+            self.idempotency_dynamodb_table
         ):
             raise ValueError(
                 "IDEMPOTENCY_DYNAMODB_TABLE must be configured when "

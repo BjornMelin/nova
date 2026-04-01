@@ -13,15 +13,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware import Middleware
 
 from nova_file_api.auth import SupportsAuthenticatorAsyncClose
-from nova_file_api.aws import new_aioboto3_session
 from nova_file_api.config import Settings
 from nova_file_api.dependencies import initialize_runtime_state
 from nova_file_api.exception_handlers import register_exception_handlers
-from nova_file_api.models import (
-    ActivityStoreBackend,
-    JobsQueueBackend,
-    JobsRepositoryBackend,
-)
+from nova_file_api.models import ActivityStoreBackend
 from nova_file_api.routes import (
     exports_router,
     ops_router,
@@ -31,6 +26,7 @@ from nova_file_api.routes import (
 from nova_runtime_support import (
     RequestContextFastAPI,
     configure_structlog,
+    new_aioboto3_session,
 )
 
 _LOGGER = structlog.get_logger("nova_file_api.app")
@@ -120,28 +116,16 @@ def create_app(*, settings: Settings | None = None) -> FastAPI:
                 )
                 requires_dynamodb = (
                     runtime_settings.idempotency_enabled
-                    or runtime_settings.jobs_repository_backend
-                    == JobsRepositoryBackend.DYNAMODB
+                    or runtime_settings.exports_enabled
                     or runtime_settings.activity_store_backend
                     == ActivityStoreBackend.DYNAMODB
                 )
-                requires_sqs = (
-                    runtime_settings.jobs_enabled
-                    and runtime_settings.jobs_queue_backend
-                    == JobsQueueBackend.SQS
-                    and bool(
-                        runtime_settings.jobs_sqs_queue_url
-                        and runtime_settings.jobs_sqs_queue_url.strip()
-                    )
-                )
                 requires_stepfunctions = (
-                    runtime_settings.jobs_enabled
-                    and runtime_settings.jobs_queue_backend
-                    == JobsQueueBackend.STEP_FUNCTIONS
+                    runtime_settings.exports_enabled
                     and bool(
-                        runtime_settings.jobs_step_functions_state_machine_arn
+                        runtime_settings.export_workflow_state_machine_arn
                         and (
-                            runtime_settings.jobs_step_functions_state_machine_arn.strip()
+                            runtime_settings.export_workflow_state_machine_arn.strip()
                         )
                     )
                 )
@@ -155,19 +139,6 @@ def create_app(*, settings: Settings | None = None) -> FastAPI:
                         dynamodb_resource = await stack.enter_async_context(
                             session.resource("dynamodb")
                         )
-                    sqs_client = None
-                    if requires_sqs:
-                        sqs_config = Config(
-                            retries={
-                                "mode": runtime_settings.jobs_sqs_retry_mode,
-                                "total_max_attempts": (
-                                    runtime_settings.jobs_sqs_retry_total_max_attempts
-                                ),
-                            }
-                        )
-                        sqs_client = await stack.enter_async_context(
-                            session.client("sqs", config=sqs_config)
-                        )
                     stepfunctions_client = None
                     if requires_stepfunctions:
                         stepfunctions_client = await stack.enter_async_context(
@@ -178,7 +149,6 @@ def create_app(*, settings: Settings | None = None) -> FastAPI:
                         "settings": runtime_settings,
                         "s3_client": s3_client,
                         "dynamodb_resource": dynamodb_resource,
-                        "sqs_client": sqs_client,
                     }
                     if stepfunctions_client is not None:
                         runtime_state_kwargs["stepfunctions_client"] = (

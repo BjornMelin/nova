@@ -39,7 +39,6 @@ def test_active_docs_index_tracks_canonical_surface() -> None:
         "docs/architecture/adr/index.md",
         "docs/architecture/spec/index.md",
         "docs/architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md",
-        "docs/architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md",
         "docs/architecture/adr/ADR-0011-cicd-hybrid-github-aws-promotion.md",
         "docs/architecture/spec/SPEC-0004-ci-cd-and-docs.md",
         "docs/history/",

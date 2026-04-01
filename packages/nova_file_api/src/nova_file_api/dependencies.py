@@ -1,8 +1,8 @@
 """FastAPI dependency helpers and runtime state assembly.
 
 Dependency getters (get_settings, get_metrics, etc.) raise TypeError when
-application state is not initialized. Build factories for DynamoDB/SQS backends
-raise ValueError when required config is missing.
+application state is not initialized. Build factories for DynamoDB/export
+workflow backends raise ValueError when required config is missing.
 """
 
 from __future__ import annotations
@@ -22,17 +22,7 @@ from nova_file_api.auth import Authenticator
 from nova_file_api.cache import LocalTTLCache, TwoTierCache
 from nova_file_api.config import Settings
 from nova_file_api.exports import (
-    DynamoExportRepository,
-    DynamoResource,
-    ExportPublisher,
-    ExportRepository,
     ExportService,
-    MemoryExportPublisher,
-    MemoryExportRepository,
-    SqsClient,
-    SqsExportPublisher,
-    StepFunctionsClient,
-    StepFunctionsExportPublisher,
 )
 from nova_file_api.idempotency import (
     DynamoResource as IdempotencyDynamoResource,
@@ -41,21 +31,24 @@ from nova_file_api.idempotency import (
 from nova_file_api.metrics import MetricsCollector
 from nova_file_api.models import (
     ActivityStoreBackend,
-    JobsQueueBackend,
-    JobsRepositoryBackend,
     Principal,
 )
 from nova_file_api.transfer import TransferService
 from nova_file_api.transfer_config import transfer_config_from_settings
+from nova_runtime_support.export_runtime import (
+    DynamoExportRepository,
+    DynamoResource,
+    ExportPublisher,
+    ExportRepository,
+    MemoryExportPublisher,
+    MemoryExportRepository,
+    StepFunctionsClient,
+    StepFunctionsExportPublisher,
+)
 
 _APPLICATION_STATE_NOT_INITIALIZED = "application state is not initialized"
-_MSG_JOBS_DYNAMODB_TABLE_REQUIRED = (
-    "JOBS_DYNAMODB_TABLE must be configured when "
-    "JOBS_REPOSITORY_BACKEND=dynamodb"
-)
-_MSG_JOBS_SQS_QUEUE_URL_REQUIRED = (
-    "JOBS_SQS_QUEUE_URL must be configured when "
-    "JOBS_QUEUE_BACKEND=sqs and JOBS_ENABLED=true"
+_MSG_EXPORTS_DYNAMODB_TABLE_REQUIRED = (
+    "EXPORTS_DYNAMODB_TABLE must be configured when EXPORTS_ENABLED=true"
 )
 _MSG_ACTIVITY_ROLLUPS_TABLE_REQUIRED = (
     "ACTIVITY_ROLLUPS_TABLE must be configured when "
@@ -69,17 +62,12 @@ _MSG_S3_CLIENT_REQUIRED = "s3_client must be provided"
 _MSG_DYNAMODB_RESOURCE_REQUIRED = (
     "dynamodb_resource must be provided when DynamoDB backends are enabled"
 )
-_MSG_SQS_CLIENT_REQUIRED = (
-    "sqs_client must be provided when JOBS_QUEUE_BACKEND=sqs and "
-    "JOBS_ENABLED=true"
-)
 _MSG_STEP_FUNCTIONS_STATE_MACHINE_ARN_REQUIRED = (
-    "JOBS_STEP_FUNCTIONS_STATE_MACHINE_ARN must be configured when "
-    "JOBS_QUEUE_BACKEND=stepfunctions and JOBS_ENABLED=true"
+    "EXPORT_WORKFLOW_STATE_MACHINE_ARN must be configured when "
+    "EXPORTS_ENABLED=true"
 )
 _MSG_STEP_FUNCTIONS_CLIENT_REQUIRED = (
-    "stepfunctions_client must be provided when "
-    "JOBS_QUEUE_BACKEND=stepfunctions and JOBS_ENABLED=true"
+    "stepfunctions_client must be provided when EXPORTS_ENABLED=true"
 )
 _BEARER_AUTH = HTTPBearer(
     auto_error=False,
@@ -98,7 +86,6 @@ def initialize_runtime_state(
     settings: Settings,
     s3_client: object,
     dynamodb_resource: object | None = None,
-    sqs_client: object | None = None,
     stepfunctions_client: object | None = None,
 ) -> None:
     """Build and attach runtime singletons to application state.
@@ -108,7 +95,6 @@ def initialize_runtime_state(
         settings: Resolved runtime settings.
         s3_client: Configured S3 client used by transfer services.
         dynamodb_resource: Optional DynamoDB resource for DynamoDB backends.
-        sqs_client: Optional SQS client for queue-backed jobs.
         stepfunctions_client: Optional Step Functions client for workflow-
             backed export dispatch.
 
@@ -117,7 +103,7 @@ def initialize_runtime_state(
 
     Raises:
         ValueError: When runtime prerequisites are not met (missing s3_client,
-            JOBS_SQS_QUEUE_URL, JOBS_DYNAMODB_TABLE, etc.).
+            EXPORTS_DYNAMODB_TABLE, EXPORT_WORKFLOW_STATE_MACHINE_ARN, etc.).
     """
     if s3_client is None:
         raise ValueError(_MSG_S3_CLIENT_REQUIRED)
@@ -140,7 +126,6 @@ def initialize_runtime_state(
     )
     export_publisher = build_export_publisher(
         settings=settings,
-        sqs_client=sqs_client,
         stepfunctions_client=stepfunctions_client,
     )
     activity_store = build_activity_store(
@@ -284,28 +269,27 @@ def build_export_repository(
 
     Args:
         settings: Resolved runtime settings.
-        dynamodb_resource: DynamoDB resource when repository backend is
-            DynamoDB.
+        dynamodb_resource: DynamoDB resource when exports are enabled.
 
     Returns:
         The configured export repository.
 
     Raises:
-        ValueError: When JOBS_DYNAMODB_TABLE is missing for DynamoDB backend,
+        ValueError: When EXPORTS_DYNAMODB_TABLE is missing for exports,
             or dynamodb_resource is missing when required.
     """
-    if settings.jobs_repository_backend == JobsRepositoryBackend.DYNAMODB:
-        jobs_table = (
-            settings.jobs_dynamodb_table.strip()
-            if settings.jobs_dynamodb_table
-            else ""
-        )
-        if not jobs_table:
-            raise ValueError(_MSG_JOBS_DYNAMODB_TABLE_REQUIRED)
+    exports_table = (
+        settings.exports_dynamodb_table.strip()
+        if settings.exports_dynamodb_table
+        else ""
+    )
+    if settings.exports_enabled:
+        if not exports_table:
+            raise ValueError(_MSG_EXPORTS_DYNAMODB_TABLE_REQUIRED)
         if dynamodb_resource is None:
             raise ValueError(_MSG_DYNAMODB_RESOURCE_REQUIRED)
         return DynamoExportRepository(
-            table_name=jobs_table,
+            table_name=exports_table,
             dynamodb_resource=cast(DynamoResource, dynamodb_resource),
         )
     return MemoryExportRepository()
@@ -314,60 +298,38 @@ def build_export_repository(
 def build_export_publisher(
     *,
     settings: Settings,
-    sqs_client: object | None,
     stepfunctions_client: object | None,
 ) -> ExportPublisher:
     """Create the configured export publisher.
 
     Args:
         settings: Resolved runtime settings.
-        sqs_client: SQS client when queue backend is SQS and jobs enabled.
-        stepfunctions_client: Step Functions client when queue backend is
-            Step Functions and jobs are enabled.
+        stepfunctions_client: Step Functions client when exports are enabled.
 
     Returns:
         The configured export publisher.
 
     Raises:
-        ValueError: When JOBS_SQS_QUEUE_URL is missing for SQS backend with
-            jobs enabled, or sqs_client is missing when required, or when
-            JOBS_STEP_FUNCTIONS_STATE_MACHINE_ARN is missing for Step
-            Functions backend with jobs enabled, or stepfunctions_client is
-            missing when required.
+        ValueError: When EXPORT_WORKFLOW_STATE_MACHINE_ARN is missing for
+            enabled exports, or stepfunctions_client is missing when required.
     """
-    if settings.jobs_queue_backend == JobsQueueBackend.SQS:
-        queue_url = (
-            settings.jobs_sqs_queue_url.strip()
-            if settings.jobs_sqs_queue_url
-            else None
-        )
-        if settings.jobs_enabled and not queue_url:
-            raise ValueError(_MSG_JOBS_SQS_QUEUE_URL_REQUIRED)
-        if settings.jobs_enabled and queue_url:
-            if sqs_client is None:
-                raise ValueError(_MSG_SQS_CLIENT_REQUIRED)
-            return SqsExportPublisher(
-                queue_url=queue_url,
-                sqs_client=cast(SqsClient, sqs_client),
-            )
-    if settings.jobs_queue_backend == JobsQueueBackend.STEP_FUNCTIONS:
+    if settings.exports_enabled:
         state_machine_arn = (
-            settings.jobs_step_functions_state_machine_arn.strip()
-            if settings.jobs_step_functions_state_machine_arn
+            settings.export_workflow_state_machine_arn.strip()
+            if settings.export_workflow_state_machine_arn
             else None
         )
-        if settings.jobs_enabled and not state_machine_arn:
+        if not state_machine_arn:
             raise ValueError(_MSG_STEP_FUNCTIONS_STATE_MACHINE_ARN_REQUIRED)
-        if settings.jobs_enabled and state_machine_arn:
-            if stepfunctions_client is None:
-                raise ValueError(_MSG_STEP_FUNCTIONS_CLIENT_REQUIRED)
-            return StepFunctionsExportPublisher(
-                state_machine_arn=state_machine_arn,
-                stepfunctions_client=cast(
-                    StepFunctionsClient,
-                    stepfunctions_client,
-                ),
-            )
+        if stepfunctions_client is None:
+            raise ValueError(_MSG_STEP_FUNCTIONS_CLIENT_REQUIRED)
+        return StepFunctionsExportPublisher(
+            state_machine_arn=state_machine_arn,
+            stepfunctions_client=cast(
+                StepFunctionsClient,
+                stepfunctions_client,
+            ),
+        )
     return MemoryExportPublisher(
         export_prefix=settings.file_transfer_export_prefix
     )

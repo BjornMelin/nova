@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from nova_file_api.models import ExportOutput, ExportStatus
+from nova_runtime_support.export_models import ExportOutput, ExportStatus
 
 
 class WorkflowOutput(BaseModel):

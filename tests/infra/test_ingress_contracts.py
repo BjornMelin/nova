@@ -356,7 +356,7 @@ def test_runtime_stack_shares_allowed_origins_between_api_and_bucket() -> None:
             resource["Properties"]
             .get("Environment", {})
             .get("Variables", {})
-            .get("JOBS_STEP_FUNCTIONS_STATE_MACHINE_ARN")
+            .get("EXPORT_WORKFLOW_STATE_MACHINE_ARN")
         )
     ]
     assert api_functions

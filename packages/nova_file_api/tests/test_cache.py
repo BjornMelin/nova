@@ -132,9 +132,9 @@ async def test_runtime_app_lifespan_clears_runtime_state_for_reentry(
         settings: Settings,
         s3_client: object,
         dynamodb_resource: object | None = None,
-        sqs_client: object | None = None,
+        stepfunctions_client: object | None = None,
     ) -> None:
-        del settings, s3_client, dynamodb_resource, sqs_client
+        del settings, s3_client, dynamodb_resource, stepfunctions_client
         authenticator = _TrackableAuthenticator()
         cache = TwoTierCache(local=_build_local_cache())
         authenticators.append(authenticator)
@@ -190,9 +190,9 @@ async def test_runtime_app_lifespan_clears_runtime_state_when_cleanup_fails(
         settings: Settings,
         s3_client: object,
         dynamodb_resource: object | None = None,
-        sqs_client: object | None = None,
+        stepfunctions_client: object | None = None,
     ) -> None:
-        del settings, s3_client, dynamodb_resource, sqs_client
+        del settings, s3_client, dynamodb_resource, stepfunctions_client
         app.state.authenticator = authenticator
         app.state.cache = TwoTierCache(local=_build_local_cache())
         app.state.idempotency_store = object()

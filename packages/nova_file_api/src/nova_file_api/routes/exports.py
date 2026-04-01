@@ -71,7 +71,7 @@ async def create_export(
     idempotency_key: IdempotencyKeyHeader = None,
 ) -> ExportResource:
     """Create an explicit export workflow resource."""
-    if not settings.jobs_enabled:
+    if not settings.exports_enabled:
         raise forbidden("exports API is disabled")
 
     key = validated_idempotency_key(

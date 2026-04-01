@@ -14,27 +14,18 @@ from pydantic import (
     field_validator,
 )
 
+from nova_runtime_support.export_models import (
+    ExportOutput,
+    ExportRecord,
+    ExportStatus,
+)
+
 
 class UploadStrategy(StrEnum):
     """Upload strategy options returned by initiate endpoint."""
 
     SINGLE = "single"
     MULTIPART = "multipart"
-
-
-class JobsQueueBackend(StrEnum):
-    """Queue backends available for async jobs."""
-
-    MEMORY = "memory"
-    SQS = "sqs"
-    STEP_FUNCTIONS = "stepfunctions"
-
-
-class JobsRepositoryBackend(StrEnum):
-    """Repository backends available for async job persistence."""
-
-    MEMORY = "memory"
-    DYNAMODB = "dynamodb"
 
 
 class ActivityStoreBackend(StrEnum):
@@ -228,52 +219,6 @@ class CreateExportRequest(BaseModel):
         max_length=512,
         description="Client-facing filename to preserve in the export.",
     )
-
-
-class ExportStatus(StrEnum):
-    """Lifecycle status of an export workflow."""
-
-    QUEUED = "queued"
-    VALIDATING = "validating"
-    COPYING = "copying"
-    FINALIZING = "finalizing"
-    SUCCEEDED = "succeeded"
-    FAILED = "failed"
-    CANCELLED = "cancelled"
-
-
-class ExportOutput(BaseModel):
-    """Completed export output metadata."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    key: str = Field(
-        min_length=1,
-        max_length=2048,
-        description="Storage key for the exported object.",
-    )
-    download_filename: str = Field(
-        min_length=1,
-        max_length=512,
-        description="Filename presented to clients when downloading.",
-    )
-
-
-class ExportRecord(BaseModel):
-    """Internal export workflow persistence record."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    export_id: str
-    scope_id: str
-    request_id: str | None = None
-    source_key: str = Field(min_length=1, max_length=2048)
-    filename: str = Field(min_length=1, max_length=512)
-    status: ExportStatus
-    output: ExportOutput | None = None
-    error: str | None = None
-    created_at: datetime
-    updated_at: datetime
 
 
 class ExportResource(BaseModel):
