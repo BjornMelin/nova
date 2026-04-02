@@ -214,6 +214,13 @@ def test_apply_python_sdk_repairs_preserves_typed_maps_and_redacted_repr(
         "    url: str\n",
         encoding="utf-8",
     )
+    (models_dir / "complete_upload_request.py").write_text(
+        "from __future__ import annotations\n\n"
+        "from typing import TYPE_CHECKING\n\n"
+        "if TYPE_CHECKING:\n"
+        "    from ..models.completed_part import CompletedPart\n",
+        encoding="utf-8",
+    )
     (tmp_path / "__init__.py").write_text(
         '"""A client library for accessing nova-file-api"""\n'
         "from .client import AuthenticatedClient, Client\n\n"
@@ -232,6 +239,7 @@ def test_apply_python_sdk_repairs_preserves_typed_maps_and_redacted_repr(
             models_dir / "readiness_response_checks.py",
             models_dir / "sign_parts_response_urls.py",
             models_dir / "presign_download_response.py",
+            models_dir / "complete_upload_request.py",
             tmp_path / "__init__.py",
         )
     }
@@ -243,6 +251,7 @@ def test_apply_python_sdk_repairs_preserves_typed_maps_and_redacted_repr(
             models_dir / "readiness_response_checks.py",
             models_dir / "sign_parts_response_urls.py",
             models_dir / "presign_download_response.py",
+            models_dir / "complete_upload_request.py",
             tmp_path / "__init__.py",
         )
     }
@@ -251,13 +260,20 @@ def test_apply_python_sdk_repairs_preserves_typed_maps_and_redacted_repr(
     readiness = first_pass["readiness_response_checks.py"]
     sign_parts = first_pass["sign_parts_response_urls.py"]
     presign = first_pass["presign_download_response.py"]
+    complete_upload = first_pass["complete_upload_request.py"]
     package_init = first_pass["__init__.py"]
 
     assert "additional_properties: dict[str, int] = {}" in activity
     assert "additional_properties: dict[str, bool] = {}" in readiness
+    assert '"""Model representing ReadinessResponseChecks."""' in readiness
     assert "str(key): str(value) for key, value in d.items()" in sign_parts
+    assert '"""Model representing SignPartsResponseUrls."""' in sign_parts
     assert "from attrs import field as _attrs_field" in presign
     assert "url: str = _attrs_field(repr=False)" in presign
+    assert (
+        "from nova_sdk_py.models.completed_part import CompletedPart"
+        in complete_upload
+    )
     assert package_init == (
         '"""A client library for accessing nova-file-api"""\n'
         "from .client import AuthenticatedClient, Client\n\n"

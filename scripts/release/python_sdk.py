@@ -427,6 +427,49 @@ def _apply_python_sdk_repairs(root: Path) -> None:
     _apply_typed_additional_properties_repairs(root)
     _redact_presign_download_url_repr(root)
     _repair_export_resource_output_parser(root)
+    _repair_relative_imports_to_absolute(root)
+    _repair_blank_model_docstrings(root)
+
+
+def _repair_relative_imports_to_absolute(root: Path) -> None:
+    model_dir = root / "models"
+    if not model_dir.exists():
+        return
+
+    for path in sorted(model_dir.glob("*.py")):
+        content = path.read_text(encoding="utf-8")
+        if "from ..models." not in content:
+            continue
+        updated = content.replace(
+            "from ..models.",
+            "from nova_sdk_py.models.",
+        )
+        if updated != content:
+            path.write_text(updated, encoding="utf-8")
+
+
+def _render_model_docstring(class_name: str) -> str:
+    return f'    """Model representing {class_name}."""\n'
+
+
+def _repair_blank_model_docstrings(root: Path) -> None:
+    model_dir = root / "models"
+    if not model_dir.exists():
+        return
+
+    for path in sorted(model_dir.glob("*.py")):
+        content = path.read_text(encoding="utf-8")
+        if '""" """' not in content:
+            continue
+        class_name = "".join(part.capitalize() for part in path.stem.split("_"))
+        updated = content.replace(
+            '    """ """\n',
+            _render_model_docstring(class_name),
+            1,
+        )
+        if updated == content:
+            continue
+        path.write_text(updated, encoding="utf-8")
 
 
 def _run_command(*, command: list[str], timeout: int, description: str) -> None:
@@ -595,6 +638,8 @@ def generate_or_check_python_sdk(
             target=target,
             temp_root=Path(temp_dir),
         )
+        _repair_relative_imports_to_absolute(generated_root)
+        _repair_blank_model_docstrings(generated_root)
         generated_files = _collect_file_map(generated_root)
         current_files = _collect_file_map(target.output_path)
 

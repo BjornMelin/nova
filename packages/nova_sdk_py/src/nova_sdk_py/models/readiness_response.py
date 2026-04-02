@@ -10,7 +10,9 @@ from typing import (
 from attrs import define as _attrs_define
 
 if TYPE_CHECKING:
-    from ..models.readiness_response_checks import ReadinessResponseChecks
+    from nova_sdk_py.models.readiness_response_checks import (
+        ReadinessResponseChecks,
+    )
 
 
 T = TypeVar("T", bound="ReadinessResponse")
@@ -46,7 +48,9 @@ class ReadinessResponse:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.readiness_response_checks import ReadinessResponseChecks
+        from nova_sdk_py.models.readiness_response_checks import (
+            ReadinessResponseChecks,
+        )
 
         d = dict(src_dict)
         checks = ReadinessResponseChecks.from_dict(d.pop("checks"))

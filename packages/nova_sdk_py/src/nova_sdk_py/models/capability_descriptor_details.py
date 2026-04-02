@@ -10,7 +10,7 @@ T = TypeVar("T", bound="CapabilityDescriptorDetails")
 
 @_attrs_define
 class CapabilityDescriptorDetails:
-    """ """
+    """Model representing CapabilityDescriptorDetails."""
 
     additional_properties: dict[str, Any] = _attrs_field(
         init=False, factory=dict

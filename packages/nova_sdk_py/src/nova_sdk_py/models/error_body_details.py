@@ -10,7 +10,7 @@ T = TypeVar("T", bound="ErrorBodyDetails")
 
 @_attrs_define
 class ErrorBodyDetails:
-    """ """
+    """Model representing ErrorBodyDetails."""
 
     additional_properties: dict[str, Any] = _attrs_field(
         init=False, factory=dict

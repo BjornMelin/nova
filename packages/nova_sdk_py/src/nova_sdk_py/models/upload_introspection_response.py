@@ -10,7 +10,7 @@ from typing import (
 from attrs import define as _attrs_define
 
 if TYPE_CHECKING:
-    from ..models.uploaded_part import UploadedPart
+    from nova_sdk_py.models.uploaded_part import UploadedPart
 
 
 T = TypeVar("T", bound="UploadIntrospectionResponse")
@@ -64,7 +64,7 @@ class UploadIntrospectionResponse:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.uploaded_part import UploadedPart
+        from nova_sdk_py.models.uploaded_part import UploadedPart
 
         d = dict(src_dict)
         bucket = d.pop("bucket")

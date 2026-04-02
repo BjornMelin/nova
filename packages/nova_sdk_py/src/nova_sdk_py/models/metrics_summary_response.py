@@ -10,13 +10,13 @@ from typing import (
 from attrs import define as _attrs_define
 
 if TYPE_CHECKING:
-    from ..models.metrics_summary_response_activity import (
+    from nova_sdk_py.models.metrics_summary_response_activity import (
         MetricsSummaryResponseActivity,
     )
-    from ..models.metrics_summary_response_counters import (
+    from nova_sdk_py.models.metrics_summary_response_counters import (
         MetricsSummaryResponseCounters,
     )
-    from ..models.metrics_summary_response_latencies_ms import (
+    from nova_sdk_py.models.metrics_summary_response_latencies_ms import (
         MetricsSummaryResponseLatenciesMs,
     )
 
@@ -59,13 +59,13 @@ class MetricsSummaryResponse:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.metrics_summary_response_activity import (
+        from nova_sdk_py.models.metrics_summary_response_activity import (
             MetricsSummaryResponseActivity,
         )
-        from ..models.metrics_summary_response_counters import (
+        from nova_sdk_py.models.metrics_summary_response_counters import (
             MetricsSummaryResponseCounters,
         )
-        from ..models.metrics_summary_response_latencies_ms import (
+        from nova_sdk_py.models.metrics_summary_response_latencies_ms import (
             MetricsSummaryResponseLatenciesMs,
         )
 

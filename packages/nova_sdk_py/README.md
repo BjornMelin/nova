@@ -48,7 +48,8 @@ with client as api_client:
   `scripts/release/openapi_python_client/templates/`
 - Retained post-generation repairs:
   typed `additional_properties` coercion for map-shaped models and
-  repr redaction for presigned download URLs
+  repr redaction for presigned download URLs, and
+  `ExportResource.output` parser rewrite
 
 The generated module tree under `src/nova_sdk_py/` is deterministic and
 rechecked in CI with `uv run python scripts/release/generate_python_clients.py --check`.

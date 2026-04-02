@@ -10,7 +10,9 @@ from typing import (
 from attrs import define as _attrs_define
 
 if TYPE_CHECKING:
-    from ..models.sign_parts_response_urls import SignPartsResponseUrls
+    from nova_sdk_py.models.sign_parts_response_urls import (
+        SignPartsResponseUrls,
+    )
 
 
 T = TypeVar("T", bound="SignPartsResponse")
@@ -46,7 +48,9 @@ class SignPartsResponse:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.sign_parts_response_urls import SignPartsResponseUrls
+        from nova_sdk_py.models.sign_parts_response_urls import (
+            SignPartsResponseUrls,
+        )
 
         d = dict(src_dict)
         expires_in_seconds = d.pop("expires_in_seconds")
