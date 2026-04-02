@@ -101,6 +101,18 @@ def FileTransferAssets(
     URLs so the consumer app does not need a host-side asset registrar. Pass an
     explicit prefix only when a deployment needs separately hosted assets, such
     as a strict CSP that disallows ``data:`` script/style sources.
+
+    Args:
+        assets_url_prefix: Optional external URL prefix for `file_transfer.js`
+            and `file_transfer.css`. Leave unset to use packaged inline assets.
+
+    Returns:
+        html.Div: Container with the stylesheet and script tags required by the
+        browser uploader runtime.
+
+    Raises:
+        RuntimeError: Propagated from inline asset loading when packaged assets
+        cannot be read and ``assets_url_prefix`` is not provided.
     """
     if assets_url_prefix is None:
         script_src = _asset_data_url(
@@ -129,7 +141,21 @@ def BearerAuthHeader(
     auth_header_element_id: str,
     authorization_header: str | None = None,
 ) -> html.Div:
-    """Render the hidden DOM node read by the uploader's bearer contract."""
+    """Render the hidden DOM node read by the uploader's bearer contract.
+
+    Args:
+        auth_header_element_id: DOM id that `S3FileUploader` reads for the full
+            `Authorization` header value.
+        authorization_header: Full `Authorization` header value, typically
+            `Bearer <token>`. Defaults to an empty string.
+
+    Returns:
+        html.Div: Hidden Dash node that stores the bearer header text for the
+        browser uploader runtime.
+
+    Raises:
+        ValueError: If ``auth_header_element_id`` is blank after trimming.
+    """
     element_id = auth_header_element_id.strip()
     if not element_id:
         raise ValueError("auth_header_element_id must not be blank")

@@ -13,7 +13,7 @@ This guide is the canonical downstream path for using
 - `FileTransferAssets()` injects the packaged uploader JavaScript and CSS.
 - `BearerAuthHeader()` renders the hidden DOM node that carries the explicit
   bearer header contract.
-- `S3FileUploader(...)` renders the Dash component shell that the packaged
+- `S3FileUploader(…)` renders the Dash component shell that the packaged
   JavaScript attaches to.
 
 The bridge does not own:
