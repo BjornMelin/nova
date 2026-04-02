@@ -295,9 +295,14 @@ def _render_additional_properties_replacement(
     if repair.value_kind == "str":
         return (
             f"        {instance_name} = cls()\n"
-            "        additional_properties: dict[str, str] = {\n"
-            "            str(key): str(value) for key, value in d.items()\n"
-            "        }\n\n"
+            "        additional_properties: dict[str, str] = {}\n"
+            "        for key, value in d.items():\n"
+            "            if not isinstance(value, str):\n"
+            "                raise TypeError(\n"
+            '                    f"Invalid value for {key!r}: expected str, "\n'
+            '                    f"got {type(value).__name__}"\n'
+            "                )\n"
+            "            additional_properties[str(key)] = value\n\n"
             f"        {instance_name}.additional_properties = "
             "additional_properties\n"
             f"        return {instance_name}\n"
@@ -380,6 +385,27 @@ def _redact_presign_download_url_repr(root: Path) -> None:
         replacement="    url: str = _attrs_field(repr=False)\n",
         count=1,
     )
+    _rewrite_file(
+        root,
+        "models/initiate_upload_response.py",
+        pattern=r"from attrs import define as _attrs_define\n",
+        replacement=(
+            "from attrs import define as _attrs_define\n"
+            "from attrs import field as _attrs_field\n"
+        ),
+        count=1,
+    )
+    _rewrite_file(
+        root,
+        "models/initiate_upload_response.py",
+        pattern=r"    url: None \| str \| Unset = UNSET\n",
+        replacement=(
+            "    url: None | str | Unset = _attrs_field(\n"
+            "        default=UNSET, repr=False\n"
+            "    )\n"
+        ),
+        count=1,
+    )
 
 
 def _repair_export_resource_output_parser(root: Path) -> None:
@@ -423,26 +449,25 @@ def _repair_export_resource_output_parser(root: Path) -> None:
     path.write_text(updated, encoding="utf-8")
 
 
-def _apply_python_sdk_repairs(root: Path) -> None:
+def _apply_python_sdk_repairs(root: Path, package_name: str) -> None:
     _apply_typed_additional_properties_repairs(root)
     _redact_presign_download_url_repr(root)
     _repair_export_resource_output_parser(root)
-    _repair_relative_imports_to_absolute(root)
+    _repair_relative_imports_to_absolute(root, package_name)
     _repair_blank_model_docstrings(root)
 
 
-def _repair_relative_imports_to_absolute(root: Path) -> None:
+def _repair_relative_imports_to_absolute(root: Path, package_name: str) -> None:
     model_dir = root / "models"
     if not model_dir.exists():
         return
 
     for path in sorted(model_dir.glob("*.py")):
         content = path.read_text(encoding="utf-8")
-        if "from ..models." not in content:
-            continue
-        updated = content.replace(
-            "from ..models.",
-            "from nova_sdk_py.models.",
+        updated = re.sub(
+            r"(?m)^(?P<indent>\s*)from\s+\.\.(?P<module>[A-Za-z_][\w.]*)\s+import\s+",
+            rf"\g<indent>from {package_name}.\g<module> import ",
+            content,
         )
         if updated != content:
             path.write_text(updated, encoding="utf-8")
@@ -459,17 +484,22 @@ def _repair_blank_model_docstrings(root: Path) -> None:
 
     for path in sorted(model_dir.glob("*.py")):
         content = path.read_text(encoding="utf-8")
-        if '""" """' not in content:
-            continue
         class_name = "".join(part.capitalize() for part in path.stem.split("_"))
-        updated = content.replace(
-            '    """ """\n',
-            _render_model_docstring(class_name),
-            1,
-        )
-        if updated == content:
-            continue
-        path.write_text(updated, encoding="utf-8")
+        for pattern in (
+            re.compile(r'(?m)^(?P<indent>\s*)"""\s+"""\s*$'),
+            re.compile(r'(?m)^(?P<indent>\s*)"""\s*\n\s*"""\s*$'),
+        ):
+            updated, replaced = pattern.subn(
+                lambda match, class_name=class_name: (
+                    f"{match.group('indent')}"
+                    f'"""Model representing {class_name}."""\n'
+                ),
+                content,
+                count=1,
+            )
+            if replaced:
+                path.write_text(updated, encoding="utf-8")
+                break
 
 
 def _run_command(*, command: list[str], timeout: int, description: str) -> None:
@@ -599,7 +629,7 @@ def _generate_target_tree(
             f"{target.spec_path}:\nstdout:\n{stdout}\nstderr:\n{stderr}"
         ) from exc
 
-    _apply_python_sdk_repairs(destination)
+    _apply_python_sdk_repairs(destination, target.package_name)
     _run_generated_ruff(destination)
     return destination
 
@@ -656,8 +686,6 @@ def generate_or_check_python_sdk(
             target=target,
             temp_root=Path(temp_dir),
         )
-        _repair_relative_imports_to_absolute(generated_root)
-        _repair_blank_model_docstrings(generated_root)
         generated_files = _collect_file_map(generated_root)
         current_files = _collect_file_map(target.output_path)
 

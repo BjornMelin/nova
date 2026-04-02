@@ -9,7 +9,7 @@ from typing import (
 
 from attrs import define as _attrs_define
 
-from ..types import UNSET, Unset
+from nova_sdk_py.types import UNSET, Unset
 
 if TYPE_CHECKING:
     from nova_sdk_py.models.capability_descriptor_details import (
@@ -27,7 +27,7 @@ class CapabilityDescriptor:
     Attributes:
         enabled (bool):
         key (str):
-        details (CapabilityDescriptorDetails | Unset):
+        details (CapabilityDescriptorDetails | Unset): Additional capability metadata.
     """
 
     enabled: bool

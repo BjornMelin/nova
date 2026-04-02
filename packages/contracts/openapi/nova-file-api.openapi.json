@@ -63,6 +63,7 @@
         "properties": {
           "details": {
             "additionalProperties": true,
+            "description": "Additional capability metadata.",
             "title": "Details",
             "type": "object"
           },

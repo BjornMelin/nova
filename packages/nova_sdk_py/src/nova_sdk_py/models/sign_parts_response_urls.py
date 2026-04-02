@@ -27,9 +27,14 @@ class SignPartsResponseUrls:
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
         sign_parts_response_urls = cls()
-        additional_properties: dict[str, str] = {
-            str(key): str(value) for key, value in d.items()
-        }
+        additional_properties: dict[str, str] = {}
+        for key, value in d.items():
+            if not isinstance(value, str):
+                raise TypeError(
+                    f"Invalid value for {key!r}: expected str, "
+                    f"got {type(value).__name__}"
+                )
+            additional_properties[str(key)] = value
 
         sign_parts_response_urls.additional_properties = additional_properties
         return sign_parts_response_urls

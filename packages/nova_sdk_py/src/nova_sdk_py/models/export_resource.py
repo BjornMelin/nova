@@ -13,8 +13,7 @@ from attrs import define as _attrs_define
 from dateutil.parser import isoparse
 
 from nova_sdk_py.models.export_status import ExportStatus
-
-from ..types import UNSET, Unset
+from nova_sdk_py.types import UNSET, Unset
 
 if TYPE_CHECKING:
     from nova_sdk_py.models.export_output import ExportOutput
