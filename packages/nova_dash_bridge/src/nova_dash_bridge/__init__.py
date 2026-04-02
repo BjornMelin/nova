@@ -8,9 +8,18 @@ from typing import TYPE_CHECKING, Any
 from ._version import __version__
 
 if TYPE_CHECKING:
-    from .dash_integration import FileTransferAssets, S3FileUploader
+    from .dash_integration import (
+        BearerAuthHeader,
+        FileTransferAssets,
+        S3FileUploader,
+    )
 
 _OPTIONAL_EXPORTS: dict[str, tuple[str, tuple[str, ...], str]] = {
+    "BearerAuthHeader": (
+        "nova_dash_bridge.dash_integration",
+        ("dash",),
+        "dash",
+    ),
     "FileTransferAssets": (
         "nova_dash_bridge.dash_integration",
         ("dash",),
@@ -59,6 +68,7 @@ def __dir__() -> list[str]:
 
 
 __all__ = [
+    "BearerAuthHeader",
     "FileTransferAssets",
     "S3FileUploader",
     "__version__",

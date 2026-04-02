@@ -58,11 +58,13 @@ def test_browser_only_packaging_contract() -> None:
 
 def test_public_exports_are_browser_only() -> None:
     assert nova_dash_bridge.__all__ == [
+        "BearerAuthHeader",
         "FileTransferAssets",
         "S3FileUploader",
         "__version__",
     ]
     exported_names = dir(nova_dash_bridge)
+    assert "BearerAuthHeader" in exported_names
     assert "FileTransferAssets" in exported_names
     assert "S3FileUploader" in exported_names
     assert "create_fastapi_app" not in exported_names
@@ -76,6 +78,11 @@ def test_public_exports_are_browser_only() -> None:
             ModuleNotFoundError,
             match=r"Install with `pip install nova-dash-bridge\[dash\]`\.",
         ):
+            _ = nova_dash_bridge.BearerAuthHeader
+        with pytest.raises(
+            ModuleNotFoundError,
+            match=r"Install with `pip install nova-dash-bridge\[dash\]`\.",
+        ):
             _ = nova_dash_bridge.FileTransferAssets
         with pytest.raises(
             ModuleNotFoundError,
@@ -84,5 +91,6 @@ def test_public_exports_are_browser_only() -> None:
             _ = nova_dash_bridge.S3FileUploader
         return
 
+    assert callable(nova_dash_bridge.BearerAuthHeader)
     assert callable(nova_dash_bridge.FileTransferAssets)
     assert callable(nova_dash_bridge.S3FileUploader)

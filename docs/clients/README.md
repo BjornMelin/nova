@@ -7,6 +7,7 @@ Last reviewed: 2026-03-28
 ## Active client docs
 
 - `CLIENT-SDK-CANONICAL-PACKAGES.md`
+- `browser-dash-integration-guide.md`
 - `post-deploy-validation-integration-guide.md`
 - `dash-minimal-workflow.yml`
 - `rshiny-minimal-workflow.yml`

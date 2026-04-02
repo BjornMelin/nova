@@ -2,9 +2,11 @@
 
 Dash/browser helpers for integrating with the canonical Nova APIs.
 
-This package ships two things only:
+This package ships three browser-only helpers:
 
 - `FileTransferAssets` for the packaged uploader JS/CSS bundle.
+- `BearerAuthHeader` for the hidden DOM node that carries the explicit bearer
+  header contract.
 - `S3FileUploader` for the Dash component shell that drives that browser
   runtime.
 
@@ -22,9 +24,13 @@ Canonical browser endpoint alignment:
 Minimal usage:
 
 ```python
-from nova_dash_bridge import FileTransferAssets, S3FileUploader
+from nova_dash_bridge import BearerAuthHeader, FileTransferAssets, S3FileUploader
 
 assets = FileTransferAssets()
+auth_header = BearerAuthHeader(
+    auth_header_element_id="nova-auth-header",
+    authorization_header="Bearer <token>",
+)
 uploader = S3FileUploader(
     "report-upload",
     max_bytes=25_000_000,
@@ -32,6 +38,18 @@ uploader = S3FileUploader(
     auth_header_element_id="nova-auth-header",
 )
 ```
+
+`FileTransferAssets()` is self-contained by default. It emits `data:` URLs for
+the packaged JavaScript and CSS so a Dash app does not need a deleted Flask
+asset registrar or another host-specific asset mount. If a deployment uses a
+strict CSP that disallows `data:` script/style sources, pass an explicit
+`assets_url_prefix` and serve `/file_transfer.js` and `/file_transfer.css`
+there instead.
+
+`BearerAuthHeader()` does not fetch or refresh tokens. The consumer app remains
+responsible for obtaining the current bearer token and rendering the full
+`Authorization` header value into the hidden node. The uploader JavaScript reads
+that node and sends `Authorization` with `credentials: "omit"`.
 
 Install the Dash extra when you need the component surface:
 

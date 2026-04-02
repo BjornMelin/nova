@@ -2,9 +2,41 @@
 
 from __future__ import annotations
 
+from base64 import b64encode
+from functools import cache
+from importlib import resources
 from typing import Any, cast
 
 from dash import dcc, html
+
+
+@cache
+def _asset_text(name: str) -> str:
+    """Return packaged asset text for inline delivery.
+
+    Raises:
+        RuntimeError: If the packaged asset cannot be read.
+    """
+    try:
+        return (
+            resources.files("nova_dash_bridge.assets")
+            .joinpath(name)
+            .read_text(encoding="utf-8")
+        )
+    except (FileNotFoundError, ModuleNotFoundError, OSError) as exc:
+        raise RuntimeError(
+            "Unable to load packaged nova_dash_bridge asset "
+            f"{name!r} for inline delivery. Pass assets_url_prefix to "
+            "FileTransferAssets() and serve the packaged files externally "
+            "if inline assets are unavailable in this environment."
+        ) from exc
+
+
+@cache
+def _asset_data_url(name: str, mime_type: str) -> str:
+    """Return a data URL for a packaged asset."""
+    encoded_asset = b64encode(_asset_text(name).encode("utf-8")).decode("ascii")
+    return f"data:{mime_type};base64,{encoded_asset}"
 
 
 def _normalize_allowed_extensions(allowed_extensions: set[str]) -> set[str]:
@@ -61,16 +93,79 @@ def _validate_positive(
 
 def FileTransferAssets(
     *,
-    assets_url_prefix: str = "/_assets/nova_dash_bridge",
+    assets_url_prefix: str | None = None,
 ) -> html.Div:
-    """Return script/link tags for package-managed uploader assets."""
-    script_src = f"{assets_url_prefix}/file_transfer.js"
-    css_href = f"{assets_url_prefix}/file_transfer.css"
+    """Return package-managed uploader assets for Dash layouts.
+
+    When ``assets_url_prefix`` is omitted, the helper uses self-contained data
+    URLs so the consumer app does not need a host-side asset registrar. Pass an
+    explicit prefix only when a deployment needs separately hosted assets, such
+    as a strict CSP that disallows ``data:`` script/style sources.
+
+    Args:
+        assets_url_prefix: Optional external URL prefix for `file_transfer.js`
+            and `file_transfer.css`. Leave unset to use packaged inline assets.
+
+    Returns:
+        html.Div: Container with the stylesheet and script tags required by the
+        browser uploader runtime.
+
+    Raises:
+        RuntimeError: Propagated from inline asset loading when packaged assets
+        cannot be read and ``assets_url_prefix`` is not provided.
+    """
+    if assets_url_prefix is None:
+        script_src = _asset_data_url(
+            "file_transfer.js",
+            "text/javascript",
+        )
+        css_href = _asset_data_url(
+            "file_transfer.css",
+            "text/css",
+        )
+    else:
+        normalized_prefix = assets_url_prefix.rstrip("/")
+        script_src = f"{normalized_prefix}/file_transfer.js"
+        css_href = f"{normalized_prefix}/file_transfer.css"
+
     return html.Div(
         [
             html.Link(rel="stylesheet", href=css_href),
             html.Script(src=script_src),
         ]
+    )
+
+
+def BearerAuthHeader(
+    *,
+    auth_header_element_id: str,
+    authorization_header: str | None = None,
+) -> html.Div:
+    """Render the hidden DOM node read by the uploader's bearer contract.
+
+    Args:
+        auth_header_element_id: DOM id that `S3FileUploader` reads for the full
+            `Authorization` header value.
+        authorization_header: Full `Authorization` header value, typically
+            `Bearer <token>`. Defaults to an empty string.
+
+    Returns:
+        html.Div: Hidden Dash node that stores the bearer header text for the
+        browser uploader runtime.
+
+    Raises:
+        ValueError: If ``auth_header_element_id`` is blank after trimming.
+    """
+    element_id = auth_header_element_id.strip()
+    if not element_id:
+        raise ValueError("auth_header_element_id must not be blank")
+
+    return html.Div(
+        authorization_header or "",
+        id=element_id,
+        hidden=True,
+        style={"display": "none"},
+        **cast(dict[str, Any], {"aria-hidden": "true"}),
     )
 
 
@@ -99,8 +194,8 @@ def S3FileUploader(
         multiple: Whether multiple file uploads are allowed.
         transfers_endpoint_base: Base path for transfer endpoints.
         exports_endpoint_base: Base path for async export endpoints.
-        auth_header_element_id: DOM element id containing bearer auth
-            header text.
+        auth_header_element_id: DOM element id containing the full
+            ``Authorization`` header value (for example ``Bearer <token>``).
         max_concurrency: Multipart upload worker concurrency.
         sign_batch_size: Optional multipart sign batch size override.
         async_exports_enabled: Toggle async export workflow initiation.
