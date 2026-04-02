@@ -142,8 +142,8 @@ def test_generate_target_invokes_generator_with_config_and_templates(
 def test_python_sdk_template_override_set_stays_minimal() -> None:
     """Only the retained contract-shaping Python templates should remain."""
     actual_files = tuple(
-        path.name
-        for path in sorted(GENERATOR_TEMPLATE_PATH.glob("*.jinja"))
+        path.relative_to(GENERATOR_TEMPLATE_PATH).as_posix()
+        for path in sorted(GENERATOR_TEMPLATE_PATH.rglob("*.jinja"))
         if path.is_file()
     )
 

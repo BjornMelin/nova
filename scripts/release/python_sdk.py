@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Python SDK generation helpers."""
 
 from __future__ import annotations
@@ -490,8 +489,8 @@ def _validate_generator_assets() -> None:
             f"required generator asset missing: {GENERATOR_TEMPLATE_PATH}"
         )
     actual_templates = tuple(
-        path.name
-        for path in sorted(GENERATOR_TEMPLATE_PATH.glob("*.jinja"))
+        path.relative_to(GENERATOR_TEMPLATE_PATH).as_posix()
+        for path in sorted(GENERATOR_TEMPLATE_PATH.rglob("*.jinja"))
         if path.is_file()
     )
     if actual_templates != RETAINED_TEMPLATE_FILES:
