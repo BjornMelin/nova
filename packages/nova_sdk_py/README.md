@@ -36,13 +36,19 @@ with client as api_client:
 
 - Source OpenAPI artifact:
   `packages/contracts/openapi/nova-file-api.openapi.json`
-- Generator entrypoint:
+- Thin CLI entrypoint:
   `scripts/release/generate_python_clients.py`
+- Python lane implementation:
+  `scripts/release/python_sdk.py`
 - Generator pin:
   `openapi-python-client==0.28.3`
 - Generator assets:
   `scripts/release/openapi_python_client/config.yaml` and
+  the retained contract-shaping templates in
   `scripts/release/openapi_python_client/templates/`
+- Retained post-generation repairs:
+  typed `additional_properties` coercion for map-shaped models and
+  repr redaction for presigned download URLs
 
 The generated module tree under `src/nova_sdk_py/` is deterministic and
 rechecked in CI with `uv run python scripts/release/generate_python_clients.py --check`.
