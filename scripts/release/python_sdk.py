@@ -9,6 +9,7 @@ import shutil
 import subprocess
 import sys
 from dataclasses import dataclass
+from functools import partial
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any, Literal, cast
@@ -477,6 +478,14 @@ def _render_model_docstring(class_name: str) -> str:
     return f'    """Model representing {class_name}."""\n'
 
 
+def _render_blank_model_docstring_replacement(
+    match: re.Match[str],
+    *,
+    class_name: str,
+) -> str:
+    return f'{match.group("indent")}"""Model representing {class_name}."""\n'
+
+
 def _repair_blank_model_docstrings(root: Path) -> None:
     model_dir = root / "models"
     if not model_dir.exists():
@@ -485,15 +494,17 @@ def _repair_blank_model_docstrings(root: Path) -> None:
     for path in sorted(model_dir.glob("*.py")):
         content = path.read_text(encoding="utf-8")
         class_name = "".join(part.capitalize() for part in path.stem.split("_"))
+        replacement = partial(
+            _render_blank_model_docstring_replacement,
+            class_name=class_name,
+        )
+
         for pattern in (
             re.compile(r'(?m)^(?P<indent>\s*)"""\s+"""\s*$'),
             re.compile(r'(?m)^(?P<indent>\s*)"""\s*\n\s*"""\s*$'),
         ):
             updated, replaced = pattern.subn(
-                lambda match, class_name=class_name: (
-                    f"{match.group('indent')}"
-                    f'"""Model representing {class_name}."""\n'
-                ),
+                replacement,
                 content,
                 count=1,
             )
