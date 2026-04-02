@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
+from base64 import b64encode
 from functools import cache
 from pathlib import Path
 from typing import Any, cast
-from urllib.parse import quote
 
 from dash import dcc, html
 
@@ -22,8 +22,8 @@ def _asset_text(name: str) -> str:
 @cache
 def _asset_data_url(name: str, mime_type: str) -> str:
     """Return a data URL for a packaged asset."""
-    encoded_asset = quote(_asset_text(name), safe="")
-    return f"data:{mime_type};charset=utf-8,{encoded_asset}"
+    encoded_asset = b64encode(_asset_text(name).encode("utf-8")).decode("ascii")
+    return f"data:{mime_type};base64,{encoded_asset}"
 
 
 def _normalize_allowed_extensions(allowed_extensions: set[str]) -> set[str]:

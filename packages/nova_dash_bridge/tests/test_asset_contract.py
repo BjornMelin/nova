@@ -1,7 +1,7 @@
 from __future__ import annotations
 
+from base64 import b64decode
 from pathlib import Path
-from urllib.parse import unquote
 
 from nova_dash_bridge.dash_integration import (
     BearerAuthHeader,
@@ -69,12 +69,14 @@ def test_file_transfer_assets_inline_by_default() -> None:
 
     stylesheet, script = assets.children
 
-    assert stylesheet.href.startswith("data:text/css;charset=utf-8,")
-    assert script.src.startswith("data:text/javascript;charset=utf-8,")
-    assert ".nova-dropzone" in unquote(stylesheet.href.partition(",")[2])
-    assert "function getAuthorizationHeader(config)" in unquote(
+    assert stylesheet.href.startswith("data:text/css;base64,")
+    assert script.src.startswith("data:text/javascript;base64,")
+    assert ".nova-dropzone" in b64decode(
+        stylesheet.href.partition(",")[2]
+    ).decode("utf-8")
+    assert "function getAuthorizationHeader(config)" in b64decode(
         script.src.partition(",")[2]
-    )
+    ).decode("utf-8")
 
 
 def test_file_transfer_assets_can_use_external_prefix() -> None:

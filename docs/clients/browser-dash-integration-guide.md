@@ -137,6 +137,7 @@ html.Div(
     id="nova-auth-header",
     hidden=True,
     style={"display": "none"},
+    **{"aria-hidden": "true"},
 )
 ```
 
