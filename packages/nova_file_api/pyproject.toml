@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "nova-file-api"
 version = "0.5.0"
-description = "FastAPI control-plane for file transfer and async jobs."
+description = "FastAPI control plane for Nova transfer and export APIs."
 readme = "README.md"
 requires-python = ">=3.11,<3.14"
 dependencies = [

@@ -1,32 +1,83 @@
 # Browser and Dash Integration Guide
 
 Status: Active
-Last reviewed: 2026-04-01
+Owner: nova client surface
+Last reviewed: 2026-04-02
 
 This guide is the canonical downstream path for using
 `packages/nova_dash_bridge` in a Dash app after the browser-only hard cut.
 
-## What the bridge owns
+## Audience and outcome
 
-`nova_dash_bridge` owns only three browser-side helpers:
+Use this guide when a junior team needs one clear path from Nova deployment
+evidence to a working Dash uploader. By the end, you should have:
 
-- `FileTransferAssets()` injects the packaged uploader JavaScript and CSS.
-- `BearerAuthHeader()` renders the hidden DOM node that carries the explicit
-  bearer header contract.
-- `S3FileUploader(…)` renders the Dash component shell that the packaged
-  JavaScript attaches to.
+- the canonical Nova runtime URL from `deploy-output.json`
+- a Dash layout that mounts Nova uploader assets once
+- an explicit bearer-header node that the browser runtime can read
+- an `S3FileUploader(...)` wired to the live transfers and exports routes
+- a clear choice for any server-side SDK calls that your app still needs
 
-The bridge does not own:
+## What Nova owns vs what your app owns
 
-- token acquisition
-- token refresh
-- server-side auth resolution
-- Flask or FastAPI asset registration
-- cookie-based auth transport
+Nova owns:
 
-## Canonical integration pattern
+- the HTTPS runtime authority in `deploy-output.json.public_base_url`
+- the transfer API under `/v1/transfers/*`
+- the export API under `/v1/exports*`
+- the packaged browser helpers in `nova_dash_bridge`
 
-Mount the assets once near the top of the Dash layout:
+Your app owns:
+
+- acquiring and refreshing bearer tokens
+- rendering the full `Authorization` header into the hidden DOM node
+- choosing whether to call Nova directly from the browser or via your own
+  server-side SDK usage
+- ensuring the Dash origin is allowed by Nova CORS
+
+## Step 1: read the deployed runtime authority
+
+Do not hard-code the Nova base URL in a runbook or onboarding doc. Read it from
+the authoritative deploy artifact wherever you store it (for example a release
+download, CI artifact path, or your app repository root if you copy it there):
+
+```bash
+jq -r '.public_base_url' /path/to/deploy-output.json
+```
+
+The field you want is `public_base_url`. `execute_api_endpoint` is emitted for
+validation and troubleshooting, not as the intended public ingress.
+
+While you are reading the artifact, also confirm:
+
+- `cors_allowed_origins` includes the Dash origin you will serve from
+- `environment` and `runtime_version` match the deployment you intend to use
+
+## Step 2: choose the right client surface
+
+Use `nova_dash_bridge` only for browser upload/download behavior inside Dash.
+Use an SDK or plain HTTP client when you need server-side Nova calls.
+
+- Dash/browser uploads: `pip install "nova-dash-bridge[dash]"`
+- Python server-side calls: `pip install nova-sdk-py`
+- TypeScript server-side calls: `@nova/sdk`
+- R consumers: package `nova`
+
+## Step 3: keep the runtime URL in app config
+
+Normalize the deploy-output value once and build the route bases from it:
+
+```python
+nova_base_url = "https://nova.example.com".rstrip("/")
+transfers_endpoint_base = f"{nova_base_url}/v1/transfers"
+exports_endpoint_base = f"{nova_base_url}/v1/exports"
+```
+
+This is the safest default for a Dash app that talks directly to Nova.
+
+## Step 4: mount the packaged assets once
+
+Render `FileTransferAssets()` near the top of the Dash layout:
 
 ```python
 from dash import html
@@ -40,7 +91,26 @@ layout = html.Div(
 )
 ```
 
-Render the current bearer header into a hidden DOM node:
+`FileTransferAssets()` is self-contained by default. It emits `data:` URLs for
+the packaged CSS and JavaScript, so a consumer app does not need a separate
+host-specific asset registration layer.
+
+If your deployment enforces a strict CSP that blocks `data:` script/style
+sources, pass `assets_url_prefix` and serve the packaged files there:
+
+```python
+FileTransferAssets(assets_url_prefix="/assets/nova_dash_bridge")
+```
+
+That external path must serve:
+
+- `/assets/nova_dash_bridge/file_transfer.css`
+- `/assets/nova_dash_bridge/file_transfer.js`
+
+## Step 5: render the bearer-header node
+
+The browser runtime reads the full `Authorization` header from a hidden DOM
+node. Consumer apps stay responsible for producing that value.
 
 ```python
 from nova_dash_bridge import BearerAuthHeader
@@ -51,7 +121,13 @@ auth_header = BearerAuthHeader(
 )
 ```
 
-Pass that node id into the uploader:
+The contract is simple:
+
+- the element id must match what `S3FileUploader(...)` receives
+- the text content must be the full header value, usually `Bearer <token>`
+- browser requests keep `credentials: "omit"`
+
+## Step 6: mount the uploader
 
 ```python
 from nova_dash_bridge import S3FileUploader
@@ -60,19 +136,29 @@ uploader = S3FileUploader(
     "report-upload",
     max_bytes=25_000_000,
     allowed_extensions={".csv", ".xlsx"},
-    transfers_endpoint_base="/v1/transfers",
-    exports_endpoint_base="/v1/exports",
+    transfers_endpoint_base=transfers_endpoint_base,
+    exports_endpoint_base=exports_endpoint_base,
     auth_header_element_id="nova-auth-header",
     async_exports_enabled=True,
     async_export_min_bytes=10_000_000,
 )
 ```
 
-Compose them in one place:
+Key props:
+
+- `transfers_endpoint_base`: usually `f"{public_base_url}/v1/transfers"`
+- `exports_endpoint_base`: usually `f"{public_base_url}/v1/exports"`
+- `auth_header_element_id`: the hidden bearer-header node id
+- `async_exports_enabled`: turn on export creation/polling after upload
+- `async_export_min_bytes`: optional threshold for large-file export flows
+
+## Step 7: compose the layout in one place
 
 ```python
 from dash import html
 from nova_dash_bridge import BearerAuthHeader, FileTransferAssets, S3FileUploader
+
+nova_base_url = "https://nova.example.com".rstrip("/")
 
 layout = html.Div(
     [
@@ -85,67 +171,53 @@ layout = html.Div(
             "report-upload",
             max_bytes=25_000_000,
             allowed_extensions={".csv"},
-            transfers_endpoint_base="/v1/transfers",
-            exports_endpoint_base="/v1/exports",
+            transfers_endpoint_base=f"{nova_base_url}/v1/transfers",
+            exports_endpoint_base=f"{nova_base_url}/v1/exports",
             auth_header_element_id="nova-auth-header",
         ),
     ]
 )
 ```
 
-## Asset delivery contract
+## Step 8: read the uploader result payload
 
-`FileTransferAssets()` is self-contained by default. It emits `data:` URLs for
-the packaged CSS and JavaScript so the consumer app does not need a deleted
-Flask asset registrar or another bridge-specific asset mount.
+`S3FileUploader(...)` writes its result into the Dash memory store that matches
+the component id. The base upload result contains:
 
-Use `assets_url_prefix` only when a deployment has a strict CSP that disallows
-`data:` script/style sources:
+- `bucket`
+- `key`
+- `filename`
+- `size_bytes`
+- `content_type`
 
-```python
-FileTransferAssets(assets_url_prefix="/assets/nova_dash_bridge")
-```
+When async exports are enabled and used, the result also includes:
 
-When you opt into external delivery, the host app must serve:
+- `export_id`
+- `export_status`
+- `export_output`
+- `download`
 
-- `/assets/nova_dash_bridge/file_transfer.css`
-- `/assets/nova_dash_bridge/file_transfer.js`
+That gives a Dash callback enough information to persist the upload reference,
+start downstream processing, or hand a completed export download URL to the
+user.
 
-Do not recreate the deleted Flask/FastAPI bridge adapters just to serve these
-files.
+## Step 9: use SDKs only where they help
 
-## Auth contract
+The bridge is not a replacement for the SDKs.
 
-The browser contract is explicit:
+- Use `nova-sdk-py` when your Dash server needs to call Nova outside the
+  browser uploader flow.
+- Use `@nova/sdk` for TypeScript services or tools.
+- Use R package `nova` for R-side service integrations.
 
-- the hidden DOM node must contain the full `Authorization` header value
-- the uploader JavaScript reads that node on each request
-- browser requests send `Authorization`
-- browser requests keep `credentials: "omit"`
-
-Do not switch this flow to cookies, same-origin session headers, or bridge-owned
-token resolution.
-
-If a downstream app prefers not to use `BearerAuthHeader()`, the raw DOM shape
-is still simple:
-
-```python
-from dash import html
-
-html.Div(
-    f"Bearer {token}",
-    id="nova-auth-header",
-    hidden=True,
-    style={"display": "none"},
-    **{"aria-hidden": "true"},
-)
-```
+All SDKs should use the same `public_base_url` authority that came from
+`deploy-output.json`.
 
 ## Operational notes
 
-- Canonical transfer endpoints live under `/v1/transfers`.
-- Canonical export endpoints live under `/v1/exports`.
-- Legacy `/api/*` and `/v1/jobs*` paths are retired.
-- Token acquisition still belongs to the consumer app.
-- The bridge payload remains browser-only and does not introduce host adapter
-  semantics back into Nova.
+- Keep token acquisition and refresh in the consumer app.
+- Keep the browser flow bearer-only; do not switch to cookie transport.
+- Treat `public_base_url` as the public ingress and `execute_api_endpoint` as
+  validation evidence only.
+- Use `docs/clients/post-deploy-validation-integration-guide.md` when you also
+  want automated downstream runtime validation.

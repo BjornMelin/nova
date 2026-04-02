@@ -29,10 +29,15 @@ the bulk data plane. Product and API detail: `README.md`.
 
 **Current implementation (treat as true):**
 
-- Public API: `/v1/*`. Auth: bearer JWT only, in-process.
+- Public API: transfer routes under `/v1/transfers/*`, export routes under
+  `/v1/exports*`, and supporting capability/ops routes under `/v1/*`. Auth:
+  bearer JWT only, in-process.
 - Exports: `/v1/exports`. Idempotency and workflow state: DynamoDB.
 - API runtime: FastAPI in `packages/nova_file_api` (repo Lambda entrypoint).
 - Workflows: Step Functions + `packages/nova_workflows` task handlers.
+- Browser/Dash upload helpers: `packages/nova_dash_bridge` is browser-only; the
+  consumer app owns token acquisition and renders the bearer header DOM node
+  that the uploader reads.
 - IaC: `infra/nova_cdk` only. SDKs: one package per language (TS, Py, R).
 - Deployed base URL and release provenance: `deploy-output.json` (not manual
   or free-text config when that artifact exists).
@@ -57,7 +62,7 @@ the bulk data plane. Product and API detail: `README.md`.
 | `packages/nova_file_api` | API, auth, transfer + export routes, Lambda entry |
 | `packages/nova_workflows` | Step Functions tasks, workflow logic |
 | `packages/nova_runtime_support` | Shared runtime helpers |
-| `packages/nova_dash_bridge` | Browser and Dash helper package |
+| `packages/nova_dash_bridge` | Browser-only Dash uploader assets and bearer-header helpers |
 | `packages/contracts` | OpenAPI artifacts, fixtures, TS conformance assets |
 | `packages/nova_sdk_{ts,py,r}` | Generated public clients |
 | `infra/nova_cdk` | Canonical CDK app |
