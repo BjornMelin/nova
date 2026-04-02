@@ -2,10 +2,14 @@ from __future__ import annotations
 
 from base64 import b64decode
 from pathlib import Path
+from unittest.mock import Mock, patch
+
+import pytest
 
 from nova_dash_bridge.dash_integration import (
     BearerAuthHeader,
     FileTransferAssets,
+    _asset_text,
 )
 
 
@@ -86,6 +90,52 @@ def test_file_transfer_assets_can_use_external_prefix() -> None:
 
     assert stylesheet.href == "/assets/nova/file_transfer.css"
     assert script.src == "/assets/nova/file_transfer.js"
+
+
+def test_file_transfer_assets_strips_trailing_slash_from_prefix() -> None:
+    assets = FileTransferAssets(assets_url_prefix="/assets/nova/")
+
+    stylesheet, script = assets.children
+
+    assert stylesheet.href == "/assets/nova/file_transfer.css"
+    assert script.src == "/assets/nova/file_transfer.js"
+
+
+def test_asset_text_uses_importlib_resources_loader() -> None:
+    resource_file = Mock()
+    resource_file.read_text.return_value = "asset payload"
+    resource_root = Mock()
+    resource_root.joinpath.return_value = resource_file
+
+    with patch(
+        "nova_dash_bridge.dash_integration.resources.files",
+        return_value=resource_root,
+    ) as files_mock:
+        _asset_text.cache_clear()
+        try:
+            assert _asset_text("file_transfer.js") == "asset payload"
+        finally:
+            _asset_text.cache_clear()
+
+    files_mock.assert_called_once_with("nova_dash_bridge.assets")
+    resource_root.joinpath.assert_called_once_with("file_transfer.js")
+    resource_file.read_text.assert_called_once_with(encoding="utf-8")
+
+
+def test_asset_text_raises_clear_error_when_inline_assets_unavailable() -> None:
+    with patch(
+        "nova_dash_bridge.dash_integration.resources.files",
+        side_effect=ModuleNotFoundError("nova_dash_bridge.assets"),
+    ):
+        _asset_text.cache_clear()
+        try:
+            with pytest.raises(
+                RuntimeError,
+                match="Pass assets_url_prefix to FileTransferAssets\\(\\)",
+            ):
+                _asset_text("file_transfer.js")
+        finally:
+            _asset_text.cache_clear()
 
 
 def test_bearer_auth_header_renders_hidden_dom_node() -> None:

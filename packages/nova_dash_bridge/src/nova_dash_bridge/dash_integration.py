@@ -4,19 +4,32 @@ from __future__ import annotations
 
 from base64 import b64encode
 from functools import cache
-from pathlib import Path
+from importlib import resources
 from typing import Any, cast
 
 from dash import dcc, html
 
-_ASSETS_DIR = Path(__file__).with_name("assets")
-
 
 @cache
 def _asset_text(name: str) -> str:
-    """Return packaged asset text for inline delivery."""
-    asset_path = _ASSETS_DIR / name
-    return asset_path.read_text(encoding="utf-8")
+    """Return packaged asset text for inline delivery.
+
+    Raises:
+        RuntimeError: If the packaged asset cannot be read.
+    """
+    try:
+        return (
+            resources.files("nova_dash_bridge.assets")
+            .joinpath(name)
+            .read_text(encoding="utf-8")
+        )
+    except (FileNotFoundError, ModuleNotFoundError, OSError) as exc:
+        raise RuntimeError(
+            "Unable to load packaged nova_dash_bridge asset "
+            f"{name!r} for inline delivery. Pass assets_url_prefix to "
+            "FileTransferAssets() and serve the packaged files externally "
+            "if inline assets are unavailable in this environment."
+        ) from exc
 
 
 @cache
@@ -99,8 +112,9 @@ def FileTransferAssets(
             "text/css",
         )
     else:
-        script_src = f"{assets_url_prefix}/file_transfer.js"
-        css_href = f"{assets_url_prefix}/file_transfer.css"
+        normalized_prefix = assets_url_prefix.rstrip("/")
+        script_src = f"{normalized_prefix}/file_transfer.js"
+        css_href = f"{normalized_prefix}/file_transfer.css"
 
     return html.Div(
         [
