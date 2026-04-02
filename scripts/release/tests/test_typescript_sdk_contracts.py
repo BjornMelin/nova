@@ -69,11 +69,12 @@ def test_public_sdk_types_omit_raw_model_aliases() -> None:
         assert banned_export not in source
 
 
-def test_public_sdk_types_exclude_internal_job_result_aliases() -> None:
-    """Public file SDK types must exclude worker-only job result aliases."""
+def test_public_sdk_types_include_exports_first_shapes() -> None:
+    """Public TS SDK types should reflect the active exports-first contract."""
     source = _load_source_text(TS_PACKAGE_DIR, "client/types.gen.ts")
-    assert "export type JobResultUpdateRequest" not in source
-    assert "export type JobResultUpdateResponse" not in source
+    assert "export type CreateExportRequest =" in source
+    assert "export type ExportListResponse =" in source
+    assert "export type ExportResource =" in source
 
 
 def test_public_sdk_types_exclude_wrapper_specific_aliases() -> None:
@@ -118,9 +119,10 @@ def test_public_sdk_top_level_modules_use_esm_specifiers() -> None:
     assert "./types.gen.js" in sdk_source
 
 
-def test_public_sdk_exposes_generated_sdk_functions_only() -> None:
-    """SDK module must export only public generated operations."""
+def test_public_sdk_exposes_exports_first_operations() -> None:
+    """SDK module must expose the current public export operations."""
     source = _load_source_text(TS_PACKAGE_DIR, "client/sdk.gen.ts")
+    assert "export const listExports" in source
     assert "export const getExport" in source
     assert "export const createExport" in source
-    assert "export const updateJobResult" not in source
+    assert "export const cancelExport" in source

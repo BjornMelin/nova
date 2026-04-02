@@ -27,8 +27,10 @@ from scripts.release.sdk_common import (
     _load_operations,
 )
 from scripts.release.typescript_sdk import (
+    _COMPAT_GET_PARSE_AS_SIGNATURE,
+    _UPSTREAM_GET_PARSE_AS_SIGNATURE,
+    _apply_typescript_upstream_compatibility_fixes,
     _check_typescript_generated_output,
-    _postprocess_typescript_generated_output,
     _run_openapi_ts,
 )
 
@@ -86,8 +88,8 @@ def test_assert_unique_operation_ids_fails_on_collision() -> None:
         )
 
 
-def test_public_spec_excludes_internal_job_result_shapes() -> None:
-    """Public OpenAPI spec excludes internal worker-only models."""
+def test_repo_spec_public_operations_follow_exports_first_contract() -> None:
+    """The committed public spec must stay aligned to the exports-first API."""
     spec_path = (
         Path(__file__).resolve().parents[3]
         / "packages"
@@ -95,18 +97,17 @@ def test_public_spec_excludes_internal_job_result_shapes() -> None:
         / "openapi"
         / "nova-file-api.openapi.json"
     )
-    spec, operations = _load_operations(spec_path)
-    public_spec = _build_public_openapi_spec(spec)
-    public_components = public_spec.get("components", {})
-    assert isinstance(public_components, dict)
-    public_schemas = public_components.get("schemas", {})
-    assert isinstance(public_schemas, dict)
-
+    _, operations = _load_operations(spec_path)
     operation_ids = {operation.operation_id for operation in operations}
-    assert "create_export" in operation_ids
-    assert "CreateExportRequest" in public_schemas
-    assert "JobResultUpdateRequest" not in public_schemas
-    assert "JobResultUpdateResponse" not in public_schemas
+    public_paths = {operation.path for operation in operations}
+    assert {
+        "list_exports",
+        "create_export",
+        "get_export",
+        "cancel_export",
+    } <= operation_ids
+    assert all("/v1/jobs" not in path for path in public_paths)
+    assert all("job" not in operation_id for operation_id in operation_ids)
 
 
 def test_request_body_ref_requiredness_is_preserved_for_r_generation(
@@ -184,35 +185,132 @@ def test_load_operations_excludes_internal_visibility_operations(
 ) -> None:
     """TypeScript/R catalogs should ignore internal-only operations."""
     spec_path = tmp_path / "spec.openapi.json"
-    spec_path.write_text(
-        json.dumps(
-            {
-                "openapi": "3.1.0",
-                "paths": {
-                    "/v1/public": {
-                        "get": {
-                            "operationId": "get_public",
-                            "responses": {"200": {"description": "ok"}},
+    spec = {
+        "openapi": "3.1.0",
+        "paths": {
+            "/v1/exports": {
+                "post": {
+                    "operationId": "create_export",
+                    "requestBody": {
+                        "$ref": "#/components/requestBodies/PublicExportBody"
+                    },
+                    "responses": {
+                        "201": {
+                            "description": "created",
+                            "content": {
+                                "application/json": {
+                                    "schema": {
+                                        "$ref": (
+                                            "#/components/schemas/ExportResource"
+                                        )
+                                    }
+                                }
+                            },
                         }
                     },
-                    "/v1/internal": {
-                        "post": {
-                            "operationId": "post_internal",
-                            "x-nova-sdk-visibility": "internal",
-                            "responses": {"202": {"description": "accepted"}},
+                }
+            },
+            "/internal/reconcile": {
+                "post": {
+                    "operationId": "reconcile_internal",
+                    "x-nova-sdk-visibility": "internal",
+                    "requestBody": {
+                        "$ref": "#/components/requestBodies/InternalOnlyBody"
+                    },
+                    "responses": {
+                        "202": {
+                            "description": "accepted",
+                            "content": {
+                                "application/json": {
+                                    "schema": {
+                                        "$ref": (
+                                            "#/components/schemas/InternalOnlyResponse"
+                                        )
+                                    }
+                                }
+                            },
+                        }
+                    },
+                }
+            },
+        },
+        "components": {
+            "requestBodies": {
+                "PublicExportBody": {
+                    "required": True,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": (
+                                    "#/components/schemas/CreateExportRequest"
+                                )
+                            }
                         }
                     },
                 },
-            }
-        ),
+                "InternalOnlyBody": {
+                    "required": True,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": (
+                                    "#/components/schemas/InternalOnlyRequest"
+                                )
+                            }
+                        }
+                    },
+                },
+            },
+            "schemas": {
+                "CreateExportRequest": {
+                    "type": "object",
+                    "properties": {"source_key": {"type": "string"}},
+                    "required": ["source_key"],
+                },
+                "ExportResource": {
+                    "type": "object",
+                    "properties": {"export_id": {"type": "string"}},
+                    "required": ["export_id"],
+                },
+                "InternalOnlyRequest": {
+                    "type": "object",
+                    "properties": {"worker_id": {"type": "string"}},
+                    "required": ["worker_id"],
+                },
+                "InternalOnlyResponse": {
+                    "type": "object",
+                    "properties": {"accepted": {"type": "boolean"}},
+                    "required": ["accepted"],
+                },
+            },
+        },
+    }
+    spec_path.write_text(
+        json.dumps(spec),
         encoding="utf-8",
     )
 
-    _, operations = _load_operations(spec_path)
+    loaded_spec, operations = _load_operations(spec_path)
 
     assert [operation.operation_id for operation in operations] == [
-        "get_public"
+        "create_export"
     ]
+    public_spec = _build_public_openapi_spec(loaded_spec)
+    public_paths = public_spec.get("paths", {})
+    assert isinstance(public_paths, dict)
+    assert set(public_paths) == {"/v1/exports"}
+    public_components = public_spec.get("components", {})
+    assert isinstance(public_components, dict)
+    public_request_bodies = public_components.get("requestBodies", {})
+    assert isinstance(public_request_bodies, dict)
+    public_schemas = public_components.get("schemas", {})
+    assert isinstance(public_schemas, dict)
+    assert "PublicExportBody" in public_request_bodies
+    assert "InternalOnlyBody" not in public_request_bodies
+    assert "CreateExportRequest" in public_schemas
+    assert "ExportResource" in public_schemas
+    assert "InternalOnlyRequest" not in public_schemas
+    assert "InternalOnlyResponse" not in public_schemas
 
 
 def test_check_typescript_generated_output_flags_drift_and_legacy_files(
@@ -253,10 +351,10 @@ def test_check_typescript_generated_output_flags_drift_and_legacy_files(
     )
 
 
-def test_postprocess_typescript_generated_output_allows_undefined_parse_as(
+def test_typescript_compatibility_fix_allows_undefined_parse_as(
     tmp_path: Path,
 ) -> None:
-    """Generated TS output keeps the repo-owned getParseAs contract."""
+    """Generated TS output keeps the required Nova parseAs compatibility."""
     generated_root = tmp_path / "client"
     utils_path = generated_root / "client" / "utils.gen.ts"
     utils_path.parent.mkdir(parents=True)
@@ -270,10 +368,12 @@ def test_postprocess_typescript_generated_output_allows_undefined_parse_as(
         encoding="utf-8",
     )
 
-    _postprocess_typescript_generated_output(generated_root)
+    _apply_typescript_upstream_compatibility_fixes(generated_root)
 
     source = utils_path.read_text(encoding="utf-8")
     assert "Exclude<Config['parseAs'], 'auto'> | undefined" in source
+    assert _UPSTREAM_GET_PARSE_AS_SIGNATURE not in source
+    assert _COMPAT_GET_PARSE_AS_SIGNATURE in source
 
 
 def test_run_openapi_ts_times_out_with_actionable_error(
