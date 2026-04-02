@@ -27,7 +27,7 @@ class CapabilityDescriptor:
     Attributes:
         enabled (bool):
         key (str):
-        details (CapabilityDescriptorDetails | Unset):
+        details (CapabilityDescriptorDetails | Unset): Additional capability metadata.
     """
 
     enabled: bool

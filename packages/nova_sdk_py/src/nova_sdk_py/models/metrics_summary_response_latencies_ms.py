@@ -10,11 +10,7 @@ T = TypeVar("T", bound="MetricsSummaryResponseLatenciesMs")
 
 @_attrs_define
 class MetricsSummaryResponseLatenciesMs:
-    """Named latency metrics reported by the metrics summary endpoint in milliseconds.
-
-    Attributes:
-        additional_properties (dict[str, float]): Latency values keyed by name.
-    """
+    """Model representing MetricsSummaryResponseLatenciesMs."""
 
     additional_properties: dict[str, float] = _attrs_field(
         init=False, factory=dict

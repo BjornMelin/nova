@@ -52,6 +52,8 @@ export type CapabilitiesResponse = {
 export type CapabilityDescriptor = {
     /**
      * Details
+     *
+     * Additional capability metadata.
      */
     details?: {
         [key: string]: unknown;

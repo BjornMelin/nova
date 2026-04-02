@@ -7,7 +7,7 @@ from typing import (
     cast,
 )
 
-from attrs import define as _attrs_define
+from attrs import define as _attrs_define, field as _attrs_field
 
 from nova_sdk_py.models.upload_strategy import UploadStrategy
 from nova_sdk_py.types import UNSET, Unset
@@ -35,7 +35,7 @@ class InitiateUploadResponse:
     strategy: UploadStrategy
     part_size_bytes: int | None | Unset = UNSET
     upload_id: None | str | Unset = UNSET
-    url: None | str | Unset = UNSET
+    url: None | str | Unset = _attrs_field(default=UNSET, repr=False)
 
     def to_dict(self) -> dict[str, Any]:
         bucket = self.bucket

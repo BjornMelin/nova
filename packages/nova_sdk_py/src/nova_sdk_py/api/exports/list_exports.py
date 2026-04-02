@@ -2,11 +2,11 @@ from typing import Any
 
 import httpx
 
-from nova_sdk_py import errors
-from nova_sdk_py.client import AuthenticatedClient, Client
-from nova_sdk_py.models.error_envelope import ErrorEnvelope
-from nova_sdk_py.models.export_list_response import ExportListResponse
-from nova_sdk_py.types import UNSET, Response, Unset
+from ... import errors
+from ...client import AuthenticatedClient, Client
+from ...models.error_envelope import ErrorEnvelope
+from ...models.export_list_response import ExportListResponse
+from ...types import UNSET, Response, Unset
 
 
 def _get_kwargs(
