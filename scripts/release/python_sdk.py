@@ -514,14 +514,32 @@ def _repair_blank_model_docstrings(root: Path) -> None:
 
 
 def _run_command(*, command: list[str], timeout: int, description: str) -> None:
-    result = subprocess.run(  # noqa: S603
-        command,
-        check=False,
-        text=True,
-        capture_output=True,
-        timeout=timeout,
-        cwd=REPO_ROOT,
-    )
+    try:
+        result = subprocess.run(  # noqa: S603
+            command,
+            check=False,
+            text=True,
+            capture_output=True,
+            timeout=timeout,
+            cwd=REPO_ROOT,
+        )
+    except subprocess.TimeoutExpired as exc:
+        stdout = (
+            exc.stdout.decode(errors="replace")
+            if isinstance(exc.stdout, bytes)
+            else exc.stdout or ""
+        )
+        stderr = (
+            exc.stderr.decode(errors="replace")
+            if isinstance(exc.stderr, bytes)
+            else exc.stderr or ""
+        )
+        raise RuntimeError(
+            f"{description} timed out after {timeout}s:\n"
+            f"command:\n{command}\n"
+            f"stdout:\n{stdout}\n"
+            f"stderr:\n{stderr}"
+        ) from exc
     if result.returncode != 0:
         raise RuntimeError(
             f"{description} failed:\n"
@@ -616,29 +634,11 @@ def _generate_target_tree(
         "--overwrite",
         "--fail-on-warning",
     ]
-    try:
-        _run_command(
-            command=command,
-            timeout=_GENERATOR_TIMEOUT_SECONDS,
-            description=(
-                f"openapi-python-client generation for {target.spec_path}"
-            ),
-        )
-    except subprocess.TimeoutExpired as exc:
-        stdout = (
-            exc.stdout.decode(errors="replace")
-            if isinstance(exc.stdout, bytes)
-            else exc.stdout or ""
-        )
-        stderr = (
-            exc.stderr.decode(errors="replace")
-            if isinstance(exc.stderr, bytes)
-            else exc.stderr or ""
-        )
-        raise RuntimeError(
-            "openapi-python-client generation timed out for "
-            f"{target.spec_path}:\nstdout:\n{stdout}\nstderr:\n{stderr}"
-        ) from exc
+    _run_command(
+        command=command,
+        timeout=_GENERATOR_TIMEOUT_SECONDS,
+        description=f"openapi-python-client generation for {target.spec_path}",
+    )
 
     _apply_python_sdk_repairs(destination, target.package_name)
     _run_generated_ruff(destination)

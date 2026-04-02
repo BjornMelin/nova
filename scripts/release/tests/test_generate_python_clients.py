@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import subprocess
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock
@@ -17,6 +18,7 @@ from scripts.release.python_sdk import (
     _filter_internal_operations_for_public_sdk,
     _generate_target_tree,
     _repair_export_resource_output_parser,
+    _run_command,
 )
 
 
@@ -141,6 +143,40 @@ def test_generate_target_invokes_generator_with_config_and_templates(
         GENERATOR_TEMPLATE_PATH
     )
     assert "--fail-on-warning" in command
+
+
+def test_run_command_wraps_timeout_as_runtime_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Timeouts must surface as RuntimeError with command context."""
+
+    def fake_run(
+        command: list[str],
+        *,
+        check: bool,
+        text: bool,
+        capture_output: bool,
+        timeout: int,
+        cwd: Path,
+    ) -> None:
+        raise subprocess.TimeoutExpired(
+            cmd=command,
+            timeout=timeout,
+            output=b"stdout bytes",
+            stderr=b"stderr bytes",
+        )
+
+    monkeypatch.setattr("scripts.release.python_sdk.subprocess.run", fake_run)
+
+    with pytest.raises(
+        RuntimeError,
+        match="example command timed out after 42s",
+    ):
+        _run_command(
+            command=["python", "-m", "ruff"],
+            timeout=42,
+            description="example command",
+        )
 
 
 def test_python_sdk_template_override_set_stays_minimal() -> None:
