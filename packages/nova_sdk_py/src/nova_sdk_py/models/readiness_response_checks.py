@@ -10,11 +10,7 @@ T = TypeVar("T", bound="ReadinessResponseChecks")
 
 @_attrs_define
 class ReadinessResponseChecks:
-    """Named readiness check results reported by the readiness endpoint.
-
-    Attributes:
-        additional_properties (dict[str, bool]): Readiness statuses keyed by check name.
-    """
+    """ """
 
     additional_properties: dict[str, bool] = _attrs_field(
         init=False, factory=dict
@@ -39,7 +35,7 @@ class ReadinessResponseChecks:
                     "expected bool, "
                     f"got {type(value).__name__}"
                 )
-            additional_properties[key] = value
+            additional_properties[key] = bool(value)
 
         readiness_response_checks.additional_properties = additional_properties
         return readiness_response_checks

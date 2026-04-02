@@ -12,11 +12,11 @@ from typing import (
 from attrs import define as _attrs_define
 from dateutil.parser import isoparse
 
-from nova_sdk_py.models.export_status import ExportStatus
-from nova_sdk_py.types import UNSET, Unset
+from ..models.export_status import ExportStatus
+from ..types import UNSET, Unset
 
 if TYPE_CHECKING:
-    from nova_sdk_py.models.export_output import ExportOutput
+    from ..models.export_output import ExportOutput
 
 
 T = TypeVar("T", bound="ExportResource")
@@ -47,7 +47,7 @@ class ExportResource:
     output: ExportOutput | None | Unset = UNSET
 
     def to_dict(self) -> dict[str, Any]:
-        from nova_sdk_py.models.export_output import ExportOutput
+        from ..models.export_output import ExportOutput
 
         created_at = self.created_at.isoformat()
 
@@ -96,7 +96,7 @@ class ExportResource:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from nova_sdk_py.models.export_output import ExportOutput
+        from ..models.export_output import ExportOutput
 
         d = dict(src_dict)
         created_at = isoparse(d.pop("created_at"))

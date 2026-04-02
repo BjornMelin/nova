@@ -10,11 +10,7 @@ T = TypeVar("T", bound="SignPartsResponseUrls")
 
 @_attrs_define
 class SignPartsResponseUrls:
-    """Signed upload-part URLs keyed by part number.
-
-    Attributes:
-        additional_properties (dict[str, str]): Signed URL strings keyed by the part identifier returned by the API.
-    """
+    """ """
 
     additional_properties: dict[str, str] = _attrs_field(
         init=False, factory=dict

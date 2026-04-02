@@ -10,7 +10,7 @@ from typing import (
 from attrs import define as _attrs_define
 
 if TYPE_CHECKING:
-    from nova_sdk_py.models.capability_descriptor import CapabilityDescriptor
+    from ..models.capability_descriptor import CapabilityDescriptor
 
 
 T = TypeVar("T", bound="CapabilitiesResponse")
@@ -44,9 +44,7 @@ class CapabilitiesResponse:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from nova_sdk_py.models.capability_descriptor import (
-            CapabilityDescriptor,
-        )
+        from ..models.capability_descriptor import CapabilityDescriptor
 
         d = dict(src_dict)
         capabilities = []

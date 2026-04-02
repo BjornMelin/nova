@@ -7,14 +7,15 @@ from pathlib import Path
 
 import pytest
 
-from scripts.release.generate_python_clients import (
+from scripts.release.python_sdk import (
     GENERATOR_CONFIG_PATH,
     GENERATOR_TEMPLATE_PATH,
-    TARGETS,
+    PYTHON_TARGETS,
+    RETAINED_TEMPLATE_FILES,
+    _apply_python_sdk_repairs,
     _filter_internal_operations_for_public_sdk,
-    _generate_target,
+    _generate_target_tree,
     _repair_export_resource_output_parser,
-    _repair_generated_python_package,
 )
 
 
@@ -90,24 +91,31 @@ def test_generate_target_invokes_generator_with_config_and_templates(
     formatted_roots: list[Path] = []
 
     monkeypatch.setattr(
-        "scripts.release.generate_python_clients._load_spec_json",
+        "scripts.release.python_sdk._load_spec_json",
         fake_load_spec_json,
     )
     monkeypatch.setattr(
-        "scripts.release.generate_python_clients._write_temp_spec",
+        "scripts.release.python_sdk._write_temp_spec",
         fake_write_temp_spec,
     )
     monkeypatch.setattr(
-        "scripts.release.generate_python_clients._run_command",
+        "scripts.release.python_sdk._run_command",
         fake_run_command,
     )
     monkeypatch.setattr(
-        "scripts.release.generate_python_clients._run_generated_ruff",
+        "scripts.release.python_sdk._run_generated_ruff",
         formatted_roots.append,
     )
+    monkeypatch.setattr(
+        "scripts.release.python_sdk._apply_python_sdk_repairs",
+        lambda _root: None,
+    )
 
-    generation_target = TARGETS[0]
-    target = _generate_target(target=generation_target, temp_root=tmp_path)
+    generation_target = PYTHON_TARGETS[0]
+    target = _generate_target_tree(
+        target=generation_target,
+        temp_root=tmp_path,
+    )
 
     assert target == tmp_path / "nova_sdk_py"
     assert formatted_roots == [target]
@@ -129,6 +137,17 @@ def test_generate_target_invokes_generator_with_config_and_templates(
         GENERATOR_TEMPLATE_PATH
     )
     assert "--fail-on-warning" in command
+
+
+def test_python_sdk_template_override_set_stays_minimal() -> None:
+    """Only the retained contract-shaping Python templates should remain."""
+    actual_files = tuple(
+        path.name
+        for path in sorted(GENERATOR_TEMPLATE_PATH.glob("*.jinja"))
+        if path.is_file()
+    )
+
+    assert actual_files == RETAINED_TEMPLATE_FILES
 
 
 def test_repair_export_resource_output_parser_adds_mapping_cast(
@@ -158,7 +177,7 @@ def test_repair_export_resource_output_parser_adds_mapping_cast(
     assert first_pass == second_pass
 
 
-def test_repair_generated_python_package_preserves_typed_maps_and_redacted_repr(
+def test_apply_python_sdk_repairs_preserves_typed_maps_and_redacted_repr(
     tmp_path: Path,
 ) -> None:
     """Residual package repairs should stay limited to current schema quirks."""
@@ -197,7 +216,7 @@ def test_repair_generated_python_package_preserves_typed_maps_and_redacted_repr(
     )
     (tmp_path / "__init__.py").write_text(
         '"""A client library for accessing nova-file-api"""\n'
-        "from nova_sdk_py.client import AuthenticatedClient, Client\n\n"
+        "from .client import AuthenticatedClient, Client\n\n"
         "__all__ = (\n"
         '    "AuthenticatedClient",\n'
         '    "Client",\n'
@@ -205,7 +224,7 @@ def test_repair_generated_python_package_preserves_typed_maps_and_redacted_repr(
         encoding="utf-8",
     )
 
-    _repair_generated_python_package(tmp_path)
+    _apply_python_sdk_repairs(tmp_path)
     first_pass = {
         path.name: path.read_text(encoding="utf-8")
         for path in (
@@ -216,7 +235,7 @@ def test_repair_generated_python_package_preserves_typed_maps_and_redacted_repr(
             tmp_path / "__init__.py",
         )
     }
-    _repair_generated_python_package(tmp_path)
+    _apply_python_sdk_repairs(tmp_path)
     second_pass = {
         path.name: path.read_text(encoding="utf-8")
         for path in (
@@ -235,61 +254,16 @@ def test_repair_generated_python_package_preserves_typed_maps_and_redacted_repr(
     package_init = first_pass["__init__.py"]
 
     assert "additional_properties: dict[str, int] = {}" in activity
-    assert (
-        "Named activity counters reported by the metrics summary endpoint."
-        in activity
-    )
     assert "additional_properties: dict[str, bool] = {}" in readiness
-    assert (
-        "Named readiness check results reported by the readiness endpoint."
-        in readiness
-    )
     assert "str(key): str(value) for key, value in d.items()" in sign_parts
-    assert "Signed upload-part URLs keyed by part number." in sign_parts
     assert "from attrs import field as _attrs_field" in presign
     assert "url: str = _attrs_field(repr=False)" in presign
-    assert "# ruff: noqa: I001" in package_init
-    assert (
-        "from nova_sdk_py.client import AuthenticatedClient\n"
-        "from nova_sdk_py.client import Client\n"
-    ) in package_init
-    assert first_pass == second_pass
-
-
-@pytest.mark.parametrize(
-    "initial_imports",
-    [
-        "from nova_sdk_py.client import AuthenticatedClient, Client\n",
-        (
-            "from nova_sdk_py.client import AuthenticatedClient\n"
-            "from nova_sdk_py.client import Client\n"
-        ),
-    ],
-)
-def test_repair_generated_python_package_normalizes_package_init_imports(
-    tmp_path: Path,
-    initial_imports: str,
-) -> None:
-    """Package init rewrites should normalize raw and partial import layouts."""
-    package_init = tmp_path / "__init__.py"
-    package_init.write_text(
+    assert package_init == (
         '"""A client library for accessing nova-file-api"""\n'
-        f"{initial_imports}\n"
+        "from .client import AuthenticatedClient, Client\n\n"
         "__all__ = (\n"
         '    "AuthenticatedClient",\n'
         '    "Client",\n'
-        ")\n",
-        encoding="utf-8",
+        ")\n"
     )
-
-    _repair_generated_python_package(tmp_path)
-    first_pass = package_init.read_text(encoding="utf-8")
-    _repair_generated_python_package(tmp_path)
-    second_pass = package_init.read_text(encoding="utf-8")
-
     assert first_pass == second_pass
-    assert "# ruff: noqa: I001" in first_pass
-    assert (
-        "from nova_sdk_py.client import AuthenticatedClient\n"
-        "from nova_sdk_py.client import Client\n"
-    ) in first_pass

@@ -9,8 +9,8 @@ from typing import (
 
 from attrs import define as _attrs_define
 
-from nova_sdk_py.models.upload_strategy import UploadStrategy
-from nova_sdk_py.types import UNSET, Unset
+from ..models.upload_strategy import UploadStrategy
+from ..types import UNSET, Unset
 
 T = TypeVar("T", bound="InitiateUploadResponse")
 

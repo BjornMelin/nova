@@ -10,11 +10,7 @@ T = TypeVar("T", bound="MetricsSummaryResponseActivity")
 
 @_attrs_define
 class MetricsSummaryResponseActivity:
-    """Named activity counters reported by the metrics summary endpoint.
-
-    Attributes:
-        additional_properties (dict[str, int]): Activity counts keyed by name.
-    """
+    """ """
 
     additional_properties: dict[str, int] = _attrs_field(
         init=False, factory=dict

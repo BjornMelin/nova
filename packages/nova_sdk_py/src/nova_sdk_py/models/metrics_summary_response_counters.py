@@ -10,11 +10,7 @@ T = TypeVar("T", bound="MetricsSummaryResponseCounters")
 
 @_attrs_define
 class MetricsSummaryResponseCounters:
-    """Named aggregate counters reported by the metrics summary endpoint.
-
-    Attributes:
-        additional_properties (dict[str, int]): Counter values keyed by name.
-    """
+    """ """
 
     additional_properties: dict[str, int] = _attrs_field(
         init=False, factory=dict

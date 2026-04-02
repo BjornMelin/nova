@@ -5,7 +5,7 @@ from typing import Any, TypeVar
 
 from attrs import define as _attrs_define
 
-from nova_sdk_py.types import UNSET, Unset
+from ..types import UNSET, Unset
 
 T = TypeVar("T", bound="AbortUploadResponse")
 
