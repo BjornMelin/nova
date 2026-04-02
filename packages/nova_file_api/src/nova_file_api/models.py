@@ -265,7 +265,10 @@ class CapabilityDescriptor(BaseModel):
 
     key: str
     enabled: bool
-    details: dict[str, Any] = Field(default_factory=dict)
+    details: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Additional capability metadata.",
+    )
 
 
 class CapabilitiesResponse(BaseModel):
