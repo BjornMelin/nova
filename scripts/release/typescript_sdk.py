@@ -30,40 +30,41 @@ _LEGACY_TS_ARTIFACTS = (
     Path("src") / "types.ts",
     Path("src") / "generated",
 )
-_GET_PARSE_AS_SIGNATURE = (
+_UPSTREAM_GET_PARSE_AS_SIGNATURE = (
     "export const getParseAs = (contentType: string | null): "
     "Exclude<Config['parseAs'], 'auto'> => {"
 )
-_GET_PARSE_AS_SIGNATURE_WITH_UNDEFINED = (
+_COMPAT_GET_PARSE_AS_SIGNATURE = (
     "export const getParseAs = (contentType: string | null): "
     "Exclude<Config['parseAs'], 'auto'> | undefined => {"
 )
 
 
-def _postprocess_typescript_generated_output(root: Path) -> None:
-    """Normalize generated TS SDK output to repo-owned expectations.
+def _apply_typescript_upstream_compatibility_fixes(root: Path) -> None:
+    """Apply narrow compatibility fixes for current upstream TS output.
 
     Args:
         root: Root directory containing generated client files.
 
     Raises:
-        RuntimeError: Raised when the expected `getParseAs` signature is
-            missing from the generated output.
+        RuntimeError: Raised when the expected upstream ``getParseAs``
+            signature is missing from the generated output.
     """
     utils_path = root / "client" / "utils.gen.ts"
     if not utils_path.exists():
         return
 
     text = utils_path.read_text(encoding="utf-8")
-    if _GET_PARSE_AS_SIGNATURE not in text:
+    if _UPSTREAM_GET_PARSE_AS_SIGNATURE not in text:
         raise RuntimeError(
             "unexpected generated TypeScript SDK output: "
-            f"missing {_GET_PARSE_AS_SIGNATURE!r} in {utils_path}"
+            "missing upstream getParseAs signature "
+            f"{_UPSTREAM_GET_PARSE_AS_SIGNATURE!r} in {utils_path}"
         )
 
     updated = text.replace(
-        _GET_PARSE_AS_SIGNATURE,
-        _GET_PARSE_AS_SIGNATURE_WITH_UNDEFINED,
+        _UPSTREAM_GET_PARSE_AS_SIGNATURE,
+        _COMPAT_GET_PARSE_AS_SIGNATURE,
         1,
     )
     if updated != text:
@@ -257,7 +258,7 @@ def generate_or_check_typescript_sdk(
         _run_openapi_ts(
             input_spec_path=input_spec_path, output_path=output_path
         )
-        _postprocess_typescript_generated_output(output_path)
+        _apply_typescript_upstream_compatibility_fixes(output_path)
 
         if check:
             return _check_typescript_generated_output(

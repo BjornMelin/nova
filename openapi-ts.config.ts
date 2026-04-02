@@ -24,6 +24,9 @@ export default defineConfig({
     {
       auth: true,
       name: "@hey-api/sdk",
+      operations: {
+        strategy: "flat",
+      },
     },
     "@hey-api/client-fetch",
   ],
