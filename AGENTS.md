@@ -57,7 +57,7 @@ the bulk data plane. Product and API detail: `README.md`.
 | `packages/nova_file_api` | API, auth, transfer + export routes, Lambda entry |
 | `packages/nova_workflows` | Step Functions tasks, workflow logic |
 | `packages/nova_runtime_support` | Shared runtime helpers |
-| `packages/nova_dash_bridge` | Dash / Flask / FastAPI integration |
+| `packages/nova_dash_bridge` | Browser and Dash helper package |
 | `packages/contracts` | OpenAPI artifacts, fixtures, TS conformance assets |
 | `packages/nova_sdk_{ts,py,r}` | Generated public clients |
 | `infra/nova_cdk` | Canonical CDK app |
