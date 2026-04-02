@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -38,6 +39,12 @@ _COMPAT_GET_PARSE_AS_SIGNATURE = (
     "export const getParseAs = (contentType: string | null): "
     "Exclude<Config['parseAs'], 'auto'> | undefined => {"
 )
+_GET_PARSE_AS_SIGNATURE_PATTERN = re.compile(
+    r"export const getParseAs = \(contentType: string \| null\):\s*"
+    r"Exclude<Config\[(?P<quote1>['\"])parseAs(?P=quote1)\],\s*"
+    r"(?P<quote2>['\"])auto(?P=quote2)\s*>\s*"
+    r"(?P<compat>\|\s*undefined\s*)?=>\s*{"
+)
 
 
 def _apply_typescript_upstream_compatibility_fixes(root: Path) -> None:
@@ -55,17 +62,34 @@ def _apply_typescript_upstream_compatibility_fixes(root: Path) -> None:
         return
 
     text = utils_path.read_text(encoding="utf-8")
-    if _UPSTREAM_GET_PARSE_AS_SIGNATURE not in text:
+    if _COMPAT_GET_PARSE_AS_SIGNATURE in text:
+        return
+
+    if _UPSTREAM_GET_PARSE_AS_SIGNATURE in text:
+        updated = text.replace(
+            _UPSTREAM_GET_PARSE_AS_SIGNATURE,
+            _COMPAT_GET_PARSE_AS_SIGNATURE,
+            1,
+        )
+        if updated != text:
+            utils_path.write_text(updated, encoding="utf-8")
+        return
+
+    match = _GET_PARSE_AS_SIGNATURE_PATTERN.search(text)
+    if match is None:
         raise RuntimeError(
             "unexpected generated TypeScript SDK output: "
-            "missing upstream getParseAs signature "
-            f"{_UPSTREAM_GET_PARSE_AS_SIGNATURE!r} in {utils_path}"
+            "missing recognizable getParseAs signature in "
+            f"{utils_path}"
         )
 
-    updated = text.replace(
-        _UPSTREAM_GET_PARSE_AS_SIGNATURE,
-        _COMPAT_GET_PARSE_AS_SIGNATURE,
-        1,
+    if match.group("compat") is not None:
+        return
+
+    updated = (
+        text[: match.start()]
+        + _COMPAT_GET_PARSE_AS_SIGNATURE
+        + text[match.end() :]
     )
     if updated != text:
         utils_path.write_text(updated, encoding="utf-8")

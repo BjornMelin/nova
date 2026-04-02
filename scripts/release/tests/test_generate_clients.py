@@ -376,6 +376,65 @@ def test_typescript_compatibility_fix_allows_undefined_parse_as(
     assert _COMPAT_GET_PARSE_AS_SIGNATURE in source
 
 
+def test_typescript_compatibility_fix_is_noop_for_compatible_signature(
+    tmp_path: Path,
+) -> None:
+    """Already-compatible TS output should remain unchanged."""
+    generated_root = tmp_path / "client"
+    utils_path = generated_root / "client" / "utils.gen.ts"
+    utils_path.parent.mkdir(parents=True)
+    original = (
+        "export const getParseAs = (contentType: string | null): "
+        "Exclude<Config['parseAs'], 'auto'> | undefined => {\n"
+        "  return;\n"
+        "}\n"
+    )
+    utils_path.write_text(original, encoding="utf-8")
+
+    _apply_typescript_upstream_compatibility_fixes(generated_root)
+
+    assert utils_path.read_text(encoding="utf-8") == original
+
+
+def test_typescript_compatibility_fix_handles_signature_format_variation(
+    tmp_path: Path,
+) -> None:
+    """Whitespace and quote changes should still patch the signature."""
+    generated_root = tmp_path / "client"
+    utils_path = generated_root / "client" / "utils.gen.ts"
+    utils_path.parent.mkdir(parents=True)
+    utils_path.write_text(
+        (
+            "export const getParseAs = (contentType: string | null): "
+            'Exclude<Config["parseAs"], "auto"> => {\n'
+            "  return;\n"
+            "}\n"
+        ),
+        encoding="utf-8",
+    )
+
+    _apply_typescript_upstream_compatibility_fixes(generated_root)
+
+    source = utils_path.read_text(encoding="utf-8")
+    assert _COMPAT_GET_PARSE_AS_SIGNATURE in source
+
+
+def test_typescript_compatibility_fix_raises_on_missing_signature(
+    tmp_path: Path,
+) -> None:
+    """Unrecognized TS output should still fail loudly."""
+    generated_root = tmp_path / "client"
+    utils_path = generated_root / "client" / "utils.gen.ts"
+    utils_path.parent.mkdir(parents=True)
+    utils_path.write_text(
+        "export const otherThing = () => {}\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(RuntimeError, match="missing recognizable getParseAs"):
+        _apply_typescript_upstream_compatibility_fixes(generated_root)
+
+
 def test_run_openapi_ts_times_out_with_actionable_error(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
