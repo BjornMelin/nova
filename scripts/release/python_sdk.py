@@ -631,7 +631,25 @@ def generate_or_check_python_sdk(
     *,
     check: bool,
 ) -> list[str]:
-    """Generate or verify the committed Python SDK tree for one target."""
+    """Generate or verify the committed Python SDK tree for one target.
+
+    Args:
+        target: The Python generation target that defines the committed
+            OpenAPI source, output package root, and package name.
+        check: When `True`, compare the generated tree against the committed
+            package tree and report drift instead of syncing files in place.
+
+    Returns:
+        A list of stale-artifact issues. The list is empty when the committed
+        tree already matches the generated output.
+
+    Raises:
+        FileNotFoundError: If the OpenAPI source or generator assets are
+            missing.
+        RuntimeError: If generation, repair application, or Ruff validation
+            fails.
+        TypeError: If the OpenAPI document has an unexpected shape.
+    """
     issues: list[str] = []
     with TemporaryDirectory() as temp_dir:
         generated_root = _generate_target_tree(
@@ -657,7 +675,23 @@ def generate_or_check_python_sdk(
 
 
 def generate_or_check_python_sdks(*, check: bool) -> list[str]:
-    """Generate or verify all committed Python SDK artifacts."""
+    """Generate or verify all committed Python SDK artifacts.
+
+    Args:
+        check: When `True`, validate that all committed Python SDK trees match
+            freshly generated output instead of rewriting files in place.
+
+    Returns:
+        A flattened list of stale-artifact issues across all configured
+        Python generation targets.
+
+    Raises:
+        FileNotFoundError: If any configured OpenAPI source or generator asset
+            is missing.
+        RuntimeError: If any generation, repair, or validation step fails for
+            a configured target.
+        TypeError: If any configured OpenAPI document has an unexpected shape.
+    """
     issues: list[str] = []
     for target in PYTHON_TARGETS:
         issues.extend(generate_or_check_python_sdk(target, check=check))

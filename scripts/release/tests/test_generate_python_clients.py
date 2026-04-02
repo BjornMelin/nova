@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -106,9 +107,11 @@ def test_generate_target_invokes_generator_with_config_and_templates(
         "scripts.release.python_sdk._run_generated_ruff",
         formatted_roots.append,
     )
+    repair_spy = MagicMock()
+
     monkeypatch.setattr(
         "scripts.release.python_sdk._apply_python_sdk_repairs",
-        lambda _root: None,
+        repair_spy,
     )
 
     generation_target = PYTHON_TARGETS[0]
@@ -119,6 +122,7 @@ def test_generate_target_invokes_generator_with_config_and_templates(
 
     assert target == tmp_path / "nova_sdk_py"
     assert formatted_roots == [target]
+    repair_spy.assert_called_once_with(target)
     assert len(commands) == 1
     command, _timeout, description = commands[0]
     assert description == (
