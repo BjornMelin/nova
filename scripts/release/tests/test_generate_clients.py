@@ -38,9 +38,9 @@ def test_default_operation_id_keeps_path_parameter_names() -> None:
     assert (
         _default_operation_id(
             method="get",
-            path="/v1/jobs/{job_id}/events",
+            path="/v1/examples/{example_id}/events",
         )
-        == "get_v1_jobs_by_job_id_events"
+        == "get_v1_examples_by_example_id_events"
     )
 
 
@@ -51,14 +51,14 @@ def test_assert_unique_operation_ids_fails_on_collision() -> None:
             spec_path=Path("spec.json"),
             operations=[
                 Operation(
-                    operation_id="job_lookup",
+                    operation_id="example_lookup",
                     method="GET",
-                    path="/v1/jobs/{job_id}",
+                    path="/v1/examples/{example_id}",
                     summary=None,
                     has_request_body=False,
                     has_required_request_body=False,
                     path_parameters=(
-                        OperationParameter("job_id", required=True),
+                        OperationParameter("example_id", required=True),
                     ),
                     query_parameters=(),
                     has_header_params=False,
@@ -67,9 +67,9 @@ def test_assert_unique_operation_ids_fails_on_collision() -> None:
                     response_status_codes=(200,),
                 ),
                 Operation(
-                    operation_id="job_lookup",
+                    operation_id="example_lookup",
                     method="GET",
-                    path="/v1/jobs/{other_id}",
+                    path="/v1/examples/{other_id}",
                     summary=None,
                     has_request_body=False,
                     has_required_request_body=False,
