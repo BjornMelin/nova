@@ -1,6 +1,12 @@
 from __future__ import annotations
 
 from pathlib import Path
+from urllib.parse import unquote
+
+from nova_dash_bridge.dash_integration import (
+    BearerAuthHeader,
+    FileTransferAssets,
+)
 
 
 def _file_transfer_asset_source() -> str:
@@ -56,3 +62,38 @@ def test_asset_keeps_progressive_sign_batch_controls() -> None:
     assert "configuredBatchSize > 0" in source
     assert "configuredBatchSize" in source
     assert "Math.min(16, Math.max(1, maxConcurrency * 2))" in source
+
+
+def test_file_transfer_assets_inline_by_default() -> None:
+    assets = FileTransferAssets()
+
+    stylesheet, script = assets.children
+
+    assert stylesheet.href.startswith("data:text/css;charset=utf-8,")
+    assert script.src.startswith("data:text/javascript;charset=utf-8,")
+    assert ".nova-dropzone" in unquote(stylesheet.href.partition(",")[2])
+    assert "function getAuthorizationHeader(config)" in unquote(
+        script.src.partition(",")[2]
+    )
+
+
+def test_file_transfer_assets_can_use_external_prefix() -> None:
+    assets = FileTransferAssets(assets_url_prefix="/assets/nova")
+
+    stylesheet, script = assets.children
+
+    assert stylesheet.href == "/assets/nova/file_transfer.css"
+    assert script.src == "/assets/nova/file_transfer.js"
+
+
+def test_bearer_auth_header_renders_hidden_dom_node() -> None:
+    header_node = BearerAuthHeader(
+        auth_header_element_id="nova-auth-header",
+        authorization_header="Bearer token-value",
+    )
+
+    assert header_node.id == "nova-auth-header"
+    assert header_node.children == "Bearer token-value"
+    assert header_node.hidden is True
+    assert header_node.style == {"display": "none"}
+    assert header_node.to_plotly_json()["props"]["aria-hidden"] == "true"
