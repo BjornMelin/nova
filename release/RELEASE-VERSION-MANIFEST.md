@@ -1,12 +1,12 @@
 # Release Version Manifest
 
-Date: 2026-04-03T06:21:17+00:00
+Date: 2026-04-03T06:28:32+00:00
 Status: Active
 Schema: 1.0
 
 ## Release Metadata
-- `base_commit`: `894b758d4745b30c75b6a73489f09fab563fd425`
-- `head_commit`: `3d16831cc3026ceb83a79dba7f6606ebb78c97d4`
+- `base_commit`: `bb60f44d99f67ef2b8bcc575c1f945f17d3ead46`
+- `head_commit`: `561ceb48e12ec3a6ecc00bc29b8e1c4108ae72f8`
 - `first_release`: `False`
 - `global_bump`: `None`
 
