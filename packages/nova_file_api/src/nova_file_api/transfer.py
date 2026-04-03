@@ -195,15 +195,14 @@ class TransferService:
     ) -> SignPartsResponse:
         """Sign multipart part URLs for caller-owned key."""
         self._assert_upload_scope(key=request.key, scope_id=principal.scope_id)
-        session = await self._get_upload_session_for_caller(
+        session = await self._require_upload_session(
             upload_id=request.upload_id,
             scope_id=principal.scope_id,
             key=request.key,
         )
         policy = await self.resolve_policy(scope_id=principal.scope_id)
         if (
-            session is not None
-            and policy.sign_batch_size_hint > 0
+            policy.sign_batch_size_hint > 0
             and len(request.part_numbers) > policy.sign_batch_size_hint
         ):
             raise invalid_request(
@@ -219,33 +218,23 @@ class TransferService:
             sign_requested_at=now,
             policy=policy,
         )
-        if session is not None:
-            sign_limit = (
-                session.sign_requests_limit
-                or policy.sign_requests_per_upload_limit
+        sign_limit = (
+            session.sign_requests_limit or policy.sign_requests_per_upload_limit
+        )
+        next_sign_requests_count = session.sign_requests_count + 1
+        if sign_limit is not None and next_sign_requests_count > sign_limit:
+            raise too_many_requests(
+                "sign-parts quota exceeded for this upload session",
+                details={"limit": sign_limit},
             )
-            next_sign_requests_count = session.sign_requests_count + 1
-            if sign_limit is not None and next_sign_requests_count > sign_limit:
-                raise too_many_requests(
-                    "sign-parts quota exceeded for this upload session",
-                    details={"limit": sign_limit},
-                )
-            await self._store_upload_session(
-                replace(
-                    session,
-                    sign_requests_count=next_sign_requests_count,
-                    status=UploadSessionStatus.ACTIVE,
-                    last_activity_at=now,
-                )
-            )
-        else:
-            await self._touch_upload_session_if_present(
-                upload_id=request.upload_id,
-                last_activity_at=now,
+        await self._store_upload_session(
+            replace(
+                session,
+                sign_requests_count=next_sign_requests_count,
                 status=UploadSessionStatus.ACTIVE,
-                scope_id=principal.scope_id,
-                key=request.key,
+                last_activity_at=now,
             )
+        )
 
         urls: dict[int, str] = {}
         for part_number in request.part_numbers:

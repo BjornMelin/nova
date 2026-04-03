@@ -10,9 +10,10 @@ from datetime import UTC, datetime, timedelta
 from math import ceil
 from typing import Any, Protocol, cast
 
-from pydantic import BaseModel, ConfigDict, Field
-
 from nova_file_api.transfer_config import TransferConfig
+from nova_runtime_support.transfer_policy_document import (
+    TransferPolicyDocument,
+)
 
 _DEFAULT_POLICY_ID = "default"
 _DEFAULT_POLICY_VERSION = "2026-04-03"
@@ -47,38 +48,6 @@ class TransferPolicy:
     active_multipart_upload_limit: int
     daily_ingress_budget_bytes: int
     sign_requests_per_upload_limit: int
-
-
-class TransferPolicyDocument(BaseModel):
-    """Runtime policy document loaded from AppConfig or static defaults."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    policy_id: str | None = Field(default=None, min_length=1, max_length=128)
-    policy_version: str | None = Field(
-        default=None,
-        min_length=1,
-        max_length=128,
-    )
-    max_upload_bytes: int | None = Field(default=None, ge=1)
-    multipart_threshold_bytes: int | None = Field(
-        default=None,
-        ge=5 * 1024 * 1024,
-    )
-    target_upload_part_count: int | None = Field(default=None, ge=1, le=10_000)
-    upload_part_size_bytes: int | None = Field(
-        default=None,
-        ge=5 * 1024 * 1024,
-        le=5 * 1024 * 1024 * 1024,
-    )
-    max_concurrency_hint: int | None = Field(default=None, ge=1, le=32)
-    sign_batch_size_hint: int | None = Field(default=None, ge=1, le=128)
-    accelerate_enabled: bool | None = None
-    checksum_algorithm: str | None = None
-    resumable_ttl_seconds: int | None = Field(default=None, ge=60)
-    active_multipart_upload_limit: int | None = Field(default=None, ge=1)
-    daily_ingress_budget_bytes: int | None = Field(default=None, ge=1)
-    sign_requests_per_upload_limit: int | None = Field(default=None, ge=1)
 
 
 class AppConfigDataClient(Protocol):
@@ -174,6 +143,17 @@ def resolve_transfer_policy(
     document: TransferPolicyDocument | None = None,
 ) -> TransferPolicy:
     """Resolve the current transfer policy from static runtime settings."""
+    active_multipart_upload_limit = (
+        config.active_multipart_upload_limit
+        or _DEFAULT_ACTIVE_MULTIPART_UPLOAD_LIMIT
+    )
+    daily_ingress_budget_bytes = (
+        config.daily_ingress_budget_bytes or _DEFAULT_DAILY_INGRESS_BUDGET_BYTES
+    )
+    sign_requests_per_upload_limit = (
+        config.sign_requests_per_upload_limit
+        or _DEFAULT_SIGN_REQUESTS_PER_UPLOAD_LIMIT
+    )
     target_upload_part_count = _bounded_int(
         configured=document.target_upload_part_count if document else None,
         default=config.target_upload_part_count or _TARGET_UPLOAD_PART_COUNT,
@@ -245,12 +225,9 @@ def resolve_transfer_policy(
                 configured=(
                     document.active_multipart_upload_limit if document else None
                 ),
-                default=(
-                    config.active_multipart_upload_limit
-                    or _DEFAULT_ACTIVE_MULTIPART_UPLOAD_LIMIT
-                ),
+                default=active_multipart_upload_limit,
                 minimum=1,
-                maximum=10_000,
+                maximum=active_multipart_upload_limit,
             )
         ),
         daily_ingress_budget_bytes=(
@@ -258,16 +235,9 @@ def resolve_transfer_policy(
                 configured=(
                     document.daily_ingress_budget_bytes if document else None
                 ),
-                default=(
-                    config.daily_ingress_budget_bytes
-                    or _DEFAULT_DAILY_INGRESS_BUDGET_BYTES
-                ),
+                default=daily_ingress_budget_bytes,
                 minimum=1,
-                maximum=max(
-                    config.max_upload_bytes,
-                    config.daily_ingress_budget_bytes
-                    or _DEFAULT_DAILY_INGRESS_BUDGET_BYTES,
-                ),
+                maximum=daily_ingress_budget_bytes,
             )
         ),
         sign_requests_per_upload_limit=(
@@ -277,12 +247,9 @@ def resolve_transfer_policy(
                     if document
                     else None
                 ),
-                default=(
-                    config.sign_requests_per_upload_limit
-                    or _DEFAULT_SIGN_REQUESTS_PER_UPLOAD_LIMIT
-                ),
+                default=sign_requests_per_upload_limit,
                 minimum=1,
-                maximum=100_000,
+                maximum=sign_requests_per_upload_limit,
             )
         ),
     )

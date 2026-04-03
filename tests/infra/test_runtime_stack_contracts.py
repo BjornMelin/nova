@@ -276,6 +276,11 @@ def test_runtime_stack_packages_api_lambda_as_native_zip() -> None:
         ":execution/" in fragment and "ExportWorkflowStateMachine" in fragment
         for fragment in policy_fragments
     )
+    assert any(
+        "appconfigdata:StartConfigurationSession" in fragment
+        and "appconfigdata:GetLatestConfiguration" in fragment
+        for fragment in policy_fragments
+    )
 
     workflow_resources = [
         resource

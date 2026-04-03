@@ -332,12 +332,13 @@ class DynamoTransferUsageRepository:
         limit: int,
     ) -> None:
         table = await self._resolve_table()
+        now = datetime.now(tz=UTC)
         try:
             await table.update_item(
                 Key=_usage_key(scope_id=scope_id, window_key="active"),
                 UpdateExpression=(
                     "ADD active_multipart_uploads :inc "
-                    "SET updated_at = :updated_at"
+                    "SET expires_at = :expires_at, updated_at = :updated_at"
                 ),
                 ConditionExpression=(
                     "attribute_not_exists(active_multipart_uploads) "
@@ -346,7 +347,8 @@ class DynamoTransferUsageRepository:
                 ExpressionAttributeValues={
                     ":inc": 1,
                     ":limit": limit,
-                    ":updated_at": _iso_now(),
+                    ":expires_at": _active_window_expiry_epoch(now),
+                    ":updated_at": _iso_now(now),
                 },
             )
         except ClientError as exc:
@@ -359,12 +361,13 @@ class DynamoTransferUsageRepository:
 
     async def _release_active_multipart_slot(self, *, scope_id: str) -> None:
         table = await self._resolve_table()
+        now = datetime.now(tz=UTC)
         try:
             await table.update_item(
                 Key=_usage_key(scope_id=scope_id, window_key="active"),
                 UpdateExpression=(
                     "ADD active_multipart_uploads :dec "
-                    "SET updated_at = :updated_at"
+                    "SET expires_at = :expires_at, updated_at = :updated_at"
                 ),
                 ConditionExpression=(
                     "attribute_exists(active_multipart_uploads) "
@@ -373,7 +376,8 @@ class DynamoTransferUsageRepository:
                 ExpressionAttributeValues={
                     ":dec": -1,
                     ":zero": 0,
-                    ":updated_at": _iso_now(),
+                    ":expires_at": _active_window_expiry_epoch(now),
+                    ":updated_at": _iso_now(now),
                 },
             )
         except ClientError as exc:
@@ -391,6 +395,11 @@ class DynamoTransferUsageRepository:
         table = await self._resolve_table()
         window_key = _daily_window_key(now)
         expires_at = _daily_window_expiry_epoch(now)
+        if size_bytes > limit:
+            raise TransferQuotaExceeded(
+                reason="daily_ingress_budget_bytes",
+                details={"limit": limit},
+            )
         try:
             await table.update_item(
                 Key=_usage_key(scope_id=scope_id, window_key=window_key),
@@ -400,13 +409,13 @@ class DynamoTransferUsageRepository:
                 ),
                 ConditionExpression=(
                     "attribute_not_exists(bytes_initiated) "
-                    "OR bytes_initiated + :size_bytes <= :limit"
+                    "OR bytes_initiated <= :remaining_bytes"
                 ),
                 ExpressionAttributeValues={
                     ":size_bytes": size_bytes,
-                    ":limit": limit,
+                    ":remaining_bytes": limit - size_bytes,
                     ":expires_at": expires_at,
-                    ":updated_at": _iso_now(),
+                    ":updated_at": _iso_now(now),
                 },
             )
         except ClientError as exc:
@@ -520,6 +529,10 @@ def _hourly_window_expiry_epoch(now: datetime) -> int:
     return int(expiry.timestamp())
 
 
+def _active_window_expiry_epoch(now: datetime) -> int:
+    return int((_as_utc(now) + timedelta(days=2)).timestamp())
+
+
 def _usage_key(*, scope_id: str, window_key: str) -> dict[str, str]:
     return {"scope_id": scope_id, "window_key": window_key}
 
@@ -528,8 +541,9 @@ def _as_utc(now: datetime) -> datetime:
     return now if now.tzinfo is not None else now.replace(tzinfo=UTC)
 
 
-def _iso_now() -> str:
-    return datetime.now(tz=UTC).isoformat()
+def _iso_now(now: datetime | None = None) -> str:
+    resolved = now if now is not None else datetime.now(tz=UTC)
+    return _as_utc(resolved).isoformat()
 
 
 def _is_conditional_failure(exc: ClientError) -> bool:

@@ -32,7 +32,9 @@ from aws_cdk import (
 )
 from constructs import Construct
 
-from nova_file_api.transfer_policy import TransferPolicyDocument
+from nova_runtime_support.transfer_policy_document import (
+    TransferPolicyDocument,
+)
 
 from .concurrency import (
     default_api_reserved_concurrency,
@@ -1071,8 +1073,8 @@ class NovaRuntimeStack(Stack):
         api_function.add_to_role_policy(
             iam.PolicyStatement(
                 actions=[
-                    "appconfig:StartConfigurationSession",
-                    "appconfig:GetLatestConfiguration",
+                    "appconfigdata:StartConfigurationSession",
+                    "appconfigdata:GetLatestConfiguration",
                 ],
                 resources=["*"],
             )

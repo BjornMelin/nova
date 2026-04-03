@@ -21,7 +21,9 @@ class _StubAppConfigClient:
         return {
             "Configuration": (
                 b'{"policy_id":"remote-tier","max_concurrency_hint":8,'
-                b'"daily_ingress_budget_bytes":536870912000}'
+                b'"active_multipart_upload_limit":400,'
+                b'"daily_ingress_budget_bytes":2199023255552,'
+                b'"sign_requests_per_upload_limit":1024}'
             ),
             "NextPollConfigurationToken": "token-2",
             "NextPollIntervalInSeconds": 60,
@@ -95,4 +97,6 @@ async def test_resolve_transfer_policy_applies_appconfig_overlay() -> None:
 
     assert policy.policy_id == "remote-tier"
     assert policy.max_concurrency_hint == 8
-    assert policy.daily_ingress_budget_bytes == 536_870_912_000
+    assert policy.active_multipart_upload_limit == 200
+    assert policy.daily_ingress_budget_bytes == 1024 * 1024 * 1024 * 1024
+    assert policy.sign_requests_per_upload_limit == 512

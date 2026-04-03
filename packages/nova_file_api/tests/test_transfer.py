@@ -18,6 +18,7 @@ from nova_file_api.models import (
     InitiateUploadRequest,
     PresignDownloadRequest,
     Principal,
+    SignPartsRequest,
     UploadIntrospectionRequest,
     UploadStrategy,
 )
@@ -323,6 +324,26 @@ async def test_introspect_upload_uses_persisted_session_part_size() -> None:
     stored = repository._records_by_session_id[initiated.session_id]
     assert stored.status == UploadSessionStatus.ACTIVE
     assert stored.last_activity_at.tzinfo is not None
+
+
+@pytest.mark.anyio
+async def test_sign_parts_requires_existing_upload_session() -> None:
+    settings = _settings()
+    fake_s3 = _FakeS3Client()
+    service = _transfer_service(settings=settings, s3_client=fake_s3)
+
+    with pytest.raises(FileTransferError) as exc_info:
+        await service.sign_parts(
+            request=SignPartsRequest(
+                key="uploads/scope-1/report.csv",
+                upload_id="missing-upload",
+                part_numbers=[1],
+            ),
+            principal=_principal(),
+        )
+
+    assert exc_info.value.code == "invalid_request"
+    assert str(exc_info.value) == "upload session was not found"
 
 
 def test_transfer_service_requires_repository_when_sessions_enabled() -> None:
