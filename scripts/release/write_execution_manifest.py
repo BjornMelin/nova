@@ -156,7 +156,7 @@ def main() -> int:
         expected=args.release_commit_sha,
         payload=release_prep_payload,
         source="release_prep_payload",
-        commit_key="commit",
+        commit_key="prepared_from_commit",
     )
 
     manifest_sha256 = hashlib.sha256(
