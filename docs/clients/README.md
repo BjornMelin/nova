@@ -66,3 +66,7 @@ node read by `nova_dash_bridge`.
 Browser upload clients should honor additive initiate hints such as
 `part_size_bytes`, `max_concurrency_hint`, `sign_batch_size_hint`,
 `session_id`, and `resumable_until` instead of hard-coding multipart tuning.
+Client integrations that inspect `GET /v1/capabilities/transfers` should treat
+quota fields such as `active_multipart_upload_limit`,
+`daily_ingress_budget_bytes`, and `sign_requests_per_upload_limit` as the
+current effective envelope for one deployed environment.

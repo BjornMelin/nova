@@ -9,6 +9,7 @@
 - Step Functions Standard
 - DynamoDB
 - S3
+- AWS AppConfig for transfer policy rollout
 - AWS WAF attached to the API stage
 - CloudWatch / X-Ray / OpenTelemetry-compatible telemetry
 
@@ -45,6 +46,7 @@
 - Step Functions failed executions
 - Step Functions timed-out executions
 - DynamoDB throttles
+- stale multipart upload bytes older than 7 days
 - S3 transfer failures
 - DLQ depth if used on event fan-out edges
 
@@ -92,11 +94,21 @@
   - browser sign batch hint floor: `32`, with larger values returned by
     initiate responses when policy allows
   - max upload size: `500 GiB`
+- Transfer quotas are enforced from the effective policy envelope:
+  - active multipart uploads per scope
+  - daily initiated ingress bytes per scope
+  - `sign-parts` requests per upload session
+- The API runtime reads the effective transfer policy from AppConfig when the
+  profile is configured and falls back to the static environment envelope when
+  AppConfig is unavailable.
 - Current export copy behavior uses the inline Lambda path with dedicated copy
   tuning controls (`FILE_TRANSFER_EXPORT_COPY_PART_SIZE_BYTES`,
   `FILE_TRANSFER_EXPORT_COPY_MAX_CONCURRENCY`).
 - Clients can inspect the current transfer policy envelope through
   `GET /v1/capabilities/transfers`.
+- A scheduled reconciliation Lambda settles expired upload sessions, retries
+  multipart abort cleanup, and aborts orphaned multipart uploads under
+  `uploads/` and `exports/`.
 
 ### Current operating plans
 
@@ -144,7 +156,6 @@ and export baseline monitoring. The dashboard includes:
 ### Accepted current gaps
 
 - No dedicated API Gateway `429` widget beyond Lambda throttles and API 5xx.
-- No quota rejection alarms until quota enforcement exists.
 - No Transfer Acceleration spend widget while TA stays disabled by default.
 - No worker-lane or DLQ alarms before a worker lane exists.
 - No KMS anomaly alarms while SSE-S3 remains the default posture.
