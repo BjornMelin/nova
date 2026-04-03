@@ -81,7 +81,7 @@ def main() -> int:
     head_commit = common.run_git(repo_root, ["rev-parse", "HEAD"])
     base_commit = common.find_manifest_base_commit(
         repo_root,
-        manifest_path=manifest_path,
+        manifest_path=str(manifest_path),
     )
     first_release = base_commit is None
     changed_files = common.list_changed_files(
