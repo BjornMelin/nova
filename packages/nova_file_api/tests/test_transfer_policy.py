@@ -7,6 +7,7 @@ import pytest
 
 from nova_file_api.transfer_config import TransferConfig
 from nova_file_api.transfer_policy import (
+    AppConfigTransferPolicyProvider,
     AppConfigTransferPolicySource,
     build_transfer_policy_provider,
     resolve_transfer_policy,
@@ -170,7 +171,7 @@ async def test_build_provider_strips_appconfig_ids() -> None:
         appconfig_client=_StubAppConfigClient(),
     )
 
-    assert provider.__class__.__name__ == "AppConfigTransferPolicyProvider"
+    assert isinstance(provider, AppConfigTransferPolicyProvider)
     assert provider.source.application_identifier == "app"
     assert provider.source.environment_identifier == "env"
     assert provider.source.configuration_profile_identifier == "profile"
