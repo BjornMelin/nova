@@ -881,9 +881,11 @@ class TransferService:
         except Exception as exc:
             _LOGGER.exception(
                 "upload_session_store_failed",
-                session_id=record.session_id,
-                upload_id=record.upload_id,
-                scope_id=record.scope_id,
+                extra={
+                    "session_id": record.session_id,
+                    "upload_id": record.upload_id,
+                    "scope_id": record.scope_id,
+                },
             )
             raise upstream_s3_error(
                 "upload session store is unavailable"
@@ -901,7 +903,7 @@ class TransferService:
         except Exception as exc:
             _LOGGER.exception(
                 "upload_session_lookup_failed",
-                upload_id=upload_id,
+                extra={"upload_id": upload_id},
             )
             raise upstream_s3_error(
                 "upload session store is unavailable"

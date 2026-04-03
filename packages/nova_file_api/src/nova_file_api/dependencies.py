@@ -36,6 +36,7 @@ from nova_file_api.models import (
 from nova_file_api.transfer import TransferService
 from nova_file_api.transfer_config import transfer_config_from_settings
 from nova_file_api.upload_sessions import (
+    DynamoResource as UploadSessionDynamoResource,
     build_upload_session_repository,
 )
 from nova_runtime_support.export_runtime import (
@@ -262,7 +263,7 @@ def build_transfer_service(
     upload_session_repository = build_upload_session_repository(
         table_name=settings.file_transfer_upload_sessions_table,
         dynamodb_resource=cast(
-            object | None,
+            UploadSessionDynamoResource | None,
             dynamodb_resource,
         ),
         enabled=settings.file_transfer_enabled,

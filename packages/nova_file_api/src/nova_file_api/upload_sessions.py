@@ -188,7 +188,7 @@ class DynamoUploadSessionRepository:
         items = cast(list[dict[str, Any]], response.get("Items", []))
         if not items:
             return None
-        return _item_to_record(cast(dict[str, Any], items[0]))
+        return _item_to_record(items[0])
 
     async def update(self, record: UploadSessionRecord) -> None:
         """Replace one upload session record in DynamoDB."""
