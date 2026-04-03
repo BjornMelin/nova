@@ -63,8 +63,9 @@ def test_asset_keeps_progressive_sign_batch_controls() -> None:
     source = _file_transfer_asset_source()
 
     assert 'root.dataset.signBatchSize || ""' in source
+    assert "function clampPositiveInt(value, fallback, maximum)" in source
     assert "configuredBatchSize > 0" in source
-    assert "configuredBatchSize" in source
+    assert "clampPositiveInt(" in source
     assert "Math.min(16, Math.max(1, maxConcurrency * 2))" in source
 
 

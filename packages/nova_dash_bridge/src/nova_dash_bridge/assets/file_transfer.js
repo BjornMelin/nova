@@ -238,6 +238,13 @@
     return Math.max(0, end - start);
   }
 
+  function clampPositiveInt(value, fallback, maximum) {
+    if (!Number.isFinite(value) || value <= 0) {
+      return fallback;
+    }
+    return Math.min(maximum, Math.max(1, Math.floor(value)));
+  }
+
   async function uploadMultipart(config, file, initiated) {
     var base = config.transfersEndpointBase;
     var key = initiated.key;
@@ -248,20 +255,30 @@
         "Invalid part_size_bytes: must be a positive integer"
       );
     }
-    var hintedConcurrency = parseInt(initiated.max_concurrency_hint, 10);
-    var maxConcurrency = Math.max(
-      1,
-      Number.isFinite(hintedConcurrency)
-        ? hintedConcurrency
-        : parseInt(config.maxConcurrency, 10) || 4
+    var fallbackConcurrency = clampPositiveInt(
+      parseInt(config.maxConcurrency, 10),
+      4,
+      32
     );
-    var configuredBatchSize = parseInt(config.signBatchSize || "0", 10);
+    var hintedConcurrency = parseInt(initiated.max_concurrency_hint, 10);
+    var maxConcurrency = clampPositiveInt(
+      hintedConcurrency,
+      fallbackConcurrency,
+      32
+    );
+    var configuredBatchSize = clampPositiveInt(
+      parseInt(config.signBatchSize || "0", 10),
+      0,
+      128
+    );
     var hintedBatchSize = parseInt(initiated.sign_batch_size_hint, 10);
     var batchSize = configuredBatchSize > 0
       ? configuredBatchSize
-      : Number.isFinite(hintedBatchSize) && hintedBatchSize > 0
-        ? hintedBatchSize
-        : Math.min(16, Math.max(1, maxConcurrency * 2));
+      : clampPositiveInt(
+        hintedBatchSize,
+        Math.min(16, Math.max(1, maxConcurrency * 2)),
+        128
+      );
     var totalParts = Math.ceil(file.size / partSize);
     var completeParts = [];
     var uploadedBytes = 0;

@@ -18,15 +18,15 @@
   "properties": {
     "policy_id": { "type": "string" },
     "policy_version": { "type": "string" },
-    "max_upload_bytes": { "type": "integer" },
-    "multipart_threshold_bytes": { "type": "integer" },
-    "target_upload_part_count": { "type": "integer" },
-    "minimum_part_size_bytes": { "type": "integer" },
-    "maximum_part_size_bytes": { "type": "integer" },
-    "max_concurrency_hint": { "type": "integer" },
-    "sign_batch_size_hint": { "type": "integer" },
+    "max_upload_bytes": { "type": "integer", "minimum": 1 },
+    "multipart_threshold_bytes": { "type": "integer", "minimum": 1 },
+    "target_upload_part_count": { "type": "integer", "minimum": 1 },
+    "minimum_part_size_bytes": { "type": "integer", "minimum": 1 },
+    "maximum_part_size_bytes": { "type": "integer", "minimum": 1 },
+    "max_concurrency_hint": { "type": "integer", "minimum": 1 },
+    "sign_batch_size_hint": { "type": "integer", "minimum": 1 },
     "accelerate_enabled": { "type": "boolean" },
     "checksum_algorithm": { "type": ["string", "null"] },
-    "resumable_ttl_seconds": { "type": "integer" }
+    "resumable_ttl_seconds": { "type": "integer", "minimum": 1 }
   }
 }
