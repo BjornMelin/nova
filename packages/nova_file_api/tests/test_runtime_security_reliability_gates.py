@@ -40,7 +40,7 @@ def test_aws_release_build_owns_api_lambda_packaging() -> None:
     """AWS release execution should own API Lambda packaging."""
     content = _RELEASE_BUILD_BUILDSPEC.read_text(encoding="utf-8")
 
-    assert "build_api_lambda_asset.py" in content
+    assert "python -m scripts.release.build_api_lambda_asset" in content
     assert "--output-zip .release-control/nova-file-api-lambda.zip" in content
     assert "api-lambda-artifact.json" in content
     assert "release-execution-manifest.json" in content
@@ -52,7 +52,7 @@ def test_aws_release_build_owns_workflow_lambda_packaging() -> None:
     content = _RELEASE_BUILD_BUILDSPEC.read_text(encoding="utf-8")
 
     assert _WORKFLOW_ASSET_BUILDER.exists()
-    assert "build_workflow_lambda_asset.py" in content
+    assert "python -m scripts.release.build_workflow_lambda_asset" in content
     assert "--output-zip .release-control/nova-workflows-lambda.zip" in content
     assert "workflow-lambda-artifact.json" in content
 
