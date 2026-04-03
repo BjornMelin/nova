@@ -1,14 +1,14 @@
 # Release Version Manifest
 
-Date: 2026-04-03T05:41:45+00:00
+Date: 2026-04-03T05:52:27+00:00
 Status: Active
 Schema: 1.0
 
 ## Release Metadata
-- `base_commit`: `8a10dc1e2cf2b5c80b26aee87fcf1ea056de09f3`
-- `head_commit`: `8a10dc1e2cf2b5c80b26aee87fcf1ea056de09f3`
+- `base_commit`: `93622d1a8d293a0fed1d055a424da749cf85436d`
+- `head_commit`: `759ff3e6e28c8a47dabb7b4261640d38b3799863`
 - `first_release`: `False`
-- `global_bump`: `None`
+- `global_bump`: `patch`
 
 ## changed-units.json Schema
 
@@ -37,7 +37,7 @@ Schema: 1.0
 
 | Unit | Package | Version | Changed |
 | --- | --- | --- | --- |
-| `infra/nova_cdk` | `nova-cdk` | `0.1.0` | no |
+| `infra/nova_cdk` | `nova-cdk` | `0.1.1` | yes |
 | `packages/nova_dash_bridge` | `nova-dash-bridge` | `0.3.2` | no |
 | `packages/nova_file_api` | `nova-file-api` | `0.5.1` | no |
 | `packages/nova_runtime_support` | `nova-runtime-support` | `0.1.0` | no |
