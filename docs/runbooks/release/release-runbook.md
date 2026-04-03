@@ -140,6 +140,9 @@ Capture durable pointers for:
 4. CodeBuild execution ids for staging and prod
 5. `Post Deploy Validate` workflow run when used
 6. `release/RELEASE-VERSION-MANIFEST.md` SHA continuity through publish and promotion
+   - `release/RELEASE-PREP.json` may record the release PR source commit rather
+     than the GitHub merge commit; the execution manifest pins the merge commit
+     and requires the prep commit to be an ancestor of that deployed commit.
 7. Gate validation artifacts:
    - `codeartifact-gate-report.json`
    - `codeartifact-promotion-candidates.json`

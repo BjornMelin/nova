@@ -97,6 +97,39 @@ def _validate_commit_matches(
         )
 
 
+def _validate_commit_is_ancestor_or_equal(
+    *,
+    repo_root: Path,
+    release_commit_sha: str,
+    payload: dict[str, Any],
+    source: str,
+    commit_key: str,
+) -> None:
+    """Validate that one embedded commit reaches the release commit."""
+    if commit_key not in payload:
+        return
+    actual = payload[commit_key]
+    if not isinstance(actual, str):
+        raise TypeError(
+            f"{source} payload field {commit_key!r} must be a string commit SHA"
+        )
+    if actual.lower() == release_commit_sha.lower():
+        return
+    try:
+        if common.is_git_ancestor(
+            repo_root,
+            commit=actual,
+            descendant=release_commit_sha,
+        ):
+            return
+    except RuntimeError:
+        pass
+    raise ValueError(
+        f"{source} ancestry mismatch: {commit_key}={actual} is not an ancestor "
+        f"of --release-commit-sha={release_commit_sha}"
+    )
+
+
 def _display_path(path: Path, *, repo_root: Path) -> str:
     """Render one path relative to repo root when possible."""
     try:
@@ -176,8 +209,9 @@ def main() -> int:
         payload=workflow_lambda_artifact,
         source="workflow_lambda_artifact",
     )
-    _validate_commit_matches(
-        expected=args.release_commit_sha,
+    _validate_commit_is_ancestor_or_equal(
+        repo_root=repo_root,
+        release_commit_sha=args.release_commit_sha,
         payload=release_prep_payload,
         source="release_prep_payload",
         commit_key="prepared_from_commit",

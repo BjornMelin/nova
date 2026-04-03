@@ -68,6 +68,25 @@ def run_git(repo_root: Path, args: list[str]) -> str:
     return result.stdout.strip()
 
 
+def is_git_ancestor(repo_root: Path, *, commit: str, descendant: str) -> bool:
+    """Return whether ``commit`` is an ancestor of ``descendant``."""
+    result = subprocess.run(
+        ["git", "merge-base", "--is-ancestor", commit, descendant],
+        check=False,
+        cwd=repo_root,
+        text=True,
+        capture_output=True,
+    )
+    if result.returncode == 0:
+        return True
+    if result.returncode == 1:
+        return False
+    stderr = result.stderr.strip()
+    raise RuntimeError(
+        f"git merge-base --is-ancestor {commit} {descendant} failed: {stderr}"
+    )
+
+
 def load_workspace_units(repo_root: Path) -> dict[str, WorkspaceUnit]:
     """Load release-managed workspace units and metadata.
 
