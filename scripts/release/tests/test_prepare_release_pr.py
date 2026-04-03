@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import importlib
 import sys
 from pathlib import Path
 
 import pytest
 
-from scripts.release import prepare_release_pr
+prepare_release_pr = importlib.import_module(
+    "scripts.release.prepare_release_pr"
+)
 
 
 def test_main_preflights_uv_before_version_mutation(
@@ -24,50 +27,45 @@ def test_main_preflights_uv_before_version_mutation(
         ],
     )
     monkeypatch.setattr(
-        prepare_release_pr.common,
-        "load_workspace_units",
+        "scripts.release.prepare_release_pr.common.load_workspace_units",
         lambda repo_root: {},
     )
     monkeypatch.setattr(
-        prepare_release_pr.common,
-        "run_git",
+        "scripts.release.prepare_release_pr.common.run_git",
         lambda repo_root, args: "abc123",
     )
     monkeypatch.setattr(
-        prepare_release_pr.common,
-        "find_manifest_base_commit",
+        "scripts.release.prepare_release_pr.common.find_manifest_base_commit",
         lambda repo_root, manifest_path: None,
     )
     monkeypatch.setattr(
-        prepare_release_pr.common,
-        "list_changed_files",
+        "scripts.release.prepare_release_pr.common.list_changed_files",
         lambda repo_root, head_commit, base_commit: [],
     )
     monkeypatch.setattr(
-        prepare_release_pr.changed_units,
-        "build_changed_units_report",
+        "scripts.release.prepare_release_pr.changed_units.build_changed_units_report",
         lambda **kwargs: {"changed_units": []},
     )
     monkeypatch.setattr(
-        prepare_release_pr.common,
-        "collect_commit_messages",
+        "scripts.release.prepare_release_pr.common.collect_commit_messages",
         lambda repo_root, base_commit, head_commit: [],
     )
     monkeypatch.setattr(
-        prepare_release_pr.version_plan,
-        "build_version_plan",
+        "scripts.release.prepare_release_pr.version_plan.build_version_plan",
         lambda **kwargs: {"units": []},
     )
-    monkeypatch.setattr(prepare_release_pr.shutil, "which", lambda name: None)
+    monkeypatch.setattr(
+        "scripts.release.prepare_release_pr.shutil.which",
+        lambda name: None,
+    )
 
     mutation_called = {"value": False}
 
-    def _forbid_mutation(**kwargs) -> None:
+    def _forbid_mutation(**kwargs: object) -> None:
         mutation_called["value"] = True
 
     monkeypatch.setattr(
-        prepare_release_pr.apply_versions,
-        "apply_version_updates",
+        "scripts.release.prepare_release_pr.apply_versions.apply_version_updates",
         _forbid_mutation,
     )
 
