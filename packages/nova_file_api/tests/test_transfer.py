@@ -732,7 +732,7 @@ async def test_upload_session_repository_ignores_expired_records() -> None:
         filename="report.csv",
         size_bytes=1024,
         content_type="text/csv",
-        strategy="multipart",
+        strategy=UploadStrategy.MULTIPART,
         part_size_bytes=256 * 1024 * 1024,
         policy_id="default",
         policy_version="2026-04-03",
