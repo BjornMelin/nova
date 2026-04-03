@@ -114,8 +114,32 @@ class NovaReleaseSupportStack(Stack):
             ),
             managed_policies=[
                 iam.ManagedPolicy.from_aws_managed_policy_name(
-                    "PowerUserAccess"
-                )
+                    "AWSCloudFormationFullAccess"
+                ),
+                iam.ManagedPolicy.from_aws_managed_policy_name(
+                    "AmazonAPIGatewayAdministrator"
+                ),
+                iam.ManagedPolicy.from_aws_managed_policy_name(
+                    "AWSLambda_FullAccess"
+                ),
+                iam.ManagedPolicy.from_aws_managed_policy_name(
+                    "AWSStepFunctionsFullAccess"
+                ),
+                iam.ManagedPolicy.from_aws_managed_policy_name(
+                    "AmazonDynamoDBFullAccess"
+                ),
+                iam.ManagedPolicy.from_aws_managed_policy_name(
+                    "AmazonS3FullAccess"
+                ),
+                iam.ManagedPolicy.from_aws_managed_policy_name(
+                    "CloudWatchLogsFullAccess"
+                ),
+                iam.ManagedPolicy.from_aws_managed_policy_name(
+                    "AmazonEventBridgeFullAccess"
+                ),
+                iam.ManagedPolicy.from_aws_managed_policy_name(
+                    "AWSWAFFullAccess"
+                ),
             ],
         )
         role.add_to_policy(
