@@ -170,6 +170,12 @@ async def test_update_export_status_shared_requires_output_for_success() -> (
     "initial_status,target_status,metric_key,error",
     [
         (
+            ExportStatus.QUEUED,
+            ExportStatus.VALIDATING,
+            "exports_queued_age_ms",
+            None,
+        ),
+        (
             ExportStatus.COPYING,
             ExportStatus.FINALIZING,
             "exports_copying_age_ms",
@@ -227,9 +233,13 @@ async def test_update_export_status_shared_keeps_stage_age_on_same_status_retry(
     repository = MemoryExportRepository()
     metrics = MetricsCollector(namespace="Tests")
     started = datetime(2025, 1, 1, 0, 0, tzinfo=UTC)
-    retry_time = started + timedelta(minutes=1)
-    finalize_time = started + timedelta(minutes=3)
-    now_values = iter([retry_time, finalize_time])
+    validating_time = started + timedelta(minutes=1)
+    copying_time = started + timedelta(minutes=2)
+    retry_time = started + timedelta(minutes=3)
+    finalize_time = started + timedelta(minutes=5)
+    now_values = iter(
+        [validating_time, copying_time, retry_time, finalize_time]
+    )
     monkeypatch.setattr(
         "nova_runtime_support.export_runtime._utc_now",
         lambda: next(now_values),
@@ -241,7 +251,7 @@ async def test_update_export_status_shared_keeps_stage_age_on_same_status_retry(
             request_id="req-1",
             source_key="uploads/scope-1/source.csv",
             filename="source.csv",
-            status=ExportStatus.COPYING,
+            status=ExportStatus.QUEUED,
             output=None,
             error=None,
             created_at=started,
@@ -249,13 +259,28 @@ async def test_update_export_status_shared_keeps_stage_age_on_same_status_retry(
         )
     )
 
+    await update_export_status_shared(
+        repository=repository,
+        metrics=metrics,
+        export_id="export-1",
+        status=ExportStatus.VALIDATING,
+    )
+
+    copied = await update_export_status_shared(
+        repository=repository,
+        metrics=metrics,
+        export_id="export-1",
+        status=ExportStatus.COPYING,
+    )
+    assert copied.updated_at == copying_time
+
     retried = await update_export_status_shared(
         repository=repository,
         metrics=metrics,
         export_id="export-1",
         status=ExportStatus.COPYING,
     )
-    assert retried.updated_at == started
+    assert retried.updated_at == copying_time
 
     await update_export_status_shared(
         repository=repository,
@@ -265,4 +290,5 @@ async def test_update_export_status_shared_keeps_stage_age_on_same_status_retry(
     )
 
     latencies = metrics.latency_snapshot()
+    assert latencies["exports_queued_age_ms"] == 60000.0
     assert latencies["exports_copying_age_ms"] == 180000.0
