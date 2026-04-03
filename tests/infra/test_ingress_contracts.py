@@ -36,6 +36,18 @@ def _context_for_region(region: str) -> dict[str, str]:
         "api_lambda_artifact_sha256": (
             "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
         ),
+        "workflow_lambda_artifact_bucket": (
+            "nova-ci-artifacts-111111111111-us-east-1"
+        ),
+        "workflow_lambda_artifact_key": (
+            "runtime/nova-workflows/"
+            "01234567-89ab-cdef-0123-456789abcdef/"
+            "fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210/"
+            "nova-workflows-lambda.zip"
+        ),
+        "workflow_lambda_artifact_sha256": (
+            "fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210"
+        ),
         "certificate_arn": (
             f"arn:aws:acm:{region}:111111111111:"
             "certificate/12345678-1234-1234-1234-123456789012"

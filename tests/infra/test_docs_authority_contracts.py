@@ -28,7 +28,7 @@ def test_active_docs_index_tracks_canonical_surface() -> None:
         "docs/contracts/README.md",
         "docs/runbooks/README.md",
         "docs/clients/README.md",
-        "docs/release/README.md",
+        "release/README.md",
         "docs/plan/GREENFIELD-WAVE-2-EXECUTION.md",
         "docs/architecture/adr/ADR-0033` through `ADR-0038",
         "docs/architecture/spec/SPEC-0027` through `SPEC-0031",
@@ -162,7 +162,8 @@ def test_contracts_readme_tracks_current_schemas() -> None:
     for required in [
         "release-artifacts-v1.schema.json",
         "deploy-output-authority-v2.schema.json",
-        "workflow-deploy-runtime-v1.schema.json",
+        "release-prep-v1.schema.json",
+        "release-execution-manifest-v1.schema.json",
         "workflow-post-deploy-validate.schema.json",
         "workflow-auth0-tenant-deploy.schema.json",
         "workflow-auth0-tenant-ops-v1.schema.json",
@@ -203,7 +204,6 @@ def test_active_routers_do_not_promote_superseded_http_api_authority() -> None:
     for rel_path in [
         "docs/README.md",
         "docs/architecture/README.md",
-        "docs/release/README.md",
         "docs/runbooks/release/release-policy.md",
         "docs/runbooks/release/release-runbook.md",
         "docs/runbooks/provisioning/github-actions-secrets-and-vars.md",

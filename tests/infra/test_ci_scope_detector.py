@@ -68,9 +68,9 @@ def test_runtime_changes_enable_runtime_and_generated_client_lanes() -> None:
     assert outputs["docs_only"] == "false"
 
 
-def test_release_artifact_docs_enable_cfn_lane() -> None:
-    """Edits under docs/release/ should route to CFN lane (contract path)."""
-    outputs = _outputs(["docs/release/README.md"])
+def test_release_artifacts_enable_cfn_lane() -> None:
+    """Edits under release/ should route to CFN lane (contract path)."""
+    outputs = _outputs(["release/README.md"])
 
     assert outputs["run_runtime_ci"] == "false"
     assert outputs["run_generated_clients"] == "false"

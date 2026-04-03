@@ -32,7 +32,8 @@ def test_contract_schema_files_exist_and_are_valid_json() -> None:
     for rel_path in [
         "docs/contracts/release-artifacts-v1.schema.json",
         "docs/contracts/deploy-output-authority-v2.schema.json",
-        "docs/contracts/workflow-deploy-runtime-v1.schema.json",
+        "docs/contracts/release-prep-v1.schema.json",
+        "docs/contracts/release-execution-manifest-v1.schema.json",
         "docs/contracts/workflow-post-deploy-validate.schema.json",
         "docs/contracts/workflow-auth0-tenant-deploy.schema.json",
         "docs/contracts/workflow-auth0-tenant-ops-v1.schema.json",
@@ -113,31 +114,6 @@ def test_post_deploy_validate_schema_matches_reusable_workflow() -> None:
     )
 
 
-def test_deploy_runtime_schema_matches_reusable_workflow() -> None:
-    """The deploy-runtime schema must match the reusable workflow API."""
-    schema = _read_json("docs/contracts/workflow-deploy-runtime-v1.schema.json")
-    workflow_call = _load_workflow_call(
-        ".github/workflows/reusable-deploy-runtime.yml"
-    )
-
-    workflow_inputs = workflow_call["inputs"]
-    workflow_outputs = workflow_call["outputs"]
-    schema_inputs = schema["properties"]["inputs"]["properties"]
-    schema_outputs = schema["properties"]["outputs"]["properties"]
-    workflow_required_inputs = {
-        key
-        for key, value in workflow_inputs.items()
-        if value.get("required", False)
-    }
-    schema_required_inputs = set(
-        schema["properties"]["inputs"].get("required", [])
-    )
-
-    assert set(workflow_inputs) == set(schema_inputs)
-    assert set(workflow_outputs) == set(schema_outputs)
-    assert workflow_required_inputs == schema_required_inputs
-
-
 def test_downstream_examples_reference_reusable_post_deploy_workflow() -> None:
     """Downstream examples must call the shared reusable workflow."""
     workflow_ref = (
@@ -152,7 +128,9 @@ def test_downstream_examples_reference_reusable_post_deploy_workflow() -> None:
         text = _read(rel_path)
         assert workflow_ref in text
         assert "deploy_repo: 3M-Cloud/nova" in text
-        assert "deploy_run_id: ${{ inputs.nova_deploy_run_id }}" in text
+        assert (
+            "deploy_output_json: ${{ inputs.nova_deploy_output_json }}" in text
+        )
 
 
 def test_integration_guide_references_surviving_contract_docs() -> None:
@@ -162,13 +140,14 @@ def test_integration_guide_references_surviving_contract_docs() -> None:
     for required in [
         "reusable-post-deploy-validate.yml",
         "docs/contracts/deploy-output-authority-v2.schema.json",
-        "docs/contracts/workflow-deploy-runtime-v1.schema.json",
         "docs/contracts/workflow-post-deploy-validate.schema.json",
         "docs/contracts/browser-live-validation-report.schema.json",
         "docs/contracts/release-artifacts-v1.schema.json",
         "docs/runbooks/release/release-policy.md",
         "Prefer a full commit SHA",
         "5-minute setup flow",
+        "deploy_output_json",
+        "deploy_output_path",
         "validation_protected_paths",
         "validation_cors_preflight_path",
         "validation_cors_origin",
@@ -188,6 +167,7 @@ def test_integration_guide_references_surviving_contract_docs() -> None:
         "ssm-runtime-base-url-v1.schema.json",
         "ADR-0023-hard-cut-v1-canonical-route-surface.md",
         "requirements-wave-2.md",
+        "workflow-deploy-runtime-v1.schema.json",
     ]:
         assert forbidden not in text
 

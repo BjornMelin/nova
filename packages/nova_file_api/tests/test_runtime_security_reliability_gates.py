@@ -15,11 +15,18 @@ _WORKFLOW_TASK_DOCKERFILE = (
 _API_ASSET_BUILDER = (
     REPO_ROOT / "scripts" / "release" / "build_api_lambda_asset.py"
 )
+_WORKFLOW_ASSET_BUILDER = (
+    REPO_ROOT / "scripts" / "release" / "build_workflow_lambda_asset.py"
+)
 _DOCKER_RELEASE_GATE = (
     REPO_ROOT / "scripts" / "checks" / "run_docker_release_images.sh"
 )
-_RELEASE_APPLY_WORKFLOW = (
-    REPO_ROOT / ".github" / "workflows" / "reusable-release-apply.yml"
+_RELEASE_BUILD_BUILDSPEC = (
+    REPO_ROOT
+    / "infra"
+    / "nova_cdk"
+    / "buildspecs"
+    / "release-publish-and-deploy-dev.yml"
 )
 
 
@@ -29,15 +36,25 @@ def test_api_runtime_uses_zip_packaging_instead_of_service_dockerfile() -> None:
     assert _API_ASSET_BUILDER.exists()
 
 
-def test_release_apply_workflow_owns_api_lambda_packaging() -> None:
-    """Immutable release artifacts should own API Lambda packaging."""
-    content = _RELEASE_APPLY_WORKFLOW.read_text(encoding="utf-8")
+def test_aws_release_build_owns_api_lambda_packaging() -> None:
+    """AWS release execution should own API Lambda packaging."""
+    content = _RELEASE_BUILD_BUILDSPEC.read_text(encoding="utf-8")
 
     assert "build_api_lambda_asset.py" in content
-    assert "--output-zip .artifacts/nova-file-api-lambda.zip" in content
+    assert "--output-zip .release-control/nova-file-api-lambda.zip" in content
     assert "api-lambda-artifact.json" in content
-    assert "release-apply-artifacts" in content
+    assert "release-execution-manifest.json" in content
     assert "aws s3 cp" in content
+
+
+def test_aws_release_build_owns_workflow_lambda_packaging() -> None:
+    """AWS release execution should own workflow Lambda packaging."""
+    content = _RELEASE_BUILD_BUILDSPEC.read_text(encoding="utf-8")
+
+    assert _WORKFLOW_ASSET_BUILDER.exists()
+    assert "build_workflow_lambda_asset.py" in content
+    assert "--output-zip .release-control/nova-workflows-lambda.zip" in content
+    assert "workflow-lambda-artifact.json" in content
 
 
 def test_workflow_task_dockerfile_remains_lambda_native() -> None:
