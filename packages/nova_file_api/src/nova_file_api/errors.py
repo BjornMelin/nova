@@ -188,7 +188,16 @@ def too_many_requests(
     details: dict[str, Any] | None = None,
     headers: dict[str, str] | None = None,
 ) -> FileTransferError:
-    """Return a quota or throttling error."""
+    """Return a quota or throttling error.
+
+    Args:
+        message: Human-readable error description.
+        details: Optional machine-readable error details.
+        headers: Optional response headers for the client.
+
+    Returns:
+        FileTransferError: Error object with a 429 status code.
+    """
     return FileTransferError(
         code="too_many_requests",
         message=message,
@@ -204,7 +213,16 @@ def quota_exceeded(
     details: dict[str, Any] | None = None,
     headers: dict[str, str] | None = None,
 ) -> FileTransferError:
-    """Return a quota-exceeded error."""
+    """Return a quota-exceeded error.
+
+    Args:
+        message: Human-readable error description.
+        details: Optional machine-readable error details.
+        headers: Optional response headers for the client.
+
+    Returns:
+        FileTransferError: Error object with a 429 status code.
+    """
     return FileTransferError(
         code="quota_exceeded",
         message=message,

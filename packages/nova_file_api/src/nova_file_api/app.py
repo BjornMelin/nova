@@ -130,13 +130,35 @@ def create_app(*, settings: Settings | None = None) -> FastAPI:
                         )
                     )
                 )
-                requires_appconfig = all(
-                    (
-                        runtime_settings.file_transfer_policy_appconfig_application,
-                        runtime_settings.file_transfer_policy_appconfig_environment,
-                        runtime_settings.file_transfer_policy_appconfig_profile,
+                appconfig_identifiers = {
+                    "FILE_TRANSFER_POLICY_APPCONFIG_APPLICATION": (
+                        runtime_settings.file_transfer_policy_appconfig_application
+                    ),
+                    "FILE_TRANSFER_POLICY_APPCONFIG_ENVIRONMENT": (
+                        runtime_settings.file_transfer_policy_appconfig_environment
+                    ),
+                    "FILE_TRANSFER_POLICY_APPCONFIG_PROFILE": (
+                        runtime_settings.file_transfer_policy_appconfig_profile
+                    ),
+                }
+                configured_appconfig_identifiers = {
+                    name: value.strip()
+                    for name, value in appconfig_identifiers.items()
+                    if isinstance(value, str) and value.strip()
+                }
+                requires_appconfig = len(
+                    configured_appconfig_identifiers
+                ) == len(appconfig_identifiers)
+                if configured_appconfig_identifiers and not requires_appconfig:
+                    missing_identifiers = sorted(
+                        set(appconfig_identifiers)
+                        - set(configured_appconfig_identifiers)
                     )
-                )
+                    missing = ", ".join(missing_identifiers)
+                    raise ValueError(
+                        "Transfer policy AppConfig settings must be configured "
+                        f"together; missing: {missing}"
+                    )
 
                 async with AsyncExitStack() as stack:
                     s3_client = await stack.enter_async_context(

@@ -352,7 +352,11 @@ async def _read_configuration_payload(configuration: object) -> str | None:
         if isinstance(result, str):
             return result.strip() or None
     if hasattr(configuration, "__iter__"):
-        payload = json.dumps(list(cast(Any, configuration))).strip()
+        chunks = list(cast(Any, configuration))
+        if chunks and isinstance(chunks[0], (bytes, bytearray, memoryview)):
+            bytes_payload = b"".join(bytes(chunk) for chunk in chunks)
+            return bytes_payload.decode("utf-8").strip() or None
+        payload = json.dumps(chunks).strip()
         return payload or None
     return None
 

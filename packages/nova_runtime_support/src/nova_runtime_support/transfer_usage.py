@@ -153,7 +153,7 @@ class MemoryTransferUsageRepository:
         window_started_at: datetime,
         hourly_sign_request_limit: int | None,
     ) -> None:
-        """Record one sign-parts request in the active daily window."""
+        """Record one sign-parts request in the active hourly window."""
         async with self._lock:
             counters = self._counter(
                 scope_id=scope_id,

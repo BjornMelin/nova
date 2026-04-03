@@ -383,6 +383,18 @@ API_LAMBDA_ENV: tuple[RuntimeEnvContract, ...] = (
         "FILE_TRANSFER_MAX_CONCURRENCY", "literal", "always", "4"
     ),
     RuntimeEnvContract(
+        "FILE_TRANSFER_ACTIVE_MULTIPART_UPLOAD_LIMIT",
+        "literal",
+        "always",
+        "200",
+    ),
+    RuntimeEnvContract(
+        "FILE_TRANSFER_DAILY_INGRESS_BUDGET_BYTES",
+        "literal",
+        "always",
+        str(1024 * 1024 * 1024 * 1024),
+    ),
+    RuntimeEnvContract(
         "FILE_TRANSFER_MAX_UPLOAD_BYTES",
         "literal",
         "always",
@@ -410,6 +422,27 @@ API_LAMBDA_ENV: tuple[RuntimeEnvContract, ...] = (
         "2026-04-03",
     ),
     RuntimeEnvContract(
+        "FILE_TRANSFER_POLICY_APPCONFIG_APPLICATION",
+        "stack resource",
+        "always",
+    ),
+    RuntimeEnvContract(
+        "FILE_TRANSFER_POLICY_APPCONFIG_ENVIRONMENT",
+        "stack resource",
+        "always",
+    ),
+    RuntimeEnvContract(
+        "FILE_TRANSFER_POLICY_APPCONFIG_POLL_INTERVAL_SECONDS",
+        "literal",
+        "always",
+        "60",
+    ),
+    RuntimeEnvContract(
+        "FILE_TRANSFER_POLICY_APPCONFIG_PROFILE",
+        "stack resource",
+        "always",
+    ),
+    RuntimeEnvContract(
         "FILE_TRANSFER_RESUMABLE_WINDOW_SECONDS",
         "literal",
         "always",
@@ -427,10 +460,21 @@ API_LAMBDA_ENV: tuple[RuntimeEnvContract, ...] = (
         "always",
     ),
     RuntimeEnvContract(
+        "FILE_TRANSFER_USAGE_TABLE",
+        "stack resource",
+        "always",
+    ),
+    RuntimeEnvContract(
         "FILE_TRANSFER_USE_ACCELERATE_ENDPOINT",
         "literal",
         "always",
         "false",
+    ),
+    RuntimeEnvContract(
+        "FILE_TRANSFER_SIGN_REQUESTS_PER_UPLOAD_LIMIT",
+        "literal",
+        "always",
+        "512",
     ),
     RuntimeEnvContract("IDEMPOTENCY_ENABLED", "literal", "always", "true"),
     RuntimeEnvContract(

@@ -105,6 +105,18 @@
       },
       {
         "condition": "always",
+        "name": "FILE_TRANSFER_ACTIVE_MULTIPART_UPLOAD_LIMIT",
+        "source": "literal",
+        "value": "200"
+      },
+      {
+        "condition": "always",
+        "name": "FILE_TRANSFER_DAILY_INGRESS_BUDGET_BYTES",
+        "source": "literal",
+        "value": "1099511627776"
+      },
+      {
+        "condition": "always",
         "name": "FILE_TRANSFER_MAX_UPLOAD_BYTES",
         "source": "literal",
         "value": "536870912000"
@@ -135,6 +147,30 @@
       },
       {
         "condition": "always",
+        "name": "FILE_TRANSFER_POLICY_APPCONFIG_APPLICATION",
+        "source": "stack resource",
+        "value": null
+      },
+      {
+        "condition": "always",
+        "name": "FILE_TRANSFER_POLICY_APPCONFIG_ENVIRONMENT",
+        "source": "stack resource",
+        "value": null
+      },
+      {
+        "condition": "always",
+        "name": "FILE_TRANSFER_POLICY_APPCONFIG_POLL_INTERVAL_SECONDS",
+        "source": "literal",
+        "value": "60"
+      },
+      {
+        "condition": "always",
+        "name": "FILE_TRANSFER_POLICY_APPCONFIG_PROFILE",
+        "source": "stack resource",
+        "value": null
+      },
+      {
+        "condition": "always",
         "name": "FILE_TRANSFER_RESUMABLE_WINDOW_SECONDS",
         "source": "literal",
         "value": "604800"
@@ -153,9 +189,21 @@
       },
       {
         "condition": "always",
+        "name": "FILE_TRANSFER_USAGE_TABLE",
+        "source": "stack resource",
+        "value": null
+      },
+      {
+        "condition": "always",
         "name": "FILE_TRANSFER_USE_ACCELERATE_ENDPOINT",
         "source": "literal",
         "value": "false"
+      },
+      {
+        "condition": "always",
+        "name": "FILE_TRANSFER_SIGN_REQUESTS_PER_UPLOAD_LIMIT",
+        "source": "literal",
+        "value": "512"
       },
       {
         "condition": "always",

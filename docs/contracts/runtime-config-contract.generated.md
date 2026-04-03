@@ -149,15 +149,23 @@ Forbidden ENV_VARS_JSON keys:
 | FILE_TRANSFER_EXPORT_COPY_MAX_CONCURRENCY | literal | always | 8 |
 | FILE_TRANSFER_EXPORT_COPY_PART_SIZE_BYTES | literal | always | 2147483648 |
 | FILE_TRANSFER_MAX_CONCURRENCY | literal | always | 4 |
+| FILE_TRANSFER_ACTIVE_MULTIPART_UPLOAD_LIMIT | literal | always | 200 |
+| FILE_TRANSFER_DAILY_INGRESS_BUDGET_BYTES | literal | always | 1099511627776 |
 | FILE_TRANSFER_MAX_UPLOAD_BYTES | literal | always | 536870912000 |
 | FILE_TRANSFER_MULTIPART_THRESHOLD_BYTES | literal | always | 104857600 |
 | FILE_TRANSFER_PART_SIZE_BYTES | literal | always | 134217728 |
 | FILE_TRANSFER_POLICY_ID | literal | always | default |
 | FILE_TRANSFER_POLICY_VERSION | literal | always | 2026-04-03 |
+| FILE_TRANSFER_POLICY_APPCONFIG_APPLICATION | stack resource | always | - |
+| FILE_TRANSFER_POLICY_APPCONFIG_ENVIRONMENT | stack resource | always | - |
+| FILE_TRANSFER_POLICY_APPCONFIG_POLL_INTERVAL_SECONDS | literal | always | 60 |
+| FILE_TRANSFER_POLICY_APPCONFIG_PROFILE | stack resource | always | - |
 | FILE_TRANSFER_RESUMABLE_WINDOW_SECONDS | literal | always | 604800 |
 | FILE_TRANSFER_TARGET_UPLOAD_PART_COUNT | literal | always | 2000 |
 | FILE_TRANSFER_UPLOAD_SESSIONS_TABLE | stack resource | always | - |
+| FILE_TRANSFER_USAGE_TABLE | stack resource | always | - |
 | FILE_TRANSFER_USE_ACCELERATE_ENDPOINT | literal | always | false |
+| FILE_TRANSFER_SIGN_REQUESTS_PER_UPLOAD_LIMIT | literal | always | 512 |
 | IDEMPOTENCY_ENABLED | literal | always | true |
 | IDEMPOTENCY_DYNAMODB_TABLE | stack resource | always | - |
 | EXPORT_WORKFLOW_STATE_MACHINE_ARN | stack resource | always | - |

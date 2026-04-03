@@ -216,7 +216,6 @@ class TransferService:
         await self._record_sign_request(
             scope_id=principal.scope_id,
             sign_requested_at=now,
-            policy=policy,
         )
         sign_limit = (
             session.sign_requests_limit or policy.sign_requests_per_upload_limit
@@ -1197,9 +1196,7 @@ class TransferService:
         *,
         scope_id: str,
         sign_requested_at: datetime,
-        policy: TransferPolicy,
     ) -> None:
-        del policy
         try:
             await self._transfer_usage.record_sign_request(
                 scope_id=scope_id,

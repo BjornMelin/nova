@@ -365,6 +365,7 @@ def test_runtime_stack_adds_transfer_usage_and_policy_resources() -> None:
     api_function_env = bundle.api_function_env
     assert "FILE_TRANSFER_USAGE_TABLE" in api_function_env
     assert "FILE_TRANSFER_POLICY_APPCONFIG_APPLICATION" in api_function_env
+    assert "FILE_TRANSFER_POLICY_APPCONFIG_ENVIRONMENT" in api_function_env
     assert "FILE_TRANSFER_POLICY_APPCONFIG_PROFILE" in api_function_env
 
 
