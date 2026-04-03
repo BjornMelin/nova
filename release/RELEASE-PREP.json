@@ -1,39 +1,17 @@
 {
-  "base_commit": "7a24bce04c0045a163b9724fa9ec0c9daf029a97",
+  "base_commit": "894b758d4745b30c75b6a73489f09fab563fd425",
   "changed_files": [
-    "infra/nova_cdk/buildspecs/release-promote-and-deploy-prod.yml",
-    "infra/nova_cdk/buildspecs/release-publish-and-deploy-dev.yml",
-    "tests/infra/test_release_workflow_contracts.py"
+    "docs/runbooks/release/release-runbook.md",
+    "scripts/release/common.py",
+    "scripts/release/tests/test_write_execution_manifest.py",
+    "scripts/release/write_execution_manifest.py"
   ],
-  "changed_units": [
-    {
-      "codeartifact_format": "pypi",
-      "format": "pypi",
-      "namespace": null,
-      "path": "infra/nova_cdk",
-      "project": "nova-cdk",
-      "unit_id": "infra/nova_cdk",
-      "version": "0.1.2"
-    }
-  ],
+  "changed_units": [],
   "first_release": false,
-  "global_bump": "patch",
-  "head_commit": "63659243f680693793cf902870b76277dea5d026",
-  "prepared_at": "2026-04-03T06:10:53+00:00",
-  "prepared_from_commit": "63659243f680693793cf902870b76277dea5d026",
+  "global_bump": null,
+  "head_commit": "3d16831cc3026ceb83a79dba7f6606ebb78c97d4",
+  "prepared_at": "2026-04-03T06:21:17+00:00",
+  "prepared_from_commit": "3d16831cc3026ceb83a79dba7f6606ebb78c97d4",
   "schema_version": "1.0",
-  "units": [
-    {
-      "bump": "patch",
-      "codeartifact_format": "pypi",
-      "format": "pypi",
-      "namespace": null,
-      "new_version": "0.1.3",
-      "old_version": "0.1.2",
-      "path": "infra/nova_cdk",
-      "project": "nova-cdk",
-      "reason": "changed",
-      "unit_id": "infra/nova_cdk"
-    }
-  ]
+  "units": []
 }
