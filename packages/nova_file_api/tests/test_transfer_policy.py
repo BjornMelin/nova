@@ -1,31 +1,54 @@
 from __future__ import annotations
 
+from dataclasses import replace
+from datetime import UTC, datetime
+
 import pytest
 
 from nova_file_api.transfer_config import TransferConfig
 from nova_file_api.transfer_policy import (
     AppConfigTransferPolicySource,
+    build_transfer_policy_provider,
     resolve_transfer_policy,
     resolve_transfer_policy_document,
 )
 
 
 class _StubAppConfigClient:
+    def __init__(self) -> None:
+        self.start_calls = 0
+        self.poll_calls = 0
+        self.last_poll_cursor = ""
+
     async def start_configuration_session(
         self,
         **_: object,
     ) -> dict[str, object]:
+        self.start_calls += 1
         return {"InitialConfigurationToken": "token-1"}
 
     async def get_latest_configuration(self, **_: object) -> dict[str, object]:
-        return {
-            "Configuration": (
+        self.poll_calls += 1
+        if self.poll_calls == 1:
+            configuration = (
                 b'{"policy_id":"remote-tier","max_concurrency_hint":8,'
                 b'"active_multipart_upload_limit":400,'
                 b'"daily_ingress_budget_bytes":2199023255552,'
                 b'"sign_requests_per_upload_limit":1024}'
-            ),
-            "NextPollConfigurationToken": "token-2",
+            )
+            poll_cursor = "cursor-2"
+        else:
+            configuration = (
+                b'{"policy_id":"remote-tier-tight","max_concurrency_hint":2,'
+                b'"active_multipart_upload_limit":8,'
+                b'"daily_ingress_budget_bytes":1099511627776,'
+                b'"sign_requests_per_upload_limit":128}'
+            )
+            poll_cursor = "cursor-3"
+        self.last_poll_cursor = poll_cursor
+        return {
+            "Configuration": configuration,
+            "NextPollConfigurationToken": poll_cursor,
             "NextPollIntervalInSeconds": 60,
         }
 
@@ -100,3 +123,54 @@ async def test_resolve_transfer_policy_applies_appconfig_overlay() -> None:
     assert policy.active_multipart_upload_limit == 200
     assert policy.daily_ingress_budget_bytes == 1024 * 1024 * 1024 * 1024
     assert policy.sign_requests_per_upload_limit == 512
+
+
+@pytest.mark.anyio
+async def test_appconfig_source_refreshes_again_after_poll_window_expires() -> (
+    None
+):
+    client = _StubAppConfigClient()
+    source = AppConfigTransferPolicySource(
+        client=client,
+        application_identifier=" app ",
+        environment_identifier=" env ",
+        configuration_profile_identifier=" profile ",
+        minimum_poll_interval_seconds=60,
+    )
+
+    first = await resolve_transfer_policy_document(source=source)
+    assert first is not None
+    assert first.max_concurrency_hint == 8
+
+    source._next_refresh_at = datetime(1970, 1, 1, tzinfo=UTC)
+    second = await resolve_transfer_policy_document(source=source)
+    policy = resolve_transfer_policy(config=_config(), document=second)
+
+    assert second is not None
+    assert second.policy_id == "remote-tier-tight"
+    assert second.max_concurrency_hint == 2
+    assert policy.max_concurrency_hint == 2
+    assert policy.active_multipart_upload_limit == 8
+    assert policy.daily_ingress_budget_bytes == 1099511627776
+    assert policy.sign_requests_per_upload_limit == 128
+    assert client.start_calls == 1
+    assert client.poll_calls == 2
+    assert source._token == client.last_poll_cursor
+
+
+@pytest.mark.anyio
+async def test_build_provider_strips_appconfig_ids() -> None:
+    provider = build_transfer_policy_provider(
+        config=replace(
+            _config(),
+            policy_appconfig_application=" app ",
+            policy_appconfig_environment=" env ",
+            policy_appconfig_profile=" profile ",
+        ),
+        appconfig_client=_StubAppConfigClient(),
+    )
+
+    assert provider.__class__.__name__ == "AppConfigTransferPolicyProvider"
+    assert provider.source.application_identifier == "app"
+    assert provider.source.environment_identifier == "env"
+    assert provider.source.configuration_profile_identifier == "profile"

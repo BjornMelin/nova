@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta, timezone
 from typing import Any
 
 import pytest
@@ -178,6 +178,18 @@ async def test_dynamo_active_window_sets_ttl_for_self_healing() -> None:
         "scope_id": "scope-1",
         "window_key": "active",
     }
-    assert update["ExpressionAttributeValues"][":expires_at"] > int(
-        now.timestamp()
+    updated_at = datetime.fromisoformat(
+        update["ExpressionAttributeValues"][":updated_at"]
     )
+    assert update["ExpressionAttributeValues"][":expires_at"] == int(
+        updated_at.timestamp() + 7 * 24 * 60 * 60
+    )
+
+
+@pytest.mark.anyio
+async def test_as_utc_normalizes_aware_datetimes() -> None:
+    from nova_runtime_support.transfer_usage import _as_utc
+
+    aware = datetime(2026, 4, 3, 6, 0, tzinfo=timezone(timedelta(hours=-6)))
+
+    assert _as_utc(aware) == datetime(2026, 4, 3, 12, 0, tzinfo=UTC)

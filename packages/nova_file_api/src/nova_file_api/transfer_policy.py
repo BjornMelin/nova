@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+import asyncio
 import inspect
 import json
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from math import ceil
 from typing import Any, Protocol, cast
@@ -57,25 +58,63 @@ class AppConfigDataClient(Protocol):
         self,
         **kwargs: object,
     ) -> dict[str, object]:
-        """Start one configuration session."""
+        """Start one configuration session.
+
+        Args:
+            **kwargs: AppConfigData request parameters.
+
+        Returns:
+            dict[str, object]: The session response payload.
+
+        Raises:
+            Exception: Any client error raised by the backing SDK.
+        """
 
     async def get_latest_configuration(
         self,
         **kwargs: object,
     ) -> dict[str, object]:
-        """Retrieve the latest deployed configuration."""
+        """Retrieve the latest deployed configuration.
+
+        Args:
+            **kwargs: AppConfigData request parameters.
+
+        Returns:
+            dict[str, object]: The latest configuration response payload.
+
+        Raises:
+            Exception: Any client error raised by the backing SDK.
+        """
 
 
 class TransferPolicyProvider(Protocol):
     """Resolve the effective transfer policy for one caller scope."""
 
     async def resolve(self, *, scope_id: str | None) -> TransferPolicy:
-        """Return the effective transfer policy."""
+        """Return the effective transfer policy.
+
+        Args:
+            scope_id: Caller scope identifier or ``None`` for anonymous use.
+
+        Returns:
+            TransferPolicy: The resolved policy envelope.
+
+        Raises:
+            Exception: Any provider error raised while resolving policy.
+        """
 
 
 @dataclass(slots=True)
 class AppConfigTransferPolicySource:
-    """Best-effort AppConfig-backed transfer policy source."""
+    """Best-effort AppConfig-backed transfer policy source.
+
+    Args:
+        client: AppConfigData client implementation.
+        application_identifier: AppConfig application identifier.
+        environment_identifier: AppConfig environment identifier.
+        configuration_profile_identifier: AppConfig profile identifier.
+        minimum_poll_interval_seconds: Minimum polling interval for refreshes.
+    """
 
     client: AppConfigDataClient
     application_identifier: str
@@ -85,9 +124,21 @@ class AppConfigTransferPolicySource:
     _token: str | None = None
     _cached_document: TransferPolicyDocument | None = None
     _next_refresh_at: datetime | None = None
+    _refresh_lock: asyncio.Lock = field(
+        init=False,
+        repr=False,
+        default_factory=asyncio.Lock,
+    )
 
     async def get_document(self) -> TransferPolicyDocument | None:
-        """Return the latest AppConfig document or ``None`` on failure."""
+        """Return the latest AppConfig document or ``None`` on failure.
+
+        Returns:
+            TransferPolicyDocument | None: The cached or refreshed document.
+
+        Raises:
+            Exception: Any client or parsing error is swallowed and logged.
+        """
         now = datetime.now(tz=UTC)
         if (
             self._cached_document is not None
@@ -95,46 +146,57 @@ class AppConfigTransferPolicySource:
             and now < self._next_refresh_at
         ):
             return self._cached_document
-        try:
-            if self._token is None:
-                session = await self.client.start_configuration_session(
-                    ApplicationIdentifier=self.application_identifier,
-                    EnvironmentIdentifier=self.environment_identifier,
-                    ConfigurationProfileIdentifier=(
-                        self.configuration_profile_identifier
-                    ),
-                    RequiredMinimumPollIntervalInSeconds=(
-                        self.minimum_poll_interval_seconds
-                    ),
-                )
-                self._token = _opt_str(session.get("InitialConfigurationToken"))
-            if self._token is None:
+        async with self._refresh_lock:
+            now = datetime.now(tz=UTC)
+            if (
+                self._cached_document is not None
+                and self._next_refresh_at is not None
+                and now < self._next_refresh_at
+            ):
                 return self._cached_document
-            latest = await self.client.get_latest_configuration(
-                ConfigurationToken=self._token,
-            )
-            self._token = _opt_str(latest.get("NextPollConfigurationToken"))
-            poll_interval = (
-                _as_int(latest.get("NextPollIntervalInSeconds"))
-                or self.minimum_poll_interval_seconds
-            )
-            self._next_refresh_at = now + timedelta(seconds=poll_interval)
-            payload = await _read_configuration_payload(
-                latest.get("Configuration")
-            )
-            if payload:
-                self._cached_document = (
-                    TransferPolicyDocument.model_validate_json(payload)
+            try:
+                if self._token is None:
+                    session = await self.client.start_configuration_session(
+                        ApplicationIdentifier=self.application_identifier,
+                        EnvironmentIdentifier=self.environment_identifier,
+                        ConfigurationProfileIdentifier=(
+                            self.configuration_profile_identifier
+                        ),
+                        RequiredMinimumPollIntervalInSeconds=(
+                            self.minimum_poll_interval_seconds
+                        ),
+                    )
+                    self._token = _opt_str(
+                        session.get("InitialConfigurationToken")
+                    )
+                if self._token is None:
+                    return self._cached_document
+                latest = await self.client.get_latest_configuration(
+                    ConfigurationToken=self._token,
                 )
-            else:
+                self._token = _opt_str(latest.get("NextPollConfigurationToken"))
+                poll_interval = (
+                    _as_int(latest.get("NextPollIntervalInSeconds"))
+                    or self.minimum_poll_interval_seconds
+                )
+                self._next_refresh_at = now + timedelta(seconds=poll_interval)
+                payload = await _read_configuration_payload(
+                    latest.get("Configuration")
+                )
+                if payload:
+                    self._cached_document = (
+                        TransferPolicyDocument.model_validate_json(payload)
+                    )
+                else:
+                    return self._cached_document
+            except Exception:
+                self._token = None
+                _LOGGER.warning(
+                    "transfer_policy_appconfig_refresh_failed",
+                    exc_info=True,
+                )
                 return self._cached_document
-        except Exception:
-            _LOGGER.warning(
-                "transfer_policy_appconfig_refresh_failed",
-                exc_info=True,
-            )
             return self._cached_document
-        return self._cached_document
 
 
 def resolve_transfer_policy(
@@ -297,19 +359,28 @@ def build_transfer_policy_provider(
     appconfig_client: AppConfigDataClient | None = None,
 ) -> TransferPolicyProvider:
     """Create the configured transfer policy provider."""
+    application_identifier = _normalized_identifier(
+        config.policy_appconfig_application
+    )
+    environment_identifier = _normalized_identifier(
+        config.policy_appconfig_environment
+    )
+    configuration_profile_identifier = _normalized_identifier(
+        config.policy_appconfig_profile
+    )
     if (
         appconfig_client is not None
-        and config.policy_appconfig_application
-        and config.policy_appconfig_environment
-        and config.policy_appconfig_profile
+        and application_identifier
+        and environment_identifier
+        and configuration_profile_identifier
     ):
         return AppConfigTransferPolicyProvider(
             config=config,
             source=AppConfigTransferPolicySource(
                 client=appconfig_client,
-                application_identifier=config.policy_appconfig_application,
-                environment_identifier=config.policy_appconfig_environment,
-                configuration_profile_identifier=config.policy_appconfig_profile,
+                application_identifier=application_identifier,
+                environment_identifier=environment_identifier,
+                configuration_profile_identifier=configuration_profile_identifier,
                 minimum_poll_interval_seconds=(
                     config.policy_appconfig_poll_interval_seconds
                 ),
@@ -374,6 +445,13 @@ def _bounded_int(
 
 def _opt_str(value: object) -> str | None:
     return value if isinstance(value, str) and value.strip() else None
+
+
+def _normalized_identifier(value: str | None) -> str | None:
+    if value is None:
+        return None
+    normalized = value.strip()
+    return normalized or None
 
 
 def _as_int(value: object) -> int | None:

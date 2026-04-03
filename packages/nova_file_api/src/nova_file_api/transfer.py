@@ -178,6 +178,15 @@ class TransferService:
                 request=request,
                 policy=policy,
             )
+        except asyncio.CancelledError:
+            await self._release_upload_quota_best_effort(
+                scope_id=principal.scope_id,
+                created_at=created_at,
+                size_bytes=request.size_bytes,
+                multipart=multipart,
+                completed=False,
+            )
+            raise
         except Exception:
             await self._release_upload_quota_best_effort(
                 scope_id=principal.scope_id,
@@ -201,22 +210,20 @@ class TransferService:
             key=request.key,
         )
         policy = await self.resolve_policy(scope_id=principal.scope_id)
+        sign_batch_size_hint = (
+            session.sign_batch_size_hint or policy.sign_batch_size_hint
+        )
         if (
-            policy.sign_batch_size_hint > 0
-            and len(request.part_numbers) > policy.sign_batch_size_hint
+            sign_batch_size_hint > 0
+            and len(request.part_numbers) > sign_batch_size_hint
         ):
             raise invalid_request(
                 "requested part batch exceeds the current transfer policy",
                 details={
                     "requested_parts": len(request.part_numbers),
-                    "sign_batch_size_hint": policy.sign_batch_size_hint,
+                    "sign_batch_size_hint": sign_batch_size_hint,
                 },
             )
-        now = datetime.now(tz=UTC)
-        await self._record_sign_request(
-            scope_id=principal.scope_id,
-            sign_requested_at=now,
-        )
         sign_limit = (
             session.sign_requests_limit or policy.sign_requests_per_upload_limit
         )
@@ -226,6 +233,11 @@ class TransferService:
                 "sign-parts quota exceeded for this upload session",
                 details={"limit": sign_limit},
             )
+        now = datetime.now(tz=UTC)
+        await self._record_sign_request(
+            scope_id=principal.scope_id,
+            sign_requested_at=now,
+        )
         await self._store_upload_session(
             replace(
                 session,

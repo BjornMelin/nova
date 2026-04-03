@@ -1073,8 +1073,8 @@ class NovaRuntimeStack(Stack):
         api_function.add_to_role_policy(
             iam.PolicyStatement(
                 actions=[
-                    "appconfigdata:StartConfigurationSession",
-                    "appconfigdata:GetLatestConfiguration",
+                    "appconfig:StartConfigurationSession",
+                    "appconfig:GetLatestConfiguration",
                 ],
                 resources=["*"],
             )

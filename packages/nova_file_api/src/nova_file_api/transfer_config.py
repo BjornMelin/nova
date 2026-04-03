@@ -129,17 +129,27 @@ def transfer_config_from_settings(settings: Settings) -> TransferConfig:
         checksum_algorithm=settings.file_transfer_checksum_algorithm,
         upload_sessions_table=settings.file_transfer_upload_sessions_table,
         usage_table=settings.file_transfer_usage_table,
-        policy_appconfig_application=(
+        policy_appconfig_application=_normalized_optional_identifier(
             settings.file_transfer_policy_appconfig_application
         ),
-        policy_appconfig_environment=(
+        policy_appconfig_environment=_normalized_optional_identifier(
             settings.file_transfer_policy_appconfig_environment
         ),
-        policy_appconfig_profile=settings.file_transfer_policy_appconfig_profile,
+        policy_appconfig_profile=_normalized_optional_identifier(
+            settings.file_transfer_policy_appconfig_profile
+        ),
         policy_appconfig_poll_interval_seconds=(
             settings.file_transfer_policy_appconfig_poll_interval_seconds
         ),
     )
+
+
+def _normalized_optional_identifier(value: str | None) -> str | None:
+    """Return a stripped identifier or ``None`` when empty."""
+    if value is None:
+        return None
+    normalized = value.strip()
+    return normalized or None
 
 
 def _bounded_part_size_bytes(

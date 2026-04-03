@@ -247,6 +247,14 @@ class DynamoTransferUsageRepository:
                     scope_id=scope_id,
                     limit=active_multipart_limit,
                 )
+        except asyncio.CancelledError:
+            if daily_ingress_budget_bytes is not None:
+                await self._release_daily_ingress_bytes(
+                    scope_id=scope_id,
+                    size_bytes=size_bytes,
+                    now=window_started_at,
+                )
+            raise
         except Exception:
             if daily_ingress_budget_bytes is not None:
                 await self._release_daily_ingress_bytes(
@@ -530,7 +538,7 @@ def _hourly_window_expiry_epoch(now: datetime) -> int:
 
 
 def _active_window_expiry_epoch(now: datetime) -> int:
-    return int((_as_utc(now) + timedelta(days=2)).timestamp())
+    return int((_as_utc(now) + timedelta(days=7)).timestamp())
 
 
 def _usage_key(*, scope_id: str, window_key: str) -> dict[str, str]:
@@ -538,7 +546,9 @@ def _usage_key(*, scope_id: str, window_key: str) -> dict[str, str]:
 
 
 def _as_utc(now: datetime) -> datetime:
-    return now if now.tzinfo is not None else now.replace(tzinfo=UTC)
+    if now.tzinfo is None:
+        return now.replace(tzinfo=UTC)
+    return now.astimezone(UTC)
 
 
 def _iso_now(now: datetime | None = None) -> str:
