@@ -86,12 +86,12 @@ def _install_fake_management_client(
 
     class _ClientGrants:
         def list(self, **kwargs):
-            management_api_grant = {
+            management_api_grant: dict[str, object] = {
                 "client_id": "client_1",
                 "audience": "https://example.auth0.com/api/v2/",
                 "scope": ["read:clients"],
             }
-            grants = [management_api_grant]
+            grants: list[dict[str, object]] = [management_api_grant]
             if nova_api_grant is not None:
                 grants.append(nova_api_grant)
             return grants

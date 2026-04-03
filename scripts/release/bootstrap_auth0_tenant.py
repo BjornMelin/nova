@@ -28,7 +28,7 @@ _MANAGEMENT_API_SCOPES = [
     "update:client_grants",
     "delete:client_grants",
 ]
-_REQUEST_OPTIONS: dict[str, int] = {
+_REQUEST_OPTIONS: Any = {
     "max_retries": 3,
     "timeout_in_seconds": 20,
 }
@@ -138,7 +138,7 @@ def _client(
 
 def _ensure_client_grant(
     *,
-    client: ManagementClient,
+    client: Any,
     existing_grants: list[dict[str, Any]],
     client_id: str,
     audience: str,
