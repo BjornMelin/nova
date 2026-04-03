@@ -1,5 +1,5 @@
 {
-  "base_commit": "295158511cb93bc79c18efe169ee152e551b1919",
+  "base_commit": "7a24bce04c0045a163b9724fa9ec0c9daf029a97",
   "changed_files": [
     "infra/nova_cdk/buildspecs/release-promote-and-deploy-prod.yml",
     "infra/nova_cdk/buildspecs/release-publish-and-deploy-dev.yml",
@@ -13,14 +13,14 @@
       "path": "infra/nova_cdk",
       "project": "nova-cdk",
       "unit_id": "infra/nova_cdk",
-      "version": "0.1.1"
+      "version": "0.1.2"
     }
   ],
   "first_release": false,
   "global_bump": "patch",
-  "head_commit": "11fc48c1d51fb469ba531d650b0d64619f921df6",
-  "prepared_at": "2026-04-03T06:00:34+00:00",
-  "prepared_from_commit": "11fc48c1d51fb469ba531d650b0d64619f921df6",
+  "head_commit": "63659243f680693793cf902870b76277dea5d026",
+  "prepared_at": "2026-04-03T06:10:53+00:00",
+  "prepared_from_commit": "63659243f680693793cf902870b76277dea5d026",
   "schema_version": "1.0",
   "units": [
     {
@@ -28,8 +28,8 @@
       "codeartifact_format": "pypi",
       "format": "pypi",
       "namespace": null,
-      "new_version": "0.1.2",
-      "old_version": "0.1.1",
+      "new_version": "0.1.3",
+      "old_version": "0.1.2",
       "path": "infra/nova_cdk",
       "project": "nova-cdk",
       "reason": "changed",
