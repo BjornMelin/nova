@@ -1,61 +1,91 @@
 # Nova architecture requirements
 
 Status: Active
-Repository state: **current implemented baseline plus approved target-state program**
-Last reviewed: 2026-03-25
+Repository state: **current implemented AWS-native serverless baseline**
+Last reviewed: 2026-04-02
 
 ## Purpose
 
-Define the authoritative requirements split between:
+Define the active architectural requirements for Nova as it exists now. This
+file is current-state authority, not a migration worksheet.
 
-- what the current repository still implements
-- what the approved wave-2 hard cut must deliver
+## Functional requirements
 
-This file is intentionally explicit so implementation agents do not treat the
-target as if it were already shipped.
+- Public API routes remain under `/v1/*` plus `/metrics/summary`.
+- Public authentication remains bearer JWT only and is verified in-process by
+  the FastAPI runtime.
+- File transfer orchestration remains control-plane only: Nova issues presigned
+  upload/download contracts and does not proxy bulk bytes.
+- Async work remains explicit export workflow orchestration under
+  `/v1/exports*`, backed by Step Functions and DynamoDB.
+- Runtime deploy and validation authority remain bound to `deploy-output.json`
+  plus `deploy-output.sha256` rather than free-text base URL inputs.
 
-## Current implemented baseline requirements
+## Platform requirements
 
-These remain true until the wave-2 branches merge:
+- The canonical runtime stays in `infra/nova_cdk` and deploys:
+  - API Gateway Regional REST API
+  - FastAPI on AWS Lambda
+  - Step Functions Standard
+  - DynamoDB for export/idempotency state
+  - S3 for transfer/export artifact storage
+- The `execute-api` default endpoint stays disabled.
+- Production keeps Regional WAF enabled by default.
+- Non-production keeps Regional WAF disabled by default unless explicitly
+  enabled for a verification or hardening need.
+- Reserved concurrency stays enabled by default, with production failing closed
+  if it is disabled.
 
-- preserve the current repository's ability to serve transfer-control APIs
-- preserve the current deployed-system operational runbooks until the platform
-  migration lands
-- preserve current release, deploy, and validation capability long enough to
-  execute the migration program safely
-- keep current route and package changes status-labelled accurately in docs
+## Release and automation requirements
 
-## Approved wave-2 target requirements
+- GitHub remains responsible for PR CI, manual release-plan preview, reusable
+  validation workflows, and Auth0 tenant operations only.
+- AWS CodePipeline + CodeBuild remain the only supported post-merge publish,
+  promote, and deploy executor.
+- Release metadata remains committed under `release/`.
+- Runtime deploy inputs remain account-neutral and tenant-neutral: account ids,
+  Route 53 values, certificates, CodeConnections ARNs, CodeArtifact repos, and
+  Auth0 tenant coordinates must stay configurable inputs, not hardcoded repo
+  truth.
 
-These are approved and should drive implementation work now:
+## Auth0 requirements
 
-- remove the dedicated auth service and session-style auth seam
-- expose bearer JWT only as the public auth model
-- replace generic jobs with explicit export workflow resources
-- replace callback-driven async lifecycle handling with workflow-native state
-- remove Redis from the canonical runtime correctness path
-- adopt one canonical AWS runtime target
-- simplify package layout and SDK generation
-- reduce documentation authority sprawl
+- Auth0 tenant-as-code remains driven by the shared template under
+  `infra/auth0/tenant/tenant.yaml` plus environment mappings.
+- The canonical automation path is:
+  - `validate_auth0_contract`
+  - `bootstrap_auth0_tenant`
+  - `audit_auth0_tenant`
+  - `run_auth0_deploy_cli`
+- `auth0-python` is the canonical programmatic SDK for tenant bootstrap and
+  audit.
+- `auth0-deploy-cli` remains the canonical declarative import/export engine.
+- GitHub-hosted Auth0 workflows must read credentials from environment-scoped
+  secrets (`auth0-dev`, `auth0-pr`, `auth0-qa`), not repo-wide Auth0 secrets.
 
-See `requirements-wave-2.md` for the target-state requirement list used by the
-branch prompts.
+## Cost and simplicity requirements
+
+- Prefer one canonical implementation per concern.
+- Default non-prod safety controls to the cheapest still-correct posture.
+- Do not keep fallback publish/deploy executors alive once the AWS-native path
+  exists.
+- Prefer deletion of dead workflow, IAM, and infra surfaces over compatibility
+  shims.
+
+## Temporary exception tracking
+
+- The first production custom-domain cutover may use wildcard browser CORS
+  (`allowed_origins=["*"]`) to reduce launch friction.
+- That exception is temporary and is tracked by GitHub issue `#111`:
+  `Harden prod CORS origins after initial api-nova cutover`.
 
 ## Quality requirements
 
-Across both current and target states:
-
-- documentation must state whether a surface is current, target, or superseded
-- request/response models must stay typed and contract-driven
-- tests must remain deterministic
-- generated SDKs must be verifiable from committed contracts
-- infrastructure and runtime docs must link back to executable source-of-truths
-
-## Success criteria for this docs alignment pass
-
-- no active router falsely claims that the target state is already implemented
-- target-state ADRs/SPECs exist at the paths referenced by the implementation prompts
-- wave-1 drafts are preserved only in superseded/history locations
-- current implemented runbooks remain discoverable for live operations
-- current vs target state can be understood from one pass through
-  `docs/overview/IMPLEMENTATION-STATUS-MATRIX.md`
+- Active docs must describe implemented state, not target-state aspiration.
+- Generated contracts and generated docs must be derived from canonical sources
+  and updated in the same change set as source changes.
+- Infra, workflow, and docs contract tests must remain authoritative and
+  deterministic.
+- Personal-account values may appear in live operators’ local env files and AWS
+  parameters, but active repo docs/examples should use placeholders unless a
+  concrete live example is explicitly labeled as such.

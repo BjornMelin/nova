@@ -8,7 +8,7 @@ on:
         required: true
         type: string
       mode:
-        description: Auth0 operation mode (validate|import|export).
+        description: Auth0 operation mode (validate|bootstrap|audit|import|export).
         required: false
         default: validate
         type: string
@@ -32,16 +32,6 @@ on:
         required: false
         default: auth0-tenant-ops-report
         type: string
-    secrets:
-      auth0_domain:
-        description: Auth0 tenant domain.
-        required: true
-      auth0_client_id:
-        description: Auth0 machine client ID.
-        required: true
-      auth0_client_secret:
-        description: Auth0 machine client secret.
-        required: true
     outputs:
       operation_status:
         description: Overall operation status (passed|failed).
@@ -60,14 +50,15 @@ jobs:
   auth0-tenant-ops:
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    environment: auth0-${{ inputs.environment }}
     outputs:
       operation_status: ${{ steps.set-outputs.outputs.operation_status }}
       report_path: ${{ steps.set-outputs.outputs.report_path }}
       artifact_name: ${{ steps.set-outputs.outputs.artifact_name }}
     env:
-      AUTH0_DOMAIN: ${{ secrets.auth0_domain }}
-      AUTH0_CLIENT_ID: ${{ secrets.auth0_client_id }}
-      AUTH0_CLIENT_SECRET: ${{ secrets.auth0_client_secret }}
+      AUTH0_DOMAIN: ${{ secrets.AUTH0_DOMAIN }}
+      AUTH0_CLIENT_ID: ${{ secrets.AUTH0_CLIENT_ID }}
+      AUTH0_CLIENT_SECRET: ${{ secrets.AUTH0_CLIENT_SECRET }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # actions/checkout@v6
         with:
@@ -89,7 +80,7 @@ jobs:
           esac
 
           case "${{ inputs.mode }}" in
-            validate|import|export) ;;
+            validate|bootstrap|audit|import|export) ;;
             *)
               echo "Unsupported mode: ${{ inputs.mode }}" >&2
               exit 1
@@ -121,37 +112,61 @@ jobs:
           set -euo pipefail
           uv run python -m scripts.release.validate_auth0_contract
 
-      - name: Install a0deploy
-        if: inputs.mode != 'validate' && steps.validate-contract.outcome == 'success'
-        run: npm install -g a0deploy
+      - name: Write Auth0 temp env
+        id: write-env
+        if: steps.validate-contract.outcome == 'success'
+        run: |
+          set -euo pipefail
+          tmp_env=".artifacts/auth0-${{ inputs.environment }}.env"
+          mkdir -p .artifacts
+          cat > "$tmp_env" <<EOF
+          AUTH0_DOMAIN=${AUTH0_DOMAIN}
+          AUTH0_CLIENT_ID=${AUTH0_CLIENT_ID}
+          AUTH0_CLIENT_SECRET=${AUTH0_CLIENT_SECRET}
+          AUTH0_ALLOW_DELETE=false
+          AUTH0_INCLUDED_ONLY=["tenant","resourceServers","clients","clientGrants"]
+          AUTH0_INPUT_FILE=${{ inputs.input_file }}
+          AUTH0_KEYWORD_MAPPINGS_FILE=${{ steps.mapping.outputs.mapping_path }}
+          EOF
+          echo "tmp_env=$tmp_env" >> "$GITHUB_OUTPUT"
+
+      - name: Run Auth0 bootstrap
+        id: run-bootstrap
+        if: inputs.mode == 'bootstrap' && steps.write-env.outcome == 'success'
+        run: |
+          set -euo pipefail
+          uv run python -m scripts.release.bootstrap_auth0_tenant \
+            --env-file "${{ steps.write-env.outputs.tmp_env }}" \
+            --report-path ".artifacts/auth0-bootstrap-${{ inputs.environment }}.json"
+
+      - name: Run Auth0 audit
+        id: run-audit
+        if: inputs.mode == 'audit' && steps.write-env.outcome == 'success'
+        run: |
+          set -euo pipefail
+          uv run python -m scripts.release.audit_auth0_tenant \
+            --env-file "${{ steps.write-env.outputs.tmp_env }}" \
+            --report-path ".artifacts/auth0-audit-${{ inputs.environment }}.json"
 
       - name: Run Auth0 import
         id: run-import
-        if: inputs.mode == 'import' && steps.validate-contract.outcome == 'success'
-        env:
-          AUTH0_INPUT_FILE: ${{ inputs.input_file }}
-          AUTH0_KEYWORD_MAPPINGS_FILE: ${{ steps.mapping.outputs.mapping_path }}
+        if: inputs.mode == 'import' && steps.write-env.outcome == 'success'
         run: |
           set -euo pipefail
-          export AUTH0_ALLOW_DELETE=false
-          AUTH0_KEYWORD_REPLACE_MAPPINGS="$(cat "$AUTH0_KEYWORD_MAPPINGS_FILE")"
-          export AUTH0_KEYWORD_REPLACE_MAPPINGS
-          a0deploy import --input_file "$AUTH0_INPUT_FILE"
+          uv run python -m scripts.release.run_auth0_deploy_cli import \
+            --env-file "${{ steps.write-env.outputs.tmp_env }}" \
+            --input-file "${{ inputs.input_file }}"
 
       - name: Run Auth0 export
         id: run-export
-        if: inputs.mode == 'export' && steps.validate-contract.outcome == 'success'
-        env:
-          AUTH0_INPUT_FILE: ${{ inputs.input_file }}
-          AUTH0_KEYWORD_MAPPINGS_FILE: ${{ steps.mapping.outputs.mapping_path }}
+        if: inputs.mode == 'export' && steps.write-env.outcome == 'success'
         run: |
           set -euo pipefail
-          export AUTH0_ALLOW_DELETE=false
-          AUTH0_KEYWORD_REPLACE_MAPPINGS="$(cat "$AUTH0_KEYWORD_MAPPINGS_FILE")"
-          export AUTH0_KEYWORD_REPLACE_MAPPINGS
           output_dir=".artifacts/auth0-export/${{ inputs.environment }}"
           mkdir -p "$output_dir"
-          a0deploy export --format yaml --output_folder "$output_dir"
+          uv run python -m scripts.release.run_auth0_deploy_cli export \
+            --env-file "${{ steps.write-env.outputs.tmp_env }}" \
+            --output-folder "$output_dir"
 
       - name: Write Auth0 tenant ops report
         if: always()
@@ -170,6 +185,8 @@ jobs:
               "input_file": "${{ inputs.input_file }}",
               "mapping_file": "${{ steps.mapping.outputs.mapping_path }}",
               "validation_outcome": "${{ steps.validate-contract.outcome }}",
+              "bootstrap_outcome": "${{ steps.run-bootstrap.outcome }}",
+              "audit_outcome": "${{ steps.run-audit.outcome }}",
               "import_outcome": "${{ steps.run-import.outcome }}",
               "export_outcome": "${{ steps.run-export.outcome }}",
           }
@@ -186,6 +203,8 @@ jobs:
 
           mode="${{ inputs.mode }}"
           validate_outcome="${{ steps.validate-contract.outcome }}"
+          bootstrap_outcome="${{ steps.run-bootstrap.outcome }}"
+          audit_outcome="${{ steps.run-audit.outcome }}"
           import_outcome="${{ steps.run-import.outcome }}"
           export_outcome="${{ steps.run-export.outcome }}"
 
@@ -194,6 +213,16 @@ jobs:
             case "$mode" in
               validate)
                 status="passed"
+                ;;
+              bootstrap)
+                if [[ "$bootstrap_outcome" == "success" ]]; then
+                  status="passed"
+                fi
+                ;;
+              audit)
+                if [[ "$audit_outcome" == "success" ]]; then
+                  status="passed"
+                fi
                 ;;
               import)
                 if [[ "$import_outcome" == "success" ]]; then
@@ -221,6 +250,8 @@ jobs:
           if-no-files-found: ignore
           path: |
             .artifacts/auth0-tenant-ops-report.json
+            .artifacts/auth0-bootstrap-*.json
+            .artifacts/auth0-audit-*.json
             .artifacts/auth0-export
 
       - name: Fail when operation status is failed

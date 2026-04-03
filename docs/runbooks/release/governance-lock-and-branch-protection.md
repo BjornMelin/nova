@@ -68,6 +68,8 @@ Enable all of the following in the active ruleset for `main`:
 5. Require branches to be up to date before merging.
 6. Require review-thread resolution before merging.
 7. Disallow non-fast-forward updates and branch deletion.
+8. Do not require or rely on GitHub bot bypass actors for release automation;
+   release intent must enter `main` through human-authored PRs.
 
 ### CODEOWNERS governance scope
 
@@ -185,7 +187,7 @@ same ruleset, preserve them when updating the payload.
 1. Set scope.
 
 ```bash
-OWNER="${GITHUB_OWNER:?Set GITHUB_OWNER (e.g., BjornMelin)}"
+OWNER="${GITHUB_OWNER:?Set GITHUB_OWNER (e.g., your-org-or-user)}"
 REPO="${GITHUB_REPO:?Set GITHUB_REPO (e.g., nova)}"
 RULESET_ID="${RULESET_ID:?Set RULESET_ID (current repo main ruleset id)}"
 ```

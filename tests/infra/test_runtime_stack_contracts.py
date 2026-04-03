@@ -36,6 +36,18 @@ def _context_for_region(region: str) -> dict[str, str]:
         "api_lambda_artifact_sha256": (
             "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
         ),
+        "workflow_lambda_artifact_bucket": (
+            "nova-ci-artifacts-111111111111-us-east-1"
+        ),
+        "workflow_lambda_artifact_key": (
+            "runtime/nova-workflows/"
+            "01234567-89ab-cdef-0123-456789abcdef/"
+            "fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210/"
+            "nova-workflows-lambda.zip"
+        ),
+        "workflow_lambda_artifact_sha256": (
+            "fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210"
+        ),
         "certificate_arn": (
             f"arn:aws:acm:{region}:111111111111:"
             "certificate/12345678-1234-1234-1234-123456789012"
@@ -156,6 +168,9 @@ def _build_bundle(
         "api_lambda_artifact_bucket",
         "api_lambda_artifact_key",
         "api_lambda_artifact_sha256",
+        "workflow_lambda_artifact_bucket",
+        "workflow_lambda_artifact_key",
+        "workflow_lambda_artifact_sha256",
         "certificate_arn",
         "hosted_zone_id",
         "hosted_zone_name",
@@ -252,6 +267,27 @@ def test_non_prod_can_disable_reserved_concurrency() -> None:
         assert "ReservedConcurrentExecutions" not in resource["Properties"]
 
 
+def test_non_prod_disables_waf_by_default() -> None:
+    """Non-prod stacks should skip WAF unless explicitly enabled."""
+    bundle = _build_bundle()
+
+    assert "ExportNovaWafLogGroupName" not in bundle.outputs
+    assert not _resources_of_type(bundle.resources, "AWS::WAFv2::WebACL")
+
+
+def test_prod_cannot_disable_waf() -> None:
+    """Prod stacks must keep WAF enabled."""
+    context = {
+        **_context_for_region("us-west-2"),
+        "environment": "prod",
+        "allowed_origins": '["https://app.example.com"]',
+        "enable_waf": "false",
+    }
+
+    with pytest.raises(ValueError, match="enable_waf cannot be false"):
+        _template(context=context)
+
+
 def test_prod_cannot_disable_reserved_concurrency() -> None:
     """Prod stacks must not disable reserved concurrency."""
     context = {
@@ -301,6 +337,14 @@ def test_runtime_stack_sets_workflow_reserved_concurrency_defaults() -> None:
         resource["Properties"]["ReservedConcurrentExecutions"]
         for resource in workflow_functions.values()
     } == {2}
+    assert {
+        resource["Properties"]["Runtime"]
+        for resource in workflow_functions.values()
+    } == {"python3.13"}
+    assert {
+        resource["Properties"]["Code"]["S3Key"]
+        for resource in workflow_functions.values()
+    } == {_context_for_region("us-west-2")["workflow_lambda_artifact_key"]}
 
 
 def test_runtime_stack_adds_s3_abort_incomplete_multipart_lifecycle() -> None:

@@ -32,8 +32,8 @@ class IngressResources:
     public_base_url: str
     rest_api: apigw.RestApi
     stage_name: str
-    waf_log_group_name: str
-    web_acl_arn: str
+    waf_log_group_name: str | None
+    web_acl_arn: str | None
 
 
 def _managed_web_acl_rules(
@@ -176,6 +176,7 @@ def create_regional_rest_ingress(
     stage_name: str,
     throttling_burst_limit: int,
     throttling_rate_limit: float,
+    enable_waf: bool,
     waf_rate_limit: int,
     waf_write_rate_limit: int,
 ) -> IngressResources:
@@ -190,13 +191,14 @@ def create_regional_rest_ingress(
         stage_name: Deployed API Gateway stage name.
         throttling_burst_limit: API Gateway stage burst limit.
         throttling_rate_limit: API Gateway steady-state rate limit.
+        enable_waf: Whether to bind a regional WAF to the public API stage.
         waf_rate_limit: Per-IP WAF rate limit across all requests.
         waf_write_rate_limit: Per-IP WAF rate limit for write-path requests.
 
     Returns:
         ``IngressResources`` describing the provisioned REST API, custom
-        domain URL, stage name, access-log group name, WAF log-group name,
-        and Web ACL ARN.
+        domain URL, stage name, access-log group name, and optional WAF
+        resources when enabled.
     """
     access_log_group = create_api_access_log_group(
         scope,
@@ -258,69 +260,74 @@ def create_regional_rest_ingress(
         ),
     )
 
-    web_acl = wafv2.CfnWebACL(
-        scope,
-        "NovaRestApiWebAcl",
-        default_action=wafv2.CfnWebACL.DefaultActionProperty(allow={}),
-        rules=_managed_web_acl_rules(
-            rate_limit=waf_rate_limit,
-            write_rate_limit=waf_write_rate_limit,
-        ),
-        scope="REGIONAL",
-        visibility_config=wafv2.CfnWebACL.VisibilityConfigProperty(
-            cloud_watch_metrics_enabled=True,
-            metric_name="nova-rest-api-waf",
-            sampled_requests_enabled=True,
-        ),
-    )
-    waf_log_group = create_waf_log_group(scope, stage_name=stage_name)
-    waf_logging = wafv2.CfnLoggingConfiguration(
-        scope,
-        "NovaRestApiWebAclLogging",
-        log_destination_configs=[waf_log_group.log_group.log_group_arn],
-        resource_arn=web_acl.attr_arn,
-    )
-    waf_logging.add_property_override(
-        "LoggingFilter",
-        {
-            "DefaultBehavior": "DROP",
-            "Filters": [
-                {
-                    "Behavior": "KEEP",
-                    "Conditions": [
-                        {"ActionCondition": {"Action": "BLOCK"}},
-                        {"ActionCondition": {"Action": "COUNT"}},
-                    ],
-                    "Requirement": "MEETS_ANY",
-                }
+    web_acl_arn: str | None = None
+    waf_log_group_name: str | None = None
+    if enable_waf:
+        web_acl = wafv2.CfnWebACL(
+            scope,
+            "NovaRestApiWebAcl",
+            default_action=wafv2.CfnWebACL.DefaultActionProperty(allow={}),
+            rules=_managed_web_acl_rules(
+                rate_limit=waf_rate_limit,
+                write_rate_limit=waf_write_rate_limit,
+            ),
+            scope="REGIONAL",
+            visibility_config=wafv2.CfnWebACL.VisibilityConfigProperty(
+                cloud_watch_metrics_enabled=True,
+                metric_name="nova-rest-api-waf",
+                sampled_requests_enabled=True,
+            ),
+        )
+        waf_log_group = create_waf_log_group(scope, stage_name=stage_name)
+        waf_logging = wafv2.CfnLoggingConfiguration(
+            scope,
+            "NovaRestApiWebAclLogging",
+            log_destination_configs=[waf_log_group.log_group.log_group_arn],
+            resource_arn=web_acl.attr_arn,
+        )
+        waf_logging.add_property_override(
+            "LoggingFilter",
+            {
+                "DefaultBehavior": "DROP",
+                "Filters": [
+                    {
+                        "Behavior": "KEEP",
+                        "Conditions": [
+                            {"ActionCondition": {"Action": "BLOCK"}},
+                            {"ActionCondition": {"Action": "COUNT"}},
+                        ],
+                        "Requirement": "MEETS_ANY",
+                    }
+                ],
+            },
+        )
+        waf_logging.add_property_override(
+            "RedactedFields",
+            [
+                {"SingleHeader": {"Name": "authorization"}},
+                {"SingleHeader": {"Name": "cookie"}},
             ],
-        },
-    )
-    waf_logging.add_property_override(
-        "RedactedFields",
-        [
-            {"SingleHeader": {"Name": "authorization"}},
-            {"SingleHeader": {"Name": "cookie"}},
-        ],
-    )
-    waf_logging.node.add_dependency(web_acl)
-    waf_logging.node.add_dependency(waf_log_group.dependency)
-    web_acl_association = wafv2.CfnWebACLAssociation(
-        scope,
-        "NovaRestApiWebAclAssociation",
-        resource_arn=(
-            f"arn:{Aws.PARTITION}:apigateway:{Aws.REGION}::/restapis/"
-            f"{rest_api.rest_api_id}/stages/{stage_name}"
-        ),
-        web_acl_arn=web_acl.attr_arn,
-    )
-    web_acl_association.node.add_dependency(rest_api.deployment_stage)
+        )
+        waf_logging.node.add_dependency(web_acl)
+        waf_logging.node.add_dependency(waf_log_group.dependency)
+        web_acl_association = wafv2.CfnWebACLAssociation(
+            scope,
+            "NovaRestApiWebAclAssociation",
+            resource_arn=(
+                f"arn:{Aws.PARTITION}:apigateway:{Aws.REGION}::/restapis/"
+                f"{rest_api.rest_api_id}/stages/{stage_name}"
+            ),
+            web_acl_arn=web_acl.attr_arn,
+        )
+        web_acl_association.node.add_dependency(rest_api.deployment_stage)
+        web_acl_arn = web_acl.attr_arn
+        waf_log_group_name = waf_log_group.log_group.log_group_name
 
     return IngressResources(
         access_log_group_name=access_log_group.log_group.log_group_name,
         public_base_url=f"https://{api_domain_name}",
         rest_api=rest_api,
         stage_name=stage_name,
-        waf_log_group_name=waf_log_group.log_group.log_group_name,
-        web_acl_arn=web_acl.attr_arn,
+        waf_log_group_name=waf_log_group_name,
+        web_acl_arn=web_acl_arn,
     )

@@ -5,7 +5,7 @@ on:
     inputs:
       deploy_run_id:
         description: Workflow run id that produced the authoritative deploy-output artifact.
-        required: true
+        required: false
         type: string
       deploy_repo:
         description: Repository that owns the deploy-output artifact (owner/repo).
@@ -15,7 +15,17 @@ on:
       deploy_artifact_name:
         description: Artifact name containing deploy-output.json and deploy-output.sha256.
         required: false
-        default: deploy-runtime-output
+        default: deploy-output
+        type: string
+      deploy_output_json:
+        description: Optional inline deploy-output JSON payload.
+        required: false
+        default: ""
+        type: string
+      deploy_output_path:
+        description: Optional workspace path to a pre-fetched deploy-output JSON file.
+        required: false
+        default: ""
         type: string
       validation_canonical_paths:
         description: Comma-delimited public canonical paths that must satisfy runtime truth checks.
@@ -64,6 +74,8 @@ jobs:
       deploy_run_id: ${{ inputs.deploy_run_id }}
       deploy_repo: ${{ inputs.deploy_repo }}
       deploy_artifact_name: ${{ inputs.deploy_artifact_name }}
+      deploy_output_json: ${{ inputs.deploy_output_json }}
+      deploy_output_path: ${{ inputs.deploy_output_path }}
       validation_canonical_paths: ${{ inputs.validation_canonical_paths }}
       validation_protected_paths: ${{ inputs.validation_protected_paths }}
       validation_cors_preflight_path: ${{ inputs.validation_cors_preflight_path }}

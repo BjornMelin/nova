@@ -163,18 +163,12 @@ def _validate_schema(
 
 
 def test_runtime_deploy_contract_generator_is_in_sync() -> None:
-    """Generated runtime deploy schemas must match checked-in artifacts."""
+    """Generated deploy-output schema must match the checked-in artifact."""
     assert (
         json.loads(
             _read("docs/contracts/deploy-output-authority-v2.schema.json")
         )
         == _GENERATOR.build_deploy_output_schema()
-    )
-    assert (
-        json.loads(
-            _read("docs/contracts/workflow-deploy-runtime-v1.schema.json")
-        )
-        == _GENERATOR.build_workflow_deploy_runtime_schema()
     )
 
 
@@ -239,28 +233,39 @@ def test_resolve_deploy_output_builds_and_verifies_authority_payload(
         "runtime": "python3.13",
         "built_at": "2026-03-30T00:00:00+00:00",
     }
+    workflow_lambda_artifact = {
+        "artifact_bucket": "nova-artifacts",
+        "artifact_key": (
+            "runtime/nova-workflows/abc/def/nova-workflows-lambda.zip"
+        ),
+        "artifact_sha256": "3" * 64,
+        "package_name": "nova-workflows",
+        "package_version": "0.5.0",
+        "release_commit_sha": "a" * 40,
+        "runtime": "python3.13",
+        "extra_field": "ignored",
+    }
     payload = _RESOLVER.build_deploy_output(
         api_lambda_artifact=api_lambda_artifact,
+        workflow_lambda_artifact=workflow_lambda_artifact,
         stack_name="NovaRuntimeStack",
         region="us-east-1",
         environment_name="prod",
         allowed_origins='["https://app.example.com"]',
         repository="3M-Cloud/nova",
-        deploy_run_id=123,
-        deploy_run_attempt=1,
-        deploy_workflow_ref=(
-            "3M-Cloud/nova/.github/workflows/deploy-runtime.yml@refs/heads/main"
-        ),
+        pipeline_name="nova-release-control-plane",
+        pipeline_execution_id="execution-123",
+        codebuild_build_ids=["build-dev-123", "build-prod-123"],
         stack_description={
             "Outputs": [
                 {
-                    "OutputKey": "NovaPublicBaseUrl",
-                    "ExportName": "NovaPublicBaseUrl",
+                    "OutputKey": "ExportNovaPublicBaseUrl",
+                    "ExportName": "NovaDevPublicBaseUrl",
                     "OutputValue": "https://api.example.com",
                 },
                 {
-                    "OutputKey": "NovaExportWorkflowStateMachineArn",
-                    "ExportName": "NovaExportWorkflowStateMachineArn",
+                    "OutputKey": "ExportNovaExportWorkflowStateMachineArn",
+                    "ExportName": "NovaDevExportWorkflowStateMachineArn",
                     "OutputValue": (
                         "arn:aws:states:us-east-1:1:stateMachine:test"
                     ),
@@ -303,6 +308,22 @@ def test_resolve_deploy_output_builds_and_verifies_authority_payload(
         "package_version": "0.5.0",
         "release_commit_sha": "a" * 40,
     }
+    assert payload["workflow_lambda_artifact"] == {
+        "artifact_bucket": "nova-artifacts",
+        "artifact_key": (
+            "runtime/nova-workflows/abc/def/nova-workflows-lambda.zip"
+        ),
+        "artifact_sha256": "3" * 64,
+        "package_name": "nova-workflows",
+        "package_version": "0.5.0",
+        "release_commit_sha": "a" * 40,
+    }
+    assert payload["execution"] == {
+        "system": "aws-codepipeline",
+        "pipeline_name": "nova-release-control-plane",
+        "pipeline_execution_id": "execution-123",
+        "codebuild_build_ids": ["build-dev-123", "build-prod-123"],
+    }
 
     deploy_output_path = tmp_path / "deploy-output.json"
     deploy_output_path.write_text(
@@ -330,6 +351,79 @@ def test_normalize_allowed_origins_rejects_malformed_json() -> None:
         _RESOLVER._normalize_allowed_origins(
             raw_value='["https://app.example.com"',
             environment_name="prod",
+        )
+
+
+@pytest.mark.parametrize(
+    ("pipeline_name", "pipeline_execution_id"),
+    [
+        ("", "execution-123"),
+        ("nova-release-control-plane", ""),
+        ("   ", "execution-123"),
+        ("nova-release-control-plane", "   "),
+    ],
+)
+def test_build_deploy_output_rejects_blank_pipeline_identifiers(
+    pipeline_name: str,
+    pipeline_execution_id: str,
+) -> None:
+    with pytest.raises(
+        ValueError,
+        match=(
+            "pipeline_name and pipeline_execution_id must be non-empty strings"
+        ),
+    ):
+        _RESOLVER.build_deploy_output(
+            api_lambda_artifact={
+                "artifact_bucket": "nova-artifacts",
+                "artifact_key": (
+                    "runtime/nova-file-api/abc/def/nova-file-api-lambda.zip"
+                ),
+                "artifact_sha256": "1" * 64,
+                "package_name": "nova-file-api",
+                "package_version": "0.5.0",
+                "release_commit_sha": "a" * 40,
+            },
+            workflow_lambda_artifact={
+                "artifact_bucket": "nova-artifacts",
+                "artifact_key": (
+                    "runtime/nova-workflows/abc/def/nova-workflows-lambda.zip"
+                ),
+                "artifact_sha256": "3" * 64,
+                "package_name": "nova-workflows",
+                "package_version": "0.5.0",
+                "release_commit_sha": "a" * 40,
+            },
+            stack_name="NovaRuntimeStack",
+            region="us-east-1",
+            environment_name="prod",
+            allowed_origins='["https://app.example.com"]',
+            repository="3M-Cloud/nova",
+            pipeline_name=pipeline_name,
+            pipeline_execution_id=pipeline_execution_id,
+            codebuild_build_ids=["build-dev-123"],
+            stack_description={
+                "Outputs": [
+                    {
+                        "OutputKey": "ExportNovaPublicBaseUrl",
+                        "OutputName": "NovaDevPublicBaseUrl",
+                        "OutputValue": "https://api.example.com",
+                    },
+                    {
+                        "OutputKey": "ExportNovaExportWorkflowStateMachineArn",
+                        "OutputName": "NovaDevExportWorkflowStateMachineArn",
+                        "OutputValue": (
+                            "arn:aws:states:us-east-1:1:stateMachine:test"
+                        ),
+                    },
+                    {
+                        "OutputKey": "NovaRestApiEndpointADC846BC",
+                        "OutputValue": (
+                            "https://example.execute-api.us-east-1.amazonaws.com/dev/"
+                        ),
+                    },
+                ],
+            },
         )
 
 
@@ -371,11 +465,12 @@ def test_validate_runtime_release_binds_report_to_deploy_output(
         "schema_version": "2.0",
         "captured_at": "2026-03-29T00:00:00+00:00",
         "repository": "3M-Cloud/nova",
-        "deploy_run_id": 123,
-        "deploy_run_attempt": 1,
-        "deploy_workflow_ref": (
-            "3M-Cloud/nova/.github/workflows/deploy-runtime.yml@refs/heads/main"
-        ),
+        "execution": {
+            "system": "aws-codepipeline",
+            "pipeline_name": "nova-release-control-plane",
+            "pipeline_execution_id": "execution-123",
+            "codebuild_build_ids": ["build-dev-123", "build-prod-123"],
+        },
         "stack_name": "NovaRuntimeStack",
         "region": "us-east-1",
         "environment": "prod",
@@ -403,6 +498,16 @@ def test_validate_runtime_release_binds_report_to_deploy_output(
             ),
             "artifact_sha256": "2" * 64,
             "package_name": "nova-file-api",
+            "package_version": "0.5.0",
+            "release_commit_sha": "b" * 40,
+        },
+        "workflow_lambda_artifact": {
+            "artifact_bucket": "nova-artifacts",
+            "artifact_key": (
+                "runtime/nova-workflows/abc/def/nova-workflows-lambda.zip"
+            ),
+            "artifact_sha256": "3" * 64,
+            "package_name": "nova-workflows",
             "package_version": "0.5.0",
             "release_commit_sha": "b" * 40,
         },
@@ -582,11 +687,12 @@ def test_validate_runtime_release_keeps_failed_report_schema_valid(
         "schema_version": "2.0",
         "captured_at": "2026-03-29T00:00:00+00:00",
         "repository": "3M-Cloud/nova",
-        "deploy_run_id": 123,
-        "deploy_run_attempt": 1,
-        "deploy_workflow_ref": (
-            "3M-Cloud/nova/.github/workflows/deploy-runtime.yml@refs/heads/main"
-        ),
+        "execution": {
+            "system": "aws-codepipeline",
+            "pipeline_name": "nova-release-control-plane",
+            "pipeline_execution_id": "execution-123",
+            "codebuild_build_ids": ["build-dev-123"],
+        },
         "stack_name": "NovaRuntimeStack",
         "region": "us-east-1",
         "environment": "prod",
@@ -614,6 +720,16 @@ def test_validate_runtime_release_keeps_failed_report_schema_valid(
             ),
             "artifact_sha256": "2" * 64,
             "package_name": "nova-file-api",
+            "package_version": "0.5.0",
+            "release_commit_sha": "b" * 40,
+        },
+        "workflow_lambda_artifact": {
+            "artifact_bucket": "nova-artifacts",
+            "artifact_key": (
+                "runtime/nova-workflows/abc/def/nova-workflows-lambda.zip"
+            ),
+            "artifact_sha256": "3" * 64,
+            "package_name": "nova-workflows",
             "package_version": "0.5.0",
             "release_commit_sha": "b" * 40,
         },
@@ -804,11 +920,12 @@ def test_validate_runtime_release_emits_report_when_concurrency_lookup_raises(
         "schema_version": "2.0",
         "captured_at": "2026-03-29T00:00:00+00:00",
         "repository": "BjornMelin/nova",
-        "deploy_run_id": 123,
-        "deploy_run_attempt": 1,
-        "deploy_workflow_ref": (
-            "BjornMelin/nova/.github/workflows/deploy-runtime.yml@refs/heads/main"
-        ),
+        "execution": {
+            "system": "aws-codepipeline",
+            "pipeline_name": "nova-release-control-plane",
+            "pipeline_execution_id": "execution-123",
+            "codebuild_build_ids": ["build-dev-123"],
+        },
         "stack_name": "NovaRuntimeStack",
         "region": "us-east-1",
         "environment": "prod",
@@ -833,6 +950,16 @@ def test_validate_runtime_release_emits_report_when_concurrency_lookup_raises(
             ),
             "artifact_sha256": "2" * 64,
             "package_name": "nova-file-api",
+            "package_version": "0.5.0",
+            "release_commit_sha": "b" * 40,
+        },
+        "workflow_lambda_artifact": {
+            "artifact_bucket": "nova-artifacts",
+            "artifact_key": (
+                "runtime/nova-workflows/abc/def/nova-workflows-lambda.zip"
+            ),
+            "artifact_sha256": "3" * 64,
+            "package_name": "nova-workflows",
             "package_version": "0.5.0",
             "release_commit_sha": "b" * 40,
         },

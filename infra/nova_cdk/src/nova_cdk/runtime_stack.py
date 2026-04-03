@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from aws_cdk import (
+    CfnOutput,
     Duration,
     RemovalPolicy,
     Stack,
@@ -139,6 +140,20 @@ def _stage_name_for_environment(deployment_environment: str) -> str:
     return deployment_environment
 
 
+def _export_name_prefix(deployment_environment: str) -> str:
+    """Return the environment-scoped CloudFormation export prefix."""
+    if is_production_environment(deployment_environment):
+        return "NovaProd"
+    if deployment_environment == "dev":
+        return "NovaDev"
+    normalized = "".join(
+        part.capitalize()
+        for part in deployment_environment.replace("_", "-").split("-")
+        if part
+    )
+    return f"Nova{normalized or 'Env'}"
+
+
 def _optional_context_or_env_value(
     scope: Construct,
     *,
@@ -259,6 +274,7 @@ class RuntimeStackInputs:
     api_domain_name: str
     certificate_arn: str
     deployment_environment: str
+    enable_waf: bool
     enable_reserved_concurrency: bool
     hosted_zone_id: str
     hosted_zone_name: str
@@ -267,6 +283,9 @@ class RuntimeStackInputs:
     oidc_jwks_url: str
     waf_rate_limit: int
     waf_write_rate_limit: int
+    workflow_lambda_artifact_bucket: str
+    workflow_lambda_artifact_key: str
+    workflow_lambda_artifact_sha256: str
     workflow_reserved_concurrency: int | None
 
     @classmethod
@@ -296,6 +315,20 @@ class RuntimeStackInputs:
             scope,
             deployment_environment=deployment_environment,
         )
+        enable_waf_raw = _optional_context_or_env_value(
+            scope,
+            env_var="ENABLE_WAF",
+            key="enable_waf",
+        )
+        enable_waf = (
+            is_production_environment(deployment_environment)
+            if enable_waf_raw is None
+            else _parse_bool_flag(enable_waf_raw, key="enable_waf")
+        )
+        if is_production_environment(deployment_environment) and not enable_waf:
+            raise ValueError(
+                "enable_waf cannot be false for production deployments."
+            )
         if not enable_reserved_concurrency and (
             _reserved_concurrency_override_present(
                 scope,
@@ -354,6 +387,7 @@ class RuntimeStackInputs:
                 key="certificate_arn",
             ),
             deployment_environment=deployment_environment,
+            enable_waf=enable_waf,
             enable_reserved_concurrency=enable_reserved_concurrency,
             hosted_zone_id=_required_context_or_env_value(
                 scope,
@@ -397,6 +431,21 @@ class RuntimeStackInputs:
                     default=500,
                     minimum=100,
                 )
+            ),
+            workflow_lambda_artifact_bucket=_required_context_or_env_value(
+                scope,
+                env_var="WORKFLOW_LAMBDA_ARTIFACT_BUCKET",
+                key="workflow_lambda_artifact_bucket",
+            ),
+            workflow_lambda_artifact_key=_required_context_or_env_value(
+                scope,
+                env_var="WORKFLOW_LAMBDA_ARTIFACT_KEY",
+                key="workflow_lambda_artifact_key",
+            ),
+            workflow_lambda_artifact_sha256=_sha256_context_or_env_value(
+                scope,
+                env_var="WORKFLOW_LAMBDA_ARTIFACT_SHA256",
+                key="workflow_lambda_artifact_sha256",
             ),
             workflow_reserved_concurrency=(
                 _reserved_concurrency_context_or_env_value(
@@ -536,8 +585,18 @@ class NovaRuntimeStack(Stack):
             **workflow_common_env,
             "IDEMPOTENCY_ENABLED": "false",
         }
+        workflow_artifact_bucket = s3.Bucket.from_bucket_name(
+            self,
+            "WorkflowLambdaArtifactBucket",
+            inputs.workflow_lambda_artifact_bucket,
+        )
         workflow_fn_props = {
+            "code": lambda_.Code.from_bucket(
+                workflow_artifact_bucket,
+                inputs.workflow_lambda_artifact_key,
+            ),
             "architecture": lambda_.Architecture.ARM_64,
+            "runtime": lambda_.Runtime.PYTHON_3_13,
             "timeout": Duration.minutes(5),
             "memory_size": 1024,
             "tracing": lambda_.Tracing.ACTIVE,
@@ -547,14 +606,10 @@ class NovaRuntimeStack(Stack):
                 inputs.workflow_reserved_concurrency
             )
 
-        validate_fn = lambda_.DockerImageFunction(
+        validate_fn = lambda_.Function(
             self,
             "ValidateExportFunction",
-            code=lambda_.DockerImageCode.from_image_asset(
-                directory=str(REPO_ROOT),
-                file="apps/nova_workflows_tasks/Dockerfile",
-                cmd=["nova_workflows.handlers.validate_export_handler"],
-            ),
+            handler="nova_workflows.handlers.validate_export_handler",
             environment=task_env,
             log_group=_runtime_log_group(
                 self,
@@ -562,29 +617,10 @@ class NovaRuntimeStack(Stack):
             ),
             **workflow_fn_props,
         )
-        copy_fn = lambda_.DockerImageFunction(
-            self,
-            "CopyExportFunction",
-            code=lambda_.DockerImageCode.from_image_asset(
-                directory=str(REPO_ROOT),
-                file="apps/nova_workflows_tasks/Dockerfile",
-                cmd=["nova_workflows.handlers.copy_export_handler"],
-            ),
-            environment=task_env,
-            log_group=_runtime_log_group(
-                self,
-                function_name="CopyExportFunction",
-            ),
-            **workflow_fn_props,
-        )
-        finalize_fn = lambda_.DockerImageFunction(
+        finalize_fn = lambda_.Function(
             self,
             "FinalizeExportFunction",
-            code=lambda_.DockerImageCode.from_image_asset(
-                directory=str(REPO_ROOT),
-                file="apps/nova_workflows_tasks/Dockerfile",
-                cmd=["nova_workflows.handlers.finalize_export_handler"],
-            ),
+            handler="nova_workflows.handlers.finalize_export_handler",
             environment=task_env,
             log_group=_runtime_log_group(
                 self,
@@ -592,18 +628,25 @@ class NovaRuntimeStack(Stack):
             ),
             **workflow_fn_props,
         )
-        fail_fn = lambda_.DockerImageFunction(
+        fail_fn = lambda_.Function(
             self,
             "FailExportFunction",
-            code=lambda_.DockerImageCode.from_image_asset(
-                directory=str(REPO_ROOT),
-                file="apps/nova_workflows_tasks/Dockerfile",
-                cmd=["nova_workflows.handlers.fail_export_handler"],
-            ),
+            handler="nova_workflows.handlers.fail_export_handler",
             environment=task_env,
             log_group=_runtime_log_group(
                 self,
                 function_name="FailExportFunction",
+            ),
+            **workflow_fn_props,
+        )
+        copy_fn = lambda_.Function(
+            self,
+            "CopyExportFunction",
+            handler="nova_workflows.handlers.copy_export_handler",
+            environment=task_env,
+            log_group=_runtime_log_group(
+                self,
+                function_name="CopyExportFunction",
             ),
             **workflow_fn_props,
         )
@@ -814,6 +857,7 @@ class NovaRuntimeStack(Stack):
             ),
             throttling_burst_limit=inputs.api_stage_throttling_burst_limit,
             throttling_rate_limit=inputs.api_stage_throttling_rate_limit,
+            enable_waf=inputs.enable_waf,
             waf_rate_limit=inputs.waf_rate_limit,
             waf_write_rate_limit=inputs.waf_write_rate_limit,
         )
@@ -954,26 +998,49 @@ class NovaRuntimeStack(Stack):
             ],
             topic=alarm_topic,
         )
-
-        self.export_value(
-            ingress.public_base_url,
-            name="NovaPublicBaseUrl",
-        )
-        self.export_value(
-            state_machine.state_machine_arn,
-            name="NovaExportWorkflowStateMachineArn",
-        )
-        self.export_value(alarm_topic.topic_arn, name="NovaAlarmTopicArn")
-        self.export_value(
-            ingress.access_log_group_name,
-            name="NovaApiAccessLogGroupName",
-        )
-        self.export_value(export_table.table_name, name="NovaExportsTableName")
-        self.export_value(
-            idempotency_table.table_name,
-            name="NovaIdempotencyTableName",
-        )
-        self.export_value(
-            ingress.waf_log_group_name,
-            name="NovaWafLogGroupName",
-        )
+        export_prefix = _export_name_prefix(inputs.deployment_environment)
+        for logical_id, export_suffix, value in (
+            (
+                "ExportNovaPublicBaseUrl",
+                "PublicBaseUrl",
+                ingress.public_base_url,
+            ),
+            (
+                "ExportNovaExportWorkflowStateMachineArn",
+                "ExportWorkflowStateMachineArn",
+                state_machine.state_machine_arn,
+            ),
+            (
+                "ExportNovaAlarmTopicArn",
+                "AlarmTopicArn",
+                alarm_topic.topic_arn,
+            ),
+            (
+                "ExportNovaApiAccessLogGroupName",
+                "ApiAccessLogGroupName",
+                ingress.access_log_group_name,
+            ),
+            (
+                "ExportNovaExportsTableName",
+                "ExportsTableName",
+                export_table.table_name,
+            ),
+            (
+                "ExportNovaIdempotencyTableName",
+                "IdempotencyTableName",
+                idempotency_table.table_name,
+            ),
+        ):
+            CfnOutput(
+                self,
+                logical_id,
+                value=value,
+                export_name=f"{export_prefix}{export_suffix}",
+            )
+        if ingress.waf_log_group_name is not None:
+            CfnOutput(
+                self,
+                "ExportNovaWafLogGroupName",
+                value=ingress.waf_log_group_name,
+                export_name=f"{export_prefix}WafLogGroupName",
+            )

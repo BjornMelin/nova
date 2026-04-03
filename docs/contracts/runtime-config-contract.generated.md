@@ -86,18 +86,23 @@ Forbidden ENV_VARS_JSON keys:
 
 | Input | Source | Required | Description |
 | --- | --- | --- | --- |
-| API_LAMBDA_ARTIFACT_BUCKET | release-apply artifact manifest | yes | S3 bucket containing the immutable API Lambda zip. |
-| API_LAMBDA_ARTIFACT_KEY | release-apply artifact manifest | yes | S3 key for the immutable API Lambda zip. |
-| API_LAMBDA_ARTIFACT_SHA256 | release-apply artifact manifest | yes | SHA256 digest for the immutable API Lambda zip. |
-| api_domain_name | CDK context / deploy-runtime input | yes | Canonical public custom domain for the Regional REST API. |
-| certificate_arn | CDK context / deploy-runtime input | yes | Regional ACM certificate used by the API custom domain. |
-| hosted_zone_id | CDK context / deploy-runtime input | yes | Route 53 hosted zone id that owns the API alias record. |
-| hosted_zone_name | CDK context / deploy-runtime input | yes | Route 53 hosted zone name that owns the API alias record. |
-| jwt_issuer | CDK context / deploy-runtime input | yes | OIDC issuer URL injected into the API Lambda. |
-| jwt_audience | CDK context / deploy-runtime input | yes | OIDC audience injected into the API Lambda. |
-| jwt_jwks_url | CDK context / deploy-runtime input | yes | OIDC JWKS URL injected into the API Lambda. |
-| allowed_origins | CDK context / deploy-runtime input | no | Optional browser origin allowlist serialized into ALLOWED_ORIGINS. |
-| enable_reserved_concurrency | CDK context / deploy-runtime input | no | Optional toggle for non-production reserved concurrency. |
+| API_LAMBDA_ARTIFACT_BUCKET | release execution manifest | yes | S3 bucket containing the immutable API Lambda zip. |
+| API_LAMBDA_ARTIFACT_KEY | release execution manifest | yes | S3 key for the immutable API Lambda zip. |
+| API_LAMBDA_ARTIFACT_SHA256 | release execution manifest | yes | SHA256 digest for the immutable API Lambda zip. |
+| WORKFLOW_LAMBDA_ARTIFACT_BUCKET | release execution manifest | yes | S3 bucket containing the immutable workflow Lambda zip. |
+| WORKFLOW_LAMBDA_ARTIFACT_KEY | release execution manifest | yes | S3 key for the immutable workflow Lambda zip. |
+| WORKFLOW_LAMBDA_ARTIFACT_SHA256 | release execution manifest | yes | SHA256 digest for the immutable workflow Lambda zip. |
+| runtime_stack_id | release control-plane environment input | yes | CloudFormation stack id to deploy in the current environment. |
+| api_domain_name | CDK context / runtime deploy input | yes | Canonical public custom domain for the Regional REST API. |
+| certificate_arn | CDK context / runtime deploy input | yes | Regional ACM certificate used by the API custom domain. |
+| hosted_zone_id | CDK context / runtime deploy input | yes | Route 53 hosted zone id that owns the API alias record. |
+| hosted_zone_name | CDK context / runtime deploy input | yes | Route 53 hosted zone name that owns the API alias record. |
+| jwt_issuer | CDK context / runtime deploy input | yes | OIDC issuer URL injected into the API Lambda. |
+| jwt_audience | CDK context / runtime deploy input | yes | OIDC audience injected into the API Lambda. |
+| jwt_jwks_url | CDK context / runtime deploy input | yes | OIDC JWKS URL injected into the API Lambda. |
+| allowed_origins | CDK context / runtime deploy input | no | Optional browser origin allowlist serialized into ALLOWED_ORIGINS. |
+| enable_waf | CDK context / runtime deploy input | no | Optional toggle for the Regional WAF. Defaults to true in prod and false elsewhere. |
+| enable_reserved_concurrency | CDK context / runtime deploy input | no | Optional toggle for non-production reserved concurrency. |
 
 ## API Lambda environment contract
 
@@ -118,7 +123,7 @@ Forbidden ENV_VARS_JSON keys:
 | IDEMPOTENCY_ENABLED | literal | always | true |
 | IDEMPOTENCY_DYNAMODB_TABLE | stack resource | always | - |
 | EXPORT_WORKFLOW_STATE_MACHINE_ARN | stack resource | always | - |
-| API_RELEASE_ARTIFACT_SHA256 | release-apply artifact manifest | always | - |
+| API_RELEASE_ARTIFACT_SHA256 | release execution manifest | always | - |
 
 Forbidden API Lambda env vars:
 `ENV`, `ENV_DICT`, `AUTH_APP_SECRET`, `NOVA_RUNTIME_PROFILE`

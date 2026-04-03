@@ -2,6 +2,10 @@
 
 Dash/browser helpers for integrating with the canonical Nova APIs.
 
+Start with `../../docs/clients/browser-dash-integration-guide.md` when you are
+onboarding a new Dash or browser consumer. That guide is the primary
+Nova-owned path from deploy-output runtime authority to a working uploader.
+
 This package ships three browser-only helpers:
 
 - `FileTransferAssets` for the packaged uploader JS/CSS bundle.
@@ -10,15 +14,15 @@ This package ships three browser-only helpers:
 - `S3FileUploader` for the Dash component shell that drives that browser
   runtime.
 
-It does not embed Nova into FastAPI or Flask hosts, and it does not expose an
-in-process transfer service seam. Server-side integrations should call the
-canonical Nova HTTP API instead of mounting bridge-owned route adapters.
+It does not expose embedded host adapters or an in-process transfer service
+seam. Server-side integrations should call the canonical Nova HTTP API instead
+of recreating bridge-owned host integration layers.
 
 Canonical browser endpoint alignment:
 
 - Transfer routes: `/v1/transfers/*`
-- Export routes: `/v1/exports/*`
-- Legacy `/api/*` and `/v1/jobs*` route families are not part of the runtime
+- Export routes: `/v1/exports*`
+- Retired generic jobs and legacy `/api/*` routes are not part of the runtime
   contract.
 
 Minimal usage:
@@ -40,11 +44,10 @@ uploader = S3FileUploader(
 ```
 
 `FileTransferAssets()` is self-contained by default. It emits `data:` URLs for
-the packaged JavaScript and CSS so a Dash app does not need a deleted Flask
-asset registrar or another host-specific asset mount. If a deployment uses a
-strict CSP that disallows `data:` script/style sources, pass an explicit
-`assets_url_prefix` and serve `/file_transfer.js` and `/file_transfer.css`
-there instead.
+the packaged JavaScript and CSS so a Dash app does not need any additional
+Nova-specific asset registration layer. If a deployment uses a strict CSP that
+disallows `data:` script/style sources, pass an explicit `assets_url_prefix`
+and serve `/file_transfer.js` and `/file_transfer.css` there instead.
 
 `BearerAuthHeader()` does not fetch or refresh tokens. The consumer app remains
 responsible for obtaining the current bearer token and rendering the full

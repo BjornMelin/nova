@@ -36,6 +36,18 @@ def _context_for_region(region: str) -> dict[str, str]:
         "api_lambda_artifact_sha256": (
             "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
         ),
+        "workflow_lambda_artifact_bucket": (
+            "nova-ci-artifacts-111111111111-us-east-1"
+        ),
+        "workflow_lambda_artifact_key": (
+            "runtime/nova-workflows/"
+            "01234567-89ab-cdef-0123-456789abcdef/"
+            "fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210/"
+            "nova-workflows-lambda.zip"
+        ),
+        "workflow_lambda_artifact_sha256": (
+            "fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210"
+        ),
         "certificate_arn": (
             f"arn:aws:acm:{region}:111111111111:"
             "certificate/12345678-1234-1234-1234-123456789012"
@@ -153,7 +165,12 @@ def test_runtime_stack_provisions_apigateway_cloudwatch_account_role() -> None:
 
 def test_runtime_stack_associates_regional_waf_to_api_stage() -> None:
     """The WAF must bind directly to the regional REST API stage."""
-    resources = _template_json()["Resources"]
+    resources = _template_json(
+        context={
+            **_context_for_region("us-west-2"),
+            "enable_waf": "true",
+        }
+    )["Resources"]
     web_acls = _resources_of_type(resources, "AWS::WAFv2::WebACL")
     assert len(web_acls) == 1
     web_acl_props = next(iter(web_acls.values()))["Properties"]
@@ -219,7 +236,12 @@ def test_runtime_stack_associates_regional_waf_to_api_stage() -> None:
 
 def test_runtime_stack_enables_waf_cloudwatch_logging() -> None:
     """The web ACL should emit logs to a named CloudWatch log group."""
-    resources = _template_json()["Resources"]
+    resources = _template_json(
+        context={
+            **_context_for_region("us-west-2"),
+            "enable_waf": "true",
+        }
+    )["Resources"]
     logging_configs = _resources_of_type(
         resources,
         "AWS::WAFv2::LoggingConfiguration",
@@ -248,7 +270,38 @@ def test_runtime_stack_enables_waf_cloudwatch_logging() -> None:
         waf_log_group["Properties"]["LogGroupName"]
         == "aws-waf-logs-nova-rest-api-dev"
     )
-    assert waf_log_group["Properties"]["RetentionInDays"] == 90
+
+
+def test_non_prod_runtime_stack_skips_waf_by_default() -> None:
+    """Non-production stacks should skip WAF unless explicitly enabled."""
+    resources = _template_json()["Resources"]
+
+    assert not _resources_of_type(resources, "AWS::WAFv2::WebACL")
+    assert not _resources_of_type(resources, "AWS::WAFv2::LoggingConfiguration")
+    assert not _resources_of_type(
+        resources,
+        "AWS::WAFv2::WebACLAssociation",
+    )
+
+
+def test_prod_runtime_stack_enables_waf_by_default() -> None:
+    """Production stacks should keep WAF on without extra flags."""
+    resources = _template_json(
+        context={
+            **_context_for_region("us-west-2"),
+            "environment": "prod",
+            "allowed_origins": '["*"]',
+        }
+    )["Resources"]
+
+    assert len(_resources_of_type(resources, "AWS::WAFv2::WebACL")) == 1
+    log_groups = _resources_of_type(resources, "Custom::LogRetention")
+    assert any(
+        resource["Properties"].get("LogGroupName")
+        == "aws-waf-logs-nova-rest-api-prod"
+        and resource["Properties"].get("RetentionInDays") == 90
+        for resource in log_groups.values()
+    )
 
 
 def test_runtime_stack_exports_one_canonical_public_base_url() -> None:

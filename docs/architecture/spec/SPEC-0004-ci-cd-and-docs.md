@@ -2,8 +2,8 @@
 Spec: 0004
 Title: CI/CD and Documentation Automation
 Status: Active
-Version: 1.9
-Date: 2026-03-24
+Version: 2.0
+Date: 2026-04-02
 Related:
   - "[ADR-0002: OpenAPI as contract and SDK generation](../adr/ADR-0002-openapi-as-contract-and-sdk-generation.md)"
   - "[ADR-0011: Hybrid CI/CD with GitHub and AWS promotion](../adr/ADR-0011-cicd-hybrid-github-aws-promotion.md)"
@@ -75,45 +75,36 @@ protection. Minute reduction is enforced with an initial classifier job and
 job-level `if:` guards, not workflow-level path filters that leave required
 checks pending.
 
-## 2. Hybrid pipeline model
+## 2. Human GitHub plus AWS-native pipeline model
 
 Canonical flow:
 
 1. `ci.yml` validates runtime, generated-client, and conformance contracts on
    PR, merge queue, and main.
-2. `release-plan.yml` is a manual entry wrapper on `main` and delegates to
-   `reusable-release-plan.yml` to compute `changed-units.json` and
-   `version-plan.json`.
-3. `release-apply.yml` is a manual `main`-only entry wrapper and delegates to
-   `reusable-release-apply.yml`.
-4. `publish-packages.yml` is a manual `main`-only staged publish gate that
-   consumes immutable `release-apply` artifacts from an explicit
-   `release_apply_run_id`.
-5. `reusable-release-apply.yml` applies selective versions, writes release
-   manifest, updates `uv.lock`, creates a signed release commit from `main`
-   only, builds the public API Lambda zip from that exact local signed commit,
-   pushes the signed release commit to `main`, then uploads that zip plus
-   `api-lambda-artifact.json` to `RELEASE_ARTIFACT_BUCKET` before artifact
-   publication completes.
-6. AWS CodePipeline source action consumes signed commit through CodeConnections.
-7. AWS CodeBuild/buildspec release stages own container image build/push
-   authority; GitHub does not carry a separate image-wrapper workflow.
-8. AWS stages run:
-   - Build release artifacts
-   - Deploy Dev
-   - Validate Dev
-   - Manual approval
-   - Deploy Prod
-   - Validate Prod
+2. `release-plan.yml` remains a manual read-only entry wrapper on `main` and
+   delegates to `reusable-release-plan.yml` to preview release-prep intent.
+3. Human operators run `scripts.release.prepare_release_pr` locally, commit the
+   generated `release/**` artifacts, and merge the resulting release PR
+   through protected `main`.
+4. AWS CodePipeline source action consumes merged `main` through an already
+   provisioned `AVAILABLE` CodeConnections connection ARN.
+5. AWS CodeBuild/buildspec release stages own package publication, immutable
+   runtime artifact publication, release execution manifest writing, and runtime
+   deployment.
+6. AWS stages run:
+   - `ValidateReleasePrep`
+   - `PublishAndDeployDev`
+   - `ApproveProd`
+   - `PromoteAndDeployProd`
 
 ## 3. Selective release artifacts
 
-Release artifacts MUST include:
+Release-prep and release-execution artifacts MUST include:
 
-- `changed-units.json`
-- `version-plan.json`
-- `docs/release/RELEASE-VERSION-MANIFEST.md`
+- committed release-prep artifacts under `release/**`
 - `api-lambda-artifact.json`
+- `workflow-lambda-artifact.json`
+- S3-backed release execution manifest JSON
 - immutable deploy artifacts consumed by both Dev and Prod stages
 
 The public API Lambda artifact contract is:
@@ -130,6 +121,19 @@ The public API Lambda artifact contract is:
 - consumers MUST verify `artifact_sha256` against the downloaded zip bytes
   before treating the manifest as authoritative
 
+The workflow Lambda artifact contract is:
+
+- content-addressed S3 key:
+  `runtime/nova-workflows/<release_commit_sha>/<artifact_sha256>/nova-workflows-lambda.zip`
+- required manifest fields mirror the public API Lambda artifact contract
+- the workflow ZIP is the only supported workflow-task deployment artifact; do
+  not build or publish workflow-task container images in the canonical release
+  path
+- consumers MUST validate the manifest field set before use via
+  `scripts/release/emit_workflow_lambda_artifact_env.py`
+- consumers MUST verify `artifact_sha256` against the downloaded zip bytes
+  before treating the manifest as authoritative
+
 Rules:
 
 1. Changed unit detection is path-based by workspace unit roots.
@@ -141,29 +145,26 @@ Rules:
    - all other commit types => patch
 5. Dependent local workspace units receive patch bumps when dependency interface
    changes (major/minor source bump).
-6. Release build publication resolves package paths from signed release commit
-   parent diff (`HEAD^..HEAD`) to prevent empty publish sets on manifest-touching
-   release commits.
+6. Release build publication consumes the committed release-prep artifacts from
+   the merged release commit rather than recomputing selective release intent
+   after the merge.
 
-## 4. Signed release commits
+## 4. Protected-branch mutation rule
 
-Release-automation commits MUST:
-
-1. Retrieve signing material from AWS Secrets Manager via OIDC-assumed role.
-2. Configure Git SSH signing (`gpg.format=ssh`) in workflow runtime.
-3. Create release commit with `git commit -S`.
-4. Be verified by `verify-signature.yml` before release branch protection is
-   considered satisfied.
+Release automation MUST NOT push commits to protected branches. Human-authored
+release PRs carry the committed prep artifacts, and AWS builds the authoritative
+post-merge execution manifest from the merged commit SHA.
 
 Secrets policy:
 
 - No static AWS access keys in GitHub secrets.
-- OIDC trust policies MUST constrain `aud=sts.amazonaws.com` and scoped `sub`
-  claims for approved repo/branch patterns.
+- GitHub-hosted workflows do not assume AWS release or deploy roles.
+- Release signing material is read only by the AWS-native release control plane.
 
 ## 5. Build and exported variable contract
 
-`buildspec-release.yml` MUST enforce this build contract:
+The release buildspecs under `infra/nova_cdk/buildspecs/` MUST enforce this
+build contract:
 
 1. Publish changed workspace package artifacts to CodeArtifact.
    - `twine upload` MUST target `--repository codeartifact`.
@@ -171,11 +172,10 @@ Secrets policy:
      through CodeArtifact npm repositories.
    - R package artifacts MUST be built, checked, and stored as signed tarball
      evidence plus CodeArtifact generic packages.
-2. Build and push workflow-task container image artifacts, excluding the public
-   API Lambda native zip artifact, and export immutable digest when applicable.
+2. Build the immutable public API Lambda ZIP and the immutable workflow Lambda
+   ZIP from the merged release commit.
 3. Produce deploy artifacts consumed by both Dev and Prod promotion stages.
 4. Export build variables:
-   - `FILE_IMAGE_DIGEST` (only when a workflow-task image is part of the release)
    - `PUBLISHED_PACKAGES`
    - `RELEASE_MANIFEST_SHA256`
    - `CHANGED_UNITS`
@@ -185,27 +185,25 @@ Required CodeBuild environment inputs:
 - `CODEARTIFACT_DOMAIN`
 - `CODEARTIFACT_STAGING_REPOSITORY` (build publish target / promotion source)
 - `CODEARTIFACT_PROD_REPOSITORY` (promotion destination authority)
-- `ECR_REPOSITORY_URI` or `ECR_REPOSITORY_NAME` when a workflow-task image build is required
+- `RELEASE_ARTIFACT_BUCKET`
+- `RELEASE_MANIFEST_BUCKET`
+- `RELEASE_SIGNING_SECRET_ID`
+- `DEV_RUNTIME_STACK_ID`
+- `DEV_RUNTIME_CFN_EXECUTION_ROLE_ARN`
+- `DEV_RUNTIME_CONFIG_PARAMETER_NAME`
+- `PROD_RUNTIME_STACK_ID`
+- `PROD_RUNTIME_CFN_EXECUTION_ROLE_ARN`
+- `PROD_RUNTIME_CONFIG_PARAMETER_NAME`
 
 Default build target values:
 
-- `FILE_DOCKERFILE_PATH=apps/nova_workflows_tasks/Dockerfile`
-- `DOCKER_BUILD_CONTEXT=.`
-- `DOCKER_BUILDKIT=1`
-- Docker CLI with `buildx` available in the release-build environment
+- `DEV_RUNTIME_STACK_ID=NovaRuntimeStack`
+- `PROD_RUNTIME_STACK_ID=NovaRuntimeProdStack`
 
-Workflow-task container image Dockerfile contract:
+Runtime artifact contract:
 
-- Workflow-task Dockerfiles stay under `apps/*`; do not move them
-  into workspace package paths.
-- Workflow-task image builds MUST run with Docker BuildKit enabled.
-- Workflow-task image builds MUST target the AWS Lambda Python 3.13 base image
-  and use pinned `uv` for reproducible dependency installation.
-
-Public API Lambda artifact contract:
-
-- The public API Lambda is a native zip package built from a repo-owned custom
-  asset command; it is not a release container image.
+- The public API Lambda and workflow tasks are native ZIP packages built from
+  repo-owned asset commands; neither surface is a release container image.
 
 ## 6. AWS promotion and deployment controls
 
@@ -219,8 +217,8 @@ Pipeline controls:
 
 CodeConnections control:
 
-- When a new connection is created by CloudFormation, the operator MUST perform
-  one-time console activation from `PENDING` to `AVAILABLE`.
+- The release control plane imports an existing `AVAILABLE` connection ARN; it
+  does not create a new CodeConnections resource as part of the Nova stack.
 
 ## 7. CodeArtifact hardening controls
 
@@ -256,7 +254,7 @@ all affected operational docs:
 - `docs/runbooks/README.md` when runbook authority is changed
 - `docs/runbooks/release/**` and `docs/runbooks/provisioning/**` when release,
   deploy, or validation behavior changes
-- committed `docs/release/**` artifacts when those files change
+- committed `release/**` artifacts when those files change
 - `docs/history/README.md` and any affected archive bundle links when archive
   paths or authority links change
 

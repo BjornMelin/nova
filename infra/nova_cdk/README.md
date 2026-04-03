@@ -1,6 +1,7 @@
 # nova-cdk
 
-Canonical CDK v2 Python app for the Nova serverless runtime.
+Canonical CDK v2 Python app for the Nova serverless runtime, release-support
+IAM roles, and the optional AWS-native release control plane.
 
 ## Local commands
 
@@ -20,6 +21,9 @@ npx aws-cdk@2.1107.0 synth --app "uv run --package nova-cdk python infra/nova_cd
   -c api_lambda_artifact_bucket=nova-ci-artifacts-111111111111-us-east-1 \
   -c api_lambda_artifact_key=runtime/nova-file-api/example/example/nova-file-api-lambda.zip \
   -c api_lambda_artifact_sha256=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef \
+  -c workflow_lambda_artifact_bucket=nova-ci-artifacts-111111111111-us-east-1 \
+  -c workflow_lambda_artifact_key=runtime/nova-workflows/example/example/nova-workflows-lambda.zip \
+  -c workflow_lambda_artifact_sha256=fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210 \
   -c certificate_arn=arn:aws:acm:us-west-2:111111111111:certificate/00000000-0000-0000-0000-000000000000 \
   -c jwt_issuer=https://issuer.example.com/ \
   -c jwt_audience=api://nova \
@@ -39,6 +43,9 @@ npx aws-cdk synth \
   -c api_lambda_artifact_bucket=nova-ci-artifacts-111111111111-us-east-1 \
   -c api_lambda_artifact_key=runtime/nova-file-api/example/example/nova-file-api-lambda.zip \
   -c api_lambda_artifact_sha256=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef \
+  -c workflow_lambda_artifact_bucket=nova-ci-artifacts-111111111111-us-east-1 \
+  -c workflow_lambda_artifact_key=runtime/nova-workflows/example/example/nova-workflows-lambda.zip \
+  -c workflow_lambda_artifact_sha256=fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210 \
   -c certificate_arn=arn:aws:acm:us-west-2:111111111111:certificate/00000000-0000-0000-0000-000000000000 \
   -c jwt_issuer=https://issuer.example.com/ \
   -c jwt_audience=api://nova \
@@ -52,6 +59,9 @@ npx aws-cdk diff \
   -c api_lambda_artifact_bucket=nova-ci-artifacts-111111111111-us-east-1 \
   -c api_lambda_artifact_key=runtime/nova-file-api/example/example/nova-file-api-lambda.zip \
   -c api_lambda_artifact_sha256=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef \
+  -c workflow_lambda_artifact_bucket=nova-ci-artifacts-111111111111-us-east-1 \
+  -c workflow_lambda_artifact_key=runtime/nova-workflows/example/example/nova-workflows-lambda.zip \
+  -c workflow_lambda_artifact_sha256=fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210 \
   -c certificate_arn=arn:aws:acm:us-west-2:111111111111:certificate/00000000-0000-0000-0000-000000000000 \
   -c jwt_issuer=https://issuer.example.com/ \
   -c jwt_audience=api://nova \
@@ -65,6 +75,9 @@ npx aws-cdk deploy \
   -c api_lambda_artifact_bucket=nova-ci-artifacts-111111111111-us-east-1 \
   -c api_lambda_artifact_key=runtime/nova-file-api/example/example/nova-file-api-lambda.zip \
   -c api_lambda_artifact_sha256=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef \
+  -c workflow_lambda_artifact_bucket=nova-ci-artifacts-111111111111-us-east-1 \
+  -c workflow_lambda_artifact_key=runtime/nova-workflows/example/example/nova-workflows-lambda.zip \
+  -c workflow_lambda_artifact_sha256=fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210 \
   -c certificate_arn=arn:aws:acm:us-west-2:111111111111:certificate/00000000-0000-0000-0000-000000000000 \
   -c jwt_issuer=https://issuer.example.com/ \
   -c jwt_audience=api://nova \
@@ -87,6 +100,9 @@ HOSTED_ZONE_NAME=example.com \
 API_LAMBDA_ARTIFACT_BUCKET=nova-ci-artifacts-111111111111-us-east-1 \
 API_LAMBDA_ARTIFACT_KEY=runtime/nova-file-api/example/example/nova-file-api-lambda.zip \
 API_LAMBDA_ARTIFACT_SHA256=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef \
+WORKFLOW_LAMBDA_ARTIFACT_BUCKET=nova-ci-artifacts-111111111111-us-east-1 \
+WORKFLOW_LAMBDA_ARTIFACT_KEY=runtime/nova-workflows/example/example/nova-workflows-lambda.zip \
+WORKFLOW_LAMBDA_ARTIFACT_SHA256=fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210 \
 CERTIFICATE_ARN=arn:aws:acm:us-west-2:111111111111:certificate/00000000-0000-0000-0000-000000000000 \
 uv run --package nova-cdk python app.py
 ```
@@ -109,28 +125,56 @@ uv run --package nova-cdk python app.py
   `api_lambda_artifact_sha256` for every synth, diff, and deploy. CDK consumes
   an immutable API Lambda zip artifact from the release pipeline and no longer
   builds the API package locally at synth time.
+- Provide `workflow_lambda_artifact_bucket`, `workflow_lambda_artifact_key`,
+  and `workflow_lambda_artifact_sha256` for every synth, diff, and deploy. CDK
+  consumes one immutable workflow Lambda zip artifact for all Step Functions
+  task handlers.
 - The API Lambda continues to use `Code.fromBucket()` without `objectVersion`.
   This is intentional: Nova treats the immutable artifact key plus
   `api_lambda_artifact_sha256` and deploy-output provenance as the source of
   truth, and the scoped CDK warning is acknowledged at the app level.
+- When `release_github_owner`, `release_github_repo`, and
+  `release_connection_arn` are provided through CDK context or environment,
+  the app also synthesizes the release stacks. By default it creates
+  `NovaReleaseSupportStack` first and then `NovaReleaseControlPlaneStack`.
+  The support stack provisions:
+  - one CloudFormation execution role for the dev runtime stack
+  - one CloudFormation execution role for the prod runtime stack
+  - both roles are trusted only by `cloudformation.amazonaws.com`
+  - both roles attach a curated runtime-service policy set (CloudFormation,
+    API Gateway, Lambda, Step Functions, DynamoDB, S3, logs, EventBridge, WAF)
+    plus scoped IAM role-management actions for Nova runtime roles
+  - if `DEV_RUNTIME_CFN_EXECUTION_ROLE_ARN` and
+    `PROD_RUNTIME_CFN_EXECUTION_ROLE_ARN` are both provided explicitly, the app
+    skips `NovaReleaseSupportStack` and uses those role ARNs directly
+  - `NovaReleaseControlPlaneStack` then provisions:
+  - one imported GitHub CodeConnections source ARN
+  - one CodePipeline with `ValidateReleasePrep`, `PublishAndDeployDev`,
+    `ApproveProd`, and `PromoteAndDeployProd` stages
+  - one release artifact bucket and one release manifest bucket
+  - CodeBuild projects that publish internal packages to CodeArtifact and
+    deploy the runtime from the merged release commit SHA
+- The release control plane now expects:
+  - `RELEASE_CONNECTION_ARN`
+  - `DEV_RUNTIME_CONFIG_PARAMETER_NAME`
+  - `DEV_RUNTIME_STACK_ID`
+  - `PROD_RUNTIME_CONFIG_PARAMETER_NAME`
+  - `PROD_RUNTIME_STACK_ID`
+  instead of duplicating per-environment domain, certificate, hosted-zone, JWT,
+  CORS values, and extra runtime deploy-role hops across many
+  release-control-plane inputs.
 - Configure `allowed_origins` via CDK context or `STACK_ALLOWED_ORIGINS` for
-  production deployments; local and dev stacks default to `*`.
-- `Nova Release Apply` publishes the API Lambda zip to
-  `RELEASE_ARTIFACT_BUCKET` under a content-addressed key and writes
-  `.artifacts/api-lambda-artifact.json`. Export deploy inputs from that manifest
-  with:
-
-```bash
-eval "$(uv run python scripts/release/emit_api_lambda_artifact_env.py \
-  --manifest-path .artifacts/api-lambda-artifact.json)"
-```
-
-- `Deploy Runtime` is the canonical repo-owned deployment entrypoint. It
-  consumes `release-apply-artifacts`, deploys `NovaRuntimeStack` through
-  `npx aws-cdk deploy`, uses GitHub OIDC plus an explicit CloudFormation
-  execution role and the CDK bootstrap publishing roles, and writes
-  `deploy-output.json` plus `deploy-output.sha256` as the authoritative
-  runtime deploy artifact.
+  production deployments; non-prod stacks default to `*`.
+- Configure `enable_waf` / `ENABLE_WAF` when you need to override the ingress
+  default. Production defaults to `true` and fails closed if set to `false`.
+  Non-production defaults to `false` to avoid unnecessary steady-state WAF
+  cost.
+- `scripts.release.prepare_release_pr` is the canonical local entrypoint for
+  generating committed release-prep artifacts under `release/**`.
+- The primary and only supported release executor is the
+  `NovaReleaseControlPlaneStack` CodePipeline, which deploys the configured
+  runtime stack ids from the merged release commit SHA and its S3-backed
+  release execution manifest.
 - The active machine-readable contract sources for runtime deploy and
   post-deploy validation are `docs/contracts/deploy-output-authority-v2.schema.json`
   and `docs/contracts/workflow-post-deploy-validate.schema.json`.
@@ -139,6 +183,7 @@ eval "$(uv run python scripts/release/emit_api_lambda_artifact_env.py \
   runtime version, `NovaPublicBaseUrl`, stack name, region, and stack outputs
   for incident response and revalidation.
 - Optional ingress safeguard overrides:
+  `enable_waf`,
   `enable_reserved_concurrency`,
   `api_reserved_concurrency`,
   `workflow_reserved_concurrency`,
@@ -152,30 +197,35 @@ eval "$(uv run python scripts/release/emit_api_lambda_artifact_env.py \
   override is set explicitly.
 - `enable_reserved_concurrency` / `ENABLE_RESERVED_CONCURRENCY` defaults to
   `true`. Production deploys fail closed if it is set to `false`.
-- The canonical `Deploy Runtime` workflow auto-disables reserved concurrency
-  only for non-prod accounts that still use a reduced Lambda regional quota
-  profile. Manual low-quota non-prod deploys should set
+- Manual low-quota non-prod deploys should set
   `ENABLE_RESERVED_CONCURRENCY=false` explicitly before running
   `npx aws-cdk deploy`.
+- Manual non-prod ingress hardening checks can set `ENABLE_WAF=true`
+  explicitly before running `npx aws-cdk deploy`.
 - The transfer bucket aborts incomplete multipart uploads after 7 days and
   expires transient `tmp/` objects after 3 days. Durable `exports/` objects
   are retained.
 - The Regional REST ingress emits JSON access logs to
-  `/aws/apigateway/nova-rest-api-access-{stage}` and WAF logs to
-  `aws-waf-logs-nova-rest-api-{stage}` with 90-day retention.
-- The WAF uses AWS managed IP-reputation/common/bad-inputs rule groups plus two
-  rate rules: a general per-IP ceiling (`waf_rate_limit`, default `2000` over
-  5 minutes) and a stricter write-path ceiling (`waf_write_rate_limit`,
-  default `500` over 5 minutes) scoped to `/v1/exports` and
-  `/v1/transfers/uploads`.
-- The stack exports `NovaAlarmTopicArn`, `NovaApiAccessLogGroupName`, and
-  `NovaWafLogGroupName`; all runtime alarms publish to the SNS topic
+  `/aws/apigateway/nova-rest-api-access-{stage}` with 90-day retention.
+- When WAF is enabled, it writes logs to `aws-waf-logs-nova-rest-api-{stage}`
+  with 90-day retention.
+- When WAF is enabled, it uses AWS managed IP-reputation/common/bad-inputs rule
+  groups plus two rate rules: a general per-IP ceiling (`waf_rate_limit`,
+  default `2000` over 5 minutes) and a stricter write-path ceiling
+  (`waf_write_rate_limit`, default `500` over 5 minutes) scoped to
+  `/v1/exports` and `/v1/transfers/uploads`.
+- The stack always exports `NovaAlarmTopicArn` and
+  `NovaApiAccessLogGroupName`. It exports `NovaWafLogGroupName` only when WAF
+  is enabled. All runtime alarms publish to the SNS topic
   `nova-runtime-alarms-{environment}`. Operators can set
   `alarm_notification_emails` / `ALARM_NOTIFICATION_EMAILS` to create email
   subscriptions at deploy time, or attach PagerDuty, Chatbot, and EventBridge
   fan-out without changing the stack.
-- WAF logs redact the `Authorization` and `Cookie` headers before delivery to
-  CloudWatch Logs and keep only `BLOCK` / `COUNT` decisions to concentrate the
-  security signal.
+- When WAF is enabled, logs redact the `Authorization` and `Cookie` headers
+  before delivery to CloudWatch Logs and keep only `BLOCK` / `COUNT`
+  decisions to concentrate the security signal.
 - The stack exports one canonical `NovaPublicBaseUrl`, which always points at
   the configured custom domain.
+- The first production custom-domain cutover may temporarily use
+  `allowed_origins=["*"]`; GitHub issue `#111` tracks tightening that allowlist
+  after the initial cutover.

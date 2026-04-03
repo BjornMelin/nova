@@ -2,8 +2,8 @@
 ADR: 0032
 Title: OIDC and IAM role partitioning for deploy automation
 Status: Accepted
-Version: 1.1
-Date: 2026-03-03
+Version: 1.2
+Date: 2026-04-02
 Supersedes: "[ADR-0026: OIDC and IAM role partitioning for deploy automation (superseded predecessor)](./superseded/ADR-0026-oidc-iam-role-partitioning-for-deploy-automation.md)"
 Related:
   - "[ADR-0023: Hard-cut v1 canonical route surface](./ADR-0023-hard-cut-v1-canonical-route-surface.md)"
@@ -17,8 +17,9 @@ Related:
 
 ## Summary
 
-Deploy automation uses partitioned IAM roles with GitHub OIDC as the entry
-boundary, scoped pass-role controls, and environment-specific execution roles.
+Deploy automation uses partitioned AWS-native IAM roles with CodePipeline and
+CodeBuild as the entry boundary, scoped pass-role controls, and
+environment-specific CloudFormation execution roles.
 
 ## Context
 
@@ -47,16 +48,18 @@ Threshold policy: only options >=9.0 are accepted.
 
 ## Decision
 
-Choose **Option B**.
+Choose **Option B** with the surviving caller role moved from GitHub OIDC to
+the AWS-native release control plane.
 
 ### Required characteristics
 
-1. GitHub workflows assume a dedicated deploy role through OIDC.
+1. Release execution enters through CodePipeline and CodeBuild service roles.
 2. CloudFormation execution roles are separate from caller role and environment
    scoped.
 3. `iam:PassRole` is constrained to approved role ARNs and
    `iam:PassedToService` conditions.
-4. Pipeline/service roles are separate from workflow caller roles.
+4. Pipeline/service roles are separate from any optional read-only GitHub
+   validation roles.
 5. IAM policy contracts are testable and enforced by infra guardrails.
 
 ## Consequences
@@ -64,7 +67,7 @@ Choose **Option B**.
 ### Positive
 
 - Stronger least-privilege posture and clearer blast-radius boundaries.
-- Better auditability of who can mutate each CI/CD control-plane role.
+- Better auditability of which AWS-native principal mutates each CI/CD role.
 - Safer recovery path during stack rollback or drift remediation.
 
 ### Trade-offs
@@ -79,4 +82,6 @@ Choose **Option B**.
 
 ## Changelog
 
+- 2026-04-02: Updated the entry boundary to AWS-native release execution and
+  reduced GitHub roles to optional read-only validation only.
 - 2026-03-03: Updated ADR scope to OIDC/IAM role partitioning for deploy automation.

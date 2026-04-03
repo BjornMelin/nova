@@ -21,7 +21,8 @@ _OBSERVABILITY_MODULE = load_repo_package_module(
 def test_runtime_stack_wires_alarm_actions_to_one_sns_topic() -> None:
     """Every runtime alarm should publish to the shared SNS alert topic."""
     template_json = runtime_stack_template_json(
-        stack_name="SecurityObservabilityContractStack"
+        context={"enable_waf": "true"},
+        stack_name="SecurityObservabilityContractStack",
     )
     resources = template_json["Resources"]
 
@@ -118,7 +119,8 @@ def test_runtime_stack_adds_alarm_topic_email_subscriptions() -> None:
 def test_runtime_stack_filters_waf_logs_to_security_relevant_actions() -> None:
     """WAF logs: security-relevant actions; secrets redacted."""
     resources = runtime_stack_template_json(
-        stack_name="SecurityObservabilityContractWafStack"
+        context={"enable_waf": "true"},
+        stack_name="SecurityObservabilityContractWafStack",
     )["Resources"]
     logging_configs = resources_of_type(
         resources,
@@ -156,3 +158,16 @@ def test_runtime_stack_filters_waf_logs_to_security_relevant_actions() -> None:
         "'/aws/apigateway/nova-rest-api-access-' not found"
     )
     assert api_access_log_group["Properties"]["RetentionInDays"] == 90
+
+
+def test_non_prod_runtime_stack_omits_waf_outputs_by_default() -> None:
+    """Default non-prod stacks should omit WAF outputs and log groups."""
+    template_json = runtime_stack_template_json(
+        stack_name="SecurityObservabilityNoWafContractStack"
+    )
+    resources = template_json["Resources"]
+    outputs = template_json["Outputs"]
+
+    assert "ExportNovaWafLogGroupName" not in outputs
+    assert not resources_of_type(resources, "AWS::WAFv2::WebACL")
+    assert not resources_of_type(resources, "AWS::WAFv2::LoggingConfiguration")

@@ -1,9 +1,9 @@
 ---
 ADR: 0011
-Title: Hybrid CI/CD with GitHub CI and AWS-native Dev to Prod promotion
-Status: Accepted (umbrella decision; detailed authority delegated to ADR-0030 through ADR-0032)
-Version: 1.2
-Date: 2026-03-05
+Title: Human GitHub release PRs with AWS-native post-merge execution
+Status: Accepted
+Version: 1.3
+Date: 2026-04-02
 Related:
   - "[ADR-0002: OpenAPI as contract and SDK generation](./ADR-0002-openapi-as-contract-and-sdk-generation.md)"
   - "[SPEC-0004: CI/CD and documentation automation](../spec/SPEC-0004-ci-cd-and-docs.md)"
@@ -12,8 +12,7 @@ Related:
   - "[ADR-0033: Canonical serverless platform](./ADR-0033-canonical-serverless-platform.md)"
   - "[SPEC-0029: Canonical serverless platform](../spec/SPEC-0029-platform-serverless.md)"
 References:
-  - "[GitHub OIDC in AWS](https://docs.github.com/en/actions/how-tos/secure-your-work/security-harden-deployments/oidc-in-aws)"
-  - "[AWS shared OIDC provider controls](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_oidc_secure-by-default.html)"
+  - "[CloudFormation service role](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/using-iam-servicerole.html)"
   - "[CodeConnections CloudFormation resource](https://docs.aws.amazon.com/AWSCloudFormation/latest/TemplateReference/aws-resource-codeconnections-connection.html)"
   - "[CodePipeline manual approval](https://docs.aws.amazon.com/codepipeline/latest/userguide/approvals-action-add.html)"
   - "[CodePipeline approval IAM scoping](https://docs.aws.amazon.com/codepipeline/latest/userguide/approvals-iam-permissions.html)"
@@ -22,18 +21,18 @@ References:
 
 ## Summary
 
-Adopt a hybrid CI/CD model where GitHub Actions owns CI and signed release
-state, and AWS CodePipeline/CodeBuild/CloudFormation owns Dev to Prod
-promotion. This keeps promotion controls AWS-native while preserving low
-maintenance and immutable artifact guarantees.
+Adopt a human-reviewed GitHub plus AWS-native post-merge release model where
+GitHub owns PR CI and release-prep review, and AWS CodeConnections /
+CodePipeline / CodeBuild own publish, promotion, and runtime deployment from
+merged `main`.
 
 ## Context
 
 - Business/product need: deliver production releases with explicit Dev to Prod
   human approval and auditable evidence capture.
 - Technical and operational constraints: no long-lived AWS keys in GitHub,
-  least-privilege IAM, signed automation commits, and immutable artifact reuse
-  across environments.
+  least-privilege IAM, protected branches that cannot rely on bot bypass
+  actors, and immutable artifact reuse across environments.
 - Rejected assumptions and risks discovered: GitHub-only deployment centralizes
   too much deployment authority in repo workflows and weakens AWS-native
   promotion control boundaries for operations teams.
@@ -43,9 +42,9 @@ maintenance and immutable artifact guarantees.
 
 ## Alternatives
 
-- A: Hybrid GitHub CI plus AWS promotion pipeline.
-- B: GitHub-only end-to-end deployment orchestration.
-- C: AWS-only CI/CD without GitHub release planning/signing workflow.
+- A: Human release PRs in GitHub plus AWS-native post-merge execution.
+- B: GitHub-only read-only release execution after removing commit pushes.
+- C: AWS-only CI/CD without GitHub PR/review as the source gate.
 
 ## Decision Framework
 
@@ -53,25 +52,27 @@ maintenance and immutable artifact guarantees.
 
 | Option | Solution leverage (35%) (0-10) | Application value (30%) (0-10) | Maintenance and cognitive load (25%) (0-10) | Architectural adaptability (10%) (0-10) | Weighted total (/10.0) |
 | --- | --- | --- | --- | --- | --- |
-| **A** | **9.4** | **9.4** | **9.2** | **9.4** | **9.35** |
-| B | 9.1 | 9.1 | 9.0 | 9.0 | 9.07 |
-| C | 8.6 | 8.8 | 8.5 | 8.7 | 8.65 |
+| **A** | **9.3** | **9.3** | **9.1** | **9.3** | **9.24** |
+| B | 8.8 | 8.9 | 8.8 | 8.7 | 8.82 |
+| C | 8.3 | 8.4 | 7.8 | 8.5 | 8.18 |
 
 `weighted total = (leverage * 0.35) + (value * 0.30) + (maintenance * 0.25) + (adaptability * 0.10)`
 
 ## Decision
 
-Choose Option A: hybrid GitHub CI with AWS-native promotion pipeline.
+Choose Option A: GitHub human release PRs plus AWS-native post-merge execution.
 
 Implementation commitments:
 
-- GitHub workflows must run quality gates, selective version planning, and
-  signed release commit application on `main`.
-- AWS CodePipeline must promote immutable artifacts through
-  `Build -> DeployDev -> ValidateDev -> ManualApproval -> DeployProd -> ValidateProd`.
-- OIDC trust policies must constrain `aud` and `sub` claims to exact repo and
-  branch patterns.
-- Release-signing material must be read at runtime from AWS Secrets Manager.
+- GitHub workflows must stay read-only with respect to protected branches.
+- Human operators must prepare release PRs locally from repo-native release
+  planning output.
+- AWS CodePipeline must run
+  `ValidateReleasePrep -> PublishAndDeployDev -> ManualApproval -> PromoteAndDeployProd`.
+- Runtime CloudFormation execution roles must be trusted only by
+  `cloudformation.amazonaws.com` and passed to deploy stages explicitly.
+- Release-signing material must be read at runtime from AWS Secrets Manager
+  when package signatures are required.
 - Prod promotion must consume the same artifact identifiers validated in Dev.
 - CodeArtifact promotion IAM must use explicit source/destination repository
   parameters and must not rely on domain-wide wildcard repository permissions.
@@ -90,7 +91,7 @@ Implementation commitments:
 ## Consequences
 
 1. Positive outcomes: release governance is auditable and role-separated while
-   preserving fast GitHub CI feedback loops.
+   eliminating the need for GitHub bot push rights on protected branches.
 2. Trade-offs/costs: added operational components (CodeConnections,
    CodePipeline, CodeBuild projects, IAM roles) and one-time activation steps.
 3. Ongoing considerations: manual CodeConnections activation, secrets rotation,
@@ -98,6 +99,8 @@ Implementation commitments:
 
 ## Changelog
 
+- 2026-04-02: Updated the decision to human-authored release PRs plus AWS-native
+  post-merge execution after removing protected-branch bot mutation assumptions.
 - 2026-03-05: Reclassified as the umbrella hybrid-pipeline decision with
   detailed deploy-governance authority delegated to `ADR-0030` through
   `ADR-0032`.

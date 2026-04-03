@@ -55,7 +55,7 @@ Rules for narrative provisioning, release, and validation markdown under
 `docs/runbooks/provisioning/README.md`):
 
 1. **Naming:** New files use kebab-case. Exceptions: `README.md`, and
-   machine-stable uppercase artifacts under `docs/release/` that automation
+   machine-stable uppercase artifacts under `release/` that automation
    consumes (for example `RELEASE-VERSION-MANIFEST.md`).
 2. **Operator guide sections:** Each guide should include `Purpose`,
    `Prerequisites`, `Inputs`, `Step-by-step commands`, `Acceptance checks`, and
@@ -195,7 +195,7 @@ Toolchain baseline notes:
   intentionally bumps it.
 - Node 24 LTS is the primary npm/TypeScript SDK tooling baseline for local
   `npm ci`, the TypeScript conformance/package lanes in `Nova CI`, and the
-  npm packaging steps in `Publish Packages`.
+  npm packaging steps in the AWS-native release control plane.
 - The current npm workspace, generated SDKs, and conformance fixtures stay on
   the verified TypeScript 5.x line. TypeScript 6 remains deferred until a
   repo-wide migration updates `package-lock.json`, generated SDK outputs,
@@ -246,7 +246,7 @@ governance:
 - Runtime env/override guidance must not fork into handwritten copies; use
   `packages/nova_file_api/src/nova_file_api/config.py` plus
   `scripts/release/runtime_config_contract.py` as authority and keep
-  `docs/release/runtime-config-contract.generated.md` fresh.
+  `docs/contracts/runtime-config-contract.generated.md` fresh.
 - Runtime settings must declare explicit string `Field(validation_alias=…)`
   env mappings. Contract tooling reads `field.validation_alias` only; do not
   rely on `alias=` or implicit uppercase fallback.

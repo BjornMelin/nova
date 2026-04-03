@@ -1,0 +1,349 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      python: 3.13
+      nodejs: 24
+    commands:
+      - apt-get update
+      - apt-get install -y r-base jq
+      - curl -LsSf https://astral.sh/uv/install.sh | sh
+      - export PATH="$HOME/.local/bin:$PATH"
+  pre_build:
+    commands:
+      - uv sync --locked --all-packages --all-extras --dev
+      - npm ci
+      - mkdir -p .release-control
+      - export RELEASE_COMMIT_SHA="${CODEBUILD_RESOLVED_SOURCE_VERSION}"
+      - >
+        uv run python - <<'PY'
+        import json
+        from pathlib import Path
+        from scripts.release import release_prep
+
+        payload = json.loads(Path("release/RELEASE-PREP.json").read_text(encoding="utf-8"))
+        Path(".release-control/changed-units.json").write_text(
+            json.dumps(release_prep.changed_report_from_release_prep(payload), indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        Path(".release-control/version-plan.json").write_text(
+            json.dumps(release_prep.version_plan_from_release_prep(payload), indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        PY
+      - >
+        uv run python -m scripts.release.codeartifact_gate
+        --repo-root .
+        --manifest-path release/RELEASE-VERSION-MANIFEST.md
+        --release-prep-path release/RELEASE-PREP.json
+        --gate-report-out .release-control/codeartifact-gate-report.json
+        --promotion-candidates-out .release-control/codeartifact-promotion-candidates.json
+      - >
+        uv run python - <<'PY'
+        import json
+        import subprocess
+        from pathlib import Path
+        from scripts.release import common
+
+        version_plan = json.loads(Path(".release-control/version-plan.json").read_text(encoding="utf-8"))
+        units = common.load_workspace_units(Path(".").resolve())
+
+        python_units = [item["unit_id"] for item in version_plan.get("units", []) if item.get("format", "pypi") == "pypi"]
+        for unit in python_units:
+            subprocess.run(["uv", "build", unit], check=True)
+
+        npm_units = common.order_units_for_release(
+            units,
+            {item["unit_id"] for item in version_plan.get("units", []) if item.get("format") == "npm"},
+        )
+        for unit in npm_units:
+            subprocess.run(["npm", "run", "build", "--workspace", unit], check=True)
+        PY
+      - >
+        NPM_USERCONFIG_PATH="${PWD}/.release-control/codeartifact.npmrc"
+        npm_env="$(
+          uv run python scripts/release/codeartifact_npm.py env --output-path "${NPM_USERCONFIG_PATH}"
+        )"
+        eval "${npm_env}"
+        export NPM_CONFIG_USERCONFIG
+        export NPM_REGISTRY_URL
+      - >
+        uv run python -m scripts.release.npm_publish
+        --repo-root .
+        --version-plan .release-control/version-plan.json
+        --registry-url "$NPM_REGISTRY_URL"
+        --output-dir .release-control/npm-publish
+        --report-out .release-control/npm-publish-report.json
+      - |
+        aws secretsmanager get-secret-value \
+          --secret-id "${RELEASE_SIGNING_SECRET_ID}" \
+          --query SecretString \
+          --output text > /tmp/release_signing_secret.json
+        jq -r '.private_key' /tmp/release_signing_secret.json > /tmp/release_signing_key
+        jq -r '.public_key' /tmp/release_signing_secret.json > /tmp/release_signing_key.pub
+        mkdir -p ~/.ssh
+        mv /tmp/release_signing_key ~/.ssh/release_signing_key
+        mv /tmp/release_signing_key.pub ~/.ssh/release_signing_key.pub
+        chmod 600 ~/.ssh/release_signing_key
+        chmod 644 ~/.ssh/release_signing_key.pub
+      - >
+        uv run python - <<'PY'
+        import hashlib
+        import json
+        import shutil
+        import subprocess
+        from pathlib import Path
+        from scripts.release import common
+
+        repo_root = Path(".").resolve()
+        version_plan = json.loads((repo_root / ".release-control/version-plan.json").read_text(encoding="utf-8"))
+        units = common.load_workspace_units(repo_root)
+        r_unit_ids = common.order_units_for_release(
+            units,
+            {item["unit_id"] for item in version_plan.get("units", []) if item.get("format") == "r"},
+        )
+        report = {"schema_version": "1.0", "generated_at": common.iso_timestamp(), "packages": []}
+        artifact_root = repo_root / ".release-control" / "r-publish"
+        artifact_root.mkdir(parents=True, exist_ok=True)
+
+        for unit_id in r_unit_ids:
+            unit = units[unit_id]
+            subprocess.run(
+                ["bash", str(repo_root / "scripts" / "checks" / "verify_r_cmd_check.sh"), str(unit.path), "--keep-tarball"],
+                check=True,
+                cwd=repo_root,
+            )
+            package_name = unit.project_name
+            package_version = unit.version
+            tarball_path = repo_root / f"{package_name}_{package_version}.tar.gz"
+            subprocess.run(
+                ["ssh-keygen", "-Y", "sign", "-f", str(Path.home() / ".ssh" / "release_signing_key"), "-n", "file", str(tarball_path)],
+                check=True,
+                cwd=repo_root,
+            )
+            signature_path = Path(f"{tarball_path}.sig")
+            package_artifact_dir = artifact_root / unit_id
+            package_artifact_dir.mkdir(parents=True, exist_ok=True)
+            copied_tarball = package_artifact_dir / tarball_path.name
+            copied_signature = package_artifact_dir / signature_path.name
+            shutil.copy2(tarball_path, copied_tarball)
+            shutil.copy2(signature_path, copied_signature)
+            report["packages"].append(
+                {
+                    "unit_id": unit_id,
+                    "package": package_name,
+                    "version": package_version,
+                    "format": unit.package_format,
+                    "codeartifact_format": common.resolve_codeartifact_format(unit),
+                    "namespace": unit.namespace,
+                    "tarball_path": str(copied_tarball.relative_to(repo_root)),
+                    "signature_path": str(copied_signature.relative_to(repo_root)),
+                    "tarball_sha256": hashlib.sha256(copied_tarball.read_bytes()).hexdigest(),
+                    "signature_sha256": hashlib.sha256(copied_signature.read_bytes()).hexdigest(),
+                }
+            )
+            tarball_path.unlink(missing_ok=True)
+            signature_path.unlink(missing_ok=True)
+
+        (repo_root / ".release-control" / "r-publish-report.json").write_text(
+            json.dumps(report, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        PY
+      - |
+        aws codeartifact login \
+          --tool twine \
+          --domain "${CODEARTIFACT_DOMAIN}" \
+          --repository "${CODEARTIFACT_STAGING_REPOSITORY}" \
+          --region "${AWS_REGION}"
+      - >
+        uv run python - <<'PY'
+        import json
+        import os
+        import subprocess
+        from pathlib import Path
+
+        plan = json.loads(Path(".release-control/version-plan.json").read_text(encoding="utf-8"))
+        dist_files = []
+        for item in plan.get("units", []):
+            dist = Path(item["unit_id"]) / "dist"
+            if not dist.exists():
+                continue
+            dist_files.extend(sorted(str(path) for path in dist.glob("*.whl")))
+            dist_files.extend(sorted(str(path) for path in dist.glob("*.tar.gz")))
+        if dist_files:
+            subprocess.run(["uv", "run", "twine", "upload", "--repository", "codeartifact", "--skip-existing", *dist_files], check=True)
+        PY
+      - >
+        uv run python - <<'PY'
+        import json
+        import os
+        import subprocess
+        from pathlib import Path
+
+        report = json.loads(Path(".release-control/npm-publish-report.json").read_text(encoding="utf-8"))
+        for item in report.get("packages", []):
+            publish_dir = item["publish_dir"]
+            package = item["package"]
+            version = item["version"]
+            try:
+                subprocess.run(
+                    ["npm", "view", f"{package}@{version}", "--registry", os.environ["NPM_REGISTRY_URL"]],
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                )
+                continue
+            except subprocess.CalledProcessError:
+                pass
+            subprocess.run(
+                ["npm", "publish", "--no-progress", "--registry", os.environ["NPM_REGISTRY_URL"]],
+                check=True,
+                cwd=publish_dir,
+            )
+        PY
+      - >
+        uv run python - <<'PY'
+        import json
+        import os
+        import subprocess
+        from pathlib import Path
+
+        report = json.loads(Path(".release-control/r-publish-report.json").read_text(encoding="utf-8"))
+        for item in report.get("packages", []):
+            for asset_path_key, asset_name_key, sha_key, unfinished in (
+                ("tarball_path", "tarball_path", "tarball_sha256", True),
+                ("signature_path", "signature_path", "signature_sha256", False),
+            ):
+                asset_path = Path(item[asset_path_key])
+                command = [
+                    "aws", "codeartifact", "publish-package-version",
+                    "--domain", os.environ["CODEARTIFACT_DOMAIN"],
+                    "--repository", os.environ["CODEARTIFACT_STAGING_REPOSITORY"],
+                    "--format", "generic",
+                    "--namespace", item.get("namespace") or "nova",
+                    "--package", item["package"],
+                    "--package-version", item["version"],
+                    "--asset-content", str(asset_path),
+                    "--asset-name", asset_path.name,
+                    "--asset-sha256", item[sha_key],
+                    "--region", os.environ["AWS_REGION"],
+                ]
+                if unfinished:
+                    command.append("--unfinished")
+                subprocess.run(command, check=True)
+        PY
+  build:
+    commands:
+      - uv run python scripts/release/build_api_lambda_asset.py --output-zip .release-control/nova-file-api-lambda.zip
+      - export API_LAMBDA_ARTIFACT_SHA256="$(sha256sum .release-control/nova-file-api-lambda.zip | awk '{print $1}')"
+      - export API_LAMBDA_ARTIFACT_KEY="runtime/nova-file-api/${RELEASE_COMMIT_SHA}/${API_LAMBDA_ARTIFACT_SHA256}/nova-file-api-lambda.zip"
+      - aws s3 cp .release-control/nova-file-api-lambda.zip "s3://${RELEASE_ARTIFACT_BUCKET}/${API_LAMBDA_ARTIFACT_KEY}"
+      - uv run python scripts/release/build_workflow_lambda_asset.py --output-zip .release-control/nova-workflows-lambda.zip
+      - export WORKFLOW_LAMBDA_ARTIFACT_SHA256="$(sha256sum .release-control/nova-workflows-lambda.zip | awk '{print $1}')"
+      - export WORKFLOW_LAMBDA_ARTIFACT_KEY="runtime/nova-workflows/${RELEASE_COMMIT_SHA}/${WORKFLOW_LAMBDA_ARTIFACT_SHA256}/nova-workflows-lambda.zip"
+      - aws s3 cp .release-control/nova-workflows-lambda.zip "s3://${RELEASE_ARTIFACT_BUCKET}/${WORKFLOW_LAMBDA_ARTIFACT_KEY}"
+      - >
+        uv run python - <<'PY'
+        import json
+        import os
+        import tomllib
+        from datetime import datetime, timezone
+        from pathlib import Path
+
+        package_meta = tomllib.loads(Path("packages/nova_file_api/pyproject.toml").read_text(encoding="utf-8"))["project"]
+        payload = {
+            "release_commit_sha": os.environ["RELEASE_COMMIT_SHA"],
+            "package_name": package_meta["name"],
+            "package_version": package_meta["version"],
+            "runtime": "python3.13",
+            "architecture": "arm64",
+            "artifact_bucket": os.environ["RELEASE_ARTIFACT_BUCKET"],
+            "artifact_key": os.environ["API_LAMBDA_ARTIFACT_KEY"],
+            "artifact_sha256": os.environ["API_LAMBDA_ARTIFACT_SHA256"],
+            "built_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        }
+        Path(".release-control/api-lambda-artifact.json").write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        PY
+      - >
+        uv run python - <<'PY'
+        import json
+        import os
+        from datetime import datetime, timezone
+        from pathlib import Path
+
+        payload = {
+            "release_commit_sha": os.environ["RELEASE_COMMIT_SHA"],
+            "package_name": "nova-workflows",
+            "package_version": (
+                Path("packages/nova_workflows/pyproject.toml")
+                .read_text(encoding="utf-8")
+                .split('version = "')[1]
+                .split('"', 1)[0]
+            ),
+            "runtime": "python3.13",
+            "architecture": "arm64",
+            "artifact_bucket": os.environ["RELEASE_ARTIFACT_BUCKET"],
+            "artifact_key": os.environ["WORKFLOW_LAMBDA_ARTIFACT_KEY"],
+            "artifact_sha256": os.environ["WORKFLOW_LAMBDA_ARTIFACT_SHA256"],
+            "built_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        }
+        Path(".release-control/workflow-lambda-artifact.json").write_text(
+            json.dumps(payload, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        PY
+      - export RELEASE_MANIFEST_KEY="releases/${RELEASE_COMMIT_SHA}/release-execution-manifest.json"
+      - >
+        uv run python scripts/release/write_execution_manifest.py
+        --repo-root .
+        --release-commit-sha "${RELEASE_COMMIT_SHA}"
+        --api-lambda-artifact-path .release-control/api-lambda-artifact.json
+        --workflow-lambda-artifact-path .release-control/workflow-lambda-artifact.json
+        --release-prep-path release/RELEASE-PREP.json
+        --release-manifest-path release/RELEASE-VERSION-MANIFEST.md
+        --release-manifest-bucket "${RELEASE_MANIFEST_BUCKET}"
+        --release-manifest-key "${RELEASE_MANIFEST_KEY}"
+        --staging-repository "${CODEARTIFACT_STAGING_REPOSITORY}"
+        --prod-repository "${CODEARTIFACT_PROD_REPOSITORY}"
+        --output-path .release-control/release-execution-manifest.json
+      - aws s3 cp .release-control/release-execution-manifest.json "s3://${RELEASE_MANIFEST_BUCKET}/${RELEASE_MANIFEST_KEY}"
+      - eval "$(uv run python scripts/release/emit_api_lambda_artifact_env.py --manifest-path .release-control/api-lambda-artifact.json)"
+      - eval "$(uv run python scripts/release/emit_workflow_lambda_artifact_env.py --manifest-path .release-control/workflow-lambda-artifact.json)"
+      - eval "$(uv run python scripts/release/export_runtime_stack_config_env.py --parameter-name "${DEV_RUNTIME_CONFIG_PARAMETER_NAME}")"
+      - export CDK_DEFAULT_ACCOUNT="$(aws sts get-caller-identity --query Account --output text)"
+      - export CDK_DEFAULT_REGION="${AWS_REGION}"
+      - export ENVIRONMENT="${DEV_RUNTIME_ENVIRONMENT}"
+      - export RUNTIME_STACK_ID="${DEV_RUNTIME_STACK_ID}"
+      - >
+        npx aws-cdk@2.1107.0 deploy
+        --app "uv run --package nova-cdk python infra/nova_cdk/app.py"
+        --output /tmp/nova-release-cdk.out
+        --require-approval never
+        --role-arn "${DEV_RUNTIME_CFN_EXECUTION_ROLE_ARN}"
+        "${DEV_RUNTIME_STACK_ID}"
+      - >
+        aws cloudformation describe-stacks
+        --stack-name "${DEV_RUNTIME_STACK_ID}"
+        --region "${AWS_REGION}"
+        --query 'Stacks[0]'
+        --output json > .release-control/dev-runtime-stack-description.json
+      - >
+        uv run python scripts/release/resolve_deploy_output.py build
+        --api-lambda-artifact-path .release-control/api-lambda-artifact.json
+        --workflow-lambda-artifact-path .release-control/workflow-lambda-artifact.json
+        --stack-name "${DEV_RUNTIME_STACK_ID}"
+        --region "${AWS_REGION}"
+        --environment-name "${DEV_RUNTIME_ENVIRONMENT}"
+        --allowed-origins "${STACK_ALLOWED_ORIGINS}"
+        --repository "${RELEASE_GITHUB_OWNER}/${RELEASE_GITHUB_REPO}"
+        --pipeline-name "${RELEASE_PIPELINE_NAME}"
+        --pipeline-execution-id "${CODEPIPELINE_EXECUTION_ID}"
+        --codebuild-build-id "${CODEBUILD_BUILD_ID}"
+        --stack-description-path .release-control/dev-runtime-stack-description.json
+        --output-path .release-control/deploy-output.json
+        --sha256-path .release-control/deploy-output.sha256
+artifacts:
+  files:
+    - .release-control/**/*

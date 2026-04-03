@@ -7,11 +7,11 @@ Last reviewed: 2026-02-24
 ## Purpose
 
 Provision and rotate the release signing key in AWS Secrets Manager for the
-`Nova Release Apply` workflow (`.github/workflows/release-apply.yml`), which
-invokes `.github/workflows/reusable-release-apply.yml`.
+AWS-native release control plane. CodeBuild uses this secret only when release
+artifacts require detached package signatures.
 
 This guide is governed by the canonical documentation authority:
-[`../release/README.md#canonical-documentation-authority-chain`](../release/README.md#canonical-documentation-authority-chain).
+[`../../../release/README.md`](../../../release/README.md).
 
 ## Required secret contract
 
@@ -22,8 +22,10 @@ The release workflow expects JSON with these keys:
 - `signer_name`
 - `signer_email`
 
-Reference workflow:
-`.github/workflows/release-apply.yml` (`Nova Release Apply`)
+Reference surfaces:
+`infra/nova_cdk/src/nova_cdk/release_control_stack.py`
+and
+`infra/nova_cdk/buildspecs/release-publish-and-deploy-dev.yml`
 
 ## Prerequisites
 
@@ -100,7 +102,7 @@ Use these placeholders:
 ## Security notes
 
 1. Never commit generated private keys.
-2. Restrict read access to the dedicated GitHub OIDC release role.
+2. Restrict read access to the AWS CodeBuild release role only.
 3. Rotate key immediately after any suspected exposure.
 
 ## References

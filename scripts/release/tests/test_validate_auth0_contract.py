@@ -37,7 +37,11 @@ def _create_repo_fixture(
         repo_root / "infra/auth0/env/dev.env.example",
         "\n".join(
             [
+                "AUTH0_DOMAIN=REPLACE_WITH_DEV_TENANT_DOMAIN",
+                "AUTH0_CLIENT_ID=REPLACE_WITH_M2M_CLIENT_ID",
+                "AUTH0_CLIENT_SECRET=REPLACE_WITH_M2M_CLIENT_SECRET",
                 "AUTH0_ALLOW_DELETE=false",
+                'AUTH0_INCLUDED_ONLY=["tenant","resourceServers","clients","clientGrants"]',
                 "AUTH0_INPUT_FILE=infra/auth0/tenant/tenant.yaml",
                 "AUTH0_KEYWORD_MAPPINGS_FILE=infra/auth0/mappings/dev.json",
                 "",
@@ -110,7 +114,11 @@ def test_run_validation_fails_for_delete_guard_override(
         repo_root / "infra/auth0/env/dev.env.example",
         "\n".join(
             [
+                "AUTH0_DOMAIN=REPLACE_WITH_DEV_TENANT_DOMAIN",
+                "AUTH0_CLIENT_ID=REPLACE_WITH_M2M_CLIENT_ID",
+                "AUTH0_CLIENT_SECRET=REPLACE_WITH_M2M_CLIENT_SECRET",
                 "AUTH0_ALLOW_DELETE=true",
+                'AUTH0_INCLUDED_ONLY=["tenant","resourceServers","clients","clientGrants"]',
                 "AUTH0_INPUT_FILE=infra/auth0/tenant/tenant.yaml",
                 "AUTH0_KEYWORD_MAPPINGS_FILE=infra/auth0/mappings/dev.json",
                 "",
@@ -122,3 +130,55 @@ def test_run_validation_fails_for_delete_guard_override(
 
     assert len(errors) == 1
     assert "AUTH0_ALLOW_DELETE must be 'false'" in errors[0]
+
+
+def test_run_validation_fails_when_example_contains_real_secret_shape(
+    repo_root: Path,
+    write_text: Callable[[Path, str], None],
+) -> None:
+    repo_root = _create_repo_fixture(repo_root, write_text)
+    write_text(
+        repo_root / "infra/auth0/env/dev.env.example",
+        "\n".join(
+            [
+                "AUTH0_DOMAIN=nova-dev-tenant.us.auth0.com",
+                "AUTH0_CLIENT_ID=abc123",
+                "AUTH0_CLIENT_SECRET=topsecret",
+                "AUTH0_ALLOW_DELETE=false",
+                'AUTH0_INCLUDED_ONLY=["tenant","resourceServers","clients","clientGrants"]',
+                "AUTH0_INPUT_FILE=infra/auth0/tenant/tenant.yaml",
+                "AUTH0_KEYWORD_MAPPINGS_FILE=infra/auth0/mappings/dev.json",
+                "",
+            ]
+        ),
+    )
+
+    errors = validate_auth0_contract.run_validation(repo_root)
+
+    assert any("REPLACE_WITH_* placeholder" in error for error in errors)
+
+
+def test_run_validation_fails_for_unexpected_included_only_shape(
+    repo_root: Path,
+    write_text: Callable[[Path, str], None],
+) -> None:
+    repo_root = _create_repo_fixture(repo_root, write_text)
+    write_text(
+        repo_root / "infra/auth0/env/dev.env.example",
+        "\n".join(
+            [
+                "AUTH0_DOMAIN=REPLACE_WITH_DEV_TENANT_DOMAIN",
+                "AUTH0_CLIENT_ID=REPLACE_WITH_M2M_CLIENT_ID",
+                "AUTH0_CLIENT_SECRET=REPLACE_WITH_M2M_CLIENT_SECRET",
+                "AUTH0_ALLOW_DELETE=false",
+                'AUTH0_INCLUDED_ONLY=["tenant","clients"]',
+                "AUTH0_INPUT_FILE=infra/auth0/tenant/tenant.yaml",
+                "AUTH0_KEYWORD_MAPPINGS_FILE=infra/auth0/mappings/dev.json",
+                "",
+            ]
+        ),
+    )
+
+    errors = validate_auth0_contract.run_validation(repo_root)
+
+    assert any("AUTH0_INCLUDED_ONLY must equal" in error for error in errors)

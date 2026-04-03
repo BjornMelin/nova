@@ -1,9 +1,14 @@
 {
-  "ENVIRONMENT_NAME": "QA",
   "ENVIRONMENT_SLUG": "qa",
+  "TENANT_FRIENDLY_NAME": "Nova QA",
   "SUPPORT_EMAIL": "platform-qa@nova.local",
   "DEFAULT_REDIRECT_URI": "https://qa.nova.local/callback",
+  "RESOURCE_SERVER_NAME": "Nova API QA",
   "NOVA_API_AUDIENCE": "https://nova-qa/api",
+  "TENANT_OPS_CLIENT_NAME": "nova-tenant-ops-qa",
+  "TENANT_OPS_CLIENT_DESCRIPTION": "Nova tenant automation client for QA",
+  "WEB_CLIENT_NAME": "nova-web-qa",
+  "WEB_CLIENT_DESCRIPTION": "Nova web client for QA",
   "WEB_CALLBACK_URL": "https://qa.nova.local/callback",
   "WEB_LOGOUT_URL": "https://qa.nova.local/logout",
   "WEB_ORIGIN": "https://qa.nova.local"

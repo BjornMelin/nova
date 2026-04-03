@@ -1,9 +1,14 @@
 {
-  "ENVIRONMENT_NAME": "PR",
   "ENVIRONMENT_SLUG": "pr",
+  "TENANT_FRIENDLY_NAME": "Nova PR",
   "SUPPORT_EMAIL": "platform-pr@nova.local",
   "DEFAULT_REDIRECT_URI": "https://pr.nova.local/callback",
+  "RESOURCE_SERVER_NAME": "Nova API PR",
   "NOVA_API_AUDIENCE": "https://nova-pr/api",
+  "TENANT_OPS_CLIENT_NAME": "nova-tenant-ops-pr",
+  "TENANT_OPS_CLIENT_DESCRIPTION": "Nova tenant automation client for PR",
+  "WEB_CLIENT_NAME": "nova-web-pr",
+  "WEB_CLIENT_DESCRIPTION": "Nova web client for PR",
   "WEB_CALLBACK_URL": "https://pr.nova.local/callback",
   "WEB_LOGOUT_URL": "https://pr.nova.local/logout",
   "WEB_ORIGIN": "https://pr.nova.local"

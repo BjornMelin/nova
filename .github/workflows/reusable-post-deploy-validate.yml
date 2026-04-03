@@ -15,7 +15,7 @@ on:
       deploy_artifact_name:
         description: Artifact name containing deploy-output.json and deploy-output.sha256.
         required: false
-        default: deploy-runtime-output
+        default: deploy-output
         type: string
       deploy_output_json:
         description: Optional inline deploy-output JSON payload.

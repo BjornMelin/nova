@@ -38,12 +38,22 @@ its synchronization with existing tenant-as-code runbook and validator controls.
 ## 4. Safety contract
 
 1. `AUTH0_ALLOW_DELETE=false` remains mandatory default.
-2. Overlay + mapping contract validation is required before import/export
-   actions.
-3. Reusable workflow mutation steps (`import`, `export`, tool installation)
+2. Overlay + mapping contract validation is required before bootstrap, audit,
+   import, and export actions.
+3. Reusable workflow mutation/reporting steps (`bootstrap`, `audit`, `import`,
+   `export`)
    MUST be gated on successful contract validation and MUST NOT execute when
    validation fails.
-4. Credential material must not be stored in repository-tracked files.
+4. Audit MUST fail closed on repo-template drift. A successful audit means the
+   live tenant matched the expected Nova resource server, expected clients, and
+   the tenant-ops grant for the Nova API audience.
+5. Local CLI wrappers MUST re-enforce the non-destructive env contract at
+   runtime before invoking `auth0-deploy-cli`; tracked examples are not the
+   only safety boundary.
+6. Credential material must not be stored in repository-tracked files.
+7. Hosted workflow credentials must come from environment-scoped GitHub
+   secrets (`auth0-dev`, `auth0-pr`, `auth0-qa`), not repo-wide Auth0
+   secrets.
 
 ## 5. Synchronization contract
 

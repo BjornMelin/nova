@@ -29,7 +29,7 @@
         "deploy_artifact_name": {
           "type": "string",
           "description": "Artifact name containing deploy-output.json and deploy-output.sha256.",
-          "default": "deploy-runtime-output",
+          "default": "deploy-output",
           "minLength": 1
         },
         "deploy_output_json": {

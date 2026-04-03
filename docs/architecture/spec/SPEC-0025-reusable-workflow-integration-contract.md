@@ -2,8 +2,8 @@
 Spec: 0025
 Title: Reusable workflow integration contract
 Status: Active
-Version: 1.2
-Date: 2026-03-29
+Version: 1.3
+Date: 2026-04-02
 Supersedes: "[SPEC-0018 (superseded): Reusable workflow integration contract](./superseded/SPEC-0018-reusable-workflow-integration-contract.md)"
 Related:
   - "[ADR-0031: Reusable GitHub workflow API and versioning policy for deployment automation](../adr/ADR-0031-reusable-github-workflow-api-and-versioning-policy-for-deployment-automation.md)"
@@ -26,11 +26,8 @@ integration guarantees for Nova and downstream repos.
 Required reusable workflows:
 
 1. `reusable-release-plan.yml`
-2. `reusable-release-apply.yml`
-3. `reusable-deploy-runtime.yml`
-4. `reusable-promote-prod.yml`
-5. `reusable-post-deploy-validate.yml`
-6. `reusable-auth0-tenant-deploy.yml`
+2. `reusable-post-deploy-validate.yml`
+3. `reusable-auth0-tenant-deploy.yml`
 
 ## 3. Wrapper workflow contract
 
@@ -43,12 +40,13 @@ Required reusable workflows:
 
 1. Reusable workflows must declare typed `workflow_call` inputs/outputs.
 2. Contract schemas are source-of-truth artifacts in:
-   - `docs/contracts/workflow-deploy-runtime-v1.schema.json`
    - `docs/contracts/deploy-output-authority-v2.schema.json`
    - `docs/contracts/workflow-post-deploy-validate.schema.json`
    - `docs/contracts/workflow-auth0-tenant-deploy.schema.json`
-3. Runtime deploy APIs must emit `deploy-output.json` and `deploy-output.sha256`
-   as the authoritative deployment evidence.
+   - `docs/contracts/release-prep-v1.schema.json`
+   - `docs/contracts/release-execution-manifest-v1.schema.json`
+3. The AWS-native release control plane emits `deploy-output.json` and
+   `deploy-output.sha256` as the authoritative deployment evidence.
 
 ## 5. Versioning policy
 
@@ -79,27 +77,30 @@ Required reusable workflows:
    require immutable refs.
 5. Composite actions under `.github/actions/**` remain internal implementation
    details and are not a supported external API surface.
+6. Reusable workflows that operate on environment-specific credentials MUST use
+   GitHub Environments rather than repo-wide secrets when those credentials are
+   tenant- or account-specific.
 
 ## 7. Deploy-output authority contract
 
-Reusable runtime deployment APIs that update `NovaRuntimeStack` MUST:
+The surviving reusable validation API MUST:
 
-1. consume immutable runtime artifact coordinates produced by
-   `reusable-release-apply.yml`
-2. deploy the runtime through GitHub OIDC without rebuilding the API package
-   locally
-3. emit `deploy-output.json` plus `deploy-output.sha256`
-4. capture the canonical `NovaPublicBaseUrl` and the key stack outputs needed
-   for downstream validation
-5. make post-deploy validation consume that deploy-output artifact instead of a
-   free-text URL input
+1. accept deploy-output authority via one of:
+   - `deploy_run_id`
+   - `deploy_output_json`
+   - `deploy_output_path`
+2. make validation consume that deploy-output artifact instead of a free-text
+   URL input
+3. preserve `deploy-output.json` plus `deploy-output.sha256` as the authority
+   contract created by the AWS-native release control plane
+4. default the downloaded artifact name to `deploy-output`
 
 ## 8. Acceptance criteria
 
 1. Workflow/productization contract tests pass.
 2. Contract docs tests assert schema/workflow parity.
 3. Actionlint passes for all workflow files.
-4. Reusable deploy docs align with the live deploy-output authority contract.
+4. Reusable validation docs align with the live deploy-output authority contract.
 
 ## 9. Traceability
 

@@ -1,0 +1,122 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://3m-cloud.github.io/nova/docs/contracts/release-execution-manifest-v1.schema.json",
+  "title": "Release execution manifest",
+  "description": "S3-backed execution manifest written by the AWS-native release control plane.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "generated_at",
+    "release_commit_sha",
+    "release_manifest_path",
+    "release_manifest_sha256",
+    "release_manifest_bucket",
+    "release_manifest_key",
+    "release_prep",
+    "api_lambda_artifact",
+    "workflow_lambda_artifact",
+    "codeartifact"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1.0"
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "release_commit_sha": {
+      "type": "string",
+      "pattern": "^[A-Fa-f0-9]{40}$"
+    },
+    "release_manifest_path": {
+      "type": "string",
+      "minLength": 1
+    },
+    "release_manifest_sha256": {
+      "type": "string",
+      "pattern": "^[A-Fa-f0-9]{64}$"
+    },
+    "release_manifest_bucket": {
+      "type": "string",
+      "minLength": 1
+    },
+    "release_manifest_key": {
+      "type": "string",
+      "minLength": 1
+    },
+    "release_prep": {
+      "$ref": "https://3m-cloud.github.io/nova/docs/contracts/release-prep-v1.schema.json"
+    },
+    "api_lambda_artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifact_bucket",
+        "artifact_key",
+        "artifact_sha256"
+      ],
+      "properties": {
+        "artifact_bucket": {
+          "type": "string",
+          "minLength": 1
+        },
+        "artifact_key": {
+          "type": "string",
+          "minLength": 1
+        },
+        "artifact_sha256": {
+          "type": "string",
+          "pattern": "^[A-Fa-f0-9]{64}$"
+        }
+      }
+    },
+    "workflow_lambda_artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifact_bucket",
+        "artifact_key",
+        "artifact_sha256"
+      ],
+      "properties": {
+        "artifact_bucket": {
+          "type": "string",
+          "minLength": 1
+        },
+        "artifact_key": {
+          "type": "string",
+          "minLength": 1
+        },
+        "artifact_sha256": {
+          "type": "string",
+          "pattern": "^[A-Fa-f0-9]{64}$"
+        }
+      }
+    },
+    "codeartifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "staging_repository",
+        "prod_repository"
+      ],
+      "properties": {
+        "staging_repository": {
+          "type": "string",
+          "minLength": 1
+        },
+        "prod_repository": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "repo_root": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}

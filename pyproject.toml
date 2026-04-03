@@ -29,6 +29,7 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+  "auth0-python>=5.2.0,<6",
   "aws-cdk-lib>=2.189.0,<3",
   "constructs>=10.4.2,<11",
   "mypy>=1.19.1",

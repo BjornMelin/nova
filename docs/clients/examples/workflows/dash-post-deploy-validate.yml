@@ -3,8 +3,8 @@ name: Dash Post Deploy Validate
 on:
   workflow_dispatch:
     inputs:
-      nova_deploy_run_id:
-        description: Nova Deploy Runtime workflow run id to validate.
+      nova_deploy_output_json:
+        description: Nova deploy-output JSON payload to validate.
         required: true
         type: string
 
@@ -13,9 +13,9 @@ permissions:
 
 jobs:
   validate:
-    uses: 3M-Cloud/nova/.github/workflows/reusable-post-deploy-validate.yml@<pin-to-an-immutable-revision>
+    uses: REPLACE_WITH_NOVA_REPO/.github/workflows/reusable-post-deploy-validate.yml@<pin-to-an-immutable-revision>
     with:
-      deploy_repo: 3M-Cloud/nova
-      deploy_run_id: ${{ inputs.nova_deploy_run_id }}
+      deploy_repo: REPLACE_WITH_NOVA_REPO
+      deploy_output_json: ${{ inputs.nova_deploy_output_json }}
       validation_canonical_paths: /v1/health/live,/v1/health/ready,/v1/capabilities,/v1/releases/info
       validation_legacy_404_paths: /healthz,/readyz,/api/transfers/uploads/initiate,/api/jobs,/api/v1/transfers/uploads/initiate

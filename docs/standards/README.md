@@ -37,5 +37,4 @@ surface.
 Keep standards aligned to the active package graph, the surviving GitHub
 workflow surface, and `infra/nova_cdk`. Do not preserve deleted deploy-runtime
 or release-control-plane assumptions in active verification commands from the
-legacy ECS/CloudFormation-era deploy-runtime or release-control-plane surfaces
-(not the current `deploy-runtime.yml` workflow).
+legacy ECS/CloudFormation-era deploy-runtime or release-control-plane surfaces.
