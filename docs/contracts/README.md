@@ -32,6 +32,9 @@ control-plane, release-prep metadata, release execution manifests, runtime
 deploy provenance, validation, and Auth0 automation surfaces. Do not retain
 machine-readable contracts for deleted GitHub release executors or any workflow
 that writes release commits back to protected Git branches.
+Treat `release-prep-v1` and `release-execution-manifest-v1` as complementary:
+release prep captures the reviewed source commit, while the execution manifest
+pins the merged deploy commit and validates ancestry between the two.
 Do not treat execute-api hostnames as public runtime authority. When an
 execute-api endpoint appears in deploy-output, it exists only to prove that the
 default endpoint is blocked.

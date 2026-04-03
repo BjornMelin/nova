@@ -46,16 +46,19 @@ Fixed constraints:
 2. The committed release intent is `release/RELEASE-PREP.json`.
 3. The human-reviewable release mirror is
    `release/RELEASE-VERSION-MANIFEST.md`.
-4. Python distributions publish via `twine --repository codeartifact`.
-5. npm distributions publish via repo-scoped CodeArtifact npm config and
+4. `release/RELEASE-PREP.json` may record the reviewed source commit while the
+   AWS execution manifest pins the merged deploy commit; ancestry between those
+   commits is required.
+5. Python distributions publish via `twine --repository codeartifact`.
+6. npm distributions publish via repo-scoped CodeArtifact npm config and
    `npm publish --no-progress`.
-6. R releases publish tarball and detached signature assets as CodeArtifact
+7. R releases publish tarball and detached signature assets as CodeArtifact
    generic packages.
-7. Publish to `CODEARTIFACT_STAGING_REPOSITORY` only after manifest and gate
+8. Publish to `CODEARTIFACT_STAGING_REPOSITORY` only after manifest and gate
    validation pass.
-8. Promote to `CODEARTIFACT_PROD_REPOSITORY` only from validated staged
+9. Promote to `CODEARTIFACT_PROD_REPOSITORY` only from validated staged
    candidates.
-9. Staging and prod repositories must differ.
+10. Staging and prod repositories must differ.
 
 ## 4. Infrastructure policy
 

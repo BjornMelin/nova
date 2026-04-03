@@ -137,6 +137,10 @@ uv run --package nova-cdk python app.py
   `release_connection_arn` are provided through CDK context or environment,
   the app also synthesizes the release stacks. By default it creates
   `NovaReleaseSupportStack` first and then `NovaReleaseControlPlaneStack`.
+- Runtime-only synth/diff/deploy must not require release-control inputs.
+  If `RELEASE_CONNECTION_ARN` is absent, the CDK app should synthesize only
+  the runtime stack path even when runtime deploy artifacts and runtime stack
+  ids are present.
   The support stack provisions:
   - one CloudFormation execution role for the dev runtime stack
   - one CloudFormation execution role for the prod runtime stack
@@ -165,10 +169,16 @@ uv run --package nova-cdk python app.py
   release-control-plane inputs.
 - Configure `allowed_origins` via CDK context or `STACK_ALLOWED_ORIGINS` for
   production deployments; non-prod stacks default to `*`.
+- When you pass `STACK_ALLOWED_ORIGINS` through the environment, provide a JSON
+  array string such as `["https://app.example.com"]` or `["*"]`.
 - Configure `enable_waf` / `ENABLE_WAF` when you need to override the ingress
   default. Production defaults to `true` and fails closed if set to `false`.
   Non-production defaults to `false` to avoid unnecessary steady-state WAF
   cost.
+- `scripts.release.export_runtime_stack_config_env` now exports structured SSM
+  runtime-config values as JSON so the CodeBuild release path can pass
+  `STACK_ALLOWED_ORIGINS` and `ENABLE_WAF` back into the CDK runtime parser
+  without Python-repr drift.
 - `scripts.release.prepare_release_pr` is the canonical local entrypoint for
   generating committed release-prep artifacts under `release/**`.
 - The primary and only supported release executor is the
