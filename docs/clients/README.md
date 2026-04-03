@@ -44,6 +44,9 @@ Last reviewed: 2026-04-02
 Downstream examples must target the unified SDK packages, the browser-only
 bridge surface, and the surviving reusable post-deploy validation workflow
 only.
+Downstream post-deploy validation should pass authoritative `deploy-output`
+content directly through `deploy_output_json` or `deploy_output_path`; do not
+assume a Nova GitHub deploy workflow run id exists.
 When downstream automation needs the runtime base URL, it must derive that
 authority from Nova `deploy-output.json` rather than treating a manually
 entered `NOVA_API_BASE_URL` as the source of truth when deploy-output evidence

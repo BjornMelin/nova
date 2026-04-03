@@ -27,7 +27,7 @@ path.
 - `./contracts/README.md`
 - `./runbooks/README.md`
 - `./clients/README.md`
-- `./release/README.md`
+- `../release/README.md`
 
 ## Active architecture/program authority
 

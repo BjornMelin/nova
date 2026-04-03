@@ -17,10 +17,13 @@ operations docs for the canonical repo.
 
 ## Rules
 
-- Active runbooks must describe only the surviving GitHub workflow surface and `infra/nova_cdk`.
+- Active runbooks must describe the surviving human GitHub release-prep flow, the AWS-native release control plane, and `infra/nova_cdk`.
+- Active runbooks must treat `release/RELEASE-PREP.json` and
+  `release/RELEASE-VERSION-MANIFEST.md` as machine-owned release metadata,
+  not as narrative documentation.
 - Active runbooks must treat the Regional REST API custom domain as the only
   intended public base URL for the runtime.
 - Active runbooks must treat `deploy-output.json` as the published runtime
   authority for the canonical public base URL and deployed release identity.
-- Deleted deploy-runtime CloudFormation, ECS worker, and CodePipeline/CodeBuild control-plane paths are not active operator procedures.
+- Deleted ECS worker and legacy deploy-runtime CloudFormation paths are not active operator procedures.
 - Historical or break-glass material belongs under `docs/history/` if retained for traceability.

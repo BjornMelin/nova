@@ -3,7 +3,7 @@ name: Dash Minimal Nova Deploy Validate
 on:
   workflow_dispatch:
     inputs:
-      nova_deploy_run_id:
+      nova_deploy_output_json:
         required: true
         type: string
 
@@ -12,4 +12,4 @@ jobs:
     uses: 3M-Cloud/nova/.github/workflows/reusable-post-deploy-validate.yml@dd8af95e54eaaaaf37d1a455d7582141f3ed1b3c
     with:
       deploy_repo: 3M-Cloud/nova
-      deploy_run_id: ${{ inputs.nova_deploy_run_id }}
+      deploy_output_json: ${{ inputs.nova_deploy_output_json }}

@@ -11,7 +11,8 @@ These schemas remain the current machine-readable baseline contract artifacts:
 - `release-artifacts-v1.schema.json`
 - `deploy-output-authority-v2.schema.json` (published runtime provenance and
   canonical public base URL authority)
-- `workflow-deploy-runtime-v1.schema.json`
+- `release-prep-v1.schema.json`
+- `release-execution-manifest-v1.schema.json`
 - `workflow-post-deploy-validate.schema.json`
 - `workflow-auth0-tenant-deploy.schema.json`
 - `browser-live-validation-report.schema.json`
@@ -26,9 +27,11 @@ hard cuts and already-landed contract changes across the wave-2 program.
 
 ## Rule
 
-Keep only schemas that describe surviving release, runtime deploy, validation,
-and Auth0 automation surfaces. Do not retain machine-readable contracts for
-deleted CodePipeline/CodeBuild or other removed control-plane paths.
+Keep only schemas that describe surviving release, AWS-native post-merge
+control-plane, release-prep metadata, release execution manifests, runtime
+deploy provenance, validation, and Auth0 automation surfaces. Do not retain
+machine-readable contracts for deleted GitHub release executors or any workflow
+that writes release commits back to protected Git branches.
 Do not treat execute-api hostnames as public runtime authority. When an
 execute-api endpoint appears in deploy-output, it exists only to prove that the
 default endpoint is blocked.

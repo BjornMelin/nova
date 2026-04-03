@@ -2,7 +2,7 @@
   "$id": "https://3m-cloud.github.io/nova/docs/contracts/deploy-output-authority-v2.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
-  "description": "Authoritative runtime deployment artifact emitted by the deploy-runtime workflow.",
+  "description": "Authoritative runtime deployment artifact emitted by the AWS-native release control plane.",
   "properties": {
     "api_lambda_artifact": {
       "additionalProperties": false,
@@ -54,18 +54,6 @@
       "minItems": 1,
       "type": "array"
     },
-    "deploy_run_attempt": {
-      "minimum": 1,
-      "type": "integer"
-    },
-    "deploy_run_id": {
-      "minimum": 1,
-      "type": "integer"
-    },
-    "deploy_workflow_ref": {
-      "minLength": 1,
-      "type": "string"
-    },
     "environment": {
       "minLength": 1,
       "type": "string"
@@ -73,6 +61,36 @@
     "execute_api_endpoint": {
       "pattern": "^https://.+\\.execute-api\\..+$",
       "type": "string"
+    },
+    "execution": {
+      "additionalProperties": false,
+      "properties": {
+        "codebuild_build_ids": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "pipeline_execution_id": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "pipeline_name": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "system": {
+          "const": "aws-codepipeline",
+          "type": "string"
+        }
+      },
+      "required": [
+        "system",
+        "pipeline_name",
+        "pipeline_execution_id"
+      ],
+      "type": "object"
     },
     "public_base_url": {
       "pattern": "^https://.+$",
@@ -152,15 +170,51 @@
         "NovaRestApiEndpoint"
       ],
       "type": "object"
+    },
+    "workflow_lambda_artifact": {
+      "additionalProperties": false,
+      "properties": {
+        "artifact_bucket": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "artifact_key": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "artifact_sha256": {
+          "pattern": "^[A-Fa-f0-9]{64}$",
+          "type": "string"
+        },
+        "package_name": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "package_version": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "release_commit_sha": {
+          "pattern": "^[A-Fa-f0-9]{40}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "artifact_bucket",
+        "artifact_key",
+        "artifact_sha256",
+        "package_name",
+        "package_version",
+        "release_commit_sha"
+      ],
+      "type": "object"
     }
   },
   "required": [
     "schema_version",
     "captured_at",
     "repository",
-    "deploy_run_id",
-    "deploy_run_attempt",
-    "deploy_workflow_ref",
+    "execution",
     "stack_name",
     "region",
     "environment",
@@ -171,7 +225,8 @@
     "execute_api_endpoint",
     "cors_allowed_origins",
     "stack_outputs",
-    "api_lambda_artifact"
+    "api_lambda_artifact",
+    "workflow_lambda_artifact"
   ],
   "title": "Runtime deploy-output authority",
   "type": "object"
