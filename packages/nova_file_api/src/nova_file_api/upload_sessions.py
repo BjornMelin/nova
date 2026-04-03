@@ -11,7 +11,6 @@ from enum import StrEnum
 from typing import Any, Protocol, cast
 from uuid import uuid4
 
-from boto3.dynamodb.conditions import Key
 from botocore.exceptions import BotoCoreError, ClientError
 
 from nova_file_api.models import UploadStrategy
@@ -182,7 +181,9 @@ class DynamoUploadSessionRepository:
         table = await self._resolve_table()
         response = await table.query(
             IndexName="upload_id-index",
-            KeyConditionExpression=Key("upload_id").eq(upload_id),
+            KeyConditionExpression="#upload_id = :upload_id",
+            ExpressionAttributeNames={"#upload_id": "upload_id"},
+            ExpressionAttributeValues={":upload_id": upload_id},
             Limit=1,
         )
         items = cast(list[dict[str, Any]], response.get("Items", []))
