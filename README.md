@@ -31,6 +31,8 @@ Clients upload and download data directly against AWS storage primitives using N
 
 - Presigned direct upload initiation for single-part and multipart flows
 - Multipart part signing, upload introspection, completion, and abort
+- Additive initiate hints for upload sessions, resumable windows, and browser
+  multipart tuning
 - Presigned download issuance
 - Durable export workflow creation, status tracking, listing, and optional cancellation
 - Typed OpenAPI contract with generated TypeScript and Python SDKs, plus a thin R client
@@ -114,6 +116,7 @@ Nova is not responsible for:
 ### Platform and ops
 
 - `GET /v1/capabilities`
+- `GET /v1/capabilities/transfers`
 - `POST /v1/resources/plan`
 - `GET /v1/releases/info`
 - `GET /v1/health/live`

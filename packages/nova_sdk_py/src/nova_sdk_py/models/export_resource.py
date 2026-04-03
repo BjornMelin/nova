@@ -33,7 +33,9 @@ class ExportResource:
         source_key (str):
         status (ExportStatus): Lifecycle status of an export workflow.
         updated_at (datetime.datetime):
+        cancel_requested_at (datetime.datetime | None | Unset):
         error (None | str | Unset):
+        execution_arn (None | str | Unset):
         output (ExportOutput | None | Unset):
     """
 
@@ -43,7 +45,9 @@ class ExportResource:
     source_key: str
     status: ExportStatus
     updated_at: datetime.datetime
+    cancel_requested_at: datetime.datetime | None | Unset = UNSET
     error: None | str | Unset = UNSET
+    execution_arn: None | str | Unset = UNSET
     output: ExportOutput | None | Unset = UNSET
 
     def to_dict(self) -> dict[str, Any]:
@@ -61,11 +65,25 @@ class ExportResource:
 
         updated_at = self.updated_at.isoformat()
 
+        cancel_requested_at: None | str | Unset
+        if isinstance(self.cancel_requested_at, Unset):
+            cancel_requested_at = UNSET
+        elif isinstance(self.cancel_requested_at, datetime.datetime):
+            cancel_requested_at = self.cancel_requested_at.isoformat()
+        else:
+            cancel_requested_at = self.cancel_requested_at
+
         error: None | str | Unset
         if isinstance(self.error, Unset):
             error = UNSET
         else:
             error = self.error
+
+        execution_arn: None | str | Unset
+        if isinstance(self.execution_arn, Unset):
+            execution_arn = UNSET
+        else:
+            execution_arn = self.execution_arn
 
         output: dict[str, Any] | None | Unset
         if isinstance(self.output, Unset):
@@ -87,8 +105,12 @@ class ExportResource:
                 "updated_at": updated_at,
             }
         )
+        if cancel_requested_at is not UNSET:
+            field_dict["cancel_requested_at"] = cancel_requested_at
         if error is not UNSET:
             field_dict["error"] = error
+        if execution_arn is not UNSET:
+            field_dict["execution_arn"] = execution_arn
         if output is not UNSET:
             field_dict["output"] = output
 
@@ -111,6 +133,27 @@ class ExportResource:
 
         updated_at = isoparse(d.pop("updated_at"))
 
+        def _parse_cancel_requested_at(
+            data: object,
+        ) -> datetime.datetime | None | Unset:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            try:
+                if not isinstance(data, str):
+                    raise TypeError()
+                cancel_requested_at_type_0 = isoparse(data)
+
+                return cancel_requested_at_type_0
+            except (TypeError, ValueError, AttributeError, KeyError):
+                pass
+            return cast(datetime.datetime | None | Unset, data)
+
+        cancel_requested_at = _parse_cancel_requested_at(
+            d.pop("cancel_requested_at", UNSET)
+        )
+
         def _parse_error(data: object) -> None | str | Unset:
             if data is None:
                 return data
@@ -119,6 +162,15 @@ class ExportResource:
             return cast(None | str | Unset, data)
 
         error = _parse_error(d.pop("error", UNSET))
+
+        def _parse_execution_arn(data: object) -> None | str | Unset:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            return cast(None | str | Unset, data)
+
+        execution_arn = _parse_execution_arn(d.pop("execution_arn", UNSET))
 
         def _parse_output(
             data: object,
@@ -143,7 +195,9 @@ class ExportResource:
             source_key=source_key,
             status=status,
             updated_at=updated_at,
+            cancel_requested_at=cancel_requested_at,
             error=error,
+            execution_arn=execution_arn,
             output=output,
         )
 

@@ -150,6 +150,22 @@ def upstream_s3_error(
     )
 
 
+def session_store_unavailable(
+    message: str,
+    *,
+    details: dict[str, Any] | None = None,
+    headers: dict[str, str] | None = None,
+) -> FileTransferError:
+    """Return a session-store dependency-unavailable error."""
+    return FileTransferError(
+        code="session_store_unavailable",
+        message=message,
+        status_code=int(HTTPStatus.SERVICE_UNAVAILABLE),
+        details=details or {},
+        headers=headers or {},
+    )
+
+
 def queue_unavailable(
     message: str,
     *,

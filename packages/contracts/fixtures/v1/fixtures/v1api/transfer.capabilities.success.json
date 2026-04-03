@@ -1,0 +1,14 @@
+{
+  "policy_id": "default",
+  "policy_version": "2026-04-03",
+  "max_upload_bytes": 536870912000,
+  "multipart_threshold_bytes": 104857600,
+  "target_upload_part_count": 2000,
+  "minimum_part_size_bytes": 67108864,
+  "maximum_part_size_bytes": 536870912,
+  "max_concurrency_hint": 4,
+  "sign_batch_size_hint": 32,
+  "accelerate_enabled": false,
+  "checksum_algorithm": null,
+  "resumable_ttl_seconds": 604800
+}

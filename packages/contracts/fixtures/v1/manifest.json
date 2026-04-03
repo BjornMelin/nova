@@ -8,6 +8,7 @@
     "exports_create_request": "schemas/exports-create.request.schema.json",
     "exports_success_response": "schemas/exports-success.schema.json",
     "v1_capabilities_success_response": "schemas/v1-capabilities.success.schema.json",
+    "v1_transfer_capabilities_success_response": "schemas/v1-transfer-capabilities.success.schema.json",
     "v1_resources_plan_success_response": "schemas/v1-resources-plan.success.schema.json",
     "v1_releases_info_success_response": "schemas/v1-releases-info.success.schema.json"
   },
@@ -26,6 +27,7 @@
     },
     "v1api": {
       "capabilities_success": "fixtures/v1api/capabilities.success.json",
+      "transfer_capabilities_success": "fixtures/v1api/transfer.capabilities.success.json",
       "resources_plan_success": "fixtures/v1api/resources.plan.success.json",
       "releases_info_success": "fixtures/v1api/releases.info.success.json"
     }

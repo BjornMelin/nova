@@ -15,10 +15,15 @@ from nova_file_api.models import ExportRecord, ExportStatus
 class _FakeStepFunctionsClient:
     def __init__(self) -> None:
         self.start_calls: list[dict[str, Any]] = []
+        self.stop_calls: list[dict[str, Any]] = []
 
     async def start_execution(self, **kwargs: object) -> dict[str, object]:
         self.start_calls.append(dict(kwargs))
         return {"executionArn": "arn:aws:states:::execution:test"}
+
+    async def stop_execution(self, **kwargs: object) -> dict[str, object]:
+        self.stop_calls.append(dict(kwargs))
+        return {}
 
     async def describe_state_machine(
         self, **kwargs: object
@@ -85,3 +90,26 @@ async def test_step_functions_publisher_starts_execution() -> None:
     assert payload["status"] == ExportStatus.QUEUED.value
     assert payload["created_at"] == now.isoformat()
     assert payload["updated_at"] == now.isoformat()
+
+
+@pytest.mark.anyio
+async def test_step_functions_publisher_stops_execution() -> None:
+    client = _FakeStepFunctionsClient()
+    publisher = StepFunctionsExportPublisher(
+        state_machine_arn=(
+            "arn:aws:states:us-east-1:123456789012:stateMachine:nova"
+        ),
+        stepfunctions_client=client,
+    )
+
+    await publisher.stop_execution(
+        execution_arn="arn:aws:states:::execution:test",
+        cause="export canceled by caller",
+    )
+
+    assert client.stop_calls == [
+        {
+            "executionArn": "arn:aws:states:::execution:test",
+            "cause": "export canceled by caller",
+        }
+    ]

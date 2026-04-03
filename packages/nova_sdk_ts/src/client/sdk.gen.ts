@@ -2,7 +2,7 @@
 
 import { client } from './client.gen.js';
 import type { Client, Options as Options2, TDataShape } from './client/index.js';
-import type { AbortUploadData, AbortUploadErrors, AbortUploadResponses, CancelExportData, CancelExportErrors, CancelExportResponses, CompleteUploadData, CompleteUploadErrors, CompleteUploadResponses, CreateExportData, CreateExportErrors, CreateExportResponses, GetCapabilitiesData, GetCapabilitiesResponses, GetExportData, GetExportErrors, GetExportResponses, GetReleaseInfoData, GetReleaseInfoResponses, HealthLiveData, HealthLiveResponses, HealthReadyData, HealthReadyErrors, HealthReadyResponses, InitiateUploadData, InitiateUploadErrors, InitiateUploadResponses, IntrospectUploadData, IntrospectUploadErrors, IntrospectUploadResponses, ListExportsData, ListExportsErrors, ListExportsResponses, MetricsSummaryData, MetricsSummaryErrors, MetricsSummaryResponses, PlanResourcesData, PlanResourcesErrors, PlanResourcesResponses, PresignDownloadData, PresignDownloadErrors, PresignDownloadResponses, SignUploadPartsData, SignUploadPartsErrors, SignUploadPartsResponses } from './types.gen.js';
+import type { AbortUploadData, AbortUploadErrors, AbortUploadResponses, CancelExportData, CancelExportErrors, CancelExportResponses, CompleteUploadData, CompleteUploadErrors, CompleteUploadResponses, CreateExportData, CreateExportErrors, CreateExportResponses, GetCapabilitiesData, GetCapabilitiesResponses, GetExportData, GetExportErrors, GetExportResponses, GetReleaseInfoData, GetReleaseInfoResponses, GetTransferCapabilitiesData, GetTransferCapabilitiesResponses, HealthLiveData, HealthLiveResponses, HealthReadyData, HealthReadyErrors, HealthReadyResponses, InitiateUploadData, InitiateUploadErrors, InitiateUploadResponses, IntrospectUploadData, IntrospectUploadErrors, IntrospectUploadResponses, ListExportsData, ListExportsErrors, ListExportsResponses, MetricsSummaryData, MetricsSummaryErrors, MetricsSummaryResponses, PlanResourcesData, PlanResourcesErrors, PlanResourcesResponses, PresignDownloadData, PresignDownloadErrors, PresignDownloadResponses, SignUploadPartsData, SignUploadPartsErrors, SignUploadPartsResponses } from './types.gen.js';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean> = Options2<TData, ThrowOnError> & {
     /**
@@ -19,9 +19,9 @@ export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends 
 };
 
 /**
- * Metrics Summary
- *
  * Return low-cardinality metrics summary for dashboards.
+ *
+ * @returns The response from the `metricsSummary` operation.
  */
 export const metricsSummary = <ThrowOnError extends boolean = false>(options?: Options<MetricsSummaryData, ThrowOnError>) => (options?.client ?? client).get<MetricsSummaryResponses, MetricsSummaryErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -30,16 +30,23 @@ export const metricsSummary = <ThrowOnError extends boolean = false>(options?: O
 });
 
 /**
- * Get Capabilities
- *
  * Expose runtime capability declarations.
+ *
+ * @returns The response from the `getCapabilities` operation.
  */
 export const getCapabilities = <ThrowOnError extends boolean = false>(options?: Options<GetCapabilitiesData, ThrowOnError>) => (options?.client ?? client).get<GetCapabilitiesResponses, unknown, ThrowOnError>({ url: '/v1/capabilities', ...options });
 
 /**
- * List Exports
+ * Expose the current transfer policy envelope.
  *
+ * @returns The response from the `getTransferCapabilities` operation.
+ */
+export const getTransferCapabilities = <ThrowOnError extends boolean = false>(options?: Options<GetTransferCapabilitiesData, ThrowOnError>) => (options?.client ?? client).get<GetTransferCapabilitiesResponses, unknown, ThrowOnError>({ url: '/v1/capabilities/transfers', ...options });
+
+/**
  * List caller-owned exports with most recent first.
+ *
+ * @returns The response from the `listExports` operation.
  */
 export const listExports = <ThrowOnError extends boolean = false>(options?: Options<ListExportsData, ThrowOnError>) => (options?.client ?? client).get<ListExportsResponses, ListExportsErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -48,9 +55,9 @@ export const listExports = <ThrowOnError extends boolean = false>(options?: Opti
 });
 
 /**
- * Create Export
- *
  * Create an explicit export workflow resource.
+ *
+ * @returns The response from the `createExport` operation.
  */
 export const createExport = <ThrowOnError extends boolean = false>(options: Options<CreateExportData, ThrowOnError>) => (options.client ?? client).post<CreateExportResponses, CreateExportErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -63,9 +70,9 @@ export const createExport = <ThrowOnError extends boolean = false>(options: Opti
 });
 
 /**
- * Get Export
- *
  * Return the caller-owned export resource.
+ *
+ * @returns The response from the `getExport` operation.
  */
 export const getExport = <ThrowOnError extends boolean = false>(options: Options<GetExportData, ThrowOnError>) => (options.client ?? client).get<GetExportResponses, GetExportErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -74,9 +81,9 @@ export const getExport = <ThrowOnError extends boolean = false>(options: Options
 });
 
 /**
- * Cancel Export
- *
  * Cancel a caller-owned non-terminal export.
+ *
+ * @returns The response from the `cancelExport` operation.
  */
 export const cancelExport = <ThrowOnError extends boolean = false>(options: Options<CancelExportData, ThrowOnError>) => (options.client ?? client).post<CancelExportResponses, CancelExportErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -85,30 +92,30 @@ export const cancelExport = <ThrowOnError extends boolean = false>(options: Opti
 });
 
 /**
- * Health Live
- *
  * Return liveness status.
+ *
+ * @returns The response from the `healthLive` operation.
  */
 export const healthLive = <ThrowOnError extends boolean = false>(options?: Options<HealthLiveData, ThrowOnError>) => (options?.client ?? client).get<HealthLiveResponses, unknown, ThrowOnError>({ url: '/v1/health/live', ...options });
 
 /**
- * Health Ready
- *
  * Return readiness checks for traffic-critical dependencies.
+ *
+ * @returns The response from the `healthReady` operation.
  */
 export const healthReady = <ThrowOnError extends boolean = false>(options?: Options<HealthReadyData, ThrowOnError>) => (options?.client ?? client).get<HealthReadyResponses, HealthReadyErrors, ThrowOnError>({ url: '/v1/health/ready', ...options });
 
 /**
- * Get Release Info
- *
  * Return public release metadata for browser and deploy canaries.
+ *
+ * @returns The response from the `getReleaseInfo` operation.
  */
 export const getReleaseInfo = <ThrowOnError extends boolean = false>(options?: Options<GetReleaseInfoData, ThrowOnError>) => (options?.client ?? client).get<GetReleaseInfoResponses, unknown, ThrowOnError>({ url: '/v1/releases/info', ...options });
 
 /**
- * Plan Resources
- *
  * Plan supportability for requested resource keys.
+ *
+ * @returns The response from the `planResources` operation.
  */
 export const planResources = <ThrowOnError extends boolean = false>(options: Options<PlanResourcesData, ThrowOnError>) => (options.client ?? client).post<PlanResourcesResponses, PlanResourcesErrors, ThrowOnError>({
     url: '/v1/resources/plan',
@@ -120,9 +127,9 @@ export const planResources = <ThrowOnError extends boolean = false>(options: Opt
 });
 
 /**
- * Presign Download
- *
  * Issue presigned GET URL for caller-scoped key.
+ *
+ * @returns The response from the `presignDownload` operation.
  */
 export const presignDownload = <ThrowOnError extends boolean = false>(options: Options<PresignDownloadData, ThrowOnError>) => (options.client ?? client).post<PresignDownloadResponses, PresignDownloadErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -135,9 +142,9 @@ export const presignDownload = <ThrowOnError extends boolean = false>(options: O
 });
 
 /**
- * Abort Upload
- *
  * Abort multipart upload.
+ *
+ * @returns The response from the `abortUpload` operation.
  */
 export const abortUpload = <ThrowOnError extends boolean = false>(options: Options<AbortUploadData, ThrowOnError>) => (options.client ?? client).post<AbortUploadResponses, AbortUploadErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -150,9 +157,9 @@ export const abortUpload = <ThrowOnError extends boolean = false>(options: Optio
 });
 
 /**
- * Complete Upload
- *
  * Complete multipart upload.
+ *
+ * @returns The response from the `completeUpload` operation.
  */
 export const completeUpload = <ThrowOnError extends boolean = false>(options: Options<CompleteUploadData, ThrowOnError>) => (options.client ?? client).post<CompleteUploadResponses, CompleteUploadErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -165,9 +172,9 @@ export const completeUpload = <ThrowOnError extends boolean = false>(options: Op
 });
 
 /**
- * Initiate Upload
- *
  * Choose upload strategy and return presigned metadata.
+ *
+ * @returns The response from the `initiateUpload` operation.
  */
 export const initiateUpload = <ThrowOnError extends boolean = false>(options: Options<InitiateUploadData, ThrowOnError>) => (options.client ?? client).post<InitiateUploadResponses, InitiateUploadErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -205,9 +212,9 @@ export const introspectUpload = <ThrowOnError extends boolean = false>(options: 
 });
 
 /**
- * Sign Upload Parts
- *
  * Return presigned multipart part URLs.
+ *
+ * @returns The response from the `signUploadParts` operation.
  */
 export const signUploadParts = <ThrowOnError extends boolean = false>(options: Options<SignUploadPartsData, ThrowOnError>) => (options.client ?? client).post<SignUploadPartsResponses, SignUploadPartsErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],

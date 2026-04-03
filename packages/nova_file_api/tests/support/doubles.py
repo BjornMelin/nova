@@ -110,3 +110,7 @@ class StubTransferService:
     ) -> ExportCopyResult:
         del source_bucket, source_key, scope_id, export_id, filename
         raise AssertionError("copy_upload_to_export should be stubbed per test")
+
+    async def healthcheck(self) -> bool:
+        """Return True to indicate the stub is always healthy."""
+        return True

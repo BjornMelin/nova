@@ -36,7 +36,7 @@ def test_asset_keeps_bearer_only_auth_contract() -> None:
     assert "config.authHeader = getAuthorizationHeader(config);" not in source
     assert "merged.Authorization = authorizationHeader" in source
     assert "X-Session-Id" not in source
-    assert "session_id" not in source
+    assert '"session_id"' not in source
     assert 'credentials: "same-origin"' not in source
     # `source` is file_transfer.js: three fetch helpers (postJson, getJson,
     # putWithTimeout) each embed exactly one credentials: "omit" so API JSON
@@ -50,21 +50,29 @@ def test_asset_keeps_resume_and_canonical_endpoint_contracts() -> None:
     source = _file_transfer_asset_source()
 
     assert "function multipartStateStorageKey(config, file)" in source
+    assert "function isResumableStateExpired(state)" in source
     assert "storage.setItem(storageKey, JSON.stringify(state));" in source
     assert "storage.removeItem(storageKey);" in source
     assert "window.localStorage" in source
+    assert "Date.parse(state.resumable_until)" in source
     assert 'base + "/uploads/introspect"' in source
     assert 'config.transfersEndpointBase + "/downloads/presign"' in source
     assert 'config.transfersEndpointBase + "/uploads/initiate"' in source
     assert "multipart upload completion is ambiguous" in source
+    assert "session_id: storedMultipartState.session_id || null" in source
+    assert (
+        "resumable_until: storedMultipartState.resumable_until || null"
+        in source
+    )
 
 
 def test_asset_keeps_progressive_sign_batch_controls() -> None:
     source = _file_transfer_asset_source()
 
     assert 'root.dataset.signBatchSize || ""' in source
+    assert "function clampPositiveInt(value, fallback, maximum)" in source
     assert "configuredBatchSize > 0" in source
-    assert "configuredBatchSize" in source
+    assert "clampPositiveInt(" in source
     assert "Math.min(16, Math.max(1, maxConcurrency * 2))" in source
 
 

@@ -25,6 +25,7 @@ Nova owns:
 - the HTTPS runtime authority in `deploy-output.json.public_base_url`
 - the transfer API under `/v1/transfers/*`
 - the export API under `/v1/exports*`
+- the effective transfer policy surface under `/v1/capabilities/transfers`
 - the packaged browser helpers in `nova_dash_bridge`
 
 Your app owns:
@@ -151,6 +152,17 @@ Key props:
 - `auth_header_element_id`: the hidden bearer-header node id
 - `async_exports_enabled`: turn on export creation/polling after upload
 - `async_export_min_bytes`: optional threshold for large-file export flows
+
+The browser helper also consumes additive initiate response hints from Nova:
+
+- `part_size_bytes`
+- `max_concurrency_hint`
+- `sign_batch_size_hint`
+- `session_id`
+- `resumable_until`
+
+These values let Nova tune multipart behavior without forcing consumer apps to
+ship hard-coded large-file thresholds.
 
 ## Step 7: compose the layout in one place
 

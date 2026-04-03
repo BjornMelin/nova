@@ -36,6 +36,7 @@ from .resource_plan_response import ResourcePlanResponse
 from .sign_parts_request import SignPartsRequest
 from .sign_parts_response import SignPartsResponse
 from .sign_parts_response_urls import SignPartsResponseUrls
+from .transfer_capabilities_response import TransferCapabilitiesResponse
 from .upload_introspection_request import UploadIntrospectionRequest
 from .upload_introspection_response import UploadIntrospectionResponse
 from .upload_strategy import UploadStrategy
@@ -76,6 +77,7 @@ __all__ = (
     "SignPartsRequest",
     "SignPartsResponse",
     "SignPartsResponseUrls",
+    "TransferCapabilitiesResponse",
     "UploadIntrospectionRequest",
     "UploadIntrospectionResponse",
     "UploadStrategy",

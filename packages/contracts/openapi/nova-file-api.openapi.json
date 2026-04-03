@@ -310,6 +310,18 @@
         "additionalProperties": false,
         "description": "Public export workflow resource.",
         "properties": {
+          "cancel_requested_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cancel Requested At"
+          },
           "created_at": {
             "format": "date-time",
             "title": "Created At",
@@ -325,6 +337,17 @@
               }
             ],
             "title": "Error"
+          },
+          "execution_arn": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Execution Arn"
           },
           "export_id": {
             "title": "Export Id",
@@ -440,9 +463,24 @@
         "additionalProperties": false,
         "description": "Initiate-upload response model.",
         "properties": {
+          "accelerate_enabled": {
+            "title": "Accelerate Enabled",
+            "type": "boolean"
+          },
           "bucket": {
             "title": "Bucket",
             "type": "string"
+          },
+          "checksum_algorithm": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Checksum Algorithm"
           },
           "expires_in_seconds": {
             "title": "Expires In Seconds",
@@ -451,6 +489,10 @@
           "key": {
             "title": "Key",
             "type": "string"
+          },
+          "max_concurrency_hint": {
+            "title": "Max Concurrency Hint",
+            "type": "integer"
           },
           "part_size_bytes": {
             "anyOf": [
@@ -462,6 +504,27 @@
               }
             ],
             "title": "Part Size Bytes"
+          },
+          "policy_id": {
+            "title": "Policy Id",
+            "type": "string"
+          },
+          "policy_version": {
+            "title": "Policy Version",
+            "type": "string"
+          },
+          "resumable_until": {
+            "format": "date-time",
+            "title": "Resumable Until",
+            "type": "string"
+          },
+          "session_id": {
+            "title": "Session Id",
+            "type": "string"
+          },
+          "sign_batch_size_hint": {
+            "title": "Sign Batch Size Hint",
+            "type": "integer"
           },
           "strategy": {
             "$ref": "#/components/schemas/UploadStrategy"
@@ -493,7 +556,14 @@
           "strategy",
           "bucket",
           "key",
-          "expires_in_seconds"
+          "session_id",
+          "expires_in_seconds",
+          "policy_id",
+          "policy_version",
+          "max_concurrency_hint",
+          "sign_batch_size_hint",
+          "accelerate_enabled",
+          "resumable_until"
         ],
         "title": "InitiateUploadResponse",
         "type": "object"
@@ -795,6 +865,82 @@
         "title": "SignPartsResponse",
         "type": "object"
       },
+      "TransferCapabilitiesResponse": {
+        "additionalProperties": false,
+        "description": "Transfer policy capabilities exposed to clients and operators.",
+        "properties": {
+          "accelerate_enabled": {
+            "title": "Accelerate Enabled",
+            "type": "boolean"
+          },
+          "checksum_algorithm": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Checksum Algorithm"
+          },
+          "max_concurrency_hint": {
+            "title": "Max Concurrency Hint",
+            "type": "integer"
+          },
+          "max_upload_bytes": {
+            "title": "Max Upload Bytes",
+            "type": "integer"
+          },
+          "maximum_part_size_bytes": {
+            "title": "Maximum Part Size Bytes",
+            "type": "integer"
+          },
+          "minimum_part_size_bytes": {
+            "title": "Minimum Part Size Bytes",
+            "type": "integer"
+          },
+          "multipart_threshold_bytes": {
+            "title": "Multipart Threshold Bytes",
+            "type": "integer"
+          },
+          "policy_id": {
+            "title": "Policy Id",
+            "type": "string"
+          },
+          "policy_version": {
+            "title": "Policy Version",
+            "type": "string"
+          },
+          "resumable_ttl_seconds": {
+            "title": "Resumable Ttl Seconds",
+            "type": "integer"
+          },
+          "sign_batch_size_hint": {
+            "title": "Sign Batch Size Hint",
+            "type": "integer"
+          },
+          "target_upload_part_count": {
+            "title": "Target Upload Part Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "policy_id",
+          "policy_version",
+          "max_upload_bytes",
+          "multipart_threshold_bytes",
+          "target_upload_part_count",
+          "minimum_part_size_bytes",
+          "maximum_part_size_bytes",
+          "max_concurrency_hint",
+          "sign_batch_size_hint",
+          "accelerate_enabled",
+          "resumable_ttl_seconds"
+        ],
+        "title": "TransferCapabilitiesResponse",
+        "type": "object"
+      },
       "UploadIntrospectionRequest": {
         "additionalProperties": false,
         "description": "Multipart upload introspection request.",
@@ -972,6 +1118,28 @@
           }
         },
         "summary": "Get Capabilities",
+        "tags": [
+          "platform"
+        ]
+      }
+    },
+    "/v1/capabilities/transfers": {
+      "get": {
+        "description": "Expose the current transfer policy envelope.",
+        "operationId": "get_transfer_capabilities",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransferCapabilitiesResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Transfer Capabilities",
         "tags": [
           "platform"
         ]

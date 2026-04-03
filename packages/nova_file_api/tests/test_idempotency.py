@@ -132,6 +132,13 @@ class _StubTransferService:
             strategy=UploadStrategy.SINGLE,
             bucket="bucket-a",
             key=f"uploads/scope-1/object-{self.calls}",
+            session_id=f"session-{self.calls}",
+            policy_id="default",
+            policy_version="2026-04-03",
+            max_concurrency_hint=4,
+            sign_batch_size_hint=32,
+            accelerate_enabled=False,
+            resumable_until=datetime.now(tz=UTC),
             expires_in_seconds=900,
             url=f"https://example.local/upload/{self.calls}",
         )

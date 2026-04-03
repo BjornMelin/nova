@@ -13,6 +13,7 @@ from nova_file_api.dependencies import (
     MetricsDep,
     PrincipalDep,
     SettingsDep,
+    TransferServiceDep,
 )
 from nova_file_api.errors import forbidden
 from nova_file_api.models import (
@@ -25,10 +26,12 @@ from nova_file_api.models import (
     ResourcePlanItem,
     ResourcePlanRequest,
     ResourcePlanResponse,
+    TransferCapabilitiesResponse,
 )
 from nova_file_api.operation_ids import (
     GET_CAPABILITIES_OPERATION_ID,
     GET_RELEASE_INFO_OPERATION_ID,
+    GET_TRANSFER_CAPABILITIES_OPERATION_ID,
     HEALTH_LIVE_OPERATION_ID,
     HEALTH_READY_OPERATION_ID,
     METRICS_SUMMARY_OPERATION_ID,
@@ -40,6 +43,8 @@ from nova_file_api.routes.common import (
     VALIDATION_ERROR_RESPONSE,
     emit_request_metric,
 )
+from nova_file_api.transfer_config import transfer_config_from_settings
+from nova_file_api.transfer_policy import resolve_transfer_policy
 
 ops_router = APIRouter(tags=["ops"])
 platform_router = APIRouter(prefix="/v1", tags=["platform"])
@@ -52,6 +57,8 @@ platform_router = APIRouter(prefix="/v1", tags=["platform"])
 )
 async def get_capabilities(settings: SettingsDep) -> CapabilitiesResponse:
     """Expose runtime capability declarations."""
+    transfer_config = transfer_config_from_settings(settings)
+    policy = resolve_transfer_policy(config=transfer_config)
     capabilities = [
         CapabilityDescriptor(key="exports", enabled=settings.exports_enabled),
         CapabilityDescriptor(
@@ -62,8 +69,51 @@ async def get_capabilities(settings: SettingsDep) -> CapabilitiesResponse:
             key="transfers",
             enabled=settings.file_transfer_enabled,
         ),
+        CapabilityDescriptor(
+            key="transfers.policy",
+            enabled=settings.file_transfer_enabled,
+            details={
+                "policy_id": policy.policy_id,
+                "policy_version": policy.policy_version,
+                "max_concurrency_hint": policy.max_concurrency_hint,
+                "sign_batch_size_hint": policy.sign_batch_size_hint,
+                "target_upload_part_count": policy.target_upload_part_count,
+                "minimum_part_size_bytes": policy.minimum_part_size_bytes,
+                "maximum_part_size_bytes": policy.maximum_part_size_bytes,
+                "accelerate_enabled": policy.accelerate_enabled,
+                "checksum_algorithm": policy.checksum_algorithm,
+                "resumable_ttl_seconds": policy.resumable_ttl_seconds,
+            },
+        ),
     ]
     return CapabilitiesResponse(capabilities=capabilities)
+
+
+@platform_router.get(
+    "/capabilities/transfers",
+    operation_id=GET_TRANSFER_CAPABILITIES_OPERATION_ID,
+    response_model=TransferCapabilitiesResponse,
+)
+async def get_transfer_capabilities(
+    settings: SettingsDep,
+) -> TransferCapabilitiesResponse:
+    """Expose the current transfer policy envelope."""
+    transfer_config = transfer_config_from_settings(settings)
+    policy = resolve_transfer_policy(config=transfer_config)
+    return TransferCapabilitiesResponse(
+        policy_id=policy.policy_id,
+        policy_version=policy.policy_version,
+        max_upload_bytes=policy.max_upload_bytes,
+        multipart_threshold_bytes=policy.multipart_threshold_bytes,
+        target_upload_part_count=policy.target_upload_part_count,
+        minimum_part_size_bytes=policy.minimum_part_size_bytes,
+        maximum_part_size_bytes=policy.maximum_part_size_bytes,
+        max_concurrency_hint=policy.max_concurrency_hint,
+        sign_batch_size_hint=policy.sign_batch_size_hint,
+        accelerate_enabled=policy.accelerate_enabled,
+        checksum_algorithm=policy.checksum_algorithm,
+        resumable_ttl_seconds=policy.resumable_ttl_seconds,
+    )
 
 
 @platform_router.post(
@@ -145,6 +195,7 @@ async def health_ready(
     settings: SettingsDep,
     idempotency_store: IdempotencyStoreDep,
     export_service: ExportServiceDep,
+    transfer_service: TransferServiceDep,
     activity_store: ActivityStoreDep,
     authenticator: AuthenticatorDep,
 ) -> ReadinessResponse:
@@ -192,6 +243,15 @@ async def health_ready(
         activity_store_ready = False
 
     try:
+        transfer_runtime_ready = await transfer_service.healthcheck()
+    except Exception:
+        logger.exception(
+            "v1_health_ready_transfer_runtime_healthcheck_failed",
+            route="/v1/health/ready",
+        )
+        transfer_runtime_ready = False
+
+    try:
         auth_dependency = await authenticator.healthcheck()
     except Exception:
         logger.exception(
@@ -205,12 +265,14 @@ async def health_ready(
         "idempotency_store": idempotency_store_ready,
         "export_runtime": export_runtime,
         "activity_store": activity_store_ready,
+        "transfer_runtime": transfer_runtime_ready,
         "auth_dependency": auth_dependency,
     }
     required_checks: tuple[str, ...] = (
         "bucket_configured",
         "auth_dependency",
         "export_runtime",
+        "transfer_runtime",
     )
     if settings.idempotency_enabled:
         required_checks = (*required_checks, "idempotency_store")

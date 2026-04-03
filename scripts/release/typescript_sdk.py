@@ -45,6 +45,15 @@ _GET_PARSE_AS_SIGNATURE_PATTERN = re.compile(
     r"(?P<quote2>['\"])auto(?P=quote2)\s*>\s*"
     r"(?P<compat>\|\s*undefined\s*)?=>\s*{"
 )
+_SDK_OPERATION_DOCBLOCK_PATTERN = re.compile(
+    r"/\*\*\n"
+    r" \* (?P<title>[^\n]+)\n"
+    r" \*\n"
+    r" \* (?P<description>[^\n]+)\n"
+    r" \*/\n"
+    r"export const (?P<name>\w+) =",
+    re.MULTILINE,
+)
 
 
 def _apply_typescript_upstream_compatibility_fixes(root: Path) -> None:
@@ -63,9 +72,8 @@ def _apply_typescript_upstream_compatibility_fixes(root: Path) -> None:
 
     text = utils_path.read_text(encoding="utf-8")
     if _COMPAT_GET_PARSE_AS_SIGNATURE in text:
-        return
-
-    if _UPSTREAM_GET_PARSE_AS_SIGNATURE in text:
+        pass  # Already patched; keep normalizing other generated files.
+    elif _UPSTREAM_GET_PARSE_AS_SIGNATURE in text:
         updated = text.replace(
             _UPSTREAM_GET_PARSE_AS_SIGNATURE,
             _COMPAT_GET_PARSE_AS_SIGNATURE,
@@ -73,26 +81,49 @@ def _apply_typescript_upstream_compatibility_fixes(root: Path) -> None:
         )
         if updated != text:
             utils_path.write_text(updated, encoding="utf-8")
+    else:
+        match = _GET_PARSE_AS_SIGNATURE_PATTERN.search(text)
+        if match is None:
+            raise RuntimeError(
+                "unexpected generated TypeScript SDK output: "
+                "missing recognizable getParseAs signature in "
+                f"{utils_path}"
+            )
+        if match.group("compat") is None:
+            updated = (
+                text[: match.start()]
+                + _COMPAT_GET_PARSE_AS_SIGNATURE
+                + text[match.end() :]
+            )
+            if updated != text:
+                utils_path.write_text(updated, encoding="utf-8")
+
+    sdk_path = root / "sdk.gen.ts"
+    if not sdk_path.exists():
         return
 
-    match = _GET_PARSE_AS_SIGNATURE_PATTERN.search(text)
-    if match is None:
-        raise RuntimeError(
-            "unexpected generated TypeScript SDK output: "
-            "missing recognizable getParseAs signature in "
-            f"{utils_path}"
+    sdk_text = sdk_path.read_text(encoding="utf-8")
+
+    def _normalize_docblock(match: re.Match[str]) -> str:
+        description = match.group("description").strip()
+        if not description.endswith("."):
+            description = f"{description}."
+        operation_name = match.group("name")
+        return (
+            "/**\n"
+            f" * {description}\n"
+            " *\n"
+            f" * @returns The response from the `{operation_name}` operation.\n"
+            " */\n"
+            f"export const {operation_name} ="
         )
 
-    if match.group("compat") is not None:
-        return
-
-    updated = (
-        text[: match.start()]
-        + _COMPAT_GET_PARSE_AS_SIGNATURE
-        + text[match.end() :]
+    normalized_sdk_text = _SDK_OPERATION_DOCBLOCK_PATTERN.sub(
+        _normalize_docblock,
+        sdk_text,
     )
-    if updated != text:
-        utils_path.write_text(updated, encoding="utf-8")
+    if normalized_sdk_text != sdk_text:
+        sdk_path.write_text(normalized_sdk_text, encoding="utf-8")
 
 
 def _run_openapi_ts(

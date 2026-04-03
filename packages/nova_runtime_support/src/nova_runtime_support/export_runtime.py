@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import inspect
 import json
+import logging
 from collections.abc import Awaitable, Mapping
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -129,8 +130,36 @@ class ExportRepository(Protocol):
 class ExportPublisher(Protocol):
     """Queue interface for background export dispatch."""
 
-    async def publish(self, *, export: ExportRecord) -> None:
-        """Publish export record to background queue."""
+    async def publish(self, *, export: ExportRecord) -> str | None:
+        """Publish an export record to the workflow backend.
+
+        Args:
+            export: Export resource to enqueue for background processing.
+
+        Returns:
+            The workflow execution identifier when the backend provides one;
+            otherwise ``None``.
+
+        Raises:
+            ExportPublishError: Raised when the backend rejects the publish
+                request or returns an invalid response.
+        """
+
+    async def stop_execution(self, *, execution_arn: str, cause: str) -> None:
+        """Stop a running workflow execution when canceling.
+
+        Args:
+            execution_arn: Workflow execution ARN to stop.
+            cause: Human-readable cancellation reason sent to the backend.
+
+        Returns:
+            None.
+
+        Raises:
+            ClientError: Raised when the workflow backend rejects the stop
+                request.
+            BotoCoreError: Raised when the AWS client transport fails.
+        """
 
     async def post_publish(
         self,
@@ -170,6 +199,20 @@ class StepFunctionsClient(Protocol):
 
     async def start_execution(self, **kwargs: object) -> Mapping[str, object]:
         """Start a workflow execution."""
+
+    async def stop_execution(self, **kwargs: object) -> Mapping[str, object]:
+        """Stop a workflow execution.
+
+        Args:
+            **kwargs: Keyword arguments forwarded to the Step Functions client.
+
+        Returns:
+            The service response mapping returned by the client.
+
+        Raises:
+            ClientError: Raised when the AWS service rejects the request.
+            BotoCoreError: Raised when the AWS client transport fails.
+        """
 
     async def describe_state_machine(
         self, **kwargs: object
@@ -411,9 +454,36 @@ class MemoryExportPublisher:
     export_prefix: str = "exports/"
     process_immediately: bool = True
 
-    async def publish(self, *, export: ExportRecord) -> None:
-        """Publish an export in memory."""
+    async def publish(self, *, export: ExportRecord) -> str | None:
+        """Publish an export in memory.
+
+        Args:
+            export: Export record to simulate publishing.
+
+        Returns:
+            ``None`` because in-memory publishing does not allocate an
+            execution identifier.
+
+        Raises:
+            None.
+        """
         del export
+        return None
+
+    async def stop_execution(self, *, execution_arn: str, cause: str) -> None:
+        """Ignore stop requests in memory mode.
+
+        Args:
+            execution_arn: Ignored execution ARN for the in-memory backend.
+            cause: Ignored cancellation reason for the in-memory backend.
+
+        Returns:
+            None.
+
+        Raises:
+            None.
+        """
+        del execution_arn, cause
 
     async def post_publish(
         self,
@@ -472,9 +542,25 @@ class StepFunctionsExportPublisher:
 
     state_machine_arn: str
     stepfunctions_client: StepFunctionsClient
+    _logger: logging.Logger = field(
+        init=False,
+        repr=False,
+        default_factory=lambda: logging.getLogger(__name__),
+    )
 
-    async def publish(self, *, export: ExportRecord) -> None:
-        """Start a Step Functions execution for the export."""
+    async def publish(self, *, export: ExportRecord) -> str:
+        """Start a Step Functions execution for the export.
+
+        Args:
+            export: Export record to dispatch to Step Functions.
+
+        Returns:
+            The execution ARN returned by Step Functions.
+
+        Raises:
+            ExportPublishError: Raised when Step Functions rejects the request
+                or omits the execution ARN from the response.
+        """
         payload = {
             "export_id": export.export_id,
             "scope_id": export.scope_id,
@@ -482,6 +568,12 @@ class StepFunctionsExportPublisher:
             "filename": export.filename,
             "request_id": export.request_id,
             "status": export.status.value,
+            "execution_arn": export.execution_arn,
+            "cancel_requested_at": (
+                export.cancel_requested_at.isoformat()
+                if export.cancel_requested_at is not None
+                else None
+            ),
             "created_at": export.created_at.isoformat(),
             "updated_at": export.updated_at.isoformat(),
             "copying_entered_at": (
@@ -496,7 +588,7 @@ class StepFunctionsExportPublisher:
             ),
         }
         try:
-            await self.stepfunctions_client.start_execution(
+            response = await self.stepfunctions_client.start_execution(
                 stateMachineArn=self.state_machine_arn,
                 name=export.export_id,
                 input=json.dumps(
@@ -505,6 +597,14 @@ class StepFunctionsExportPublisher:
                     sort_keys=True,
                 ),
             )
+            execution_arn = _opt_str(response.get("executionArn"))
+            if execution_arn is None:
+                raise ExportPublishError(
+                    details={
+                        "error_type": "ResponseValidationError",
+                        "error_code": "MissingExecutionArn",
+                    }
+                )
         except ClientError as exc:
             raise ExportPublishError(
                 details={
@@ -521,6 +621,8 @@ class StepFunctionsExportPublisher:
                     "error_code": "BotoCoreError",
                 }
             ) from exc
+        else:
+            return execution_arn
 
     async def post_publish(
         self,
@@ -531,6 +633,42 @@ class StepFunctionsExportPublisher:
     ) -> None:
         """Skip local follow-up for asynchronous workflow dispatch."""
         del export, repository, metrics
+
+    async def stop_execution(self, *, execution_arn: str, cause: str) -> None:
+        """Stop the workflow execution backing a canceled export.
+
+        Args:
+            execution_arn: Workflow execution ARN to stop.
+            cause: Human-readable reason sent to Step Functions.
+
+        Returns:
+            None.
+
+        Raises:
+            ClientError: Raised when Step Functions rejects the stop request
+                for reasons other than a missing execution.
+            BotoCoreError: Raised when the AWS client transport fails.
+        """
+        try:
+            await self.stepfunctions_client.stop_execution(
+                executionArn=execution_arn,
+                cause=cause,
+            )
+        except ClientError as exc:
+            error_code = str(
+                exc.response.get("Error", {}).get("Code", "Unknown")
+            )
+            if error_code != "ExecutionDoesNotExist":
+                raise
+            self._logger.debug(
+                "stop_execution_suppressed",
+                extra={
+                    "execution_arn": execution_arn,
+                    "cause": cause,
+                    "error_code": error_code,
+                },
+            )
+            return
 
     async def healthcheck(self) -> bool:
         """Return whether the state machine metadata can be fetched."""
@@ -752,6 +890,12 @@ def _stage_age_ms(*, started_at: datetime, now: datetime) -> float:
     current = now if now.tzinfo is not None else now.replace(tzinfo=UTC)
     age_ms = (current - updated).total_seconds() * 1000.0
     return max(0.0, age_ms)
+
+
+def _opt_str(value: object) -> str | None:
+    if isinstance(value, str):
+        return value
+    return None
 
 
 _ALLOWED_TRANSITIONS: dict[ExportStatus, set[ExportStatus]] = {
