@@ -1018,15 +1018,15 @@ class NovaRuntimeStack(Stack):
         )
         metrics_namespace = "NovaFileApi"
         storage_lens_dimensions = {
-            "configuration_id": _storage_lens_configuration_id(
+            "configurationId": _storage_lens_configuration_id(
                 self,
                 deployment_environment=inputs.deployment_environment,
             ),
-            "metrics_version": "1.0",
-            "aws_account_number": Stack.of(self).account,
-            "aws_region": Stack.of(self).region,
-            "bucket_name": file_bucket.bucket_name,
-            "record_type": "BUCKET",
+            "metricsVersion": "1.0",
+            "awsAccountNumber": Stack.of(self).account,
+            "awsRegion": Stack.of(self).region,
+            "bucketName": file_bucket.bucket_name,
+            "recordType": "BUCKET",
         }
         observability_dashboard = cloudwatch.Dashboard(
             self,

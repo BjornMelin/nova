@@ -34,6 +34,7 @@ class _PerfS3Client:
     def __init__(self, *, source_size_bytes: int) -> None:
         self._source_size_bytes = source_size_bytes
         self.copy_calls: list[dict[str, Any]] = []
+        self.multipart_upload_calls: list[dict[str, Any]] = []
         self.upload_part_copy_calls: list[dict[str, Any]] = []
         self.complete_calls: list[dict[str, Any]] = []
         self.abort_calls: list[dict[str, Any]] = []
@@ -52,7 +53,7 @@ class _PerfS3Client:
         return {}
 
     async def create_multipart_upload(self, **kwargs: Any) -> dict[str, str]:
-        self.copy_calls.append(kwargs)
+        self.multipart_upload_calls.append(kwargs)
         return {"UploadId": "perf-upload-id"}
 
     async def upload_part_copy(self, **kwargs: Any) -> dict[str, Any]:
