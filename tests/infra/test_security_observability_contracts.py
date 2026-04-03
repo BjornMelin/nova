@@ -42,6 +42,7 @@ def test_runtime_stack_wires_alarm_actions_to_one_sns_topic() -> None:
     outputs = template_json["Outputs"]
     assert "ExportNovaAlarmTopicArn" in outputs
     assert "ExportNovaApiAccessLogGroupName" in outputs
+    assert "ExportNovaObservabilityDashboardName" in outputs
     assert "ExportNovaWafLogGroupName" in outputs
     log_groups = resources_of_type(resources, "Custom::LogRetention")
     assert any(
@@ -83,6 +84,22 @@ def test_runtime_stack_wires_alarm_actions_to_one_sns_topic() -> None:
 
     custom_resources = resources_of_type(resources, "Custom::AWS")
     assert not custom_resources
+
+
+def test_runtime_stack_adds_transfer_observability_dashboard() -> None:
+    """The runtime stack should define the transfer observability dashboard."""
+    template_json = runtime_stack_template_json(
+        stack_name="SecurityObservabilityDashboardStack",
+    )
+    resources = template_json["Resources"]
+    dashboards = resources_of_type(resources, "AWS::CloudWatch::Dashboard")
+    assert len(dashboards) == 1
+    dashboard_props = next(iter(dashboards.values()))["Properties"]
+    dashboard_body = str(dashboard_props["DashboardBody"])
+    assert "uploads_initiate" in dashboard_body
+    assert "uploads_sign_parts" in dashboard_body
+    assert "exports_copying_age_ms" in dashboard_body
+    assert "IncompleteMPUStorageBytesOlderThan7Days" in dashboard_body
 
 
 def test_alarm_notification_email_parser_rejects_malformed_json() -> None:

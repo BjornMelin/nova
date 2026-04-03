@@ -167,6 +167,24 @@ def _optional_context_or_env_value(
     return raw
 
 
+def _storage_lens_configuration_id(
+    scope: Construct,
+    *,
+    deployment_environment: str,
+) -> str:
+    """Return the Storage Lens configuration id used for dashboard widgets."""
+    raw = _optional_context_or_env_value(
+        scope,
+        env_var="STORAGE_LENS_CONFIGURATION_ID",
+        key="storage_lens_configuration_id",
+    )
+    if isinstance(raw, str):
+        value = raw.strip()
+        if value:
+            return value
+    return f"nova-{deployment_environment}-storage-lens"
+
+
 def _parse_bool_flag(
     raw: object,
     *,
@@ -998,6 +1016,199 @@ class NovaRuntimeStack(Stack):
             ],
             topic=alarm_topic,
         )
+        metrics_namespace = "NovaFileApi"
+        storage_lens_dimensions = {
+            "configuration_id": _storage_lens_configuration_id(
+                self,
+                deployment_environment=inputs.deployment_environment,
+            ),
+            "metrics_version": "1.0",
+            "aws_account_number": Stack.of(self).account,
+            "aws_region": Stack.of(self).region,
+            "bucket_name": file_bucket.bucket_name,
+            "record_type": "BUCKET",
+        }
+        observability_dashboard = cloudwatch.Dashboard(
+            self,
+            "NovaRuntimeObservabilityDashboard",
+            dashboard_name=(
+                f"nova-runtime-observability-{inputs.deployment_environment}"
+            ),
+        )
+        api_concurrency_metric = api_function.metric(
+            "ConcurrentExecutions",
+            statistic="Maximum",
+            period=Duration.minutes(5),
+        )
+        api_saturation_metrics: list[cloudwatch.IMetric] = [
+            api_concurrency_metric,
+        ]
+        if inputs.api_reserved_concurrency is not None:
+            api_saturation_metrics.append(
+                cloudwatch.MathExpression(
+                    expression=(
+                        f"100 * concurrent / {inputs.api_reserved_concurrency}"
+                    ),
+                    label="api_reserved_concurrency_saturation_pct",
+                    period=Duration.minutes(5),
+                    using_metrics={
+                        "concurrent": api_concurrency_metric,
+                    },
+                )
+            )
+        observability_dashboard.add_widgets(
+            cloudwatch.TextWidget(
+                markdown=(
+                    "# Nova runtime observability\n"
+                    "Baseline coverage for transfer control-plane, export "
+                    "workflow, incomplete multipart uploads, and Lambda "
+                    "reserved-concurrency saturation. Storage Lens widgets "
+                    "remain empty until advanced metrics and CloudWatch "
+                    "publishing are enabled for the configured dashboard id."
+                ),
+                width=24,
+                height=5,
+            ),
+            cloudwatch.GraphWidget(
+                title="Transfer control-plane requests",
+                width=12,
+                left=[
+                    cloudwatch.Metric(
+                        namespace=metrics_namespace,
+                        metric_name="requests_total",
+                        dimensions_map={
+                            "route": "uploads_initiate",
+                            "status": "ok",
+                        },
+                        statistic="Sum",
+                        period=Duration.minutes(5),
+                        label="uploads_initiate",
+                    ),
+                    cloudwatch.Metric(
+                        namespace=metrics_namespace,
+                        metric_name="requests_total",
+                        dimensions_map={
+                            "route": "uploads_sign_parts",
+                            "status": "ok",
+                        },
+                        statistic="Sum",
+                        period=Duration.minutes(5),
+                        label="uploads_sign_parts",
+                    ),
+                    cloudwatch.Metric(
+                        namespace=metrics_namespace,
+                        metric_name="requests_total",
+                        dimensions_map={
+                            "route": "uploads_complete",
+                            "status": "ok",
+                        },
+                        statistic="Sum",
+                        period=Duration.minutes(5),
+                        label="uploads_complete",
+                    ),
+                    cloudwatch.Metric(
+                        namespace=metrics_namespace,
+                        metric_name="requests_total",
+                        dimensions_map={
+                            "route": "uploads_abort",
+                            "status": "ok",
+                        },
+                        statistic="Sum",
+                        period=Duration.minutes(5),
+                        label="uploads_abort",
+                    ),
+                ],
+            ),
+            cloudwatch.GraphWidget(
+                title="API throttles and reserved concurrency saturation",
+                width=12,
+                left=api_saturation_metrics,
+                right=[
+                    api_function.metric_throttles(period=Duration.minutes(5)),
+                    ingress.rest_api.metric_server_error(
+                        period=Duration.minutes(5)
+                    ),
+                ],
+            ),
+            cloudwatch.GraphWidget(
+                title="Export workflow stage age",
+                width=12,
+                left=[
+                    cloudwatch.Metric(
+                        namespace=metrics_namespace,
+                        metric_name="exports_queued_age_ms",
+                        statistic="Average",
+                        period=Duration.minutes(5),
+                    ),
+                    cloudwatch.Metric(
+                        namespace=metrics_namespace,
+                        metric_name="exports_copying_age_ms",
+                        statistic="Average",
+                        period=Duration.minutes(5),
+                    ),
+                    cloudwatch.Metric(
+                        namespace=metrics_namespace,
+                        metric_name="exports_finalizing_age_ms",
+                        statistic="Average",
+                        period=Duration.minutes(5),
+                    ),
+                ],
+            ),
+            cloudwatch.GraphWidget(
+                title="Export workflow health",
+                width=12,
+                left=[
+                    state_machine.metric_failed(period=Duration.minutes(5)),
+                    state_machine.metric_timed_out(period=Duration.minutes(5)),
+                    cloudwatch.Metric(
+                        namespace=metrics_namespace,
+                        metric_name="exports_status_updates_total",
+                        statistic="Sum",
+                        period=Duration.minutes(5),
+                    ),
+                ],
+            ),
+            cloudwatch.GraphWidget(
+                title="S3 incomplete multipart uploads older than 7 days",
+                width=12,
+                left=[
+                    cloudwatch.Metric(
+                        namespace="AWS/S3/Storage-Lens",
+                        metric_name="IncompleteMPUStorageBytesOlderThan7Days",
+                        dimensions_map=storage_lens_dimensions,
+                        statistic="Average",
+                        period=Duration.days(1),
+                    ),
+                    cloudwatch.Metric(
+                        namespace="AWS/S3/Storage-Lens",
+                        metric_name="IncompleteMPUObjectCountOlderThan7Days",
+                        dimensions_map=storage_lens_dimensions,
+                        statistic="Average",
+                        period=Duration.days(1),
+                    ),
+                ],
+            ),
+            cloudwatch.GraphWidget(
+                title="S3 incomplete multipart upload footprint",
+                width=12,
+                left=[
+                    cloudwatch.Metric(
+                        namespace="AWS/S3/Storage-Lens",
+                        metric_name="IncompleteMultipartUploadStorageBytes",
+                        dimensions_map=storage_lens_dimensions,
+                        statistic="Average",
+                        period=Duration.days(1),
+                    ),
+                    cloudwatch.Metric(
+                        namespace="AWS/S3/Storage-Lens",
+                        metric_name="IncompleteMultipartUploadObjectCount",
+                        dimensions_map=storage_lens_dimensions,
+                        statistic="Average",
+                        period=Duration.days(1),
+                    ),
+                ],
+            ),
+        )
         export_prefix = _export_name_prefix(inputs.deployment_environment)
         for logical_id, export_suffix, value in (
             (
@@ -1029,6 +1240,11 @@ class NovaRuntimeStack(Stack):
                 "ExportNovaIdempotencyTableName",
                 "IdempotencyTableName",
                 idempotency_table.table_name,
+            ),
+            (
+                "ExportNovaObservabilityDashboardName",
+                "ObservabilityDashboardName",
+                observability_dashboard.dashboard_name,
             ),
         ):
             CfnOutput(

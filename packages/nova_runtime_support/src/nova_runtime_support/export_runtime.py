@@ -614,8 +614,20 @@ async def update_export_status_shared(
         "updated_at": now,
     }
     queue_lag_ms: float | None = None
+    copying_age_ms: float | None = None
+    finalizing_age_ms: float | None = None
     if record.status == ExportStatus.QUEUED and status != ExportStatus.QUEUED:
         queue_lag_ms = _queue_lag_ms(created_at=record.created_at, now=now)
+    if record.status == ExportStatus.COPYING and status != ExportStatus.COPYING:
+        copying_age_ms = _stage_age_ms(updated_at=record.updated_at, now=now)
+    if (
+        record.status == ExportStatus.FINALIZING
+        and status != ExportStatus.FINALIZING
+    ):
+        finalizing_age_ms = _stage_age_ms(
+            updated_at=record.updated_at,
+            now=now,
+        )
     if output is not None:
         update_payload["output"] = output
     if error is not None:
@@ -653,6 +665,29 @@ async def update_export_status_shared(
             unit="Milliseconds",
             dimensions={"source": "export_status_update"},
         )
+        metrics.observe_ms("exports_queued_age_ms", queue_lag_ms)
+        metrics.emit_emf(
+            metric_name="exports_queued_age_ms",
+            value=queue_lag_ms,
+            unit="Milliseconds",
+            dimensions={"source": "export_status_update"},
+        )
+    if copying_age_ms is not None:
+        metrics.observe_ms("exports_copying_age_ms", copying_age_ms)
+        metrics.emit_emf(
+            metric_name="exports_copying_age_ms",
+            value=copying_age_ms,
+            unit="Milliseconds",
+            dimensions={"source": "export_status_update"},
+        )
+    if finalizing_age_ms is not None:
+        metrics.observe_ms("exports_finalizing_age_ms", finalizing_age_ms)
+        metrics.emit_emf(
+            metric_name="exports_finalizing_age_ms",
+            value=finalizing_age_ms,
+            unit="Milliseconds",
+            dimensions={"source": "export_status_update"},
+        )
     metrics.incr(f"exports_{status.value}")
     metrics.incr("exports_status_updates_total")
     metrics.incr(f"exports_status_updates_{status.value}")
@@ -678,6 +713,17 @@ def _queue_lag_ms(*, created_at: datetime, now: datetime) -> float:
     current = now if now.tzinfo is not None else now.replace(tzinfo=UTC)
     lag_ms = (current - created).total_seconds() * 1000.0
     return max(0.0, lag_ms)
+
+
+def _stage_age_ms(*, updated_at: datetime, now: datetime) -> float:
+    updated = (
+        updated_at
+        if updated_at.tzinfo is not None
+        else updated_at.replace(tzinfo=UTC)
+    )
+    current = now if now.tzinfo is not None else now.replace(tzinfo=UTC)
+    age_ms = (current - updated).total_seconds() * 1000.0
+    return max(0.0, age_ms)
 
 
 _ALLOWED_TRANSITIONS: dict[ExportStatus, set[ExportStatus]] = {

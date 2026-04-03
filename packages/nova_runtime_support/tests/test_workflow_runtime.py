@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from pydantic import ValidationError
@@ -163,3 +163,70 @@ async def test_update_export_status_shared_requires_output_for_success() -> (
             export_id="export-1",
             status=ExportStatus.SUCCEEDED,
         )
+
+
+@pytest.mark.anyio
+async def test_update_export_status_shared_records_copying_age_metric() -> None:
+    repository = MemoryExportRepository()
+    metrics = MetricsCollector(namespace="Tests")
+    now = datetime.now(tz=UTC)
+    started = now - timedelta(minutes=1)
+    await repository.create(
+        ExportRecord(
+            export_id="export-1",
+            scope_id="scope-1",
+            request_id="req-1",
+            source_key="uploads/scope-1/source.csv",
+            filename="source.csv",
+            status=ExportStatus.COPYING,
+            output=None,
+            error=None,
+            created_at=started,
+            updated_at=started,
+        )
+    )
+
+    await update_export_status_shared(
+        repository=repository,
+        metrics=metrics,
+        export_id="export-1",
+        status=ExportStatus.FINALIZING,
+    )
+
+    latencies = metrics.latency_snapshot()
+    assert latencies["exports_copying_age_ms"] > 0
+
+
+@pytest.mark.anyio
+async def test_update_export_status_shared_records_finalizing_age_metric() -> (
+    None
+):
+    repository = MemoryExportRepository()
+    metrics = MetricsCollector(namespace="Tests")
+    now = datetime.now(tz=UTC)
+    started = now - timedelta(minutes=1)
+    await repository.create(
+        ExportRecord(
+            export_id="export-1",
+            scope_id="scope-1",
+            request_id="req-1",
+            source_key="uploads/scope-1/source.csv",
+            filename="source.csv",
+            status=ExportStatus.FINALIZING,
+            output=None,
+            error=None,
+            created_at=started,
+            updated_at=started,
+        )
+    )
+
+    await update_export_status_shared(
+        repository=repository,
+        metrics=metrics,
+        export_id="export-1",
+        status=ExportStatus.FAILED,
+        error="boom",
+    )
+
+    latencies = metrics.latency_snapshot()
+    assert latencies["exports_finalizing_age_ms"] > 0
