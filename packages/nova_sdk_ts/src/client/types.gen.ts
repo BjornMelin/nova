@@ -568,7 +568,7 @@ export type TransferCapabilitiesResponse = {
     /**
      * Active Multipart Upload Limit
      */
-    active_multipart_upload_limit?: number | null;
+    active_multipart_upload_limit: number;
     /**
      * Checksum Algorithm
      */
@@ -576,7 +576,7 @@ export type TransferCapabilitiesResponse = {
     /**
      * Daily Ingress Budget Bytes
      */
-    daily_ingress_budget_bytes?: number | null;
+    daily_ingress_budget_bytes: number;
     /**
      * Max Concurrency Hint
      */
@@ -616,7 +616,7 @@ export type TransferCapabilitiesResponse = {
     /**
      * Sign Requests Per Upload Limit
      */
-    sign_requests_per_upload_limit?: number | null;
+    sign_requests_per_upload_limit: number;
     /**
      * Target Upload Part Count
      */

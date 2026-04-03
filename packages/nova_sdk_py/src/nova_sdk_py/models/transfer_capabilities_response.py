@@ -20,6 +20,8 @@ class TransferCapabilitiesResponse:
 
     Attributes:
         accelerate_enabled (bool):
+        active_multipart_upload_limit (int):
+        daily_ingress_budget_bytes (int):
         max_concurrency_hint (int):
         max_upload_bytes (int):
         maximum_part_size_bytes (int):
@@ -29,14 +31,14 @@ class TransferCapabilitiesResponse:
         policy_version (str):
         resumable_ttl_seconds (int):
         sign_batch_size_hint (int):
+        sign_requests_per_upload_limit (int):
         target_upload_part_count (int):
-        active_multipart_upload_limit (int | None | Unset):
         checksum_algorithm (None | str | Unset):
-        daily_ingress_budget_bytes (int | None | Unset):
-        sign_requests_per_upload_limit (int | None | Unset):
     """
 
     accelerate_enabled: bool
+    active_multipart_upload_limit: int
+    daily_ingress_budget_bytes: int
     max_concurrency_hint: int
     max_upload_bytes: int
     maximum_part_size_bytes: int
@@ -46,14 +48,16 @@ class TransferCapabilitiesResponse:
     policy_version: str
     resumable_ttl_seconds: int
     sign_batch_size_hint: int
+    sign_requests_per_upload_limit: int
     target_upload_part_count: int
-    active_multipart_upload_limit: int | None | Unset = UNSET
     checksum_algorithm: None | str | Unset = UNSET
-    daily_ingress_budget_bytes: int | None | Unset = UNSET
-    sign_requests_per_upload_limit: int | None | Unset = UNSET
 
     def to_dict(self) -> dict[str, Any]:
         accelerate_enabled = self.accelerate_enabled
+
+        active_multipart_upload_limit = self.active_multipart_upload_limit
+
+        daily_ingress_budget_bytes = self.daily_ingress_budget_bytes
 
         max_concurrency_hint = self.max_concurrency_hint
 
@@ -73,13 +77,9 @@ class TransferCapabilitiesResponse:
 
         sign_batch_size_hint = self.sign_batch_size_hint
 
-        target_upload_part_count = self.target_upload_part_count
+        sign_requests_per_upload_limit = self.sign_requests_per_upload_limit
 
-        active_multipart_upload_limit: int | None | Unset
-        if isinstance(self.active_multipart_upload_limit, Unset):
-            active_multipart_upload_limit = UNSET
-        else:
-            active_multipart_upload_limit = self.active_multipart_upload_limit
+        target_upload_part_count = self.target_upload_part_count
 
         checksum_algorithm: None | str | Unset
         if isinstance(self.checksum_algorithm, Unset):
@@ -87,23 +87,13 @@ class TransferCapabilitiesResponse:
         else:
             checksum_algorithm = self.checksum_algorithm
 
-        daily_ingress_budget_bytes: int | None | Unset
-        if isinstance(self.daily_ingress_budget_bytes, Unset):
-            daily_ingress_budget_bytes = UNSET
-        else:
-            daily_ingress_budget_bytes = self.daily_ingress_budget_bytes
-
-        sign_requests_per_upload_limit: int | None | Unset
-        if isinstance(self.sign_requests_per_upload_limit, Unset):
-            sign_requests_per_upload_limit = UNSET
-        else:
-            sign_requests_per_upload_limit = self.sign_requests_per_upload_limit
-
         field_dict: dict[str, Any] = {}
 
         field_dict.update(
             {
                 "accelerate_enabled": accelerate_enabled,
+                "active_multipart_upload_limit": active_multipart_upload_limit,
+                "daily_ingress_budget_bytes": daily_ingress_budget_bytes,
                 "max_concurrency_hint": max_concurrency_hint,
                 "max_upload_bytes": max_upload_bytes,
                 "maximum_part_size_bytes": maximum_part_size_bytes,
@@ -113,23 +103,12 @@ class TransferCapabilitiesResponse:
                 "policy_version": policy_version,
                 "resumable_ttl_seconds": resumable_ttl_seconds,
                 "sign_batch_size_hint": sign_batch_size_hint,
+                "sign_requests_per_upload_limit": sign_requests_per_upload_limit,
                 "target_upload_part_count": target_upload_part_count,
             }
         )
-        if active_multipart_upload_limit is not UNSET:
-            field_dict["active_multipart_upload_limit"] = (
-                active_multipart_upload_limit
-            )
         if checksum_algorithm is not UNSET:
             field_dict["checksum_algorithm"] = checksum_algorithm
-        if daily_ingress_budget_bytes is not UNSET:
-            field_dict["daily_ingress_budget_bytes"] = (
-                daily_ingress_budget_bytes
-            )
-        if sign_requests_per_upload_limit is not UNSET:
-            field_dict["sign_requests_per_upload_limit"] = (
-                sign_requests_per_upload_limit
-            )
 
         return field_dict
 
@@ -137,6 +116,10 @@ class TransferCapabilitiesResponse:
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
         accelerate_enabled = d.pop("accelerate_enabled")
+
+        active_multipart_upload_limit = d.pop("active_multipart_upload_limit")
+
+        daily_ingress_budget_bytes = d.pop("daily_ingress_budget_bytes")
 
         max_concurrency_hint = d.pop("max_concurrency_hint")
 
@@ -156,20 +139,9 @@ class TransferCapabilitiesResponse:
 
         sign_batch_size_hint = d.pop("sign_batch_size_hint")
 
+        sign_requests_per_upload_limit = d.pop("sign_requests_per_upload_limit")
+
         target_upload_part_count = d.pop("target_upload_part_count")
-
-        def _parse_active_multipart_upload_limit(
-            data: object,
-        ) -> int | None | Unset:
-            if data is None:
-                return data
-            if isinstance(data, Unset):
-                return data
-            return cast(int | None | Unset, data)
-
-        active_multipart_upload_limit = _parse_active_multipart_upload_limit(
-            d.pop("active_multipart_upload_limit", UNSET)
-        )
 
         def _parse_checksum_algorithm(data: object) -> None | str | Unset:
             if data is None:
@@ -182,34 +154,10 @@ class TransferCapabilitiesResponse:
             d.pop("checksum_algorithm", UNSET)
         )
 
-        def _parse_daily_ingress_budget_bytes(
-            data: object,
-        ) -> int | None | Unset:
-            if data is None:
-                return data
-            if isinstance(data, Unset):
-                return data
-            return cast(int | None | Unset, data)
-
-        daily_ingress_budget_bytes = _parse_daily_ingress_budget_bytes(
-            d.pop("daily_ingress_budget_bytes", UNSET)
-        )
-
-        def _parse_sign_requests_per_upload_limit(
-            data: object,
-        ) -> int | None | Unset:
-            if data is None:
-                return data
-            if isinstance(data, Unset):
-                return data
-            return cast(int | None | Unset, data)
-
-        sign_requests_per_upload_limit = _parse_sign_requests_per_upload_limit(
-            d.pop("sign_requests_per_upload_limit", UNSET)
-        )
-
         transfer_capabilities_response = cls(
             accelerate_enabled=accelerate_enabled,
+            active_multipart_upload_limit=active_multipart_upload_limit,
+            daily_ingress_budget_bytes=daily_ingress_budget_bytes,
             max_concurrency_hint=max_concurrency_hint,
             max_upload_bytes=max_upload_bytes,
             maximum_part_size_bytes=maximum_part_size_bytes,
@@ -219,11 +167,9 @@ class TransferCapabilitiesResponse:
             policy_version=policy_version,
             resumable_ttl_seconds=resumable_ttl_seconds,
             sign_batch_size_hint=sign_batch_size_hint,
-            target_upload_part_count=target_upload_part_count,
-            active_multipart_upload_limit=active_multipart_upload_limit,
-            checksum_algorithm=checksum_algorithm,
-            daily_ingress_budget_bytes=daily_ingress_budget_bytes,
             sign_requests_per_upload_limit=sign_requests_per_upload_limit,
+            target_upload_part_count=target_upload_part_count,
+            checksum_algorithm=checksum_algorithm,
         )
 
         return transfer_capabilities_response
