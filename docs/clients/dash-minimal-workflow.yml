@@ -9,7 +9,7 @@ on:
 
 jobs:
   validate:
-    uses: 3M-Cloud/nova/.github/workflows/reusable-post-deploy-validate.yml@dd8af95e54eaaaaf37d1a455d7582141f3ed1b3c
+    uses: REPLACE_WITH_NOVA_REPO/.github/workflows/reusable-post-deploy-validate.yml@REPLACE_WITH_IMMUTABLE_SHA
     with:
-      deploy_repo: 3M-Cloud/nova
+      deploy_repo: REPLACE_WITH_NOVA_REPO
       deploy_output_json: ${{ inputs.nova_deploy_output_json }}

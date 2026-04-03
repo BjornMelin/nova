@@ -14,7 +14,7 @@ This guide is designed as a 5-minute setup flow for downstream repos.
 ## Inputs
 
 - Reusable workflow reference:
-  `3M-Cloud/nova/.github/workflows/reusable-post-deploy-validate.yml@<pin-to-an-immutable-revision>`
+  `REPLACE_WITH_NOVA_REPO/.github/workflows/reusable-post-deploy-validate.yml@<pin-to-an-immutable-revision>`
 - Required runtime evidence from Nova:
   - `deploy-output.json`
   - `deploy-output.sha256` when you want digest verification inside the workflow
@@ -45,7 +45,7 @@ This guide is designed as a 5-minute setup flow for downstream repos.
 ## Acceptance checks
 
 - Workflow calls
-  `3M-Cloud/nova/.github/workflows/reusable-post-deploy-validate.yml`.
+  `REPLACE_WITH_NOVA_REPO/.github/workflows/reusable-post-deploy-validate.yml`.
 - Output `validation_status` is `passed`.
 - Validation resolves its target from the authoritative deploy-output artifact,
   not from a free-text URL string.

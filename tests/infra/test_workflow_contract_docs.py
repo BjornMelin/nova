@@ -117,7 +117,7 @@ def test_post_deploy_validate_schema_matches_reusable_workflow() -> None:
 def test_downstream_examples_reference_reusable_post_deploy_workflow() -> None:
     """Downstream examples must call the shared reusable workflow."""
     workflow_ref = (
-        "uses: 3M-Cloud/nova/.github/workflows/"
+        "uses: REPLACE_WITH_NOVA_REPO/.github/workflows/"
         "reusable-post-deploy-validate.yml@"
     )
     for rel_path in [
@@ -127,7 +127,7 @@ def test_downstream_examples_reference_reusable_post_deploy_workflow() -> None:
     ]:
         text = _read(rel_path)
         assert workflow_ref in text
-        assert "deploy_repo: 3M-Cloud/nova" in text
+        assert "deploy_repo: REPLACE_WITH_NOVA_REPO" in text
         assert (
             "deploy_output_json: ${{ inputs.nova_deploy_output_json }}" in text
         )

@@ -187,7 +187,7 @@ same ruleset, preserve them when updating the payload.
 1. Set scope.
 
 ```bash
-OWNER="${GITHUB_OWNER:?Set GITHUB_OWNER (e.g., BjornMelin)}"
+OWNER="${GITHUB_OWNER:?Set GITHUB_OWNER (e.g., your-org-or-user)}"
 REPO="${GITHUB_REPO:?Set GITHUB_REPO (e.g., nova)}"
 RULESET_ID="${RULESET_ID:?Set RULESET_ID (current repo main ruleset id)}"
 ```
