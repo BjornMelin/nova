@@ -55,10 +55,15 @@ def browser_sign_batch_size(
     """Mirror the current `file_transfer.js` default batching rule."""
     if max_concurrency <= 0:
         raise ValueError("max_concurrency must be > 0")
+    cap = min(16, max_concurrency * 2)
     if (
         configured_sign_batch_size is not None
-        and configured_sign_batch_size > 0
+        and configured_sign_batch_size <= 0
     ):
+        raise ValueError("configured_sign_batch_size must be > 0")
+    if configured_sign_batch_size is not None:
+        if configured_sign_batch_size > cap:
+            raise ValueError(f"configured_sign_batch_size must be <= {cap}")
         return configured_sign_batch_size
     return min(16, max(1, max_concurrency * 2))
 

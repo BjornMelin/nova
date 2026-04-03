@@ -4,6 +4,8 @@
 
 from __future__ import annotations
 
+import json
+
 import pytest
 
 from .helpers import (
@@ -95,11 +97,48 @@ def test_runtime_stack_adds_transfer_observability_dashboard() -> None:
     dashboards = resources_of_type(resources, "AWS::CloudWatch::Dashboard")
     assert len(dashboards) == 1
     dashboard_props = next(iter(dashboards.values()))["Properties"]
-    dashboard_body = str(dashboard_props["DashboardBody"])
-    assert "uploads_initiate" in dashboard_body
-    assert "uploads_sign_parts" in dashboard_body
-    assert "exports_copying_age_ms" in dashboard_body
-    assert "IncompleteMPUStorageBytesOlderThan7Days" in dashboard_body
+    dashboard_body = dashboard_props["DashboardBody"]
+    if "Fn::Join" in dashboard_body:
+        _, body_parts = dashboard_body["Fn::Join"]
+        dashboard_json = "".join(
+            part if isinstance(part, str) else str(part.get("Ref", ""))
+            for part in body_parts
+        )
+    else:
+        dashboard_json = str(dashboard_body)
+    dashboard = json.loads(dashboard_json)
+    widgets = dashboard["widgets"]
+    assert widgets
+
+    metric_names = {
+        metric[-1]["label"]
+        for widget in widgets
+        for metric in widget.get("properties", {}).get("metrics", ())
+        if (
+            isinstance(metric, list)
+            and isinstance(metric[-1], dict)
+            and isinstance(metric[-1].get("label"), str)
+        )
+    } | {
+        metric[1]
+        for widget in widgets
+        for metric in widget.get("properties", {}).get("metrics", ())
+        if isinstance(metric, list)
+        and len(metric) > 1
+        and isinstance(metric[1], str)
+    }
+    titles = {
+        widget.get("properties", {}).get("title")
+        for widget in widgets
+        if widget.get("properties")
+    }
+
+    assert "uploads_initiate" in metric_names
+    assert "uploads_sign_parts" in metric_names
+    assert "exports_copying_age_ms" in metric_names
+    assert "IncompleteMPUStorageBytesOlderThan7Days" in metric_names
+    assert "Transfer control-plane requests" in titles
+    assert "Export workflow stage age" in titles
 
 
 def test_alarm_notification_email_parser_rejects_malformed_json() -> None:

@@ -314,6 +314,19 @@ def main() -> None:
         help="Number of parts requested in each sign-parts call.",
     )
     args = parser.parse_args()
+    if args.iterations <= 0:
+        parser.error("Argument --iterations must be a positive integer")
+    if args.file_size_bytes <= 0:
+        parser.error("Argument --file-size-bytes must be a positive integer")
+    if args.sign_part_count <= 0:
+        parser.error("Argument --sign-part-count must be a positive integer")
+    if args.warmup < 0:
+        parser.error("Argument --warmup must be greater than or equal to 0")
+    if args.warmup >= args.iterations:
+        parser.error(
+            "Argument --warmup must be less than --iterations for "
+            "valid timing calculations"
+        )
     asyncio.run(_main_async(args))
 
 

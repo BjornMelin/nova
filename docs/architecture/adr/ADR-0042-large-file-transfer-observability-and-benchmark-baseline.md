@@ -103,7 +103,7 @@ Implementation commitments:
 
 ## ADR Completion Checklist
 
-- [x] All placeholders (`<...>`) and bracketed guidance are removed/replaced.
+- [x] All placeholders (`<…>`) and bracketed guidance are removed/replaced.
 - [x] All links are markdown-clickable and resolve to valid local docs or sources.
 - [x] Context includes concrete constraints, not generic boilerplate.
 - [x] Alternatives are decision-relevant and scored consistently.
