@@ -115,7 +115,8 @@ def create_app(*, settings: Settings | None = None) -> FastAPI:
                     }
                 )
                 requires_dynamodb = (
-                    runtime_settings.idempotency_enabled
+                    runtime_settings.file_transfer_enabled
+                    or runtime_settings.idempotency_enabled
                     or runtime_settings.exports_enabled
                     or runtime_settings.activity_store_backend
                     == ActivityStoreBackend.DYNAMODB

@@ -89,6 +89,24 @@ def test_export_transfer_config_strips_bucket() -> None:
     config = export_transfer_config_from_settings(settings)
 
     assert config.bucket == "workflow-bucket"
+    assert config.part_size_bytes == 2 * 1024 * 1024 * 1024
+    assert config.max_concurrency == 8
+
+
+def test_export_transfer_config_uses_dedicated_copy_tuning() -> None:
+    settings = WorkflowSettings.model_validate(
+        {
+            "EXPORTS_ENABLED": False,
+            "FILE_TRANSFER_BUCKET": "workflow-bucket",
+            "FILE_TRANSFER_EXPORT_COPY_PART_SIZE_BYTES": 1_073_741_824,
+            "FILE_TRANSFER_EXPORT_COPY_MAX_CONCURRENCY": 5,
+        }
+    )
+
+    config = export_transfer_config_from_settings(settings)
+
+    assert config.part_size_bytes == 1_073_741_824
+    assert config.max_concurrency == 5
 
 
 def test_export_transfer_config_rejects_blank_bucket() -> None:

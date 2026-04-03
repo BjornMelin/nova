@@ -101,6 +101,7 @@ async def test_v1_health_ready_returns_expected_checks() -> None:
         "idempotency_store": True,
         "export_runtime": True,
         "activity_store": True,
+        "transfer_runtime": True,
         "auth_dependency": True,
     }
 
@@ -118,6 +119,7 @@ async def test_readyz_stays_ok_when_exports_are_disabled() -> None:
         "idempotency_store": True,
         "export_runtime": True,
         "activity_store": True,
+        "transfer_runtime": True,
         "auth_dependency": True,
     }
 
@@ -143,6 +145,7 @@ async def test_readyz_idempotency_store_not_gate_when_idempotency_off() -> None:
         "idempotency_store": False,
         "export_runtime": True,
         "activity_store": True,
+        "transfer_runtime": True,
         "auth_dependency": True,
     }
 
@@ -167,6 +170,7 @@ async def test_readyz_fails_when_idempotency_requires_store() -> None:
         "idempotency_store": False,
         "export_runtime": True,
         "activity_store": True,
+        "transfer_runtime": True,
         "auth_dependency": True,
     }
 
@@ -188,6 +192,7 @@ async def test_readyz_reports_activity_store_failures_without_gating() -> None:
         "idempotency_store": True,
         "export_runtime": True,
         "activity_store": False,
+        "transfer_runtime": True,
         "auth_dependency": True,
     }
 
@@ -205,6 +210,7 @@ async def test_readyz_fails_when_bucket_is_missing() -> None:
         "idempotency_store": True,
         "export_runtime": True,
         "activity_store": True,
+        "transfer_runtime": True,
         "auth_dependency": True,
     }
 
@@ -232,6 +238,7 @@ async def test_readyz_fails_when_oidc_bearer_settings_are_incomplete() -> None:
         "idempotency_store": True,
         "export_runtime": True,
         "activity_store": True,
+        "transfer_runtime": True,
         "auth_dependency": False,
     }
 

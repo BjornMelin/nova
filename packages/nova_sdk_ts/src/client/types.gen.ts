@@ -222,6 +222,10 @@ export type ExportOutput = {
  */
 export type ExportResource = {
     /**
+     * Cancel Requested At
+     */
+    cancel_requested_at?: string | null;
+    /**
      * Created At
      */
     created_at: string;
@@ -229,6 +233,10 @@ export type ExportResource = {
      * Error
      */
     error?: string | null;
+    /**
+     * Execution Arn
+     */
+    execution_arn?: string | null;
     /**
      * Export Id
      */
@@ -295,9 +303,17 @@ export type InitiateUploadRequest = {
  */
 export type InitiateUploadResponse = {
     /**
+     * Accelerate Enabled
+     */
+    accelerate_enabled: boolean;
+    /**
      * Bucket
      */
     bucket: string;
+    /**
+     * Checksum Algorithm
+     */
+    checksum_algorithm?: string | null;
     /**
      * Expires In Seconds
      */
@@ -307,9 +323,33 @@ export type InitiateUploadResponse = {
      */
     key: string;
     /**
+     * Max Concurrency Hint
+     */
+    max_concurrency_hint: number;
+    /**
      * Part Size Bytes
      */
     part_size_bytes?: number | null;
+    /**
+     * Policy Id
+     */
+    policy_id: string;
+    /**
+     * Policy Version
+     */
+    policy_version: string;
+    /**
+     * Resumable Until
+     */
+    resumable_until: string;
+    /**
+     * Session Id
+     */
+    session_id: string;
+    /**
+     * Sign Batch Size Hint
+     */
+    sign_batch_size_hint: number;
     strategy: UploadStrategy;
     /**
      * Upload Id
@@ -516,6 +556,62 @@ export type SignPartsResponse = {
 };
 
 /**
+ * TransferCapabilitiesResponse
+ *
+ * Transfer policy capabilities exposed to clients and operators.
+ */
+export type TransferCapabilitiesResponse = {
+    /**
+     * Accelerate Enabled
+     */
+    accelerate_enabled: boolean;
+    /**
+     * Checksum Algorithm
+     */
+    checksum_algorithm?: string | null;
+    /**
+     * Max Concurrency Hint
+     */
+    max_concurrency_hint: number;
+    /**
+     * Max Upload Bytes
+     */
+    max_upload_bytes: number;
+    /**
+     * Maximum Part Size Bytes
+     */
+    maximum_part_size_bytes: number;
+    /**
+     * Minimum Part Size Bytes
+     */
+    minimum_part_size_bytes: number;
+    /**
+     * Multipart Threshold Bytes
+     */
+    multipart_threshold_bytes: number;
+    /**
+     * Policy Id
+     */
+    policy_id: string;
+    /**
+     * Policy Version
+     */
+    policy_version: string;
+    /**
+     * Resumable Ttl Seconds
+     */
+    resumable_ttl_seconds: number;
+    /**
+     * Sign Batch Size Hint
+     */
+    sign_batch_size_hint: number;
+    /**
+     * Target Upload Part Count
+     */
+    target_upload_part_count: number;
+};
+
+/**
  * UploadIntrospectionRequest
  *
  * Multipart upload introspection request.
@@ -626,6 +722,22 @@ export type GetCapabilitiesResponses = {
 };
 
 export type GetCapabilitiesResponse = GetCapabilitiesResponses[keyof GetCapabilitiesResponses];
+
+export type GetTransferCapabilitiesData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/v1/capabilities/transfers';
+};
+
+export type GetTransferCapabilitiesResponses = {
+    /**
+     * Successful Response
+     */
+    200: TransferCapabilitiesResponse;
+};
+
+export type GetTransferCapabilitiesResponse = GetTransferCapabilitiesResponses[keyof GetTransferCapabilitiesResponses];
 
 export type ListExportsData = {
     body?: never;

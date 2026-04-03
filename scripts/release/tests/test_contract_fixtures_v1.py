@@ -17,6 +17,7 @@ from nova_file_api.models import (
     InitiateUploadResponse,
     ReleaseInfoResponse,
     ResourcePlanResponse,
+    TransferCapabilitiesResponse,
 )
 from scripts.conformance.validate_lane import validate_lane
 
@@ -72,6 +73,9 @@ def test_transfer_and_exports_fixtures_match_contract_models() -> None:
 def test_v1_api_fixtures_match_contract_models() -> None:
     CapabilitiesResponse.model_validate(
         _read_json("fixtures/v1api/capabilities.success.json")
+    )
+    TransferCapabilitiesResponse.model_validate(
+        _read_json("fixtures/v1api/transfer.capabilities.success.json")
     )
     ResourcePlanResponse.model_validate(
         _read_json("fixtures/v1api/resources.plan.success.json")

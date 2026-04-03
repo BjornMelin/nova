@@ -30,6 +30,21 @@ nova_get_capabilities <- function(
   )
 }
 
+nova_get_transfer_capabilities <- function(
+  client,
+  headers = NULL
+) {
+  nova_api_call(
+    client = client,
+    operation_id = "get_transfer_capabilities",
+    method = "GET",
+    path = "/v1/capabilities/transfers",
+    headers = headers,
+    requires_body = FALSE,
+    accepts_body = FALSE
+  )
+}
+
 nova_list_exports <- function(
   client,
   limit = NULL,

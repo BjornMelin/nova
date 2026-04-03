@@ -5,6 +5,7 @@
 \alias{nova_bearer_token}
 \alias{nova_metrics_summary}
 \alias{nova_get_capabilities}
+\alias{nova_get_transfer_capabilities}
 \alias{nova_list_exports}
 \alias{nova_create_export}
 \alias{nova_get_export}
@@ -59,6 +60,18 @@
   \code{nova_get_capabilities(client, headers = NULL)}
 
   Get Capabilities
+
+  \describe{
+    \item{client}{Thin client created by \code{create_nova_client()}.}
+    \item{headers}{Optional named list of per-request headers.}
+    \item{Returns}{Parsed JSON response as a named list, or NULL when the response body is empty.}
+  }
+}
+
+\section{nova_get_transfer_capabilities}{
+  \code{nova_get_transfer_capabilities(client, headers = NULL)}
+
+  Get Transfer Capabilities
 
   \describe{
     \item{client}{Thin client created by \code{create_nova_client()}.}

@@ -248,11 +248,20 @@
         "Invalid part_size_bytes: must be a positive integer"
       );
     }
-    var maxConcurrency = Math.max(1, parseInt(config.maxConcurrency, 10) || 4);
+    var hintedConcurrency = parseInt(initiated.max_concurrency_hint, 10);
+    var maxConcurrency = Math.max(
+      1,
+      Number.isFinite(hintedConcurrency)
+        ? hintedConcurrency
+        : parseInt(config.maxConcurrency, 10) || 4
+    );
     var configuredBatchSize = parseInt(config.signBatchSize || "0", 10);
+    var hintedBatchSize = parseInt(initiated.sign_batch_size_hint, 10);
     var batchSize = configuredBatchSize > 0
       ? configuredBatchSize
-      : Math.min(16, Math.max(1, maxConcurrency * 2));
+      : Number.isFinite(hintedBatchSize) && hintedBatchSize > 0
+        ? hintedBatchSize
+        : Math.min(16, Math.max(1, maxConcurrency * 2));
     var totalParts = Math.ceil(file.size / partSize);
     var completeParts = [];
     var uploadedBytes = 0;
@@ -260,8 +269,10 @@
     persistMultipartState(storageKey, {
       bucket: initiated.bucket,
       key: key,
+      session_id: initiated.session_id || null,
       upload_id: uploadId,
       part_size_bytes: partSize,
+      resumable_until: initiated.resumable_until || null,
     });
 
     async function uploadSinglePart(partNumber, url) {

@@ -129,8 +129,11 @@ class ExportRepository(Protocol):
 class ExportPublisher(Protocol):
     """Queue interface for background export dispatch."""
 
-    async def publish(self, *, export: ExportRecord) -> None:
+    async def publish(self, *, export: ExportRecord) -> str | None:
         """Publish export record to background queue."""
+
+    async def stop_execution(self, *, execution_arn: str, cause: str) -> None:
+        """Stop a running workflow execution when canceling."""
 
     async def post_publish(
         self,
@@ -170,6 +173,9 @@ class StepFunctionsClient(Protocol):
 
     async def start_execution(self, **kwargs: object) -> Mapping[str, object]:
         """Start a workflow execution."""
+
+    async def stop_execution(self, **kwargs: object) -> Mapping[str, object]:
+        """Stop a workflow execution."""
 
     async def describe_state_machine(
         self, **kwargs: object
@@ -411,9 +417,14 @@ class MemoryExportPublisher:
     export_prefix: str = "exports/"
     process_immediately: bool = True
 
-    async def publish(self, *, export: ExportRecord) -> None:
+    async def publish(self, *, export: ExportRecord) -> str | None:
         """Publish an export in memory."""
         del export
+        return None
+
+    async def stop_execution(self, *, execution_arn: str, cause: str) -> None:
+        """Ignore stop requests in memory mode."""
+        del execution_arn, cause
 
     async def post_publish(
         self,
@@ -473,7 +484,7 @@ class StepFunctionsExportPublisher:
     state_machine_arn: str
     stepfunctions_client: StepFunctionsClient
 
-    async def publish(self, *, export: ExportRecord) -> None:
+    async def publish(self, *, export: ExportRecord) -> str:
         """Start a Step Functions execution for the export."""
         payload = {
             "export_id": export.export_id,
@@ -482,6 +493,12 @@ class StepFunctionsExportPublisher:
             "filename": export.filename,
             "request_id": export.request_id,
             "status": export.status.value,
+            "execution_arn": export.execution_arn,
+            "cancel_requested_at": (
+                export.cancel_requested_at.isoformat()
+                if export.cancel_requested_at is not None
+                else None
+            ),
             "created_at": export.created_at.isoformat(),
             "updated_at": export.updated_at.isoformat(),
             "copying_entered_at": (
@@ -496,7 +513,7 @@ class StepFunctionsExportPublisher:
             ),
         }
         try:
-            await self.stepfunctions_client.start_execution(
+            response = await self.stepfunctions_client.start_execution(
                 stateMachineArn=self.state_machine_arn,
                 name=export.export_id,
                 input=json.dumps(
@@ -505,6 +522,14 @@ class StepFunctionsExportPublisher:
                     sort_keys=True,
                 ),
             )
+            execution_arn = _opt_str(response.get("executionArn"))
+            if execution_arn is None:
+                raise ExportPublishError(
+                    details={
+                        "error_type": "ResponseValidationError",
+                        "error_code": "MissingExecutionArn",
+                    }
+                )
         except ClientError as exc:
             raise ExportPublishError(
                 details={
@@ -521,6 +546,8 @@ class StepFunctionsExportPublisher:
                     "error_code": "BotoCoreError",
                 }
             ) from exc
+        else:
+            return execution_arn
 
     async def post_publish(
         self,
@@ -531,6 +558,16 @@ class StepFunctionsExportPublisher:
     ) -> None:
         """Skip local follow-up for asynchronous workflow dispatch."""
         del export, repository, metrics
+
+    async def stop_execution(self, *, execution_arn: str, cause: str) -> None:
+        """Stop the workflow execution backing a canceled export."""
+        try:
+            await self.stepfunctions_client.stop_execution(
+                executionArn=execution_arn,
+                cause=cause,
+            )
+        except (ClientError, BotoCoreError):
+            return
 
     async def healthcheck(self) -> bool:
         """Return whether the state machine metadata can be fetched."""
@@ -752,6 +789,12 @@ def _stage_age_ms(*, started_at: datetime, now: datetime) -> float:
     current = now if now.tzinfo is not None else now.replace(tzinfo=UTC)
     age_ms = (current - updated).total_seconds() * 1000.0
     return max(0.0, age_ms)
+
+
+def _opt_str(value: object) -> str | None:
+    if isinstance(value, str):
+        return value
+    return None
 
 
 _ALLOWED_TRANSITIONS: dict[ExportStatus, set[ExportStatus]] = {

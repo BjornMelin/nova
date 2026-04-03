@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from uuid import uuid4
@@ -58,12 +59,14 @@ class ExportService:
             status=ExportStatus.QUEUED,
             output=None,
             error=None,
+            execution_arn=None,
+            cancel_requested_at=None,
             created_at=now,
             updated_at=now,
         )
         await self.repository.create(record)
         try:
-            await self.publisher.publish(export=record)
+            execution_arn = await self.publisher.publish(export=record)
         except ExportPublishError as exc:
             failed = record.model_copy(
                 update={
@@ -78,6 +81,15 @@ class ExportService:
                 "export creation failed because queue publish failed",
                 details=exc.details,
             ) from exc
+
+        if execution_arn is not None:
+            record = record.model_copy(
+                update={
+                    "execution_arn": execution_arn,
+                    "updated_at": _utc_now(),
+                }
+            )
+            await self.repository.update(record)
 
         self.metrics.incr("exports_created")
         await self.publisher.post_publish(
@@ -116,9 +128,11 @@ class ExportService:
                 ExportStatus.CANCELLED,
             }:
                 return record
+            cancel_requested_at = _utc_now()
             updated = record.model_copy(
                 update={
                     "status": ExportStatus.CANCELLED,
+                    "cancel_requested_at": cancel_requested_at,
                     "updated_at": _utc_now(),
                 }
             )
@@ -127,6 +141,12 @@ class ExportService:
                 expected_status=record.status,
             )
             if updated_ok:
+                if record.execution_arn is not None:
+                    with contextlib.suppress(Exception):
+                        await self.publisher.stop_execution(
+                            execution_arn=record.execution_arn,
+                            cause="export cancelled by caller",
+                        )
                 self.metrics.incr("exports_cancelled")
                 return updated
         raise conflict(

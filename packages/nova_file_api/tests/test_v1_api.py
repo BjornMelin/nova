@@ -132,6 +132,7 @@ async def test_v1_health_and_capabilities() -> None:
     live = await request_app(app, "GET", "/v1/health/live")
     ready = await request_app(app, "GET", "/v1/health/ready")
     caps = await request_app(app, "GET", "/v1/capabilities")
+    transfer_caps = await request_app(app, "GET", "/v1/capabilities/transfers")
 
     assert live.status_code == 200
     assert live.json() == {"ok": True}
@@ -140,9 +141,24 @@ async def test_v1_health_and_capabilities() -> None:
     assert ready_payload["ok"] is False
     assert ready_payload["checks"]["bucket_configured"] is False
     assert ready_payload["checks"]["export_runtime"] is True
+    assert ready_payload["checks"]["transfer_runtime"] is True
     assert caps.status_code == 200
-    cap_keys = {entry["key"] for entry in caps.json()["capabilities"]}
-    assert {"exports", "exports.status.poll", "transfers"}.issubset(cap_keys)
+    cap_payload = caps.json()["capabilities"]
+    cap_keys = {entry["key"] for entry in cap_payload}
+    assert {
+        "exports",
+        "exports.status.poll",
+        "transfers",
+        "transfers.policy",
+    }.issubset(cap_keys)
+    policy_capability = next(
+        entry for entry in cap_payload if entry["key"] == "transfers.policy"
+    )
+    assert policy_capability["details"]["policy_id"] == "default"
+    assert transfer_caps.status_code == 200
+    transfer_policy = transfer_caps.json()
+    assert transfer_policy["policy_id"] == "default"
+    assert transfer_policy["sign_batch_size_hint"] >= 32
 
 
 @pytest.mark.anyio

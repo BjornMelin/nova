@@ -39,6 +39,7 @@ _EXPECTED_OPERATION_ID_MAP = {
     "/v1/exports/{export_id}": {"get": "get_export"},
     "/v1/exports/{export_id}/cancel": {"post": "cancel_export"},
     "/v1/capabilities": {"get": "get_capabilities"},
+    "/v1/capabilities/transfers": {"get": "get_transfer_capabilities"},
     "/v1/resources/plan": {"post": "plan_resources"},
     "/v1/releases/info": {"get": "get_release_info"},
     "/v1/health/live": {"get": "health_live"},
@@ -207,6 +208,7 @@ def test_openapi_path_method_tags_are_semantic() -> None:
         "/v1/exports/{export_id}": {"get": ["exports"]},
         "/v1/exports/{export_id}/cancel": {"post": ["exports"]},
         "/v1/capabilities": {"get": ["platform"]},
+        "/v1/capabilities/transfers": {"get": ["platform"]},
         "/v1/resources/plan": {"post": ["platform"]},
         "/v1/releases/info": {"get": ["platform"]},
         "/v1/health/live": {"get": ["ops"]},
@@ -273,6 +275,11 @@ def test_openapi_route_declared_error_contracts() -> None:
         "Service Unavailable - Queue publishing or idempotency storage "
         "is unavailable."
     )
+
+    transfer_caps = payload["paths"]["/v1/capabilities/transfers"]["get"]
+    assert transfer_caps["responses"]["200"]["content"]["application/json"][
+        "schema"
+    ] == {"$ref": "#/components/schemas/TransferCapabilitiesResponse"}
 
     ready_responses = payload["paths"]["/v1/health/ready"]["get"]["responses"]
     assert ready_responses["503"]["content"]["application/json"]["schema"] == {

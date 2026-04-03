@@ -65,7 +65,15 @@ class InitiateUploadResponse(BaseModel):
     strategy: UploadStrategy
     bucket: str
     key: str
+    session_id: str
     expires_in_seconds: int
+    policy_id: str
+    policy_version: str
+    max_concurrency_hint: int
+    sign_batch_size_hint: int
+    accelerate_enabled: bool
+    checksum_algorithm: str | None = None
+    resumable_until: datetime
     url: str | None = None
     upload_id: str | None = None
     part_size_bytes: int | None = None
@@ -232,6 +240,8 @@ class ExportResource(BaseModel):
     status: ExportStatus
     output: ExportOutput | None = None
     error: str | None = None
+    execution_arn: str | None = None
+    cancel_requested_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -245,6 +255,8 @@ class ExportResource(BaseModel):
             status=record.status,
             output=record.output,
             error=record.error,
+            execution_arn=record.execution_arn,
+            cancel_requested_at=record.cancel_requested_at,
             created_at=record.created_at,
             updated_at=record.updated_at,
         )
@@ -277,6 +289,25 @@ class CapabilitiesResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     capabilities: list[CapabilityDescriptor] = Field(max_length=256)
+
+
+class TransferCapabilitiesResponse(BaseModel):
+    """Transfer policy capabilities exposed to clients and operators."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    policy_id: str
+    policy_version: str
+    max_upload_bytes: int
+    multipart_threshold_bytes: int
+    target_upload_part_count: int
+    minimum_part_size_bytes: int
+    maximum_part_size_bytes: int
+    max_concurrency_hint: int
+    sign_batch_size_hint: int
+    accelerate_enabled: bool
+    checksum_algorithm: str | None = None
+    resumable_ttl_seconds: int
 
 
 ResourceKey = Annotated[

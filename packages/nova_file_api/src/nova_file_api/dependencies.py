@@ -35,6 +35,9 @@ from nova_file_api.models import (
 )
 from nova_file_api.transfer import TransferService
 from nova_file_api.transfer_config import transfer_config_from_settings
+from nova_file_api.upload_sessions import (
+    build_upload_session_repository,
+)
 from nova_runtime_support.export_runtime import (
     DynamoExportRepository,
     DynamoResource,
@@ -143,6 +146,7 @@ def initialize_runtime_state(
     app.state.transfer_service = build_transfer_service(
         settings=settings,
         s3_client=s3_client,
+        dynamodb_resource=dynamodb_resource,
     )
     app.state.export_repository = export_repository
     app.state.export_service = build_export_service(
@@ -252,11 +256,21 @@ def build_transfer_service(
     *,
     settings: Settings,
     s3_client: object,
+    dynamodb_resource: object | None = None,
 ) -> TransferService:
     """Create the transfer service."""
+    upload_session_repository = build_upload_session_repository(
+        table_name=settings.file_transfer_upload_sessions_table,
+        dynamodb_resource=cast(
+            object | None,
+            dynamodb_resource,
+        ),
+        enabled=settings.file_transfer_enabled,
+    )
     return TransferService(
         config=transfer_config_from_settings(settings),
         s3_client=s3_client,
+        upload_session_repository=upload_session_repository,
     )
 
 

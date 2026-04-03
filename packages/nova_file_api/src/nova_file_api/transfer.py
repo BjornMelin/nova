@@ -6,7 +6,8 @@ import asyncio
 import logging
 import math
 from contextlib import suppress
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, cast
 from uuid import uuid4
@@ -36,6 +37,13 @@ from nova_file_api.models import (
     UploadStrategy,
 )
 from nova_file_api.transfer_config import TransferConfig
+from nova_file_api.upload_sessions import (
+    UploadSessionRecord,
+    UploadSessionRepository,
+    UploadSessionStatus,
+    build_upload_session_repository,
+    new_upload_session_id,
+)
 
 _COPY_OBJECT_MAX_BYTES = 5_000_000_000
 _MAX_MULTIPART_PARTS = 10_000
@@ -60,15 +68,27 @@ class TransferService:
         *,
         config: TransferConfig,
         s3_client: Any,
+        upload_session_repository: UploadSessionRepository | None = None,
     ) -> None:
         """Initialize transfer service and S3 client.
 
         Args:
             config: Transfer-specific runtime configuration.
             s3_client: Prebuilt async S3 client.
+            upload_session_repository: Optional upload-session persistence
+                backend used for durable multipart session state.
         """
         self.config = config
         self._s3 = s3_client
+        self._upload_sessions = (
+            upload_session_repository
+            if upload_session_repository is not None
+            else build_upload_session_repository(
+                table_name=self.config.upload_sessions_table,
+                dynamodb_resource=None,
+                enabled=False,
+            )
+        )
         self._upload_prefix = _normalize_prefix(self.config.upload_prefix)
         self._export_prefix = _normalize_prefix(self.config.export_prefix)
         self._tmp_prefix = _normalize_prefix(self.config.tmp_prefix)
@@ -88,6 +108,8 @@ class TransferService:
                 },
             )
 
+        created_at = datetime.now(tz=UTC)
+        session_id = new_upload_session_id()
         key = self._new_upload_key(
             scope_id=principal.scope_id,
             filename=request.filename,
@@ -95,13 +117,21 @@ class TransferService:
 
         if request.size_bytes < self.config.multipart_threshold_bytes:
             return await self._single_upload_response(
+                created_at=created_at,
+                session_id=session_id,
                 key=key,
                 content_type=request.content_type,
+                principal=principal,
+                request=request,
             )
 
         return await self._multipart_upload_response(
+            created_at=created_at,
+            session_id=session_id,
             key=key,
             content_type=request.content_type,
+            principal=principal,
+            request=request,
         )
 
     async def sign_parts(
@@ -111,6 +141,13 @@ class TransferService:
     ) -> SignPartsResponse:
         """Sign multipart part URLs for caller-owned key."""
         self._assert_upload_scope(key=request.key, scope_id=principal.scope_id)
+        await self._touch_upload_session_if_present(
+            upload_id=request.upload_id,
+            last_activity_at=datetime.now(tz=UTC),
+            status=UploadSessionStatus.ACTIVE,
+            scope_id=principal.scope_id,
+            key=request.key,
+        )
 
         urls: dict[int, str] = {}
         for part_number in request.part_numbers:
@@ -150,14 +187,30 @@ class TransferService:
                 does not exist.
         """
         self._assert_upload_scope(key=request.key, scope_id=principal.scope_id)
+        session = await self._get_upload_session_for_caller(
+            upload_id=request.upload_id,
+            scope_id=principal.scope_id,
+            key=request.key,
+        )
         uploaded_parts = await self._list_multipart_parts(
             key=request.key,
             upload_id=request.upload_id,
         )
         part_size_bytes = (
-            uploaded_parts[0][2]
-            if uploaded_parts
-            else self.config.part_size_bytes
+            session.part_size_bytes
+            if session is not None and session.part_size_bytes is not None
+            else (
+                uploaded_parts[0][2]
+                if uploaded_parts
+                else self.config.part_size_bytes
+            )
+        )
+        await self._touch_upload_session_if_present(
+            upload_id=request.upload_id,
+            last_activity_at=datetime.now(tz=UTC),
+            status=UploadSessionStatus.ACTIVE,
+            scope_id=principal.scope_id,
+            key=request.key,
         )
         return UploadIntrospectionResponse(
             bucket=self.config.bucket,
@@ -177,6 +230,11 @@ class TransferService:
     ) -> CompleteUploadResponse:
         """Complete multipart upload for caller-owned key."""
         self._assert_upload_scope(key=request.key, scope_id=principal.scope_id)
+        session = await self._get_upload_session_for_caller(
+            upload_id=request.upload_id,
+            scope_id=principal.scope_id,
+            key=request.key,
+        )
         uploaded_parts = await self._list_multipart_parts(
             key=request.key,
             upload_id=request.upload_id,
@@ -260,6 +318,14 @@ class TransferService:
                 },
                 exc_info=True,
             )
+        if session is not None:
+            await self._store_upload_session(
+                replace(
+                    session,
+                    status=UploadSessionStatus.COMPLETED,
+                    last_activity_at=datetime.now(tz=UTC),
+                )
+            )
 
         return CompleteUploadResponse(
             bucket=self.config.bucket,
@@ -275,6 +341,7 @@ class TransferService:
     ) -> AbortUploadResponse:
         """Abort multipart upload for caller-owned key."""
         self._assert_upload_scope(key=request.key, scope_id=principal.scope_id)
+        session = await self._get_upload_session(upload_id=request.upload_id)
 
         try:
             await self._s3.abort_multipart_upload(
@@ -284,6 +351,15 @@ class TransferService:
             )
         except (ClientError, BotoCoreError) as exc:
             raise upstream_s3_error("failed to abort multipart upload") from exc
+
+        if session is not None:
+            await self._store_upload_session(
+                replace(
+                    session,
+                    status=UploadSessionStatus.ABORTED,
+                    last_activity_at=datetime.now(tz=UTC),
+                )
+            )
 
         return AbortUploadResponse(ok=True)
 
@@ -415,8 +491,12 @@ class TransferService:
     async def _single_upload_response(
         self,
         *,
+        created_at: datetime,
+        session_id: str,
         key: str,
         content_type: str | None,
+        principal: Principal,
+        request: InitiateUploadRequest,
     ) -> InitiateUploadResponse:
         params: dict[str, Any] = {
             "Bucket": self.config.bucket,
@@ -430,20 +510,58 @@ class TransferService:
             params=params,
             expires_in=self.config.presign_upload_ttl_seconds,
         )
-
-        return InitiateUploadResponse(
+        resumable_until = self.config.resumable_until(created_at=created_at)
+        response = InitiateUploadResponse(
             strategy=UploadStrategy.SINGLE,
             bucket=self.config.bucket,
             key=key,
+            session_id=session_id,
+            policy_id=self.config.policy_id,
+            policy_version=self.config.policy_version,
+            max_concurrency_hint=self.config.max_concurrency,
+            sign_batch_size_hint=self.config.sign_batch_size_hint(),
+            accelerate_enabled=self.config.use_accelerate_endpoint,
+            checksum_algorithm=self.config.checksum_algorithm,
+            resumable_until=resumable_until,
             url=url,
             expires_in_seconds=self.config.presign_upload_ttl_seconds,
         )
+        await self._store_upload_session(
+            UploadSessionRecord(
+                session_id=session_id,
+                upload_id=None,
+                scope_id=principal.scope_id,
+                key=key,
+                filename=request.filename,
+                size_bytes=request.size_bytes,
+                content_type=request.content_type,
+                strategy=UploadStrategy.SINGLE,
+                part_size_bytes=None,
+                policy_id=self.config.policy_id,
+                policy_version=self.config.policy_version,
+                max_concurrency_hint=self.config.max_concurrency,
+                sign_batch_size_hint=self.config.sign_batch_size_hint(),
+                accelerate_enabled=self.config.use_accelerate_endpoint,
+                checksum_algorithm=self.config.checksum_algorithm,
+                resumable_until=resumable_until,
+                resumable_until_epoch=int(resumable_until.timestamp()),
+                status=UploadSessionStatus.INITIATED,
+                request_id=None,
+                created_at=created_at,
+                last_activity_at=created_at,
+            )
+        )
+        return response
 
     async def _multipart_upload_response(
         self,
         *,
+        created_at: datetime,
+        session_id: str,
         key: str,
         content_type: str | None,
+        principal: Principal,
+        request: InitiateUploadRequest,
     ) -> InitiateUploadResponse:
         kwargs: dict[str, Any] = {
             "Bucket": self.config.bucket,
@@ -461,15 +579,61 @@ class TransferService:
         upload_id = _opt_str(output.get("UploadId"))
         if upload_id is None:
             raise upstream_s3_error("S3 multipart response missing upload id")
-
-        return InitiateUploadResponse(
+        part_size_bytes = self.config.upload_part_size_bytes(
+            size_bytes=request.size_bytes
+        )
+        resumable_until = self.config.resumable_until(created_at=created_at)
+        response = InitiateUploadResponse(
             strategy=UploadStrategy.MULTIPART,
             bucket=self.config.bucket,
             key=key,
+            session_id=session_id,
+            policy_id=self.config.policy_id,
+            policy_version=self.config.policy_version,
+            max_concurrency_hint=self.config.max_concurrency,
+            sign_batch_size_hint=self.config.sign_batch_size_hint(),
+            accelerate_enabled=self.config.use_accelerate_endpoint,
+            checksum_algorithm=self.config.checksum_algorithm,
+            resumable_until=resumable_until,
             upload_id=upload_id,
-            part_size_bytes=self.config.part_size_bytes,
+            part_size_bytes=part_size_bytes,
             expires_in_seconds=self.config.presign_upload_ttl_seconds,
         )
+        try:
+            await self._store_upload_session(
+                UploadSessionRecord(
+                    session_id=session_id,
+                    upload_id=upload_id,
+                    scope_id=principal.scope_id,
+                    key=key,
+                    filename=request.filename,
+                    size_bytes=request.size_bytes,
+                    content_type=request.content_type,
+                    strategy=UploadStrategy.MULTIPART,
+                    part_size_bytes=part_size_bytes,
+                    policy_id=self.config.policy_id,
+                    policy_version=self.config.policy_version,
+                    max_concurrency_hint=self.config.max_concurrency,
+                    sign_batch_size_hint=self.config.sign_batch_size_hint(),
+                    accelerate_enabled=self.config.use_accelerate_endpoint,
+                    checksum_algorithm=self.config.checksum_algorithm,
+                    resumable_until=resumable_until,
+                    resumable_until_epoch=int(resumable_until.timestamp()),
+                    status=UploadSessionStatus.INITIATED,
+                    request_id=None,
+                    created_at=created_at,
+                    last_activity_at=created_at,
+                )
+            )
+        except Exception:
+            with suppress(Exception):
+                await self._s3.abort_multipart_upload(
+                    Bucket=self.config.bucket,
+                    Key=key,
+                    UploadId=upload_id,
+                )
+            raise
+        return response
 
     async def _generate_presigned_url(
         self,
@@ -583,7 +747,7 @@ class TransferService:
         upload_id: str | None = None
         part_size_bytes = _multipart_copy_part_size_bytes(
             source_size_bytes=source_size_bytes,
-            preferred_part_size_bytes=self.config.part_size_bytes,
+            preferred_part_size_bytes=self.config.export_copy_part_size_bytes,
         )
         try:
             create_upload_kwargs = _multipart_copy_create_upload_kwargs(
@@ -618,11 +782,16 @@ class TransferService:
             for start_index in range(
                 0,
                 len(ranges),
-                self.config.max_concurrency,
+                min(
+                    self.config.export_copy_max_concurrency,
+                    self.config.max_concurrency,
+                ),
             ):
-                batch = ranges[
-                    start_index : start_index + self.config.max_concurrency
-                ]
+                copy_concurrency = min(
+                    self.config.export_copy_max_concurrency,
+                    self.config.max_concurrency,
+                )
+                batch = ranges[start_index : start_index + copy_concurrency]
                 completed_parts.extend(
                     await asyncio.gather(
                         *[
@@ -702,6 +871,122 @@ class TransferService:
             "ETag": _copy_part_etag(response),
             "PartNumber": part_number,
         }
+
+    async def _store_upload_session(
+        self,
+        record: UploadSessionRecord,
+    ) -> None:
+        try:
+            await self._upload_sessions.create(record)
+        except Exception as exc:
+            _LOGGER.exception(
+                "upload_session_store_failed",
+                session_id=record.session_id,
+                upload_id=record.upload_id,
+                scope_id=record.scope_id,
+            )
+            raise upstream_s3_error(
+                "upload session store is unavailable"
+            ) from exc
+
+    async def _get_upload_session(
+        self,
+        *,
+        upload_id: str,
+    ) -> UploadSessionRecord | None:
+        try:
+            return await self._upload_sessions.get_by_upload_id(
+                upload_id=upload_id
+            )
+        except Exception as exc:
+            _LOGGER.exception(
+                "upload_session_lookup_failed",
+                upload_id=upload_id,
+            )
+            raise upstream_s3_error(
+                "upload session store is unavailable"
+            ) from exc
+
+    async def _require_upload_session(
+        self,
+        *,
+        upload_id: str,
+        scope_id: str,
+        key: str,
+    ) -> UploadSessionRecord:
+        session = await self._get_upload_session(upload_id=upload_id)
+        if session is None:
+            raise invalid_request("upload session was not found")
+        if session.scope_id != scope_id or session.key != key:
+            raise invalid_request("upload session is outside caller scope")
+        return session
+
+    async def _get_upload_session_for_caller(
+        self,
+        *,
+        upload_id: str,
+        scope_id: str,
+        key: str,
+    ) -> UploadSessionRecord | None:
+        session = await self._get_upload_session(upload_id=upload_id)
+        if session is None:
+            return None
+        if session.scope_id != scope_id or session.key != key:
+            raise invalid_request("upload session is outside caller scope")
+        return session
+
+    async def _touch_upload_session(
+        self,
+        *,
+        upload_id: str,
+        last_activity_at: datetime,
+        status: UploadSessionStatus,
+        scope_id: str,
+        key: str,
+    ) -> None:
+        session = await self._require_upload_session(
+            upload_id=upload_id,
+            scope_id=scope_id,
+            key=key,
+        )
+        await self._store_upload_session(
+            replace(
+                session,
+                status=status,
+                last_activity_at=last_activity_at,
+            )
+        )
+
+    async def _touch_upload_session_if_present(
+        self,
+        *,
+        upload_id: str,
+        last_activity_at: datetime,
+        status: UploadSessionStatus,
+        scope_id: str,
+        key: str,
+    ) -> None:
+        session = await self._get_upload_session_for_caller(
+            upload_id=upload_id,
+            scope_id=scope_id,
+            key=key,
+        )
+        if session is None:
+            return
+        await self._store_upload_session(
+            replace(
+                session,
+                status=status,
+                last_activity_at=last_activity_at,
+            )
+        )
+
+    async def healthcheck(self) -> bool:
+        """Return readiness for the transfer service dependencies."""
+        try:
+            return await self._upload_sessions.healthcheck()
+        except Exception:
+            return False
 
     def _new_upload_key(self, *, scope_id: str, filename: str) -> str:
         safe = _sanitize_filename(filename)

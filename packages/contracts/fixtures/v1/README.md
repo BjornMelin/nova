@@ -4,7 +4,7 @@ Canonical, versioned fixture bundle for cross-framework conformance on:
 
 - Transfer initiate contract (`POST /v1/transfers/uploads/initiate`)
 - Export workflow create/status contracts (`POST /v1/exports`, `GET /v1/exports/{export_id}`)
-- v1 capability surface (`/v1/exports`, `/v1/exports/{export_id}`, `/v1/capabilities`, `/v1/resources/plan`, `/v1/releases/info`, `/v1/health/live`, `/v1/health/ready`)
+- v1 capability surface (`/v1/exports`, `/v1/exports/{export_id}`, `/v1/capabilities`, `/v1/capabilities/transfers`, `/v1/resources/plan`, `/v1/releases/info`, `/v1/health/live`, `/v1/health/ready`)
 - Canonical error envelope (`error.code`, `error.message`, `error.details`, `error.request_id`)
 
 Route namespace policy:

@@ -545,6 +545,26 @@ class NovaRuntimeStack(Stack):
             point_in_time_recovery_specification=_point_in_time_recovery(),
             removal_policy=RemovalPolicy.RETAIN,
         )
+        upload_sessions_table = dynamodb.Table(
+            self,
+            "UploadSessionsTable",
+            partition_key=dynamodb.Attribute(
+                name="session_id",
+                type=dynamodb.AttributeType.STRING,
+            ),
+            billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
+            time_to_live_attribute="resumable_until_epoch",
+            point_in_time_recovery_specification=_point_in_time_recovery(),
+            removal_policy=RemovalPolicy.RETAIN,
+        )
+        upload_sessions_table.add_global_secondary_index(
+            index_name="upload_id-index",
+            partition_key=dynamodb.Attribute(
+                name="upload_id",
+                type=dynamodb.AttributeType.STRING,
+            ),
+            projection_type=dynamodb.ProjectionType.ALL,
+        )
 
         file_bucket = s3.Bucket(
             self,
@@ -598,6 +618,13 @@ class NovaRuntimeStack(Stack):
             "OIDC_ISSUER": inputs.oidc_issuer,
             "OIDC_AUDIENCE": inputs.oidc_audience,
             "OIDC_JWKS_URL": inputs.oidc_jwks_url,
+            "FILE_TRANSFER_UPLOAD_SESSIONS_TABLE": (
+                upload_sessions_table.table_name
+            ),
+            "FILE_TRANSFER_EXPORT_COPY_PART_SIZE_BYTES": str(
+                2 * 1024 * 1024 * 1024
+            ),
+            "FILE_TRANSFER_EXPORT_COPY_MAX_CONCURRENCY": "8",
         }
         task_env = {
             **workflow_common_env,
@@ -851,10 +878,11 @@ class NovaRuntimeStack(Stack):
         export_table.grant_read_write_data(api_function)
         activity_table.grant_read_write_data(api_function)
         idempotency_table.grant_read_write_data(api_function)
+        upload_sessions_table.grant_read_write_data(api_function)
         state_machine.grant_start_execution(api_function)
         api_function.add_to_role_policy(
             iam.PolicyStatement(
-                actions=["states:DescribeStateMachine"],
+                actions=["states:DescribeStateMachine", "states:StopExecution"],
                 resources=[state_machine.state_machine_arn],
             )
         )

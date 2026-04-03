@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+from datetime import UTC, datetime
 from typing import Any
 
 import pytest
@@ -12,12 +13,17 @@ from nova_file_api.errors import FileTransferError
 from nova_file_api.models import (
     CompletedPart,
     CompleteUploadRequest,
+    InitiateUploadRequest,
     PresignDownloadRequest,
     Principal,
     UploadIntrospectionRequest,
 )
 from nova_file_api.transfer import TransferService
 from nova_file_api.transfer_config import transfer_config_from_settings
+from nova_file_api.upload_sessions import (
+    MemoryUploadSessionRepository,
+    UploadSessionStatus,
+)
 
 
 def _settings(**overrides: object) -> Settings:
@@ -136,10 +142,14 @@ def _transfer_service(
     *,
     settings: Settings,
     s3_client: _FakeS3Client,
+    upload_session_repository: MemoryUploadSessionRepository | None = None,
 ) -> TransferService:
     return TransferService(
         config=transfer_config_from_settings(settings),
         s3_client=s3_client,
+        upload_session_repository=(
+            upload_session_repository or MemoryUploadSessionRepository()
+        ),
     )
 
 
@@ -205,6 +215,98 @@ async def test_presign_download_uses_filename_fallback_when_disposition_missing(
         params["ResponseContentDisposition"]
         == 'attachment; filename="reportfinal.csv"'
     )
+
+
+@pytest.mark.anyio
+async def test_initiate_upload_returns_policy_hints_and_persists_session() -> (
+    None
+):
+    settings = _settings(
+        FILE_TRANSFER_POLICY_ID="giant-tier",
+        FILE_TRANSFER_POLICY_VERSION="2026-04-03",
+        FILE_TRANSFER_RESUMABLE_WINDOW_SECONDS=86_400,
+        FILE_TRANSFER_TARGET_UPLOAD_PART_COUNT=2000,
+        FILE_TRANSFER_EXPORT_COPY_PART_SIZE_BYTES=2 * 1024 * 1024 * 1024,
+        FILE_TRANSFER_EXPORT_COPY_MAX_CONCURRENCY=8,
+    )
+    fake_s3 = _FakeS3Client()
+    repository = MemoryUploadSessionRepository()
+    service = _transfer_service(
+        settings=settings,
+        s3_client=fake_s3,
+        upload_session_repository=repository,
+    )
+
+    response = await service.initiate_upload(
+        request=InitiateUploadRequest(
+            filename="report.csv",
+            content_type="text/csv",
+            size_bytes=500 * 1024 * 1024 * 1024,
+        ),
+        principal=_principal(),
+    )
+
+    assert response.strategy.value == "multipart"
+    assert response.policy_id == "giant-tier"
+    assert response.policy_version == "2026-04-03"
+    assert (
+        response.max_concurrency_hint == settings.file_transfer_max_concurrency
+    )
+    assert response.sign_batch_size_hint == 32
+    assert response.accelerate_enabled is False
+    assert response.checksum_algorithm is None
+    assert response.part_size_bytes == 256 * 1024 * 1024
+    assert response.resumable_until > datetime.now(tz=UTC)
+    assert response.upload_id == fake_s3.multipart_upload_id
+    assert response.session_id
+
+    stored = repository._records_by_session_id[response.session_id]
+    assert stored.status == UploadSessionStatus.INITIATED
+    assert stored.upload_id == fake_s3.multipart_upload_id
+    assert stored.part_size_bytes == 256 * 1024 * 1024
+    assert stored.policy_id == "giant-tier"
+
+
+@pytest.mark.anyio
+async def test_introspect_upload_uses_persisted_session_part_size() -> None:
+    settings = _settings()
+    fake_s3 = _FakeS3Client()
+    repository = MemoryUploadSessionRepository()
+    service = _transfer_service(
+        settings=settings,
+        s3_client=fake_s3,
+        upload_session_repository=repository,
+    )
+
+    initiated = await service.initiate_upload(
+        request=InitiateUploadRequest(
+            filename="report.csv",
+            content_type="text/csv",
+            size_bytes=500 * 1024 * 1024 * 1024,
+        ),
+        principal=_principal(),
+    )
+    fake_s3.list_parts_responses = [
+        {
+            "Parts": [
+                {"PartNumber": 1, "ETag": '"etag-1"', "Size": 1},
+            ],
+            "IsTruncated": False,
+        }
+    ]
+
+    response = await service.introspect_upload(
+        request=UploadIntrospectionRequest(
+            key=initiated.key,
+            upload_id=initiated.upload_id or "",
+        ),
+        principal=_principal(),
+    )
+
+    assert response.part_size_bytes == 256 * 1024 * 1024
+    stored = repository._records_by_session_id[initiated.session_id]
+    assert stored.status == UploadSessionStatus.ACTIVE
+    assert stored.last_activity_at.tzinfo is not None
 
 
 @pytest.mark.parametrize(
@@ -438,6 +540,7 @@ async def test_complete_upload_rejects_duplicate_part_numbers() -> None:
 async def test_copy_upload_to_export_uses_multipart_copy_above_5_gb() -> None:
     settings = _settings(
         FILE_TRANSFER_PART_SIZE_BYTES=128 * 1024 * 1024,
+        FILE_TRANSFER_EXPORT_COPY_PART_SIZE_BYTES=2 * 1024 * 1024 * 1024,
     )
     fake_s3 = _FakeS3Client()
     service = _transfer_service(settings=settings, s3_client=fake_s3)
@@ -468,7 +571,7 @@ async def test_copy_upload_to_export_uses_multipart_copy_above_5_gb() -> None:
         }
     ]
     expected_content_length = 5_000_000_001
-    part_size_bytes = settings.file_transfer_part_size_bytes
+    part_size_bytes = settings.file_transfer_export_copy_part_size_bytes
     expected_part_count = (
         expected_content_length + part_size_bytes - 1
     ) // part_size_bytes

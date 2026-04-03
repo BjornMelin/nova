@@ -44,6 +44,18 @@ class WorkflowSettings(BaseSettings):
         ge=5 * 1024 * 1024,
         le=5 * 1024 * 1024 * 1024,
     )
+    file_transfer_export_copy_part_size_bytes: int = Field(
+        default=2 * 1024 * 1024 * 1024,
+        validation_alias="FILE_TRANSFER_EXPORT_COPY_PART_SIZE_BYTES",
+        ge=1 * 1024 * 1024 * 1024,
+        le=5 * 1024 * 1024 * 1024,
+    )
+    file_transfer_export_copy_max_concurrency: int = Field(
+        default=8,
+        validation_alias="FILE_TRANSFER_EXPORT_COPY_MAX_CONCURRENCY",
+        ge=1,
+        le=32,
+    )
     file_transfer_max_concurrency: int = Field(
         default=4,
         validation_alias="FILE_TRANSFER_MAX_CONCURRENCY",
@@ -102,6 +114,8 @@ def export_transfer_config_from_settings(
         upload_prefix=settings.file_transfer_upload_prefix,
         export_prefix=settings.file_transfer_export_prefix,
         tmp_prefix=settings.file_transfer_tmp_prefix,
-        part_size_bytes=settings.file_transfer_part_size_bytes,
-        max_concurrency=settings.file_transfer_max_concurrency,
+        part_size_bytes=settings.file_transfer_export_copy_part_size_bytes,
+        max_concurrency=settings.file_transfer_export_copy_max_concurrency,
+        copy_part_size_bytes=settings.file_transfer_export_copy_part_size_bytes,
+        copy_max_concurrency=settings.file_transfer_export_copy_max_concurrency,
     )

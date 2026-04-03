@@ -148,11 +148,51 @@ class Settings(BaseSettings):
         ge=5 * 1024 * 1024,
         le=5 * 1024 * 1024 * 1024,
     )
+    file_transfer_export_copy_part_size_bytes: int = Field(
+        default=2 * 1024 * 1024 * 1024,
+        validation_alias="FILE_TRANSFER_EXPORT_COPY_PART_SIZE_BYTES",
+        ge=1 * 1024 * 1024 * 1024,
+        le=5 * 1024 * 1024 * 1024,
+    )
+    file_transfer_export_copy_max_concurrency: int = Field(
+        default=8,
+        validation_alias="FILE_TRANSFER_EXPORT_COPY_MAX_CONCURRENCY",
+        ge=1,
+        le=32,
+    )
     file_transfer_max_concurrency: int = Field(
         default=4,
         validation_alias="FILE_TRANSFER_MAX_CONCURRENCY",
         ge=1,
         le=32,
+    )
+    file_transfer_target_upload_part_count: int = Field(
+        default=2000,
+        validation_alias="FILE_TRANSFER_TARGET_UPLOAD_PART_COUNT",
+        ge=1,
+        le=10_000,
+    )
+    file_transfer_policy_id: str = Field(
+        default="default",
+        validation_alias="FILE_TRANSFER_POLICY_ID",
+    )
+    file_transfer_policy_version: str = Field(
+        default="2026-04-03",
+        validation_alias="FILE_TRANSFER_POLICY_VERSION",
+    )
+    file_transfer_resumable_window_seconds: int = Field(
+        default=7 * 24 * 60 * 60,
+        validation_alias="FILE_TRANSFER_RESUMABLE_WINDOW_SECONDS",
+        ge=60,
+        le=30 * 24 * 60 * 60,
+    )
+    file_transfer_checksum_algorithm: str | None = Field(
+        default=None,
+        validation_alias="FILE_TRANSFER_CHECKSUM_ALGORITHM",
+    )
+    file_transfer_upload_sessions_table: str | None = Field(
+        default=None,
+        validation_alias="FILE_TRANSFER_UPLOAD_SESSIONS_TABLE",
     )
     file_transfer_use_accelerate_endpoint: bool = Field(
         default=False,

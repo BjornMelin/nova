@@ -28,6 +28,8 @@ class ExportTransferConfig:
     tmp_prefix: str
     part_size_bytes: int
     max_concurrency: int
+    copy_part_size_bytes: int
+    copy_max_concurrency: int
 
 
 @dataclass(slots=True, frozen=True)
@@ -164,7 +166,7 @@ class S3ExportTransferService:
         upload_id: str | None = None
         part_size_bytes = _multipart_copy_part_size_bytes(
             source_size_bytes=source_size_bytes,
-            preferred_part_size_bytes=self.config.part_size_bytes,
+            preferred_part_size_bytes=self.config.copy_part_size_bytes,
         )
         try:
             output = await self._s3.create_multipart_upload(
@@ -198,10 +200,10 @@ class S3ExportTransferService:
             for start_index in range(
                 0,
                 len(ranges),
-                self.config.max_concurrency,
+                self.config.copy_max_concurrency,
             ):
                 batch = ranges[
-                    start_index : start_index + self.config.max_concurrency
+                    start_index : start_index + self.config.copy_max_concurrency
                 ]
                 completed_parts.extend(
                     await asyncio.gather(

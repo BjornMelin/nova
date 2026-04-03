@@ -21,6 +21,7 @@ def _settings() -> Settings:
         {
             "EXPORTS_ENABLED": False,
             "IDEMPOTENCY_ENABLED": False,
+            "FILE_TRANSFER_ENABLED": False,
             "IDEMPOTENCY_DYNAMODB_TABLE": "test-idempotency",
         }
     )
@@ -96,6 +97,15 @@ def test_build_idempotency_store_strips_table_name() -> None:
 @pytest.mark.parametrize(
     ("overrides", "runtime_kwargs", "expected_match"),
     [
+        pytest.param(
+            {
+                "file_transfer_enabled": True,
+                "file_transfer_upload_sessions_table": None,
+            },
+            {},
+            "FILE_TRANSFER_UPLOAD_SESSIONS_TABLE",
+            id="file-transfer-enabled-requires-session-table",
+        ),
         pytest.param(
             {
                 "idempotency_enabled": False,
