@@ -12,7 +12,7 @@
 - `docs/contracts/README.md`
 - `docs/runbooks/README.md`
 - `docs/clients/README.md`
-- `docs/release/README.md`
+- `release/README.md`
 - `docs/plan/GREENFIELD-WAVE-2-EXECUTION.md`
 - `docs/architecture/adr/ADR-0033` through `ADR-0038`
 - `docs/architecture/spec/SPEC-0027` through `SPEC-0031`

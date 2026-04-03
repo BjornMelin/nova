@@ -136,8 +136,9 @@ Nova is not responsible for:
 | `scripts/release` | Release and generation automation | Versions, SDK generation, deploy artifact handling |
 | `scripts/contracts` | Contract export helpers | OpenAPI export and related checks |
 | `tests/infra` | Infra and workflow contract tests | Docs authority, IAM, deploy-output, runtime stack validation |
-| `docs/` | Active docs, runbooks, ADRs, specs, release artifacts | Canonical authority is routed from `docs/README.md` |
-| `.github/workflows/` | CI, release, deploy, validation | GitHub-driven delivery and promotion model |
+| `docs/` | Active docs, runbooks, ADRs, specs | Canonical authority is routed from `docs/README.md` |
+| `release/` | Machine-owned committed release metadata | Canonical release-prep inputs and manifest mirror |
+| `.github/workflows/` | CI, release-plan preview, validation | GitHub PR CI plus post-deploy validation wrappers only |
 
 ## SDKs and downstream consumers
 
@@ -239,6 +240,9 @@ npx aws-cdk@2.1107.0 synth --app "uv run --package nova-cdk python infra/nova_cd
   -c api_lambda_artifact_bucket=nova-ci-artifacts-111111111111-us-east-1 \
   -c api_lambda_artifact_key=runtime/nova-file-api/example/example/nova-file-api-lambda.zip \
   -c api_lambda_artifact_sha256=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef \
+  -c workflow_lambda_artifact_bucket=nova-ci-artifacts-111111111111-us-east-1 \
+  -c workflow_lambda_artifact_key=runtime/nova-workflows/example/example/nova-workflows-lambda.zip \
+  -c workflow_lambda_artifact_sha256=fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210 \
   -c certificate_arn=arn:aws:acm:us-west-2:111111111111:certificate/00000000-0000-0000-0000-000000000000 \
   -c jwt_issuer=https://issuer.example.com/ \
   -c jwt_audience=api://nova \
@@ -247,25 +251,24 @@ npx aws-cdk@2.1107.0 synth --app "uv run --package nova-cdk python infra/nova_cd
 
 ## Release and deployment model
 
-Nova uses a GitHub workflow-driven release and deploy pipeline.
+Nova uses human-authored release PRs plus an AWS-native post-merge release
+control plane.
 
 ### High-level flow
 
 1. `Nova Release Plan`
-2. `Nova Release Apply`
-3. `Verify Release Signature`
-4. `Deploy Runtime`
-5. `Publish Packages`
-6. `Promote Prod`
-7. `Post Deploy Validate` when revalidation is needed
+2. `scripts.release.prepare_release_pr`
+3. human release PR merge to `main`
+4. AWS `CodeConnections -> CodePipeline -> CodeBuild`
+5. `Post Deploy Validate` when revalidation is needed
 
 ### Important release concepts
 
-- Release automation builds and publishes the API Lambda artifact
+- AWS release automation builds and publishes the API Lambda artifact
 - CDK consumes explicit artifact coordinates instead of rebuilding the API package locally
 - Runtime deployment publishes `deploy-output.json` and `deploy-output.sha256`
 - Post-deploy validation binds to that deploy-output artifact instead of manually supplied base URLs
-- Staged package publication and prod promotion are digest-gated
+- Staged package publication and prod promotion are digest-gated through one AWS control plane
 
 For operational details, start with:
 
@@ -286,7 +289,7 @@ Nova intentionally keeps a small active authority set and archives historical ma
 - `docs/runbooks/README.md`
 - `docs/contracts/README.md`
 - `docs/clients/README.md`
-- `docs/release/README.md`
+- `release/README.md`
 
 ### Historical material
 
