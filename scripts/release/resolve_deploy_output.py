@@ -256,6 +256,34 @@ def _normalize_api_lambda_artifact(payload: dict[str, Any]) -> dict[str, Any]:
     return normalized
 
 
+def _validate_release_commit_alignment(
+    *,
+    release_commit_sha: str,
+    api_lambda_artifact: dict[str, Any],
+    workflow_lambda_artifact: dict[str, Any],
+) -> None:
+    """Assert release commit alignment across top-level/runtime artifacts."""
+    api_release_commit = str(api_lambda_artifact["release_commit_sha"]).strip()
+    workflow_release_commit = str(
+        workflow_lambda_artifact["release_commit_sha"]
+    ).strip()
+    if api_release_commit != release_commit_sha:
+        raise ValueError(
+            "api_lambda_artifact.release_commit_sha must match "
+            "release_commit_sha"
+        )
+    if workflow_release_commit != release_commit_sha:
+        raise ValueError(
+            "workflow_lambda_artifact.release_commit_sha must match "
+            "release_commit_sha"
+        )
+    if workflow_release_commit != api_release_commit:
+        raise ValueError(
+            "workflow_lambda_artifact.release_commit_sha must match "
+            "api_lambda_artifact.release_commit_sha"
+        )
+
+
 def build_deploy_output(
     *,
     api_lambda_artifact: dict[str, Any],
@@ -275,6 +303,12 @@ def build_deploy_output(
     normalized_workflow_artifact = _normalize_api_lambda_artifact(
         workflow_lambda_artifact
     )
+    release_commit_sha = str(normalized_artifact["release_commit_sha"]).strip()
+    _validate_release_commit_alignment(
+        release_commit_sha=release_commit_sha,
+        api_lambda_artifact=normalized_artifact,
+        workflow_lambda_artifact=normalized_workflow_artifact,
+    )
     outputs = _normalize_stack_outputs(stack_description)
     public_base_url = outputs.get("NovaPublicBaseUrl", "").strip()
     if not public_base_url.startswith("https://"):
@@ -286,6 +320,13 @@ def build_deploy_output(
         raw_value=allowed_origins,
         environment_name=environment_name,
     )
+    normalized_build_ids = [
+        item.strip() for item in codebuild_build_ids if item.strip()
+    ]
+    if not normalized_build_ids:
+        raise ValueError(
+            "codebuild_build_ids must include at least one build id"
+        )
 
     deploy_output: dict[str, Any] = {
         "schema_version": "2.0",
@@ -295,16 +336,14 @@ def build_deploy_output(
             "system": "aws-codepipeline",
             "pipeline_name": pipeline_name,
             "pipeline_execution_id": pipeline_execution_id,
-            "codebuild_build_ids": [
-                item for item in codebuild_build_ids if item
-            ],
+            "codebuild_build_ids": normalized_build_ids,
         },
         "stack_name": stack_name,
         "region": region,
         "environment": environment_name,
         "runtime_name": normalized_artifact["package_name"],
         "runtime_version": normalized_artifact["package_version"],
-        "release_commit_sha": normalized_artifact["release_commit_sha"],
+        "release_commit_sha": release_commit_sha,
         "public_base_url": public_base_url,
         "execute_api_endpoint": execute_api_endpoint,
         "cors_allowed_origins": cors_allowed_origins,
@@ -380,6 +419,12 @@ def load_deploy_output(
     runtime_version = payload.get("runtime_version")
     if not isinstance(runtime_version, str) or not runtime_version.strip():
         raise ValueError("runtime_version must be a non-empty string")
+    release_commit_sha = payload.get("release_commit_sha")
+    if (
+        not isinstance(release_commit_sha, str)
+        or not release_commit_sha.strip()
+    ):
+        raise ValueError("release_commit_sha must be a non-empty string")
 
     stack_outputs = payload.get("stack_outputs")
     if not isinstance(stack_outputs, dict) or not stack_outputs:
@@ -405,11 +450,20 @@ def load_deploy_output(
     api_lambda_artifact = payload.get("api_lambda_artifact")
     if not isinstance(api_lambda_artifact, dict):
         raise TypeError("api_lambda_artifact must be an object")
-    _normalize_api_lambda_artifact(api_lambda_artifact)
+    normalized_api_lambda_artifact = _normalize_api_lambda_artifact(
+        api_lambda_artifact
+    )
     workflow_lambda_artifact = payload.get("workflow_lambda_artifact")
     if not isinstance(workflow_lambda_artifact, dict):
         raise TypeError("workflow_lambda_artifact must be an object")
-    _normalize_api_lambda_artifact(workflow_lambda_artifact)
+    normalized_workflow_lambda_artifact = _normalize_api_lambda_artifact(
+        workflow_lambda_artifact
+    )
+    _validate_release_commit_alignment(
+        release_commit_sha=release_commit_sha.strip(),
+        api_lambda_artifact=normalized_api_lambda_artifact,
+        workflow_lambda_artifact=normalized_workflow_lambda_artifact,
+    )
 
     execution = payload.get("execution")
     if not isinstance(execution, dict):
@@ -420,12 +474,23 @@ def load_deploy_output(
         value = execution.get(key)
         if not isinstance(value, str) or not value.strip():
             raise ValueError(f"execution.{key} must be a non-empty string")
-    build_ids = execution.get("codebuild_build_ids", [])
-    if not isinstance(build_ids, list) or any(
+    build_ids = execution.get("codebuild_build_ids")
+    if (
+        not isinstance(build_ids, list)
+        or not build_ids
+        or any(
+            not isinstance(value, str) or not value.strip()
+            for value in build_ids
+        )
+    ):
+        raise ValueError(
+            "execution.codebuild_build_ids must be a non-empty list of strings"
+        )
+    if any(
         not isinstance(value, str) or not value.strip() for value in build_ids
     ):
         raise ValueError(
-            "execution.codebuild_build_ids must be a list of strings"
+            "execution.codebuild_build_ids must be a non-empty list of strings"
         )
 
     actual_digest = _sha256_hex(payload)

@@ -88,6 +88,11 @@ def _build_asset(*, output_dir: Path) -> None:
             str(wheel_dir),
         )
         wheels = sorted(str(path) for path in wheel_dir.glob("*.whl"))
+        if not wheels:
+            raise RuntimeError(
+                "No wheel artifacts were produced in "
+                f"{wheel_dir} for output target {output_dir}"
+            )
         _run(
             "uv",
             "pip",
@@ -126,7 +131,11 @@ def _write_zip_archive(*, source_dir: Path, output_zip: Path) -> None:
 
 
 def main() -> int:
-    """Build the workflow Lambda zip artifact for release publication."""
+    """Build the workflow Lambda zip artifact for release publication.
+
+    Returns:
+        Process exit code where 0 means success.
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument("--output-zip", required=True)
     args = parser.parse_args()

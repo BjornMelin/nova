@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import inspect
 import json
 from pathlib import Path
 from typing import Any
@@ -50,6 +51,7 @@ def _build_checks(
     matched_clients: list[dict[str, Any]],
     expected_client_names: list[str],
     nova_api_grant: dict[str, Any] | None,
+    management_api_grant: dict[str, Any] | None,
 ) -> dict[str, bool]:
     """Return the drift checks for one live Auth0 tenant."""
     expected_resource_server_scopes = _normalize_scopes(
@@ -58,6 +60,7 @@ def _build_checks(
             for scope in expected_resource_server.get("scopes", [])
         ]
     )
+    management_api_scopes = _client_grant_scopes(management_api_grant)
     return {
         "tenant_friendly_name_matches": (
             tenant_friendly_name == expected_tenant_friendly_name
@@ -85,6 +88,12 @@ def _build_checks(
             _client_grant_scopes(nova_api_grant)
             == expected_resource_server_scopes
         ),
+        "tenant_ops_management_api_grant_present": (
+            management_api_grant is not None
+        ),
+        "tenant_ops_management_api_grant_scopes_match": bool(
+            management_api_scopes
+        ),
     }
 
 
@@ -102,12 +111,27 @@ def audit_tenant(
     env_file: Path,
     report_path: Path | None = None,
 ) -> dict[str, Any]:
-    """Collect a reproducible tenant status report for one local overlay."""
+    """Collect a reproducible tenant status report for one local overlay.
+
+    Args:
+        env_file: Auth0 overlay env file with tenant credentials and mappings.
+        report_path: Optional destination JSON report path.
+
+    Returns:
+        Structured tenant drift report payload.
+    """
     env = parse_env_file(env_file)
     mapping_path = (
         Path(__file__).resolve().parents[2] / env["AUTH0_KEYWORD_MAPPINGS_FILE"]
     ).resolve()
-    rendered = _render_template(mapping_path)
+    render_signature = inspect.signature(_render_template)
+    if "input_path" in render_signature.parameters:
+        rendered = _render_template(
+            mapping_path,
+            Path(env["AUTH0_INPUT_FILE"]),
+        )
+    else:
+        rendered = _render_template(mapping_path)
     domain = env["AUTH0_DOMAIN"]
     management_client = _client(
         domain=domain,
@@ -166,13 +190,27 @@ def audit_tenant(
         ),
         None,
     )
-    relevant_grants = [
+    tenant_ops_grants = [
         grant
         for grant in client_grants
         if grant.get("client_id") == tenant_ops_client_id
-        and grant.get("audience") == expected_resource_server["identifier"]
     ]
-    nova_api_grant = relevant_grants[0] if relevant_grants else None
+    nova_api_grant = next(
+        (
+            grant
+            for grant in tenant_ops_grants
+            if grant.get("audience") == expected_resource_server["identifier"]
+        ),
+        None,
+    )
+    management_api_grant = next(
+        (
+            grant
+            for grant in tenant_ops_grants
+            if grant.get("audience") == f"https://{domain}/api/v2/"
+        ),
+        None,
+    )
     checks = _build_checks(
         tenant_friendly_name=tenants.get("friendly_name"),
         expected_tenant_friendly_name=rendered.get("tenant", {}).get(
@@ -183,6 +221,7 @@ def audit_tenant(
         matched_clients=matched_clients,
         expected_client_names=expected_client_names,
         nova_api_grant=nova_api_grant,
+        management_api_grant=management_api_grant,
     )
     summary = _summarize_checks(checks)
 
@@ -207,7 +246,7 @@ def audit_tenant(
         "actual": {
             "resource_server": matched_resource_server,
             "clients": matched_clients,
-            "client_grants": relevant_grants,
+            "client_grants": tenant_ops_grants,
         },
         "checks": checks,
         "summary": summary,
@@ -222,7 +261,11 @@ def audit_tenant(
 
 
 def main() -> int:
-    """Run the CLI entrypoint for Auth0 tenant audit."""
+    """Run the CLI entrypoint for Auth0 tenant audit.
+
+    Returns:
+        Exit code where 0 means no drift and 1 means drift detected.
+    """
     parser = argparse.ArgumentParser(
         description="Audit one Nova Auth0 tenant from a local overlay."
     )

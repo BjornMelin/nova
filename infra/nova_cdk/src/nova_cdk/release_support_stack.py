@@ -30,7 +30,14 @@ class ReleaseSupportInputs:
 
 
 def load_release_support_inputs(scope: Construct) -> ReleaseSupportInputs:
-    """Resolve release-support role names from context or environment."""
+    """Resolve release-support role names from context or environment.
+
+    Args:
+        scope: Construct scope used to resolve context and environment values.
+
+    Returns:
+        Resolved release-support inputs.
+    """
     return ReleaseSupportInputs(
         dev_role_name=_optional_value(
             scope,
@@ -58,7 +65,14 @@ class NovaReleaseSupportStack(Stack):
         inputs: ReleaseSupportInputs | None = None,
         **kwargs: Any,
     ) -> None:
-        """Initialize the release-support IAM stack."""
+        """Initialize the release-support IAM stack.
+
+        Args:
+            scope: Parent construct scope.
+            construct_id: CDK construct identifier.
+            inputs: Optional release-support role name inputs.
+            **kwargs: Additional CDK stack keyword arguments.
+        """
         super().__init__(scope, construct_id, **kwargs)
 
         resolved_inputs = inputs or load_release_support_inputs(self)
@@ -122,7 +136,10 @@ class NovaReleaseSupportStack(Stack):
                     "iam:UntagRole",
                     "iam:UpdateAssumeRolePolicy",
                 ],
-                resources=[f"arn:{self.partition}:iam::{self.account}:role/*"],
+                resources=[
+                    f"arn:{self.partition}:iam::{self.account}:role/Nova*",
+                    f"arn:{self.partition}:iam::{self.account}:role/nova-*",
+                ],
             )
         )
         role.add_to_policy(

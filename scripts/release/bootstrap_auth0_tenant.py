@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import inspect
 import json
 from pathlib import Path
 from typing import Any, cast
@@ -56,9 +57,15 @@ def _dump_sdk_object(payload: Any) -> dict[str, Any]:
     raise TypeError(f"Unsupported SDK payload type: {type(payload)!r}")
 
 
-def _render_template(mapping_path: Path) -> dict[str, Any]:
+def _render_template(
+    mapping_path: Path,
+    input_path: Path | None = None,
+) -> dict[str, Any]:
+    resolved_input_path = input_path or Path("infra/auth0/tenant/tenant.yaml")
     tenant_yaml_path = (
-        _repo_root() / "infra" / "auth0" / "tenant" / "tenant.yaml"
+        resolved_input_path
+        if resolved_input_path.is_absolute()
+        else (_repo_root() / resolved_input_path).resolve()
     )
     tenant_yaml = tenant_yaml_path.read_text(encoding="utf-8")
     mapping = json.loads(mapping_path.read_text(encoding="utf-8"))
@@ -193,14 +200,27 @@ def bootstrap_tenant(
     env_file: Path,
     report_path: Path | None = None,
 ) -> dict[str, Any]:
-    """Bootstrap or reconcile one Nova Auth0 tenant from local overlay files."""
+    """Bootstrap or reconcile one Nova Auth0 tenant from local overlays.
+
+    Args:
+        env_file: Auth0 overlay env file with tenant credentials and mappings.
+        report_path: Optional destination JSON report path.
+
+    Returns:
+        Structured report describing tenant, clients, and client grants.
+    """
     env = parse_env_file(env_file)
     domain = env["AUTH0_DOMAIN"]
     client_id = env["AUTH0_CLIENT_ID"]
     client_secret = env["AUTH0_CLIENT_SECRET"]
     mapping_path = (_repo_root() / env["AUTH0_KEYWORD_MAPPINGS_FILE"]).resolve()
+    input_path = Path(env["AUTH0_INPUT_FILE"])
 
-    rendered = _render_template(mapping_path)
+    render_signature = inspect.signature(_render_template)
+    if "input_path" in render_signature.parameters:
+        rendered = _render_template(mapping_path, input_path)
+    else:
+        rendered = _render_template(mapping_path)
     management_client = _client(
         domain=domain,
         client_id=client_id,
@@ -361,7 +381,11 @@ def bootstrap_tenant(
 
 
 def main() -> int:
-    """Run the CLI entrypoint for Auth0 tenant bootstrap."""
+    """Run the CLI entrypoint for Auth0 tenant bootstrap.
+
+    Returns:
+        Process exit code where 0 means success.
+    """
     parser = argparse.ArgumentParser(
         description="Bootstrap Nova Auth0 resources for one tenant overlay."
     )

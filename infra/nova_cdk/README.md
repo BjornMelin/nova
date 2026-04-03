@@ -75,6 +75,9 @@ npx aws-cdk deploy \
   -c api_lambda_artifact_bucket=nova-ci-artifacts-111111111111-us-east-1 \
   -c api_lambda_artifact_key=runtime/nova-file-api/example/example/nova-file-api-lambda.zip \
   -c api_lambda_artifact_sha256=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef \
+  -c workflow_lambda_artifact_bucket=nova-ci-artifacts-111111111111-us-east-1 \
+  -c workflow_lambda_artifact_key=runtime/nova-workflows/example/example/nova-workflows-lambda.zip \
+  -c workflow_lambda_artifact_sha256=fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210 \
   -c certificate_arn=arn:aws:acm:us-west-2:111111111111:certificate/00000000-0000-0000-0000-000000000000 \
   -c jwt_issuer=https://issuer.example.com/ \
   -c jwt_audience=api://nova \

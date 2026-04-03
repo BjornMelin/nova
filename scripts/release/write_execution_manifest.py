@@ -23,7 +23,24 @@ def build_execution_manifest(
     staging_repository: str,
     prod_repository: str,
 ) -> dict[str, Any]:
-    """Return the canonical release execution manifest payload."""
+    """Return the canonical release execution manifest payload.
+
+    Args:
+        repo_root: Absolute repository root used for execution context.
+        release_commit_sha: Release commit SHA pinned by the release pipeline.
+        api_lambda_artifact: Normalized API Lambda artifact metadata payload.
+        workflow_lambda_artifact: Normalized workflow Lambda artifact metadata
+            payload.
+        release_prep_payload: Canonical release prep payload.
+        manifest_sha256: SHA256 digest of the release version manifest.
+        manifest_bucket: Destination S3 bucket for release manifest artifacts.
+        manifest_key: Destination S3 object key for the manifest.
+        staging_repository: Staging CodeArtifact repository name.
+        prod_repository: Production CodeArtifact repository name.
+
+    Returns:
+        Canonical release execution manifest payload.
+    """
     return {
         "schema_version": "1.0",
         "generated_at": common.iso_timestamp(),
@@ -65,7 +82,11 @@ def _validate_commit_matches(
 
 
 def parse_args() -> argparse.Namespace:
-    """Parse CLI arguments for execution manifest generation."""
+    """Parse CLI arguments for execution manifest generation.
+
+    Returns:
+        Parsed command-line arguments.
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument("--repo-root", default=".")
     parser.add_argument("--release-commit-sha", required=True)
@@ -91,7 +112,11 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> int:
-    """Render and write the execution manifest."""
+    """Render and write the execution manifest.
+
+    Returns:
+        Process exit code where 0 means success.
+    """
     args = parse_args()
     repo_root = Path(args.repo_root).resolve()
 

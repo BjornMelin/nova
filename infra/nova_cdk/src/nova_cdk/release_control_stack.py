@@ -307,7 +307,7 @@ class NovaReleaseControlPlaneStack(Stack):
             | self._environment_env_vars(prefix="PROD", config=inputs.prod),
         )
 
-        self._grant_release_role_permissions(
+        self._grant_release_validation_permissions(
             project=validate_project,
             inputs=inputs,
             release_artifact_bucket=release_artifact_bucket,
@@ -505,6 +505,57 @@ class NovaReleaseControlPlaneStack(Stack):
                 config.runtime_config_parameter_name
             ),
         }
+
+    def _grant_release_validation_permissions(
+        self,
+        *,
+        project: codebuild.PipelineProject,
+        inputs: ReleaseControlInputs,
+        release_artifact_bucket: s3.Bucket,
+        release_manifest_bucket: s3.Bucket,
+    ) -> None:
+        release_artifact_bucket.grant_read(project)
+        release_manifest_bucket.grant_read(project)
+        project.add_to_role_policy(
+            iam.PolicyStatement(
+                actions=[
+                    "sts:GetServiceBearerToken",
+                    "codeartifact:GetAuthorizationToken",
+                ],
+                resources=["*"],
+            )
+        )
+        project.add_to_role_policy(
+            iam.PolicyStatement(
+                actions=[
+                    "codeartifact:GetRepositoryEndpoint",
+                    "codeartifact:ReadFromRepository",
+                ],
+                resources=[
+                    (
+                        f"arn:{self.partition}:codeartifact:{self.region}:"
+                        f"{self.account}:repository/"
+                        f"{inputs.codeartifact_domain}/"
+                        f"{inputs.codeartifact_staging_repository}"
+                    ),
+                    (
+                        f"arn:{self.partition}:codeartifact:{self.region}:"
+                        f"{self.account}:repository/"
+                        f"{inputs.codeartifact_domain}/"
+                        f"{inputs.codeartifact_prod_repository}"
+                    ),
+                ],
+            )
+        )
+        project.add_to_role_policy(
+            iam.PolicyStatement(
+                actions=[
+                    "codeartifact:DescribePackageVersion",
+                    "codeartifact:ListPackageVersions",
+                ],
+                resources=["*"],
+            )
+        )
 
     def _grant_release_role_permissions(
         self,

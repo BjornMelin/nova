@@ -32,7 +32,11 @@ def _run_uv_lock(repo_root: Path) -> None:
 
 
 def parse_args() -> argparse.Namespace:
-    """Parse CLI arguments for release prep."""
+    """Parse CLI arguments for release prep.
+
+    Returns:
+        Parsed command-line arguments.
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument("--repo-root", default=".")
     parser.add_argument(
@@ -49,8 +53,20 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def _display_path(path: Path, *, repo_root: Path) -> str:
+    """Render one path relative to repo_root when possible."""
+    try:
+        return str(path.relative_to(repo_root))
+    except ValueError:
+        return str(path)
+
+
 def main() -> int:
-    """Generate committed release-prep artifacts and apply planned versions."""
+    """Generate committed release-prep artifacts and apply planned versions.
+
+    Returns:
+        Process exit code where 0 means success.
+    """
     args = parse_args()
     repo_root = Path(args.repo_root).resolve()
     units = common.load_workspace_units(repo_root)
@@ -65,7 +81,7 @@ def main() -> int:
     head_commit = common.run_git(repo_root, ["rev-parse", "HEAD"])
     base_commit = common.find_manifest_base_commit(
         repo_root,
-        manifest_path=release_paths.RELEASE_VERSION_MANIFEST_PATH,
+        manifest_path=manifest_path,
     )
     first_release = base_commit is None
     changed_files = common.list_changed_files(
@@ -131,8 +147,8 @@ def main() -> int:
         "release-prep: "
         f"changed_units={len(changed_report['changed_units'])} "
         f"planned_units={len(planned_versions['units'])} "
-        f"manifest={manifest_path.relative_to(repo_root)} "
-        f"release_prep={release_prep_path.relative_to(repo_root)}"
+        f"manifest={_display_path(manifest_path, repo_root=repo_root)} "
+        f"release_prep={_display_path(release_prep_path, repo_root=repo_root)}"
     )
     return 0
 
