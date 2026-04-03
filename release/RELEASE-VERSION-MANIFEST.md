@@ -1,14 +1,14 @@
 # Release Version Manifest
 
-Date: 2026-04-03T01:38:58+00:00
+Date: 2026-04-03T05:41:45+00:00
 Status: Active
 Schema: 1.0
 
 ## Release Metadata
-- `base_commit`: `63c8d4376243744872d6edad9bbbf383107bd975`
-- `head_commit`: `8be61e53e4dd9873d1f8cbe0fa5e7969462118ef`
+- `base_commit`: `8a10dc1e2cf2b5c80b26aee87fcf1ea056de09f3`
+- `head_commit`: `8a10dc1e2cf2b5c80b26aee87fcf1ea056de09f3`
 - `first_release`: `False`
-- `global_bump`: `patch`
+- `global_bump`: `None`
 
 ## changed-units.json Schema
 
@@ -38,8 +38,8 @@ Schema: 1.0
 | Unit | Package | Version | Changed |
 | --- | --- | --- | --- |
 | `infra/nova_cdk` | `nova-cdk` | `0.1.0` | no |
-| `packages/nova_dash_bridge` | `nova-dash-bridge` | `0.3.2` | yes |
-| `packages/nova_file_api` | `nova-file-api` | `0.5.1` | yes |
+| `packages/nova_dash_bridge` | `nova-dash-bridge` | `0.3.2` | no |
+| `packages/nova_file_api` | `nova-file-api` | `0.5.1` | no |
 | `packages/nova_runtime_support` | `nova-runtime-support` | `0.1.0` | no |
 | `packages/nova_sdk_py` | `nova-sdk-py` | `1.0.0` | no |
 | `packages/nova_sdk_r` | `nova` | `0.1.0` | no |
