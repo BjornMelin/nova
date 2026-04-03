@@ -873,6 +873,17 @@
             "title": "Accelerate Enabled",
             "type": "boolean"
           },
+          "active_multipart_upload_limit": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Active Multipart Upload Limit"
+          },
           "checksum_algorithm": {
             "anyOf": [
               {
@@ -883,6 +894,17 @@
               }
             ],
             "title": "Checksum Algorithm"
+          },
+          "daily_ingress_budget_bytes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Daily Ingress Budget Bytes"
           },
           "max_concurrency_hint": {
             "title": "Max Concurrency Hint",
@@ -919,6 +941,17 @@
           "sign_batch_size_hint": {
             "title": "Sign Batch Size Hint",
             "type": "integer"
+          },
+          "sign_requests_per_upload_limit": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sign Requests Per Upload Limit"
           },
           "target_upload_part_count": {
             "title": "Target Upload Part Count",

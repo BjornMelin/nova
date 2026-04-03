@@ -23,7 +23,7 @@ from nova_file_api.models import (
 )
 from nova_file_api.transfer import TransferService
 from nova_file_api.transfer_config import transfer_config_from_settings
-from nova_file_api.upload_sessions import (
+from nova_runtime_support.upload_sessions import (
     MemoryUploadSessionRepository,
     UploadSessionRecord,
     UploadSessionStatus,
@@ -664,6 +664,8 @@ async def test_abort_upload_checks_session_scope_before_update() -> None:
         sign_batch_size_hint=32,
         accelerate_enabled=False,
         checksum_algorithm=None,
+        sign_requests_count=0,
+        sign_requests_limit=None,
         resumable_until=now,
         resumable_until_epoch=int(now.timestamp()) + 3600,
         status=UploadSessionStatus.INITIATED,
@@ -740,6 +742,8 @@ async def test_upload_session_repository_ignores_expired_records() -> None:
         sign_batch_size_hint=32,
         accelerate_enabled=False,
         checksum_algorithm=None,
+        sign_requests_count=0,
+        sign_requests_limit=None,
         resumable_until=now,
         resumable_until_epoch=int(now.timestamp()) - 1,
         status=UploadSessionStatus.INITIATED,

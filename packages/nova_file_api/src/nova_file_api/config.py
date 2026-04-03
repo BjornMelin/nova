@@ -180,6 +180,21 @@ class Settings(BaseSettings):
         default="2026-04-03",
         validation_alias="FILE_TRANSFER_POLICY_VERSION",
     )
+    file_transfer_active_multipart_upload_limit: int | None = Field(
+        default=None,
+        validation_alias="FILE_TRANSFER_ACTIVE_MULTIPART_UPLOAD_LIMIT",
+        ge=1,
+    )
+    file_transfer_daily_ingress_budget_bytes: int | None = Field(
+        default=None,
+        validation_alias="FILE_TRANSFER_DAILY_INGRESS_BUDGET_BYTES",
+        ge=1,
+    )
+    file_transfer_sign_requests_per_upload_limit: int | None = Field(
+        default=None,
+        validation_alias="FILE_TRANSFER_SIGN_REQUESTS_PER_UPLOAD_LIMIT",
+        ge=1,
+    )
     file_transfer_resumable_window_seconds: int = Field(
         default=7 * 24 * 60 * 60,
         validation_alias="FILE_TRANSFER_RESUMABLE_WINDOW_SECONDS",
@@ -194,9 +209,31 @@ class Settings(BaseSettings):
         default=None,
         validation_alias="FILE_TRANSFER_UPLOAD_SESSIONS_TABLE",
     )
+    file_transfer_usage_table: str | None = Field(
+        default=None,
+        validation_alias="FILE_TRANSFER_USAGE_TABLE",
+    )
     file_transfer_use_accelerate_endpoint: bool = Field(
         default=False,
         validation_alias="FILE_TRANSFER_USE_ACCELERATE_ENDPOINT",
+    )
+    file_transfer_policy_appconfig_application: str | None = Field(
+        default=None,
+        validation_alias="FILE_TRANSFER_POLICY_APPCONFIG_APPLICATION",
+    )
+    file_transfer_policy_appconfig_environment: str | None = Field(
+        default=None,
+        validation_alias="FILE_TRANSFER_POLICY_APPCONFIG_ENVIRONMENT",
+    )
+    file_transfer_policy_appconfig_profile: str | None = Field(
+        default=None,
+        validation_alias="FILE_TRANSFER_POLICY_APPCONFIG_PROFILE",
+    )
+    file_transfer_policy_appconfig_poll_interval_seconds: int = Field(
+        default=60,
+        validation_alias="FILE_TRANSFER_POLICY_APPCONFIG_POLL_INTERVAL_SECONDS",
+        ge=15,
+        le=86400,
     )
     max_upload_bytes: int = Field(
         default=500 * 1024 * 1024 * 1024,

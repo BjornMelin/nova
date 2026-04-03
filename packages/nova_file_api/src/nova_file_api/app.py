@@ -130,6 +130,13 @@ def create_app(*, settings: Settings | None = None) -> FastAPI:
                         )
                     )
                 )
+                requires_appconfig = all(
+                    (
+                        runtime_settings.file_transfer_policy_appconfig_application,
+                        runtime_settings.file_transfer_policy_appconfig_environment,
+                        runtime_settings.file_transfer_policy_appconfig_profile,
+                    )
+                )
 
                 async with AsyncExitStack() as stack:
                     s3_client = await stack.enter_async_context(
@@ -145,6 +152,11 @@ def create_app(*, settings: Settings | None = None) -> FastAPI:
                         stepfunctions_client = await stack.enter_async_context(
                             session.client("stepfunctions")
                         )
+                    appconfig_client = None
+                    if requires_appconfig:
+                        appconfig_client = await stack.enter_async_context(
+                            session.client("appconfigdata")
+                        )
 
                     runtime_state_kwargs = {
                         "settings": runtime_settings,
@@ -154,6 +166,10 @@ def create_app(*, settings: Settings | None = None) -> FastAPI:
                     if stepfunctions_client is not None:
                         runtime_state_kwargs["stepfunctions_client"] = (
                             stepfunctions_client
+                        )
+                    if appconfig_client is not None:
+                        runtime_state_kwargs["appconfig_client"] = (
+                            appconfig_client
                         )
 
                     initialize_runtime_state(

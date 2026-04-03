@@ -182,6 +182,38 @@ def queue_unavailable(
     )
 
 
+def too_many_requests(
+    message: str,
+    *,
+    details: dict[str, Any] | None = None,
+    headers: dict[str, str] | None = None,
+) -> FileTransferError:
+    """Return a quota or throttling error."""
+    return FileTransferError(
+        code="too_many_requests",
+        message=message,
+        status_code=int(HTTPStatus.TOO_MANY_REQUESTS),
+        details=details or {},
+        headers=headers or {},
+    )
+
+
+def quota_exceeded(
+    message: str,
+    *,
+    details: dict[str, Any] | None = None,
+    headers: dict[str, str] | None = None,
+) -> FileTransferError:
+    """Return a quota-exceeded error."""
+    return FileTransferError(
+        code="quota_exceeded",
+        message=message,
+        status_code=int(HTTPStatus.TOO_MANY_REQUESTS),
+        details=details or {},
+        headers=headers or {},
+    )
+
+
 def internal_error(
     message: str,
     *,

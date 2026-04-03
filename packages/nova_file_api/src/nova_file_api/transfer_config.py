@@ -31,9 +31,17 @@ class TransferConfig:
     max_upload_bytes: int
     policy_id: str
     policy_version: str
+    active_multipart_upload_limit: int | None
+    daily_ingress_budget_bytes: int | None
+    sign_requests_per_upload_limit: int | None
     resumable_window_seconds: int
     checksum_algorithm: str | None
     upload_sessions_table: str | None
+    usage_table: str | None
+    policy_appconfig_application: str | None
+    policy_appconfig_environment: str | None
+    policy_appconfig_profile: str | None
+    policy_appconfig_poll_interval_seconds: int
 
     def upload_part_size_bytes(self, *, size_bytes: int) -> int:
         """Resolve the upload part size for one object size."""
@@ -106,11 +114,31 @@ def transfer_config_from_settings(settings: Settings) -> TransferConfig:
         max_upload_bytes=settings.max_upload_bytes,
         policy_id=settings.file_transfer_policy_id,
         policy_version=settings.file_transfer_policy_version,
+        active_multipart_upload_limit=(
+            settings.file_transfer_active_multipart_upload_limit
+        ),
+        daily_ingress_budget_bytes=(
+            settings.file_transfer_daily_ingress_budget_bytes
+        ),
+        sign_requests_per_upload_limit=(
+            settings.file_transfer_sign_requests_per_upload_limit
+        ),
         resumable_window_seconds=(
             settings.file_transfer_resumable_window_seconds
         ),
         checksum_algorithm=settings.file_transfer_checksum_algorithm,
         upload_sessions_table=settings.file_transfer_upload_sessions_table,
+        usage_table=settings.file_transfer_usage_table,
+        policy_appconfig_application=(
+            settings.file_transfer_policy_appconfig_application
+        ),
+        policy_appconfig_environment=(
+            settings.file_transfer_policy_appconfig_environment
+        ),
+        policy_appconfig_profile=settings.file_transfer_policy_appconfig_profile,
+        policy_appconfig_poll_interval_seconds=(
+            settings.file_transfer_policy_appconfig_poll_interval_seconds
+        ),
     )
 
 

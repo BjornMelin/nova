@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+from typing import cast
+
 import structlog
 from fastapi import APIRouter, Response
 
+from nova_file_api.config import Settings
 from nova_file_api.dependencies import (
     ActivityStoreDep,
     AuthenticatorDep,
@@ -44,7 +47,10 @@ from nova_file_api.routes.common import (
     emit_request_metric,
 )
 from nova_file_api.transfer_config import transfer_config_from_settings
-from nova_file_api.transfer_policy import resolve_transfer_policy
+from nova_file_api.transfer_policy import (
+    TransferPolicy,
+    resolve_transfer_policy,
+)
 
 ops_router = APIRouter(tags=["ops"])
 platform_router = APIRouter(prefix="/v1", tags=["platform"])
@@ -55,10 +61,15 @@ platform_router = APIRouter(prefix="/v1", tags=["platform"])
     operation_id=GET_CAPABILITIES_OPERATION_ID,
     response_model=CapabilitiesResponse,
 )
-async def get_capabilities(settings: SettingsDep) -> CapabilitiesResponse:
+async def get_capabilities(
+    settings: SettingsDep,
+    transfer_service: TransferServiceDep,
+) -> CapabilitiesResponse:
     """Expose runtime capability declarations."""
-    transfer_config = transfer_config_from_settings(settings)
-    policy = resolve_transfer_policy(config=transfer_config)
+    policy = await _resolve_capabilities_policy(
+        settings=settings,
+        transfer_service=transfer_service,
+    )
     capabilities = [
         CapabilityDescriptor(key="exports", enabled=settings.exports_enabled),
         CapabilityDescriptor(
@@ -83,6 +94,15 @@ async def get_capabilities(settings: SettingsDep) -> CapabilitiesResponse:
                 "accelerate_enabled": policy.accelerate_enabled,
                 "checksum_algorithm": policy.checksum_algorithm,
                 "resumable_ttl_seconds": policy.resumable_ttl_seconds,
+                "active_multipart_upload_limit": (
+                    policy.active_multipart_upload_limit
+                ),
+                "daily_ingress_budget_bytes": (
+                    policy.daily_ingress_budget_bytes
+                ),
+                "sign_requests_per_upload_limit": (
+                    policy.sign_requests_per_upload_limit
+                ),
             },
         ),
     ]
@@ -96,10 +116,13 @@ async def get_capabilities(settings: SettingsDep) -> CapabilitiesResponse:
 )
 async def get_transfer_capabilities(
     settings: SettingsDep,
+    transfer_service: TransferServiceDep,
 ) -> TransferCapabilitiesResponse:
     """Expose the current transfer policy envelope."""
-    transfer_config = transfer_config_from_settings(settings)
-    policy = resolve_transfer_policy(config=transfer_config)
+    policy = await _resolve_capabilities_policy(
+        settings=settings,
+        transfer_service=transfer_service,
+    )
     return TransferCapabilitiesResponse(
         policy_id=policy.policy_id,
         policy_version=policy.policy_version,
@@ -113,6 +136,22 @@ async def get_transfer_capabilities(
         accelerate_enabled=policy.accelerate_enabled,
         checksum_algorithm=policy.checksum_algorithm,
         resumable_ttl_seconds=policy.resumable_ttl_seconds,
+        active_multipart_upload_limit=policy.active_multipart_upload_limit,
+        daily_ingress_budget_bytes=policy.daily_ingress_budget_bytes,
+        sign_requests_per_upload_limit=policy.sign_requests_per_upload_limit,
+    )
+
+
+async def _resolve_capabilities_policy(
+    *,
+    settings: Settings,
+    transfer_service: object,
+) -> TransferPolicy:
+    resolver = getattr(transfer_service, "resolve_policy", None)
+    if callable(resolver):
+        return cast(TransferPolicy, await resolver(scope_id=None))
+    return resolve_transfer_policy(
+        config=transfer_config_from_settings(settings)
     )
 
 

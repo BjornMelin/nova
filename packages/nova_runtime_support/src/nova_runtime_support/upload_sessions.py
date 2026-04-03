@@ -15,7 +15,12 @@ from uuid import uuid4
 
 from botocore.exceptions import BotoCoreError, ClientError
 
-from nova_file_api.models import UploadStrategy
+
+class UploadStrategy(StrEnum):
+    """Upload strategy options returned by initiate endpoint."""
+
+    SINGLE = "single"
+    MULTIPART = "multipart"
 
 
 class UploadSessionStatus(StrEnum):
@@ -46,6 +51,8 @@ class UploadSessionRecord:
     sign_batch_size_hint: int
     accelerate_enabled: bool
     checksum_algorithm: str | None
+    sign_requests_count: int
+    sign_requests_limit: int | None
     resumable_until: datetime
     resumable_until_epoch: int
     status: UploadSessionStatus
@@ -66,6 +73,14 @@ class UploadSessionRepository(Protocol):
         upload_id: str,
     ) -> UploadSessionRecord | None:
         """Return the session bound to one multipart upload id."""
+
+    async def list_expired_multipart(
+        self,
+        *,
+        now_epoch: int,
+        limit: int,
+    ) -> list[UploadSessionRecord]:
+        """Return expired multipart sessions that still need cleanup."""
 
     async def update(self, record: UploadSessionRecord) -> None:
         """Replace an existing session record."""
@@ -121,6 +136,29 @@ class MemoryUploadSessionRepository:
             if record.upload_id is not None:
                 self._upload_id_index[record.upload_id] = record.session_id
 
+    async def list_expired_multipart(
+        self,
+        *,
+        now_epoch: int,
+        limit: int,
+    ) -> list[UploadSessionRecord]:
+        """Return expired multipart sessions that still need cleanup."""
+        async with self._lock:
+            expired = [
+                record
+                for record in self._records_by_session_id.values()
+                if record.upload_id is not None
+                and record.strategy == UploadStrategy.MULTIPART
+                and record.status
+                in {
+                    UploadSessionStatus.INITIATED,
+                    UploadSessionStatus.ACTIVE,
+                }
+                and record.resumable_until_epoch <= now_epoch
+            ]
+        expired.sort(key=lambda record: record.last_activity_at)
+        return expired[:limit]
+
     async def healthcheck(self) -> bool:
         """Report readiness for the in-memory session repository."""
         return True
@@ -138,6 +176,9 @@ class DynamoTable(Protocol):
     async def query(self, **kwargs: object) -> Mapping[str, object]:
         """Query items using a secondary index."""
 
+    async def scan(self, **kwargs: object) -> Mapping[str, object]:
+        """Scan items with optional filters."""
+
 
 class DynamoResource(Protocol):
     """Subset of DynamoDB resource operations used by upload sessions."""
@@ -149,7 +190,7 @@ class DynamoResource(Protocol):
 def _as_dynamo_table(table: object) -> DynamoTable:
     """Validate and cast a DynamoDB table-like object."""
     invalid_methods: list[str] = []
-    for method_name in ("put_item", "get_item", "query"):
+    for method_name in ("put_item", "get_item", "query", "scan"):
         method = getattr(table, method_name, None)
         if not callable(method):
             invalid_methods.append(method_name)
@@ -207,6 +248,50 @@ class DynamoUploadSessionRepository:
         table = await self._resolve_table()
         await table.put_item(Item=_record_to_item(record))
 
+    async def list_expired_multipart(
+        self,
+        *,
+        now_epoch: int,
+        limit: int,
+    ) -> list[UploadSessionRecord]:
+        """Return expired multipart sessions that still need cleanup."""
+        table = await self._resolve_table()
+        records: list[UploadSessionRecord] = []
+        exclusive_start_key: dict[str, Any] | None = None
+        while len(records) < limit:
+            scan_kwargs: dict[str, object] = {
+                "FilterExpression": (
+                    "#strategy = :multipart "
+                    "AND #status IN (:initiated, :active) "
+                    "AND #resumable_until_epoch <= :now_epoch"
+                ),
+                "ExpressionAttributeNames": {
+                    "#strategy": "strategy",
+                    "#status": "status",
+                    "#resumable_until_epoch": "resumable_until_epoch",
+                },
+                "ExpressionAttributeValues": {
+                    ":multipart": UploadStrategy.MULTIPART.value,
+                    ":initiated": UploadSessionStatus.INITIATED.value,
+                    ":active": UploadSessionStatus.ACTIVE.value,
+                    ":now_epoch": now_epoch,
+                },
+                "Limit": limit,
+            }
+            if exclusive_start_key is not None:
+                scan_kwargs["ExclusiveStartKey"] = exclusive_start_key
+            response = await table.scan(**scan_kwargs)
+            items = cast(list[dict[str, Any]], response.get("Items", []))
+            records.extend(_item_to_record(item) for item in items)
+            exclusive_start_key = cast(
+                dict[str, Any] | None,
+                response.get("LastEvaluatedKey"),
+            )
+            if exclusive_start_key is None:
+                break
+        records.sort(key=lambda record: record.last_activity_at)
+        return records[:limit]
+
     async def healthcheck(self) -> bool:
         """Report readiness for the DynamoDB session repository."""
         try:
@@ -246,6 +331,8 @@ def _record_to_item(record: UploadSessionRecord) -> dict[str, object]:
         "sign_batch_size_hint": record.sign_batch_size_hint,
         "accelerate_enabled": record.accelerate_enabled,
         "checksum_algorithm": record.checksum_algorithm,
+        "sign_requests_count": record.sign_requests_count,
+        "sign_requests_limit": record.sign_requests_limit,
         "resumable_until": record.resumable_until.isoformat(),
         "resumable_until_epoch": record.resumable_until_epoch,
         "status": record.status.value,
@@ -305,6 +392,8 @@ def _item_to_record(item: dict[str, Any]) -> UploadSessionRecord:
         sign_batch_size_hint=int(item["sign_batch_size_hint"]),
         accelerate_enabled=_as_bool(item.get("accelerate_enabled")),
         checksum_algorithm=checksum_algorithm,
+        sign_requests_count=int(item.get("sign_requests_count", 0)),
+        sign_requests_limit=_as_int(item.get("sign_requests_limit")),
         resumable_until=_parse_datetime(item["resumable_until"]),
         resumable_until_epoch=int(item["resumable_until_epoch"]),
         status=status,

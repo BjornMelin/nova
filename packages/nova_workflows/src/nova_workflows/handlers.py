@@ -3,10 +3,25 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Any
+from contextlib import AsyncExitStack
+from typing import Any, cast
 
 import structlog
+from botocore.config import Config
 
+from nova_runtime_support.aws import new_aioboto3_session
+from nova_runtime_support.transfer_reconciliation import (
+    TransferReconciliationConfig,
+    TransferReconciliationService,
+)
+from nova_runtime_support.transfer_usage import (
+    DynamoResource as TransferUsageDynamoResource,
+    build_transfer_usage_repository,
+)
+from nova_runtime_support.upload_sessions import (
+    DynamoResource as UploadSessionDynamoResource,
+    build_upload_session_repository,
+)
 from nova_runtime_support.workflow_config import WorkflowSettings
 from nova_workflows.models import ExportWorkflowInput
 from nova_workflows.runtime import export_services, workflow_services
@@ -55,6 +70,14 @@ def fail_export_handler(
 ) -> dict[str, Any]:
     """Lambda handler for persisting workflow failure state."""
     return asyncio.run(_fail_export(event=event))
+
+
+def reconcile_transfer_state_handler(
+    event: dict[str, Any],
+    _context: object,
+) -> dict[str, Any]:
+    """Lambda handler for stale multipart upload reconciliation."""
+    return asyncio.run(_reconcile_transfer_state(event=event))
 
 
 async def _validate_export(*, event: dict[str, Any]) -> dict[str, Any]:
@@ -119,3 +142,57 @@ async def _fail_export(*, event: dict[str, Any]) -> dict[str, Any]:
             export_service=services.export_service,
         )
     return result.model_dump(mode="json")
+
+
+async def _reconcile_transfer_state(*, event: dict[str, Any]) -> dict[str, Any]:
+    del event
+    settings = WorkflowSettings()
+    session = new_aioboto3_session()
+    s3_config = Config(
+        s3={
+            "use_accelerate_endpoint": (
+                settings.file_transfer_use_accelerate_endpoint
+            )
+        }
+    )
+    async with AsyncExitStack() as stack:
+        s3_client = await stack.enter_async_context(
+            session.client("s3", config=s3_config)
+        )
+        dynamodb_resource = await stack.enter_async_context(
+            session.resource("dynamodb")
+        )
+        upload_session_repository = build_upload_session_repository(
+            table_name=settings.file_transfer_upload_sessions_table,
+            dynamodb_resource=cast(
+                UploadSessionDynamoResource,
+                dynamodb_resource,
+            ),
+            enabled=True,
+        )
+        transfer_usage_repository = build_transfer_usage_repository(
+            table_name=settings.file_transfer_usage_table,
+            dynamodb_resource=cast(
+                TransferUsageDynamoResource | None,
+                dynamodb_resource,
+            ),
+            enabled=bool(settings.file_transfer_usage_table),
+        )
+        service = TransferReconciliationService(
+            config=TransferReconciliationConfig(
+                bucket=settings.file_transfer_bucket,
+                upload_prefix=settings.file_transfer_upload_prefix,
+                export_prefix=settings.file_transfer_export_prefix,
+                stale_multipart_cleanup_age_seconds=(
+                    settings.file_transfer_stale_multipart_cleanup_age_seconds
+                ),
+                session_scan_limit=(
+                    settings.file_transfer_reconciliation_scan_limit
+                ),
+            ),
+            s3_client=s3_client,
+            upload_session_repository=upload_session_repository,
+            transfer_usage_repository=transfer_usage_repository,
+        )
+        result = await service.reconcile()
+    return result.as_dict()
