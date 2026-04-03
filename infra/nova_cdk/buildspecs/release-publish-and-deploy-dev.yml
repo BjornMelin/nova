@@ -21,7 +21,7 @@ phases:
       - npm ci
       - mkdir -p .release-control
       - export RELEASE_COMMIT_SHA="${CODEBUILD_RESOLVED_SOURCE_VERSION}"
-      - >
+      - |
         uv run python - <<'PY'
         import json
         from pathlib import Path
@@ -44,7 +44,7 @@ phases:
         --release-prep-path release/RELEASE-PREP.json
         --gate-report-out .release-control/codeartifact-gate-report.json
         --promotion-candidates-out .release-control/codeartifact-promotion-candidates.json
-      - >
+      - |
         uv run python - <<'PY'
         import json
         import subprocess
@@ -92,7 +92,7 @@ phases:
         mv /tmp/release_signing_key.pub ~/.ssh/release_signing_key.pub
         chmod 600 ~/.ssh/release_signing_key
         chmod 644 ~/.ssh/release_signing_key.pub
-      - >
+      - |
         uv run python - <<'PY'
         import hashlib
         import json
@@ -162,7 +162,7 @@ phases:
           --domain "${CODEARTIFACT_DOMAIN}" \
           --repository "${CODEARTIFACT_STAGING_REPOSITORY}" \
           --region "${AWS_REGION}"
-      - >
+      - |
         uv run python - <<'PY'
         import json
         import os
@@ -180,7 +180,7 @@ phases:
         if dist_files:
             subprocess.run(["uv", "run", "twine", "upload", "--repository", "codeartifact", "--skip-existing", *dist_files], check=True)
         PY
-      - >
+      - |
         uv run python - <<'PY'
         import json
         import os
@@ -208,7 +208,7 @@ phases:
                 cwd=publish_dir,
             )
         PY
-      - >
+      - |
         uv run python - <<'PY'
         import json
         import os
@@ -249,7 +249,7 @@ phases:
       - export WORKFLOW_LAMBDA_ARTIFACT_SHA256="$(sha256sum .release-control/nova-workflows-lambda.zip | awk '{print $1}')"
       - export WORKFLOW_LAMBDA_ARTIFACT_KEY="runtime/nova-workflows/${RELEASE_COMMIT_SHA}/${WORKFLOW_LAMBDA_ARTIFACT_SHA256}/nova-workflows-lambda.zip"
       - aws s3 cp .release-control/nova-workflows-lambda.zip "s3://${RELEASE_ARTIFACT_BUCKET}/${WORKFLOW_LAMBDA_ARTIFACT_KEY}"
-      - >
+      - |
         uv run python - <<'PY'
         import json
         import os
@@ -271,7 +271,7 @@ phases:
         }
         Path(".release-control/api-lambda-artifact.json").write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         PY
-      - >
+      - |
         uv run python - <<'PY'
         import json
         import os
