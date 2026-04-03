@@ -22,7 +22,7 @@ phases:
       - mkdir -p .release-control
       - export RELEASE_MANIFEST_KEY="releases/${RELEASE_COMMIT_SHA}/release-execution-manifest.json"
       - aws s3 cp "s3://${RELEASE_MANIFEST_BUCKET}/${RELEASE_MANIFEST_KEY}" .release-control/release-execution-manifest.json
-      - >
+      - |
         uv run python - <<'PY'
         import json
         from pathlib import Path
@@ -49,7 +49,7 @@ phases:
         --expected-manifest-sha256 "$(jq -r '.release_manifest_sha256' .release-control/release-execution-manifest.json)"
         --gate-report-out .release-control/prod-promotion-gate-report.json
         --promotion-candidates-out .release-control/validated-promotion-candidates.json
-      - >
+      - |
         uv run python - <<'PY'
         import json
         import os

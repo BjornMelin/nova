@@ -92,6 +92,24 @@ def test_release_buildspecs_pin_uv_version() -> None:
         assert "astral.sh/uv/install.sh" not in text, rel_path
 
 
+def test_release_buildspec_heredocs_use_literal_yaml_blocks() -> None:
+    """Python heredocs must use literal YAML blocks."""
+    for rel_path in [
+        "infra/nova_cdk/buildspecs/release-publish-and-deploy-dev.yml",
+        "infra/nova_cdk/buildspecs/release-promote-and-deploy-prod.yml",
+    ]:
+        lines = _read(rel_path).splitlines()
+        for index, line in enumerate(lines):
+            if "<<'PY'" not in line:
+                continue
+            assert index > 0, rel_path
+            assert lines[index - 1].strip() == "- |", (
+                rel_path,
+                index + 1,
+                lines[index - 1],
+            )
+
+
 def test_deleted_gitHub_release_executor_surface_is_absent() -> None:
     """GitHub release executor workflows should be retired."""
     for rel_path in [
