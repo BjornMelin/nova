@@ -50,6 +50,7 @@ small canonical wave-2 authority core:
 - `adr/ADR-0011-cicd-hybrid-github-aws-promotion.md`
 - `adr/ADR-0031-reusable-github-workflow-api-and-versioning-policy-for-deployment-automation.md`
 - `adr/ADR-0032-oidc-and-iam-role-partitioning-for-deploy-automation.md`
+- `adr/ADR-0042-large-file-transfer-observability-and-benchmark-baseline.md`
 - `spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md`
 - `spec/SPEC-0004-ci-cd-and-docs.md`
 - `spec/SPEC-0025-reusable-workflow-integration-contract.md`
