@@ -89,10 +89,14 @@
   - multipart threshold: `100 MiB`
   - multipart part size: `128 MiB`
   - browser max concurrency: `4`
-  - browser sign batch rule: `min(16, 2 * maxConcurrency)` => `8`
+  - browser sign batch hint floor: `32`, with larger values returned by
+    initiate responses when policy allows
   - max upload size: `500 GiB`
-- Current export copy behavior uses the inline Lambda path with the same part
-  size and concurrency defaults.
+- Current export copy behavior uses the inline Lambda path with dedicated copy
+  tuning controls (`FILE_TRANSFER_EXPORT_COPY_PART_SIZE_BYTES`,
+  `FILE_TRANSFER_EXPORT_COPY_MAX_CONCURRENCY`).
+- Clients can inspect the current transfer policy envelope through
+  `GET /v1/capabilities/transfers`.
 
 ### Current operating plans
 

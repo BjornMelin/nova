@@ -63,3 +63,6 @@ is available.
 Browser upload flows must stay bearer-only: consumer apps obtain and refresh
 tokens, then render the full `Authorization` header value into the hidden DOM
 node read by `nova_dash_bridge`.
+Browser upload clients should honor additive initiate hints such as
+`part_size_bytes`, `max_concurrency_hint`, `sign_batch_size_hint`,
+`session_id`, and `resumable_until` instead of hard-coding multipart tuning.

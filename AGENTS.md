@@ -33,7 +33,12 @@ the bulk data plane. Product and API detail: `README.md`.
   `/v1/exports*`, supporting capability/ops routes under `/v1/*`, and
   `/metrics/summary`. Auth:
   bearer JWT only, in-process.
+- Transfer control plane: initiate responses include additive policy/session
+  hints for browser clients, upload-session state is persisted in DynamoDB, and
+  `/v1/capabilities/transfers` exposes the effective transfer policy envelope.
 - Exports: `/v1/exports`. Idempotency and workflow state: DynamoDB.
+- Export cancellation persists caller intent and stops the active Step
+  Functions execution when one is running.
 - API runtime: FastAPI in `packages/nova_file_api` (repo Lambda entrypoint).
 - Workflows: Step Functions + `packages/nova_workflows` task handlers.
 - Browser/Dash upload helpers: `packages/nova_dash_bridge` is browser-only; the
