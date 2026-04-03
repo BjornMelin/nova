@@ -559,6 +559,15 @@
       "type_label": "str | None"
     },
     {
+      "default_repr": "None",
+      "env_var": "FILE_TRANSFER_ACTIVE_MULTIPART_UPLOAD_LIMIT",
+      "field_name": "file_transfer_active_multipart_upload_limit",
+      "required": false,
+      "required_when": null,
+      "secret": false,
+      "type_label": "int | None"
+    },
+    {
       "default_repr": "''",
       "env_var": "FILE_TRANSFER_BUCKET",
       "field_name": "file_transfer_bucket",
@@ -575,6 +584,15 @@
       "required_when": null,
       "secret": false,
       "type_label": "str | None"
+    },
+    {
+      "default_repr": "None",
+      "env_var": "FILE_TRANSFER_DAILY_INGRESS_BUDGET_BYTES",
+      "field_name": "file_transfer_daily_ingress_budget_bytes",
+      "required": false,
+      "required_when": null,
+      "secret": false,
+      "type_label": "int | None"
     },
     {
       "default_repr": "True",
@@ -649,6 +667,42 @@
       "type_label": "int"
     },
     {
+      "default_repr": "None",
+      "env_var": "FILE_TRANSFER_POLICY_APPCONFIG_APPLICATION",
+      "field_name": "file_transfer_policy_appconfig_application",
+      "required": false,
+      "required_when": null,
+      "secret": false,
+      "type_label": "str | None"
+    },
+    {
+      "default_repr": "None",
+      "env_var": "FILE_TRANSFER_POLICY_APPCONFIG_ENVIRONMENT",
+      "field_name": "file_transfer_policy_appconfig_environment",
+      "required": false,
+      "required_when": null,
+      "secret": false,
+      "type_label": "str | None"
+    },
+    {
+      "default_repr": "60",
+      "env_var": "FILE_TRANSFER_POLICY_APPCONFIG_POLL_INTERVAL_SECONDS",
+      "field_name": "file_transfer_policy_appconfig_poll_interval_seconds",
+      "required": false,
+      "required_when": null,
+      "secret": false,
+      "type_label": "int"
+    },
+    {
+      "default_repr": "None",
+      "env_var": "FILE_TRANSFER_POLICY_APPCONFIG_PROFILE",
+      "field_name": "file_transfer_policy_appconfig_profile",
+      "required": false,
+      "required_when": null,
+      "secret": false,
+      "type_label": "str | None"
+    },
+    {
       "default_repr": "'default'",
       "env_var": "FILE_TRANSFER_POLICY_ID",
       "field_name": "file_transfer_policy_id",
@@ -694,6 +748,15 @@
       "type_label": "int"
     },
     {
+      "default_repr": "None",
+      "env_var": "FILE_TRANSFER_SIGN_REQUESTS_PER_UPLOAD_LIMIT",
+      "field_name": "file_transfer_sign_requests_per_upload_limit",
+      "required": false,
+      "required_when": null,
+      "secret": false,
+      "type_label": "int | None"
+    },
+    {
       "default_repr": "2000",
       "env_var": "FILE_TRANSFER_TARGET_UPLOAD_PART_COUNT",
       "field_name": "file_transfer_target_upload_part_count",
@@ -724,6 +787,15 @@
       "default_repr": "None",
       "env_var": "FILE_TRANSFER_UPLOAD_SESSIONS_TABLE",
       "field_name": "file_transfer_upload_sessions_table",
+      "required": false,
+      "required_when": null,
+      "secret": false,
+      "type_label": "str | None"
+    },
+    {
+      "default_repr": "None",
+      "env_var": "FILE_TRANSFER_USAGE_TABLE",
+      "field_name": "file_transfer_usage_table",
       "required": false,
       "required_when": null,
       "secret": false,
