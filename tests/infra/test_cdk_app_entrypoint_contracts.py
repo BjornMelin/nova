@@ -37,7 +37,7 @@ def _run_app(
 ) -> subprocess.CompletedProcess[str]:
     outdir = tmp_path / "cdk.out"
     env = {
-        **os.environ,
+        "PATH": os.environ.get("PATH", ""),
         "CDK_DEFAULT_ACCOUNT": "111111111111",
         "CDK_DEFAULT_REGION": "us-east-1",
         "CDK_OUTDIR": str(outdir),

@@ -15,12 +15,12 @@ Last reviewed: 2026-04-02
 
 ## Active client docs
 
-- `browser-dash-integration-guide.md` — primary browser/Dash onboarding guide:
+- `browser-dash-integration-guide.md` -- primary browser/Dash onboarding guide:
   deploy output, bearer-header contract, asset wiring, uploader usage, and SDK
   choices.
-- `CLIENT-SDK-CANONICAL-PACKAGES.md` — canonical package names and scope by
+- `CLIENT-SDK-CANONICAL-PACKAGES.md` -- canonical package names and scope by
   language.
-- `post-deploy-validation-integration-guide.md` — downstream reusable workflow
+- `post-deploy-validation-integration-guide.md` -- downstream reusable workflow
   setup for runtime validation.
 - `dash-minimal-workflow.yml`
 - `rshiny-minimal-workflow.yml`
@@ -30,11 +30,20 @@ Last reviewed: 2026-04-02
 ## Authority / references
 
 - `../overview/IMPLEMENTATION-STATUS-MATRIX.md`
+- `../architecture/requirements.md`
+- `../architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md`
 - `../architecture/adr/ADR-0033-canonical-serverless-platform.md`
+- `../architecture/adr/ADR-0034-eliminate-auth-service-and-session-auth.md`
+- `../architecture/adr/ADR-0035-replace-generic-jobs-with-export-workflows.md`
+- `../architecture/adr/ADR-0036-dynamodb-idempotency-no-redis.md`
+- `../architecture/adr/ADR-0037-sdk-generation-consolidation.md`
 - `../architecture/adr/ADR-0038-docs-authority-reset.md`
+- `../architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md`
 - `../architecture/spec/SPEC-0027-public-api-v2.md`
+- `../architecture/spec/SPEC-0028-export-workflow-state-machine.md`
 - `../architecture/spec/SPEC-0029-platform-serverless.md`
 - `../architecture/spec/SPEC-0030-sdk-generation-and-package-layout.md`
+- `../architecture/spec/SPEC-0031-docs-and-tests-authority-reset.md`
 - `../contracts/deploy-output-authority-v2.schema.json`
 - `../contracts/workflow-post-deploy-validate.schema.json`
 - `../runbooks/release/release-runbook.md`

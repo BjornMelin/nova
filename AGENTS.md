@@ -30,7 +30,8 @@ the bulk data plane. Product and API detail: `README.md`.
 **Current implementation (treat as true):**
 
 - Public API: transfer routes under `/v1/transfers/*`, export routes under
-  `/v1/exports*`, and supporting capability/ops routes under `/v1/*`. Auth:
+  `/v1/exports*`, supporting capability/ops routes under `/v1/*`, and
+  `/metrics/summary`. Auth:
   bearer JWT only, in-process.
 - Exports: `/v1/exports`. Idempotency and workflow state: DynamoDB.
 - API runtime: FastAPI in `packages/nova_file_api` (repo Lambda entrypoint).

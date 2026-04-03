@@ -16,8 +16,7 @@
     "release_prep",
     "api_lambda_artifact",
     "workflow_lambda_artifact",
-    "codeartifact",
-    "repo_root"
+    "codeartifact"
   ],
   "properties": {
     "schema_version": {
@@ -53,11 +52,49 @@
     },
     "api_lambda_artifact": {
       "type": "object",
-      "additionalProperties": true
+      "additionalProperties": false,
+      "required": [
+        "artifact_bucket",
+        "artifact_key",
+        "artifact_sha256"
+      ],
+      "properties": {
+        "artifact_bucket": {
+          "type": "string",
+          "minLength": 1
+        },
+        "artifact_key": {
+          "type": "string",
+          "minLength": 1
+        },
+        "artifact_sha256": {
+          "type": "string",
+          "pattern": "^[A-Fa-f0-9]{64}$"
+        }
+      }
     },
     "workflow_lambda_artifact": {
       "type": "object",
-      "additionalProperties": true
+      "additionalProperties": false,
+      "required": [
+        "artifact_bucket",
+        "artifact_key",
+        "artifact_sha256"
+      ],
+      "properties": {
+        "artifact_bucket": {
+          "type": "string",
+          "minLength": 1
+        },
+        "artifact_key": {
+          "type": "string",
+          "minLength": 1
+        },
+        "artifact_sha256": {
+          "type": "string",
+          "pattern": "^[A-Fa-f0-9]{64}$"
+        }
+      }
     },
     "codeartifact": {
       "type": "object",

@@ -43,6 +43,27 @@ def build_execution_manifest(
     }
 
 
+def _validate_commit_matches(
+    *,
+    expected: str,
+    payload: dict[str, Any],
+    source: str,
+    commit_key: str = "release_commit_sha",
+) -> None:
+    if commit_key not in payload:
+        return
+    actual = payload[commit_key]
+    if not isinstance(actual, str):
+        raise TypeError(
+            f"{source} payload field {commit_key!r} must be a string commit SHA"
+        )
+    if actual.lower() != expected.lower():
+        raise ValueError(
+            f"{source} commit mismatch: {commit_key}={actual} does not match "
+            f"--release-commit-sha={expected}"
+        )
+
+
 def parse_args() -> argparse.Namespace:
     """Parse CLI arguments for execution manifest generation."""
     parser = argparse.ArgumentParser()
@@ -95,6 +116,24 @@ def main() -> int:
     api_lambda_artifact = common.read_json(api_lambda_artifact_path)
     workflow_lambda_artifact = common.read_json(workflow_lambda_artifact_path)
     release_prep_payload = common.read_json(release_prep_path)
+
+    _validate_commit_matches(
+        expected=args.release_commit_sha,
+        payload=api_lambda_artifact,
+        source="api_lambda_artifact",
+    )
+    _validate_commit_matches(
+        expected=args.release_commit_sha,
+        payload=workflow_lambda_artifact,
+        source="workflow_lambda_artifact",
+    )
+    _validate_commit_matches(
+        expected=args.release_commit_sha,
+        payload=release_prep_payload,
+        source="release_prep_payload",
+        commit_key="commit",
+    )
+
     manifest_sha256 = hashlib.sha256(
         release_manifest_path.read_bytes()
     ).hexdigest()

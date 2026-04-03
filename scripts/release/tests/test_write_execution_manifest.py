@@ -4,7 +4,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from scripts.release.write_execution_manifest import build_execution_manifest
+import pytest
+
+from scripts.release.write_execution_manifest import (
+    _validate_commit_matches,
+    build_execution_manifest,
+)
 
 
 def test_build_execution_manifest_includes_required_release_fields() -> None:
@@ -49,3 +54,38 @@ def test_build_execution_manifest_includes_required_release_fields() -> None:
     assert payload["release_prep"]["units"][0]["new_version"] == "0.1.1"
     assert payload["codeartifact"]["staging_repository"] == "nova-staging"
     assert payload["codeartifact"]["prod_repository"] == "nova-prod"
+
+
+def test_validate_commit_matches_accepts_matching_commit_field() -> None:
+    _validate_commit_matches(
+        expected="abc123",
+        payload={"release_commit_sha": "abc123"},
+        source="api_lambda_artifact",
+    )
+
+
+def test_validate_commit_matches_rejects_mismatched_commit() -> None:
+    with pytest.raises(ValueError, match="commit mismatch"):
+        _validate_commit_matches(
+            expected="abc123",
+            payload={"release_commit_sha": "def456"},
+            source="api_lambda_artifact",
+        )
+
+
+def test_validate_commit_matches_skips_when_commit_field_is_absent() -> None:
+    _validate_commit_matches(
+        expected="abc123",
+        payload={},
+        source="release_prep_payload",
+    )
+
+
+def test_validate_commit_matches_checks_release_prep_commit_field() -> None:
+    with pytest.raises(ValueError, match="commit mismatch"):
+        _validate_commit_matches(
+            expected="abc123",
+            payload={"commit": "def456"},
+            source="release_prep_payload",
+            commit_key="commit",
+        )

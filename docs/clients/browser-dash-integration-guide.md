@@ -15,7 +15,7 @@ evidence to a working Dash uploader. By the end, you should have:
 - the canonical Nova runtime URL from `deploy-output.json`
 - a Dash layout that mounts Nova uploader assets once
 - an explicit bearer-header node that the browser runtime can read
-- an `S3FileUploader(...)` wired to the live transfers and exports routes
+- an `S3FileUploader(…)` wired to the live transfers and exports routes
 - a clear choice for any server-side SDK calls that your app still needs
 
 ## What Nova owns vs what your app owns
@@ -123,7 +123,7 @@ auth_header = BearerAuthHeader(
 
 The contract is simple:
 
-- the element id must match what `S3FileUploader(...)` receives
+- the element id must match what `S3FileUploader(…)` receives
 - the text content must be the full header value, usually `Bearer <token>`
 - browser requests keep `credentials: "omit"`
 
@@ -181,7 +181,7 @@ layout = html.Div(
 
 ## Step 8: read the uploader result payload
 
-`S3FileUploader(...)` writes its result into the Dash memory store that matches
+`S3FileUploader(…)` writes its result into the Dash memory store that matches
 the component id. The base upload result contains:
 
 - `bucket`

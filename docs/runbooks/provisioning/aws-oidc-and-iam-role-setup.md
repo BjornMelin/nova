@@ -28,6 +28,7 @@ Current state:
 
 - `${AWS_REGION}` default `us-east-1`
 - `${AWS_ACCOUNT_ID}`
+
 ## Required role capabilities
 
 The active release role boundary is:
