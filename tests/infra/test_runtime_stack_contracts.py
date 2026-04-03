@@ -324,6 +324,70 @@ def test_runtime_stack_adds_upload_session_table_with_upload_index() -> None:
     )
 
 
+def test_runtime_stack_adds_transfer_usage_and_policy_resources() -> None:
+    """Runtime stack should provision transfer quota and policy resources."""
+    bundle = _build_bundle()
+    tables = _resources_of_type(bundle.resources, "AWS::DynamoDB::Table")
+    usage_tables = [
+        resource
+        for logical_id, resource in tables.items()
+        if logical_id.startswith("TransferUsageTable")
+    ]
+    assert len(usage_tables) == 1
+    table = usage_tables[0]["Properties"]
+    assert table["KeySchema"] == [
+        {"AttributeName": "scope_id", "KeyType": "HASH"},
+        {"AttributeName": "window_key", "KeyType": "RANGE"},
+    ]
+    assert table["TimeToLiveSpecification"] == {
+        "AttributeName": "expires_at",
+        "Enabled": True,
+    }
+    appconfig_resources = _resources_of_type(
+        bundle.resources,
+        "AWS::AppConfig::Application",
+    )
+    assert appconfig_resources
+    assert _resources_of_type(
+        bundle.resources,
+        "AWS::AppConfig::ConfigurationProfile",
+    )
+    assert _resources_of_type(
+        bundle.resources,
+        "AWS::AppConfig::HostedConfigurationVersion",
+    )
+    assert _resources_of_type(bundle.resources, "AWS::AppConfig::Deployment")
+    api_function_env = bundle.api_function_env
+    assert "FILE_TRANSFER_USAGE_TABLE" in api_function_env
+    assert "FILE_TRANSFER_POLICY_APPCONFIG_APPLICATION" in api_function_env
+    assert "FILE_TRANSFER_POLICY_APPCONFIG_PROFILE" in api_function_env
+
+
+def test_runtime_stack_adds_transfer_reconciliation_and_cost_controls() -> None:
+    """Runtime stack should wire janitor, Storage Lens, and budget controls."""
+    bundle = _build_bundle()
+    functions = _resources_of_type(bundle.resources, "AWS::Lambda::Function")
+    reconcile_functions = [
+        resource
+        for resource in functions.values()
+        if resource["Properties"]["Handler"]
+        == "nova_workflows.handlers.reconcile_transfer_state_handler"
+    ]
+    assert len(reconcile_functions) == 1
+    rules = _resources_of_type(bundle.resources, "AWS::Events::Rule")
+    assert any(
+        logical_id.startswith("TransferReconciliationSchedule")
+        for logical_id in rules
+    )
+    assert _resources_of_type(bundle.resources, "AWS::S3::StorageLens")
+    assert _resources_of_type(bundle.resources, "AWS::Budgets::Budget")
+    alarms = _resources_of_type(bundle.resources, "AWS::CloudWatch::Alarm")
+    assert any(
+        logical_id.startswith("StaleMultipartUploadBytesAlarm")
+        for logical_id in alarms
+    )
+
+
 def test_non_prod_can_disable_reserved_concurrency() -> None:
     """Non-prod stacks may omit reservations in low-quota accounts."""
     context = {
