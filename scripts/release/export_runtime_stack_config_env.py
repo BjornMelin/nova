@@ -26,6 +26,17 @@ OPTIONAL_KEYS = {
 }
 
 
+def _serialize_env_value(value: Any) -> str:
+    """Render one runtime-config value for shell export."""
+    if value is None:
+        return ""
+    if isinstance(value, str):
+        return value.strip()
+    if isinstance(value, (bool, list, dict, int, float)):
+        return json.dumps(value)
+    return str(value).strip()
+
+
 def parse_args() -> argparse.Namespace:
     """Parse CLI args."""
     parser = argparse.ArgumentParser()
@@ -70,9 +81,9 @@ def main() -> int:
 
     exports: dict[str, str] = {}
     for key, env_name in REQUIRED_KEYS.items():
-        exports[env_name] = str(payload[key]).strip()
+        exports[env_name] = _serialize_env_value(payload[key])
     for key, env_name in OPTIONAL_KEYS.items():
-        exports[env_name] = str(payload.get(key, "")).strip()
+        exports[env_name] = _serialize_env_value(payload.get(key))
 
     for env_name, value in sorted(exports.items()):
         print(f"export {env_name}={shlex.quote(value)}")

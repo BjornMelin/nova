@@ -40,5 +40,5 @@ def test_main_emits_optional_enable_waf(monkeypatch) -> None:
 
     assert result == 0
     output = stdout.getvalue()
-    assert "export ENABLE_WAF=False" in output
-    assert "export STACK_ALLOWED_ORIGINS=" in output
+    assert "export ENABLE_WAF=false" in output
+    assert "export STACK_ALLOWED_ORIGINS='[\"*\"]'" in output
