@@ -44,8 +44,18 @@ def main() -> None:
     )
     args = parser.parse_args()
 
+    if args.max_concurrency <= 0:
+        parser.error("Argument --max-concurrency must be a positive integer")
+    if args.part_size_bytes <= 0:
+        parser.error("Argument --part-size-bytes must be a positive integer")
+
     scenarios = []
-    for file_size_bytes in parse_sizes_gib(args.sizes_gib):
+    try:
+        sizes = parse_sizes_gib(args.sizes_gib)
+    except ValueError as exc:
+        parser.error(str(exc))
+
+    for file_size_bytes in sizes:
         plan = build_browser_multipart_plan(
             file_size_bytes=file_size_bytes,
             part_size_bytes=args.part_size_bytes,

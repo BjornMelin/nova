@@ -47,7 +47,6 @@
 - DynamoDB throttles
 - S3 transfer failures
 - DLQ depth if used on event fan-out edges
-- transfer and export observability dashboard coverage
 
 ## Operational defaults
 
@@ -127,6 +126,7 @@ and export baseline monitoring. The dashboard includes:
 - export queued/copying/finalizing age
 - incomplete multipart upload footprint and `>7 day` MPU metrics wired to S3
   Storage Lens metric names
+- transfer and export observability dashboard coverage
 
 ### Storage Lens prerequisite
 

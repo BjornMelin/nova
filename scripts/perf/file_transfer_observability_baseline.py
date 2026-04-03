@@ -31,11 +31,19 @@ def gibibytes(value: float) -> int:
 
 
 def parse_sizes_gib(raw: str) -> list[int]:
-    """Parse a comma-separated GiB list and ignore empty entries."""
-    values = [item.strip() for item in raw.split(",") if item.strip()]
-    if not values:
-        raise ValueError("at least one size must be provided")
-    return [gibibytes(float(item)) for item in values]
+    """Parse a comma-separated GiB list and reject empty or invalid entries."""
+    values = [item.strip() for item in raw.split(",")]
+    if not values or any(not item for item in values):
+        raise ValueError(
+            "sizes_gib must contain comma-separated numeric values"
+        )
+    parsed: list[int] = []
+    for item in values:
+        try:
+            parsed.append(gibibytes(float(item)))
+        except ValueError as exc:
+            raise ValueError(f"invalid GiB value: {item}") from exc
+    return parsed
 
 
 def multipart_part_count(*, file_size_bytes: int, part_size_bytes: int) -> int:

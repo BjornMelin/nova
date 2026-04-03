@@ -157,7 +157,16 @@ async def _benchmark_case(
 
 
 async def _main_async(args: argparse.Namespace) -> None:
-    sizes = parse_sizes_gib(args.sizes_gib)
+    if args.iterations <= 0:
+        raise ValueError("--iterations must be greater than 0")
+    if args.part_size_bytes <= 0:
+        raise ValueError("--part-size-bytes must be greater than 0")
+    if args.max_concurrency <= 0:
+        raise ValueError("--max-concurrency must be greater than 0")
+    try:
+        sizes = parse_sizes_gib(args.sizes_gib)
+    except ValueError as exc:
+        raise ValueError(f"invalid --sizes-gib value: {exc}") from exc
     results = [
         await _benchmark_case(
             source_size_bytes=source_size_bytes,
@@ -212,7 +221,10 @@ def main() -> None:
         help="Current inline export copy concurrency.",
     )
     args = parser.parse_args()
-    asyncio.run(_main_async(args))
+    try:
+        asyncio.run(_main_async(args))
+    except ValueError as exc:
+        parser.error(str(exc))
 
 
 if __name__ == "__main__":

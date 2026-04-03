@@ -429,8 +429,13 @@ class MemoryExportPublisher:
             update={"status": ExportStatus.VALIDATING, "updated_at": _utc_now()}
         )
         await repository.update(validating)
+        copying_entered_at = _utc_now()
         copying = validating.model_copy(
-            update={"status": ExportStatus.COPYING, "updated_at": _utc_now()}
+            update={
+                "status": ExportStatus.COPYING,
+                "updated_at": copying_entered_at,
+                "copying_entered_at": copying_entered_at,
+            }
         )
         await repository.update(copying)
         output = ExportOutput(
@@ -440,11 +445,13 @@ class MemoryExportPublisher:
             ),
             download_filename=copying.filename,
         )
+        finalizing_entered_at = _utc_now()
         finalizing = copying.model_copy(
             update={
                 "status": ExportStatus.FINALIZING,
                 "output": output,
-                "updated_at": _utc_now(),
+                "updated_at": finalizing_entered_at,
+                "finalizing_entered_at": finalizing_entered_at,
             }
         )
         await repository.update(finalizing)
@@ -477,6 +484,16 @@ class StepFunctionsExportPublisher:
             "status": export.status.value,
             "created_at": export.created_at.isoformat(),
             "updated_at": export.updated_at.isoformat(),
+            "copying_entered_at": (
+                export.copying_entered_at.isoformat()
+                if export.copying_entered_at is not None
+                else None
+            ),
+            "finalizing_entered_at": (
+                export.finalizing_entered_at.isoformat()
+                if export.finalizing_entered_at is not None
+                else None
+            ),
         }
         try:
             await self.stepfunctions_client.start_execution(
@@ -617,16 +634,26 @@ async def update_export_status_shared(
     queue_lag_ms: float | None = None
     copying_age_ms: float | None = None
     finalizing_age_ms: float | None = None
+    if status == ExportStatus.COPYING and record.status != ExportStatus.COPYING:
+        update_payload["copying_entered_at"] = now
+    if (
+        status == ExportStatus.FINALIZING
+        and record.status != ExportStatus.FINALIZING
+    ):
+        update_payload["finalizing_entered_at"] = now
     if record.status == ExportStatus.QUEUED and status != ExportStatus.QUEUED:
         queue_lag_ms = _queue_lag_ms(created_at=record.created_at, now=now)
     if record.status == ExportStatus.COPYING and status != ExportStatus.COPYING:
-        copying_age_ms = _stage_age_ms(updated_at=record.updated_at, now=now)
+        copying_age_ms = _stage_age_ms(
+            started_at=record.copying_entered_at or record.updated_at,
+            now=now,
+        )
     if (
         record.status == ExportStatus.FINALIZING
         and status != ExportStatus.FINALIZING
     ):
         finalizing_age_ms = _stage_age_ms(
-            updated_at=record.updated_at,
+            started_at=record.finalizing_entered_at or record.updated_at,
             now=now,
         )
     if output is not None:
@@ -716,11 +743,11 @@ def _queue_lag_ms(*, created_at: datetime, now: datetime) -> float:
     return max(0.0, lag_ms)
 
 
-def _stage_age_ms(*, updated_at: datetime, now: datetime) -> float:
+def _stage_age_ms(*, started_at: datetime, now: datetime) -> float:
     updated = (
-        updated_at
-        if updated_at.tzinfo is not None
-        else updated_at.replace(tzinfo=UTC)
+        started_at
+        if started_at.tzinfo is not None
+        else started_at.replace(tzinfo=UTC)
     )
     current = now if now.tzinfo is not None else now.replace(tzinfo=UTC)
     age_ms = (current - updated).total_seconds() * 1000.0

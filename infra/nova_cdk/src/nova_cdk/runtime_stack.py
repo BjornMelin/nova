@@ -1137,18 +1137,27 @@ class NovaRuntimeStack(Stack):
                     cloudwatch.Metric(
                         namespace=metrics_namespace,
                         metric_name="exports_queued_age_ms",
+                        dimensions_map={
+                            "source": "export_status_update",
+                        },
                         statistic="Average",
                         period=Duration.minutes(5),
                     ),
                     cloudwatch.Metric(
                         namespace=metrics_namespace,
                         metric_name="exports_copying_age_ms",
+                        dimensions_map={
+                            "source": "export_status_update",
+                        },
                         statistic="Average",
                         period=Duration.minutes(5),
                     ),
                     cloudwatch.Metric(
                         namespace=metrics_namespace,
                         metric_name="exports_finalizing_age_ms",
+                        dimensions_map={
+                            "source": "export_status_update",
+                        },
                         statistic="Average",
                         period=Duration.minutes(5),
                     ),
@@ -1160,12 +1169,25 @@ class NovaRuntimeStack(Stack):
                 left=[
                     state_machine.metric_failed(period=Duration.minutes(5)),
                     state_machine.metric_timed_out(period=Duration.minutes(5)),
-                    cloudwatch.Metric(
-                        namespace=metrics_namespace,
-                        metric_name="exports_status_updates_total",
-                        statistic="Sum",
-                        period=Duration.minutes(5),
-                    ),
+                    *[
+                        cloudwatch.Metric(
+                            namespace=metrics_namespace,
+                            metric_name="exports_status_updates_total",
+                            dimensions_map={"status": status},
+                            statistic="Sum",
+                            period=Duration.minutes(5),
+                            label=f"exports_status_updates_total[{status}]",
+                        )
+                        for status in (
+                            "queued",
+                            "validating",
+                            "copying",
+                            "finalizing",
+                            "succeeded",
+                            "failed",
+                            "cancelled",
+                        )
+                    ],
                 ],
             ),
             cloudwatch.GraphWidget(
