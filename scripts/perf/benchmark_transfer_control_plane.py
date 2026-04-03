@@ -13,6 +13,7 @@ from collections.abc import Callable
 from pathlib import Path
 from time import perf_counter
 from typing import Any
+from urllib.parse import urlencode
 
 import httpx
 
@@ -85,10 +86,17 @@ class _PerfS3Client:
         ExpiresIn: int,
     ) -> str:
         del ExpiresIn
+        query = urlencode(
+            {
+                "upload_id": str(Params.get("UploadId", "missing")),
+                "part": str(Params.get("PartNumber", "missing")),
+            }
+        )
         return (
             "https://example.local/"
             f"{ClientMethod}/"
             f"{Params.get('Key', 'missing')}"
+            f"?{query}"
         )
 
     async def create_multipart_upload(self, **kwargs: Any) -> dict[str, str]:
