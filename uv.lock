@@ -198,6 +198,26 @@ wheels = [
 ]
 
 [[package]]
+name = "auth0-python"
+version = "5.2.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "aiohttp" },
+    { name = "cryptography" },
+    { name = "httpx" },
+    { name = "pydantic" },
+    { name = "pydantic-core" },
+    { name = "pyjwt" },
+    { name = "requests" },
+    { name = "typing-extensions" },
+    { name = "urllib3" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/1d/f5/af2052a400da7059f9ea26609153deae77d16c8712d3389468df83ee888e/auth0_python-5.2.0.tar.gz", hash = "sha256:d947fb93012e333fe249415c722c44ae311c1df2942aa3015b97beed9e8538ef", size = 664155, upload-time = "2026-03-30T12:03:25.751Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/95/44/7bfba67e694fe17f8026e59d6f5db069b9a26a03d987dedd0dee907f835a/auth0_python-5.2.0-py3-none-any.whl", hash = "sha256:43b1a25d74c8504cc86aba7bcf7a18ab1ced36cfa8d5845c186ca9d47d00a717", size = 2012485, upload-time = "2026-03-30T12:03:23.921Z" },
+]
+
+[[package]]
 name = "aws-cdk-asset-awscli-v1"
 version = "2.2.263"
 source = { registry = "https://pypi.org/simple" }
@@ -1150,6 +1170,7 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "auth0-python" },
     { name = "aws-cdk-lib" },
     { name = "constructs" },
     { name = "mypy" },
@@ -1173,6 +1194,7 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "auth0-python", specifier = ">=5.2.0,<6" },
     { name = "aws-cdk-lib", specifier = ">=2.189.0,<3" },
     { name = "constructs", specifier = ">=10.4.2,<11" },
     { name = "mypy", specifier = ">=1.19.1" },

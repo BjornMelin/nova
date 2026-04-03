@@ -33,8 +33,12 @@ repos and environments.
    inputs, outputs, and artifact envelope expectations.
 3. Safety defaults remain mandatory:
    - `AUTH0_ALLOW_DELETE=false`
-   - explicit env overlay + mapping validation before import/export operations.
+   - explicit env overlay + mapping validation before bootstrap, audit,
+     import, and export operations.
 4. Local CLI and reusable workflow automation must remain behaviorally aligned.
+5. Hosted workflow credentials are resolved from GitHub Environment secrets
+   selected by the reusable workflow environment name, not from repo-wide
+   Auth0 secrets.
 
 ## Consequences
 

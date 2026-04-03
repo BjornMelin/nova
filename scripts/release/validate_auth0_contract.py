@@ -5,11 +5,14 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import shutil
+import subprocess
 from pathlib import Path
 
 TOKEN_PATTERN = re.compile(r"@@([A-Z0-9_]+)@@")
 REQUIRED_ENV_KEYS = {
     "AUTH0_ALLOW_DELETE",
+    "AUTH0_INCLUDED_ONLY",
     "AUTH0_INPUT_FILE",
     "AUTH0_KEYWORD_MAPPINGS_FILE",
 }
@@ -18,6 +21,48 @@ EXPECTED_MAPPING_BY_OVERLAY = {
     "qa": "infra/auth0/mappings/qa.json",
     "pr": "infra/auth0/mappings/pr.json",
 }
+_EXAMPLE_SECRET_KEYS = {
+    "AUTH0_DOMAIN",
+    "AUTH0_CLIENT_ID",
+    "AUTH0_CLIENT_SECRET",
+}
+EXPECTED_INCLUDED_ONLY = [
+    "tenant",
+    "resourceServers",
+    "clients",
+    "clientGrants",
+]
+
+
+def enforce_non_destructive_env_contract(env_values: dict[str, str]) -> None:
+    """Validate the runtime delete/include guardrails for local overlays."""
+    allow_delete = env_values.get("AUTH0_ALLOW_DELETE")
+    if allow_delete != "false":
+        raise ValueError(
+            f"AUTH0_ALLOW_DELETE must be 'false', got {allow_delete!r}"
+        )
+
+    included_only = env_values.get("AUTH0_INCLUDED_ONLY")
+    if included_only is None:
+        raise ValueError("missing required key AUTH0_INCLUDED_ONLY")
+
+    parse_included_only(included_only)
+
+
+def parse_included_only(raw_value: str) -> list[str]:
+    """Parse and validate the pinned Auth0 Deploy CLI include list."""
+    try:
+        included_only = json.loads(raw_value)
+    except json.JSONDecodeError as exc:
+        raise ValueError(
+            f"AUTH0_INCLUDED_ONLY must be valid JSON: {exc}"
+        ) from exc
+
+    if included_only != EXPECTED_INCLUDED_ONLY:
+        raise ValueError(
+            f"AUTH0_INCLUDED_ONLY must equal {EXPECTED_INCLUDED_ONLY!r}"
+        )
+    return included_only
 
 
 def extract_tokens(tenant_yaml: Path) -> set[str]:
@@ -93,13 +138,14 @@ def validate_overlay(
         for key in sorted(missing_keys)
     )
 
-    if "AUTH0_ALLOW_DELETE" in env_values:
-        allow_delete = env_values["AUTH0_ALLOW_DELETE"]
-        if allow_delete != "false":
-            errors.append(
-                f"{overlay_path}: AUTH0_ALLOW_DELETE must be 'false', "
-                f"got {allow_delete!r}"
-            )
+    if (
+        "AUTH0_ALLOW_DELETE" in env_values
+        and "AUTH0_INCLUDED_ONLY" in env_values
+    ):
+        try:
+            enforce_non_destructive_env_contract(env_values)
+        except ValueError as exc:
+            errors.append(f"{overlay_path}: {exc}")
 
     if "AUTH0_INPUT_FILE" in env_values:
         input_file = env_values["AUTH0_INPUT_FILE"]
@@ -107,6 +153,16 @@ def validate_overlay(
             errors.append(
                 f"{overlay_path}: AUTH0_INPUT_FILE must be "
                 f"{expected_input_file!r}, got {input_file!r}"
+            )
+
+    for key in sorted(_EXAMPLE_SECRET_KEYS):
+        value = env_values.get(key)
+        if not value:
+            errors.append(f"{overlay_path}: missing required example key {key}")
+            continue
+        if not value.startswith("REPLACE_WITH_"):
+            errors.append(
+                f"{overlay_path}: {key} must stay a REPLACE_WITH_* placeholder"
             )
 
     mapping_file_value = env_values.get("AUTH0_KEYWORD_MAPPINGS_FILE")
@@ -168,6 +224,31 @@ def validate_overlay(
     return errors
 
 
+def _tracked_env_file_errors(repo_root: Path) -> list[str]:
+    """Return errors for any tracked local Auth0 env files."""
+    git = shutil.which("git")
+    if git is None or not (repo_root / ".git").exists():
+        return []
+    result = subprocess.run(  # noqa: S603
+        [git, "ls-files", "infra/auth0/env"],
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        return ["unable to inspect tracked Auth0 env files with git ls-files"]
+    tracked_files = [
+        path
+        for path in result.stdout.splitlines()
+        if path.endswith(".env") and not path.endswith(".env.example")
+    ]
+    return [
+        "tracked local Auth0 env file is forbidden: " + path
+        for path in tracked_files
+    ]
+
+
 def run_validation(repo_root: Path) -> list[str]:
     """Run Auth0 contract validation for all overlay files.
 
@@ -189,6 +270,7 @@ def run_validation(repo_root: Path) -> list[str]:
         return ["No overlay files found under infra/auth0/env"]
 
     errors: list[str] = []
+    errors.extend(_tracked_env_file_errors(repo_root))
     for overlay_path in overlay_paths:
         errors.extend(
             validate_overlay(

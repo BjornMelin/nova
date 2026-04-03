@@ -6,7 +6,7 @@ Last reviewed: 2026-04-02
 
 ## Purpose
 
-Configure the minimal GitHub repository secrets required by the surviving Nova
+Configure the minimal GitHub Environment secrets required by the surviving Nova
 GitHub workflows.
 
 GitHub is no longer a supported publish, deploy, or promotion executor. It
@@ -22,10 +22,17 @@ Parameter Store plus AWS Secrets Manager.
 - `docs/runbooks/release/release-runbook.md`
 - `infra/nova_cdk/README.md`
 
-## Required repository secrets
+## Required GitHub Environment secrets
 
-- These values must come from the `nova-tenant-ops-<env>` M2M application for
-  the target Auth0 tenant.
+Create one GitHub Environment per Auth0 tenant surface:
+
+- `auth0-dev`
+- `auth0-pr`
+- `auth0-qa`
+
+Each environment stores the credentials for the matching
+`nova-tenant-ops-<env>` M2M application:
+
 - `AUTH0_DOMAIN`
 - `AUTH0_CLIENT_ID`
 - `AUTH0_CLIENT_SECRET`
@@ -36,14 +43,16 @@ Parameter Store plus AWS Secrets Manager.
 export GITHUB_OWNER="${GITHUB_OWNER:?set the target GitHub org or user}"
 export GITHUB_REPO="${GITHUB_REPO:?set the target GitHub repository}"
 export GH_REPO="${GITHUB_OWNER}/${GITHUB_REPO}"
-read -r AUTH0_DOMAIN
-read -r AUTH0_CLIENT_ID
-read -r -s AUTH0_CLIENT_SECRET
-printf '\n'
-printf '%s' "${AUTH0_DOMAIN}" | gh secret set AUTH0_DOMAIN --repo "${GH_REPO}"
-printf '%s' "${AUTH0_CLIENT_ID}" | gh secret set AUTH0_CLIENT_ID --repo "${GH_REPO}"
-printf '%s' "${AUTH0_CLIENT_SECRET}" | gh secret set AUTH0_CLIENT_SECRET --repo "${GH_REPO}"
-unset AUTH0_DOMAIN AUTH0_CLIENT_ID AUTH0_CLIENT_SECRET
+for ENVIRONMENT in auth0-dev auth0-pr auth0-qa; do
+  read -r AUTH0_DOMAIN
+  read -r AUTH0_CLIENT_ID
+  read -r -s AUTH0_CLIENT_SECRET
+  printf '\n'
+  printf '%s' "${AUTH0_DOMAIN}" | gh secret set AUTH0_DOMAIN --repo "${GH_REPO}" --env "${ENVIRONMENT}"
+  printf '%s' "${AUTH0_CLIENT_ID}" | gh secret set AUTH0_CLIENT_ID --repo "${GH_REPO}" --env "${ENVIRONMENT}"
+  printf '%s' "${AUTH0_CLIENT_SECRET}" | gh secret set AUTH0_CLIENT_SECRET --repo "${GH_REPO}" --env "${ENVIRONMENT}"
+  unset AUTH0_DOMAIN AUTH0_CLIENT_ID AUTH0_CLIENT_SECRET
+done
 ```
 
 ## Consumed by
@@ -59,3 +68,7 @@ unset AUTH0_DOMAIN AUTH0_CLIENT_ID AUTH0_CLIENT_SECRET
 Do not add repository variables for runtime deploy coordinates, CodeArtifact
 repositories, or release executor settings that now belong to the AWS-native
 release control plane.
+
+Do not duplicate Auth0 tenant credentials as repo-wide secrets. The reusable
+workflow selects the GitHub Environment named `auth0-${environment}` and reads
+its secrets directly.

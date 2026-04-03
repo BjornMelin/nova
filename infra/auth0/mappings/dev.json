@@ -1,9 +1,14 @@
 {
-  "ENVIRONMENT_NAME": "Development",
   "ENVIRONMENT_SLUG": "dev",
+  "TENANT_FRIENDLY_NAME": "Nova Development",
   "SUPPORT_EMAIL": "platform-dev@nova.local",
-  "DEFAULT_REDIRECT_URI": "http://localhost:8050/callback",
+  "DEFAULT_REDIRECT_URI": "",
+  "RESOURCE_SERVER_NAME": "Nova API Development",
   "NOVA_API_AUDIENCE": "https://nova-dev/api",
+  "TENANT_OPS_CLIENT_NAME": "nova-tenant-ops-dev",
+  "TENANT_OPS_CLIENT_DESCRIPTION": "Nova tenant automation client for Development",
+  "WEB_CLIENT_NAME": "nova-web-dev",
+  "WEB_CLIENT_DESCRIPTION": "Nova web client for Development",
   "WEB_CALLBACK_URL": "http://localhost:8050/callback",
   "WEB_LOGOUT_URL": "http://localhost:8050/logout",
   "WEB_ORIGIN": "http://localhost:8050"

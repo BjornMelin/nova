@@ -77,6 +77,9 @@ Required reusable workflows:
    require immutable refs.
 5. Composite actions under `.github/actions/**` remain internal implementation
    details and are not a supported external API surface.
+6. Reusable workflows that operate on environment-specific credentials MUST use
+   GitHub Environments rather than repo-wide secrets when those credentials are
+   tenant- or account-specific.
 
 ## 7. Deploy-output authority contract
 
