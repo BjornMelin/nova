@@ -611,8 +611,9 @@ async def update_export_status_shared(
     now = _utc_now()
     update_payload: dict[str, object] = {
         "status": status,
-        "updated_at": now,
     }
+    if status != record.status:
+        update_payload["updated_at"] = now
     queue_lag_ms: float | None = None
     copying_age_ms: float | None = None
     finalizing_age_ms: float | None = None

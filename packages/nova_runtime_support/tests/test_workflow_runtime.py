@@ -198,6 +198,54 @@ async def test_update_export_status_shared_records_copying_age_metric() -> None:
 
 
 @pytest.mark.anyio
+async def test_update_export_status_shared_keeps_stage_age_on_same_status_retry(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repository = MemoryExportRepository()
+    metrics = MetricsCollector(namespace="Tests")
+    started = datetime(2025, 1, 1, 0, 0, tzinfo=UTC)
+    retry_time = started + timedelta(minutes=1)
+    finalize_time = started + timedelta(minutes=3)
+    now_values = iter([retry_time, finalize_time])
+    monkeypatch.setattr(
+        "nova_runtime_support.export_runtime._utc_now",
+        lambda: next(now_values),
+    )
+    await repository.create(
+        ExportRecord(
+            export_id="export-1",
+            scope_id="scope-1",
+            request_id="req-1",
+            source_key="uploads/scope-1/source.csv",
+            filename="source.csv",
+            status=ExportStatus.COPYING,
+            output=None,
+            error=None,
+            created_at=started,
+            updated_at=started,
+        )
+    )
+
+    retried = await update_export_status_shared(
+        repository=repository,
+        metrics=metrics,
+        export_id="export-1",
+        status=ExportStatus.COPYING,
+    )
+    assert retried.updated_at == started
+
+    await update_export_status_shared(
+        repository=repository,
+        metrics=metrics,
+        export_id="export-1",
+        status=ExportStatus.FINALIZING,
+    )
+
+    latencies = metrics.latency_snapshot()
+    assert latencies["exports_copying_age_ms"] == 180000.0
+
+
+@pytest.mark.anyio
 async def test_update_export_status_shared_records_finalizing_age_metric() -> (
     None
 ):
