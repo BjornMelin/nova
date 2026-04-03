@@ -164,6 +164,11 @@ The browser helper also consumes additive initiate response hints from Nova:
 These values let Nova tune multipart behavior without forcing consumer apps to
 ship hard-coded large-file thresholds.
 
+Clients that preflight the transfer policy surface should also treat
+`active_multipart_upload_limit`, `daily_ingress_budget_bytes`, and
+`sign_requests_per_upload_limit` as the effective quota envelope for the
+current deployed environment.
+
 ## Step 7: compose the layout in one place
 
 ```python

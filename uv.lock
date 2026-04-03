@@ -1215,12 +1215,14 @@ source = { editable = "infra/nova_cdk" }
 dependencies = [
     { name = "aws-cdk-lib" },
     { name = "constructs" },
+    { name = "nova-runtime-support" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "aws-cdk-lib", specifier = ">=2.189.0,<3" },
     { name = "constructs", specifier = ">=10.4.2,<11" },
+    { name = "nova-runtime-support", editable = "packages/nova_runtime_support" },
 ]
 
 [[package]]

@@ -2,8 +2,8 @@
 Spec: 0005
 Title: Abuse Prevention and Quotas
 Status: Active
-Version: 1.4
-Date: 2026-03-31
+Version: 1.5
+Date: 2026-04-03
 Related:
   - "[ADR-0023: Hard-cut v1 canonical route surface](../adr/ADR-0023-hard-cut-v1-canonical-route-surface.md)"
   - "[SPEC-0016: v1 route namespace and literal guardrails](./SPEC-0016-v1-route-namespace-and-literal-guardrails.md)"
@@ -37,19 +37,23 @@ Secondary control MAY be app-level throttling for defense in depth.
 
 ### 2.2 Quotas
 
-Per-scope quotas (phase target):
+Per-scope quotas:
 
 - maximum active multipart uploads
-- maximum total bytes initiated per window (hour/day)
+- maximum total bytes initiated per day
 - maximum `sign-parts` calls per upload/session
 
-These quotas remain active planned work. Large-upload correctness hardening does
-not delete, supersede, or silently defer this abuse-control slice.
+The runtime enforces these limits before issuing new multipart work and returns
+deterministic `429` responses when a scope exceeds the configured envelope.
+Transfer policy defaults remain environment-bounded, and AppConfig can narrow
+the effective limits without changing the deployed runtime artifact.
 
 ### 2.3 Cleanup and cost containment
 
 - Rely on S3 lifecycle abort rules for incomplete multipart uploads.
-- Optionally run periodic janitor workflows for stale business-level records.
+- Run a scheduled janitor to settle expired multipart sessions, retry stale
+  aborts, and abort orphaned multipart uploads under both upload and export
+  prefixes.
 
 ## 3. Operational observability
 
@@ -57,12 +61,15 @@ Abuse controls SHOULD emit:
 
 - rate-limit hit counters,
 - quota-rejection counters by reason,
+- stale-session reconciliation counters,
+- incomplete multipart upload footprint alarms sourced from S3 Storage Lens,
 - scope-level trend metrics for anomaly detection.
 
 ## 4. Acceptance criteria
 
 - Limits are configurable per environment.
 - Rejections are observable in logs and metrics.
+- Expired multipart sessions settle without waiting for DynamoDB TTL deletion.
 - Controls do not break nominal upload/download flows under expected traffic.
 
 ## 5. Traceability

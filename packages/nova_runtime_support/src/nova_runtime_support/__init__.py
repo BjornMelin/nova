@@ -46,6 +46,9 @@ from nova_runtime_support.openapi import (
     SDK_VISIBILITY_EXTENSION,
     SDK_VISIBILITY_INTERNAL,
 )
+from nova_runtime_support.transfer_policy_document import (
+    TransferPolicyDocument,
+)
 from nova_runtime_support.workflow_config import (
     WorkflowSettings,
     export_transfer_config_from_settings,
@@ -82,6 +85,7 @@ __all__ = [
     "RequestContextFastAPI",
     "S3ExportTransferService",
     "StepFunctionsExportPublisher",
+    "TransferPolicyDocument",
     "WorkflowExportStateService",
     "WorkflowServices",
     "WorkflowSettings",

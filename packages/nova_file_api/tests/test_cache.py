@@ -221,3 +221,35 @@ async def test_runtime_app_lifespan_clears_runtime_state_when_cleanup_fails(
     assert getattr(app.state, "authenticator", None) is None
     assert getattr(app.state, "cache", None) is None
     assert getattr(app.state, "idempotency_store", None) is None
+
+
+@pytest.mark.anyio
+async def test_runtime_app_lifespan_rejects_partial_appconfig_configuration(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import nova_file_api.app as app_module
+
+    monkeypatch.setattr(
+        app_module,
+        "new_aioboto3_session",
+        lambda: _FakeSession(),
+    )
+
+    app = create_app(
+        settings=Settings.model_validate(
+            {
+                "IDEMPOTENCY_DYNAMODB_TABLE": "test-idempotency",
+                "FILE_TRANSFER_POLICY_APPCONFIG_APPLICATION": "app",
+                "FILE_TRANSFER_POLICY_APPCONFIG_PROFILE": "profile",
+            }
+        )
+    )
+
+    with pytest.raises(
+        ValueError,
+        match=(
+            "Transfer policy AppConfig settings must be configured together"
+        ),
+    ):
+        async with app.router.lifespan_context(app):
+            pass

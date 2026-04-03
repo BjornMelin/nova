@@ -10,5 +10,8 @@
   "sign_batch_size_hint": 32,
   "accelerate_enabled": false,
   "checksum_algorithm": null,
-  "resumable_ttl_seconds": 604800
+  "resumable_ttl_seconds": 604800,
+  "active_multipart_upload_limit": 200,
+  "daily_ingress_budget_bytes": 1099511627776,
+  "sign_requests_per_upload_limit": 512
 }

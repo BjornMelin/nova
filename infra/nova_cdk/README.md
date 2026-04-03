@@ -215,6 +215,14 @@ uv run --package nova-cdk python app.py
 - The transfer bucket aborts incomplete multipart uploads after 7 days and
   expires transient `tmp/` objects after 3 days. Durable `exports/` objects
   are retained.
+- The runtime stack now provisions:
+  - `UploadSessionsTable` for durable multipart session state
+  - `TransferUsageTable` for quota accounting
+  - one AppConfig application/environment/profile/deployment for the transfer
+    policy document
+  - one hourly reconciliation Lambda schedule for stale multipart uploads
+  - one S3 Storage Lens configuration with CloudWatch publishing enabled
+  - one monthly transfer budget routed to `NovaAlarmTopicArn`
 - The Regional REST ingress emits JSON access logs to
   `/aws/apigateway/nova-rest-api-access-{stage}` with 90-day retention.
 - When WAF is enabled, it writes logs to `aws-waf-logs-nova-rest-api-{stage}`
@@ -231,6 +239,12 @@ uv run --package nova-cdk python app.py
   `alarm_notification_emails` / `ALARM_NOTIFICATION_EMAILS` to create email
   subscriptions at deploy time, or attach PagerDuty, Chatbot, and EventBridge
   fan-out without changing the stack.
+- The stack also exports:
+  - `NovaUploadSessionsTableName`
+  - `NovaTransferUsageTableName`
+  - `NovaTransferPolicyAppConfigApplicationId`
+  - `NovaTransferPolicyAppConfigEnvironmentId`
+  - `NovaTransferPolicyAppConfigProfileId`
 - When WAF is enabled, logs redact the `Authorization` and `Cookie` headers
   before delivery to CloudWatch Logs and keep only `BLOCK` / `COUNT`
   decisions to concentrate the security signal.

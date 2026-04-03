@@ -30,8 +30,10 @@ Canonical sources:
 | EXPORTS_DYNAMODB_TABLE | exports_dynamodb_table | str \| None | no | - | no | `None` |
 | EXPORTS_ENABLED | exports_enabled | bool | no | - | no | `True` |
 | EXPORT_WORKFLOW_STATE_MACHINE_ARN | export_workflow_state_machine_arn | str \| None | no | when EXPORTS_ENABLED=true in the API Lambda | no | `None` |
+| FILE_TRANSFER_ACTIVE_MULTIPART_UPLOAD_LIMIT | file_transfer_active_multipart_upload_limit | int \| None | no | - | no | `None` |
 | FILE_TRANSFER_BUCKET | file_transfer_bucket | str | no | - | no | `''` |
 | FILE_TRANSFER_CHECKSUM_ALGORITHM | file_transfer_checksum_algorithm | str \| None | no | - | no | `None` |
+| FILE_TRANSFER_DAILY_INGRESS_BUDGET_BYTES | file_transfer_daily_ingress_budget_bytes | int \| None | no | - | no | `None` |
 | FILE_TRANSFER_ENABLED | file_transfer_enabled | bool | no | - | no | `True` |
 | FILE_TRANSFER_EXPORT_COPY_MAX_CONCURRENCY | file_transfer_export_copy_max_concurrency | int | no | - | no | `8` |
 | FILE_TRANSFER_EXPORT_COPY_PART_SIZE_BYTES | file_transfer_export_copy_part_size_bytes | int | no | - | no | `2147483648` |
@@ -40,15 +42,21 @@ Canonical sources:
 | FILE_TRANSFER_MAX_UPLOAD_BYTES | max_upload_bytes | int | no | - | no | `536870912000` |
 | FILE_TRANSFER_MULTIPART_THRESHOLD_BYTES | file_transfer_multipart_threshold_bytes | int | no | - | no | `104857600` |
 | FILE_TRANSFER_PART_SIZE_BYTES | file_transfer_part_size_bytes | int | no | - | no | `134217728` |
+| FILE_TRANSFER_POLICY_APPCONFIG_APPLICATION | file_transfer_policy_appconfig_application | str \| None | no | - | no | `None` |
+| FILE_TRANSFER_POLICY_APPCONFIG_ENVIRONMENT | file_transfer_policy_appconfig_environment | str \| None | no | - | no | `None` |
+| FILE_TRANSFER_POLICY_APPCONFIG_POLL_INTERVAL_SECONDS | file_transfer_policy_appconfig_poll_interval_seconds | int | no | - | no | `60` |
+| FILE_TRANSFER_POLICY_APPCONFIG_PROFILE | file_transfer_policy_appconfig_profile | str \| None | no | - | no | `None` |
 | FILE_TRANSFER_POLICY_ID | file_transfer_policy_id | str | no | - | no | `'default'` |
 | FILE_TRANSFER_POLICY_VERSION | file_transfer_policy_version | str | no | - | no | `'2026-04-03'` |
 | FILE_TRANSFER_PRESIGN_DOWNLOAD_TTL_SECONDS | file_transfer_presign_download_ttl_seconds | int | no | - | no | `900` |
 | FILE_TRANSFER_PRESIGN_UPLOAD_TTL_SECONDS | file_transfer_presign_upload_ttl_seconds | int | no | - | no | `1800` |
 | FILE_TRANSFER_RESUMABLE_WINDOW_SECONDS | file_transfer_resumable_window_seconds | int | no | - | no | `604800` |
+| FILE_TRANSFER_SIGN_REQUESTS_PER_UPLOAD_LIMIT | file_transfer_sign_requests_per_upload_limit | int \| None | no | - | no | `None` |
 | FILE_TRANSFER_TARGET_UPLOAD_PART_COUNT | file_transfer_target_upload_part_count | int | no | - | no | `2000` |
 | FILE_TRANSFER_TMP_PREFIX | file_transfer_tmp_prefix | str | no | - | no | `'tmp/'` |
 | FILE_TRANSFER_UPLOAD_PREFIX | file_transfer_upload_prefix | str | no | - | no | `'uploads/'` |
 | FILE_TRANSFER_UPLOAD_SESSIONS_TABLE | file_transfer_upload_sessions_table | str \| None | no | - | no | `None` |
+| FILE_TRANSFER_USAGE_TABLE | file_transfer_usage_table | str \| None | no | - | no | `None` |
 | FILE_TRANSFER_USE_ACCELERATE_ENDPOINT | file_transfer_use_accelerate_endpoint | bool | no | - | no | `False` |
 | IDEMPOTENCY_DYNAMODB_TABLE | idempotency_dynamodb_table | str \| None | no | when IDEMPOTENCY_ENABLED=true in the API Lambda | no | `None` |
 | IDEMPOTENCY_ENABLED | idempotency_enabled | bool | no | - | no | `True` |
@@ -141,15 +149,23 @@ Forbidden ENV_VARS_JSON keys:
 | FILE_TRANSFER_EXPORT_COPY_MAX_CONCURRENCY | literal | always | 8 |
 | FILE_TRANSFER_EXPORT_COPY_PART_SIZE_BYTES | literal | always | 2147483648 |
 | FILE_TRANSFER_MAX_CONCURRENCY | literal | always | 4 |
+| FILE_TRANSFER_ACTIVE_MULTIPART_UPLOAD_LIMIT | literal | always | 200 |
+| FILE_TRANSFER_DAILY_INGRESS_BUDGET_BYTES | literal | always | 1099511627776 |
 | FILE_TRANSFER_MAX_UPLOAD_BYTES | literal | always | 536870912000 |
 | FILE_TRANSFER_MULTIPART_THRESHOLD_BYTES | literal | always | 104857600 |
 | FILE_TRANSFER_PART_SIZE_BYTES | literal | always | 134217728 |
 | FILE_TRANSFER_POLICY_ID | literal | always | default |
 | FILE_TRANSFER_POLICY_VERSION | literal | always | 2026-04-03 |
+| FILE_TRANSFER_POLICY_APPCONFIG_APPLICATION | stack resource | always | - |
+| FILE_TRANSFER_POLICY_APPCONFIG_ENVIRONMENT | stack resource | always | - |
+| FILE_TRANSFER_POLICY_APPCONFIG_POLL_INTERVAL_SECONDS | literal | always | 60 |
+| FILE_TRANSFER_POLICY_APPCONFIG_PROFILE | stack resource | always | - |
 | FILE_TRANSFER_RESUMABLE_WINDOW_SECONDS | literal | always | 604800 |
 | FILE_TRANSFER_TARGET_UPLOAD_PART_COUNT | literal | always | 2000 |
 | FILE_TRANSFER_UPLOAD_SESSIONS_TABLE | stack resource | always | - |
+| FILE_TRANSFER_USAGE_TABLE | stack resource | always | - |
 | FILE_TRANSFER_USE_ACCELERATE_ENDPOINT | literal | always | false |
+| FILE_TRANSFER_SIGN_REQUESTS_PER_UPLOAD_LIMIT | literal | always | 512 |
 | IDEMPOTENCY_ENABLED | literal | always | true |
 | IDEMPOTENCY_DYNAMODB_TABLE | stack resource | always | - |
 | EXPORT_WORKFLOW_STATE_MACHINE_ARN | stack resource | always | - |

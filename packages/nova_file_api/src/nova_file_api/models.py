@@ -19,13 +19,7 @@ from nova_runtime_support.export_models import (
     ExportRecord,
     ExportStatus,
 )
-
-
-class UploadStrategy(StrEnum):
-    """Upload strategy options returned by initiate endpoint."""
-
-    SINGLE = "single"
-    MULTIPART = "multipart"
+from nova_runtime_support.upload_sessions import UploadStrategy
 
 
 class ActivityStoreBackend(StrEnum):
@@ -308,6 +302,9 @@ class TransferCapabilitiesResponse(BaseModel):
     accelerate_enabled: bool
     checksum_algorithm: str | None = None
     resumable_ttl_seconds: int
+    active_multipart_upload_limit: int
+    daily_ingress_budget_bytes: int
+    sign_requests_per_upload_limit: int
 
 
 ResourceKey = Annotated[

@@ -2,8 +2,8 @@
 Spec: 0003
 Title: Observability
 Status: Active
-Version: 1.8
-Date: 2026-03-03
+Version: 1.9
+Date: 2026-04-03
 Related:
   - "[ADR-0009: Observability stack](../adr/ADR-0009-observability-analytics-emf-dynamodb-cloudwatch.md)"
   - "[SPEC-0010: Observability analytics and activity rollups](./SPEC-0010-observability-analytics-and-activity-rollups.md)"
@@ -48,6 +48,8 @@ Metrics MUST include at least:
 - request counts by route and status
 - endpoint latency
 - auth failures
+- quota rejection counters
+- stale upload-session reconciliation counters
 - enqueue latency and queue-oriented counters
 - queue lag observed at first worker transition out of `pending`
   (`jobs_queue_lag_ms`)
@@ -77,6 +79,9 @@ Release readiness requires CloudWatch dashboards/alarms for:
 - queue backlog and age
 - worker success/failure trends
 - activity rollup trends
+- incomplete multipart upload storage older than seven days
+- DynamoDB throttles across upload-session and transfer-usage tables
+- transfer spend budget notifications
 
 ## 6. Traceability
 

@@ -18,12 +18,13 @@ from nova_file_api.models import (
     InitiateUploadRequest,
     PresignDownloadRequest,
     Principal,
+    SignPartsRequest,
     UploadIntrospectionRequest,
     UploadStrategy,
 )
 from nova_file_api.transfer import TransferService
 from nova_file_api.transfer_config import transfer_config_from_settings
-from nova_file_api.upload_sessions import (
+from nova_runtime_support.upload_sessions import (
     MemoryUploadSessionRepository,
     UploadSessionRecord,
     UploadSessionStatus,
@@ -323,6 +324,26 @@ async def test_introspect_upload_uses_persisted_session_part_size() -> None:
     stored = repository._records_by_session_id[initiated.session_id]
     assert stored.status == UploadSessionStatus.ACTIVE
     assert stored.last_activity_at.tzinfo is not None
+
+
+@pytest.mark.anyio
+async def test_sign_parts_requires_existing_upload_session() -> None:
+    settings = _settings()
+    fake_s3 = _FakeS3Client()
+    service = _transfer_service(settings=settings, s3_client=fake_s3)
+
+    with pytest.raises(FileTransferError) as exc_info:
+        await service.sign_parts(
+            request=SignPartsRequest(
+                key="uploads/scope-1/report.csv",
+                upload_id="missing-upload",
+                part_numbers=[1],
+            ),
+            principal=_principal(),
+        )
+
+    assert exc_info.value.code == "invalid_request"
+    assert str(exc_info.value) == "upload session was not found"
 
 
 def test_transfer_service_requires_repository_when_sessions_enabled() -> None:
@@ -664,6 +685,8 @@ async def test_abort_upload_checks_session_scope_before_update() -> None:
         sign_batch_size_hint=32,
         accelerate_enabled=False,
         checksum_algorithm=None,
+        sign_requests_count=0,
+        sign_requests_limit=None,
         resumable_until=now,
         resumable_until_epoch=int(now.timestamp()) + 3600,
         status=UploadSessionStatus.INITIATED,
@@ -740,6 +763,8 @@ async def test_upload_session_repository_ignores_expired_records() -> None:
         sign_batch_size_hint=32,
         accelerate_enabled=False,
         checksum_algorithm=None,
+        sign_requests_count=0,
+        sign_requests_limit=None,
         resumable_until=now,
         resumable_until_epoch=int(now.timestamp()) - 1,
         status=UploadSessionStatus.INITIATED,

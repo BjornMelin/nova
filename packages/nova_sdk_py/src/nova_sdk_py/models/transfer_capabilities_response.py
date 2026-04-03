@@ -20,6 +20,8 @@ class TransferCapabilitiesResponse:
 
     Attributes:
         accelerate_enabled (bool):
+        active_multipart_upload_limit (int):
+        daily_ingress_budget_bytes (int):
         max_concurrency_hint (int):
         max_upload_bytes (int):
         maximum_part_size_bytes (int):
@@ -29,11 +31,14 @@ class TransferCapabilitiesResponse:
         policy_version (str):
         resumable_ttl_seconds (int):
         sign_batch_size_hint (int):
+        sign_requests_per_upload_limit (int):
         target_upload_part_count (int):
         checksum_algorithm (None | str | Unset):
     """
 
     accelerate_enabled: bool
+    active_multipart_upload_limit: int
+    daily_ingress_budget_bytes: int
     max_concurrency_hint: int
     max_upload_bytes: int
     maximum_part_size_bytes: int
@@ -43,11 +48,16 @@ class TransferCapabilitiesResponse:
     policy_version: str
     resumable_ttl_seconds: int
     sign_batch_size_hint: int
+    sign_requests_per_upload_limit: int
     target_upload_part_count: int
     checksum_algorithm: None | str | Unset = UNSET
 
     def to_dict(self) -> dict[str, Any]:
         accelerate_enabled = self.accelerate_enabled
+
+        active_multipart_upload_limit = self.active_multipart_upload_limit
+
+        daily_ingress_budget_bytes = self.daily_ingress_budget_bytes
 
         max_concurrency_hint = self.max_concurrency_hint
 
@@ -67,6 +77,8 @@ class TransferCapabilitiesResponse:
 
         sign_batch_size_hint = self.sign_batch_size_hint
 
+        sign_requests_per_upload_limit = self.sign_requests_per_upload_limit
+
         target_upload_part_count = self.target_upload_part_count
 
         checksum_algorithm: None | str | Unset
@@ -80,6 +92,8 @@ class TransferCapabilitiesResponse:
         field_dict.update(
             {
                 "accelerate_enabled": accelerate_enabled,
+                "active_multipart_upload_limit": active_multipart_upload_limit,
+                "daily_ingress_budget_bytes": daily_ingress_budget_bytes,
                 "max_concurrency_hint": max_concurrency_hint,
                 "max_upload_bytes": max_upload_bytes,
                 "maximum_part_size_bytes": maximum_part_size_bytes,
@@ -89,6 +103,7 @@ class TransferCapabilitiesResponse:
                 "policy_version": policy_version,
                 "resumable_ttl_seconds": resumable_ttl_seconds,
                 "sign_batch_size_hint": sign_batch_size_hint,
+                "sign_requests_per_upload_limit": sign_requests_per_upload_limit,
                 "target_upload_part_count": target_upload_part_count,
             }
         )
@@ -101,6 +116,10 @@ class TransferCapabilitiesResponse:
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
         accelerate_enabled = d.pop("accelerate_enabled")
+
+        active_multipart_upload_limit = d.pop("active_multipart_upload_limit")
+
+        daily_ingress_budget_bytes = d.pop("daily_ingress_budget_bytes")
 
         max_concurrency_hint = d.pop("max_concurrency_hint")
 
@@ -120,6 +139,8 @@ class TransferCapabilitiesResponse:
 
         sign_batch_size_hint = d.pop("sign_batch_size_hint")
 
+        sign_requests_per_upload_limit = d.pop("sign_requests_per_upload_limit")
+
         target_upload_part_count = d.pop("target_upload_part_count")
 
         def _parse_checksum_algorithm(data: object) -> None | str | Unset:
@@ -135,6 +156,8 @@ class TransferCapabilitiesResponse:
 
         transfer_capabilities_response = cls(
             accelerate_enabled=accelerate_enabled,
+            active_multipart_upload_limit=active_multipart_upload_limit,
+            daily_ingress_budget_bytes=daily_ingress_budget_bytes,
             max_concurrency_hint=max_concurrency_hint,
             max_upload_bytes=max_upload_bytes,
             maximum_part_size_bytes=maximum_part_size_bytes,
@@ -144,6 +167,7 @@ class TransferCapabilitiesResponse:
             policy_version=policy_version,
             resumable_ttl_seconds=resumable_ttl_seconds,
             sign_batch_size_hint=sign_batch_size_hint,
+            sign_requests_per_upload_limit=sign_requests_per_upload_limit,
             target_upload_part_count=target_upload_part_count,
             checksum_algorithm=checksum_algorithm,
         )

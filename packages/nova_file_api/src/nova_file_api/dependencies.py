@@ -35,9 +35,9 @@ from nova_file_api.models import (
 )
 from nova_file_api.transfer import TransferService
 from nova_file_api.transfer_config import transfer_config_from_settings
-from nova_file_api.upload_sessions import (
-    DynamoResource as UploadSessionDynamoResource,
-    build_upload_session_repository,
+from nova_file_api.transfer_policy import (
+    AppConfigDataClient,
+    build_transfer_policy_provider,
 )
 from nova_runtime_support.export_runtime import (
     DynamoExportRepository,
@@ -48,6 +48,14 @@ from nova_runtime_support.export_runtime import (
     MemoryExportRepository,
     StepFunctionsClient,
     StepFunctionsExportPublisher,
+)
+from nova_runtime_support.transfer_usage import (
+    DynamoResource as TransferUsageDynamoResource,
+    build_transfer_usage_repository,
+)
+from nova_runtime_support.upload_sessions import (
+    DynamoResource as UploadSessionDynamoResource,
+    build_upload_session_repository,
 )
 
 _APPLICATION_STATE_NOT_INITIALIZED = "application state is not initialized"
@@ -91,6 +99,7 @@ def initialize_runtime_state(
     s3_client: object,
     dynamodb_resource: object | None = None,
     stepfunctions_client: object | None = None,
+    appconfig_client: object | None = None,
 ) -> None:
     """Build and attach runtime singletons to application state.
 
@@ -101,6 +110,8 @@ def initialize_runtime_state(
         dynamodb_resource: Optional DynamoDB resource for DynamoDB backends.
         stepfunctions_client: Optional Step Functions client for workflow-
             backed export dispatch.
+        appconfig_client: Optional AppConfig Data client for transfer-policy
+            overlays.
 
     Returns:
         None.
@@ -148,6 +159,7 @@ def initialize_runtime_state(
         settings=settings,
         s3_client=s3_client,
         dynamodb_resource=dynamodb_resource,
+        appconfig_client=appconfig_client,
     )
     app.state.export_repository = export_repository
     app.state.export_service = build_export_service(
@@ -258,8 +270,10 @@ def build_transfer_service(
     settings: Settings,
     s3_client: object,
     dynamodb_resource: object | None = None,
+    appconfig_client: object | None = None,
 ) -> TransferService:
     """Create the transfer service."""
+    transfer_config = transfer_config_from_settings(settings)
     upload_session_repository = build_upload_session_repository(
         table_name=settings.file_transfer_upload_sessions_table,
         dynamodb_resource=cast(
@@ -268,10 +282,26 @@ def build_transfer_service(
         ),
         enabled=settings.file_transfer_enabled,
     )
+    transfer_usage_repository = build_transfer_usage_repository(
+        table_name=settings.file_transfer_usage_table,
+        dynamodb_resource=cast(
+            TransferUsageDynamoResource | None,
+            dynamodb_resource,
+        ),
+        enabled=settings.file_transfer_enabled,
+    )
     return TransferService(
-        config=transfer_config_from_settings(settings),
+        config=transfer_config,
         s3_client=s3_client,
+        policy_provider=build_transfer_policy_provider(
+            config=transfer_config,
+            appconfig_client=cast(
+                AppConfigDataClient | None,
+                appconfig_client,
+            ),
+        ),
         upload_session_repository=upload_session_repository,
+        transfer_usage_repository=transfer_usage_repository,
     )
 
 

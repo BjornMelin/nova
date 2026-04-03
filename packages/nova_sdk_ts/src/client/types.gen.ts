@@ -566,9 +566,17 @@ export type TransferCapabilitiesResponse = {
      */
     accelerate_enabled: boolean;
     /**
+     * Active Multipart Upload Limit
+     */
+    active_multipart_upload_limit: number;
+    /**
      * Checksum Algorithm
      */
     checksum_algorithm?: string | null;
+    /**
+     * Daily Ingress Budget Bytes
+     */
+    daily_ingress_budget_bytes: number;
     /**
      * Max Concurrency Hint
      */
@@ -605,6 +613,10 @@ export type TransferCapabilitiesResponse = {
      * Sign Batch Size Hint
      */
     sign_batch_size_hint: number;
+    /**
+     * Sign Requests Per Upload Limit
+     */
+    sign_requests_per_upload_limit: number;
     /**
      * Target Upload Part Count
      */

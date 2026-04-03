@@ -7,7 +7,7 @@ import logging
 import math
 from contextlib import suppress
 from dataclasses import dataclass, replace
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any, cast
 from uuid import uuid4
@@ -18,6 +18,7 @@ from nova_file_api.errors import (
     FileTransferError,
     invalid_request,
     session_store_unavailable,
+    too_many_requests,
     upstream_s3_error,
 )
 from nova_file_api.models import (
@@ -35,13 +36,24 @@ from nova_file_api.models import (
     UploadedPart,
     UploadIntrospectionRequest,
     UploadIntrospectionResponse,
-    UploadStrategy,
 )
 from nova_file_api.transfer_config import TransferConfig
-from nova_file_api.upload_sessions import (
+from nova_file_api.transfer_policy import (
+    TransferPolicy,
+    TransferPolicyProvider,
+    build_transfer_policy_provider,
+    upload_part_size_bytes,
+)
+from nova_runtime_support.transfer_usage import (
+    TransferQuotaExceeded,
+    TransferUsageWindowRepository,
+    build_transfer_usage_repository,
+)
+from nova_runtime_support.upload_sessions import (
     UploadSessionRecord,
     UploadSessionRepository,
     UploadSessionStatus,
+    UploadStrategy,
     build_upload_session_repository,
     new_upload_session_id,
 )
@@ -69,18 +81,29 @@ class TransferService:
         *,
         config: TransferConfig,
         s3_client: Any,
+        policy_provider: TransferPolicyProvider | None = None,
         upload_session_repository: UploadSessionRepository | None = None,
+        transfer_usage_repository: TransferUsageWindowRepository | None = None,
     ) -> None:
         """Initialize transfer service and S3 client.
 
         Args:
             config: Transfer-specific runtime configuration.
             s3_client: Prebuilt async S3 client.
+            policy_provider: Optional resolver for env/AppConfig transfer
+                policy selection.
             upload_session_repository: Optional upload-session persistence
                 backend used for durable multipart session state.
+            transfer_usage_repository: Optional quota-window backend used for
+                scope-level initiate/sign enforcement.
         """
         self.config = config
         self._s3 = s3_client
+        self._policy_provider = (
+            policy_provider
+            if policy_provider is not None
+            else build_transfer_policy_provider(config=config)
+        )
         self._upload_sessions = (
             upload_session_repository
             if upload_session_repository is not None
@@ -88,6 +111,15 @@ class TransferService:
                 table_name=self.config.upload_sessions_table,
                 dynamodb_resource=None,
                 enabled=bool(self.config.upload_sessions_table),
+            )
+        )
+        self._transfer_usage = (
+            transfer_usage_repository
+            if transfer_usage_repository is not None
+            else build_transfer_usage_repository(
+                table_name=self.config.usage_table,
+                dynamodb_resource=None,
+                enabled=bool(self.config.usage_table),
             )
         )
         self._upload_prefix = _normalize_prefix(self.config.upload_prefix)
@@ -100,12 +132,13 @@ class TransferService:
         principal: Principal,
     ) -> InitiateUploadResponse:
         """Initiate single or multipart upload based on policy."""
-        if request.size_bytes > self.config.max_upload_bytes:
+        policy = await self.resolve_policy(scope_id=principal.scope_id)
+        if request.size_bytes > policy.max_upload_bytes:
             raise invalid_request(
                 "file size exceeds configured upload limit",
                 details={
                     "size_bytes": request.size_bytes,
-                    "max_upload_bytes": self.config.max_upload_bytes,
+                    "max_upload_bytes": policy.max_upload_bytes,
                 },
             )
 
@@ -116,24 +149,53 @@ class TransferService:
             filename=request.filename,
         )
 
-        if request.size_bytes < self.config.multipart_threshold_bytes:
-            return await self._single_upload_response(
+        multipart = request.size_bytes >= policy.multipart_threshold_bytes
+        await self._reserve_upload_quota(
+            scope_id=principal.scope_id,
+            created_at=created_at,
+            size_bytes=request.size_bytes,
+            multipart=multipart,
+            policy=policy,
+        )
+        try:
+            if not multipart:
+                return await self._single_upload_response(
+                    created_at=created_at,
+                    session_id=session_id,
+                    key=key,
+                    content_type=request.content_type,
+                    principal=principal,
+                    request=request,
+                    policy=policy,
+                )
+
+            return await self._multipart_upload_response(
                 created_at=created_at,
                 session_id=session_id,
                 key=key,
                 content_type=request.content_type,
                 principal=principal,
                 request=request,
+                policy=policy,
             )
-
-        return await self._multipart_upload_response(
-            created_at=created_at,
-            session_id=session_id,
-            key=key,
-            content_type=request.content_type,
-            principal=principal,
-            request=request,
-        )
+        except asyncio.CancelledError:
+            await self._release_upload_quota_best_effort(
+                scope_id=principal.scope_id,
+                created_at=created_at,
+                size_bytes=request.size_bytes,
+                multipart=multipart,
+                completed=False,
+            )
+            raise
+        except Exception:
+            await self._release_upload_quota_best_effort(
+                scope_id=principal.scope_id,
+                created_at=created_at,
+                size_bytes=request.size_bytes,
+                multipart=multipart,
+                completed=False,
+            )
+            raise
 
     async def sign_parts(
         self,
@@ -142,12 +204,47 @@ class TransferService:
     ) -> SignPartsResponse:
         """Sign multipart part URLs for caller-owned key."""
         self._assert_upload_scope(key=request.key, scope_id=principal.scope_id)
-        await self._touch_upload_session_if_present(
+        session = await self._require_upload_session(
             upload_id=request.upload_id,
-            last_activity_at=datetime.now(tz=UTC),
-            status=UploadSessionStatus.ACTIVE,
             scope_id=principal.scope_id,
             key=request.key,
+        )
+        policy = await self.resolve_policy(scope_id=principal.scope_id)
+        sign_batch_size_hint = (
+            session.sign_batch_size_hint or policy.sign_batch_size_hint
+        )
+        if (
+            sign_batch_size_hint > 0
+            and len(request.part_numbers) > sign_batch_size_hint
+        ):
+            raise invalid_request(
+                "requested part batch exceeds the current transfer policy",
+                details={
+                    "requested_parts": len(request.part_numbers),
+                    "sign_batch_size_hint": sign_batch_size_hint,
+                },
+            )
+        sign_limit = (
+            session.sign_requests_limit or policy.sign_requests_per_upload_limit
+        )
+        next_sign_requests_count = session.sign_requests_count + 1
+        if sign_limit is not None and next_sign_requests_count > sign_limit:
+            raise too_many_requests(
+                "sign-parts quota exceeded for this upload session",
+                details={"limit": sign_limit},
+            )
+        now = datetime.now(tz=UTC)
+        await self._record_sign_request(
+            scope_id=principal.scope_id,
+            sign_requested_at=now,
+        )
+        await self._store_upload_session(
+            replace(
+                session,
+                sign_requests_count=next_sign_requests_count,
+                status=UploadSessionStatus.ACTIVE,
+                last_activity_at=now,
+            )
         )
 
         urls: dict[int, str] = {}
@@ -327,6 +424,13 @@ class TransferService:
                     last_activity_at=datetime.now(tz=UTC),
                 )
             )
+            await self._release_upload_quota_best_effort(
+                scope_id=session.scope_id,
+                created_at=session.created_at,
+                size_bytes=session.size_bytes,
+                multipart=session.strategy == UploadStrategy.MULTIPART,
+                completed=True,
+            )
 
         return CompleteUploadResponse(
             bucket=self.config.bucket,
@@ -364,6 +468,13 @@ class TransferService:
                     status=UploadSessionStatus.ABORTED,
                     last_activity_at=datetime.now(tz=UTC),
                 )
+            )
+            await self._release_upload_quota_best_effort(
+                scope_id=session.scope_id,
+                created_at=session.created_at,
+                size_bytes=session.size_bytes,
+                multipart=session.strategy == UploadStrategy.MULTIPART,
+                completed=False,
             )
 
         return AbortUploadResponse(ok=True)
@@ -502,6 +613,7 @@ class TransferService:
         content_type: str | None,
         principal: Principal,
         request: InitiateUploadRequest,
+        policy: TransferPolicy,
     ) -> InitiateUploadResponse:
         params: dict[str, Any] = {
             "Bucket": self.config.bucket,
@@ -515,18 +627,20 @@ class TransferService:
             params=params,
             expires_in=self.config.presign_upload_ttl_seconds,
         )
-        resumable_until = self.config.resumable_until(created_at=created_at)
+        resumable_until = created_at + timedelta(
+            seconds=policy.resumable_ttl_seconds
+        )
         response = InitiateUploadResponse(
             strategy=UploadStrategy.SINGLE,
             bucket=self.config.bucket,
             key=key,
             session_id=session_id,
-            policy_id=self.config.policy_id,
-            policy_version=self.config.policy_version,
-            max_concurrency_hint=self.config.max_concurrency,
-            sign_batch_size_hint=self.config.sign_batch_size_hint(),
-            accelerate_enabled=self.config.use_accelerate_endpoint,
-            checksum_algorithm=self.config.checksum_algorithm,
+            policy_id=policy.policy_id,
+            policy_version=policy.policy_version,
+            max_concurrency_hint=policy.max_concurrency_hint,
+            sign_batch_size_hint=policy.sign_batch_size_hint,
+            accelerate_enabled=policy.accelerate_enabled,
+            checksum_algorithm=policy.checksum_algorithm,
             resumable_until=resumable_until,
             url=url,
             expires_in_seconds=self.config.presign_upload_ttl_seconds,
@@ -542,12 +656,14 @@ class TransferService:
                 content_type=request.content_type,
                 strategy=UploadStrategy.SINGLE,
                 part_size_bytes=None,
-                policy_id=self.config.policy_id,
-                policy_version=self.config.policy_version,
-                max_concurrency_hint=self.config.max_concurrency,
-                sign_batch_size_hint=self.config.sign_batch_size_hint(),
-                accelerate_enabled=self.config.use_accelerate_endpoint,
-                checksum_algorithm=self.config.checksum_algorithm,
+                policy_id=policy.policy_id,
+                policy_version=policy.policy_version,
+                max_concurrency_hint=policy.max_concurrency_hint,
+                sign_batch_size_hint=policy.sign_batch_size_hint,
+                accelerate_enabled=policy.accelerate_enabled,
+                checksum_algorithm=policy.checksum_algorithm,
+                sign_requests_count=0,
+                sign_requests_limit=policy.sign_requests_per_upload_limit,
                 resumable_until=resumable_until,
                 resumable_until_epoch=int(resumable_until.timestamp()),
                 status=UploadSessionStatus.INITIATED,
@@ -567,6 +683,7 @@ class TransferService:
         content_type: str | None,
         principal: Principal,
         request: InitiateUploadRequest,
+        policy: TransferPolicy,
     ) -> InitiateUploadResponse:
         kwargs: dict[str, Any] = {
             "Bucket": self.config.bucket,
@@ -584,21 +701,24 @@ class TransferService:
         upload_id = _opt_str(output.get("UploadId"))
         if upload_id is None:
             raise upstream_s3_error("S3 multipart response missing upload id")
-        part_size_bytes = self.config.upload_part_size_bytes(
-            size_bytes=request.size_bytes
+        part_size_bytes = upload_part_size_bytes(
+            file_size_bytes=request.size_bytes,
+            policy=policy,
         )
-        resumable_until = self.config.resumable_until(created_at=created_at)
+        resumable_until = created_at + timedelta(
+            seconds=policy.resumable_ttl_seconds
+        )
         response = InitiateUploadResponse(
             strategy=UploadStrategy.MULTIPART,
             bucket=self.config.bucket,
             key=key,
             session_id=session_id,
-            policy_id=self.config.policy_id,
-            policy_version=self.config.policy_version,
-            max_concurrency_hint=self.config.max_concurrency,
-            sign_batch_size_hint=self.config.sign_batch_size_hint(),
-            accelerate_enabled=self.config.use_accelerate_endpoint,
-            checksum_algorithm=self.config.checksum_algorithm,
+            policy_id=policy.policy_id,
+            policy_version=policy.policy_version,
+            max_concurrency_hint=policy.max_concurrency_hint,
+            sign_batch_size_hint=policy.sign_batch_size_hint,
+            accelerate_enabled=policy.accelerate_enabled,
+            checksum_algorithm=policy.checksum_algorithm,
             resumable_until=resumable_until,
             upload_id=upload_id,
             part_size_bytes=part_size_bytes,
@@ -616,12 +736,14 @@ class TransferService:
                     content_type=request.content_type,
                     strategy=UploadStrategy.MULTIPART,
                     part_size_bytes=part_size_bytes,
-                    policy_id=self.config.policy_id,
-                    policy_version=self.config.policy_version,
-                    max_concurrency_hint=self.config.max_concurrency,
-                    sign_batch_size_hint=self.config.sign_batch_size_hint(),
-                    accelerate_enabled=self.config.use_accelerate_endpoint,
-                    checksum_algorithm=self.config.checksum_algorithm,
+                    policy_id=policy.policy_id,
+                    policy_version=policy.policy_version,
+                    max_concurrency_hint=policy.max_concurrency_hint,
+                    sign_batch_size_hint=policy.sign_batch_size_hint,
+                    accelerate_enabled=policy.accelerate_enabled,
+                    checksum_algorithm=policy.checksum_algorithm,
+                    sign_requests_count=0,
+                    sign_requests_limit=policy.sign_requests_per_upload_limit,
                     resumable_until=resumable_until,
                     resumable_until_epoch=int(resumable_until.timestamp()),
                     status=UploadSessionStatus.INITIATED,
@@ -1018,9 +1140,86 @@ class TransferService:
     async def healthcheck(self) -> bool:
         """Return readiness for the transfer service dependencies."""
         try:
-            return await self._upload_sessions.healthcheck()
+            sessions_ready = await self._upload_sessions.healthcheck()
+            usage_ready = await self._transfer_usage.healthcheck()
         except Exception:
             return False
+        return sessions_ready and usage_ready
+
+    async def resolve_policy(self, *, scope_id: str | None) -> TransferPolicy:
+        """Return the effective transfer policy for one caller scope."""
+        return await self._policy_provider.resolve(scope_id=scope_id)
+
+    async def _reserve_upload_quota(
+        self,
+        *,
+        scope_id: str,
+        created_at: datetime,
+        size_bytes: int,
+        multipart: bool,
+        policy: TransferPolicy,
+    ) -> None:
+        try:
+            await self._transfer_usage.reserve_upload(
+                scope_id=scope_id,
+                window_started_at=created_at,
+                size_bytes=size_bytes,
+                multipart=multipart,
+                active_multipart_limit=policy.active_multipart_upload_limit,
+                daily_ingress_budget_bytes=policy.daily_ingress_budget_bytes,
+            )
+        except TransferQuotaExceeded as exc:
+            raise too_many_requests(
+                "transfer quota exceeded for the current scope",
+                details={"reason": exc.reason, **exc.details},
+            ) from exc
+
+    async def _release_upload_quota_best_effort(
+        self,
+        *,
+        scope_id: str,
+        created_at: datetime,
+        size_bytes: int,
+        multipart: bool,
+        completed: bool,
+    ) -> None:
+        try:
+            await self._transfer_usage.release_upload(
+                scope_id=scope_id,
+                window_started_at=created_at,
+                size_bytes=size_bytes,
+                multipart=multipart,
+                completed=completed,
+            )
+        except Exception:
+            _LOGGER.warning(
+                "transfer_usage_release_failed",
+                extra={
+                    "scope_id": scope_id,
+                    "size_bytes": size_bytes,
+                    "multipart": multipart,
+                    "completed": completed,
+                },
+                exc_info=True,
+            )
+
+    async def _record_sign_request(
+        self,
+        *,
+        scope_id: str,
+        sign_requested_at: datetime,
+    ) -> None:
+        try:
+            await self._transfer_usage.record_sign_request(
+                scope_id=scope_id,
+                window_started_at=sign_requested_at,
+                hourly_sign_request_limit=None,
+            )
+        except TransferQuotaExceeded as exc:
+            raise too_many_requests(
+                "sign-parts quota exceeded for the current scope",
+                details={"reason": exc.reason, **exc.details},
+            ) from exc
 
     def _new_upload_key(self, *, scope_id: str, filename: str) -> str:
         safe = _sanitize_filename(filename)

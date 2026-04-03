@@ -182,6 +182,56 @@ def queue_unavailable(
     )
 
 
+def too_many_requests(
+    message: str,
+    *,
+    details: dict[str, Any] | None = None,
+    headers: dict[str, str] | None = None,
+) -> FileTransferError:
+    """Return a quota or throttling error.
+
+    Args:
+        message: Human-readable error description.
+        details: Optional machine-readable error details.
+        headers: Optional response headers for the client.
+
+    Returns:
+        FileTransferError: Error object with a 429 status code.
+    """
+    return FileTransferError(
+        code="too_many_requests",
+        message=message,
+        status_code=int(HTTPStatus.TOO_MANY_REQUESTS),
+        details=details or {},
+        headers=headers or {},
+    )
+
+
+def quota_exceeded(
+    message: str,
+    *,
+    details: dict[str, Any] | None = None,
+    headers: dict[str, str] | None = None,
+) -> FileTransferError:
+    """Return a quota-exceeded error.
+
+    Args:
+        message: Human-readable error description.
+        details: Optional machine-readable error details.
+        headers: Optional response headers for the client.
+
+    Returns:
+        FileTransferError: Error object with a 429 status code.
+    """
+    return FileTransferError(
+        code="quota_exceeded",
+        message=message,
+        status_code=int(HTTPStatus.TOO_MANY_REQUESTS),
+        details=details or {},
+        headers=headers or {},
+    )
+
+
 def internal_error(
     message: str,
     *,

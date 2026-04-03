@@ -62,6 +62,21 @@ class WorkflowSettings(BaseSettings):
         ge=1,
         le=32,
     )
+    file_transfer_upload_sessions_table: str | None = Field(
+        default=None,
+        validation_alias="FILE_TRANSFER_UPLOAD_SESSIONS_TABLE",
+    )
+    file_transfer_stale_multipart_cleanup_age_seconds: int = Field(
+        default=24 * 60 * 60,
+        validation_alias="FILE_TRANSFER_STALE_MULTIPART_CLEANUP_AGE_SECONDS",
+        ge=60,
+    )
+    file_transfer_reconciliation_scan_limit: int = Field(
+        default=200,
+        validation_alias="FILE_TRANSFER_RECONCILIATION_SCAN_LIMIT",
+        ge=1,
+        le=1000,
+    )
     file_transfer_use_accelerate_endpoint: bool = Field(
         default=False,
         validation_alias="FILE_TRANSFER_USE_ACCELERATE_ENDPOINT",
@@ -73,6 +88,10 @@ class WorkflowSettings(BaseSettings):
     exports_dynamodb_table: str | None = Field(
         default=None,
         validation_alias="EXPORTS_DYNAMODB_TABLE",
+    )
+    file_transfer_usage_table: str | None = Field(
+        default=None,
+        validation_alias="FILE_TRANSFER_USAGE_TABLE",
     )
     metrics_namespace: str = Field(
         default="NovaFileApi",

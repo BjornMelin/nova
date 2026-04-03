@@ -16,8 +16,12 @@ from aws_cdk import (
     Duration,
     RemovalPolicy,
     Stack,
+    aws_appconfig as appconfig,
+    aws_budgets as budgets,
     aws_cloudwatch as cloudwatch,
     aws_dynamodb as dynamodb,
+    aws_events as events,
+    aws_events_targets as targets,
     aws_iam as iam,
     aws_lambda as lambda_,
     aws_logs as logs,
@@ -27,6 +31,10 @@ from aws_cdk import (
     aws_stepfunctions_tasks as tasks,
 )
 from constructs import Construct
+
+from nova_runtime_support.transfer_policy_document import (
+    TransferPolicyDocument,
+)
 
 from .concurrency import (
     default_api_reserved_concurrency,
@@ -183,6 +191,26 @@ def _storage_lens_configuration_id(
         if value:
             return value
     return f"nova-{deployment_environment}-storage-lens"
+
+
+def _default_transfer_policy_document() -> TransferPolicyDocument:
+    """Return the default AppConfig transfer policy payload."""
+    return TransferPolicyDocument(
+        policy_id="default",
+        policy_version="2026-04-03",
+        max_upload_bytes=536_870_912_000,
+        multipart_threshold_bytes=100 * 1024 * 1024,
+        target_upload_part_count=2000,
+        upload_part_size_bytes=128 * 1024 * 1024,
+        max_concurrency_hint=4,
+        sign_batch_size_hint=32,
+        accelerate_enabled=False,
+        checksum_algorithm=None,
+        resumable_ttl_seconds=7 * 24 * 60 * 60,
+        active_multipart_upload_limit=200,
+        daily_ingress_budget_bytes=1024 * 1024 * 1024 * 1024,
+        sign_requests_per_upload_limit=512,
+    )
 
 
 def _parse_bool_flag(
@@ -565,7 +593,22 @@ class NovaRuntimeStack(Stack):
             ),
             projection_type=dynamodb.ProjectionType.ALL,
         )
-
+        transfer_usage_table = dynamodb.Table(
+            self,
+            "TransferUsageTable",
+            partition_key=dynamodb.Attribute(
+                name="scope_id",
+                type=dynamodb.AttributeType.STRING,
+            ),
+            sort_key=dynamodb.Attribute(
+                name="window_key",
+                type=dynamodb.AttributeType.STRING,
+            ),
+            billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
+            time_to_live_attribute="expires_at",
+            point_in_time_recovery_specification=_point_in_time_recovery(),
+            removal_policy=RemovalPolicy.RETAIN,
+        )
         file_bucket = s3.Bucket(
             self,
             "FileTransferBucket",
@@ -601,12 +644,81 @@ class NovaRuntimeStack(Stack):
                 )
             ],
         )
+        transfer_policy_document = _default_transfer_policy_document()
+        transfer_policy_application = appconfig.CfnApplication(
+            self,
+            "TransferPolicyApplication",
+            name=f"nova-transfer-policy-{inputs.deployment_environment}",
+            description="Nova transfer control-plane policy",
+        )
+        transfer_policy_environment = appconfig.CfnEnvironment(
+            self,
+            "TransferPolicyEnvironment",
+            application_id=transfer_policy_application.ref,
+            name=inputs.deployment_environment,
+            description="Nova runtime environment",
+        )
+        transfer_policy_profile = appconfig.CfnConfigurationProfile(
+            self,
+            "TransferPolicyProfile",
+            application_id=transfer_policy_application.ref,
+            location_uri="hosted",
+            name="transfer-policy",
+            type="AWS.Freeform",
+            validators=[
+                {
+                    "Type": "JSON_SCHEMA",
+                    "Content": json.dumps(
+                        TransferPolicyDocument.model_json_schema()
+                    ),
+                }
+            ],
+        )
+        transfer_policy_version = appconfig.CfnHostedConfigurationVersion(
+            self,
+            "TransferPolicyHostedVersion",
+            application_id=transfer_policy_application.ref,
+            configuration_profile_id=transfer_policy_profile.ref,
+            content=json.dumps(
+                transfer_policy_document.model_dump(exclude_none=True)
+            ),
+            content_type="application/json",
+            description="Default Nova transfer policy",
+        )
+        transfer_policy_strategy = appconfig.CfnDeploymentStrategy(
+            self,
+            "TransferPolicyDeploymentStrategy",
+            name=f"nova-transfer-policy-{inputs.deployment_environment}",
+            deployment_duration_in_minutes=15,
+            final_bake_time_in_minutes=5,
+            growth_factor=50,
+            growth_type="LINEAR",
+            replicate_to="NONE",
+        )
+        transfer_policy_deployment = appconfig.CfnDeployment(
+            self,
+            "TransferPolicyDeployment",
+            application_id=transfer_policy_application.ref,
+            configuration_profile_id=transfer_policy_profile.ref,
+            configuration_version=transfer_policy_version.ref,
+            deployment_strategy_id=transfer_policy_strategy.ref,
+            description="Deploy Nova transfer policy",
+            environment_id=transfer_policy_environment.ref,
+        )
+        transfer_policy_deployment.node.add_dependency(transfer_policy_version)
+        transfer_policy_deployment.node.add_dependency(
+            transfer_policy_environment
+        )
 
         workflow_common_env = {
             "FILE_TRANSFER_BUCKET": file_bucket.bucket_name,
             "FILE_TRANSFER_UPLOAD_PREFIX": "uploads/",
             "FILE_TRANSFER_EXPORT_PREFIX": "exports/",
             "FILE_TRANSFER_TMP_PREFIX": "tmp/",
+            "FILE_TRANSFER_UPLOAD_SESSIONS_TABLE": (
+                upload_sessions_table.table_name
+            ),
+            "FILE_TRANSFER_USAGE_TABLE": transfer_usage_table.table_name,
             "EXPORTS_ENABLED": "true",
             "EXPORTS_DYNAMODB_TABLE": export_table.table_name,
             "FILE_TRANSFER_EXPORT_COPY_PART_SIZE_BYTES": str(
@@ -632,12 +744,35 @@ class NovaRuntimeStack(Stack):
             "FILE_TRANSFER_USE_ACCELERATE_ENDPOINT": "false",
             "FILE_TRANSFER_POLICY_ID": "default",
             "FILE_TRANSFER_POLICY_VERSION": "2026-04-03",
-            "FILE_TRANSFER_UPLOAD_SESSIONS_TABLE": (
-                upload_sessions_table.table_name
+            "FILE_TRANSFER_ACTIVE_MULTIPART_UPLOAD_LIMIT": "200",
+            "FILE_TRANSFER_DAILY_INGRESS_BUDGET_BYTES": str(
+                1024 * 1024 * 1024 * 1024
             ),
+            "FILE_TRANSFER_SIGN_REQUESTS_PER_UPLOAD_LIMIT": "512",
+            "FILE_TRANSFER_POLICY_APPCONFIG_APPLICATION": (
+                transfer_policy_application.ref
+            ),
+            "FILE_TRANSFER_POLICY_APPCONFIG_ENVIRONMENT": (
+                transfer_policy_environment.ref
+            ),
+            "FILE_TRANSFER_POLICY_APPCONFIG_PROFILE": (
+                transfer_policy_profile.ref
+            ),
+            "FILE_TRANSFER_POLICY_APPCONFIG_POLL_INTERVAL_SECONDS": "60",
+            "FILE_TRANSFER_STALE_MULTIPART_CLEANUP_AGE_SECONDS": str(
+                24 * 60 * 60
+            ),
+            "FILE_TRANSFER_RECONCILIATION_SCAN_LIMIT": "200",
         }
         task_env = {
             **workflow_common_env,
+            "FILE_TRANSFER_UPLOAD_SESSIONS_TABLE": (
+                upload_sessions_table.table_name
+            ),
+            "FILE_TRANSFER_STALE_MULTIPART_CLEANUP_AGE_SECONDS": str(
+                24 * 60 * 60
+            ),
+            "FILE_TRANSFER_RECONCILIATION_SCAN_LIMIT": "200",
             "IDEMPOTENCY_ENABLED": "false",
         }
         workflow_artifact_bucket = s3.Bucket.from_bucket_name(
@@ -705,6 +840,17 @@ class NovaRuntimeStack(Stack):
             ),
             **workflow_fn_props,
         )
+        reconcile_transfer_state_fn = lambda_.Function(
+            self,
+            "ReconcileTransferStateFunction",
+            handler="nova_workflows.handlers.reconcile_transfer_state_handler",
+            environment=task_env,
+            log_group=_runtime_log_group(
+                self,
+                function_name="ReconcileTransferStateFunction",
+            ),
+            **workflow_fn_props,
+        )
 
         grant_export_status_permissions(
             function=validate_fn,
@@ -724,6 +870,21 @@ class NovaRuntimeStack(Stack):
             file_bucket=file_bucket,
             export_prefix="exports/",
             upload_prefix="uploads/",
+        )
+        upload_sessions_table.grant_read_write_data(reconcile_transfer_state_fn)
+        transfer_usage_table.grant_read_write_data(reconcile_transfer_state_fn)
+        file_bucket.grant_read_write(reconcile_transfer_state_fn)
+        reconcile_transfer_state_fn.add_to_role_policy(
+            iam.PolicyStatement(
+                actions=["s3:ListBucket", "s3:ListBucketMultipartUploads"],
+                resources=[file_bucket.bucket_arn],
+            )
+        )
+        events.Rule(
+            self,
+            "TransferReconciliationSchedule",
+            schedule=events.Schedule.rate(Duration.hours(1)),
+            targets=[targets.LambdaFunction(reconcile_transfer_state_fn)],
         )
 
         workflow_failure_task = tasks.LambdaInvoke(
@@ -889,6 +1050,7 @@ class NovaRuntimeStack(Stack):
         activity_table.grant_read_write_data(api_function)
         idempotency_table.grant_read_write_data(api_function)
         upload_sessions_table.grant_read_write_data(api_function)
+        transfer_usage_table.grant_read_write_data(api_function)
         state_machine.grant_start_execution(api_function)
         api_function.add_to_role_policy(
             iam.PolicyStatement(
@@ -906,6 +1068,15 @@ class NovaRuntimeStack(Stack):
                         resource_name=f"{state_machine.state_machine_name}:*",
                     )
                 ],
+            )
+        )
+        api_function.add_to_role_policy(
+            iam.PolicyStatement(
+                actions=[
+                    "appconfig:StartConfigurationSession",
+                    "appconfig:GetLatestConfiguration",
+                ],
+                resources=["*"],
             )
         )
 
@@ -933,6 +1104,13 @@ class NovaRuntimeStack(Stack):
         alarm_topic = create_alarm_topic(
             self,
             deployment_environment=inputs.deployment_environment,
+        )
+        alarm_topic.add_to_resource_policy(
+            iam.PolicyStatement(
+                principals=[iam.ServicePrincipal("budgets.amazonaws.com")],
+                actions=["sns:Publish"],
+                resources=[alarm_topic.topic_arn],
+            )
         )
         api_lambda_errors_alarm = cloudwatch.Alarm(
             self,
@@ -1087,6 +1265,52 @@ class NovaRuntimeStack(Stack):
             ),
             treat_missing_data=cloudwatch.TreatMissingData.NOT_BREACHING,
         )
+        transfer_usage_table_throttles_alarm = cloudwatch.Alarm(
+            self,
+            "TransferUsageTableThrottlesAlarm",
+            metric=cloudwatch.MathExpression(
+                expression="get_item + update_item",
+                period=Duration.minutes(5),
+                using_metrics={
+                    "get_item": (
+                        transfer_usage_table.metric_throttled_requests_for_operation(
+                            "GetItem",
+                            period=Duration.minutes(5),
+                        )
+                    ),
+                    "update_item": (
+                        transfer_usage_table.metric_throttled_requests_for_operation(
+                            "UpdateItem",
+                            period=Duration.minutes(5),
+                        )
+                    ),
+                },
+            ),
+            threshold=1,
+            evaluation_periods=1,
+            alarm_description=(
+                "Alarm when transfer usage table requests throttle."
+            ),
+            treat_missing_data=cloudwatch.TreatMissingData.NOT_BREACHING,
+        )
+        upload_sessions_stale_alarm = cloudwatch.Alarm(
+            self,
+            "UploadSessionsStaleAlarm",
+            metric=cloudwatch.Metric(
+                namespace="NovaFileApi",
+                metric_name="upload_sessions_stale",
+                dimensions_map={"source": "transfer_reconciliation"},
+                statistic="Maximum",
+                period=Duration.minutes(5),
+            ),
+            threshold=1,
+            evaluation_periods=1,
+            alarm_description=(
+                "Alarm when transfer reconciliation observes stale upload "
+                "sessions."
+            ),
+            treat_missing_data=cloudwatch.TreatMissingData.NOT_BREACHING,
+        )
         add_alarm_actions(
             alarms=[
                 api_gateway_5xx_alarm,
@@ -1097,11 +1321,45 @@ class NovaRuntimeStack(Stack):
                 export_workflow_timeouts_alarm,
                 exports_table_throttles_alarm,
                 upload_sessions_table_throttles_alarm,
+                upload_sessions_stale_alarm,
+                transfer_usage_table_throttles_alarm,
                 workflow_task_throttles_alarm,
             ],
             topic=alarm_topic,
         )
         metrics_namespace = "NovaFileApi"
+        s3.CfnStorageLens(
+            self,
+            "FileTransferStorageLens",
+            storage_lens_configuration=s3.CfnStorageLens.StorageLensConfigurationProperty(
+                id=_storage_lens_configuration_id(
+                    self,
+                    deployment_environment=inputs.deployment_environment,
+                ),
+                is_enabled=True,
+                account_level=s3.CfnStorageLens.AccountLevelProperty(
+                    activity_metrics=s3.CfnStorageLens.ActivityMetricsProperty(
+                        is_enabled=True
+                    ),
+                    advanced_cost_optimization_metrics=s3.CfnStorageLens.AdvancedCostOptimizationMetricsProperty(
+                        is_enabled=True
+                    ),
+                    bucket_level=s3.CfnStorageLens.BucketLevelProperty(
+                        activity_metrics=s3.CfnStorageLens.ActivityMetricsProperty(
+                            is_enabled=True
+                        ),
+                        advanced_cost_optimization_metrics=s3.CfnStorageLens.AdvancedCostOptimizationMetricsProperty(
+                            is_enabled=True
+                        ),
+                    ),
+                ),
+                data_export=s3.CfnStorageLens.DataExportProperty(
+                    cloud_watch_metrics=s3.CfnStorageLens.CloudWatchMetricsProperty(
+                        is_enabled=True
+                    )
+                ),
+            ),
+        )
         storage_lens_dimensions = {
             "configuration_id": _storage_lens_configuration_id(
                 self,
@@ -1113,6 +1371,72 @@ class NovaRuntimeStack(Stack):
             "bucket_name": file_bucket.bucket_name,
             "record_type": "BUCKET",
         }
+        stale_mpu_bytes_alarm = cloudwatch.Alarm(
+            self,
+            "StaleMultipartUploadBytesAlarm",
+            metric=cloudwatch.Metric(
+                namespace="AWS/S3/Storage-Lens",
+                metric_name="IncompleteMPUStorageBytesOlderThan7Days",
+                dimensions_map=storage_lens_dimensions,
+                statistic="Average",
+                period=Duration.days(1),
+            ),
+            threshold=float(1024 * 1024 * 1024),
+            evaluation_periods=1,
+            alarm_description=(
+                "Alarm when incomplete multipart upload bytes older than "
+                "7 days "
+                "remain above the stale-data threshold."
+            ),
+            treat_missing_data=cloudwatch.TreatMissingData.NOT_BREACHING,
+        )
+        add_alarm_actions(alarms=[stale_mpu_bytes_alarm], topic=alarm_topic)
+        budgets.CfnBudget(
+            self,
+            "TransferSpendBudget",
+            budget=budgets.CfnBudget.BudgetDataProperty(
+                budget_name=f"nova-transfer-{inputs.deployment_environment}",
+                budget_type="COST",
+                time_unit="MONTHLY",
+                budget_limit=budgets.CfnBudget.SpendProperty(
+                    amount=(
+                        1000
+                        if is_production_environment(
+                            inputs.deployment_environment
+                        )
+                        else 100
+                    ),
+                    unit="USD",
+                ),
+                cost_filters={
+                    "Service": [
+                        "Amazon API Gateway",
+                        "Amazon AppConfig",
+                        "Amazon DynamoDB",
+                        "Amazon Simple Storage Service",
+                        "AWS Lambda",
+                        "AWS Step Functions",
+                        "AWS WAF",
+                    ]
+                },
+            ),
+            notifications_with_subscribers=[
+                budgets.CfnBudget.NotificationWithSubscribersProperty(
+                    notification=budgets.CfnBudget.NotificationProperty(
+                        comparison_operator="GREATER_THAN",
+                        notification_type="ACTUAL",
+                        threshold=80,
+                        threshold_type="PERCENTAGE",
+                    ),
+                    subscribers=[
+                        budgets.CfnBudget.SubscriberProperty(
+                            address=alarm_topic.topic_arn,
+                            subscription_type="SNS",
+                        )
+                    ],
+                )
+            ],
+        )
         observability_dashboard = cloudwatch.Dashboard(
             self,
             "NovaRuntimeObservabilityDashboard",
@@ -1347,6 +1671,31 @@ class NovaRuntimeStack(Stack):
                 "ExportNovaIdempotencyTableName",
                 "IdempotencyTableName",
                 idempotency_table.table_name,
+            ),
+            (
+                "ExportNovaUploadSessionsTableName",
+                "UploadSessionsTableName",
+                upload_sessions_table.table_name,
+            ),
+            (
+                "ExportNovaTransferUsageTableName",
+                "TransferUsageTableName",
+                transfer_usage_table.table_name,
+            ),
+            (
+                "ExportNovaTransferPolicyAppConfigApplicationId",
+                "TransferPolicyAppConfigApplicationId",
+                transfer_policy_application.ref,
+            ),
+            (
+                "ExportNovaTransferPolicyAppConfigEnvironmentId",
+                "TransferPolicyAppConfigEnvironmentId",
+                transfer_policy_environment.ref,
+            ),
+            (
+                "ExportNovaTransferPolicyAppConfigProfileId",
+                "TransferPolicyAppConfigProfileId",
+                transfer_policy_profile.ref,
             ),
             (
                 "ExportNovaObservabilityDashboardName",
