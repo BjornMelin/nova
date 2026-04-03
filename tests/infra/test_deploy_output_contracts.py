@@ -242,6 +242,8 @@ def test_resolve_deploy_output_builds_and_verifies_authority_payload(
         "package_name": "nova-workflows",
         "package_version": "0.5.0",
         "release_commit_sha": "a" * 40,
+        "runtime": "python3.13",
+        "extra_field": "ignored",
     }
     payload = _RESOLVER.build_deploy_output(
         api_lambda_artifact=api_lambda_artifact,
@@ -306,7 +308,16 @@ def test_resolve_deploy_output_builds_and_verifies_authority_payload(
         "package_version": "0.5.0",
         "release_commit_sha": "a" * 40,
     }
-    assert payload["workflow_lambda_artifact"] == workflow_lambda_artifact
+    assert payload["workflow_lambda_artifact"] == {
+        "artifact_bucket": "nova-artifacts",
+        "artifact_key": (
+            "runtime/nova-workflows/abc/def/nova-workflows-lambda.zip"
+        ),
+        "artifact_sha256": "3" * 64,
+        "package_name": "nova-workflows",
+        "package_version": "0.5.0",
+        "release_commit_sha": "a" * 40,
+    }
     assert payload["execution"] == {
         "system": "aws-codepipeline",
         "pipeline_name": "nova-release-control-plane",

@@ -11,6 +11,7 @@ from typing import Any
 import yaml
 from aws_cdk import (
     CfnOutput,
+    DefaultStackSynthesizer,
     Duration,
     Stack,
     aws_codebuild as codebuild,
@@ -567,8 +568,12 @@ class NovaReleaseControlPlaneStack(Stack):
     ) -> None:
         release_artifact_bucket.grant_read_write(project)
         release_manifest_bucket.grant_read_write(project)
+        bootstrap_qualifier = (
+            self.node.try_get_context("bootstrap_qualifier")
+            or DefaultStackSynthesizer.DEFAULT_QUALIFIER
+        )
         bootstrap_bucket_name = (
-            f"cdk-hnb659fds-assets-{self.account}-{self.region}"
+            f"cdk-{bootstrap_qualifier}-assets-{self.account}-{self.region}"
         )
         project.add_to_role_policy(
             iam.PolicyStatement(
