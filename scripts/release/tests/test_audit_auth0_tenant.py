@@ -7,6 +7,8 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+import pytest
+
 from scripts.release import audit_auth0_tenant
 
 
@@ -59,7 +61,7 @@ def _install_fake_management_client(
     monkeypatch.setattr(
         audit_auth0_tenant,
         "_render_template",
-        lambda path: rendered,
+        lambda path, input_path=None: rendered,
     )
 
     class _TenantSettings:
@@ -195,3 +197,35 @@ def test_main_returns_nonzero_when_audit_detects_drift(
     )
 
     assert audit_auth0_tenant.main() == 1
+
+
+def test_audit_tenant_allows_missing_auth0_input_file(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    env_file = tmp_path / "dev.env"
+    env_file.write_text(
+        "\n".join(
+            [
+                "AUTH0_DOMAIN=example.auth0.com",
+                "AUTH0_CLIENT_ID=client_id",
+                "AUTH0_CLIENT_SECRET=client_secret",
+                "AUTH0_KEYWORD_MAPPINGS_FILE=infra/auth0/mappings/dev.json",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    def _render_template_probe(path: Path, input_path: Path | None = None):
+        assert input_path is None
+        raise RuntimeError("template-probe")
+
+    monkeypatch.setattr(
+        audit_auth0_tenant,
+        "_render_template",
+        _render_template_probe,
+    )
+
+    with pytest.raises(RuntimeError, match="template-probe"):
+        audit_auth0_tenant.audit_tenant(env_file=env_file)

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import argparse
-import inspect
 import json
 from pathlib import Path
 from typing import Any, cast
@@ -214,13 +213,9 @@ def bootstrap_tenant(
     client_id = env["AUTH0_CLIENT_ID"]
     client_secret = env["AUTH0_CLIENT_SECRET"]
     mapping_path = (_repo_root() / env["AUTH0_KEYWORD_MAPPINGS_FILE"]).resolve()
-    input_path = Path(env["AUTH0_INPUT_FILE"])
-
-    render_signature = inspect.signature(_render_template)
-    if "input_path" in render_signature.parameters:
-        rendered = _render_template(mapping_path, input_path)
-    else:
-        rendered = _render_template(mapping_path)
+    input_file = env.get("AUTH0_INPUT_FILE")
+    input_path = Path(input_file) if input_file else None
+    rendered = _render_template(mapping_path, input_path=input_path)
     management_client = _client(
         domain=domain,
         client_id=client_id,

@@ -9,11 +9,23 @@ from typing import Any
 
 from scripts.release import common, release_paths
 
+_EXECUTION_MANIFEST_ARTIFACT_KEYS = (
+    "artifact_bucket",
+    "artifact_key",
+    "artifact_sha256",
+)
+
+
+def _manifest_artifact(payload: dict[str, Any]) -> dict[str, str]:
+    """Project one artifact payload down to the execution-manifest schema."""
+    return {key: str(payload[key]) for key in _EXECUTION_MANIFEST_ARTIFACT_KEYS}
+
 
 def build_execution_manifest(
     *,
     repo_root: Path,
     release_commit_sha: str,
+    release_manifest_path: str,
     api_lambda_artifact: dict[str, Any],
     workflow_lambda_artifact: dict[str, Any],
     release_prep_payload: dict[str, Any],
@@ -28,6 +40,8 @@ def build_execution_manifest(
     Args:
         repo_root: Absolute repository root used for execution context.
         release_commit_sha: Release commit SHA pinned by the release pipeline.
+        release_manifest_path: Path to the release version manifest used to
+            compute ``release_manifest_sha256``.
         api_lambda_artifact: Normalized API Lambda artifact metadata payload.
         workflow_lambda_artifact: Normalized workflow Lambda artifact metadata
             payload.
@@ -45,13 +59,15 @@ def build_execution_manifest(
         "schema_version": "1.0",
         "generated_at": common.iso_timestamp(),
         "release_commit_sha": release_commit_sha,
-        "release_manifest_path": release_paths.RELEASE_VERSION_MANIFEST_PATH,
+        "release_manifest_path": release_manifest_path,
         "release_manifest_sha256": manifest_sha256,
         "release_manifest_bucket": manifest_bucket,
         "release_manifest_key": manifest_key,
         "release_prep": release_prep_payload,
-        "api_lambda_artifact": api_lambda_artifact,
-        "workflow_lambda_artifact": workflow_lambda_artifact,
+        "api_lambda_artifact": _manifest_artifact(api_lambda_artifact),
+        "workflow_lambda_artifact": _manifest_artifact(
+            workflow_lambda_artifact
+        ),
         "codeartifact": {
             "staging_repository": staging_repository,
             "prod_repository": prod_repository,
@@ -79,6 +95,14 @@ def _validate_commit_matches(
             f"{source} commit mismatch: {commit_key}={actual} does not match "
             f"--release-commit-sha={expected}"
         )
+
+
+def _display_path(path: Path, *, repo_root: Path) -> str:
+    """Render one path relative to repo root when possible."""
+    try:
+        return str(path.relative_to(repo_root))
+    except ValueError:
+        return str(path)
 
 
 def parse_args() -> argparse.Namespace:
@@ -166,6 +190,10 @@ def main() -> int:
     payload = build_execution_manifest(
         repo_root=repo_root,
         release_commit_sha=args.release_commit_sha,
+        release_manifest_path=_display_path(
+            release_manifest_path,
+            repo_root=repo_root,
+        ),
         api_lambda_artifact=api_lambda_artifact,
         workflow_lambda_artifact=workflow_lambda_artifact,
         release_prep_payload=release_prep_payload,

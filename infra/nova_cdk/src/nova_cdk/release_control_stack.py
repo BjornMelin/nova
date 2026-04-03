@@ -113,7 +113,18 @@ def load_release_control_inputs(
     dev_cfn_execution_role_arn: str | None = None,
     prod_cfn_execution_role_arn: str | None = None,
 ) -> ReleaseControlInputs:
-    """Resolve required stack inputs from CDK context or environment."""
+    """Resolve required stack inputs from CDK context or environment.
+
+    Args:
+        scope: Construct used to resolve CDK context values.
+        dev_cfn_execution_role_arn: Optional override for the dev runtime
+            CloudFormation execution role ARN.
+        prod_cfn_execution_role_arn: Optional override for the prod runtime
+            CloudFormation execution role ARN.
+
+    Returns:
+        Parsed release control-plane input contract.
+    """
     return ReleaseControlInputs(
         github_owner=_required_value(
             scope,
@@ -189,7 +200,14 @@ class NovaReleaseControlPlaneStack(Stack):
         inputs: ReleaseControlInputs | None = None,
         **kwargs: Any,
     ) -> None:
-        """Initialize the release control-plane stack."""
+        """Initialize the release control-plane stack.
+
+        Args:
+            scope: Parent construct.
+            construct_id: CDK construct identifier for this stack.
+            inputs: Optional pre-resolved release control inputs.
+            **kwargs: Additional ``aws_cdk.Stack`` initialization arguments.
+        """
         super().__init__(scope, construct_id, **kwargs)
 
         inputs = inputs or load_release_control_inputs(self)
@@ -292,6 +310,8 @@ class NovaReleaseControlPlaneStack(Stack):
                 inputs=inputs,
                 release_artifact_bucket=release_artifact_bucket.bucket_name,
                 release_manifest_bucket=release_manifest_bucket.bucket_name,
+                include_prod_repository=False,
+                include_release_signing_secret=True,
             )
             | self._environment_env_vars(prefix="DEV", config=inputs.dev),
         )
@@ -304,6 +324,8 @@ class NovaReleaseControlPlaneStack(Stack):
                 inputs=inputs,
                 release_artifact_bucket=release_artifact_bucket.bucket_name,
                 release_manifest_bucket=release_manifest_bucket.bucket_name,
+                include_prod_repository=True,
+                include_release_signing_secret=False,
             )
             | self._environment_env_vars(prefix="PROD", config=inputs.prod),
         )
@@ -319,12 +341,18 @@ class NovaReleaseControlPlaneStack(Stack):
             inputs=inputs,
             release_artifact_bucket=release_artifact_bucket,
             release_manifest_bucket=release_manifest_bucket,
+            runtime_config=inputs.dev,
+            include_prod_repository=False,
+            include_release_signing_secret=True,
         )
         self._grant_release_role_permissions(
             project=promote_project,
             inputs=inputs,
             release_artifact_bucket=release_artifact_bucket,
             release_manifest_bucket=release_manifest_bucket,
+            runtime_config=inputs.prod,
+            include_prod_repository=True,
+            include_release_signing_secret=False,
         )
 
         pipeline = codepipeline.Pipeline(
@@ -466,26 +494,33 @@ class NovaReleaseControlPlaneStack(Stack):
         inputs: ReleaseControlInputs,
         release_artifact_bucket: str,
         release_manifest_bucket: str,
+        include_prod_repository: bool,
+        include_release_signing_secret: bool,
     ) -> dict[str, codebuild.BuildEnvironmentVariable]:
         def _env(value: str) -> codebuild.BuildEnvironmentVariable:
             return codebuild.BuildEnvironmentVariable(value=value)
 
-        return {
+        env_vars = {
             "AWS_REGION": _env(self.region),
             "CODEARTIFACT_DOMAIN": _env(inputs.codeartifact_domain),
             "CODEARTIFACT_STAGING_REPOSITORY": _env(
                 inputs.codeartifact_staging_repository
-            ),
-            "CODEARTIFACT_PROD_REPOSITORY": _env(
-                inputs.codeartifact_prod_repository
             ),
             "RELEASE_GITHUB_OWNER": _env(inputs.github_owner),
             "RELEASE_GITHUB_REPO": _env(inputs.github_repo),
             "RELEASE_ARTIFACT_BUCKET": _env(release_artifact_bucket),
             "RELEASE_MANIFEST_BUCKET": _env(release_manifest_bucket),
             "RELEASE_PIPELINE_NAME": _env(_PIPELINE_NAME),
-            "RELEASE_SIGNING_SECRET_ID": _env(inputs.release_signing_secret_id),
         }
+        if include_prod_repository:
+            env_vars["CODEARTIFACT_PROD_REPOSITORY"] = _env(
+                inputs.codeartifact_prod_repository
+            )
+        if include_release_signing_secret:
+            env_vars["RELEASE_SIGNING_SECRET_ID"] = _env(
+                inputs.release_signing_secret_id
+            )
+        return env_vars
 
     def _environment_env_vars(
         self,
@@ -565,6 +600,9 @@ class NovaReleaseControlPlaneStack(Stack):
         inputs: ReleaseControlInputs,
         release_artifact_bucket: s3.Bucket,
         release_manifest_bucket: s3.Bucket,
+        runtime_config: ReleaseEnvironmentConfig,
+        include_prod_repository: bool,
+        include_release_signing_secret: bool,
     ) -> None:
         release_artifact_bucket.grant_read_write(project)
         release_manifest_bucket.grant_read_write(project)
@@ -599,11 +637,17 @@ class NovaReleaseControlPlaneStack(Stack):
                         f"{inputs.codeartifact_domain}/"
                         f"{inputs.codeartifact_staging_repository}"
                     ),
-                    (
-                        f"arn:{self.partition}:codeartifact:{self.region}:"
-                        f"{self.account}:repository/"
-                        f"{inputs.codeartifact_domain}/"
-                        f"{inputs.codeartifact_prod_repository}"
+                    *(
+                        [
+                            (
+                                f"arn:{self.partition}:codeartifact:{self.region}:"
+                                f"{self.account}:repository/"
+                                f"{inputs.codeartifact_domain}/"
+                                f"{inputs.codeartifact_prod_repository}"
+                            )
+                        ]
+                        if include_prod_repository
+                        else []
                     ),
                 ],
             )
@@ -617,25 +661,22 @@ class NovaReleaseControlPlaneStack(Stack):
                 resources=["*"],
             )
         )
-        project.add_to_role_policy(
-            iam.PolicyStatement(
-                actions=["secretsmanager:GetSecretValue"],
-                resources=[
-                    f"arn:{self.partition}:secretsmanager:{self.region}:{self.account}:secret:{inputs.release_signing_secret_id}*"
-                ],
+        if include_release_signing_secret:
+            project.add_to_role_policy(
+                iam.PolicyStatement(
+                    actions=["secretsmanager:GetSecretValue"],
+                    resources=[
+                        f"arn:{self.partition}:secretsmanager:{self.region}:{self.account}:secret:{inputs.release_signing_secret_id}*"
+                    ],
+                )
             )
-        )
         project.add_to_role_policy(
             iam.PolicyStatement(
                 actions=["ssm:GetParameter"],
                 resources=[
                     (
                         f"arn:{self.partition}:ssm:{self.region}:{self.account}:"
-                        f"parameter{inputs.dev.runtime_config_parameter_name}"
-                    ),
-                    (
-                        f"arn:{self.partition}:ssm:{self.region}:{self.account}:"
-                        f"parameter{inputs.prod.runtime_config_parameter_name}"
+                        f"parameter{runtime_config.runtime_config_parameter_name}"
                     ),
                 ],
             )
@@ -655,11 +696,7 @@ class NovaReleaseControlPlaneStack(Stack):
                 resources=[
                     (
                         f"arn:{self.partition}:cloudformation:{self.region}:"
-                        f"{self.account}:stack/{inputs.dev.stack_id}/*"
-                    ),
-                    (
-                        f"arn:{self.partition}:cloudformation:{self.region}:"
-                        f"{self.account}:stack/{inputs.prod.stack_id}/*"
+                        f"{self.account}:stack/{runtime_config.stack_id}/*"
                     ),
                     (
                         f"arn:{self.partition}:cloudformation:{self.region}:"
@@ -672,8 +709,7 @@ class NovaReleaseControlPlaneStack(Stack):
             iam.PolicyStatement(
                 actions=["iam:PassRole"],
                 resources=[
-                    inputs.dev.cfn_execution_role_arn,
-                    inputs.prod.cfn_execution_role_arn,
+                    runtime_config.cfn_execution_role_arn,
                 ],
                 conditions={
                     "StringEquals": {

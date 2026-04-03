@@ -355,6 +355,79 @@ def test_normalize_allowed_origins_rejects_malformed_json() -> None:
 
 
 @pytest.mark.parametrize(
+    ("pipeline_name", "pipeline_execution_id"),
+    [
+        ("", "execution-123"),
+        ("nova-release-control-plane", ""),
+        ("   ", "execution-123"),
+        ("nova-release-control-plane", "   "),
+    ],
+)
+def test_build_deploy_output_rejects_blank_pipeline_identifiers(
+    pipeline_name: str,
+    pipeline_execution_id: str,
+) -> None:
+    with pytest.raises(
+        ValueError,
+        match=(
+            "pipeline_name and pipeline_execution_id must be non-empty strings"
+        ),
+    ):
+        _RESOLVER.build_deploy_output(
+            api_lambda_artifact={
+                "artifact_bucket": "nova-artifacts",
+                "artifact_key": (
+                    "runtime/nova-file-api/abc/def/nova-file-api-lambda.zip"
+                ),
+                "artifact_sha256": "1" * 64,
+                "package_name": "nova-file-api",
+                "package_version": "0.5.0",
+                "release_commit_sha": "a" * 40,
+            },
+            workflow_lambda_artifact={
+                "artifact_bucket": "nova-artifacts",
+                "artifact_key": (
+                    "runtime/nova-workflows/abc/def/nova-workflows-lambda.zip"
+                ),
+                "artifact_sha256": "3" * 64,
+                "package_name": "nova-workflows",
+                "package_version": "0.5.0",
+                "release_commit_sha": "a" * 40,
+            },
+            stack_name="NovaRuntimeStack",
+            region="us-east-1",
+            environment_name="prod",
+            allowed_origins='["https://app.example.com"]',
+            repository="3M-Cloud/nova",
+            pipeline_name=pipeline_name,
+            pipeline_execution_id=pipeline_execution_id,
+            codebuild_build_ids=["build-dev-123"],
+            stack_description={
+                "Outputs": [
+                    {
+                        "OutputKey": "ExportNovaPublicBaseUrl",
+                        "OutputName": "NovaDevPublicBaseUrl",
+                        "OutputValue": "https://api.example.com",
+                    },
+                    {
+                        "OutputKey": "ExportNovaExportWorkflowStateMachineArn",
+                        "OutputName": "NovaDevExportWorkflowStateMachineArn",
+                        "OutputValue": (
+                            "arn:aws:states:us-east-1:1:stateMachine:test"
+                        ),
+                    },
+                    {
+                        "OutputKey": "NovaRestApiEndpointADC846BC",
+                        "OutputValue": (
+                            "https://example.execute-api.us-east-1.amazonaws.com/dev/"
+                        ),
+                    },
+                ],
+            },
+        )
+
+
+@pytest.mark.parametrize(
     ("raw_value", "exc_type", "match"),
     [
         (

@@ -16,12 +16,14 @@ def test_build_execution_manifest_includes_required_release_fields() -> None:
     payload = build_execution_manifest(
         repo_root=Path("repo-root"),
         release_commit_sha="abc123",
+        release_manifest_path="release/custom-manifest.md",
         api_lambda_artifact={
             "artifact_bucket": "release-artifacts",
             "artifact_key": (
                 "runtime/nova-file-api/abc123/sha/nova-file-api-lambda.zip"
             ),
             "artifact_sha256": "f" * 64,
+            "release_commit_sha": "abc123",
         },
         workflow_lambda_artifact={
             "artifact_bucket": "release-artifacts",
@@ -29,6 +31,7 @@ def test_build_execution_manifest_includes_required_release_fields() -> None:
                 "runtime/nova-workflows/abc123/sha/nova-workflows-lambda.zip"
             ),
             "artifact_sha256": "e" * 64,
+            "release_commit_sha": "abc123",
         },
         release_prep_payload={
             "changed_units": [{"unit_id": "packages/nova_file_api"}],
@@ -47,10 +50,18 @@ def test_build_execution_manifest_includes_required_release_fields() -> None:
     )
 
     assert payload["release_commit_sha"] == "abc123"
+    assert payload["release_manifest_path"] == "release/custom-manifest.md"
     assert payload["release_manifest_sha256"] == "a" * 64
     assert payload["release_manifest_bucket"] == "release-manifests"
     assert payload["api_lambda_artifact"]["artifact_sha256"] == "f" * 64
     assert payload["workflow_lambda_artifact"]["artifact_sha256"] == "e" * 64
+    assert payload["api_lambda_artifact"] == {
+        "artifact_bucket": "release-artifacts",
+        "artifact_key": (
+            "runtime/nova-file-api/abc123/sha/nova-file-api-lambda.zip"
+        ),
+        "artifact_sha256": "f" * 64,
+    }
     assert payload["release_prep"]["units"][0]["new_version"] == "0.1.1"
     assert payload["codeartifact"]["staging_repository"] == "nova-staging"
     assert payload["codeartifact"]["prod_repository"] == "nova-prod"

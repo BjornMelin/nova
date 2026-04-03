@@ -20,15 +20,21 @@ from scripts.release import (
 
 def _run_uv_lock(repo_root: Path) -> None:
     """Refresh ``uv.lock`` from the repository root."""
-    uv_path = shutil.which("uv")
-    if uv_path is None:
-        raise RuntimeError("uv executable not found on PATH")
+    uv_path = _require_uv_available()
     subprocess.run(  # noqa: S603
         [uv_path, "lock"],
         check=True,
         cwd=repo_root,
         text=True,
     )
+
+
+def _require_uv_available() -> str:
+    """Return the uv executable path or raise a clear contract error."""
+    uv_path = shutil.which("uv")
+    if uv_path is None:
+        raise RuntimeError("uv executable not found on PATH")
+    return uv_path
 
 
 def parse_args() -> argparse.Namespace:
@@ -115,6 +121,9 @@ def main() -> int:
             f"planned_units={len(planned_versions['units'])} dry_run=true"
         )
         return 0
+
+    if not args.skip_lock:
+        _require_uv_available()
 
     apply_versions.apply_version_updates(
         repo_root=repo_root,

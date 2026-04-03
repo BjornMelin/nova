@@ -130,3 +130,75 @@ def test_release_control_stack_receives_release_env_contract() -> None:
         "RELEASE_SIGNING_SECRET_ID",
     ]:
         assert required in env_var_names
+
+
+def test_release_control_stack_scopes_dev_and_prod_permissions() -> None:
+    template = _template().to_json()
+    resources = template["Resources"]
+    projects = resources_of_type(resources, "AWS::CodeBuild::Project")
+
+    dev_project = next(
+        project
+        for project in projects.values()
+        if {
+            environment_variable.get("Name")
+            for environment_variable in project["Properties"]
+            .get("Environment", {})
+            .get("EnvironmentVariables", [])
+            if isinstance(environment_variable, dict)
+        }
+        >= {"DEV_RUNTIME_STACK_ID"}
+    )
+    prod_project = next(
+        project
+        for project in projects.values()
+        if {
+            environment_variable.get("Name")
+            for environment_variable in project["Properties"]
+            .get("Environment", {})
+            .get("EnvironmentVariables", [])
+            if isinstance(environment_variable, dict)
+        }
+        >= {"PROD_RUNTIME_STACK_ID"}
+    )
+
+    dev_env_vars = {
+        environment_variable.get("Name")
+        for environment_variable in dev_project["Properties"]
+        .get("Environment", {})
+        .get("EnvironmentVariables", [])
+        if isinstance(environment_variable, dict)
+    }
+    prod_env_vars = {
+        environment_variable.get("Name")
+        for environment_variable in prod_project["Properties"]
+        .get("Environment", {})
+        .get("EnvironmentVariables", [])
+        if isinstance(environment_variable, dict)
+    }
+
+    assert "CODEARTIFACT_PROD_REPOSITORY" not in dev_env_vars
+    assert "RELEASE_SIGNING_SECRET_ID" in dev_env_vars
+    assert "CODEARTIFACT_PROD_REPOSITORY" in prod_env_vars
+    assert "RELEASE_SIGNING_SECRET_ID" not in prod_env_vars
+
+    policies = resources_of_type(resources, "AWS::IAM::Policy")
+    dev_role_policy = next(
+        policy
+        for policy in policies.values()
+        if "PublishAndDeployDevProjectRole"
+        in str(policy["Properties"].get("Roles", []))
+    )
+    prod_role_policy = next(
+        policy
+        for policy in policies.values()
+        if "PromoteAndDeployProdProjectRole"
+        in str(policy["Properties"].get("Roles", []))
+    )
+    dev_policy_text = str(dev_role_policy["Properties"]["PolicyDocument"])
+    prod_policy_text = str(prod_role_policy["Properties"]["PolicyDocument"])
+
+    assert "nova-dev-cfn" in dev_policy_text
+    assert "nova-prod-cfn" not in dev_policy_text
+    assert "nova-prod-cfn" in prod_policy_text
+    assert "nova-dev-cfn" not in prod_policy_text

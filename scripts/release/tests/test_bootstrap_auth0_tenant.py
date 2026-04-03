@@ -6,6 +6,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from scripts.release import bootstrap_auth0_tenant
 
 
@@ -124,7 +126,7 @@ def test_bootstrap_tenant_reconciles_expected_resources(
     monkeypatch.setattr(
         bootstrap_auth0_tenant,
         "_render_template",
-        lambda path: rendered,
+        lambda path, input_path=None: rendered,
     )
     monkeypatch.setattr(
         bootstrap_auth0_tenant,
@@ -260,7 +262,7 @@ def test_bootstrap_updates_existing_resource_server_web_token_lifetime(
     monkeypatch.setattr(
         bootstrap_auth0_tenant,
         "_render_template",
-        lambda path: rendered,
+        lambda path, input_path=None: rendered,
     )
     monkeypatch.setattr(
         bootstrap_auth0_tenant,
@@ -380,3 +382,40 @@ def test_bootstrap_updates_existing_resource_server_web_token_lifetime(
         }
     ]
     assert report["resource_server"]["token_lifetime_for_web"] == 3600
+
+
+def test_bootstrap_tenant_allows_missing_auth0_input_file(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    env_file = tmp_path / "dev.env"
+    env_file.write_text(
+        "\n".join(
+            [
+                "AUTH0_DOMAIN=example.auth0.com",
+                "AUTH0_CLIENT_ID=client_id",
+                "AUTH0_CLIENT_SECRET=client_secret",
+                "AUTH0_KEYWORD_MAPPINGS_FILE=infra/auth0/mappings/dev.json",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(
+        bootstrap_auth0_tenant,
+        "_repo_root",
+        lambda: tmp_path,
+    )
+
+    def _render_template_probe(path: Path, input_path: Path | None = None):
+        assert input_path is None
+        raise RuntimeError("template-probe")
+
+    monkeypatch.setattr(
+        bootstrap_auth0_tenant,
+        "_render_template",
+        _render_template_probe,
+    )
+
+    with pytest.raises(RuntimeError, match="template-probe"):
+        bootstrap_auth0_tenant.bootstrap_tenant(env_file=env_file)

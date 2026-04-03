@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import argparse
-import inspect
 import json
 from pathlib import Path
 from typing import Any
@@ -124,14 +123,9 @@ def audit_tenant(
     mapping_path = (
         Path(__file__).resolve().parents[2] / env["AUTH0_KEYWORD_MAPPINGS_FILE"]
     ).resolve()
-    render_signature = inspect.signature(_render_template)
-    if "input_path" in render_signature.parameters:
-        rendered = _render_template(
-            mapping_path,
-            Path(env["AUTH0_INPUT_FILE"]),
-        )
-    else:
-        rendered = _render_template(mapping_path)
+    input_file = env.get("AUTH0_INPUT_FILE")
+    input_path = Path(input_file) if input_file else None
+    rendered = _render_template(mapping_path, input_path=input_path)
     domain = env["AUTH0_DOMAIN"]
     management_client = _client(
         domain=domain,

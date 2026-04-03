@@ -327,6 +327,12 @@ def build_deploy_output(
         raise ValueError(
             "codebuild_build_ids must include at least one build id"
         )
+    normalized_pipeline_name = pipeline_name.strip()
+    normalized_pipeline_execution_id = pipeline_execution_id.strip()
+    if not normalized_pipeline_name or not normalized_pipeline_execution_id:
+        raise ValueError(
+            "pipeline_name and pipeline_execution_id must be non-empty strings"
+        )
 
     deploy_output: dict[str, Any] = {
         "schema_version": "2.0",
@@ -334,8 +340,8 @@ def build_deploy_output(
         "repository": repository,
         "execution": {
             "system": "aws-codepipeline",
-            "pipeline_name": pipeline_name,
-            "pipeline_execution_id": pipeline_execution_id,
+            "pipeline_name": normalized_pipeline_name,
+            "pipeline_execution_id": normalized_pipeline_execution_id,
             "codebuild_build_ids": normalized_build_ids,
         },
         "stack_name": stack_name,
