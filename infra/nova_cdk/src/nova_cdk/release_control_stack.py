@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 import yaml
 from aws_cdk import (
@@ -185,7 +186,7 @@ class NovaReleaseControlPlaneStack(Stack):
         construct_id: str,
         *,
         inputs: ReleaseControlInputs | None = None,
-        **kwargs: object,
+        **kwargs: Any,
     ) -> None:
         """Initialize the release control-plane stack."""
         super().__init__(scope, construct_id, **kwargs)

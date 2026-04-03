@@ -1,3 +1,5 @@
+# mypy: disable-error-code=no-untyped-def
+
 """Tests for Auth0 tenant audit reporting."""
 
 from __future__ import annotations

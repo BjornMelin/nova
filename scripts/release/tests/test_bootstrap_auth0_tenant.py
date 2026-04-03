@@ -1,3 +1,5 @@
+# mypy: disable-error-code=no-untyped-def
+
 """Tests for bootstrap_auth0_tenant template rendering and reconciliation."""
 
 from __future__ import annotations

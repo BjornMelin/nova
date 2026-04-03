@@ -1,3 +1,5 @@
+# mypy: disable-error-code=no-untyped-def
+
 """Tests for runtime stack config env export helper."""
 
 from __future__ import annotations

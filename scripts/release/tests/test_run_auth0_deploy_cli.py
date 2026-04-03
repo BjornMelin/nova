@@ -1,3 +1,5 @@
+# mypy: disable-error-code=no-untyped-def
+
 """Tests for the safe Auth0 Deploy CLI wrapper."""
 
 from __future__ import annotations

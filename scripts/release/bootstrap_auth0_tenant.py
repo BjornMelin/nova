@@ -5,7 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import yaml
 from auth0.management import ManagementClient
@@ -43,7 +43,10 @@ def _dump_sdk_object(payload: Any) -> dict[str, Any]:
     if isinstance(payload, dict):
         return payload
     if hasattr(payload, "model_dump"):
-        return payload.model_dump(mode="python", exclude_none=True)
+        return cast(
+            dict[str, Any],
+            payload.model_dump(mode="python", exclude_none=True),
+        )
     if hasattr(payload, "__dict__"):
         return {
             key: value
@@ -61,7 +64,10 @@ def _render_template(mapping_path: Path) -> dict[str, Any]:
     mapping = json.loads(mapping_path.read_text(encoding="utf-8"))
     for key, value in mapping.items():
         tenant_yaml = tenant_yaml.replace(f"@@{key}@@", str(value))
-    return yaml.safe_load(tenant_yaml)
+    rendered = yaml.safe_load(tenant_yaml)
+    if not isinstance(rendered, dict):
+        raise TypeError("tenant template must render to a mapping")
+    return cast(dict[str, Any], rendered)
 
 
 def _find_by_name(

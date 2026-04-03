@@ -83,7 +83,7 @@ def write_env_file(
 def _resolve_client_secret(args: argparse.Namespace) -> str:
     """Resolve the client secret from one explicit secure input source."""
     if args.client_secret is not None:
-        return args.client_secret
+        return str(args.client_secret)
     if args.client_secret_env_var is not None:
         try:
             return os.environ[args.client_secret_env_var]

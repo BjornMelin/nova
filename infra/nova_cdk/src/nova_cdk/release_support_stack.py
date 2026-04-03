@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any
 
 from aws_cdk import CfnOutput, Stack, aws_iam as iam
 from constructs import Construct
@@ -55,7 +56,7 @@ class NovaReleaseSupportStack(Stack):
         construct_id: str,
         *,
         inputs: ReleaseSupportInputs | None = None,
-        **kwargs: object,
+        **kwargs: Any,
     ) -> None:
         """Initialize the release-support IAM stack."""
         super().__init__(scope, construct_id, **kwargs)

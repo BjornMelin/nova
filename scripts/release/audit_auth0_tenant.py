@@ -73,7 +73,11 @@ def _build_checks(
             == expected_resource_server_scopes
         ),
         "all_expected_clients_present": sorted(
-            client.get("name") for client in matched_clients
+            [
+                client_name
+                for client in matched_clients
+                if isinstance(client_name := client.get("name"), str)
+            ]
         )
         == sorted(expected_client_names),
         "tenant_ops_nova_api_grant_present": nova_api_grant is not None,
