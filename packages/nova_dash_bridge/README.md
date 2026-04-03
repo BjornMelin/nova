@@ -21,7 +21,7 @@ of recreating bridge-owned host integration layers.
 Canonical browser endpoint alignment:
 
 - Transfer routes: `/v1/transfers/*`
-- Export routes: `/v1/exports/*`
+- Export routes: `/v1/exports*`
 - Retired generic jobs and legacy `/api/*` routes are not part of the runtime
   contract.
 

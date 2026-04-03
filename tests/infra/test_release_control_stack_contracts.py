@@ -105,9 +105,15 @@ def test_release_control_stack_receives_release_env_contract() -> None:
     projects = resources_of_type(
         template["Resources"], "AWS::CodeBuild::Project"
     )
-    rendered = "\n".join(
-        str(project["Properties"]) for project in projects.values()
-    )
+    env_var_names = {
+        str(environment_variable.get("Name"))
+        for project in projects.values()
+        for environment_variable in project["Properties"]
+        .get("Environment", {})
+        .get("EnvironmentVariables", [])
+        if isinstance(environment_variable, dict)
+        and "Name" in environment_variable
+    }
     for required in [
         "RELEASE_ARTIFACT_BUCKET",
         "RELEASE_MANIFEST_BUCKET",
@@ -123,4 +129,4 @@ def test_release_control_stack_receives_release_env_contract() -> None:
         "PROD_RUNTIME_CONFIG_PARAMETER_NAME",
         "RELEASE_SIGNING_SECRET_ID",
     ]:
-        assert required in rendered
+        assert required in env_var_names

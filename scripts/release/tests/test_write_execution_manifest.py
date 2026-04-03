@@ -85,7 +85,7 @@ def test_validate_commit_matches_checks_release_prep_commit_field() -> None:
     with pytest.raises(ValueError, match="commit mismatch"):
         _validate_commit_matches(
             expected="abc123",
-            payload={"commit": "def456"},
+            payload={"prepared_from_commit": "def456"},
             source="release_prep_payload",
-            commit_key="commit",
+            commit_key="prepared_from_commit",
         )

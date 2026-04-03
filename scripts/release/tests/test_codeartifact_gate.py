@@ -724,6 +724,7 @@ Schema: 1.0
         lambda: SimpleNamespace(
             repo_root=str(repo_root),
             manifest_path=str(manifest),
+            release_prep_path="",
             changed_units=str(changed_units),
             version_plan=str(version_plan),
             expected_manifest_sha256=None,

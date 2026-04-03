@@ -12,18 +12,14 @@ from scripts.release import persist_auth0_env
 
 
 def test_write_env_file_requires_supported_environment() -> None:
-    try:
-        secret = "".join(["d", "e", "f"])
+    secret = "".join(["d", "e", "f"])
+    with pytest.raises(ValueError, match="environment must be one of"):
         persist_auth0_env.write_env_file(
             environment="prod",
             domain="example.auth0.com",
             client_id="abc",
             client_secret=secret,
         )
-    except ValueError as exc:
-        assert "environment must be one of" in str(exc)
-    else:
-        raise AssertionError("expected ValueError")
 
 
 def test_write_env_file_writes_restricted_permissions(

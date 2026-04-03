@@ -6,6 +6,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from scripts.release import run_auth0_deploy_cli
 
 
@@ -13,12 +15,8 @@ def test_build_base_env_requires_expected_keys(tmp_path: Path) -> None:
     env_file = tmp_path / "dev.env"
     env_file.write_text("AUTH0_DOMAIN=example.auth0.com\n", encoding="utf-8")
 
-    try:
+    with pytest.raises(ValueError, match="env file is missing required keys"):
         run_auth0_deploy_cli._build_base_env(env_file)
-    except ValueError as exc:
-        assert "env file is missing required keys" in str(exc)
-    else:
-        raise AssertionError("expected ValueError")
 
 
 def test_build_base_env_passes_included_only_and_mapping(
@@ -79,12 +77,8 @@ def test_build_base_env_rejects_delete_enabled_overlay(
     )
     monkeypatch.setattr(run_auth0_deploy_cli, "_repo_root", lambda: tmp_path)
 
-    try:
+    with pytest.raises(ValueError, match="AUTH0_ALLOW_DELETE must be 'false'"):
         run_auth0_deploy_cli._build_base_env(env_file)
-    except ValueError as exc:
-        assert "AUTH0_ALLOW_DELETE must be 'false'" in str(exc)
-    else:
-        raise AssertionError("expected ValueError")
 
 
 def test_build_base_env_rejects_invalid_included_only_json(
@@ -111,12 +105,10 @@ def test_build_base_env_rejects_invalid_included_only_json(
     )
     monkeypatch.setattr(run_auth0_deploy_cli, "_repo_root", lambda: tmp_path)
 
-    try:
+    with pytest.raises(
+        ValueError, match="AUTH0_INCLUDED_ONLY must be valid JSON"
+    ):
         run_auth0_deploy_cli._build_base_env(env_file)
-    except ValueError as exc:
-        assert "AUTH0_INCLUDED_ONLY must be valid JSON" in str(exc)
-    else:
-        raise AssertionError("expected ValueError")
 
 
 def test_build_base_env_rejects_unexpected_included_only_list(
@@ -143,9 +135,5 @@ def test_build_base_env_rejects_unexpected_included_only_list(
     )
     monkeypatch.setattr(run_auth0_deploy_cli, "_repo_root", lambda: tmp_path)
 
-    try:
+    with pytest.raises(ValueError, match="AUTH0_INCLUDED_ONLY must equal"):
         run_auth0_deploy_cli._build_base_env(env_file)
-    except ValueError as exc:
-        assert "AUTH0_INCLUDED_ONLY must equal" in str(exc)
-    else:
-        raise AssertionError("expected ValueError")

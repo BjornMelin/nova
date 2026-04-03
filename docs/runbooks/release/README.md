@@ -14,9 +14,10 @@ governance, and auditability.
 1. `AGENTS.md`
 2. `docs/README.md`
 3. `docs/architecture/README.md`
-4. `docs/overview/IMPLEMENTATION-STATUS-MATRIX.md`
-5. `release/README.md`
-6. this runbook index plus the specific release/provisioning runbook you need
+4. active ADRs under `docs/architecture/adr/` and active specs under `docs/architecture/spec/`
+5. `docs/overview/IMPLEMENTATION-STATUS-MATRIX.md`
+6. `release/README.md`
+7. this runbook index plus the specific release/provisioning runbook you need
 
 Committed release artifacts:
 

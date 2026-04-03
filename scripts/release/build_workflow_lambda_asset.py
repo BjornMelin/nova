@@ -133,8 +133,16 @@ def _write_zip_archive(*, source_dir: Path, output_zip: Path) -> None:
 def main() -> int:
     """Build the workflow Lambda zip artifact for release publication.
 
+    Args:
+        None.
+
     Returns:
         Process exit code where 0 means success.
+
+    Raises:
+        OSError: If temporary directory or output archive operations fail.
+        subprocess.CalledProcessError:
+            If underlying build/install commands fail.
     """
     parser = argparse.ArgumentParser()
     parser.add_argument("--output-zip", required=True)

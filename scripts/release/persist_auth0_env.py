@@ -41,7 +41,21 @@ def write_env_file(
     client_id: str,
     client_secret: str,
 ) -> Path:
-    """Write one local Auth0 env file with restrictive permissions."""
+    """Write one local Auth0 env file with restrictive permissions.
+
+    Args:
+        environment: Target overlay environment (`dev`, `qa`, or `pr`).
+        domain: Auth0 tenant domain.
+        client_id: Auth0 machine-to-machine client id.
+        client_secret: Auth0 machine-to-machine client secret.
+
+    Returns:
+        Path to the persisted local env file.
+
+    Raises:
+        ValueError: If environment is unsupported or path is not gitignored.
+        FileNotFoundError: If the environment mapping file does not exist.
+    """
     if environment not in _SUPPORTED_ENVIRONMENTS:
         raise ValueError(
             "environment must be one of: "

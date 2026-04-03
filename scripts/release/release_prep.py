@@ -15,7 +15,17 @@ def build_release_prep(
     changed_report: dict[str, Any],
     version_plan: dict[str, Any],
 ) -> dict[str, Any]:
-    """Return the canonical committed release prep payload."""
+    """Return the canonical committed release prep payload.
+
+    Args:
+        prepared_from_commit: Git commit SHA for the release prep source.
+        prepared_at: ISO 8601 timestamp when release prep was generated.
+        changed_report: Changed-units payload with commit and unit metadata.
+        version_plan: Version planning payload with global/unit bump data.
+
+    Returns:
+        Canonical release prep payload persisted in release artifacts.
+    """
     return {
         "schema_version": "1.0",
         "prepared_at": prepared_at,

@@ -50,11 +50,13 @@ def _run_app(
         env=env,
         capture_output=True,
         text=True,
+        timeout=120,
     )
 
 
 def _artifact_ids(tmp_path: Path) -> set[str]:
     manifest_path = tmp_path / "cdk.out" / "manifest.json"
+    assert manifest_path.exists(), f"missing CDK manifest: {manifest_path}"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     return set(manifest.get("artifacts", {}))
 

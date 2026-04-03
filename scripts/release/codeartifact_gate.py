@@ -404,8 +404,8 @@ def validate_release_gates(
     *,
     repo_root: Path,
     manifest_path: Path,
-    changed_units_path: Path,
-    version_plan_path: Path,
+    changed_units_path: Path | None,
+    version_plan_path: Path | None,
     expected_manifest_sha256: str | None,
     r_publish_report_path: Path | None = None,
     release_prep_path: Path | None = None,
@@ -429,6 +429,8 @@ def validate_release_gates(
             version plan contains R release candidates.
         release_prep_path:
             Optional JSON path to the canonical committed release-prep artifact.
+            When provided, changed_units/version_plan are derived from this
+            artifact and changed_units_path/version_plan_path are ignored.
 
     Returns:
         dict[str, Any]:
@@ -470,6 +472,11 @@ def validate_release_gates(
             release_prep_payload
         )
     else:
+        if changed_units_path is None or version_plan_path is None:
+            raise GateError(
+                "provide release_prep_path or both changed_units and "
+                "version_plan"
+            )
         changed_units = common.read_json(changed_units_path)
         version_plan = common.read_json(version_plan_path)
     units = common.load_workspace_units(repo_root)
@@ -590,11 +597,11 @@ def main() -> int:
     """
     args = parse_args()
     repo_root = Path(args.repo_root).resolve()
-    release_prep_arg = getattr(args, "release_prep_path", "")
-    changed_units_arg = getattr(args, "changed_units", "")
-    version_plan_arg = getattr(args, "version_plan", "")
-    expected_manifest_sha256 = getattr(args, "expected_manifest_sha256", None)
-    r_publish_report_arg = getattr(args, "r_publish_report", None)
+    release_prep_arg = args.release_prep_path
+    changed_units_arg = args.changed_units
+    version_plan_arg = args.version_plan
+    expected_manifest_sha256 = args.expected_manifest_sha256
+    r_publish_report_arg = args.r_publish_report
 
     manifest_path = Path(args.manifest_path)
     if not manifest_path.is_absolute():
@@ -628,8 +635,8 @@ def main() -> int:
     gate_report = validate_release_gates(
         repo_root=repo_root,
         manifest_path=manifest_path,
-        changed_units_path=changed_units_path or Path(),
-        version_plan_path=version_plan_path or Path(),
+        changed_units_path=changed_units_path,
+        version_plan_path=version_plan_path,
         expected_manifest_sha256=expected_manifest_sha256,
         r_publish_report_path=r_publish_report_path,
         release_prep_path=release_prep_path,

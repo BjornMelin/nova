@@ -75,4 +75,4 @@ def test_write_zip_archive_normalizes_member_metadata(tmp_path: Path) -> None:
         info = archive.getinfo("payload.txt")
         assert info.date_time == (1980, 1, 1, 0, 0, 0)
         assert info.compress_type == zipfile.ZIP_DEFLATED
-        assert ((info.external_attr >> 16) & 0o777777) == 0o100644
+        assert ((info.external_attr >> 16) & 0o177777) == 0o100644

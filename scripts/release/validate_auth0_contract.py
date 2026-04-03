@@ -58,15 +58,15 @@ def parse_included_only(raw_value: str) -> list[str]:
             f"AUTH0_INCLUDED_ONLY must be valid JSON: {exc}"
         ) from exc
 
-    if included_only != EXPECTED_INCLUDED_ONLY:
-        raise ValueError(
-            f"AUTH0_INCLUDED_ONLY must equal {EXPECTED_INCLUDED_ONLY!r}"
-        )
     if not isinstance(included_only, list) or not all(
         isinstance(item, str) for item in included_only
     ):
         raise ValueError(
             "AUTH0_INCLUDED_ONLY must decode to a JSON string list"
+        )
+    if included_only != EXPECTED_INCLUDED_ONLY:
+        raise ValueError(
+            f"AUTH0_INCLUDED_ONLY must equal {EXPECTED_INCLUDED_ONLY!r}"
         )
     return included_only
 

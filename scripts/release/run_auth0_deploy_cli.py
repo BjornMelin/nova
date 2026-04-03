@@ -46,6 +46,11 @@ def _build_base_env(env_file: Path) -> dict[str, str]:
         base_env[key] = raw[key]
 
     mapping_path = (_repo_root() / raw["AUTH0_KEYWORD_MAPPINGS_FILE"]).resolve()
+    if not mapping_path.exists():
+        raise FileNotFoundError(
+            "AUTH0_KEYWORD_MAPPINGS_FILE not found: "
+            f"{raw['AUTH0_KEYWORD_MAPPINGS_FILE']} -> {mapping_path}"
+        )
     base_env["AUTH0_KEYWORD_REPLACE_MAPPINGS"] = mapping_path.read_text(
         encoding="utf-8"
     )
@@ -53,7 +58,15 @@ def _build_base_env(env_file: Path) -> dict[str, str]:
 
 
 def run_import(*, env_file: Path, input_file: Path) -> int:
-    """Run Deploy CLI import using one local tenant overlay."""
+    """Run Deploy CLI import using one local tenant overlay.
+
+    Args:
+        env_file: Overlay env file path with Auth0 credentials and mappings.
+        input_file: Rendered tenant YAML path for import.
+
+    Returns:
+        Subprocess exit code from Auth0 Deploy CLI import.
+    """
     env = _build_base_env(env_file)
     env["AUTH0_INPUT_FILE"] = str(input_file)
     command = [
@@ -72,7 +85,15 @@ def run_import(*, env_file: Path, input_file: Path) -> int:
 
 
 def run_export(*, env_file: Path, output_folder: Path) -> int:
-    """Run Deploy CLI export from a temp working directory."""
+    """Run Deploy CLI export from a temp working directory.
+
+    Args:
+        env_file: Overlay env file path with Auth0 credentials and mappings.
+        output_folder: Target folder for exported tenant configuration files.
+
+    Returns:
+        Subprocess exit code from Auth0 Deploy CLI export.
+    """
     env = _build_base_env(env_file)
     env.pop("AUTH0_INPUT_FILE", None)
     output_folder.mkdir(parents=True, exist_ok=True)
@@ -94,7 +115,14 @@ def run_export(*, env_file: Path, output_folder: Path) -> int:
 
 
 def main() -> int:
-    """Run the CLI entrypoint for the safe Auth0 Deploy CLI wrapper."""
+    """Run the CLI entrypoint for the safe Auth0 Deploy CLI wrapper.
+
+    Returns:
+        Process exit code from the selected import/export operation.
+
+    Raises:
+        ValueError: If required mode-specific arguments are missing.
+    """
     parser = argparse.ArgumentParser(
         description="Run Auth0 Deploy CLI safely for Nova."
     )

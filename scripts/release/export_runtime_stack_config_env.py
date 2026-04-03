@@ -34,6 +34,17 @@ def parse_args() -> argparse.Namespace:
 
 
 def _load_config(parameter_name: str) -> dict[str, Any]:
+    """Load and validate one runtime stack config document from SSM.
+
+    Args:
+        parameter_name: SSM parameter name containing runtime config JSON.
+
+    Returns:
+        Decoded runtime config payload as a dictionary.
+
+    Raises:
+        TypeError: If the parameter value does not decode to a JSON object.
+    """
     client = boto3.client("ssm")
     response = client.get_parameter(Name=parameter_name)
     raw_value = response["Parameter"]["Value"]

@@ -37,6 +37,12 @@ def _context_or_env_value(key: str, env_var: str) -> str | None:
 
 
 def _runtime_inputs_requested() -> bool:
+    """Return whether any runtime-input hints are present.
+
+    This is a lightweight heuristic used only for stack-selection flow:
+    if any canonical runtime keys are provided via context or env, the app
+    synthesizes the runtime stack path.
+    """
     return any(
         _context_or_env_value(key, env_var) is not None
         for key, env_var in (
