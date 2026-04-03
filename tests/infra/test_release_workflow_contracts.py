@@ -63,7 +63,7 @@ def test_aws_native_release_buildspecs_emit_deploy_output_authority() -> None:
     ]:
         text = _read(rel_path)
         for required in [
-            "scripts/release/resolve_deploy_output.py build",
+            "scripts.release.resolve_deploy_output build",
             "aws cloudformation describe-stacks",
             "deploy-output.json",
             "deploy-output.sha256",
@@ -108,6 +108,17 @@ def test_release_buildspec_heredocs_use_literal_yaml_blocks() -> None:
                 index + 1,
                 lines[index - 1],
             )
+
+
+def test_release_buildspecs_use_module_invocation_for_release_scripts() -> None:
+    """Release helpers must be invoked with ``python -m`` in CodeBuild."""
+    for rel_path in [
+        "infra/nova_cdk/buildspecs/release-publish-and-deploy-dev.yml",
+        "infra/nova_cdk/buildspecs/release-promote-and-deploy-prod.yml",
+    ]:
+        text = _read(rel_path)
+        assert "uv run python scripts/release/" not in text, rel_path
+        assert "python scripts/release/" not in text, rel_path
 
 
 def test_deleted_gitHub_release_executor_surface_is_absent() -> None:

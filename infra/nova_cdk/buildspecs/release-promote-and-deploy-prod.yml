@@ -74,9 +74,9 @@ phases:
             command.extend(["--package", package_name, "--versions", item["version"], "--no-cli-pager"])
             subprocess.run(command, check=True)
         PY
-      - eval "$(uv run python scripts/release/emit_api_lambda_artifact_env.py --manifest-path .release-control/api-lambda-artifact.json)"
-      - eval "$(uv run python scripts/release/emit_workflow_lambda_artifact_env.py --manifest-path .release-control/workflow-lambda-artifact.json)"
-      - eval "$(uv run python scripts/release/export_runtime_stack_config_env.py --parameter-name "${PROD_RUNTIME_CONFIG_PARAMETER_NAME}")"
+      - eval "$(uv run python -m scripts.release.emit_api_lambda_artifact_env --manifest-path .release-control/api-lambda-artifact.json)"
+      - eval "$(uv run python -m scripts.release.emit_workflow_lambda_artifact_env --manifest-path .release-control/workflow-lambda-artifact.json)"
+      - eval "$(uv run python -m scripts.release.export_runtime_stack_config_env --parameter-name "${PROD_RUNTIME_CONFIG_PARAMETER_NAME}")"
       - export CDK_DEFAULT_ACCOUNT="$(aws sts get-caller-identity --query Account --output text)"
       - export CDK_DEFAULT_REGION="${AWS_REGION}"
       - export ENVIRONMENT="${PROD_RUNTIME_ENVIRONMENT}"
@@ -97,7 +97,7 @@ phases:
         --query 'Stacks[0]'
         --output json > .release-control/prod-runtime-stack-description.json
       - >
-        uv run python scripts/release/resolve_deploy_output.py build
+        uv run python -m scripts.release.resolve_deploy_output build
         --api-lambda-artifact-path .release-control/api-lambda-artifact.json
         --workflow-lambda-artifact-path .release-control/workflow-lambda-artifact.json
         --stack-name "${PROD_RUNTIME_STACK_ID}"

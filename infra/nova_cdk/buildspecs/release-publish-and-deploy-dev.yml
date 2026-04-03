@@ -68,7 +68,7 @@ phases:
       - >
         NPM_USERCONFIG_PATH="${PWD}/.release-control/codeartifact.npmrc"
         npm_env="$(
-          uv run python scripts/release/codeartifact_npm.py env --output-path "${NPM_USERCONFIG_PATH}"
+          uv run python -m scripts.release.codeartifact_npm env --output-path "${NPM_USERCONFIG_PATH}"
         )"
         eval "${npm_env}"
         export NPM_CONFIG_USERCONFIG
@@ -241,11 +241,11 @@ phases:
         PY
   build:
     commands:
-      - uv run python scripts/release/build_api_lambda_asset.py --output-zip .release-control/nova-file-api-lambda.zip
+      - uv run python -m scripts.release.build_api_lambda_asset --output-zip .release-control/nova-file-api-lambda.zip
       - export API_LAMBDA_ARTIFACT_SHA256="$(sha256sum .release-control/nova-file-api-lambda.zip | awk '{print $1}')"
       - export API_LAMBDA_ARTIFACT_KEY="runtime/nova-file-api/${RELEASE_COMMIT_SHA}/${API_LAMBDA_ARTIFACT_SHA256}/nova-file-api-lambda.zip"
       - aws s3 cp .release-control/nova-file-api-lambda.zip "s3://${RELEASE_ARTIFACT_BUCKET}/${API_LAMBDA_ARTIFACT_KEY}"
-      - uv run python scripts/release/build_workflow_lambda_asset.py --output-zip .release-control/nova-workflows-lambda.zip
+      - uv run python -m scripts.release.build_workflow_lambda_asset --output-zip .release-control/nova-workflows-lambda.zip
       - export WORKFLOW_LAMBDA_ARTIFACT_SHA256="$(sha256sum .release-control/nova-workflows-lambda.zip | awk '{print $1}')"
       - export WORKFLOW_LAMBDA_ARTIFACT_KEY="runtime/nova-workflows/${RELEASE_COMMIT_SHA}/${WORKFLOW_LAMBDA_ARTIFACT_SHA256}/nova-workflows-lambda.zip"
       - aws s3 cp .release-control/nova-workflows-lambda.zip "s3://${RELEASE_ARTIFACT_BUCKET}/${WORKFLOW_LAMBDA_ARTIFACT_KEY}"
@@ -301,7 +301,7 @@ phases:
         PY
       - export RELEASE_MANIFEST_KEY="releases/${RELEASE_COMMIT_SHA}/release-execution-manifest.json"
       - >
-        uv run python scripts/release/write_execution_manifest.py
+        uv run python -m scripts.release.write_execution_manifest
         --repo-root .
         --release-commit-sha "${RELEASE_COMMIT_SHA}"
         --api-lambda-artifact-path .release-control/api-lambda-artifact.json
@@ -314,9 +314,9 @@ phases:
         --prod-repository "${CODEARTIFACT_PROD_REPOSITORY}"
         --output-path .release-control/release-execution-manifest.json
       - aws s3 cp .release-control/release-execution-manifest.json "s3://${RELEASE_MANIFEST_BUCKET}/${RELEASE_MANIFEST_KEY}"
-      - eval "$(uv run python scripts/release/emit_api_lambda_artifact_env.py --manifest-path .release-control/api-lambda-artifact.json)"
-      - eval "$(uv run python scripts/release/emit_workflow_lambda_artifact_env.py --manifest-path .release-control/workflow-lambda-artifact.json)"
-      - eval "$(uv run python scripts/release/export_runtime_stack_config_env.py --parameter-name "${DEV_RUNTIME_CONFIG_PARAMETER_NAME}")"
+      - eval "$(uv run python -m scripts.release.emit_api_lambda_artifact_env --manifest-path .release-control/api-lambda-artifact.json)"
+      - eval "$(uv run python -m scripts.release.emit_workflow_lambda_artifact_env --manifest-path .release-control/workflow-lambda-artifact.json)"
+      - eval "$(uv run python -m scripts.release.export_runtime_stack_config_env --parameter-name "${DEV_RUNTIME_CONFIG_PARAMETER_NAME}")"
       - export CDK_DEFAULT_ACCOUNT="$(aws sts get-caller-identity --query Account --output text)"
       - export CDK_DEFAULT_REGION="${AWS_REGION}"
       - export ENVIRONMENT="${DEV_RUNTIME_ENVIRONMENT}"
@@ -335,7 +335,7 @@ phases:
         --query 'Stacks[0]'
         --output json > .release-control/dev-runtime-stack-description.json
       - >
-        uv run python scripts/release/resolve_deploy_output.py build
+        uv run python -m scripts.release.resolve_deploy_output build
         --api-lambda-artifact-path .release-control/api-lambda-artifact.json
         --workflow-lambda-artifact-path .release-control/workflow-lambda-artifact.json
         --stack-name "${DEV_RUNTIME_STACK_ID}"
