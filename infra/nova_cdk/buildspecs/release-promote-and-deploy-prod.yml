@@ -8,8 +8,13 @@ phases:
     commands:
       - apt-get update
       - apt-get install -y jq
-      - curl -LsSf https://astral.sh/uv/install.sh | sh
-      - export PATH="$HOME/.local/bin:$PATH"
+      - export UV_VERSION=0.11.2
+      - export UV_TARBALL="uv-x86_64-unknown-linux-gnu.tar.gz"
+      - curl -LsSf "https://github.com/astral-sh/uv/releases/download/${UV_VERSION}/${UV_TARBALL}" -o "/tmp/${UV_TARBALL}"
+      - curl -LsSf "https://github.com/astral-sh/uv/releases/download/${UV_VERSION}/${UV_TARBALL}.sha256" -o "/tmp/${UV_TARBALL}.sha256"
+      - (cd /tmp && sha256sum -c "${UV_TARBALL}.sha256")
+      - tar -xzf "/tmp/${UV_TARBALL}" -C /tmp
+      - install "/tmp/uv-x86_64-unknown-linux-gnu/uv" /usr/local/bin/uv
   pre_build:
     commands:
       - uv sync --locked --all-packages --all-extras --dev

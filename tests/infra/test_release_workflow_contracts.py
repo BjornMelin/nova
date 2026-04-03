@@ -73,6 +73,25 @@ def test_aws_native_release_buildspecs_emit_deploy_output_authority() -> None:
             assert required in text, rel_path
 
 
+def test_release_buildspecs_pin_uv_version() -> None:
+    """Release buildspecs must pin uv to the repo-required version."""
+    pinned_buildspecs = [
+        "infra/nova_cdk/buildspecs/release-validate.yml",
+        "infra/nova_cdk/buildspecs/release-publish-and-deploy-dev.yml",
+        "infra/nova_cdk/buildspecs/release-promote-and-deploy-prod.yml",
+    ]
+    for rel_path in pinned_buildspecs:
+        text = _read(rel_path)
+        for required in [
+            "export UV_VERSION=0.11.2",
+            'export UV_TARBALL="uv-x86_64-unknown-linux-gnu.tar.gz"',
+            "sha256sum -c",
+            'install "/tmp/uv-x86_64-unknown-linux-gnu/uv" /usr/local/bin/uv',
+        ]:
+            assert required in text, rel_path
+        assert "astral.sh/uv/install.sh" not in text, rel_path
+
+
 def test_deleted_gitHub_release_executor_surface_is_absent() -> None:
     """GitHub release executor workflows should be retired."""
     for rel_path in [
