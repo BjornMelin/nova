@@ -18,15 +18,8 @@ from scripts.perf.file_transfer_observability_baseline import (
     CURRENT_PART_SIZE_BYTES,
     build_browser_multipart_plan,
     bytes_text,
-    gibibytes,
+    parse_sizes_gib,
 )
-
-
-def _parse_sizes(raw: str) -> list[int]:
-    values = [item.strip() for item in raw.split(",") if item.strip()]
-    if not values:
-        raise ValueError("at least one size must be provided")
-    return [gibibytes(float(item)) for item in values]
 
 
 def main() -> None:
@@ -52,7 +45,7 @@ def main() -> None:
     args = parser.parse_args()
 
     scenarios = []
-    for file_size_bytes in _parse_sizes(args.sizes_gib):
+    for file_size_bytes in parse_sizes_gib(args.sizes_gib):
         plan = build_browser_multipart_plan(
             file_size_bytes=file_size_bytes,
             part_size_bytes=args.part_size_bytes,

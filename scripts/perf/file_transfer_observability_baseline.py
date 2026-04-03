@@ -30,6 +30,14 @@ def gibibytes(value: float) -> int:
     return int(value * 1024 * 1024 * 1024)
 
 
+def parse_sizes_gib(raw: str) -> list[int]:
+    """Parse a comma-separated GiB list and ignore empty entries."""
+    values = [item.strip() for item in raw.split(",") if item.strip()]
+    if not values:
+        raise ValueError("at least one size must be provided")
+    return [gibibytes(float(item)) for item in values]
+
+
 def multipart_part_count(*, file_size_bytes: int, part_size_bytes: int) -> int:
     """Return the number of multipart parts needed for one file size."""
     if file_size_bytes <= 0:

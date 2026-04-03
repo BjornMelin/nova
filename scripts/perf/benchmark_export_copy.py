@@ -24,7 +24,7 @@ from nova_file_api.transfer import TransferService
 from nova_file_api.transfer_config import transfer_config_from_settings
 from scripts.perf.file_transfer_observability_baseline import (
     bytes_text,
-    gibibytes,
+    parse_sizes_gib,
 )
 
 
@@ -157,7 +157,7 @@ async def _benchmark_case(
 
 
 async def _main_async(args: argparse.Namespace) -> None:
-    sizes = [gibibytes(float(item)) for item in args.sizes_gib.split(",")]
+    sizes = parse_sizes_gib(args.sizes_gib)
     results = [
         await _benchmark_case(
             source_size_bytes=source_size_bytes,
