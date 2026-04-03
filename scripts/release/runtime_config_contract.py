@@ -228,10 +228,6 @@ ENV_JSON_OVERRIDES: tuple[EnvJsonOverrideContract, ...] = (
     EnvJsonOverrideContract(
         "FILE_TRANSFER_UPLOAD_PREFIX", "FileTransferUploadPrefix"
     ),
-    EnvJsonOverrideContract(
-        "FILE_TRANSFER_UPLOAD_SESSIONS_TABLE",
-        "FileTransferUploadSessionsTable",
-    ),
 )
 
 DEPLOY_INPUTS: tuple[DeployInputContract, ...] = (

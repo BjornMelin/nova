@@ -995,13 +995,25 @@ class TransferService:
         )
         if session is None:
             return
-        await self._store_upload_session(
-            replace(
-                session,
-                status=status,
-                last_activity_at=last_activity_at,
+        try:
+            await self._store_upload_session(
+                replace(
+                    session,
+                    status=status,
+                    last_activity_at=last_activity_at,
+                )
             )
-        )
+        except FileTransferError:
+            _LOGGER.warning(
+                "upload_session_touch_best_effort_failed",
+                extra={
+                    "upload_id": upload_id,
+                    "scope_id": scope_id,
+                    "key": key,
+                    "status": status.value,
+                },
+                exc_info=True,
+            )
 
     async def healthcheck(self) -> bool:
         """Return readiness for the transfer service dependencies."""

@@ -414,10 +414,6 @@
       {
         "cloudformation_parameter": "FileTransferUploadPrefix",
         "env_var": "FILE_TRANSFER_UPLOAD_PREFIX"
-      },
-      {
-        "cloudformation_parameter": "FileTransferUploadSessionsTable",
-        "env_var": "FILE_TRANSFER_UPLOAD_SESSIONS_TABLE"
       }
     ]
   },

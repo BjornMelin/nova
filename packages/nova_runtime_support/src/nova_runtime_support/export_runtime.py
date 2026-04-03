@@ -201,7 +201,18 @@ class StepFunctionsClient(Protocol):
         """Start a workflow execution."""
 
     async def stop_execution(self, **kwargs: object) -> Mapping[str, object]:
-        """Stop a workflow execution."""
+        """Stop a workflow execution.
+
+        Args:
+            **kwargs: Keyword arguments forwarded to the Step Functions client.
+
+        Returns:
+            The service response mapping returned by the client.
+
+        Raises:
+            ClientError: Raised when the AWS service rejects the request.
+            BotoCoreError: Raised when the AWS client transport fails.
+        """
 
     async def describe_state_machine(
         self, **kwargs: object
@@ -444,12 +455,34 @@ class MemoryExportPublisher:
     process_immediately: bool = True
 
     async def publish(self, *, export: ExportRecord) -> str | None:
-        """Publish an export in memory."""
+        """Publish an export in memory.
+
+        Args:
+            export: Export record to simulate publishing.
+
+        Returns:
+            ``None`` because in-memory publishing does not allocate an
+            execution identifier.
+
+        Raises:
+            None.
+        """
         del export
         return None
 
     async def stop_execution(self, *, execution_arn: str, cause: str) -> None:
-        """Ignore stop requests in memory mode."""
+        """Ignore stop requests in memory mode.
+
+        Args:
+            execution_arn: Ignored execution ARN for the in-memory backend.
+            cause: Ignored cancellation reason for the in-memory backend.
+
+        Returns:
+            None.
+
+        Raises:
+            None.
+        """
         del execution_arn, cause
 
     async def post_publish(
@@ -516,7 +549,18 @@ class StepFunctionsExportPublisher:
     )
 
     async def publish(self, *, export: ExportRecord) -> str:
-        """Start a Step Functions execution for the export."""
+        """Start a Step Functions execution for the export.
+
+        Args:
+            export: Export record to dispatch to Step Functions.
+
+        Returns:
+            The execution ARN returned by Step Functions.
+
+        Raises:
+            ExportPublishError: Raised when Step Functions rejects the request
+                or omits the execution ARN from the response.
+        """
         payload = {
             "export_id": export.export_id,
             "scope_id": export.scope_id,
@@ -591,19 +635,37 @@ class StepFunctionsExportPublisher:
         del export, repository, metrics
 
     async def stop_execution(self, *, execution_arn: str, cause: str) -> None:
-        """Stop the workflow execution backing a canceled export."""
+        """Stop the workflow execution backing a canceled export.
+
+        Args:
+            execution_arn: Workflow execution ARN to stop.
+            cause: Human-readable reason sent to Step Functions.
+
+        Returns:
+            None.
+
+        Raises:
+            ClientError: Raised when Step Functions rejects the stop request
+                for reasons other than a missing execution.
+            BotoCoreError: Raised when the AWS client transport fails.
+        """
         try:
             await self.stepfunctions_client.stop_execution(
                 executionArn=execution_arn,
                 cause=cause,
             )
-        except (ClientError, BotoCoreError) as exc:
+        except ClientError as exc:
+            error_code = str(
+                exc.response.get("Error", {}).get("Code", "Unknown")
+            )
+            if error_code != "ExecutionDoesNotExist":
+                raise
             self._logger.debug(
                 "stop_execution_suppressed",
                 extra={
                     "execution_arn": execution_arn,
                     "cause": cause,
-                    "error_type": type(exc).__name__,
+                    "error_code": error_code,
                 },
             )
             return

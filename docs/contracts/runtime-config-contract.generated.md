@@ -94,7 +94,6 @@ Canonical sources:
 | FILE_TRANSFER_RESUMABLE_WINDOW_SECONDS | FileTransferResumableWindowSeconds |
 | FILE_TRANSFER_TARGET_UPLOAD_PART_COUNT | FileTransferTargetUploadPartCount |
 | FILE_TRANSFER_UPLOAD_PREFIX | FileTransferUploadPrefix |
-| FILE_TRANSFER_UPLOAD_SESSIONS_TABLE | FileTransferUploadSessionsTable |
 
 Forbidden ENV_VARS_JSON keys:
 `IDEMPOTENCY_MODE`, `IDEMPOTENCY_DYNAMODB_TABLE`
