@@ -67,7 +67,13 @@ release_github_owner = app.node.try_get_context(
 release_github_repo = app.node.try_get_context(
     "release_github_repo"
 ) or os.environ.get("RELEASE_GITHUB_REPO")
-release_control_requested = bool(release_github_owner and release_github_repo)
+release_connection_arn = _context_or_env_value(
+    "release_connection_arn",
+    "RELEASE_CONNECTION_ARN",
+)
+release_control_requested = bool(
+    release_github_owner and release_github_repo and release_connection_arn
+)
 
 if _runtime_inputs_requested():
     NovaRuntimeStack(
