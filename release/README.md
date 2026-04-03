@@ -25,8 +25,13 @@ Canonical path constants: [`scripts/release/release_paths.py`](../scripts/releas
 
 | File | Role |
 | --- | --- |
-| [`RELEASE-PREP.json`](RELEASE-PREP.json) | Canonical machine-readable release intent: changed units, planned versions, commit baseline, and prep metadata |
+| [`RELEASE-PREP.json`](RELEASE-PREP.json) | Canonical machine-readable release intent: changed units, planned versions, commit baseline, and prep metadata. `prepared_from_commit` records the reviewed source commit that fed release prep. |
 | [`RELEASE-VERSION-MANIFEST.md`](RELEASE-VERSION-MANIFEST.md) | Human-reviewable mirror of `RELEASE-PREP.json`; SHA256 gates promotion and execution-manifest continuity |
+
+The AWS-native release control plane writes the execution manifest from the
+merged deploy commit SHA. `release/RELEASE-PREP.json` may therefore point at
+the release PR source commit while the execution manifest pins the merged
+commit; that relationship is validated by ancestry.
 
 Generator-owned runtime deploy contract markdown lives at [`docs/contracts/runtime-config-contract.generated.md`](../docs/contracts/runtime-config-contract.generated.md).
 JSON fixture for the same runtime contract lives at `packages/contracts/fixtures/runtime_config_contract.json`.

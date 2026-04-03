@@ -266,6 +266,8 @@ control plane.
 
 - AWS release automation builds and publishes the API Lambda artifact
 - CDK consumes explicit artifact coordinates instead of rebuilding the API package locally
+- `release/RELEASE-PREP.json` and `release/RELEASE-VERSION-MANIFEST.md` are machine-owned committed release metadata, not operator prose
+- release-prep may capture the reviewed PR source commit while the execution manifest pins the merged deploy commit; the release contract requires ancestry, not equality
 - Runtime deployment publishes `deploy-output.json` and `deploy-output.sha256`
 - Post-deploy validation binds to that deploy-output artifact instead of manually supplied base URLs
 - Staged package publication and prod promotion are digest-gated through one AWS control plane
@@ -274,6 +276,7 @@ For operational details, start with:
 
 - `docs/runbooks/release/README.md`
 - `docs/runbooks/release/release-runbook.md`
+- `release/README.md`
 - `infra/nova_cdk/README.md`
 
 ## Documentation authority

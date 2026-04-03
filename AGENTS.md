@@ -99,6 +99,26 @@ the bulk data plane. Product and API detail: `README.md`.
    workspace, TS SDK output, or TS conformance. No overlapping toolchains
    without a strong repo-specific reason.
 
+## Release sessions
+
+- If the task is release, deploy, runtime cutover, or post-deploy validation,
+  read these in order before editing:
+  1. `docs/runbooks/README.md`
+  2. `docs/runbooks/release/release-runbook.md`
+  3. `infra/nova_cdk/README.md`
+  4. `docs/contracts/deploy-output-authority-v2.schema.json`
+- Treat the supported release path as:
+  1. land repo-side fixes on `main`
+  2. generate and merge a human-authored `release/RELEASE-PREP.json` plus
+     `release/RELEASE-VERSION-MANIFEST.md` refresh when release metadata or
+     releasable unit versions changed
+  3. let `nova-release-control-plane` execute post-merge publish and deploy
+- Treat `deploy-output.json` as the runtime authority for deployed URL and
+  release identity.
+- Do not bypass the release-prep artifact contract, rebuild prod outside the
+  stored release execution manifest, or reintroduce GitHub-hosted release
+  executors as active paths.
+
 ## Commands
 
 Run from repository root unless the task needs otherwise.

@@ -16,7 +16,7 @@ governance, and auditability.
 3. `docs/architecture/README.md`
 4. active ADRs under `docs/architecture/adr/` and active specs under `docs/architecture/spec/`
 5. `docs/overview/IMPLEMENTATION-STATUS-MATRIX.md`
-6. `release/README.md`
+6. `release/README.md` for machine-owned release metadata surfaces
 7. this runbook index plus the specific release/provisioning runbook you need
 
 Committed release artifacts:
@@ -31,6 +31,11 @@ release control plane builds it from the merged release PR commit, uploads it
 to the release artifact bucket, and records the handoff in the S3-backed
 release execution manifest. GitHub no longer owns supported publish, deploy,
 or promotion execution paths.
+
+Runtime-only CDK deploys are not supposed to synthesize
+`NovaReleaseControlPlaneStack`. That path should require runtime inputs only;
+release stack synthesis requires the release-control inputs, including
+`RELEASE_CONNECTION_ARN`.
 
 ## Core release docs
 
