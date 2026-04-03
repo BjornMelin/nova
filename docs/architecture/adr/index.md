@@ -1,7 +1,7 @@
 # Architecture Decision Records
 
 Status: Active index
-Last reviewed: 2026-03-29
+Last reviewed: 2026-04-03
 
 ## Active canonical ADRs
 
@@ -35,6 +35,7 @@ Last reviewed: 2026-03-29
 | [ADR-0028](./ADR-0028-auth0-tenant-ops-reusable-workflow-api-contract.md) | Auth0 tenant ops reusable workflow API contract | Accepted | Active supporting current-state doc | 2026-03-04 |
 | [ADR-0031](./ADR-0031-reusable-github-workflow-api-and-versioning-policy-for-deployment-automation.md) | Reusable GitHub workflow API and versioning policy for deployment automation | Accepted | Active supporting current-state doc | 2026-03-09 |
 | [ADR-0032](./ADR-0032-oidc-and-iam-role-partitioning-for-deploy-automation.md) | OIDC and IAM role partitioning for deploy automation | Accepted | Active supporting current-state doc | 2026-03-03 |
+| [ADR-0042](./ADR-0042-large-file-transfer-observability-and-benchmark-baseline.md) | Large-file transfer observability and benchmark baseline | Accepted | Active supporting current-state doc | 2026-04-03 |
 
 ## Historical / superseded ADRs
 

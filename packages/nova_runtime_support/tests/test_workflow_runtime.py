@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from pydantic import ValidationError
@@ -163,3 +163,132 @@ async def test_update_export_status_shared_requires_output_for_success() -> (
             export_id="export-1",
             status=ExportStatus.SUCCEEDED,
         )
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    "initial_status,target_status,metric_key,error",
+    [
+        (
+            ExportStatus.QUEUED,
+            ExportStatus.VALIDATING,
+            "exports_queued_age_ms",
+            None,
+        ),
+        (
+            ExportStatus.COPYING,
+            ExportStatus.FINALIZING,
+            "exports_copying_age_ms",
+            None,
+        ),
+        (
+            ExportStatus.FINALIZING,
+            ExportStatus.FAILED,
+            "exports_finalizing_age_ms",
+            "boom",
+        ),
+    ],
+)
+async def test_update_export_status_shared_records_stage_age_metric(
+    initial_status: ExportStatus,
+    target_status: ExportStatus,
+    metric_key: str,
+    error: str | None,
+) -> None:
+    repository = MemoryExportRepository()
+    metrics = MetricsCollector(namespace="Tests")
+    now = datetime.now(tz=UTC)
+    started = now - timedelta(minutes=1)
+    await repository.create(
+        ExportRecord(
+            export_id="export-1",
+            scope_id="scope-1",
+            request_id="req-1",
+            source_key="uploads/scope-1/source.csv",
+            filename="source.csv",
+            status=initial_status,
+            output=None,
+            error=None,
+            created_at=started,
+            updated_at=started,
+        )
+    )
+
+    await update_export_status_shared(
+        repository=repository,
+        metrics=metrics,
+        export_id="export-1",
+        status=target_status,
+        error=error,
+    )
+
+    latencies = metrics.latency_snapshot()
+    assert latencies[metric_key] > 0
+
+
+@pytest.mark.anyio
+async def test_update_export_status_shared_keeps_stage_age_on_same_status_retry(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repository = MemoryExportRepository()
+    metrics = MetricsCollector(namespace="Tests")
+    started = datetime(2025, 1, 1, 0, 0, tzinfo=UTC)
+    validating_time = started + timedelta(minutes=1)
+    copying_time = started + timedelta(minutes=2)
+    retry_time = started + timedelta(minutes=3)
+    finalize_time = started + timedelta(minutes=5)
+    now_values = iter(
+        [validating_time, copying_time, retry_time, finalize_time]
+    )
+    monkeypatch.setattr(
+        "nova_runtime_support.export_runtime._utc_now",
+        lambda: next(now_values),
+    )
+    await repository.create(
+        ExportRecord(
+            export_id="export-1",
+            scope_id="scope-1",
+            request_id="req-1",
+            source_key="uploads/scope-1/source.csv",
+            filename="source.csv",
+            status=ExportStatus.QUEUED,
+            output=None,
+            error=None,
+            created_at=started,
+            updated_at=started,
+        )
+    )
+
+    await update_export_status_shared(
+        repository=repository,
+        metrics=metrics,
+        export_id="export-1",
+        status=ExportStatus.VALIDATING,
+    )
+
+    copied = await update_export_status_shared(
+        repository=repository,
+        metrics=metrics,
+        export_id="export-1",
+        status=ExportStatus.COPYING,
+    )
+    assert copied.updated_at == copying_time
+
+    retried = await update_export_status_shared(
+        repository=repository,
+        metrics=metrics,
+        export_id="export-1",
+        status=ExportStatus.COPYING,
+    )
+    assert retried.updated_at == copying_time
+
+    await update_export_status_shared(
+        repository=repository,
+        metrics=metrics,
+        export_id="export-1",
+        status=ExportStatus.FINALIZING,
+    )
+
+    latencies = metrics.latency_snapshot()
+    assert latencies["exports_queued_age_ms"] == 60000.0
+    assert latencies["exports_copying_age_ms"] == 180000.0

@@ -50,5 +50,7 @@ class ExportRecord(BaseModel):
     status: ExportStatus
     output: ExportOutput | None = None
     error: str | None = None
+    copying_entered_at: datetime | None = None
+    finalizing_entered_at: datetime | None = None
     created_at: datetime
     updated_at: datetime

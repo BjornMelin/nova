@@ -80,3 +80,67 @@
   without modifying the stack, or set `alarm_notification_emails` /
   `ALARM_NOTIFICATION_EMAILS` to auto-create email subscriptions at deploy time
 - app-level authorization remains the source of truth
+
+## Transfer and export baseline
+
+- Large uploads remain direct to S3; the public API remains a control plane
+  only.
+- Current transfer defaults:
+  - multipart threshold: `100 MiB`
+  - multipart part size: `128 MiB`
+  - browser max concurrency: `4`
+  - browser sign batch rule: `min(16, 2 * maxConcurrency)` => `8`
+  - max upload size: `500 GiB`
+- Current export copy behavior uses the inline Lambda path with the same part
+  size and concurrency defaults.
+
+### Current operating plans
+
+- `500 GiB` single upload: `4,000` multipart parts and `500` `sign-parts`
+  requests at the current defaults.
+- `1 TiB` aggregate burst: treat as two concurrent `500 GiB` uploads, or the
+  equivalent control-plane pressure against initiate, sign, introspect,
+  complete, and abort.
+
+### Benchmark commands
+
+Run from repository root:
+
+```bash
+uv run python scripts/perf/benchmark_transfer_control_plane.py
+uv run python scripts/perf/benchmark_export_copy.py
+uv run python scripts/perf/benchmark_browser_upload_matrix.py
+```
+
+These scripts use fixed inputs, avoid live AWS mutation, and emit JSON for
+repeatable comparisons.
+
+### Dashboard surface
+
+The runtime stack publishes `ExportNovaObservabilityDashboardName` for transfer
+and export baseline monitoring. The dashboard includes:
+
+- transfer request counts for `uploads_initiate`, `uploads_sign_parts`,
+  `uploads_complete`, and `uploads_abort`
+- API throttles, API 5xx, and reserved-concurrency saturation
+- export queued/copying/finalizing age
+- incomplete multipart upload footprint and `>7 day` MPU metrics wired to S3
+  Storage Lens metric names
+- transfer and export observability dashboard coverage
+
+### Storage Lens prerequisite
+
+- The incomplete MPU widgets require S3 Storage Lens advanced metrics with
+  CloudWatch publishing enabled.
+- Configuration selection order:
+  - context key: `storage_lens_configuration_id`
+  - env var: `STORAGE_LENS_CONFIGURATION_ID`
+  - fallback: `nova-<environment>-storage-lens`
+
+### Accepted current gaps
+
+- No dedicated API Gateway `429` widget beyond Lambda throttles and API 5xx.
+- No quota rejection alarms until quota enforcement exists.
+- No Transfer Acceleration spend widget while TA stays disabled by default.
+- No worker-lane or DLQ alarms before a worker lane exists.
+- No KMS anomaly alarms while SSE-S3 remains the default posture.

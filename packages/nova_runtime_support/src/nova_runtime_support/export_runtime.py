@@ -429,8 +429,13 @@ class MemoryExportPublisher:
             update={"status": ExportStatus.VALIDATING, "updated_at": _utc_now()}
         )
         await repository.update(validating)
+        copying_entered_at = _utc_now()
         copying = validating.model_copy(
-            update={"status": ExportStatus.COPYING, "updated_at": _utc_now()}
+            update={
+                "status": ExportStatus.COPYING,
+                "updated_at": copying_entered_at,
+                "copying_entered_at": copying_entered_at,
+            }
         )
         await repository.update(copying)
         output = ExportOutput(
@@ -440,11 +445,13 @@ class MemoryExportPublisher:
             ),
             download_filename=copying.filename,
         )
+        finalizing_entered_at = _utc_now()
         finalizing = copying.model_copy(
             update={
                 "status": ExportStatus.FINALIZING,
                 "output": output,
-                "updated_at": _utc_now(),
+                "updated_at": finalizing_entered_at,
+                "finalizing_entered_at": finalizing_entered_at,
             }
         )
         await repository.update(finalizing)
@@ -477,6 +484,16 @@ class StepFunctionsExportPublisher:
             "status": export.status.value,
             "created_at": export.created_at.isoformat(),
             "updated_at": export.updated_at.isoformat(),
+            "copying_entered_at": (
+                export.copying_entered_at.isoformat()
+                if export.copying_entered_at is not None
+                else None
+            ),
+            "finalizing_entered_at": (
+                export.finalizing_entered_at.isoformat()
+                if export.finalizing_entered_at is not None
+                else None
+            ),
         }
         try:
             await self.stepfunctions_client.start_execution(
@@ -611,11 +628,34 @@ async def update_export_status_shared(
     now = _utc_now()
     update_payload: dict[str, object] = {
         "status": status,
-        "updated_at": now,
     }
+    if status != record.status:
+        update_payload["updated_at"] = now
     queue_lag_ms: float | None = None
+    copying_age_ms: float | None = None
+    finalizing_age_ms: float | None = None
+    if status == ExportStatus.COPYING and record.status != ExportStatus.COPYING:
+        update_payload["copying_entered_at"] = now
+    if (
+        status == ExportStatus.FINALIZING
+        and record.status != ExportStatus.FINALIZING
+    ):
+        update_payload["finalizing_entered_at"] = now
     if record.status == ExportStatus.QUEUED and status != ExportStatus.QUEUED:
         queue_lag_ms = _queue_lag_ms(created_at=record.created_at, now=now)
+    if record.status == ExportStatus.COPYING and status != ExportStatus.COPYING:
+        copying_age_ms = _stage_age_ms(
+            started_at=record.copying_entered_at or record.updated_at,
+            now=now,
+        )
+    if (
+        record.status == ExportStatus.FINALIZING
+        and status != ExportStatus.FINALIZING
+    ):
+        finalizing_age_ms = _stage_age_ms(
+            started_at=record.finalizing_entered_at or record.updated_at,
+            now=now,
+        )
     if output is not None:
         update_payload["output"] = output
     if error is not None:
@@ -653,6 +693,29 @@ async def update_export_status_shared(
             unit="Milliseconds",
             dimensions={"source": "export_status_update"},
         )
+        metrics.observe_ms("exports_queued_age_ms", queue_lag_ms)
+        metrics.emit_emf(
+            metric_name="exports_queued_age_ms",
+            value=queue_lag_ms,
+            unit="Milliseconds",
+            dimensions={"source": "export_status_update"},
+        )
+    if copying_age_ms is not None:
+        metrics.observe_ms("exports_copying_age_ms", copying_age_ms)
+        metrics.emit_emf(
+            metric_name="exports_copying_age_ms",
+            value=copying_age_ms,
+            unit="Milliseconds",
+            dimensions={"source": "export_status_update"},
+        )
+    if finalizing_age_ms is not None:
+        metrics.observe_ms("exports_finalizing_age_ms", finalizing_age_ms)
+        metrics.emit_emf(
+            metric_name="exports_finalizing_age_ms",
+            value=finalizing_age_ms,
+            unit="Milliseconds",
+            dimensions={"source": "export_status_update"},
+        )
     metrics.incr(f"exports_{status.value}")
     metrics.incr("exports_status_updates_total")
     metrics.incr(f"exports_status_updates_{status.value}")
@@ -678,6 +741,17 @@ def _queue_lag_ms(*, created_at: datetime, now: datetime) -> float:
     current = now if now.tzinfo is not None else now.replace(tzinfo=UTC)
     lag_ms = (current - created).total_seconds() * 1000.0
     return max(0.0, lag_ms)
+
+
+def _stage_age_ms(*, started_at: datetime, now: datetime) -> float:
+    updated = (
+        started_at
+        if started_at.tzinfo is not None
+        else started_at.replace(tzinfo=UTC)
+    )
+    current = now if now.tzinfo is not None else now.replace(tzinfo=UTC)
+    age_ms = (current - updated).total_seconds() * 1000.0
+    return max(0.0, age_ms)
 
 
 _ALLOWED_TRANSITIONS: dict[ExportStatus, set[ExportStatus]] = {

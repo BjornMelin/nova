@@ -92,7 +92,10 @@ the bulk data plane. Product and API detail: `README.md`.
    `docs/overview/ACTIVE-DOCS-INDEX.md` to find surfaces; always reassess
    `docs/overview/IMPLEMENTATION-STATUS-MATRIX.md`, root `README.md`, and
    `infra/nova_cdk/README.md` for platform shifts. Update `AGENTS.md` when
-   global agent truth changes.
+   global agent truth changes. In committed docs and code comments, write in
+   durable operator/architecture language; do not copy temporary plan labels
+   such as "phase", "wave", or similar working-note framing unless they are
+   part of an active repo authority document.
 
 5. **Toolchain** — `uv` for Python env and commands; Python 3.11 syntax;
    Ruff, mypy, ty, pytest as configured. **`npm ci` only** when touching the TS

@@ -35,6 +35,7 @@
 - `docs/architecture/spec/SPEC-0004-ci-cd-and-docs.md`
 - `docs/architecture/spec/SPEC-0025-reusable-workflow-integration-contract.md`
 - `docs/architecture/spec/SPEC-0026-ci-cd-iam-least-privilege-matrix.md`
+- `docs/architecture/adr/ADR-0042-large-file-transfer-observability-and-benchmark-baseline.md`
 
 ## Historical / not active by default
 
