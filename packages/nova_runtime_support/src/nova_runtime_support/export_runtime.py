@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import inspect
 import json
+import logging
 from collections.abc import Awaitable, Mapping
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -483,6 +484,11 @@ class StepFunctionsExportPublisher:
 
     state_machine_arn: str
     stepfunctions_client: StepFunctionsClient
+    _logger: logging.Logger = field(
+        init=False,
+        repr=False,
+        default_factory=lambda: logging.getLogger(__name__),
+    )
 
     async def publish(self, *, export: ExportRecord) -> str:
         """Start a Step Functions execution for the export."""
@@ -566,7 +572,15 @@ class StepFunctionsExportPublisher:
                 executionArn=execution_arn,
                 cause=cause,
             )
-        except (ClientError, BotoCoreError):
+        except (ClientError, BotoCoreError) as exc:
+            self._logger.debug(
+                "stop_execution_suppressed",
+                extra={
+                    "execution_arn": execution_arn,
+                    "cause": cause,
+                    "error_type": type(exc).__name__,
+                },
+            )
             return
 
     async def healthcheck(self) -> bool:

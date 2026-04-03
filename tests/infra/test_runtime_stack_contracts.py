@@ -256,6 +256,9 @@ def test_runtime_stack_packages_api_lambda_as_native_zip() -> None:
         ]
         == "8"
     )
+    assert props["Environment"]["Variables"]["FILE_TRANSFER_POLICY_ID"] == (
+        "default"
+    )
 
     policies = _resources_of_type(bundle.resources, "AWS::IAM::Policy")
     policy_fragments = [
@@ -269,6 +272,25 @@ def test_runtime_stack_packages_api_lambda_as_native_zip() -> None:
     assert any(
         "states:StopExecution" in fragment for fragment in policy_fragments
     )
+    assert any(
+        ":execution/" in fragment and "ExportWorkflowStateMachine" in fragment
+        for fragment in policy_fragments
+    )
+
+    workflow_resources = [
+        resource
+        for resource in functions.values()
+        if resource["Properties"]["Handler"]
+        == "nova_workflows.handlers.copy_export_handler"
+    ]
+    assert len(workflow_resources) == 1
+    workflow_env = workflow_resources[0]["Properties"]["Environment"][
+        "Variables"
+    ]
+    assert workflow_env["FILE_TRANSFER_EXPORT_COPY_PART_SIZE_BYTES"] == str(
+        2 * 1024 * 1024 * 1024
+    )
+    assert workflow_env["FILE_TRANSFER_EXPORT_COPY_MAX_CONCURRENCY"] == "8"
 
 
 def test_runtime_stack_adds_upload_session_table_with_upload_index() -> None:
@@ -295,6 +317,11 @@ def test_runtime_stack_adds_upload_session_table_with_upload_index() -> None:
         "KeySchema": [{"AttributeName": "upload_id", "KeyType": "HASH"}],
         "Projection": {"ProjectionType": "ALL"},
     } in global_indexes
+    alarms = _resources_of_type(bundle.resources, "AWS::CloudWatch::Alarm")
+    assert any(
+        logical_id.startswith("UploadSessionsTableThrottlesAlarm")
+        for logical_id in alarms
+    )
 
 
 def test_non_prod_can_disable_reserved_concurrency() -> None:

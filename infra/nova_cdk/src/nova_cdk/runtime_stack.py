@@ -609,6 +609,10 @@ class NovaRuntimeStack(Stack):
             "FILE_TRANSFER_TMP_PREFIX": "tmp/",
             "EXPORTS_ENABLED": "true",
             "EXPORTS_DYNAMODB_TABLE": export_table.table_name,
+            "FILE_TRANSFER_EXPORT_COPY_PART_SIZE_BYTES": str(
+                2 * 1024 * 1024 * 1024
+            ),
+            "FILE_TRANSFER_EXPORT_COPY_MAX_CONCURRENCY": "8",
         }
         common_env = {
             **workflow_common_env,
@@ -618,13 +622,19 @@ class NovaRuntimeStack(Stack):
             "OIDC_ISSUER": inputs.oidc_issuer,
             "OIDC_AUDIENCE": inputs.oidc_audience,
             "OIDC_JWKS_URL": inputs.oidc_jwks_url,
+            "FILE_TRANSFER_PRESIGN_UPLOAD_TTL_SECONDS": "1800",
+            "FILE_TRANSFER_PRESIGN_DOWNLOAD_TTL_SECONDS": "900",
+            "FILE_TRANSFER_MULTIPART_THRESHOLD_BYTES": str(100 * 1024 * 1024),
+            "FILE_TRANSFER_PART_SIZE_BYTES": str(128 * 1024 * 1024),
+            "FILE_TRANSFER_MAX_CONCURRENCY": "4",
+            "FILE_TRANSFER_MAX_UPLOAD_BYTES": str(536_870_912_000),
+            "FILE_TRANSFER_TARGET_UPLOAD_PART_COUNT": "2000",
+            "FILE_TRANSFER_USE_ACCELERATE_ENDPOINT": "false",
+            "FILE_TRANSFER_POLICY_ID": "default",
+            "FILE_TRANSFER_POLICY_VERSION": "2026-04-03",
             "FILE_TRANSFER_UPLOAD_SESSIONS_TABLE": (
                 upload_sessions_table.table_name
             ),
-            "FILE_TRANSFER_EXPORT_COPY_PART_SIZE_BYTES": str(
-                2 * 1024 * 1024 * 1024
-            ),
-            "FILE_TRANSFER_EXPORT_COPY_MAX_CONCURRENCY": "8",
         }
         task_env = {
             **workflow_common_env,
@@ -882,8 +892,20 @@ class NovaRuntimeStack(Stack):
         state_machine.grant_start_execution(api_function)
         api_function.add_to_role_policy(
             iam.PolicyStatement(
-                actions=["states:DescribeStateMachine", "states:StopExecution"],
+                actions=["states:DescribeStateMachine"],
                 resources=[state_machine.state_machine_arn],
+            )
+        )
+        api_function.add_to_role_policy(
+            iam.PolicyStatement(
+                actions=["states:StopExecution"],
+                resources=[
+                    Stack.of(self).format_arn(
+                        service="states",
+                        resource="execution",
+                        resource_name=f"{state_machine.state_machine_name}:*",
+                    )
+                ],
             )
         )
 
@@ -1031,6 +1053,40 @@ class NovaRuntimeStack(Stack):
             alarm_description="Alarm when export table requests throttle.",
             treat_missing_data=cloudwatch.TreatMissingData.NOT_BREACHING,
         )
+        upload_sessions_table_throttles_alarm = cloudwatch.Alarm(
+            self,
+            "UploadSessionsTableThrottlesAlarm",
+            metric=cloudwatch.MathExpression(
+                expression="get_item + put_item + query",
+                period=Duration.minutes(5),
+                using_metrics={
+                    "get_item": (
+                        upload_sessions_table.metric_throttled_requests_for_operation(
+                            "GetItem",
+                            period=Duration.minutes(5),
+                        )
+                    ),
+                    "put_item": (
+                        upload_sessions_table.metric_throttled_requests_for_operation(
+                            "PutItem",
+                            period=Duration.minutes(5),
+                        )
+                    ),
+                    "query": (
+                        upload_sessions_table.metric_throttled_requests_for_operation(
+                            "Query",
+                            period=Duration.minutes(5),
+                        )
+                    ),
+                },
+            ),
+            threshold=1,
+            evaluation_periods=1,
+            alarm_description=(
+                "Alarm when upload session table requests throttle."
+            ),
+            treat_missing_data=cloudwatch.TreatMissingData.NOT_BREACHING,
+        )
         add_alarm_actions(
             alarms=[
                 api_gateway_5xx_alarm,
@@ -1040,6 +1096,7 @@ class NovaRuntimeStack(Stack):
                 export_workflow_failures_alarm,
                 export_workflow_timeouts_alarm,
                 exports_table_throttles_alarm,
+                upload_sessions_table_throttles_alarm,
                 workflow_task_throttles_alarm,
             ],
             topic=alarm_topic,

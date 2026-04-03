@@ -17,6 +17,7 @@ from botocore.exceptions import BotoCoreError, ClientError
 from nova_file_api.errors import (
     FileTransferError,
     invalid_request,
+    session_store_unavailable,
     upstream_s3_error,
 )
 from nova_file_api.models import (
@@ -779,18 +780,15 @@ class TransferService:
                     start=1,
                 )
             ]
+            copy_concurrency = min(
+                self.config.export_copy_max_concurrency,
+                self.config.max_concurrency,
+            )
             for start_index in range(
                 0,
                 len(ranges),
-                min(
-                    self.config.export_copy_max_concurrency,
-                    self.config.max_concurrency,
-                ),
+                copy_concurrency,
             ):
-                copy_concurrency = min(
-                    self.config.export_copy_max_concurrency,
-                    self.config.max_concurrency,
-                )
                 batch = ranges[start_index : start_index + copy_concurrency]
                 completed_parts.extend(
                     await asyncio.gather(
@@ -887,7 +885,7 @@ class TransferService:
                     "scope_id": record.scope_id,
                 },
             )
-            raise upstream_s3_error(
+            raise session_store_unavailable(
                 "upload session store is unavailable"
             ) from exc
 
@@ -905,7 +903,7 @@ class TransferService:
                 "upload_session_lookup_failed",
                 extra={"upload_id": upload_id},
             )
-            raise upstream_s3_error(
+            raise session_store_unavailable(
                 "upload session store is unavailable"
             ) from exc
 

@@ -126,3 +126,14 @@ def test_public_sdk_exposes_exports_first_operations() -> None:
     assert "export const getExport" in source
     assert "export const createExport" in source
     assert "export const cancelExport" in source
+
+
+def test_public_sdk_operation_docblocks_include_returns_tags() -> None:
+    """Generated SDK docblocks should remain sentence-style TSDoc."""
+    source = _load_source_text(TS_PACKAGE_DIR, "client/sdk.gen.ts")
+
+    assert "Expose the current transfer policy envelope." in source
+    assert (
+        "@returns The response from the "
+        "`getTransferCapabilities` operation." in source
+    )

@@ -7,6 +7,7 @@ import inspect
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from decimal import Decimal
 from enum import StrEnum
 from typing import Any, Protocol, cast
 from uuid import uuid4
@@ -249,7 +250,13 @@ def _item_to_record(item: dict[str, Any]) -> UploadSessionRecord:
         return value if isinstance(value, str) else None
 
     def _as_int(value: object) -> int | None:
-        return value if isinstance(value, int) else None
+        if value is None or isinstance(value, bool):
+            return None
+        if isinstance(value, int):
+            return int(value)
+        if isinstance(value, Decimal):
+            return int(value)
+        return None
 
     def _as_bool(value: object) -> bool:
         return bool(value) if isinstance(value, bool) else False

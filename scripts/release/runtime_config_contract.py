@@ -186,11 +186,26 @@ ENV_JSON_OVERRIDES: tuple[EnvJsonOverrideContract, ...] = (
         "FileTransferPresignDownloadTtlSeconds",
     ),
     EnvJsonOverrideContract(
+        "FILE_TRANSFER_EXPORT_COPY_MAX_CONCURRENCY",
+        "FileTransferExportCopyMaxConcurrency",
+    ),
+    EnvJsonOverrideContract(
+        "FILE_TRANSFER_EXPORT_COPY_PART_SIZE_BYTES",
+        "FileTransferExportCopyPartSizeBytes",
+    ),
+    EnvJsonOverrideContract(
+        "FILE_TRANSFER_EXPORT_PREFIX", "FileTransferExportPrefix"
+    ),
+    EnvJsonOverrideContract(
         "FILE_TRANSFER_MULTIPART_THRESHOLD_BYTES",
         "FileTransferMultipartThresholdBytes",
     ),
     EnvJsonOverrideContract(
         "FILE_TRANSFER_PART_SIZE_BYTES", "FileTransferPartSizeBytes"
+    ),
+    EnvJsonOverrideContract("FILE_TRANSFER_POLICY_ID", "FileTransferPolicyId"),
+    EnvJsonOverrideContract(
+        "FILE_TRANSFER_POLICY_VERSION", "FileTransferPolicyVersion"
     ),
     EnvJsonOverrideContract(
         "FILE_TRANSFER_MAX_CONCURRENCY", "FileTransferMaxConcurrency"
@@ -201,6 +216,21 @@ ENV_JSON_OVERRIDES: tuple[EnvJsonOverrideContract, ...] = (
     ),
     EnvJsonOverrideContract(
         "FILE_TRANSFER_MAX_UPLOAD_BYTES", "FileTransferMaxUploadBytes"
+    ),
+    EnvJsonOverrideContract(
+        "FILE_TRANSFER_RESUMABLE_WINDOW_SECONDS",
+        "FileTransferResumableWindowSeconds",
+    ),
+    EnvJsonOverrideContract(
+        "FILE_TRANSFER_TARGET_UPLOAD_PART_COUNT",
+        "FileTransferTargetUploadPartCount",
+    ),
+    EnvJsonOverrideContract(
+        "FILE_TRANSFER_UPLOAD_PREFIX", "FileTransferUploadPrefix"
+    ),
+    EnvJsonOverrideContract(
+        "FILE_TRANSFER_UPLOAD_SESSIONS_TABLE",
+        "FileTransferUploadSessionsTable",
     ),
 )
 
@@ -329,6 +359,77 @@ API_LAMBDA_ENV: tuple[RuntimeEnvContract, ...] = (
     RuntimeEnvContract("OIDC_ISSUER", "CDK deploy input", "always"),
     RuntimeEnvContract("OIDC_AUDIENCE", "CDK deploy input", "always"),
     RuntimeEnvContract("OIDC_JWKS_URL", "CDK deploy input", "always"),
+    RuntimeEnvContract(
+        "FILE_TRANSFER_PRESIGN_UPLOAD_TTL_SECONDS",
+        "literal",
+        "always",
+        "1800",
+    ),
+    RuntimeEnvContract(
+        "FILE_TRANSFER_PRESIGN_DOWNLOAD_TTL_SECONDS",
+        "literal",
+        "always",
+        "900",
+    ),
+    RuntimeEnvContract(
+        "FILE_TRANSFER_EXPORT_COPY_MAX_CONCURRENCY",
+        "literal",
+        "always",
+        "8",
+    ),
+    RuntimeEnvContract(
+        "FILE_TRANSFER_EXPORT_COPY_PART_SIZE_BYTES",
+        "literal",
+        "always",
+        str(2 * 1024 * 1024 * 1024),
+    ),
+    RuntimeEnvContract(
+        "FILE_TRANSFER_MAX_CONCURRENCY", "literal", "always", "4"
+    ),
+    RuntimeEnvContract(
+        "FILE_TRANSFER_MAX_UPLOAD_BYTES",
+        "literal",
+        "always",
+        str(536_870_912_000),
+    ),
+    RuntimeEnvContract(
+        "FILE_TRANSFER_MULTIPART_THRESHOLD_BYTES",
+        "literal",
+        "always",
+        str(100 * 1024 * 1024),
+    ),
+    RuntimeEnvContract(
+        "FILE_TRANSFER_PART_SIZE_BYTES",
+        "literal",
+        "always",
+        str(128 * 1024 * 1024),
+    ),
+    RuntimeEnvContract(
+        "FILE_TRANSFER_POLICY_ID", "literal", "always", "default"
+    ),
+    RuntimeEnvContract(
+        "FILE_TRANSFER_POLICY_VERSION",
+        "literal",
+        "always",
+        "2026-04-03",
+    ),
+    RuntimeEnvContract(
+        "FILE_TRANSFER_TARGET_UPLOAD_PART_COUNT",
+        "literal",
+        "always",
+        "2000",
+    ),
+    RuntimeEnvContract(
+        "FILE_TRANSFER_UPLOAD_SESSIONS_TABLE",
+        "stack resource",
+        "always",
+    ),
+    RuntimeEnvContract(
+        "FILE_TRANSFER_USE_ACCELERATE_ENDPOINT",
+        "literal",
+        "always",
+        "false",
+    ),
     RuntimeEnvContract("IDEMPOTENCY_ENABLED", "literal", "always", "true"),
     RuntimeEnvContract(
         "IDEMPOTENCY_DYNAMODB_TABLE", "stack resource", "always"
@@ -354,6 +455,18 @@ WORKFLOW_TASK_ENV: tuple[RuntimeEnvContract, ...] = (
         "FILE_TRANSFER_EXPORT_PREFIX", "literal", "always", "exports/"
     ),
     RuntimeEnvContract("FILE_TRANSFER_TMP_PREFIX", "literal", "always", "tmp/"),
+    RuntimeEnvContract(
+        "FILE_TRANSFER_EXPORT_COPY_MAX_CONCURRENCY",
+        "literal",
+        "always",
+        "8",
+    ),
+    RuntimeEnvContract(
+        "FILE_TRANSFER_EXPORT_COPY_PART_SIZE_BYTES",
+        "literal",
+        "always",
+        str(2 * 1024 * 1024 * 1024),
+    ),
     RuntimeEnvContract("EXPORTS_ENABLED", "literal", "always", "true"),
     RuntimeEnvContract("EXPORTS_DYNAMODB_TABLE", "stack resource", "always"),
     RuntimeEnvContract("IDEMPOTENCY_ENABLED", "literal", "always", "false"),

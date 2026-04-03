@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import contextlib
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from uuid import uuid4
@@ -142,11 +141,10 @@ class ExportService:
             )
             if updated_ok:
                 if record.execution_arn is not None:
-                    with contextlib.suppress(Exception):
-                        await self.publisher.stop_execution(
-                            execution_arn=record.execution_arn,
-                            cause="export cancelled by caller",
-                        )
+                    await self.publisher.stop_execution(
+                        execution_arn=record.execution_arn,
+                        cause="export cancelled by caller",
+                    )
                 self.metrics.incr("exports_cancelled")
                 return updated
         raise conflict(

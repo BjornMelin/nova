@@ -81,11 +81,20 @@ Canonical sources:
 | IDEMPOTENCY_TTL_SECONDS | IdempotencyTtlSeconds |
 | FILE_TRANSFER_PRESIGN_UPLOAD_TTL_SECONDS | FileTransferPresignUploadTtlSeconds |
 | FILE_TRANSFER_PRESIGN_DOWNLOAD_TTL_SECONDS | FileTransferPresignDownloadTtlSeconds |
+| FILE_TRANSFER_EXPORT_COPY_MAX_CONCURRENCY | FileTransferExportCopyMaxConcurrency |
+| FILE_TRANSFER_EXPORT_COPY_PART_SIZE_BYTES | FileTransferExportCopyPartSizeBytes |
+| FILE_TRANSFER_EXPORT_PREFIX | FileTransferExportPrefix |
 | FILE_TRANSFER_MULTIPART_THRESHOLD_BYTES | FileTransferMultipartThresholdBytes |
 | FILE_TRANSFER_PART_SIZE_BYTES | FileTransferPartSizeBytes |
+| FILE_TRANSFER_POLICY_ID | FileTransferPolicyId |
+| FILE_TRANSFER_POLICY_VERSION | FileTransferPolicyVersion |
 | FILE_TRANSFER_MAX_CONCURRENCY | FileTransferMaxConcurrency |
 | FILE_TRANSFER_USE_ACCELERATE_ENDPOINT | FileTransferUseAccelerateEndpoint |
 | FILE_TRANSFER_MAX_UPLOAD_BYTES | FileTransferMaxUploadBytes |
+| FILE_TRANSFER_RESUMABLE_WINDOW_SECONDS | FileTransferResumableWindowSeconds |
+| FILE_TRANSFER_TARGET_UPLOAD_PART_COUNT | FileTransferTargetUploadPartCount |
+| FILE_TRANSFER_UPLOAD_PREFIX | FileTransferUploadPrefix |
+| FILE_TRANSFER_UPLOAD_SESSIONS_TABLE | FileTransferUploadSessionsTable |
 
 Forbidden ENV_VARS_JSON keys:
 `IDEMPOTENCY_MODE`, `IDEMPOTENCY_DYNAMODB_TABLE`
@@ -128,6 +137,19 @@ Forbidden ENV_VARS_JSON keys:
 | OIDC_ISSUER | CDK deploy input | always | - |
 | OIDC_AUDIENCE | CDK deploy input | always | - |
 | OIDC_JWKS_URL | CDK deploy input | always | - |
+| FILE_TRANSFER_PRESIGN_UPLOAD_TTL_SECONDS | literal | always | 1800 |
+| FILE_TRANSFER_PRESIGN_DOWNLOAD_TTL_SECONDS | literal | always | 900 |
+| FILE_TRANSFER_EXPORT_COPY_MAX_CONCURRENCY | literal | always | 8 |
+| FILE_TRANSFER_EXPORT_COPY_PART_SIZE_BYTES | literal | always | 2147483648 |
+| FILE_TRANSFER_MAX_CONCURRENCY | literal | always | 4 |
+| FILE_TRANSFER_MAX_UPLOAD_BYTES | literal | always | 536870912000 |
+| FILE_TRANSFER_MULTIPART_THRESHOLD_BYTES | literal | always | 104857600 |
+| FILE_TRANSFER_PART_SIZE_BYTES | literal | always | 134217728 |
+| FILE_TRANSFER_POLICY_ID | literal | always | default |
+| FILE_TRANSFER_POLICY_VERSION | literal | always | 2026-04-03 |
+| FILE_TRANSFER_TARGET_UPLOAD_PART_COUNT | literal | always | 2000 |
+| FILE_TRANSFER_UPLOAD_SESSIONS_TABLE | stack resource | always | - |
+| FILE_TRANSFER_USE_ACCELERATE_ENDPOINT | literal | always | false |
 | IDEMPOTENCY_ENABLED | literal | always | true |
 | IDEMPOTENCY_DYNAMODB_TABLE | stack resource | always | - |
 | EXPORT_WORKFLOW_STATE_MACHINE_ARN | stack resource | always | - |
@@ -147,6 +169,8 @@ Task handlers:
 | FILE_TRANSFER_UPLOAD_PREFIX | literal | always | uploads/ |
 | FILE_TRANSFER_EXPORT_PREFIX | literal | always | exports/ |
 | FILE_TRANSFER_TMP_PREFIX | literal | always | tmp/ |
+| FILE_TRANSFER_EXPORT_COPY_MAX_CONCURRENCY | literal | always | 8 |
+| FILE_TRANSFER_EXPORT_COPY_PART_SIZE_BYTES | literal | always | 2147483648 |
 | EXPORTS_ENABLED | literal | always | true |
 | EXPORTS_DYNAMODB_TABLE | stack resource | always | - |
 | IDEMPOTENCY_ENABLED | literal | always | false |

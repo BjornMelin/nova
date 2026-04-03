@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 from datetime import UTC, datetime
+from decimal import Decimal
 from typing import Any
 
 import pytest
@@ -23,6 +24,7 @@ from nova_file_api.transfer_config import transfer_config_from_settings
 from nova_file_api.upload_sessions import (
     MemoryUploadSessionRepository,
     UploadSessionStatus,
+    _item_to_record,
 )
 
 
@@ -307,6 +309,40 @@ async def test_introspect_upload_uses_persisted_session_part_size() -> None:
     stored = repository._records_by_session_id[initiated.session_id]
     assert stored.status == UploadSessionStatus.ACTIVE
     assert stored.last_activity_at.tzinfo is not None
+
+
+def test_upload_session_record_parses_decimal_part_size() -> None:
+    now = datetime.now(tz=UTC)
+
+    record = _item_to_record(
+        {
+            "session_id": "session-1",
+            "upload_id": "upload-1",
+            "scope_id": "scope-1",
+            "key": "uploads/scope-1/report.csv",
+            "filename": "report.csv",
+            "size_bytes": Decimal("1024"),
+            "content_type": "text/csv",
+            "strategy": "multipart",
+            "part_size_bytes": Decimal(str(256 * 1024 * 1024)),
+            "policy_id": "default",
+            "policy_version": "2026-04-03",
+            "max_concurrency_hint": Decimal("4"),
+            "sign_batch_size_hint": Decimal("32"),
+            "accelerate_enabled": False,
+            "checksum_algorithm": None,
+            "resumable_until": now.isoformat(),
+            "resumable_until_epoch": Decimal("123456789"),
+            "status": "initiated",
+            "request_id": "request-1",
+            "created_at": now.isoformat(),
+            "last_activity_at": now.isoformat(),
+        }
+    )
+
+    assert record.part_size_bytes == 256 * 1024 * 1024
+    assert record.max_concurrency_hint == 4
+    assert record.sign_batch_size_hint == 32
 
 
 @pytest.mark.parametrize(

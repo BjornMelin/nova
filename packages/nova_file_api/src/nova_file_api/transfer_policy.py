@@ -41,6 +41,9 @@ def resolve_transfer_policy(
     config: TransferConfig,
 ) -> TransferPolicy:
     """Resolve the current transfer policy from static runtime settings."""
+    target_upload_part_count = (
+        config.target_upload_part_count or _TARGET_UPLOAD_PART_COUNT
+    )
     max_concurrency_hint = config.max_concurrency
     sign_batch_size_hint = _clamp(
         max(_MIN_SIGN_BATCH_SIZE, max_concurrency_hint * 4),
@@ -52,7 +55,7 @@ def resolve_transfer_policy(
         policy_version=config.policy_version or _DEFAULT_POLICY_VERSION,
         max_upload_bytes=config.max_upload_bytes,
         multipart_threshold_bytes=config.multipart_threshold_bytes,
-        target_upload_part_count=_TARGET_UPLOAD_PART_COUNT,
+        target_upload_part_count=target_upload_part_count,
         minimum_part_size_bytes=_MINIMUM_UPLOAD_PART_SIZE_BYTES,
         maximum_part_size_bytes=_MAXIMUM_UPLOAD_PART_SIZE_BYTES,
         upload_part_size_bytes=config.part_size_bytes,
