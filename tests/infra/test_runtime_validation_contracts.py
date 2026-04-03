@@ -54,3 +54,4 @@ def test_runtime_config_contract_artifacts_drop_deleted_template_surfaces() -> (
     assert "FILE_TRANSFER_UPLOAD_SESSIONS_TABLE" in markdown
     assert "FILE_TRANSFER_EXPORT_COPY_MAX_CONCURRENCY" in markdown
     assert "FILE_TRANSFER_POLICY_VERSION" in markdown
+    assert "FILE_TRANSFER_RESUMABLE_WINDOW_SECONDS" in markdown

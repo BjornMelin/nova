@@ -135,6 +135,12 @@
       },
       {
         "condition": "always",
+        "name": "FILE_TRANSFER_RESUMABLE_WINDOW_SECONDS",
+        "source": "literal",
+        "value": "604800"
+      },
+      {
+        "condition": "always",
         "name": "FILE_TRANSFER_TARGET_UPLOAD_PART_COUNT",
         "source": "literal",
         "value": "2000"

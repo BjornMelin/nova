@@ -87,7 +87,7 @@ class TransferService:
             else build_upload_session_repository(
                 table_name=self.config.upload_sessions_table,
                 dynamodb_resource=None,
-                enabled=False,
+                enabled=bool(self.config.upload_sessions_table),
             )
         )
         self._upload_prefix = _normalize_prefix(self.config.upload_prefix)
@@ -320,7 +320,7 @@ class TransferService:
                 exc_info=True,
             )
         if session is not None:
-            await self._store_upload_session(
+            await self._store_upload_session_best_effort(
                 replace(
                     session,
                     status=UploadSessionStatus.COMPLETED,
@@ -342,7 +342,11 @@ class TransferService:
     ) -> AbortUploadResponse:
         """Abort multipart upload for caller-owned key."""
         self._assert_upload_scope(key=request.key, scope_id=principal.scope_id)
-        session = await self._get_upload_session(upload_id=request.upload_id)
+        session = await self._get_upload_session_for_caller(
+            upload_id=request.upload_id,
+            scope_id=principal.scope_id,
+            key=request.key,
+        )
 
         try:
             await self._s3.abort_multipart_upload(
@@ -354,7 +358,7 @@ class TransferService:
             raise upstream_s3_error("failed to abort multipart upload") from exc
 
         if session is not None:
-            await self._store_upload_session(
+            await self._store_upload_session_best_effort(
                 replace(
                     session,
                     status=UploadSessionStatus.ABORTED,
@@ -906,6 +910,24 @@ class TransferService:
             raise session_store_unavailable(
                 "upload session store is unavailable"
             ) from exc
+
+    async def _store_upload_session_best_effort(
+        self,
+        record: UploadSessionRecord,
+    ) -> None:
+        try:
+            await self._store_upload_session(record)
+        except FileTransferError:
+            _LOGGER.warning(
+                "upload_session_store_best_effort_failed",
+                extra={
+                    "session_id": record.session_id,
+                    "upload_id": record.upload_id,
+                    "scope_id": record.scope_id,
+                    "status": record.status.value,
+                },
+                exc_info=True,
+            )
 
     async def _require_upload_session(
         self,

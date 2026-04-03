@@ -73,8 +73,9 @@ def upload_part_size_bytes(
     policy: TransferPolicy,
 ) -> int:
     """Return the upload part size for one file under the resolved policy."""
+    candidate_size = ceil(file_size_bytes / policy.target_upload_part_count)
     return _clamp(
-        ceil(file_size_bytes / policy.target_upload_part_count),
+        max(policy.upload_part_size_bytes, candidate_size),
         policy.minimum_part_size_bytes,
         policy.maximum_part_size_bytes,
     )

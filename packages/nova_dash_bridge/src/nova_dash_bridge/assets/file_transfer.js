@@ -245,6 +245,14 @@
     return Math.min(maximum, Math.max(1, Math.floor(value)));
   }
 
+  function isResumableStateExpired(state) {
+    if (!state || typeof state.resumable_until !== "string" || !state.resumable_until) {
+      return false;
+    }
+    var resumableUntilMs = Date.parse(state.resumable_until);
+    return Number.isFinite(resumableUntilMs) && resumableUntilMs <= Date.now();
+  }
+
   async function uploadMultipart(config, file, initiated) {
     var base = config.transfersEndpointBase;
     var key = initiated.key;
@@ -286,10 +294,16 @@
     persistMultipartState(storageKey, {
       bucket: initiated.bucket,
       key: key,
-      session_id: initiated.session_id || null,
+      session_id:
+        typeof initiated.session_id === "string"
+          ? initiated.session_id
+          : null,
       upload_id: uploadId,
       part_size_bytes: partSize,
-      resumable_until: initiated.resumable_until || null,
+      resumable_until:
+        typeof initiated.resumable_until === "string"
+          ? initiated.resumable_until
+          : null,
     });
 
     async function uploadSinglePart(partNumber, url) {
@@ -546,6 +560,10 @@
     var contentType = file.type || "application/octet-stream";
     var storageKey = multipartStateStorageKey(config, file);
     var storedMultipartState = loadMultipartState(storageKey);
+    if (isResumableStateExpired(storedMultipartState)) {
+      clearMultipartState(storageKey);
+      storedMultipartState = null;
+    }
     setProgress(config.progressStoreId, 0, "Preparing upload…");
 
     var initiated = null;
@@ -562,6 +580,8 @@
         key: storedMultipartState.key,
         upload_id: storedMultipartState.upload_id,
         part_size_bytes: parseInt(storedMultipartState.part_size_bytes, 10),
+        session_id: storedMultipartState.session_id || null,
+        resumable_until: storedMultipartState.resumable_until || null,
         expires_in_seconds: 0,
       };
       setProgress(config.progressStoreId, 0, "Resuming upload…");

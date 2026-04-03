@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import inspect
+import time
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -105,6 +106,12 @@ class MemoryUploadSessionRepository:
             if session_id is None:
                 return None
             record = self._records_by_session_id.get(session_id)
+            if record is None:
+                return None
+            if _is_expired(record):
+                self._records_by_session_id.pop(session_id, None)
+                self._upload_id_index.pop(upload_id, None)
+                return None
             return record
 
     async def update(self, record: UploadSessionRecord) -> None:
@@ -190,7 +197,10 @@ class DynamoUploadSessionRepository:
         items = cast(list[dict[str, Any]], response.get("Items", []))
         if not items:
             return None
-        return _item_to_record(items[0])
+        record = _item_to_record(items[0])
+        if _is_expired(record):
+            return None
+        return record
 
     async def update(self, record: UploadSessionRecord) -> None:
         """Replace one upload session record in DynamoDB."""
@@ -309,6 +319,10 @@ def new_upload_session_id() -> str:
     return uuid4().hex
 
 
+def _is_expired(record: UploadSessionRecord) -> bool:
+    return record.resumable_until_epoch <= int(time.time())
+
+
 def build_upload_session_repository(
     *,
     table_name: str | None,
@@ -317,24 +331,19 @@ def build_upload_session_repository(
 ) -> UploadSessionRepository:
     """Create the configured upload-session repository."""
     resolved_table_name = (table_name or "").strip()
-    if enabled:
-        if not resolved_table_name:
-            raise ValueError(
-                "FILE_TRANSFER_UPLOAD_SESSIONS_TABLE must be configured "
-                "when FILE_TRANSFER_ENABLED=true"
-            )
-        if dynamodb_resource is None:
-            raise ValueError(
-                "dynamodb_resource must be provided when file transfer "
-                "sessions are enabled"
-            )
-        return DynamoUploadSessionRepository(
-            table_name=resolved_table_name,
-            dynamodb_resource=dynamodb_resource,
+    if not enabled:
+        return MemoryUploadSessionRepository()
+    if not resolved_table_name:
+        raise ValueError(
+            "FILE_TRANSFER_UPLOAD_SESSIONS_TABLE must be configured "
+            "when FILE_TRANSFER_ENABLED=true"
         )
-    if resolved_table_name and dynamodb_resource is not None:
-        return DynamoUploadSessionRepository(
-            table_name=resolved_table_name,
-            dynamodb_resource=dynamodb_resource,
+    if dynamodb_resource is None:
+        raise ValueError(
+            "dynamodb_resource must be provided when file transfer "
+            "sessions are enabled"
         )
-    return MemoryUploadSessionRepository()
+    return DynamoUploadSessionRepository(
+        table_name=resolved_table_name,
+        dynamodb_resource=dynamodb_resource,
+    )

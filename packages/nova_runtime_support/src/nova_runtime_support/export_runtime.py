@@ -131,10 +131,35 @@ class ExportPublisher(Protocol):
     """Queue interface for background export dispatch."""
 
     async def publish(self, *, export: ExportRecord) -> str | None:
-        """Publish export record to background queue."""
+        """Publish an export record to the workflow backend.
+
+        Args:
+            export: Export resource to enqueue for background processing.
+
+        Returns:
+            The workflow execution identifier when the backend provides one;
+            otherwise ``None``.
+
+        Raises:
+            ExportPublishError: Raised when the backend rejects the publish
+                request or returns an invalid response.
+        """
 
     async def stop_execution(self, *, execution_arn: str, cause: str) -> None:
-        """Stop a running workflow execution when canceling."""
+        """Stop a running workflow execution when canceling.
+
+        Args:
+            execution_arn: Workflow execution ARN to stop.
+            cause: Human-readable cancellation reason sent to the backend.
+
+        Returns:
+            None.
+
+        Raises:
+            ClientError: Raised when the workflow backend rejects the stop
+                request.
+            BotoCoreError: Raised when the AWS client transport fails.
+        """
 
     async def post_publish(
         self,

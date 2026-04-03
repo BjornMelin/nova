@@ -72,7 +72,7 @@ def _apply_typescript_upstream_compatibility_fixes(root: Path) -> None:
 
     text = utils_path.read_text(encoding="utf-8")
     if _COMPAT_GET_PARSE_AS_SIGNATURE in text:
-        pass
+        pass  # Already patched; keep normalizing other generated files.
     elif _UPSTREAM_GET_PARSE_AS_SIGNATURE in text:
         updated = text.replace(
             _UPSTREAM_GET_PARSE_AS_SIGNATURE,

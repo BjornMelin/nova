@@ -147,6 +147,7 @@ Forbidden ENV_VARS_JSON keys:
 | FILE_TRANSFER_PART_SIZE_BYTES | literal | always | 134217728 |
 | FILE_TRANSFER_POLICY_ID | literal | always | default |
 | FILE_TRANSFER_POLICY_VERSION | literal | always | 2026-04-03 |
+| FILE_TRANSFER_RESUMABLE_WINDOW_SECONDS | literal | always | 604800 |
 | FILE_TRANSFER_TARGET_UPLOAD_PART_COUNT | literal | always | 2000 |
 | FILE_TRANSFER_UPLOAD_SESSIONS_TABLE | stack resource | always | - |
 | FILE_TRANSFER_USE_ACCELERATE_ENDPOINT | literal | always | false |

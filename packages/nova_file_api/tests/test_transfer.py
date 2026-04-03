@@ -12,17 +12,20 @@ from botocore.exceptions import BotoCoreError, ClientError
 from nova_file_api.config import Settings
 from nova_file_api.errors import FileTransferError
 from nova_file_api.models import (
+    AbortUploadRequest,
     CompletedPart,
     CompleteUploadRequest,
     InitiateUploadRequest,
     PresignDownloadRequest,
     Principal,
     UploadIntrospectionRequest,
+    UploadStrategy,
 )
 from nova_file_api.transfer import TransferService
 from nova_file_api.transfer_config import transfer_config_from_settings
 from nova_file_api.upload_sessions import (
     MemoryUploadSessionRepository,
+    UploadSessionRecord,
     UploadSessionStatus,
     _item_to_record,
 )
@@ -131,6 +134,17 @@ class _FakeS3Client:
     async def abort_multipart_upload(self, **kwargs: Any) -> dict[str, Any]:
         self.abort_calls.append(kwargs)
         return {}
+
+
+class _FailingUploadSessionRepository(MemoryUploadSessionRepository):
+    def __init__(self) -> None:
+        super().__init__()
+        self.fail_create = False
+
+    async def create(self, record: UploadSessionRecord) -> None:
+        if self.fail_create:
+            raise RuntimeError("session store unavailable")
+        await super().create(record)
 
 
 @pytest.fixture
@@ -309,6 +323,16 @@ async def test_introspect_upload_uses_persisted_session_part_size() -> None:
     stored = repository._records_by_session_id[initiated.session_id]
     assert stored.status == UploadSessionStatus.ACTIVE
     assert stored.last_activity_at.tzinfo is not None
+
+
+def test_transfer_service_requires_repository_when_sessions_enabled() -> None:
+    settings = _settings(FILE_TRANSFER_UPLOAD_SESSIONS_TABLE="sessions-table")
+
+    with pytest.raises(ValueError, match="dynamodb_resource must be provided"):
+        TransferService(
+            config=transfer_config_from_settings(settings),
+            s3_client=_FakeS3Client(),
+        )
 
 
 def test_upload_session_record_parses_decimal_part_size() -> None:
@@ -516,6 +540,47 @@ async def test_complete_upload_succeeds_when_post_check_fails() -> None:
 
 
 @pytest.mark.anyio
+async def test_complete_upload_tolerates_session_store_failure() -> None:
+    settings = _settings()
+    fake_s3 = _FakeS3Client()
+    repository = _FailingUploadSessionRepository()
+    service = _transfer_service(
+        settings=settings,
+        s3_client=fake_s3,
+        upload_session_repository=repository,
+    )
+    initiated = await service.initiate_upload(
+        request=InitiateUploadRequest(
+            filename="report.csv",
+            content_type="text/csv",
+            size_bytes=500 * 1024 * 1024 * 1024,
+        ),
+        principal=_principal(),
+    )
+    repository.fail_create = False
+    stored = repository._records_by_session_id[initiated.session_id]
+    fake_s3.list_parts_responses = [
+        {
+            "Parts": [{"PartNumber": 1, "ETag": '"etag-1"', "Size": 3}],
+            "IsTruncated": False,
+        }
+    ]
+    fake_s3.head_responses = [{"ContentLength": 3}]
+    repository.fail_create = True
+
+    response = await service.complete_upload(
+        request=CompleteUploadRequest(
+            key=stored.key,
+            upload_id=initiated.upload_id or "",
+            parts=[CompletedPart(part_number=1, etag='"etag-1"')],
+        ),
+        principal=_principal(),
+    )
+
+    assert response.etag == "etag"
+
+
+@pytest.mark.anyio
 async def test_complete_upload_rejects_missing_part() -> None:
     settings = _settings()
     fake_s3 = _FakeS3Client()
@@ -570,6 +635,135 @@ async def test_complete_upload_rejects_duplicate_part_numbers() -> None:
     assert str(exc_info.value) == "multipart upload part numbers must be unique"
     assert exc_info.value.details == {"part_numbers": [1]}
     assert fake_s3.complete_calls == []
+
+
+@pytest.mark.anyio
+async def test_abort_upload_checks_session_scope_before_update() -> None:
+    settings = _settings()
+    fake_s3 = _FakeS3Client()
+    repository = MemoryUploadSessionRepository()
+    service = _transfer_service(
+        settings=settings,
+        s3_client=fake_s3,
+        upload_session_repository=repository,
+    )
+    now = datetime.now(tz=UTC)
+    stored = UploadSessionRecord(
+        session_id="session-1",
+        upload_id="upload-1",
+        scope_id="other-scope",
+        key="uploads/scope-1/report.csv",
+        filename="report.csv",
+        size_bytes=1024,
+        content_type="text/csv",
+        strategy=UploadStrategy.MULTIPART,
+        part_size_bytes=256 * 1024 * 1024,
+        policy_id="default",
+        policy_version="2026-04-03",
+        max_concurrency_hint=4,
+        sign_batch_size_hint=32,
+        accelerate_enabled=False,
+        checksum_algorithm=None,
+        resumable_until=now,
+        resumable_until_epoch=int(now.timestamp()) + 3600,
+        status=UploadSessionStatus.INITIATED,
+        request_id="request-1",
+        created_at=now,
+        last_activity_at=now,
+    )
+    await repository.create(stored)
+
+    with pytest.raises(FileTransferError) as exc_info:
+        await service.abort_upload(
+            request=AbortUploadRequest(
+                key="uploads/scope-1/report.csv",
+                upload_id="upload-1",
+            ),
+            principal=_principal(),
+        )
+
+    assert exc_info.value.code == "invalid_request"
+    assert str(exc_info.value) == "upload session is outside caller scope"
+    assert repository._records_by_session_id[stored.session_id] == stored
+
+
+@pytest.mark.anyio
+async def test_abort_upload_tolerates_session_store_failure() -> None:
+    settings = _settings()
+    fake_s3 = _FakeS3Client()
+    repository = _FailingUploadSessionRepository()
+    service = _transfer_service(
+        settings=settings,
+        s3_client=fake_s3,
+        upload_session_repository=repository,
+    )
+    initiated = await service.initiate_upload(
+        request=InitiateUploadRequest(
+            filename="report.csv",
+            content_type="text/csv",
+            size_bytes=500 * 1024 * 1024 * 1024,
+        ),
+        principal=_principal(),
+    )
+    repository.fail_create = False
+    stored = repository._records_by_session_id[initiated.session_id]
+    repository.fail_create = True
+
+    response = await service.abort_upload(
+        request=AbortUploadRequest(
+            key=stored.key,
+            upload_id=initiated.upload_id or "",
+        ),
+        principal=_principal(),
+    )
+
+    assert response.ok is True
+
+
+@pytest.mark.anyio
+async def test_upload_session_repository_ignores_expired_records() -> None:
+    repository = MemoryUploadSessionRepository()
+    now = datetime.now(tz=UTC)
+    expired = UploadSessionRecord(
+        session_id="session-1",
+        upload_id="upload-1",
+        scope_id="scope-1",
+        key="uploads/scope-1/report.csv",
+        filename="report.csv",
+        size_bytes=1024,
+        content_type="text/csv",
+        strategy="multipart",
+        part_size_bytes=256 * 1024 * 1024,
+        policy_id="default",
+        policy_version="2026-04-03",
+        max_concurrency_hint=4,
+        sign_batch_size_hint=32,
+        accelerate_enabled=False,
+        checksum_algorithm=None,
+        resumable_until=now,
+        resumable_until_epoch=int(now.timestamp()) - 1,
+        status=UploadSessionStatus.INITIATED,
+        request_id="request-1",
+        created_at=now,
+        last_activity_at=now,
+    )
+
+    await repository.create(expired)
+
+    assert await repository.get_by_upload_id(upload_id="upload-1") is None
+
+
+def test_transfer_config_preferred_part_size_remains_lower_bound() -> None:
+    settings = _settings(
+        FILE_TRANSFER_PART_SIZE_BYTES=128 * 1024 * 1024,
+        FILE_TRANSFER_TARGET_UPLOAD_PART_COUNT=2000,
+    )
+
+    config = transfer_config_from_settings(settings)
+
+    assert config.upload_part_size_bytes(size_bytes=500 * 1024 * 1024) == (
+        128 * 1024 * 1024
+    )
 
 
 @pytest.mark.anyio

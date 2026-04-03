@@ -414,6 +414,12 @@ API_LAMBDA_ENV: tuple[RuntimeEnvContract, ...] = (
         "2026-04-03",
     ),
     RuntimeEnvContract(
+        "FILE_TRANSFER_RESUMABLE_WINDOW_SECONDS",
+        "literal",
+        "always",
+        str(7 * 24 * 60 * 60),
+    ),
+    RuntimeEnvContract(
         "FILE_TRANSFER_TARGET_UPLOAD_PART_COUNT",
         "literal",
         "always",
