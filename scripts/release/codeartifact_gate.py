@@ -590,21 +590,24 @@ def main() -> int:
     """
     args = parse_args()
     repo_root = Path(args.repo_root).resolve()
+    release_prep_arg = getattr(args, "release_prep_path", "")
+    changed_units_arg = getattr(args, "changed_units", "")
+    version_plan_arg = getattr(args, "version_plan", "")
+    expected_manifest_sha256 = getattr(args, "expected_manifest_sha256", None)
+    r_publish_report_arg = getattr(args, "r_publish_report", None)
 
     manifest_path = Path(args.manifest_path)
     if not manifest_path.is_absolute():
         manifest_path = repo_root / manifest_path
     release_prep_path: Path | None = None
-    if args.release_prep_path:
-        release_prep_path = Path(args.release_prep_path)
+    if release_prep_arg:
+        release_prep_path = Path(release_prep_arg)
         if not release_prep_path.is_absolute():
             release_prep_path = repo_root / release_prep_path
-    changed_units_path = (
-        Path(args.changed_units) if args.changed_units else None
-    )
+    changed_units_path = Path(changed_units_arg) if changed_units_arg else None
     if changed_units_path is not None and not changed_units_path.is_absolute():
         changed_units_path = repo_root / changed_units_path
-    version_plan_path = Path(args.version_plan) if args.version_plan else None
+    version_plan_path = Path(version_plan_arg) if version_plan_arg else None
     if version_plan_path is not None and not version_plan_path.is_absolute():
         version_plan_path = repo_root / version_plan_path
     if release_prep_path is None and (
@@ -614,7 +617,7 @@ def main() -> int:
             "provide release_prep_path or both changed_units and version_plan"
         )
     r_publish_report_path = (
-        Path(args.r_publish_report) if args.r_publish_report else None
+        Path(r_publish_report_arg) if r_publish_report_arg else None
     )
     if (
         r_publish_report_path is not None
@@ -627,7 +630,7 @@ def main() -> int:
         manifest_path=manifest_path,
         changed_units_path=changed_units_path or Path(),
         version_plan_path=version_plan_path or Path(),
-        expected_manifest_sha256=args.expected_manifest_sha256,
+        expected_manifest_sha256=expected_manifest_sha256,
         r_publish_report_path=r_publish_report_path,
         release_prep_path=release_prep_path,
     )
