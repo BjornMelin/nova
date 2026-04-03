@@ -1,168 +1,104 @@
 # Product Requirements Document (PRD): Nova Runtime
 
 Status: Active canonical PRD
-Last updated: 2026-03-19
+Last updated: 2026-04-02
 Audience: Product, Engineering, Platform Operations
 
-## 1. Product Goal
+## 1. Product goal
 
-Deliver one production-ready API control-plane contract for file transfer and
-async export workflows with zero route-surface ambiguity, **one public
-runtime** for JWT verification, and **claim-derived** caller scope (no
-parallel session/header auth channel).
+Deliver one typed, durable control plane for secure direct-to-S3 transfers and
+export workflows, with one canonical serverless runtime and one canonical
+release path.
 
-## 2. Desired Outcomes
+## 2. Desired outcomes
 
-- One canonical public URL namespace: `/v1/*` (plus `/metrics/summary`).
-- Public **contract revision** for auth and OpenAPI expression under
-  `SPEC-0027` without introducing a `/v2/*` prefix unless a future ADR does so
-  explicitly.
-- Zero active references to non-canonical route literals in runtime and active
-  operator docs.
-- One truthful active operator authority graph across runtime API, SDK, and
-  deploy-validation governance, including the
-  [green-field execution plan](./plan/GREENFIELD-WAVE-2-EXECUTION.md) and
-  `ADR-0033`–`ADR-0038` / `SPEC-0027`–`SPEC-0031`.
-- One generated runtime-config matrix for deploy/docs/test consumers, backed by
-  the typed settings model rather than duplicated env-key lists.
-- Superseded ADR/SPEC material is quarantined outside the active authority set
-  (including superseded `ADR-0005` and `SPEC-0007`).
-- Stable generated-client and conformance behavior against current OpenAPI.
-- Ergonomic SDK-facing OpenAPI identifiers and semantic generator groupings
-  remain stable across regeneration.
-- TypeScript SDKs use `@hey-api/openapi-ts` with the generated fetch client
-  per `ADR-0037` / `SPEC-0030` while honoring active `SPEC-0012`
-  (predecessor package-map detail, if needed for archaeology only:
-  [`spec/index.md`](./architecture/spec/index.md) → Superseded `SPEC-0011`).
-- Export workflow state persists directly in the workflow/DynamoDB control
-  plane, not through an internal HTTP callback (`SPEC-0028`, `ADR-0035`).
-- Release promotion evidence is complete for non-prod validation and dev→prod
-  promotion controls.
+- One canonical public API namespace under `/v1/*` plus `/metrics/summary`.
+- One public auth model: bearer JWT only.
+- One canonical AWS runtime: Regional REST API, Lambda, Step Functions,
+  DynamoDB, S3, CloudWatch, optional non-prod WAF, and production WAF.
+- One canonical release executor: AWS-native CodePipeline/CodeBuild after merge.
+- One canonical Auth0 automation path using repo-owned template, official
+  `auth0-python`, and `auth0-deploy-cli`.
+- One canonical documentation authority graph across README, ADR/SPEC,
+  contracts, and runbooks.
 
-## 3. Product Requirements
+## 3. Product requirements
 
-1. Runtime capabilities remain available for transfer orchestration, async export
-   control plane, capability/release discovery, health/readiness, and metrics.
-2. Runtime semantics preserve queue failure behavior (`503 queue_unavailable`),
-   aggregate readiness contract (including bucket and OIDC failure checks),
-   DynamoDB-backed idempotency behavior, and workflow terminal-state
-   normalization (`succeeded` clears `error`).
-3. OpenAPI 3.1 output remains the contract source for SDK/client generation and
-   policy checks, with native FastAPI expression preferred (`ADR-0036`),
-   stable snake_case `operationId` values, semantic SDK grouping tags, and
-   resolvable named component schemas for custom request bodies.
-4. Release policy enforces immutable artifact promotion and auditable manual
-   approval before prod.
-5. Documentation authority remains singular and unambiguous across README,
-   PRD, requirements, ADR/SPEC, plan, and runbooks, synchronized per
-   `ADR-0038` and `SPEC-0031` (including green-field branch merge policy).
-6. Public SDK productization follows `ADR-0037`, `SPEC-0030`, and `SPEC-0012`
-   (Python public; TypeScript CodeArtifact staged/prod; R internal first-class
-   line). Superseded predecessors (`ADR-0013`, `SPEC-0011`, etc.) are listed only
-   in [`adr/index.md`](./architecture/adr/index.md) and
-   [`spec/index.md`](./architecture/spec/index.md) (Superseded tables) and under
-   `adr/superseded/` / `spec/superseded/`—not active authority.
-7. Deployment target-state aligns with `ADR-0033` / `SPEC-0029`: regional API
-   Gateway REST API with direct Regional WAF, one canonical custom domain,
-   Lambda (FastAPI via native handler), Step Functions Standard, DynamoDB,
-   S3, and CloudWatch-backed observability with least-privilege IAM.
-8. `nova_dash_bridge` remains a browser/Dash helper surface and consumes the
-   canonical Nova HTTP API contract instead of a bridge-owned in-process seam.
-9. Runtime deploy/operator surfaces must share one generated env/override
-   contract derived from the typed runtime settings plus minimal curated
-   template metadata.
+1. Nova must remain a control plane, not a byte proxy.
+2. Upload/download contracts must continue to target direct S3 data paths.
+3. Export creation, status, listing, and cancellation must remain durable and
+   explicit under `/v1/exports`.
+4. OpenAPI must remain the SDK and client-generation authority.
+5. Deploy validation must remain provenance-aware and driven by
+   `deploy-output.json`.
+6. Runtime and release inputs must remain configurable enough to move the
+   system between AWS accounts, Auth0 tenants, and Route 53 zones without
+   re-architecting the repo.
+7. Operators must be able to reproduce Auth0, release, and runtime operations
+   from repo-owned scripts and runbooks without manual one-off shell state.
 
-## 4. Scope and Non-Goals
+## 4. Scope
 
 In scope:
 
-- Canonical `/v1/*` runtime contract stewardship.
-- Green-field simplification program execution and documentation
-  (`docs/plan/GREENFIELD-WAVE-2-EXECUTION.md`).
-- Async export and transfer orchestration reliability requirements.
-- CI/CD and release governance alignment with active Nova docs.
+- file transfer orchestration
+- export workflow orchestration
+- generated SDKs and contract artifacts
+- AWS runtime and release control plane
+- Auth0 tenant automation
+- active docs, specs, ADRs, and runbooks
 
 Out of scope:
 
-- Compatibility alias routes for removed namespaces.
-- Data-plane byte proxying through FastAPI.
-- Re-introducing split/dual authority documentation models.
-- A separate auth microservice or dedicated `/v1/token/*` public surface in the
-  target architecture.
+- session auth or same-origin auth
+- generic jobs APIs
+- Redis-backed correctness paths
+- ECS/Fargate runtime stacks
+- CloudFront as compensating API ingress
+- split SDK package families
 
-## 5. Success Metrics
+## 5. Success metrics
 
-- 100% pass rate for OpenAPI path policy checks enforcing `/v1/*` plus
-  `/metrics/summary`.
-- 100% pass rate for generated-client smoke against current OpenAPI schema.
-- 100% pass rate for route guard checks against disallowed legacy literals.
-- Non-prod validation evidence covers canonical route behavior and required
-  release gates.
+- Route and contract checks stay green for `/v1/*` plus `/metrics/summary`.
+- Generated SDK and contract checks stay green from committed sources.
+- Infra contract tests stay green for:
+  - AWS-native release control plane
+  - execute-api disablement
+  - production WAF default
+  - non-prod WAF-off default
+- Auth0 automation works non-interactively for active tenant overlays.
 
-## 6. Acceptance Criteria
+## 6. Acceptance criteria
 
-1. Active docs reference the canonical chain including `ADR-0023`,
-   `SPEC-0016`, `SPEC-0027`, `requirements.md`, and the green-field overlays
-   `SPEC-0027`–`SPEC-0031` / `ADR-0033`–`ADR-0038` where relevant.
-2. Active plan/runbook docs reference
-   `docs/plan/GREENFIELD-WAVE-2-EXECUTION.md` when scope touches the
-   program.
-3. Historical artifacts are discoverable only through history indexes,
-   archive paths, or the dedicated superseded ADR/SPEC directories.
-4. Contract and release docs stay synchronized in the same change set as
-   behavioral changes (`ADR-0038`, `SPEC-0031`).
-5. Downstream integration contracts, Auth0 workflow contracts, and SSM base URL
-   authority contracts remain aligned with active ADR/SPEC and test guardrails.
-6. Auth0 tenant import/export paths are fail-fast and cannot mutate tenants when
-   contract validation fails.
-7. CodeArtifact promotion IAM contracts remain least-privilege, scoped to
-   explicit staged source and prod destination repositories, and cover Python
-   distributions, TypeScript staged/prod package promotion, and R generic
-   package artifacts.
-8. Active operator authority IDs and paths are truthful, resolvable, and
-   synchronized across README, AGENTS, plan, PRD, runbooks, and architecture
-   indexes.
-9. Superseded ADR/SPEC content is excluded from active authority lists and
-   active index sections.
+1. Active docs describe the implemented AWS-native/Auth0/serverless state.
+2. No active docs require deprecated GitHub deploy executors or repo-wide Auth0
+   secrets.
+3. Runtime deploy inputs and examples stay account-neutral by default.
+4. Auth0 bootstrap, audit, import, and export are reproducible from repo-owned
+   scripts and matching GitHub workflows.
+5. Production browser CORS hardening is explicitly tracked when wildcard CORS
+   is used for the first `api-nova` cutover.
 
-## 7. Risks
+## 7. Current tracked exception
 
-- Consumer drift to retired routes if downstream defaults regress.
-- Documentation drift if active files duplicate route or release authority.
-- Runtime config drift if deploy scripts, templates, tests, and docs carry
-  separate handwritten env/override lists.
-- Guardrail erosion if CI checks are renamed/removed without doc updates.
-- Temporary mismatch between target authority docs and in-flight code during
-  green-field execution if branches land without synchronized doc updates.
+- GitHub issue `#111`, `Harden prod CORS origins after initial api-nova cutover`
+  tracks removal of the temporary production wildcard CORS allowlist.
 
-## 8. Active References
+## 8. Active references
 
 - `docs/architecture/requirements.md`
-- `docs/plan/GREENFIELD-WAVE-2-EXECUTION.md`
-- `docs/architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md`
-- `docs/architecture/adr/ADR-0024-layered-architecture-authority-pack.md`
-- `docs/architecture/adr/ADR-0025-runtime-monorepo-component-boundaries-and-ownership.md`
-- `docs/architecture/adr/ADR-0026-fail-fast-runtime-configuration-and-safe-auth-execution.md`
-- `docs/architecture/adr/ADR-0027-hard-cut-downstream-integration-and-consumer-contract-enforcement.md`
-- `docs/architecture/adr/ADR-0028-auth0-tenant-ops-reusable-workflow-api-contract.md`
+- `docs/overview/IMPLEMENTATION-STATUS-MATRIX.md`
 - `docs/architecture/adr/ADR-0033-canonical-serverless-platform.md`
 - `docs/architecture/adr/ADR-0034-eliminate-auth-service-and-session-auth.md`
 - `docs/architecture/adr/ADR-0035-replace-generic-jobs-with-export-workflows.md`
 - `docs/architecture/adr/ADR-0036-dynamodb-idempotency-no-redis.md`
 - `docs/architecture/adr/ADR-0037-sdk-generation-consolidation.md`
 - `docs/architecture/adr/ADR-0038-docs-authority-reset.md`
-- `docs/architecture/spec/superseded/SPEC-0015-nova-api-platform-final-topology-and-delivery-contract.md`
-- `docs/architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md`
-- `docs/architecture/spec/SPEC-0017-runtime-component-topology-and-ownership-contract.md`
-- `docs/architecture/spec/SPEC-0018-runtime-configuration-and-startup-validation-contract.md`
-- `docs/architecture/spec/SPEC-0019-auth-execution-and-threadpool-safety-contract.md`
-- `docs/architecture/spec/SPEC-0021-downstream-hard-cut-integration-and-consumer-validation-contract.md`
-- `docs/architecture/spec/SPEC-0022-auth0-tenant-ops-reusable-workflow-contract.md`
 - `docs/architecture/spec/SPEC-0027-public-api-v2.md`
 - `docs/architecture/spec/SPEC-0028-export-workflow-state-machine.md`
 - `docs/architecture/spec/SPEC-0029-platform-serverless.md`
 - `docs/architecture/spec/SPEC-0030-sdk-generation-and-package-layout.md`
 - `docs/architecture/spec/SPEC-0031-docs-and-tests-authority-reset.md`
-- `docs/standards/README.md`
-- `docs/plan/PLAN.md`
-- `docs/runbooks/README.md`
+- `docs/runbooks/release/release-runbook.md`
+- `docs/runbooks/release/auth0-a0deploy-runbook.md`
+- `infra/nova_cdk/README.md`

@@ -267,6 +267,27 @@ def test_non_prod_can_disable_reserved_concurrency() -> None:
         assert "ReservedConcurrentExecutions" not in resource["Properties"]
 
 
+def test_non_prod_disables_waf_by_default() -> None:
+    """Non-prod stacks should skip WAF unless explicitly enabled."""
+    bundle = _build_bundle()
+
+    assert "ExportNovaWafLogGroupName" not in bundle.outputs
+    assert not _resources_of_type(bundle.resources, "AWS::WAFv2::WebACL")
+
+
+def test_prod_cannot_disable_waf() -> None:
+    """Prod stacks must keep WAF enabled."""
+    context = {
+        **_context_for_region("us-west-2"),
+        "environment": "prod",
+        "allowed_origins": '["https://app.example.com"]',
+        "enable_waf": "false",
+    }
+
+    with pytest.raises(ValueError, match="enable_waf cannot be false"):
+        _template(context=context)
+
+
 def test_prod_cannot_disable_reserved_concurrency() -> None:
     """Prod stacks must not disable reserved concurrency."""
     context = {

@@ -274,6 +274,7 @@ class RuntimeStackInputs:
     api_domain_name: str
     certificate_arn: str
     deployment_environment: str
+    enable_waf: bool
     enable_reserved_concurrency: bool
     hosted_zone_id: str
     hosted_zone_name: str
@@ -314,6 +315,20 @@ class RuntimeStackInputs:
             scope,
             deployment_environment=deployment_environment,
         )
+        enable_waf_raw = _optional_context_or_env_value(
+            scope,
+            env_var="ENABLE_WAF",
+            key="enable_waf",
+        )
+        enable_waf = (
+            is_production_environment(deployment_environment)
+            if enable_waf_raw is None
+            else _parse_bool_flag(enable_waf_raw, key="enable_waf")
+        )
+        if is_production_environment(deployment_environment) and not enable_waf:
+            raise ValueError(
+                "enable_waf cannot be false for production deployments."
+            )
         if not enable_reserved_concurrency and (
             _reserved_concurrency_override_present(
                 scope,
@@ -372,6 +387,7 @@ class RuntimeStackInputs:
                 key="certificate_arn",
             ),
             deployment_environment=deployment_environment,
+            enable_waf=enable_waf,
             enable_reserved_concurrency=enable_reserved_concurrency,
             hosted_zone_id=_required_context_or_env_value(
                 scope,
@@ -841,6 +857,7 @@ class NovaRuntimeStack(Stack):
             ),
             throttling_burst_limit=inputs.api_stage_throttling_burst_limit,
             throttling_rate_limit=inputs.api_stage_throttling_rate_limit,
+            enable_waf=inputs.enable_waf,
             waf_rate_limit=inputs.waf_rate_limit,
             waf_write_rate_limit=inputs.waf_write_rate_limit,
         )
@@ -1013,15 +1030,17 @@ class NovaRuntimeStack(Stack):
                 "IdempotencyTableName",
                 idempotency_table.table_name,
             ),
-            (
-                "ExportNovaWafLogGroupName",
-                "WafLogGroupName",
-                ingress.waf_log_group_name,
-            ),
         ):
             CfnOutput(
                 self,
                 logical_id,
                 value=value,
                 export_name=f"{export_prefix}{export_suffix}",
+            )
+        if ingress.waf_log_group_name is not None:
+            CfnOutput(
+                self,
+                "ExportNovaWafLogGroupName",
+                value=ingress.waf_log_group_name,
+                export_name=f"{export_prefix}WafLogGroupName",
             )

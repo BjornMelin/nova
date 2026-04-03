@@ -21,6 +21,7 @@ REQUIRED_KEYS = {
 }
 OPTIONAL_KEYS = {
     "allowed_origins": "STACK_ALLOWED_ORIGINS",
+    "enable_waf": "ENABLE_WAF",
     "environment": "ENVIRONMENT",
 }
 

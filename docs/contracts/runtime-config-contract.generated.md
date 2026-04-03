@@ -101,6 +101,7 @@ Forbidden ENV_VARS_JSON keys:
 | jwt_audience | CDK context / runtime deploy input | yes | OIDC audience injected into the API Lambda. |
 | jwt_jwks_url | CDK context / runtime deploy input | yes | OIDC JWKS URL injected into the API Lambda. |
 | allowed_origins | CDK context / runtime deploy input | no | Optional browser origin allowlist serialized into ALLOWED_ORIGINS. |
+| enable_waf | CDK context / runtime deploy input | no | Optional toggle for the Regional WAF. Defaults to true in prod and false elsewhere. |
 | enable_reserved_concurrency | CDK context / runtime deploy input | no | Optional toggle for non-production reserved concurrency. |
 
 ## API Lambda environment contract

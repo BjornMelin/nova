@@ -296,6 +296,13 @@ DEPLOY_INPUTS: tuple[DeployInputContract, ...] = (
         "Optional browser origin allowlist serialized into ALLOWED_ORIGINS.",
     ),
     DeployInputContract(
+        "enable_waf",
+        "CDK context / runtime deploy input",
+        False,
+        "Optional toggle for the Regional WAF. Defaults to true in prod "
+        "and false elsewhere.",
+    ),
+    DeployInputContract(
         "enable_reserved_concurrency",
         "CDK context / runtime deploy input",
         False,

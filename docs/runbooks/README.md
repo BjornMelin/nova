@@ -18,6 +18,7 @@ operations docs for the canonical repo.
 ## Rules
 
 - Active runbooks must describe the surviving human GitHub release-prep flow, the AWS-native release control plane, and `infra/nova_cdk`.
+- Active runbooks must describe production WAF as default-on and non-production WAF as opt-in when ingress cost or simplicity is the priority.
 - Active runbooks must treat `release/RELEASE-PREP.json` and
   `release/RELEASE-VERSION-MANIFEST.md` as machine-owned release metadata,
   not as narrative documentation.

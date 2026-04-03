@@ -197,6 +197,12 @@
       "source": "CDK context / runtime deploy input"
     },
     {
+      "description": "Optional toggle for the Regional WAF. Defaults to true in prod and false elsewhere.",
+      "name": "enable_waf",
+      "required": false,
+      "source": "CDK context / runtime deploy input"
+    },
+    {
       "description": "Optional toggle for non-production reserved concurrency.",
       "name": "enable_reserved_concurrency",
       "required": false,

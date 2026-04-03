@@ -13,7 +13,7 @@ provenance-bound runtime validation.
 ## 1A. Authority / references
 
 1. `docs/overview/IMPLEMENTATION-STATUS-MATRIX.md`
-2. `docs/architecture/adr/ADR-0011-cicd-hybrid-github-aws-promotion.md`
+2. `docs/architecture/adr/ADR-0033-canonical-serverless-platform.md`
 3. `docs/architecture/spec/SPEC-0004-ci-cd-and-docs.md`
 4. `docs/architecture/spec/SPEC-0025-reusable-workflow-integration-contract.md`
 5. `docs/contracts/deploy-output-authority-v2.schema.json`
@@ -48,6 +48,8 @@ provenance-bound runtime validation.
    - `PROD_RUNTIME_STACK_ID`
    - `PROD_RUNTIME_CFN_EXECUTION_ROLE_ARN`
    - `PROD_RUNTIME_CONFIG_PARAMETER_NAME`
+7. If the first `api-nova` production cutover is using temporary wildcard CORS,
+   GitHub issue `#111` remains open until the prod allowlist is tightened.
 
 ## 2A. Canonical local verification commands
 
@@ -109,6 +111,9 @@ executor workflows as the canonical Nova verification shape.
    - reuses the stored release execution manifest
    - promotes staged packages to `CODEARTIFACT_PROD_REPOSITORY`
    - deploys the runtime from the exact approved artifact coordinates
+   - may temporarily deploy `allowed_origins=["*"]` for the first production
+     custom-domain cutover only; issue `#111` tracks the required follow-up
+     hardening
 
 ### D. Re-run post-deploy runtime validation when needed
 

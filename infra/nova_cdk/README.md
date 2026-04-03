@@ -160,7 +160,11 @@ uv run --package nova-cdk python app.py
   CORS values, and extra runtime deploy-role hops across many
   release-control-plane inputs.
 - Configure `allowed_origins` via CDK context or `STACK_ALLOWED_ORIGINS` for
-  production deployments; local and dev stacks default to `*`.
+  production deployments; non-prod stacks default to `*`.
+- Configure `enable_waf` / `ENABLE_WAF` when you need to override the ingress
+  default. Production defaults to `true` and fails closed if set to `false`.
+  Non-production defaults to `false` to avoid unnecessary steady-state WAF
+  cost.
 - `scripts.release.prepare_release_pr` is the canonical local entrypoint for
   generating committed release-prep artifacts under `release/**`.
 - The primary and only supported release executor is the
@@ -175,6 +179,7 @@ uv run --package nova-cdk python app.py
   runtime version, `NovaPublicBaseUrl`, stack name, region, and stack outputs
   for incident response and revalidation.
 - Optional ingress safeguard overrides:
+  `enable_waf`,
   `enable_reserved_concurrency`,
   `api_reserved_concurrency`,
   `workflow_reserved_concurrency`,
@@ -191,25 +196,32 @@ uv run --package nova-cdk python app.py
 - Manual low-quota non-prod deploys should set
   `ENABLE_RESERVED_CONCURRENCY=false` explicitly before running
   `npx aws-cdk deploy`.
+- Manual non-prod ingress hardening checks can set `ENABLE_WAF=true`
+  explicitly before running `npx aws-cdk deploy`.
 - The transfer bucket aborts incomplete multipart uploads after 7 days and
   expires transient `tmp/` objects after 3 days. Durable `exports/` objects
   are retained.
 - The Regional REST ingress emits JSON access logs to
-  `/aws/apigateway/nova-rest-api-access-{stage}` and WAF logs to
-  `aws-waf-logs-nova-rest-api-{stage}` with 90-day retention.
-- The WAF uses AWS managed IP-reputation/common/bad-inputs rule groups plus two
-  rate rules: a general per-IP ceiling (`waf_rate_limit`, default `2000` over
-  5 minutes) and a stricter write-path ceiling (`waf_write_rate_limit`,
-  default `500` over 5 minutes) scoped to `/v1/exports` and
-  `/v1/transfers/uploads`.
-- The stack exports `NovaAlarmTopicArn`, `NovaApiAccessLogGroupName`, and
-  `NovaWafLogGroupName`; all runtime alarms publish to the SNS topic
+  `/aws/apigateway/nova-rest-api-access-{stage}` with 90-day retention.
+- When WAF is enabled, it writes logs to `aws-waf-logs-nova-rest-api-{stage}`
+  with 90-day retention.
+- When WAF is enabled, it uses AWS managed IP-reputation/common/bad-inputs rule
+  groups plus two rate rules: a general per-IP ceiling (`waf_rate_limit`,
+  default `2000` over 5 minutes) and a stricter write-path ceiling
+  (`waf_write_rate_limit`, default `500` over 5 minutes) scoped to
+  `/v1/exports` and `/v1/transfers/uploads`.
+- The stack always exports `NovaAlarmTopicArn` and
+  `NovaApiAccessLogGroupName`. It exports `NovaWafLogGroupName` only when WAF
+  is enabled. All runtime alarms publish to the SNS topic
   `nova-runtime-alarms-{environment}`. Operators can set
   `alarm_notification_emails` / `ALARM_NOTIFICATION_EMAILS` to create email
   subscriptions at deploy time, or attach PagerDuty, Chatbot, and EventBridge
   fan-out without changing the stack.
-- WAF logs redact the `Authorization` and `Cookie` headers before delivery to
-  CloudWatch Logs and keep only `BLOCK` / `COUNT` decisions to concentrate the
-  security signal.
+- When WAF is enabled, logs redact the `Authorization` and `Cookie` headers
+  before delivery to CloudWatch Logs and keep only `BLOCK` / `COUNT`
+  decisions to concentrate the security signal.
 - The stack exports one canonical `NovaPublicBaseUrl`, which always points at
   the configured custom domain.
+- The first production custom-domain cutover may temporarily use
+  `allowed_origins=["*"]`; GitHub issue `#111` tracks tightening that allowlist
+  after the initial cutover.

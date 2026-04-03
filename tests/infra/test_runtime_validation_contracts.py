@@ -47,5 +47,7 @@ def test_runtime_config_contract_artifacts_drop_deleted_template_surfaces() -> (
     assert "## Runtime deploy inputs" in markdown
     assert "## API Lambda environment contract" in markdown
     assert "## Workflow task Lambda environment contract" in markdown
+    assert '"name": "enable_waf"' in json.dumps(payload["deploy_inputs"])
+    assert "enable_waf" in markdown
     assert "Service template environment contract" not in markdown
     assert "Worker template environment contract" not in markdown
