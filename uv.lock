@@ -1203,7 +1203,7 @@ requires-dist = [
 
 [[package]]
 name = "nova-dash-bridge"
-version = "0.3.1"
+version = "0.3.2"
 source = { editable = "packages/nova_dash_bridge" }
 
 [package.optional-dependencies]
@@ -1217,7 +1217,7 @@ provides-extras = ["dash"]
 
 [[package]]
 name = "nova-file-api"
-version = "0.5.0"
+version = "0.5.1"
 source = { editable = "packages/nova_file_api" }
 dependencies = [
     { name = "aioboto3" },

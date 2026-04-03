@@ -1,0 +1,59 @@
+{
+  "base_commit": "63c8d4376243744872d6edad9bbbf383107bd975",
+  "changed_files": [
+    "packages/nova_dash_bridge/pyproject.toml",
+    "packages/nova_file_api/pyproject.toml"
+  ],
+  "changed_units": [
+    {
+      "codeartifact_format": "pypi",
+      "format": "pypi",
+      "namespace": null,
+      "path": "packages/nova_dash_bridge",
+      "project": "nova-dash-bridge",
+      "unit_id": "packages/nova_dash_bridge",
+      "version": "0.3.2"
+    },
+    {
+      "codeartifact_format": "pypi",
+      "format": "pypi",
+      "namespace": null,
+      "path": "packages/nova_file_api",
+      "project": "nova-file-api",
+      "unit_id": "packages/nova_file_api",
+      "version": "0.5.1"
+    }
+  ],
+  "first_release": false,
+  "global_bump": "patch",
+  "head_commit": "8be61e53e4dd9873d1f8cbe0fa5e7969462118ef",
+  "prepared_at": "2026-04-03T01:38:58+00:00",
+  "prepared_from_commit": "8be61e53e4dd9873d1f8cbe0fa5e7969462118ef",
+  "schema_version": "1.0",
+  "units": [
+    {
+      "bump": "patch",
+      "codeartifact_format": "pypi",
+      "format": "pypi",
+      "namespace": null,
+      "new_version": "0.3.2",
+      "old_version": "0.3.1",
+      "path": "packages/nova_dash_bridge",
+      "project": "nova-dash-bridge",
+      "reason": "changed",
+      "unit_id": "packages/nova_dash_bridge"
+    },
+    {
+      "bump": "patch",
+      "codeartifact_format": "pypi",
+      "format": "pypi",
+      "namespace": null,
+      "new_version": "0.5.1",
+      "old_version": "0.5.0",
+      "path": "packages/nova_file_api",
+      "project": "nova-file-api",
+      "reason": "changed",
+      "unit_id": "packages/nova_file_api"
+    }
+  ]
+}

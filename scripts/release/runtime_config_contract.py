@@ -17,7 +17,7 @@ try:
     from scripts.release.release_paths import RUNTIME_CONFIG_GENERATED_MD_PATH
 except ModuleNotFoundError:  # pragma: no cover - test harness fallback
     RUNTIME_CONFIG_GENERATED_MD_PATH = (
-        "docs/release/runtime-config-contract.generated.md"
+        "docs/contracts/runtime-config-contract.generated.md"
     )
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -207,73 +207,97 @@ ENV_JSON_OVERRIDES: tuple[EnvJsonOverrideContract, ...] = (
 DEPLOY_INPUTS: tuple[DeployInputContract, ...] = (
     DeployInputContract(
         "API_LAMBDA_ARTIFACT_BUCKET",
-        "release-apply artifact manifest",
+        "release execution manifest",
         True,
         "S3 bucket containing the immutable API Lambda zip.",
     ),
     DeployInputContract(
         "API_LAMBDA_ARTIFACT_KEY",
-        "release-apply artifact manifest",
+        "release execution manifest",
         True,
         "S3 key for the immutable API Lambda zip.",
     ),
     DeployInputContract(
         "API_LAMBDA_ARTIFACT_SHA256",
-        "release-apply artifact manifest",
+        "release execution manifest",
         True,
         "SHA256 digest for the immutable API Lambda zip.",
     ),
     DeployInputContract(
+        "WORKFLOW_LAMBDA_ARTIFACT_BUCKET",
+        "release execution manifest",
+        True,
+        "S3 bucket containing the immutable workflow Lambda zip.",
+    ),
+    DeployInputContract(
+        "WORKFLOW_LAMBDA_ARTIFACT_KEY",
+        "release execution manifest",
+        True,
+        "S3 key for the immutable workflow Lambda zip.",
+    ),
+    DeployInputContract(
+        "WORKFLOW_LAMBDA_ARTIFACT_SHA256",
+        "release execution manifest",
+        True,
+        "SHA256 digest for the immutable workflow Lambda zip.",
+    ),
+    DeployInputContract(
+        "runtime_stack_id",
+        "release control-plane environment input",
+        True,
+        "CloudFormation stack id to deploy in the current environment.",
+    ),
+    DeployInputContract(
         "api_domain_name",
-        "CDK context / deploy-runtime input",
+        "CDK context / runtime deploy input",
         True,
         "Canonical public custom domain for the Regional REST API.",
     ),
     DeployInputContract(
         "certificate_arn",
-        "CDK context / deploy-runtime input",
+        "CDK context / runtime deploy input",
         True,
         "Regional ACM certificate used by the API custom domain.",
     ),
     DeployInputContract(
         "hosted_zone_id",
-        "CDK context / deploy-runtime input",
+        "CDK context / runtime deploy input",
         True,
         "Route 53 hosted zone id that owns the API alias record.",
     ),
     DeployInputContract(
         "hosted_zone_name",
-        "CDK context / deploy-runtime input",
+        "CDK context / runtime deploy input",
         True,
         "Route 53 hosted zone name that owns the API alias record.",
     ),
     DeployInputContract(
         "jwt_issuer",
-        "CDK context / deploy-runtime input",
+        "CDK context / runtime deploy input",
         True,
         "OIDC issuer URL injected into the API Lambda.",
     ),
     DeployInputContract(
         "jwt_audience",
-        "CDK context / deploy-runtime input",
+        "CDK context / runtime deploy input",
         True,
         "OIDC audience injected into the API Lambda.",
     ),
     DeployInputContract(
         "jwt_jwks_url",
-        "CDK context / deploy-runtime input",
+        "CDK context / runtime deploy input",
         True,
         "OIDC JWKS URL injected into the API Lambda.",
     ),
     DeployInputContract(
         "allowed_origins",
-        "CDK context / deploy-runtime input",
+        "CDK context / runtime deploy input",
         False,
         "Optional browser origin allowlist serialized into ALLOWED_ORIGINS.",
     ),
     DeployInputContract(
         "enable_reserved_concurrency",
-        "CDK context / deploy-runtime input",
+        "CDK context / runtime deploy input",
         False,
         "Optional toggle for non-production reserved concurrency.",
     ),
@@ -309,7 +333,7 @@ API_LAMBDA_ENV: tuple[RuntimeEnvContract, ...] = (
     ),
     RuntimeEnvContract(
         "API_RELEASE_ARTIFACT_SHA256",
-        "release-apply artifact manifest",
+        "release execution manifest",
         "always",
     ),
 )

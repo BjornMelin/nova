@@ -30,9 +30,7 @@ _REQUIRED_DEPLOY_OUTPUT_FIELDS = (
     "schema_version",
     "captured_at",
     "repository",
-    "deploy_run_id",
-    "deploy_run_attempt",
-    "deploy_workflow_ref",
+    "execution",
     "stack_name",
     "region",
     "environment",
@@ -44,6 +42,7 @@ _REQUIRED_DEPLOY_OUTPUT_FIELDS = (
     "cors_allowed_origins",
     "stack_outputs",
     "api_lambda_artifact",
+    "workflow_lambda_artifact",
 )
 _AUTHORITATIVE_STACK_OUTPUT_KEYS = (
     "NovaAlarmTopicArn",
@@ -64,6 +63,10 @@ def _canonical_output_key(raw_key: str) -> str:
         return key.removeprefix("Export")
     if key.startswith("NovaRestApiEndpoint"):
         return "NovaRestApiEndpoint"
+    if key.startswith("NovaDev"):
+        return "Nova" + key.removeprefix("NovaDev")
+    if key.startswith("NovaProd"):
+        return "Nova" + key.removeprefix("NovaProd")
     return key
 
 
@@ -180,21 +183,31 @@ def _normalize_stack_outputs(
     for output in raw_outputs:
         if not isinstance(output, dict):
             raise TypeError("Each CloudFormation output must be an object")
+        output_key = output.get("OutputKey")
         export_name = output.get("ExportName")
-        key = (
-            export_name
-            if isinstance(export_name, str)
-            else output.get("OutputKey")
-        )
+        key_candidates = []
+        if isinstance(output_key, str) and output_key.strip():
+            key_candidates.append(output_key)
+        if isinstance(export_name, str) and export_name.strip():
+            key_candidates.append(export_name)
         value = output.get("OutputValue")
-        if not isinstance(key, str) or not key.strip():
+        if not key_candidates:
             raise ValueError("CDK output keys must be non-empty strings")
         if not isinstance(value, str) or not value.strip():
             raise ValueError(
-                "CloudFormation output "
-                f"{key!r} must resolve to a non-empty string"
+                "CloudFormation output must resolve to a non-empty string"
             )
-        canonical_key = _canonical_output_key(key)
+        canonical_key = next(
+            (
+                normalized_key
+                for normalized_key in (
+                    _canonical_output_key(candidate)
+                    for candidate in key_candidates
+                )
+                if normalized_key in _AUTHORITATIVE_STACK_OUTPUT_KEYS
+            ),
+            _canonical_output_key(key_candidates[0]),
+        )
         if canonical_key not in _AUTHORITATIVE_STACK_OUTPUT_KEYS:
             continue
         normalized_value = value.strip()
@@ -246,18 +259,22 @@ def _normalize_api_lambda_artifact(payload: dict[str, Any]) -> dict[str, Any]:
 def build_deploy_output(
     *,
     api_lambda_artifact: dict[str, Any],
+    workflow_lambda_artifact: dict[str, Any],
     stack_name: str,
     region: str,
     environment_name: str,
     allowed_origins: str,
     repository: str,
-    deploy_run_id: int,
-    deploy_run_attempt: int,
-    deploy_workflow_ref: str,
+    pipeline_name: str,
+    pipeline_execution_id: str,
+    codebuild_build_ids: list[str],
     stack_description: dict[str, Any],
 ) -> dict[str, Any]:
     """Construct a normalized deploy-output authority payload."""
     normalized_artifact = _normalize_api_lambda_artifact(api_lambda_artifact)
+    normalized_workflow_artifact = _normalize_api_lambda_artifact(
+        workflow_lambda_artifact
+    )
     outputs = _normalize_stack_outputs(stack_description)
     public_base_url = outputs.get("NovaPublicBaseUrl", "").strip()
     if not public_base_url.startswith("https://"):
@@ -274,9 +291,14 @@ def build_deploy_output(
         "schema_version": "2.0",
         "captured_at": datetime.now(UTC).isoformat(),
         "repository": repository,
-        "deploy_run_id": deploy_run_id,
-        "deploy_run_attempt": deploy_run_attempt,
-        "deploy_workflow_ref": deploy_workflow_ref,
+        "execution": {
+            "system": "aws-codepipeline",
+            "pipeline_name": pipeline_name,
+            "pipeline_execution_id": pipeline_execution_id,
+            "codebuild_build_ids": [
+                item for item in codebuild_build_ids if item
+            ],
+        },
         "stack_name": stack_name,
         "region": region,
         "environment": environment_name,
@@ -288,6 +310,7 @@ def build_deploy_output(
         "cors_allowed_origins": cors_allowed_origins,
         "stack_outputs": outputs,
         "api_lambda_artifact": normalized_artifact,
+        "workflow_lambda_artifact": normalized_workflow_artifact,
     }
     stack_id = stack_description.get("StackId")
     if isinstance(stack_id, str) and stack_id.strip():
@@ -383,6 +406,27 @@ def load_deploy_output(
     if not isinstance(api_lambda_artifact, dict):
         raise TypeError("api_lambda_artifact must be an object")
     _normalize_api_lambda_artifact(api_lambda_artifact)
+    workflow_lambda_artifact = payload.get("workflow_lambda_artifact")
+    if not isinstance(workflow_lambda_artifact, dict):
+        raise TypeError("workflow_lambda_artifact must be an object")
+    _normalize_api_lambda_artifact(workflow_lambda_artifact)
+
+    execution = payload.get("execution")
+    if not isinstance(execution, dict):
+        raise TypeError("execution must be an object")
+    if execution.get("system") != "aws-codepipeline":
+        raise ValueError("execution.system must be aws-codepipeline")
+    for key in ("pipeline_name", "pipeline_execution_id"):
+        value = execution.get(key)
+        if not isinstance(value, str) or not value.strip():
+            raise ValueError(f"execution.{key} must be a non-empty string")
+    build_ids = execution.get("codebuild_build_ids", [])
+    if not isinstance(build_ids, list) or any(
+        not isinstance(value, str) or not value.strip() for value in build_ids
+    ):
+        raise ValueError(
+            "execution.codebuild_build_ids must be a list of strings"
+        )
 
     actual_digest = _sha256_hex(payload)
     if sha256_path is not None:
@@ -414,14 +458,15 @@ def _parse_args() -> argparse.Namespace:
         help="Build deploy-output.json from release and deploy artifacts.",
     )
     build.add_argument("--api-lambda-artifact-path", required=True)
+    build.add_argument("--workflow-lambda-artifact-path", required=True)
     build.add_argument("--stack-name", required=True)
     build.add_argument("--region", required=True)
     build.add_argument("--environment-name", required=True)
     build.add_argument("--allowed-origins", required=False, default="")
     build.add_argument("--repository", required=True)
-    build.add_argument("--deploy-run-id", required=True, type=int)
-    build.add_argument("--deploy-run-attempt", required=True, type=int)
-    build.add_argument("--deploy-workflow-ref", required=True)
+    build.add_argument("--pipeline-name", required=True)
+    build.add_argument("--pipeline-execution-id", required=True)
+    build.add_argument("--codebuild-build-id", action="append", default=[])
     build.add_argument("--stack-description-path", required=True)
     build.add_argument("--output-path", required=True)
     build.add_argument("--sha256-path", required=True)
@@ -442,20 +487,24 @@ def _run_build(args: argparse.Namespace) -> int:
     api_lambda_artifact = _load_json_object(
         Path(args.api_lambda_artifact_path).resolve()
     )
+    workflow_lambda_artifact = _load_json_object(
+        Path(args.workflow_lambda_artifact_path).resolve()
+    )
     stack_description = _load_json_object(
         Path(args.stack_description_path).resolve()
     )
 
     deploy_output = build_deploy_output(
         api_lambda_artifact=api_lambda_artifact,
+        workflow_lambda_artifact=workflow_lambda_artifact,
         stack_name=args.stack_name,
         region=args.region,
         environment_name=args.environment_name,
         allowed_origins=args.allowed_origins,
         repository=args.repository,
-        deploy_run_id=args.deploy_run_id,
-        deploy_run_attempt=args.deploy_run_attempt,
-        deploy_workflow_ref=args.deploy_workflow_ref,
+        pipeline_name=args.pipeline_name,
+        pipeline_execution_id=args.pipeline_execution_id,
+        codebuild_build_ids=args.codebuild_build_id,
         stack_description=stack_description,
     )
     output_path = Path(args.output_path).resolve()

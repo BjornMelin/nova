@@ -1,0 +1,111 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      python: 3.13
+      nodejs: 24
+    commands:
+      - apt-get update
+      - apt-get install -y jq
+      - curl -LsSf https://astral.sh/uv/install.sh | sh
+      - export PATH="$HOME/.local/bin:$PATH"
+  pre_build:
+    commands:
+      - uv sync --locked --all-packages --all-extras --dev
+      - export RELEASE_COMMIT_SHA="${CODEBUILD_RESOLVED_SOURCE_VERSION}"
+      - mkdir -p .release-control
+      - export RELEASE_MANIFEST_KEY="releases/${RELEASE_COMMIT_SHA}/release-execution-manifest.json"
+      - aws s3 cp "s3://${RELEASE_MANIFEST_BUCKET}/${RELEASE_MANIFEST_KEY}" .release-control/release-execution-manifest.json
+      - >
+        uv run python - <<'PY'
+        import json
+        from pathlib import Path
+
+        manifest = json.loads(Path(".release-control/release-execution-manifest.json").read_text(encoding="utf-8"))
+        Path(".release-control/release-prep.json").write_text(
+            json.dumps(manifest["release_prep"], indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        Path(".release-control/api-lambda-artifact.json").write_text(
+            json.dumps(manifest["api_lambda_artifact"], indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        Path(".release-control/workflow-lambda-artifact.json").write_text(
+            json.dumps(manifest["workflow_lambda_artifact"], indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        PY
+      - >
+        uv run python -m scripts.release.codeartifact_gate
+        --repo-root .
+        --manifest-path release/RELEASE-VERSION-MANIFEST.md
+        --release-prep-path .release-control/release-prep.json
+        --expected-manifest-sha256 "$(jq -r '.release_manifest_sha256' .release-control/release-execution-manifest.json)"
+        --gate-report-out .release-control/prod-promotion-gate-report.json
+        --promotion-candidates-out .release-control/validated-promotion-candidates.json
+      - >
+        uv run python - <<'PY'
+        import json
+        import os
+        import subprocess
+        from pathlib import Path
+
+        candidates = json.loads(Path(".release-control/validated-promotion-candidates.json").read_text(encoding="utf-8"))
+        for item in candidates:
+            command = [
+                "aws", "codeartifact", "copy-package-versions",
+                "--domain", os.environ["CODEARTIFACT_DOMAIN"],
+                "--source-repository", os.environ["CODEARTIFACT_STAGING_REPOSITORY"],
+                "--destination-repository", os.environ["CODEARTIFACT_PROD_REPOSITORY"],
+                "--format", item.get("codeartifact_format", item.get("format", "pypi")),
+            ]
+            namespace = item.get("namespace")
+            package_name = item["package"]
+            if item.get("codeartifact_format") == "npm" and namespace:
+                package_name = package_name.removeprefix(f"@{namespace}/")
+            if item.get("codeartifact_format") in {"npm", "generic"} and namespace:
+                command.extend(["--namespace", namespace])
+            command.extend(["--package", package_name, "--versions", item["version"], "--no-cli-pager"])
+            subprocess.run(command, check=True)
+        PY
+      - eval "$(uv run python scripts/release/emit_api_lambda_artifact_env.py --manifest-path .release-control/api-lambda-artifact.json)"
+      - eval "$(uv run python scripts/release/emit_workflow_lambda_artifact_env.py --manifest-path .release-control/workflow-lambda-artifact.json)"
+      - eval "$(uv run python scripts/release/export_runtime_stack_config_env.py --parameter-name "${PROD_RUNTIME_CONFIG_PARAMETER_NAME}")"
+      - export CDK_DEFAULT_ACCOUNT="$(aws sts get-caller-identity --query Account --output text)"
+      - export CDK_DEFAULT_REGION="${AWS_REGION}"
+      - export ENVIRONMENT="${PROD_RUNTIME_ENVIRONMENT}"
+      - export RUNTIME_STACK_ID="${PROD_RUNTIME_STACK_ID}"
+  build:
+    commands:
+      - >
+        npx aws-cdk@2.1107.0 deploy
+        --app "uv run --package nova-cdk python infra/nova_cdk/app.py"
+        --output /tmp/nova-release-cdk.out
+        --require-approval never
+        --role-arn "${PROD_RUNTIME_CFN_EXECUTION_ROLE_ARN}"
+        "${PROD_RUNTIME_STACK_ID}"
+      - >
+        aws cloudformation describe-stacks
+        --stack-name "${PROD_RUNTIME_STACK_ID}"
+        --region "${AWS_REGION}"
+        --query 'Stacks[0]'
+        --output json > .release-control/prod-runtime-stack-description.json
+      - >
+        uv run python scripts/release/resolve_deploy_output.py build
+        --api-lambda-artifact-path .release-control/api-lambda-artifact.json
+        --workflow-lambda-artifact-path .release-control/workflow-lambda-artifact.json
+        --stack-name "${PROD_RUNTIME_STACK_ID}"
+        --region "${AWS_REGION}"
+        --environment-name "${PROD_RUNTIME_ENVIRONMENT}"
+        --allowed-origins "${STACK_ALLOWED_ORIGINS}"
+        --repository "${RELEASE_GITHUB_OWNER}/${RELEASE_GITHUB_REPO}"
+        --pipeline-name "${RELEASE_PIPELINE_NAME}"
+        --pipeline-execution-id "${CODEPIPELINE_EXECUTION_ID}"
+        --codebuild-build-id "${CODEBUILD_BUILD_ID}"
+        --stack-description-path .release-control/prod-runtime-stack-description.json
+        --output-path .release-control/deploy-output.json
+        --sha256-path .release-control/deploy-output.sha256
+artifacts:
+  files:
+    - .release-control/**/*

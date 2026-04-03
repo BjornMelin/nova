@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from scripts.release import common
+from scripts.release import common, release_prep
 
 SEMVER_RE = re.compile(
     r"^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$"
@@ -408,6 +408,7 @@ def validate_release_gates(
     version_plan_path: Path,
     expected_manifest_sha256: str | None,
     r_publish_report_path: Path | None = None,
+    release_prep_path: Path | None = None,
 ) -> dict[str, Any]:
     """Validate release gate contracts and return a gate report payload.
 
@@ -426,6 +427,8 @@ def validate_release_gates(
         r_publish_report_path:
             Optional JSON path containing R package evidence. Required when the
             version plan contains R release candidates.
+        release_prep_path:
+            Optional JSON path to the canonical committed release-prep artifact.
 
     Returns:
         dict[str, Any]:
@@ -458,8 +461,17 @@ def validate_release_gates(
             f"expected {expected_manifest_sha256}, got {manifest_sha256}"
         )
 
-    changed_units = common.read_json(changed_units_path)
-    version_plan = common.read_json(version_plan_path)
+    if release_prep_path is not None:
+        release_prep_payload = common.read_json(release_prep_path)
+        changed_units = release_prep.changed_report_from_release_prep(
+            release_prep_payload
+        )
+        version_plan = release_prep.version_plan_from_release_prep(
+            release_prep_payload
+        )
+    else:
+        changed_units = common.read_json(changed_units_path)
+        version_plan = common.read_json(version_plan_path)
     units = common.load_workspace_units(repo_root)
     r_publish_evidence = _load_r_publish_report(r_publish_report_path, units)
 
@@ -550,6 +562,7 @@ def parse_args() -> argparse.Namespace:
         argparse.Namespace with:
             - repo_root: repository root path
             - manifest_path: release manifest path
+            - release_prep_path: optional release prep artifact path
             - changed_units: changed-units artifact path
             - version_plan: version-plan artifact path
             - expected_manifest_sha256: optional manifest SHA256 check value
@@ -559,8 +572,9 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--repo-root", default=".")
     parser.add_argument("--manifest-path", default=common.DEFAULT_MANIFEST_PATH)
-    parser.add_argument("--changed-units", required=True)
-    parser.add_argument("--version-plan", required=True)
+    parser.add_argument("--release-prep-path", default="")
+    parser.add_argument("--changed-units", default="")
+    parser.add_argument("--version-plan", default="")
     parser.add_argument("--expected-manifest-sha256")
     parser.add_argument("--r-publish-report")
     parser.add_argument("--gate-report-out", required=True)
@@ -580,12 +594,25 @@ def main() -> int:
     manifest_path = Path(args.manifest_path)
     if not manifest_path.is_absolute():
         manifest_path = repo_root / manifest_path
-    changed_units_path = Path(args.changed_units)
-    if not changed_units_path.is_absolute():
+    release_prep_path: Path | None = None
+    if args.release_prep_path:
+        release_prep_path = Path(args.release_prep_path)
+        if not release_prep_path.is_absolute():
+            release_prep_path = repo_root / release_prep_path
+    changed_units_path = (
+        Path(args.changed_units) if args.changed_units else None
+    )
+    if changed_units_path is not None and not changed_units_path.is_absolute():
         changed_units_path = repo_root / changed_units_path
-    version_plan_path = Path(args.version_plan)
-    if not version_plan_path.is_absolute():
+    version_plan_path = Path(args.version_plan) if args.version_plan else None
+    if version_plan_path is not None and not version_plan_path.is_absolute():
         version_plan_path = repo_root / version_plan_path
+    if release_prep_path is None and (
+        changed_units_path is None or version_plan_path is None
+    ):
+        raise GateError(
+            "provide release_prep_path or both changed_units and version_plan"
+        )
     r_publish_report_path = (
         Path(args.r_publish_report) if args.r_publish_report else None
     )
@@ -598,10 +625,11 @@ def main() -> int:
     gate_report = validate_release_gates(
         repo_root=repo_root,
         manifest_path=manifest_path,
-        changed_units_path=changed_units_path,
-        version_plan_path=version_plan_path,
+        changed_units_path=changed_units_path or Path(),
+        version_plan_path=version_plan_path or Path(),
         expected_manifest_sha256=args.expected_manifest_sha256,
         r_publish_report_path=r_publish_report_path,
+        release_prep_path=release_prep_path,
     )
 
     gate_out = Path(args.gate_report_out)

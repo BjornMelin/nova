@@ -1,0 +1,25 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      python: 3.13
+    commands:
+      - curl -LsSf https://astral.sh/uv/install.sh | sh
+      - export PATH="$HOME/.local/bin:$PATH"
+      - uv sync --locked --all-packages --all-extras --dev
+  build:
+    commands:
+      - test -f release/RELEASE-PREP.json
+      - test -f release/RELEASE-VERSION-MANIFEST.md
+      - mkdir -p .release-control/validation
+      - >
+        uv run python -m scripts.release.codeartifact_gate
+        --repo-root .
+        --manifest-path release/RELEASE-VERSION-MANIFEST.md
+        --release-prep-path release/RELEASE-PREP.json
+        --gate-report-out .release-control/validation/codeartifact-gate-report.json
+        --promotion-candidates-out .release-control/validation/codeartifact-promotion-candidates.json
+artifacts:
+  files:
+    - .release-control/validation/**/*
