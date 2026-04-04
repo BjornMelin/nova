@@ -41,6 +41,34 @@ def _canonical_sha256(payload: dict[str, object]) -> str:
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
+def _transfer_capabilities_payload() -> dict[str, object]:
+    """Return one representative transfer capabilities response payload."""
+    return {
+        "policy_id": "default",
+        "policy_version": "2026-04-03",
+        "max_upload_bytes": 536870912000,
+        "multipart_threshold_bytes": 104857600,
+        "target_upload_part_count": 2000,
+        "minimum_part_size_bytes": 67108864,
+        "maximum_part_size_bytes": 536870912,
+        "max_concurrency_hint": 4,
+        "sign_batch_size_hint": 64,
+        "accelerate_enabled": False,
+        "checksum_algorithm": None,
+        "checksum_mode": "none",
+        "resumable_ttl_seconds": 604800,
+        "active_multipart_upload_limit": 200,
+        "daily_ingress_budget_bytes": 1099511627776,
+        "sign_requests_per_upload_limit": 512,
+        "large_export_worker_threshold_bytes": 53687091200,
+    }
+
+
+def _patch_noop_aws_runtime_validators(monkeypatch: MonkeyPatch) -> None:
+    """Patch AWS-backed validator helpers that the tests don't exercise."""
+    _patch_noop_aws_runtime_validators(monkeypatch)
+
+
 def _validate_schema(
     instance: Any,
     schema: dict[str, Any],
@@ -196,11 +224,20 @@ def test_deploy_output_schema_covers_authoritative_fields() -> None:
     assert set(stack_output_props) == {
         "NovaAlarmTopicArn",
         "NovaApiAccessLogGroupName",
+        "NovaExportCopyPartsTableName",
         "NovaExportWorkflowStateMachineArn",
         "NovaExportsTableName",
         "NovaIdempotencyTableName",
+        "NovaObservabilityDashboardName",
         "NovaPublicBaseUrl",
         "NovaRestApiEndpoint",
+        "NovaStorageLensConfigurationId",
+        "NovaTransferPolicyAppConfigApplicationId",
+        "NovaTransferPolicyAppConfigEnvironmentId",
+        "NovaTransferPolicyAppConfigProfileId",
+        "NovaTransferSpendBudgetName",
+        "NovaTransferUsageTableName",
+        "NovaUploadSessionsTableName",
         "NovaWafLogGroupName",
     }
     assert props["stack_outputs"]["additionalProperties"] is False
@@ -571,6 +608,15 @@ def test_validate_runtime_release_binds_report_to_deploy_output(
                 body=b"OK",
                 error=None,
             )
+        if url.endswith("/v1/capabilities/transfers"):
+            return _VALIDATOR.RequestResult(
+                status_code=200,
+                headers={},
+                body=json.dumps(_transfer_capabilities_payload()).encode(
+                    "utf-8"
+                ),
+                error=None,
+            )
         if url.endswith("/v1/exports"):
             return _VALIDATOR.RequestResult(
                 status_code=401,
@@ -597,6 +643,59 @@ def test_validate_runtime_release_binds_report_to_deploy_output(
         )
 
     monkeypatch.setattr(_VALIDATOR, "_request", fake_request)
+    monkeypatch.setattr(
+        _VALIDATOR,
+        "_caller_identity_account_id",
+        lambda: "123456789012",
+    )
+    monkeypatch.setattr(
+        _VALIDATOR,
+        "_validate_runtime_alarm_states",
+        lambda **kwargs: kwargs["aws_runtime_checks"].append(
+            _VALIDATOR.AssertionCheck(
+                name="runtime_alarm_inventory_present",
+                expected="at least one CloudWatch alarm",
+                actual="7",
+                ok=True,
+            )
+        ),
+    )
+    monkeypatch.setattr(
+        _VALIDATOR,
+        "_validate_dashboard",
+        lambda **kwargs: kwargs["aws_runtime_checks"].append(
+            _VALIDATOR.AssertionCheck(
+                name="observability_dashboard_available",
+                expected="DashboardBody is a non-empty string",
+                actual="nova-runtime-observability-prod",
+                ok=True,
+            )
+        ),
+    )
+    monkeypatch.setattr(
+        _VALIDATOR,
+        "_validate_transfer_policy_rollout",
+        lambda **kwargs: kwargs["aws_runtime_checks"].append(
+            _VALIDATOR.AssertionCheck(
+                name="transfer_policy_latest_appconfig_deployment_state",
+                expected="latest deployment state is COMPLETE",
+                actual="COMPLETE",
+                ok=True,
+            )
+        ),
+    )
+    monkeypatch.setattr(
+        _VALIDATOR,
+        "_validate_transfer_budget",
+        lambda **kwargs: kwargs["aws_runtime_checks"].append(
+            _VALIDATOR.AssertionCheck(
+                name="transfer_budget_actual_notification_present",
+                expected="at least one ACTUAL budget notification",
+                actual="1",
+                ok=True,
+            )
+        ),
+    )
     monkeypatch.setattr(
         _VALIDATOR,
         "_validate_reserved_concurrency",
@@ -633,6 +732,10 @@ def test_validate_runtime_release_binds_report_to_deploy_output(
             legacy_404_paths="/healthz,/readyz",
             cors_preflight_path="/v1/exports",
             cors_origin="",
+            representative_upload_bytes=(
+                _VALIDATOR.DEFAULT_REPRESENTATIVE_UPLOAD_BYTES
+            ),
+            aws_runtime_checks="required",
             report_path=str(report_path),
         ),
     )
@@ -651,6 +754,7 @@ def test_validate_runtime_release_binds_report_to_deploy_output(
     assert report["cors_preflight_path"] == "/v1/exports"
     assert report["cors_allowed_origins"] == ["https://app.example.com"]
     assert report["cors_origin"] == "https://app.example.com"
+    assert report["aws_runtime_checks_status"] == "passed"
     assert report["concurrency_checks"] == [
         {
             "function_group": "api",
@@ -669,12 +773,31 @@ def test_validate_runtime_release_binds_report_to_deploy_output(
             "ok": True,
         },
     ]
+    assert {check["name"] for check in report["capability_checks"]} == {
+        "policy_id_non_empty",
+        "policy_version_non_empty",
+        "representative_upload_allowed",
+        "part_size_bounds_consistent",
+        "checksum_mode_supported",
+        "sign_batch_size_hint_floor",
+        "daily_ingress_budget_covers_representative_upload",
+        "large_export_worker_threshold_above_single_copy_limit",
+        "estimated_part_count_for_representative_upload",
+        "estimated_sign_requests_for_representative_upload",
+    }
+    assert {check["name"] for check in report["aws_runtime_checks"]} == {
+        "runtime_alarm_inventory_present",
+        "observability_dashboard_available",
+        "transfer_policy_latest_appconfig_deployment_state",
+        "transfer_budget_actual_notification_present",
+    }
     assert {check["kind"] for check in report["checks"]} == {
         "canonical",
         "protected",
         "legacy_404",
         "cors_preflight",
         "execute_api_disabled",
+        "transfer_capabilities",
     }
 
 
@@ -787,6 +910,15 @@ def test_validate_runtime_release_keeps_failed_report_schema_valid(
                 body=b"OK",
                 error=None,
             )
+        if url.endswith("/v1/capabilities/transfers"):
+            return _VALIDATOR.RequestResult(
+                status_code=200,
+                headers={},
+                body=json.dumps(_transfer_capabilities_payload()).encode(
+                    "utf-8"
+                ),
+                error=None,
+            )
         if url.endswith("/v1/exports"):
             return _VALIDATOR.RequestResult(
                 status_code=401,
@@ -841,6 +973,10 @@ def test_validate_runtime_release_keeps_failed_report_schema_valid(
             legacy_404_paths="/healthz,/readyz",
             cors_preflight_path="/v1/exports",
             cors_origin="",
+            representative_upload_bytes=(
+                _VALIDATOR.DEFAULT_REPRESENTATIVE_UPLOAD_BYTES
+            ),
+            aws_runtime_checks="skip",
             report_path=str(report_path),
         ),
     )
@@ -857,16 +993,8 @@ def test_validate_runtime_release_keeps_failed_report_schema_valid(
     assert report["status"] == "failed"
     assert report["release_info"] is None
     assert report["deploy_output_sha256"] == digest
-    assert report["concurrency_checks"] == [
-        {
-            "function_group": "api",
-            "function_logical_id": "NovaApiFunctionF531316A",
-            "function_name": "nova-api",
-            "expected_reserved_concurrency": 25,
-            "actual_reserved_concurrency": None,
-            "ok": False,
-        }
-    ]
+    assert report["concurrency_checks"] == []
+    assert report["aws_runtime_checks_status"] == "skipped"
 
 
 def test_aws_cli_json_forces_json_output_and_timeout(
@@ -1021,6 +1149,15 @@ def test_validate_runtime_release_emits_report_when_concurrency_lookup_raises(
                 body=b"OK",
                 error=None,
             )
+        if url.endswith("/v1/capabilities/transfers"):
+            return _VALIDATOR.RequestResult(
+                status_code=200,
+                headers={},
+                body=json.dumps(_transfer_capabilities_payload()).encode(
+                    "utf-8"
+                ),
+                error=None,
+            )
         if url.endswith("/v1/exports"):
             return _VALIDATOR.RequestResult(
                 status_code=401,
@@ -1047,6 +1184,31 @@ def test_validate_runtime_release_emits_report_when_concurrency_lookup_raises(
         )
 
     monkeypatch.setattr(_VALIDATOR, "_request", fake_request)
+    monkeypatch.setattr(
+        _VALIDATOR,
+        "_caller_identity_account_id",
+        lambda: "123456789012",
+    )
+    monkeypatch.setattr(
+        _VALIDATOR,
+        "_validate_runtime_alarm_states",
+        lambda **kwargs: None,
+    )
+    monkeypatch.setattr(
+        _VALIDATOR,
+        "_validate_dashboard",
+        lambda **kwargs: None,
+    )
+    monkeypatch.setattr(
+        _VALIDATOR,
+        "_validate_transfer_policy_rollout",
+        lambda **kwargs: None,
+    )
+    monkeypatch.setattr(
+        _VALIDATOR,
+        "_validate_transfer_budget",
+        lambda **kwargs: None,
+    )
 
     def raise_concurrency_error(
         *,
@@ -1075,6 +1237,10 @@ def test_validate_runtime_release_emits_report_when_concurrency_lookup_raises(
             legacy_404_paths="/healthz,/readyz",
             cors_preflight_path="/v1/exports",
             cors_origin="",
+            representative_upload_bytes=(
+                _VALIDATOR.DEFAULT_REPRESENTATIVE_UPLOAD_BYTES
+            ),
+            aws_runtime_checks="required",
             report_path=str(report_path),
         ),
     )
@@ -1089,7 +1255,150 @@ def test_validate_runtime_release_emits_report_when_concurrency_lookup_raises(
         defs=_VALIDATOR.REPORT_SCHEMA["$defs"],
     )
     assert report["concurrency_checks"] == []
+    assert report["aws_runtime_checks_status"] == "failed"
     assert any(
         "reserved concurrency validation failed" in failure
         for failure in report["failures"]
+    )
+
+
+def test_validate_transfer_policy_rollout_uses_region_and_profile_name() -> (
+    None
+):
+    """AppConfig rollout validation should be region-aware and profile-aware."""
+    checks: list[_VALIDATOR.AssertionCheck] = []
+    failures: list[str] = []
+    calls: list[tuple[str, ...]] = []
+
+    def fake_aws_cli_json(*args: str) -> Any:
+        calls.append(args)
+        if args[:2] == ("appconfig", "get-configuration-profile"):
+            assert "--region" in args
+            return {"Name": "transfer-policy"}
+        if args[:2] == ("appconfig", "list-deployments"):
+            assert "--region" in args
+            return {
+                "Items": [
+                    {
+                        "State": "COMPLETE",
+                        "ConfigurationName": "transfer-policy",
+                    }
+                ]
+            }
+        raise AssertionError(args)
+
+    original = _VALIDATOR._aws_cli_json
+    _VALIDATOR._aws_cli_json = fake_aws_cli_json
+    try:
+        _VALIDATOR._validate_transfer_policy_rollout(
+            deploy_output={
+                "stack_outputs": {
+                    "NovaTransferPolicyAppConfigApplicationId": "app-123",
+                    "NovaTransferPolicyAppConfigEnvironmentId": "env-123",
+                    "NovaTransferPolicyAppConfigProfileId": "profile-123",
+                }
+            },
+            region="us-west-2",
+            aws_runtime_checks=checks,
+            aws_failures=failures,
+        )
+    finally:
+        _VALIDATOR._aws_cli_json = original
+
+    assert not failures
+    assert {check.name for check in checks} >= {
+        "transfer_policy_appconfig_outputs_present",
+        "transfer_policy_profile_name_present",
+        "transfer_policy_latest_appconfig_deployment_state",
+        "transfer_policy_latest_appconfig_deployment_profile",
+    }
+    assert any(
+        call[:2] == ("appconfig", "get-configuration-profile") for call in calls
+    )
+    assert any(call[:2] == ("appconfig", "list-deployments") for call in calls)
+
+
+def test_validate_transfer_budget_checks_alarm_topic_subscriber() -> None:
+    """Budget validation should confirm the SNS subscriber target."""
+    checks: list[_VALIDATOR.AssertionCheck] = []
+    failures: list[str] = []
+    calls: list[tuple[str, ...]] = []
+
+    def fake_aws_cli_json(*args: str) -> Any:
+        calls.append(args)
+        if args[:2] == ("budgets", "describe-budget"):
+            return {"Budget": {"BudgetLimit": {"Amount": "100"}}}
+        if args[:2] == ("budgets", "describe-notifications-for-budget"):
+            return {
+                "Notifications": [
+                    {
+                        "NotificationType": "ACTUAL",
+                        "ComparisonOperator": "GREATER_THAN",
+                        "Threshold": 80,
+                        "ThresholdType": "PERCENTAGE",
+                    }
+                ]
+            }
+        if args[:2] == (
+            "budgets",
+            "describe-subscribers-for-notification",
+        ):
+            return {
+                "Subscribers": [
+                    {
+                        "SubscriptionType": "SNS",
+                        "Address": (
+                            "arn:aws:sns:us-east-1:123456789012:"
+                            "nova-runtime-alarms-dev"
+                        ),
+                    }
+                ]
+            }
+        raise AssertionError(args)
+
+    original = _VALIDATOR._aws_cli_json
+    _VALIDATOR._aws_cli_json = fake_aws_cli_json
+    try:
+        _VALIDATOR._validate_transfer_budget(
+            deploy_output={
+                "stack_outputs": {
+                    "NovaAlarmTopicArn": (
+                        "arn:aws:sns:us-east-1:123456789012:"
+                        "nova-runtime-alarms-dev"
+                    ),
+                    "NovaTransferSpendBudgetName": "nova-transfer-dev",
+                }
+            },
+            account_id="123456789012",
+            aws_runtime_checks=checks,
+            aws_failures=failures,
+        )
+    finally:
+        _VALIDATOR._aws_cli_json = original
+
+    assert not failures
+    assert {check.name for check in checks} >= {
+        "alarm_topic_output_present",
+        "transfer_budget_exists",
+        "transfer_budget_actual_notification_present",
+        "transfer_budget_sns_subscriber_matches_alarm_topic",
+    }
+    assert any(
+        call[:2] == ("budgets", "describe-subscribers-for-notification")
+        for call in calls
+    )
+
+
+def test_validator_workflow_prefixes_cover_runtime_stack_functions() -> None:
+    """Reserved concurrency checks should cover every workflow Lambda prefix."""
+    assert _VALIDATOR._FUNCTION_LOGICAL_ID_PREFIXES["workflow"] == (
+        "ValidateExportFunction",
+        "PrepareExportCopyFunction",
+        "CopyExportFunction",
+        "StartQueuedExportCopyFunction",
+        "PollQueuedExportCopyFunction",
+        "FinalizeExportFunction",
+        "ExportCopyWorkerFunction",
+        "FailExportFunction",
+        "ReconcileTransferStateFunction",
     )

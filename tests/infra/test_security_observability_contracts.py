@@ -45,6 +45,8 @@ def test_runtime_stack_wires_alarm_actions_to_one_sns_topic() -> None:
     assert "ExportNovaAlarmTopicArn" in outputs
     assert "ExportNovaApiAccessLogGroupName" in outputs
     assert "ExportNovaObservabilityDashboardName" in outputs
+    assert "ExportNovaStorageLensConfigurationId" in outputs
+    assert "ExportNovaTransferSpendBudgetName" in outputs
     assert "ExportNovaWafLogGroupName" in outputs
     log_groups = resources_of_type(resources, "Custom::LogRetention")
     assert any(

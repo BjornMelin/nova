@@ -2,7 +2,7 @@
 
 Status: Active
 Owner: nova release architecture
-Last updated: 2026-04-02
+Last updated: 2026-04-04
 
 ## 1. Purpose
 
@@ -123,12 +123,22 @@ executor workflows as the canonical Nova verification shape.
    - `deploy_run_id`
    - `deploy_output_json`
    - `deploy_output_path`
-3. Confirm `validation_status=passed` and retain the uploaded
+3. Supply `aws_role_to_assume` when you need the workflow to run the full
+   AWS-backed validation set against the deployed stack. That path verifies:
+   - reserved concurrency against the deployed Lambda functions
+   - CloudWatch alarm state for the runtime stack
+   - the exported observability dashboard
+   - the latest transfer-policy AppConfig deployment state
+   - the transfer spend budget notification baseline
+4. Confirm `validation_status=passed` and retain the uploaded
    `post-deploy-validation-report` artifact.
-4. Confirm the report proves health, protected auth behavior, browser CORS
-   preflight, execute-api disablement, and legacy-path 404 drift against the
-   canonical public base URL. The literal `browser CORS preflight` assertion
-   remains part of the release-validation contract.
+5. When `aws_role_to_assume` is set, also confirm
+   `aws_runtime_checks_status=passed`.
+6. Confirm the report proves health, transfer policy envelope, protected auth
+   behavior, browser CORS preflight, execute-api disablement, and legacy-path
+   404 drift against the canonical public base URL. The literal
+   `browser CORS preflight` assertion remains part of the release-validation
+   contract.
 
 ## 4. Evidence capture
 
@@ -166,3 +176,7 @@ Capture durable pointers for:
 3. If prod promotion fails, fix the staged payload or IAM policy and rerun the
    prod path from the stored release execution manifest; do not rebuild or
    bypass the approval gate.
+4. If transfer policy rollout must be reverted after deploy, stop the current
+   AppConfig deployment if it is still in progress or redeploy the previous
+   hosted configuration version to the same environment, then rerun
+   `Post Deploy Validate` against the same deploy-output artifact.

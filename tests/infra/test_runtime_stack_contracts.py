@@ -481,6 +481,8 @@ def test_runtime_stack_adds_transfer_reconciliation_and_cost_controls() -> None:
     assert file_transfer_buckets[0]["Properties"][
         "AccelerateConfiguration"
     ] == {"AccelerationStatus": "Enabled"}
+    assert "ExportNovaStorageLensConfigurationId" in bundle.outputs
+    assert "ExportNovaTransferSpendBudgetName" in bundle.outputs
 
 
 def test_non_prod_can_disable_reserved_concurrency() -> None:
